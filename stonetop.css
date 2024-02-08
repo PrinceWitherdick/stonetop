@@ -1,0 +1,101 @@
+/* Custom CSS */
+:root {
+	--font-primary: Signika, sans-serif;
+	--stonetop-bg: hsl(30deg 20% 94%);
+	--color-border-highlight-alt: slategrey;
+	--color-shadow-highlight: slategrey;
+	--color-shadow-primary: slategrey;
+	--color-border-highlight: slategrey;
+	--color-ownership-none: slategrey;
+	--color-text-hyperlink: slategrey;
+	scrollbar-color: slategrey hsl(30deg 20% 94%);
+}
+
+/* Use default font  */
+body,
+.vtt .window-header,
+.vtt .window-app button,
+.vtt .window-app .button {
+	font-family: var(--font-primary);
+}
+
+/* Strange Scene navigation bug fix */
+#navigation {
+	overflow: visible;
+}
+
+/* Fix Pause Spinner Shadow */
+#pause {
+	background: none;
+}
+
+#pause img {
+	--fa-animation-duration: 15s
+}
+
+#pause figcaption {
+	text-shadow: 3px 3px 4px var(--color-shadow-dark);
+}
+
+.vtt .sidebar-tab,
+.pbta.sheet .cell__title,
+.pbta {
+	font-family: Signika, sans-serif;
+}
+
+#navigation #scene-list .scene.gm {
+	border-color: slategrey;
+	background-color: hsl(308deg 6.5% 13%);
+}
+
+.vtt .window-header,
+.pbta.sheet .sheet-attributes .cell--stats .stat {
+	background-color: slategrey;
+}
+
+.vtt .window-content {
+	background: var(--stonetop-bg) url(/modules/stonetop/assets/graphics/sheet-bg.png);
+	background-position: center;
+	background-size: cover;
+	background-attachment: scroll;
+	scrollbar-width: none;
+}
+
+.app,
+.window-app,
+#controls ol.control-tools>li {
+	border-radius: 5px;
+	box-shadow: 2px 4px 8px 2px rgba(0, 0, 0, 0.4);
+	overflow: hidden;
+	overflow: clip;
+}
+
+.pbta.sheet .sheet-wrapper .cell.cell--level.cell--attr-level {
+	flex: 0 1 auto;
+}
+
+.pbta.sheet .cell__clock {
+	justify-content: space-around;
+}
+
+.pbta.sheet .sheet-resources {
+	grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+}
+
+.pbta.sheet .sheet-resources .cell--roll-formula {
+	display: none;
+}
+
+.pbta.sheet .sheet-resources .cell--roll-mode {
+	grid-column: span 1;
+	gap: 12px;
+}
+
+.pbta.sheet .sheet-header__fields .view-playbook {
+	display: grid;
+	place-content: center;
+}
+
+.pbta.sheet .cell__counter>span {
+	font-weight: unset;
+}

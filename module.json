@@ -1,0 +1,55 @@
+{
+	"id": "stonetop",
+	"title": "Stonetop",
+	"version": "0.1.0",
+	"compatibility": {
+		"minimum": "11",
+		"verified": "11"
+	},
+	"relationships": {
+		"requires": [
+			{
+				"id": "pbta",
+				"type": "system",
+				"compatibility": {}
+			}
+		]
+	},
+	"authors": [
+		{
+			"name": "aMediocerDad",
+			"flags": {}
+		}
+	],
+	"flags": {
+		"hotReload": {
+			"extensions": [
+				"css",
+				"js",
+				"json"
+			],
+			"paths": [
+				"stonetop.css",
+				"stonetop.js",
+				"scripts",
+				"lang"
+			]
+		},
+		"allowBugReporter": true
+	},
+	"esmodules": [
+		"stonetop.js"
+	],
+	"styles": [
+		"stonetop.css"
+	],
+	"languages": [
+		{
+			"lang": "en",
+			"name": "English",
+			"path": "lang/en.json"
+		}
+	],
+	"manifest": "https://raw.githubusercontent.com/aMediocreDad/stonetop/main/module.json",
+	"download": "https://github.com/aMediocreDad/stonetop/archive/refs/heads/main.zip"
+}
