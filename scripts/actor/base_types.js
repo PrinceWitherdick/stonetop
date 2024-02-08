@@ -69,19 +69,19 @@ export const BaseActorType = {
 			label: "Debilities",
 			description: "Gives Disadvantage on rolls:",
 			options: {
-				"0": {
+				0: {
 					label: "Weakened (STR, DEX)",
-					value: false
+					value: false,
 				},
-				"1": {
+				1: {
 					label: "Dazed (INT, WIS)",
-					value: false
+					value: false,
 				},
-				"2": {
+				2: {
 					label: "Miserable (CON, CHA)",
-					value: false
+					value: false,
 				},
-			}
+			},
 		},
 	},
 };

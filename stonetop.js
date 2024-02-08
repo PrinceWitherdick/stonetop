@@ -41,16 +41,19 @@ Hooks.once("pbtaSheetConfig", () => {
 		// },
 		rollResults: {
 			failure: {
-				range: "6-",
+				start: null,
+				end: 6,
 				label: "Miss",
 			},
 			partial: {
-				range: "7-9",
+				start: 7,
+				end: 9,
 				label: "Weak Hit",
 			},
 			success: {
-				range: "10-12",
-				label: "Strong Hit",
+				start: 10,
+				end: 12,
+				label: "Strong Hit!",
 			},
 		},
 		actorTypes: {
