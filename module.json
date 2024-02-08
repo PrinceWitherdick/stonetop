@@ -23,26 +23,13 @@
 	],
 	"flags": {
 		"hotReload": {
-			"extensions": [
-				"css",
-				"js",
-				"json"
-			],
-			"paths": [
-				"stonetop.css",
-				"stonetop.js",
-				"scripts",
-				"lang"
-			]
+			"extensions": ["css", "js", "json"],
+			"paths": ["stonetop.css", "stonetop.js", "scripts", "lang"]
 		},
 		"allowBugReporter": true
 	},
-	"esmodules": [
-		"stonetop.js"
-	],
-	"styles": [
-		"stonetop.css"
-	],
+	"esmodules": ["stonetop.js"],
+	"styles": ["stonetop.css"],
 	"languages": [
 		{
 			"lang": "en",

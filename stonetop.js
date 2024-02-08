@@ -1,18 +1,18 @@
 import { info } from "./scripts/logger.js";
+import { BaseActorType } from "./scripts/actor/base_types.js";
 
 Hooks.on("renderPause", () => {
 	info("Overriding the default pause spinner.");
 	const pause = document.getElementById("pause");
 	pause.lastElementChild.innerText = "Time Frozen";
-	pause.firstElementChild.src = "/modules/stonetop/assets/graphics/pause.png"
-})
+	pause.firstElementChild.src = "/modules/stonetop/assets/graphics/pause.png";
+});
 
 Hooks.once("pbtaSheetConfig", () => {
 	// Disable the sheet config form.
 	info("Setting up Stonetop sheet config.");
 	game.settings.set("pbta", "sheetConfigOverride", true);
 	game.settings.set("pbta", "hideSidebarButtons", true);
-
 
 	// Define custom tags.
 	// game.pbta.tagConfigOverride = {
@@ -54,166 +54,47 @@ Hooks.once("pbtaSheetConfig", () => {
 			},
 		},
 		actorTypes: {
-			character: {
-				stats: {
-					str: "Strength",
-					dex: "Dexterity",
-					int: "Intelligence",
-					wis: "Wisdom",
-					con: "Constitution",
-					cha: "Charisma",
-				},
-				moveTypes: {
-					background: "Background",
-					basic: "Basic Moves",
-					class: "Playbook Moves",
-					special: "Special Moves",
-					follower: "Follower Moves",
-					expedition: "Expedition Moves",
-					homefront: "Homefront Moves",
-				},
-				attributesTop: {
-					instinct: {
-						type: "LongText",
-						label: "Instinct",
-					},
-					xp: {
-						type: "Xp",
-						label: "XP",
-						max: 26,
-						default: 0,
-					},
-					level: {
-						type: "Number",
-						label: "Level",
-						default: 1,
-					},
-				},
-				attributesLeft: {
-					hp: {
-						type: "Resource",
-						label: "HP",
-						default: "18",
-						max: "18",
-						min: "0",
-					},
-					armour: {
-						type: "Number",
-						label: "Armour",
-						default: 0,
-					},
-					damage: {
-						type: "Roll",
-						label: "Damage",
-						default: "d4",
-					},
-					debilities: {
-						type: "ListMany",
-						label: "Debilities",
-						description: "Gives Disadvantage on rolls:",
-						options: [
-							"Weakened (STR, DEX)",
-							"Dazed (INT, WIS)",
-							"Miserable (CON, CHA)",
-						],
-					},
-				},
-			},
+			character: { ...BaseActorType },
 			would_be_hero: {
 				baseType: "character",
-				stats: {
-					str: "Strength",
-					dex: "Dexterity",
-					int: "Intelligence",
-					wis: "Wisdom",
-					con: "Constitution",
-					cha: "Charisma",
-				},
-				moveTypes: {
-					background: "Background",
-					basic: "Basic Moves",
-					class: "Playbook Moves",
-					special: "Special Moves",
-					follower: "Follower Moves",
-					expedition: "Expedition Moves",
-					homefront: "Homefront Moves",
-				},
-				attributesTop: {
-					instinct: {
-						type: "LongText",
-						label: "Instinct",
-					},
-					xp: {
-						type: "Xp",
-						label: "XP",
-						max: 26,
-						default: 0,
-					},
-					level: {
-						type: "Number",
-						label: "Level",
-						default: 1,
-					},
-				},
-				attributesLeft: {
+				stats: BaseActorType.stats,
+				moveTypes: BaseActorType.moveTypes,
+				attrTop: BaseActorType.attrTop,
+				attrLeft: {
 					omen: {
 						type: "Clock",
 						label: "Omen",
-						default: 0,
+						value: 0,
 						max: 3,
+						steps: [false, false, false],
 					},
 					resolve: {
 						type: "Clock",
 						label: "Resolve",
 						default: 0,
 						max: 2,
+						steps: [false, false],
 					},
-					hp: {
-						type: "Resource",
-						label: "HP",
-						default: "18",
-						max: "18",
-						min: "0",
-					},
-					armour: {
-						type: "Number",
-						label: "Armour",
-						default: 0,
-					},
-					damage: {
-						type: "Roll",
-						label: "Damage",
-						default: "d4",
-					},
-					debilities: {
-						type: "ListMany",
-						label: "Debilities",
-						description: "Gives Disadvantage on rolls:",
-						options: [
-							"Weakened (STR, DEX)",
-							"Dazed (INT, WIS)",
-							"Miserable (CON, CHA)",
-						],
-					},
+					...BaseActorType.attrLeft,
 				},
-			},
-			npc: {
-				attributesTop: {
-					hp: {
-						type: "Resource",
-						label: "Hit Points",
+				npc: {
+					attrTop: {
+						hp: {
+							type: "Resource",
+							label: "Hit Points",
+						},
+						armor: {
+							type: "Resource",
+							label: "Armor",
+						},
+						instinct: {
+							type: "Text",
+							label: "Instinct",
+						},
 					},
-					armor: {
-						type: "Resource",
-						label: "Armor",
+					moveTypes: {
+						gm: "GM Moves",
 					},
-					instinct: {
-						type: "Text",
-						label: "Instinct",
-					},
-				},
-				moveTypes: {
-					gm: "GM Moves",
 				},
 			},
 		},
