@@ -70,25 +70,34 @@ body,
 	overflow: clip;
 }
 
-.pbta.sheet .sheet-wrapper .cell.cell--level.cell--attr-level {
-	flex: 0 1 auto;
-}
-
-.pbta.sheet .cell__clock {
-	justify-content: space-around;
+.pbta.sheet .sheet-tab {
+	margin-top: 0px;
 }
 
 .pbta.sheet .sheet-resources {
+	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+	margin-bottom: 8px;
 }
 
 .pbta.sheet .sheet-resources .cell--roll-formula {
 	display: none;
 }
 
-.pbta.sheet .sheet-resources .cell--roll-mode {
-	grid-column: span 1;
-	gap: 12px;
+.pbta.sheet .cell__clock {
+	justify-content: space-around;
+}
+
+.pbta.sheet input[type=radio].attr-xp {
+	width: 20px;
+	height: 20px;
+	margin: 2px 6px;
+	flex: none;
+}
+
+
+.pbta.sheet .sheet-wrapper .sheet-top .sheet-attributes-top .cell--attributes-top .cell.cell--attr-level {
+	flex: 0 1 auto;
 }
 
 .pbta.sheet .sheet-header__fields .view-playbook {

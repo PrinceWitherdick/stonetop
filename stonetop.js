@@ -9,10 +9,11 @@ Hooks.on("renderPause", () => {
 });
 
 Hooks.once("pbtaSheetConfig", () => {
+	if (!game.user.isGM) return;
+
 	// Disable the sheet config form.
 	info("Setting up Stonetop sheet config.");
 	game.settings.set("pbta", "sheetConfigOverride", true);
-	game.settings.set("pbta", "hideSidebarButtons", true);
 
 	// Define custom tags.
 	// game.pbta.tagConfigOverride = {
@@ -35,10 +36,10 @@ Hooks.once("pbtaSheetConfig", () => {
 	// Replace the game.pbta.sheetConfig with your own version.
 	game.pbta.sheetConfig = {
 		rollFormula: "2d6",
-		// statToggle: {
-		// 	label: "Highlight",
-		// 	modifier: 0,
-		// },
+		statToggle: {
+			label: "Debility",
+			modifier: 0,
+		},
 		rollResults: {
 			failure: {
 				start: null,
@@ -60,6 +61,7 @@ Hooks.once("pbtaSheetConfig", () => {
 			character: { ...BaseActorType },
 			would_be_hero: {
 				baseType: "character",
+				...BaseActorType,
 				stats: BaseActorType.stats,
 				moveTypes: BaseActorType.moveTypes,
 				attrTop: BaseActorType.attrTop,
@@ -103,3 +105,18 @@ Hooks.once("pbtaSheetConfig", () => {
 		},
 	};
 });
+
+Hooks.once("ready", async () => {
+	if (!game.user.isGM) return;
+	// Override the default rollPbtA function to handle Disadvantage on debilities.
+	CONFIG.Dice.RollPbtA = new Proxy(CONFIG.Dice.RollPbtA, {
+		construct: (target, args, newTarget) => {
+			const [_, data, options] = args;
+			const stat = options.stat;
+			const debility = data.stats[stat].toggle;
+			if (debility)
+				options.rollMode = 'dis';
+			return Reflect.construct(target, [...args.slice(0, -1), options], newTarget);
+		}
+	});
+})

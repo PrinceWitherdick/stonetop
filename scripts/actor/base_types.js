@@ -37,8 +37,8 @@ export const BaseActorType = {
 		xp: {
 			type: "Xp",
 			label: "XP",
-			max: 26,
-			steps: Array.from({ length: 26 }, () => false),
+			max: 20,
+			steps: Array.from({ length: 20 }, () => false),
 		},
 		level: {
 			type: "Number",
@@ -64,24 +64,11 @@ export const BaseActorType = {
 			label: "Damage",
 			value: "d4",
 		},
-		debilities: {
-			type: "ListMany",
-			label: "Debilities",
-			description: "Gives Disadvantage on rolls:",
-			options: {
-				0: {
-					label: "Weakened (STR, DEX)",
-					value: false,
-				},
-				1: {
-					label: "Dazed (INT, WIS)",
-					value: false,
-				},
-				2: {
-					label: "Miserable (CON, CHA)",
-					value: false,
-				},
-			},
-		},
 	},
+	equipmentTypes: {
+		special: {
+			label: "Special Possessions",
+			items: [],
+		},
+	}
 };
