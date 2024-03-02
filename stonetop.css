@@ -8,6 +8,19 @@
 	--color-border-highlight: slategrey;
 	--color-ownership-none: slategrey;
 	--color-text-hyperlink: slategrey;
+
+	/* Playbook colors */
+	/* Todo: Darken to contrast with white */
+	--color-the-would-be-hero: hsl(350, 43%, 45%);
+	--color-the-fox: hsl(19, 95%, 64%);
+	--color-the-blessed: hsl(132, 34%, 56%);
+	--color-the-marshal: hsl(334, 29%, 37%);
+	--color-the-seeker: hsl(265, 33%, 25%);
+	--color-the-heavy: hsl(2, 83%, 24%);
+	--color-the-ranger: hsl(49, 51%, 34%);
+	--color-the-lightbearer: hsl(40, 94%, 49%);
+	--color-the-judge: hsl(244, 93%, 18%);
+
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
 
@@ -66,8 +79,6 @@ body,
 #controls ol.control-tools>li {
 	border-radius: 5px;
 	box-shadow: 2px 4px 8px 2px rgba(0, 0, 0, 0.4);
-	overflow: hidden;
-	overflow: clip;
 }
 
 .pbta.sheet .sheet-tab {
@@ -86,6 +97,10 @@ body,
 
 .pbta.sheet .cell__clock {
 	justify-content: space-around;
+}
+
+.pbta.sheet .cell--Xp .cell__clock {
+	justify-self: unset;
 }
 
 .pbta.sheet input[type=radio].attr-xp {
@@ -108,3 +123,51 @@ body,
 .pbta.sheet .cell__counter>span {
 	font-weight: unset;
 }
+
+/* Playbook colors */
+
+.pbta.sheet.actor .window-content {
+	padding: 0px
+}
+
+.pbta.sheet.actor .window-content form {
+	padding: 8px
+}
+
+.pbta.sheet.playbook-the-would-be-hero form {
+	background-color: color-mix(in hsl, var(--color-the-would-be-hero) 10%, transparent);
+}
+
+.pbta.sheet.playbook-the-fox form {
+	background-color: color-mix(in hsl, var(--color-the-fox) 10%, transparent);
+}
+
+.pbta.sheet.playbook-the-blessed form {
+	background-color: color-mix(in hsl, var(--color-the-blessed) 10%, transparent);
+}
+
+.pbta.sheet.playbook-the-marshal form {
+	background-color: color-mix(in hsl, var(--color-the-marshal) 10%, transparent);
+}
+
+.pbta.sheet.playbook-the-seeker form {
+	background-color: color-mix(in hsl, var(--color-the-seeker) 10%, transparent);
+}
+
+.pbta.sheet.playbook-the-heavy form {
+	background-color: color-mix(in hsl, var(--color-the-heavy) 10%, transparent);
+}
+
+.pbta.sheet.playbook-the-ranger form {
+	background-color: color-mix(in hsl, var(--color-the-ranger) 10%, transparent);
+}
+
+.pbta.sheet.playbook-the-lightbearer form {
+	background-color: color-mix(in hsl, var(--color-the-lightbearer) 10%, transparent);
+}
+
+.pbta.sheet.playbook-the-judge form {
+	background-color: color-mix(in hsl, var(--color-the-judge) 10%, transparent);
+}
+
+/* ~ Playbook colors */

@@ -1,5 +1,5 @@
 import { info } from "./scripts/logger.js";
-import { BaseActorType } from "./scripts/actor/base_types.js";
+import { CharacterType } from "./scripts/actor/character.js";
 
 Hooks.on("renderPause", () => {
 	info("Overriding the default pause spinner.");
@@ -58,53 +58,30 @@ Hooks.once("pbtaSheetConfig", () => {
 			},
 		},
 		actorTypes: {
-			character: { ...BaseActorType },
-			would_be_hero: {
-				baseType: "character",
-				...BaseActorType,
-				stats: BaseActorType.stats,
-				moveTypes: BaseActorType.moveTypes,
-				attrTop: BaseActorType.attrTop,
-				attrLeft: {
-					omen: {
-						type: "Clock",
-						label: "Omen",
-						value: 0,
-						max: 3,
-						steps: [false, false, false],
+			character: CharacterType,
+			npc: {
+				attrTop: {
+					hp: {
+						type: "Resource",
+						label: "Hit Points",
 					},
-					resolve: {
-						type: "Clock",
-						label: "Resolve",
-						default: 0,
-						max: 2,
-						steps: [false, false],
+					armor: {
+						type: "Resource",
+						label: "Armor",
 					},
-					...BaseActorType.attrLeft,
+					instinct: {
+						type: "Text",
+						label: "Instinct",
+					},
 				},
-				npc: {
-					attrTop: {
-						hp: {
-							type: "Resource",
-							label: "Hit Points",
-						},
-						armor: {
-							type: "Resource",
-							label: "Armor",
-						},
-						instinct: {
-							type: "Text",
-							label: "Instinct",
-						},
-					},
-					moveTypes: {
-						gm: "GM Moves",
-					},
+				moveTypes: {
+					gm: "GM Moves",
 				},
 			},
 		},
-	};
-});
+	}
+}
+);
 
 Hooks.once("ready", async () => {
 	if (!game.user.isGM) return;

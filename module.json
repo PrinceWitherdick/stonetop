@@ -1,17 +1,21 @@
 {
+	"$schema": "https://json.schemastore.org/foundryvtt-module-manifest.json",
 	"id": "stonetop",
 	"title": "Stonetop",
+	"description": "A module for playing Stonetop in Foundry VTT.",
 	"version": "0.1.0",
 	"compatibility": {
 		"minimum": "11",
 		"verified": "11"
 	},
 	"relationships": {
-		"requires": [
+		"systems": [
 			{
 				"id": "pbta",
 				"type": "system",
-				"compatibility": {}
+				"compatibility": {
+					"verified": "0.9.2"
+				}
 			}
 		]
 	},
@@ -23,13 +27,26 @@
 	],
 	"flags": {
 		"hotReload": {
-			"extensions": ["css", "js", "json"],
-			"paths": ["stonetop.css", "stonetop.js", "scripts", "lang"]
+			"extensions": [
+				"css",
+				"js",
+				"json"
+			],
+			"paths": [
+				"stonetop.css",
+				"stonetop.js",
+				"scripts",
+				"lang"
+			]
 		},
 		"allowBugReporter": true
 	},
-	"esmodules": ["stonetop.js"],
-	"styles": ["stonetop.css"],
+	"esmodules": [
+		"stonetop.js"
+	],
+	"styles": [
+		"stonetop.css"
+	],
 	"languages": [
 		{
 			"lang": "en",

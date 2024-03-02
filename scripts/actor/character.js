@@ -1,4 +1,4 @@
-export const BaseActorType = {
+export const CharacterType = {
 	stats: {
 		str: { label: "Strength", value: 0 },
 		dex: { label: "Dexterity", value: 0 },
@@ -11,22 +11,34 @@ export const BaseActorType = {
 		background: { label: "Background", moves: [] },
 		basic: {
 			label: "Basic Moves",
+			creation: true,
 			moves: [],
 		},
-		class: {
+		playbook: {
 			label: "Playbook Moves",
+			playbook: true,
 			moves: [],
 		},
 		special: {
 			label: "Special Moves",
+			creation: true,
 			moves: [],
 		},
 		follower: {
 			label: "Follower Moves",
+			creation: true,
 			moves: [],
 		},
-		expedition: { label: "Expedition Moves", moves: [] },
-		homefront: { label: "Homefront Moves", moves: [] },
+		expedition: {
+			label: "Expedition Moves",
+			creation: true,
+			moves: []
+		},
+		homefront: {
+			label: "Homefront Moves",
+			creation: true,
+			moves: []
+		},
 	},
 	attrTop: {
 		instinct: {
@@ -47,6 +59,22 @@ export const BaseActorType = {
 		},
 	},
 	attrLeft: {
+		omen: {
+			type: "Clock",
+			label: "Omen",
+			playbook: "the-would-be-hero",
+			value: 0,
+			max: 3,
+			steps: [false, false, false],
+		},
+		resolve: {
+			type: "Clock",
+			label: "Resolve",
+			playbook: "the-would-be-hero",
+			default: 0,
+			max: 2,
+			steps: [false, false],
+		},
 		hp: {
 			type: "Resource",
 			label: "HP",
