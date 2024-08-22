@@ -33,12 +33,11 @@ Hooks.once("pbtaSheetConfig", () => {
 	// 	},
 	// };
 
-	// Replace the game.pbta.sheetConfig with your own version.
 	game.pbta.sheetConfig = {
 		rollFormula: "2d6",
 		statToggle: {
 			label: "Debility",
-			modifier: 0,
+			modifier: 'dis',
 		},
 		rollResults: {
 			failure: {
@@ -60,18 +59,21 @@ Hooks.once("pbtaSheetConfig", () => {
 		actorTypes: {
 			character: CharacterType,
 			npc: {
-				attrTop: {
+				attributes: {
 					hp: {
 						type: "Resource",
 						label: "Hit Points",
+						position: "left",
 					},
 					armor: {
 						type: "Resource",
 						label: "Armor",
+						position: "left",
 					},
 					instinct: {
 						type: "Text",
 						label: "Instinct",
+						position: "top",
 					},
 				},
 				moveTypes: {
@@ -80,20 +82,4 @@ Hooks.once("pbtaSheetConfig", () => {
 			},
 		},
 	}
-}
-);
-
-Hooks.once("ready", async () => {
-	if (!game.user.isGM) return;
-	// Override the default rollPbtA function to handle Disadvantage on debilities.
-	CONFIG.Dice.RollPbtA = new Proxy(CONFIG.Dice.RollPbtA, {
-		construct: (target, args, newTarget) => {
-			const [_, data, options] = args;
-			const stat = options.stat;
-			const debility = data.stats[stat].toggle;
-			if (debility)
-				options.rollMode = 'dis';
-			return Reflect.construct(target, [...args.slice(0, -1), options], newTarget);
-		}
-	});
-})
+});

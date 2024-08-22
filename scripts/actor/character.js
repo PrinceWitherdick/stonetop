@@ -40,26 +40,28 @@ export const CharacterType = {
 			moves: []
 		},
 	},
-	attrTop: {
+	attributes: {
 		instinct: {
+			position: "Top",
 			type: "LongText",
 			label: "Instinct",
 			value: "<strong>To fill out this sheet:</strong> And get sweet rewards!",
 		},
 		xp: {
+			position: "Top",
 			type: "Xp",
 			label: "XP",
 			max: 20,
 			steps: Array.from({ length: 20 }, () => false),
 		},
 		level: {
+			position: "Top",
 			type: "Number",
 			label: "Level",
 			value: 1,
 		},
-	},
-	attrLeft: {
 		omen: {
+			position: "Left",
 			type: "Clock",
 			label: "Omen",
 			playbook: "the-would-be-hero",
@@ -68,6 +70,7 @@ export const CharacterType = {
 			steps: [false, false, false],
 		},
 		resolve: {
+			position: "Left",
 			type: "Clock",
 			label: "Resolve",
 			playbook: "the-would-be-hero",
@@ -76,6 +79,7 @@ export const CharacterType = {
 			steps: [false, false],
 		},
 		hp: {
+			position: "Left",
 			type: "Resource",
 			label: "HP",
 			value: 16,
@@ -85,17 +89,30 @@ export const CharacterType = {
 		armour: {
 			type: "Number",
 			label: "Armour",
+			position: "Left",
 			value: 0,
 		},
 		damage: {
+			position: "Left",
 			type: "Roll",
 			label: "Damage",
+			description: "The damage your character deals.",
 			value: "d4",
 		},
+		load: {
+			position: "Left",
+			type: "ListOne",
+			label: "Load",
+			options: [{ label: "Light", value: 3 }, { label: "Normal", value: 6 }, { label: "Heavy", value: 9 }],
+		}
 	},
 	equipmentTypes: {
 		special: {
 			label: "Special Possessions",
+			items: [],
+		},
+		gear: {
+			label: "Gear",
 			items: [],
 		},
 	}

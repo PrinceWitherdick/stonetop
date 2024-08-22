@@ -66,7 +66,7 @@ body,
 	background-color: slategrey;
 }
 
-.vtt .window-content {
+.vtt :not(.application,.image-popout,.journal-sheet,.sidebar-popout) .window-content {
 	background: var(--stonetop-bg) url(/modules/stonetop/assets/graphics/sheet-bg.png);
 	background-position: center;
 	background-size: cover;
@@ -81,22 +81,34 @@ body,
 	box-shadow: 2px 4px 8px 2px rgba(0, 0, 0, 0.4);
 }
 
+.vtt .dialog .window-content:has(.roll-dialog) .dialog-buttons {
+	display: grid;
+	grid-template-columns: repeat(3,1fr);
+	gap: 8px;
+}
+
+.vtt .dialog .window-content:has(.roll-dialog) .dialog-buttons .submit {
+	grid-column: span 3;
+}
+
 .pbta.sheet .sheet-tab {
 	margin-top: 0px;
 }
 
-.pbta.sheet .sheet-resources {
+/* .pbta.sheet .sheet-resources {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
 	margin-bottom: 8px;
-}
+} */
 
 .pbta.sheet .sheet-resources .cell--roll-formula {
 	display: none;
 }
 
 .pbta.sheet .cell__clock {
-	justify-content: space-around;
+		display: grid;
+		grid-template-columns: repeat(10, 1fr);
+		column-gap: 10px;
 }
 
 .pbta.sheet .cell--Xp .cell__clock {
@@ -122,6 +134,12 @@ body,
 
 .pbta.sheet .cell__counter>span {
 	font-weight: unset;
+}
+
+.pbta.sheet .sheet-attributes .cell--stats .stats-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+	margin-left: 8px;
 }
 
 /* Playbook colors */
