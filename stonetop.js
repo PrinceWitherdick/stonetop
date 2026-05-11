@@ -1,85 +1,47 @@
-import { info } from "./scripts/logger.js";
-import { CharacterType } from "./scripts/actor/character.js";
+import { registerSettings } from "./module/settings.js";
+import { createStonetopActorClass } from "./module/actors/stonetop-actor.js";
+import { createStonetopItemClass } from "./module/item/item.js";
+import { onPbtaSheetConfig } from "./module/hooks/pbta-sheet-config.js";
+import { onReady } from "./module/hooks/ready.js";
+import { onRenderActorSheet } from "./module/hooks/render-actor-sheet.js";
+import { onRenderPause } from "./module/hooks/render-pause.js";
+import { info } from "./module/utils/logger.js";
 
-Hooks.on("renderPause", () => {
-	info("Overriding the default pause spinner.");
-	const pause = document.getElementById("pause");
-	pause.lastElementChild.innerText = "Time Frozen";
-	pause.firstElementChild.src = "/modules/stonetop/assets/graphics/pause.png";
+// -- INIT ------------------------------------------------------
+// Fires before the world loads. Document classes and settings must
+// be registered here so they're available before any documents load.
+Hooks.once("init", () => {
+	info("Initializing");
+
+	registerSettings();
+
+	CONFIG.Actor.documentClass = createStonetopActorClass(CONFIG.Actor.documentClass);
+	CONFIG.Item.documentClass = createStonetopItemClass(CONFIG.Item.documentClass);
+
+	loadTemplates([
+		"modules/stonetop/templates/actor/partials/stats.hbs",
+		"modules/stonetop/templates/actor/partials/moves.hbs",
+		"modules/stonetop/templates/actor/partials/resources.hbs",
+		"modules/stonetop/templates/actor/partials/debilities.hbs",
+		"modules/stonetop/templates/actor/partials/playbook-info.hbs",
+		"modules/stonetop/templates/item/move-sheet.hbs",
+		"modules/stonetop/templates/item/playbook-sheet.hbs",
+	]);
 });
 
-Hooks.once("pbtaSheetConfig", () => {
-	if (!game.user.isGM) return;
+// -- RENDER PAUSE ----------------------------------------------
+// Fires when the game is paused
+Hooks.on("renderPause", onRenderPause);
 
-	// Disable the sheet config form.
-	info("Setting up Stonetop sheet config.");
-	game.settings.set("pbta", "sheetConfigOverride", true);
+// -- PBTA SHEET CONFIG -----------------------------------------
+// Fires after init, before ready. pbta listens for this hook
+// to allow modules to override its sheet configuration.
+Hooks.once("pbtaSheetConfig", onPbtaSheetConfig);
 
-	// Define custom tags.
-	// game.pbta.tagConfigOverride = {
-	// 	// Tags available to any actor and item
-	// 	general: '[{"value":"fire"}]',
-	// 	actor: {
-	// 		// Tags available to all actors
-	// 		all: '[{"value":"person"}]',
-	// 		// Tags available to a specific actor type set up on game.pbta.sheetConfig.actorTypes (e.g. "character", "npc")
-	// 		character: '[{"value":"mook"}]',
-	// 	},
-	// 	item: {
-	// 		// Tags available to all actors
-	// 		all: '[{"value":"consumable"}]',
-	// 		// Tags available to a specific item type (e.g. "equipment", "move")
-	// 		move: '[{"value":"sword"}]',
-	// 	},
-	// };
+// -- READY -----------------------------------------------------
+// Fires when the world is fully loaded and all documents exist.
+Hooks.once("ready", onReady);
 
-	game.pbta.sheetConfig = {
-		rollFormula: "2d6",
-		statToggle: {
-			label: "Debility",
-			modifier: 'dis',
-		},
-		rollResults: {
-			failure: {
-				start: null,
-				end: 6,
-				label: "Miss",
-			},
-			partial: {
-				start: 7,
-				end: 9,
-				label: "Weak Hit",
-			},
-			success: {
-				start: 10,
-				end: 12,
-				label: "Strong Hit!",
-			},
-		},
-		actorTypes: {
-			character: CharacterType,
-			npc: {
-				attributes: {
-					hp: {
-						type: "Resource",
-						label: "Hit Points",
-						position: "left",
-					},
-					armor: {
-						type: "Resource",
-						label: "Armor",
-						position: "left",
-					},
-					instinct: {
-						type: "Text",
-						label: "Instinct",
-						position: "top",
-					},
-				},
-				moveTypes: {
-					gm: "GM Moves",
-				},
-			},
-		},
-	}
-});
+// -- RENDER ACTOR SHEET ----------------------------------------
+// Fires every time any actor sheet renders.
+Hooks.on("renderActorSheet", onRenderActorSheet);
