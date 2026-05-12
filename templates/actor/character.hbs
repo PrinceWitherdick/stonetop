@@ -1,0 +1,62 @@
+<form class="{{cssClass}}" autocomplete="off">
+	<div class="sheet-wrapper">
+
+		{{> "pbta.actor-header"}}
+
+		<section class="sheet-top flexcol">
+			<section class="sheet-attributes flexrow">
+				<div class="cell cell--image">
+					<img class="profile-img" src="{{actor.img}}" data-edit="img" />
+				</div>
+				{{> "pbta.actor-stats"}}
+			</section>
+
+			<section class="sheet-attributes-top">
+				{{~> "pbta.actor-attributes" attrs=system.attrTop cssClass="cell--attributes-top flexrow" owner=owner editable=editable~}}
+			</section>
+
+			{{#if (objLen system.attrLeft)}}
+			<section class="sheet-attributes-left">
+				{{~> "pbta.actor-attributes" attrs=system.attrLeft cssClass="cell--attributes-left flexrow" owner=owner editable=editable~}}
+			</section>
+			{{/if}}
+		</section>
+
+		<section class="sheet-main flexcol">
+			<nav class="sheet-tabs tabs" data-group="primary">
+				<a class="item" data-tab="moves">{{localize "PBTA.Moves"}}</a>
+				<a class="item" data-tab="equipment">{{localize "PBTA.Equipment"}}</a>
+				<a class="item" data-tab="details">Details</a>
+			</nav>
+
+			<div class="stonetop-sheet-layout">
+				<section class="sheet-body">
+					{{> "stonetop.tab-moves"}}
+					{{> "pbta.actor-inventory"}}
+					{{> "stonetop.tab-details"}}
+				</section>
+
+				<div class="stonetop-moves-sidebar">
+					<h3 class="stonetop-move-group-title">Basic Moves</h3>
+					<ol class="items-list">
+					{{#each stonetop.movelist.basicMoves}}
+						{{#if (and owned rollType)}}
+						<li class="item stonetop-move-item" data-item-id="{{ownedId}}">
+						{{else}}
+						<li class="stonetop-move-item{{#unless owned}} move-unowned{{/unless}}">
+						{{/if}}
+							{{#if (and owned rollType)}}
+							<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">
+								<i class="fas fa-dice-d6"></i>
+							</span>
+							{{/if}}
+							<span class="stonetop-move-name">{{name}}</span>
+						</li>
+					{{/each}}
+					</ol>
+				</div>
+			</div>
+		</section>
+
+	</div>
+</form>

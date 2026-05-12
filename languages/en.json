@@ -35,13 +35,13 @@
 			"attributes": {
 				"xp": "XP",
 				"level": "Level",
-				"stock": "Stock",
-				"favor": "Favor",
-				"omen": "Omen",
-				"resolve": "Resolve"
 			},
 			"moveTypes": {
 				"background": "Background"
+			},
+			"moves": {
+				"pickTitle": "Choose Starting Moves",
+				"pickInstruction": "Pick up to {count} moves to start with."
 			},
 			"selection": {
 				"select": "Select",
