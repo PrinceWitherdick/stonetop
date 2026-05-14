@@ -7,8 +7,9 @@
     "stonetop": {
       "hp": 18,
       "damage": "d6",
-      "startingPickCount": 2,
-      "startingMovesNote": "You start with Spirit Tongue, Call the Spirits, 1 from your Background, and 1 of your choice.",
+			"moves": {
+				"startingMovesNote": "You start with Spirit Tongue, Call the Spirits, 1 from your Background, and 1 of your choice."
+			},
       "backgrounds": [
         {
           "slug": "initiate",
@@ -58,25 +59,90 @@
         { "region": "Barrier Pass", "names": ["Alagh", "Bora", "Chambui", "Enebish", "Jalakai", "Kamala", "Sechen", "Todogen"] },
         { "region": "The Steplands", "names": ["Bejn", "Decla", "Franza", "Irv", "Ivet", "Jak", "Sibl", "Yez"] },
         { "region": "The Wild", "names": ["Autumn", "Badger", "Big", "Black", "Bloody", "Brave", "Crow", "Cub", "Dark", "Doe", "Fang", "Fierce", "Flower", "Gentle", "Green", "Grim", "Hart", "Leaf", "Little", "Lonely", "Old", "Owl", "Pale", "Pup", "Quiet", "Rain", "Red", "Sharp", "Snake", "Snow", "Spring", "Summer", "Tall", "Tree", "Yellow", "White", "Wind", "Winter", "Wolf", "Whisper"] }
-      ]
+      ],
+      "specialPossessions": {
+        "pickNote": "Pick 2, in addition to your sacred pouch",
+        "pickCount": 2,
+        "preselected": ["sacred-pouch"],
+        "options": [
+          {
+            "slug": "sacred-pouch",
+            "label": "Sacred pouch (<em>magical</em>)",
+            "description": "<p>Doesn't take up space in your inventory. It can hold up to 3 Stock (sacred herbs, powders, stones, pigments, chalks, clay, and so forth). Each time you gain an even-numbered level, your pouch can hold +1 Stock. When anyone but you looks inside your sacred pouch and touches the materials therein, the Stock is ruined.</p><p>When you have a few days of downtime in familiar terrain, you may replenish your Stock.</p><p>When you Forage, you can produce Stock instead of provisions.</p>",
+            "uses": 3,
+            "usesLabel": "Stock",
+            "choiceGroups": [
+              {
+                "heading": "Your sacred pouch is...",
+                "note": "choose 1 on each line",
+                "subgroups": [
+                  { "pickCount": 1, "options": [
+                    { "slug": "origin-heirloom",  "label": "an heirloom made just for you" },
+                    { "slug": "origin-own-work",   "label": "your own work" }
+                  ]},
+                  { "pickCount": 1, "options": [
+                    { "slug": "material-fur",        "label": "fur" },
+                    { "slug": "material-drakescale", "label": "drakescale" },
+                    { "slug": "material-leather",    "label": "leather" },
+                    { "slug": "material-woven",      "label": "woven" },
+                    { "slug": "material-demonflesh", "label": "demonflesh" }
+                  ]},
+                  { "pickCount": 1, "options": [
+                    { "slug": "decor-unadorned",  "label": "unadorned" },
+                    { "slug": "decor-beadwork",   "label": "beadwork" },
+                    { "slug": "decor-rich-dyes",  "label": "rich dyes" },
+                    { "slug": "decor-runes",      "label": "runes" }
+                  ]}
+                ]
+              },
+              {
+                "heading": "What remarkable trait does it possess?",
+                "note": "choose 1",
+                "subgroups": [
+                  { "pickCount": 1, "options": [
+                    { "slug": "trait-indestructible", "label": "It cannot be cut, torn, or burned by any natural means." },
+                    { "slug": "trait-unnoticed",      "label": "Unless someone is specifically searching for your pouch, they will ignore its presence." },
+                    { "slug": "trait-sealed",         "label": "So long as the pouch is sealed, nothing within can be detected or found by magic, nor can anything within escape or affect the outside world." },
+                    { "slug": "trait-unclean",        "label": "Unnatural and unclean creatures cannot bear to touch it." }
+                  ]}
+                ]
+              }
+            ]
+          },
+          {
+            "slug": "apiary",
+            "label": "Apiary",
+            "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hat &amp; veils, etc."
+          },
+          {
+            "slug": "collected-offerings",
+            "label": "Collected offerings",
+            "description": "(○○○ uses) Expend a use to produce something valuable to a spirit of the wild. Restore 1 use each season.",
+            "uses": 3
+          },
+          {
+            "slug": "goat-herd",
+            "label": "Goat herd",
+            "description": "milk, cheese, pelts, meat, blood, horn, wool, etc. Each season, 1 in 4 chance of having a bezoar (swallow it to cure poison)."
+          },
+          {
+            "slug": "herb-garden",
+            "label": "Herb garden",
+            "description": "shears, mortars &amp; pestles, herbs, seeds, remedies, mild poisons, ◇ spades, etc. Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature)."
+          },
+          {
+            "slug": "mastiffs",
+            "label": "Mastiffs",
+            "description": "2-3 followers (<em>alert, keen-nosed, fierce, overprotective</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct: to bark &amp; threaten; Cost: affection."
+          }
+        ]
+      }
     }
   },
   "system": {
     "slug": "the-blessed",
     "actorType": "character",
     "description": "Danu, the Great Mother, provides. We need only learn her secrets: the names by which the trees call each other; the mark made with redberry juice to ward off impure spirits; the language of the wolves. A thousand such secrets Danu keeps, to share with only her true children. Her Blessed.",
-    "attributes": {
-      "stock": {
-        "label": "Stock",
-        "type": "Clock",
-        "value": 0,
-        "max": 3,
-        "steps": [false, false, false],
-        "choices": [],
-        "custom": false,
-        "path": "attributes",
-        "description": ""
-      }
-    }
+    "attributes": {}
   }
 }
