@@ -1,0 +1,89 @@
+{{> "pbta.actor-inventory"}}
+
+{{#if stonetop.possessions}}
+<div class="tab equipment" data-group="primary" data-tab="equipment">
+	<div class="tab-section tab-section--possessions">
+		<h3>Special Possessions</h3>
+		{{#if stonetop.possessions.pickNote}}
+		<p class="details-instruction">{{stonetop.possessions.pickNote}}</p>
+		{{/if}}
+		<ol class="stonetop-possession-list">
+		{{#each stonetop.possessions.options}}
+			<li class="stonetop-item{{#if checked}} is-checked{{/if}}">
+				<div class="stonetop-item-header">
+					<input type="checkbox" class="stonetop-item-check stonetop-possession-check"
+					       data-slug="{{slug}}"
+					       {{#if checked}}checked{{/if}}
+					       {{#if disabled}}disabled{{/if}}>
+					<strong class="stonetop-item-name">{{{label}}}</strong>
+					{{#if preselectedSource}}<span class="stonetop-item-source">{{preselectedSource}}</span>{{/if}}
+					{{#if (and checked usesChecks)}}
+					<span class="stonetop-item-resources">
+						{{#if usesLabel}}<span class="stonetop-uses-label">{{usesLabel}}</span>{{/if}}
+						{{#each usesChecks}}
+						<button type="button"
+						        class="stonetop-item-resource-check{{#if checked}} is-checked{{/if}}"
+						        data-possession-slug="{{../slug}}"
+						        data-index="{{@index}}"></button>
+						{{/each}}
+					</span>
+					{{/if}}
+				</div>
+				{{#if description}}
+				<div class="stonetop-item-description">{{{description}}}</div>
+				{{/if}}
+				{{#if (and checked choices)}}
+				<ol class="stonetop-sub-choice-list">
+				{{#each choices.options}}
+					<li class="stonetop-sub-choice{{#if checked}} is-checked{{/if}}">
+						<label class="stonetop-sub-choice-label">
+							<input type="checkbox" class="stonetop-item-check stonetop-possession-sub-check"
+							       data-possession-slug="{{../slug}}"
+							       data-choice-slug="{{slug}}"
+							       {{#if checked}}checked{{/if}}
+							       {{#if disabled}}disabled{{/if}}>
+							{{{label}}}
+						</label>
+						{{#if (and checked usesChecks)}}
+						<span class="stonetop-item-resources">
+							{{#each usesChecks}}
+							<button type="button"
+							        class="stonetop-item-resource-check{{#if checked}} is-checked{{/if}}"
+							        data-possession-slug="{{../../slug}}"
+							        data-choice-slug="{{../slug}}"
+							        data-index="{{@index}}"></button>
+							{{/each}}
+						</span>
+						{{/if}}
+					</li>
+				{{/each}}
+				</ol>
+				{{/if}}
+				{{#if (and checked choiceGroups)}}
+				{{#each choiceGroups}}
+				<div class="stonetop-choice-group">
+					<p class="stonetop-choice-group-heading">{{heading}}{{#if note}} <em>({{note}})</em>{{/if}}</p>
+					{{#each subgroups}}
+					<div class="stonetop-choice-subgroup">
+						{{#each options}}
+						<label class="stonetop-choice-option-label">
+							<input type="radio" class="stonetop-possession-sub-radio"
+							       name="stonetop-{{../groupId}}"
+							       data-possession-slug="{{../../../slug}}"
+							       data-choice-slug="{{slug}}"
+							       data-sibling-slugs-csv="{{../slugsCsv}}"
+							       {{#if checked}}checked{{/if}}>
+							{{{label}}}
+						</label>
+						{{/each}}
+					</div>
+					{{/each}}
+				</div>
+				{{/each}}
+				{{/if}}
+			</li>
+		{{/each}}
+		</ol>
+	</div>
+</div>
+{{/if}}
