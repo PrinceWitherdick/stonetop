@@ -404,6 +404,62 @@ describe("StonetopCharacter.ensureStartingMoves", () => {
 	});
 });
 
+// -- computePossessionMaxUses -------------------------------------------------
+
+const SP_BONUS = {
+	options: [{
+		slug: "sacred-pouch",
+		uses: 3,
+		usesBonus: {
+			evenLevelBonus: 1,
+			moveBonus: [{ moveName: "Big Magic", perInstance: 2 }],
+		},
+	}],
+};
+
+describe("StonetopCharacter.computePossessionMaxUses", () => {
+	function makeChar() { return makeCharacter(makeActor()); }
+
+	it("no moves owned, level 1 → no entry (base uses unchanged)", () => {
+		const result = makeChar().computePossessionMaxUses(SP_BONUS, new Map(), 1);
+		expect(result["sacred-pouch"]).toBeUndefined();
+	});
+
+	it("level 2 → +1 from even level", () => {
+		const result = makeChar().computePossessionMaxUses(SP_BONUS, new Map(), 2);
+		expect(result["sacred-pouch"]).toBe(4);
+	});
+
+	it("level 4 → +2 from two even levels", () => {
+		const result = makeChar().computePossessionMaxUses(SP_BONUS, new Map(), 4);
+		expect(result["sacred-pouch"]).toBe(5);
+	});
+
+	it("Big Magic owned once → +2", () => {
+		const owned = new Map([["Big Magic", [{ _id: "bm1" }]]]);
+		const result = makeChar().computePossessionMaxUses(SP_BONUS, owned, 1);
+		expect(result["sacred-pouch"]).toBe(5);
+	});
+
+	it("Big Magic owned twice → +4", () => {
+		const owned = new Map([["Big Magic", [{ _id: "bm1" }, { _id: "bm2" }]]]);
+		const result = makeChar().computePossessionMaxUses(SP_BONUS, owned, 1);
+		expect(result["sacred-pouch"]).toBe(7);
+	});
+
+	it("Big Magic once + level 4 → +2 move + +2 level = base 3 + 4", () => {
+		const owned = new Map([["Big Magic", [{ _id: "bm1" }]]]);
+		const result = makeChar().computePossessionMaxUses(SP_BONUS, owned, 4);
+		expect(result["sacred-pouch"]).toBe(7);
+	});
+
+	it("possession without usesBonus is not affected", () => {
+		const sp = { options: [{ slug: "apiary", uses: 0 }] };
+		const result = makeChar().computePossessionMaxUses(sp, new Map(), 10);
+		expect(result["apiary"]).toBeUndefined();
+	});
+});
+
 // -- buildPossessionsContext --------------------------------------------------
 
 const BASE_SP = {
@@ -688,5 +744,77 @@ describe("buildPossessionsContext — sub-choices", () => {
 		const war = ctx.options.find(o => o.slug === "weapons-of-war");
 		const sword = war.choices.options.find(c => c.slug === "sword");
 		expect(sword.usesChecks).toBeNull();
+	});
+});
+
+// -- applyDebilityRollMode ----------------------------------------------------
+
+function makeDebilityActor({ weakened = false, dazed = false, miserable = false } = {}) {
+	return makeActor({
+		system: {
+			attributes: {
+				debilities: {
+					options: {
+						weakened:  { value: weakened,  stat: ["str", "dex"] },
+						dazed:     { value: dazed,     stat: ["int", "wis"] },
+						miserable: { value: miserable, stat: ["con", "cha"] },
+					},
+				},
+			},
+		},
+	});
+}
+
+describe("applyDebilityRollMode", () => {
+	it("no debility active — passes rollMode def through unchanged", () => {
+		const char = makeCharacter(makeDebilityActor());
+		expect(char.applyDebilityRollMode("str", { rollMode: "def" })).toEqual({ rollMode: "def" });
+	});
+
+	it("no debility active — passes rollMode adv through unchanged", () => {
+		const char = makeCharacter(makeDebilityActor());
+		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toEqual({ rollMode: "adv" });
+	});
+
+	it("debility active, stat affected, rollMode def → dis", () => {
+		const char = makeCharacter(makeDebilityActor({ weakened: true }));
+		expect(char.applyDebilityRollMode("str", { rollMode: "def" })).toEqual({ rollMode: "dis" });
+	});
+
+	it("debility active, stat affected, rollMode adv → def (cancel)", () => {
+		const char = makeCharacter(makeDebilityActor({ weakened: true }));
+		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toEqual({ rollMode: "def" });
+	});
+
+	it("debility active, stat affected, rollMode dis → dis (unchanged)", () => {
+		const char = makeCharacter(makeDebilityActor({ weakened: true }));
+		expect(char.applyDebilityRollMode("str", { rollMode: "dis" })).toEqual({ rollMode: "dis" });
+	});
+
+	it("debility active but for a different stat — passes through unchanged", () => {
+		const char = makeCharacter(makeDebilityActor({ weakened: true }));
+		expect(char.applyDebilityRollMode("int", { rollMode: "def" })).toEqual({ rollMode: "def" });
+	});
+
+	it("debility value false (unchecked) — passes through unchanged", () => {
+		const char = makeCharacter(makeDebilityActor({ weakened: false }));
+		expect(char.applyDebilityRollMode("str", { rollMode: "def" })).toEqual({ rollMode: "def" });
+	});
+
+	it("two debilities active, one covers stat, rollMode adv → def", () => {
+		const char = makeCharacter(makeDebilityActor({ weakened: true, dazed: true }));
+		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toEqual({ rollMode: "def" });
+	});
+
+	it("dazed covers int and wis, rollMode def → dis for int", () => {
+		const char = makeCharacter(makeDebilityActor({ dazed: true }));
+		expect(char.applyDebilityRollMode("int", { rollMode: "def" })).toEqual({ rollMode: "dis" });
+		expect(char.applyDebilityRollMode("wis", { rollMode: "def" })).toEqual({ rollMode: "dis" });
+	});
+
+	it("preserves other options fields while changing rollMode", () => {
+		const char = makeCharacter(makeDebilityActor({ weakened: true }));
+		const result = char.applyDebilityRollMode("str", { rollMode: "adv", extra: "value" });
+		expect(result).toEqual({ rollMode: "def", extra: "value" });
 	});
 });

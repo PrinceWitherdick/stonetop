@@ -65,6 +65,7 @@ export class StonetopCharacter {
 
 		const data = new CharacterSheetData();
 		data.hasPlaybook = true;
+		data.description = playbookData?.description ?? null;
 		data.backgrounds = (playbookData.backgrounds ?? []).map(b => {
 			const result = { ...b, selected: b.slug === savedBg };
 			if (b.choices) {
@@ -96,14 +97,18 @@ export class StonetopCharacter {
 			selected: region === savedOrigin,
 		}));
 		data.savedOrigin = savedOrigin;
+		data.statsNote = playbookData?.statsNote ?? null;
 		data.movelist = await this.getMoves();
 		const background = (playbookData.backgrounds ?? []).find(b => b.slug === this._background.selectedSlug);
 		const extraPreselected = background?.extraPossessions ?? [];
+		const ownedAllByName = this._buildOwnedMovesMap();
+		const actorLevel = this._actor.system?.attributes?.level?.value ?? 1;
+		const maxUsesMap = this.computePossessionMaxUses(playbookData?.specialPossessions, ownedAllByName, actorLevel);
 		data.possessions = this.buildPossessionsContext(
 			playbookData.specialPossessions,
 			this._possessions.selected,
 			this._possessions.uses,
-			this._possessions.maxUses,
+			maxUsesMap,
 			extraPreselected,
 			this._possessions.subChoices,
 			this._possessions.choiceUses,
@@ -177,6 +182,23 @@ export class StonetopCharacter {
 				};
 			}),
 		};
+	}
+
+	computePossessionMaxUses(specialPossessions, ownedAllByName, level) {
+		const result = { ...this._possessions.maxUses };
+		for (const opt of (specialPossessions?.options ?? [])) {
+			if (!opt.usesBonus) continue;
+			let bonus = 0;
+			if (opt.usesBonus.evenLevelBonus) {
+				bonus += Math.floor(level / 2) * opt.usesBonus.evenLevelBonus;
+			}
+			for (const mb of (opt.usesBonus.moveBonus ?? [])) {
+				const instances = ownedAllByName.get(mb.moveName)?.length ?? 0;
+				bonus += instances * mb.perInstance;
+			}
+			if (bonus > 0) result[opt.slug] = (opt.uses ?? 0) + bonus;
+		}
+		return result;
 	}
 
 	async selectPossession(slug)   { await this._possessions.select(slug); }
@@ -335,6 +357,17 @@ export class StonetopCharacter {
 			"system.attributes.hp.value": hp,
 			"system.attributes.damage.value": damage,
 		});
+	}
+
+	applyDebilityRollMode(stat, options) {
+		const debilityOptions = this._actor.system.attributes?.debilities?.options ?? {};
+		const hasActiveDebility = Object.values(debilityOptions).some(
+			opt => opt.value && Array.isArray(opt.stat) && opt.stat.includes(stat)
+		);
+		if (!hasActiveDebility) return options;
+		if (options.rollMode === "adv") return { ...options, rollMode: "def" };
+		if (options.rollMode === "dis") return options;
+		return { ...options, rollMode: "dis" };
 	}
 
 	_buildOwnedMovesMap() {
