@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { StonetopCharacter } from "../../../module/actors/character/StonetopCharacter.js";
 
 // -- Fake repositories --------------------------------------------------------
@@ -88,6 +88,16 @@ describe("StonetopCharacter.buildSheetData", () => {
 		expect(data.savedInstinct).toBe("");
 	});
 
+	it("returns movelist with otherMoves even when no playbook", async () => {
+		const move = { _id: "m1", type: "move", name: "Custom Move", system: { moveType: "other", rollType: null } };
+		const actor = makeActor({ items: [move] });
+		const char = makeCharacter(actor);
+		const data = await char.buildSheetData();
+		expect(data.movelist).not.toBeNull();
+		expect(data.movelist.otherMoves).toHaveLength(1);
+		expect(data.movelist.otherMoves[0].name).toBe("Custom Move");
+	});
+
 	it("returns hasPlaybook=true when playbook present", async () => {
 		const actor = makeActor({ system: { playbook: { slug: "the-blessed", name: "The Blessed" } } });
 		const char = makeCharacter(actor, new FakePlaybookRepository(BLESSED_PLAYBOOK));
@@ -175,7 +185,7 @@ function makeEntry(overrides = {}) {
 		name: overrides.name ?? "Test Move",
 		system: {
 			description: overrides.description ?? "A test move.",
-			stat: overrides.stat ?? null,
+			rollType: overrides.rollType ?? null,
 			isStartingMove: overrides.isStartingMove ?? false,
 			requirement: overrides.requirement ?? null,
 		},
@@ -250,8 +260,8 @@ describe("StonetopCharacter.buildMovelistContext", () => {
 		expect(m.locked).toBe(false);
 	});
 
-	it("stat field maps to rollType", () => {
-		const [m] = char.buildMovelistContext([makeEntry({ stat: "con" })], new Map(), new Set(), 1);
+	it("rollType passes through", () => {
+		const [m] = char.buildMovelistContext([makeEntry({ rollType: "con" })], new Map(), new Set(), 1);
 		expect(m.rollType).toBe("con");
 	});
 
@@ -816,5 +826,208 @@ describe("applyDebilityRollMode", () => {
 		const char = makeCharacter(makeDebilityActor({ weakened: true }));
 		const result = char.applyDebilityRollMode("str", { rollMode: "adv", extra: "value" });
 		expect(result).toEqual({ rollMode: "def", extra: "value" });
+	});
+});
+
+// -- getMoves (otherMoves) ----------------------------------------------------
+
+describe("StonetopCharacter.getMoves otherMoves", () => {
+	it("returns otherMoves: [] when no moves have moveType 'other'", async () => {
+		const actor = makeActor();
+		const char = makeCharacter(actor);
+		const result = await char.getMoves();
+		expect(result.otherMoves).toEqual([]);
+	});
+
+	it("returns otherMoves populated with items that have moveType 'other'", async () => {
+		const move = { _id: "m1", type: "move", name: "Custom Move", system: { moveType: "other", rollType: "str", description: "<p>Do a thing.</p>" } };
+		const actor = makeActor({ items: [move] });
+		const char = makeCharacter(actor);
+		const result = await char.getMoves();
+		expect(result.otherMoves).toEqual([{ name: "Custom Move", ownedId: "m1", rollType: "str", description: "<p>Do a thing.</p>" }]);
+	});
+
+	it("does not include items with other moveTypes in otherMoves", async () => {
+		const move = { _id: "m2", type: "move", name: "Special Move", system: { moveType: "special", rollType: null } };
+		const actor = makeActor({ items: [move] });
+		const char = makeCharacter(actor);
+		const result = await char.getMoves();
+		expect(result.otherMoves).toEqual([]);
+	});
+
+	it("includes cross-playbook moves (name not in current playbook) in otherMoves", async () => {
+		// "Fox Move" is owned but not in the Blessed playbook repo → cross-playbook orphan
+		const move = { _id: "m4", type: "move", name: "Fox Move", system: { moveType: "playbook", rollType: null, description: null } };
+		const actor = makeActor({ system: { playbook: { slug: "the-blessed", name: "The Blessed" } }, items: [move] });
+		// Blessed repo has no moves named "Fox Move"
+		const char = makeCharacter(actor, new FakePlaybookRepository(BLESSED_PLAYBOOK), new FakePlaybookMoveRepository([]));
+		const result = await char.getMoves();
+		expect(result.otherMoves).toEqual([{ name: "Fox Move", ownedId: "m4", rollType: null, description: null }]);
+	});
+
+	it("does not include same-playbook moves in otherMoves", async () => {
+		// "Blessed Move" is in both the actor's items AND the current playbook repo → Playbook Moves, not Other Moves
+		const move = { _id: "m5", type: "move", name: "Blessed Move", system: { moveType: "playbook", rollType: null } };
+		const playbookEntry = { _id: "pm1", name: "Blessed Move", system: { moveType: "playbook", isStartingMove: false } };
+		const actor = makeActor({ system: { playbook: { slug: "the-blessed", name: "The Blessed" } }, items: [move] });
+		const char = makeCharacter(actor, new FakePlaybookRepository(BLESSED_PLAYBOOK), new FakePlaybookMoveRepository([playbookEntry]));
+		const result = await char.getMoves();
+		expect(result.otherMoves).toEqual([]);
+	});
+
+	it("includes description: null when item has no description", async () => {
+		const move = { _id: "m3", type: "move", name: "Bare Move", system: { moveType: "other", rollType: null } };
+		const actor = makeActor({ items: [move] });
+		const char = makeCharacter(actor);
+		const result = await char.getMoves();
+		expect(result.otherMoves[0].description).toBeNull();
+	});
+});
+
+// -- onRoll -------------------------------------------------------------------
+
+function makeRollableItem({ id = "item-1", rollType = "str", type = "move", rollFormula = null } = {}) {
+	return {
+		_id: id,
+		type,
+		system: { rollType, rollFormula },
+		roll: vi.fn(),
+	};
+}
+
+function makeItemEvent({ itemId = "item-1", showDescription = false, hasItemEl = true } = {}) {
+	return {
+		currentTarget: {
+			closest: (sel) => sel === ".item" && hasItemEl ? { dataset: { itemId } } : null,
+			getAttribute: (attr) => attr === "data-show" && showDescription ? "description" : null,
+			classList: { contains: () => false },
+			dataset: {},
+		},
+	};
+}
+
+function makeOnRollActor(item, { pbtaRollMode = "def", debilities = {} } = {}) {
+	const actor = makeDebilityActor(debilities);
+	const itemsArr = item ? [item] : [];
+	itemsArr.get = (id) => itemsArr.find(i => i._id === id) ?? null;
+	actor.items = itemsArr;
+	actor.flags.pbta = { rollMode: pbtaRollMode };
+	return actor;
+}
+
+// -- onDropMove ---------------------------------------------------------------
+
+function makeDropMoveActor({ items = [], playbook = null } = {}) {
+	return makeActor({ items, system: { playbook: { name: playbook } } });
+}
+
+describe("StonetopCharacter.onDropMove", () => {
+	it("returns false and skips creation when a move with the same name is already owned", async () => {
+		const existing = { type: "move", name: "Barkskin" };
+		const actor = makeDropMoveActor({ items: [existing] });
+		const char = makeCharacter(actor);
+		const result = await char.onDropMove({ name: "Barkskin", type: "move", system: { moveType: "playbook", playbook: "The Blessed" } });
+		expect(result).toBe(false);
+		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
+	});
+
+	it("returns true and creates same-playbook move as-is", async () => {
+		const actor = makeDropMoveActor({ playbook: "The Blessed" });
+		const char = makeCharacter(actor);
+		const itemData = { name: "Barkskin", type: "move", system: { moveType: "playbook", playbook: "The Blessed" } };
+		const result = await char.onDropMove(itemData);
+		expect(result).toBe(true);
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [
+			expect.objectContaining({ system: expect.objectContaining({ moveType: "playbook" }) }),
+		]);
+	});
+
+	it("returns true and changes moveType to 'other' for cross-playbook moves", async () => {
+		const actor = makeDropMoveActor({ playbook: "The Fox" });
+		const char = makeCharacter(actor);
+		const itemData = { name: "Barkskin", type: "move", system: { moveType: "playbook", playbook: "The Blessed" } };
+		const result = await char.onDropMove(itemData);
+		expect(result).toBe(true);
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [
+			expect.objectContaining({ system: expect.objectContaining({ moveType: "other" }) }),
+		]);
+	});
+
+	it("returns true and creates other-moveType moves without changing moveType", async () => {
+		const actor = makeDropMoveActor({ playbook: "The Fox" });
+		const char = makeCharacter(actor);
+		const itemData = { name: "Some Follower Move", type: "move", system: { moveType: "follower", playbook: null } };
+		const result = await char.onDropMove(itemData);
+		expect(result).toBe(true);
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [
+			expect.objectContaining({ system: expect.objectContaining({ moveType: "follower" }) }),
+		]);
+	});
+});
+
+describe("StonetopCharacter.onRoll", () => {
+	beforeEach(() => { game.settings = { get: vi.fn(() => false) }; });
+	afterEach(() => { delete game.settings; });
+
+	it("returns false when event has no item element", async () => {
+		const char = makeCharacter(makeOnRollActor(null));
+		expect(await char.onRoll(makeItemEvent({ hasItemEl: false }))).toBe(false);
+	});
+
+	it("returns false when item has no rollType", async () => {
+		const item = makeRollableItem({ rollType: null });
+		const char = makeCharacter(makeOnRollActor(item));
+		expect(await char.onRoll(makeItemEvent())).toBe(false);
+		expect(item.roll).not.toHaveBeenCalled();
+	});
+
+	it("returns true and calls item.roll when item has a rollType", async () => {
+		const item = makeRollableItem({ rollType: "str" });
+		const char = makeCharacter(makeOnRollActor(item));
+		expect(await char.onRoll(makeItemEvent())).toBe(true);
+		expect(item.roll).toHaveBeenCalledOnce();
+	});
+
+	it("passes rollMode from actor pbta flag", async () => {
+		const item = makeRollableItem({ rollType: "str" });
+		const char = makeCharacter(makeOnRollActor(item, { pbtaRollMode: "adv" }));
+		expect(await char.onRoll(makeItemEvent())).toBe(true);
+		expect(item.roll).toHaveBeenCalledWith(expect.objectContaining({ rollMode: "adv" }));
+	});
+
+	it("sets descriptionOnly when data-show=description", async () => {
+		const item = makeRollableItem({ rollType: "str" });
+		const char = makeCharacter(makeOnRollActor(item));
+		expect(await char.onRoll(makeItemEvent({ showDescription: true }))).toBe(true);
+		expect(item.roll).toHaveBeenCalledWith(expect.objectContaining({ descriptionOnly: true }));
+	});
+
+	it("sets descriptionOnly for npcMove with no rollFormula", async () => {
+		const item = makeRollableItem({ rollType: "str", type: "npcMove", rollFormula: null });
+		const char = makeCharacter(makeOnRollActor(item));
+		expect(await char.onRoll(makeItemEvent())).toBe(true);
+		expect(item.roll).toHaveBeenCalledWith(expect.objectContaining({ descriptionOnly: true }));
+	});
+
+	it("applies disadvantage when relevant debility is active", async () => {
+		const item = makeRollableItem({ rollType: "str" });
+		const char = makeCharacter(makeOnRollActor(item, { debilities: { weakened: true } }));
+		expect(await char.onRoll(makeItemEvent())).toBe(true);
+		expect(item.roll).toHaveBeenCalledWith(expect.objectContaining({ rollMode: "dis" }));
+	});
+
+	it("does not apply disadvantage when debility covers a different stat", async () => {
+		const item = makeRollableItem({ rollType: "wis" });
+		const char = makeCharacter(makeOnRollActor(item, { debilities: { weakened: true } }));
+		expect(await char.onRoll(makeItemEvent())).toBe(true);
+		expect(item.roll).toHaveBeenCalledWith(expect.objectContaining({ rollMode: "def" }));
+	});
+
+	it("omits rollMode from options when hideRollMode is true", async () => {
+		game.settings.get.mockReturnValue(true);
+		const item = makeRollableItem({ rollType: "str" });
+		const char = makeCharacter(makeOnRollActor(item, { pbtaRollMode: "adv" }));
+		expect(await char.onRoll(makeItemEvent())).toBe(true);
+		expect(item.roll).toHaveBeenCalledWith({ descriptionOnly: false });
 	});
 });
