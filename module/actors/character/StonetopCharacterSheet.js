@@ -25,7 +25,11 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		async getData() {
 			const context = await super.getData();
-			context.stonetop = await this._stonetopCharacter.buildSheetData();
+			const level = context.system.attributes?.level?.value ?? 1;
+			if (context.system.attributes?.xp) {
+				context.system.attributes.xp.max = 6 + level * 2;
+			}
+			context.stonetop = await this._stonetopCharacter.buildSnapshot();
 			return context;
 		}
 
@@ -43,6 +47,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".cell--stats .stat[data-stat]").each((_, el) => {
 				$(el).append(`<span class="stonetop-stat-abbr">(${el.dataset.stat.toUpperCase()})</span>`);
 			});
+
+			// Move playbook icon into header alongside playbook dropdown
+			const icon = html[0].querySelector(".stonetop-playbook-icon");
+			const playbookDiv = html[0].querySelector(".sheet-playbook");
+			if (icon && playbookDiv) playbookDiv.insertBefore(icon, playbookDiv.firstChild);
 
 			if (!this.isEditable) return;
 
@@ -74,9 +83,20 @@ export function createStonetopCharacterSheetClass(Base) {
 					this._onPossessionUseChange({ currentTarget: btn });
 				}
 			}, true);
+			html.find(".stonetop-inventory-item-check").on("change", this._onInventoryItemCheck.bind(this));
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-inventory-resource-btn");
+				if (!btn) return;
+				this._onInventoryResource({ currentTarget: btn });
+			}, true);
+			html.find(".stonetop-inv-add-btn").on("click", this._onAddInventoryItem.bind(this));
+			html.find(".stonetop-inv-delete").on("click", this._onDeleteCustomInventoryItem.bind(this));
+			html.find(".stonetop-outfit-load-radio").on("change", this._onOutfitLoad.bind(this));
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
 			html.find(".stonetop-possession-sub-radio").on("change", this._onPossessionSubRadio.bind(this));
+			html.find(".stonetop-regular-pool-btn").on("change", this._onRegularPool.bind(this));
+			html.find(".stonetop-small-pool-btn").on("change", this._onSmallPool.bind(this));
 			html.find(".stonetop-basic-move-open").on("click", async ev => {
 				const { compendiumId } = ev.currentTarget.dataset;
 				const pack = game.packs.get("stonetop.basic-moves");
@@ -88,13 +108,59 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { itemId } = ev.currentTarget.dataset;
 				await this._stonetopCharacter.removeMove(itemId);
 			});
+
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-flip-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				const { slug, flipped } = btn.dataset;
+				if (flipped === "true") {
+					this._stonetopCharacter.unflipArcanum(slug).then(() => this.render(false));
+				} else {
+					this._stonetopCharacter.flipArcanum(slug).then(() => this.render(false));
+				}
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-resource-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				const { slug, index } = btn.dataset;
+				const isChecked = btn.classList.contains("is-checked");
+				const newVal = isChecked ? Number(index) : Number(index) + 1;
+				this._stonetopCharacter.setArcanumResource(slug, newVal).then(() => this.render(false));
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-delete");
+				if (!btn) return;
+				ev.stopPropagation();
+				const { slug } = btn.dataset;
+				this._stonetopCharacter.removeArcanum(slug).then(() => this.render(true));
+			}, true);
+
+			html[0].addEventListener("change", ev => {
+				const cb = ev.target.closest(".stonetop-arcanum-unlock-check");
+				if (!cb) return;
+				const { arcanumSlug, optionSlug, index } = cb.dataset;
+				const newCount = cb.checked ? Number(index) + 1 : Number(index);
+				this._stonetopCharacter.setArcanumUnlockCount(arcanumSlug, optionSlug, newCount);
+			}, true);
 		}
 
 		async _onDropItemCreate(itemData) {
-			const items = Array.isArray(itemData) ? itemData : [itemData];
-			const moves = items.filter(i => i.type === "move");
+			const items  = Array.isArray(itemData) ? itemData : [itemData];
+			const arcana = items.filter(i => i.type === "move" && i.system?.moveType === "arcanum");
+			const moves  = items.filter(i => i.type === "move" && i.system?.moveType !== "arcanum");
 			const others = items.filter(i => i.type !== "move");
 			let anyAdded = false;
+			for (const item of arcana) {
+				const slug = item.flags?.stonetop?.slug;
+				if (slug) {
+					await this._stonetopCharacter.addArcanum(slug);
+					anyAdded = true;
+				}
+			}
 			for (const item of moves) {
 				if (await this._stonetopCharacter.onDropMove(item)) anyAdded = true;
 			}
@@ -179,5 +245,80 @@ export function createStonetopCharacterSheetClass(Base) {
 			const exclusiveSlugs = siblingSlugsCsv ? siblingSlugsCsv.split(",") : [];
 			await this._stonetopCharacter.selectSubChoiceExclusive(possessionSlug, choiceSlug, exclusiveSlugs);
 		}
+
+		async _onInventoryItemCheck(ev) {
+			await this._stonetopCharacter.setInventoryItemChecked(
+				ev.currentTarget.dataset.slug, ev.currentTarget.checked
+			);
+			this.render(true);
+		}
+
+		async _onInventoryResource(ev) {
+			const { slug, index } = ev.currentTarget.dataset;
+			const isChecked = ev.currentTarget.classList.contains("is-checked");
+			const newVal = isChecked ? Number(index) : Number(index) + 1;
+			await this._stonetopCharacter.setInventoryResource(slug, newVal);
+			this.render(true);
+		}
+
+		async _onAddInventoryItem(ev) {
+			const column = ev.currentTarget.dataset.column;
+			const isRegular = column === "regular";
+			const content = isRegular
+				? `<div style="display:grid;gap:6px;padding:6px">
+					<label>${game.i18n.localize("stonetop.inventory.addItemName")} <input name="name" type="text" style="width:100%"></label>
+					<label>${game.i18n.localize("stonetop.inventory.addItemWeight")} <input name="weight" type="number" min="1" value="1" style="width:60px"></label>
+				   </div>`
+				: `<div style="padding:6px"><label>${game.i18n.localize("stonetop.inventory.addItemName")} <input name="name" type="text" style="width:100%"></label></div>`;
+			new Dialog({
+				title: isRegular ? game.i18n.localize("stonetop.inventory.addItem") : game.i18n.localize("stonetop.inventory.addSmallItem"),
+				content,
+				buttons: {
+					add: {
+						label: game.i18n.localize("stonetop.inventory.addItemConfirm"),
+						callback: html => {
+							const name = html.find("[name=name]").val().trim();
+							if (!name) return;
+							if (isRegular) {
+								const weight = Math.max(1, parseInt(html.find("[name=weight]").val()) || 1);
+								this._stonetopCharacter.addCustomInventoryItem(name, weight)
+									.then(() => this.render(false));
+							} else {
+								this._stonetopCharacter.addCustomSmallItem(name)
+									.then(() => this.render(false));
+							}
+						},
+					},
+					cancel: { label: game.i18n.localize("Cancel") },
+				},
+				default: "add",
+			}).render(true);
+		}
+
+		async _onOutfitLoad(ev) {
+			await this._stonetopCharacter.setInventoryLoadLevel(ev.currentTarget.value);
+			this.render(false);
+		}
+
+		async _onRegularPool(ev) {
+			const idx = Number(ev.currentTarget.dataset.index);
+			await this._stonetopCharacter.setInventoryRegularPool(
+				ev.currentTarget.checked ? idx + 1 : idx
+			);
+			this.render(false);
+		}
+
+		async _onSmallPool(ev) {
+			const idx = Number(ev.currentTarget.dataset.index);
+			await this._stonetopCharacter.setInventorySmallPool(
+				ev.currentTarget.checked ? idx + 1 : idx
+			);
+			this.render(false);
+		}
+
+		async _onDeleteCustomInventoryItem(ev) {
+			await this._stonetopCharacter.removeCustomInventoryItem(ev.currentTarget.dataset.ownedId);
+		}
 	};
 }
+

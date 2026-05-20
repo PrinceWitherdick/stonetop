@@ -6,6 +6,18 @@ export class StonetopPlaybook {
 		this._stonetopFields = this._stonetopItem.flags.stonetop;
 	}
 
+	get name() {
+		return this._stonetopItem.name;
+	}
+
+	get slug() {
+		return this._stonetopItem.system?.slug ?? null;
+	}
+
+	get img() {
+		return this._stonetopItem.img ?? null;
+	}
+
 	get description() {
 		return this._stonetopItem.system?.description ?? null;
 	}

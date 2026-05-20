@@ -1,6 +1,7 @@
 {
 	"_id": "y3RtRdOWxLinZu5e",
 	"_key": "!items!y3RtRdOWxLinZu5e",
+	"img": "modules/stonetop/assets/playbooks/the-judge.svg",
 	"name": "The Judge",
 	"type": "playbook",
 	"flags": {
@@ -155,12 +156,20 @@
 								{
 									"slug": "brace-of-knives",
 									"label": "◇ Brace of knives (<em>hand, thrown</em>)",
-									"uses": 2
+									"resource": {
+										"max": 2,
+										"title": null,
+										"labels": []
+									}
 								},
 								{
 									"slug": "crossbow",
 									"label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>)",
-									"uses": 2
+									"resource": {
+										"max": 2,
+										"title": null,
+										"labels": []
+									}
 								}
 							]
 						}

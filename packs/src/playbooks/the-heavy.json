@@ -1,6 +1,7 @@
 {
 	"_id": "thDOuItwerMnLc0i",
 	"_key": "!items!thDOuItwerMnLc0i",
+	"img": "modules/stonetop/assets/playbooks/the-heavy.svg",
 	"name": "The Heavy",
 	"type": "playbook",
 	"flags": {
@@ -152,7 +153,11 @@
 						"slug": "distillery",
 						"label": "Distillery",
 						"description": "○○ uses: skins of fine whisky (grants advantage to Persuade), copper tubes, malt, firkins, stills, barrels, etc.",
-						"uses": 2
+						"resource": {
+							"max": 2,
+							"title": null,
+							"labels": []
+						}
 					},
 					{
 						"slug": "chirurgeons-tools",
@@ -200,7 +205,11 @@
 								{
 									"slug": "crossbow",
 									"label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>, x piercing)",
-									"uses": 2
+									"resource": {
+										"max": 2,
+										"title": null,
+										"labels": []
+									}
 								}
 							]
 						}

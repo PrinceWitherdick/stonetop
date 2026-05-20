@@ -1,0 +1,17 @@
+{
+	"_id": "ktUJrhQR6FEecAtp",
+	"_key": "!items!ktUJrhQR6FEecAtp",
+	"name": "Little box",
+	"type": "move",
+	"system": {
+		"moveType": "inventory"
+	},
+	"flags": {
+		"stonetop": {
+			"slug": "little-box",
+			"inventoryColumn": "small",
+			"sortOrder": 18,
+			"smallGrid": true
+		}
+	}
+}

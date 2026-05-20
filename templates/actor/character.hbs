@@ -4,11 +4,14 @@
 		{{> "pbta.actor-header"}}
 
 		<section class="sheet-top flexcol">
-			{{#if stonetop.description}}
-			<p class="stonetop-playbook-description">{{stonetop.description}}</p>
+			{{#if stonetop.playbook.img}}
+			<img class="stonetop-playbook-icon" src="{{stonetop.playbook.img}}" alt="">
+			{{/if}}
+			{{#if stonetop.playbook.description}}
+			<p class="stonetop-playbook-description">{{stonetop.playbook.description}}</p>
 			{{/if}}
 
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.statsNote}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.playbook.statsNote}}
 
 			<section class="sheet-attributes flexrow">
 				{{> "pbta.actor-stats"}}
@@ -52,12 +55,14 @@
 				{{~> "pbta.actor-attributes" attrs=system.attrLeft cssClass="cell--attributes-left flexrow" owner=owner editable=editable~}}
 			</section>
 			{{/if}}
+
 		</section>
 
 		<section class="sheet-main flexcol">
 			<nav class="sheet-tabs tabs" data-group="primary">
 				<a class="item" data-tab="moves">{{localize "PBTA.Moves"}}</a>
-				<a class="item" data-tab="equipment">{{localize "PBTA.Equipment"}}</a>
+				<a class="item" data-tab="inventory">{{localize "stonetop.sheet.tabs.inventory"}}</a>
+				<a class="item" data-tab="arcana">{{localize "stonetop.sheet.tabs.arcana"}}</a>
 				<a class="item" data-tab="details">{{localize "stonetop.sheet.tabs.details"}}</a>
 			</nav>
 
@@ -65,6 +70,7 @@
 				<section class="sheet-body">
 					{{> "stonetop.tab-moves"}}
 					{{> "stonetop.tab-equipment"}}
+					{{> "stonetop.tab-arcana"}}
 					{{> "stonetop.tab-details"}}
 				</section>
 
