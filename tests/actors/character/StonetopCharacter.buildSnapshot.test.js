@@ -5,6 +5,7 @@ import {FakePlaybookRepository} from "../../fakes/FakePlaybookRepository.js";
 import {FakeInventoryRepository} from "../../fakes/FakeInventoryRepository.js";
 import {TestCharacterBuilder} from "../../fakes/TestCharacterBuilder.js";
 import {FakeMoveRepository} from "../../fakes/FakeMoveRepository.js";
+import {FakePostDeathInsertRepository} from "../../fakes/FakePostDeathInsertRepository.js";
 import {MoveDefinition} from "../../../module/model/MoveDefinition.js";
 import {FakeActorBuilder, FakeStatBuilder} from "../../fakes/FakeActorBuilder.js";
 
@@ -19,6 +20,7 @@ function makeOutfitItem(overrides = {}) {
 		.withTwoCol(overrides.twoCol ?? false)
 		.withSmallGrid(overrides.smallGrid ?? false)
 		.withBreakBefore(overrides.breakBefore ?? false)
+		.withArmor(overrides.armor ?? null)
 		.build();
 }
 
@@ -327,12 +329,17 @@ describe("buildSnapshot — vitals", () => {
 		expect(snap.vitals.damage).toBeNull();
 	});
 
-	it("armor is a plain number from system.attributes.armour.value", async () => {
-		const actor = new FakeActorBuilder().withLevel(4).withArmour(3).build();
+	it("armor is derived from checked inventory items", async () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.checked", {"thick-hides": true, "shield": true})
+			.build();
 		const snap = await new TestCharacterBuilder(actor)
+			.withInventoryRepo(new FakeInventoryRepository([
+				makeOutfitItem({ slug: "thick-hides", armor: { base: 1 } }),
+				makeOutfitItem({ slug: "shield",      armor: { modifier: 1 } }),
+			]))
 			.build().buildSnapshot();
-		expect(snap.vitals.armor).toBe(3);
-		expect(typeof snap.vitals.armor).toBe("number");
+		expect(snap.vitals.armor).toBe(2);
 	});
 
 	it("level is a plain number", async () => {
@@ -710,6 +717,214 @@ describe("buildSnapshot — inventory.other", () => {
 			.build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
 		expect(snap.inventory.other).toHaveLength(0);
+	});
+});
+
+// ── lore ──────────────────────────────────────────────────────────────────────
+
+describe("buildSnapshot — lore section", () => {
+	const LORE_PLAYBOOK = {
+		...HEAVY_PLAYBOOK,
+		lore: [
+			{
+				slug: "the-earth-mother",
+				title: "The Earth Mother",
+				description: "<p>Danu text</p>",
+				options: [
+					{ slug: "shrine-loved",  description: "... loved.",    max: 1 },
+					{ slug: "shrine-berth",  description: "... berth.",    max: 1 },
+				],
+			},
+			{
+				slug: "danu-offerings",
+				title: "Offerings to Danu",
+				description: "<p>Offerings text</p>",
+				options: [
+					{ slug: "fruits", description: "Fruits of harvest", max: 3 },
+				],
+			},
+		],
+	};
+
+	async function buildSnap(flags = {}) {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withFlags(flags)
+			.build();
+		return new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(LORE_PLAYBOOK))
+			.build().buildSnapshot();
+	}
+
+	it("lore.hasEntries is true when playbook has lore", async () => {
+		const snap = await buildSnap();
+		expect(snap.playbook.lore.hasEntries).toBe(true);
+	});
+
+	it("lore.hasEntries is false when playbook has no lore", async () => {
+		const actor = new FakeActorBuilder().withPlaybook("the-heavy", "The Heavy").build();
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.build().buildSnapshot();
+		expect(snap.playbook.lore.hasEntries).toBe(false);
+	});
+
+	it("lore.entries has correct length", async () => {
+		const snap = await buildSnap();
+		expect(snap.playbook.lore.entries).toHaveLength(2);
+	});
+
+	it("lore entry has slug, title, description", async () => {
+		const snap = await buildSnap();
+		const entry = snap.playbook.lore.entries[0];
+		expect(entry.slug).toBe("the-earth-mother");
+		expect(entry.title).toBe("The Earth Mother");
+		expect(entry.description).toBe("<p>Danu text</p>");
+	});
+
+	it("lore entry options have slug, description, max", async () => {
+		const snap = await buildSnap();
+		const opt = snap.playbook.lore.entries[0].options[0];
+		expect(opt.slug).toBe("shrine-loved");
+		expect(opt.description).toBe("... loved.");
+		expect(opt.max).toBe(1);
+	});
+
+	it("lore option count is 0 when no flag saved", async () => {
+		const snap = await buildSnap();
+		expect(snap.playbook.lore.entries[0].options[0].count).toBe(0);
+	});
+
+	it("lore option count reflects saved flag", async () => {
+		const snap = await buildSnap({ "lore.counts": { "the-earth-mother:shrine-loved": 1 } });
+		expect(snap.playbook.lore.entries[0].options[0].count).toBe(1);
+	});
+
+	it("lore option checks has length equal to max", async () => {
+		const snap = await buildSnap();
+		const opt = snap.playbook.lore.entries[1].options[0];
+		expect(opt.checks).toHaveLength(3);
+	});
+
+	it("lore option checks are all false when count is 0", async () => {
+		const snap = await buildSnap();
+		const opt = snap.playbook.lore.entries[0].options[0];
+		expect(opt.checks).toEqual([false]);
+	});
+
+	it("lore option checks reflect count correctly", async () => {
+		const snap = await buildSnap({ "lore.counts": { "danu-offerings:fruits": 2 } });
+		const opt = snap.playbook.lore.entries[1].options[0];
+		expect(opt.checks).toEqual([true, true, false]);
+	});
+
+	const TEXT_LORE_PLAYBOOK = {
+		...HEAVY_PLAYBOOK,
+		lore: [
+			{
+				slug: "questions",
+				title: "Questions",
+				description: "",
+				options: [
+					{ slug: "q-one", description: "What happened?", type: "text" },
+				],
+			},
+		],
+	};
+
+	async function buildSnapWithText(flags = {}) {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withFlags(flags)
+			.build();
+		return new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(TEXT_LORE_PLAYBOOK))
+			.build().buildSnapshot();
+	}
+
+	it("text-type option has type === 'text'", async () => {
+		const snap = await buildSnapWithText();
+		expect(snap.playbook.lore.entries[0].options[0].type).toBe("text");
+	});
+
+	it("text-type option has checks === []", async () => {
+		const snap = await buildSnapWithText();
+		expect(snap.playbook.lore.entries[0].options[0].checks).toEqual([]);
+	});
+
+	it("text-type option textValue is empty string when no flag saved", async () => {
+		const snap = await buildSnapWithText();
+		expect(snap.playbook.lore.entries[0].options[0].textValue).toBe("");
+	});
+
+	it("text-type option textValue reflects saved flag", async () => {
+		const snap = await buildSnapWithText({ "lore.texts": { "questions:q-one": "it was chaos" } });
+		expect(snap.playbook.lore.entries[0].options[0].textValue).toBe("it was chaos");
+	});
+});
+
+// ── movelist: post-death moves ────────────────────────────────────────────────
+
+const REVENANT_INSERT = {
+	_id: "pDiRevenant00001",
+	name: "Revenant",
+	img: null,
+	system: { slug: "revenant", description: "<p>When you die…</p>" },
+	flags: { stonetop: { instincts: [], lore: [] } },
+};
+
+const REVENANT_MOVE = {
+	_id: "pdMove001",
+	name: "Undying",
+	system: { rollType: "str", description: "You refuse to stay down." },
+};
+
+const REVENANT_ACTOR_MOVE = {
+	_id: "pdMove001Own",
+	name: "Undying",
+	type: "move",
+	system: { moveType: "post-death", rollType: "str", description: "You refuse to stay down." },
+};
+
+describe("buildSnapshot — movelist / post-death moves", () => {
+	it("postDeathGroup is null when no active insert", async () => {
+		const actor = new FakeActorBuilder().build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		expect(snap.movelist.postDeathGroup).toBeNull();
+		expect(snap.movelist.otherGroups.find(g => g.key === "post-death")).toBeUndefined();
+	});
+
+	it("postDeathGroup is set to insert name and owned PDI moves", async () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("postDeathInsert.slug", "revenant")
+			.addItem(REVENANT_ACTOR_MOVE)
+			.build();
+		const pdiRepo = new FakePostDeathInsertRepository([REVENANT_INSERT]);
+		const snap = await new TestCharacterBuilder(actor)
+			.withPostDeathInsertRepo(pdiRepo)
+			.build()
+			.buildSnapshot();
+		expect(snap.movelist.postDeathGroup).not.toBeNull();
+		expect(snap.movelist.postDeathGroup.label).toBe("Revenant");
+		expect(snap.movelist.postDeathGroup.moves).toHaveLength(1);
+	});
+
+	it("PDI group moves have source.type 'post-death', real ownedId, owned and isStarting true", async () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("postDeathInsert.slug", "revenant")
+			.addItem(REVENANT_ACTOR_MOVE)
+			.build();
+		const pdiRepo = new FakePostDeathInsertRepository([REVENANT_INSERT]);
+		const snap = await new TestCharacterBuilder(actor)
+			.withPostDeathInsertRepo(pdiRepo)
+			.build()
+			.buildSnapshot();
+		const move = snap.movelist.postDeathGroup.moves[0];
+		expect(move.source.type).toBe("post-death");
+		expect(move.ownedId).toBe("pdMove001Own");
+		expect(move.owned).toBe(true);
+		expect(move.isStarting).toBe(true);
+		expect(move.name).toBe("Undying");
 	});
 });
 

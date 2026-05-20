@@ -3,7 +3,7 @@
 	"id": "stonetop",
 	"title": "Stonetop",
 	"description": "An unofficial module for playing Stonetop in Foundry VTT.",
-	"version": "0.6.0",
+	"version": "0.7.0",
 	"compatibility": {
 		"minimum": "12",
 		"verified": "12"
@@ -107,6 +107,20 @@
 			"name": "arcana",
 			"label": "Arcana",
 			"path": "packs/arcana",
+			"type": "Item",
+			"system": "pbta"
+		},
+		{
+			"name": "post-death-inserts",
+			"label": "Post-Death Inserts",
+			"path": "packs/post-death-inserts",
+			"type": "Item",
+			"system": "pbta"
+		},
+		{
+			"name": "post-death-moves",
+			"label": "Post-Death Moves",
+			"path": "packs/post-death-moves",
 			"type": "Item",
 			"system": "pbta"
 		}
