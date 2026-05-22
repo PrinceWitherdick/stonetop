@@ -2,9 +2,9 @@
 	"_id": "IqK3yn9FfcgMXAdx",
 	"_key": "!items!IqK3yn9FfcgMXAdx",
 	"name": "Blanket",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

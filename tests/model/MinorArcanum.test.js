@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
 	MinorArcanum, MinorArcanumFront, MinorArcanumBack,
-	MinorArcanumItem, MinorArcanumMove,
-} from "../../module/model/MinorArcanum.js";
-import { ResourceDef } from "../../module/model/Resource.js";
+	MinorArcanumItem,
+} from "../../module/model/data/MinorArcanum.js";
+import { Resource } from "../../module/model/data/Resource.js";
 
 // -- Fixtures -----------------------------------------------------------------
 
@@ -48,9 +48,9 @@ describe("MinorArcanumItem", () => {
 		expect(item.inventoryColumn).toBe("regular");
 	});
 
-	it("wraps resource in ResourceDef when present", () => {
+	it("wraps resource in Resource when present", () => {
 		const item = new MinorArcanumItem(ITEM_DATA);
-		expect(item.resource).toBeInstanceOf(ResourceDef);
+		expect(item.resource).toBeInstanceOf(Resource);
 		expect(item.resource.max).toBe(3);
 		expect(item.resource.title).toBe("Ammo");
 	});
@@ -73,18 +73,6 @@ describe("MinorArcanumItem", () => {
 	});
 });
 
-describe("MinorArcanumMove", () => {
-	it("stores name, rollType, description", () => {
-		const move = new MinorArcanumMove(BACK_DATA.move);
-		expect(move.name).toBe("When you speak the secret word");
-		expect(move.rollType).toBeNull();
-		expect(move.description).toBe("<p>Lightning appears.</p>");
-	});
-
-	it("defaults rollType to null", () => {
-		expect(new MinorArcanumMove({ name: "x", description: "y" }).rollType).toBeNull();
-	});
-});
 
 describe("MinorArcanumFront", () => {
 	it("stores title and description", () => {
@@ -122,9 +110,9 @@ describe("MinorArcanumBack", () => {
 		expect(new MinorArcanumBack({ ...BACK_DATA, item: null }).item).toBeNull();
 	});
 
-	it("wraps resource in ResourceDef when present", () => {
+	it("wraps resource in Resource when present", () => {
 		const back = new MinorArcanumBack({ ...BACK_DATA, resource: { max: 3, maxStat: null, title: "Tonic", labels: [] } });
-		expect(back.resource).toBeInstanceOf(ResourceDef);
+		expect(back.resource).toBeInstanceOf(Resource);
 		expect(back.resource.title).toBe("Tonic");
 	});
 
@@ -132,8 +120,9 @@ describe("MinorArcanumBack", () => {
 		expect(new MinorArcanumBack(BACK_DATA).resource).toBeNull();
 	});
 
-	it("wraps move in MinorArcanumMove when present", () => {
-		expect(new MinorArcanumBack(BACK_DATA).move).toBeInstanceOf(MinorArcanumMove);
+	it("passes move through as raw object when present", () => {
+		const { move } = new MinorArcanumBack(BACK_DATA);
+		expect(move).toEqual({ name: "When you speak the secret word", rollType: null, description: "<p>Lightning appears.</p>" });
 	});
 
 	it("move is null when absent", () => {
@@ -158,8 +147,8 @@ describe("MinorArcanum", () => {
 		expect(new MinorArcanum(ARCANUM_DATA).back).toBeInstanceOf(MinorArcanumBack);
 	});
 
-	it("back.item.resource is ResourceDef", () => {
+	it("back.item.resource is Resource", () => {
 		const arcanum = new MinorArcanum(ARCANUM_DATA);
-		expect(arcanum.back.item.resource).toBeInstanceOf(ResourceDef);
+		expect(arcanum.back.item.resource).toBeInstanceOf(Resource);
 	});
 });

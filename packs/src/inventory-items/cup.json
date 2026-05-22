@@ -2,9 +2,9 @@
 	"_id": "eNdjIs9hVLXnGBB1",
 	"_key": "!items!eNdjIs9hVLXnGBB1",
 	"name": "Cup",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

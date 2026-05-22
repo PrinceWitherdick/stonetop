@@ -2,9 +2,9 @@
 	"_id": "h8LojIIf94ChZESF",
 	"_key": "!items!h8LojIIf94ChZESF",
 	"name": "Twine/cord",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

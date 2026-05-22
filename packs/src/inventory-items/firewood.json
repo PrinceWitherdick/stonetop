@@ -2,9 +2,9 @@
 	"_id": "dKF0j7elKPoh3pKM",
 	"_key": "!items!dKF0j7elKPoh3pKM",
 	"name": "Firewood",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

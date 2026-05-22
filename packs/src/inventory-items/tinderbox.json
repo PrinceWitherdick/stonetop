@@ -2,9 +2,9 @@
 	"_id": "xavU07zUHLnnBbuQ",
 	"_key": "!items!xavU07zUHLnnBbuQ",
 	"name": "Tinderbox",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

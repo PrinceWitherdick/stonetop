@@ -2,9 +2,9 @@
 	"_id": "9G81aSQHqNgAC72q",
 	"_key": "!items!9G81aSQHqNgAC72q",
 	"name": "Rope, ~25 ft",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

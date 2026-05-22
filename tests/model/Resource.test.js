@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { ResourceDef } from "../../module/model/Resource.js";
+import { Resource } from "../../module/model/data/Resource.js";
 
-describe("ResourceDef", () => {
+describe("Resource", () => {
 	it("stores max, maxStat, title, labels from data", () => {
-		const def = new ResourceDef({ max: 3, maxStat: null, title: "Ammo", labels: ["plenty", "low"] });
+		const def = new Resource({ max: 3, maxStat: null, title: "Ammo", labels: ["plenty", "low"] });
 		expect(def.max).toBe(3);
 		expect(def.maxStat).toBeNull();
 		expect(def.title).toBe("Ammo");
@@ -11,18 +11,18 @@ describe("ResourceDef", () => {
 	});
 
 	it("defaults max to null when absent", () => {
-		expect(new ResourceDef({}).max).toBeNull();
+		expect(new Resource({}).max).toBeNull();
 	});
 
 	it("defaults maxStat to null when absent", () => {
-		expect(new ResourceDef({}).maxStat).toBeNull();
+		expect(new Resource({}).maxStat).toBeNull();
 	});
 
 	it("defaults title to null when absent", () => {
-		expect(new ResourceDef({}).title).toBeNull();
+		expect(new Resource({}).title).toBeNull();
 	});
 
 	it("defaults labels to [] when absent", () => {
-		expect(new ResourceDef({}).labels).toEqual([]);
+		expect(new Resource({}).labels).toEqual([]);
 	});
 });

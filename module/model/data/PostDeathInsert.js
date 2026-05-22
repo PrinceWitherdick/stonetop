@@ -7,7 +7,7 @@
  * @property {object[]} instincts       - raw instinct option objects from flags.stonetop
  * @property {object[]} lore            - raw lore entry objects from flags.stonetop
  */
-export class PostDeathInsertData {
+export class PostDeathInsert {
 	constructor(doc) {
 		const flags      = doc.flags?.stonetop ?? {};
 		this.slug        = doc.system?.slug ?? "";

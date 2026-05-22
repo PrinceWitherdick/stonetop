@@ -1,4 +1,4 @@
-import {MoveDefinition} from "../../module/model/MoveDefinition.js";
+import {Move} from "../../module/model/data/Move.js";
 
 export class FakeMoveRepository {
 	constructor(playbookMoves = [], basicMoves = [], postDeathMoves = []) {
@@ -8,7 +8,7 @@ export class FakeMoveRepository {
 	}
 
 	async getPlaybookMoves() {
-		return this._playbookMoves.map(m => new MoveDefinition(m));
+		return this._playbookMoves.map(m => new Move(m));
 	}
 
 	async getPlaybookMoveDocument(id) {
@@ -16,7 +16,7 @@ export class FakeMoveRepository {
 	}
 
 	async getBasicMoves() {
-		return this._basicMoves.map(m => new MoveDefinition(m));
+		return this._basicMoves.map(m => new Move(m));
 	}
 
 	async getBasicMoveDocument(id) {
@@ -32,7 +32,7 @@ export class FakeMoveRepository {
 	}
 
 	async getPostDeathMoves() {
-		return this._postDeathMoves.map(m => new MoveDefinition(m));
+		return this._postDeathMoves.map(m => new Move(m));
 	}
 
 	async getPostDeathMoveDocument(id) {

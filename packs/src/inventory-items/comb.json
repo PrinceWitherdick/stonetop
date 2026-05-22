@@ -2,9 +2,9 @@
 	"_id": "8IRh1E2JDBld6DYy",
 	"_key": "!items!8IRh1E2JDBld6DYy",
 	"name": "Comb",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

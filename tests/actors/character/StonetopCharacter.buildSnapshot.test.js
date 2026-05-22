@@ -1,12 +1,12 @@
 import {describe, expect, it} from "vitest";
 import {CharacterSnapshot} from "../../../module/model/CharacterSnapshot.js";
-import {OutfitItemBuilder} from "../../../module/model/OutfitItem.js";
+import {OutfitItemBuilder} from "../../../module/model/data/OutfitItem.js";
 import {FakePlaybookRepository} from "../../fakes/FakePlaybookRepository.js";
 import {FakeInventoryRepository} from "../../fakes/FakeInventoryRepository.js";
 import {TestCharacterBuilder} from "../../fakes/TestCharacterBuilder.js";
 import {FakeMoveRepository} from "../../fakes/FakeMoveRepository.js";
 import {FakePostDeathInsertRepository} from "../../fakes/FakePostDeathInsertRepository.js";
-import {MoveDefinition} from "../../../module/model/MoveDefinition.js";
+import {Move} from "../../../module/model/data/Move.js";
 import {FakeActorBuilder, FakeStatBuilder} from "../../fakes/FakeActorBuilder.js";
 
 function makeOutfitItem(overrides = {}) {
@@ -373,7 +373,7 @@ describe("buildSnapshot — moves", () => {
 	}
 
 	function makeBasicMove(id, name, rollType = "ask") {
-		return new MoveDefinition({_id: id, name, system: {moveType: "basic", rollType}});
+		return new Move({_id: id, name, system: {moveType: "basic", rollType}});
 	}
 
 	it("moves is an empty array when no playbook and no basic moves", async () => {
@@ -711,9 +711,9 @@ describe("buildSnapshot — inventory.other", () => {
 		expect(snap.inventory.other[0].id).toBe("x1");
 	});
 
-	it("inventory-type moves do not appear in other", async () => {
+	it("inventory-type equipment does not appear in other", async () => {
 		const actor = new FakeActorBuilder()
-			.addItem({_id: "i1", type: "move", name: "Bow", system: {moveType: "inventory", slug: "bow"}})
+			.addItem({_id: "i1", type: "equipment", name: "Bow", system: {equipmentType: "inventory", slug: "bow"}})
 			.build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
 		expect(snap.inventory.other).toHaveLength(0);

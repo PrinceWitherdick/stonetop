@@ -2,9 +2,9 @@
 	"_id": "nKYaXRvj7uff0LYT",
 	"_key": "!items!nKYaXRvj7uff0LYT",
 	"name": "More supplies",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

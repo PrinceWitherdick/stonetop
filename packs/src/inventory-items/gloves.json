@@ -2,9 +2,9 @@
 	"_id": "oRRCQ5WMO5AHO4Ze",
 	"_key": "!items!oRRCQ5WMO5AHO4Ze",
 	"name": "Gloves",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

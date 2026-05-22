@@ -1,6 +1,6 @@
-import { ResourceDef } from "./Resource.js";
+import { Resource } from "./Resource.js";
 
-export class MoveDefinition {
+export class Move {
 	constructor(data) {
 		this.id          = data._id;
 		this.name        = data.name;
@@ -10,6 +10,6 @@ export class MoveDefinition {
 		this.isStarting  = data.system?.isStartingMove  ?? false;
 		this.requirement = data.system?.requirement     ?? null;
 		this.repeatMax   = data.system?.repeatMax       ?? null;
-		this.resource    = data.system?.resource ? new ResourceDef(data.system.resource) : null;
+		this.resource    = data.system?.resource ? new Resource(data.system.resource) : null;
 	}
 }

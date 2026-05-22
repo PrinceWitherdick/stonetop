@@ -2,9 +2,9 @@
 	"_id": "VxUZpfbH9vOWOU6m",
 	"_key": "!items!VxUZpfbH9vOWOU6m",
 	"name": "Handful of coppers",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

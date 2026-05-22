@@ -2,9 +2,9 @@
 	"_id": "HDBTq0Zf2pCLxb0l",
 	"_key": "!items!HDBTq0Zf2pCLxb0l",
 	"name": "Chalk",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

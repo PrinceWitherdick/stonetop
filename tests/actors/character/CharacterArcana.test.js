@@ -3,11 +3,10 @@ import { CharacterArcana } from "../../../module/actors/character/CharacterArcan
 import {
 	ArcanaSnapshot, ArcanaSectionSnapshot,
 	ArcanaUnlockTextItem, ArcanaUnlockOptionSnapshot,
-	ArcanaBackOptionSnapshot,
 	MinorArcanumSnapshot, MinorArcanumFrontSnapshot, MinorArcanumBackSnapshot,
 	ArcanumUnlockSection,
 } from "../../../module/model/CharacterSnapshot.js";
-import { MinorArcanum } from "../../../module/model/MinorArcanum.js";
+import { MinorArcanum } from "../../../module/model/data/MinorArcanum.js";
 import {FakeArcanaRepository} from "../../fakes/FakeArcanaRepository.js";
 
 // -- Helpers ------------------------------------------------------------------
@@ -297,10 +296,10 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			return (await makeWithOpts(flagStore).buildSnapshot()).minor.items[0];
 		}
 
-		it("back.options are ArcanaBackOptionSnapshot instances", async () => {
+		it("back.options are ArcanaUnlockOptionSnapshot instances", async () => {
 			const { options } = (await getItem()).back;
 			expect(options).toHaveLength(2);
-			expect(options[0]).toBeInstanceOf(ArcanaBackOptionSnapshot);
+			expect(options[0]).toBeInstanceOf(ArcanaUnlockOptionSnapshot);
 		});
 
 		it("back option has correct slug, description, max", async () => {

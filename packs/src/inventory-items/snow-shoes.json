@@ -2,9 +2,9 @@
 	"_id": "eNo41eoPni6JDWYl",
 	"_key": "!items!eNo41eoPni6JDWYl",
 	"name": "Snow-shoes",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

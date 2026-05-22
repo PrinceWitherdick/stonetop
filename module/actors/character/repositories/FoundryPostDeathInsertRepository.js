@@ -1,4 +1,4 @@
-import { PostDeathInsertData } from "../../../model/PostDeathInsertData.js";
+import { PostDeathInsert } from "../../../model/data/PostDeathInsert.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
 
 export class FoundryPostDeathInsertRepository {
@@ -17,7 +17,7 @@ export class FoundryPostDeathInsertRepository {
 		const entry = await this._store.findEntry(e => e.system?.slug === slug);
 		if (!entry) return null;
 		const doc  = await this._store.getDocument(entry._id);
-		const data = new PostDeathInsertData(doc);
+		const data = new PostDeathInsert(doc);
 		this._cache.set(slug, data);
 		return data;
 	}

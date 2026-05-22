@@ -2,9 +2,9 @@
 	"_id": "enq522wjZRL9OaYs",
 	"_key": "!items!enq522wjZRL9OaYs",
 	"name": "Mattock, iron and/or wood",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

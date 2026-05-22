@@ -2,9 +2,9 @@
 	"_id": "zkChMbyIbNiCdxnu",
 	"_key": "!items!zkChMbyIbNiCdxnu",
 	"name": "Needle & thread",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

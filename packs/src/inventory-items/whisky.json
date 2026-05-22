@@ -2,9 +2,9 @@
 	"_id": "bjhPInRVkLUhY7gb",
 	"_key": "!items!bjhPInRVkLUhY7gb",
 	"name": "Whisky, skin",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

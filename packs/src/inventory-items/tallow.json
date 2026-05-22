@@ -2,9 +2,9 @@
 	"_id": "zF9OHzlwUMVmI5BR",
 	"_key": "!items!zF9OHzlwUMVmI5BR",
 	"name": "Tallow",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

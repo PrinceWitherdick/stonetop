@@ -2,9 +2,9 @@
 	"_id": "BnD3XkfFNuYUPnmb",
 	"_key": "!items!BnD3XkfFNuYUPnmb",
 	"name": "Thick hides",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

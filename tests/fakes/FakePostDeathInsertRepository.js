@@ -1,4 +1,4 @@
-import { PostDeathInsertData } from "../../module/model/PostDeathInsertData.js";
+import { PostDeathInsert } from "../../module/model/data/PostDeathInsert.js";
 
 export class FakePostDeathInsertRepository {
 	constructor(inserts = []) {
@@ -14,6 +14,6 @@ export class FakePostDeathInsertRepository {
 
 	async findBySlug(slug) {
 		const doc = this._inserts.find(d => d.system?.slug === slug) ?? null;
-		return doc ? new PostDeathInsertData(doc) : null;
+		return doc ? new PostDeathInsert(doc) : null;
 	}
 }

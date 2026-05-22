@@ -2,9 +2,9 @@
 	"_id": "Nwwmq6OLkTkx9NIQ",
 	"_key": "!items!Nwwmq6OLkTkx9NIQ",
 	"name": "Mess kit",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

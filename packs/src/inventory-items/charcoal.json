@@ -2,9 +2,9 @@
 	"_id": "nXv2Rra6fSEVQOEX",
 	"_key": "!items!nXv2Rra6fSEVQOEX",
 	"name": "Charcoal",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

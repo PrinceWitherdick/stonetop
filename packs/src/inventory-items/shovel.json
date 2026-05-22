@@ -2,9 +2,9 @@
 	"_id": "2Ztd26fEeVVhDIq2",
 	"_key": "!items!2Ztd26fEeVVhDIq2",
 	"name": "Shovel",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

@@ -2,9 +2,9 @@
 	"_id": "HVlnES8GrgmolaHr",
 	"_key": "!items!HVlnES8GrgmolaHr",
 	"name": "Cloth/rag",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

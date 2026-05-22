@@ -1,3 +1,9 @@
+import {
+	PossessionItemSnapshotBuilder,
+	PossessionsSnapshot,
+	ResourceBuilder,
+} from "../../model/CharacterSnapshot.js";
+
 export class CharacterPossessions {
 	constructor(flags) {
 		this._flags = flags;
@@ -49,5 +55,61 @@ export class CharacterPossessions {
 	async setChoiceUses(possessionSlug, choiceSlug, count) {
 		const key = `${possessionSlug}:${choiceSlug}`;
 		await this._flags.setFlag("choiceUses", { ...this.choiceUses, [key]: count });
+	}
+
+	computeMaxUses(specialPossessions, ownedAllByName, level) {
+		const result = { ...this.maxUses };
+		for (const opt of (specialPossessions?.options ?? [])) {
+			if (!opt.usesBonus) continue;
+			let bonus = 0;
+			if (opt.usesBonus.evenLevelBonus) {
+				bonus += Math.floor(level / 2) * opt.usesBonus.evenLevelBonus;
+			}
+			for (const mb of (opt.usesBonus.moveBonus ?? [])) {
+				const instances = ownedAllByName.get(mb.moveName)?.length ?? 0;
+				bonus += instances * mb.perInstance;
+			}
+			if (bonus > 0) result[opt.slug] = (opt.resource?.max ?? 0) + bonus;
+		}
+		return result;
+	}
+
+	buildSnapshot(specialPossessions, ownedAllByName, actorLevel) {
+		if (!specialPossessions) return null;
+		const { pickNote, pickCount, preselected = [], options } = specialPossessions;
+		const maxUsesMap = this.computeMaxUses(specialPossessions, ownedAllByName, actorLevel);
+		const selectedSlugs = this.selected;
+		const usesMap = this.uses;
+		const preselectedSet = new Set(preselected);
+
+		const items = options.map(opt => {
+			const isPre = preselectedSet.has(opt.slug);
+			const isSelected = isPre || selectedSlugs.has(opt.slug);
+			const maxUses = maxUsesMap[opt.slug] ?? opt.resource?.max ?? null;
+			const currentUses = isSelected ? (usesMap[opt.slug] ?? 0) : 0;
+			const resourceDef = opt.resource ?? null;
+			const resource = resourceDef ? new ResourceBuilder()
+				.withCurrent(currentUses)
+				.withMax(maxUses ?? resourceDef.max)
+				.withTitle(resourceDef.title ?? null)
+				.withLabels(resourceDef.labels ?? [])
+				.build() : null;
+			return new PossessionItemSnapshotBuilder()
+				.withSlug(opt.slug)
+				.withLabel(opt.label)
+				.withDescription(opt.description ?? "")
+				.withSelected(isSelected)
+				.withChecked(isSelected)
+				.withDisabled(isPre)
+				.withPreselected(isPre)
+				.withPreselectedSource(isPre ? "Starting" : null)
+				.withResource(resource)
+				.withUsesLabel(resourceDef?.title ?? null)
+				.withChoices(null)
+				.withChoiceGroups(null)
+				.build();
+		});
+
+		return new PossessionsSnapshot(pickCount, pickNote, items);
 	}
 }

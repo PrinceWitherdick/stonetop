@@ -1,4 +1,4 @@
-import { ResourceDef } from "./Resource.js";
+import { Resource } from "./Resource.js";
 
 export class MinorArcanumItem {
 	constructor(data) {
@@ -6,15 +6,7 @@ export class MinorArcanumItem {
 		this.weight          = data.weight          ?? null;
 		this.note            = data.note            ?? null;
 		this.inventoryColumn = data.inventoryColumn ?? null;
-		this.resource        = data.resource ? new ResourceDef(data.resource) : null;
-	}
-}
-
-export class MinorArcanumMove {
-	constructor(data) {
-		this.name        = data.name;
-		this.rollType    = data.rollType    ?? null;
-		this.description = data.description;
+		this.resource        = data.resource ? new Resource(data.resource) : null;
 	}
 }
 
@@ -32,8 +24,8 @@ export class MinorArcanumBack {
 		this.title       = data.title;
 		this.item        = data.item ? new MinorArcanumItem(data.item) : null;
 		this.description = data.description;
-		this.resource    = data.resource ? new ResourceDef(data.resource) : null;
-		this.move        = data.move ? new MinorArcanumMove(data.move) : null;
+		this.resource    = data.resource ? new Resource(data.resource) : null;
+		this.move        = data.move ?? null;
 		this.options     = data.options ?? [];
 	}
 }

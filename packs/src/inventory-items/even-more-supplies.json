@@ -2,9 +2,9 @@
 	"_id": "H8xIZM1JRcoreogr",
 	"_key": "!items!H8xIZM1JRcoreogr",
 	"name": "Even more supplies",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

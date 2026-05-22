@@ -2,9 +2,9 @@
 	"_id": "EfvuP1uRr6YICtu8",
 	"_key": "!items!EfvuP1uRr6YICtu8",
 	"name": "Sawdust",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

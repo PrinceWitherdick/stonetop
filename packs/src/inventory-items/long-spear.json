@@ -2,9 +2,9 @@
 	"_id": "18Y2bTu5X1YqWg21",
 	"_key": "!items!18Y2bTu5X1YqWg21",
 	"name": "Long spear, iron",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

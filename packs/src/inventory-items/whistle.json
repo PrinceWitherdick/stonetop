@@ -2,9 +2,9 @@
 	"_id": "WcURYxPY8EcFK12B",
 	"_key": "!items!WcURYxPY8EcFK12B",
 	"name": "Whistle",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

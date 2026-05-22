@@ -2,9 +2,9 @@
 	"_id": "zKG5mSoyPstUeC99",
 	"_key": "!items!zKG5mSoyPstUeC99",
 	"name": "Hatchet, iron",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

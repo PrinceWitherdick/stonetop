@@ -1,12 +1,12 @@
 import {
-	ArcanaBackOptionSnapshotBuilder, ArcanaSnapshot, ArcanaSectionSnapshot,
+	ArcanaSnapshot, ArcanaSectionSnapshot,
 	ArcanaUnlockOptionSnapshotBuilder, ArcanaUnlockTextItem,
 	ArcanumBackMoveSnapshot, ArcanumUnlockSection,
 	MinorArcanumBackSnapshotBuilder, MinorArcanumFrontSnapshotBuilder,
 	MinorArcanumSnapshotBuilder,
 	ResourceBuilder,
 } from "../../model/CharacterSnapshot.js";
-import { OutfitItemBuilder } from "../../model/OutfitItem.js";
+import { OutfitItemBuilder } from "../../model/data/OutfitItem.js";
 
 function _buildOutfitItem(slug, itemData, resolvedResource = undefined) {
 	if (!itemData) return null;
@@ -65,7 +65,7 @@ export class CharacterArcana {
 
 			const backOpts = (item.back.options ?? []).map(o => {
 				const count = backOptionCounts[`${item.slug}:${o.slug}`] ?? 0;
-				return new ArcanaBackOptionSnapshotBuilder()
+				return new ArcanaUnlockOptionSnapshotBuilder()
 					.withSlug(o.slug)
 					.withDescription(o.description)
 					.withCount(count)
@@ -86,16 +86,15 @@ export class CharacterArcana {
 					.build()
 				: null;
 
-			const backItemResourceDef = item.back.item?.resource ?? null;
-			const backItemResource = backItemResourceDef
+			const backItemResource = item.back.item?.resource
 				? new ResourceBuilder()
 					.withCurrent(inventoryResources[item.slug] ?? 0)
-					.withMax(backItemResourceDef.maxStat
-						? (stats[backItemResourceDef.maxStat]?.value ?? 0)
-						: backItemResourceDef.max)
-					.withMaxStat(backItemResourceDef.maxStat ?? null)
-					.withTitle(backItemResourceDef.title ?? null)
-					.withLabels(backItemResourceDef.labels ?? [])
+					.withMax(item.back.item.resource.maxStat
+						? (stats[item.back.item.resource.maxStat]?.value ?? 0)
+						: item.back.item.resource.max)
+					.withMaxStat(item.back.item.resource.maxStat ?? null)
+					.withTitle(item.back.item.resource.title ?? null)
+					.withLabels(item.back.item.resource.labels ?? [])
 					.build()
 				: null;
 

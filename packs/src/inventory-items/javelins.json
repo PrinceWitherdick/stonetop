@@ -2,9 +2,9 @@
 	"_id": "a5HSUPwePut0Sstz",
 	"_key": "!items!a5HSUPwePut0Sstz",
 	"name": "Javelins, a few, iron",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

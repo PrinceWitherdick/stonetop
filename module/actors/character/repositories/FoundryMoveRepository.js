@@ -1,4 +1,4 @@
-import { MoveDefinition } from "../../../model/MoveDefinition.js";
+import { Move } from "../../../model/data/Move.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
 
 const PLAYBOOK_FIELDS   = ["system.playbook", "system.isStartingMove", "system.requirement",
@@ -18,7 +18,7 @@ export class FoundryMoveRepository {
 	async getPlaybookMoves(playbookName) {
 		if (this._playbookCache.has(playbookName)) return this._playbookCache.get(playbookName);
 		const entries = await this._playbookStore.filterEntries(e => e.system?.playbook === playbookName);
-		const moves   = entries.map(e => new MoveDefinition(e));
+		const moves   = entries.map(e => new Move(e));
 		this._playbookCache.set(playbookName, moves);
 		return moves;
 	}
@@ -30,7 +30,7 @@ export class FoundryMoveRepository {
 	async getBasicMoves() {
 		if (this._basicCache) return this._basicCache;
 		const entries    = await this._basicStore.getAll();
-		this._basicCache = entries.map(e => new MoveDefinition(e));
+		this._basicCache = entries.map(e => new Move(e));
 		return this._basicCache;
 	}
 
@@ -41,7 +41,7 @@ export class FoundryMoveRepository {
 	async getPostDeathMoves(insertSlug) {
 		if (this._postDeathCache.has(insertSlug)) return this._postDeathCache.get(insertSlug);
 		const entries = await this._postDeathStore.filterEntries(e => e.system?.playbook === insertSlug);
-		const moves   = entries.map(e => new MoveDefinition(e));
+		const moves   = entries.map(e => new Move(e));
 		this._postDeathCache.set(insertSlug, moves);
 		return moves;
 	}

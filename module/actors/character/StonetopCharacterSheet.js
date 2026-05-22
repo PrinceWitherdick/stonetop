@@ -255,7 +255,7 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		async _onMoveResourceChange(ev) {
 			const button = new MoveResourceButton(ev);
-			await this._stonetopCharacter.moveResources.add(button);
+			await this._stonetopCharacter.addMoveResource(button);
 		}
 
 		async _onBgChoiceChange(ev) {

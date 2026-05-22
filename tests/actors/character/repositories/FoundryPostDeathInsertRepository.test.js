@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { FoundryPostDeathInsertRepository } from "../../../../module/actors/character/repositories/FoundryPostDeathInsertRepository.js";
-import { PostDeathInsertData } from "../../../../module/model/PostDeathInsertData.js";
+import { PostDeathInsert } from "../../../../module/model/data/PostDeathInsert.js";
 
 // -- Fixtures -----------------------------------------------------------------
 
@@ -83,7 +83,7 @@ describe("FoundryPostDeathInsertRepository", () => {
 			expect(await repo.findBySlug("revenant")).toBeNull();
 		});
 
-		it("returns a PostDeathInsertData when slug is found", async () => {
+		it("returns a PostDeathInsert when slug is found", async () => {
 			const pack = makePack(
 				[{ _id: "pDiRevenant00001", system: { slug: "revenant" } }],
 				{ revenant: INSERT_DOC },
@@ -91,7 +91,7 @@ describe("FoundryPostDeathInsertRepository", () => {
 			stubGame(pack);
 			const repo   = new FoundryPostDeathInsertRepository();
 			const result = await repo.findBySlug("revenant");
-			expect(result).toBeInstanceOf(PostDeathInsertData);
+			expect(result).toBeInstanceOf(PostDeathInsert);
 			expect(result.slug).toBe("revenant");
 			expect(result.name).toBe("Revenant");
 			expect(result.instincts).toHaveLength(1);

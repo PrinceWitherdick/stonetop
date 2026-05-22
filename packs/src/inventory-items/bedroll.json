@@ -2,9 +2,9 @@
 	"_id": "0Wobtqn62tOy4Cqp",
 	"_key": "!items!0Wobtqn62tOy4Cqp",
 	"name": "Bedroll",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

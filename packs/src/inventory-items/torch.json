@@ -2,9 +2,9 @@
 	"_id": "gAACTP9gyv1plBAr",
 	"_key": "!items!gAACTP9gyv1plBAr",
 	"name": "Torch",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

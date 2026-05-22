@@ -2,9 +2,9 @@
 	"_id": "yshA6P3MsHarAJOC",
 	"_key": "!items!yshA6P3MsHarAJOC",
 	"name": "Shield",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

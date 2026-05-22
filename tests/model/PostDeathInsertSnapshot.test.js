@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { PostDeathInsertSnapshot, PostDeathInsertSnapshotBuilder } from "../../module/model/PostDeathInsertSnapshot.js";
-import { LoreOptionSnapshotBuilder, LoreEntrySnapshotBuilder, LoreSection } from "../../module/model/PlaybookSnapshot.js";
-import { InstinctSection, InstinctOptionSnapshotBuilder } from "../../module/model/PlaybookSnapshot.js";
+import { PostDeathInsertSnapshot, PostDeathInsertSnapshotBuilder } from "../../module/model/snapshot/PostDeathInsertSnapshot.js";
+import { LoreOptionSnapshotBuilder, LoreEntrySnapshotBuilder, LoreSection } from "../../module/model/snapshot/PlaybookSnapshot.js";
+import { InstinctSection, InstinctOptionSnapshotBuilder } from "../../module/model/snapshot/PlaybookSnapshot.js";
 
 // -- Fixtures -----------------------------------------------------------------
 

@@ -44,25 +44,6 @@ export class ArcanumBackMoveSnapshot {
 	}
 }
 
-export class ArcanaBackOptionSnapshot {
-	constructor(b) {
-		this.slug        = b._slug;
-		this.description = b._description;
-		this.count       = b._count;
-		this.max         = b._max;
-		this.selected    = b._selected;
-	}
-}
-
-export class ArcanaBackOptionSnapshotBuilder {
-	withSlug(v)        { this._slug        = v; return this; }
-	withDescription(v) { this._description = v; return this; }
-	withCount(v)       { this._count       = v; return this; }
-	withMax(v)         { this._max         = v; return this; }
-	withSelected(v)    { this._selected    = v; return this; }
-	build()            { return new ArcanaBackOptionSnapshot(this); }
-}
-
 // ── Front / back snapshots ────────────────────────────────────────────────────
 
 export class MinorArcanumFrontSnapshot {

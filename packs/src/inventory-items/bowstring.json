@@ -2,9 +2,9 @@
 	"_id": "AwFv0Yg7NZRBT7qY",
 	"_key": "!items!AwFv0Yg7NZRBT7qY",
 	"name": "Bowstring",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

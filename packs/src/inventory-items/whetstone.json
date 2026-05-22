@@ -2,9 +2,9 @@
 	"_id": "rsK9EjHvIHCtlRJo",
 	"_key": "!items!rsK9EjHvIHCtlRJo",
 	"name": "Whetstone",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

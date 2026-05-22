@@ -2,9 +2,9 @@
 	"_id": "x9qWCA79ISjs8JHU",
 	"_key": "!items!x9qWCA79ISjs8JHU",
 	"name": "Extra oil",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

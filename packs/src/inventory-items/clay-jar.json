@@ -2,9 +2,9 @@
 	"_id": "fnQsKDGAUuRqphlh",
 	"_key": "!items!fnQsKDGAUuRqphlh",
 	"name": "Clay jar",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

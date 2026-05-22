@@ -2,9 +2,9 @@
 	"_id": "6h8l7qgATtLFxJpR",
 	"_key": "!items!6h8l7qgATtLFxJpR",
 	"name": "Extra arrows",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

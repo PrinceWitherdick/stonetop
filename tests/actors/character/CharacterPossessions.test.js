@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { CharacterPossessions } from "../../../module/actors/character/CharacterPossessions.js";
+import { PossessionsSnapshot } from "../../../module/model/CharacterSnapshot.js";
 
 function makeFlags(store = {}) {
 	return {
@@ -98,5 +99,171 @@ describe("CharacterPossessions — choiceUses", () => {
 		const cp = new CharacterPossessions(makeFlags(store));
 		await cp.setChoiceUses("weapons-of-war", "crossbow", 2);
 		expect(store.choiceUses).toEqual({ "weapons-of-war:sword": 0, "weapons-of-war:crossbow": 2 });
+	});
+});
+
+// ── computeMaxUses ────────────────────────────────────────────────────────────
+
+const SP_BONUS = {
+	options: [{
+		slug: "sacred-pouch",
+		resource: { max: 3, title: "Stock", labels: [] },
+		usesBonus: {
+			evenLevelBonus: 1,
+			moveBonus: [{ moveName: "Big Magic", perInstance: 2 }],
+		},
+	}],
+};
+
+describe("CharacterPossessions.computeMaxUses", () => {
+	function makeCp(flagStore = {}) {
+		return new CharacterPossessions(makeFlags(flagStore));
+	}
+
+	it("no moves owned, level 1 → no entry (base uses unchanged)", () => {
+		const result = makeCp().computeMaxUses(SP_BONUS, new Map(), 1);
+		expect(result["sacred-pouch"]).toBeUndefined();
+	});
+
+	it("level 2 → +1 from even level", () => {
+		const result = makeCp().computeMaxUses(SP_BONUS, new Map(), 2);
+		expect(result["sacred-pouch"]).toBe(4);
+	});
+
+	it("level 4 → +2 from two even levels", () => {
+		const result = makeCp().computeMaxUses(SP_BONUS, new Map(), 4);
+		expect(result["sacred-pouch"]).toBe(5);
+	});
+
+	it("Big Magic owned once → +2", () => {
+		const owned = new Map([["Big Magic", [{ _id: "bm1" }]]]);
+		const result = makeCp().computeMaxUses(SP_BONUS, owned, 1);
+		expect(result["sacred-pouch"]).toBe(5);
+	});
+
+	it("Big Magic owned twice → +4", () => {
+		const owned = new Map([["Big Magic", [{ _id: "bm1" }, { _id: "bm2" }]]]);
+		const result = makeCp().computeMaxUses(SP_BONUS, owned, 1);
+		expect(result["sacred-pouch"]).toBe(7);
+	});
+
+	it("Big Magic once + level 4 → +2 move + +2 level = base 3 + 4", () => {
+		const owned = new Map([["Big Magic", [{ _id: "bm1" }]]]);
+		const result = makeCp().computeMaxUses(SP_BONUS, owned, 4);
+		expect(result["sacred-pouch"]).toBe(7);
+	});
+
+	it("possession without usesBonus is not affected", () => {
+		const sp = { options: [{ slug: "apiary" }] };
+		const result = makeCp().computeMaxUses(sp, new Map(), 10);
+		expect(result["apiary"]).toBeUndefined();
+	});
+
+	it("merges flag-based maxUses with computed bonus", () => {
+		const store = { maxUses: { "custom-item": 5 } };
+		const result = makeCp(store).computeMaxUses(SP_BONUS, new Map(), 1);
+		expect(result["custom-item"]).toBe(5);
+		expect(result["sacred-pouch"]).toBeUndefined();
+	});
+});
+
+// ── buildSnapshot ─────────────────────────────────────────────────────────────
+
+const BASE_SP = {
+	pickNote: "Pick 2",
+	pickCount: 2,
+	preselected: ["sacred-pouch"],
+	options: [
+		{ slug: "sacred-pouch", label: "Sacred Pouch", description: "magic", resource: { max: 3, title: "Stock", labels: [] } },
+		{ slug: "apiary",       label: "Apiary",        description: "bees" },
+		{ slug: "mastiffs",     label: "Mastiffs",      description: "dogs" },
+	],
+};
+
+describe("CharacterPossessions.buildSnapshot", () => {
+	function makeCp(flagStore = {}) {
+		return new CharacterPossessions(makeFlags(flagStore));
+	}
+
+	it("returns null when specialPossessions is null", () => {
+		expect(makeCp().buildSnapshot(null, new Map(), 1)).toBeNull();
+	});
+
+	it("returns a PossessionsSnapshot", () => {
+		expect(makeCp().buildSnapshot(BASE_SP, new Map(), 1)).toBeInstanceOf(PossessionsSnapshot);
+	});
+
+	it("passes pickCount and pickNote through", () => {
+		const snap = makeCp().buildSnapshot(BASE_SP, new Map(), 1);
+		expect(snap.pickCount).toBe(2);
+		expect(snap.pickNote).toBe("Pick 2");
+	});
+
+	it("all options appear in items", () => {
+		const snap = makeCp().buildSnapshot(BASE_SP, new Map(), 1);
+		expect(snap.items).toHaveLength(3);
+	});
+
+	it("preselected item is selected, disabled, preselectedSource='Starting'", () => {
+		const snap = makeCp().buildSnapshot(BASE_SP, new Map(), 1);
+		const pouch = snap.items.find(i => i.slug === "sacred-pouch");
+		expect(pouch.selected).toBe(true);
+		expect(pouch.checked).toBe(true);
+		expect(pouch.disabled).toBe(true);
+		expect(pouch.preselected).toBe(true);
+		expect(pouch.preselectedSource).toBe("Starting");
+	});
+
+	it("non-preselected, non-selected item is unselected and not disabled", () => {
+		const snap = makeCp().buildSnapshot(BASE_SP, new Map(), 1);
+		const apiary = snap.items.find(i => i.slug === "apiary");
+		expect(apiary.selected).toBe(false);
+		expect(apiary.disabled).toBe(false);
+	});
+
+	it("selected (but not preselected) item is selected and not disabled", () => {
+		const store = { selected: ["apiary"] };
+		const snap = makeCp(store).buildSnapshot(BASE_SP, new Map(), 1);
+		const apiary = snap.items.find(i => i.slug === "apiary");
+		expect(apiary.selected).toBe(true);
+		expect(apiary.disabled).toBe(false);
+	});
+
+	it("resource on preselected item uses current from uses flag", () => {
+		const store = { uses: { "sacred-pouch": 2 } };
+		const snap = makeCp(store).buildSnapshot(BASE_SP, new Map(), 1);
+		const pouch = snap.items.find(i => i.slug === "sacred-pouch");
+		expect(pouch.resource.current).toBe(2);
+		expect(pouch.resource.max).toBe(3);
+	});
+
+	it("resource.current is 0 when item is unselected", () => {
+		const store = { uses: { "apiary": 5 } };
+		const snap = makeCp(store).buildSnapshot(BASE_SP, new Map(), 1);
+		const apiary = snap.items.find(i => i.slug === "apiary");
+		expect(apiary.resource).toBeNull();
+	});
+
+	it("item without resource definition has resource=null", () => {
+		const snap = makeCp().buildSnapshot(BASE_SP, new Map(), 1);
+		const apiary = snap.items.find(i => i.slug === "apiary");
+		expect(apiary.resource).toBeNull();
+	});
+
+	it("level-based uses bonus applies to resource.max", () => {
+		const sp = {
+			pickNote: "Pick 1",
+			pickCount: 1,
+			preselected: ["sacred-pouch"],
+			options: [{
+				slug: "sacred-pouch",
+				label: "Sacred Pouch",
+				resource: { max: 3, title: "Stock", labels: [] },
+				usesBonus: { evenLevelBonus: 1, moveBonus: [] },
+			}],
+		};
+		const snap = makeCp().buildSnapshot(sp, new Map(), 4);
+		const pouch = snap.items.find(i => i.slug === "sacred-pouch");
+		expect(pouch.resource.max).toBe(5);
 	});
 });

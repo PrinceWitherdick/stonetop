@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { FoundryMoveRepository } from "../../../../module/actors/character/repositories/FoundryMoveRepository.js";
-import { MoveDefinition } from "../../../../module/model/MoveDefinition.js";
+import { Move } from "../../../../module/model/data/Move.js";
 
 // -- Fixtures ------------------------------------------------------------------
 
@@ -69,12 +69,12 @@ describe("FoundryMoveRepository", () => {
 			expect(await repo.getPlaybookMoves("The Blessed")).toEqual([]);
 		});
 
-		it("returns MoveDefinition instances matching playbookName", async () => {
+		it("returns Move instances matching playbookName", async () => {
 			stubGame(makePlaybookPack([PLAYBOOK_MOVE_A, PLAYBOOK_MOVE_B, OTHER_MOVE]), null);
 			const repo = new FoundryMoveRepository();
 			const moves = await repo.getPlaybookMoves("The Blessed");
 			expect(moves).toHaveLength(2);
-			expect(moves[0]).toBeInstanceOf(MoveDefinition);
+			expect(moves[0]).toBeInstanceOf(Move);
 			expect(moves.map(m => m.id)).toEqual(["pb001", "pb002"]);
 		});
 
@@ -138,12 +138,12 @@ describe("FoundryMoveRepository", () => {
 			expect(await repo.getBasicMoves()).toEqual([]);
 		});
 
-		it("returns MoveDefinition instances for all moves", async () => {
+		it("returns Move instances for all moves", async () => {
 			stubGame(null, makeBasicPack([BASIC_MOVE_A, BASIC_MOVE_B]));
 			const repo = new FoundryMoveRepository();
 			const moves = await repo.getBasicMoves();
 			expect(moves).toHaveLength(2);
-			expect(moves[0]).toBeInstanceOf(MoveDefinition);
+			expect(moves[0]).toBeInstanceOf(Move);
 			expect(moves.map(m => m.id)).toEqual(["bm001", "bm002"]);
 		});
 
@@ -188,13 +188,13 @@ describe("FoundryMoveRepository", () => {
 			expect(await repo.getPostDeathMoves("revenant")).toEqual([]);
 		});
 
-		it("returns MoveDefinition instances filtered by insertSlug", async () => {
+		it("returns Move instances filtered by insertSlug", async () => {
 			const pack = makePostDeathPack([POST_DEATH_MOVE_A, POST_DEATH_MOVE_B, OTHER_INSERT_MOVE]);
 			stubGame(null, null, pack);
 			const repo  = new FoundryMoveRepository();
 			const moves = await repo.getPostDeathMoves("revenant");
 			expect(moves).toHaveLength(2);
-			expect(moves[0]).toBeInstanceOf(MoveDefinition);
+			expect(moves[0]).toBeInstanceOf(Move);
 			expect(moves.map(m => m.id)).toEqual(["pd001", "pd002"]);
 		});
 

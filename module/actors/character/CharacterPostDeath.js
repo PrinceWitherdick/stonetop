@@ -1,7 +1,7 @@
 import {
 	PostDeathInsertSnapshotBuilder,
 	PostDeathSectionSnapshotBuilder,
-} from "../../model/PostDeathInsertSnapshot.js";
+} from "../../model/snapshot/PostDeathInsertSnapshot.js";
 import {
 	LoreOptionSnapshotBuilder,
 	LoreEntrySnapshotBuilder,
@@ -12,18 +12,37 @@ import {
 } from "../../model/CharacterSnapshot.js";
 
 export class CharacterPostDeath {
-	constructor(insertFlags, instinct, lore, insertRepo, moveRepo) {
+	constructor(insertFlags, instinct, lore, insertRepo, moveRepo, actor) {
 		this._insertFlags = insertFlags;
 		this._instinct    = instinct;
 		this._lore        = lore;
 		this._insertRepo  = insertRepo;
 		this._moveRepo    = moveRepo;
+		this._actor       = actor;
 	}
 
 	get activeSlug()       { return this._insertFlags.getFlag("slug") ?? null; }
 	async setActiveSlug(s) { await this._insertFlags.setFlag("slug", s); }
 	get instinct()         { return this._instinct; }
 	get lore()             { return this._lore; }
+
+	async setInsert(slug) {
+		const toRemove = this._actor.items
+			.filter(i => i.type === "move" && i.system?.moveType === "post-death")
+			.map(i => i._id);
+		if (toRemove.length > 0) {
+			await this._actor.deleteEmbeddedDocuments("Item", toRemove);
+		}
+		await this.setActiveSlug(slug);
+		if (slug) {
+			const entries = await this._moveRepo.getPostDeathMoves(slug);
+			await this._actor.createEmbeddedDocuments("Item", entries.map(m => ({
+				name: m.name,
+				type: "move",
+				system: { moveType: "post-death", rollType: m.rollType ?? "", description: m.description ?? "" },
+			})));
+		}
+	}
 
 	async buildSnapshot() {
 		const slug       = this.activeSlug;

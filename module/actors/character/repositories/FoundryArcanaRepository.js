@@ -1,4 +1,4 @@
-import { MinorArcanum } from "../../../model/MinorArcanum.js";
+import { MinorArcanum } from "../../../model/data/MinorArcanum.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
 
 export class FoundryArcanaRepository {

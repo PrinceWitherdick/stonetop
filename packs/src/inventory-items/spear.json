@@ -2,9 +2,9 @@
 	"_id": "jht3X13npgW2zMj5",
 	"_key": "!items!jht3X13npgW2zMj5",
 	"name": "Spear, iron",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

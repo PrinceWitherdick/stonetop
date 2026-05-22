@@ -2,9 +2,9 @@
 	"_id": "ZH3UDqpNVGMrerqt",
 	"_key": "!items!ZH3UDqpNVGMrerqt",
 	"name": "Sling",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

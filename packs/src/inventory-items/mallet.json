@@ -2,9 +2,9 @@
 	"_id": "P6ihgIqLSmNqE40f",
 	"_key": "!items!P6ihgIqLSmNqE40f",
 	"name": "Mallet, iron and/or wood",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

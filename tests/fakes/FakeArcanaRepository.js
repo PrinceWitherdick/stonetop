@@ -1,4 +1,4 @@
-import {MinorArcanum} from "../../module/model/MinorArcanum.js";
+import {MinorArcanum} from "../../module/model/data/MinorArcanum.js";
 
 export class FakeArcanaRepository {
 	constructor(arcana = []) { this._arcana = arcana; }

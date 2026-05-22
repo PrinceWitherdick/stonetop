@@ -2,9 +2,9 @@
 	"_id": "qZ8pIx5F21rWz5FY",
 	"_key": "!items!qZ8pIx5F21rWz5FY",
 	"name": "Waterskin",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

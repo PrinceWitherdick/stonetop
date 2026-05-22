@@ -2,9 +2,9 @@
 	"_id": "Fl41sNLjVHWGaub5",
 	"_key": "!items!Fl41sNLjVHWGaub5",
 	"name": "Change of clothes",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

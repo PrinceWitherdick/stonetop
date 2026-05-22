@@ -2,9 +2,9 @@
 	"_id": "9sMLT6mnOjkeaBKs",
 	"_key": "!items!9sMLT6mnOjkeaBKs",
 	"name": "Extra socks",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

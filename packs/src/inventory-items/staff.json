@@ -2,9 +2,9 @@
 	"_id": "AraVNqTIAae24HZK",
 	"_key": "!items!AraVNqTIAae24HZK",
 	"name": "Staff",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

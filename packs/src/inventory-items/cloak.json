@@ -2,9 +2,9 @@
 	"_id": "pD0ezNmREpOaUVgA",
 	"_key": "!items!pD0ezNmREpOaUVgA",
 	"name": "Cloak",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

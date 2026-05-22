@@ -2,9 +2,9 @@
 	"_id": "AnHTmt9OBGhnuKon",
 	"_key": "!items!AnHTmt9OBGhnuKon",
 	"name": "Sledge/litter/travois, roll-out",
-	"type": "move",
+	"type": "equipment",
 	"system": {
-		"moveType": "inventory"
+		"equipmentType": "inventory"
 	},
 	"flags": {
 		"stonetop": {

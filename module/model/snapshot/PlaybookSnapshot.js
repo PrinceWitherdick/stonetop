@@ -205,6 +205,16 @@ export class LoreSection {
 	}
 }
 
+// ── Selectable option ─────────────────────────────────────────────────────────
+
+/** One option with description and selection state. Used for follower instinct/cost. */
+export class SelectableOptionSnapshot {
+	constructor(description, selected) {
+		this.description = description;
+		this.selected    = selected;
+	}
+}
+
 // ── Playbook ──────────────────────────────────────────────────────────────────
 
 /**
