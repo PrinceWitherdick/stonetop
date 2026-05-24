@@ -15,10 +15,8 @@
   increasing your total XP by 1.
 * should item typing move from "move" to "equipment"?
 * Add prosperity to inventory tab
-* Add Thrall
 
 == Nice to have
-* toggle to turn off non-selected character options
 * add descriptions to debilities for hover over (p 53)
 * add descriptions to stats for hover over (p 53)
 * Add a bar between arcana outfit items and the others so they are more clearly visible

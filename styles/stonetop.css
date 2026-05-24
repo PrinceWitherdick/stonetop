@@ -745,24 +745,39 @@ body,
 	gap: 6px;
 }
 
-.stonetop-item-check {
+.stonetop-item-check,
+.stonetop-lore-option-check,
+.stonetop-arcanum-unlock-check,
+.stonetop-hide-unselected-check,
+.stonetop-possession-check,
+.stonetop-possession-sub-check,
+.stonetop-inventory-item-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
-	width: 14px;
-	height: 14px;
-	border-radius: 2px !important;
+	width: 14px !important;
+	height: 14px !important;
+	flex: 0 0 14px !important;
+	border-radius: 0 !important;
 	border: 2px solid var(--color-text-dark-primary) !important;
 	background: transparent !important;
+	clip-path: polygon(25% 0%, 75% 0%, 100% 25%, 100% 75%, 75% 100%, 25% 100%, 0% 75%, 0% 25%);
 	cursor: pointer;
-	flex-shrink: 0;
 	margin: 0;
 }
 
-.stonetop-item-check:checked {
+.stonetop-item-check:checked,
+.stonetop-lore-option-check:checked,
+.stonetop-arcanum-unlock-check:checked,
+.stonetop-hide-unselected-check:checked,
+.stonetop-possession-check:checked,
+.stonetop-possession-sub-check:checked,
+.stonetop-inventory-item-check:checked {
 	background-color: var(--color-text-dark-primary) !important;
 }
 
-.stonetop-item-check:disabled {
+.stonetop-item-check:disabled,
+.stonetop-lore-option-check:disabled,
+.stonetop-arcanum-unlock-check:disabled {
 	opacity: 0.35;
 	cursor: default;
 }
@@ -1417,22 +1432,6 @@ body,
 	padding-top: 2px;
 }
 
-.stonetop-lore-option-check {
-	appearance: none !important;
-	-webkit-appearance: none !important;
-	width: 14px;
-	height: 14px;
-	border-radius: 2px !important;
-	border: 2px solid var(--color-text-dark-primary) !important;
-	background: transparent !important;
-	cursor: pointer;
-	flex-shrink: 0;
-	margin: 0;
-}
-
-.stonetop-lore-option-check:checked {
-	background-color: var(--color-text-dark-primary) !important;
-}
 
 .stonetop-lore-option-desc {
 	flex: 1;
@@ -1458,5 +1457,21 @@ body,
 	font-size: 0.85rem;
 	padding: 2px 4px;
 	font-family: inherit;
+}
+
+/* Moves tab: hide-unselected toggle */
+
+.stonetop-hide-unselected-label {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.75rem;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+	margin: 12px 0 20px 0;
+}
+
+.tab.moves.hide-unselected .stonetop-item:not(.is-checked) {
+	display: none;
 }
 

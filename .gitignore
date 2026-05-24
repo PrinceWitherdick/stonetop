@@ -12,3 +12,4 @@ packs/inventory-items/
 packs/arcana/
 packs/post-death-inserts/
 packs/post-death-moves/
+.claude/settings.local.json

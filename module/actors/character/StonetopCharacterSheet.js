@@ -14,6 +14,8 @@ export function createStonetopCharacterSheetClass(Base) {
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["pbta", "stonetop", "sheet", "actor", "character"],
+				width: 1680,
+				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				dragDrop: [{ dragSelector: ".items-list .item" }],
 			});
@@ -26,6 +28,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		async getData() {
 			const context = await super.getData();
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
+			context.stonetop.hideUnselected = this.actor.getFlag('stonetop', 'hideUnselected') ?? false;
 			// reassign stonetop to system
 			context.system.attributes.armor.value = context.stonetop.vitals.armor
 			context.system.attributes.xp.max = context.stonetop.vitals.xp.max
@@ -51,6 +54,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			const icon = html[0].querySelector(".stonetop-playbook-icon");
 			const playbookDiv = html[0].querySelector(".sheet-playbook");
 			if (icon && playbookDiv) playbookDiv.insertBefore(icon, playbookDiv.firstChild);
+
+			html.find(".stonetop-hide-unselected-check").on("change", async (ev) => {
+				await this.actor.setFlag('stonetop', 'hideUnselected', ev.currentTarget.checked);
+			});
 
 			if (!this.isEditable) return;
 
