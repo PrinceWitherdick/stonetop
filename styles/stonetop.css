@@ -166,9 +166,8 @@ body,
 	color: var(--color-text-dark-primary);
 }
 
-.pbta.sheet .sheet-header__fields .view-playbook {
-	display: grid;
-	place-content: center;
+.stonetop-name-field {
+	font-size: 1.75rem !important;
 }
 
 .pbta.sheet .cell__counter>span {
@@ -268,6 +267,7 @@ body,
 	color: var(--color-text-dark-secondary);
 	margin: 0 0 4px;
 	line-height: 1.4;
+	max-width: 800px;
 }
 
 .stonetop-playbook-divider {
@@ -800,6 +800,40 @@ body,
 .stonetop-item-name {
 	font-size: 0.9rem;
 	line-height: 1.3;
+	cursor: pointer;
+}
+
+/* -- Read-only tab (not in edit mode) ----------------------------- */
+
+.stonetop-readonly input,
+.stonetop-readonly textarea,
+.stonetop-readonly button,
+.stonetop-readonly select,
+.stonetop-readonly label {
+	pointer-events: none;
+}
+
+.stonetop-readonly input[type="radio"],
+.stonetop-readonly input[type="checkbox"] {
+	opacity: 0.5;
+}
+
+/* -- Move-to-chat message ----------------------------------------- */
+
+.stonetop-chat-move {
+	padding-top: 8px;
+}
+
+.stonetop-chat-move-name {
+	margin: 0 0 8px;
+	font-size: 1rem;
+	border-bottom: 1px solid var(--color-border-light-tertiary, #ccc);
+	padding-bottom: 8px;
+}
+
+.stonetop-chat-move-description {
+	font-size: 0.85rem;
+	line-height: 1.5;
 }
 
 .stonetop-item-source {
@@ -1130,12 +1164,19 @@ body,
 	object-fit: contain;
 	opacity: 0.85;
 }
-/* When moved into the header alongside the playbook dropdown */
-.sheet-playbook .stonetop-playbook-icon {
-	width: 28px;
-	height: 28px;
+/* Icon in the header playbook row */
+.stonetop-playbook-row .stonetop-playbook-icon {
+	width: 36px;
+	height: 36px;
 	margin: 0;
 	flex-shrink: 0;
+}
+
+.stonetop-playbook-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 6px;
 }
 
 /* -- Hide PBTA advancement controls on Stonetop sheets -------- */
@@ -1494,5 +1535,145 @@ body,
 
 .tab.moves.hide-unselected .stonetop-item:not(.is-checked) {
 	display: none;
+}
+
+/* -- Character portrait ------------------------------------------- */
+
+.stonetop-sheet-header {
+	display: flex;
+	flex-direction: row;
+	align-items: stretch;
+	gap: 10px;
+	margin-bottom: 32px;
+}
+
+.stonetop-sheet-header .sheet-header__fields {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+}
+
+.stonetop-portrait {
+	width: 180px;
+	height: 180px;
+	object-fit: cover;
+	border: 2px solid var(--color-border-dark, #888);
+	border-radius: 4px;
+	flex-shrink: 0;
+	align-self: flex-start;
+	cursor: pointer;
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.stonetop-portrait:hover {
+	border-color: var(--color-text-dark-primary);
+	box-shadow: 0 0 5px rgba(0, 0, 0, 0.35);
+}
+
+/* -- Playbook drop zone ------------------------------------------- */
+
+.stonetop-playbook-drop-zone {
+	pointer-events: auto;
+	border-radius: 3px;
+	padding: 2px 6px;
+	font-size: 1.25rem;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.stonetop-instinct-badge {
+	font-size: 0.9em;
+	font-style: italic;
+	opacity: 0.75;
+	cursor: default;
+}
+
+.stonetop-appearance-summary {
+	margin: auto 0 0;
+	padding: 0;
+	font-size: 0.8rem;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	line-height: 1.4;
+}
+
+.stonetop-playbook-drop-zone.empty {
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	border: 1px dashed var(--color-border-light-2, #ccc);
+}
+
+.stonetop-playbook-drop-zone.drag-over {
+	background: rgba(60, 130, 220, 0.12);
+	border: 1px solid #4a8fd4;
+	outline: 2px solid rgba(60, 130, 220, 0.3);
+}
+
+/* -- Edit mode slide toggle --------------------------------------- */
+
+.stonetop-edit-toggle {
+	--toggle-height: 20px;
+	--toggle-width: 36px;
+	--toggle-padding: 3px;
+	--thumb-size: calc(var(--toggle-height) - var(--toggle-padding) * 2);
+	--thumb-travel: calc(var(--toggle-width) - var(--thumb-size) - var(--toggle-padding) * 2);
+
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	cursor: pointer;
+	margin-right: 8px;
+}
+
+.stonetop-edit-toggle input[type="checkbox"] {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+}
+
+.stonetop-toggle-track {
+	display: flex;
+	align-items: center;
+	width: var(--toggle-width);
+	height: var(--toggle-height);
+	background: #555;
+	border-radius: calc(var(--toggle-height) / 2);
+	padding: var(--toggle-padding);
+	box-shadow: 0 0 8px rgb(0 0 0 / 45%);
+	transition: background 250ms ease;
+}
+
+.stonetop-toggle-thumb {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--thumb-size);
+	height: var(--thumb-size);
+	background: white;
+	border-radius: 50%;
+	box-shadow: 0 0 6px rgb(0 0 0 / 45%);
+	transition: margin-left 250ms ease;
+}
+
+.stonetop-toggle-thumb i {
+	font-size: 8px;
+	color: #999;
+	transition: color 250ms ease;
+}
+
+.stonetop-edit-toggle input:checked + .stonetop-toggle-track .stonetop-toggle-thumb i {
+	color: #c9a227;
+}
+
+.stonetop-edit-toggle input:checked + .stonetop-toggle-track {
+	background: #3ba55d;
+}
+
+.stonetop-edit-toggle input:checked + .stonetop-toggle-track .stonetop-toggle-thumb {
+	margin-left: var(--thumb-travel);
 }
 

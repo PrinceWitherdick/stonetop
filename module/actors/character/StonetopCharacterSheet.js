@@ -1,10 +1,11 @@
-import {MoveResourceButton} from "./elements/move-resource-button.js";
+﻿import {MoveResourceButton} from "./elements/move-resource-button.js";
 import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 
 export function createStonetopCharacterSheetClass(Base) {
 	return class StonetopCharacterSheet extends Base {
 		_stonetopCharacter;
+		_editMode = false;
 
 		constructor(...args) {
 			super(...args);
@@ -25,27 +26,49 @@ export function createStonetopCharacterSheetClass(Base) {
 			return "modules/stonetop/templates/actor/character.hbs";
 		}
 
-		_getHeaderButtons() {
-			const buttons = super._getHeaderButtons();
-			if (this.isEditable) {
-				const editMode = this.actor.getFlag('stonetop', 'editMode') ?? false;
-				buttons.unshift({
-					label: editMode ? "Lock Sheet" : "Edit Character",
-					class: "stonetop-edit-toggle",
-					icon: editMode ? "fas fa-lock" : "fas fa-pen",
-					onclick: async () => {
-						await this.actor.setFlag('stonetop', 'editMode', !editMode);
-					},
-				});
-			}
-			return buttons;
+		async _render(force, options) {
+			await super._render(force, options);
+			this._injectHeaderToggle();
+		}
+
+		_injectHeaderToggle() {
+			const header = this.element[0]?.querySelector(".window-header");
+			if (!header || !this.isEditable) return;
+
+			header.querySelector(".stonetop-header-toggle")?.remove();
+
+			const label = document.createElement("label");
+			label.className = "stonetop-edit-toggle stonetop-header-toggle";
+			label.title = this._editMode ? "Lock Sheet" : "Edit Character";
+			const checkbox = document.createElement("input");
+			checkbox.type = "checkbox";
+			checkbox.checked = this._editMode;
+			checkbox.addEventListener("change", () => {
+				this._editMode = !this._editMode;
+				this.render(false);
+			});
+
+			const track = document.createElement("span");
+			track.className = "stonetop-toggle-track";
+			const thumb = document.createElement("span");
+			thumb.className = "stonetop-toggle-thumb";
+			const icon = document.createElement("i");
+			icon.className = "fas fa-wrench";
+			thumb.appendChild(icon);
+			track.appendChild(thumb);
+
+			label.appendChild(checkbox);
+			label.appendChild(track);
+
+			const title = header.querySelector(".window-title");
+			header.insertBefore(label, title);
 		}
 
 		async getData() {
 			const context = await super.getData();
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop', 'hideUnselected') ?? false;
-			context.stonetop.editMode = this.actor.getFlag('stonetop', 'editMode') ?? false;
+			context.stonetop.editMode = this._editMode;
 			// reassign stonetop to system
 			context.system.attributes.armor.value = context.stonetop.vitals.armor
 			context.system.attributes.xp.max = context.stonetop.vitals.xp.max
@@ -54,12 +77,31 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		activateListeners(html) {
 			super.activateListeners(html);
+
 			html[0].addEventListener("dragover", (ev) => ev.preventDefault());
-			html[0].addEventListener("drop", (ev) => {
+			html[0].addEventListener("drop", async (ev) => {
 				ev.stopImmediatePropagation();
 				const data = TextEditor.getDragEventData(ev);
-				if (data?.type === "Item") this._onDropItem(ev, data);
+				if (!data) return;
+				if (data?.type === "Item") {
+					if (data.uuid) {
+						const doc = await fromUuid(data.uuid);
+						if (doc?.type === "playbook") {
+							await this._onDropPlaybook(doc);
+							return;
+						}
+					}
+					this._onDropItem(ev, data);
+				}
 			}, true);
+
+			const dropZone = html[0].querySelector(".stonetop-playbook-drop-zone");
+			if (dropZone) {
+				dropZone.addEventListener("dragenter", () => dropZone.classList.add("drag-over"));
+				dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+				dropZone.addEventListener("drop", () => dropZone.classList.remove("drag-over"));
+			}
+
 			html.find(".cell--stats .stat-value").each((_, el) => {
 				el.value = el.value.replace(/^\+/, "");
 			});
@@ -67,34 +109,55 @@ export function createStonetopCharacterSheetClass(Base) {
 				$(el).append(`<span class="stonetop-stat-abbr">(${el.dataset.stat.toUpperCase()})</span>`);
 			});
 
-			// Move playbook icon into header alongside playbook dropdown
-			const icon = html[0].querySelector(".stonetop-playbook-icon");
-			const playbookDiv = html[0].querySelector(".sheet-playbook");
-			if (icon && playbookDiv) playbookDiv.insertBefore(icon, playbookDiv.firstChild);
-
 			html.find(".stonetop-hide-unselected-check").on("change", async (ev) => {
 				await this.actor.setFlag('stonetop', 'hideUnselected', ev.currentTarget.checked);
 			});
 
+			html[0].querySelector(".stonetop-portrait")?.addEventListener("click", ev => {
+				if (this._editMode) return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				new ImagePopout(this.actor.img, { title: this.actor.name }).render(true);
+			});
+
+			html[0].addEventListener("click", ev => {
+				if (this._editMode) return;
+				const nameEl = ev.target.closest(".stonetop-item-name");
+				if (!nameEl) return;
+				ev.preventDefault();
+				const li = nameEl.closest("li");
+				const name = nameEl.textContent.trim();
+				const description = li.querySelector(".stonetop-item-description")?.innerHTML ?? "";
+				const playbookName = html[0].querySelector(".stonetop-playbook-drop-zone:not(.empty)")?.textContent?.trim() ?? "";
+				const speaker = ChatMessage.getSpeaker({ actor: this.actor });
+				speaker.alias = playbookName ? `${this.actor.name} ${playbookName}` : this.actor.name;
+				ChatMessage.create({
+					content: `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${name}</h3><div class="stonetop-chat-move-description">${description}</div></div>`,
+					speaker,
+				});
+			});
+
 			if (!this.isEditable) return;
 
-			html.find("[name=stonetop-background]").on("change", this._onBackgroundChange.bind(this));
-			html.find("[name=stonetop-instinct]").on("change", ev => {
-				const val = ev.currentTarget.value;
-				html.find(".stonetop-instinct-custom").val(val);
-				this._stonetopCharacter.instinct.select(val);
-			});
-			html.find(".stonetop-instinct-custom").on("change", ev =>
-				this._stonetopCharacter.instinct.select(ev.currentTarget.value.trim())
-			);
-			html.find(".stonetop-appearance-radio").on("change", this._onAppearanceChange.bind(this));
-			html.find("[name=stonetop-origin]").on("change", ev =>
-				this._stonetopCharacter.origin.select(ev.currentTarget.value)
-			);
-			html.find(".stonetop-origin-name").on("click", this._onOriginNameClick.bind(this));
-			html.find(".stonetop-move-check").on("change", this._onMoveCheck.bind(this));
-			html.find(".stonetop-repeat-check").on("change", this._onRepeatCheck.bind(this));
-			html.find(".stonetop-bg-choice").on("change", this._onBgChoiceChange.bind(this));
+			if (this._editMode) {
+				html.find("[name=stonetop-background]").on("change", this._onBackgroundChange.bind(this));
+				html.find("[name=stonetop-instinct]").on("change", ev => {
+					const val = ev.currentTarget.value;
+					html.find(".stonetop-instinct-custom").val(val);
+					this._stonetopCharacter.instinct.select(val);
+				});
+				html.find(".stonetop-instinct-custom").on("change", ev =>
+					this._stonetopCharacter.instinct.select(ev.currentTarget.value.trim())
+				);
+				html.find(".stonetop-appearance-radio").on("change", this._onAppearanceChange.bind(this));
+				html.find("[name=stonetop-origin]").on("change", ev =>
+					this._stonetopCharacter.origin.select(ev.currentTarget.value)
+				);
+				html.find(".stonetop-origin-name").on("click", this._onOriginNameClick.bind(this));
+				html.find(".stonetop-move-check").on("change", this._onMoveCheck.bind(this));
+				html.find(".stonetop-repeat-check").on("change", this._onRepeatCheck.bind(this));
+				html.find(".stonetop-bg-choice").on("change", this._onBgChoiceChange.bind(this));
+			}
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-item-resource-check");
 				if (!btn) return;
@@ -221,6 +284,19 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { loreSlug, optionSlug } = ta.dataset;
 				this._stonetopCharacter.setPostDeathLoreText(loreSlug, optionSlug, ta.value);
 			}, true);
+		}
+
+		async _onDropPlaybook(playbookDoc) {
+			if (!this.isEditable) return;
+			await this.actor.update({
+				"system.playbook": {
+					uuid: playbookDoc.uuid,
+					name: playbookDoc.name,
+					slug: playbookDoc.system?.slug ?? "",
+				},
+			});
+			await this._stonetopCharacter.ensureStartingMoves();
+			this.render(false);
 		}
 
 		async _onDropItemCreate(itemData) {

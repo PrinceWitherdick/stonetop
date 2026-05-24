@@ -1,3 +1,5 @@
+import { capitalizeFirst } from "../utils/strings.js";
+
 // ── Appearance ────────────────────────────────────────────────────────────────
 
 /** One selectable option within an appearance line. */
@@ -21,6 +23,16 @@ export class AppearanceSection {
 	constructor(options) {
 		this.options = options;
 	}
+	get summary() {
+		const selected = this.options
+			.map(line => line.options.find(o => o.selected)?.value)
+			.filter(Boolean);
+		if (selected.length === 0) return "";
+		const joined = selected.length === 1
+			? selected[0]
+			: selected.slice(0, -1).join(", ") + " and " + selected[selected.length - 1];
+		return capitalizeFirst(joined) + ".";
+	}
 }
 
 // ── Instinct ──────────────────────────────────────────────────────────────────
@@ -39,6 +51,10 @@ export class InstinctOptionSnapshot {
 		this.value       = b._value;
 		this.selected    = b._selected;
 	}
+	get tooltip() {
+		const d = this.description ?? "";
+		return d ? "Instinct " + d.charAt(0).toLowerCase() + d.slice(1) : "";
+	}
 }
 
 export class InstinctOptionSnapshotBuilder {
@@ -55,6 +71,7 @@ export class InstinctSection {
 		this.selected = selected;
 		this.options  = options;
 	}
+	get selectedOption() { return this.options.find(o => o.selected) ?? null; }
 }
 
 // ── Origin ────────────────────────────────────────────────────────────────────
