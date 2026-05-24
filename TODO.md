@@ -17,6 +17,4 @@
 * Add prosperity to inventory tab
 
 == Nice to have
-* add descriptions to debilities for hover over (p 53)
-* add descriptions to stats for hover over (p 53)
 * Add a bar between arcana outfit items and the others so they are more clearly visible
