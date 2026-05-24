@@ -3,7 +3,7 @@
 	{{#if hideToggle}}
 	<label class="stonetop-hide-unselected-label">
 		<input type="checkbox" class="stonetop-hide-unselected-check"{{#if hideUnselected}} checked{{/if}}>
-		Hide unselected
+		{{#if hideUnselected}}Show un-learned moves{{else}}Hide un-learned moves{{/if}}
 	</label>
 	{{/if}}
 	<ol class="items-list">

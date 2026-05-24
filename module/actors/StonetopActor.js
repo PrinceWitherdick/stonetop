@@ -36,9 +36,10 @@ export function createStonetopActorClass(BaseActor) {
 		}
 
 		async _onRollStat(stat, label, options = {}) {
+			const rollMode = await promptRollMode();
+			options = { ...options, rollMode };
 			if (this.type === "character") {
-				const rollMode = await promptRollMode();
-				options = this.typedActor.applyDebilityRollMode(stat, { ...options, rollMode });
+				options = this.typedActor.applyDebilityRollMode(stat, options);
 			}
 			return super._onRollStat(stat, label, options);
 		}

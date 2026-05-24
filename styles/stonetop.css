@@ -108,6 +108,10 @@ body,
 	display: none;
 }
 
+.stonetop .cell--roll-mode {
+	display: none;
+}
+
 .pbta.sheet .cell__clock {
 		display: grid;
 		grid-template-columns: repeat(10, 1fr);
@@ -149,6 +153,17 @@ body,
 	background: transparent;
 	border: none;
 	color: inherit;
+}
+
+.stonetop-header-locked {
+	display: flex;
+	align-items: center;
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	pointer-events: none;
+	font-size: inherit;
+	color: var(--color-text-dark-primary);
 }
 
 .pbta.sheet .sheet-header__fields .view-playbook {
