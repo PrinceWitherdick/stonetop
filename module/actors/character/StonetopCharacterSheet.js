@@ -2,6 +2,15 @@
 import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 
+const STAT_TOOLTIPS = {
+	str: "Your physical power and ability to use it. Roll +STR to Clash, or to Defy Danger with raw might or power.",
+	dex: "Your grace and fine motor control. Roll +DEX to Let Fly, or to Defy Danger with speed, agility, finesse.",
+	int: "Your memory, learning, and quick thinking. Roll +INT to Know Things, or to Defy Danger via expertise or a clever plan.",
+	wis: "Your intuition, self-control, and awareness. Roll +WIS to Seek Insight, or when you rely on your willpower or senses to Defy Danger.",
+	con: "Your stamina, grit, determination, and endurance. Roll +CON to Defend, or to Defy Danger by holding steady or enduring hardship.",
+	cha: "Your ability to charm and connect with others, and to get a read on what others want. Roll +CHA to Persuade, or to Defy Danger socially.",
+};
+
 export function createStonetopCharacterSheetClass(Base) {
 	return class StonetopCharacterSheet extends Base {
 		_stonetopCharacter;
@@ -107,6 +116,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			html.find(".cell--stats .stat[data-stat]").each((_, el) => {
 				$(el).append(`<span class="stonetop-stat-abbr">(${el.dataset.stat.toUpperCase()})</span>`);
+				const tooltip = STAT_TOOLTIPS[el.dataset.stat];
+				if (tooltip) {
+					el.dataset.tooltip = tooltip;
+					el.dataset.tooltipDirection = "DOWN";
+				}
 			});
 
 			html.find(".stonetop-hide-unselected-check").on("change", async (ev) => {
