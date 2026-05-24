@@ -1,4 +1,5 @@
 import {StonetopCharacter} from "./character/StonetopCharacter.js";
+import {promptRollMode} from "../utils/rolls.js";
 
 export function createStonetopActorClass(BaseActor) {
 	return class StonetopActor extends BaseActor {
@@ -36,7 +37,8 @@ export function createStonetopActorClass(BaseActor) {
 
 		async _onRollStat(stat, label, options = {}) {
 			if (this.type === "character") {
-				options = this.typedActor.applyDebilityRollMode(stat, options);
+				const rollMode = await promptRollMode();
+				options = this.typedActor.applyDebilityRollMode(stat, { ...options, rollMode });
 			}
 			return super._onRollStat(stat, label, options);
 		}
