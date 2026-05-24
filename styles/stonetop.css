@@ -1471,6 +1471,12 @@ body,
 	margin: 12px 0 20px 0;
 }
 
+.tab.moves,
+.tab.equipment,
+.tab.arcana {
+	padding-top: 20px;
+}
+
 .tab.moves.hide-unselected .stonetop-item:not(.is-checked) {
 	display: none;
 }
