@@ -1,4 +1,4 @@
-<div class="tab moves" data-group="primary" data-tab="moves">
+<div class="tab moves{{#if stonetop.hideUnselected}} hide-unselected{{/if}}" data-group="primary" data-tab="moves">
 	<section class="sheet-tab">
 
 		{{!-- Roll Mode --}}
@@ -17,7 +17,9 @@
 		{{> "stonetop.move-group"
 		    title=(localize "stonetop.character.moves.playbookMoves")
 		    note=stonetop.movelist.startingMovesNote
-		    moves=stonetop.movelist.playbookMoves}}
+		    moves=stonetop.movelist.playbookMoves
+		    hideToggle=true
+		    hideUnselected=stonetop.hideUnselected}}
 		{{/if}}
 
 		{{#if stonetop.movelist.postDeathGroup}}
