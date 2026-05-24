@@ -14,11 +14,6 @@ import { info } from "./module/utils/logger.js";
 Hooks.once("init", () => {
 	info("Initializing");
 
-	const link = document.createElement("link");
-	link.rel = "stylesheet";
-	link.href = `modules/stonetop/styles/stonetop.css?v=${Date.now()}`;
-	document.head.appendChild(link);
-
 	registerSettings();
 
 	Handlebars.registerHelper("resourceChecks", resource => {

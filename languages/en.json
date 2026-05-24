@@ -32,9 +32,9 @@
 			"addItemWeight": "Weight",
 			"addItemConfirm": "Add",
 			"removeItem": "Remove",
-			"regularUndefinedPoolLabel": "Undefined",
+			"regularUndefinedPoolLabel": "Supplies",
 			"regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move ◆ from here to ◇ below.",
-			"smallUndefinedPoolLabel": "Undefined",
+			"smallUndefinedPoolLabel": "Supplies",
 			"smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move ◆ from here to items below, or expend supplies to mark an additional ◇.",
 			"outfit": {
 				"heading": "When you <em><strong>Outfit</strong><em>, mark a number of ◇ below on specific items or as a group.",

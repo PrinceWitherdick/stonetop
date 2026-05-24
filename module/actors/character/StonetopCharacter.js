@@ -49,6 +49,7 @@ import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
+import {capitalizeFirst} from "../../utils/strings.js";
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "expedition", "homefront"];
 
@@ -149,7 +150,11 @@ export class StonetopCharacter {
 			}
 		}
 
-		const basicEntries = await this._moveRepo.getBasicMoves();
+		const basicEntries = (await this._moveRepo.getBasicMoves()).sort((a, b) => {
+			if (a.name === "Aid") return -1;
+			if (b.name === "Aid") return 1;
+			return a.name.localeCompare(b.name);
+		});
 		if (basicEntries.length > 0) {
 			categories.push(new MoveCategorySnapshotBuilder()
 				.withKey("basic")
@@ -186,7 +191,7 @@ export class StonetopCharacter {
 			if (items.length > 0) {
 				categories.push(new MoveCategorySnapshotBuilder()
 					.withKey(moveType)
-					.withTitle(moveType.charAt(0).toUpperCase() + moveType.slice(1) + " Moves")
+					.withTitle(capitalizeFirst(moveType) + " Moves")
 					.withNote(null)
 					.withMoves(items.map(i => new MoveSnapshotBuilder()
 						.withId(i._id)
@@ -649,7 +654,7 @@ export class StonetopCharacter {
 			const items = this._actor.items.filter(i => i.type === "move" && i.system?.moveType === t);
 			if (items.length) acc.push({
 				key: t,
-				label: t.charAt(0).toUpperCase() + t.slice(1) + " Moves",
+				label: capitalizeFirst(t) + " Moves",
 				moves: items.map(i => ({ name: i.name, ownedId: i._id, rollType: i.system?.rollType ?? null })),
 			});
 			return acc;

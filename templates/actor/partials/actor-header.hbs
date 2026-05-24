@@ -1,50 +1,28 @@
-<div class="sheet-header">
-	<div class="sheet-header__fields flexrow">
+<div class="sheet-header stonetop-sheet-header">
+	<img class="stonetop-portrait" src="{{actor.img}}" {{#if stonetop.editMode}}data-edit="img"{{/if}} title="{{actor.name}}" alt="{{actor.name}}">
+	<div class="sheet-header__fields">
 		{{#if stonetop.editMode}}
-		<input class="input--title" name="name" type="text" value="{{actor.name}}" placeholder="Name"/>
+		<input class="input--title stonetop-name-field" name="name" type="text" value="{{actor.name}}" placeholder="Name"/>
 		{{else}}
-		<span class="input--title stonetop-header-locked">{{actor.name}}</span>
+		<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}</span>
 		{{/if}}
 		{{#if (and isCharacter (not limited))}}
-		<div class="sheet-playbook flexrow">
-			<div class="view-playbook {{#if system.playbook.uuid}}active{{/if}}"
-				data-playbook="{{system.playbook.uuid}}"
-				data-tooltip="{{localize 'PBTA.ViewPlaybook'}}"
-				data-tooltip-direction="UP"
-			>
-				{{#if system.playbook.uuid}}
-				<i class="fas fa-eye"></i>
-				{{else}}
-				<i class="fas fa-eye-slash"></i>
-				{{/if}}
-			</div>
-			{{#if stonetop.editMode}}
-			<select class="input--title charplaybook">
-				{{selectOptions playbooks selected=system.playbook.uuid valueAttr="uuid" labelAttr="name" blank=(localize "PBTA.Playbook") sort=true}}
-			</select>
-			{{else}}
-			<span class="input--title stonetop-header-locked">{{stonetop.playbook.name}}</span>
+		<div class="stonetop-playbook-row">
+			{{#if stonetop.playbook.img}}
+			<img class="stonetop-playbook-icon" src="{{stonetop.playbook.img}}" alt="">
 			{{/if}}
-			{{#unless (ne sheetSettings.hideAdvancement "none")}}
-			<input class="input--title advancement"
-				type="number"
-				name="system.advancements"
-				value="{{system.advancements}}"
-				min="0"
-				data-tooltip="PBTA.Advancements"
-				data-tooltip-direction="UP"
-			>
-			{{/unless}}
-			{{#unless (eq sheetSettings.hideAdvancement "both")}}
-			<div class="advancement {{#if canAdvance}}active{{/if}}"
-				data-action="advancement"
-				data-tooltip="PBTA.Advance"
-				data-tooltip-direction="UP"
-			>
-				<i class="fas fa-arrow-up"></i>
-			</div>
-			{{/unless}}
+			<span class="stonetop-playbook-drop-zone {{#unless stonetop.playbook.name}}empty{{/unless}}">
+				{{#if stonetop.playbook.name}}
+				{{stonetop.playbook.name}}{{#if stonetop.playbook.instinct.selectedOption}} <span class="stonetop-instinct-badge" data-tooltip="{{stonetop.playbook.instinct.selectedOption.tooltip}}" data-tooltip-direction="DOWN">({{stonetop.playbook.instinct.selectedOption.word}})</span>{{/if}}
+				{{else}}Drop a playbook here{{/if}}
+			</span>
 		</div>
+		{{#if stonetop.playbook.description}}
+		<p class="stonetop-playbook-description">{{stonetop.playbook.description}}</p>
+		{{/if}}
+		{{/if}}
+		{{#if stonetop.playbook.appearance.summary}}
+		<p class="stonetop-appearance-summary">{{stonetop.playbook.appearance.summary}}</p>
 		{{/if}}
 	</div>
 </div>

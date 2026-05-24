@@ -1,15 +1,20 @@
+let _activePrompt = null;
+
 export function promptRollMode() {
-	return new Promise(resolve => {
+	if (_activePrompt) return _activePrompt;
+	_activePrompt = new Promise(resolve => {
+		const done = (mode) => { _activePrompt = null; resolve(mode); };
 		new Dialog({
 			title: "Roll Mode",
 			content: "",
 			buttons: {
-				dis: { label: "Disadvantage", callback: () => resolve("dis") },
-				def: { label: "Normal", callback: () => resolve("def") },
-				adv: { label: "Advantage", callback: () => resolve("adv") },
+				dis: { label: "Disadvantage", callback: () => done("dis") },
+				def: { label: "Normal",       callback: () => done("def") },
+				adv: { label: "Advantage",    callback: () => done("adv") },
 			},
 			default: "def",
-			close: () => resolve("def"),
+			close: () => done("def"),
 		}).render(true);
 	});
+	return _activePrompt;
 }

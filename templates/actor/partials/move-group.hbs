@@ -21,7 +21,7 @@
 					       data-compendium-id="{{../compendiumId}}"
 					       data-owned-id="{{ownedId}}"
 					       {{#if checked}}checked{{/if}}
-					       {{#if disabled}}disabled{{/if}}>
+					       {{#if (or disabled (not @root.stonetop.editMode))}}disabled{{/if}}>
 					{{/each}}
 				</span>
 				{{else}}
@@ -29,7 +29,7 @@
 				       data-compendium-id="{{compendiumId}}"
 				       data-owned-id="{{ownedId}}"
 				       {{#if owned}}checked{{/if}}
-				       {{#if (or isStarting locked)}}disabled{{/if}}>
+				       {{#if (or isStarting locked (not @root.stonetop.editMode))}}disabled{{/if}}>
 				{{/if}}
 				<strong class="stonetop-item-name">{{name}}</strong>
 				{{#if sourceLabel}}<span class="stonetop-item-source">{{sourceLabel}}</span>{{/if}}
