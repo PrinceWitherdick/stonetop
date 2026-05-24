@@ -639,6 +639,10 @@ export class StonetopCharacter {
 				rollType: e.rollType,
 				owned: instances.length > 0,
 			};
+		}).sort((a, b) => {
+			if (a.name === "Aid") return -1;
+			if (b.name === "Aid") return 1;
+			return a.name.localeCompare(b.name);
 		});
 
 		const otherGroups = OTHER_MOVE_TYPES.reduce((acc, t) => {

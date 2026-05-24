@@ -25,10 +25,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			return "modules/stonetop/templates/actor/character.hbs";
 		}
 
+		_getHeaderButtons() {
+			const buttons = super._getHeaderButtons();
+			if (this.isEditable) {
+				const editMode = this.actor.getFlag('stonetop', 'editMode') ?? false;
+				buttons.unshift({
+					label: editMode ? "Lock Sheet" : "Edit Character",
+					class: "stonetop-edit-toggle",
+					icon: editMode ? "fas fa-lock" : "fas fa-pen",
+					onclick: async () => {
+						await this.actor.setFlag('stonetop', 'editMode', !editMode);
+					},
+				});
+			}
+			return buttons;
+		}
+
 		async getData() {
 			const context = await super.getData();
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop', 'hideUnselected') ?? false;
+			context.stonetop.editMode = this.actor.getFlag('stonetop', 'editMode') ?? false;
 			// reassign stonetop to system
 			context.system.attributes.armor.value = context.stonetop.vitals.armor
 			context.system.attributes.xp.max = context.stonetop.vitals.xp.max
