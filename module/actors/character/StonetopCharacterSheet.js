@@ -78,6 +78,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop', 'hideUnselected') ?? false;
 			context.stonetop.editMode = this._editMode;
+			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
 			// reassign stonetop to system
 			context.system.attributes.armor.value = context.stonetop.vitals.armor
 			context.system.attributes.xp.max = context.stonetop.vitals.xp.max
@@ -337,6 +338,12 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		async _onDropPlaybook(playbookDoc) {
 			if (!this.isEditable) return;
+			if (playbookDoc.pack === 'stonetop.post-death-inserts') {
+				const slug = playbookDoc.system?.slug;
+				if (slug) await this._stonetopCharacter.setPostDeathInsert(slug);
+				this.render(false);
+				return;
+			}
 			await this.actor.update({
 				"system.playbook": {
 					uuid: playbookDoc.uuid,
