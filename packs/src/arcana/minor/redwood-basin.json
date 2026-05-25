@@ -1,0 +1,15 @@
+{
+  "_id": "IZ1XCC3CGH5HiIJk",
+  "_key": "!items!IZ1XCC3CGH5HiIJk",
+  "name": "A redwood basin",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "redwood-basin"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

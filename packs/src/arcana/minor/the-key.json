@@ -1,0 +1,15 @@
+{
+  "_id": "Zq6OtT8tUw0yYqZa",
+  "_key": "!items!Zq6OtT8tUw0yYqZa",
+  "name": "A... key?",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "the-key"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

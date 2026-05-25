@@ -1,0 +1,15 @@
+{
+  "_id": "BS4QVV6VZA8AbBCd",
+  "_key": "!items!BS4QVV6VZA8AbBCd",
+  "name": "A prospector's tale",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "prospectors-tale"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

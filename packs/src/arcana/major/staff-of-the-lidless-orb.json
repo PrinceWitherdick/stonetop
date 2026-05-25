@@ -1,0 +1,15 @@
+{
+  "name": "Staff of the Lidless Orb",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "staff-of-the-lidless-orb"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "oyFf5WI5KeDAVYsA",
+  "_key": "!items!oyFf5WI5KeDAVYsA"
+}

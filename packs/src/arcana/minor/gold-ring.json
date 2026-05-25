@@ -1,0 +1,15 @@
+{
+  "_id": "Sj9HmM1mOp3qRjSt",
+  "_key": "!items!Sj9HmM1mOp3qRjSt",
+  "name": "A gold ring",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "gold-ring"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

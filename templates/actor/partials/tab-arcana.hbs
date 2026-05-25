@@ -9,11 +9,14 @@
 	{{#if owned}}
 	<div class="stonetop-arcanum-card{{#if flipped}} is-flipped{{/if}}" data-slug="{{slug}}">
 
+		{{#if identified}}
+
 		{{#if flipped}}
 		{{!-- Back side --}}
 		<div class="stonetop-arcanum-header">
 			<div class="stonetop-arcanum-header-left">
-				<span class="stonetop-arcanum-title">{{back.title}}</span>
+				<span class="stonetop-arcanum-title stonetop-arcanum-title--clickable"
+				      data-slug="{{slug}}" data-flipped="true">{{back.title}}</span>
 				{{#if back.item}}
 				<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
 					{{#if back.item.weight}}
@@ -56,7 +59,8 @@
 		{{!-- Front side --}}
 		<div class="stonetop-arcanum-header">
 			<div class="stonetop-arcanum-header-left">
-				<span class="stonetop-arcanum-title">{{front.title}}</span>
+				<span class="stonetop-arcanum-title stonetop-arcanum-title--clickable"
+				      data-slug="{{slug}}" data-flipped="false">{{front.title}}</span>
 				{{#if front.item}}
 				<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
 					{{#if front.item.weight}}
@@ -101,15 +105,50 @@
 		{{/if}}
 
 		<div class="stonetop-arcanum-footer">
+			{{#if flipped}}
 			<button type="button" class="stonetop-arcanum-flip-btn"
 			        data-slug="{{slug}}" data-flipped="{{flipped}}">
-				{{#if flipped}}{{localize "stonetop.arcana.showFront"}}{{else}}{{localize "stonetop.arcana.showBack"}}{{/if}}
+				{{localize "stonetop.arcana.showFront"}}
 			</button>
+			{{else}}
+			{{#if unlocked}}
+			<button type="button" class="stonetop-arcanum-flip-btn"
+			        data-slug="{{slug}}" data-flipped="{{flipped}}">
+				{{localize "stonetop.arcana.showBack"}}
+			</button>
+			{{/if}}
+			{{/if}}
+			{{#if @root.stonetop.editMode}}
 			<button type="button" class="stonetop-arcanum-delete" data-slug="{{slug}}"
 			        title="{{localize 'stonetop.arcana.removeArcanum'}}">
-				<i class="fas fa-times"></i>
+				<i class="fas fa-trash"></i> Remove
+			</button>
+			{{/if}}
+		</div>
+
+		{{else}}
+		{{!-- Unidentified state --}}
+		<div class="stonetop-arcanum-header">
+			<div class="stonetop-arcanum-header-left">
+				<span class="stonetop-arcanum-title">{{front.title}}</span>
+			</div>
+		</div>
+		<div class="stonetop-arcanum-body stonetop-arcanum-unidentified-body">
+			<p>{{localize "stonetop.arcana.unidentifiedText"}}</p>
+			<button type="button" class="stonetop-arcanum-identify-btn" data-slug="{{slug}}">
+				{{localize "stonetop.arcana.identify"}}
 			</button>
 		</div>
+		{{#if @root.stonetop.editMode}}
+		<div class="stonetop-arcanum-footer">
+			<button type="button" class="stonetop-arcanum-delete" data-slug="{{slug}}"
+			        title="{{localize 'stonetop.arcana.removeArcanum'}}">
+				<i class="fas fa-trash"></i> Remove
+			</button>
+		</div>
+		{{/if}}
+
+		{{/if}}
 
 	</div>
 	{{/if}}

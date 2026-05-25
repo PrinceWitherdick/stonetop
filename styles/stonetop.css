@@ -1351,6 +1351,14 @@ body,
 	padding-top: 2px;
 }
 
+.stonetop-arcanum-title--clickable {
+	cursor: pointer;
+}
+
+.stonetop-arcanum-title--clickable:hover {
+	text-decoration: underline;
+}
+
 .stonetop-arcanum-title {
 	font-weight: bold;
 	font-size: 0.9em;
@@ -1385,19 +1393,74 @@ body,
 	display: flex;
 	justify-content: center;
 	align-items: center;
-}
-
-.stonetop-arcanum-delete {
-	font-size: 0.75em;
-	padding: 2px 0;
-	width: 20%;
-	cursor: pointer;
+	gap: 6px;
 }
 
 .stonetop-arcanum-flip-btn {
 	font-size: 0.75em;
-	padding: 2px 0;
-	width: 80%;
+	padding: 2px 8px;
+	flex: 1;
+}
+
+.stonetop-arcanum-delete {
+	font-size: 0.75em;
+	padding: 2px 8px;
+	flex: 1;
+	color: #9b1c1c;
+}
+
+.stonetop-arcanum-delete:hover {
+	color: #7f1616;
+}
+
+.stonetop-arcanum-unidentified-body {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	padding: 16px 12px;
+	text-align: center;
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+	overflow: hidden;
+}
+
+.stonetop-arcanum-unidentified-body p { margin: 0; }
+
+.stonetop-arcanum-identify-btn {
+	font-size: 0.85em;
+	padding: 4px 14px;
+	cursor: pointer;
+	background-color: transparent;
+	border: 1px solid var(--color-border-dark);
+	border-radius: 3px;
+	font-style: normal;
+}
+
+.stonetop-arcanum-box,
+.stonetop-arcanum-circle {
+	appearance: none;
+	-webkit-appearance: none;
+	display: inline-block;
+	vertical-align: middle;
+	width: 13px;
+	height: 13px;
+	border: 1.5px solid currentColor;
+	cursor: pointer;
+	margin: 0 1px;
+	position: relative;
+	top: -1px;
+	flex-shrink: 0;
+}
+
+.stonetop-arcanum-circle {
+	border-radius: 50%;
+}
+
+.stonetop-arcanum-box:checked,
+.stonetop-arcanum-circle:checked {
+	background-color: currentColor;
 }
 
 .stonetop-arcanum-unlock-lead {
@@ -1479,6 +1542,20 @@ body,
 .stonetop-arcanum-move-trigger {
 	margin: 6px 0 2px;
 }
+
+.stonetop-arcanum-chat-card {
+	font-size: 0.9em;
+}
+
+.stonetop-arcanum-chat-title {
+	margin: 0 0 6px;
+	font-size: 1.1em;
+	border-bottom: 1px solid var(--color-border-dark);
+	padding-bottom: 4px;
+}
+
+.stonetop-arcanum-chat-card p { margin: 0 0 4px; }
+.stonetop-arcanum-chat-card ul { margin: 0 0 4px; padding-left: 1.2em; }
 
 /* -- Lore section (Details + Post-Death tabs) ------------------- */
 .stonetop-lore-entry {

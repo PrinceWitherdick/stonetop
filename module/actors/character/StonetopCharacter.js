@@ -787,13 +787,16 @@ export class StonetopCharacter {
 		if (options.rollMode === "dis") return options;
 		return { ...options, rollMode: "dis" };
 	}
-	async addArcanum(slug)    { await this._arcana.addArcanum(slug); }
-	async removeArcanum(slug) { await this._arcana.removeArcanum(slug); }
-	async flipArcanum(slug)   { await this._arcana.flipArcanum(slug); }
-	async unflipArcanum(slug) { await this._arcana.unflipArcanum(slug); }
-	async setArcanumUnlockCount(arcanumSlug, optionSlug, count)     { await this._arcana.setUnlockCount(arcanumSlug, optionSlug, count); }
-	async setArcanumBackOptionCount(arcanumSlug, optionSlug, count) { await this._arcana.setBackOptionCount(arcanumSlug, optionSlug, count); }
-	async setArcanumResource(slug, count)                           { await this._inventory.setResource(slug, count); }
+	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
+	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); }
+	async identifyArcanum(slug)                      { await this._arcana.identifyArcanum(slug); }
+	async getArcanumChatContent(slug, flipped)       { return this._arcana.getArcanumChatContent(slug, flipped); }
+	async flipArcanum(slug)     { await this._arcana.flipArcanum(slug); }
+	async unflipArcanum(slug)   { await this._arcana.unflipArcanum(slug); }
+	async setArcanumUnlockCount(arcanumSlug, optionSlug, count)          { await this._arcana.setUnlockCount(arcanumSlug, optionSlug, count); }
+	async setArcanumBackOptionCount(arcanumSlug, optionSlug, count)      { await this._arcana.setBackOptionCount(arcanumSlug, optionSlug, count); }
+	async setArcanumBoxChecked(slug, context, index, checked)            { await this._arcana.setArcanumBoxChecked(slug, context, index, checked); }
+	async setArcanumResource(slug, count)                                { await this._inventory.setResource(slug, count); }
 	async setLoreOptionCount(loreSlug, optionSlug, count)           { await this._lore.setCount(loreSlug, optionSlug, count); }
 	async setLoreOptionText(loreSlug, optionSlug, value)            { await this._lore.setText(loreSlug, optionSlug, value); }
 

@@ -1,0 +1,15 @@
+{
+  "_id": "Ri8GlL0lNo2pQiRs",
+  "_key": "!items!Ri8GlL0lNo2pQiRs",
+  "name": "A chain of rusty locks",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "chain-of-rusty-locks"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "_id": "Of5DiI7iKl9mNdOp",
+  "_key": "!items!Of5DiI7iKl9mNdOp",
+  "name": "A scroll & a bone flute",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "scroll-and-bone-flute"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

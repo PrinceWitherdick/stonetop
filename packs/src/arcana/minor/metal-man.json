@@ -1,0 +1,15 @@
+{
+  "_id": "AR3PUU5UYZ7ZzABc",
+  "_key": "!items!AR3PUU5UYZ7ZzABc",
+  "name": "A metal man",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "metal-man"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

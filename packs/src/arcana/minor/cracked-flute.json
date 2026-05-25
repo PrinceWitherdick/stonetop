@@ -1,0 +1,15 @@
+{
+  "_id": "gx3VAA5ABD7FfXgh",
+  "_key": "!items!gx3VAA5ABD7FfXgh",
+  "name": "A cracked flute",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "cracked-flute"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "_id": "pG2EJJ4JMN6OoGpq",
+  "_key": "!items!pG2EJJ4JMN6OoGpq",
+  "name": "A gold butter lamp",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "gold-butter-lamp"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

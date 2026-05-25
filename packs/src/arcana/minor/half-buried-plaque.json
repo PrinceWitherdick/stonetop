@@ -1,0 +1,15 @@
+{
+  "_id": "Hy8wBb0bDe2fG6hI",
+  "_key": "!items!Hy8wBb0bDe2fG6hI",
+  "name": "A half-buried plaque",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "half-buried-plaque"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

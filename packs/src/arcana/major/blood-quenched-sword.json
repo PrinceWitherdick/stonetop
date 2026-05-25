@@ -1,0 +1,15 @@
+{
+  "name": "Blood-quenched Sword",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "blood-quenched-sword"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "f4DKXEI92mb5rc5R",
+  "_key": "!items!f4DKXEI92mb5rc5R"
+}

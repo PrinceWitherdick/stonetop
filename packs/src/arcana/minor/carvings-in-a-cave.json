@@ -1,0 +1,15 @@
+{
+  "_id": "Gx7vZa9aCd1eF5gH",
+  "_key": "!items!Gx7vZa9aCd1eF5gH",
+  "name": "Carvings in a cave",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "carvings-in-a-cave"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "_id": "zQ2OTT4TWX6YyZzA",
+  "_key": "!items!zQ2OTT4TWX6YyZzA",
+  "name": "A bow with no string",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "bow-with-no-string"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Ineffable Words",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "ineffable-words"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "HViXYPwjsyjftTq4",
+  "_key": "!items!HViXYPwjsyjftTq4"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Mindgem",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "mindgem"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "6xrAxBly1uRhNEL2",
+  "_key": "!items!6xrAxBly1uRhNEL2"
+}

@@ -1,0 +1,15 @@
+{
+  "_id": "KB3ZEE5EIJ7JkKLm",
+  "_key": "!items!KB3ZEE5EIJ7JkKLm",
+  "name": "A stone idol",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "stone-idol"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "_id": "JA2YDD4DHI6IjJKl",
+  "_key": "!items!JA2YDD4DHI6IjJKl",
+  "name": "A humble broom",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "humble-broom"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "_id": "Pg6EjJ8jLm0nOePq",
+  "_key": "!items!Pg6EjJ8jLm0nOePq",
+  "name": "A clear natural pool",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "clear-natural-pool"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

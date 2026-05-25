@@ -1,0 +1,15 @@
+{
+  "_id": "bs8QvV0vWy2AaSbc",
+  "_key": "!items!bs8QvV0vWy2AaSbc",
+  "name": "A strange skull and antlers",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "strange-skull-and-antlers"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

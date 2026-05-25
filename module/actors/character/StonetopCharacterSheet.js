@@ -210,6 +210,33 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 
 			html[0].addEventListener("click", ev => {
+				const title = ev.target.closest(".stonetop-arcanum-title--clickable");
+				if (!title) return;
+				ev.stopPropagation();
+				const { slug, flipped } = title.dataset;
+				this._stonetopCharacter.getArcanumChatContent(slug, flipped === "true").then(content => {
+					if (!content) return;
+					ChatMessage.create({
+						content,
+						speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+						rollMode: game.settings.get("core", "rollMode"),
+					});
+				});
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-identify-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				const { slug } = btn.dataset;
+				Dialog.confirm({
+					title: game.i18n.localize("stonetop.arcana.identifyTitle"),
+					content: `<p>${game.i18n.localize("stonetop.arcana.identifyConfirm")}</p>`,
+					yes: () => this._stonetopCharacter.identifyArcanum(slug).then(() => this.render(false)),
+				});
+			}, true);
+
+			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-arcanum-flip-btn");
 				if (!btn) return;
 				ev.stopPropagation();
@@ -245,6 +272,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { arcanumSlug, optionSlug, index } = cb.dataset;
 				const newCount = cb.checked ? Number(index) + 1 : Number(index);
 				this._stonetopCharacter.setArcanumUnlockCount(arcanumSlug, optionSlug, newCount);
+			}, true);
+
+			html[0].addEventListener("change", ev => {
+				const cb = ev.target.closest(".stonetop-arcanum-box, .stonetop-arcanum-circle");
+				if (!cb) return;
+				ev.stopPropagation();
+				const { arcanumSlug, context, index } = cb.dataset;
+				this._stonetopCharacter.setArcanumBoxChecked(arcanumSlug, context, Number(index), cb.checked);
 			}, true);
 
 			html[0].addEventListener("change", ev => {

@@ -1,0 +1,15 @@
+{
+  "_id": "xO0MRR2RUV4WwXxy",
+  "_key": "!items!xO0MRR2RUV4WwXxy",
+  "name": "A copper-banded staff",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "copper-banded-staff"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

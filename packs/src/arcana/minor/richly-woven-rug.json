@@ -1,0 +1,15 @@
+{
+  "_id": "Kb1zEe3eGh5iJ9kL",
+  "_key": "!items!Kb1zEe3eGh5iJ9kL",
+  "name": "A richly woven rug",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "richly-woven-rug"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

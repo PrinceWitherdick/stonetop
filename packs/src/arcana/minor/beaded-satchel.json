@@ -1,0 +1,15 @@
+{
+  "_id": "fw2UzZ4zAC6EeWfg",
+  "_key": "!items!fw2UzZ4zAC6EeWfg",
+  "name": "A beaded satchel",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "beaded-satchel"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

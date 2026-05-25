@@ -1,0 +1,15 @@
+{
+  "_id": "ct9RwW1wXz3BbTcd",
+  "_key": "!items!ct9RwW1wXz3BbTcd",
+  "name": "A stretched vellum",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "stretched-vellum"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

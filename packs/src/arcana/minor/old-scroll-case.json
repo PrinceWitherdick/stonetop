@@ -1,0 +1,15 @@
+{
+  "_id": "Pq3rSt5uVw7xYz9A",
+  "_key": "!items!Pq3rSt5uVw7xYz9A",
+  "name": "An old scroll case",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "old-scroll-case"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

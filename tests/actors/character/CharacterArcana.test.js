@@ -163,6 +163,74 @@ describe("CharacterArcana.buildSnapshot()", () => {
 		});
 	});
 
+	describe("unlocked state", () => {
+		it("unlocked is true when there are no trackable requirements", async () => {
+			const arcanum = { ...FFYRNIG_SPHERE, front: { ...FFYRNIG_SPHERE.front, unlock: { description: "Unlock by…", requirements: [] } } };
+			const arcana = new CharacterArcana(makeFlags({ owned: ["huge-wooden-sphere"] }), new FakeArcanaRepository([arcanum]));
+			const item = (await arcana.buildSnapshot()).minor.items[0];
+			expect(item.unlocked).toBe(true);
+		});
+
+		it("unlocked is false when option requirements are not met", async () => {
+			const snap = await makeArcana({ owned: ["huge-wooden-sphere"] }).buildSnapshot();
+			expect(snap.minor.items[0].unlocked).toBe(false);
+		});
+
+		it("unlocked is false when only some requirements are met", async () => {
+			const snap = await makeArcana({
+				owned:  ["huge-wooden-sphere"],
+				unlock: { "huge-wooden-sphere:dig-sphere": 1, "huge-wooden-sphere:study-glyphs": 1 },
+			}).buildSnapshot();
+			expect(snap.minor.items[0].unlocked).toBe(false);
+		});
+
+		it("unlocked is true when all option requirements are fully met", async () => {
+			const snap = await makeArcana({
+				owned:  ["huge-wooden-sphere"],
+				unlock: {
+					"huge-wooden-sphere:dig-sphere":   1,
+					"huge-wooden-sphere:study-glyphs": 1,
+					"huge-wooden-sphere:risk-recipe":  3,
+				},
+			}).buildSnapshot();
+			expect(snap.minor.items[0].unlocked).toBe(true);
+		});
+
+		it("unlocked is false when circle marks are not all checked", async () => {
+			const circleArcanum = {
+				slug: "azure-hand",
+				front: {
+					title: "Azure Hand", item: null,
+					description: "<p>Test.</p>",
+					unlock: { description: "○○○○ Fill to unlock.", requirements: [] },
+				},
+				back: { title: "Mysteries", item: null, description: "<p>Back.</p>", resource: null, move: null, options: [] },
+			};
+			const arcana = new CharacterArcana(
+				makeFlags({ owned: ["azure-hand"], boxes: { "azure-hand:unlock:0": true, "azure-hand:unlock:1": true } }),
+				new FakeArcanaRepository([circleArcanum]),
+			);
+			expect((await arcana.buildSnapshot()).minor.items[0].unlocked).toBe(false);
+		});
+
+		it("unlocked is true when all circle marks are checked", async () => {
+			const circleArcanum = {
+				slug: "azure-hand",
+				front: {
+					title: "Azure Hand", item: null,
+					description: "<p>Test.</p>",
+					unlock: { description: "○○○○ Fill to unlock.", requirements: [] },
+				},
+				back: { title: "Mysteries", item: null, description: "<p>Back.</p>", resource: null, move: null, options: [] },
+			};
+			const arcana = new CharacterArcana(
+				makeFlags({ owned: ["azure-hand"], boxes: { "azure-hand:unlock:0": true, "azure-hand:unlock:1": true, "azure-hand:unlock:2": true, "azure-hand:unlock:3": true } }),
+				new FakeArcanaRepository([circleArcanum]),
+			);
+			expect((await arcana.buildSnapshot()).minor.items[0].unlocked).toBe(true);
+		});
+	});
+
 	describe("front snapshot", () => {
 		async function getItem(flagStore = {}) {
 			return (await makeArcana({ owned: ["huge-wooden-sphere"], ...flagStore }).buildSnapshot()).minor.items[0];

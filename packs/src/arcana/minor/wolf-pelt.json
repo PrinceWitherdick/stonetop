@@ -1,0 +1,15 @@
+{
+  "_id": "hy4WBB6BCE8GgYhi",
+  "_key": "!items!hy4WBB6BCE8GgYhi",
+  "name": "A wolf pelt",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "wolf-pelt"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

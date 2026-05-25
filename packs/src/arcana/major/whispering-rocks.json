@@ -1,0 +1,15 @@
+{
+  "name": "Whispering Rocks",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "whispering-rocks"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "6l0VyNxKy3MEOw4A",
+  "_key": "!items!6l0VyNxKy3MEOw4A"
+}

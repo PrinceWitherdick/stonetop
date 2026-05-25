@@ -1,0 +1,15 @@
+{
+  "_id": "uL7JOO9ORS1TtUuv",
+  "_key": "!items!uL7JOO9ORS1TtUuv",
+  "name": "A vellum scroll",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "vellum-scroll"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

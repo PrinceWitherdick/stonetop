@@ -1,0 +1,15 @@
+{
+  "_id": "Ul1JoO3oQr5tTlUv",
+  "_key": "!items!Ul1JoO3oQr5tTlUv",
+  "name": "A giant oak leaf",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "giant-oak-leaf"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

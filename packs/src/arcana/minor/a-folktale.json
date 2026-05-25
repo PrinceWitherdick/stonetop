@@ -1,0 +1,15 @@
+{
+  "_id": "Bq4sUv6wXy8zAbCD",
+  "_key": "!items!Bq4sUv6wXy8zAbCD",
+  "name": "A folktale",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-folktale"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

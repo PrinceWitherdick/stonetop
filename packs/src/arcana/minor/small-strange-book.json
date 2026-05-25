@@ -1,0 +1,15 @@
+{
+  "_id": "DrStWx7yZa9bC3dE",
+  "_key": "!items!DrStWx7yZa9bC3dE",
+  "name": "A small, strange book",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "small-strange-book"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

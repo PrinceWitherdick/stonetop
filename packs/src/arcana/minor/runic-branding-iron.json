@@ -1,0 +1,15 @@
+{
+  "_id": "DU6SXX8XBC0CdDEf",
+  "_key": "!items!DU6SXX8XBC0CdDEf",
+  "name": "A runic branding iron",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "runic-branding-iron"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "_id": "jA6YDD8DGH0IiAjk",
+  "_key": "!items!jA6YDD8DGH0IiAjk",
+  "name": "A rusty cauldron",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "rusty-cauldron"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

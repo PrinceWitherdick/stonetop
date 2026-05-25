@@ -1,0 +1,15 @@
+{
+  "_id": "mD9BGG1GJK3LlDmn",
+  "_key": "!items!mD9BGG1GJK3LlDmn",
+  "name": "A fine ceramic urn",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "fine-ceramic-urn"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

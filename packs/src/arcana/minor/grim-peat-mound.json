@@ -1,0 +1,15 @@
+{
+  "_id": "Ja0yDd2dFg4hI8jK",
+  "_key": "!items!Ja0yDd2dFg4hI8jK",
+  "name": "A grim peat mound",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "grim-peat-mound"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}
