@@ -1,0 +1,15 @@
+{
+  "_id": "vM8KPP0PST2UuVvw",
+  "_key": "!items!vM8KPP0PST2UuVvw",
+  "name": "A whispering... word?",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "whispering-word"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

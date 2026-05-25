@@ -1,0 +1,15 @@
+{
+  "_id": "Wn3LqQ5qSt7vVnWx",
+  "_key": "!items!Wn3LqQ5qSt7vVnWx",
+  "name": "A strange pendant",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "strange-pendant"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

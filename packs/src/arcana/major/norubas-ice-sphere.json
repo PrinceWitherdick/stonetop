@@ -1,0 +1,15 @@
+{
+  "name": "Noruba's Ice Sphere",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "norubas-ice-sphere"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "A5UyZrjnbdSKxTqd",
+  "_key": "!items!A5UyZrjnbdSKxTqd"
+}

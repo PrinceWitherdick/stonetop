@@ -1,0 +1,15 @@
+{
+  "name": "Hungering Maw of Hlad",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "hungering-maw-of-hlad"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "iOo2MhiPpDcNJRur",
+  "_key": "!items!iOo2MhiPpDcNJRur"
+}

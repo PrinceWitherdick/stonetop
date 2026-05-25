@@ -1,0 +1,15 @@
+{
+  "_id": "rI4GLL6LOP8QqIrs",
+  "_key": "!items!rI4GLL6LOP8QqIrs",
+  "name": "A creepy cave",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "creepy-cave"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

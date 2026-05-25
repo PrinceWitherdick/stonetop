@@ -1,0 +1,15 @@
+{
+  "_id": "NE6CHH8HNM1NnNOp",
+  "_key": "!items!NE6CHH8HNM1NnNOp",
+  "name": "A metal puzzle box",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "metal-puzzle-box"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

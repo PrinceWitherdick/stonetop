@@ -1,0 +1,15 @@
+{
+  "_id": "EV7TYY9YCD1DeEFg",
+  "_key": "!items!EV7TYY9YCD1DeEFg",
+  "name": "A silvery signet ring",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "silvery-signet-ring"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Twisted Spear",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "twisted-spear"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "0n4lgBdJ0abmmQfl",
+  "_key": "!items!0n4lgBdJ0abmmQfl"
+}

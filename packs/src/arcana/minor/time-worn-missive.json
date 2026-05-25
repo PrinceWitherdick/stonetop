@@ -1,0 +1,15 @@
+{
+  "_id": "Vm2KpP4pRs6uUmVw",
+  "_key": "!items!Vm2KpP4pRs6uUmVw",
+  "name": "A time-worn missive",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "time-worn-missive"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

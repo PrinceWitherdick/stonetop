@@ -1,0 +1,15 @@
+{
+  "_id": "nE0CHH2HKL4MmEno",
+  "_key": "!items!nE0CHH2HKL4MmEno",
+  "name": "A length of prayer beads",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "length-of-prayer-beads"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

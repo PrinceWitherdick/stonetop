@@ -1,0 +1,15 @@
+{
+  "name": "Ring of Daagon",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "ring-of-daagon"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "M8aT7oIf8G6GrFiV",
+  "_key": "!items!M8aT7oIf8G6GrFiV"
+}

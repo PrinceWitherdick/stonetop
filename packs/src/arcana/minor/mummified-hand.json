@@ -1,0 +1,15 @@
+{
+  "_id": "HY0WBB2BFG4GhHIj",
+  "_key": "!items!HY0WBB2BFG4GhHIj",
+  "name": "A mummified hand",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "mummified-hand"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

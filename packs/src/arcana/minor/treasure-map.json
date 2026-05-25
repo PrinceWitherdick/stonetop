@@ -1,0 +1,15 @@
+{
+  "_id": "LC4AFF6FKL9LlLMn",
+  "_key": "!items!LC4AFF6FKL9LlLMn",
+  "name": "A treasure map",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "treasure-map"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

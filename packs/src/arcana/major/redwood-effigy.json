@@ -1,0 +1,15 @@
+{
+  "name": "Redwood Effigy",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "redwood-effigy"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "JbD3F19zQs3ph0SC",
+  "_key": "!items!JbD3F19zQs3ph0SC"
+}

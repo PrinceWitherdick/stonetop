@@ -19,7 +19,11 @@
 			"empty": "Drag arcana here from the Arcana compendium.",
 			"showFront": "Show Front",
 			"showBack": "Reveal Back",
-			"removeArcanum": "Remove"
+			"removeArcanum": "Remove",
+			"identify": "Identify",
+			"identifyTitle": "Identify Arcanum",
+			"identifyConfirm": "Are you sure you you've successfully identified this Arcanum? This action cannot be undone.",
+			"unidentifiedText": "This arcanum has not yet been identified. Study it closely to reveal its nature."
 		},
 		"inventory": {
 			"regularItems": "Items",

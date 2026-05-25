@@ -1,0 +1,15 @@
+{
+  "_id": "Fw6uYz8zBc0dE4fG",
+  "_key": "!items!Fw6uYz8zBc0dE4fG",
+  "name": "A giant's dormitory",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "giants-dormitory"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

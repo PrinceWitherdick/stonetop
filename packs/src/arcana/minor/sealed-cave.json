@@ -1,0 +1,15 @@
+{
+  "_id": "Yp5NsS7sTv9xXpYz",
+  "_key": "!items!Yp5NsS7sTv9xXpYz",
+  "name": "A sealed cave",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "sealed-cave"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

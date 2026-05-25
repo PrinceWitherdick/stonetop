@@ -1,0 +1,15 @@
+{
+  "_id": "du0SxX2xYA4CcUde",
+  "_key": "!items!du0SxX2xYA4CcUde",
+  "name": "A patch of rainbow moss",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "patch-of-rainbow-moss"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "_id": "MD5BGG7GML0MmMNo",
+  "_key": "!items!MD5BGG7GML0MmMNo",
+  "name": "An oversized crown",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "oversized-crown"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

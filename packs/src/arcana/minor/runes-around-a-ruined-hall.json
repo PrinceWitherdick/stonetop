@@ -1,0 +1,15 @@
+{
+  "_id": "Iz9xCc1cEf3gH7iJ",
+  "_key": "!items!Iz9xCc1cEf3gH7iJ",
+  "name": "Runes around a ruined hall",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "runes-around-a-ruined-hall"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "_id": "tK6INN8NQR0SsTtu",
+  "_key": "!items!tK6INN8NQR0SsTtu",
+  "name": "A silvery glass bottle",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "silvery-glass-bottle"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

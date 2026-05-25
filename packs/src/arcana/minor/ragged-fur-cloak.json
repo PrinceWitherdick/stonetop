@@ -1,0 +1,15 @@
+{
+  "_id": "qH3FKK5KNO7PpHqr",
+  "_key": "!items!qH3FKK5KNO7PpHqr",
+  "name": "A ragged fur cloak",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "ragged-fur-cloak"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

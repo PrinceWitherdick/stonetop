@@ -1,0 +1,15 @@
+{
+  "_id": "kB7ZEE9EHI1JjBkl",
+  "_key": "!items!kB7ZEE9EHI1JjBkl",
+  "name": "A large wooden jar",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "large-wooden-jar"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

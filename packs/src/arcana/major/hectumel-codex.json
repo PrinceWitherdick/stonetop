@@ -1,0 +1,15 @@
+{
+  "name": "Hec'tumel Codex",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "hectumel-codex"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "4wlgB0VWqB2tN0V5",
+  "_key": "!items!4wlgB0VWqB2tN0V5"
+}

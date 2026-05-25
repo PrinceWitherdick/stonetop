@@ -1,0 +1,15 @@
+{
+  "_id": "CT5RWW7WAB9BcCDe",
+  "_key": "!items!CT5RWW7WAB9BcCDe",
+  "name": "A rusty steel blade",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "rusty-steel-blade"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

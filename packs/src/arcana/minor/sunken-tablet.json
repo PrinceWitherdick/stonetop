@@ -1,0 +1,15 @@
+{
+  "_id": "iz5XCC7CFG9HhZij",
+  "_key": "!items!iz5XCC7CFG9HhZij",
+  "name": "A sunken tablet",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "sunken-tablet"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

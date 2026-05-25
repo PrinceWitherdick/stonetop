@@ -107,23 +107,27 @@ export class MinorArcanumBackSnapshotBuilder {
 
 export class MinorArcanumSnapshot {
 	constructor(b) {
-		this.slug    = b._slug;
-		this.front   = b._front;
-		this.back    = b._back;
-		this.owned   = b._owned;
-		this.flipped = b._flipped;
-		this.checked = b._checked;
+		this.slug       = b._slug;
+		this.front      = b._front;
+		this.back       = b._back;
+		this.owned      = b._owned;
+		this.flipped    = b._flipped;
+		this.checked    = b._checked;
+		this.unlocked   = b._unlocked;
+		this.identified = b._identified;
 	}
 }
 
 export class MinorArcanumSnapshotBuilder {
-	withSlug(v)    { this._slug    = v; return this; }
-	withFront(v)   { this._front   = v; return this; }
-	withBack(v)    { this._back    = v; return this; }
-	withOwned(v)   { this._owned   = v; return this; }
-	withFlipped(v) { this._flipped = v; return this; }
-	withChecked(v) { this._checked = v; return this; }
-	build()        { return new MinorArcanumSnapshot(this); }
+	withSlug(v)        { this._slug       = v; return this; }
+	withFront(v)       { this._front      = v; return this; }
+	withBack(v)        { this._back       = v; return this; }
+	withOwned(v)       { this._owned      = v; return this; }
+	withFlipped(v)     { this._flipped    = v; return this; }
+	withChecked(v)     { this._checked    = v; return this; }
+	withUnlocked(v)    { this._unlocked   = v; return this; }
+	withIdentified(v)  { this._identified = v; return this; }
+	build()            { return new MinorArcanumSnapshot(this); }
 }
 
 // ── Sections ──────────────────────────────────────────────────────────────────

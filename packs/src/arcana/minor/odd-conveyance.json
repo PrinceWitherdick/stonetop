@@ -1,0 +1,15 @@
+{
+  "_id": "yP1NSS3SVW5XxYyz",
+  "_key": "!items!yP1NSS3SVW5XxYyz",
+  "name": "An odd conveyance",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "odd-conveyance"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

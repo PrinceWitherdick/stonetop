@@ -1,0 +1,15 @@
+{
+  "_id": "Ne4ChH6hJk8lMcNo",
+  "_key": "!items!Ne4ChH6hJk8lMcNo",
+  "name": "A huge wooden sphere",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "huge-wooden-sphere"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

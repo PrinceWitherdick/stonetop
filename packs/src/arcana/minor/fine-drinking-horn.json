@@ -1,0 +1,15 @@
+{
+  "_id": "FW8UZZ0ZDE2EfFGh",
+  "_key": "!items!FW8UZZ0ZDE2EfFGh",
+  "name": "A fine drinking horn",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "fine-drinking-horn"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

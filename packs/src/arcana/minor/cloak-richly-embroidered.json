@@ -1,0 +1,15 @@
+{
+  "_id": "ev1TyY3yZB5DdVef",
+  "_key": "!items!ev1TyY3yZB5DdVef",
+  "name": "A cloak, richly embroidered",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "cloak-richly-embroidered"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

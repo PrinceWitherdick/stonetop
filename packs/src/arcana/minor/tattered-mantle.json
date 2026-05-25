@@ -1,0 +1,15 @@
+{
+  "_id": "Lc2AfF4fHi6jKaLm",
+  "_key": "!items!Lc2AfF4fHi6jKaLm",
+  "name": "A tattered mantle",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "tattered-mantle"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

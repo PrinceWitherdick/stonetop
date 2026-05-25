@@ -1,0 +1,15 @@
+{
+  "name": "Demonhide Cloak",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "demonhide-cloak"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "odHFRr5F90K9nEqk",
+  "_key": "!items!odHFRr5F90K9nEqk"
+}

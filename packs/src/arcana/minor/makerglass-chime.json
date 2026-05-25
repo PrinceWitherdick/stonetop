@@ -1,0 +1,15 @@
+{
+  "_id": "lC8AFF0FIJ2KkClm",
+  "_key": "!items!lC8AFF0FIJ2KkClm",
+  "name": "A makerglass chime",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "makerglass-chime"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

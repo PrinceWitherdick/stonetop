@@ -1,0 +1,15 @@
+{
+  "_id": "Md3BgG5gIj7kLbMn",
+  "_key": "!items!Md3BgG5gIj7kLbMn",
+  "name": "Rune-etched pillars",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "rune-etched-pillars"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

@@ -1,0 +1,15 @@
+{
+  "_id": "wN9LQQ1QTU3VvWwx",
+  "_key": "!items!wN9LQQ1QTU3VvWwx",
+  "name": "A corroded spearhead",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "corroded-spearhead"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

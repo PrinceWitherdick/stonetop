@@ -1,0 +1,15 @@
+{
+  "_id": "Qh7FkK9kMn1oPhQr",
+  "_key": "!items!Qh7FkK9kMn1oPhQr",
+  "name": "An oversized codex",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "oversized-codex"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

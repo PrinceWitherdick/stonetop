@@ -1,0 +1,15 @@
+{
+  "_id": "sJ5HMM7MPQ9RrJst",
+  "_key": "!items!sJ5HMM7MPQ9RrJst",
+  "name": "A disturbing mask",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "disturbing-mask"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

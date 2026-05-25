@@ -1,0 +1,15 @@
+{
+  "_id": "GX9VAA1AEF3FgGHi",
+  "_key": "!items!GX9VAA1AEF3FgGHi",
+  "name": "A vein of milky crystal",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "vein-of-milky-crystal"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

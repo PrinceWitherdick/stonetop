@@ -8,6 +8,29 @@ import {
 } from "../../model/CharacterSnapshot.js";
 import { OutfitItemBuilder } from "../../model/OutfitItem.js";
 
+function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
+	const reqs = item.front.unlock?.requirements ?? [];
+	const reqsMet = reqs.every(r =>
+		r.type !== "option" || (unlockCounts[`${item.slug}:${r.slug}`] ?? 0) >= (r.max ?? 1)
+	);
+	if (!reqsMet) return false;
+	for (let i = 0; i < circleCount; i++) {
+		if (!arcanaBoxes[`${item.slug}:unlock:${i}`]) return false;
+	}
+	return true;
+}
+
+function _processMarkers(html, slug, context, boxStates, marker, cssClass) {
+	if (!html) return { html, count: 0 };
+	let index = 0;
+	const processed = html.replace(new RegExp(marker, "g"), () => {
+		const key = `${slug}:${context}:${index}`;
+		const checked = !!boxStates[key];
+		return `<input type="checkbox" class="${cssClass}" data-arcanum-slug="${slug}" data-context="${context}" data-index="${index++}"${checked ? " checked" : ""}>`;
+	});
+	return { html: processed, count: index };
+}
+
 function _buildOutfitItem(slug, itemData, resolvedResource = undefined) {
 	if (!itemData) return null;
 	return new OutfitItemBuilder()
@@ -28,16 +51,19 @@ export class CharacterArcana {
 		this._arcanaRepo = arcanaRepo;
 	}
 
-	get ownedSlugs()      { return new Set(this._flags.getFlag("owned") ?? []); }
-	get flippedSlugs()    { return new Set(this._flags.getFlag("flipped") ?? []); }
-	get unlockCounts()    { return this._flags.getFlag("unlock") ?? {}; }
-	get backOptionCounts(){ return this._flags.getFlag("backOptions") ?? {}; }
+	get ownedSlugs()       { return new Set(this._flags.getFlag("owned") ?? []); }
+	get flippedSlugs()     { return new Set(this._flags.getFlag("flipped") ?? []); }
+	get identifiedSlugs()  { return new Set(this._flags.getFlag("identified") ?? []); }
+	get unlockCounts()     { return this._flags.getFlag("unlock") ?? {}; }
+	get backOptionCounts() { return this._flags.getFlag("backOptions") ?? {}; }
 
 	async buildSnapshot(stats = {}, checkedMap = {}, inventoryResources = {}) {
 		const ownedSlugs       = this.ownedSlugs;
 		const flippedSlugs     = this.flippedSlugs;
+		const identifiedSlugs  = this.identifiedSlugs;
 		const unlockCounts     = this.unlockCounts;
 		const backOptionCounts = this.backOptionCounts;
+		const arcanaBoxes      = this._flags.getFlag("boxes") ?? {};
 
 		const fetchedItems = await this._arcanaRepo.findBySlugs([...ownedSlugs]);
 
@@ -56,11 +82,15 @@ export class CharacterArcana {
 					.build();
 			});
 
+			const { html: frontDesc }                  = _processMarkers(item.front.description, item.slug, "front", arcanaBoxes, "□", "stonetop-arcanum-box");
+			const { html: unlockDesc, count: circleCount } = _processMarkers(item.front.unlock?.description ?? "", item.slug, "unlock", arcanaBoxes, "○", "stonetop-arcanum-circle");
+			const unlocked = _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount);
+
 			const front = new MinorArcanumFrontSnapshotBuilder()
 				.withTitle(item.front.title)
 				.withItem(_buildOutfitItem(item.slug, item.front.item))
-				.withDescription(item.front.description)
-				.withUnlock(new ArcanumUnlockSection(item.front.unlock.description, unlockItems))
+				.withDescription(frontDesc)
+				.withUnlock(new ArcanumUnlockSection(unlockDesc, unlockItems))
 				.build();
 
 			const backOpts = (item.back.options ?? []).map(o => {
@@ -106,10 +136,12 @@ export class CharacterArcana {
 					item.back.move.description)
 				: null;
 
+			const { html: backDesc } = _processMarkers(item.back.description, item.slug, "back", arcanaBoxes, "□", "stonetop-arcanum-box");
+
 			const back = new MinorArcanumBackSnapshotBuilder()
 				.withTitle(item.back.title)
 				.withItem(_buildOutfitItem(item.slug, item.back.item, backItemResource))
-				.withDescription(item.back.description)
+				.withDescription(backDesc)
 				.withResource(backResource)
 				.withMove(backMove)
 				.withOptions(backOpts)
@@ -122,6 +154,8 @@ export class CharacterArcana {
 				.withOwned(true)
 				.withFlipped(flipped)
 				.withChecked(checkedMap[item.slug] ?? false)
+				.withUnlocked(unlocked)
+				.withIdentified(identifiedSlugs.has(item.slug))
 				.build();
 		});
 
@@ -137,9 +171,20 @@ export class CharacterArcana {
 	}
 
 	async removeArcanum(slug) {
-		const s = this.ownedSlugs;
-		s.delete(slug);
-		await this._flags.setFlag("owned", [...s]);
+		const owned = this.ownedSlugs;
+		owned.delete(slug);
+		const identified = this.identifiedSlugs;
+		identified.delete(slug);
+		await Promise.all([
+			this._flags.setFlag("owned", [...owned]),
+			this._flags.setFlag("identified", [...identified]),
+		]);
+	}
+
+	async identifyArcanum(slug) {
+		const s = this.identifiedSlugs;
+		s.add(slug);
+		await this._flags.setFlag("identified", [...s]);
 	}
 
 	async flipArcanum(slug) {
@@ -159,9 +204,42 @@ export class CharacterArcana {
 		await this._flags.setFlag("unlock", { ...this.unlockCounts, [key]: count });
 	}
 
+	async setArcanumBoxChecked(slug, context, index, checked) {
+		const boxes = this._flags.getFlag("boxes") ?? {};
+		const key = `${slug}:${context}:${index}`;
+		if (!!boxes[key] === !!checked) return;
+		// Store false explicitly rather than deleting the key — Foundry's setFlag uses
+		// mergeObject internally, which preserves keys missing from the update object.
+		await this._flags.setFlag("boxes", { ...boxes, [key]: !!checked });
+	}
+
 	async setBackOptionCount(arcanumSlug, optionSlug, count) {
 		const key = `${arcanumSlug}:${optionSlug}`;
 		await this._flags.setFlag("backOptions", { ...this.backOptionCounts, [key]: count });
+	}
+
+	async getArcanumChatContent(slug, flipped) {
+		const [item] = await this._arcanaRepo.findBySlugs([slug]);
+		if (!item) return null;
+
+		if (flipped) {
+			const { title, description, move } = item.back;
+			let html = `<div class="stonetop-arcanum-chat-card"><h3 class="stonetop-arcanum-chat-title">${title}</h3>${description ?? ""}`;
+			if (move) html += `<p class="stonetop-arcanum-move-trigger"><strong><em>${move.name}</em></strong></p>${move.description ?? ""}`;
+			return html + `</div>`;
+		} else {
+			const { title, description, unlock } = item.front;
+			let html = `<div class="stonetop-arcanum-chat-card"><h3 class="stonetop-arcanum-chat-title">${title}</h3>${description ?? ""}`;
+			if (unlock?.description) {
+				html += `<p class="stonetop-arcanum-unlock-lead">${unlock.description}</p>`;
+				const reqs = unlock.requirements ?? [];
+				if (reqs.length) {
+					const items = reqs.map(r => `<li>${r.type === "text" ? r.content : r.description}</li>`).join("");
+					html += `<ul class="stonetop-arcanum-unlock-list">${items}</ul>`;
+				}
+			}
+			return html + `</div>`;
+		}
 	}
 
 	async weightedInventoryItems() {

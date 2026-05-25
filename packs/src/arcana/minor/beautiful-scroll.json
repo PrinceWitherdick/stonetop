@@ -1,0 +1,15 @@
+{
+  "_id": "oF1DII3ILM5NnFop",
+  "_key": "!items!oF1DII3ILM5NnFop",
+  "name": "A beautiful scroll",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "beautiful-scroll"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

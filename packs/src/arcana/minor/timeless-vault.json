@@ -1,0 +1,15 @@
+{
+  "_id": "Xo4MrR6rTu8wWoXy",
+  "_key": "!items!Xo4MrR6rTu8wWoXy",
+  "name": "A timeless vault",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "timeless-vault"
+    }
+  },
+  "folder": "xO5Ez5DMBTBBxwOR"
+}

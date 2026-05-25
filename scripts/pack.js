@@ -8,6 +8,49 @@ function randomId() {
 	return Array.from({ length: 16 }, () => CHARS[Math.floor(Math.random() * CHARS.length)]).join("");
 }
 
+/**
+ * If packs/private/<pack>-content.json exists, copies the src tree to a temp
+ * directory and merges the private content into each item's flags.stonetop
+ * before compilation. Returns the directory that should be compiled.
+ *
+ * This lets you commit name-only stubs to git while keeping full content in
+ * a gitignored local file.
+ */
+async function resolveCompileDir(pack, srcDir) {
+	const privateFile = `packs/private/${pack}-content.json`;
+	let privateContent;
+	try {
+		privateContent = JSON.parse(await fs.readFile(privateFile, "utf8"));
+	} catch {
+		return srcDir; // no private content, compile from src as-is
+	}
+
+	const tmpDir = `packs/.tmp/${pack}`;
+	await fs.rm(tmpDir, { recursive: true, force: true });
+
+	async function copyWithMerge(src, tmp) {
+		await fs.mkdir(tmp, { recursive: true });
+		for (const entry of await fs.readdir(src, { withFileTypes: true })) {
+			const srcPath = path.join(src, entry.name);
+			const tmpPath = path.join(tmp, entry.name);
+			if (entry.isDirectory()) {
+				await copyWithMerge(srcPath, tmpPath);
+			} else if (entry.name.endsWith(".json")) {
+				const doc = JSON.parse(await fs.readFile(srcPath, "utf8"));
+				const slug = doc.flags?.stonetop?.slug;
+				if (slug && privateContent[slug]) {
+					doc.flags.stonetop = { slug, ...privateContent[slug] };
+				}
+				await fs.writeFile(tmpPath, JSON.stringify(doc, null, "\t"));
+			}
+		}
+	}
+
+	await copyWithMerge(srcDir, tmpDir);
+	console.log(`  Merged private content from ${privateFile}`);
+	return tmpDir;
+}
+
 async function ensureFolders(srcDir) {
 	const entries = await fs.readdir(srcDir, { withFileTypes: true });
 	const subdirs = entries.filter(e => e.isDirectory() && !e.name.startsWith("_"));
@@ -18,7 +61,7 @@ async function ensureFolders(srcDir) {
 
 	for (const subdir of subdirs) {
 		const slug = subdir.name;
-		const name = slug.replace(/_/g, " ");
+		const name = slug.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 		const folderFile = path.join(foldersDir, `${slug}.json`);
 
 		let folderId;
@@ -79,15 +122,20 @@ async function main() {
 		}
 		await ensureFolders(src);
 		await ensureIds(src);
+		const compileDir = await resolveCompileDir(pack, src);
 		const dest = `packs/${pack}`;
 		await fs.rm(dest, { recursive: true, force: true });
 		await fs.mkdir(dest, { recursive: true });
 		try {
-			await compilePack(src, dest, { nedb: false, log: true, recursive: true });
+			await compilePack(compileDir, dest, { nedb: false, log: true, recursive: true });
 		} catch (err) {
 			// Node v24 + abstract-level teardown race: iterator cleanup races with DB close.
 			// All files are written before this throws, so it's safe to ignore.
 			if (err.code !== "LEVEL_ITERATOR_NOT_OPEN") throw err;
+		} finally {
+			if (compileDir !== src) {
+				await fs.rm(compileDir, { recursive: true, force: true });
+			}
 		}
 	}
 }

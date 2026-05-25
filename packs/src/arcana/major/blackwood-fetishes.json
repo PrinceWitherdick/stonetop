@@ -1,0 +1,15 @@
+{
+  "name": "Blackwood Fetishes",
+  "type": "move",
+  "system": {
+    "moveType": "arcanum"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "blackwood-fetishes"
+    }
+  },
+  "folder": "yACtgKU1AzJXG2LG",
+  "_id": "CAqpBPqW9LAGZCcM",
+  "_key": "!items!CAqpBPqW9LAGZCcM"
+}
