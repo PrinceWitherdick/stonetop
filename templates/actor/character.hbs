@@ -58,6 +58,7 @@
 				<a class="item" data-tab="arcana">{{localize "stonetop.sheet.tabs.arcana"}}</a>
 				<a class="item" data-tab="details">{{localize "stonetop.sheet.tabs.details"}}</a>
 				{{#if stonetop.showPostDeath}}<a class="item" data-tab="post-death">{{localize "stonetop.sheet.tabs.postDeath"}}</a>{{/if}}
+				<a class="item" data-tab="special-moves">{{localize "stonetop.sheet.tabs.specialMoves"}}</a>
 			</nav>
 
 			<div class="stonetop-sheet-layout">
@@ -67,6 +68,7 @@
 					{{> "stonetop.tab-arcana"}}
 					{{> "stonetop.tab-details"}}
 					{{#if stonetop.showPostDeath}}{{> "stonetop.tab-post-death"}}{{/if}}
+					{{> "stonetop.tab-special-moves"}}
 				</section>
 
 				<div class="stonetop-moves-sidebar">

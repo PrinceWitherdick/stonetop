@@ -16,6 +16,10 @@ export class StonetopFlags {
 		await this._actor.setFlag(_scope, this.buildKey(key), value);
 	}
 
+	async unsetFlag(key) {
+		await this._actor.unsetFlag(_scope, this.buildKey(key));
+	}
+
 	buildKey(key) {
 		return `${this._namespace}.${key}`;
 	}

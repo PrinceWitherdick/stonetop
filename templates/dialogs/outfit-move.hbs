@@ -1,0 +1,87 @@
+<div class="stonetop-outfit-move-body">
+
+	<p class="stonetop-outfit-description">{{{localize "stonetop.specialMoves.outfit.description"}}}</p>
+
+	{{!-- Load level bar --}}
+	<div class="stonetop-outfit-load-bar">
+		<div class="stonetop-outfit-load-option{{#if loadLevelLight}} is-active{{/if}}">
+			<span class="stonetop-outfit-load-badge">3 ◆</span>
+			<span class="stonetop-outfit-load-text">{{{localize "stonetop.specialMoves.outfit.loadLight"}}}</span>
+		</div>
+		<div class="stonetop-outfit-load-option{{#if loadLevelNormal}} is-active{{/if}}">
+			<span class="stonetop-outfit-load-badge">4–6 ◆</span>
+			<span class="stonetop-outfit-load-text">{{{localize "stonetop.specialMoves.outfit.loadNormal"}}}</span>
+		</div>
+		<div class="stonetop-outfit-load-option{{#if loadLevelHeavy}} is-active{{/if}}">
+			<span class="stonetop-outfit-load-badge">7–9 ◆</span>
+			<span class="stonetop-outfit-load-text">{{{localize "stonetop.specialMoves.outfit.loadHeavy"}}}</span>
+		</div>
+	</div>
+
+	{{!-- Running weight total --}}
+	<div class="stonetop-outfit-weight-row">
+		<span class="stonetop-outfit-weight-diamonds">
+			{{#each (times totalWeight)}}<span class="stonetop-outfit-diamond-filled">◆</span>{{/each}}
+			{{#if loadLevelNone}}<span class="stonetop-outfit-weight-none">{{{localize "stonetop.specialMoves.outfit.loadNone"}}}</span>{{/if}}
+		</span>
+		{{#unless loadLevelNone}}
+		<span class="stonetop-outfit-weight-count">{{totalWeight}} {{{localize "stonetop.specialMoves.outfit.totalWeight"}}}</span>
+		{{/unless}}
+	</div>
+
+	<div class="stonetop-outfit-columns">
+
+		{{!-- Regular items --}}
+		<section class="stonetop-outfit-regular-section">
+			<h3 class="stonetop-outfit-section-heading">{{{localize "stonetop.specialMoves.outfit.regularItems"}}}</h3>
+			<hr class="stonetop-inv-separator">
+			{{#each regularItems}}
+			<label class="stonetop-outfit-item{{#if checked}} is-checked{{/if}}">
+				<input type="checkbox" class="stonetop-outfit-item-check" data-slug="{{slug}}" {{#if checked}}checked{{/if}}>
+				<span class="stonetop-outfit-item-diamonds">
+					{{#each (times weight)}}<span class="stonetop-outfit-diamond"></span>{{/each}}
+				</span>
+				<span class="stonetop-outfit-item-name">{{name}}</span>
+				{{#if note}}<span class="stonetop-outfit-item-note">({{{note}}})</span>{{/if}}
+			</label>
+			{{/each}}
+		</section>
+
+		{{!-- Small items --}}
+		<section class="stonetop-outfit-small-section">
+			<h3 class="stonetop-outfit-section-heading">{{{localize "stonetop.specialMoves.outfit.smallItems"}}}</h3>
+			<hr class="stonetop-inv-separator">
+			{{#each smallItems}}
+			<label class="stonetop-outfit-item stonetop-outfit-item-small{{#if checked}} is-checked{{/if}}">
+				<input type="checkbox" class="stonetop-outfit-item-check" data-slug="{{slug}}" {{#if checked}}checked{{/if}}>
+				<span class="stonetop-outfit-square"></span>
+				<span class="stonetop-outfit-item-name">{{name}}</span>
+				{{#if note}}<span class="stonetop-outfit-item-note">({{{note}}})</span>{{/if}}
+			</label>
+			{{/each}}
+
+			{{#if hasArcana}}
+			<h3 class="stonetop-outfit-section-heading stonetop-outfit-section-heading--arcana">{{{localize "stonetop.specialMoves.outfit.arcanaItems"}}}</h3>
+			<hr class="stonetop-inv-separator">
+			{{#each arcanaItems}}
+			<label class="stonetop-outfit-item{{#if checked}} is-checked{{/if}}">
+				<input type="checkbox" class="stonetop-outfit-item-check" data-slug="{{slug}}" {{#if checked}}checked{{/if}}>
+				<span class="stonetop-outfit-item-diamonds">
+					{{#each (times weight)}}<span class="stonetop-outfit-diamond"></span>{{/each}}
+				</span>
+				<span class="stonetop-outfit-item-name">{{name}}</span>
+				{{#if note}}<span class="stonetop-outfit-item-note">({{{note}}})</span>{{/if}}
+			</label>
+			{{/each}}
+			{{/if}}
+		</section>
+
+	</div>
+
+	<footer class="stonetop-outfit-footer">
+		<button type="button" class="stonetop-outfit-confirm-btn">
+			{{{localize "stonetop.specialMoves.outfit.confirm"}}}
+		</button>
+	</footer>
+
+</div>

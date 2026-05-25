@@ -297,6 +297,7 @@ export class StonetopCharacter {
 			.build();
 
 		const arcanaItems = await this._arcana.weightedInventoryItems();
+		const arcanaSection = arcanaItems.filter(i => i.inventoryColumn === "arcana").map(mapItem);
 		const allSmall = allItems.filter(i => i.inventoryColumn === "small");
 		const flatRegular = [
 			...allItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
@@ -346,6 +347,7 @@ export class StonetopCharacter {
 			])
 			.withSmallGridItems(allSmall.filter(i => i.smallGrid).map(mapItem))
 			.withSmallPool(new ResourceBuilder().withCurrent(sPool).withMax(9).withTitle(null).withLabels([]).build())
+			.withArcanaItems(arcanaSection)
 			.build();
 
 		return new InventorySnapshot(outfit, possessions, other);
@@ -495,6 +497,17 @@ export class StonetopCharacter {
 	async setInventoryLoadLevel(level)              { await this._inventory.setLoadLevel(level); }
 	async setInventoryRegularPool(count)            { await this._inventory.setRegularPool(count); }
 	async setInventorySmallPool(count)              { await this._inventory.setSmallPool(count); }
+
+	async applyOutfit(checkedMap, loadLevel) {
+		await Promise.all([
+			this._inventory.setAllChecked(checkedMap),
+			this._inventory.setLoadLevel(loadLevel),
+		]);
+	}
+
+	async resetInventorySelections() {
+		await this._inventory.resetSelections();
+	}
 
 	async addCustomInventoryItem(name, weight) {
 		await this._actor.createEmbeddedDocuments("Item", [{

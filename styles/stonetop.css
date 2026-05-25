@@ -1781,3 +1781,236 @@ body,
 	background: #c02828;
 }
 
+/* ── Inventory toolbar ──────────────────────────────────────────── */
+
+.stonetop-inventory-toolbar {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 6px;
+}
+
+.stonetop-inventory-reset-btn {
+	font-size: 0.8em;
+	padding: 2px 8px;
+	color: var(--color-text-dark-secondary);
+	border: 1px solid var(--color-border-light-2);
+	border-radius: 3px;
+	background: transparent;
+	cursor: pointer;
+}
+
+.stonetop-inventory-reset-btn:hover {
+	color: #a02020;
+	border-color: #a02020;
+	background: rgba(160, 32, 32, 0.06);
+}
+
+/* ── Special Moves tab ─────────────────────────────────────────── */
+
+.stonetop-special-move-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	padding: 8px 0;
+}
+
+.stonetop-special-move-card {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px 14px;
+	border: 1px solid var(--color-border-light-2);
+	border-radius: 4px;
+	background: rgba(0,0,0,0.03);
+	max-width: 320px;
+}
+
+.stonetop-special-move-name {
+	margin: 0;
+	font-size: 1.05em;
+	font-family: var(--font-primary);
+}
+
+.stonetop-special-move-summary {
+	margin: 0;
+	font-size: 0.88em;
+	color: var(--color-text-dark-secondary);
+	line-height: 1.45;
+}
+
+/* ── Outfit move dialog ─────────────────────────────────────────── */
+
+.stonetop-outfit-move-body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 2px 2px;
+}
+
+.stonetop-outfit-description {
+	margin: 0;
+	font-size: 0.9em;
+	line-height: 1.4;
+}
+
+/* Load bar */
+.stonetop-outfit-load-bar {
+	display: flex;
+	gap: 6px;
+}
+
+.stonetop-outfit-load-option {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 6px 8px;
+	border: 1px solid var(--color-border-light-2);
+	border-radius: 4px;
+	background: rgba(0,0,0,0.03);
+	font-size: 0.8em;
+	line-height: 1.3;
+	opacity: 0.5;
+	transition: opacity 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.stonetop-outfit-load-option.is-active {
+	opacity: 1;
+	background: rgba(201, 162, 39, 0.12);
+	border-color: #c9a227;
+}
+
+.stonetop-outfit-load-badge {
+	font-weight: bold;
+	font-size: 1.1em;
+}
+
+/* Running weight display */
+.stonetop-outfit-weight-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 20px;
+	font-size: 0.9em;
+}
+
+.stonetop-outfit-diamond-filled {
+	color: var(--color-text-dark-primary);
+}
+
+.stonetop-outfit-weight-none {
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-outfit-weight-count {
+	color: var(--color-text-dark-secondary);
+	font-size: 0.85em;
+}
+
+/* Two-column item layout */
+.stonetop-outfit-columns {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+}
+
+.stonetop-outfit-regular-section { flex: 1 1 55%; min-width: 0; }
+.stonetop-outfit-small-section   { flex: 1 1 40%; min-width: 0; }
+
+.stonetop-outfit-section-heading {
+	margin: 0 0 4px;
+	font-size: 0.9em;
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.stonetop-outfit-section-heading--arcana {
+	margin-top: 10px;
+}
+
+/* Item rows */
+.stonetop-outfit-item {
+	display: flex;
+	align-items: baseline;
+	gap: 4px;
+	margin: 1px 0;
+	font-size: 0.88em;
+	cursor: pointer;
+	border-radius: 2px;
+	padding: 1px 2px;
+}
+
+.stonetop-outfit-item:hover { background: rgba(0,0,0,0.04); }
+
+.stonetop-outfit-item input[type="checkbox"] {
+	display: none;
+}
+
+/* Diamond spans for regular items */
+.stonetop-outfit-item-diamonds {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	gap: 2px;
+}
+
+.stonetop-outfit-diamond {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border: 1px solid currentColor;
+	transform: rotate(45deg);
+	background: transparent;
+	flex-shrink: 0;
+}
+
+.stonetop-outfit-item.is-checked .stonetop-outfit-diamond {
+	background: currentColor;
+}
+
+/* Square for small items */
+.stonetop-outfit-square {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border: 1px solid currentColor;
+	background: transparent;
+	flex-shrink: 0;
+}
+
+.stonetop-outfit-item.is-checked .stonetop-outfit-square {
+	background: currentColor;
+}
+
+.stonetop-outfit-item-name { flex: 1; }
+
+.stonetop-outfit-item-note {
+	color: var(--color-text-dark-secondary);
+	font-size: 0.9em;
+}
+
+/* Footer */
+.stonetop-outfit-footer {
+	display: flex;
+	justify-content: flex-end;
+	padding-top: 4px;
+	border-top: 1px solid var(--color-border-light-2);
+	margin-top: 4px;
+}
+
+.stonetop-outfit-confirm-btn {
+	padding: 4px 14px;
+	background: #3ba55d;
+	color: #fff;
+	border: 1px solid #2d8049;
+	border-radius: 3px;
+	font-size: 0.9em;
+	cursor: pointer;
+}
+
+.stonetop-outfit-confirm-btn:hover {
+	background: #45c46e;
+}
+

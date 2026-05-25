@@ -249,13 +249,13 @@ export class CharacterArcana {
 		return items.flatMap(item => {
 			const flipped  = flippedSlugs.has(item.slug);
 			const sideItem = flipped ? item.back.item : item.front.item;
-			if (!sideItem?.inventoryColumn) return [];
+			if (!sideItem?.name) return [];
 			return [new OutfitItemBuilder()
 				.withSlug(item.slug)
 				.withName(sideItem.name)
 				.withWeight(sideItem.weight ?? 0)
 				.withNote(sideItem.note ?? null)
-				.withInventoryColumn(sideItem.inventoryColumn)
+				.withInventoryColumn(sideItem.inventoryColumn ?? "arcana")
 				.withResource(sideItem.resource ?? null)
 				.withTwoCol(false)
 				.withBreakBefore(false)
