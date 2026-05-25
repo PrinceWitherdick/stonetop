@@ -836,6 +836,24 @@ body,
 	line-height: 1.5;
 }
 
+/* ── Burn Brightly ──────────────────────────────────────────────────────────── */
+
+.pbta-chat-card .card-buttons {
+	gap: 4px;
+}
+
+.stonetop-burn-brightly-btn {
+	font-weight: bold;
+	border: none;
+}
+
+.stonetop-burn-brightly-btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* ── Item source ──────────────────────────────────────────────────────────── */
+
 .stonetop-item-source {
 	font-size: 0.7rem;
 	font-style: italic;
