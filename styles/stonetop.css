@@ -1772,3 +1772,12 @@ body,
 	margin-left: var(--thumb-travel);
 }
 
+.stonetop-pdi-remove--danger {
+	background: #a02020;
+	border-color: #7a1010;
+	color: #fff;
+}
+.stonetop-pdi-remove--danger:hover {
+	background: #c02828;
+}
+

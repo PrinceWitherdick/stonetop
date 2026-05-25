@@ -5,9 +5,9 @@
 
 		<div class="stonetop-pdi-header">
 			<h3 class="stonetop-pdi-name">{{stonetop.postDeathInsert.activeInsert.name}}</h3>
-			<button type="button" class="stonetop-pdi-remove">
+			{{#if stonetop.editMode}}<button type="button" class="stonetop-pdi-remove stonetop-pdi-remove--danger">
 				{{localize "stonetop.postDeath.removeInsert"}}
-			</button>
+			</button>{{/if}}
 		</div>
 
 		{{#if stonetop.postDeathInsert.activeInsert.description}}
