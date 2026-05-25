@@ -85,3 +85,110 @@ Hooks.once("ready", onReady);
 // -- RENDER ACTOR SHEET ----------------------------------------
 // Fires every time any actor sheet renders.
 Hooks.on("renderActorSheet", onRenderActorSheet);
+
+// -- CHAT SPEAKER ALIAS ----------------------------------------
+// For every chat message sent by a stonetop character, prefix the
+// speaker alias with the playbook name: "Arwel The Judge".
+Hooks.on("preCreateChatMessage", (message) => {
+	const { token: tokenId, actor: actorId } = message.speaker ?? {};
+	const actor = (tokenId ? canvas.tokens?.get(tokenId)?.actor : null)
+		?? (actorId ? game.actors?.get(actorId) : null);
+	if (!actor || actor.type !== "character") return;
+	const playbookName = actor.system?.playbook?.name ?? "";
+	if (!playbookName) return;
+	message.updateSource({ "speaker.alias": `${actor.name} ${playbookName}` });
+});
+
+// -- BURN BRIGHTLY ---------------------------------------------
+// After each PBTA roll, show a "Burn brightly" button to the
+// owning player when they have enough XP to level up.
+const BURN_BRIGHTLY_TOOLTIP =
+	"When you have enough XP to Level Up (6 + twice your current level), " +
+	"you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).";
+
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	const cardButtons = html.querySelector(".pbta-chat-card .card-buttons");
+	if (!cardButtons) return;
+
+	const { token: tokenId, actor: actorId } = message.speaker ?? {};
+	const actor = (tokenId ? canvas.tokens?.get(tokenId)?.actor : null)
+		?? (actorId ? game.actors?.get(actorId) : null);
+
+	if (!actor || actor.type !== "character" || !actor.isOwner) return;
+
+	const alreadyBurned = message.getFlag("stonetop", "burnBrightly") ?? false;
+	const xp    = actor.system?.attributes?.xp?.value    ?? 0;
+	const level = actor.system?.attributes?.level?.value ?? 1;
+	const canAfford = xp >= 6 + 2 * level;
+
+	if (!canAfford && !alreadyBurned) return;
+
+	const btn = document.createElement("button");
+	btn.className = "stonetop-burn-brightly-btn";
+	btn.textContent = "Burn brightly";
+	btn.dataset.tooltip = BURN_BRIGHTLY_TOOLTIP;
+	btn.dataset.tooltipDirection = "UP";
+	btn.disabled = alreadyBurned;
+
+	// Append inline with shift buttons; for non-GMs, PBTA hides the whole
+	// .card-buttons div so unhide it and hide only the shift-specific buttons.
+	cardButtons.appendChild(btn);
+	if (!game.user.isGM) {
+		cardButtons.querySelectorAll("[data-action]").forEach(b => b.style.display = "none");
+		cardButtons.style.display = "flex";
+	}
+
+	if (alreadyBurned) return;
+
+	btn.addEventListener("click", async () => {
+		btn.disabled = true;
+		const currentXp    = actor.system?.attributes?.xp?.value    ?? 0;
+		const currentLevel = actor.system?.attributes?.level?.value ?? 1;
+		if (currentXp < 6 + 2 * currentLevel) {
+			ui.notifications.warn("You don't have enough XP to Burn Brightly.");
+			btn.disabled = false;
+			return;
+		}
+		try {
+			const playbookName = actor.system?.playbook?.name ?? "";
+			await actor.update({ "system.attributes.xp.value": currentXp - 2 });
+			const newXp = currentXp - 2;
+			const maxXp = 6 + 2 * currentLevel;
+			ChatMessage.create({
+				content: `-2 XP for Burning Brightly.<br>New XP: ${newXp} / ${maxXp}`,
+				speaker: ChatMessage.getSpeaker({ actor }),
+			});
+
+			const rolls = message.rolls;
+			const roll  = rolls.at(0);
+			let opTerm  = roll.terms.find(t => t instanceof foundry.dice.terms.OperatorTerm && t.options.rollShifting);
+			let numTerm = roll.terms.find(t => t instanceof foundry.dice.terms.NumericTerm  && t.options.rollShifting);
+			const originalValue = opTerm && numTerm
+				? Roll.safeEval(`${opTerm.operator}${numTerm.number}`)
+				: 0;
+
+			if (!numTerm) {
+				roll.terms.push(
+					opTerm  = new foundry.dice.terms.OperatorTerm({ operator: "+", options: { rollShifting: true } }),
+					numTerm = new foundry.dice.terms.NumericTerm({ number: 1, options: { rollShifting: true } })
+				);
+			} else {
+				numTerm.number = Math.abs(Roll.safeEval(`${opTerm.operator}${numTerm.number} + 1`));
+			}
+			if (numTerm.number === 1 && originalValue === 0 && opTerm.operator !== "+") opTerm.operator = "+";
+			else if (numTerm.number === 0) opTerm.operator = "+";
+
+			roll.resetFormula();
+			await roll._evaluate();
+
+			// Also update the roll card's speaker alias so its title reflects the playbook.
+			const speakerUpdate = playbookName
+				? { alias: `${actor.name} ${playbookName}` }
+				: {};
+			await message.update({ rolls, speaker: { ...message.speaker, ...speakerUpdate }, flags: { stonetop: { burnBrightly: true } } });
+		} catch (err) {
+			console.error("Stonetop | Error burning brightly:", err);
+			btn.disabled = false;
+		}
+	});
+});
