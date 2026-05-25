@@ -110,6 +110,7 @@ export class OutfitSnapshot {
 		this.smallItems      = b._smallItems;
 		this.smallGridItems  = b._smallGridItems;
 		this.smallPool       = b._smallPool;
+		this.arcanaItems     = b._arcanaItems ?? [];
 	}
 }
 
@@ -121,6 +122,7 @@ export class OutfitSnapshotBuilder {
 	withSmallItems(v)      { this._smallItems      = v; return this; }
 	withSmallGridItems(v)  { this._smallGridItems  = v; return this; }
 	withSmallPool(v)       { this._smallPool       = v; return this; }
+	withArcanaItems(v)     { this._arcanaItems     = v; return this; }
 	build()                { return new OutfitSnapshot(this); }
 }
 

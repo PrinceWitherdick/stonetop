@@ -29,6 +29,17 @@ export class CharacterInventory {
 		await this._flags.setFlag("smallPool", count);
 	}
 
+	async setAllChecked(checkedMap) {
+		await this._flags.setFlag("checked", { ...this.checked, ...checkedMap });
+	}
+
+	async resetSelections() {
+		await Promise.all([
+			this._flags.unsetFlag("checked"),
+			this.setLoadLevel(null),
+		]);
+	}
+
 	calculateArmor(allItems) {
 		const equipped  = allItems.filter(item => this.checked[item.slug] && item.armor);
 		const bases     = equipped.filter(i => i.armor.base     != null).map(i => i.armor.base);

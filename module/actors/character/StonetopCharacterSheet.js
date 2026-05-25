@@ -1,6 +1,7 @@
 ﻿import {MoveResourceButton} from "./elements/move-resource-button.js";
 import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
+import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 
 const STAT_TOOLTIPS = {
 	str: "Your physical power and ability to use it. Roll +STR to Clash, or to Defy Danger with raw might or power.",
@@ -198,6 +199,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-possession-sub-radio").on("change", this._onPossessionSubRadio.bind(this));
 			html.find(".stonetop-regular-pool-btn").on("change", this._onRegularPool.bind(this));
 			html.find(".stonetop-small-pool-btn").on("change", this._onSmallPool.bind(this));
+			html.find(".stonetop-outfit-open-btn").on("click", this._onOutfitOpen.bind(this));
+			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
 			html.find(".stonetop-basic-move-open").on("click", async ev => {
 				const { compendiumId } = ev.currentTarget.dataset;
 				const pack = game.packs.get("stonetop.basic-moves");
@@ -525,6 +528,26 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		async _onDeleteCustomInventoryItem(ev) {
 			await this._stonetopCharacter.removeCustomInventoryItem(ev.currentTarget.dataset.ownedId);
+		}
+
+		async _onInventoryReset() {
+			Dialog.confirm({
+				title: game.i18n.localize("stonetop.inventory.resetTitle"),
+				content: `<p>${game.i18n.localize("stonetop.inventory.resetConfirm")}</p>`,
+				yes: async () => {
+					await this._stonetopCharacter.resetInventorySelections();
+					this.render(false);
+				},
+			});
+		}
+
+		async _onOutfitOpen() {
+			const snapshot = await this._stonetopCharacter.buildSnapshot();
+			new OutfitMoveDialog(
+				this._stonetopCharacter,
+				snapshot.inventory.outfit,
+				() => this.render(false),
+			).render(true);
 		}
 	};
 }

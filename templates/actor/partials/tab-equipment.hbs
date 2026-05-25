@@ -1,5 +1,13 @@
 <div class="tab equipment" data-group="primary" data-tab="inventory">
 
+	{{#if stonetop.editMode}}
+	<div class="stonetop-inventory-toolbar">
+		<button type="button" class="stonetop-inventory-reset-btn" title="{{localize 'stonetop.inventory.resetTitle'}}">
+			<i class="fas fa-undo"></i> {{localize "stonetop.inventory.resetLabel"}}
+		</button>
+	</div>
+	{{/if}}
+
 	{{#if stonetop.inventory}}
 
 	{{!-- Outfit header --}}
@@ -167,6 +175,28 @@
 		</div>
 
 	</section>
+
+	{{#if stonetop.inventory.outfit.arcanaItems.length}}
+	<section class="stonetop-inventory-arcana">
+		{{> "stonetop.section-heading" title=(localize "stonetop.inventory.arcanaItems")}}
+		<hr class="stonetop-inv-separator">
+		{{#each stonetop.inventory.outfit.arcanaItems}}
+		<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
+			<span class="stonetop-inv-diamonds">
+				{{#each (times weight)}}
+				<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
+				       data-slug="{{../slug}}"
+				       {{#if ../checked}}checked{{/if}}>
+				{{/each}}
+			</span>
+			<span class="stonetop-inv-label">{{name}}
+				{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
+			</span>
+		</div>
+		{{/each}}
+	</section>
+	{{/if}}
+
 	{{/if}}
 
 	{{#if stonetop.inventory.possessions}}
