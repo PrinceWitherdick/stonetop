@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "huge-wooden-sphere"
+      "slug": "huge-wooden-sphere",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

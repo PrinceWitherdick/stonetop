@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "oversized-codex"
+      "slug": "oversized-codex",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

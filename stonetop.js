@@ -16,20 +16,27 @@ Hooks.once("init", () => {
 
 	registerSettings();
 
+	Handlebars.registerHelper("format", (key, options) => game.i18n.format(key, options.hash));
+
 	Handlebars.registerHelper("resourceChecks", resource => {
 		if (!resource) return [];
 		const { current, max, labels } = resource;
 		return Array.from({ length: max }, (_, i) => ({ checked: i < current, label: labels[i] || null }));
 	});
 
-	Handlebars.registerHelper("poolGroups", pool => {
+	const _flatPoolItems = pool => {
 		if (!pool) return [];
-		const { current } = pool;
-		return [
-			Array.from({ length: 3 }, (_, i) => ({ checked: i < current, index: i })),
-			Array.from({ length: 3 }, (_, i) => ({ checked: (i + 3) < current, index: i + 3 })),
-			Array.from({ length: 3 }, (_, i) => ({ checked: (i + 6) < current, index: i + 6 })),
-		];
+		const total = pool.max ?? 9;
+		return Array.from({ length: total }, (_, i) => ({ checked: i < pool.current, index: i }));
+	};
+
+	Handlebars.registerHelper("poolItems", _flatPoolItems);
+
+	Handlebars.registerHelper("poolGroups", pool => {
+		const items = _flatPoolItems(pool);
+		const groups = [];
+		for (let i = 0; i < items.length; i += 3) groups.push(items.slice(i, i + 3));
+		return groups;
 	});
 
 	Handlebars.registerHelper("times", n => Array.from({ length: n ?? 0 }, (_, i) => i));
@@ -55,6 +62,25 @@ Hooks.once("init", () => {
 		label: "Stonetop Character Sheet",
 	});
 
+	// Steading sheet is registered in the ready hook (Ready.js) because PBTA
+	// registers PbtaActorOtherSheet for unknown types during pbtaSheetConfig
+	// (after init), which would override an init-time registration.
+
+	Handlebars.registerHelper("steadingTrack", currentValue => {
+		return Array.from({ length: 5 }, (_, i) => {
+			const val = i - 1;
+			return { val, label: (val >= 0 ? "+" : "") + val, checked: val === Number(currentValue) };
+		});
+	});
+
+	Handlebars.registerHelper("steadingDefenseTrack", currentValue => {
+		const sublabels = ["feeble", "mediocre", "strong", "formidable", "legendary"];
+		return Array.from({ length: 5 }, (_, i) => {
+			const val = i - 1;
+			return { val, label: (val >= 0 ? "+" : "") + val, sublabel: sublabels[i], checked: val === Number(currentValue) };
+		});
+	});
+
 	loadTemplates({
 		"stonetop.actor-header":     "modules/stonetop/templates/actor/partials/actor-header.hbs",
 		"stonetop.tab-details":      "modules/stonetop/templates/actor/partials/tab-details.hbs",
@@ -67,6 +93,11 @@ Hooks.once("init", () => {
 		"stonetop.lore-section":     "modules/stonetop/templates/actor/partials/lore-section.hbs",
 		"stonetop.section-heading":  "modules/stonetop/templates/actor/partials/section-heading.hbs",
 		"stonetop.resource-track":   "modules/stonetop/templates/actor/partials/resource-track.hbs",
+		// Steading sheet partials
+		"stonetop.steading-tab-overview":     "modules/stonetop/templates/actor/partials/steading-tab-overview.hbs",
+		"stonetop.steading-tab-improvements": "modules/stonetop/templates/actor/partials/steading-tab-improvements.hbs",
+		"stonetop.steading-tab-moves":        "modules/stonetop/templates/actor/partials/steading-tab-moves.hbs",
+		"stonetop.steading-tab-notes":        "modules/stonetop/templates/actor/partials/steading-tab-notes.hbs",
 	});
 });
 

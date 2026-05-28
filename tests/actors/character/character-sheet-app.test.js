@@ -99,7 +99,7 @@ describe("StonetopCharacterSheet event handlers", () => {
 	it("_onOriginNameClick updates the actor name", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
-		await sheet._onOriginNameClick({ currentTarget: { textContent: "  Arwel  " } });
+		await sheet._onOriginNameClick({ currentTarget: { value: "Arwel" } });
 		expect(actor.typedActor.updateName).toHaveBeenCalledWith("Arwel");
 	});
 });

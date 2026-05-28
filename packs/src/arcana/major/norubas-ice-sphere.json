@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "norubas-ice-sphere"
+      "slug": "norubas-ice-sphere",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

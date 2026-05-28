@@ -1,0 +1,53 @@
+<div class="tab improvements{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="improvements">
+	<section class="sheet-tab steading-improvements">
+
+		<p class="steading-improvements-intro">
+			Known, available improvements you can make to Stonetop. The GM may present others in the course of play.
+		</p>
+
+		<div class="steading-improvements-grid">
+			{{#each stonetop.improvements}}
+			<div class="steading-improvement {{#if completed}}is-complete{{/if}}">
+
+				<div class="steading-improvement-header">
+					<label class="steading-improvement-complete-label"
+					       data-tooltip="Mark completed when all requirements are met"
+					       data-tooltip-direction="UP">
+						<input type="checkbox" class="steading-improvement-complete"
+						       data-slug="{{slug}}" {{#if completed}}checked{{/if}}>
+					</label>
+					<div class="steading-improvement-summary">
+						<h4 class="steading-improvement-title">{{label}}</h4>
+						<p class="steading-improvement-flavor">{{flavor}}</p>
+					</div>
+					<span class="steading-improvement-chevron">
+						<i class="fas fa-chevron-down"></i>
+					</span>
+				</div>
+
+				<div class="steading-improvement-body">
+					{{#each sections}}
+					<p class="steading-req-heading">{{{heading}}}</p>
+					<ul class="steading-req-list">
+						{{#each items}}
+						<li class="steading-req-item">
+							<label>
+								<input type="checkbox" class="steading-improvement-req"
+								       data-slug="{{../../slug}}" data-index="{{index}}"
+								       {{#if checked}}checked{{/if}}>
+								<span>{{{label}}}</span>
+							</label>
+						</li>
+						{{/each}}
+					</ul>
+					{{/each}}
+
+					<div class="steading-improvement-effect">{{{effect}}}</div>
+				</div>
+
+			</div>
+			{{/each}}
+		</div>
+
+	</section>
+</div>

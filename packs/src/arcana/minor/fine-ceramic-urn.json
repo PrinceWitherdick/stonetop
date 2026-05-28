@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "fine-ceramic-urn"
+      "slug": "fine-ceramic-urn",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

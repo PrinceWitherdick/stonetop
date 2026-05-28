@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "sunken-tablet"
+      "slug": "sunken-tablet",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

@@ -10,9 +10,8 @@
 		"stonetop": {
 			"slug": "shovel",
 			"inventoryColumn": "regular",
-			"sortOrder": 9,
-			"weight": 1,
-			"twoCol": true
+			"sortOrder": 10.2,
+			"weight": 1
 		}
 	}
 }

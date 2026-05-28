@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "a-folktale"
+      "slug": "a-folktale",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

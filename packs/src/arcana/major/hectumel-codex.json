@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "hectumel-codex"
+      "slug": "hectumel-codex",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

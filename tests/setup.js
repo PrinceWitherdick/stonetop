@@ -1,3 +1,5 @@
+global.Application = class {};
+
 global.game = {
 	i18n: { localize: (key) => key },
 };

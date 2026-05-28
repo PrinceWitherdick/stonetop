@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "wolf-pelt"
+      "slug": "wolf-pelt",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

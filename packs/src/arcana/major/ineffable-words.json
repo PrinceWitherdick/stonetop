@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "ineffable-words"
+      "slug": "ineffable-words",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

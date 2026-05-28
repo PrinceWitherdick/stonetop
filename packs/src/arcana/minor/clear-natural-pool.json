@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "clear-natural-pool"
+      "slug": "clear-natural-pool",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

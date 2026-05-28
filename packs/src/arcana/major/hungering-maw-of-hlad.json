@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "hungering-maw-of-hlad"
+      "slug": "hungering-maw-of-hlad",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

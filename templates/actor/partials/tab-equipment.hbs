@@ -113,25 +113,45 @@
 			<button type="button" class="stonetop-inv-add-btn" data-column="regular">
 				<i class="fas fa-plus"></i> {{localize "stonetop.inventory.addItem"}}
 			</button>
+			{{#if stonetop.inventory.outfit.arcanaItems.length}}
+			<hr class="stonetop-inv-separator">
+			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.arcanaItems")}}
+			<hr class="stonetop-inv-separator">
+			{{#each stonetop.inventory.outfit.arcanaItems}}
+			<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
+				<span class="stonetop-inv-diamonds">
+					{{#each (times weight)}}
+					<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
+					       data-slug="{{../slug}}"
+					       {{#if ../checked}}checked{{/if}}>
+					{{/each}}
+				</span>
+				<span class="stonetop-inv-label">{{name}}
+					{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
+				</span>
+			</div>
+			{{/each}}
+			{{/if}}
 		</div>
 
 		{{!-- Small items (right column) --}}
 		<div class="stonetop-inventory-small">
 			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.smallItems")}}
+			{{#if stonetop.inventory.outfit.smallItemLimit}}
+			<p class="stonetop-inv-section-note">{{{format "stonetop.inventory.smallItemsNoteWithLimit" limit=stonetop.inventory.outfit.smallItemLimit}}}</p>
+			{{else}}
 			<p class="stonetop-inv-section-note">{{{localize "stonetop.inventory.smallItemsNote"}}}</p>
+			{{/if}}
 			<hr class="stonetop-inv-separator">
 			{{!-- Small pool --}}
 			<div class="stonetop-supplies-pool">
 				<span class="stonetop-supplies-pool-label"><strong>{{localize "stonetop.inventory.smallUndefinedPoolLabel"}}</strong></span>
 				<span class="stonetop-supplies-pool-diamonds">
-					{{#each (poolGroups stonetop.inventory.outfit.smallPool)}}
-					{{#unless @first}}<span class="stonetop-supplies-pool-gap"></span>{{/unless}}
-					{{#each this}}
+					{{#each (poolItems stonetop.inventory.outfit.smallPool)}}
 					<input type="checkbox"
-					       class="stonetop-inv-square stonetop-small-pool-btn{{#if checked}} is-checked{{/if}}"
+					       class="stonetop-inv-square stonetop-small-pool-display{{#if checked}} is-checked{{/if}}"
 					       data-index="{{index}}"
 					       {{#if checked}}checked{{/if}}>
-					{{/each}}
 					{{/each}}
 				</span>
 			</div>
@@ -176,26 +196,6 @@
 
 	</section>
 
-	{{#if stonetop.inventory.outfit.arcanaItems.length}}
-	<section class="stonetop-inventory-arcana">
-		{{> "stonetop.section-heading" title=(localize "stonetop.inventory.arcanaItems")}}
-		<hr class="stonetop-inv-separator">
-		{{#each stonetop.inventory.outfit.arcanaItems}}
-		<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
-			<span class="stonetop-inv-diamonds">
-				{{#each (times weight)}}
-				<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
-				       data-slug="{{../slug}}"
-				       {{#if ../checked}}checked{{/if}}>
-				{{/each}}
-			</span>
-			<span class="stonetop-inv-label">{{name}}
-				{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
-			</span>
-		</div>
-		{{/each}}
-	</section>
-	{{/if}}
 
 	{{/if}}
 

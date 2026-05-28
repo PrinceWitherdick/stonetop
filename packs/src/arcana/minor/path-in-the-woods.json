@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "path-in-the-woods"
+      "slug": "path-in-the-woods",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

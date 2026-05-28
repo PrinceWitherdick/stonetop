@@ -1,0 +1,122 @@
+<div class="tab overview{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="overview">
+	<section class="sheet-tab steading-overview">
+
+		{{!-- Main Row: Resources | Defenses+Fortifications --}}
+		<div class="steading-main-row">
+			<div class="steading-stat-block">
+				<h3 class="steading-list-heading">Resources</h3>
+				<ul class="steading-list">
+					{{#each stonetop.resources}}
+					{{#if name}}
+					<li class="steading-list-item">
+						<label class="steading-list-check-label">
+							<input type="checkbox" class="steading-list-check"
+							       data-list="resources" data-index="{{@index}}"
+							       {{#if checked}}checked{{/if}}>
+						</label>
+						<span class="steading-list-name">{{name}}</span>
+						<button type="button" class="steading-list-delete"
+						        data-list="resources" data-index="{{@index}}"
+						        title="Remove" tabindex="-1">
+							<i class="fas fa-times"></i>
+						</button>
+					</li>
+					{{/if}}
+					{{/each}}
+				</ul>
+				<button type="button" class="steading-list-add" data-list="resources">
+					<i class="fas fa-plus"></i> Add Resource
+				</button>
+			</div>
+
+			<div class="steading-stat-block steading-stat-block--with-list">
+				<div class="steading-stat-track-col">
+					<div class="steading-stat-label-row">
+						<span class="steading-stat-label">Defenses</span>
+						<span class="steading-stat-hint">Starts at +0</span>
+					</div>
+					<div class="steading-track">
+						{{#each (steadingDefenseTrack system.stats.defenses.value)}}
+						<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
+							<input type="radio" name="system.stats.defenses.value" value="{{val}}" {{#if checked}}checked{{/if}}>
+							<span class="steading-track-label">{{label}}</span>
+							<span class="steading-track-sublabel">{{sublabel}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+				<div class="steading-stat-list-col">
+					<h3 class="steading-list-heading">Fortifications, etc.</h3>
+					<ul class="steading-list">
+						{{#each stonetop.fortifications}}
+						{{#if name}}
+						<li class="steading-list-item">
+							<label class="steading-list-check-label">
+								<input type="checkbox" class="steading-list-check"
+								       data-list="fortifications" data-index="{{@index}}"
+								       {{#if checked}}checked{{/if}}>
+							</label>
+							<span class="steading-list-name">{{name}}</span>
+							<button type="button" class="steading-list-delete"
+							        data-list="fortifications" data-index="{{@index}}"
+							        title="Remove" tabindex="-1">
+								<i class="fas fa-times"></i>
+							</button>
+						</li>
+						{{/if}}
+						{{/each}}
+					</ul>
+					<button type="button" class="steading-list-add" data-list="fortifications">
+						<i class="fas fa-plus"></i> Add Fortification
+					</button>
+				</div>
+			</div>
+		</div>
+
+
+		{{!-- Assets --}}
+		<div class="steading-assets-section">
+			<h3 class="steading-list-heading">Assets
+				<span class="steading-list-heading-note">Owned by residents in common. Requisition to use them on expeditions.</span>
+			</h3>
+			<ul class="steading-list steading-assets-list">
+				{{#each stonetop.assets}}
+				{{#if name}}
+				<li class="steading-list-item">
+					<label class="steading-list-check-label">
+						<input type="checkbox" class="steading-list-check"
+						       data-list="assets" data-index="{{@index}}"
+						       {{#if checked}}checked{{/if}}>
+					</label>
+					<span class="steading-list-name steading-asset-name">{{name}}</span>
+					<button type="button" class="steading-list-delete"
+					        data-list="assets" data-index="{{@index}}"
+					        title="Remove" tabindex="-1">
+						<i class="fas fa-times"></i>
+					</button>
+				</li>
+				{{/if}}
+				{{/each}}
+			</ul>
+			<button type="button" class="steading-list-add" data-list="assets">
+				<i class="fas fa-plus"></i> Add Asset
+			</button>
+		</div>
+
+		{{!-- Places of Interest --}}
+		<div class="steading-places-section">
+			<h3 class="steading-list-heading">Places of Interest</h3>
+			<div class="steading-places-grid">
+				{{#each stonetop.places}}
+				<div class="steading-place-item">
+					<span class="steading-place-letter">{{letter}}</span>
+					<input type="text" class="steading-place-name"
+					       data-index="{{@index}}"
+					       value="{{name}}" placeholder="—">
+				</div>
+				{{/each}}
+			</div>
+		</div>
+
+	</section>
+</div>

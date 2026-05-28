@@ -216,7 +216,7 @@ describe("buildSnapshot — playbook section", () => {
 	it("origin.options has region and names", async () => {
 		const snap = await buildSnap();
 		expect(snap.playbook.origin.options[0].region).toBe("Stonetop");
-		expect(snap.playbook.origin.options[0].names).toContain("Brakken");
+		expect(snap.playbook.origin.options[0].names.map(n => n.name)).toContain("Brakken");
 	});
 });
 

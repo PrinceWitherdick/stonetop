@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "small-strange-book"
+      "slug": "small-strange-book",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

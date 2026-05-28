@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "beautiful-scroll"
+      "slug": "beautiful-scroll",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

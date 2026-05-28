@@ -1,4 +1,5 @@
 import {StonetopCharacter} from "./character/StonetopCharacter.js";
+import {StonetopSteading} from "./steading/StonetopSteading.js";
 import {promptRollMode} from "../utils/rolls.js";
 
 export function createStonetopActorClass(BaseActor) {
@@ -12,16 +13,28 @@ export function createStonetopActorClass(BaseActor) {
 		get typedActor() {
 			if (this._typedActor) return this._typedActor;
 
-			switch (this.type) {
+			const customType = this.system?.customType;
+			switch (customType || this.type) {
 				case "character":
 					this._typedActor = StonetopCharacter.create(this);
 					break;
-				case "steading":
-					this._typedActor =  new StonetopSteading(this);
+				case "stonetop":
+					this._typedActor = new StonetopSteading(this);
 					break;
 			}
 
 			return this._typedActor;
+		}
+
+		// PBTA converts custom actor types to type="other" with system.customType="stonetop".
+		// Foundry's sheet registry lookup uses `type`, so registering for "stonetop" never
+		// matches. Override here to intercept and return the steading sheet directly.
+		_getSheetClass() {
+			if (this.system?.customType === "stonetop") {
+				const SteadingSheet = game.modules.get("stonetop")?._steadingSheetClass;
+				if (SteadingSheet) return SteadingSheet;
+			}
+			return super._getSheetClass();
 		}
 
 

@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "blood-quenched-sword"
+      "slug": "blood-quenched-sword",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

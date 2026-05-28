@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "richly-woven-rug"
+      "slug": "richly-woven-rug",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

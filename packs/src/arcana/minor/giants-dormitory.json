@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "giants-dormitory"
+      "slug": "giants-dormitory",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

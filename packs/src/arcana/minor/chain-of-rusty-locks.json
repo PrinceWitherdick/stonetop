@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "chain-of-rusty-locks"
+      "slug": "chain-of-rusty-locks",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

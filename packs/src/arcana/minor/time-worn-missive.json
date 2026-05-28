@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "time-worn-missive"
+      "slug": "time-worn-missive",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

@@ -50,6 +50,9 @@
 		{{!-- Small items --}}
 		<section class="stonetop-outfit-small-section">
 			<h3 class="stonetop-outfit-section-heading">{{{localize "stonetop.specialMoves.outfit.smallItems"}}}</h3>
+			{{#if hasSmallItemLimit}}
+			<p class="stonetop-outfit-small-limit">{{{format "stonetop.specialMoves.outfit.smallItemLimit" limit=smallItemLimit}}}</p>
+			{{/if}}
 			<hr class="stonetop-inv-separator">
 			{{#each smallItems}}
 			<label class="stonetop-outfit-item stonetop-outfit-item-small{{#if checked}} is-checked{{/if}}">

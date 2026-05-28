@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "scroll-and-bone-flute"
+      "slug": "scroll-and-bone-flute",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"
