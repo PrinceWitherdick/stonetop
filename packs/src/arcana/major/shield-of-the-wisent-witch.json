@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "shield-of-the-wisent-witch"
+      "slug": "shield-of-the-wisent-witch",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

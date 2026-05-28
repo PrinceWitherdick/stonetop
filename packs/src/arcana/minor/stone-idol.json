@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "stone-idol"
+      "slug": "stone-idol",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

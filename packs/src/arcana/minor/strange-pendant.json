@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "strange-pendant"
+      "slug": "strange-pendant",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "patch-of-rainbow-moss"
+      "slug": "patch-of-rainbow-moss",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

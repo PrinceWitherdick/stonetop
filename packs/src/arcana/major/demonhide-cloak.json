@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "demonhide-cloak"
+      "slug": "demonhide-cloak",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

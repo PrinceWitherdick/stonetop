@@ -1,6 +1,20 @@
 {
 	"PBTA_OTHER": "Other (animals, kits, stashed items, etc.)",
+	"TYPES": {
+		"Actor": {
+			"stonetop": "Stonetop"
+		}
+	},
 	"stonetop": {
+		"steading": {
+			"notLinked": "No Stonetop steading linked. Drag a Stonetop actor onto this sheet to link it.",
+			"tabs": {
+				"overview": "Overview",
+				"improvements": "Improvements",
+				"moves": "Moves",
+				"notes": "Notes"
+			}
+		},
 		"sheet": {
 			"tabs": {
 				"details": "Details",
@@ -22,6 +36,7 @@
 				"loadNormal": "<strong>Normal load</strong> (4–6 ◆)",
 				"loadHeavy": "<strong>Heavy load</strong> (7–9 ◆) — noisy, slow, quick to tire",
 				"arcanaItems": "Arcana",
+				"smallItemLimit": "Mark up to <strong>{limit}</strong> small items (4+Prosperity)",
 				"confirm": "Confirm Outfit",
 				"totalWeight": "◆ used"
 			}
@@ -48,6 +63,7 @@
 			"regularItemsNote": "Use supplies to Recover, Make Camp, or have extra <em>small</em> items.",
 			"smallItems": "Small Items",
 			"smallItemsNote": "Fit in a pocket, pouch, or boot.<p>When you Outfit, mark □ below equal to 4+Prosperity.</p>",
+			"smallItemsNoteWithLimit": "Fit in a pocket, pouch, or boot.<p>When you Outfit, mark □ below equal to <strong>{limit}</strong> (4+Prosperity).</p>",
 			"addItem": "Add item",
 			"addSmallItem": "Add small item",
 			"addItemName": "Name",
@@ -57,9 +73,9 @@
 			"resetLabel": "Reset Inventory",
 			"resetTitle": "Reset Inventory",
 			"resetConfirm": "Clear all item selections and load level? Supply pools are not affected.",
-			"regularUndefinedPoolLabel": "Supplies",
+			"regularUndefinedPoolLabel": "Undefined",
 			"regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move ◆ from here to ◇ below.",
-			"smallUndefinedPoolLabel": "Supplies",
+			"smallUndefinedPoolLabel": "Undefined",
 			"smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move ◆ from here to items below, or expend supplies to mark an additional ◇.",
 			"outfit": {
 				"heading": "When you <em><strong>Outfit</strong><em>, mark a number of ◇ below on specific items or as a group.",
@@ -69,6 +85,10 @@
 			}
 		},
 		"settings": {
+			"hideRollMode": {
+				"name": "Hide Roll Mode on Move Rolls",
+				"hint": "When enabled, move rolls ignore the actor's saved advantage/disadvantage and roll without a roll mode modifier."
+			},
 			"expandMoveDescriptions": {
 				"name": "Expand Move Descriptions",
 				"hint": "Show move descriptions expanded by default on character sheets."

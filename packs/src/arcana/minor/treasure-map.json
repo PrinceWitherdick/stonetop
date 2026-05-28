@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "treasure-map"
+      "slug": "treasure-map",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

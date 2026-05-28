@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "whispering-rocks"
+      "slug": "whispering-rocks",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

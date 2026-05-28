@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "mummified-hand"
+      "slug": "mummified-hand",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

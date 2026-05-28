@@ -23,6 +23,17 @@ export function registerSettings() {
 
 	// -- CLIENT SPECIFIC SETTINGS --------------------------------
 
+	// Whether move rolls use the actor's saved advantage/disadvantage flag.
+	// When true, moves roll without any roll mode modifier.
+	game.settings.register("stonetop", "hideRollMode", {
+		name: "stonetop.settings.hideRollMode.name",
+		hint: "stonetop.settings.hideRollMode.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: false
+	});
+
 	// Turn debug logging on
 	game.settings.register("stonetop", "debugMode", {
 		name: "stonetop.settings.debugMode.name",

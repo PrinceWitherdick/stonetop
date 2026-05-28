@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "twisted-spear"
+      "slug": "twisted-spear",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

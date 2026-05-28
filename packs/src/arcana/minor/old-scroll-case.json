@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "old-scroll-case"
+      "slug": "old-scroll-case",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

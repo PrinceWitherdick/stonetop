@@ -88,7 +88,13 @@
 				</label>
 				<div class="stonetop-origin-names">
 					{{#each names}}
-					<button type="button" class="stonetop-origin-name">{{this}}</button>
+					<label class="stonetop-origin-name-label{{#if checked}} is-checked{{/if}}">
+						<input type="radio" class="stonetop-origin-name-check"
+						       name="stonetop-origin-name-{{../region}}"
+						       value="{{name}}"
+						       {{#if checked}}checked{{/if}}>
+						{{name}}
+					</label>
 					{{/each}}
 				</div>
 			</div>

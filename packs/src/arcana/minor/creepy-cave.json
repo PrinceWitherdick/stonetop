@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "creepy-cave"
+      "slug": "creepy-cave",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

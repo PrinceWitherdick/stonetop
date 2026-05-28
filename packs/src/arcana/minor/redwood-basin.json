@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "redwood-basin"
+      "slug": "redwood-basin",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

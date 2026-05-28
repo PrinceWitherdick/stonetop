@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "vein-of-milky-crystal"
+      "slug": "vein-of-milky-crystal",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

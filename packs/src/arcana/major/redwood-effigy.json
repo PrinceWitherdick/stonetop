@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "redwood-effigy"
+      "slug": "redwood-effigy",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

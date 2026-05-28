@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "ring-of-daagon"
+      "slug": "ring-of-daagon",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

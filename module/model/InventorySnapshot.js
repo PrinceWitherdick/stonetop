@@ -100,6 +100,8 @@ export class InventorySegmentSnapshot {
  * @property {InventoryItemSnapshot[]} smallItems
  * @property {InventoryItemSnapshot[]} smallGridItems
  * @property {Resource} smallPool
+ * @property {number|null} smallItemLimit - 4+Prosperity from the linked steading actor, or null if unavailable
+ * @property {string|null} steadingName   - Name of the linked steading actor, or null if unavailable
  */
 export class OutfitSnapshot {
 	constructor(b) {
@@ -111,6 +113,8 @@ export class OutfitSnapshot {
 		this.smallGridItems  = b._smallGridItems;
 		this.smallPool       = b._smallPool;
 		this.arcanaItems     = b._arcanaItems ?? [];
+		this.smallItemLimit  = b._smallItemLimit ?? null;
+		this.steadingName    = b._steadingName ?? null;
 	}
 }
 
@@ -123,6 +127,8 @@ export class OutfitSnapshotBuilder {
 	withSmallGridItems(v)  { this._smallGridItems  = v; return this; }
 	withSmallPool(v)       { this._smallPool       = v; return this; }
 	withArcanaItems(v)     { this._arcanaItems     = v; return this; }
+	withSmallItemLimit(v)  { this._smallItemLimit  = v; return this; }
+	withSteadingName(v)    { this._steadingName    = v; return this; }
 	build()                { return new OutfitSnapshot(this); }
 }
 

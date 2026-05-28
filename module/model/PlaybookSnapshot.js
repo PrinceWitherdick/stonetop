@@ -80,7 +80,7 @@ export class InstinctSection {
 export class OriginOptionSnapshot {
 	constructor(region, names, selected) {
 		this.region   = region;
-		this.names    = names;
+		this.names    = names; // { name: string, checked: boolean }[]
 		this.selected = selected;
 	}
 }

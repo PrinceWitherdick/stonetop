@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "mindgem"
+      "slug": "mindgem",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

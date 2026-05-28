@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "sealed-cave"
+      "slug": "sealed-cave",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

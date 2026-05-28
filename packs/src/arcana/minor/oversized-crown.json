@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "oversized-crown"
+      "slug": "oversized-crown",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

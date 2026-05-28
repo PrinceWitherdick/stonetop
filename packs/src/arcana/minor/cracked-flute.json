@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "cracked-flute"
+      "slug": "cracked-flute",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

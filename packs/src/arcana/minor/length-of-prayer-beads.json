@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "length-of-prayer-beads"
+      "slug": "length-of-prayer-beads",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

@@ -1,0 +1,36 @@
+<div class="tab moves{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="moves">
+	<section class="sheet-tab steading-moves-tab">
+
+		<p class="steading-moves-intro">
+			Core steading moves. Roll results: <strong>10+</strong> Strong Hit · <strong>7–9</strong> Weak Hit · <strong>6−</strong> Miss
+		</p>
+
+		<div class="steading-moves-list">
+			{{#each stonetop.moves}}
+			<div class="steading-move-card {{#if rollable}}is-rollable{{/if}}">
+
+				<div class="steading-move-header">
+					{{#if rollable}}
+					<button type="button" class="steading-roll-btn"
+					        data-move-name="{{label}}" data-stat="{{stat}}"
+					        title="Roll 2d6+{{statLabel}}">
+						<i class="fas fa-dice-d6"></i>
+					</button>
+					{{/if}}
+					<strong class="steading-move-name">{{label}}</strong>
+					{{#if statLabel}}
+					<span class="steading-move-stat-tag">+{{statLabel}}</span>
+					{{/if}}
+					<span class="steading-move-expand-icon"><i class="fas fa-chevron-down"></i></span>
+				</div>
+
+				<div class="steading-move-body">
+					{{{description}}}
+				</div>
+
+			</div>
+			{{/each}}
+		</div>
+
+	</section>
+</div>

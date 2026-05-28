@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "red-scepter"
+      "slug": "red-scepter",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

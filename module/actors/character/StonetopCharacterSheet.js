@@ -74,6 +74,23 @@ export function createStonetopCharacterSheetClass(Base) {
 			header.insertBefore(label, title);
 		}
 
+		_getHeaderButtons() {
+			const buttons  = super._getHeaderButtons();
+			const steading = this._stonetopCharacter?.getSteadingActor();
+			const sheetIdx = buttons.findIndex(b => b.class === "configure-sheet");
+			const insertAt = sheetIdx >= 0 ? sheetIdx : 0;
+			buttons.splice(insertAt, 0, {
+				label:   steading?.name ?? "",
+				class:   "stonetop-open-steading" + (steading ? "" : " stonetop-open-steading--unset"),
+				icon:    "fas fa-map-marker-alt",
+				onclick: () => {
+					if (steading) steading.sheet.render(true, { focus: true });
+					else ui.notifications.warn(game.i18n.localize("stonetop.steading.notLinked"));
+				},
+			});
+			return buttons;
+		}
+
 		async getData() {
 			const context = await super.getData();
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
@@ -94,6 +111,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.stopImmediatePropagation();
 				const data = TextEditor.getDragEventData(ev);
 				if (!data) return;
+				if (data?.type === "Actor") {
+					const doc = await fromUuid(data.uuid);
+					if (doc?.system?.customType === "stonetop") {
+						await this.actor.setFlag("stonetop", "steadingId", doc.id);
+						this.render(false);
+					}
+					return;
+				}
 				if (data?.type === "Item") {
 					if (data.uuid) {
 						const doc = await fromUuid(data.uuid);
@@ -169,7 +194,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				html.find("[name=stonetop-origin]").on("change", ev =>
 					this._stonetopCharacter.origin.select(ev.currentTarget.value)
 				);
-				html.find(".stonetop-origin-name").on("click", this._onOriginNameClick.bind(this));
+				html.find(".stonetop-origin-name-check").on("change", this._onOriginNameClick.bind(this));
 				html.find(".stonetop-move-check").on("change", this._onMoveCheck.bind(this));
 				html.find(".stonetop-repeat-check").on("change", this._onRepeatCheck.bind(this));
 				html.find(".stonetop-bg-choice").on("change", this._onBgChoiceChange.bind(this));
@@ -198,7 +223,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
 			html.find(".stonetop-possession-sub-radio").on("change", this._onPossessionSubRadio.bind(this));
 			html.find(".stonetop-regular-pool-btn").on("change", this._onRegularPool.bind(this));
-			html.find(".stonetop-small-pool-btn").on("change", this._onSmallPool.bind(this));
 			html.find(".stonetop-outfit-open-btn").on("click", this._onOutfitOpen.bind(this));
 			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
 			html.find(".stonetop-basic-move-open").on("click", async ev => {
@@ -390,8 +414,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onOriginNameClick(ev) {
-			const name = ev.currentTarget.textContent.trim();
-			await this._stonetopCharacter.updateName(name);
+			await this._stonetopCharacter.updateName(ev.currentTarget.value);
 		}
 
 		async _onMoveCheck(ev) {
@@ -457,10 +480,12 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onInventoryItemCheck(ev) {
-			await this._stonetopCharacter.setInventoryItemChecked(
-				ev.currentTarget.dataset.slug, ev.currentTarget.checked
-			);
-			this.render(true);
+			const slug      = ev.currentTarget.dataset.slug;
+			const isChecked = ev.currentTarget.checked;
+			await this._stonetopCharacter.setInventoryItemChecked(slug, isChecked);
+			const isSmall = !!ev.currentTarget.closest(".stonetop-inventory-small");
+			if (isSmall) await this._stonetopCharacter.adjustSmallPool(isChecked);
+			this.render(false);
 		}
 
 		async _onInventoryResource(ev) {
@@ -468,7 +493,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const isChecked = ev.currentTarget.classList.contains("is-checked");
 			const newVal = isChecked ? Number(index) : Number(index) + 1;
 			await this._stonetopCharacter.setInventoryResource(slug, newVal);
-			this.render(true);
+			this.render(false);
 		}
 
 		async _onAddInventoryItem(ev) {

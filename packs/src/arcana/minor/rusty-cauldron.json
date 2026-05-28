@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "rusty-cauldron"
+      "slug": "rusty-cauldron",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

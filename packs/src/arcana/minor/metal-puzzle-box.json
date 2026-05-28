@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "metal-puzzle-box"
+      "slug": "metal-puzzle-box",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

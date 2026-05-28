@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "the-key"
+      "slug": "the-key",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

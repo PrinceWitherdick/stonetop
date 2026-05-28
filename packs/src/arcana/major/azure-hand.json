@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "azure-hand"
+      "slug": "azure-hand",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

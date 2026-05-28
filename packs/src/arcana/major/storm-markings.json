@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "storm-markings"
+      "slug": "storm-markings",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

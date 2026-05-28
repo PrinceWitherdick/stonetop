@@ -37,7 +37,7 @@ import {
 } from "../../model/CharacterSnapshot.js";
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {MoveResources} from "./MoveResources.js";
-import {promptRollMode} from "../../utils/rolls.js";
+import {getSetting} from "../../settings.js";
 import {StonetopFlags} from "./StonetopFlags.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
@@ -50,8 +50,30 @@ import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
 import {capitalizeFirst} from "../../utils/strings.js";
+import {getStonetopSteadingActor} from "../../utils/world.js";
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "expedition", "homefront"];
+
+// Slugs whose resource max equals 4+Prosperity. Matches the `prosperityResource`
+// flag in the JSON source; acts as the runtime fallback until the pack is
+// recompiled with that flag present in the LevelDB.
+const _PROSPERITY_RESOURCE_SLUGS = new Set(["supplies", "more-supplies", "even-more-supplies"]);
+
+// null prosperity means no steading is linked — leave the "x" placeholder as-is.
+function _transformPiercingNote(note, prosperity) {
+	if (!note || !note.includes('x <em>piercing</em>')) return note;
+	if (prosperity === null) return note;
+	if (prosperity <= -1) {
+		return note.replace('x <em>piercing</em>', '<em>crude</em>');
+	}
+	if (prosperity === 0) {
+		const cleaned = note
+			.replace(/(, )?x <em>piercing<\/em>(, )?/, (_, pre, post) => post ? (pre ?? '') : '')
+			.trim();
+		return cleaned || null;
+	}
+	return note.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
+}
 
 export class StonetopCharacter {
 	constructor(actor, repos) {
@@ -113,7 +135,7 @@ export class StonetopCharacter {
 		const pdiLabel  = postDeath.activeInsert?.name ?? null;
 		return new CharacterSnapshotBuilder()
 			.withName(actor.name)
-			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore) : null)
+			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withStats(_buildStatsSection(actor))
 			.withVitals(_buildVitalsSection(actor, playbookData, armor))
@@ -252,26 +274,35 @@ export class StonetopCharacter {
 	}
 
 	async _buildInventorySection(playbookData, ownedAllByName, actorLevel) {
-		const checked   = this._inventory.checked;
-		const resources = this._inventory.resources;
-		const rPool     = this._inventory.regularPool;
-		const sPool     = this._inventory.smallPool;
-		const loadLevel = this._inventory.loadLevel;
-		const allItems  = await this._inventoryRepo.getAll();
+		const checked        = this._inventory.checked;
+		const resources      = this._inventory.resources;
+		const rPool          = this._inventory.regularPool;
+		const sPool          = this._inventory.smallPool;
+		const loadLevel      = this._inventory.loadLevel;
+		const allItems       = await this._inventoryRepo.getAll();
+		const steadingActor  = this.getSteadingActor();
+		const smallItemLimit = this.getSmallItemLimit(steadingActor);
+		const steadingName   = steadingActor?.name ?? null;
+		const prosperity     = smallItemLimit !== null ? smallItemLimit - 4 : null;
 
 		const mapItem = (outfitItem) => {
-			const res = outfitItem.resource;
+			const res    = outfitItem.resource;
+			const isProsperityResource = outfitItem.prosperityResource
+				|| _PROSPERITY_RESOURCE_SLUGS.has(outfitItem.slug);
+			const resMax = (isProsperityResource && smallItemLimit !== null)
+				? smallItemLimit
+				: res?.max;
 			return new InventoryItemSnapshotBuilder()
 				.withSlug(outfitItem.slug)
 				.withName(outfitItem.name)
-				.withNote(outfitItem.note)
+				.withNote(_transformPiercingNote(outfitItem.note, prosperity))
 				.withWeight(outfitItem.weight)
 				.withChecked(checked[outfitItem.slug] ?? false)
 				.withResource(res ? new ResourceBuilder()
-					.withCurrent(resources[outfitItem.slug] ?? 0)
-					.withMax(res.max)
+					.withCurrent(Math.min(resources[outfitItem.slug] ?? 0, resMax ?? 0))
+					.withMax(resMax)
 					.withTitle(res.title ?? null)
-					.withLabels(res.labels ?? [])
+					.withLabels(Array.from({ length: resMax ?? 0 }, () => ""))
 					.build() : null)
 				.withIsCustom(false)
 				.withOwnedId(null)
@@ -335,6 +366,18 @@ export class StonetopCharacter {
 			])
 			.build();
 
+		// When a Stonetop steading exists, the small pool is derived from how many
+		// small items are currently selected, so it always stays in sync automatically.
+		const smallItemSlugs = new Set([
+			...allSmall.map(i => i.slug),
+			...customItems.filter(i => i.system.inventoryColumn === "small").map(i => i._id),
+			...arcanaItems.filter(i => i.inventoryColumn === "small").map(i => i.slug),
+		]);
+		const smallPoolMax     = smallItemLimit ?? 9;
+		const smallPoolCurrent = smallItemLimit !== null
+			? Math.max(0, smallItemLimit - [...smallItemSlugs].filter(s => !!checked[s]).length)
+			: sPool;
+
 		const outfit = new OutfitSnapshotBuilder()
 			.withLoad(load)
 			.withRegularItems(flatRegular)
@@ -346,8 +389,10 @@ export class StonetopCharacter {
 				...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
 			])
 			.withSmallGridItems(allSmall.filter(i => i.smallGrid).map(mapItem))
-			.withSmallPool(new ResourceBuilder().withCurrent(sPool).withMax(9).withTitle(null).withLabels([]).build())
+			.withSmallPool(new ResourceBuilder().withCurrent(smallPoolCurrent).withMax(smallPoolMax).withTitle(null).withLabels([]).build())
 			.withArcanaItems(arcanaSection)
+			.withSmallItemLimit(smallItemLimit)
+			.withSteadingName(steadingName)
 			.build();
 
 		return new InventorySnapshot(outfit, possessions, other);
@@ -497,6 +542,29 @@ export class StonetopCharacter {
 	async setInventoryLoadLevel(level)              { await this._inventory.setLoadLevel(level); }
 	async setInventoryRegularPool(count)            { await this._inventory.setRegularPool(count); }
 	async setInventorySmallPool(count)              { await this._inventory.setSmallPool(count); }
+
+	getSteadingActor() {
+		const storedSteadingId = this._actor.getFlag("stonetop", "steadingId");
+		return (storedSteadingId ? game.actors?.get(storedSteadingId) : null)
+			?? getStonetopSteadingActor();
+	}
+
+	getSmallItemLimit(steading = this.getSteadingActor()) {
+		const rawProsperity = steading?.system?.attributes?.prosperity?.value;
+		if (rawProsperity == null) return null;
+		const prosperity = Number(rawProsperity);
+		return isNaN(prosperity) ? null : 4 + prosperity;
+	}
+
+	async adjustSmallPool(isChecked) {
+		const limit = this.getSmallItemLimit();
+		if (limit === null) return;
+		const current = this._inventory.smallPool;
+		const next = isChecked
+			? Math.max(0, current - 1)
+			: Math.min(limit, current + 1);
+		await this._inventory.setSmallPool(next);
+	}
 
 	async applyOutfit(checkedMap, loadLevel) {
 		await Promise.all([
@@ -769,8 +837,8 @@ export class StonetopCharacter {
 		const isDescription = event.currentTarget.getAttribute("data-show") === "description";
 		const descriptionOnly = isDescription || (item.type === "npcMove" && !item.system.rollFormula);
 		const options = {};
-		if (!descriptionOnly) {
-			options.rollMode = await promptRollMode();
+		if (!descriptionOnly && !getSetting("hideRollMode")) {
+			options.rollMode = this._actor.flags?.pbta?.rollMode ?? "def";
 		}
 		await item.roll({ ...this.applyDebilityRollMode(stat, options), descriptionOnly });
 		return true;
@@ -883,7 +951,7 @@ function _buildVitalsSection(actor, playbookData, armorValue) {
 		.build();
 }
 
-function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore) {
+function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore, actorName) {
 	const savedBg      = background.selectedSlug || null;
 	const savedChoices = background.choices;
 	const savedInstinct = instinct.selectedValue || null;
@@ -927,7 +995,11 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 	);
 
 	const originOptions = (playbookData.origin ?? []).map(({ region, names }) =>
-		new OriginOptionSnapshot(region, names, region === savedOrigin)
+		new OriginOptionSnapshot(
+			region,
+			names.map(name => ({ name, checked: name === actorName })),
+			region === savedOrigin
+		)
 	);
 
 	return new PlaybookSnapshotBuilder()

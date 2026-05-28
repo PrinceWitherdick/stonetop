@@ -6,7 +6,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "rune-laden-scales"
+      "slug": "rune-laden-scales",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

@@ -8,7 +8,9 @@
   },
   "flags": {
     "stonetop": {
-      "slug": "gold-butter-lamp"
+      "slug": "gold-butter-lamp",
+      "front": {},
+      "back": {}
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

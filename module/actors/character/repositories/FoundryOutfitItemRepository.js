@@ -4,6 +4,7 @@ import { FoundryPackStore } from "./FoundryPackStore.js";
 const FIELDS = [
 	"flags.stonetop.slug", "flags.stonetop.inventoryColumn", "flags.stonetop.sortOrder",
 	"flags.stonetop.weight", "flags.stonetop.note", "flags.stonetop.resource",
+	"flags.stonetop.prosperityResource",
 	"flags.stonetop.breakBefore", "flags.stonetop.smallGrid", "flags.stonetop.twoCol",
 	"flags.stonetop.armor",
 ];
@@ -28,6 +29,7 @@ export class FoundryOutfitItemRepository {
 					.withNote(st.note ?? null)
 					.withInventoryColumn(st.inventoryColumn ?? null)
 					.withResource(st.resource ?? null)
+					.withProsperityResource(st.prosperityResource ?? false)
 					.withTwoCol(st.twoCol ?? false)
 					.withSmallGrid(st.smallGrid ?? false)
 					.withBreakBefore(st.breakBefore ?? false)

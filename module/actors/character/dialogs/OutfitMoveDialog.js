@@ -1,13 +1,14 @@
 export class OutfitMoveDialog extends Application {
 	constructor(character, outfitSnapshot, onDone, options = {}) {
 		super(options);
-		this._character    = character;
-		this._regularItems = outfitSnapshot.regularSegments.flatMap(seg => seg.items);
-		this._smallItems   = [
+		this._character      = character;
+		this._regularItems   = outfitSnapshot.regularSegments.flatMap(seg => seg.items);
+		this._smallItems     = [
 			...outfitSnapshot.smallItems,
 			...(outfitSnapshot.smallGridItems ?? []),
 		];
-		this._arcanaItems  = outfitSnapshot.arcanaItems ?? [];
+		this._arcanaItems    = outfitSnapshot.arcanaItems ?? [];
+		this._smallItemLimit = outfitSnapshot.smallItemLimit ?? null;
 		this._checked = {};
 		for (const item of [...this._regularItems, ...this._smallItems, ...this._arcanaItems]) {
 			this._checked[item.slug] = item.checked;
@@ -51,20 +52,23 @@ export class OutfitMoveDialog extends Application {
 			checked: this._checked[item.slug] ?? false,
 		}));
 
-		const totalWeight = this._computeTotalWeight();
-		const loadLevel = this._loadLevelFor(totalWeight);
+		const totalWeight    = this._computeTotalWeight();
+		const loadLevel      = this._loadLevelFor(totalWeight);
+		const smallItemLimit = this._smallItemLimit;
 
 		return {
 			regularItems,
 			smallItems,
 			arcanaItems,
-			hasArcana:       arcanaItems.length > 0,
+			hasArcana:         arcanaItems.length > 0,
 			totalWeight,
 			loadLevel,
-			loadLevelNone:   loadLevel === null,
-			loadLevelLight:  loadLevel === "light",
-			loadLevelNormal: loadLevel === "normal",
-			loadLevelHeavy:  loadLevel === "heavy",
+			loadLevelNone:     loadLevel === null,
+			loadLevelLight:    loadLevel === "light",
+			loadLevelNormal:   loadLevel === "normal",
+			loadLevelHeavy:    loadLevel === "heavy",
+			smallItemLimit,
+			hasSmallItemLimit: smallItemLimit !== null,
 		};
 	}
 
