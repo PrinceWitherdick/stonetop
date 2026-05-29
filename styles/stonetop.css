@@ -4314,6 +4314,12 @@ body,
 .stonetop-so-entry-body ul { margin: 0 0 8px; padding-left: 18px; }
 .stonetop-so-entry-body li { margin-bottom: 3px; }
 
+/* Gear term tooltips — applied via applyGearTermTooltips() */
+.stonetop-gear-term {
+	border-bottom: 1px dotted currentColor;
+	cursor: help;
+}
+
 .stonetop-so-playbooks {
 	display: grid;
 	grid-template-columns: 1fr 1fr;

@@ -838,8 +838,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			const slug      = ev.currentTarget.dataset.slug;
 			const isChecked = ev.currentTarget.checked;
 			await this._stonetopCharacter.setInventoryItemChecked(slug, isChecked);
-			const isSmall = !!ev.currentTarget.closest(".stonetop-inventory-small");
-			if (isSmall) await this._stonetopCharacter.adjustSmallPool(isChecked);
+			if (ev.currentTarget.closest(".stonetop-inventory-small")) {
+				await this._stonetopCharacter.adjustSmallPool(isChecked);
+			} else if (ev.currentTarget.closest(".stonetop-inventory-regular")) {
+				const weight = Number(ev.currentTarget.dataset.weight ?? 1);
+				await this._stonetopCharacter.adjustRegularPool(isChecked, weight);
+			}
 			this.render(false);
 		}
 

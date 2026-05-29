@@ -73,6 +73,7 @@
 							{{#each (times weight)}}
 							<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
 							       data-slug="{{../slug}}"
+							       data-weight="{{../weight}}"
 							       {{#if ../checked}}checked{{/if}}>
 							{{/each}}
 						</span>
@@ -95,6 +96,7 @@
 						{{#each (times weight)}}
 						<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
 						       data-slug="{{../slug}}"
+						       data-weight="{{../weight}}"
 						       {{#if ../checked}}checked{{/if}}>
 						{{/each}}
 					</span>
@@ -127,6 +129,7 @@
 					{{#each (times weight)}}
 					<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
 					       data-slug="{{../slug}}"
+					       data-weight="{{../weight}}"
 					       {{#if ../checked}}checked{{/if}}>
 					{{/each}}
 				</span>
