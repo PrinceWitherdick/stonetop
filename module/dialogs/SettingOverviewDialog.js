@@ -1,0 +1,281 @@
+export class SettingOverviewDialog extends Application {
+	constructor(options = {}) {
+		super(options);
+		this._activeEntry = "premise";
+	}
+
+	static get defaultOptions() {
+		return foundry.utils.mergeObject(super.defaultOptions, {
+			id:       "stonetop-setting-overview",
+			title:    "Setting Overview",
+			template: "modules/stonetop/templates/dialogs/setting-overview.hbs",
+			width:    760,
+			height:   600,
+			resizable: true,
+			classes:  ["stonetop", "stonetop-setting-overview"],
+		});
+	}
+
+	getData() {
+		const entry = SETTING_ENTRIES.find(e => e.id === this._activeEntry);
+		return {
+			entries:    SETTING_ENTRIES.map(e => ({ id: e.id, title: e.title, active: e.id === this._activeEntry })),
+			content:    entry?.content ?? "",
+			entryTitle: entry?.title   ?? "",
+		};
+	}
+
+	activateListeners(html) {
+		super.activateListeners(html);
+		// X button should always close, bypassing the z-index guard
+		this.element?.find('[data-action="close"]').off("click").on("click", () => this.close({force: true}));
+		html.find(".stonetop-so-nav-entry").on("click", ev => {
+			this._activeEntry = ev.currentTarget.dataset.entry;
+			this.render(false);
+		});
+		html.find(".stonetop-so-map").on("click", ev => {
+			const img = ev.currentTarget;
+			new ImagePopout(img.getAttribute("src"), { title: img.alt || "Map" }).render(true);
+		});
+	}
+
+	async close(options = {}) {
+		// If a window opened on top of this one (e.g. an image popout) is still
+		// rendered, don't close yet — let that window handle Escape first.
+		if (!options.force) {
+			const myZ = parseInt(this.element?.[0]?.style?.zIndex || 0);
+			const hasWindowAbove = Object.values(ui.windows).some(w =>
+				w !== this && parseInt(w.element?.[0]?.style?.zIndex || 0) > myZ
+			);
+			if (hasWindowAbove) return this;
+		}
+		return super.close(options);
+	}
+}
+
+// ── Entry content ─────────────────────────────────────────────────────────────
+
+const SETTING_ENTRIES = [
+	{
+		id:    "premise",
+		title: "The Premise",
+		content: `
+<p>You play the heroes of <strong>Stonetop</strong>, an isolated village near the edge of the known world. Adventures focus on dealing with threats to the village, seizing opportunities for the village, or pursuing personal goals. Months or years might pass between adventures.</p>
+
+<h3>The Village Itself…</h3>
+<ul>
+  <li>…is home to around <strong>300 folks</strong>. It's a nice place, though poor. People look out for each other, here.</li>
+  <li>…is built around a <strong>massive standing stone of unknown origin</strong>, carved with faint runes. Lightning strikes the Stone often.</li>
+  <li>…stands at the edge of the <strong>Great Wood</strong>. Villagers hunt and trap but—per a compact with the Forest Folk—never fell a living tree.</li>
+</ul>
+
+<h3>Neighbors</h3>
+<p>The <strong>Forest Folk</strong> disappeared ten years ago, and no one knows why. Perhaps the <strong>Fae</strong>—magical, fickle beings of the Great Wood—had something to do with it?</p>
+<p>Horrid little <strong>crinwin</strong> also lurk in the Great Wood. They've grown bolder and more numerous since the Forest Folk left.</p>
+<ul>
+  <li><strong>Gordin's Delve</strong> is a rugged mining village a few days to the west.</li>
+  <li>The <strong>Hillfolk</strong> roam the rugged Steplands and the Flats, and revile Gordin's Delve.</li>
+  <li><strong>Marshedge</strong> is a sizeable town about ten days' march south and east.</li>
+  <li><strong>Barrier Pass</strong> is a few days north in the mountains; stoic, grim, unwelcoming.</li>
+</ul>
+<p>There's no empire, no kings or nobles—at least not around here. More "civilized" towns and cities lie farther to the south.</p>
+
+<h3>The Makers</h3>
+<p>The Makers are long gone, but their ruins (many sized for giants) remain. <strong>Stonetop is built on Maker-ruins</strong>: an ancient cistern, the crumbling Old Wall, some old foundations. The Ruined Tower is about a day from town. The West Road stretches from Stonetop to Gordin's Delve. The Highway crosses the West Road a few miles from town, stretching from Barrier Pass to Marshedge and beyond.</p>
+
+<h3>Other Things of Note</h3>
+<ul>
+  <li>The PCs are all <strong>human</strong>. Strange peoples (like the Forest Folk or the Fae or the mask-wearing Ustrina from beyond Gordin's Delve) are known of but poorly understood.</li>
+  <li>Wise folk whisper of the <strong>Things Below</strong>, primeval entities of darkness, corruption, and ruin. Their power taints all that it touches.</li>
+  <li><strong>People are terrified of deep water.</strong> Evil dwells there. Evil that will drag you to your doom. Everyone knows this.</li>
+  <li><strong>Magic is not common, nor easy, nor safe.</strong> It can be borrowed from spirits or gods or Things Below, or wrested from the forgotten lore of the Makers. But it is not to be trifled with.</li>
+  <li><strong>Iron</strong> is the most common metal. Good steel is hard to find. Bronze tools and weapons are common enough, but old-fashioned and dripping with superstition.</li>
+</ul>
+`,
+	},
+	{
+		id:    "characters",
+		title: "The Characters",
+		content: `
+<p>You'll play a local hero, someone with deep ties to Stonetop. You might be…</p>
+
+<div class="stonetop-so-playbooks">
+  <div class="stonetop-so-playbook">
+    <h3>The Blessed <span class="stonetop-so-complexity">medium complexity</span></h3>
+    <p>Nature priest. Speaks to spirits and beasts. Works subtle magics via sacred markings and materials.</p>
+  </div>
+  <div class="stonetop-so-playbook">
+    <h3>The Fox <span class="stonetop-so-complexity">low complexity</span></h3>
+    <p>Clever, quick, and skillful. Not above bending the rules or fighting dirty. Can be quite the charmer, too.</p>
+  </div>
+  <div class="stonetop-so-playbook">
+    <h3>The Heavy <span class="stonetop-so-complexity">low/medium complexity</span></h3>
+    <p>Not just a violent individual—<em>our</em> violent individual. A champion, yes, but a bit of a liability, too.</p>
+  </div>
+  <div class="stonetop-so-playbook">
+    <h3>The Judge <span class="stonetop-so-complexity">low complexity</span></h3>
+    <p>Settler of disputes, chronicler, and divine bulwark against chaos. Insightful, tough, not necessarily persuasive.</p>
+  </div>
+  <div class="stonetop-so-playbook">
+    <h3>The Lightbearer <span class="stonetop-so-complexity">high complexity</span></h3>
+    <p>Invokes divine power via flame and candle. Beacon of hope, charity, and mercy. Fiery foe of the dark.</p>
+  </div>
+  <div class="stonetop-so-playbook">
+    <h3>The Marshal <span class="stonetop-so-complexity">high complexity</span></h3>
+    <p>Leads the town's militia, plus a crew of followers. Makes choices about who lives and who dies.</p>
+  </div>
+  <div class="stonetop-so-playbook">
+    <h3>The Ranger <span class="stonetop-so-complexity">low complexity</span></h3>
+    <p>At home in the wild, the one you want with you when you travel. A resourceful guide and deadly hunter.</p>
+  </div>
+  <div class="stonetop-so-playbook">
+    <h3>The Seeker <span class="stonetop-so-complexity">high complexity</span></h3>
+    <p>Collector of lost lore and power, with potent artifacts that might well lead to their ruin.</p>
+  </div>
+  <div class="stonetop-so-playbook">
+    <h3>The Would-Be Hero <span class="stonetop-so-complexity">medium complexity</span></h3>
+    <p>They're in over their head and full of fear and anger, but they just might outshine us all.</p>
+  </div>
+</div>
+`,
+	},
+	{
+		id:    "agenda",
+		title: "Agenda & Principles",
+		content: `
+<h3>Your Agenda</h3>
+<p>As a player, your chief goals should be to…</p>
+<ul>
+  <li>Portray a compelling character</li>
+  <li>Engage with the fictional world</li>
+  <li>Play to find out what happens</li>
+</ul>
+
+<h3>Your Principles</h3>
+<p>The game works best if you…</p>
+<ul>
+  <li><strong>Begin and end with the fiction.</strong> Tell us how you do what you do, what it looks like.</li>
+  <li><strong>Connect with the other PCs.</strong> Explore your relationships. Play out scenes together.</li>
+  <li><strong>Show us what's important to you.</strong> Who and what will your character fight for?</li>
+  <li><strong>Have goals and pursue them.</strong> Don't just react to threats that the GM presents.</li>
+  <li><strong>Be bold, take risks.</strong> If you don't act like a hero, who will?</li>
+  <li><strong>Embrace difficulty, setback, and failure.</strong> Show us how your character deals with it.</li>
+  <li><strong>Participate in worldbuilding.</strong> Answer the GM's questions with color and life.</li>
+  <li><strong>Build on what others have said.</strong> Let yourself be inspired by your fellow players.</li>
+  <li><strong>Give others a chance to shine.</strong> Don't hog the spotlight. Set others up for greatness!</li>
+  <li><strong>Participate in the conversation.</strong> Pay attention, ask questions, offer suggestions.</li>
+</ul>
+
+<h3>Content</h3>
+<p>By default, this game features:</p>
+<ul>
+  <li>Fairly graphic violence</li>
+  <li>Kidnapping, abductions, families in danger</li>
+  <li>Bigotry, racial tensions</li>
+  <li>Horror elements, mind control, possession</li>
+  <li>Personal corruption (esp. for the Seeker)</li>
+  <li>Starvation (or the threat thereof)</li>
+</ul>
+<p>Other disturbing and emotional topics are certainly possible. Talk to your group about any topics that you wish to exclude, veil, or handle in a specific way.</p>
+`,
+	},
+	{
+		id:    "village",
+		title: "Stonetop: The Village",
+		content: `
+<img src="modules/stonetop/assets/maps/map-stonetop-village.png" class="stonetop-so-map" alt="Map of Stonetop">
+<p><strong>Size</strong> village (~300 souls)<br>
+<strong>Population</strong> +0<br>
+<strong>Prosperity</strong> +0 (farming, hunting/trapping, distilling (whisky), stone (from Old Wall), cistern, tradesfolk (cobbler, midwife, publican, smith, tanner), trade with Gordin's Delve, Marshedge)<br>
+<strong>Defenses</strong> +0 (militia, the Ringwall (low, stone), three watchtowers, spears &amp; shields in every home, some bows)</p>
+
+<p>Stonetop is a tight-knit community. Everyone here is expected to pull their weight, but few think badly of those who suffer misfortune. The town pulls together; its community is its strength.</p>
+
+<p>Able-bodied adults are expected to know how to fight and protect the village when needed. Everyone keeps a spear, a round wooden shield, and maybe a bow. Folk rotate through guard duty, manning the three watchtowers each night. There's no government, just leaders. Everyone knows who they are: the wise, the cunning, the brave. It's not a formal thing.</p>
+
+<p>Most buildings are low and squat, built from stones scavenged from the crumbling <strong>Old Wall</strong> that surrounds the town about a mile out from the village center. Roofs are mostly thatched with barley straw. Families pass these homes on, two or three generations living in one or two buildings at a time.</p>
+
+<p>The <strong>Ringwall</strong> is a waist-high fieldstone wall. Of little to no use against a real army, it nonetheless provides some defense against raiders. The houses built outside the Ringwall are newer, built by younger families or more recent immigrants.</p>
+
+<p>Most folk in town are farmers, growing barley, oats, beans, and potatoes in the surrounding land. The fields stretch out from Stonetop to the edge of the Old Wall. Beyond that, the weedy grasses of the Flats choke out anything the villagers might plant.</p>
+
+<p>The town boasts only a few full-time tradesfolk: a smith, a tanner, a midwife, a publican, and a potter. Other crafts—thatching, carpentry, weaving, and so forth—are done on the side. There's no mill, not much in the way of bread. Families keep goats for milk, chickens for eggs, sheep for wool, pigs for meat. The town owns two horses in common, a couple plows, a pair of carts, and a wagon acquired in trade from Marshedge.</p>
+
+<h3>Key Locations</h3>
+
+<p><strong>The Stone</strong> — Well over 50 feet tall and etched in faded runes, the Stone appears to be older even than the giant-sized Maker ruins upon which the village was founded. When storms roll in from the southeast—as they often do during the spring and summer months—lightning strikes the Stone repeatedly. The locals barely even notice.</p>
+
+<p><strong>The Cistern</strong> — Sane folk shun lakes, rivers, and other deep bodies of water. Death dwells in deep water—everyone knows this. To get through the dry months, the residents of Stonetop store rainwater, snowmelt and water from the Stream in a huge, ancient Cistern.</p>
+
+<p><strong>The Granary</strong> — Foodstuffs are stored in the Granary for winter. Everyone contributes, everyone shares.</p>
+
+<p><strong>Pavilion of the Gods</strong> — Stonetop boasts no temple but does have a Pavilion of the Gods, hosting shrines to <strong>Helior</strong> (the Daybringer), <strong>Danu</strong> (the Earth Mother), <strong>Aratis</strong> (the Lawkeeper), and <strong>Tor</strong> (Rain-Maker, Thunderhead, Slayer-of-Beasts). Tor is the most popular and associated with the Stone itself, but all four gods are given due respect.</p>
+
+<p><strong>The Public House</strong> — The largest building in the village, where everyone meets after sundown to drink and socialize. It offers floor space in the common room for travelers and a small stable under the same roof. The town's two horses are kept here.</p>
+
+<p><strong>The Great Wood</strong> — The village sits on a bluff overlooking the Great Wood. A few brave souls ply its depths for meat and fur to trade with Stonetop's neighbors. Trappers bring in most of the wealth, but hunters get more respect. It's dangerous down there. By compact with the Forest Folk, the villagers never cut down a living tree. They're free to gather fallen wood, but if they need timber they send folk northwest to the Foothills. Yet no one's laid eyes on the Folk for a decade, and some grumble that there's plenty of timber down there, in their own back yard.</p>
+
+<p>The <strong>crinwin</strong>—diminutive, gray-skinned creatures with a penchant for mimicry—lurk in the Great Wood. The Forest Folk once hunted them and kept them in check, but their numbers have been growing. The Wood is also home to the strange and magical <strong>Fae</strong>. The Forest Folk called them "Good Neighbors" and took pains to avoid insulting them. They cautioned Stonetop to do the same.</p>
+
+<p><strong>The Stream</strong> — The Stream runs along the base of the bluff, providing a source of fresh water for those willing to haul buckets back and forth. It's been known to dry up at the height of summer. The villagers fear shallow running water less than the deep stuff, but most agree that the Stream is haunted by a pair of ghostly twins.</p>
+`,
+	},
+	{
+		id:    "vicinity",
+		title: "The Vicinity",
+		content: `
+<img src="modules/stonetop/assets/maps/map-vicinity.png" class="stonetop-so-map" alt="Map of the Vicinity">
+<p>The village's immediate surroundings.</p>
+
+<p>The villagers never fell a living tree from the Great Wood, so when they need timber they send the wagon and some hearty souls into the <strong>Foothills</strong>. It's two days out, a day of hard work, and another two or three days to make the return trip. And while the Highway and the West Road are relatively safe, the Foothills themselves are haunted by at least one fell beast or monster. Surely, a trip to the Foothills is a scary thing. But sometimes it has to be done.</p>
+
+<p>The <strong>Flats</strong> are a wide open prairie between the Great Wood and the Huffel Peaks. They are overrun with weedy, bitter-tasting grasses that choke out most other vegetation. Traversing the Flats can feel like an exercise in loneliness, but the land is teeming with life. Most of it will ignore travelers, but the tall grasses might conceal cougars, wolves, or packs of hunting drakes. Aurochs, horses, and deer roam the prairie, and bands of Hillfolk come north from the Steplands to hunt. Wise travelers keep to the ancient roads. The Makers' old magic keeps them in good repair, and predators shun them. But tales tell of dancing lights and strange spirits luring the unwary off the roads at night.</p>
+
+<p>The <strong>Ruined Tower</strong> lies a long day's march from Stonetop, a good half-day's trek from the roads. It's hardly still a tower, more a pile of enormous stones and earth. Everyone in town knows about the giant-sized tunnels beneath the tower. Adventuresome folks get it in their heads to go there now and then, but they usually just go a little way in and get spooked. There are people who've gone deeper—generations back—and brought back amazing things. Little of that stuff remains in town, long since traded away, but the stories linger.</p>
+
+<p>The <strong>Old Wall</strong> surrounds Stonetop, about a mile out from the Stone itself and at the end of the West Road. It was clearly once a massive rampart, but has tumbled and been buried by the ages. When the villagers need stone for construction, they dig it out of the Old Wall and haul it back to town. Occasionally, some crack-job scholar from the south comes up to study the remains of the Old Wall, but they can rarely stand the "primitive" conditions out here for long.</p>
+
+<p>There's a cave called <strong>the Maw</strong> in the Great Wood, a few hours north of town. No underbrush grows within thirty feet of it, and bones litter the entrance. Trappers and hunters avoid it, and claim to have heard strange noises coming from its direction—especially at night.</p>
+
+<p>A pair of <strong>cave bears</strong> have a den in the bluffs just south of town. Villagers know to steer clear, but in a pinch a bear could feed a whole lot of people. Also, who knows what else is in their den? Perhaps it opens up to a larger network of caverns.</p>
+
+<p>The <strong>Red Grove</strong> is a stand of trees in the forest that turn blood red (leaves, bark, and all) near the autumnal equinox. But by springtime, they're back to normal. The Forest Folk never went near this grove, and warned the townsfolk to avoid it as well. They never said why.</p>
+
+<p>On certain nights, the <strong>Pale Hunter</strong> stalks the Great Wood, and when he does even the bravest hunters stay in town. The Forest Folk spoke of him as something like a force of nature, not so much a god to be worshiped as a storm to be weathered. The tales differ as to what happens should you cross the Hunter. He might ignore you, call you to join his raid, or mark you as his quarry. But all the tales agree: impress him, and you'll be well rewarded. Get caught or fail to do your part—well, best not to think of it.</p>
+
+<p>The area's always had <strong>earthquakes</strong>, but the elders say they come more often now. Maybe the <strong>Crombil</strong>, that fiery serpent of woe, stirs in its sleep. Or maybe some other evil, long buried, now strains to be free.</p>
+
+<p>Since the Folk disappeared, the Great Wood has grown more dangerous. Crinwin encroach upon the village. Deer carcasses can often be found strung up in trees, cocooned in silky webs. And all too often, hunters and trappers come home with tales of freshly unearthed ruins or twisted, unnatural beasts.</p>
+`,
+	},
+	{
+		id:    "world",
+		title: "The World's End",
+		content: `
+<img src="modules/stonetop/assets/maps/map-worlds-end.png" class="stonetop-so-map" alt="Map of the World's End">
+<p>The region in which Stonetop sits.</p>
+
+<p><strong>Barrier Pass</strong> is blocked by a massive wall and gate, held by stoic, unfriendly folk who want little to do with strangers. They live on mountain goats and sheep and gods know what else, and brook no trespass. The town elders tell of their kind coming down every generation or two to trade some ancient wonder for crops or goats, but none alive remember such a visit.</p>
+
+<p><strong>Gordin's Delve</strong> is a mining town in the Huffel Peaks. Folk make their way here when they're on the run or when there's nothing left back home. The Delve is named for the Maker-made passages that plunge under the mountains. There lies the Labyrinth, home to foul raiders who've forgotten the light of day. But mask-wearing <strong>Ustrina</strong> sometimes come from the depths to trade fine goods, curiosities, and the rare bit of orichalcum.</p>
+
+<p>About two days' hike from Stonetop is <strong>Titan Bones</strong>, a lone hill amidst the Flats. A huge fossilized skeleton is visible on one side of the hill. When Stonetop or the Hillfolk need to signal each other, they light a huge bonfire atop the hill.</p>
+
+<p>The <strong>Steplands</strong> are a rugged wilderness, home to the nomadic <strong>Hillfolk</strong>: horselords and shepherds, fierce and barbaric to outsiders. They trade horses, wool, and sometimes salt from the south, but consider Gordin's Delve corrupt for prying sacred metals from the earth. The Steplands are dotted with ancient burial mounds. Unlike most ruins, these are man-sized and less sophisticated than those of the Makers. The Hillfolk shun them and warn all travelers away.</p>
+
+<p>The Steplands hide two great terrors: <strong>Blackwater Lake</strong> (to the west) and <strong>Three-Coven Lake</strong> (to the east). The Hillfolk wisely keep their distance, but the few who have dared approach the lakes report ancient ruins on the shores, in the surrounding cliffs, and even beneath the waters.</p>
+
+<p>To the north run the <strong>Whitefang Mountains</strong>, said to be home to both savage giants and many mysterious villages. Little is known about what lies beyond. Throughout the long summers, thunderstorms roll up from the southeast and crash against the mountains. When they do, green and purple lights can be seen dancing around the crown of the peak known as <strong>Tor's Fist</strong>.</p>
+
+<p>The reaches of the <strong>North Manmarch</strong> are home to an aggressive, warlike people who dwell in wooden longhouses. Fortunately for their neighbors, they fight amongst themselves in an eternal cycle of blood-feud. Should a leader unite them one day, they will be a terror to all the world.</p>
+
+<p><strong>Marshedge</strong> is a proper town, with a wooden palisade, market, and town council. They grow hemp and wheat, and collect wild rice and herbs from Ferrier's Fen. But no one ventures too deep into the Fen. Scaly, slimy suarachan drag fools away to sacrifice to their foul gods. A few years back, the council asked a notorious bandit named Brennan to take the job of marshal. He's still in charge, and his old gang—the Claws—dominate the town watch of Marshedge.</p>
+
+<p>The <strong>Dread River</strong> marks the eastern edge of the known world. None get too close, but a sprawl of ruins can be spotted at the end of the Highway. Folktales speak of fools braving the ruins only to disappear forever, or (worse) return with some cursed relic in hand.</p>
+
+<p>The plains of the <strong>South Manmarch</strong> are sparsely inhabited, by a few tribes of nomads hunting aurochs herds. But trade is steady between Marshedge and Lygos and the other towns of the arid south.</p>
+
+<p>On a clear day, sharp-eyed folk in Stonetop can spot the <strong>Golden Oak</strong>. The Forest Folk said that a hero buried at its roots would return from beyond the Last Door. But no one from Stonetop has ever made it there and back.</p>
+`,
+	},
+];

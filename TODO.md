@@ -1,8 +1,6 @@
 * Implement special moves
 * Support for followers (follower moves)
-* support for steading (homefront moves)
 * playbook inserts for ghost, revenant, thrall
-* major arcana
 * Short for “experience points.” You start
   with no XP. You mark XP…
   ...		 when you roll for a move and get a 6-
@@ -13,8 +11,6 @@
   “Mark XP” means that you make a tick
   mark in the XP box on your playbook,
   increasing your total XP by 1.
-* should item typing move from "move" to "equipment"?
-* Add prosperity to inventory tab
 
 == Nice to have
 * Add a bar between arcana outfit items and the others so they are more clearly visible
