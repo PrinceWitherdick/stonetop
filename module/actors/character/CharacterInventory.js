@@ -37,6 +37,7 @@ export class CharacterInventory {
 		await Promise.all([
 			this._flags.unsetFlag("checked"),
 			this.setLoadLevel(null),
+			this._flags.unsetFlag("regularPool"),
 		]);
 	}
 

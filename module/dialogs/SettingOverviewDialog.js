@@ -1,3 +1,5 @@
+import { applyGearTermTooltips } from "../utils/gear-term-tooltips.js";
+
 export class SettingOverviewDialog extends Application {
 	constructor(options = {}) {
 		super(options);
@@ -27,6 +29,8 @@ export class SettingOverviewDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		const entryBody = html.find(".stonetop-so-entry-body")[0];
+		if (entryBody) applyGearTermTooltips(entryBody);
 		// X button should always close, bypassing the z-index guard
 		this.element?.find('[data-action="close"]').off("click").on("click", () => this.close({force: true}));
 		html.find(".stonetop-so-nav-entry").on("click", ev => {
@@ -358,6 +362,275 @@ const SETTING_ENTRIES = [
     <p><em>*Exotic trade goods are +1 Value.</em></p>
   </div>
 </div>
+`,
+	},
+	{
+		id:    "special-items",
+		title: "Special Items",
+		content: `
+<p style="font-style:italic; color:#666; margin-bottom:6px;">When you <strong>Outfit</strong> or <strong>Have What You Need</strong>, you can pick items from the Inventory insert or your possessions. For anything else, you have to <strong>Requisition</strong> or <strong>Trade &amp; Barter</strong>.</p>
+
+<nav style="background:#f5f5f0; border:1px solid #ddd; border-radius:4px; padding:8px 14px; margin-bottom:16px; column-count:2; column-gap:1.5em; font-size:0.9em;">
+  <div><a href="#si-weapons-of-war">Weapons of War</a></div>
+  <div><a href="#si-bronze">Bronze Weapons</a></div>
+  <div><a href="#si-armor">Armor</a></div>
+  <div><a href="#si-light">Light Sources</a></div>
+  <div><a href="#si-tools">Tools &amp; Trades</a></div>
+  <div><a href="#si-writing">Writing Implements</a></div>
+  <div><a href="#si-transport">Transport</a></div>
+  <div><a href="#si-exotic">Exotic Stuff</a></div>
+  <div><a href="#si-trade-goods">Trade Goods</a></div>
+  <div><a href="#si-livestock">Livestock &amp; Other Beasts</a></div>
+</nav>
+
+<h3 id="si-weapons-of-war">Weapons of War</h3>
+<table style="width:100%; border-collapse:collapse; font-size:0.9em; margin-bottom:12px;">
+  <thead><tr style="border-bottom:2px solid #aaa;"><th style="text-align:left; padding:2px 6px;">Item</th><th style="text-align:center; padding:2px 6px; width:52px;">Value</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:2px 6px;">◇ Mace or flail, iron <em>(close, forceful)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Battleaxe, iron <em>(close, messy)</em></td><td style="text-align:center;">1*</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Short sword, iron <em>(hand, close)</em></td><td style="text-align:center;">1*</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Sword, iron <em>(close, +1 damage)</em></td><td style="text-align:center;">1*</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Warhammer, iron <em>(close, 2 piercing)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Crossbow <em>(far, +1 damage, x piercing, reload, ○ low ammo, ○ all out)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Composite bow <em>(far, +1 damage, x piercing, ○ low ammo, ○ all out)</em></td><td style="text-align:center;">1</td></tr>
+  </tbody>
+</table>
+<p style="font-size:0.85em; color:#555; margin-bottom:14px;">*Value 2 to get 1 piercing or (maybe) 2 piercing. <em>x piercing</em> = the steading's current Prosperity.</p>
+
+<h3 id="si-bronze">Bronze Weapons</h3>
+<p style="font-size:0.85em; margin-bottom:4px;">Bronze weapons do not have "<em>x piercing</em>."</p>
+<table style="width:100%; border-collapse:collapse; font-size:0.9em; margin-bottom:14px;">
+  <thead><tr style="border-bottom:2px solid #aaa;"><th style="text-align:left; padding:2px 6px;">Item</th><th style="text-align:center; padding:2px 6px; width:52px;">Value</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:2px 6px;">Common weapons <em>(spears, daggers, etc.)</em></td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">Weapons of war <em>(see above)</em></td><td style="text-align:center;">1</td></tr>
+  </tbody>
+</table>
+
+<h3 id="si-armor">Armor</h3>
+<table style="width:100%; border-collapse:collapse; font-size:0.9em; margin-bottom:14px;">
+  <thead><tr style="border-bottom:2px solid #aaa;"><th style="text-align:left; padding:2px 6px;">Item</th><th style="text-align:center; padding:2px 6px; width:52px;">Value</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:2px 6px;">◇ Cuirass, boiled leather <em>(1 armor)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">◇◇ Hauberk/cuirass/scale, iron or bronze <em>(2 armor, warm, cumbersome)</em></td><td style="text-align:center;">2</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Vest, brigandine, fancy <em>(2 armor, warm)</em></td><td style="text-align:center;">3</td></tr>
+  </tbody>
+</table>
+
+<h3 id="si-light">Light Sources</h3>
+<table style="width:100%; border-collapse:collapse; font-size:0.9em; margin-bottom:14px;">
+  <thead><tr style="border-bottom:2px solid #aaa;"><th style="text-align:left; padding:2px 6px;">Item</th><th style="text-align:center; padding:2px 6px; width:52px;">Value</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:2px 6px;">◇ Candle <em>(lasts ~1 hour, close, area)</em></td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Lantern <em>(○○○○○ hours, close, area)</em></td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Bullseye lantern <em>(○○○○○ hours, near)</em></td><td style="text-align:center;">1</td></tr>
+  </tbody>
+</table>
+
+<h3 id="si-tools">Tools &amp; Trades</h3>
+<table style="width:100%; border-collapse:collapse; font-size:0.9em; margin-bottom:14px;">
+  <thead><tr style="border-bottom:2px solid #aaa;"><th style="text-align:left; padding:2px 6px;">Item</th><th style="text-align:center; padding:2px 6px; width:52px;">Value</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:2px 6px;">□ Small metal tool <em>(chisel, file, nails, shears, etc.)</em></td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">□ Glass vial <em>(fragile)</em></td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Block &amp; tackle</td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Instrument <em>(harp, lute, fiddle, etc.)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Metal tools <em>(drill, prybar, saw, tongs, etc.)</em></td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Mirror, hand-held, polished bronze</td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">Common trade tools <em>(for pottery, weaving, distilling, etc.; immobile)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">Uncommon trade tools <em>(for carpentry, chandlery, beekeeping, etc.; immobile)</em></td><td style="text-align:center;">2</td></tr>
+    <tr><td style="padding:2px 6px;">Specialized trade tools <em>(for smithing, glassblowing, scribing, etc.; immobile)</em></td><td style="text-align:center;">3</td></tr>
+  </tbody>
+</table>
+
+<h3 id="si-writing">Writing Implements</h3>
+<table style="width:100%; border-collapse:collapse; font-size:0.9em; margin-bottom:14px;">
+  <thead><tr style="border-bottom:2px solid #aaa;"><th style="text-align:left; padding:2px 6px;">Item</th><th style="text-align:center; padding:2px 6px; width:52px;">Value</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:2px 6px;">□ Slate and chalk</td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">□ Wax tablet and stylus</td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">□ Parchment, a few sheets <em>(fragile)</em></td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">□ Fine vellum, a few sheets <em>(fragile)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">□ Ink, vial and quills</td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Empty book, parchment <em>(fragile)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Empty book, fine vellum <em>(fragile)</em></td><td style="text-align:center;">2</td></tr>
+  </tbody>
+</table>
+
+<h3 id="si-transport">Transport</h3>
+<table style="width:100%; border-collapse:collapse; font-size:0.9em; margin-bottom:14px;">
+  <thead><tr style="border-bottom:2px solid #aaa;"><th style="text-align:left; padding:2px 6px;">Item</th><th style="text-align:center; padding:2px 6px; width:52px;">Value</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:2px 6px;">Wheelbarrow</td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">Cart or sleigh <em>(requires donkey/mule/horse)</em></td><td style="text-align:center;">2</td></tr>
+    <tr><td style="padding:2px 6px;">Wagon <em>(requires mule/horse)</em></td><td style="text-align:center;">3</td></tr>
+    <tr><td style="padding:2px 6px;">Spare parts for wagon/cart/sleigh <em>(axles, wheels, etc.; ○○○ uses, immobile)</em></td><td style="text-align:center;">2</td></tr>
+  </tbody>
+</table>
+
+<h3 id="si-exotic">Exotic Stuff</h3>
+<table style="width:100%; border-collapse:collapse; font-size:0.9em; margin-bottom:14px;">
+  <thead><tr style="border-bottom:2px solid #aaa;"><th style="text-align:left; padding:2px 6px;">Item</th><th style="text-align:center; padding:2px 6px; width:52px;">Value</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:2px 6px;">◇ Bendis root <em>(burnt fumes repel perversions of nature; lasts ~1 hour, reach, area)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">□ Bezoar <em>(swallow to cure any poison)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Naphtha <em>(burns hot &amp; sticky; damage d8; ○○○ uses, thrown, area, dangerous, ignores armor)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Silver-alloy dagger <em>(hand)</em></td><td style="text-align:center;">2</td></tr>
+  </tbody>
+</table>
+
+<h3 id="si-trade-goods">Trade Goods</h3>
+<table style="width:100%; border-collapse:collapse; font-size:0.9em; margin-bottom:14px;">
+  <thead><tr style="border-bottom:2px solid #aaa;"><th style="text-align:left; padding:2px 6px;">Item</th><th style="text-align:center; padding:2px 6px; width:52px;">Value</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:2px 6px;">□ Salt <em>(a little box)</em></td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Skin of whisky, fine <em>(○○ uses; share a use to get advantage on Persuade)</em></td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">□ Purse of coppers <em>(~10 handfuls)</em></td><td style="text-align:center;">0</td></tr>
+    <tr><td style="padding:2px 6px;">◇ Firkin of whisky, fine</td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">□ Handful of silvers</td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">Barrel of whisky, common <em>(immobile)</em></td><td style="text-align:center;">1</td></tr>
+    <tr><td style="padding:2px 6px;">Barrel of whisky, fine <em>(immobile)</em></td><td style="text-align:center;">2</td></tr>
+    <tr><td style="padding:2px 6px;">◇◇ Purse of silvers <em>(~10 handfuls)</em></td><td style="text-align:center;">2</td></tr>
+    <tr><td style="padding:2px 6px;">1 Surplus of various trade goods <em>(immobile)</em></td><td style="text-align:center;">2</td></tr>
+  </tbody>
+</table>
+
+<h3 id="si-livestock">Livestock &amp; Other Beasts</h3>
+<table style="width:100%; border-collapse:collapse; font-size:0.9em; margin-bottom:4px;">
+  <thead><tr style="border-bottom:2px solid #aaa;"><th style="text-align:left; padding:2px 6px;">Beast</th><th style="text-align:center; padding:2px 6px; width:52px;">Value</th></tr></thead>
+  <tbody>
+    <tr>
+      <td style="padding:4px 6px; border-bottom:1px solid #eee;">
+        <strong>Dog</strong>, follower <em>(keen-nosed, pick 2 more)</em><br>
+        <span style="font-size:0.85em; color:#555;">HP 6 · Damage d6 (hand, grabby) · Instinct: get distracted · Cost: training</span>
+      </td>
+      <td style="text-align:center; border-bottom:1px solid #eee;">1</td>
+    </tr>
+    <tr>
+      <td style="padding:4px 6px; border-bottom:1px solid #eee;">
+        <strong>Goat</strong> <em>(sure-footed, curious, hungry)</em><br>
+        <span style="font-size:0.85em; color:#555;">HP 3 · Damage d4 (hand) · Instinct: explore · butcher for 4 provisions (6 uses)</span>
+      </td>
+      <td style="text-align:center; border-bottom:1px solid #eee;">1</td>
+    </tr>
+    <tr>
+      <td style="padding:4px 6px; border-bottom:1px solid #eee;">
+        <strong>Sheep</strong> <em>(timid, hardy, wooly)</em><br>
+        <span style="font-size:0.85em; color:#555;">HP 3 · Damage d4 (hand) · Instinct: follow the herd · butcher for 4 provisions (6 uses)</span>
+      </td>
+      <td style="text-align:center; border-bottom:1px solid #eee;">1</td>
+    </tr>
+    <tr>
+      <td style="padding:4px 6px; border-bottom:1px solid #eee;">
+        <strong>Pig</strong> <em>(keen-nosed, stubborn, gluttonous, clever)</em><br>
+        <span style="font-size:0.85em; color:#555;">HP 6 · Damage d4 (hand) · Instinct: eat anything · butcher for 4 provisions (d6+10 uses)</span>
+      </td>
+      <td style="text-align:center; border-bottom:1px solid #eee;">1</td>
+    </tr>
+    <tr>
+      <td style="padding:4px 6px; border-bottom:1px solid #eee;">
+        <strong>Donkey</strong> <em>(hardy, sure-footed, cautious, slow)</em><br>
+        <span style="font-size:0.85em; color:#555;">HP 10 · Damage d4+2 (hand, forceful) · Instinct: be stubborn</span>
+      </td>
+      <td style="text-align:center; border-bottom:1px solid #eee;">2</td>
+    </tr>
+    <tr>
+      <td style="padding:4px 6px; border-bottom:1px solid #eee;">
+        <strong>Mule</strong>, follower? <em>(large, hardy, sure-footed, cautious, keen-nosed, sterile)</em><br>
+        <span style="font-size:0.85em; color:#555;">HP 14 · Damage d6+1 (hand, close) · Instinct: avoid danger · Cost: care &amp; grooming</span>
+      </td>
+      <td style="text-align:center; border-bottom:1px solid #eee;">3</td>
+    </tr>
+    <tr>
+      <td style="padding:4px 6px;">
+        <strong>Horse</strong>, follower? <em>(large, powerful, keen-nosed, swift or hardy)</em><br>
+        <span style="font-size:0.85em; color:#555;">HP 10 · Damage d6+3 (hand, close, forceful) · Instinct: panic · Cost: care &amp; grooming</span>
+      </td>
+      <td style="text-align:center;">3</td>
+    </tr>
+  </tbody>
+</table>
+`,
+	},
+	{
+		id:    "if-you-want-to",
+		title: "If You Want To…",
+		content: `
+<p style="font-style:italic; color:#666; margin-bottom:12px;">Quick reference for how to accomplish common goals. Click a topic to jump to it.</p>
+
+<nav style="background:#f5f5f0; border:1px solid #ddd; border-radius:4px; padding:10px 14px; margin-bottom:18px; column-count:2; column-gap:1.5em;">
+  <div><a href="#iywt-fortunes">…increase Fortunes</a></div>
+  <div><a href="#iywt-surplus">…gain Surplus</a></div>
+  <div><a href="#iywt-defenses">…improve Defenses</a></div>
+  <div><a href="#iywt-population">…increase Population</a></div>
+  <div><a href="#iywt-prosperity">…improve Prosperity</a></div>
+  <div><a href="#iywt-improvement">…unlock a steading improvement</a></div>
+  <div><a href="#iywt-coin">…get some coin</a></div>
+  <div><a href="#iywt-arcana">…find new arcana</a></div>
+  <div><a href="#iywt-mysteries">…unlock an arcanum's mysteries</a></div>
+  <div><a href="#iywt-followers">…recruit followers</a></div>
+</nav>
+
+<h3 id="iywt-fortunes">…increase Fortunes</h3>
+<p>The main ways are:</p>
+<ul>
+  <li>Undertake an expedition on behalf of the village and <strong>Return Triumphant</strong>.</li>
+  <li>Complete a steading improvement that increases Fortunes.</li>
+</ul>
+
+<h3 id="iywt-surplus">…gain Surplus</h3>
+<p>You get Surplus automatically in summer and when the harvest is done towards the end of autumn. If you want more:</p>
+<ul>
+  <li>Choose <em>"unexpected bounty"</em> when you get a seasonal gain.</li>
+  <li>Choose <em>"trade opportunity"</em> when you get a seasonal gain, and suggest that you'd like to trade for extra Surplus.</li>
+  <li>Undertake an expedition to hunt big game: elk, wisents, cave bears, ceirwmawr, etc.</li>
+  <li>Buy some! Surplus isn't commonly available, so you'll need to roll to <strong>Trade &amp; Barter</strong> to see if it's available from a passing merchant. If it's not, you'll need to travel to a neighboring steading. Surplus is Value 2, so expect to pay a purse of silvers, a donkey, a barrel of fine whisky, or so forth.</li>
+</ul>
+<p>If you want to increase how much Surplus the village generates, look to the steading improvements.</p>
+
+<h3 id="iywt-defenses">…improve Defenses</h3>
+<p>You can temporarily boost Defenses via the <strong>Muster</strong> move, but it will usually cost you Fortunes to do so.</p>
+<p>Build a <strong>Palisade</strong> or a <strong>Stone Wall</strong> (see the steading improvements). They grant advantage to Deploy rolls when you take advantage of them.</p>
+<p>Establish a <strong>Standing Watch</strong> (see the steading improvements). They add +1 to your Defenses when they're involved.</p>
+<p>Spend time drilling the villagers to unlock the <strong>Well-Trained Militia</strong> improvement. If you train the militia in 2 or more tactics, Defenses increases by 1.</p>
+<p>Invest in the <strong>Weapons of War</strong> improvement. This increases Defenses by 1 and gives PCs access to better weaponry.</p>
+
+<h3 id="iywt-population">…increase Population</h3>
+<p>When Seasons Change and you get a seasonal gain, choose <em>"population boom."</em></p>
+<p>Alternately, go out and save/recruit/capture a bunch of people and bring them back to live in your village.</p>
+<p>Careful: higher Population makes it easier to Muster and Pull Together, but it also means more mouths to feed in winter.</p>
+
+<h3 id="iywt-prosperity">…improve Prosperity</h3>
+<p>Pursue the <strong>Expanded Trades</strong> and/or the <strong>Market</strong> improvements. Each of these increase Prosperity by 1, which makes your metal weapons better, increases the number of uses you get out of supplies, and makes the Recover move more effective.</p>
+<p>You also roll +Prosperity to Trade &amp; Barter. The <strong>Township</strong> improvement will grant advantage to Trade &amp; Barter.</p>
+
+<h3 id="iywt-improvement">…unlock a steading improvement</h3>
+<p>Look at the requirements and choose one to pursue. If you don't know how to pursue it, <strong>Know Things</strong> and/or <strong>Make a Plan</strong> with the GM.</p>
+<p>If you want to make an improvement to the steading that isn't listed, tell the GM what you have in mind. They'll either Make a Plan with you or add it to the list of Other Improvements (along with the requirements and potential benefits), whichever is more appropriate.</p>
+
+<h3 id="iywt-coin">…get some coin</h3>
+<p>You can <strong>Outfit</strong> or <strong>Have What You Need</strong> to produce a handful of coppers, but if you want more significant quantities, or any quantity of silver or gold coins, then you'll need to roll <strong>Trade &amp; Barter</strong> to see if they're even available. If they are, you'll need to trade something of equivalent Value.</p>
+<p>If you need more coin than what's available in town, you can undertake a trade mission. Take some of the steading's Surplus to Marshedge, Gordin's Delve, or maybe the Hillfolk, and find someone to buy it. A purse or two of silvers is a fair trade for 1 Surplus (Value 2).</p>
+<p>Alternately, go explore the Ruined Tower or someplace like it and dig up some sweet loot. Then roll Trade &amp; Barter to sell it to a passing merchant or head to Marshedge or Gordin's Delve and try to sell it there for more.</p>
+
+<h3 id="iywt-arcana">…find new arcana</h3>
+<p><strong>Know Things.</strong> Maybe you know where something like that might be found.</p>
+<p>If you don't: ask around, dig through the Chronicle (if there is one), consult the spirits (if you can), pray for guidance (if that's your thing), eat some mushrooms and hope for a vision, etc.</p>
+<p>Explore dangerous and mysterious places: old Maker ruins, barrow mounds, fae circles, strange groves, caves, or lakes (if you dare).</p>
+<p>Put the word out to merchants or other contacts that you're interested in that sort of thing, then choose <em>"trade opportunity"</em> or <em>"interesting news"</em> when you get a seasonal gain.</p>
+
+<h3 id="iywt-mysteries">…unlock an arcanum's mysteries</h3>
+<p>Do what the requirements say! If you're not sure how to meet a requirement, roll to <strong>Know Things</strong> and/or <strong>Make a Plan</strong> with the GM.</p>
+
+<h3 id="iywt-followers">…recruit followers</h3>
+<p>If you have someone in mind, ask them to join you on an expedition. <strong>Persuade</strong> them if necessary.</p>
+<p>If you don't have someone in mind, tell the GM what sort of follower you're looking for (<em>"a skilled tracker," "a knowledgeable guide," "someone who can handle themselves in a fight,"</em> etc.). They'll either tell you who in town fits the bill, or ask you to make someone up, or suggest that you Know Things.</p>
+<p>Alternatively:</p>
+<ul>
+  <li><strong>Muster</strong> the village and pick <em>"1 or 2 individuals show real potential."</em> Let the GM know that you're hoping for a follower, and they'll probably work with you.</li>
+  <li>Go to a bigger town and find a public place, like the Swap in Gordin's Delve or Edgemarket in Marshedge. Announce that you're looking to hire help. Say what the job is and what you're offering. Those towns each have a special player move for Recruiting.</li>
+</ul>
 `,
 	},
 	{

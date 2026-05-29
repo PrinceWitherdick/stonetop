@@ -75,6 +75,10 @@ function _transformPiercingNote(note, prosperity) {
 	return note.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
 }
 
+// Maximum number of regular inventory slots for each load level.
+// OutfitMoveDialog._loadLevelFor uses these same thresholds (inverted).
+const LOAD_LEVEL_LIMITS = { light: 3, normal: 6, heavy: 9 };
+
 export class StonetopCharacter {
 	constructor(actor, repos) {
 		this._actor = actor;
@@ -382,7 +386,7 @@ export class StonetopCharacter {
 			.withLoad(load)
 			.withRegularItems(flatRegular)
 			.withRegularSegments(_segmentByTwoCol(flatRegular))
-			.withRegularPool(new ResourceBuilder().withCurrent(rPool).withMax(9).withTitle(null).withLabels([]).build())
+			.withRegularPool(new ResourceBuilder().withCurrent(rPool).withMax(LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy).withTitle(null).withLabels([]).build())
 			.withSmallItems([
 				...allSmall.filter(i => !i.smallGrid).map(mapItem),
 				...customItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
@@ -564,6 +568,17 @@ export class StonetopCharacter {
 			? Math.max(0, current - 1)
 			: Math.min(limit, current + 1);
 		await this._inventory.setSmallPool(next);
+	}
+
+	async adjustRegularPool(isChecked, weight) {
+		const loadLevel = this._inventory.loadLevel;
+		if (!loadLevel) return;
+		const limit   = LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy;
+		const current = this._inventory.regularPool;
+		const next    = isChecked
+			? Math.max(0, current - weight)
+			: Math.min(limit, current + weight);
+		await this._inventory.setRegularPool(next);
 	}
 
 	async applyOutfit(checkedMap, loadLevel) {
