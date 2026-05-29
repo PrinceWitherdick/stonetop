@@ -13,14 +13,7 @@ packs/arcana/
 packs/post-death-inserts/
 packs/post-death-moves/
 
-# Private content — licensed material, not for distribution
-packs/private/
-
 # Temp directory used during pack compilation
 packs/.tmp/
-
-# Scripts containing private content — not for distribution
-scripts/seed-major-arcana.js
-scripts/seed-minor-arcana.js
 
 .claude/settings.local.json
