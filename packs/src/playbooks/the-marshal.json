@@ -242,9 +242,9 @@
 					"Wealth gained for themselves or Stonetop"
 				],
 				"inventory": [
-					{ "slug": "hatchet",     "label": "<strong>Hatchet</strong>, iron (<em>hand, thrown</em>, x piercing)",                       "weight": 1 },
-					{ "slug": "spear",       "label": "<strong>Spear</strong>, iron (<em>close</em>, x piercing)",                                "weight": 1 },
-					{ "slug": "bow-arrows",  "label": "<strong>Bow &amp; iron arrows</strong> (<em>near</em>, x piercing, ○ low ammo, ○ all out)", "weight": 1 },
+					{ "slug": "hatchet",     "label": "<strong>Hatchet</strong>, iron (<em>hand, thrown</em>, x <em>piercing</em>)",                       "weight": 1 },
+					{ "slug": "spear",       "label": "<strong>Spear</strong>, iron (<em>close</em>, x <em>piercing</em>)",                                "weight": 1 },
+					{ "slug": "bow-arrows",  "label": "<strong>Bow &amp; iron arrows</strong> (<em>near</em>, x <em>piercing</em>, ○ low ammo, ○ all out)", "weight": 1 },
 					{ "slug": "shield",      "label": "<strong>Shield</strong> (+1 armor, +1 Readiness on 7+ to Defend)",                         "weight": 2 },
 					{ "slug": "thick-hides", "label": "<strong>Thick hides</strong> (1 armor, <em>warm</em>)",                                    "weight": 2 },
 					{ "slug": "cloak",       "label": "<strong>Cloak</strong> (<em>warm</em>)",                                                   "weight": 1 }

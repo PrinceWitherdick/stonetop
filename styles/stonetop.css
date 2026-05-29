@@ -3041,6 +3041,35 @@ body,
 .stonetop-playbook-picker-card--the-seeker:hover        { border-color: var(--color-the-seeker); }
 .stonetop-playbook-picker-card--the-would-be-hero:hover { border-color: var(--color-the-would-be-hero); }
 
+.stonetop-playbook-picker-tooltip {
+	position: fixed;
+	z-index: 10000;
+	max-width: 220px;
+	background: #2a2a2a;
+	color: #f0f0f0;
+	border-radius: 6px;
+	padding: 8px 12px;
+	pointer-events: none;
+	font-family: var(--font-primary);
+	box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.stonetop-playbook-picker-tooltip-complexity {
+	display: block;
+	font-size: 0.7em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: #aaa;
+	margin-bottom: 4px;
+}
+
+.stonetop-playbook-picker-tooltip-desc {
+	font-size: 0.82em;
+	line-height: 1.45;
+	margin: 0;
+}
+
 /* -- Character Onboarding Dialog ------------------------------------------ */
 
 .stonetop-onboarding .window-content {

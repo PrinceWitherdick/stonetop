@@ -109,9 +109,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			// reassign stonetop to system
 			context.system.attributes.armor.value = context.stonetop.vitals.armor
 			context.system.attributes.xp.max = context.stonetop.vitals.xp.max
-			// Followers tab — build data from flags + playbook definition
+			// Followers tab — build data from flags + playbook definition.
+			// Pass smallItemLimit from the already-computed snapshot so crew gear
+			// uses the exact same prosperity value as outfit inventory items.
 			const playbookDoc = await this._stonetopCharacter.playbook();
-			context.stonetop.followers    = this._buildFollowersData(playbookDoc);
+			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null);
 			context.stonetop.hasFollowers = !!(
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
@@ -120,7 +122,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			return context;
 		}
 
-		_buildFollowersData(playbookDoc) {
+		_buildFollowersData(playbookDoc, smallItemLimit = null) {
 			const pf    = playbookDoc?.flags?.stonetop ?? {};
 			const sf    = this.actor.flags?.stonetop   ?? {};
 
@@ -144,9 +146,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// ── Crew (Marshal) ─────────────────────────────────────────
 			// Hardcoded fallback until LevelDB pack is rebuilt with the marshal.json inventory changes.
 			const CREW_INVENTORY_FALLBACK = [
-				{ slug: "hatchet",     label: "<strong>Hatchet</strong>, iron (<em>hand, thrown</em>, x piercing)",                       weight: 1 },
-				{ slug: "spear",       label: "<strong>Spear</strong>, iron (<em>close</em>, x piercing)",                                weight: 1 },
-				{ slug: "bow-arrows",  label: "<strong>Bow &amp; iron arrows</strong> (<em>near</em>, x piercing, ○ low ammo, ○ all out)", weight: 1 },
+				{ slug: "hatchet",     label: "<strong>Hatchet</strong>, iron (<em>hand, thrown</em>, x <em>piercing</em>)",                       weight: 1 },
+				{ slug: "spear",       label: "<strong>Spear</strong>, iron (<em>close</em>, x <em>piercing</em>)",                                weight: 1 },
+				{ slug: "bow-arrows",  label: "<strong>Bow &amp; iron arrows</strong> (<em>near</em>, x <em>piercing</em>, ○ low ammo, ○ all out)", weight: 1 },
 				{ slug: "shield",      label: "<strong>Shield</strong> (+1 armor, +1 Readiness on 7+ to Defend)",                         weight: 2 },
 				{ slug: "thick-hides", label: "<strong>Thick hides</strong> (1 armor, <em>warm</em>)",                                    weight: 2 },
 				{ slug: "cloak",       label: "<strong>Cloak</strong> (<em>warm</em>)",                                                   weight: 1 },
@@ -157,19 +159,24 @@ export function createStonetopCharacterSheetClass(Base) {
 				const loyaltyVal      = sf.crew?.loyalty ?? 0;
 				const gearFlags       = sf.crew?.gear ?? {};
 				const inventoryDef    = pf.crew?.inventory?.length ? pf.crew.inventory : CREW_INVENTORY_FALLBACK;
-				// Supplies: 6 independent sets, each with (4+Prosperity) circles
-				const smallItemLimit  = this._stonetopCharacter.getSmallItemLimit();
+				// Supplies: 6 independent sets, each with (4+Prosperity) circles.
+				// smallItemLimit comes from buildSnapshot() — same value driving outfit inventory.
 				const pipsPerSet      = smallItemLimit ?? 5;
 				const prosperity      = smallItemLimit !== null ? smallItemLimit - 4 : null;
 				const suppliesRaw     = sf.crew?.supplies;
 				const suppliesArr     = Array.isArray(suppliesRaw) ? suppliesRaw : Array(6).fill(0);
 				// Same piercing substitution used for outfit items on the character sheet.
+				// Crew gear labels use plain "x piercing"; outfit item notes use "x <em>piercing</em>".
 				const applyPiercing   = (label) => {
-					if (!label?.includes('x <em>piercing</em>')) return label;
+					if (!label?.includes('x piercing')) return label;
 					if (prosperity === null) return label;
-					if (prosperity <= -1) return label.replace('x <em>piercing</em>', '<em>crude</em>');
-					if (prosperity === 0)  return label.replace(/(, )?x <em>piercing<\/em>(, )?/, (_, pre, post) => post ? (pre ?? '') : '').trim();
-					return label.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
+					const html      = label.includes('x <em>piercing</em>');
+					const token     = html ? 'x <em>piercing</em>' : 'x piercing';
+					const removalRe = html ? /(, )?x <em>piercing<\/em>(, )?/ : /(, )?x piercing(, )?/;
+					if (prosperity <= -1) return label.replace(token, html ? '<em>crude</em>' : 'crude');
+					if (prosperity === 0)  return label.replace(removalRe, (_, pre, post) => post ? (pre ?? '') : '').trim();
+					const val = Math.min(prosperity, 2);
+					return label.replace(token, html ? `${val} <em>piercing</em>` : `${val} piercing`);
 				};
 				crew = {
 					name:      sf.crew.name     ?? "",
