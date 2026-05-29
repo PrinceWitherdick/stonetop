@@ -189,6 +189,61 @@
 					}
 				]
 			},
+			"invocations": {
+				"startingCount": 2,
+				"options": [
+					{
+						"slug": "bath-of-healing-light",
+						"label": "Bath of Healing Light",
+						"description": "<p>Focus your light on a patient; pick 2: regain 5 HP (twice OK), clear a debility (twice OK), stabilize a wound, or recover from a minor condition. <em>Reduced:</em> pick only 1. <em>Empowered:</em> additional healing options including 10 HP or curing dire afflictions.</p>"
+					},
+					{
+						"slug": "blinding-light",
+						"label": "Blinding Light (ongoing)",
+						"description": "<p>Your light blazes; anyone in range who looks is temporarily blinded, others must avert their eyes. You are unaffected. <em>Reduced:</em> flares only for a moment. <em>Empowered:</em> your allies are unaffected.</p>"
+					},
+					{
+						"slug": "cleansing-light",
+						"label": "Cleansing Light",
+						"description": "<p>Dispels magical effects within range; potent lasting magics are merely suppressed. <em>Reduced:</em> only weak effects dispelled. <em>Empowered:</em> becomes ongoing — all magic created in or entering range is dispelled.</p>"
+					},
+					{
+						"slug": "cold-light-of-day",
+						"label": "Cold Light of Day (ongoing)",
+						"description": "<p>All in your light appears as it really is — illusions, shapeshifting, and disguise fail. <em>Reduced:</em> lasts only briefly. <em>Empowered:</em> illusions dispelled; shapeshifters momentarily stunned.</p>"
+					},
+					{
+						"slug": "dancing-light",
+						"label": "Dancing Light (ongoing)",
+						"description": "<p>Your light floats free, moving anywhere you can see; you can change its shape or color. <em>Reduced:</em> range reduced by one step. <em>Empowered:</em> you can channel another Invocation through Dancing Light.</p>"
+					},
+					{
+						"slug": "go-back-to-the-shadow",
+						"label": "Go Back to the Shadow",
+						"description": "<p>Spirits of darkness in your light take 2d8 damage (ignores armor); at 0 HP they are banished or returned to their tether. <em>Reduced:</em> 1d8 only. <em>Empowered:</em> spirit utterly destroyed, or banished with its tether destroyed.</p>"
+					},
+					{
+						"slug": "hold-back-the-darkness",
+						"label": "Hold Back the Darkness (ongoing)",
+						"description": "<p>Spirits and creatures of darkness cannot approach; cowardly ones flee; those forced in deal damage with disadvantage. <em>Reduced:</em> requires unbroken litany of prayers. <em>Empowered:</em> forced entities become vulnerable to mundane weapons.</p>"
+					},
+					{
+						"slug": "moth-to-a-flame",
+						"label": "Moth to a Flame (ongoing)",
+						"description": "<p>Name a creature type; they follow your light slowly. Effect ends if they take damage. <em>Reduced:</em> brief, or only some affected. <em>Empowered:</em> effect persists briefly after first damage; ends on second hit.</p>"
+					},
+					{
+						"slug": "terrible-as-the-dawn",
+						"label": "Terrible as the Dawn (ongoing)",
+						"description": "<p>Name a creature type; your light fills them with dread, causing recoil and flight. <em>Reduced:</em> all mortal creatures including allies affected. <em>Empowered:</em> even the brave must cower or flee.</p>"
+					},
+					{
+						"slug": "warmth-of-the-sun",
+						"label": "Warmth of the Sun (ongoing)",
+						"description": "<p>You and your allies in your light are free of fear, doubt, and extreme cold. <em>Reduced:</em> only one person protected. <em>Empowered:</em> also protects from necromantic and life-draining effects.</p>"
+					}
+				]
+			},
 			"statsNote": "Assign these scores to your stats: +2, +1, +1, +0, +0, -1",
 			"lore": [
 				{

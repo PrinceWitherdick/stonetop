@@ -28,23 +28,33 @@
 						"options": [
 							{
 								"slug": "enfys",
-								"label": "Enfys, your acolyte, beloved by birds"
+								"label": "Enfys, your acolyte, beloved by birds",
+								"subtitle": "Bird-wise, innocent, magical, well-informed",
+								"hp": 6, "armor": "0", "damage": "d4 (hand)"
 							},
 							{
 								"slug": "afon",
-								"label": "Afon, strange and Fae-touched"
+								"label": "Afon, strange and Fae-touched",
+								"subtitle": "Fae-wise, devious, magical, self-sufficient, stealthy",
+								"hp": 8, "armor": "2 (0 vs. iron)", "damage": "d6 (hand)"
 							},
 							{
 								"slug": "gwendyl",
-								"label": "Gwendyl, your mentor, a talented healer"
+								"label": "Gwendyl, your mentor, a talented healer",
+								"subtitle": "Herb-wise, gossipy, tireless, healer, magical",
+								"hp": 6, "armor": "0", "damage": "d6 (hand)"
 							},
 							{
 								"slug": "olwin",
-								"label": "Olwin, your anointed lover, seer of fates"
+								"label": "Olwin, your anointed lover, seer of fates",
+								"subtitle": "Fates-wise, beautiful, passionate, magical",
+								"hp": 6, "armor": "1 (shield)", "damage": "d6 (close, thrown)"
 							},
 							{
 								"slug": "seren",
-								"label": "Seren the Eldest, wise and hard as winter"
+								"label": "Seren the Eldest, wise and hard as winter",
+								"subtitle": "Exceptional, story-wise, insightful, frail, magical",
+								"hp": 3, "armor": "0", "damage": "d4 (close)"
 							}
 						]
 					}

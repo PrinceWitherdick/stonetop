@@ -13,6 +13,18 @@
 			</button>
 		</div>
 
+		{{#if stonetop.hasFollowers}}
+		<div class="stonetop-special-move-card">
+			<h3 class="stonetop-special-move-name">Order Followers</h3>
+			<p class="stonetop-special-move-summary">When you <strong><em>direct them to make a move and they do so</em></strong>, roll +1 instead of +STAT if any of their tags apply (or +2 if they're also <em>exceptional</em>). If no tags apply, roll +0. If any of their tags would get in the way, roll with disadvantage.</p>
+		</div>
+
+		<div class="stonetop-special-move-card">
+			<h3 class="stonetop-special-move-name">Strengthen Your Bond</h3>
+			<p class="stonetop-special-move-summary">When you <strong><em>pay their cost</em></strong> and you haven't done so recently, they hold +1 Loyalty (max 3). Spend Loyalty 1-for-1 to have them: overcome their fear; resist their instinct/tags/traits; or do something they don't want to (as long as it's not abhorrent or suicidal).</p>
+		</div>
+		{{/if}}
+
 	</div>
 
 </div>

@@ -18,6 +18,7 @@
 		"sheet": {
 			"tabs": {
 				"details": "Details",
+				"followers": "Followers",
 				"inventory": "Inventory",
 				"arcana": "Arcana",
 				"postDeath": "Post-Death",
@@ -100,6 +101,12 @@
 				"gear": "Gear",
 				"biography": "Biography"
 			}
+		},
+		"newCharacter": {
+			"buttonLabel": "New Character",
+			"confirmTitle": "Reset Character?",
+			"confirmContent": "This character already has a playbook. Choosing a new one will replace it and may reset character data. Are you sure?",
+			"pickerTitle": "Choose a Playbook"
 		},
 		"rollResults": {
 			"miss": "Miss",
