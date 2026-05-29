@@ -11,14 +11,14 @@
 			},
 			"partial": {
 				"label": "7-9",
-				"value": "the GM will tell you something interesting—it's on you to make it useful."
+				"value": "The GM will tell you something interesting—it's on you to make it useful."
 			},
 			"failure": {
 				"label": "6-",
-				"value": "Your maneuver fails and you suffer your enemy's attack. (Up to GM interpretation)"
+				"value": "The GM will tell you something interesting, but it comes with a complication or cost. (Up to GM interpretation)"
 			}
 		},
-		"rollType": "str"
+		"rollType": "int"
 	},
 	"_id": "tLTyWFFkpaiArJLS",
 	"_key": "!items!tLTyWFFkpaiArJLS"

@@ -4,6 +4,7 @@ export const PACKS = [
 	"basic-moves",
 	"special-moves",
 	"follower-moves",
+	"expedition-moves",
 	"homefront-moves",
 	"inventory-items",
 	"arcana",
