@@ -93,6 +93,13 @@
 			"system": "pbta"
 		},
 		{
+			"name": "expedition-moves",
+			"label": "Expedition Moves",
+			"path": "packs/expedition-moves",
+			"type": "Item",
+			"system": "pbta"
+		},
+		{
 			"name": "homefront-moves",
 			"label": "Homefront Moves",
 			"path": "packs/homefront-moves",

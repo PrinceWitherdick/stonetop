@@ -249,6 +249,118 @@ const SETTING_ENTRIES = [
 `,
 	},
 	{
+		id:    "travel-times",
+		title: "Travel Times",
+		content: `
+<p>Travel times assume no major obstacles or delays. Actual journey length depends on weather, hazards encountered, and the route taken.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+  <div>
+    <h3>Journeys</h3>
+    <p><em>From Stonetop via the Roads to…</em></p>
+    <table>
+      <thead><tr><th>Destination</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td>the Crossroads</td><td>3–4 hours</td></tr>
+        <tr><td>the Foothills</td><td>2 days</td></tr>
+        <tr><td>Titan Bones</td><td>2 days</td></tr>
+        <tr><td>Gordin's Delve</td><td>4 days</td></tr>
+        <tr><td>the Steplands</td><td>4 days</td></tr>
+        <tr><td>Barrier Pass</td><td>5 days</td></tr>
+        <tr><td>Marshedge</td><td>10 days</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h3>Dangerous Journeys</h3>
+    <p><em>From Stonetop to…</em></p>
+    <table>
+      <thead><tr><th>Destination</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td>the cave bears' den</td><td>3–4 hours</td></tr>
+        <tr><td>the Red Grove</td><td>4–6 hours</td></tr>
+        <tr><td>the Maw</td><td>5–7 hours</td></tr>
+      </tbody>
+    </table>
+    <p><em>From the Crossroads to…</em></p>
+    <table>
+      <thead><tr><th>Destination</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td>the Ruined Tower</td><td>5–6 hours</td></tr>
+      </tbody>
+    </table>
+    <p><em>From Marshedge to…</em></p>
+    <table>
+      <thead><tr><th>Destination</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td>the ruins on the Dread River</td><td>2 days</td></tr>
+        <tr><td>the northern Manmarch</td><td>4 days</td></tr>
+        <tr><td>Three-Coven Lake</td><td>4 days</td></tr>
+        <tr><td>Lygos</td><td>30 days</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+`,
+	},
+	{
+		id:    "gear-reference",
+		title: "Gear: Terms & Value",
+		content: `
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+  <div>
+    <h3>Gear Terms &amp; Tags</h3>
+    <dl>
+      <dt>◇ or ◇◇</dt><dd>Takes up one of these slots on your Inventory insert, and counts against your load.</dd>
+      <dt>area</dt><dd>Affects everything in an area.</dd>
+      <dt>[n] armor</dt><dd>When you take damage, subtract x; doesn't stack.</dd>
+      <dt>+1 armor</dt><dd>Increases your armor value by 1; stacks.</dd>
+      <dt>awkward</dt><dd>Unwieldy, requires space, gets stuck.</dd>
+      <dt>crude</dt><dd>Prone to break, wear out, stop working, etc.</dd>
+      <dt>cumbersome</dt><dd>You're noisy, slow, hot, and quick to tire while carrying it, even without a heavy load.</dd>
+      <dt>+[n] damage</dt><dd>Increase the damage you deal with that weapon by x.</dd>
+      <dt>dangerous</dt><dd>Causes trouble and collateral damage if you aren't careful.</dd>
+      <dt>fragile</dt><dd>Easy to break/ruin; pack it carefully.</dd>
+      <dt>forceful</dt><dd>Can knock someone around, maybe even off their feet.</dd>
+      <dt>hours</dt><dd>It lasts about an hour for each ○; mark ○ to track time used.</dd>
+      <dt>immobile</dt><dd>You can't really carry it on your person; you need a beast or vehicle to transport it.</dd>
+      <dt>messy</dt><dd>Does particularly destructive damage, ripping people and things apart.</dd>
+      <dt>[n] piercing</dt><dd>When you deal damage, ignore n points of the target's armor. For items with "x piercing," x = the steading's current Prosperity.</dd>
+      <dt>reload</dt><dd>After it's used, it takes time/effort to reset.</dd>
+      <dt>requires ___</dt><dd>If you don't meet the requirements, it works poorly or not at all.</dd>
+      <dt>slow</dt><dd>Takes minutes or more to use; unlikely to be useful in a fight.</dd>
+      <dt>thrown</dt><dd>You can Let Fly with it (at near range).</dd>
+      <dt>uses</dt><dd>Mark a ○ each time you use it; it's gone/useless when they're all marked.</dd>
+      <dt>warm</dt><dd>Will keep you warm in cold weather, but uncomfortable and exhausting in hot weather.</dd>
+    </dl>
+
+    <h3>Range Tags</h3>
+    <dl>
+      <dt>hand</dt><dd>Tight quarters; up close and personal.</dd>
+      <dt>close</dt><dd>Melee range, 1–2 steps away.</dd>
+      <dt>reach</dt><dd>3–4 steps away.</dd>
+      <dt>near</dt><dd>Up to 30 or so steps away.</dd>
+      <dt>far</dt><dd>Quite the distance; up to 100 steps, maybe more.</dd>
+    </dl>
+  </div>
+  <div>
+    <h3>Coin</h3>
+    <p>A <strong>purse of coins</strong> contains ~10 <strong>handfuls</strong> of coins. A handful is ~10 individual coins, so a purse has ~100 coins in it.</p>
+    <p>One <strong>silver coin</strong> is worth a purse of coppers (~100 copper coins). One <strong>gold coin</strong> is worth a purse of silvers (~100 silver coins).</p>
+
+    <h3>Relative Value</h3>
+    <p>Exchange rates are anything but standard, but…</p>
+    <p><strong>Value 0</strong> is generally worth: a purse of copper coins, a single silver coin, a favor, a few days of unskilled labor, a common mundane item.</p>
+    <p><strong>Value 1</strong> is generally worth: a handful of silver coins, a season (or so) of unskilled labor, a few days of skilled labor, a unit of trade goods (a sack of grain, a pouch of salt, a stack of pelts, etc.), a bit of finery (a richly embroidered cloak, a silk scarf, a silver comb, etc.).</p>
+    <p><strong>Value 2</strong> is generally worth: a purse of silver coins, a single gold coin, a Surplus, a year (or so) of unskilled labor, a season (or so) of skilled labor, a cartload of common trade goods, an item of luxury or status (a gold ring, an artful silver torc, a gemstone, etc.).</p>
+    <p><strong>Value 3</strong> is generally worth: a handful of gold coins, a year (or so) of skilled labor, a good trained horse or mule, a precious item (ruby ring, gold torc, etc.).</p>
+    <p><strong>Value 4</strong> is generally worth: a purse of gold coins, a dozen or so good horses, a "priceless" item (huge flawless gemstone, gold statuette, bejeweled scepter, etc.).</p>
+    <p><em>*Exotic trade goods are +1 Value.</em></p>
+  </div>
+</div>
+`,
+	},
+	{
 		id:    "world",
 		title: "The World's End",
 		content: `
