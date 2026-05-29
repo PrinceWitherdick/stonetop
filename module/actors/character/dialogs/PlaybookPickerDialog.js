@@ -1,3 +1,5 @@
+import { SettingOverviewDialog } from "../../../dialogs/SettingOverviewDialog.js";
+
 const PLAYBOOK_DESCRIPTIONS = {
 	"the-blessed":       { complexity: "Medium",       desc: "Nature priest. Speaks to spirits and beasts. Works subtle magics via sacred markings and materials." },
 	"the-fox":           { complexity: "Low",          desc: "Clever, quick, and skillful. Not above bending the rules or fighting dirty. Can be quite the charmer, too." },
@@ -56,6 +58,11 @@ export class PlaybookPickerDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		html.find(".stonetop-playbook-picker-setting-overview").on("click", () => {
+			const existing = Object.values(ui.windows).find(w => w.id === "stonetop-setting-overview");
+			if (existing?.rendered) existing.bringToTop();
+			else new SettingOverviewDialog().render(true);
+		});
 		html.find(".stonetop-playbook-picker-card")
 			.on("click", async ev => {
 				const { uuid } = ev.currentTarget.dataset;
