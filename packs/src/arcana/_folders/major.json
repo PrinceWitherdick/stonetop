@@ -6,7 +6,11 @@
   "sorting": "a",
   "sort": 0,
   "color": null,
-  "flags": {},
+  "flags": {
+    "core": {
+      "sheetClass": "stonetop.StonetopArcanumSheet"
+    }
+  },
   "_id": "yACtgKU1AzJXG2LG",
   "_key": "!folders!yACtgKU1AzJXG2LG"
 }
