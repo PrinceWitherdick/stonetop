@@ -38,6 +38,7 @@ import {
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {MoveResources} from "./MoveResources.js";
 import {getSetting} from "../../settings.js";
+import {promptRollMode} from "../../utils/rolls.js";
 import {StonetopFlags} from "./StonetopFlags.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
@@ -739,6 +740,7 @@ export class StonetopCharacter {
 				ownedId: instances[0]?._id ?? null,
 				rollType: e.rollType,
 				owned: instances.length > 0,
+				description: e.description,
 			};
 		}).sort((a, b) => {
 			if (a.name === "Aid") return -1;
@@ -853,7 +855,7 @@ export class StonetopCharacter {
 		const descriptionOnly = isDescription || (item.type === "npcMove" && !item.system.rollFormula);
 		const options = {};
 		if (!descriptionOnly && !getSetting("hideRollMode")) {
-			options.rollMode = this._actor.flags?.pbta?.rollMode ?? "def";
+			options.rollMode = await promptRollMode();
 		}
 		await item.roll({ ...this.applyDebilityRollMode(stat, options), descriptionOnly });
 		return true;

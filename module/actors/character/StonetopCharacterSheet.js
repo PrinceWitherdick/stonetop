@@ -14,6 +14,11 @@ const STAT_TOOLTIPS = {
 	cha: "Your ability to charm and connect with others, and to get a read on what others want. Roll +CHA to Persuade, or to Defy Danger socially.",
 };
 
+/** Canonical HTML for a move chat card. Both `name` and `description` are trusted module HTML. */
+function _buildMoveChatContent(name, description) {
+	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${name}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
+}
+
 export function createStonetopCharacterSheetClass(Base) {
 	return class StonetopCharacterSheet extends Base {
 		_stonetopCharacter;
@@ -27,7 +32,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["pbta", "stonetop", "sheet", "actor", "character"],
-				width: 1680,
+				width: 1400,
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				dragDrop: [{ dragSelector: ".items-list .item" }],
@@ -302,9 +307,64 @@ export function createStonetopCharacterSheetClass(Base) {
 				const speaker = ChatMessage.getSpeaker({ actor: this.actor });
 				speaker.alias = playbookName ? `${this.actor.name} ${playbookName}` : this.actor.name;
 				ChatMessage.create({
-					content: `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${name}</h3><div class="stonetop-chat-move-description">${description}</div></div>`,
+					content: _buildMoveChatContent(name, description),
 					speaker,
 				});
+			});
+
+			// Clicking the move name fires the same roll as the dice icon.
+			// For moves without a rollType (Aid), fetch the full doc and post to chat.
+			// Restricted to owners/GMs (isEditable) so observers cannot roll on others' actors.
+			html.find(".stonetop-basic-move-open").on("click", async ev => {
+				if (!this.isEditable) return;
+				const li       = ev.currentTarget.closest("li");
+				const rollable = li?.querySelector(".rollable");
+				if (rollable) { rollable.click(); return; }
+				const { compendiumId } = ev.currentTarget.dataset;
+				if (!compendiumId) return;
+				const doc = await this._stonetopCharacter._moveRepo.getBasicMoveDocument(compendiumId);
+				if (!doc) return;
+				const speaker = ChatMessage.getSpeaker({ actor: this.actor });
+				ChatMessage.create({
+					content: _buildMoveChatContent(doc.name, doc.system?.description ?? ""),
+					speaker,
+				});
+			});
+
+			// ── Basic move hover panel ────────────────────────────────────────────
+			// Runs for all users (not gated by isEditable).
+			// We use a custom fixed panel rather than data-tooltip because the move
+			// descriptions are rich HTML and Foundry's TooltipManager escapes content.
+
+			// One floating panel per sheet instance; clean up stale one on re-render.
+			const panelId = `stonetop-move-panel-${this.appId}`;
+			document.getElementById(panelId)?.remove();
+			const panel = document.createElement("div");
+			panel.id = panelId;
+			panel.className = "stonetop-basic-move-panel";
+			panel.hidden = true;
+			document.body.appendChild(panel);
+
+			Hooks.once("closeStonetopCharacterSheet", (closedSheet) => {
+				if (closedSheet.appId === this.appId) panel.remove();
+			});
+
+			html.find(".stonetop-move-item").on("mouseenter", ev => {
+				const li = ev.currentTarget;
+				const descEl = li.querySelector(".stonetop-basic-move-desc");
+				if (!descEl) return;
+				const nameText = li.querySelector(".stonetop-move-name")?.textContent?.trim() ?? "";
+				// Use DOM manipulation so nameText is never treated as HTML.
+				const nameEl = document.createElement("strong");
+				nameEl.className = "stonetop-basic-move-panel-name";
+				nameEl.textContent = nameText;
+				panel.replaceChildren(nameEl, ...Array.from(descEl.cloneNode(true).childNodes));
+				panel.hidden = false;
+				const rect = li.getBoundingClientRect();
+				panel.style.top   = `${Math.max(4, Math.min(rect.top, window.innerHeight - panel.offsetHeight - 8))}px`;
+				panel.style.right = `${window.innerWidth - rect.left + 8}px`;
+			}).on("mouseleave", () => {
+				panel.hidden = true;
 			});
 
 			if (!this.isEditable) return;
@@ -580,13 +640,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				}, { width: 540, height: 580, classes: ["dialog", "stonetop-individual-dialog"] }).render(true);
 			});
 			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
-			html.find(".stonetop-basic-move-open").on("click", async ev => {
-				const { compendiumId } = ev.currentTarget.dataset;
-				const pack = game.packs.get("stonetop.basic-moves");
-				if (!pack || !compendiumId) return;
-				const doc = await pack.getDocument(compendiumId);
-				if (doc) doc.sheet.render(true);
-			});
 			html.find(".stonetop-other-move-delete").on("click", async ev => {
 				const { itemId } = ev.currentTarget.dataset;
 				await this._stonetopCharacter.removeMove(itemId);

@@ -780,6 +780,38 @@ body,
 	cursor: pointer;
 }
 
+/* Basic move hover panel */
+.stonetop-basic-move-panel {
+	position: fixed;
+	width: 340px;
+	max-height: 70vh;
+	overflow-y: auto;
+	background: #1f1f1f;
+	color: #e8e0d0;
+	border: 1px solid #555;
+	border-radius: 5px;
+	padding: 10px 13px;
+	font-size: 0.8rem;
+	line-height: 1.5;
+	pointer-events: none;
+	z-index: 9999;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+}
+.stonetop-basic-move-panel-name {
+	display: block;
+	font-size: 0.9em;
+	font-weight: bold;
+	letter-spacing: 0.03em;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+	margin-bottom: 7px;
+	padding-bottom: 5px;
+}
+.stonetop-basic-move-panel p  { margin: 0 0 5px; }
+.stonetop-basic-move-panel ul { margin: 0 0 5px; padding-left: 16px; }
+.stonetop-basic-move-panel li { margin: 2px 0; }
+.stonetop-basic-move-panel strong { font-weight: bold; }
+.stonetop-basic-move-panel em { font-style: italic; }
+
 /* -- Moves tab -------------------------------------------- */
 
 .stonetop-moves-note {
