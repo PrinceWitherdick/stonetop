@@ -8,7 +8,7 @@ const POST_DEATH_FIELDS = ["system.playbook", "system.rollType", "system.descrip
 export class FoundryMoveRepository {
 	constructor() {
 		this._playbookStore  = new FoundryPackStore("stonetop.playbook-moves",  PLAYBOOK_FIELDS);
-		this._basicStore     = new FoundryPackStore("stonetop.basic-moves",      ["system.rollType"]);
+		this._basicStore     = new FoundryPackStore("stonetop.basic-moves",      ["system.rollType", "system.description"]);
 		this._postDeathStore = new FoundryPackStore("stonetop.post-death-moves", POST_DEATH_FIELDS);
 		this._playbookCache  = new Map();
 		this._postDeathCache = new Map();
