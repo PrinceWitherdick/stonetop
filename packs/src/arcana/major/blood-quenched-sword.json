@@ -29,6 +29,9 @@
         "move": null,
         "options": []
       }
+    },
+    "core": {
+      "sheetClass": "stonetop.StonetopArcanumSheet"
     }
   },
   "folder": "yACtgKU1AzJXG2LG",

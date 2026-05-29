@@ -55,6 +55,9 @@
         },
         "options": []
       }
+    },
+    "core": {
+      "sheetClass": "stonetop.StonetopArcanumSheet"
     }
   },
   "folder": "xO5Ez5DMBTBBxwOR"

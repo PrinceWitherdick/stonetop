@@ -1,6 +1,7 @@
 import { registerSettings } from "./module/settings.js";
 import { createStonetopActorClass } from "./module/actors/StonetopActor.js";
 import { createStonetopItemClass } from "./module/item/StonetopItem.js";
+import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSheet.js";
 import { createStonetopCharacterSheetClass } from "./module/actors/character/StonetopCharacterSheet.js";
 import { onPbtaSheetConfig } from "./module/hooks/PbtaSheetConfig.js";
 import { onReady } from "./module/hooks/Ready.js";
@@ -62,6 +63,13 @@ Hooks.once("init", () => {
 		label: "Stonetop Character Sheet",
 	});
 
+	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
+	Items.registerSheet("stonetop", StonetopArcanumSheet, {
+		types: ["move"],
+		makeDefault: false,
+		label: "Stonetop Arcanum",
+	});
+
 	// Steading sheet is registered in the ready hook (Ready.js) because PBTA
 	// registers PbtaActorOtherSheet for unknown types during pbtaSheetConfig
 	// (after init), which would override an init-time registration.
@@ -82,6 +90,7 @@ Hooks.once("init", () => {
 	});
 
 	loadTemplates({
+		"stonetop.arcanum-sheet":    "modules/stonetop/templates/item/arcanum-sheet.hbs",
 		"stonetop.actor-header":     "modules/stonetop/templates/actor/partials/actor-header.hbs",
 		"stonetop.tab-details":      "modules/stonetop/templates/actor/partials/tab-details.hbs",
 		"stonetop.tab-moves":        "modules/stonetop/templates/actor/partials/tab-moves.hbs",
