@@ -320,6 +320,8 @@ body,
 	-webkit-appearance: none !important;
 	width: 14px;
 	height: 14px;
+	aspect-ratio: 1;
+	flex-shrink: 0;
 	border-radius: 50% !important;
 	border: 1.5px solid #555 !important;
 	background: transparent !important;
@@ -1211,7 +1213,11 @@ body,
 	font-weight: normal;
 }
 
-.stonetop-inv-small { cursor: pointer; }
+.stonetop-inv-item-toggle {
+	display: contents; /* no box — children slot directly into parent flex, label click still activates input */
+}
+
+.stonetop-inv-item-toggle .stonetop-inv-label { cursor: pointer; }
 
 .stonetop-inv-separator {
 	border: none;
@@ -1793,6 +1799,10 @@ body,
 /* -- Edit mode slide toggle --------------------------------------- */
 
 .stonetop-open-steading--unset { opacity: 0.4; }
+
+/* Hidden until edit mode is active (class toggled by _render) */
+.stonetop.actor .window-header .stonetop-new-character { display: none; }
+.stonetop.actor.stonetop-edit-mode .window-header .stonetop-new-character { display: flex; }
 
 .stonetop-edit-toggle {
 	--toggle-height: 20px;
@@ -2962,4 +2972,1194 @@ body,
 .steading-roll-result.stonetop-roll-success { color: #2d7a2d; }
 .steading-roll-result.stonetop-roll-partial  { color: #7a6a00; }
 .steading-roll-result.stonetop-roll-failure  { color: #8b0000; }
+
+/* -- Playbook Picker Dialog ------------------------------------------- */
+
+.stonetop-playbook-picker .window-content {
+	padding: 12px;
+	background: var(--stonetop-bg);
+}
+
+.stonetop-playbook-picker-body {
+	padding: 4px;
+}
+
+.stonetop-playbook-picker-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 12px;
+}
+
+.stonetop-playbook-picker-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 16px 8px 12px;
+	background: white;
+	border: 2px solid transparent;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+	box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+.stonetop-playbook-picker-card:hover {
+	border-color: slategrey;
+	box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+	transform: translateY(-2px);
+}
+
+.stonetop-playbook-picker-card:active {
+	transform: translateY(0);
+	box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+.stonetop-playbook-picker-card-icon {
+	width: 72px;
+	height: 72px;
+	object-fit: contain;
+}
+
+.stonetop-playbook-picker-card-name {
+	font-family: var(--font-primary);
+	font-size: 0.85em;
+	font-weight: 600;
+	text-align: center;
+	color: #333;
+	line-height: 1.2;
+}
+
+/* Per-playbook accent colors on hover border */
+.stonetop-playbook-picker-card--the-blessed:hover      { border-color: var(--color-the-blessed); }
+.stonetop-playbook-picker-card--the-fox:hover           { border-color: var(--color-the-fox); }
+.stonetop-playbook-picker-card--the-heavy:hover         { border-color: var(--color-the-heavy); }
+.stonetop-playbook-picker-card--the-judge:hover         { border-color: var(--color-the-judge); }
+.stonetop-playbook-picker-card--the-lightbearer:hover   { border-color: var(--color-the-lightbearer); }
+.stonetop-playbook-picker-card--the-marshal:hover       { border-color: var(--color-the-marshal); }
+.stonetop-playbook-picker-card--the-ranger:hover        { border-color: var(--color-the-ranger); }
+.stonetop-playbook-picker-card--the-seeker:hover        { border-color: var(--color-the-seeker); }
+.stonetop-playbook-picker-card--the-would-be-hero:hover { border-color: var(--color-the-would-be-hero); }
+
+/* -- Character Onboarding Dialog ------------------------------------------ */
+
+.stonetop-onboarding .window-content {
+	padding: 0;
+	background: var(--stonetop-bg);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden; /* step area scrolls internally; footer/header stay pinned */
+}
+
+.stonetop-onboarding-body {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0; /* lets flex children shrink below their content height */
+}
+
+/* Header */
+.stonetop-onboarding-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 14px 20px 12px;
+	background: slategrey;
+	color: white;
+}
+
+.stonetop-onboarding-playbook-icon {
+	width: 40px;
+	height: 40px;
+	object-fit: contain;
+	flex-shrink: 0;
+	border-radius: 4px;
+}
+
+.stonetop-onboarding-playbook-name {
+	margin: 0;
+	font-size: 1.2em;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+
+/* Progress dots */
+.stonetop-onboarding-progress {
+	display: flex;
+	justify-content: center;
+	gap: 8px;
+	padding: 12px 20px 4px;
+}
+
+.stonetop-onboarding-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #ccc;
+	transition: background 0.2s;
+}
+
+.stonetop-onboarding-dot.is-done    { background: slategrey; opacity: 0.5; }
+.stonetop-onboarding-dot.is-active  { background: slategrey; transform: scale(1.35); }
+
+/* Step content — scrolls within the fixed window; header/footer stay pinned */
+.stonetop-onboarding-step {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 12px 20px 8px;
+}
+
+.stonetop-onboarding-step-title {
+	margin: 0 0 2px;
+	font-size: 1em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: slategrey;
+}
+
+.stonetop-onboarding-step-hint {
+	margin: 0 0 10px;
+	font-size: 0.8em;
+	color: var(--color-text-dark-secondary, #666);
+	font-style: italic;
+}
+
+/* ── Background & Instinct cards ─────────────────────────────────── */
+
+.stonetop-onboarding-cards {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.stonetop-onboarding-card {
+	display: block;
+	padding: 8px 10px;
+	background: white;
+	border: 2px solid #ddd;
+	border-radius: 5px;
+	cursor: pointer;
+	transition: border-color 0.15s;
+}
+
+.stonetop-onboarding-card:hover  { border-color: slategrey; }
+.stonetop-onboarding-card.is-selected { border-color: slategrey; background: hsl(210 15% 96%); }
+
+.stonetop-onboarding-card-header {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+}
+
+.stonetop-onboarding-card-header input[type="radio"] {
+	flex-shrink: 0;
+	margin: 0;
+	accent-color: slategrey;
+}
+
+.stonetop-onboarding-card-title {
+	font-size: 0.9em;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.stonetop-onboarding-card-inline-desc {
+	font-size: 0.85em;
+	color: var(--color-text-dark-secondary, #555);
+}
+
+.stonetop-onboarding-card-desc {
+	margin-top: 4px;
+	font-size: 0.82em;
+	line-height: 1.45;
+	color: #444;
+}
+
+.stonetop-onboarding-card-desc p { margin: 3px 0; }
+
+/* Compact cards (instinct) */
+.stonetop-onboarding-cards--compact { gap: 3px; }
+.stonetop-onboarding-card--compact  { padding: 5px 10px; }
+
+/* Custom instinct input */
+.stonetop-onboarding-custom-label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+	font-size: 0.85em;
+}
+
+.stonetop-onboarding-custom-label span { white-space: nowrap; color: #666; }
+
+.stonetop-onboarding-custom-label input[type="text"],
+.onboard-instinct-custom {
+	flex: 1;
+	font-size: 0.9em;
+	padding: 3px 7px;
+	border: 1px solid #ccc;
+	border-radius: 3px;
+}
+
+/* ── Appearance ──────────────────────────────────────────────────── */
+
+.stonetop-onboarding-appearance {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.stonetop-onboarding-appearance-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 6px 0;
+	border-bottom: 1px solid #e5e5e5;
+}
+
+.stonetop-onboarding-appearance-row:last-child { border-bottom: none; }
+
+.stonetop-onboarding-appearance-option {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 3px 10px;
+	background: white;
+	border: 1.5px solid #ccc;
+	border-radius: 20px;
+	cursor: pointer;
+	font-size: 0.85em;
+	transition: border-color 0.12s, background 0.12s;
+}
+
+.stonetop-onboarding-appearance-option:hover     { border-color: slategrey; }
+.stonetop-onboarding-appearance-option.is-selected {
+	border-color: slategrey;
+	background: hsl(210 15% 92%);
+	font-weight: 600;
+}
+
+.stonetop-onboarding-appearance-option input[type="radio"] {
+	display: none; /* pill acts as the selector */
+}
+
+/* ── Origin & Name ───────────────────────────────────────────────── */
+
+.stonetop-onboarding-origin-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 14px;
+}
+
+.stonetop-onboarding-origin-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px 12px;
+	background: white;
+	border: 1.5px solid #ccc;
+	border-radius: 20px;
+	cursor: pointer;
+	font-size: 0.88em;
+	transition: border-color 0.12s, background 0.12s;
+}
+
+.stonetop-onboarding-origin-label:hover    { border-color: slategrey; }
+.stonetop-onboarding-origin-label.is-selected {
+	border-color: slategrey;
+	background: hsl(210 15% 92%);
+	font-weight: 600;
+}
+
+.stonetop-onboarding-origin-label input[type="radio"] {
+	display: none;
+}
+
+/* Name input row */
+.stonetop-onboarding-name-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 12px;
+}
+
+.stonetop-onboarding-name-label {
+	font-size: 0.88em;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.onboard-name-input {
+	flex: 1;
+	font-size: 1em;
+	padding: 5px 10px;
+	border: 1.5px solid #ccc;
+	border-radius: 4px;
+}
+
+.onboard-name-input:focus { outline: none; border-color: slategrey; }
+
+/* Name suggestions */
+.stonetop-onboarding-names-section {
+	display: none;
+	margin-top: 2px;
+}
+
+.stonetop-onboarding-names-section.is-visible { display: block; }
+
+.stonetop-onboarding-names-label {
+	font-size: 0.78em;
+	color: #777;
+	margin: 0 0 5px;
+	font-style: italic;
+}
+
+.stonetop-onboarding-name-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+}
+
+.onboard-name-chip {
+	padding: 2px 9px;
+	font-size: 0.8em;
+	background: white;
+	border: 1px solid #ccc;
+	border-radius: 20px;
+	cursor: pointer;
+	transition: border-color 0.12s, background 0.12s;
+}
+
+.onboard-name-chip:hover {
+	border-color: slategrey;
+	background: hsl(210 15% 94%);
+}
+
+/* ── Footer ─────────────────────────────────────────────────────── */
+
+.stonetop-onboarding-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 20px 14px;
+	border-top: 1px solid #ddd;
+	gap: 8px;
+	flex-shrink: 0; /* never shrink — always visible at bottom */
+}
+
+.stonetop-onboarding-footer-left,
+.stonetop-onboarding-footer-right { min-width: 120px; }
+
+.stonetop-onboarding-footer-right {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 6px;
+}
+
+.stonetop-onboarding-step-counter {
+	font-size: 0.8em;
+	color: #888;
+	flex-shrink: 0;
+}
+
+.stonetop-onboarding-back,
+.stonetop-onboarding-next,
+.stonetop-onboarding-confirm {
+	padding: 5px 16px;
+	font-size: 0.88em;
+	font-family: var(--font-primary);
+	border-radius: 4px;
+	cursor: pointer;
+	border: 1.5px solid slategrey;
+	background: transparent;
+	color: slategrey;
+	transition: background 0.15s;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.stonetop-onboarding-back:hover,
+.stonetop-onboarding-next:hover  { background: hsl(210 10% 92%); }
+
+.stonetop-onboarding-confirm {
+	background: slategrey;
+	color: white;
+	border-color: slategrey;
+}
+
+.stonetop-onboarding-confirm:hover { background: hsl(210 13% 47%); }
+
+.stonetop-onboarding-skip {
+	padding: 5px 16px;
+	font-size: 0.88em;
+	font-family: var(--font-primary);
+	border-radius: 4px;
+	cursor: pointer;
+	border: 1.5px solid #c0392b;
+	background: transparent;
+	color: #c0392b;
+	transition: background 0.15s;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.stonetop-onboarding-skip:hover { background: rgba(192,57,43,0.08); }
+
+.stonetop-onboarding-next:disabled,
+.stonetop-onboarding-confirm:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+/* Bold-word hover hint */
+/* Stats step */
+.stonetop-onboarding-stats-pool {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 12px;
+	margin-bottom: 14px;
+	background: rgba(100,116,139,0.08);
+	border-radius: 6px;
+}
+
+.stonetop-onboarding-stats-pool-label {
+	width: 100%;
+	text-align: center;
+	font-size: 0.72em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	color: slategrey;
+}
+
+.stonetop-onboarding-stats-chip {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 34px;
+	padding: 3px 8px;
+	border-radius: 999px;
+	background: slategrey;
+	color: #fff;
+	font-size: 0.82em;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+}
+
+.stonetop-onboarding-stats-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 10px;
+	margin-bottom: 6px;
+}
+
+.stonetop-onboarding-stat-box {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 8px 6px 6px;
+	border: 2px solid rgba(100,116,139,0.2);
+	border-radius: 8px;
+	background: #fff;
+	transition: border-color 0.15s;
+}
+
+.stonetop-onboarding-stat-box.is-filled {
+	border-color: slategrey;
+}
+
+.stonetop-onboarding-stat-abbr {
+	font-size: 0.7em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: slategrey;
+}
+
+.stonetop-onboarding-stat-select {
+	width: 100%;
+	text-align: center;
+	font-size: 1.05em;
+	font-weight: 700;
+	padding: 3px 2px;
+	border: 1px solid rgba(100,116,139,0.3);
+	border-radius: 4px;
+	background: transparent;
+	cursor: pointer;
+}
+
+.stonetop-onboarding-stat-name {
+	font-size: 0.62em;
+	color: #888;
+	text-align: center;
+}
+
+.stonetop-onboarding-stats-error {
+	margin: 2px 0 0;
+	color: #c0392b;
+	font-size: 0.8em;
+	text-align: center;
+	font-style: italic;
+}
+
+/* Possession + moves step counters */
+.stonetop-onboarding-move-counter,
+.stonetop-onboarding-possession-counter {
+	margin: -6px 0 10px;
+	text-align: center;
+	font-size: 0.82em;
+	color: slategrey;
+}
+
+.stonetop-onboarding-move-count,
+.stonetop-onboarding-possession-count {
+	font-weight: 700;
+	font-size: 1.1em;
+}
+
+.stonetop-onboarding-card--possession.is-preselected {
+	background: rgba(100,116,139,0.06);
+	border-color: rgba(100,116,139,0.3);
+}
+
+.stonetop-onboarding-possession-badge {
+	margin-left: auto;
+	padding: 2px 7px;
+	font-size: 0.68em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: slategrey;
+	border: 1px solid rgba(100,116,139,0.5);
+	border-radius: 3px;
+	white-space: nowrap;
+}
+
+/* Insert steps — Invocations, Initiates, Crew, Animal Companion */
+.stonetop-onboarding-insert-section {
+	margin-bottom: 14px;
+}
+
+.stonetop-onboarding-insert-section-label {
+	margin: 0 0 6px;
+	font-size: 0.75em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	color: slategrey;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.stonetop-onboarding-insert-counter {
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+	color: #888;
+}
+
+.stonetop-onboarding-tag-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.stonetop-onboarding-tag-option {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px 10px;
+	border: 1.5px solid rgba(100,116,139,0.3);
+	border-radius: 999px;
+	font-size: 0.82em;
+	cursor: pointer;
+	user-select: none;
+	transition: border-color 0.12s, background 0.12s;
+	background: #fff;
+}
+
+.stonetop-onboarding-tag-option input[type="checkbox"],
+.stonetop-onboarding-tag-option input[type="radio"] { display: none; }
+
+.stonetop-onboarding-tag-option.is-selected {
+	border-color: slategrey;
+	background: rgba(100,116,139,0.1);
+	font-weight: 600;
+}
+
+.stonetop-onboarding-tag-option:has(input:disabled) {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+/* Animal Companion type cards — slightly larger than tags */
+.stonetop-onboarding-tag-grid--types { gap: 8px; }
+
+.stonetop-onboarding-tag-option--type {
+	flex-direction: column;
+	align-items: flex-start;
+	padding: 8px 12px;
+	border-radius: 8px;
+	min-width: 110px;
+}
+
+.stonetop-onboarding-ac-type-name  { font-weight: 700; font-size: 0.9em; }
+.stonetop-onboarding-ac-type-stats { font-size: 0.72em; color: slategrey; margin-top: 2px; }
+.stonetop-onboarding-ac-type-examples { font-size: 0.68em; color: #aaa; font-style: italic; }
+
+.stonetop-onboarding-lookup {
+	cursor: help;
+	border-bottom: 1px dotted currentColor;
+}
+
+/* Word tooltip */
+.stonetop-word-tooltip {
+	position: fixed;
+	z-index: 10000;
+	max-width: 300px;
+	background: #fff;
+	border: 1px solid #bbb;
+	border-radius: 6px;
+	padding: 10px 14px;
+	box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+	font-size: 0.82em;
+	line-height: 1.5;
+	pointer-events: none;
+}
+
+.stonetop-word-tooltip-name {
+	margin: 0 0 6px;
+	padding-bottom: 5px;
+	border-bottom: 1px solid #eee;
+	font-weight: 700;
+	font-size: 0.9em;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: slategrey;
+}
+
+.stonetop-word-tooltip-desc p { margin: 2px 0; }
+
+/* ── Followers tab ─────────────────────────────────────────────────── */
+
+.stonetop-followers {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start; /* cards shrink to content width */
+	gap: 12px;
+	padding: 12px 14px;
+}
+
+.stonetop-follower-card {
+	border: 1px solid #ddd;
+	border-radius: 6px;
+	overflow: hidden;
+	background: #fff;
+	min-width: 280px;
+	max-width: 560px;
+	width: 100%; /* fill available but won't exceed max-width */
+}
+
+/* Crew card is wider due to inventory/individuals */
+.stonetop-follower-card--crew {
+	max-width: 660px;
+}
+
+.stonetop-follower-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 10px 12px 8px;
+	background: hsl(210 12% 94%);
+	border-bottom: 1px solid #ddd;
+}
+
+.stonetop-follower-title {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.stonetop-follower-name {
+	font-weight: 700;
+	font-size: 0.95em;
+}
+
+.stonetop-follower-type {
+	font-size: 0.75em;
+	color: slategrey;
+	font-style: italic;
+}
+
+.stonetop-follower-name-input {
+	font-weight: 700;
+	font-size: 0.95em;
+	border: none;
+	border-bottom: 1px solid rgba(255,255,255,0.5);
+	background: transparent;
+	color: inherit;
+	padding: 0 2px;
+	width: 180px;
+}
+
+.stonetop-follower-stats {
+	display: flex;
+	gap: 12px;
+	flex-shrink: 0;
+	font-size: 0.78em;
+	color: #444;
+}
+
+.stonetop-follower-stat strong {
+	color: slategrey;
+	text-transform: uppercase;
+	font-size: 0.85em;
+	letter-spacing: 0.04em;
+	margin-right: 2px;
+}
+
+.stonetop-follower-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 6px 12px;
+	border-bottom: 1px solid #f0f0f0;
+	font-size: 0.85em;
+}
+
+.stonetop-follower-row:last-child { border-bottom: none; }
+
+.stonetop-follower-row-label {
+	flex-shrink: 0;
+	font-weight: 700;
+	font-size: 0.8em;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: slategrey;
+	min-width: 56px;
+	padding-top: 1px;
+}
+
+.stonetop-follower-row-value { color: #333; }
+
+.stonetop-follower-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.stonetop-follower-tag {
+	display: inline-block;
+	padding: 1px 8px;
+	background: hsl(210 12% 92%);
+	border: 1px solid rgba(100,116,139,0.3);
+	border-radius: 999px;
+	font-size: 0.82em;
+	color: #333;
+}
+
+.stonetop-follower-tag--trait {
+	background: hsl(40 30% 92%);
+	border-color: rgba(160,130,80,0.3);
+}
+
+/* Loyalty pips */
+.stonetop-follower-loyalty-row { gap: 10px; }
+
+.stonetop-loyalty-pips {
+	display: flex;
+	gap: 5px;
+}
+
+.stonetop-crew-loyalty-pip {
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	border: 1.5px solid slategrey;
+	background: transparent;
+	cursor: pointer;
+	padding: 0;
+	transition: background 0.12s;
+	flex-shrink: 0;
+}
+
+.stonetop-crew-loyalty-pip.is-filled { background: slategrey; }
+
+.stonetop-follower-loyalty { color: #999; letter-spacing: 2px; }
+
+/* Crew sections (inventory, individuals, rules) */
+.stonetop-follower-section {
+	padding: 8px 12px;
+	border-top: 1px solid #eee;
+}
+
+.stonetop-follower-section-heading {
+	margin: 0 0 6px;
+	font-size: 0.75em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	color: slategrey;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.stonetop-follower-section-subtitle {
+	font-size: 0.9em;
+	font-weight: normal;
+	text-transform: none;
+	letter-spacing: 0;
+	color: #666;
+	font-style: italic;
+}
+
+/* Inventory */
+.stonetop-crew-gear-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-crew-gear-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.84em;
+	font-weight: normal;
+	cursor: pointer;
+}
+
+.stonetop-crew-gear-item.is-checked { text-decoration: none; opacity: 1; }
+
+.stonetop-crew-gear-pips {
+	display: flex;
+	gap: 3px;
+	flex-shrink: 0;
+}
+
+/* Circle pip — used for gear pips and supplies */
+.vtt .window-app input[type=checkbox].stonetop-crew-pip {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	flex: none !important;
+	width: 12px !important;
+	height: 12px !important;
+	border: 1.5px solid currentColor;
+	border-radius: 50%;
+	background: transparent;
+	margin: 0;
+	padding: 0;
+	cursor: pointer;
+}
+.vtt .window-app input[type=checkbox].stonetop-crew-pip:checked {
+	background: currentColor;
+}
+.vtt .window-app input[type=checkbox].stonetop-crew-pip:disabled {
+	opacity: 1;
+	cursor: default;
+}
+
+.stonetop-crew-supplies-section {
+	margin-top: 4px;
+}
+
+.stonetop-crew-supplies-grid {
+	display: grid;
+	grid-template-columns: repeat(3, auto);
+	justify-content: start;
+	gap: 5px 12px;
+}
+
+.stonetop-crew-supply-set {
+	display: flex;
+	gap: 3px;
+	align-items: center;
+}
+
+/* kept for backward-compat with any old saves */
+.stonetop-crew-supplies-input {
+	width: 52px;
+	text-align: center;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	padding: 2px 4px;
+	font-size: 0.95em;
+}
+
+/* Individuals */
+.stonetop-crew-individuals {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.stonetop-crew-individual {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px 8px;
+	background: rgba(0,0,0,0.03);
+	border: 1px solid #e8e8e8;
+	border-radius: 4px;
+	font-size: 0.85em;
+}
+
+.stonetop-crew-individual-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.stonetop-crew-individual-name {
+	font-weight: 700;
+	font-size: 1em;
+	flex: 1 1 auto;
+}
+
+.stonetop-crew-individual-header .stonetop-crew-delete-individual {
+	flex: none;
+	width: 20px !important;
+	height: 20px !important;
+	padding: 0 !important;
+	justify-content: center;
+}
+
+.stonetop-crew-individual-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+}
+
+.stonetop-crew-individual-row-label {
+	font-size: 0.8em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: #666;
+	white-space: nowrap;
+	padding-top: 2px;
+	min-width: 36px;
+}
+
+.stonetop-follower-empty-note {
+	font-size: 0.82em;
+	color: #999;
+	font-style: italic;
+	margin: 0;
+}
+
+/* Inline action buttons */
+.stonetop-inline-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	border: 1px solid slategrey;
+	border-radius: 3px;
+	background: transparent;
+	color: slategrey;
+	font-size: 0.75em;
+	cursor: pointer;
+	font-family: var(--font-primary);
+}
+
+.stonetop-inline-btn:hover { background: hsl(210 10% 92%); }
+
+.stonetop-inline-btn--danger { border-color: #c0392b; color: #c0392b; }
+.stonetop-inline-btn--danger:hover { background: rgba(192,57,43,0.08); }
+
+.stonetop-create-individual-btn { margin-top: 6px; }
+
+/* Follower rules (collapsible <details>) */
+.stonetop-follower-rules { display: flex; flex-direction: column; gap: 4px; }
+
+.stonetop-follower-rule {
+	border: 1px solid #eee;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.stonetop-follower-rule summary {
+	padding: 5px 10px;
+	font-size: 0.82em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: slategrey;
+	cursor: pointer;
+	user-select: none;
+	background: hsl(210 10% 97%);
+	list-style: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.stonetop-follower-rule summary::before {
+	content: "▶";
+	font-size: 0.65em;
+	transition: transform 0.15s;
+}
+
+.stonetop-follower-rule[open] summary::before { transform: rotate(90deg); }
+
+.stonetop-follower-rule p,
+.stonetop-follower-rule ul {
+	margin: 4px 10px 6px;
+	font-size: 0.82em;
+	line-height: 1.4;
+}
+
+.stonetop-follower-rule ul { padding-left: 16px; }
+
+/* Individual creation dialog */
+.stonetop-individual-form .form-group { margin-bottom: 10px; }
+
+.stonetop-individual-traits-group label { display: block; margin-bottom: 4px; }
+
+.stonetop-individual-traits-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	max-height: 340px;
+	overflow-y: auto;
+	padding: 4px;
+	border: 1px solid #eee;
+	border-radius: 4px;
+}
+
+/* Scoped dialog overrides */
+
+/* Label above input instead of beside it */
+.stonetop-individual-dialog .form-group {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+}
+
+.stonetop-individual-dialog .form-group > label {
+	min-width: unset;
+	font-weight: 600;
+}
+
+.stonetop-individual-dialog .form-group input[type="text"],
+.stonetop-individual-dialog .form-group select {
+	width: 100%;
+	flex: none;
+}
+
+/* Keep Add/Cancel at natural width, styled like onboarding buttons */
+.stonetop-individual-dialog .dialog-buttons {
+	justify-content: flex-end;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 20px 14px;
+}
+
+.stonetop-individual-dialog .dialog-buttons button {
+	flex: 0 0 auto;
+	width: auto;
+	height: auto;
+	padding: 5px 16px;
+	line-height: 1.4;
+	font-size: 0.88em;
+	font-family: var(--font-primary);
+	border-radius: 4px;
+	cursor: pointer;
+	border: 1.5px solid slategrey;
+	background: transparent;
+	color: slategrey;
+	transition: background 0.15s;
+	white-space: nowrap;
+}
+
+.stonetop-individual-dialog .dialog-buttons [data-button="add"] {
+	background: slategrey;
+	color: white;
+}
+
+.stonetop-individual-dialog .dialog-buttons [data-button="add"]:hover {
+	background: hsl(210 13% 47%);
+}
+
+.stonetop-individual-dialog .dialog-buttons [data-button="cancel"]:hover {
+	background: hsl(210 10% 92%);
+}
+
+.stonetop-individual-trait-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	border: 1px solid #ccc;
+	border-radius: 999px;
+	font-size: 0.8em;
+	cursor: pointer;
+}
+
+.stonetop-individual-trait-chip:has(input:checked) {
+	border-color: slategrey;
+	background: hsl(210 12% 92%);
+	font-weight: 600;
+}
+
+/* Trait chip wrapper */
+.stonetop-trait-chip-group {
+	display: inline-flex;
+	align-items: center;
+}
+
+/* Selected chip with blanks takes the full row */
+.stonetop-trait-chip-group.is-selected {
+	flex: 1 0 100%;
+}
+
+.stonetop-trait-chip-group.is-selected .stonetop-individual-trait-chip {
+	display: flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	gap: 4px;
+	width: 100%;
+	border-radius: 6px;
+}
+
+.stonetop-trait-blank {
+	padding: 0 2px;
+	color: #999;
+}
+
+/* Inline fill input, select, and custom text — inside expanded chip */
+.stonetop-trait-fill,
+.stonetop-trait-select,
+.stonetop-trait-custom {
+	display: none;
+	font-size: 0.82em;
+	padding: 1px 5px;
+	border: 1px solid slategrey;
+	border-radius: 3px;
+	background: white;
+	line-height: 1.4;
+}
+
+.stonetop-trait-fill,
+.stonetop-trait-custom {
+	flex: 1;
+	min-width: 60px;
+	max-width: 160px;
+}
+
+.stonetop-trait-select { max-width: 180px; }
+
 

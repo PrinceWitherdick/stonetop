@@ -19,7 +19,10 @@ export class PlaybookMoveEntry {
 		this.requiresPlaybook = req?.playbook ?? null;
 		this.minLevel = req?.level ?? null;
 		this.requires = requiresMoves[0] ?? null;
-		this.requiresLabel = requiresMoves.length > 0 ? requiresMoves.join(", ") : null;
+		const requiresParts = [];
+		if (requiresMoves.length > 0) requiresParts.push(requiresMoves.join(", "));
+		if (this.minLevel)            requiresParts.push(`level ${this.minLevel}+`);
+		this.requiresLabel = requiresParts.length > 0 ? requiresParts.join("; ") : null;
 		this.repeatable = repeatMax > 1;
 		this.locked = !this.isStarting && !!(
 			requiresMoves.some(m => !ownedAllByName.has(m)) ||

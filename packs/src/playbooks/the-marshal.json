@@ -214,6 +214,47 @@
 					}
 				]
 			},
+			"crew": {
+				"additionalTagCount": 2,
+				"backgroundTags": {
+					"scion":    "respected",
+					"penitent": "warriors",
+					"luminary": "devoted"
+				},
+				"availableTags": [
+					"archers", "athletic", "brave", "cunning", "devoted",
+					"hardy", "intimidating", "observant", "patient",
+					"respected", "stealthy", "warriors"
+				],
+				"instincts": [
+					"To bicker, infight, and hold grudges",
+					"To hew to tradition and superstition",
+					"To indulge their baser instincts",
+					"To lord over others",
+					"To take needless risks",
+					"To take things too far"
+				],
+				"costs": [
+					"Merry-making, as a group",
+					"Public recognition and respect, honor",
+					"Risks taken, by you, to help them",
+					"Victories won against worthy foes",
+					"Wealth gained for themselves or Stonetop"
+				],
+				"inventory": [
+					{ "slug": "hatchet",     "label": "<strong>Hatchet</strong>, iron (<em>hand, thrown</em>, x piercing)",                       "weight": 1 },
+					{ "slug": "spear",       "label": "<strong>Spear</strong>, iron (<em>close</em>, x piercing)",                                "weight": 1 },
+					{ "slug": "bow-arrows",  "label": "<strong>Bow &amp; iron arrows</strong> (<em>near</em>, x piercing, ○ low ammo, ○ all out)", "weight": 1 },
+					{ "slug": "shield",      "label": "<strong>Shield</strong> (+1 armor, +1 Readiness on 7+ to Defend)",                         "weight": 2 },
+					{ "slug": "thick-hides", "label": "<strong>Thick hides</strong> (1 armor, <em>warm</em>)",                                    "weight": 2 },
+					{ "slug": "cloak",       "label": "<strong>Cloak</strong> (<em>warm</em>)",                                                   "weight": 1 }
+				],
+				"individualOptions": {
+					"names":  ["Aled", "Culhwch", "Eira", "Gerat", "Glaw", "Harri", "Lowri", "Mervyn", "Nesta"],
+					"tags":   ["animal-lover", "big", "bully", "cynical", "drunkard", "eager", "gambler", "greedy", "grumpy", "gullible", "hearthrob", "honest", "kind", "little", "naive", "old", "popular", "proud", "reckless", "rookie", "shameless", "sharp-eyed", "short-tempered"],
+					"traits": ["__'s kid/sibling/parent/cousin/__", "bald", "crush on __", "grudge against __", "hates __", "idolizes __", "jokes a lot", "messy", "missing eye/finger/hand/__", "misses their kids", "nightmares", "recently married", "religious", "scars", "skinny", "sharp-tongued", "sings", "snores", "tells tall tales", "too serious", "whistler", "whittler"]
+				}
+			},
 			"statsNote": "Assign these scores to your stats: +2, +1, +1, +0, +0, -1",
 			"lore": [
 				{

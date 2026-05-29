@@ -211,6 +211,59 @@
 					}
 				]
 			},
+			"animalCompanion": {
+				"types": [
+					{
+						"slug": "bird", "label": "Bird",
+						"examples": "falcon, eagle, owl, buzzard, magpie…",
+						"hp": 5, "armor": "1 (size)", "damage": "d4 (band)",
+						"pickCount": 4,
+						"traits": ["+4 HP", "+1 armor (agility)", "attack-bird", "cautious", "clever", "fast", "mimic", "sharp-eyed", "stealthy", "thieving", "tiny", "tireless"]
+					},
+					{
+						"slug": "critter", "label": "Critter",
+						"examples": "cat, fox, possum, raccoon, weasel…",
+						"hp": 5, "armor": "1", "damage": "d4 (band)",
+						"pickCount": 5,
+						"traits": ["+4 HP", "+1 armor (agility)", "agile", "adorable", "annoying", "burrowing", "cautious", "clever", "climber", "dextrous", "keen-eared", "keen-eyed", "keen-nosed", "quick", "stealthy", "stinky", "tiny", "thieving"]
+					},
+					{
+						"slug": "brute", "label": "Brute",
+						"examples": "bear, boar, wolverine, aurochs, drake…",
+						"hp": 12, "armor": "0", "damage": "d6 (band)",
+						"pickCount": 3,
+						"traits": ["+1 armor (hide, scales, etc.)", "Damage +2, forceful", "Damage messy, 1 piercing", "large (+4 HP, +1 damage, +close)", "easy-going", "cautious", "gluttonous", "keen-nosed", "protective", "quick", "terrifying", "tough"]
+					},
+					{
+						"slug": "predator", "label": "Predator",
+						"examples": "hound, wolf, cougar, drake…",
+						"hp": 8, "armor": "0", "damage": "d8 (band, grabby)",
+						"pickCount": 3,
+						"traits": ["+4 HP", "+1 armor (hide)", "Damage messy, 1 piercing", "agile", "climber", "clever", "enduring", "fast", "fierce", "keen-eared", "keen-eyed", "pack-hunter", "keen-nosed", "patient", "powerful", "stealthy", "terrifying"]
+					},
+					{
+						"slug": "steed", "label": "Steed",
+						"examples": "horse, mule…",
+						"hp": 12, "armor": "0", "damage": "d6+1 (band, close)",
+						"pickCount": 4,
+						"traits": ["+4 HP", "+1 armor (hide)", "Damage +2, forceful", "aggressive", "agile", "beautiful", "calm", "clever", "hardy", "keen-nosed", "large", "powerful", "swift"]
+					}
+				],
+				"instincts": [
+					"To bully and threaten",
+					"To fill its belly",
+					"To get distracted",
+					"To make mischief",
+					"To startle and panic",
+					"To run rampant",
+					"To give chase"
+				],
+				"costs": [
+					"Play, grooming, training, affection",
+					"Time off on its own, free to roam",
+					"Cozy quarters, comfort, ample food"
+				]
+			},
 			"statsNote": "Assign these scores to your stats: +2, +1, +1, +0, +0, -1",
 			"lore": [
 				{
