@@ -6,7 +6,7 @@
 	"version": "0.7.5",
 	"compatibility": {
 		"minimum": "12",
-		"verified": "12"
+		"verified": "13"
 	},
 	"relationships": {
 		"systems": [
@@ -31,8 +31,8 @@
 		}
 	],
 	"url": "https://github.com/PrinceWitherdick/stonetop",
-	"manifest": "https://github.com/PrinceWitherdick/stonetop/releases/latest/download/module.json",
-	"download": "https://github.com/PrinceWitherdick/stonetop/releases/download/v0.7.5/stonetop-0.7.5.zip",
+	"manifest": "https://github.com/PrinceWitherdick/stonetop/releases/download/0.7.5/module.json",
+	"download": "https://github.com/PrinceWitherdick/stonetop/releases/download/0.7.5/stonetop.zip",
 	"license": "LICENSE",
 	"readme": "README.md",
 	"bugs": "https://github.com/PrinceWitherdick/stonetop/issues",
