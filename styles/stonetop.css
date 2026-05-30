@@ -1836,6 +1836,34 @@ body,
 .stonetop.actor .window-header .stonetop-new-character { display: none; }
 .stonetop.actor.stonetop-edit-mode .window-header .stonetop-new-character { display: flex; }
 
+/* Empty state — no playbook assigned yet */
+.stonetop-no-playbook-state {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.stonetop-create-character-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 28px;
+	font-size: 1.1em;
+	font-family: inherit;
+	background: var(--stonetop-bg, #f5f0e8);
+	border: 2px solid var(--color-border-dark, #7a7971);
+	border-radius: 4px;
+	cursor: pointer;
+	color: inherit;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.stonetop-create-character-btn:hover {
+	background: hsl(40 30% 88%);
+	border-color: slategrey;
+}
+
 .stonetop-edit-toggle {
 	--toggle-height: 20px;
 	--toggle-width: 36px;
@@ -3632,6 +3660,54 @@ body,
 	margin-bottom: 14px;
 }
 
+/* Initiate inline choice rows (shown when card is selected) */
+.stonetop-onboarding-card--initiate .stonetop-onboarding-initiate-choices {
+	display: none;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid #eee;
+}
+
+.stonetop-onboarding-card--initiate.is-selected .stonetop-onboarding-initiate-choices {
+	display: block;
+}
+
+.stonetop-onboarding-initiate-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-bottom: 3px;
+}
+
+.stonetop-onboarding-initiate-row-label {
+	font-size: 0.75em;
+	color: #777;
+	white-space: nowrap;
+	min-width: 110px;
+	flex-shrink: 0;
+}
+
+.stonetop-onboarding-initiate-options {
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 0;
+	border: none;
+	padding: 0;
+}
+
+.stonetop-onboarding-initiate-custom-label { padding: 2px 6px; }
+
+.stonetop-onboarding-initiate-custom-input {
+	width: 80px;
+	font-size: 0.82em;
+	border: none;
+	border-bottom: 1px solid #ccc;
+	background: transparent;
+	outline: none;
+	padding: 0 2px;
+}
+
 .stonetop-onboarding-insert-section-label {
 	margin: 0 0 6px;
 	font-size: 0.75em;
@@ -3696,9 +3772,9 @@ body,
 	min-width: 110px;
 }
 
-.stonetop-onboarding-ac-type-name  { font-weight: 700; font-size: 0.9em; }
-.stonetop-onboarding-ac-type-stats { font-size: 0.72em; color: slategrey; margin-top: 2px; }
-.stonetop-onboarding-ac-type-examples { font-size: 0.68em; color: #aaa; font-style: italic; }
+.stonetop-onboarding-ac-type-name  { font-weight: 700; font-size: 1.05em; }
+.stonetop-onboarding-ac-type-stats { font-size: 0.85em; color: slategrey; margin-top: 2px; }
+.stonetop-onboarding-ac-type-examples { font-size: 0.81em; color: #aaa; font-style: italic; }
 
 .stonetop-onboarding-lookup {
 	cursor: help;
@@ -3732,6 +3808,88 @@ body,
 }
 
 .stonetop-word-tooltip-desc p { margin: 2px 0; }
+
+/* ── Invocations tab ──────────────────────────────────────────────────── */
+
+.stonetop-invocations {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow-y: auto;
+	padding: 10px 14px;
+	gap: 14px;
+}
+
+.stonetop-invocations-rules {
+	font-size: 0.82em;
+	color: #555;
+	border-bottom: 1px solid #ddd;
+	padding-bottom: 8px;
+}
+
+.stonetop-invocations-rules p { margin: 2px 0; }
+
+.stonetop-invocations-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 10px;
+	align-content: start;
+}
+
+.stonetop-invocation-card {
+	border: 1px solid #ccc;
+	border-radius: 5px;
+	padding: 8px 10px;
+	background: var(--stonetop-bg, #f5f0e8);
+	transition: opacity 0.15s;
+}
+
+.stonetop-invocation-card.is-unknown {
+	opacity: 0.35;
+}
+
+.stonetop-invocation-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 4px;
+}
+
+.stonetop-invocation-name {
+	font-size: 0.85em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	flex: 1;
+}
+
+.stonetop-invocation-known-label {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+.stonetop-invocation-known-pip {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	border: 1.5px solid #aaa;
+	display: inline-block;
+	flex-shrink: 0;
+}
+
+.stonetop-invocation-known-pip.is-known {
+	background: slategrey;
+	border-color: slategrey;
+}
+
+.stonetop-invocation-desc {
+	font-size: 0.78em;
+	line-height: 1.4;
+	color: #333;
+}
+
+.stonetop-invocation-desc p { margin: 2px 0; }
 
 /* ── Followers tab ─────────────────────────────────────────────────── */
 
@@ -3857,6 +4015,17 @@ body,
 	border-color: rgba(160,130,80,0.3);
 }
 
+.stonetop-follower-tag--detail {
+	background: hsl(270 12% 92%);
+	border-color: rgba(100,80,140,0.25);
+}
+
+.stonetop-follower-pronoun {
+	font-size: 0.78em;
+	color: #777;
+	font-weight: normal;
+}
+
 /* Loyalty pips */
 .stonetop-follower-loyalty-row { gap: 10px; }
 
@@ -3865,7 +4034,7 @@ body,
 	gap: 5px;
 }
 
-.stonetop-crew-loyalty-pip {
+.stonetop-loyalty-pip {
 	width: 16px;
 	height: 16px;
 	border-radius: 50%;
@@ -3877,7 +4046,9 @@ body,
 	flex-shrink: 0;
 }
 
-.stonetop-crew-loyalty-pip.is-filled { background: slategrey; }
+.stonetop-loyalty-pip.is-filled { background: slategrey; }
+
+span.stonetop-loyalty-pip { cursor: default; }
 
 .stonetop-follower-loyalty { color: #999; letter-spacing: 2px; }
 
@@ -4345,6 +4516,15 @@ body,
 .stonetop-so-entry-body p  { margin: 0 0 8px; }
 .stonetop-so-entry-body ul { margin: 0 0 8px; padding-left: 18px; }
 .stonetop-so-entry-body li { margin-bottom: 3px; }
+
+.stonetop-so-entry-body dl { margin: 0 0 12px; }
+.stonetop-so-entry-body dt {
+	font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+	font-style: normal;
+	font-weight: 600;
+	color: #222;
+}
+.stonetop-so-entry-body dd { margin: 0 0 4px 16px; }
 
 /* Gear term tooltips — applied via applyGearTermTooltips() */
 .stonetop-gear-term {

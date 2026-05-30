@@ -10,4 +10,5 @@ export const PACKS = [
 	"arcana",
 	"post-death-inserts",
 	"post-death-moves",
+	"setting-overview",
 ];

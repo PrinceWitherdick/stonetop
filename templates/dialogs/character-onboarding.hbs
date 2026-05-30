@@ -248,6 +248,40 @@
 				{{#if description}}
 				<div class="stonetop-onboarding-card-desc">{{{description}}}</div>
 				{{/if}}
+				{{#if choiceRows.length}}
+				<div class="stonetop-onboarding-initiate-choices" onclick="event.stopPropagation()">
+					{{#each choiceRows}}
+					<div class="stonetop-onboarding-initiate-row">
+						<span class="stonetop-onboarding-initiate-row-label">{{#if isPronoun}}Pick 1 on each line:{{else}}{{label}}{{/if}}</span>
+						<div class="stonetop-onboarding-appearance-row stonetop-onboarding-initiate-options">
+							{{#each options}}
+							<label class="stonetop-onboarding-appearance-option{{#if selected}} is-selected{{/if}}">
+								<input type="radio"
+								       data-onboard-initiate-radio="1"
+								       data-slug="{{slug}}"
+								       data-row-idx="{{rowIdx}}"
+								       data-is-pronoun="{{../isPronoun}}"
+								       name="onboard-initiate-row-{{slug}}-{{rowIdx}}"
+								       value="{{value}}"
+								       {{#if selected}}checked{{/if}}>
+								{{value}}
+							</label>
+							{{/each}}
+							{{#if allowCustom}}
+							<label class="stonetop-onboarding-appearance-option stonetop-onboarding-initiate-custom-label">
+								<input type="text"
+								       class="onboard-initiate-custom stonetop-onboarding-initiate-custom-input"
+								       data-slug="{{slug}}"
+								       data-row-idx="{{rowIdx}}"
+								       value="{{customValue}}"
+								       placeholder="other…">
+							</label>
+							{{/if}}
+						</div>
+					</div>
+					{{/each}}
+				</div>
+				{{/if}}
 			</label>
 			{{/each}}
 		</div>
@@ -349,7 +383,7 @@
 					<input type="checkbox" name="onboard-ac-trait" value="{{slug}}"
 					       {{#if isSelected}}checked{{/if}}
 					       {{#if disabled}}disabled{{/if}}>
-					{{label}}
+					{{#if hasTooltip}}<span class="stonetop-onboarding-lookup">{{label}}</span>{{else}}{{label}}{{/if}}
 				</label>
 				{{/each}}
 			</div>
@@ -399,9 +433,13 @@
 	{{!-- Footer --}}
 	<footer class="stonetop-onboarding-footer">
 		<div class="stonetop-onboarding-footer-left">
-			{{#unless isFirst}}
+			{{#if isFirst}}
+				{{#if hasBack}}
+				<button type="button" class="stonetop-onboarding-back-to-picker">← Back</button>
+				{{/if}}
+			{{else}}
 			<button type="button" class="stonetop-onboarding-back">← Back</button>
-			{{/unless}}
+			{{/if}}
 		</div>
 		<span class="stonetop-onboarding-step-counter">{{stepNumber}} / {{stepCount}}</span>
 		<div class="stonetop-onboarding-footer-right">

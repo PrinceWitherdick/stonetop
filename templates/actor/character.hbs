@@ -3,6 +3,17 @@
 
 		{{> "stonetop.actor-header"}}
 
+		{{#unless stonetop.playbook}}
+		<div class="stonetop-no-playbook-state">
+			{{#if editable}}
+			<button type="button" class="stonetop-create-character-btn">
+				<i class="fas fa-user-plus"></i>
+				{{localize "stonetop.newCharacter.createButtonLabel"}}
+			</button>
+			{{/if}}
+		</div>
+		{{else}}
+
 		<section class="sheet-top flexcol">
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.playbook.statsNote}}
 
@@ -54,6 +65,7 @@
 		<section class="sheet-main flexcol">
 			<nav class="sheet-tabs tabs" data-group="primary">
 				<a class="item" data-tab="moves">{{localize "PBTA.Moves"}}</a>
+				{{#if stonetop.invocations}}<a class="item" data-tab="invocations">{{localize "stonetop.sheet.tabs.invocations"}}</a>{{/if}}
 				{{#if stonetop.hasFollowers}}<a class="item" data-tab="followers">{{localize "stonetop.sheet.tabs.followers"}}</a>{{/if}}
 				<a class="item" data-tab="inventory">{{localize "stonetop.sheet.tabs.inventory"}}</a>
 				<a class="item" data-tab="arcana">{{localize "stonetop.sheet.tabs.arcana"}}</a>
@@ -65,6 +77,7 @@
 			<div class="stonetop-sheet-layout">
 				<section class="sheet-body">
 					{{> "stonetop.tab-moves"}}
+					{{#if stonetop.invocations}}{{> "stonetop.tab-invocations"}}{{/if}}
 					{{#if stonetop.hasFollowers}}{{> "stonetop.tab-followers"}}{{/if}}
 					{{> "stonetop.tab-equipment"}}
 					{{> "stonetop.tab-arcana"}}
@@ -96,6 +109,8 @@
 				</div>
 			</div>
 		</section>
+
+		{{/unless}}
 
 	</div>
 </form>

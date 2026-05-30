@@ -97,10 +97,10 @@
 				{{#each loyalty}}
 				{{#if @root.stonetop.editMode}}
 				<button type="button"
-				        class="stonetop-crew-loyalty-pip{{#if filled}} is-filled{{/if}}"
+				        class="stonetop-loyalty-pip stonetop-crew-loyalty-pip{{#if filled}} is-filled{{/if}}"
 				        data-index="{{index}}"></button>
 				{{else}}
-				<span class="stonetop-crew-loyalty-pip{{#if filled}} is-filled{{/if}}"></span>
+				<span class="stonetop-loyalty-pip stonetop-crew-loyalty-pip{{#if filled}} is-filled{{/if}}"></span>
 				{{/if}}
 				{{/each}}
 			</div>
@@ -208,11 +208,11 @@
 	{{!-- ── Initiates of Danu (Blessed) ───────────────────────── --}}
 	{{#if stonetop.followers.initiates.length}}
 	{{#each stonetop.followers.initiates}}
-	<div class="stonetop-follower-card">
+	<div class="stonetop-follower-card stonetop-follower-card--initiate">
 		<div class="stonetop-follower-header">
 			<div class="stonetop-follower-title">
-				<span class="stonetop-follower-name">{{label}}</span>
-				{{#if subtitle}}<span class="stonetop-follower-type">{{subtitle}}</span>{{/if}}
+				<span class="stonetop-follower-name">{{label}}{{#if pronoun}} <span class="stonetop-follower-pronoun">({{pronoun}})</span>{{/if}}</span>
+				<span class="stonetop-follower-type">initiate of Danu</span>
 			</div>
 			<div class="stonetop-follower-stats">
 				<span class="stonetop-follower-stat"><strong>HP</strong> {{hp}}</span>
@@ -220,12 +220,70 @@
 				<span class="stonetop-follower-stat"><strong>Damage</strong> {{damage}}</span>
 			</div>
 		</div>
+		{{#if tags.length}}
+		<div class="stonetop-follower-row">
+			<span class="stonetop-follower-row-label">Tags</span>
+			<div class="stonetop-follower-tags">
+				{{#each tags}}<span class="stonetop-follower-tag">{{this}}</span>{{/each}}
+			</div>
+		</div>
+		{{/if}}
+		{{#if choiceDetails.length}}
+		<div class="stonetop-follower-row">
+			<span class="stonetop-follower-row-label">Details</span>
+			<div class="stonetop-follower-tags">
+				{{#each choiceDetails}}<span class="stonetop-follower-tag stonetop-follower-tag--detail">{{this}}</span>{{/each}}
+			</div>
+		</div>
+		{{/if}}
+		{{#if instinct}}
+		<div class="stonetop-follower-row">
+			<span class="stonetop-follower-row-label">Instinct</span>
+			<span class="stonetop-follower-row-value">{{instinct}}</span>
+		</div>
+		{{/if}}
+		{{#if cost}}
+		<div class="stonetop-follower-row">
+			<span class="stonetop-follower-row-label">Cost</span>
+			<span class="stonetop-follower-row-value">{{cost}}</span>
+		</div>
+		{{/if}}
 		<div class="stonetop-follower-row stonetop-follower-loyalty-row">
 			<span class="stonetop-follower-row-label">Loyalty</span>
-			<span class="stonetop-follower-loyalty">○○○</span>
+			<div class="stonetop-loyalty-pips">
+				{{#each loyalty}}
+				{{#if @root.stonetop.editMode}}
+				<button type="button"
+				        class="stonetop-loyalty-pip stonetop-initiate-loyalty-pip{{#if filled}} is-filled{{/if}}"
+				        data-slug="{{slug}}" data-index="{{index}}"></button>
+				{{else}}
+				<span class="stonetop-loyalty-pip stonetop-initiate-loyalty-pip{{#if filled}} is-filled{{/if}}"></span>
+				{{/if}}
+				{{/each}}
+			</div>
 		</div>
 	</div>
 	{{/each}}
+
+	{{!-- Follower rules shared across all initiates --}}
+	<div class="stonetop-follower-card">
+		<div class="stonetop-follower-section stonetop-follower-rules">
+			<details class="stonetop-follower-rule">
+				<summary>Order Followers</summary>
+				<p>When you <strong><em>direct them to make a move and they do so</em></strong>, roll +1 instead of +STAT if any of their tags apply (or +2 if they're also <em>exceptional</em>). If no tags apply, roll +0. If any of their tags would get in the way, roll with disadvantage.</p>
+			</details>
+			<details class="stonetop-follower-rule">
+				<summary>Strengthen Your Bond</summary>
+				<p>When you <strong><em>pay their cost</em></strong> and you haven't done so recently, they hold +1 Loyalty (max 3).</p>
+				<p>Spend their Loyalty 1-for-1 to have them:</p>
+				<ul>
+					<li>Overcome their fear to do as you say</li>
+					<li>Resist acting on their instinct/tags/traits</li>
+					<li>Do something they don't want to do (as long as it's not abhorrent or suicidal)</li>
+				</ul>
+			</details>
+		</div>
+	</div>
 	{{/if}}
 
 </div>

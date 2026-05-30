@@ -17,6 +17,7 @@
 		    moves=stonetop.movelist.postDeathGroup.moves}}
 		{{/if}}
 
+		{{#if stonetop.playbook}}
 		{{#each stonetop.movelist.otherGroups}}
 				<div class="stonetop-move-group">
 					<h3 class="stonetop-move-group-title">{{label}}</h3>
@@ -43,8 +44,10 @@
 					</ol>
 				</div>
 				{{/each}}
+		{{/if}}
 
-			<div class="stonetop-move-group">
+			{{#if stonetop.showOtherMovesSection}}
+			<div class="stonetop-move-group stonetop-other-moves-section">
 				{{> "stonetop.section-heading" title=(localize "stonetop.character.moves.otherMoves")}}
 				<ol class="items-list">
 				{{#each stonetop.movelist.otherMoves}}
@@ -64,10 +67,13 @@
 					</li>
 				{{/each}}
 				</ol>
+				{{#if stonetop.editMode}}
 				<button type="button" class="item-control item-create" data-type="move" data-move-type="other" title="{{localize 'stonetop.character.moves.addMove'}}">
 					<i class="fas fa-plus"></i>
 				</button>
+				{{/if}}
 			</div>
+			{{/if}}
 
 	</section>
 </div>

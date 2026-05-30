@@ -1,9 +1,53 @@
+// Descriptions for animal companion trait tags — checked before compendium lookup.
+const TRAIT_GLOSSARY = {
+	"agile":           "Acts with grace and nimbleness; can slip through tight spaces and dodge with ease.",
+	"adorable":        "Disarmingly cute; people are more likely to be charmed than threatened.",
+	"aggressive":      "Attacks first, asks questions later; prone to charging into danger.",
+	"annoying":        "Tends to make noise, steal food, or cause minor mischief at the worst times.",
+	"attack-bird":     "Can dive and slash at a target's face or eyes with surprising ferocity.",
+	"beautiful":       "Striking appearance that draws attention and admiration.",
+	"burrowing":       "Can dig through earth and loose soil to move underground or escape confinement.",
+	"calm":            "Unflappable under pressure; rarely startled or panicked.",
+	"cautious":        "Won't take unnecessary risks; hangs back until a course of action is clear.",
+	"clever":          "Understands complex commands and can solve simple problems on its own.",
+	"climber":         "At home scaling trees, cliffs, or walls; rarely stopped by vertical obstacles.",
+	"dextrous":        "Nimble with its paws or hands; can manipulate objects and work simple latches.",
+	"easy-going":      "Laid-back and even-tempered; gets along with just about everyone.",
+	"enduring":        "Can sustain strenuous effort far longer than expected without flagging.",
+	"fast":            "Moves quickly over open ground; can outrun most threats without difficulty.",
+	"fierce":          "Attacks with aggression and doesn't back down; enemies take it seriously.",
+	"gluttonous":      "Compelled to eat whenever food is present; can be distracted or baited with it.",
+	"hardy":           "Handles harsh weather, rough terrain, and lean times without complaint.",
+	"keen-eared":      "Exceptional hearing; detects sounds long before others notice them.",
+	"keen-eyed":       "Exceptional eyesight; spots movement and detail at great distances.",
+	"keen-nosed":      "Exceptional sense of smell; can track by scent and detect hidden creatures or objects.",
+	"large":           "Bigger than a typical member of its kind; harder to ignore, easier to spot.",
+	"mimic":           "Can reproduce sounds it has heard, including voices and environmental noises.",
+	"pack-hunter":     "Coordinates naturally with allies; gains an edge when acting alongside others.",
+	"patient":         "Waits calmly for exactly the right moment before striking or acting.",
+	"powerful":        "Exceptional strength; can haul heavy loads or force its way through barriers.",
+	"protective":      "Will place itself between danger and its allies, even at personal risk.",
+	"quick":           "Fast reflexes; acts before most opponents have a chance to respond.",
+	"sharp-eyed":      "Keen sight; consistently spots things that others overlook.",
+	"stealthy":        "Moves silently and stays out of sight; excellent at following without being detected.",
+	"stinky":          "Produces a strong, unpleasant odor that deters predators and ruins a good meal.",
+	"swift":           "Exceptionally fast; outpaces almost anything in a straight run.",
+	"terrifying":      "Its presence alone frightens enemies; the cowardly may flee at the sight of it.",
+	"thieving":        "Inclined to snatch shiny objects, food, or anything left unattended.",
+	"tiny":            "Small enough to go unnoticed or squeeze through impossibly tight gaps.",
+	"tireless":        "Doesn't fatigue from sustained effort; keeps going long after others would quit.",
+	"tough":           "Resilient and hard to hurt; shrugs off blows that would fell lesser creatures.",
+};
+
 export class CharacterOnboardingDialog extends Application {
 	constructor(playbookDoc, onComplete, options = {}) {
-		super(options);
+		const { onBack, ...appOptions } = options;
+		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
-		this._wordCache          = new Map();
+		this._onBack             = onBack ?? null;
+		// Pre-seed cache with glossary so getData() and _lookupWord share one lookup path.
+		this._wordCache = new Map(Object.entries(TRAIT_GLOSSARY));
 		this._hoveredAnchor      = null;
 
 		const f = playbookDoc.flags?.stonetop ?? {};
@@ -15,8 +59,11 @@ export class CharacterOnboardingDialog extends Application {
 		this._rawInvocations     = f.invocations         ?? null;
 		this._rawCrew            = f.crew                ?? null;
 		this._rawAnimalCompanion = f.animalCompanion     ?? null;
-		this._movePickCount      = this._parseMovePickCount();
-		this._movesCache         = null;
+		this._movePickCount  = this._parseMovePickCount();
+		this._movesCache     = null;
+		this._statScores     = this._parseStatScores();
+		this._statPoolCount  = {};
+		for (const v of this._statScores) this._statPoolCount[v] = (this._statPoolCount[v] ?? 0) + 1;
 
 		// _selections must be initialized before _buildSteps(), which calls
 		// _getInitiatesData() and reads this._selections.backgroundSlug.
@@ -31,6 +78,7 @@ export class CharacterOnboardingDialog extends Application {
 			moves:           [],
 			invocations:     [],
 			initiates:       [],
+			initiateDetails: {},
 			crew:            { name: "", tags: [], instinct: "", cost: "" },
 			animalCompanion: { type: "", traits: [], name: "", instinct: "", cost: "" },
 		};
@@ -112,7 +160,7 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	_validateStats() {
-		const required = this._parseStatScores().slice().sort((a, b) => a - b);
+		const required = this._statScores.slice().sort((a, b) => a - b);
 		const assigned = Object.values(this._selections.stats);
 		if (assigned.some(v => v === null)) return false;
 		const actual = assigned.map(Number).sort((a, b) => a - b);
@@ -135,7 +183,16 @@ export class CharacterOnboardingDialog extends Application {
 			case "initiates": {
 				const d = this._getInitiatesData();
 				const [min] = this._initiatesCountRange(d);
-				return this._selections.initiates.length >= min;
+				if (this._selections.initiates.length < min) return false;
+				const selected = (d?.options ?? []).filter(o => this._selections.initiates.includes(o.slug));
+				return selected.every(opt => {
+					if (!(opt.choiceRows?.length)) return true;
+					const det = this._selections.initiateDetails[opt.slug] ?? {};
+					return opt.choiceRows.every((row, rowIdx) => {
+						const val = row.type === "pronoun" ? det.pronoun : det.rows?.[rowIdx];
+						return !!val?.trim();
+					});
+				});
 			}
 			case "crew": {
 				const tagLimit = this._rawCrew?.additionalTagCount ?? 2;
@@ -177,6 +234,7 @@ export class CharacterOnboardingDialog extends Application {
 		const stepType = this._steps[this._step] ?? null;
 		const isFirst  = this._step === 0;
 		const isLast   = this._step === this._steps.length - 1 || this._steps.length === 0;
+		const hasBack  = !!this._onBack;
 
 		const progressDots = this._steps.map((_, i) => ({
 			active: i === this._step,
@@ -239,9 +297,8 @@ export class CharacterOnboardingDialog extends Application {
 
 		// ── Stats ─────────────────────────────────────────────────────
 		if (stepType === "stats") {
-			const scores = this._parseStatScores();
-			const poolCount = {};
-			for (const v of scores) poolCount[v] = (poolCount[v] ?? 0) + 1;
+			const scores    = this._statScores;
+			const poolCount = this._statPoolCount;
 
 			statScores = [...scores].sort((a, b) => b - a)
 				.map(v => v >= 0 ? `+${v}` : String(v));
@@ -364,13 +421,36 @@ export class CharacterOnboardingDialog extends Application {
 				label:         bg?.label ?? "",
 				minCount, maxCount,
 				selectedCount: chosen.size,
-				options: (bg?.options ?? []).map(opt => ({
-					slug:        opt.slug,
-					label:       opt.label,
-					description: opt.description ?? "",
-					isSelected:  chosen.has(opt.slug),
-					disabled:    !chosen.has(opt.slug) && atLimit,
-				})),
+				options: (bg?.options ?? []).map(opt => {
+					const isSelected = chosen.has(opt.slug);
+					const det = this._selections.initiateDetails[opt.slug] ?? {};
+					return {
+						slug:        opt.slug,
+						label:       opt.label,
+						description: opt.description ?? "",
+						isSelected,
+						disabled:    !isSelected && atLimit,
+						choiceRows: (opt.choiceRows ?? []).map((row, rowIdx) => {
+							const isPronoun  = row.type === "pronoun";
+							const currentVal = isPronoun ? (det.pronoun ?? "") : (det.rows?.[rowIdx] ?? "");
+							const isCustom   = isPronoun && !!currentVal && !row.options.includes(currentVal);
+							return {
+								rowIdx,
+								slug:        opt.slug,
+								isPronoun,
+								label:       row.label ?? null,
+								allowCustom: isPronoun,
+								customValue: isCustom ? currentVal : "",
+								options: row.options.map(o => ({
+									value:   o,
+									slug:    opt.slug,
+									rowIdx,
+									selected: !isCustom && currentVal === o,
+								})),
+							};
+						}),
+					};
+				}),
 			};
 		}
 
@@ -425,7 +505,9 @@ export class CharacterOnboardingDialog extends Application {
 					pickCount:     typeData.pickCount,
 					selectedCount: chosenTraits.size,
 					traits: (typeData.traits ?? []).map(trait => ({
-						slug: trait, label: trait,
+						slug:       trait,
+						label:      trait,
+						hasTooltip: !!this._wordCache.get(trait.toLowerCase()),
 						isSelected: chosenTraits.has(trait),
 						disabled:   !chosenTraits.has(trait) && traitAtLimit,
 					})),
@@ -446,7 +528,7 @@ export class CharacterOnboardingDialog extends Application {
 			stepType,
 			stepNumber:        this._step + 1,
 			stepCount:         this._steps.length,
-			isFirst, isLast,
+			isFirst, isLast, hasBack,
 			isBackground:      stepType === "background",
 			isInstinct:        stepType === "instinct",
 			isAppearance:      stepType === "appearance",
@@ -457,7 +539,7 @@ export class CharacterOnboardingDialog extends Application {
 			isInvocations:     stepType === "invocations",
 			isInitiates:       stepType === "initiates",
 			isCrew:            stepType === "crew",
-			isAnimalCompanion: stepType === "animalCompanion",
+			isAnimalCompanion:  stepType === "animalCompanion",
 			progressDots,
 			backgrounds, instincts, appearanceLines, origins,
 			selectedInstinct:  this._selections.instinctValue,
@@ -477,6 +559,7 @@ export class CharacterOnboardingDialog extends Application {
 	activateListeners(html) {
 		super.activateListeners(html);
 
+		html.find(".stonetop-onboarding-back-to-picker").on("click", () => this._goBack());
 		html.find(".stonetop-onboarding-back").on("click", () => this._navigate(-1));
 		html.find(".stonetop-onboarding-skip").on("click", () => this._skip());
 		html.find(".stonetop-onboarding-next").on("click", () => this._navigate(1));
@@ -512,11 +595,7 @@ export class CharacterOnboardingDialog extends Application {
 		html.find("[name^='onboard-appearance-']").on("change", ev => {
 			const lineIdx = Number(ev.currentTarget.name.replace("onboard-appearance-", ""));
 			this._selections.appearance[lineIdx] = ev.currentTarget.value;
-			const row = ev.currentTarget.closest(".stonetop-onboarding-appearance-row");
-			if (row) {
-				row.querySelectorAll(".stonetop-onboarding-appearance-option").forEach(el => el.classList.remove("is-selected"));
-				ev.currentTarget.closest(".stonetop-onboarding-appearance-option")?.classList.add("is-selected");
-			}
+			this._setSelectedOption(ev.currentTarget.closest(".stonetop-onboarding-appearance-row"), ev.currentTarget);
 			_refreshNextButton();
 		});
 
@@ -533,9 +612,8 @@ export class CharacterOnboardingDialog extends Application {
 
 		// ── Stats ─────────────────────────────────────────────────────
 		const _updateStatDropdowns = () => {
-			const scores = this._parseStatScores();
-			const poolCount = {};
-			for (const v of scores) poolCount[v] = (poolCount[v] ?? 0) + 1;
+			const scores    = this._statScores;
+			const poolCount = this._statPoolCount;
 			const statKeys = ["str", "dex", "con", "int", "wis", "cha"];
 			for (const key of statKeys) {
 				const selectEl = html.find(`[name="onboard-stat-${key}"]`)[0];
@@ -653,6 +731,33 @@ export class CharacterOnboardingDialog extends Application {
 			_refreshNextButton();
 		});
 
+		// ── Initiate Details ─────────────────────────────────────────
+		html.find("[data-onboard-initiate-radio]").on("change", ev => {
+			const { slug, rowIdx } = ev.currentTarget.dataset;
+			const rowI = Number(rowIdx);
+			this._selections.initiateDetails[slug] ??= {};
+			const det = this._selections.initiateDetails[slug];
+			const isPronoun = ev.currentTarget.dataset.isPronoun === "true";
+			if (isPronoun) {
+				det.pronoun = ev.currentTarget.value;
+				html.find(`.onboard-initiate-custom[data-slug="${slug}"]`).val("");
+			} else {
+				det.rows ??= {};
+				det.rows[rowI] = ev.currentTarget.value;
+			}
+			this._setSelectedOption(ev.currentTarget.closest(".stonetop-onboarding-initiate-options"), ev.currentTarget);
+			_refreshNextButton();
+		});
+		html.find(".onboard-initiate-custom").on("input", ev => {
+			const { slug, rowIdx } = ev.currentTarget.dataset;
+			this._selections.initiateDetails[slug] ??= {};
+			this._selections.initiateDetails[slug].pronoun = ev.currentTarget.value;
+			html.find(`[data-onboard-initiate-radio][data-slug="${slug}"][data-row-idx="${rowIdx}"]`)
+				.prop("checked", false);
+			this._setSelectedOption(ev.currentTarget.closest(".stonetop-onboarding-initiate-options"));
+			_refreshNextButton();
+		});
+
 		// ── Crew ──────────────────────────────────────────────────────
 		html.find(".onboard-crew-name").on("input", ev => {
 			this._selections.crew.name = ev.currentTarget.value;
@@ -732,7 +837,10 @@ export class CharacterOnboardingDialog extends Application {
 		});
 
 		// ── Bold-word hover tooltips ───────────────────────────────────
+		// Only add the class if we haven't already confirmed this word has no result.
 		html.find(".stonetop-onboarding-card-desc strong").each((_, el) => {
+			const key = el.textContent.trim().toLowerCase();
+			if (this._wordCache.get(key) === null) return;
 			el.classList.add("stonetop-onboarding-lookup");
 		});
 		html.find(".stonetop-onboarding-lookup")
@@ -742,7 +850,11 @@ export class CharacterOnboardingDialog extends Application {
 				const text = anchor.textContent.trim();
 				const description = await this._lookupWord(text);
 				if (this._hoveredAnchor !== anchor) return;
-				if (description) this._showWordTooltip(anchor, text, description);
+				if (description) {
+					this._showWordTooltip(anchor, text, description);
+				} else {
+					anchor.classList.remove("stonetop-onboarding-lookup");
+				}
 			})
 			.on("mouseleave", () => {
 				this._hoveredAnchor = null;
@@ -752,7 +864,22 @@ export class CharacterOnboardingDialog extends Application {
 		_refreshNextButton();
 	}
 
+	// ── Shared DOM helpers ────────────────────────────────────────────
+
+	_setSelectedOption(container, selectedEl = null) {
+		if (!container) return;
+		container.querySelectorAll(".stonetop-onboarding-appearance-option")
+			.forEach(el => el.classList.remove("is-selected"));
+		selectedEl?.closest(".stonetop-onboarding-appearance-option")?.classList.add("is-selected");
+	}
+
 	// ── Navigation ────────────────────────────────────────────────────
+
+	async _goBack() {
+		this._removeTooltip();
+		await this.close();
+		if (this._onBack) this._onBack();
+	}
 
 	_skip() {
 		this._removeTooltip();
