@@ -49,6 +49,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
 		}
 
+		async close(options) {
+			this._movePanel?.remove();
+			this._movePanel = null;
+			return super.close(options);
+		}
+
 		_injectHeaderToggle() {
 			const header = this.element[0]?.querySelector(".window-header");
 			if (!header || !this.isEditable) return;
@@ -124,18 +130,19 @@ export function createStonetopCharacterSheetClass(Base) {
 				context.stonetop.followers.crew ||
 				context.stonetop.followers.initiates?.length
 			);
+			context.stonetop.invocations          = this._buildInvocationsData(playbookDoc);
+			context.stonetop.showOtherMovesSection = this._editMode || !!(context.stonetop.movelist?.otherMoves?.length);
 			return context;
 		}
 
 		_buildFollowersData(playbookDoc, smallItemLimit = null) {
-			const pf    = playbookDoc?.flags?.stonetop ?? {};
-			const sf    = this.actor.flags?.stonetop   ?? {};
+			const sf = this.actor.flags?.stonetop ?? {};
 
 			// ── Animal Companion (Ranger) ──────────────────────────────
 			let animalCompanion = null;
 			const acSlug = sf.animalCompanion?.type;
 			if (acSlug) {
-				const typeData = (pf.animalCompanion?.types ?? []).find(t => t.slug === acSlug);
+				const typeData = (playbookDoc?.animalCompanion?.types ?? []).find(t => t.slug === acSlug);
 				animalCompanion = {
 					name:     sf.animalCompanion?.name     ?? "",
 					type:     typeData?.label              ?? acSlug,
@@ -163,7 +170,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const loyaltyMax      = 3;
 				const loyaltyVal      = sf.crew?.loyalty ?? 0;
 				const gearFlags       = sf.crew?.gear ?? {};
-				const inventoryDef    = pf.crew?.inventory?.length ? pf.crew.inventory : CREW_INVENTORY_FALLBACK;
+				const inventoryDef    = playbookDoc?.crew?.inventory?.length ? playbookDoc.crew.inventory : CREW_INVENTORY_FALLBACK;
 				// Supplies: 6 independent sets, each with (4+Prosperity) circles.
 				// smallItemLimit comes from buildSnapshot() — same value driving outfit inventory.
 				const pipsPerSet      = smallItemLimit ?? 5;
@@ -212,33 +219,68 @@ export function createStonetopCharacterSheetClass(Base) {
 						};
 					}),
 					individuals:       (sf.crew?.individuals ?? []).map((ind, idx) => ({ ...ind, index: idx })),
-					individualOptions: pf.crew?.individualOptions ?? {},
+					individualOptions: playbookDoc?.crew?.individualOptions ?? {},
 				};
 			}
 
 			// ── Initiates of Danu (Blessed + Initiate background) ──────
 			let initiates = null;
-			const bgChoices  = sf.background?.choices ?? {};
-			const initiateBg = (pf.backgrounds ?? []).find(b => b.slug === "initiate");
+			const bgChoices        = sf.background?.choices ?? {};
+			const initiatesLoyalty = sf.initiatesLoyalty  ?? {};
+			const sfInitiateDetails = sf.initiateDetails  ?? {};
+			const initiateBg       = (playbookDoc?.backgrounds ?? []).find(b => b.slug === "initiate");
 			if (initiateBg?.choices?.options?.length) {
 				const selected = initiateBg.choices.options.filter(opt => bgChoices[opt.slug]);
 				if (selected.length) {
-					initiates = selected.map(opt => ({
-						slug:     opt.slug,
-						label:    opt.label,
-						subtitle: opt.subtitle  ?? "",
-						hp:       opt.hp        ?? "—",
-						armor:    opt.armor     ?? "—",
-						damage:   opt.damage    ?? "—",
-					}));
+					initiates = selected.map(opt => {
+						const det = sfInitiateDetails[opt.slug] ?? {};
+						// Collect non-pronoun row selections as display tags
+						const choiceDetails = (opt.choiceRows ?? [])
+							.map((row, rowIdx) => row.type !== "pronoun" ? det.rows?.[rowIdx] : null)
+							.filter(Boolean);
+						return {
+							slug:          opt.slug,
+							label:         opt.label,
+							tags:          (opt.subtitle ?? "").split(", ").map(t => t.trim()).filter(Boolean),
+							hp:            opt.hp      ?? "—",
+							armor:         opt.armor   ?? "—",
+							damage:        opt.damage  ?? "—",
+							instinct:      opt.instinct ?? null,
+							cost:          opt.cost    ?? null,
+							pronoun:       det.pronoun ?? null,
+							choiceDetails,
+							loyalty: Array.from({ length: 3 }, (_, i) => ({
+								slug:   opt.slug,
+								index:  i,
+								filled: i < (initiatesLoyalty[opt.slug] ?? 0),
+							})),
+						};
+					});
 				}
 			}
 
 			return { animalCompanion, crew, initiates };
 		}
 
+		_buildInvocationsData(playbookDoc) {
+			const raw = playbookDoc?.invocations;
+			if (!raw?.options?.length) return null;
+			const selected = new Set(this.actor.getFlag("stonetop", "invocations.selected") ?? []);
+			return {
+				startingCount: raw.startingCount ?? 2,
+				options: raw.options.map(opt => ({
+					slug:        opt.slug,
+					label:       opt.label,
+					description: opt.description ?? "",
+					known:       selected.has(opt.slug),
+				})),
+			};
+		}
+
 		activateListeners(html) {
 			super.activateListeners(html);
+
+			html.find(".stonetop-create-character-btn").on("click", () => this._onNewCharacter());
 
 			html[0].addEventListener("dragover", (ev) => ev.preventDefault());
 			html[0].addEventListener("drop", async (ev) => {
@@ -336,18 +378,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			// We use a custom fixed panel rather than data-tooltip because the move
 			// descriptions are rich HTML and Foundry's TooltipManager escapes content.
 
-			// One floating panel per sheet instance; clean up stale one on re-render.
-			const panelId = `stonetop-move-panel-${this.appId}`;
-			document.getElementById(panelId)?.remove();
+			// One floating panel per sheet instance; replace stale one on re-render.
+			this._movePanel?.remove();
 			const panel = document.createElement("div");
-			panel.id = panelId;
+			this._movePanel = panel;
 			panel.className = "stonetop-basic-move-panel";
 			panel.hidden = true;
 			document.body.appendChild(panel);
-
-			Hooks.once("closeStonetopCharacterSheet", (closedSheet) => {
-				if (closedSheet.appId === this.appId) panel.remove();
-			});
 
 			html.find(".stonetop-move-item").on("mouseenter", ev => {
 				const li = ev.currentTarget;
@@ -426,6 +463,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				// clicking a filled pip clears up to that pip; clicking empty fills up to it
 				const newVal = current === idx + 1 ? idx : idx + 1;
 				await this.actor.setFlag("stonetop", "crew.loyalty", newVal);
+				this.render(false);
+			});
+			// Initiate loyalty pips
+			html.find(".stonetop-initiate-loyalty-pip").on("click", async ev => {
+				const { slug, index } = ev.currentTarget.dataset;
+				const idx     = Number(index);
+				const current = (this.actor.getFlag("stonetop", "initiatesLoyalty") ?? {})[slug] ?? 0;
+				const newVal  = current === idx + 1 ? idx : idx + 1;
+				await this.actor.update({ [`flags.stonetop.initiatesLoyalty.${slug}`]: newVal });
 				this.render(false);
 			});
 			// Crew gear pip circles — each pip is independently selectable;
@@ -640,6 +686,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				}, { width: 540, height: 580, classes: ["dialog", "stonetop-individual-dialog"] }).render(true);
 			});
 			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
+			html.find(".stonetop-invocation-check").on("change", async ev => {
+				const { slug } = ev.currentTarget.dataset;
+				const current = this.actor.getFlag("stonetop", "invocations.selected") ?? [];
+				const updated = ev.currentTarget.checked
+					? [...current, slug]
+					: current.filter(s => s !== slug);
+				await this.actor.setFlag("stonetop", "invocations.selected", updated);
+				this.render(false);
+			});
 			html.find(".stonetop-other-move-delete").on("click", async ev => {
 				const { itemId } = ev.currentTarget.dataset;
 				await this._stonetopCharacter.removeMove(itemId);
@@ -991,9 +1046,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			const existingPlaybook = this.actor.system?.playbook?.slug;
 			const openPicker = () => {
 				new PlaybookPickerDialog(async (playbookDoc) => {
-					new CharacterOnboardingDialog(playbookDoc, async (selections) => {
-						await this._applyPlaybookSelections(playbookDoc, selections);
-					}).render(true);
+					new CharacterOnboardingDialog(
+						playbookDoc,
+						async (selections) => {
+							await this._applyPlaybookSelections(playbookDoc, selections);
+						},
+						{ onBack: openPicker },
+					).render(true);
 				}).render(true);
 			};
 			if (existingPlaybook) {
@@ -1065,6 +1124,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// ── Insert: Initiates of Danu (Blessed + Initiate bg) ──
 			for (const slug of (selections.initiates ?? [])) {
 				await this._stonetopCharacter.background.addChoice({ slug, isChecked: true });
+			}
+			if (Object.keys(selections.initiateDetails ?? {}).length) {
+				await this.actor.setFlag("stonetop", "initiateDetails", selections.initiateDetails);
 			}
 			// ── Insert: Crew (Marshal) ──────────────────────────────
 			if (selections.crew?.instinct || selections.crew?.cost || selections.crew?.tags?.length || selections.crew?.name) {

@@ -6,6 +6,14 @@ export class StonetopPlaybook {
 		this._stonetopFields = this._stonetopItem.flags.stonetop;
 	}
 
+	get crew() {
+		return this._stonetopFields.crew ?? null;
+	}
+
+	get animalCompanion() {
+		return this._stonetopFields.animalCompanion ?? null;
+	}
+
 	get name() {
 		return this._stonetopItem.name;
 	}
@@ -52,6 +60,10 @@ export class StonetopPlaybook {
 
 	get startingMovesNote() {
 		return this._stonetopFields.moves?.startingMovesNote ?? null;
+	}
+
+	get invocations() {
+		return this._stonetopFields.invocations ?? null;
 	}
 
 	get specialPossessions() {

@@ -19,6 +19,7 @@
 			"tabs": {
 				"details": "Details",
 				"followers": "Followers",
+				"invocations": "Invocations",
 				"inventory": "Inventory",
 				"arcana": "Arcana",
 				"postDeath": "Post-Death",
@@ -104,6 +105,7 @@
 		},
 		"newCharacter": {
 			"buttonLabel": "New Character",
+			"createButtonLabel": "Create Character",
 			"confirmTitle": "Reset Character?",
 			"confirmContent": "This character already has a playbook. Choosing a new one will replace it and may reset character data. Are you sure?",
 			"pickerTitle": "Choose a Playbook"

@@ -95,6 +95,7 @@ Hooks.once("init", () => {
 		"stonetop.tab-details":      "modules/stonetop/templates/actor/partials/tab-details.hbs",
 		"stonetop.tab-moves":        "modules/stonetop/templates/actor/partials/tab-moves.hbs",
 		"stonetop.tab-equipment":    "modules/stonetop/templates/actor/partials/tab-equipment.hbs",
+		"stonetop.tab-invocations":  "modules/stonetop/templates/actor/partials/tab-invocations.hbs",
 		"stonetop.tab-followers":    "modules/stonetop/templates/actor/partials/tab-followers.hbs",
 		"stonetop.tab-arcana":       "modules/stonetop/templates/actor/partials/tab-arcana.hbs",
 		"stonetop.tab-post-death":      "modules/stonetop/templates/actor/partials/tab-post-death.hbs",
