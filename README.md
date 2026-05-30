@@ -15,7 +15,7 @@ Requires the [Powered by the Apocalypse](https://foundryvtt.com/packages/pbta) s
 In Foundry VTT, go to **Add-on Modules → Install Module** and paste this manifest URL:
 
 ```
-https://github.com/PrinceWitherdick/stonetop/releases/latest/download/module.json
+https://github.com/PrinceWitherdick/stonetop/releases/download/0.7.5/module.json
 ```
 
 ## Development
