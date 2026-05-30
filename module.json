@@ -31,7 +31,7 @@
 		}
 	],
 	"url": "https://github.com/PrinceWitherdick/stonetop",
-	"manifest": "https://github.com/PrinceWitherdick/stonetop/releases/download/0.7.5/module.json",
+	"manifest": "https://github.com/PrinceWitherdick/stonetop/releases/latest/download/module.jsonn",
 	"download": "https://github.com/PrinceWitherdick/stonetop/releases/download/0.7.5/stonetop.zip",
 	"license": "LICENSE",
 	"readme": "README.md",
