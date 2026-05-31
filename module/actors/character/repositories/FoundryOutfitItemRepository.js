@@ -2,6 +2,7 @@ import { OutfitItemBuilder } from "../../../model/OutfitItem.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
 
 const FIELDS = [
+	"system.moveType",
 	"flags.stonetop.slug", "flags.stonetop.inventoryColumn", "flags.stonetop.sortOrder",
 	"flags.stonetop.weight", "flags.stonetop.note", "flags.stonetop.resource",
 	"flags.stonetop.prosperityResource",
@@ -11,13 +12,13 @@ const FIELDS = [
 
 export class FoundryOutfitItemRepository {
 	constructor() {
-		this._store = new FoundryPackStore("stonetop.inventory-items", FIELDS);
+		this._store = new FoundryPackStore("stonetop.stonetop-items", FIELDS);
 		this._cache = null;
 	}
 
 	async getAll() {
 		if (this._cache) return this._cache;
-		const entries = await this._store.getAll();
+		const entries = await this._store.filterEntries(e => e.system?.moveType === "inventory");
 		this._cache = entries
 			.sort((a, b) => (a.flags?.stonetop?.sortOrder ?? 0) - (b.flags?.stonetop?.sortOrder ?? 0))
 			.map(item => {

@@ -143,7 +143,7 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	async _loadPlaybookMoves() {
-		const pack = game.packs.get("stonetop.playbook-moves");
+		const pack = game.packs.get("stonetop.stonetop-items");
 		if (!pack) return [];
 		await pack.getIndex({ fields: ["system.playbook", "system.isStartingMove", "system.requirement"] });
 		const relevant = pack.index.filter(e => e.system?.playbook === this._playbookDoc.name);

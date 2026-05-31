@@ -1,0 +1,5 @@
+2026/05/31-01:51:09.586 460c Delete type=3 #1
+2026/05/31-01:51:09.589 2918 Level-0 table #5: started
+2026/05/31-01:51:09.593 2918 Level-0 table #5: 25855 bytes OK
+2026/05/31-01:51:09.596 2918 Delete type=0 #3
+2026/05/31-01:51:09.596 2918 Manual compaction at level-0 from '!journal!stonetopSO000001' @ 72057594037927935 : 1 .. '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 0 : 0; will stop at (end)

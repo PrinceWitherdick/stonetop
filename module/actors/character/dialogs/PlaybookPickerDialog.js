@@ -33,11 +33,15 @@ export class PlaybookPickerDialog extends Application {
 
 	async getData() {
 		if (!this._playbooks.length) {
-			const pack = game.packs.get("stonetop.playbooks");
+			const pack = game.packs.get("stonetop.stonetop-items");
 			if (pack) {
-				const docs = await pack.getDocuments();
+				await pack.getIndex({ fields: ["type", "system.slug", "img"] });
+				const entries = [...pack.index].filter(e =>
+					e.type === "playbook" && !!PLAYBOOK_DESCRIPTIONS[e.system?.slug ?? ""]
+				);
+				const docs = await Promise.all(entries.map(e => pack.getDocument(e._id)));
 				this._playbooks = docs
-					.filter(d => d.type === "playbook")
+					.filter(Boolean)
 					.sort((a, b) => a.name.localeCompare(b.name))
 					.map(d => {
 						const slug = d.system?.slug ?? "";

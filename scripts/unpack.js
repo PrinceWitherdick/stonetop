@@ -2,8 +2,8 @@ import { extractPack } from "@foundryvtt/foundryvtt-cli";
 import { promises as fs } from "fs";
 import { PACKS } from "./packs.js";
 
-for (const pack of PACKS) {
-	const src = `packs/${pack}`;
+for (const { name: pack } of PACKS) {
+	const src  = `packs/${pack}`;
 	const dest = `packs/src/${pack}`;
 	try {
 		await fs.access(dest);

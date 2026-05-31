@@ -1,5 +1,15 @@
-2026/05/31-01:47:44.677 9480 Delete type=3 #1
-2026/05/31-01:47:44.680 1220 Level-0 table #5: started
-2026/05/31-01:47:44.682 1220 Level-0 table #5: 25855 bytes OK
-2026/05/31-01:47:44.686 1220 Delete type=0 #3
-2026/05/31-01:47:44.686 1220 Manual compaction at level-0 from '!journal!stonetopSO000001' @ 72057594037927935 : 1 .. '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 0 : 0; will stop at (end)
+2026/05/31-01:51:13.142 4bd0 Recovering log #4
+2026/05/31-01:51:13.151 4bd0 Delete type=0 #4
+2026/05/31-01:51:13.151 4bd0 Delete type=3 #2
+2026/05/31-02:05:52.731 6074 Level-0 table #9: started
+2026/05/31-02:05:52.735 6074 Level-0 table #9: 27291 bytes OK
+2026/05/31-02:05:52.738 6074 Delete type=0 #7
+2026/05/31-02:05:52.746 6074 Manual compaction at level-0 from '!journal!stonetopSO000001' @ 72057594037927935 : 1 .. '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 0 : 0; will stop at (end)
+2026/05/31-02:05:52.774 6074 Manual compaction at level-1 from '!journal!stonetopSO000001' @ 72057594037927935 : 1 .. '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 0 : 0; will stop at '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 21 : 1
+2026/05/31-02:05:52.774 6074 Compacting 1@1 + 1@2 files
+2026/05/31-02:05:52.778 6074 Generated table #10@1: 11 keys, 27291 bytes
+2026/05/31-02:05:52.778 6074 Compacted 1@1 + 1@2 files => 27291 bytes
+2026/05/31-02:05:52.781 6074 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/05/31-02:05:52.781 6074 Delete type=2 #5
+2026/05/31-02:05:52.781 6074 Delete type=2 #9
+2026/05/31-02:05:52.789 6074 Manual compaction at level-1 from '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 21 : 1 .. '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 0 : 0; will stop at (end)

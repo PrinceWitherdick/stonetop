@@ -1,0 +1,18 @@
+{
+  "_id": "Fl41sNLjVHWGaub5",
+  "_key": "!items!Fl41sNLjVHWGaub5",
+  "name": "Change of clothes",
+  "type": "move",
+  "system": {
+    "moveType": "inventory"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "change-clothes",
+      "inventoryColumn": "regular",
+      "sortOrder": 10.1,
+      "weight": 1
+    }
+  },
+  "folder": "OL1lTSyCryWm3Xez"
+}

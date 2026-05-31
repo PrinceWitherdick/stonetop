@@ -69,98 +69,16 @@
                   ],
     "packs":  [
                   {
-                      "name":  "basic-moves",
-                      "label":  "Basic Moves",
-                      "path":  "packs/basic-moves",
+                      "name":  "stonetop-items",
+                      "label":  "Stonetop Items",
+                      "path":  "packs/stonetop-items",
                       "type":  "Item",
                       "system":  "pbta"
                   },
                   {
-                      "name":  "playbooks",
-                      "label":  "Playbooks",
-                      "path":  "packs/playbooks",
-                      "type":  "Item",
-                      "system":  "pbta"
-                  },
-                  {
-                      "name":  "special-moves",
-                      "label":  "Special Moves",
-                      "path":  "packs/special-moves",
-                      "type":  "Item",
-                      "system":  "pbta"
-                  },
-                  {
-                      "name":  "playbook-moves",
-                      "label":  "Playbook Moves",
-                      "path":  "packs/playbook-moves",
-                      "type":  "Item",
-                      "system":  "pbta"
-                  },
-                  {
-                      "name":  "follower-moves",
-                      "label":  "Follower Moves",
-                      "path":  "packs/follower-moves",
-                      "type":  "Item",
-                      "system":  "pbta"
-                  },
-                  {
-                      "name":  "expedition-moves",
-                      "label":  "Expedition Moves",
-                      "path":  "packs/expedition-moves",
-                      "type":  "Item",
-                      "system":  "pbta"
-                  },
-                  {
-                      "name":  "homefront-moves",
-                      "label":  "Homefront Moves",
-                      "path":  "packs/homefront-moves",
-                      "type":  "Item",
-                      "system":  "pbta"
-                  },
-                  {
-                      "name":  "inventory-items",
-                      "label":  "Inventory Items",
-                      "path":  "packs/inventory-items",
-                      "type":  "Item",
-                      "system":  "pbta"
-                  },
-                  {
-                      "name":  "arcana",
-                      "label":  "Arcana",
-                      "path":  "packs/arcana",
-                      "type":  "Item",
-                      "system":  "pbta"
-                  },
-                  {
-                      "name":  "post-death-inserts",
-                      "label":  "Post-Death Inserts",
-                      "path":  "packs/post-death-inserts",
-                      "type":  "Item",
-                      "system":  "pbta"
-                  },
-                  {
-                      "name":  "post-death-moves",
-                      "label":  "Post-Death Moves",
-                      "path":  "packs/post-death-moves",
-                      "type":  "Item",
-                      "system":  "pbta"
-                  },
-                  {
-                      "name":  "setting-overview",
-                      "label":  "Setting Overview",
-                      "path":  "packs/setting-overview",
-                      "type":  "JournalEntry"
-                  },
-                  {
-                      "name":  "arcana-journal",
-                      "label":  "Arcana",
-                      "path":  "packs/arcana-journal",
-                      "type":  "JournalEntry"
-                  },
-                  {
-                      "name":  "reference-journals",
-                      "label":  "Reference Journals",
-                      "path":  "packs/reference-journals",
+                      "name":  "stonetop-journals",
+                      "label":  "Stonetop Journals",
+                      "path":  "packs/stonetop-journals",
                       "type":  "JournalEntry"
                   }
               ]

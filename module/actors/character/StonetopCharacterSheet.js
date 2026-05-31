@@ -832,7 +832,7 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		async _onDropPlaybook(playbookDoc) {
 			if (!this.isEditable) return;
-			if (playbookDoc.pack === 'stonetop.post-death-inserts') {
+			if (playbookDoc.flags?.stonetop?.lore?.length) {
 				const slug = playbookDoc.system?.slug;
 				if (slug) await this._stonetopCharacter.setPostDeathInsert(slug);
 				this.render(false);
