@@ -1,8 +1,8 @@
 {{#if lore.hasEntries}}
+{{#if stonetop.editMode}}
 <div class="details-section">
 	{{#each lore.entries}}
 	<div class="stonetop-lore-entry">
-		{{#if stonetop.editMode}}
 		{{> "stonetop.section-heading" title=title}}
 		{{#if description}}
 		<div class="stonetop-lore-description">{{{description}}}</div>
@@ -29,8 +29,15 @@
 			{{/if}}
 		</div>
 		{{/each}}
-		{{else}}
-		{{#if hasSelection}}
+	</div>
+	{{/each}}
+</div>
+{{else}}
+{{#if lore.hasSelection}}
+<div class="details-section">
+	{{#each lore.entries}}
+	{{#if hasSelection}}
+	<div class="stonetop-lore-entry">
 		{{> "stonetop.section-heading" title=title}}
 		{{#if description}}
 		<div class="stonetop-lore-description">{{{description}}}</div>
@@ -51,9 +58,10 @@
 		{{/if}}
 		{{/if}}
 		{{/each}}
-		{{/if}}
-		{{/if}}
 	</div>
+	{{/if}}
 	{{/each}}
 </div>
+{{/if}}
+{{/if}}
 {{/if}}

@@ -224,6 +224,10 @@ export class LoreSection {
 	get hasEntries() {
 		return this.entries.length > 0;
 	}
+
+	get hasSelection() {
+		return this.entries.some(e => e.hasSelection);
+	}
 }
 
 // ── Playbook ──────────────────────────────────────────────────────────────────

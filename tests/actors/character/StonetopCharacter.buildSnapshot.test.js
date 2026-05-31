@@ -29,7 +29,7 @@ function makeOutfitItem(overrides = {}) {
 const HEAVY_PLAYBOOK = {
 	slug: "the-heavy",
 	name: "The Heavy",
-	img: "modules/stonetop/assets/playbooks/the-heavy.svg",
+	img: "systems/stonetop/assets/playbooks/the-heavy.svg",
 	description: "<p>You are the muscle.</p>",
 	statsNote: "Put your highest stat in STR or CON.",
 	hp: 20,
@@ -124,7 +124,7 @@ describe("buildSnapshot — playbook section", () => {
 		const snap = await buildSnap();
 		expect(snap.playbook.slug).toBe("the-heavy");
 		expect(snap.playbook.name).toBe("The Heavy");
-		expect(snap.playbook.img).toBe("modules/stonetop/assets/playbooks/the-heavy.svg");
+		expect(snap.playbook.img).toBe("systems/stonetop/assets/playbooks/the-heavy.svg");
 		expect(snap.playbook.description).toBe("<p>You are the muscle.</p>");
 		expect(snap.playbook.statsNote).toBe("Put your highest stat in STR or CON.");
 	});
@@ -767,6 +767,16 @@ describe("buildSnapshot — lore section", () => {
 			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
 			.build().buildSnapshot();
 		expect(snap.playbook.lore.hasEntries).toBe(false);
+	});
+
+	it("lore.hasSelection is false when no lore options are selected", async () => {
+		const snap = await buildSnap();
+		expect(snap.playbook.lore.hasSelection).toBe(false);
+	});
+
+	it("lore.hasSelection is true when any lore option is selected", async () => {
+		const snap = await buildSnap({ "lore.counts": { "the-earth-mother:shrine-loved": 1 } });
+		expect(snap.playbook.lore.hasSelection).toBe(true);
 	});
 
 	it("lore.entries has correct length", async () => {

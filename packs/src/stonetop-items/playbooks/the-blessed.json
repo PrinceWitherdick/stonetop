@@ -1,7 +1,7 @@
 {
   "_id": "RbcwUiSxq1sgau7L",
   "_key": "!items!RbcwUiSxq1sgau7L",
-  "img": "modules/stonetop/assets/playbooks/the-blessed.svg",
+  "img": "systems/stonetop/assets/playbooks/the-blessed.svg",
   "name": "The Blessed",
   "type": "playbook",
   "flags": {
@@ -20,7 +20,7 @@
             "Rites of the Land"
           ],
           "choices": {
-            "label": "There are other initiates in Stonetop, serving the goddess and the village. They aid you as followers— see the Initiates of Danu insert. Who are they?",
+            "label": "There are other initiates in Stonetop, serving the goddess and the village. They aid you as followersâ€” see the Initiates of Danu insert. Who are they?",
             "count": [
               2,
               3
@@ -515,12 +515,12 @@
           {
             "slug": "apiary",
             "label": "Apiary",
-            "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hat &amp; veils, etc."
+            "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, â—‡ bee smokers, â—‡ hat &amp; veils, etc."
           },
           {
             "slug": "collected-offerings",
             "label": "Collected offerings",
-            "description": "(○○○ uses) Expend a use to produce something valuable to a spirit of the wild. Restore 1 use each season.",
+            "description": "(â—‹â—‹â—‹ uses) Expend a use to produce something valuable to a spirit of the wild. Restore 1 use each season.",
             "resource": {
               "max": 3,
               "title": null,
@@ -535,7 +535,7 @@
           {
             "slug": "herb-garden",
             "label": "Herb garden",
-            "description": "shears, mortars &amp; pestles, herbs, seeds, remedies, mild poisons, ◇ spades, etc. Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature)."
+            "description": "shears, mortars &amp; pestles, herbs, seeds, remedies, mild poisons, â—‡ spades, etc. Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature)."
           },
           {
             "slug": "mastiffs",
@@ -576,7 +576,7 @@
         {
           "slug": "danu-offerings",
           "title": "Offerings to Danu",
-          "description": "<p>What do the folk of Stonetop leave as offerings? <em>(choose 2–3)</em></p>",
+          "description": "<p>What do the folk of Stonetop leave as offerings? <em>(choose 2â€“3)</em></p>",
           "options": [
             {
               "slug": "fruits-of-harvest",

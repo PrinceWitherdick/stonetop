@@ -1,0 +1,14 @@
+<div class="cell--stats">
+	<ul class="stats-list">
+	{{#each system.stats}}
+	<li class="stat cell--stat rollable" data-stat="{{@key}}" data-roll="{{@key}}">
+		<span class="cell__title"><i class="stat-icon fas fa-dice-d6"></i> {{statLabel @key}}</span>
+		<input class="stat-value" type="number"
+		       name="system.stats.{{@key}}.value"
+		       value="{{value}}"
+		       {{#unless ../editable}}disabled{{/unless}}>
+		<span class="stonetop-stat-abbr">({{@key}})</span>
+	</li>
+	{{/each}}
+	</ul>
+</div>

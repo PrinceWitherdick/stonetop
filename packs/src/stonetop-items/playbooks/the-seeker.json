@@ -1,7 +1,7 @@
 {
   "_id": "66InktII1QKAPInQ",
   "_key": "!items!66InktII1QKAPInQ",
-  "img": "modules/stonetop/assets/playbooks/the-seeker.svg",
+  "img": "systems/stonetop/assets/playbooks/the-seeker.svg",
   "name": "The Seeker",
   "type": "playbook",
   "flags": {
@@ -9,7 +9,7 @@
       "hp": 16,
       "damage": "d6",
       "moves": {
-        "startingMovesNote": "You start with Well Versed, Work With What You’ve Got, plus 1 from your Background."
+        "startingMovesNote": "You start with Well Versed, Work With What Youâ€™ve Got, plus 1 from your Background."
       },
       "backgrounds": [
         {
@@ -156,12 +156,12 @@
           {
             "slug": "scribes-tools",
             "label": "Scribe's tools",
-            "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+            "description": "parchment, ink, pigments, vials, quills, â—‡ a notebook, etc."
           },
           {
             "slug": "books-and-scrolls",
             "label": "Books &amp; scrolls",
-            "description": "(○○○○○ uses) a collection of arcane texts and forbidden lore. Mark a use to <em>Know Things about the topic at hand</em> as if you rolled a 10+.",
+            "description": "(â—‹â—‹â—‹â—‹â—‹ uses) a collection of arcane texts and forbidden lore. Mark a use to <em>Know Things about the topic at hand</em> as if you rolled a 10+.",
             "resource": {
               "max": 5,
               "title": null,
@@ -171,7 +171,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "(○○ uses) alchemical distillation equipment, reagents, solvents, tubes, flasks; also produces fine spirits (Value 1).",
+            "description": "(â—‹â—‹ uses) alchemical distillation equipment, reagents, solvents, tubes, flasks; also produces fine spirits (Value 1).",
             "resource": {
               "max": 2,
               "title": null,
@@ -181,17 +181,17 @@
           {
             "slug": "engineers-tools",
             "label": "Engineer's tools",
-            "description": "measuring string, stakes, levels, plumb bobs, ◇ compasses, ◇ drawing tools, plans, etc."
+            "description": "measuring string, stakes, levels, plumb bobs, â—‡ compasses, â—‡ drawing tools, plans, etc."
           },
           {
             "slug": "laboratory",
             "label": "Laboratory",
-            "description": "retorts, tubes, alembics, crucibles, ◇ a furnace, notebooks full of notes; a workspace for research, preparation, and experimentation."
+            "description": "retorts, tubes, alembics, crucibles, â—‡ a furnace, notebooks full of notes; a workspace for research, preparation, and experimentation."
           },
           {
             "slug": "paraphernalia",
             "label": "Paraphernalia",
-            "description": "chalk, candles, inks, salts, herbs, ◇ a ritual knife, ◇ a compass, etc."
+            "description": "chalk, candles, inks, salts, herbs, â—‡ a ritual knife, â—‡ a compass, etc."
           },
           {
             "slug": "trade-contacts",
@@ -205,7 +205,7 @@
         {
           "slug": "collection",
           "title": "Collection",
-          "description": "<p>In your travels and investigations you have acquired arcana—artifacts of power and mystery. Your Background grants you 1 major arcanum. Answer at least 2 questions about it.</p>"
+          "description": "<p>In your travels and investigations you have acquired arcanaâ€”artifacts of power and mystery. Your Background grants you 1 major arcanum. Answer at least 2 questions about it.</p>"
         },
         {
           "slug": "arcana-major",
@@ -234,7 +234,7 @@
             },
             {
               "slug": "when-unlocked",
-              "description": "<p>You’ve begun to unlock the mysteries of your major arcanum; mark 1 or on the front of its insert.<p><p>When and how did that happen?</p>",
+              "description": "<p>Youâ€™ve begun to unlock the mysteries of your major arcanum; mark 1 or on the front of its insert.<p><p>When and how did that happen?</p>",
               "type": "text"
             }
           ]

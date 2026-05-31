@@ -1,8 +1,14 @@
 {
-	"PBTA_OTHER": "Other (animals, kits, stashed items, etc.)",
 	"TYPES": {
 		"Actor": {
-			"stonetop": "Stonetop"
+			"character": "Character",
+			"stonetop":  "Stonetop",
+			"npc":       "NPC"
+		},
+		"Item": {
+			"move":     "Move",
+			"playbook": "Playbook",
+			"npcMove":  "NPC Move"
 		}
 	},
 	"stonetop": {
@@ -17,6 +23,7 @@
 		},
 		"sheet": {
 			"tabs": {
+				"moves":       "Moves",
 				"details": "Details",
 				"followers": "Followers",
 				"invocations": "Invocations",
@@ -131,10 +138,14 @@
 				"charisma": "Charisma"
 			},
 			"attributes": {
-				"damage": "Damage",
-				"armor": "Armor",
-				"xp": "XP",
-				"level": "Level"
+				"damage":      "Damage",
+				"armor":       "Armor",
+				"xp":          "XP",
+				"level":       "Level",
+				"forward":     "Forward",
+				"forwardHint": "A one-time bonus to your next roll, then cleared. Set this when a move says 'take +1 forward'.",
+				"ongoing":     "Ongoing",
+				"ongoingHint": "A persistent bonus applied to every roll until you clear it. Set this when a move says 'take +1 ongoing'."
 			},
 			"gear": {
 				"specialPossessions": "Special Possessions"

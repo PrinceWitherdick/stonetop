@@ -127,7 +127,7 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		get template() {
-			return "modules/stonetop/templates/actor/steading.hbs";
+			return "systems/stonetop/templates/actor/steading.hbs";
 		}
 
 		async _render(force, options) {
@@ -182,7 +182,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			console.log("Stonetop | StonetopSteadingSheet super.getData() returned, template:", this.template);
 			context.stonetop = await this._stonetopSteading.buildSnapshot();
 			context.stonetop.moves = STEADING_MOVES;
-			context.stonetop.enrichedNotes = await TextEditor.enrichHTML(context.stonetop.notes ?? "");
+			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
 			return context;
 		}
@@ -218,6 +218,14 @@ export function createStonetopSteadingSheetClass(Base) {
 			}, true);
 
 			if (!this.isEditable) return;
+
+			// Stat tracks use custom radio markup, so persist them explicitly.
+			html[0].addEventListener("change", ev => {
+				const radio = ev.target.closest(".steading-track-option input[type='radio'][name]");
+				if (!radio || !this._editMode) return;
+				ev.stopPropagation();
+				this._onSteadingTrackChange(radio.name, Number(radio.value));
+			}, true);
 
 			// List item checked toggle (resources, fortifications, assets)
 			html[0].addEventListener("change", ev => {
@@ -316,6 +324,10 @@ export function createStonetopSteadingSheetClass(Base) {
 				</div>`,
 				rollMode: game.settings.get("core", "rollMode"),
 			});
+		}
+
+		async _onSteadingTrackChange(path, value) {
+			await this.actor.update({ [path]: value });
 		}
 
 		async _onListItemCheck(list, index, checked) {
