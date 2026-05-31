@@ -1,6 +1,6 @@
 import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS } from "./StonetopSteading.js";
 
-const STEADING_MOVES = [
+const _STEADING_MOVES_RAW = [
 	{
 		slug: "seasonsChange",
 		label: "When the Seasons Change",
@@ -103,6 +103,7 @@ const STEADING_MOVES = [
 <p><em>Malcontent debility: folks need Persuading more often than usual.</em></p>`,
 	},
 ];
+const STEADING_MOVES = [..._STEADING_MOVES_RAW].sort((a, b) => a.label.localeCompare(b.label));
 
 export function createStonetopSteadingSheetClass(Base) {
 	return class StonetopSteadingSheet extends Base {
@@ -181,6 +182,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			console.log("Stonetop | StonetopSteadingSheet super.getData() returned, template:", this.template);
 			context.stonetop = await this._stonetopSteading.buildSnapshot();
 			context.stonetop.moves = STEADING_MOVES;
+			context.stonetop.enrichedNotes = await TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
 			return context;
 		}
@@ -253,10 +255,10 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			// Notes
 			html[0].addEventListener("change", ev => {
-				const ta = ev.target.closest(".steading-notes-input");
-				if (!ta) return;
+				const pm = ev.target.closest("prose-mirror.steading-notes-editor");
+				if (!pm) return;
 				ev.stopPropagation();
-				this._onNotesChange(ta.value);
+				this._onNotesChange(pm.value);
 			}, true);
 
 			// Size radio

@@ -72,6 +72,7 @@ export class InstinctSection {
 		this.options  = options;
 	}
 	get selectedOption() { return this.options.find(o => o.selected) ?? null; }
+	get hasSelection()   { return !!this.selected || !!this.selectedOption; }
 }
 
 // ── Origin ────────────────────────────────────────────────────────────────────
@@ -201,6 +202,9 @@ export class LoreEntrySnapshot {
 		this.title       = b._title;
 		this.description = b._description;
 		this.options     = b._options;
+	}
+	get hasSelection() {
+		return this.options.some(o => o.type === "text" ? !!o.textValue : o.count > 0);
 	}
 }
 

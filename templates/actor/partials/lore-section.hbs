@@ -2,6 +2,7 @@
 <div class="details-section">
 	{{#each lore.entries}}
 	<div class="stonetop-lore-entry">
+		{{#if stonetop.editMode}}
 		{{> "stonetop.section-heading" title=title}}
 		{{#if description}}
 		<div class="stonetop-lore-description">{{{description}}}</div>
@@ -28,6 +29,30 @@
 			{{/if}}
 		</div>
 		{{/each}}
+		{{else}}
+		{{#if hasSelection}}
+		{{> "stonetop.section-heading" title=title}}
+		{{#if description}}
+		<div class="stonetop-lore-description">{{{description}}}</div>
+		{{/if}}
+		{{#each options}}
+		{{#if (eq type "text")}}
+		{{#if textValue}}
+		<div class="stonetop-lore-option stonetop-lore-option--text stonetop-lore-option--readonly">
+			<span class="stonetop-lore-option-desc">{{{description}}}</span>
+			<p class="stonetop-lore-readonly-value">{{textValue}}</p>
+		</div>
+		{{/if}}
+		{{else}}
+		{{#if count}}
+		<div class="stonetop-lore-option stonetop-lore-option--readonly">
+			<span class="stonetop-lore-option-desc">{{{description}}}</span>
+		</div>
+		{{/if}}
+		{{/if}}
+		{{/each}}
+		{{/if}}
+		{{/if}}
 	</div>
 	{{/each}}
 </div>

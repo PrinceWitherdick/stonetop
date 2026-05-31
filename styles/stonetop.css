@@ -148,6 +148,11 @@ body,
 	margin-bottom: 2px;
 }
 
+.sheet-attributes-top .cell--attributes-top .cell--Roll .cell__roll,
+.sheet-attributes-top .cell--attributes-top .cell--Number > input[type="text"] {
+	margin-top:6px;
+}
+
 /* XP max is derived from level — prevent editing it directly */
 .cell--attr-xp .cell__max input {
 	pointer-events: none;
@@ -318,9 +323,9 @@ body,
 .stonetop-debility input[type="checkbox"] {
 	appearance: none !important;
 	-webkit-appearance: none !important;
-	width: 14px;
-	height: 14px;
-	aspect-ratio: 1;
+	width: 18px !important;
+	height: 14px !important;
+	aspect-ratio: 1 / 1;
 	flex-shrink: 0;
 	border-radius: 50% !important;
 	border: 1.5px solid #555 !important;
@@ -763,6 +768,7 @@ body,
 	flex-shrink: 0;
 	border-left: 1px solid var(--color-border-light-2);
 	padding-left: 12px;
+	padding-top: 20px;
 	overflow-y: auto;
 }
 
@@ -924,6 +930,11 @@ body,
 	opacity: 1;
 }
 
+.stonetop-readonly .steading-list-add,
+.stonetop-readonly .steading-list-delete {
+	display: none;
+}
+
 /* -- Move-to-chat message ----------------------------------------- */
 
 .stonetop-chat-move {
@@ -940,6 +951,19 @@ body,
 .stonetop-chat-move-description {
 	font-size: 0.85rem;
 	line-height: 1.5;
+}
+
+/* ── Chat card tweaks ───────────────────────────────────────────────────────── */
+
+/* "Conditions Applied:" heading — normalize to match the stat-name row text size */
+.pbta-chat-card .conditions .cell__subtitle {
+	font-size: 1em;
+}
+
+/* Debility name in conditions list — signals it's hoverable */
+.stonetop-debility-hint {
+	cursor: help;
+	text-decoration: underline dotted;
 }
 
 /* ── Burn Brightly ──────────────────────────────────────────────────────────── */
@@ -1352,6 +1376,7 @@ body,
 
 /* -- Outfit header -------------------------------------------- */
 .stonetop-outfit-header {
+	margin-top: 8px;
 	margin-bottom: 8px;
 	padding: 6px 8px;
 	background: rgba(0, 0, 0, 0.05);
@@ -1679,6 +1704,16 @@ body,
 .stonetop-arcanum-chat-card p { margin: 0 0 4px; }
 .stonetop-arcanum-chat-card ul { margin: 0 0 4px; padding-left: 1.2em; }
 
+/* -- Details tab sections --------------------------------------- */
+
+.details-section:last-child {
+	margin-bottom: 0;
+}
+
+.details-section .stonetop-move-group-title {
+	margin-top: 0;
+}
+
 /* -- Lore section (Details + Post-Death tabs) ------------------- */
 .stonetop-lore-entry {
 	margin-bottom: 8px;
@@ -1732,6 +1767,39 @@ body,
 	font-family: inherit;
 }
 
+/* Read-only Details tab */
+
+.stonetop-details-readonly-value {
+	margin: 0 0 2px;
+	font-size: 0.9em;
+}
+
+.stonetop-lore-readonly-value {
+	margin: 2px 0 0;
+	font-size: 0.85em;
+	font-style: italic;
+}
+
+.stonetop-lore-option--readonly {
+	align-items: flex-start;
+}
+
+.stonetop-appearance-readonly {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px 10px;
+	font-size: 0.9em;
+}
+
+.stonetop-appearance-readonly-value:not(:last-child)::after {
+	content: ",";
+}
+
+.stonetop-bg-choice-readonly {
+	margin: 1px 0 1px 12px;
+	font-size: 0.85em;
+}
+
 /* Moves tab: hide-unselected toggle */
 
 .stonetop-hide-unselected-label {
@@ -1744,10 +1812,15 @@ body,
 	margin: 12px 0 20px 0;
 }
 
-.tab.moves,
-.tab.equipment,
-.tab.arcana {
-	padding-top: 20px;
+.pbta.sheet .tab.moves,
+.pbta.sheet .tab.equipment,
+.pbta.sheet .tab.arcana,
+.pbta.sheet .tab.details,
+.pbta.sheet .tab.followers,
+.pbta.sheet .tab.stonetop-invocations,
+.pbta.sheet .tab.post-death,
+.pbta.sheet .tab.stonetop-special-moves {
+	padding-top: 12px;
 }
 
 .tab.moves.hide-unselected .stonetop-item:not(.is-checked) {
@@ -2403,13 +2476,33 @@ body,
 	flex-shrink: 0;
 	border: 2px solid slategrey;
 	border-radius: 3px;
-	cursor: pointer;
+	cursor: default;
 	background: white;
 	transition: background 0.1s;
 }
 
 .steading-track-option input[type="radio"]:checked,
 .steading-track-option.is-selected input[type="radio"] {
+	background: slategrey;
+}
+
+/* View mode: restore full opacity so the slategrey fill looks crisp */
+.stonetop-readonly .steading-track-option input[type="radio"] {
+	opacity: 1;
+}
+
+/* Edit mode: tint unselected options and show hover to signal interactivity */
+.steading-stats-bar:not(.stonetop-readonly) .steading-track-option input[type="radio"] {
+	cursor: pointer;
+	background: rgba(106, 120, 128, 0.15);
+}
+
+.steading-stats-bar:not(.stonetop-readonly) .steading-track-option input[type="radio"]:hover {
+	background: rgba(106, 120, 128, 0.35);
+}
+
+.steading-stats-bar:not(.stonetop-readonly) .steading-track-option input[type="radio"]:checked,
+.steading-stats-bar:not(.stonetop-readonly) .steading-track-option.is-selected input[type="radio"] {
 	background: slategrey;
 }
 
@@ -2546,27 +2639,34 @@ body,
 	gap: 4px;
 }
 
-.steading-notes {
+.steading-sheet .tab.notes.active {
+	height: 100%;
 	display: flex;
 	flex-direction: column;
-	height: 100%;
 }
 
-.steading-notes .steading-notes-input {
+.steading-sheet .tab.notes .sheet-tab {
 	flex: 1;
-	resize: none;
-	min-height: 300px;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	padding-bottom: 14px;
 }
 
-.steading-notes-input {
-	resize: vertical;
-	min-height: 80px;
-	font-family: inherit;
-	font-size: 0.85em;
-	border: 1px solid rgba(0,0,0,0.15);
-	border-radius: 4px;
-	padding: 4px;
-	background: rgba(255,255,255,0.6);
+.steading-notes {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.steading-notes prose-mirror.steading-notes-editor {
+	flex: 1;
+	min-height: 0;
+}
+
+.steading-notes prose-mirror.steading-notes-editor .editor-content {
+	padding-top: 8px;
 }
 
 .steading-list-section {
@@ -2761,7 +2861,7 @@ body,
 
 /* -- Improvements tab ------------------------------------------ */
 
-.steading-improvements-intro {
+.steading-improvements .steading-improvements-intro {
 	font-size: 0.82em;
 	color: #555;
 	font-style: italic;
@@ -2772,7 +2872,7 @@ body,
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
 	gap: 10px;
-	align-items: start;
+	align-items: stretch;
 }
 
 .steading-improvement {
@@ -2933,7 +3033,7 @@ body,
 	gap: 8px;
 }
 
-.steading-moves-intro {
+.steading-moves-tab .steading-moves-intro {
 	font-size: 0.82em;
 	color: #555;
 	font-style: italic;
@@ -3894,11 +3994,10 @@ body,
 /* ── Followers tab ─────────────────────────────────────────────────── */
 
 .stonetop-followers {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start; /* cards shrink to content width */
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	align-items: start;
 	gap: 12px;
-	padding: 12px 14px;
 }
 
 .stonetop-follower-card {
@@ -3934,7 +4033,7 @@ body,
 
 .stonetop-follower-name {
 	font-weight: 700;
-	font-size: 0.95em;
+	font-size: 1em;
 }
 
 .stonetop-follower-type {
@@ -3945,7 +4044,7 @@ body,
 
 .stonetop-follower-name-input {
 	font-weight: 700;
-	font-size: 0.95em;
+	font-size: 1.9em;
 	border: none;
 	border-bottom: 1px solid rgba(255,255,255,0.5);
 	background: transparent;
@@ -3958,7 +4057,7 @@ body,
 	display: flex;
 	gap: 12px;
 	flex-shrink: 0;
-	font-size: 0.78em;
+	font-size: calc(0.78em + 2pt);
 	color: #444;
 }
 
