@@ -7,9 +7,9 @@ const POST_DEATH_FIELDS = ["system.playbook", "system.rollType", "system.descrip
 
 export class FoundryMoveRepository {
 	constructor() {
-		this._playbookStore  = new FoundryPackStore("stonetop.playbook-moves",  PLAYBOOK_FIELDS);
-		this._basicStore     = new FoundryPackStore("stonetop.basic-moves",      ["system.rollType", "system.description"]);
-		this._postDeathStore = new FoundryPackStore("stonetop.post-death-moves", POST_DEATH_FIELDS);
+		this._playbookStore  = new FoundryPackStore("stonetop.stonetop-items", PLAYBOOK_FIELDS);
+		this._basicStore     = new FoundryPackStore("stonetop.stonetop-items", ["system.moveType", "system.rollType", "system.description"]);
+		this._postDeathStore = new FoundryPackStore("stonetop.stonetop-items", POST_DEATH_FIELDS);
 		this._playbookCache  = new Map();
 		this._postDeathCache = new Map();
 		this._basicCache     = null;
@@ -29,7 +29,7 @@ export class FoundryMoveRepository {
 
 	async getBasicMoves() {
 		if (this._basicCache) return this._basicCache;
-		const entries    = await this._basicStore.getAll();
+		const entries    = await this._basicStore.filterEntries(e => e.system?.moveType === "basic");
 		this._basicCache = entries.map(e => new MoveDefinition(e));
 		return this._basicCache;
 	}

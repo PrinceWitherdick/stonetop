@@ -8,38 +8,76 @@ function randomId() {
 	return Array.from({ length: 16 }, () => CHARS[Math.floor(Math.random() * CHARS.length)]).join("");
 }
 
-async function ensureFolders(srcDir) {
+function slugToLabel(slug) {
+	return slug.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Recursively ensures folder docs exist for every subdirectory and that each
+// item/sub-folder doc has its `folder` field pointing at the right parent.
+//
+// - srcDir:        directory being processed
+// - parentId:      the Foundry folder _id this level belongs to (null = root)
+// - folderType:    "Item" | "JournalEntry" — written into folder docs
+// - rootFoldersDir: the single _folders/ dir at the top of this pack (all
+//                   folder docs live there regardless of nesting depth)
+async function ensureFolders(srcDir, parentId = null, folderType = "Item", rootFoldersDir = null) {
+	if (!rootFoldersDir) rootFoldersDir = path.join(srcDir, "_folders");
+
 	const entries = await fs.readdir(srcDir, { withFileTypes: true });
-	const subdirs = entries.filter(e => e.isDirectory() && !e.name.startsWith("_"));
+	const subdirs  = entries.filter(e => e.isDirectory() && !e.name.startsWith("_"));
 	if (!subdirs.length) return;
 
-	const foldersDir = path.join(srcDir, "_folders");
-	await fs.mkdir(foldersDir, { recursive: true });
+	await fs.mkdir(rootFoldersDir, { recursive: true });
 
 	for (const subdir of subdirs) {
-		const slug = subdir.name;
-		const name = slug.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-		const folderFile = path.join(foldersDir, `${slug}.json`);
+		const slug       = subdir.name;
+		const folderFile = path.join(rootFoldersDir, `${slug}.json`);
 
-		let folderId;
+		// Read existing doc or create a fresh one.
+		let folderDoc;
 		try {
-			const existing = JSON.parse(await fs.readFile(folderFile, "utf8"));
-			folderId = existing._id;
+			folderDoc = JSON.parse(await fs.readFile(folderFile, "utf8"));
 		} catch {
-			folderId = randomId();
-			const folderDoc = { name, type: "Item", description: "", folder: null, sorting: "a", sort: 0, color: null, flags: {}, _id: folderId, _key: `!folders!${folderId}` };
-			await fs.writeFile(folderFile, JSON.stringify(folderDoc, null, 2));
-			console.log(`  Created folder: ${name}`);
+			const id  = randomId();
+			folderDoc = {
+				name: slugToLabel(slug),
+				type: folderType,
+				description: "",
+				folder: null,
+				sorting: "a",
+				sort: 0,
+				color: null,
+				flags: {},
+				_id: id,
+				_key: `!folders!${id}`,
+			};
+			console.log(`  Created folder: ${folderDoc.name}`);
 		}
 
-		const moveDir = path.join(srcDir, slug);
-		const files = (await fs.readdir(moveDir)).filter(f => f.endsWith(".json"));
-		for (const file of files) {
-			const filepath = path.join(moveDir, file);
-			const doc = JSON.parse(await fs.readFile(filepath, "utf8"));
-			if (doc.folder === folderId) continue;
-			doc.folder = folderId;
-			await fs.writeFile(filepath, JSON.stringify(doc, null, 2));
+		// Sync parent reference.
+		if (folderDoc.folder !== (parentId ?? null)) {
+			folderDoc.folder = parentId ?? null;
+		}
+		await fs.writeFile(folderFile, JSON.stringify(folderDoc, null, 2));
+
+		const folderId   = folderDoc._id;
+		const subDirPath = path.join(srcDir, slug);
+		const subEntries = await fs.readdir(subDirPath, { withFileTypes: true });
+		const subSubdirs = subEntries.filter(e => e.isDirectory() && !e.name.startsWith("_"));
+
+		if (subSubdirs.length > 0) {
+			// Nested pack — recurse; sub-folder docs live in the same rootFoldersDir.
+			await ensureFolders(subDirPath, folderId, folderType, rootFoldersDir);
+		} else {
+			// Flat — assign every item doc to this folder.
+			const files = subEntries.filter(e => !e.isDirectory() && e.name.endsWith(".json"));
+			for (const file of files) {
+				const filepath = path.join(subDirPath, file.name);
+				const doc = JSON.parse(await fs.readFile(filepath, "utf8"));
+				if (doc.folder === folderId) continue;
+				doc.folder = folderId;
+				await fs.writeFile(filepath, JSON.stringify(doc, null, 2));
+			}
 		}
 	}
 }
@@ -69,7 +107,7 @@ async function ensureIds(srcDir) {
 }
 
 async function main() {
-	for (const pack of PACKS) {
+	for (const { name: pack, type: packType } of PACKS) {
 		const src = `packs/src/${pack}`;
 		try {
 			await fs.access(src);
@@ -77,7 +115,7 @@ async function main() {
 			console.log(`Skipping ${pack} — no source directory at ${src}`);
 			continue;
 		}
-		await ensureFolders(src);
+		await ensureFolders(src, null, packType);
 		await ensureIds(src);
 		const dest = `packs/${pack}`;
 		await fs.rm(dest, { recursive: true, force: true });

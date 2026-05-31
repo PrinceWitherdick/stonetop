@@ -2,7 +2,7 @@ import { FoundryPackStore } from "./FoundryPackStore.js";
 
 export class FoundryPlaybookRepository {
 	constructor() {
-		this._store = new FoundryPackStore("stonetop.playbooks", ["system.slug"]);
+		this._store = new FoundryPackStore("stonetop.stonetop-items", ["system.slug"]);
 		this._cache = new Map();
 	}
 

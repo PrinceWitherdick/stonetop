@@ -1,16 +1,4 @@
 export const PACKS = [
-	"playbooks",
-	"playbook-moves",
-	"basic-moves",
-	"special-moves",
-	"follower-moves",
-	"expedition-moves",
-	"homefront-moves",
-	"inventory-items",
-	"arcana",
-	"post-death-inserts",
-	"post-death-moves",
-	"setting-overview",
-	"arcana-journal",
-	"reference-journals",
+	{ name: "stonetop-items",    type: "Item" },
+	{ name: "stonetop-journals", type: "JournalEntry" },
 ];
