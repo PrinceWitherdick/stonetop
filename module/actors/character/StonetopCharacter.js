@@ -335,11 +335,13 @@ export class StonetopCharacter {
 		const arcanaItems = await this._arcana.weightedInventoryItems();
 		const arcanaSection = arcanaItems.filter(i => i.inventoryColumn === "arcana").map(mapItem);
 		const allSmall = allItems.filter(i => i.inventoryColumn === "small");
-		const flatRegular = [
+		const regularNonArcana = [
 			...allItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...customItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
-			...arcanaItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
 		];
+		const regularArcana = arcanaItems.filter(i => i.inventoryColumn === "regular").map(mapItem);
+		if (regularArcana.length > 0 && regularNonArcana.length > 0) regularArcana[0].breakBefore = true;
+		const flatRegular = [...regularNonArcana, ...regularArcana];
 
 		let possessions = null;
 		if (playbookData?.specialPossessions) {
@@ -877,13 +879,15 @@ export class StonetopCharacter {
 
 	applyDebilityRollMode(stat, options) {
 		const debilityOptions = this._actor.system.attributes?.debilities?.options ?? {};
-		const hasActiveDebility = Object.values(debilityOptions).some(
-			opt => opt.value && Array.isArray(opt.stat) && opt.stat.includes(stat)
+		const activeEntry = Object.entries(debilityOptions).find(
+			([, opt]) => opt.value && Array.isArray(opt.stat) && opt.stat.includes(stat)
 		);
-		if (!hasActiveDebility) return options;
-		if (options.rollMode === "adv") return { ...options, rollMode: "def" };
-		if (options.rollMode === "dis") return options;
-		return { ...options, rollMode: "dis" };
+		if (!activeEntry) return options;
+		const [key] = activeEntry;
+		const def = _DEBILITY_DEF_BY_KEY[key];
+		const base = { ...options, stonetopDebility: def?.name ?? key, stonetopDebilityTooltip: def?.description ?? "" };
+		if (options.rollMode === "adv") return { ...base, rollMode: "def" };
+		return { ...base, rollMode: "dis" };
 	}
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
 	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); }
@@ -928,10 +932,11 @@ const _STAT_DEFS = {
 };
 
 const _DEBILITY_DEFS = [
-	{ key: "weakened",  name: "Weakened",  stats: ["str", "dex"] },
-	{ key: "dazed",     name: "Dazed",     stats: ["int", "wis"] },
-	{ key: "miserable", name: "Miserable", stats: ["con", "cha"] },
+	{ key: "weakened",  name: "Weakened",  stats: ["str", "dex"], description: "Fatigued, tired, sluggish, shaky. Disadvantage on +STR or +DEX rolls." },
+	{ key: "dazed",     name: "Dazed",     stats: ["int", "wis"], description: "Out of it, befuddled, not thinking clearly. Disadvantage on +INT or +WIS rolls." },
+	{ key: "miserable", name: "Miserable", stats: ["con", "cha"], description: "Greatly distressed, angry, unwell, in pain. Disadvantage on +CON or +CHA rolls." },
 ];
+const _DEBILITY_DEF_BY_KEY = Object.fromEntries(_DEBILITY_DEFS.map(d => [d.key, d]));
 
 function _buildStatsSection(actor) {
 	const rawStats = actor.system?.stats ?? {};
@@ -1075,7 +1080,7 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 	const playbookCat  = categories.find(c => c.key === "playbook");
 	const basicCat     = categories.find(c => c.key === "basic");
 	const postDeathCat = categories.find(c => c.key === "post-death");
-	const otherCats    = categories.filter(c => !["basic", "playbook", "post-death"].includes(c.key));
+	const otherCats    = categories.filter(c => !["basic", "playbook", "post-death", "special", "follower", "expedition", "homefront"].includes(c.key));
 	const postDeathGroup = postDeathCat && pdiLabel
 		? { label: pdiLabel, moves: postDeathCat.moves }
 		: null;

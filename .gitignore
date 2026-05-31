@@ -16,6 +16,7 @@ packs/post-death-moves/
 # Temp directory used during pack compilation
 packs/.tmp/
 
-.claude/settings.local.json
 Handout_-_Setting_Overview.pdf
 stonetop_inserts.pdf
+/.claude
+scripts/release.ps1

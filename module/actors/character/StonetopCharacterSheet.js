@@ -32,7 +32,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["pbta", "stonetop", "sheet", "actor", "character"],
-				width: 1400,
+				width: 1200,
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				dragDrop: [{ dragSelector: ".items-list .item" }],
@@ -129,6 +129,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
 				context.stonetop.followers.initiates?.length
+			);
+			context.stonetop.hasArcana = !!(
+				context.stonetop.arcana?.minor?.hasOwned ||
+				context.stonetop.arcana?.major?.hasOwned
 			);
 			context.stonetop.invocations          = this._buildInvocationsData(playbookDoc);
 			context.stonetop.showOtherMovesSection = this._editMode || !!(context.stonetop.movelist?.otherMoves?.length);
@@ -457,7 +461,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop", "crew.name", ev.currentTarget.value.trim());
 			});
 			// Crew loyalty pips
-			html.find(".stonetop-crew-loyalty-pip").on("click", async ev => {
+			html.find("button.stonetop-crew-loyalty-pip").on("click", async ev => {
 				const idx = Number(ev.currentTarget.dataset.index);
 				const current = this.actor.getFlag("stonetop", "crew.loyalty") ?? 0;
 				// clicking a filled pip clears up to that pip; clicking empty fills up to it
@@ -466,7 +470,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				this.render(false);
 			});
 			// Initiate loyalty pips
-			html.find(".stonetop-initiate-loyalty-pip").on("click", async ev => {
+			html.find("button.stonetop-initiate-loyalty-pip").on("click", async ev => {
 				const { slug, index } = ev.currentTarget.dataset;
 				const idx     = Number(index);
 				const current = (this.actor.getFlag("stonetop", "initiatesLoyalty") ?? {})[slug] ?? 0;

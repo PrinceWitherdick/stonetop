@@ -1,10 +1,10 @@
 <div class="tab details{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="details">
-	<section class="sheet-tab">
 
 		{{> "stonetop.lore-section" lore=stonetop.playbook.lore}}
 
-	{{#if stonetop.playbook.background.options.length}}
+		{{#if stonetop.playbook.background.options.length}}
 		<div class="details-section">
+			{{#if stonetop.editMode}}
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.background.label") note=(localize "stonetop.character.selection.chooseOne")}}
 			{{#each stonetop.playbook.background.options}}
 			<label class="stonetop-item{{#if selected}} is-checked{{/if}}">
@@ -31,11 +31,37 @@
 			</div>
 			{{/if}}
 			{{/each}}
+			{{else}}
+			{{#if stonetop.playbook.background.selected}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.background.label")}}
+			{{#each stonetop.playbook.background.options}}
+			{{#if selected}}
+			<div class="stonetop-item is-checked">
+				<div class="stonetop-item-header">
+					<strong class="stonetop-item-name">{{label}}</strong>
+				</div>
+				{{#if description}}
+				<div class="stonetop-item-description">{{{description}}}</div>
+				{{/if}}
+			</div>
+			{{#if choices}}
+			<div class="stonetop-bg-choices">
+				<p class="stonetop-bg-choices-label">{{choices.label}}</p>
+				{{#each choices.options}}
+				{{#if checked}}<p class="stonetop-bg-choice-readonly">{{label}}</p>{{/if}}
+				{{/each}}
+			</div>
+			{{/if}}
+			{{/if}}
+			{{/each}}
+			{{/if}}
+			{{/if}}
 		</div>
 		{{/if}}
 
 		{{#if stonetop.playbook}}
 		<div class="details-section">
+			{{#if stonetop.editMode}}
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.instinct.label") note=(localize "stonetop.character.selection.chooseOne")}}
 			<input type="text" class="stonetop-instinct-custom"
 			       value="{{stonetop.playbook.instinct.selected}}"
@@ -54,11 +80,24 @@
 				{{/each}}
 			</div>
 			{{/if}}
+			{{else}}
+			{{#if stonetop.playbook.instinct.hasSelection}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.instinct.label")}}
+			{{#if stonetop.playbook.instinct.selected}}
+			<p class="stonetop-details-readonly-value">{{stonetop.playbook.instinct.selected}}</p>
+			{{else}}
+			{{#each stonetop.playbook.instinct.options}}
+			{{#if selected}}<p class="stonetop-details-readonly-value">{{word}}</p>{{/if}}
+			{{/each}}
+			{{/if}}
+			{{/if}}
+			{{/if}}
 		</div>
 		{{/if}}
 
 		{{#if stonetop.playbook.appearance.options.length}}
 		<div class="details-section">
+			{{#if stonetop.editMode}}
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.appearance.label") note=(localize "stonetop.character.selection.appearance.instruction")}}
 			{{#each stonetop.playbook.appearance.options}}
 			<div class="stonetop-appearance-row">
@@ -73,11 +112,22 @@
 				{{/each}}
 			</div>
 			{{/each}}
+			{{else}}
+			{{#if stonetop.playbook.appearance.summary}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.appearance.label")}}
+			<div class="stonetop-appearance-readonly">
+				{{#each stonetop.playbook.appearance.options}}
+				<span class="stonetop-appearance-readonly-value">{{#each options}}{{#if selected}}{{value}}{{/if}}{{/each}}</span>
+				{{/each}}
+			</div>
+			{{/if}}
+			{{/if}}
 		</div>
 		{{/if}}
 
 		{{#if stonetop.playbook.origin.options.length}}
 		<div class="details-section">
+			{{#if stonetop.editMode}}
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.origin.label") note=(localize "stonetop.character.selection.origin.instruction")}}
 			{{#each stonetop.playbook.origin.options}}
 			<div class="stonetop-origin-option{{#if selected}} selected{{/if}}">
@@ -99,8 +149,19 @@
 				</div>
 			</div>
 			{{/each}}
+			{{else}}
+			{{#if stonetop.playbook.origin.selected}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.origin.label")}}
+			{{#each stonetop.playbook.origin.options}}
+			{{#if selected}}
+			<p class="stonetop-details-readonly-value">
+				<strong>{{region}}</strong>{{#each names}}{{#if checked}} — {{name}}{{/if}}{{/each}}
+			</p>
+			{{/if}}
+			{{/each}}
+			{{/if}}
+			{{/if}}
 		</div>
 		{{/if}}
 
-	</section>
 </div>

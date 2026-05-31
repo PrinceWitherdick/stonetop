@@ -142,6 +142,26 @@ Hooks.on("preCreateChatMessage", (message) => {
 	message.updateSource({ "speaker.alias": `${actor.name} ${playbookName}` });
 });
 
+// -- DEBILITY DISADVANTAGE ANNOTATION -------------------------
+// When a roll was penalised by a debility, annotate the
+// "Disadvantage" condition in the chat card with the debility name.
+let _disadvantageText;
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	const opts = message.rolls?.[0]?.options ?? {};
+	const { stonetopDebility: debility, stonetopDebilityTooltip: tooltip } = opts;
+	if (!debility) return;
+	_disadvantageText ??= game.i18n.localize("PBTA.Disadvantage");
+	for (const li of html.querySelectorAll(".pbta-chat-card .conditions ul li")) {
+		if (li.textContent.trim() === _disadvantageText) {
+			const hint = tooltip
+				? `<span class="stonetop-debility-hint" data-tooltip="${tooltip}" data-tooltip-direction="UP">${debility}</span>`
+				: debility;
+			li.innerHTML = `${_disadvantageText} (${hint})`;
+			break;
+		}
+	}
+});
+
 // -- BURN BRIGHTLY ---------------------------------------------
 // After each PBTA roll, show a "Burn brightly" button to the
 // owning player when they have enough XP to level up.
