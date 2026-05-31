@@ -115,6 +115,7 @@ export class MinorArcanumSnapshot {
 		this.checked    = b._checked;
 		this.unlocked   = b._unlocked;
 		this.identified = b._identified;
+		this.img        = b._img ?? null;
 	}
 }
 
@@ -127,6 +128,7 @@ export class MinorArcanumSnapshotBuilder {
 	withChecked(v)     { this._checked    = v; return this; }
 	withUnlocked(v)    { this._unlocked   = v; return this; }
 	withIdentified(v)  { this._identified = v; return this; }
+	withImg(v)         { this._img        = v; return this; }
 	build()            { return new MinorArcanumSnapshot(this); }
 }
 

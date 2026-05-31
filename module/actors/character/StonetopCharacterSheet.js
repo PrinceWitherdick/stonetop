@@ -732,6 +732,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, true);
 
 			html[0].addEventListener("click", ev => {
+				const thumb = ev.target.closest(".stonetop-arcanum-thumb");
+				if (!thumb) return;
+				ev.stopPropagation();
+				new ImagePopout(thumb.src, { title: thumb.dataset.name }).render(true);
+			}, true);
+
+			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-arcanum-flip-btn");
 				if (!btn) return;
 				ev.stopPropagation();

@@ -1,3 +1,5 @@
+import { majorArcanaImg } from "../arcana-icons.js";
+
 export function createStonetopArcanumSheetClass(BaseItemSheet) {
 	return class StonetopArcanumSheet extends BaseItemSheet {
 		static get defaultOptions() {
@@ -16,6 +18,7 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			data.front = flags.front ?? {};
 			data.back = flags.back ?? {};
 			data.slug = flags.slug ?? "";
+			data.arcanaImg = majorArcanaImg(flags.slug);
 			return data;
 		}
 	};
