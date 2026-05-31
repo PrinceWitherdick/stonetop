@@ -11,4 +11,6 @@ export const PACKS = [
 	"post-death-inserts",
 	"post-death-moves",
 	"setting-overview",
+	"arcana-journal",
+	"reference-journals",
 ];
