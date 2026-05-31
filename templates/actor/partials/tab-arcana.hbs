@@ -11,6 +11,10 @@
 
 		{{#if identified}}
 
+		{{#if img}}
+		<img class="stonetop-arcanum-thumb" src="{{img}}" data-name="{{front.title}}" alt="" title="{{front.title}}">
+		{{/if}}
+
 		{{#if flipped}}
 		{{!-- Back side --}}
 		<div class="stonetop-arcanum-header">

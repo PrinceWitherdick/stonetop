@@ -7,6 +7,7 @@ import {
 	ResourceBuilder,
 } from "../../model/CharacterSnapshot.js";
 import { OutfitItemBuilder } from "../../model/OutfitItem.js";
+import { majorArcanaImg } from "../../arcana-icons.js";
 
 function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
 	const reqs = item.front.unlock?.requirements ?? [];
@@ -156,6 +157,7 @@ export class CharacterArcana {
 				.withChecked(checkedMap[item.slug] ?? false)
 				.withUnlocked(unlocked)
 				.withIdentified(identifiedSlugs.has(item.slug))
+				.withImg(majorArcanaImg(item.slug))
 				.build();
 		});
 

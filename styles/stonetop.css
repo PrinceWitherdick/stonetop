@@ -1470,6 +1470,32 @@ body,
 	border-radius: 3px;
 	background: #fff;
 	min-height: 260px;
+	position: relative;
+}
+
+.stonetop-arcanum-thumb {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	width: 36px;
+	height: 36px;
+	object-fit: contain;
+	cursor: pointer;
+	opacity: 0.85;
+	transition: opacity 0.15s, transform 0.15s;
+	z-index: 1;
+}
+
+.stonetop-arcanum-thumb:hover {
+	opacity: 1;
+	transform: scale(1.15);
+}
+
+.stonetop-arcanum-img {
+	display: block;
+	width: 100%;
+	max-height: 400px;
+	object-fit: contain;
 }
 
 .stonetop-arcanum-header {
