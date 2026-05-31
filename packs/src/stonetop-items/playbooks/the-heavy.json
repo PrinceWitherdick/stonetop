@@ -1,7 +1,7 @@
 {
   "_id": "thDOuItwerMnLc0i",
   "_key": "!items!thDOuItwerMnLc0i",
-  "img": "modules/stonetop/assets/playbooks/the-heavy.svg",
+  "img": "systems/stonetop/assets/playbooks/the-heavy.svg",
   "name": "The Heavy",
   "type": "playbook",
   "flags": {
@@ -152,7 +152,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "○○ uses: skins of fine whisky (grants advantage to Persuade), copper tubes, malt, firkins, stills, barrels, etc.",
+            "description": "â—‹â—‹ uses: skins of fine whisky (grants advantage to Persuade), copper tubes, malt, firkins, stills, barrels, etc.",
             "resource": {
               "max": 2,
               "title": null,
@@ -162,22 +162,22 @@
           {
             "slug": "chirurgeons-tools",
             "label": "Chirurgeon's tools",
-            "description": "catgut, straps, bandages, tubes, poultices, willow bark, ◇ bonesaws, etc."
+            "description": "catgut, straps, bandages, tubes, poultices, willow bark, â—‡ bonesaws, etc."
           },
           {
             "slug": "husbandry-tools",
             "label": "Husbandry tools",
-            "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
+            "description": "brushes, muzzles, collars, feed, â—‡ whips, â—‡ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
           },
           {
             "slug": "smithy",
             "label": "Smithy",
-            "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc."
+            "description": "(or access to it): iron goods, ingots, thick gloves, â—‡ tongs, â—‡ bellows, an anvil, etc."
           },
           {
             "slug": "stoneworkers-tools",
             "label": "Stoneworker's tools",
-            "description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc."
+            "description": "chisels, drills, â—‡ prybars, â—‡ spikes, â—‡ block &amp; tackles, wheelbarrow, etc."
           },
           {
             "slug": "weapons-of-war",
@@ -188,23 +188,23 @@
               "options": [
                 {
                   "slug": "sword",
-                  "label": "◇ Sword, iron (<em>close</em>, +1 damage)"
+                  "label": "â—‡ Sword, iron (<em>close</em>, +1 damage)"
                 },
                 {
                   "slug": "battleaxe",
-                  "label": "◇ Battleaxe, iron (<em>close, messy</em>)"
+                  "label": "â—‡ Battleaxe, iron (<em>close, messy</em>)"
                 },
                 {
                   "slug": "warhammer",
-                  "label": "◇ Warhammer, iron (<em>close</em>, 2 piercing)"
+                  "label": "â—‡ Warhammer, iron (<em>close</em>, 2 piercing)"
                 },
                 {
                   "slug": "mace-or-flail",
-                  "label": "◇ Mace or flail, iron (<em>close, forceful</em>)"
+                  "label": "â—‡ Mace or flail, iron (<em>close, forceful</em>)"
                 },
                 {
                   "slug": "crossbow",
-                  "label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>, x piercing)",
+                  "label": "â—‡ Crossbow (<em>far</em>, +1 damage, <em>reload</em>, x piercing)",
                   "resource": {
                     "max": 2,
                     "title": null,
@@ -220,79 +220,79 @@
       "lore": [
         {
           "slug": "violence-fame",
-          "title": "Just About Everyone Here Talks About the Time You…",
+          "title": "Just About Everyone Here Talks About the Time Youâ€¦",
           "description": "<p><em>(pick 1 or 2)</em></p>",
           "options": [
             {
               "slug": "thunder-drake",
-              "description": "… drove off a thunder drake that got too close to town.",
+              "description": "â€¦ drove off a thunder drake that got too close to town.",
               "max": 1
             },
             {
               "slug": "hagr",
-              "description": "… killed that hagr in the Foothills.",
+              "description": "â€¦ killed that hagr in the Foothills.",
               "max": 1
             },
             {
               "slug": "crinwin-dozen",
-              "description": "… slew a dozen crinwin in one battle.",
+              "description": "â€¦ slew a dozen crinwin in one battle.",
               "max": 1
             },
             {
               "slug": "adventurers",
-              "description": "… tossed those adventurers out of town.",
+              "description": "â€¦ tossed those adventurers out of town.",
               "max": 1
             },
             {
               "slug": "ivan",
-              "description": "… bested Ivan, the scariest bandit in Brennan's gang, the Claws.",
+              "description": "â€¦ bested Ivan, the scariest bandit in Brennan's gang, the Claws.",
               "max": 1
             },
             {
               "slug": "bleeding",
-              "description": "… dragged yourself (and another?) into town, bleeding from a dozen wounds.",
+              "description": "â€¦ dragged yourself (and another?) into town, bleeding from a dozen wounds.",
               "max": 1
             },
             {
               "slug": "lightning",
-              "description": "… were struck by lightning and woke up covered in these marks.",
+              "description": "â€¦ were struck by lightning and woke up covered in these marks.",
               "max": 1
             }
           ]
         },
         {
           "slug": "violence-shadows",
-          "title": "But Folks Are Less Keen to Discuss…",
+          "title": "But Folks Are Less Keen to Discussâ€¦",
           "description": "<p><em>(pick 1 or 2)</em></p>",
           "options": [
             {
               "slug": "blood-look",
-              "description": "… the look in your eye when you spilled all that blood.",
+              "description": "â€¦ the look in your eye when you spilled all that blood.",
               "max": 1
             },
             {
               "slug": "hard-cases",
-              "description": "… those hard cases who showed up looking for you.",
+              "description": "â€¦ those hard cases who showed up looking for you.",
               "max": 1
             },
             {
               "slug": "shouting",
-              "description": "… the shouting matches between you and your love.",
+              "description": "â€¦ the shouting matches between you and your love.",
               "max": 1
             },
             {
               "slug": "claws",
-              "description": "… the time you spent as one of Brennan's Claws.",
+              "description": "â€¦ the time you spent as one of Brennan's Claws.",
               "max": 1
             },
             {
               "slug": "urbgen",
-              "description": "… what happened to Urbgen, even if he did have it coming.",
+              "description": "â€¦ what happened to Urbgen, even if he did have it coming.",
               "max": 1
             },
             {
               "slug": "seizures",
-              "description": "… your uncontrollable seizures, where you claw those weird marks in the dirt.",
+              "description": "â€¦ your uncontrollable seizures, where you claw those weird marks in the dirt.",
               "max": 1
             }
           ]

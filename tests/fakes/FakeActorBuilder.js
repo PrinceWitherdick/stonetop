@@ -73,7 +73,7 @@ export class FakeActorBuilder {
 	}
 
 	build() {
-		const flagStore = {stonetop: {...this._flags}, pbta: {rollMode: this._pbtaRollMode}};
+		const flagStore = {stonetop: {...this._flags, rollMode: this._pbtaRollMode}};
 
 		return {
 			name: this._name,

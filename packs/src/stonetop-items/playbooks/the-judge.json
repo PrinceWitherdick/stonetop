@@ -1,7 +1,7 @@
 {
   "_id": "y3RtRdOWxLinZu5e",
   "_key": "!items!y3RtRdOWxLinZu5e",
-  "img": "modules/stonetop/assets/playbooks/the-judge.svg",
+  "img": "systems/stonetop/assets/playbooks/the-judge.svg",
   "name": "The Judge",
   "type": "playbook",
   "flags": {
@@ -15,7 +15,7 @@
         {
           "slug": "legacy",
           "label": "Legacy",
-          "description": "<p>You are the latest in a long line of Judges—born here, apprenticed to the prior Judge, and charged with the passing of the mantle. The Chronicle is a rich repository of lore, but there's no index, so good luck finding anything.</p><p>When you <strong><em>Know Things about the people or history of Stonetop</em></strong>, you have advantage.</p><p>When you <strong><em>spend days, weeks, or months poring over the Chronicle</em></strong>, ask the GM and the GM will tell you what you learn in that time.</p>"
+          "description": "<p>You are the latest in a long line of Judgesâ€”born here, apprenticed to the prior Judge, and charged with the passing of the mantle. The Chronicle is a rich repository of lore, but there's no index, so good luck finding anything.</p><p>When you <strong><em>Know Things about the people or history of Stonetop</em></strong>, you have advantage.</p><p>When you <strong><em>spend days, weeks, or months poring over the Chronicle</em></strong>, ask the GM and the GM will tell you what you learn in that time.</p>"
         },
         {
           "slug": "missionary",
@@ -151,11 +151,11 @@
               "options": [
                 {
                   "slug": "war-hammer",
-                  "label": "◇ War hammer, iron (<em>close</em>, +1 damage, 2 piercing)"
+                  "label": "â—‡ War hammer, iron (<em>close</em>, +1 damage, 2 piercing)"
                 },
                 {
                   "slug": "brace-of-knives",
-                  "label": "◇ Brace of knives (<em>hand, thrown</em>)",
+                  "label": "â—‡ Brace of knives (<em>hand, thrown</em>)",
                   "resource": {
                     "max": 2,
                     "title": null,
@@ -164,7 +164,7 @@
                 },
                 {
                   "slug": "crossbow",
-                  "label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>)",
+                  "label": "â—‡ Crossbow (<em>far</em>, +1 damage, <em>reload</em>)",
                   "resource": {
                     "max": 2,
                     "title": null,
@@ -177,7 +177,7 @@
           {
             "slug": "scribes-kit",
             "label": "Scribe's kit",
-            "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+            "description": "parchment, ink, pigments, vials, quills, â—‡ a notebook, etc."
           },
           {
             "slug": "aviary",
@@ -187,17 +187,17 @@
           {
             "slug": "carpenters-tools",
             "label": "Carpenter's tools",
-            "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc."
+            "description": "chisels, files, nails, pitch, â—‡ prybars, â—‡ saws, â—‹â—‹ firkins, barrels, etc."
           },
           {
             "slug": "engineers-tools",
             "label": "Engineer's tools",
-            "description": "measuring string, stakes, levels, plumb bobs, ◇ compasses, ◇ drawing tools, plans, etc."
+            "description": "measuring string, stakes, levels, plumb bobs, â—‡ compasses, â—‡ drawing tools, plans, etc."
           },
           {
             "slug": "smithy",
             "label": "Smithy",
-            "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc."
+            "description": "(or access to it): iron goods, ingots, thick gloves, â—‡ tongs, â—‡ bellows, an anvil, etc."
           }
         ]
       },
@@ -206,73 +206,73 @@
         {
           "slug": "chronicle-plus",
           "title": "The Chronicle",
-          "description": "<p>The Judge of Aratis is charged with maintaining the Chronicle, a history of the community, its people, their knowledge, and their traditions. It is more than a mere book; it is a physical place. On the plus side, it… <em>(choose 3)</em></p>",
+          "description": "<p>The Judge of Aratis is charged with maintaining the Chronicle, a history of the community, its people, their knowledge, and their traditions. It is more than a mere book; it is a physical place. On the plus side, itâ€¦ <em>(choose 3)</em></p>",
           "options": [
             {
               "slug": "sturdy-vault",
-              "description": "… is a sturdy vault from the time of the Makers.",
+              "description": "â€¦ is a sturdy vault from the time of the Makers.",
               "max": 1
             },
             {
               "slug": "room-to-grow",
-              "description": "… has plenty of room to grow.",
+              "description": "â€¦ has plenty of room to grow.",
               "max": 1
             },
             {
               "slug": "hidden-underground",
-              "description": "… is hidden underground.",
+              "description": "â€¦ is hidden underground.",
               "max": 1
             },
             {
               "slug": "one-entrance",
-              "description": "… has but one entrance, magically sealed.",
+              "description": "â€¦ has but one entrance, magically sealed.",
               "max": 1
             },
             {
               "slug": "minor-magics",
-              "description": "… bears minor magics to preserve its contents.",
+              "description": "â€¦ bears minor magics to preserve its contents.",
               "max": 1
             },
             {
               "slug": "warded",
-              "description": "… is warded against spirits and magic.",
+              "description": "â€¦ is warded against spirits and magic.",
               "max": 1
             },
             {
               "slug": "living-quarters",
-              "description": "… includes your living quarters & office.",
+              "description": "â€¦ includes your living quarters & office.",
               "max": 1
             }
           ]
         },
         {
           "slug": "chronicle-minus",
-          "title": "But Alas, It…",
+          "title": "But Alas, Itâ€¦",
           "description": "<p><em>(choose 2)</em></p>",
           "options": [
             {
               "slug": "outskirts",
-              "description": "… sits on the outskirts, near the Old Wall.",
+              "description": "â€¦ sits on the outskirts, near the Old Wall.",
               "max": 1
             },
             {
               "slug": "cramped",
-              "description": "… is cramped, chaotic, and overflowing.",
+              "description": "â€¦ is cramped, chaotic, and overflowing.",
               "max": 1
             },
             {
               "slug": "crude-cellar",
-              "description": "… is little more than a crude cellar.",
+              "description": "â€¦ is little more than a crude cellar.",
               "max": 1
             },
             {
               "slug": "haunted",
-              "description": "… seems to be haunted.",
+              "description": "â€¦ seems to be haunted.",
               "max": 1
             },
             {
               "slug": "dangerous-artifacts",
-              "description": "… contains a few dangerous artifacts.",
+              "description": "â€¦ contains a few dangerous artifacts.",
               "max": 1
             }
           ]
@@ -280,63 +280,63 @@
         {
           "slug": "lawkeeper-shrine",
           "title": "The Lawkeeper",
-          "description": "<p>Her Judges say that Aratis has been with humanity since they first stacked one stone upon another and called it home. In Stonetop's Pavilion of the Gods, Aratis's shrine is… <em>(pick 1)</em></p>",
+          "description": "<p>Her Judges say that Aratis has been with humanity since they first stacked one stone upon another and called it home. In Stonetop's Pavilion of the Gods, Aratis's shrine isâ€¦ <em>(pick 1)</em></p>",
           "options": [
             {
               "slug": "shrine-hub",
-              "description": "… a hub of the community, a place of frequent rites, petitions, and celebrations.",
+              "description": "â€¦ a hub of the community, a place of frequent rites, petitions, and celebrations.",
               "max": 1
             },
             {
               "slug": "shrine-high-holiday",
-              "description": "… used only on high holidays, for each home keeps its own shrine above the hearth.",
+              "description": "â€¦ used only on high holidays, for each home keeps its own shrine above the hearth.",
               "max": 1
             },
             {
               "slug": "shrine-neglected",
-              "description": "… neglected by most, tended only by you and a handful of believers.",
+              "description": "â€¦ neglected by most, tended only by you and a handful of believers.",
               "max": 1
             },
             {
               "slug": "shrine-grim",
-              "description": "… a grim place of judgement and punishment, shunned by all but her chosen.",
+              "description": "â€¦ a grim place of judgement and punishment, shunned by all but her chosen.",
               "max": 1
             },
             {
               "slug": "shrine-new",
-              "description": "… newly established, cramped and spare.",
+              "description": "â€¦ newly established, cramped and spare.",
               "max": 1
             }
           ]
         },
         {
           "slug": "lawkeeper-demands",
-          "title": "Of Her True Disciples, Aratis Demands…",
+          "title": "Of Her True Disciples, Aratis Demandsâ€¦",
           "description": "<p><em>(choose 3)</em></p>",
           "options": [
             {
               "slug": "truth",
-              "description": "… truth, honesty, and forthrightness.",
+              "description": "â€¦ truth, honesty, and forthrightness.",
               "max": 1
             },
             {
               "slug": "hospitality",
-              "description": "… hospitality, freely given to all who ask for it.",
+              "description": "â€¦ hospitality, freely given to all who ask for it.",
               "max": 1
             },
             {
               "slug": "punishment",
-              "description": "… the punishment of thieves & oathbreakers.",
+              "description": "â€¦ the punishment of thieves & oathbreakers.",
               "max": 1
             },
             {
               "slug": "diet-dress",
-              "description": "… adherence to strict rules of diet and dress.",
+              "description": "â€¦ adherence to strict rules of diet and dress.",
               "max": 1
             },
             {
               "slug": "authority",
-              "description": "… respect for authority, property, and rank.",
+              "description": "â€¦ respect for authority, property, and rank.",
               "max": 1
             }
           ]

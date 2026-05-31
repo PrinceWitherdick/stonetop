@@ -38,7 +38,7 @@ import {
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {MoveResources} from "./MoveResources.js";
 import {getSetting} from "../../settings.js";
-import {promptRollMode} from "../../utils/rolls.js";
+import {promptRoll} from "../../utils/rolls.js";
 import {StonetopFlags} from "./StonetopFlags.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
@@ -149,7 +149,7 @@ export class StonetopCharacter {
 			.withInventory(inventory)
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
-			.withRollMode(actor.flags?.pbta?.rollMode ?? "normal")
+			.withRollMode(actor.flags?.stonetop?.rollMode ?? "normal")
 			.build();
 	}
 
@@ -855,12 +855,46 @@ export class StonetopCharacter {
 
 		const isDescription = event.currentTarget.getAttribute("data-show") === "description";
 		const descriptionOnly = isDescription || (item.type === "npcMove" && !item.system.rollFormula);
-		const options = {};
+
+		let rollMode    = "def";
+		let forward     = 0;
+		let ongoing     = 0;
+		let situational = 0;
+
 		if (!descriptionOnly && !getSetting("hideRollMode")) {
-			options.rollMode = await promptRollMode();
+			const result = await promptRoll(this._actor, item.name);
+			if (!result) return false; // dialog cancelled
+			rollMode    = result.rollMode;
+			situational = result.situational;
+			forward     = this._actor.system?.attributes?.forward?.value ?? 0;
+			ongoing     = this._actor.system?.attributes?.ongoing?.value ?? 0;
 		}
-		await item.roll({ ...this.applyDebilityRollMode(stat, options), descriptionOnly });
+
+		const modifier    = forward + ongoing + situational;
+		const rollOptions = { rollMode, modifier, forward, ongoing };
+
+		await item.roll({ ...this.applyDebilityRollMode(stat, rollOptions), descriptionOnly });
+
+		if (forward !== 0) {
+			await this._actor.update({ "system.attributes.forward.value": 0 });
+		}
 		return true;
+	}
+
+	async onDirectStatRoll(stat) {
+		const { rollStat } = await import("../../utils/roll-engine.js");
+		const result = await promptRoll(this._actor, `+${stat.toUpperCase()}`);
+		if (!result) return;
+
+		const forward     = this._actor.system?.attributes?.forward?.value ?? 0;
+		const ongoing     = this._actor.system?.attributes?.ongoing?.value ?? 0;
+		const modifier    = forward + ongoing + result.situational;
+
+		await rollStat(stat, this._actor, { rollMode: result.rollMode, modifier, forward, ongoing });
+
+		if (forward !== 0) {
+			await this._actor.update({ "system.attributes.forward.value": 0 });
+		}
 	}
 
 	async onDropMove(itemData) {

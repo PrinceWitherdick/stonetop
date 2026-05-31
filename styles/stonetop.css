@@ -70,7 +70,7 @@ body,
 }
 
 .vtt :not(.application,.image-popout,.journal-sheet,.sidebar-popout) .window-content {
-	background: var(--stonetop-bg) url(/modules/stonetop/assets/graphics/sheet-bg.png);
+	background: var(--stonetop-bg) url(/systems/stonetop/assets/graphics/sheet-bg.png);
 	background-position: center;
 	background-size: cover;
 	background-attachment: scroll;
@@ -123,6 +123,11 @@ body,
 }
 
 /* Inline attributes row */
+.sheet-attributes-top {
+	margin-top: 8px;
+	margin-bottom: 8px;
+}
+
 .sheet-attributes-top .cell--attributes-top {
 	gap: 6px;
 	align-items: stretch;
@@ -132,25 +137,121 @@ body,
 .sheet-attributes-top .cell--attributes-top .cell {
 	border: 2px solid var(--color-border-dark, #888);
 	border-radius: 6px;
-	padding: 4px 8px;
+	padding: 4px 8px 8px;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	flex: 1 1 auto;
+	flex: 1 1 0%;
 	min-width: 0;
-	max-width: max-content;
 }
 
 .sheet-attributes-top .cell--attributes-top .cell .cell__title {
 	font-size: 0.7em;
 	text-transform: uppercase;
 	font-weight: bold;
+	text-decoration: underline;
 	margin-bottom: 2px;
 }
 
 .sheet-attributes-top .cell--attributes-top .cell--Roll .cell__roll,
-.sheet-attributes-top .cell--attributes-top .cell--Number > input[type="text"] {
-	margin-top:6px;
+.sheet-attributes-top .cell--attributes-top .cell--Number > input[type="text"],
+.sheet-attributes-top .cell--attributes-top .cell--Number > input[type="number"] {
+	margin-top: 6px;
+}
+
+/* Damage roll cell */
+.sheet-attributes-top .cell--Roll .cell__roll {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	width: 100%;
+	margin-top: 4px;
+}
+
+.sheet-attributes-top .cell--Roll .cell__roll .rollable {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 4px;
+	width: 100%;
+	cursor: pointer;
+	color: inherit;
+	text-decoration: none;
+}
+
+.sheet-attributes-top .cell--Roll .cell__roll .rollable:hover {
+	color: var(--color-text-hyperlink, slategrey);
+}
+
+.sheet-attributes-top .cell--Roll .cell__roll .rollable .fa-dice-d6 {
+	flex-shrink: 0;
+}
+
+.sheet-attributes-top .cell--Roll .cell__roll input.attr-value {
+	flex: 1;
+	min-width: 0;
+	text-align: center;
+	border: 1px solid #aaa;
+	border-radius: 3px;
+	background: transparent;
+	font-size: 1rem;
+	padding: 2px 8px;
+	pointer-events: none;
+}
+
+.sheet-attributes-top .cell--Roll .cell__roll .rollable:hover input.attr-value {
+	border-color: var(--color-text-hyperlink, slategrey);
+}
+
+/* In edit mode the input is enabled and interactive */
+.stonetop-edit-mode .sheet-attributes-top .cell--Roll .cell__roll input.attr-value {
+	pointer-events: auto;
+}
+
+/* Resource cell (HP, XP) */
+.sheet-attributes-top .cell--Resource .cell__resource {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 2px;
+	width: 100%;
+	margin-top: 4px;
+}
+
+.sheet-attributes-top .cell--Resource .cell__value,
+.sheet-attributes-top .cell--Resource .cell__max {
+	flex: 1;
+	min-width: 0;
+}
+
+.sheet-attributes-top .cell--Resource .cell__resource input {
+	width: 100%;
+	text-align: center;
+	border: 1px solid #aaa;
+	border-radius: 3px;
+	background: transparent;
+	font-size: 1rem;
+	padding: 2px 8px;
+	box-sizing: border-box;
+}
+
+.sheet-attributes-top .cell--Resource .cell__separator {
+	flex-shrink: 0;
+	font-size: 1.1rem;
+	color: var(--color-text-dark-secondary);
+	line-height: 1;
+}
+
+/* Number cell (Armor, Level) */
+.sheet-attributes-top .cell--Number > input {
+	width: 100%;
+	text-align: center;
+	border: 1px solid #aaa;
+	border-radius: 3px;
+	background: transparent;
+	font-size: 1rem;
+	padding: 2px 8px;
+	box-sizing: border-box;
 }
 
 /* XP max is derived from level — prevent editing it directly */
@@ -243,6 +344,7 @@ body,
 	gap: 3px;
 	font-variant: small-caps;
 	font-size: 0.82rem !important;
+	font-weight: bold;
 	color: #1a1a1a !important;
 	text-align: center !important;
 	padding: 0 !important;
@@ -254,6 +356,7 @@ body,
 .stonetop-stat-abbr {
 	font-size: 0.75rem;
 	font-variant: small-caps;
+	text-transform: uppercase;
 	color: var(--color-text-dark-secondary);
 	line-height: 1;
 }
@@ -954,6 +1057,87 @@ body,
 }
 
 /* ── Chat card tweaks ───────────────────────────────────────────────────────── */
+
+#chat .message:has(.stonetop-roll-card) {
+	background: #fff url(/systems/stonetop/assets/graphics/concrete-seamless.webp);
+	font-family: "Roboto", sans-serif;
+}
+
+#chat .message .pbta-chat-card .chat-title {
+	align-items: center;
+	border: 1px solid rgba(0,0,0,0.05);
+	border-left: 0;
+	border-right: 0;
+	padding: 4px 0;
+}
+
+#chat .message .pbta-chat-card .cell__title {
+	font-family: "Roboto Condensed", sans-serif;
+	font-size: var(--font-size-20);
+	font-weight: bold;
+	text-transform: uppercase;
+	line-height: 1;
+	margin: 0;
+	border: 0;
+}
+
+#chat .message .pbta-chat-card .cell__subtitle {
+	font-family: "Roboto Condensed", sans-serif;
+	font-weight: bold;
+	text-transform: uppercase;
+	line-height: 1;
+	margin: 0;
+}
+
+#chat .message .pbta-chat-card .row {
+	font-size: var(--font-size-13);
+}
+
+#chat .message .pbta-chat-card .row--border {
+	margin-top: 10px;
+}
+
+#chat .message .pbta-chat-card .result {
+	margin-bottom: 10px;
+}
+
+#chat .message .pbta-chat-card .result-label {
+	text-align: center;
+	font-size: var(--font-size-18);
+	font-weight: bold;
+	border: 1px solid #ccc;
+	margin: 0;
+	padding: 10px;
+	background: #efefef;
+}
+
+#chat .message.whisper .pbta-chat-card .result-label {
+	background: #d0dbed;
+}
+
+#chat .message .pbta-chat-card .result-details,
+#chat .message .pbta-chat-card .result-choices {
+	padding: 0 10px;
+}
+
+#chat .message .pbta-chat-card .failure { color: #b31a1a; }
+#chat .message .pbta-chat-card .partial { color: #000; }
+#chat .message .pbta-chat-card .success { color: #1a6dc3; }
+#chat .message .pbta-chat-card .critical { color: #037307; }
+
+#chat .message .pbta-chat-card .card-buttons {
+	display: flex;
+	margin-bottom: 10px;
+}
+
+#chat .message .pbta-chat-card .card-buttons:empty {
+	display: none;
+}
+
+#chat .message .pbta-chat-card .card-buttons button {
+	background: rgba(0,0,0,0.1);
+	border: 1px solid var(--color-border-light-2);
+}
 
 /* "Conditions Applied:" heading — normalize to match the stat-name row text size */
 .pbta-chat-card .conditions .cell__subtitle {
@@ -1732,6 +1916,10 @@ body,
 
 /* -- Details tab sections --------------------------------------- */
 
+.details-section {
+	margin-bottom: 16px;
+}
+
 .details-section:last-child {
 	margin-bottom: 0;
 }
@@ -1847,6 +2035,10 @@ body,
 .pbta.sheet .tab.post-death,
 .pbta.sheet .tab.stonetop-special-moves {
 	padding-top: 12px;
+}
+
+.stonetop-move-group-title {
+	font-weight: bold;
 }
 
 .tab.moves.hide-unselected .stonetop-item:not(.is-checked) {
@@ -2316,7 +2508,47 @@ body,
 	border: none;
 }
 
-/* -- Tabs — matches PBTA character sheet style ----------------- */
+/* -- Tabs — character sheet ------------------------------------ */
+
+.pbta.sheet .sheet-tabs {
+	display: flex;
+	flex-direction: row;
+	margin-top: 8px;
+	padding: 16px 10px 0;
+	border-bottom: 2px solid slategrey;
+	flex-shrink: 0;
+}
+
+.pbta.sheet .sheet-tabs .item {
+	border-radius: 4px 4px 0 0;
+	background: #999;
+	color: #fff;
+	margin: 0 4px;
+	padding: 4px;
+	line-height: 1.6;
+	text-transform: uppercase;
+	font-size: var(--font-size-16);
+	flex: 1;
+	text-align: center;
+	cursor: pointer;
+	text-shadow: none;
+}
+
+.pbta.sheet .sheet-tabs .item:hover,
+.pbta.sheet .sheet-tabs .item:focus {
+	background: #bbb;
+	color: #000;
+	text-shadow: none;
+}
+
+.pbta.sheet .sheet-tabs .item.active {
+	background: #000;
+	color: #fff;
+	text-shadow: none;
+	font-weight: bold;
+}
+
+/* -- Tabs — steading sheet ------------------------------------- */
 
 .steading-sheet .sheet-tabs {
 	display: flex;
@@ -2515,6 +2747,12 @@ body,
 /* View mode: restore full opacity so the slategrey fill looks crisp */
 .stonetop-readonly .steading-track-option input[type="radio"] {
 	opacity: 1;
+	background: rgba(106, 120, 128, 0.08);
+}
+
+.stonetop-readonly .steading-track-option input[type="radio"]:checked,
+.stonetop-readonly .steading-track-option.is-selected input[type="radio"] {
+	background: slategrey;
 }
 
 /* Edit mode: tint unselected options and show hover to signal interactivity */

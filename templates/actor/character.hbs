@@ -18,7 +18,7 @@
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.playbook.statsNote}}
 
 			<section class="sheet-attributes flexrow">
-				{{> "pbta.actor-stats"}}
+				{{> "stonetop.actor-stats"}}
 			</section>
 			<div class="stonetop-debilities">
 				<div class="stonetop-debility">
@@ -51,20 +51,14 @@
 			</div>
 
 			<section class="sheet-attributes-top">
-				{{~> "pbta.actor-attributes" attrs=system.attrTop cssClass="cell--attributes-top flexrow" owner=owner editable=editable~}}
+				{{> "stonetop.actor-vitals"}}
 			</section>
-
-			{{#if (objLen system.attrLeft)}}
-			<section class="sheet-attributes-left">
-				{{~> "pbta.actor-attributes" attrs=system.attrLeft cssClass="cell--attributes-left flexrow" owner=owner editable=editable~}}
-			</section>
-			{{/if}}
 
 		</section>
 
 		<section class="sheet-main flexcol">
 			<nav class="sheet-tabs tabs" data-group="primary">
-				<a class="item" data-tab="moves">{{localize "PBTA.Moves"}}</a>
+				<a class="item" data-tab="moves">{{localize "stonetop.sheet.tabs.moves"}}</a>
 				{{#if stonetop.invocations}}<a class="item" data-tab="invocations">{{localize "stonetop.sheet.tabs.invocations"}}</a>{{/if}}
 				{{#if stonetop.hasFollowers}}<a class="item" data-tab="followers">{{localize "stonetop.sheet.tabs.followers"}}</a>{{/if}}
 				<a class="item" data-tab="inventory">{{localize "stonetop.sheet.tabs.inventory"}}</a>

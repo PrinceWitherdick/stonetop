@@ -3,21 +3,30 @@ import { createStonetopActorClass } from "./module/actors/StonetopActor.js";
 import { createStonetopItemClass } from "./module/item/StonetopItem.js";
 import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSheet.js";
 import { createStonetopCharacterSheetClass } from "./module/actors/character/StonetopCharacterSheet.js";
-import { onPbtaSheetConfig } from "./module/hooks/PbtaSheetConfig.js";
+import { createStonetopSteadingSheetClass } from "./module/actors/steading/StonetopSteadingSheet.js";
+import { createStonetopNpcSheetClass } from "./module/actors/npc/StonetopNpcSheet.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { info } from "./module/utils/logger.js";
 
 // -- INIT ------------------------------------------------------
-// Fires before the world loads. Document classes and settings must
-// be registered here so they're available before any documents load.
 Hooks.once("init", () => {
 	info("Initializing");
 
 	registerSettings();
 
-	Handlebars.registerHelper("format", (key, options) => game.i18n.format(key, options.hash));
+	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
+
+	const _STAT_LABEL_KEYS = {
+		str: "stonetop.character.stats.strength",
+		dex: "stonetop.character.stats.dexterity",
+		int: "stonetop.character.stats.intelligence",
+		wis: "stonetop.character.stats.wisdom",
+		con: "stonetop.character.stats.constitution",
+		cha: "stonetop.character.stats.charisma",
+	};
+	Handlebars.registerHelper("statLabel", key => game.i18n.localize(_STAT_LABEL_KEYS[String(key)] ?? String(key)));
 
 	Handlebars.registerHelper("resourceChecks", resource => {
 		if (!resource) return [];
@@ -53,85 +62,91 @@ Hooks.once("init", () => {
 		}));
 	});
 
-	CONFIG.Actor.documentClass = createStonetopActorClass(CONFIG.Actor.documentClass);
-	CONFIG.Item.documentClass = createStonetopItemClass(CONFIG.Item.documentClass);
+	Handlebars.registerHelper("steadingTrack", (currentValue, defaultValue = 0) => {
+		const raw = currentValue?.value ?? currentValue;
+		const current = Number(raw ?? defaultValue);
+		return Array.from({ length: 5 }, (_, i) => {
+			const val = i - 1;
+			return { val, label: (val >= 0 ? "+" : "") + val, checked: val === current };
+		});
+	});
 
-	const StonetopCharacterSheet = createStonetopCharacterSheetClass(game.pbta.applications.actor.PbtaActorSheet);
+	Handlebars.registerHelper("steadingDefenseTrack", (currentValue, defaultValue = 0) => {
+		const raw = currentValue?.value ?? currentValue;
+		const current = Number(raw ?? defaultValue);
+		const sublabels = ["feeble", "mediocre", "strong", "formidable", "legendary"];
+		return Array.from({ length: 5 }, (_, i) => {
+			const val = i - 1;
+			return { val, label: (val >= 0 ? "+" : "") + val, sublabel: sublabels[i], checked: val === current };
+		});
+	});
+
+	CONFIG.Actor.documentClass = createStonetopActorClass(CONFIG.Actor.documentClass);
+	CONFIG.Item.documentClass  = createStonetopItemClass(CONFIG.Item.documentClass);
+
+	const StonetopCharacterSheet = createStonetopCharacterSheetClass(ActorSheet);
 	Actors.registerSheet("stonetop", StonetopCharacterSheet, {
-		types: ["character"],
+		types:       ["character"],
 		makeDefault: true,
-		label: "Stonetop Character Sheet",
+		label:       "Stonetop Character Sheet",
+	});
+
+	const StonetopSteadingSheet = createStonetopSteadingSheetClass(ActorSheet);
+	Actors.registerSheet("stonetop", StonetopSteadingSheet, {
+		types:       ["stonetop"],
+		makeDefault: true,
+		label:       "Stonetop Steading Sheet",
+	});
+
+	const StonetopNpcSheet = createStonetopNpcSheetClass(ActorSheet);
+	Actors.registerSheet("stonetop", StonetopNpcSheet, {
+		types:       ["npc"],
+		makeDefault: true,
+		label:       "Stonetop NPC Sheet",
 	});
 
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
 	Items.registerSheet("stonetop", StonetopArcanumSheet, {
-		types: ["move"],
+		types:       ["move"],
 		makeDefault: false,
-		label: "Stonetop Arcanum",
-	});
-
-	// Steading sheet is registered in the ready hook (Ready.js) because PBTA
-	// registers PbtaActorOtherSheet for unknown types during pbtaSheetConfig
-	// (after init), which would override an init-time registration.
-
-	Handlebars.registerHelper("steadingTrack", currentValue => {
-		return Array.from({ length: 5 }, (_, i) => {
-			const val = i - 1;
-			return { val, label: (val >= 0 ? "+" : "") + val, checked: val === Number(currentValue) };
-		});
-	});
-
-	Handlebars.registerHelper("steadingDefenseTrack", currentValue => {
-		const sublabels = ["feeble", "mediocre", "strong", "formidable", "legendary"];
-		return Array.from({ length: 5 }, (_, i) => {
-			const val = i - 1;
-			return { val, label: (val >= 0 ? "+" : "") + val, sublabel: sublabels[i], checked: val === Number(currentValue) };
-		});
+		label:       "Stonetop Arcanum",
 	});
 
 	loadTemplates({
-		"stonetop.arcanum-sheet":    "modules/stonetop/templates/item/arcanum-sheet.hbs",
-		"stonetop.actor-header":     "modules/stonetop/templates/actor/partials/actor-header.hbs",
-		"stonetop.tab-details":      "modules/stonetop/templates/actor/partials/tab-details.hbs",
-		"stonetop.tab-moves":        "modules/stonetop/templates/actor/partials/tab-moves.hbs",
-		"stonetop.tab-equipment":    "modules/stonetop/templates/actor/partials/tab-equipment.hbs",
-		"stonetop.tab-invocations":  "modules/stonetop/templates/actor/partials/tab-invocations.hbs",
-		"stonetop.tab-followers":    "modules/stonetop/templates/actor/partials/tab-followers.hbs",
-		"stonetop.tab-arcana":       "modules/stonetop/templates/actor/partials/tab-arcana.hbs",
-		"stonetop.tab-post-death":      "modules/stonetop/templates/actor/partials/tab-post-death.hbs",
-		"stonetop.tab-special-moves":   "modules/stonetop/templates/actor/partials/tab-special-moves.hbs",
-		"stonetop.move-group":       "modules/stonetop/templates/actor/partials/move-group.hbs",
-		"stonetop.lore-section":     "modules/stonetop/templates/actor/partials/lore-section.hbs",
-		"stonetop.section-heading":  "modules/stonetop/templates/actor/partials/section-heading.hbs",
-		"stonetop.resource-track":   "modules/stonetop/templates/actor/partials/resource-track.hbs",
-		// Steading sheet partials
-		"stonetop.steading-tab-overview":     "modules/stonetop/templates/actor/partials/steading-tab-overview.hbs",
-		"stonetop.steading-tab-improvements": "modules/stonetop/templates/actor/partials/steading-tab-improvements.hbs",
-		"stonetop.steading-tab-moves":        "modules/stonetop/templates/actor/partials/steading-tab-moves.hbs",
-		"stonetop.steading-tab-notes":        "modules/stonetop/templates/actor/partials/steading-tab-notes.hbs",
+		"stonetop.arcanum-sheet":    "systems/stonetop/templates/item/arcanum-sheet.hbs",
+		"stonetop.actor-header":     "systems/stonetop/templates/actor/partials/actor-header.hbs",
+		"stonetop.actor-stats":      "systems/stonetop/templates/actor/partials/actor-stats.hbs",
+		"stonetop.actor-vitals":     "systems/stonetop/templates/actor/partials/actor-vitals.hbs",
+		"stonetop.tab-details":      "systems/stonetop/templates/actor/partials/tab-details.hbs",
+		"stonetop.tab-moves":        "systems/stonetop/templates/actor/partials/tab-moves.hbs",
+		"stonetop.tab-equipment":    "systems/stonetop/templates/actor/partials/tab-equipment.hbs",
+		"stonetop.tab-invocations":  "systems/stonetop/templates/actor/partials/tab-invocations.hbs",
+		"stonetop.tab-followers":    "systems/stonetop/templates/actor/partials/tab-followers.hbs",
+		"stonetop.tab-arcana":       "systems/stonetop/templates/actor/partials/tab-arcana.hbs",
+		"stonetop.tab-post-death":      "systems/stonetop/templates/actor/partials/tab-post-death.hbs",
+		"stonetop.tab-special-moves":   "systems/stonetop/templates/actor/partials/tab-special-moves.hbs",
+		"stonetop.move-group":       "systems/stonetop/templates/actor/partials/move-group.hbs",
+		"stonetop.lore-section":     "systems/stonetop/templates/actor/partials/lore-section.hbs",
+		"stonetop.section-heading":  "systems/stonetop/templates/actor/partials/section-heading.hbs",
+		"stonetop.resource-track":   "systems/stonetop/templates/actor/partials/resource-track.hbs",
+		"stonetop.steading-tab-overview":     "systems/stonetop/templates/actor/partials/steading-tab-overview.hbs",
+		"stonetop.steading-tab-improvements": "systems/stonetop/templates/actor/partials/steading-tab-improvements.hbs",
+		"stonetop.steading-tab-moves":        "systems/stonetop/templates/actor/partials/steading-tab-moves.hbs",
+		"stonetop.steading-tab-notes":        "systems/stonetop/templates/actor/partials/steading-tab-notes.hbs",
+		"stonetop.npc-sheet":                 "systems/stonetop/templates/actor/npc.hbs",
 	});
 });
 
 // -- RENDER PAUSE ----------------------------------------------
-// Fires when the game is paused
 Hooks.on("renderPause", onRenderPause);
 
-// -- PBTA SHEET CONFIG -----------------------------------------
-// Fires after init, before ready. pbta listens for this hook
-// to allow modules to override its sheet configuration.
-Hooks.once("pbtaSheetConfig", onPbtaSheetConfig);
-
 // -- READY -----------------------------------------------------
-// Fires when the world is fully loaded and all documents exist.
 Hooks.once("ready", onReady);
 
 // -- RENDER ACTOR SHEET ----------------------------------------
-// Fires every time any actor sheet renders.
 Hooks.on("renderActorSheet", onRenderActorSheet);
 
 // -- CHAT SPEAKER ALIAS ----------------------------------------
-// For every chat message sent by a stonetop character, prefix the
-// speaker alias with the playbook name: "Arwel The Judge".
 Hooks.on("preCreateChatMessage", (message) => {
 	const { token: tokenId, actor: actorId } = message.speaker ?? {};
 	const actor = (tokenId ? canvas.tokens?.get(tokenId)?.actor : null)
@@ -145,32 +160,26 @@ Hooks.on("preCreateChatMessage", (message) => {
 // -- DEBILITY DISADVANTAGE ANNOTATION -------------------------
 // When a roll was penalised by a debility, annotate the
 // "Disadvantage" condition in the chat card with the debility name.
-let _disadvantageText;
 Hooks.on("renderChatMessageHTML", (message, html) => {
 	const opts = message.rolls?.[0]?.options ?? {};
 	const { stonetopDebility: debility, stonetopDebilityTooltip: tooltip } = opts;
 	if (!debility) return;
-	_disadvantageText ??= game.i18n.localize("PBTA.Disadvantage");
-	for (const li of html.querySelectorAll(".pbta-chat-card .conditions ul li")) {
-		if (li.textContent.trim() === _disadvantageText) {
-			const hint = tooltip
-				? `<span class="stonetop-debility-hint" data-tooltip="${tooltip}" data-tooltip-direction="UP">${debility}</span>`
-				: debility;
-			li.innerHTML = `${_disadvantageText} (${hint})`;
-			break;
-		}
+	const pill = html.querySelector(".stonetop-roll-card .stonetop-condition-disadvantage");
+	if (pill) {
+		const hint = tooltip
+			? `<span class="stonetop-debility-hint" data-tooltip="${tooltip}" data-tooltip-direction="UP">${debility}</span>`
+			: debility;
+		pill.innerHTML = `Disadvantage (${hint})`;
 	}
 });
 
 // -- BURN BRIGHTLY ---------------------------------------------
-// After each PBTA roll, show a "Burn brightly" button to the
-// owning player when they have enough XP to level up.
 const BURN_BRIGHTLY_TOOLTIP =
 	"When you have enough XP to Level Up (6 + twice your current level), " +
 	"you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).";
 
 Hooks.on("renderChatMessageHTML", (message, html) => {
-	const cardButtons = html.querySelector(".pbta-chat-card .card-buttons");
+	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
 	if (!cardButtons) return;
 
 	const { token: tokenId, actor: actorId } = message.speaker ?? {};
@@ -193,13 +202,8 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	btn.dataset.tooltipDirection = "UP";
 	btn.disabled = alreadyBurned;
 
-	// Append inline with shift buttons; for non-GMs, PBTA hides the whole
-	// .card-buttons div so unhide it and hide only the shift-specific buttons.
 	cardButtons.appendChild(btn);
-	if (!game.user.isGM) {
-		cardButtons.querySelectorAll("[data-action]").forEach(b => b.style.display = "none");
-		cardButtons.style.display = "flex";
-	}
+	cardButtons.style.display = "flex";
 
 	if (alreadyBurned) return;
 
@@ -244,10 +248,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 			roll.resetFormula();
 			await roll._evaluate();
 
-			// Also update the roll card's speaker alias so its title reflects the playbook.
-			const speakerUpdate = playbookName
-				? { alias: `${actor.name} ${playbookName}` }
-				: {};
+			const speakerUpdate = playbookName ? { alias: `${actor.name} ${playbookName}` } : {};
 			await message.update({ rolls, speaker: { ...message.speaker, ...speakerUpdate }, flags: { stonetop: { burnBrightly: true } } });
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);

@@ -1,7 +1,7 @@
 {
   "_id": "msKRM8oHy6qghCF9",
   "_key": "!items!msKRM8oHy6qghCF9",
-  "img": "modules/stonetop/assets/playbooks/the-fox.svg",
+  "img": "systems/stonetop/assets/playbooks/the-fox.svg",
   "name": "The Fox",
   "type": "playbook",
   "flags": {
@@ -115,7 +115,7 @@
             "Greagir",
             "Maired",
             "Nainsi",
-            "Naíclas",
+            "NaÃ­clas",
             "Saraid"
           ]
         },
@@ -141,12 +141,12 @@
           {
             "slug": "burglars-kit",
             "label": "Burglar's kit",
-            "description": "picks, files, snippets, wire, ◇ prybars, ◇ hacksaws, ◇ a lantern (○○○○○ hours, <em>close, area</em>), ◇ a grappling hook, etc."
+            "description": "picks, files, snippets, wire, â—‡ prybars, â—‡ hacksaws, â—‡ a lantern (â—‹â—‹â—‹â—‹â—‹ hours, <em>close, area</em>), â—‡ a grappling hook, etc."
           },
           {
             "slug": "carpenters-tools",
             "label": "Carpenter's tools",
-            "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc."
+            "description": "chisels, files, nails, pitch, â—‡ prybars, â—‡ saws, â—‹â—‹ firkins, barrels, etc."
           },
           {
             "slug": "distillery",
@@ -171,12 +171,12 @@
           {
             "slug": "mummers-kit",
             "label": "Mummer's kit",
-            "description": "juggling balls, whirlybird seeds, motley, ribbons, bells, ◇ puppets, ◇ a fiddle, etc."
+            "description": "juggling balls, whirlybird seeds, motley, ribbons, bells, â—‡ puppets, â—‡ a fiddle, etc."
           },
           {
             "slug": "scribes-tools",
             "label": "Scribe's tools",
-            "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+            "description": "parchment, ink, pigments, vials, quills, â—‡ a notebook, etc."
           },
           {
             "slug": "trade-contacts",
@@ -189,151 +189,151 @@
       "lore": [
         {
           "slug": "tall-tales-beginning",
-          "title": "There Was That Time You…",
+          "title": "There Was That Time Youâ€¦",
           "description": "<p>Someone like you gets into all sorts of trouble, whether you mean to or not. Mix and match the following to come up with a couple of your more memorable adventures. <em>(choose 1 per tale)</em></p>",
           "options": [
             {
               "slug": "lost-great-wood",
-              "description": "… got lost in the Great Wood.",
+              "description": "â€¦ got lost in the Great Wood.",
               "max": 2
             },
             {
               "slug": "lost-flats",
-              "description": "… got lost in the Flats.",
+              "description": "â€¦ got lost in the Flats.",
               "max": 2
             },
             {
               "slug": "lost-steplands",
-              "description": "… got lost in the Steplands.",
+              "description": "â€¦ got lost in the Steplands.",
               "max": 2
             },
             {
               "slug": "lost-ferrers-fen",
-              "description": "… got lost in Ferrier's Fen.",
+              "description": "â€¦ got lost in Ferrier's Fen.",
               "max": 2
             },
             {
               "slug": "lost-foothills",
-              "description": "… got lost in the Foothills.",
+              "description": "â€¦ got lost in the Foothills.",
               "max": 2
             },
             {
               "slug": "lost-huffel-peaks",
-              "description": "… got lost in the Huffel Peaks.",
+              "description": "â€¦ got lost in the Huffel Peaks.",
               "max": 2
             },
             {
               "slug": "crinwin-raid",
-              "description": "… were on watch when the crinwin raided.",
+              "description": "â€¦ were on watch when the crinwin raided.",
               "max": 2
             },
             {
               "slug": "ruined-tower",
-              "description": "… dared each other to explore the Ruined Tower.",
+              "description": "â€¦ dared each other to explore the Ruined Tower.",
               "max": 2
             },
             {
               "slug": "hillfolk",
-              "description": "… managed to rile up a small band of Hillfolk.",
+              "description": "â€¦ managed to rile up a small band of Hillfolk.",
               "max": 2
             },
             {
               "slug": "labyrinth",
-              "description": "… braved the Labyrinth, just a little.",
+              "description": "â€¦ braved the Labyrinth, just a little.",
               "max": 2
             },
             {
               "slug": "old-mans-book",
-              "description": "… stole that crazy old man's book.",
+              "description": "â€¦ stole that crazy old man's book.",
               "max": 2
             },
             {
               "slug": "barrow-mounds",
-              "description": "… went poking about the old Barrow Mounds.",
+              "description": "â€¦ went poking about the old Barrow Mounds.",
               "max": 2
             }
           ]
         },
         {
           "slug": "tall-tales-ending",
-          "title": "And You Ended Up…",
+          "title": "And You Ended Upâ€¦",
           "description": "<p><em>(choose 1 or 2 per tale)</em></p>",
           "options": [
             {
               "slug": "running",
-              "description": "… running for your life from something.",
+              "description": "â€¦ running for your life from something.",
               "max": 2
             },
             {
               "slug": "well-placed-blow",
-              "description": "… landing a well-placed blow.",
+              "description": "â€¦ landing a well-placed blow.",
               "max": 2
             },
             {
               "slug": "strange-gather",
-              "description": "… interrupting a strange, creepy gathering.",
+              "description": "â€¦ interrupting a strange, creepy gathering.",
               "max": 2
             },
             {
               "slug": "big-beast",
-              "description": "… stumbling on a beast, bigger'n anything.",
+              "description": "â€¦ stumbling on a beast, bigger'n anything.",
               "max": 2
             },
             {
               "slug": "treasure",
-              "description": "… with a sack full of treasure.",
+              "description": "â€¦ with a sack full of treasure.",
               "max": 2
             },
             {
               "slug": "someone-fight",
-              "description": "… getting someone to fight them for you.",
+              "description": "â€¦ getting someone to fight them for you.",
               "max": 2
             },
             {
               "slug": "ghost",
-              "description": "… face to face with a ghost/Fae/demon.",
+              "description": "â€¦ face to face with a ghost/Fae/demon.",
               "max": 2
             },
             {
               "slug": "strange-runes",
-              "description": "… finding those strange old runes.",
+              "description": "â€¦ finding those strange old runes.",
               "max": 2
             },
             {
               "slug": "fine-looking",
-              "description": "… getting to know that fine-looking fellow/lady/person/couple.",
+              "description": "â€¦ getting to know that fine-looking fellow/lady/person/couple.",
               "max": 2
             }
           ]
         },
         {
           "slug": "tall-tales-legacy",
-          "title": "But All You've Got Left to Show for It Is…",
+          "title": "But All You've Got Left to Show for It Isâ€¦",
           "description": "",
           "options": [
             {
               "slug": "story-no-one-believes",
-              "description": "… a story no one believes.",
+              "description": "â€¦ a story no one believes.",
               "max": 1
             },
             {
               "slug": "nasty-scar",
-              "description": "… a nasty scar; wanna see?",
+              "description": "â€¦ a nasty scar; wanna see?",
               "max": 1
             },
             {
               "slug": "nightmares",
-              "description": "… the occasional nightmare.",
+              "description": "â€¦ the occasional nightmare.",
               "max": 1
             },
             {
               "slug": "map-with-runes",
-              "description": "… this map with runes no one can read.",
+              "description": "â€¦ this map with runes no one can read.",
               "max": 1
             },
             {
               "slug": "mystery-key",
-              "description": "… this key that opens who-knows-what.",
+              "description": "â€¦ this key that opens who-knows-what.",
               "max": 1
             }
           ]

@@ -3,12 +3,11 @@
 An unofficial [Foundry VTT](https://foundryvtt.com) module for playing [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg.
 Requires the [Powered by the Apocalypse](https://foundryvtt.com/packages/pbta) system.
 
-> This module is under active development and may be unstable.
+> This system is under active development and may be unstable.
 
 ## Prerequisites
 
 - Foundry VTT v12
-- [Powered by the Apocalypse](https://foundryvtt.com/packages/pbta) system v1.1.1+
 
 ## Installation
 

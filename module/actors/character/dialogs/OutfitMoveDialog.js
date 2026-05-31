@@ -19,7 +19,7 @@ export class OutfitMoveDialog extends Application {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-outfit-dialog",
-			template: "modules/stonetop/templates/dialogs/outfit-move.hbs",
+			template: "systems/stonetop/templates/dialogs/outfit-move.hbs",
 			title: game.i18n.localize("stonetop.specialMoves.outfit.title"),
 			width: 560,
 			height: "auto",

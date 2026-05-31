@@ -4,6 +4,9 @@ import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
+import {rollDamage} from "../../utils/roll-engine.js";
+
+const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 
 const STAT_TOOLTIPS = {
 	str: "Your physical power and ability to use it. Roll +STR to Clash, or to Defy Danger with raw might or power.",
@@ -40,7 +43,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		get template() {
-			return "modules/stonetop/templates/actor/character.hbs";
+			return "systems/stonetop/templates/actor/character.hbs";
 		}
 
 		async _render(force, options) {
@@ -113,6 +116,8 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		async getData() {
 			const context = await super.getData();
+			context.system ??= this.actor.system;
+			context.isCharacter = this.actor.type === "character";
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop', 'hideUnselected') ?? false;
 			context.stonetop.editMode = this._editMode;
@@ -322,7 +327,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				el.value = el.value.replace(/^\+/, "");
 			});
 			html.find(".cell--stats .stat[data-stat]").each((_, el) => {
-				$(el).append(`<span class="stonetop-stat-abbr">(${el.dataset.stat.toUpperCase()})</span>`);
 				const tooltip = STAT_TOOLTIPS[el.dataset.stat];
 				if (tooltip) {
 					el.dataset.tooltip = tooltip;
@@ -361,6 +365,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Clicking the move name fires the same roll as the dice icon.
 			// For moves without a rollType (Aid), fetch the full doc and post to chat.
 			// Restricted to owners/GMs (isEditable) so observers cannot roll on others' actors.
+			// Rollable click handler — replaces PBTA's built-in listener.
+			html[0].addEventListener("click", async ev => {
+				// Don't intercept clicks on enabled inputs (e.g. editing a stat value).
+				if (ev.target.tagName === "INPUT" && !ev.target.disabled) return;
+				const rollable = ev.target.closest(".rollable");
+				if (!rollable || !this.isEditable) return;
+				ev.stopPropagation();
+				const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable });
+				if (!handled) {
+					const roll = rollable.dataset.roll;
+					if (!roll) return;
+					if (_STAT_KEYS.has(roll)) {
+						// Stat roll (STR, DEX, etc.)
+						await this._stonetopCharacter.onDirectStatRoll(roll);
+					} else {
+						// Raw formula roll (e.g. damage die "d8")
+						await rollDamage(roll, this.actor, { label: rollable.dataset.label ?? roll });
+					}
+				}
+			}, true);
+
 			html.find(".stonetop-basic-move-open").on("click", async ev => {
 				if (!this.isEditable) return;
 				const li       = ev.currentTarget.closest("li");

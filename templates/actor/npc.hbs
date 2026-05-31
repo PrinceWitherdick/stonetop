@@ -1,0 +1,126 @@
+<div class="sheet-container stonetop-npc-sheet">
+
+	{{!-- Header --}}
+	<header class="sheet-header stonetop-sheet-header">
+		<img class="stonetop-portrait" src="{{actor.img}}"
+		     {{#if editable}}data-edit="img"{{/if}}
+		     title="{{actor.name}}" alt="{{actor.name}}">
+		<div class="sheet-header__fields">
+			{{#if editable}}
+			<input class="input--title stonetop-name-field" name="name" type="text"
+			       value="{{actor.name}}" placeholder="NPC Name">
+			{{else}}
+			<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}</span>
+			{{/if}}
+		</div>
+	</header>
+
+	{{!-- Attributes bar --}}
+	<div class="stonetop-npc-attributes flexrow">
+
+		{{!-- HP --}}
+		<div class="cell--attribute cell--attr-resource">
+			<label class="attribute-label">{{localize "stonetop.npc.hitPoints"}}</label>
+			<div class="attribute-value resource-value">
+				<input class="attr-value" type="number"
+				       name="system.attributes.hp.value"
+				       value="{{system.attributes.hp.value}}"
+				       min="0"
+				       {{#unless editable}}disabled{{/unless}}>
+				<span class="resource-sep">/</span>
+				<input class="attr-max" type="number"
+				       name="system.attributes.hp.max"
+				       value="{{system.attributes.hp.max}}"
+				       {{#unless editable}}disabled{{/unless}}>
+			</div>
+		</div>
+
+		{{!-- Armor --}}
+		<div class="cell--attribute cell--attr-resource">
+			<label class="attribute-label">{{localize "stonetop.npc.armor"}}</label>
+			<div class="attribute-value resource-value">
+				<input class="attr-value" type="number"
+				       name="system.attributes.armor.value"
+				       value="{{system.attributes.armor.value}}"
+				       min="0"
+				       {{#unless editable}}disabled{{/unless}}>
+				<span class="resource-sep">/</span>
+				<input class="attr-max" type="number"
+				       name="system.attributes.armor.max"
+				       value="{{system.attributes.armor.max}}"
+				       {{#unless editable}}disabled{{/unless}}>
+			</div>
+		</div>
+
+	</div>
+
+	{{!-- Instinct --}}
+	<div class="stonetop-npc-instinct">
+		<label class="stonetop-npc-field-label">{{localize "stonetop.npc.instinct"}}</label>
+		{{#if editable}}
+		<input class="stonetop-npc-instinct-input" type="text"
+		       name="system.attributes.instinct.value"
+		       value="{{system.attributes.instinct.value}}"
+		       placeholder="NPC's instinct…">
+		{{else}}
+		<span class="stonetop-npc-instinct-value">{{system.attributes.instinct.value}}</span>
+		{{/if}}
+	</div>
+
+	{{!-- Tabs --}}
+	<nav class="sheet-tabs tabs" data-group="primary">
+		<a class="item" data-tab="moves">Moves</a>
+		<a class="item" data-tab="notes">Notes</a>
+	</nav>
+
+	<div class="sheet-body">
+
+		{{!-- Moves tab --}}
+		<div class="tab" data-tab="moves">
+			<ul class="stonetop-npc-moves-list">
+				{{#each npcMoves}}
+				<li class="stonetop-npc-move-item" data-item-id="{{id}}">
+					<div class="stonetop-npc-move-controls">
+						{{#if ../editable}}
+						<a class="stonetop-npc-delete-move" title="Delete">
+							<i class="fas fa-trash"></i>
+						</a>
+						{{/if}}
+						{{#if system.rollFormula}}
+						<a class="stonetop-npc-move-roll" title="Roll {{system.rollFormula}}">
+							<i class="fas fa-dice-d6"></i>
+						</a>
+						{{/if}}
+					</div>
+					<div class="stonetop-npc-move-body">
+						<a class="stonetop-npc-move-name">{{name}}</a>
+						{{#if system.description}}
+						<div class="stonetop-npc-move-description">{{{system.description}}}</div>
+						{{/if}}
+					</div>
+				</li>
+				{{else}}
+				<li class="stonetop-npc-moves-empty">No moves yet.</li>
+				{{/each}}
+			</ul>
+			{{#if editable}}
+			<div class="stonetop-npc-add-controls">
+				<a class="stonetop-npc-add-move">
+					<i class="fas fa-plus"></i> Add Move
+				</a>
+			</div>
+			{{/if}}
+		</div>
+
+		{{!-- Notes tab --}}
+		<div class="tab" data-tab="notes">
+			{{#if editable}}
+			<textarea class="stonetop-npc-notes" name="system.notes"
+			          placeholder="Notes about this NPC…">{{system.notes}}</textarea>
+			{{else}}
+			<div class="stonetop-npc-notes-readonly">{{system.notes}}</div>
+			{{/if}}
+		</div>
+
+	</div>
+</div>
