@@ -167,7 +167,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "â—‹â—‹ uses: skins of fine whisky (grants advantage to Persuade), copper tubes, malt, firkins, stills, barrels, etc.",
+            "description": "○○ uses: skins of fine whisky (grants advantage to Persuade), copper tubes, malt, firkins, stills, barrels, etc.",
             "resource": {
               "max": 2,
               "title": null,
@@ -177,7 +177,7 @@
           {
             "slug": "hideouts",
             "label": "Hideouts",
-            "description": "â—‹â—‹â—‹ uses: 2-3 stocked shelters in the wild, each a safe place to sleep and cache supplies. When you arrive at a hideout, mark a use to restore Supplies or Ammo.",
+            "description": "○○○ uses: 2-3 stocked shelters in the wild, each a safe place to sleep and cache supplies. When you arrive at a hideout, mark a use to restore Supplies or Ammo.",
             "resource": {
               "max": 3,
               "title": null,
@@ -192,12 +192,12 @@
           {
             "slug": "husbandry-tools",
             "label": "Husbandry tools",
-            "description": "brushes, muzzles, collars, feed, â—‡ whips, â—‡ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
+            "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
           },
           {
             "slug": "lay-of-the-land",
             "label": "Lay of the land",
-            "description": "â—‹â—‹â—‹ uses: your intimate knowledge of the terrain within two days' march. Expend a use to ask the GM a question about what's out there; the GM answers honestly.",
+            "description": "○○○ uses: your intimate knowledge of the terrain within two days' march. Expend a use to ask the GM a question about what's out there; the GM answers honestly.",
             "resource": {
               "max": 3,
               "title": null,
@@ -207,7 +207,7 @@
           {
             "slug": "trapping-gear",
             "label": "Trapping gear",
-            "description": "snares, traps, lures, bait, stakes, â—‡ a net, etc. When you <em>spend an evening setting traps</em>, the GM will tell you what you catch by morning."
+            "description": "snares, traps, lures, bait, stakes, ◇ a net, etc. When you <em>spend an evening setting traps</em>, the GM will tell you what you catch by morning."
           }
         ]
       },
@@ -216,7 +216,7 @@
           {
             "slug": "bird",
             "label": "Bird",
-            "examples": "falcon, eagle, owl, buzzard, magpieâ€¦",
+            "examples": "falcon, eagle, owl, buzzard, magpie…",
             "hp": 5,
             "armor": "1 (size)",
             "damage": "d4 (band)",
@@ -239,7 +239,7 @@
           {
             "slug": "critter",
             "label": "Critter",
-            "examples": "cat, fox, possum, raccoon, weaselâ€¦",
+            "examples": "cat, fox, possum, raccoon, weasel…",
             "hp": 5,
             "armor": "1",
             "damage": "d4 (band)",
@@ -268,7 +268,7 @@
           {
             "slug": "brute",
             "label": "Brute",
-            "examples": "bear, boar, wolverine, aurochs, drakeâ€¦",
+            "examples": "bear, boar, wolverine, aurochs, drake…",
             "hp": 12,
             "armor": "0",
             "damage": "d6 (band)",
@@ -291,7 +291,7 @@
           {
             "slug": "predator",
             "label": "Predator",
-            "examples": "hound, wolf, cougar, drakeâ€¦",
+            "examples": "hound, wolf, cougar, drake…",
             "hp": 8,
             "armor": "0",
             "damage": "d8 (band, grabby)",
@@ -319,7 +319,7 @@
           {
             "slug": "steed",
             "label": "Steed",
-            "examples": "horse, muleâ€¦",
+            "examples": "horse, mule…",
             "hp": 12,
             "armor": "0",
             "damage": "d6+1 (band, close)",

@@ -8,6 +8,7 @@ import { createStonetopNpcSheetClass } from "./module/actors/npc/StonetopNpcShee
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
+import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 
 // -- INIT ------------------------------------------------------
@@ -15,6 +16,7 @@ Hooks.once("init", () => {
 	info("Initializing");
 
 	registerSettings();
+	registerStonetopSingletonHooks();
 
 	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
 
@@ -173,6 +175,25 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	}
 });
 
+// -- ROLL RESULT SHIFTING --------------------------------------
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
+	if (!cardButtons) return;
+
+	if (!cardButtons.querySelector("[data-action='shiftUp']")) {
+		cardButtons.insertAdjacentHTML("afterbegin", `
+			<button data-action="shiftUp">Shift Up</button>
+			<button data-action="shiftDown">Shift Down</button>
+		`);
+	}
+
+	for (const button of cardButtons.querySelectorAll("[data-action='shiftUp'], [data-action='shiftDown']")) {
+		button.style.display = game.user.isGM ? "" : "none";
+		button.addEventListener("click", ev => _onRollShift(ev, message));
+	}
+	cardButtons.style.display = game.user.isGM ? "flex" : "none";
+});
+
 // -- BURN BRIGHTLY ---------------------------------------------
 const BURN_BRIGHTLY_TOOLTIP =
 	"When you have enough XP to Level Up (6 + twice your current level), " +
@@ -256,3 +277,77 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 		}
 	});
 });
+
+async function _onRollShift(event, message) {
+	event.preventDefault();
+	const button = event.currentTarget;
+	button.disabled = true;
+
+	try {
+		const roll = message.rolls?.at(0);
+		if (!roll) return;
+
+		const shift = button.dataset.action === "shiftUp" ? 1 : -1;
+		await _shiftRoll(roll, shift);
+
+		await message.update({
+			rolls:  message.rolls,
+			flavor: _shiftRollCardFlavor(message.flavor, roll.total),
+		});
+	} catch (err) {
+		console.error("Stonetop | Error shifting roll result:", err);
+	} finally {
+		button.disabled = false;
+	}
+}
+
+async function _shiftRoll(roll, shift) {
+	const shiftMap = { 1: "+", "-1": "-" };
+	let opTerm = roll.terms.find(term => term instanceof foundry.dice.terms.OperatorTerm && term.options.rollShifting);
+	let numTerm = roll.terms.find(term => term instanceof foundry.dice.terms.NumericTerm && term.options.rollShifting);
+	let originalValue = `${opTerm?.operator ?? ""}${numTerm?.number ?? ""}`;
+	if (originalValue !== "" && !Number.isNaN(Number(originalValue))) originalValue = Number(originalValue);
+
+	if (!numTerm) {
+		roll.terms.push(
+			opTerm = new foundry.dice.terms.OperatorTerm({ operator: shiftMap[shift], options: { rollShifting: true } }),
+			numTerm = new foundry.dice.terms.NumericTerm({ number: 1, options: { rollShifting: true } })
+		);
+	} else {
+		numTerm.number = Math.abs(Roll.safeEval(`${opTerm.operator}${numTerm.number} + ${shift}`));
+	}
+
+	if (numTerm.number === 1 && originalValue === 0 && opTerm.operator !== shiftMap[shift]) {
+		opTerm.operator = shiftMap[shift];
+	} else if (numTerm.number === 0) {
+		opTerm.operator = "+";
+	}
+
+	roll.resetFormula();
+	await roll._evaluate();
+}
+
+function _shiftRollCardFlavor(flavor, total) {
+	if (!flavor) return flavor;
+
+	const wrapper = document.createElement("div");
+	wrapper.innerHTML = flavor;
+
+	const resultRow = wrapper.querySelector(".stonetop-roll-card .row.result");
+	const resultLabel = resultRow?.querySelector(".result-label");
+	if (!resultRow || !resultLabel) return flavor;
+
+	const result = _classifyShiftedTotal(total);
+	resultRow.classList.remove("success", "partial", "failure", "critical");
+	resultRow.classList.add(result.key);
+	resultLabel.textContent = result.label;
+
+	return wrapper.innerHTML;
+}
+
+function _classifyShiftedTotal(total) {
+	if (total >= 12) return { key: "critical", label: "12+ Strong Hit" };
+	if (total >= 10) return { key: "success", label: "Strong Hit" };
+	if (total >= 7) return { key: "partial", label: "Weak Hit" };
+	return { key: "failure", label: "Miss" };
+}

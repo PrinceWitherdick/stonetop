@@ -163,7 +163,7 @@
           {
             "slug": "husbandry-tools",
             "label": "Husbandry tools",
-            "description": "brushes, muzzles, collars, feed, â—‡ whips, â—‡ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
+            "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
           },
           {
             "slug": "personal-token",
@@ -195,17 +195,17 @@
           {
             "slug": "smithy",
             "label": "Smithy",
-            "description": "(or access to it): iron goods, ingots, thick gloves, â—‡ tongs, â—‡ bellows, an anvil, etc."
+            "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc."
           },
           {
             "slug": "stoneworkers-tools",
             "label": "Stoneworker's tools",
-            "description": "chisels, drills, â—‡ prybars, â—‡ spikes, â—‡ block &amp; tackles, wheelbarrow, etc."
+            "description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc."
           },
           {
             "slug": "tannery",
             "label": "Tannery",
-            "description": "(or access to it): hides, pelts, alum, salt, â—‡ frames, â—‡ knives; leather goods, straps, armor, etc."
+            "description": "(or access to it): hides, pelts, alum, salt, ◇ frames, ◇ knives; leather goods, straps, armor, etc."
           }
         ]
       },
@@ -338,7 +338,7 @@
   "system": {
     "slug": "the-would-be-hero",
     "actorType": "character",
-    "description": "Most people hope for a quiet life. They spend their days a-worrying: about a leaky roof, a sick child, their crops. But you aren't like most peopleâ€”you're on a different path. A path to adventure! There's greatness in you. Let's hope you live long enough for everyone else to see it.",
+    "description": "Most people hope for a quiet life. They spend their days a-worrying: about a leaky roof, a sick child, their crops. But you aren't like most people—you're on a different path. A path to adventure! There's greatness in you. Let's hope you live long enough for everyone else to see it.",
     "attributes": {
       "omen": {
         "label": "Omen",

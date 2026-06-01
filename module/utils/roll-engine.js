@@ -28,7 +28,10 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 		? `<div class="card-content"><div class="row"><em>${formula}</em></div></div>`
 		: "";
 	const buttonsHtml = buttons
-		? `<div class="card-buttons stonetop-card-buttons"></div>`
+		? `<div class="card-buttons stonetop-card-buttons">
+			<button data-action="shiftUp">Shift Up</button>
+			<button data-action="shiftDown">Shift Down</button>
+		</div>`
 		: "";
 
 	return `<section class="pbta-chat-card stonetop-roll-card">
@@ -142,7 +145,29 @@ export async function rollDamage(formula, actor, options = {}) {
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, formula }),
+		flavor:   _rollCard({ header: label, formula, buttons: true }),
+		rollMode: game.settings.get("core", "rollMode"),
+	});
+
+	return roll;
+}
+
+/**
+ * Roll a generic formula using the Stonetop chat card shell.
+ *
+ * @param {string} formula
+ * @param {Actor} actor
+ * @param {object} options
+ * @param {string} [options.label]
+ * @returns {Promise<Roll>}
+ */
+export async function rollFormula(formula, actor, options = {}) {
+	const roll = await new Roll(formula).evaluate();
+	const label = options.label ?? formula;
+
+	await roll.toMessage({
+		speaker:  ChatMessage.getSpeaker({ actor }),
+		flavor:   _rollCard({ header: label, formula, buttons: true }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 

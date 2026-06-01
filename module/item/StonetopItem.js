@@ -1,5 +1,5 @@
 import {StonetopPlaybook} from "./StonetopPlaybook.js";
-import {rollStat} from "../utils/roll-engine.js";
+import {rollFormula, rollStat} from "../utils/roll-engine.js";
 
 export function createStonetopItemClass(BaseItem) {
 	return class StonetopItem extends BaseItem {
@@ -41,12 +41,7 @@ export function createStonetopItemClass(BaseItem) {
 			if (stat) return rollStat(stat, actor, { ...options, moveName: this.name });
 
 			// Raw formula path — used by npcMove items
-			const roll = await new Roll(rawFormula).evaluate();
-			return roll.toMessage({
-				speaker:  ChatMessage.getSpeaker({ actor }),
-				flavor:   `<strong>${this.name}</strong>`,
-				rollMode: game.settings.get("core", "rollMode"),
-			});
+			return rollFormula(rawFormula, actor, { label: this.name });
 		}
 	};
 }

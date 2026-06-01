@@ -28,8 +28,12 @@
 				<div class="steading-surplus-block">
 					<label class="steading-stat-label">Surplus</label>
 					<span class="steading-stat-hint">Starts at 1</span>
+					{{#if stonetop.editMode}}
 					<input class="steading-surplus-input" type="number" name="system.attributes.surplus.value"
 					       value="{{system.attributes.surplus.value}}" min="0" max="99">
+					{{else}}
+					<span class="steading-surplus-value">{{system.attributes.surplus.value}}</span>
+					{{/if}}
 				</div>
 			</div>
 

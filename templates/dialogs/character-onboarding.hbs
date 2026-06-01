@@ -105,6 +105,23 @@
 
 		{{!-- Name suggestions, one block per region; JS shows the active one --}}
 		{{#each origins}}
+		{{#if isGordinsDelve}}
+		<div class="stonetop-onboarding-names-section{{#if selected}} is-visible{{/if}}"
+		     data-region="{{region}}">
+			<p class="stonetop-onboarding-names-label">People from Gordin's Delve always come from somewhere else. Choose a name from another place, or write your own.</p>
+			<p class="stonetop-onboarding-names-label">Suggested names — {{region}}:</p>
+			{{#each nameGroups}}
+			<div class="stonetop-onboarding-name-group">
+				<p class="stonetop-onboarding-name-group-label">{{region}}</p>
+				<div class="stonetop-onboarding-name-chips">
+					{{#each names}}
+					<button type="button" class="onboard-name-chip" data-name="{{this}}">{{this}}</button>
+					{{/each}}
+				</div>
+			</div>
+			{{/each}}
+		</div>
+		{{else}}
 		{{#if names.length}}
 		<div class="stonetop-onboarding-names-section{{#if selected}} is-visible{{/if}}"
 		     data-region="{{region}}">
@@ -115,6 +132,7 @@
 				{{/each}}
 			</div>
 		</div>
+		{{/if}}
 		{{/if}}
 		{{/each}}
 
@@ -127,14 +145,15 @@
 
 		<div class="stonetop-onboarding-stats-pool">
 			<span class="stonetop-onboarding-stats-pool-label">Scores to assign</span>
+			<button type="button" class="stonetop-onboarding-stats-reset">Reset</button>
 			{{#each statScores}}
-			<span class="stonetop-onboarding-stats-chip">{{this}}</span>
+			<span class="stonetop-onboarding-stats-chip" draggable="true" data-score="{{this}}">{{this}}</span>
 			{{/each}}
 		</div>
 
 		<div class="stonetop-onboarding-stats-grid">
 			{{#each statBoxes}}
-			<div class="stonetop-onboarding-stat-box{{#if assigned}} is-filled{{/if}}">
+			<div class="stonetop-onboarding-stat-box{{#if assigned}} is-filled{{/if}}" data-stat-key="{{key}}">
 				<span class="stonetop-onboarding-stat-abbr">{{abbr}}</span>
 				<select class="stonetop-onboarding-stat-select" name="onboard-stat-{{key}}">
 					<option value="">—</option>
@@ -443,9 +462,7 @@
 		</div>
 		<span class="stonetop-onboarding-step-counter">{{stepNumber}} / {{stepCount}}</span>
 		<div class="stonetop-onboarding-footer-right">
-			{{#unless isLast}}
 			<button type="button" class="stonetop-onboarding-skip">Skip</button>
-			{{/unless}}
 			{{#if isLast}}
 			<button type="button" class="stonetop-onboarding-confirm" {{#unless stepComplete}}disabled{{/unless}}>Create Character</button>
 			{{else}}

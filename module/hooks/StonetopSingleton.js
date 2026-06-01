@@ -1,0 +1,60 @@
+const _STEADING_ACTOR_TYPE = "stonetop";
+const _STEADING_ACTOR_NAME = "Stonetop";
+
+export async function ensureStonetopSingleton() {
+	if (!game.user.isGM || !_isPrimaryGM()) return;
+	const existing = _getStonetopActors().at(0);
+	if (existing) {
+		await _ensureStartingValues(existing);
+		return;
+	}
+
+	await Actor.create({
+		name: _STEADING_ACTOR_NAME,
+		type: _STEADING_ACTOR_TYPE,
+		system: {
+			attributes: {
+				surplus: { value: 1 },
+			},
+		},
+	});
+}
+
+export function registerStonetopSingletonHooks() {
+	Hooks.on("preCreateActor", (actor, data) => {
+		if (!_isStonetopActorData(data ?? actor)) return;
+		if (!_getStonetopActors().length) return;
+
+		ui.notifications?.warn("This world already has a Stonetop sheet.");
+		return false;
+	});
+
+	Hooks.on("preDeleteActor", actor => {
+		if (!_isStonetopActorData(actor)) return;
+		if (_getStonetopActors().length > 1) return;
+
+		ui.notifications?.warn("The Stonetop sheet is required and cannot be deleted.");
+		return false;
+	});
+}
+
+function _getStonetopActors() {
+	return game.actors?.filter(actor => _isStonetopActorData(actor)) ?? [];
+}
+
+function _isStonetopActorData(actor) {
+	return actor?.type === _STEADING_ACTOR_TYPE || actor?.system?.customType === _STEADING_ACTOR_TYPE;
+}
+
+async function _ensureStartingValues(actor) {
+	if (actor.system?.attributes?.surplus?.value !== undefined && actor.system.attributes.surplus.value !== null) return;
+	await actor.update({ "system.attributes.surplus.value": 1 });
+}
+
+function _isPrimaryGM() {
+	const activeGM = game.users?.activeGM;
+	if (activeGM) return activeGM.id === game.user.id;
+
+	const firstActiveGM = game.users?.find(user => user.active && user.isGM);
+	return !firstActiveGM || firstActiveGM.id === game.user.id;
+}

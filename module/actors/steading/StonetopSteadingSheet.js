@@ -1,4 +1,5 @@
 import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS } from "./StonetopSteading.js";
+import {rollStat} from "../../utils/roll-engine.js";
 
 const _STEADING_MOVES_RAW = [
 	{
@@ -227,6 +228,16 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onSteadingTrackChange(radio.name, Number(radio.value));
 			}, true);
 
+			// Surplus is in the custom stat bar, so persist it explicitly.
+			const onSurplusInput = ev => {
+				const input = ev.target.closest(".steading-surplus-input");
+				if (!input || !this._editMode) return;
+				ev.stopPropagation();
+				this._onSteadingTrackChange(input.name, Math.max(0, parseInt(input.value) || 0));
+			};
+			html[0].addEventListener("input", onSurplusInput, true);
+			html[0].addEventListener("change", onSurplusInput, true);
+
 			// List item checked toggle (resources, fortifications, assets)
 			html[0].addEventListener("change", ev => {
 				const cb = ev.target.closest(".steading-list-check");
@@ -306,24 +317,7 @@ export function createStonetopSteadingSheetClass(Base) {
 
 		async _onSteadingRoll(moveName, statKey) {
 			if (!statKey) return;
-			const statVal = this.actor.system?.stats?.[statKey]?.value ?? 0;
-			const sign = statVal >= 0 ? "+" : "";
-			const roll = await new Roll("2d6+@stat", { stat: statVal }).evaluate();
-			const total = roll.total;
-			let result, cls;
-			if (total >= 10) { result = "10+ Strong Hit!"; cls = "stonetop-roll-success"; }
-			else if (total >= 7) { result = "7–9 Weak Hit"; cls = "stonetop-roll-partial"; }
-			else { result = "6− Miss"; cls = "stonetop-roll-failure"; }
-
-			const statName = statKey === "fortunes" ? "Fortunes" : "Defenses";
-			await roll.toMessage({
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-				flavor: `<div class="stonetop-chat-move">
-					<h3 class="stonetop-chat-move-name">${moveName}</h3>
-					<div class="steading-roll-result ${cls}">+${statName} (${sign}${statVal}) → <strong>${result}</strong></div>
-				</div>`,
-				rollMode: game.settings.get("core", "rollMode"),
-			});
+			await rollStat(statKey, this.actor, { moveName });
 		}
 
 		async _onSteadingTrackChange(path, value) {
