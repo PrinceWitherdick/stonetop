@@ -51,7 +51,7 @@ async function _ensureStartingValues(actor) {
 	await actor.update({ "system.attributes.surplus.value": 1 });
 }
 
-function _isPrimaryGM() {
+export function _isPrimaryGM() {
 	const activeGM = game.users?.activeGM;
 	if (activeGM) return activeGM.id === game.user.id;
 

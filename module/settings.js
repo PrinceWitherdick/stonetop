@@ -21,6 +21,37 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the default starting scene has already been created for this world.
+	game.settings.register("stonetop", "defaultSceneCreated", {
+		name: "Default Scene Created",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Visual treatment for each default scene (one setting per scene).
+	for (const [key, sceneKey] of [
+		["stonetopSceneTone", "stonetop"],
+		["vicinitySceneTone", "vicinity"],
+		["worldsEndSceneTone", "worldsEnd"],
+	]) {
+		game.settings.register("stonetop", key, {
+			name: `stonetop.settings.sceneTone.${sceneKey}.name`,
+			hint: `stonetop.settings.sceneTone.${sceneKey}.hint`,
+			scope: "world",
+			config: true,
+			type: String,
+			choices: {
+				sepia: "Sepia",
+				white: "White",
+			},
+			default: "sepia",
+			onChange: tone => import("./hooks/Ready.js")
+				.then(({ updateDefaultSceneTone }) => updateDefaultSceneTone(tone, sceneKey)),
+		});
+	}
+
 	// -- CLIENT SPECIFIC SETTINGS --------------------------------
 
 	// Whether move rolls use the actor's saved advantage/disadvantage flag.
