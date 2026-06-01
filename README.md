@@ -6,17 +6,15 @@ An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop
 
 ## Screenshots
 
-**Stonetop Map**
-![Stonetop Map](.github/screenshots/stonetop-map.png)
 
-**Character Sheet — Moves**
-![Character Sheet Moves](.github/screenshots/character-sheet-moves.png)
+**Character Sheet — Filterable Moves**
+![Character Sheet Moves](.github/screenshots/character-sheet-moves.webp)
 
-**Character Sheet — Ledger**
-![Character Sheet Ledger](.github/screenshots/character-sheet-ledger.png)
+**Character & Stonetop Sheet — Ledgers**
+![Character Sheet Ledger](.github/screenshots/character-sheet-ledger.webp)
 
-**Playbook Picker**
-![Playbook Picker](.github/screenshots/playbook-picker.png)
+**New Character Creation**
+![Playbook Picker](.github/screenshots/playbook-picker.webp)
 
 ## Prerequisites
 
