@@ -52,8 +52,24 @@ import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
 import {capitalizeFirst} from "../../utils/strings.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
+import {normalizeRollType} from "../../utils/roll-types.js";
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "expedition", "homefront"];
+const ROLL_LABELS_BY_TYPE = {
+	str: "STR",
+	dex: "DEX",
+	int: "INT",
+	wis: "WIS",
+	con: "CON",
+	cha: "CHA",
+};
+const HOMEFRONT_ROLL_LABELS_BY_NAME = {
+	"Deploy": "Defenses",
+	"Muster": "Population",
+	"Pull Together": "Population",
+	"Seasons Change": "Fortunes",
+	"Trade & Barter": "Prosperity",
+};
 
 // Slugs whose resource max equals 4+Prosperity. Matches the `prosperityResource`
 // flag in the JSON source; acts as the runtime fallback until the pack is
@@ -196,6 +212,7 @@ export class StonetopCharacter {
 						.withName(e.name)
 						.withDescription(e.description ?? "")
 						.withRollType(e.rollType)
+						.withRollLabel(_rollLabelForMove(e.name, e.rollType, { moveType: "basic", description: e.description }))
 						.withIsStarting(false)
 						.withSource({ type: "basic" })
 						.withSourceLabel(null)
@@ -227,6 +244,7 @@ export class StonetopCharacter {
 						.withName(i.name)
 						.withDescription(i.system?.description ?? "")
 						.withRollType(i.system?.rollType ?? null)
+						.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
 						.withIsStarting(false)
 						.withSource({ type: moveType })
 						.withSourceLabel(null)
@@ -258,6 +276,7 @@ export class StonetopCharacter {
 					.withName(i.name)
 					.withDescription(i.system?.description ?? "")
 					.withRollType(i.system?.rollType ?? null)
+					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
 					.withIsStarting(true)
 					.withSource({ type: "post-death" })
 					.withSourceLabel(null)
@@ -742,6 +761,7 @@ export class StonetopCharacter {
 				compendiumId: e.id,
 				ownedId: instances[0]?._id ?? null,
 				rollType: e.rollType,
+				rollLabel: _rollLabelForMove(e.name, e.rollType, { moveType: "basic", description: e.description }),
 				owned: instances.length > 0,
 				description: e.description,
 			};
@@ -756,7 +776,12 @@ export class StonetopCharacter {
 			if (items.length) acc.push({
 				key: t,
 				label: capitalizeFirst(t) + " Moves",
-				moves: items.map(i => ({ name: i.name, ownedId: i._id, rollType: i.system?.rollType ?? null })),
+				moves: items.map(i => ({
+					name: i.name,
+					ownedId: i._id,
+					rollType: normalizeRollType(i.system?.rollType),
+					rollLabel: _rollLabelForMove(i.name, i.system?.rollType, i.system),
+				})),
 			});
 			return acc;
 		}, []);
@@ -769,7 +794,13 @@ export class StonetopCharacter {
 				if (i.system?.moveType === "playbook" && !playbookMoveNameSet.has(i.name)) return true;
 				return false;
 			})
-			.map(i => ({ name: i.name, ownedId: i._id, rollType: i.system?.rollType ?? null, description: i.system?.description ?? null }));
+			.map(i => ({
+				name: i.name,
+				ownedId: i._id,
+				rollType: normalizeRollType(i.system?.rollType),
+				rollLabel: _rollLabelForMove(i.name, i.system?.rollType, i.system),
+				description: i.system?.description ?? null,
+			}));
 
 		return { playbookMoves, basicMoves, otherGroups, otherMoves, startingMovesNote: playbookData?.startingMovesNote ?? null };
 	}
@@ -851,7 +882,7 @@ export class StonetopCharacter {
 		const itemId = event.currentTarget.closest(".item")?.dataset.itemId;
 		if (!itemId) return false;
 		const item = this._actor.items.get(itemId);
-		const stat = item?.system?.rollType ?? null;
+		const stat = normalizeRollType(item?.system?.rollType);
 		if (!stat) return false;
 
 		const isDescription = event.currentTarget.getAttribute("data-show") === "description";
@@ -1104,6 +1135,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set()) {
 		.withName(entry.name)
 		.withDescription(entry.description)
 		.withRollType(entry.rollType)
+		.withRollLabel(_rollLabelForMove(entry.name, entry.rollType, entry))
 		.withIsStarting(entry.isStarting)
 		.withSource(source)
 		.withSourceLabel(sourceLabel)
@@ -1119,6 +1151,19 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set()) {
 }
 
 // ── Snapshot helpers ──────────────────────────────────────────────────────────
+
+function _rollLabelForMove(name, rollType, data = {}) {
+	const normalizedRollType = normalizeRollType(rollType);
+	if (!normalizedRollType) return null;
+	if (data.moveType === "homefront" && HOMEFRONT_ROLL_LABELS_BY_NAME[name]) {
+		return HOMEFRONT_ROLL_LABELS_BY_NAME[name];
+	}
+	if (data.moveType === "homefront") {
+		const match = String(data.description ?? "").match(/roll\s+\+([A-Za-z][A-Za-z ]*)/i);
+		if (match) return match[1].trim();
+	}
+	return ROLL_LABELS_BY_TYPE[normalizedRollType] ?? null;
+}
 
 function _buildMovelist(categories, other, pdiLabel = null) {
 	const playbookCat  = categories.find(c => c.key === "playbook");

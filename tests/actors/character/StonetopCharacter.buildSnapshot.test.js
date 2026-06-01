@@ -952,3 +952,20 @@ describe("buildSnapshot — rollMode", () => {
 		expect(snap.rollMode).toBe("adv");
 	});
 });
+describe("buildSnapshot - homefront moves", () => {
+	it("normalizes object rollType values before rendering", async () => {
+		const actor = new FakeActorBuilder()
+			.addItem({
+				_id: "h1",
+				type: "move",
+				name: "Pull Together",
+				system: { moveType: "homefront", rollType: { value: "ask", label: "Ask" } },
+			})
+			.build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		const homefront = snap.moves.find(category => category.key === "homefront");
+
+		expect(homefront.moves[0].rollType).toBe("ask");
+		expect(homefront.moves[0].rollLabel).toBe("Population");
+	});
+});

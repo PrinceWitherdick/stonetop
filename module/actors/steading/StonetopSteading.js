@@ -475,8 +475,12 @@ export class StonetopSteading {
 	}
 
 	getStatValue(statKey) {
-		const defaults = { fortunes: 1, defenses: 0 };
-		return Number(this.getSystemValue(`stats.${statKey}.value`, defaults[statKey] ?? 0));
+		const attrKeys = { population: 0, prosperity: 0, surplus: 1 };
+		if (statKey in attrKeys) {
+			return Number(this.getSystemValue(`attributes.${statKey}.value`, attrKeys[statKey]));
+		}
+		const statDefaults = { fortunes: 1, defenses: 0 };
+		return Number(this.getSystemValue(`stats.${statKey}.value`, statDefaults[statKey] ?? 0));
 	}
 
 	async buildSnapshot() {

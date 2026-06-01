@@ -1012,6 +1012,17 @@ body,
 	cursor: pointer;
 }
 
+.stonetop-move-roll-chip {
+	margin-left: auto;
+	padding: 1px 6px;
+	border: 1px solid var(--color-text-dark-secondary);
+	border-radius: 3px;
+	font-size: 0.72rem;
+	line-height: 1.2;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
 /* -- Read-only tab (not in edit mode) ----------------------------- */
 
 .stonetop-readonly input,
@@ -1027,7 +1038,8 @@ body,
 	opacity: 0.5;
 }
 
-.stonetop-readonly .steading-roll-btn {
+.stonetop-readonly .steading-roll-btn,
+.stonetop-readonly .steading-interactive-btn {
 	pointer-events: auto;
 	opacity: 1;
 }
@@ -3514,6 +3526,212 @@ body,
 
 .steading-roll-btn:hover {
 	background: #556b8b;
+}
+
+.steading-interactive-btn {
+	background: slategrey;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	width: 26px;
+	height: 26px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	font-size: 0.85em;
+	flex-shrink: 0;
+}
+
+.steading-interactive-btn:hover {
+	background: #556b8b;
+}
+
+/* -- Seasons Change dialog ------------------------------------- */
+
+.stonetop-season-picker p { margin: 0 0 10px; }
+
+.stonetop-season-cards {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+}
+
+.stonetop-season-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	padding: 12px 8px;
+	border: 1px solid rgba(0,0,0,0.15);
+	border-radius: 8px;
+	cursor: pointer;
+	background: rgba(0,0,0,0.03);
+	text-align: center;
+}
+
+.stonetop-season-card:hover {
+	background: rgba(122, 98, 72, 0.12);
+	border-color: #7a6248;
+}
+
+.stonetop-season-icon {
+	width: 72px;
+	height: 72px;
+	object-fit: contain;
+}
+
+.stonetop-season-label {
+	font-weight: bold;
+	font-size: 0.95em;
+}
+
+.stonetop-season-flow-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+
+.stonetop-season-icon-sm {
+	width: 36px;
+	height: 36px;
+	object-fit: contain;
+	flex-shrink: 0;
+}
+
+.stonetop-season-flow { padding-bottom: 12px; }
+.stonetop-season-picker { padding-bottom: 12px; }
+
+.stonetop-seasons-grid {
+	display: grid;
+	grid-template-columns: 28px 1fr;
+	gap: 10px 10px;
+	margin: 4px 0 8px;
+	align-items: start;
+}
+
+.stonetop-season-row-icon {
+	width: 28px;
+	height: 28px;
+	object-fit: contain;
+	padding-top: 1px;
+}
+
+.stonetop-seasons-cta {
+	margin: 6px 0 0;
+	font-style: italic;
+	font-size: 0.88em;
+	color: #666;
+	border-top: 1px solid rgba(0,0,0,0.08);
+	padding-top: 6px;
+}
+
+.stonetop-season-flow h3 { margin: 0; font-size: 1.1em; }
+.stonetop-season-flow p  { margin: 5px 0; }
+.stonetop-season-flow ul { margin: 4px 0; padding-left: 18px; }
+.stonetop-season-flow li { margin: 3px 0; }
+
+.stonetop-season-note {
+	font-style: italic;
+	font-size: 0.84em;
+	color: #555;
+}
+
+.stonetop-season-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	margin-top: 8px;
+}
+
+.stonetop-season-btn {
+	width: 100%;
+	padding: 7px 12px;
+	background: slategrey;
+	color: white;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	text-align: left;
+	font-size: 0.88em;
+}
+
+.stonetop-season-btn:hover { background: #556b8b; }
+
+.stonetop-season-divider {
+	margin: 10px 0;
+	border: none;
+	border-top: 1px solid rgba(0,0,0,0.15);
+}
+
+.stonetop-season-gains {
+	margin-top: 12px;
+	font-size: 0.82em;
+	border: 1px solid rgba(0,0,0,0.12);
+	border-radius: 5px;
+	padding: 4px 10px;
+	background: rgba(0,0,0,0.02);
+}
+
+.stonetop-season-gains summary {
+	cursor: pointer;
+	padding: 4px 0;
+	font-weight: bold;
+	user-select: none;
+}
+
+.stonetop-season-gains ul { margin: 4px 0; padding-left: 16px; }
+.stonetop-season-gains li { margin: 2px 0; }
+
+/* -- Meet with Disaster dialog --------------------------------- */
+
+.stonetop-disaster-dialog {
+	padding: 4px 0 12px;
+}
+
+.stonetop-disaster-dialog p {
+	margin: 0 0 10px;
+}
+
+.stonetop-disaster-choices {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-disaster-choice {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px 10px;
+	border: 1px solid rgba(0,0,0,0.15);
+	border-radius: 5px;
+	cursor: pointer;
+	background: rgba(0,0,0,0.03);
+}
+
+.stonetop-disaster-choice:not(.stonetop-disaster-choice-disabled):hover {
+	background: rgba(122, 98, 72, 0.12);
+	border-color: #7a6248;
+}
+
+.stonetop-disaster-choice-disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.stonetop-disaster-choice-label {
+	font-weight: bold;
+	font-size: 0.9em;
+}
+
+.stonetop-disaster-choice-detail {
+	font-size: 0.8em;
+	color: #555;
 }
 
 .steading-move-name {

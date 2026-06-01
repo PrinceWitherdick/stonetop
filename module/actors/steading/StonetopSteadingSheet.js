@@ -2,29 +2,38 @@ import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS } from "./StonetopSteading.j
 import {rollStat} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 
+function _signedNum(n) {
+	return n >= 0 ? `+${n}` : String(n);
+}
+
 const _STEADING_MOVES_RAW = [
 	{
 		slug: "seasonsChange",
-		label: "When the Seasons Change",
+		label: "Seasons Change",
 		stat: "fortunes",
 		statLabel: "Fortunes",
-		rollable: true,
-		description: `<p>At the start of each new season, roll <strong>+Fortunes</strong>.</p>
-<p><strong>On a 10+:</strong> the steading generates 1d4+1 Surplus for the coming season.</p>
-<p><strong>On a 7–9:</strong> the steading generates 1d4 Surplus for the coming season.</p>
-<p><strong>On a miss:</strong> the steading generates no Surplus, Fortunes resets to −1 for the coming season, and the GM picks 1:</p>
-<ul>
-  <li>The steading faces a serious crisis (disease, disaster, attack)</li>
-  <li>Two of the steading's debilities apply this season</li>
-  <li>The steading loses a Resource or Fortification</li>
-</ul>
-<p><em>Note: Fortunes normally resets to +1 at the start of each season (except when malcontent debility applies, resetting to +0).</em></p>`,
+		rollable: false,
+		interactive: true,
+		description: `<div class="stonetop-seasons-grid">
+  <img src="systems/stonetop/assets/icons/seasons/spring_icon.png" class="stonetop-season-row-icon" alt="Spring">
+  <div><strong>Spring</strong> — The <em>most hopeful</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. Reset Fortunes to +1.</div>
+
+  <img src="systems/stonetop/assets/icons/seasons/summer_icon.png" class="stonetop-season-row-icon" alt="Summer">
+  <div><strong>Summer</strong> — The <em>most content</em> rolls +Fortunes. <strong>10+:</strong> pick 2 seasonal gains. <strong>7–9:</strong> pick 1. <strong>6−:</strong> a threat makes itself known; don't mark XP. The steading generates 1d4−1 Surplus. Reset Fortunes to +1.</div>
+
+  <img src="systems/stonetop/assets/icons/seasons/fall_icon.png" class="stonetop-season-row-icon" alt="Autumn">
+  <div><strong>Autumn</strong> — The <em>most determined</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. The steading generates 1d4 Surplus at harvest. Reset Fortunes to +1.</div>
+
+  <img src="systems/stonetop/assets/icons/seasons/winter_icon.png" class="stonetop-season-row-icon" alt="Winter">
+  <div><strong>Winter</strong> — The <em>weariest</em> rolls 1d4+Population (min 0); the steading consumes that much Surplus. If there isn't enough: Surplus → 0, Fortunes −1, pick 1 consequence. Then roll +Fortunes. Reset Fortunes to +1.</div>
+</div>
+<p class="stonetop-seasons-cta">Click <i class="fas fa-dice-d6"></i> to walk through the current season step by step.</p>`,
 	},
 	{
 		slug: "pullTogether",
 		label: "Pull Together",
-		stat: "fortunes",
-		statLabel: "Fortunes",
+		stat: "population",
+		statLabel: "Population",
 		rollable: true,
 		description: `<p>When you <strong>rally the residents of Stonetop to work on a common project</strong>, say what the project is and how you're going about it. The GM will say how many units of effort are needed.</p>
 <p>To contribute a unit of effort, spend the required time and resources, then roll <strong>+Fortunes</strong>.</p>
@@ -36,8 +45,8 @@ const _STEADING_MOVES_RAW = [
 	{
 		slug: "muster",
 		label: "Muster",
-		stat: "defenses",
-		statLabel: "Defenses",
+		stat: "population",
+		statLabel: "Population",
 		rollable: true,
 		description: `<p>When <strong>Stonetop's militia needs to mobilize quickly</strong>, roll <strong>+Defenses</strong>.</p>
 <p><strong>On a 10+:</strong> the militia is ready quickly and at full strength — pick 2 from the list below.</p>
@@ -72,8 +81,8 @@ const _STEADING_MOVES_RAW = [
 	{
 		slug: "tradeBarter",
 		label: "Trade & Barter",
-		stat: "fortunes",
-		statLabel: "Fortunes",
+		stat: "prosperity",
+		statLabel: "Prosperity",
 		rollable: true,
 		description: `<p>When you <strong>seek to buy, sell, or exchange goods or services</strong> on behalf of the steading, roll <strong>+Fortunes</strong>.</p>
 <p><strong>On a 10+:</strong> you get what you want at a fair price; ask the GM 3 questions about the wider world.</p>
@@ -81,11 +90,21 @@ const _STEADING_MOVES_RAW = [
 <p><strong>On a miss:</strong> the deal falls through or comes with serious strings attached.</p>`,
 	},
 	{
+		slug: "meetWithDisaster",
+		label: "Meet with Disaster",
+		stat: null,
+		statLabel: null,
+		rollable: false,
+		interactive: true,
+		description: `<p>When <strong><em>calamity befalls the steading or panic spreads</em></strong>, reduce Fortunes by 1 (min -1).</p><p>When <strong><em>Fortunes would drop below -1 for any reason</em></strong> (not just calamity or panic), then the GM picks 1 instead:</p><ul><li>The steading marks <em>diminished</em> from injuries/sickness/doubt (disadvantage to Deploy, Muster, Pull Together)</li><li>The steading marks <em>lacking</em> due to shortages/hoarding/distrust (treat Prosperity as 1 lower)</li><li>The steading marks <em>malcontent</em> from fear/anger/despair (Fortunes reset to +0 each season, not +1; folks need Persuading more often than usual)</li><li>Folks start to leave; reduce Population by 1</li></ul>`,
+	},
+	{
 		slug: "requisition",
 		label: "Requisition",
 		stat: null,
 		statLabel: null,
 		rollable: false,
+		interactive: true,
 		description: `<p>When you <strong>try to obtain an item or service</strong> that Stonetop possesses, you may:</p>
 <ul>
   <li><strong>Spend 1 Surplus</strong> to obtain any one thing of Value 3 or less, no roll required.</li>
@@ -335,6 +354,17 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onSteadingRoll(btn.dataset.moveName, btn.dataset.stat);
 			}, true);
 
+			// Interactive move buttons (e.g. Meet with Disaster)
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".steading-interactive-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				const { moveSlug } = btn.dataset;
+				if (moveSlug === "meetWithDisaster") this._onMeetWithDisaster();
+				else if (moveSlug === "requisition") this._onRequisition();
+				else if (moveSlug === "seasonsChange") this._onSeasonsChange();
+			}, true);
+
 			// Move description toggle
 			html[0].addEventListener("click", ev => {
 				const hdr = ev.target.closest(".steading-move-header");
@@ -458,6 +488,386 @@ export function createStonetopSteadingSheetClass(Base) {
 				const { slug, index } = cb.dataset;
 				this._onImprovementReq(slug, parseInt(index), cb.checked);
 			}, true);
+		}
+
+		async _onMeetWithDisaster() {
+			const fortunes = this._stonetopSteading.getStatValue("fortunes");
+			const wouldDropBelow = fortunes <= -1;
+
+			if (!wouldDropBelow) {
+				const newFortunes = fortunes - 1;
+				new Dialog({
+					title: "Meet with Disaster",
+					content: `<div class="stonetop-disaster-dialog">
+						<p><em>Calamity befalls the steading or panic spreads.</em></p>
+						<p>Fortunes: <strong>${_signedNum(fortunes)}</strong> → <strong>${_signedNum(newFortunes)}</strong></p>
+					</div>`,
+					buttons: {
+						apply: {
+							label: "Apply",
+							callback: async () => {
+								await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes);
+								this.render(false);
+							},
+						},
+						cancel: { label: "Cancel" },
+					},
+					default: "apply",
+				}).render(true);
+				return;
+			}
+
+			// Fortunes is at -1 — would drop further; GM picks a consequence instead.
+			const choices = [
+				{
+					id: "diminished",
+					label: "Diminished",
+					detail: "from injuries/sickness/doubt — disadvantage to Deploy, Muster, Pull Together",
+					action: () => this._stonetopSteading.setSystemValue("attributes.debilities.options.diminished.value", true),
+				},
+				{
+					id: "lacking",
+					label: "Lacking",
+					detail: "due to shortages/hoarding/distrust — treat Prosperity as 1 lower",
+					action: () => this._stonetopSteading.setSystemValue("attributes.debilities.options.lacking.value", true),
+				},
+				{
+					id: "malcontent",
+					label: "Malcontent",
+					detail: "from fear/anger/despair — Fortunes reset to +0 each season; folks need Persuading more often",
+					action: () => this._stonetopSteading.setSystemValue("attributes.debilities.options.malcontent.value", true),
+				},
+				{
+					id: "population",
+					label: "Folks start to leave",
+					detail: "reduce Population by 1 (min −1)",
+					action: () => {
+						const pop = this._stonetopSteading.getStatValue("population");
+						return this._stonetopSteading.setSystemValue("attributes.population.value", Math.max(pop - 1, -1));
+					},
+				},
+			];
+
+			const choicesHtml = choices.map(c => `
+				<li class="stonetop-disaster-choice" data-choice="${c.id}">
+					<span class="stonetop-disaster-choice-label">${c.label}</span>
+					<span class="stonetop-disaster-choice-detail">${c.detail}</span>
+				</li>`).join("");
+
+			let dialog;
+			dialog = new Dialog({
+				title: "Meet with Disaster",
+				content: `<div class="stonetop-disaster-dialog">
+					<p><em>Fortunes cannot drop below −1.</em> The GM picks 1:</p>
+					<ol class="stonetop-disaster-choices">${choicesHtml}</ol>
+				</div>`,
+				buttons: { cancel: { label: "Cancel" } },
+				render: (html) => {
+					html[0].querySelectorAll(".stonetop-disaster-choice").forEach(el => {
+						el.addEventListener("click", async () => {
+							const choice = choices.find(c => c.id === el.dataset.choice);
+							if (!choice) return;
+							await choice.action();
+							this.render(false);
+							dialog.close();
+						});
+					});
+				},
+			});
+			dialog.render(true);
+		}
+
+		async _onRequisition() {
+			const surplus = this._stonetopSteading.getStatValue("surplus");
+			const hasSurplus = surplus > 0;
+
+			const surplusDetail = hasSurplus
+				? `Obtain any one thing of Value 3 or less, no roll required. (Surplus: ${surplus} → ${surplus - 1})`
+				: `Obtain any one thing of Value 3 or less, no roll required. <em>No Surplus available.</em>`;
+
+			let dialog;
+			dialog = new Dialog({
+				title: "Requisition",
+				content: `<div class="stonetop-disaster-dialog">
+					<p><em>When you try to obtain an item or service that Stonetop possesses, you may:</em></p>
+					<ol class="stonetop-disaster-choices">
+						<li class="stonetop-disaster-choice${hasSurplus ? "" : " stonetop-disaster-choice-disabled"}" data-choice="surplus">
+							<span class="stonetop-disaster-choice-label">Spend 1 Surplus</span>
+							<span class="stonetop-disaster-choice-detail">${surplusDetail}</span>
+						</li>
+						<li class="stonetop-disaster-choice" data-choice="roll">
+							<span class="stonetop-disaster-choice-label">Roll +Fortunes</span>
+							<span class="stonetop-disaster-choice-detail">On a 10+, the steading has 2 things you need; on a 7–9, it has 1; on a miss, nothing useful is available right now.</span>
+						</li>
+					</ol>
+				</div>`,
+				buttons: { cancel: { label: "Cancel" } },
+				render: (html) => {
+					html[0].querySelectorAll(".stonetop-disaster-choice:not(.stonetop-disaster-choice-disabled)").forEach(el => {
+						el.addEventListener("click", async () => {
+							const { choice } = el.dataset;
+							if (choice === "surplus") {
+								await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus - 1);
+								this.render(false);
+							} else if (choice === "roll") {
+								await this._onSteadingRoll("Requisition", "fortunes");
+							}
+							dialog.close();
+						});
+					});
+				},
+			});
+			dialog.render(true);
+		}
+
+		async _onSeasonsChange() {
+			const SEASONS = [
+				{ id: "spring", label: "Spring" },
+				{ id: "summer", label: "Summer" },
+				{ id: "autumn", label: "Autumn" },
+				{ id: "winter", label: "Winter" },
+			];
+			const iconSrc = id => `systems/stonetop/assets/icons/seasons/${id === "autumn" ? "fall" : id}_icon.png`;
+
+			let dialog;
+			dialog = new Dialog({
+				title: "Seasons Change",
+				content: `<div class="stonetop-season-picker">
+					<p><em>Which season is beginning?</em></p>
+					<div class="stonetop-season-cards">
+						${SEASONS.map(s => `
+							<div class="stonetop-season-card" data-season="${s.id}">
+								<img src="${iconSrc(s.id)}" alt="${s.label}" class="stonetop-season-icon">
+								<span class="stonetop-season-label">${s.label}</span>
+							</div>`).join("")}
+					</div>
+				</div>`,
+				buttons: {},
+				render: (html) => {
+					html[0].querySelectorAll(".stonetop-season-card").forEach(el => {
+						el.addEventListener("click", () => {
+							dialog.close();
+							this._showSeasonDialog(el.dataset.season);
+						});
+					});
+				},
+			});
+			dialog.render(true);
+		}
+
+		async _showSeasonDialog(seasonId) {
+			const fortunes   = this._stonetopSteading.getStatValue("fortunes");
+			const surplus    = this._stonetopSteading.getStatValue("surplus");
+			const population = this._stonetopSteading.getStatValue("population");
+
+			const label   = { spring: "Spring", summer: "Summer", autumn: "Autumn", winter: "Winter" }[seasonId];
+			const iconSrc = `systems/stonetop/assets/icons/seasons/${seasonId === "autumn" ? "fall" : seasonId}_icon.png`;
+
+			const header = `<div class="stonetop-season-flow-header">
+				<img src="${iconSrc}" alt="${label}" class="stonetop-season-icon-sm">
+				<h3>${label}</h3>
+			</div>`;
+
+			const statsNote = `<p class="stonetop-season-note">Fortunes: <strong>${_signedNum(fortunes)}</strong> &nbsp;·&nbsp; Surplus: <strong>${surplus}</strong> &nbsp;·&nbsp; Population: <strong>${_signedNum(population)}</strong></p>`;
+
+			const fortunesBtns = `<div class="stonetop-season-actions">
+				<button class="stonetop-season-btn" data-action="roll-fortunes">
+					<i class="fas fa-dice-d6"></i> Roll +Fortunes (current: ${_signedNum(fortunes)})
+				</button>
+				<button class="stonetop-season-btn" data-action="reset-fortunes">
+					<i class="fas fa-undo"></i> Reset Fortunes to +1
+				</button>
+			</div>`;
+
+			const gainsRef = `<details class="stonetop-season-gains">
+				<summary>Seasonal Gains reference</summary>
+				<ul>
+					<li><strong>Population boom:</strong> Increase Population by 1 (max +3)</li>
+					<li><strong>Tor's blessing:</strong> Fine weather; +1 to Pull Together, roll Die of Fate for weather twice</li>
+					<li><strong>Unexpected bounty:</strong> Gain 1 Surplus now</li>
+					<li><strong>Trade opportunity:</strong> Good trade offered at some point this season</li>
+					<li><strong>Interesting news:</strong> Opportunity to improve fortunes, knowledge, or relations</li>
+					<li><strong>Valuable insight:</strong> Chance to address a threat plaguing the steading</li>
+				</ul>
+			</details>`;
+
+			let content;
+			if (seasonId === "spring") {
+				content = `<div class="stonetop-season-flow">
+					${header}
+					<p>Whoever is the <strong>most hopeful</strong> rolls +Fortunes:</p>
+					<ul>
+						<li><strong>10+:</strong> Pick 1 seasonal gain.</li>
+						<li><strong>7–9:</strong> Pick 1 seasonal gain, but a threat makes itself known or gets worse.</li>
+						<li><strong>6−:</strong> Threats abound. Don't mark XP.</li>
+					</ul>
+					<p class="stonetop-season-note">Whatever the result, reset Fortunes to +1.</p>
+					${statsNote}${fortunesBtns}${gainsRef}
+				</div>`;
+			} else if (seasonId === "summer") {
+				content = `<div class="stonetop-season-flow">
+					${header}
+					<p>Whoever is the <strong>most content</strong> rolls +Fortunes:</p>
+					<ul>
+						<li><strong>10+:</strong> Pick 2 seasonal gains.</li>
+						<li><strong>7–9:</strong> Pick 1 seasonal gain.</li>
+						<li><strong>6−:</strong> A threat makes itself known or gets worse. Don't mark XP.</li>
+					</ul>
+					<p class="stonetop-season-note">Whatever the result, the steading generates 1d4−1 Surplus, then Fortunes resets to +1.</p>
+					${statsNote}${fortunesBtns}
+					<div class="stonetop-season-actions">
+						<button class="stonetop-season-btn" data-action="roll-surplus">
+							<i class="fas fa-dice-d4"></i> Roll 1d4−1 Surplus (add to steading)
+						</button>
+					</div>
+					${gainsRef}
+				</div>`;
+			} else if (seasonId === "autumn") {
+				content = `<div class="stonetop-season-flow">
+					${header}
+					<p>Whoever is the <strong>most determined</strong> rolls +Fortunes:</p>
+					<ul>
+						<li><strong>10+:</strong> Pick 1 seasonal gain.</li>
+						<li><strong>7–9:</strong> Pick 1 seasonal gain, but a threat makes itself known or gets worse.</li>
+						<li><strong>6−:</strong> Threats abound. Don't mark XP.</li>
+					</ul>
+					<p class="stonetop-season-note">Whatever the result, reset Fortunes to +1. When harvest is complete, the steading generates 1d4 Surplus.</p>
+					${statsNote}${fortunesBtns}
+					<div class="stonetop-season-actions">
+						<button class="stonetop-season-btn" data-action="roll-surplus">
+							<i class="fas fa-dice-d4"></i> Roll 1d4 Surplus (Harvest)
+						</button>
+					</div>
+					${gainsRef}
+				</div>`;
+			} else {
+				// Winter
+				content = `<div class="stonetop-season-flow">
+					${header}
+					<p>Whoever is the <strong>weariest</strong> rolls 1d4+Population (min 0); the steading consumes that much Surplus.</p>
+					${statsNote}
+					<div id="stonetop-winter-step1" class="stonetop-season-actions">
+						<button class="stonetop-season-btn" data-action="roll-consumption">
+							<i class="fas fa-dice-d4"></i> Roll 1d4+Population for Surplus Consumption
+						</button>
+					</div>
+					<div id="stonetop-winter-step2" hidden>
+						<p id="stonetop-winter-result" class="stonetop-season-note"></p>
+						<div id="stonetop-winter-ok" hidden>
+							<div class="stonetop-season-actions">
+								<button class="stonetop-season-btn" data-action="apply-consumption">Apply Surplus Consumption</button>
+							</div>
+						</div>
+						<div id="stonetop-winter-shortfall" hidden>
+							<p>⚠️ <strong>Not enough Surplus.</strong> Reduce Surplus to 0 and Fortunes by 1, then the GM picks 1:</p>
+							<ol class="stonetop-disaster-choices">
+								<li class="stonetop-disaster-choice" data-consequence="population">
+									<span class="stonetop-disaster-choice-label">Population loss</span>
+									<span class="stonetop-disaster-choice-detail">Reduce Population by 1 (min −1) due to death, decrepitude, and departure.</span>
+								</li>
+								<li class="stonetop-disaster-choice" data-consequence="resource">
+									<span class="stonetop-disaster-choice-label">Important resource lost or damaged</span>
+									<span class="stonetop-disaster-choice-detail">A horse, the cistern, etc. — lost or not maintained (narrative).</span>
+								</li>
+								<li class="stonetop-disaster-choice" data-consequence="npc">
+									<span class="stonetop-disaster-choice-label">Important NPC dies</span>
+									<span class="stonetop-disaster-choice-detail">Their role unfilled — a narrative consequence.</span>
+								</li>
+								<li class="stonetop-disaster-choice" data-consequence="pc">
+									<span class="stonetop-disaster-choice-label">A PC dies, leaves, or retires</span>
+									<span class="stonetop-disaster-choice-detail">A narrative consequence for the group to resolve.</span>
+								</li>
+							</ol>
+						</div>
+					</div>
+					<div id="stonetop-winter-step3" hidden>
+						<hr class="stonetop-season-divider">
+						<p>Then, roll +Fortunes:</p>
+						<ul>
+							<li><strong>10+:</strong> Winter is relatively mild. Each player names a local NPC with whom their relationship improves.</li>
+							<li><strong>7–9:</strong> The steading must consume 1d4+Population more Surplus before winter ends, or suffer the consequences again.</li>
+							<li><strong>6−:</strong> As 7–9, plus threats abound. Don't mark XP.</li>
+						</ul>
+						<p class="stonetop-season-note">Whatever the result, reset Fortunes to +1.</p>
+						${fortunesBtns}
+					</div>
+				</div>`;
+			}
+
+			let dialog;
+			dialog = new Dialog({
+				title: `Seasons Change — ${label}`,
+				content,
+				buttons: { done: { label: "Done" } },
+				render: (html) => {
+					const root = html[0];
+
+					root.querySelector("[data-action='roll-fortunes']")?.addEventListener("click", () => {
+						this._onSteadingRoll("Seasons Change", "fortunes");
+					});
+
+					root.querySelector("[data-action='reset-fortunes']")?.addEventListener("click", async () => {
+						await this._stonetopSteading.setSystemValue("stats.fortunes.value", 1);
+						this.render(false);
+						ui.notifications.info("Fortunes reset to +1.");
+					});
+
+					root.querySelector("[data-action='roll-surplus']")?.addEventListener("click", async () => {
+						const formula = seasonId === "summer" ? "1d4 - 1" : "1d4";
+						const roll = await new Roll(formula).evaluate();
+						const gain = Math.max(0, roll.total);
+						await roll.toMessage({ flavor: `Surplus Generation (${label})` });
+						await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus + gain);
+						this.render(false);
+						ui.notifications.info(`Generated ${gain} Surplus. New total: ${surplus + gain}.`);
+					});
+
+					// Winter — consumption roll
+					root.querySelector("[data-action='roll-consumption']")?.addEventListener("click", async () => {
+						const popAbs = Math.abs(population);
+						const formula = population >= 0 ? `1d4 + ${population}` : `1d4 - ${popAbs}`;
+						const roll = await new Roll(formula).evaluate();
+						const consumption = Math.max(0, roll.total);
+						await roll.toMessage({ flavor: "Winter Surplus Consumption" });
+
+						root.querySelector("#stonetop-winter-step1").hidden = true;
+						root.querySelector("#stonetop-winter-step2").hidden = false;
+						root.querySelector("#stonetop-winter-result").textContent =
+							`Roll: ${consumption}. Surplus needed: ${consumption}, available: ${surplus}.`;
+
+						if (surplus >= consumption) {
+							root.querySelector("#stonetop-winter-ok").hidden = false;
+							root.querySelector("[data-action='apply-consumption']").addEventListener("click", async () => {
+								await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus - consumption);
+								this.render(false);
+								root.querySelector("#stonetop-winter-ok").hidden = true;
+								root.querySelector("#stonetop-winter-step3").hidden = false;
+								ui.notifications.info(`Consumed ${consumption} Surplus. Remaining: ${surplus - consumption}.`);
+							});
+						} else {
+							root.querySelector("#stonetop-winter-shortfall").hidden = false;
+							root.querySelectorAll("[data-consequence]").forEach(el => {
+								el.addEventListener("click", async () => {
+									const newFortunes = Math.max(fortunes - 1, -1);
+									await this._stonetopSteading.setSystemValue("attributes.surplus.value", 0);
+									await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes);
+									if (el.dataset.consequence === "population") {
+										const newPop = Math.max(population - 1, -1);
+										await this._stonetopSteading.setSystemValue("attributes.population.value", newPop);
+										ui.notifications.info(`Shortfall: Surplus → 0, Fortunes → ${_signedNum(newFortunes)}, Population → ${_signedNum(newPop)}.`);
+									} else {
+										ui.notifications.info(`Shortfall: Surplus → 0, Fortunes → ${_signedNum(newFortunes)}. Apply the narrative consequence.`);
+									}
+									this.render(false);
+									root.querySelector("#stonetop-winter-step2").hidden = true;
+									root.querySelector("#stonetop-winter-step3").hidden = false;
+								});
+							});
+						}
+					});
+				},
+			});
+			dialog.render(true);
 		}
 
 		async _onSteadingRoll(moveName, statKey) {

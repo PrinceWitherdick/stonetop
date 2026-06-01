@@ -5,9 +5,14 @@ const LEDGER_KEY = "ledger";
 const LEDGER_MAX_ENTRIES = 300;
 
 const SYSTEM_PATH_LABELS = {
-	"system.stats.fortunes.value":  "Fortunes",
-	"system.stats.defenses.value":  "Defenses",
-	"system.attributes.surplus.value": "Surplus",
+	"system.stats.fortunes.value":   "Fortunes",
+	"system.stats.defenses.value":   "Defenses",
+	"system.attributes.population.value": "Population",
+	"system.attributes.prosperity.value": "Prosperity",
+	"system.attributes.surplus.value":    "Surplus",
+	"system.attributes.debilities.options.diminished.value":  "Diminished debility",
+	"system.attributes.debilities.options.lacking.value":     "Lacking debility",
+	"system.attributes.debilities.options.malcontent.value":  "Malcontent debility",
 };
 
 const FLAG_PATH_LABELS = {

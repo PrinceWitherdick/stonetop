@@ -1,5 +1,6 @@
 import {StonetopPlaybook} from "./StonetopPlaybook.js";
 import {rollFormula, rollStat} from "../utils/roll-engine.js";
+import {normalizeRollType} from "../utils/roll-types.js";
 
 export function createStonetopItemClass(BaseItem) {
 	return class StonetopItem extends BaseItem {
@@ -24,7 +25,7 @@ export function createStonetopItemClass(BaseItem) {
 			const actor = this.parent;
 			if (!actor) return;
 
-			const stat        = this.system?.rollType    ?? null;
+			const stat        = normalizeRollType(this.system?.rollType);
 			const rawFormula  = this.system?.rollFormula ?? null;
 			const descriptionOnly = options.descriptionOnly ?? (!stat && !rawFormula);
 

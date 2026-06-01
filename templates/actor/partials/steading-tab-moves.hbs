@@ -13,13 +13,20 @@
 					{{#if rollable}}
 					<button type="button" class="steading-roll-btn"
 					        data-move-name="{{label}}" data-stat="{{stat}}"
-					        title="Roll 2d6+{{statLabel}}">
+					        title="Roll 2d6+{{this.statLabel}}">
+						<i class="fas fa-dice-d6"></i>
+					</button>
+					{{/if}}
+				{{#if interactive}}
+					<button type="button" class="steading-interactive-btn"
+					        data-move-slug="{{slug}}"
+					        title="{{label}}">
 						<i class="fas fa-dice-d6"></i>
 					</button>
 					{{/if}}
 					<strong class="steading-move-name">{{label}}</strong>
 					{{#if statLabel}}
-					<span class="steading-move-stat-tag">+{{statLabel}}</span>
+					<span class="steading-move-stat-tag">+{{this.statLabel}}</span>
 					{{/if}}
 					<span class="steading-move-expand-icon"><i class="fas fa-chevron-down"></i></span>
 				</div>

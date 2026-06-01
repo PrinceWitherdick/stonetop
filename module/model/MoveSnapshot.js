@@ -1,3 +1,5 @@
+import { normalizeRollType } from "../utils/roll-types.js";
+
 /** Move or possession requirement. */
 export class RequirementSnapshot {
 	constructor(label, met) {
@@ -13,6 +15,7 @@ export class RequirementSnapshot {
  * @property {string} name
  * @property {string} description
  * @property {string|null} rollType - stat key | "ask" | "prompt" | null
+ * @property {string|null} rollLabel - display label for the roll chip, e.g. "Fortunes"
  * @property {boolean} isStarting
  * @property {{ type: string, slug?: string }} source
  * @property {string|null} sourceLabel
@@ -33,6 +36,7 @@ export class MoveSnapshot {
 		this.name          = b._name;
 		this.description   = b._description;
 		this.rollType      = b._rollType;
+		this.rollLabel     = b._rollLabel;
 		this.isStarting    = b._isStarting;
 		this.source        = b._source;
 		this.sourceLabel   = b._sourceLabel;
@@ -53,7 +57,8 @@ export class MoveSnapshotBuilder {
 	withOwnedId(v)       { this._ownedId       = v; return this; }
 	withName(v)          { this._name          = v; return this; }
 	withDescription(v)   { this._description   = v; return this; }
-	withRollType(v)      { this._rollType      = v; return this; }
+	withRollType(v)      { this._rollType      = normalizeRollType(v); return this; }
+	withRollLabel(v)     { this._rollLabel     = v ?? null; return this; }
 	withIsStarting(v)    { this._isStarting    = v; return this; }
 	withSource(v)        { this._source        = v; return this; }
 	withSourceLabel(v)   { this._sourceLabel   = v; return this; }

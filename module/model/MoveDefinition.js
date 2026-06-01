@@ -1,11 +1,12 @@
 import { ResourceDef } from "./Resource.js";
+import { normalizeRollType } from "../utils/roll-types.js";
 
 export class MoveDefinition {
 	constructor(data) {
 		this.id          = data._id;
 		this.name        = data.name;
 		this.playbook    = data.system?.playbook        ?? null;
-		this.rollType    = data.system?.rollType        ?? null;
+		this.rollType    = normalizeRollType(data.system?.rollType);
 		this.description = data.system?.description     ?? null;
 		this.isStarting  = data.system?.isStartingMove  ?? false;
 		this.requirement = data.system?.requirement     ?? null;

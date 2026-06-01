@@ -794,7 +794,41 @@ describe("StonetopCharacter.getMoves otherMoves", () => {
 		const move = { _id: "m1", type: "move", name: "Custom Move", system: { moveType: "other", rollType: "str", description: "<p>Do a thing.</p>" } };
 		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
 		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([{ name: "Custom Move", ownedId: "m1", rollType: "str", description: "<p>Do a thing.</p>" }]);
+		expect(result.otherMoves).toEqual([{ name: "Custom Move", ownedId: "m1", rollType: "str", rollLabel: "STR", description: "<p>Do a thing.</p>" }]);
+	});
+
+	it("normalizes object rollType values for homefront moves", async () => {
+		const move = {
+			_id: "m-homefront",
+			type: "move",
+			name: "Muster",
+			system: { moveType: "homefront", rollType: { value: "ask", label: "Ask" } },
+		};
+		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
+		const result = await char.getMoves();
+		const homefront = result.otherGroups.find(group => group.key === "homefront");
+
+		expect(homefront.moves).toEqual([{ name: "Muster", ownedId: "m-homefront", rollType: "ask", rollLabel: "Population" }]);
+	});
+
+	it("labels homefront roll chips with the steading stat from the move", async () => {
+		const moves = [
+			{ _id: "seasons", type: "move", name: "Seasons Change", system: { moveType: "homefront", rollType: "ask" } },
+			{ _id: "trade", type: "move", name: "Trade & Barter", system: { moveType: "homefront", rollType: "ask" } },
+			{ _id: "deploy", type: "move", name: "Deploy", system: { moveType: "homefront", rollType: "ask" } },
+		];
+		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems(moves).build()).build();
+		const result = await char.getMoves();
+		const labels = Object.fromEntries(result.otherGroups
+			.find(group => group.key === "homefront")
+			.moves
+			.map(move => [move.name, move.rollLabel]));
+
+		expect(labels).toMatchObject({
+			"Seasons Change": "Fortunes",
+			"Trade & Barter": "Prosperity",
+			"Deploy": "Defenses",
+		});
 	});
 
 	it("does not include items with other moveTypes in otherMoves", async () => {
@@ -815,7 +849,7 @@ describe("StonetopCharacter.getMoves otherMoves", () => {
 			.withMoveRepo(new FakeMoveRepository([], []))
 			.build();
 		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([{ name: "Fox Move", ownedId: "m4", rollType: null, description: null }]);
+		expect(result.otherMoves).toEqual([{ name: "Fox Move", ownedId: "m4", rollType: null, rollLabel: null, description: null }]);
 	});
 
 	it("does not include same-playbook moves in otherMoves", async () => {
