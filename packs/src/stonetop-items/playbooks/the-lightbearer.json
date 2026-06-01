@@ -140,12 +140,12 @@
           {
             "slug": "apiary",
             "label": "Apiary",
-            "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, â—‡ bee smokers, â—‡ hat &amp; veils, etc."
+            "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hat &amp; veils, etc."
           },
           {
             "slug": "books-and-scrolls",
             "label": "Books &amp; scrolls",
-            "description": "â—‹â—‹â—‹â—‹â—‹ uses: a collection of religious texts and sacred histories. Mark a use to <em>Know Things about Helior, the Sun-Worshippers, or their lore</em> as if you rolled a 10+.",
+            "description": "○○○○○ uses: a collection of religious texts and sacred histories. Mark a use to <em>Know Things about Helior, the Sun-Worshippers, or their lore</em> as if you rolled a 10+.",
             "resource": {
               "max": 5,
               "title": null,
@@ -155,12 +155,12 @@
           {
             "slug": "chandlery",
             "label": "Chandlery",
-            "description": "tallow, wax, wicks, dye, â—‡ molds; candles, wick-holders, holy candles (<em>close, area</em>, ~1 hr), lanterns, etc."
+            "description": "tallow, wax, wicks, dye, ◇ molds; candles, wick-holders, holy candles (<em>close, area</em>, ~1 hr), lanterns, etc."
           },
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "â—‹â—‹ uses: skins of fine spirits (Value 1; grants advantage to Persuade when shared), copper tubes, malt, firkins, stills, barrels, etc.",
+            "description": "○○ uses: skins of fine spirits (Value 1; grants advantage to Persuade when shared), copper tubes, malt, firkins, stills, barrels, etc.",
             "resource": {
               "max": 2,
               "title": null,
@@ -170,12 +170,12 @@
           {
             "slug": "glassworks",
             "label": "Glassworks",
-            "description": "sand, ash, â—‡ crucibles, â—‡ blowpipes; bottles, flasks, lenses, lantern glass, etc."
+            "description": "sand, ash, ◇ crucibles, ◇ blowpipes; bottles, flasks, lenses, lantern glass, etc."
           },
           {
             "slug": "holy-relics",
             "label": "Holy relics",
-            "description": "â—‹â—‹â—‹ uses: sacred objects of Helior's worship. Expend a use to add +1 to a roll involving the god's favor or power. Restore 1 use each season.",
+            "description": "○○○ uses: sacred objects of Helior's worship. Expend a use to add +1 to a roll involving the god's favor or power. Restore 1 use each season.",
             "resource": {
               "max": 3,
               "title": null,
@@ -185,7 +185,7 @@
           {
             "slug": "luthiers-tools",
             "label": "Luthier's tools",
-            "description": "gut strings, pegs, wood, varnish, â—‡ chisels, â—‡ clamps; instruments, repairs, etc."
+            "description": "gut strings, pegs, wood, varnish, ◇ chisels, ◇ clamps; instruments, repairs, etc."
           }
         ]
       },
@@ -205,12 +205,12 @@
           {
             "slug": "cleansing-light",
             "label": "Cleansing Light",
-            "description": "<p>Dispels magical effects within range; potent lasting magics are merely suppressed. <em>Reduced:</em> only weak effects dispelled. <em>Empowered:</em> becomes ongoing â€” all magic created in or entering range is dispelled.</p>"
+            "description": "<p>Dispels magical effects within range; potent lasting magics are merely suppressed. <em>Reduced:</em> only weak effects dispelled. <em>Empowered:</em> becomes ongoing — all magic created in or entering range is dispelled.</p>"
           },
           {
             "slug": "cold-light-of-day",
             "label": "Cold Light of Day (ongoing)",
-            "description": "<p>All in your light appears as it really is â€” illusions, shapeshifting, and disguise fail. <em>Reduced:</em> lasts only briefly. <em>Empowered:</em> illusions dispelled; shapeshifters momentarily stunned.</p>"
+            "description": "<p>All in your light appears as it really is — illusions, shapeshifting, and disguise fail. <em>Reduced:</em> lasts only briefly. <em>Empowered:</em> illusions dispelled; shapeshifters momentarily stunned.</p>"
           },
           {
             "slug": "dancing-light",
@@ -248,185 +248,185 @@
       "lore": [
         {
           "slug": "helior-worship-spread",
-          "title": "The Worship of Helior Isâ€¦",
+          "title": "The Worship of Helior Is…",
           "description": "<p>You are the appointed servant of Helior the Daybringer, god of the sun and light, beacon of hope and mercy. <em>(choose 1)</em></p>",
           "options": [
             {
               "slug": "ancient-widespread",
-              "description": "â€¦ ancient, widespread, and well-known.",
+              "description": "… ancient, widespread, and well-known.",
               "max": 1
             },
             {
               "slug": "lygos-south",
-              "description": "â€¦ most common in Lygos and the south.",
+              "description": "… most common in Lygos and the south.",
               "max": 1
             },
             {
               "slug": "new-thing",
-              "description": "â€¦ a new thing, still unheard of by many.",
+              "description": "… a new thing, still unheard of by many.",
               "max": 1
             },
             {
               "slug": "old-forgotten",
-              "description": "â€¦ an old thing, forgotten by most.",
+              "description": "… an old thing, forgotten by most.",
               "max": 1
             },
             {
               "slug": "persecuted",
-              "description": "â€¦ widely persecuted.",
+              "description": "… widely persecuted.",
               "max": 1
             }
           ]
         },
         {
           "slug": "helior-worship-practice",
-          "title": "He Is Worshipped Throughâ€¦",
+          "title": "He Is Worshipped Through…",
           "description": "<p><em>(choose 1 or 2)</em></p>",
           "options": [
             {
               "slug": "solemn-hymns",
-              "description": "â€¦ solemn hymns.",
+              "description": "… solemn hymns.",
               "max": 1
             },
             {
               "slug": "meditation",
-              "description": "â€¦ serene meditation.",
+              "description": "… serene meditation.",
               "max": 1
             },
             {
               "slug": "joyful-song",
-              "description": "â€¦ joyful song.",
+              "description": "… joyful song.",
               "max": 1
             },
             {
               "slug": "ascetic-denial",
-              "description": "â€¦ ascetic denial.",
+              "description": "… ascetic denial.",
               "max": 1
             },
             {
               "slug": "dancing",
-              "description": "â€¦ fervent dancing.",
+              "description": "… fervent dancing.",
               "max": 1
             },
             {
               "slug": "ceremonies",
-              "description": "â€¦ formal ceremonies.",
+              "description": "… formal ceremonies.",
               "max": 1
             },
             {
               "slug": "drugs",
-              "description": "â€¦ drugs & intoxicants.",
+              "description": "… drugs & intoxicants.",
               "max": 1
             },
             {
               "slug": "pain-sacrifice",
-              "description": "â€¦ pain & sacrifice.",
+              "description": "… pain & sacrifice.",
               "max": 1
             }
           ]
         },
         {
           "slug": "helior-shrine",
-          "title": "In Stonetop's Pavilion of the Gods, Helior's Shrine Hasâ€¦",
+          "title": "In Stonetop's Pavilion of the Gods, Helior's Shrine Has…",
           "description": "<p><em>(choose 1)</em></p>",
           "options": [
             {
               "slug": "highest-honor",
-              "description": "â€¦ the place of highest honor, even if Tor is more popular.",
+              "description": "… the place of highest honor, even if Tor is more popular.",
               "max": 1
             },
             {
               "slug": "well-tended",
-              "description": "â€¦ been well-tended and given due respect.",
+              "description": "… been well-tended and given due respect.",
               "max": 1
             },
             {
               "slug": "recently-restored",
-              "description": "â€¦ recently been restored/established, perhaps by you.",
+              "description": "… recently been restored/established, perhaps by you.",
               "max": 1
             },
             {
               "slug": "seen-better-days",
-              "description": "â€¦ seen better days, for certain.",
+              "description": "… seen better days, for certain.",
               "max": 1
             }
           ]
         },
         {
           "slug": "helior-predecessor",
-          "title": "Your Predecessor, the Previous Lightbearerâ€¦",
+          "title": "Your Predecessor, the Previous Lightbearer…",
           "description": "<p><em>(choose 2 or 3)</em></p>",
           "options": [
             {
               "slug": "lived-long-ago",
-              "description": "â€¦ lived long ago, a figure of legend.",
+              "description": "… lived long ago, a figure of legend.",
               "max": 1
             },
             {
               "slug": "martyred",
-              "description": "â€¦ was martyred for their faith.",
+              "description": "… was martyred for their faith.",
               "max": 1
             },
             {
               "slug": "died-facing",
-              "description": "â€¦ died facing a mighty sorcerer or demon.",
+              "description": "… died facing a mighty sorcerer or demon.",
               "max": 1
             },
             {
               "slug": "wrote-works",
-              "description": "â€¦ wrote many works of sublime beauty.",
+              "description": "… wrote many works of sublime beauty.",
               "max": 1
             },
             {
               "slug": "things-below",
-              "description": "â€¦ faced one of the Things Below.",
+              "description": "… faced one of the Things Below.",
               "max": 1
             },
             {
               "slug": "died-peacefully",
-              "description": "â€¦ died in their bed, peacefully.",
+              "description": "… died in their bed, peacefully.",
               "max": 1
             },
             {
               "slug": "ascended",
-              "description": "â€¦ ascended bodily into the heavens.",
+              "description": "… ascended bodily into the heavens.",
               "max": 1
             },
             {
               "slug": "reincarnated",
-              "description": "â€¦ was reincarnatedâ€”as you.",
+              "description": "… was reincarnated—as you.",
               "max": 1
             }
           ]
         },
         {
           "slug": "helior-powers-origin",
-          "title": "You Came Into Your Powersâ€¦",
+          "title": "You Came Into Your Powers…",
           "description": "<p><em>(choose 1)</em></p>",
           "options": [
             {
               "slug": "years-study",
-              "description": "â€¦ through years of study and devotion.",
+              "description": "… through years of study and devotion.",
               "max": 1
             },
             {
               "slug": "predecessor",
-              "description": "â€¦ when your predecessor passed them on.",
+              "description": "… when your predecessor passed them on.",
               "max": 1
             },
             {
               "slug": "sudden",
-              "description": "â€¦ suddenly, at a moment of great need.",
+              "description": "… suddenly, at a moment of great need.",
               "max": 1
             },
             {
               "slug": "visitation",
-              "description": "â€¦ after a visitation from Helior or one of his servants.",
+              "description": "… after a visitation from Helior or one of his servants.",
               "max": 1
             },
             {
               "slug": "first-sight",
-              "description": "â€¦ when you first laid eyes upon the _______.",
+              "description": "… when you first laid eyes upon the _______.",
               "max": 1
             }
           ]

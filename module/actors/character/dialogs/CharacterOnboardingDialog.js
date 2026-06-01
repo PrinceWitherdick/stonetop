@@ -136,6 +136,38 @@ export class CharacterOnboardingDialog extends Application {
 
 	// ── Move helpers ──────────────────────────────────────────────────
 
+	_isGordinsDelve(region) {
+		return String(region ?? "").toLowerCase().includes("gordin");
+	}
+
+	_originNameGroups() {
+		return this._origins
+			.filter(o => !this._isGordinsDelve(o.region) && o.names?.length)
+			.map(o => ({ region: o.region, names: o.names }));
+	}
+
+	_normalizeOnboardingText(value) {
+		const char = (...codes) => String.fromCodePoint(...codes);
+		const replacements = [
+			[[0xe2, 0x2014, 0x2039], [0x25cb]], // circle
+			[[0xe2, 0x2014, 0x2021], [0x25c7]], // diamond
+			[[0xe2, 0x2014, 0x2020], [0x25c6]], // filled diamond
+			[[0xe2, 0x2013, 0x00a1], [0x25a1]], // square
+			[[0x00c2, 0x00b7], [0x00b7]],       // middle dot
+			[[0xe2, 0x20ac, 0x201d], [0x2014]], // em dash
+			[[0xe2, 0x20ac, 0x201c], [0x2013]], // en dash
+			[[0xe2, 0x20ac, 0x00a6], [0x2026]], // ellipsis
+			[[0xe2, 0x20ac, 0x2122], [0x2019]], // apostrophe
+			[[0xe2, 0x20ac, 0x0153], [0x201c]], // opening quote
+			[[0xe2, 0x20ac, 0x009d], [0x201d]], // closing quote
+		];
+		let text = String(value ?? "");
+		for (const [from, to] of replacements) {
+			text = text.replaceAll(char(...from), char(...to));
+		}
+		return text;
+	}
+
 	_parseMovePickCount() {
 		const note = this._playbookDoc.flags?.stonetop?.moves?.startingMovesNote ?? "";
 		const m = note.match(/\b(\d+)\s+(?:more\s+|other\s+)?(?:move[s]?\s+)?of\s+your\s+choice/i);
@@ -260,8 +292,8 @@ export class CharacterOnboardingDialog extends Application {
 		if (stepType === "background") {
 			backgrounds = this._backgrounds.map(bg => ({
 				slug:        bg.slug,
-				label:       bg.label,
-				description: bg.description ?? "",
+				label:       this._normalizeOnboardingText(bg.label),
+				description: this._normalizeOnboardingText(bg.description),
 				selected:    this._selections.backgroundSlug === bg.slug,
 			}));
 		}
@@ -291,6 +323,8 @@ export class CharacterOnboardingDialog extends Application {
 			origins = this._origins.map(o => ({
 				region:   o.region,
 				names:    o.names ?? [],
+				nameGroups: this._isGordinsDelve(o.region) ? this._originNameGroups() : [],
+				isGordinsDelve: this._isGordinsDelve(o.region),
 				selected: this._selections.originRegion === o.region,
 			}));
 		}
@@ -361,8 +395,8 @@ export class CharacterOnboardingDialog extends Application {
 				})
 				.map(doc => ({
 					id:          doc.id,
-					name:        doc.name,
-					description: doc.system?.description ?? "",
+					name:        this._normalizeOnboardingText(doc.name),
+					description: this._normalizeOnboardingText(doc.system?.description),
 					selected:    chosenIds.has(doc.id),
 					disabled:    !chosenIds.has(doc.id) && atLimit,
 				}));
@@ -384,7 +418,9 @@ export class CharacterOnboardingDialog extends Application {
 					const isChosen = chosen.has(opt.slug);
 					const isSelected = isPre || isChosen;
 					return {
-						slug: opt.slug, label: opt.label, description: opt.description ?? "",
+						slug: opt.slug,
+						label: this._normalizeOnboardingText(opt.label),
+						description: this._normalizeOnboardingText(opt.description),
 						isPreselected: isPre, isSelected,
 						disabled: isPre || (!isSelected && atLimit),
 					};
@@ -403,8 +439,8 @@ export class CharacterOnboardingDialog extends Application {
 				selectedCount: chosen.size,
 				options: (raw.options ?? []).map(opt => ({
 					slug:        opt.slug,
-					label:       opt.label,
-					description: opt.description ?? "",
+					label:       this._normalizeOnboardingText(opt.label),
+					description: this._normalizeOnboardingText(opt.description),
 					isSelected:  chosen.has(opt.slug),
 					disabled:    !chosen.has(opt.slug) && atLimit,
 				})),
@@ -426,27 +462,30 @@ export class CharacterOnboardingDialog extends Application {
 					const det = this._selections.initiateDetails[opt.slug] ?? {};
 					return {
 						slug:        opt.slug,
-						label:       opt.label,
-						description: opt.description ?? "",
+						label:       this._normalizeOnboardingText(opt.label),
+						description: this._normalizeOnboardingText(opt.description),
 						isSelected,
 						disabled:    !isSelected && atLimit,
 						choiceRows: (opt.choiceRows ?? []).map((row, rowIdx) => {
 							const isPronoun  = row.type === "pronoun";
 							const currentVal = isPronoun ? (det.pronoun ?? "") : (det.rows?.[rowIdx] ?? "");
-							const isCustom   = isPronoun && !!currentVal && !row.options.includes(currentVal);
+							const optionValues = row.options.map(o => this._normalizeOnboardingText(o));
+							const isCustom   = isPronoun && !!currentVal && !optionValues.includes(currentVal);
 							return {
 								rowIdx,
 								slug:        opt.slug,
 								isPronoun,
-								label:       row.label ?? null,
+								label:       row.label ? this._normalizeOnboardingText(row.label) : null,
 								allowCustom: isPronoun,
 								customValue: isCustom ? currentVal : "",
-								options: row.options.map(o => ({
-									value:   o,
-									slug:    opt.slug,
-									rowIdx,
-									selected: !isCustom && currentVal === o,
-								})),
+								options: optionValues.map(value => {
+									return {
+										value,
+										slug:    opt.slug,
+										rowIdx,
+										selected: !isCustom && currentVal === value,
+									};
+								}),
 							};
 						}),
 					};
@@ -463,23 +502,25 @@ export class CharacterOnboardingDialog extends Application {
 			const atLimit = chosen.size >= limit;
 			crewData = {
 				name:               this._selections.crew.name,
-				bgTag,
+				bgTag:              this._normalizeOnboardingText(bgTag),
 				additionalTagCount: limit,
 				selectedTagCount:   chosen.size,
 				tags: (raw.availableTags ?? []).map(tag => {
 					const isAuto     = tag === bgTag;
 					const isSelected = isAuto || chosen.has(tag);
 					return {
-						slug: tag, label: tag, isAuto, isSelected,
+						slug: tag, label: this._normalizeOnboardingText(tag), isAuto, isSelected,
 						disabled: isAuto || (!isSelected && atLimit),
 					};
 				}),
-				instincts: (raw.instincts ?? []).map(v => ({
-					value: v, selected: this._selections.crew.instinct === v,
-				})),
-				costs: (raw.costs ?? []).map(v => ({
-					value: v, selected: this._selections.crew.cost === v,
-				})),
+				instincts: (raw.instincts ?? []).map(v => {
+					const value = this._normalizeOnboardingText(v);
+					return { value, selected: this._selections.crew.instinct === value };
+				}),
+				costs: (raw.costs ?? []).map(v => {
+					const value = this._normalizeOnboardingText(v);
+					return { value, selected: this._selections.crew.cost === value };
+				}),
 			};
 		}
 
@@ -492,13 +533,13 @@ export class CharacterOnboardingDialog extends Application {
 			const traitAtLimit = chosenTraits.size >= (typeData?.pickCount ?? 0);
 			acData = {
 				types: (raw.types ?? []).map(t => ({
-					slug: t.slug, label: t.label, examples: t.examples ?? "",
+					slug: t.slug, label: this._normalizeOnboardingText(t.label), examples: this._normalizeOnboardingText(t.examples),
 					hp: t.hp, armor: t.armor, damage: t.damage,
 					selected: t.slug === selType,
 				})),
 				selectedType: typeData ? {
 					slug:          typeData.slug,
-					label:         typeData.label,
+					label:         this._normalizeOnboardingText(typeData.label),
 					hp:            typeData.hp,
 					armor:         typeData.armor,
 					damage:        typeData.damage,
@@ -506,18 +547,20 @@ export class CharacterOnboardingDialog extends Application {
 					selectedCount: chosenTraits.size,
 					traits: (typeData.traits ?? []).map(trait => ({
 						slug:       trait,
-						label:      trait,
+						label:      this._normalizeOnboardingText(trait),
 						hasTooltip: !!this._wordCache.get(trait.toLowerCase()),
 						isSelected: chosenTraits.has(trait),
 						disabled:   !chosenTraits.has(trait) && traitAtLimit,
 					})),
 				} : null,
-				instincts: (raw.instincts ?? []).map(v => ({
-					value: v, selected: this._selections.animalCompanion.instinct === v,
-				})),
-				costs: (raw.costs ?? []).map(v => ({
-					value: v, selected: this._selections.animalCompanion.cost === v,
-				})),
+				instincts: (raw.instincts ?? []).map(v => {
+					const value = this._normalizeOnboardingText(v);
+					return { value, selected: this._selections.animalCompanion.instinct === value };
+				}),
+				costs: (raw.costs ?? []).map(v => {
+					const value = this._normalizeOnboardingText(v);
+					return { value, selected: this._selections.animalCompanion.cost === value };
+				}),
 				companionName: this._selections.animalCompanion.name,
 			};
 		}
@@ -637,6 +680,39 @@ export class CharacterOnboardingDialog extends Application {
 					}).join('');
 			}
 		};
+		const _updateStatScoreChips = () => {
+			const usedCount = {};
+			for (const value of Object.values(this._selections.stats)) {
+				if (value === null) continue;
+				usedCount[value] = (usedCount[value] ?? 0) + 1;
+			}
+			const shownCount = {};
+			html.find(".stonetop-onboarding-stats-chip").each((_, chip) => {
+				const value = Number(String(chip.dataset.score).replace("+", ""));
+				shownCount[value] = (shownCount[value] ?? 0) + 1;
+				const remaining = (this._statPoolCount[value] ?? 0) - (usedCount[value] ?? 0);
+				chip.hidden = shownCount[value] > remaining;
+			});
+		};
+		const _assignStat = (key, value) => {
+			if (!key || value === null || value === undefined || Number.isNaN(value)) return false;
+			const otherCount = {};
+			for (const [otherKey, otherValue] of Object.entries(this._selections.stats)) {
+				if (otherKey === key || otherValue === null) continue;
+				otherCount[otherValue] = (otherCount[otherValue] ?? 0) + 1;
+			}
+			if ((this._statPoolCount[value] ?? 0) - (otherCount[value] ?? 0) < 1) return false;
+			this._selections.stats[key] = value;
+			const selectEl = html.find(`[name="onboard-stat-${key}"]`)[0];
+			const box = selectEl?.closest(".stonetop-onboarding-stat-box")
+				?? html.find(`.stonetop-onboarding-stat-box[data-stat-key="${key}"]`)[0];
+			box?.classList.add("is-filled");
+			_updateStatDropdowns();
+			_updateStatScoreChips();
+			if (selectEl) selectEl.value = String(value);
+			_refreshNextButton();
+			return true;
+		};
 
 		html.find("[name^='onboard-stat-']").on("change", ev => {
 			const key = ev.currentTarget.name.replace("onboard-stat-", "");
@@ -645,10 +721,43 @@ export class CharacterOnboardingDialog extends Application {
 			ev.currentTarget.closest(".stonetop-onboarding-stat-box")
 				?.classList.toggle("is-filled", raw !== "");
 			_updateStatDropdowns();
+			_updateStatScoreChips();
+			_refreshNextButton();
+		});
+
+		html.find(".stonetop-onboarding-stats-reset").on("click", () => {
+			for (const key of Object.keys(this._selections.stats)) this._selections.stats[key] = null;
+			html.find(".stonetop-onboarding-stat-box").removeClass("is-filled is-drag-over");
+			_updateStatDropdowns();
+			_updateStatScoreChips();
 			_refreshNextButton();
 		});
 
 		// ── Special Possessions ───────────────────────────────────────
+		html.find(".stonetop-onboarding-stats-chip").on("dragstart", ev => {
+			const score = ev.currentTarget.dataset.score;
+			ev.originalEvent.dataTransfer.setData("text/plain", score);
+			ev.originalEvent.dataTransfer.effectAllowed = "copy";
+		});
+
+		html.find(".stonetop-onboarding-stat-box")
+			.on("dragover", ev => {
+				ev.preventDefault();
+				ev.currentTarget.classList.add("is-drag-over");
+				ev.originalEvent.dataTransfer.dropEffect = "copy";
+			})
+			.on("dragleave", ev => {
+				ev.currentTarget.classList.remove("is-drag-over");
+			})
+			.on("drop", ev => {
+				ev.preventDefault();
+				ev.currentTarget.classList.remove("is-drag-over");
+				const raw = ev.originalEvent.dataTransfer.getData("text/plain");
+				const value = Number(String(raw).replace("+", ""));
+				_assignStat(ev.currentTarget.dataset.statKey, value);
+			});
+		_updateStatScoreChips();
+
 		html.find("[name='onboard-possession']").on("change", ev => {
 			const slug    = ev.currentTarget.value;
 			const checked = ev.currentTarget.checked;
@@ -881,10 +990,14 @@ export class CharacterOnboardingDialog extends Application {
 		if (this._onBack) this._onBack();
 	}
 
-	_skip() {
+	async _skip() {
 		this._removeTooltip();
 		const next = this._step + 1;
-		if (next >= this._steps.length) return;
+		if (next >= this._steps.length) {
+			if (this._onComplete) await this._onComplete(this._selections);
+			this.close();
+			return;
+		}
 		this._step = next;
 		this.render(false);
 	}

@@ -2812,6 +2812,21 @@ body,
 	background: white;
 }
 
+.steading-surplus-value {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 54px;
+	height: 40px;
+	text-align: center;
+	font-size: 1.6em;
+	font-weight: bold;
+	border: 2px solid slategrey;
+	border-radius: 4px;
+	background: white;
+	color: #222;
+}
+
 /* Size */
 
 .steading-size-options {
@@ -3792,6 +3807,18 @@ body,
 	font-style: italic;
 }
 
+.stonetop-onboarding-name-group {
+	margin-top: 8px;
+}
+
+.stonetop-onboarding-name-group-label {
+	font-size: 0.76em;
+	font-weight: bold;
+	text-transform: uppercase;
+	color: #555;
+	margin: 0 0 4px;
+}
+
 .stonetop-onboarding-name-chips {
 	display: flex;
 	flex-wrap: wrap;
@@ -3894,6 +3921,7 @@ body,
 /* Bold-word hover hint */
 /* Stats step */
 .stonetop-onboarding-stats-pool {
+	position: relative;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
@@ -3906,13 +3934,34 @@ body,
 }
 
 .stonetop-onboarding-stats-pool-label {
-	width: 100%;
+	flex: 1 1 100%;
 	text-align: center;
 	font-size: 0.72em;
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.07em;
 	color: slategrey;
+}
+
+.stonetop-onboarding-stats-reset {
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: auto;
+	min-height: 0;
+	padding: 2px 8px;
+	font-size: 0.72em;
+	line-height: 1.4;
+	border: 1px solid rgba(100,116,139,0.35);
+	border-radius: 4px;
+	background: white;
+	color: #555;
+}
+
+.stonetop-onboarding-stats-reset:hover {
+	border-color: slategrey;
+	color: #222;
 }
 
 .stonetop-onboarding-stats-chip {
@@ -3927,6 +3976,12 @@ body,
 	font-size: 0.82em;
 	font-weight: 700;
 	letter-spacing: 0.03em;
+	cursor: grab;
+	user-select: none;
+}
+
+.stonetop-onboarding-stats-chip:active {
+	cursor: grabbing;
 }
 
 .stonetop-onboarding-stats-grid {
@@ -3945,11 +4000,17 @@ body,
 	border: 2px solid rgba(100,116,139,0.2);
 	border-radius: 8px;
 	background: #fff;
-	transition: border-color 0.15s;
+	transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 .stonetop-onboarding-stat-box.is-filled {
 	border-color: slategrey;
+}
+
+.stonetop-onboarding-stat-box.is-drag-over {
+	background: hsl(210 15% 94%);
+	border-color: slategrey;
+	box-shadow: 0 0 0 2px rgba(112,128,144,0.18);
 }
 
 .stonetop-onboarding-stat-abbr {

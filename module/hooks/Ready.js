@@ -1,8 +1,10 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
+import { ensureStonetopSingleton } from "./StonetopSingleton.js";
 
 export async function onReady() {
 	await _migrateArmourToArmor();
 	await runStartupMigrations();
+	await ensureStonetopSingleton();
 }
 
 async function _migrateArmourToArmor() {

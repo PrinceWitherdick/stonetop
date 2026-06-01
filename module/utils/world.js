@@ -1,5 +1,5 @@
 export function getStonetopSteadingActor() {
-	return game.actors?.find(a => a.system?.customType === "stonetop") ?? null;
+	return game.actors?.find(a => a.type === "stonetop" || a.system?.customType === "stonetop") ?? null;
 }
 
 export function getStonetopProsperity() {
