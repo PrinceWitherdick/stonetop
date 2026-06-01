@@ -417,6 +417,36 @@ export const STEADING_DEFAULTS = {
 	gold:   { purses: 0, handfuls: 0, coins: 0 },
 };
 
+const SYSTEM_DEFAULTS = {
+	stats: {
+		fortunes: { value: 1 },
+		defenses: { value: 0 },
+	},
+	attributes: {
+		population: { value: 0 },
+		prosperity: { value: 0 },
+		surplus: { value: 1 },
+		debilities: {
+			options: {
+				diminished: { value: false },
+				lacking: { value: false },
+				malcontent: { value: false },
+			},
+		},
+	},
+};
+
+function _getProperty(obj, path) {
+	return foundry.utils.getProperty(obj, path);
+}
+
+function _systemValue(actor, flags, path, defaultValue) {
+	const flagValue = _getProperty(flags, `system.${path}`);
+	if (flagValue !== undefined) return flagValue;
+	const actorValue = _getProperty(actor.system, path);
+	return actorValue !== undefined ? actorValue : defaultValue;
+}
+
 export class StonetopSteading {
 	constructor(actor) {
 		this._actor = actor;
@@ -431,6 +461,22 @@ export class StonetopSteading {
 		const current = foundry.utils.deepClone(this._flags);
 		const merged = { ...current, ...updates };
 		await this._actor.setFlag("stonetop", "steading", merged);
+	}
+
+	getSystemValue(path, defaultValue = 0) {
+		return _systemValue(this._actor, this._flags, path, defaultValue);
+	}
+
+	async setSystemValue(path, value) {
+		await this._actor.update({
+			[`system.${path}`]: value,
+			[`flags.stonetop.steading.system.${path}`]: value,
+		});
+	}
+
+	getStatValue(statKey) {
+		const defaults = { fortunes: 1, defenses: 0 };
+		return Number(this.getSystemValue(`stats.${statKey}.value`, defaults[statKey] ?? 0));
 	}
 
 	async buildSnapshot() {
@@ -459,6 +505,24 @@ export class StonetopSteading {
 		});
 
 		return {
+			system: {
+				stats: {
+					fortunes: { value: this.getSystemValue("stats.fortunes.value", SYSTEM_DEFAULTS.stats.fortunes.value) },
+					defenses: { value: this.getSystemValue("stats.defenses.value", SYSTEM_DEFAULTS.stats.defenses.value) },
+				},
+				attributes: {
+					population: { value: this.getSystemValue("attributes.population.value", SYSTEM_DEFAULTS.attributes.population.value) },
+					prosperity: { value: this.getSystemValue("attributes.prosperity.value", SYSTEM_DEFAULTS.attributes.prosperity.value) },
+					surplus: { value: this.getSystemValue("attributes.surplus.value", SYSTEM_DEFAULTS.attributes.surplus.value) },
+					debilities: {
+						options: {
+							diminished: { value: this.getSystemValue("attributes.debilities.options.diminished.value", false) },
+							lacking: { value: this.getSystemValue("attributes.debilities.options.lacking.value", false) },
+							malcontent: { value: this.getSystemValue("attributes.debilities.options.malcontent.value", false) },
+						},
+					},
+				},
+			},
 			resources:      f.resources      ?? STEADING_DEFAULTS.resources,
 			fortifications: f.fortifications ?? STEADING_DEFAULTS.fortifications,
 			assets:         f.assets         ?? STEADING_DEFAULTS.assets,

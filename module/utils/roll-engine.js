@@ -1,6 +1,6 @@
 const _STAT_LABELS = {
-	str: "STR", dex: "DEX", int: "INT",
-	wis: "WIS", con: "CON", cha: "CHA",
+	str: "Strength", dex: "Dexterity", int: "Intelligence",
+	wis: "Wisdom", con: "Constitution", cha: "Charisma",
 };
 
 function _rollFormula(rollMode, modifier = 0) {
@@ -49,7 +49,10 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 
 function _conditionsHtml(conditions) {
 	if (!conditions.length) return "";
-	const label = game.i18n?.localize("PBTA.ConditionsApplied") ?? "Conditions Applied:";
+	const localized = game.i18n?.localize("PBTA.ConditionsApplied");
+	const label = localized && localized !== "PBTA.ConditionsApplied" && localized !== "PBTA.CONDITIONSAPPLIED"
+		? localized
+		: "Conditions Applied:";
 	return `<div class="row row--border conditions stonetop-roll-conditions">
 		<h3 class="cell__subtitle">${label}</h3>
 		<ul>${conditions.join("")}</ul>
@@ -66,13 +69,14 @@ function _conditionsHtml(conditions) {
  * @param {number} [options.modifier]                  - Total numeric modifier (forward + ongoing + situational)
  * @param {number} [options.forward]                   - Forward portion (shown separately in card)
  * @param {number} [options.ongoing]                   - Ongoing portion (shown separately in card)
+ * @param {number} [options.statValue]                 - Explicit stat value, for nonstandard actor data
  * @param {string} [options.moveName]                  - Display name for the roll header
  * @param {string} [options.stonetopDebility]          - Debility name for annotation
  * @param {string} [options.stonetopDebilityTooltip]
  * @returns {Promise<Roll>}
  */
 export async function rollStat(statKey, actor, options = {}) {
-	const statValue  = actor.system?.stats?.[statKey]?.value ?? 0;
+	const statValue  = options.statValue ?? actor.system?.stats?.[statKey]?.value ?? 0;
 	const statLabel  = _STAT_LABELS[statKey] ?? statKey.toUpperCase();
 	const rollMode   = options.rollMode ?? "normal";
 	const moveName   = options.moveName ?? null;
@@ -90,8 +94,7 @@ export async function rollStat(statKey, actor, options = {}) {
 	const total  = roll.total;
 	const result = _classifyResult(total);
 
-	const sign   = statValue >= 0 ? "+" : "";
-	const header = moveName ?? `+${statLabel} (${sign}${statValue})`;
+	const header = moveName ?? statLabel;
 
 	// Build condition pills
 	const conditions = [];
