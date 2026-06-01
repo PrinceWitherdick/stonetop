@@ -1,5 +1,5 @@
 # scripts/release.ps1
-# Usage: pwsh -File scripts/release.ps1 -Version 0.7.6
+# Usage: pwsh -File scripts/release.ps1 -Version 0.8.0
 # Foundry VTT must be closed (LevelDB pack files must not be locked).
 
 param([Parameter(Mandatory)][string]$Version)
@@ -27,19 +27,19 @@ Write-Host "Refreshing data exports..." -ForegroundColor Cyan
 node scripts/gen-data-exports.js
 Write-Host "data/ exports refreshed" -ForegroundColor Green
 
-# ── 4. Update module.json — UTF-8, no BOM ─────────────────────────────────
-Write-Host "Updating module.json to v$Version..." -ForegroundColor Cyan
-$manifest = Get-Content "module.json" -Raw | ConvertFrom-Json
+# ── 4. Update system.json — UTF-8, no BOM ─────────────────────────────────
+Write-Host "Updating system.json to v$Version..." -ForegroundColor Cyan
+$manifest = Get-Content "system.json" -Raw | ConvertFrom-Json
 $manifest.version = $Version
 $manifest.download = "https://github.com/$repo/releases/download/$Version/stonetop.zip"
 $json = $manifest | ConvertTo-Json -Depth 20
 $noBomUtf8 = New-Object System.Text.UTF8Encoding $false
-[System.IO.File]::WriteAllText("$root\module.json", $json, $noBomUtf8)
-Write-Host "module.json updated" -ForegroundColor Green
+[System.IO.File]::WriteAllText("$root\system.json", $json, $noBomUtf8)
+Write-Host "system.json updated" -ForegroundColor Green
 
 # ── 5. Commit and push ────────────────────────────────────────────────────
 Write-Host "Committing and pushing..." -ForegroundColor Cyan
-git add module.json data/
+git add system.json data/
 git commit -m "[Release] v$Version"
 $authUrl = $originUrl -replace 'https://', "https://x-access-token:$token@"
 git push $authUrl main
@@ -51,7 +51,7 @@ $zipPath = "$root\stonetop.zip"
 
 $excludeTop = [System.Collections.Generic.HashSet[string]]@(
     'node_modules', '.git', '.claude', '.github', 'scripts', 'tests',
-    'jsconfig.json', 'vitest.config.js', '.editorconfig',
+    'jsconfig.json', 'vitest.config.js', '.editorconfig', 'module.json',
     'package.json', 'package-lock.json',
     'extracted_text.txt', 'output.txt', 'sample-data.md', 'TODO.md',
     'Handout_-_Setting_Overview.pdf', 'stonetop_inserts.pdf',
@@ -62,7 +62,7 @@ $rootLen = $root.Length + 1
 $files = Get-ChildItem $root -Recurse -File | Where-Object {
     $rel = $_.FullName.Substring($rootLen)
     -not $excludeTop.Contains(($rel -split '\\', 2)[0]) -and
-    $rel -notmatch '^packs\\(src|\.tmp)\\|stonetop\.zip$|\.pdf$|LOG\.old$|\\(LOCK|CURRENT|LOG)$|\\MANIFEST-'
+    $rel -notmatch '^packs\\(src|\.tmp)\\|stonetop\.zip$|\.pdf$|LOG\.old$|\\LOCK$'
 }
 
 if ([System.IO.File]::Exists($zipPath)) { [System.IO.File]::Delete($zipPath) }
@@ -87,7 +87,7 @@ git tag -d $Version 2>$null
 git push origin ":refs/tags/$Version" 2>$null
 
 & $gh release create $Version --repo $repo --title "v$Version" --draft --notes "Draft — release notes pending"
-& $gh release upload $Version "module.json" "stonetop.zip" --repo $repo
+& $gh release upload $Version "system.json" "stonetop.zip" --repo $repo
 
 Write-Host ""
 Write-Host "Release v$Version drafted!" -ForegroundColor Green

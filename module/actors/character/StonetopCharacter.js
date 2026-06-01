@@ -326,7 +326,7 @@ export class StonetopCharacter {
 					.withCurrent(Math.min(resources[outfitItem.slug] ?? 0, resMax ?? 0))
 					.withMax(resMax)
 					.withTitle(res.title ?? null)
-					.withLabels(Array.from({ length: resMax ?? 0 }, () => ""))
+					.withLabels(res.labels ?? [])
 					.build() : null)
 				.withIsCustom(false)
 				.withOwnedId(null)

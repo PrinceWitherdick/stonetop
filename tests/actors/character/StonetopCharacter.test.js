@@ -1012,8 +1012,24 @@ describe("StonetopCharacter.onDropMove", () => {
 });
 
 describe("StonetopCharacter.onRoll", () => {
-	beforeEach(() => { game.settings = { get: vi.fn(() => false) }; });
-	afterEach(() => { delete game.settings; });
+	beforeEach(() => {
+		globalThis.__stonetopDialogRollMode = "def";
+		game.settings = { get: vi.fn(() => false) };
+		vi.stubGlobal("Dialog", class {
+			constructor(config) {
+				this.config = config;
+			}
+			render() {
+				this.config.buttons[globalThis.__stonetopDialogRollMode].callback();
+				return this;
+			}
+		});
+	});
+	afterEach(() => {
+		delete game.settings;
+		delete globalThis.__stonetopDialogRollMode;
+		vi.unstubAllGlobals();
+	});
 
 	it("returns false when event has no item element", async () => {
 		const char = new TestCharacterBuilder(makeOnRollActor(null)).build();
@@ -1034,9 +1050,10 @@ describe("StonetopCharacter.onRoll", () => {
 		expect(item.roll).toHaveBeenCalledOnce();
 	});
 
-	it("passes rollMode from actor pbta flag", async () => {
+	it("passes rollMode from the pre-roll dialog", async () => {
+		globalThis.__stonetopDialogRollMode = "adv";
 		const item = makeRollableItem({ rollType: "str" });
-		const char = new TestCharacterBuilder(makeOnRollActor(item, {pbtaRollMode: "adv"})).build();
+		const char = new TestCharacterBuilder(makeOnRollActor(item)).build();
 		expect(await char.onRoll(makeItemEvent())).toBe(true);
 		expect(item.roll).toHaveBeenCalledWith(expect.objectContaining({ rollMode: "adv" }));
 	});
@@ -1074,6 +1091,12 @@ describe("StonetopCharacter.onRoll", () => {
 		const item = makeRollableItem({ rollType: "str" });
 		const char = new TestCharacterBuilder(makeOnRollActor(item, {pbtaRollMode: "adv"})).build();
 		expect(await char.onRoll(makeItemEvent())).toBe(true);
-		expect(item.roll).toHaveBeenCalledWith({ descriptionOnly: false });
+		expect(item.roll).toHaveBeenCalledWith({
+			descriptionOnly: false,
+			forward: 0,
+			modifier: 0,
+			ongoing: 0,
+			rollMode: "def",
+		});
 	});
 });

@@ -1320,6 +1320,21 @@ export function createStonetopCharacterSheetClass(Base) {
 					await this.actor.setFlag("stonetop", "animalCompanion.name", ac.name.trim());
 				}
 			}
+			// ── Lore (character history picks & text answers) ───────
+			if (selections.lore) {
+				for (const [key, count] of Object.entries(selections.lore.picks ?? {})) {
+					if (count > 0) {
+						const [sectionSlug, optionSlug] = key.split(":");
+						await this._stonetopCharacter.setLoreOptionCount(sectionSlug, optionSlug, count);
+					}
+				}
+				for (const [key, value] of Object.entries(selections.lore.texts ?? {})) {
+					if (value?.trim()) {
+						const [sectionSlug, optionSlug] = key.split(":");
+						await this._stonetopCharacter.setLoreOptionText(sectionSlug, optionSlug, value.trim());
+					}
+				}
+			}
 			this.render(false);
 		}
 	};

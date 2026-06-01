@@ -60,15 +60,21 @@ describe("pack source files", () => {
 		expect(bad.map(b => b.file)).toEqual([]);
 	});
 
-	it("all have _key matching !items!{_id} or !folders!{_id}", () => {
+	it("all have _key matching their document type", () => {
 		const bad = allDocs.filter(({ doc }) =>
-			doc._key !== `!items!${doc._id}` && doc._key !== `!folders!${doc._id}`
+			doc._key !== `!items!${doc._id}` &&
+			doc._key !== `!folders!${doc._id}` &&
+			doc._key !== `!journal!${doc._id}`
 		);
 		expect(bad.map(b => b.file)).toEqual([]);
 	});
 
-	it("all have name and type fields", () => {
-		const bad = allDocs.filter(({ doc }) => !doc.name || !doc.type);
+	it("all have required top-level fields for their document type", () => {
+		const bad = allDocs.filter(({ doc }) => {
+			if (!doc.name) return true;
+			if (doc._key?.startsWith("!journal!")) return !Array.isArray(doc.pages);
+			return !doc.type;
+		});
 		expect(bad.map(b => b.file)).toEqual([]);
 	});
 

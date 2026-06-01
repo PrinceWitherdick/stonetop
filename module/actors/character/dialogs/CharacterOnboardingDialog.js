@@ -59,6 +59,7 @@ export class CharacterOnboardingDialog extends Application {
 		this._rawInvocations     = f.invocations         ?? null;
 		this._rawCrew            = f.crew                ?? null;
 		this._rawAnimalCompanion = f.animalCompanion     ?? null;
+		this._rawLore            = f.lore               ?? [];
 		this._movePickCount  = this._parseMovePickCount();
 		this._movesCache     = null;
 		this._statScores     = this._parseStatScores();
@@ -81,6 +82,7 @@ export class CharacterOnboardingDialog extends Application {
 			initiateDetails: {},
 			crew:            { name: "", tags: [], instinct: "", cost: "" },
 			animalCompanion: { type: "", traits: [], name: "", instinct: "", cost: "" },
+			lore:            { picks: {}, texts: {} },
 		};
 
 		this._steps = this._buildSteps();
@@ -107,6 +109,7 @@ export class CharacterOnboardingDialog extends Application {
 		if (this._getInitiatesData()) steps.push("initiates");
 		if (this._rawCrew?.availableTags?.length)          steps.push("crew");
 		if (this._rawAnimalCompanion?.types?.length)       steps.push("animalCompanion");
+		for (let i = 0; i < this._rawLore.length; i++)    steps.push(`lore:${i}`);
 		return steps;
 	}
 
@@ -172,6 +175,35 @@ export class CharacterOnboardingDialog extends Application {
 		const note = this._playbookDoc.flags?.stonetop?.moves?.startingMovesNote ?? "";
 		const m = note.match(/\b(\d+)\s+(?:more\s+|other\s+)?(?:move[s]?\s+)?of\s+your\s+choice/i);
 		return m ? parseInt(m[1], 10) : 0;
+	}
+
+	_parseLorePickMax(section) {
+		const desc = String(section?.description ?? "").toLowerCase();
+		if (/answer\s+at\s+least/.test(desc)) return Infinity;
+		// "choose N–M" / "choose N-M" (en-dash U+2013 or regular hyphen)
+		const rangeM = desc.match(/(?:choose|pick)\s+(\d+)\s*[–\-]\s*(\d+)/);
+		if (rangeM) return parseInt(rangeM[2]);
+		// "choose N or M"
+		const orM = desc.match(/(?:choose|pick)\s+(\d+)\s+or\s+(\d+)/);
+		if (orM) return parseInt(orM[2]);
+		// "choose N, maybe M"
+		const maybeM = desc.match(/(?:choose|pick)\s+(\d+)[,\s]+maybe\s+(\d+)/);
+		if (maybeM) return parseInt(maybeM[2]);
+		// "choose N"
+		const singleM = desc.match(/(?:choose|pick)\s+(\d+)/);
+		if (singleM) return parseInt(singleM[1]);
+		// fallback: if all options are pick-type with max 1, assume pick 1
+		const opts = section?.options ?? [];
+		if (opts.length > 0 && opts.every(o => !o.type && (o.max ?? 1) === 1)) return 1;
+		return Infinity;
+	}
+
+	_countLoreSectionPicks(sectionSlug) {
+		let n = 0;
+		for (const [key, val] of Object.entries(this._selections.lore.picks)) {
+			if (key.startsWith(`${sectionSlug}:`) && val > 0) n++;
+		}
+		return n;
 	}
 
 	async _loadPlaybookMoves() {
@@ -287,6 +319,7 @@ export class CharacterOnboardingDialog extends Application {
 		let initiatesData     = null;
 		let crewData          = null;
 		let acData            = null;
+		let loreSectionData   = null;
 
 		// ── Background ────────────────────────────────────────────────
 		if (stepType === "background") {
@@ -524,6 +557,55 @@ export class CharacterOnboardingDialog extends Application {
 			};
 		}
 
+		// ── Lore ──────────────────────────────────────────────────────
+		const loreMatch = stepType?.match(/^lore:(\d+)$/);
+		if (loreMatch) {
+			const idx     = parseInt(loreMatch[1]);
+			const section = this._rawLore[idx];
+			if (section) {
+				const opts          = section.options ?? [];
+				const isTextSection = opts.length > 0 && opts.every(o => o.type === "text");
+				const isPickSection = opts.length > 0 && !isTextSection;
+				const { picks, texts } = this._selections.lore;
+				const pickMax      = isPickSection ? this._parseLorePickMax(section) : Infinity;
+				const selectedPickCount = isPickSection ? this._countLoreSectionPicks(section.slug) : 0;
+				const atLimit      = pickMax < Infinity && selectedPickCount >= pickMax;
+				loreSectionData = {
+					sectionSlug:        section.slug,
+					title:              this._normalizeOnboardingText(section.title ?? ""),
+					description:        this._normalizeOnboardingText(section.description ?? ""),
+					isPickSection,
+					isTextSection,
+					hasOptions:         opts.length > 0,
+					pickMax:            pickMax === Infinity ? null : pickMax,
+					selectedPickCount,
+					options: opts.map(opt => {
+						if (opt.type === "text") {
+							return {
+								slug:        opt.slug,
+								sectionSlug: section.slug,
+								description: this._normalizeOnboardingText(opt.description ?? ""),
+								type:        "text",
+								value:       texts[`${section.slug}:${opt.slug}`] ?? "",
+							};
+						}
+						const key   = `${section.slug}:${opt.slug}`;
+						const count = picks[key] ?? 0;
+						return {
+							slug:        opt.slug,
+							sectionSlug: section.slug,
+							description: this._normalizeOnboardingText(opt.description ?? ""),
+							type:        "pick",
+							max:         opt.max ?? 1,
+							count,
+							isSelected:  count > 0,
+							disabled:    !count && atLimit,
+						};
+					}),
+				};
+			}
+		}
+
 		// ── Animal Companion ─────────────────────────────────────────
 		if (stepType === "animalCompanion") {
 			const raw         = this._rawAnimalCompanion;
@@ -583,6 +665,7 @@ export class CharacterOnboardingDialog extends Application {
 			isInitiates:       stepType === "initiates",
 			isCrew:            stepType === "crew",
 			isAnimalCompanion:  stepType === "animalCompanion",
+			isLore:            !!loreMatch,
 			progressDots,
 			backgrounds, instincts, appearanceLines, origins,
 			selectedInstinct:  this._selections.instinctValue,
@@ -592,7 +675,7 @@ export class CharacterOnboardingDialog extends Application {
 			moveOptions, movePickNote,
 			movePickCount:      this._movePickCount,
 			moveSelectedCount:  this._selections.moves.length,
-			invocationData, initiatesData, crewData, acData,
+			invocationData, initiatesData, crewData, acData, loreSectionData,
 			stepComplete:       this._isStepComplete(),
 		};
 	}
@@ -936,6 +1019,47 @@ export class CharacterOnboardingDialog extends Application {
 		});
 		html.find(".onboard-ac-name").on("input", ev => {
 			this._selections.animalCompanion.name = ev.currentTarget.value;
+		});
+
+		// ── Lore picks ────────────────────────────────────────────────
+		html.find("[name^='onboard-lore-pick-']").on("change", ev => {
+			const { section, option } = ev.currentTarget.dataset;
+			const key     = `${section}:${option}`;
+			const checked = ev.currentTarget.checked;
+			const rawSec  = this._rawLore.find(s => s.slug === section);
+			const pickMax = this._parseLorePickMax(rawSec);
+
+			if (checked) {
+				const current = this._countLoreSectionPicks(section);
+				if (current >= pickMax) {
+					ev.currentTarget.checked = false;
+					return;
+				}
+				this._selections.lore.picks[key] = 1;
+			} else {
+				this._selections.lore.picks[key] = 0;
+			}
+
+			ev.currentTarget.closest(".stonetop-onboarding-lore-pick")
+				?.classList.toggle("is-selected", ev.currentTarget.checked);
+
+			const newCount = this._countLoreSectionPicks(section);
+			const atLimit  = pickMax < Infinity && newCount >= pickMax;
+			html.find(`[name='onboard-lore-pick-${section}']`).each((_, el) => {
+				if (!el.checked) el.disabled = atLimit;
+				el.closest(".stonetop-onboarding-lore-pick")
+					?.classList.toggle("stonetop-onboarding-lore-pick--disabled", !el.checked && atLimit);
+			});
+			html.find(".stonetop-onboarding-lore-pick-count").text(newCount);
+			_refreshNextButton();
+		});
+
+		// ── Lore texts ────────────────────────────────────────────────
+		html.find(".onboard-lore-text").on("input", ev => {
+			const { section, option } = ev.currentTarget.dataset;
+			const key = `${section}:${option}`;
+			this._selections.lore.texts[key] = ev.currentTarget.value;
+			_refreshNextButton();
 		});
 
 		// ── Name chips ────────────────────────────────────────────────

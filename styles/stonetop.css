@@ -4571,6 +4571,100 @@ body,
 .stonetop-onboarding-ac-type-stats { font-size: 0.85em; color: slategrey; margin-top: 2px; }
 .stonetop-onboarding-ac-type-examples { font-size: 0.81em; color: #aaa; font-style: italic; }
 
+/* Lore (character history) step */
+.stonetop-onboarding-lore-desc {
+	font-size: 0.88em;
+	color: #555;
+	margin-bottom: 12px;
+	line-height: 1.5;
+}
+
+.stonetop-onboarding-lore-desc p { margin: 2px 0; }
+
+.stonetop-onboarding-lore-counter {
+	margin: -4px 0 8px;
+	font-size: 0.8em;
+	color: #888;
+}
+
+.stonetop-onboarding-lore-picks {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-onboarding-lore-pick {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 6px 10px;
+	border: 1.5px solid #e0e0e0;
+	border-radius: 5px;
+	cursor: pointer;
+	font-size: 0.88em;
+	line-height: 1.45;
+	transition: border-color 0.12s, background 0.12s;
+}
+
+.stonetop-onboarding-lore-pick:hover { border-color: slategrey; }
+
+.stonetop-onboarding-lore-pick.is-selected {
+	border-color: slategrey;
+	background: hsl(210 15% 96%);
+}
+
+.stonetop-onboarding-lore-pick--disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+.stonetop-onboarding-lore-pick input[type="checkbox"] {
+	margin-top: 2px;
+	flex-shrink: 0;
+	accent-color: slategrey;
+}
+
+.stonetop-onboarding-lore-texts {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.stonetop-onboarding-lore-text-row {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-onboarding-lore-text-label {
+	font-size: 0.85em;
+	color: #444;
+	line-height: 1.4;
+}
+
+.stonetop-onboarding-lore-text-label p { margin: 0; }
+
+.onboard-lore-text {
+	width: 100%;
+	box-sizing: border-box;
+	font-family: var(--font-primary);
+	font-size: 0.85em;
+	border: 1.5px solid #ddd;
+	border-radius: 4px;
+	padding: 5px 8px;
+	resize: vertical;
+	line-height: 1.4;
+	color: #222;
+	background: #fafafa;
+}
+
+.onboard-lore-text:focus {
+	outline: none;
+	border-color: slategrey;
+	background: #fff;
+}
+
 .stonetop-onboarding-lookup {
 	cursor: help;
 	border-bottom: 1px dotted currentColor;

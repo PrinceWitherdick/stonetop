@@ -1,5 +1,5 @@
-2026/06/01-01:28:13.692 f24 Delete type=3 #1
-2026/06/01-01:28:13.699 3010 Level-0 table #5: started
-2026/06/01-01:28:13.704 3010 Level-0 table #5: 199416 bytes OK
-2026/06/01-01:28:13.708 3010 Delete type=0 #3
-2026/06/01-01:28:13.708 3010 Manual compaction at level-0 from '!folders!Ba9HnSkAGUh0CHkb' @ 72057594037927935 : 1 .. '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 0 : 0; will stop at (end)
+2026/06/01-16:00:51.395 64ac Delete type=3 #1
+2026/06/01-16:00:51.401 bdc4 Level-0 table #5: started
+2026/06/01-16:00:51.406 bdc4 Level-0 table #5: 199416 bytes OK
+2026/06/01-16:00:51.409 bdc4 Delete type=0 #3
+2026/06/01-16:00:51.409 bdc4 Manual compaction at level-0 from '!folders!Ba9HnSkAGUh0CHkb' @ 72057594037927935 : 1 .. '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 0 : 0; will stop at (end)

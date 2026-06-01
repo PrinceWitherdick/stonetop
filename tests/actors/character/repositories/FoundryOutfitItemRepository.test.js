@@ -7,6 +7,7 @@ function makeEntry(slug, flags = {}) {
 	return {
 		_id: `id-${slug}`,
 		name: slug,
+		system: { moveType: "inventory" },
 		flags: { stonetop: { slug, inventoryColumn: "regular", sortOrder: 1, weight: 1, ...flags } },
 	};
 }

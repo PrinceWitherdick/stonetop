@@ -4,11 +4,11 @@ import { MoveDefinition } from "../../../../module/model/MoveDefinition.js";
 
 // -- Fixtures ------------------------------------------------------------------
 
-const PLAYBOOK_MOVE_A = { _id: "pb001", name: "Serenity", system: { playbook: "The Blessed", rollType: "stat", isStartingMove: true } };
-const PLAYBOOK_MOVE_B = { _id: "pb002", name: "Invoke the Gods", system: { playbook: "The Blessed", rollType: "stat", isStartingMove: false } };
-const OTHER_MOVE      = { _id: "pb003", name: "Read the Winds", system: { playbook: "The Marshal", rollType: "stat", isStartingMove: true } };
-const BASIC_MOVE_A    = { _id: "bm001", name: "Defy Danger", system: { rollType: "stat" } };
-const BASIC_MOVE_B    = { _id: "bm002", name: "Aid or Interfere", system: { rollType: "stat" } };
+const PLAYBOOK_MOVE_A = { _id: "pb001", name: "Serenity", system: { moveType: "playbook", playbook: "The Blessed", rollType: "stat", isStartingMove: true } };
+const PLAYBOOK_MOVE_B = { _id: "pb002", name: "Invoke the Gods", system: { moveType: "playbook", playbook: "The Blessed", rollType: "stat", isStartingMove: false } };
+const OTHER_MOVE      = { _id: "pb003", name: "Read the Winds", system: { moveType: "playbook", playbook: "The Marshal", rollType: "stat", isStartingMove: true } };
+const BASIC_MOVE_A    = { _id: "bm001", name: "Defy Danger", system: { moveType: "basic", rollType: "stat" } };
+const BASIC_MOVE_B    = { _id: "bm002", name: "Aid or Interfere", system: { moveType: "basic", rollType: "stat" } };
 
 // -- Helpers -------------------------------------------------------------------
 
@@ -28,9 +28,9 @@ function makeBasicPack(entries = []) {
 	};
 }
 
-const POST_DEATH_MOVE_A = { _id: "pd001", name: "Unliving",   system: { playbook: "revenant", rollType: null } };
-const POST_DEATH_MOVE_B = { _id: "pd002", name: "Undying",    system: { playbook: "revenant", rollType: "con" } };
-const OTHER_INSERT_MOVE = { _id: "pd003", name: "Disembodied", system: { playbook: "ghost",   rollType: null } };
+const POST_DEATH_MOVE_A = { _id: "pd001", name: "Unliving",   system: { moveType: "post-death", playbook: "revenant", rollType: null } };
+const POST_DEATH_MOVE_B = { _id: "pd002", name: "Undying",    system: { moveType: "post-death", playbook: "revenant", rollType: "con" } };
+const OTHER_INSERT_MOVE = { _id: "pd003", name: "Disembodied", system: { moveType: "post-death", playbook: "ghost",   rollType: null } };
 
 function makePostDeathPack(entries = []) {
 	return {
@@ -44,9 +44,7 @@ function stubGame(playbookPack, basicPack, postDeathPack = null) {
 	vi.stubGlobal("game", {
 		packs: {
 			get: (name) => {
-				if (name === "stonetop.playbook-moves")  return playbookPack;
-				if (name === "stonetop.basic-moves")     return basicPack;
-				if (name === "stonetop.post-death-moves") return postDeathPack;
+				if (name === "stonetop.stonetop-items") return playbookPack ?? basicPack ?? postDeathPack;
 				return null;
 			},
 		},
@@ -152,7 +150,7 @@ describe("FoundryMoveRepository", () => {
 			stubGame(null, pack);
 			const repo = new FoundryMoveRepository();
 			await repo.getBasicMoves();
-			expect(pack.getIndex).toHaveBeenCalledWith({ fields: ["system.rollType"] });
+			expect(pack.getIndex).toHaveBeenCalledWith({ fields: ["system.moveType", "system.rollType", "system.description"] });
 		});
 
 		it("caches result — getIndex not called a second time", async () => {

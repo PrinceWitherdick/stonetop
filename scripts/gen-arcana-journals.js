@@ -114,7 +114,7 @@ async function main() {
     console.log(`  minor-arcana.json (${minor.length} pages)`);
     console.log(`\nNext steps:`);
     console.log(`  1. Add "arcana-journal" to scripts/packs.js`);
-    console.log(`  2. Add the pack to module.json`);
+    console.log(`  2. Add the pack to system.json`);
     console.log(`  3. Close Foundry and run: npm run pack`);
 }
 

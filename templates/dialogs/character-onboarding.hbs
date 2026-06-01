@@ -447,6 +447,52 @@
 		</div>
 		{{/if}}
 
+		{{!-- ── Lore (Character History) ─────────────────────────── --}}
+		{{#if isLore}}
+		<h3 class="stonetop-onboarding-step-title">{{loreSectionData.title}}</h3>
+		{{#if loreSectionData.description}}
+		<div class="stonetop-onboarding-lore-desc">{{{loreSectionData.description}}}</div>
+		{{/if}}
+
+		{{#if loreSectionData.isPickSection}}
+		{{#if loreSectionData.pickMax}}
+		<p class="stonetop-onboarding-lore-counter">
+			<span class="stonetop-onboarding-lore-pick-count">{{loreSectionData.selectedPickCount}}</span>
+			/ {{loreSectionData.pickMax}} chosen
+		</p>
+		{{/if}}
+		<div class="stonetop-onboarding-lore-picks">
+			{{#each loreSectionData.options}}
+			<label class="stonetop-onboarding-lore-pick{{#if isSelected}} is-selected{{/if}}{{#if disabled}} stonetop-onboarding-lore-pick--disabled{{/if}}">
+				<input type="checkbox"
+				       name="onboard-lore-pick-{{sectionSlug}}"
+				       value="{{slug}}"
+				       data-section="{{sectionSlug}}"
+				       data-option="{{slug}}"
+				       {{#if isSelected}}checked{{/if}}
+				       {{#if disabled}}disabled{{/if}}>
+				<span class="stonetop-onboarding-lore-pick-text">{{{description}}}</span>
+			</label>
+			{{/each}}
+		</div>
+		{{/if}}
+
+		{{#if loreSectionData.isTextSection}}
+		<div class="stonetop-onboarding-lore-texts">
+			{{#each loreSectionData.options}}
+			<div class="stonetop-onboarding-lore-text-row">
+				<label class="stonetop-onboarding-lore-text-label">{{{description}}}</label>
+				<textarea class="onboard-lore-text"
+				          data-section="{{sectionSlug}}"
+				          data-option="{{slug}}"
+				          rows="2"
+				          placeholder="Your answer…">{{value}}</textarea>
+			</div>
+			{{/each}}
+		</div>
+		{{/if}}
+		{{/if}}
+
 	</div>{{!-- /.stonetop-onboarding-step --}}
 
 	{{!-- Footer --}}

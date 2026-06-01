@@ -1,20 +1,33 @@
 # Stonetop for Foundry VTT
 
-An unofficial [Foundry VTT](https://foundryvtt.com) module for playing [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg.
-Requires the [Powered by the Apocalypse](https://foundryvtt.com/packages/pbta) system.
+An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg.
 
 > This system is under active development and may be unstable.
 
+## Screenshots
+
+**Stonetop Map**
+![Stonetop Map](.github/screenshots/stonetop-map.png)
+
+**Character Sheet — Moves**
+![Character Sheet Moves](.github/screenshots/character-sheet-moves.png)
+
+**Character Sheet — Ledger**
+![Character Sheet Ledger](.github/screenshots/character-sheet-ledger.png)
+
+**Playbook Picker**
+![Playbook Picker](.github/screenshots/playbook-picker.png)
+
 ## Prerequisites
 
-- Foundry VTT v12
+- Foundry VTT v12 or v13
 
 ## Installation
 
-In Foundry VTT, go to **Add-on Modules → Install Module** and paste this manifest URL:
+In Foundry VTT, go to **Game Systems -> Install System** and paste this manifest URL:
 
 ```
-https://github.com/PrinceWitherdick/stonetop/releases/download/0.7.5/module.json
+https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json
 ```
 
 ## Development
