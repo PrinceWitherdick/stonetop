@@ -17,7 +17,7 @@
 						<span class="steading-stat-hint">Starts at +1</span>
 					</div>
 					<div class="steading-track">
-						{{#each (steadingTrack system.stats.fortunes.value 1)}}
+						{{#each (steadingTrack stonetop.system.stats.fortunes.value 1)}}
 						<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
 							<input type="radio" name="system.stats.fortunes.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.editMode}}disabled{{/unless}}>
 							<span class="steading-track-label">{{label}}</span>
@@ -30,9 +30,9 @@
 					<span class="steading-stat-hint">Starts at 1</span>
 					{{#if stonetop.editMode}}
 					<input class="steading-surplus-input" type="number" name="system.attributes.surplus.value"
-					       value="{{system.attributes.surplus.value}}" min="0" max="99">
+					       value="{{stonetop.system.attributes.surplus.value}}" min="0" max="99">
 					{{else}}
-					<span class="steading-surplus-value">{{system.attributes.surplus.value}}</span>
+					<span class="steading-surplus-value">{{stonetop.system.attributes.surplus.value}}</span>
 					{{/if}}
 				</div>
 			</div>
@@ -73,7 +73,7 @@
 						<span class="steading-stat-hint">Starts at +0</span>
 					</div>
 					<div class="steading-track">
-						{{#each (steadingTrack system.attributes.population.value 0)}}
+						{{#each (steadingTrack stonetop.system.attributes.population.value 0)}}
 						<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
 							<input type="radio" name="system.attributes.population.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.editMode}}disabled{{/unless}}>
 							<span class="steading-track-label">{{label}}</span>
@@ -90,7 +90,7 @@
 					<span class="steading-stat-hint">Starts at +0</span>
 				</div>
 				<div class="steading-track">
-					{{#each (steadingTrack system.attributes.prosperity.value 0)}}
+					{{#each (steadingTrack stonetop.system.attributes.prosperity.value 0)}}
 					<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
 						<input type="radio" name="system.attributes.prosperity.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.editMode}}disabled{{/unless}}>
 						<span class="steading-track-label">{{label}}</span>
@@ -110,7 +110,7 @@
 							       data-tooltip-direction="UP">
 								<input type="checkbox" class="steading-debility-check"
 								       name="system.attributes.debilities.options.diminished.value"
-								       {{#if system.attributes.debilities.options.diminished.value}}checked{{/if}}>
+								       {{#if stonetop.system.attributes.debilities.options.diminished.value}}checked{{/if}}>
 								<span class="steading-debility-name"><em>diminished</em></span>
 							</label>
 							<span class="steading-debility-desc">by injury/sickness/doubt</span>
@@ -121,7 +121,7 @@
 							       data-tooltip-direction="UP">
 								<input type="checkbox" class="steading-debility-check"
 								       name="system.attributes.debilities.options.lacking.value"
-								       {{#if system.attributes.debilities.options.lacking.value}}checked{{/if}}>
+								       {{#if stonetop.system.attributes.debilities.options.lacking.value}}checked{{/if}}>
 								<span class="steading-debility-name"><em>lacking</em></span>
 							</label>
 							<span class="steading-debility-desc">due to shortages/hoarding/distrust</span>
@@ -132,7 +132,7 @@
 							       data-tooltip-direction="UP">
 								<input type="checkbox" class="steading-debility-check"
 								       name="system.attributes.debilities.options.malcontent.value"
-								       {{#if system.attributes.debilities.options.malcontent.value}}checked{{/if}}>
+								       {{#if stonetop.system.attributes.debilities.options.malcontent.value}}checked{{/if}}>
 								<span class="steading-debility-name"><em>malcontent</em></span>
 							</label>
 							<span class="steading-debility-desc">from fear/anger/despair</span>

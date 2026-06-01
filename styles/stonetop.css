@@ -426,11 +426,10 @@ body,
 .stonetop-debility input[type="checkbox"] {
 	appearance: none !important;
 	-webkit-appearance: none !important;
-	width: 18px !important;
-	height: 14px !important;
-	aspect-ratio: 1 / 1;
+	width: 20px !important;
+	
 	flex-shrink: 0;
-	border-radius: 50% !important;
+	border-radius: 100% !important;
 	border: 1.5px solid #555 !important;
 	background: transparent !important;
 	cursor: pointer;
@@ -2217,6 +2216,159 @@ body,
 
 .stonetop-edit-toggle input:checked + .stonetop-toggle-track .stonetop-toggle-thumb {
 	margin-left: var(--thumb-travel);
+}
+
+.stonetop-ledger-window .window-content {
+	overflow: hidden;
+	padding: 0;
+}
+
+.stonetop-ledger-window .dialog-buttons {
+	display: none;
+}
+
+.stonetop-ledger-window .dialog-content {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.stonetop-ledger-container {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.stonetop-ledger-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-bottom: 1px solid rgba(0,0,0,0.14);
+	flex-shrink: 0;
+}
+
+.stonetop-ledger-search {
+	flex: 1;
+	min-width: 0;
+	height: 24px;
+	padding: 0 8px;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: 4px;
+	font-family: var(--font-primary);
+	font-size: 13px;
+	background: #fff;
+}
+
+.stonetop-ledger-sort {
+	flex-shrink: 0;
+	height: 24px;
+	padding: 0 4px;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: 4px;
+	font-family: var(--font-primary);
+	font-size: 13px;
+	background: #fff;
+	cursor: pointer;
+}
+
+.stonetop-ledger-dialog {
+	min-height: 0;
+	flex: 1;
+	overflow-y: auto;
+	padding: 8px;
+	scrollbar-width: thin;
+}
+
+.stonetop-ledger-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.stonetop-ledger-select-all-label,
+.stonetop-ledger-delete-selected { display: none; }
+
+.stonetop-ledger-edit-mode .stonetop-ledger-select-all-label {
+	display: inline-flex;
+	align-items: center;
+	cursor: pointer;
+}
+
+.stonetop-ledger-edit-mode .stonetop-ledger-delete-selected {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+	width: auto;
+	height: auto;
+	padding: 3px 8px;
+	border: 1px solid #a02020;
+	border-radius: 3px;
+	background: none;
+	color: #a02020;
+	font-size: 12px;
+	font-family: var(--font-primary);
+	line-height: 1;
+	cursor: pointer;
+	box-shadow: none;
+	white-space: nowrap;
+}
+
+.stonetop-ledger-edit-mode .stonetop-ledger-delete-selected:hover {
+	background: rgba(160, 32, 32, 0.1);
+	box-shadow: none;
+}
+
+.stonetop-ledger-entry {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 8px 10px;
+	border: 1px solid rgba(0,0,0,0.16);
+	border-radius: 4px;
+	background: rgba(255,255,255,0.55);
+}
+
+.stonetop-ledger-row-check {
+	display: none;
+	flex-shrink: 0;
+	align-self: center;
+	margin: 0;
+	cursor: pointer;
+}
+
+.stonetop-ledger-edit-mode .stonetop-ledger-row-check { display: block; }
+
+.stonetop-ledger-entry-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.stonetop-ledger-entry-main {
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.stonetop-ledger-entry-meta {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 4px;
+	color: var(--color-text-dark-secondary, #555);
+	font-size: 12px;
+}
+
+.stonetop-ledger-empty {
+	padding: 24px 12px;
+	color: var(--color-text-dark-secondary, #555);
+	text-align: center;
+	font-style: italic;
 }
 
 .stonetop-pdi-remove--danger {

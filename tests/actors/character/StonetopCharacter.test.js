@@ -732,17 +732,17 @@ describe("applyDebilityRollMode", () => {
 
 	it("debility active, stat affected, rollMode def → dis", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true})).build();
-		expect(char.applyDebilityRollMode("str", { rollMode: "def" })).toEqual({ rollMode: "dis" });
+		expect(char.applyDebilityRollMode("str", { rollMode: "def" })).toMatchObject({ rollMode: "dis" });
 	});
 
 	it("debility active, stat affected, rollMode adv → def (cancel)", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true})).build();
-		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toEqual({ rollMode: "def" });
+		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toMatchObject({ rollMode: "def" });
 	});
 
 	it("debility active, stat affected, rollMode dis → dis (unchanged)", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true})).build();
-		expect(char.applyDebilityRollMode("str", { rollMode: "dis" })).toEqual({ rollMode: "dis" });
+		expect(char.applyDebilityRollMode("str", { rollMode: "dis" })).toMatchObject({ rollMode: "dis" });
 	});
 
 	it("debility active but for a different stat — passes through unchanged", () => {
@@ -757,19 +757,27 @@ describe("applyDebilityRollMode", () => {
 
 	it("two debilities active, one covers stat, rollMode adv → def", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true, dazed: true})).build();
-		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toEqual({ rollMode: "def" });
+		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toMatchObject({ rollMode: "def" });
 	});
 
 	it("dazed covers int and wis, rollMode def → dis for int", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({dazed: true})).build();
-		expect(char.applyDebilityRollMode("int", { rollMode: "def" })).toEqual({ rollMode: "dis" });
-		expect(char.applyDebilityRollMode("wis", { rollMode: "def" })).toEqual({ rollMode: "dis" });
+		expect(char.applyDebilityRollMode("int", { rollMode: "def" })).toMatchObject({ rollMode: "dis" });
+		expect(char.applyDebilityRollMode("wis", { rollMode: "def" })).toMatchObject({ rollMode: "dis" });
+	});
+
+	it("uses built-in debility stat mapping when migrated actor data has no stat array", () => {
+		const actor = makeDebilityActor({weakened: true});
+		delete actor.system.attributes.debilities.options.weakened.stat;
+		const char = new TestCharacterBuilder(actor).build();
+		expect(char.applyDebilityRollMode("str", { rollMode: "def" })).toMatchObject({ rollMode: "dis" });
+		expect(char.applyDebilityRollMode("int", { rollMode: "def" })).toEqual({ rollMode: "def" });
 	});
 
 	it("preserves other options fields while changing rollMode", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true})).build();
 		const result = char.applyDebilityRollMode("str", { rollMode: "adv", extra: "value" });
-		expect(result).toEqual({ rollMode: "def", extra: "value" });
+		expect(result).toMatchObject({ rollMode: "def", extra: "value" });
 	});
 });
 

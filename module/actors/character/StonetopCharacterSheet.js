@@ -4,6 +4,7 @@ import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
+import {CharacterLedger} from "./CharacterLedger.js";
 import {rollDamage} from "../../utils/roll-engine.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
@@ -21,6 +22,7 @@ const STAT_TOOLTIPS = {
 function _buildMoveChatContent(name, description) {
 	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${name}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
 }
+
 
 export function createStonetopCharacterSheetClass(Base) {
 	return class StonetopCharacterSheet extends Base {
@@ -91,12 +93,139 @@ export function createStonetopCharacterSheetClass(Base) {
 			header.insertBefore(label, title);
 		}
 
+		_openLedgerDialog() {
+			const entries = CharacterLedger.getEntries(this.actor);
+			const esc = v => foundry.utils.escapeHTML(String(v ?? ""));
+			const buildRows = (items) => items.length
+				? items.map(entry => `<li class="stonetop-ledger-entry" data-id="${esc(entry.id)}" data-timestamp="${entry.timestamp ?? 0}">
+						<input type="checkbox" class="stonetop-ledger-row-check">
+						<div class="stonetop-ledger-entry-content">
+							<div class="stonetop-ledger-entry-main">${esc(entry.action)}</div>
+							<div class="stonetop-ledger-entry-meta">
+								<span>${esc(entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "")}</span>
+								<span>${esc(entry.userName)}</span>
+							</div>
+						</div>
+					</li>`).join("")
+				: `<li class="stonetop-ledger-empty">No ledger entries yet.</li>`;
+
+			const content = `<div class="stonetop-ledger-container">
+				<div class="stonetop-ledger-toolbar">
+					<label class="stonetop-edit-toggle stonetop-ledger-edit-toggle" title="Edit entries">
+						<input type="checkbox" class="stonetop-ledger-edit-check">
+						<span class="stonetop-toggle-track">
+							<span class="stonetop-toggle-thumb"><i class="fas fa-pen"></i></span>
+						</span>
+					</label>
+					<label class="stonetop-ledger-select-all-label" title="Select all">
+						<input type="checkbox" class="stonetop-ledger-select-all">
+					</label>
+					<button type="button" class="stonetop-ledger-delete-selected">
+						<i class="fas fa-trash"></i> Delete
+					</button>
+					<input type="search" class="stonetop-ledger-search" placeholder="Filter entries…">
+					<select class="stonetop-ledger-sort">
+						<option value="desc">Newest first</option>
+						<option value="asc">Oldest first</option>
+					</select>
+				</div>
+				<section class="stonetop-ledger-dialog">
+					<ol class="stonetop-ledger-list">${buildRows(entries)}</ol>
+				</section>
+			</div>`;
+
+			new Dialog({
+				title: `${this.actor.name}: Ledger`,
+				content,
+				buttons: {},
+				render: (html) => {
+					const container  = html.find(".stonetop-ledger-container")[0];
+					const selectAllEl = html.find(".stonetop-ledger-select-all")[0];
+
+					const syncSelectAll = () => {
+						const total   = html.find(".stonetop-ledger-row-check").length;
+						const checked = html.find(".stonetop-ledger-row-check:checked").length;
+						selectAllEl.checked       = checked === total && total > 0;
+						selectAllEl.indeterminate = checked > 0 && checked < total;
+					};
+
+					html.find(".stonetop-ledger-edit-check").on("change", ev => {
+						container.classList.toggle("stonetop-ledger-edit-mode", ev.currentTarget.checked);
+						if (!ev.currentTarget.checked) {
+							html.find(".stonetop-ledger-row-check").prop("checked", false);
+							syncSelectAll();
+						}
+					});
+
+					html.find(".stonetop-ledger-select-all").on("change", ev => {
+						html.find(".stonetop-ledger-entry:not([hidden]) .stonetop-ledger-row-check")
+							.prop("checked", ev.currentTarget.checked);
+					});
+
+					html[0].addEventListener("change", ev => {
+						if (ev.target.closest(".stonetop-ledger-row-check")) syncSelectAll();
+					});
+
+					// Cache lowercased text once per entry so the search handler
+					// doesn't re-query the DOM and call toLowerCase on every keystroke.
+					html.find(".stonetop-ledger-entry").each((_, el) => {
+						el._ledgerText = el.querySelector(".stonetop-ledger-entry-main")
+							?.textContent?.toLowerCase() ?? "";
+					});
+
+					html.find(".stonetop-ledger-search").on("input", ev => {
+						const term = ev.currentTarget.value.trim().toLowerCase();
+						html.find(".stonetop-ledger-entry").each((_, el) => {
+							el.hidden = !!term && !el._ledgerText.includes(term);
+						});
+						syncSelectAll();
+					});
+
+					html.find(".stonetop-ledger-sort").on("change", ev => {
+						const asc  = ev.currentTarget.value === "asc";
+						const list = html.find(".stonetop-ledger-list")[0];
+						const tagged = [...list.querySelectorAll(".stonetop-ledger-entry")]
+							.map(el => [el, Number(el.dataset.timestamp)]);
+						tagged.sort(([, ta], [, tb]) => asc ? ta - tb : tb - ta);
+						tagged.forEach(([el]) => list.appendChild(el));
+					});
+
+					html.find(".stonetop-ledger-delete-selected").on("click", async () => {
+						const checked = [...html.find(".stonetop-ledger-row-check:checked")];
+						if (!checked.length) return;
+
+						const doDelete = async () => {
+							const ids = new Set(
+								checked.map(el => el.closest(".stonetop-ledger-entry").dataset.id)
+							);
+							checked.forEach(el => el.closest(".stonetop-ledger-entry")?.remove());
+							syncSelectAll();
+							await CharacterLedger.deleteEntries(this.actor, ids);
+						};
+
+						if (checked.length === 1) {
+							await doDelete();
+							return;
+						}
+
+						Dialog.confirm({
+							title: "Delete Ledger Entries",
+							content: `<p>You're about to delete ${checked.length} entries. Are you sure?</p>`,
+							yes: doDelete,
+						});
+					});
+				},
+			}, {
+				width: 560,
+				height: 640,
+				classes: ["dialog", "stonetop-ledger-window"],
+			}).render(true);
+		}
+
 		_getHeaderButtons() {
-			const buttons  = super._getHeaderButtons();
+			const buttons  = super._getHeaderButtons().filter(b => b.class !== "configure-sheet");
 			const steading = this._stonetopCharacter?.getSteadingActor();
-			const sheetIdx = buttons.findIndex(b => b.class === "configure-sheet");
-			const insertAt = sheetIdx >= 0 ? sheetIdx : 0;
-			buttons.splice(insertAt, 0, {
+			buttons.unshift({
 				label:   steading?.name ?? "",
 				class:   "stonetop-open-steading" + (steading ? "" : " stonetop-open-steading--unset"),
 				icon:    "fas fa-map-marker-alt",
@@ -105,11 +234,18 @@ export function createStonetopCharacterSheetClass(Base) {
 					else ui.notifications.warn(game.i18n.localize("stonetop.steading.notLinked"));
 				},
 			});
-			buttons.splice(insertAt, 0, {
+			buttons.unshift({
 				label:   game.i18n.localize("stonetop.newCharacter.buttonLabel"),
 				class:   "stonetop-new-character",
 				icon:    "fas fa-user-plus",
 				onclick: () => this._onNewCharacter(),
+			});
+			const steadingIdx = buttons.findIndex(b => b.class?.startsWith("stonetop-open-steading"));
+			buttons.splice(steadingIdx + 1, 0, {
+				label:   "Ledger",
+				class:   "stonetop-ledger-button",
+				icon:    "fas fa-scroll",
+				onclick: () => this._openLedgerDialog(),
 			});
 			return buttons;
 		}

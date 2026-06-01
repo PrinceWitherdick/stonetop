@@ -1,5 +1,5 @@
-2026/05/31-17:24:01.630 517c Delete type=3 #1
-2026/05/31-17:24:01.636 ae5c Level-0 table #5: started
-2026/05/31-17:24:01.643 ae5c Level-0 table #5: 199416 bytes OK
-2026/05/31-17:24:01.646 ae5c Delete type=0 #3
-2026/05/31-17:24:01.646 ae5c Manual compaction at level-0 from '!folders!Ba9HnSkAGUh0CHkb' @ 72057594037927935 : 1 .. '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 0 : 0; will stop at (end)
+2026/05/31-21:56:37.922 8624 Delete type=3 #1
+2026/05/31-21:56:37.928 5acc Level-0 table #5: started
+2026/05/31-21:56:37.934 5acc Level-0 table #5: 199416 bytes OK
+2026/05/31-21:56:37.937 5acc Delete type=0 #3
+2026/05/31-21:56:37.937 5acc Manual compaction at level-0 from '!folders!Ba9HnSkAGUh0CHkb' @ 72057594037927935 : 1 .. '!journal.pages!stonetopSO000001.stonetopSOp00010' @ 0 : 0; will stop at (end)

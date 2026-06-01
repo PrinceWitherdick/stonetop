@@ -557,7 +557,8 @@ export class StonetopCharacter {
 	}
 
 	getSmallItemLimit(steading = this.getSteadingActor()) {
-		const rawProsperity = steading?.system?.attributes?.prosperity?.value;
+		const rawProsperity = steading?.getFlag?.("stonetop", "steading.system.attributes.prosperity.value")
+			?? steading?.system?.attributes?.prosperity?.value;
 		if (rawProsperity == null) return null;
 		const prosperity = Number(rawProsperity);
 		return isNaN(prosperity) ? null : 4 + prosperity;
@@ -890,7 +891,12 @@ export class StonetopCharacter {
 		const ongoing     = this._actor.system?.attributes?.ongoing?.value ?? 0;
 		const modifier    = forward + ongoing + result.situational;
 
-		await rollStat(stat, this._actor, { rollMode: result.rollMode, modifier, forward, ongoing });
+		await rollStat(stat, this._actor, this.applyDebilityRollMode(stat, {
+			rollMode: result.rollMode,
+			modifier,
+			forward,
+			ongoing,
+		}));
 
 		if (forward !== 0) {
 			await this._actor.update({ "system.attributes.forward.value": 0 });
@@ -914,7 +920,11 @@ export class StonetopCharacter {
 	applyDebilityRollMode(stat, options) {
 		const debilityOptions = this._actor.system.attributes?.debilities?.options ?? {};
 		const activeEntry = Object.entries(debilityOptions).find(
-			([, opt]) => opt.value && Array.isArray(opt.stat) && opt.stat.includes(stat)
+			([key, opt]) => {
+				if (!opt.value) return false;
+				const affectedStats = Array.isArray(opt.stat) ? opt.stat : _DEBILITY_DEF_BY_KEY[key]?.stats;
+				return affectedStats?.includes(stat);
+			}
 		);
 		if (!activeEntry) return options;
 		const [key] = activeEntry;

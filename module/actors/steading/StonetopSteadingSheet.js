@@ -1,5 +1,6 @@
 import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS } from "./StonetopSteading.js";
 import {rollStat} from "../../utils/roll-engine.js";
+import {SteadingLedger} from "./SteadingLedger.js";
 
 const _STEADING_MOVES_RAW = [
 	{
@@ -113,9 +114,7 @@ export function createStonetopSteadingSheetClass(Base) {
 
 		constructor(...args) {
 			super(...args);
-			console.log("Stonetop | StonetopSteadingSheet constructor, actor:", this.actor?.name, this.actor?.type);
 			this._stonetopSteading = this.actor.typedActor;
-			console.log("Stonetop | StonetopSteadingSheet typedActor:", this._stonetopSteading);
 		}
 
 		static get defaultOptions() {
@@ -177,10 +176,147 @@ export function createStonetopSteadingSheetClass(Base) {
 			header.insertBefore(label, title);
 		}
 
+		_getHeaderButtons() {
+			const buttons = super._getHeaderButtons().filter(b => b.class !== "configure-sheet");
+			const tokenIdx = buttons.findIndex(b => b.class?.includes("token"));
+			buttons.splice(tokenIdx >= 0 ? tokenIdx : 0, 0, {
+				label:   "Ledger",
+				class:   "stonetop-ledger-button",
+				icon:    "fas fa-scroll",
+				onclick: () => this._openLedgerDialog(),
+			});
+			return buttons;
+		}
+
+		_openLedgerDialog() {
+			const entries = SteadingLedger.getEntries(this.actor);
+			const esc = v => foundry.utils.escapeHTML(String(v ?? ""));
+			const buildRows = (items) => items.length
+				? items.map(entry => `<li class="stonetop-ledger-entry" data-id="${esc(entry.id)}" data-timestamp="${entry.timestamp ?? 0}">
+						<input type="checkbox" class="stonetop-ledger-row-check">
+						<div class="stonetop-ledger-entry-content">
+							<div class="stonetop-ledger-entry-main">${esc(entry.action)}</div>
+							<div class="stonetop-ledger-entry-meta">
+								<span>${esc(entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "")}</span>
+								<span>${esc(entry.userName)}</span>
+							</div>
+						</div>
+					</li>`).join("")
+				: `<li class="stonetop-ledger-empty">No ledger entries yet.</li>`;
+
+			const content = `<div class="stonetop-ledger-container">
+				<div class="stonetop-ledger-toolbar">
+					<label class="stonetop-edit-toggle stonetop-ledger-edit-toggle" title="Edit entries">
+						<input type="checkbox" class="stonetop-ledger-edit-check">
+						<span class="stonetop-toggle-track">
+							<span class="stonetop-toggle-thumb"><i class="fas fa-pen"></i></span>
+						</span>
+					</label>
+					<label class="stonetop-ledger-select-all-label" title="Select all">
+						<input type="checkbox" class="stonetop-ledger-select-all">
+					</label>
+					<button type="button" class="stonetop-ledger-delete-selected">
+						<i class="fas fa-trash"></i> Delete
+					</button>
+					<input type="search" class="stonetop-ledger-search" placeholder="Filter entries…">
+					<select class="stonetop-ledger-sort">
+						<option value="desc">Newest first</option>
+						<option value="asc">Oldest first</option>
+					</select>
+				</div>
+				<section class="stonetop-ledger-dialog">
+					<ol class="stonetop-ledger-list">${buildRows(entries)}</ol>
+				</section>
+			</div>`;
+
+			new Dialog({
+				title: `${this.actor.name}: Ledger`,
+				content,
+				buttons: {},
+				render: (html) => {
+					const container   = html.find(".stonetop-ledger-container")[0];
+					const selectAllEl = html.find(".stonetop-ledger-select-all")[0];
+
+					const syncSelectAll = () => {
+						const total   = html.find(".stonetop-ledger-row-check").length;
+						const checked = html.find(".stonetop-ledger-row-check:checked").length;
+						selectAllEl.checked       = checked === total && total > 0;
+						selectAllEl.indeterminate = checked > 0 && checked < total;
+					};
+
+					html.find(".stonetop-ledger-edit-check").on("change", ev => {
+						container.classList.toggle("stonetop-ledger-edit-mode", ev.currentTarget.checked);
+						if (!ev.currentTarget.checked) {
+							html.find(".stonetop-ledger-row-check").prop("checked", false);
+							syncSelectAll();
+						}
+					});
+
+					html.find(".stonetop-ledger-select-all").on("change", ev => {
+						html.find(".stonetop-ledger-entry:not([hidden]) .stonetop-ledger-row-check")
+							.prop("checked", ev.currentTarget.checked);
+					});
+
+					html[0].addEventListener("change", ev => {
+						if (ev.target.closest(".stonetop-ledger-row-check")) syncSelectAll();
+					});
+
+					html.find(".stonetop-ledger-entry").each((_, el) => {
+						el._ledgerText = el.querySelector(".stonetop-ledger-entry-main")
+							?.textContent?.toLowerCase() ?? "";
+					});
+
+					html.find(".stonetop-ledger-search").on("input", ev => {
+						const term = ev.currentTarget.value.trim().toLowerCase();
+						html.find(".stonetop-ledger-entry").each((_, el) => {
+							el.hidden = !!term && !el._ledgerText.includes(term);
+						});
+						syncSelectAll();
+					});
+
+					html.find(".stonetop-ledger-sort").on("change", ev => {
+						const asc  = ev.currentTarget.value === "asc";
+						const list = html.find(".stonetop-ledger-list")[0];
+						const tagged = [...list.querySelectorAll(".stonetop-ledger-entry")]
+							.map(el => [el, Number(el.dataset.timestamp)]);
+						tagged.sort(([, ta], [, tb]) => asc ? ta - tb : tb - ta);
+						tagged.forEach(([el]) => list.appendChild(el));
+					});
+
+					html.find(".stonetop-ledger-delete-selected").on("click", async () => {
+						const checked = [...html.find(".stonetop-ledger-row-check:checked")];
+						if (!checked.length) return;
+
+						const doDelete = async () => {
+							const ids = new Set(
+								checked.map(el => el.closest(".stonetop-ledger-entry").dataset.id)
+							);
+							checked.forEach(el => el.closest(".stonetop-ledger-entry")?.remove());
+							syncSelectAll();
+							await SteadingLedger.deleteEntries(this.actor, ids);
+						};
+
+						if (checked.length === 1) {
+							await doDelete();
+							return;
+						}
+
+						Dialog.confirm({
+							title: "Delete Ledger Entries",
+							content: `<p>You're about to delete ${checked.length} entries. Are you sure?</p>`,
+							yes: doDelete,
+						});
+					});
+				},
+			}, {
+				width: 560,
+				height: 640,
+				classes: ["dialog", "stonetop-ledger-window"],
+			}).render(true);
+		}
+
 		async getData() {
-			console.log("Stonetop | StonetopSteadingSheet getData called");
 			const context = await super.getData();
-			console.log("Stonetop | StonetopSteadingSheet super.getData() returned, template:", this.template);
 			context.stonetop = await this._stonetopSteading.buildSnapshot();
 			context.stonetop.moves = STEADING_MOVES;
 			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
@@ -222,10 +358,11 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			// Stat tracks use custom radio markup, so persist them explicitly.
 			html[0].addEventListener("change", ev => {
-				const radio = ev.target.closest(".steading-track-option input[type='radio'][name]");
-				if (!radio || !this._editMode) return;
+				const input = ev.target;
+				if (input.type !== "radio" || !input.name || !input.closest(".steading-track-option")) return;
+				if (!this._editMode) return;
 				ev.stopPropagation();
-				this._onSteadingTrackChange(radio.name, Number(radio.value));
+				this._onSteadingTrackChange(input.name, Number(input.value));
 			}, true);
 
 			// Surplus is in the custom stat bar, so persist it explicitly.
@@ -237,6 +374,14 @@ export function createStonetopSteadingSheetClass(Base) {
 			};
 			html[0].addEventListener("input", onSurplusInput, true);
 			html[0].addEventListener("change", onSurplusInput, true);
+
+			// Debilities live in the same custom bar and need the same legacy-safe persistence.
+			html[0].addEventListener("change", ev => {
+				const input = ev.target.closest(".steading-debility-check");
+				if (!input || !this._editMode) return;
+				ev.stopPropagation();
+				this._onSteadingTrackChange(input.name, input.checked);
+			}, true);
 
 			// List item checked toggle (resources, fortifications, assets)
 			html[0].addEventListener("change", ev => {
@@ -317,11 +462,14 @@ export function createStonetopSteadingSheetClass(Base) {
 
 		async _onSteadingRoll(moveName, statKey) {
 			if (!statKey) return;
-			await rollStat(statKey, this.actor, { moveName });
+			await rollStat(statKey, this.actor, {
+				moveName,
+				statValue: this._stonetopSteading.getStatValue(statKey),
+			});
 		}
 
 		async _onSteadingTrackChange(path, value) {
-			await this.actor.update({ [path]: value });
+			await this._stonetopSteading.setSystemValue(path.replace(/^system\./, ""), value);
 		}
 
 		async _onListItemCheck(list, index, checked) {
