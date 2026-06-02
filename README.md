@@ -6,7 +6,6 @@ An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop
 
 ## Screenshots
 
-
 **Character Sheet — Filterable Moves**
 ![Character Sheet Moves](.github/screenshots/character-sheet-moves.webp)
 
