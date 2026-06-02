@@ -340,6 +340,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			context.stonetop.moves = STEADING_MOVES;
 			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
+			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop", "hideUnearnedImprovements") ?? false;
 			return context;
 		}
 
@@ -382,6 +383,13 @@ export function createStonetopSteadingSheetClass(Base) {
 				const card = hdr.closest(".steading-improvement");
 				if (!card) return;
 				card.classList.toggle("is-open");
+			}, true);
+
+			html[0].addEventListener("change", ev => {
+				const cb = ev.target.closest(".steading-hide-unearned-improvements-check");
+				if (!cb) return;
+				ev.stopPropagation();
+				this.actor.setFlag("stonetop", "hideUnearnedImprovements", cb.checked);
 			}, true);
 
 			if (!this.isEditable) return;

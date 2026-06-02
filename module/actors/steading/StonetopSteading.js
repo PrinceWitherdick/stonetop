@@ -498,11 +498,13 @@ export class StonetopSteading {
 					return item;
 				}),
 			}));
+			const earned = (stored.completed ?? false) || (stored.r ?? []).some(Boolean);
 			return {
 				slug: def.slug,
 				label: def.label,
 				flavor: def.flavor,
 				completed: stored.completed ?? false,
+				earned,
 				sections,
 				effect: def.effect,
 			};

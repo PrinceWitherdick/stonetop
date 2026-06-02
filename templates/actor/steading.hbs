@@ -83,60 +83,20 @@
 				</div>
 			</div>
 
-			{{!-- Prosperity --}}
-			<div class="steading-stat-block">
-				<div class="steading-stat-label-row">
-					<span class="steading-stat-label">Prosperity</span>
-					<span class="steading-stat-hint">Starts at +0</span>
-				</div>
-				<div class="steading-track">
-					{{#each (steadingTrack stonetop.system.attributes.prosperity.value 0)}}
-					<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
-						<input type="radio" name="system.attributes.prosperity.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.editMode}}disabled{{/unless}}>
-						<span class="steading-track-label">{{label}}</span>
-					</label>
-					{{/each}}
-				</div>
-			</div>
-
-			{{!-- Debilities + Currency (stacked column) --}}
-			<div class="steading-statsbar-col">
-				<div class="steading-debilities-section steading-stat-block">
-					<span class="steading-section-label">Debilities</span>
-					<div class="steading-debilities">
-						<div class="steading-debility">
-							<label class="steading-debility-control"
-							       data-tooltip="Disadvantage to Deploy, Muster, or Pull Together"
-							       data-tooltip-direction="UP">
-								<input type="checkbox" class="steading-debility-check"
-								       name="system.attributes.debilities.options.diminished.value"
-								       {{#if stonetop.system.attributes.debilities.options.diminished.value}}checked{{/if}}>
-								<span class="steading-debility-name"><em>diminished</em></span>
-							</label>
-							<span class="steading-debility-desc">by injury/sickness/doubt</span>
-						</div>
-						<div class="steading-debility">
-							<label class="steading-debility-control"
-							       data-tooltip="Treat Prosperity as if it's 1 lower than it is"
-							       data-tooltip-direction="UP">
-								<input type="checkbox" class="steading-debility-check"
-								       name="system.attributes.debilities.options.lacking.value"
-								       {{#if stonetop.system.attributes.debilities.options.lacking.value}}checked{{/if}}>
-								<span class="steading-debility-name"><em>lacking</em></span>
-							</label>
-							<span class="steading-debility-desc">due to shortages/hoarding/distrust</span>
-						</div>
-						<div class="steading-debility">
-							<label class="steading-debility-control"
-							       data-tooltip="Fortunes reset to +0 each season, not +1; folks need Persuading more often"
-							       data-tooltip-direction="UP">
-								<input type="checkbox" class="steading-debility-check"
-								       name="system.attributes.debilities.options.malcontent.value"
-								       {{#if stonetop.system.attributes.debilities.options.malcontent.value}}checked{{/if}}>
-								<span class="steading-debility-name"><em>malcontent</em></span>
-							</label>
-							<span class="steading-debility-desc">from fear/anger/despair</span>
-						</div>
+			{{!-- Prosperity over Currency --}}
+			<div class="steading-statsbar-col steading-prosperity-col">
+				<div class="steading-stat-block">
+					<div class="steading-stat-label-row">
+						<span class="steading-stat-label">Prosperity</span>
+						<span class="steading-stat-hint">Starts at +0</span>
+					</div>
+					<div class="steading-track">
+						{{#each (steadingTrack stonetop.system.attributes.prosperity.value 0)}}
+						<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
+							<input type="radio" name="system.attributes.prosperity.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.editMode}}disabled{{/unless}}>
+							<span class="steading-track-label">{{label}}</span>
+						</label>
+						{{/each}}
 					</div>
 				</div>
 				<div class="steading-currency-section steading-stat-block">
@@ -173,6 +133,92 @@
 								       value="{{stonetop.gold.coins}}" min="0">
 							</label>
 						</div>
+					</div>
+				</div>
+			</div>
+
+			{{!-- Defenses/Fortifications --}}
+			<div class="steading-defense-debility-group">
+				<div class="steading-statsbar-pair steading-defense-fortification-col">
+					<div class="steading-stat-block steading-defense-track-block">
+						<div class="steading-stat-label-row">
+							<span class="steading-stat-label">Defenses</span>
+							<span class="steading-stat-hint">Starts at +0</span>
+						</div>
+						<div class="steading-track">
+							{{#each (steadingDefenseTrack stonetop.system.stats.defenses.value 0)}}
+							<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
+								<input type="radio" name="system.stats.defenses.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.editMode}}disabled{{/unless}}>
+								<span class="steading-track-label">{{label}}</span>
+								<span class="steading-track-sublabel">{{sublabel}}</span>
+							</label>
+							{{/each}}
+						</div>
+					</div>
+					<div class="steading-stat-block steading-fortifications-block">
+						<h3 class="steading-list-heading">Fortifications, etc.</h3>
+						<ul class="steading-list">
+							{{#each stonetop.fortifications}}
+							{{#if name}}
+							<li class="steading-list-item{{#if checked}} is-checked{{/if}}">
+								<label class="steading-list-check-label">
+									<input type="checkbox" class="steading-list-check"
+									       data-list="fortifications" data-index="{{@index}}"
+									       {{#if checked}}checked{{/if}}>
+								</label>
+								<span class="steading-list-name">{{name}}</span>
+								<button type="button" class="steading-list-delete"
+								        data-list="fortifications" data-index="{{@index}}"
+								        title="Remove" tabindex="-1">
+									<i class="fas fa-times"></i>
+								</button>
+							</li>
+							{{/if}}
+							{{/each}}
+						</ul>
+						<button type="button" class="steading-list-add" data-list="fortifications">
+							<i class="fas fa-plus"></i> Add Fortification
+						</button>
+					</div>
+				</div>
+			</div>
+
+			{{!-- Debilities --}}
+			<div class="steading-debilities-section steading-stat-block steading-debilities-section--full-row">
+				<span class="steading-section-label">Debilities</span>
+				<div class="steading-debilities">
+					<div class="steading-debility">
+						<label class="steading-debility-control"
+						       data-tooltip="Disadvantage to Deploy, Muster, or Pull Together"
+						       data-tooltip-direction="UP">
+							<input type="checkbox" class="steading-debility-check"
+							       name="system.attributes.debilities.options.diminished.value"
+							       {{#if stonetop.system.attributes.debilities.options.diminished.value}}checked{{/if}}>
+							<span class="steading-debility-name"><em>diminished</em></span>
+						</label>
+						<span class="steading-debility-desc">by injury/sickness/doubt</span>
+					</div>
+					<div class="steading-debility">
+						<label class="steading-debility-control"
+						       data-tooltip="Treat Prosperity as if it's 1 lower than it is"
+						       data-tooltip-direction="UP">
+							<input type="checkbox" class="steading-debility-check"
+							       name="system.attributes.debilities.options.lacking.value"
+							       {{#if stonetop.system.attributes.debilities.options.lacking.value}}checked{{/if}}>
+							<span class="steading-debility-name"><em>lacking</em></span>
+						</label>
+						<span class="steading-debility-desc">due to shortages/hoarding/distrust</span>
+					</div>
+					<div class="steading-debility">
+						<label class="steading-debility-control"
+						       data-tooltip="Fortunes reset to +0 each season, not +1; folks need Persuading more often"
+						       data-tooltip-direction="UP">
+							<input type="checkbox" class="steading-debility-check"
+							       name="system.attributes.debilities.options.malcontent.value"
+							       {{#if stonetop.system.attributes.debilities.options.malcontent.value}}checked{{/if}}>
+							<span class="steading-debility-name"><em>malcontent</em></span>
+						</label>
+						<span class="steading-debility-desc">from fear/anger/despair</span>
 					</div>
 				</div>
 			</div>

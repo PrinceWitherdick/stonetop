@@ -84,10 +84,21 @@
 			{{#if stonetop.playbook.instinct.hasSelection}}
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.instinct.label")}}
 			{{#if stonetop.playbook.instinct.selected}}
-			<p class="stonetop-details-readonly-value">{{stonetop.playbook.instinct.selected}}</p>
+			<div class="stonetop-item is-checked">
+				<div class="stonetop-item-header">
+					<strong class="stonetop-item-name">{{stonetop.playbook.instinct.selected}}</strong>
+				</div>
+			</div>
 			{{else}}
 			{{#each stonetop.playbook.instinct.options}}
-			{{#if selected}}<p class="stonetop-details-readonly-value">{{word}}</p>{{/if}}
+			{{#if selected}}
+			<div class="stonetop-item is-checked">
+				<div class="stonetop-item-header">
+					<strong class="stonetop-item-name">{{word}}</strong>
+				</div>
+				<div class="stonetop-item-description">{{description}}</div>
+			</div>
+			{{/if}}
 			{{/each}}
 			{{/if}}
 			{{/if}}
@@ -102,12 +113,14 @@
 			{{#each stonetop.playbook.appearance.options}}
 			<div class="stonetop-appearance-row">
 				{{#each options}}
-				<label class="stonetop-appearance-option">
-					<input type="radio" class="stonetop-item-check stonetop-appearance-radio"
-					       name="stonetop-appearance-{{../lineIdx}}"
-					       data-line="{{../lineIdx}}"
-					       value="{{value}}"{{#if selected}} checked{{/if}}>
-					{{value}}
+				<label class="stonetop-item stonetop-appearance-option{{#if selected}} is-checked{{/if}}">
+					<div class="stonetop-item-header">
+						<input type="radio" class="stonetop-item-check stonetop-appearance-radio"
+						       name="stonetop-appearance-{{../lineIdx}}"
+						       data-line="{{../lineIdx}}"
+						       value="{{value}}"{{#if selected}} checked{{/if}}>
+						<strong class="stonetop-item-name">{{value}}</strong>
+					</div>
 				</label>
 				{{/each}}
 			</div>
@@ -115,9 +128,17 @@
 			{{else}}
 			{{#if stonetop.playbook.appearance.summary}}
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.appearance.label")}}
-			<div class="stonetop-appearance-readonly">
+			<div class="stonetop-appearance-readonly-list">
 				{{#each stonetop.playbook.appearance.options}}
-				<span class="stonetop-appearance-readonly-value">{{#each options}}{{#if selected}}{{value}}{{/if}}{{/each}}</span>
+				{{#each options}}
+				{{#if selected}}
+				<div class="stonetop-item is-checked stonetop-appearance-readonly-item">
+					<div class="stonetop-item-header">
+						<strong class="stonetop-item-name">{{value}}</strong>
+					</div>
+				</div>
+				{{/if}}
+				{{/each}}
 				{{/each}}
 			</div>
 			{{/if}}
@@ -130,11 +151,11 @@
 			{{#if stonetop.editMode}}
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.origin.label") note=(localize "stonetop.character.selection.origin.instruction")}}
 			{{#each stonetop.playbook.origin.options}}
-			<div class="stonetop-origin-option{{#if selected}} selected{{/if}}">
-				<label class="stonetop-origin-region">
+			<div class="stonetop-item stonetop-origin-option{{#if selected}} is-checked selected{{/if}}">
+				<label class="stonetop-item-header stonetop-origin-region">
 					<input type="radio" class="stonetop-item-check" name="stonetop-origin"
 					       value="{{region}}"{{#if selected}} checked{{/if}}>
-					<strong>{{region}}</strong>
+					<strong class="stonetop-item-name">{{region}}</strong>
 				</label>
 				<div class="stonetop-origin-names">
 					{{#each names}}
@@ -154,9 +175,16 @@
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.origin.label")}}
 			{{#each stonetop.playbook.origin.options}}
 			{{#if selected}}
-			<p class="stonetop-details-readonly-value">
-				<strong>{{region}}</strong>{{#each names}}{{#if checked}} — {{name}}{{/if}}{{/each}}
-			</p>
+			<div class="stonetop-item is-checked stonetop-origin-readonly">
+				<div class="stonetop-item-header">
+					<strong class="stonetop-item-name">{{region}}</strong>
+				</div>
+				{{#each names}}
+				{{#if checked}}
+				<div class="stonetop-item-description">{{name}}</div>
+				{{/if}}
+				{{/each}}
+			</div>
 			{{/if}}
 			{{/each}}
 			{{/if}}

@@ -31,4 +31,21 @@ describe("StonetopSteading", () => {
 			"flags.stonetop.steading.system.attributes.prosperity.value": 2,
 		});
 	});
+
+	it("marks improvements as earned when completed or requirement progress exists", async () => {
+		const actor = makeSteadingActor({
+			steadingFlags: {
+				improvements: {
+					standingWatch: { completed: true, r: [] },
+					palisade: { completed: false, r: [true] },
+				},
+			},
+		});
+		const snapshot = await new StonetopSteading(actor).buildSnapshot();
+		const bySlug = Object.fromEntries(snapshot.improvements.map(imp => [imp.slug, imp]));
+
+		expect(bySlug.standingWatch.earned).toBe(true);
+		expect(bySlug.palisade.earned).toBe(true);
+		expect(bySlug.weaponsOfWar.earned).toBe(false);
+	});
 });

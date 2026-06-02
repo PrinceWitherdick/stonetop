@@ -9,7 +9,7 @@
 				<ul class="steading-list">
 					{{#each stonetop.resources}}
 					{{#if name}}
-					<li class="steading-list-item">
+					<li class="steading-list-item{{#if checked}} is-checked{{/if}}">
 						<label class="steading-list-check-label">
 							<input type="checkbox" class="steading-list-check"
 							       data-list="resources" data-index="{{@index}}"
@@ -36,7 +36,7 @@
 				<ul class="steading-list">
 					{{#each stonetop.fortifications}}
 					{{#if name}}
-					<li class="steading-list-item">
+					<li class="steading-list-item{{#if checked}} is-checked{{/if}}">
 						<label class="steading-list-check-label">
 							<input type="checkbox" class="steading-list-check"
 							       data-list="fortifications" data-index="{{@index}}"
@@ -67,7 +67,7 @@
 			<ul class="steading-list steading-assets-list">
 				{{#each stonetop.assets}}
 				{{#if name}}
-				<li class="steading-list-item">
+				<li class="steading-list-item{{#if checked}} is-checked{{/if}}">
 					<label class="steading-list-check-label">
 						<input type="checkbox" class="steading-list-check"
 						       data-list="assets" data-index="{{@index}}"
@@ -89,44 +89,6 @@
 		</div>
 
 		<div class="steading-resources-lower">
-
-			{{!-- Currency --}}
-			<div class="steading-currency-section">
-				<div class="steading-currency-group">
-					<h3 class="steading-list-heading">Silver</h3>
-					<div class="steading-currency-row">
-						<label class="steading-currency-label">Purses
-							<input type="number" class="steading-currency-input" data-currency="silver" data-field="purses"
-							       value="{{stonetop.silver.purses}}" min="0">
-						</label>
-						<label class="steading-currency-label">Handfuls
-							<input type="number" class="steading-currency-input" data-currency="silver" data-field="handfuls"
-							       value="{{stonetop.silver.handfuls}}" min="0">
-						</label>
-						<label class="steading-currency-label">Coins
-							<input type="number" class="steading-currency-input" data-currency="silver" data-field="coins"
-							       value="{{stonetop.silver.coins}}" min="0">
-						</label>
-					</div>
-				</div>
-				<div class="steading-currency-group">
-					<h3 class="steading-list-heading">Gold</h3>
-					<div class="steading-currency-row">
-						<label class="steading-currency-label">Purses
-							<input type="number" class="steading-currency-input" data-currency="gold" data-field="purses"
-							       value="{{stonetop.gold.purses}}" min="0">
-						</label>
-						<label class="steading-currency-label">Handfuls
-							<input type="number" class="steading-currency-input" data-currency="gold" data-field="handfuls"
-							       value="{{stonetop.gold.handfuls}}" min="0">
-						</label>
-						<label class="steading-currency-label">Coins
-							<input type="number" class="steading-currency-input" data-currency="gold" data-field="coins"
-							       value="{{stonetop.gold.coins}}" min="0">
-						</label>
-					</div>
-				</div>
-			</div>
 
 			{{!-- Places of Interest --}}
 			<div class="steading-places-section">
