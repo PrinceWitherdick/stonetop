@@ -9,8 +9,18 @@
 
 		<div class="steading-stats-bar{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}">
 
-			{{!-- Fortunes stacked on Surplus --}}
+			{{!-- Surplus stacked on Fortunes --}}
 			<div class="steading-statsbar-pair">
+				<div class="steading-surplus-block">
+					<label class="steading-stat-label">Surplus</label>
+					<span class="steading-stat-hint">Starts at 1</span>
+					{{#if stonetop.editMode}}
+					<input class="steading-surplus-input" type="number" name="system.attributes.surplus.value"
+					       value="{{stonetop.system.attributes.surplus.value}}" min="0" max="99">
+					{{else}}
+					<span class="steading-surplus-value">{{stonetop.system.attributes.surplus.value}}</span>
+					{{/if}}
+				</div>
 				<div class="steading-stat-block">
 					<div class="steading-stat-label-row">
 						<span class="steading-stat-label">Fortunes</span>
@@ -24,16 +34,6 @@
 						</label>
 						{{/each}}
 					</div>
-				</div>
-				<div class="steading-surplus-block">
-					<label class="steading-stat-label">Surplus</label>
-					<span class="steading-stat-hint">Starts at 1</span>
-					{{#if stonetop.editMode}}
-					<input class="steading-surplus-input" type="number" name="system.attributes.surplus.value"
-					       value="{{stonetop.system.attributes.surplus.value}}" min="0" max="99">
-					{{else}}
-					<span class="steading-surplus-value">{{stonetop.system.attributes.surplus.value}}</span>
-					{{/if}}
 				</div>
 			</div>
 
@@ -79,6 +79,52 @@
 							<span class="steading-track-label">{{label}}</span>
 						</label>
 						{{/each}}
+					</div>
+				</div>
+			</div>
+
+			{{!-- Defenses/Fortifications --}}
+			<div class="steading-defense-debility-group">
+				<div class="steading-statsbar-pair steading-defense-fortification-col">
+					<div class="steading-stat-block steading-defense-track-block">
+						<div class="steading-stat-label-row">
+							<span class="steading-stat-label">Defenses</span>
+							<span class="steading-stat-hint">Starts at +0</span>
+						</div>
+						<div class="steading-track">
+							{{#each (steadingDefenseTrack stonetop.system.stats.defenses.value 0)}}
+							<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
+								<input type="radio" name="system.stats.defenses.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.editMode}}disabled{{/unless}}>
+								<span class="steading-track-label">{{label}}</span>
+								<span class="steading-track-sublabel">{{sublabel}}</span>
+							</label>
+							{{/each}}
+						</div>
+					</div>
+					<div class="steading-stat-block steading-fortifications-block">
+						<h3 class="steading-list-heading">Fortifications, etc.</h3>
+						<ul class="steading-list">
+							{{#each stonetop.fortifications}}
+							{{#if name}}
+							<li class="steading-list-item{{#if checked}} is-checked{{/if}}">
+								<label class="steading-list-check-label">
+									<input type="checkbox" class="steading-list-check"
+									       data-list="fortifications" data-index="{{@index}}"
+									       {{#if checked}}checked{{/if}}>
+								</label>
+								<span class="steading-list-name">{{name}}</span>
+								<button type="button" class="steading-list-delete"
+								        data-list="fortifications" data-index="{{@index}}"
+								        title="Remove" tabindex="-1">
+									<i class="fas fa-times"></i>
+								</button>
+							</li>
+							{{/if}}
+							{{/each}}
+						</ul>
+						<button type="button" class="steading-list-add" data-list="fortifications">
+							<i class="fas fa-plus"></i> Add Fortification
+						</button>
 					</div>
 				</div>
 			</div>
@@ -133,52 +179,6 @@
 								       value="{{stonetop.gold.coins}}" min="0">
 							</label>
 						</div>
-					</div>
-				</div>
-			</div>
-
-			{{!-- Defenses/Fortifications --}}
-			<div class="steading-defense-debility-group">
-				<div class="steading-statsbar-pair steading-defense-fortification-col">
-					<div class="steading-stat-block steading-defense-track-block">
-						<div class="steading-stat-label-row">
-							<span class="steading-stat-label">Defenses</span>
-							<span class="steading-stat-hint">Starts at +0</span>
-						</div>
-						<div class="steading-track">
-							{{#each (steadingDefenseTrack stonetop.system.stats.defenses.value 0)}}
-							<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
-								<input type="radio" name="system.stats.defenses.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.editMode}}disabled{{/unless}}>
-								<span class="steading-track-label">{{label}}</span>
-								<span class="steading-track-sublabel">{{sublabel}}</span>
-							</label>
-							{{/each}}
-						</div>
-					</div>
-					<div class="steading-stat-block steading-fortifications-block">
-						<h3 class="steading-list-heading">Fortifications, etc.</h3>
-						<ul class="steading-list">
-							{{#each stonetop.fortifications}}
-							{{#if name}}
-							<li class="steading-list-item{{#if checked}} is-checked{{/if}}">
-								<label class="steading-list-check-label">
-									<input type="checkbox" class="steading-list-check"
-									       data-list="fortifications" data-index="{{@index}}"
-									       {{#if checked}}checked{{/if}}>
-								</label>
-								<span class="steading-list-name">{{name}}</span>
-								<button type="button" class="steading-list-delete"
-								        data-list="fortifications" data-index="{{@index}}"
-								        title="Remove" tabindex="-1">
-									<i class="fas fa-times"></i>
-								</button>
-							</li>
-							{{/if}}
-							{{/each}}
-						</ul>
-						<button type="button" class="steading-list-add" data-list="fortifications">
-							<i class="fas fa-plus"></i> Add Fortification
-						</button>
 					</div>
 				</div>
 			</div>
