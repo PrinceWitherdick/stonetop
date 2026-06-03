@@ -16,7 +16,7 @@ export class StonetopFlags {
 
 	getFlag(key) {
 		return this._actor.getFlag(_scope, this.buildKey(key))
-			?? this._actor.getFlag(LEGACY_STONETOP_SCOPE, this.buildKey(key));
+			?? this._actor.flags?.[LEGACY_STONETOP_SCOPE]?.[this.buildKey(key)];
 	}
 
 	async setFlag(key, value) {

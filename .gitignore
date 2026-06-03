@@ -2,19 +2,8 @@
 node_modules/
 
 # Compiled compendium packs — source of truth is packs/src/
-packs/basic-moves/
-packs/playbooks/
-packs/special-moves/
-packs/playbook-moves/
-packs/follower-moves/
-packs/homefront-moves/
-packs/inventory-items/
-packs/arcana/
-packs/post-death-inserts/
-packs/post-death-moves/
-
-# Temp directory used during pack compilation
-packs/.tmp/
+packs/*/
+!packs/src/
 
 Handout_-_Setting_Overview.pdf
 stonetop_inserts.pdf
