@@ -42,7 +42,7 @@
 						{{#if hasOptions}}
 						<div class="stonetop-onboarding-background-choice-options">
 							{{#each options}}
-							<span class="stonetop-onboarding-background-choice-option{{#if selected}} is-selected{{/if}}">
+							<span class="stonetop-onboarding-bg-option stonetop-onboarding-background-choice-option{{#if selected}} is-selected{{/if}}">
 								<input type="radio"
 								       name="onboard-background-move-choice-{{../key}}"
 								       value="{{value}}"
@@ -68,7 +68,7 @@
 						<p class="stonetop-onboarding-background-setup-label">{{label}}</p>
 						<div class="stonetop-onboarding-background-choice-options">
 							{{#each options}}
-							<span class="stonetop-onboarding-background-setup-option{{#if selected}} is-selected{{/if}}">
+							<span class="stonetop-onboarding-bg-option stonetop-onboarding-background-setup-option{{#if selected}} is-selected{{/if}}">
 								<input type="radio"
 								       name="onboard-background-setup-choice-{{../key}}"
 								       value="{{value}}"
@@ -109,7 +109,7 @@
 						<p class="stonetop-onboarding-background-setup-label">{{label}} ({{selectedCount}}/{{count}})</p>
 						<div class="stonetop-onboarding-background-choice-options">
 							{{#each options}}
-							<span class="stonetop-onboarding-background-neighbor-option{{#if selected}} is-selected{{/if}}">
+							<span class="stonetop-onboarding-bg-option stonetop-onboarding-background-neighbor-option{{#if selected}} is-selected{{/if}}">
 								<input type="checkbox"
 								       name="onboard-background-neighbor-pick-{{../key}}"
 								       value="{{value}}"

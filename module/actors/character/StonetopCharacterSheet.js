@@ -5,7 +5,7 @@ import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
-import {resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {rollDamage} from "../../utils/roll-engine.js";
 import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
@@ -1716,7 +1716,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				return;
 			}
 			const stonetopSteading = steadingActor.typedActor ?? new StonetopSteading(steadingActor);
-			const flags = steadingActor.getFlag?.("stonetop", "steading") ?? {};
+			const flags = resolvedFlagProperty(steadingActor, "steading") ?? {};
 			const neighbors = foundry.utils.deepClone(flags.neighbors ?? STEADING_DEFAULTS.neighbors);
 			const keyFor = neighbor => `${String(neighbor.name ?? "").trim().toLowerCase()}|${String(neighbor.origin ?? "").trim().toLowerCase()}`;
 
@@ -1826,11 +1826,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!resource.key) continue;
 				backgroundSetupResources[resource.key] = existingSetupResources[resource.key] ?? resource.value ?? 0;
 			}
-			if (Object.keys(backgroundSetupResources).length) {
-				await this.actor.setFlag("stonetop_pwd", "background.setupResources", backgroundSetupResources);
-			} else {
-				await this.actor.unsetFlag("stonetop_pwd", "background.setupResources");
-			}
 			const backgroundSetupTexts = {};
 			for (const text of (backgroundSetup?.texts ?? [])) {
 				const value = selections.backgroundSetup?.texts?.[text.key]?.trim();
@@ -1840,16 +1835,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			for (const choice of (backgroundSetup?.choices ?? [])) {
 				const value = selections.backgroundSetup?.choices?.[choice.key];
 				if (value) backgroundSetupChoices[choice.key] = value;
-			}
-			if (Object.keys(backgroundSetupChoices).length) {
-				await this.actor.setFlag("stonetop_pwd", "background.setupChoices", backgroundSetupChoices);
-			} else {
-				await this.actor.unsetFlag("stonetop_pwd", "background.setupChoices");
-			}
-			if (Object.keys(backgroundSetupTexts).length) {
-				await this.actor.setFlag("stonetop_pwd", "background.setupTexts", backgroundSetupTexts);
-			} else {
-				await this.actor.unsetFlag("stonetop_pwd", "background.setupTexts");
 			}
 			const backgroundNeighborTraits = {};
 			for (const neighbor of (backgroundSetup?.neighbors ?? [])) {
@@ -1861,16 +1846,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				const values = selections.backgroundSetup?.neighborPicks?.[choice.key] ?? [];
 				if (values.length) backgroundNeighborPicks[choice.key] = values;
 			}
-			if (Object.keys(backgroundNeighborTraits).length) {
-				await this.actor.setFlag("stonetop_pwd", "background.neighborTraits", backgroundNeighborTraits);
-			} else {
-				await this.actor.unsetFlag("stonetop_pwd", "background.neighborTraits");
-			}
-			if (Object.keys(backgroundNeighborPicks).length) {
-				await this.actor.setFlag("stonetop_pwd", "background.neighborPicks", backgroundNeighborPicks);
-			} else {
-				await this.actor.unsetFlag("stonetop_pwd", "background.neighborPicks");
-			}
+			// Batch all background-setup flag writes into a single round-trip.
+			await this._batchFlagSetOrUnset({
+				"background.setupResources":  backgroundSetupResources,
+				"background.setupChoices":    backgroundSetupChoices,
+				"background.setupTexts":      backgroundSetupTexts,
+				"background.neighborTraits":  backgroundNeighborTraits,
+				"background.neighborPicks":   backgroundNeighborPicks,
+			});
 			await this._applyBackgroundNeighbors(backgroundSetup, selections);
 			const backgroundAnswers = {};
 			for (const choice of (selectedBackground?.moveChoices ?? [])) {
@@ -1879,41 +1862,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				const answer = selections.backgroundChoices?.[key];
 				if (answer?.value) backgroundAnswers[key] = answer;
 			}
-			if (Object.keys(backgroundAnswers).length) {
-				await this.actor.setFlag("stonetop_pwd", "moves.backgroundAnswers", backgroundAnswers);
-			} else {
-				await this.actor.unsetFlag("stonetop_pwd", "moves.backgroundAnswers");
-			}
-			// -- Insert: Invocations (Lightbearer) ------------------
-			if (selections.invocations?.length) {
-				await this.actor.setFlag("stonetop_pwd", "invocations.selected", selections.invocations);
-			}
 			// -- Insert: Initiates of Danu (Blessed + Initiate bg) --
 			for (const slug of (selections.initiates ?? [])) {
 				await this._stonetopCharacter.background.addChoice({ slug, isChecked: true });
-			}
-			if (Object.keys(selections.initiateDetails ?? {}).length) {
-				await this.actor.setFlag("stonetop_pwd", "initiateDetails", selections.initiateDetails);
-			}
-			// -- Insert: Crew (Marshal) ------------------------------
-			if (selections.crew?.instinct || selections.crew?.cost || selections.crew?.tags?.length || selections.crew?.name) {
-				const bgTag  = playbookDoc.flags?.stonetop?.crew?.backgroundTags?.[selections.backgroundSlug] ?? null;
-				const allTags = bgTag ? [bgTag, ...selections.crew.tags] : [...selections.crew.tags];
-				await this.actor.setFlag("stonetop_pwd", "crew.name",     selections.crew.name?.trim() ?? "");
-				await this.actor.setFlag("stonetop_pwd", "crew.tags",     allTags);
-				await this.actor.setFlag("stonetop_pwd", "crew.instinct", selections.crew.instinct ?? "");
-				await this.actor.setFlag("stonetop_pwd", "crew.cost",     selections.crew.cost     ?? "");
-			}
-			// -- Insert: Animal Companion (Ranger) ------------------
-			if (selections.animalCompanion?.type) {
-				const ac = selections.animalCompanion;
-				await this.actor.setFlag("stonetop_pwd", "animalCompanion.type",     ac.type);
-				await this.actor.setFlag("stonetop_pwd", "animalCompanion.traits",   ac.traits);
-				await this.actor.setFlag("stonetop_pwd", "animalCompanion.instinct", ac.instinct ?? "");
-				await this.actor.setFlag("stonetop_pwd", "animalCompanion.cost",     ac.cost     ?? "");
-				if (ac.name?.trim()) {
-					await this.actor.setFlag("stonetop_pwd", "animalCompanion.name", ac.name.trim());
-				}
 			}
 			// -- Insert: Seeker arcana -------------------------------
 			const masteredMinor = selections.arcana?.minorRoles?.mastered ?? null;
@@ -1945,17 +1896,51 @@ export function createStonetopCharacterSheetClass(Base) {
 					}
 				}
 			}
+			// Batch remaining flag writes (answers, invocations, crew, companion, arcana) into one round-trip.
+			const flagUpd = {};
+			const f = key => `flags.${STONETOP_SCOPE}.${key}`;
+			if (Object.keys(backgroundAnswers).length)             flagUpd[f("moves.backgroundAnswers")]    = backgroundAnswers;
+			if (selections.invocations?.length)                    flagUpd[f("invocations.selected")]       = selections.invocations;
+			if (Object.keys(selections.initiateDetails ?? {}).length) flagUpd[f("initiateDetails")]         = selections.initiateDetails;
+			// -- Insert: Crew (Marshal) ------------------------------
+			if (selections.crew?.instinct || selections.crew?.cost || selections.crew?.tags?.length || selections.crew?.name) {
+				const bgTag  = playbookDoc.flags?.[ITEM_FLAG_SCOPE]?.crew?.backgroundTags?.[selections.backgroundSlug] ?? null;
+				const allTags = bgTag ? [bgTag, ...selections.crew.tags] : [...selections.crew.tags];
+				flagUpd[f("crew.name")]     = selections.crew.name?.trim() ?? "";
+				flagUpd[f("crew.tags")]     = allTags;
+				flagUpd[f("crew.instinct")] = selections.crew.instinct ?? "";
+				flagUpd[f("crew.cost")]     = selections.crew.cost     ?? "";
+			}
+			// -- Insert: Animal Companion (Ranger) ------------------
+			if (selections.animalCompanion?.type) {
+				const ac = selections.animalCompanion;
+				flagUpd[f("animalCompanion.type")]     = ac.type;
+				flagUpd[f("animalCompanion.traits")]   = ac.traits;
+				flagUpd[f("animalCompanion.instinct")] = ac.instinct ?? "";
+				flagUpd[f("animalCompanion.cost")]     = ac.cost     ?? "";
+				if (ac.name?.trim()) flagUpd[f("animalCompanion.name")] = ac.name.trim();
+			}
 			// -- Seeker: arcana selections -----------------------------
-			if (selections.arcana?.major) {
-				await this.actor.setFlag("stonetop_pwd", "arcana.major",      selections.arcana.major);
-			}
-			if (selections.arcana?.minorDraw?.length) {
-				await this.actor.setFlag("stonetop_pwd", "arcana.minorDraw",  selections.arcana.minorDraw);
-			}
-			if (selections.arcana?.minorRoles) {
-				await this.actor.setFlag("stonetop_pwd", "arcana.minorRoles", selections.arcana.minorRoles);
-			}
+			if (selections.arcana?.major)             flagUpd[f("arcana.major")]      = selections.arcana.major;
+			if (selections.arcana?.minorDraw?.length)  flagUpd[f("arcana.minorDraw")]  = selections.arcana.minorDraw;
+			if (selections.arcana?.minorRoles)         flagUpd[f("arcana.minorRoles")] = selections.arcana.minorRoles;
+			if (Object.keys(flagUpd).length) await this.actor.update(flagUpd);
 			this.render(false);
+		}
+
+		// Builds a single actor.update() from a {flagKey: valueObj} map.
+		// Each entry is set when the object is non-empty, unset otherwise.
+		async _batchFlagSetOrUnset(entries) {
+			const upd = {};
+			for (const [key, obj] of Object.entries(entries)) {
+				if (Object.keys(obj).length) {
+					upd[`flags.${STONETOP_SCOPE}.${key}`] = obj;
+				} else {
+					const parts = key.split(".");
+					upd[`flags.${STONETOP_SCOPE}.${parts.slice(0, -1).join(".")}.-=${parts.at(-1)}`] = null;
+				}
+			}
+			if (Object.keys(upd).length) await this.actor.update(upd);
 		}
 	};
 }

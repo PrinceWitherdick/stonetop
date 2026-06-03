@@ -87,28 +87,28 @@ Hooks.once("init", () => {
 	CONFIG.Item.documentClass  = createStonetopItemClass(CONFIG.Item.documentClass);
 
 	const StonetopCharacterSheet = createStonetopCharacterSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop", StonetopCharacterSheet, {
+	Actors.registerSheet("stonetop_pwd", StonetopCharacterSheet, {
 		types:       ["character"],
 		makeDefault: true,
 		label:       "Stonetop Character Sheet",
 	});
 
 	const StonetopSteadingSheet = createStonetopSteadingSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop", StonetopSteadingSheet, {
+	Actors.registerSheet("stonetop_pwd", StonetopSteadingSheet, {
 		types:       ["stonetop"],
 		makeDefault: true,
 		label:       "Stonetop Steading Sheet",
 	});
 
 	const StonetopNpcSheet = createStonetopNpcSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop", StonetopNpcSheet, {
+	Actors.registerSheet("stonetop_pwd", StonetopNpcSheet, {
 		types:       ["npc"],
 		makeDefault: true,
 		label:       "Stonetop NPC Sheet",
 	});
 
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
-	Items.registerSheet("stonetop", StonetopArcanumSheet, {
+	Items.registerSheet("stonetop_pwd", StonetopArcanumSheet, {
 		types:       ["move"],
 		makeDefault: false,
 		label:       "Stonetop Arcanum",
@@ -210,7 +210,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 
 	if (!actor || actor.type !== "character" || !actor.isOwner) return;
 
-	const alreadyBurned = message.getFlag("stonetop", "burnBrightly") ?? false;
+	const alreadyBurned = message.getFlag("stonetop_pwd", "burnBrightly") ?? false;
 	const xp    = actor.system?.attributes?.xp?.value    ?? 0;
 	const level = actor.system?.attributes?.level?.value ?? 1;
 	const canAfford = xp >= 6 + 2 * level;
@@ -271,7 +271,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 			await roll._evaluate();
 
 			const speakerUpdate = playbookName ? { alias: `${actor.name} ${playbookName}` } : {};
-			await message.update({ rolls, speaker: { ...message.speaker, ...speakerUpdate }, flags: { stonetop: { burnBrightly: true } } });
+			await message.update({ rolls, speaker: { ...message.speaker, ...speakerUpdate }, flags: { stonetop_pwd: { burnBrightly: true } } });
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
 			btn.disabled = false;

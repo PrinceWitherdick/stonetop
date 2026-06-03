@@ -1,15 +1,8 @@
-/**
- * Raw data for a post-death insert, read from the compendium document.
- * @property {string}   slug
- * @property {string}   name
- * @property {string|null} img
- * @property {string|null} description - trigger text ("When you die but...")
- * @property {object[]} instincts       - raw instinct option objects from flags.stonetop
- * @property {object[]} lore            - raw lore entry objects from flags.stonetop
- */
+import {ITEM_FLAG_SCOPE} from "../actors/character/StonetopFlags.js";
+
 export class PostDeathInsertData {
 	constructor(doc) {
-		const flags      = doc.flags?.stonetop ?? {};
+		const flags      = doc.flags?.[ITEM_FLAG_SCOPE] ?? {};
 		this.slug        = doc.system?.slug ?? "";
 		this.name        = doc.name         ?? "";
 		this.img         = doc.img          ?? null;

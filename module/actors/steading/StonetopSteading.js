@@ -1,4 +1,4 @@
-import {resolvedFlagProperty} from "../character/StonetopFlags.js";
+import {resolvedFlagProperty, STONETOP_SCOPE} from "../character/StonetopFlags.js";
 
 export const IMPROVEMENT_DEFINITIONS = [
 	// ── Page 2 ──────────────────────────────────────────────────
@@ -463,7 +463,7 @@ export class StonetopSteading {
 	async setFlags(updates) {
 		const current = foundry.utils.deepClone(this._flags);
 		const merged = { ...current, ...updates };
-		await this._actor.setFlag("stonetop_pwd", "steading", merged);
+		await this._actor.setFlag(STONETOP_SCOPE, "steading", merged);
 	}
 
 	getSystemValue(path, defaultValue = 0) {
@@ -473,7 +473,7 @@ export class StonetopSteading {
 	async setSystemValue(path, value) {
 		await this._actor.update({
 			[`system.${path}`]: value,
-			[`flags.stonetop_pwd.steading.system.${path}`]: value,
+			[`flags.${STONETOP_SCOPE}.steading.system.${path}`]: value,
 		});
 	}
 

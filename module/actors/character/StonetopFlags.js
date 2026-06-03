@@ -1,4 +1,8 @@
-const _scope = "stonetop_pwd";
+export const STONETOP_SCOPE = "stonetop_pwd";
+// Compendium item documents store their custom flags under the original system ID.
+// This intentionally differs from STONETOP_SCOPE (actor flags).
+export const ITEM_FLAG_SCOPE = "stonetop";
+const _scope = STONETOP_SCOPE;
 
 export class StonetopFlags {
 	_namespace;

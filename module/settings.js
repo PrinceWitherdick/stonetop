@@ -3,7 +3,7 @@ export function registerSettings() {
 
 	// Tracks the last loaded module version.
 	// Used to detect when migrations need to run.
-	game.settings.register("stonetop", "moduleVersion", {
+	game.settings.register("stonetop_pwd", "moduleVersion", {
 		name: "Module Version",
 		scope: "world",
 		config: false,
@@ -13,7 +13,7 @@ export function registerSettings() {
 
 	// Whether the compendium seeding prompt has been dismissed.
 	// Prevents nagging the GM every session if they've already seeded.
-	game.settings.register("stonetop", "seedingComplete", {
+	game.settings.register("stonetop_pwd", "seedingComplete", {
 		name: "Compendium Seeding Complete",
 		scope: "world",
 		config: false,
@@ -25,7 +25,7 @@ export function registerSettings() {
 
 	// Whether move rolls use the actor's saved advantage/disadvantage flag.
 	// When true, moves roll without any roll mode modifier.
-	game.settings.register("stonetop", "hideRollMode", {
+	game.settings.register("stonetop_pwd", "hideRollMode", {
 		name: "stonetop.settings.hideRollMode.name",
 		hint: "stonetop.settings.hideRollMode.hint",
 		scope: "client",
@@ -35,7 +35,7 @@ export function registerSettings() {
 	});
 
 	// Turn debug logging on
-	game.settings.register("stonetop", "debugMode", {
+	game.settings.register("stonetop_pwd", "debugMode", {
 		name: "stonetop.settings.debugMode.name",
 		hint: "stonetop.settings.debugMode.hint",
 		scope: "client",
@@ -46,9 +46,9 @@ export function registerSettings() {
 }
 
 export function getSetting(key) {
-	return game.settings.get("stonetop", key);
+	return game.settings.get("stonetop_pwd", key);
 }
 
 export function setSetting(key, value) {
-	return game.settings.set("stonetop", key, value);
+	return game.settings.set("stonetop_pwd", key, value);
 }

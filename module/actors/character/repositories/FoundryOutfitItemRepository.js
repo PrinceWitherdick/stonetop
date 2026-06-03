@@ -1,13 +1,12 @@
 import { OutfitItemBuilder } from "../../../model/OutfitItem.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
+import { ITEM_FLAG_SCOPE } from "../StonetopFlags.js";
 
 const FIELDS = [
 	"system.moveType",
-	"flags.stonetop.slug", "flags.stonetop.inventoryColumn", "flags.stonetop.sortOrder",
-	"flags.stonetop.weight", "flags.stonetop.note", "flags.stonetop.resource",
-	"flags.stonetop.prosperityResource",
-	"flags.stonetop.breakBefore", "flags.stonetop.smallGrid", "flags.stonetop.twoCol",
-	"flags.stonetop.armor",
+	...["slug", "inventoryColumn", "sortOrder", "weight", "note", "resource",
+	    "prosperityResource", "breakBefore", "smallGrid", "twoCol", "armor"]
+		.map(f => `flags.${ITEM_FLAG_SCOPE}.${f}`),
 ];
 
 export class FoundryOutfitItemRepository {
@@ -20,9 +19,9 @@ export class FoundryOutfitItemRepository {
 		if (this._cache) return this._cache;
 		const entries = await this._store.filterEntries(e => e.system?.moveType === "inventory");
 		this._cache = entries
-			.sort((a, b) => (a.flags?.stonetop?.sortOrder ?? 0) - (b.flags?.stonetop?.sortOrder ?? 0))
+			.sort((a, b) => (a.flags?.[ITEM_FLAG_SCOPE]?.sortOrder ?? 0) - (b.flags?.[ITEM_FLAG_SCOPE]?.sortOrder ?? 0))
 			.map(item => {
-				const st = item.flags?.stonetop ?? {};
+				const st = item.flags?.[ITEM_FLAG_SCOPE] ?? {};
 				return new OutfitItemBuilder()
 					.withSlug(st.slug)
 					.withName(item.name)

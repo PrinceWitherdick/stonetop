@@ -1,9 +1,11 @@
+import {ITEM_FLAG_SCOPE} from "../actors/character/StonetopFlags.js";
+
 export class StonetopPlaybook {
 	_stonetopItem;
 
 	constructor(stonetopItem) {
 		this._stonetopItem = stonetopItem;
-		this._stonetopFields = this._stonetopItem.flags.stonetop;
+		this._stonetopFields = this._stonetopItem.flags[ITEM_FLAG_SCOPE];
 	}
 
 	get crew() {

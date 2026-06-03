@@ -5094,9 +5094,7 @@ body,
 	gap: 6px;
 }
 
-.stonetop-onboarding-background-choice-option,
-.stonetop-onboarding-background-setup-option,
-.stonetop-onboarding-background-neighbor-option {
+.stonetop-onboarding-bg-option {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
@@ -5110,25 +5108,50 @@ body,
 	transition: border-color 0.12s, background 0.12s;
 }
 
-.stonetop-onboarding-background-choice-option:hover,
-.stonetop-onboarding-background-setup-option:hover,
-.stonetop-onboarding-background-neighbor-option:hover {
+.stonetop-onboarding-bg-option:hover {
 	border-color: slategrey;
 }
 
-.stonetop-onboarding-background-choice-option.is-selected,
-.stonetop-onboarding-background-setup-option.is-selected,
-.stonetop-onboarding-background-neighbor-option.is-selected {
+.stonetop-onboarding-bg-option.is-selected {
 	border-color: slategrey;
 	background: hsl(210 15% 96%);
 }
 
-.stonetop-onboarding-background-choice-option input,
-.stonetop-onboarding-background-setup-option input,
-.stonetop-onboarding-background-neighbor-option input {
+.stonetop-onboarding-bg-option input {
+	appearance: none;
+	-webkit-appearance: none;
 	flex-shrink: 0;
+	align-self: center;
+	display: block;
+	width: 13px;
+	height: 13px;
 	margin: 0;
-	accent-color: slategrey;
+	border: 1.5px solid slategrey;
+	background: #fff;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.stonetop-onboarding-bg-option input[type="radio"] {
+	border-radius: 50%;
+}
+
+.stonetop-onboarding-background-neighbor-option input[type="checkbox"] {
+	border-radius: 3px;
+}
+
+.stonetop-onboarding-bg-option input[type="radio"]:checked {
+	background: radial-gradient(circle, slategrey 0 44%, transparent 48%);
+}
+
+.stonetop-onboarding-background-neighbor-option input[type="checkbox"]:checked {
+	background: slategrey;
+}
+
+.stonetop-onboarding-bg-option > span {
+	display: flex;
+	align-items: center;
+	min-height: 13px;
 }
 
 .stonetop-onboarding-background-setup-text {
