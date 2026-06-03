@@ -39,7 +39,7 @@ import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {MoveResources} from "./MoveResources.js";
 import {getSetting} from "../../settings.js";
 import {promptRoll} from "../../utils/rolls.js";
-import {StonetopFlags} from "./StonetopFlags.js";
+import {StonetopFlags, resolvedFlags} from "./StonetopFlags.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
@@ -165,7 +165,7 @@ export class StonetopCharacter {
 			.withInventory(inventory)
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
-			.withRollMode((actor.flags?.stonetop_pwd ?? actor.flags?.stonetop)?.rollMode ?? "normal")
+			.withRollMode(resolvedFlags(actor).rollMode ?? "normal")
 			.build();
 	}
 
@@ -182,8 +182,7 @@ export class StonetopCharacter {
 					this.buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, playbookData.name)
 				);
 				const moveResourcesMap = this._moveResources.getMoveResources();
-				const actorFlags = this._actor.flags?.stonetop_pwd ?? this._actor.flags?.stonetop ?? {};
-				const moveBackgroundAnswers = actorFlags.moves?.backgroundAnswers ?? {};
+				const moveBackgroundAnswers = resolvedFlags(this._actor).moves?.backgroundAnswers ?? {};
 				const source = { type: "playbook", slug: playbookData.slug };
 				categories.push(new MoveCategorySnapshotBuilder()
 					.withKey("playbook")

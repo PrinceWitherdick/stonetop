@@ -15,7 +15,7 @@ export class StonetopFlags {
 		const current = this._actor.getFlag(_scope, fullKey);
 		if (current !== undefined && current !== null) return current;
 		const legacyFlags = this._actor.flags?.[_legacyScope] ?? {};
-		return legacyFlags[fullKey] ?? foundry.utils.getProperty(legacyFlags, fullKey);
+		return foundry.utils.getProperty(legacyFlags, fullKey);
 	}
 
 	async setFlag(key, value) {
@@ -29,4 +29,8 @@ export class StonetopFlags {
 	buildKey(key) {
 		return `${this._namespace}.${key}`;
 	}
+}
+
+export function resolvedFlags(actor) {
+	return actor.flags?.[_scope] ?? actor.flags?.[_legacyScope] ?? {};
 }

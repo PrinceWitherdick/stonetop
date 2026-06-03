@@ -5,6 +5,7 @@ import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
+import {resolvedFlags} from "./StonetopFlags.js";
 import {rollDamage} from "../../utils/roll-engine.js";
 import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
@@ -513,7 +514,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		_buildFollowersData(playbookDoc, smallItemLimit = null) {
-			const sf = this.actor.flags?.stonetop_pwd ?? this.actor.flags?.stonetop ?? {};
+			const sf = resolvedFlags(this.actor);
 
 			// -- Animal Companion (Ranger) ------------------------------
 			let animalCompanion = null;
@@ -1608,7 +1609,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		_readSelectionsFromActor(playbookDoc = null) {
-			const f  = this.actor.flags?.stonetop_pwd ?? this.actor.flags?.stonetop ?? {};
+			const f  = resolvedFlags(this.actor);
 			const sys = this.actor.system ?? {};
 
 			// Major arcanum: use the saved flag if present, otherwise infer from owned arcana

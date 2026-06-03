@@ -1,4 +1,4 @@
-import { isBlank, formatValue, valuesEqual, actionForField, coalesceEntries } from "../character/CharacterLedger.js";
+import { isBlank, formatValue, valuesEqual, actionForField, coalesceEntries, legacyFlagPath, valueForPath } from "../character/CharacterLedger.js";
 
 const LEDGER_SCOPE = "stonetop_pwd";
 const LEDGER_KEY = "ledger";
@@ -161,20 +161,6 @@ const PATH_HANDLERS = {
 	"flags.stonetop_pwd.steading.gold.handfuls":        (o, n) => _currencyEntry("Gold handfuls",    o, n),
 	"flags.stonetop_pwd.steading.gold.coins":           (o, n) => _currencyEntry("Gold coins",       o, n),
 };
-
-function legacyFlagPath(path) {
-	return path.startsWith(`flags.${LEDGER_SCOPE}.`)
-		? path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop.")
-		: null;
-}
-
-function valueForPath(actor, path) {
-	const current = foundry.utils.getProperty(actor, path);
-	if (current !== undefined) return current;
-	const legacyPath = legacyFlagPath(path);
-	if (!legacyPath) return undefined;
-	return foundry.utils.getProperty(actor, legacyPath);
-}
 
 function currentFlagPath(path) {
 	return path.startsWith("flags.stonetop.")

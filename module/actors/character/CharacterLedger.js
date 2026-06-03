@@ -62,6 +62,7 @@ const INVENTORY_RESOURCE_PREFIX = "flags.stonetop_pwd.inventory.resources.";
 const POSSESSION_USES_PREFIX = "flags.stonetop_pwd.possessions.uses.";
 const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.";
 const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
+const POSSESSION_SELECTED_PATH = `flags.${LEDGER_SCOPE}.possessions.selected`;
 
 export function isBlank(v) {
 	return v === undefined || v === null || v === "";
@@ -233,20 +234,20 @@ function possessionChoiceUsesEntry(path, oldValue, newValue, names) {
 function granularEntriesForPath(path, oldValue, newValue, names) {
 	if (path.startsWith(INVENTORY_CHECKED_PREFIX)) return [inventorySelectionEntry(path, oldValue, newValue, names)].filter(Boolean);
 	if (path.startsWith(INVENTORY_RESOURCE_PREFIX)) return [inventoryResourceEntry(path, oldValue, newValue, names)];
-	if (path === "flags.stonetop_pwd.possessions.selected") return possessionSelectionEntries(oldValue, newValue, names);
+	if (path === POSSESSION_SELECTED_PATH) return possessionSelectionEntries(oldValue, newValue, names);
 	if (path.startsWith(POSSESSION_USES_PREFIX)) return [possessionUsesEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(POSSESSION_SUBCHOICES_PREFIX)) return possessionSubchoiceEntries(path, oldValue, newValue, names);
 	if (path.startsWith(POSSESSION_CHOICE_USES_PREFIX)) return [possessionChoiceUsesEntry(path, oldValue, newValue, names)];
 	return null;
 }
 
-function legacyFlagPath(path) {
+export function legacyFlagPath(path) {
 	return path.startsWith(`flags.${LEDGER_SCOPE}.`)
 		? path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop.")
 		: null;
 }
 
-function valueForPath(actor, path) {
+export function valueForPath(actor, path) {
 	const current = foundry.utils.getProperty(actor, path);
 	if (current !== undefined) return current;
 	const legacyPath = legacyFlagPath(path);
