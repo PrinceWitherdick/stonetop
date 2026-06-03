@@ -7,3 +7,9 @@ export function capitalizeFirst(str) {
 export function escHtml(v) {
 	return foundry.utils.escapeHTML(String(v ?? ""));
 }
+
+/** Returns true when `img` is the Foundry default actor/token image or absent. */
+export function isDefaultImg(img) {
+	const defaultToken = globalThis.CONST?.DEFAULT_TOKEN ?? "icons/svg/mystery-man.svg";
+	return !img || img === "icons/svg/mystery-man.svg" || img === defaultToken;
+}

@@ -1,6 +1,12 @@
+import {isDefaultImg} from "../utils/strings.js";
+
 const _STEADING_ACTOR_TYPE = "stonetop";
 const _STEADING_ACTOR_NAME = "Stonetop";
-const _STEADING_ACTOR_IMG = "systems/stonetop/assets/stonetop_image.png";
+const _STEADING_ACTOR_IMG = "systems/stonetop/assets/stonetop_image.webp";
+const _LEGACY_STEADING_ACTOR_IMAGES = new Set([
+	"systems/stonetop/assets/stonetop_image.png",
+	"/systems/stonetop/assets/stonetop_image.png",
+]);
 
 export async function ensureStonetopSingleton() {
 	if (!game.user.isGM || !_isPrimaryGM()) return;
@@ -56,14 +62,13 @@ async function _ensureStartingValues(actor) {
 	if (actor.system?.attributes?.surplus?.value === undefined || actor.system.attributes.surplus.value === null) {
 		updates["system.attributes.surplus.value"] = 1;
 	}
-	if (_isDefaultImg(actor.img)) updates.img = _STEADING_ACTOR_IMG;
-	if (_isDefaultImg(actor.prototypeToken?.texture?.src)) updates["prototypeToken.texture.src"] = _STEADING_ACTOR_IMG;
+	if (_shouldReplaceSteadingImg(actor.img)) updates.img = _STEADING_ACTOR_IMG;
+	if (_shouldReplaceSteadingImg(actor.prototypeToken?.texture?.src)) updates["prototypeToken.texture.src"] = _STEADING_ACTOR_IMG;
 	if (Object.keys(updates).length) await actor.update(updates);
 }
 
-function _isDefaultImg(img) {
-	const defaultToken = globalThis.CONST?.DEFAULT_TOKEN ?? "icons/svg/mystery-man.svg";
-	return !img || img === "icons/svg/mystery-man.svg" || img === defaultToken;
+function _shouldReplaceSteadingImg(img) {
+	return isDefaultImg(img) || _LEGACY_STEADING_ACTOR_IMAGES.has(img);
 }
 
 function _isPrimaryGM() {
