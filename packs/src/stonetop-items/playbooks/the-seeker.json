@@ -19,6 +19,13 @@
           "moves": [
             "Let's Make a Deal"
           ],
+          "moveChoices": [
+            {
+              "move": "Well Versed",
+              "label": "Well Versed in",
+              "value": "the Things Below"
+            }
+          ],
           "majorArcana": [
             "hectumel-codex",
             "red-scepter",
@@ -32,6 +39,13 @@
           "moves": [
             "Polyglot"
           ],
+          "moveChoices": [
+            {
+              "move": "Well Versed",
+              "label": "Well Versed in",
+              "value": "the Makers and their arts"
+            }
+          ],
           "majorArcana": [
             "norubas-ice-sphere",
             "azure-hand",
@@ -44,6 +58,17 @@
           "description": "<p>You've dedicated your life to rooting out and destroying horrors and their servants. What set you down this path? What did you sacrifice to walk it? What led you to call Stonetop home?</p><p>Regardless, you start with the <strong>Everything Bleeds</strong> move and are Well Versed in (pick 1) the Fae, the Things Below, or the Last Door and what lies beyond. You've also acquired 1 major arcanum.</p>",
           "moves": [
             "Everything Bleeds"
+          ],
+          "moveChoices": [
+            {
+              "move": "Well Versed",
+              "label": "Well Versed in",
+              "options": [
+                "the Fae",
+                "the Things Below",
+                "the Last Door and what lies beyond"
+              ]
+            }
           ],
           "majorArcana": [
             "demonhide-cloak",

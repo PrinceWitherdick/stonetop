@@ -6,8 +6,10 @@ import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {rollDamage} from "../../utils/roll-engine.js";
-import {escHtml} from "../../utils/strings.js";
+import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
+import {getStonetopSteadingActor} from "../../utils/world.js";
+import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 
@@ -835,7 +837,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!btn) return;
 				ev.stopPropagation();
 				ev.stopImmediatePropagation();
-				if (btn.dataset.moveName !== undefined) {
+				if (btn.classList.contains("stonetop-bg-resource-check")) {
+					this._onBackgroundResourceChange({ currentTarget: btn });
+				} else if (btn.dataset.moveName !== undefined) {
 					this._onMoveResourceChange({ currentTarget: btn });
 				} else {
 					this._onPossessionUseChange({ currentTarget: btn });
@@ -1399,6 +1403,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			await this._stonetopCharacter.moveResources.add(button);
 		}
 
+		async _onBackgroundResourceChange(ev) {
+			const { key, index } = ev.currentTarget.dataset;
+			if (!key) return;
+			const value = ev.currentTarget.classList.contains("is-checked") ? Number(index) : Number(index) + 1;
+			await this._stonetopCharacter.background.setSetupResource(key, value);
+		}
+
 		async _onBgChoiceChange(ev) {
 			const choice = new BackgroundInputChoice(ev);
 			await this._stonetopCharacter.background.addChoice(choice);
@@ -1584,6 +1595,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			const playbookDoc = await fromUuid(playbookUuid);
 			if (!playbookDoc) return;
 
+			// Note: _applyPlaybookSelections updates the prototype token image but not
+			// any already-placed tokens; those are left for the GM to sync manually.
 			new CharacterOnboardingDialog(
 				playbookDoc,
 				async (selections) => {
@@ -1644,6 +1657,13 @@ export function createStonetopCharacterSheetClass(Base) {
 					instinct: f.animalCompanion?.instinct ?? "",
 					cost:     f.animalCompanion?.cost ?? "",
 				},
+				backgroundChoices: foundry.utils.deepClone(f.moves?.backgroundAnswers ?? {}),
+				backgroundSetup: {
+					choices:        foundry.utils.deepClone(f.background?.setupChoices ?? {}),
+					texts:          foundry.utils.deepClone(f.background?.setupTexts ?? {}),
+					neighborTraits: foundry.utils.deepClone(f.background?.neighborTraits ?? {}),
+					neighborPicks:  foundry.utils.deepClone(f.background?.neighborPicks ?? {}),
+				},
 				lore: {
 					picks: foundry.utils.deepClone(f.lore?.counts ?? {}),
 					texts: foundry.utils.deepClone(f.lore?.texts ?? {}),
@@ -1658,15 +1678,77 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 		}
 
+		_backgroundSetupNeighbors(backgroundSetup, selections) {
+			const out = [];
+			for (const neighbor of (backgroundSetup?.neighbors ?? [])) {
+				if (!neighbor.name) continue;
+				out.push({
+					name: neighbor.name,
+					origin: neighbor.origin ?? "",
+					trait: neighbor.traitKey
+						? selections.backgroundSetup?.neighborTraits?.[neighbor.traitKey]?.trim() ?? ""
+						: neighbor.trait ?? "",
+					checked: true,
+				});
+			}
+			for (const choice of (backgroundSetup?.neighborChoices ?? [])) {
+				const selected = new Set(selections.backgroundSetup?.neighborPicks?.[choice.key] ?? []);
+				for (const option of (choice.options ?? [])) {
+					if (!selected.has(option.value)) continue;
+					out.push({
+						name: option.name ?? option.value,
+						origin: option.origin ?? "",
+						trait: option.trait ?? "",
+						checked: true,
+					});
+				}
+			}
+			return out;
+		}
+
+		async _applyBackgroundNeighbors(backgroundSetup, selections) {
+			const additions = this._backgroundSetupNeighbors(backgroundSetup, selections);
+			if (!additions.length) return;
+			const steadingActor = getStonetopSteadingActor();
+			if (!steadingActor) {
+				ui.notifications?.warn?.("No Stonetop steading actor was found, so background neighbors were not added.");
+				return;
+			}
+			const stonetopSteading = steadingActor.typedActor ?? new StonetopSteading(steadingActor);
+			const flags = steadingActor.getFlag?.("stonetop", "steading") ?? {};
+			const neighbors = foundry.utils.deepClone(flags.neighbors ?? STEADING_DEFAULTS.neighbors);
+			const keyFor = neighbor => `${String(neighbor.name ?? "").trim().toLowerCase()}|${String(neighbor.origin ?? "").trim().toLowerCase()}`;
+
+			for (const addition of additions) {
+				const key = keyFor(addition);
+				if (!addition.name?.trim() || key === "|") continue;
+				const idx = neighbors.findIndex(neighbor => keyFor(neighbor) === key);
+				if (idx >= 0) {
+					neighbors[idx] = {
+						...neighbors[idx],
+						origin: addition.origin || neighbors[idx].origin || "",
+						trait: addition.trait || neighbors[idx].trait || "",
+						checked: true,
+					};
+				} else {
+					neighbors.push(addition);
+				}
+			}
+			await stonetopSteading.setFlags({ neighbors });
+		}
+
 		async _applyPlaybookSelections(playbookDoc, selections) {
-			// Set the playbook on the actor
-			await this.actor.update({
-				"system.playbook": {
-					uuid: playbookDoc.uuid,
-					name: playbookDoc.name,
-					slug: playbookDoc.system?.slug ?? "",
-				},
-			});
+			// Set the playbook on the actor; also set the avatar if still default.
+			const slug = playbookDoc.system?.slug ?? "";
+			const updates = {
+				"system.playbook": { uuid: playbookDoc.uuid, name: playbookDoc.name, slug },
+			};
+			if (slug && isDefaultImg(this.actor.img)) {
+				const icon = `systems/stonetop/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`;
+				updates.img = icon;
+				updates["prototypeToken.texture.src"] = icon;
+			}
+			await this.actor.update(updates);
 			// Background must be saved before ensureStartingMoves reads it
 			if (selections.backgroundSlug) {
 				await this._stonetopCharacter.background.selectBackground(selections.backgroundSlug);
@@ -1708,6 +1790,98 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			for (const compendiumId of (selections.moves ?? [])) {
 				await this._stonetopCharacter.addMove(compendiumId);
+			}
+			const selectedBackground = (playbookDoc.flags?.stonetop?.backgrounds ?? [])
+				.find(bg => bg.slug === selections.backgroundSlug);
+			for (const slug of (selectedBackground?.extraPossessions ?? [])) {
+				await this._stonetopCharacter.selectPossession(slug);
+			}
+			const backgroundSetup = selectedBackground?.setup ?? null;
+			for (const choice of (backgroundSetup?.choices ?? [])) {
+				const value = selections.backgroundSetup?.choices?.[choice.key];
+				if (!value) continue;
+				if (choice.apply === "move") {
+					await this._stonetopCharacter.addPlaybookMoveByName(playbookDoc.name, value);
+				} else if (choice.apply === "possession") {
+					await this._stonetopCharacter.selectPossession(value);
+				}
+			}
+			for (const arcanum of (backgroundSetup?.arcana ?? [])) {
+				if (!arcanum.slug) continue;
+				await this._stonetopCharacter.addArcanum(arcanum.slug);
+				if (arcanum.identify) await this._stonetopCharacter.identifyArcanum(arcanum.slug);
+				for (const box of (arcanum.boxes ?? [])) {
+					await this._stonetopCharacter.setArcanumBoxChecked(
+						arcanum.slug,
+						box.context ?? "front",
+						Number(box.index ?? 0),
+						true,
+					);
+				}
+			}
+			const backgroundSetupResources = {};
+			const existingSetupResources = this.actor.flags?.stonetop?.background?.setupResources ?? {};
+			for (const resource of (backgroundSetup?.resources ?? [])) {
+				if (!resource.key) continue;
+				backgroundSetupResources[resource.key] = existingSetupResources[resource.key] ?? resource.value ?? 0;
+			}
+			if (Object.keys(backgroundSetupResources).length) {
+				await this.actor.setFlag("stonetop", "background.setupResources", backgroundSetupResources);
+			} else {
+				await this.actor.unsetFlag("stonetop", "background.setupResources");
+			}
+			const backgroundSetupTexts = {};
+			for (const text of (backgroundSetup?.texts ?? [])) {
+				const value = selections.backgroundSetup?.texts?.[text.key]?.trim();
+				if (value) backgroundSetupTexts[text.key] = value;
+			}
+			const backgroundSetupChoices = {};
+			for (const choice of (backgroundSetup?.choices ?? [])) {
+				const value = selections.backgroundSetup?.choices?.[choice.key];
+				if (value) backgroundSetupChoices[choice.key] = value;
+			}
+			if (Object.keys(backgroundSetupChoices).length) {
+				await this.actor.setFlag("stonetop", "background.setupChoices", backgroundSetupChoices);
+			} else {
+				await this.actor.unsetFlag("stonetop", "background.setupChoices");
+			}
+			if (Object.keys(backgroundSetupTexts).length) {
+				await this.actor.setFlag("stonetop", "background.setupTexts", backgroundSetupTexts);
+			} else {
+				await this.actor.unsetFlag("stonetop", "background.setupTexts");
+			}
+			const backgroundNeighborTraits = {};
+			for (const neighbor of (backgroundSetup?.neighbors ?? [])) {
+				const value = selections.backgroundSetup?.neighborTraits?.[neighbor.traitKey]?.trim();
+				if (neighbor.traitKey && value) backgroundNeighborTraits[neighbor.traitKey] = value;
+			}
+			const backgroundNeighborPicks = {};
+			for (const choice of (backgroundSetup?.neighborChoices ?? [])) {
+				const values = selections.backgroundSetup?.neighborPicks?.[choice.key] ?? [];
+				if (values.length) backgroundNeighborPicks[choice.key] = values;
+			}
+			if (Object.keys(backgroundNeighborTraits).length) {
+				await this.actor.setFlag("stonetop", "background.neighborTraits", backgroundNeighborTraits);
+			} else {
+				await this.actor.unsetFlag("stonetop", "background.neighborTraits");
+			}
+			if (Object.keys(backgroundNeighborPicks).length) {
+				await this.actor.setFlag("stonetop", "background.neighborPicks", backgroundNeighborPicks);
+			} else {
+				await this.actor.unsetFlag("stonetop", "background.neighborPicks");
+			}
+			await this._applyBackgroundNeighbors(backgroundSetup, selections);
+			const backgroundAnswers = {};
+			for (const choice of (selectedBackground?.moveChoices ?? [])) {
+				const key = choice.move ?? choice.slug ?? choice.label ?? "";
+				if (!key) continue;
+				const answer = selections.backgroundChoices?.[key];
+				if (answer?.value) backgroundAnswers[key] = answer;
+			}
+			if (Object.keys(backgroundAnswers).length) {
+				await this.actor.setFlag("stonetop", "moves.backgroundAnswers", backgroundAnswers);
+			} else {
+				await this.actor.unsetFlag("stonetop", "moves.backgroundAnswers");
 			}
 			// ── Insert: Invocations (Lightbearer) ──────────────────
 			if (selections.invocations?.length) {

@@ -52,6 +52,33 @@
 				{{/each}}
 			</div>
 			{{/if}}
+			{{#if setupTexts.length}}
+			<div class="stonetop-bg-choices">
+				{{#each setupTexts}}
+				{{#if value}}
+				<p class="stonetop-bg-choices-label">{{label}}</p>
+				<p class="stonetop-bg-choice-readonly">{{value}}</p>
+				{{/if}}
+				{{/each}}
+			</div>
+			{{/if}}
+			{{#if setupResources.length}}
+			<div class="stonetop-bg-choices stonetop-bg-resources">
+				{{#each setupResources}}
+				<div class="stonetop-bg-resource-row">
+					<p class="stonetop-bg-choices-label">{{label}}</p>
+					<span class="stonetop-item-resources">
+						{{#each checks}}
+						<button type="button"
+						        class="stonetop-item-resource-check stonetop-bg-resource-check{{#if checked}} is-checked{{/if}}"
+						        data-key="{{../key}}"
+						        data-index="{{index}}"></button>
+						{{/each}}
+					</span>
+				</div>
+				{{/each}}
+			</div>
+			{{/if}}
 			{{/if}}
 			{{/each}}
 			{{/if}}

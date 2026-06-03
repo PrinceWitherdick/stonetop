@@ -53,6 +53,11 @@
 				{{/if}}
 			</div>
 			<div class="stonetop-item-description">{{{description}}}</div>
+			{{#if backgroundAnswer}}
+			<p class="stonetop-move-note stonetop-move-background-answer">
+				{{backgroundAnswer.label}}: {{backgroundAnswer.value}}
+			</p>
+			{{/if}}
 			{{#if requiresLabel}}<p class="stonetop-move-note">Requires: {{requiresLabel}}</p>{{/if}}
 			{{#if requiresPlaybook}}<p class="stonetop-move-note">Requires {{requiresPlaybook}} playbook</p>{{/if}}
 			{{#if minLevel}}<p class="stonetop-move-note">Level {{minLevel}}+</p>{{/if}}

@@ -1,6 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&display=swap');
+
+@font-face {
+	font-family: "Avara";
+	src: url("../assets/fonts/avara/Avara.woff2") format("woff2"),
+	     url("../assets/fonts/avara/Avara.woff") format("woff");
+	font-weight: normal;
+	font-style: normal;
+}
+@font-face {
+	font-family: "Avara";
+	src: url("../assets/fonts/avara/Avara-Bold.woff2") format("woff2"),
+	     url("../assets/fonts/avara/Avara-Bold.woff") format("woff");
+	font-weight: bold;
+	font-style: normal;
+}
+
 /* Custom CSS */
 :root {
-	--font-primary: Signika, sans-serif;
+	--font-avara: "Avara", serif;
+	--font-primary: "Libre Caslon Text", Signika, sans-serif;
 	--stonetop-bg: hsl(30deg 20% 94%);
 	--color-border-highlight-alt: slategrey;
 	--color-shadow-highlight: slategrey;
@@ -70,7 +88,7 @@ body,
 }
 
 .vtt :not(.application,.image-popout,.journal-sheet,.sidebar-popout) .window-content {
-	background: var(--stonetop-bg) url(/systems/stonetop/assets/graphics/sheet-bg.png);
+	background: var(--stonetop-bg) url(/systems/stonetop/assets/graphics/sheet-bg.webp);
 	background-position: center;
 	background-size: cover;
 	background-attachment: scroll;
@@ -628,6 +646,17 @@ body,
 	padding: 2px 0;
 	font-size: 0.85rem;
 	cursor: pointer;
+}
+
+.stonetop-bg-resource-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 2px 0;
+}
+
+.stonetop-bg-resource-row .stonetop-bg-choices-label {
+	margin: 0;
 }
 
 .stonetop-instinct-custom {
@@ -2142,6 +2171,7 @@ body,
 	border-radius: 3px;
 	padding: 2px 6px;
 	font-size: 1.25rem;
+	font-family: var(--font-avara);
 	transition: background 0.15s, border-color 0.15s;
 }
 
@@ -3384,6 +3414,57 @@ body,
 
 .steading-asset-name { font-size: 0.8em; }
 
+.steading-neighbors-tab {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.steading-neighbors-section {
+	background: rgba(0,0,0,0.04);
+	border: 1px solid rgba(0,0,0,0.12);
+	border-radius: 6px;
+	padding: 8px 10px;
+	width: 100%;
+}
+
+.steading-neighbor-list {
+	gap: 5px;
+}
+
+.steading-neighbor-item {
+	grid-template-columns: 14px minmax(0, 1fr) auto;
+	align-items: start;
+}
+
+.steading-neighbor-fields {
+	display: grid;
+	grid-template-columns: minmax(120px, 1.1fr) minmax(100px, 1fr) minmax(140px, 1.2fr);
+	gap: 5px;
+	min-width: 0;
+}
+
+.steading-neighbor-input {
+	width: 100%;
+	min-width: 0;
+	font-size: 0.82em;
+	height: 24px;
+	line-height: 1.2;
+}
+
+.stonetop-readonly .steading-neighbor-input {
+	background: transparent;
+	border-color: transparent;
+	color: inherit;
+	opacity: 1;
+}
+
+@media (max-width: 760px) {
+	.steading-neighbor-fields {
+		grid-template-columns: 1fr;
+	}
+}
+
 /* Currency */
 
 .steading-currency-section {
@@ -4501,40 +4582,74 @@ body,
 /* ── Footer ─────────────────────────────────────────────────────── */
 
 .stonetop-onboarding-footer {
-	position: relative;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
 	padding: 10px 20px 14px;
 	border-top: 1px solid #ddd;
-	gap: 8px;
 	flex-shrink: 0; /* never shrink — always visible at bottom */
+}
+
+.stonetop-onboarding-footer-nav {
+	display: grid;
+	grid-template-columns: minmax(160px, 1fr) auto minmax(160px, 1fr);
+	align-items: center;
+	column-gap: 12px;
+	width: 100%;
 }
 
 .stonetop-onboarding-footer-left,
 .stonetop-onboarding-footer-right {
-	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+}
+
+.stonetop-onboarding-footer-left {
+	grid-column: 1;
+	justify-content: flex-start;
+}
+
+.stonetop-onboarding-footer-back-stack {
+	display: flex;
+	align-items: center;
+	width: 100%;
 	min-width: 0;
 }
 
-.stonetop-onboarding-footer-right {
+.stonetop-onboarding-footer-back-action,
+.stonetop-onboarding-footer-back-spacer {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.stonetop-onboarding-footer-back-action {
 	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	gap: 6px;
+	justify-content: flex-start;
 }
 
 .stonetop-onboarding-step-counter {
-	position: absolute;
-	left: 50%;
-	transform: translateX(-50%);
+	grid-column: 2;
+	justify-self: center;
 	font-size: 0.8em;
 	color: #888;
 	pointer-events: none;
 	white-space: nowrap;
+	text-align: center;
+}
+
+.stonetop-onboarding-footer-right {
+	grid-column: 3;
+	justify-content: flex-end;
+}
+
+.stonetop-onboarding-footer-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 6px;
+	min-width: 0;
 }
 
 .stonetop-onboarding-back,
+.stonetop-onboarding-back-to-picker,
 .stonetop-onboarding-next,
 .stonetop-onboarding-confirm {
 	padding: 5px 16px;
@@ -4551,6 +4666,7 @@ body,
 }
 
 .stonetop-onboarding-back:hover,
+.stonetop-onboarding-back-to-picker:hover,
 .stonetop-onboarding-next:hover  { background: hsl(210 10% 92%); }
 
 .stonetop-onboarding-confirm {
@@ -4934,6 +5050,154 @@ body,
 	color: #64748b;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
+}
+
+.stonetop-onboarding-background-move-choices {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(100,116,139,0.16);
+}
+
+.stonetop-onboarding-background-setup {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(100,116,139,0.16);
+}
+
+.stonetop-onboarding-background-move-choice-label {
+	margin: 0 0 5px;
+	font-size: 0.72em;
+	font-weight: 700;
+	color: #64748b;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.stonetop-onboarding-background-setup-label {
+	margin: 0 0 5px;
+	font-size: 0.72em;
+	font-weight: 700;
+	color: #64748b;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.stonetop-onboarding-background-choice-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.stonetop-onboarding-background-choice-option,
+.stonetop-onboarding-background-setup-option,
+.stonetop-onboarding-background-neighbor-option {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px 8px;
+	border: 1.5px solid #e0e0e0;
+	border-radius: 5px;
+	background: #fff;
+	cursor: pointer;
+	font-size: 0.82em;
+	line-height: 1.25;
+	transition: border-color 0.12s, background 0.12s;
+}
+
+.stonetop-onboarding-background-choice-option:hover,
+.stonetop-onboarding-background-setup-option:hover,
+.stonetop-onboarding-background-neighbor-option:hover {
+	border-color: slategrey;
+}
+
+.stonetop-onboarding-background-choice-option.is-selected,
+.stonetop-onboarding-background-setup-option.is-selected,
+.stonetop-onboarding-background-neighbor-option.is-selected {
+	border-color: slategrey;
+	background: hsl(210 15% 96%);
+}
+
+.stonetop-onboarding-background-choice-option input,
+.stonetop-onboarding-background-setup-option input,
+.stonetop-onboarding-background-neighbor-option input {
+	flex-shrink: 0;
+	margin: 0;
+	accent-color: slategrey;
+}
+
+.stonetop-onboarding-background-setup-text {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+}
+
+.stonetop-onboarding-background-setup-text textarea {
+	width: 100%;
+	min-height: 54px;
+	resize: vertical;
+	padding: 6px 8px;
+	border: 1.5px solid #e0e0e0;
+	border-radius: 5px;
+	background: rgba(255,255,255,0.86);
+	font-family: var(--font-primary);
+	font-size: 0.86em;
+	line-height: 1.35;
+}
+
+.stonetop-onboarding-background-neighbor {
+	display: grid;
+	grid-template-columns: minmax(160px, 0.9fr) minmax(180px, 1fr);
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+}
+
+.stonetop-onboarding-background-neighbor-name {
+	font-size: 0.84em;
+	line-height: 1.25;
+	color: #334155;
+}
+
+.stonetop-onboarding-background-neighbor-name span,
+.stonetop-onboarding-background-neighbor-option em {
+	color: #64748b;
+	font-style: normal;
+}
+
+.stonetop-onboarding-background-neighbor input {
+	width: 100%;
+	min-width: 0;
+	height: 28px;
+	padding: 4px 7px;
+	border: 1.5px solid #e0e0e0;
+	border-radius: 5px;
+	background: rgba(255,255,255,0.86);
+	font-size: 0.86em;
+}
+
+@media (max-width: 560px) {
+	.stonetop-onboarding-background-neighbor {
+		grid-template-columns: 1fr;
+	}
+}
+
+.stonetop-onboarding-background-choice-fixed {
+	display: inline-flex;
+	width: fit-content;
+	margin: 0;
+	padding: 5px 8px;
+	border: 1.5px solid #e0e0e0;
+	border-radius: 5px;
+	background: rgba(255,255,255,0.7);
+	font-size: 0.82em;
+	line-height: 1.25;
+	color: #334155;
 }
 
 .stonetop-onboarding-arcana-grid {

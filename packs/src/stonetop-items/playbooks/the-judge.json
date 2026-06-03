@@ -23,7 +23,48 @@
           "description": "<p>You are part of a larger order of Judges, sent here to protect the flickering flame of civilization. The Chronicle is relatively new; your position in town is far from certain.</p><p>When you <strong><em>call upon the Judge of another steading for aid or information</em></strong>, they are oathbound to give it. You are likewise oathbound to support them.</p><p>You have an aviary in addition to your usual choice of special possessions. When you <strong><em>send a message via trained bird</em></strong>, the GM will tell you if and when you receive a response, and what it says.</p>",
           "extraPossessions": [
             "aviary"
-          ]
+          ],
+          "setup": {
+            "neighbors": [
+              {
+                "name": "Devin",
+                "origin": "Marshedge"
+              },
+              {
+                "name": "Haeris",
+                "origin": "Gordin's Delve"
+              }
+            ],
+            "neighborChoices": [
+              {
+                "key": "missionary-judges",
+                "label": "Pick 2 more Judges to add to the Neighbors list",
+                "count": 2,
+                "options": [
+                  {
+                    "value": "isalde",
+                    "name": "Isalde",
+                    "origin": "the Manmarch"
+                  },
+                  {
+                    "value": "rahat",
+                    "name": "Rahat",
+                    "origin": "Lygos"
+                  },
+                  {
+                    "value": "tejisha",
+                    "name": "Tejisha",
+                    "origin": "Barrier Pass"
+                  },
+                  {
+                    "value": "unz",
+                    "name": "Unz",
+                    "origin": "the Hillfolk"
+                  }
+                ]
+              }
+            ]
+          }
         },
         {
           "slug": "prophet",

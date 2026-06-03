@@ -1,0 +1,65 @@
+<div class="tab neighbors{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="neighbors">
+	<section class="sheet-tab steading-neighbors-tab">
+		<div class="steading-neighbors-section">
+			<h3 class="steading-list-heading">Neighbors</h3>
+			<ul class="steading-list steading-neighbor-list">
+				{{#each stonetop.neighbors}}
+				{{#if name}}
+				<li class="steading-list-item steading-neighbor-item{{#if checked}} is-checked{{/if}}">
+					<label class="steading-list-check-label">
+						<input type="checkbox" class="steading-list-check"
+						       data-list="neighbors" data-index="{{@index}}"
+						       {{#if checked}}checked{{/if}}>
+					</label>
+					<div class="steading-neighbor-fields">
+						<input type="text" class="steading-neighbor-input steading-neighbor-name"
+						       data-index="{{@index}}" data-field="name"
+						       value="{{name}}" placeholder="Name" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+						<input type="text" class="steading-neighbor-input steading-neighbor-origin"
+						       data-index="{{@index}}" data-field="origin"
+						       value="{{origin}}" placeholder="From" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+						<input type="text" class="steading-neighbor-input steading-neighbor-trait"
+						       data-index="{{@index}}" data-field="trait"
+						       value="{{trait}}" placeholder="Trait" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+					</div>
+					<button type="button" class="steading-list-delete"
+					        data-list="neighbors" data-index="{{@index}}"
+					        title="Remove" tabindex="-1">
+						<i class="fas fa-times"></i>
+					</button>
+				</li>
+				{{else}}
+				{{#if @root.stonetop.editMode}}
+				<li class="steading-list-item steading-neighbor-item{{#if checked}} is-checked{{/if}}">
+					<label class="steading-list-check-label">
+						<input type="checkbox" class="steading-list-check"
+						       data-list="neighbors" data-index="{{@index}}"
+						       {{#if checked}}checked{{/if}}>
+					</label>
+					<div class="steading-neighbor-fields">
+						<input type="text" class="steading-neighbor-input steading-neighbor-name"
+						       data-index="{{@index}}" data-field="name"
+						       value="{{name}}" placeholder="Name">
+						<input type="text" class="steading-neighbor-input steading-neighbor-origin"
+						       data-index="{{@index}}" data-field="origin"
+						       value="{{origin}}" placeholder="From">
+						<input type="text" class="steading-neighbor-input steading-neighbor-trait"
+						       data-index="{{@index}}" data-field="trait"
+						       value="{{trait}}" placeholder="Trait">
+					</div>
+					<button type="button" class="steading-list-delete"
+					        data-list="neighbors" data-index="{{@index}}"
+					        title="Remove" tabindex="-1">
+						<i class="fas fa-times"></i>
+					</button>
+				</li>
+				{{/if}}
+				{{/if}}
+				{{/each}}
+			</ul>
+			<button type="button" class="steading-list-add" data-list="neighbors">
+				<i class="fas fa-plus"></i> Add Neighbor
+			</button>
+		</div>
+	</section>
+</div>

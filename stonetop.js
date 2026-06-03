@@ -132,6 +132,7 @@ Hooks.once("init", () => {
 		"stonetop.section-heading":  "systems/stonetop/templates/actor/partials/section-heading.hbs",
 		"stonetop.resource-track":   "systems/stonetop/templates/actor/partials/resource-track.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop/templates/actor/partials/steading-tab-overview.hbs",
+		"stonetop.steading-tab-neighbors":    "systems/stonetop/templates/actor/partials/steading-tab-neighbors.hbs",
 		"stonetop.steading-tab-improvements": "systems/stonetop/templates/actor/partials/steading-tab-improvements.hbs",
 		"stonetop.steading-tab-moves":        "systems/stonetop/templates/actor/partials/steading-tab-moves.hbs",
 		"stonetop.steading-tab-notes":        "systems/stonetop/templates/actor/partials/steading-tab-notes.hbs",

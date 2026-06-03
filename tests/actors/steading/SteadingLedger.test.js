@@ -110,4 +110,40 @@ describe("SteadingLedger", () => {
 			"Place C cleared (Cistern)",
 		]);
 	});
+
+	it("records neighbor changes with origin and trait text", () => {
+		const actor = makeActor({
+			stonetop: {
+				steading: {
+					neighbors: [
+						{ name: "Ennis", origin: "Marshedge", trait: "generous", checked: true },
+						{ name: "Shahar", origin: "Gordin's Delve", trait: "", checked: false },
+					],
+				},
+			},
+		});
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, {
+			flags: {
+				stonetop: {
+					steading: {
+						neighbors: [
+							{ name: "Ennis", origin: "Marshedge", trait: "wary", checked: true },
+							{ name: "Shahar", origin: "Gordin's Delve", trait: "ambitious", checked: true },
+							{ name: "Tovia", origin: "Lygos", trait: "", checked: true },
+						],
+					},
+				},
+			},
+		});
+
+		expect(entries.map(e => e.action)).toEqual([
+			"Ennis (from Marshedge) trait changed from generous to wary",
+			"Shahar (from Gordin's Delve) trait set to ambitious",
+			"Shahar (from Gordin's Delve) selected",
+			"Neighbor added: Tovia (from Lygos)",
+			"Tovia (from Lygos) selected",
+		]);
+		expect(entries.map(e => e.action).join(" ")).not.toContain("[object Object]");
+	});
 });

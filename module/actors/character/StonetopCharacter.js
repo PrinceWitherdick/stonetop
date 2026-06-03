@@ -182,12 +182,13 @@ export class StonetopCharacter {
 					this.buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, playbookData.name)
 				);
 				const moveResourcesMap = this._moveResources.getMoveResources();
+				const moveBackgroundAnswers = this._actor.flags?.stonetop?.moves?.backgroundAnswers ?? {};
 				const source = { type: "playbook", slug: playbookData.slug };
 				categories.push(new MoveCategorySnapshotBuilder()
 					.withKey("playbook")
 					.withTitle(`${playbookData.name} Moves`)
 					.withNote(playbookData.startingMovesNote ?? null)
-					.withMoves(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs)))
+					.withMoves(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers)))
 					.build()
 				);
 			}
@@ -857,6 +858,15 @@ export class StonetopCharacter {
 		if (doc) await this._actor.createEmbeddedDocuments("Item", [doc.toObject()]);
 	}
 
+	async addPlaybookMoveByName(playbookName, moveName) {
+		if (!playbookName || !moveName) return;
+		const ownedNames = new Set(this._actor.items.filter(i => i.type === "move").map(i => i.name));
+		if (ownedNames.has(moveName)) return;
+		const entries = await this._moveRepo.getPlaybookMoves(playbookName);
+		const entry = entries.find(e => e.name === moveName);
+		if (entry) await this.addMove(entry.id);
+	}
+
 	async removeMove(ownedId) {
 		if (ownedId) await this._actor.deleteEmbeddedDocuments("Item", [ownedId]);
 	}
@@ -1051,6 +1061,8 @@ function _buildVitalsSection(actor, playbookData, armorValue) {
 function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore, actorName) {
 	const savedBg      = background.selectedSlug || null;
 	const savedChoices = background.choices;
+	const savedSetupTexts = background.setupTexts ?? {};
+	const savedSetupResources = background.setupResources ?? {};
 	const savedInstinct = instinct.selectedValue || null;
 	const savedAppearance = appearance.saved;
 	const savedOrigin  = origin.selected || null;
@@ -1072,6 +1084,25 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 			.withSelected(b.slug === savedBg)
 			.withMoves((b.moves ?? []).map(_toSlug))
 			.withChoices(choices)
+			.withSetupTexts((b.setup?.texts ?? []).map(t => ({
+				key: t.key,
+				label: t.label ?? t.key,
+				value: savedSetupTexts[t.key] ?? "",
+			})))
+			.withSetupResources((b.setup?.resources ?? []).map(r => {
+				const max = r.max ?? 1;
+				const current = savedSetupResources[r.key] ?? r.value ?? 0;
+				return {
+					key: r.key,
+					label: r.label ?? r.key,
+					current,
+					max,
+					checks: Array.from({ length: max }, (_, i) => ({
+						index: i,
+						checked: i < current,
+					})),
+				};
+			}))
 			.build();
 	});
 
@@ -1113,7 +1144,7 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 		.build();
 }
 
-function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set()) {
+function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}) {
 	const resourceDef = entry.resource;
 	const resource = resourceDef ? new ResourceBuilder()
 		.withCurrent(moveResourcesMap[entry.name] ?? 0)
@@ -1147,6 +1178,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set()) {
 		.withResource(resource)
 		.withRepeat(repeat)
 		.withRepeatable(repeat !== null)
+		.withBackgroundAnswer(moveBackgroundAnswers[entry.name] ?? null)
 		.build();
 }
 

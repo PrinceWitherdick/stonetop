@@ -27,6 +27,7 @@ export class RequirementSnapshot {
  * @property {Resource|null} resource
  * @property {{ max: number, current: number }|null} repeat
  * @property {boolean} repeatable
+ * @property {{ label: string, value: string }|null} backgroundAnswer
  */
 export class MoveSnapshot {
 	constructor(b) {
@@ -48,6 +49,7 @@ export class MoveSnapshot {
 		this.resource      = b._resource;
 		this.repeat        = b._repeat;
 		this.repeatable    = b._repeatable;
+		this.backgroundAnswer = b._backgroundAnswer;
 	}
 }
 
@@ -70,6 +72,7 @@ export class MoveSnapshotBuilder {
 	withResource(v)      { this._resource      = v; return this; }
 	withRepeat(v)        { this._repeat        = v; return this; }
 	withRepeatable(v)    { this._repeatable    = v; return this; }
+	withBackgroundAnswer(v) { this._backgroundAnswer = v ?? null; return this; }
 	build()              { return new MoveSnapshot(this); }
 }
 

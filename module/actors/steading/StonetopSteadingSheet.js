@@ -17,16 +17,16 @@ const _STEADING_MOVES_RAW = [
 		rollable: false,
 		interactive: true,
 		description: `<div class="stonetop-seasons-grid">
-  <img src="systems/stonetop/assets/icons/seasons/spring_icon.png" class="stonetop-season-row-icon" alt="Spring">
+  <img src="systems/stonetop/assets/icons/seasons/spring_icon.webp" class="stonetop-season-row-icon" alt="Spring">
   <div><strong>Spring</strong> — The <em>most hopeful</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. Reset Fortunes to +1.</div>
 
-  <img src="systems/stonetop/assets/icons/seasons/summer_icon.png" class="stonetop-season-row-icon" alt="Summer">
+  <img src="systems/stonetop/assets/icons/seasons/summer_icon.webp" class="stonetop-season-row-icon" alt="Summer">
   <div><strong>Summer</strong> — The <em>most content</em> rolls +Fortunes. <strong>10+:</strong> pick 2 seasonal gains. <strong>7–9:</strong> pick 1. <strong>6−:</strong> a threat makes itself known; don't mark XP. The steading generates 1d4−1 Surplus. Reset Fortunes to +1.</div>
 
-  <img src="systems/stonetop/assets/icons/seasons/fall_icon.png" class="stonetop-season-row-icon" alt="Autumn">
+  <img src="systems/stonetop/assets/icons/seasons/fall_icon.webp" class="stonetop-season-row-icon" alt="Autumn">
   <div><strong>Autumn</strong> — The <em>most determined</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. The steading generates 1d4 Surplus at harvest. Reset Fortunes to +1.</div>
 
-  <img src="systems/stonetop/assets/icons/seasons/winter_icon.png" class="stonetop-season-row-icon" alt="Winter">
+  <img src="systems/stonetop/assets/icons/seasons/winter_icon.webp" class="stonetop-season-row-icon" alt="Winter">
   <div><strong>Winter</strong> — The <em>weariest</em> rolls 1d4+Population (min 0); the steading consumes that much Surplus. If there isn't enough: Surplus → 0, Fortunes −1, pick 1 consequence. Then roll +Fortunes. Reset Fortunes to +1.</div>
 </div>
 <p class="stonetop-seasons-cta">Click <i class="fas fa-dice-d6"></i> to walk through the current season step by step.</p>`,
@@ -578,6 +578,15 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onPlaceChange(parseInt(inp.dataset.index), inp.value);
 			}, true);
 
+			// Neighbor details
+			html[0].addEventListener("change", ev => {
+				const inp = ev.target.closest(".steading-neighbor-input");
+				if (!inp) return;
+				ev.stopPropagation();
+				const { index, field } = inp.dataset;
+				this._onNeighborChange(parseInt(index), field, inp.value);
+			}, true);
+
 			// Notes
 			html[0].addEventListener("change", ev => {
 				const pm = ev.target.closest("prose-mirror.steading-notes-editor");
@@ -917,7 +926,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				{ id: "autumn", label: "Autumn" },
 				{ id: "winter", label: "Winter" },
 			];
-			const iconSrc = id => `systems/stonetop/assets/icons/seasons/${id === "autumn" ? "fall" : id}_icon.png`;
+			const iconSrc = id => `systems/stonetop/assets/icons/seasons/${id === "autumn" ? "fall" : id}_icon.webp`;
 
 			let dialog;
 			dialog = new Dialog({
@@ -953,7 +962,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			const resetFortunes = malcontent ? 0 : 1;
 
 			const label   = { spring: "Spring", summer: "Summer", autumn: "Autumn", winter: "Winter" }[seasonId];
-			const iconSrc = `systems/stonetop/assets/icons/seasons/${seasonId === "autumn" ? "fall" : seasonId}_icon.png`;
+			const iconSrc = `systems/stonetop/assets/icons/seasons/${seasonId === "autumn" ? "fall" : seasonId}_icon.webp`;
 
 			const header = `<div class="stonetop-season-flow-header">
 				<img src="${iconSrc}" alt="${label}" class="stonetop-season-icon-sm">
@@ -1215,11 +1224,20 @@ export function createStonetopSteadingSheetClass(Base) {
 		async _onListItemCheck(list, index, checked) {
 			const f = this._stonetopSteading._flags;
 			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
+			if (!arr[index]) return;
 			arr[index].checked = checked;
 			await this._stonetopSteading.setFlags({ [list]: arr });
 		}
 
 		async _onListItemAdd(list) {
+			if (list === "neighbors") {
+				const f = this._stonetopSteading._flags;
+				const arr = foundry.utils.deepClone(f.neighbors ?? STEADING_DEFAULTS.neighbors);
+				arr.push({ name: "", origin: "", trait: "", checked: false });
+				await this._stonetopSteading.setFlags({ neighbors: arr });
+				this.render(false);
+				return;
+			}
 			const labels = { resources: "resource", fortifications: "fortification", assets: "asset" };
 			const name = (prompt(`New ${labels[list] ?? list} name:`) ?? "").trim();
 			if (!name) return;
@@ -1243,6 +1261,15 @@ export function createStonetopSteadingSheetClass(Base) {
 			const places = foundry.utils.deepClone(f.places ?? STEADING_DEFAULTS.places);
 			places[index].name = value;
 			await this._stonetopSteading.setFlags({ places });
+		}
+
+		async _onNeighborChange(index, field, value) {
+			if (!["name", "origin", "trait"].includes(field)) return;
+			const f = this._stonetopSteading._flags;
+			const neighbors = foundry.utils.deepClone(f.neighbors ?? STEADING_DEFAULTS.neighbors);
+			if (!neighbors[index]) neighbors[index] = { name: "", origin: "", trait: "", checked: false };
+			neighbors[index][field] = value;
+			await this._stonetopSteading.setFlags({ neighbors });
 		}
 
 		async _onNotesChange(value) {

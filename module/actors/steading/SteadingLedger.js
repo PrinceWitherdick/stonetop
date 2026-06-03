@@ -24,6 +24,7 @@ const FLAG_NAMESPACE_LABELS = {
 	"flags.stonetop.steading.resources":      "Resources",
 	"flags.stonetop.steading.fortifications": "Fortifications",
 	"flags.stonetop.steading.assets":         "Assets",
+	"flags.stonetop.steading.neighbors":      "Neighbors",
 	"flags.stonetop.steading.improvements":   "Improvements",
 	"flags.stonetop.steading.places":         "Places of interest",
 };
@@ -44,6 +45,12 @@ function labelForPath(path) {
 
 function itemName(item) {
 	return String(item?.name ?? "").trim();
+}
+
+function neighborLabel(item) {
+	const name = itemName(item);
+	const origin = String(item?.origin ?? "").trim();
+	return origin ? `${name} (from ${origin})` : name;
 }
 
 function listEntries(label, oldValue, newValue) {
@@ -96,6 +103,48 @@ function placeEntries(oldValue, newValue) {
 	return entries;
 }
 
+function neighborEntries(oldValue, newValue) {
+	if (!Array.isArray(oldValue) || !Array.isArray(newValue)) return null;
+	const entries = [];
+	const max = Math.max(oldValue.length, newValue.length);
+
+	for (let i = 0; i < max; i++) {
+		const oldItem = oldValue[i] ?? {};
+		const newItem = newValue[i] ?? {};
+		const oldName = itemName(oldItem);
+		const newName = itemName(newItem);
+		const oldLabel = neighborLabel(oldItem);
+		const newLabel = neighborLabel(newItem);
+
+		if (oldName !== newName) {
+			if (!oldName && newName) entries.push({ action: `Neighbor added: ${newLabel}` });
+			else if (oldName && !newName) entries.push({ action: `Neighbor removed: ${oldLabel}` });
+			else entries.push({ action: `Neighbor renamed from ${oldLabel} to ${newLabel}` });
+		} else if (oldName && oldLabel !== newLabel) {
+			entries.push({ action: `Neighbor changed from ${oldLabel} to ${newLabel}` });
+		}
+
+		if (oldName || newName) {
+			const name = newLabel || oldLabel;
+			const oldTrait = String(oldItem?.trait ?? "").trim();
+			const newTrait = String(newItem?.trait ?? "").trim();
+			if (oldTrait !== newTrait) {
+				if (!oldTrait && newTrait) entries.push({ action: `${name} trait set to ${newTrait}` });
+				else if (oldTrait && !newTrait) entries.push({ action: `${name} trait cleared (${oldTrait})` });
+				else entries.push({ action: `${name} trait changed from ${oldTrait} to ${newTrait}` });
+			}
+
+			const oldChecked = !!oldItem.checked;
+			const newChecked = !!newItem.checked;
+			if (oldChecked !== newChecked) {
+				entries.push({ action: `${name} ${newChecked ? "selected" : "deselected"}` });
+			}
+		}
+	}
+
+	return entries;
+}
+
 const _currencyEntry = (label, o, n) =>
 	valuesEqual(o, n) ? [] : [{ action: actionForField(label, o, n) }];
 
@@ -103,6 +152,7 @@ const PATH_HANDLERS = {
 	"flags.stonetop.steading.resources":            (o, n) => listEntries("Resource",      o, n),
 	"flags.stonetop.steading.fortifications":       (o, n) => listEntries("Fortification", o, n),
 	"flags.stonetop.steading.assets":               (o, n) => listEntries("Asset",         o, n),
+	"flags.stonetop.steading.neighbors":            neighborEntries,
 	"flags.stonetop.steading.places":               placeEntries,
 	"flags.stonetop.steading.silver.purses":        (o, n) => _currencyEntry("Silver purses",    o, n),
 	"flags.stonetop.steading.silver.handfuls":      (o, n) => _currencyEntry("Silver handfuls",  o, n),

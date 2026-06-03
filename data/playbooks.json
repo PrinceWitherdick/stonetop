@@ -635,7 +635,29 @@
       {
         "slug": "a-life-of-crime",
         "label": "A Life of Crime",
-        "description": "<p>You're new to Stonetop, having left behind a... <em>colorful</em> past. How did you get into that life? Why and how did you get out? Who and what do you leave behind?</p><p>Regardless, these people have taken you in. Time to lead an honest life, right?</p><p>You start with either <strong>Burgle</strong> or <strong>Light Fingers</strong> (your choice) as an extra move, and either burglar tools or a hidden stash (your choice) as an additional special possession.</p>"
+        "description": "<p>You're new to Stonetop, having left behind a... <em>colorful</em> past. How did you get into that life? Why and how did you get out? Who and what do you leave behind?</p><p>Regardless, these people have taken you in. Time to lead an honest life, right?</p><p>You start with either <strong>Burgle</strong> or <strong>Light Fingers</strong> (your choice) as an extra move, and either burglar tools or a hidden stash (your choice) as an additional special possession.</p>",
+        "setup": {
+          "choices": [
+            {
+              "key": "extraMove",
+              "label": "Extra move",
+              "apply": "move",
+              "options": [
+                { "value": "Burgle", "label": "Burgle" },
+                { "value": "Light Fingers", "label": "Light Fingers" }
+              ]
+            },
+            {
+              "key": "extraPossession",
+              "label": "Extra special possession",
+              "apply": "possession",
+              "options": [
+                { "value": "burglars-kit", "label": "Burglar's kit" },
+                { "value": "hidden-stash", "label": "Hidden stash" }
+              ]
+            }
+          ]
+        }
       },
       {
         "slug": "the-prodigal-returned",
@@ -978,7 +1000,25 @@
       {
         "slug": "storm-marked",
         "label": "Storm-Marked",
-        "description": "<p>You've been touched by Tor (Rain-maker, Thunderhead, Slayer-of-Beasts!) and bear runic markings similar to those etched into the Stone. When did the marks manifest? Are they a symbol of your strength, speed, and courage? Or their source?</p><p>You start with the <strong>Storm Markings</strong> major arcanum. Mark one of the boxes on the front of the Storm Markings sheet, and describe here the time you were struck by lightning and walked away unharmed.</p>"
+        "description": "<p>You've been touched by Tor (Rain-maker, Thunderhead, Slayer-of-Beasts!) and bear runic markings similar to those etched into the Stone. When did the marks manifest? Are they a symbol of your strength, speed, and courage? Or their source?</p><p>You start with the <strong>Storm Markings</strong> major arcanum. Mark one of the boxes on the front of the Storm Markings sheet, and describe here the time you were struck by lightning and walked away unharmed.</p>",
+        "setup": {
+          "arcana": [
+            {
+              "slug": "storm-markings",
+              "identify": true,
+              "boxes": [
+                { "context": "front", "index": 0 }
+              ]
+            }
+          ],
+          "texts": [
+            {
+              "key": "lightningEvent",
+              "label": "Lightning event",
+              "placeholder": "Describe the time you were struck by lightning and walked away unharmed."
+            }
+          ]
+        }
       }
     ],
     "instincts": [
@@ -1315,7 +1355,48 @@
         "description": "<p>You are part of a larger order of Judges, sent here to protect the flickering flame of civilization. The Chronicle is relatively new; your position in town is far from certain.</p><p>When you <strong><em>call upon the Judge of another steading for aid or information</em></strong>, they are oathbound to give it. You are likewise oathbound to support them.</p><p>You have an aviary in addition to your usual choice of special possessions. When you <strong><em>send a message via trained bird</em></strong>, the GM will tell you if and when you receive a response, and what it says.</p>",
         "extraPossessions": [
           "aviary"
-        ]
+        ],
+        "setup": {
+          "neighbors": [
+            {
+              "name": "Devin",
+              "origin": "Marshedge"
+            },
+            {
+              "name": "Haeris",
+              "origin": "Gordin's Delve"
+            }
+          ],
+          "neighborChoices": [
+            {
+              "key": "missionary-judges",
+              "label": "Pick 2 more Judges to add to the Neighbors list",
+              "count": 2,
+              "options": [
+                {
+                  "value": "isalde",
+                  "name": "Isalde",
+                  "origin": "the Manmarch"
+                },
+                {
+                  "value": "rahat",
+                  "name": "Rahat",
+                  "origin": "Lygos"
+                },
+                {
+                  "value": "tejisha",
+                  "name": "Tejisha",
+                  "origin": "Barrier Pass"
+                },
+                {
+                  "value": "unz",
+                  "name": "Unz",
+                  "origin": "the Hillfolk"
+                }
+              ]
+            }
+          ]
+        }
       },
       {
         "slug": "prophet",
@@ -1648,12 +1729,32 @@
       {
         "slug": "auspicious-birth",
         "label": "Auspicious Birth",
-        "description": "<p>You were born in Stonetop, and that birth was marked by the God of Light. You were born during an eclipse, perhaps, or under the light of a bright new star? Maybe you bear a sun-shaped birthmark?</p><p>Whatever the sign, your connection to Helior was clear early on. You've a place of honor in Stonetop, though it'd be a lie to say you don't make some uneasy.</p><p>When <strong><em>one of your moves has you mark a debility</em></strong>, you may mark this background's circle instead, to no ill effect. Clear it when you Make Camp or Convalesce.</p>"
+        "description": "<p>You were born in Stonetop, and that birth was marked by the God of Light. You were born during an eclipse, perhaps, or under the light of a bright new star? Maybe you bear a sun-shaped birthmark?</p><p>Whatever the sign, your connection to Helior was clear early on. You've a place of honor in Stonetop, though it'd be a lie to say you don't make some uneasy.</p><p>When <strong><em>one of your moves has you mark a debility</em></strong>, you may mark this background's circle instead, to no ill effect. Clear it when you Make Camp or Convalesce.</p>",
+        "setup": {
+          "resources": [
+            {
+              "key": "auspicious-birth",
+              "label": "Background circle",
+              "max": 1,
+              "value": 0
+            }
+          ]
+        }
       },
       {
         "slug": "itinerant-mystic",
         "label": "Itinerant Mystic",
-        "description": "<p>They think of you as a self-important kook who comes through now and again, speaking in riddles and playing tricks with the light. Sure, they know there's something holy about you, but it's not like you're a priest or anything. Priests talk sense.</p><p>When you <strong><em>go off a-wandering</em></strong>, hold 1 Enigma if you're gone for days, 2 if you're gone for weeks, or 3 if you're gone for months. At the very start of play, hold 3 Enigma. Spend Enigma 1-for-1 to: return from your wandering exactly when and where you are needed, fully Outfitted; Know Things as if you rolled a 10+; or have What You Need to produce an oddly specific yet mundane item of Value 1 or less.</p>"
+        "description": "<p>They think of you as a self-important kook who comes through now and again, speaking in riddles and playing tricks with the light. Sure, they know there's something holy about you, but it's not like you're a priest or anything. Priests talk sense.</p><p>When you <strong><em>go off a-wandering</em></strong>, hold 1 Enigma if you're gone for days, 2 if you're gone for weeks, or 3 if you're gone for months. At the very start of play, hold 3 Enigma. Spend Enigma 1-for-1 to: return from your wandering exactly when and where you are needed, fully Outfitted; Know Things as if you rolled a 10+; or have What You Need to produce an oddly specific yet mundane item of Value 1 or less.</p>",
+        "setup": {
+          "resources": [
+            {
+              "key": "enigma",
+              "label": "Enigma",
+              "max": 3,
+              "value": 3
+            }
+          ]
+        }
       },
       {
         "slug": "soul-on-fire",
@@ -2519,7 +2620,41 @@
       {
         "slug": "wide-wanderer",
         "label": "Wide Wanderer",
-        "description": "<p>You have travelled much of the known world and perhaps parts beyond. Add each of the following to the Neighbors list in the Stonetop playbook, choosing 1 trait for each: <ul><li><strong>Ennis</strong> (from Marshedge)</li><li><strong>Shahar</strong> (from Gordin's Delve)</li><li><strong>Yannic</strong> (from the Hillfolk)>/li><li><strong>Tovia</strong> (from Lygos)</li><li><strong>Sasca</strong> (from the northern Manmarch)</li></ul></p><p>You start with the <strong>Mental Map</strong> move.</p><p>When you <em>Know Things about the wider world</em>, you can roll +WIS instead of +INT. When you <em>arrive somewhere you've visited before</em> (your call), tell the GM when you were last here, and the GM will tell you how it's changed.</p>",
+        "description": "<p>You have travelled much of the known world and perhaps parts beyond. Add each of the following to the Neighbors list in the Stonetop playbook, choosing 1 trait for each: <ul><li><strong>Ennis</strong> (from Marshedge)</li><li><strong>Shahar</strong> (from Gordin's Delve)</li><li><strong>Yannic</strong> (from the Hillfolk)</li><li><strong>Tovia</strong> (from Lygos)</li><li><strong>Sasca</strong> (from the northern Manmarch)</li></ul></p><p>You start with the <strong>Mental Map</strong> move.</p><p>When you <em>Know Things about the wider world</em>, you can roll +WIS instead of +INT. When you <em>arrive somewhere you've visited before</em> (your call), tell the GM when you were last here, and the GM will tell you how it's changed.</p>",
+        "setup": {
+          "neighbors": [
+            {
+              "name": "Ennis",
+              "origin": "Marshedge",
+              "traitKey": "ennis",
+              "traitLabel": "Ennis trait"
+            },
+            {
+              "name": "Shahar",
+              "origin": "Gordin's Delve",
+              "traitKey": "shahar",
+              "traitLabel": "Shahar trait"
+            },
+            {
+              "name": "Yannic",
+              "origin": "the Hillfolk",
+              "traitKey": "yannic",
+              "traitLabel": "Yannic trait"
+            },
+            {
+              "name": "Tovia",
+              "origin": "Lygos",
+              "traitKey": "tovia",
+              "traitLabel": "Tovia trait"
+            },
+            {
+              "name": "Sasca",
+              "origin": "the northern Manmarch",
+              "traitKey": "sasca",
+              "traitLabel": "Sasca trait"
+            }
+          ]
+        },
         "moves": [
           "Mental Map"
         ]
@@ -2953,6 +3088,13 @@
         "moves": [
           "Let's Make a Deal"
         ],
+        "moveChoices": [
+          {
+            "move": "Well Versed",
+            "label": "Well Versed in",
+            "value": "the Things Below"
+          }
+        ],
         "majorArcana": [
           "hectumel-codex",
           "red-scepter",
@@ -2966,6 +3108,13 @@
         "moves": [
           "Polyglot"
         ],
+        "moveChoices": [
+          {
+            "move": "Well Versed",
+            "label": "Well Versed in",
+            "value": "the Makers and their arts"
+          }
+        ],
         "majorArcana": [
           "norubas-ice-sphere",
           "azure-hand",
@@ -2978,6 +3127,17 @@
         "description": "<p>You've dedicated your life to rooting out and destroying horrors and their servants. What set you down this path? What did you sacrifice to walk it? What led you to call Stonetop home?</p><p>Regardless, you start with the <strong>Everything Bleeds</strong> move and are Well Versed in (pick 1) the Fae, the Things Below, or the Last Door and what lies beyond. You've also acquired 1 major arcanum.</p>",
         "moves": [
           "Everything Bleeds"
+        ],
+        "moveChoices": [
+          {
+            "move": "Well Versed",
+            "label": "Well Versed in",
+            "options": [
+              "the Fae",
+              "the Things Below",
+              "the Last Door and what lies beyond"
+            ]
+          }
         ],
         "majorArcana": [
           "demonhide-cloak",

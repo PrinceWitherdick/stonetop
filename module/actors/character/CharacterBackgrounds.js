@@ -11,6 +11,14 @@ export class CharacterBackgrounds {
 		return this._flags.getFlag("choices") ?? {};
 	}
 
+	get setupResources() {
+		return this._flags.getFlag("setupResources") ?? {};
+	}
+
+	get setupTexts() {
+		return this._flags.getFlag("setupTexts") ?? {};
+	}
+
 	async selectBackground(slug) {
 		await this._flags.setFlag("selected", slug);
 	}
@@ -18,5 +26,9 @@ export class CharacterBackgrounds {
 	async addChoice(choice) {
 		const current = this.choices;
 		await this._flags.setFlag("choices", { ...current, [choice.slug]: choice.isChecked });
+	}
+
+	async setSetupResource(key, value) {
+		await this._flags.setFlag("setupResources", { ...this.setupResources, [key]: value });
 	}
 }

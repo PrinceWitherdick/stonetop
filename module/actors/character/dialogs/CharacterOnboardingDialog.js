@@ -91,12 +91,16 @@ export class CharacterOnboardingDialog extends Application {
 			animalCompanion: { type: "", traits: [], name: "", instinct: "", cost: "" },
 			lore:            { picks: {}, texts: {} },
 			arcana:          { major: "", minorDraw: [], minorRoles: { mastered: "", found: "", lead: "" } },
+			backgroundChoices: {},
+			backgroundSetup: { choices: {}, texts: {}, neighborTraits: {}, neighborPicks: {} },
 		};
 
 		if (initialSelections) {
 			foundry.utils.mergeObject(this._selections, initialSelections, { inplace: true });
 		}
 
+		this._ensureBackgroundMoveChoices();
+		this._ensureBackgroundSetup();
 		this._steps = this._buildSteps();
 		this._step  = 0;
 	}
@@ -235,12 +239,147 @@ export class CharacterOnboardingDialog extends Application {
 	_applyBackgroundChange(slug) {
 		this._selections.backgroundSlug = slug;
 		this._selections.initiates = [];
+		this._ensureBackgroundMoveChoices();
+		this._ensureBackgroundSetup();
 		this._ensureSeekerMajorSelection();
 		this._rebuildDynamicSteps();
 	}
 
 	_selectedBackground() {
 		return this._backgrounds.find(bg => bg.slug === this._selections.backgroundSlug) ?? null;
+	}
+
+	_backgroundMoveChoices(background = this._selectedBackground()) {
+		return background?.moveChoices ?? [];
+	}
+
+	_moveChoiceKey(choice) {
+		return choice?.move ?? choice?.slug ?? choice?.label ?? "";
+	}
+
+	_ensureBackgroundMoveChoices(background = this._selectedBackground()) {
+		if (!background) return;
+		for (const choice of this._backgroundMoveChoices(background)) {
+			const key = this._moveChoiceKey(choice);
+			if (!key) continue;
+			if (choice.value) {
+				this._selections.backgroundChoices[key] = {
+					label: choice.label ?? key,
+					value: choice.value,
+				};
+				continue;
+			}
+			const allowed = choice.options ?? [];
+			const saved = this._selections.backgroundChoices[key]?.value ?? "";
+			if (!allowed.includes(saved)) {
+				this._selections.backgroundChoices[key] = {
+					label: choice.label ?? key,
+					value: "",
+				};
+			}
+		}
+	}
+
+	_backgroundMoveChoiceData(background) {
+		return this._backgroundMoveChoices(background).map(choice => {
+			const key = this._moveChoiceKey(choice);
+			const selectedValue = this._selections.backgroundChoices[key]?.value ?? choice.value ?? "";
+			return {
+				key,
+				move: choice.move ?? key,
+				label: this._normalizeOnboardingText(choice.label ?? key),
+				value: this._normalizeOnboardingText(choice.value ?? ""),
+				hasOptions: !!choice.options?.length,
+				options: (choice.options ?? []).map(value => ({
+					value,
+					label: this._normalizeOnboardingText(value),
+					selected: selectedValue === value,
+				})),
+			};
+		});
+	}
+
+	_backgroundSetup(background = this._selectedBackground()) {
+		return background?.setup ?? null;
+	}
+
+	_ensureBackgroundSetup(background = this._selectedBackground()) {
+		const setup = this._backgroundSetup(background);
+		if (!setup) return;
+		for (const choice of (setup.choices ?? [])) {
+			const key = choice.key;
+			if (!key) continue;
+			const allowed = new Set((choice.options ?? []).map(o => o.value));
+			if (!allowed.has(this._selections.backgroundSetup.choices[key])) {
+				this._selections.backgroundSetup.choices[key] = "";
+			}
+		}
+		for (const text of (setup.texts ?? [])) {
+			const key = text.key;
+			if (key && this._selections.backgroundSetup.texts[key] === undefined) {
+				this._selections.backgroundSetup.texts[key] = "";
+			}
+		}
+		for (const neighbor of (setup.neighbors ?? [])) {
+			const key = neighbor.traitKey;
+			if (key && this._selections.backgroundSetup.neighborTraits[key] === undefined) {
+				this._selections.backgroundSetup.neighborTraits[key] = "";
+			}
+		}
+		for (const choice of (setup.neighborChoices ?? [])) {
+			const key = choice.key;
+			if (!key) continue;
+			const allowed = new Set((choice.options ?? []).map(o => o.value));
+			const current = this._selections.backgroundSetup.neighborPicks[key] ?? [];
+			this._selections.backgroundSetup.neighborPicks[key] = current.filter(value => allowed.has(value));
+		}
+	}
+
+	_backgroundSetupData(background) {
+		const setup = this._backgroundSetup(background);
+		if (!setup) return null;
+		const choices = (setup.choices ?? []).map(choice => ({
+			key: choice.key,
+			label: this._normalizeOnboardingText(choice.label ?? choice.key),
+			apply: choice.apply ?? "",
+			options: (choice.options ?? []).map(option => ({
+				value: option.value,
+				label: this._normalizeOnboardingText(option.label ?? option.value),
+				selected: this._selections.backgroundSetup.choices[choice.key] === option.value,
+			})),
+		}));
+		const texts = (setup.texts ?? []).map(text => ({
+			key: text.key,
+			label: this._normalizeOnboardingText(text.label ?? text.key),
+			placeholder: this._normalizeOnboardingText(text.placeholder ?? ""),
+			value: this._selections.backgroundSetup.texts[text.key] ?? "",
+		}));
+		const neighbors = (setup.neighbors ?? []).map(neighbor => ({
+			name: this._normalizeOnboardingText(neighbor.name ?? ""),
+			origin: this._normalizeOnboardingText(neighbor.origin ?? ""),
+			traitKey: neighbor.traitKey ?? "",
+			traitLabel: this._normalizeOnboardingText(neighbor.traitLabel ?? "Trait"),
+			trait: this._selections.backgroundSetup.neighborTraits[neighbor.traitKey] ?? "",
+		}));
+		const neighborChoices = (setup.neighborChoices ?? []).map(choice => {
+			const selected = this._selections.backgroundSetup.neighborPicks[choice.key] ?? [];
+			return {
+				key: choice.key,
+				label: this._normalizeOnboardingText(choice.label ?? choice.key),
+				count: Number(choice.count ?? 1),
+				selectedCount: selected.length,
+				options: (choice.options ?? []).map(option => ({
+					value: option.value,
+					name: this._normalizeOnboardingText(option.name ?? option.value),
+					origin: this._normalizeOnboardingText(option.origin ?? ""),
+					trait: this._normalizeOnboardingText(option.trait ?? ""),
+					selected: selected.includes(option.value),
+				})),
+			};
+		});
+		return choices.length || texts.length || neighbors.length || neighborChoices.length
+			? { choices, texts, neighbors, neighborChoices }
+			: null;
 	}
 
 	_seekerMajorArcanaSlugs(background = this._selectedBackground()) {
@@ -414,7 +553,31 @@ export class CharacterOnboardingDialog extends Application {
 	_isStepComplete() {
 		const ac = this._selections.animalCompanion;
 		switch (this._steps[this._step]) {
-			case "background":     return !!this._selections.backgroundSlug;
+			case "background": {
+				const bg = this._selectedBackground();
+				if (!bg) return false;
+				const moveChoicesComplete = this._backgroundMoveChoices(bg).every(choice => {
+					if (!choice.options?.length) return true;
+					const key = this._moveChoiceKey(choice);
+					return !!this._selections.backgroundChoices[key]?.value;
+				});
+				const setup = this._backgroundSetup(bg);
+				const setupChoicesComplete = (setup?.choices ?? []).every(choice =>
+					!!this._selections.backgroundSetup.choices[choice.key]
+				);
+				const setupTextsComplete = (setup?.texts ?? []).every(text =>
+					!!this._selections.backgroundSetup.texts[text.key]?.trim()
+				);
+				const neighborTraitsComplete = (setup?.neighbors ?? []).every(neighbor =>
+					!neighbor.traitKey || !!this._selections.backgroundSetup.neighborTraits[neighbor.traitKey]?.trim()
+				);
+				const neighborChoicesComplete = (setup?.neighborChoices ?? []).every(choice => {
+					const count = Number(choice.count ?? 1);
+					return (this._selections.backgroundSetup.neighborPicks[choice.key] ?? []).length === count;
+				});
+				return moveChoicesComplete && setupChoicesComplete && setupTextsComplete &&
+					neighborTraitsComplete && neighborChoicesComplete;
+			}
 			case "instinct":       return !!this._selections.instinctValue.trim();
 			case "appearance":     return this._rawAppearance.every((_, i) => !!this._selections.appearance[i]);
 			case "origin":         return !!this._selections.originRegion;
@@ -514,6 +677,8 @@ export class CharacterOnboardingDialog extends Application {
 				label:       this._normalizeOnboardingText(bg.label),
 				description: this._normalizeOnboardingText(bg.description),
 				selected:    this._selections.backgroundSlug === bg.slug,
+				moveChoices: this._backgroundMoveChoiceData(bg),
+				setup: this._backgroundSetupData(bg),
 				majorArcana: (bg.majorArcana ?? []).map(slug => {
 					const option = majorBySlug.get(slug);
 					return option ? {
@@ -867,6 +1032,136 @@ export class CharacterOnboardingDialog extends Application {
 		// ── Background ────────────────────────────────────────────────
 		html.find("[name='onboard-background']").on("change", ev => {
 			this._applyBackgroundChange(ev.currentTarget.value);
+			_refreshNextButton();
+		});
+
+		html.find(".stonetop-onboarding-background-move-choices").on("click", ev => {
+			ev.stopPropagation();
+		});
+		html.find(".stonetop-onboarding-background-choice-option").on("click", ev => {
+			if (ev.target.type === "radio") return;
+			const radio = ev.currentTarget.querySelector("input[type='radio']");
+			if (radio && !radio.checked) {
+				radio.checked = true;
+				radio.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+		});
+		html.find(".stonetop-onboarding-background-choice-option input[type='radio']").on("change", ev => {
+			const { backgroundSlug, choiceKey, choiceLabel } = ev.currentTarget.dataset;
+			const prevBackground = this._selections.backgroundSlug;
+			this._applyBackgroundChange(backgroundSlug);
+			this._selections.backgroundChoices[choiceKey] = {
+				label: choiceLabel,
+				value: ev.currentTarget.value,
+			};
+			html.find(`[name='${ev.currentTarget.name}']`).each((_, radio) => {
+				radio.closest(".stonetop-onboarding-background-choice-option")
+					?.classList.toggle("is-selected", radio.checked);
+			});
+			if (prevBackground !== backgroundSlug) {
+				html.find("[name='onboard-background']").each((_, radio) => {
+					radio.checked = radio.value === backgroundSlug;
+					radio.closest(".stonetop-onboarding-card")
+						?.classList.toggle("is-selected", radio.value === backgroundSlug);
+				});
+			}
+			_refreshNextButton();
+		});
+
+		html.find(".stonetop-onboarding-background-setup").on("click", ev => {
+			ev.stopPropagation();
+		});
+		html.find(".stonetop-onboarding-background-setup-option").on("click", ev => {
+			if (ev.target.type === "radio") return;
+			const radio = ev.currentTarget.querySelector("input[type='radio']");
+			if (radio && !radio.checked) {
+				radio.checked = true;
+				radio.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+		});
+		html.find(".stonetop-onboarding-background-setup-option input[type='radio']").on("change", ev => {
+			const { backgroundSlug, choiceKey } = ev.currentTarget.dataset;
+			const prevBackground = this._selections.backgroundSlug;
+			this._applyBackgroundChange(backgroundSlug);
+			this._selections.backgroundSetup.choices[choiceKey] = ev.currentTarget.value;
+			html.find(`[name='${ev.currentTarget.name}']`).each((_, radio) => {
+				radio.closest(".stonetop-onboarding-background-setup-option")
+					?.classList.toggle("is-selected", radio.checked);
+			});
+			if (prevBackground !== backgroundSlug) {
+				html.find("[name='onboard-background']").each((_, radio) => {
+					radio.checked = radio.value === backgroundSlug;
+					radio.closest(".stonetop-onboarding-card")
+						?.classList.toggle("is-selected", radio.value === backgroundSlug);
+				});
+			}
+			_refreshNextButton();
+		});
+		html.find(".onboard-background-setup-text").on("input", ev => {
+			const { backgroundSlug, textKey } = ev.currentTarget.dataset;
+			const prevBackground = this._selections.backgroundSlug;
+			this._applyBackgroundChange(backgroundSlug);
+			this._selections.backgroundSetup.texts[textKey] = ev.currentTarget.value;
+			if (prevBackground !== backgroundSlug) {
+				html.find("[name='onboard-background']").each((_, radio) => {
+					radio.checked = radio.value === backgroundSlug;
+					radio.closest(".stonetop-onboarding-card")
+						?.classList.toggle("is-selected", radio.value === backgroundSlug);
+				});
+			}
+			_refreshNextButton();
+		});
+		html.find(".onboard-background-neighbor-trait").on("input", ev => {
+			const { backgroundSlug, traitKey } = ev.currentTarget.dataset;
+			const prevBackground = this._selections.backgroundSlug;
+			this._applyBackgroundChange(backgroundSlug);
+			this._selections.backgroundSetup.neighborTraits[traitKey] = ev.currentTarget.value;
+			if (prevBackground !== backgroundSlug) {
+				html.find("[name='onboard-background']").each((_, radio) => {
+					radio.checked = radio.value === backgroundSlug;
+					radio.closest(".stonetop-onboarding-card")
+						?.classList.toggle("is-selected", radio.value === backgroundSlug);
+				});
+			}
+			_refreshNextButton();
+		});
+		html.find(".stonetop-onboarding-background-neighbor-option").on("click", ev => {
+			if (ev.target.type === "checkbox") return;
+			const checkbox = ev.currentTarget.querySelector("input[type='checkbox']");
+			if (checkbox) {
+				checkbox.checked = !checkbox.checked;
+				checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+		});
+		html.find(".stonetop-onboarding-background-neighbor-option input[type='checkbox']").on("change", ev => {
+			const { backgroundSlug, choiceKey } = ev.currentTarget.dataset;
+			const max = Number(ev.currentTarget.dataset.choiceCount ?? 1);
+			const prevBackground = this._selections.backgroundSlug;
+			this._applyBackgroundChange(backgroundSlug);
+			const current = this._selections.backgroundSetup.neighborPicks[choiceKey] ?? [];
+			const value = ev.currentTarget.value;
+			let next = ev.currentTarget.checked
+				? [...current.filter(v => v !== value), value]
+				: current.filter(v => v !== value);
+			if (next.length > max) {
+				const removed = next.shift();
+				const removedInput = html[0].querySelector(
+					`input[name='${ev.currentTarget.name}'][value='${removed}']`
+				);
+				if (removedInput) removedInput.checked = false;
+			}
+			this._selections.backgroundSetup.neighborPicks[choiceKey] = next;
+			html.find(`[name='${ev.currentTarget.name}']`).each((_, checkbox) => {
+				checkbox.closest(".stonetop-onboarding-background-neighbor-option")
+					?.classList.toggle("is-selected", checkbox.checked);
+			});
+			if (prevBackground !== backgroundSlug) {
+				html.find("[name='onboard-background']").each((_, radio) => {
+					radio.checked = radio.value === backgroundSlug;
+					radio.closest(".stonetop-onboarding-card")
+						?.classList.toggle("is-selected", radio.value === backgroundSlug);
+				});
+			}
 			_refreshNextButton();
 		});
 

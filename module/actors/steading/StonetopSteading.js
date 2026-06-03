@@ -390,6 +390,7 @@ export const STEADING_DEFAULTS = {
 		{ name: "", checked: false },
 		{ name: "", checked: false },
 	],
+	neighbors: [],
 	places: [
 		{ letter: "A", name: "The Stone" },
 		{ letter: "B", name: "The Granary" },
@@ -532,6 +533,7 @@ export class StonetopSteading {
 			resources:      f.resources      ?? STEADING_DEFAULTS.resources,
 			fortifications: f.fortifications ?? STEADING_DEFAULTS.fortifications,
 			assets:         f.assets         ?? STEADING_DEFAULTS.assets,
+			neighbors:      f.neighbors      ?? STEADING_DEFAULTS.neighbors,
 			places:         f.places         ?? STEADING_DEFAULTS.places,
 			notes:          f.notes          ?? STEADING_DEFAULTS.notes,
 			size:           f.size           ?? STEADING_DEFAULTS.size,

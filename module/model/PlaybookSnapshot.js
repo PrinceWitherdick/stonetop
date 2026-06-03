@@ -149,6 +149,8 @@ export class BackgroundOptionSnapshot {
 		this.selected    = b._selected;
 		this.moves       = b._moves;
 		this.choices     = b._choices;
+		this.setupTexts  = b._setupTexts;
+		this.setupResources = b._setupResources;
 	}
 }
 
@@ -159,6 +161,8 @@ export class BackgroundOptionSnapshotBuilder {
 	withSelected(v)    { this._selected    = v; return this; }
 	withMoves(v)       { this._moves       = v; return this; }
 	withChoices(v)     { this._choices     = v; return this; }
+	withSetupTexts(v)  { this._setupTexts  = v; return this; }
+	withSetupResources(v) { this._setupResources = v; return this; }
 	build()            { return new BackgroundOptionSnapshot(this); }
 }
 
