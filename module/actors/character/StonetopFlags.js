@@ -34,3 +34,8 @@ export class StonetopFlags {
 export function resolvedFlags(actor) {
 	return actor.flags?.[_scope] ?? actor.flags?.[_legacyScope] ?? {};
 }
+
+export function resolvedFlagProperty(actor, path) {
+	return foundry.utils.getProperty(actor.flags?.[_scope], path)
+		?? foundry.utils.getProperty(actor.flags?.[_legacyScope], path);
+}

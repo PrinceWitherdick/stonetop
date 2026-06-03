@@ -1,3 +1,5 @@
+import {resolvedFlagProperty} from "../character/StonetopFlags.js";
+
 export const IMPROVEMENT_DEFINITIONS = [
 	// ── Page 2 ──────────────────────────────────────────────────
 	{
@@ -455,9 +457,7 @@ export class StonetopSteading {
 	}
 
 	get _flags() {
-		return this._actor.getFlag("stonetop_pwd", "steading")
-			?? this._actor.flags?.stonetop?.steading
-			?? {};
+		return resolvedFlagProperty(this._actor, "steading") ?? {};
 	}
 
 	async setFlags(updates) {

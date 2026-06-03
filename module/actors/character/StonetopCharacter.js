@@ -39,7 +39,7 @@ import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {MoveResources} from "./MoveResources.js";
 import {getSetting} from "../../settings.js";
 import {promptRoll} from "../../utils/rolls.js";
-import {StonetopFlags, resolvedFlags} from "./StonetopFlags.js";
+import {StonetopFlags, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
@@ -571,15 +571,13 @@ export class StonetopCharacter {
 	async setInventorySmallPool(count)              { await this._inventory.setSmallPool(count); }
 
 	getSteadingActor() {
-		const storedSteadingId = this._actor.getFlag("stonetop_pwd", "steadingId")
-			?? this._actor.flags?.stonetop?.steadingId;
+		const storedSteadingId = resolvedFlagProperty(this._actor, "steadingId");
 		return (storedSteadingId ? game.actors?.get(storedSteadingId) : null)
 			?? getStonetopSteadingActor();
 	}
 
 	getSmallItemLimit(steading = this.getSteadingActor()) {
-		const rawProsperity = steading?.getFlag?.("stonetop_pwd", "steading.system.attributes.prosperity.value")
-			?? steading?.flags?.stonetop?.steading?.system?.attributes?.prosperity?.value
+		const rawProsperity = (steading ? resolvedFlagProperty(steading, "steading.system.attributes.prosperity.value") : null)
 			?? steading?.system?.attributes?.prosperity?.value;
 		if (rawProsperity == null) return null;
 		const prosperity = Number(rawProsperity);

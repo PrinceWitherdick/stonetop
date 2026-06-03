@@ -5,7 +5,7 @@ import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
-import {resolvedFlags} from "./StonetopFlags.js";
+import {resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {rollDamage} from "../../utils/roll-engine.js";
 import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
@@ -1821,7 +1821,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}
 			const backgroundSetupResources = {};
-			const existingSetupResources = this.actor.flags?.stonetop_pwd?.background?.setupResources ?? this.actor.flags?.stonetop?.background?.setupResources ?? {};
+			const existingSetupResources = resolvedFlagProperty(this.actor, "background.setupResources") ?? {};
 			for (const resource of (backgroundSetup?.resources ?? [])) {
 				if (!resource.key) continue;
 				backgroundSetupResources[resource.key] = existingSetupResources[resource.key] ?? resource.value ?? 0;
