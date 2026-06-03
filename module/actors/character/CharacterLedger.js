@@ -64,6 +64,19 @@ const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.
 const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
 const POSSESSION_SELECTED_PATH = `flags.${LEDGER_SCOPE}.possessions.selected`;
 
+function normalizeFlagPath(path) {
+	return String(path ?? "").replace(/^flags\.stonetop\./, `flags.${LEDGER_SCOPE}.`);
+}
+
+function getActorProperty(actor, path) {
+	const value = foundry.utils.getProperty(actor, path);
+	if (value !== undefined) return value;
+	if (String(path).startsWith(`flags.${LEDGER_SCOPE}.`)) {
+		return foundry.utils.getProperty(actor, path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop."));
+	}
+	return undefined;
+}
+
 export function isBlank(v) {
 	return v === undefined || v === null || v === "";
 }
@@ -245,13 +258,14 @@ async function actorUpdateEntries(actor, changed) {
 	const names = await buildNameLookup(actor);
 	const entries = [];
 	for (const [path, newValue] of Object.entries(foundry.utils.flattenObject(changed))) {
-		if (!path || path === `flags.${LEDGER_SCOPE}.${LEDGER_KEY}` || path.startsWith(`flags.${LEDGER_SCOPE}.${LEDGER_KEY}.`)) continue;
+		const normalizedPath = normalizeFlagPath(path);
+		if (!normalizedPath || normalizedPath === `flags.${LEDGER_SCOPE}.${LEDGER_KEY}` || normalizedPath.startsWith(`flags.${LEDGER_SCOPE}.${LEDGER_KEY}.`)) continue;
 
-		if (path === "system.playbook" || path.startsWith("system.playbook.")) {
+		if (normalizedPath === "system.playbook" || normalizedPath.startsWith("system.playbook.")) {
 			const oldName = actor.system?.playbook?.name;
-			const newName = path === "system.playbook"
+			const newName = normalizedPath === "system.playbook"
 				? newValue?.name
-				: path === "system.playbook.name"
+				: normalizedPath === "system.playbook.name"
 					? newValue
 					: foundry.utils.getProperty(changed, "system.playbook.name");
 			if (newName && oldName !== newName) {
@@ -262,16 +276,16 @@ async function actorUpdateEntries(actor, changed) {
 			continue;
 		}
 
-		const oldValue = foundry.utils.getProperty(actor, path);
+		const oldValue = getActorProperty(actor, normalizedPath);
 		if (valuesEqual(oldValue, newValue)) continue;
 
-		const granularEntries = granularEntriesForPath(path, oldValue, newValue, names);
+		const granularEntries = granularEntriesForPath(normalizedPath, oldValue, newValue, names);
 		if (granularEntries) {
 			entries.push(...granularEntries);
 			continue;
 		}
 
-		const label = labelForPath(path);
+		const label = labelForPath(normalizedPath);
 		if (!label) continue;
 
 		entries.push({ action: actionForField(label, oldValue, newValue) });

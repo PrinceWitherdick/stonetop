@@ -1,6 +1,6 @@
 {
     "Actor": {
-        "types": ["character", "stonetop", "npc"],
+        "types": ["character", "stonetop", "npc", "monster"],
         "character": {
             "stats": {
                 "str": { "value": 0 },
@@ -53,10 +53,31 @@
                 "instinct": { "value": ""          }
             },
             "notes": ""
+        },
+        "monster": {
+            "attributes": {
+                "hp":       { "value": 0, "max": 0 },
+                "armor":    { "value": 0 },
+                "damage":   { "value": "" },
+                "instinct": { "value": "" }
+            },
+            "concept": "",
+            "grouping": "",
+            "size": "",
+            "tags": "",
+            "qualities": "",
+            "description": "",
+            "questions": "",
+            "lore": "",
+            "hooks": "",
+            "origins": "",
+            "discoveries": "",
+            "dangers": "",
+            "notes": ""
         }
     },
     "Item": {
-        "types": ["move", "playbook", "npcMove"],
+        "types": ["move", "playbook", "npcMove", "monsterMove"],
         "move": {
             "description":     "",
             "moveType":        "",
@@ -70,6 +91,10 @@
             "description": ""
         },
         "npcMove": {
+            "description": "",
+            "rollFormula": ""
+        },
+        "monsterMove": {
             "description": "",
             "rollFormula": ""
         }

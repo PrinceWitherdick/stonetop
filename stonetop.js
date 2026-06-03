@@ -5,6 +5,7 @@ import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSh
 import { createStonetopCharacterSheetClass } from "./module/actors/character/StonetopCharacterSheet.js";
 import { createStonetopSteadingSheetClass } from "./module/actors/steading/StonetopSteadingSheet.js";
 import { createStonetopNpcSheetClass } from "./module/actors/npc/StonetopNpcSheet.js";
+import { createStonetopMonsterSheetClass } from "./module/actors/monster/StonetopMonsterSheet.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
@@ -107,6 +108,13 @@ Hooks.once("init", () => {
 		label:       "Stonetop NPC Sheet",
 	});
 
+	const StonetopMonsterSheet = createStonetopMonsterSheetClass(ActorSheet);
+	Actors.registerSheet("stonetop_pwd", StonetopMonsterSheet, {
+		types:       ["monster"],
+		makeDefault: true,
+		label:       "Stonetop Monster Sheet",
+	});
+
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
 	Items.registerSheet("stonetop_pwd", StonetopArcanumSheet, {
 		types:       ["move"],
@@ -137,6 +145,7 @@ Hooks.once("init", () => {
 		"stonetop.steading-tab-moves":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-moves.hbs",
 		"stonetop.steading-tab-notes":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-notes.hbs",
 		"stonetop.npc-sheet":                 "systems/stonetop_pwd/templates/actor/npc.hbs",
+		"stonetop.monster-sheet":             "systems/stonetop_pwd/templates/actor/monster.hbs",
 	});
 });
 

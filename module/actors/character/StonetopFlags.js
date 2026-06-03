@@ -1,4 +1,5 @@
 export const STONETOP_SCOPE = "stonetop_pwd";
+export const LEGACY_STONETOP_SCOPE = "stonetop";
 // Compendium item documents store their custom flags under the original system ID.
 // This intentionally differs from STONETOP_SCOPE (actor flags).
 export const ITEM_FLAG_SCOPE = "stonetop";
@@ -14,7 +15,8 @@ export class StonetopFlags {
 	}
 
 	getFlag(key) {
-		return this._actor.getFlag(_scope, this.buildKey(key));
+		return this._actor.getFlag(_scope, this.buildKey(key))
+			?? this._actor.getFlag(LEGACY_STONETOP_SCOPE, this.buildKey(key));
 	}
 
 	async setFlag(key, value) {
@@ -31,9 +33,10 @@ export class StonetopFlags {
 }
 
 export function resolvedFlags(actor) {
-	return actor.flags?.[_scope] ?? {};
+	return actor.flags?.[_scope] ?? actor.flags?.[LEGACY_STONETOP_SCOPE] ?? {};
 }
 
 export function resolvedFlagProperty(actor, path) {
-	return foundry.utils.getProperty(actor.flags?.[_scope], path);
+	const scoped = actor.flags?.[_scope] ?? actor.flags?.[LEGACY_STONETOP_SCOPE];
+	return foundry.utils.getProperty(scoped, path) ?? scoped?.[path];
 }

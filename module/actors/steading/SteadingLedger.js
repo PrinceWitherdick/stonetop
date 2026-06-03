@@ -31,6 +31,19 @@ const FLAG_NAMESPACE_LABELS = {
 
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
 
+function normalizeFlagPath(path) {
+	return String(path ?? "").replace(/^flags\.stonetop\./, `flags.${LEDGER_SCOPE}.`);
+}
+
+function getActorProperty(actor, path) {
+	const value = foundry.utils.getProperty(actor, path);
+	if (value !== undefined) return value;
+	if (String(path).startsWith(`flags.${LEDGER_SCOPE}.`)) {
+		return foundry.utils.getProperty(actor, path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop."));
+	}
+	return undefined;
+}
+
 function isSteadingActor(actor) {
 	return actor?.type === "stonetop" || actor?.system?.customType === "stonetop";
 }
@@ -165,23 +178,24 @@ const PATH_HANDLERS = {
 function actorUpdateEntries(actor, changed) {
 	const entries = [];
 	for (const [path, newValue] of Object.entries(foundry.utils.flattenObject(changed))) {
-		if (!path || path === `flags.${LEDGER_SCOPE}.${LEDGER_KEY}` || path.startsWith(`flags.${LEDGER_SCOPE}.${LEDGER_KEY}.`)) continue;
+		const normalizedPath = normalizeFlagPath(path);
+		if (!normalizedPath || normalizedPath === `flags.${LEDGER_SCOPE}.${LEDGER_KEY}` || normalizedPath.startsWith(`flags.${LEDGER_SCOPE}.${LEDGER_KEY}.`)) continue;
 
-		const handler = PATH_HANDLERS[path];
+		const handler = PATH_HANDLERS[normalizedPath];
 		if (handler) {
-			const oldValue = foundry.utils.getProperty(actor, path);
+			const oldValue = getActorProperty(actor, normalizedPath);
 			entries.push(...(handler(oldValue, newValue) ?? []));
 			continue;
 		}
 
 		// Skip sub-paths of namespace prefixes — handlers above cover the
 		// top-level path; sub-paths (e.g. resources.0.name) would produce noise.
-		const isSubPath = SORTED_NAMESPACE_PREFIXES.some(p => path !== p && path.startsWith(`${p}.`));
+		const isSubPath = SORTED_NAMESPACE_PREFIXES.some(p => normalizedPath !== p && normalizedPath.startsWith(`${p}.`));
 		if (isSubPath) continue;
 
-		const oldValue = foundry.utils.getProperty(actor, path);
+		const oldValue = getActorProperty(actor, normalizedPath);
 		if (valuesEqual(oldValue, newValue)) continue;
-		const label = labelForPath(path);
+		const label = labelForPath(normalizedPath);
 		if (!label) continue;
 		entries.push({ action: actionForField(label, oldValue, newValue) });
 	}

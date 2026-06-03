@@ -6259,4 +6259,181 @@ span.stonetop-loyalty-pip { cursor: default; }
 	font-style: italic;
 }
 
+/* Monster sheet */
+
+.stonetop-monster-sheet .window-content,
+.stonetop.actor.monster .window-content {
+	background: var(--stonetop-bg) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp);
+}
+
+.stonetop-monster-container {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	height: 100%;
+	min-height: 0;
+}
+
+.stonetop-monster-header .sheet-header__fields {
+	gap: 6px;
+}
+
+.stonetop-monster-subtitle input {
+	width: 100%;
+	font-size: 0.92em;
+	font-style: italic;
+}
+
+.stonetop-monster-statbar {
+	display: grid;
+	grid-template-columns: 110px 90px 130px minmax(220px, 1fr);
+	gap: 8px;
+	align-items: stretch;
+}
+
+.stonetop-monster-stat,
+.stonetop-monster-traits label {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 8px;
+	border: 1px solid hsl(35deg 16% 68%);
+	background: hsl(40deg 28% 97% / 0.85);
+	border-radius: 4px;
+	min-width: 0;
+}
+
+.stonetop-monster-stat label,
+.stonetop-monster-traits span,
+.stonetop-monster-field > span {
+	font-size: 0.74em;
+	font-weight: bold;
+	color: #555;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.stonetop-monster-stat input,
+.stonetop-monster-traits input {
+	width: 100%;
+	min-width: 0;
+}
+
+.stonetop-monster-resource {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	gap: 4px;
+	align-items: center;
+}
+
+.stonetop-monster-resource span {
+	color: #777;
+	text-align: center;
+}
+
+.stonetop-monster-traits {
+	display: grid;
+	grid-template-columns: 150px 150px minmax(240px, 1fr);
+	gap: 8px;
+}
+
+.stonetop-monster-body {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+}
+
+.stonetop-monster-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.stonetop-monster-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.stonetop-monster-field--full {
+	grid-column: 1 / -1;
+}
+
+.stonetop-monster-field textarea {
+	width: 100%;
+	min-height: 150px;
+	resize: vertical;
+	line-height: 1.4;
+}
+
+.stonetop-monster-field--full textarea {
+	min-height: 170px;
+}
+
+.stonetop-monster-moves-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.stonetop-monster-move-item {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 8px;
+	padding: 8px 10px;
+	border: 1px solid hsl(35deg 16% 72%);
+	background: hsl(40deg 28% 98% / 0.9);
+	border-radius: 4px;
+}
+
+.stonetop-monster-move-controls {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	color: slategrey;
+}
+
+.stonetop-monster-move-body {
+	min-width: 0;
+}
+
+.stonetop-monster-move-name {
+	display: inline-block;
+	font-weight: bold;
+	color: var(--color-text-dark-primary);
+	margin-bottom: 3px;
+}
+
+.stonetop-monster-move-description {
+	font-size: 0.9em;
+	line-height: 1.4;
+	color: #333;
+}
+
+.stonetop-monster-move-description p {
+	margin: 0 0 5px;
+}
+
+.stonetop-monster-add-controls {
+	margin-top: 10px;
+}
+
+.stonetop-monster-add-move,
+.stonetop-monster-moves-empty {
+	color: slategrey;
+	font-size: 0.9em;
+}
+
+@media (max-width: 720px) {
+	.stonetop-monster-statbar,
+	.stonetop-monster-traits,
+	.stonetop-monster-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
 

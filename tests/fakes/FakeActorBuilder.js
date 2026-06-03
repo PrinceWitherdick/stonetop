@@ -73,7 +73,12 @@ export class FakeActorBuilder {
 	}
 
 	build() {
-		const flagStore = {stonetop: {...this._flags, rollMode: this._pbtaRollMode}};
+		const scopedFlags = {};
+		for (const [key, value] of Object.entries(this._flags)) {
+			_setProperty(scopedFlags, key, value);
+		}
+		if (this._pbtaRollMode !== null) scopedFlags.rollMode = this._pbtaRollMode;
+		const flagStore = {stonetop_pwd: scopedFlags, stonetop: scopedFlags};
 
 		return {
 			name: this._name,
@@ -92,14 +97,48 @@ export class FakeActorBuilder {
 			},
 			items: this._items,
 			flags: flagStore,
-			getFlag: (scope, key) => flagStore[scope]?.[key] ?? null,
+			getFlag: (scope, key) => {
+				const scoped = flagStore[scope];
+				if (!scoped) return null;
+				return _getProperty(scoped, key) ?? scoped[key] ?? null;
+			},
 			setFlag: vi.fn(async (scope, key, val) => {
 				flagStore[scope] ??= {};
-				flagStore[scope][key] = val;
+				_setProperty(flagStore[scope], key, val);
+			}),
+			unsetFlag: vi.fn(async (scope, key) => {
+				_unsetProperty(flagStore[scope], key);
 			}),
 			update: vi.fn(),
 			createEmbeddedDocuments: vi.fn(),
 			deleteEmbeddedDocuments: vi.fn(),
 		};
 	}
+}
+
+function _getProperty(obj, path) {
+	if (!obj || !path) return obj;
+	if (Object.hasOwn(obj, path)) return obj[path];
+	return String(path).split(".").reduce((value, key) => value?.[key], obj);
+}
+
+function _setProperty(obj, path, value) {
+	const parts = String(path).split(".");
+	let current = obj;
+	for (const key of parts.slice(0, -1)) {
+		current[key] ??= {};
+		current = current[key];
+	}
+	current[parts.at(-1)] = value;
+}
+
+function _unsetProperty(obj, path) {
+	if (!obj || !path) return;
+	const parts = String(path).split(".");
+	let current = obj;
+	for (const key of parts.slice(0, -1)) {
+		current = current?.[key];
+		if (!current) return;
+	}
+	delete current[parts.at(-1)];
 }

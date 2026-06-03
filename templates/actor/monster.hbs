@@ -1,0 +1,181 @@
+<form class="{{cssClass}} stonetop-monster-sheet" autocomplete="off">
+	<div class="sheet-container stonetop-monster-container">
+
+		<header class="sheet-header stonetop-sheet-header stonetop-monster-header">
+			<img class="stonetop-portrait" src="{{actor.img}}"
+			     {{#if editable}}data-edit="img"{{/if}}
+			     title="{{actor.name}}" alt="{{actor.name}}">
+			<div class="sheet-header__fields">
+				{{#if editable}}
+				<input class="input--title stonetop-name-field" name="name" type="text"
+				       value="{{actor.name}}" placeholder='{{localize "stonetop.monster.namePlaceholder"}}'>
+				{{else}}
+				<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}</span>
+				{{/if}}
+				<div class="stonetop-monster-subtitle">
+					<input type="text" name="system.concept" value="{{system.concept}}"
+					       placeholder="{{localize "stonetop.monster.conceptPlaceholder"}}"
+					       {{#unless editable}}disabled{{/unless}}>
+				</div>
+			</div>
+		</header>
+
+		<section class="stonetop-monster-statbar">
+			<div class="stonetop-monster-stat">
+				<label>{{localize "stonetop.monster.hitPoints"}}</label>
+				<div class="stonetop-monster-resource">
+					<input type="number" name="system.attributes.hp.value"
+					       value="{{system.attributes.hp.value}}" min="0"
+					       {{#unless editable}}disabled{{/unless}}>
+					<span>/</span>
+					<input type="number" name="system.attributes.hp.max"
+					       value="{{system.attributes.hp.max}}" min="0"
+					       {{#unless editable}}disabled{{/unless}}>
+				</div>
+			</div>
+			<div class="stonetop-monster-stat">
+				<label>{{localize "stonetop.monster.armor"}}</label>
+				<input type="number" name="system.attributes.armor.value"
+				       value="{{system.attributes.armor.value}}" min="0"
+				       {{#unless editable}}disabled{{/unless}}>
+			</div>
+			<div class="stonetop-monster-stat">
+				<label>{{localize "stonetop.monster.damage"}}</label>
+				<input type="text" name="system.attributes.damage.value"
+				       value="{{system.attributes.damage.value}}" placeholder="d6, d8, d10..."
+				       {{#unless editable}}disabled{{/unless}}>
+			</div>
+			<div class="stonetop-monster-stat stonetop-monster-stat--wide">
+				<label>{{localize "stonetop.monster.instinct"}}</label>
+				<input type="text" name="system.attributes.instinct.value"
+				       value="{{system.attributes.instinct.value}}" placeholder="to..."
+				       {{#unless editable}}disabled{{/unless}}>
+			</div>
+		</section>
+
+		<section class="stonetop-monster-traits">
+			<label>
+				<span>{{localize "stonetop.monster.grouping"}}</span>
+				<input type="text" name="system.grouping" value="{{system.grouping}}"
+				       placeholder="horde, group, solitary"
+				       {{#unless editable}}disabled{{/unless}}>
+			</label>
+			<label>
+				<span>{{localize "stonetop.monster.size"}}</span>
+				<input type="text" name="system.size" value="{{system.size}}"
+				       placeholder="tiny, large, huge"
+				       {{#unless editable}}disabled{{/unless}}>
+			</label>
+			<label class="stonetop-monster-traits__tags">
+				<span>{{localize "stonetop.monster.tags"}}</span>
+				<input type="text" name="system.tags" value="{{system.tags}}"
+				       placeholder="horde, small, cautious, stealthy..."
+				       {{#unless editable}}disabled{{/unless}}>
+			</label>
+		</section>
+
+		<nav class="sheet-tabs tabs" data-group="primary">
+			<a class="item" data-tab="overview">{{localize "stonetop.monster.tabs.overview"}}</a>
+			<a class="item" data-tab="moves">{{localize "stonetop.monster.tabs.moves"}}</a>
+			<a class="item" data-tab="lore">{{localize "stonetop.monster.tabs.lore"}}</a>
+			<a class="item" data-tab="prep">{{localize "stonetop.monster.tabs.prep"}}</a>
+			<a class="item" data-tab="notes">{{localize "stonetop.monster.tabs.notes"}}</a>
+		</nav>
+
+		<section class="sheet-body stonetop-monster-body">
+			<div class="tab" data-tab="overview">
+				<div class="stonetop-monster-grid">
+					<label class="stonetop-monster-field stonetop-monster-field--full">
+						<span>{{localize "stonetop.monster.description"}}</span>
+						<textarea name="system.description" {{#unless editable}}disabled{{/unless}}>{{system.description}}</textarea>
+					</label>
+					<label class="stonetop-monster-field">
+						<span>{{localize "stonetop.monster.qualities"}}</span>
+						<textarea name="system.qualities" {{#unless editable}}disabled{{/unless}}>{{system.qualities}}</textarea>
+					</label>
+					<label class="stonetop-monster-field">
+						<span>{{localize "stonetop.monster.dangers"}}</span>
+						<textarea name="system.dangers" {{#unless editable}}disabled{{/unless}}>{{system.dangers}}</textarea>
+					</label>
+				</div>
+			</div>
+
+			<div class="tab" data-tab="moves">
+				<ul class="stonetop-monster-moves-list">
+					{{#each monsterMoves}}
+					<li class="stonetop-monster-move-item" data-item-id="{{id}}">
+						<div class="stonetop-monster-move-controls">
+					{{#if ../editable}}
+							<a class="stonetop-monster-delete-move" title='{{localize "stonetop.monster.deleteMove"}}'>
+								<i class="fas fa-trash"></i>
+							</a>
+							{{/if}}
+							{{#if system.rollFormula}}
+							<a class="stonetop-monster-move-roll" title="Roll {{system.rollFormula}}">
+								<i class="fas fa-dice-d6"></i>
+							</a>
+							{{/if}}
+						</div>
+						<div class="stonetop-monster-move-body">
+							<a class="stonetop-monster-move-name">{{name}}</a>
+							{{#if system.description}}
+							<div class="stonetop-monster-move-description">{{{system.description}}}</div>
+							{{/if}}
+						</div>
+					</li>
+					{{else}}
+					<li class="stonetop-monster-moves-empty">{{localize "stonetop.monster.noMoves"}}</li>
+					{{/each}}
+				</ul>
+				{{#if editable}}
+				<div class="stonetop-monster-add-controls">
+					<a class="stonetop-monster-add-move">
+						<i class="fas fa-plus"></i> {{localize "stonetop.monster.addMove"}}
+					</a>
+				</div>
+				{{/if}}
+			</div>
+
+			<div class="tab" data-tab="lore">
+				<div class="stonetop-monster-grid">
+					<label class="stonetop-monster-field">
+						<span>{{localize "stonetop.monster.questions"}}</span>
+						<textarea name="system.questions" {{#unless editable}}disabled{{/unless}}>{{system.questions}}</textarea>
+					</label>
+					<label class="stonetop-monster-field">
+						<span>{{localize "stonetop.monster.lore"}}</span>
+						<textarea name="system.lore" {{#unless editable}}disabled{{/unless}}>{{system.lore}}</textarea>
+					</label>
+					<label class="stonetop-monster-field">
+						<span>{{localize "stonetop.monster.origins"}}</span>
+						<textarea name="system.origins" {{#unless editable}}disabled{{/unless}}>{{system.origins}}</textarea>
+					</label>
+					<label class="stonetop-monster-field">
+						<span>{{localize "stonetop.monster.discoveries"}}</span>
+						<textarea name="system.discoveries" {{#unless editable}}disabled{{/unless}}>{{system.discoveries}}</textarea>
+					</label>
+				</div>
+			</div>
+
+			<div class="tab" data-tab="prep">
+				<div class="stonetop-monster-grid">
+					<label class="stonetop-monster-field">
+						<span>{{localize "stonetop.monster.hooks"}}</span>
+						<textarea name="system.hooks" {{#unless editable}}disabled{{/unless}}>{{system.hooks}}</textarea>
+					</label>
+					<label class="stonetop-monster-field">
+						<span>{{localize "stonetop.monster.creationGuide"}}</span>
+						<textarea readonly disabled>{{localize "stonetop.monster.creationGuideText"}}</textarea>
+					</label>
+				</div>
+			</div>
+
+			<div class="tab" data-tab="notes">
+				<label class="stonetop-monster-field stonetop-monster-field--full">
+					<span>{{localize "stonetop.monster.notes"}}</span>
+					<textarea name="system.notes" {{#unless editable}}disabled{{/unless}}>{{system.notes}}</textarea>
+				</label>
+			</div>
+		</section>
+	</div>
+</form>

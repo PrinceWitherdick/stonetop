@@ -3,12 +3,14 @@
 		"Actor": {
 			"character": "Character",
 			"stonetop":  "Stonetop",
-			"npc":       "NPC"
+			"npc":       "NPC",
+			"monster":   "Monster"
 		},
 		"Item": {
-			"move":     "Move",
-			"playbook": "Playbook",
-			"npcMove":  "NPC Move"
+			"move":        "Move",
+			"playbook":    "Playbook",
+			"npcMove":     "NPC Move",
+			"monsterMove": "Monster Move"
 		}
 	},
 	"stonetop": {
@@ -127,6 +129,38 @@
 			"hitPoints": "Hit Points",
 			"armor": "Armor",
 			"instinct": "Instinct"
+		},
+		"monster": {
+			"namePlaceholder": "Monster Name",
+			"conceptPlaceholder": "Concept, look, or role",
+			"hitPoints": "Hit Points",
+			"armor": "Armor",
+			"damage": "Damage",
+			"instinct": "Instinct",
+			"grouping": "Grouping",
+			"size": "Size",
+			"tags": "Tags",
+			"description": "Description",
+			"qualities": "Special Qualities",
+			"dangers": "Dangers",
+			"questions": "Questions",
+			"lore": "Lore",
+			"origins": "Origins",
+			"discoveries": "Discoveries",
+			"hooks": "Hooks",
+			"creationGuide": "Creation Guide",
+			"creationGuideText": "1. Picture the monster and name it.\n2. Pick how it hunts or fights: horde, group, or solitary.\n3. Set HP from grouping, then adjust for size.\n4. Set armor from what protects it.\n5. Set damage from grouping, then add range, piercing, messy, grabby, or other attack tags.\n6. Write its instinct as \"to ...\".\n7. Write moves for what it can do, how it hunts, special attacks, or the real danger.\n8. Add a concrete description, including at least one non-visual sense.",
+			"notes": "Notes",
+			"addMove": "Add Move",
+			"deleteMove": "Delete Move",
+			"noMoves": "No moves yet.",
+			"tabs": {
+				"overview": "Overview",
+				"moves": "Moves",
+				"lore": "Lore",
+				"prep": "Prep",
+				"notes": "Notes"
+			}
 		},
 		"character": {
 			"stats": {
