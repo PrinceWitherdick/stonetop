@@ -1,53 +1,59 @@
 {
-    "$schema": "https://json.schemastore.org/foundryvtt-system-manifest.json",
-    "id": "stonetop_pwd",
-    "title": "Stonetop",
-    "description": "An unofficial system for playing Stonetop in Foundry VTT.",
-    "version": "0.8.0",
-    "compatibility": {
-        "minimum": "12",
-        "verified": "13"
-    },
-    "authors": [
-        { "name": "aMediocerDad" },
-        { "name": "taylor-nightingale" },
-        { "name": "PrinceWitherdick" }
-    ],
-    "url": "https://github.com/PrinceWitherdick/stonetop",
-    "manifest": "https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json",
-    "download": "https://github.com/PrinceWitherdick/stonetop/releases/download/0.8.0/stonetop_pwd.zip",
-    "license": "LICENSE",
-    "readme": "README.md",
-    "bugs": "https://github.com/PrinceWitherdick/stonetop/issues",
-    "changelog": "https://github.com/PrinceWitherdick/stonetop/releases",
-    "esmodules": [
-        "stonetop.js"
-    ],
-    "styles": [
-        "styles/stonetop.css"
-    ],
-    "languages": [
-        {
-            "lang": "en",
-            "name": "English",
-            "path": "languages/en.json"
-        }
-    ],
-    "packs": [
-        {
-            "name": "stonetop-items",
-            "label": "Stonetop Items",
-            "path": "packs/stonetop-items",
-            "type": "Item",
-            "system": "stonetop_pwd"
-        },
-        {
-            "name": "stonetop-journals",
-            "label": "Stonetop Journals",
-            "path": "packs/stonetop-journals",
-            "type": "JournalEntry"
-        }
-    ],
-    "primaryTokenAttribute": "attributes.hp",
-    "initiative": "2d6"
+    "$schema":  "https://json.schemastore.org/foundryvtt-system-manifest.json",
+    "id":  "stonetop_pwd",
+    "title":  "Stonetop",
+    "description":  "An unofficial system for playing Stonetop in Foundry VTT.",
+    "version":  "0.8.0",
+    "compatibility":  {
+                          "minimum":  "12",
+                          "verified":  "13"
+                      },
+    "authors":  [
+                    {
+                        "name":  "aMediocerDad"
+                    },
+                    {
+                        "name":  "taylor-nightingale"
+                    },
+                    {
+                        "name":  "PrinceWitherdick"
+                    }
+                ],
+    "url":  "https://github.com/PrinceWitherdick/stonetop",
+    "manifest":  "https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json",
+    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/0.8.0/stonetop_pwd.zip",
+    "license":  "LICENSE",
+    "readme":  "README.md",
+    "bugs":  "https://github.com/PrinceWitherdick/stonetop/issues",
+    "changelog":  "https://github.com/PrinceWitherdick/stonetop/releases",
+    "esmodules":  [
+                      "stonetop.js"
+                  ],
+    "styles":  [
+                   "styles/stonetop.css"
+               ],
+    "languages":  [
+                      {
+                          "lang":  "en",
+                          "name":  "English",
+                          "path":  "languages/en.json"
+                      }
+                  ],
+    "packs":  [
+                  {
+                      "name":  "stonetop-items",
+                      "label":  "Stonetop Items",
+                      "path":  "packs/stonetop-items",
+                      "type":  "Item",
+                      "system":  "stonetop_pwd"
+                  },
+                  {
+                      "name":  "stonetop-journals",
+                      "label":  "Stonetop Journals",
+                      "path":  "packs/stonetop-journals",
+                      "type":  "JournalEntry"
+                  }
+              ],
+    "primaryTokenAttribute":  "attributes.hp",
+    "initiative":  "2d6"
 }
