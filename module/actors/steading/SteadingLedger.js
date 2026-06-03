@@ -16,19 +16,21 @@ const SYSTEM_PATH_LABELS = {
 };
 
 const FLAG_PATH_LABELS = {
-	"flags.stonetop.size":  "Size",
-	"flags.stonetop.notes": "Notes",
+	"flags.stonetop.steading.size":  "Size",
+	"flags.stonetop.steading.notes": "Notes",
 };
 
 const FLAG_NAMESPACE_LABELS = {
-	"flags.stonetop.resources":      "Resources",
-	"flags.stonetop.fortifications": "Fortifications",
-	"flags.stonetop.assets":         "Assets",
-	"flags.stonetop.improvements":   "Improvements",
-	"flags.stonetop.places":         "Places of interest",
-	"flags.stonetop.currencies":     "Currency",
-	"flags.stonetop.debilities":     "Debilities",
+	"flags.stonetop.steading.resources":      "Resources",
+	"flags.stonetop.steading.fortifications": "Fortifications",
+	"flags.stonetop.steading.assets":         "Assets",
+	"flags.stonetop.steading.improvements":   "Improvements",
+	"flags.stonetop.steading.places":         "Places of interest",
+	"flags.stonetop.steading.silver":         "Silver",
+	"flags.stonetop.steading.gold":           "Gold",
 };
+
+const CURRENCY_NAME_LABELS = { silver: "Silver", gold: "Gold" };
 
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
 
@@ -39,19 +41,95 @@ function isSteadingActor(actor) {
 function labelForPath(path) {
 	if (SYSTEM_PATH_LABELS[path]) return SYSTEM_PATH_LABELS[path];
 	if (FLAG_PATH_LABELS[path]) return FLAG_PATH_LABELS[path];
+	const currencyMatch = path.match(/^flags\.stonetop\.steading\.(silver|gold)\.(purses|handfuls|coins)$/);
+	if (currencyMatch) return `${CURRENCY_NAME_LABELS[currencyMatch[1]]} ${currencyMatch[2]}`;
 	const namespace = SORTED_NAMESPACE_PREFIXES.find(p => path === p || path.startsWith(`${p}.`));
 	if (namespace) return FLAG_NAMESPACE_LABELS[namespace];
 	return null;
 }
 
+function itemName(item) {
+	return String(item?.name ?? "").trim();
+}
+
+function listEntries(label, oldValue, newValue) {
+	if (!Array.isArray(oldValue) || !Array.isArray(newValue)) return null;
+	const entries = [];
+	const max = Math.max(oldValue.length, newValue.length);
+
+	for (let i = 0; i < max; i++) {
+		const oldItem = oldValue[i] ?? {};
+		const newItem = newValue[i] ?? {};
+		const oldName = itemName(oldItem);
+		const newName = itemName(newItem);
+
+		if (oldName !== newName) {
+			if (!oldName && newName) entries.push({ action: `${label} added: ${newName}` });
+			else if (oldName && !newName) entries.push({ action: `${label} removed: ${oldName}` });
+			else entries.push({ action: `${label} renamed from ${oldName} to ${newName}` });
+		}
+
+		if (oldName || newName) {
+			const name = newName || oldName;
+			const oldChecked = !!oldItem.checked;
+			const newChecked = !!newItem.checked;
+			if (oldChecked !== newChecked) {
+				entries.push({ action: `${name} ${newChecked ? "selected" : "deselected"}` });
+			}
+		}
+	}
+
+	return entries;
+}
+
+function placeEntries(oldValue, newValue) {
+	if (!Array.isArray(oldValue) || !Array.isArray(newValue)) return null;
+	const entries = [];
+	const max = Math.max(oldValue.length, newValue.length);
+
+	for (let i = 0; i < max; i++) {
+		const oldPlace = oldValue[i] ?? {};
+		const newPlace = newValue[i] ?? {};
+		const letter = newPlace.letter ?? oldPlace.letter ?? "?";
+		const oldName = itemName(oldPlace);
+		const newName = itemName(newPlace);
+		if (oldName === newName) continue;
+		if (!oldName && newName) entries.push({ action: `Place ${letter} set to ${newName}` });
+		else if (oldName && !newName) entries.push({ action: `Place ${letter} cleared (${oldName})` });
+		else entries.push({ action: `Place ${letter} changed from ${oldName} to ${newName}` });
+	}
+
+	return entries;
+}
+
+const PATH_HANDLERS = {
+	"flags.stonetop.steading.resources":      (o, n) => listEntries("Resource",      o, n),
+	"flags.stonetop.steading.fortifications": (o, n) => listEntries("Fortification", o, n),
+	"flags.stonetop.steading.assets":         (o, n) => listEntries("Asset",         o, n),
+	"flags.stonetop.steading.places":         placeEntries,
+};
+
 function actorUpdateEntries(actor, changed) {
 	const entries = [];
 	for (const [path, newValue] of Object.entries(foundry.utils.flattenObject(changed))) {
 		if (!path || path === `flags.${LEDGER_SCOPE}.${LEDGER_KEY}` || path.startsWith(`flags.${LEDGER_SCOPE}.${LEDGER_KEY}.`)) continue;
-		const label = labelForPath(path);
-		if (!label) continue;
+
+		const handler = PATH_HANDLERS[path];
+		if (handler) {
+			const oldValue = foundry.utils.getProperty(actor, path);
+			entries.push(...(handler(oldValue, newValue) ?? []));
+			continue;
+		}
+
+		// Skip sub-paths of namespace prefixes — the handler above covers the
+		// top-level path; sub-paths (e.g. resources.0.name) would produce noise.
+		const isSubPath = SORTED_NAMESPACE_PREFIXES.some(p => path !== p && path.startsWith(`${p}.`));
+		if (isSubPath) continue;
+
 		const oldValue = foundry.utils.getProperty(actor, path);
 		if (valuesEqual(oldValue, newValue)) continue;
+		const label = labelForPath(path);
+		if (!label) continue;
 		entries.push({ action: actionForField(label, oldValue, newValue) });
 	}
 	return coalesceEntries(entries);

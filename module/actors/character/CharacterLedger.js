@@ -3,6 +3,8 @@ const LEDGER_KEY = "ledger";
 const LEDGER_MAX_ENTRIES = 300;
 
 const SYSTEM_PATH_LABELS = {
+	"name": "Name",
+	"system.playbook.name": "Playbook",
 	"system.attributes.damage.value": "Damage value",
 	"system.attributes.hp.value": "HP",
 	"system.attributes.hp.max": "Max HP",
@@ -36,6 +38,7 @@ const FLAG_PATH_LABELS = {
 };
 
 const FLAG_NAMESPACE_LABELS = {
+	"flags.stonetop.animalCompanion": "Animal companion",
 	"flags.stonetop.appearance": "Appearance",
 	"flags.stonetop.arcana": "Arcana",
 	"flags.stonetop.background.choices": "Background choices",
