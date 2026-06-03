@@ -15,7 +15,7 @@ export class PlaybookMoveEntry {
 		this.ownedIds = ownedInstances.map(i => i._id);
 		this.rollType = entry.rollType;
 		this.isStarting = isFromPlaybook || isFromBackground;
-		this.source = isFromPlaybook ? "Starting" : isFromBackground ? "Background" : null;
+		this.source = isFromPlaybook ? "Starting move" : isFromBackground ? "Background" : null;
 		this.requiresPlaybook = req?.playbook ?? null;
 		this.minLevel = req?.level ?? null;
 		this.requires = requiresMoves[0] ?? null;

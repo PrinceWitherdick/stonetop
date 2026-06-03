@@ -1,4 +1,8 @@
 // Descriptions for animal companion trait tags — checked before compendium lookup.
+import { majorArcanaImg } from "../../../arcana-icons.js";
+
+const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
+
 const TRAIT_GLOSSARY = {
 	"agile":           "Acts with grace and nimbleness; can slip through tight spaces and dodge with ease.",
 	"adorable":        "Disarmingly cute; people are more likely to be charmed than threatened.",
@@ -41,7 +45,7 @@ const TRAIT_GLOSSARY = {
 
 export class CharacterOnboardingDialog extends Application {
 	constructor(playbookDoc, onComplete, options = {}) {
-		const { onBack, ...appOptions } = options;
+		const { onBack, initialSelections, ...appOptions } = options;
 		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
@@ -61,7 +65,10 @@ export class CharacterOnboardingDialog extends Application {
 		this._rawAnimalCompanion = f.animalCompanion     ?? null;
 		this._rawLore            = f.lore               ?? [];
 		this._movePickCount  = this._parseMovePickCount();
-		this._movesCache     = null;
+		this._movesCache              = null;
+		this._arcanaCache             = null;
+		this._arcanaCachePromise      = null;
+		this._combineSeekerArcana     = this._shouldCombineSeekerArcana();
 		this._statScores     = this._parseStatScores();
 		this._statPoolCount  = {};
 		for (const v of this._statScores) this._statPoolCount[v] = (this._statPoolCount[v] ?? 0) + 1;
@@ -83,7 +90,12 @@ export class CharacterOnboardingDialog extends Application {
 			crew:            { name: "", tags: [], instinct: "", cost: "" },
 			animalCompanion: { type: "", traits: [], name: "", instinct: "", cost: "" },
 			lore:            { picks: {}, texts: {} },
+			arcana:          { major: "", minorDraw: [], minorRoles: { mastered: "", found: "", lead: "" } },
 		};
+
+		if (initialSelections) {
+			foundry.utils.mergeObject(this._selections, initialSelections, { inplace: true });
+		}
 
 		this._steps = this._buildSteps();
 		this._step  = 0;
@@ -93,6 +105,7 @@ export class CharacterOnboardingDialog extends Application {
 
 	_buildSteps() {
 		const steps = [];
+		const combineSeekerArcana = this._combineSeekerArcana;
 		if (this._backgrounds.length)   steps.push("background");
 		if (this._rawInstincts.length)  steps.push("instinct");
 		if (this._rawAppearance.length) steps.push("appearance");
@@ -109,7 +122,11 @@ export class CharacterOnboardingDialog extends Application {
 		if (this._getInitiatesData()) steps.push("initiates");
 		if (this._rawCrew?.availableTags?.length)          steps.push("crew");
 		if (this._rawAnimalCompanion?.types?.length)       steps.push("animalCompanion");
-		for (let i = 0; i < this._rawLore.length; i++)    steps.push(`lore:${i}`);
+		if (combineSeekerArcana) { steps.push("seekerArcana"); steps.push("seekerArcanaMinor"); }
+		for (let i = 0; i < this._rawLore.length; i++) {
+			if (combineSeekerArcana && this._isSeekerArcanaSection(this._rawLore[i])) continue;
+			steps.push(`lore:${i}`);
+		}
 		return steps;
 	}
 
@@ -206,6 +223,167 @@ export class CharacterOnboardingDialog extends Application {
 		return n;
 	}
 
+	_isSeekerArcanaSection(section) {
+		return SEEKER_ARCANA_SLUGS.includes(section?.slug);
+	}
+
+	_shouldCombineSeekerArcana() {
+		const slugs = new Set(this._rawLore.map(section => section.slug));
+		return SEEKER_ARCANA_SLUGS.every(slug => slugs.has(slug));
+	}
+
+	_applyBackgroundChange(slug) {
+		this._selections.backgroundSlug = slug;
+		this._selections.initiates = [];
+		this._ensureSeekerMajorSelection();
+		this._rebuildDynamicSteps();
+	}
+
+	_selectedBackground() {
+		return this._backgrounds.find(bg => bg.slug === this._selections.backgroundSlug) ?? null;
+	}
+
+	_seekerMajorArcanaSlugs(background = this._selectedBackground()) {
+		return background?.majorArcana ?? [];
+	}
+
+	_ensureSeekerMajorSelection() {
+		if (!this._combineSeekerArcana) return;
+		const allowed = this._seekerMajorArcanaSlugs();
+		if (!allowed.length) return;
+		if (!allowed.includes(this._selections.arcana.major)) {
+			this._selections.arcana.major = allowed[0];
+		}
+	}
+
+	_shuffled(arr) {
+		const out = [...arr];
+		for (let i = out.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[out[i], out[j]] = [out[j], out[i]];
+		}
+		return out;
+	}
+
+	_drawSeekerMinorArcana(minorOptions) {
+		this._selections.arcana.minorDraw = this._shuffled(minorOptions.map(option => option.slug)).slice(0, 3);
+		this._selections.arcana.minorRoles = { mastered: "", found: "", lead: "" };
+	}
+
+	_ensureSeekerMinorDraw(minorOptions) {
+		const available = new Set(minorOptions.map(option => option.slug));
+		const current = this._selections.arcana.minorDraw.filter(slug => available.has(slug));
+		if (current.length === 3) return;
+		this._drawSeekerMinorArcana(minorOptions);
+	}
+
+	_loreSectionData(section) {
+		const opts          = section.options ?? [];
+		const isTextSection = opts.length > 0 && opts.every(o => o.type === "text");
+		const isPickSection = opts.length > 0 && !isTextSection;
+		const { picks, texts } = this._selections.lore;
+		const pickMax      = isPickSection ? this._parseLorePickMax(section) : Infinity;
+		const selectedPickCount = isPickSection ? this._countLoreSectionPicks(section.slug) : 0;
+		const atLimit      = pickMax < Infinity && selectedPickCount >= pickMax;
+		return {
+			sectionSlug:        section.slug,
+			title:              this._normalizeOnboardingText(section.title ?? ""),
+			description:        this._normalizeOnboardingText(section.description ?? ""),
+			isPickSection,
+			isTextSection,
+			hasOptions:         opts.length > 0,
+			pickMax:            pickMax === Infinity ? null : pickMax,
+			selectedPickCount,
+			options: opts.map(opt => {
+				if (opt.type === "text") {
+					return {
+						slug:        opt.slug,
+						sectionSlug: section.slug,
+						description: this._normalizeOnboardingText(opt.description ?? ""),
+						type:        "text",
+						value:       texts[`${section.slug}:${opt.slug}`] ?? "",
+					};
+				}
+				const key   = `${section.slug}:${opt.slug}`;
+				const count = picks[key] ?? 0;
+				return {
+					slug:        opt.slug,
+					sectionSlug: section.slug,
+					description: this._normalizeOnboardingText(opt.description ?? ""),
+					type:        "pick",
+					max:         opt.max ?? 1,
+					count,
+					isSelected:  count > 0,
+					disabled:    !count && atLimit,
+				};
+			}),
+		};
+	}
+
+	_firstParagraph(html) {
+		const div = document.createElement("div");
+		div.innerHTML = String(html ?? "");
+		const p = div.querySelector("p");
+		// If no <p> found, fall back to first non-empty line rather than the whole text.
+		const raw = p
+			? p.textContent
+			: (div.textContent.split(/\n+/).find(l => l.trim()) ?? div.textContent);
+		return this._normalizeOnboardingText(raw.trim());
+	}
+
+	async _loadArcanaOptions() {
+		if (this._arcanaCache) return this._arcanaCache;
+		if (this._arcanaCachePromise) return this._arcanaCachePromise;
+		this._arcanaCachePromise = (async () => {
+			const pack = game.packs.get("stonetop.stonetop-items");
+			if (!pack) return { major: [], minor: [] };
+			await pack.getIndex({ fields: ["system.moveType"] });
+			const entries = pack.index.filter(entry => entry.system?.moveType === "arcanum");
+			const docs = await Promise.all(entries.map(entry => pack.getDocument(entry._id)));
+			const options = docs.filter(Boolean).flatMap(doc => {
+				const flags = doc.flags?.stonetop ?? {};
+				const slug  = flags.slug;
+				if (!slug) return [];
+				return [{
+					slug,
+					name:        this._normalizeOnboardingText(doc.name ?? flags.front?.title ?? slug),
+					description: this._firstParagraph(flags.front?.description ?? ""),
+					img:         doc.img && doc.img !== "icons/svg/item-bag.svg" ? doc.img : null,
+					isMajor:     majorArcanaImg(slug) !== null,
+				}];
+			});
+			this._arcanaCache = {
+				major: options.filter(o => o.isMajor).sort((a, b) => a.name.localeCompare(b.name)),
+				minor: options.filter(o => !o.isMajor).sort((a, b) => a.name.localeCompare(b.name)),
+			};
+			return this._arcanaCache;
+		})();
+		return this._arcanaCachePromise;
+	}
+
+	async _seekerArcanaChoiceData() {
+		const arcana = await this._loadArcanaOptions();
+		this._ensureSeekerMajorSelection();
+		this._ensureSeekerMinorDraw(arcana.minor);
+		const selectedMajor = this._selections.arcana.major;
+		const allowedMajor = new Set(this._seekerMajorArcanaSlugs());
+		const minorDraw = new Set(this._selections.arcana.minorDraw);
+		const { minorRoles } = this._selections.arcana;
+		return {
+			majorSelected: selectedMajor,
+			minorAssignedCount: Object.values(minorRoles).filter(Boolean).length,
+			minorPickCount: this._selections.arcana.minorDraw.length,
+			major: arcana.major.filter(option => allowedMajor.has(option.slug)).map(option => ({
+				...option,
+				selected: option.slug === selectedMajor,
+			})),
+			minor: arcana.minor.filter(option => minorDraw.has(option.slug)).map(option => ({
+				...option,
+				role: Object.entries(minorRoles).find(([, slug]) => slug === option.slug)?.[0] ?? "",
+				})),
+		};
+	}
+
 	async _loadPlaybookMoves() {
 		const pack = game.packs.get("stonetop.stonetop-items");
 		if (!pack) return [];
@@ -271,6 +449,10 @@ export class CharacterOnboardingDialog extends Application {
 				       ac.traits.length >= typeData.pickCount &&
 				       !!ac.instinct && !!ac.cost;
 			}
+			case "seekerArcana":
+				return !!this._selections.arcana.major;
+			case "seekerArcanaMinor":
+				return Object.values(this._selections.arcana.minorRoles).filter(Boolean).length === 3;
 			default: return true;
 		}
 	}
@@ -320,14 +502,26 @@ export class CharacterOnboardingDialog extends Application {
 		let crewData          = null;
 		let acData            = null;
 		let loreSectionData   = null;
+		let seekerArcanaData  = null;
+		let seekerArcanaChoices = null;
 
 		// ── Background ────────────────────────────────────────────────
 		if (stepType === "background") {
+			const arcana = this._combineSeekerArcana ? await this._loadArcanaOptions() : null;
+			const majorBySlug = new Map((arcana?.major ?? []).map(option => [option.slug, option]));
 			backgrounds = this._backgrounds.map(bg => ({
 				slug:        bg.slug,
 				label:       this._normalizeOnboardingText(bg.label),
 				description: this._normalizeOnboardingText(bg.description),
 				selected:    this._selections.backgroundSlug === bg.slug,
+				majorArcana: (bg.majorArcana ?? []).map(slug => {
+					const option = majorBySlug.get(slug);
+					return option ? {
+						...option,
+						backgroundSlug: bg.slug,
+						selected: this._selections.arcana.major === slug,
+					} : null;
+				}).filter(Boolean),
 			}));
 		}
 
@@ -562,48 +756,20 @@ export class CharacterOnboardingDialog extends Application {
 		if (loreMatch) {
 			const idx     = parseInt(loreMatch[1]);
 			const section = this._rawLore[idx];
-			if (section) {
-				const opts          = section.options ?? [];
-				const isTextSection = opts.length > 0 && opts.every(o => o.type === "text");
-				const isPickSection = opts.length > 0 && !isTextSection;
-				const { picks, texts } = this._selections.lore;
-				const pickMax      = isPickSection ? this._parseLorePickMax(section) : Infinity;
-				const selectedPickCount = isPickSection ? this._countLoreSectionPicks(section.slug) : 0;
-				const atLimit      = pickMax < Infinity && selectedPickCount >= pickMax;
-				loreSectionData = {
-					sectionSlug:        section.slug,
-					title:              this._normalizeOnboardingText(section.title ?? ""),
-					description:        this._normalizeOnboardingText(section.description ?? ""),
-					isPickSection,
-					isTextSection,
-					hasOptions:         opts.length > 0,
-					pickMax:            pickMax === Infinity ? null : pickMax,
-					selectedPickCount,
-					options: opts.map(opt => {
-						if (opt.type === "text") {
-							return {
-								slug:        opt.slug,
-								sectionSlug: section.slug,
-								description: this._normalizeOnboardingText(opt.description ?? ""),
-								type:        "text",
-								value:       texts[`${section.slug}:${opt.slug}`] ?? "",
-							};
-						}
-						const key   = `${section.slug}:${opt.slug}`;
-						const count = picks[key] ?? 0;
-						return {
-							slug:        opt.slug,
-							sectionSlug: section.slug,
-							description: this._normalizeOnboardingText(opt.description ?? ""),
-							type:        "pick",
-							max:         opt.max ?? 1,
-							count,
-							isSelected:  count > 0,
-							disabled:    !count && atLimit,
-						};
-					}),
-				};
-			}
+			if (section) loreSectionData = this._loreSectionData(section);
+		}
+
+		if (stepType === "seekerArcana" || stepType === "seekerArcanaMinor") {
+			seekerArcanaChoices = await this._seekerArcanaChoiceData();
+			const collectionSection = this._rawLore.find(s => s.slug === "collection");
+			seekerArcanaData = {
+				title:       this._normalizeOnboardingText(collectionSection?.title ?? "Collection"),
+				description: collectionSection ? this._normalizeOnboardingText(collectionSection.description ?? "") : "",
+				sections: (stepType === "seekerArcana" ? ["arcana-major"] : ["arcana-minor"])
+					.map(slug => this._rawLore.find(section => section.slug === slug))
+					.filter(Boolean)
+					.map(section => this._loreSectionData(section)),
+			};
 		}
 
 		// ── Animal Companion ─────────────────────────────────────────
@@ -666,6 +832,8 @@ export class CharacterOnboardingDialog extends Application {
 			isCrew:            stepType === "crew",
 			isAnimalCompanion:  stepType === "animalCompanion",
 			isLore:            !!loreMatch,
+			isSeekerArcana:      stepType === "seekerArcana",
+			isSeekerArcanaMinor: stepType === "seekerArcanaMinor",
 			progressDots,
 			backgrounds, instincts, appearanceLines, origins,
 			selectedInstinct:  this._selections.instinctValue,
@@ -675,7 +843,7 @@ export class CharacterOnboardingDialog extends Application {
 			moveOptions, movePickNote,
 			movePickCount:      this._movePickCount,
 			moveSelectedCount:  this._selections.moves.length,
-			invocationData, initiatesData, crewData, acData, loreSectionData,
+			invocationData, initiatesData, crewData, acData, loreSectionData, seekerArcanaData, seekerArcanaChoices,
 			stepComplete:       this._isStepComplete(),
 		};
 	}
@@ -698,9 +866,45 @@ export class CharacterOnboardingDialog extends Application {
 
 		// ── Background ────────────────────────────────────────────────
 		html.find("[name='onboard-background']").on("change", ev => {
-			this._selections.backgroundSlug = ev.currentTarget.value;
-			this._selections.initiates = []; // reset if background changes
-			this._rebuildDynamicSteps();
+			this._applyBackgroundChange(ev.currentTarget.value);
+			_refreshNextButton();
+		});
+
+		// Arcana options are <span>s (not <label>s) because the background card is already
+		// a <label> — nesting labels is invalid HTML. Stop the click from bubbling to the
+		// background label, and forward it to the radio manually.
+		html.find(".stonetop-onboarding-background-arcana").on("click", ev => {
+			ev.stopPropagation();
+		});
+		html.find(".stonetop-onboarding-background-arcana .stonetop-onboarding-arcana-option").on("click", ev => {
+			if (ev.target.type === "radio") return;
+			const radio = ev.currentTarget.querySelector("input[type='radio']");
+			if (radio && !radio.checked) {
+				radio.checked = true;
+				radio.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+		});
+
+		html.find("[name='onboard-background-major-arcanum']").on("change", ev => {
+			const prevBackground = this._selections.backgroundSlug;
+			const { backgroundSlug } = ev.currentTarget.dataset;
+			this._applyBackgroundChange(backgroundSlug);
+			this._selections.arcana.major = ev.currentTarget.value;
+
+			// Update arcana is-selected without re-rendering.
+			html.find("[name='onboard-background-major-arcanum']").each((_, radio) => {
+				radio.closest(".stonetop-onboarding-arcana-option")
+					?.classList.toggle("is-selected", radio.checked);
+			});
+
+			// If the background itself changed, sync the background card selection too.
+			if (prevBackground !== backgroundSlug) {
+				html.find("[name='onboard-background']").each((_, radio) => {
+					radio.closest(".stonetop-onboarding-card")
+						?.classList.toggle("is-selected", radio.value === backgroundSlug);
+				});
+			}
+
 			_refreshNextButton();
 		});
 
@@ -1063,11 +1267,58 @@ export class CharacterOnboardingDialog extends Application {
 		});
 
 		// ── Name chips ────────────────────────────────────────────────
+		html.find("[name='onboard-seeker-major-arcanum']").on("change", ev => {
+			this._selections.arcana.major = ev.currentTarget.value;
+			html.find("[name='onboard-seeker-major-arcanum']").each((_, el) => {
+				el.closest(".stonetop-onboarding-arcana-option")
+					?.classList.toggle("is-selected", el.checked);
+			});
+			_refreshNextButton();
+		});
+
+		html.find("[name^='onboard-seeker-minor-role-']").on("change", ev => {
+			const slug = ev.currentTarget.dataset.slug;
+			const role = ev.currentTarget.value;
+
+			// Clear conflicting old assignments and uncheck their radios in the DOM.
+			for (const [key, value] of Object.entries(this._selections.arcana.minorRoles)) {
+				if ((key === role || value === slug) && value) {
+					const old = html.find(`[name='onboard-seeker-minor-role-${value}'][value='${key}']`)[0];
+					if (old) old.checked = false;
+					this._selections.arcana.minorRoles[key] = "";
+				}
+			}
+			this._selections.arcana.minorRoles[role] = slug;
+
+			// Update is-selected on each minor card without re-rendering.
+			html.find(".stonetop-onboarding-arcana-option--minor-role").each((_, el) => {
+				const anyChecked = Array.from(el.querySelectorAll("input[type='radio']")).some(r => r.checked);
+				el.classList.toggle("is-selected", anyChecked);
+			});
+			const assigned = Object.values(this._selections.arcana.minorRoles).filter(Boolean).length;
+			html.find(".stonetop-onboarding-seeker-minor-count").text(assigned);
+			_refreshNextButton();
+		});
+
+		html.find(".stonetop-onboarding-redraw-minor").on("click", async () => {
+			const stepEl = html.find(".stonetop-onboarding-step")[0];
+			const scrollTop = stepEl?.scrollTop ?? 0;
+			const arcana = await this._loadArcanaOptions();
+			this._drawSeekerMinorArcana(arcana.minor);
+			await this.render(false);
+			if (stepEl) stepEl.scrollTop = scrollTop;
+		});
+
 		html.find(".onboard-name-chip").on("click", ev => {
 			const name = ev.currentTarget.dataset.name;
 			this._selections.name = name;
 			html.find(".onboard-name-input").val(name);
 		});
+
+		// ── Arcana preview tooltips (fixed-position to escape modal overflow) ──
+		html.find(".stonetop-onboarding-arcana-option")
+			.on("mouseenter", ev => this._showArcanaPreview(ev.currentTarget))
+			.on("mouseleave", () => this._removeArcanaPreview());
 
 		// ── Bold-word hover tooltips ───────────────────────────────────
 		// Only add the class if we haven't already confirmed this word has no result.
@@ -1108,14 +1359,19 @@ export class CharacterOnboardingDialog extends Application {
 
 	// ── Navigation ────────────────────────────────────────────────────
 
-	async _goBack() {
+	_clearPopups() {
 		this._removeTooltip();
+		this._removeArcanaPreview();
+	}
+
+	async _goBack() {
+		this._clearPopups();
 		await this.close();
 		if (this._onBack) this._onBack();
 	}
 
 	async _skip() {
-		this._removeTooltip();
+		this._clearPopups();
 		const next = this._step + 1;
 		if (next >= this._steps.length) {
 			if (this._onComplete) await this._onComplete(this._selections);
@@ -1127,7 +1383,7 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	_navigate(dir) {
-		this._removeTooltip();
+		this._clearPopups();
 		if (dir > 0 && !this._isStepComplete()) return;
 		const next = this._step + dir;
 		if (next < 0 || next >= this._steps.length) return;
@@ -1142,7 +1398,7 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	async close(options) {
-		this._removeTooltip();
+		this._clearPopups();
 		return super.close(options);
 	}
 
@@ -1152,6 +1408,21 @@ export class CharacterOnboardingDialog extends Application {
 		document.querySelector(".stonetop-word-tooltip")?.remove();
 	}
 
+	_removeArcanaPreview() {
+		document.querySelector(".stonetop-arcana-preview-popup")?.remove();
+	}
+
+	_showArcanaPreview(anchor) {
+		this._removeArcanaPreview();
+		const source = anchor.querySelector(".stonetop-onboarding-arcana-preview");
+		if (!source?.children.length) return;
+		const popup = document.createElement("div");
+		popup.className = "stonetop-arcana-preview-popup";
+		popup.innerHTML = source.innerHTML;
+		// Centre horizontally on the card; extra vertical gap clears the modal header.
+		this._positionPopup(popup, anchor, { align: "center", gap: 100 });
+	}
+
 	_showWordTooltip(anchor, text, description) {
 		this._removeTooltip();
 		const tip = document.createElement("div");
@@ -1159,18 +1430,21 @@ export class CharacterOnboardingDialog extends Application {
 		tip.innerHTML =
 			`<p class="stonetop-word-tooltip-name">${text}</p>` +
 			`<div class="stonetop-word-tooltip-desc">${description}</div>`;
-		document.body.appendChild(tip);
+		this._positionPopup(tip, anchor, { gap: 6, flipBelow: true });
+	}
 
+	_positionPopup(el, anchor, { align = "left", gap = 6, flipBelow = false } = {}) {
+		document.body.appendChild(el);
 		const ar = anchor.getBoundingClientRect();
-		const tr = tip.getBoundingClientRect();
-		let top  = ar.top - tr.height - 6;
-		let left = ar.left;
-		if (top < 8) top = ar.bottom + 6;
-		const maxLeft = window.innerWidth - tr.width - 8;
-		if (left > maxLeft) left = maxLeft;
-		if (left < 8)       left = 8;
-		tip.style.top  = `${top}px`;
-		tip.style.left = `${left}px`;
+		const pr = el.getBoundingClientRect();
+		let top  = ar.top - pr.height - gap;
+		let left = align === "center"
+			? ar.left + ar.width / 2 - pr.width / 2
+			: ar.left;
+		if (flipBelow && top < 8) top = ar.bottom + gap;
+		left = Math.max(8, Math.min(left, window.innerWidth - pr.width - 8));
+		el.style.top  = `${top}px`;
+		el.style.left = `${left}px`;
 	}
 
 	async _lookupWord(text) {

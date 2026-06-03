@@ -144,7 +144,7 @@ describe("StonetopCharacter.buildMovelistContext", () => {
 	it("isStartingMove: isStarting=true, source=Starting, locked=false", () => {
 		const [m] = char.buildMovelistContext([makeEntry({ isStartingMove: true })], new Map(), new Set(), 1);
 		expect(m.isStarting).toBe(true);
-		expect(m.source).toBe("Starting");
+		expect(m.source).toBe("Starting move");
 		expect(m.locked).toBe(false);
 	});
 
@@ -447,7 +447,7 @@ describe("buildPossessionsContext", () => {
 		expect(pouch.checked).toBe(true);
 		expect(pouch.disabled).toBe(true);
 		expect(pouch.preselected).toBe(true);
-		expect(pouch.preselectedSource).toBe("Starting");
+		expect(pouch.preselectedSource).toBe("Starting move");
 	});
 
 	it("unselected non-preselected option is unchecked and enabled when under limit", () => {

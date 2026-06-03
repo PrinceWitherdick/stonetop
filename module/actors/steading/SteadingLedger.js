@@ -26,11 +26,7 @@ const FLAG_NAMESPACE_LABELS = {
 	"flags.stonetop.steading.assets":         "Assets",
 	"flags.stonetop.steading.improvements":   "Improvements",
 	"flags.stonetop.steading.places":         "Places of interest",
-	"flags.stonetop.steading.silver":         "Silver",
-	"flags.stonetop.steading.gold":           "Gold",
 };
-
-const CURRENCY_NAME_LABELS = { silver: "Silver", gold: "Gold" };
 
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
 
@@ -41,8 +37,6 @@ function isSteadingActor(actor) {
 function labelForPath(path) {
 	if (SYSTEM_PATH_LABELS[path]) return SYSTEM_PATH_LABELS[path];
 	if (FLAG_PATH_LABELS[path]) return FLAG_PATH_LABELS[path];
-	const currencyMatch = path.match(/^flags\.stonetop\.steading\.(silver|gold)\.(purses|handfuls|coins)$/);
-	if (currencyMatch) return `${CURRENCY_NAME_LABELS[currencyMatch[1]]} ${currencyMatch[2]}`;
 	const namespace = SORTED_NAMESPACE_PREFIXES.find(p => path === p || path.startsWith(`${p}.`));
 	if (namespace) return FLAG_NAMESPACE_LABELS[namespace];
 	return null;
@@ -102,11 +96,20 @@ function placeEntries(oldValue, newValue) {
 	return entries;
 }
 
+const _currencyEntry = (label, o, n) =>
+	valuesEqual(o, n) ? [] : [{ action: actionForField(label, o, n) }];
+
 const PATH_HANDLERS = {
-	"flags.stonetop.steading.resources":      (o, n) => listEntries("Resource",      o, n),
-	"flags.stonetop.steading.fortifications": (o, n) => listEntries("Fortification", o, n),
-	"flags.stonetop.steading.assets":         (o, n) => listEntries("Asset",         o, n),
-	"flags.stonetop.steading.places":         placeEntries,
+	"flags.stonetop.steading.resources":            (o, n) => listEntries("Resource",      o, n),
+	"flags.stonetop.steading.fortifications":       (o, n) => listEntries("Fortification", o, n),
+	"flags.stonetop.steading.assets":               (o, n) => listEntries("Asset",         o, n),
+	"flags.stonetop.steading.places":               placeEntries,
+	"flags.stonetop.steading.silver.purses":        (o, n) => _currencyEntry("Silver purses",    o, n),
+	"flags.stonetop.steading.silver.handfuls":      (o, n) => _currencyEntry("Silver handfuls",  o, n),
+	"flags.stonetop.steading.silver.coins":         (o, n) => _currencyEntry("Silver coins",     o, n),
+	"flags.stonetop.steading.gold.purses":          (o, n) => _currencyEntry("Gold purses",      o, n),
+	"flags.stonetop.steading.gold.handfuls":        (o, n) => _currencyEntry("Gold handfuls",    o, n),
+	"flags.stonetop.steading.gold.coins":           (o, n) => _currencyEntry("Gold coins",       o, n),
 };
 
 function actorUpdateEntries(actor, changed) {
@@ -121,7 +124,7 @@ function actorUpdateEntries(actor, changed) {
 			continue;
 		}
 
-		// Skip sub-paths of namespace prefixes — the handler above covers the
+		// Skip sub-paths of namespace prefixes — handlers above cover the
 		// top-level path; sub-paths (e.g. resources.0.name) would produce noise.
 		const isSubPath = SORTED_NAMESPACE_PREFIXES.some(p => path !== p && path.startsWith(`${p}.`));
 		if (isSubPath) continue;

@@ -34,6 +34,29 @@
 				{{#if description}}
 				<div class="stonetop-onboarding-card-desc">{{{description}}}</div>
 				{{/if}}
+				{{#if majorArcana.length}}
+				<div class="stonetop-onboarding-background-arcana">
+					<p class="stonetop-onboarding-background-arcana-label">Major arcanum</p>
+					<div class="stonetop-onboarding-arcana-grid stonetop-onboarding-arcana-grid--background">
+						{{#each majorArcana}}
+						<span class="stonetop-onboarding-arcana-option{{#if selected}} is-selected{{/if}}">
+							<input type="radio"
+							       name="onboard-background-major-arcanum"
+							       value="{{slug}}"
+							       data-background-slug="{{backgroundSlug}}"
+							       {{#if selected}}checked{{/if}}>
+							{{#if img}}<img class="stonetop-onboarding-arcana-thumb" src="{{img}}" alt="">{{/if}}
+							<span class="stonetop-onboarding-arcana-name">{{name}}</span>
+							<span class="stonetop-onboarding-arcana-preview">
+								{{#if img}}<img src="{{img}}" alt="">{{/if}}
+								<strong>{{name}}</strong>
+								<span>{{description}}</span>
+							</span>
+						</span>
+						{{/each}}
+					</div>
+				</div>
+				{{/if}}
 			</label>
 			{{/each}}
 		</div>
@@ -448,6 +471,123 @@
 		{{/if}}
 
 		{{!-- ── Lore (Character History) ─────────────────────────── --}}
+		{{!-- ── Seeker: Major Arcanum ────────────────────────────── --}}
+		{{#if isSeekerArcana}}
+		<h3 class="stonetop-onboarding-step-title">{{seekerArcanaData.title}}</h3>
+		<div class="stonetop-onboarding-arcana-picker">
+			<section class="stonetop-onboarding-arcana-section">
+				<h4 class="stonetop-onboarding-lore-section-title">Major Arcanum</h4>
+				<p class="stonetop-onboarding-step-hint">Choose the major arcanum granted by your background.</p>
+				<div class="stonetop-onboarding-arcana-grid stonetop-onboarding-arcana-grid--major">
+					{{#each seekerArcanaChoices.major}}
+					<label class="stonetop-onboarding-arcana-option{{#if selected}} is-selected{{/if}}">
+						<input type="radio" name="onboard-seeker-major-arcanum" value="{{slug}}" {{#if selected}}checked{{/if}}>
+						{{#if img}}<img class="stonetop-onboarding-arcana-thumb" src="{{img}}" alt="">{{/if}}
+						<span class="stonetop-onboarding-arcana-name">{{name}}</span>
+						<span class="stonetop-onboarding-arcana-preview">
+							{{#if img}}<img src="{{img}}" alt="">{{/if}}
+							<strong>{{name}}</strong>
+							<span>{{description}}</span>
+						</span>
+					</label>
+					{{/each}}
+				</div>
+			</section>
+		</div>
+		{{#if seekerArcanaData.sections.length}}
+		<div class="stonetop-onboarding-combined-lore">
+			{{#each seekerArcanaData.sections}}
+			<section class="stonetop-onboarding-lore-section">
+				<h4 class="stonetop-onboarding-lore-section-title">{{title}}</h4>
+				{{#if description}}
+				<div class="stonetop-onboarding-lore-desc">{{{description}}}</div>
+				{{/if}}
+				{{#if isTextSection}}
+				<div class="stonetop-onboarding-lore-texts">
+					{{#each options}}
+					<div class="stonetop-onboarding-lore-text-row">
+						<label class="stonetop-onboarding-lore-text-label">{{{description}}}</label>
+						<textarea class="onboard-lore-text"
+						          data-section="{{sectionSlug}}"
+						          data-option="{{slug}}"
+						          rows="2"
+						          placeholder="Your answer…">{{value}}</textarea>
+					</div>
+					{{/each}}
+				</div>
+				{{/if}}
+			</section>
+			{{/each}}
+		</div>
+		{{/if}}
+		{{/if}}
+
+		{{!-- ── Seeker: Minor Arcana + Questions ──────────────────── --}}
+		{{#if isSeekerArcanaMinor}}
+		<h3 class="stonetop-onboarding-step-title">Minor Arcana &amp; Questions</h3>
+		<div class="stonetop-onboarding-arcana-picker">
+			<section class="stonetop-onboarding-arcana-section">
+				<h4 class="stonetop-onboarding-lore-section-title">Minor Arcana</h4>
+				<p class="stonetop-onboarding-lore-counter">
+					<span class="stonetop-onboarding-seeker-minor-count">{{seekerArcanaChoices.minorAssignedCount}}</span>
+					/ {{seekerArcanaChoices.minorPickCount}} assigned
+					<button type="button" class="stonetop-onboarding-redraw-minor">Draw again</button>
+				</p>
+				<div class="stonetop-onboarding-arcana-grid stonetop-onboarding-arcana-grid--minor">
+					{{#each seekerArcanaChoices.minor}}
+					<div class="stonetop-onboarding-arcana-option stonetop-onboarding-arcana-option--minor-role{{#if role}} is-selected{{/if}}">
+						<span class="stonetop-onboarding-arcana-name">{{name}}</span>
+						<span class="stonetop-onboarding-arcana-preview">
+							{{#if img}}<img src="{{img}}" alt="">{{/if}}
+							<strong>{{name}}</strong>
+							<span>{{description}}</span>
+						</span>
+						<div class="stonetop-onboarding-minor-roles">
+							<label>
+								<input type="radio" name="onboard-seeker-minor-role-{{slug}}" value="mastered" data-slug="{{slug}}" {{#if (eq role "mastered")}}checked{{/if}}>
+								Mastered
+							</label>
+							<label>
+								<input type="radio" name="onboard-seeker-minor-role-{{slug}}" value="found" data-slug="{{slug}}" {{#if (eq role "found")}}checked{{/if}}>
+								Found
+							</label>
+							<label>
+								<input type="radio" name="onboard-seeker-minor-role-{{slug}}" value="lead" data-slug="{{slug}}" {{#if (eq role "lead")}}checked{{/if}}>
+								Lead
+							</label>
+						</div>
+					</div>
+					{{/each}}
+				</div>
+			</section>
+		</div>
+
+		<div class="stonetop-onboarding-combined-lore">
+			{{#each seekerArcanaData.sections}}
+			<section class="stonetop-onboarding-lore-section">
+				<h4 class="stonetop-onboarding-lore-section-title">{{title}}</h4>
+				{{#if description}}
+				<div class="stonetop-onboarding-lore-desc">{{{description}}}</div>
+				{{/if}}
+				{{#if isTextSection}}
+				<div class="stonetop-onboarding-lore-texts">
+					{{#each options}}
+					<div class="stonetop-onboarding-lore-text-row">
+						<label class="stonetop-onboarding-lore-text-label">{{{description}}}</label>
+						<textarea class="onboard-lore-text"
+						          data-section="{{sectionSlug}}"
+						          data-option="{{slug}}"
+						          rows="2"
+						          placeholder="Your answer…">{{value}}</textarea>
+					</div>
+					{{/each}}
+				</div>
+				{{/if}}
+			</section>
+			{{/each}}
+		</div>
+		{{/if}}
+
 		{{#if isLore}}
 		<h3 class="stonetop-onboarding-step-title">{{loreSectionData.title}}</h3>
 		{{#if loreSectionData.description}}

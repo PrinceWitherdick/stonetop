@@ -1,6 +1,8 @@
 import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS } from "./StonetopSteading.js";
 import {rollStat} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
+import {escHtml} from "../../utils/strings.js";
+import {postMoveToChat} from "../../utils/chat.js";
 
 function _signedNum(n) {
 	return n >= 0 ? `+${n}` : String(n);
@@ -32,33 +34,29 @@ const _STEADING_MOVES_RAW = [
 	{
 		slug: "pullTogether",
 		label: "Pull Together",
-		stat: "fortunes",
-		statLabel: "Fortunes",
+		stat: "population",
+		statLabel: "Population",
 		rollable: true,
 		interactive: true,
-		description: `<p>When you <strong>rally the residents of Stonetop to work on a common project</strong>, say what the project is and how you're going about it. The GM will say how many units of effort are needed.</p>
-<p>To contribute a unit of effort, spend the required time and resources, then roll <strong>+Fortunes</strong>.</p>
-<p><strong>On a 10+:</strong> you contribute 2 units of effort.</p>
-<p><strong>On a 7–9:</strong> you contribute 1 unit of effort.</p>
-<p><strong>On a miss:</strong> you contribute 1 unit of effort but a complication arises — the GM says what goes wrong.</p>
+		description: `<p>When you <strong>set a community to work on improvements, to secure new resources, or to make major repairs</strong>, spend whatever the GM says is required and roll <strong>+Population</strong>.</p>
+<p><strong>On a 10+:</strong> the job gets done.</p>
+<p><strong>On a 7-9:</strong> pick 1: other work does not get done; the work is shoddy or crude; there is a consequence; or there is an unforeseen cost, requirement, or challenge.</p>
 <p><em>Diminished debility: disadvantage on this roll.</em></p>`,
 	},
 	{
 		slug: "muster",
 		label: "Muster",
-		stat: "defenses",
-		statLabel: "Defenses",
+		stat: "population",
+		statLabel: "Population",
 		rollable: true,
 		interactive: true,
-		description: `<p>When <strong>Stonetop's militia needs to mobilize quickly</strong>, roll <strong>+Defenses</strong>.</p>
-<p><strong>On a 10+:</strong> the militia is ready quickly and at full strength — pick 2 from the list below.</p>
-<p><strong>On a 7–9:</strong> the militia is ready — pick 1 from the list below.</p>
-<p><strong>On a miss:</strong> the militia is ready but none of the below apply; the GM may say something goes wrong too.</p>
+		description: `<p>When <strong>Stonetop needs mustering against a threat</strong>, reduce Fortunes by 1 and roll <strong>+Population</strong>.</p>
+<p><strong>On a 7+:</strong> the steading is alert and ready for action until the threat passes, the Seasons Change, or you cease to oversee the muster. On a 10+, also pick 2; on a 7-9, also pick 1.</p>
 <ul>
-  <li>They're ready quickly (no more than an hour)</li>
-  <li>They're at full strength</li>
-  <li>They're well equipped</li>
-  <li>They're in good spirits</li>
+  <li>Increase Defenses by 1 as long as the muster holds</li>
+  <li>Everyone's willing to pitch in; don't reduce Fortunes after all</li>
+  <li>The muster holds together even without your presence</li>
+  <li>1 or 2 individuals show real potential; ask the GM who and how</li>
 </ul>
 <p><em>Diminished debility: disadvantage on this roll.</em></p>`,
 	},
@@ -69,16 +67,15 @@ const _STEADING_MOVES_RAW = [
 		statLabel: "Defenses",
 		rollable: true,
 		interactive: true,
-		description: `<p>When you <strong>send Stonetop's militia to defend against or engage a threat</strong>, roll <strong>+Defenses</strong>.</p>
-<p><strong>On a 10+:</strong> the militia succeeds — pick 2 from the list below.</p>
-<p><strong>On a 7–9:</strong> the militia succeeds but pick 1 consequence from the GM's list.</p>
-<p><strong>On a miss:</strong> things go badly — the GM picks 2 consequences.</p>
+		description: `<p>When <strong>Stonetop's militia goes into action</strong>, say what they're doing and roll <strong>+Defenses</strong>.</p>
+<p><strong>On a 7+:</strong> it gets done. On a 10+, choose 2; on a 7-9, choose 1.</p>
 <ul>
-  <li>They drive off, defeat, or destroy the threat</li>
-  <li>They suffer few (or no) casualties</li>
-  <li>They don't expend any significant resources</li>
-  <li>They maintain their morale and cohesion</li>
+  <li>It's more effective than expected</li>
+  <li>It's quick, over soon</li>
+  <li>It causes little collateral damage, expense, or blowback</li>
+  <li>Someone involved distinguishes themselves</li>
 </ul>
+<p><strong>On a 6-:</strong> don't mark XP, and the GM chooses 2: it's less effective than expected; injuries abound and the steading marks diminished; or a named NPC involved dies.</p>
 <p><em>Diminished debility: disadvantage on this roll.</em></p>`,
 	},
 	{
@@ -88,10 +85,9 @@ const _STEADING_MOVES_RAW = [
 		statLabel: "Prosperity",
 		rollable: true,
 		interactive: true,
-		description: `<p>When you <strong>seek to buy, sell, or exchange goods or services</strong> on behalf of the steading, roll <strong>+Prosperity</strong>.</p>
-<p><strong>On a 10+:</strong> you get what you want at a fair price; ask the GM 3 questions about the wider world.</p>
-<p><strong>On a 7–9:</strong> you get it, but pick 1: you pay more than expected, you get less than you hoped, or you can ask 1 question.</p>
-<p><strong>On a miss:</strong> the deal falls through or comes with serious strings attached.</p>`,
+		description: `<p>When you <strong>wish to acquire or sell a commonly available item</strong>, you can. When you seek to acquire or sell a special item, roll <strong>+Prosperity</strong> and subtract the item's Value. In winter, you have disadvantage.</p>
+<p><strong>On a 10+:</strong> you can get it or sell it for a fair price.</p>
+<p><strong>On a 7-9 when buying:</strong> the GM picks 1 complication.</p>`,
 	},
 	{
 		slug: "meetWithDisaster",
@@ -109,11 +105,10 @@ const _STEADING_MOVES_RAW = [
 		statLabel: null,
 		rollable: false,
 		interactive: true,
-		description: `<p>When you <strong>try to obtain an item or service</strong> that Stonetop possesses, you may:</p>
-<ul>
-  <li><strong>Spend 1 Surplus</strong> to obtain any one thing of Value 3 or less, no roll required.</li>
-  <li>Or <strong>roll +Fortunes</strong>: on a 10+, the steading has 2 things you need; on a 7–9, it has 1; on a miss, nothing useful is available right now.</li>
-</ul>`,
+		description: `<p>When you <strong>borrow some of the steading's assets for an expedition</strong> or otherwise put them at risk, roll <strong>+Fortunes</strong>.</p>
+<p><strong>On a 10+:</strong> go ahead, but bring it back safely.</p>
+<p><strong>On a 7-9:</strong> you'll need to do some convincing.</p>
+<p><strong>On a 6-:</strong> don't mark XP; you can take the asset with you if you want, but if you do, reduce Fortunes by 1.</p>`,
 	},
 	{
 		slug: "persuade",
@@ -131,48 +126,56 @@ const _STEADING_MOVES_RAW = [
 ];
 const STEADING_MOVES = [..._STEADING_MOVES_RAW].sort((a, b) => a.label.localeCompare(b.label));
 const DIMINISHED_MOVES = new Set(["Deploy", "Muster", "Pull Together"]);
-const _esc = v => foundry.utils.escapeHTML(String(v ?? ""));
+const _esc = escHtml;
 
 const HOMESTEAD_MOVE_FLOWS = {
 	pullTogether: {
 		label: "Pull Together",
-		stat: "fortunes",
-		statLabel: "Fortunes",
-		trigger: "When you rally the residents of Stonetop to work on a common project, say what the project is and how you're going about it. The GM says how many units of effort are needed.",
+		stat: "population",
+		statLabel: "Population",
+		trigger: "When you set a community to work on improvements, to secure new resources, or to make major repairs, spend whatever the GM says is required and roll +Population.",
 		fields: [
 			{ name: "project", label: "Project", type: "text", placeholder: "What are you trying to build, repair, clear, or prepare?" },
 			{ name: "approach", label: "Approach", type: "textarea", placeholder: "Who is helping, and how are you organizing the work?" },
-			{ name: "effort", label: "Units needed", type: "text", placeholder: "GM call" },
-			{ name: "cost", label: "Time and resources spent", type: "textarea", placeholder: "What does this unit of effort require?" },
+			{ name: "cost", label: "Required cost", type: "textarea", placeholder: "Time, materiel, Surplus, coin, labor, or other requirements" },
+		],
+		picksLabel: "On a 7-9, pick 1:",
+		picks: [
+			"It gets done, but other work does not; reduce Fortunes by 1.",
+			"It gets done, but the work is shoddy or crude.",
+			"It gets done, but there is a consequence.",
+			"There is an unforeseen cost, requirement, or challenge; address it and the job gets done.",
 		],
 		results: [
-			"10+: contribute 2 units of effort.",
-			"7-9: contribute 1 unit of effort.",
-			"Miss: contribute 1 unit of effort, but a complication arises.",
+			"10+: the job gets done.",
+			"7-9: the job gets done, but pick 1.",
+			"6-: the GM says what happens; do not mark XP.",
 		],
 		note: "Diminished gives disadvantage on this roll.",
 	},
 	muster: {
 		label: "Muster",
-		stat: "defenses",
-		statLabel: "Defenses",
-		trigger: "When Stonetop's militia needs to mobilize quickly, roll +Defenses.",
+		stat: "population",
+		statLabel: "Population",
+		trigger: "When Stonetop needs mustering against a threat, reduce Fortunes by 1 and roll +Population.",
+		beforeRoll: "musterCost",
 		fields: [
-			{ name: "threat", label: "Threat or cause", type: "textarea", placeholder: "What are you mustering against?" },
-			{ name: "urgency", label: "How quickly are they needed?", type: "text", placeholder: "Immediately, within the hour, by dawn..." },
-			{ name: "orders", label: "Orders", type: "textarea", placeholder: "Where are they gathering, and who is leading them?" },
+			{ name: "threat", label: "Threat", type: "textarea", placeholder: "What is Stonetop mustering against?" },
+			{ name: "overseer", label: "Who oversees the muster?", type: "text", placeholder: "A PC, NPC, council, or militia leader" },
+			{ name: "orders", label: "Orders", type: "textarea", placeholder: "Where are they gathering, and what are they preparing to do?" },
 		],
-		picksLabel: "On a hit, choose from:",
+		picksLabel: "On a 10+, pick 2; on a 7-9, pick 1:",
 		picks: [
-			"They're ready quickly (no more than an hour).",
-			"They're at full strength.",
-			"They're well equipped.",
-			"They're in good spirits.",
+			"Increase Defenses by 1 as long as the muster holds.",
+			"Everyone is willing to pitch in; do not reduce Fortunes after all.",
+			"The muster holds together even without your presence.",
+			"1 or 2 individuals show real potential; ask the GM who and how.",
 		],
 		results: [
-			"10+: the militia is ready quickly and at full strength; pick 2.",
-			"7-9: the militia is ready; pick 1.",
-			"Miss: the militia is ready, but none of the choices apply; the GM may add trouble.",
+			"7+: the steading is alert and ready for action until the threat passes, the Seasons Change, or you cease to oversee the muster.",
+			"10+: also pick 2.",
+			"7-9: also pick 1.",
+			"6-: the GM says what happens; do not mark XP.",
 		],
 		note: "Diminished gives disadvantage on this roll.",
 	},
@@ -180,23 +183,30 @@ const HOMESTEAD_MOVE_FLOWS = {
 		label: "Deploy",
 		stat: "defenses",
 		statLabel: "Defenses",
-		trigger: "When you send Stonetop's militia to defend against or engage a threat, roll +Defenses.",
+		trigger: "When Stonetop's militia goes into action, say what they're doing and roll +Defenses.",
 		fields: [
-			{ name: "threat", label: "Threat", type: "textarea", placeholder: "What are they defending against or engaging?" },
-			{ name: "objective", label: "Objective", type: "text", placeholder: "Drive them off, hold the ford, buy time..." },
-			{ name: "plan", label: "Deployment", type: "textarea", placeholder: "Which force, fortification, or tactic is being used?" },
+			{ name: "action", label: "Action", type: "textarea", placeholder: "What is the militia doing?" },
+			{ name: "objective", label: "Objective", type: "text", placeholder: "Drive them off, hold the ford, protect evacuees..." },
+			{ name: "support", label: "Support", type: "textarea", placeholder: "Which force, fortification, tactic, or leader matters here?" },
 		],
-		picksLabel: "On a 10+, choose 2:",
+		picksLabel: "On a 10+, choose 2; on a 7-9, choose 1:",
 		picks: [
-			"They drive off, defeat, or destroy the threat.",
-			"They suffer few or no casualties.",
-			"They don't expend significant resources.",
-			"They maintain morale and cohesion.",
+			"It is more effective than expected.",
+			"It is quick, over soon.",
+			"It causes little collateral damage, expense, or blowback.",
+			"Someone involved distinguishes themselves.",
+		],
+		consequencesLabel: "On a 6-, the GM chooses 2:",
+		consequences: [
+			"It is less effective than expected.",
+			"Injuries abound; the steading marks diminished.",
+			"The GM picks a named NPC involved in the action; they die.",
 		],
 		results: [
-			"10+: the militia succeeds; pick 2.",
-			"7-9: the militia succeeds, but pick 1 consequence from the GM's list.",
-			"Miss: things go badly; the GM picks 2 consequences.",
+			"7+: it gets done.",
+			"10+: choose 2.",
+			"7-9: choose 1.",
+			"6-: do not mark XP; the GM chooses 2 consequences.",
 		],
 		note: "Diminished gives disadvantage on this roll.",
 	},
@@ -204,18 +214,21 @@ const HOMESTEAD_MOVE_FLOWS = {
 		label: "Trade & Barter",
 		stat: "prosperity",
 		statLabel: "Prosperity",
-		trigger: "When you seek to buy, sell, or exchange goods or services on behalf of the steading, roll +Prosperity.",
+		trigger: "When you seek to acquire or sell a special item, roll +Prosperity and subtract the item's Value. In winter, roll with disadvantage.",
 		fields: [
-			{ name: "want", label: "What do you want?", type: "textarea", placeholder: "Goods, services, favors, labor, information..." },
+			{ name: "want", label: "What do you want to buy or sell?", type: "textarea", placeholder: "Item, service, animal, coin, Surplus, or trade goods" },
+			{ name: "value", label: "Item Value", type: "number", placeholder: "0", min: 0 },
 			{ name: "partner", label: "Trade partner", type: "text", placeholder: "Who are you dealing with?" },
 			{ name: "offer", label: "Offer or price", type: "textarea", placeholder: "What is being offered, paid, or risked?" },
+			{ name: "winter", label: "It is winter", type: "checkbox" },
 		],
 		results: [
-			"10+: you get what you want at a fair price; ask the GM 3 questions about the wider world.",
-			"7-9: you get it, but pick 1: pay more than expected, get less than hoped, or ask 1 question.",
-			"Miss: the deal falls through or comes with serious strings attached.",
+			"Commonly available item: you can acquire or sell it without rolling.",
+			"10+: you can get it or sell it for a fair price.",
+			"7-9 when buying: the GM picks 1 complication.",
+			"6-: the GM says what happens; do not mark XP.",
 		],
-		note: "Lacking treats Prosperity as 1 lower.",
+		note: "Lacking treats Prosperity as 1 lower. Subtract item Value as a modifier.",
 	},
 	persuade: {
 		label: "Persuade",
@@ -471,7 +484,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.stopPropagation();
 				const { moveSlug } = btn.dataset;
 				if (moveSlug === "meetWithDisaster") this._onMeetWithDisaster();
-				else if (moveSlug === "requisition") this._onRequisition();
+				else if (moveSlug === "requisition") this._onRequisitionWalkthrough();
 				else if (moveSlug === "seasonsChange") this._onSeasonsChange();
 				else if (HOMESTEAD_MOVE_FLOWS[moveSlug]) this._onHomesteadMove(moveSlug);
 			}, true);
@@ -616,7 +629,11 @@ export function createStonetopSteadingSheetClass(Base) {
 				const common = `name="${_esc(field.name)}" placeholder="${_esc(field.placeholder)}"`;
 				const control = field.type === "textarea"
 					? `<textarea ${common} rows="2"></textarea>`
-					: `<input type="text" ${common}>`;
+					: field.type === "number"
+						? `<input type="number" ${common} min="${field.min ?? 0}" value="${field.value ?? ""}">`
+						: field.type === "checkbox"
+							? `<input type="checkbox" name="${_esc(field.name)}" value="yes">`
+							: `<input type="text" ${common}>`;
 				return `<label class="stonetop-homestead-field">
 					<span>${_esc(field.label)}</span>
 					${control}
@@ -626,7 +643,25 @@ export function createStonetopSteadingSheetClass(Base) {
 			const picksHtml = flow.picks?.length
 				? `<div class="stonetop-homestead-reference">
 					<strong>${_esc(flow.picksLabel ?? "Choose from:")}</strong>
-					<ul>${flow.picks.map(item => `<li>${_esc(item)}</li>`).join("")}</ul>
+					<div class="stonetop-homestead-choice-list">
+						${flow.picks.map((item, index) => `<label class="stonetop-homestead-choice">
+							<input type="checkbox" name="pick.${index}" value="${_esc(item)}">
+							<span>${_esc(item)}</span>
+						</label>`).join("")}
+					</div>
+				</div>`
+				: "";
+
+			const consequencesHtml = flow.consequences?.length
+				? `<div class="stonetop-homestead-reference">
+					<strong>${_esc(flow.consequencesLabel ?? "Consequences")}</strong>
+					<div class="stonetop-homestead-choice-list">
+						${flow.consequences.map((item, index) => `<label class="stonetop-homestead-choice">
+							<input type="checkbox" name="consequence.${index}" value="${_esc(item)}">
+							<span>${_esc(item)}</span>
+						</label>`).join("")}
+					</div>
+					${flow.label === "Deploy" ? `<button type="button" class="stonetop-season-btn" data-action="mark-diminished"><i class="fas fa-band-aid"></i> Mark diminished</button>` : ""}
 				</div>`
 				: "";
 
@@ -642,6 +677,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					<div class="stonetop-homestead-fields">${fieldHtml}</div>
 					${resultsHtml}
 					${picksHtml}
+					${consequencesHtml}
 					<p class="stonetop-homestead-note">${_esc(flow.note)}</p>
 				</form>`,
 				buttons: {
@@ -653,50 +689,68 @@ export function createStonetopSteadingSheetClass(Base) {
 						label: `Roll +${flow.statLabel}`,
 						callback: async html => {
 							await this._postHomesteadMoveSummary(flow, html);
-							await this._onSteadingRoll(flow.label, flow.stat);
+							await this._applyHomesteadBeforeRoll(flow);
+							await this._onSteadingRoll(flow.label, flow.stat, this._homesteadRollOptions(flow, html));
 						},
 					},
 					cancel: { label: "Cancel" },
 				},
 				default: "roll",
+				render: (html) => {
+					html[0].querySelector("[data-action='mark-diminished']")?.addEventListener("click", async () => {
+						await this._stonetopSteading.setSystemValue("attributes.debilities.options.diminished.value", true);
+						this.render(false);
+						ui.notifications.info("Stonetop marked diminished.");
+					});
+				},
 			}, {
 				width: 520,
 			});
 			dialog.render(true);
 		}
 
-		async _postHomesteadMoveSummary(flow, html) {
-			if (!globalThis.ChatMessage) return;
+		_formDataFromDialog(html) {
 			const form = html[0]?.querySelector(".stonetop-homestead-dialog");
-			if (!form) return;
+			return form ? Object.fromEntries(new FormData(form)) : {};
+		}
 
-			const data = Object.fromEntries(new FormData(form));
-			const answers = flow.fields
+		async _applyHomesteadBeforeRoll(flow) {
+			if (flow.beforeRoll !== "musterCost") return;
+			const fortunes = this._stonetopSteading.getStatValue("fortunes");
+			await this._stonetopSteading.setSystemValue("stats.fortunes.value", Math.max(fortunes - 1, -1));
+			this.render(false);
+			ui.notifications.info(`Muster cost applied: Fortunes ${ _signedNum(fortunes) } -> ${ _signedNum(Math.max(fortunes - 1, -1)) }.`);
+		}
+
+		_homesteadRollOptions(flow, html) {
+			if (flow.label !== "Trade & Barter") return {};
+			const data = this._formDataFromDialog(html);
+			const value = Math.max(0, parseInt(data.value) || 0);
+			return {
+				modifier: value ? -value : 0,
+				rollMode: data.winter ? "dis" : undefined,
+			};
+		}
+
+		async _postHomesteadMoveSummary(flow, html) {
+			const data = this._formDataFromDialog(html);
+			const rows = flow.fields
 				.map(field => {
-					const value = (data[field.name] ?? "").trim();
+					const raw   = data[field.name];
+					const value = field.type === "checkbox"
+						? (raw ? "yes" : "")
+						: String(raw ?? "").trim();
 					return value ? { label: field.label, value } : null;
 				})
 				.filter(Boolean);
 
-			if (!answers.length) return;
+			const selectedPicks = Object.entries(data)
+				.filter(([key]) => key.startsWith("pick.") || key.startsWith("consequence."))
+				.map(([, value]) => String(value ?? "").trim())
+				.filter(Boolean);
+			if (selectedPicks.length) rows.push({ label: "Selected", value: selectedPicks.join("\n") });
 
-			const content = `<section class="pbta-chat-card stonetop-roll-card stonetop-homestead-chat-card">
-				<div class="cell cell--chat">
-					<div class="chat-title row flexrow">
-						<h2 class="cell__title">${_esc(flow.label)}</h2>
-					</div>
-					<div class="card-content">
-						<ul class="stonetop-homestead-chat-list">
-							${answers.map(answer => `<li><strong>${_esc(answer.label)}:</strong> ${_esc(answer.value)}</li>`).join("")}
-						</ul>
-					</div>
-				</div>
-			</section>`;
-
-			ChatMessage.create({
-				content,
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			postMoveToChat(this.actor, flow.label, rows);
 		}
 
 		async _onMeetWithDisaster() {
@@ -786,46 +840,73 @@ export function createStonetopSteadingSheetClass(Base) {
 			dialog.render(true);
 		}
 
-		async _onRequisition() {
-			const surplus = this._stonetopSteading.getStatValue("surplus");
-			const hasSurplus = surplus > 0;
+		async _onRequisitionWalkthrough() {
+			const fortunes = this._stonetopSteading.getStatValue("fortunes");
+			const newFortunes = Math.max(fortunes - 1, -1);
+			const requisitionFlow = {
+				label: "Requisition",
+				fields: [
+					{ name: "asset", label: "Asset" },
+					{ name: "risk", label: "Risk" },
+					{ name: "convincing", label: "Who needs convincing?" },
+				],
+			};
 
-			const surplusDetail = hasSurplus
-				? `Obtain any one thing of Value 3 or less, no roll required. (Surplus: ${surplus} → ${surplus - 1})`
-				: `Obtain any one thing of Value 3 or less, no roll required. <em>No Surplus available.</em>`;
-
-			let dialog;
-			dialog = new Dialog({
+			const dialog = new Dialog({
 				title: "Requisition",
-				content: `<div class="stonetop-disaster-dialog">
-					<p><em>When you try to obtain an item or service that Stonetop possesses, you may:</em></p>
-					<ol class="stonetop-disaster-choices">
-						<li class="stonetop-disaster-choice${hasSurplus ? "" : " stonetop-disaster-choice-disabled"}" data-choice="surplus">
-							<span class="stonetop-disaster-choice-label">Spend 1 Surplus</span>
-							<span class="stonetop-disaster-choice-detail">${surplusDetail}</span>
-						</li>
-						<li class="stonetop-disaster-choice" data-choice="roll">
-							<span class="stonetop-disaster-choice-label">Roll +Fortunes</span>
-							<span class="stonetop-disaster-choice-detail">On a 10+, the steading has 2 things you need; on a 7–9, it has 1; on a miss, nothing useful is available right now.</span>
-						</li>
-					</ol>
-				</div>`,
-				buttons: { cancel: { label: "Cancel" } },
+				content: `<form class="stonetop-homestead-dialog">
+					<p class="stonetop-homestead-trigger"><em>When you borrow some of the steading's assets for an expedition or otherwise put them at risk, roll +Fortunes.</em></p>
+					<div class="stonetop-homestead-fields">
+						<label class="stonetop-homestead-field">
+							<span>Asset</span>
+							<input type="text" name="asset" placeholder="Horse team, wagon, plow, common asset...">
+						</label>
+						<label class="stonetop-homestead-field">
+							<span>Risk</span>
+							<textarea name="risk" rows="2" placeholder="Where is it going, and how might it be lost or damaged?"></textarea>
+						</label>
+						<label class="stonetop-homestead-field">
+							<span>Who needs convincing?</span>
+							<input type="text" name="convincing" placeholder="Owner, family, council, militia, publican...">
+						</label>
+					</div>
+					<div class="stonetop-homestead-reference">
+						<strong>Results</strong>
+						<ul>
+							<li>10+: go ahead, but bring it back safely.</li>
+							<li>7-9: you will need to do some convincing.</li>
+							<li>6-: do not mark XP; you can take the asset, but if you do, reduce Fortunes by 1.</li>
+						</ul>
+					</div>
+					<div class="stonetop-season-actions">
+						<button type="button" class="stonetop-season-btn" data-action="miss-cost">
+							<i class="fas fa-arrow-down"></i> Take it on a miss: Fortunes ${_signedNum(fortunes)} -> ${_signedNum(newFortunes)}
+						</button>
+					</div>
+				</form>`,
+				buttons: {
+					post: {
+						label: "Post",
+						callback: html => this._postHomesteadMoveSummary(requisitionFlow, html),
+					},
+					roll: {
+						label: "Roll +Fortunes",
+						callback: async html => {
+							await this._postHomesteadMoveSummary(requisitionFlow, html);
+							await this._onSteadingRoll("Requisition", "fortunes");
+						},
+					},
+					cancel: { label: "Cancel" },
+				},
+				default: "roll",
 				render: (html) => {
-					html[0].querySelectorAll(".stonetop-disaster-choice:not(.stonetop-disaster-choice-disabled)").forEach(el => {
-						el.addEventListener("click", async () => {
-							const { choice } = el.dataset;
-							if (choice === "surplus") {
-								await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus - 1);
-								this.render(false);
-							} else if (choice === "roll") {
-								await this._onSteadingRoll("Requisition", "fortunes");
-							}
-							dialog.close();
-						});
+					html[0].querySelector("[data-action='miss-cost']")?.addEventListener("click", async () => {
+						await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes);
+						this.render(false);
+						ui.notifications.info(`Fortunes reduced to ${_signedNum(newFortunes)}.`);
 					});
 				},
-			});
+			}, { width: 520 });
 			dialog.render(true);
 		}
 
@@ -868,6 +949,8 @@ export function createStonetopSteadingSheetClass(Base) {
 			const fortunes   = this._stonetopSteading.getStatValue("fortunes");
 			const surplus    = this._stonetopSteading.getStatValue("surplus");
 			const population = this._stonetopSteading.getStatValue("population");
+			const malcontent = this._stonetopSteading.getSystemValue("attributes.debilities.options.malcontent.value", false);
+			const resetFortunes = malcontent ? 0 : 1;
 
 			const label   = { spring: "Spring", summer: "Summer", autumn: "Autumn", winter: "Winter" }[seasonId];
 			const iconSrc = `systems/stonetop/assets/icons/seasons/${seasonId === "autumn" ? "fall" : seasonId}_icon.png`;
@@ -884,7 +967,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					<i class="fas fa-dice-d6"></i> Roll +Fortunes (current: ${_signedNum(fortunes)})
 				</button>
 				<button class="stonetop-season-btn" data-action="reset-fortunes">
-					<i class="fas fa-undo"></i> Reset Fortunes to +1
+					<i class="fas fa-undo"></i> Reset Fortunes to ${_signedNum(resetFortunes)}
 				</button>
 			</div>`;
 
@@ -898,6 +981,14 @@ export function createStonetopSteadingSheetClass(Base) {
 					<li><strong>Interesting news:</strong> Opportunity to improve fortunes, knowledge, or relations</li>
 					<li><strong>Valuable insight:</strong> Chance to address a threat plaguing the steading</li>
 				</ul>
+				<div class="stonetop-season-actions">
+					<button class="stonetop-season-btn" data-action="gain-population">
+						<i class="fas fa-users"></i> Apply Population boom: Population ${_signedNum(population)} -> ${_signedNum(Math.min(population + 1, 3))}
+					</button>
+					<button class="stonetop-season-btn" data-action="gain-surplus">
+						<i class="fas fa-plus"></i> Apply Unexpected bounty: Surplus ${surplus} -> ${surplus + 1}
+					</button>
+				</div>
 			</details>`;
 
 			let content;
@@ -1016,9 +1107,22 @@ export function createStonetopSteadingSheetClass(Base) {
 					});
 
 					root.querySelector("[data-action='reset-fortunes']")?.addEventListener("click", async () => {
-						await this._stonetopSteading.setSystemValue("stats.fortunes.value", 1);
+						await this._stonetopSteading.setSystemValue("stats.fortunes.value", resetFortunes);
 						this.render(false);
-						ui.notifications.info("Fortunes reset to +1.");
+						ui.notifications.info(`Fortunes reset to ${_signedNum(resetFortunes)}.`);
+					});
+
+					root.querySelector("[data-action='gain-population']")?.addEventListener("click", async () => {
+						const newPopulation = Math.min(population + 1, 3);
+						await this._stonetopSteading.setSystemValue("attributes.population.value", newPopulation);
+						this.render(false);
+						ui.notifications.info(`Population increased to ${_signedNum(newPopulation)}.`);
+					});
+
+					root.querySelector("[data-action='gain-surplus']")?.addEventListener("click", async () => {
+						await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus + 1);
+						this.render(false);
+						ui.notifications.info(`Surplus increased to ${surplus + 1}.`);
 					});
 
 					root.querySelector("[data-action='roll-surplus']")?.addEventListener("click", async () => {
@@ -1079,14 +1183,16 @@ export function createStonetopSteadingSheetClass(Base) {
 			dialog.render(true);
 		}
 
-		async _onSteadingRoll(moveName, statKey) {
+		async _onSteadingRoll(moveName, statKey, rollOptions = {}) {
 			if (!statKey) return;
 			const diminished = this._stonetopSteading.getSystemValue("attributes.debilities.options.diminished.value", false);
 			const lacking = this._stonetopSteading.getSystemValue("attributes.debilities.options.lacking.value", false);
 			const options = {
+				...rollOptions,
 				moveName,
 				statValue: this._stonetopSteading.getStatValue(statKey),
 			};
+			if (rollOptions.statValue !== undefined) options.statValue = rollOptions.statValue;
 			if (diminished && DIMINISHED_MOVES.has(moveName)) {
 				options.rollMode = "dis";
 				options.stonetopDebility = "Diminished";

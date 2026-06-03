@@ -6,6 +6,8 @@ import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {rollDamage} from "../../utils/roll-engine.js";
+import {escHtml} from "../../utils/strings.js";
+import {postMoveToChat} from "../../utils/chat.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 
@@ -16,6 +18,235 @@ const STAT_TOOLTIPS = {
 	wis: "Your intuition, self-control, and awareness. Roll +WIS to Seek Insight, or when you rely on your willpower or senses to Defy Danger.",
 	con: "Your stamina, grit, determination, and endurance. Roll +CON to Defend, or to Defy Danger by holding steady or enduring hardship.",
 	cha: "Your ability to charm and connect with others, and to get a read on what others want. Roll +CHA to Persuade, or to Defy Danger socially.",
+};
+
+const _esc = escHtml;
+
+const GUIDED_CHARACTER_MOVES = {
+	"The Hammer and the Book": {
+		trigger: "When you strike a thing of supernatural chaos, roll +WIS.",
+		fields: [
+			{ name: "target", label: "Target", placeholder: "What supernatural chaos are you striking?" },
+		],
+		results: ["10+: deal your damage and choose 1.", "7-9: deal damage and choose 1, but expose yourself to harm or unwanted attention."],
+		picksLabel: "Choose 1:",
+		picks: ["Deal +1d6 damage", "Ignore the thing's armor or other defenses", "Suppress one of its unnatural powers", "Force it from its host"],
+	},
+	"All is Illuminated": {
+		trigger: "When you look closely on another and see their soul laid bare, roll +WIS.",
+		fields: [{ name: "subject", label: "Subject", placeholder: "Whose soul are you seeing?" }],
+		results: ["10+: ask 1 question from the list, plus what would make them feel loved, beautiful, or worthy.", "7-9: ask 1 question from the list."],
+		picksLabel: "Questions:",
+		picks: ["Of what are they most ashamed?", "What do they most desire or covet?", "What hope have they abandoned?", "Who or what is most precious to them?", "What would make them feel loved, beautiful, or worthy?"],
+	},
+	"Helior's Unblinking Eye": {
+		trigger: "When you stare into the sun long enough to lose your vision, name a person or place that you know and roll +WIS.",
+		fields: [{ name: "subject", label: "Person or place", placeholder: "Who or where are you seeking?" }],
+		results: ["10+: briefly glimpse your subject and choose 2.", "7-9: briefly glimpse your subject and choose 1."],
+		picksLabel: "Choose:",
+		picks: ["The glimpse lasts as long as you wish", "Your point of view shifts to very close range", "You recover your vision quickly"],
+	},
+	"Invoke the Sun God": {
+		trigger: "When you imbue a holy light with Helior's power, choose an Invocation you know and roll +WIS.",
+		fields: [{ name: "invocation", label: "Invocation", placeholder: "Which Invocation are you using?" }],
+		results: ["10+: it works, but choose 1 consequence.", "7-9: it works, but you and the GM each choose 1 consequence."],
+		picksLabel: "Consequences:",
+		picks: ["The Invocation has its reduced effect", "The effort taxes you; mark a debility", "The light is snuffed out when the Invocation is complete, its fuel consumed", "You must bask in sunlight for an hour or so before using that Invocation again"],
+	},
+	"Alpha": {
+		trigger: "When you assert dominance over another, roll +WIS.",
+		fields: [{ name: "target", label: "Target", placeholder: "Beast, spirit, Fae, person..." }],
+		results: ["7+: they must pick 1.", "10+: you also have advantage on your next roll against them."],
+		picksLabel: "They pick 1:",
+		picks: ["Accept your authority, at least for now", "Slink away or flee, then avoid you", "Fight you for dominance"],
+	},
+	"Call the Shot": {
+		trigger: "When you take your time and calmly line up the perfect shot, either deal your damage or roll +DEX.",
+		fields: [{ name: "target", label: "Target", placeholder: "Who or what are you shooting?" }],
+		results: ["10+: deal your damage and pick 2.", "7-9: deal your damage and pick 1."],
+		picksLabel: "Pick:",
+		picks: ["Ignore armor or deal +1d4 damage", "Stun, hobble, or hinder them", "Make them trip or drop what they're holding", "Do no harm; do not deal your damage after all"],
+	},
+	"Expert Tracker": {
+		trigger: "When you follow a creature's trail, roll +WIS.",
+		fields: [{ name: "quarry", label: "Quarry", placeholder: "Whose trail are you following?" }],
+		results: ["7+: follow it to a significant change in terrain or activity.", "10+: ask a reasonable question about your quarry and get a useful answer."],
+		picksLabel: "Possible question:",
+		picks: ["What happened here recently?", "Ask another reasonable question about your quarry"],
+	},
+	"Ambush": {
+		trigger: "When you get the drop on a nearby foe, deal your damage or roll +DEX.",
+		fields: [{ name: "target", label: "Target", placeholder: "Who are you ambushing?" }],
+		results: ["10+: deal your damage and pick 2.", "7-9: deal damage and pick 1."],
+		picksLabel: "Pick:",
+		picks: ["Deal +1d4 damage", "Stop them from making noise/raising an alarm", "Slip away before they can react", "Create an opportunity; you or an ally gains advantage on the next move to act on it"],
+	},
+	"Burgle": {
+		trigger: "When you sneak off on your own into a dangerous place, roll +INT.",
+		fields: [{ name: "place", label: "Place", placeholder: "Where are you sneaking?" }],
+		results: ["7+: you make it back; the GM says where you got to and what you learned.", "10+: also pick 2.", "7-9: also pick 1.", "6-: make it back with trouble in tow, or you are missing in action."],
+		picksLabel: "Pick:",
+		picks: ["You got away clean, rousing no suspicion", "You swiped something valuable", "You set something up to exploit on your return", "Ask a Seek Insight question about what you saw"],
+	},
+	"Danger Sense": {
+		trigger: "When the GM says yes, there is an ambush or trap here, roll +INT.",
+		fields: [{ name: "hazard", label: "Ambush or trap", placeholder: "What are you worried about?" }],
+		results: ["10+: ask both questions.", "7-9: ask 1 question.", "Either way, gain advantage on your next roll to act on the answer."],
+		picksLabel: "Questions:",
+		picks: ["What will trigger the ambush or trap?", "What will happen once it is triggered?"],
+	},
+	"Silver Tongued": {
+		trigger: "When you use words to avoid suspicion or trouble, roll +CHA.",
+		fields: [{ name: "situation", label: "Situation", placeholder: "What suspicion or trouble are you avoiding?" }],
+		results: ["10+: hold 3 Nerve.", "7-9: hold 1 Nerve."],
+		picksLabel: "Spend Nerve 1-for-1 to:",
+		picks: ["Move about or maneuver unchallenged", "Withstand direct scrutiny or questioning", "Direct suspicion or attention elsewhere"],
+	},
+	"Danu's Grasp": {
+		trigger: "When you call on the world itself to bind a spirit or a perversion of nature, spend 1 Stock and roll +WIS.",
+		fields: [{ name: "target", label: "Target", placeholder: "What are you binding?" }],
+		results: ["7+: roots, vines, and earth pull at them, and they pick 1.", "10+: both apply."],
+		picksLabel: "They pick:",
+		picks: ["They are restrained, unable to act freely until your focus slips or they tear their way free", "They take 2d4 damage, ignores armor"],
+		note: "Spend 1 Stock before rolling.",
+	},
+	"Veil": {
+		trigger: "When you wrap yourself or another in a subtle veil, spend 1 Stock and choose 1. When your deception comes under scrutiny, roll +INT.",
+		fields: [{ name: "subject", label: "Subject", placeholder: "Who is veiled?" }],
+		results: ["Choose the veil effect before scrutiny. Roll +INT when the deception comes under scrutiny."],
+		picksLabel: "Choose 1:",
+		picks: ["A type of being you name will tend to ignore your presence", "People will perceive you as someone else"],
+		note: "Spend 1 Stock when wrapping the veil.",
+	},
+	"Work With What You've Got": {
+		trigger: "When you cleverly use your environment to harm or impede your foe(s), roll +INT.",
+		fields: [{ name: "environment", label: "Environment", placeholder: "What are you using?" }],
+		results: ["10+: pick 2.", "7-9: pick 1."],
+		picksLabel: "Pick:",
+		picks: ["Interrupt or thwart their action(s)", "Create an opportunity that grants advantage on the next roll to exploit it", "Deal damage appropriate to the source"],
+	},
+	"Formidable": {
+		trigger: "When you wade into battle, you can choose to roll +CHA.",
+		fields: [{ name: "battle", label: "Battle", placeholder: "Where are you wading in?" }],
+		results: ["10+: both.", "7-9: pick 1.", "6-: pick 1 but ask the GM what you missed."],
+		picksLabel: "Effects:",
+		picks: ["Lesser foes quail, hesitate, or flee before you", "Doughty foes focus on you as the greatest threat"],
+	},
+	"Prepare a Welcome": {
+		trigger: "When battle is joined, spend 1 Surprise to reveal a ploy, defense, or dirty trick and roll +INT.",
+		fields: [{ name: "ploy", label: "Ploy", placeholder: "What did you prepare?" }],
+		results: ["10+: it works as well as can be expected, and you regain 1 Surprise.", "7-9: it works as well as can be expected."],
+		note: "Hold 1 Surprise if rushed or 2 Surprise if you can take your time.",
+	},
+	"We Happy Few": {
+		trigger: "When you give an inspiring speech to your allies before facing a dire threat, roll +CHA.",
+		fields: [{ name: "threat", label: "Dire threat", placeholder: "What are you facing?" }],
+		results: ["10+: each ally holds 2 Inspiration.", "7-9: each ally holds 1 Inspiration.", "6-: each ally holds 1, but you have disadvantage until you share your doubts."],
+		picksLabel: "Spend Inspiration 1-for-1 to:",
+		picks: ["Act fearlessly in the face of terror or overwhelming odds", "Keep 1 HP instead of being reduced to 0 HP", "Add 1d6 to a damage roll they just made"],
+	},
+	"Censure": {
+		trigger: "When you first denounce an individual in your presence as an agent of chaos or anathema to civilization, they pick 1.",
+		fields: [{ name: "target", label: "Target", placeholder: "Who are you denouncing?" }],
+		picksLabel: "They pick 1:",
+		picks: ["They are ashamed, and act accordingly", "They are doubtful, and hesitate, pause", "They are afraid, and seek to escape", "They are enraged, and lash out predictably"],
+	},
+	"Piety": {
+		trigger: "When you spend at least an hour in proper worship to Helior, hold 1 Blessing. Other faithful PCs who partake also hold 1 Blessing.",
+		fields: [{ name: "worship", label: "Worship", placeholder: "Where and how do you worship?" }],
+		picksLabel: "Spend Blessing to:",
+		picks: ["Add +1 to a roll you just made in pursuit of a righteous cause"],
+	},
+	"Anger is a Gift": {
+		trigger: "When you burn with righteous anger, hold 2 Resolve.",
+		fields: [{ name: "anger", label: "Righteous anger", placeholder: "What makes you burn?" }],
+		picksLabel: "Spend Resolve 1-for-1 to:",
+		picks: ["Set aside fear and doubt to do what must be done", "Act suddenly, catching them off-guard", "Inspire allies or bystanders to follow your lead", "Strike hard (+1d4 damage, forceful)", "Keep your footing, position, and/or your course despite what befalls you"],
+	},
+	"I Get Knocked Down": {
+		trigger: "When you take damage despite your best efforts to avoid it, you can halve the damage but pick 1.",
+		fields: [{ name: "damage", label: "Damage", placeholder: "What damage are you halving?" }],
+		picksLabel: "Pick 1:",
+		picks: ["You lose something", "Something on your person breaks", "You are out of it for a moment"],
+	},
+	"Up With People": {
+		trigger: "When you converse with someone, you can hold 2 Rapport with them. If you do, they hold 1 Rapport with you.",
+		fields: [{ name: "person", label: "Person", placeholder: "Who are you talking with?" }],
+		picksLabel: "Spend Rapport to ask:",
+		picks: ["What weighs you down or holds you back?", "What drives you forward?", "What lesson would you have me learn?", "What do you think of me, truly?"],
+	},
+	"A Safe Place": {
+		trigger: "When you select and prepare the party's camp site, hold 1 Precaution, or 2 if well-versed with this area and its dangers.",
+		fields: [{ name: "camp", label: "Camp site", placeholder: "Where are you making camp?" }],
+		picksLabel: "Spend Precaution to reveal:",
+		picks: ["A simple defense", "A warning", "A trick prepared in advance"],
+	},
+	"Beast of Legend": {
+		trigger: "Each time you take this move, pick 1 for your animal companion.",
+		picksLabel: "Pick 1:",
+		picks: ["They are exceptional", "They get +4 HP and +1 armor", "They develop a unique ability or trait"],
+	},
+	"Blot Out the Sun": {
+		trigger: "When you Let Fly with a bow, deplete your ammunition before rolling. If you do, choose 1.",
+		picksLabel: "Choose 1:",
+		picks: ["Gain advantage on your damage roll", "Add the area tag to your attack"],
+	},
+	"Survivalist": {
+		trigger: "When you Forage, pick 1 extra choice and add a new option.",
+		picksLabel: "Added Forage option:",
+		picks: ["Find or fashion some useful item or supply"],
+	},
+	"Second Intent": {
+		trigger: "When you Defend and spend 1 Readiness to Parry & Riposte, also pick 1 option from the Ambush list.",
+		picksLabel: "Pick 1:",
+		picks: ["Deal +1d4 damage", "Stop them from making noise/raising an alarm", "Slip away before they can react", "Create an opportunity; you or an ally gains advantage on the next move to act on it"],
+	},
+	"Potent Workings": {
+		trigger: "When you craft a protective charm, spend 1 additional Stock to choose 1.",
+		picksLabel: "Choose 1:",
+		picks: ["Name an additional type of harm", "On a 10+, the charm retains its potency"],
+	},
+	"Rites of the Land": {
+		trigger: "Once per season, when you oversee the sacred rites, hold 1 Favor. If you also sacrifice 1 Surplus, hold 4 Favor instead.",
+		picksLabel: "Public sacrifice result:",
+		picks: ["Clear a steading debility", "Gain advantage when the steading next rolls +Fortunes"],
+	},
+	"Safety First": {
+		trigger: "When you spend an hour or so preparing your mystical defenses, hold 2 Protection.",
+		picksLabel: "Spend Protection to:",
+		picks: ["Gain advantage on a roll to resist harmful magic", "Halve harmful magic's damage/effects"],
+	},
+	"Guardian": {
+		trigger: "When you Defend, hold 1 extra Readiness. Even on a 6-, hold 1 Readiness plus whatever the GM says.",
+		picksLabel: "Reminder:",
+		picks: ["Hold 1 extra Readiness", "On a 6-, hold 1 Readiness"],
+	},
+	"Mighty Thews": {
+		trigger: "When you perform a feat of extraordinary strength, you do it but pick 1.",
+		fields: [{ name: "feat", label: "Feat", placeholder: "What are you doing?" }],
+		picksLabel: "Pick 1:",
+		picks: ["It takes a while", "You cause unwanted damage or harm", "It takes a toll (mark a debility)"],
+	},
+	"Front Line Leader": {
+		trigger: "When you lead your crew into battle, hold 2 Presence.",
+		picksLabel: "Spend Presence as:",
+		picks: ["Crew Loyalty", "Readiness, as if you Defended them"],
+	},
+	"Heroes to the Last": {
+		trigger: "Each time you take this move, pick 1 for your crew.",
+		picksLabel: "Pick 1:",
+		picks: ["They are exceptional", "They are inured to terror and horror", "Increase their max HP by 4 each", "Increase their damage die one size"],
+	},
+	"Stentorian": {
+		trigger: "When you go into battle, hold 2 Command. Spend 1 Command to shout an order or warning and pick 1.",
+		picksLabel: "Pick 1:",
+		picks: ["PCs get advantage on their next roll to do as you say", "You have advantage to Order Followers or Deploy"],
+	},
+	"Veteran Crew": {
+		trigger: "Each time you take this move, pick 1. You can also reselect the crew's Instinct and Cost.",
+		picksLabel: "Pick 1:",
+		picks: ["Select 2 new tags for your Crew", "Increase their damage die from d6 to d8", "Increase their max HP by 2 each"],
+	},
 };
 
 /** Canonical HTML for a move chat card. Both `name` and `description` are trusted module HTML. */
@@ -95,15 +326,14 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		_openLedgerDialog() {
 			const entries = CharacterLedger.getEntries(this.actor);
-			const esc = v => foundry.utils.escapeHTML(String(v ?? ""));
 			const buildRows = (items) => items.length
-				? items.map(entry => `<li class="stonetop-ledger-entry" data-id="${esc(entry.id)}" data-timestamp="${entry.timestamp ?? 0}">
+				? items.map(entry => `<li class="stonetop-ledger-entry" data-id="${_esc(entry.id)}" data-timestamp="${entry.timestamp ?? 0}">
 						<input type="checkbox" class="stonetop-ledger-row-check">
 						<div class="stonetop-ledger-entry-content">
-							<div class="stonetop-ledger-entry-main">${esc(entry.action)}</div>
+							<div class="stonetop-ledger-entry-main">${_esc(entry.action)}</div>
 							<div class="stonetop-ledger-entry-meta">
-								<span>${esc(entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "")}</span>
-								<span>${esc(entry.userName)}</span>
+								<span>${_esc(entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "")}</span>
+								<span>${_esc(entry.userName)}</span>
 							</div>
 						</div>
 					</li>`).join("")
@@ -488,6 +718,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.preventDefault();
 				const li = nameEl.closest("li");
 				const name = nameEl.textContent.trim();
+				const guide = GUIDED_CHARACTER_MOVES[name];
+				if (guide) {
+					this._openGuidedCharacterMove({ name, guide }, li?.querySelector(".rollable"));
+					return;
+				}
 				const description = li.querySelector(".stonetop-item-description")?.innerHTML ?? "";
 				const playbookName = html[0].querySelector(".stonetop-playbook-drop-zone:not(.empty)")?.textContent?.trim() ?? "";
 				const speaker = ChatMessage.getSpeaker({ actor: this.actor });
@@ -508,6 +743,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				const rollable = ev.target.closest(".rollable");
 				if (!rollable || !this.isEditable) return;
 				ev.stopPropagation();
+				const guided = this._guidedMoveForRollable(rollable);
+				if (guided) {
+					this._openGuidedCharacterMove(guided, rollable);
+					return;
+				}
 				const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable });
 				if (!handled) {
 					const roll = rollable.dataset.roll;
@@ -1037,6 +1277,90 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (anyAdded) this.render(false);
 		}
 
+		_guidedMoveForRollable(rollable) {
+			const li = rollable.closest(".stonetop-item");
+			const name = li?.querySelector(".stonetop-item-name")?.textContent?.trim()
+				?? rollable.dataset.label?.trim();
+			const guide = GUIDED_CHARACTER_MOVES[name];
+			return guide ? { name, guide } : null;
+		}
+
+		_openGuidedCharacterMove({ name, guide }, rollable) {
+			const fieldsHtml = (guide.fields ?? []).map(field => `<label class="stonetop-homestead-field">
+				<span>${_esc(field.label)}</span>
+				${field.type === "textarea"
+					? `<textarea name="${_esc(field.name)}" rows="2" placeholder="${_esc(field.placeholder)}"></textarea>`
+					: `<input type="text" name="${_esc(field.name)}" placeholder="${_esc(field.placeholder)}">`}
+			</label>`).join("");
+			const resultsHtml = guide.results?.length
+				? `<div class="stonetop-homestead-reference">
+					<strong>Results</strong>
+					<ul>${guide.results.map(result => `<li>${_esc(result)}</li>`).join("")}</ul>
+				</div>`
+				: "";
+			const picksHtml = guide.picks?.length
+				? `<div class="stonetop-homestead-reference">
+					<strong>${_esc(guide.picksLabel ?? "Choose")}</strong>
+					<div class="stonetop-homestead-choice-list">
+						${guide.picks.map((pick, index) => `<label class="stonetop-homestead-choice">
+							<input type="checkbox" name="pick.${index}" value="${_esc(pick)}">
+							<span>${_esc(pick)}</span>
+						</label>`).join("")}
+					</div>
+				</div>`
+				: "";
+
+			const buttons = {
+				post: {
+					label: "Post",
+					callback: html => this._postGuidedCharacterMove(name, guide, html),
+				},
+				cancel: { label: "Cancel" },
+			};
+			if (rollable) {
+				buttons.roll = {
+					label: `Roll +${(rollable.dataset.roll ?? "").toUpperCase()}`,
+					callback: async html => {
+						await this._postGuidedCharacterMove(name, guide, html);
+						await this._stonetopCharacter.onRoll({ currentTarget: rollable });
+					},
+				};
+			}
+
+			new Dialog({
+				title: name,
+				content: `<form class="stonetop-homestead-dialog stonetop-character-move-dialog">
+					<p class="stonetop-homestead-trigger"><em>${_esc(guide.trigger)}</em></p>
+					${fieldsHtml ? `<div class="stonetop-homestead-fields">${fieldsHtml}</div>` : ""}
+					${resultsHtml}
+					${picksHtml}
+					${guide.note ? `<p class="stonetop-homestead-note">${_esc(guide.note)}</p>` : ""}
+				</form>`,
+				buttons,
+				default: rollable ? "roll" : "post",
+			}, { width: 520 }).render(true);
+		}
+
+		async _postGuidedCharacterMove(name, guide, html) {
+			const form = html[0]?.querySelector(".stonetop-character-move-dialog");
+			if (!form) return;
+			const data = Object.fromEntries(new FormData(form));
+			const rows = [];
+			for (const field of guide.fields ?? []) {
+				const raw   = data[field.name];
+				const value = field.type === "checkbox"
+					? (raw ? "yes" : "")
+					: String(raw ?? "").trim();
+				if (value) rows.push({ label: field.label, value });
+			}
+			const selected = Object.entries(data)
+				.filter(([key]) => key.startsWith("pick."))
+				.map(([, value]) => String(value ?? "").trim())
+				.filter(Boolean);
+			if (selected.length) rows.push({ label: "Selected", value: selected.join("\n") });
+			postMoveToChat(this.actor, name, rows);
+		}
+
 		async _onBackgroundChange(ev) {
 			const slug = ev.currentTarget.value;
 			await this._stonetopCharacter.background.selectBackground(slug);
@@ -1228,14 +1552,110 @@ export function createStonetopCharacterSheetClass(Base) {
 				}).render(true);
 			};
 			if (existingPlaybook) {
-				Dialog.confirm({
+				new Dialog({
 					title:   game.i18n.localize("stonetop.newCharacter.confirmTitle"),
 					content: `<p>${game.i18n.localize("stonetop.newCharacter.confirmContent")}</p>`,
-					yes:     openPicker,
-				});
+					buttons: {
+						edit: {
+							icon:     '<i class="fas fa-edit"></i>',
+							label:    "Edit",
+							callback: () => this._openEditCharacterOnboarding(),
+						},
+						reset: {
+							icon:     '<i class="fas fa-undo"></i>',
+							label:    "New",
+							callback: openPicker,
+						},
+						cancel: {
+							icon:     '<i class="fas fa-times"></i>',
+							label:    "Cancel",
+						},
+					},
+					default: "cancel",
+				}).render(true);
 			} else {
 				openPicker();
 			}
+		}
+
+		async _openEditCharacterOnboarding() {
+			const playbookUuid = this.actor.system?.playbook?.uuid;
+			if (!playbookUuid) return;
+			const playbookDoc = await fromUuid(playbookUuid);
+			if (!playbookDoc) return;
+
+			new CharacterOnboardingDialog(
+				playbookDoc,
+				async (selections) => {
+					await this._applyPlaybookSelections(playbookDoc, selections);
+				},
+				{ initialSelections: this._readSelectionsFromActor(playbookDoc) },
+				// no onBack → back button is hidden
+			).render(true);
+		}
+
+		_readSelectionsFromActor(playbookDoc = null) {
+			const f  = this.actor.flags?.stonetop ?? {};
+			const sys = this.actor.system ?? {};
+
+			// Major arcanum: use the saved flag if present, otherwise infer from owned arcana
+			// cross-referenced with the background's allowed list.
+			const bgSlug       = f.background?.selected ?? "";
+			const backgrounds  = playbookDoc?.flags?.stonetop?.backgrounds ?? [];
+			const bg           = backgrounds.find(b => b.slug === bgSlug);
+			const allowedMajors = new Set(bg?.majorArcana ?? []);
+			let majorArcanum   = f.arcana?.major ?? "";
+			if (!majorArcanum && allowedMajors.size) {
+				const ownedSlugs = f.arcana?.owned ?? [];
+				majorArcanum = ownedSlugs.find(s => allowedMajors.has(s)) ?? "";
+			}
+
+			return {
+				backgroundSlug:  f.background?.selected ?? "",
+				instinctValue:   f.instinct?.selected ?? "",
+				appearance:      foundry.utils.deepClone(f.appearance?.selected ?? {}),
+				originRegion:    f.origin?.selected ?? "",
+				name:            this.actor.name ?? "",
+				stats: {
+					str: sys.stats?.str?.value ?? null,
+					dex: sys.stats?.dex?.value ?? null,
+					con: sys.stats?.con?.value ?? null,
+					int: sys.stats?.int?.value ?? null,
+					wis: sys.stats?.wis?.value ?? null,
+					cha: sys.stats?.cha?.value ?? null,
+				},
+				possessions:     [...(f.possessions?.selected ?? [])],
+				moves:           [], // compendium IDs are hard to recover; player re-picks
+				invocations:     [...(f.invocations?.selected ?? [])],
+				initiates:       Object.entries(f.background?.choices ?? {})
+				                       .filter(([, v]) => v === true)
+				                       .map(([k]) => k),
+				initiateDetails: foundry.utils.deepClone(f.initiateDetails ?? {}),
+				crew: {
+					name:     f.crew?.name ?? "",
+					tags:     [...(f.crew?.tags ?? [])],
+					instinct: f.crew?.instinct ?? "",
+					cost:     f.crew?.cost ?? "",
+				},
+				animalCompanion: {
+					type:     f.animalCompanion?.type ?? "",
+					traits:   [...(f.animalCompanion?.traits ?? [])],
+					name:     f.animalCompanion?.name ?? "",
+					instinct: f.animalCompanion?.instinct ?? "",
+					cost:     f.animalCompanion?.cost ?? "",
+				},
+				lore: {
+					picks: foundry.utils.deepClone(f.lore?.counts ?? {}),
+					texts: foundry.utils.deepClone(f.lore?.texts ?? {}),
+				},
+				arcana: {
+					major:      majorArcanum,
+					minorDraw:  [...(f.arcana?.minorDraw ?? [])],
+					minorRoles: foundry.utils.deepClone(
+						f.arcana?.minorRoles ?? { mastered: "", found: "", lead: "" }
+					),
+				},
+			};
 		}
 
 		async _applyPlaybookSelections(playbookDoc, selections) {
@@ -1320,6 +1740,21 @@ export function createStonetopCharacterSheetClass(Base) {
 					await this.actor.setFlag("stonetop", "animalCompanion.name", ac.name.trim());
 				}
 			}
+			// ── Insert: Seeker arcana ───────────────────────────────
+			const masteredMinor = selections.arcana?.minorRoles?.mastered ?? null;
+			const foundMinor = selections.arcana?.minorRoles?.found ?? null;
+			const selectedArcana = [
+				selections.arcana?.major,
+				masteredMinor,
+				foundMinor,
+			].filter(Boolean);
+			for (const slug of selectedArcana) {
+				await this._stonetopCharacter.addArcanum(slug);
+				await this._stonetopCharacter.identifyArcanum(slug);
+			}
+			if (masteredMinor) {
+				await this._stonetopCharacter.flipArcanum(masteredMinor);
+			}
 			// ── Lore (character history picks & text answers) ───────
 			if (selections.lore) {
 				for (const [key, count] of Object.entries(selections.lore.picks ?? {})) {
@@ -1335,8 +1770,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					}
 				}
 			}
+			// ── Seeker: arcana selections ─────────────────────────────
+			if (selections.arcana?.major) {
+				await this.actor.setFlag("stonetop", "arcana.major",      selections.arcana.major);
+			}
+			if (selections.arcana?.minorDraw?.length) {
+				await this.actor.setFlag("stonetop", "arcana.minorDraw",  selections.arcana.minorDraw);
+			}
+			if (selections.arcana?.minorRoles) {
+				await this.actor.setFlag("stonetop", "arcana.minorRoles", selections.arcana.minorRoles);
+			}
 			this.render(false);
 		}
 	};
 }
-

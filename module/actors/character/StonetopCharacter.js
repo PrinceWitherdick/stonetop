@@ -450,7 +450,7 @@ export class StonetopCharacter {
 				.withChecked(isSelected)
 				.withDisabled(isPre)
 				.withPreselected(isPre)
-				.withPreselectedSource(isPre ? "Starting" : null)
+				.withPreselectedSource(isPre ? "Starting move" : null)
 				.withResource(resource)
 				.withUsesLabel(resourceDef?.title ?? null)
 				.withChoices(null)
@@ -646,7 +646,7 @@ export class StonetopCharacter {
 			options: options.map(opt => {
 				const isPre = preselectedSet.has(opt.slug);
 				const isSelected = isPre || selectedSlugs.has(opt.slug);
-				const preselectedSource = isPre ? (bgPreselectedSet.has(opt.slug) ? "Background" : "Starting") : null;
+				const preselectedSource = isPre ? (bgPreselectedSet.has(opt.slug) ? "Background" : "Starting move") : null;
 				const maxUses = maxUsesMap[opt.slug] ?? opt.resource?.max ?? null;
 				const pickedSubs = subChoicesMap[opt.slug] ?? [];
 				return {
@@ -1127,7 +1127,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set()) {
 	const requirement = entry.requiresLabel
 		? new RequirementSnapshot(entry.requiresLabel, !entry.locked)
 		: null;
-	const sourceLabel = entry.isStarting ? (bgSlugs.has(_toSlug(entry.name)) ? "Background" : "Starting") : null;
+	const sourceLabel = entry.isStarting ? (bgSlugs.has(_toSlug(entry.name)) ? "Background" : "Starting move") : null;
 	return new MoveSnapshotBuilder()
 		.withId(entry.compendiumId)
 		.withCompendiumId(entry.compendiumId)

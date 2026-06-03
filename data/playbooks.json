@@ -635,7 +635,7 @@
       {
         "slug": "a-life-of-crime",
         "label": "A Life of Crime",
-        "description": "<p>You're new to Stonetop, having left behind a... <em>colorful</em> past. How did you get into that life? Why and how did you get out? Who and what do you leave behind?</p><p>Regardless, these people have taken you in. Time to lead an honest life, right?</p><p>You start with either <strong>Burgle</strong> or <strong>Light Fingers</strong> (your choice) as an extra move, and either burglar tools or a hidden stash (your choice) as an additional special possession. Go mark them now.</p>"
+        "description": "<p>You're new to Stonetop, having left behind a... <em>colorful</em> past. How did you get into that life? Why and how did you get out? Who and what do you leave behind?</p><p>Regardless, these people have taken you in. Time to lead an honest life, right?</p><p>You start with either <strong>Burgle</strong> or <strong>Light Fingers</strong> (your choice) as an extra move, and either burglar tools or a hidden stash (your choice) as an additional special possession.</p>"
       },
       {
         "slug": "the-prodigal-returned",
@@ -2510,12 +2510,19 @@
       {
         "slug": "mighty-hunter",
         "label": "Mighty Hunter",
-        "description": "<p>You are a hunter of the Great Wood, the best the town has seen in generations. You know every part of the Wood within a two-day march.</p><p>You start with both the <strong>Expert Tracker</strong> move and the <strong>Stalker</strong> move. Go mark them now.</p>"
+        "description": "<p>You are a hunter of the Great Wood, the best the town has seen in generations. You know every part of the Wood within a two-day march.</p><p>You start with both the <strong>Expert Tracker</strong> move and the <strong>Stalker</strong> move.</p>",
+        "moves": [
+          "Expert Tracker",
+          "Stalker"
+        ]
       },
       {
         "slug": "wide-wanderer",
         "label": "Wide Wanderer",
-        "description": "<p>You have travelled much of the known world and perhaps parts beyond. Add each of the following to the Neighbors list in the Stonetop playbook, choosing 1 trait for each: <ul><li><strong>Ennis</strong> (from Marshedge)</li><li><strong>Shahar</strong> (from Gordin's Delve)</li><li><strong>Yannic</strong> (from the Hillfolk)>/li><li><strong>Tovia</strong> (from Lygos)</li><li><strong>Sasca</strong> (from the northern Manmarch)</li></ul></p><p>You start with the <strong>Mental Map</strong> move. Mark it now.</p><p>When you <em>Know Things about the wider world</em>, you can roll +WIS instead of +INT. When you <em>arrive somewhere you've visited before</em> (your call), tell the GM when you were last here, and the GM will tell you how it's changed.</p>"
+        "description": "<p>You have travelled much of the known world and perhaps parts beyond. Add each of the following to the Neighbors list in the Stonetop playbook, choosing 1 trait for each: <ul><li><strong>Ennis</strong> (from Marshedge)</li><li><strong>Shahar</strong> (from Gordin's Delve)</li><li><strong>Yannic</strong> (from the Hillfolk)>/li><li><strong>Tovia</strong> (from Lygos)</li><li><strong>Sasca</strong> (from the northern Manmarch)</li></ul></p><p>You start with the <strong>Mental Map</strong> move.</p><p>When you <em>Know Things about the wider world</em>, you can roll +WIS instead of +INT. When you <em>arrive somewhere you've visited before</em> (your call), tell the GM when you were last here, and the GM will tell you how it's changed.</p>",
+        "moves": [
+          "Mental Map"
+        ]
       },
       {
         "slug": "beast-bonded",
@@ -2942,17 +2949,41 @@
       {
         "slug": "patriot",
         "label": "Patriot",
-        "description": "<p>These people are family. Chaos grows all around, but you'll be damned if you'll let your family come to harm. Damned indeed.</p><p>You have sought out and embraced dark power to protect that which you hold dear. Or perhaps that power fell upon you, and you took it up for the greater good. Either way, you seek more.</p><p>You start with the <strong>Let's Make a Deal</strong> move and are Well Versed in the Things Below. Go mark them now. You've also acquired 1 major arcanum.</p>"
+        "description": "<p>These people are family. Chaos grows all around, but you'll be damned if you'll let your family come to harm. Damned indeed.</p><p>You have sought out and embraced dark power to protect that which you hold dear. Or perhaps that power fell upon you, and you took it up for the greater good. Either way, you seek more.</p><p>You start with the <strong>Let's Make a Deal</strong> move and are Well Versed in the Things Below. You've also acquired 1 major arcanum.</p>",
+        "moves": [
+          "Let's Make a Deal"
+        ],
+        "majorArcana": [
+          "hectumel-codex",
+          "red-scepter",
+          "staff-of-the-lidless-orb"
+        ]
       },
       {
         "slug": "antiquarian",
         "label": "Antiquarian",
-        "description": "<p>The past has buried many secrets, and you are determined to dig them up. Years of study across the land have led you here, and you are convinced that this town holds the key to your greatest discoveries. What is it you hope to find? What is it that keeps you here?</p><p>Your travels and studies mean that you start with the <strong>Polyglot</strong> move and are Well Versed in the Makers and their arts. Go mark them now. You've also acquired 1 major arcanum.</p>"
+        "description": "<p>The past has buried many secrets, and you are determined to dig them up. Years of study across the land have led you here, and you are convinced that this town holds the key to your greatest discoveries. What is it you hope to find? What is it that keeps you here?</p><p>Your travels and studies mean that you start with the <strong>Polyglot</strong> move and are Well Versed in the Makers and their arts. You've also acquired 1 major arcanum.</p>",
+        "moves": [
+          "Polyglot"
+        ],
+        "majorArcana": [
+          "norubas-ice-sphere",
+          "azure-hand",
+          "mindgem"
+        ]
       },
       {
         "slug": "witch-hunter",
         "label": "Witch Hunter",
-        "description": "<p>You've dedicated your life to rooting out and destroying horrors and their servants. What set you down this path? What did you sacrifice to walk it? What led you to call Stonetop home?</p><p>Regardless, you start with the <strong>Everything Bleeds</strong> move and are Well Versed in (pick 1) the Fae, the Things Below, or the Last Door and what lies beyond. Go mark them now. You've also acquired 1 major arcanum.</p>"
+        "description": "<p>You've dedicated your life to rooting out and destroying horrors and their servants. What set you down this path? What did you sacrifice to walk it? What led you to call Stonetop home?</p><p>Regardless, you start with the <strong>Everything Bleeds</strong> move and are Well Versed in (pick 1) the Fae, the Things Below, or the Last Door and what lies beyond. You've also acquired 1 major arcanum.</p>",
+        "moves": [
+          "Everything Bleeds"
+        ],
+        "majorArcana": [
+          "demonhide-cloak",
+          "redwood-effigy",
+          "twisted-spear"
+        ]
       }
     ],
     "instincts": [
@@ -3136,7 +3167,7 @@
       {
         "slug": "arcana-major",
         "title": "Major Arcanum",
-        "description": "<p>Your Background grants you 1 major arcanum.</p><p>Answer at least 2 questions about it:</p>",
+        "description": "<p>Your Background grants you 1 major arcanum. Answer at least 2 questions about it:</p>",
         "options": [
           {
             "slug": "where-acquired",

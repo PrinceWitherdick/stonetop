@@ -15,17 +15,41 @@
         {
           "slug": "patriot",
           "label": "Patriot",
-          "description": "<p>These people are family. Chaos grows all around, but you'll be damned if you'll let your family come to harm. Damned indeed.</p><p>You have sought out and embraced dark power to protect that which you hold dear. Or perhaps that power fell upon you, and you took it up for the greater good. Either way, you seek more.</p><p>You start with the <strong>Let's Make a Deal</strong> move and are Well Versed in the Things Below. Go mark them now. You've also acquired 1 major arcanum.</p>"
+          "description": "<p>These people are family. Chaos grows all around, but you'll be damned if you'll let your family come to harm. Damned indeed.</p><p>You have sought out and embraced dark power to protect that which you hold dear. Or perhaps that power fell upon you, and you took it up for the greater good. Either way, you seek more.</p><p>You start with the <strong>Let's Make a Deal</strong> move and are Well Versed in the Things Below. You've also acquired 1 major arcanum.</p>",
+          "moves": [
+            "Let's Make a Deal"
+          ],
+          "majorArcana": [
+            "hectumel-codex",
+            "red-scepter",
+            "staff-of-the-lidless-orb"
+          ]
         },
         {
           "slug": "antiquarian",
           "label": "Antiquarian",
-          "description": "<p>The past has buried many secrets, and you are determined to dig them up. Years of study across the land have led you here, and you are convinced that this town holds the key to your greatest discoveries. What is it you hope to find? What is it that keeps you here?</p><p>Your travels and studies mean that you start with the <strong>Polyglot</strong> move and are Well Versed in the Makers and their arts. Go mark them now. You've also acquired 1 major arcanum.</p>"
+          "description": "<p>The past has buried many secrets, and you are determined to dig them up. Years of study across the land have led you here, and you are convinced that this town holds the key to your greatest discoveries. What is it you hope to find? What is it that keeps you here?</p><p>Your travels and studies mean that you start with the <strong>Polyglot</strong> move and are Well Versed in the Makers and their arts. You've also acquired 1 major arcanum.</p>",
+          "moves": [
+            "Polyglot"
+          ],
+          "majorArcana": [
+            "norubas-ice-sphere",
+            "azure-hand",
+            "mindgem"
+          ]
         },
         {
           "slug": "witch-hunter",
           "label": "Witch Hunter",
-          "description": "<p>You've dedicated your life to rooting out and destroying horrors and their servants. What set you down this path? What did you sacrifice to walk it? What led you to call Stonetop home?</p><p>Regardless, you start with the <strong>Everything Bleeds</strong> move and are Well Versed in (pick 1) the Fae, the Things Below, or the Last Door and what lies beyond. Go mark them now. You've also acquired 1 major arcanum.</p>"
+          "description": "<p>You've dedicated your life to rooting out and destroying horrors and their servants. What set you down this path? What did you sacrifice to walk it? What led you to call Stonetop home?</p><p>Regardless, you start with the <strong>Everything Bleeds</strong> move and are Well Versed in (pick 1) the Fae, the Things Below, or the Last Door and what lies beyond. You've also acquired 1 major arcanum.</p>",
+          "moves": [
+            "Everything Bleeds"
+          ],
+          "majorArcana": [
+            "demonhide-cloak",
+            "redwood-effigy",
+            "twisted-spear"
+          ]
         }
       ],
       "instincts": [
@@ -234,7 +258,7 @@
             },
             {
               "slug": "when-unlocked",
-              "description": "<p>You’ve begun to unlock the mysteries of your major arcanum; mark 1 or on the front of its insert.<p><p>When and how did that happen?</p>",
+              "description": "You’ve begun to unlock the mysteries of your major arcanum; mark 1 ○ on the front of its insert. When and how did that happen?",
               "type": "text"
             }
           ]
