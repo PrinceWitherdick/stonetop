@@ -241,20 +241,6 @@ function granularEntriesForPath(path, oldValue, newValue, names) {
 	return null;
 }
 
-export function legacyFlagPath(path) {
-	return path.startsWith(`flags.${LEDGER_SCOPE}.`)
-		? path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop.")
-		: null;
-}
-
-export function valueForPath(actor, path) {
-	const current = foundry.utils.getProperty(actor, path);
-	if (current !== undefined) return current;
-	const legacyPath = legacyFlagPath(path);
-	if (!legacyPath) return undefined;
-	return foundry.utils.getProperty(actor, legacyPath);
-}
-
 async function actorUpdateEntries(actor, changed) {
 	const names = await buildNameLookup(actor);
 	const entries = [];
@@ -276,7 +262,7 @@ async function actorUpdateEntries(actor, changed) {
 			continue;
 		}
 
-		const oldValue = valueForPath(actor, path);
+		const oldValue = foundry.utils.getProperty(actor, path);
 		if (valuesEqual(oldValue, newValue)) continue;
 
 		const granularEntries = granularEntriesForPath(path, oldValue, newValue, names);

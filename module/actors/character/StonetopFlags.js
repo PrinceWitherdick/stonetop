@@ -1,5 +1,4 @@
 const _scope = "stonetop_pwd";
-const _legacyScope = "stonetop";
 
 export class StonetopFlags {
 	_namespace;
@@ -11,11 +10,7 @@ export class StonetopFlags {
 	}
 
 	getFlag(key) {
-		const fullKey = this.buildKey(key);
-		const current = this._actor.getFlag(_scope, fullKey);
-		if (current !== undefined && current !== null) return current;
-		const legacyFlags = this._actor.flags?.[_legacyScope] ?? {};
-		return foundry.utils.getProperty(legacyFlags, fullKey);
+		return this._actor.getFlag(_scope, this.buildKey(key));
 	}
 
 	async setFlag(key, value) {
@@ -32,10 +27,9 @@ export class StonetopFlags {
 }
 
 export function resolvedFlags(actor) {
-	return actor.flags?.[_scope] ?? actor.flags?.[_legacyScope] ?? {};
+	return actor.flags?.[_scope] ?? {};
 }
 
 export function resolvedFlagProperty(actor, path) {
-	return foundry.utils.getProperty(actor.flags?.[_scope], path)
-		?? foundry.utils.getProperty(actor.flags?.[_legacyScope], path);
+	return foundry.utils.getProperty(actor.flags?.[_scope], path);
 }

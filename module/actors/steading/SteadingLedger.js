@@ -1,4 +1,4 @@
-import { isBlank, formatValue, valuesEqual, actionForField, coalesceEntries, legacyFlagPath, valueForPath } from "../character/CharacterLedger.js";
+import { isBlank, formatValue, valuesEqual, actionForField, coalesceEntries } from "../character/CharacterLedger.js";
 
 const LEDGER_SCOPE = "stonetop_pwd";
 const LEDGER_KEY = "ledger";
@@ -162,21 +162,14 @@ const PATH_HANDLERS = {
 	"flags.stonetop_pwd.steading.gold.coins":           (o, n) => _currencyEntry("Gold coins",       o, n),
 };
 
-function currentFlagPath(path) {
-	return path.startsWith("flags.stonetop.")
-		? path.replace("flags.stonetop.", `flags.${LEDGER_SCOPE}.`)
-		: path;
-}
-
 function actorUpdateEntries(actor, changed) {
 	const entries = [];
-	for (const [rawPath, newValue] of Object.entries(foundry.utils.flattenObject(changed))) {
-		const path = currentFlagPath(rawPath);
+	for (const [path, newValue] of Object.entries(foundry.utils.flattenObject(changed))) {
 		if (!path || path === `flags.${LEDGER_SCOPE}.${LEDGER_KEY}` || path.startsWith(`flags.${LEDGER_SCOPE}.${LEDGER_KEY}.`)) continue;
 
 		const handler = PATH_HANDLERS[path];
 		if (handler) {
-			const oldValue = valueForPath(actor, path);
+			const oldValue = foundry.utils.getProperty(actor, path);
 			entries.push(...(handler(oldValue, newValue) ?? []));
 			continue;
 		}
@@ -186,7 +179,7 @@ function actorUpdateEntries(actor, changed) {
 		const isSubPath = SORTED_NAMESPACE_PREFIXES.some(p => path !== p && path.startsWith(`${p}.`));
 		if (isSubPath) continue;
 
-		const oldValue = valueForPath(actor, path);
+		const oldValue = foundry.utils.getProperty(actor, path);
 		if (valuesEqual(oldValue, newValue)) continue;
 		const label = labelForPath(path);
 		if (!label) continue;
