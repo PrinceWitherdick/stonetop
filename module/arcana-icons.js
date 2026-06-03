@@ -21,5 +21,5 @@ export const MAJOR_ARCANA_ICONS = {
 
 export function majorArcanaImg(slug) {
 	const file = MAJOR_ARCANA_ICONS[slug];
-	return file ? `systems/stonetop/assets/icons/arcana/${file}` : null;
+	return file ? `systems/stonetop_pwd/assets/icons/arcana/${file}` : null;
 }

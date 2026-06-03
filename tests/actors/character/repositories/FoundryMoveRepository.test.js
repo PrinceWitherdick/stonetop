@@ -44,7 +44,7 @@ function stubGame(playbookPack, basicPack, postDeathPack = null) {
 	vi.stubGlobal("game", {
 		packs: {
 			get: (name) => {
-				if (name === "stonetop.stonetop-items") return playbookPack ?? basicPack ?? postDeathPack;
+				if (name === "stonetop_pwd.stonetop-items") return playbookPack ?? basicPack ?? postDeathPack;
 				return null;
 			},
 		},

@@ -1,6 +1,6 @@
 import { isBlank, formatValue, valuesEqual, actionForField, coalesceEntries } from "../character/CharacterLedger.js";
 
-const LEDGER_SCOPE = "stonetop";
+const LEDGER_SCOPE = "stonetop_pwd";
 const LEDGER_KEY = "ledger";
 const LEDGER_MAX_ENTRIES = 300;
 
@@ -16,17 +16,17 @@ const SYSTEM_PATH_LABELS = {
 };
 
 const FLAG_PATH_LABELS = {
-	"flags.stonetop.steading.size":  "Size",
-	"flags.stonetop.steading.notes": "Notes",
+	"flags.stonetop_pwd.steading.size":  "Size",
+	"flags.stonetop_pwd.steading.notes": "Notes",
 };
 
 const FLAG_NAMESPACE_LABELS = {
-	"flags.stonetop.steading.resources":      "Resources",
-	"flags.stonetop.steading.fortifications": "Fortifications",
-	"flags.stonetop.steading.assets":         "Assets",
-	"flags.stonetop.steading.neighbors":      "Neighbors",
-	"flags.stonetop.steading.improvements":   "Improvements",
-	"flags.stonetop.steading.places":         "Places of interest",
+	"flags.stonetop_pwd.steading.resources":      "Resources",
+	"flags.stonetop_pwd.steading.fortifications": "Fortifications",
+	"flags.stonetop_pwd.steading.assets":         "Assets",
+	"flags.stonetop_pwd.steading.neighbors":      "Neighbors",
+	"flags.stonetop_pwd.steading.improvements":   "Improvements",
+	"flags.stonetop_pwd.steading.places":         "Places of interest",
 };
 
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
@@ -149,27 +149,48 @@ const _currencyEntry = (label, o, n) =>
 	valuesEqual(o, n) ? [] : [{ action: actionForField(label, o, n) }];
 
 const PATH_HANDLERS = {
-	"flags.stonetop.steading.resources":            (o, n) => listEntries("Resource",      o, n),
-	"flags.stonetop.steading.fortifications":       (o, n) => listEntries("Fortification", o, n),
-	"flags.stonetop.steading.assets":               (o, n) => listEntries("Asset",         o, n),
-	"flags.stonetop.steading.neighbors":            neighborEntries,
-	"flags.stonetop.steading.places":               placeEntries,
-	"flags.stonetop.steading.silver.purses":        (o, n) => _currencyEntry("Silver purses",    o, n),
-	"flags.stonetop.steading.silver.handfuls":      (o, n) => _currencyEntry("Silver handfuls",  o, n),
-	"flags.stonetop.steading.silver.coins":         (o, n) => _currencyEntry("Silver coins",     o, n),
-	"flags.stonetop.steading.gold.purses":          (o, n) => _currencyEntry("Gold purses",      o, n),
-	"flags.stonetop.steading.gold.handfuls":        (o, n) => _currencyEntry("Gold handfuls",    o, n),
-	"flags.stonetop.steading.gold.coins":           (o, n) => _currencyEntry("Gold coins",       o, n),
+	"flags.stonetop_pwd.steading.resources":            (o, n) => listEntries("Resource",      o, n),
+	"flags.stonetop_pwd.steading.fortifications":       (o, n) => listEntries("Fortification", o, n),
+	"flags.stonetop_pwd.steading.assets":               (o, n) => listEntries("Asset",         o, n),
+	"flags.stonetop_pwd.steading.neighbors":            neighborEntries,
+	"flags.stonetop_pwd.steading.places":               placeEntries,
+	"flags.stonetop_pwd.steading.silver.purses":        (o, n) => _currencyEntry("Silver purses",    o, n),
+	"flags.stonetop_pwd.steading.silver.handfuls":      (o, n) => _currencyEntry("Silver handfuls",  o, n),
+	"flags.stonetop_pwd.steading.silver.coins":         (o, n) => _currencyEntry("Silver coins",     o, n),
+	"flags.stonetop_pwd.steading.gold.purses":          (o, n) => _currencyEntry("Gold purses",      o, n),
+	"flags.stonetop_pwd.steading.gold.handfuls":        (o, n) => _currencyEntry("Gold handfuls",    o, n),
+	"flags.stonetop_pwd.steading.gold.coins":           (o, n) => _currencyEntry("Gold coins",       o, n),
 };
+
+function legacyFlagPath(path) {
+	return path.startsWith(`flags.${LEDGER_SCOPE}.`)
+		? path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop.")
+		: null;
+}
+
+function valueForPath(actor, path) {
+	const current = foundry.utils.getProperty(actor, path);
+	if (current !== undefined) return current;
+	const legacyPath = legacyFlagPath(path);
+	if (!legacyPath) return undefined;
+	return foundry.utils.getProperty(actor, legacyPath);
+}
+
+function currentFlagPath(path) {
+	return path.startsWith("flags.stonetop.")
+		? path.replace("flags.stonetop.", `flags.${LEDGER_SCOPE}.`)
+		: path;
+}
 
 function actorUpdateEntries(actor, changed) {
 	const entries = [];
-	for (const [path, newValue] of Object.entries(foundry.utils.flattenObject(changed))) {
+	for (const [rawPath, newValue] of Object.entries(foundry.utils.flattenObject(changed))) {
+		const path = currentFlagPath(rawPath);
 		if (!path || path === `flags.${LEDGER_SCOPE}.${LEDGER_KEY}` || path.startsWith(`flags.${LEDGER_SCOPE}.${LEDGER_KEY}.`)) continue;
 
 		const handler = PATH_HANDLERS[path];
 		if (handler) {
-			const oldValue = foundry.utils.getProperty(actor, path);
+			const oldValue = valueForPath(actor, path);
 			entries.push(...(handler(oldValue, newValue) ?? []));
 			continue;
 		}
@@ -179,7 +200,7 @@ function actorUpdateEntries(actor, changed) {
 		const isSubPath = SORTED_NAMESPACE_PREFIXES.some(p => path !== p && path.startsWith(`${p}.`));
 		if (isSubPath) continue;
 
-		const oldValue = foundry.utils.getProperty(actor, path);
+		const oldValue = valueForPath(actor, path);
 		if (valuesEqual(oldValue, newValue)) continue;
 		const label = labelForPath(path);
 		if (!label) continue;

@@ -7,7 +7,7 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 				classes: ["stonetop", "sheet", "item", "stonetop-arcanum-sheet"],
 				width: 460,
 				height: "auto",
-				template: "systems/stonetop/templates/item/arcanum-sheet.hbs",
+				template: "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs",
 				resizable: true,
 			});
 		}

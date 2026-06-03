@@ -10,7 +10,7 @@ export class SettingOverviewDialog extends Application {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:       "stonetop-setting-overview",
 			title:    "Setting Overview",
-			template: "systems/stonetop/templates/dialogs/setting-overview.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/setting-overview.hbs",
 			width:    760,
 			height:   600,
 			resizable: true,
@@ -187,7 +187,7 @@ const SETTING_ENTRIES = [
 		id:    "village",
 		title: "Stonetop: The Village",
 		content: `
-<img src="systems/stonetop/assets/maps/map-stonetop-village.webp" class="stonetop-so-map" alt="Map of Stonetop">
+<img src="systems/stonetop_pwd/assets/maps/map-stonetop-village.webp" class="stonetop-so-map" alt="Map of Stonetop">
 <p><strong>Size</strong> village (~300 souls)<br>
 <strong>Population</strong> +0<br>
 <strong>Prosperity</strong> +0 (farming, hunting/trapping, distilling (whisky), stone (from Old Wall), cistern, tradesfolk (cobbler, midwife, publican, smith, tanner), trade with Gordin's Delve, Marshedge)<br>
@@ -228,7 +228,7 @@ const SETTING_ENTRIES = [
 		id:    "vicinity",
 		title: "The Vicinity",
 		content: `
-<img src="systems/stonetop/assets/maps/map-vicinity.webp" class="stonetop-so-map" alt="Map of the Vicinity">
+<img src="systems/stonetop_pwd/assets/maps/map-vicinity.webp" class="stonetop-so-map" alt="Map of the Vicinity">
 <p>The village's immediate surroundings.</p>
 
 <p>The villagers never fell a living tree from the Great Wood, so when they need timber they send the wagon and some hearty souls into the <strong>Foothills</strong>. It's two days out, a day of hard work, and another two or three days to make the return trip. And while the Highway and the West Road are relatively safe, the Foothills themselves are haunted by at least one fell beast or monster. Surely, a trip to the Foothills is a scary thing. But sometimes it has to be done.</p>
@@ -637,7 +637,7 @@ const SETTING_ENTRIES = [
 		id:    "world",
 		title: "The World's End",
 		content: `
-<img src="systems/stonetop/assets/maps/map-worlds-end.webp" class="stonetop-so-map" alt="Map of the World's End">
+<img src="systems/stonetop_pwd/assets/maps/map-worlds-end.webp" class="stonetop-so-map" alt="Map of the World's End">
 <p>The region in which Stonetop sits.</p>
 
 <p><strong>Barrier Pass</strong> is blocked by a massive wall and gate, held by stoic, unfriendly folk who want little to do with strangers. They live on mountain goats and sheep and gods know what else, and brook no trespass. The town elders tell of their kind coming down every generation or two to trade some ancient wonder for crops or goats, but none alive remember such a visit.</p>

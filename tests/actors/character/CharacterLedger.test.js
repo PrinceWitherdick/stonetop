@@ -39,7 +39,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop.inventory.checked.bow-arrows": true,
+			"flags.stonetop_pwd.inventory.checked.bow-arrows": true,
 		});
 		expect(entries.map(e => e.action)).toEqual(["Bow & arrows selected"]);
 	});
@@ -57,7 +57,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop.possessions.selected": [],
+			"flags.stonetop_pwd.possessions.selected": [],
 		});
 		expect(entries.map(e => e.action)).toEqual(["Sacred pouch deselected"]);
 	});

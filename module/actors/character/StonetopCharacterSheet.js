@@ -1,4 +1,4 @@
-﻿import {MoveResourceButton} from "./elements/move-resource-button.js";
+import {MoveResourceButton} from "./elements/move-resource-button.js";
 import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
@@ -278,7 +278,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		get template() {
-			return "systems/stonetop/templates/actor/character.hbs";
+			return "systems/stonetop_pwd/templates/actor/character.hbs";
 		}
 
 		async _render(force, options) {
@@ -487,7 +487,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.system ??= this.actor.system;
 			context.isCharacter = this.actor.type === "character";
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
-			context.stonetop.hideUnselected = this.actor.getFlag('stonetop', 'hideUnselected') ?? false;
+			context.stonetop.hideUnselected = this.actor.getFlag('stonetop_pwd', 'hideUnselected') ?? false;
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
 			// reassign stonetop to system
@@ -513,9 +513,9 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		_buildFollowersData(playbookDoc, smallItemLimit = null) {
-			const sf = this.actor.flags?.stonetop ?? {};
+			const sf = this.actor.flags?.stonetop_pwd ?? this.actor.flags?.stonetop ?? {};
 
-			// ── Animal Companion (Ranger) ──────────────────────────────
+			// -- Animal Companion (Ranger) ------------------------------
 			let animalCompanion = null;
 			const acSlug = sf.animalCompanion?.type;
 			if (acSlug) {
@@ -532,12 +532,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				};
 			}
 
-			// ── Crew (Marshal) ─────────────────────────────────────────
+			// -- Crew (Marshal) -----------------------------------------
 			// Hardcoded fallback until LevelDB pack is rebuilt with the marshal.json inventory changes.
 			const CREW_INVENTORY_FALLBACK = [
 				{ slug: "hatchet",     label: "<strong>Hatchet</strong>, iron (<em>hand, thrown</em>, x <em>piercing</em>)",                       weight: 1 },
 				{ slug: "spear",       label: "<strong>Spear</strong>, iron (<em>close</em>, x <em>piercing</em>)",                                weight: 1 },
-				{ slug: "bow-arrows",  label: "<strong>Bow &amp; iron arrows</strong> (<em>near</em>, x <em>piercing</em>, ○ low ammo, ○ all out)", weight: 1 },
+				{ slug: "bow-arrows",  label: "<strong>Bow &amp; iron arrows</strong> (<em>near</em>, x <em>piercing</em>, ? low ammo, ? all out)", weight: 1 },
 				{ slug: "shield",      label: "<strong>Shield</strong> (+1 armor, +1 Readiness on 7+ to Defend)",                         weight: 2 },
 				{ slug: "thick-hides", label: "<strong>Thick hides</strong> (1 armor, <em>warm</em>)",                                    weight: 2 },
 				{ slug: "cloak",       label: "<strong>Cloak</strong> (<em>warm</em>)",                                                   weight: 1 },
@@ -575,7 +575,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					loyalty:   Array.from({ length: loyaltyMax }, (_, i) => ({ filled: i < loyaltyVal, index: i })),
 					gear:      inventoryDef.map(item => {
 						const flagVal     = gearFlags[item.slug];
-						// backward-compat: old boolean true → all pips filled
+						// backward-compat: old boolean true ? all pips filled
 						const filledCount = typeof flagVal === "number" ? flagVal : (flagVal ? item.weight : 0);
 						return {
 							...item,
@@ -600,7 +600,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				};
 			}
 
-			// ── Initiates of Danu (Blessed + Initiate background) ──────
+			// -- Initiates of Danu (Blessed + Initiate background) ------
 			let initiates = null;
 			const bgChoices        = sf.background?.choices ?? {};
 			const initiatesLoyalty = sf.initiatesLoyalty  ?? {};
@@ -642,7 +642,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		_buildInvocationsData(playbookDoc) {
 			const raw = playbookDoc?.invocations;
 			if (!raw?.options?.length) return null;
-			const selected = new Set(this.actor.getFlag("stonetop", "invocations.selected") ?? []);
+			const selected = new Set(this.actor.getFlag("stonetop_pwd", "invocations.selected") ?? []);
 			return {
 				startingCount: raw.startingCount ?? 2,
 				options: raw.options.map(opt => ({
@@ -667,7 +667,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (data?.type === "Actor") {
 					const doc = await fromUuid(data.uuid);
 					if (doc?.system?.customType === "stonetop") {
-						await this.actor.setFlag("stonetop", "steadingId", doc.id);
+						await this.actor.setFlag("stonetop_pwd", "steadingId", doc.id);
 						this.render(false);
 					}
 					return;
@@ -703,7 +703,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 
 			html.find(".stonetop-hide-unselected-check").on("change", async (ev) => {
-				await this.actor.setFlag('stonetop', 'hideUnselected', ev.currentTarget.checked);
+				await this.actor.setFlag('stonetop_pwd', 'hideUnselected', ev.currentTarget.checked);
 			});
 
 			html[0].querySelector(".stonetop-portrait")?.addEventListener("click", ev => {
@@ -780,7 +780,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				});
 			});
 
-			// ── Basic move hover panel ────────────────────────────────────────────
+			// -- Basic move hover panel --------------------------------------------
 			// Runs for all users (not gated by isEditable).
 			// We use a custom fixed panel rather than data-tooltip because the move
 			// descriptions are rich HTML and Foundry's TooltipManager escapes content.
@@ -860,27 +860,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-regular-pool-btn").on("change", this._onRegularPool.bind(this));
 			html.find(".stonetop-outfit-open-btn").on("click", this._onOutfitOpen.bind(this));
 
-			// ── Followers tab: crew interactions ──────────────────────────
+			// -- Followers tab: crew interactions --------------------------
 			// Crew name (editable in edit mode on Followers tab)
 			html.find(".stonetop-crew-name-input").on("change", async ev => {
-				await this.actor.setFlag("stonetop", "crew.name", ev.currentTarget.value.trim());
+				await this.actor.setFlag("stonetop_pwd", "crew.name", ev.currentTarget.value.trim());
 			});
 			// Crew loyalty pips
 			html.find("button.stonetop-crew-loyalty-pip").on("click", async ev => {
 				const idx = Number(ev.currentTarget.dataset.index);
-				const current = this.actor.getFlag("stonetop", "crew.loyalty") ?? 0;
+				const current = this.actor.getFlag("stonetop_pwd", "crew.loyalty") ?? 0;
 				// clicking a filled pip clears up to that pip; clicking empty fills up to it
 				const newVal = current === idx + 1 ? idx : idx + 1;
-				await this.actor.setFlag("stonetop", "crew.loyalty", newVal);
+				await this.actor.setFlag("stonetop_pwd", "crew.loyalty", newVal);
 				this.render(false);
 			});
 			// Initiate loyalty pips
 			html.find("button.stonetop-initiate-loyalty-pip").on("click", async ev => {
 				const { slug, index } = ev.currentTarget.dataset;
 				const idx     = Number(index);
-				const current = (this.actor.getFlag("stonetop", "initiatesLoyalty") ?? {})[slug] ?? 0;
+				const current = (this.actor.getFlag("stonetop_pwd", "initiatesLoyalty") ?? {})[slug] ?? 0;
 				const newVal  = current === idx + 1 ? idx : idx + 1;
-				await this.actor.update({ [`flags.stonetop.initiatesLoyalty.${slug}`]: newVal });
+				await this.actor.update({ [`flags.stonetop_pwd.initiatesLoyalty.${slug}`]: newVal });
 				this.render(false);
 			});
 			// Crew gear pip circles — each pip is independently selectable;
@@ -889,9 +889,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { slug, pip } = ev.currentTarget.dataset;
 				const pipIdx  = Number(pip);
 				const checked = ev.currentTarget.checked;
-				const gear    = foundry.utils.deepClone(this.actor.getFlag("stonetop", "crew.gear") ?? {});
+				const gear    = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "crew.gear") ?? {});
 				gear[slug]    = checked ? pipIdx + 1 : pipIdx;
-				await this.actor.setFlag("stonetop", "crew.gear", gear);
+				await this.actor.setFlag("stonetop_pwd", "crew.gear", gear);
 				this.render(false);
 			});
 			// Crew supplies pip circles — 6 independent sets stored as an array of counts
@@ -899,19 +899,19 @@ export function createStonetopCharacterSheetClass(Base) {
 				const setIdx = Number(ev.currentTarget.dataset.set);
 				const pipIdx = Number(ev.currentTarget.dataset.pip);
 				const newVal = ev.currentTarget.checked ? pipIdx + 1 : pipIdx;
-				const current = this.actor.getFlag("stonetop", "crew.supplies");
+				const current = this.actor.getFlag("stonetop_pwd", "crew.supplies");
 				const arr = Array.isArray(current) ? [...current] : Array(6).fill(0);
 				while (arr.length < 6) arr.push(0);
 				arr[setIdx] = newVal;
-				await this.actor.setFlag("stonetop", "crew.supplies", arr);
+				await this.actor.setFlag("stonetop_pwd", "crew.supplies", arr);
 				this.render(false);
 			});
 			// Delete individual crew member
 			html.find(".stonetop-crew-delete-individual").on("click", async ev => {
 				const idx = Number(ev.currentTarget.dataset.index);
-				const individuals = [...(this.actor.getFlag("stonetop", "crew.individuals") ?? [])];
+				const individuals = [...(this.actor.getFlag("stonetop_pwd", "crew.individuals") ?? [])];
 				individuals.splice(idx, 1);
-				await this.actor.setFlag("stonetop", "crew.individuals", individuals);
+				await this.actor.setFlag("stonetop_pwd", "crew.individuals", individuals);
 				this.render(false);
 			});
 			// Create individual crew member
@@ -932,11 +932,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				const namesHtml = names.map(n => `<option value="${n}">`).join("");
 				const tagsHtml  = tags.map(t => `<option value="${t}">${t}</option>`).join("");
 
-				// ── Trait tokenizer ───────────────────────────────────────
+				// -- Trait tokenizer ---------------------------------------
 				// Splits a trait into: text | standalone __ | slash-option group
-				// e.g. "missing eye/finger/hand/__" →
+				// e.g. "missing eye/finger/hand/__" ?
 				//   [text:"missing "], [opts:["eye","finger","hand","__"]]
-				// e.g. "__'s kid/sibling/parent/cousin/__" →
+				// e.g. "__'s kid/sibling/parent/cousin/__" ?
 				//   [blank], [text:"'s "], [opts:["kid","sibling","parent","cousin","__"]]
 				const tokenize = str => {
 					const tokens = [];
@@ -1054,8 +1054,8 @@ export function createStonetopCharacterSheetClass(Base) {
 									}
 									traits.push(result);
 								});
-								const current = this.actor.getFlag("stonetop", "crew.individuals") ?? [];
-								await this.actor.setFlag("stonetop", "crew.individuals",
+								const current = this.actor.getFlag("stonetop_pwd", "crew.individuals") ?? [];
+								await this.actor.setFlag("stonetop_pwd", "crew.individuals",
 									[...current, { name, tag, traits }]);
 								this.render(false);
 							},
@@ -1081,7 +1081,7 @@ export function createStonetopCharacterSheetClass(Base) {
 								el.value = "";
 							});
 						});
-						// Select → show custom input when "__ (type your own)" chosen
+						// Select ? show custom input when "__ (type your own)" chosen
 						dlgHtml[0].addEventListener("change", ev => {
 							const sel = ev.target;
 							if (!sel.classList.contains("stonetop-trait-select")) return;
@@ -1097,11 +1097,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
 			html.find(".stonetop-invocation-check").on("change", async ev => {
 				const { slug } = ev.currentTarget.dataset;
-				const current = this.actor.getFlag("stonetop", "invocations.selected") ?? [];
+				const current = this.actor.getFlag("stonetop_pwd", "invocations.selected") ?? [];
 				const updated = ev.currentTarget.checked
 					? [...current, slug]
 					: current.filter(s => s !== slug);
-				await this.actor.setFlag("stonetop", "invocations.selected", updated);
+				await this.actor.setFlag("stonetop_pwd", "invocations.selected", updated);
 				this.render(false);
 			});
 			html.find(".stonetop-other-move-delete").on("click", async ev => {
@@ -1603,12 +1603,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					await this._applyPlaybookSelections(playbookDoc, selections);
 				},
 				{ initialSelections: this._readSelectionsFromActor(playbookDoc) },
-				// no onBack → back button is hidden
+				// no onBack ? back button is hidden
 			).render(true);
 		}
 
 		_readSelectionsFromActor(playbookDoc = null) {
-			const f  = this.actor.flags?.stonetop ?? {};
+			const f  = this.actor.flags?.stonetop_pwd ?? this.actor.flags?.stonetop ?? {};
 			const sys = this.actor.system ?? {};
 
 			// Major arcanum: use the saved flag if present, otherwise infer from owned arcana
@@ -1744,7 +1744,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				"system.playbook": { uuid: playbookDoc.uuid, name: playbookDoc.name, slug },
 			};
 			if (slug && isDefaultImg(this.actor.img)) {
-				const icon = `systems/stonetop/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`;
+				const icon = `systems/stonetop_pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`;
 				updates.img = icon;
 				updates["prototypeToken.texture.src"] = icon;
 			}
@@ -1820,15 +1820,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}
 			const backgroundSetupResources = {};
-			const existingSetupResources = this.actor.flags?.stonetop?.background?.setupResources ?? {};
+			const existingSetupResources = this.actor.flags?.stonetop_pwd?.background?.setupResources ?? this.actor.flags?.stonetop?.background?.setupResources ?? {};
 			for (const resource of (backgroundSetup?.resources ?? [])) {
 				if (!resource.key) continue;
 				backgroundSetupResources[resource.key] = existingSetupResources[resource.key] ?? resource.value ?? 0;
 			}
 			if (Object.keys(backgroundSetupResources).length) {
-				await this.actor.setFlag("stonetop", "background.setupResources", backgroundSetupResources);
+				await this.actor.setFlag("stonetop_pwd", "background.setupResources", backgroundSetupResources);
 			} else {
-				await this.actor.unsetFlag("stonetop", "background.setupResources");
+				await this.actor.unsetFlag("stonetop_pwd", "background.setupResources");
 			}
 			const backgroundSetupTexts = {};
 			for (const text of (backgroundSetup?.texts ?? [])) {
@@ -1841,14 +1841,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (value) backgroundSetupChoices[choice.key] = value;
 			}
 			if (Object.keys(backgroundSetupChoices).length) {
-				await this.actor.setFlag("stonetop", "background.setupChoices", backgroundSetupChoices);
+				await this.actor.setFlag("stonetop_pwd", "background.setupChoices", backgroundSetupChoices);
 			} else {
-				await this.actor.unsetFlag("stonetop", "background.setupChoices");
+				await this.actor.unsetFlag("stonetop_pwd", "background.setupChoices");
 			}
 			if (Object.keys(backgroundSetupTexts).length) {
-				await this.actor.setFlag("stonetop", "background.setupTexts", backgroundSetupTexts);
+				await this.actor.setFlag("stonetop_pwd", "background.setupTexts", backgroundSetupTexts);
 			} else {
-				await this.actor.unsetFlag("stonetop", "background.setupTexts");
+				await this.actor.unsetFlag("stonetop_pwd", "background.setupTexts");
 			}
 			const backgroundNeighborTraits = {};
 			for (const neighbor of (backgroundSetup?.neighbors ?? [])) {
@@ -1861,14 +1861,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (values.length) backgroundNeighborPicks[choice.key] = values;
 			}
 			if (Object.keys(backgroundNeighborTraits).length) {
-				await this.actor.setFlag("stonetop", "background.neighborTraits", backgroundNeighborTraits);
+				await this.actor.setFlag("stonetop_pwd", "background.neighborTraits", backgroundNeighborTraits);
 			} else {
-				await this.actor.unsetFlag("stonetop", "background.neighborTraits");
+				await this.actor.unsetFlag("stonetop_pwd", "background.neighborTraits");
 			}
 			if (Object.keys(backgroundNeighborPicks).length) {
-				await this.actor.setFlag("stonetop", "background.neighborPicks", backgroundNeighborPicks);
+				await this.actor.setFlag("stonetop_pwd", "background.neighborPicks", backgroundNeighborPicks);
 			} else {
-				await this.actor.unsetFlag("stonetop", "background.neighborPicks");
+				await this.actor.unsetFlag("stonetop_pwd", "background.neighborPicks");
 			}
 			await this._applyBackgroundNeighbors(backgroundSetup, selections);
 			const backgroundAnswers = {};
@@ -1879,42 +1879,42 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (answer?.value) backgroundAnswers[key] = answer;
 			}
 			if (Object.keys(backgroundAnswers).length) {
-				await this.actor.setFlag("stonetop", "moves.backgroundAnswers", backgroundAnswers);
+				await this.actor.setFlag("stonetop_pwd", "moves.backgroundAnswers", backgroundAnswers);
 			} else {
-				await this.actor.unsetFlag("stonetop", "moves.backgroundAnswers");
+				await this.actor.unsetFlag("stonetop_pwd", "moves.backgroundAnswers");
 			}
-			// ── Insert: Invocations (Lightbearer) ──────────────────
+			// -- Insert: Invocations (Lightbearer) ------------------
 			if (selections.invocations?.length) {
-				await this.actor.setFlag("stonetop", "invocations.selected", selections.invocations);
+				await this.actor.setFlag("stonetop_pwd", "invocations.selected", selections.invocations);
 			}
-			// ── Insert: Initiates of Danu (Blessed + Initiate bg) ──
+			// -- Insert: Initiates of Danu (Blessed + Initiate bg) --
 			for (const slug of (selections.initiates ?? [])) {
 				await this._stonetopCharacter.background.addChoice({ slug, isChecked: true });
 			}
 			if (Object.keys(selections.initiateDetails ?? {}).length) {
-				await this.actor.setFlag("stonetop", "initiateDetails", selections.initiateDetails);
+				await this.actor.setFlag("stonetop_pwd", "initiateDetails", selections.initiateDetails);
 			}
-			// ── Insert: Crew (Marshal) ──────────────────────────────
+			// -- Insert: Crew (Marshal) ------------------------------
 			if (selections.crew?.instinct || selections.crew?.cost || selections.crew?.tags?.length || selections.crew?.name) {
 				const bgTag  = playbookDoc.flags?.stonetop?.crew?.backgroundTags?.[selections.backgroundSlug] ?? null;
 				const allTags = bgTag ? [bgTag, ...selections.crew.tags] : [...selections.crew.tags];
-				await this.actor.setFlag("stonetop", "crew.name",     selections.crew.name?.trim() ?? "");
-				await this.actor.setFlag("stonetop", "crew.tags",     allTags);
-				await this.actor.setFlag("stonetop", "crew.instinct", selections.crew.instinct ?? "");
-				await this.actor.setFlag("stonetop", "crew.cost",     selections.crew.cost     ?? "");
+				await this.actor.setFlag("stonetop_pwd", "crew.name",     selections.crew.name?.trim() ?? "");
+				await this.actor.setFlag("stonetop_pwd", "crew.tags",     allTags);
+				await this.actor.setFlag("stonetop_pwd", "crew.instinct", selections.crew.instinct ?? "");
+				await this.actor.setFlag("stonetop_pwd", "crew.cost",     selections.crew.cost     ?? "");
 			}
-			// ── Insert: Animal Companion (Ranger) ──────────────────
+			// -- Insert: Animal Companion (Ranger) ------------------
 			if (selections.animalCompanion?.type) {
 				const ac = selections.animalCompanion;
-				await this.actor.setFlag("stonetop", "animalCompanion.type",     ac.type);
-				await this.actor.setFlag("stonetop", "animalCompanion.traits",   ac.traits);
-				await this.actor.setFlag("stonetop", "animalCompanion.instinct", ac.instinct ?? "");
-				await this.actor.setFlag("stonetop", "animalCompanion.cost",     ac.cost     ?? "");
+				await this.actor.setFlag("stonetop_pwd", "animalCompanion.type",     ac.type);
+				await this.actor.setFlag("stonetop_pwd", "animalCompanion.traits",   ac.traits);
+				await this.actor.setFlag("stonetop_pwd", "animalCompanion.instinct", ac.instinct ?? "");
+				await this.actor.setFlag("stonetop_pwd", "animalCompanion.cost",     ac.cost     ?? "");
 				if (ac.name?.trim()) {
-					await this.actor.setFlag("stonetop", "animalCompanion.name", ac.name.trim());
+					await this.actor.setFlag("stonetop_pwd", "animalCompanion.name", ac.name.trim());
 				}
 			}
-			// ── Insert: Seeker arcana ───────────────────────────────
+			// -- Insert: Seeker arcana -------------------------------
 			const masteredMinor = selections.arcana?.minorRoles?.mastered ?? null;
 			const foundMinor = selections.arcana?.minorRoles?.found ?? null;
 			const selectedArcana = [
@@ -1929,7 +1929,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (masteredMinor) {
 				await this._stonetopCharacter.flipArcanum(masteredMinor);
 			}
-			// ── Lore (character history picks & text answers) ───────
+			// -- Lore (character history picks & text answers) -------
 			if (selections.lore) {
 				for (const [key, count] of Object.entries(selections.lore.picks ?? {})) {
 					if (count > 0) {
@@ -1944,15 +1944,15 @@ export function createStonetopCharacterSheetClass(Base) {
 					}
 				}
 			}
-			// ── Seeker: arcana selections ─────────────────────────────
+			// -- Seeker: arcana selections -----------------------------
 			if (selections.arcana?.major) {
-				await this.actor.setFlag("stonetop", "arcana.major",      selections.arcana.major);
+				await this.actor.setFlag("stonetop_pwd", "arcana.major",      selections.arcana.major);
 			}
 			if (selections.arcana?.minorDraw?.length) {
-				await this.actor.setFlag("stonetop", "arcana.minorDraw",  selections.arcana.minorDraw);
+				await this.actor.setFlag("stonetop_pwd", "arcana.minorDraw",  selections.arcana.minorDraw);
 			}
 			if (selections.arcana?.minorRoles) {
-				await this.actor.setFlag("stonetop", "arcana.minorRoles", selections.arcana.minorRoles);
+				await this.actor.setFlag("stonetop_pwd", "arcana.minorRoles", selections.arcana.minorRoles);
 			}
 			this.render(false);
 		}

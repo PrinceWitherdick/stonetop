@@ -29,7 +29,7 @@ function makeOutfitItem(overrides = {}) {
 const HEAVY_PLAYBOOK = {
 	slug: "the-heavy",
 	name: "The Heavy",
-	img: "systems/stonetop/assets/playbooks/the-heavy.svg",
+	img: "systems/stonetop_pwd/assets/playbooks/the-heavy.svg",
 	description: "<p>You are the muscle.</p>",
 	statsNote: "Put your highest stat in STR or CON.",
 	hp: 20,
@@ -124,7 +124,7 @@ describe("buildSnapshot — playbook section", () => {
 		const snap = await buildSnap();
 		expect(snap.playbook.slug).toBe("the-heavy");
 		expect(snap.playbook.name).toBe("The Heavy");
-		expect(snap.playbook.img).toBe("systems/stonetop/assets/playbooks/the-heavy.svg");
+		expect(snap.playbook.img).toBe("systems/stonetop_pwd/assets/playbooks/the-heavy.svg");
 		expect(snap.playbook.description).toBe("<p>You are the muscle.</p>");
 		expect(snap.playbook.statsNote).toBe("Put your highest stat in STR or CON.");
 	});

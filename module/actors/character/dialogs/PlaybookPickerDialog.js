@@ -22,7 +22,7 @@ export class PlaybookPickerDialog extends Application {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-playbook-picker",
-			template:  "systems/stonetop/templates/dialogs/playbook-picker.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/playbook-picker.hbs",
 			title:     game.i18n.localize("stonetop.newCharacter.pickerTitle"),
 			width:     640,
 			height:    "auto",
@@ -33,7 +33,7 @@ export class PlaybookPickerDialog extends Application {
 
 	async getData() {
 		if (!this._playbooks.length) {
-			const pack = game.packs.get("stonetop.stonetop-items");
+			const pack = game.packs.get("stonetop_pwd.stonetop-items");
 			if (pack) {
 				await pack.getIndex({ fields: ["type", "system.slug", "img"] });
 				const entries = [...pack.index].filter(e =>

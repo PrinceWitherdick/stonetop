@@ -474,7 +474,7 @@ export class CharacterOnboardingDialog extends Application {
 		if (this._arcanaCache) return this._arcanaCache;
 		if (this._arcanaCachePromise) return this._arcanaCachePromise;
 		this._arcanaCachePromise = (async () => {
-			const pack = game.packs.get("stonetop.stonetop-items");
+			const pack = game.packs.get("stonetop_pwd.stonetop-items");
 			if (!pack) return { major: [], minor: [] };
 			await pack.getIndex({ fields: ["system.moveType"] });
 			const entries = pack.index.filter(entry => entry.system?.moveType === "arcanum");
@@ -524,7 +524,7 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	async _loadPlaybookMoves() {
-		const pack = game.packs.get("stonetop.stonetop-items");
+		const pack = game.packs.get("stonetop_pwd.stonetop-items");
 		if (!pack) return [];
 		await pack.getIndex({ fields: ["system.playbook", "system.isStartingMove", "system.requirement"] });
 		const relevant = pack.index.filter(e => e.system?.playbook === this._playbookDoc.name);
@@ -625,7 +625,7 @@ export class CharacterOnboardingDialog extends Application {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-character-onboarding",
-			template:  "systems/stonetop/templates/dialogs/character-onboarding.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/character-onboarding.hbs",
 			width:     660,
 			height:    640,
 			resizable: true,
@@ -1746,7 +1746,7 @@ export class CharacterOnboardingDialog extends Application {
 		const key = text.toLowerCase();
 		if (this._wordCache.has(key)) return this._wordCache.get(key);
 		const packs = game.packs.filter(
-			p => p.metadata.packageName === "stonetop" && p.metadata.type === "Item"
+			p => p.metadata.packageName === "stonetop_pwd" && p.metadata.type === "Item"
 		);
 		for (const pack of packs) {
 			await pack.getIndex();

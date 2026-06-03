@@ -1,7 +1,7 @@
 {
   "name": "Ghost",
   "type": "playbook",
-  "img": "systems/stonetop/assets/post-death-inserts/ghost.svg",
+  "img": "systems/stonetop_pwd/assets/post-death-inserts/ghost.svg",
   "system": {
     "slug": "ghost",
     "description": "<p>When you <em>die but your soul lingers</em>, refusing to pass through the Last Door, you gain this insert, and choose 1 Consequence.</p>",

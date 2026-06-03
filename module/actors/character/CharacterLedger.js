@@ -1,4 +1,4 @@
-const LEDGER_SCOPE = "stonetop";
+const LEDGER_SCOPE = "stonetop_pwd";
 const LEDGER_KEY = "ledger";
 const LEDGER_MAX_ENTRIES = 300;
 
@@ -26,42 +26,42 @@ const SYSTEM_PATH_LABELS = {
 };
 
 const FLAG_PATH_LABELS = {
-	"flags.stonetop.background.selected": "Background",
-	"flags.stonetop.instinct.selected": "Instinct",
-	"flags.stonetop.origin.selected": "Origin",
-	"flags.stonetop.inventory.loadLevel": "Load",
-	"flags.stonetop.inventory.regularPool": "Regular pool",
-	"flags.stonetop.inventory.smallPool": "Small pool",
-	"flags.stonetop.postDeathInsert.slug": "Post-death insert",
-	"flags.stonetop.rollMode": "Roll mode",
-	"flags.stonetop.steadingId": "Linked steading",
+	"flags.stonetop_pwd.background.selected": "Background",
+	"flags.stonetop_pwd.instinct.selected": "Instinct",
+	"flags.stonetop_pwd.origin.selected": "Origin",
+	"flags.stonetop_pwd.inventory.loadLevel": "Load",
+	"flags.stonetop_pwd.inventory.regularPool": "Regular pool",
+	"flags.stonetop_pwd.inventory.smallPool": "Small pool",
+	"flags.stonetop_pwd.postDeathInsert.slug": "Post-death insert",
+	"flags.stonetop_pwd.rollMode": "Roll mode",
+	"flags.stonetop_pwd.steadingId": "Linked steading",
 };
 
 const FLAG_NAMESPACE_LABELS = {
-	"flags.stonetop.animalCompanion": "Animal companion",
-	"flags.stonetop.appearance": "Appearance",
-	"flags.stonetop.arcana": "Arcana",
-	"flags.stonetop.background.choices": "Background choices",
-	"flags.stonetop.crew": "Crew",
-	"flags.stonetop.initiatesLoyalty": "Initiates loyalty",
-	"flags.stonetop.initiateDetails": "Initiate details",
-	"flags.stonetop.inventory.checked": "Inventory",
-	"flags.stonetop.inventory.custom": "Custom inventory",
-	"flags.stonetop.inventory.resources": "Inventory resource",
-	"flags.stonetop.invocations": "Invocations",
-	"flags.stonetop.lore": "Lore",
-	"flags.stonetop.moves": "Move resource",
-	"flags.stonetop.possessions": "Possessions",
-	"flags.stonetop.postDeathInstinct": "Post-death instinct",
-	"flags.stonetop.postDeathLore": "Post-death lore",
+	"flags.stonetop_pwd.animalCompanion": "Animal companion",
+	"flags.stonetop_pwd.appearance": "Appearance",
+	"flags.stonetop_pwd.arcana": "Arcana",
+	"flags.stonetop_pwd.background.choices": "Background choices",
+	"flags.stonetop_pwd.crew": "Crew",
+	"flags.stonetop_pwd.initiatesLoyalty": "Initiates loyalty",
+	"flags.stonetop_pwd.initiateDetails": "Initiate details",
+	"flags.stonetop_pwd.inventory.checked": "Inventory",
+	"flags.stonetop_pwd.inventory.custom": "Custom inventory",
+	"flags.stonetop_pwd.inventory.resources": "Inventory resource",
+	"flags.stonetop_pwd.invocations": "Invocations",
+	"flags.stonetop_pwd.lore": "Lore",
+	"flags.stonetop_pwd.moves": "Move resource",
+	"flags.stonetop_pwd.possessions": "Possessions",
+	"flags.stonetop_pwd.postDeathInstinct": "Post-death instinct",
+	"flags.stonetop_pwd.postDeathLore": "Post-death lore",
 };
 
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
-const INVENTORY_CHECKED_PREFIX = "flags.stonetop.inventory.checked.";
-const INVENTORY_RESOURCE_PREFIX = "flags.stonetop.inventory.resources.";
-const POSSESSION_USES_PREFIX = "flags.stonetop.possessions.uses.";
-const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop.possessions.subChoices.";
-const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop.possessions.choiceUses.";
+const INVENTORY_CHECKED_PREFIX = "flags.stonetop_pwd.inventory.checked.";
+const INVENTORY_RESOURCE_PREFIX = "flags.stonetop_pwd.inventory.resources.";
+const POSSESSION_USES_PREFIX = "flags.stonetop_pwd.possessions.uses.";
+const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.";
+const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
 
 export function isBlank(v) {
 	return v === undefined || v === null || v === "";
@@ -233,11 +233,25 @@ function possessionChoiceUsesEntry(path, oldValue, newValue, names) {
 function granularEntriesForPath(path, oldValue, newValue, names) {
 	if (path.startsWith(INVENTORY_CHECKED_PREFIX)) return [inventorySelectionEntry(path, oldValue, newValue, names)].filter(Boolean);
 	if (path.startsWith(INVENTORY_RESOURCE_PREFIX)) return [inventoryResourceEntry(path, oldValue, newValue, names)];
-	if (path === "flags.stonetop.possessions.selected") return possessionSelectionEntries(oldValue, newValue, names);
+	if (path === "flags.stonetop_pwd.possessions.selected") return possessionSelectionEntries(oldValue, newValue, names);
 	if (path.startsWith(POSSESSION_USES_PREFIX)) return [possessionUsesEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(POSSESSION_SUBCHOICES_PREFIX)) return possessionSubchoiceEntries(path, oldValue, newValue, names);
 	if (path.startsWith(POSSESSION_CHOICE_USES_PREFIX)) return [possessionChoiceUsesEntry(path, oldValue, newValue, names)];
 	return null;
+}
+
+function legacyFlagPath(path) {
+	return path.startsWith(`flags.${LEDGER_SCOPE}.`)
+		? path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop.")
+		: null;
+}
+
+function valueForPath(actor, path) {
+	const current = foundry.utils.getProperty(actor, path);
+	if (current !== undefined) return current;
+	const legacyPath = legacyFlagPath(path);
+	if (!legacyPath) return undefined;
+	return foundry.utils.getProperty(actor, legacyPath);
 }
 
 async function actorUpdateEntries(actor, changed) {
@@ -261,7 +275,7 @@ async function actorUpdateEntries(actor, changed) {
 			continue;
 		}
 
-		const oldValue = foundry.utils.getProperty(actor, path);
+		const oldValue = valueForPath(actor, path);
 		if (valuesEqual(oldValue, newValue)) continue;
 
 		const granularEntries = granularEntriesForPath(path, oldValue, newValue, names);

@@ -88,7 +88,7 @@ body,
 }
 
 .vtt :not(.application,.image-popout,.journal-sheet,.sidebar-popout) .window-content {
-	background: var(--stonetop-bg) url(/systems/stonetop/assets/graphics/sheet-bg.webp);
+	background: var(--stonetop-bg) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp);
 	background-position: center;
 	background-size: cover;
 	background-attachment: scroll;
@@ -1158,7 +1158,7 @@ body,
 /* ── Chat card tweaks ───────────────────────────────────────────────────────── */
 
 #chat .message:has(.stonetop-roll-card) {
-	background: #fff url(/systems/stonetop/assets/graphics/concrete-seamless.webp);
+	background: #fff url(/systems/stonetop_pwd/assets/graphics/concrete-seamless.webp);
 	font-family: "Roboto", sans-serif;
 }
 

@@ -2,10 +2,14 @@ import {isDefaultImg} from "../utils/strings.js";
 
 const _STEADING_ACTOR_TYPE = "stonetop";
 const _STEADING_ACTOR_NAME = "Stonetop";
-const _STEADING_ACTOR_IMG = "systems/stonetop/assets/stonetop_image.webp";
+const _STEADING_ACTOR_IMG = "systems/stonetop_pwd/assets/stonetop_image.webp";
 const _LEGACY_STEADING_ACTOR_IMAGES = new Set([
+	"systems/stonetop/assets/stonetop_image.webp",
+	"/systems/stonetop/assets/stonetop_image.webp",
 	"systems/stonetop/assets/stonetop_image.png",
 	"/systems/stonetop/assets/stonetop_image.png",
+	"systems/stonetop_pwd/assets/stonetop_image.png",
+	"/systems/stonetop_pwd/assets/stonetop_image.png",
 ]);
 
 export async function ensureStonetopSingleton() {

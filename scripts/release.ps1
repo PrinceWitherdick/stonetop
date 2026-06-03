@@ -31,7 +31,7 @@ Write-Host "data/ exports refreshed" -ForegroundColor Green
 Write-Host "Updating system.json to v$Version..." -ForegroundColor Cyan
 $manifest = Get-Content "system.json" -Raw | ConvertFrom-Json
 $manifest.version = $Version
-$manifest.download = "https://github.com/$repo/releases/download/$Version/stonetop.zip"
+$manifest.download = "https://github.com/$repo/releases/download/$Version/stonetop_pwd.zip"
 $json = $manifest | ConvertTo-Json -Depth 20
 $noBomUtf8 = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllText("$root\system.json", $json, $noBomUtf8)
@@ -45,9 +45,9 @@ $authUrl = $originUrl -replace 'https://', "https://x-access-token:$token@"
 git push $authUrl main
 Write-Host "Pushed to GitHub" -ForegroundColor Green
 
-# ── 6. Build stonetop.zip ─────────────────────────────────────────────────
-Write-Host "Building stonetop.zip..." -ForegroundColor Cyan
-$zipPath = "$root\stonetop.zip"
+# ── 6. Build stonetop_pwd.zip ─────────────────────────────────────────────────
+Write-Host "Building stonetop_pwd.zip..." -ForegroundColor Cyan
+$zipPath = "$root\stonetop_pwd.zip"
 
 $excludeTop = [System.Collections.Generic.HashSet[string]]@(
     'node_modules', '.git', '.claude', '.github', 'scripts', 'tests',
@@ -62,7 +62,7 @@ $rootLen = $root.Length + 1
 $files = Get-ChildItem $root -Recurse -File | Where-Object {
     $rel = $_.FullName.Substring($rootLen)
     -not $excludeTop.Contains(($rel -split '\\', 2)[0]) -and
-    $rel -notmatch '^packs\\(src|\.tmp)\\|stonetop\.zip$|\.pdf$|LOG\.old$|\\LOCK$'
+    $rel -notmatch '^packs\\(src|\.tmp)\\|stonetop(_pwd)?\.zip$|\.pdf$|LOG\.old$|\\LOCK$'
 }
 
 if ([System.IO.File]::Exists($zipPath)) { [System.IO.File]::Delete($zipPath) }
@@ -71,12 +71,12 @@ $zip = [System.IO.Compression.ZipFile]::Open($zipPath, 'Create')
 $files | ForEach-Object {
     $rel = $_.FullName.Substring($rootLen)
     [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-        $zip, $_.FullName, "stonetop\$rel",
+        $zip, $_.FullName, "stonetop_pwd\$rel",
         [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
 }
 $zip.Dispose()
 $sizeMB = [Math]::Round((Get-Item $zipPath).Length / 1MB, 1)
-Write-Host "stonetop.zip built ($sizeMB MB)" -ForegroundColor Green
+Write-Host "stonetop_pwd.zip built ($sizeMB MB)" -ForegroundColor Green
 
 # ── 7. Publish GitHub release ─────────────────────────────────────────────
 Write-Host "Publishing GitHub release v$Version..." -ForegroundColor Cyan
@@ -87,7 +87,7 @@ git tag -d $Version 2>$null
 git push origin ":refs/tags/$Version" 2>$null
 
 & $gh release create $Version --repo $repo --title "v$Version" --draft --notes "Draft — release notes pending"
-& $gh release upload $Version "system.json" "stonetop.zip" --repo $repo
+& $gh release upload $Version "system.json" "stonetop_pwd.zip" --repo $repo
 
 Write-Host ""
 Write-Host "Release v$Version drafted!" -ForegroundColor Green

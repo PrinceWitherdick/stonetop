@@ -455,13 +455,15 @@ export class StonetopSteading {
 	}
 
 	get _flags() {
-		return this._actor.getFlag("stonetop", "steading") ?? {};
+		return this._actor.getFlag("stonetop_pwd", "steading")
+			?? this._actor.flags?.stonetop?.steading
+			?? {};
 	}
 
 	async setFlags(updates) {
 		const current = foundry.utils.deepClone(this._flags);
 		const merged = { ...current, ...updates };
-		await this._actor.setFlag("stonetop", "steading", merged);
+		await this._actor.setFlag("stonetop_pwd", "steading", merged);
 	}
 
 	getSystemValue(path, defaultValue = 0) {
@@ -471,7 +473,7 @@ export class StonetopSteading {
 	async setSystemValue(path, value) {
 		await this._actor.update({
 			[`system.${path}`]: value,
-			[`flags.stonetop.steading.system.${path}`]: value,
+			[`flags.stonetop_pwd.steading.system.${path}`]: value,
 		});
 	}
 

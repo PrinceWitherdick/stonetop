@@ -11,7 +11,7 @@ export function createStonetopNpcSheetClass(Base) {
 		}
 
 		get template() {
-			return "systems/stonetop/templates/actor/npc.hbs";
+			return "systems/stonetop_pwd/templates/actor/npc.hbs";
 		}
 
 		async getData() {

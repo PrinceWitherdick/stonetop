@@ -5,8 +5,9 @@ function makeSteadingActor({ system = {}, steadingFlags = {} } = {}) {
 	return {
 		type: "stonetop",
 		system,
+		flags: { stonetop: { steading: steadingFlags } },
 		getFlag: (scope, key) => {
-			if (scope !== "stonetop" || key !== "steading") return null;
+			if (scope !== "stonetop_pwd" || key !== "steading") return null;
 			return steadingFlags;
 		},
 		update: vi.fn(),
@@ -28,7 +29,7 @@ describe("StonetopSteading", () => {
 		await new StonetopSteading(actor).setSystemValue("attributes.prosperity.value", 2);
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.prosperity.value": 2,
-			"flags.stonetop.steading.system.attributes.prosperity.value": 2,
+			"flags.stonetop_pwd.steading.system.attributes.prosperity.value": 2,
 		});
 	});
 

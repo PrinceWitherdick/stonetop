@@ -3,7 +3,7 @@ import { FoundryPackStore } from "./FoundryPackStore.js";
 
 export class FoundryArcanaRepository {
 	constructor() {
-		this._store = new FoundryPackStore("stonetop.stonetop-items", ["flags.stonetop.slug"]);
+		this._store = new FoundryPackStore("stonetop_pwd.stonetop-items", ["flags.stonetop.slug"]);
 		this._cache = new Map();
 	}
 

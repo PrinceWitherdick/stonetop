@@ -6,18 +6,18 @@ import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
 
 function makeCharacterMock(actor) {
 	const background = {
-		selectBackground: vi.fn(async slug => actor.setFlag("stonetop", "background.selected", slug)),
+		selectBackground: vi.fn(async slug => actor.setFlag("stonetop_pwd", "background.selected", slug)),
 		addChoice: vi.fn(),
-		selectedSlug: actor.getFlag("stonetop", "background.selected") ?? "",
+		selectedSlug: actor.getFlag("stonetop_pwd", "background.selected") ?? "",
 		choices: {},
 	};
 	const instinct = { select: vi.fn(), selectedValue: "" };
 	const appearance = {
 		select: vi.fn(async (lineIdx, value) => {
-			const saved = actor.getFlag("stonetop", "appearance.selected") ?? {};
-			actor.setFlag("stonetop", "appearance.selected", { ...saved, [lineIdx]: value });
+			const saved = actor.getFlag("stonetop_pwd", "appearance.selected") ?? {};
+			actor.setFlag("stonetop_pwd", "appearance.selected", { ...saved, [lineIdx]: value });
 		}),
-		saved: actor.getFlag("stonetop", "appearance.selected") ?? {},
+		saved: actor.getFlag("stonetop_pwd", "appearance.selected") ?? {},
 	};
 	const origin = { select: vi.fn() };
 	return {

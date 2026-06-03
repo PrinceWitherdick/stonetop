@@ -165,7 +165,7 @@ export class StonetopCharacter {
 			.withInventory(inventory)
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
-			.withRollMode(actor.flags?.stonetop?.rollMode ?? "normal")
+			.withRollMode((actor.flags?.stonetop_pwd ?? actor.flags?.stonetop)?.rollMode ?? "normal")
 			.build();
 	}
 
@@ -182,7 +182,8 @@ export class StonetopCharacter {
 					this.buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, playbookData.name)
 				);
 				const moveResourcesMap = this._moveResources.getMoveResources();
-				const moveBackgroundAnswers = this._actor.flags?.stonetop?.moves?.backgroundAnswers ?? {};
+				const actorFlags = this._actor.flags?.stonetop_pwd ?? this._actor.flags?.stonetop ?? {};
+				const moveBackgroundAnswers = actorFlags.moves?.backgroundAnswers ?? {};
 				const source = { type: "playbook", slug: playbookData.slug };
 				categories.push(new MoveCategorySnapshotBuilder()
 					.withKey("playbook")
@@ -571,13 +572,15 @@ export class StonetopCharacter {
 	async setInventorySmallPool(count)              { await this._inventory.setSmallPool(count); }
 
 	getSteadingActor() {
-		const storedSteadingId = this._actor.getFlag("stonetop", "steadingId");
+		const storedSteadingId = this._actor.getFlag("stonetop_pwd", "steadingId")
+			?? this._actor.flags?.stonetop?.steadingId;
 		return (storedSteadingId ? game.actors?.get(storedSteadingId) : null)
 			?? getStonetopSteadingActor();
 	}
 
 	getSmallItemLimit(steading = this.getSteadingActor()) {
-		const rawProsperity = steading?.getFlag?.("stonetop", "steading.system.attributes.prosperity.value")
+		const rawProsperity = steading?.getFlag?.("stonetop_pwd", "steading.system.attributes.prosperity.value")
+			?? steading?.flags?.stonetop?.steading?.system?.attributes?.prosperity?.value
 			?? steading?.system?.attributes?.prosperity?.value;
 		if (rawProsperity == null) return null;
 		const prosperity = Number(rawProsperity);
