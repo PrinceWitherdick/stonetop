@@ -37,12 +37,31 @@
 			}
 		},
 		"specialMoves": {
+			"burnBrightly": {
+				"title": "Burn Brightly",
+				"description": "When you <em><strong>have enough XP to Level Up</strong></em> (6 + twice your current level), you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).",
+				"promptNote": "When you meet the requirements, you'll be prompted in chat after a roll."
+			},
+			"deathsDoor": {
+				"title": "Death's Door",
+				"button": "Understand Death's Door",
+				"lockedHint": "Only available when the character is at 0 HP.",
+				"summary": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows. Roll +nothing: on a 10+ return to 1 HP; on a 7-9 you're out of action; on a 6- choose a dark fate.",
+				"description": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows (describe it). Then, roll +nothing: on a 10+, you wrest yourself back to the realm of the living&mdash;return to 1 HP but say how your brush with death has marked you; on a 7-9, the Lady waves you off&mdash;you're no longer dying but you're out of the action; on a 6-, your time has come&mdash;choose 1: make one last move as if you rolled a 12+, then step through the Last Door; refuse to go and gain the Revenant or Ghost insert; or call on one of the Things Below by name and beseech it to intercede, gaining the Thrall insert."
+			},
 			"levelUp": {
 				"title":             "Level Up",
 				"button":            "Open Level Up",
-				"description":       "When you <em><strong>have a quiet stretch of time at home</strong></em> and enough XP, walk through the steps to level up your character.",
+				"summary":           "When you <em><strong>have a quiet stretch of time at home</strong></em> and enough XP, walk through the steps to level up your character.",
+				"description":       "When you <em><strong>have a quiet stretch of time at home and XP equal to (or greater than) 6 + twice your current level</strong></em>, follow the Level Up steps.",
 				"lockedHint":        "Requires XP equal to or greater than 6 + twice your current level.",
-				"overviewIntro":     "You've earned enough XP to level up. Here's what will happen:",
+				"overviewIntro":     "When you <em><strong>have a quiet stretch of time at home and XP equal to (or greater than) 6 + twice your current level</strong></em>, follow these steps:",
+				"step1":             "Subtract 6 + twice your current level from your XP.",
+				"step2":             "Increase your level by 1.",
+				"step3":             "Choose a new move from your playbook, or an insert that you've unlocked.",
+				"step4":             "If you are the Blessed (or have a sacred pouch) and your new level is even, increase your max Stock by 1.",
+				"step5":             "If you are the Lightbearer (or have Invoke the Sun God) and your new level is even, choose a new invocation.",
+				"step6":             "Review your Instinct and Appearance (on the front of your playbook). Change anything that no longer applies. Feel free to make up new options.",
 				"currentLevel":      "Current Level",
 				"newLevel":          "New Level",
 				"currentXp":         "Current XP",
@@ -59,17 +78,24 @@
 			"outfit": {
 				"title": "Outfit",
 				"button": "Open Outfit Move",
-				"description": "When you <em><strong>prepare for an expedition in a friendly community</strong></em>, mark which items you wish to carry.",
+				"summary": "When you <em><strong>prepare for an expedition in a friendly community</strong></em>, mark which items you wish to carry.",
+				"description": "When you <em><strong>prepare for an expedition in a friendly community</strong></em>, mark as many &loz; on your Inventory insert as you wish to carry, either on specific items or in \"undefined.\" Mark up to 3 &loz; for a light load (quick and quiet), 4-6 &loz; for a normal load, or 7-9 &loz; for a heavy load (noisy, slow, quick to tire). Also, mark a number of &#9633; in the Small items section equal to 4+Prosperity (on specific items or \"undefined\").",
+				"selectIntro": "You can select:",
+				"selectPrinted": "Items printed on the Inventory insert",
+				"selectCommon": "Other common, mundane items",
+				"selectPossessions": "Any of your special possessions",
+				"selectTrade": "Special items for which you Trade &amp; Barter",
+				"tellGm": "Tell the GM what you're bringing, and answer their questions about your gear and where you got it.",
 				"regularItems": "Items",
 				"smallItems": "Small Items",
 				"loadNone": "No items selected",
-				"loadLight": "<strong>Light load</strong> (up to 3 ◆) — quick &amp; quiet",
-				"loadNormal": "<strong>Normal load</strong> (4–6 ◆)",
-				"loadHeavy": "<strong>Heavy load</strong> (7–9 ◆) — noisy, slow, quick to tire",
+				"loadLight": "<strong>Light load</strong> (up to 3 <span class=\"stonetop-glyph\">◆</span>) — quick &amp; quiet",
+				"loadNormal": "<strong>Normal load</strong> (4–6 <span class=\"stonetop-glyph\">◆</span>)",
+				"loadHeavy": "<strong>Heavy load</strong> (7–9 <span class=\"stonetop-glyph\">◆</span>) — noisy, slow, quick to tire",
 				"arcanaItems": "Arcana",
 				"smallItemLimit": "Mark up to <strong>{limit}</strong> small items (4+Prosperity)",
 				"confirm": "Confirm Outfit",
-				"totalWeight": "◆ used"
+				"totalWeight": "<span class=\"stonetop-glyph\">◆</span> used"
 			}
 		},
 		"postDeath": {
@@ -93,8 +119,8 @@
 			"arcanaItems": "Arcana",
 			"regularItemsNote": "Use supplies to Recover, Make Camp, or have extra <em>small</em> items.",
 			"smallItems": "Small Items",
-			"smallItemsNote": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark □ below equal to 4+Prosperity.",
-			"smallItemsNoteWithLimit": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark □ below equal to <strong>{limit}</strong> (4+Prosperity).",
+			"smallItemsNote": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark <span class=\"stonetop-glyph\">□</span> below equal to 4+Prosperity.",
+			"smallItemsNoteWithLimit": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark <span class=\"stonetop-glyph\">□</span> below equal to <strong>{limit}</strong> (4+Prosperity).",
 			"addItem": "Add item",
 			"addSmallItem": "Add small item",
 			"addItemName": "Name",
@@ -105,14 +131,15 @@
 			"resetTitle": "Reset Inventory",
 			"resetConfirm": "Clear all item selections and load level? Supply pools are not affected.",
 			"regularUndefinedPoolLabel": "Undefined",
-			"regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move ◆ from here to ◇ below.",
+			"regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph\">◆</span> from here to <span class=\"stonetop-glyph\">◇</span> below.",
 			"smallUndefinedPoolLabel": "Undefined",
-			"smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move ◆ from here to items below, or expend supplies to mark an additional ◇.",
+			"smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph\">◆</span> from here to items below, or expend supplies to mark an additional <span class=\"stonetop-glyph\">◇</span>.",
+			"choosePossessionsButton": "Choose Special Possessions",
 			"outfit": {
-				"heading": "When you <em><strong>Outfit</strong><em>, mark a number of ◇ below on specific items or as a group.",
-				"light": "For a <strong>light load</strong> (<em>quick & quiet</em>), mark up to 3 ◆",
-				"normal": "For a <strong>normal load</strong>, mark 4–6 ◆",
-				"heavy": "For a <strong>heavy load</strong> (<em>noisy, slow, hot, quick to tire</em>), mark 7–9 ◆"
+				"heading": "When you <em><strong>Outfit</strong><em>, mark a number of <span class=\"stonetop-glyph\">◇</span> below on specific items or as a group.",
+				"light": "For a <strong>light load</strong> (<em>quick &amp; quiet</em>), mark up to 3 <span class=\"stonetop-glyph\">◆</span>",
+				"normal": "For a <strong>normal load</strong>, mark 4–6 <span class=\"stonetop-glyph\">◆</span>",
+				"heavy": "For a <strong>heavy load</strong> (<em>noisy, slow, hot, quick to tire</em>), mark 7–9 <span class=\"stonetop-glyph\">◆</span>"
 			}
 		},
 		"settings": {
@@ -140,11 +167,19 @@
 			}
 		},
 		"newCharacter": {
-			"buttonLabel": "New Character",
+			"buttonLabel": "Edit Character",
 			"createButtonLabel": "Create Character",
+			"answerQuestionsButtonLabel": "Answer Background Questions",
 			"confirmTitle": "Reset Character?",
 			"confirmContent": "This character already has a playbook. Choosing a new one will replace it and may reset character data. Are you sure?",
 			"pickerTitle": "Choose a Playbook"
+		},
+		"onboarding": {
+			"saveButton": "Save",
+			"savedTitle": "Selections Saved",
+			"savedContent": "Your current character creation selections have been saved.",
+			"continueEditing": "Continue Editing",
+			"closeForNow": "Close for Now"
 		},
 		"rollResults": {
 			"miss": "Miss",
@@ -224,7 +259,8 @@
 				"basicMoves": "Basic Moves",
 				"otherMoves": "Other Moves",
 				"addMove": "Add Move",
-				"removeMove": "Remove Move"
+				"removeMove": "Remove Move",
+				"chooseStartingMoves": "Choose Starting Moves"
 			},
 			"selection": {
 				"select": "Select",

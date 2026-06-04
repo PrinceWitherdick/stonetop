@@ -28,10 +28,7 @@ export class AppearanceSection {
 			.map(line => line.options.find(o => o.selected)?.value)
 			.filter(Boolean);
 		if (selected.length === 0) return "";
-		const joined = selected.length === 1
-			? selected[0]
-			: selected.slice(0, -1).join(", ") + " and " + selected[selected.length - 1];
-		return capitalizeFirst(joined) + ".";
+		return capitalizeFirst(selected.join(" · "));
 	}
 }
 

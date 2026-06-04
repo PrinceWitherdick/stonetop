@@ -89,6 +89,34 @@ body,
 	font-family: var(--font-stonetop);
 }
 
+.vtt .dialog .dialog-buttons:has([data-button="cancel"]),
+.vtt .dialog .dialog-buttons:has([data-button="no"]),
+.vtt .dialog .dialog-buttons:has([data-button="close"]) {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.vtt .dialog .dialog-buttons [data-button="cancel"],
+.vtt .dialog .dialog-buttons [data-button="no"],
+.vtt .dialog .dialog-buttons [data-button="close"] {
+	order: -10;
+	margin-right: auto;
+}
+
+.vtt .dialog .dialog-buttons [data-button="yes"],
+.vtt .dialog .dialog-buttons [data-button="continue"],
+.vtt .dialog .dialog-buttons [data-button="edit"],
+.vtt .dialog .dialog-buttons [data-button="reset"],
+.vtt .dialog .dialog-buttons [data-button="add"],
+.vtt .dialog .dialog-buttons [data-button="apply"],
+.vtt .dialog .dialog-buttons [data-button="post"],
+.vtt .dialog .dialog-buttons [data-button="roll"],
+.vtt .dialog .dialog-buttons [data-button="done"] {
+	order: 10;
+}
+
 /* Strange Scene navigation bug fix */
 #navigation {
 	overflow: visible;
@@ -132,6 +160,9 @@ body,
 	--font-body: var(--font-stonetop);
 	--font-sans: var(--font-stonetop);
 }
+
+/* Diamond/circle glyphs should never be slanted, even inside italic contexts. */
+.stonetop-glyph { font-style: normal; }
 
 /* Stonetop-specific content classes — no other stylesheet targets these,
    so these rules win regardless of load order.
@@ -181,18 +212,69 @@ body,
 	box-shadow: 2px 4px 8px 2px rgba(0, 0, 0, 0.4);
 }
 
-.vtt .dialog .window-content:has(.roll-dialog) .dialog-buttons {
+.vtt .dialog .window-content:has(.stonetop-roll-dialog) .dialog-buttons {
 	display: grid;
 	grid-template-columns: repeat(3,1fr);
 	gap: 8px;
 }
 
-.vtt .dialog .window-content:has(.roll-dialog) .dialog-buttons .submit {
+.vtt .dialog .window-content:has(.stonetop-roll-dialog) .dialog-buttons .submit {
 	grid-column: span 3;
+}
+
+.stonetop-roll-dialog {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.stonetop-active-modifiers {
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 4px;
+	padding: 8px 10px;
+	margin: 0;
+	background: rgba(0, 0, 0, 0.03);
+}
+
+.stonetop-active-modifiers legend {
+	padding: 0 4px;
+	font-size: 0.82em;
+	font-weight: bold;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-modifier-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	column-gap: 10px;
+	row-gap: 2px;
+	align-items: baseline;
+	margin: 3px 0;
+	font-size: 0.88em;
+}
+
+.stonetop-modifier-label {
+	font-weight: bold;
+}
+
+.stonetop-modifier-value {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+}
+
+.stonetop-modifier-note {
+	grid-column: 1 / -1;
+	color: var(--color-text-dark-secondary);
+	font-size: 0.86em;
+	font-style: italic;
 }
 
 .pbta.sheet .sheet-tab {
 	margin-top: 0;
+}
+
+.pbta.sheet.actor.character {
+	min-width: 800px;
 }
 
 .pbta.sheet .sheet-resources .cell--roll-formula {
@@ -345,6 +427,14 @@ body,
 	box-sizing: border-box;
 }
 
+/* 2:1 width ratio — HP & XP get twice the space of Damage, Armor & Level.
+   Specificity must match pbta's 7-class rule that resets all cells to flex:1. */
+.pbta.sheet .sheet-wrapper .sheet-top .sheet-attributes-top .cell--attributes-top .cell--attr-hp,
+.pbta.sheet .sheet-wrapper .sheet-top .sheet-attributes-top .cell--attributes-top .cell--attr-xp     { flex: 2 1 0; }
+.pbta.sheet .sheet-wrapper .sheet-top .sheet-attributes-top .cell--attributes-top .cell--attr-damage,
+.pbta.sheet .sheet-wrapper .sheet-top .sheet-attributes-top .cell--attributes-top .cell--attr-armor,
+.pbta.sheet .sheet-wrapper .sheet-top .sheet-attributes-top .cell--attributes-top .cell--attr-level  { flex: 1 1 0; }
+
 /* XP max is derived from level — prevent editing it directly */
 .cell--attr-xp .cell__max input {
 	pointer-events: none;
@@ -366,6 +456,61 @@ body,
 
 .stonetop-name-field {
 	font-size: var(--font-size-display) !important;
+	line-height: 1.2;
+	padding: 4px 8px;
+	min-height: 2em;
+}
+
+input.stonetop-name-field {
+	border: 1px solid rgba(0, 0, 0, 0.2);
+	background: rgba(255, 255, 255, 0.5);
+}
+
+.stonetop-name-called-box {
+	width: fit-content;
+	min-width: 300px;
+	box-sizing: border-box;
+	background: var(--color-border-dark, #888);
+	padding: 2px;
+	margin-top: auto;
+	clip-path: polygon(
+		8px 0%, calc(100% - 8px) 0%,
+		100% 8px, 100% calc(100% - 8px),
+		calc(100% - 8px) 100%, 8px 100%,
+		0% calc(100% - 8px), 0% 8px
+	);
+}
+
+.stonetop-name-called-inner {
+	background: var(--stonetop-bg, #f0ece3);
+	padding: 3px 8px 5px;
+	clip-path: polygon(
+		6px 0%, calc(100% - 6px) 0%,
+		100% 6px, 100% calc(100% - 6px),
+		calc(100% - 6px) 100%, 6px 100%,
+		0% calc(100% - 6px), 0% 6px
+	);
+}
+
+.stonetop-name-called-label {
+	display: block;
+	font-family: var(--font-stonetop);
+	font-size: 0.65rem;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	line-height: 1;
+	pointer-events: none;
+	user-select: none;
+}
+
+.stonetop-name-called-box .stonetop-name-field {
+	padding: 0;
+	min-height: unset;
+}
+
+.stonetop-name-called-box input.stonetop-name-field {
+	border: none;
+	background: transparent;
 }
 
 .pbta.sheet .cell__counter>span {
@@ -462,7 +607,7 @@ body,
 }
 
 .stonetop-playbook-block {
-	margin-top: auto;
+	margin-top: 0;
 }
 
 .stonetop-playbook-description {
@@ -1211,7 +1356,8 @@ body,
 }
 
 .stonetop-readonly .steading-roll-btn,
-.stonetop-readonly .steading-interactive-btn {
+.stonetop-readonly .steading-interactive-btn,
+.stonetop-readonly .stonetop-answer-character-questions-btn {
 	pointer-events: auto;
 	opacity: 1;
 }
@@ -1536,16 +1682,9 @@ body,
 	align-items: flex-start;
 }
 
-.stonetop-inventory-regular { flex: 0 0 auto; width: fit-content; min-width: 0; }
-.stonetop-inventory-small   { flex: 0 0 auto; width: fit-content; min-width: 0; }
+.stonetop-inventory-regular { flex: 1 1 0; min-width: min-content; }
+.stonetop-inventory-small   { flex: 1 1 0; min-width: min-content; }
 
-/* Prevent headings, notes, and pool from inflating the column beyond the width
-   its items need. contain:inline-size makes these elements invisible to the
-   fit-content calculation; they still render at the column's actual computed width. */
-.stonetop-inventory-small .stonetop-section-heading,
-.stonetop-inventory-small .stonetop-inv-section-note,
-.stonetop-inventory-small .stonetop-supplies-pool,
-.stonetop-inventory-small .stonetop-supplies-pool-note { contain: inline-size; }
 
 .stonetop-inv-item {
 	display: flex;
@@ -1735,6 +1874,10 @@ body,
 /* -- Possessions overflow fix --------------------------------- */
 .tab-section--possessions { overflow: visible; margin-top: 16px; }
 .stonetop-possession-list > li { min-width: 0; }
+
+/* Hide unselected possessions outside edit mode */
+.stonetop-possession-list > li:not(.is-checked) { display: none; }
+.stonetop-edit-mode .stonetop-possession-list > li:not(.is-checked) { display: list-item; }
 
 /* -- Outfit header -------------------------------------------- */
 .stonetop-outfit-header {
@@ -2104,6 +2247,31 @@ body,
 
 .details-section .stonetop-move-group-title {
 	margin-top: 0;
+}
+
+.stonetop-details-onboarding-actions {
+	display: flex;
+	justify-content: center;
+	padding: 4px 0 16px;
+}
+
+.stonetop-answer-character-questions-btn,
+.stonetop-choose-possessions-btn,
+.stonetop-choose-moves-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	padding: 6px 10px;
+	border: 1px solid var(--color-border-dark);
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.75);
+	color: var(--color-text-dark-primary);
+	font-weight: 700;
+}
+
+.stonetop-answer-character-questions-btn:hover {
+	background: hsl(210 10% 92%);
 }
 
 /* -- Lore section (Details + Post-Death tabs) ------------------- */
@@ -2608,6 +2776,15 @@ body,
 	line-height: 1.45;
 }
 
+.stonetop-special-move-list {
+	margin: 0;
+	padding-left: 18px;
+}
+
+.stonetop-special-move-list li {
+	margin: 2px 0;
+}
+
 .stonetop-special-move-card.is-locked {
 	opacity: 0.6;
 }
@@ -2648,6 +2825,29 @@ body,
 	margin: 0;
 	font-size: 0.9em;
 	line-height: 1.4;
+}
+
+.stonetop-outfit-rule-note {
+	padding: 6px 8px;
+	border: 1px solid var(--color-border-light-2);
+	border-radius: 4px;
+	background: rgba(0,0,0,0.03);
+	font-size: 0.82em;
+	line-height: 1.35;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-outfit-rule-note p {
+	margin: 0;
+}
+
+.stonetop-outfit-rule-note ul {
+	margin: 4px 0;
+	padding-left: 18px;
+}
+
+.stonetop-outfit-rule-note li {
+	margin: 2px 0;
 }
 
 /* Load bar */
@@ -2849,13 +3049,28 @@ body,
 	flex-direction: column;
 	gap: 10px;
 	flex: 1;
-	overflow: hidden;
+	overflow-y: auto;
 }
 
 .stonetop-levelup-intro {
 	margin: 0;
 	font-size: 0.9em;
 	line-height: 1.45;
+}
+
+.stonetop-levelup-rule-list {
+	margin: 0;
+	padding: 6px 8px 6px 24px;
+	border: 1px solid var(--color-border-light-2);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.03);
+	font-size: 0.82em;
+	line-height: 1.35;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-levelup-rule-list li {
+	margin: 2px 0;
 }
 
 /* XP / Level summary table */
@@ -3014,7 +3229,7 @@ body,
 /* Footer */
 .stonetop-levelup-footer {
 	display: flex;
-	justify-content: flex-end;
+	justify-content: space-between;
 	align-items: center;
 	gap: 8px;
 	padding-top: 4px;
@@ -3036,6 +3251,7 @@ body,
 }
 
 .stonetop-levelup-next-btn {
+	margin-left: auto;
 	padding: 4px 14px;
 	background: #3ba55d;
 	color: #fff;
@@ -3051,6 +3267,197 @@ body,
 .stonetop-levelup-next-btn:disabled {
 	opacity: 0.45;
 	cursor: not-allowed;
+}
+
+/* ── Death's Door dialog ────────────────────────────────────────── */
+
+.stonetop-deathsdoor-dialog .window-content {
+	height: 100%;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.deaths-door-dialog-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.deaths-door-step {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.deaths-door-move-name {
+	margin: 0;
+	font-size: 1.05em;
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+}
+
+.deaths-door-intro,
+.deaths-door-mechanic-intro,
+.deaths-door-reflection {
+	margin: 0;
+	font-size: 0.88em;
+	color: var(--color-text-dark-secondary);
+	line-height: 1.45;
+}
+
+.deaths-door-move-trigger {
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--color-border-light-tertiary, #ccc);
+}
+
+.deaths-door-roll-chip {
+	display: inline-block;
+	padding: 1px 6px;
+	border: 1px solid var(--color-text-dark-secondary);
+	border-radius: 3px;
+	font-size: 0.85em;
+	line-height: 1.2;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.deaths-door-flavor {
+	padding: 8px 10px;
+	border: 1px solid var(--color-border-light-2);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.03);
+	font-style: italic;
+	font-size: 0.88em;
+	line-height: 1.4;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-flavor p {
+	margin: 0;
+}
+
+.deaths-door-instruction {
+	margin: 0;
+	font-style: italic;
+	font-size: 0.82em;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-outcomes {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.deaths-door-outcome {
+	padding: 6px 10px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.02);
+}
+
+.deaths-door-outcome-label {
+	display: inline-flex;
+	align-items: center;
+	margin: 0 0 4px 0;
+	padding: 1px 6px;
+	border: 1px solid var(--color-text-dark-secondary);
+	border-radius: 3px;
+	font-size: 0.78em;
+	line-height: 1.2;
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-outcome-text {
+	margin: 0;
+	font-size: 0.82em;
+	line-height: 1.4;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-outcome-choices {
+	margin: 6px 0 0 0;
+	padding-left: 18px;
+	font-size: 0.82em;
+	line-height: 1.4;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-outcome-choices li {
+	margin: 4px 0;
+}
+
+.deaths-door-notes {
+	padding: 8px 10px;
+	border: 1px solid #c9a227;
+	border-radius: 4px;
+	background: rgba(201, 162, 39, 0.12);
+	font-size: 0.82em;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-notes p {
+	margin: 0;
+	line-height: 1.4;
+}
+
+.deaths-door-dialog-buttons {
+	flex: 0 0 auto;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	margin-top: auto;
+	padding: 8px 12px 10px;
+	border-top: 1px solid var(--color-border-light-primary, #ccc);
+}
+
+.deaths-door-next-btn,
+.deaths-door-confirm-btn {
+	margin-left: auto;
+}
+
+.deaths-door-next-btn,
+.deaths-door-back-btn,
+.deaths-door-confirm-btn,
+.deaths-door-cancel-btn {
+	padding: 6px 14px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 3px;
+	cursor: pointer;
+	font-size: 0.9em;
+	background: rgba(255, 255, 255, 0.8);
+	transition: background 0.1s, border-color 0.1s;
+}
+
+.deaths-door-next-btn:hover,
+.deaths-door-back-btn:hover {
+	background: rgba(0, 0, 0, 0.05);
+}
+
+.deaths-door-confirm-btn {
+	background: #3ba55d;
+	color: #fff;
+	border-color: #2d8049;
+}
+
+.deaths-door-confirm-btn:hover {
+	background: #45c46e;
+}
+
+.deaths-door-cancel-btn {
+	background: transparent;
+	color: var(--color-text-dark-primary);
+}
+
+.deaths-door-cancel-btn:hover {
+	background: rgba(0, 0, 0, 0.05);
 }
 
 /* ── End of Session dialog ──────────────────────────────────────── */
@@ -3756,6 +4163,12 @@ body,
 	padding: 8px 10px;
 }
 
+.steading-neighbors-section.drag-over {
+	background: rgba(100, 150, 255, 0.15);
+	border: 2px solid rgba(100, 150, 255, 0.4);
+	box-shadow: inset 0 0 8px rgba(100, 150, 255, 0.2);
+}
+
 .steading-list-heading {
 	font-size: 0.82em;
 	font-weight: bold;
@@ -4337,8 +4750,8 @@ body,
 
 .stonetop-season-flow h3 { margin: 0; font-size: 1.1em; }
 .stonetop-season-flow p  { margin: 5px 0; }
-.stonetop-season-flow ul { margin: 4px 0; padding-left: 18px; }
-.stonetop-season-flow li { margin: 3px 0; }
+.stonetop-season-flow ul { margin: 4px 0; padding-left: 24px; }
+.stonetop-season-flow li { margin: 3px 0; padding-left: 16px; }
 
 .stonetop-season-note {
 	font-style: italic;
@@ -4389,8 +4802,8 @@ body,
 	user-select: none;
 }
 
-.stonetop-season-gains ul { margin: 4px 0; padding-left: 16px; }
-.stonetop-season-gains li { margin: 2px 0; }
+.stonetop-season-gains ul { margin: 4px 0; padding-left: 24px; }
+.stonetop-season-gains li { margin: 2px 0; padding-left: 16px; }
 
 /* -- Meet with Disaster dialog --------------------------------- */
 
@@ -4494,10 +4907,13 @@ body,
 
 .stonetop-homestead-reference ul {
 	margin: 4px 0 0;
-	padding-left: 18px;
+	padding-left: 24px;
 }
 
-.stonetop-homestead-reference li { margin: 2px 0; }
+.stonetop-homestead-reference li {
+	margin: 2px 0;
+	padding-left: 2px;
+}
 
 .stonetop-homestead-choice-list {
 	display: flex;
@@ -4508,14 +4924,20 @@ body,
 
 .stonetop-homestead-choice {
 	display: grid;
-	grid-template-columns: 16px 1fr;
-	gap: 7px;
+	grid-template-columns: 16px minmax(0, 1fr);
+	column-gap: 16px;
+	row-gap: 3px;
 	align-items: start;
 	font-size: 0.96em;
+	line-height: 1.35;
 }
 
 .stonetop-homestead-choice input {
 	margin-top: 2px;
+}
+
+.stonetop-homestead-choice span {
+	min-width: 0;
 }
 
 .stonetop-homestead-note {
@@ -4567,8 +4989,8 @@ body,
 }
 
 .steading-move-body p { margin: 6px 0; }
-.steading-move-body ul { margin: 4px 0; padding-left: 18px; }
-.steading-move-body li { margin: 2px 0; }
+.steading-move-body ul { margin: 4px 0; padding-left: 24px; }
+.steading-move-body li { margin: 2px 0; padding-left: 16px; }
 
 .steading-move-card.is-open .steading-move-body {
 	display: block;
@@ -4768,7 +5190,7 @@ body,
 	flex: 1;
 	min-height: 0;
 	overflow-y: auto;
-	padding: 12px 20px 8px;
+	padding: 12px 24px 8px;
 }
 
 .stonetop-onboarding-step-title {
@@ -4878,6 +5300,7 @@ body,
 
 .stonetop-onboarding-appearance-row {
 	display: flex;
+	flex-direction: column;
 	flex-wrap: wrap;
 	gap: 6px;
 	padding: 6px 0;
@@ -4885,6 +5308,20 @@ body,
 }
 
 .stonetop-onboarding-appearance-row:last-child { border-bottom: none; }
+
+.stonetop-onboarding-appearance-label {
+	margin: 0;
+	color: var(--color-text-dark-secondary, #555);
+	font-size: 0.78em;
+	font-weight: 700;
+	text-transform: uppercase;
+}
+
+.stonetop-onboarding-appearance-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
 
 .stonetop-onboarding-appearance-option {
 	display: inline-flex;
@@ -4908,6 +5345,27 @@ body,
 
 .stonetop-onboarding-appearance-option input[type="radio"] {
 	display: none; /* pill acts as the selector */
+}
+
+.stonetop-onboarding-appearance-custom {
+	border-radius: 4px;
+	padding: 2px 6px;
+}
+
+.stonetop-onboarding-appearance-custom input[type="text"] {
+	width: 150px;
+	min-width: 0;
+	border: none;
+	background: transparent;
+	font: inherit;
+	color: inherit;
+	outline: none;
+}
+
+.stonetop-onboarding-appearance-custom input[type="text"]::placeholder {
+	color: var(--color-text-dark-secondary, #777);
+	font-style: italic;
+	font-weight: 400;
 }
 
 /* ── Origin & Name ───────────────────────────────────────────────── */
@@ -5024,64 +5482,33 @@ body,
 }
 
 .stonetop-onboarding-footer-nav {
-	display: grid;
-	grid-template-columns: minmax(160px, 1fr) auto minmax(160px, 1fr);
+	display: flex;
 	align-items: center;
-	column-gap: 12px;
+	gap: 8px;
 	width: 100%;
 }
 
-.stonetop-onboarding-footer-left,
-.stonetop-onboarding-footer-right {
-	min-width: 0;
-	display: flex;
-	align-items: center;
+.stonetop-onboarding-footer-back {
+	flex: 0 0 auto;
 }
 
-.stonetop-onboarding-footer-left {
-	grid-column: 1;
-	justify-content: flex-start;
-}
-
-.stonetop-onboarding-footer-back-stack {
-	display: flex;
-	align-items: center;
-	width: 100%;
-	min-width: 0;
-}
-
-.stonetop-onboarding-footer-back-action,
-.stonetop-onboarding-footer-back-spacer {
+.stonetop-onboarding-footer-spacer {
 	flex: 1 1 0;
-	min-width: 0;
-}
-
-.stonetop-onboarding-footer-back-action {
-	display: flex;
-	justify-content: flex-start;
 }
 
 .stonetop-onboarding-step-counter {
-	grid-column: 2;
-	justify-self: center;
+	flex: 0 0 auto;
 	font-size: 0.8em;
 	color: #888;
 	pointer-events: none;
 	white-space: nowrap;
-	text-align: center;
 }
 
 .stonetop-onboarding-footer-right {
-	grid-column: 3;
-	justify-content: flex-end;
-}
-
-.stonetop-onboarding-footer-actions {
+	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
-	justify-content: flex-end;
 	gap: 6px;
-	min-width: 0;
 }
 
 .stonetop-onboarding-back,
@@ -5339,7 +5766,10 @@ body,
 	flex-shrink: 0;
 }
 
+.stonetop-onboarding-initiate-row-label:empty { display: none; }
+
 .stonetop-onboarding-initiate-options {
+	flex-direction: row;
 	flex-wrap: wrap;
 	gap: 4px;
 	margin: 0;
@@ -6417,9 +6847,9 @@ span.stonetop-loyalty-pip { cursor: default; }
 	flex: none;
 }
 
-/* Keep Add/Cancel at natural width, styled like onboarding buttons */
+/* Keep Cancel left and Add right, styled like onboarding buttons */
 .stonetop-individual-dialog .dialog-buttons {
-	justify-content: flex-end;
+	justify-content: space-between;
 	align-items: center;
 	gap: 8px;
 	padding: 10px 20px 14px;

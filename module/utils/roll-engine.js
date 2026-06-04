@@ -29,8 +29,8 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 		: "";
 	const buttonsHtml = buttons
 		? `<div class="card-buttons stonetop-card-buttons">
-			<button data-action="shiftUp">Shift Up</button>
-			<button data-action="shiftDown">Shift Down</button>
+			<button data-action="shiftDown"><i class="fas fa-arrow-down"></i> Shift Down</button>
+			<button data-action="shiftUp"><i class="fas fa-arrow-up"></i> Shift Up</button>
 		</div>`
 		: "";
 

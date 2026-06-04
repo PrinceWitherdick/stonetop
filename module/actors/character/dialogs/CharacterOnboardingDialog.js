@@ -1,5 +1,6 @@
 // Descriptions for animal companion trait tags — checked before compendium lookup.
 import { majorArcanaImg } from "../../../arcana-icons.js";
+import { parseMovePickCount } from "../StonetopCharacter.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -45,11 +46,12 @@ const TRAIT_GLOSSARY = {
 
 export class CharacterOnboardingDialog extends Application {
 	constructor(playbookDoc, onComplete, options = {}) {
-		const { onBack, initialSelections, ...appOptions } = options;
+		const { onBack, onSave, initialSelections, startAtStep = null, ...appOptions } = options;
 		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
 		this._onBack             = onBack ?? null;
+		this._onSave             = onSave ?? null;
 		// Pre-seed cache with glossary so getData() and _lookupWord share one lookup path.
 		this._wordCache = new Map(Object.entries(TRAIT_GLOSSARY));
 		this._hoveredAnchor      = null;
@@ -102,7 +104,9 @@ export class CharacterOnboardingDialog extends Application {
 		this._ensureBackgroundMoveChoices();
 		this._ensureBackgroundSetup();
 		this._steps = this._buildSteps();
-		this._step  = 0;
+		this._step = startAtStep === "first-incomplete"
+			? this._firstIncompleteStepIndex()
+			: Math.max(0, this._steps.indexOf(startAtStep ?? ""));
 	}
 
 	// ── Step management ───────────────────────────────────────────────
@@ -170,6 +174,16 @@ export class CharacterOnboardingDialog extends Application {
 			.map(o => ({ region: o.region, names: o.names }));
 	}
 
+	_appearanceLineLabel(options, lineIdx) {
+		const text = options.map(o => String(o ?? "").toLowerCase()).join(" ");
+		if (text.includes("voice") || text.includes("spoken")) return "Voice";
+		if (/(robe|clothes|cloak|gear|fur|leather|groomed|shaggy|threadbare|polish|badge)/.test(text)) return "Garb";
+		if (/(body|frame|curvy|strapping|thin|solid|willowy|lithe|heavyset|gangly|ripped|stocky|wiry|compact|lean|wolfish|bony|limbed|big|scrawny|sinewy|slender|thick)/.test(text)) return "Build";
+		if (/(scar|nose|missing|fingers|hands|frown|jaw|smirk|eyes|back)/.test(text)) return "Feature";
+		if (/(step|stride|strut)/.test(text)) return "Bearing";
+		return lineIdx === 0 ? "Appearance" : "Look";
+	}
+
 	_normalizeOnboardingText(value) {
 		const char = (...codes) => String.fromCodePoint(...codes);
 		const replacements = [
@@ -193,9 +207,7 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	_parseMovePickCount() {
-		const note = this._playbookDoc.flags?.stonetop?.moves?.startingMovesNote ?? "";
-		const m = note.match(/\b(\d+)\s+(?:more\s+|other\s+)?(?:move[s]?\s+)?of\s+your\s+choice/i);
-		return m ? parseInt(m[1], 10) : 0;
+		return parseMovePickCount(this._playbookDoc.flags?.stonetop?.moves?.startingMovesNote);
 	}
 
 	_parseLorePickMax(section) {
@@ -550,9 +562,9 @@ export class CharacterOnboardingDialog extends Application {
 
 	// ── Completion check ──────────────────────────────────────────────
 
-	_isStepComplete() {
+	_isStepComplete(stepType = this._steps[this._step]) {
 		const ac = this._selections.animalCompanion;
-		switch (this._steps[this._step]) {
+		switch (stepType) {
 			case "background": {
 				const bg = this._selectedBackground();
 				if (!bg) return false;
@@ -620,6 +632,78 @@ export class CharacterOnboardingDialog extends Application {
 		}
 	}
 
+	// ── Resume helpers ───────────────────────────────────────────────
+
+	_parseLorePickMin(section) {
+		const desc = String(section?.description ?? "").toLowerCase();
+		const rangeM = desc.match(/(?:choose|pick)\s+(\d+)\s*[\u2013\-]\s*(\d+)/);
+		if (rangeM) return parseInt(rangeM[1], 10);
+		const orM = desc.match(/(?:choose|pick)\s+(\d+)\s+or\s+(\d+)/);
+		if (orM) return parseInt(orM[1], 10);
+		const maybeM = desc.match(/(?:choose|pick)\s+(\d+)[,\s]+maybe\s+(\d+)/);
+		if (maybeM) return parseInt(maybeM[1], 10);
+		const singleM = desc.match(/(?:choose|pick)\s+(\d+)/);
+		if (singleM) return parseInt(singleM[1], 10);
+		const opts = section?.options ?? [];
+		if (opts.length > 0 && opts.every(o => !o.type && (o.max ?? 1) === 1)) return 1;
+		return 0;
+	}
+
+	_isLoreSectionAnswered(section) {
+		const opts = section?.options ?? [];
+		if (!opts.length) return true;
+		const textOptions = opts.filter(o => o.type === "text");
+		if (textOptions.length) {
+			return textOptions.every(opt =>
+				!!this._selections.lore.texts[`${section.slug}:${opt.slug}`]?.trim()
+			);
+		}
+		const min = this._parseLorePickMin(section);
+		return min <= 0 || this._countLoreSectionPicks(section.slug) >= min;
+	}
+
+	_isStepAnsweredForResume(stepType) {
+		const loreMatch = stepType?.match(/^lore:(\d+)$/);
+		if (loreMatch) {
+			const section = this._rawLore[parseInt(loreMatch[1], 10)];
+			return this._isLoreSectionAnswered(section);
+		}
+		if (stepType === "origin") {
+			return !!this._selections.originRegion && !!this._selections.name?.trim();
+		}
+		if (stepType === "seekerArcana") {
+			const section = this._rawLore.find(s => s.slug === "arcana-major");
+			return this._isStepComplete(stepType) && this._isLoreSectionAnswered(section);
+		}
+		if (stepType === "seekerArcanaMinor") {
+			const section = this._rawLore.find(s => s.slug === "arcana-minor");
+			return this._isStepComplete(stepType) && this._isLoreSectionAnswered(section);
+		}
+		return this._isStepComplete(stepType);
+	}
+
+	_isResumeQuestionStep(stepType) {
+		return stepType?.startsWith("lore:") || [
+			"background",
+			"instinct",
+			"appearance",
+			"origin",
+			"initiates",
+			"crew",
+			"animalCompanion",
+			"seekerArcana",
+			"seekerArcanaMinor",
+		].includes(stepType);
+	}
+
+	_firstIncompleteStepIndex() {
+		for (let i = 0; i < this._steps.length; i++) {
+			if (!this._isResumeQuestionStep(this._steps[i])) continue;
+			if (!this._isStepAnsweredForResume(this._steps[i])) return i;
+		}
+		return 0;
+	}
+
 	// ── Foundry Application boilerplate ──────────────────────────────
 
 	static get defaultOptions() {
@@ -635,6 +719,19 @@ export class CharacterOnboardingDialog extends Application {
 
 	get title() {
 		return `New Character — ${this._playbookDoc.name}`;
+	}
+
+	_getHeaderButtons() {
+		const buttons = super._getHeaderButtons();
+		if (this._onSave) {
+			buttons.unshift({
+				label:   game.i18n.localize("stonetop.onboarding.saveButton"),
+				class:   "stonetop-onboarding-save-header",
+				icon:    "fas fa-save",
+				onclick: () => this._saveProgress(),
+			});
+		}
+		return buttons;
 	}
 
 	// ── getData ───────────────────────────────────────────────────────
@@ -701,13 +798,20 @@ export class CharacterOnboardingDialog extends Application {
 
 		// ── Appearance ────────────────────────────────────────────────
 		if (stepType === "appearance") {
-			appearanceLines = this._rawAppearance.map((opts, lineIdx) => ({
-				lineIdx,
-				options: opts.map(value => ({
-					value,
-					selected: this._selections.appearance[lineIdx] === value,
-				})),
-			}));
+			appearanceLines = this._rawAppearance.map((opts, lineIdx) => {
+				const selected = this._selections.appearance[lineIdx] ?? "";
+				const customSelected = !!selected && !opts.includes(selected);
+				return {
+					lineIdx,
+					label: this._appearanceLineLabel(opts, lineIdx),
+					customValue: customSelected ? selected : "",
+					customSelected,
+					options: opts.map(value => ({
+						value,
+						selected: selected === value,
+					})),
+				};
+			});
 		}
 
 		// ── Origin ────────────────────────────────────────────────────
@@ -985,6 +1089,7 @@ export class CharacterOnboardingDialog extends Application {
 			stepNumber:        this._step + 1,
 			stepCount:         this._steps.length,
 			isFirst, isLast, hasBack,
+			showBack:          !isFirst || hasBack,
 			isBackground:      stepType === "background",
 			isInstinct:        stepType === "instinct",
 			isAppearance:      stepType === "appearance",
@@ -1221,6 +1326,25 @@ export class CharacterOnboardingDialog extends Application {
 			const lineIdx = Number(ev.currentTarget.name.replace("onboard-appearance-", ""));
 			this._selections.appearance[lineIdx] = ev.currentTarget.value;
 			this._setSelectedOption(ev.currentTarget.closest(".stonetop-onboarding-appearance-row"), ev.currentTarget);
+			_refreshNextButton();
+		});
+		html.find(".onboard-appearance-custom").on("input", ev => {
+			const lineIdx = Number(ev.currentTarget.dataset.line);
+			this._selections.appearance[lineIdx] = ev.currentTarget.value.trim();
+			const row = ev.currentTarget.closest(".stonetop-onboarding-appearance-row");
+			const radio = row?.querySelector(".onboard-appearance-custom-radio");
+			if (radio) {
+				radio.value = ev.currentTarget.value.trim();
+				radio.checked = true;
+			}
+			this._setSelectedOption(row, radio);
+			_refreshNextButton();
+		});
+		html.find(".onboard-appearance-custom-radio").on("change", ev => {
+			const lineIdx = Number(ev.currentTarget.dataset.line);
+			const input = ev.currentTarget.closest(".stonetop-onboarding-appearance-custom")
+				?.querySelector(".onboard-appearance-custom");
+			this._selections.appearance[lineIdx] = input?.value.trim() ?? "";
 			_refreshNextButton();
 		});
 
@@ -1690,6 +1814,25 @@ export class CharacterOnboardingDialog extends Application {
 		if (!this._isStepComplete()) return;
 		if (this._onComplete) await this._onComplete(this._selections);
 		this.close();
+	}
+
+	async _saveProgress() {
+		this._clearPopups();
+		if (this._onSave) await this._onSave(this._selections);
+		new Dialog({
+			title: game.i18n.localize("stonetop.onboarding.savedTitle"),
+			content: `<p>${game.i18n.localize("stonetop.onboarding.savedContent")}</p>`,
+			buttons: {
+				close: {
+					label: game.i18n.localize("stonetop.onboarding.closeForNow"),
+					callback: () => this.close(),
+				},
+				continue: {
+					label: game.i18n.localize("stonetop.onboarding.continueEditing"),
+				},
+			},
+			default: "continue",
+		}).render(true);
 	}
 
 	async close(options) {

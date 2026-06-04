@@ -140,10 +140,11 @@ export class OutfitSnapshotBuilder {
  * @property {PossessionItemSnapshot[]} items
  */
 export class PossessionsSnapshot {
-	constructor(pickCount, pickNote, items) {
-		this.pickCount = pickCount;
-		this.pickNote  = pickNote;
-		this.items     = items;
+	constructor(pickCount, pickNote, items, isIncomplete = false) {
+		this.pickCount    = pickCount;
+		this.pickNote     = pickNote;
+		this.items        = items;
+		this.isIncomplete = isIncomplete;
 	}
 }
 

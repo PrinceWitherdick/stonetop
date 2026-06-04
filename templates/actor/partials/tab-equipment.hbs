@@ -286,6 +286,14 @@
 			</li>
 		{{/each}}
 		</ol>
+		{{#if stonetop.inventory.possessions.isIncomplete}}
+		<div class="stonetop-details-onboarding-actions">
+			<button type="button" class="stonetop-choose-possessions-btn" data-onboarding-start="possession">
+				<i class="fas fa-question-circle" aria-hidden="true"></i>
+				{{localize "stonetop.inventory.choosePossessionsButton"}}
+			</button>
+		</div>
+		{{/if}}
 	</div>
 	{{/if}}
 

@@ -5,15 +5,12 @@ node_modules/
 packs/*/
 !packs/src/
 
-Handout_-_Setting_Overview.pdf
-stonetop_inserts.pdf
 /.claude
 scripts/release.ps1
 scripts/local/
 /free pdfs
 
 # Build artifacts and dev scratch files
-stonetop.zip
 stonetop_pwd.zip
 extracted_text.txt
 sample-data.md

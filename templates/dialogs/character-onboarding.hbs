@@ -181,17 +181,31 @@
 		{{!-- ── Appearance ───────────────────────────────────────── --}}
 		{{#if isAppearance}}
 		<h3 class="stonetop-onboarding-step-title">Appearance</h3>
-		<p class="stonetop-onboarding-step-hint">Choose 1 on each line, or make something up</p>
+		<p class="stonetop-onboarding-step-hint">Choose 1 in each row, or fill in Custom</p>
 		<div class="stonetop-onboarding-appearance">
 			{{#each appearanceLines}}
 			<div class="stonetop-onboarding-appearance-row">
-				{{#each options}}
-				<label class="stonetop-onboarding-appearance-option{{#if selected}} is-selected{{/if}}">
-					<input type="radio" name="onboard-appearance-{{../lineIdx}}"
-					       value="{{value}}" {{#if selected}}checked{{/if}}>
-					{{value}}
-				</label>
-				{{/each}}
+				<p class="stonetop-onboarding-appearance-label">{{label}}</p>
+				<div class="stonetop-onboarding-appearance-options">
+					{{#each options}}
+					<label class="stonetop-onboarding-appearance-option{{#if selected}} is-selected{{/if}}">
+						<input type="radio" name="onboard-appearance-{{../lineIdx}}"
+						       value="{{value}}" {{#if selected}}checked{{/if}}>
+						{{value}}
+					</label>
+					{{/each}}
+					<label class="stonetop-onboarding-appearance-option stonetop-onboarding-appearance-custom{{#if customSelected}} is-selected{{/if}}">
+						<input type="radio" name="onboard-appearance-{{lineIdx}}"
+						       class="onboard-appearance-custom-radio"
+						       value="{{customValue}}"
+						       data-line="{{lineIdx}}"
+						       {{#if customSelected}}checked{{/if}}>
+						<input type="text" class="onboard-appearance-custom"
+						       data-line="{{lineIdx}}"
+						       value="{{customValue}}"
+						       placeholder="Make your own">
+					</label>
+				</div>
 			</div>
 			{{/each}}
 		</div>
@@ -731,30 +745,24 @@
 	{{!-- Footer --}}
 	<footer class="stonetop-onboarding-footer">
 		<div class="stonetop-onboarding-footer-nav">
-			<div class="stonetop-onboarding-footer-left">
-				<div class="stonetop-onboarding-footer-back-stack">
-					<div class="stonetop-onboarding-footer-back-action">
-						{{#if isFirst}}
-							{{#if hasBack}}
-							<button type="button" class="stonetop-onboarding-back-to-picker">← Back</button>
-							{{/if}}
-						{{else}}
-						<button type="button" class="stonetop-onboarding-back">← Back</button>
-						{{/if}}
-					</div>
-					<div class="stonetop-onboarding-footer-back-spacer" aria-hidden="true"></div>
-				</div>
+			{{#if showBack}}
+			<div class="stonetop-onboarding-footer-back">
+				{{#if isFirst}}
+				<button type="button" class="stonetop-onboarding-back-to-picker">← Back</button>
+				{{else}}
+				<button type="button" class="stonetop-onboarding-back">← Back</button>
+				{{/if}}
 			</div>
+			{{/if}}
+			<div class="stonetop-onboarding-footer-spacer" aria-hidden="true"></div>
 			<span class="stonetop-onboarding-step-counter">{{stepNumber}} / {{stepCount}}</span>
 			<div class="stonetop-onboarding-footer-right">
-				<div class="stonetop-onboarding-footer-actions">
-					<button type="button" class="stonetop-onboarding-skip">Skip</button>
-					{{#if isLast}}
-					<button type="button" class="stonetop-onboarding-confirm" {{#unless stepComplete}}disabled{{/unless}}>Create Character</button>
-					{{else}}
-					<button type="button" class="stonetop-onboarding-next" {{#unless stepComplete}}disabled{{/unless}}>Next →</button>
-					{{/if}}
-				</div>
+				<button type="button" class="stonetop-onboarding-skip">Skip</button>
+				{{#if isLast}}
+				<button type="button" class="stonetop-onboarding-confirm" {{#unless stepComplete}}disabled{{/unless}}>Create Character</button>
+				{{else}}
+				<button type="button" class="stonetop-onboarding-next" {{#unless stepComplete}}disabled{{/unless}}>Next →</button>
+				{{/if}}
 			</div>
 		</div>
 	</footer>

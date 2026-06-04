@@ -5,17 +5,42 @@
 	<div class="stonetop-special-move-grid">
 
 		<div class="stonetop-special-move-card">
+			<h3 class="stonetop-special-move-name">{{localize "stonetop.specialMoves.burnBrightly.title"}}</h3>
+			<p class="stonetop-special-move-summary">{{{localize "stonetop.specialMoves.burnBrightly.description"}}}</p>
+			<p class="stonetop-special-move-locked-hint">
+				<i class="fas fa-comment-dots"></i>
+				{{localize "stonetop.specialMoves.burnBrightly.promptNote"}}
+			</p>
+		</div>
+
+		<div class="stonetop-special-move-card">
 			<h3 class="stonetop-special-move-name">{{localize "stonetop.specialMoves.outfit.title"}}</h3>
-			<p class="stonetop-special-move-summary">{{{localize "stonetop.specialMoves.outfit.description"}}}</p>
+			<p class="stonetop-special-move-summary">{{{localize "stonetop.specialMoves.outfit.summary"}}}</p>
 			<button type="button" class="stonetop-outfit-open-btn">
 				<i class="fas fa-suitcase"></i>
 				{{localize "stonetop.specialMoves.outfit.button"}}
 			</button>
 		</div>
 
+		<div class="stonetop-special-move-card{{#unless stonetop.isDying}} is-locked{{/unless}}">
+			<h3 class="stonetop-special-move-name">{{localize "stonetop.specialMoves.deathsDoor.title"}}</h3>
+			<p class="stonetop-special-move-summary">{{{localize "stonetop.specialMoves.deathsDoor.summary"}}}</p>
+			{{#unless stonetop.isDying}}
+			<p class="stonetop-special-move-locked-hint">
+				<i class="fas fa-lock"></i>
+				{{localize "stonetop.specialMoves.deathsDoor.lockedHint"}}
+			</p>
+			{{/unless}}
+			<button type="button" class="stonetop-deathsdoor-open-btn"
+				{{#unless stonetop.isDying}}disabled{{/unless}}>
+				<i class="fas fa-door-open"></i>
+				{{localize "stonetop.specialMoves.deathsDoor.button"}}
+			</button>
+		</div>
+
 		<div class="stonetop-special-move-card{{#unless stonetop.canLevelUp}} is-locked{{/unless}}">
 			<h3 class="stonetop-special-move-name">{{localize "stonetop.specialMoves.levelUp.title"}}</h3>
-			<p class="stonetop-special-move-summary">{{{localize "stonetop.specialMoves.levelUp.description"}}}</p>
+			<p class="stonetop-special-move-summary">{{{localize "stonetop.specialMoves.levelUp.summary"}}}</p>
 			{{#unless stonetop.canLevelUp}}
 			<p class="stonetop-special-move-locked-hint">
 				<i class="fas fa-lock"></i>

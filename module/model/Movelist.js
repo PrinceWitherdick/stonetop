@@ -31,6 +31,7 @@ export class OtherItemSnapshotBuilder {
  * @property {OtherItemSnapshot[]} otherMoves
  * @property {string|null} startingMovesNote
  * @property {{label: string, moves: MoveSnapshot[]}|null} postDeathGroup
+ * @property {boolean} movesIncomplete
  */
 export class Movelist {
 	constructor(b) {
@@ -40,6 +41,7 @@ export class Movelist {
 		this.otherMoves        = b._otherMoves;
 		this.startingMovesNote = b._startingMovesNote;
 		this.postDeathGroup    = b._postDeathGroup ?? null;
+		this.movesIncomplete   = b._movesIncomplete ?? false;
 	}
 }
 
@@ -50,5 +52,6 @@ export class MovelistBuilder {
 	withOtherMoves(v)        { this._otherMoves        = v; return this; }
 	withStartingMovesNote(v) { this._startingMovesNote = v; return this; }
 	withPostDeathGroup(v)    { this._postDeathGroup    = v; return this; }
+	withMovesIncomplete(v)   { this._movesIncomplete   = v; return this; }
 	build()                  { return new Movelist(this); }
 }

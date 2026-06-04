@@ -3,6 +3,7 @@ import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
+import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
@@ -25,6 +26,10 @@ const STAT_TOOLTIPS = {
 };
 
 const _esc = escHtml;
+
+function _formatResultLine(text) {
+	return _esc(text).replace(/^(7\+|10\+|7-9|6-):/, "<strong>$1:</strong>");
+}
 
 const GUIDED_CHARACTER_MOVES = {
 	"The Hammer and the Book": {
@@ -273,6 +278,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["pbta", "stonetop", "sheet", "actor", "character"],
 				width: 1200,
+				minWidth: 800,
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				dragDrop: [{ dragSelector: ".items-list .item" }],
@@ -513,6 +519,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.showOtherMovesSection = this._editMode || !!(context.stonetop.movelist?.otherMoves?.length);
 			const { xp } = context.stonetop.vitals;
 			context.stonetop.canLevelUp = xp.value >= xp.max;
+			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
 			return context;
 		}
 
@@ -662,6 +669,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			super.activateListeners(html);
 
 			html.find(".stonetop-create-character-btn").on("click", () => this._onNewCharacter());
+			html.find("[data-onboarding-start]").on("click", ev => {
+				this._openEditCharacterOnboarding({ startAtStep: ev.currentTarget.dataset.onboardingStart });
+			});
 
 			html[0].addEventListener("dragover", (ev) => ev.preventDefault());
 			html[0].addEventListener("drop", async (ev) => {
@@ -864,6 +874,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-regular-pool-btn").on("change", this._onRegularPool.bind(this));
 			html.find(".stonetop-outfit-open-btn").on("click", this._onOutfitOpen.bind(this));
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
+			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
 
 			// -- Followers tab: crew interactions --------------------------
 			// Crew name (editable in edit mode on Followers tab)
@@ -1026,6 +1037,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					title:   "Add Crew Individual",
 					content,
 					buttons: {
+						cancel: { label: "Cancel" },
 						add: {
 							icon:  "<i class='fas fa-user-plus'></i>",
 							label: "Add",
@@ -1065,7 +1077,6 @@ export function createStonetopCharacterSheetClass(Base) {
 								this.render(false);
 							},
 						},
-						cancel: { label: "Cancel" },
 					},
 					default: "add",
 					render: (dlgHtml) => {
@@ -1304,7 +1315,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const resultsHtml = guide.results?.length
 				? `<div class="stonetop-homestead-reference">
 					<strong>Results</strong>
-					<ul>${guide.results.map(result => `<li>${_esc(result)}</li>`).join("")}</ul>
+					<ul>${guide.results.map(result => `<li>${_formatResultLine(result)}</li>`).join("")}</ul>
 				</div>`
 				: "";
 			const picksHtml = guide.picks?.length
@@ -1320,11 +1331,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				: "";
 
 			const buttons = {
+				cancel: { label: "Cancel" },
 				post: {
 					label: "Post",
 					callback: html => this._postGuidedCharacterMove(name, guide, html),
 				},
-				cancel: { label: "Cancel" },
 			};
 			if (rollable) {
 				buttons.roll = {
@@ -1488,6 +1499,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				title: isRegular ? game.i18n.localize("stonetop.inventory.addItem") : game.i18n.localize("stonetop.inventory.addSmallItem"),
 				content,
 				buttons: {
+					cancel: { label: game.i18n.localize("Cancel") },
 					add: {
 						label: game.i18n.localize("stonetop.inventory.addItemConfirm"),
 						callback: html => {
@@ -1503,7 +1515,6 @@ export function createStonetopCharacterSheetClass(Base) {
 							}
 						},
 					},
-					cancel: { label: game.i18n.localize("Cancel") },
 				},
 				default: "add",
 			}).render(true);
@@ -1563,6 +1574,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			).render(true);
 		}
 
+		async _onDeathsDoorOpen() {
+			if ((this.actor.system?.attributes?.hp?.value ?? 1) > 0) return;
+			new DeathsDoorDialog(
+				this._stonetopCharacter,
+				() => this.render(false),
+			).render(true);
+		}
+
 		async _onNewCharacter() {
 			const existingPlaybook = this.actor.system?.playbook?.slug;
 			const openPicker = () => {
@@ -1572,7 +1591,12 @@ export function createStonetopCharacterSheetClass(Base) {
 						async (selections) => {
 							await this._applyPlaybookSelections(playbookDoc, selections);
 						},
-						{ onBack: openPicker },
+						{
+							onBack: openPicker,
+							onSave: async (selections) => {
+								await this._saveOnboardingProgress(playbookDoc, selections);
+							},
+						},
 					).render(true);
 				}).render(true);
 			};
@@ -1581,6 +1605,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					title:   game.i18n.localize("stonetop.newCharacter.confirmTitle"),
 					content: `<p>${game.i18n.localize("stonetop.newCharacter.confirmContent")}</p>`,
 					buttons: {
+						cancel: {
+							icon:     '<i class="fas fa-times"></i>',
+							label:    "Cancel",
+						},
 						edit: {
 							icon:     '<i class="fas fa-edit"></i>',
 							label:    "Edit",
@@ -1591,10 +1619,6 @@ export function createStonetopCharacterSheetClass(Base) {
 							label:    "New",
 							callback: openPicker,
 						},
-						cancel: {
-							icon:     '<i class="fas fa-times"></i>',
-							label:    "Cancel",
-						},
 					},
 					default: "cancel",
 				}).render(true);
@@ -1603,7 +1627,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
-		async _openEditCharacterOnboarding() {
+		async _openEditCharacterOnboarding(options = {}) {
 			const playbookUuid = this.actor.system?.playbook?.uuid;
 			if (!playbookUuid) return;
 			const playbookDoc = await fromUuid(playbookUuid);
@@ -1616,7 +1640,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				async (selections) => {
 					await this._applyPlaybookSelections(playbookDoc, selections);
 				},
-				{ initialSelections: this._readSelectionsFromActor(playbookDoc) },
+				{
+					initialSelections: this._readSelectionsFromActor(playbookDoc),
+					startAtStep: options.startAtStep ?? null,
+					onSave: async (selections) => {
+						await this._saveOnboardingProgress(playbookDoc, selections);
+					},
+				},
 				// no onBack ? back button is hidden
 			).render(true);
 		}
@@ -1643,14 +1673,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				appearance:      foundry.utils.deepClone(f.appearance?.selected ?? {}),
 				originRegion:    f.origin?.selected ?? "",
 				name:            this.actor.name ?? "",
-				stats: {
-					str: sys.stats?.str?.value ?? null,
-					dex: sys.stats?.dex?.value ?? null,
-					con: sys.stats?.con?.value ?? null,
-					int: sys.stats?.int?.value ?? null,
-					wis: sys.stats?.wis?.value ?? null,
-					cha: sys.stats?.cha?.value ?? null,
-				},
+				stats: (s => Object.fromEntries(
+					["str","dex","con","int","wis","cha"].map(k => [k, k in s ? s[k] : null])
+				))(f.onboardingStats ?? {}),
 				possessions:     [...(f.possessions?.selected ?? [])],
 				moves:           [], // compendium IDs are hard to recover; player re-picks
 				invocations:     [...(f.invocations?.selected ?? [])],
@@ -1751,8 +1776,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			await stonetopSteading.setFlags({ neighbors });
 		}
 
-		async _applyPlaybookSelections(playbookDoc, selections) {
-			// Set the playbook on the actor; also set the avatar if still default.
+		async _saveOnboardingProgress(playbookDoc, selections) {
 			const slug = playbookDoc.system?.slug ?? "";
 			const updates = {
 				"system.playbook": { uuid: playbookDoc.uuid, name: playbookDoc.name, slug },
@@ -1762,36 +1786,56 @@ export function createStonetopCharacterSheetClass(Base) {
 				updates.img = icon;
 				updates["prototypeToken.texture.src"] = icon;
 			}
+			const statFlagObj = {};
+			for (const [key, value] of Object.entries(selections.stats ?? {})) {
+				if (value !== null && value !== undefined) {
+					updates[`system.stats.${key}.value`] = Number(value);
+					statFlagObj[key] = Number(value);
+				}
+			}
+			updates[`flags.${STONETOP_SCOPE}.onboardingStats`] = statFlagObj;
 			await this.actor.update(updates);
-			// Background must be saved before ensureStartingMoves reads it
+
+			if (selections.backgroundSlug) {
+				await this._stonetopCharacter.background.selectBackground(selections.backgroundSlug);
+			}
+
+			const { flagUpd } = await this._applyCommonSelections(playbookDoc, selections);
+			flagUpd[`flags.${STONETOP_SCOPE}.possessions.selected`] = [...(selections.possessions ?? [])];
+			await this.actor.update(flagUpd);
+			this.render(false);
+		}
+
+		async _applyPlaybookSelections(playbookDoc, selections) {
+			const slug = playbookDoc.system?.slug ?? "";
+			const updates = {
+				"system.playbook": { uuid: playbookDoc.uuid, name: playbookDoc.name, slug },
+			};
+			if (slug && isDefaultImg(this.actor.img)) {
+				const icon = `systems/stonetop_pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`;
+				updates.img = icon;
+				updates["prototypeToken.texture.src"] = icon;
+			}
+			const statFlagObj = {};
+			for (const [key, value] of Object.entries(selections.stats ?? {})) {
+				if (value !== null && value !== undefined) {
+					updates[`system.stats.${key}.value`] = Number(value);
+					statFlagObj[key] = Number(value);
+				}
+			}
+			updates[`flags.${STONETOP_SCOPE}.onboardingStats`] = statFlagObj;
+			await this.actor.update(updates);
+
+			// Background must be saved before ensureStartingMoves reads it.
 			if (selections.backgroundSlug) {
 				await this._stonetopCharacter.background.selectBackground(selections.backgroundSlug);
 			}
 			await this._stonetopCharacter.ensureStartingMoves();
-			// Remaining selections
-			if (selections.instinctValue) {
-				await this._stonetopCharacter.instinct.select(selections.instinctValue);
-			}
-			for (const [lineIdx, value] of Object.entries(selections.appearance ?? {})) {
-				if (value) await this._stonetopCharacter.appearance.select(Number(lineIdx), value);
-			}
-			if (selections.originRegion) {
-				await this._stonetopCharacter.origin.select(selections.originRegion);
-			}
-			if (selections.name?.trim()) {
-				await this._stonetopCharacter.updateName(selections.name.trim());
-			}
-			if (selections.stats) {
-				const statUpdates = {};
-				for (const [key, value] of Object.entries(selections.stats)) {
-					if (value !== null && value !== undefined) {
-						statUpdates[`system.stats.${key}.value`] = Number(value);
-					}
-				}
-				if (Object.keys(statUpdates).length) await this.actor.update(statUpdates);
-			}
-			// Apply special possessions: preselected are always included,
-			// plus whatever the player chose in the wizard.
+
+			const { flagUpd, selectedBackground, backgroundSetup } =
+				await this._applyCommonSelections(playbookDoc, selections);
+
+			// Apply-specific: create owned possession items, add moves, bg extras.
 			const rawPossessions = playbookDoc.flags?.stonetop?.specialPossessions;
 			if (rawPossessions) {
 				const slugsToSelect = [
@@ -1805,12 +1849,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			for (const compendiumId of (selections.moves ?? [])) {
 				await this._stonetopCharacter.addMove(compendiumId);
 			}
-			const selectedBackground = (playbookDoc.flags?.stonetop?.backgrounds ?? [])
-				.find(bg => bg.slug === selections.backgroundSlug);
 			for (const slug of (selectedBackground?.extraPossessions ?? [])) {
 				await this._stonetopCharacter.selectPossession(slug);
 			}
-			const backgroundSetup = selectedBackground?.setup ?? null;
 			for (const choice of (backgroundSetup?.choices ?? [])) {
 				const value = selections.backgroundSetup?.choices?.[choice.key];
 				if (!value) continue;
@@ -1826,48 +1867,84 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (arcanum.identify) await this._stonetopCharacter.identifyArcanum(arcanum.slug);
 				for (const box of (arcanum.boxes ?? [])) {
 					await this._stonetopCharacter.setArcanumBoxChecked(
-						arcanum.slug,
-						box.context ?? "front",
-						Number(box.index ?? 0),
-						true,
+						arcanum.slug, box.context ?? "front", Number(box.index ?? 0), true,
 					);
 				}
 			}
-			const backgroundSetupResources = {};
 			const existingSetupResources = resolvedFlagProperty(this.actor, "background.setupResources") ?? {};
+			const backgroundSetupResources = {};
 			for (const resource of (backgroundSetup?.resources ?? [])) {
 				if (!resource.key) continue;
 				backgroundSetupResources[resource.key] = existingSetupResources[resource.key] ?? resource.value ?? 0;
 			}
-			const backgroundSetupTexts = {};
-			for (const text of (backgroundSetup?.texts ?? [])) {
-				const value = selections.backgroundSetup?.texts?.[text.key]?.trim();
-				if (value) backgroundSetupTexts[text.key] = value;
+			if (Object.keys(backgroundSetupResources).length) {
+				flagUpd[`flags.${STONETOP_SCOPE}.background.setupResources`] = backgroundSetupResources;
 			}
-			const backgroundSetupChoices = {};
-			for (const choice of (backgroundSetup?.choices ?? [])) {
-				const value = selections.backgroundSetup?.choices?.[choice.key];
-				if (value) backgroundSetupChoices[choice.key] = value;
+
+			// Seeker arcana
+			const masteredMinor = selections.arcana?.minorRoles?.mastered ?? null;
+			const foundMinor    = selections.arcana?.minorRoles?.found    ?? null;
+			for (const slug of [selections.arcana?.major, masteredMinor, foundMinor].filter(Boolean)) {
+				await this._stonetopCharacter.addArcanum(slug);
+				await this._stonetopCharacter.identifyArcanum(slug);
 			}
-			const backgroundNeighborTraits = {};
-			for (const neighbor of (backgroundSetup?.neighbors ?? [])) {
-				const value = selections.backgroundSetup?.neighborTraits?.[neighbor.traitKey]?.trim();
-				if (neighbor.traitKey && value) backgroundNeighborTraits[neighbor.traitKey] = value;
-			}
-			const backgroundNeighborPicks = {};
-			for (const choice of (backgroundSetup?.neighborChoices ?? [])) {
-				const values = selections.backgroundSetup?.neighborPicks?.[choice.key] ?? [];
-				if (values.length) backgroundNeighborPicks[choice.key] = values;
-			}
-			// Batch all background-setup flag writes into a single round-trip.
-			await this._batchFlagSetOrUnset({
-				"background.setupResources":  backgroundSetupResources,
-				"background.setupChoices":    backgroundSetupChoices,
-				"background.setupTexts":      backgroundSetupTexts,
-				"background.neighborTraits":  backgroundNeighborTraits,
-				"background.neighborPicks":   backgroundNeighborPicks,
-			});
+			if (masteredMinor) await this._stonetopCharacter.flipArcanum(masteredMinor);
+
+			if (Object.keys(flagUpd).length) await this.actor.update(flagUpd);
 			await this._applyBackgroundNeighbors(backgroundSetup, selections);
+			this.render(false);
+		}
+
+		// Shared core of both save-progress and apply-final paths.
+		// Handles character-method calls (instinct, appearance, origin, name),
+		// background-setup flag writes, initiates, and lore.
+		// Returns { flagUpd, selectedBackground, backgroundSetup } for callers to extend.
+		async _applyCommonSelections(playbookDoc, selections) {
+			if (selections.instinctValue) {
+				await this._stonetopCharacter.instinct.select(selections.instinctValue);
+			}
+			for (const [lineIdx, value] of Object.entries(selections.appearance ?? {})) {
+				if (value?.trim()) await this._stonetopCharacter.appearance.select(Number(lineIdx), value.trim());
+			}
+			if (selections.originRegion) {
+				await this._stonetopCharacter.origin.select(selections.originRegion);
+			}
+			if (selections.name?.trim()) {
+				await this._stonetopCharacter.updateName(selections.name.trim());
+			}
+
+			const selectedBackground = (playbookDoc.flags?.stonetop?.backgrounds ?? [])
+				.find(bg => bg.slug === selections.backgroundSlug);
+			const backgroundSetup = selectedBackground?.setup ?? null;
+			if (selectedBackground) {
+				const backgroundSetupTexts    = {};
+				const backgroundSetupChoices  = {};
+				const backgroundNeighborTraits = {};
+				const backgroundNeighborPicks  = {};
+				for (const text of (backgroundSetup?.texts ?? [])) {
+					const value = selections.backgroundSetup?.texts?.[text.key]?.trim();
+					if (value) backgroundSetupTexts[text.key] = value;
+				}
+				for (const choice of (backgroundSetup?.choices ?? [])) {
+					const value = selections.backgroundSetup?.choices?.[choice.key];
+					if (value) backgroundSetupChoices[choice.key] = value;
+				}
+				for (const neighbor of (backgroundSetup?.neighbors ?? [])) {
+					const value = selections.backgroundSetup?.neighborTraits?.[neighbor.traitKey]?.trim();
+					if (neighbor.traitKey && value) backgroundNeighborTraits[neighbor.traitKey] = value;
+				}
+				for (const choice of (backgroundSetup?.neighborChoices ?? [])) {
+					const values = selections.backgroundSetup?.neighborPicks?.[choice.key] ?? [];
+					if (values.length) backgroundNeighborPicks[choice.key] = values;
+				}
+				await this._batchFlagSetOrUnset({
+					"background.setupChoices":   backgroundSetupChoices,
+					"background.setupTexts":     backgroundSetupTexts,
+					"background.neighborTraits": backgroundNeighborTraits,
+					"background.neighborPicks":  backgroundNeighborPicks,
+				});
+			}
+
 			const backgroundAnswers = {};
 			for (const choice of (selectedBackground?.moveChoices ?? [])) {
 				const key = choice.move ?? choice.slug ?? choice.label ?? "";
@@ -1875,56 +1952,31 @@ export function createStonetopCharacterSheetClass(Base) {
 				const answer = selections.backgroundChoices?.[key];
 				if (answer?.value) backgroundAnswers[key] = answer;
 			}
-			// -- Insert: Initiates of Danu (Blessed + Initiate bg) --
+
 			for (const slug of (selections.initiates ?? [])) {
 				await this._stonetopCharacter.background.addChoice({ slug, isChecked: true });
 			}
-			// -- Insert: Seeker arcana -------------------------------
-			const masteredMinor = selections.arcana?.minorRoles?.mastered ?? null;
-			const foundMinor = selections.arcana?.minorRoles?.found ?? null;
-			const selectedArcana = [
-				selections.arcana?.major,
-				masteredMinor,
-				foundMinor,
-			].filter(Boolean);
-			for (const slug of selectedArcana) {
-				await this._stonetopCharacter.addArcanum(slug);
-				await this._stonetopCharacter.identifyArcanum(slug);
+			for (const [key, count] of Object.entries(selections.lore?.picks ?? {})) {
+				const [sectionSlug, optionSlug] = key.split(":");
+				if (count > 0) await this._stonetopCharacter.setLoreOptionCount(sectionSlug, optionSlug, count);
 			}
-			if (masteredMinor) {
-				await this._stonetopCharacter.flipArcanum(masteredMinor);
+			for (const [key, value] of Object.entries(selections.lore?.texts ?? {})) {
+				const [sectionSlug, optionSlug] = key.split(":");
+				if (value?.trim()) await this._stonetopCharacter.setLoreOptionText(sectionSlug, optionSlug, value.trim());
 			}
-			// -- Lore (character history picks & text answers) -------
-			if (selections.lore) {
-				for (const [key, count] of Object.entries(selections.lore.picks ?? {})) {
-					if (count > 0) {
-						const [sectionSlug, optionSlug] = key.split(":");
-						await this._stonetopCharacter.setLoreOptionCount(sectionSlug, optionSlug, count);
-					}
-				}
-				for (const [key, value] of Object.entries(selections.lore.texts ?? {})) {
-					if (value?.trim()) {
-						const [sectionSlug, optionSlug] = key.split(":");
-						await this._stonetopCharacter.setLoreOptionText(sectionSlug, optionSlug, value.trim());
-					}
-				}
-			}
-			// Batch remaining flag writes (answers, invocations, crew, companion, arcana) into one round-trip.
+
 			const flagUpd = {};
 			const f = key => `flags.${STONETOP_SCOPE}.${key}`;
-			if (Object.keys(backgroundAnswers).length)             flagUpd[f("moves.backgroundAnswers")]    = backgroundAnswers;
-			if (selections.invocations?.length)                    flagUpd[f("invocations.selected")]       = selections.invocations;
+			if (Object.keys(backgroundAnswers).length)                flagUpd[f("moves.backgroundAnswers")] = backgroundAnswers;
+			if (selections.invocations?.length)                       flagUpd[f("invocations.selected")]    = selections.invocations;
 			if (Object.keys(selections.initiateDetails ?? {}).length) flagUpd[f("initiateDetails")]         = selections.initiateDetails;
-			// -- Insert: Crew (Marshal) ------------------------------
 			if (selections.crew?.instinct || selections.crew?.cost || selections.crew?.tags?.length || selections.crew?.name) {
-				const bgTag  = playbookDoc.flags?.[ITEM_FLAG_SCOPE]?.crew?.backgroundTags?.[selections.backgroundSlug] ?? null;
-				const allTags = bgTag ? [bgTag, ...selections.crew.tags] : [...selections.crew.tags];
+				const bgTag = playbookDoc.flags?.[ITEM_FLAG_SCOPE]?.crew?.backgroundTags?.[selections.backgroundSlug] ?? null;
 				flagUpd[f("crew.name")]     = selections.crew.name?.trim() ?? "";
-				flagUpd[f("crew.tags")]     = allTags;
+				flagUpd[f("crew.tags")]     = bgTag ? [bgTag, ...selections.crew.tags] : [...selections.crew.tags];
 				flagUpd[f("crew.instinct")] = selections.crew.instinct ?? "";
 				flagUpd[f("crew.cost")]     = selections.crew.cost     ?? "";
 			}
-			// -- Insert: Animal Companion (Ranger) ------------------
 			if (selections.animalCompanion?.type) {
 				const ac = selections.animalCompanion;
 				flagUpd[f("animalCompanion.type")]     = ac.type;
@@ -1933,12 +1985,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				flagUpd[f("animalCompanion.cost")]     = ac.cost     ?? "";
 				if (ac.name?.trim()) flagUpd[f("animalCompanion.name")] = ac.name.trim();
 			}
-			// -- Seeker: arcana selections -----------------------------
-			if (selections.arcana?.major)             flagUpd[f("arcana.major")]      = selections.arcana.major;
-			if (selections.arcana?.minorDraw?.length)  flagUpd[f("arcana.minorDraw")]  = selections.arcana.minorDraw;
-			if (selections.arcana?.minorRoles)         flagUpd[f("arcana.minorRoles")] = selections.arcana.minorRoles;
-			if (Object.keys(flagUpd).length) await this.actor.update(flagUpd);
-			this.render(false);
+			if (selections.arcana?.major)            flagUpd[f("arcana.major")]      = selections.arcana.major;
+			if (selections.arcana?.minorDraw?.length) flagUpd[f("arcana.minorDraw")] = selections.arcana.minorDraw;
+			if (selections.arcana?.minorRoles)        flagUpd[f("arcana.minorRoles")] = selections.arcana.minorRoles;
+
+			return { flagUpd, selectedBackground, backgroundSetup };
 		}
 
 		// Builds a single actor.update() from a {flagKey: valueObj} map.

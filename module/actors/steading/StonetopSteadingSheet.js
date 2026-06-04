@@ -128,6 +128,10 @@ const STEADING_MOVES = [..._STEADING_MOVES_RAW].sort((a, b) => a.label.localeCom
 const DIMINISHED_MOVES = new Set(["Deploy", "Muster", "Pull Together"]);
 const _esc = escHtml;
 
+function _formatResultLine(text) {
+	return _esc(text).replace(/^(7\+|10\+|7-9|6-):/, "<strong>$1:</strong>");
+}
+
 const HOMESTEAD_MOVE_FLOWS = {
 	pullTogether: {
 		label: "Pull Together",
@@ -628,6 +632,36 @@ export function createStonetopSteadingSheetClass(Base) {
 				const { slug, index } = cb.dataset;
 				this._onImprovementReq(slug, parseInt(index), cb.checked);
 			}, true);
+
+			// Drag-and-drop for adding neighbors
+			const neighborsSection = html[0].querySelector(".steading-neighbors-section");
+			if (neighborsSection) {
+				neighborsSection.addEventListener("dragover", (ev) => {
+					ev.preventDefault();
+					ev.stopPropagation();
+					ev.dataTransfer.dropEffect = "copy";
+					neighborsSection.classList.add("drag-over");
+				}, true);
+
+				neighborsSection.addEventListener("dragleave", (ev) => {
+					ev.preventDefault();
+					ev.stopPropagation();
+					neighborsSection.classList.remove("drag-over");
+				}, true);
+
+				neighborsSection.addEventListener("drop", async (ev) => {
+					ev.preventDefault();
+					ev.stopPropagation();
+					neighborsSection.classList.remove("drag-over");
+					const data = TextEditor.getDragEventData(ev);
+					if (data?.type === "Actor" && data.uuid) {
+						const actor = await fromUuid(data.uuid);
+						if (actor && actor.type === "character") {
+							await this._onDropCharacterNeighbor(actor);
+						}
+					}
+				}, true);
+			}
 		}
 
 		_onHomesteadMove(moveSlug) {
@@ -676,7 +710,7 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			const resultsHtml = `<div class="stonetop-homestead-reference">
 				<strong>Results</strong>
-				<ul>${flow.results.map(item => `<li>${_esc(item)}</li>`).join("")}</ul>
+				<ul>${flow.results.map(item => `<li>${_formatResultLine(item)}</li>`).join("")}</ul>
 			</div>`;
 
 			const dialog = new Dialog({
@@ -690,6 +724,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					<p class="stonetop-homestead-note">${_esc(flow.note)}</p>
 				</form>`,
 				buttons: {
+					cancel: { label: "Cancel" },
 					post: {
 						label: "Post",
 						callback: html => this._postHomesteadMoveSummary(flow, html),
@@ -702,7 +737,6 @@ export function createStonetopSteadingSheetClass(Base) {
 							await this._onSteadingRoll(flow.label, flow.stat, this._homesteadRollOptions(flow, html));
 						},
 					},
-					cancel: { label: "Cancel" },
 				},
 				default: "roll",
 				render: (html) => {
@@ -775,6 +809,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						<p>Fortunes: <strong>${_signedNum(fortunes)}</strong> → <strong>${_signedNum(newFortunes)}</strong></p>
 					</div>`,
 					buttons: {
+						cancel: { label: "Cancel" },
 						apply: {
 							label: "Apply",
 							callback: async () => {
@@ -782,7 +817,6 @@ export function createStonetopSteadingSheetClass(Base) {
 								this.render(false);
 							},
 						},
-						cancel: { label: "Cancel" },
 					},
 					default: "apply",
 				}).render(true);
@@ -882,9 +916,9 @@ export function createStonetopSteadingSheetClass(Base) {
 					<div class="stonetop-homestead-reference">
 						<strong>Results</strong>
 						<ul>
-							<li>10+: go ahead, but bring it back safely.</li>
-							<li>7-9: you will need to do some convincing.</li>
-							<li>6-: do not mark XP; you can take the asset, but if you do, reduce Fortunes by 1.</li>
+							<li><strong>10+:</strong> go ahead, but bring it back safely.</li>
+							<li><strong>7-9:</strong> you will need to do some convincing.</li>
+							<li><strong>6-:</strong> do not mark XP; you can take the asset, but if you do, reduce Fortunes by 1.</li>
 						</ul>
 					</div>
 					<div class="stonetop-season-actions">
@@ -894,6 +928,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					</div>
 				</form>`,
 				buttons: {
+					cancel: { label: "Cancel" },
 					post: {
 						label: "Post",
 						callback: html => this._postHomesteadMoveSummary(requisitionFlow, html),
@@ -905,7 +940,6 @@ export function createStonetopSteadingSheetClass(Base) {
 							await this._onSteadingRoll("Requisition", "fortunes");
 						},
 					},
-					cancel: { label: "Cancel" },
 				},
 				default: "roll",
 				render: (html) => {
@@ -1270,6 +1304,35 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!neighbors[index]) neighbors[index] = { name: "", origin: "", trait: "", checked: false };
 			neighbors[index][field] = value;
 			await this._stonetopSteading.setFlags({ neighbors });
+		}
+
+		async _onDropCharacterNeighbor(actor) {
+			const f = this._stonetopSteading._flags;
+			const neighbors = foundry.utils.deepClone(f.neighbors ?? STEADING_DEFAULTS.neighbors);
+			
+			// Check if this character is already a neighbor
+			const existingIdx = neighbors.findIndex(n => 
+				n.name?.toLowerCase().trim() === actor.name?.toLowerCase().trim()
+			);
+			
+			if (existingIdx >= 0) {
+				// Character already exists, just highlight/focus it
+				ui.notifications?.info?.(`${actor.name} is already in the neighbors list.`);
+				this.render(false);
+				return;
+			}
+			
+			// Add character as a new neighbor
+			neighbors.push({
+				name: actor.name,
+				origin: "",
+				trait: "",
+				checked: true,
+			});
+			
+			await this._stonetopSteading.setFlags({ neighbors });
+			this.render(false);
+			ui.notifications?.info?.(`Added ${actor.name} to neighbors.`);
 		}
 
 		async _onNotesChange(value) {

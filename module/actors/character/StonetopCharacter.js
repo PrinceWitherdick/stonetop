@@ -431,16 +431,18 @@ export class StonetopCharacter {
 		const usesMap = this._possessions.uses;
 		const preselectedSet = new Set(preselected);
 
+		let chosenCount = 0;
 		const items = options.map(opt => {
 			const isPre = preselectedSet.has(opt.slug);
 			const isSelected = isPre || selectedSlugs.has(opt.slug);
+			if (isSelected && !isPre) chosenCount++;
 			const maxUses = maxUsesMap[opt.slug] ?? opt.resource?.max ?? null;
 			const currentUses = isSelected ? (usesMap[opt.slug] ?? 0) : 0;
 			const resourceDef = opt.resource ?? null;
 			const resource = resourceDef ? new ResourceBuilder()
 				.withCurrent(currentUses)
 				.withMax(maxUses ?? resourceDef.max)
-				.withTitle(resourceDef.title ?? null)
+				.withTitle(null)
 				.withLabels(resourceDef.labels ?? [])
 				.build() : null;
 			return new PossessionItemSnapshotBuilder()
@@ -459,7 +461,8 @@ export class StonetopCharacter {
 				.build();
 		});
 
-		return new PossessionsSnapshot(pickCount, pickNote, items);
+		const isIncomplete = pickCount > 0 && chosenCount < pickCount;
+		return new PossessionsSnapshot(pickCount, pickNote, items, isIncomplete);
 	}
 
 	async buildInventoryContext() {
@@ -1264,16 +1267,27 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 	const postDeathGroup = postDeathCat && pdiLabel
 		? { label: pdiLabel, moves: postDeathCat.moves }
 		: null;
+	const startingNote = playbookCat?.note ?? null;
+	const pickCount    = parseMovePickCount(startingNote);
+	const chosenCount    = (playbookCat?.moves ?? []).filter(m => m.sourceLabel === "Starting move" && m.owned).length;
+	const movesIncomplete = pickCount > 0 && chosenCount < pickCount;
+
 	return new MovelistBuilder()
 		.withPlaybookMoves(playbookCat?.moves ?? [])
 		.withBasicMoves(basicCat?.moves ?? [])
 		.withOtherGroups(otherCats.map(cat => new MoveGroupSnapshot(cat.key, cat.title, cat.moves)))
 		.withOtherMoves(other)
-		.withStartingMovesNote(playbookCat?.note ?? null)
+		.withStartingMovesNote(startingNote)
 		.withPostDeathGroup(postDeathGroup)
+		.withMovesIncomplete(movesIncomplete)
 		.build();
 }
 
+
+export function parseMovePickCount(note) {
+	const m = (note ?? "").match(/\b(\d+)\s+(?:more\s+|other\s+)?(?:move[s]?\s+)?of\s+your\s+choice/i);
+	return m ? parseInt(m[1], 10) : 0;
+}
 
 function _segmentByTwoCol(items) {
 	const segments = [];
