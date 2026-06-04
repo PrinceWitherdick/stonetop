@@ -4,7 +4,7 @@ import { parseMovePickCount } from "../StonetopCharacter.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
-const TRAIT_GLOSSARY = {
+export const ANIMAL_COMPANION_TRAIT_GLOSSARY = {
 	"agile":           "Acts with grace and nimbleness; can slip through tight spaces and dodge with ease.",
 	"adorable":        "Disarmingly cute; people are more likely to be charmed than threatened.",
 	"aggressive":      "Attacks first, asks questions later; prone to charging into danger.",
@@ -53,7 +53,7 @@ export class CharacterOnboardingDialog extends Application {
 		this._onBack             = onBack ?? null;
 		this._onSave             = onSave ?? null;
 		// Pre-seed cache with glossary so getData() and _lookupWord share one lookup path.
-		this._wordCache = new Map(Object.entries(TRAIT_GLOSSARY));
+		this._wordCache = new Map(Object.entries(ANIMAL_COMPANION_TRAIT_GLOSSARY));
 		this._hoveredAnchor      = null;
 
 		const f = playbookDoc.flags?.stonetop ?? {};
@@ -90,7 +90,7 @@ export class CharacterOnboardingDialog extends Application {
 			initiates:       [],
 			initiateDetails: {},
 			crew:            { name: "", tags: [], instinct: "", cost: "" },
-			animalCompanion: { type: "", traits: [], name: "", instinct: "", cost: "" },
+			animalCompanion: { type: "", kind: "", traits: [], name: "", instinct: "", cost: "" },
 			lore:            { picks: {}, texts: {} },
 			arcana:          { major: "", minorDraw: [], minorRoles: { mastered: "", found: "", lead: "" } },
 			backgroundChoices: {},
@@ -428,11 +428,18 @@ export class CharacterOnboardingDialog extends Application {
 		this._drawSeekerMinorArcana(minorOptions);
 	}
 
-	_loreSectionData(section) {
+	_loreSectionData(section, index = this._rawLore.indexOf(section)) {
 		const opts          = section.options ?? [];
 		const isTextSection = opts.length > 0 && opts.every(o => o.type === "text");
 		const isPickSection = opts.length > 0 && !isTextSection;
 		const { picks, texts } = this._selections.lore;
+		const previousSection = index > 0 ? this._rawLore[index - 1] : null;
+		const previousSelectedOptions = isTextSection && previousSection
+			? (previousSection.options ?? [])
+				.filter(opt => (picks[`${previousSection.slug}:${opt.slug}`] ?? 0) > 0)
+				.map(opt => this._normalizeOnboardingText(opt.description ?? ""))
+				.filter(Boolean)
+			: [];
 		const pickMax      = isPickSection ? this._parseLorePickMax(section) : Infinity;
 		const selectedPickCount = isPickSection ? this._countLoreSectionPicks(section.slug) : 0;
 		const atLimit      = pickMax < Infinity && selectedPickCount >= pickMax;
@@ -440,6 +447,8 @@ export class CharacterOnboardingDialog extends Application {
 			sectionSlug:        section.slug,
 			title:              this._normalizeOnboardingText(section.title ?? ""),
 			description:        this._normalizeOnboardingText(section.description ?? ""),
+			contextTitle:        previousSelectedOptions.length ? this._normalizeOnboardingText(previousSection.title ?? "") : "",
+			contextAnswers:      previousSelectedOptions,
 			isPickSection,
 			isTextSection,
 			hasOptions:         opts.length > 0,
@@ -480,6 +489,15 @@ export class CharacterOnboardingDialog extends Application {
 			? p.textContent
 			: (div.textContent.split(/\n+/).find(l => l.trim()) ?? div.textContent);
 		return this._normalizeOnboardingText(raw.trim());
+	}
+
+	_animalCompanionKindOptions(typeData) {
+		const examples = this._normalizeOnboardingText(typeData?.examples ?? "")
+			.replace(/[.…]+$/g, "");
+		return examples
+			.split(",")
+			.map(value => value.trim())
+			.filter(Boolean);
 	}
 
 	async _loadArcanaOptions() {
@@ -621,6 +639,7 @@ export class CharacterOnboardingDialog extends Application {
 				if (!ac.type) return false;
 				const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === ac.type);
 				return !!typeData &&
+				       !!ac.kind?.trim() &&
 				       ac.traits.length >= typeData.pickCount &&
 				       !!ac.instinct && !!ac.cost;
 			}
@@ -1025,7 +1044,7 @@ export class CharacterOnboardingDialog extends Application {
 		if (loreMatch) {
 			const idx     = parseInt(loreMatch[1]);
 			const section = this._rawLore[idx];
-			if (section) loreSectionData = this._loreSectionData(section);
+			if (section) loreSectionData = this._loreSectionData(section, idx);
 		}
 
 		if (stepType === "seekerArcana" || stepType === "seekerArcanaMinor") {
@@ -1047,6 +1066,8 @@ export class CharacterOnboardingDialog extends Application {
 			const selType     = this._selections.animalCompanion.type;
 			const typeData    = raw.types?.find(t => t.slug === selType) ?? null;
 			const chosenTraits = new Set(this._selections.animalCompanion.traits);
+			const kind = this._selections.animalCompanion.kind;
+			const kindOptionValues = this._animalCompanionKindOptions(typeData);
 			const traitAtLimit = chosenTraits.size >= (typeData?.pickCount ?? 0);
 			acData = {
 				types: (raw.types ?? []).map(t => ({
@@ -1060,6 +1081,11 @@ export class CharacterOnboardingDialog extends Application {
 					hp:            typeData.hp,
 					armor:         typeData.armor,
 					damage:        typeData.damage,
+					kind,
+					customKind:    kindOptionValues.includes(kind) ? "" : kind,
+					isCustomKind:  !!kind && !kindOptionValues.includes(kind),
+					kindOptions:   kindOptionValues
+						.map(value => ({ value, selected: kind === value })),
 					pickCount:     typeData.pickCount,
 					selectedCount: chosenTraits.size,
 					traits: (typeData.traits ?? []).map(trait => ({
@@ -1611,7 +1637,30 @@ export class CharacterOnboardingDialog extends Application {
 		html.find("[name='onboard-ac-type']").on("change", ev => {
 			this._selections.animalCompanion.type   = ev.currentTarget.value;
 			this._selections.animalCompanion.traits = []; // reset traits on type change
+			this._selections.animalCompanion.kind   = "";
 			this.render(false);
+		});
+		const _refreshAnimalCompanionKind = () => {
+			html.find(".stonetop-onboarding-ac-kind-options .stonetop-onboarding-appearance-option")
+				.removeClass("is-selected");
+			html.find("[name='onboard-ac-kind']:checked")
+				.closest(".stonetop-onboarding-appearance-option")
+				.addClass("is-selected");
+		};
+		html.find("[name='onboard-ac-kind']").on("change", ev => {
+			const value = ev.currentTarget.value;
+			this._selections.animalCompanion.kind = value === "custom"
+				? html.find(".onboard-ac-kind-custom-input").val().trim()
+				: value;
+			_refreshAnimalCompanionKind();
+			_refreshNextButton();
+		});
+		html.find(".onboard-ac-kind-custom-input").on("input", ev => {
+			const value = ev.currentTarget.value.trim();
+			this._selections.animalCompanion.kind = value;
+			html.find("[name='onboard-ac-kind'][value='custom']").prop("checked", true);
+			_refreshAnimalCompanionKind();
+			_refreshNextButton();
 		});
 		html.find("[name='onboard-ac-trait']").on("change", ev => {
 			const trait   = ev.currentTarget.value;
@@ -1740,29 +1789,42 @@ export class CharacterOnboardingDialog extends Application {
 			.on("mouseleave", () => this._removeArcanaPreview());
 
 		// ── Bold-word hover tooltips ───────────────────────────────────
-		// Only add the class if we haven't already confirmed this word has no result.
-		html.find(".stonetop-onboarding-card-desc strong").each((_, el) => {
-			const key = el.textContent.trim().toLowerCase();
-			if (this._wordCache.get(key) === null) return;
+		const bindWordTooltip = (el) => {
+			if (el.dataset.tooltipBound) return;
+			el.dataset.tooltipBound = "1";
 			el.classList.add("stonetop-onboarding-lookup");
-		});
-		html.find(".stonetop-onboarding-lookup")
-			.on("mouseenter", async ev => {
+			el.addEventListener("mouseenter", async ev => {
 				const anchor = ev.currentTarget;
 				this._hoveredAnchor = anchor;
 				const text = anchor.textContent.trim();
 				const description = await this._lookupWord(text);
 				if (this._hoveredAnchor !== anchor) return;
-				if (description) {
-					this._showWordTooltip(anchor, text, description);
-				} else {
-					anchor.classList.remove("stonetop-onboarding-lookup");
-				}
-			})
-			.on("mouseleave", () => {
+				if (description) this._showWordTooltip(anchor, text, description);
+			});
+			el.addEventListener("mouseleave", () => {
 				this._hoveredAnchor = null;
 				this._removeTooltip();
 			});
+		};
+
+		html.find(".stonetop-onboarding-lookup").each((_, el) => bindWordTooltip(el));
+
+		const pendingLookups = [];
+		html.find(".stonetop-onboarding-card-desc strong").each((_, el) => {
+			const text = el.textContent.trim();
+			const key = text.toLowerCase();
+			const cached = this._wordCache.get(key);
+			if (cached) {
+				bindWordTooltip(el);
+			} else if (cached !== null) {
+				pendingLookups.push([el, text]);
+			}
+		});
+
+		void Promise.all(pendingLookups.map(async ([el, text]) => {
+			const description = await this._lookupWord(text);
+			if (description && el.isConnected) bindWordTooltip(el);
+		}));
 
 		_refreshNextButton();
 	}

@@ -511,6 +511,8 @@ input.stonetop-name-field {
 .stonetop-name-called-box input.stonetop-name-field {
 	border: none;
 	background: transparent;
+	field-sizing: content;
+	height: 1.2em;
 }
 
 .pbta.sheet .cell__counter>span {
@@ -1387,6 +1389,16 @@ input.stonetop-name-field {
 
 /* ── Chat card tweaks ───────────────────────────────────────────────────────── */
 
+#chat .message .stonetop-roll-card-description {
+	font-size: var(--font-size-12);
+	color: #333;
+	padding: 6px 8px;
+	border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+#chat .message .stonetop-roll-card-description p { margin: 0 0 4px; }
+#chat .message .stonetop-roll-card-description p:last-child { margin-bottom: 0; }
+
 #chat .message:has(.stonetop-roll-card) {
 	background: #fff url(/systems/stonetop_pwd/assets/graphics/concrete-seamless.webp);
 	font-family: "Roboto", sans-serif;
@@ -1571,6 +1583,15 @@ input.stonetop-name-field {
 
 .stonetop-item-description p {
 	margin: 0 0 2px;
+}
+
+.stonetop-move-ref {
+	cursor: help;
+	border-bottom: 1px dotted currentColor;
+}
+
+.stonetop-move-ref:hover {
+	background: rgba(255, 247, 214, 0.5);
 }
 
 .stonetop-move-note {
@@ -5514,7 +5535,8 @@ input.stonetop-name-field {
 }
 
 .stonetop-onboarding-footer-back {
-	flex: 0 0 auto;
+	flex: 1 1 0;
+	min-width: 0;
 }
 
 .stonetop-onboarding-footer-spacer {
@@ -5533,13 +5555,18 @@ input.stonetop-name-field {
 }
 
 .stonetop-onboarding-footer-right {
-	margin-left: auto;
+	flex: 1 1 0;
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
 	gap: 6px;
 	min-width: 0;
-	max-width: calc(50% - 56px);
+}
+
+.stonetop-onboarding-footer-right::before {
+	content: "";
+	flex: 1 1 16px;
+	min-width: 16px;
 }
 
 .stonetop-onboarding-back,
@@ -5556,7 +5583,8 @@ input.stonetop-name-field {
 	color: slategrey;
 	transition: background 0.15s;
 	white-space: nowrap;
-	flex-shrink: 0;
+	flex: 0 1 auto;
+	min-width: 0;
 }
 
 .stonetop-onboarding-back:hover,
@@ -5582,7 +5610,8 @@ input.stonetop-name-field {
 	color: #c0392b;
 	transition: background 0.15s;
 	white-space: nowrap;
-	flex-shrink: 0;
+	flex: 0 1 auto;
+	min-width: 0;
 }
 
 .stonetop-onboarding-skip:hover { background: rgba(192,57,43,0.08); }
@@ -5888,6 +5917,34 @@ input.stonetop-name-field {
 .stonetop-onboarding-ac-type-stats { font-size: 0.85em; color: slategrey; margin-top: 2px; }
 .stonetop-onboarding-ac-type-examples { font-size: 0.81em; color: #aaa; font-style: italic; }
 
+.stonetop-onboarding-ac-kind-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+}
+
+.stonetop-onboarding-ac-kind-custom {
+	border-radius: 4px;
+	padding: 2px 6px;
+}
+
+.stonetop-onboarding-ac-kind-custom input[type="text"] {
+	width: 130px;
+	min-width: 0;
+	border: none;
+	background: transparent;
+	font: inherit;
+	color: inherit;
+	outline: none;
+}
+
+.stonetop-onboarding-ac-kind-custom input[type="text"]::placeholder {
+	color: var(--color-text-dark-secondary, #777);
+	font-style: italic;
+	font-weight: 400;
+}
+
 /* Lore (character history) step */
 .stonetop-onboarding-lore-desc {
 	font-size: 0.88em;
@@ -5897,6 +5954,29 @@ input.stonetop-name-field {
 }
 
 .stonetop-onboarding-lore-desc p { margin: 2px 0; }
+
+.stonetop-onboarding-lore-context {
+	margin: 0 0 12px;
+	padding: 8px 10px;
+	border-left: 3px solid slategrey;
+	background: rgba(112,128,144,0.08);
+	color: #1f2937;
+	font-size: 0.88em;
+	line-height: 1.4;
+}
+
+.stonetop-onboarding-lore-context-label {
+	margin-bottom: 3px;
+	color: #64748b;
+	font-size: 0.78em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.stonetop-onboarding-lore-context-answer {
+	font-weight: 600;
+}
 
 .stonetop-onboarding-combined-lore {
 	display: flex;
@@ -6480,6 +6560,10 @@ input.stonetop-name-field {
 	max-width: 660px;
 }
 
+.stonetop-follower-card--rules {
+	max-width: 660px;
+}
+
 .stonetop-follower-header {
 	display: flex;
 	align-items: flex-start;
@@ -6574,6 +6658,10 @@ input.stonetop-name-field {
 	color: #333;
 }
 
+.stonetop-follower-tag--tooltip {
+	cursor: help;
+}
+
 .stonetop-follower-tag--trait {
 	background: hsl(40 30% 92%);
 	border-color: rgba(160,130,80,0.3);
@@ -6614,7 +6702,7 @@ input.stonetop-name-field {
 
 span.stonetop-loyalty-pip { cursor: default; }
 
-.stonetop-follower-loyalty { color: #999; letter-spacing: 2px; }
+.stonetop-follower-loyalty { display: none; }
 
 /* Crew sections (inventory, individuals, rules) */
 .stonetop-follower-section {
@@ -6801,7 +6889,31 @@ span.stonetop-loyalty-pip { cursor: default; }
 .stonetop-create-individual-btn { margin-top: 6px; }
 
 /* Follower rules (collapsible <details>) */
-.stonetop-follower-rules { display: flex; flex-direction: column; gap: 4px; }
+.stonetop-follower-rules-header {
+	padding: 10px 12px 8px;
+	background: hsl(210 12% 94%);
+	border-bottom: 1px solid #ddd;
+}
+
+.stonetop-follower-rules-title {
+	margin: 0;
+	border-bottom: none;
+	color: #333;
+	font-size: 1em;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.stonetop-follower-rules-title::after {
+	display: none;
+}
+
+.stonetop-follower-rules {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 10px 12px 12px;
+}
 
 .stonetop-follower-rule {
 	border: 1px solid #eee;

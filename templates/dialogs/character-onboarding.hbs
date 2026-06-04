@@ -520,6 +520,24 @@
 
 		{{#if acData.selectedType}}
 		<div class="stonetop-onboarding-insert-section">
+			<p class="stonetop-onboarding-insert-section-label">Kind</p>
+			<div class="stonetop-onboarding-ac-kind-options">
+				{{#each acData.selectedType.kindOptions}}
+				<label class="stonetop-onboarding-appearance-option{{#if selected}} is-selected{{/if}}">
+					<input type="radio" name="onboard-ac-kind" value="{{value}}" {{#if selected}}checked{{/if}}>
+					<span>{{value}}</span>
+				</label>
+				{{/each}}
+				<label class="stonetop-onboarding-appearance-option stonetop-onboarding-ac-kind-custom{{#if acData.selectedType.isCustomKind}} is-selected{{/if}}">
+					<input type="radio" name="onboard-ac-kind" value="custom" {{#if acData.selectedType.isCustomKind}}checked{{/if}}>
+					<input type="text" class="onboard-ac-kind-custom-input"
+					       value="{{acData.selectedType.customKind}}"
+					       placeholder="Other kind...">
+				</label>
+			</div>
+		</div>
+
+		<div class="stonetop-onboarding-insert-section">
 			<p class="stonetop-onboarding-insert-section-label">
 				Traits — pick {{acData.selectedType.pickCount}} &nbsp;
 				<span class="stonetop-onboarding-insert-counter">
@@ -699,6 +717,16 @@
 		<h3 class="stonetop-onboarding-step-title">{{loreSectionData.title}}</h3>
 		{{#if loreSectionData.description}}
 		<div class="stonetop-onboarding-lore-desc">{{{loreSectionData.description}}}</div>
+		{{/if}}
+		{{#if loreSectionData.contextAnswers}}
+		<div class="stonetop-onboarding-lore-context">
+			{{#if loreSectionData.contextTitle}}
+			<div class="stonetop-onboarding-lore-context-label">{{loreSectionData.contextTitle}}</div>
+			{{/if}}
+			{{#each loreSectionData.contextAnswers}}
+			<div class="stonetop-onboarding-lore-context-answer">{{{this}}}</div>
+			{{/each}}
+		</div>
 		{{/if}}
 
 		{{#if loreSectionData.isPickSection}}

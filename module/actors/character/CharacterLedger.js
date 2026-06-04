@@ -169,6 +169,7 @@ async function buildNameLookup(actor) {
 		followerFields: new Map([
 			["cost", "cost"],
 			["instinct", "instinct"],
+			["kind", "kind"],
 			["loyalty", "loyalty"],
 			["name", "name"],
 			["supplies", "supplies"],
@@ -223,6 +224,8 @@ async function buildNameLookup(actor) {
 		}
 		const companionName = getActorProperty(actor, `flags.${LEDGER_SCOPE}.animalCompanion.name`);
 		if (companionName) names.followers.set("animalCompanion", companionName);
+		const companionKind = getActorProperty(actor, `flags.${LEDGER_SCOPE}.animalCompanion.kind`);
+		if (!names.followers.has("animalCompanion") && companionKind) names.followers.set("animalCompanion", companionKind);
 		const companionType = getActorProperty(actor, `flags.${LEDGER_SCOPE}.animalCompanion.type`);
 		const companionTypeLabel = (playbookFlags?.animalCompanion?.types ?? []).find(type => type.slug === companionType)?.label;
 		if (!names.followers.has("animalCompanion")) addFollower("animalCompanion", companionTypeLabel ?? "Animal companion");

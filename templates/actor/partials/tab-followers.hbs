@@ -8,7 +8,7 @@
 		<div class="stonetop-follower-header">
 			<div class="stonetop-follower-title">
 				<span class="stonetop-follower-name">{{#if name}}{{name}}{{else}}Animal Companion{{/if}}</span>
-				<span class="stonetop-follower-type">{{type}}</span>
+				<span class="stonetop-follower-type">{{#if kind}}{{kindDisplay}} ({{typeDisplay}}){{else}}{{type}}{{/if}}</span>
 			</div>
 			<div class="stonetop-follower-stats">
 				<span class="stonetop-follower-stat"><strong>HP</strong> {{hp}}</span>
@@ -20,7 +20,10 @@
 		<div class="stonetop-follower-row">
 			<span class="stonetop-follower-row-label">Traits</span>
 			<div class="stonetop-follower-tags">
-				{{#each traits}}<span class="stonetop-follower-tag">{{this}}</span>{{/each}}
+				{{#each traits}}
+				<span class="stonetop-follower-tag{{#if tooltip}} stonetop-follower-tag--tooltip{{/if}}"
+				      {{#if tooltip}}data-tooltip="{{tooltip}}" data-tooltip-direction="UP"{{/if}}>{{label}}</span>
+				{{/each}}
 			</div>
 		</div>
 		{{/if}}
@@ -38,6 +41,17 @@
 		{{/if}}
 		<div class="stonetop-follower-row stonetop-follower-loyalty-row">
 			<span class="stonetop-follower-row-label">Loyalty</span>
+			<div class="stonetop-loyalty-pips">
+				{{#each loyalty}}
+				{{#if @root.stonetop.editMode}}
+				<button type="button"
+				        class="stonetop-loyalty-pip stonetop-animal-companion-loyalty-pip{{#if filled}} is-filled{{/if}}"
+				        data-index="{{index}}"></button>
+				{{else}}
+				<span class="stonetop-loyalty-pip stonetop-animal-companion-loyalty-pip{{#if filled}} is-filled{{/if}}"></span>
+				{{/if}}
+				{{/each}}
+			</div>
 			<span class="stonetop-follower-loyalty">○○○</span>
 		</div>
 	</div>
@@ -184,23 +198,6 @@
 			{{/if}}
 		</div>
 
-		{{!-- Follower rules (collapsible) --}}
-		<div class="stonetop-follower-section stonetop-follower-rules">
-			<details class="stonetop-follower-rule">
-				<summary>Order Followers</summary>
-				<p>When you <strong><em>direct them to make a move and they do so</em></strong>, roll +1 instead of +STAT if any of their tags apply (or +2 if they're also <em>exceptional</em>). If no tags apply, roll +0. If any of their tags would get in the way, roll with disadvantage.</p>
-			</details>
-			<details class="stonetop-follower-rule">
-				<summary>Strengthen Your Bond</summary>
-				<p>When you <strong><em>pay their cost</em></strong> and you haven't done so recently, they hold +1 Loyalty (max 3).</p>
-				<p>Spend their Loyalty 1-for-1 to have them:</p>
-				<ul>
-					<li>Overcome their fear to do as you say</li>
-					<li>Resist acting on their instinct/tags/traits</li>
-					<li>Do something they don't want to do (as long as it's not abhorrent or suicidal)</li>
-				</ul>
-			</details>
-		</div>
 	</div>
 	{{/with}}
 	{{/if}}
@@ -265,26 +262,40 @@
 	</div>
 	{{/each}}
 
-	{{!-- Follower rules shared across all initiates --}}
-	<div class="stonetop-follower-card">
+	{{/if}}
+
+	{{!-- Follower special moves shared across all followers --}}
+	<div class="stonetop-follower-card stonetop-follower-card--rules">
+		<div class="stonetop-follower-rules-header">
+			<h3 class="stonetop-follower-rules-title">Follower Special Moves</h3>
+		</div>
 		<div class="stonetop-follower-section stonetop-follower-rules">
 			<details class="stonetop-follower-rule">
 				<summary>Order Followers</summary>
-				<p>When you <strong><em>direct them to make a move and they do so</em></strong>, roll +1 instead of +STAT if any of their tags apply (or +2 if they're also <em>exceptional</em>). If no tags apply, roll +0. If any of their tags would get in the way, roll with disadvantage.</p>
+				<p>When you <strong><em>direct your follower to do something that would trigger a player move</em></strong>, and they do it, they trigger the move. If the move involves rolling, you roll for them. Instead of rolling +STAT, roll and:</p>
+				<ul>
+					<li>If they have at least one appropriate tag or move, add +1, or +2 if they're also <em>exceptional</em></li>
+					<li>If they have no relevant tag or move, add +0</li>
+					<li>If any of their tags would get in the way, roll with disadvantage</li>
+				</ul>
+				<p>When a <strong><em>follower is without orders or they act on their own initiative</em></strong>, the GM says what they do and decides how it goes.</p>
 			</details>
 			<details class="stonetop-follower-rule">
 				<summary>Strengthen Your Bond</summary>
-				<p>When you <strong><em>pay their cost</em></strong> and you haven't done so recently, they hold +1 Loyalty (max 3).</p>
-				<p>Spend their Loyalty 1-for-1 to have them:</p>
+				<p>When you <strong><em>pay your follower's cost and haven't done so recently</em></strong>, they hold +1 Loyalty (max 3).</p>
+				<p>Spend your follower's Loyalty 1-for-1 to have them:</p>
 				<ul>
 					<li>Overcome their fear to do as you say</li>
 					<li>Resist acting on their instinct/tags/traits</li>
 					<li>Do something they don't want to do (as long as it's not abhorrent or suicidal)</li>
 				</ul>
 			</details>
+			<details class="stonetop-follower-rule">
+				<summary>Loyal to the End</summary>
+				<p>When <strong><em>one of your followers would die</em></strong>, you can spend 1 of their Loyalty to have them survive (out of the action, but alive). If you let them go, mark XP.</p>
+			</details>
 		</div>
 	</div>
-	{{/if}}
 
 </div>
 </div>

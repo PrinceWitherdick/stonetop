@@ -5,7 +5,7 @@ import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
-import {CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
+import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {rollDamage} from "../../utils/roll-engine.js";
@@ -263,6 +263,132 @@ function _buildMoveChatContent(name, description) {
 	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${name}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
 }
 
+
+function _addToLeadingNumber(value, delta) {
+	const match = String(value ?? "").match(/^(-?\d+)(.*)$/);
+	if (!match) return value;
+	return `${Number(match[1]) + delta}${match[2]}`;
+}
+
+function _addToDamage(value, delta) {
+	const text = String(value ?? "");
+	const match = text.match(/^([^(\s]+)(.*)$/);
+	if (!match) return value;
+	const formula = match[1].replace(/([+-]\d+)?$/, current => {
+		const next = (current ? Number(current) : 0) + delta;
+		return next > 0 ? `+${next}` : next < 0 ? String(next) : "";
+	});
+	return `${formula}${match[2]}`;
+}
+
+function _applyAnimalCompanionTraits(typeData, traits) {
+	const traitText = traits.join(" ");
+	const hpBonus     = [...traitText.matchAll(/[+](\d+)\s*HP/gi)]
+		.reduce((sum, m) => sum + Number(m[1]), 0);
+	const armorBonus  = [...traitText.matchAll(/[+](\d+)\s*armor/gi)]
+		.reduce((sum, m) => sum + Number(m[1]), 0);
+	const damageBonus = [...traitText.matchAll(/(?:Damage\s*)?[+](\d+)\s*damage/gi)]
+		.reduce((sum, m) => sum + Number(m[1]), 0);
+	return {
+		hp:     typeData?.hp !== undefined ? Number(typeData.hp) + hpBonus : undefined,
+		armor:  armorBonus  ? _addToLeadingNumber(typeData?.armor,  armorBonus)  : typeData?.armor,
+		damage: damageBonus ? _addToDamage(typeData?.damage, damageBonus) : typeData?.damage,
+	};
+}
+
+function _titleCase(value) {
+	return String(value ?? "").toLowerCase().replace(/\b\p{L}/gu, char => char.toUpperCase());
+}
+
+function _animalCompanionTraitTooltip(trait) {
+	const key = String(trait ?? "").trim().toLowerCase();
+	return ANIMAL_COMPANION_TRAIT_GLOSSARY[key]
+		?? ANIMAL_COMPANION_TRAIT_GLOSSARY[key.replace(/\s*\(.*/, "")]
+		?? null;
+}
+
+function _makeLoyaltyPips(val, max = 3) {
+	return Array.from({ length: max }, (_, i) => ({ index: i, filled: i < val }));
+}
+
+// ── Move cross-reference hover tooltips ──────────────────────────────────────
+// Longest names first so the alternation prefers the longer match.
+const _MOVE_REF_NAMES = [
+	"Persuade (vs. NPCs)",
+	"Persuade (vs. PCs)",
+	"Have What You Need",
+	"Return Triumphant",
+	"Struggle as One",
+	"Chart a Course",
+	"Keep Company",
+	"Defy Danger",
+	"Know Things",
+	"Seek Insight",
+	"Make Camp",
+	"Requisition",
+	"Let Fly",
+	"Outfit",
+	"Forage",
+	"Recover",
+	"Defend",
+	"Clash",
+	"Aid",
+];
+const _MOVE_REF_RE = new RegExp(
+	`(?<!\\w)(${_MOVE_REF_NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?!\\w)`,
+	"g"
+);
+const _moveRefCache = new Map();
+
+async function _fetchMoveRef(name) {
+	const key = name.toLowerCase();
+	if (_moveRefCache.has(key)) return _moveRefCache.get(key);
+	const packs = game.packs.filter(p => p.metadata.packageName === "stonetop_pwd" && p.metadata.type === "Item");
+	for (const pack of packs) {
+		await pack.getIndex();
+		const entry = pack.index.find(e => e.name.toLowerCase() === key);
+		if (!entry) continue;
+		const doc  = await pack.getDocument(entry._id);
+		const desc = doc?.system?.description ?? null;
+		_moveRefCache.set(key, desc);
+		return desc;
+	}
+	_moveRefCache.set(key, null);
+	return null;
+}
+
+function _enrichMoveRefsInEl(container) {
+	const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+		acceptNode: node =>
+			node.parentElement?.closest(".stonetop-move-ref")
+				? NodeFilter.FILTER_REJECT
+				: NodeFilter.FILTER_ACCEPT,
+	});
+	const toReplace = [];
+	let node;
+	while ((node = walker.nextNode())) {
+		_MOVE_REF_RE.lastIndex = 0;
+		if (_MOVE_REF_RE.test(node.textContent)) toReplace.push(node);
+	}
+	for (const textNode of toReplace) {
+		const text = textNode.textContent;
+		const frag = document.createDocumentFragment();
+		let lastIdx = 0;
+		_MOVE_REF_RE.lastIndex = 0;
+		let m;
+		while ((m = _MOVE_REF_RE.exec(text)) !== null) {
+			if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
+			const span = document.createElement("span");
+			span.className = "stonetop-move-ref";
+			span.dataset.moveName = m[1];
+			span.textContent = m[1];
+			frag.appendChild(span);
+			lastIdx = m.index + m[1].length;
+		}
+		if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+		textNode.parentNode?.replaceChild(frag, textNode);
+	}
+}
 
 export function createStonetopCharacterSheetClass(Base) {
 	return class StonetopCharacterSheet extends Base {
@@ -596,15 +722,24 @@ export function createStonetopCharacterSheetClass(Base) {
 			const acSlug = sf.animalCompanion?.type;
 			if (acSlug) {
 				const typeData = (playbookDoc?.animalCompanion?.types ?? []).find(t => t.slug === acSlug);
+				const traits = sf.animalCompanion?.traits ?? [];
+				const stats = _applyAnimalCompanionTraits(typeData, traits);
+				const kind = sf.animalCompanion?.kind ?? "";
+				const typeLabel = typeData?.label ?? acSlug;
+				const loyaltyVal = sf.animalCompanion?.loyalty ?? 0;
 				animalCompanion = {
 					name:     sf.animalCompanion?.name     ?? "",
-					type:     typeData?.label              ?? acSlug,
-					hp:       typeData?.hp                 ?? "—",
-					armor:    typeData?.armor              ?? "—",
-					damage:   typeData?.damage             ?? "—",
-					traits:   sf.animalCompanion?.traits   ?? [],
+					type:     typeLabel,
+					kind,
+					kindDisplay: _titleCase(kind),
+					typeDisplay: String(typeLabel).toLowerCase(),
+					hp:       stats.hp                     ?? "—",
+					armor:    stats.armor                  ?? "—",
+					damage:   stats.damage                 ?? "—",
+					traits: traits.map(label => ({ label, tooltip: _animalCompanionTraitTooltip(label) })),
 					instinct: sf.animalCompanion?.instinct ?? "",
 					cost:     sf.animalCompanion?.cost     ?? "",
+					loyalty:  _makeLoyaltyPips(loyaltyVal),
 				};
 			}
 
@@ -620,7 +755,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			];
 			let crew = null;
 			if (sf.crew?.tags?.length || sf.crew?.instinct || sf.crew?.cost || sf.crew?.name || sf.crew?.individuals?.length) {
-				const loyaltyMax      = 3;
 				const loyaltyVal      = sf.crew?.loyalty ?? 0;
 				const gearFlags       = sf.crew?.gear ?? {};
 				const inventoryDef    = playbookDoc?.crew?.inventory?.length ? playbookDoc.crew.inventory : CREW_INVENTORY_FALLBACK;
@@ -648,7 +782,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					tags:      sf.crew.tags     ?? [],
 					instinct:  sf.crew.instinct ?? "",
 					cost:      sf.crew.cost     ?? "",
-					loyalty:   Array.from({ length: loyaltyMax }, (_, i) => ({ filled: i < loyaltyVal, index: i })),
+					loyalty:   _makeLoyaltyPips(loyaltyVal),
 					gear:      inventoryDef.map(item => {
 						const flagVal     = gearFlags[item.slug];
 						// backward-compat: old boolean true ? all pips filled
@@ -890,6 +1024,44 @@ export function createStonetopCharacterSheetClass(Base) {
 				panel.hidden = true;
 			});
 
+			// -- Move cross-reference tooltips ---------------------------------
+			this._moveRefPanel?.remove();
+			const moveRefPanel = document.createElement("div");
+			this._moveRefPanel = moveRefPanel;
+			moveRefPanel.className = "stonetop-word-tooltip";
+			moveRefPanel.hidden = true;
+			document.body.appendChild(moveRefPanel);
+
+			html.find(".stonetop-item-description").each((_, el) => {
+				if (el.dataset.moveRefsEnriched) return;
+				el.dataset.moveRefsEnriched = "1";
+				_enrichMoveRefsInEl(el);
+			});
+
+			let _moveRefHovered = null;
+			html.find(".stonetop-move-ref").on("mouseenter", async ev => {
+				const anchor = ev.currentTarget;
+				_moveRefHovered = anchor;
+				const name = anchor.dataset.moveName;
+				const desc = await _fetchMoveRef(name);
+				if (_moveRefHovered !== anchor || !desc) return;
+				moveRefPanel.innerHTML =
+					`<p class="stonetop-word-tooltip-name">${name}</p>` +
+					`<div class="stonetop-word-tooltip-desc">${desc}</div>`;
+				moveRefPanel.hidden = false;
+				const ar = anchor.getBoundingClientRect();
+				const pr = moveRefPanel.getBoundingClientRect();
+				let top  = ar.top - pr.height - 6;
+				let left = ar.left;
+				if (top < 8) top = ar.bottom + 6;
+				left = Math.max(8, Math.min(left, window.innerWidth - pr.width - 8));
+				moveRefPanel.style.top  = `${top}px`;
+				moveRefPanel.style.left = `${left}px`;
+			}).on("mouseleave", () => {
+				_moveRefHovered = null;
+				moveRefPanel.hidden = true;
+			});
+
 			if (!this.isEditable) return;
 
 			if (this._editMode) {
@@ -953,6 +1125,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				// clicking a filled pip clears up to that pip; clicking empty fills up to it
 				const newVal = current === idx + 1 ? idx : idx + 1;
 				await this.actor.setFlag("stonetop_pwd", "crew.loyalty", newVal);
+				this.render(false);
+			});
+			// Animal companion loyalty pips
+			html.find("button.stonetop-animal-companion-loyalty-pip").on("click", async ev => {
+				const idx = Number(ev.currentTarget.dataset.index);
+				const current = this.actor.getFlag("stonetop_pwd", "animalCompanion.loyalty") ?? 0;
+				const newVal = current === idx + 1 ? idx : idx + 1;
+				await this.actor.setFlag("stonetop_pwd", "animalCompanion.loyalty", newVal);
 				this.render(false);
 			});
 			// Initiate loyalty pips
@@ -1756,6 +1936,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				animalCompanion: {
 					type:     f.animalCompanion?.type ?? "",
+					kind:     f.animalCompanion?.kind ?? "",
 					traits:   [...(f.animalCompanion?.traits ?? [])],
 					name:     f.animalCompanion?.name ?? "",
 					instinct: f.animalCompanion?.instinct ?? "",
@@ -2045,6 +2226,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (selections.animalCompanion?.type) {
 				const ac = selections.animalCompanion;
 				flagUpd[f("animalCompanion.type")]     = ac.type;
+				flagUpd[f("animalCompanion.kind")]     = ac.kind?.trim() ?? "";
 				flagUpd[f("animalCompanion.traits")]   = ac.traits;
 				flagUpd[f("animalCompanion.instinct")] = ac.instinct ?? "";
 				flagUpd[f("animalCompanion.cost")]     = ac.cost     ?? "";

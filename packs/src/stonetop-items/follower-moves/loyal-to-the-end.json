@@ -1,0 +1,11 @@
+{
+  "name": "Loyal to the End",
+  "type": "move",
+  "system": {
+    "moveType": "follower",
+    "description": "<p>When <strong><em>one of your followers would die</em></strong>, you can spend 1 of their Loyalty to have them survive (out of the action, but alive). If you let them go, mark XP.</p>"
+  },
+  "_id": "bcVtjM0ezUQiwB2p",
+  "_key": "!items!bcVtjM0ezUQiwB2p",
+  "folder": "3egTCvrhplm8V1xt"
+}

@@ -16,7 +16,7 @@ function _classifyResult(total) {
 
 export function sign(n) { return n >= 0 ? `+${n}` : `${n}`; }
 
-function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "", buttons = false, formula = "" }) {
+function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "", buttons = false, formula = "", description = "" }) {
 	const resultHtml = result
 		? `<div class="row result ${resultClass}">
 			<div class="result-label">${result}</div>
@@ -26,6 +26,9 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 		: "";
 	const formulaHtml = formula
 		? `<div class="card-content"><div class="row"><em>${formula}</em></div></div>`
+		: "";
+	const descriptionHtml = description
+		? `<div class="stonetop-roll-card-description">${description}</div>`
 		: "";
 	const buttonsHtml = buttons
 		? `<div class="card-buttons stonetop-card-buttons">
@@ -39,6 +42,7 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 			<div class="chat-title row flexrow">
 				<h2 class="cell__title">${header}</h2>
 			</div>
+			${descriptionHtml}
 			${formulaHtml}
 			${resultHtml}
 			${buttonsHtml}
@@ -85,6 +89,8 @@ export async function rollStat(statKey, actor, options = {}) {
 	const forward    = options.forward  ?? 0;
 	const ongoing    = options.ongoing  ?? 0;
 
+	const moveDescription = options.moveDescription ?? "";
+
 	const rollData    = modifier !== 0 ? { stat: statValue, mod: modifier } : { stat: statValue };
 	const rollOptions = {
 		stonetopDebility:        options.stonetopDebility        ?? null,
@@ -123,6 +129,7 @@ export async function rollStat(statKey, actor, options = {}) {
 		resultClass: result.key,
 		conditionsHtml,
 		buttons: true,
+		description: moveDescription,
 	});
 
 	await roll.toMessage({
@@ -181,10 +188,11 @@ export async function rollDamage(formula, actor, options = {}) {
 export async function rollFormula(formula, actor, options = {}) {
 	const roll = await new Roll(formula).evaluate();
 	const label = options.label ?? formula;
+	const description = options.description ?? "";
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, formula, buttons: true }),
+		flavor:   _rollCard({ header: label, formula, buttons: true, description }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 

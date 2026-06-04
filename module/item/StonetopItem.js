@@ -39,10 +39,12 @@ export function createStonetopItemClass(BaseItem) {
 				});
 			}
 
-			if (stat) return rollStat(stat, actor, { ...options, moveName: this.name });
+			const moveDescription = this.system?.description ?? "";
+
+			if (stat) return rollStat(stat, actor, { ...options, moveName: this.name, moveDescription });
 
 			// Raw formula path — used by npcMove items
-			return rollFormula(rawFormula, actor, { label: this.name });
+			return rollFormula(rawFormula, actor, { label: this.name, description: moveDescription });
 		}
 	};
 }
