@@ -2446,6 +2446,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-playbook-drop-zone.empty {
+	padding: 6px 10px;
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	border: 1px dashed var(--color-border-light-2, #ccc);
@@ -5504,10 +5505,12 @@ input.stonetop-name-field {
 }
 
 .stonetop-onboarding-footer-nav {
+	position: relative;
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	width: 100%;
+	min-width: 0;
 }
 
 .stonetop-onboarding-footer-back {
@@ -5515,11 +5518,14 @@ input.stonetop-name-field {
 }
 
 .stonetop-onboarding-footer-spacer {
-	flex: 1 1 0;
+	display: none;
 }
 
 .stonetop-onboarding-step-counter {
-	flex: 0 0 auto;
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 0;
 	font-size: 0.8em;
 	color: #888;
 	pointer-events: none;
@@ -5527,10 +5533,13 @@ input.stonetop-name-field {
 }
 
 .stonetop-onboarding-footer-right {
-	flex: 0 0 auto;
+	margin-left: auto;
 	display: flex;
 	align-items: center;
+	justify-content: flex-end;
 	gap: 6px;
+	min-width: 0;
+	max-width: calc(50% - 56px);
 }
 
 .stonetop-onboarding-back,
