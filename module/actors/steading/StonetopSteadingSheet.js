@@ -336,17 +336,42 @@ export function createStonetopSteadingSheetClass(Base) {
 
 		_openLedgerDialog() {
 			const entries = SteadingLedger.getEntries(this.actor);
+			const ledgerDate = (timestamp) => {
+				const date = timestamp ? new Date(timestamp) : null;
+				if (!date || Number.isNaN(date.getTime())) return { key: "unknown", label: "Unknown date" };
+				const key = [
+					date.getFullYear(),
+					String(date.getMonth() + 1).padStart(2, "0"),
+					String(date.getDate()).padStart(2, "0"),
+				].join("-");
+				return {
+					key,
+					label: date.toLocaleDateString(undefined, {
+						weekday: "long",
+						year:    "numeric",
+						month:   "long",
+						day:     "numeric",
+					}),
+				};
+			};
 			const buildRows = (items) => items.length
-				? items.map(entry => `<li class="stonetop-ledger-entry" data-id="${_esc(entry.id)}" data-timestamp="${entry.timestamp ?? 0}">
+				? items.map((entry, index, list) => {
+					const date = ledgerDate(entry.timestamp);
+					const previous = index > 0 ? ledgerDate(list[index - 1].timestamp).key : null;
+					const header = date.key !== previous
+						? `<li class="stonetop-ledger-date-header" data-date-key="${_esc(date.key)}">${_esc(date.label)}</li>`
+						: "";
+					return `${header}<li class="stonetop-ledger-entry" data-id="${_esc(entry.id)}" data-timestamp="${entry.timestamp ?? 0}" data-date-key="${_esc(date.key)}" data-date-label="${_esc(date.label)}">
 						<input type="checkbox" class="stonetop-ledger-row-check">
 						<div class="stonetop-ledger-entry-content">
 							<div class="stonetop-ledger-entry-main">${_esc(entry.action)}</div>
+							<div class="stonetop-ledger-entry-user">Changed by ${_esc(entry.userName)}</div>
 							<div class="stonetop-ledger-entry-meta">
 								<span>${_esc(entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "")}</span>
-								<span>${_esc(entry.userName)}</span>
 							</div>
 						</div>
-					</li>`).join("")
+					</li>`;
+				}).join("")
 				: `<li class="stonetop-ledger-empty">No ledger entries yet.</li>`;
 
 			const content = `<div class="stonetop-ledger-container">
@@ -380,11 +405,47 @@ export function createStonetopSteadingSheetClass(Base) {
 				buttons: {},
 				render: (html) => {
 					const container   = html.find(".stonetop-ledger-container")[0];
+					const list = html.find(".stonetop-ledger-list")[0];
 					const selectAllEl = html.find(".stonetop-ledger-select-all")[0];
 
+					const createDateHeader = (dateKey, dateLabel) => {
+						const header = document.createElement("li");
+						header.className = "stonetop-ledger-date-header";
+						header.dataset.dateKey = dateKey;
+						header.textContent = dateLabel;
+						return header;
+					};
+
+					const refreshDateHeaders = () => {
+						list.querySelectorAll(".stonetop-ledger-date-header").forEach(el => el.remove());
+						let previous = null;
+						for (const entry of [...list.querySelectorAll(".stonetop-ledger-entry")]) {
+							const dateKey = entry.dataset.dateKey ?? "unknown";
+							if (dateKey === previous) continue;
+							list.insertBefore(createDateHeader(dateKey, entry.dataset.dateLabel ?? "Unknown date"), entry);
+							previous = dateKey;
+						}
+					};
+
+					const syncDateHeaders = () => {
+						for (const header of list.querySelectorAll(".stonetop-ledger-date-header")) {
+							let sibling = header.nextElementSibling;
+							let hasVisibleEntry = false;
+							while (sibling && !sibling.classList.contains("stonetop-ledger-date-header")) {
+								if (sibling.classList.contains("stonetop-ledger-entry") && !sibling.hidden) {
+									hasVisibleEntry = true;
+									break;
+								}
+								sibling = sibling.nextElementSibling;
+							}
+							header.hidden = !hasVisibleEntry;
+						}
+					};
+
 					const syncSelectAll = () => {
-						const total   = html.find(".stonetop-ledger-row-check").length;
-						const checked = html.find(".stonetop-ledger-row-check:checked").length;
+						const visibleRows = html.find(".stonetop-ledger-entry:not([hidden]) .stonetop-ledger-row-check");
+						const total   = visibleRows.length;
+						const checked = visibleRows.filter(":checked").length;
 						selectAllEl.checked       = checked === total && total > 0;
 						selectAllEl.indeterminate = checked > 0 && checked < total;
 					};
@@ -416,16 +477,18 @@ export function createStonetopSteadingSheetClass(Base) {
 						html.find(".stonetop-ledger-entry").each((_, el) => {
 							el.hidden = !!term && !el._ledgerText.includes(term);
 						});
+						syncDateHeaders();
 						syncSelectAll();
 					});
 
 					html.find(".stonetop-ledger-sort").on("change", ev => {
 						const asc  = ev.currentTarget.value === "asc";
-						const list = html.find(".stonetop-ledger-list")[0];
 						const tagged = [...list.querySelectorAll(".stonetop-ledger-entry")]
 							.map(el => [el, Number(el.dataset.timestamp)]);
 						tagged.sort(([, ta], [, tb]) => asc ? ta - tb : tb - ta);
 						tagged.forEach(([el]) => list.appendChild(el));
+						refreshDateHeaders();
+						syncDateHeaders();
 					});
 
 					html.find(".stonetop-ledger-delete-selected").on("click", async () => {
@@ -437,6 +500,8 @@ export function createStonetopSteadingSheetClass(Base) {
 								checked.map(el => el.closest(".stonetop-ledger-entry").dataset.id)
 							);
 							checked.forEach(el => el.closest(".stonetop-ledger-entry")?.remove());
+							refreshDateHeaders();
+							syncDateHeaders();
 							syncSelectAll();
 							await SteadingLedger.deleteEntries(this.actor, ids);
 						};

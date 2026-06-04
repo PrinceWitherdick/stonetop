@@ -2664,6 +2664,18 @@ input.stonetop-name-field {
 	box-shadow: none;
 }
 
+.stonetop-ledger-date-header {
+	margin: 10px 0 0;
+	padding: 4px 2px 3px;
+	border-bottom: 1px solid #a02020;
+	color: #2f2a24;
+	font-size: 20px;
+	font-weight: 800;
+	letter-spacing: 0;
+	line-height: 1.2;
+	text-align: left;
+}
+
 .stonetop-ledger-entry {
 	display: flex;
 	align-items: flex-start;
@@ -2694,13 +2706,23 @@ input.stonetop-name-field {
 	line-height: 1.3;
 }
 
-.stonetop-ledger-entry-meta {
-	display: flex;
-	justify-content: space-between;
-	gap: 12px;
-	margin-top: 4px;
+.stonetop-ledger-entry-user {
+	margin-top: 3px;
 	color: var(--color-text-dark-secondary, #555);
 	font-size: 12px;
+	line-height: 1.25;
+	text-align: left;
+}
+
+.stonetop-ledger-entry-meta {
+	display: flex;
+	justify-content: flex-start;
+	gap: 12px;
+	margin-top: 2px;
+	color: var(--color-text-dark-secondary, #555);
+	font-size: 11px;
+	line-height: 1.2;
+	text-align: left;
 }
 
 .stonetop-ledger-empty {

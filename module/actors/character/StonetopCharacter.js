@@ -442,7 +442,7 @@ export class StonetopCharacter {
 			const resource = resourceDef ? new ResourceBuilder()
 				.withCurrent(currentUses)
 				.withMax(maxUses ?? resourceDef.max)
-				.withTitle(null)
+				.withTitle(resourceDef.title ?? null)
 				.withLabels(resourceDef.labels ?? [])
 				.build() : null;
 			return new PossessionItemSnapshotBuilder()

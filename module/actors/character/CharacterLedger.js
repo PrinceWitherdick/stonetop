@@ -59,6 +59,10 @@ const FLAG_NAMESPACE_LABELS = {
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
 const INVENTORY_CHECKED_PREFIX = "flags.stonetop_pwd.inventory.checked.";
 const INVENTORY_RESOURCE_PREFIX = "flags.stonetop_pwd.inventory.resources.";
+const BACKGROUND_CHOICES_PREFIX = "flags.stonetop_pwd.background.choices.";
+const INITIATES_LOYALTY_PREFIX = "flags.stonetop_pwd.initiatesLoyalty.";
+const ANIMAL_COMPANION_PREFIX = "flags.stonetop_pwd.animalCompanion.";
+const CREW_PREFIX = "flags.stonetop_pwd.crew.";
 const POSSESSION_USES_PREFIX = "flags.stonetop_pwd.possessions.uses.";
 const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.";
 const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
@@ -131,6 +135,18 @@ function stripHtml(value) {
 	return text || null;
 }
 
+function firstLabelPart(value) {
+	return (stripHtml(value) ?? "").split(",")[0]?.trim() || null;
+}
+
+function getPlaybookFlags(actor, snapshot) {
+	const snapshotPlaybook = snapshot?.playbook;
+	if (snapshotPlaybook?.backgrounds || snapshotPlaybook?.crew || snapshotPlaybook?.animalCompanion) return snapshotPlaybook;
+
+	const playbookItem = [...(actor.items ?? [])].find(item => item?.type === "playbook");
+	return playbookItem?.flags?.stonetop ?? playbookItem?.flags?.[LEDGER_SCOPE] ?? null;
+}
+
 function addPossessionChoiceNames(names, possession) {
 	for (const choice of possession.choices?.options ?? []) {
 		names.possessionChoices.set(`${possession.slug}:${choice.slug}`, stripHtml(choice.label) ?? prettifySlug(choice.slug));
@@ -147,6 +163,29 @@ async function buildNameLookup(actor) {
 		inventory: new Map(),
 		possessions: new Map(),
 		possessionChoices: new Map(),
+		backgroundChoices: new Map(),
+		followers: new Map(),
+		crewIndividuals: new Map(),
+		followerFields: new Map([
+			["cost", "cost"],
+			["instinct", "instinct"],
+			["loyalty", "loyalty"],
+			["name", "name"],
+			["supplies", "supplies"],
+			["tag", "tag"],
+			["tags", "tags"],
+			["traits", "traits"],
+			["type", "type"],
+		]),
+	};
+
+	const addBackgroundChoice = choice => {
+		if (choice?.slug) names.backgroundChoices.set(choice.slug, stripHtml(choice.label) ?? prettifySlug(choice.slug));
+	};
+
+	const addFollower = (key, label) => {
+		const name = firstLabelPart(label);
+		if (name) names.followers.set(key, name);
 	};
 
 	for (const item of actor.items ?? []) {
@@ -155,6 +194,7 @@ async function buildNameLookup(actor) {
 
 	try {
 		const snapshot = await actor.typedActor?.buildSnapshot?.();
+		const playbookFlags = getPlaybookFlags(actor, snapshot);
 		const outfit = snapshot?.inventory?.outfit;
 		for (const item of [
 			...(outfit?.regularItems ?? []),
@@ -171,6 +211,25 @@ async function buildNameLookup(actor) {
 			if (!possession?.slug) continue;
 			names.possessions.set(possession.slug, stripHtml(possession.label) ?? prettifySlug(possession.slug));
 			addPossessionChoiceNames(names, possession);
+		}
+		for (const background of playbookFlags?.backgrounds ?? []) {
+			for (const choice of background.choices?.options ?? []) {
+				addBackgroundChoice(choice);
+				if (background.slug === "initiate") addFollower(`initiate:${choice.slug}`, choice.label);
+			}
+		}
+		for (const follower of snapshot?.followers?.initiates ?? []) {
+			addFollower(`initiate:${follower.slug}`, follower.label);
+		}
+		const companionName = getActorProperty(actor, `flags.${LEDGER_SCOPE}.animalCompanion.name`);
+		if (companionName) names.followers.set("animalCompanion", companionName);
+		const companionType = getActorProperty(actor, `flags.${LEDGER_SCOPE}.animalCompanion.type`);
+		const companionTypeLabel = (playbookFlags?.animalCompanion?.types ?? []).find(type => type.slug === companionType)?.label;
+		if (!names.followers.has("animalCompanion")) addFollower("animalCompanion", companionTypeLabel ?? "Animal companion");
+		const crewName = getActorProperty(actor, `flags.${LEDGER_SCOPE}.crew.name`);
+		addFollower("crew", crewName || "Crew");
+		for (const [index, individual] of Object.entries(getActorProperty(actor, `flags.${LEDGER_SCOPE}.crew.individuals`) ?? [])) {
+			if (individual?.name) names.crewIndividuals.set(String(index), individual.name);
 		}
 	} catch (err) {
 		console.warn("Stonetop | Could not build ledger name lookup", err);
@@ -194,6 +253,42 @@ function inventoryResourceEntry(path, oldValue, newValue, names) {
 	const slug = path.slice(INVENTORY_RESOURCE_PREFIX.length);
 	const itemName = nameFrom(names.inventory, slug);
 	return { action: `${itemName} resource changed from ${formatValue(oldValue)} to ${formatValue(newValue)}` };
+}
+
+function backgroundChoiceEntry(path, oldValue, newValue, names) {
+	const slug = path.slice(BACKGROUND_CHOICES_PREFIX.length);
+	const choiceName = nameFrom(names.backgroundChoices, slug);
+	if (!!oldValue === !!newValue) return null;
+	return { action: `${choiceName} ${newValue ? "selected" : "deselected"}` };
+}
+
+function followerFieldEntry(followerName, field, oldValue, newValue) {
+	const label = field ? `${followerName} ${field}` : followerName;
+	return { action: actionForField(label, oldValue, newValue) };
+}
+
+function initiateLoyaltyEntry(path, oldValue, newValue, names) {
+	const slug = path.slice(INITIATES_LOYALTY_PREFIX.length);
+	const followerName = names.followers.get(`initiate:${slug}`) ?? prettifySlug(slug);
+	return followerFieldEntry(followerName, "loyalty", oldValue, newValue);
+}
+
+function animalCompanionEntry(path, oldValue, newValue, names) {
+	const field = path.slice(ANIMAL_COMPANION_PREFIX.length).split(".")[0];
+	const followerName = names.followers.get("animalCompanion") ?? "Animal companion";
+	return followerFieldEntry(followerName, names.followerFields.get(field), oldValue, newValue);
+}
+
+function crewEntry(path, oldValue, newValue, names) {
+	const key = path.slice(CREW_PREFIX.length);
+	if (key.startsWith("individuals.")) {
+		const [, index, field] = key.split(".");
+		const followerName = names.crewIndividuals.get(index);
+		return followerFieldEntry(followerName || `Crew member ${Number(index) + 1}`, names.followerFields.get(field), oldValue, newValue);
+	}
+	const field = key.split(".")[0];
+	const followerName = names.followers.get("crew") ?? "Crew";
+	return followerFieldEntry(followerName, names.followerFields.get(field), oldValue, newValue);
 }
 
 function possessionSelectionEntries(oldValue, newValue, names) {
@@ -247,6 +342,10 @@ function possessionChoiceUsesEntry(path, oldValue, newValue, names) {
 function granularEntriesForPath(path, oldValue, newValue, names) {
 	if (path.startsWith(INVENTORY_CHECKED_PREFIX)) return [inventorySelectionEntry(path, oldValue, newValue, names)].filter(Boolean);
 	if (path.startsWith(INVENTORY_RESOURCE_PREFIX)) return [inventoryResourceEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(BACKGROUND_CHOICES_PREFIX)) return [backgroundChoiceEntry(path, oldValue, newValue, names)].filter(Boolean);
+	if (path.startsWith(INITIATES_LOYALTY_PREFIX)) return [initiateLoyaltyEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(ANIMAL_COMPANION_PREFIX)) return [animalCompanionEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(CREW_PREFIX)) return [crewEntry(path, oldValue, newValue, names)];
 	if (path === POSSESSION_SELECTED_PATH) return possessionSelectionEntries(oldValue, newValue, names);
 	if (path.startsWith(POSSESSION_USES_PREFIX)) return [possessionUsesEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(POSSESSION_SUBCHOICES_PREFIX)) return possessionSubchoiceEntries(path, oldValue, newValue, names);
