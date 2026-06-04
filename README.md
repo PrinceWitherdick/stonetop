@@ -4,17 +4,6 @@ An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop
 
 > This system is under active development and may be unstable.
 
-## Screenshots
-
-**Character Sheet — Filterable Moves**
-![Character Sheet Moves](.github/screenshots/character-sheet-moves.webp)
-
-**Character & Stonetop Sheet — Ledgers**
-![Character Sheet Ledger](.github/screenshots/character-sheet-ledger.webp)
-
-**New Character Creation**
-![Playbook Picker](.github/screenshots/playbook-picker.webp)
-
 ## Features
 
 ### Guided Character Creation
@@ -56,6 +45,17 @@ After any roll, the GM can shift the result up or down by one tier directly from
 ### Post-Death Inserts
 
 When a character dies and returns, selecting a post-death insert automatically removes the previous insert's moves and adds the new one's moves to the sheet, keeping the character record clean.
+
+## Screenshots
+
+**Character Sheet — Filterable Moves**
+![Character Sheet Moves](.github/screenshots/character-sheet-moves.webp)
+
+**Character & Stonetop Sheet — Ledgers**
+![Character Sheet Ledger](.github/screenshots/character-sheet-ledger.webp)
+
+**New Character Creation**
+![Playbook Picker](.github/screenshots/playbook-picker.webp)
 
 ---
 
