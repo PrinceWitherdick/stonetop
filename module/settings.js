@@ -34,15 +34,31 @@ export function registerSettings() {
 		default: false
 	});
 
-	// Turn debug logging on
-	game.settings.register("stonetop_pwd", "debugMode", {
-		name: "stonetop.settings.debugMode.name",
-		hint: "stonetop.settings.debugMode.hint",
+	game.settings.register("stonetop_pwd", "sheetFont", {
+		name: "stonetop.settings.sheetFont.name",
+		hint: "stonetop.settings.sheetFont.hint",
 		scope: "client",
 		config: true,
-		type: Boolean,
-		default: false
+		type: String,
+		choices: {
+			"libre-caslon":   "stonetop.settings.sheetFont.libreCaslon",
+			"im-fell-english": "stonetop.settings.sheetFont.imFellEnglish",
+			"signika":         "stonetop.settings.sheetFont.signika",
+		},
+		default: "libre-caslon",
+		onChange: value => applySheetFont(value),
 	});
+}
+
+const _FONT_MAP = {
+	"libre-caslon":    '"Libre Caslon Text", serif',
+	"im-fell-english": '"IM Fell English", serif',
+	"signika":         "Signika, sans-serif",
+};
+
+export function applySheetFont(value) {
+	const font = _FONT_MAP[value] ?? _FONT_MAP["libre-caslon"];
+	document.documentElement.style.setProperty("--font-stonetop", font);
 }
 
 export function getSetting(key) {

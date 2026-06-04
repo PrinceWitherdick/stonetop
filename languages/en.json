@@ -74,8 +74,8 @@
 			"arcanaItems": "Arcana",
 			"regularItemsNote": "Use supplies to Recover, Make Camp, or have extra <em>small</em> items.",
 			"smallItems": "Small Items",
-			"smallItemsNote": "Fit in a pocket, pouch, or boot.<p>When you Outfit, mark □ below equal to 4+Prosperity.</p>",
-			"smallItemsNoteWithLimit": "Fit in a pocket, pouch, or boot.<p>When you Outfit, mark □ below equal to <strong>{limit}</strong> (4+Prosperity).</p>",
+			"smallItemsNote": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark □ below equal to 4+Prosperity.",
+			"smallItemsNoteWithLimit": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark □ below equal to <strong>{limit}</strong> (4+Prosperity).",
 			"addItem": "Add item",
 			"addSmallItem": "Add small item",
 			"addItemName": "Name",
@@ -111,6 +111,13 @@
 				"moves": "Moves",
 				"gear": "Gear",
 				"biography": "Biography"
+			},
+			"sheetFont": {
+				"name": "Sheet Font",
+				"hint": "Font used throughout Stonetop sheets.",
+				"libreCaslon": "Libre Caslon Text",
+				"imFellEnglish": "IM Fell English",
+				"signika": "Signika"
 			}
 		},
 		"newCharacter": {
@@ -133,6 +140,7 @@
 		"monster": {
 			"namePlaceholder": "Monster Name",
 			"conceptPlaceholder": "Concept, look, or role",
+			"stats": "Stats",
 			"hitPoints": "Hit Points",
 			"armor": "Armor",
 			"damage": "Damage",
@@ -154,6 +162,8 @@
 			"addMove": "Add Move",
 			"deleteMove": "Delete Move",
 			"noMoves": "No moves yet.",
+			"addLine": "Add Line",
+			"noLines": "No entries yet.",
 			"tabs": {
 				"overview": "Overview",
 				"moves": "Moves",

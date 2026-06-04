@@ -447,6 +447,35 @@ describe("buildSnapshot — moves", () => {
 		expect(move.ownedIds).toContain("o1");
 	});
 
+	it("owned playbook moves are listed before unowned playbook moves", async () => {
+		const actor =  new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "o1", type: "move", name: "Bravo", system: {moveType: "playbook"}})
+			.build();
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(makeMove("pm1", "Alpha"))
+			.addPlaybookMove(makeMove("pm2", "Bravo"))
+			.addPlaybookMove(makeMove("pm3", "Charlie"))
+			.build().buildSnapshot();
+
+		const names = snap.moves.find(c => c.key === "playbook").moves.map(m => m.name);
+		expect(names).toEqual(["Bravo", "Alpha", "Charlie"]);
+	});
+
+	it("owned basic moves are listed before unowned basic moves", async () => {
+		const actor =  new FakeActorBuilder()
+			.addItem({_id: "o1", type: "move", name: "Defy Danger", system: {moveType: "basic"}})
+			.build();
+		const snap = await new TestCharacterBuilder(actor)
+			.addBasicMove(makeBasicMove("b1", "Aid"))
+			.addBasicMove(makeBasicMove("b2", "Defy Danger"))
+			.build().buildSnapshot();
+
+		const names = snap.moves.find(c => c.key === "basic").moves.map(m => m.name);
+		expect(names).toEqual(["Defy Danger", "Aid"]);
+	});
+
 	it("unowned move has owned=false and ownedIds=[]", async () => {
 		const actor = makeHeavyActor();
 		const entry = makeMove("pm1", "Harden");

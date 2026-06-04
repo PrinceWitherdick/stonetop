@@ -188,7 +188,7 @@ export class StonetopCharacter {
 					.withKey("playbook")
 					.withTitle(`${playbookData.name} Moves`)
 					.withNote(playbookData.startingMovesNote ?? null)
-					.withMoves(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers)))
+					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers))))
 					.build()
 				);
 			}
@@ -204,7 +204,7 @@ export class StonetopCharacter {
 				.withKey("basic")
 				.withTitle("Basic Moves")
 				.withNote(null)
-				.withMoves(basicEntries.map(e => {
+				.withMoves(_sortOwnedFirst(basicEntries.map(e => {
 					const instances = ownedAllByName.get(e.name) ?? [];
 					return new MoveSnapshotBuilder()
 						.withId(e.id)
@@ -226,7 +226,7 @@ export class StonetopCharacter {
 						.withRepeat(null)
 						.withRepeatable(false)
 						.build();
-				}))
+				})))
 				.build()
 			);
 		}
@@ -752,6 +752,7 @@ export class StonetopCharacter {
 					label: move.resource.labels?.[i] ?? null,
 				}));
 			}
+			playbookMoves = _sortOwnedFirst(playbookMoves);
 		}
 
 		const basicEntries = await this._moveRepo.getBasicMoves();
@@ -771,6 +772,7 @@ export class StonetopCharacter {
 			if (b.name === "Aid") return 1;
 			return a.name.localeCompare(b.name);
 		});
+		const orderedBasicMoves = _sortOwnedFirst(basicMoves);
 
 		const otherGroups = OTHER_MOVE_TYPES.reduce((acc, t) => {
 			const items = this._actor.items.filter(i => i.type === "move" && i.system?.moveType === t);
@@ -803,7 +805,7 @@ export class StonetopCharacter {
 				description: i.system?.description ?? null,
 			}));
 
-		return { playbookMoves, basicMoves, otherGroups, otherMoves, startingMovesNote: playbookData?.startingMovesNote ?? null };
+		return { playbookMoves, basicMoves: orderedBasicMoves, otherGroups, otherMoves, startingMovesNote: playbookData?.startingMovesNote ?? null };
 	}
 
 	buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, actorPlaybook) {
@@ -1258,4 +1260,13 @@ function _sortGroup(moves, groupNames) {
 	for (const root of roots) visit(root);
 	moves.filter(m => !visited.has(m.name)).sort((a, b) => a.name.localeCompare(b.name)).forEach(m => result.push(m));
 	return result;
+}
+
+function _sortOwnedFirst(moves) {
+	const tier = m => m.owned ? 0 : m.locked ? 2 : 1;
+	return [...moves].sort((a, b) => {
+		const tierDiff = tier(a) - tier(b);
+		if (tierDiff !== 0) return tierDiff;
+		return a.name.localeCompare(b.name);
+	});
 }

@@ -7,19 +7,21 @@
 		<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}</span>
 		{{/if}}
 		{{#if (and isCharacter (not limited))}}
-		<div class="stonetop-playbook-row">
-			{{#if stonetop.playbook.img}}
-			<img class="stonetop-playbook-icon" src="{{stonetop.playbook.img}}" alt="">
+		<div class="stonetop-playbook-block">
+			<div class="stonetop-playbook-row">
+				{{#if stonetop.playbook.img}}
+				<img class="stonetop-playbook-icon" src="{{stonetop.playbook.img}}" alt="">
+				{{/if}}
+				<span class="stonetop-playbook-drop-zone {{#unless stonetop.playbook.name}}empty{{/unless}}">
+					{{#if stonetop.playbook.name}}
+					{{stonetop.playbook.name}}{{#if stonetop.playbook.instinct.selectedOption}} <span class="stonetop-instinct-badge" data-tooltip="{{stonetop.playbook.instinct.selectedOption.tooltip}}" data-tooltip-direction="DOWN">({{stonetop.playbook.instinct.selectedOption.word}})</span>{{/if}}
+					{{else}}Drop a playbook here{{/if}}
+				</span>
+			</div>
+			{{#if stonetop.playbook.description}}
+			<p class="stonetop-playbook-description">{{stonetop.playbook.description}}</p>
 			{{/if}}
-			<span class="stonetop-playbook-drop-zone {{#unless stonetop.playbook.name}}empty{{/unless}}">
-				{{#if stonetop.playbook.name}}
-				{{stonetop.playbook.name}}{{#if stonetop.playbook.instinct.selectedOption}} <span class="stonetop-instinct-badge" data-tooltip="{{stonetop.playbook.instinct.selectedOption.tooltip}}" data-tooltip-direction="DOWN">({{stonetop.playbook.instinct.selectedOption.word}})</span>{{/if}}
-				{{else}}Drop a playbook here{{/if}}
-			</span>
 		</div>
-		{{#if stonetop.playbook.description}}
-		<p class="stonetop-playbook-description">{{stonetop.playbook.description}}</p>
-		{{/if}}
 		{{/if}}
 		{{#if stonetop.playbook.appearance.summary}}
 		<p class="stonetop-appearance-summary">{{stonetop.playbook.appearance.summary}}</p>

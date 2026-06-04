@@ -1,7 +1,9 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton } from "./StonetopSingleton.js";
+import { applySheetFont, getSetting } from "../settings.js";
 
 export async function onReady() {
+	applySheetFont(getSetting("sheetFont"));
 	await _migrateArmourToArmor();
 	await runStartupMigrations();
 	await ensureStonetopSingleton();

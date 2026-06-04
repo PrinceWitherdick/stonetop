@@ -10,6 +10,13 @@
 			<div class="steading-move-card {{#if rollable}}is-rollable{{/if}}">
 
 				<div class="steading-move-header">
+					{{#if interactive}}
+					<button type="button" class="steading-interactive-btn"
+					        data-move-slug="{{slug}}"
+					        title="{{label}}">
+						<i class="fas fa-dice-d6"></i>
+					</button>
+					{{else}}
 					{{#if rollable}}
 					<button type="button" class="steading-roll-btn"
 					        data-move-name="{{label}}" data-stat="{{stat}}"
@@ -17,12 +24,6 @@
 						<i class="fas fa-dice-d6"></i>
 					</button>
 					{{/if}}
-				{{#if interactive}}
-					<button type="button" class="steading-interactive-btn"
-					        data-move-slug="{{slug}}"
-					        title="{{label}}">
-						<i class="fas fa-dice-d6"></i>
-					</button>
 					{{/if}}
 					<strong class="steading-move-name">{{label}}</strong>
 					{{#if statLabel}}

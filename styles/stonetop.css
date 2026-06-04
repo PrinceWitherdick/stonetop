@@ -1,4 +1,39 @@
-@import url('https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&display=swap');
+@font-face {
+	font-family: "Libre Caslon Text";
+	src: url("../assets/fonts/libre-caslon-text/LibreCaslonText-Regular.ttf") format("truetype");
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "Libre Caslon Text";
+	src: url("../assets/fonts/libre-caslon-text/LibreCaslonText-Bold.ttf") format("truetype");
+	font-weight: bold;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "Libre Caslon Text";
+	src: url("../assets/fonts/libre-caslon-text/LibreCaslonText-Italic.ttf") format("truetype");
+	font-weight: normal;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "IM Fell English";
+	src: url("../assets/fonts/im-fell-english/IMFeENrm28P.ttf") format("truetype");
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "IM Fell English";
+	src: url("../assets/fonts/im-fell-english/IMFeENit28P.ttf") format("truetype");
+	font-weight: normal;
+	font-style: italic;
+	font-display: swap;
+}
 
 @font-face {
 	font-family: "Avara";
@@ -6,6 +41,7 @@
 	     url("../assets/fonts/avara/Avara.woff") format("woff");
 	font-weight: normal;
 	font-style: normal;
+	font-display: swap;
 }
 @font-face {
 	font-family: "Avara";
@@ -13,12 +49,15 @@
 	     url("../assets/fonts/avara/Avara-Bold.woff") format("woff");
 	font-weight: bold;
 	font-style: normal;
+	font-display: swap;
 }
 
 /* Custom CSS */
 :root {
 	--font-avara: "Avara", serif;
 	--font-primary: "Libre Caslon Text", Signika, sans-serif;
+	--font-stonetop: "Libre Caslon Text", Signika, sans-serif;
+	--font-size-display: 42px;
 	--stonetop-bg: hsl(30deg 20% 94%);
 	--color-border-highlight-alt: slategrey;
 	--color-shadow-highlight: slategrey;
@@ -47,7 +86,7 @@ body,
 .vtt .window-header,
 .vtt .window-app button,
 .vtt .window-app .button {
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 }
 
 /* Strange Scene navigation bug fix */
@@ -71,7 +110,47 @@ body,
 .vtt .sidebar-tab,
 .pbta.sheet .cell__title,
 .pbta {
-	font-family: Signika, sans-serif;
+	font-family: var(--font-stonetop);
+}
+
+/*
+ * Override all font inheritance inside stonetop sheets.
+ * We reference var(--font-stonetop) rather than var(--font-primary) so
+ * Foundry's and PBTA's --font-primary redefinitions never affect us.
+ * --font-stonetop is our own variable; no other stylesheet touches it.
+ * We also redefine Foundry's heading variables so descendant h1-h6
+ * pick them up via inheritance.
+ */
+.stonetop {
+	font-family: var(--font-stonetop);
+	--font-h1: var(--font-stonetop);
+	--font-h2: var(--font-stonetop);
+	--font-h3: var(--font-stonetop);
+	--font-h4: var(--font-stonetop);
+	--font-h5: var(--font-stonetop);
+	--font-h6: var(--font-stonetop);
+	--font-body: var(--font-stonetop);
+	--font-sans: var(--font-stonetop);
+}
+
+/* Stonetop-specific content classes — no other stylesheet targets these,
+   so these rules win regardless of load order.
+   Use --font-stonetop (not --font-primary) because Foundry redefines
+   --font-primary to "Signika" on body.game .app, which would override our :root
+   definition. --font-stonetop is our own variable that nothing else touches. */
+.stonetop-item-name,
+.stonetop-item-description,
+.stonetop-move-group-title,
+.stonetop-monster-move-name,
+.stonetop-monster-move-description,
+.stonetop-monster-readonly-text {
+	font-family: var(--font-stonetop);
+}
+
+.vtt .window-app .stonetop input,
+.vtt .window-app .stonetop textarea,
+.vtt .window-app .stonetop select {
+	font-family: var(--font-stonetop);
 }
 
 #navigation #scene-list .scene.gm {
@@ -113,14 +192,8 @@ body,
 }
 
 .pbta.sheet .sheet-tab {
-	margin-top: 0px;
+	margin-top: 0;
 }
-
-/* .pbta.sheet .sheet-resources {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
-	margin-bottom: 8px;
-} */
 
 .pbta.sheet .sheet-resources .cell--roll-formula {
 	display: none;
@@ -292,7 +365,7 @@ body,
 }
 
 .stonetop-name-field {
-	font-size: 1.75rem !important;
+	font-size: var(--font-size-display) !important;
 }
 
 .pbta.sheet .cell__counter>span {
@@ -388,11 +461,15 @@ body,
 	height: auto !important;
 }
 
+.stonetop-playbook-block {
+	margin-top: auto;
+}
+
 .stonetop-playbook-description {
 	font-size: 0.75rem;
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
-	margin: 0 0 4px;
+	margin: 4px 0 4px;
 	line-height: 1.4;
 	max-width: 800px;
 }
@@ -462,10 +539,14 @@ body,
 	visibility: hidden;
 }
 
+.stonetop.sheet.actor.monster:not(.minimized) .window-header .window-title {
+	visibility: hidden;
+}
+
 /* Playbook colors */
 
 .pbta.sheet.actor .window-content {
-	padding: 0px
+	padding: 0;
 }
 
 .pbta.sheet.actor .window-content form {
@@ -560,10 +641,6 @@ body,
 	font-size: 0.85rem;
 	color: var(--color-text-dark-secondary);
 	margin-left: 4px;
-}
-
-.appearance-line {
-	width: 100%;
 }
 
 .creation-subchoices {
@@ -846,6 +923,7 @@ body,
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px 12px;
+	width: 100%;
 }
 
 .appearance-radio {
@@ -1021,15 +1099,17 @@ body,
 }
 
 .stonetop-move-group .items-list {
-	column-count: 2;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
 	column-gap: 16px;
+	align-items: start;
 	padding: 0;
 	margin: 4px 0 0;
 	list-style: none;
 }
 
 .stonetop-moves-sidebar .items-list {
-	column-count: 1;
+	grid-template-columns: 1fr;
 }
 
 /* -- Shared: item rows (moves + possessions + details) ----- */
@@ -1094,10 +1174,14 @@ body,
 	font-size: 0.9rem;
 	line-height: 1.3;
 	cursor: pointer;
+	flex: 1;
+}
+
+.stonetop-item-name em {
+	font-weight: normal;
 }
 
 .stonetop-move-roll-chip {
-	margin-left: auto;
 	padding: 1px 6px;
 	border: 1px solid var(--color-text-dark-secondary);
 	border-radius: 3px;
@@ -1408,12 +1492,6 @@ body,
 
 /* -- Equipment: Special Possessions + Sub-Choices --------- */
 
-.stonetop-possession-list {
-	padding: 0;
-	list-style: none;
-	margin: 4px 0 0;
-}
-
 /* -- Equipment: Sub-Choices ------------------------------ */
 
 .stonetop-sub-choice-list {
@@ -1518,7 +1596,7 @@ body,
 .vtt .window-app input[type=checkbox].stonetop-inv-square:checked,
 .stonetop-inv-item.is-checked .stonetop-inv-square { background: currentColor; }
 
-.stonetop-inv-label { flex: 1; font-weight: bold; }
+.stonetop-inv-label { flex: 1; font-weight: bold; font-style: normal; }
 .stonetop-inv-item:has(.stonetop-inv-resources) .stonetop-inv-label { padding-right: 100px; }
 
 .stonetop-inv-resources {
@@ -1598,6 +1676,7 @@ body,
 	list-style: none;
 	padding: 0;
 	margin: 0;
+	overflow: visible;
 }
 
 /* -- Playbook icon -------------------------------------------- */
@@ -1611,17 +1690,18 @@ body,
 }
 /* Icon in the header playbook row */
 .stonetop-playbook-row .stonetop-playbook-icon {
-	width: 36px;
-	height: 36px;
+	width: 48px;
+	height: 48px;
 	margin: 0;
 	flex-shrink: 0;
+	align-self: center;
 }
 
 .stonetop-playbook-row {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	gap: 6px;
+	gap: 10px;
 }
 
 /* -- Hide PBTA advancement controls on Stonetop sheets -------- */
@@ -1653,8 +1733,7 @@ body,
 }
 
 /* -- Possessions overflow fix --------------------------------- */
-.tab-section--possessions { overflow: visible; }
-.stonetop-possession-list { overflow: visible; }
+.tab-section--possessions { overflow: visible; margin-top: 16px; }
 .stonetop-possession-list > li { min-width: 0; }
 
 /* -- Outfit header -------------------------------------------- */
@@ -2168,10 +2247,17 @@ body,
 
 .stonetop-playbook-drop-zone {
 	pointer-events: auto;
+	position: relative;
+	top: 4px;
+	display: inline-flex;
+	align-items: center;
+	min-height: 48px;
 	border-radius: 3px;
-	padding: 2px 6px;
-	font-size: 1.25rem;
+	padding: 0 6px;
+	font-size: var(--font-size-display);
 	font-family: var(--font-avara);
+	font-weight: bold;
+	line-height: 1;
 	transition: background 0.15s, border-color 0.15s;
 }
 
@@ -2342,7 +2428,7 @@ body,
 	padding: 0 8px;
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: 4px;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	font-size: 13px;
 	background: #fff;
 }
@@ -2353,7 +2439,7 @@ body,
 	padding: 0 4px;
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: 4px;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	font-size: 13px;
 	background: #fff;
 	cursor: pointer;
@@ -2398,7 +2484,7 @@ body,
 	background: none;
 	color: #a02020;
 	font-size: 12px;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	line-height: 1;
 	cursor: pointer;
 	box-shadow: none;
@@ -2512,7 +2598,7 @@ body,
 .stonetop-special-move-name {
 	margin: 0;
 	font-size: 1.05em;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 }
 
 .stonetop-special-move-summary {
@@ -2738,7 +2824,8 @@ body,
 }
 
 .steading-title {
-	font-size: 1.4em;
+	font-family: var(--font-avara);
+	font-size: var(--font-size-display);
 	font-weight: bold;
 	margin: 0;
 	padding: 0;
@@ -2756,7 +2843,8 @@ body,
 	flex-shrink: 0;
 }
 
-.pbta.sheet .sheet-tabs .item {
+.pbta.sheet .sheet-tabs .item,
+.stonetop-monster-sheet .sheet-tabs .item {
 	border-radius: 4px 4px 0 0;
 	background: #999;
 	color: #fff;
@@ -2772,13 +2860,16 @@ body,
 }
 
 .pbta.sheet .sheet-tabs .item:hover,
-.pbta.sheet .sheet-tabs .item:focus {
+.pbta.sheet .sheet-tabs .item:focus,
+.stonetop-monster-sheet .sheet-tabs .item:hover,
+.stonetop-monster-sheet .sheet-tabs .item:focus {
 	background: #bbb;
 	color: #000;
 	text-shadow: none;
 }
 
-.pbta.sheet .sheet-tabs .item.active {
+.pbta.sheet .sheet-tabs .item.active,
+.stonetop-monster-sheet .sheet-tabs .item.active {
 	background: #000;
 	color: #fff;
 	text-shadow: none;
@@ -2793,35 +2884,6 @@ body,
 	padding: 4px 10px 0;
 	border-bottom: 2px solid slategrey;
 	flex-shrink: 0;
-}
-
-.steading-sheet .sheet-tabs .item {
-	border-radius: 4px 4px 0 0;
-	background: #999;
-	color: #fff;
-	margin: 0 4px;
-	padding: 4px;
-	line-height: 1.6;
-	text-transform: uppercase;
-	font-size: var(--font-size-16);
-	flex: 1;
-	text-align: center;
-	cursor: pointer;
-	text-shadow: none;
-}
-
-.steading-sheet .sheet-tabs .item:hover,
-.steading-sheet .sheet-tabs .item:focus {
-	background: #bbb;
-	color: #000;
-	text-shadow: none;
-}
-
-.steading-sheet .sheet-tabs .item.active {
-	background: #000;
-	color: #fff;
-	text-shadow: none;
-	font-weight: bold;
 }
 
 .steading-sheet .sheet-body {
@@ -3530,7 +3592,7 @@ body,
 
 .steading-place-letter {
 	font-weight: bold;
-	font-size: 0.85em;
+	font-size: 0.7em;
 	width: 20px;
 	height: 20px;
 	border-radius: 50%;
@@ -3540,7 +3602,6 @@ body,
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
-	font-size: 0.7em;
 }
 
 .steading-place-name {
@@ -3785,25 +3846,7 @@ body,
 	background: rgba(0,0,0,0.05);
 }
 
-.steading-roll-btn {
-	background: slategrey;
-	color: white;
-	border: none;
-	border-radius: 4px;
-	width: 26px;
-	height: 26px;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 0.9em;
-	flex-shrink: 0;
-}
-
-.steading-roll-btn:hover {
-	background: #556b8b;
-}
-
+.steading-roll-btn,
 .steading-interactive-btn {
 	background: slategrey;
 	color: white;
@@ -3811,17 +3854,20 @@ body,
 	border-radius: 4px;
 	width: 26px;
 	height: 26px;
+	cursor: pointer;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	cursor: pointer;
-	font-size: 0.85em;
 	flex-shrink: 0;
 }
 
+.steading-roll-btn:hover,
 .steading-interactive-btn:hover {
 	background: #556b8b;
 }
+
+.steading-roll-btn        { font-size: 0.9em; }
+.steading-interactive-btn { font-size: 0.85em; }
 
 /* -- Seasons Change dialog ------------------------------------- */
 
@@ -4171,7 +4217,7 @@ body,
 .stonetop-playbook-picker-setting-overview {
 	padding: 4px 8px;
 	font-size: 0.82em;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	border: none;
 	background: transparent;
 	color: #888;
@@ -4222,7 +4268,7 @@ body,
 }
 
 .stonetop-playbook-picker-card-name {
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	font-size: 0.85em;
 	font-weight: 600;
 	text-align: center;
@@ -4250,7 +4296,7 @@ body,
 	border-radius: 6px;
 	padding: 8px 12px;
 	pointer-events: none;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
@@ -4392,6 +4438,10 @@ body,
 	font-size: 0.9em;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
+}
+
+.stonetop-onboarding-card-title em {
+	font-weight: normal;
 }
 
 .stonetop-onboarding-card-inline-desc {
@@ -4654,7 +4704,7 @@ body,
 .stonetop-onboarding-confirm {
 	padding: 5px 16px;
 	font-size: 0.88em;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	border-radius: 4px;
 	cursor: pointer;
 	border: 1.5px solid slategrey;
@@ -4680,7 +4730,7 @@ body,
 .stonetop-onboarding-skip {
 	padding: 5px 16px;
 	font-size: 0.88em;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	border-radius: 4px;
 	cursor: pointer;
 	border: 1.5px solid #c0392b;
@@ -5043,42 +5093,8 @@ body,
 	border-top: 1px solid rgba(100,116,139,0.16);
 }
 
-.stonetop-onboarding-background-arcana-label {
-	margin: 0 0 5px;
-	font-size: 0.72em;
-	font-weight: 700;
-	color: #64748b;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-}
-
-.stonetop-onboarding-background-move-choices {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	margin-top: 8px;
-	padding-top: 8px;
-	border-top: 1px solid rgba(100,116,139,0.16);
-}
-
-.stonetop-onboarding-background-setup {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	margin-top: 8px;
-	padding-top: 8px;
-	border-top: 1px solid rgba(100,116,139,0.16);
-}
-
-.stonetop-onboarding-background-move-choice-label {
-	margin: 0 0 5px;
-	font-size: 0.72em;
-	font-weight: 700;
-	color: #64748b;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-}
-
+.stonetop-onboarding-background-arcana-label,
+.stonetop-onboarding-background-move-choice-label,
 .stonetop-onboarding-background-setup-label {
 	margin: 0 0 5px;
 	font-size: 0.72em;
@@ -5086,6 +5102,16 @@ body,
 	color: #64748b;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
+}
+
+.stonetop-onboarding-background-move-choices,
+.stonetop-onboarding-background-setup {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(100,116,139,0.16);
 }
 
 .stonetop-onboarding-background-choice-options {
@@ -5168,7 +5194,7 @@ body,
 	border: 1.5px solid #e0e0e0;
 	border-radius: 5px;
 	background: rgba(255,255,255,0.86);
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	font-size: 0.86em;
 	line-height: 1.35;
 }
@@ -5315,7 +5341,7 @@ body,
 	background: #fffdf7;
 	box-shadow: 0 4px 18px rgba(0,0,0,0.18);
 	color: #1f2937;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	line-height: 1.4;
 	pointer-events: none;
 }
@@ -5436,7 +5462,7 @@ body,
 .onboard-lore-text {
 	width: 100%;
 	box-sizing: border-box;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	font-size: 0.85em;
 	border: 1.5px solid #ddd;
 	border-radius: 4px;
@@ -5917,7 +5943,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 	color: slategrey;
 	font-size: 0.75em;
 	cursor: pointer;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 }
 
 .stonetop-inline-btn:hover { background: hsl(210 10% 92%); }
@@ -6020,7 +6046,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 	padding: 5px 16px;
 	line-height: 1.4;
 	font-size: 0.88em;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	border-radius: 4px;
 	cursor: pointer;
 	border: 1.5px solid slategrey;
@@ -6148,7 +6174,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 	text-align: left;
 	padding: 9px 14px;
 	font-size: 0.88em;
-	font-family: var(--font-primary);
+	font-family: var(--font-stonetop);
 	color: #444;
 	background: transparent;
 	border: none;
@@ -6210,7 +6236,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 
 .stonetop-so-entry-body dl { margin: 0 0 12px; }
 .stonetop-so-entry-body dt {
-	font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+	font-family: var(--font-stonetop);
 	font-style: normal;
 	font-weight: 600;
 	color: #222;
@@ -6261,114 +6287,433 @@ span.stonetop-loyalty-pip { cursor: default; }
 
 /* Monster sheet */
 
-.stonetop-monster-sheet .window-content,
-.stonetop.actor.monster .window-content {
-	background: var(--stonetop-bg) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp);
+.stonetop-monster-sheet {
+	height: 100%;
 }
 
 .stonetop-monster-container {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
 	height: 100%;
 	min-height: 0;
+}
+
+.stonetop-monster-header {
+	margin-bottom: 12px;
+}
+
+.stonetop-monster-header .stonetop-portrait {
+	width: 150px;
+	height: 150px;
 }
 
 .stonetop-monster-header .sheet-header__fields {
 	gap: 6px;
 }
 
-.stonetop-monster-subtitle input {
-	width: 100%;
-	font-size: 0.92em;
+.stonetop-monster-header .stonetop-name-field {
+	font-family: var(--font-avara);
+	font-weight: bold;
+}
+
+.stonetop-monster-header input.stonetop-name-field {
+	height: 58px;
+	line-height: 1.2;
+	padding: 4px 6px 0;
+}
+
+.stonetop-monster-subtitle {
+	width: min(100%, 520px);
+}
+
+.stonetop-monster-subtitle p {
+	margin: 0;
+	padding: 0;
+	font-size: 0.8rem;
 	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	line-height: 1.4;
+	white-space: pre-wrap;
+}
+
+.stonetop-monster-subtitle textarea {
+	width: 100%;
+	min-height: 64px;
+	resize: vertical;
+	border: none;
+	border-radius: 0;
+	background: transparent;
+	font-size: 0.8rem;
+	font-style: italic;
+	line-height: 1.4;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-monster-top {
+	flex: 0 0 auto;
 }
 
 .stonetop-monster-statbar {
-	display: grid;
-	grid-template-columns: 110px 90px 130px minmax(220px, 1fr);
-	gap: 8px;
-	align-items: stretch;
+	margin: 8px 0 6px;
 }
 
-.stonetop-monster-stat,
-.stonetop-monster-traits label {
-	display: flex;
-	flex-direction: column;
-	gap: 3px;
-	padding: 8px;
-	border: 1px solid hsl(35deg 16% 68%);
-	background: hsl(40deg 28% 97% / 0.85);
-	border-radius: 4px;
-	min-width: 0;
+.stonetop-monster-statbar .cell--attributes-top {
+	gap: 6px;
 }
 
-.stonetop-monster-stat label,
-.stonetop-monster-traits span,
-.stonetop-monster-field > span {
-	font-size: 0.74em;
-	font-weight: bold;
-	color: #555;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
+.stonetop-monster-statbar .cell {
+	min-height: 72px;
 }
 
-.stonetop-monster-stat input,
-.stonetop-monster-traits input {
-	width: 100%;
-	min-width: 0;
+.stonetop-monster-statbar .cell--attr-hp {
+	flex: 1.05 1 0;
 }
 
-.stonetop-monster-resource {
-	display: grid;
-	grid-template-columns: 1fr auto 1fr;
-	gap: 4px;
-	align-items: center;
+.stonetop-monster-statbar .cell--attr-armor {
+	flex: 0.72 1 0;
 }
 
-.stonetop-monster-resource span {
-	color: #777;
-	text-align: center;
+.stonetop-monster-statbar .cell--attr-damage {
+	flex: 1.05 1 0;
+}
+
+.stonetop-monster-statbar .stonetop-monster-instinct-cell {
+	flex: 2.4 1 0;
+}
+
+.stonetop-monster-statbar .cell--Number > input {
+	margin-top: 6px;
+}
+
+.stonetop-monster-instinct-cell input {
+	text-align: left !important;
 }
 
 .stonetop-monster-traits {
 	display: grid;
-	grid-template-columns: 150px 150px minmax(240px, 1fr);
+	grid-template-columns: minmax(120px, 0.7fr) minmax(120px, 0.7fr) minmax(240px, 2fr);
 	gap: 8px;
+	margin: 0 0 8px;
+}
+
+.stonetop-monster-traits label {
+	margin: 0;
+}
+
+.stonetop-monster-traits input {
+	width: 100%;
+	min-width: 0;
+	margin-top: 6px;
+	border: 1px solid #aaa;
+	border-radius: 3px;
+	background: transparent;
+	text-align: center;
+}
+
+.stonetop-monster-traits__tags input {
+	text-align: left;
+}
+
+/* Inline stat block — replaces the old statbar + traits boxes */
+
+.stonetop-monster-stat-block {
+	margin: 6px 0 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-monster-stat-line {
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 0;
+	font-size: 0.875rem;
+}
+
+.stonetop-monster-stat-key {
+	font-weight: bold;
+	flex-shrink: 0;
+}
+
+.stonetop-monster-stat-key::after {
+	content: ":";
+}
+
+.stonetop-monster-stat-sep {
+	flex-shrink: 0;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-monster-stat-semicolon {
+	margin: 0 2px;
+}
+
+.stonetop-monster-stat-input {
+	flex: 1;
+	min-width: 60px;
+	height: 1.5em;
+	padding: 0 3px;
+	border: none;
+	border-bottom: 1px solid rgba(0,0,0,0.25);
+	border-radius: 0;
+	background: transparent;
+	font-size: inherit;
+	line-height: 1.4;
+}
+
+.stonetop-monster-stat-input--num {
+	flex: none;
+	width: 3em;
+	min-width: 3em;
+	text-align: center;
+}
+
+.stonetop-monster-stat-line--traits {
+	font-size: 0.8rem;
+	color: var(--color-text-dark-secondary);
+	margin-top: 2px;
+}
+
+.stonetop-monster-stat-line--traits .stonetop-monster-stat-key {
+	font-weight: normal;
+	font-style: italic;
+}
+
+.stonetop-monster-damage-formula-input {
+	flex: none;
+	width: 4.5em;
+	min-width: 4.5em;
+	text-align: center;
+}
+
+.stonetop-monster-damage-roll {
+	flex-shrink: 0;
+	cursor: pointer;
+	opacity: 0.6;
+	font-size: 1em;
+	line-height: 1;
+}
+
+.stonetop-monster-damage-roll:hover {
+	opacity: 1;
+}
+
+.stonetop-monster-moves-header {
+	margin-top: 4px;
+}
+
+.stonetop-monster-moves-summary {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.stonetop-monster-moves-summary-item {
+	display: flex;
+	align-items: baseline;
+	gap: 5px;
+	font-size: 0.875rem;
+	padding-left: 8px;
+}
+
+.stonetop-monster-moves-summary-item::before {
+	content: "➤";
+	font-size: 0.65em;
+	flex-shrink: 0;
+	position: relative;
+	top: -0.05em;
+}
+
+.stonetop-monster-moves-summary-item .stonetop-monster-move-roll {
+	font-size: 0.8em;
+	opacity: 0.55;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.stonetop-monster-moves-summary-item .stonetop-monster-move-roll:hover {
+	opacity: 1;
+}
+
+.stonetop-monster-moves-summary-item .stonetop-monster-move-name {
+	cursor: pointer;
+	text-decoration: underline dotted;
+}
+
+.stonetop-monster-main {
+	flex: 1;
+	min-height: 0;
+}
+
+.stonetop-monster-sheet .sheet-tabs {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-end;
+	margin-top: 8px;
+	padding: 16px 10px 0;
+	border-bottom: 2px solid slategrey;
+	flex: 0 0 auto;
+	min-height: 0;
+	height: auto;
 }
 
 .stonetop-monster-body {
 	flex: 1;
 	min-height: 0;
-	overflow: auto;
+	overflow-y: auto;
+	scrollbar-width: thin;
+	padding: 12px 14px;
+	font-size: 0.9rem;
+	font-family: var(--font-stonetop);
 }
 
 .stonetop-monster-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 10px;
+	gap: 14px;
+	align-items: start;
 }
 
 .stonetop-monster-field {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 6px;
 	min-width: 0;
+	margin: 0;
+}
+
+.stonetop-monster-field .stonetop-move-group-title {
+	margin: 0;
 }
 
 .stonetop-monster-field--full {
 	grid-column: 1 / -1;
 }
 
+.stonetop-monster-field textarea,
+.stonetop-monster-rich-editor .editor-content {
+	font-family: var(--font-stonetop);
+	font-size: inherit;
+	line-height: 1.45;
+	background: rgba(255,255,255,0.28);
+	border: 1px solid rgba(0,0,0,0.22);
+	border-radius: 4px;
+	color: var(--color-text-dark-primary);
+}
+
 .stonetop-monster-field textarea {
 	width: 100%;
-	min-height: 150px;
+	min-height: 160px;
 	resize: vertical;
-	line-height: 1.4;
 }
 
 .stonetop-monster-field--full textarea {
-	min-height: 170px;
+	min-height: 185px;
+}
+
+.stonetop-monster-rich-editor {
+	min-height: 160px;
+}
+
+.stonetop-monster-rich-editor--full {
+	min-height: 185px;
+}
+
+.stonetop-monster-rich-editor .editor-content {
+	min-height: inherit;
+	padding: 6px 8px;
+}
+
+.stonetop-monster-readonly-text {
+	min-height: 1.4em;
+	padding: 6px 0;
+	border-bottom: 1px solid rgba(0,0,0,0.12);
+	line-height: 1.45;
+	white-space: pre-wrap;
+	overflow: visible;
+}
+
+.stonetop-monster-readonly-text:empty::before {
+	content: "No entries yet.";
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-monster-rich-text {
+	white-space: normal;
+}
+
+.stonetop-monster-rich-text p {
+	font-family: var(--font-stonetop);
+	margin: 0 0 0.55em;
+}
+
+.stonetop-monster-rich-text p:last-child,
+.stonetop-monster-rich-text ul:last-child,
+.stonetop-monster-rich-text ol:last-child {
+	margin-bottom: 0;
+}
+
+.stonetop-monster-line-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.stonetop-monster-line {
+	padding: 6px 0;
+	border-bottom: 1px solid rgba(0,0,0,0.12);
+	line-height: 1.4;
+}
+
+.stonetop-monster-line span {
+	display: block;
+	white-space: pre-wrap;
+}
+
+.stonetop-monster-line-input {
+	width: 100%;
+	min-width: 0;
+	border: 1px solid rgba(0,0,0,0.22);
+	border-radius: 3px;
+	background: rgba(255,255,255,0.32);
+}
+
+.stonetop-monster-line--empty {
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-monster-add-line {
+	align-self: flex-start;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 2px;
+	padding: 4px 8px;
+	border: 1px solid slategrey;
+	border-radius: 3px;
+	background: rgba(255,255,255,0.25);
+	color: inherit;
+	cursor: pointer;
+}
+
+.stonetop-monster-add-line:hover {
+	background: rgba(255,255,255,0.45);
+}
+
+.stonetop-monster-field textarea[readonly],
+.stonetop-monster-field textarea:disabled {
+	color: var(--color-text-dark-secondary);
 }
 
 .stonetop-monster-moves-list {
@@ -6382,12 +6727,10 @@ span.stonetop-loyalty-pip { cursor: default; }
 
 .stonetop-monster-move-item {
 	display: grid;
-	grid-template-columns: auto 1fr;
+	grid-template-columns: auto minmax(0, 1fr);
 	gap: 8px;
-	padding: 8px 10px;
-	border: 1px solid hsl(35deg 16% 72%);
-	background: hsl(40deg 28% 98% / 0.9);
-	border-radius: 4px;
+	padding: 8px 0;
+	border-bottom: 1px solid rgba(0,0,0,0.12);
 }
 
 .stonetop-monster-move-controls {
@@ -6395,6 +6738,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 	flex-direction: column;
 	gap: 6px;
 	color: slategrey;
+	padding-top: 2px;
 }
 
 .stonetop-monster-move-body {
@@ -6409,8 +6753,8 @@ span.stonetop-loyalty-pip { cursor: default; }
 }
 
 .stonetop-monster-move-description {
-	font-size: 0.9em;
-	line-height: 1.4;
+	font-size: 0.92em;
+	line-height: 1.45;
 	color: #333;
 }
 
@@ -6429,7 +6773,24 @@ span.stonetop-loyalty-pip { cursor: default; }
 }
 
 @media (max-width: 720px) {
-	.stonetop-monster-statbar,
+	.stonetop-monster-header .stonetop-portrait {
+		width: 120px;
+		height: 120px;
+	}
+
+	.stonetop-monster-statbar .cell--attributes-top {
+		flex-wrap: wrap;
+	}
+
+	.stonetop-monster-statbar .cell {
+		flex: 1 1 42%;
+	}
+
+	.stonetop-monster-statbar .stonetop-monster-instinct-cell,
+	.stonetop-monster-traits__tags {
+		flex-basis: 100%;
+	}
+
 	.stonetop-monster-traits,
 	.stonetop-monster-grid {
 		grid-template-columns: 1fr;

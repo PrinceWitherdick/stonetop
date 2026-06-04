@@ -31,14 +31,14 @@
 				       {{#if owned}}checked{{/if}}
 				       {{#if (or isStarting locked (not @root.stonetop.editMode))}}disabled{{/if}}>
 				{{/if}}
-				<strong class="stonetop-item-name">{{name}}</strong>
-				{{#if sourceLabel}}<span class="stonetop-item-source">{{sourceLabel}}</span>{{/if}}
-				{{#if rollLabel}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
 				{{#if (and owned rollType)}}
 				<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">
 					<i class="fas fa-dice-d6"></i>
 				</span>
 				{{/if}}
+				{{#if rollLabel}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
+				<strong class="stonetop-item-name">{{name}}</strong>
+				{{#if sourceLabel}}<span class="stonetop-item-source">{{sourceLabel}}</span>{{/if}}
 				{{#if (and owned resource)}}
 				<span class="stonetop-item-resources">
 					{{#each (resourceChecks resource)}}
