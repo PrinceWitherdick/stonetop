@@ -15,6 +15,50 @@ An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop
 **New Character Creation**
 ![Playbook Picker](.github/screenshots/playbook-picker.webp)
 
+## Features
+
+### Guided Character Creation
+
+A multi-step onboarding wizard handles everything from playbook selection to the final starting move. Each playbook's unique setup is fully supported: backgrounds with conditional forms, appearance builders, stat allocation, starting moves and invocations, crew and animal companion configuration, lore questions, and Seeker arcana. Progress is saved so players can pause and return without losing their work.
+
+### Automated Move Rolls
+
+Every move roll goes through a pre-roll dialog that shows active **Forward** and **Ongoing** modifiers (Forward clears automatically after use), then lets the player choose Normal, Advantage, or Disadvantage. Results are classified as Strong Hit (10+), Weak Hit (7–9), or Miss (6−) automatically. Debilities apply disadvantage to the correct stat and annotate the roll card so the table always knows why.
+
+### XP on a Miss
+
+When a character rolls a miss, the system awards +1 XP and posts a chat notification instantly — no manual bookkeeping required.
+
+### Level-Up Wizard
+
+Clicking Level Up opens a step-by-step wizard: it shows the XP cost, presents every move the character is eligible for (locking moves whose prerequisites aren't met), and — on even levels — surfaces available Invocations. Confirming the wizard applies the new level, deducts XP, and adds the chosen move to the sheet in one click.
+
+### End of Session Macro
+
+A **End of Session** macro is automatically slotted into hotbar slot 10. The GM checks off which of the four group XP criteria were met and the system awards XP to every player-owned character simultaneously, then posts a summary to chat.
+
+### Death's Door Dialog
+
+When a character hits 0 HP, a three-step walkthrough explains the Death's Door rules — what it means, how the roll works, and what the possible outcomes are — so no one has to look it up mid-session.
+
+### Outfit & Inventory Management
+
+The Outfit Move dialog lets players check off items and see their load level update in real time. The system calculates armor automatically from equipped items (base + modifiers) and tracks pool slots, small item limits (tied to steading prosperity), and per-item resources like rations and ammo.
+
+### Steading Sheet & Seasonal Automation
+
+The Stonetop steading sheet tracks Fortunes, Prosperity, Population, and Defense alongside the debility system (Diminished, Lacking, Malcontent). Steading moves are wired up: **Meet with Disaster** auto-applies the Fortunes penalty and picks a consequence; **Seasons Change** steps through the full seasonal checklist with automatic resource updates; **Muster** deducts Fortunes before the roll. Improvements track completion state and requirement text.
+
+### GM Result Controls
+
+After any roll, the GM can shift the result up or down by one tier directly from the chat card — Strong Hit → Weak Hit → Miss (and back) — without re-rolling. Characters with the Burn Brightly feature can spend 2 XP from the chat card to bump a recent roll by +1.
+
+### Post-Death Inserts
+
+When a character dies and returns, selecting a post-death insert automatically removes the previous insert's moves and adds the new one's moves to the sheet, keeping the character record clean.
+
+---
+
 ## Prerequisites
 
 - Foundry VTT v12 or v13
