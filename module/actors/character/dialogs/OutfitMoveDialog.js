@@ -22,7 +22,7 @@ export class OutfitMoveDialog extends Application {
 			template: "systems/stonetop_pwd/templates/dialogs/outfit-move.hbs",
 			title: game.i18n.localize("stonetop.specialMoves.outfit.title"),
 			width: 560,
-			height: "auto",
+			height: 600,
 			resizable: true,
 			classes: ["stonetop", "stonetop-outfit-dialog"],
 		});

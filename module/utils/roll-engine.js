@@ -71,8 +71,9 @@ function _conditionsHtml(conditions) {
  * @param {number} [options.ongoing]                   - Ongoing portion (shown separately in card)
  * @param {number} [options.statValue]                 - Explicit stat value, for nonstandard actor data
  * @param {string} [options.moveName]                  - Display name for the roll header
- * @param {string} [options.stonetopDebility]          - Debility name for annotation
- * @param {string} [options.stonetopDebilityTooltip]
+ * @param {string}  [options.stonetopDebility]          - Debility name for annotation
+ * @param {string}  [options.stonetopDebilityTooltip]
+ * @param {boolean} [options.noXpOnMiss]               - Skip the automatic +1 XP on a miss (for moves that replace it)
  * @returns {Promise<Roll>}
  */
 export async function rollStat(statKey, actor, options = {}) {
@@ -129,6 +130,19 @@ export async function rollStat(statKey, actor, options = {}) {
 		flavor,
 		rollMode: game.settings.get("core", "rollMode"),
 	});
+
+	if (result.key === "failure" && actor?.type === "character" && !options.noXpOnMiss) {
+		const currentXp = actor.system?.attributes?.xp?.value ?? 0;
+		const level     = actor.system?.attributes?.level?.value ?? 1;
+		const maxXp     = 6 + level * 2;
+		const newXp     = currentXp + 1;
+		await actor.update({ "system.attributes.xp.value": newXp });
+		ChatMessage.create({
+			content:  `<em>Miss — +1 XP (${newXp} / ${maxXp})</em>`,
+			speaker:  ChatMessage.getSpeaker({ actor }),
+			rollMode: game.settings.get("core", "rollMode"),
+		});
+	}
 
 	return roll;
 }

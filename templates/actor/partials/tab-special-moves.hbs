@@ -13,6 +13,22 @@
 			</button>
 		</div>
 
+		<div class="stonetop-special-move-card{{#unless stonetop.canLevelUp}} is-locked{{/unless}}">
+			<h3 class="stonetop-special-move-name">{{localize "stonetop.specialMoves.levelUp.title"}}</h3>
+			<p class="stonetop-special-move-summary">{{{localize "stonetop.specialMoves.levelUp.description"}}}</p>
+			{{#unless stonetop.canLevelUp}}
+			<p class="stonetop-special-move-locked-hint">
+				<i class="fas fa-lock"></i>
+				{{{localize "stonetop.specialMoves.levelUp.lockedHint"}}}
+			</p>
+			{{/unless}}
+			<button type="button" class="stonetop-levelup-open-btn"
+				{{#unless stonetop.canLevelUp}}disabled{{/unless}}>
+				<i class="fas fa-arrow-circle-up"></i>
+				{{localize "stonetop.specialMoves.levelUp.button"}}
+			</button>
+		</div>
+
 		{{#if stonetop.hasFollowers}}
 		<div class="stonetop-special-move-card">
 			<h3 class="stonetop-special-move-name">Order Followers</h3>

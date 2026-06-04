@@ -989,6 +989,63 @@ export class StonetopCharacter {
 	async setLoreOptionCount(loreSlug, optionSlug, count)           { await this._lore.setCount(loreSlug, optionSlug, count); }
 	async setLoreOptionText(loreSlug, optionSlug, value)            { await this._lore.setText(loreSlug, optionSlug, value); }
 
+	async getLevelUpData() {
+		const actor      = this._actor;
+		const level      = actor.system?.attributes?.level?.value ?? 1;
+		const xp         = actor.system?.attributes?.xp?.value ?? 0;
+		const cost       = 6 + level * 2;
+		const newLevel   = level + 1;
+		const playbookData   = await this.playbook();
+		const ownedAllByName = this._buildOwnedMovesMap();
+
+		let availableMoves = [];
+		let lockedMoves    = [];
+		if (playbookData?.name) {
+			const background  = playbookData.backgrounds?.find(b => b.slug === this._background.selectedSlug);
+			const bgMoveNames = new Set(background?.moves ?? []);
+			const entries     = await this._moveRepo.getPlaybookMoves(playbookData.name);
+			const all = this.sortPlaybookMoves(
+				this.buildMovelistContext(entries, ownedAllByName, bgMoveNames, newLevel, playbookData.name)
+			).filter(e => !e.owned);
+			availableMoves = all.filter(e => !e.locked);
+			lockedMoves    = all.filter(e => e.locked);
+		}
+
+		let needsInvocation     = false;
+		let availableInvocations = [];
+		if (newLevel % 2 === 0 && playbookData?.invocations?.options?.length) {
+			const selected = new Set(actor.getFlag("stonetop_pwd", "invocations.selected") ?? []);
+			availableInvocations = playbookData.invocations.options.filter(o => !selected.has(o.slug));
+			needsInvocation = availableInvocations.length > 0;
+		}
+
+		return {
+			level, xp, cost, newLevel,
+			xpRemaining: xp - cost,
+			availableMoves,
+			lockedMoves,
+			needsInvocation,
+			availableInvocations,
+		};
+	}
+
+	async applyLevelUp(selectedMoveCompendiumId, selectedInvocationSlug) {
+		const level = this._actor.system?.attributes?.level?.value ?? 1;
+		const xp    = this._actor.system?.attributes?.xp?.value ?? 0;
+		const cost  = 6 + level * 2;
+		await this._actor.update({
+			"system.attributes.level.value": level + 1,
+			"system.attributes.xp.value":   Math.max(0, xp - cost),
+		});
+		if (selectedMoveCompendiumId) {
+			await this.addMove(selectedMoveCompendiumId);
+		}
+		if (selectedInvocationSlug) {
+			const current = this._actor.getFlag("stonetop_pwd", "invocations.selected") ?? [];
+			await this._actor.setFlag("stonetop_pwd", "invocations.selected", [...current, selectedInvocationSlug]);
+		}
+	}
+
 	_buildOwnedMovesMap() {
 		const map = new Map();
 		for (const item of this._actor.items.filter(i => i.type === "move")) {

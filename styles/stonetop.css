@@ -2608,13 +2608,40 @@ body,
 	line-height: 1.45;
 }
 
+.stonetop-special-move-card.is-locked {
+	opacity: 0.6;
+}
+
+.stonetop-special-move-card.is-locked button {
+	cursor: not-allowed;
+}
+
+.stonetop-special-move-locked-hint {
+	margin: 0;
+	font-size: 0.82em;
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
 /* ── Outfit move dialog ─────────────────────────────────────────── */
+
+.stonetop-outfit-dialog .window-content {
+	height: 100%;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
 
 .stonetop-outfit-move-body {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
 	padding: 4px 2px 2px;
+	height: 100%;
+	overflow: hidden;
 }
 
 .stonetop-outfit-description {
@@ -2683,6 +2710,14 @@ body,
 	display: flex;
 	gap: 12px;
 	align-items: flex-start;
+	flex: 1;
+	overflow: hidden;
+}
+
+.stonetop-outfit-regular-section,
+.stonetop-outfit-small-section {
+	flex: 1;
+	overflow-y: auto;
 }
 
 .stonetop-outfit-regular-section { flex: 1 1 55%; min-width: 0; }
@@ -2787,6 +2822,357 @@ body,
 }
 
 .stonetop-outfit-confirm-btn:hover {
+	background: #45c46e;
+}
+
+/* ── Level Up dialog ────────────────────────────────────────────── */
+
+.stonetop-eos-dialog .window-content,
+.stonetop-levelup-dialog .window-content {
+	height: 100%;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.stonetop-levelup-body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 2px 2px;
+	height: 100%;
+	overflow: hidden;
+}
+
+.stonetop-levelup-step {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	flex: 1;
+	overflow: hidden;
+}
+
+.stonetop-levelup-intro {
+	margin: 0;
+	font-size: 0.9em;
+	line-height: 1.45;
+}
+
+/* XP / Level summary table */
+.stonetop-levelup-summary {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	background: rgba(0, 0, 0, 0.03);
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 4px;
+	padding: 8px 12px;
+}
+
+.stonetop-levelup-summary-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	font-size: 0.9em;
+}
+
+.stonetop-levelup-summary-row--highlight {
+	font-weight: bold;
+}
+
+.stonetop-levelup-summary-divider {
+	height: 1px;
+	background: var(--color-border-light-primary, #ccc);
+	margin: 4px 0;
+}
+
+.stonetop-levelup-summary-label {
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-levelup-summary-value {
+	font-family: var(--font-stonetop);
+	font-size: 1.05em;
+}
+
+.stonetop-levelup-summary-value--cost {
+	color: #b04040;
+}
+
+.stonetop-levelup-aside {
+	margin: 0;
+	font-size: 0.85em;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	border-left: 2px solid #c9a227;
+	padding-left: 8px;
+}
+
+/* "Show locked moves" checkbox label */
+.stonetop-levelup-toggle-locked {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.83em;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+	user-select: none;
+}
+
+/* Divider between available and locked moves */
+.stonetop-levelup-locked-divider {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0 2px;
+	font-size: 0.78em;
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-levelup-locked-divider::before,
+.stonetop-levelup-locked-divider::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--color-border-light-primary, #ccc);
+}
+
+/* Locked move card */
+.stonetop-levelup-move-option.is-locked {
+	opacity: 0.5;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+/* Move list */
+.stonetop-levelup-move-list,
+.stonetop-levelup-invocation-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	flex: 1;
+	overflow-y: auto;
+}
+
+.stonetop-levelup-move-option,
+.stonetop-levelup-invocation-option {
+	padding: 6px 10px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 4px;
+	cursor: pointer;
+	background: rgba(0, 0, 0, 0.02);
+	transition: background 0.1s, border-color 0.1s;
+}
+
+.stonetop-levelup-move-option:hover,
+.stonetop-levelup-invocation-option:hover {
+	background: rgba(0, 0, 0, 0.06);
+}
+
+.stonetop-levelup-move-option.is-selected,
+.stonetop-levelup-invocation-option.is-selected {
+	background: rgba(201, 162, 39, 0.12);
+	border-color: #c9a227;
+}
+
+.stonetop-levelup-move-header {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.stonetop-levelup-move-name,
+.stonetop-levelup-invocation-name {
+	font-family: var(--font-stonetop);
+	font-size: 1em;
+	font-weight: bold;
+}
+
+.stonetop-levelup-move-req {
+	font-size: 0.78em;
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-levelup-move-description,
+.stonetop-levelup-invocation-description {
+	font-size: 0.82em;
+	color: var(--color-text-dark-secondary);
+	line-height: 1.4;
+	margin-top: 4px;
+}
+
+.stonetop-levelup-empty {
+	margin: 0;
+	font-size: 0.88em;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+/* Footer */
+.stonetop-levelup-footer {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 8px;
+	padding-top: 4px;
+	border-top: 1px solid var(--color-border-light-primary, #ccc);
+	margin-top: 4px;
+}
+
+.stonetop-levelup-back-btn {
+	padding: 4px 14px;
+	background: transparent;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 3px;
+	cursor: pointer;
+	font-size: 0.88em;
+}
+
+.stonetop-levelup-back-btn:hover {
+	background: rgba(0, 0, 0, 0.05);
+}
+
+.stonetop-levelup-next-btn {
+	padding: 4px 14px;
+	background: #3ba55d;
+	color: #fff;
+	border: 1px solid #2d8049;
+	border-radius: 3px;
+	cursor: pointer;
+}
+
+.stonetop-levelup-next-btn:hover:not(:disabled) {
+	background: #45c46e;
+}
+
+.stonetop-levelup-next-btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+/* ── End of Session dialog ──────────────────────────────────────── */
+
+.stonetop-eos-body {
+	display: flex;
+	flex-direction: column;
+	padding: 4px 2px 2px;
+	height: 100%;
+	overflow: hidden;
+}
+
+.stonetop-eos-sections {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding-bottom: 4px;
+}
+
+.stonetop-eos-section {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.stonetop-eos-section-heading {
+	margin: 0;
+	font-size: 1em;
+	font-family: var(--font-stonetop);
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.stonetop-eos-section-tag {
+	font-family: inherit;
+	font-size: 0.75em;
+	font-weight: normal;
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-eos-personal-list {
+	margin: 0;
+	padding-left: 1.2em;
+	font-size: 0.88em;
+	line-height: 1.5;
+	color: var(--color-text-dark-primary);
+}
+
+.stonetop-eos-personal-list li + li {
+	margin-top: 4px;
+}
+
+.stonetop-eos-question-list {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.stonetop-eos-question {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 5px 8px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 4px;
+	cursor: pointer;
+	background: rgba(0, 0, 0, 0.02);
+	transition: background 0.1s, border-color 0.1s;
+	font-size: 0.88em;
+	line-height: 1.4;
+}
+
+.stonetop-eos-question:hover {
+	background: rgba(0, 0, 0, 0.05);
+}
+
+.stonetop-eos-question.is-checked {
+	background: rgba(201, 162, 39, 0.1);
+	border-color: #c9a227;
+}
+
+.stonetop-eos-question input[type="checkbox"] {
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.stonetop-eos-question-text {
+	flex: 1;
+}
+
+.stonetop-eos-xp-tally {
+	margin: 0;
+	font-size: 0.88em;
+	font-style: italic;
+	color: #3ba55d;
+	font-weight: bold;
+}
+
+.stonetop-eos-footer {
+	display: flex;
+	justify-content: flex-end;
+	flex-shrink: 0;
+	padding-top: 4px;
+	border-top: 1px solid var(--color-border-light-primary, #ccc);
+	margin-top: 4px;
+}
+
+.stonetop-eos-confirm-btn {
+	padding: 4px 16px;
+	background: #3ba55d;
+	color: #fff;
+	border: 1px solid #2d8049;
+	border-radius: 3px;
+	cursor: pointer;
+}
+
+.stonetop-eos-confirm-btn:hover {
 	background: #45c46e;
 }
 

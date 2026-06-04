@@ -37,6 +37,25 @@
 			}
 		},
 		"specialMoves": {
+			"levelUp": {
+				"title":             "Level Up",
+				"button":            "Open Level Up",
+				"description":       "When you <em><strong>have a quiet stretch of time at home</strong></em> and enough XP, walk through the steps to level up your character.",
+				"lockedHint":        "Requires XP equal to or greater than 6 + twice your current level.",
+				"overviewIntro":     "You've earned enough XP to level up. Here's what will happen:",
+				"currentLevel":      "Current Level",
+				"newLevel":          "New Level",
+				"currentXp":         "Current XP",
+				"xpCost":            "XP Cost",
+				"xpRemaining":       "XP Remaining",
+				"invocationAside":   "Your new level is even — you'll also choose a new Invocation on the next step.",
+				"moveIntro":         "Choose one new move from your playbook (or an insert you've unlocked).",
+				"noMoves":           "No additional moves are available at this level.",
+				"invocationIntro":   "Choose one new Invocation to add to your repertoire.",
+				"back":              "Back",
+				"next":              "Next",
+				"apply":             "Apply Level Up"
+			},
 			"outfit": {
 				"title": "Outfit",
 				"button": "Open Outfit Move",

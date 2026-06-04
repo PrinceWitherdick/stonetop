@@ -2,6 +2,7 @@ import {MoveResourceButton} from "./elements/move-resource-button.js";
 import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
+import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
@@ -510,6 +511,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			);
 			context.stonetop.invocations          = this._buildInvocationsData(playbookDoc);
 			context.stonetop.showOtherMovesSection = this._editMode || !!(context.stonetop.movelist?.otherMoves?.length);
+			const { xp } = context.stonetop.vitals;
+			context.stonetop.canLevelUp = xp.value >= xp.max;
 			return context;
 		}
 
@@ -860,6 +863,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-possession-sub-radio").on("change", this._onPossessionSubRadio.bind(this));
 			html.find(".stonetop-regular-pool-btn").on("change", this._onRegularPool.bind(this));
 			html.find(".stonetop-outfit-open-btn").on("click", this._onOutfitOpen.bind(this));
+			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
 
 			// -- Followers tab: crew interactions --------------------------
 			// Crew name (editable in edit mode on Followers tab)
@@ -1546,6 +1550,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			new OutfitMoveDialog(
 				this._stonetopCharacter,
 				snapshot.inventory.outfit,
+				() => this.render(false),
+			).render(true);
+		}
+
+		async _onLevelUpOpen() {
+			const levelUpData = await this._stonetopCharacter.getLevelUpData();
+			new LevelUpDialog(
+				this._stonetopCharacter,
+				levelUpData,
 				() => this.render(false),
 			).render(true);
 		}
