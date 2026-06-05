@@ -164,6 +164,36 @@
 				"libreCaslon": "Libre Caslon Text",
 				"imFellEnglish": "IM Fell English",
 				"signika": "Signika"
+			},
+			"hoverDescriptionSettings": {
+				"name": "On Hover Info",
+				"label": "Configure",
+				"hint": "Configure which hover descriptions appear on Stonetop sheets.",
+				"title": "On Hover Info"
+			},
+			"hoverDescriptionsEnabled": {
+				"name": "Show On Hover Info",
+				"hint": "Turn off all hover descriptions and hover info panels at once."
+			},
+			"hoverDescriptionsStats": {
+				"name": "Hover Descriptions: Stats",
+				"hint": "Show stat descriptions when hovering over character sheet stats."
+			},
+			"hoverDescriptionsBasicMoves": {
+				"name": "Hover Descriptions: Basic Moves",
+				"hint": "Show the Basic Move description panel when hovering over the Basic Moves list."
+			},
+			"hoverDescriptionsPlaybookMoves": {
+				"name": "Hover Descriptions: Playbook Moves",
+				"hint": "Show descriptions when hovering over linked move names inside playbook and other move text."
+			},
+			"hoverDescriptionsTraits": {
+				"name": "Hover Descriptions: Traits",
+				"hint": "Show trait descriptions on follower and companion trait tags."
+			},
+			"hoverDescriptionsGearTags": {
+				"name": "Hover Descriptions: Gear Tags",
+				"hint": "Show rules descriptions when hovering over gear tags such as close, piercing, or messy."
 			}
 		},
 		"newCharacter": {

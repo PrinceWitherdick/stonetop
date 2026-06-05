@@ -134,7 +134,13 @@ export class StonetopCharacter {
 	get possessions() { return this._possessions; }
 
 	async updateName(name) {
-		await this._actor.update({ name });
+		const previousName = this._actor.name ?? "";
+		const prototypeTokenName = this._actor.prototypeToken?.name;
+		const updates = { name };
+		if (!prototypeTokenName || prototypeTokenName === previousName) {
+			updates["prototypeToken.name"] = name;
+		}
+		await this._actor.update(updates);
 	}
 
 	async playbook() {
@@ -1271,6 +1277,7 @@ function _rollLabelForMove(name, rollType, data = {}) {
 		const match = String(data.description ?? "").match(/roll\s+\+([A-Za-z][A-Za-z ]*)/i);
 		if (match) return match[1].trim();
 	}
+	if (data.moveType === "basic" && normalizedRollType === "ask") return "ANY";
 	return ROLL_LABELS_BY_TYPE[normalizedRollType] ?? null;
 }
 

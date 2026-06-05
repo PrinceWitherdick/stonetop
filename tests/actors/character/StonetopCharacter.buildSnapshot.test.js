@@ -6,7 +6,6 @@ import {FakeInventoryRepository} from "../../fakes/FakeInventoryRepository.js";
 import {TestCharacterBuilder} from "../../fakes/TestCharacterBuilder.js";
 import {FakeMoveRepository} from "../../fakes/FakeMoveRepository.js";
 import {FakePostDeathInsertRepository} from "../../fakes/FakePostDeathInsertRepository.js";
-import {MoveDefinition} from "../../../module/model/MoveDefinition.js";
 import {FakeActorBuilder, FakeStatBuilder} from "../../fakes/FakeActorBuilder.js";
 
 function makeOutfitItem(overrides = {}) {
@@ -373,7 +372,7 @@ describe("buildSnapshot — moves", () => {
 	}
 
 	function makeBasicMove(id, name, rollType = "ask") {
-		return new MoveDefinition({_id: id, name, system: {moveType: "basic", rollType}});
+		return {_id: id, name, system: {moveType: "basic", rollType}};
 	}
 
 	it("moves is an empty array when no playbook and no basic moves", async () => {
@@ -389,6 +388,28 @@ describe("buildSnapshot — moves", () => {
 		expect(basicCat.title).toBe("Basic Moves");
 		expect(basicCat.note).toBeNull();
 		expect(basicCat.moves[0].name).toBe("Defy Danger");
+	});
+
+	it("labels basic move roll chips by stat, using ANY for ask-roll moves", async () => {
+		const askMove = makeBasicMove("b1", "Defy Danger", "ask");
+		const wisMove = makeBasicMove("b2", "Seek Insight", "wis");
+		const noRollMove = makeBasicMove("b3", "Aid", null);
+		const snap = await new TestCharacterBuilder(new FakeActorBuilder().build())
+			.addBasicMove(askMove)
+			.addBasicMove(wisMove)
+			.addBasicMove(noRollMove)
+			.build()
+			.buildSnapshot();
+		const labels = Object.fromEntries(snap.moves
+			.find(c => c.key === "basic")
+			.moves
+			.map(move => [move.name, move.rollLabel]));
+
+		expect(labels).toMatchObject({
+			"Defy Danger": "ANY",
+			"Seek Insight": "WIS",
+			"Aid": null,
+		});
 	});
 
 	it("playbook moves category title is '{Playbook Name} Moves'", async () => {

@@ -5,6 +5,46 @@ import {BLESSED_PLAYBOOK, FakePlaybookRepository} from "../../fakes/FakePlaybook
 import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
 import {MoveDefinition} from "../../../module/model/MoveDefinition.js";
 
+// -- actor updates ------------------------------------------------------------
+
+describe("StonetopCharacter.updateName", () => {
+	it("updates the prototype token name when it still matches the actor name", async () => {
+		const actor = new FakeActorBuilder().withName("Brakken").build();
+		actor.prototypeToken = { name: "Brakken" };
+		const char = new TestCharacterBuilder(actor).build();
+
+		await char.updateName("Arwel");
+
+		expect(actor.update).toHaveBeenCalledWith({
+			name: "Arwel",
+			"prototypeToken.name": "Arwel",
+		});
+	});
+
+	it("updates a blank prototype token name with the actor name", async () => {
+		const actor = new FakeActorBuilder().withName("Brakken").build();
+		actor.prototypeToken = { name: "" };
+		const char = new TestCharacterBuilder(actor).build();
+
+		await char.updateName("Arwel");
+
+		expect(actor.update).toHaveBeenCalledWith({
+			name: "Arwel",
+			"prototypeToken.name": "Arwel",
+		});
+	});
+
+	it("preserves a custom prototype token name", async () => {
+		const actor = new FakeActorBuilder().withName("Brakken").build();
+		actor.prototypeToken = { name: "The Masked One" };
+		const char = new TestCharacterBuilder(actor).build();
+
+		await char.updateName("Arwel");
+
+		expect(actor.update).toHaveBeenCalledWith({ name: "Arwel" });
+	});
+});
+
 // -- buildSnapshot (playbook display fields) ----------------------------------
 
 describe("StonetopCharacter.buildSnapshot — playbook display fields", () => {
