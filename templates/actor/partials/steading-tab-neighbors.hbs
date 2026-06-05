@@ -1,65 +1,140 @@
 <div class="tab neighbors{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="neighbors">
 	<section class="sheet-tab steading-neighbors-tab">
-		<div class="steading-neighbors-section">
-			<h3 class="steading-list-heading">Neighbors</h3>
-			<ul class="steading-list steading-neighbor-list">
-				{{#each stonetop.neighbors}}
+		<div class="steading-residents-section">
+			<h3 class="steading-residents-heading">Residents of Stonetop</h3>
+			<div class="steading-residents-table">
+				<div class="steading-residents-header">
+					<div class="steading-residents-header-cell steading-residents-col-name">Name</div>
+					<div class="steading-residents-header-cell steading-residents-col-occupation">Occupation</div>
+					<div class="steading-residents-header-cell steading-residents-col-traits">Traits</div>
+					<div class="steading-residents-header-cell steading-residents-col-relations">Relations</div>
+					<div class="steading-residents-header-cell steading-residents-col-etc">Etc</div>
+					<div class="steading-residents-header-cell steading-residents-col-actions"></div>
+				</div>
+				<ul class="steading-residents-list">
+					{{#each stonetop.residents}}
+					{{#if name}}
+					<li class="steading-residents-row{{#if checked}} is-checked{{/if}}">
+						<label class="steading-residents-check">
+							<input type="checkbox" class="steading-list-check"
+							       data-list="residents" data-index="{{@index}}"
+							       {{#if checked}}checked{{/if}}>
+						</label>
+						<div class="steading-residents-col steading-residents-col-name">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="name"
+							       value="{{name}}" placeholder="Name" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+						</div>
+						<div class="steading-residents-col steading-residents-col-occupation">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="occupation"
+							       value="{{occupation}}" placeholder="Occupation or Playbook" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+						</div>
+						<div class="steading-residents-col steading-residents-col-traits">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="traits"
+							       value="{{traits}}" placeholder="Traits" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+						</div>
+						<div class="steading-residents-col steading-residents-col-relations">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="relations"
+							       value="{{relations}}" placeholder="Relations" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+						</div>
+						<div class="steading-residents-col steading-residents-col-etc">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="etc"
+							       value="{{etc}}" placeholder="Etc" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+						</div>
+						<div class="steading-residents-col steading-residents-col-actions">
+							<button type="button" class="steading-list-delete"
+							        data-list="residents" data-index="{{@index}}"
+							        title="Remove" tabindex="-1">
+								<i class="fas fa-times"></i>
+							</button>
+						</div>
+					</li>
+					{{else}}
+					{{#if @root.stonetop.editMode}}
+					<li class="steading-residents-row{{#if checked}} is-checked{{/if}}">
+						<label class="steading-residents-check">
+							<input type="checkbox" class="steading-list-check"
+							       data-list="residents" data-index="{{@index}}"
+							       {{#if checked}}checked{{/if}}>
+						</label>
+						<div class="steading-residents-col steading-residents-col-name">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="name"
+							       value="{{name}}" placeholder="Name">
+						</div>
+						<div class="steading-residents-col steading-residents-col-occupation">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="occupation"
+							       value="{{occupation}}" placeholder="Occupation or Playbook">
+						</div>
+						<div class="steading-residents-col steading-residents-col-traits">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="traits"
+							       value="{{traits}}" placeholder="Traits">
+						</div>
+						<div class="steading-residents-col steading-residents-col-relations">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="relations"
+							       value="{{relations}}" placeholder="Relations">
+						</div>
+						<div class="steading-residents-col steading-residents-col-etc">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="etc"
+							       value="{{etc}}" placeholder="Etc">
+						</div>
+						<div class="steading-residents-col steading-residents-col-actions">
+							<button type="button" class="steading-list-delete"
+							        data-list="residents" data-index="{{@index}}"
+							        title="Remove" tabindex="-1">
+								<i class="fas fa-times"></i>
+							</button>
+						</div>
+					</li>
+					{{/if}}
+					{{/if}}
+					{{/each}}
+				</ul>
+			</div>
+			<button type="button" class="steading-list-add" data-list="residents">
+				<i class="fas fa-plus"></i> Add Resident
+			</button>
+		</div>
+		<div class="steading-players-section">
+			<h3 class="steading-list-heading">Player Characters</h3>
+			{{#if stonetop.players.length}}
+			<ul class="steading-list steading-player-list">
+				{{#each stonetop.players}}
 				{{#if name}}
-				<li class="steading-list-item steading-neighbor-item{{#if checked}} is-checked{{/if}}">
+				<li class="steading-list-item steading-player-item{{#if checked}} is-checked{{/if}}">
 					<label class="steading-list-check-label">
 						<input type="checkbox" class="steading-list-check"
-						       data-list="neighbors" data-index="{{@index}}"
+						       data-list="players" data-index="{{@index}}"
 						       {{#if checked}}checked{{/if}}>
 					</label>
-					<div class="steading-neighbor-fields">
-						<input type="text" class="steading-neighbor-input steading-neighbor-name"
-						       data-index="{{@index}}" data-field="name"
-						       value="{{name}}" placeholder="Name" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
-						<input type="text" class="steading-neighbor-input steading-neighbor-origin"
-						       data-index="{{@index}}" data-field="origin"
-						       value="{{origin}}" placeholder="From" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
-						<input type="text" class="steading-neighbor-input steading-neighbor-trait"
-						       data-index="{{@index}}" data-field="trait"
-						       value="{{trait}}" placeholder="Trait" {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
-					</div>
+					{{#if img}}
+					<img class="steading-player-portrait" src="{{img}}" alt="">
+					{{else}}
+					<span class="steading-player-portrait steading-player-portrait--empty">
+						<i class="fas fa-user"></i>
+					</span>
+					{{/if}}
+					<span class="steading-player-name">{{name}}</span>
 					<button type="button" class="steading-list-delete"
-					        data-list="neighbors" data-index="{{@index}}"
+					        data-list="players" data-index="{{@index}}"
 					        title="Remove" tabindex="-1">
 						<i class="fas fa-times"></i>
 					</button>
 				</li>
-				{{else}}
-				{{#if @root.stonetop.editMode}}
-				<li class="steading-list-item steading-neighbor-item{{#if checked}} is-checked{{/if}}">
-					<label class="steading-list-check-label">
-						<input type="checkbox" class="steading-list-check"
-						       data-list="neighbors" data-index="{{@index}}"
-						       {{#if checked}}checked{{/if}}>
-					</label>
-					<div class="steading-neighbor-fields">
-						<input type="text" class="steading-neighbor-input steading-neighbor-name"
-						       data-index="{{@index}}" data-field="name"
-						       value="{{name}}" placeholder="Name">
-						<input type="text" class="steading-neighbor-input steading-neighbor-origin"
-						       data-index="{{@index}}" data-field="origin"
-						       value="{{origin}}" placeholder="From">
-						<input type="text" class="steading-neighbor-input steading-neighbor-trait"
-						       data-index="{{@index}}" data-field="trait"
-						       value="{{trait}}" placeholder="Trait">
-					</div>
-					<button type="button" class="steading-list-delete"
-					        data-list="neighbors" data-index="{{@index}}"
-					        title="Remove" tabindex="-1">
-						<i class="fas fa-times"></i>
-					</button>
-				</li>
-				{{/if}}
 				{{/if}}
 				{{/each}}
 			</ul>
-			<button type="button" class="steading-list-add" data-list="neighbors">
-				<i class="fas fa-plus"></i> Add Neighbor
-			</button>
+			{{else}}
+			<p class="steading-player-empty">Drag player characters here to keep them with Stonetop.</p>
+			{{/if}}
 		</div>
 	</section>
 </div>

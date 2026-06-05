@@ -49,4 +49,18 @@ describe("StonetopSteading", () => {
 		expect(bySlug.palisade.earned).toBe(true);
 		expect(bySlug.weaponsOfWar.earned).toBe(false);
 	});
+
+	it("includes dragged player characters in the sheet snapshot", async () => {
+		const actor = makeSteadingActor({
+			steadingFlags: {
+				players: [{ uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true }],
+			},
+		});
+
+		const snapshot = await new StonetopSteading(actor).buildSnapshot();
+
+		expect(snapshot.players).toEqual([
+			{ uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true },
+		]);
+	});
 });

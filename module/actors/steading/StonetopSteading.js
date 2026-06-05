@@ -392,7 +392,12 @@ export const STEADING_DEFAULTS = {
 		{ name: "", checked: false },
 		{ name: "", checked: false },
 	],
-	neighbors: [],
+	residents: [
+		{ name: "", occupation: "", traits: "", relations: "", etc: "", checked: false },
+		{ name: "", occupation: "", traits: "", relations: "", etc: "", checked: false },
+		{ name: "", occupation: "", traits: "", relations: "", etc: "", checked: false },
+	],
+	players: [],
 	places: [
 		{ letter: "A", name: "The Stone" },
 		{ letter: "B", name: "The Granary" },
@@ -490,6 +495,20 @@ export class StonetopSteading {
 		const f = this._flags;
 		const storedImps = f.improvements ?? {};
 
+		// Migrate neighbors to residents for backward compatibility
+		if (f.neighbors && !f.residents) {
+			const migratedResidents = f.neighbors.map(n => ({
+				name: n.name,
+				occupation: n.origin || "",
+				traits: n.trait || "",
+				relations: "",
+				etc: "",
+				checked: n.checked,
+			}));
+			this.setFlags({ residents: migratedResidents });
+			f.residents = migratedResidents;
+		}
+
 		const improvements = IMPROVEMENT_DEFINITIONS.map(def => {
 			const stored = storedImps[def.slug] ?? {};
 			let idx = 0;
@@ -535,7 +554,8 @@ export class StonetopSteading {
 			resources:      f.resources      ?? STEADING_DEFAULTS.resources,
 			fortifications: f.fortifications ?? STEADING_DEFAULTS.fortifications,
 			assets:         f.assets         ?? STEADING_DEFAULTS.assets,
-			neighbors:      f.neighbors      ?? STEADING_DEFAULTS.neighbors,
+		residents:      f.residents      ?? STEADING_DEFAULTS.residents,
+			players:        f.players        ?? STEADING_DEFAULTS.players,
 			places:         f.places         ?? STEADING_DEFAULTS.places,
 			notes:          f.notes          ?? STEADING_DEFAULTS.notes,
 			size:           f.size           ?? STEADING_DEFAULTS.size,

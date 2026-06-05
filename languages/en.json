@@ -18,7 +18,7 @@
 			"notLinked": "No Stonetop steading linked. Drag a Stonetop actor onto this sheet to link it.",
 			"tabs": {
 				"overview": "Overview",
-				"neighbors": "Neighbors",
+			"neighbors": "Residents",
 				"improvements": "Improvements",
 				"moves": "Moves",
 				"notes": "Notes"

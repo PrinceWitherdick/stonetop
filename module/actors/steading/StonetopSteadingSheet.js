@@ -647,13 +647,13 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onPlaceChange(parseInt(inp.dataset.index), inp.value);
 			}, true);
 
-			// Neighbor details
-			html[0].addEventListener("change", ev => {
-				const inp = ev.target.closest(".steading-neighbor-input");
-				if (!inp) return;
-				ev.stopPropagation();
-				const { index, field } = inp.dataset;
-				this._onNeighborChange(parseInt(index), field, inp.value);
+// Resident details
+		html[0].addEventListener("change", ev => {
+			const inp = ev.target.closest(".steading-resident-input");
+			if (!inp) return;
+			ev.stopPropagation();
+			const { index, field } = inp.dataset;
+			this._onResidentChange(parseInt(index), field, inp.value);
 			}, true);
 
 			// Notes
@@ -698,31 +698,32 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onImprovementReq(slug, parseInt(index), cb.checked);
 			}, true);
 
-			// Drag-and-drop for adding neighbors
-			const neighborsSection = html[0].querySelector(".steading-neighbors-section");
-			if (neighborsSection) {
-				neighborsSection.addEventListener("dragover", (ev) => {
+			// Drag-and-drop for adding player characters to the Neighbors tab.
+			const neighborsTab = html[0].querySelector(".steading-neighbors-tab");
+			const playersSection = html[0].querySelector(".steading-players-section");
+			if (neighborsTab) {
+				neighborsTab.addEventListener("dragover", (ev) => {
 					ev.preventDefault();
 					ev.stopPropagation();
 					ev.dataTransfer.dropEffect = "copy";
-					neighborsSection.classList.add("drag-over");
+					playersSection?.classList.add("drag-over");
 				}, true);
 
-				neighborsSection.addEventListener("dragleave", (ev) => {
+				neighborsTab.addEventListener("dragleave", (ev) => {
 					ev.preventDefault();
 					ev.stopPropagation();
-					neighborsSection.classList.remove("drag-over");
+					if (!neighborsTab.contains(ev.relatedTarget)) playersSection?.classList.remove("drag-over");
 				}, true);
 
-				neighborsSection.addEventListener("drop", async (ev) => {
+				neighborsTab.addEventListener("drop", async (ev) => {
 					ev.preventDefault();
 					ev.stopPropagation();
-					neighborsSection.classList.remove("drag-over");
+					playersSection?.classList.remove("drag-over");
 					const data = TextEditor.getDragEventData(ev);
 					if (data?.type === "Actor" && data.uuid) {
 						const actor = await fromUuid(data.uuid);
 						if (actor && actor.type === "character") {
-							await this._onDropCharacterNeighbor(actor);
+							await this._onDropPlayerCharacter(actor);
 						}
 					}
 				}, true);
@@ -1329,11 +1330,11 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		async _onListItemAdd(list) {
-			if (list === "neighbors") {
+			if (list === "residents") {
 				const f = this._stonetopSteading._flags;
-				const arr = foundry.utils.deepClone(f.neighbors ?? STEADING_DEFAULTS.neighbors);
-				arr.push({ name: "", origin: "", trait: "", checked: false });
-				await this._stonetopSteading.setFlags({ neighbors: arr });
+				const arr = foundry.utils.deepClone(f.residents ?? STEADING_DEFAULTS.residents);
+				arr.push({ name: "", occupation: "", traits: "", relations: "", etc: "", checked: false });
+				await this._stonetopSteading.setFlags({ residents: arr });
 				this.render(false);
 				return;
 			}
@@ -1362,42 +1363,44 @@ export function createStonetopSteadingSheetClass(Base) {
 			await this._stonetopSteading.setFlags({ places });
 		}
 
-		async _onNeighborChange(index, field, value) {
-			if (!["name", "origin", "trait"].includes(field)) return;
+		async _onResidentChange(index, field, value) {
+			if (!["name", "occupation", "traits", "relations", "etc"].includes(field)) return;
 			const f = this._stonetopSteading._flags;
-			const neighbors = foundry.utils.deepClone(f.neighbors ?? STEADING_DEFAULTS.neighbors);
-			if (!neighbors[index]) neighbors[index] = { name: "", origin: "", trait: "", checked: false };
-			neighbors[index][field] = value;
-			await this._stonetopSteading.setFlags({ neighbors });
+			const residents = foundry.utils.deepClone(f.residents ?? STEADING_DEFAULTS.residents);
+			if (!residents[index]) residents[index] = { name: "", occupation: "", traits: "", relations: "", etc: "", checked: false };
+			residents[index][field] = value;
+			await this._stonetopSteading.setFlags({ residents });
 		}
 
-		async _onDropCharacterNeighbor(actor) {
+		async _onDropPlayerCharacter(actor) {
 			const f = this._stonetopSteading._flags;
-			const neighbors = foundry.utils.deepClone(f.neighbors ?? STEADING_DEFAULTS.neighbors);
-			
-			// Check if this character is already a neighbor
-			const existingIdx = neighbors.findIndex(n => 
-				n.name?.toLowerCase().trim() === actor.name?.toLowerCase().trim()
+			const players = foundry.utils.deepClone(f.players ?? STEADING_DEFAULTS.players);
+			const actorUuid = actor.uuid ?? "";
+			const actorId = actor.id ?? actor._id ?? "";
+
+			const existingIdx = players.findIndex(player =>
+				(actorUuid && player.uuid === actorUuid) ||
+				(actorId && player.id === actorId) ||
+				player.name?.toLowerCase().trim() === actor.name?.toLowerCase().trim()
 			);
-			
+
 			if (existingIdx >= 0) {
-				// Character already exists, just highlight/focus it
-				ui.notifications?.info?.(`${actor.name} is already in the neighbors list.`);
+				ui.notifications?.info?.(`${actor.name} is already in the players list.`);
 				this.render(false);
 				return;
 			}
-			
-			// Add character as a new neighbor
-			neighbors.push({
+
+			players.push({
+				id: actorId,
+				uuid: actorUuid,
 				name: actor.name,
-				origin: "",
-				trait: "",
+				img: actor.img ?? "",
 				checked: true,
 			});
-			
-			await this._stonetopSteading.setFlags({ neighbors });
+
+			await this._stonetopSteading.setFlags({ players });
 			this.render(false);
-			ui.notifications?.info?.(`Added ${actor.name} to neighbors.`);
+			ui.notifications?.info?.(`Added ${actor.name} to players.`);
 		}
 
 		async _onNotesChange(value) {

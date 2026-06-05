@@ -100,6 +100,21 @@ describe("StonetopMonsterSheet", () => {
 		}]);
 	});
 
+	it("filters grouping and size out of readonly display tags", async () => {
+		const actor = {
+			system: {
+				grouping: "Horde",
+				size: "small",
+				tags: "horde, small, cautious, stealthy",
+			},
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.displayTags).toBe("cautious, stealthy");
+	});
+
 	it("enriches overview rich-text fields for display", async () => {
 		const originalFoundry = globalThis.foundry;
 		globalThis.foundry = {

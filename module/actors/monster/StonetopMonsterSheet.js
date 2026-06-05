@@ -25,6 +25,23 @@ function _splitLines(value, editMode) {
 	return editMode ? lines : lines.filter(line => line.trim());
 }
 
+function _normalizeTag(value) {
+	return String(value ?? "").trim().toLocaleLowerCase();
+}
+
+function _displayMonsterTags(system) {
+	const hiddenTags = new Set([
+		_normalizeTag(system?.grouping),
+		_normalizeTag(system?.size),
+	].filter(Boolean));
+
+	return String(system?.tags ?? "")
+		.split(",")
+		.map(tag => tag.trim())
+		.filter(tag => tag && !hiddenTags.has(_normalizeTag(tag)))
+		.join(", ");
+}
+
 async function _enrichHTML(value) {
 	const textEditor = globalThis.foundry?.applications?.ux?.TextEditor;
 	if (!textEditor?.enrichHTML) return value ?? "";
@@ -119,6 +136,7 @@ export function createStonetopMonsterSheetClass(Base) {
 			context.system ??= this.actor.system;
 			context.stonetop ??= {};
 			context.stonetop.editMode = this._editMode;
+			context.stonetop.displayTags = _displayMonsterTags(context.system);
 			for (const field of MONSTER_RICH_TEXT_FIELDS) {
 				context.stonetop[field.enrichedKey] = await _enrichHTML(context.system?.[field.key]);
 			}

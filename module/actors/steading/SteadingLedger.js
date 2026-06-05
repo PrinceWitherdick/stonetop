@@ -25,6 +25,7 @@ const FLAG_NAMESPACE_LABELS = {
 	"flags.stonetop_pwd.steading.fortifications": "Fortifications",
 	"flags.stonetop_pwd.steading.assets":         "Assets",
 	"flags.stonetop_pwd.steading.neighbors":      "Neighbors",
+	"flags.stonetop_pwd.steading.players":        "Players",
 	"flags.stonetop_pwd.steading.improvements":   "Improvements",
 	"flags.stonetop_pwd.steading.places":         "Places of interest",
 };
@@ -166,6 +167,7 @@ const PATH_HANDLERS = {
 	"flags.stonetop_pwd.steading.fortifications":       (o, n) => listEntries("Fortification", o, n),
 	"flags.stonetop_pwd.steading.assets":               (o, n) => listEntries("Asset",         o, n),
 	"flags.stonetop_pwd.steading.neighbors":            neighborEntries,
+	"flags.stonetop_pwd.steading.players":              (o, n) => listEntries("Player",        o, n),
 	"flags.stonetop_pwd.steading.places":               placeEntries,
 	"flags.stonetop_pwd.steading.silver.purses":        (o, n) => _currencyEntry("Silver purses",    o, n),
 	"flags.stonetop_pwd.steading.silver.handfuls":      (o, n) => _currencyEntry("Silver handfuls",  o, n),

@@ -4498,15 +4498,190 @@ input.stonetop-name-field {
 .steading-neighbors-tab {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 16px;
+	height: 100%;
+	overflow-y: auto;
 }
 
-.steading-neighbors-section {
+.steading-residents-section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.steading-residents-heading {
+	margin: 0;
+	font-size: 0.95em;
+	font-weight: 700;
+	font-family: var(--font-stonetop);
+}
+
+.steading-residents-table {
+	border: 1px solid rgba(0,0,0,0.12);
+	border-radius: 6px;
+	overflow: hidden;
+	background: rgba(0,0,0,0.02);
+}
+
+.steading-residents-header {
+	display: grid;
+	grid-template-columns: 20px 1.2fr 1fr 1.2fr 1.2fr 1fr 32px;
+	gap: 0;
+	background: rgba(0,0,0,0.08);
+	border-bottom: 2px solid rgba(0,0,0,0.12);
+	padding: 0;
+	font-weight: 700;
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.steading-residents-header-cell {
+	padding: 6px 8px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.steading-residents-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.steading-residents-row {
+	display: grid;
+	grid-template-columns: 20px 1.2fr 1fr 1.2fr 1.2fr 1fr 32px;
+	gap: 0;
+	align-items: center;
+	padding: 0;
+	margin: 0;
+	border-bottom: 1px solid rgba(0,0,0,0.06);
+	background: rgba(255,255,255,0.5);
+	min-height: 32px;
+}
+
+.steading-residents-row:last-child {
+	border-bottom: none;
+}
+
+.steading-residents-row.is-checked {
+	background: rgba(0,0,0,0.04);
+	opacity: 0.7;
+}
+
+.steading-residents-check {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 8px;
+	cursor: pointer;
+	height: 100%;
+}
+
+.steading-residents-check input[type="checkbox"] {
+	margin: 0;
+	cursor: pointer;
+}
+
+.steading-residents-col {
+	padding: 4px 8px;
+	overflow: hidden;
+	height: 100%;
+	display: flex;
+	align-items: center;
+}
+
+.steading-resident-input {
+	width: 100%;
+	height: 24px;
+	font-size: 0.82em;
+	border: 1px solid transparent;
+	background: transparent;
+	padding: 2px 4px;
+	font-family: inherit;
+	line-height: 1.2;
+}
+
+.stonetop-readonly .steading-resident-input {
+	background: transparent;
+	border-color: transparent;
+	color: inherit;
+	opacity: 1;
+	cursor: default;
+}
+
+.steading-resident-input:not(:disabled):focus {
+	background: rgba(255,255,255,0.8);
+	border-color: rgba(100,150,255,0.4);
+	outline: none;
+}
+
+.steading-residents-col-actions {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 6px;
+}
+
+.steading-residents-col-actions .steading-list-delete {
+	padding: 4px;
+	font-size: 0.9em;
+	opacity: 0.6;
+	transition: opacity 0.1s;
+}
+
+.steading-residents-col-actions .steading-list-delete:hover {
+	opacity: 1;
+}
+
+.steading-players-section {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
 	border-radius: 6px;
 	padding: 8px 10px;
 	width: 100%;
+}
+
+.steading-player-list {
+	gap: 6px;
+}
+
+.steading-player-item {
+	grid-template-columns: 14px 28px minmax(0, 1fr) auto;
+	align-items: center;
+	min-height: 34px;
+}
+
+.steading-player-portrait {
+	width: 28px;
+	height: 28px;
+	border: 1px solid rgba(0,0,0,0.22);
+	border-radius: 4px;
+	object-fit: cover;
+	background: rgba(255,255,255,0.55);
+}
+
+.steading-player-portrait--empty {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: rgba(0,0,0,0.55);
+}
+
+.steading-player-name {
+	min-width: 0;
+	font-weight: 700;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.steading-player-empty {
+	margin: 4px 0 0;
+	color: rgba(0,0,0,0.58);
+	font-size: 0.82em;
+	font-style: italic;
 }
 
 .steading-neighbor-list {
@@ -4541,6 +4716,21 @@ input.stonetop-name-field {
 }
 
 @media (max-width: 760px) {
+	.steading-residents-header {
+		grid-template-columns: 20px 1fr 0.8fr 32px;
+	}
+
+	.steading-residents-row {
+		grid-template-columns: 20px 1fr 0.8fr 32px;
+	}
+
+	.steading-residents-col-occupation,
+	.steading-residents-col-traits,
+	.steading-residents-col-relations,
+	.steading-residents-col-etc {
+		display: none;
+	}
+
 	.steading-neighbor-fields {
 		grid-template-columns: 1fr;
 	}

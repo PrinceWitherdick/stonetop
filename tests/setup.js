@@ -14,6 +14,7 @@ global.CONFIG = {};
 global.foundry = {
 	utils: {
 		mergeObject: (a, b) => ({ ...a, ...b }),
+		deepClone: (value) => structuredClone(value),
 		getProperty: (obj, path) => path.split(".").reduce((value, key) => value?.[key], obj),
 		flattenObject: (obj, prefix = "") => Object.entries(obj ?? {}).reduce((acc, [key, value]) => {
 			const path = prefix ? `${prefix}.${key}` : key;
