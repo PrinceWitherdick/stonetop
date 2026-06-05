@@ -719,6 +719,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.system ??= this.actor.system;
 			context.isCharacter = this.actor.type === "character";
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
+			context.stonetop.statsNoteDisplay = this._editMode ? context.stonetop.playbook?.statsNote ?? null : null;
+			context.stonetop.movelist.startingMovesNoteDisplay = this._editMode ? context.stonetop.movelist.startingMovesNote ?? null : null;
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop_pwd', 'hideUnselected') ?? true;
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
@@ -924,8 +926,9 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			html[0].addEventListener("dragover", (ev) => ev.preventDefault());
 			html[0].addEventListener("drop", async (ev) => {
+				if (ev.target.closest(".sheet-tabs")) return;
 				ev.stopImmediatePropagation();
-				const data = TextEditor.getDragEventData(ev);
+				const data = this._getDragEventData(ev);
 				if (!data) return;
 				if (data?.type === "Actor") {
 					const doc = await fromUuid(data.uuid);
@@ -1607,10 +1610,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		_activateTabDragDrop(html) {
-			const nav = html[0].querySelector(".sheet-tabs");
+			const root = html[0];
+			const nav = root.querySelector(".sheet-tabs");
 			if (!nav) return;
 
-			this._applyTabOrder(nav);
+			this._applyTabOrder(root);
 
 			if (!this._editMode) return;
 
@@ -1621,6 +1625,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			nav.addEventListener("dragstart", ev => {
 				dragSource = ev.target.closest(".item[data-tab]");
 				if (!dragSource) return;
+				ev.dataTransfer.setData("text/plain", dragSource.dataset.tab);
 				ev.dataTransfer.effectAllowed = "move";
 				dragSource.classList.add("stonetop-tab-dragging");
 			});
@@ -1640,7 +1645,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			});
 
-			nav.addEventListener("drop", ev => {
+			nav.addEventListener("drop", async ev => {
 				ev.preventDefault();
 				const target = ev.target.closest(".item[data-tab]");
 				nav.querySelectorAll(".item[data-tab]").forEach(t => t.classList.remove("stonetop-tab-drag-over", "stonetop-tab-dragging"));
@@ -1649,7 +1654,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (tabs.indexOf(dragSource) < tabs.indexOf(target)) target.after(dragSource);
 				else target.before(dragSource);
 				const newOrder = [...nav.querySelectorAll(".item[data-tab]")].map(t => t.dataset.tab);
-				this.actor.setFlag("stonetop_pwd", "tabOrder", newOrder);
+				this._applyTabOrder(root, newOrder);
+				await this.actor.setFlag("stonetop_pwd", "tabOrder", newOrder);
+				this.render(false);
 				dragSource = null;
 			});
 
@@ -1659,18 +1666,33 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 		}
 
-		_applyTabOrder(nav) {
-			const savedOrder = this.actor.getFlag("stonetop_pwd", "tabOrder");
+		_applyTabOrder(root, order = null) {
+			const nav = root.querySelector(".sheet-tabs");
+			const body = root.querySelector(".sheet-body");
+			if (!nav) return;
+			const savedOrder = order ?? this.actor.getFlag("stonetop_pwd", "tabOrder");
 			if (!savedOrder?.length) return;
 			const tabs = [...nav.querySelectorAll(".item[data-tab]")];
 			const tabMap = new Map(tabs.map(t => [t.dataset.tab, t]));
+			const panels = body ? [...body.children].filter(el => el.matches?.(".tab[data-tab]")) : [];
+			const panelMap = new Map(panels.map(panel => [panel.dataset.tab, panel]));
 			for (const key of savedOrder) {
 				const tab = tabMap.get(key);
 				if (tab) nav.appendChild(tab);
+				const panel = panelMap.get(key);
+				if (panel) body.appendChild(panel);
 			}
 			for (const tab of tabs) {
 				if (!savedOrder.includes(tab.dataset.tab)) nav.appendChild(tab);
 			}
+			for (const panel of panels) {
+				if (!savedOrder.includes(panel.dataset.tab)) body.appendChild(panel);
+			}
+		}
+
+		_getDragEventData(ev) {
+			const textEditor = foundry?.applications?.ux?.TextEditor?.implementation;
+			return textEditor?.getDragEventData(ev) ?? TextEditor.getDragEventData(ev);
 		}
 
 		async _onDropPlaybook(playbookDoc) {

@@ -486,6 +486,7 @@ body,
 	line-height: 1.2;
 	padding: 4px 8px;
 	min-height: 2em;
+	max-width: 100%;
 }
 
 input.stonetop-name-field {
@@ -495,7 +496,8 @@ input.stonetop-name-field {
 
 .stonetop-name-called-box {
 	width: fit-content;
-	min-width: 300px;
+	min-width: 0;
+	max-width: 100%;
 	box-sizing: border-box;
 	background: var(--color-border-dark, #888);
 	padding: 2px;
@@ -510,7 +512,7 @@ input.stonetop-name-field {
 
 .stonetop-name-called-inner {
 	background: var(--stonetop-bg, #f0ece3);
-	padding: 3px 8px 5px;
+	padding: 3px 15px 5px;
 	clip-path: polygon(
 		6px 0%, calc(100% - 6px) 0%,
 		100% 6px, 100% calc(100% - 6px),
@@ -539,6 +541,7 @@ input.stonetop-name-field {
 	border: none;
 	background: transparent;
 	field-sizing: content;
+	min-width: 1ch;
 	height: 1.2em;
 }
 
@@ -1241,12 +1244,14 @@ input.stonetop-name-field {
 }
 
 .stonetop-moves-sidebar {
-	width: 220px;
+	width: max-content;
+	min-width: max-content;
 	flex-shrink: 0;
 	border-left: 1px solid var(--color-border-light-2);
 	padding-left: 12px;
 	padding-top: 20px;
 	overflow-y: auto;
+	overflow-x: visible;
 }
 
 .stonetop-moves-sidebar li {
@@ -1254,6 +1259,7 @@ input.stonetop-name-field {
 	padding: 2px 4px;
 	cursor: pointer;
 	font-style: normal;
+	white-space: nowrap;
 }
 
 .stonetop-moves-sidebar li:hover {
@@ -3787,6 +3793,25 @@ input.stonetop-name-field {
 	background: #45c46e;
 }
 
+.stonetop-outfit-confirm-btn,
+.stonetop-levelup-next-btn,
+.deaths-door-confirm-btn,
+.stonetop-eos-confirm-btn {
+	background: slategrey;
+	color: #fff;
+	border-color: #4f5b66;
+	font-family: var(--font-stonetop);
+	box-shadow: none;
+}
+
+.stonetop-outfit-confirm-btn:hover,
+.stonetop-levelup-next-btn:hover:not(:disabled),
+.deaths-door-confirm-btn:hover,
+.stonetop-eos-confirm-btn:hover {
+	background: #556b8b;
+	border-color: #465a75;
+}
+
 /* ================================================================
    STEADING SHEET
    ================================================================ */
@@ -4037,7 +4062,7 @@ input.stonetop-name-field {
 
 .steading-main-row {
 	display: flex;
-	align-items: stretch;
+	align-items: flex-start;
 	flex-wrap: wrap;
 	gap: 12px;
 }
@@ -4400,12 +4425,15 @@ input.stonetop-name-field {
 }
 
 .steading-list-heading-note {
+	display: block;
+	margin-top: 2px;
 	font-weight: normal;
 	font-style: italic;
 	text-transform: none;
-	letter-spacing: normal;
+	letter-spacing: 0;
 	color: #666;
-	font-size: 0.85em;
+	font-size: 0.78em;
+	line-height: 1.35;
 }
 
 .steading-list {
@@ -4525,7 +4553,7 @@ input.stonetop-name-field {
 
 .steading-residents-header {
 	display: grid;
-	grid-template-columns: 20px 1.2fr 1fr 1.2fr 1.2fr 1fr 32px;
+	grid-template-columns: 1.2fr 1fr 1.2fr 1.2fr 1fr 32px;
 	gap: 0;
 	background: rgba(0,0,0,0.08);
 	border-bottom: 2px solid rgba(0,0,0,0.12);
@@ -4551,7 +4579,7 @@ input.stonetop-name-field {
 
 .steading-residents-row {
 	display: grid;
-	grid-template-columns: 20px 1.2fr 1fr 1.2fr 1.2fr 1fr 32px;
+	grid-template-columns: 1.2fr 1fr 1.2fr 1.2fr 1fr 32px;
 	gap: 0;
 	align-items: center;
 	padding: 0;
@@ -4563,25 +4591,6 @@ input.stonetop-name-field {
 
 .steading-residents-row:last-child {
 	border-bottom: none;
-}
-
-.steading-residents-row.is-checked {
-	background: rgba(0,0,0,0.04);
-	opacity: 0.7;
-}
-
-.steading-residents-check {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0 8px;
-	cursor: pointer;
-	height: 100%;
-}
-
-.steading-residents-check input[type="checkbox"] {
-	margin: 0;
-	cursor: pointer;
 }
 
 .steading-residents-col {
@@ -4857,7 +4866,7 @@ input.stonetop-name-field {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
 	gap: 10px;
-	align-items: stretch;
+	align-items: start;
 }
 
 .steading-improvement {

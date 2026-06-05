@@ -1,5 +1,38 @@
 <div class="tab neighbors{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="neighbors">
 	<section class="sheet-tab steading-neighbors-tab">
+		<div class="steading-players-section">
+			<h3 class="steading-list-heading">Player Characters</h3>
+			{{#if stonetop.players.length}}
+			<ul class="steading-list steading-player-list">
+				{{#each stonetop.players}}
+				{{#if name}}
+				<li class="steading-list-item steading-player-item{{#if checked}} is-checked{{/if}}">
+					<label class="steading-list-check-label">
+						<input type="checkbox" class="steading-list-check"
+						       data-list="players" data-index="{{@index}}"
+						       {{#if checked}}checked{{/if}}>
+					</label>
+					{{#if img}}
+					<img class="steading-player-portrait" src="{{img}}" alt="">
+					{{else}}
+					<span class="steading-player-portrait steading-player-portrait--empty">
+						<i class="fas fa-user"></i>
+					</span>
+					{{/if}}
+					<span class="steading-player-name">{{name}}</span>
+					<button type="button" class="steading-list-delete"
+					        data-list="players" data-index="{{@index}}"
+					        title="Remove" tabindex="-1">
+						<i class="fas fa-times"></i>
+					</button>
+				</li>
+				{{/if}}
+				{{/each}}
+			</ul>
+			{{else}}
+			<p class="steading-player-empty">Drag player characters here to keep them with Stonetop.</p>
+			{{/if}}
+		</div>
 		<div class="steading-residents-section">
 			<h3 class="steading-residents-heading">Residents of Stonetop</h3>
 			<div class="steading-residents-table">
@@ -14,12 +47,7 @@
 				<ul class="steading-residents-list">
 					{{#each stonetop.residents}}
 					{{#if name}}
-					<li class="steading-residents-row{{#if checked}} is-checked{{/if}}">
-						<label class="steading-residents-check">
-							<input type="checkbox" class="steading-list-check"
-							       data-list="residents" data-index="{{@index}}"
-							       {{#if checked}}checked{{/if}}>
-						</label>
+					<li class="steading-residents-row">
 						<div class="steading-residents-col steading-residents-col-name">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name"
@@ -55,12 +83,7 @@
 					</li>
 					{{else}}
 					{{#if @root.stonetop.editMode}}
-					<li class="steading-residents-row{{#if checked}} is-checked{{/if}}">
-						<label class="steading-residents-check">
-							<input type="checkbox" class="steading-list-check"
-							       data-list="residents" data-index="{{@index}}"
-							       {{#if checked}}checked{{/if}}>
-						</label>
+					<li class="steading-residents-row">
 						<div class="steading-residents-col steading-residents-col-name">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name"
@@ -102,39 +125,6 @@
 			<button type="button" class="steading-list-add" data-list="residents">
 				<i class="fas fa-plus"></i> Add Resident
 			</button>
-		</div>
-		<div class="steading-players-section">
-			<h3 class="steading-list-heading">Player Characters</h3>
-			{{#if stonetop.players.length}}
-			<ul class="steading-list steading-player-list">
-				{{#each stonetop.players}}
-				{{#if name}}
-				<li class="steading-list-item steading-player-item{{#if checked}} is-checked{{/if}}">
-					<label class="steading-list-check-label">
-						<input type="checkbox" class="steading-list-check"
-						       data-list="players" data-index="{{@index}}"
-						       {{#if checked}}checked{{/if}}>
-					</label>
-					{{#if img}}
-					<img class="steading-player-portrait" src="{{img}}" alt="">
-					{{else}}
-					<span class="steading-player-portrait steading-player-portrait--empty">
-						<i class="fas fa-user"></i>
-					</span>
-					{{/if}}
-					<span class="steading-player-name">{{name}}</span>
-					<button type="button" class="steading-list-delete"
-					        data-list="players" data-index="{{@index}}"
-					        title="Remove" tabindex="-1">
-						<i class="fas fa-times"></i>
-					</button>
-				</li>
-				{{/if}}
-				{{/each}}
-			</ul>
-			{{else}}
-			<p class="steading-player-empty">Drag player characters here to keep them with Stonetop.</p>
-			{{/if}}
 		</div>
 	</section>
 </div>

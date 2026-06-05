@@ -4,7 +4,7 @@
 		{{#if stonetop.movelist.playbookMoves.length}}
 		{{> "stonetop.move-group"
 		    title=(localize "stonetop.character.moves.playbookMoves")
-		    note=stonetop.movelist.startingMovesNote
+		    note=stonetop.movelist.startingMovesNoteDisplay
 		    moves=stonetop.movelist.playbookMoves
 		    hideToggle=true
 		    hideUnselected=stonetop.hideUnselected}}
@@ -73,7 +73,7 @@
 								<i class="fas fa-trash"></i>
 							</a>
 						</div>
-						{{#if description}}<div class="stonetop-item-description">{{{description}}}</div>{{/if}}
+						{{#if description}}<div class="stonetop-item-description">{{{boldMissText description}}}</div>{{/if}}
 					</li>
 				{{/each}}
 				</ol>

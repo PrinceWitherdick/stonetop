@@ -11,6 +11,7 @@ import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
+import { boldMissText } from "./module/utils/strings.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -20,6 +21,7 @@ Hooks.once("init", () => {
 	registerStonetopSingletonHooks();
 
 	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
+	Handlebars.registerHelper("boldMissText", value => boldMissText(value));
 
 	const _STAT_LABEL_KEYS = {
 		str: "stonetop.character.stats.strength",

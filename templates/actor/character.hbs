@@ -15,7 +15,7 @@
 		{{else}}
 
 		<section class="sheet-top flexcol">
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.playbook.statsNote}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.statsNoteDisplay}}
 
 			<section class="sheet-attributes flexrow">
 				{{> "stonetop.actor-stats"}}
@@ -96,7 +96,7 @@
 							{{/if}}
 							<span class="stonetop-move-name stonetop-basic-move-open"
 						      data-compendium-id="{{compendiumId}}">{{name}}</span>
-							{{#if description}}<div class="stonetop-basic-move-desc" hidden>{{{description}}}</div>{{/if}}
+							{{#if description}}<div class="stonetop-basic-move-desc" hidden>{{{boldMissText description}}}</div>{{/if}}
 						</li>
 					{{/each}}
 					</ol>
