@@ -13,6 +13,7 @@ import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
+import {getHoverDescriptionSetting} from "../../settings.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 
@@ -764,6 +765,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const loyaltyVal = sf.animalCompanion?.loyalty ?? 0;
 				const hpMax = Number(stats.hp) || 0;
 				const hpRaw = sf.animalCompanion?.hpCurrent;
+				const showTraitHover = getHoverDescriptionSetting("hoverDescriptionsTraits");
 				animalCompanion = {
 					name:     sf.animalCompanion?.name     ?? "",
 					pronoun:  sf.animalCompanion?.pronoun  ?? "",
@@ -778,7 +780,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					damage:     stats.damage               ?? "—",
 					damageRoll: String(stats.damage ?? "").match(/(\d*d\d+(?:[+-]\d+)?)/i)?.[1] ?? null,
 					damageForm: (String(stats.damage ?? "").match(/\(([^)]+)\)/)?.[1] ?? "").replace(/\bband\b/gi, "hand") || null,
-					traits: traits.map(label => ({ label, tooltip: _animalCompanionTraitTooltip(label) })),
+					traits: traits.map(label => ({ label, tooltip: showTraitHover ? _animalCompanionTraitTooltip(label) : null })),
 					instinct: sf.animalCompanion?.instinct ?? "",
 					cost:     sf.animalCompanion?.cost     ?? "",
 					loyalty:  _makeLoyaltyPips(loyaltyVal),
@@ -961,6 +963,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				el.value = el.value.replace(/^\+/, "");
 			});
 			html.find(".cell--stats .stat[data-stat]").each((_, el) => {
+				if (!getHoverDescriptionSetting("hoverDescriptionsStats")) return;
 				const tooltip = STAT_TOOLTIPS[el.dataset.stat];
 				if (tooltip) {
 					el.dataset.tooltip = tooltip;
@@ -1007,7 +1010,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Rollable click handler — replaces PBTA's built-in listener.
 			html[0].addEventListener("click", async ev => {
 				// Don't intercept clicks on enabled inputs (e.g. editing a stat value).
-				if (ev.target.tagName === "INPUT" && !ev.target.disabled) return;
+				if (ev.target.tagName === "INPUT" && !ev.target.disabled && !ev.target.readOnly) return;
 				const rollable = ev.target.closest(".rollable");
 				if (!rollable || !this.isEditable) return;
 				ev.stopPropagation();
@@ -1075,37 +1078,43 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			// One floating panel per sheet instance; replace stale one on re-render.
 			this._movePanel?.remove();
-			const panel = document.createElement("div");
-			this._movePanel = panel;
-			panel.className = "stonetop-basic-move-panel";
-			panel.hidden = true;
-			document.body.appendChild(panel);
-
-			html.find(".stonetop-move-item").on("mouseenter", ev => {
-				const li = ev.currentTarget;
-				const descEl = li.querySelector(".stonetop-basic-move-desc");
-				if (!descEl) return;
-				const nameText = li.querySelector(".stonetop-move-name")?.textContent?.trim() ?? "";
-				// Use DOM manipulation so nameText is never treated as HTML.
-				const nameEl = document.createElement("strong");
-				nameEl.className = "stonetop-basic-move-panel-name";
-				nameEl.textContent = nameText;
-				panel.replaceChildren(nameEl, ...Array.from(descEl.cloneNode(true).childNodes));
-				panel.hidden = false;
-				const rect = li.getBoundingClientRect();
-				panel.style.top   = `${Math.max(4, Math.min(rect.top, window.innerHeight - panel.offsetHeight - 8))}px`;
-				panel.style.right = `${window.innerWidth - rect.left + 8}px`;
-			}).on("mouseleave", () => {
+			if (getHoverDescriptionSetting("hoverDescriptionsBasicMoves")) {
+				const panel = document.createElement("div");
+				this._movePanel = panel;
+				panel.className = "stonetop-basic-move-panel";
 				panel.hidden = true;
-			});
+				document.body.appendChild(panel);
+
+				html.find(".stonetop-move-item").on("mouseenter", ev => {
+					const li = ev.currentTarget;
+					const descEl = li.querySelector(".stonetop-basic-move-desc");
+					if (!descEl) return;
+					const nameText = li.querySelector(".stonetop-move-name")?.textContent?.trim() ?? "";
+					// Use DOM manipulation so nameText is never treated as HTML.
+					const nameEl = document.createElement("strong");
+					nameEl.className = "stonetop-basic-move-panel-name";
+					nameEl.textContent = nameText;
+					panel.replaceChildren(nameEl, ...Array.from(descEl.cloneNode(true).childNodes));
+					panel.hidden = false;
+					const rect = li.getBoundingClientRect();
+					panel.style.top   = `${Math.max(4, Math.min(rect.top, window.innerHeight - panel.offsetHeight - 8))}px`;
+					panel.style.right = `${window.innerWidth - rect.left + 8}px`;
+				}).on("mouseleave", () => {
+					panel.hidden = true;
+				});
+			}
 
 			// -- Move cross-reference tooltips ---------------------------------
 			this._moveRefPanel?.remove();
-			const moveRefPanel = document.createElement("div");
-			this._moveRefPanel = moveRefPanel;
-			moveRefPanel.className = "stonetop-word-tooltip";
-			moveRefPanel.hidden = true;
-			document.body.appendChild(moveRefPanel);
+			const showMoveRefHover = getHoverDescriptionSetting("hoverDescriptionsPlaybookMoves");
+			let moveRefPanel = null;
+			if (showMoveRefHover) {
+				moveRefPanel = document.createElement("div");
+				this._moveRefPanel = moveRefPanel;
+				moveRefPanel.className = "stonetop-word-tooltip";
+				moveRefPanel.hidden = true;
+				document.body.appendChild(moveRefPanel);
+			}
 
 			html.find(".stonetop-item-description").each((_, el) => {
 				if (el.dataset.moveRefsEnriched) return;
@@ -1114,29 +1123,31 @@ export function createStonetopCharacterSheetClass(Base) {
 				_wrapStonetopGlyphsInEl(el);
 			});
 
-			let _moveRefHovered = null;
-			html.find(".stonetop-move-ref").on("mouseenter", async ev => {
-				const anchor = ev.currentTarget;
-				_moveRefHovered = anchor;
-				const name = anchor.dataset.moveName;
-				const desc = await _fetchMoveRef(name);
-				if (_moveRefHovered !== anchor || !desc) return;
-				moveRefPanel.innerHTML =
-					`<p class="stonetop-word-tooltip-name">${name}</p>` +
-					`<div class="stonetop-word-tooltip-desc">${desc}</div>`;
-				moveRefPanel.hidden = false;
-				const ar = anchor.getBoundingClientRect();
-				const pr = moveRefPanel.getBoundingClientRect();
-				let top  = ar.top - pr.height - 6;
-				let left = ar.left;
-				if (top < 8) top = ar.bottom + 6;
-				left = Math.max(8, Math.min(left, window.innerWidth - pr.width - 8));
-				moveRefPanel.style.top  = `${top}px`;
-				moveRefPanel.style.left = `${left}px`;
-			}).on("mouseleave", () => {
-				_moveRefHovered = null;
-				moveRefPanel.hidden = true;
-			});
+			if (showMoveRefHover) {
+				let _moveRefHovered = null;
+				html.find(".stonetop-move-ref").on("mouseenter", async ev => {
+					const anchor = ev.currentTarget;
+					_moveRefHovered = anchor;
+					const name = anchor.dataset.moveName;
+					const desc = await _fetchMoveRef(name);
+					if (_moveRefHovered !== anchor || !desc) return;
+					moveRefPanel.innerHTML =
+						`<p class="stonetop-word-tooltip-name">${name}</p>` +
+						`<div class="stonetop-word-tooltip-desc">${desc}</div>`;
+					moveRefPanel.hidden = false;
+					const ar = anchor.getBoundingClientRect();
+					const pr = moveRefPanel.getBoundingClientRect();
+					let top  = ar.top - pr.height - 6;
+					let left = ar.left;
+					if (top < 8) top = ar.bottom + 6;
+					left = Math.max(8, Math.min(left, window.innerWidth - pr.width - 8));
+					moveRefPanel.style.top  = `${top}px`;
+					moveRefPanel.style.left = `${left}px`;
+				}).on("mouseleave", () => {
+					_moveRefHovered = null;
+					moveRefPanel.hidden = true;
+				});
+			}
 
 			if (!this.isEditable) return;
 

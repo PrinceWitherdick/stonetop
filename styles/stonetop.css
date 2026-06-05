@@ -640,6 +640,11 @@ input.stonetop-name-field {
 	line-height: normal;
 }
 
+.pbta.sheet .sheet-attributes .cell--stats .stat-value[readonly] {
+	cursor: pointer;
+	caret-color: transparent;
+}
+
 .pbta.sheet .sheet-attributes .cell--stats .cell__title {
 	width: 100% !important;
 	min-width: 0 !important;
@@ -1476,6 +1481,49 @@ input.stonetop-name-field {
 	display: none;
 }
 
+.stonetop-hover-settings .form-group {
+	align-items: flex-start;
+}
+
+.stonetop-hover-settings .form-fields {
+	flex: 0 0 auto;
+}
+
+.stonetop-hover-settings .sheet-footer {
+	margin-top: 12px;
+	justify-content: flex-end;
+}
+
+select[name="stonetop_pwd.sheetFont"] option[value="libre-caslon"],
+select[name="sheetFont"] option[value="libre-caslon"] {
+	font-family: "Libre Caslon Text", serif;
+}
+
+select[name="stonetop_pwd.sheetFont"] option[value="im-fell-english"],
+select[name="sheetFont"] option[value="im-fell-english"] {
+	font-family: "IM Fell English", serif;
+}
+
+select[name="stonetop_pwd.sheetFont"] option[value="signika"],
+select[name="sheetFont"] option[value="signika"] {
+	font-family: Signika, sans-serif;
+}
+
+select[name="stonetop_pwd.sheetFont"]:has(option[value="libre-caslon"]:checked),
+select[name="sheetFont"]:has(option[value="libre-caslon"]:checked) {
+	font-family: "Libre Caslon Text", serif;
+}
+
+select[name="stonetop_pwd.sheetFont"]:has(option[value="im-fell-english"]:checked),
+select[name="sheetFont"]:has(option[value="im-fell-english"]:checked) {
+	font-family: "IM Fell English", serif;
+}
+
+select[name="stonetop_pwd.sheetFont"]:has(option[value="signika"]:checked),
+select[name="sheetFont"]:has(option[value="signika"]:checked) {
+	font-family: Signika, sans-serif;
+}
+
 /* -- Move-to-chat message ----------------------------------------- */
 
 .stonetop-chat-move {
@@ -1513,8 +1561,47 @@ input.stonetop-name-field {
 	padding-bottom: 8px;
 }
 
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__content {
+	display: grid;
+	gap: 8px;
+}
 
-:is(#chat, #chat-notifications) .message:has(.stonetop-roll-card) {
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__title-logo {
+	font-family: var(--font-avara);
+	font-weight: bold;
+	font-size: 1.35em;
+	line-height: 0.85;
+}
+
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__section {
+	display: block;
+	padding-top: 6px;
+}
+
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__section h3 {
+	margin: 0 0 4px;
+	padding-top: 2px;
+}
+
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__section ul {
+	margin: 4px 0 0;
+	padding-left: 18px;
+}
+
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li {
+	margin: 3px 0;
+	line-height: 1.35;
+}
+
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__footer {
+	display: block;
+	color: var(--color-text-dark-secondary);
+	font-size: var(--font-size-12);
+}
+
+
+:is(#chat, #chat-notifications) .message:has(.stonetop-roll-card),
+:is(#chat, #chat-notifications) .message:has(.stonetop-startup-card) {
 	background: var(--stonetop-bg, #f0ece3) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp) center / cover;
 	border-radius: 6px;
 	border-width: 1px;
