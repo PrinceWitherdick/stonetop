@@ -7,13 +7,25 @@
 	<div class="stonetop-follower-card">
 		<div class="stonetop-follower-header">
 			<div class="stonetop-follower-title">
-				<span class="stonetop-follower-name">{{#if name}}{{name}}{{else}}Animal Companion{{/if}}</span>
+				<span class="stonetop-follower-name">
+					{{#if name}}{{name}}{{else}}Animal Companion{{/if}}{{#if pronoun}} <span class="stonetop-follower-pronoun">({{pronoun}})</span>{{/if}}
+					{{#if @root.stonetop.editMode}}<input class="stonetop-animal-companion-pronoun-input stonetop-follower-pronoun-input" type="text" value="{{pronoun}}" placeholder="pronoun…" maxlength="10">{{/if}}
+				</span>
 				<span class="stonetop-follower-type">{{#if kind}}{{kindDisplay}} ({{typeDisplay}}){{else}}{{type}}{{/if}}</span>
 			</div>
 			<div class="stonetop-follower-stats">
-				<span class="stonetop-follower-stat"><strong>HP</strong> {{hp}}</span>
+				<span class="stonetop-follower-stat">
+					<strong>HP</strong>
+					<span class="stonetop-follower-hp-track">
+						<input class="stonetop-follower-hp-input" type="number"
+						       data-follower="animal-companion"
+						       value="{{hpCurrent}}" min="0" max="{{hpMax}}">
+						<span class="stonetop-hp-sep">/</span>
+						<span class="stonetop-hp-max">{{hpMax}}</span>
+					</span>
+				</span>
 				<span class="stonetop-follower-stat"><strong>Armor</strong> {{armor}}</span>
-				<span class="stonetop-follower-stat"><strong>Damage</strong> {{damage}}</span>
+				<span class="stonetop-follower-stat"><strong>Damage</strong> {{#if damageRoll}}<a class="rollable stonetop-follower-damage-roll" data-roll="{{damageRoll}}" data-follower-type="animal" data-follower-kind="{{#if kind}}{{kind}}{{else}}{{typeDisplay}}{{/if}}" data-follower-name="{{name}}" data-follower-pronoun="{{pronoun}}" data-damage-form="{{damageForm}}"><i class="fas fa-dice-d6"></i></a>{{/if}} {{damage}}</span>
 			</div>
 		</div>
 		{{#if traits.length}}
@@ -76,7 +88,7 @@
 			<div class="stonetop-follower-stats">
 				<span class="stonetop-follower-stat"><strong>HP</strong> 6 each</span>
 				<span class="stonetop-follower-stat"><strong>Armor</strong> 0</span>
-				<span class="stonetop-follower-stat"><strong>Damage</strong> d6</span>
+				<span class="stonetop-follower-stat"><strong>Damage</strong> <a class="rollable stonetop-follower-damage-roll" data-roll="d6" data-follower-type="crew" data-follower-name="{{name}}" data-follower-pronoun="they" data-damage-form=""><i class="fas fa-dice-d6"></i></a> d6</span>
 			</div>
 		</div>
 
@@ -164,6 +176,14 @@
 				<div class="stonetop-crew-individual">
 					<div class="stonetop-crew-individual-header">
 						<span class="stonetop-crew-individual-name">{{name}}</span>
+						<span class="stonetop-follower-hp-track stonetop-follower-hp-track--individual">
+							<strong class="stonetop-follower-hp-label">HP</strong>
+							<input class="stonetop-follower-hp-input" type="number"
+							       data-follower="crew-individual" data-index="{{index}}"
+							       value="{{hpCurrent}}" min="0" max="6">
+							<span class="stonetop-hp-sep">/</span>
+							<span class="stonetop-hp-max">6</span>
+						</span>
 						{{#if @root.stonetop.editMode}}
 						<button type="button" class="stonetop-crew-delete-individual stonetop-inline-btn stonetop-inline-btn--danger"
 						        data-index="{{index}}" title="Remove">
@@ -212,9 +232,18 @@
 				<span class="stonetop-follower-type">initiate of Danu</span>
 			</div>
 			<div class="stonetop-follower-stats">
-				<span class="stonetop-follower-stat"><strong>HP</strong> {{hp}}</span>
+				<span class="stonetop-follower-stat">
+					<strong>HP</strong>
+					<span class="stonetop-follower-hp-track">
+						<input class="stonetop-follower-hp-input" type="number"
+						       data-follower="initiate" data-slug="{{slug}}"
+						       value="{{hpCurrent}}" min="0" max="{{hpMax}}">
+						<span class="stonetop-hp-sep">/</span>
+						<span class="stonetop-hp-max">{{hpMax}}</span>
+					</span>
+				</span>
 				<span class="stonetop-follower-stat"><strong>Armor</strong> {{armor}}</span>
-				<span class="stonetop-follower-stat"><strong>Damage</strong> {{damage}}</span>
+				<span class="stonetop-follower-stat"><strong>Damage</strong> {{#if damageRoll}}<a class="rollable stonetop-follower-damage-roll" data-roll="{{damageRoll}}" data-follower-type="initiate" data-follower-name="{{label}}" data-follower-pronoun="{{pronoun}}" data-damage-form="{{damageForm}}"><i class="fas fa-dice-d6"></i></a>{{/if}} {{damage}}</span>
 			</div>
 		</div>
 		{{#if tags.length}}

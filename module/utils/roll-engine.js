@@ -43,9 +43,8 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 				<h2 class="cell__title">${header}</h2>
 			</div>
 			${descriptionHtml}
-			${formulaHtml}
-			${resultHtml}
 			${buttonsHtml}
+			${resultHtml}
 			${conditionsHtml}
 		</div>
 	</section>`;
@@ -169,7 +168,7 @@ export async function rollDamage(formula, actor, options = {}) {
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, formula, buttons: true }),
+		flavor:   _rollCard({ header: label, buttons: true }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 

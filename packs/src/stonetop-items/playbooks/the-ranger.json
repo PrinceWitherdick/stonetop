@@ -260,7 +260,7 @@
             "examples": "falcon, eagle, owl, buzzard, magpie…",
             "hp": 5,
             "armor": "1 (size)",
-            "damage": "d4 (band)",
+            "damage": "d4 (hand)",
             "pickCount": 4,
             "traits": [
               "+4 HP",
@@ -283,7 +283,7 @@
             "examples": "cat, fox, possum, raccoon, weasel…",
             "hp": 5,
             "armor": "1",
-            "damage": "d4 (band)",
+            "damage": "d4 (hand)",
             "pickCount": 5,
             "traits": [
               "+4 HP",
@@ -312,7 +312,7 @@
             "examples": "bear, boar, wolverine, aurochs, drake…",
             "hp": 12,
             "armor": "0",
-            "damage": "d6 (band)",
+            "damage": "d6 (hand)",
             "pickCount": 3,
             "traits": [
               "+1 armor (hide, scales, etc.)",
@@ -335,7 +335,7 @@
             "examples": "hound, wolf, cougar, drake…",
             "hp": 8,
             "armor": "0",
-            "damage": "d8 (band, grabby)",
+            "damage": "d8 (hand, grabby)",
             "pickCount": 3,
             "traits": [
               "+4 HP",
@@ -363,7 +363,7 @@
             "examples": "horse, mule…",
             "hp": 12,
             "armor": "0",
-            "damage": "d6+1 (band, close)",
+            "damage": "d6+1 (hand, close)",
             "pickCount": 4,
             "traits": [
               "+4 HP",

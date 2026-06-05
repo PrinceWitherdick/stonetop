@@ -4,6 +4,31 @@ import { parseMovePickCount } from "../StonetopCharacter.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
+const STEADING_NPC_TRAITS = [
+	"all thumbs", "ambitious", "beloved by everyone", "beautiful singing voice",
+	"best cook", "best weaver", "blind", "braved the Ruined Tower", "cautious",
+	"cheery", "chronic cough", "complains too much", "cowardly", "craves recognition",
+	"curious", "dallied with the Fae years ago", "deaf", "desperately wants a child",
+	"distills the best whisky", "doesn't pull their weight", "drunkard", "eagle-eye",
+	"fearless", "foundling", "gathers herbs from the Wood", "gets the best deals",
+	"gifted storyteller", "gods-fearing", "good with children", "happy-go-lucky",
+	"has a beef with Marshedge", "has a good heart", "has a lot of backbone",
+	"has a wandering eye", "has a way with animals", "has Fae blood in their veins",
+	"has just terrible luck", "has lost their nerve", "has no respect for their elders",
+	"has terrible nightmares", "has the most children", "has their head in the clouds",
+	"hates the Hillfolk", "hears voices", "humorless", "immaculate appearance",
+	"jealous", "just got married", "keeps to themselves", "knows all the gossip",
+	"lame", "likes to hurt things", "lived among the Forest Folk", "lost all their children",
+	"lovesick", "loves their dogs", "loyal friend", "most handsome", "moved here recently",
+	"must approve any marriages", "mute", "not afraid of deep water", "not too bright",
+	"oldest orphan", "overprotective", "prettiest", "prideful", "reckless",
+	"refuses to marry", "resents their lot in life", "runs everywhere", "sensitive",
+	"simpleton", "slew many crinwin", "stoic", "stubborn", "suffers from fits",
+	"swears they met the Pale Hunter", "tells the best jokes", "tender-hearted",
+	"tends the Gods' Pavilion", "tends to the sick & injured", "touched", "very strong",
+	"wants to have kids", "well-read", "well-traveled", "widowed", "will eat anything",
+];
+
 export const ANIMAL_COMPANION_TRAIT_GLOSSARY = {
 	"agile":           "Acts with grace and nimbleness; can slip through tight spaces and dodge with ease.",
 	"adorable":        "Disarmingly cute; people are more likely to be charmed than threatened.",
@@ -45,6 +70,8 @@ export const ANIMAL_COMPANION_TRAIT_GLOSSARY = {
 };
 
 export class CharacterOnboardingDialog extends Application {
+	static TOP_Z_INDEX = 110000;
+
 	constructor(playbookDoc, onComplete, options = {}) {
 		const { onBack, onSave, initialSelections, startAtStep = null, ...appOptions } = options;
 		super(appOptions);
@@ -55,6 +82,9 @@ export class CharacterOnboardingDialog extends Application {
 		// Pre-seed cache with glossary so getData() and _lookupWord share one lookup path.
 		this._wordCache = new Map(Object.entries(ANIMAL_COMPANION_TRAIT_GLOSSARY));
 		this._hoveredAnchor      = null;
+		this._keepOnTopQueued    = false;
+		this._keepOnTopListener  = () => this._queueKeepOnTop();
+		this._keepOnTopObserver  = null;
 
 		const f = playbookDoc.flags?.stonetop ?? {};
 		this._backgrounds        = f.backgrounds        ?? [];
@@ -366,13 +396,26 @@ export class CharacterOnboardingDialog extends Application {
 			placeholder: this._normalizeOnboardingText(text.placeholder ?? ""),
 			value: this._selections.backgroundSetup.texts[text.key] ?? "",
 		}));
-		const neighbors = (setup.neighbors ?? []).map(neighbor => ({
-			name: this._normalizeOnboardingText(neighbor.name ?? ""),
-			origin: this._normalizeOnboardingText(neighbor.origin ?? ""),
-			traitKey: neighbor.traitKey ?? "",
-			traitLabel: this._normalizeOnboardingText(neighbor.traitLabel ?? "Trait"),
-			trait: this._selections.backgroundSetup.neighborTraits[neighbor.traitKey] ?? "",
-		}));
+		const neighbors = (setup.neighbors ?? []).map(neighbor => {
+			const trait = this._selections.backgroundSetup.neighborTraits[neighbor.traitKey] ?? "";
+			const hasListedTrait = STEADING_NPC_TRAITS.includes(trait);
+			const isCustomTrait = !!trait && !hasListedTrait;
+			return {
+				name: this._normalizeOnboardingText(neighbor.name ?? ""),
+				origin: this._normalizeOnboardingText(neighbor.origin ?? ""),
+				backgroundSlug: background.slug,
+				traitKey: neighbor.traitKey ?? "",
+				traitLabel: this._normalizeOnboardingText(neighbor.traitLabel ?? "Trait"),
+				trait,
+				customTrait: isCustomTrait ? trait : "",
+				isCustomTrait,
+				traitOptions: STEADING_NPC_TRAITS.map(value => ({
+					value,
+					label: this._normalizeOnboardingText(value),
+					selected: trait === value,
+				})),
+			};
+		});
 		const neighborChoices = (setup.neighborChoices ?? []).map(choice => {
 			const selected = this._selections.backgroundSetup.neighborPicks[choice.key] ?? [];
 			return {
@@ -738,6 +781,64 @@ export class CharacterOnboardingDialog extends Application {
 
 	get title() {
 		return `New Character — ${this._playbookDoc.name}`;
+	}
+
+	async _render(force, options) {
+		await super._render(force, options);
+		this._keepOnTop();
+	}
+
+	_keepOnTop() {
+		const otherWindowZ = Object.values(globalThis.ui?.windows ?? {})
+			.filter(w => w !== this && !w.element?.[0]?.classList.contains("stonetop-onboarding-child-dialog"))
+			.map(w => parseInt(w.element?.[0]?.style?.zIndex || 0))
+			.filter(Number.isFinite);
+		const zIndex = Math.max(this.constructor.TOP_Z_INDEX, ...otherWindowZ) + 1;
+		const el = this.element?.[0];
+		if (el && el.style.zIndex !== String(zIndex)) {
+			el.style.setProperty("z-index", String(zIndex), "important");
+		}
+		document.querySelectorAll(".window-app.stonetop-onboarding-child-dialog")
+			.forEach(childEl => {
+				const childZ = String(zIndex + 1);
+				if (childEl.style.zIndex !== childZ) childEl.style.setProperty("z-index", childZ, "important");
+			});
+	}
+
+	_queueKeepOnTop() {
+		if (this._keepOnTopQueued || !this.rendered) return;
+		this._keepOnTopQueued = true;
+		const raise = () => {
+			this._keepOnTopQueued = false;
+			this._keepOnTop();
+		};
+		requestAnimationFrame(raise);
+		setTimeout(() => this._keepOnTop(), 0);
+		setTimeout(() => this._keepOnTop(), 50);
+	}
+
+	_startKeepOnTopGuard() {
+		for (const eventName of ["pointerdown", "mousedown", "mouseup", "click", "focusin"]) {
+			document.removeEventListener(eventName, this._keepOnTopListener, true);
+			document.addEventListener(eventName, this._keepOnTopListener, true);
+		}
+		if (!this._keepOnTopObserver) {
+			this._keepOnTopObserver = new MutationObserver(() => this._queueKeepOnTop());
+			this._keepOnTopObserver.observe(document.body, {
+				subtree: true,
+				childList: true,
+				attributes: true,
+				attributeFilter: ["class", "style"],
+			});
+		}
+	}
+
+	_stopKeepOnTopGuard() {
+		for (const eventName of ["pointerdown", "mousedown", "mouseup", "click", "focusin"]) {
+			document.removeEventListener(eventName, this._keepOnTopListener, true);
+		}
+		this._keepOnTopObserver?.disconnect();
+		this._keepOnTopObserver = null;
 	}
 
 	_getHeaderButtons() {
@@ -1148,6 +1249,9 @@ export class CharacterOnboardingDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		this._keepOnTop();
+		this._startKeepOnTopGuard();
+		html.closest(".window-app").on("mousedown.stonetopOnboarding focusin.stonetopOnboarding", () => this._queueKeepOnTop());
 
 		html.find(".stonetop-onboarding-back-to-picker").on("click", () => this._goBack());
 		html.find(".stonetop-onboarding-back").on("click", () => this._navigate(-1));
@@ -1242,11 +1346,39 @@ export class CharacterOnboardingDialog extends Application {
 			}
 			_refreshNextButton();
 		});
-		html.find(".onboard-background-neighbor-trait").on("input", ev => {
+		html.find(".onboard-background-neighbor-trait").on("change", ev => {
 			const { backgroundSlug, traitKey } = ev.currentTarget.dataset;
 			const prevBackground = this._selections.backgroundSlug;
 			this._applyBackgroundChange(backgroundSlug);
-			this._selections.backgroundSetup.neighborTraits[traitKey] = ev.currentTarget.value;
+			const value = ev.currentTarget.value;
+			const customInput = ev.currentTarget
+				.closest(".stonetop-onboarding-background-neighbor")
+				?.querySelector(".onboard-background-neighbor-trait-custom");
+			if (value === "custom") {
+				customInput?.classList.remove("hidden");
+				this._selections.backgroundSetup.neighborTraits[traitKey] = customInput?.value.trim() ?? "";
+			} else {
+				customInput?.classList.add("hidden");
+				this._selections.backgroundSetup.neighborTraits[traitKey] = value;
+			}
+			if (prevBackground !== backgroundSlug) {
+				html.find("[name='onboard-background']").each((_, radio) => {
+					radio.checked = radio.value === backgroundSlug;
+					radio.closest(".stonetop-onboarding-card")
+						?.classList.toggle("is-selected", radio.value === backgroundSlug);
+				});
+			}
+			_refreshNextButton();
+		});
+		html.find(".onboard-background-neighbor-trait-custom").on("input", ev => {
+			const { backgroundSlug, traitKey } = ev.currentTarget.dataset;
+			const prevBackground = this._selections.backgroundSlug;
+			this._applyBackgroundChange(backgroundSlug);
+			this._selections.backgroundSetup.neighborTraits[traitKey] = ev.currentTarget.value.trim();
+			const select = ev.currentTarget
+				.closest(".stonetop-onboarding-background-neighbor")
+				?.querySelector(".onboard-background-neighbor-trait");
+			if (select) select.value = "custom";
 			if (prevBackground !== backgroundSlug) {
 				html.find("[name='onboard-background']").each((_, radio) => {
 					radio.checked = radio.value === backgroundSlug;
@@ -1894,10 +2026,13 @@ export class CharacterOnboardingDialog extends Application {
 				},
 			},
 			default: "continue",
+		}, {
+			classes: ["dialog", "stonetop-onboarding-child-dialog"],
 		}).render(true);
 	}
 
 	async close(options) {
+		this._stopKeepOnTopGuard();
 		this._clearPopups();
 		return super.close(options);
 	}

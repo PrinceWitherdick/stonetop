@@ -53,6 +53,15 @@
 				{{/if}}
 			</div>
 			<div class="stonetop-item-description">{{{description}}}</div>
+			{{#if statChoices}}
+			<div class="stonetop-stat-choices">
+				{{#each statChoices}}
+				{{#if statKey}}
+				<span class="stonetop-stat-boost-chip">+1 {{statAbbr}}</span>
+				{{/if}}
+				{{/each}}
+			</div>
+			{{/if}}
 			{{#if backgroundAnswer}}
 			<p class="stonetop-move-note stonetop-move-background-answer">
 				{{backgroundAnswer.label}}: {{backgroundAnswer.value}}

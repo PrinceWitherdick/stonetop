@@ -338,6 +338,7 @@ const _MOVE_REF_RE = new RegExp(
 	`(?<!\\w)(${_MOVE_REF_NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?!\\w)`,
 	"g"
 );
+const _GLYPH_RE = /[○◇□]+/g;
 const _moveRefCache = new Map();
 
 async function _fetchMoveRef(name) {
@@ -384,6 +385,38 @@ function _enrichMoveRefsInEl(container) {
 			span.textContent = m[1];
 			frag.appendChild(span);
 			lastIdx = m.index + m[1].length;
+		}
+		if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+		textNode.parentNode?.replaceChild(frag, textNode);
+	}
+}
+
+function _wrapStonetopGlyphsInEl(container) {
+	const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+		acceptNode: node =>
+			node.parentElement?.closest(".stonetop-glyph, .stonetop-move-ref")
+				? NodeFilter.FILTER_REJECT
+				: NodeFilter.FILTER_ACCEPT,
+	});
+	const toReplace = [];
+	let node;
+	while ((node = walker.nextNode())) {
+		_GLYPH_RE.lastIndex = 0;
+		if (_GLYPH_RE.test(node.textContent)) toReplace.push(node);
+	}
+	for (const textNode of toReplace) {
+		const text = textNode.textContent;
+		const frag = document.createDocumentFragment();
+		let lastIdx = 0;
+		_GLYPH_RE.lastIndex = 0;
+		let m;
+		while ((m = _GLYPH_RE.exec(text)) !== null) {
+			if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
+			const span = document.createElement("span");
+			span.className = "stonetop-glyph";
+			span.textContent = m[0];
+			frag.appendChild(span);
+			lastIdx = m.index + m[0].length;
 		}
 		if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
 		textNode.parentNode?.replaceChild(frag, textNode);
@@ -727,15 +760,22 @@ export function createStonetopCharacterSheetClass(Base) {
 				const kind = sf.animalCompanion?.kind ?? "";
 				const typeLabel = typeData?.label ?? acSlug;
 				const loyaltyVal = sf.animalCompanion?.loyalty ?? 0;
+				const hpMax = Number(stats.hp) || 0;
+				const hpRaw = sf.animalCompanion?.hpCurrent;
 				animalCompanion = {
 					name:     sf.animalCompanion?.name     ?? "",
+					pronoun:  sf.animalCompanion?.pronoun  ?? "",
 					type:     typeLabel,
 					kind,
 					kindDisplay: _titleCase(kind),
 					typeDisplay: String(typeLabel).toLowerCase(),
 					hp:       stats.hp                     ?? "—",
-					armor:    stats.armor                  ?? "—",
-					damage:   stats.damage                 ?? "—",
+					hpMax,
+					hpCurrent: hpRaw != null ? Math.min(Math.max(0, Number(hpRaw)), hpMax) : hpMax,
+					armor:      stats.armor                ?? "—",
+					damage:     stats.damage               ?? "—",
+					damageRoll: String(stats.damage ?? "").match(/(\d*d\d+(?:[+-]\d+)?)/i)?.[1] ?? null,
+					damageForm: (String(stats.damage ?? "").match(/\(([^)]+)\)/)?.[1] ?? "").replace(/\bband\b/gi, "hand") || null,
 					traits: traits.map(label => ({ label, tooltip: _animalCompanionTraitTooltip(label) })),
 					instinct: sf.animalCompanion?.instinct ?? "",
 					cost:     sf.animalCompanion?.cost     ?? "",
@@ -805,7 +845,10 @@ export function createStonetopCharacterSheetClass(Base) {
 							})),
 						};
 					}),
-					individuals:       (sf.crew?.individuals ?? []).map((ind, idx) => ({ ...ind, index: idx })),
+					individuals:       (sf.crew?.individuals ?? []).map((ind, idx) => {
+						const indHpRaw = (sf.crew?.individualsHp ?? {})[idx];
+						return { ...ind, index: idx, hpCurrent: indHpRaw != null ? Math.min(Math.max(0, Number(indHpRaw)), 6) : 6 };
+					}),
 					individualOptions: playbookDoc?.crew?.individualOptions ?? {},
 				};
 			}
@@ -814,6 +857,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			let initiates = null;
 			const bgChoices        = sf.background?.choices ?? {};
 			const initiatesLoyalty = sf.initiatesLoyalty  ?? {};
+			const initiatesHp      = sf.initiatesHp       ?? {};
 			const sfInitiateDetails = sf.initiateDetails  ?? {};
 			const initiateBg       = (playbookDoc?.backgrounds ?? []).find(b => b.slug === "initiate");
 			if (initiateBg?.choices?.options?.length) {
@@ -825,13 +869,19 @@ export function createStonetopCharacterSheetClass(Base) {
 						const choiceDetails = (opt.choiceRows ?? [])
 							.map((row, rowIdx) => row.type !== "pronoun" ? det.rows?.[rowIdx] : null)
 							.filter(Boolean);
+						const initHpMax = Number(opt.hp) || 0;
+						const initHpRaw = initiatesHp[opt.slug];
 						return {
 							slug:          opt.slug,
 							label:         opt.label,
 							tags:          (opt.subtitle ?? "").split(", ").map(t => t.trim()).filter(Boolean),
 							hp:            opt.hp      ?? "—",
+							hpMax:         initHpMax,
+							hpCurrent:     initHpRaw != null ? Math.min(Math.max(0, Number(initHpRaw)), initHpMax) : initHpMax,
 							armor:         opt.armor   ?? "—",
 							damage:        opt.damage  ?? "—",
+							damageRoll:    String(opt.damage ?? "").match(/(\d*d\d+(?:[+-]\d+)?)/i)?.[1] ?? null,
+							damageForm:    String(opt.damage ?? "").match(/\(([^)]+)\)/)?.[1] ?? null,
 							instinct:      opt.instinct ?? null,
 							cost:          opt.cost    ?? null,
 							pronoun:       det.pronoun ?? null,
@@ -972,7 +1022,29 @@ export function createStonetopCharacterSheetClass(Base) {
 						await this._stonetopCharacter.onDirectStatRoll(roll);
 					} else {
 						// Raw formula roll (e.g. damage die "d8")
-						await rollDamage(roll, this.actor, { label: rollable.dataset.label ?? roll });
+						let label;
+						if (rollable.classList.contains("stonetop-follower-damage-roll")) {
+							const followerType   = rollable.dataset.followerType ?? "";
+							const followerName   = (rollable.dataset.followerName   ?? "").trim();
+							const followerKind   = (rollable.dataset.followerKind   ?? "").trim();
+							const followerPronoun = (rollable.dataset.followerPronoun ?? "").trim().toLowerCase().split(/[\s/]/)[0];
+							const damageForm     = (rollable.dataset.damageForm     ?? "").trim();
+							const possessive = { he: "his", she: "her", they: "their" }[followerPronoun] ?? "its";
+							if (followerType === "animal") {
+								const subject  = followerName || followerKind || "animal companion";
+								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
+								label = `${subject} attacks${formPart}`;
+							} else if (followerType === "initiate") {
+								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
+								label = `${this.actor.name}'s ${followerName || "initiate"} attacks${formPart}`;
+							} else {
+								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
+								label = `${this.actor.name}'s ${followerName || "crew"} attacks${formPart}`;
+							}
+						} else {
+							label = rollable.dataset.label ?? roll;
+						}
+						await rollDamage(roll, this.actor, { label });
 					}
 				}
 			}, true);
@@ -1036,6 +1108,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (el.dataset.moveRefsEnriched) return;
 				el.dataset.moveRefsEnriched = "1";
 				_enrichMoveRefsInEl(el);
+				_wrapStonetopGlyphsInEl(el);
 			});
 
 			let _moveRefHovered = null;
@@ -1501,6 +1574,103 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { loreSlug, optionSlug } = ta.dataset;
 				this._stonetopCharacter.setPostDeathLoreText(loreSlug, optionSlug, ta.value);
 			}, true);
+
+			// -- Followers tab: pronoun ------------------------------------
+			html[0].addEventListener("change", async ev => {
+				const input = ev.target.closest(".stonetop-animal-companion-pronoun-input");
+				if (!input) return;
+				await this.actor.setFlag("stonetop_pwd", "animalCompanion.pronoun", input.value.trim());
+				this.render(false);
+			}, true);
+
+			// -- Followers tab: HP tracking --------------------------------
+			html[0].addEventListener("change", async ev => {
+				const input = ev.target.closest(".stonetop-follower-hp-input");
+				if (!input) return;
+				const val = Math.max(0, parseInt(input.value) || 0);
+				const { follower, slug, index } = input.dataset;
+				if (follower === "animal-companion") {
+					await this.actor.setFlag("stonetop_pwd", "animalCompanion.hpCurrent", val);
+				} else if (follower === "initiate") {
+					const current = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "initiatesHp") ?? {});
+					current[slug] = val;
+					await this.actor.setFlag("stonetop_pwd", "initiatesHp", current);
+				} else if (follower === "crew-individual") {
+					const current = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "crew.individualsHp") ?? {});
+					current[Number(index)] = val;
+					await this.actor.setFlag("stonetop_pwd", "crew.individualsHp", current);
+				}
+				this.render(false);
+			}, true);
+
+			this._activateTabDragDrop(html);
+		}
+
+		_activateTabDragDrop(html) {
+			const nav = html[0].querySelector(".sheet-tabs");
+			if (!nav) return;
+
+			this._applyTabOrder(nav);
+
+			if (!this._editMode) return;
+
+			let dragSource = null;
+
+			nav.querySelectorAll(".item[data-tab]").forEach(tab => { tab.draggable = true; });
+
+			nav.addEventListener("dragstart", ev => {
+				dragSource = ev.target.closest(".item[data-tab]");
+				if (!dragSource) return;
+				ev.dataTransfer.effectAllowed = "move";
+				dragSource.classList.add("stonetop-tab-dragging");
+			});
+
+			nav.addEventListener("dragover", ev => {
+				ev.preventDefault();
+				ev.dataTransfer.dropEffect = "move";
+				const target = ev.target.closest(".item[data-tab]");
+				if (!target || target === dragSource) return;
+				nav.querySelectorAll(".item[data-tab]").forEach(t => t.classList.remove("stonetop-tab-drag-over"));
+				target.classList.add("stonetop-tab-drag-over");
+			});
+
+			nav.addEventListener("dragleave", ev => {
+				if (!nav.contains(ev.relatedTarget)) {
+					nav.querySelectorAll(".item[data-tab]").forEach(t => t.classList.remove("stonetop-tab-drag-over"));
+				}
+			});
+
+			nav.addEventListener("drop", ev => {
+				ev.preventDefault();
+				const target = ev.target.closest(".item[data-tab]");
+				nav.querySelectorAll(".item[data-tab]").forEach(t => t.classList.remove("stonetop-tab-drag-over", "stonetop-tab-dragging"));
+				if (!target || target === dragSource || !dragSource) return;
+				const tabs = [...nav.querySelectorAll(".item[data-tab]")];
+				if (tabs.indexOf(dragSource) < tabs.indexOf(target)) target.after(dragSource);
+				else target.before(dragSource);
+				const newOrder = [...nav.querySelectorAll(".item[data-tab]")].map(t => t.dataset.tab);
+				this.actor.setFlag("stonetop_pwd", "tabOrder", newOrder);
+				dragSource = null;
+			});
+
+			nav.addEventListener("dragend", () => {
+				nav.querySelectorAll(".item[data-tab]").forEach(t => t.classList.remove("stonetop-tab-dragging", "stonetop-tab-drag-over"));
+				dragSource = null;
+			});
+		}
+
+		_applyTabOrder(nav) {
+			const savedOrder = this.actor.getFlag("stonetop_pwd", "tabOrder");
+			if (!savedOrder?.length) return;
+			const tabs = [...nav.querySelectorAll(".item[data-tab]")];
+			const tabMap = new Map(tabs.map(t => [t.dataset.tab, t]));
+			for (const key of savedOrder) {
+				const tab = tabMap.get(key);
+				if (tab) nav.appendChild(tab);
+			}
+			for (const tab of tabs) {
+				if (!savedOrder.includes(tab.dataset.tab)) nav.appendChild(tab);
+			}
 		}
 
 		async _onDropPlaybook(playbookDoc) {
@@ -2093,7 +2263,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}
 			for (const compendiumId of (selections.moves ?? [])) {
-				await this._stonetopCharacter.addMove(compendiumId);
+				await this._stonetopCharacter.addMove(compendiumId, { skipIfOwned: true });
 			}
 			for (const slug of (selectedBackground?.extraPossessions ?? [])) {
 				await this._stonetopCharacter.selectPossession(slug);

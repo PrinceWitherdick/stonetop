@@ -164,6 +164,13 @@ body,
 /* Diamond/circle glyphs should never be slanted, even inside italic contexts. */
 .stonetop-glyph { font-style: normal; }
 
+.tab-section--possessions .stonetop-item-description .stonetop-glyph {
+	display: inline-block;
+	font-size: 1.2em;
+	line-height: 1;
+	vertical-align: -0.04em;
+}
+
 /* Stonetop-specific content classes — no other stylesheet targets these,
    so these rules win regardless of load order.
    Use --font-stonetop (not --font-primary) because Foundry redefines
@@ -308,14 +315,34 @@ body,
 }
 
 .sheet-attributes-top .cell--attributes-top .cell {
-	border: 2px solid var(--color-border-dark, #888);
-	border-radius: 6px;
+	background: var(--color-border-dark, #888);
+	padding: 2px;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	flex: 1 1 0%;
+	min-width: 0;
+	clip-path: polygon(
+		8px 0%, calc(100% - 8px) 0%,
+		100% 8px, 100% calc(100% - 8px),
+		calc(100% - 8px) 100%, 8px 100%,
+		0% calc(100% - 8px), 0% 8px
+	);
+}
+
+.sheet-attributes-top .stonetop-vital-inner {
+	background: var(--stonetop-bg, #f0ece3);
 	padding: 4px 8px 8px;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	flex: 1 1 0%;
-	min-width: 0;
+	flex: 1;
+	clip-path: polygon(
+		6px 0%, calc(100% - 6px) 0%,
+		100% 6px, 100% calc(100% - 6px),
+		calc(100% - 6px) 100%, 6px 100%,
+		0% calc(100% - 6px), 0% 6px
+	);
 }
 
 .sheet-attributes-top .cell--attributes-top .cell .cell__title {
@@ -416,7 +443,7 @@ body,
 }
 
 /* Number cell (Armor, Level) */
-.sheet-attributes-top .cell--Number > input {
+.sheet-attributes-top .cell--Number .stonetop-vital-inner > input {
 	width: 100%;
 	text-align: center;
 	border: 1px solid #aaa;
@@ -569,6 +596,45 @@ input.stonetop-name-field {
 	font-size: 1.1rem;
 	line-height: 42px;
 	flex-shrink: 0;
+}
+
+.stonetop-stat-box {
+	width: 55px;
+	height: 44px;
+	box-sizing: border-box;
+	background: var(--color-border-dark, #888);
+	padding: 2px;
+	flex-shrink: 0;
+	clip-path: polygon(
+		6px 0%, calc(100% - 6px) 0%,
+		100% 6px, 100% calc(100% - 6px),
+		calc(100% - 6px) 100%, 6px 100%,
+		0% calc(100% - 6px), 0% 6px
+	);
+}
+
+.stonetop-stat-inner {
+	width: 100%;
+	height: 100%;
+	background: var(--stonetop-bg, #f0ece3);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	clip-path: polygon(
+		4px 0%, calc(100% - 4px) 0%,
+		100% 4px, 100% calc(100% - 4px),
+		calc(100% - 4px) 100%, 4px 100%,
+		0% calc(100% - 4px), 0% 4px
+	);
+}
+
+.pbta.sheet .sheet-attributes .cell--stats .stonetop-stat-inner .stat-value {
+	width: 100% !important;
+	height: 100% !important;
+	min-width: 0 !important;
+	border: none !important;
+	border-radius: 0 !important;
+	line-height: normal;
 }
 
 .pbta.sheet .sheet-attributes .cell--stats .cell__title {
@@ -1187,6 +1253,7 @@ input.stonetop-name-field {
 	border-radius: 3px;
 	padding: 2px 4px;
 	cursor: pointer;
+	font-style: normal;
 }
 
 .stonetop-moves-sidebar li:hover {
@@ -1195,6 +1262,13 @@ input.stonetop-name-field {
 
 .stonetop-move-name {
 	cursor: pointer;
+	font-style: normal;
+	font-weight: bold;
+}
+
+.stonetop-moves-sidebar ol li::marker {
+	font-weight: normal;
+	font-style: normal;
 }
 
 /* Basic move hover panel */
@@ -1228,6 +1302,33 @@ input.stonetop-name-field {
 .stonetop-basic-move-panel li { margin: 2px 0; }
 .stonetop-basic-move-panel strong { font-weight: bold; }
 .stonetop-basic-move-panel em { font-style: italic; }
+
+/* -- Improved Stat chosen chip ----------------------------- */
+
+.stonetop-stat-choices {
+	margin-top: 4px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.stonetop-stat-boost-chip {
+	display: inline-flex;
+	align-items: center;
+	width: fit-content;
+	padding: 2px 7px;
+	border: 1px solid rgba(100,116,139,0.35);
+	border-radius: 999px;
+	background: hsl(210 12% 92%);
+	color: #333;
+	font-family: var(--font-stonetop);
+	font-size: 0.78em;
+	font-weight: 700;
+	font-style: normal;
+	line-height: 1.2;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
 
 /* -- Moves tab -------------------------------------------- */
 
@@ -1389,95 +1490,152 @@ input.stonetop-name-field {
 
 /* ── Chat card tweaks ───────────────────────────────────────────────────────── */
 
-#chat .message .stonetop-roll-card-description {
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description {
 	font-size: var(--font-size-12);
 	color: #333;
 	padding: 6px 8px;
 	border-bottom: 1px solid rgba(0,0,0,0.08);
 }
 
-#chat .message .stonetop-roll-card-description p { margin: 0 0 4px; }
-#chat .message .stonetop-roll-card-description p:last-child { margin-bottom: 0; }
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description p { margin: 0 0 4px; }
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description p:last-child { margin-bottom: 0; }
 
-#chat .message:has(.stonetop-roll-card) {
-	background: #fff url(/systems/stonetop_pwd/assets/graphics/concrete-seamless.webp);
+:is(#chat, #chat-notifications) .message .pbta-chat-card .cell--chat {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-bottom: 8px;
+}
+
+
+:is(#chat, #chat-notifications) .message:has(.stonetop-roll-card) {
+	background: var(--stonetop-bg, #f0ece3) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp) center / cover;
+	border-radius: 6px;
+	border-width: 1px;
+	border-bottom-width: 2px;
 	font-family: "Roboto", sans-serif;
+	font-size: var(--font-size-13);
 }
 
-#chat .message .pbta-chat-card .chat-title {
+:is(#chat, #chat-notifications) .message .pbta-chat-card .chat-title {
 	align-items: center;
-	border: 1px solid rgba(0,0,0,0.05);
-	border-left: 0;
-	border-right: 0;
-	padding: 4px 0;
+	padding: 6px 4px;
+	border-bottom: 1px solid rgba(159, 146, 117, 0.4);
+	background: rgba(159, 146, 117, 0.08);
 }
 
-#chat .message .pbta-chat-card .cell__title {
-	font-family: "Roboto Condensed", sans-serif;
-	font-size: var(--font-size-20);
+:is(#chat, #chat-notifications) .message .pbta-chat-card .cell__title {
+	font-family: var(--font-stonetop, "Signika", serif);
+	font-size: var(--font-size-16);
 	font-weight: bold;
-	text-transform: uppercase;
-	line-height: 1;
+	line-height: 1.2;
 	margin: 0;
 	border: 0;
 }
 
-#chat .message .pbta-chat-card .cell__subtitle {
+:is(#chat, #chat-notifications) .message .pbta-chat-card .cell__subtitle {
 	font-family: "Roboto Condensed", sans-serif;
+	font-size: var(--font-size-11);
 	font-weight: bold;
 	text-transform: uppercase;
+	letter-spacing: 0.03em;
 	line-height: 1;
 	margin: 0;
+	color: var(--color-text-dark-secondary);
 }
 
-#chat .message .pbta-chat-card .row {
+:is(#chat, #chat-notifications) .message .pbta-chat-card .row {
 	font-size: var(--font-size-13);
 }
 
-#chat .message .pbta-chat-card .row--border {
-	margin-top: 10px;
+:is(#chat, #chat-notifications) .message .pbta-chat-card .row--border {
+	margin-top: 0;
 }
 
-#chat .message .pbta-chat-card .result {
-	margin-bottom: 10px;
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-content .row {
+	background: rgba(0, 0, 0, 0.05);
+	border-radius: 3px;
+	padding: 3px 6px;
+	margin: 0;
 }
 
-#chat .message .pbta-chat-card .result-label {
+:is(#chat, #chat-notifications) .message .pbta-chat-card .result {
+	margin: 0;
+}
+
+:is(#chat, #chat-notifications) .message .pbta-chat-card .result-label {
 	text-align: center;
 	font-size: var(--font-size-18);
 	font-weight: bold;
-	border: 1px solid #ccc;
+	border: 1px solid rgba(159, 146, 117, 0.5);
+	border-radius: 3px;
 	margin: 0;
-	padding: 10px;
-	background: #efefef;
+	padding: 8px;
+	background: rgba(159, 146, 117, 0.1);
 }
 
-#chat .message.whisper .pbta-chat-card .result-label {
-	background: #d0dbed;
+:is(#chat, #chat-notifications) .message .pbta-chat-card .result.failure .result-label {
+	background: #f5dada;
+	border-color: #8b1a1a;
+	color: #6e0000;
 }
 
-#chat .message .pbta-chat-card .result-details,
-#chat .message .pbta-chat-card .result-choices {
+:is(#chat, #chat-notifications) .message .pbta-chat-card .result.partial .result-label {
+	background: #f5edd8;
+	border-color: #9f7640;
+	color: #6b4400;
+}
+
+:is(#chat, #chat-notifications) .message .pbta-chat-card .result.success .result-label,
+:is(#chat, #chat-notifications) .message .pbta-chat-card .result.critical .result-label {
+	background: #d0dbc8;
+	border-color: #2d6a2d;
+	color: #1a4a1a;
+}
+
+:is(#chat, #chat-notifications) .message.whisper .pbta-chat-card .result-label {
+	background: #d8dff0;
+	border-color: #5566aa;
+}
+
+:is(#chat, #chat-notifications) .message .pbta-chat-card .result-details,
+:is(#chat, #chat-notifications) .message .pbta-chat-card .result-choices {
 	padding: 0 10px;
 }
 
-#chat .message .pbta-chat-card .failure { color: #b31a1a; }
-#chat .message .pbta-chat-card .partial { color: #000; }
-#chat .message .pbta-chat-card .success { color: #1a6dc3; }
-#chat .message .pbta-chat-card .critical { color: #037307; }
+:is(#chat, #chat-notifications) .message .pbta-chat-card .failure { color: #6e0000; }
+:is(#chat, #chat-notifications) .message .pbta-chat-card .partial { color: #6b4400; }
+:is(#chat, #chat-notifications) .message .pbta-chat-card .success { color: #1a4a1a; }
+:is(#chat, #chat-notifications) .message .pbta-chat-card .critical { color: #1a4a1a; }
 
-#chat .message .pbta-chat-card .card-buttons {
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons {
 	display: flex;
-	margin-bottom: 10px;
+	gap: 4px;
+	margin: 0;
 }
 
-#chat .message .pbta-chat-card .card-buttons:empty {
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons:empty {
 	display: none;
 }
 
-#chat .message .pbta-chat-card .card-buttons button {
-	background: rgba(0,0,0,0.1);
-	border: 1px solid var(--color-border-light-2);
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button {
+	font-family: "Roboto", sans-serif;
+	font-size: var(--font-size-11);
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	background: rgba(159, 146, 117, 0.12);
+	border: 1px solid rgba(159, 146, 117, 0.5);
+	border-radius: 3px;
+	padding: 4px 8px;
+	box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
+	color: inherit;
+	min-height: unset;
+}
+
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button:hover:not(:disabled) {
+	background: rgba(159, 146, 117, 0.28);
+	box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
 }
 
 /* "Conditions Applied:" heading — normalize to match the stat-name row text size */
@@ -1494,6 +1652,7 @@ input.stonetop-name-field {
 /* ── Burn Brightly ──────────────────────────────────────────────────────────── */
 
 .pbta-chat-card .card-buttons {
+	display: flex;
 	gap: 4px;
 }
 
@@ -2390,6 +2549,7 @@ input.stonetop-name-field {
 
 .stonetop-move-group-title {
 	font-weight: bold;
+	font-style: normal;
 }
 
 .tab.moves.hide-unselected .stonetop-item:not(.is-checked) {
@@ -3711,6 +3871,22 @@ input.stonetop-name-field {
 	color: #fff;
 	text-shadow: none;
 	font-weight: bold;
+}
+
+/* Tab drag-and-drop (edit mode only) */
+.stonetop-edit-mode .sheet-tabs .item[draggable="true"] {
+	cursor: grab;
+}
+.stonetop-edit-mode .sheet-tabs .item[draggable="true"]:active {
+	cursor: grabbing;
+}
+.sheet-tabs .stonetop-tab-dragging {
+	opacity: 0.35;
+	cursor: grabbing !important;
+}
+.sheet-tabs .stonetop-tab-drag-over {
+	outline: 2px dashed rgba(255, 255, 255, 0.75);
+	outline-offset: -2px;
 }
 
 /* -- Tabs — steading sheet ------------------------------------- */
@@ -5170,6 +5346,14 @@ input.stonetop-name-field {
 
 /* -- Character Onboarding Dialog ------------------------------------------ */
 
+.window-app.stonetop-onboarding {
+	z-index: 110000 !important;
+}
+
+.window-app.stonetop-onboarding-child-dialog {
+	z-index: 110001 !important;
+}
+
 .stonetop-onboarding .window-content {
 	padding: 0;
 	background: var(--stonetop-bg);
@@ -5526,17 +5710,20 @@ input.stonetop-name-field {
 }
 
 .stonetop-onboarding-footer-nav {
-	position: relative;
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	align-items: center;
-	gap: 8px;
+	column-gap: 8px;
 	width: 100%;
 	min-width: 0;
 }
 
 .stonetop-onboarding-footer-back {
-	flex: 1 1 0;
+	grid-column: 1;
+	justify-self: start;
+	display: flex;
 	min-width: 0;
+	max-width: 100%;
 }
 
 .stonetop-onboarding-footer-spacer {
@@ -5544,10 +5731,9 @@ input.stonetop-name-field {
 }
 
 .stonetop-onboarding-step-counter {
-	position: absolute;
-	left: 50%;
-	transform: translateX(-50%);
-	padding: 0;
+	grid-column: 2;
+	justify-self: center;
+	padding: 0 16px;
 	font-size: 0.8em;
 	color: #888;
 	pointer-events: none;
@@ -5555,18 +5741,18 @@ input.stonetop-name-field {
 }
 
 .stonetop-onboarding-footer-right {
-	flex: 1 1 0;
+	grid-column: 3;
+	justify-self: end;
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
 	gap: 6px;
 	min-width: 0;
+	max-width: 100%;
 }
 
 .stonetop-onboarding-footer-right::before {
-	content: "";
-	flex: 1 1 16px;
-	min-width: 16px;
+	display: none;
 }
 
 .stonetop-onboarding-back,
@@ -5595,6 +5781,7 @@ input.stonetop-name-field {
 	background: slategrey;
 	color: white;
 	border-color: slategrey;
+	min-width: max-content;
 }
 
 .stonetop-onboarding-confirm:hover { background: hsl(210 13% 47%); }
@@ -6146,6 +6333,7 @@ input.stonetop-name-field {
 	font-style: normal;
 }
 
+.stonetop-onboarding-background-neighbor select,
 .stonetop-onboarding-background-neighbor input {
 	width: 100%;
 	min-width: 0;
@@ -6157,9 +6345,22 @@ input.stonetop-name-field {
 	font-size: 0.86em;
 }
 
+.stonetop-onboarding-background-neighbor .hidden {
+	display: none;
+}
+
+.onboard-background-neighbor-trait-custom {
+	margin-top: 4px;
+	grid-column: 2;
+}
+
 @media (max-width: 560px) {
 	.stonetop-onboarding-background-neighbor {
 		grid-template-columns: 1fr;
+	}
+
+	.onboard-background-neighbor-trait-custom {
+		grid-column: 1;
 	}
 }
 
@@ -6604,6 +6805,7 @@ input.stonetop-name-field {
 
 .stonetop-follower-stats {
 	display: flex;
+	align-items: center;
 	gap: 12px;
 	flex-shrink: 0;
 	font-size: calc(0.78em + 2pt);
@@ -6616,6 +6818,56 @@ input.stonetop-name-field {
 	font-size: 0.85em;
 	letter-spacing: 0.04em;
 	margin-right: 2px;
+}
+
+.stonetop-follower-damage-roll {
+	color: slategrey;
+	cursor: pointer;
+	margin: 0 1px;
+}
+
+.stonetop-follower-damage-roll:hover {
+	color: var(--color-text-hyperlink, slategrey);
+}
+
+.stonetop-follower-hp-track {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+}
+
+.stonetop-follower-hp-input {
+	width: 36px;
+	text-align: center;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 3px;
+	background: rgba(255, 255, 255, 0.6);
+	font-size: inherit;
+	padding: 1px 2px;
+	line-height: 1;
+}
+
+.stonetop-follower-hp-input:focus {
+	outline: 2px solid slategrey;
+	outline-offset: 1px;
+}
+
+.stonetop-hp-sep,
+.stonetop-hp-max {
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-follower-hp-track--individual {
+	margin-left: auto;
+	margin-right: 6px;
+	font-size: 0.85em;
+}
+
+.stonetop-follower-hp-label {
+	color: slategrey;
+	text-transform: uppercase;
+	font-size: 0.85em;
+	letter-spacing: 0.04em;
 }
 
 .stonetop-follower-row {
@@ -6676,6 +6928,17 @@ input.stonetop-name-field {
 	font-size: 0.78em;
 	color: #777;
 	font-weight: normal;
+}
+
+.stonetop-follower-pronoun-input {
+	width: 72px;
+	font-size: 0.78em;
+	padding: 1px 4px;
+	border: 1px solid rgba(0, 0, 0, 0.2);
+	border-radius: 3px;
+	background: rgba(255, 255, 255, 0.5);
+	color: #777;
+	margin-left: 4px;
 }
 
 /* Loyalty pips */

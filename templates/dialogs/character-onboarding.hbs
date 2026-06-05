@@ -96,12 +96,21 @@
 						<span class="stonetop-onboarding-background-neighbor-name">
 							<strong>{{name}}</strong>{{#if origin}} <span>from {{origin}}</span>{{/if}}
 						</span>
+						<select class="onboard-background-neighbor-trait"
+						        data-background-slug="{{backgroundSlug}}"
+						        data-trait-key="{{traitKey}}">
+							<option value="">{{traitLabel}}</option>
+							{{#each traitOptions}}
+							<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+							{{/each}}
+							<option value="custom" {{#if isCustomTrait}}selected{{/if}}>Other...</option>
+						</select>
 						<input type="text"
-						       class="onboard-background-neighbor-trait"
-						       data-background-slug="{{../slug}}"
+						       class="onboard-background-neighbor-trait-custom{{#unless isCustomTrait}} hidden{{/unless}}"
+						       data-background-slug="{{backgroundSlug}}"
 						       data-trait-key="{{traitKey}}"
-						       value="{{trait}}"
-						       placeholder="{{traitLabel}}">
+						       value="{{customTrait}}"
+						       placeholder="Custom trait">
 					</label>
 					{{/each}}
 					{{#each setup.neighborChoices}}
@@ -271,7 +280,7 @@
 		{{!-- ── Stats ──────────────────────────────────────────────── --}}
 		{{#if isStats}}
 		<h3 class="stonetop-onboarding-step-title">Stats</h3>
-		<p class="stonetop-onboarding-step-hint">Assign each score to a stat. Each score must be used exactly once.</p>
+		<p class="stonetop-onboarding-step-hint">Assign each score to a stat. Drag scores onto stats or use the dropdowns; each score must be used exactly once.</p>
 
 		<div class="stonetop-onboarding-stats-pool">
 			<span class="stonetop-onboarding-stats-pool-label">Scores to assign</span>

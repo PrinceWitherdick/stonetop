@@ -28,6 +28,7 @@ export class RequirementSnapshot {
  * @property {{ max: number, current: number }|null} repeat
  * @property {boolean} repeatable
  * @property {{ label: string, value: string }|null} backgroundAnswer
+ * @property {Array<{ownedId:string, statKey:string, statAbbr:string}>|null} statChoices
  */
 export class MoveSnapshot {
 	constructor(b) {
@@ -50,6 +51,7 @@ export class MoveSnapshot {
 		this.repeat        = b._repeat;
 		this.repeatable    = b._repeatable;
 		this.backgroundAnswer = b._backgroundAnswer;
+		this.statChoices   = b._statChoices ?? null;
 	}
 }
 
@@ -73,6 +75,7 @@ export class MoveSnapshotBuilder {
 	withRepeat(v)        { this._repeat        = v; return this; }
 	withRepeatable(v)    { this._repeatable    = v; return this; }
 	withBackgroundAnswer(v) { this._backgroundAnswer = v ?? null; return this; }
+	withStatChoices(v)   { this._statChoices      = v ?? null; return this; }
 	build()              { return new MoveSnapshot(this); }
 }
 

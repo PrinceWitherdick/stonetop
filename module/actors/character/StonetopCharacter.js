@@ -183,12 +183,13 @@ export class StonetopCharacter {
 				);
 				const moveResourcesMap = this._moveResources.getMoveResources();
 				const moveBackgroundAnswers = resolvedFlags(this._actor).moves?.backgroundAnswers ?? {};
+				const improvedStatChoices   = resolvedFlags(this._actor).improvedStatChoices ?? {};
 				const source = { type: "playbook", slug: playbookData.slug };
 				categories.push(new MoveCategorySnapshotBuilder()
 					.withKey("playbook")
 					.withTitle(`${playbookData.name} Moves`)
 					.withNote(playbookData.startingMovesNote ?? null)
-					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers))))
+					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices))))
 					.build()
 				);
 			}
@@ -858,9 +859,11 @@ export class StonetopCharacter {
 		}
 	}
 
-	async addMove(compendiumId) {
+	async addMove(compendiumId, { skipIfOwned = false } = {}) {
 		const doc = await this._moveRepo.getPlaybookMoveDocument(compendiumId);
-		if (doc) await this._actor.createEmbeddedDocuments("Item", [doc.toObject()]);
+		if (!doc) return;
+		if (skipIfOwned && this._actor.items.some(i => i.type === "move" && i.name === doc.name)) return;
+		await this._actor.createEmbeddedDocuments("Item", [doc.toObject()]);
 	}
 
 	async addPlaybookMoveByName(playbookName, moveName) {
@@ -1206,7 +1209,7 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 		.build();
 }
 
-function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}) {
+function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}) {
 	const resourceDef = entry.resource;
 	const resource = resourceDef ? new ResourceBuilder()
 		.withCurrent(moveResourcesMap[entry.name] ?? 0)
@@ -1221,6 +1224,17 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		? new RequirementSnapshot(entry.requiresLabel, !entry.locked)
 		: null;
 	const sourceLabel = entry.isStarting ? (bgSlugs.has(_toSlug(entry.name)) ? "Background" : "Starting move") : null;
+
+	const statChoices = (entry.name === "Improved Stat" && entry.ownedIds.length > 0)
+		? entry.ownedIds
+			.map(ownedId => {
+				const statKey = improvedStatChoices[ownedId] ?? null;
+				if (!statKey) return null;
+				return { ownedId, statKey, statAbbr: _STAT_DEFS[statKey]?.abbr ?? statKey.toUpperCase() };
+			})
+			.filter(Boolean)
+		: null;
+
 	return new MoveSnapshotBuilder()
 		.withId(entry.compendiumId)
 		.withCompendiumId(entry.compendiumId)
@@ -1241,6 +1255,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withRepeat(repeat)
 		.withRepeatable(repeat !== null)
 		.withBackgroundAnswer(moveBackgroundAnswers[entry.name] ?? null)
+		.withStatChoices(statChoices)
 		.build();
 }
 
@@ -1269,7 +1284,7 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 		: null;
 	const startingNote = playbookCat?.note ?? null;
 	const pickCount    = parseMovePickCount(startingNote);
-	const chosenCount    = (playbookCat?.moves ?? []).filter(m => m.sourceLabel === "Starting move" && m.owned).length;
+	const chosenCount    = (playbookCat?.moves ?? []).filter(m => m.sourceLabel === null && m.owned).length;
 	const movesIncomplete = pickCount > 0 && chosenCount < pickCount;
 
 	return new MovelistBuilder()

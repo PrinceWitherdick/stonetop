@@ -7,6 +7,7 @@
     "playbook": "The Heavy",
     "moveType": "playbook",
     "description": "<p>Each time you take this move, increase one of your stats by 1 (to a max of +2).</p>",
+    "moveEffect": "stat-increase",
     "repeatMax": 3
   },
   "folder": "EGBb1iIndbhAI7zU"

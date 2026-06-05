@@ -3,10 +3,14 @@
 	{{#each system.stats}}
 	<li class="stat cell--stat rollable" data-stat="{{@key}}" data-roll="{{@key}}">
 		<span class="cell__title"><i class="stat-icon fas fa-dice-d6"></i> {{statLabel @key}}</span>
-		<input class="stat-value" type="number"
-		       name="system.stats.{{@key}}.value"
-		       value="{{value}}"
-		       {{#unless ../editable}}disabled{{/unless}}>
+		<div class="stonetop-stat-box">
+			<div class="stonetop-stat-inner">
+				<input class="stat-value" type="number"
+				       name="system.stats.{{@key}}.value"
+				       value="{{value}}"
+				       {{#unless ../editable}}disabled{{/unless}}>
+			</div>
+		</div>
 		<span class="stonetop-stat-abbr">({{@key}})</span>
 	</li>
 	{{/each}}
