@@ -1,0 +1,166 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FakeActorBuilder } from "../fakes/FakeActorBuilder.js";
+import { rollDamage, rollFormula, rollStat, sign } from "../../module/utils/roll-engine.js";
+
+let rollMessages;
+let rollTotal;
+let rollInstances;
+
+beforeEach(() => {
+	rollMessages = [];
+	rollTotal = 6;
+	rollInstances = [];
+	global.game.settings = { get: vi.fn(() => "publicroll") };
+	global.ChatMessage = {
+		getSpeaker: vi.fn(({ actor }) => ({ alias: actor.name })),
+		create: vi.fn(),
+	};
+	global.Roll = class {
+		constructor(formula, data = {}, options = {}) {
+			this.formula = formula;
+			this.data = data;
+			this.options = options;
+			this.total = rollTotal;
+			rollInstances.push(this);
+		}
+
+		async evaluate() {
+			return this;
+		}
+
+		async toMessage(message) {
+			rollMessages.push(message);
+		}
+	};
+});
+
+function makeActor() {
+	return new FakeActorBuilder()
+		.withXp(2, 8)
+		.withLevel(1)
+		.build();
+}
+
+describe("sign", () => {
+	it("formats positive, zero, and negative modifiers", () => {
+		expect(sign(2)).toBe("+2");
+		expect(sign(0)).toBe("+0");
+		expect(sign(-1)).toBe("-1");
+	});
+});
+
+describe("rollStat", () => {
+	it("posts the miss XP award using the styled Stonetop roll card", async () => {
+		const actor = makeActor();
+
+		await rollStat("str", actor);
+
+		const rollMessage = rollMessages[0];
+		expect(rollMessage.flavor).toContain("stonetop-roll-card");
+		expect(rollMessage.flavor).toContain("result failure");
+		expect(rollMessage.flavor).toContain("Miss");
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.xp.value": 3 });
+		expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+			content: expect.stringContaining("stonetop-roll-card"),
+		}));
+		const xpMessage = ChatMessage.create.mock.calls[0][0];
+		expect(xpMessage.content).toContain("result failure");
+		expect(xpMessage.content).toContain("+1 XP (3 / 8)");
+	});
+
+	it.each([
+		{ total: 6, label: "Miss",       resultClass: "failure" },
+		{ total: 7, label: "Weak Hit",   resultClass: "partial" },
+		{ total: 10, label: "Strong Hit", resultClass: "success" },
+	])("renders $label for a total of $total", async ({ total, label, resultClass }) => {
+		rollTotal = total;
+
+		await rollStat("wis", makeActor(), { noXpOnMiss: true });
+
+		expect(rollMessages[0].flavor).toContain(`result ${resultClass}`);
+		expect(rollMessages[0].flavor).toContain(label);
+	});
+
+	it("uses the expected formula, data, and roll options", async () => {
+		rollTotal = 10;
+
+		await rollStat("dex", makeActor(), {
+			rollMode: "adv",
+			statValue: 2,
+			modifier: 3,
+			stonetopDebility: "Weakened",
+			stonetopDebilityTooltip: "Shaky",
+		});
+
+		expect(rollInstances[0]).toMatchObject({
+			formula: "3d6kh2+@stat+@mod",
+			data: { stat: 2, mod: 3 },
+			options: {
+				stonetopDebility: "Weakened",
+				stonetopDebilityTooltip: "Shaky",
+			},
+		});
+	});
+
+	it("renders move descriptions and roll condition pills", async () => {
+		rollTotal = 10;
+
+		await rollStat("str", makeActor(), {
+			moveName: "Clash",
+			moveDescription: "<p>Trade blows.</p>",
+			rollMode: "dis",
+			modifier: 4,
+			forward: 1,
+			ongoing: 2,
+		});
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("Clash");
+		expect(flavor).toContain("stonetop-roll-card-description");
+		expect(flavor).toContain("<p>Trade blows.</p>");
+		expect(flavor).toContain("stonetop-roll-conditions");
+		expect(flavor).toContain("Disadvantage");
+		expect(flavor).toContain("Forward +1");
+		expect(flavor).toContain("Ongoing +2");
+		expect(flavor).toContain("Situational +1");
+	});
+
+	it("does not award XP when noXpOnMiss is true", async () => {
+		const actor = makeActor();
+
+		await rollStat("str", actor, { noXpOnMiss: true });
+
+		expect(actor.update).not.toHaveBeenCalled();
+		expect(ChatMessage.create).not.toHaveBeenCalled();
+	});
+});
+
+describe("rollDamage", () => {
+	it("posts damage rolls using the Stonetop card shell", async () => {
+		await rollDamage("d6+1", makeActor(), { label: "Hammer" });
+
+		expect(rollInstances[0].formula).toBe("d6+1");
+		expect(rollMessages[0]).toMatchObject({
+			rollMode: "publicroll",
+			speaker: { alias: "Brakken" },
+		});
+		expect(rollMessages[0].flavor).toContain("stonetop-roll-card");
+		expect(rollMessages[0].flavor).toContain("Hammer");
+		expect(rollMessages[0].flavor).toContain("stonetop-card-buttons");
+	});
+});
+
+describe("rollFormula", () => {
+	it("posts generic formula rolls with formula and description", async () => {
+		await rollFormula("1d4+2", makeActor(), {
+			label: "Supply",
+			description: "<p>Roll surplus.</p>",
+		});
+
+		expect(rollInstances[0].formula).toBe("1d4+2");
+		expect(rollMessages[0].flavor).toContain("Supply");
+		expect(rollMessages[0].flavor).toContain("1d4+2");
+		expect(rollMessages[0].flavor).toContain("<p>Roll surplus.</p>");
+		expect(rollMessages[0].flavor).toContain("stonetop-card-buttons");
+	});
+});

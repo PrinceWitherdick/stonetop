@@ -13,7 +13,7 @@ import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {getHoverDescriptionSetting} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 
@@ -724,6 +724,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.movelist.startingMovesNoteDisplay = this._editMode ? context.stonetop.movelist.startingMovesNote ?? null : null;
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop_pwd', 'hideUnselected') ?? true;
 			context.stonetop.editMode = this._editMode;
+			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
 			// reassign stonetop to system
 			context.system.attributes.armor.value = context.stonetop.vitals.armor
@@ -732,6 +733,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Pass smallItemLimit from the already-computed snapshot so crew gear
 			// uses the exact same prosperity value as outfit inventory items.
 			const playbookDoc = await this._stonetopCharacter.playbook();
+			const selections = playbookDoc ? this._readSelectionsFromActor(playbookDoc) : null;
+			context.stonetop.hasIncompleteBackgroundQuestions = playbookDoc
+				? CharacterOnboardingDialog.hasIncompleteQuestions(playbookDoc, selections)
+				: false;
+			if (CONFIG.debug?.stonetop) {
+				this._logOnboardingQuestionDiagnostics(
+					CharacterOnboardingDialog.questionCompletionDiagnostics(playbookDoc, selections),
+				);
+			}
 			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null);
 			context.stonetop.hasFollowers = !!(
 				context.stonetop.followers.animalCompanion ||
@@ -2101,6 +2111,29 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				// no onBack ? back button is hidden
 			).render(true);
+		}
+
+		_logOnboardingQuestionDiagnostics(diagnostics = null) {
+			if (!diagnostics || !console?.groupCollapsed) return;
+			const actorName = this.actor?.name ?? "(unknown actor)";
+			const incomplete = diagnostics.incomplete;
+			console.groupCollapsed(
+				`[Stonetop] Background question diagnostics: ${actorName} (${incomplete.length} incomplete)`,
+			);
+			console.info("Playbook:", diagnostics.playbook);
+			console.info("First incomplete:", diagnostics.firstIncomplete ?? "none");
+			if (incomplete.length) {
+				console.table(incomplete.map(step => ({
+					index: step.index,
+					stepType: step.stepType,
+					label: step.label,
+					details: JSON.stringify(step.details),
+				})));
+			} else {
+				console.info("All resume/question steps are complete.");
+			}
+			console.debug("All question steps:", diagnostics.steps);
+			console.groupEnd();
 		}
 
 		_readSelectionsFromActor(playbookDoc = null) {

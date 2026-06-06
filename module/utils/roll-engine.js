@@ -44,6 +44,7 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 			</div>
 			${descriptionHtml}
 			${buttonsHtml}
+			${formulaHtml}
 			${resultHtml}
 			${conditionsHtml}
 		</div>
@@ -143,8 +144,13 @@ export async function rollStat(statKey, actor, options = {}) {
 		const maxXp     = 6 + level * 2;
 		const newXp     = currentXp + 1;
 		await actor.update({ "system.attributes.xp.value": newXp });
+		const xpCard = _rollCard({
+			header: "Miss",
+			result: `+1 XP (${newXp} / ${maxXp})`,
+			resultClass: "failure",
+		});
 		ChatMessage.create({
-			content:  `<em>Miss — +1 XP (${newXp} / ${maxXp})</em>`,
+			content:  xpCard,
 			speaker:  ChatMessage.getSpeaker({ actor }),
 			rollMode: game.settings.get("core", "rollMode"),
 		});

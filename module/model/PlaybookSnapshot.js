@@ -76,10 +76,11 @@ export class InstinctSection {
 
 /** One origin region option. */
 export class OriginOptionSnapshot {
-	constructor(region, names, selected) {
-		this.region   = region;
-		this.names    = names; // { name: string, checked: boolean }[]
-		this.selected = selected;
+	constructor(region, names, selected, description = "") {
+		this.region      = region;
+		this.names       = names; // { name: string, checked: boolean }[]
+		this.selected    = selected;
+		this.description = description;
 	}
 }
 
@@ -89,6 +90,7 @@ export class OriginSection {
 		this.selected = selected;
 		this.options  = options;
 	}
+	get selectedOption() { return this.options.find(o => o.selected) ?? null; }
 }
 
 // ── Background ────────────────────────────────────────────────────────────────
@@ -209,6 +211,7 @@ export class LoreEntrySnapshot {
 		this.isAnswered = this.requiredCount <= 0 ? this.hasSelection : this.selectedCount >= this.requiredCount;
 		this.readonlyDescription = _stripChoosePrompt(this.description);
 		this.readonlyMarker = _readonlyMarkerForEntry(this);
+		this.isContinuation = _isContinuationLoreEntry(this);
 	}
 	get hasSelection() {
 		return this.options.some(o => o.type === "text" ? !!o.textValue : o.count > 0);
@@ -262,9 +265,39 @@ function _pickCountFromDescription(description = "") {
 	return match ? Number(match[1]) : 0;
 }
 
+export function loreMarkerForText(title, description) {
+	const text = `${title ?? ""} ${description ?? ""}`;
+	if (/\balas\b/i.test(text)) return "-";
+	if (/\bplus side\b/i.test(text)) return "+";
+	return "spiral";
+}
+
 function _readonlyMarkerForEntry(entry) {
+	return loreMarkerForText(entry.title, entry.description);
+}
+
+function _isContinuationLoreEntry(entry) {
 	const text = `${entry.title ?? ""} ${entry.description ?? ""}`;
-	return /\balas\b/i.test(text) ? "-" : "+";
+	return /\balas\b/i.test(text) || _isContinuationLoreTitle(entry.title);
+}
+
+function _isContinuationLoreTitle(title = "") {
+	const text = String(title).toLowerCase();
+	return [
+		"and you ended up",
+		"but all you've got left",
+		"but folks are less keen",
+		"what keeps you up at night",
+		"offerings to danu",
+		"he is worshipped through",
+		"in stonetop's pavilion of the gods",
+		"your predecessor",
+		"you came into your powers",
+		"answer at least",
+		"of her true disciples",
+		"what makes you burn",
+		"when did your fear or anger",
+	].some(pattern => text.includes(pattern));
 }
 
 /**

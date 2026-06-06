@@ -46,6 +46,16 @@ export function registerSettings() {
 		onChange: value => applySheetFont(value),
 	});
 
+	game.settings.register("stonetop_pwd", "showRollStatChips", {
+		name: "stonetop.settings.showRollStatChips.name",
+		hint: "stonetop.settings.showRollStatChips.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: () => _rerenderActorSheets(),
+	});
+
 	game.settings.register("stonetop_pwd", "hoverDescriptionsEnabled", {
 		name: "stonetop.settings.hoverDescriptionsEnabled.name",
 		hint: "stonetop.settings.hoverDescriptionsEnabled.hint",
@@ -140,6 +150,10 @@ export function getHoverDescriptionSetting(key, { ignoreMaster = false } = {}) {
 	const masterEnabled = ignoreMaster ? true : settings?.get?.("stonetop_pwd", "hoverDescriptionsEnabled") ?? true;
 	const settingEnabled = settings?.get?.("stonetop_pwd", key) ?? true;
 	return masterEnabled && settingEnabled;
+}
+
+export function getRollStatChipsSetting() {
+	return globalThis.game?.settings?.get?.("stonetop_pwd", "showRollStatChips") ?? true;
 }
 
 export function setSetting(key, value) {

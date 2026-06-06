@@ -116,7 +116,7 @@
 								<i class="fas fa-dice-d6"></i>
 							</span>
 							{{/if}}
-							{{#if rollLabel}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
+							{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
 							<span class="stonetop-move-name stonetop-basic-move-open"
 						      data-compendium-id="{{compendiumId}}">{{name}}</span>
 							{{#if description}}<div class="stonetop-basic-move-desc" hidden>{{{boldMissText description}}}</div>{{/if}}

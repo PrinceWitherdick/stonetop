@@ -3,7 +3,11 @@
 <div class="details-section">
 	{{#each lore.entries}}
 	<div class="stonetop-lore-entry">
+		{{#if isContinuation}}
+		<p class="stonetop-lore-continuation-title">{{title}}</p>
+		{{else}}
 		{{> "stonetop.section-heading" title=title}}
+		{{/if}}
 		{{#if description}}
 		<div class="stonetop-lore-description">{{{description}}}</div>
 		{{/if}}
@@ -38,7 +42,11 @@
 	{{#each lore.entries}}
 	{{#if hasSelection}}
 	<div class="stonetop-lore-entry">
+		{{#if isContinuation}}
+		<p class="stonetop-lore-continuation-title">{{title}}</p>
+		{{else}}
 		{{> "stonetop.section-heading" title=title}}
+		{{/if}}
 		{{#if readonlyDescription}}
 		<div class="stonetop-lore-description">{{{readonlyDescription}}}</div>
 		{{/if}}
@@ -53,7 +61,9 @@
 		{{else}}
 		{{#if count}}
 		<div class="stonetop-lore-option stonetop-lore-option--readonly">
-			<span class="stonetop-lore-readonly-marker">{{../readonlyMarker}}</span>
+			<span class="stonetop-lore-readonly-marker{{#if (eq ../readonlyMarker "spiral")}} stonetop-lore-readonly-marker--spiral{{/if}}">
+				{{#unless (eq ../readonlyMarker "spiral")}}{{../readonlyMarker}}{{/unless}}
+			</span>
 			<span class="stonetop-lore-option-desc">{{{readonlyDescription}}}</span>
 		</div>
 		{{/if}}

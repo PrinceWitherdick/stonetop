@@ -684,7 +684,7 @@ input.stonetop-name-field {
 	appearance: none !important;
 	-webkit-appearance: none !important;
 	width: 20px !important;
-	
+	height: 20px !important;
 	flex-shrink: 0;
 	border-radius: 100% !important;
 	border: 1.5px solid #555 !important;
@@ -982,6 +982,21 @@ input.stonetop-name-field {
 
 .stonetop-origin-readonly .stonetop-item-description {
 	margin-top: 2px;
+}
+
+.stonetop-origin-description {
+	margin-top: 5px;
+	font-size: 0.84rem;
+	line-height: 1.35;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-origin-description p {
+	margin: 0 0 4px;
+}
+
+.stonetop-origin-description p:last-child {
+	margin-bottom: 0;
 }
 
 /* Selection picker dialogs ---------------------------------- */
@@ -1366,18 +1381,17 @@ input.stonetop-name-field {
 .stonetop-possession-check,
 .stonetop-possession-sub-check,
 .stonetop-inventory-item-check,
-.steading-debility-check,
 .steading-improvement-complete,
 .steading-improvement-req,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
-	width: 10px !important;
-	height: 10px !important;
-	flex: 0 0 10px !important;
-	border-radius: 4px !important;
-	border: 2px solid var(--color-text-dark-primary) !important;
-	background: transparent !important;
+	width: 15px !important;
+	height: 15px !important;
+	flex: 0 0 15px !important;
+	border: none !important;
+	border-radius: 0 !important;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
 	cursor: pointer;
 	margin: 0;
 }
@@ -1389,22 +1403,10 @@ input.stonetop-name-field {
 .stonetop-possession-check:checked,
 .stonetop-possession-sub-check:checked,
 .stonetop-inventory-item-check:checked,
-.steading-debility-check:checked,
 .steading-improvement-complete:checked,
 .steading-improvement-req:checked,
 .steading-list-check:checked {
-	background-color: var(--color-text-dark-primary) !important;
-}
-
-.steading-list-check:checked {
-	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	-webkit-mask-size: contain;
-	mask-size: contain;
-	-webkit-mask-repeat: no-repeat;
-	mask-repeat: no-repeat;
-	-webkit-mask-position: center;
-	mask-position: center;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
 
 .stonetop-item-check:disabled,
@@ -1536,6 +1538,13 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	font-size: 0.85rem;
 	line-height: 1.5;
 }
+.stonetop-chat-move-description ul { margin: 0 0 5px; padding-left: 0; list-style: none; }
+.stonetop-chat-move-description li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
+.stonetop-chat-move-description li::before {
+	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+}
 
 /* ── Chat card tweaks ───────────────────────────────────────────────────────── */
 
@@ -1548,6 +1557,13 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description p { margin: 0 0 4px; }
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description p:last-child { margin-bottom: 0; }
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li::before {
+	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+}
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .cell--chat {
 	display: flex;
@@ -1848,6 +1864,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-item-description li {
+	margin: 2px 0;
 	display: flex;
 	align-items: flex-start;
 	gap: 5px;
@@ -2120,24 +2137,6 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	overflow: visible;
 }
 
-/* -- Playbook icon -------------------------------------------- */
-.stonetop-playbook-icon {
-	display: block;
-	width: 64px;
-	height: 64px;
-	margin: 0 auto 6px;
-	object-fit: contain;
-	opacity: 0.85;
-}
-/* Icon in the header playbook row */
-.stonetop-playbook-row .stonetop-playbook-icon {
-	width: 48px;
-	height: 48px;
-	margin: 0;
-	flex-shrink: 0;
-	align-self: center;
-}
-
 .stonetop-playbook-row {
 	display: flex;
 	flex-direction: row;
@@ -2366,7 +2365,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-arcanum-body p { margin: 0 0 4px; }
 .stonetop-arcanum-body ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
-.stonetop-arcanum-body li { display: flex; align-items: flex-start; gap: 5px; }
+.stonetop-arcanum-body li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-arcanum-body li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
@@ -2542,7 +2541,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-arcanum-chat-card p { margin: 0 0 4px; }
 .stonetop-arcanum-chat-card ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
-.stonetop-arcanum-chat-card li { display: flex; align-items: flex-start; gap: 5px; }
+.stonetop-arcanum-chat-card li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-arcanum-chat-card li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
@@ -2552,11 +2551,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 /* -- Details tab sections --------------------------------------- */
 
 .details-section {
-	margin-bottom: 16px;
+	margin: 0;
 }
 
-.details-section:last-child {
-	margin-bottom: 0;
+.tab.details > .details-section + .details-section {
+	margin-top: 22px;
 }
 
 .details-section .stonetop-move-group-title {
@@ -2597,6 +2596,13 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	font-size: 0.9em;
 	font-style: normal;
 	margin: 0 0 4px;
+}
+
+.stonetop-lore-continuation-title {
+	margin: 6px 0 4px;
+	font-size: 0.9em;
+	font-weight: 400;
+	line-height: 1.35;
 }
 
 .stonetop-lore-option {
@@ -2660,6 +2666,21 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	line-height: 1.2;
 }
 
+.stonetop-lore-readonly-marker--spiral {
+	width: 0.9em;
+	height: 0.9em;
+	margin-top: 0.15em;
+	background: var(--color-text-dark-secondary);
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
+}
+
 .stonetop-bg-choice-readonly {
 	margin: 1px 0 1px 12px;
 	font-size: 0.85em;
@@ -2686,6 +2707,10 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .pbta.sheet .tab.post-death,
 .pbta.sheet .tab.stonetop-special-moves {
 	padding-top: 12px;
+}
+
+.pbta.sheet .tab.moves {
+	padding: 12px;
 }
 
 .stonetop-move-group-title {
@@ -2769,7 +2794,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	align-items: center;
 	min-height: 48px;
 	border-radius: 3px;
-	padding: 0 6px;
+	padding: 0;
 	font-size: var(--font-size-display);
 	font-family: var(--font-avara);
 	font-weight: bold;
@@ -4054,8 +4079,20 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-eos-question input[type="checkbox"] {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	width: 24px;
+	height: 24px;
 	flex-shrink: 0;
 	margin-top: 2px;
+	border: none;
+	border-radius: 0;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
+	cursor: pointer;
+}
+
+.stonetop-eos-question input[type="checkbox"]:checked {
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
 
 .stonetop-eos-question-text {
@@ -4623,26 +4660,26 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .steading-debility-control {
 	display: grid;
-	grid-template-columns: 16px auto;
+	grid-template-columns: 20px auto;
 	align-items: center;
-	gap: 6px;
+	gap: 12px;
 	cursor: pointer;
 }
 
 .steading-debility-check {
-	appearance: none;
-	-webkit-appearance: none;
-	width: 16px;
-	height: 16px;
-	border: 2px solid slategrey;
-	border-radius: 50%;
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	width: 20px !important;
+	height: 20px !important;
+	flex: 0 0 20px !important;
+	border-radius: 100% !important;
+	border: 1.5px solid #555 !important;
+	background: transparent !important;
 	cursor: pointer;
-	background: white;
-	flex-shrink: 0;
 }
 
 .steading-debility-check:checked {
-	background: slategrey;
+	background-color: #555 !important;
 }
 
 .steading-debility-name {
@@ -5752,8 +5789,13 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .steading-move-body p { margin: 6px 0; }
-.steading-move-body ul { margin: 4px 0; padding-left: 24px; }
-.steading-move-body li { margin: 2px 0; padding-left: 16px; }
+.steading-move-body ul { margin: 4px 0; padding-left: 0; list-style: none; }
+.steading-move-body li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
+.steading-move-body li::before {
+	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+}
 
 .steading-move-card.is-open .steading-move-body {
 	display: block;
@@ -6036,6 +6078,13 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-onboarding-card-desc p { margin: 3px 0; }
+.stonetop-onboarding-card-desc ul { margin: 3px 0; padding-left: 0; list-style: none; }
+.stonetop-onboarding-card-desc li { margin: 2px 0; display: flex; align-items: flex-start; gap: 16px; }
+.stonetop-onboarding-card-desc li::before {
+	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+}
 
 /* Compact cards (instinct) */
 .stonetop-onboarding-cards--compact { gap: 3px; }
@@ -6131,6 +6180,13 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	font: inherit;
 	color: inherit;
 	outline: none;
+	pointer-events: none;
+	cursor: default;
+}
+
+.stonetop-onboarding-appearance-custom.is-selected input[type="text"] {
+	pointer-events: auto;
+	cursor: text;
 }
 
 .stonetop-onboarding-appearance-custom input[type="text"]::placeholder {
@@ -6302,7 +6358,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-onboarding-back-to-picker,
 .stonetop-onboarding-next,
 .stonetop-onboarding-confirm {
-	padding: 5px 16px;
+	padding: 5px 48px;
 	font-size: 0.88em;
 	font-family: var(--font-stonetop);
 	border-radius: 4px;
@@ -6330,7 +6386,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-onboarding-confirm:hover { background: hsl(210 13% 47%); }
 
 .stonetop-onboarding-skip {
-	padding: 5px 16px;
+	padding: 5px 24px;
 	font-size: 0.88em;
 	font-family: var(--font-stonetop);
 	border-radius: 4px;
@@ -6820,7 +6876,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-onboarding-background-neighbor-option input[type="checkbox"] {
-	border-radius: 3px;
+	width: 20px !important;
+	height: 20px !important;
+	border: none !important;
+	border-radius: 0 !important;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
 }
 
 .stonetop-onboarding-bg-option input[type="radio"]:checked {
@@ -6828,7 +6888,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-onboarding-background-neighbor-option input[type="checkbox"]:checked {
-	background: slategrey;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
 
 .stonetop-onboarding-bg-option > span {
@@ -7105,9 +7165,44 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-onboarding-lore-pick input[type="checkbox"] {
-	margin-top: 2px;
-	flex-shrink: 0;
-	accent-color: slategrey;
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.stonetop-onboarding-lore-marker {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 0.95em;
+	height: 0.95em;
+	margin-top: 0.22em;
+	flex: 0 0 0.95em;
+	color: var(--color-text-dark-secondary, #666);
+	font-weight: 700;
+	line-height: 1;
+	opacity: 0.65;
+}
+
+.stonetop-onboarding-lore-marker--spiral {
+	background: var(--color-text-dark-secondary, #666);
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
+}
+
+.stonetop-onboarding-lore-pick.is-selected .stonetop-onboarding-lore-marker {
+	color: slategrey;
+	opacity: 1;
+}
+
+.stonetop-onboarding-lore-pick.is-selected .stonetop-onboarding-lore-marker--spiral {
+	background: slategrey;
 }
 
 .stonetop-onboarding-lore-texts {
@@ -7256,6 +7351,23 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: flex;
 	align-items: center;
 	flex-shrink: 0;
+}
+
+.stonetop-invocation-check {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	width: 18px;
+	height: 18px;
+	flex-shrink: 0;
+	border: none;
+	border-radius: 0;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
+	cursor: pointer;
+	margin: 0;
+}
+
+.stonetop-invocation-check:checked {
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
 
 .stonetop-invocation-known-pip {
@@ -7772,14 +7884,70 @@ span.stonetop-loyalty-pip { cursor: default; }
 .stonetop-follower-rule li::before {
 	content: "";
 	flex-shrink: 0;
-	width: 8px;
-	height: 8px;
+	width: 9px;
+	height: 9px;
 	margin-top: 3px;
 	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
 	opacity: 0.5;
+}
+
+/* Question-spiral: swap icon on li items whose text ends with "?" */
+li.question-bullet::before {
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
+}
+
+/* Normalize spiral bullets to match Overview > Resources spacing. */
+.stonetop-basic-move-panel li,
+.stonetop-chat-move-description li,
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li,
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li,
+.stonetop-item-description li,
+.stonetop-arcanum-body li,
+.stonetop-arcanum-chat-card li,
+.stonetop-special-move-list li,
+.stonetop-outfit-rule-note li,
+.steading-move-body li,
+.stonetop-onboarding-card-desc li,
+.stonetop-follower-rule li {
+	gap: 6px;
+}
+
+.stonetop-basic-move-panel li::before,
+.stonetop-chat-move-description li::before,
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li::before,
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li::before,
+.stonetop-item-description li::before,
+.stonetop-arcanum-body li::before,
+.stonetop-arcanum-chat-card li::before,
+.stonetop-special-move-list li::before,
+.stonetop-outfit-rule-note li::before,
+.steading-move-body li::before,
+.stonetop-onboarding-card-desc li::before,
+.stonetop-follower-rule li::before,
+li.question-bullet::before {
+	width: 10px;
+	height: 10px;
+	flex: 0 0 10px;
+	margin-top: 0.2em;
+	opacity: 0.55;
+}
+
+.stonetop-lore-readonly-marker--spiral,
+.stonetop-onboarding-lore-marker--spiral {
+	width: 10px;
+	height: 10px;
+	flex-basis: 10px;
+}
+
+.stonetop-onboarding-lore-pick {
+	gap: 6px;
+}
+
+.steading-move-body li {
+	gap: 12px;
 }
 
 /* Individual creation dialog */

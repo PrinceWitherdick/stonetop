@@ -86,9 +86,8 @@
 		</div>
 		{{/if}}
 
-		{{#if stonetop.playbook}}
+		{{#if (and stonetop.playbook stonetop.editMode)}}
 		<div class="details-section">
-			{{#if stonetop.editMode}}
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.instinct.label") note=(localize "stonetop.character.selection.chooseOne")}}
 			<input type="text" class="stonetop-instinct-custom"
 			       value="{{stonetop.playbook.instinct.selected}}"
@@ -107,35 +106,11 @@
 				{{/each}}
 			</div>
 			{{/if}}
-			{{else}}
-			{{#if stonetop.playbook.instinct.hasSelection}}
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.instinct.label")}}
-			{{#if stonetop.playbook.instinct.selected}}
-			<div class="stonetop-item is-checked">
-				<div class="stonetop-item-header">
-					<strong class="stonetop-item-name">{{stonetop.playbook.instinct.selected}}</strong>
-				</div>
-			</div>
-			{{else}}
-			{{#each stonetop.playbook.instinct.options}}
-			{{#if selected}}
-			<div class="stonetop-item is-checked">
-				<div class="stonetop-item-header">
-					<strong class="stonetop-item-name">{{word}}</strong>
-				</div>
-				<div class="stonetop-item-description">{{description}}</div>
-			</div>
-			{{/if}}
-			{{/each}}
-			{{/if}}
-			{{/if}}
-			{{/if}}
 		</div>
 		{{/if}}
 
-		{{#if stonetop.playbook.appearance.options.length}}
+		{{#if (and stonetop.playbook stonetop.editMode stonetop.playbook.appearance.options.length)}}
 		<div class="details-section">
-			{{#if stonetop.editMode}}
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.appearance.label") note=(localize "stonetop.character.selection.appearance.instruction")}}
 			{{#each stonetop.playbook.appearance.options}}
 			<div class="stonetop-appearance-row">
@@ -152,24 +127,6 @@
 				{{/each}}
 			</div>
 			{{/each}}
-			{{else}}
-			{{#if stonetop.playbook.appearance.summary}}
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.appearance.label")}}
-			<div class="stonetop-appearance-readonly-list">
-				{{#each stonetop.playbook.appearance.options}}
-				{{#each options}}
-				{{#if selected}}
-				<div class="stonetop-item is-checked stonetop-appearance-readonly-item">
-					<div class="stonetop-item-header">
-						<strong class="stonetop-item-name">{{value}}</strong>
-					</div>
-				</div>
-				{{/if}}
-				{{/each}}
-				{{/each}}
-			</div>
-			{{/if}}
-			{{/if}}
 		</div>
 		{{/if}}
 
@@ -211,6 +168,9 @@
 				<div class="stonetop-item-description">{{name}}</div>
 				{{/if}}
 				{{/each}}
+				{{#if description}}
+				<div class="stonetop-origin-description">{{{description}}}</div>
+				{{/if}}
 			</div>
 			{{/if}}
 			{{/each}}
@@ -219,7 +179,7 @@
 		</div>
 		{{/if}}
 
-		{{#if stonetop.playbook}}
+		{{#if (and stonetop.playbook stonetop.hasIncompleteBackgroundQuestions)}}
 		<div class="details-section stonetop-details-onboarding-actions">
 			<button type="button" class="stonetop-answer-character-questions-btn" data-onboarding-start="first-incomplete">
 				<i class="fas fa-question-circle" aria-hidden="true"></i>

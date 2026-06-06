@@ -1,6 +1,8 @@
 // Descriptions for animal companion trait tags — checked before compendium lookup.
 import { majorArcanaImg } from "../../../arcana-icons.js";
 import { parseMovePickCount } from "../StonetopCharacter.js";
+import { markQuestionBullets } from "../../../utils/question-bullets.js";
+import { loreMarkerForText } from "../../../model/PlaybookSnapshot.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -72,6 +74,18 @@ export const ANIMAL_COMPANION_TRAIT_GLOSSARY = {
 export class CharacterOnboardingDialog extends Application {
 	static TOP_Z_INDEX = 110000;
 
+	static hasIncompleteQuestions(playbookDoc, initialSelections = null) {
+		const d = Object.create(CharacterOnboardingDialog.prototype);
+		d._initializeState(playbookDoc, initialSelections, null);
+		return d._steps.some(s => d._isResumeQuestionStep(s) && !d._isStepAnsweredForResume(s));
+	}
+
+	static questionCompletionDiagnostics(playbookDoc, initialSelections = null) {
+		const diagnostic = Object.create(CharacterOnboardingDialog.prototype);
+		diagnostic._initializeState(playbookDoc, initialSelections, "first-incomplete");
+		return diagnostic.getQuestionCompletionDiagnostics();
+	}
+
 	constructor(playbookDoc, onComplete, options = {}) {
 		const { onBack, onSave, initialSelections, startAtStep = null, ...appOptions } = options;
 		super(appOptions);
@@ -86,6 +100,11 @@ export class CharacterOnboardingDialog extends Application {
 		this._keepOnTopListener  = () => this._queueKeepOnTop();
 		this._keepOnTopObserver  = null;
 
+		this._initializeState(playbookDoc, initialSelections, startAtStep);
+	}
+
+	_initializeState(playbookDoc, initialSelections = null, startAtStep = null) {
+		this._playbookDoc = playbookDoc;
 		const f = playbookDoc.flags?.stonetop ?? {};
 		this._backgrounds        = f.backgrounds        ?? [];
 		this._rawInstincts       = f.instincts           ?? [];
@@ -259,6 +278,10 @@ export class CharacterOnboardingDialog extends Application {
 		const opts = section?.options ?? [];
 		if (opts.length > 0 && opts.every(o => !o.type && (o.max ?? 1) === 1)) return 1;
 		return Infinity;
+	}
+
+	_loreMarkerForSection(section) {
+		return loreMarkerForText(section?.title, section?.description);
 	}
 
 	_countLoreSectionPicks(sectionSlug) {
@@ -492,6 +515,7 @@ export class CharacterOnboardingDialog extends Application {
 			description:        this._normalizeOnboardingText(section.description ?? ""),
 			contextTitle:        previousSelectedOptions.length ? this._normalizeOnboardingText(previousSection.title ?? "") : "",
 			contextAnswers:      previousSelectedOptions,
+			marker:              this._loreMarkerForSection(section),
 			isPickSection,
 			isTextSection,
 			hasOptions:         opts.length > 0,
@@ -768,12 +792,170 @@ export class CharacterOnboardingDialog extends Application {
 
 	// ── Foundry Application boilerplate ──────────────────────────────
 
+	getQuestionCompletionDiagnostics() {
+		const steps = this._steps
+			.map((stepType, index) => this._stepDiagnostic(stepType, index))
+			.filter(step => step.isQuestionStep);
+		const incomplete = steps.filter(step => !step.complete);
+		return {
+			playbook: this._playbookDoc?.name ?? "",
+			firstIncomplete: incomplete[0] ?? null,
+			incomplete,
+			steps,
+		};
+	}
+
+	_stepDiagnostic(stepType, index) {
+		return {
+			index,
+			stepType,
+			label: this._stepDiagnosticLabel(stepType),
+			isQuestionStep: this._isResumeQuestionStep(stepType),
+			complete: this._isStepAnsweredForResume(stepType),
+			details: this._stepDiagnosticDetails(stepType),
+		};
+	}
+
+	_resolveLoreSection(stepType) {
+		const m = stepType?.match(/^lore:(\d+)$/);
+		if (!m) return undefined;
+		return this._rawLore[parseInt(m[1], 10)] ?? null;
+	}
+
+	_stepDiagnosticLabel(stepType) {
+		const section = this._resolveLoreSection(stepType);
+		if (section !== undefined) {
+			return this._normalizeOnboardingText(section?.title ?? stepType);
+		}
+		return ({
+			background: "Background",
+			instinct: "Instinct",
+			appearance: "Appearance",
+			origin: "Origin",
+			initiates: "Initiates",
+			crew: "Crew",
+			animalCompanion: "Animal Companion",
+			seekerArcana: "Major Arcana",
+			seekerArcanaMinor: "Minor Arcana",
+		})[stepType] ?? stepType;
+	}
+
+	_stepDiagnosticDetails(stepType) {
+		const section = this._resolveLoreSection(stepType);
+		if (section !== undefined) {
+			if (!section) return { reason: "Lore section not found" };
+			const textOptions = (section.options ?? []).filter(opt => opt.type === "text");
+			const min = this._parseLorePickMin(section);
+			const selected = this._countLoreSectionPicks(section.slug);
+			return {
+				sectionSlug: section.slug,
+				requiredPicks: textOptions.length ? null : min,
+				selectedPicks: textOptions.length ? null : selected,
+				textAnswers: textOptions.map(opt => ({
+					optionSlug: opt.slug,
+					hasAnswer: !!this._selections.lore.texts[`${section.slug}:${opt.slug}`]?.trim(),
+				})),
+			};
+		}
+		switch (stepType) {
+			case "background": return this._backgroundStepDiagnostic();
+			case "instinct":
+				return { selected: this._selections.instinctValue || "" };
+			case "appearance":
+				return {
+					requiredLines: this._rawAppearance.length,
+					selectedLines: Object.keys(this._selections.appearance).filter(key => !!this._selections.appearance[key]).length,
+					missingLines: this._rawAppearance
+						.map((_, i) => i)
+						.filter(i => !this._selections.appearance[i]),
+				};
+			case "origin":
+				return {
+					originRegion: this._selections.originRegion || "",
+					name: this._selections.name || "",
+					missing: [
+						...(!this._selections.originRegion ? ["originRegion"] : []),
+						...(!this._selections.name?.trim() ? ["name"] : []),
+					],
+				};
+			case "initiates": {
+				const data = this._getInitiatesData();
+				const [min] = this._initiatesCountRange(data);
+				return {
+					requiredMin: min,
+					selectedCount: this._selections.initiates.length,
+					selected: [...this._selections.initiates],
+				};
+			}
+			case "crew": {
+				const tagLimit = this._rawCrew?.additionalTagCount ?? 2;
+				return {
+					requiredTags: tagLimit,
+					selectedTags: this._selections.crew.tags.length,
+					hasInstinct: !!this._selections.crew.instinct,
+					hasCost: !!this._selections.crew.cost,
+				};
+			}
+			case "animalCompanion": {
+				const ac = this._selections.animalCompanion;
+				const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === ac.type);
+				return {
+					type: ac.type || "",
+					kind: ac.kind || "",
+					requiredTraits: typeData?.pickCount ?? null,
+					selectedTraits: ac.traits.length,
+					hasInstinct: !!ac.instinct,
+					hasCost: !!ac.cost,
+				};
+			}
+			case "seekerArcana":
+				return { major: this._selections.arcana.major || "" };
+			case "seekerArcanaMinor":
+				return {
+					roles: { ...this._selections.arcana.minorRoles },
+					assignedCount: Object.values(this._selections.arcana.minorRoles).filter(Boolean).length,
+				};
+			default:
+				return {};
+		}
+	}
+
+	_backgroundStepDiagnostic() {
+		const backgroundSlug = this._selections.backgroundSlug || "";
+		const bg = this._backgrounds.find(b => b.slug === backgroundSlug);
+		if (!backgroundSlug || !bg) return { backgroundSlug, missing: ["background"] };
+		const missing = [];
+		for (const choice of this._backgroundMoveChoices(bg)) {
+			if (!choice.options?.length) continue;
+			const key = this._moveChoiceKey(choice);
+			if (!this._selections.backgroundChoices[key]?.value) missing.push(`moveChoice:${key}`);
+		}
+		const setup = this._backgroundSetup(bg);
+		for (const choice of (setup?.choices ?? [])) {
+			if (!this._selections.backgroundSetup.choices[choice.key]) missing.push(`setupChoice:${choice.key}`);
+		}
+		for (const text of (setup?.texts ?? [])) {
+			if (!this._selections.backgroundSetup.texts[text.key]?.trim()) missing.push(`setupText:${text.key}`);
+		}
+		for (const neighbor of (setup?.neighbors ?? [])) {
+			if (neighbor.traitKey && !this._selections.backgroundSetup.neighborTraits[neighbor.traitKey]?.trim()) {
+				missing.push(`neighborTrait:${neighbor.traitKey}`);
+			}
+		}
+		for (const choice of (setup?.neighborChoices ?? [])) {
+			const count = Number(choice.count ?? 1);
+			const selected = this._selections.backgroundSetup.neighborPicks[choice.key] ?? [];
+			if (selected.length !== count) missing.push(`neighborChoice:${choice.key} (${selected.length}/${count})`);
+		}
+		return { backgroundSlug, missing };
+	}
+
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-character-onboarding",
 			template:  "systems/stonetop_pwd/templates/dialogs/character-onboarding.hbs",
 			width:     660,
-			height:    640,
+			height:    740,
 			resizable: true,
 			classes:   ["stonetop", "stonetop-onboarding"],
 		});
@@ -803,6 +985,12 @@ export class CharacterOnboardingDialog extends Application {
 				const childZ = String(zIndex + 1);
 				if (childEl.style.zIndex !== childZ) childEl.style.setProperty("z-index", childZ, "important");
 			});
+		// Hover tooltips must always float above the dialog and its children.
+		const tooltip = document.querySelector("#tooltip");
+		const tooltipZ = String(zIndex + 2);
+		if (tooltip && tooltip.style.zIndex !== tooltipZ) {
+			tooltip.style.setProperty("z-index", tooltipZ, "important");
+		}
 	}
 
 	_queueKeepOnTop() {
@@ -1249,6 +1437,7 @@ export class CharacterOnboardingDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		markQuestionBullets(html[0]);
 		this._keepOnTop();
 		this._startKeepOnTopGuard();
 		html.closest(".window-app").on("mousedown.stonetopOnboarding focusin.stonetopOnboarding", () => this._queueKeepOnTop());
@@ -1484,6 +1673,11 @@ export class CharacterOnboardingDialog extends Application {
 			const lineIdx = Number(ev.currentTarget.name.replace("onboard-appearance-", ""));
 			this._selections.appearance[lineIdx] = ev.currentTarget.value;
 			this._setSelectedOption(ev.currentTarget.closest(".stonetop-onboarding-appearance-row"), ev.currentTarget);
+			if (ev.currentTarget.classList.contains("onboard-appearance-custom-radio")) {
+				ev.currentTarget.closest(".stonetop-onboarding-appearance-custom")
+					?.querySelector(".onboard-appearance-custom")
+					?.focus();
+			}
 			_refreshNextButton();
 		});
 		html.find(".onboard-appearance-custom").on("input", ev => {
@@ -2034,6 +2228,7 @@ export class CharacterOnboardingDialog extends Application {
 	async close(options) {
 		this._stopKeepOnTopGuard();
 		this._clearPopups();
+		document.querySelector("#tooltip")?.style.removeProperty("z-index");
 		return super.close(options);
 	}
 
@@ -2080,6 +2275,8 @@ export class CharacterOnboardingDialog extends Application {
 		left = Math.max(8, Math.min(left, window.innerWidth - pr.width - 8));
 		el.style.top  = `${top}px`;
 		el.style.left = `${left}px`;
+		const dialogZ = parseInt(this.element?.[0]?.style?.zIndex || 0);
+		el.style.setProperty("z-index", String(Math.max(10000, dialogZ + 2)), "important");
 	}
 
 	async _lookupWord(text) {

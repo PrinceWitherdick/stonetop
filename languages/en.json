@@ -161,6 +161,10 @@
 				"imFellEnglish": "IM Fell English",
 				"signika": "Signika"
 			},
+			"showRollStatChips": {
+				"name": "Show Roll Stat Chips",
+				"hint": "Show labels like +STR and +ANY beside rollable move icons on character sheets."
+			},
 			"hoverDescriptionSettings": {
 				"name": "On Hover Info",
 				"label": "Configure",

@@ -43,7 +43,7 @@
 								</span>
 								{{/if}}
 								<strong class="stonetop-item-name">{{name}}</strong>
-								{{#if rollLabel}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
+								{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
 								<a class="stonetop-other-move-delete" data-item-id="{{ownedId}}" title="{{localize 'stonetop.character.moves.removeMove'}}">
 									<i class="fas fa-trash"></i>
 								</a>
@@ -68,7 +68,7 @@
 							</span>
 							{{/if}}
 							<strong class="stonetop-item-name">{{name}}</strong>
-							{{#if rollLabel}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
+							{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
 							<a class="stonetop-other-move-delete" data-item-id="{{ownedId}}" title="{{localize 'stonetop.character.moves.removeMove'}}">
 								<i class="fas fa-trash"></i>
 							</a>

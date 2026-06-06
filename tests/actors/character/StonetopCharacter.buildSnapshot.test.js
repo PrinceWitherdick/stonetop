@@ -217,6 +217,14 @@ describe("buildSnapshot — playbook section", () => {
 		expect(snap.playbook.origin.options[0].region).toBe("Stonetop");
 		expect(snap.playbook.origin.options[0].names.map(n => n.name)).toContain("Brakken");
 	});
+
+	it("origin.options includes setting overview descriptions", async () => {
+		const snap = await buildSnap({"origin.selected": "Barrier Pass"});
+		const origin = snap.playbook.origin.selectedOption;
+		expect(origin.region).toBe("Barrier Pass");
+		expect(origin.description).toContain("<strong>Barrier Pass</strong>");
+		expect(origin.description).toContain("massive wall and gate");
+	});
 });
 
 // ── debilities ────────────────────────────────────────────────────────────────
@@ -932,6 +940,149 @@ describe("buildSnapshot — lore section", () => {
 		expect(positive.options[0].readonlyDescription).toBe("is vast.");
 		expect(negative.readonlyMarker).toBe("-");
 		expect(negative.options[0].readonlyDescription).toBe("is damp.");
+	});
+
+	it("uses the spiral marker for lore entries that are not plus or alas topics", async () => {
+		const snap = await buildSnap({ "lore.counts": { "the-earth-mother:shrine-loved": 1 } });
+		expect(snap.playbook.lore.entries[0].readonlyMarker).toBe("spiral");
+	});
+
+	it("marks alas lore entries as continuations of the previous topic", async () => {
+		const snap = await buildChronicleSnap();
+		const [positive, negative] = snap.playbook.lore.entries;
+		expect(positive.isContinuation).toBe(false);
+		expect(negative.isContinuation).toBe(true);
+	});
+
+	const LAWKEEPER_LORE_PLAYBOOK = {
+		...HEAVY_PLAYBOOK,
+		lore: [
+			{
+				slug: "lawkeeper-shrine",
+				title: "The Lawkeeper",
+				description: "<p>Aratis's shrine is... <em>(pick 1)</em></p>",
+				options: [
+					{ slug: "shrine-hub", description: "... a hub of the community.", max: 1 },
+				],
+			},
+			{
+				slug: "lawkeeper-demands",
+				title: "Of Her True Disciples, Aratis Demands...",
+				description: "<p><em>(choose 3)</em></p>",
+				options: [
+					{ slug: "truth", description: "... truth, honesty, and forthrightness.", max: 1 },
+				],
+			},
+		],
+	};
+
+	async function buildLoreSnap(lorePlaybook, flags = {}) {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withFlags(flags)
+			.build();
+		return new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(lorePlaybook))
+			.build().buildSnapshot();
+	}
+
+	it("marks Aratis demands lore entries as continuations of the Lawkeeper topic", async () => {
+		const snap = await buildLoreSnap(LAWKEEPER_LORE_PLAYBOOK);
+		const [lawkeeper, demands] = snap.playbook.lore.entries;
+		expect(lawkeeper.isContinuation).toBe(false);
+		expect(demands.isContinuation).toBe(true);
+		expect(demands.readonlyMarker).toBe("spiral");
+	});
+
+	const PDF_CONTINUATION_LORE_PLAYBOOK = {
+		...HEAVY_PLAYBOOK,
+		lore: [
+			{
+				slug: "earth-mother",
+				title: "The Earth Mother",
+				description: "<p>Danu's shrine is... <em>(choose 1)</em></p>",
+				options: [{ slug: "loved", description: "... loved.", max: 1 }],
+			},
+			{
+				slug: "offerings",
+				title: "Offerings to Danu",
+				description: "<p><em>(choose 2-3)</em></p>",
+				options: [{ slug: "fruit", description: "Fruits of harvest.", max: 1 }],
+			},
+			{
+				slug: "tall-tale-end",
+				title: "And You Ended Up...",
+				description: "<p><em>(choose 1 or 2 per tale)</em></p>",
+				options: [{ slug: "running", description: "... running for your life.", max: 1 }],
+			},
+			{
+				slug: "tall-tale-left",
+				title: "But All You've Got Left to Show for It Is...",
+				description: "",
+				options: [{ slug: "scar", description: "... a nasty scar.", max: 1 }],
+			},
+			{
+				slug: "violence-shadow",
+				title: "But Folks Are Less Keen to Discuss...",
+				description: "<p><em>(pick 1 or 2)</em></p>",
+				options: [{ slug: "look", description: "... the look in your eye.", max: 1 }],
+			},
+			{
+				slug: "violence-fears",
+				title: "What Keeps You Up at Night?",
+				description: "<p><em>(pick 1 or 2)</em></p>",
+				options: [{ slug: "temper", description: "That temper.", max: 1 }],
+			},
+			{
+				slug: "helior-practice",
+				title: "He Is Worshipped Through...",
+				description: "<p><em>(choose 1 or 2)</em></p>",
+				options: [{ slug: "hymns", description: "... solemn hymns.", max: 1 }],
+			},
+			{
+				slug: "helior-shrine",
+				title: "In Stonetop's Pavilion of the Gods, Helior's Shrine Has...",
+				description: "<p><em>(choose 1)</em></p>",
+				options: [{ slug: "honor", description: "... the place of highest honor.", max: 1 }],
+			},
+			{
+				slug: "lightbearer-predecessor",
+				title: "Your Predecessor, the Previous Lightbearer...",
+				description: "<p><em>(choose 2 or 3)</em></p>",
+				options: [{ slug: "legend", description: "... lived long ago.", max: 1 }],
+			},
+			{
+				slug: "lightbearer-powers",
+				title: "You Came Into Your Powers...",
+				description: "<p><em>(choose 1)</em></p>",
+				options: [{ slug: "study", description: "... through years of study.", max: 1 }],
+			},
+			{
+				slug: "war-questions",
+				title: "Answer At Least 3 of the Following",
+				description: "",
+				options: [{ slug: "when", description: "When did it happen?", max: 1 }],
+			},
+			{
+				slug: "anger",
+				title: "What Makes You Burn with Righteous Anger?",
+				description: "<p><em>(choose 2, maybe 3)</em></p>",
+				options: [{ slug: "injustice", description: "Injustice.", max: 1 }],
+			},
+			{
+				slug: "fear-story",
+				title: "When Did Your Fear or Anger Last Cause You Trouble?",
+				description: "",
+				options: [{ slug: "when", description: "When did it happen?", max: 1 }],
+			},
+		],
+	};
+
+	it("marks other PDF subprompts as continuations of their playbook topic", async () => {
+		const snap = await buildLoreSnap(PDF_CONTINUATION_LORE_PLAYBOOK);
+		const entries = snap.playbook.lore.entries;
+		expect(entries[0].isContinuation).toBe(false);
+		expect(entries.slice(1).every(e => e.isContinuation)).toBe(true);
 	});
 
 	it("lore option checks has length equal to max", async () => {

@@ -12,6 +12,7 @@ import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
+import { markQuestionBullets } from "./module/utils/question-bullets.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -169,6 +170,11 @@ Hooks.on("preCreateChatMessage", (message) => {
 	const playbookName = actor.system?.playbook?.name ?? "";
 	if (!playbookName) return;
 	message.updateSource({ "speaker.alias": `${actor.name} ${playbookName}` });
+});
+
+// -- QUESTION BULLETS ------------------------------------------
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	markQuestionBullets(html);
 });
 
 // -- DEBILITY DISADVANTAGE ANNOTATION -------------------------

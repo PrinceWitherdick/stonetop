@@ -755,6 +755,9 @@
 				       data-option="{{slug}}"
 				       {{#if isSelected}}checked{{/if}}
 				       {{#if disabled}}disabled{{/if}}>
+				<span class="stonetop-onboarding-lore-marker{{#if (eq ../loreSectionData.marker "spiral")}} stonetop-onboarding-lore-marker--spiral{{/if}}" aria-hidden="true">
+					{{#unless (eq ../loreSectionData.marker "spiral")}}{{../loreSectionData.marker}}{{/unless}}
+				</span>
 				<span class="stonetop-onboarding-lore-pick-text">{{{description}}}</span>
 			</label>
 			{{/each}}
