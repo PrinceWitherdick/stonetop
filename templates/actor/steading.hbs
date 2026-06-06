@@ -231,17 +231,41 @@
 			<a class="item" data-tab="overview">{{localize "stonetop.steading.tabs.overview"}}</a>
 			<a class="item" data-tab="neighbors">{{localize "stonetop.steading.tabs.neighbors"}}</a>
 			<a class="item" data-tab="improvements">{{localize "stonetop.steading.tabs.improvements"}}</a>
-			<a class="item" data-tab="moves">{{localize "stonetop.steading.tabs.moves"}}</a>
 			<a class="item" data-tab="notes">{{localize "stonetop.steading.tabs.notes"}}</a>
 		</nav>
 
-		<section class="sheet-body">
-			{{> "stonetop.steading-tab-overview"}}
-			{{> "stonetop.steading-tab-neighbors"}}
-			{{> "stonetop.steading-tab-improvements"}}
-			{{> "stonetop.steading-tab-moves"}}
-			{{> "stonetop.steading-tab-notes"}}
-		</section>
+		<div class="stonetop-sheet-layout steading-sheet-layout">
+			<section class="sheet-body">
+				{{> "stonetop.steading-tab-overview"}}
+				{{> "stonetop.steading-tab-neighbors"}}
+				{{> "stonetop.steading-tab-improvements"}}
+				{{> "stonetop.steading-tab-notes"}}
+			</section>
+
+			<div class="stonetop-moves-sidebar steading-moves-sidebar">
+				{{> "stonetop.section-heading" title="Roll Modifier"}}
+				<div class="stonetop-roll-mode-control" role="group" aria-label="Roll mode">
+					<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "adv")}} is-checked{{/if}}">
+						<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="adv"
+						       {{#if (eq stonetop.rollMode "adv")}}checked{{/if}}>
+						<span>Advantage</span>
+					</label>
+					<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "normal")}} is-checked{{/if}}">
+						<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="normal"
+						       {{#if (eq stonetop.rollMode "normal")}}checked{{/if}}>
+						<span>Normal</span>
+					</label>
+					<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "dis")}} is-checked{{/if}}">
+						<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="dis"
+						       {{#if (eq stonetop.rollMode "dis")}}checked{{/if}}>
+						<span>Disadvantage</span>
+					</label>
+				</div>
+
+				{{> "stonetop.section-heading" title=(localize "stonetop.steading.tabs.moves")}}
+				{{> "stonetop.steading-tab-moves"}}
+			</div>
+		</div>
 
 	</div>
 </form>

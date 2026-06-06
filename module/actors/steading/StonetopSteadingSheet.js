@@ -4,9 +4,15 @@ import {SteadingLedger} from "./SteadingLedger.js";
 import {escHtml} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
+import {STONETOP_SCOPE} from "../character/StonetopFlags.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
 
 function _signedNum(n) {
 	return n >= 0 ? `+${n}` : String(n);
+}
+
+function _normalizeSheetRollMode(rollMode) {
+	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
 }
 
 const _STEADING_MOVES_RAW = [
@@ -127,6 +133,12 @@ const _STEADING_MOVES_RAW = [
 ];
 const STEADING_MOVES = [..._STEADING_MOVES_RAW].sort((a, b) => a.label.localeCompare(b.label));
 const DIMINISHED_MOVES = new Set(["Deploy", "Muster", "Pull Together"]);
+const STEADING_STAT_CHIP_LABELS = {
+	Defenses: "DEF",
+	Fortunes: "FOR",
+	Population: "POP",
+	Prosperity: "PRO",
+};
 const _esc = escHtml;
 
 function _formatResultLine(text) {
@@ -268,6 +280,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["pbta", "stonetop", "sheet", "actor", "steading"],
 				width: 1080,
+				minWidth: 800,
 				height: 840,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "overview" }],
 			});
@@ -529,7 +542,12 @@ export function createStonetopSteadingSheetClass(Base) {
 		async getData() {
 			const context = await super.getData();
 			context.stonetop = await this._stonetopSteading.buildSnapshot();
-			context.stonetop.moves = STEADING_MOVES;
+			context.stonetop.moves = STEADING_MOVES.map(move => ({
+				...move,
+				statChipLabel: STEADING_STAT_CHIP_LABELS[move.statLabel] ?? move.statLabel,
+			}));
+			context.stonetop.rollMode = this._sheetRollMode();
+			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? false;
@@ -547,6 +565,17 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onSteadingRoll(btn.dataset.moveName, btn.dataset.stat);
 			}, true);
 
+			html.find(".stonetop-roll-mode-input").on("change", async (ev) => {
+				await this.actor.setFlag(STONETOP_SCOPE, "rollMode", _normalizeSheetRollMode(ev.currentTarget.value));
+				this.render(false);
+			});
+
+			html.find(".stonetop-steading-move-open").on("click", ev => {
+				const li = ev.currentTarget.closest("li");
+				const rollable = li?.querySelector(".steading-roll-btn, .steading-interactive-btn");
+				if (rollable) rollable.click();
+			});
+
 			// Interactive move buttons (e.g. Meet with Disaster)
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".steading-interactive-btn");
@@ -559,14 +588,31 @@ export function createStonetopSteadingSheetClass(Base) {
 				else if (HOMESTEAD_MOVE_FLOWS[moveSlug]) this._onHomesteadMove(moveSlug);
 			}, true);
 
-			// Move description toggle
-			html[0].addEventListener("click", ev => {
-				const hdr = ev.target.closest(".steading-move-header");
-				if (!hdr) return;
-				const card = hdr.closest(".steading-move-card");
-				if (!card) return;
-				card.classList.toggle("is-open");
-			}, true);
+			this._movePanel?.remove();
+			if (getHoverDescriptionSetting("hoverDescriptionsBasicMoves")) {
+				const panel = document.createElement("div");
+				this._movePanel = panel;
+				panel.className = "stonetop-basic-move-panel";
+				panel.hidden = true;
+				document.body.appendChild(panel);
+
+				html.find(".steading-move-row").on("mouseenter", ev => {
+					const li = ev.currentTarget;
+					const descEl = li.querySelector(".stonetop-basic-move-desc");
+					if (!descEl) return;
+					const nameText = li.querySelector(".stonetop-move-name")?.textContent?.trim() ?? "";
+					const nameEl = document.createElement("strong");
+					nameEl.className = "stonetop-basic-move-panel-name";
+					nameEl.textContent = nameText;
+					panel.replaceChildren(nameEl, ...Array.from(descEl.cloneNode(true).childNodes));
+					panel.hidden = false;
+					const rect = li.getBoundingClientRect();
+					panel.style.top   = `${Math.max(4, Math.min(rect.top, window.innerHeight - panel.offsetHeight - 8))}px`;
+					panel.style.right = `${window.innerWidth - rect.left + 8}px`;
+				}).on("mouseleave", () => {
+					panel.hidden = true;
+				});
+			}
 
 			// Improvement card expand/collapse
 			html[0].addEventListener("click", ev => {
@@ -1315,6 +1361,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			const options = {
 				...rollOptions,
 				moveName,
+				rollMode: _normalizeSheetRollMode(rollOptions.rollMode ?? this._sheetRollMode()),
 				statValue: this._stonetopSteading.getStatValue(statKey),
 			};
 			if (rollOptions.statValue !== undefined) options.statValue = rollOptions.statValue;
@@ -1331,6 +1378,10 @@ export function createStonetopSteadingSheetClass(Base) {
 			await rollStat(statKey, this.actor, {
 				...options,
 			});
+		}
+
+		_sheetRollMode() {
+			return _normalizeSheetRollMode(this.actor.getFlag(STONETOP_SCOPE, "rollMode"));
 		}
 
 		async _onSteadingTrackChange(path, value) {

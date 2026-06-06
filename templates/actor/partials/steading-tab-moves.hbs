@@ -1,44 +1,36 @@
-<div class="tab moves{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="moves">
-	<section class="sheet-tab steading-moves-tab">
+<section class="steading-moves-tab{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}">
 
-		<p class="steading-moves-intro">
-			Core steading moves. Roll results: <strong>10+</strong> Strong Hit · <strong>7–9</strong> Weak Hit · <strong>6−</strong> Miss
-		</p>
+	<p class="steading-moves-intro">
+		Core steading moves. Roll results: <strong>10+</strong> Strong Hit · <strong>7–9</strong> Weak Hit · <strong>6−</strong> Miss
+	</p>
 
-		<div class="steading-moves-list">
-			{{#each stonetop.moves}}
-			<div class="steading-move-card {{#if rollable}}is-rollable{{/if}}">
+	<ol class="items-list steading-moves-list">
+		{{#each stonetop.moves}}
+		<li class="stonetop-move-item steading-move-row{{#unless rollable}}{{#unless interactive}} move-unowned{{/unless}}{{/unless}}">
 
-				<div class="steading-move-header">
-					{{#if interactive}}
-					<button type="button" class="steading-interactive-btn"
-					        data-move-slug="{{slug}}"
-					        title="{{label}}">
-						<i class="fas fa-dice-d6"></i>
-					</button>
-					{{else}}
-					{{#if rollable}}
-					<button type="button" class="steading-roll-btn"
-					        data-move-name="{{label}}" data-stat="{{stat}}"
-					        title="Roll 2d6+{{this.statLabel}}">
-						<i class="fas fa-dice-d6"></i>
-					</button>
-					{{/if}}
-					{{/if}}
-					<strong class="steading-move-name">{{label}}</strong>
-					{{#if statLabel}}
-					<span class="steading-move-stat-tag">+{{this.statLabel}}</span>
-					{{/if}}
-					<span class="steading-move-expand-icon"><i class="fas fa-chevron-down"></i></span>
-				</div>
+			{{#if interactive}}
+			<button type="button" class="steading-interactive-btn rollable move-rollable"
+			        data-move-slug="{{slug}}"
+			        title="{{label}}">
+				<i class="fas fa-dice-d6"></i>
+			</button>
+			{{else}}
+			{{#if rollable}}
+			<button type="button" class="steading-roll-btn rollable move-rollable"
+			        data-move-name="{{label}}" data-stat="{{stat}}"
+			        title="Roll 2d6+{{this.statLabel}}">
+				<i class="fas fa-dice-d6"></i>
+			</button>
+			{{/if}}
+			{{/if}}
+			{{#if (and @root.stonetop.showRollStatChips statChipLabel)}}
+			<span class="stonetop-move-roll-chip steading-move-stat-tag">+{{this.statChipLabel}}</span>
+			{{/if}}
+			<span class="stonetop-move-name stonetop-steading-move-open">{{label}}</span>
+			{{#if description}}<div class="stonetop-basic-move-desc" hidden>{{{boldMissText description}}}</div>{{/if}}
 
-				<div class="steading-move-body">
-					{{{boldMissText description}}}
-				</div>
+		</li>
+		{{/each}}
+	</ol>
 
-			</div>
-			{{/each}}
-		</div>
-
-	</section>
-</div>
+</section>

@@ -4255,7 +4255,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .steading-sheet .sheet-tabs {
 	display: flex;
 	flex-direction: row;
-	padding: 4px 10px 0;
+	padding: 16px 10px 0;
 	border-bottom: 2px solid slategrey;
 	flex-shrink: 0;
 }
@@ -4266,8 +4266,50 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	scrollbar-width: thin;
 }
 
+.steading-sheet-layout {
+	padding: 0;
+}
+
+.steading-moves-sidebar {
+	padding-right: 12px;
+}
+
+.steading-moves-sidebar .steading-moves-intro {
+	width: 0;
+	min-width: 100%;
+	white-space: normal;
+}
+
+.steading-moves-sidebar .steading-moves-list {
+	display: block;
+	margin: 4px 0 0;
+	padding-left: 1.5em;
+	list-style: decimal;
+}
+
+.steading-moves-sidebar .steading-move-row {
+	border-radius: 3px;
+	padding: 2px 4px;
+	cursor: pointer;
+	font-style: normal;
+	white-space: nowrap;
+}
+
+.steading-moves-sidebar .steading-move-row:hover {
+	background: rgba(0, 0, 0, 0.06);
+}
+
+.steading-moves-sidebar .steading-move-row::marker {
+	font-weight: normal;
+	font-style: normal;
+}
+
+.steading-moves-sidebar .steading-move-stat-tag {
+	margin: 0 3px;
+}
+
 .steading-sheet .sheet-tab {
-	padding: 12px 14px;
+	padding: 12px;
 }
 
 /* -- Shared: stat labels --------------------------------------- */
@@ -5096,6 +5138,10 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	.steading-neighbor-fields {
 		grid-template-columns: 1fr;
 	}
+
+	.steading-moves-list {
+		grid-template-columns: 1fr;
+	}
 }
 
 /* Currency */
@@ -5420,9 +5466,9 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .steading-moves-list {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px 16px;
 }
 
 .steading-move-card {
@@ -5447,26 +5493,31 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .steading-roll-btn,
 .steading-interactive-btn {
-	background: slategrey;
-	color: white;
+	background: transparent;
+	color: var(--color-text-dark-secondary);
 	border: none;
-	border-radius: 4px;
-	width: 26px;
-	height: 26px;
+	border-radius: 0;
+	width: auto;
+	height: auto;
+	padding: 0;
 	cursor: pointer;
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
+	line-height: 1;
 }
 
 .steading-roll-btn:hover,
 .steading-interactive-btn:hover {
-	background: #556b8b;
+	background: transparent;
+	color: var(--color-text-dark-primary);
 }
 
-.steading-roll-btn        { font-size: 0.9em; }
-.steading-interactive-btn { font-size: 0.85em; }
+.steading-roll-btn,
+.steading-interactive-btn {
+	font-size: 0.9em;
+}
 
 /* -- Seasons Change dialog ------------------------------------- */
 
@@ -5759,15 +5810,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .steading-move-name {
 	flex: 1;
-	font-size: 0.9em;
+	font-size: 0.95rem;
 }
 
 .steading-move-stat-tag {
-	font-size: 0.75em;
-	background: slategrey;
-	color: white;
-	padding: 1px 7px;
-	border-radius: 10px;
+	flex: 0 0 auto;
 }
 
 .steading-move-expand-icon {
