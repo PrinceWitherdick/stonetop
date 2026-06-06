@@ -1,4 +1,5 @@
 import { applyGearTermTooltips } from "../utils/gear-term-tooltips.js";
+import { wrapStonetopGlyphsInEl } from "../utils/glyphs.js";
 
 export class SettingOverviewDialog extends Application {
 	constructor(options = {}) {
@@ -30,7 +31,10 @@ export class SettingOverviewDialog extends Application {
 	activateListeners(html) {
 		super.activateListeners(html);
 		const entryBody = html.find(".stonetop-so-entry-body")[0];
-		if (entryBody) applyGearTermTooltips(entryBody);
+		if (entryBody) {
+			wrapStonetopGlyphsInEl(entryBody);
+			applyGearTermTooltips(entryBody);
+		}
 		// X button should always close, bypassing the z-index guard
 		this.element?.find('[data-action="close"]').off("click").on("click", () => this.close({force: true}));
 		html.find(".stonetop-so-nav-entry").on("click", ev => {

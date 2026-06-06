@@ -6,6 +6,7 @@ import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
 import {STONETOP_SCOPE} from "../character/StonetopFlags.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
+import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 
 function _signedNum(n) {
 	return n >= 0 ? `+${n}` : String(n);
@@ -556,6 +557,7 @@ export function createStonetopSteadingSheetClass(Base) {
 
 		activateListeners(html) {
 			super.activateListeners(html);
+			wrapStonetopGlyphsInEl(html[0]);
 
 			// Rollable move buttons (both editable and read-only)
 			html[0].addEventListener("click", ev => {

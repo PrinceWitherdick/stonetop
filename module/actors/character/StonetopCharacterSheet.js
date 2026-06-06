@@ -339,7 +339,7 @@ const _MOVE_REF_RE = new RegExp(
 	`(?<!\\w)(${_MOVE_REF_NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?!\\w)`,
 	"g"
 );
-const _GLYPH_RE = /[○◇□]+/g;
+const _GLYPH_RE = /[○◇◆□]+/g;
 const _moveRefCache = new Map();
 
 async function _fetchMoveRef(name) {
@@ -413,10 +413,14 @@ function _wrapStonetopGlyphsInEl(container) {
 		let m;
 		while ((m = _GLYPH_RE.exec(text)) !== null) {
 			if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
-			const span = document.createElement("span");
-			span.className = "stonetop-glyph";
-			span.textContent = m[0];
-			frag.appendChild(span);
+			for (const glyph of m[0]) {
+				const span = document.createElement("span");
+				span.className = "stonetop-glyph";
+				if (glyph === "◇") span.classList.add("stonetop-glyph--diamond");
+				else if (glyph === "◆") span.classList.add("stonetop-glyph--diamond-selected");
+				span.textContent = glyph;
+				frag.appendChild(span);
+			}
 			lastIdx = m.index + m[0].length;
 		}
 		if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));

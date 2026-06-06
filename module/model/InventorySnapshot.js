@@ -59,6 +59,7 @@ export class InventoryItemSnapshot {
 		this.note        = b._note;
 		this.weight      = b._weight;
 		this.checked     = b._checked;
+		this.disabled    = b._disabled ?? false;
 		this.resource    = b._resource;
 		this.isCustom    = b._isCustom;
 		this.ownedId     = b._ownedId;
@@ -108,10 +109,12 @@ export class OutfitSnapshot {
 		this.load            = b._load;
 		this.regularItems    = b._regularItems;
 		this.regularSegments = b._regularSegments;
-		this.regularPool     = b._regularPool;
-		this.smallItems      = b._smallItems;
-		this.smallGridItems  = b._smallGridItems;
-		this.smallPool       = b._smallPool;
+		this.regularPool      = b._regularPool;
+		this.regularPoolEmpty = (b._regularPool?.current ?? 0) === 0;
+		this.smallItems       = b._smallItems;
+		this.smallGridItems   = b._smallGridItems;
+		this.smallPool        = b._smallPool;
+		this.smallPoolEmpty   = (b._smallPool?.current ?? 0) === 0;
 		this.arcanaItems     = b._arcanaItems ?? [];
 		this.smallItemLimit  = b._smallItemLimit ?? null;
 		this.steadingName    = b._steadingName ?? null;

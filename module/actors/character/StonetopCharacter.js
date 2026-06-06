@@ -424,17 +424,30 @@ export class StonetopCharacter {
 			? Math.max(0, smallItemLimit - [...smallItemSlugs].filter(s => !!checked[s]).length)
 			: sPool;
 
+		const regularPoolMax = LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy;
+		const checkedRegularWeight = flatRegular
+			.filter(item => item.checked)
+			.reduce((sum, item) => sum + (item.weight ?? 0), 0);
+		const regularPoolCurrent = Math.max(0, regularPoolMax - checkedRegularWeight);
+		const regularPoolEmpty = regularPoolCurrent === 0;
+		flatRegular.forEach(item => { item.disabled = !item.checked && regularPoolEmpty; });
+
+		const smallItems = [
+			...allSmall.filter(i => !i.smallGrid).map(mapItem),
+			...customItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
+			...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
+		];
+		const smallGridItems = allSmall.filter(i => i.smallGrid).map(mapItem);
+		const smallPoolEmpty = smallPoolCurrent === 0;
+		[...smallItems, ...smallGridItems].forEach(item => { item.disabled = !item.checked && smallPoolEmpty; });
+
 		const outfit = new OutfitSnapshotBuilder()
 			.withLoad(load)
 			.withRegularItems(flatRegular)
 			.withRegularSegments(_segmentByTwoCol(flatRegular))
-			.withRegularPool(new ResourceBuilder().withCurrent(rPool).withMax(LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy).withTitle(null).withLabels([]).build())
-			.withSmallItems([
-				...allSmall.filter(i => !i.smallGrid).map(mapItem),
-				...customItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
-				...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
-			])
-			.withSmallGridItems(allSmall.filter(i => i.smallGrid).map(mapItem))
+			.withRegularPool(new ResourceBuilder().withCurrent(regularPoolCurrent).withMax(regularPoolMax).withTitle(null).withLabels([]).build())
+			.withSmallItems(smallItems)
+			.withSmallGridItems(smallGridItems)
 			.withSmallPool(new ResourceBuilder().withCurrent(smallPoolCurrent).withMax(smallPoolMax).withTitle(null).withLabels([]).build())
 			.withArcanaItems(arcanaSection)
 			.withSmallItemLimit(smallItemLimit)

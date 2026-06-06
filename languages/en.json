@@ -89,13 +89,13 @@
 				"regularItems": "Items",
 				"smallItems": "Small Items",
 				"loadNone": "No items selected",
-				"loadLight": "<strong>Light load</strong> (up to 3 <span class=\"stonetop-glyph\">◆</span>) — quick &amp; quiet",
-				"loadNormal": "<strong>Normal load</strong> (4–6 <span class=\"stonetop-glyph\">◆</span>)",
-				"loadHeavy": "<strong>Heavy load</strong> (7–9 <span class=\"stonetop-glyph\">◆</span>) — noisy, slow, quick to tire",
+				"loadLight": "<strong>Light load</strong> (up to 3 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>) — quick &amp; quiet",
+				"loadNormal": "<strong>Normal load</strong> (4–6 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>)",
+				"loadHeavy": "<strong>Heavy load</strong> (7–9 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>) — noisy, slow, quick to tire",
 				"arcanaItems": "Arcana",
 				"smallItemLimit": "Mark up to <strong>{limit}</strong> small items (4+Prosperity)",
 				"confirm": "Confirm Outfit",
-				"totalWeight": "<span class=\"stonetop-glyph\">◆</span> used"
+				"totalWeight": "<span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> used"
 			}
 		},
 		"postDeath": {
@@ -131,15 +131,15 @@
 			"resetTitle": "Reset Inventory",
 			"resetConfirm": "Clear all item selections and load level? Supply pools are not affected.",
 			"regularUndefinedPoolLabel": "Undefined",
-			"regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph\">◆</span> from here to <span class=\"stonetop-glyph\">◇</span> below.",
+			"regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here to <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below.",
 			"smallUndefinedPoolLabel": "Undefined",
-			"smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph\">◆</span> from here to items below, or expend supplies to mark an additional <span class=\"stonetop-glyph\">◇</span>.",
+			"smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here to items below, or expend supplies to mark an additional <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span>.",
 			"choosePossessionsButton": "Choose Special Possessions",
 			"outfit": {
-				"heading": "When you <em><strong>Outfit</strong><em>, mark a number of <span class=\"stonetop-glyph\">◇</span> below on specific items or as a group.",
-				"light": "For a <strong>light load</strong> (<em>quick &amp; quiet</em>), mark up to 3 <span class=\"stonetop-glyph\">◆</span>",
-				"normal": "For a <strong>normal load</strong>, mark 4–6 <span class=\"stonetop-glyph\">◆</span>",
-				"heavy": "For a <strong>heavy load</strong> (<em>noisy, slow, hot, quick to tire</em>), mark 7–9 <span class=\"stonetop-glyph\">◆</span>"
+				"heading": "When you <em><strong>Outfit</strong><em>, mark a number of <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below on specific items or as a group.",
+				"light": "For a <strong>light load</strong> (<em>quick &amp; quiet</em>), mark up to 3 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
+				"normal": "For a <strong>normal load</strong>, mark 4–6 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
+				"heavy": "For a <strong>heavy load</strong> (<em>noisy, slow, hot, quick to tire</em>), mark 7–9 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>"
 			}
 		},
 		"settings": {

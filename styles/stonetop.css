@@ -77,6 +77,8 @@
 	--color-the-ranger: hsl(49, 51%, 34%);
 	--color-the-lightbearer: hsl(40, 94%, 49%);
 	--color-the-judge: hsl(244, 93%, 18%);
+	--stonetop-diamond-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond.svg');
+	--stonetop-diamond-selected-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond_selected.svg');
 
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
@@ -163,6 +165,30 @@ body,
 
 /* Diamond/circle glyphs should never be slanted, even inside italic contexts. */
 .stonetop-glyph { font-style: normal; }
+
+.stonetop-glyph--diamond,
+.stonetop-glyph--diamond-selected {
+	display: inline-block;
+	width: 0.78em;
+	height: 0.78em;
+	line-height: 1;
+	vertical-align: -0.04em;
+	background: center / contain no-repeat;
+	color: transparent;
+	font-size: 1em;
+}
+
+.stonetop-glyph--diamond {
+	background-image: var(--stonetop-diamond-icon);
+}
+
+.stonetop-glyph--diamond-selected {
+	background-image: var(--stonetop-diamond-selected-icon);
+}
+
+.stonetop-glyph--arrow {
+	background-image: url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+}
 
 .tab-section--possessions .stonetop-item-description .stonetop-glyph {
 	display: inline-block;
@@ -2024,19 +2050,26 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	appearance: none !important;
 	-webkit-appearance: none !important;
 	flex: none !important;
-	width: 11px !important;
-	height: 11px !important;
-	border: 1px solid currentColor;
-	background: transparent;
-	transform: rotate(45deg);
-	margin: 0 2px;
+	width: 14px !important;
+	height: 14px !important;
+	border: none;
+	background: center / contain no-repeat var(--stonetop-diamond-icon) !important;
+	margin: 0;
 	padding: 0;
 	cursor: pointer;
 }
 
 .vtt .window-app input[type=checkbox].stonetop-inv-diamond.is-checked,
 .vtt .window-app input[type=checkbox].stonetop-inv-diamond:checked,
-.stonetop-inv-item.is-checked .stonetop-inv-diamond { background: currentColor; }
+.stonetop-inv-item.is-checked .stonetop-inv-diamond {
+	background-image: var(--stonetop-diamond-selected-icon) !important;
+}
+
+.vtt .window-app input[type=checkbox].stonetop-inv-diamond:disabled,
+.vtt .window-app input[type=checkbox].stonetop-inventory-item-check:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
+}
 
 .vtt .window-app input[type=checkbox].stonetop-inv-square {
 	appearance: none !important;
@@ -2237,6 +2270,10 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: inline-flex;
 	align-items: center;
 	gap: 2px;
+}
+.vtt .window-app .stonetop-supplies-pool-diamonds input[type=checkbox].stonetop-inv-diamond {
+	width: 15px !important;
+	height: 15px !important;
 }
 .stonetop-supplies-pool-gap { width: 6px; display: inline-block; }
 .stonetop-small-pool-display { pointer-events: none; }
@@ -3426,7 +3463,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-outfit-diamond-filled {
-	color: var(--color-text-dark-primary);
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	color: transparent;
+	background: center / contain no-repeat var(--stonetop-diamond-selected-icon);
 }
 
 .stonetop-outfit-weight-none {
@@ -3505,14 +3546,12 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: inline-block;
 	width: 10px;
 	height: 10px;
-	border: 1px solid currentColor;
-	transform: rotate(45deg);
-	background: transparent;
+	background: center / contain no-repeat var(--stonetop-diamond-icon);
 	flex-shrink: 0;
 }
 
 .stonetop-outfit-item.is-checked .stonetop-outfit-diamond {
-	background: currentColor;
+	background-image: var(--stonetop-diamond-selected-icon);
 }
 
 /* Square for small items */
@@ -7903,8 +7942,11 @@ span.stonetop-loyalty-pip { cursor: default; }
 }
 
 .stonetop-follower-rule summary::before {
-	content: "▶";
-	font-size: 0.65em;
+	content: "";
+	display: inline-block;
+	width: 0.65em;
+	height: 0.65em;
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 	transition: transform 0.15s;
 }
 
@@ -8525,8 +8567,11 @@ li.question-bullet::before {
 }
 
 .stonetop-monster-moves-summary-item::before {
-	content: "➤";
-	font-size: 0.65em;
+	content: "";
+	display: inline-block;
+	width: 0.65em;
+	height: 0.65em;
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 	flex-shrink: 0;
 	position: relative;
 	top: -0.05em;

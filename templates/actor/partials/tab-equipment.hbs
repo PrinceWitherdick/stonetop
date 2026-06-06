@@ -1,4 +1,4 @@
-<div class="tab equipment" data-group="primary" data-tab="inventory">
+﻿<div class="tab equipment" data-group="primary" data-tab="inventory">
 
 	{{#if stonetop.editMode}}
 	<div class="stonetop-inventory-toolbar">
@@ -74,7 +74,8 @@
 							<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
 							       data-slug="{{../slug}}"
 							       data-weight="{{../weight}}"
-							       {{#if ../checked}}checked{{/if}}>
+							       {{#if ../checked}}checked{{/if}}
+							       {{#if ../disabled}}disabled{{/if}}>
 							{{/each}}
 						</span>
 						<span class="stonetop-inv-label">{{name}}
@@ -97,7 +98,8 @@
 						<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
 						       data-slug="{{../slug}}"
 						       data-weight="{{../weight}}"
-						       {{#if ../checked}}checked{{/if}}>
+						       {{#if ../checked}}checked{{/if}}
+						       {{#if ../disabled}}disabled{{/if}}>
 						{{/each}}
 					</span>
 					<span class="stonetop-inv-label">{{name}}
@@ -130,7 +132,8 @@
 					<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
 					       data-slug="{{../slug}}"
 					       data-weight="{{../weight}}"
-					       {{#if ../checked}}checked{{/if}}>
+					       {{#if ../checked}}checked{{/if}}
+					       {{#if ../disabled}}disabled{{/if}}>
 					{{/each}}
 				</span>
 				<span class="stonetop-inv-label">{{name}}
@@ -156,7 +159,7 @@
 				<span class="stonetop-supplies-pool-diamonds">
 					{{#each (poolItems stonetop.inventory.outfit.smallPool)}}
 					<input type="checkbox"
-					       class="stonetop-inv-square stonetop-small-pool-display{{#if checked}} is-checked{{/if}}"
+					       class="stonetop-inventory-item-check stonetop-small-pool-display{{#if checked}} is-checked{{/if}}"
 					       data-index="{{index}}"
 					       {{#if checked}}checked{{/if}}>
 					{{/each}}
@@ -168,9 +171,10 @@
 			{{#if breakBefore}}<hr class="stonetop-inv-separator">{{/if}}
 			<div class="stonetop-inv-item stonetop-inv-small{{#if checked}} is-checked{{/if}}">
 				<label class="stonetop-inv-item-toggle">
-					<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-square"
+					<input type="checkbox" class="stonetop-inventory-item-check"
 					       data-slug="{{slug}}"
-					       {{#if checked}}checked{{/if}}>
+					       {{#if checked}}checked{{/if}}
+					       {{#if disabled}}disabled{{/if}}>
 					<span class="stonetop-inv-label">{{name}}
 						{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
 					</span>
@@ -191,9 +195,10 @@
 				{{#each stonetop.inventory.outfit.smallGridItems}}
 				<div class="stonetop-inv-item stonetop-inv-small{{#if checked}} is-checked{{/if}}">
 					<label class="stonetop-inv-item-toggle">
-						<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-square"
+						<input type="checkbox" class="stonetop-inventory-item-check"
 						       data-slug="{{slug}}"
-						       {{#if checked}}checked{{/if}}>
+						       {{#if checked}}checked{{/if}}
+						       {{#if disabled}}disabled{{/if}}>
 						<span class="stonetop-inv-label">{{name}}</span>
 					</label>
 				</div>
