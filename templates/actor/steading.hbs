@@ -106,12 +106,8 @@
 						<ul class="steading-list">
 							{{#each stonetop.fortifications}}
 							{{#if name}}
-							<li class="steading-list-item{{#if checked}} is-checked{{/if}}">
-								<label class="steading-list-check-label">
-									<input type="checkbox" class="steading-list-check"
-									       data-list="fortifications" data-index="{{@index}}"
-									       {{#if checked}}checked{{/if}}>
-								</label>
+							<li class="steading-list-item">
+								<span class="steading-list-bullet" aria-hidden="true"></span>
 								<span class="steading-list-name">{{name}}</span>
 								<button type="button" class="steading-list-delete"
 								        data-list="fortifications" data-index="{{@index}}"
@@ -149,15 +145,18 @@
 					<div class="steading-currency-group">
 						<h3 class="steading-list-heading">Silver</h3>
 						<div class="steading-currency-row">
-							<label class="steading-currency-label">Purses
+							<label class="steading-currency-field">
+								<span class="steading-currency-field-legend">Purses</span>
 								<input type="number" class="steading-currency-input" data-currency="silver" data-field="purses"
 								       value="{{stonetop.silver.purses}}" min="0">
 							</label>
-							<label class="steading-currency-label">Handfuls
+							<label class="steading-currency-field">
+								<span class="steading-currency-field-legend">Handfuls</span>
 								<input type="number" class="steading-currency-input" data-currency="silver" data-field="handfuls"
 								       value="{{stonetop.silver.handfuls}}" min="0">
 							</label>
-							<label class="steading-currency-label">Coins
+							<label class="steading-currency-field">
+								<span class="steading-currency-field-legend">Coins</span>
 								<input type="number" class="steading-currency-input" data-currency="silver" data-field="coins"
 								       value="{{stonetop.silver.coins}}" min="0">
 							</label>
@@ -166,15 +165,18 @@
 					<div class="steading-currency-group">
 						<h3 class="steading-list-heading">Gold</h3>
 						<div class="steading-currency-row">
-							<label class="steading-currency-label">Purses
+							<label class="steading-currency-field">
+								<span class="steading-currency-field-legend">Purses</span>
 								<input type="number" class="steading-currency-input" data-currency="gold" data-field="purses"
 								       value="{{stonetop.gold.purses}}" min="0">
 							</label>
-							<label class="steading-currency-label">Handfuls
+							<label class="steading-currency-field">
+								<span class="steading-currency-field-legend">Handfuls</span>
 								<input type="number" class="steading-currency-input" data-currency="gold" data-field="handfuls"
 								       value="{{stonetop.gold.handfuls}}" min="0">
 							</label>
-							<label class="steading-currency-label">Coins
+							<label class="steading-currency-field">
+								<span class="steading-currency-field-legend">Coins</span>
 								<input type="number" class="steading-currency-input" data-currency="gold" data-field="coins"
 								       value="{{stonetop.gold.coins}}" min="0">
 							</label>

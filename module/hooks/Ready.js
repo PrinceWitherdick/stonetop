@@ -84,7 +84,6 @@ function _buildStartupWelcomeContent() {
 					<h3 class="cell__subtitle">Useful Settings</h3>
 					<ul>
 						<li><strong>Sheet Font</strong>: choose the typeface used on Stonetop sheets.</li>
-						<li><strong>Hide Roll Mode on Move Rolls</strong>: skip the advantage/disadvantage prompt for move rolls.</li>
 						<li><strong>On Hover Info</strong>: turn all hover info on/off, or tune Stats, Basic Moves, Playbook Moves, Traits, and Gear Tags individually.</li>
 					</ul>
 				</div>

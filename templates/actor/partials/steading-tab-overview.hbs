@@ -8,12 +8,8 @@
 				<ul class="steading-list">
 					{{#each stonetop.resources}}
 					{{#if name}}
-					<li class="steading-list-item{{#if checked}} is-checked{{/if}}">
-						<label class="steading-list-check-label">
-							<input type="checkbox" class="steading-list-check"
-							       data-list="resources" data-index="{{@index}}"
-							       {{#if checked}}checked{{/if}}>
-						</label>
+					<li class="steading-list-item">
+						<span class="steading-list-bullet" aria-hidden="true"></span>
 						<span class="steading-list-name">{{name}}</span>
 						<button type="button" class="steading-list-delete"
 						        data-list="resources" data-index="{{@index}}"
@@ -36,12 +32,8 @@
 				<ul class="steading-list steading-assets-list">
 					{{#each stonetop.assets}}
 					{{#if name}}
-					<li class="steading-list-item{{#if checked}} is-checked{{/if}}">
-						<label class="steading-list-check-label">
-							<input type="checkbox" class="steading-list-check"
-							       data-list="assets" data-index="{{@index}}"
-							       {{#if checked}}checked{{/if}}>
-						</label>
+					<li class="steading-list-item">
+						<span class="steading-list-bullet" aria-hidden="true"></span>
 						<span class="steading-list-name steading-asset-name">{{name}}</span>
 						<button type="button" class="steading-list-delete"
 						        data-list="assets" data-index="{{@index}}"

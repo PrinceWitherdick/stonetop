@@ -1,0 +1,52 @@
+<div class="asm-body">
+
+	<div class="asm-field">
+		<label class="asm-label">Name</label>
+		<select name="name" class="asm-select">
+			<option value="">— choose a name —</option>
+			{{#each names}}<option value="{{this}}">{{this}}</option>{{/each}}
+		</select>
+	</div>
+
+	{{#if isNeighbor}}
+	<div class="asm-field">
+		<label class="asm-label">Home</label>
+		<select name="home" class="asm-select">
+			<option value="">— choose a home —</option>
+			{{#each homes}}<option value="{{this}}">{{this}}</option>{{/each}}
+		</select>
+	</div>
+	{{/if}}
+
+	<div class="asm-field">
+		<label class="asm-label">Occupation</label>
+		<select name="occupation" class="asm-select">
+			<option value="">— choose an occupation —</option>
+			{{#each occupations}}<option value="{{this}}">{{this}}</option>{{/each}}
+		</select>
+	</div>
+
+	<div class="asm-field">
+		<label class="asm-label">Traits</label>
+		<select name="traits" class="asm-select">
+			<option value="">— choose a trait —</option>
+			{{#each traits}}<option value="{{this}}">{{this}}</option>{{/each}}
+		</select>
+	</div>
+
+	<div class="asm-field">
+		<label class="asm-label">Relations</label>
+		<input type="text" name="relations" class="asm-input" placeholder="Relations…">
+	</div>
+
+	<div class="asm-field">
+		<label class="asm-label">Notes</label>
+		<input type="text" name="notes" class="asm-input" placeholder="Notes…">
+	</div>
+
+	<div class="asm-footer">
+		<button type="button" class="asm-cancel">Cancel</button>
+		<button type="button" class="asm-confirm">Add</button>
+	</div>
+
+</div>

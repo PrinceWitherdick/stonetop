@@ -81,6 +81,28 @@
 				</section>
 
 				<div class="stonetop-moves-sidebar">
+					{{> "stonetop.section-heading" title="Roll Modifier"}}
+					<div class="stonetop-roll-mode-control" role="group" aria-label="Roll mode">
+						<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "adv")}} is-checked{{/if}}">
+							<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="adv"
+							       {{#if (eq stonetop.rollMode "adv")}}checked{{/if}}
+							       {{#unless editable}}disabled{{/unless}}>
+							<span>Advantage</span>
+						</label>
+						<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "normal")}} is-checked{{/if}}">
+							<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="normal"
+							       {{#if (eq stonetop.rollMode "normal")}}checked{{/if}}
+							       {{#unless editable}}disabled{{/unless}}>
+							<span>Normal</span>
+						</label>
+						<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "dis")}} is-checked{{/if}}">
+							<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="dis"
+							       {{#if (eq stonetop.rollMode "dis")}}checked{{/if}}
+							       {{#unless editable}}disabled{{/unless}}>
+							<span>Disadvantage</span>
+						</label>
+					</div>
+
 					{{> "stonetop.section-heading" title=(localize "stonetop.character.moves.basicMoves")}}
 					<ol class="items-list">
 					{{#each stonetop.movelist.basicMoves}}

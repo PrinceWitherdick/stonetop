@@ -37,9 +37,7 @@ import {
 } from "../../model/CharacterSnapshot.js";
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {MoveResources} from "./MoveResources.js";
-import {getSetting} from "../../settings.js";
-import {promptRoll} from "../../utils/rolls.js";
-import {StonetopFlags, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
@@ -70,6 +68,10 @@ const HOMEFRONT_ROLL_LABELS_BY_NAME = {
 	"Seasons Change": "Fortunes",
 	"Trade & Barter": "Prosperity",
 };
+
+function _normalizeSheetRollMode(rollMode) {
+	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
+}
 
 // Slugs whose resource max equals 4+Prosperity. Matches the `prosperityResource`
 // flag in the JSON source; acts as the runtime fallback until the pack is
@@ -171,7 +173,7 @@ export class StonetopCharacter {
 			.withInventory(inventory)
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
-			.withRollMode(resolvedFlags(actor).rollMode ?? "normal")
+			.withRollMode(_normalizeSheetRollMode(resolvedFlags(actor).rollMode))
 			.build();
 	}
 
@@ -912,21 +914,11 @@ export class StonetopCharacter {
 		const isDescription = event.currentTarget.getAttribute("data-show") === "description";
 		const descriptionOnly = isDescription || (item.type === "npcMove" && !item.system.rollFormula);
 
-		let rollMode    = "def";
-		let forward     = 0;
-		let ongoing     = 0;
-		let situational = 0;
+		const rollMode = this.rollMode;
+		const forward  = descriptionOnly ? 0 : this._actor.system?.attributes?.forward?.value ?? 0;
+		const ongoing  = descriptionOnly ? 0 : this._actor.system?.attributes?.ongoing?.value ?? 0;
 
-		if (!descriptionOnly && !getSetting("hideRollMode")) {
-			const result = await promptRoll(this._actor, item.name);
-			if (!result) return false; // dialog cancelled
-			rollMode    = result.rollMode;
-			situational = result.situational;
-			forward     = this._actor.system?.attributes?.forward?.value ?? 0;
-			ongoing     = this._actor.system?.attributes?.ongoing?.value ?? 0;
-		}
-
-		const modifier    = forward + ongoing + situational;
+		const modifier    = forward + ongoing;
 		const rollOptions = { rollMode, modifier, forward, ongoing };
 
 		await item.roll({ ...this.applyDebilityRollMode(stat, rollOptions), descriptionOnly });
@@ -939,15 +931,13 @@ export class StonetopCharacter {
 
 	async onDirectStatRoll(stat) {
 		const { rollStat } = await import("../../utils/roll-engine.js");
-		const result = await promptRoll(this._actor, `+${stat.toUpperCase()}`);
-		if (!result) return;
-
-		const forward     = this._actor.system?.attributes?.forward?.value ?? 0;
-		const ongoing     = this._actor.system?.attributes?.ongoing?.value ?? 0;
-		const modifier    = forward + ongoing + result.situational;
+		const rollMode = this.rollMode;
+		const forward  = this._actor.system?.attributes?.forward?.value ?? 0;
+		const ongoing  = this._actor.system?.attributes?.ongoing?.value ?? 0;
+		const modifier = forward + ongoing;
 
 		await rollStat(stat, this._actor, this.applyDebilityRollMode(stat, {
-			rollMode: result.rollMode,
+			rollMode,
 			modifier,
 			forward,
 			ongoing,
@@ -985,8 +975,16 @@ export class StonetopCharacter {
 		const [key] = activeEntry;
 		const def = _DEBILITY_DEF_BY_KEY[key];
 		const base = { ...options, stonetopDebility: def?.name ?? key, stonetopDebilityTooltip: def?.description ?? "" };
-		if (options.rollMode === "adv") return { ...base, rollMode: "def" };
+		if (options.rollMode === "adv") return { ...base, rollMode: "normal" };
 		return { ...base, rollMode: "dis" };
+	}
+
+	get rollMode() {
+		return _normalizeSheetRollMode(resolvedFlags(this._actor).rollMode);
+	}
+
+	async setRollMode(rollMode) {
+		await this._actor.setFlag(STONETOP_SCOPE, "rollMode", _normalizeSheetRollMode(rollMode));
 	}
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
 	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); }

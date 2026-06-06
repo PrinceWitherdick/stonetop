@@ -777,7 +777,7 @@ describe("applyDebilityRollMode", () => {
 
 	it("debility active, stat affected, rollMode adv → def (cancel)", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true})).build();
-		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toMatchObject({ rollMode: "def" });
+		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toMatchObject({ rollMode: "normal" });
 	});
 
 	it("debility active, stat affected, rollMode dis → dis (unchanged)", () => {
@@ -797,7 +797,7 @@ describe("applyDebilityRollMode", () => {
 
 	it("two debilities active, one covers stat, rollMode adv → def", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true, dazed: true})).build();
-		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toMatchObject({ rollMode: "def" });
+		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toMatchObject({ rollMode: "normal" });
 	});
 
 	it("dazed covers int and wis, rollMode def → dis for int", () => {
@@ -817,7 +817,7 @@ describe("applyDebilityRollMode", () => {
 	it("preserves other options fields while changing rollMode", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true})).build();
 		const result = char.applyDebilityRollMode("str", { rollMode: "adv", extra: "value" });
-		expect(result).toMatchObject({ rollMode: "def", extra: "value" });
+		expect(result).toMatchObject({ rollMode: "normal", extra: "value" });
 	});
 });
 
@@ -1052,25 +1052,6 @@ describe("StonetopCharacter.onDropMove", () => {
 });
 
 describe("StonetopCharacter.onRoll", () => {
-	beforeEach(() => {
-		globalThis.__stonetopDialogRollMode = "def";
-		game.settings = { get: vi.fn(() => false) };
-		vi.stubGlobal("Dialog", class {
-			constructor(config) {
-				this.config = config;
-			}
-			render() {
-				this.config.buttons[globalThis.__stonetopDialogRollMode].callback();
-				return this;
-			}
-		});
-	});
-	afterEach(() => {
-		delete game.settings;
-		delete globalThis.__stonetopDialogRollMode;
-		vi.unstubAllGlobals();
-	});
-
 	it("returns false when event has no item element", async () => {
 		const char = new TestCharacterBuilder(makeOnRollActor(null)).build();
 		expect(await char.onRoll(makeItemEvent({ hasItemEl: false }))).toBe(false);
@@ -1090,10 +1071,9 @@ describe("StonetopCharacter.onRoll", () => {
 		expect(item.roll).toHaveBeenCalledOnce();
 	});
 
-	it("passes rollMode from the pre-roll dialog", async () => {
-		globalThis.__stonetopDialogRollMode = "adv";
+	it("passes the actor's saved rollMode", async () => {
 		const item = makeRollableItem({ rollType: "str" });
-		const char = new TestCharacterBuilder(makeOnRollActor(item)).build();
+		const char = new TestCharacterBuilder(makeOnRollActor(item, {pbtaRollMode: "adv"})).build();
 		expect(await char.onRoll(makeItemEvent())).toBe(true);
 		expect(item.roll).toHaveBeenCalledWith(expect.objectContaining({ rollMode: "adv" }));
 	});
@@ -1123,20 +1103,26 @@ describe("StonetopCharacter.onRoll", () => {
 		const item = makeRollableItem({ rollType: "wis" });
 		const char = new TestCharacterBuilder(makeOnRollActor(item, {debilities: {weakened: true}})).build();
 		expect(await char.onRoll(makeItemEvent())).toBe(true);
-		expect(item.roll).toHaveBeenCalledWith(expect.objectContaining({ rollMode: "def" }));
+		expect(item.roll).toHaveBeenCalledWith(expect.objectContaining({ rollMode: "normal" }));
 	});
 
-	it("omits rollMode from options when hideRollMode is true", async () => {
-		game.settings.get.mockReturnValue(true);
+	it("defaults to normal rollMode when no actor rollMode is saved", async () => {
 		const item = makeRollableItem({ rollType: "str" });
-		const char = new TestCharacterBuilder(makeOnRollActor(item, {pbtaRollMode: "adv"})).build();
+		const char = new TestCharacterBuilder(makeOnRollActor(item, {pbtaRollMode: null})).build();
 		expect(await char.onRoll(makeItemEvent())).toBe(true);
 		expect(item.roll).toHaveBeenCalledWith({
 			descriptionOnly: false,
 			forward: 0,
 			modifier: 0,
 			ongoing: 0,
-			rollMode: "def",
+			rollMode: "normal",
 		});
+	});
+
+	it("saves sheet rollMode to actor flags", async () => {
+		const actor = makeOnRollActor(makeRollableItem());
+		const char = new TestCharacterBuilder(actor).build();
+		await char.setRollMode("dis");
+		expect(actor.setFlag).toHaveBeenCalledWith("stonetop_pwd", "rollMode", "dis");
 	});
 });

@@ -975,6 +975,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag('stonetop_pwd', 'hideUnselected', ev.currentTarget.checked);
 			});
 
+			html.find(".stonetop-roll-mode-input").on("change", async (ev) => {
+				await this._stonetopCharacter.setRollMode(ev.currentTarget.value);
+			});
+
 			html[0].querySelector(".stonetop-portrait")?.addEventListener("click", ev => {
 				if (this._editMode) return;
 				ev.preventDefault();

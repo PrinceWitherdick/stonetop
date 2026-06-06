@@ -177,6 +177,7 @@ export class LoreOptionSnapshot {
 	constructor(b) {
 		this.slug        = b._slug;
 		this.description = b._description;
+		this.readonlyDescription = _stripLeadingEllipsis(b._description);
 		this.type        = b._type ?? "checkbox";
 		this.max         = this.type === "text" ? 0 : (b._max ?? 1);
 		this.count       = this.type === "text" ? 0 : (b._count ?? 0);
@@ -203,6 +204,11 @@ export class LoreEntrySnapshot {
 		this.title       = b._title;
 		this.description = b._description;
 		this.options     = b._options;
+		this.selectedCount = this.options.reduce((sum, o) => sum + (o.type === "text" ? (o.textValue ? 1 : 0) : o.count), 0);
+		this.requiredCount = _pickCountFromDescription(this.description);
+		this.isAnswered = this.requiredCount <= 0 ? this.hasSelection : this.selectedCount >= this.requiredCount;
+		this.readonlyDescription = _stripChoosePrompt(this.description);
+		this.readonlyMarker = _readonlyMarkerForEntry(this);
 	}
 	get hasSelection() {
 		return this.options.some(o => o.type === "text" ? !!o.textValue : o.count > 0);
@@ -232,6 +238,34 @@ export class LoreSection {
 }
 
 // ── Playbook ──────────────────────────────────────────────────────────────────
+
+function _stripLeadingEllipsis(description = "") {
+	return String(description)
+		.replace(/^(\s*(?:<p[^>]*>\s*)?)(?:\.{3}|&hellip;|\u2026)\s*/i, "$1")
+		.trim();
+}
+
+function _stripChoosePrompt(description = "") {
+	return String(description)
+		.replace(/<p>\s*<em>\s*\((?:choose|pick)[^)]*\)\s*<\/em>\s*<\/p>/gi, "")
+		.replace(/\s*<em>\s*\((?:choose|pick)[^)]*\)\s*<\/em>/gi, "")
+		.trim();
+}
+
+function _pickCountFromDescription(description = "") {
+	const text = String(description)
+		.replace(/<[^>]*>/g, " ")
+		.replace(/&ndash;/g, "-")
+		.replace(/&mdash;/g, "-")
+		.replace(/\s+/g, " ");
+	const match = text.match(/\b(?:choose|pick)\s+(\d+)/i);
+	return match ? Number(match[1]) : 0;
+}
+
+function _readonlyMarkerForEntry(entry) {
+	const text = `${entry.title ?? ""} ${entry.description ?? ""}`;
+	return /\balas\b/i.test(text) ? "-" : "+";
+}
 
 /**
  * @property {string} slug

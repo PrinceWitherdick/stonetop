@@ -860,6 +860,80 @@ describe("buildSnapshot — lore section", () => {
 		expect(snap.playbook.lore.entries[0].options[0].count).toBe(1);
 	});
 
+	const CHRONICLE_LORE_PLAYBOOK = {
+		...HEAVY_PLAYBOOK,
+		lore: [
+			{
+				slug: "chronicle",
+				title: "The Chronicle",
+				description: "<p>The Chronicle is a physical place. On the plus side, it\u2026 <em>(choose 3)</em></p>",
+				options: [
+					{ slug: "vast",   description: "\u2026 is vast.",   max: 1 },
+					{ slug: "secure", description: "\u2026 is secure.", max: 1 },
+					{ slug: "known",  description: "\u2026 is known.",  max: 1 },
+				],
+			},
+			{
+				slug: "chronicle-alas",
+				title: "But Alas, It\u2026",
+				description: "<p><em>(choose 2)</em></p>",
+				options: [
+					{ slug: "damp", description: "... is damp.", max: 1 },
+					{ slug: "dark", description: "... is dark.", max: 1 },
+				],
+			},
+		],
+	};
+
+	async function buildChronicleSnap(flags = {}) {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withFlags(flags)
+			.build();
+		return new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(CHRONICLE_LORE_PLAYBOOK))
+			.build().buildSnapshot();
+	}
+
+	it("completed lore entries expose readonly descriptions without choose prompts", async () => {
+		const snap = await buildChronicleSnap({
+			"lore.counts": {
+				"chronicle:vast": 1,
+				"chronicle:secure": 1,
+				"chronicle:known": 1,
+				"chronicle-alas:damp": 1,
+				"chronicle-alas:dark": 1,
+			},
+		});
+		const [positive, negative] = snap.playbook.lore.entries;
+		expect(positive.readonlyDescription).toBe("<p>The Chronicle is a physical place. On the plus side, it\u2026</p>");
+		expect(negative.readonlyDescription).toBe("");
+	});
+
+	it("readonly lore descriptions omit choose prompts even before all picks are made", async () => {
+		const snap = await buildChronicleSnap({
+			"lore.counts": {
+				"chronicle:vast": 1,
+			},
+		});
+		expect(snap.playbook.lore.entries[0].isAnswered).toBe(false);
+		expect(snap.playbook.lore.entries[0].readonlyDescription).toBe("<p>The Chronicle is a physical place. On the plus side, it\u2026</p>");
+	});
+
+	it("readonly lore options strip leading ellipses and mark positive and negative entries", async () => {
+		const snap = await buildChronicleSnap({
+			"lore.counts": {
+				"chronicle:vast": 1,
+				"chronicle-alas:damp": 1,
+			},
+		});
+		const [positive, negative] = snap.playbook.lore.entries;
+		expect(positive.readonlyMarker).toBe("+");
+		expect(positive.options[0].readonlyDescription).toBe("is vast.");
+		expect(negative.readonlyMarker).toBe("-");
+		expect(negative.options[0].readonlyDescription).toBe("is damp.");
+	});
+
 	it("lore option checks has length equal to max", async () => {
 		const snap = await buildSnap();
 		const opt = snap.playbook.lore.entries[1].options[0];
@@ -1000,6 +1074,12 @@ describe("buildSnapshot — rollMode", () => {
 		const actor = new FakeActorBuilder().withRollMode("adv").build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
 		expect(snap.rollMode).toBe("adv");
+	});
+
+	it("normalizes legacy default rollMode to normal", async () => {
+		const actor = new FakeActorBuilder().withRollMode("def").build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		expect(snap.rollMode).toBe("normal");
 	});
 });
 describe("buildSnapshot - homefront moves", () => {

@@ -393,9 +393,14 @@ export const STEADING_DEFAULTS = {
 		{ name: "", checked: false },
 	],
 	residents: [
-		{ name: "", occupation: "", traits: "", relations: "", etc: "", checked: false },
-		{ name: "", occupation: "", traits: "", relations: "", etc: "", checked: false },
-		{ name: "", occupation: "", traits: "", relations: "", etc: "", checked: false },
+		{ name: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
+		{ name: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
+		{ name: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
+	],
+	neighbors: [
+		{ name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
+		{ name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
+		{ name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
 	],
 	players: [],
 	places: [
@@ -509,6 +514,29 @@ export class StonetopSteading {
 			f.residents = migratedResidents;
 		}
 
+		const allActors = (typeof game !== "undefined" && game?.actors) ? game.actors : { filter: () => [], get: () => null };
+		const allCharacters = allActors.filter(a => a.type === "character");
+
+		const rawResidents = f.residents ?? STEADING_DEFAULTS.residents;
+		const residents = rawResidents.map(r => {
+			const resolvedOccupation = r.occupation
+				|| (r.name
+					? (allCharacters.find(a => a.name?.toLowerCase() === r.name.toLowerCase())
+						?.system?.playbook?.name ?? "")
+					: "");
+			return { ...r, notes: r.notes ?? r.etc ?? "", resolvedOccupation };
+		});
+
+		const rawNeighbors = f.neighbors ?? STEADING_DEFAULTS.neighbors;
+		const neighbors = rawNeighbors.map(n => ({ home: "", ...n, notes: n.notes ?? n.etc ?? "" }));
+
+		const rawPlayers = f.players ?? STEADING_DEFAULTS.players;
+		const players = rawPlayers.map(p => {
+			const actor = p.id ? allActors.get(p.id) : null;
+			const resolvedOccupation = actor?.system?.playbook?.name ?? "";
+			return { traits: "", relations: "", ...p, notes: p.notes ?? p.etc ?? "", resolvedOccupation };
+		});
+
 		const improvements = IMPROVEMENT_DEFINITIONS.map(def => {
 			const stored = storedImps[def.slug] ?? {};
 			let idx = 0;
@@ -554,8 +582,9 @@ export class StonetopSteading {
 			resources:      f.resources      ?? STEADING_DEFAULTS.resources,
 			fortifications: f.fortifications ?? STEADING_DEFAULTS.fortifications,
 			assets:         f.assets         ?? STEADING_DEFAULTS.assets,
-		residents:      f.residents      ?? STEADING_DEFAULTS.residents,
-			players:        f.players        ?? STEADING_DEFAULTS.players,
+		residents,
+			neighbors,
+			players,
 			places:         f.places         ?? STEADING_DEFAULTS.places,
 			notes:          f.notes          ?? STEADING_DEFAULTS.notes,
 			size:           f.size           ?? STEADING_DEFAULTS.size,

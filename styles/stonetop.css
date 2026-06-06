@@ -219,63 +219,6 @@ body,
 	box-shadow: 2px 4px 8px 2px rgba(0, 0, 0, 0.4);
 }
 
-.vtt .dialog .window-content:has(.stonetop-roll-dialog) .dialog-buttons {
-	display: grid;
-	grid-template-columns: repeat(3,1fr);
-	gap: 8px;
-}
-
-.vtt .dialog .window-content:has(.stonetop-roll-dialog) .dialog-buttons .submit {
-	grid-column: span 3;
-}
-
-.stonetop-roll-dialog {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.stonetop-active-modifiers {
-	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 4px;
-	padding: 8px 10px;
-	margin: 0;
-	background: rgba(0, 0, 0, 0.03);
-}
-
-.stonetop-active-modifiers legend {
-	padding: 0 4px;
-	font-size: 0.82em;
-	font-weight: bold;
-	color: var(--color-text-dark-secondary);
-}
-
-.stonetop-modifier-row {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	column-gap: 10px;
-	row-gap: 2px;
-	align-items: baseline;
-	margin: 3px 0;
-	font-size: 0.88em;
-}
-
-.stonetop-modifier-label {
-	font-weight: bold;
-}
-
-.stonetop-modifier-value {
-	font-family: var(--font-stonetop);
-	font-weight: bold;
-}
-
-.stonetop-modifier-note {
-	grid-column: 1 / -1;
-	color: var(--color-text-dark-secondary);
-	font-size: 0.86em;
-	font-style: italic;
-}
-
 .pbta.sheet .sheet-tab {
 	margin-top: 0;
 }
@@ -353,19 +296,12 @@ body,
 	margin-bottom: 2px;
 }
 
-.sheet-attributes-top .cell--attributes-top .cell--Roll .cell__roll,
-.sheet-attributes-top .cell--attributes-top .cell--Number > input[type="text"],
-.sheet-attributes-top .cell--attributes-top .cell--Number > input[type="number"] {
-	margin-top: 6px;
-}
-
 /* Damage roll cell */
 .sheet-attributes-top .cell--Roll .cell__roll {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 	width: 100%;
-	margin-top: 4px;
 }
 
 .sheet-attributes-top .cell--Roll .cell__roll .rollable {
@@ -415,6 +351,11 @@ body,
 	align-items: center;
 	gap: 2px;
 	width: 100%;
+}
+
+.sheet-attributes-top .cell--Roll .cell__roll,
+.sheet-attributes-top .cell--Resource .cell__resource,
+.sheet-attributes-top .cell--Number .stonetop-vital-inner > input {
 	margin-top: 4px;
 }
 
@@ -1254,9 +1195,39 @@ input.stonetop-name-field {
 	flex-shrink: 0;
 	border-left: 1px solid var(--color-border-light-2);
 	padding-left: 12px;
-	padding-top: 20px;
+	padding-top: 12px;
 	overflow-y: auto;
 	overflow-x: visible;
+}
+
+.stonetop-moves-sidebar .stonetop-move-group-title:first-of-type {
+	margin-top: 0;
+}
+
+.stonetop-roll-mode-control {
+	display: grid;
+	gap: 3px;
+	margin-bottom: 12px;
+	font-size: 0.78rem;
+}
+
+.stonetop-roll-mode-option {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 4px;
+	border-radius: 3px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.stonetop-roll-mode-option:hover,
+.stonetop-roll-mode-option.is-checked {
+	background: rgba(0, 0, 0, 0.06);
+}
+
+.stonetop-roll-mode-option input {
+	margin: 0;
 }
 
 .stonetop-moves-sidebar li {
@@ -1309,8 +1280,13 @@ input.stonetop-name-field {
 	padding-bottom: 5px;
 }
 .stonetop-basic-move-panel p  { margin: 0 0 5px; }
-.stonetop-basic-move-panel ul { margin: 0 0 5px; padding-left: 16px; }
-.stonetop-basic-move-panel li { margin: 2px 0; }
+.stonetop-basic-move-panel ul { margin: 0 0 5px; padding-left: 0; list-style: none; }
+.stonetop-basic-move-panel li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
+.stonetop-basic-move-panel li::before {
+	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+}
 .stonetop-basic-move-panel strong { font-weight: bold; }
 .stonetop-basic-move-panel em { font-style: italic; }
 
@@ -1361,7 +1337,6 @@ input.stonetop-name-field {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	column-gap: 16px;
-	align-items: start;
 	padding: 0;
 	margin: 4px 0 0;
 	list-style: none;
@@ -1397,13 +1372,12 @@ input.stonetop-name-field {
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
-	width: 14px !important;
-	height: 14px !important;
-	flex: 0 0 14px !important;
-	border-radius: 0 !important;
+	width: 10px !important;
+	height: 10px !important;
+	flex: 0 0 10px !important;
+	border-radius: 4px !important;
 	border: 2px solid var(--color-text-dark-primary) !important;
 	background: transparent !important;
-	clip-path: polygon(25% 0%, 75% 0%, 100% 25%, 100% 75%, 75% 100%, 25% 100%, 0% 75%, 0% 25%);
 	cursor: pointer;
 	margin: 0;
 }
@@ -1420,6 +1394,17 @@ input.stonetop-name-field {
 .steading-improvement-req:checked,
 .steading-list-check:checked {
 	background-color: var(--color-text-dark-primary) !important;
+}
+
+.steading-list-check:checked {
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
 }
 
 .stonetop-item-check:disabled,
@@ -1465,18 +1450,28 @@ input.stonetop-name-field {
 	opacity: 0.5;
 }
 
+.stonetop-readonly .steading-list-check-label {
+	display: flex !important;
+	visibility: visible !important;
+}
+
 .stonetop-readonly input[type="checkbox"].steading-list-check {
 	opacity: 1;
+	display: inline-flex !important;
+	visibility: visible !important;
 }
 
 .stonetop-readonly .steading-roll-btn,
 .stonetop-readonly .steading-interactive-btn,
-.stonetop-readonly .stonetop-answer-character-questions-btn {
+.stonetop-readonly .stonetop-answer-character-questions-btn,
+.stonetop-readonly .steading-list-add,
+.stonetop-readonly .stonetop-outfit-open-btn,
+.stonetop-readonly .stonetop-deathsdoor-open-btn,
+.stonetop-readonly .stonetop-levelup-open-btn {
 	pointer-events: auto;
 	opacity: 1;
 }
 
-.stonetop-readonly .steading-list-add,
 .stonetop-readonly .steading-list-delete {
 	display: none;
 }
@@ -1585,7 +1580,16 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 :is(#chat, #chat-notifications) .message .stonetop-startup-card__section ul {
 	margin: 4px 0 0;
-	padding-left: 18px;
+	padding-left: 0;
+	list-style: none;
+}
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li {
+	display: flex; align-items: flex-start; gap: 5px;
+}
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li::before {
+	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
 :is(#chat, #chat-notifications) .message .stonetop-startup-card__section li {
@@ -1835,6 +1839,31 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-item-description p {
 	margin: 0 0 2px;
+}
+
+.stonetop-item-description ul {
+	margin: 0 0 2px;
+	padding-left: 0;
+	list-style: none;
+}
+
+.stonetop-item-description li {
+	display: flex;
+	align-items: flex-start;
+	gap: 5px;
+}
+
+.stonetop-item-description li::before {
+	content: "";
+	flex-shrink: 0;
+	width: 9px;
+	height: 9px;
+	margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	opacity: 0.5;
 }
 
 .stonetop-move-ref {
@@ -2336,7 +2365,13 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-arcanum-body p { margin: 0 0 4px; }
-.stonetop-arcanum-body ul { margin: 0 0 4px; padding-left: 1.2em; }
+.stonetop-arcanum-body ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
+.stonetop-arcanum-body li { display: flex; align-items: flex-start; gap: 5px; }
+.stonetop-arcanum-body li::before {
+	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+}
 
 .stonetop-arcanum-footer {
 	padding: 4px 6px;
@@ -2506,7 +2541,13 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-arcanum-chat-card p { margin: 0 0 4px; }
-.stonetop-arcanum-chat-card ul { margin: 0 0 4px; padding-left: 1.2em; }
+.stonetop-arcanum-chat-card ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
+.stonetop-arcanum-chat-card li { display: flex; align-items: flex-start; gap: 5px; }
+.stonetop-arcanum-chat-card li::before {
+	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+}
 
 /* -- Details tab sections --------------------------------------- */
 
@@ -2612,6 +2653,13 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	align-items: flex-start;
 }
 
+.stonetop-lore-readonly-marker {
+	flex: 0 0 1em;
+	font-weight: 700;
+	text-align: center;
+	line-height: 1.2;
+}
+
 .stonetop-bg-choice-readonly {
 	margin: 1px 0 1px 12px;
 	font-size: 0.85em;
@@ -2647,6 +2695,32 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .tab.moves.hide-unselected .stonetop-item:not(.is-checked) {
 	display: none;
+}
+
+/* Moves tab: card styling to match Special Moves tab */
+
+.tab.moves .stonetop-item {
+	border: 1px solid var(--color-border-light-2);
+	border-radius: 4px;
+	background: rgba(0,0,0,0.03);
+	padding: 8px 12px;
+	margin-bottom: 6px;
+}
+
+.tab.moves .stonetop-item-header {
+	border-bottom: 1px solid rgba(0,0,0,0.12);
+	padding-bottom: 5px;
+	margin-bottom: 4px;
+}
+
+.tab.moves .stonetop-item-name {
+	font-family: var(--font-stonetop);
+	font-size: 0.95rem;
+}
+
+.tab.moves .stonetop-item-description,
+.tab.moves .stonetop-move-note {
+	padding-left: 0;
 }
 
 /* -- Character portrait ------------------------------------------- */
@@ -3075,11 +3149,28 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-special-move-list {
 	margin: 0;
-	padding-left: 18px;
+	padding-left: 0;
+	list-style: none;
 }
 
 .stonetop-special-move-list li {
 	margin: 2px 0;
+	display: flex;
+	align-items: flex-start;
+	gap: 5px;
+}
+
+.stonetop-special-move-list li::before {
+	content: "";
+	flex-shrink: 0;
+	width: 9px;
+	height: 9px;
+	margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	opacity: 0.5;
 }
 
 .stonetop-special-move-card.is-locked {
@@ -3098,6 +3189,110 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: flex;
 	align-items: center;
 	gap: 4px;
+}
+
+.stonetop-special-move-card button {
+	margin-top: auto;
+}
+
+/* ── Add Resident / Neighbor dialog ────────────────────────────── */
+
+.stonetop-add-member-dialog .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.asm-body {
+	flex: 1;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.asm-field {
+	display: grid;
+	grid-template-columns: 90px 1fr;
+	align-items: center;
+	gap: 6px;
+}
+
+.asm-label {
+	font-size: 0.85em;
+	font-weight: 600;
+	text-align: right;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.asm-input,
+.asm-select {
+	width: 100%;
+	height: 28px;
+	font-size: 0.85em;
+	font-family: inherit;
+	padding: 2px 6px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 3px;
+	background: rgba(255,255,255,0.8);
+	transition: border-color 0.1s;
+}
+
+.asm-input:focus,
+.asm-select:focus {
+	border-color: rgba(100,150,255,0.5);
+	outline: none;
+	background: #fff;
+}
+
+.asm-select {
+	cursor: pointer;
+	padding: 2px 4px;
+}
+
+.asm-footer {
+	flex: 0 0 auto;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px 10px;
+	border-top: 1px solid var(--color-border-light-primary, #ccc);
+}
+
+.asm-confirm,
+.asm-cancel {
+	padding: 6px 14px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 3px;
+	cursor: pointer;
+	font-size: 0.9em;
+	background: rgba(255,255,255,0.8);
+	transition: background 0.1s, border-color 0.1s;
+}
+
+.asm-confirm {
+	margin-left: auto;
+	background: slategrey;
+	color: #fff;
+	border-color: #4f5b66;
+	font-family: var(--font-stonetop);
+	box-shadow: none;
+}
+
+.asm-confirm:hover {
+	background: #556b8b;
+	border-color: #465a75;
+}
+
+.asm-cancel {
+	background: transparent;
+	color: var(--color-text-dark-primary);
+}
+
+.asm-cancel:hover {
+	background: rgba(0,0,0,0.05);
 }
 
 /* ── Outfit move dialog ─────────────────────────────────────────── */
@@ -3140,11 +3335,28 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-outfit-rule-note ul {
 	margin: 4px 0;
-	padding-left: 18px;
+	padding-left: 0;
+	list-style: none;
 }
 
 .stonetop-outfit-rule-note li {
 	margin: 2px 0;
+	display: flex;
+	align-items: flex-start;
+	gap: 5px;
+}
+
+.stonetop-outfit-rule-note li::before {
+	content: "";
+	flex-shrink: 0;
+	width: 9px;
+	height: 9px;
+	margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	opacity: 0.5;
 }
 
 /* Load bar */
@@ -4120,9 +4332,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .steading-stats-bar .steading-fortifications-block .steading-list {
-	max-width: 240px;
-	margin-left: auto;
-	margin-right: auto;
+	margin-left: 0;
 }
 
 .steading-debilities-section--full-row {
@@ -4524,8 +4734,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .steading-list {
-	list-style: none;
-	padding: 0;
+	list-style: none !important;
+	padding: 0 !important;
 	margin: 0 0 6px 0;
 	display: flex;
 	flex-direction: column;
@@ -4534,7 +4744,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .steading-list-item {
 	display: grid;
-	grid-template-columns: 14px minmax(0, 1fr) auto;
+	grid-template-columns: 12px minmax(0, 1fr) auto;
 	align-items: center;
 	gap: 6px;
 	padding: 2px 0;
@@ -4545,6 +4755,18 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .steading-list-item.is-checked {
 	color: var(--color-text-dark-primary);
+}
+
+.steading-list-bullet {
+	width: 10px;
+	height: 10px;
+	flex-shrink: 0;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	opacity: 0.55;
+	user-select: none;
 }
 
 .steading-list-check-label {
@@ -4580,8 +4802,14 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	opacity: 1;
 }
 
-.steading-list-delete:hover {
+/* Always show delete in red when in edit mode */
+:not(.stonetop-readonly) .steading-list-item .steading-list-delete {
+	opacity: 1;
 	color: #c00;
+}
+
+.steading-list-delete:hover {
+	color: #900;
 }
 
 .steading-list-add {
@@ -4720,6 +4948,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	padding: 0 6px;
 }
 
+.steading-neighbors-table .steading-residents-header,
+.steading-neighbors-table .steading-residents-row {
+	grid-template-columns: 1.2fr 0.9fr 1fr 1.2fr 1.2fr 1fr 32px;
+}
+
 .steading-residents-col-actions .steading-list-delete {
 	padding: 4px;
 	font-size: 0.9em;
@@ -4732,28 +4965,32 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .steading-players-section {
-	background: rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
-	padding: 8px 10px;
-	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 }
 
-.steading-player-list {
+.steading-player-name-cell {
 	gap: 6px;
 }
 
-.steading-player-item {
-	grid-template-columns: 14px 28px minmax(0, 1fr) auto;
-	align-items: center;
-	min-height: 34px;
+
+.steading-player-name-text {
+	flex: 1;
+	min-width: 0;
+	font-weight: 700;
+	font-size: 0.82em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .steading-player-portrait {
-	width: 28px;
-	height: 28px;
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
 	border: 1px solid rgba(0,0,0,0.22);
-	border-radius: 4px;
+	border-radius: 3px;
 	object-fit: cover;
 	background: rgba(255,255,255,0.55);
 }
@@ -4763,14 +5000,6 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	align-items: center;
 	justify-content: center;
 	color: rgba(0,0,0,0.55);
-}
-
-.steading-player-name {
-	min-width: 0;
-	font-weight: 700;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .steading-player-empty {
@@ -4823,7 +5052,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	.steading-residents-col-occupation,
 	.steading-residents-col-traits,
 	.steading-residents-col-relations,
-	.steading-residents-col-etc {
+	.steading-residents-col-notes {
 		display: none;
 	}
 
@@ -4855,22 +5084,51 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	justify-content: center;
 }
 
-.steading-currency-label {
+.steading-currency-group .steading-list-heading {
+	font-family: var(--font-avara);
+	font-size: 1em;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.steading-currency-field {
+	position: relative;
+	border: 2px solid var(--color-text-dark-primary, #333);
+	border-radius: 8px;
+	padding: 5px 8px 4px;
 	display: flex;
-	flex-direction: column;
 	align-items: center;
-	font-size: 0.72em;
-	gap: 2px;
-	color: #555;
+	justify-content: center;
+	min-width: 52px;
+	cursor: text;
+}
+
+.steading-currency-field-legend {
+	position: absolute;
+	top: -0.58em;
+	left: 50%;
+	transform: translateX(-50%);
+	background: var(--stonetop-bg, #f0ece3);
+	padding: 0 4px;
+	font-size: 0.75em;
+	font-weight: bold;
+	white-space: nowrap;
+	color: var(--color-text-dark-primary);
+	line-height: 1.2;
 }
 
 .steading-currency-input {
-	width: 50px;
+	width: 40px;
 	text-align: center;
 	font-size: 1.1em;
-	border: 1px solid slategrey;
-	border-radius: 3px;
-	padding: 2px;
+	background: transparent;
+	padding: 2px 0;
+}
+
+.stonetop-readonly .steading-currency-input {
+	border: none !important;
+	outline: none !important;
+	box-shadow: none !important;
 }
 
 /* Places of interest */
@@ -4953,7 +5211,6 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
 	gap: 10px;
-	align-items: start;
 }
 
 .steading-improvement {
@@ -7501,7 +7758,29 @@ span.stonetop-loyalty-pip { cursor: default; }
 	line-height: 1.4;
 }
 
-.stonetop-follower-rule ul { padding-left: 16px; }
+.stonetop-follower-rule ul {
+	padding-left: 0;
+	list-style: none;
+}
+
+.stonetop-follower-rule li {
+	display: flex;
+	align-items: flex-start;
+	gap: 5px;
+}
+
+.stonetop-follower-rule li::before {
+	content: "";
+	flex-shrink: 0;
+	width: 8px;
+	height: 8px;
+	margin-top: 3px;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	opacity: 0.5;
+}
 
 /* Individual creation dialog */
 .stonetop-individual-form .form-group { margin-bottom: 10px; }

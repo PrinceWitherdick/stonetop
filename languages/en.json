@@ -143,10 +143,6 @@
 			}
 		},
 		"settings": {
-			"hideRollMode": {
-				"name": "Hide Roll Mode on Move Rolls",
-				"hint": "When enabled, move rolls ignore the actor's saved advantage/disadvantage and roll without a roll mode modifier."
-			},
 			"expandMoveDescriptions": {
 				"name": "Expand Move Descriptions",
 				"hint": "Show move descriptions expanded by default on character sheets."

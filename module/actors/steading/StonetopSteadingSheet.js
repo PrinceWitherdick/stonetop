@@ -3,6 +3,7 @@ import {rollStat} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 import {escHtml} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
+import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
 
 function _signedNum(n) {
 	return n >= 0 ? `+${n}` : String(n);
@@ -584,6 +585,15 @@ export function createStonetopSteadingSheetClass(Base) {
 				this.actor.setFlag("stonetop_pwd", "hideUnearnedImprovements", cb.checked);
 			}, true);
 
+			// Add resident / neighbor — allowed even outside edit mode
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".steading-list-add");
+				if (!btn) return;
+				if (!["residents", "neighbors"].includes(btn.dataset.list)) return;
+				ev.stopPropagation();
+				this._onListItemAdd(btn.dataset.list);
+			}, true);
+
 			if (!this.isEditable) return;
 
 			// Stat tracks use custom radio markup, so persist them explicitly.
@@ -647,13 +657,19 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onPlaceChange(parseInt(inp.dataset.index), inp.value);
 			}, true);
 
-// Resident details
+// Resident / neighbor / player details
 		html[0].addEventListener("change", ev => {
 			const inp = ev.target.closest(".steading-resident-input");
 			if (!inp) return;
 			ev.stopPropagation();
-			const { index, field } = inp.dataset;
-			this._onResidentChange(parseInt(index), field, inp.value);
+			const { index, field, list } = inp.dataset;
+			if (list === "players") {
+				this._onPlayerFieldChange(parseInt(index), field, inp.value);
+			} else if (list === "neighbors") {
+				this._onNeighborChange(parseInt(index), field, inp.value);
+			} else {
+				this._onResidentChange(parseInt(index), field, inp.value);
+			}
 			}, true);
 
 			// Notes
@@ -1331,21 +1347,49 @@ export function createStonetopSteadingSheetClass(Base) {
 
 		async _onListItemAdd(list) {
 			if (list === "residents") {
-				const f = this._stonetopSteading._flags;
-				const arr = foundry.utils.deepClone(f.residents ?? STEADING_DEFAULTS.residents);
-				arr.push({ name: "", occupation: "", traits: "", relations: "", etc: "", checked: false });
-				await this._stonetopSteading.setFlags({ residents: arr });
-				this.render(false);
+				new AddSteadingMemberDialog("resident", async (data) => {
+					const f = this._stonetopSteading._flags;
+					const arr = foundry.utils.deepClone(f.residents ?? STEADING_DEFAULTS.residents);
+					arr.push({ ...data, checked: false });
+					await this._stonetopSteading.setFlags({ residents: arr });
+					this.render(false);
+				}).render(true);
+				return;
+			}
+			if (list === "neighbors") {
+				new AddSteadingMemberDialog("neighbor", async (data) => {
+					const f = this._stonetopSteading._flags;
+					const arr = foundry.utils.deepClone(f.neighbors ?? STEADING_DEFAULTS.neighbors);
+					arr.push({ ...data, checked: false });
+					await this._stonetopSteading.setFlags({ neighbors: arr });
+					this.render(false);
+				}).render(true);
 				return;
 			}
 			const labels = { resources: "resource", fortifications: "fortification", assets: "asset" };
-			const name = (prompt(`New ${labels[list] ?? list} name:`) ?? "").trim();
-			if (!name) return;
-			const f = this._stonetopSteading._flags;
-			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
-			arr.push({ name, checked: false });
-			await this._stonetopSteading.setFlags({ [list]: arr });
-			this.render(false);
+			const label = labels[list] ?? list;
+			const input = `<div style="margin-bottom:4px"><input type="text" name="entry-name" placeholder="Name…" style="width:100%"></div>`;
+			new Dialog({
+				title: `Add ${label.charAt(0).toUpperCase() + label.slice(1)}`,
+				content: input,
+				buttons: {
+					add: {
+						label: "Add",
+						callback: async (html) => {
+							const name = html.find("[name=entry-name]").val()?.trim();
+							if (!name) return;
+							const f = this._stonetopSteading._flags;
+							const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
+							arr.push({ name, checked: false });
+							await this._stonetopSteading.setFlags({ [list]: arr });
+							this.render(false);
+						},
+					},
+					cancel: { label: "Cancel" },
+				},
+				default: "add",
+				render: (html) => html.find("[name=entry-name]").focus(),
+			}).render(true);
 		}
 
 		async _onListItemDelete(list, index) {
@@ -1363,11 +1407,29 @@ export function createStonetopSteadingSheetClass(Base) {
 			await this._stonetopSteading.setFlags({ places });
 		}
 
+		async _onNeighborChange(index, field, value) {
+			if (!["name", "home", "occupation", "traits", "relations", "notes"].includes(field)) return;
+			const f = this._stonetopSteading._flags;
+			const neighbors = foundry.utils.deepClone(f.neighbors ?? STEADING_DEFAULTS.neighbors);
+			if (!neighbors[index]) neighbors[index] = { name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false };
+			neighbors[index][field] = value;
+			await this._stonetopSteading.setFlags({ neighbors });
+		}
+
+		async _onPlayerFieldChange(index, field, value) {
+			if (!["traits", "relations", "notes"].includes(field)) return;
+			const f = this._stonetopSteading._flags;
+			const players = foundry.utils.deepClone(f.players ?? STEADING_DEFAULTS.players);
+			if (!players[index]) return;
+			players[index][field] = value;
+			await this._stonetopSteading.setFlags({ players });
+		}
+
 		async _onResidentChange(index, field, value) {
-			if (!["name", "occupation", "traits", "relations", "etc"].includes(field)) return;
+			if (!["name", "occupation", "traits", "relations", "notes"].includes(field)) return;
 			const f = this._stonetopSteading._flags;
 			const residents = foundry.utils.deepClone(f.residents ?? STEADING_DEFAULTS.residents);
-			if (!residents[index]) residents[index] = { name: "", occupation: "", traits: "", relations: "", etc: "", checked: false };
+			if (!residents[index]) residents[index] = { name: "", occupation: "", traits: "", relations: "", notes: "", checked: false };
 			residents[index][field] = value;
 			await this._stonetopSteading.setFlags({ residents });
 		}
@@ -1396,6 +1458,9 @@ export function createStonetopSteadingSheetClass(Base) {
 				name: actor.name,
 				img: actor.img ?? "",
 				checked: true,
+				traits: "",
+				relations: "",
+				notes: "",
 			});
 
 			await this._stonetopSteading.setFlags({ players });

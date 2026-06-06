@@ -39,8 +39,8 @@
 	{{#if hasSelection}}
 	<div class="stonetop-lore-entry">
 		{{> "stonetop.section-heading" title=title}}
-		{{#if description}}
-		<div class="stonetop-lore-description">{{{description}}}</div>
+		{{#if readonlyDescription}}
+		<div class="stonetop-lore-description">{{{readonlyDescription}}}</div>
 		{{/if}}
 		{{#each options}}
 		{{#if (eq type "text")}}
@@ -53,7 +53,8 @@
 		{{else}}
 		{{#if count}}
 		<div class="stonetop-lore-option stonetop-lore-option--readonly">
-			<span class="stonetop-lore-option-desc">{{{description}}}</span>
+			<span class="stonetop-lore-readonly-marker">{{../readonlyMarker}}</span>
+			<span class="stonetop-lore-option-desc">{{{readonlyDescription}}}</span>
 		</div>
 		{{/if}}
 		{{/if}}
