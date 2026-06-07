@@ -36,7 +36,7 @@
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.background.label")}}
 			{{#each stonetop.playbook.background.options}}
 			{{#if selected}}
-			<div class="stonetop-item is-checked">
+			<div class="stonetop-item is-checked stonetop-bg-readonly">
 				<div class="stonetop-item-header">
 					<strong class="stonetop-item-name">{{label}}</strong>
 				</div>
@@ -163,14 +163,14 @@
 				<div class="stonetop-item-header">
 					<strong class="stonetop-item-name">{{region}}</strong>
 				</div>
+				{{#if description}}
+				<div class="stonetop-origin-description">{{{description}}}</div>
+				{{/if}}
 				{{#each names}}
 				{{#if checked}}
 				<div class="stonetop-item-description">{{name}}</div>
 				{{/if}}
 				{{/each}}
-				{{#if description}}
-				<div class="stonetop-origin-description">{{{description}}}</div>
-				{{/if}}
 			</div>
 			{{/if}}
 			{{/each}}

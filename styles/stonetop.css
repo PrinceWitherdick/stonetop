@@ -1010,6 +1010,11 @@ input.stonetop-name-field {
 	margin-top: 2px;
 }
 
+.stonetop-bg-readonly .stonetop-item-description {
+	padding-left: 0;
+	margin-top: 5px;
+}
+
 .stonetop-origin-description {
 	margin-top: 5px;
 	font-size: 0.84rem;
@@ -2215,7 +2220,6 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 /* -- Outfit header -------------------------------------------- */
 .stonetop-outfit-header {
-	margin-top: 8px;
 	margin-bottom: 8px;
 	padding: 6px 8px;
 	background: rgba(0, 0, 0, 0.05);
@@ -2743,14 +2747,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .pbta.sheet .tab.stonetop-invocations,
 .pbta.sheet .tab.post-death,
 .pbta.sheet .tab.stonetop-special-moves {
-	padding-top: 12px;
-}
-
-.pbta.sheet .tab.moves {
 	padding: 12px;
 }
 
 .stonetop-move-group-title {
+	margin-top: 0;
 	font-weight: bold;
 	font-style: normal;
 }
@@ -3275,7 +3276,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .asm-field {
 	display: grid;
-	grid-template-columns: 90px 1fr;
+	grid-template-columns: 90px 1fr auto;
 	align-items: center;
 	gap: 6px;
 }
@@ -3311,6 +3312,29 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .asm-select {
 	cursor: pointer;
 	padding: 2px 4px;
+}
+
+.asm-randomize {
+	flex: 0 0 auto;
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 3px;
+	cursor: pointer;
+	font-size: 0.9em;
+	background: rgba(255,255,255,0.8);
+	color: var(--color-text-dark-secondary);
+	transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.asm-randomize:hover {
+	background: slategrey;
+	border-color: #4f5b66;
+	color: #fff;
 }
 
 .asm-footer {

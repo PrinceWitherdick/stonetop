@@ -125,6 +125,17 @@ export class AddSteadingMemberDialog extends Application {
 			});
 		});
 
+		root.querySelectorAll(".asm-randomize").forEach(btn => {
+			btn.addEventListener("click", () => {
+				const select = root.querySelector(`.asm-select[name="${btn.dataset.target}"]`);
+				if (!select) return;
+				const options = Array.from(select.options).filter(o => o.value);
+				if (!options.length) return;
+				select.value = options[Math.floor(Math.random() * options.length)].value;
+				select.dispatchEvent(new Event("change"));
+			});
+		});
+
 		root.querySelector(".asm-confirm")?.addEventListener("click", () => {
 			if (!this._formData.name.trim()) {
 				ui.notifications?.warn("Name is required.");

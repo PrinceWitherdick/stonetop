@@ -680,10 +680,11 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onListItemCheck(list, parseInt(index), cb.checked);
 			}, true);
 
-			// Add list item
+			// Add list item (residents/neighbors are handled above, regardless of edit mode)
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".steading-list-add");
 				if (!btn) return;
+				if (["residents", "neighbors"].includes(btn.dataset.list)) return;
 				ev.stopPropagation();
 				this._onListItemAdd(btn.dataset.list);
 			}, true);

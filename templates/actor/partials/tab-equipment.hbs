@@ -217,7 +217,11 @@
 
 	{{#if stonetop.inventory.possessions}}
 	<div class="tab-section tab-section--possessions">
+		{{#if stonetop.editMode}}
 		{{> "stonetop.section-heading" title=(localize "stonetop.character.gear.specialPossessions") note=stonetop.inventory.possessions.pickNote}}
+		{{else}}
+		{{> "stonetop.section-heading" title=(localize "stonetop.character.gear.specialPossessions")}}
+		{{/if}}
 		<ol class="stonetop-possession-list">
 		{{#each stonetop.inventory.possessions.items}}
 			<li class="stonetop-item{{#if checked}} is-checked{{/if}}">
