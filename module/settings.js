@@ -42,7 +42,7 @@ export function registerSettings() {
 			"im-fell-english": "stonetop.settings.sheetFont.imFellEnglish",
 			"signika":         "stonetop.settings.sheetFont.signika",
 		},
-		default: "libre-caslon",
+		default: "signika",
 		onChange: value => applySheetFont(value),
 	});
 

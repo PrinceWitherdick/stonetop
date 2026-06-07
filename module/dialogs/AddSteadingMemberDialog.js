@@ -1,3 +1,5 @@
+import { KeepOnTop } from "../utils/keep-on-top.js";
+
 const STONETOP_NAMES = [
 	"Aderyn", "Aeronwen", "Afanen", "Afon", "Alun", "Andras", "Aneirin", "Awstin",
 	"Bedwyr", "Berwyn", "Betrys", "Braith", "Briallen", "Bronwen", "Bryn",
@@ -18,20 +20,36 @@ const STONETOP_NAMES = [
 	"Winifred", "Yorath",
 ];
 
-const NEIGHBOR_NAMES = [
-	// Marshedge / The Steplands
+const MARSHEDGE_NAMES = [
 	"Abben", "Ailen", "Brin", "Brogan", "Catlin", "Coln", "Daedre", "Dermos",
 	"Ennin", "Finnen", "Gilor", "Isbeal", "Kiran", "Lile", "Lim", "Mathuin",
 	"Mirne", "Noren", "Owan", "Ragan", "Renan", "Seadha", "Seann", "Tierney", "Ulliam",
-	// Lygos and points south
-	"Agatte", "Aref", "Alix", "Baraz", "Canan", "Darya", "Demetra", "Elene",
-	"Elios", "Fotios", "Faruza", "Golza", "Iasos", "Iona", "Kyriakos", "Marika",
-	"Maayan", "Osher", "Natasa", "Nivola", "Rinat", "Stamat", "Thecla", "Zhaleh",
-	// Barrier Pass / The Manmarch
+];
+
+const STEPLANDS_NAMES = [
 	"Adm", "Blej", "Cirl", "Davth", "Elst", "Gwilm", "Gwenl", "Henri", "Ines",
 	"Jenfir", "Jown", "Juda", "Kiln", "Laurl", "Loic", "Merrn", "Maikl", "Nanzl",
 	"Nolwn", "Quent", "Reegn", "Ropr", "Sabi", "Stren", "Yanz",
 ];
+
+const LYGOS_NAMES = [
+	"Agatte", "Aref", "Alix", "Baraz", "Canan", "Darya", "Demetra", "Elene",
+	"Elios", "Fotios", "Faruza", "Golza", "Iasos", "Iona", "Kyriakos", "Marika",
+	"Maayan", "Osher", "Natasa", "Nivola", "Rinat", "Stamat", "Thecla", "Zhaleh",
+];
+
+const NEIGHBOR_NAMES_BY_HOME = {
+	"Marshedge": MARSHEDGE_NAMES,
+	"The Steplands": STEPLANDS_NAMES,
+	"Lygos": LYGOS_NAMES,
+};
+
+// Per the Steading playbook's "Notable neighbors" reference, name lists are only
+// given for Marshedge, the Steplands, and Lygos — everywhere else either has no
+// dedicated list ("Other places: Barrier Pass, the Manmarch, etc.") or explicitly
+// says to "choose from other lists" (Gordin's Delve, since "everyone comes ...
+// from somewhere else"). Those homes fall back to the full combined name pool.
+const NEIGHBOR_NAMES = Object.values(NEIGHBOR_NAMES_BY_HOME).flat();
 
 const OCCUPATIONS = [
 	"baker", "beekeeper", "blacksmith", "bonesetter", "brewer", "butcher",
@@ -78,7 +96,7 @@ const TRAITS = [
 ];
 
 const HOMES = [
-	"Stonetop", "Marshedge", "Gordin's Delve", "The Steplands",
+	"Marshedge", "Gordin's Delve", "The Steplands",
 	"Lygos", "Barrier Pass", "The Manmarch",
 ];
 
@@ -89,6 +107,7 @@ export class AddSteadingMemberDialog extends Application {
 		this._onConfirm = onConfirm;
 		this._formData = { name: "", occupation: "", traits: "", relations: "", notes: "" };
 		if (type === "neighbor") this._formData.home = "";
+		this._keepOnTop = new KeepOnTop(this);
 	}
 
 	static get defaultOptions() {
@@ -101,6 +120,16 @@ export class AddSteadingMemberDialog extends Application {
 		});
 	}
 
+	async _render(force, options) {
+		await super._render(force, options);
+		this._keepOnTop.apply();
+	}
+
+	async close(options = {}) {
+		this._keepOnTop.stop();
+		return super.close(options);
+	}
+
 	get title() {
 		return this._type === "neighbor" ? "Add Neighbor" : "Add Resident";
 	}
@@ -108,21 +137,44 @@ export class AddSteadingMemberDialog extends Application {
 	getData() {
 		return {
 			isNeighbor: this._type === "neighbor",
-			names: this._type === "neighbor" ? NEIGHBOR_NAMES : STONETOP_NAMES,
+			names: this._namesForHome(this._formData.home),
 			occupations: OCCUPATIONS,
 			traits: TRAITS,
 			homes: HOMES,
 		};
 	}
 
+	/** Names available depend on which "Home" is selected — see the Steading playbook's "Notable neighbors" reference. */
+	_namesForHome(home) {
+		if (this._type !== "neighbor") return STONETOP_NAMES;
+		return NEIGHBOR_NAMES_BY_HOME[home] ?? NEIGHBOR_NAMES;
+	}
+
+	_refreshNameOptions(root) {
+		const select = root.querySelector('.asm-select[name="name"]');
+		if (!select) return;
+		const names = this._namesForHome(this._formData.home);
+		const current = select.value;
+		select.replaceChildren(new Option("— choose a name —", ""), ...names.map(n => new Option(n, n)));
+		select.value = names.includes(current) ? current : "";
+		this._formData.name = select.value;
+	}
+
 	activateListeners(html) {
 		super.activateListeners(html);
+		this._keepOnTop.start();
 		const root = html[0];
 
 		root.querySelectorAll(".asm-input, .asm-select").forEach(el => {
 			el.addEventListener("change", () => {
 				this._formData[el.name] = el.value;
 			});
+		});
+
+		// The pool of names depends on which "Home" is selected (see the Steading
+		// playbook's "Notable neighbors" reference) — refilter when it changes.
+		root.querySelector('.asm-select[name="home"]')?.addEventListener("change", () => {
+			this._refreshNameOptions(root);
 		});
 
 		root.querySelectorAll(".asm-randomize").forEach(btn => {

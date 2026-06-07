@@ -1,3 +1,5 @@
+import { KeepOnTop } from "../../../utils/keep-on-top.js";
+
 export class LevelUpDialog extends Application {
 	constructor(character, levelUpData, onDone, options = {}) {
 		super(options);
@@ -8,6 +10,7 @@ export class LevelUpDialog extends Application {
 		this._selectedInvocationSlug = null;
 		this._showLockedMoves        = false;
 		this._onDone = onDone;
+		this._keepOnTop = new KeepOnTop(this);
 	}
 
 	static get defaultOptions() {
@@ -20,6 +23,16 @@ export class LevelUpDialog extends Application {
 			resizable: true,
 			classes:   ["stonetop", "stonetop-levelup-dialog"],
 		});
+	}
+
+	async _render(force, options) {
+		await super._render(force, options);
+		this._keepOnTop.apply();
+	}
+
+	async close(options = {}) {
+		this._keepOnTop.stop();
+		return super.close(options);
 	}
 
 	getData() {
@@ -79,6 +92,7 @@ export class LevelUpDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		this._keepOnTop.start();
 
 		html.find(".stonetop-levelup-move-option:not(.is-locked)").on("click", ev => {
 			this._selectedMoveId = ev.currentTarget.dataset.compendiumId;

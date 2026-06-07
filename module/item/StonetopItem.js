@@ -1,6 +1,7 @@
 import {StonetopPlaybook} from "./StonetopPlaybook.js";
 import {rollFormula, rollStat} from "../utils/roll-engine.js";
 import {normalizeRollType} from "../utils/roll-types.js";
+import {filterStatOptionLines} from "../utils/strings.js";
 
 export function createStonetopItemClass(BaseItem) {
 	return class StonetopItem extends BaseItem {
@@ -25,7 +26,8 @@ export function createStonetopItemClass(BaseItem) {
 			const actor = this.parent;
 			if (!actor) return;
 
-			const stat        = normalizeRollType(this.system?.rollType);
+			const rollType    = normalizeRollType(this.system?.rollType);
+			const stat        = options.statOverride ?? rollType;
 			const rawFormula  = this.system?.rollFormula ?? null;
 			const descriptionOnly = options.descriptionOnly ?? (!stat && !rawFormula);
 
@@ -39,9 +41,16 @@ export function createStonetopItemClass(BaseItem) {
 				});
 			}
 
-			const moveDescription = this.system?.description ?? "";
+			const isStatChoice = rollType === "ask" && !!options.statOverride;
+			const description = this.system?.description ?? "";
+			const moveDescription = isStatChoice
+				? filterStatOptionLines(description, options.statOverride)
+				: description;
+			const moveName = isStatChoice
+				? `${this.name} with ${options.statOverride.toUpperCase()}`
+				: this.name;
 
-			if (stat) return rollStat(stat, actor, { ...options, moveName: this.name, moveDescription });
+			if (stat) return rollStat(stat, actor, { ...options, moveName, moveDescription });
 
 			// Raw formula path — used by npcMove items
 			return rollFormula(rawFormula, actor, { label: this.name, description: moveDescription });

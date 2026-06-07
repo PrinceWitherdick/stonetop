@@ -1116,6 +1116,7 @@ describe("StonetopCharacter.onRoll", () => {
 			modifier: 0,
 			ongoing: 0,
 			rollMode: "normal",
+			statOverride: "str",
 		});
 	});
 

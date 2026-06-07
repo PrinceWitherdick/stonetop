@@ -927,11 +927,11 @@ export class StonetopCharacter {
 		await this.ensureStartingMoves();
 	}
 
-	async onRoll(event) {
+	async onRoll(event, { statOverride = null } = {}) {
 		const itemId = event.currentTarget.closest(".item")?.dataset.itemId;
 		if (!itemId) return false;
 		const item = this._actor.items.get(itemId);
-		const stat = normalizeRollType(item?.system?.rollType);
+		const stat = statOverride ?? normalizeRollType(item?.system?.rollType);
 		if (!stat) return false;
 
 		const isDescription = event.currentTarget.getAttribute("data-show") === "description";
@@ -942,7 +942,7 @@ export class StonetopCharacter {
 		const ongoing  = descriptionOnly ? 0 : this._actor.system?.attributes?.ongoing?.value ?? 0;
 
 		const modifier    = forward + ongoing;
-		const rollOptions = { rollMode, modifier, forward, ongoing };
+		const rollOptions = { rollMode, modifier, forward, ongoing, statOverride: stat };
 
 		await item.roll({ ...this.applyDebilityRollMode(stat, rollOptions), descriptionOnly });
 

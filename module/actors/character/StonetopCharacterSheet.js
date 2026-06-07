@@ -8,12 +8,14 @@ import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
-import {rollDamage} from "../../utils/roll-engine.js";
+import {rollDamage, sign} from "../../utils/roll-engine.js";
+import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
+import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 
@@ -563,7 +565,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				</section>
 			</div>`;
 
-			new Dialog({
+			const ledgerDialog = new Dialog({
 				title: `${this.actor.name}: Ledger`,
 				content,
 				buttons: {},
@@ -681,6 +683,7 @@ export function createStonetopCharacterSheetClass(Base) {
 							title: "Delete Ledger Entries",
 							content: `<p>You're about to delete ${checked.length} entries. Are you sure?</p>`,
 							yes: doDelete,
+							render: keepDialogOnTop,
 						});
 					});
 				},
@@ -688,7 +691,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				width: 560,
 				height: 640,
 				classes: ["dialog", "stonetop-ledger-window"],
-			}).render(true);
+			});
+			attachKeepOnTop(ledgerDialog);
+			ledgerDialog.render(true);
 		}
 
 		_getHeaderButtons() {
@@ -1029,12 +1034,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			html[0].addEventListener("click", async ev => {
 				// Don't intercept clicks on enabled inputs (e.g. editing a stat value).
 				if (ev.target.tagName === "INPUT" && !ev.target.disabled && !ev.target.readOnly) return;
-				const rollable = ev.target.closest(".rollable");
+				// Clicking the "+STAT" chip rolls the same as tapping the dice icon beside it.
+				const chip = ev.target.closest(".stonetop-move-roll-chip");
+				const rollable = ev.target.closest(".rollable")
+					?? chip?.closest("li")?.querySelector(".rollable");
 				if (!rollable || !this.isEditable) return;
 				ev.stopPropagation();
 				const guided = this._guidedMoveForRollable(rollable);
 				if (guided) {
 					this._openGuidedCharacterMove(guided, rollable);
+					return;
+				}
+				const askItem = this._statChoiceMoveForRollable(rollable);
+				if (askItem) {
+					this._promptStatChoice(askItem, rollable);
 					return;
 				}
 				const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable });
@@ -1430,6 +1443,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					},
 					default: "add",
 					render: (dlgHtml) => {
+						keepDialogOnTop(dlgHtml);
 						// Checkbox toggle: expand/collapse the chip
 						dlgHtml.find("[name='traits']").on("change", ev => {
 							const group   = ev.currentTarget.closest(".stonetop-trait-chip-group");
@@ -1499,6 +1513,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					title: game.i18n.localize("stonetop.arcana.identifyTitle"),
 					content: `<p>${game.i18n.localize("stonetop.arcana.identifyConfirm")}</p>`,
 					yes: () => this._stonetopCharacter.identifyArcanum(slug).then(() => this.render(false)),
+					render: keepDialogOnTop,
 				});
 			}, true);
 
@@ -1763,6 +1778,33 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (anyAdded) this.render(false);
 		}
 
+		_statChoiceMoveForRollable(rollable) {
+			const itemId = rollable.closest(".item")?.dataset.itemId;
+			if (!itemId) return null;
+			const item = this.actor.items.get(itemId);
+			if (!item || normalizeRollType(item.system?.rollType) !== "ask") return null;
+			return item;
+		}
+
+		_promptStatChoice(item, rollable) {
+			const stats = this.actor.system?.stats ?? {};
+			const buttons = {};
+			for (const key of _STAT_KEYS) {
+				const value = stats[key]?.value ?? 0;
+				const label = Handlebars.helpers.statLabel(key);
+				buttons[key] = {
+					label: `${label} (${sign(value)})`,
+					callback: () => this._stonetopCharacter.onRoll({ currentTarget: rollable }, { statOverride: key }),
+				};
+			}
+			new Dialog({
+				title: `${item.name} — Choose a Stat`,
+				content: `<p>Which stat are you rolling with?</p>`,
+				buttons,
+				render: keepDialogOnTop,
+			}, { width: 480, classes: ["dialog", "stonetop-stat-picker-dialog"] }).render(true);
+		}
+
 		_guidedMoveForRollable(rollable) {
 			const li = rollable.closest(".stonetop-item");
 			const name = li?.querySelector(".stonetop-item-name")?.textContent?.trim()
@@ -1824,6 +1866,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				</form>`,
 				buttons,
 				default: rollable ? "roll" : "post",
+				render: keepDialogOnTop,
 			}, { width: 520 }).render(true);
 		}
 
@@ -1983,6 +2026,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					},
 				},
 				default: "add",
+				render: keepDialogOnTop,
 			}).render(true);
 		}
 
@@ -2019,6 +2063,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					await this._stonetopCharacter.resetInventorySelections();
 					this.render(false);
 				},
+				render: keepDialogOnTop,
 			});
 		}
 
@@ -2060,7 +2105,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						{
 							onBack: openPicker,
 							onSave: async (selections) => {
-								await this._saveOnboardingProgress(playbookDoc, selections);
+								await this._applyPlaybookSelections(playbookDoc, selections);
 							},
 						},
 					).render(true);
@@ -2087,6 +2132,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						},
 					},
 					default: "cancel",
+					render: keepDialogOnTop,
 				}).render(true);
 			} else {
 				openPicker();
@@ -2110,7 +2156,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					initialSelections: this._readSelectionsFromActor(playbookDoc),
 					startAtStep: options.startAtStep ?? null,
 					onSave: async (selections) => {
-						await this._saveOnboardingProgress(playbookDoc, selections);
+						await this._applyPlaybookSelections(playbookDoc, selections);
 					},
 				},
 				// no onBack ? back button is hidden
@@ -2266,36 +2312,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			await stonetopSteading.setFlags({ neighbors });
 		}
 
-		async _saveOnboardingProgress(playbookDoc, selections) {
-			const slug = playbookDoc.system?.slug ?? "";
-			const updates = {
-				"system.playbook": { uuid: playbookDoc.uuid, name: playbookDoc.name, slug },
-			};
-			if (slug && isDefaultImg(this.actor.img)) {
-				const icon = `systems/stonetop_pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`;
-				updates.img = icon;
-				updates["prototypeToken.texture.src"] = icon;
-			}
-			const statFlagObj = {};
-			for (const [key, value] of Object.entries(selections.stats ?? {})) {
-				if (value !== null && value !== undefined) {
-					updates[`system.stats.${key}.value`] = Number(value);
-					statFlagObj[key] = Number(value);
-				}
-			}
-			updates[`flags.${STONETOP_SCOPE}.onboardingStats`] = statFlagObj;
-			await this.actor.update(updates);
-
-			if (selections.backgroundSlug) {
-				await this._stonetopCharacter.background.selectBackground(selections.backgroundSlug);
-			}
-
-			const { flagUpd } = await this._applyCommonSelections(playbookDoc, selections);
-			flagUpd[`flags.${STONETOP_SCOPE}.possessions.selected`] = [...(selections.possessions ?? [])];
-			await this.actor.update(flagUpd);
-			this.render(false);
-		}
-
 		async _applyPlaybookSelections(playbookDoc, selections) {
 			const slug = playbookDoc.system?.slug ?? "";
 			const updates = {
@@ -2385,7 +2401,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
-		// Shared core of both save-progress and apply-final paths.
+		// Core of _applyPlaybookSelections (used for both "Save" and final apply).
 		// Handles character-method calls (instinct, appearance, origin, name),
 		// background-setup flag writes, initiates, and lore.
 		// Returns { flagUpd, selectedBackground, backgroundSetup } for callers to extend.

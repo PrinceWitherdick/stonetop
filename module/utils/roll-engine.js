@@ -147,7 +147,7 @@ export async function rollStat(statKey, actor, options = {}) {
 		const xpCard = _rollCard({
 			header: "Miss",
 			result: `+1 XP (${newXp} / ${maxXp})`,
-			resultClass: "failure",
+			resultClass: "success",
 		});
 		ChatMessage.create({
 			content:  xpCard,

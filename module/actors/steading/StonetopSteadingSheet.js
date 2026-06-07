@@ -109,8 +109,8 @@ const _STEADING_MOVES_RAW = [
 	{
 		slug: "requisition",
 		label: "Requisition",
-		stat: null,
-		statLabel: null,
+		stat: "fortunes",
+		statLabel: "Fortunes",
 		rollable: false,
 		interactive: true,
 		description: `<p>When you <strong>borrow some of the steading's assets for an expedition</strong> or otherwise put them at risk, roll <strong>+Fortunes</strong>.</p>
@@ -551,7 +551,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
-			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? false;
+			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? true;
 			return context;
 		}
 
@@ -572,7 +572,8 @@ export function createStonetopSteadingSheetClass(Base) {
 				this.render(false);
 			});
 
-			html.find(".stonetop-steading-move-open").on("click", ev => {
+			// Clicking the move name or its "+STAT" chip rolls the same as tapping the dice icon beside it.
+			html.find(".stonetop-steading-move-open, .stonetop-move-roll-chip").on("click", ev => {
 				const li = ev.currentTarget.closest("li");
 				const rollable = li?.querySelector(".steading-roll-btn, .steading-interactive-btn");
 				if (rollable) rollable.click();

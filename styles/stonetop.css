@@ -1466,6 +1466,7 @@ input.stonetop-name-field {
 	line-height: 1.2;
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
+	cursor: pointer;
 }
 
 /* -- Read-only tab (not in edit mode) ----------------------------- */
@@ -8135,6 +8136,18 @@ li.question-bullet::before {
 
 .stonetop-individual-dialog .dialog-buttons [data-button="cancel"]:hover {
 	background: hsl(210 10% 92%);
+}
+
+.stonetop-stat-picker-dialog .dialog-buttons {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 6px;
+	padding: 4px 10px 12px;
+}
+
+.stonetop-stat-picker-dialog .dialog-buttons button {
+	width: 100%;
+	white-space: nowrap;
 }
 
 .stonetop-individual-trait-chip {

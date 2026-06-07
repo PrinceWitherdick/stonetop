@@ -1,6 +1,11 @@
+import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { getHoverDescriptionSetting } from "../../../settings.js";
+import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
+
 export class OutfitMoveDialog extends Application {
 	constructor(character, outfitSnapshot, onDone, options = {}) {
 		super(options);
+		this._keepOnTop = new KeepOnTop(this);
 		this._character      = character;
 		this._regularItems   = outfitSnapshot.regularSegments.flatMap(seg => seg.items);
 		this._smallItems     = [
@@ -26,6 +31,16 @@ export class OutfitMoveDialog extends Application {
 			resizable: true,
 			classes: ["stonetop", "stonetop-outfit-dialog"],
 		});
+	}
+
+	async _render(force, options) {
+		await super._render(force, options);
+		this._keepOnTop.apply();
+	}
+
+	async close(options = {}) {
+		this._keepOnTop.stop();
+		return super.close(options);
 	}
 
 	getData() {
@@ -74,6 +89,14 @@ export class OutfitMoveDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		this._keepOnTop.start();
+
+		// Gear-term hover descriptions (e.g. "near", "forceful", "x piercing") on
+		// item notes — the dialog isn't an actor sheet, so onRenderActorSheet's
+		// hook never reaches it; apply them here instead.
+		if (getHoverDescriptionSetting("hoverDescriptionsGearTags")) {
+			html[0].querySelectorAll(".stonetop-outfit-item-note").forEach(el => applyGearTermTooltips(el));
+		}
 
 		html.find(".stonetop-outfit-item-check").on("change", ev => {
 			this._checked[ev.currentTarget.dataset.slug] = ev.currentTarget.checked;

@@ -1,9 +1,12 @@
+import { KeepOnTop } from "../../../utils/keep-on-top.js";
+
 export class DeathsDoorDialog extends Application {
 	constructor(character, onDone, options = {}) {
 		super(options);
 		this._character = character;
 		this._step = "overview"; // "overview" | "mechanics" | "results"
 		this._onDone = onDone;
+		this._keepOnTop = new KeepOnTop(this);
 	}
 
 	static get defaultOptions() {
@@ -16,6 +19,16 @@ export class DeathsDoorDialog extends Application {
 			resizable: true,
 			classes:   ["stonetop", "stonetop-deathsdoor-dialog"],
 		});
+	}
+
+	async _render(force, options) {
+		await super._render(force, options);
+		this._keepOnTop.apply();
+	}
+
+	async close(options = {}) {
+		this._keepOnTop.stop();
+		return super.close(options);
 	}
 
 	getData() {
@@ -32,6 +45,7 @@ export class DeathsDoorDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		this._keepOnTop.start();
 
 		html.find(".deaths-door-next-btn").on("click", () => this._onNext());
 		html.find(".deaths-door-back-btn").on("click", () => this._onBack());

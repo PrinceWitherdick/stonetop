@@ -16,6 +16,19 @@ export function boldMissText(html) {
 	});
 }
 
+/**
+ * Strip "... +STAT to ..." option lines from a move description that don't
+ * match the chosen stat, for "ask"-type moves (Defy Danger, Interfere) where
+ * the player picks one stat from a list of several presented in the text.
+ */
+export function filterStatOptionLines(html, statKey) {
+	if (!statKey) return String(html ?? "");
+	const want = String(statKey).toUpperCase();
+	return String(html ?? "").replace(/<p>\s*\.\.\.\s*\+([A-Z]{3})\b[^<]*<\/p>/g, (match, stat) =>
+		stat === want ? match : ""
+	);
+}
+
 /** Returns true when `img` is the Foundry default actor/token image or absent. */
 export function isDefaultImg(img) {
 	const defaultToken = globalThis.CONST?.DEFAULT_TOKEN ?? "icons/svg/mystery-man.svg";
