@@ -3,7 +3,7 @@
     "id":  "stonetop_pwd",
     "title":  "Stonetop",
     "description":  "An unofficial system for playing Stonetop in Foundry VTT.",
-    "version":  "0.8.0",
+    "version":  "0.8.5",
     "compatibility":  {
                           "minimum":  "12",
                           "verified":  "14"
@@ -24,7 +24,7 @@
                 ],
     "url":  "https://github.com/PrinceWitherdick/stonetop",
     "manifest":  "https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json",
-    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/0.8.0/stonetop_pwd.zip",
+    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/0.8.5/stonetop_pwd.zip",
     "license":  "LICENSE",
     "readme":  "README.md",
     "bugs":  "https://github.com/PrinceWitherdick/stonetop/issues",
