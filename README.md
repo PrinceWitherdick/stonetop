@@ -61,7 +61,7 @@ When a character dies and returns, selecting a post-death insert automatically r
 
 ## Prerequisites
 
-- Foundry VTT v12 or v13
+- Foundry VTT v12, v13 or v14
 
 ## Installation
 
