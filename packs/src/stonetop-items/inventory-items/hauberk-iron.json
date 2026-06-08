@@ -1,0 +1,22 @@
+{
+  "_id": "do0cZuzren68K4Tu",
+  "_key": "!items!do0cZuzren68K4Tu",
+  "name": "Hauberk/cuirass/scale, iron or bronze",
+  "type": "move",
+  "system": {
+    "moveType": "inventory"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "hauberk-iron",
+      "inventoryColumn": "regular",
+      "sortOrder": 36,
+      "note": "<em>messy</em>, <em>cumbersome</em>",
+      "weight": 2,
+      "armor": {
+        "modifier": 2
+      }
+    }
+  },
+  "folder": "OL1lTSyCryWm3Xez"
+}

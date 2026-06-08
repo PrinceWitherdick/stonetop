@@ -1250,6 +1250,11 @@ input.stonetop-name-field {
 	margin-top: 0;
 }
 
+.stonetop-sidebar-rules {
+	margin-top: 8px;
+	width: 200px;
+}
+
 .stonetop-roll-mode-control {
 	display: grid;
 	gap: 3px;

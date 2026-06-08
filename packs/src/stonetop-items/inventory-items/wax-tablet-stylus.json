@@ -1,0 +1,18 @@
+{
+  "_id": "qcTBaH7ZIRU8VVQm",
+  "_key": "!items!qcTBaH7ZIRU8VVQm",
+  "name": "Wax tablet & stylus",
+  "type": "move",
+  "system": {
+    "moveType": "inventory"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "wax-tablet-stylus",
+      "inventoryColumn": "small",
+      "sortOrder": 32,
+      "smallGrid": true
+    }
+  },
+  "folder": "OL1lTSyCryWm3Xez"
+}

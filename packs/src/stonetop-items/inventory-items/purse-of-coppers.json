@@ -1,0 +1,19 @@
+{
+  "_id": "JQTFjmsn9dLVIdVu",
+  "_key": "!items!JQTFjmsn9dLVIdVu",
+  "name": "Purse of coppers, ~10 handfuls",
+  "type": "move",
+  "system": {
+    "moveType": "inventory"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "purse-of-coppers",
+      "inventoryColumn": "regular",
+      "sortOrder": 54,
+      "weight": 1,
+      "breakBefore": true
+    }
+  },
+  "folder": "OL1lTSyCryWm3Xez"
+}

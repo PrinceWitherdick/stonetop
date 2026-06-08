@@ -1,0 +1,19 @@
+{
+  "_id": "JoLoaeTOdoe5c3ve",
+  "_key": "!items!JoLoaeTOdoe5c3ve",
+  "name": "Wheelbarrow",
+  "type": "move",
+  "system": {
+    "moveType": "inventory"
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "wheelbarrow",
+      "inventoryColumn": "regular",
+      "sortOrder": 47,
+      "weight": 1,
+      "breakBefore": true
+    }
+  },
+  "folder": "OL1lTSyCryWm3Xez"
+}
