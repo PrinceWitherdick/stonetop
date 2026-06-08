@@ -60,7 +60,8 @@ describe("StonetopSteading", () => {
 		const snapshot = await new StonetopSteading(actor).buildSnapshot();
 
 		expect(snapshot.players).toEqual([
-			{ uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true },
+			{ uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true,
+			  traits: "", relations: "", notes: "", resolvedOccupation: "" },
 		]);
 	});
 });

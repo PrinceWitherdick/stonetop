@@ -7,6 +7,7 @@ import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js"
 import {STONETOP_SCOPE} from "../character/StonetopFlags.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 
 function _signedNum(n) {
 	return n >= 0 ? `+${n}` : String(n);
@@ -642,6 +643,11 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.stopPropagation();
 				this._onListItemAdd(btn.dataset.list);
 			}, true);
+
+			// Drag-resizable columns on the player/resident/neighbor tables — useful in both edit and read-only modes.
+			html[0].querySelectorAll(".steading-residents-table[data-resize-key]").forEach(table => {
+				makeColumnsResizable(table, table.dataset.resizeKey);
+			});
 
 			if (!this.isEditable) return;
 

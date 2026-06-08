@@ -1086,7 +1086,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}, true);
 
-			html.find(".stonetop-basic-move-open").on("click", async ev => {
+			html.find(".stonetop-basic-move-open, .stonetop-expedition-move-open").on("click", async ev => {
 				if (!this.isEditable) return;
 				const li       = ev.currentTarget.closest("li");
 				const rollable = li?.querySelector(".rollable");

@@ -138,7 +138,8 @@ Hooks.once("init", () => {
 		"stonetop.tab-arcana":       "systems/stonetop_pwd/templates/actor/partials/tab-arcana.hbs",
 		"stonetop.tab-post-death":      "systems/stonetop_pwd/templates/actor/partials/tab-post-death.hbs",
 		"stonetop.tab-special-moves":   "systems/stonetop_pwd/templates/actor/partials/tab-special-moves.hbs",
-		"stonetop.move-group":       "systems/stonetop_pwd/templates/actor/partials/move-group.hbs",
+		"stonetop.move-group":           "systems/stonetop_pwd/templates/actor/partials/move-group.hbs",
+		"stonetop.sidebar-move-list":    "systems/stonetop_pwd/templates/actor/partials/sidebar-move-list.hbs",
 		"stonetop.lore-section":     "systems/stonetop_pwd/templates/actor/partials/lore-section.hbs",
 		"stonetop.section-heading":  "systems/stonetop_pwd/templates/actor/partials/section-heading.hbs",
 		"stonetop.resource-track":   "systems/stonetop_pwd/templates/actor/partials/resource-track.hbs",
@@ -236,7 +237,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 
 	const btn = document.createElement("button");
 	btn.className = "stonetop-burn-brightly-btn";
-	btn.textContent = "Burn brightly";
+	btn.innerHTML = `<span class="stonetop-burn-brightly-icon"></span> Burn brightly`;
 	btn.dataset.tooltip = BURN_BRIGHTLY_TOOLTIP;
 	btn.dataset.tooltipDirection = "UP";
 	btn.disabled = alreadyBurned;

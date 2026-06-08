@@ -1755,6 +1755,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 4px;
 	margin: 0;
 }
@@ -1776,6 +1777,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
 	color: inherit;
 	min-height: unset;
+}
+
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button[data-action="shiftUp"],
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button[data-action="shiftDown"] {
+	flex: 1 1 0;
 }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button:hover:not(:disabled) {
@@ -1802,6 +1808,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-burn-brightly-btn {
+	flex: 0 0 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
 	font-weight: bold;
 	border: none;
 }
@@ -1809,6 +1820,27 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-burn-brightly-btn:disabled {
 	opacity: 0.5;
 	cursor: default;
+}
+
+/* Shared mask-icon recipe — size/repeat/position are constant; each class supplies its own url + background. */
+.stonetop-burn-brightly-icon,
+.stonetop-lore-readonly-marker--spiral,
+.stonetop-onboarding-lore-marker--spiral {
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
+}
+
+.stonetop-burn-brightly-icon {
+	display: inline-block;
+	width: 1.5em;
+	height: 1.5em;
+	background: currentColor;
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/flame.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/flame.svg');
 }
 
 /* ── Item source ──────────────────────────────────────────────────────────── */
@@ -2715,12 +2747,6 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	background: var(--color-text-dark-secondary);
 	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
 	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	-webkit-mask-size: contain;
-	mask-size: contain;
-	-webkit-mask-repeat: no-repeat;
-	mask-repeat: no-repeat;
-	-webkit-mask-position: center;
-	mask-position: center;
 }
 
 .stonetop-bg-choice-readonly {
@@ -3303,6 +3329,12 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	transition: border-color 0.1s;
 }
 
+.asm-input:hover,
+.asm-select:hover {
+	border-color: rgba(100,150,255,0.35);
+	background: #fff;
+}
+
 .asm-input:focus,
 .asm-select:focus {
 	border-color: rgba(100,150,255,0.5);
@@ -3315,6 +3347,12 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	padding: 2px 4px;
 }
 
+.asm-field-actions {
+	display: flex;
+	gap: 6px;
+}
+
+.asm-info,
 .asm-randomize {
 	flex: 0 0 auto;
 	width: 28px;
@@ -3332,10 +3370,42 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
+.asm-info:hover,
 .asm-randomize:hover {
 	background: slategrey;
 	border-color: #4f5b66;
 	color: #fff;
+}
+
+.stonetop-asm-home-info-dialog .dialog-content {
+	padding-bottom: 12px;
+}
+
+.stonetop-asm-home-info {
+	margin-bottom: 4px;
+}
+
+.stonetop-asm-home-info-dialog .dialog-buttons {
+	padding-top: 10px;
+	border-top: 1px solid var(--color-border-light-primary, #ddd);
+}
+
+.stonetop-asm-home-info-entry + .stonetop-asm-home-info-entry {
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px solid var(--color-border-light-primary, #ddd);
+}
+
+.stonetop-asm-home-info-entry h3 {
+	margin: 0 0 4px;
+	font-family: var(--font-stonetop);
+	font-size: 1.05em;
+	border: none;
+}
+
+.stonetop-asm-home-info-entry p {
+	margin: 0;
+	font-size: 0.9em;
 }
 
 .asm-footer {
@@ -5025,8 +5095,52 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .steading-residents-header-cell {
 	padding: 6px 8px;
 	overflow: hidden;
+}
+
+.steading-residents-header-label {
+	display: block;
+	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.steading-residents-col-resizable {
+	position: relative;
+	overflow: visible;
+}
+
+.steading-col-resize-handle {
+	position: absolute;
+	top: 0;
+	right: -6px;
+	width: 12px;
+	height: 100%;
+	cursor: col-resize;
+	touch-action: none;
+	z-index: 2;
+}
+
+.steading-col-resize-handle::after {
+	content: "";
+	position: absolute;
+	top: 15%;
+	bottom: 15%;
+	left: 50%;
+	width: 2px;
+	transform: translateX(-50%);
+	background: rgba(0,0,0,0.18);
+	border-radius: 1px;
+}
+
+.steading-col-resize-handle:hover::after,
+.steading-col-resize-handle.is-dragging::after {
+	background: rgba(100,150,255,0.7);
+	width: 3px;
+}
+
+.steading-col-resize-handle:hover,
+.steading-col-resize-handle.is-dragging {
+	background: rgba(100,150,255,0.2);
 }
 
 .steading-residents-list {
@@ -7299,12 +7413,6 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	background: var(--color-text-dark-secondary, #666);
 	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
 	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	-webkit-mask-size: contain;
-	mask-size: contain;
-	-webkit-mask-repeat: no-repeat;
-	mask-repeat: no-repeat;
-	-webkit-mask-position: center;
-	mask-position: center;
 }
 
 .stonetop-onboarding-lore-pick.is-selected .stonetop-onboarding-lore-marker {
@@ -8317,9 +8425,7 @@ li.question-bullet::before {
 
 .stonetop-so-entry-body dl { margin: 0 0 12px; }
 .stonetop-so-entry-body dt {
-	font-family: var(--font-stonetop);
-	font-style: normal;
-	font-weight: 600;
+	font-weight: 700;
 	color: #222;
 }
 .stonetop-so-entry-body dd { margin: 0 0 4px 16px; }

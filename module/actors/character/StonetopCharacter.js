@@ -52,7 +52,7 @@ import {capitalizeFirst} from "../../utils/strings.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 
-const OTHER_MOVE_TYPES = ["background", "special", "follower", "expedition", "homefront"];
+const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
 const ROLL_LABELS_BY_TYPE = {
 	str: "STR",
 	dex: "DEX",
@@ -218,37 +218,12 @@ export class StonetopCharacter {
 			if (b.name === "Aid") return 1;
 			return a.name.localeCompare(b.name);
 		});
-		if (basicEntries.length > 0) {
-			categories.push(new MoveCategorySnapshotBuilder()
-				.withKey("basic")
-				.withTitle("Basic Moves")
-				.withNote(null)
-				.withMoves(_sortOwnedFirst(basicEntries.map(e => {
-					const instances = ownedAllByName.get(e.name) ?? [];
-					return new MoveSnapshotBuilder()
-						.withId(e.id)
-						.withCompendiumId(e.id)
-						.withOwnedId(instances[0]?._id ?? null)
-						.withName(e.name)
-						.withDescription(e.description ?? "")
-						.withRollType(e.rollType)
-						.withRollLabel(_rollLabelForMove(e.name, e.rollType, { moveType: "basic", description: e.description }))
-						.withIsStarting(false)
-						.withSource({ type: "basic" })
-						.withSourceLabel(null)
-						.withOwned(instances.length > 0)
-						.withOwnedIds(instances.map(i => i._id))
-						.withLocked(false)
-						.withRequirement(null)
-						.withRequiresLabel(null)
-						.withResource(null)
-						.withRepeat(null)
-						.withRepeatable(false)
-						.build();
-				})))
-				.build()
-			);
-		}
+		const basicCategory = _buildCompendiumMoveCategory(basicEntries, { key: "basic", title: "Basic Moves" }, ownedAllByName);
+		if (basicCategory) categories.push(basicCategory);
+
+		const expeditionEntries = (await this._moveRepo.getExpeditionMoves()).sort((a, b) => a.name.localeCompare(b.name));
+		const expeditionCategory = _buildCompendiumMoveCategory(expeditionEntries, { key: "expedition", title: "Expedition Moves" }, ownedAllByName);
+		if (expeditionCategory) categories.push(expeditionCategory);
 
 		for (const moveType of OTHER_MOVE_TYPES) {
 			const items = this._actor.items.filter(i => i.type === "move" && i.system?.moveType === moveType);
@@ -882,10 +857,16 @@ export class StonetopCharacter {
 			await this._actor.createEmbeddedDocuments("Item", docs.filter(Boolean).map(d => d.toObject()));
 		}
 
-		const basicEntries = await this._moveRepo.getBasicMoves();
-		const missingBasic = basicEntries.filter(e => !ownedNames.has(e.name));
-		if (missingBasic.length) {
-			const docs = await Promise.all(missingBasic.map(e => this._moveRepo.getBasicMoveDocument(e.id)));
+		const [basicEntries, expeditionEntries] = await Promise.all([
+			this._moveRepo.getBasicMoves(),
+			this._moveRepo.getExpeditionMoves(),
+		]);
+		const missingUniversal = [
+			...basicEntries.filter(e => !ownedNames.has(e.name)),
+			...expeditionEntries.filter(e => !ownedNames.has(e.name)),
+		];
+		if (missingUniversal.length) {
+			const docs = await Promise.all(missingUniversal.map(e => this._moveRepo.getBasicMoveDocument(e.id)));
 			await this._actor.createEmbeddedDocuments("Item", docs.filter(Boolean).map(d => d.toObject()));
 		}
 	}
@@ -1311,6 +1292,43 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 
 // ── Snapshot helpers ──────────────────────────────────────────────────────────
 
+/**
+ * Builds a move category snapshot for a universal, compendium-sourced move list
+ * (e.g. Basic Moves, Expedition Moves) — every entry is shown to every actor,
+ * with ownership/roll info layered on from `ownedAllByName`.
+ */
+function _buildCompendiumMoveCategory(entries, { key, title }, ownedAllByName) {
+	if (entries.length === 0) return null;
+	return new MoveCategorySnapshotBuilder()
+		.withKey(key)
+		.withTitle(title)
+		.withNote(null)
+		.withMoves(_sortOwnedFirst(entries.map(e => {
+			const instances = ownedAllByName.get(e.name) ?? [];
+			return new MoveSnapshotBuilder()
+				.withId(e.id)
+				.withCompendiumId(e.id)
+				.withOwnedId(instances[0]?._id ?? null)
+				.withName(e.name)
+				.withDescription(e.description ?? "")
+				.withRollType(e.rollType)
+				.withRollLabel(_rollLabelForMove(e.name, e.rollType, { moveType: key, description: e.description }))
+				.withIsStarting(false)
+				.withSource({ type: key })
+				.withSourceLabel(null)
+				.withOwned(instances.length > 0)
+				.withOwnedIds(instances.map(i => i._id))
+				.withLocked(false)
+				.withRequirement(null)
+				.withRequiresLabel(null)
+				.withResource(null)
+				.withRepeat(null)
+				.withRepeatable(false)
+				.build();
+		})))
+		.build();
+}
+
 function _rollLabelForMove(name, rollType, data = {}) {
 	const normalizedRollType = normalizeRollType(rollType);
 	if (!normalizedRollType) return null;
@@ -1321,15 +1339,16 @@ function _rollLabelForMove(name, rollType, data = {}) {
 		const match = String(data.description ?? "").match(/roll\s+\+([A-Za-z][A-Za-z ]*)/i);
 		if (match) return match[1].trim();
 	}
-	if (data.moveType === "basic" && normalizedRollType === "ask") return "ANY";
+	if ((data.moveType === "basic" || data.moveType === "expedition") && normalizedRollType === "ask") return "ANY";
 	return ROLL_LABELS_BY_TYPE[normalizedRollType] ?? null;
 }
 
 function _buildMovelist(categories, other, pdiLabel = null) {
-	const playbookCat  = categories.find(c => c.key === "playbook");
-	const basicCat     = categories.find(c => c.key === "basic");
-	const postDeathCat = categories.find(c => c.key === "post-death");
-	const otherCats    = categories.filter(c => !["basic", "playbook", "post-death", "special", "follower", "expedition", "homefront"].includes(c.key));
+	const playbookCat   = categories.find(c => c.key === "playbook");
+	const basicCat      = categories.find(c => c.key === "basic");
+	const expeditionCat = categories.find(c => c.key === "expedition");
+	const postDeathCat  = categories.find(c => c.key === "post-death");
+	const otherCats     = categories.filter(c => !["basic", "playbook", "expedition", "post-death"].includes(c.key));
 	const postDeathGroup = postDeathCat && pdiLabel
 		? { label: pdiLabel, moves: postDeathCat.moves }
 		: null;
@@ -1341,6 +1360,7 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 	return new MovelistBuilder()
 		.withPlaybookMoves(playbookCat?.moves ?? [])
 		.withBasicMoves(basicCat?.moves ?? [])
+		.withExpeditionMoves(expeditionCat?.moves ?? [])
 		.withOtherGroups(otherCats.map(cat => new MoveGroupSnapshot(cat.key, cat.title, cat.moves)))
 		.withOtherMoves(other)
 		.withStartingMovesNote(startingNote)

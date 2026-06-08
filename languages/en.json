@@ -287,6 +287,7 @@
 				"pickInstruction": "Pick up to {count} moves to start with.",
 				"playbookMoves": "Playbook Moves",
 				"basicMoves": "Basic Moves",
+				"expeditionMoves": "Expedition Moves",
 				"otherMoves": "Other Moves",
 				"addMove": "Add Move",
 				"removeMove": "Remove Move",

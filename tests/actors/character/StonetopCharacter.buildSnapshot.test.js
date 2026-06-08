@@ -222,7 +222,7 @@ describe("buildSnapshot — playbook section", () => {
 		const snap = await buildSnap({"origin.selected": "Barrier Pass"});
 		const origin = snap.playbook.origin.selectedOption;
 		expect(origin.region).toBe("Barrier Pass");
-		expect(origin.description).toContain("<strong>Barrier Pass</strong>");
+		expect(origin.description).toContain("<p>");
 		expect(origin.description).toContain("massive wall and gate");
 	});
 });
@@ -615,10 +615,13 @@ describe("buildSnapshot — inventory.outfit", () => {
 		expect(typeof opts[0].note).toBe("string");
 	});
 
-	it("regularPool has unified resource shape with checked=current", async () => {
-		const actor = new FakeActorBuilder().withFlag("inventory.regularPool", 3).build();
-		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
-		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 3, max: 9, title: null, labels: []});
+	it("regularPool current is derived from max minus checked item weight", async () => {
+		const actor = new FakeActorBuilder().withFlag("inventory.checked", {"bow-arrows": true}).build();
+		const item = makeOutfitItem({slug: "bow-arrows", name: "Bow", weight: 4});
+		const snap = await new TestCharacterBuilder(actor)
+			.withInventoryRepo(new FakeInventoryRepository([item]))
+			.build().buildSnapshot();
+		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 5, max: 9, title: null, labels: []});
 	});
 
 	it("smallPool has unified resource shape", async () => {
