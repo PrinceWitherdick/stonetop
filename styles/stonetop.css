@@ -1580,6 +1580,40 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 /* ── Chat card tweaks ───────────────────────────────────────────────────────── */
 
+/* Description toggle button — hidden by default; shown when the user has opted to
+   hide descriptions. Clicking it reveals/hides the description for that message. */
+.stonetop-roll-card-desc-toggle {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	margin-left: auto;
+	flex-shrink: 0;
+	width: 1.4em;
+	height: 1.4em;
+	padding: 0;
+	border: 1px solid rgba(0,0,0,0.2);
+	border-radius: 50%;
+	background: rgba(0,0,0,0.06);
+	color: #555;
+	font-size: var(--font-size-11);
+	cursor: pointer;
+	line-height: 1;
+}
+.stonetop-roll-card-desc-toggle:hover { background: rgba(0,0,0,0.12); color: #222; }
+
+/* When the global body class is active (user setting off), show the button and hide descriptions. */
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .stonetop-roll-card-desc-toggle {
+	display: flex;
+}
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .stonetop-roll-card-description {
+	display: none;
+}
+
+/* When a specific card has been manually revealed, show its description regardless. */
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .stonetop-roll-card.desc-revealed .stonetop-roll-card-description {
+	display: block;
+}
+
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description {
 	font-size: var(--font-size-12);
 	color: #333;
@@ -8246,6 +8280,90 @@ li.question-bullet::before {
 	background: hsl(210 10% 92%);
 }
 
+/* ── Followers: Group Fight ────────────────────────────────────────────────── */
+
+.stonetop-group-fight-stats-row {
+	display: flex;
+	gap: 16px;
+	flex-wrap: wrap;
+	font-size: 0.85em;
+	margin-bottom: 6px;
+}
+
+.stonetop-group-fight-stat {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.stonetop-group-fight-dmg-label {
+	font-size: 0.9em;
+	color: #444;
+}
+
+.stonetop-group-fight-outnumber-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.84em;
+	margin-bottom: 8px;
+	flex-wrap: wrap;
+}
+
+.stonetop-group-fight-outnumber-label {
+	font-weight: 600;
+	color: slategrey;
+	white-space: nowrap;
+}
+
+.stonetop-outnumber-yours,
+.stonetop-outnumber-theirs {
+	width: 48px;
+	height: 24px;
+	padding: 2px 4px;
+	text-align: center;
+	font-size: 0.9em;
+	border: 1px solid #ccc;
+	border-radius: 3px;
+}
+
+.stonetop-outnumber-vs {
+	color: #888;
+	font-style: italic;
+}
+
+.stonetop-outnumber-result {
+	font-style: italic;
+	color: #5a7a3a;
+	font-weight: 600;
+}
+
+.stonetop-group-fight-roll-row {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.stonetop-group-fight-roll {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px 12px;
+	font-size: 0.84em;
+	font-family: var(--font-stonetop);
+	border: 1.5px solid slategrey;
+	border-radius: 4px;
+	background: transparent;
+	color: slategrey;
+	cursor: pointer;
+	transition: background 0.12s;
+	white-space: nowrap;
+}
+
+.stonetop-group-fight-roll:hover {
+	background: hsl(210 13% 88%);
+}
+
 .stonetop-stat-picker-dialog .dialog-buttons {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
@@ -8425,10 +8543,21 @@ li.question-bullet::before {
 
 .stonetop-so-entry-body dl { margin: 0 0 12px; }
 .stonetop-so-entry-body dt {
+	display: inline;
 	font-weight: 700;
 	color: #222;
+	text-shadow: none;
 }
-.stonetop-so-entry-body dd { margin: 0 0 4px 16px; }
+.stonetop-so-entry-body dt::after { content: ": "; }
+.stonetop-so-entry-body dd {
+	display: inline;
+	margin: 0;
+}
+.stonetop-so-entry-body dd::after {
+	content: "";
+	display: block;
+	margin-bottom: 3px;
+}
 
 /* Gear term tooltips — applied via applyGearTermTooltips() */
 .stonetop-gear-term {
@@ -8457,13 +8586,23 @@ li.question-bullet::before {
 	text-transform: none;
 	letter-spacing: 0;
 	display: flex;
-	justify-content: space-between;
-	align-items: baseline;
+	justify-content: flex-start;
+	align-items: center;
 	flex-wrap: wrap;
-	gap: 4px;
+	gap: 8px;
 }
 
 .stonetop-so-playbook p { margin: 0; font-size: 0.9em; color: #555; }
+
+.stonetop-so-playbook-icon {
+	width: 24px;
+	height: 24px;
+	border-radius: 3px;
+	flex-shrink: 0;
+	align-self: center;
+}
+
+.stonetop-so-playbook h3 .stonetop-so-complexity { margin-left: auto; }
 
 .stonetop-so-complexity {
 	font-size: 0.78em;
@@ -8985,6 +9124,232 @@ li.question-bullet::before {
 	.stonetop-monster-grid {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* ── Introductions Dialog ─────────────────────────────────────────────────────── */
+
+.stonetop-introductions .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.stonetop-intros {
+	display: flex;
+	flex-direction: column;
+	font-family: var(--font-stonetop);
+}
+
+/* Pre-check screen */
+
+.stonetop-intros-precheck {
+	padding: 16px 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.stonetop-intros-preamble {
+	margin: 0;
+	line-height: 1.5;
+	font-size: 0.9rem;
+}
+
+.stonetop-intros-setup-steps {
+	margin: 0;
+	padding: 0 0 0 1.4em;
+	font-size: 0.875rem;
+	line-height: 1.5;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-intros-notice {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px 14px;
+	border-radius: 4px;
+	font-size: 0.875rem;
+	line-height: 1.5;
+}
+
+.stonetop-intros-notice > i { flex-shrink: 0; font-size: 1.1em; margin-top: 2px; }
+
+.stonetop-intros-notice--warn {
+	background: rgba(200, 120, 20, 0.1);
+	border: 1px solid rgba(200, 120, 20, 0.4);
+	color: #7a4a00;
+}
+
+.stonetop-intros-notice--warn > i { color: #c07820; }
+
+.stonetop-intros-notice--ok {
+	background: rgba(40, 140, 70, 0.08);
+	border: 1px solid rgba(40, 140, 70, 0.35);
+	color: #1a5c2e;
+}
+
+.stonetop-intros-notice--ok > i { color: #2a8a46; }
+
+.stonetop-intros-notice p { margin: 0 0 4px; }
+
+.stonetop-intros-notice ul,
+.stonetop-intros-notice ol {
+	margin: 4px 0 0 1.2em;
+	padding: 0;
+}
+
+.stonetop-intros-reminder {
+	margin: 0;
+	font-size: 0.82rem;
+	color: var(--color-text-dark-secondary);
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	line-height: 1.45;
+}
+
+.stonetop-intros-reminder > i { flex-shrink: 0; margin-top: 2px; }
+
+/* Main content */
+
+.stonetop-intros-main {
+	padding: 12px 20px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.stonetop-intros-pc-banner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	background: rgba(0, 0, 0, 0.04);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 4px;
+}
+
+.stonetop-intros-pc-icon {
+	width: 36px;
+	height: 36px;
+	object-fit: contain;
+	flex-shrink: 0;
+}
+
+.stonetop-intros-pc-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.stonetop-intros-pc-name {
+	font-weight: 700;
+	font-size: 1em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.stonetop-intros-pc-playbook {
+	font-size: 0.8em;
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-intros-pc-count {
+	flex-shrink: 0;
+	font-size: 0.8em;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.stonetop-intros-instruction {
+	font-size: 0.95rem;
+	line-height: 1.6;
+}
+
+.stonetop-intros-questions-wrap {
+	background: rgba(0, 0, 0, 0.03);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 4px;
+	padding: 10px 14px;
+}
+
+.stonetop-intros-questions-label {
+	margin: 0 0 6px;
+	font-size: 0.78rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-intros-questions {
+	margin: 0;
+	padding: 0 0 0 1.3em;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.stonetop-intros-questions li {
+	font-size: 0.875rem;
+	line-height: 1.45;
+}
+
+/* Navigation */
+
+.stonetop-intros-nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 20px 14px;
+	gap: 12px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.stonetop-intros-step-label {
+	font-size: 0.8rem;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.stonetop-intros-nav button {
+	flex-shrink: 0;
+	padding: 5px 14px;
+	font-family: var(--font-stonetop);
+	font-size: 0.875rem;
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: 3px;
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s;
+}
+
+.stonetop-intros-nav button:hover:not(:disabled) { background: hsl(40 25% 85%); }
+.stonetop-intros-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.stonetop-intros-begin,
+.stonetop-intros-close--spring {
+	font-weight: 600;
+	background: hsl(140 35% 88%) !important;
+	border-color: hsl(140 25% 55%) !important;
+	color: hsl(140 40% 18%) !important;
+}
+
+.stonetop-intros-begin:hover:not(:disabled),
+.stonetop-intros-close--spring:hover:not(:disabled) {
+	background: hsl(140 35% 82%) !important;
+}
+
+.stonetop-intros-begin:disabled {
+	background: var(--stonetop-bg, #f5f0e8) !important;
+	border-color: var(--color-border-dark, #7a7971) !important;
+	color: inherit !important;
+	opacity: 0.4;
 }
 
 

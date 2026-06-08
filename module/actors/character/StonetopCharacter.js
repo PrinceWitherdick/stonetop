@@ -933,7 +933,7 @@ export class StonetopCharacter {
 		return true;
 	}
 
-	async onDirectStatRoll(stat) {
+	async onDirectStatRoll(stat, extraOptions = {}) {
 		const { rollStat } = await import("../../utils/roll-engine.js");
 		const rollMode = this.rollMode;
 		const forward  = this._actor.system?.attributes?.forward?.value ?? 0;
@@ -945,6 +945,7 @@ export class StonetopCharacter {
 			modifier,
 			forward,
 			ongoing,
+			...extraOptions,
 		}));
 
 		if (forward !== 0) {

@@ -18,7 +18,7 @@ export class PlaybookPickerDialog extends Application {
 		super(options);
 		this._onPick   = onPick;
 		this._playbooks = [];
-		this._keepOnTop = new KeepOnTop(this);
+		this._keepOnTop = new KeepOnTop(this, { childDialogClass: "stonetop-setting-overview" });
 	}
 
 	static get defaultOptions() {

@@ -30,6 +30,9 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 	const descriptionHtml = description
 		? `<div class="stonetop-roll-card-description">${description}</div>`
 		: "";
+	const descToggleHtml = description
+		? `<button class="stonetop-roll-card-desc-toggle" type="button" title="Show move description"><i class="fas fa-question-circle"></i></button>`
+		: "";
 	const buttonsHtml = buttons
 		? `<div class="card-buttons stonetop-card-buttons">
 			<button data-action="shiftDown"><i class="fas fa-arrow-down"></i> Shift Down</button>
@@ -41,6 +44,7 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 		<div class="cell cell--chat">
 			<div class="chat-title row flexrow">
 				<h2 class="cell__title">${header}</h2>
+				${descToggleHtml}
 			</div>
 			${descriptionHtml}
 			${buttonsHtml}

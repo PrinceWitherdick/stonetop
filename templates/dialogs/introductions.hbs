@@ -1,0 +1,100 @@
+<div class="stonetop-intros">
+
+  {{!-- ── Pre-check screen ──────────────────────────────────────────────────── --}}
+  {{#if isPreCheck}}
+  <div class="stonetop-intros-precheck">
+
+    <p class="stonetop-intros-preamble">
+      Before beginning, add every player character to the Combat Tracker and arrange them in the turn order you want to go around the table.
+    </p>
+    <ol class="stonetop-intros-setup-steps">
+      <li>Drag each player character's actor onto an active scene.</li>
+      <li>On the canvas, select all of their tokens (drag to select, or Shift+click each one).</li>
+      <li>Right-click any selected token and choose <strong>Toggle Combat</strong> (may appear as <strong>Enter Combat</strong>).</li>
+      <li>Set the turn order in the <strong>Combat Tracker</strong>, then return here.</li>
+    </ol>
+
+    {{#if hasNone}}
+    <div class="stonetop-intros-notice stonetop-intros-notice--warn">
+      <i class="fas fa-exclamation-triangle"></i>
+      <span>No player characters are in the Combat Tracker yet.</span>
+    </div>
+    {{else if hasMissing}}
+    <div class="stonetop-intros-notice stonetop-intros-notice--warn">
+      <i class="fas fa-exclamation-triangle"></i>
+      <div>
+        <p>The following PCs are <strong>not in the Combat Tracker</strong>:</p>
+        <ul>{{#each missingPcs}}<li>{{this}}</li>{{/each}}</ul>
+      </div>
+    </div>
+    {{else}}
+    <div class="stonetop-intros-notice stonetop-intros-notice--ok">
+      <i class="fas fa-check-circle"></i>
+      <div>
+        <p>All {{pcCount}} player characters are ready, in order:</p>
+        <ol>{{#each pcNames}}<li>{{this}}</li>{{/each}}</ol>
+      </div>
+    </div>
+    {{/if}}
+
+    <p class="stonetop-intros-reminder">
+      <i class="fas fa-info-circle"></i>
+      <em>When someone reveals something and you want to know more, ask them about it. When someone asks you a question, answer it truthfully.</em>
+    </p>
+
+  </div>
+
+  {{!-- ── Main intro content ─────────────────────────────────────────────────── --}}
+  {{else}}
+  <div class="stonetop-intros-main">
+
+    {{#if currentPc}}
+    <div class="stonetop-intros-pc-banner">
+      {{#if currentPc.icon}}<img class="stonetop-intros-pc-icon" src="{{currentPc.icon}}" alt="">{{/if}}
+      <div class="stonetop-intros-pc-info">
+        <div class="stonetop-intros-pc-name">{{currentPc.name}}</div>
+        {{#if currentPc.playbookName}}<div class="stonetop-intros-pc-playbook">{{currentPc.playbookName}}</div>{{/if}}
+      </div>
+      <div class="stonetop-intros-pc-count">{{currentPc.index}} / {{currentPc.total}}</div>
+    </div>
+    {{/if}}
+
+    <div class="stonetop-intros-instruction">{{{instruction}}}</div>
+
+    {{#if hasQuestions}}
+    <div class="stonetop-intros-questions-wrap">
+      <p class="stonetop-intros-questions-label">Choose one, or pass:</p>
+      <ol class="stonetop-intros-questions">
+        {{#each questions}}<li>{{{this}}}</li>{{/each}}
+      </ol>
+    </div>
+    {{/if}}
+
+  </div>
+  {{/if}}
+
+  {{!-- ── Navigation ─────────────────────────────────────────────────────────── --}}
+  <div class="stonetop-intros-nav">
+    {{#if isPreCheck}}
+
+    <span></span>
+    <button class="stonetop-intros-begin" {{#unless canBegin}}disabled{{/unless}}>
+      Begin Introductions ▶
+    </button>
+
+    {{else if isDone}}
+
+    <button class="stonetop-intros-back">◀ Back</button>
+    <span class="stonetop-intros-step-label">{{stepLabel}}</span>
+    <button class="stonetop-intros-close stonetop-intros-close--spring">Let spring break forth!</button>
+
+    {{else}}
+
+    <button class="stonetop-intros-back" {{#if isPrevDisabled}}disabled{{/if}}>◀ Back</button>
+    <span class="stonetop-intros-step-label">{{stepLabel}}</span>
+    <button class="stonetop-intros-next">Next ▶</button>
+
+    {{/if}}
+  </div>
+
+</div>

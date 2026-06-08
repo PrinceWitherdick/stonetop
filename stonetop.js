@@ -1,4 +1,4 @@
-import { registerSettings } from "./module/settings.js";
+import { registerSettings, getSetting, applyMoveDescriptionBodyClass } from "./module/settings.js";
 import { createStonetopActorClass } from "./module/actors/StonetopActor.js";
 import { createStonetopItemClass } from "./module/item/StonetopItem.js";
 import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSheet.js";
@@ -150,6 +150,7 @@ Hooks.once("init", () => {
 		"stonetop.steading-tab-notes":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-notes.hbs",
 		"stonetop.npc-sheet":                 "systems/stonetop_pwd/templates/actor/npc.hbs",
 		"stonetop.monster-sheet":             "systems/stonetop_pwd/templates/actor/monster.hbs",
+		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
 	});
 });
 
@@ -158,6 +159,7 @@ Hooks.on("renderPause", onRenderPause);
 
 // -- READY -----------------------------------------------------
 Hooks.once("ready", onReady);
+Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDescriptionsInChat")));
 
 // -- RENDER ACTOR SHEET ----------------------------------------
 Hooks.on("renderActorSheet", onRenderActorSheet);
@@ -176,6 +178,15 @@ Hooks.on("preCreateChatMessage", (message) => {
 // -- QUESTION BULLETS ------------------------------------------
 Hooks.on("renderChatMessageHTML", (message, html) => {
 	markQuestionBullets(html);
+});
+
+// -- MOVE DESCRIPTION TOGGLE -----------------------------------
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	const toggle = html.querySelector(".stonetop-roll-card-desc-toggle");
+	if (!toggle) return;
+	toggle.addEventListener("click", () => {
+		toggle.closest(".stonetop-roll-card")?.classList.toggle("desc-revealed");
+	});
 });
 
 // -- DEBILITY DISADVANTAGE ANNOTATION -------------------------

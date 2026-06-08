@@ -2,11 +2,20 @@ import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton } from "./StonetopSingleton.js";
 import { applySheetFont, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
+import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/end-of-session.png";
 const _EOS_MACRO_SCRIPT = "game.stonetop?.openEndOfSession?.()";
 const _EOS_HOTBAR_SLOT  = 10;
+
+const _INTRO_MACRO_NAME   = "Character Introductions";
+const _INTRO_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/introductions.webp";
+const _INTRO_MACRO_SCRIPT = `\
+const w = Object.values(ui.windows).find(w => w.id === "stonetop-introductions");
+if (w?.rendered) { w.bringToTop(); return; }
+game.stonetop?.openIntroductions?.();`;
+const _INTRO_HOTBAR_SLOT  = 1;
 
 export async function onReady() {
 	applySheetFont(getSetting("sheetFont"));
@@ -15,9 +24,11 @@ export async function onReady() {
 	await ensureStonetopSingleton();
 
 	game.stonetop ??= {};
-	game.stonetop.openEndOfSession = () => new EndOfSessionDialog().render(true);
+	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
+	game.stonetop.openIntroductions = () => new IntroductionsDialog().render(true);
 
 	if (game.user.isGM) await _ensureEndOfSessionMacro();
+	if (game.user.isGM) await _ensureIntroductionsMacro();
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
 }
 
@@ -36,6 +47,26 @@ async function _ensureEndOfSessionMacro() {
 	const alreadySlotted = Object.entries(game.user.hotbar).some(([, id]) => id === macro.id);
 	if (!alreadySlotted) {
 		await game.user.assignHotbarMacro(macro, _EOS_HOTBAR_SLOT);
+	}
+}
+
+async function _ensureIntroductionsMacro() {
+	let macro = game.macros.find(m => m.name === _INTRO_MACRO_NAME);
+	if (!macro) {
+		macro = await Macro.create({
+			name:    _INTRO_MACRO_NAME,
+			type:    "script",
+			img:     _INTRO_MACRO_IMG,
+			command: _INTRO_MACRO_SCRIPT,
+			scope:   "global",
+		});
+	} else if (macro.img !== _INTRO_MACRO_IMG) {
+		await macro.update({ img: _INTRO_MACRO_IMG });
+	}
+
+	const alreadySlotted = Object.entries(game.user.hotbar).some(([, id]) => id === macro.id);
+	if (!alreadySlotted) {
+		await game.user.assignHotbarMacro(macro, _INTRO_HOTBAR_SLOT);
 	}
 }
 

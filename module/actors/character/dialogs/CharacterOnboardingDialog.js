@@ -3,6 +3,7 @@ import { majorArcanaImg } from "../../../arcana-icons.js";
 import { parseMovePickCount } from "../StonetopCharacter.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
 import { loreMarkerForText } from "../../../model/PlaybookSnapshot.js";
+import { KeepOnTop } from "../../../utils/keep-on-top.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -95,10 +96,11 @@ export class CharacterOnboardingDialog extends Application {
 		this._onSave             = onSave ?? null;
 		// Pre-seed cache with glossary so getData() and _lookupWord share one lookup path.
 		this._wordCache = new Map(Object.entries(ANIMAL_COMPANION_TRAIT_GLOSSARY));
-		this._hoveredAnchor      = null;
-		this._keepOnTopQueued    = false;
-		this._keepOnTopListener  = () => this._queueKeepOnTop();
-		this._keepOnTopObserver  = null;
+		this._hoveredAnchor = null;
+		this._keepOnTop = new KeepOnTop(this, {
+			baseZIndex:       this.constructor.TOP_Z_INDEX,
+			childDialogClass: "stonetop-onboarding-child-dialog",
+		});
 
 		this._initializeState(playbookDoc, initialSelections, startAtStep);
 	}
@@ -967,66 +969,7 @@ export class CharacterOnboardingDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop();
-	}
-
-	_keepOnTop() {
-		const otherWindowZ = Object.values(globalThis.ui?.windows ?? {})
-			.filter(w => w !== this && !w.element?.[0]?.classList.contains("stonetop-onboarding-child-dialog"))
-			.map(w => parseInt(w.element?.[0]?.style?.zIndex || 0))
-			.filter(Number.isFinite);
-		const zIndex = Math.max(this.constructor.TOP_Z_INDEX, ...otherWindowZ) + 1;
-		const el = this.element?.[0];
-		if (el && el.style.zIndex !== String(zIndex)) {
-			el.style.setProperty("z-index", String(zIndex), "important");
-		}
-		document.querySelectorAll(".window-app.stonetop-onboarding-child-dialog")
-			.forEach(childEl => {
-				const childZ = String(zIndex + 1);
-				if (childEl.style.zIndex !== childZ) childEl.style.setProperty("z-index", childZ, "important");
-			});
-		// Hover tooltips must always float above the dialog and its children.
-		const tooltip = document.querySelector("#tooltip");
-		const tooltipZ = String(zIndex + 2);
-		if (tooltip && tooltip.style.zIndex !== tooltipZ) {
-			tooltip.style.setProperty("z-index", tooltipZ, "important");
-		}
-	}
-
-	_queueKeepOnTop() {
-		if (this._keepOnTopQueued || !this.rendered) return;
-		this._keepOnTopQueued = true;
-		const raise = () => {
-			this._keepOnTopQueued = false;
-			this._keepOnTop();
-		};
-		requestAnimationFrame(raise);
-		setTimeout(() => this._keepOnTop(), 0);
-		setTimeout(() => this._keepOnTop(), 50);
-	}
-
-	_startKeepOnTopGuard() {
-		for (const eventName of ["pointerdown", "mousedown", "mouseup", "click", "focusin"]) {
-			document.removeEventListener(eventName, this._keepOnTopListener, true);
-			document.addEventListener(eventName, this._keepOnTopListener, true);
-		}
-		if (!this._keepOnTopObserver) {
-			this._keepOnTopObserver = new MutationObserver(() => this._queueKeepOnTop());
-			this._keepOnTopObserver.observe(document.body, {
-				subtree: true,
-				childList: true,
-				attributes: true,
-				attributeFilter: ["class", "style"],
-			});
-		}
-	}
-
-	_stopKeepOnTopGuard() {
-		for (const eventName of ["pointerdown", "mousedown", "mouseup", "click", "focusin"]) {
-			document.removeEventListener(eventName, this._keepOnTopListener, true);
-		}
-		this._keepOnTopObserver?.disconnect();
-		this._keepOnTopObserver = null;
+		this._keepOnTop.apply();
 	}
 
 	_getHeaderButtons() {
@@ -1438,9 +1381,7 @@ export class CharacterOnboardingDialog extends Application {
 	activateListeners(html) {
 		super.activateListeners(html);
 		markQuestionBullets(html[0]);
-		this._keepOnTop();
-		this._startKeepOnTopGuard();
-		html.closest(".window-app").on("mousedown.stonetopOnboarding focusin.stonetopOnboarding", () => this._queueKeepOnTop());
+		this._keepOnTop.start();
 
 		html.find(".stonetop-onboarding-back-to-picker").on("click", () => this._goBack());
 		html.find(".stonetop-onboarding-back").on("click", () => this._navigate(-1));
@@ -2226,9 +2167,8 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	async close(options) {
-		this._stopKeepOnTopGuard();
+		this._keepOnTop.stop();
 		this._clearPopups();
-		document.querySelector("#tooltip")?.style.removeProperty("z-index");
 		return super.close(options);
 	}
 

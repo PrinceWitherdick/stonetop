@@ -165,6 +165,10 @@
 				"name": "Show Roll Stat Chips",
 				"hint": "Show labels like +STR and +ANY beside rollable move icons on character sheets."
 			},
+			"showMoveDescriptionsInChat": {
+				"name": "Show Move Descriptions in Chat",
+				"hint": "Include the full move description in the chat card when rolling a move."
+			},
 			"hoverDescriptionSettings": {
 				"name": "On Hover Info",
 				"label": "Configure",

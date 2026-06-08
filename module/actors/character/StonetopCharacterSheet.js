@@ -684,7 +684,7 @@ export function createStonetopCharacterSheetClass(Base) {
 							content: `<p>You're about to delete ${checked.length} entries. Are you sure?</p>`,
 							yes: doDelete,
 							render: keepDialogOnTop,
-						});
+						}, { classes: ["dialog", "stonetop-ledger-child"] });
 					});
 				},
 			}, {
@@ -692,7 +692,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				height: 640,
 				classes: ["dialog", "stonetop-ledger-window"],
 			});
-			attachKeepOnTop(ledgerDialog);
+			attachKeepOnTop(ledgerDialog, { childDialogClass: "stonetop-ledger-child" });
 			ledgerDialog.render(true);
 		}
 
@@ -840,6 +840,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					const val = Math.min(prosperity, 2);
 					return label.replace(token, html ? `${val} <em>piercing</em>` : `${val} piercing`);
 				};
+				const crewIndividuals = (sf.crew?.individuals ?? []).map((ind, idx) => {
+					const indHpRaw = (sf.crew?.individualsHp ?? {})[idx];
+					return { ...ind, index: idx, hpCurrent: indHpRaw != null ? Math.min(Math.max(0, Number(indHpRaw)), 6) : 6 };
+				});
 				crew = {
 					name:      sf.crew.name     ?? "",
 					tags:      sf.crew.tags     ?? [],
@@ -868,11 +872,9 @@ export function createStonetopCharacterSheetClass(Base) {
 							})),
 						};
 					}),
-					individuals:       (sf.crew?.individuals ?? []).map((ind, idx) => {
-						const indHpRaw = (sf.crew?.individualsHp ?? {})[idx];
-						return { ...ind, index: idx, hpCurrent: indHpRaw != null ? Math.min(Math.max(0, Number(indHpRaw)), 6) : 6 };
-					}),
+					individuals:       crewIndividuals,
 					individualOptions: playbookDoc?.crew?.individualOptions ?? {},
+					groupHp:           crewIndividuals.length * 6,
 				};
 			}
 
@@ -1475,6 +1477,39 @@ export function createStonetopCharacterSheetClass(Base) {
 				}, { width: 540, height: 580, classes: ["dialog", "stonetop-individual-dialog"] }).render(true);
 			});
 			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
+
+			// -- Followers: group fight outnumber calculator --
+			html[0].addEventListener("input", ev => {
+				const inp = ev.target;
+				if (!inp.classList.contains("stonetop-outnumber-yours") && !inp.classList.contains("stonetop-outnumber-theirs")) return;
+				const row    = inp.closest(".stonetop-group-fight-outnumber-row");
+				if (!row) return;
+				const yours  = Math.max(1, parseInt(row.querySelector(".stonetop-outnumber-yours")?.value)  || 1);
+				const theirs = Math.max(1, parseInt(row.querySelector(".stonetop-outnumber-theirs")?.value) || 1);
+				const bonus  = Math.max(0, Math.floor(yours / theirs) - 1);
+				const resultEl = row.querySelector(".stonetop-outnumber-result");
+				if (resultEl) resultEl.textContent = bonus > 0 ? `+${bonus} damage, +${bonus} armor` : "no bonus";
+				const section  = row.closest(".stonetop-group-fight-section");
+				const dmgBtn   = section?.querySelector(".stonetop-group-fight-dmg-roll");
+				const dmgLabel = section?.querySelector(".stonetop-group-fight-dmg-label");
+				const roll     = bonus > 0 ? `d6+${bonus}` : "d6";
+				if (dmgBtn)   dmgBtn.dataset.roll     = roll;
+				if (dmgLabel) dmgLabel.textContent    = roll;
+			}, true);
+
+			// -- Followers: group fight Clash / Let Fly --
+			html[0].addEventListener("click", async ev => {
+				const btn = ev.target.closest(".stonetop-group-fight-roll");
+				if (!btn) return;
+				ev.stopPropagation();
+				const stat = btn.dataset.stat;
+				if (!stat) return;
+				const card     = btn.closest(".stonetop-follower-card");
+				const crewName = card?.querySelector(".stonetop-follower-name")?.textContent?.trim() || "Crew";
+				const moveName = stat === "str" ? `${crewName}: Clash` : `${crewName}: Let Fly`;
+				await this._stonetopCharacter.onDirectStatRoll(stat, { moveName });
+			}, true);
+
 			html.find(".stonetop-invocation-check").on("change", async ev => {
 				const { slug } = ev.currentTarget.dataset;
 				const current = this.actor.getFlag("stonetop_pwd", "invocations.selected") ?? [];

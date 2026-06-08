@@ -56,6 +56,16 @@ export function registerSettings() {
 		onChange: () => _rerenderActorSheets(),
 	});
 
+	game.settings.register("stonetop_pwd", "showMoveDescriptionsInChat", {
+		name: "stonetop.settings.showMoveDescriptionsInChat.name",
+		hint: "stonetop.settings.showMoveDescriptionsInChat.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: value => applyMoveDescriptionBodyClass(value),
+	});
+
 	game.settings.register("stonetop_pwd", "hoverDescriptionsEnabled", {
 		name: "stonetop.settings.hoverDescriptionsEnabled.name",
 		hint: "stonetop.settings.hoverDescriptionsEnabled.hint",
@@ -154,6 +164,10 @@ export function getHoverDescriptionSetting(key, { ignoreMaster = false } = {}) {
 
 export function getRollStatChipsSetting() {
 	return globalThis.game?.settings?.get?.("stonetop_pwd", "showRollStatChips") ?? true;
+}
+
+export function applyMoveDescriptionBodyClass(show) {
+	document.body.classList.toggle("stonetop-hide-roll-descriptions", !show);
 }
 
 export function setSetting(key, value) {
