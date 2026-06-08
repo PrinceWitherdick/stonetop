@@ -130,7 +130,10 @@ body,
 }
 
 #pause img {
-	--fa-animation-duration: 15s
+	content: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	--fa-animation-duration: 15s;
+	animation-duration: 15s;
+	filter: invert(1);
 }
 
 #pause figcaption {
@@ -8194,6 +8197,46 @@ li.question-bullet::before {
 	flex: 0 0 10px;
 	margin-top: 0.2em;
 	opacity: 0.55;
+}
+
+/* Travel times table (collapsible inside Chart a Course description) */
+.stonetop-travel-times {
+	margin-top: 8px;
+}
+
+.stonetop-travel-times-table {
+	width: 100%;
+	border-collapse: collapse;
+	line-height: 1.35;
+}
+
+.stonetop-travel-times-table th {
+	text-align: left;
+	font-weight: 700;
+	padding: 0 4px 3px;
+	border-bottom: 1px solid currentColor;
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.65;
+}
+
+.stonetop-travel-times-table td {
+	padding: 1px 4px;
+	vertical-align: top;
+}
+
+.stonetop-travel-times-table td:last-child {
+	white-space: nowrap;
+	text-align: right;
+	padding-left: 8px;
+}
+
+.stonetop-travel-times-table td[colspan] {
+	padding-top: 5px;
+	font-style: italic;
+	text-align: left;
+	opacity: 0.65;
 }
 
 .stonetop-lore-readonly-marker--spiral,

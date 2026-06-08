@@ -155,7 +155,11 @@ Hooks.once("init", () => {
 });
 
 // -- RENDER PAUSE ----------------------------------------------
+// "renderPause" (v11) was renamed in v12+; cover all known variants and
+// pauseGame so the text override fires whenever pause state changes.
 Hooks.on("renderPause", onRenderPause);
+Hooks.on("renderPauseBanner", onRenderPause);
+Hooks.on("pauseGame", (paused) => paused && onRenderPause());
 
 // -- READY -----------------------------------------------------
 Hooks.once("ready", onReady);
