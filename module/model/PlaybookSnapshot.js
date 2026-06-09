@@ -206,12 +206,15 @@ export class LoreEntrySnapshot {
 		this.title       = b._title;
 		this.description = b._description;
 		this.options     = b._options;
+		this.columnBreak = b._columnBreak ?? false;
 		this.selectedCount = this.options.reduce((sum, o) => sum + (o.type === "text" ? (o.textValue ? 1 : 0) : o.count), 0);
 		this.requiredCount = _pickCountFromDescription(this.description);
 		this.isAnswered = this.requiredCount <= 0 ? this.hasSelection : this.selectedCount >= this.requiredCount;
 		this.readonlyDescription = _stripChoosePrompt(this.description);
 		this.readonlyMarker = _readonlyMarkerForEntry(this);
-		this.isContinuation = _isContinuationLoreEntry(this);
+		// Explicit `continuation` wins; fall back to the title/`alas` heuristic for
+		// un-annotated lore (e.g. PDF-imported data and post-death inserts).
+		this.isContinuation = b._continuation ?? _isContinuationLoreEntry(this);
 	}
 	get hasSelection() {
 		return this.options.some(o => o.type === "text" ? !!o.textValue : o.count > 0);
@@ -223,12 +226,16 @@ export class LoreEntrySnapshotBuilder {
 	withTitle(v)       { this._title       = v; return this; }
 	withDescription(v) { this._description = v; return this; }
 	withOptions(v)     { this._options     = v; return this; }
+	withColumnBreak(v) { this._columnBreak = v; return this; }
+	withContinuation(v) { this._continuation = v; return this; }
 	build()            { return new LoreEntrySnapshot(this); }
 }
 
 export class LoreSection {
 	constructor(entries) {
 		this.entries = entries;
+		// Read once per entry inside the lore-section render loop, so precompute to keep it O(1).
+		this.hasColumnBreak = entries.some(e => e.columnBreak);
 	}
 
 	get hasEntries() {

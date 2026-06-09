@@ -348,7 +348,14 @@
       "statsNote": "Assign these scores to your stats: +2, +1, +1, +0, +0, -1",
       "lore": [
         {
+          "slug": "war-stories",
+          "title": "War Stories",
+          "description": "",
+          "options": []
+        },
+        {
           "slug": "war-stories-action",
+          "continuation": true,
           "title": "The Last Time the Militia Saw Serious Action, It Was…",
           "description": "<p><em>(pick 1)</em></p>",
           "options": [

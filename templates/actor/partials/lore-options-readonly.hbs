@@ -1,0 +1,21 @@
+{{#each options}}
+		{{#if (eq type "text")}}
+		{{#if textValue}}
+		<div class="stonetop-lore-option stonetop-lore-option--text stonetop-lore-option--readonly">
+			{{#if description}}<span class="stonetop-lore-option-desc">{{{description}}}</span>{{/if}}
+			<p class="stonetop-lore-readonly-value">{{textValue}}</p>
+		</div>
+		{{/if}}
+		{{else}}
+		{{#if count}}
+		<div class="stonetop-lore-option stonetop-lore-option--readonly">
+			{{#if (eq ../readonlyMarker "spiral")}}
+			<input type="checkbox" class="stonetop-lore-option-check" checked disabled>
+			{{else}}
+			<span class="stonetop-lore-readonly-marker">{{../readonlyMarker}}</span>
+			{{/if}}
+			<span class="stonetop-lore-option-desc">{{{readonlyDescription}}}</span>
+		</div>
+		{{/if}}
+		{{/if}}
+{{/each}}

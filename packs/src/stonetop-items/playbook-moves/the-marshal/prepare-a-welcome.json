@@ -26,6 +26,10 @@
         "label": "6-",
         "value": "The GM makes a move."
       }
+    },
+    "resource": {
+      "max": 2,
+      "title": "Surprise"
     }
   },
   "folder": "qYVW8ZbK0hIds2lt"

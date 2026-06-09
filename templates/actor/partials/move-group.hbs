@@ -38,7 +38,6 @@
 				{{/if}}
 				{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
 				<strong class="stonetop-item-name">{{name}}</strong>
-				{{#if sourceLabel}}<span class="stonetop-item-source">{{sourceLabel}}</span>{{/if}}
 				{{#if (and owned resource)}}
 				<span class="stonetop-item-resources">
 					{{#each (resourceChecks resource)}}
@@ -51,6 +50,7 @@
 					{{/each}}
 				</span>
 				{{/if}}
+				{{#if sourceLabel}}<span class="stonetop-item-source">{{sourceLabel}}</span>{{/if}}
 			</div>
 			<div class="stonetop-item-description">{{{boldMissText description}}}</div>
 			{{#if statChoices}}

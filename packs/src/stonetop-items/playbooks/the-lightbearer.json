@@ -267,7 +267,14 @@
       "statsNote": "Assign these scores to your stats: +2, +1, +1, +0, +0, -1",
       "lore": [
         {
+          "slug": "helior",
+          "title": "Praise the Day",
+          "description": "",
+          "options": []
+        },
+        {
           "slug": "helior-worship-spread",
+          "continuation": true,
           "title": "The Worship of Helior Is…",
           "description": "<p>You are the appointed servant of Helior the Daybringer, god of the sun and light, beacon of hope and mercy. <em>(choose 1)</em></p>",
           "options": [
@@ -374,6 +381,7 @@
         },
         {
           "slug": "helior-predecessor",
+          "columnBreak": true,
           "title": "Your Predecessor, the Previous Lightbearer…",
           "description": "<p><em>(choose 2 or 3)</em></p>",
           "options": [

@@ -72,6 +72,8 @@ export function buildLoreSection(loreData, loreState) {
 			.withTitle(entry.title)
 			.withDescription(entry.description ?? "")
 			.withOptions(options)
+			.withColumnBreak(entry.columnBreak)
+			.withContinuation(entry.continuation)
 			.build();
 	});
 	return new LoreSection(entries);

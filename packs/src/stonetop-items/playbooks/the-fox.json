@@ -210,7 +210,14 @@
       "statsNote": "Assign these scores to your stats: +2, +1, +1, +0, +0, -1",
       "lore": [
         {
+          "slug": "tall-tales",
+          "title": "Tall Tales",
+          "description": "",
+          "options": []
+        },
+        {
           "slug": "tall-tales-beginning",
+          "continuation": true,
           "title": "There Was That Time You…",
           "description": "<p>Someone like you gets into all sorts of trouble, whether you mean to or not. Mix and match the following to come up with a couple of your more memorable adventures. <em>(choose 1 per tale)</em></p>",
           "options": [

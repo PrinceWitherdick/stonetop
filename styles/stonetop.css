@@ -140,6 +140,11 @@ body,
 	text-shadow: 3px 3px 4px var(--color-shadow-dark);
 }
 
+/* Actor sidebar thumbnails — show full portrait instead of cropping */
+#actors .directory-item img {
+	object-fit: contain;
+}
+
 .vtt .sidebar-tab,
 .pbta.sheet .cell__title,
 .pbta {
@@ -1410,7 +1415,7 @@ input.stonetop-name-field {
 .stonetop-item-header {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
 }
 
 .stonetop-item-check,
@@ -1866,7 +1871,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Shared mask-icon recipe — size/repeat/position are constant; each class supplies its own url + background. */
 .stonetop-burn-brightly-icon,
-.stonetop-lore-readonly-marker--spiral,
 .stonetop-onboarding-lore-marker--spiral {
 	-webkit-mask-size: contain;
 	mask-size: contain;
@@ -2027,7 +2031,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	margin-left: auto;
 	flex-shrink: 0;
 }
 
@@ -2708,6 +2711,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-bottom: 8px;
 }
 
+.stonetop-lore-columns {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0 12px;
+	align-items: start;
+}
+
+.stonetop-lore-columns .stonetop-lore-entry--section-head {
+	grid-column: 1 / -1;
+}
+
+.stonetop-lore-col {
+	min-width: 0;
+}
+
 .stonetop-lore-description {
 	font-size: 0.9em;
 	font-style: normal;
@@ -2718,6 +2736,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 6px 0 4px;
 	font-size: 0.9em;
 	font-weight: 400;
+	font-style: normal;
 	line-height: 1.35;
 }
 
@@ -2765,14 +2784,47 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Read-only Details tab */
 
-.stonetop-lore-readonly-value {
-	margin: 2px 0 0;
-	font-size: 0.85em;
+.stonetop-lore-option--text.stonetop-lore-option--readonly .stonetop-lore-option-desc {
+	font-size: 0.9em;
+	font-weight: normal;
+	font-style: normal;
+	color: var(--color-text-dark-secondary);
+	margin-bottom: 1px;
+}
+
+.stonetop-lore-readonly-value,
+.stonetop-bg-choice-readonly {
+	font-size: 0.9em;
 	font-style: italic;
+	padding-left: 6px;
+	border-left: 2px solid rgba(0,0,0,0.12);
+}
+
+.stonetop-lore-readonly-value {
+	margin: 2px 0 4px;
 }
 
 .stonetop-lore-option--readonly {
 	align-items: flex-start;
+}
+
+.stonetop-lore-option--readonly:not(.stonetop-lore-option--text) {
+	padding-left: 8px;
+}
+
+.stonetop-lore-option--readonly:not(.stonetop-lore-option--text) .stonetop-lore-option-desc {
+	font-weight: normal;
+	font-size: 0.85rem;
+}
+
+.stonetop-lore-option--readonly .stonetop-lore-option-check {
+	opacity: 1;
+	pointer-events: none;
+	cursor: default;
+	margin-top: 1px;
+	width: 11px !important;
+	height: 11px !important;
+	flex: 0 0 11px !important;
 }
 
 .stonetop-lore-readonly-marker {
@@ -2782,18 +2834,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	line-height: 1.2;
 }
 
-.stonetop-lore-readonly-marker--spiral {
-	width: 0.9em;
-	height: 0.9em;
-	margin-top: 0.15em;
-	background: var(--color-text-dark-secondary);
-	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-}
-
 .stonetop-bg-choice-readonly {
-	margin: 1px 0 1px 12px;
-	font-size: 0.85em;
+	margin: 1px 0 4px 12px;
 }
 
 /* Moves tab: hide-unselected toggle */
@@ -2848,6 +2890,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .tab.moves .stonetop-item-name {
 	font-family: var(--font-stonetop);
 	font-size: 0.95rem;
+	flex: initial;
+}
+
+.tab.moves .stonetop-item-source {
+	margin-left: auto;
 }
 
 .tab.moves .stonetop-item-description,
@@ -2877,7 +2924,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-portrait {
 	width: 180px;
 	height: 180px;
-	object-fit: cover;
+	object-fit: contain;
 	border: 2px solid var(--color-border-dark, #888);
 	border-radius: 4px;
 	flex-shrink: 0;
@@ -4921,6 +4968,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+}
+
+/* Paired unlayered hide — see `.tab.stonetop-invocations` above for why the explicit hide is needed. */
+.steading-sheet .tab.notes {
+	display: none;
 }
 
 .steading-sheet .tab.notes.active {
@@ -7557,12 +7609,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* ── Invocations tab ──────────────────────────────────────────────────── */
 
 .stonetop-invocations {
-	display: flex;
 	flex-direction: column;
 	height: 100%;
 	overflow-y: auto;
 	padding: 10px 14px;
 	gap: 14px;
+}
+
+/* Explicit unlayered hide: the flex-container class lives on the `.tab` element itself, so the
+   unlayered `.active` rule below would otherwise beat Foundry's *layered* core `.tab{display:none}`
+   and leak this panel onto other tabs when inactive. Keep both sides unlayered and paired. */
+.tab.stonetop-invocations {
+	display: none;
+}
+
+.tab.stonetop-invocations.active {
+	display: flex;
 }
 
 .stonetop-invocations-rules {
@@ -8239,7 +8301,6 @@ li.question-bullet::before {
 	opacity: 0.65;
 }
 
-.stonetop-lore-readonly-marker--spiral,
 .stonetop-onboarding-lore-marker--spiral {
 	width: 10px;
 	height: 10px;

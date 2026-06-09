@@ -136,7 +136,7 @@
       "smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here to items below, or expend supplies to mark an additional <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span>.",
       "choosePossessionsButton": "Choose Special Possessions",
       "outfit": {
-        "heading": "When you <em><strong>Outfit</strong><em>, mark a number of <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below on specific items or as a group.",
+        "heading": "When you <em><strong>Outfit</strong></em>, mark a number of <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below on specific items or as a group.",
         "light": "For a <strong>light load</strong> (<em>quick &amp; quiet</em>), mark up to 3 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
         "normal": "For a <strong>normal load</strong>, mark 4–6 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
         "heavy": "For a <strong>heavy load</strong> (<em>noisy, slow, hot, quick to tire</em>), mark 7–9 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>"

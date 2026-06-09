@@ -213,8 +213,8 @@
       "lore": [
         {
           "slug": "fear-and-anger-fears",
-          "title": "What Do You Fear Most?",
-          "description": "<p><em>(choose 1, maybe 2)</em></p>",
+          "title": "Fear & Anger",
+          "description": "<p>What do you fear most? <em>(choose 1, maybe 2)</em></p>",
           "options": [
             {
               "slug": "fire",
@@ -312,12 +312,13 @@
         },
         {
           "slug": "fear-and-anger-story",
+          "columnBreak": true,
           "title": "When Did Your Fear or Anger Last Cause You Trouble?",
           "description": "",
           "options": [
             {
               "slug": "when-trouble",
-              "description": "When did your fear or anger last cause you trouble?",
+              "description": "",
               "type": "text"
             },
             {

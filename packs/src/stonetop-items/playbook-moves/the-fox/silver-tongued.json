@@ -21,6 +21,10 @@
         "label": "6-",
         "value": "The GM makes a move."
       }
+    },
+    "resource": {
+      "max": 3,
+      "title": "Nerve"
     }
   },
   "folder": "cdhcHAxQ02WaH2Dm"
