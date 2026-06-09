@@ -1,9 +1,10 @@
 {{#each options}}
 		{{#if (eq type "text")}}
-		{{#if textValue}}
+		{{#if (or hasAnswer arcanaPicker.selectedName)}}
 		<div class="stonetop-lore-option stonetop-lore-option--text stonetop-lore-option--readonly">
 			{{#if description}}<span class="stonetop-lore-option-desc">{{{description}}}</span>{{/if}}
-			<p class="stonetop-lore-readonly-value">{{textValue}}</p>
+			{{#if arcanaPicker.selectedName}}<p class="stonetop-lore-arcana-card{{#if arcanaPicker.muted}} is-muted{{/if}}">{{arcanaPicker.selectedName}}</p>{{/if}}
+			{{#if hasAnswer}}<p class="stonetop-lore-readonly-value">{{textValue}}</p>{{/if}}
 		</div>
 		{{/if}}
 		{{else}}

@@ -186,7 +186,21 @@ export class LoreOptionSnapshot {
 		this.checks      = this.type === "text" ? [] : Array.from({ length: this.max }, (_, i) => i < this.count);
 		this.textValue   = this.type === "text" ? (b._textValue ?? "") : null;
 		this.requires    = b._requires ?? null;
+		// Seeker Minor Arcana: per-question card picker ({ role, options, selectedSlug, selectedName, muted }).
+		this.arcanaPicker = b._arcanaPicker ?? null;
+		// A text option counts as answered only if it holds a real value — blank or a
+		// "to be written" placeholder is treated as unanswered (hidden in read-only).
+		this.hasAnswer   = this.type === "text" ? _hasRealLoreAnswer(this.textValue) : this.count > 0;
 	}
+}
+
+// Text answers matching one of these (case-insensitive, ignoring trailing
+// punctuation) are treated as unanswered placeholders, not real answers.
+const PLACEHOLDER_LORE_ANSWERS = new Set(["to be written"]);
+
+function _hasRealLoreAnswer(value) {
+	const t = String(value ?? "").trim().toLowerCase().replace(/[.\s]+$/, "");
+	return t !== "" && !PLACEHOLDER_LORE_ANSWERS.has(t);
 }
 
 export class LoreOptionSnapshotBuilder {
@@ -197,6 +211,7 @@ export class LoreOptionSnapshotBuilder {
 	withCount(v)       { this._count       = v; return this; }
 	withTextValue(v)   { this._textValue   = v; return this; }
 	withRequires(v)    { this._requires    = v; return this; }
+	withArcanaPicker(v) { this._arcanaPicker = v; return this; }
 	build()            { return new LoreOptionSnapshot(this); }
 }
 
@@ -207,7 +222,10 @@ export class LoreEntrySnapshot {
 		this.description = b._description;
 		this.options     = b._options;
 		this.columnBreak = b._columnBreak ?? false;
-		this.selectedCount = this.options.reduce((sum, o) => sum + (o.type === "text" ? (o.textValue ? 1 : 0) : o.count), 0);
+		this.subheader   = b._subheader ?? false;
+		// Seeker Major Arcanum: { slug, name, img } of the chosen arcanum, shown below the heading.
+		this.arcanaImage = b._arcanaImage ?? null;
+		this.selectedCount = this.options.reduce((sum, o) => sum + (o.type === "text" ? (o.hasAnswer ? 1 : 0) : o.count), 0);
 		this.requiredCount = _pickCountFromDescription(this.description);
 		this.isAnswered = this.requiredCount <= 0 ? this.hasSelection : this.selectedCount >= this.requiredCount;
 		this.readonlyDescription = _stripChoosePrompt(this.description);
@@ -217,7 +235,17 @@ export class LoreEntrySnapshot {
 		this.isContinuation = b._continuation ?? _isContinuationLoreEntry(this);
 	}
 	get hasSelection() {
-		return this.options.some(o => o.type === "text" ? !!o.textValue : o.count > 0);
+		return this.options.some(o => o.hasAnswer);
+	}
+	// True when any option has an assigned arcana card (Seeker Minor Arcana), so the
+	// read-only entry still renders to show the assignment even with no written note.
+	get hasArcanaSelection() {
+		return this.options.some(o => !!o.arcanaPicker?.selectedSlug);
+	}
+	// Whether this entry should render in read-only: it was answered, or it's an
+	// always-show structural entry (subheader column / chosen arcana image).
+	get showInReadonly() {
+		return this.hasSelection || this.hasArcanaSelection || !!this.arcanaImage || this.subheader;
 	}
 }
 
@@ -228,6 +256,8 @@ export class LoreEntrySnapshotBuilder {
 	withOptions(v)     { this._options     = v; return this; }
 	withColumnBreak(v) { this._columnBreak = v; return this; }
 	withContinuation(v) { this._continuation = v; return this; }
+	withSubheader(v)   { this._subheader   = v; return this; }
+	withArcanaImage(v) { this._arcanaImage = v; return this; }
 	build()            { return new LoreEntrySnapshot(this); }
 }
 
@@ -245,6 +275,12 @@ export class LoreSection {
 	get hasSelection() {
 		return this.entries.some(e => e.hasSelection);
 	}
+
+	// Whether the read-only lore section should render at all — true if any entry is
+	// shown in read-only (answered, or an always-show structural entry).
+	get hasReadonlyContent() {
+		return this.entries.some(e => e.showInReadonly);
+	}
 }
 
 // ── Playbook ──────────────────────────────────────────────────────────────────
@@ -259,6 +295,9 @@ function _stripChoosePrompt(description = "") {
 	return String(description)
 		.replace(/<p>\s*<em>\s*\((?:choose|pick)[^)]*\)\s*<\/em>\s*<\/p>/gi, "")
 		.replace(/\s*<em>\s*\((?:choose|pick)[^)]*\)\s*<\/em>/gi, "")
+		// Drop "Answer at least N …" instruction paragraphs (e.g. under the Seeker's
+		// Major Arcanum) — they're prompts for filling in, not content to display.
+		.replace(/<p>\s*answer at least \d+[^<]*<\/p>/gi, "")
 		.trim();
 }
 

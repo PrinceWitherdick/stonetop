@@ -1422,6 +1422,7 @@ input.stonetop-name-field {
 .stonetop-lore-option-check,
 .stonetop-arcanum-unlock-check,
 .stonetop-hide-unselected-check,
+.stonetop-hide-unknown-invocations-check,
 .stonetop-possession-check,
 .stonetop-possession-sub-check,
 .stonetop-inventory-item-check,
@@ -1444,6 +1445,7 @@ input.stonetop-name-field {
 .stonetop-lore-option-check:checked,
 .stonetop-arcanum-unlock-check:checked,
 .stonetop-hide-unselected-check:checked,
+.stonetop-hide-unknown-invocations-check:checked,
 .stonetop-possession-check:checked,
 .stonetop-possession-sub-check:checked,
 .stonetop-inventory-item-check:checked,
@@ -1965,6 +1967,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-item-description p {
 	margin: 0 0 2px;
+}
+
+/* Background descriptions: give multi-paragraph text real separation so the
+   flavor / mechanical beats read as distinct paragraphs (as in the PDF). */
+.stonetop-bg-description p {
+	margin: 0 0 0.7em;
+}
+
+.stonetop-bg-description p:last-child {
+	margin-bottom: 0;
 }
 
 .stonetop-item-description ul {
@@ -2674,7 +2686,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .tab.details > .details-section + .details-section {
-	margin-top: 22px;
+	margin-top: 14px;
+}
+
+/* The lore heading sits alone in its own grid row, so the h3's default ~1em margin
+   becomes an empty band around it (it can't collapse the way the block-level
+   headings below do). Pin it to a tight, explicit margin so the heading hugs its
+   content. */
+.stonetop-lore-entry--section-head .stonetop-move-group-title {
+	margin: 0 0 4px;
 }
 
 .details-section .stonetop-move-group-title {
@@ -2720,6 +2740,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-lore-columns .stonetop-lore-entry--section-head {
 	grid-column: 1 / -1;
+	margin-bottom: 2px;
+}
+
+/* The section-head sits in its own grid row, so its bottom margin can't collapse
+   with the columns below. Drop the description's trailing margin to keep the gap
+   to the first continuation title in line with the rest of the lore spacing. */
+.stonetop-lore-entry--section-head .stonetop-lore-description {
+	margin-bottom: 0;
 }
 
 .stonetop-lore-col {
@@ -2738,6 +2766,67 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-weight: 400;
 	font-style: normal;
 	line-height: 1.35;
+}
+
+/* Sub-section heading inside a lore section (e.g. the Seeker's "Major Arcanum" /
+   "Minor Arcana" columns under "Collection"). Bolder than a plain continuation
+   question, but lighter than the full-width section heading. */
+.stonetop-lore-continuation-title.stonetop-lore-subheader {
+	font-family: var(--font-stonetop);
+	font-size: 0.98em;
+	font-weight: bold;
+}
+
+/* Seeker arcana: chosen major arcanum image + name, and minor-card name/picker. */
+.stonetop-lore-arcana-major {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0 6px;
+}
+
+.stonetop-lore-arcana-img {
+	width: 40px;
+	height: 40px;
+	flex-shrink: 0;
+	object-fit: contain;
+	border: 1px solid var(--color-border-light-2);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.03);
+	cursor: pointer;
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.stonetop-lore-arcana-name {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	font-size: 0.95em;
+}
+
+.stonetop-lore-arcana-select {
+	width: 100%;
+	margin: 2px 0;
+	font-size: 0.85em;
+}
+
+.stonetop-lore-arcana-card {
+	margin: 1px 0;
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	font-size: 0.85em;
+}
+
+.stonetop-lore-arcana-card.is-muted {
+	font-weight: 400;
+	font-style: italic;
+	opacity: 0.6;
+}
+
+/* In edit mode, separate each question from the previous question's answers above
+   it. Padding (not margin) so it doesn't collapse; the first entry in a column is
+   exempt, so the gap below a section heading stays tight. */
+.stonetop-edit-mode .stonetop-lore-col .stonetop-lore-entry + .stonetop-lore-entry {
+	padding-top: 6px;
 }
 
 .stonetop-lore-option {
@@ -2871,25 +2960,34 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: none;
 }
 
-/* Moves tab: card styling to match Special Moves tab */
+/* Card styling shared by the Moves tab and the Invocations tab cards. */
 
-.tab.moves .stonetop-item {
+.tab.moves .stonetop-item,
+.stonetop-invocation-card {
 	border: 1px solid var(--color-border-light-2);
 	border-radius: 4px;
 	background: rgba(0,0,0,0.03);
 	padding: 8px 12px;
+}
+
+.tab.moves .stonetop-item {
 	margin-bottom: 6px;
 }
 
-.tab.moves .stonetop-item-header {
+.tab.moves .stonetop-item-header,
+.stonetop-invocation-header {
 	border-bottom: 1px solid rgba(0,0,0,0.12);
 	padding-bottom: 5px;
 	margin-bottom: 4px;
 }
 
-.tab.moves .stonetop-item-name {
+.tab.moves .stonetop-item-name,
+.stonetop-invocation-name {
 	font-family: var(--font-stonetop);
 	font-size: 0.95rem;
+}
+
+.tab.moves .stonetop-item-name {
 	flex: initial;
 }
 
@@ -2933,7 +3031,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.stonetop-portrait:hover {
+.stonetop-portrait:hover,
+.stonetop-lore-arcana-img:hover {
 	border-color: var(--color-text-dark-primary);
 	box-shadow: 0 0 5px rgba(0, 0, 0, 0.35);
 }
@@ -7639,81 +7738,74 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-invocations-grid {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
-	gap: 10px;
+	gap: 6px;
 	align-content: start;
 }
 
-.stonetop-invocation-card {
-	border: 1px solid #ccc;
-	border-radius: 5px;
-	padding: 8px 10px;
-	background: var(--stonetop-bg, #f5f0e8);
-	transition: opacity 0.15s;
+/* Filter: hide un-learned invocations when the toggle is on — mirrors the moves tab. */
+.tab.stonetop-invocations.hide-unknown-invocations .stonetop-invocation-card.is-unknown {
+	display: none;
 }
 
-.stonetop-invocation-card.is-unknown {
-	opacity: 0.35;
+/* The tab is a flex column with its own gap, so drop the reused label's vertical margin. */
+.tab.stonetop-invocations .stonetop-hide-unselected-label {
+	margin: 0;
 }
 
+/* Card box/header/name visuals are shared with the Moves tab (see .tab.moves .stonetop-item). */
 .stonetop-invocation-header {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	margin-bottom: 4px;
+}
+
+/* "Ongoing" badge carries the ongoing-rules text on hover. */
+.stonetop-invocation-ongoing {
+	cursor: help;
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
 }
 
 .stonetop-invocation-name {
-	font-size: 0.85em;
 	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
+	letter-spacing: 0.02em;
 	flex: 1;
 }
 
-.stonetop-invocation-known-label {
-	display: flex;
-	align-items: center;
-	flex-shrink: 0;
-}
-
-.stonetop-invocation-check {
-	appearance: none !important;
-	-webkit-appearance: none !important;
-	width: 18px;
-	height: 18px;
-	flex-shrink: 0;
-	border: none;
-	border-radius: 0;
-	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
-	cursor: pointer;
-	margin: 0;
-}
-
-.stonetop-invocation-check:checked {
-	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
-}
-
-.stonetop-invocation-known-pip {
-	width: 10px;
-	height: 10px;
-	border-radius: 50%;
-	border: 1.5px solid #aaa;
-	display: inline-block;
-	flex-shrink: 0;
-}
-
-.stonetop-invocation-known-pip.is-known {
-	background: slategrey;
-	border-color: slategrey;
-}
-
 .stonetop-invocation-desc {
-	font-size: 0.78em;
+	font-size: 0.85em;
 	line-height: 1.4;
 	color: #333;
 }
 
-.stonetop-invocation-desc p { margin: 2px 0; }
+.stonetop-invocation-desc p { margin: 3px 0; }
+
+.stonetop-invocation-desc li { margin: 1px 0; }
+
+/* Spiral bullets for prose lists that don't already get them via
+   `.stonetop-item-description` (which has its own flex-based spiral rules above). */
+.stonetop-invocation-desc ul,
+.stonetop .editor-content ul {
+	list-style: none;
+	margin: 3px 0;
+	padding-left: 1.4em;
+}
+
+.stonetop-invocation-desc ul > li,
+.stonetop .editor-content ul > li {
+	position: relative;
+}
+
+.stonetop-invocation-desc ul > li::before,
+.stonetop .editor-content ul > li::before {
+	content: "";
+	position: absolute;
+	left: -1.35em;
+	top: 0.18em;
+	width: 0.85em;
+	height: 0.85em;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg') no-repeat center / contain;
+}
 
 /* ── Followers tab ─────────────────────────────────────────────────── */
 

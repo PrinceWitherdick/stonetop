@@ -54,27 +54,44 @@ export class CharacterPostDeath {
 }
 
 // Exported so StonetopCharacter can reuse it for the playbook lore section.
-export function buildLoreSection(loreData, loreState) {
+// `arcanaDisplay` (Seeker only) carries the chosen major arcanum and the drawn
+// minor cards. Lore entries/options opt in via the data flags `arcanaImage`
+// (entry) and `arcanaRole` (option), so this stays playbook-agnostic.
+export function buildLoreSection(loreData, loreState, arcanaDisplay = null) {
 	const entries = loreData.map(entry => {
 		const options = (entry.options ?? []).map(opt => {
 			const isText = (opt.type ?? "checkbox") === "text";
-			return new LoreOptionSnapshotBuilder()
+			const builder = new LoreOptionSnapshotBuilder()
 				.withSlug(opt.slug)
 				.withDescription(opt.description)
 				.withType(opt.type ?? "checkbox")
 				.withMax(isText ? 0 : (opt.max ?? 1))
 				.withCount(isText ? 0 : loreState.getCount(entry.slug, opt.slug))
-				.withTextValue(isText ? loreState.getText(entry.slug, opt.slug) : null)
-				.build();
+				.withTextValue(isText ? loreState.getText(entry.slug, opt.slug) : null);
+			if (arcanaDisplay && opt.arcanaRole) {
+				const selectedSlug = arcanaDisplay.roles?.[opt.arcanaRole] ?? "";
+				builder.withArcanaPicker({
+					role:         opt.arcanaRole,
+					options:      arcanaDisplay.minorOptions,
+					selectedSlug,
+					selectedName: arcanaDisplay.minorOptions.find(o => o.slug === selectedSlug)?.name ?? "",
+					muted:        opt.arcanaRole === "lead",
+				});
+			}
+			return builder.build();
 		});
-		return new LoreEntrySnapshotBuilder()
+		const builder = new LoreEntrySnapshotBuilder()
 			.withSlug(entry.slug)
 			.withTitle(entry.title)
 			.withDescription(entry.description ?? "")
 			.withOptions(options)
 			.withColumnBreak(entry.columnBreak)
 			.withContinuation(entry.continuation)
-			.build();
+			.withSubheader(entry.subheader);
+		if (arcanaDisplay?.major && entry.arcanaImage) {
+			builder.withArcanaImage(arcanaDisplay.major);
+		}
+		return builder.build();
 	});
 	return new LoreSection(entries);
 }

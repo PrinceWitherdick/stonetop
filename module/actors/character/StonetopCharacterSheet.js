@@ -928,14 +928,22 @@ export function createStonetopCharacterSheetClass(Base) {
 			const raw = playbookDoc?.invocations;
 			if (!raw?.options?.length) return null;
 			const selected = new Set(this.actor.getFlag("stonetop_pwd", "invocations.selected") ?? []);
+			const options = raw.options.map(opt => ({
+				slug:        opt.slug,
+				label:       opt.label,
+				description: opt.description ?? "",
+				known:       selected.has(opt.slug),
+				ongoing:     !!opt.ongoing,
+			}));
+			// Sort known invocations first, then alphabetically — mirrors the moves tab's owned-first order.
+			options.sort((a, b) => {
+				if (a.known !== b.known) return a.known ? -1 : 1;
+				return a.label.localeCompare(b.label);
+			});
 			return {
 				startingCount: raw.startingCount ?? 2,
-				options: raw.options.map(opt => ({
-					slug:        opt.slug,
-					label:       opt.label,
-					description: opt.description ?? "",
-					known:       selected.has(opt.slug),
-				})),
+				hideUnknown:   this.actor.getFlag("stonetop_pwd", "hideUnknownInvocations") ?? false,
+				options,
 			};
 		}
 
@@ -994,6 +1002,10 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			html.find(".stonetop-hide-unselected-check").on("change", async (ev) => {
 				await this.actor.setFlag('stonetop_pwd', 'hideUnselected', ev.currentTarget.checked);
+			});
+
+			html.find(".stonetop-hide-unknown-invocations-check").on("change", async (ev) => {
+				await this.actor.setFlag('stonetop_pwd', 'hideUnknownInvocations', ev.currentTarget.checked);
 			});
 
 			html.find(".stonetop-roll-mode-input").on("change", async (ev) => {
@@ -1553,7 +1565,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, true);
 
 			html[0].addEventListener("click", ev => {
-				const thumb = ev.target.closest(".stonetop-arcanum-thumb");
+				const thumb = ev.target.closest(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img");
 				if (!thumb) return;
 				ev.stopPropagation();
 				new ImagePopout(thumb.src, { title: thumb.dataset.name }).render(true);
@@ -1618,6 +1630,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!ta || ev.target.closest("[data-pdi='lore']")) return;
 				const { loreSlug, optionSlug } = ta.dataset;
 				this._stonetopCharacter.setLoreOptionText(loreSlug, optionSlug, ta.value);
+			}, true);
+
+			html[0].addEventListener("change", ev => {
+				const sel = ev.target.closest(".stonetop-lore-arcana-select");
+				if (!sel) return;
+				this._stonetopCharacter.setMinorArcanumRole(sel.dataset.role, sel.value);
 			}, true);
 
 			html[0].addEventListener("click", ev => {

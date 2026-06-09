@@ -57,6 +57,35 @@ export class CharacterArcana {
 	get identifiedSlugs()  { return new Set(this._flags.getFlag("identified") ?? []); }
 	get unlockCounts()     { return this._flags.getFlag("unlock") ?? {}; }
 	get backOptionCounts() { return this._flags.getFlag("backOptions") ?? {}; }
+	get majorSlug()        { return this._flags.getFlag("major") ?? null; }
+	get minorDrawSlugs()   { return this._flags.getFlag("minorDraw") ?? []; }
+	get minorRoles()       { return this._flags.getFlag("minorRoles") ?? {}; }
+
+	/**
+	 * Display data for a playbook's arcana lore (the Seeker): the chosen major
+	 * arcanum (name + icon) and the drawn minor cards with their role assignments.
+	 * Minor arcana have no artwork, so they're name-only.
+	 */
+	async buildLoreDisplay() {
+		const majorSlug = this.majorSlug;
+		const drawSlugs = this.minorDrawSlugs;
+		const slugs     = [...new Set([majorSlug, ...drawSlugs].filter(Boolean))];
+		const fetched   = await this._arcanaRepo.findBySlugs(slugs);
+		const names     = Object.fromEntries(fetched.map(a => [a.slug, a.front?.title ?? a.slug]));
+		return {
+			major: majorSlug
+				? { slug: majorSlug, name: names[majorSlug] ?? majorSlug, img: majorArcanaImg(majorSlug) }
+				: null,
+			minorOptions: drawSlugs.map(slug => ({ slug, name: names[slug] ?? slug })),
+			roles: this.minorRoles,
+		};
+	}
+
+	async setMinorRole(role, slug) {
+		const roles = { ...this.minorRoles };
+		if (slug) roles[role] = slug; else delete roles[role];
+		await this._flags.setFlag("minorRoles", roles);
+	}
 
 	async buildSnapshot(stats = {}, checkedMap = {}, inventoryResources = {}) {
 		const ownedSlugs       = this.ownedSlugs;

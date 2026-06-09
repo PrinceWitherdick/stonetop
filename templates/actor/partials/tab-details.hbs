@@ -14,7 +14,7 @@
 					<strong class="stonetop-item-name">{{label}}</strong>
 				</div>
 				{{#if description}}
-				<div class="stonetop-item-description">{{{description}}}</div>
+				<div class="stonetop-item-description stonetop-bg-description">{{{description}}}</div>
 				{{/if}}
 			</label>
 			{{#if (and selected choices)}}
@@ -41,7 +41,7 @@
 					<strong class="stonetop-item-name">{{label}}</strong>
 				</div>
 				{{#if description}}
-				<div class="stonetop-item-description">{{{description}}}</div>
+				<div class="stonetop-item-description stonetop-bg-description">{{{description}}}</div>
 				{{/if}}
 			</div>
 			{{#if choices}}
@@ -166,11 +166,6 @@
 				{{#if description}}
 				<div class="stonetop-origin-description">{{{description}}}</div>
 				{{/if}}
-				{{#each names}}
-				{{#if checked}}
-				<div class="stonetop-item-description">{{name}}</div>
-				{{/if}}
-				{{/each}}
 			</div>
 			{{/if}}
 			{{/each}}

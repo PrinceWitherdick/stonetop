@@ -393,6 +393,8 @@
         },
         {
           "slug": "war-stories-questions",
+          "continuation": true,
+          "columnBreak": true,
           "title": "Answer At Least 3 of the Following",
           "description": "",
           "options": [

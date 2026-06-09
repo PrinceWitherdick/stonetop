@@ -143,6 +143,7 @@ Hooks.once("init", () => {
 		"stonetop.lore-section":          "systems/stonetop_pwd/templates/actor/partials/lore-section.hbs",
 		"stonetop.lore-options-edit":     "systems/stonetop_pwd/templates/actor/partials/lore-options-edit.hbs",
 		"stonetop.lore-options-readonly": "systems/stonetop_pwd/templates/actor/partials/lore-options-readonly.hbs",
+		"stonetop.lore-arcana-image":     "systems/stonetop_pwd/templates/actor/partials/lore-arcana-image.hbs",
 		"stonetop.section-heading":  "systems/stonetop_pwd/templates/actor/partials/section-heading.hbs",
 		"stonetop.resource-track":   "systems/stonetop_pwd/templates/actor/partials/resource-track.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop_pwd/templates/actor/partials/steading-tab-overview.hbs",

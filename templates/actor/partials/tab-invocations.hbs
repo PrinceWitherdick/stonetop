@@ -1,25 +1,27 @@
-<div class="tab stonetop-invocations" data-group="primary" data-tab="invocations">
+<div class="tab stonetop-invocations{{#if stonetop.invocations.hideUnknown}} hide-unknown-invocations{{/if}}" data-group="primary" data-tab="invocations">
 
+	{{#if stonetop.editMode}}
 	<div class="stonetop-invocations-rules">
 		<p>You start knowing <strong>{{stonetop.invocations.startingCount}}</strong> Invocations. Each time you reach an even-numbered level, learn 1 new Invocation.</p>
-		<p>While one Invocation is <em>ongoing</em>, you can't use another. You can end an Invocation whenever you wish, and it will end immediately if your holy light is extinguished. An invocation's range is equal to that of its light source.</p>
 	</div>
+	{{/if}}
+
+	<label class="stonetop-hide-unselected-label">
+		<input type="checkbox" class="stonetop-hide-unknown-invocations-check"{{#if stonetop.invocations.hideUnknown}} checked{{/if}}>
+		Hide un-learned invocations
+	</label>
 
 	<div class="stonetop-invocations-grid">
 		{{#each stonetop.invocations.options}}
 		<div class="stonetop-invocation-card{{#unless known}} is-unknown{{/unless}}">
 			<div class="stonetop-invocation-header">
-				{{#if @root.stonetop.editMode}}
-				<label class="stonetop-invocation-known-label">
-					<input type="checkbox"
-					       class="stonetop-invocation-check"
-					       data-slug="{{slug}}"
-					       {{#if known}}checked{{/if}}>
-				</label>
-				{{else}}
-				<span class="stonetop-invocation-known-pip{{#if known}} is-known{{/if}}"></span>
-				{{/if}}
+				<input type="checkbox"
+				       class="stonetop-item-check stonetop-invocation-check"
+				       data-slug="{{slug}}"
+				       {{#if known}}checked{{/if}}
+				       {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
 				<span class="stonetop-invocation-name">{{label}}</span>
+				{{#if ongoing}}<span class="stonetop-item-source stonetop-invocation-ongoing" data-tooltip="While one Invocation is ongoing, you can't use another. You can end an Invocation whenever you wish, and it will end immediately if your holy light is extinguished. An invocation's range is equal to that of its light source." data-tooltip-direction="UP">Ongoing</span>{{/if}}
 			</div>
 			<div class="stonetop-invocation-desc">{{{description}}}</div>
 		</div>

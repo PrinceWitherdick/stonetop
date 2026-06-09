@@ -2189,8 +2189,9 @@ export class CharacterOnboardingDialog extends Application {
 		const popup = document.createElement("div");
 		popup.className = "stonetop-arcana-preview-popup";
 		popup.innerHTML = source.innerHTML;
-		// Centre horizontally on the card; extra vertical gap clears the modal header.
-		this._positionPopup(popup, anchor, { align: "center", gap: 100 });
+		// Drop the preview just below the hovered card (these grids sit near the top of
+		// their step); flips above only if it would run off the bottom of the viewport.
+		this._positionPopup(popup, anchor, { align: "center", gap: 8, placement: "below" });
 	}
 
 	_showWordTooltip(anchor, text, description) {
@@ -2200,18 +2201,24 @@ export class CharacterOnboardingDialog extends Application {
 		tip.innerHTML =
 			`<p class="stonetop-word-tooltip-name">${text}</p>` +
 			`<div class="stonetop-word-tooltip-desc">${description}</div>`;
-		this._positionPopup(tip, anchor, { gap: 6, flipBelow: true });
+		this._positionPopup(tip, anchor, { gap: 6, placement: "above" });
 	}
 
-	_positionPopup(el, anchor, { align = "left", gap = 6, flipBelow = false } = {}) {
+	// `placement` is the preferred side ("above" | "below"); the popup flips to the
+	// other side only if the preferred one would run off the viewport edge.
+	_positionPopup(el, anchor, { align = "left", gap = 6, placement = "above" } = {}) {
 		document.body.appendChild(el);
 		const ar = anchor.getBoundingClientRect();
 		const pr = el.getBoundingClientRect();
-		let top  = ar.top - pr.height - gap;
+		const above = ar.top - pr.height - gap;
+		const below = ar.bottom + gap;
+		let top  = placement === "below"
+			? (below + pr.height > window.innerHeight - 8 ? above : below)
+			: (above < 8 ? below : above);
 		let left = align === "center"
 			? ar.left + ar.width / 2 - pr.width / 2
 			: ar.left;
-		if (flipBelow && top < 8) top = ar.bottom + gap;
+		top  = Math.max(8, top);
 		left = Math.max(8, Math.min(left, window.innerWidth - pr.width - 8));
 		el.style.top  = `${top}px`;
 		el.style.left = `${left}px`;

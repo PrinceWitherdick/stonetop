@@ -172,9 +172,12 @@ export class StonetopCharacter {
 		const armor = this._inventory.calculateArmor(allOutfitItems);
 		const postDeath = await this._postDeath.buildSnapshot();
 		const pdiLabel  = postDeath.activeInsert?.name ?? null;
+		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
+			? await this._arcana.buildLoreDisplay()
+			: null;
 		return new CharacterSnapshotBuilder()
 			.withName(actor.name)
-			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name) : null)
+			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withStats(_buildStatsSection(actor))
 			.withVitals(_buildVitalsSection(actor, playbookData, armor))
@@ -996,6 +999,7 @@ export class StonetopCharacter {
 	async identifyArcanum(slug)                      { await this._arcana.identifyArcanum(slug); }
 	async getArcanumChatContent(slug, flipped)       { return this._arcana.getArcanumChatContent(slug, flipped); }
 	async flipArcanum(slug)     { await this._arcana.flipArcanum(slug); }
+	async setMinorArcanumRole(role, slug) { await this._arcana.setMinorRole(role, slug); }
 	async unflipArcanum(slug)   { await this._arcana.unflipArcanum(slug); }
 	async setArcanumUnlockCount(arcanumSlug, optionSlug, count)          { await this._arcana.setUnlockCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBackOptionCount(arcanumSlug, optionSlug, count)      { await this._arcana.setBackOptionCount(arcanumSlug, optionSlug, count); }
@@ -1154,7 +1158,7 @@ function _normalizeOriginRegion(region) {
 		.trim();
 }
 
-function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore, actorName) {
+function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore, actorName, arcanaDisplay = null) {
 	const savedBg      = background.selectedSlug || null;
 	const savedChoices = background.choices;
 	const savedSetupTexts = background.setupTexts ?? {};
@@ -1233,7 +1237,7 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 		.withImg(playbookData.img ?? null)
 		.withDescription(playbookData.description ?? null)
 		.withStatsNote(playbookData.statsNote ?? null)
-		.withLore(buildLoreSection(playbookData.lore ?? [], lore))
+		.withLore(buildLoreSection(playbookData.lore ?? [], lore, arcanaDisplay))
 		.withBackground(new BackgroundSection(savedBg, bgOptions))
 		.withInstinct(new InstinctSection(savedInstinct, instinctOptions))
 		.withAppearance(new AppearanceSection(appearanceOptions))
