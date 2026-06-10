@@ -51,6 +51,7 @@ import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.
 import {capitalizeFirst} from "../../utils/strings.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
+import {maxDie, stepDie} from "../../utils/damage-die.js";
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
 const ROLL_LABELS_BY_TYPE = {
@@ -169,9 +170,10 @@ export class StonetopCharacter {
 		const moves    = await this._buildMovesSection(playbookData, ownedAllByName, actorLevel);
 		const inventory = await this._buildInventorySection(playbookData, ownedAllByName, actorLevel);
 		const allOutfitItems = await this._inventoryRepo.getAll();
-		const armor = this._inventory.calculateArmor(allOutfitItems);
 		const postDeath = await this._postDeath.buildSnapshot();
 		const pdiLabel  = postDeath.activeInsert?.name ?? null;
+		const moveBonuses = await this._ownedMoveBonuses(playbookData, ownedAllByName);
+		const armor = this._inventory.calculateArmor(allOutfitItems) + moveBonuses.armor;
 		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
 			? await this._arcana.buildLoreDisplay()
 			: null;
@@ -180,14 +182,44 @@ export class StonetopCharacter {
 			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withStats(_buildStatsSection(actor))
-			.withVitals(_buildVitalsSection(actor, playbookData, armor))
+			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses))
 			.withMoves(moves)
 			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel))
 			.withInventory(inventory)
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
 			.withRollMode(_normalizeSheetRollMode(resolvedFlags(actor).rollMode))
+			.withCrewBonuses(_buildCrewStats(playbookData?.crew, moveBonuses))
 			.build();
+	}
+
+	// Sum the max-HP and armor bonuses granted by owned playbook moves (e.g. the
+	// Heavy's Carved Out of Wood / Cut from Granite). Read from the move definitions
+	// so it works regardless of when the owned copy was added.
+	async _ownedMoveBonuses(playbookData, ownedAllByName) {
+		const totals = { hp: 0, armor: 0, crewHp: 0, damageDie: null, crewDamageSteps: 0, crewDamageCap: "d10", crewRollSteps: 0 };
+		if (!playbookData) return totals;
+		const defs  = await this._moveRepo.getPlaybookMoves(playbookData.name);
+		const marks = this._moveResources.getMarks();
+		for (const m of defs) {
+			if (!ownedAllByName.has(m.name)) continue;
+			totals.hp    += m.hpBonus    || 0;
+			totals.armor += m.armorBonus || 0;
+			// Per-option marks (e.g. Potential for Greatness): apply each checked box.
+			const moveMarks = marks[m.name] ?? {};
+			for (const opt of (m.markOptions ?? [])) {
+				const count = moveMarks[opt.slug] ?? 0;
+				if (!count) continue;
+				totals.hp     += (opt.hp     || 0) * count;
+				totals.armor  += (opt.armor  || 0) * count;
+				totals.crewHp += (opt.crewHp || 0) * count;
+				if (opt.damageDie) totals.damageDie = maxDie(totals.damageDie, opt.damageDie);
+				totals.crewDamageSteps += (opt.crewDamageStep || 0) * count;
+				if (opt.crewDamageCap) totals.crewDamageCap = opt.crewDamageCap;
+				totals.crewRollSteps += (opt.crewRoll || 0) * count;
+			}
+		}
+		return totals;
 	}
 
 	async _buildMovesSection(playbookData, ownedAllByName, actorLevel) {
@@ -203,6 +235,7 @@ export class StonetopCharacter {
 					this.buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, playbookData.name)
 				);
 				const moveResourcesMap = this._moveResources.getMoveResources();
+				const moveMarksMap     = this._moveResources.getMarks();
 				const moveBackgroundAnswers = resolvedFlags(this._actor).moves?.backgroundAnswers ?? {};
 				const improvedStatChoices   = resolvedFlags(this._actor).improvedStatChoices ?? {};
 				const source = { type: "playbook", slug: playbookData.slug };
@@ -210,7 +243,7 @@ export class StonetopCharacter {
 					.withKey("playbook")
 					.withTitle(`${playbookData.name} Moves`)
 					.withNote(playbookData.startingMovesNote ?? null)
-					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices))))
+					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap))))
 					.build()
 				);
 			}
@@ -667,6 +700,7 @@ export class StonetopCharacter {
 					slug: opt.slug,
 					label: opt.label,
 					description: opt.description ?? "",
+					detailsSection: opt.detailsSection ?? null,
 					checked: isSelected,
 					preselected: isPre,
 					preselectedSource,
@@ -1124,16 +1158,31 @@ function _buildDebilitiesSection(actor) {
 }
 
 
-function _buildVitalsSection(actor, playbookData, armorValue) {
+function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}) {
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
+	const hpBonus = moveBonuses.hp ?? 0;
+	const damage = playbookData
+		? (moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage)
+		: null;
 	return new VitalsSnapshotBuilder()
-		.withHp(playbookData ? new ValueMax(attrs.hp?.value ?? 0, playbookData.hp ?? 0) : new ValueMax(0, 0))
-		.withDamage(playbookData?.damage ?? null)
+		.withHp(playbookData ? new ValueMax(attrs.hp?.value ?? 0, (playbookData.hp ?? 0) + hpBonus) : new ValueMax(0, 0))
+		.withDamage(damage)
 		.withArmor(armorValue)
 		.withLevel(level)
 		.withXp(new ValueMax(attrs.xp?.value ?? 0, 6 + level * 2))
 		.build();
+}
+
+// Final per-Crew-member stats: the playbook's data-driven base plus the bonuses
+// from marked Marshal moves (Heroes to the Last / Veteran Crew).
+function _buildCrewStats(crew, moveBonuses) {
+	return {
+		memberHp:  (crew?.hp ?? 6) + (moveBonuses.crewHp ?? 0),
+		armor:     crew?.armor ?? 0,
+		damageDie: stepDie(crew?.damageDie ?? "d6", moveBonuses.crewDamageSteps ?? 0, moveBonuses.crewDamageCap),
+		rollMod:   (crew?.roll ?? 1) + (moveBonuses.crewRollSteps ?? 0),
+	};
 }
 
 function _originDescriptionForRegion(region) {
@@ -1245,7 +1294,36 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 		.build();
 }
 
-function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}) {
+// Build a move's mark options for display: stat-choice options (Potential for
+// Greatness) get a stat picker per slot + chips; the rest get checkbox arrays.
+function _buildMarkOptions(entry, markCounts) {
+	if (!entry.markOptions?.length) return null;
+	const statList = Object.entries(_STAT_DEFS).map(([key, { abbr }]) => ({ key, abbr }));
+	return entry.markOptions.map(opt => {
+		const stored = markCounts[opt.slug];
+		if (opt.choice === "stat") {
+			const arr = Array.isArray(stored) ? stored : [];
+			const statSlots = Array.from({ length: opt.marks ?? 1 }, (_, i) => {
+				const sel = arr[i] ?? "";
+				return {
+					index: i,
+					options: [{ key: "", abbr: "—", selected: sel === "" },
+						...statList.map(s => ({ key: s.key, abbr: s.abbr, selected: sel === s.key }))],
+				};
+			});
+			const chips = arr.filter(Boolean).map(k => _STAT_DEFS[k]?.abbr ?? String(k).toUpperCase());
+			return { slug: opt.slug, label: opt.label, choice: "stat", statSlots, chips };
+		}
+		const count = typeof stored === "number" ? stored : 0;
+		return {
+			slug:   opt.slug,
+			label:  opt.label,
+			checks: Array.from({ length: opt.marks ?? 1 }, (_, i) => ({ checked: i < count })),
+		};
+	});
+}
+
+function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}) {
 	const resourceDef = entry.resource;
 	const resource = resourceDef ? new ResourceBuilder()
 		.withCurrent(moveResourcesMap[entry.name] ?? 0)
@@ -1260,6 +1338,8 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		? new RequirementSnapshot(entry.requiresLabel, !entry.locked)
 		: null;
 	const sourceLabel = entry.isStarting ? (bgSlugs.has(_toSlug(entry.name)) ? "Background" : "Starting move") : null;
+
+	const markOptions = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {});
 
 	const statChoices = (entry.name === "Improved Stat" && entry.ownedIds.length > 0)
 		? entry.ownedIds
@@ -1292,6 +1372,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withRepeatable(repeat !== null)
 		.withBackgroundAnswer(moveBackgroundAnswers[entry.name] ?? null)
 		.withStatChoices(statChoices)
+		.withMarkOptions(markOptions)
 		.build();
 }
 

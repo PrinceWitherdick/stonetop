@@ -86,9 +86,9 @@
 				<span class="stonetop-follower-type">group follower</span>
 			</div>
 			<div class="stonetop-follower-stats">
-				<span class="stonetop-follower-stat"><strong>HP</strong> 6 each</span>
-				<span class="stonetop-follower-stat"><strong>Armor</strong> 0</span>
-				<span class="stonetop-follower-stat"><strong>Damage</strong> <a class="rollable stonetop-follower-damage-roll" data-roll="d6" data-follower-type="crew" data-follower-name="{{name}}" data-follower-pronoun="they" data-damage-form=""><i class="fas fa-dice-d6"></i></a> d6</span>
+				<span class="stonetop-follower-stat"><strong>HP</strong> {{memberHp}} each</span>
+				<span class="stonetop-follower-stat"><strong>Armor</strong> {{armor}}</span>
+				<span class="stonetop-follower-stat"><strong>Damage</strong> <a class="rollable stonetop-follower-damage-roll" data-roll="{{damageDie}}" data-follower-type="crew" data-follower-name="{{name}}" data-follower-pronoun="they" data-damage-form=""><i class="fas fa-dice-d6"></i></a> {{damageDie}}</span>
 			</div>
 		</div>
 
@@ -180,9 +180,9 @@
 							<strong class="stonetop-follower-hp-label">HP</strong>
 							<input class="stonetop-follower-hp-input" type="number"
 							       data-follower="crew-individual" data-index="{{index}}"
-							       value="{{hpCurrent}}" min="0" max="6">
+							       value="{{hpCurrent}}" min="0" max="{{hpMax}}">
 							<span class="stonetop-hp-sep">/</span>
-							<span class="stonetop-hp-max">6</span>
+							<span class="stonetop-hp-max">{{hpMax}}</span>
 						</span>
 						{{#if @root.stonetop.editMode}}
 						<button type="button" class="stonetop-crew-delete-individual stonetop-inline-btn stonetop-inline-btn--danger"
@@ -227,18 +227,19 @@
 					<strong>Group HP</strong>
 					{{#if individuals.length}}{{groupHp}}{{else}}—{{/if}}
 				</span>
-				<span class="stonetop-group-fight-stat"><strong>Armor</strong> 0</span>
+				<span class="stonetop-group-fight-stat"><strong>Armor</strong> {{armor}}</span>
+				<span class="stonetop-group-fight-stat"><strong>Roll</strong> +{{rollMod}}</span>
 				<span class="stonetop-group-fight-stat">
 					<strong>Damage</strong>
 					<a class="rollable stonetop-follower-damage-roll stonetop-group-fight-dmg-roll"
-					   data-roll="d6"
+					   data-roll="{{damageDie}}"
 					   data-follower-type="crew"
 					   data-follower-name="{{#if name}}{{name}}{{else}}crew{{/if}}"
 					   data-follower-pronoun="they"
 					   data-damage-form="">
 						<i class="fas fa-dice-d6"></i>
 					</a>
-					<span class="stonetop-group-fight-dmg-label">d6</span>
+					<span class="stonetop-group-fight-dmg-label">{{damageDie}}</span>
 				</span>
 			</div>
 			<div class="stonetop-group-fight-outnumber-row">

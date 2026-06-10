@@ -402,6 +402,7 @@
           {
             "slug": "sacred-pouch",
             "label": "Sacred pouch (<em>magical</em>)",
+            "detailsSection": "Sacred Pouch",
             "description": "<p>Doesn't take up space in your inventory. It can hold up to 3 Stock (sacred herbs, powders, stones, pigments, chalks, clay, and so forth). Each time you gain an even-numbered level, your pouch can hold +1 Stock. When anyone but you looks inside your sacred pouch and touches the materials therein, the Stock is ruined.</p><p>When you have a few days of downtime in familiar terrain, you may replenish your Stock.</p><p>When you Forage, you can produce Stock instead of provisions.</p>",
             "usesBonus": {
               "evenLevelBonus": 1,

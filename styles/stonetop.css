@@ -1426,6 +1426,7 @@ input.stonetop-name-field {
 .stonetop-possession-check,
 .stonetop-possession-sub-check,
 .stonetop-inventory-item-check,
+.stonetop-move-mark-check,
 .steading-improvement-complete,
 .steading-improvement-req,
 .steading-list-check {
@@ -1449,6 +1450,7 @@ input.stonetop-name-field {
 .stonetop-possession-check:checked,
 .stonetop-possession-sub-check:checked,
 .stonetop-inventory-item-check:checked,
+.stonetop-move-mark-check:checked,
 .steading-improvement-complete:checked,
 .steading-improvement-req:checked,
 .steading-list-check:checked {
@@ -1457,9 +1459,41 @@ input.stonetop-name-field {
 
 .stonetop-item-check:disabled,
 .stonetop-lore-option-check:disabled,
+.stonetop-move-mark-check:disabled,
 .stonetop-arcanum-unlock-check:disabled {
 	opacity: 0.35;
 	cursor: default;
+}
+
+.stonetop-move-marks {
+	list-style: none;
+	margin: 4px 0 0;
+	padding: 0;
+}
+.stonetop-move-marks .stonetop-move-mark::before { content: none !important; }
+.stonetop-move-mark {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 3px 0;
+}
+.stonetop-move-mark-checks,
+.stonetop-move-mark-stats {
+	display: inline-flex;
+	gap: 3px;
+	flex: 0 0 auto;
+}
+.stonetop-move-mark-stat {
+	width: auto;
+	min-width: 44px;
+	height: 20px;
+	font-family: var(--font-stonetop);
+	font-size: 0.8em;
+	padding: 0 2px;
+}
+.stonetop-move-mark-label {
+	font-family: var(--font-stonetop);
+	line-height: 1.2;
 }
 
 .stonetop-item-name {

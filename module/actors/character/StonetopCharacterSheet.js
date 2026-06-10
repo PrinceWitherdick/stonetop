@@ -735,9 +735,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
-			// reassign stonetop to system
-			context.system.attributes.armor.value = context.stonetop.vitals.armor
-			context.system.attributes.xp.max = context.stonetop.vitals.xp.max
+			// Mirror computed vitals back onto system attributes for the sheet's inputs.
+			// HP-max and damage are playbook-derived, so they only apply with a playbook —
+			// keeps onboarding-built characters from showing the stale template default.
+			const v = context.stonetop.vitals;
+			const vitalsToSystem = {
+				"attributes.armor.value": v.armor,
+				"attributes.xp.max":      v.xp.max,
+				...(context.stonetop.playbook ? {
+					"attributes.hp.max":       v.hp.max,
+					"attributes.damage.value": v.damage,
+				} : {}),
+			};
+			for (const [path, value] of Object.entries(vitalsToSystem)) {
+				foundry.utils.setProperty(context.system, path, value);
+			}
 			// Followers tab — build data from flags + playbook definition.
 			// Pass smallItemLimit from the already-computed snapshot so crew gear
 			// uses the exact same prosperity value as outfit inventory items.
@@ -751,7 +763,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					CharacterOnboardingDialog.questionCompletionDiagnostics(playbookDoc, selections),
 				);
 			}
-			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null);
+			const crewStats               = context.stonetop.crewBonuses ?? { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 };
+			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null, crewStats);
 			context.stonetop.hasFollowers = !!(
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
@@ -769,8 +782,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			return context;
 		}
 
-		_buildFollowersData(playbookDoc, smallItemLimit = null) {
+		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }) {
 			const sf = resolvedFlags(this.actor);
+			const crewMaxHp = crewStats.memberHp ?? 6;
+			const crewArmor = crewStats.armor ?? 0;
+			const crewDamageDie = crewStats.damageDie ?? "d6";
+			const crewRollMod = crewStats.rollMod ?? 1;
 
 			// -- Animal Companion (Ranger) ------------------------------
 			let animalCompanion = null;
@@ -842,7 +859,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				};
 				const crewIndividuals = (sf.crew?.individuals ?? []).map((ind, idx) => {
 					const indHpRaw = (sf.crew?.individualsHp ?? {})[idx];
-					return { ...ind, index: idx, hpCurrent: indHpRaw != null ? Math.min(Math.max(0, Number(indHpRaw)), 6) : 6 };
+					return { ...ind, index: idx, hpMax: crewMaxHp, hpCurrent: indHpRaw != null ? Math.min(Math.max(0, Number(indHpRaw)), crewMaxHp) : crewMaxHp };
 				});
 				crew = {
 					name:      sf.crew.name     ?? "",
@@ -874,7 +891,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					}),
 					individuals:       crewIndividuals,
 					individualOptions: playbookDoc?.crew?.individualOptions ?? {},
-					groupHp:           crewIndividuals.length * 6,
+					groupHp:           crewIndividuals.length * crewMaxHp,
+					memberHp:          crewMaxHp,
+					armor:             crewArmor,
+					damageDie:         crewDamageDie,
+					rollMod:           crewRollMod,
 				};
 			}
 
@@ -1638,6 +1659,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter.setMinorArcanumRole(sel.dataset.role, sel.value);
 			}, true);
 
+			html[0].addEventListener("change", ev => {
+				const cb = ev.target.closest(".stonetop-move-mark-check");
+				if (cb) {
+					const { moveName, markSlug, idx } = cb.dataset;
+					this._stonetopCharacter.moveResources.setMark(moveName, markSlug, cb.checked ? Number(idx) + 1 : Number(idx));
+					return;
+				}
+				const sel = ev.target.closest(".stonetop-move-mark-stat");
+				if (sel) {
+					const { moveName, markSlug, idx } = sel.dataset;
+					this._stonetopCharacter.moveResources.setMarkChoice(moveName, markSlug, Number(idx), sel.value);
+				}
+			}, true);
+
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-pdi-activate");
 				if (!btn) return;
@@ -1792,6 +1827,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			return textEditor?.getDragEventData(ev) ?? TextEditor.getDragEventData(ev);
 		}
 
+		// Initial HP for a newly-assigned playbook (full HP). max is also synced in
+		// getData, but the current value must be seeded here or it stays at the default.
+		_playbookHpInit(playbookDoc) {
+			const hp = playbookDoc.flags?.stonetop?.hp;
+			return hp ? { "system.attributes.hp.max": hp, "system.attributes.hp.value": hp } : {};
+		}
+
 		async _onDropPlaybook(playbookDoc) {
 			if (!this.isEditable) return;
 			if (playbookDoc.flags?.stonetop?.lore?.length) {
@@ -1806,6 +1848,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					name: playbookDoc.name,
 					slug: playbookDoc.system?.slug ?? "",
 				},
+				...this._playbookHpInit(playbookDoc),
 			});
 			await this._stonetopCharacter.ensureStartingMoves();
 			this.render(false);
@@ -2369,6 +2412,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const slug = playbookDoc.system?.slug ?? "";
 			const updates = {
 				"system.playbook": { uuid: playbookDoc.uuid, name: playbookDoc.name, slug },
+				...this._playbookHpInit(playbookDoc),
 			};
 			if (slug && isDefaultImg(this.actor.img)) {
 				const icon = `systems/stonetop_pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`;

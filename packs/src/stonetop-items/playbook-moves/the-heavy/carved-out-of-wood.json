@@ -6,7 +6,8 @@
   "system": {
     "playbook": "The Heavy",
     "moveType": "playbook",
-    "description": "<p>Increase your max HP by 4.</p>"
+    "description": "<p>Increase your max HP by 4.</p>",
+    "hpBonus": 4
   },
   "folder": "EGBb1iIndbhAI7zU"
 }

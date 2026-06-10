@@ -52,6 +52,7 @@ export class MoveSnapshot {
 		this.repeatable    = b._repeatable;
 		this.backgroundAnswer = b._backgroundAnswer;
 		this.statChoices   = b._statChoices ?? null;
+		this.markOptions   = b._markOptions ?? null;
 	}
 }
 
@@ -76,6 +77,7 @@ export class MoveSnapshotBuilder {
 	withRepeatable(v)    { this._repeatable    = v; return this; }
 	withBackgroundAnswer(v) { this._backgroundAnswer = v ?? null; return this; }
 	withStatChoices(v)   { this._statChoices      = v ?? null; return this; }
+	withMarkOptions(v)   { this._markOptions      = v ?? null; return this; }
 	build()              { return new MoveSnapshot(this); }
 }
 

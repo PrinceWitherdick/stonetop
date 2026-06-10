@@ -24,4 +24,30 @@ export class MoveResources {
 		await this._flags.setFlag(key, {...current, [moveName]: newValue});
 	}
 
+	// Per-option checkbox marks for moves like "Potential for Greatness":
+	// { [moveName]: { [optionSlug]: checkedCount } }
+	getMarks() {
+		return this._flags.getFlag("moveMarks") ?? {};
+	}
+
+	async setMark(moveName, optionSlug, count) {
+		await this._writeMark(moveName, optionSlug, count);
+	}
+
+	// Per-slot choice (e.g. which stat each "Potential for Greatness" mark boosts):
+	// stored as an array at moveMarks[moveName][optionSlug].
+	async setMarkChoice(moveName, optionSlug, index, value) {
+		const prev = this.getMarks()[moveName]?.[optionSlug];
+		const arr = Array.isArray(prev) ? [...prev] : [];
+		arr[index] = value;
+		await this._writeMark(moveName, optionSlug, arr);
+	}
+
+	async _writeMark(moveName, optionSlug, value) {
+		const current = this.getMarks();
+		await this._flags.setFlag("moveMarks", {
+			...current,
+			[moveName]: { ...(current[moveName] ?? {}), [optionSlug]: value },
+		});
+	}
 }

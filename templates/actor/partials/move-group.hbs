@@ -53,6 +53,41 @@
 				{{#if sourceLabel}}<span class="stonetop-item-source">{{sourceLabel}}</span>{{/if}}
 			</div>
 			<div class="stonetop-item-description">{{{boldMissText description}}}</div>
+			{{#if markOptions}}
+			<ul class="stonetop-move-marks">
+				{{#each markOptions}}
+				<li class="stonetop-move-mark">
+					{{#if statSlots}}
+					<span class="stonetop-move-mark-stats">
+						{{#each statSlots}}
+						<select class="stonetop-move-mark-stat"
+						        data-move-name="{{../../name}}"
+						        data-mark-slug="{{../slug}}"
+						        data-idx="{{index}}"
+						        {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+							{{#each options}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{abbr}}</option>{{/each}}
+						</select>
+						{{/each}}
+					</span>
+					<span class="stonetop-move-mark-label">{{label}}</span>
+					{{#each chips}}<span class="stonetop-stat-boost-chip">+1 {{this}}</span>{{/each}}
+					{{else}}
+					<span class="stonetop-move-mark-checks">
+						{{#each checks}}
+						<input type="checkbox" class="stonetop-move-mark-check"
+						       data-move-name="{{../../name}}"
+						       data-mark-slug="{{../slug}}"
+						       data-idx="{{@index}}"
+						       {{#if checked}}checked{{/if}}
+						       {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+						{{/each}}
+					</span>
+					<span class="stonetop-move-mark-label">{{label}}</span>
+					{{/if}}
+				</li>
+				{{/each}}
+			</ul>
+			{{/if}}
 			{{#if statChoices}}
 			<div class="stonetop-stat-choices">
 				{{#each statChoices}}

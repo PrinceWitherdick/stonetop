@@ -1,5 +1,15 @@
 <div class="tab details{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="details">
 
+		{{#each stonetop.inventory.possessions.items}}
+		{{#if (and detailsSection checked choiceGroups)}}
+		<div class="details-section">
+			{{> "stonetop.section-heading" title=detailsSection}}
+			{{#if description}}<div class="stonetop-item-description">{{{description}}}</div>{{/if}}
+			{{> "stonetop.possession-choice-groups" scope="details-"}}
+		</div>
+		{{/if}}
+		{{/each}}
+
 		{{> "stonetop.lore-section" lore=stonetop.playbook.lore}}
 
 		{{#if stonetop.playbook.background.options.length}}

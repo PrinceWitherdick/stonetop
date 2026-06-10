@@ -38,5 +38,6 @@ export class PlaybookMoveEntry {
 			: null;
 		this.resource = entry.resource;
 		this.resourceChecks = null;
+		this.markOptions = entry.markOptions ?? null;
 	}
 }
