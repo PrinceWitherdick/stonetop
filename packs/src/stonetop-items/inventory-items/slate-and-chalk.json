@@ -11,7 +11,9 @@
       "slug": "slate-and-chalk",
       "inventoryColumn": "small",
       "sortOrder": 31,
-      "smallGrid": true
+      "smallGrid": true,
+      "special": true,
+      "specialCategory": "Writing Implements"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

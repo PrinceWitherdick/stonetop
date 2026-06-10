@@ -1,5 +1,5 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
-import { ensureStonetopSingleton } from "./StonetopSingleton.js";
+import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { applySheetFont, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -30,6 +30,7 @@ export async function onReady() {
 	if (game.user.isGM) await _ensureEndOfSessionMacro();
 	if (game.user.isGM) await _ensureIntroductionsMacro();
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
+	if (game.user.isGM) await remindDestinedOmenRoll();
 }
 
 async function _ensureEndOfSessionMacro() {

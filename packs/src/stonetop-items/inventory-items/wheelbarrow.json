@@ -12,7 +12,9 @@
       "inventoryColumn": "regular",
       "sortOrder": 47,
       "weight": 1,
-      "breakBefore": true
+      "breakBefore": true,
+      "special": true,
+      "specialCategory": "Tools & Trades"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

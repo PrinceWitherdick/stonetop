@@ -11,7 +11,9 @@
       "slug": "wax-tablet-stylus",
       "inventoryColumn": "small",
       "sortOrder": 32,
-      "smallGrid": true
+      "smallGrid": true,
+      "special": true,
+      "specialCategory": "Writing Implements"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

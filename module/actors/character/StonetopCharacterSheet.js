@@ -443,7 +443,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["pbta", "stonetop", "sheet", "actor", "character"],
-				width: 1200,
+				width: 960,
 				minWidth: 800,
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
@@ -1257,6 +1257,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, true);
 			html.find(".stonetop-inv-add-btn").on("click", this._onAddInventoryItem.bind(this));
 			html.find(".stonetop-inv-delete").on("click", this._onDeleteCustomInventoryItem.bind(this));
+			html.find(".stonetop-inv-remove-special").on("click", this._onRemoveSpecialItem.bind(this));
 			html.find(".stonetop-outfit-load-radio").on("change", this._onOutfitLoad.bind(this));
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
@@ -1367,7 +1368,7 @@ export function createStonetopCharacterSheetClass(Base) {
 
 				// Build one chip's inner HTML from its tokens, tracking slot indices
 				const buildChipInner = (tokens, safeVal) => {
-					let html    = `<input type="checkbox" name="traits" value="${safeVal}">`;
+					let html    = `<input type="checkbox" class="stonetop-check" name="traits" value="${safeVal}">`;
 					let slotIdx = 0;
 					for (const tok of tokens) {
 						if (tok.type === "text") {
@@ -1403,7 +1404,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					if (simple) {
 						return `<span class="stonetop-trait-chip-group">
 							<label class="stonetop-individual-trait-chip">
-								<input type="checkbox" name="traits" value="${safeVal}"> ${t}
+								<input type="checkbox" class="stonetop-check" name="traits" value="${safeVal}"> ${t}
 							</label>
 						</span>`;
 					}
@@ -1663,13 +1664,19 @@ export function createStonetopCharacterSheetClass(Base) {
 				const cb = ev.target.closest(".stonetop-move-mark-check");
 				if (cb) {
 					const { moveName, markSlug, idx } = cb.dataset;
-					this._stonetopCharacter.moveResources.setMark(moveName, markSlug, cb.checked ? Number(idx) + 1 : Number(idx));
+					this._stonetopCharacter.setCountMark(moveName, markSlug, cb.checked ? Number(idx) + 1 : Number(idx));
 					return;
 				}
 				const sel = ev.target.closest(".stonetop-move-mark-stat");
 				if (sel) {
 					const { moveName, markSlug, idx } = sel.dataset;
-					this._stonetopCharacter.moveResources.setMarkChoice(moveName, markSlug, Number(idx), sel.value);
+					this._stonetopCharacter.setStatSlot(moveName, markSlug, Number(idx), sel.value);
+					return;
+				}
+				const lvl = ev.target.closest(".stonetop-move-mark-level");
+				if (lvl) {
+					const { moveName, markSlug, idx } = lvl.dataset;
+					this._stonetopCharacter.setMarkLevel(moveName, markSlug, Number(idx), parseInt(lvl.value, 10));
 				}
 			}, true);
 
@@ -1927,7 +1934,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					<strong>${_esc(guide.picksLabel ?? "Choose")}</strong>
 					<div class="stonetop-homestead-choice-list">
 						${guide.picks.map((pick, index) => `<label class="stonetop-homestead-choice">
-							<input type="checkbox" name="pick.${index}" value="${_esc(pick)}">
+							<input type="checkbox" class="stonetop-check" name="pick.${index}" value="${_esc(pick)}">
 							<span>${_esc(pick)}</span>
 						</label>`).join("")}
 					</div>
@@ -2149,6 +2156,10 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		async _onDeleteCustomInventoryItem(ev) {
 			await this._stonetopCharacter.removeCustomInventoryItem(ev.currentTarget.dataset.ownedId);
+		}
+
+		async _onRemoveSpecialItem(ev) {
+			await this._stonetopCharacter.removeSpecialItem(ev.currentTarget.dataset.slug);
 		}
 
 		async _onInventoryReset() {

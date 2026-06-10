@@ -20,7 +20,9 @@
           "",
           ""
         ]
-      }
+      },
+      "special": true,
+      "specialCategory": "Exotic Stuff"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

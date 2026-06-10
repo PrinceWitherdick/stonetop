@@ -12,7 +12,9 @@
       "inventoryColumn": "regular",
       "sortOrder": 43,
       "note": "smithing, glassblowing, scribing, etc.; <em>immobile</em>",
-      "weight": 3
+      "weight": 3,
+      "special": true,
+      "specialCategory": "Tools & Trades"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

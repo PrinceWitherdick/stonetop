@@ -12,7 +12,9 @@
       "inventoryColumn": "regular",
       "sortOrder": 45,
       "note": "<em>fragile</em>",
-      "weight": 1
+      "weight": 1,
+      "special": true,
+      "specialCategory": "Writing Implements"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

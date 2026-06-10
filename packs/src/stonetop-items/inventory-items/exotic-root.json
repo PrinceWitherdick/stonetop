@@ -13,7 +13,9 @@
       "sortOrder": 51,
       "note": "burnt fumes repel perversions of nature; lasts ~1 hour, <em>reach</em>, <em>area</em>",
       "weight": 1,
-      "breakBefore": true
+      "breakBefore": true,
+      "special": true,
+      "specialCategory": "Exotic Stuff"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

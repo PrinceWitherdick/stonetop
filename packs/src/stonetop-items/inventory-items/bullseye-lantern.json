@@ -20,7 +20,9 @@
           "running low",
           "out"
         ]
-      }
+      },
+      "special": true,
+      "specialCategory": "Light Sources"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

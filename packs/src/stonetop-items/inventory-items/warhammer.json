@@ -12,7 +12,9 @@
       "inventoryColumn": "regular",
       "sortOrder": 32,
       "note": "<em>iron</em>, <em>close</em>, 2 piercing",
-      "weight": 1
+      "weight": 1,
+      "special": true,
+      "specialCategory": "Weapons of War"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

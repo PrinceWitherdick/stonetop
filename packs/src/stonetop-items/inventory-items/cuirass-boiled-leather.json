@@ -15,7 +15,9 @@
       "breakBefore": true,
       "armor": {
         "modifier": 1
-      }
+      },
+      "special": true,
+      "specialCategory": "Armor"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

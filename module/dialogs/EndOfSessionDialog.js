@@ -1,4 +1,5 @@
 import { KeepOnTop } from "../utils/keep-on-top.js";
+import { resetOmenReminder } from "../hooks/StonetopSingleton.js";
 
 const GROUP_QUESTIONS = [
 	{ key: "learnedWorld",       label: "Did we learn more about the world or its history?" },
@@ -81,6 +82,7 @@ export class EndOfSessionDialog extends Application {
 			});
 		}
 
+		await resetOmenReminder();
 		this.close();
 	}
 }

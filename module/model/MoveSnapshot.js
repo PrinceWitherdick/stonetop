@@ -53,6 +53,7 @@ export class MoveSnapshot {
 		this.backgroundAnswer = b._backgroundAnswer;
 		this.statChoices   = b._statChoices ?? null;
 		this.markOptions   = b._markOptions ?? null;
+		this.asterisk      = b._asterisk ?? false;
 	}
 }
 
@@ -78,6 +79,7 @@ export class MoveSnapshotBuilder {
 	withBackgroundAnswer(v) { this._backgroundAnswer = v ?? null; return this; }
 	withStatChoices(v)   { this._statChoices      = v ?? null; return this; }
 	withMarkOptions(v)   { this._markOptions      = v ?? null; return this; }
+	withAsterisk(v)      { this._asterisk         = !!v; return this; }
 	build()              { return new MoveSnapshot(this); }
 }
 

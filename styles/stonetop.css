@@ -79,6 +79,10 @@
 	--color-the-judge: hsl(244, 93%, 18%);
 	--stonetop-diamond-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond.svg');
 	--stonetop-diamond-selected-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond_selected.svg');
+	/* Standard gap between a spiral bullet and its text (matches the Stonetop Assets list). */
+	--stonetop-spiral-gap: 8px;
+	/* The spiral icon used for bullets/markers throughout the sheets. */
+	--stonetop-spiral-icon: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
 
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
@@ -130,7 +134,7 @@ body,
 }
 
 #pause img {
-	content: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	content: var(--stonetop-spiral-icon);
 	--fa-animation-duration: 15s;
 	animation-duration: 15s;
 	filter: invert(1);
@@ -1343,8 +1347,10 @@ input.stonetop-name-field {
 .stonetop-basic-move-panel li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-basic-move-panel li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+	background-image: var(--stonetop-spiral-icon);
+	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.6;
+	/* The spiral SVG is dark; invert it so it shows on the panel's dark background. */
+	filter: invert(1);
 }
 .stonetop-basic-move-panel strong { font-weight: bold; }
 .stonetop-basic-move-panel em { font-style: italic; }
@@ -1392,9 +1398,10 @@ input.stonetop-name-field {
 	color: var(--color-text-dark-secondary);
 }
 
+/* Multi-column (masonry-style) so short move cards don't leave big gaps —
+   cards flow and the columns balance by height instead of aligning rows. */
 .stonetop-move-group .items-list {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
+	columns: 2;
 	column-gap: 16px;
 	padding: 0;
 	margin: 4px 0 0;
@@ -1402,7 +1409,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-moves-sidebar .items-list {
-	grid-template-columns: 1fr;
+	columns: 1;
 }
 
 /* -- Shared: item rows (moves + possessions + details) ----- */
@@ -1418,6 +1425,7 @@ input.stonetop-name-field {
 	gap: 8px;
 }
 
+.stonetop-check,
 .stonetop-item-check,
 .stonetop-lore-option-check,
 .stonetop-arcanum-unlock-check,
@@ -1427,6 +1435,9 @@ input.stonetop-name-field {
 .stonetop-possession-sub-check,
 .stonetop-inventory-item-check,
 .stonetop-move-mark-check,
+.stonetop-eos-group-check,
+.stonetop-outfit-item-check,
+.stonetop-levelup-locked-check,
 .steading-improvement-complete,
 .steading-improvement-req,
 .steading-list-check {
@@ -1442,6 +1453,7 @@ input.stonetop-name-field {
 	margin: 0;
 }
 
+.stonetop-check:checked,
 .stonetop-item-check:checked,
 .stonetop-lore-option-check:checked,
 .stonetop-arcanum-unlock-check:checked,
@@ -1451,6 +1463,9 @@ input.stonetop-name-field {
 .stonetop-possession-sub-check:checked,
 .stonetop-inventory-item-check:checked,
 .stonetop-move-mark-check:checked,
+.stonetop-eos-group-check:checked,
+.stonetop-outfit-item-check:checked,
+.stonetop-levelup-locked-check:checked,
 .steading-improvement-complete:checked,
 .steading-improvement-req:checked,
 .steading-list-check:checked {
@@ -1474,14 +1489,27 @@ input.stonetop-name-field {
 .stonetop-move-mark {
 	display: flex;
 	align-items: center;
+	flex-wrap: wrap;
 	gap: 6px;
 	margin: 3px 0;
 }
-.stonetop-move-mark-checks,
-.stonetop-move-mark-stats {
+.stonetop-move-mark-checks {
 	display: inline-flex;
+	flex-wrap: wrap;
 	gap: 3px;
 	flex: 0 0 auto;
+}
+/* Potential for Greatness: stat-increase dropdowns (label first, slots wrap below it). */
+.stonetop-move-mark-slots {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	flex: 1 1 100%;
+}
+.stonetop-move-mark-slot {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
 }
 .stonetop-move-mark-stat {
 	width: auto;
@@ -1491,9 +1519,28 @@ input.stonetop-name-field {
 	font-size: 0.8em;
 	padding: 0 2px;
 }
+/* "(level N)" recorded per mark; a compact editable number in edit mode. */
+.stonetop-move-mark-level-text,
+.stonetop-move-mark-level-wrap {
+	font-family: var(--font-stonetop);
+	font-size: 0.8em;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+.stonetop-move-mark-level {
+	width: 2.6em;
+	height: 18px;
+	padding: 0 2px;
+	font-family: var(--font-stonetop);
+	font-size: 1em;
+	text-align: center;
+}
 .stonetop-move-mark-label {
 	font-family: var(--font-stonetop);
 	line-height: 1.2;
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-wrap: anywhere;
 }
 
 .stonetop-item-name {
@@ -1505,6 +1552,13 @@ input.stonetop-name-field {
 
 .stonetop-item-name em {
 	font-weight: normal;
+}
+
+/* Would-Be Hero: asterisked moves whose first use crosses off "Would-be". */
+.stonetop-move-asterisk {
+	cursor: help;
+	color: var(--color-the-lightbearer);
+	font-weight: bold;
 }
 
 .stonetop-move-roll-chip {
@@ -1623,7 +1677,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-chat-move-description li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-chat-move-description li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -1676,7 +1730,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -1719,7 +1773,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 :is(#chat, #chat-notifications) .message .stonetop-startup-card__section li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -2032,7 +2086,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 9px;
 	height: 9px;
 	margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -2156,17 +2210,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: flex-start;
 }
 
-.stonetop-inventory-regular { flex: 1 1 0; min-width: min-content; }
+.stonetop-inventory-regular { flex: 2 1 0; min-width: min-content; }
 .stonetop-inventory-small   { flex: 1 1 0; min-width: min-content; }
 
 
 .stonetop-inv-item {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	gap: 4px;
 	margin: 1px 0;
 	font-size: 0.9em;
 }
+
+/* Small items live in the narrow (half-width) column; keep each on a single line. */
+.stonetop-inv-item.stonetop-inv-small { font-size: 0.8em; }
+.stonetop-inv-item.stonetop-inv-small .stonetop-inv-label { white-space: nowrap; }
 
 .stonetop-inv-diamonds {
 	display: inline-flex;
@@ -2217,13 +2275,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-inv-item.is-checked .stonetop-inv-square { background: currentColor; }
 
 .stonetop-inv-label { flex: 1; font-weight: bold; font-style: normal; }
-.stonetop-inv-item:has(.stonetop-inv-resources) .stonetop-inv-label { padding-right: 100px; }
 
 .stonetop-inv-resources {
 	display: inline-flex;
 	gap: 2px;
 	align-items: center;
-	margin-left: 4px;
 }
 
 .stonetop-inv-resource-btn {
@@ -2268,7 +2324,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 0 8px;
 }
 
-.stonetop-inv-delete {
+.stonetop-inv-delete,
+.stonetop-inv-remove-special {
 	display: none;
 	margin-left: auto;
 	color: var(--color-text-dark-secondary);
@@ -2276,9 +2333,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: 0.75em;
 }
 
-.stonetop-inv-item:hover .stonetop-inv-delete { display: inline; }
+.stonetop-inv-item:hover .stonetop-inv-delete,
+.stonetop-inv-item:hover .stonetop-inv-remove-special { display: inline; }
 
-.stonetop-inv-add-btn {
+.stonetop-inv-add-btn,
+.stonetop-add-special-btn {
 	font-size: 0.8em;
 	padding: 1px 6px;
 	margin-top: 4px;
@@ -2287,6 +2346,68 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border: 1px dashed var(--color-border-light, #ccc);
 	width: 100%;
 }
+
+.stonetop-add-special-btn {
+	border-style: solid;
+	font-family: var(--font-stonetop);
+}
+
+/* Add Special Item picker */
+.stonetop-special-picker { padding: 4px 2px; }
+.stonetop-special-picker-intro { font-size: 0.85em; color: var(--color-text-dark-secondary); margin: 0 0 8px; }
+.stonetop-special-picker-cols { display: flex; gap: 18px; align-items: flex-start; }
+.stonetop-special-picker-col { flex: 1; min-width: 0; }
+.stonetop-special-picker-head {
+	display: flex;
+	justify-content: space-between;
+	font-family: var(--font-stonetop);
+	font-size: 0.8em;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--color-text-dark-secondary);
+	border-bottom: 2px solid var(--color-border-dark, #999);
+	padding: 0 6px 2px;
+}
+.stonetop-special-picker-head-value { width: 40px; text-align: center; flex: 0 0 40px; }
+.stonetop-special-picker-cat {
+	font-family: var(--font-stonetop);
+	font-size: 0.95em;
+	margin: 8px 0 2px;
+	border-bottom: 1px solid var(--color-border-light, #ccc);
+}
+.stonetop-special-pick {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	width: 100%;
+	text-align: left;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	padding: 1px 6px;
+	line-height: 1.25;
+	cursor: pointer;
+}
+.stonetop-special-pick:hover { background: rgba(0, 0, 0, 0.06); border-color: var(--color-border-light, #ccc); }
+.stonetop-special-pick.is-added { opacity: 0.45; cursor: default; }
+.stonetop-special-pick-text { flex: 1; }
+.stonetop-special-pick-name { font-weight: bold; }
+.stonetop-special-pick-traits { font-style: italic; color: var(--color-text-dark-secondary); }
+.stonetop-special-pick-value { flex: 0 0 40px; text-align: center; font-variant-numeric: tabular-nums; }
+.stonetop-special-pick-value[data-tooltip] { cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
+
+/* Relative Value hover list (rendered inside the dark Foundry tooltip): spiral
+   bullets, inverted so the dark spiral SVG shows on the dark tooltip background. */
+.stonetop-rel-value { list-style: none; margin: 4px 0 0; padding: 0; text-align: left; }
+.stonetop-rel-value li { display: flex; align-items: flex-start; gap: var(--stonetop-spiral-gap); margin: 2px 0; }
+.stonetop-rel-value li::before {
+	content: ""; flex: 0 0 10px; width: 10px; height: 10px; margin-top: 0.2em;
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.6;
+	filter: invert(1);
+}
+.stonetop-special-picker-footnote { font-size: 0.78em; color: var(--color-text-dark-secondary); margin: 10px 0 0; }
+.stonetop-special-picker-actions { margin-top: 12px; text-align: right; }
 
 /* Special possessions — 2 columns */
 .stonetop-possession-list {
@@ -2533,7 +2654,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-arcanum-body li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-arcanum-body li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -2709,7 +2830,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-arcanum-chat-card li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-arcanum-chat-card li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -3478,7 +3599,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 9px;
 	height: 9px;
 	margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -3731,7 +3852,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 9px;
 	height: 9px;
 	margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -5201,7 +5322,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 10px;
 	height: 10px;
 	flex-shrink: 0;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -6137,6 +6258,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 3px;
 }
 
+/* Checkbox fields put the box to the left of its label, on one line. */
+.stonetop-homestead-field--check {
+	flex-direction: row;
+	align-items: center;
+	gap: 6px;
+}
+.stonetop-homestead-field--check span { font-weight: normal; font-size: 0.9em; }
+
 .stonetop-homestead-field span {
 	font-weight: bold;
 	font-size: 0.84em;
@@ -6245,7 +6374,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-move-body li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .steading-move-body li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -6534,7 +6663,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-onboarding-card-desc li { margin: 2px 0; display: flex; align-items: flex-start; gap: 16px; }
 .stonetop-onboarding-card-desc li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -7638,8 +7767,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-onboarding-lore-marker--spiral {
 	background: var(--color-text-dark-secondary, #666);
-	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	-webkit-mask-image: var(--stonetop-spiral-icon);
+	mask-image: var(--stonetop-spiral-icon);
 }
 
 .stonetop-onboarding-lore-pick.is-selected .stonetop-onboarding-lore-marker {
@@ -7838,7 +7967,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	top: 0.18em;
 	width: 0.85em;
 	height: 0.85em;
-	background: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg') no-repeat center / contain;
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
 }
 
 /* ── Followers tab ─────────────────────────────────────────────────── */
@@ -8339,7 +8468,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 	width: 9px;
 	height: 9px;
 	margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -8385,6 +8514,24 @@ li.question-bullet::before {
 	flex: 0 0 10px;
 	margin-top: 0.2em;
 	opacity: 0.55;
+}
+
+/* Consistent spiral-bullet → text spacing across every spiral list, matching the
+   Stonetop Assets list. Single source: --stonetop-spiral-gap. */
+.stonetop-basic-move-panel li,
+.stonetop-chat-move-description li,
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li,
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li,
+.stonetop-item-description li,
+.stonetop-arcanum-body li,
+.stonetop-arcanum-chat-card li,
+.stonetop-special-move-list li,
+.stonetop-outfit-rule-note li,
+.steading-move-body li,
+.stonetop-onboarding-card-desc li,
+.stonetop-follower-rule li,
+li.question-bullet {
+	gap: var(--stonetop-spiral-gap);
 }
 
 /* Travel times table (collapsible inside Chart a Course description) */

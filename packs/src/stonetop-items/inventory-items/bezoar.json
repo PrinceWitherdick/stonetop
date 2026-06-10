@@ -12,7 +12,9 @@
       "inventoryColumn": "small",
       "sortOrder": 37,
       "note": "cures any poison",
-      "smallGrid": true
+      "smallGrid": true,
+      "special": true,
+      "specialCategory": "Exotic Stuff"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

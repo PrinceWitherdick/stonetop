@@ -11,7 +11,9 @@
       "slug": "block-and-tackle",
       "inventoryColumn": "small",
       "sortOrder": 29,
-      "smallGrid": true
+      "smallGrid": true,
+      "special": true,
+      "specialCategory": "Tools & Trades"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

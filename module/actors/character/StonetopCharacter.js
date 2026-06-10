@@ -38,6 +38,7 @@ import {
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {MoveResources} from "./MoveResources.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
@@ -89,19 +90,13 @@ function _normalizeSheetRollMode(rollMode) {
 // recompiled with that flag present in the LevelDB.
 const _PROSPERITY_RESOURCE_SLUGS = new Set(["supplies", "more-supplies", "even-more-supplies"]);
 
-// null prosperity means no steading is linked — leave the "x" placeholder as-is.
+// Resolve "x piercing" against the steading's Prosperity for display. With Prosperity
+// 1+ it shows the actual value ("2 piercing"); at 0, no steading (null), or negative,
+// the literal "x piercing" trait is left in place so it always shows on the sheet.
 function _transformPiercingNote(note, prosperity) {
 	if (!note || !note.includes('x <em>piercing</em>')) return note;
-	if (prosperity === null) return note;
-	if (prosperity <= -1) {
-		return note.replace('x <em>piercing</em>', '<em>crude</em>');
-	}
-	if (prosperity === 0) {
-		const cleaned = note
-			.replace(/(, )?x <em>piercing<\/em>(, )?/, (_, pre, post) => post ? (pre ?? '') : '')
-			.trim();
-		return cleaned || null;
-	}
+	if (prosperity === null) return note; // no steading → leave literal "x piercing"
+	if (prosperity <= -1) return note.replace('x <em>piercing</em>', '<em>crude</em>');
 	return note.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
 }
 
@@ -146,6 +141,42 @@ export class StonetopCharacter {
 	get moveResources() { return this._moveResources; }
 	get possessions() { return this._possessions; }
 
+	get _characterLevel() { return this._actor.system?.attributes?.level?.value ?? 1; }
+
+	// Potential-for-Greatness stat slot: choosing a stat writes +1 to that stored
+	// stat (and reverts the previously chosen one), recording the level it was
+	// marked on. Newly filled slots auto-fill the current level.
+	async setStatSlot(moveName, optionSlug, index, newStat) {
+		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
+		while (entries.length <= index) entries.push({ stat: "", level: null });
+		const oldStat = entries[index].stat ?? "";
+		if (oldStat === newStat) return;
+		const stats = this._actor.system?.stats ?? {};
+		const updates = {};
+		if (oldStat && stats[oldStat]) updates[`system.stats.${oldStat}.value`] = (stats[oldStat].value ?? 0) - 1;
+		if (newStat && stats[newStat]) updates[`system.stats.${newStat}.value`] = (stats[newStat].value ?? 0) + 1;
+		entries[index] = { stat: newStat, level: newStat ? (oldStat ? entries[index].level : this._characterLevel) : null };
+		// One document write: the stat deltas and the mark record together.
+		await this._actor.update({ ...updates, ...this._moveResources.markUpdate(moveName, optionSlug, entries) });
+	}
+
+	// Checkbox mark options (e.g. max HP, damage die): set how many are checked,
+	// auto-filling the current level on newly checked marks.
+	async setCountMark(moveName, optionSlug, newCount) {
+		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
+		while (entries.length < newCount) entries.push({ stat: "", level: this._characterLevel });
+		entries.length = Math.max(0, newCount);
+		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
+	}
+
+	// Edit-mode override of the level recorded for a given mark slot.
+	async setMarkLevel(moveName, optionSlug, index, level) {
+		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
+		if (!entries[index]) return;
+		entries[index] = { ...entries[index], level: Number.isFinite(level) && level > 0 ? level : null };
+		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
+	}
+
 	async updateName(name) {
 		const previousName = this._actor.name ?? "";
 		const prototypeTokenName = this._actor.prototypeToken?.name;
@@ -173,13 +204,17 @@ export class StonetopCharacter {
 		const postDeath = await this._postDeath.buildSnapshot();
 		const pdiLabel  = postDeath.activeInsert?.name ?? null;
 		const moveBonuses = await this._ownedMoveBonuses(playbookData, ownedAllByName);
-		const armor = this._inventory.calculateArmor(allOutfitItems) + moveBonuses.armor;
+		// Armor counts standard items plus any special items the character has added —
+		// never an unadded special item whose checked flag happens to linger.
+		const addedSet = new Set(this._inventory.addedSpecial);
+		const armorItems = allOutfitItems.filter(i => !i.special || addedSet.has(i.slug));
+		const armor = this._inventory.calculateArmor(armorItems) + moveBonuses.armor;
 		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
 			? await this._arcana.buildLoreDisplay()
 			: null;
 		return new CharacterSnapshotBuilder()
 			.withName(actor.name)
-			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore) : null)
+			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, !!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG)) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withStats(_buildStatsSection(actor))
 			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses))
@@ -208,7 +243,11 @@ export class StonetopCharacter {
 			// Per-option marks (e.g. Potential for Greatness): apply each checked box.
 			const moveMarks = marks[m.name] ?? {};
 			for (const opt of (m.markOptions ?? [])) {
-				const count = moveMarks[opt.slug] ?? 0;
+				// Stat-choice marks (e.g. Potential for Greatness) store an array of
+				// chosen stats and are applied directly to the stored stats on change,
+				// not derived here — multiplying by the array would yield NaN.
+				if (opt.choice === "stat") continue;
+				const count = _markEntries(moveMarks[opt.slug]).length;
 				if (!count) continue;
 				totals.hp     += (opt.hp     || 0) * count;
 				totals.armor  += (opt.armor  || 0) * count;
@@ -382,11 +421,19 @@ export class StonetopCharacter {
 			.withBreakBefore(false)
 			.build();
 
+		// Special (handout) items are kept off the default checklist; they appear only
+		// once the player adds them via the "Add Special Item" picker.
+		const addedSpecialSet = new Set(this._inventory.addedSpecial);
+		const mapAddedSpecial = i => { const s = mapItem(i); s.isAddedSpecial = true; return s; };
+		const addedSpecial = allItems.filter(i => i.special && addedSpecialSet.has(i.slug));
+		const standardItems = allItems.filter(i => !i.special);
+
 		const arcanaItems = await this._arcana.weightedInventoryItems();
 		const arcanaSection = arcanaItems.filter(i => i.inventoryColumn === "arcana").map(mapItem);
-		const allSmall = allItems.filter(i => i.inventoryColumn === "small");
+		const allSmall = standardItems.filter(i => i.inventoryColumn === "small");
 		const regularNonArcana = [
-			...allItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
+			...standardItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
+			...addedSpecial.filter(i => i.inventoryColumn === "regular").map(mapAddedSpecial),
 			...customItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
 		];
 		const regularArcana = arcanaItems.filter(i => i.inventoryColumn === "regular").map(mapItem);
@@ -425,8 +472,10 @@ export class StonetopCharacter {
 
 		// When a Stonetop steading exists, the small pool is derived from how many
 		// small items are currently selected, so it always stays in sync automatically.
+		const addedSmall = addedSpecial.filter(i => i.inventoryColumn === "small");
 		const smallItemSlugs = new Set([
 			...allSmall.map(i => i.slug),
+			...addedSmall.map(i => i.slug),
 			...customItems.filter(i => i.system.inventoryColumn === "small").map(i => i._id),
 			...arcanaItems.filter(i => i.inventoryColumn === "small").map(i => i.slug),
 		]);
@@ -445,6 +494,7 @@ export class StonetopCharacter {
 
 		const smallItems = [
 			...allSmall.filter(i => !i.smallGrid).map(mapItem),
+			...addedSmall.filter(i => !i.smallGrid).map(mapAddedSpecial),
 			...customItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
 			...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
 		];
@@ -615,6 +665,7 @@ export class StonetopCharacter {
 	async setInventoryLoadLevel(level)              { await this._inventory.setLoadLevel(level); }
 	async setInventoryRegularPool(count)            { await this._inventory.setRegularPool(count); }
 	async setInventorySmallPool(count)              { await this._inventory.setSmallPool(count); }
+	async removeSpecialItem(slug)                   { await this._inventory.removeSpecial(slug); }
 
 	getSteadingActor() {
 		const storedSteadingId = resolvedFlagProperty(this._actor, "steadingId");
@@ -1207,7 +1258,7 @@ function _normalizeOriginRegion(region) {
 		.trim();
 }
 
-function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore, actorName, arcanaDisplay = null) {
+function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore, actorName, arcanaDisplay = null, becameHero = false) {
 	const savedBg      = background.selectedSlug || null;
 	const savedChoices = background.choices;
 	const savedSetupTexts = background.setupTexts ?? {};
@@ -1282,7 +1333,7 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 
 	return new PlaybookSnapshotBuilder()
 		.withSlug(playbookData.slug)
-		.withName(playbookData.name)
+		.withName(heroDisplayName(playbookData.name, becameHero))
 		.withImg(playbookData.img ?? null)
 		.withDescription(playbookData.description ?? null)
 		.withStatsNote(playbookData.statsNote ?? null)
@@ -1294,31 +1345,48 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 		.build();
 }
 
+// Normalize a stored mark value into an array of { stat, level } entries.
+// Handles legacy shapes: a plain count (number) or an array of stat strings.
+function _markEntries(stored) {
+	if (Array.isArray(stored)) {
+		return stored.map(e => (e && typeof e === "object")
+			? { stat: e.stat ?? "", level: e.level ?? null }
+			: { stat: typeof e === "string" ? e : "", level: null });
+	}
+	if (typeof stored === "number") return Array.from({ length: stored }, () => ({ stat: "", level: null }));
+	return [];
+}
+
 // Build a move's mark options for display: stat-choice options (Potential for
-// Greatness) get a stat picker per slot + chips; the rest get checkbox arrays.
+// Greatness) get a stat dropdown per slot; the rest get checkbox arrays. Each
+// filled slot / checked mark carries the level it was marked on.
 function _buildMarkOptions(entry, markCounts) {
 	if (!entry.markOptions?.length) return null;
 	const statList = Object.entries(_STAT_DEFS).map(([key, { abbr }]) => ({ key, abbr }));
 	return entry.markOptions.map(opt => {
-		const stored = markCounts[opt.slug];
+		const entries = _markEntries(markCounts[opt.slug]);
+		const marks = opt.marks ?? 1;
 		if (opt.choice === "stat") {
-			const arr = Array.isArray(stored) ? stored : [];
-			const statSlots = Array.from({ length: opt.marks ?? 1 }, (_, i) => {
-				const sel = arr[i] ?? "";
+			const statSlots = Array.from({ length: marks }, (_, i) => {
+				const sel = entries[i]?.stat ?? "";
 				return {
 					index: i,
+					level: entries[i]?.level ?? null,
 					options: [{ key: "", abbr: "—", selected: sel === "" },
 						...statList.map(s => ({ key: s.key, abbr: s.abbr, selected: sel === s.key }))],
 				};
 			});
-			const chips = arr.filter(Boolean).map(k => _STAT_DEFS[k]?.abbr ?? String(k).toUpperCase());
-			return { slug: opt.slug, label: opt.label, choice: "stat", statSlots, chips };
+			return { slug: opt.slug, label: opt.label, choice: "stat", statSlots };
 		}
-		const count = typeof stored === "number" ? stored : 0;
+		const count = entries.length;
 		return {
 			slug:   opt.slug,
 			label:  opt.label,
-			checks: Array.from({ length: opt.marks ?? 1 }, (_, i) => ({ checked: i < count })),
+			checks: Array.from({ length: marks }, (_, i) => ({
+				index: i,
+				checked: i < count,
+				level: entries[i]?.level ?? null,
+			})),
 		};
 	});
 }
@@ -1373,6 +1441,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withBackgroundAnswer(moveBackgroundAnswers[entry.name] ?? null)
 		.withStatChoices(statChoices)
 		.withMarkOptions(markOptions)
+		.withAsterisk(!!entry.asterisk)
 		.build();
 }
 

@@ -90,7 +90,7 @@ describe("FoundryMoveRepository", () => {
 			expect(pack.getIndex).toHaveBeenCalledWith({
 				fields: ["system.playbook", "system.isStartingMove", "system.requirement",
 				         "system.rollType", "system.description", "system.repeatMax", "system.resource",
-				         "system.hpBonus", "system.armorBonus", "system.markOptions"],
+				         "system.hpBonus", "system.armorBonus", "system.markOptions", "system.asterisk"],
 			});
 		});
 

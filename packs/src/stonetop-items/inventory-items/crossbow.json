@@ -20,7 +20,9 @@
           "low ammo",
           "all out"
         ]
-      }
+      },
+      "special": true,
+      "specialCategory": "Weapons of War"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

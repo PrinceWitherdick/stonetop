@@ -37,7 +37,7 @@
 				</span>
 				{{/if}}
 				{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
-				<strong class="stonetop-item-name">{{name}}</strong>
+				<strong class="stonetop-item-name">{{name}}{{#if asterisk}}<span class="stonetop-move-asterisk" data-tooltip="The first time you use this move, cross off &quot;Would-be&quot; — you become a Hero." data-tooltip-direction="UP"> *</span>{{/if}}</strong>
 				{{#if (and owned resource)}}
 				<span class="stonetop-item-resources">
 					{{#each (resourceChecks resource)}}
@@ -58,31 +58,34 @@
 				{{#each markOptions}}
 				<li class="stonetop-move-mark">
 					{{#if statSlots}}
-					<span class="stonetop-move-mark-stats">
+					<span class="stonetop-move-mark-label">{{label}}</span>
+					<span class="stonetop-move-mark-slots">
 						{{#each statSlots}}
-						<select class="stonetop-move-mark-stat"
-						        data-move-name="{{../../name}}"
-						        data-mark-slug="{{../slug}}"
-						        data-idx="{{index}}"
-						        {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
-							{{#each options}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{abbr}}</option>{{/each}}
-						</select>
+						<span class="stonetop-move-mark-slot">
+							<select class="stonetop-move-mark-stat"
+							        data-move-name="{{../../name}}"
+							        data-mark-slug="{{../slug}}"
+							        data-idx="{{index}}"
+							        {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+								{{#each options}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{abbr}}</option>{{/each}}
+							</select>
+							{{> "stonetop.move-mark-level" moveName=../../name slug=../slug index=index level=level}}
+						</span>
 						{{/each}}
 					</span>
-					<span class="stonetop-move-mark-label">{{label}}</span>
-					{{#each chips}}<span class="stonetop-stat-boost-chip">+1 {{this}}</span>{{/each}}
 					{{else}}
 					<span class="stonetop-move-mark-checks">
 						{{#each checks}}
 						<input type="checkbox" class="stonetop-move-mark-check"
 						       data-move-name="{{../../name}}"
 						       data-mark-slug="{{../slug}}"
-						       data-idx="{{@index}}"
+						       data-idx="{{index}}"
 						       {{#if checked}}checked{{/if}}
 						       {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
 						{{/each}}
 					</span>
 					<span class="stonetop-move-mark-label">{{label}}</span>
+					{{#each checks}}{{#if checked}}{{> "stonetop.move-mark-level" moveName=../../name slug=../slug index=index level=level}}{{/if}}{{/each}}
 					{{/if}}
 				</li>
 				{{/each}}

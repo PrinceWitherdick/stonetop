@@ -13,7 +13,9 @@
       "sortOrder": 59,
       "note": "HP 6, d6 damage (<em>hand</em>, <em>grabby</em>)",
       "weight": 1,
-      "breakBefore": true
+      "breakBefore": true,
+      "special": true,
+      "specialCategory": "Livestock & Beasts"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

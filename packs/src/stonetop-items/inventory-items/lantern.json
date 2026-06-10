@@ -19,7 +19,9 @@
           "out"
         ]
       },
-      "smallGrid": true
+      "smallGrid": true,
+      "special": true,
+      "specialCategory": "Light Sources"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

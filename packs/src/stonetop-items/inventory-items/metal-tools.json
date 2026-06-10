@@ -12,7 +12,9 @@
       "inventoryColumn": "small",
       "sortOrder": 30,
       "note": "drill, prybar, saw, tongs, etc.",
-      "smallGrid": true
+      "smallGrid": true,
+      "special": true,
+      "specialCategory": "Tools & Trades"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

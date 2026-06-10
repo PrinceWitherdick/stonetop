@@ -10,8 +10,9 @@
     "stonetop": {
       "slug": "snow-shoes",
       "inventoryColumn": "regular",
-      "sortOrder": 10.3,
-      "weight": 1
+      "sortOrder": 11,
+      "weight": 1,
+      "twoCol": true
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

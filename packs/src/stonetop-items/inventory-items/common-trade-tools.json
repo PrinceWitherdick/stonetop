@@ -12,7 +12,9 @@
       "inventoryColumn": "regular",
       "sortOrder": 41,
       "note": "pottery, weaving, distilling, etc.; <em>immobile</em>",
-      "weight": 1
+      "weight": 1,
+      "special": true,
+      "specialCategory": "Tools & Trades"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

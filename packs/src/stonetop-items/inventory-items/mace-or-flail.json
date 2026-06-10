@@ -13,7 +13,9 @@
       "sortOrder": 28,
       "note": "<em>iron</em>, <em>close</em>, <em>forceful</em>",
       "weight": 1,
-      "breakBefore": true
+      "breakBefore": true,
+      "special": true,
+      "specialCategory": "Weapons of War"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

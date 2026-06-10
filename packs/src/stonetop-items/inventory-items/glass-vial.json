@@ -12,7 +12,9 @@
       "inventoryColumn": "small",
       "sortOrder": 28,
       "note": "<em>fragile</em>",
-      "smallGrid": true
+      "smallGrid": true,
+      "special": true,
+      "specialCategory": "Exotic Stuff"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

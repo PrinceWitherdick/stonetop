@@ -1,3 +1,5 @@
+import { maybePromptAsteriskMove } from "../actors/character/WouldBeHeroAsterisk.js";
+
 const _STAT_LABELS = {
 	str: "Strength", dex: "Dexterity", int: "Intelligence",
 	wis: "Wisdom", con: "Constitution", cha: "Charisma",
@@ -159,6 +161,8 @@ export async function rollStat(statKey, actor, options = {}) {
 			rollMode: game.settings.get("core", "rollMode"),
 		});
 	}
+
+	await maybePromptAsteriskMove(actor, moveName, total);
 
 	return roll;
 }

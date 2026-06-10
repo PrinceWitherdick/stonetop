@@ -27,6 +27,12 @@ export class StonetopFlags {
 		await this._actor.unsetFlag(_scope, this.buildKey(key));
 	}
 
+	// Returns an `actor.update()` fragment that writes this flag, so callers can
+	// batch it into a single document update alongside other field changes.
+	updateData(key, value) {
+		return { [`flags.${_scope}.${this.buildKey(key)}`]: value };
+	}
+
 	buildKey(key) {
 		return `${this._namespace}.${key}`;
 	}

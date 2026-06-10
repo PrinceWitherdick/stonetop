@@ -12,7 +12,9 @@
       "inventoryColumn": "regular",
       "sortOrder": 30,
       "note": "<em>iron</em>, <em>hand</em>, <em>close</em>",
-      "weight": 1
+      "weight": 1,
+      "special": true,
+      "specialCategory": "Weapons of War"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

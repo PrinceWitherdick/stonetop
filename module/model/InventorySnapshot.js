@@ -65,6 +65,7 @@ export class InventoryItemSnapshot {
 		this.ownedId     = b._ownedId;
 		this.twoCol      = b._twoCol;
 		this.breakBefore = b._breakBefore;
+		this.isAddedSpecial = b._isAddedSpecial ?? false;
 	}
 }
 
@@ -79,6 +80,7 @@ export class InventoryItemSnapshotBuilder {
 	withOwnedId(v)     { this._ownedId     = v; return this; }
 	withTwoCol(v)      { this._twoCol      = v; return this; }
 	withBreakBefore(v) { this._breakBefore = v; return this; }
+	withIsAddedSpecial(v) { this._isAddedSpecial = v; return this; }
 	build()            { return new InventoryItemSnapshot(this); }
 }
 

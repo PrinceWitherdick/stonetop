@@ -13,6 +13,7 @@ import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
+import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -23,6 +24,7 @@ Hooks.once("init", () => {
 
 	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
 	Handlebars.registerHelper("boldMissText", value => boldMissText(value));
+	Handlebars.registerHelper("eq", (a, b) => a === b);
 
 	const _STAT_LABEL_KEYS = {
 		str: "stonetop.character.stats.strength",
@@ -139,6 +141,7 @@ Hooks.once("init", () => {
 		"stonetop.tab-post-death":      "systems/stonetop_pwd/templates/actor/partials/tab-post-death.hbs",
 		"stonetop.tab-special-moves":   "systems/stonetop_pwd/templates/actor/partials/tab-special-moves.hbs",
 		"stonetop.move-group":           "systems/stonetop_pwd/templates/actor/partials/move-group.hbs",
+		"stonetop.move-mark-level":      "systems/stonetop_pwd/templates/actor/partials/move-mark-level.hbs",
 		"stonetop.sidebar-move-list":    "systems/stonetop_pwd/templates/actor/partials/sidebar-move-list.hbs",
 		"stonetop.lore-section":          "systems/stonetop_pwd/templates/actor/partials/lore-section.hbs",
 		"stonetop.lore-options-edit":     "systems/stonetop_pwd/templates/actor/partials/lore-options-edit.hbs",
@@ -313,6 +316,26 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 			console.error("Stonetop | Error burning brightly:", err);
 			btn.disabled = false;
 		}
+	});
+});
+
+// -- WOULD-BE HERO: BECOME A HERO ------------------------------
+// Wire the "Become a Hero" button on asterisk-move prompt cards.
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	const btn = html.querySelector(".stonetop-become-hero-btn");
+	if (!btn) return;
+
+	const actor = game.actors?.get(btn.dataset.actorId);
+	if (!actor?.isOwner) { btn.style.display = "none"; return; }
+	if (actor.getFlag("stonetop_pwd", WBH_HERO_FLAG)) {
+		btn.disabled = true;
+		btn.innerHTML = `<i class="fas fa-star"></i> Already a Hero`;
+		return;
+	}
+
+	btn.addEventListener("click", async () => {
+		btn.disabled = true;
+		await crossOffWouldBe(actor);
 	});
 });
 

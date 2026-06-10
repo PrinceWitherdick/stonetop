@@ -60,7 +60,6 @@
 				</span>
 			</div>
 			<p class="stonetop-supplies-pool-note">{{{localize "stonetop.inventory.regularUndefinedPoolNote"}}}</p>
-			<p class="stonetop-inv-section-note">{{{localize "stonetop.inventory.regularItemsNote"}}}</p>
 			<hr class="stonetop-inv-separator">
 			{{#each stonetop.inventory.outfit.regularSegments}}
 			{{#if isGrid}}
@@ -103,18 +102,17 @@
 						{{/each}}
 					</span>
 					<span class="stonetop-inv-label">{{name}}
-						{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
+						{{#if (or note resource)}}<span class="stonetop-inv-note">({{{note}}}{{#if resource}}{{#if note}} {{/if}}<span class="stonetop-inv-resources">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}</span>{{/if}})</span>{{/if}}
 					</span>
 				</label>
-				{{#if resource}}
-				<span class="stonetop-inv-resources">
-					{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}
-				</span>
-				{{/if}}
 				{{#if isCustom}}
 				<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
 				{{/if}}
+				{{#if isAddedSpecial}}
+				<a class="stonetop-inv-remove-special" data-slug="{{slug}}" title="Remove special item"><i class="fas fa-times"></i></a>
+				{{/if}}
 			</div>
+			{{#if (eq slug "even-more-supplies")}}<p class="stonetop-inv-section-note">{{{localize "stonetop.inventory.regularItemsNote"}}}</p>{{/if}}
 			{{/each}}
 			{{/if}}
 			{{/each}}
@@ -176,16 +174,14 @@
 					       {{#if checked}}checked{{/if}}
 					       {{#if disabled}}disabled{{/if}}>
 					<span class="stonetop-inv-label">{{name}}
-						{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
+						{{#if (or note resource)}}<span class="stonetop-inv-note">({{{note}}}{{#if resource}}{{#if note}} {{/if}}<span class="stonetop-inv-resources">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}</span>{{/if}})</span>{{/if}}
 					</span>
 				</label>
-				{{#if resource}}
-				<span class="stonetop-inv-resources">
-					{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}
-				</span>
-				{{/if}}
 				{{#if isCustom}}
 				<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
+				{{/if}}
+				{{#if isAddedSpecial}}
+				<a class="stonetop-inv-remove-special" data-slug="{{slug}}" title="Remove special item"><i class="fas fa-times"></i></a>
 				{{/if}}
 			</div>
 			{{/each}}

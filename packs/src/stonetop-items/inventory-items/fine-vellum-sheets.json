@@ -12,7 +12,9 @@
       "inventoryColumn": "small",
       "sortOrder": 34,
       "note": "<em>fragile</em>",
-      "smallGrid": true
+      "smallGrid": true,
+      "special": true,
+      "specialCategory": "Writing Implements"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

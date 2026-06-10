@@ -5,7 +5,8 @@ import { ITEM_FLAG_SCOPE } from "../StonetopFlags.js";
 const FIELDS = [
 	"system.moveType",
 	...["slug", "inventoryColumn", "sortOrder", "weight", "note", "resource",
-	    "prosperityResource", "breakBefore", "smallGrid", "twoCol", "armor"]
+	    "prosperityResource", "breakBefore", "smallGrid", "twoCol", "armor",
+	    "special", "specialCategory"]
 		.map(f => `flags.${ITEM_FLAG_SCOPE}.${f}`),
 ];
 
@@ -34,6 +35,8 @@ export class FoundryOutfitItemRepository {
 					.withSmallGrid(st.smallGrid ?? false)
 					.withBreakBefore(st.breakBefore ?? false)
 					.withArmor(st.armor ?? null)
+					.withSpecial(st.special ?? false)
+					.withSpecialCategory(st.specialCategory ?? null)
 					.build();
 			});
 		return this._cache;

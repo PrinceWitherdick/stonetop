@@ -11,7 +11,9 @@
       "slug": "empty-book-vellum",
       "inventoryColumn": "regular",
       "sortOrder": 46,
-      "weight": 2
+      "weight": 2,
+      "special": true,
+      "specialCategory": "Writing Implements"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

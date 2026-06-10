@@ -12,7 +12,9 @@
       "inventoryColumn": "small",
       "sortOrder": 26,
       "note": "lasts ~1 hour, <em>hand</em>, <em>area</em>",
-      "smallGrid": true
+      "smallGrid": true,
+      "special": true,
+      "specialCategory": "Light Sources"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

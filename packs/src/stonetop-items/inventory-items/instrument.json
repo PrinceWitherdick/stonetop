@@ -12,7 +12,9 @@
       "inventoryColumn": "regular",
       "sortOrder": 39,
       "note": "harp, lute, fiddle, etc.",
-      "weight": 1
+      "weight": 1,
+      "special": true,
+      "specialCategory": "Exotic Stuff"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

@@ -17,5 +17,8 @@ export class MoveDefinition {
 		// Per-option marks (e.g. WBH "Potential for Greatness"): each option carries a
 		// checkbox count and optional hp/armor/crewHp effect applied per checked box.
 		this.markOptions = data.system?.markOptions     ?? null;
+		// Would-Be Hero asterisk trigger: { basicMove, minTotal, question }. Its
+		// presence marks the move with "*"; its data drives the become-a-Hero prompt.
+		this.asterisk    = data.system?.asterisk        ?? null;
 	}
 }

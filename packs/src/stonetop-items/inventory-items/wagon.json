@@ -12,7 +12,9 @@
       "inventoryColumn": "regular",
       "sortOrder": 49,
       "note": "requires mule or horse",
-      "weight": 3
+      "weight": 3,
+      "special": true,
+      "specialCategory": "Transport"
     }
   },
   "folder": "OL1lTSyCryWm3Xez"

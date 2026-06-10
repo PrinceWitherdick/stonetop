@@ -10,7 +10,7 @@
     "stonetop": {
       "slug": "mallet",
       "inventoryColumn": "regular",
-      "sortOrder": 18,
+      "sortOrder": 17,
       "note": "<em>hand</em>",
       "weight": 1
     }
