@@ -5,6 +5,7 @@ export class CharacterInventory {
 
 	get checked()      { return this._flags.getFlag("checked") ?? {}; }
 	get resources()    { return this._flags.getFlag("resources") ?? {}; }
+	get addedSpecial() { return this._flags.getFlag("addedSpecial") ?? []; }
 	get loadLevel()    { return this._flags.getFlag("loadLevel") ?? null; }
 	get regularPool()  { return this._flags.getFlag("regularPool") ?? 0; }
 	get smallPool()    { return this._flags.getFlag("smallPool") ?? 0; }
@@ -31,6 +32,21 @@ export class CharacterInventory {
 
 	async setAllChecked(checkedMap) {
 		await this._flags.setFlag("checked", { ...this.checked, ...checkedMap });
+	}
+
+	async addSpecial(slug) {
+		if (this.addedSpecial.includes(slug)) return;
+		await this._flags.setFlag("addedSpecial", [...this.addedSpecial, slug]);
+	}
+
+	async removeSpecial(slug) {
+		await this._flags.setFlag("addedSpecial", this.addedSpecial.filter(s => s !== slug));
+		// Clear its carried/checked state so a removed item no longer counts toward load or armor.
+		if (slug in this.checked) {
+			const next = { ...this.checked };
+			delete next[slug];
+			await this._flags.setFlag("checked", next);
+		}
 	}
 
 	async resetSelections() {

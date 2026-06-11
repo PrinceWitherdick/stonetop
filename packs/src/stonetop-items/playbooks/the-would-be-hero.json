@@ -212,8 +212,13 @@
       "statsNote": "Assign these scores to your stats: +1, +0, +0, +0, +0, -1",
       "lore": [
         {
+          "slug": "fear-and-anger",
+          "title": "Fear & Anger"
+        },
+        {
           "slug": "fear-and-anger-fears",
-          "title": "What Do You Fear Most?",
+          "continuation": true,
+          "title": "What do you fear most?",
           "description": "<p><em>(choose 1, maybe 2)</em></p>",
           "options": [
             {
@@ -265,6 +270,7 @@
         },
         {
           "slug": "fear-and-anger-anger",
+          "continuation": true,
           "title": "What Makes You Burn with Righteous Anger?",
           "description": "<p><em>(choose 2, maybe 3)</em></p>",
           "options": [
@@ -312,12 +318,14 @@
         },
         {
           "slug": "fear-and-anger-story",
+          "continuation": true,
+          "columnBreak": true,
           "title": "When Did Your Fear or Anger Last Cause You Trouble?",
           "description": "",
           "options": [
             {
               "slug": "when-trouble",
-              "description": "When did your fear or anger last cause you trouble?",
+              "description": "",
               "type": "text"
             },
             {

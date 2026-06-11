@@ -109,39 +109,39 @@ const SETTING_ENTRIES = [
 
 <div class="stonetop-so-playbooks">
   <div class="stonetop-so-playbook">
-    <h3>The Blessed <span class="stonetop-so-complexity">medium complexity</span></h3>
+    <h3><img class="stonetop-so-playbook-icon" src="/systems/stonetop_pwd/assets/icons/playbooks/the_blessed_icon.webp" alt="">The Blessed <span class="stonetop-so-complexity">medium complexity</span></h3>
     <p>Nature priest. Speaks to spirits and beasts. Works subtle magics via sacred markings and materials.</p>
   </div>
   <div class="stonetop-so-playbook">
-    <h3>The Fox <span class="stonetop-so-complexity">low complexity</span></h3>
+    <h3><img class="stonetop-so-playbook-icon" src="/systems/stonetop_pwd/assets/icons/playbooks/the_fox_icon.webp" alt="">The Fox <span class="stonetop-so-complexity">low complexity</span></h3>
     <p>Clever, quick, and skillful. Not above bending the rules or fighting dirty. Can be quite the charmer, too.</p>
   </div>
   <div class="stonetop-so-playbook">
-    <h3>The Heavy <span class="stonetop-so-complexity">low/medium complexity</span></h3>
+    <h3><img class="stonetop-so-playbook-icon" src="/systems/stonetop_pwd/assets/icons/playbooks/the_heavy_icon.webp" alt="">The Heavy <span class="stonetop-so-complexity">low/medium complexity</span></h3>
     <p>Not just a violent individual—<em>our</em> violent individual. A champion, yes, but a bit of a liability, too.</p>
   </div>
   <div class="stonetop-so-playbook">
-    <h3>The Judge <span class="stonetop-so-complexity">low complexity</span></h3>
+    <h3><img class="stonetop-so-playbook-icon" src="/systems/stonetop_pwd/assets/icons/playbooks/the_judge_icon.webp" alt="">The Judge <span class="stonetop-so-complexity">low complexity</span></h3>
     <p>Settler of disputes, chronicler, and divine bulwark against chaos. Insightful, tough, not necessarily persuasive.</p>
   </div>
   <div class="stonetop-so-playbook">
-    <h3>The Lightbearer <span class="stonetop-so-complexity">high complexity</span></h3>
+    <h3><img class="stonetop-so-playbook-icon" src="/systems/stonetop_pwd/assets/icons/playbooks/the_lightbearer_icon.webp" alt="">The Lightbearer <span class="stonetop-so-complexity">high complexity</span></h3>
     <p>Invokes divine power via flame and candle. Beacon of hope, charity, and mercy. Fiery foe of the dark.</p>
   </div>
   <div class="stonetop-so-playbook">
-    <h3>The Marshal <span class="stonetop-so-complexity">high complexity</span></h3>
+    <h3><img class="stonetop-so-playbook-icon" src="/systems/stonetop_pwd/assets/icons/playbooks/the_marshal_icon.webp" alt="">The Marshal <span class="stonetop-so-complexity">high complexity</span></h3>
     <p>Leads the town's militia, plus a crew of followers. Makes choices about who lives and who dies.</p>
   </div>
   <div class="stonetop-so-playbook">
-    <h3>The Ranger <span class="stonetop-so-complexity">low complexity</span></h3>
+    <h3><img class="stonetop-so-playbook-icon" src="/systems/stonetop_pwd/assets/icons/playbooks/the_ranger_icon.webp" alt="">The Ranger <span class="stonetop-so-complexity">low complexity</span></h3>
     <p>At home in the wild, the one you want with you when you travel. A resourceful guide and deadly hunter.</p>
   </div>
   <div class="stonetop-so-playbook">
-    <h3>The Seeker <span class="stonetop-so-complexity">high complexity</span></h3>
+    <h3><img class="stonetop-so-playbook-icon" src="/systems/stonetop_pwd/assets/icons/playbooks/the_seeker_icon.webp" alt="">The Seeker <span class="stonetop-so-complexity">high complexity</span></h3>
     <p>Collector of lost lore and power, with potent artifacts that might well lead to their ruin.</p>
   </div>
   <div class="stonetop-so-playbook">
-    <h3>The Would-Be Hero <span class="stonetop-so-complexity">medium complexity</span></h3>
+    <h3><img class="stonetop-so-playbook-icon" src="/systems/stonetop_pwd/assets/icons/playbooks/the_would_be_hero_icon.webp" alt="">The Would-Be Hero <span class="stonetop-so-complexity">medium complexity</span></h3>
     <p>They're in over their head and full of fear and anger, but they just might outshine us all.</p>
   </div>
 </div>

@@ -7,7 +7,8 @@ import {
 	ResourceBuilder,
 } from "../../model/CharacterSnapshot.js";
 import { OutfitItemBuilder } from "../../model/OutfitItem.js";
-import { majorArcanaImg } from "../../arcana-icons.js";
+import { majorArcanaImg, isMajorArcana } from "../../arcana-icons.js";
+import { centerArcanumTracks } from "../../utils/glyphs.js";
 
 function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
 	const reqs = item.front.unlock?.requirements ?? [];
@@ -21,15 +22,46 @@ function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
 	return true;
 }
 
-function _processMarkers(html, slug, context, boxStates, marker, cssClass) {
+/**
+ * Replace every glyph matched by `runRe` with an indexed, selectable checkbox. `runRe`
+ * may match a single glyph (□ boxes, ○ unlock circles) or a whole run (◇◇◇ / ○○○ charge
+ * tracks) — each glyph in the match gets its own checkbox and sequential index. Distinct
+ * `context` values keep the indices of different markers in the same description from
+ * colliding. Returns the rewritten html and the number of checkboxes injected.
+ *
+ * The two track patterns require a run of 2+ so a lone glyph stays a display glyph: a
+ * single ◇/○ is an inline indicator ("a ◇ jar of butter", "BATTERY ○ ____"), only a run
+ * is a markable track (◇◇◇ Conduit, ○○○ Loyalty). The patterns are precompiled module
+ * constants so nothing recompiles inside the per-item loop (String.replace resets a
+ * global regex's lastIndex, so sharing them across calls is safe).
+ */
+function _injectMarkers(html, slug, context, boxStates, cssClass, runRe) {
 	if (!html) return { html, count: 0 };
 	let index = 0;
-	const processed = html.replace(new RegExp(marker, "g"), () => {
-		const key = `${slug}:${context}:${index}`;
-		const checked = !!boxStates[key];
-		return `<input type="checkbox" class="${cssClass}" data-arcanum-slug="${slug}" data-context="${context}" data-index="${index++}"${checked ? " checked" : ""}>`;
-	});
+	const processed = html.replace(runRe, run =>
+		[...run].map(() => {
+			const key = `${slug}:${context}:${index}`;
+			const checked = !!boxStates[key];
+			return `<input type="checkbox" class="${cssClass}" data-arcanum-slug="${slug}" data-context="${context}" data-index="${index++}"${checked ? " checked" : ""}>`;
+		}).join("")
+	);
 	return { html: processed, count: index };
+}
+
+const _DIAMOND_TRACK_RE = /◇{2,}/g;
+const _CIRCLE_TRACK_RE  = /○{2,}/g;
+const _BOX_RE           = /□/g;
+const _UNLOCK_CIRCLE_RE = /○/g;
+
+// Run a side description through the full marker pipeline: center standalone tracks, then
+// make ◇ / ○ tracks and □ boxes selectable. `side` ("front"/"back") keeps each side's
+// marker indices in their own context so they never collide. Returns the processed HTML.
+function _processSideDescription(description, slug, side, boxStates) {
+	let html = centerArcanumTracks(description);
+	({ html } = _injectMarkers(html, slug, `${side}Diamond`, boxStates, "stonetop-arcanum-diamond", _DIAMOND_TRACK_RE));
+	({ html } = _injectMarkers(html, slug, `${side}Circle`,  boxStates, "stonetop-arcanum-circle",  _CIRCLE_TRACK_RE));
+	({ html } = _injectMarkers(html, slug, side,             boxStates, "stonetop-arcanum-box",     _BOX_RE));
+	return html;
 }
 
 function _buildOutfitItem(slug, itemData, resolvedResource = undefined) {
@@ -57,6 +89,35 @@ export class CharacterArcana {
 	get identifiedSlugs()  { return new Set(this._flags.getFlag("identified") ?? []); }
 	get unlockCounts()     { return this._flags.getFlag("unlock") ?? {}; }
 	get backOptionCounts() { return this._flags.getFlag("backOptions") ?? {}; }
+	get majorSlug()        { return this._flags.getFlag("major") ?? null; }
+	get minorDrawSlugs()   { return this._flags.getFlag("minorDraw") ?? []; }
+	get minorRoles()       { return this._flags.getFlag("minorRoles") ?? {}; }
+
+	/**
+	 * Display data for a playbook's arcana lore (the Seeker): the chosen major
+	 * arcanum (name + icon) and the drawn minor cards with their role assignments.
+	 * Minor arcana have no artwork, so they're name-only.
+	 */
+	async buildLoreDisplay() {
+		const majorSlug = this.majorSlug;
+		const drawSlugs = this.minorDrawSlugs;
+		const slugs     = [...new Set([majorSlug, ...drawSlugs].filter(Boolean))];
+		const fetched   = await this._arcanaRepo.findBySlugs(slugs);
+		const names     = Object.fromEntries(fetched.map(a => [a.slug, a.front?.title ?? a.slug]));
+		return {
+			major: majorSlug
+				? { slug: majorSlug, name: names[majorSlug] ?? majorSlug, img: majorArcanaImg(majorSlug) }
+				: null,
+			minorOptions: drawSlugs.map(slug => ({ slug, name: names[slug] ?? slug })),
+			roles: this.minorRoles,
+		};
+	}
+
+	async setMinorRole(role, slug) {
+		const roles = { ...this.minorRoles };
+		if (slug) roles[role] = slug; else delete roles[role];
+		await this._flags.setFlag("minorRoles", roles);
+	}
 
 	async buildSnapshot(stats = {}, checkedMap = {}, inventoryResources = {}) {
 		const ownedSlugs       = this.ownedSlugs;
@@ -68,7 +129,7 @@ export class CharacterArcana {
 
 		const fetchedItems = await this._arcanaRepo.findBySlugs([...ownedSlugs]);
 
-		const minorItems = fetchedItems.map(item => {
+		const allItems = fetchedItems.map(item => {
 			const flipped = flippedSlugs.has(item.slug);
 
 			const unlockItems = item.front.unlock.requirements.map(li => {
@@ -83,8 +144,8 @@ export class CharacterArcana {
 					.build();
 			});
 
-			const { html: frontDesc }                  = _processMarkers(item.front.description, item.slug, "front", arcanaBoxes, "□", "stonetop-arcanum-box");
-			const { html: unlockDesc, count: circleCount } = _processMarkers(item.front.unlock?.description ?? "", item.slug, "unlock", arcanaBoxes, "○", "stonetop-arcanum-circle");
+			const frontDesc = _processSideDescription(item.front.description, item.slug, "front", arcanaBoxes);
+			const { html: unlockDesc, count: circleCount } = _injectMarkers(centerArcanumTracks(item.front.unlock?.description ?? ""), item.slug, "unlock", arcanaBoxes, "stonetop-arcanum-circle", _UNLOCK_CIRCLE_RE);
 			const unlocked = _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount);
 
 			const front = new MinorArcanumFrontSnapshotBuilder()
@@ -137,7 +198,7 @@ export class CharacterArcana {
 					item.back.move.description)
 				: null;
 
-			const { html: backDesc } = _processMarkers(item.back.description, item.slug, "back", arcanaBoxes, "□", "stonetop-arcanum-box");
+			const backDesc = _processSideDescription(item.back.description, item.slug, "back", arcanaBoxes);
 
 			const back = new MinorArcanumBackSnapshotBuilder()
 				.withTitle(item.back.title)
@@ -161,8 +222,8 @@ export class CharacterArcana {
 				.build();
 		});
 
-		const minor = new ArcanaSectionSnapshot("Minor Arcana", minorItems);
-		const major = new ArcanaSectionSnapshot("Major Arcana", []);
+		const major = new ArcanaSectionSnapshot("Major Arcana", allItems.filter(i => isMajorArcana(i.slug)));
+		const minor = new ArcanaSectionSnapshot("Minor Arcana", allItems.filter(i => !isMajorArcana(i.slug)));
 		return new ArcanaSnapshot(minor, major);
 	}
 

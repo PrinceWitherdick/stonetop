@@ -1,8 +1,9 @@
 // Descriptions for animal companion trait tags — checked before compendium lookup.
-import { majorArcanaImg } from "../../../arcana-icons.js";
+import { isMajorArcana } from "../../../arcana-icons.js";
 import { parseMovePickCount } from "../StonetopCharacter.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
 import { loreMarkerForText } from "../../../model/PlaybookSnapshot.js";
+import { KeepOnTop } from "../../../utils/keep-on-top.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -95,10 +96,11 @@ export class CharacterOnboardingDialog extends Application {
 		this._onSave             = onSave ?? null;
 		// Pre-seed cache with glossary so getData() and _lookupWord share one lookup path.
 		this._wordCache = new Map(Object.entries(ANIMAL_COMPANION_TRAIT_GLOSSARY));
-		this._hoveredAnchor      = null;
-		this._keepOnTopQueued    = false;
-		this._keepOnTopListener  = () => this._queueKeepOnTop();
-		this._keepOnTopObserver  = null;
+		this._hoveredAnchor = null;
+		this._keepOnTop = new KeepOnTop(this, {
+			baseZIndex:       this.constructor.TOP_Z_INDEX,
+			childDialogClass: "stonetop-onboarding-child-dialog",
+		});
 
 		this._initializeState(playbookDoc, initialSelections, startAtStep);
 	}
@@ -585,7 +587,7 @@ export class CharacterOnboardingDialog extends Application {
 					name:        this._normalizeOnboardingText(doc.name ?? flags.front?.title ?? slug),
 					description: this._firstParagraph(flags.front?.description ?? ""),
 					img:         doc.img && doc.img !== "icons/svg/item-bag.svg" ? doc.img : null,
-					isMajor:     majorArcanaImg(slug) !== null,
+					isMajor:     isMajorArcana(slug),
 				}];
 			});
 			this._arcanaCache = {
@@ -967,66 +969,7 @@ export class CharacterOnboardingDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop();
-	}
-
-	_keepOnTop() {
-		const otherWindowZ = Object.values(globalThis.ui?.windows ?? {})
-			.filter(w => w !== this && !w.element?.[0]?.classList.contains("stonetop-onboarding-child-dialog"))
-			.map(w => parseInt(w.element?.[0]?.style?.zIndex || 0))
-			.filter(Number.isFinite);
-		const zIndex = Math.max(this.constructor.TOP_Z_INDEX, ...otherWindowZ) + 1;
-		const el = this.element?.[0];
-		if (el && el.style.zIndex !== String(zIndex)) {
-			el.style.setProperty("z-index", String(zIndex), "important");
-		}
-		document.querySelectorAll(".window-app.stonetop-onboarding-child-dialog")
-			.forEach(childEl => {
-				const childZ = String(zIndex + 1);
-				if (childEl.style.zIndex !== childZ) childEl.style.setProperty("z-index", childZ, "important");
-			});
-		// Hover tooltips must always float above the dialog and its children.
-		const tooltip = document.querySelector("#tooltip");
-		const tooltipZ = String(zIndex + 2);
-		if (tooltip && tooltip.style.zIndex !== tooltipZ) {
-			tooltip.style.setProperty("z-index", tooltipZ, "important");
-		}
-	}
-
-	_queueKeepOnTop() {
-		if (this._keepOnTopQueued || !this.rendered) return;
-		this._keepOnTopQueued = true;
-		const raise = () => {
-			this._keepOnTopQueued = false;
-			this._keepOnTop();
-		};
-		requestAnimationFrame(raise);
-		setTimeout(() => this._keepOnTop(), 0);
-		setTimeout(() => this._keepOnTop(), 50);
-	}
-
-	_startKeepOnTopGuard() {
-		for (const eventName of ["pointerdown", "mousedown", "mouseup", "click", "focusin"]) {
-			document.removeEventListener(eventName, this._keepOnTopListener, true);
-			document.addEventListener(eventName, this._keepOnTopListener, true);
-		}
-		if (!this._keepOnTopObserver) {
-			this._keepOnTopObserver = new MutationObserver(() => this._queueKeepOnTop());
-			this._keepOnTopObserver.observe(document.body, {
-				subtree: true,
-				childList: true,
-				attributes: true,
-				attributeFilter: ["class", "style"],
-			});
-		}
-	}
-
-	_stopKeepOnTopGuard() {
-		for (const eventName of ["pointerdown", "mousedown", "mouseup", "click", "focusin"]) {
-			document.removeEventListener(eventName, this._keepOnTopListener, true);
-		}
-		this._keepOnTopObserver?.disconnect();
-		this._keepOnTopObserver = null;
+		this._keepOnTop.apply();
 	}
 
 	_getHeaderButtons() {
@@ -1438,9 +1381,7 @@ export class CharacterOnboardingDialog extends Application {
 	activateListeners(html) {
 		super.activateListeners(html);
 		markQuestionBullets(html[0]);
-		this._keepOnTop();
-		this._startKeepOnTopGuard();
-		html.closest(".window-app").on("mousedown.stonetopOnboarding focusin.stonetopOnboarding", () => this._queueKeepOnTop());
+		this._keepOnTop.start();
 
 		html.find(".stonetop-onboarding-back-to-picker").on("click", () => this._goBack());
 		html.find(".stonetop-onboarding-back").on("click", () => this._navigate(-1));
@@ -2226,9 +2167,8 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	async close(options) {
-		this._stopKeepOnTopGuard();
+		this._keepOnTop.stop();
 		this._clearPopups();
-		document.querySelector("#tooltip")?.style.removeProperty("z-index");
 		return super.close(options);
 	}
 
@@ -2249,8 +2189,9 @@ export class CharacterOnboardingDialog extends Application {
 		const popup = document.createElement("div");
 		popup.className = "stonetop-arcana-preview-popup";
 		popup.innerHTML = source.innerHTML;
-		// Centre horizontally on the card; extra vertical gap clears the modal header.
-		this._positionPopup(popup, anchor, { align: "center", gap: 100 });
+		// Drop the preview just below the hovered card (these grids sit near the top of
+		// their step); flips above only if it would run off the bottom of the viewport.
+		this._positionPopup(popup, anchor, { align: "center", gap: 8, placement: "below" });
 	}
 
 	_showWordTooltip(anchor, text, description) {
@@ -2260,18 +2201,24 @@ export class CharacterOnboardingDialog extends Application {
 		tip.innerHTML =
 			`<p class="stonetop-word-tooltip-name">${text}</p>` +
 			`<div class="stonetop-word-tooltip-desc">${description}</div>`;
-		this._positionPopup(tip, anchor, { gap: 6, flipBelow: true });
+		this._positionPopup(tip, anchor, { gap: 6, placement: "above" });
 	}
 
-	_positionPopup(el, anchor, { align = "left", gap = 6, flipBelow = false } = {}) {
+	// `placement` is the preferred side ("above" | "below"); the popup flips to the
+	// other side only if the preferred one would run off the viewport edge.
+	_positionPopup(el, anchor, { align = "left", gap = 6, placement = "above" } = {}) {
 		document.body.appendChild(el);
 		const ar = anchor.getBoundingClientRect();
 		const pr = el.getBoundingClientRect();
-		let top  = ar.top - pr.height - gap;
+		const above = ar.top - pr.height - gap;
+		const below = ar.bottom + gap;
+		let top  = placement === "below"
+			? (below + pr.height > window.innerHeight - 8 ? above : below)
+			: (above < 8 ? below : above);
 		let left = align === "center"
 			? ar.left + ar.width / 2 - pr.width / 2
 			: ar.left;
-		if (flipBelow && top < 8) top = ar.bottom + gap;
+		top  = Math.max(8, top);
 		left = Math.max(8, Math.min(left, window.innerWidth - pr.width - 8));
 		el.style.top  = `${top}px`;
 		el.style.left = `${left}px`;

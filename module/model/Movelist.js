@@ -27,6 +27,7 @@ export class OtherItemSnapshotBuilder {
 /**
  * @property {MoveSnapshot[]} playbookMoves
  * @property {MoveSnapshot[]} basicMoves
+ * @property {MoveSnapshot[]} expeditionMoves
  * @property {MoveGroupSnapshot[]} otherGroups
  * @property {OtherItemSnapshot[]} otherMoves
  * @property {string|null} startingMovesNote
@@ -37,6 +38,7 @@ export class Movelist {
 	constructor(b) {
 		this.playbookMoves     = b._playbookMoves;
 		this.basicMoves        = b._basicMoves;
+		this.expeditionMoves   = b._expeditionMoves;
 		this.otherGroups       = b._otherGroups;
 		this.otherMoves        = b._otherMoves;
 		this.startingMovesNote = b._startingMovesNote;
@@ -48,6 +50,7 @@ export class Movelist {
 export class MovelistBuilder {
 	withPlaybookMoves(v)     { this._playbookMoves     = v; return this; }
 	withBasicMoves(v)        { this._basicMoves        = v; return this; }
+	withExpeditionMoves(v)   { this._expeditionMoves   = v; return this; }
 	withOtherGroups(v)       { this._otherGroups       = v; return this; }
 	withOtherMoves(v)        { this._otherMoves        = v; return this; }
 	withStartingMovesNote(v) { this._startingMovesNote = v; return this; }

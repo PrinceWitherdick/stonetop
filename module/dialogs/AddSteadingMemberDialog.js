@@ -1,3 +1,7 @@
+import { KeepOnTop } from "../utils/keep-on-top.js";
+
+const HOME_INFO_DIALOG_CLASS = "stonetop-asm-child-dialog";
+
 const STONETOP_NAMES = [
 	"Aderyn", "Aeronwen", "Afanen", "Afon", "Alun", "Andras", "Aneirin", "Awstin",
 	"Bedwyr", "Berwyn", "Betrys", "Braith", "Briallen", "Bronwen", "Bryn",
@@ -18,37 +22,53 @@ const STONETOP_NAMES = [
 	"Winifred", "Yorath",
 ];
 
-const NEIGHBOR_NAMES = [
-	// Marshedge / The Steplands
+const MARSHEDGE_NAMES = [
 	"Abben", "Ailen", "Brin", "Brogan", "Catlin", "Coln", "Daedre", "Dermos",
 	"Ennin", "Finnen", "Gilor", "Isbeal", "Kiran", "Lile", "Lim", "Mathuin",
 	"Mirne", "Noren", "Owan", "Ragan", "Renan", "Seadha", "Seann", "Tierney", "Ulliam",
-	// Lygos and points south
-	"Agatte", "Aref", "Alix", "Baraz", "Canan", "Darya", "Demetra", "Elene",
-	"Elios", "Fotios", "Faruza", "Golza", "Iasos", "Iona", "Kyriakos", "Marika",
-	"Maayan", "Osher", "Natasa", "Nivola", "Rinat", "Stamat", "Thecla", "Zhaleh",
-	// Barrier Pass / The Manmarch
+];
+
+const STEPLANDS_NAMES = [
 	"Adm", "Blej", "Cirl", "Davth", "Elst", "Gwilm", "Gwenl", "Henri", "Ines",
 	"Jenfir", "Jown", "Juda", "Kiln", "Laurl", "Loic", "Merrn", "Maikl", "Nanzl",
 	"Nolwn", "Quent", "Reegn", "Ropr", "Sabi", "Stren", "Yanz",
 ];
 
+const LYGOS_NAMES = [
+	"Agatte", "Aref", "Alix", "Baraz", "Canan", "Darya", "Demetra", "Elene",
+	"Elios", "Fotios", "Faruza", "Golza", "Iasos", "Iona", "Kyriakos", "Marika",
+	"Maayan", "Osher", "Natasa", "Nivola", "Rinat", "Stamat", "Thecla", "Zhaleh",
+];
+
+const NEIGHBOR_NAMES_BY_HOME = {
+	"Marshedge": MARSHEDGE_NAMES,
+	"The Steplands": STEPLANDS_NAMES,
+	"Lygos": LYGOS_NAMES,
+};
+
+// Per the Steading playbook's "Notable neighbors" reference, name lists are only
+// given for Marshedge, the Steplands, and Lygos — everywhere else either has no
+// dedicated list ("Other places: Barrier Pass, the Manmarch, etc.") or explicitly
+// says to "choose from other lists" (Gordin's Delve, since "everyone comes ...
+// from somewhere else"). Those homes fall back to the full combined name pool.
+const NEIGHBOR_NAMES = Object.values(NEIGHBOR_NAMES_BY_HOME).flat();
+
 const OCCUPATIONS = [
-	"baker", "beekeeper", "blacksmith", "bonesetter", "brewer", "butcher",
-	"carpenter", "chandler", "charcoal burner", "cobbler", "cook", "cooper",
-	"ditchdigger", "dyer",
-	"falconer", "farmer", "fisherman", "fletcher", "forester", "fuller",
-	"glassblower", "grave digger", "guard",
-	"harness maker", "healer", "herbalist", "homemaker", "hunter",
-	"innkeep",
-	"laundress", "leatherworker",
-	"mason", "merchant", "midwife", "miller",
-	"ostler",
-	"peddler", "porter", "potter", "priest", "publican",
-	"ropemaker",
-	"saddler", "scribe", "shepherd", "shrine keeper", "smith", "spinner", "stable hand", "stonecutter",
-	"tanner", "thatcher", "tinker", "trapper",
-	"watchman", "weaver", "wheelwright", "woodcarver", "woodcutter",
+	"Baker", "Beekeeper", "Blacksmith", "Bonesetter", "Brewer", "Butcher",
+	"Carpenter", "Chandler", "Charcoal burner", "Cobbler", "Cook", "Cooper",
+	"Ditchdigger", "Dyer",
+	"Falconer", "Farmer", "Fisherman", "Fletcher", "Forester", "Fuller",
+	"Glassblower", "Grave digger", "Guard",
+	"Harness maker", "Healer", "Herbalist", "Homemaker", "Hunter",
+	"Innkeep",
+	"Laundress", "Leatherworker",
+	"Mason", "Merchant", "Midwife", "Miller",
+	"Ostler",
+	"Peddler", "Porter", "Potter", "Priest", "Publican",
+	"Ropemaker",
+	"Saddler", "Scribe", "Shepherd", "Shrine keeper", "Smith", "Spinner", "Stable hand", "Stonecutter",
+	"Tanner", "Thatcher", "Tinker", "Trapper",
+	"Watchman", "Weaver", "Wheelwright", "Woodcarver", "Woodcutter",
 ];
 
 const TRAITS = [
@@ -78,9 +98,20 @@ const TRAITS = [
 ];
 
 const HOMES = [
-	"Stonetop", "Marshedge", "Gordin's Delve", "The Steplands",
+	"Marshedge", "Gordin's Delve", "The Steplands",
 	"Lygos", "Barrier Pass", "The Manmarch",
 ];
+
+// Short blurbs drawn from the "World's End" setting overview, for the "About
+// these places" info button beside the neighbor's Home dropdown.
+const HOME_INFO = {
+	"Marshedge": "A proper town with a wooden palisade, market, and town council — though the old bandit Brennan and his gang, the Claws, run the watch.",
+	"Gordin's Delve": "A rugged mining town in the Huffel Peaks, named for the Maker-made passages that plunge beneath the mountains. Mask-wearing Ustrina sometimes come up from the depths to trade.",
+	"The Steplands": "Rugged wilderness roamed by the nomadic Hillfolk — horselords and shepherds, fierce and barbaric to outsiders.",
+	"Lygos": "A city far to the south, reached after a long trek through the arid Manmarch. Steady trade flows between Marshedge, Lygos, and the other southern towns.",
+	"Barrier Pass": "A mountain stronghold sealed by a massive wall and gate, held by stoic, unfriendly folk who live on goats and sheep and want little to do with strangers.",
+	"The Manmarch": "Sparsely settled southern plains, and the feuding, warlike longhouse-dwellers of the north — who'd be a terror to all the world, should they ever unite.",
+};
 
 export class AddSteadingMemberDialog extends Application {
 	constructor(type, onConfirm, options = {}) {
@@ -89,6 +120,7 @@ export class AddSteadingMemberDialog extends Application {
 		this._onConfirm = onConfirm;
 		this._formData = { name: "", occupation: "", traits: "", relations: "", notes: "" };
 		if (type === "neighbor") this._formData.home = "";
+		this._keepOnTop = new KeepOnTop(this, { childDialogClass: HOME_INFO_DIALOG_CLASS });
 	}
 
 	static get defaultOptions() {
@@ -101,6 +133,16 @@ export class AddSteadingMemberDialog extends Application {
 		});
 	}
 
+	async _render(force, options) {
+		await super._render(force, options);
+		this._keepOnTop.apply();
+	}
+
+	async close(options = {}) {
+		this._keepOnTop.stop();
+		return super.close(options);
+	}
+
 	get title() {
 		return this._type === "neighbor" ? "Add Neighbor" : "Add Resident";
 	}
@@ -108,15 +150,46 @@ export class AddSteadingMemberDialog extends Application {
 	getData() {
 		return {
 			isNeighbor: this._type === "neighbor",
-			names: this._type === "neighbor" ? NEIGHBOR_NAMES : STONETOP_NAMES,
+			names: this._namesForHome(this._formData.home),
 			occupations: OCCUPATIONS,
 			traits: TRAITS,
 			homes: HOMES,
 		};
 	}
 
+	/** Names available depend on which "Home" is selected — see the Steading playbook's "Notable neighbors" reference. */
+	_namesForHome(home) {
+		if (this._type !== "neighbor") return STONETOP_NAMES;
+		return NEIGHBOR_NAMES_BY_HOME[home] ?? NEIGHBOR_NAMES;
+	}
+
+	_showHomeInfo() {
+		const entries = HOMES.map(home => `
+			<div class="stonetop-asm-home-info-entry">
+				<h3>${home}</h3>
+				<p>${HOME_INFO[home] ?? ""}</p>
+			</div>`).join("");
+		new Dialog({
+			title: "Notable Places",
+			content: `<div class="stonetop-asm-home-info">${entries}</div>`,
+			buttons: { close: { label: "Close" } },
+			default: "close",
+		}, { width: 480, classes: ["dialog", "stonetop-asm-home-info-dialog", HOME_INFO_DIALOG_CLASS] }).render(true);
+	}
+
+	_refreshNameOptions(root) {
+		const select = root.querySelector('.asm-select[name="name"]');
+		if (!select) return;
+		const names = this._namesForHome(this._formData.home);
+		const current = select.value;
+		select.replaceChildren(new Option("— choose a name —", ""), ...names.map(n => new Option(n, n)));
+		select.value = names.includes(current) ? current : "";
+		this._formData.name = select.value;
+	}
+
 	activateListeners(html) {
 		super.activateListeners(html);
+		this._keepOnTop.start();
 		const root = html[0];
 
 		root.querySelectorAll(".asm-input, .asm-select").forEach(el => {
@@ -124,6 +197,14 @@ export class AddSteadingMemberDialog extends Application {
 				this._formData[el.name] = el.value;
 			});
 		});
+
+		// The pool of names depends on which "Home" is selected (see the Steading
+		// playbook's "Notable neighbors" reference) — refilter when it changes.
+		root.querySelector('.asm-select[name="home"]')?.addEventListener("change", () => {
+			this._refreshNameOptions(root);
+		});
+
+		root.querySelector(".asm-info[data-info='home']")?.addEventListener("click", () => this._showHomeInfo());
 
 		root.querySelectorAll(".asm-randomize").forEach(btn => {
 			btn.addEventListener("click", () => {

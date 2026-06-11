@@ -1,10 +1,9 @@
-import { registerSettings } from "./module/settings.js";
+import { registerSettings, getSetting, applyMoveDescriptionBodyClass } from "./module/settings.js";
 import { createStonetopActorClass } from "./module/actors/StonetopActor.js";
 import { createStonetopItemClass } from "./module/item/StonetopItem.js";
 import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSheet.js";
 import { createStonetopCharacterSheetClass } from "./module/actors/character/StonetopCharacterSheet.js";
 import { createStonetopSteadingSheetClass } from "./module/actors/steading/StonetopSteadingSheet.js";
-import { createStonetopNpcSheetClass } from "./module/actors/npc/StonetopNpcSheet.js";
 import { createStonetopMonsterSheetClass } from "./module/actors/monster/StonetopMonsterSheet.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
@@ -13,6 +12,7 @@ import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
+import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -23,6 +23,7 @@ Hooks.once("init", () => {
 
 	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
 	Handlebars.registerHelper("boldMissText", value => boldMissText(value));
+	Handlebars.registerHelper("eq", (a, b) => a === b);
 
 	const _STAT_LABEL_KEYS = {
 		str: "stonetop.character.stats.strength",
@@ -104,13 +105,6 @@ Hooks.once("init", () => {
 		label:       "Stonetop Steading Sheet",
 	});
 
-	const StonetopNpcSheet = createStonetopNpcSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop_pwd", StonetopNpcSheet, {
-		types:       ["npc"],
-		makeDefault: true,
-		label:       "Stonetop NPC Sheet",
-	});
-
 	const StonetopMonsterSheet = createStonetopMonsterSheetClass(ActorSheet);
 	Actors.registerSheet("stonetop_pwd", StonetopMonsterSheet, {
 		types:       ["monster"],
@@ -138,8 +132,14 @@ Hooks.once("init", () => {
 		"stonetop.tab-arcana":       "systems/stonetop_pwd/templates/actor/partials/tab-arcana.hbs",
 		"stonetop.tab-post-death":      "systems/stonetop_pwd/templates/actor/partials/tab-post-death.hbs",
 		"stonetop.tab-special-moves":   "systems/stonetop_pwd/templates/actor/partials/tab-special-moves.hbs",
-		"stonetop.move-group":       "systems/stonetop_pwd/templates/actor/partials/move-group.hbs",
-		"stonetop.lore-section":     "systems/stonetop_pwd/templates/actor/partials/lore-section.hbs",
+		"stonetop.move-group":           "systems/stonetop_pwd/templates/actor/partials/move-group.hbs",
+		"stonetop.move-mark-level":      "systems/stonetop_pwd/templates/actor/partials/move-mark-level.hbs",
+		"stonetop.sidebar-move-list":    "systems/stonetop_pwd/templates/actor/partials/sidebar-move-list.hbs",
+		"stonetop.lore-section":          "systems/stonetop_pwd/templates/actor/partials/lore-section.hbs",
+		"stonetop.lore-options-edit":     "systems/stonetop_pwd/templates/actor/partials/lore-options-edit.hbs",
+		"stonetop.lore-options-readonly": "systems/stonetop_pwd/templates/actor/partials/lore-options-readonly.hbs",
+		"stonetop.lore-arcana-image":     "systems/stonetop_pwd/templates/actor/partials/lore-arcana-image.hbs",
+		"stonetop.possession-choice-groups": "systems/stonetop_pwd/templates/actor/partials/possession-choice-groups.hbs",
 		"stonetop.section-heading":  "systems/stonetop_pwd/templates/actor/partials/section-heading.hbs",
 		"stonetop.resource-track":   "systems/stonetop_pwd/templates/actor/partials/resource-track.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop_pwd/templates/actor/partials/steading-tab-overview.hbs",
@@ -147,16 +147,21 @@ Hooks.once("init", () => {
 		"stonetop.steading-tab-improvements": "systems/stonetop_pwd/templates/actor/partials/steading-tab-improvements.hbs",
 		"stonetop.steading-tab-moves":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-moves.hbs",
 		"stonetop.steading-tab-notes":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-notes.hbs",
-		"stonetop.npc-sheet":                 "systems/stonetop_pwd/templates/actor/npc.hbs",
 		"stonetop.monster-sheet":             "systems/stonetop_pwd/templates/actor/monster.hbs",
+		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
 	});
 });
 
 // -- RENDER PAUSE ----------------------------------------------
+// "renderPause" (v11) was renamed in v12+; cover all known variants and
+// pauseGame so the text override fires whenever pause state changes.
 Hooks.on("renderPause", onRenderPause);
+Hooks.on("renderPauseBanner", onRenderPause);
+Hooks.on("pauseGame", (paused) => paused && onRenderPause());
 
 // -- READY -----------------------------------------------------
 Hooks.once("ready", onReady);
+Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDescriptionsInChat")));
 
 // -- RENDER ACTOR SHEET ----------------------------------------
 Hooks.on("renderActorSheet", onRenderActorSheet);
@@ -175,6 +180,15 @@ Hooks.on("preCreateChatMessage", (message) => {
 // -- QUESTION BULLETS ------------------------------------------
 Hooks.on("renderChatMessageHTML", (message, html) => {
 	markQuestionBullets(html);
+});
+
+// -- MOVE DESCRIPTION TOGGLE -----------------------------------
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	const toggle = html.querySelector(".stonetop-roll-card-desc-toggle");
+	if (!toggle) return;
+	toggle.addEventListener("click", () => {
+		toggle.closest(".stonetop-roll-card")?.classList.toggle("desc-revealed");
+	});
 });
 
 // -- DEBILITY DISADVANTAGE ANNOTATION -------------------------
@@ -236,7 +250,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 
 	const btn = document.createElement("button");
 	btn.className = "stonetop-burn-brightly-btn";
-	btn.textContent = "Burn brightly";
+	btn.innerHTML = `<span class="stonetop-burn-brightly-icon"></span> Burn brightly`;
 	btn.dataset.tooltip = BURN_BRIGHTLY_TOOLTIP;
 	btn.dataset.tooltipDirection = "UP";
 	btn.disabled = alreadyBurned;
@@ -293,6 +307,26 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 			console.error("Stonetop | Error burning brightly:", err);
 			btn.disabled = false;
 		}
+	});
+});
+
+// -- WOULD-BE HERO: BECOME A HERO ------------------------------
+// Wire the "Become a Hero" button on asterisk-move prompt cards.
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	const btn = html.querySelector(".stonetop-become-hero-btn");
+	if (!btn) return;
+
+	const actor = game.actors?.get(btn.dataset.actorId);
+	if (!actor?.isOwner) { btn.style.display = "none"; return; }
+	if (actor.getFlag("stonetop_pwd", WBH_HERO_FLAG)) {
+		btn.disabled = true;
+		btn.innerHTML = `<i class="fas fa-star"></i> Already a Hero`;
+		return;
+	}
+
+	btn.addEventListener("click", async () => {
+		btn.disabled = true;
+		await crossOffWouldBe(actor);
 	});
 });
 

@@ -79,6 +79,7 @@ export class CharacterSnapshot {
 		this.arcana          = b._arcana;
 		this.postDeathInsert = b._postDeathInsert;
 		this.rollMode        = b._rollMode;
+		this.crewBonuses     = b._crewBonuses ?? null;
 	}
 }
 
@@ -94,5 +95,6 @@ export class CharacterSnapshotBuilder {
 	withArcana(v)          { this._arcana          = v; return this; }
 	withPostDeathInsert(v) { this._postDeathInsert = v; return this; }
 	withRollMode(v)        { this._rollMode        = v; return this; }
+	withCrewBonuses(v)     { this._crewBonuses     = v; return this; }
 	build()                { return new CharacterSnapshot(this); }
 }

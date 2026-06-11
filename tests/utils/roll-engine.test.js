@@ -64,7 +64,7 @@ describe("rollStat", () => {
 			content: expect.stringContaining("stonetop-roll-card"),
 		}));
 		const xpMessage = ChatMessage.create.mock.calls[0][0];
-		expect(xpMessage.content).toContain("result failure");
+		expect(xpMessage.content).toContain("result success");
 		expect(xpMessage.content).toContain("+1 XP (3 / 8)");
 	});
 

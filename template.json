@@ -1,6 +1,6 @@
 {
     "Actor": {
-        "types": ["character", "stonetop", "npc", "monster"],
+        "types": ["character", "stonetop", "monster"],
         "character": {
             "stats": {
                 "str": { "value": 0 },
@@ -45,14 +45,6 @@
                     }
                 }
             }
-        },
-        "npc": {
-            "attributes": {
-                "hp":       { "value": 0, "max": 0 },
-                "armor":    { "value": 0, "max": 0 },
-                "instinct": { "value": ""          }
-            },
-            "notes": ""
         },
         "monster": {
             "attributes": {

@@ -86,9 +86,9 @@
 				<span class="stonetop-follower-type">group follower</span>
 			</div>
 			<div class="stonetop-follower-stats">
-				<span class="stonetop-follower-stat"><strong>HP</strong> 6 each</span>
-				<span class="stonetop-follower-stat"><strong>Armor</strong> 0</span>
-				<span class="stonetop-follower-stat"><strong>Damage</strong> <a class="rollable stonetop-follower-damage-roll" data-roll="d6" data-follower-type="crew" data-follower-name="{{name}}" data-follower-pronoun="they" data-damage-form=""><i class="fas fa-dice-d6"></i></a> d6</span>
+				<span class="stonetop-follower-stat"><strong>HP</strong> {{memberHp}} each</span>
+				<span class="stonetop-follower-stat"><strong>Armor</strong> {{armor}}</span>
+				<span class="stonetop-follower-stat"><strong>Damage</strong> <a class="rollable stonetop-follower-damage-roll" data-roll="{{damageDie}}" data-follower-type="crew" data-follower-name="{{name}}" data-follower-pronoun="they" data-damage-form=""><i class="fas fa-dice-d6"></i></a> {{damageDie}}</span>
 			</div>
 		</div>
 
@@ -180,9 +180,9 @@
 							<strong class="stonetop-follower-hp-label">HP</strong>
 							<input class="stonetop-follower-hp-input" type="number"
 							       data-follower="crew-individual" data-index="{{index}}"
-							       value="{{hpCurrent}}" min="0" max="6">
+							       value="{{hpCurrent}}" min="0" max="{{hpMax}}">
 							<span class="stonetop-hp-sep">/</span>
-							<span class="stonetop-hp-max">6</span>
+							<span class="stonetop-hp-max">{{hpMax}}</span>
 						</span>
 						{{#if @root.stonetop.editMode}}
 						<button type="button" class="stonetop-crew-delete-individual stonetop-inline-btn stonetop-inline-btn--danger"
@@ -216,6 +216,48 @@
 				<i class="fas fa-user-plus"></i> Create Individual
 			</button>
 			{{/if}}
+		</div>
+		{{!-- Group Fight --}}
+		<div class="stonetop-follower-section stonetop-group-fight-section">
+			<p class="stonetop-follower-section-heading">Group Fight
+				<span class="stonetop-follower-section-subtitle">treat the whole group as one combatant</span>
+			</p>
+			<div class="stonetop-group-fight-stats-row">
+				<span class="stonetop-group-fight-stat">
+					<strong>Group HP</strong>
+					{{#if individuals.length}}{{groupHp}}{{else}}—{{/if}}
+				</span>
+				<span class="stonetop-group-fight-stat"><strong>Armor</strong> {{armor}}</span>
+				<span class="stonetop-group-fight-stat"><strong>Roll</strong> +{{rollMod}}</span>
+				<span class="stonetop-group-fight-stat">
+					<strong>Damage</strong>
+					<a class="rollable stonetop-follower-damage-roll stonetop-group-fight-dmg-roll"
+					   data-roll="{{damageDie}}"
+					   data-follower-type="crew"
+					   data-follower-name="{{#if name}}{{name}}{{else}}crew{{/if}}"
+					   data-follower-pronoun="they"
+					   data-damage-form="">
+						<i class="fas fa-dice-d6"></i>
+					</a>
+					<span class="stonetop-group-fight-dmg-label">{{damageDie}}</span>
+				</span>
+			</div>
+			<div class="stonetop-group-fight-outnumber-row">
+				<span class="stonetop-group-fight-outnumber-label">Outnumber:</span>
+				<input class="stonetop-outnumber-yours" type="number" min="1"
+				       value="{{#if individuals.length}}{{individuals.length}}{{else}}1{{/if}}">
+				<span class="stonetop-outnumber-vs">vs</span>
+				<input class="stonetop-outnumber-theirs" type="number" min="1" value="1">
+				<span class="stonetop-outnumber-result"></span>
+			</div>
+			<div class="stonetop-group-fight-roll-row">
+				<button type="button" class="stonetop-group-fight-roll" data-stat="str">
+					<i class="fas fa-dice-d6"></i> Clash (STR)
+				</button>
+				<button type="button" class="stonetop-group-fight-roll" data-stat="dex">
+					<i class="fas fa-dice-d6"></i> Let Fly (DEX)
+				</button>
+			</div>
 		</div>
 
 	</div>
@@ -322,6 +364,12 @@
 			<details class="stonetop-follower-rule">
 				<summary>Loyal to the End</summary>
 				<p>When <strong><em>one of your followers would die</em></strong>, you can spend 1 of their Loyalty to have them survive (out of the action, but alive). If you let them go, mark XP.</p>
+			</details>
+			<details class="stonetop-follower-rule">
+				<summary>Followers in Fights</summary>
+				<p>When a <strong><em>follower Aids you to Defend</em></strong>, you can spend 1 Readiness to have the follower suffer the damage/effects of an attack, or to have the follower draw all attention from your ward to itself.</p>
+				<p>When a <strong><em>group of followers fights another group</em></strong>, roll a single Clash or Let Fly once for the whole group. Each side has HP and Armor and deals damage as one individual. Lost HP represents casualties proportionate to the group's original HP.</p>
+				<p>If one side <strong><em>outnumbers the other</em></strong>, that side gets +1 Armor and +1 damage for each multiplier past the first (e.g. 3:1 gives +2 damage and +2 Armor).</p>
 			</details>
 		</div>
 	</div>

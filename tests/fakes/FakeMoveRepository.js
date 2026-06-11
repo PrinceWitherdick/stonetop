@@ -1,10 +1,11 @@
 import {MoveDefinition} from "../../module/model/MoveDefinition.js";
 
 export class FakeMoveRepository {
-	constructor(playbookMoves = [], basicMoves = [], postDeathMoves = []) {
-		this._playbookMoves  = playbookMoves;
-		this._basicMoves     = basicMoves;
-		this._postDeathMoves = postDeathMoves;
+	constructor(playbookMoves = [], basicMoves = [], postDeathMoves = [], expeditionMoves = []) {
+		this._playbookMoves   = playbookMoves;
+		this._basicMoves      = basicMoves;
+		this._postDeathMoves  = postDeathMoves;
+		this._expeditionMoves = expeditionMoves;
 	}
 
 	async getPlaybookMoves() {
@@ -41,6 +42,14 @@ export class FakeMoveRepository {
 
 	addPostDeath(move) {
 		this._postDeathMoves.push(move);
+	}
+
+	async getExpeditionMoves() {
+		return this._expeditionMoves.map(m => new MoveDefinition(m));
+	}
+
+	addExpedition(move) {
+		this._expeditionMoves.push(move);
 	}
 }
 

@@ -1,4 +1,5 @@
 import { SettingOverviewDialog } from "../../../dialogs/SettingOverviewDialog.js";
+import { KeepOnTop } from "../../../utils/keep-on-top.js";
 
 const PLAYBOOK_DESCRIPTIONS = {
 	"the-blessed":       { complexity: "Medium",       desc: "Nature priest. Speaks to spirits and beasts. Works subtle magics via sacred markings and materials." },
@@ -17,6 +18,7 @@ export class PlaybookPickerDialog extends Application {
 		super(options);
 		this._onPick   = onPick;
 		this._playbooks = [];
+		this._keepOnTop = new KeepOnTop(this, { childDialogClass: "stonetop-setting-overview" });
 	}
 
 	static get defaultOptions() {
@@ -29,6 +31,16 @@ export class PlaybookPickerDialog extends Application {
 			resizable: false,
 			classes:   ["stonetop", "stonetop-playbook-picker"],
 		});
+	}
+
+	async _render(force, options) {
+		await super._render(force, options);
+		this._keepOnTop.apply();
+	}
+
+	async close(options = {}) {
+		this._keepOnTop.stop();
+		return super.close(options);
 	}
 
 	async getData() {
@@ -62,6 +74,7 @@ export class PlaybookPickerDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		this._keepOnTop.start();
 		html.find(".stonetop-playbook-picker-setting-overview").on("click", () => {
 			const existing = Object.values(ui.windows).find(w => w.id === "stonetop-setting-overview");
 			if (existing?.rendered) existing.bringToTop();

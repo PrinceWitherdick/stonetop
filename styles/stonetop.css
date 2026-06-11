@@ -57,6 +57,13 @@
 	--font-avara: "Avara", serif;
 	--font-primary: "Libre Caslon Text", Signika, sans-serif;
 	--font-stonetop: "Libre Caslon Text", Signika, sans-serif;
+	/* Multiplier for Stonetop sheet/dialog text, driven by the sheetFontScale
+	   client setting. 1 = default. Anchored once on .stonetop so all em-based
+	   sizes below it scale together. */
+	--stonetop-font-scale: 1;
+	/* Spiral bullet size. Default here (used by chat cards / hover panels); the
+	   sheet/dialog value is scaled with the font setting on .stonetop .window-content. */
+	--stonetop-bullet-size: 10px;
 	--font-size-display: 42px;
 	--stonetop-bg: hsl(30deg 20% 94%);
 	--color-border-highlight-alt: slategrey;
@@ -79,6 +86,10 @@
 	--color-the-judge: hsl(244, 93%, 18%);
 	--stonetop-diamond-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond.svg');
 	--stonetop-diamond-selected-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond_selected.svg');
+	/* Standard gap between a spiral bullet and its text (matches the Stonetop Assets list). */
+	--stonetop-spiral-gap: 8px;
+	/* The spiral icon used for bullets/markers throughout the sheets. */
+	--stonetop-spiral-icon: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
 
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
@@ -130,11 +141,19 @@ body,
 }
 
 #pause img {
-	--fa-animation-duration: 15s
+	content: var(--stonetop-spiral-icon);
+	--fa-animation-duration: 15s;
+	animation-duration: 15s;
+	filter: invert(1);
 }
 
 #pause figcaption {
 	text-shadow: 3px 3px 4px var(--color-shadow-dark);
+}
+
+/* Actor sidebar thumbnails — show full portrait instead of cropping */
+#actors .directory-item img {
+	object-fit: contain;
 }
 
 .vtt .sidebar-tab,
@@ -163,11 +182,21 @@ body,
 	--font-sans: var(--font-stonetop);
 }
 
+/* Sheet/dialog font-size scale (sheetFontScale client setting). Anchored on the
+   window *content* so em-based sizes below inherit the bump, while the window
+   header (title + control buttons like Ledger, Prototype Token, Close) stays at
+   Foundry's default size. */
+.stonetop .window-content {
+	font-size: calc(1em * var(--stonetop-font-scale, 1));
+	--stonetop-bullet-size: calc(10px * var(--stonetop-font-scale, 1));
+}
+
 /* Diamond/circle glyphs should never be slanted, even inside italic contexts. */
 .stonetop-glyph { font-style: normal; }
 
 .stonetop-glyph--diamond,
-.stonetop-glyph--diamond-selected {
+.stonetop-glyph--diamond-selected,
+.stonetop-glyph--arrow {
 	display: inline-block;
 	width: 0.78em;
 	height: 0.78em;
@@ -356,7 +385,7 @@ body,
 	border: 1px solid #aaa;
 	border-radius: 3px;
 	background: transparent;
-	font-size: 1rem;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 	padding: 2px 8px;
 	pointer-events: none;
 }
@@ -397,14 +426,14 @@ body,
 	border: 1px solid #aaa;
 	border-radius: 3px;
 	background: transparent;
-	font-size: 1rem;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 	padding: 2px 8px;
 	box-sizing: border-box;
 }
 
 .sheet-attributes-top .cell--Resource .cell__separator {
 	flex-shrink: 0;
-	font-size: 1.1rem;
+	font-size: calc(1.1rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	line-height: 1;
 }
@@ -416,7 +445,7 @@ body,
 	border: 1px solid #aaa;
 	border-radius: 3px;
 	background: transparent;
-	font-size: 1rem;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 	padding: 2px 8px;
 	box-sizing: border-box;
 }
@@ -491,7 +520,7 @@ input.stonetop-name-field {
 .stonetop-name-called-label {
 	display: block;
 	font-family: var(--font-stonetop);
-	font-size: 0.65rem;
+	font-size: calc(0.65rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	line-height: 1;
@@ -563,7 +592,7 @@ input.stonetop-name-field {
 	padding: 0 !important;
 	background: transparent !important;
 	color: #1a1a1a !important;
-	font-size: 1.1rem;
+	font-size: calc(1.1rem * var(--stonetop-font-scale, 1));
 	line-height: 42px;
 	flex-shrink: 0;
 }
@@ -622,7 +651,7 @@ input.stonetop-name-field {
 	justify-content: center !important;
 	gap: 3px;
 	font-variant: small-caps;
-	font-size: 0.82rem !important;
+	font-size: calc(0.82rem * var(--stonetop-font-scale, 1)) !important;
 	font-weight: bold;
 	color: #1a1a1a !important;
 	text-align: center !important;
@@ -633,7 +662,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-stat-abbr {
-	font-size: 0.75rem;
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 	font-variant: small-caps;
 	text-transform: uppercase;
 	color: var(--color-text-dark-secondary);
@@ -642,7 +671,7 @@ input.stonetop-name-field {
 
 .pbta.sheet .sheet-attributes .cell--stats .stat-icon {
 	color: #1a1a1a !important;
-	font-size: 0.8rem !important;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1)) !important;
 	line-height: 1;
 	flex-shrink: 0;
 	width: auto !important;
@@ -654,7 +683,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-playbook-description {
-	font-size: 0.75rem;
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	margin: 4px 0 4px;
@@ -701,6 +730,7 @@ input.stonetop-name-field {
 	align-items: center;
 	gap: 3px;
 	cursor: pointer;
+	/* Debilities stay a fixed size, unaffected by the font-size setting. */
 	font-size: 0.7rem;
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
@@ -792,12 +822,12 @@ input.stonetop-name-field {
 
 .creation-section h3 {
 	margin-bottom: 4px;
-	font-size: 1rem;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 	border-bottom: 1px solid var(--color-border-light-2);
 }
 
 .creation-choose {
-	font-size: 0.75rem;
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 	font-weight: normal;
 	color: var(--color-text-dark-secondary);
 	margin-left: 4px;
@@ -826,7 +856,7 @@ input.stonetop-name-field {
 }
 
 .creation-option__desc {
-	font-size: 0.85rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	margin-left: 4px;
 }
@@ -839,7 +869,7 @@ input.stonetop-name-field {
 
 .creation-subchoices__label {
 	margin-bottom: 4px;
-	font-size: 0.85rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 }
 
 .creation-hint {
@@ -863,7 +893,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-selection-label {
-	font-size: 0.7rem;
+	font-size: calc(0.7rem * var(--stonetop-font-scale, 1));
 	font-weight: bold;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
@@ -877,7 +907,7 @@ input.stonetop-name-field {
 	padding: 1px 2px;
 	cursor: pointer;
 	font-family: inherit;
-	font-size: 0.9rem;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	color: inherit;
 	text-align: left;
 }
@@ -899,7 +929,7 @@ input.stonetop-name-field {
 
 .stonetop-bg-choices-label {
 	margin: 0 0 3px;
-	font-size: 0.8rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	font-weight: bold;
 	color: var(--color-text-dark-secondary);
 }
@@ -909,7 +939,7 @@ input.stonetop-name-field {
 	align-items: center;
 	gap: 6px;
 	padding: 2px 0;
-	font-size: 0.85rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	cursor: pointer;
 }
 
@@ -929,7 +959,7 @@ input.stonetop-name-field {
 	box-sizing: border-box;
 	margin: 0 0 6px;
 	font-family: inherit;
-	font-size: 0.9rem;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-instinct-options {
@@ -963,7 +993,7 @@ input.stonetop-name-field {
 	align-items: center;
 	gap: 6px;
 	cursor: pointer;
-	font-size: 0.9rem;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	margin-bottom: 2px;
 }
 
@@ -978,7 +1008,7 @@ input.stonetop-name-field {
 	display: flex;
 	align-items: center;
 	gap: 5px;
-	font-size: 0.8rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	cursor: pointer;
 	color: var(--color-text-dark-secondary);
 }
@@ -991,9 +1021,9 @@ input.stonetop-name-field {
 .stonetop-origin-name-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
-	width: 10px !important;
-	height: 10px !important;
-	flex: 0 0 10px !important;
+	width: calc(10px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(10px * var(--stonetop-font-scale, 1)) !important;
+	flex: 0 0 calc(10px * var(--stonetop-font-scale, 1)) !important;
 	border-radius: 0 !important;
 	border: 1.5px solid var(--color-text-dark-primary) !important;
 	background: transparent !important;
@@ -1017,7 +1047,7 @@ input.stonetop-name-field {
 
 .stonetop-origin-description {
 	margin-top: 5px;
-	font-size: 0.84rem;
+	font-size: calc(0.84rem * var(--stonetop-font-scale, 1));
 	line-height: 1.35;
 	color: var(--color-text-dark-secondary);
 }
@@ -1069,7 +1099,7 @@ input.stonetop-name-field {
 
 .selection-option-body p {
 	margin: 0;
-	font-size: 0.85rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	line-height: 1.4;
 }
@@ -1091,7 +1121,7 @@ input.stonetop-name-field {
 .appearance-instruction {
 	margin: 0 0 8px;
 	font-style: italic;
-	font-size: 0.85rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 }
 
@@ -1113,7 +1143,7 @@ input.stonetop-name-field {
 }
 
 .appearance-row-num {
-	font-size: 0.7rem;
+	font-size: calc(0.7rem * var(--stonetop-font-scale, 1));
 	font-weight: bold;
 	color: var(--color-text-dark-secondary);
 	background: rgba(0, 0, 0, 0.06);
@@ -1139,7 +1169,7 @@ input.stonetop-name-field {
 	align-items: center;
 	gap: 4px;
 	cursor: pointer;
-	font-size: 0.9rem;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 }
 
 /* Origin dialog */
@@ -1169,7 +1199,7 @@ input.stonetop-name-field {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	font-size: 0.95rem;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 	cursor: pointer;
 	margin-bottom: 6px;
 }
@@ -1179,7 +1209,7 @@ input.stonetop-name-field {
 }
 
 .origin-names-label {
-	font-size: 0.7rem;
+	font-size: calc(0.7rem * var(--stonetop-font-scale, 1));
 	font-weight: bold;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
@@ -1199,7 +1229,7 @@ input.stonetop-name-field {
 	border: 1px solid var(--color-border-light-2);
 	border-radius: 3px;
 	padding: 2px 6px;
-	font-size: 0.8rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	cursor: pointer;
 	font-family: inherit;
 }
@@ -1250,11 +1280,16 @@ input.stonetop-name-field {
 	margin-top: 0;
 }
 
+.stonetop-sidebar-rules {
+	margin-top: 8px;
+	width: 200px;
+}
+
 .stonetop-roll-mode-control {
 	display: grid;
 	gap: 3px;
 	margin-bottom: 12px;
-	font-size: 0.78rem;
+	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-roll-mode-option {
@@ -1276,9 +1311,19 @@ input.stonetop-name-field {
 	margin: 0;
 }
 
-.stonetop-moves-sidebar li {
+/* Each row is a left-aligned, vertically-centered flex row. No left padding so
+   the dice icon (or name, for non-rollable moves) sits flush with the left edge
+   of the "Basic Moves" / "Expedition Moves" heading above it. Specificity (0,2,1)
+   beats pbta's .items-list .item (0,2,0). */
+.stonetop-moves-sidebar .items-list li {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 5px;
 	border-radius: 3px;
-	padding: 2px 4px;
+	padding: 2px 4px 2px 0;
+	margin: 0;
 	cursor: pointer;
 	font-style: normal;
 	white-space: nowrap;
@@ -1330,8 +1375,10 @@ input.stonetop-name-field {
 .stonetop-basic-move-panel li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-basic-move-panel li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+	background-image: var(--stonetop-spiral-icon);
+	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.6;
+	/* The spiral SVG is dark; invert it so it shows on the panel's dark background. */
+	filter: invert(1);
 }
 .stonetop-basic-move-panel strong { font-weight: bold; }
 .stonetop-basic-move-panel em { font-style: italic; }
@@ -1366,7 +1413,7 @@ input.stonetop-name-field {
 /* -- Moves tab -------------------------------------------- */
 
 .stonetop-moves-note {
-	font-size: 0.75rem;
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	margin: 0 0 6px;
@@ -1379,9 +1426,10 @@ input.stonetop-name-field {
 	color: var(--color-text-dark-secondary);
 }
 
+/* Multi-column (masonry-style) so short move cards don't leave big gaps —
+   cards flow and the columns balance by height instead of aligning rows. */
 .stonetop-move-group .items-list {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
+	columns: 2;
 	column-gap: 16px;
 	padding: 0;
 	margin: 4px 0 0;
@@ -1389,7 +1437,24 @@ input.stonetop-name-field {
 }
 
 .stonetop-moves-sidebar .items-list {
-	grid-template-columns: 1fr;
+	columns: 1;
+	/* pbta only zeroes .items-list padding inside .cell--* move blocks, not our
+	   custom sidebar, so the <ol> keeps its default left indent. Remove it so rows
+	   sit flush with the "Basic Moves" heading. Bottom margin matches the Roll
+	   Modifier section's spacing so each section is separated evenly. */
+	margin: 0 0 12px;
+	padding: 0;
+}
+
+/* In the narrow two-column move list, a long name (e.g. "Invoke the Sun God")
+   would get crushed beside the checkbox / dice / +stat chip. Let the header wrap
+   and give the name a content-width basis so it stays inline when the whole title
+   fits, and drops to its own full-width line below the controls when it doesn't. */
+.stonetop-move-group .stonetop-item-header {
+	flex-wrap: wrap;
+}
+.stonetop-move-group .stonetop-item-name {
+	flex-basis: auto;
 }
 
 /* -- Shared: item rows (moves + possessions + details) ----- */
@@ -1402,24 +1467,31 @@ input.stonetop-name-field {
 .stonetop-item-header {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
 }
 
+.stonetop-check,
 .stonetop-item-check,
 .stonetop-lore-option-check,
 .stonetop-arcanum-unlock-check,
+.stonetop-arcanum-box,
 .stonetop-hide-unselected-check,
+.stonetop-hide-unknown-invocations-check,
 .stonetop-possession-check,
 .stonetop-possession-sub-check,
 .stonetop-inventory-item-check,
+.stonetop-move-mark-check,
+.stonetop-eos-group-check,
+.stonetop-outfit-item-check,
+.stonetop-levelup-locked-check,
 .steading-improvement-complete,
 .steading-improvement-req,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
-	width: 15px !important;
-	height: 15px !important;
-	flex: 0 0 15px !important;
+	width: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1)) !important;
 	border: none !important;
 	border-radius: 0 !important;
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
@@ -1427,13 +1499,20 @@ input.stonetop-name-field {
 	margin: 0;
 }
 
+.stonetop-check:checked,
 .stonetop-item-check:checked,
 .stonetop-lore-option-check:checked,
 .stonetop-arcanum-unlock-check:checked,
+.stonetop-arcanum-box:checked,
 .stonetop-hide-unselected-check:checked,
+.stonetop-hide-unknown-invocations-check:checked,
 .stonetop-possession-check:checked,
 .stonetop-possession-sub-check:checked,
 .stonetop-inventory-item-check:checked,
+.stonetop-move-mark-check:checked,
+.stonetop-eos-group-check:checked,
+.stonetop-outfit-item-check:checked,
+.stonetop-levelup-locked-check:checked,
 .steading-improvement-complete:checked,
 .steading-improvement-req:checked,
 .steading-list-check:checked {
@@ -1442,13 +1521,77 @@ input.stonetop-name-field {
 
 .stonetop-item-check:disabled,
 .stonetop-lore-option-check:disabled,
+.stonetop-move-mark-check:disabled,
 .stonetop-arcanum-unlock-check:disabled {
 	opacity: 0.35;
 	cursor: default;
 }
 
+.stonetop-move-marks {
+	list-style: none;
+	margin: 4px 0 0;
+	padding: 0;
+}
+.stonetop-move-marks .stonetop-move-mark::before { content: none !important; }
+.stonetop-move-mark {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 3px 0;
+}
+.stonetop-move-mark-checks {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 3px;
+	flex: 0 0 auto;
+}
+/* Potential for Greatness: stat-increase dropdowns (label first, slots wrap below it). */
+.stonetop-move-mark-slots {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	flex: 1 1 100%;
+}
+.stonetop-move-mark-slot {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+}
+.stonetop-move-mark-stat {
+	width: auto;
+	min-width: 44px;
+	height: 20px;
+	font-family: var(--font-stonetop);
+	font-size: 0.8em;
+	padding: 0 2px;
+}
+/* "(level N)" recorded per mark; a compact editable number in edit mode. */
+.stonetop-move-mark-level-text,
+.stonetop-move-mark-level-wrap {
+	font-family: var(--font-stonetop);
+	font-size: 0.8em;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+.stonetop-move-mark-level {
+	width: 2.6em;
+	height: 18px;
+	padding: 0 2px;
+	font-family: var(--font-stonetop);
+	font-size: 1em;
+	text-align: center;
+}
+.stonetop-move-mark-label {
+	font-family: var(--font-stonetop);
+	line-height: 1.2;
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
 .stonetop-item-name {
-	font-size: 0.9rem;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	line-height: 1.3;
 	cursor: pointer;
 	flex: 1;
@@ -1458,14 +1601,22 @@ input.stonetop-name-field {
 	font-weight: normal;
 }
 
+/* Would-Be Hero: asterisked moves whose first use crosses off "Would-be". */
+.stonetop-move-asterisk {
+	cursor: help;
+	color: var(--color-the-lightbearer);
+	font-weight: bold;
+}
+
 .stonetop-move-roll-chip {
 	padding: 1px 6px;
 	border: 1px solid var(--color-text-dark-secondary);
 	border-radius: 3px;
-	font-size: 0.72rem;
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
 	line-height: 1.2;
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
+	cursor: pointer;
 }
 
 /* -- Read-only tab (not in edit mode) ----------------------------- */
@@ -1500,7 +1651,8 @@ input.stonetop-name-field {
 .stonetop-readonly .steading-list-add,
 .stonetop-readonly .stonetop-outfit-open-btn,
 .stonetop-readonly .stonetop-deathsdoor-open-btn,
-.stonetop-readonly .stonetop-levelup-open-btn {
+.stonetop-readonly .stonetop-levelup-open-btn,
+.stonetop-readonly .stonetop-item-resource-check {
 	pointer-events: auto;
 	opacity: 1;
 }
@@ -1552,32 +1704,81 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	font-family: Signika, sans-serif;
 }
 
-/* -- Move-to-chat message ----------------------------------------- */
+/* -- Move / Invocation to-chat message ----------------------------------------
+   Mirrors the stat-roll card look: parchment message background (applied via the
+   shared :has() rule above), a stonetop-font title bar with a gold-tan accent,
+   and a tinted description block. */
 
-.stonetop-chat-move {
-	padding-top: 8px;
+:is(#chat, #chat-notifications) .message .stonetop-chat-move {
+	border-radius: 6px;
+	overflow: hidden;
 }
 
-.stonetop-chat-move-name {
-	margin: 0 0 8px;
-	font-size: 1rem;
-	border-bottom: 1px solid var(--color-border-light-tertiary, #ccc);
-	padding-bottom: 8px;
+:is(#chat, #chat-notifications) .message .stonetop-chat-move-name {
+	font-family: var(--font-stonetop, "Signika", serif);
+	font-size: var(--font-size-16);
+	font-weight: bold;
+	line-height: 1.2;
+	margin: 0;
+	padding: 6px 8px;
+	border: 0;
+	border-bottom: 1px solid rgba(159, 146, 117, 0.4);
+	background: rgba(159, 146, 117, 0.08);
 }
 
-.stonetop-chat-move-description {
-	font-size: 0.85rem;
+:is(#chat, #chat-notifications) .message .stonetop-chat-move-description {
+	font-size: var(--font-size-12);
 	line-height: 1.5;
+	color: #333;
+	padding: 8px;
 }
+:is(#chat, #chat-notifications) .message .stonetop-chat-move-description p { margin: 0 0 4px; }
+:is(#chat, #chat-notifications) .message .stonetop-chat-move-description p:last-child { margin-bottom: 0; }
+/* Bullet sizing/gap deliberately uses bare selectors so the system-wide spiral
+   normalization rules (further down) layer on top at matching specificity. */
 .stonetop-chat-move-description ul { margin: 0 0 5px; padding-left: 0; list-style: none; }
 .stonetop-chat-move-description li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-chat-move-description li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
 /* ── Chat card tweaks ───────────────────────────────────────────────────────── */
+
+/* Description toggle button — hidden by default; shown when the user has opted to
+   hide descriptions. Clicking it reveals/hides the description for that message. */
+.stonetop-roll-card-desc-toggle {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	margin-left: auto;
+	flex-shrink: 0;
+	width: 1.4em;
+	height: 1.4em;
+	padding: 0;
+	border: 1px solid rgba(0,0,0,0.2);
+	border-radius: 50%;
+	background: rgba(0,0,0,0.06);
+	color: #555;
+	font-size: var(--font-size-11);
+	cursor: pointer;
+	line-height: 1;
+}
+.stonetop-roll-card-desc-toggle:hover { background: rgba(0,0,0,0.12); color: #222; }
+
+/* When the global body class is active (user setting off), show the button and hide descriptions. */
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .stonetop-roll-card-desc-toggle {
+	display: flex;
+}
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .stonetop-roll-card-description {
+	display: none;
+}
+
+/* When a specific card has been manually revealed, show its description regardless. */
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .stonetop-roll-card.desc-revealed .stonetop-roll-card-description {
+	display: block;
+}
 
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description {
 	font-size: var(--font-size-12);
@@ -1592,7 +1793,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -1602,6 +1803,54 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	gap: 8px;
 	padding-bottom: 8px;
 }
+
+/* Die of Fate oracle card — traffic-light bands (1–2 bad, 3–4 mixed, 5–6 good) */
+.stonetop-fate-card .cell--chat { padding-top: 16px; }
+.stonetop-fate-result {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 10px;
+	border-radius: 6px;
+	border-left: 5px solid currentColor;
+	margin: 0 0 8px;
+}
+.stonetop-fate-number {
+	font-family: var(--font-stonetop);
+	font-size: 2.2em;
+	line-height: 1;
+	font-weight: bold;
+}
+.stonetop-fate-label {
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+.stonetop-fate-legend {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	font-size: 0.85em;
+}
+.stonetop-fate-legend-row {
+	padding: 2px 6px;
+	border-radius: 3px;
+	opacity: 0.65;
+}
+.stonetop-fate-legend-row strong { display: inline-block; min-width: 2.6em; }
+.stonetop-fate-legend-row.is-active {
+	opacity: 1;
+	font-weight: bold;
+	background: rgba(0, 0, 0, 0.06);
+}
+
+/* Band colours */
+.stonetop-fate--bad   { color: #b3261e; }
+.stonetop-fate--mixed { color: #9a7400; }
+.stonetop-fate--good  { color: #2e7d32; }
+.stonetop-fate-result.stonetop-fate--bad   { background: rgba(179, 38, 30, 0.10); }
+.stonetop-fate-result.stonetop-fate--mixed { background: rgba(154, 116, 0, 0.12); }
+.stonetop-fate-result.stonetop-fate--good  { background: rgba(46, 125, 50, 0.10); }
 
 :is(#chat, #chat-notifications) .message .stonetop-startup-card__content {
 	display: grid;
@@ -1635,7 +1884,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 :is(#chat, #chat-notifications) .message .stonetop-startup-card__section li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -1652,7 +1901,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 
 :is(#chat, #chat-notifications) .message:has(.stonetop-roll-card),
-:is(#chat, #chat-notifications) .message:has(.stonetop-startup-card) {
+:is(#chat, #chat-notifications) .message:has(.stonetop-startup-card),
+:is(#chat, #chat-notifications) .message:has(.stonetop-chat-move) {
 	background: var(--stonetop-bg, #f0ece3) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp) center / cover;
 	border-radius: 6px;
 	border-width: 1px;
@@ -1754,6 +2004,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 4px;
 	margin: 0;
 }
@@ -1775,6 +2026,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
 	color: inherit;
 	min-height: unset;
+}
+
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button[data-action="shiftUp"],
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button[data-action="shiftDown"] {
+	flex: 1 1 0;
 }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button:hover:not(:disabled) {
@@ -1801,6 +2057,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-burn-brightly-btn {
+	flex: 0 0 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
 	font-weight: bold;
 	border: none;
 }
@@ -1810,10 +2071,30 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	cursor: default;
 }
 
+/* Shared mask-icon recipe — size/repeat/position are constant; each class supplies its own url + background. */
+.stonetop-burn-brightly-icon,
+.stonetop-onboarding-lore-marker--spiral {
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
+}
+
+.stonetop-burn-brightly-icon {
+	display: inline-block;
+	width: 1.5em;
+	height: 1.5em;
+	background: currentColor;
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/flame.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/flame.svg');
+}
+
 /* ── Item source ──────────────────────────────────────────────────────────── */
 
 .stonetop-item-source {
-	font-size: 0.7rem;
+	font-size: calc(0.7rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	margin-left: 2px;
@@ -1821,7 +2102,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-uses-label {
-	font-size: 0.75rem;
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	margin-right: 2px;
@@ -1834,7 +2115,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-choice-group-heading {
-	font-size: 0.8rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	font-weight: bold;
 	margin: 2px 0;
 }
@@ -1850,7 +2131,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	font-size: 0.8rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	cursor: pointer;
 }
 
@@ -1878,7 +2159,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-item-description {
 	padding-left: 20px;
-	font-size: 0.8rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	line-height: 1.4;
 	margin-top: 1px;
@@ -1886,6 +2167,16 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-item-description p {
 	margin: 0 0 2px;
+}
+
+/* Background descriptions: give multi-paragraph text real separation so the
+   flavor / mechanical beats read as distinct paragraphs (as in the PDF). */
+.stonetop-bg-description p {
+	margin: 0 0 0.7em;
+}
+
+.stonetop-bg-description p:last-child {
+	margin-bottom: 0;
 }
 
 .stonetop-item-description ul {
@@ -1907,7 +2198,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	width: 9px;
 	height: 9px;
 	margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -1925,7 +2216,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-move-note {
 	padding-left: 20px;
-	font-size: 0.75rem;
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	margin: 0;
@@ -1952,13 +2243,12 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	margin-left: auto;
 	flex-shrink: 0;
 }
 
 .stonetop-item-resource-check {
-	width: 16px;
-	height: 16px;
+	width: calc(16px * var(--stonetop-font-scale, 1));
+	height: calc(16px * var(--stonetop-font-scale, 1));
 	border-radius: 50% !important;
 	border: 2px solid var(--color-text-dark-primary) !important;
 	background: none !important;
@@ -2001,7 +2291,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	align-items: center;
 	gap: 6px;
 	padding: 2px 0;
-	font-size: 0.85rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-sub-choice-label {
@@ -2032,17 +2322,21 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	align-items: flex-start;
 }
 
-.stonetop-inventory-regular { flex: 1 1 0; min-width: min-content; }
+.stonetop-inventory-regular { flex: 2 1 0; min-width: min-content; }
 .stonetop-inventory-small   { flex: 1 1 0; min-width: min-content; }
 
 
 .stonetop-inv-item {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	gap: 4px;
 	margin: 1px 0;
 	font-size: 0.9em;
 }
+
+/* Small items live in the narrow (half-width) column; keep each on a single line. */
+.stonetop-inv-item.stonetop-inv-small { font-size: 0.8em; }
+.stonetop-inv-item.stonetop-inv-small .stonetop-inv-label { white-space: nowrap; }
 
 .stonetop-inv-diamonds {
 	display: inline-flex;
@@ -2055,8 +2349,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	appearance: none !important;
 	-webkit-appearance: none !important;
 	flex: none !important;
-	width: 14px !important;
-	height: 14px !important;
+	width: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(14px * var(--stonetop-font-scale, 1)) !important;
 	border: none;
 	background: center / contain no-repeat var(--stonetop-diamond-icon) !important;
 	margin: 0;
@@ -2080,8 +2374,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	appearance: none !important;
 	-webkit-appearance: none !important;
 	flex: none !important;
-	width: 11px !important;
-	height: 11px !important;
+	width: calc(11px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(11px * var(--stonetop-font-scale, 1)) !important;
 	border: 1px solid currentColor;
 	background: transparent;
 	padding: 0;
@@ -2093,13 +2387,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-inv-item.is-checked .stonetop-inv-square { background: currentColor; }
 
 .stonetop-inv-label { flex: 1; font-weight: bold; font-style: normal; }
-.stonetop-inv-item:has(.stonetop-inv-resources) .stonetop-inv-label { padding-right: 100px; }
 
 .stonetop-inv-resources {
 	display: inline-flex;
 	gap: 2px;
 	align-items: center;
-	margin-left: 4px;
 }
 
 .stonetop-inv-resource-btn {
@@ -2144,7 +2436,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	gap: 0 8px;
 }
 
-.stonetop-inv-delete {
+.stonetop-inv-delete,
+.stonetop-inv-remove-special {
 	display: none;
 	margin-left: auto;
 	color: var(--color-text-dark-secondary);
@@ -2152,9 +2445,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	font-size: 0.75em;
 }
 
-.stonetop-inv-item:hover .stonetop-inv-delete { display: inline; }
+.stonetop-inv-item:hover .stonetop-inv-delete,
+.stonetop-inv-item:hover .stonetop-inv-remove-special { display: inline; }
 
-.stonetop-inv-add-btn {
+.stonetop-inv-add-btn,
+.stonetop-add-special-btn {
 	font-size: 0.8em;
 	padding: 1px 6px;
 	margin-top: 4px;
@@ -2163,6 +2458,108 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	border: 1px dashed var(--color-border-light, #ccc);
 	width: 100%;
 }
+
+.stonetop-add-special-btn {
+	border-style: solid;
+	font-family: var(--font-stonetop);
+}
+
+/* Add Special Item picker */
+.stonetop-special-picker { padding: 4px 2px; }
+.stonetop-special-picker-intro { font-size: 0.85em; color: var(--color-text-dark-secondary); margin: 0 0 8px; }
+.stonetop-special-picker-cols { display: flex; gap: 18px; align-items: flex-start; }
+.stonetop-special-picker-col { flex: 1; min-width: 0; }
+.stonetop-special-picker-head {
+	display: flex;
+	justify-content: space-between;
+	font-family: var(--font-stonetop);
+	font-size: 0.8em;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--color-text-dark-secondary);
+	border-bottom: 2px solid var(--color-border-dark, #999);
+	padding: 0 6px 2px;
+}
+.stonetop-special-picker-head-value { width: 40px; text-align: center; flex: 0 0 40px; }
+.stonetop-special-picker-cat {
+	font-family: var(--font-stonetop);
+	font-size: 0.95em;
+	margin: 8px 0 2px;
+	border-bottom: 1px solid var(--color-border-light, #ccc);
+}
+.stonetop-special-pick {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	width: 100%;
+	text-align: left;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	padding: 1px 6px;
+	line-height: 1.25;
+	cursor: pointer;
+}
+.stonetop-special-pick:hover { background: rgba(0, 0, 0, 0.06); border-color: var(--color-border-light, #ccc); }
+.stonetop-special-pick.is-added { opacity: 0.45; cursor: default; }
+.stonetop-special-pick-text { flex: 1; }
+.stonetop-special-pick-name { font-weight: bold; }
+.stonetop-special-pick-traits { font-style: italic; color: var(--color-text-dark-secondary); }
+.stonetop-special-pick-value { flex: 0 0 40px; text-align: center; font-variant-numeric: tabular-nums; }
+.stonetop-special-pick-value[data-tooltip] { cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
+
+/* Relative Value hover list (rendered inside the dark Foundry tooltip): spiral
+   bullets, inverted so the dark spiral SVG shows on the dark tooltip background. */
+.stonetop-rel-value { list-style: none; margin: 4px 0 0; padding: 0; text-align: left; }
+.stonetop-rel-value li { display: flex; align-items: flex-start; gap: var(--stonetop-spiral-gap); margin: 2px 0; }
+.stonetop-rel-value li::before {
+	content: ""; flex: 0 0 10px; width: 10px; height: 10px; margin-top: 0.2em;
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.6;
+	filter: invert(1);
+}
+.stonetop-special-picker-footnote { font-size: 0.78em; color: var(--color-text-dark-secondary); margin: 10px 0 0; }
+.stonetop-special-picker-actions { margin-top: 12px; text-align: right; }
+
+/* Requisition picker (player-side: steading assets + Fortunes roll) */
+.stonetop-requisition-picker { padding: 4px 2px; font-size: 0.9em; }
+.stonetop-requisition-trigger { font-style: italic; color: var(--color-text-dark-secondary); margin: 0 0 10px; }
+.stonetop-requisition-roll {
+	background: rgba(0, 0, 0, 0.04);
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	border-radius: 6px;
+	padding: 8px 10px;
+	margin-bottom: 12px;
+}
+.stonetop-requisition-roll-btn {
+	width: auto;
+	cursor: pointer;
+	font-weight: bold;
+}
+.stonetop-requisition-results { margin: 8px 0 0; padding-left: 18px; font-size: 0.85em; color: var(--color-text-dark-secondary); }
+.stonetop-requisition-results li { margin: 2px 0; }
+.stonetop-requisition-heading,
+.stonetop-requisition-subheading {
+	font-family: var(--font-stonetop);
+	margin: 10px 0 6px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+	padding-bottom: 2px;
+}
+.stonetop-requisition-subheading { font-size: 0.92em; color: var(--color-text-dark-secondary); }
+.stonetop-requisition-list { list-style: none; margin: 0; padding: 0; }
+.stonetop-requisition-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 2px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.stonetop-requisition-item-name { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
+.stonetop-requisition-take { flex: 0 0 auto; width: auto; cursor: pointer; white-space: nowrap; }
+.stonetop-requisition-item.is-taken { opacity: 0.55; }
+.stonetop-requisition-taken-by { flex: 0 0 auto; font-size: 0.82em; font-style: italic; color: var(--color-text-dark-secondary); }
+.stonetop-requisition-empty { font-style: italic; color: var(--color-text-dark-secondary); margin: 6px 0; }
+.stonetop-requisition-actions { margin-top: 12px; text-align: right; }
 
 /* Special possessions — 2 columns */
 .stonetop-possession-list {
@@ -2276,11 +2673,14 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	gap: 2px;
 }
 .vtt .window-app .stonetop-supplies-pool-diamonds input[type=checkbox].stonetop-inv-diamond {
-	width: 15px !important;
-	height: 15px !important;
+	width: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(15px * var(--stonetop-font-scale, 1)) !important;
 }
 .stonetop-supplies-pool-gap { width: 6px; display: inline-block; }
-.stonetop-small-pool-display { pointer-events: none; }
+/* The undefined pools are read-only displays — defining a mark is done by checking
+   an item (Have What You Need). */
+.stonetop-small-pool-display,
+.stonetop-regular-pool-btn { pointer-events: none; }
 
 .stonetop-supplies-pool-note {
 	font-size: 0.85em;
@@ -2302,12 +2702,29 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	text-align: center;
 }
 
+/* 16px between the Major and Minor sections (only between — not trailing the last). */
+.stonetop-arcana-section + .stonetop-arcana-section {
+	margin-top: 16px;
+}
+
+/* Two-column masonry. JS (see StonetopCharacterSheet) measures the cards and packs them
+   into two .stonetop-arcana-col stacks by height, so tall flipped cards stay whole (CSS
+   multi-column would split them) and short cards don't leave a big row-gap beside a tall
+   one. The grid just lays the two column stacks side by side; with a single card the JS
+   leaves it directly in the grid. */
 .stonetop-arcana-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 10px;
 	padding: 8px;
 	align-items: start;
+}
+
+.stonetop-arcana-col {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
 }
 
 .stonetop-arcanum-card {
@@ -2320,22 +2737,22 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	position: relative;
 }
 
+/* Arcana-tab card art: sits at the left of the header and fills its height. */
 .stonetop-arcanum-thumb {
-	position: absolute;
-	top: 4px;
-	right: 4px;
-	width: 36px;
-	height: 36px;
+	align-self: stretch;
+	width: 44px;
+	height: auto;
+	min-height: 0;
 	object-fit: contain;
+	object-position: center;
 	cursor: pointer;
-	opacity: 0.85;
-	transition: opacity 0.15s, transform 0.15s;
-	z-index: 1;
+	opacity: 0.9;
+	transition: opacity 0.15s;
+	flex-shrink: 0;
 }
 
 .stonetop-arcanum-thumb:hover {
 	opacity: 1;
-	transform: scale(1.15);
 }
 
 .stonetop-arcanum-img {
@@ -2345,15 +2762,46 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	object-fit: contain;
 }
 
+/* Item sheet: art becomes a left-hand column, with the title + description stacked
+   to its right. */
+.stonetop-arcanum-sheet-side--withart {
+	flex-direction: row;
+	align-items: stretch;
+}
+
+.stonetop-arcanum-sheet-side--withart .stonetop-arcanum-img {
+	flex-shrink: 0;
+	width: 38%;
+	max-width: 170px;
+	max-height: none;
+	align-self: stretch;
+	background: var(--stonetop-bg);
+	border-right: 1px solid var(--color-border-dark);
+	border-radius: 3px 0 0 3px;
+}
+
+.stonetop-arcanum-sheet-main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
 .stonetop-arcanum-header {
 	background: var(--stonetop-bg);
 	padding: 5px 8px;
 	border-bottom: 1px solid var(--color-border-dark);
 	border-radius: 3px 3px 0 0;
 	display: flex;
-	justify-content: space-between;
+	justify-content: flex-start;
 	align-items: flex-start;
 	gap: 6px;
+}
+
+/* Keep any header-right resource block pinned to the right now that the header is
+   left-packed (to make room for the leading card art). */
+.stonetop-arcanum-header-resource {
+	margin-left: auto;
 }
 
 .stonetop-arcanum-header-left {
@@ -2381,7 +2829,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-arcanum-title {
 	font-weight: bold;
-	font-size: 0.9em;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 	display: block;
 }
 
@@ -2400,7 +2848,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-arcanum-body {
 	flex: 1;
 	padding: 6px 8px;
-	font-size: 0.8em;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
 	overflow-y: auto;
 }
 
@@ -2409,8 +2858,52 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-arcanum-body li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-arcanum-body li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+}
+
+/* A list item that carries its own checkbox / circle / diamond already has a bullet, so
+   drop the redundant spiral and show only the marker. Inline markers (box/circle/diamond)
+   are direct children, so match them with `>` to avoid suppressing a parent item that
+   merely contains a nested marked sub-item. Unlock-option checkboxes are wrapped in a
+   <span>, and that list never nests, so match them as a descendant. */
+.stonetop-arcanum-body li:has(> .stonetop-arcanum-box, > .stonetop-arcanum-circle, > .stonetop-arcanum-diamond, .stonetop-arcanum-unlock-check)::before {
+	content: none;
+}
+
+/* Consequence / move items lead with their checkbox(es) and then a full paragraph. Use
+   normal block flow instead of the flex bullet layout so the text wraps across the full
+   width and stacks vertically — matching the printed cards — rather than being squeezed
+   into a narrow column to the right of the boxes (which also strands trailing tracks like
+   ○○○). Scoped to inline markers; unlock options keep their own checkbox + text flex row. */
+.stonetop-arcanum-body li:has(> .stonetop-arcanum-box, > .stonetop-arcanum-circle, > .stonetop-arcanum-diamond) {
+	display: block;
+}
+
+/* Section headings ("Moves", "Consequences", spell lists, follower blocks) sit on a
+   ruled underline, as on the printed cards. */
+.stonetop-arcanum-body h3 {
+	font-family: var(--font-stonetop);
+	font-size: calc(1.05rem * var(--stonetop-font-scale, 1));
+	font-weight: bold;
+	margin: 10px 0 5px;
+	padding-bottom: 3px;
+	border-bottom: 1px solid var(--color-border-dark);
+}
+.stonetop-arcanum-body h3:first-child { margin-top: 0; }
+
+/* Each move/spell entry — a paragraph led by its bolded name — is divided from the
+   preceding block by a thin rule, matching the ruled divisions on the cards. */
+.stonetop-arcanum-body p:has(> strong:first-child) {
+	border-top: 1px solid var(--color-border-light, #ccc);
+	margin-top: 6px;
+	padding-top: 6px;
+}
+/* The first entry right after a heading uses the heading's own rule — no double line. */
+.stonetop-arcanum-body h3 + p:has(> strong:first-child) {
+	border-top: none;
+	margin-top: 0;
+	padding-top: 0;
 }
 
 .stonetop-arcanum-footer {
@@ -2464,7 +2957,6 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	font-style: normal;
 }
 
-.stonetop-arcanum-box,
 .stonetop-arcanum-circle {
 	appearance: none;
 	-webkit-appearance: none;
@@ -2473,6 +2965,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	width: 13px;
 	height: 13px;
 	border: 1.5px solid currentColor;
+	border-radius: 50%;
 	cursor: pointer;
 	margin: 0 1px;
 	position: relative;
@@ -2480,13 +2973,40 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	flex-shrink: 0;
 }
 
-.stonetop-arcanum-circle {
-	border-radius: 50%;
-}
-
-.stonetop-arcanum-box:checked,
 .stonetop-arcanum-circle:checked {
 	background-color: currentColor;
+}
+
+/* The □ markers render via the shared SVG checkbox above; that rule is tuned for flex
+   rows, so keep these vertically centered where they sit inline before move and
+   consequence names. */
+.stonetop-arcanum-box {
+	vertical-align: middle;
+}
+
+/* Diamond tracks reuse the shared diamond glyph icons (outline / filled) so the
+   selected state matches the inventory weight diamonds. */
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	flex: none !important;
+	display: inline-block;
+	vertical-align: middle;
+	width: 13px !important;
+	height: 13px !important;
+	/* Transparent border matches the circle's 1.5px border so both boxes render at
+	   the same size regardless of box-sizing; the icon fills the full border-box. */
+	border: 1.5px solid transparent;
+	margin: 0 2px;
+	padding: 0;
+	position: relative;
+	top: -1px;
+	background: center / contain no-repeat var(--stonetop-diamond-icon) border-box !important;
+	cursor: pointer;
+}
+
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond:checked {
+	background-image: var(--stonetop-diamond-selected-icon) !important;
 }
 
 .stonetop-arcanum-unlock-lead {
@@ -2569,6 +3089,15 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	margin: 6px 0 2px;
 }
 
+/* Standalone mark/charge tracks (◇◇◇, ○○○○) sit on their own centered line, as on
+   the printed cards. Wrapped at render time by centerArcanumTracks(). */
+.stonetop-arcanum-track {
+	display: block;
+	text-align: center;
+	letter-spacing: 0.2em;
+	margin: 3px 0;
+}
+
 .stonetop-arcanum-chat-card {
 	font-size: 0.9em;
 }
@@ -2585,7 +3114,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-arcanum-chat-card li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-arcanum-chat-card li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -2596,7 +3125,15 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .tab.details > .details-section + .details-section {
-	margin-top: 22px;
+	margin-top: 14px;
+}
+
+/* The lore heading sits alone in its own grid row, so the h3's default ~1em margin
+   becomes an empty band around it (it can't collapse the way the block-level
+   headings below do). Pin it to a tight, explicit margin so the heading hugs its
+   content. */
+.stonetop-lore-entry--section-head .stonetop-move-group-title {
+	margin: 0 0 4px;
 }
 
 .details-section .stonetop-move-group-title {
@@ -2633,6 +3170,29 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	margin-bottom: 8px;
 }
 
+.stonetop-lore-columns {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0 12px;
+	align-items: start;
+}
+
+.stonetop-lore-columns .stonetop-lore-entry--section-head {
+	grid-column: 1 / -1;
+	margin-bottom: 2px;
+}
+
+/* The section-head sits in its own grid row, so its bottom margin can't collapse
+   with the columns below. Drop the description's trailing margin to keep the gap
+   to the first continuation title in line with the rest of the lore spacing. */
+.stonetop-lore-entry--section-head .stonetop-lore-description {
+	margin-bottom: 0;
+}
+
+.stonetop-lore-col {
+	min-width: 0;
+}
+
 .stonetop-lore-description {
 	font-size: 0.9em;
 	font-style: normal;
@@ -2643,7 +3203,82 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	margin: 6px 0 4px;
 	font-size: 0.9em;
 	font-weight: 400;
+	font-style: normal;
 	line-height: 1.35;
+}
+
+/* Sub-section heading inside a lore section (e.g. the Seeker's "Major Arcanum" /
+   "Minor Arcana" columns under "Collection"). Bolder than a plain continuation
+   question, but lighter than the full-width section heading. */
+.stonetop-lore-continuation-title.stonetop-lore-subheader {
+	font-family: var(--font-stonetop);
+	font-size: 0.98em;
+	font-weight: bold;
+}
+
+/* Seeker arcana: chosen major arcanum image + name, and minor-card name/picker. */
+.stonetop-lore-arcana-major {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0 6px;
+}
+
+.stonetop-lore-arcana-img {
+	width: 40px;
+	height: 40px;
+	flex-shrink: 0;
+	object-fit: contain;
+	border: 1px solid var(--color-border-light-2);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.03);
+	cursor: pointer;
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.stonetop-lore-arcana-name {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	font-size: 0.95em;
+}
+
+.stonetop-lore-arcana-select {
+	width: 100%;
+	margin: 2px 0;
+	font-size: 0.85em;
+}
+
+.stonetop-lore-arcana-card {
+	display: flex;
+	align-items: center;
+	gap: var(--stonetop-spiral-gap);
+	margin: 1px 0;
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	font-size: 0.85em;
+}
+
+/* Spiral bullet marking a value chosen from the arcana-picker dropdown.
+   Light parchment background here, so the dark spiral SVG needs no invert. */
+.stonetop-lore-arcana-card::before {
+	content: "";
+	flex: 0 0 0.85em;
+	width: 0.85em;
+	height: 0.85em;
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+}
+
+.stonetop-lore-arcana-card.is-muted {
+	font-weight: 400;
+	font-style: italic;
+	opacity: 0.6;
+}
+
+/* In edit mode, separate each question from the previous question's answers above
+   it. Padding (not margin) so it doesn't collapse; the first entry in a column is
+   exempt, so the gap below a section heading stays tight. */
+.stonetop-edit-mode .stonetop-lore-col .stonetop-lore-entry + .stonetop-lore-entry {
+	padding-top: 6px;
 }
 
 .stonetop-lore-option {
@@ -2653,19 +3288,33 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	margin-bottom: 4px;
 }
 
+/* Checkbox lore rows (e.g. "The Worship of Helior Is…"): vertically center the
+   description against the checkbox. Text rows (--text) stay column-aligned, so
+   they're excluded. */
+.stonetop-lore-option:not(.stonetop-lore-option--text) {
+	align-items: center;
+}
+
+/* Match the standard checkbox size used by move titles and other
+   .stonetop-item-check controls (15px) so checkmarks are consistent. */
+.stonetop-lore-option-check {
+	width: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1)) !important;
+}
+
 .stonetop-lore-option-checks {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
 	gap: 2px;
-	padding-top: 2px;
 }
 
 
 .stonetop-lore-option-desc {
 	flex: 1;
 	font-style: normal;
-	font-size: 0.85rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	min-width: 0;
 }
 
@@ -2683,21 +3332,54 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	box-sizing: border-box;
 	resize: vertical;
 	min-height: 2.5em;
-	font-size: 0.85rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	padding: 2px 4px;
 	font-family: inherit;
 }
 
 /* Read-only Details tab */
 
-.stonetop-lore-readonly-value {
-	margin: 2px 0 0;
-	font-size: 0.85em;
+.stonetop-lore-option--text.stonetop-lore-option--readonly .stonetop-lore-option-desc {
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	font-weight: normal;
+	font-style: normal;
+	color: var(--color-text-dark-secondary);
+	margin-bottom: 1px;
+}
+
+.stonetop-lore-readonly-value,
+.stonetop-bg-choice-readonly {
+	font-size: 0.9em;
 	font-style: italic;
+	padding-left: 6px;
+	border-left: 2px solid rgba(0,0,0,0.12);
+}
+
+.stonetop-lore-readonly-value {
+	margin: 2px 0 4px;
+	/* Match the edit-mode textarea (.stonetop-lore-option-text) so the answer
+	   text doesn't resize when toggling between edit and read-only. */
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-lore-option--readonly {
 	align-items: flex-start;
+}
+
+.stonetop-lore-option--readonly:not(.stonetop-lore-option--text) {
+	padding-left: 8px;
+}
+
+.stonetop-lore-option--readonly:not(.stonetop-lore-option--text) .stonetop-lore-option-desc {
+	font-weight: normal;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-lore-option--readonly .stonetop-lore-option-check {
+	opacity: 1;
+	pointer-events: none;
+	cursor: default;
+	/* Size comes from the shared .stonetop-lore-option-check rule (15px). */
 }
 
 .stonetop-lore-readonly-marker {
@@ -2707,24 +3389,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	line-height: 1.2;
 }
 
-.stonetop-lore-readonly-marker--spiral {
-	width: 0.9em;
-	height: 0.9em;
-	margin-top: 0.15em;
-	background: var(--color-text-dark-secondary);
-	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	-webkit-mask-size: contain;
-	mask-size: contain;
-	-webkit-mask-repeat: no-repeat;
-	mask-repeat: no-repeat;
-	-webkit-mask-position: center;
-	mask-position: center;
-}
-
 .stonetop-bg-choice-readonly {
-	margin: 1px 0 1px 12px;
-	font-size: 0.85em;
+	margin: 1px 0 4px 12px;
+	/* Match the edit-mode choice label (.stonetop-bg-choice-option) so background
+	   choices and setup texts don't resize when toggling edit ↔ read-only. */
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 }
 
 /* Moves tab: hide-unselected toggle */
@@ -2733,7 +3402,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	font-size: 0.75rem;
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	cursor: pointer;
 	margin: 12px 0 20px 0;
@@ -2760,25 +3429,57 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: none;
 }
 
-/* Moves tab: card styling to match Special Moves tab */
+/* Card styling shared by the Moves tab and the Invocations tab cards. */
 
-.tab.moves .stonetop-item {
+.tab.moves .stonetop-item,
+.stonetop-invocation-card {
 	border: 1px solid var(--color-border-light-2);
 	border-radius: 4px;
 	background: rgba(0,0,0,0.03);
 	padding: 8px 12px;
+}
+
+.tab.moves .stonetop-item {
 	margin-bottom: 6px;
 }
 
-.tab.moves .stonetop-item-header {
+.tab.moves .stonetop-item-header,
+.stonetop-invocation-header {
 	border-bottom: 1px solid rgba(0,0,0,0.12);
 	padding-bottom: 5px;
 	margin-bottom: 4px;
 }
 
-.tab.moves .stonetop-item-name {
+.tab.moves .stonetop-item-name,
+.stonetop-invocation-name {
 	font-family: var(--font-stonetop);
-	font-size: 0.95rem;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
+}
+
+.tab.moves .stonetop-item-name {
+	flex: initial;
+}
+
+.tab.moves .stonetop-item-source {
+	margin-left: auto;
+}
+
+/* Pin the "Starting move" label to the top-right of the row so it always sits
+   above the name — even when a long name wraps onto its own line below the
+   dice/+stat controls — with a little breathing room from the top and right. */
+.tab.moves .stonetop-move-group .stonetop-item {
+	position: relative;
+}
+.tab.moves .stonetop-move-group .stonetop-item-source {
+	position: absolute;
+	top: 4px;
+	right: 6px;
+	margin: 0;
+}
+/* Reserve room on the right of labeled rows so the name (which can sit on the
+   first line) never slides under the pinned label. */
+.tab.moves .stonetop-move-group .stonetop-item:has(.stonetop-item-source) .stonetop-item-header {
+	padding-right: 5.5em;
 }
 
 .tab.moves .stonetop-item-description,
@@ -2808,7 +3509,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-portrait {
 	width: 180px;
 	height: 180px;
-	object-fit: cover;
+	object-fit: contain;
 	border: 2px solid var(--color-border-dark, #888);
 	border-radius: 4px;
 	flex-shrink: 0;
@@ -2817,7 +3518,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.stonetop-portrait:hover {
+.stonetop-portrait:hover,
+.stonetop-lore-arcana-img:hover {
 	border-color: var(--color-text-dark-primary);
 	box-shadow: 0 0 5px rgba(0, 0, 0, 0.35);
 }
@@ -2850,7 +3552,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-appearance-summary {
 	margin: auto 0 0;
 	padding: 0;
-	font-size: 0.8rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	line-height: 1.4;
@@ -3013,7 +3715,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	background: #fff;
 }
 
-.stonetop-ledger-sort {
+.stonetop-ledger-sort,
+.stonetop-ledger-noun {
 	flex-shrink: 0;
 	height: 24px;
 	padding: 0 4px;
@@ -3023,6 +3726,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	font-size: 13px;
 	background: #fff;
 	cursor: pointer;
+}
+
+/* The subject filter can hold long item names — cap it so it doesn't crowd out the search. */
+.stonetop-ledger-noun {
+	max-width: 160px;
 }
 
 .stonetop-ledger-dialog {
@@ -3153,6 +3861,20 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	background: #c02828;
 }
 
+/* Insert name + description share the Moves tab's fonts (--font-stonetop,
+   matching .stonetop-item-name / .stonetop-item-description sizes). */
+.stonetop-pdi-name {
+	font-family: var(--font-stonetop);
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-pdi-description {
+	font-family: var(--font-stonetop);
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+	line-height: 1.4;
+}
+
 /* ── Inventory toolbar ──────────────────────────────────────────── */
 
 .stonetop-inventory-toolbar {
@@ -3199,15 +3921,16 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-special-move-name {
 	margin: 0;
-	font-size: 1.05em;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 	font-family: var(--font-stonetop);
 }
 
 .stonetop-special-move-summary {
 	margin: 0;
-	font-size: 0.88em;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
-	line-height: 1.45;
+	line-height: 1.4;
 }
 
 .stonetop-special-move-list {
@@ -3229,7 +3952,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	width: 9px;
 	height: 9px;
 	margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -3302,6 +4025,12 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	transition: border-color 0.1s;
 }
 
+.asm-input:hover,
+.asm-select:hover {
+	border-color: rgba(100,150,255,0.35);
+	background: #fff;
+}
+
 .asm-input:focus,
 .asm-select:focus {
 	border-color: rgba(100,150,255,0.5);
@@ -3314,6 +4043,12 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	padding: 2px 4px;
 }
 
+.asm-field-actions {
+	display: flex;
+	gap: 6px;
+}
+
+.asm-info,
 .asm-randomize {
 	flex: 0 0 auto;
 	width: 28px;
@@ -3331,10 +4066,42 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
+.asm-info:hover,
 .asm-randomize:hover {
 	background: slategrey;
 	border-color: #4f5b66;
 	color: #fff;
+}
+
+.stonetop-asm-home-info-dialog .dialog-content {
+	padding-bottom: 12px;
+}
+
+.stonetop-asm-home-info {
+	margin-bottom: 4px;
+}
+
+.stonetop-asm-home-info-dialog .dialog-buttons {
+	padding-top: 10px;
+	border-top: 1px solid var(--color-border-light-primary, #ddd);
+}
+
+.stonetop-asm-home-info-entry + .stonetop-asm-home-info-entry {
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px solid var(--color-border-light-primary, #ddd);
+}
+
+.stonetop-asm-home-info-entry h3 {
+	margin: 0 0 4px;
+	font-family: var(--font-stonetop);
+	font-size: 1.05em;
+	border: none;
+}
+
+.stonetop-asm-home-info-entry p {
+	margin: 0;
+	font-size: 0.9em;
 }
 
 .asm-footer {
@@ -3438,7 +4205,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	width: 9px;
 	height: 9px;
 	margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -3488,8 +4255,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-outfit-diamond-filled {
 	display: inline-block;
-	width: 10px;
-	height: 10px;
+	width: calc(10px * var(--stonetop-font-scale, 1));
+	height: calc(10px * var(--stonetop-font-scale, 1));
 	color: transparent;
 	background: center / contain no-repeat var(--stonetop-diamond-selected-icon);
 }
@@ -3568,8 +4335,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-outfit-diamond {
 	display: inline-block;
-	width: 10px;
-	height: 10px;
+	width: calc(10px * var(--stonetop-font-scale, 1));
+	height: calc(10px * var(--stonetop-font-scale, 1));
 	background: center / contain no-repeat var(--stonetop-diamond-icon);
 	flex-shrink: 0;
 }
@@ -3597,6 +4364,39 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-outfit-item-note {
 	color: var(--color-text-dark-secondary);
 	font-size: 0.9em;
+}
+
+/* Undefined ◇/□ stepper — reserve carrying capacity without assigning an item. */
+.stonetop-outfit-undefined {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	padding-top: 6px;
+	border-top: 1px dashed var(--color-border-light-2, rgba(0,0,0,0.15));
+}
+.stonetop-outfit-undefined-label {
+	flex: 1;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+.stonetop-outfit-undefined-btn {
+	width: 22px;
+	height: 22px;
+	flex: 0 0 22px;
+	padding: 0;
+	line-height: 1;
+	font-weight: bold;
+	cursor: pointer;
+}
+.stonetop-outfit-undefined-btn:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+.stonetop-outfit-undefined-count {
+	min-width: 1.2em;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
 }
 
 /* Footer */
@@ -3892,7 +4692,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .deaths-door-move-name {
 	margin: 0;
-	font-size: 1.05em;
+	font-size: 1.2em;
 	font-family: var(--font-stonetop);
 	font-weight: bold;
 }
@@ -3901,7 +4701,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .deaths-door-mechanic-intro,
 .deaths-door-reflection {
 	margin: 0;
-	font-size: 0.88em;
+	font-size: 0.95em;
 	color: var(--color-text-dark-secondary);
 	line-height: 1.45;
 }
@@ -3916,10 +4716,49 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	padding: 1px 6px;
 	border: 1px solid var(--color-text-dark-secondary);
 	border-radius: 3px;
-	font-size: 0.85em;
+	font-size: 0.92em;
 	line-height: 1.2;
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
+}
+
+/* Rollable "+nothing" control on the overview step */
+.deaths-door-roll-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	margin: 0 2px;
+	padding: 2px 8px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.8);
+	color: var(--color-text-dark-primary);
+	cursor: pointer;
+	line-height: 1.2;
+	transition: background 0.1s, border-color 0.1s;
+}
+
+.deaths-door-roll-btn:hover {
+	background: rgba(0, 0, 0, 0.05);
+	border-color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-roll-btn .deaths-door-roll-chip {
+	border: none;
+	padding: 0;
+}
+
+.deaths-door-roll-btn i {
+	font-size: 0.95em;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-result-banner {
+	margin: 0;
+	font-size: 0.95em;
+	font-weight: bold;
+	color: var(--color-text-dark-primary);
 }
 
 .deaths-door-flavor {
@@ -3940,7 +4779,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .deaths-door-instruction {
 	margin: 0;
 	font-style: italic;
-	font-size: 0.82em;
+	font-size: 0.92em;
 	color: var(--color-text-dark-secondary);
 }
 
@@ -3957,6 +4796,12 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	background: rgba(0, 0, 0, 0.02);
 }
 
+/* The tier that matches the roll just made */
+.deaths-door-outcome.is-result {
+	border-color: #c9a227;
+	background: rgba(201, 162, 39, 0.12);
+}
+
 .deaths-door-outcome-label {
 	display: inline-flex;
 	align-items: center;
@@ -3964,7 +4809,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	padding: 1px 6px;
 	border: 1px solid var(--color-text-dark-secondary);
 	border-radius: 3px;
-	font-size: 0.78em;
+	font-size: 0.85em;
 	line-height: 1.2;
 	font-family: var(--font-stonetop);
 	font-weight: bold;
@@ -3973,7 +4818,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .deaths-door-outcome-text {
 	margin: 0;
-	font-size: 0.82em;
+	font-size: 0.92em;
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
 }
@@ -3981,7 +4826,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .deaths-door-outcome-choices {
 	margin: 6px 0 0 0;
 	padding-left: 18px;
-	font-size: 0.82em;
+	font-size: 0.92em;
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
 }
@@ -4144,8 +4989,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-eos-question input[type="checkbox"] {
 	appearance: none !important;
 	-webkit-appearance: none !important;
-	width: 24px;
-	height: 24px;
+	width: calc(24px * var(--stonetop-font-scale, 1));
+	height: calc(24px * var(--stonetop-font-scale, 1));
 	flex-shrink: 0;
 	margin-top: 2px;
 	border: none;
@@ -4297,11 +5142,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	font-weight: bold;
 }
 
-/* Tab drag-and-drop (edit mode only) */
-.stonetop-edit-mode .sheet-tabs .item[draggable="true"] {
+/* Tab drag-and-drop (available in and out of edit mode) */
+.sheet-tabs .item[draggable="true"] {
 	cursor: grab;
 }
-.stonetop-edit-mode .sheet-tabs .item[draggable="true"]:active {
+.sheet-tabs .item[draggable="true"]:active {
 	cursor: grabbing;
 }
 .sheet-tabs .stonetop-tab-dragging {
@@ -4774,9 +5619,9 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .steading-debility-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
-	width: 20px !important;
-	height: 20px !important;
-	flex: 0 0 20px !important;
+	width: calc(20px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(20px * var(--stonetop-font-scale, 1)) !important;
+	flex: 0 0 calc(20px * var(--stonetop-font-scale, 1)) !important;
 	border-radius: 100% !important;
 	border: 1.5px solid #555 !important;
 	background: transparent !important;
@@ -4808,6 +5653,11 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+}
+
+/* Paired unlayered hide — see `.tab.stonetop-invocations` above for why the explicit hide is needed. */
+.steading-sheet .tab.notes {
+	display: none;
 }
 
 .steading-sheet .tab.notes.active {
@@ -4900,10 +5750,10 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .steading-list-bullet {
-	width: 10px;
-	height: 10px;
+	width: calc(10px * var(--stonetop-font-scale, 1));
+	height: calc(10px * var(--stonetop-font-scale, 1));
 	flex-shrink: 0;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -4980,6 +5830,19 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .steading-asset-name { font-size: 0.8em; }
 
+/* An asset out on requisition: dimmed, struck through, click to return. */
+.steading-list-item.is-taken { opacity: 0.6; }
+.steading-asset-taken {
+	cursor: pointer;
+	text-decoration: line-through;
+	text-decoration-color: rgba(0, 0, 0, 0.4);
+	color: var(--color-text-dark-secondary);
+}
+.steading-asset-taken:hover {
+	color: var(--color-text-dark-primary);
+	text-decoration-color: currentColor;
+}
+
 .steading-neighbors-tab {
 	display: flex;
 	flex-direction: column;
@@ -5024,8 +5887,52 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .steading-residents-header-cell {
 	padding: 6px 8px;
 	overflow: hidden;
+}
+
+.steading-residents-header-label {
+	display: block;
+	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.steading-residents-col-resizable {
+	position: relative;
+	overflow: visible;
+}
+
+.steading-col-resize-handle {
+	position: absolute;
+	top: 0;
+	right: -6px;
+	width: 12px;
+	height: 100%;
+	cursor: col-resize;
+	touch-action: none;
+	z-index: 2;
+}
+
+.steading-col-resize-handle::after {
+	content: "";
+	position: absolute;
+	top: 15%;
+	bottom: 15%;
+	left: 50%;
+	width: 2px;
+	transform: translateX(-50%);
+	background: rgba(0,0,0,0.18);
+	border-radius: 1px;
+}
+
+.steading-col-resize-handle:hover::after,
+.steading-col-resize-handle.is-dragging::after {
+	background: rgba(100,150,255,0.7);
+	width: 3px;
+}
+
+.steading-col-resize-handle:hover,
+.steading-col-resize-handle.is-dragging {
+	background: rgba(100,150,255,0.2);
 }
 
 .steading-residents-list {
@@ -5341,7 +6248,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	font-size: 0.75rem;
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	cursor: pointer;
 	margin: 0 0 10px 0;
@@ -5795,6 +6702,14 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	gap: 3px;
 }
 
+/* Checkbox fields put the box to the left of its label, on one line. */
+.stonetop-homestead-field--check {
+	flex-direction: row;
+	align-items: center;
+	gap: 6px;
+}
+.stonetop-homestead-field--check span { font-weight: normal; font-size: 0.9em; }
+
 .stonetop-homestead-field span {
 	font-weight: bold;
 	font-size: 0.84em;
@@ -5873,7 +6788,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .steading-move-name {
 	flex: 1;
-	font-size: 0.95rem;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 }
 
 .steading-move-stat-tag {
@@ -5903,7 +6818,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .steading-move-body li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .steading-move-body li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -6192,7 +7107,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-onboarding-card-desc li { margin: 2px 0; display: flex; align-items: flex-start; gap: 16px; }
 .stonetop-onboarding-card-desc li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
@@ -6986,8 +7901,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 .stonetop-onboarding-background-neighbor-option input[type="checkbox"] {
-	width: 20px !important;
-	height: 20px !important;
+	width: calc(20px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(20px * var(--stonetop-font-scale, 1)) !important;
 	border: none !important;
 	border-radius: 0 !important;
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
@@ -7296,14 +8211,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-onboarding-lore-marker--spiral {
 	background: var(--color-text-dark-secondary, #666);
-	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	-webkit-mask-size: contain;
-	mask-size: contain;
-	-webkit-mask-repeat: no-repeat;
-	mask-repeat: no-repeat;
-	-webkit-mask-position: center;
-	mask-position: center;
+	-webkit-mask-image: var(--stonetop-spiral-icon);
+	mask-image: var(--stonetop-spiral-icon);
 }
 
 .stonetop-onboarding-lore-pick.is-selected .stonetop-onboarding-lore-marker {
@@ -7406,12 +8315,23 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 /* ── Invocations tab ──────────────────────────────────────────────────── */
 
 .stonetop-invocations {
-	display: flex;
 	flex-direction: column;
 	height: 100%;
 	overflow-y: auto;
-	padding: 10px 14px;
+	/* Top matches the Moves tab's 12px so the first line sits at the same height. */
+	padding: 12px 14px;
 	gap: 14px;
+}
+
+/* Explicit unlayered hide: the flex-container class lives on the `.tab` element itself, so the
+   unlayered `.active` rule below would otherwise beat Foundry's *layered* core `.tab{display:none}`
+   and leak this panel onto other tabs when inactive. Keep both sides unlayered and paired. */
+.tab.stonetop-invocations {
+	display: none;
+}
+
+.tab.stonetop-invocations.active {
+	display: flex;
 }
 
 .stonetop-invocations-rules {
@@ -7426,81 +8346,112 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-invocations-grid {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
-	gap: 10px;
+	gap: 6px;
 	align-content: start;
 }
 
-.stonetop-invocation-card {
-	border: 1px solid #ccc;
-	border-radius: 5px;
-	padding: 8px 10px;
-	background: var(--stonetop-bg, #f5f0e8);
-	transition: opacity 0.15s;
+/* Filter: hide un-learned invocations when the toggle is on — mirrors the moves tab. */
+.tab.stonetop-invocations.hide-unknown-invocations .stonetop-invocation-card.is-unknown {
+	display: none;
 }
 
-.stonetop-invocation-card.is-unknown {
-	opacity: 0.35;
+/* Filter + sort toolbar — mirrors the Ledger toolbar's search/sort controls. */
+.stonetop-invocations-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
 }
 
+.stonetop-invocation-search {
+	flex: 1 1 140px;
+	min-width: 0;
+	height: 24px;
+	padding: 0 8px;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: 4px;
+	font-family: var(--font-stonetop);
+	font-size: 13px;
+	background: #fff;
+}
+
+.stonetop-invocation-sort {
+	flex-shrink: 0;
+	height: 24px;
+	padding: 0 4px;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: 4px;
+	font-family: var(--font-stonetop);
+	font-size: 13px;
+	background: #fff;
+	cursor: pointer;
+}
+
+/* The tab is a flex column with its own gap, so drop the reused label's vertical margin. */
+.tab.stonetop-invocations .stonetop-hide-unselected-label {
+	margin: 0;
+	flex-shrink: 0;
+}
+
+/* Card box/header/name visuals are shared with the Moves tab (see .tab.moves .stonetop-item). */
 .stonetop-invocation-header {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	margin-bottom: 4px;
+}
+
+/* "Ongoing" badge carries the ongoing-rules text on hover. */
+.stonetop-invocation-ongoing {
+	cursor: help;
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
 }
 
 .stonetop-invocation-name {
-	font-size: 0.85em;
 	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
+	letter-spacing: 0.02em;
 	flex: 1;
-}
-
-.stonetop-invocation-known-label {
-	display: flex;
-	align-items: center;
-	flex-shrink: 0;
-}
-
-.stonetop-invocation-check {
-	appearance: none !important;
-	-webkit-appearance: none !important;
-	width: 18px;
-	height: 18px;
-	flex-shrink: 0;
-	border: none;
-	border-radius: 0;
-	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
 	cursor: pointer;
-	margin: 0;
 }
 
-.stonetop-invocation-check:checked {
-	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
-}
-
-.stonetop-invocation-known-pip {
-	width: 10px;
-	height: 10px;
-	border-radius: 50%;
-	border: 1.5px solid #aaa;
-	display: inline-block;
-	flex-shrink: 0;
-}
-
-.stonetop-invocation-known-pip.is-known {
-	background: slategrey;
-	border-color: slategrey;
+.stonetop-invocation-name:hover {
+	text-decoration: underline;
 }
 
 .stonetop-invocation-desc {
-	font-size: 0.78em;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	line-height: 1.4;
 	color: #333;
 }
 
-.stonetop-invocation-desc p { margin: 2px 0; }
+.stonetop-invocation-desc p { margin: 3px 0; }
+
+.stonetop-invocation-desc li { margin: 1px 0; }
+
+/* Spiral bullets for prose lists that don't already get them via
+   `.stonetop-item-description` (which has its own flex-based spiral rules above). */
+.stonetop-invocation-desc ul,
+.stonetop .editor-content ul {
+	list-style: none;
+	margin: 3px 0;
+	padding-left: 1.4em;
+}
+
+.stonetop-invocation-desc ul > li,
+.stonetop .editor-content ul > li {
+	position: relative;
+}
+
+.stonetop-invocation-desc ul > li::before,
+.stonetop .editor-content ul > li::before {
+	content: "";
+	position: absolute;
+	left: -1.35em;
+	top: 0.18em;
+	width: 0.85em;
+	height: 0.85em;
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+}
 
 /* ── Followers tab ─────────────────────────────────────────────────── */
 
@@ -7544,6 +8495,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	flex: 1 1 auto;
+	min-width: 0;
 }
 
 .stonetop-follower-name {
@@ -7559,13 +8512,15 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 
 .stonetop-follower-name-input {
 	font-weight: 700;
-	font-size: 1.9em;
+	font-size: 1em;
 	border: none;
-	border-bottom: 1px solid rgba(255,255,255,0.5);
+	border-bottom: 1px solid rgba(0,0,0,0.25);
 	background: transparent;
 	color: inherit;
 	padding: 0 2px;
-	width: 180px;
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
 }
 
 .stonetop-follower-stats {
@@ -7788,8 +8743,8 @@ span.stonetop-loyalty-pip { cursor: default; }
 	appearance: none !important;
 	-webkit-appearance: none !important;
 	flex: none !important;
-	width: 12px !important;
-	height: 12px !important;
+	width: calc(12px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(12px * var(--stonetop-font-scale, 1)) !important;
 	border: 1.5px solid currentColor;
 	border-radius: 50%;
 	background: transparent;
@@ -8000,7 +8955,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 	width: 9px;
 	height: 9px;
 	margin-top: 3px;
-	background-image: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	background-image: var(--stonetop-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -8041,17 +8996,74 @@ li.question-bullet::before {
 .stonetop-onboarding-card-desc li::before,
 .stonetop-follower-rule li::before,
 li.question-bullet::before {
-	width: 10px;
-	height: 10px;
-	flex: 0 0 10px;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	flex: 0 0 var(--stonetop-bullet-size, 10px);
 	margin-top: 0.2em;
 	opacity: 0.55;
 }
 
-.stonetop-lore-readonly-marker--spiral,
+/* Consistent spiral-bullet → text spacing across every spiral list, matching the
+   Stonetop Assets list. Single source: --stonetop-spiral-gap. */
+.stonetop-basic-move-panel li,
+.stonetop-chat-move-description li,
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li,
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li,
+.stonetop-item-description li,
+.stonetop-arcanum-body li,
+.stonetop-arcanum-chat-card li,
+.stonetop-special-move-list li,
+.stonetop-outfit-rule-note li,
+.steading-move-body li,
+.stonetop-onboarding-card-desc li,
+.stonetop-follower-rule li,
+li.question-bullet {
+	gap: var(--stonetop-spiral-gap);
+}
+
+/* Travel times table (collapsible inside Chart a Course description) */
+.stonetop-travel-times {
+	margin-top: 8px;
+}
+
+.stonetop-travel-times-table {
+	width: 100%;
+	border-collapse: collapse;
+	line-height: 1.35;
+}
+
+.stonetop-travel-times-table th {
+	text-align: left;
+	font-weight: 700;
+	padding: 0 4px 3px;
+	border-bottom: 1px solid currentColor;
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.65;
+}
+
+.stonetop-travel-times-table td {
+	padding: 1px 4px;
+	vertical-align: top;
+}
+
+.stonetop-travel-times-table td:last-child {
+	white-space: nowrap;
+	text-align: right;
+	padding-left: 8px;
+}
+
+.stonetop-travel-times-table td[colspan] {
+	padding-top: 5px;
+	font-style: italic;
+	text-align: left;
+	opacity: 0.65;
+}
+
 .stonetop-onboarding-lore-marker--spiral {
-	width: 10px;
-	height: 10px;
+	width: calc(10px * var(--stonetop-font-scale, 1));
+	height: calc(10px * var(--stonetop-font-scale, 1));
 	flex-basis: 10px;
 }
 
@@ -8135,6 +9147,102 @@ li.question-bullet::before {
 
 .stonetop-individual-dialog .dialog-buttons [data-button="cancel"]:hover {
 	background: hsl(210 10% 92%);
+}
+
+/* ── Followers: Group Fight ────────────────────────────────────────────────── */
+
+.stonetop-group-fight-stats-row {
+	display: flex;
+	gap: 16px;
+	flex-wrap: wrap;
+	font-size: 0.85em;
+	margin-bottom: 6px;
+}
+
+.stonetop-group-fight-stat {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.stonetop-group-fight-dmg-label {
+	font-size: 0.9em;
+	color: #444;
+}
+
+.stonetop-group-fight-outnumber-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.84em;
+	margin-bottom: 8px;
+	flex-wrap: wrap;
+}
+
+.stonetop-group-fight-outnumber-label {
+	font-weight: 600;
+	color: slategrey;
+	white-space: nowrap;
+}
+
+.stonetop-outnumber-yours,
+.stonetop-outnumber-theirs {
+	width: 48px;
+	height: 24px;
+	padding: 2px 4px;
+	text-align: center;
+	font-size: 0.9em;
+	border: 1px solid #ccc;
+	border-radius: 3px;
+}
+
+.stonetop-outnumber-vs {
+	color: #888;
+	font-style: italic;
+}
+
+.stonetop-outnumber-result {
+	font-style: italic;
+	color: #5a7a3a;
+	font-weight: 600;
+}
+
+.stonetop-group-fight-roll-row {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.stonetop-group-fight-roll {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px 12px;
+	font-size: 0.84em;
+	font-family: var(--font-stonetop);
+	border: 1.5px solid slategrey;
+	border-radius: 4px;
+	background: transparent;
+	color: slategrey;
+	cursor: pointer;
+	transition: background 0.12s;
+	white-space: nowrap;
+}
+
+.stonetop-group-fight-roll:hover {
+	background: hsl(210 13% 88%);
+}
+
+.stonetop-stat-picker-dialog .dialog-buttons {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 6px;
+	padding: 4px 10px 12px;
+}
+
+.stonetop-stat-picker-dialog .dialog-buttons button {
+	width: 100%;
+	white-space: nowrap;
 }
 
 .stonetop-individual-trait-chip {
@@ -8304,12 +9412,21 @@ li.question-bullet::before {
 
 .stonetop-so-entry-body dl { margin: 0 0 12px; }
 .stonetop-so-entry-body dt {
-	font-family: var(--font-stonetop);
-	font-style: normal;
-	font-weight: 600;
+	display: inline;
+	font-weight: 700;
 	color: #222;
+	text-shadow: none;
 }
-.stonetop-so-entry-body dd { margin: 0 0 4px 16px; }
+.stonetop-so-entry-body dt::after { content: ": "; }
+.stonetop-so-entry-body dd {
+	display: inline;
+	margin: 0;
+}
+.stonetop-so-entry-body dd::after {
+	content: "";
+	display: block;
+	margin-bottom: 3px;
+}
 
 /* Gear term tooltips — applied via applyGearTermTooltips() */
 .stonetop-gear-term {
@@ -8338,13 +9455,23 @@ li.question-bullet::before {
 	text-transform: none;
 	letter-spacing: 0;
 	display: flex;
-	justify-content: space-between;
-	align-items: baseline;
+	justify-content: flex-start;
+	align-items: center;
 	flex-wrap: wrap;
-	gap: 4px;
+	gap: 8px;
 }
 
 .stonetop-so-playbook p { margin: 0; font-size: 0.9em; color: #555; }
+
+.stonetop-so-playbook-icon {
+	width: 24px;
+	height: 24px;
+	border-radius: 3px;
+	flex-shrink: 0;
+	align-self: center;
+}
+
+.stonetop-so-playbook h3 .stonetop-so-complexity { margin-left: auto; }
 
 .stonetop-so-complexity {
 	font-size: 0.78em;
@@ -8397,7 +9524,7 @@ li.question-bullet::before {
 .stonetop-monster-subtitle p {
 	margin: 0;
 	padding: 0;
-	font-size: 0.8rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	line-height: 1.4;
@@ -8411,7 +9538,7 @@ li.question-bullet::before {
 	border: none;
 	border-radius: 0;
 	background: transparent;
-	font-size: 0.8rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
@@ -8498,7 +9625,7 @@ li.question-bullet::before {
 	flex-wrap: wrap;
 	gap: 4px;
 	margin: 0;
-	font-size: 0.875rem;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-monster-stat-key {
@@ -8540,7 +9667,7 @@ li.question-bullet::before {
 }
 
 .stonetop-monster-stat-line--traits {
-	font-size: 0.8rem;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	margin-top: 2px;
 }
@@ -8586,7 +9713,7 @@ li.question-bullet::before {
 	display: flex;
 	align-items: baseline;
 	gap: 5px;
-	font-size: 0.875rem;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 	padding-left: 8px;
 }
 
@@ -8640,7 +9767,7 @@ li.question-bullet::before {
 	overflow-y: auto;
 	scrollbar-width: thin;
 	padding: 12px 14px;
-	font-size: 0.9rem;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	font-family: var(--font-stonetop);
 }
 
@@ -8866,6 +9993,232 @@ li.question-bullet::before {
 	.stonetop-monster-grid {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* ── Introductions Dialog ─────────────────────────────────────────────────────── */
+
+.stonetop-introductions .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.stonetop-intros {
+	display: flex;
+	flex-direction: column;
+	font-family: var(--font-stonetop);
+}
+
+/* Pre-check screen */
+
+.stonetop-intros-precheck {
+	padding: 16px 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.stonetop-intros-preamble {
+	margin: 0;
+	line-height: 1.5;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-intros-setup-steps {
+	margin: 0;
+	padding: 0 0 0 1.4em;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.5;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-intros-notice {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px 14px;
+	border-radius: 4px;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.5;
+}
+
+.stonetop-intros-notice > i { flex-shrink: 0; font-size: 1.1em; margin-top: 2px; }
+
+.stonetop-intros-notice--warn {
+	background: rgba(200, 120, 20, 0.1);
+	border: 1px solid rgba(200, 120, 20, 0.4);
+	color: #7a4a00;
+}
+
+.stonetop-intros-notice--warn > i { color: #c07820; }
+
+.stonetop-intros-notice--ok {
+	background: rgba(40, 140, 70, 0.08);
+	border: 1px solid rgba(40, 140, 70, 0.35);
+	color: #1a5c2e;
+}
+
+.stonetop-intros-notice--ok > i { color: #2a8a46; }
+
+.stonetop-intros-notice p { margin: 0 0 4px; }
+
+.stonetop-intros-notice ul,
+.stonetop-intros-notice ol {
+	margin: 4px 0 0 1.2em;
+	padding: 0;
+}
+
+.stonetop-intros-reminder {
+	margin: 0;
+	font-size: calc(0.82rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	line-height: 1.45;
+}
+
+.stonetop-intros-reminder > i { flex-shrink: 0; margin-top: 2px; }
+
+/* Main content */
+
+.stonetop-intros-main {
+	padding: 12px 20px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.stonetop-intros-pc-banner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	background: rgba(0, 0, 0, 0.04);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 4px;
+}
+
+.stonetop-intros-pc-icon {
+	width: 36px;
+	height: 36px;
+	object-fit: contain;
+	flex-shrink: 0;
+}
+
+.stonetop-intros-pc-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.stonetop-intros-pc-name {
+	font-weight: 700;
+	font-size: 1em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.stonetop-intros-pc-playbook {
+	font-size: 0.8em;
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-intros-pc-count {
+	flex-shrink: 0;
+	font-size: 0.8em;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.stonetop-intros-instruction {
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
+	line-height: 1.6;
+}
+
+.stonetop-intros-questions-wrap {
+	background: rgba(0, 0, 0, 0.03);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 4px;
+	padding: 10px 14px;
+}
+
+.stonetop-intros-questions-label {
+	margin: 0 0 6px;
+	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-intros-questions {
+	margin: 0;
+	padding: 0 0 0 1.3em;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.stonetop-intros-questions li {
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+}
+
+/* Navigation */
+
+.stonetop-intros-nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 20px 14px;
+	gap: 12px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.stonetop-intros-step-label {
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.stonetop-intros-nav button {
+	flex-shrink: 0;
+	padding: 5px 14px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: 3px;
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s;
+}
+
+.stonetop-intros-nav button:hover:not(:disabled) { background: hsl(40 25% 85%); }
+.stonetop-intros-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.stonetop-intros-begin,
+.stonetop-intros-close--spring {
+	font-weight: 600;
+	background: hsl(140 35% 88%) !important;
+	border-color: hsl(140 25% 55%) !important;
+	color: hsl(140 40% 18%) !important;
+}
+
+.stonetop-intros-begin:hover:not(:disabled),
+.stonetop-intros-close--spring:hover:not(:disabled) {
+	background: hsl(140 35% 82%) !important;
+}
+
+.stonetop-intros-begin:disabled {
+	background: var(--stonetop-bg, #f5f0e8) !important;
+	border-color: var(--color-border-dark, #7a7971) !important;
+	color: inherit !important;
+	opacity: 0.4;
 }
 
 

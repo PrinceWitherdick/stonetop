@@ -114,6 +114,52 @@ export function coalesceEntries(entries) {
 	});
 }
 
+// Verb phrases that separate a change's subject (noun) from its detail. Ordered
+// longest/most-specific first isn't required — we take the earliest match.
+const LEDGER_VERB_MARKERS = [
+	" changed from ",
+	" renamed from ",
+	" set to ",
+	" cleared",
+	" selected",
+	" deselected",
+	" learned",
+	" removed",
+	" added",
+];
+
+/**
+ * Derive the "noun" (subject) of a ledger action string — the phrase before its
+ * verb — so entries can be grouped and filtered. e.g. "HP changed from 5 to 3"
+ * → "HP", "Longsword selected" → "Longsword", "Asset added: Wagon" → "Asset".
+ * Falls back to the whole (trimmed) action when no known verb is present.
+ */
+export function ledgerNoun(action) {
+	const text = String(action ?? "").trim();
+	if (!text) return "";
+	let cut = text.length;
+	for (const marker of LEDGER_VERB_MARKERS) {
+		const idx = text.indexOf(marker);
+		if (idx >= 0 && idx < cut) cut = idx;
+	}
+	return text.slice(0, cut).trim() || text;
+}
+
+/**
+ * Distinct nouns present across ledger entries, with counts, sorted alphabetically.
+ * @returns {{noun: string, count: number}[]}
+ */
+export function ledgerNounCounts(entries) {
+	const counts = new Map();
+	for (const entry of entries ?? []) {
+		const noun = ledgerNoun(entry?.action);
+		if (noun) counts.set(noun, (counts.get(noun) ?? 0) + 1);
+	}
+	return [...counts.entries()]
+		.map(([noun, count]) => ({ noun, count }))
+		.sort((a, b) => a.noun.localeCompare(b.noun));
+}
+
 function labelForPath(path) {
 	if (SYSTEM_PATH_LABELS[path]) return SYSTEM_PATH_LABELS[path];
 	if (FLAG_PATH_LABELS[path]) return FLAG_PATH_LABELS[path];

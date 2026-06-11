@@ -1,323 +1,332 @@
 {
-	"TYPES": {
-		"Actor": {
-			"character": "Character",
-			"stonetop":  "Stonetop",
-			"npc":       "NPC",
-			"monster":   "Monster"
-		},
-		"Item": {
-			"move":        "Move",
-			"playbook":    "Playbook",
-			"npcMove":     "NPC Move",
-			"monsterMove": "Monster Move"
-		}
-	},
-	"stonetop": {
-		"steading": {
-			"notLinked": "No Stonetop steading linked. Drag a Stonetop actor onto this sheet to link it.",
-			"tabs": {
-				"overview": "Overview",
-			"neighbors": "Residents",
-				"improvements": "Improvements",
-				"moves": "Moves",
-				"notes": "Notes"
-			}
-		},
-		"sheet": {
-			"tabs": {
-				"moves":       "Moves",
-				"details": "Details",
-				"followers": "Followers",
-				"invocations": "Invocations",
-				"inventory": "Inventory",
-				"arcana": "Arcana",
-				"postDeath": "Post-Death",
-				"specialMoves": "Special Moves"
-			}
-		},
-		"specialMoves": {
-			"burnBrightly": {
-				"title": "Burn Brightly",
-				"description": "When you <em><strong>have enough XP to Level Up</strong></em> (6 + twice your current level), you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).",
-				"promptNote": "When you meet the requirements, you'll be prompted in chat after a roll."
-			},
-			"deathsDoor": {
-				"title": "Death's Door",
-				"button": "Understand Death's Door",
-				"lockedHint": "Only available when the character is at 0 HP.",
-				"summary": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows. Roll +nothing: on a 10+ return to 1 HP; on a 7-9 you're out of action; on a 6- choose a dark fate.",
-				"description": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows (describe it). Then, roll +nothing: on a 10+, you wrest yourself back to the realm of the living&mdash;return to 1 HP but say how your brush with death has marked you; on a 7-9, the Lady waves you off&mdash;you're no longer dying but you're out of the action; on a 6-, your time has come&mdash;choose 1: make one last move as if you rolled a 12+, then step through the Last Door; refuse to go and gain the Revenant or Ghost insert; or call on one of the Things Below by name and beseech it to intercede, gaining the Thrall insert."
-			},
-			"levelUp": {
-				"title":             "Level Up",
-				"button":            "Open Level Up",
-				"summary":           "When you <em><strong>have a quiet stretch of time at home</strong></em> and enough XP, walk through the steps to level up your character.",
-				"description":       "When you <em><strong>have a quiet stretch of time at home and XP equal to (or greater than) 6 + twice your current level</strong></em>, follow the Level Up steps.",
-				"lockedHint":        "Requires XP equal to or greater than 6 + twice your current level.",
-				"overviewIntro":     "When you <em><strong>have a quiet stretch of time at home and XP equal to (or greater than) 6 + twice your current level</strong></em>, follow these steps:",
-				"step1":             "Subtract 6 + twice your current level from your XP.",
-				"step2":             "Increase your level by 1.",
-				"step3":             "Choose a new move from your playbook, or an insert that you've unlocked.",
-				"step4":             "If you are the Blessed (or have a sacred pouch) and your new level is even, increase your max Stock by 1.",
-				"step5":             "If you are the Lightbearer (or have Invoke the Sun God) and your new level is even, choose a new invocation.",
-				"step6":             "Review your Instinct and Appearance (on the front of your playbook). Change anything that no longer applies. Feel free to make up new options.",
-				"currentLevel":      "Current Level",
-				"newLevel":          "New Level",
-				"currentXp":         "Current XP",
-				"xpCost":            "XP Cost",
-				"xpRemaining":       "XP Remaining",
-				"invocationAside":   "Your new level is even — you'll also choose a new Invocation on the next step.",
-				"moveIntro":         "Choose one new move from your playbook (or an insert you've unlocked).",
-				"noMoves":           "No additional moves are available at this level.",
-				"invocationIntro":   "Choose one new Invocation to add to your repertoire.",
-				"back":              "Back",
-				"next":              "Next",
-				"apply":             "Apply Level Up"
-			},
-			"outfit": {
-				"title": "Outfit",
-				"button": "Open Outfit Move",
-				"summary": "When you <em><strong>prepare for an expedition in a friendly community</strong></em>, mark which items you wish to carry.",
-				"description": "When you <em><strong>prepare for an expedition in a friendly community</strong></em>, mark as many &loz; on your Inventory insert as you wish to carry, either on specific items or in \"undefined.\" Mark up to 3 &loz; for a light load (quick and quiet), 4-6 &loz; for a normal load, or 7-9 &loz; for a heavy load (noisy, slow, quick to tire). Also, mark a number of &#9633; in the Small items section equal to 4+Prosperity (on specific items or \"undefined\").",
-				"selectIntro": "You can select:",
-				"selectPrinted": "Items printed on the Inventory insert",
-				"selectCommon": "Other common, mundane items",
-				"selectPossessions": "Any of your special possessions",
-				"selectTrade": "Special items for which you Trade &amp; Barter",
-				"tellGm": "Tell the GM what you're bringing, and answer their questions about your gear and where you got it.",
-				"regularItems": "Items",
-				"smallItems": "Small Items",
-				"loadNone": "No items selected",
-				"loadLight": "<strong>Light load</strong> (up to 3 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>) — quick &amp; quiet",
-				"loadNormal": "<strong>Normal load</strong> (4–6 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>)",
-				"loadHeavy": "<strong>Heavy load</strong> (7–9 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>) — noisy, slow, quick to tire",
-				"arcanaItems": "Arcana",
-				"smallItemLimit": "Mark up to <strong>{limit}</strong> small items (4+Prosperity)",
-				"confirm": "Confirm Outfit",
-				"totalWeight": "<span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> used"
-			}
-		},
-		"postDeath": {
-			"chooseFate": "Choose Your Fate",
-			"removeInsert": "Remove",
-			"instinct": "Instinct",
-			"moves": "Granted Moves"
-		},
-		"arcana": {
-			"empty": "Drag arcana here from the Arcana compendium.",
-			"showFront": "Show Front",
-			"showBack": "Reveal Back",
-			"removeArcanum": "Remove",
-			"identify": "Identify",
-			"identifyTitle": "Identify Arcanum",
-			"identifyConfirm": "Are you sure you you've successfully identified this Arcanum? This action cannot be undone.",
-			"unidentifiedText": "This arcanum has not yet been identified. Study it closely to reveal its nature."
-		},
-		"inventory": {
-			"regularItems": "Items",
-			"arcanaItems": "Arcana",
-			"regularItemsNote": "Use supplies to Recover, Make Camp, or have extra <em>small</em> items.",
-			"smallItems": "Small Items",
-			"smallItemsNote": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark <span class=\"stonetop-glyph\">□</span> below equal to 4+Prosperity.",
-			"smallItemsNoteWithLimit": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark <span class=\"stonetop-glyph\">□</span> below equal to <strong>{limit}</strong> (4+Prosperity).",
-			"addItem": "Add item",
-			"addSmallItem": "Add small item",
-			"addItemName": "Name",
-			"addItemWeight": "Weight",
-			"addItemConfirm": "Add",
-			"removeItem": "Remove",
-			"resetLabel": "Reset Inventory",
-			"resetTitle": "Reset Inventory",
-			"resetConfirm": "Clear all item selections and load level? Supply pools are not affected.",
-			"regularUndefinedPoolLabel": "Undefined",
-			"regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here to <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below.",
-			"smallUndefinedPoolLabel": "Undefined",
-			"smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here to items below, or expend supplies to mark an additional <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span>.",
-			"choosePossessionsButton": "Choose Special Possessions",
-			"outfit": {
-				"heading": "When you <em><strong>Outfit</strong><em>, mark a number of <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below on specific items or as a group.",
-				"light": "For a <strong>light load</strong> (<em>quick &amp; quiet</em>), mark up to 3 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
-				"normal": "For a <strong>normal load</strong>, mark 4–6 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
-				"heavy": "For a <strong>heavy load</strong> (<em>noisy, slow, hot, quick to tire</em>), mark 7–9 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>"
-			}
-		},
-		"settings": {
-			"expandMoveDescriptions": {
-				"name": "Expand Move Descriptions",
-				"hint": "Show move descriptions expanded by default on character sheets."
-			},
-			"defaultSheetTab": {
-				"name": "Default Sheet Tab",
-				"hint": "Which tab the character sheet opens to by default.",
-				"moves": "Moves",
-				"gear": "Gear",
-				"biography": "Biography"
-			},
-			"sheetFont": {
-				"name": "Sheet Font",
-				"hint": "Font used throughout Stonetop sheets.",
-				"libreCaslon": "Libre Caslon Text",
-				"imFellEnglish": "IM Fell English",
-				"signika": "Signika"
-			},
-			"showRollStatChips": {
-				"name": "Show Roll Stat Chips",
-				"hint": "Show labels like +STR and +ANY beside rollable move icons on character sheets."
-			},
-			"hoverDescriptionSettings": {
-				"name": "On Hover Info",
-				"label": "Configure",
-				"hint": "Configure which hover descriptions appear on Stonetop sheets.",
-				"title": "On Hover Info"
-			},
-			"hoverDescriptionsEnabled": {
-				"name": "Show On Hover Info",
-				"hint": "Turn off all hover descriptions and hover info panels at once."
-			},
-			"hoverDescriptionsStats": {
-				"name": "Hover Descriptions: Stats",
-				"hint": "Show stat descriptions when hovering over character sheet stats."
-			},
-			"hoverDescriptionsBasicMoves": {
-				"name": "Hover Descriptions: Basic Moves",
-				"hint": "Show the Basic Move description panel when hovering over the Basic Moves list."
-			},
-			"hoverDescriptionsPlaybookMoves": {
-				"name": "Hover Descriptions: Playbook Moves",
-				"hint": "Show descriptions when hovering over linked move names inside playbook and other move text."
-			},
-			"hoverDescriptionsTraits": {
-				"name": "Hover Descriptions: Traits",
-				"hint": "Show trait descriptions on follower and companion trait tags."
-			},
-			"hoverDescriptionsGearTags": {
-				"name": "Hover Descriptions: Gear Tags",
-				"hint": "Show rules descriptions when hovering over gear tags such as close, piercing, or messy."
-			}
-		},
-		"newCharacter": {
-			"buttonLabel": "Edit Character",
-			"createButtonLabel": "Create Character",
-			"answerQuestionsButtonLabel": "Answer Background Questions",
-			"confirmTitle": "Reset Character?",
-			"confirmContent": "This character already has a playbook. Choosing a new one will replace it and may reset character data. Are you sure?",
-			"pickerTitle": "Choose a Playbook"
-		},
-		"onboarding": {
-			"saveButton": "Save",
-			"savedTitle": "Selections Saved",
-			"savedContent": "Your current character creation selections have been saved.",
-			"continueEditing": "Continue Editing",
-			"closeForNow": "Close for Now"
-		},
-		"rollResults": {
-			"miss": "Miss",
-			"weakHit": "Weak Hit",
-			"strongHit": "Strong Hit!"
-		},
-		"npc": {
-			"hitPoints": "Hit Points",
-			"armor": "Armor",
-			"instinct": "Instinct"
-		},
-		"monster": {
-			"namePlaceholder": "Monster Name",
-			"conceptPlaceholder": "Concept, look, or role",
-			"stats": "Stats",
-			"hitPoints": "Hit Points",
-			"armor": "Armor",
-			"damage": "Damage",
-			"instinct": "Instinct",
-			"grouping": "Grouping",
-			"size": "Size",
-			"tags": "Tags",
-			"description": "Description",
-			"qualities": "Special Qualities",
-			"dangers": "Dangers",
-			"questions": "Questions",
-			"lore": "Lore",
-			"origins": "Origins",
-			"discoveries": "Discoveries",
-			"hooks": "Hooks",
-			"creationGuide": "Creation Guide",
-			"creationGuideText": "1. Picture the monster and name it.\n2. Pick how it hunts or fights: horde, group, or solitary.\n3. Set HP from grouping, then adjust for size.\n4. Set armor from what protects it.\n5. Set damage from grouping, then add range, piercing, messy, grabby, or other attack tags.\n6. Write its instinct as \"to ...\".\n7. Write moves for what it can do, how it hunts, special attacks, or the real danger.\n8. Add a concrete description, including at least one non-visual sense.",
-			"notes": "Notes",
-			"addMove": "Add Move",
-			"deleteMove": "Delete Move",
-			"noMoves": "No moves yet.",
-			"addLine": "Add Line",
-			"noLines": "No entries yet.",
-			"tabs": {
-				"overview": "Overview",
-				"moves": "Moves",
-				"lore": "Lore",
-				"prep": "Prep",
-				"notes": "Notes"
-			}
-		},
-		"character": {
-			"stats": {
-				"sectionTitle": "Stats",
-				"strength": "Strength",
-				"dexterity": "Dexterity",
-				"intelligence": "Intelligence",
-				"wisdom": "Wisdom",
-				"constitution": "Constitution",
-				"charisma": "Charisma"
-			},
-			"attributes": {
-				"damage":      "Damage",
-				"armor":       "Armor",
-				"xp":          "XP",
-				"level":       "Level",
-				"forward":     "Forward",
-				"forwardHint": "A one-time bonus to your next roll, then cleared. Set this when a move says 'take +1 forward'.",
-				"ongoing":     "Ongoing",
-				"ongoingHint": "A persistent bonus applied to every roll until you clear it. Set this when a move says 'take +1 ongoing'."
-			},
-			"gear": {
-				"specialPossessions": "Special Possessions"
-			},
-			"moveTypes": {
-				"background": "Background"
-			},
-			"moves": {
-				"pickTitle": "Choose Starting Moves",
-				"pickInstruction": "Pick up to {count} moves to start with.",
-				"playbookMoves": "Playbook Moves",
-				"basicMoves": "Basic Moves",
-				"otherMoves": "Other Moves",
-				"addMove": "Add Move",
-				"removeMove": "Remove Move",
-				"chooseStartingMoves": "Choose Starting Moves"
-			},
-			"selection": {
-				"select": "Select",
-				"cancel": "Cancel",
-				"choosePlaceholder": "Choose {label}…",
-				"chooseOne": "(Choose 1)",
-				"background": {
-					"label": "Background",
-					"dialogTitle": "Choose Background"
-				},
-				"instinct": {
-					"label": "Instinct",
-					"dialogTitle": "Choose Instinct",
-					"customPlaceholder": "Write your own instinct…"
-				},
-				"appearance": {
-					"label": "Appearance",
-					"dialogTitle": "Choose Appearance",
-					"instruction": "Choose 1 on each line, or make something up:"
-				},
-				"origin": {
-					"label": "Origin",
-					"dialogTitle": "Choose Origin",
-					"namesLabel": "Names",
-					"instruction": "Stonetop is your home, or close enough, but where are you (or your family) from originally? Pick 1 and a name to match (or make up something similar)."
-				}
-			}
-		}
-	}
+  "TYPES": {
+    "Actor": {
+      "character": "Character",
+      "stonetop": "Stonetop",
+      "monster": "Monster"
+    },
+    "Item": {
+      "move": "Move",
+      "playbook": "Playbook",
+      "npcMove": "NPC Move",
+      "monsterMove": "Monster Move"
+    }
+  },
+  "stonetop": {
+    "steading": {
+      "notLinked": "No Stonetop steading linked. Drag a Stonetop actor onto this sheet to link it.",
+      "tabs": {
+        "overview": "Overview",
+        "neighbors": "Residents",
+        "improvements": "Improvements",
+        "moves": "Homefront Moves",
+        "notes": "Notes"
+      }
+    },
+    "sheet": {
+      "tabs": {
+        "moves": "Moves",
+        "details": "Details",
+        "followers": "Followers",
+        "invocations": "Invocations",
+        "inventory": "Inventory",
+        "arcana": "Arcana",
+        "postDeath": "Post-Death",
+        "specialMoves": "Special Moves"
+      }
+    },
+    "specialMoves": {
+      "burnBrightly": {
+        "title": "Burn Brightly",
+        "description": "When you <em><strong>have enough XP to Level Up</strong></em> (6 + twice your current level), you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).",
+        "promptNote": "When you meet the requirements, you'll be prompted in chat after a roll."
+      },
+      "deathsDoor": {
+        "title": "Death's Door",
+        "button": "Understand Death's Door",
+        "lockedHint": "Only available when the character is at 0 HP.",
+        "summary": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows. Roll +nothing: on a 10+ return to 1 HP; on a 7-9 you're out of action; on a 6- choose a dark fate.",
+        "description": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows (describe it). Then, roll +nothing: on a 10+, you wrest yourself back to the realm of the living&mdash;return to 1 HP but say how your brush with death has marked you; on a 7-9, the Lady waves you off&mdash;you're no longer dying but you're out of the action; on a 6-, your time has come&mdash;choose 1: make one last move as if you rolled a 12+, then step through the Last Door; refuse to go and gain the Revenant or Ghost insert; or call on one of the Things Below by name and beseech it to intercede, gaining the Thrall insert."
+      },
+      "levelUp": {
+        "title": "Level Up",
+        "button": "Open Level Up",
+        "summary": "When you <em><strong>have a quiet stretch of time at home</strong></em> and enough XP, walk through the steps to level up your character.",
+        "description": "When you <em><strong>have a quiet stretch of time at home and XP equal to (or greater than) 6 + twice your current level</strong></em>, follow the Level Up steps.",
+        "lockedHint": "Requires XP equal to or greater than 6 + twice your current level.",
+        "overviewIntro": "When you <em><strong>have a quiet stretch of time at home and XP equal to (or greater than) 6 + twice your current level</strong></em>, follow these steps:",
+        "step1": "Subtract 6 + twice your current level from your XP.",
+        "step2": "Increase your level by 1.",
+        "step3": "Choose a new move from your playbook, or an insert that you've unlocked.",
+        "step4": "If you are the Blessed (or have a sacred pouch) and your new level is even, increase your max Stock by 1.",
+        "step5": "If you are the Lightbearer (or have Invoke the Sun God) and your new level is even, choose a new invocation.",
+        "step6": "Review your Instinct and Appearance (on the front of your playbook). Change anything that no longer applies. Feel free to make up new options.",
+        "currentLevel": "Current Level",
+        "newLevel": "New Level",
+        "currentXp": "Current XP",
+        "xpCost": "XP Cost",
+        "xpRemaining": "XP Remaining",
+        "invocationAside": "Your new level is even — you'll also choose a new Invocation on the next step.",
+        "moveIntro": "Choose one new move from your playbook (or an insert you've unlocked).",
+        "noMoves": "No additional moves are available at this level.",
+        "invocationIntro": "Choose one new Invocation to add to your repertoire.",
+        "back": "Back",
+        "next": "Next",
+        "apply": "Apply Level Up"
+      },
+      "outfit": {
+        "title": "Outfit",
+        "button": "Open Outfit Move",
+        "summary": "When you <em><strong>prepare for an expedition in a friendly community</strong></em>, mark which items you wish to carry.",
+        "description": "When you <em><strong>prepare for an expedition in a friendly community</strong></em>, mark as many &loz; on your Inventory insert as you wish to carry, either on specific items or in \"undefined.\" Mark up to 3 &loz; for a light load (quick and quiet), 4-6 &loz; for a normal load, or 7-9 &loz; for a heavy load (noisy, slow, quick to tire). Also, mark a number of &#9633; in the Small items section equal to 4+Prosperity (on specific items or \"undefined\").",
+        "selectIntro": "You can select:",
+        "selectPrinted": "Items printed on the Inventory insert",
+        "selectCommon": "Other common, mundane items",
+        "selectPossessions": "Any of your special possessions",
+        "selectTrade": "Special items for which you Trade &amp; Barter",
+        "tellGm": "Tell the GM what you're bringing, and answer their questions about your gear and where you got it.",
+        "regularItems": "Items",
+        "smallItems": "Small Items",
+        "loadNone": "No items selected",
+        "loadLight": "<strong>Light load</strong> (up to 3 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>) — quick &amp; quiet",
+        "loadNormal": "<strong>Normal load</strong> (4–6 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>)",
+        "loadHeavy": "<strong>Heavy load</strong> (7–9 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>) — noisy, slow, quick to tire",
+        "arcanaItems": "Arcana",
+        "smallItemLimit": "Mark up to <strong>{limit}</strong> small items (4+Prosperity)",
+        "confirm": "Confirm Outfit",
+        "totalWeight": "<span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> marked",
+        "undefinedLabel": "Undefined"
+      }
+    },
+    "postDeath": {
+      "chooseFate": "Choose Your Fate",
+      "removeInsert": "Remove",
+      "instinct": "Instinct",
+      "moves": "Granted Moves"
+    },
+    "arcana": {
+      "empty": "Drag arcana here from the Arcana compendium.",
+      "showFront": "Show Front",
+      "showBack": "Reveal Back",
+      "removeArcanum": "Remove",
+      "identify": "Identify",
+      "identifyTitle": "Identify Arcanum",
+      "identifyConfirm": "Are you sure you you've successfully identified this Arcanum? This action cannot be undone.",
+      "unidentifiedText": "This arcanum has not yet been identified. Study it closely to reveal its nature."
+    },
+    "inventory": {
+      "regularItems": "Items",
+      "arcanaItems": "Arcana",
+      "regularItemsNote": "Use supplies to Recover, Make Camp, or have extra <em>small</em> items.",
+      "smallItems": "Small Items",
+      "smallItemsNote": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark <span class=\"stonetop-glyph\">□</span> below equal to 4+Prosperity.",
+      "smallItemsNoteWithLimit": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark <span class=\"stonetop-glyph\">□</span> below equal to <strong>{limit}</strong> (4+Prosperity).",
+      "addItem": "Add item",
+      "addSmallItem": "Add small item",
+      "addItemName": "Name",
+      "addItemWeight": "Weight",
+      "addItemConfirm": "Add",
+      "removeItem": "Remove",
+      "resetLabel": "Reset Inventory",
+      "resetTitle": "Reset Inventory",
+      "resetConfirm": "Clear all item selections and load level? Supply pools are not affected.",
+      "notEnoughUndefined": "Not enough undefined ◇ to carry that — Outfit to bring more.",
+      "regularUndefinedPoolLabel": "Undefined",
+      "regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, mark an item below — it draws <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here.",
+      "smallUndefinedPoolLabel": "Undefined",
+      "smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, mark a small item below — it draws <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here.",
+      "choosePossessionsButton": "Choose Special Possessions",
+      "outfit": {
+        "heading": "When you <em><strong>Outfit</strong></em>, mark a number of <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below on specific items or as a group.",
+        "light": "For a <strong>light load</strong> (<em>quick &amp; quiet</em>), mark up to 3 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
+        "normal": "For a <strong>normal load</strong>, mark 4–6 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
+        "heavy": "For a <strong>heavy load</strong> (<em>noisy, slow, hot, quick to tire</em>), mark 7–9 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>"
+      }
+    },
+    "settings": {
+      "expandMoveDescriptions": {
+        "name": "Expand Move Descriptions",
+        "hint": "Show move descriptions expanded by default on character sheets."
+      },
+      "defaultSheetTab": {
+        "name": "Default Sheet Tab",
+        "hint": "Which tab the character sheet opens to by default.",
+        "moves": "Moves",
+        "gear": "Gear",
+        "biography": "Biography"
+      },
+      "sheetFont": {
+        "name": "Sheet Font",
+        "hint": "Font used throughout Stonetop sheets.",
+        "libreCaslon": "Libre Caslon Text",
+        "imFellEnglish": "IM Fell English",
+        "signika": "Signika"
+      },
+      "sheetFontScale": {
+        "name": "Sheet Font Size",
+        "hint": "Scale the text on Stonetop sheets and dialogs to make it easier to read.",
+        "normal": "Normal (100%)",
+        "large": "Large (110%)",
+        "larger": "Larger (125%)",
+        "largest": "Largest (140%)"
+      },
+      "showRollStatChips": {
+        "name": "Show Roll Stat Chips",
+        "hint": "Show labels like +STR and +ANY beside rollable move icons on character sheets."
+      },
+      "showMoveDescriptionsInChat": {
+        "name": "Show Move Descriptions in Chat",
+        "hint": "Include the full move description in the chat card when rolling a move."
+      },
+      "hoverDescriptionSettings": {
+        "name": "On Hover Info",
+        "label": "Configure",
+        "hint": "Configure which hover descriptions appear on Stonetop sheets.",
+        "title": "On Hover Info"
+      },
+      "hoverDescriptionsEnabled": {
+        "name": "Show On Hover Info",
+        "hint": "Turn off all hover descriptions and hover info panels at once."
+      },
+      "hoverDescriptionsStats": {
+        "name": "Hover Descriptions: Stats",
+        "hint": "Show stat descriptions when hovering over character sheet stats."
+      },
+      "hoverDescriptionsBasicMoves": {
+        "name": "Hover Descriptions: Basic Moves",
+        "hint": "Show the Basic Move description panel when hovering over the Basic Moves list."
+      },
+      "hoverDescriptionsPlaybookMoves": {
+        "name": "Hover Descriptions: Playbook Moves",
+        "hint": "Show descriptions when hovering over linked move names inside playbook and other move text."
+      },
+      "hoverDescriptionsTraits": {
+        "name": "Hover Descriptions: Traits",
+        "hint": "Show trait descriptions on follower and companion trait tags."
+      },
+      "hoverDescriptionsGearTags": {
+        "name": "Hover Descriptions: Gear Tags",
+        "hint": "Show rules descriptions when hovering over gear tags such as close, piercing, or messy."
+      }
+    },
+    "newCharacter": {
+      "buttonLabel": "Edit Character",
+      "createButtonLabel": "Create Character",
+      "answerQuestionsButtonLabel": "Answer Background Questions",
+      "confirmTitle": "Reset Character?",
+      "confirmContent": "This character already has a playbook. Choosing a new one will replace it and may reset character data. Are you sure?",
+      "pickerTitle": "Choose a Playbook"
+    },
+    "onboarding": {
+      "saveButton": "Save",
+      "savedTitle": "Selections Saved",
+      "savedContent": "Your current character creation selections have been saved.",
+      "continueEditing": "Continue Editing",
+      "closeForNow": "Close for Now"
+    },
+    "rollResults": {
+      "miss": "Miss",
+      "weakHit": "Weak Hit",
+      "strongHit": "Strong Hit!"
+    },
+    "monster": {
+      "namePlaceholder": "Monster Name",
+      "conceptPlaceholder": "Concept, look, or role",
+      "stats": "Stats",
+      "hitPoints": "Hit Points",
+      "armor": "Armor",
+      "damage": "Damage",
+      "instinct": "Instinct",
+      "grouping": "Grouping",
+      "size": "Size",
+      "tags": "Tags",
+      "description": "Description",
+      "qualities": "Special Qualities",
+      "dangers": "Dangers",
+      "questions": "Questions",
+      "lore": "Lore",
+      "origins": "Origins",
+      "discoveries": "Discoveries",
+      "hooks": "Hooks",
+      "creationGuide": "Creation Guide",
+      "creationGuideText": "1. Picture the monster and name it.\n2. Pick how it hunts or fights: horde, group, or solitary.\n3. Set HP from grouping, then adjust for size.\n4. Set armor from what protects it.\n5. Set damage from grouping, then add range, piercing, messy, grabby, or other attack tags.\n6. Write its instinct as \"to ...\".\n7. Write moves for what it can do, how it hunts, special attacks, or the real danger.\n8. Add a concrete description, including at least one non-visual sense.",
+      "notes": "Notes",
+      "addMove": "Add Move",
+      "deleteMove": "Delete Move",
+      "noMoves": "No moves yet.",
+      "addLine": "Add Line",
+      "noLines": "No entries yet.",
+      "tabs": {
+        "overview": "Overview",
+        "moves": "Moves",
+        "lore": "Lore",
+        "prep": "Prep",
+        "notes": "Notes"
+      }
+    },
+    "character": {
+      "stats": {
+        "sectionTitle": "Stats",
+        "strength": "Strength",
+        "dexterity": "Dexterity",
+        "intelligence": "Intelligence",
+        "wisdom": "Wisdom",
+        "constitution": "Constitution",
+        "charisma": "Charisma"
+      },
+      "attributes": {
+        "damage": "Damage",
+        "armor": "Armor",
+        "xp": "XP",
+        "level": "Level",
+        "forward": "Forward",
+        "forwardHint": "A one-time bonus to your next roll, then cleared. Set this when a move says 'take +1 forward'.",
+        "ongoing": "Ongoing",
+        "ongoingHint": "A persistent bonus applied to every roll until you clear it. Set this when a move says 'take +1 ongoing'."
+      },
+      "gear": {
+        "specialPossessions": "Special Possessions"
+      },
+      "moveTypes": {
+        "background": "Background"
+      },
+      "moves": {
+        "pickTitle": "Choose Starting Moves",
+        "pickInstruction": "Pick up to {count} moves to start with.",
+        "playbookMoves": "Playbook Moves",
+        "basicMoves": "Basic Moves",
+        "expeditionMoves": "Expedition Moves",
+        "otherMoves": "Other Moves",
+        "addMove": "Add Move",
+        "removeMove": "Remove Move",
+        "chooseStartingMoves": "Choose Starting Moves"
+      },
+      "selection": {
+        "select": "Select",
+        "cancel": "Cancel",
+        "choosePlaceholder": "Choose {label}…",
+        "chooseOne": "(Choose 1)",
+        "background": {
+          "label": "Background",
+          "dialogTitle": "Choose Background"
+        },
+        "instinct": {
+          "label": "Instinct",
+          "dialogTitle": "Choose Instinct",
+          "customPlaceholder": "Write your own instinct…"
+        },
+        "appearance": {
+          "label": "Appearance",
+          "dialogTitle": "Choose Appearance",
+          "instruction": "Choose 1 on each line, or make something up:"
+        },
+        "origin": {
+          "label": "Origin",
+          "dialogTitle": "Choose Origin",
+          "namesLabel": "Names",
+          "instruction": "Stonetop is your home, or close enough, but where are you (or your family) from originally? Pick 1 and a name to match (or make up something similar)."
+        }
+      }
+    }
+  }
 }

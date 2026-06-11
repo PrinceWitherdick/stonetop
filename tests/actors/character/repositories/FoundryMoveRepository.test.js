@@ -89,7 +89,8 @@ describe("FoundryMoveRepository", () => {
 			await repo.getPlaybookMoves("The Blessed");
 			expect(pack.getIndex).toHaveBeenCalledWith({
 				fields: ["system.playbook", "system.isStartingMove", "system.requirement",
-				         "system.rollType", "system.description", "system.repeatMax", "system.resource"],
+				         "system.rollType", "system.description", "system.repeatMax", "system.resource",
+				         "system.hpBonus", "system.armorBonus", "system.markOptions", "system.asterisk"],
 			});
 		});
 

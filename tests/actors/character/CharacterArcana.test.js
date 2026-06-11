@@ -210,7 +210,7 @@ describe("CharacterArcana.buildSnapshot()", () => {
 				makeFlags({ owned: ["azure-hand"], boxes: { "azure-hand:unlock:0": true, "azure-hand:unlock:1": true } }),
 				new FakeArcanaRepository([circleArcanum]),
 			);
-			expect((await arcana.buildSnapshot()).minor.items[0].unlocked).toBe(false);
+			expect((await arcana.buildSnapshot()).major.items[0].unlocked).toBe(false);
 		});
 
 		it("unlocked is true when all circle marks are checked", async () => {
@@ -227,7 +227,7 @@ describe("CharacterArcana.buildSnapshot()", () => {
 				makeFlags({ owned: ["azure-hand"], boxes: { "azure-hand:unlock:0": true, "azure-hand:unlock:1": true, "azure-hand:unlock:2": true, "azure-hand:unlock:3": true } }),
 				new FakeArcanaRepository([circleArcanum]),
 			);
-			expect((await arcana.buildSnapshot()).minor.items[0].unlocked).toBe(true);
+			expect((await arcana.buildSnapshot()).major.items[0].unlocked).toBe(true);
 		});
 	});
 

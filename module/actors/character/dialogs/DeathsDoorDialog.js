@@ -1,9 +1,21 @@
+import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { stonetopChatCard } from "../../../utils/chat.js";
+import { classifyResult } from "../../../utils/roll-engine.js";
+
+// Death's Door result labels, keyed by the shared 2d6 tier (classifyResult().key).
+const _DEATHS_DOOR_LABELS = {
+	success: "10+ &mdash; You wrest yourself back to the realm of the living.",
+	partial: "7-9 &mdash; No longer dying, but out of the action.",
+	failure: "6- &mdash; Your time has come.",
+};
+
 export class DeathsDoorDialog extends Application {
 	constructor(character, onDone, options = {}) {
 		super(options);
 		this._character = character;
 		this._step = "overview"; // "overview" | "mechanics" | "results"
 		this._onDone = onDone;
+		this._keepOnTop = new KeepOnTop(this);
 	}
 
 	static get defaultOptions() {
@@ -12,10 +24,22 @@ export class DeathsDoorDialog extends Application {
 			template:  "systems/stonetop_pwd/templates/dialogs/deaths-door.hbs",
 			title:     "Death's Door",
 			width:     600,
-			height:    520,
-			resizable: true,
+			height:    "auto",
+			resizable: false,
 			classes:   ["stonetop", "stonetop-deathsdoor-dialog"],
 		});
+	}
+
+	async _render(force, options) {
+		await super._render(force, options);
+		this._keepOnTop.apply();
+		// Re-measure so the window always shrinks to fit the current step's content.
+		this.setPosition({ height: "auto" });
+	}
+
+	async close(options = {}) {
+		this._keepOnTop.stop();
+		return super.close(options);
 	}
 
 	getData() {
@@ -23,20 +47,54 @@ export class DeathsDoorDialog extends Application {
 		const isMechanics = this._step === "mechanics";
 		const isResults = this._step === "results";
 
+		const total = this._rolledTotal ?? null;
+		const key = total === null ? null : classifyResult(total).key;
+
 		return {
 			isOverview,
 			isMechanics,
 			isResults,
+			rolledTotal: total,
+			isStrong:    key === "success",
+			isWeak:      key === "partial",
+			isMiss:      key === "failure",
 		};
 	}
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		this._keepOnTop.start();
 
 		html.find(".deaths-door-next-btn").on("click", () => this._onNext());
 		html.find(".deaths-door-back-btn").on("click", () => this._onBack());
+		html.find(".deaths-door-roll-btn").on("click", () => this._onRoll());
 		html.find(".deaths-door-confirm-btn").on("click", () => this._onConfirm());
 		html.find(".deaths-door-cancel-btn").on("click", () => this.close());
+	}
+
+	async _onRoll() {
+		const actor = this._character?._actor ?? null;
+		const roll  = await new Roll("2d6").evaluate();
+		const total = roll.total;
+		const { key } = classifyResult(total);
+
+		const flavor = stonetopChatCard("Death's Door", `<div class="row result ${key}">
+				<div class="result-label">${_DEATHS_DOOR_LABELS[key]}</div>
+				<div class="result-details"></div>
+				<div class="result-choices"></div>
+			</div>`);
+
+		await roll.toMessage({
+			speaker:  actor ? ChatMessage.getSpeaker({ actor }) : ChatMessage.getSpeaker(),
+			flavor,
+			rollMode: game.settings.get("core", "rollMode"),
+		});
+
+		// Act like Continue was pressed: advance to the screen describing this result.
+		// The tier is re-derived from this total in getData(), so only the total is stored.
+		this._rolledTotal = total;
+		this._step        = key === "failure" ? "results" : "mechanics";
+		this.render(true);
 	}
 
 	_onNext() {

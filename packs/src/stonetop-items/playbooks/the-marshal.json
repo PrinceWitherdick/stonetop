@@ -215,6 +215,10 @@
         ]
       },
       "crew": {
+        "hp": 6,
+        "armor": 0,
+        "damageDie": "d6",
+        "roll": 1,
         "additionalTagCount": 2,
         "backgroundTags": {
           "scion": "respected",
@@ -348,7 +352,14 @@
       "statsNote": "Assign these scores to your stats: +2, +1, +1, +0, +0, -1",
       "lore": [
         {
+          "slug": "war-stories",
+          "title": "War Stories",
+          "description": "",
+          "options": []
+        },
+        {
           "slug": "war-stories-action",
+          "continuation": true,
           "title": "The Last Time the Militia Saw Serious Action, It Was…",
           "description": "<p><em>(pick 1)</em></p>",
           "options": [
@@ -386,6 +397,8 @@
         },
         {
           "slug": "war-stories-questions",
+          "continuation": true,
+          "columnBreak": true,
           "title": "Answer At Least 3 of the Following",
           "description": "",
           "options": [

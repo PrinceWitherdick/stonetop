@@ -1,3 +1,5 @@
+import { maybePromptAsteriskMove } from "../actors/character/WouldBeHeroAsterisk.js";
+
 const _STAT_LABELS = {
 	str: "Strength", dex: "Dexterity", int: "Intelligence",
 	wis: "Wisdom", con: "Constitution", cha: "Charisma",
@@ -8,7 +10,11 @@ function _rollFormula(rollMode, modifier = 0) {
 	return modifier !== 0 ? `${dice}+@stat+@mod` : `${dice}+@stat`;
 }
 
-function _classifyResult(total) {
+/**
+ * Classify a 2d6 PbtA total into its tier: success (10+) / partial (7-9) / failure (6-).
+ * `key` doubles as the chat-card result CSS class.
+ */
+export function classifyResult(total) {
 	if (total >= 10) return { key: "success", label: "Strong Hit" };
 	if (total >= 7)  return { key: "partial", label: "Weak Hit"   };
 	return                   { key: "failure", label: "Miss"       };
@@ -30,6 +36,9 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 	const descriptionHtml = description
 		? `<div class="stonetop-roll-card-description">${description}</div>`
 		: "";
+	const descToggleHtml = description
+		? `<button class="stonetop-roll-card-desc-toggle" type="button" title="Show move description"><i class="fas fa-question-circle"></i></button>`
+		: "";
 	const buttonsHtml = buttons
 		? `<div class="card-buttons stonetop-card-buttons">
 			<button data-action="shiftDown"><i class="fas fa-arrow-down"></i> Shift Down</button>
@@ -41,6 +50,7 @@ function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "",
 		<div class="cell cell--chat">
 			<div class="chat-title row flexrow">
 				<h2 class="cell__title">${header}</h2>
+				${descToggleHtml}
 			</div>
 			${descriptionHtml}
 			${buttonsHtml}
@@ -99,7 +109,7 @@ export async function rollStat(statKey, actor, options = {}) {
 
 	const roll   = await new Roll(_rollFormula(rollMode, modifier), rollData, rollOptions).evaluate();
 	const total  = roll.total;
-	const result = _classifyResult(total);
+	const result = classifyResult(total);
 
 	const header = moveName ?? statLabel;
 
@@ -147,7 +157,7 @@ export async function rollStat(statKey, actor, options = {}) {
 		const xpCard = _rollCard({
 			header: "Miss",
 			result: `+1 XP (${newXp} / ${maxXp})`,
-			resultClass: "failure",
+			resultClass: "success",
 		});
 		ChatMessage.create({
 			content:  xpCard,
@@ -155,6 +165,8 @@ export async function rollStat(statKey, actor, options = {}) {
 			rollMode: game.settings.get("core", "rollMode"),
 		});
 	}
+
+	await maybePromptAsteriskMove(actor, moveName, total);
 
 	return roll;
 }

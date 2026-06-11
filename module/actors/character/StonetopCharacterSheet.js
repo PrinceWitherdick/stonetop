@@ -2,20 +2,26 @@ import {MoveResourceButton} from "./elements/move-resource-button.js";
 import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
+import {RequisitionDialog} from "./dialogs/RequisitionDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
+import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
-import {rollDamage} from "../../utils/roll-engine.js";
+import {rollDamage, sign} from "../../utils/roll-engine.js";
+import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth} from "../../settings.js";
+import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
+import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
+const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
 
 const STAT_TOOLTIPS = {
 	str: "Your physical power and ability to use it. Roll +STR to Clash, or to Defy Danger with raw might or power.",
@@ -257,6 +263,96 @@ const GUIDED_CHARACTER_MOVES = {
 		picksLabel: "Pick 1:",
 		picks: ["Select 2 new tags for your Crew", "Increase their damage die from d6 to d8", "Increase their max HP by 2 each"],
 	},
+
+	// ── Expedition moves ──────────────────────────────────────────────
+	// Procedural moves open a step-by-step guide; rolling moves add a Roll
+	// button driven by `roll` (a stat key, or "ask" to pick a stat). Requisition
+	// and Outfit have their own dialogs and are dispatched separately.
+	"Chart a Course": {
+		trigger: "When you wish to travel to a distant place, name or describe your destination; if the route is unclear, tell the GM how you intend to reach it. The GM tells you what's required, the risks, and how long it will take.",
+		fields: [
+			{ name: "destination", label: "Destination", placeholder: "Where are you headed?" },
+			{ name: "route", label: "Intended route", placeholder: "How do you mean to get there?", type: "textarea" },
+		],
+		results: [
+			"The GM presents each challenge — plus surprises — one at a time.",
+			"Address them all to reach your destination.",
+		],
+		note: "Travel times from Stonetop are listed in the move's description.",
+	},
+	"Forage": {
+		trigger: "When you spend a few hours seeking food in the wild, roll +WIS. In winter, you have disadvantage.",
+		results: ["10+: pick 2.", "7-9: pick 1.", "6-: you find nothing, and there is danger or risk."],
+		picksLabel: "Pick:",
+		picks: [
+			"Acquire 4 provisions (1d6 uses)",
+			"Acquire an extra 1d6 uses of provisions",
+			"Discover something interesting or useful",
+			"Avoid danger or risk (else, there is some)",
+		],
+		note: "Provisions can substitute for supplies when you Make Camp, 1-for-1.",
+		roll: "wis",
+	},
+	"Have What You Need": {
+		trigger: "When you decide that you had something all along, transfer a mark (or marks) from your unassigned inventory to a specific item or slot.",
+		fields: [{ name: "item", label: "What you had all along", placeholder: "The item you're revealing…" }],
+		results: [
+			"Mark a slot: fill it with a common mundane item or something from your special possessions.",
+			"Or expend a use of supplies to mark an additional small item/slot.",
+		],
+		note: "It must be something you could plausibly have had all along; the GM or any player can veto unreasonable items.",
+	},
+	"Keep Company": {
+		trigger: "When you spend a stretch of time together, ask the others if they want to Keep Company. If they do, take turns asking a PC or NPC one of the following.",
+		picksLabel: "Ask one another:",
+		picks: [
+			"What do you do that's annoying/endearing?",
+			"What do I do that you find annoying/endearing?",
+			"Who or what seems to be on your mind?",
+			"What do we find ourselves talking about?",
+			"How do you/we pass the time?",
+			"What new thing do you reveal about yourself?",
+		],
+	},
+	"Make Camp": {
+		trigger: "When you settle in to rest in an unsafe area, answer the GM's questions about your campsite. Each member consumes 1 use of supplies or provisions.",
+		results: ["If you eat and drink your fill and get at least a few hours' sleep, pick 1:"],
+		picksLabel: "Pick 1:",
+		picks: [
+			"Regain HP equal to ½ your max (round up)",
+			"Clear a debility",
+		],
+		note: "A mess kit (fire & water) lets 1 use provide for up to four people. If your rest was particularly peaceful, also gain advantage on your next roll.",
+	},
+	"Recover": {
+		trigger: "When you take time to catch your breath and tend to what ails you, expend 1 use of supplies and regain HP equal to 4 + Prosperity.",
+		fields: [{ name: "ailment", label: "What you're tending", placeholder: "Wound or debility…", type: "textarea" }],
+		results: ["You can't gain this benefit again until you take more damage."],
+		note: "When you tend to a debility or problematic wound, say how. The GM will say it's taken care of, or tell you what else is required.",
+	},
+	"Return Triumphant": {
+		trigger: "When you return home in triumph — having saved your fellows, put down the threat, seized the opportunity, etc. — clear one of the steading's debilities (diminished, lacking, or malcontent).",
+		fields: [{ name: "triumph", label: "Your triumph", placeholder: "What did you accomplish?", type: "textarea" }],
+		note: "If the steading has no debilities marked, increase Fortunes by 1 instead.",
+	},
+	"Struggle as One": {
+		trigger: "When you Defy Danger as a group, establish the party's approach and each roll +STAT (per Defy Danger).",
+		fields: [{ name: "approach", label: "Party's approach", placeholder: "How are you facing this danger together?" }],
+		results: [
+			"10+: you do well enough to get someone else out of a spot, if you can tell us how.",
+			"7-9: you pull your weight.",
+			"6-: you find yourself in a spot — the GM will describe it or ask you to.",
+		],
+		note: "If you roll a 6- but someone saves you, don't mark XP.",
+		roll: "ask",
+	},
+};
+
+// Expedition moves that open their own bespoke dialog instead of the generic
+// guided modal. Keyed by move name so the click handler stays a single lookup.
+const EXPEDITION_MOVE_HANDLERS = {
+	Requisition: sheet => sheet._onRequisition(),
+	Outfit:      sheet => sheet._onOutfitOpen(),
 };
 
 /** Canonical HTML for a move chat card. Both `name` and `description` are trusted module HTML. */
@@ -339,7 +435,6 @@ const _MOVE_REF_RE = new RegExp(
 	`(?<!\\w)(${_MOVE_REF_NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?!\\w)`,
 	"g"
 );
-const _GLYPH_RE = /[○◇◆□]+/g;
 const _moveRefCache = new Map();
 
 async function _fetchMoveRef(name) {
@@ -392,42 +487,6 @@ function _enrichMoveRefsInEl(container) {
 	}
 }
 
-function _wrapStonetopGlyphsInEl(container) {
-	const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-		acceptNode: node =>
-			node.parentElement?.closest(".stonetop-glyph, .stonetop-move-ref")
-				? NodeFilter.FILTER_REJECT
-				: NodeFilter.FILTER_ACCEPT,
-	});
-	const toReplace = [];
-	let node;
-	while ((node = walker.nextNode())) {
-		_GLYPH_RE.lastIndex = 0;
-		if (_GLYPH_RE.test(node.textContent)) toReplace.push(node);
-	}
-	for (const textNode of toReplace) {
-		const text = textNode.textContent;
-		const frag = document.createDocumentFragment();
-		let lastIdx = 0;
-		_GLYPH_RE.lastIndex = 0;
-		let m;
-		while ((m = _GLYPH_RE.exec(text)) !== null) {
-			if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
-			for (const glyph of m[0]) {
-				const span = document.createElement("span");
-				span.className = "stonetop-glyph";
-				if (glyph === "◇") span.classList.add("stonetop-glyph--diamond");
-				else if (glyph === "◆") span.classList.add("stonetop-glyph--diamond-selected");
-				span.textContent = glyph;
-				frag.appendChild(span);
-			}
-			lastIdx = m.index + m[0].length;
-		}
-		if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
-		textNode.parentNode?.replaceChild(frag, textNode);
-	}
-}
-
 export function createStonetopCharacterSheetClass(Base) {
 	return class StonetopCharacterSheet extends Base {
 		_stonetopCharacter;
@@ -436,12 +495,19 @@ export function createStonetopCharacterSheetClass(Base) {
 		constructor(...args) {
 			super(...args);
 			this._stonetopCharacter = this.actor.typedActor;
+
+			// Reopen at the width this user last left this character's sheet.
+			const storedWidth = getCharacterSheetWidth(this.actor?.id);
+			if (storedWidth) {
+				this.options.width  = storedWidth;
+				this.position.width = storedWidth;
+			}
 		}
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["pbta", "stonetop", "sheet", "actor", "character"],
-				width: 1200,
+				width: 960,
 				minWidth: 800,
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
@@ -460,9 +526,29 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async close(options) {
+			this._arcanaMasonryObserver?.disconnect();
+			this._persistSheetWidth();
 			this._movePanel?.remove();
 			this._movePanel = null;
 			return super.close(options);
+		}
+
+		// Remember the width so the sheet reopens at the size the user left it.
+		// setPosition fires on every resize frame, so debounce it; close() also
+		// saves immediately to cover a resize-then-close within the debounce window.
+		setPosition(options = {}) {
+			const position = super.setPosition(options);
+			clearTimeout(this._widthSaveTimer);
+			this._widthSaveTimer = setTimeout(() => this._persistSheetWidth(), 500);
+			return position;
+		}
+
+		_persistSheetWidth() {
+			if (this._minimized) return;
+			const width = this.position?.width;
+			if (Number.isFinite(width) && width >= (this.options.minWidth ?? 0)) {
+				setCharacterSheetWidth(this.actor?.id, width);
+			}
 		}
 
 		_injectHeaderToggle() {
@@ -538,6 +624,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				}).join("")
 				: `<li class="stonetop-ledger-empty">No ledger entries yet.</li>`;
 
+			const nounOptions = ledgerNounOptionsHtml(entries);
+
 			const content = `<div class="stonetop-ledger-container">
 				<div class="stonetop-ledger-toolbar">
 					<label class="stonetop-edit-toggle stonetop-ledger-edit-toggle" title="Edit entries">
@@ -553,6 +641,10 @@ export function createStonetopCharacterSheetClass(Base) {
 						<i class="fas fa-trash"></i> Delete
 					</button>
 					<input type="search" class="stonetop-ledger-search" placeholder="Filter entries…">
+					<select class="stonetop-ledger-noun" title="Filter by subject">
+						<option value="">All changes</option>
+						${nounOptions}
+					</select>
 					<select class="stonetop-ledger-sort">
 						<option value="desc">Newest first</option>
 						<option value="asc">Oldest first</option>
@@ -563,7 +655,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				</section>
 			</div>`;
 
-			new Dialog({
+			const ledgerDialog = new Dialog({
 				title: `${this.actor.name}: Ledger`,
 				content,
 				buttons: {},
@@ -631,21 +723,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						if (ev.target.closest(".stonetop-ledger-row-check")) syncSelectAll();
 					});
 
-					// Cache lowercased text once per entry so the search handler
-					// doesn't re-query the DOM and call toLowerCase on every keystroke.
-					html.find(".stonetop-ledger-entry").each((_, el) => {
-						el._ledgerText = el.querySelector(".stonetop-ledger-entry-main")
-							?.textContent?.toLowerCase() ?? "";
-					});
-
-					html.find(".stonetop-ledger-search").on("input", ev => {
-						const term = ev.currentTarget.value.trim().toLowerCase();
-						html.find(".stonetop-ledger-entry").each((_, el) => {
-							el.hidden = !!term && !el._ledgerText.includes(term);
-						});
-						syncDateHeaders();
-						syncSelectAll();
-					});
+					wireLedgerFilters(html, () => { syncDateHeaders(); syncSelectAll(); });
 
 					html.find(".stonetop-ledger-sort").on("change", ev => {
 						const asc  = ev.currentTarget.value === "asc";
@@ -681,6 +759,8 @@ export function createStonetopCharacterSheetClass(Base) {
 							title: "Delete Ledger Entries",
 							content: `<p>You're about to delete ${checked.length} entries. Are you sure?</p>`,
 							yes: doDelete,
+							render: keepDialogOnTop,
+							options: { classes: ["dialog", "stonetop-ledger-child"] },
 						});
 					});
 				},
@@ -688,7 +768,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				width: 560,
 				height: 640,
 				classes: ["dialog", "stonetop-ledger-window"],
-			}).render(true);
+			});
+			attachKeepOnTop(ledgerDialog, { childDialogClass: "stonetop-ledger-child" });
+			ledgerDialog.render(true);
 		}
 
 		_getHeaderButtons() {
@@ -730,9 +812,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
-			// reassign stonetop to system
-			context.system.attributes.armor.value = context.stonetop.vitals.armor
-			context.system.attributes.xp.max = context.stonetop.vitals.xp.max
+			// Mirror computed vitals back onto system attributes for the sheet's inputs.
+			// HP-max and damage are playbook-derived, so they only apply with a playbook —
+			// keeps onboarding-built characters from showing the stale template default.
+			const v = context.stonetop.vitals;
+			const vitalsToSystem = {
+				"attributes.armor.value": v.armor,
+				"attributes.xp.max":      v.xp.max,
+				...(context.stonetop.playbook ? {
+					"attributes.hp.max":       v.hp.max,
+					"attributes.damage.value": v.damage,
+				} : {}),
+			};
+			for (const [path, value] of Object.entries(vitalsToSystem)) {
+				foundry.utils.setProperty(context.system, path, value);
+			}
 			// Followers tab — build data from flags + playbook definition.
 			// Pass smallItemLimit from the already-computed snapshot so crew gear
 			// uses the exact same prosperity value as outfit inventory items.
@@ -746,7 +840,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					CharacterOnboardingDialog.questionCompletionDiagnostics(playbookDoc, selections),
 				);
 			}
-			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null);
+			const crewStats               = context.stonetop.crewBonuses ?? { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 };
+			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null, crewStats);
 			context.stonetop.hasFollowers = !!(
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
@@ -764,8 +859,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			return context;
 		}
 
-		_buildFollowersData(playbookDoc, smallItemLimit = null) {
+		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }) {
 			const sf = resolvedFlags(this.actor);
+			const crewMaxHp = crewStats.memberHp ?? 6;
+			const crewArmor = crewStats.armor ?? 0;
+			const crewDamageDie = crewStats.damageDie ?? "d6";
+			const crewRollMod = crewStats.rollMod ?? 1;
 
 			// -- Animal Companion (Ranger) ------------------------------
 			let animalCompanion = null;
@@ -835,6 +934,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					const val = Math.min(prosperity, 2);
 					return label.replace(token, html ? `${val} <em>piercing</em>` : `${val} piercing`);
 				};
+				const crewIndividuals = (sf.crew?.individuals ?? []).map((ind, idx) => {
+					const indHpRaw = (sf.crew?.individualsHp ?? {})[idx];
+					return { ...ind, index: idx, hpMax: crewMaxHp, hpCurrent: indHpRaw != null ? Math.min(Math.max(0, Number(indHpRaw)), crewMaxHp) : crewMaxHp };
+				});
 				crew = {
 					name:      sf.crew.name     ?? "",
 					tags:      sf.crew.tags     ?? [],
@@ -863,11 +966,13 @@ export function createStonetopCharacterSheetClass(Base) {
 							})),
 						};
 					}),
-					individuals:       (sf.crew?.individuals ?? []).map((ind, idx) => {
-						const indHpRaw = (sf.crew?.individualsHp ?? {})[idx];
-						return { ...ind, index: idx, hpCurrent: indHpRaw != null ? Math.min(Math.max(0, Number(indHpRaw)), 6) : 6 };
-					}),
+					individuals:       crewIndividuals,
 					individualOptions: playbookDoc?.crew?.individualOptions ?? {},
+					groupHp:           crewIndividuals.length * crewMaxHp,
+					memberHp:          crewMaxHp,
+					armor:             crewArmor,
+					damageDie:         crewDamageDie,
+					rollMod:           crewRollMod,
 				};
 			}
 
@@ -921,14 +1026,30 @@ export function createStonetopCharacterSheetClass(Base) {
 			const raw = playbookDoc?.invocations;
 			if (!raw?.options?.length) return null;
 			const selected = new Set(this.actor.getFlag("stonetop_pwd", "invocations.selected") ?? []);
+			const options = raw.options.map(opt => ({
+				slug:        opt.slug,
+				label:       opt.label,
+				description: opt.description ?? "",
+				known:       selected.has(opt.slug),
+				ongoing:     !!opt.ongoing,
+			}));
+			const sort = this.actor.getFlag("stonetop_pwd", "invocationsSort") ?? "known";
+			if (sort === "alpha") {
+				options.sort((a, b) => a.label.localeCompare(b.label));
+			} else {
+				// Known first, then alphabetically — mirrors the moves tab's owned-first order.
+				options.sort((a, b) => {
+					if (a.known !== b.known) return a.known ? -1 : 1;
+					return a.label.localeCompare(b.label);
+				});
+			}
 			return {
 				startingCount: raw.startingCount ?? 2,
-				options: raw.options.map(opt => ({
-					slug:        opt.slug,
-					label:       opt.label,
-					description: opt.description ?? "",
-					known:       selected.has(opt.slug),
-				})),
+				hideUnknown:   this.actor.getFlag("stonetop_pwd", "hideUnknownInvocations") ?? false,
+				sort,
+				sortKnown:     sort === "known",
+				sortAlpha:     sort === "alpha",
+				options,
 			};
 		}
 
@@ -962,7 +1083,18 @@ export function createStonetopCharacterSheetClass(Base) {
 							return;
 						}
 					}
-					this._onDropItem(ev, data);
+					// Resolve the dropped item and route it through our own creation
+					// handler. We can't rely on the inherited _onDropItem → _onDropItemCreate
+					// chain (deprecated AppV1 plumbing), so call _onDropItemCreate directly;
+					// fall back to the base handler only for re-ordering an item already on
+					// this actor.
+					const item = await Item.implementation.fromDropData(data);
+					if (!item) return;
+					if (item.parent?.uuid === this.actor.uuid) {
+						await this._onDropItem(ev, data);
+						return;
+					}
+					await this._onDropItemCreate(item.toObject());
 				}
 			}, true);
 
@@ -987,6 +1119,29 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			html.find(".stonetop-hide-unselected-check").on("change", async (ev) => {
 				await this.actor.setFlag('stonetop_pwd', 'hideUnselected', ev.currentTarget.checked);
+			});
+
+			html.find(".stonetop-hide-unknown-invocations-check").on("change", async (ev) => {
+				await this.actor.setFlag('stonetop_pwd', 'hideUnknownInvocations', ev.currentTarget.checked);
+			});
+
+			html.find(".stonetop-invocation-sort").on("change", async (ev) => {
+				await this.actor.setFlag("stonetop_pwd", "invocationsSort", ev.currentTarget.value);
+			});
+
+			// Live text filter over invocation cards (name + description). Client-side
+			// only, mirroring the Ledger search; composes with the hide-un-learned CSS.
+			const invCards = [...html[0].querySelectorAll(".stonetop-invocation-card")];
+			invCards.forEach(card => {
+				const name = card.querySelector(".stonetop-invocation-name")?.textContent ?? "";
+				const desc = card.querySelector(".stonetop-invocation-desc")?.textContent ?? "";
+				card._invText = `${name} ${desc}`.toLowerCase();
+			});
+			html.find(".stonetop-invocation-search").on("input", (ev) => {
+				const term = ev.currentTarget.value.trim().toLowerCase();
+				invCards.forEach(card => {
+					card.hidden = !!term && !card._invText.includes(term);
+				});
 			});
 
 			html.find(".stonetop-roll-mode-input").on("change", async (ev) => {
@@ -1029,12 +1184,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			html[0].addEventListener("click", async ev => {
 				// Don't intercept clicks on enabled inputs (e.g. editing a stat value).
 				if (ev.target.tagName === "INPUT" && !ev.target.disabled && !ev.target.readOnly) return;
-				const rollable = ev.target.closest(".rollable");
+				// Clicking the "+STAT" chip rolls the same as tapping the dice icon beside it.
+				const chip = ev.target.closest(".stonetop-move-roll-chip");
+				const rollable = ev.target.closest(".rollable")
+					?? chip?.closest("li")?.querySelector(".rollable");
 				if (!rollable || !this.isEditable) return;
 				ev.stopPropagation();
 				const guided = this._guidedMoveForRollable(rollable);
 				if (guided) {
 					this._openGuidedCharacterMove(guided, rollable);
+					return;
+				}
+				const askItem = this._statChoiceMoveForRollable(rollable);
+				if (askItem) {
+					this._promptStatChoice(askItem, rollable);
 					return;
 				}
 				const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable });
@@ -1073,12 +1236,33 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}, true);
 
-			html.find(".stonetop-basic-move-open").on("click", async ev => {
+			// The whole basic/expedition row is tappable, not just the dice icon.
+			// The dice icon and the "+stat" chip roll via the capture handler above
+			// (which stopPropagation()s), so a click only reaches here when it lands
+			// on the move name or empty row space.
+			html.find(".stonetop-move-item").on("click", async ev => {
 				if (!this.isEditable) return;
-				const li       = ev.currentTarget.closest("li");
-				const rollable = li?.querySelector(".rollable");
+				const li     = ev.currentTarget;
+				const nameEl = li.querySelector(".stonetop-move-name");
+				if (!nameEl) return;
+				const moveName = nameEl.textContent.trim();
+
+				// Expedition moves each do something on click: a bespoke dialog
+				// (Requisition assets, Outfit), a guided step/roll modal, a direct
+				// roll, or — failing those — posting the move text to chat.
+				if (nameEl.classList.contains("stonetop-expedition-move-open")) {
+					const handler = EXPEDITION_MOVE_HANDLERS[moveName];
+					if (handler) { handler(this); return; }
+					const guide = GUIDED_CHARACTER_MOVES[moveName];
+					if (guide) {
+						this._openGuidedCharacterMove({ name: moveName, guide }, li.querySelector(".rollable"));
+						return;
+					}
+				}
+
+				const rollable = li.querySelector(".rollable");
 				if (rollable) { rollable.click(); return; }
-				const { compendiumId } = ev.currentTarget.dataset;
+				const { compendiumId } = nameEl.dataset;
 				if (!compendiumId) return;
 				const doc = await this._stonetopCharacter._moveRepo.getBasicMoveDocument(compendiumId);
 				if (!doc) return;
@@ -1134,12 +1318,52 @@ export function createStonetopCharacterSheetClass(Base) {
 				document.body.appendChild(moveRefPanel);
 			}
 
-			html.find(".stonetop-item-description").each((_, el) => {
-				if (el.dataset.moveRefsEnriched) return;
-				el.dataset.moveRefsEnriched = "1";
-				_enrichMoveRefsInEl(el);
-				_wrapStonetopGlyphsInEl(el);
+			// Render inline glyphs (◇ Conduit tracks, etc.) as SVG across every
+			// description container. Move-ref enrichment is limited to move
+			// descriptions; the other containers only need glyph wrapping.
+			html.find(".stonetop-item-description, .stonetop-arcanum-body, .stonetop-invocation-desc").each((_, el) => {
+				if (el.dataset.glyphsWrapped) return;
+				el.dataset.glyphsWrapped = "1";
+				if (el.matches(".stonetop-item-description")) _enrichMoveRefsInEl(el);
+				wrapStonetopGlyphsInEl(el);
 			});
+
+			// Masonry: pack arcana cards into two columns by measured height (each card
+			// goes in the currently-shortest column). Unlike CSS multi-column, cards stay
+			// whole — a tall flipped card never splits — and short cards never leave a big
+			// row-gap beside a tall one.
+			//
+			// A ResizeObserver on each grid drives it: it fires when the grid first becomes
+			// measurable (the Arcana tab is shown, 0 → width) and whenever the sheet is
+			// resized, so the columns re-balance for the new width. The original card order
+			// is captured once per grid; the width guard makes the re-pack idempotent — and
+			// also breaks the feedback loop, since re-packing changes the grid's own height,
+			// which would otherwise re-trigger the observer.
+			const packArcanaMasonry = grid => {
+				const cards = (grid._stonetopCards ??= Array.from(grid.children)
+					.filter(el => el.classList.contains("stonetop-arcanum-card")));
+				const width = grid.clientWidth;
+				if (cards.length < 2 || !width || !cards[0].offsetHeight || grid._packedWidth === width) return;
+				const cols = [0, 1].map(() => {
+					const c = document.createElement("div");
+					c.className = "stonetop-arcana-col";
+					return c;
+				});
+				const heights = [0, 0];
+				for (const card of cards) {
+					const i = heights[0] <= heights[1] ? 0 : 1;
+					heights[i] += card.offsetHeight;
+					cols[i].appendChild(card);
+				}
+				grid.replaceChildren(...cols);
+				grid._packedWidth = width;
+			};
+			this._arcanaMasonryObserver?.disconnect();
+			this._arcanaMasonryObserver = new ResizeObserver(entries => {
+				for (const entry of entries) packArcanaMasonry(entry.target);
+			});
+			html[0].querySelectorAll(".stonetop-arcana-grid")
+				.forEach(grid => this._arcanaMasonryObserver.observe(grid));
 
 			if (showMoveRefHover) {
 				let _moveRefHovered = null;
@@ -1209,11 +1433,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, true);
 			html.find(".stonetop-inv-add-btn").on("click", this._onAddInventoryItem.bind(this));
 			html.find(".stonetop-inv-delete").on("click", this._onDeleteCustomInventoryItem.bind(this));
-			html.find(".stonetop-outfit-load-radio").on("change", this._onOutfitLoad.bind(this));
+			html.find(".stonetop-inv-remove-special").on("click", this._onRemoveSpecialItem.bind(this));
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
 			html.find(".stonetop-possession-sub-radio").on("change", this._onPossessionSubRadio.bind(this));
-			html.find(".stonetop-regular-pool-btn").on("change", this._onRegularPool.bind(this));
 			html.find(".stonetop-outfit-open-btn").on("click", this._onOutfitOpen.bind(this));
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
@@ -1319,7 +1542,7 @@ export function createStonetopCharacterSheetClass(Base) {
 
 				// Build one chip's inner HTML from its tokens, tracking slot indices
 				const buildChipInner = (tokens, safeVal) => {
-					let html    = `<input type="checkbox" name="traits" value="${safeVal}">`;
+					let html    = `<input type="checkbox" class="stonetop-check" name="traits" value="${safeVal}">`;
 					let slotIdx = 0;
 					for (const tok of tokens) {
 						if (tok.type === "text") {
@@ -1355,7 +1578,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					if (simple) {
 						return `<span class="stonetop-trait-chip-group">
 							<label class="stonetop-individual-trait-chip">
-								<input type="checkbox" name="traits" value="${safeVal}"> ${t}
+								<input type="checkbox" class="stonetop-check" name="traits" value="${safeVal}"> ${t}
 							</label>
 						</span>`;
 					}
@@ -1430,6 +1653,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					},
 					default: "add",
 					render: (dlgHtml) => {
+						keepDialogOnTop(dlgHtml);
 						// Checkbox toggle: expand/collapse the chip
 						dlgHtml.find("[name='traits']").on("change", ev => {
 							const group   = ev.currentTarget.closest(".stonetop-trait-chip-group");
@@ -1461,6 +1685,39 @@ export function createStonetopCharacterSheetClass(Base) {
 				}, { width: 540, height: 580, classes: ["dialog", "stonetop-individual-dialog"] }).render(true);
 			});
 			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
+
+			// -- Followers: group fight outnumber calculator --
+			html[0].addEventListener("input", ev => {
+				const inp = ev.target;
+				if (!inp.classList.contains("stonetop-outnumber-yours") && !inp.classList.contains("stonetop-outnumber-theirs")) return;
+				const row    = inp.closest(".stonetop-group-fight-outnumber-row");
+				if (!row) return;
+				const yours  = Math.max(1, parseInt(row.querySelector(".stonetop-outnumber-yours")?.value)  || 1);
+				const theirs = Math.max(1, parseInt(row.querySelector(".stonetop-outnumber-theirs")?.value) || 1);
+				const bonus  = Math.max(0, Math.floor(yours / theirs) - 1);
+				const resultEl = row.querySelector(".stonetop-outnumber-result");
+				if (resultEl) resultEl.textContent = bonus > 0 ? `+${bonus} damage, +${bonus} armor` : "no bonus";
+				const section  = row.closest(".stonetop-group-fight-section");
+				const dmgBtn   = section?.querySelector(".stonetop-group-fight-dmg-roll");
+				const dmgLabel = section?.querySelector(".stonetop-group-fight-dmg-label");
+				const roll     = bonus > 0 ? `d6+${bonus}` : "d6";
+				if (dmgBtn)   dmgBtn.dataset.roll     = roll;
+				if (dmgLabel) dmgLabel.textContent    = roll;
+			}, true);
+
+			// -- Followers: group fight Clash / Let Fly --
+			html[0].addEventListener("click", async ev => {
+				const btn = ev.target.closest(".stonetop-group-fight-roll");
+				if (!btn) return;
+				ev.stopPropagation();
+				const stat = btn.dataset.stat;
+				if (!stat) return;
+				const card     = btn.closest(".stonetop-follower-card");
+				const crewName = card?.querySelector(".stonetop-follower-name")?.textContent?.trim() || "Crew";
+				const moveName = stat === "str" ? `${crewName}: Clash` : `${crewName}: Let Fly`;
+				await this._stonetopCharacter.onDirectStatRoll(stat, { moveName });
+			}, true);
+
 			html.find(".stonetop-invocation-check").on("change", async ev => {
 				const { slug } = ev.currentTarget.dataset;
 				const current = this.actor.getFlag("stonetop_pwd", "invocations.selected") ?? [];
@@ -1469,6 +1726,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					: current.filter(s => s !== slug);
 				await this.actor.setFlag("stonetop_pwd", "invocations.selected", updated);
 				this.render(false);
+			});
+			// Tapping an Invocation's title posts its details to chat, mirroring moves.
+			html.find(".stonetop-invocation-name").on("click", ev => {
+				const card = ev.currentTarget.closest(".stonetop-invocation-card");
+				if (!card) return;
+				const name = ev.currentTarget.textContent.trim();
+				const description = card.querySelector(".stonetop-invocation-desc")?.innerHTML ?? "";
+				ChatMessage.create({
+					content: _buildMoveChatContent(name, description),
+					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+				});
 			});
 			html.find(".stonetop-other-move-delete").on("click", async ev => {
 				const { itemId } = ev.currentTarget.dataset;
@@ -1499,11 +1767,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					title: game.i18n.localize("stonetop.arcana.identifyTitle"),
 					content: `<p>${game.i18n.localize("stonetop.arcana.identifyConfirm")}</p>`,
 					yes: () => this._stonetopCharacter.identifyArcanum(slug).then(() => this.render(false)),
+					render: keepDialogOnTop,
 				});
 			}, true);
 
 			html[0].addEventListener("click", ev => {
-				const thumb = ev.target.closest(".stonetop-arcanum-thumb");
+				const thumb = ev.target.closest(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img");
 				if (!thumb) return;
 				ev.stopPropagation();
 				new ImagePopout(thumb.src, { title: thumb.dataset.name }).render(true);
@@ -1548,7 +1817,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, true);
 
 			html[0].addEventListener("change", ev => {
-				const cb = ev.target.closest(".stonetop-arcanum-box, .stonetop-arcanum-circle");
+				const cb = ev.target.closest(".stonetop-arcanum-box, .stonetop-arcanum-circle, .stonetop-arcanum-diamond");
 				if (!cb) return;
 				ev.stopPropagation();
 				const { arcanumSlug, context, index } = cb.dataset;
@@ -1568,6 +1837,32 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!ta || ev.target.closest("[data-pdi='lore']")) return;
 				const { loreSlug, optionSlug } = ta.dataset;
 				this._stonetopCharacter.setLoreOptionText(loreSlug, optionSlug, ta.value);
+			}, true);
+
+			html[0].addEventListener("change", ev => {
+				const sel = ev.target.closest(".stonetop-lore-arcana-select");
+				if (!sel) return;
+				this._stonetopCharacter.setMinorArcanumRole(sel.dataset.role, sel.value);
+			}, true);
+
+			html[0].addEventListener("change", ev => {
+				const cb = ev.target.closest(".stonetop-move-mark-check");
+				if (cb) {
+					const { moveName, markSlug, idx } = cb.dataset;
+					this._stonetopCharacter.setCountMark(moveName, markSlug, cb.checked ? Number(idx) + 1 : Number(idx));
+					return;
+				}
+				const sel = ev.target.closest(".stonetop-move-mark-stat");
+				if (sel) {
+					const { moveName, markSlug, idx } = sel.dataset;
+					this._stonetopCharacter.setStatSlot(moveName, markSlug, Number(idx), sel.value);
+					return;
+				}
+				const lvl = ev.target.closest(".stonetop-move-mark-level");
+				if (lvl) {
+					const { moveName, markSlug, idx } = lvl.dataset;
+					this._stonetopCharacter.setMarkLevel(moveName, markSlug, Number(idx), parseInt(lvl.value, 10));
+				}
 			}, true);
 
 			html[0].addEventListener("click", ev => {
@@ -1644,8 +1939,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!nav) return;
 
 			this._applyTabOrder(root);
-
-			if (!this._editMode) return;
 
 			let dragSource = null;
 
@@ -1724,6 +2017,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			return textEditor?.getDragEventData(ev) ?? TextEditor.getDragEventData(ev);
 		}
 
+		// Initial HP for a newly-assigned playbook (full HP). max is also synced in
+		// getData, but the current value must be seeded here or it stays at the default.
+		_playbookHpInit(playbookDoc) {
+			const hp = playbookDoc.flags?.stonetop?.hp;
+			return hp ? { "system.attributes.hp.max": hp, "system.attributes.hp.value": hp } : {};
+		}
+
 		async _onDropPlaybook(playbookDoc) {
 			if (!this.isEditable) return;
 			if (playbookDoc.flags?.stonetop?.lore?.length) {
@@ -1738,6 +2038,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					name: playbookDoc.name,
 					slug: playbookDoc.system?.slug ?? "",
 				},
+				...this._playbookHpInit(playbookDoc),
 			});
 			await this._stonetopCharacter.ensureStartingMoves();
 			this.render(false);
@@ -1761,6 +2062,33 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			if (others.length) await super._onDropItemCreate(others);
 			if (anyAdded) this.render(false);
+		}
+
+		_statChoiceMoveForRollable(rollable) {
+			const itemId = rollable.closest(".item")?.dataset.itemId;
+			if (!itemId) return null;
+			const item = this.actor.items.get(itemId);
+			if (!item || normalizeRollType(item.system?.rollType) !== "ask") return null;
+			return item;
+		}
+
+		_promptStatChoice(item, rollable) {
+			const stats = this.actor.system?.stats ?? {};
+			const buttons = {};
+			for (const key of _STAT_KEYS) {
+				const value = stats[key]?.value ?? 0;
+				const label = Handlebars.helpers.statLabel(key);
+				buttons[key] = {
+					label: `${label} (${sign(value)})`,
+					callback: () => this._stonetopCharacter.onRoll({ currentTarget: rollable }, { statOverride: key }),
+				};
+			}
+			new Dialog({
+				title: `${item.name} — Choose a Stat`,
+				content: `<p>Which stat are you rolling with?</p>`,
+				buttons,
+				render: keepDialogOnTop,
+			}, { width: 480, classes: ["dialog", "stonetop-stat-picker-dialog"] }).render(true);
 		}
 
 		_guidedMoveForRollable(rollable) {
@@ -1789,11 +2117,21 @@ export function createStonetopCharacterSheetClass(Base) {
 					<strong>${_esc(guide.picksLabel ?? "Choose")}</strong>
 					<div class="stonetop-homestead-choice-list">
 						${guide.picks.map((pick, index) => `<label class="stonetop-homestead-choice">
-							<input type="checkbox" name="pick.${index}" value="${_esc(pick)}">
+							<input type="checkbox" class="stonetop-check" name="pick.${index}" value="${_esc(pick)}">
 							<span>${_esc(pick)}</span>
 						</label>`).join("")}
 					</div>
 				</div>`
+				: "";
+
+			// A guide may roll without an owned item (e.g. expedition moves): `guide.roll`
+			// is a stat key, or "ask" to let the player pick a stat in the dialog.
+			const askStat = !rollable && guide.roll === "ask";
+			const statPickerHtml = askStat
+				? `<label class="stonetop-homestead-field stonetop-guided-stat-pick">
+					<span>Roll with</span>
+					<select name="guidedRollStat">${_STAT_CHOICES.map(([key, label]) => `<option value="${key}">+${label}</option>`).join("")}</select>
+				</label>`
 				: "";
 
 			const buttons = {
@@ -1811,19 +2149,30 @@ export function createStonetopCharacterSheetClass(Base) {
 						await this._stonetopCharacter.onRoll({ currentTarget: rollable });
 					},
 				};
+			} else if (guide.roll) {
+				const fixedStat = askStat ? null : guide.roll;
+				buttons.roll = {
+					label: fixedStat ? `Roll +${fixedStat.toUpperCase()}` : "Roll",
+					callback: async html => {
+						await this._postGuidedCharacterMove(name, guide, html);
+						const stat = fixedStat ?? html[0]?.querySelector('[name="guidedRollStat"]')?.value ?? "wis";
+						await this._stonetopCharacter.onDirectStatRoll(stat, { moveName: name });
+					},
+				};
 			}
 
 			new Dialog({
 				title: name,
 				content: `<form class="stonetop-homestead-dialog stonetop-character-move-dialog">
 					<p class="stonetop-homestead-trigger"><em>${_esc(guide.trigger)}</em></p>
-					${fieldsHtml ? `<div class="stonetop-homestead-fields">${fieldsHtml}</div>` : ""}
+					${fieldsHtml || statPickerHtml ? `<div class="stonetop-homestead-fields">${fieldsHtml}${statPickerHtml}</div>` : ""}
 					${resultsHtml}
 					${picksHtml}
 					${guide.note ? `<p class="stonetop-homestead-note">${_esc(guide.note)}</p>` : ""}
 				</form>`,
 				buttons,
-				default: rollable ? "roll" : "post",
+				default: (rollable || guide.roll) ? "roll" : "post",
+				render: keepDialogOnTop,
 			}, { width: 520 }).render(true);
 		}
 
@@ -1932,15 +2281,16 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onInventoryItemCheck(ev) {
-			const slug      = ev.currentTarget.dataset.slug;
-			const isChecked = ev.currentTarget.checked;
-			await this._stonetopCharacter.setInventoryItemChecked(slug, isChecked);
-			if (ev.currentTarget.closest(".stonetop-inventory-small")) {
-				await this._stonetopCharacter.adjustSmallPool(isChecked);
-			} else if (ev.currentTarget.closest(".stonetop-inventory-regular")) {
-				const weight = Number(ev.currentTarget.dataset.weight ?? 1);
-				await this._stonetopCharacter.adjustRegularPool(isChecked, weight);
-			}
+			// Have What You Need: marking an item pulls marks from the undefined pool
+			// (its weight, or 1 for a small item); un-marking returns them. The load
+			// total is fixed at Outfit, so a mark must be available to define an item.
+			const el = ev.currentTarget;
+			if (!el.dataset.slug) return; // ignore the slug-less undefined-pool diamonds
+			const ok = await this._stonetopCharacter.toggleCarriedItem(el.dataset.slug, el.checked, {
+				small:  !!el.closest(".stonetop-inventory-small"),
+				weight: Number(el.dataset.weight ?? 1),
+			});
+			if (!ok) ui.notifications.warn(game.i18n.localize("stonetop.inventory.notEnoughUndefined"));
 			this.render(false);
 		}
 
@@ -1983,32 +2333,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					},
 				},
 				default: "add",
+				render: keepDialogOnTop,
 			}).render(true);
 		}
 
-		async _onOutfitLoad(ev) {
-			await this._stonetopCharacter.setInventoryLoadLevel(ev.currentTarget.value);
-			this.render(false);
-		}
-
-		async _onRegularPool(ev) {
-			const idx = Number(ev.currentTarget.dataset.index);
-			await this._stonetopCharacter.setInventoryRegularPool(
-				ev.currentTarget.checked ? idx + 1 : idx
-			);
-			this.render(false);
-		}
-
-		async _onSmallPool(ev) {
-			const idx = Number(ev.currentTarget.dataset.index);
-			await this._stonetopCharacter.setInventorySmallPool(
-				ev.currentTarget.checked ? idx + 1 : idx
-			);
-			this.render(false);
-		}
 
 		async _onDeleteCustomInventoryItem(ev) {
 			await this._stonetopCharacter.removeCustomInventoryItem(ev.currentTarget.dataset.ownedId);
+		}
+
+		async _onRemoveSpecialItem(ev) {
+			await this._stonetopCharacter.removeSpecialItem(ev.currentTarget.dataset.slug);
 		}
 
 		async _onInventoryReset() {
@@ -2019,7 +2354,22 @@ export function createStonetopCharacterSheetClass(Base) {
 					await this._stonetopCharacter.resetInventorySelections();
 					this.render(false);
 				},
+				render: keepDialogOnTop,
 			});
+		}
+
+		_onRequisition() {
+			const steading = this._stonetopCharacter?.getSteadingActor();
+			if (!steading) {
+				ui.notifications.warn("This character isn't linked to a steading.");
+				return;
+			}
+			new RequisitionDialog(
+				this._stonetopCharacter,
+				this.actor,
+				steading,
+				() => this.render(false),
+			).render(true);
 		}
 
 		async _onOutfitOpen() {
@@ -2060,7 +2410,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						{
 							onBack: openPicker,
 							onSave: async (selections) => {
-								await this._saveOnboardingProgress(playbookDoc, selections);
+								await this._applyPlaybookSelections(playbookDoc, selections);
 							},
 						},
 					).render(true);
@@ -2087,6 +2437,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						},
 					},
 					default: "cancel",
+					render: keepDialogOnTop,
 				}).render(true);
 			} else {
 				openPicker();
@@ -2110,7 +2461,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					initialSelections: this._readSelectionsFromActor(playbookDoc),
 					startAtStep: options.startAtStep ?? null,
 					onSave: async (selections) => {
-						await this._saveOnboardingProgress(playbookDoc, selections);
+						await this._applyPlaybookSelections(playbookDoc, selections);
 					},
 				},
 				// no onBack ? back button is hidden
@@ -2266,40 +2617,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			await stonetopSteading.setFlags({ neighbors });
 		}
 
-		async _saveOnboardingProgress(playbookDoc, selections) {
-			const slug = playbookDoc.system?.slug ?? "";
-			const updates = {
-				"system.playbook": { uuid: playbookDoc.uuid, name: playbookDoc.name, slug },
-			};
-			if (slug && isDefaultImg(this.actor.img)) {
-				const icon = `systems/stonetop_pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`;
-				updates.img = icon;
-				updates["prototypeToken.texture.src"] = icon;
-			}
-			const statFlagObj = {};
-			for (const [key, value] of Object.entries(selections.stats ?? {})) {
-				if (value !== null && value !== undefined) {
-					updates[`system.stats.${key}.value`] = Number(value);
-					statFlagObj[key] = Number(value);
-				}
-			}
-			updates[`flags.${STONETOP_SCOPE}.onboardingStats`] = statFlagObj;
-			await this.actor.update(updates);
-
-			if (selections.backgroundSlug) {
-				await this._stonetopCharacter.background.selectBackground(selections.backgroundSlug);
-			}
-
-			const { flagUpd } = await this._applyCommonSelections(playbookDoc, selections);
-			flagUpd[`flags.${STONETOP_SCOPE}.possessions.selected`] = [...(selections.possessions ?? [])];
-			await this.actor.update(flagUpd);
-			this.render(false);
-		}
-
 		async _applyPlaybookSelections(playbookDoc, selections) {
 			const slug = playbookDoc.system?.slug ?? "";
 			const updates = {
 				"system.playbook": { uuid: playbookDoc.uuid, name: playbookDoc.name, slug },
+				...this._playbookHpInit(playbookDoc),
 			};
 			if (slug && isDefaultImg(this.actor.img)) {
 				const icon = `systems/stonetop_pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`;
@@ -2385,7 +2707,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
-		// Shared core of both save-progress and apply-final paths.
+		// Core of _applyPlaybookSelections (used for both "Save" and final apply).
 		// Handles character-method calls (instinct, appearance, origin, name),
 		// background-setup flag writes, initiates, and lore.
 		// Returns { flagUpd, selectedBackground, backgroundSetup } for callers to extend.

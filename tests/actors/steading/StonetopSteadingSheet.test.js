@@ -51,6 +51,9 @@ describe("StonetopSteadingSheet", () => {
 				name: "Wren",
 				img: "wren.webp",
 				checked: true,
+				traits: "",
+				relations: "",
+				notes: "",
 			}],
 		});
 	});

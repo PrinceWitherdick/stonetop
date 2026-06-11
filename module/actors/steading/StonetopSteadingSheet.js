@@ -1,12 +1,17 @@
 import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS } from "./StonetopSteading.js";
 import {rollStat} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
+import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
 import {escHtml} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
-import {STONETOP_SCOPE} from "../character/StonetopFlags.js";
+import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
+import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDialog.js";
+import {CharacterInventory} from "../character/CharacterInventory.js";
+import {SPECIAL_ITEM_CATALOG} from "../../data/special-items.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 
 function _signedNum(n) {
 	return n >= 0 ? `+${n}` : String(n);
@@ -109,8 +114,8 @@ const _STEADING_MOVES_RAW = [
 	{
 		slug: "requisition",
 		label: "Requisition",
-		stat: null,
-		statLabel: null,
+		stat: "fortunes",
+		statLabel: "Fortunes",
 		rollable: false,
 		interactive: true,
 		description: `<p>When you <strong>borrow some of the steading's assets for an expedition</strong> or otherwise put them at risk, roll <strong>+Fortunes</strong>.</p>
@@ -143,7 +148,8 @@ const STEADING_STAT_CHIP_LABELS = {
 const _esc = escHtml;
 
 function _formatResultLine(text) {
-	return _esc(text).replace(/^(7\+|10\+|7-9|6-):/, "<strong>$1:</strong>");
+	// Bold the dice-range prefix and any qualifier up to the colon (e.g. "7-9 when buying:", "Miss:").
+	return _esc(text).replace(/^(7\+|10\+|7-9|6-|Miss)([^:]*):/, "<strong>$1$2:</strong>");
 }
 
 const HOMESTEAD_MOVE_FLOWS = {
@@ -232,7 +238,7 @@ const HOMESTEAD_MOVE_FLOWS = {
 		label: "Trade & Barter",
 		stat: "prosperity",
 		statLabel: "Prosperity",
-		trigger: "When you seek to acquire or sell a special item, roll +Prosperity and subtract the item's Value. In winter, roll with disadvantage.",
+		trigger: "When you wish to acquire or sell a commonly available item, you can. When you seek to acquire or sell a special item, roll +Prosperity and subtract the item's Value. In winter, you have disadvantage.",
 		fields: [
 			{ name: "want", label: "What do you want to buy or sell?", type: "textarea", placeholder: "Item, service, animal, coin, Surplus, or trade goods" },
 			{ name: "value", label: "Item Value", type: "number", placeholder: "0", min: 0 },
@@ -243,10 +249,17 @@ const HOMESTEAD_MOVE_FLOWS = {
 		results: [
 			"Commonly available item: you can acquire or sell it without rolling.",
 			"10+: you can get it or sell it for a fair price.",
-			"7-9 when buying: the GM picks 1 complication.",
-			"6-: the GM says what happens; do not mark XP.",
+			"7-9 when buying: the GM picks 1 (below).",
+			"7-9 when selling: you can sell it now, but you won't get its full worth.",
+			"6- either way: don't mark XP. If you still want to acquire/sell it, you'll need to travel elsewhere or wait until next season.",
 		],
-		note: "Lacking treats Prosperity as 1 lower. Subtract item Value as a modifier.",
+		picks: [
+			"You can get it, but it'll cost more than usual",
+			"Someone has it, but they aren't keen to give it up",
+			"You can get something close, but not quite right",
+		],
+		picksLabel: "7-9 when buying — the GM picks 1:",
+		note: "For unique or truly exceptional items, don't Trade & Barter — Make a Plan with the GM or wait for a trade opportunity when Seasons Change. Lacking treats Prosperity as 1 lower; subtract the item's Value as a modifier.",
 	},
 	persuade: {
 		label: "Persuade",
@@ -389,6 +402,8 @@ export function createStonetopSteadingSheetClass(Base) {
 				}).join("")
 				: `<li class="stonetop-ledger-empty">No ledger entries yet.</li>`;
 
+			const nounOptions = ledgerNounOptionsHtml(entries);
+
 			const content = `<div class="stonetop-ledger-container">
 				<div class="stonetop-ledger-toolbar">
 					<label class="stonetop-edit-toggle stonetop-ledger-edit-toggle" title="Edit entries">
@@ -404,6 +419,10 @@ export function createStonetopSteadingSheetClass(Base) {
 						<i class="fas fa-trash"></i> Delete
 					</button>
 					<input type="search" class="stonetop-ledger-search" placeholder="Filter entries…">
+					<select class="stonetop-ledger-noun" title="Filter by subject">
+						<option value="">All changes</option>
+						${nounOptions}
+					</select>
 					<select class="stonetop-ledger-sort">
 						<option value="desc">Newest first</option>
 						<option value="asc">Oldest first</option>
@@ -482,19 +501,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						if (ev.target.closest(".stonetop-ledger-row-check")) syncSelectAll();
 					});
 
-					html.find(".stonetop-ledger-entry").each((_, el) => {
-						el._ledgerText = el.querySelector(".stonetop-ledger-entry-main")
-							?.textContent?.toLowerCase() ?? "";
-					});
-
-					html.find(".stonetop-ledger-search").on("input", ev => {
-						const term = ev.currentTarget.value.trim().toLowerCase();
-						html.find(".stonetop-ledger-entry").each((_, el) => {
-							el.hidden = !!term && !el._ledgerText.includes(term);
-						});
-						syncDateHeaders();
-						syncSelectAll();
-					});
+					wireLedgerFilters(html, () => { syncDateHeaders(); syncSelectAll(); });
 
 					html.find(".stonetop-ledger-sort").on("change", ev => {
 						const asc  = ev.currentTarget.value === "asc";
@@ -551,7 +558,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
-			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? false;
+			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? true;
 			return context;
 		}
 
@@ -572,7 +579,8 @@ export function createStonetopSteadingSheetClass(Base) {
 				this.render(false);
 			});
 
-			html.find(".stonetop-steading-move-open").on("click", ev => {
+			// Clicking the move name or its "+STAT" chip rolls the same as tapping the dice icon beside it.
+			html.find(".stonetop-steading-move-open, .stonetop-move-roll-chip").on("click", ev => {
 				const li = ev.currentTarget.closest("li");
 				const rollable = li?.querySelector(".steading-roll-btn, .steading-interactive-btn");
 				if (rollable) rollable.click();
@@ -642,6 +650,11 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onListItemAdd(btn.dataset.list);
 			}, true);
 
+			// Drag-resizable columns on the player/resident/neighbor tables — useful in both edit and read-only modes.
+			html[0].querySelectorAll(".steading-residents-table[data-resize-key]").forEach(table => {
+				makeColumnsResizable(table, table.dataset.resizeKey);
+			});
+
 			if (!this.isEditable) return;
 
 			// Stat tracks use custom radio markup, so persist them explicitly.
@@ -678,6 +691,14 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.stopPropagation();
 				const { list, index } = cb.dataset;
 				this._onListItemCheck(list, parseInt(index), cb.checked);
+			}, true);
+
+			// Click a requisitioned ("taken") asset to return it to the steading.
+			html[0].addEventListener("click", ev => {
+				const taken = ev.target.closest(".steading-asset-taken");
+				if (!taken) return;
+				ev.stopPropagation();
+				this._onReturnAsset(parseInt(taken.dataset.index));
 			}, true);
 
 			// Add list item (residents/neighbors are handled above, regardless of edit mode)
@@ -800,14 +821,18 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!flow) return;
 
 			const fieldHtml = flow.fields.map(field => {
+				if (field.type === "checkbox") {
+					return `<label class="stonetop-homestead-field stonetop-homestead-field--check">
+						<input type="checkbox" class="stonetop-check" name="${_esc(field.name)}" value="yes">
+						<span>${_esc(field.label)}</span>
+					</label>`;
+				}
 				const common = `name="${_esc(field.name)}" placeholder="${_esc(field.placeholder)}"`;
 				const control = field.type === "textarea"
 					? `<textarea ${common} rows="2"></textarea>`
 					: field.type === "number"
 						? `<input type="number" ${common} min="${field.min ?? 0}" value="${field.value ?? ""}">`
-						: field.type === "checkbox"
-							? `<input type="checkbox" name="${_esc(field.name)}" value="yes">`
-							: `<input type="text" ${common}>`;
+						: `<input type="text" ${common}>`;
 				return `<label class="stonetop-homestead-field">
 					<span>${_esc(field.label)}</span>
 					${control}
@@ -819,7 +844,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					<strong>${_esc(flow.picksLabel ?? "Choose from:")}</strong>
 					<div class="stonetop-homestead-choice-list">
 						${flow.picks.map((item, index) => `<label class="stonetop-homestead-choice">
-							<input type="checkbox" name="pick.${index}" value="${_esc(item)}">
+							<input type="checkbox" class="stonetop-check" name="pick.${index}" value="${_esc(item)}">
 							<span>${_esc(item)}</span>
 						</label>`).join("")}
 					</div>
@@ -831,7 +856,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					<strong>${_esc(flow.consequencesLabel ?? "Consequences")}</strong>
 					<div class="stonetop-homestead-choice-list">
 						${flow.consequences.map((item, index) => `<label class="stonetop-homestead-choice">
-							<input type="checkbox" name="consequence.${index}" value="${_esc(item)}">
+							<input type="checkbox" class="stonetop-check" name="consequence.${index}" value="${_esc(item)}">
 							<span>${_esc(item)}</span>
 						</label>`).join("")}
 					</div>
@@ -844,11 +869,18 @@ export function createStonetopSteadingSheetClass(Base) {
 				<ul>${flow.results.map(item => `<li>${_formatResultLine(item)}</li>`).join("")}</ul>
 			</div>`;
 
+			// Trade & Barter is how special items are acquired — let the player pick one
+			// from the handout list (which fills the item + Value fields for the roll).
+			const specialItemHtml = flow.label === "Trade & Barter"
+				? `<button type="button" class="stonetop-tb-special-btn"><i class="fas fa-gem"></i> Choose a special item…</button>`
+				: "";
+
 			const dialog = new Dialog({
 				title: flow.label,
 				content: `<form class="stonetop-homestead-dialog">
 					<p class="stonetop-homestead-trigger"><em>${_esc(flow.trigger)}</em></p>
 					<div class="stonetop-homestead-fields">${fieldHtml}</div>
+					${specialItemHtml}
 					${resultsHtml}
 					${picksHtml}
 					${consequencesHtml}
@@ -876,11 +908,54 @@ export function createStonetopSteadingSheetClass(Base) {
 						this.render(false);
 						ui.notifications.info("Stonetop marked diminished.");
 					});
+					html[0].querySelector(".stonetop-tb-special-btn")?.addEventListener("click", () => this._onPickSpecialItem(html));
 				},
 			}, {
 				width: 520,
 			});
 			dialog.render(true);
+		}
+
+		// Trade & Barter: open the Special Items picker. Picking an item fills the move's
+		// item + Value fields and adds it to a chosen character's inventory.
+		_onPickSpecialItem(dialogHtml) {
+			const picker = new SpecialItemPickerDialog(SPECIAL_ITEM_CATALOG, async (slug) => {
+				const item = SPECIAL_ITEM_CATALOG.flatMap(g => g.items).find(i => i.slug === slug);
+				if (!item) return;
+				const wantField  = dialogHtml[0].querySelector('[name="want"]');
+				const valueField = dialogHtml[0].querySelector('[name="value"]');
+				if (wantField)  wantField.value  = item.traits ? `${item.name} (${item.traits})` : item.name;
+				if (valueField) valueField.value = parseInt(item.value, 10) || 0;
+
+				const character = await this._promptSpecialItemCharacter();
+				if (character) {
+					await new CharacterInventory(new StonetopFlags(character, "inventory")).addSpecial(slug);
+					ui.notifications.info(`${item.name} added to ${character.name}.`);
+				}
+				picker.close();
+			});
+			picker.render(true);
+		}
+
+		_promptSpecialItemCharacter() {
+			const chars = game.actors.filter(a => a.type === "character" && a.isOwner);
+			if (!chars.length) {
+				ui.notifications.warn("No editable character to add the item to.");
+				return Promise.resolve(null);
+			}
+			return new Promise(resolve => {
+				new Dialog({
+					title: "Add to which character?",
+					content: `<form class="stonetop-tb-char-pick"><label>Character
+						<select name="char">${chars.map(c => `<option value="${c.id}">${_esc(c.name)}</option>`).join("")}</select></label></form>`,
+					buttons: {
+						cancel: { label: "Cancel", callback: () => resolve(null) },
+						add:    { label: "Add", callback: html => resolve(game.actors.get(html[0].querySelector('[name="char"]').value)) },
+					},
+					default: "add",
+					close: () => resolve(null),
+				}).render(true);
+			});
 		}
 
 		_formDataFromDialog(html) {
@@ -1397,6 +1472,13 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!arr[index]) return;
 			arr[index].checked = checked;
 			await this._stonetopSteading.setFlags({ [list]: arr });
+		}
+
+		async _onReturnAsset(index) {
+			const name = this._stonetopSteading._flags.assets?.[index]?.name ?? "Asset";
+			await this._stonetopSteading.returnAsset(index);
+			this.render(false);
+			ui.notifications.info(`${name} returned to ${this.actor.name}.`);
 		}
 
 		async _onListItemAdd(list) {

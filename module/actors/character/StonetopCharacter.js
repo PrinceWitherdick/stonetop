@@ -38,6 +38,7 @@ import {
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {MoveResources} from "./MoveResources.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
@@ -51,8 +52,9 @@ import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.
 import {capitalizeFirst} from "../../utils/strings.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
+import {maxDie, stepDie} from "../../utils/damage-die.js";
 
-const OTHER_MOVE_TYPES = ["background", "special", "follower", "expedition", "homefront"];
+const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
 const ROLL_LABELS_BY_TYPE = {
 	str: "STR",
 	dex: "DEX",
@@ -88,19 +90,13 @@ function _normalizeSheetRollMode(rollMode) {
 // recompiled with that flag present in the LevelDB.
 const _PROSPERITY_RESOURCE_SLUGS = new Set(["supplies", "more-supplies", "even-more-supplies"]);
 
-// null prosperity means no steading is linked — leave the "x" placeholder as-is.
+// Resolve "x piercing" against the steading's Prosperity for display. With Prosperity
+// 1+ it shows the actual value ("2 piercing"); at 0, no steading (null), or negative,
+// the literal "x piercing" trait is left in place so it always shows on the sheet.
 function _transformPiercingNote(note, prosperity) {
 	if (!note || !note.includes('x <em>piercing</em>')) return note;
-	if (prosperity === null) return note;
-	if (prosperity <= -1) {
-		return note.replace('x <em>piercing</em>', '<em>crude</em>');
-	}
-	if (prosperity === 0) {
-		const cleaned = note
-			.replace(/(, )?x <em>piercing<\/em>(, )?/, (_, pre, post) => post ? (pre ?? '') : '')
-			.trim();
-		return cleaned || null;
-	}
+	if (prosperity === null) return note; // no steading → leave literal "x piercing"
+	if (prosperity <= -1) return note.replace('x <em>piercing</em>', '<em>crude</em>');
 	return note.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
 }
 
@@ -145,6 +141,42 @@ export class StonetopCharacter {
 	get moveResources() { return this._moveResources; }
 	get possessions() { return this._possessions; }
 
+	get _characterLevel() { return this._actor.system?.attributes?.level?.value ?? 1; }
+
+	// Potential-for-Greatness stat slot: choosing a stat writes +1 to that stored
+	// stat (and reverts the previously chosen one), recording the level it was
+	// marked on. Newly filled slots auto-fill the current level.
+	async setStatSlot(moveName, optionSlug, index, newStat) {
+		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
+		while (entries.length <= index) entries.push({ stat: "", level: null });
+		const oldStat = entries[index].stat ?? "";
+		if (oldStat === newStat) return;
+		const stats = this._actor.system?.stats ?? {};
+		const updates = {};
+		if (oldStat && stats[oldStat]) updates[`system.stats.${oldStat}.value`] = (stats[oldStat].value ?? 0) - 1;
+		if (newStat && stats[newStat]) updates[`system.stats.${newStat}.value`] = (stats[newStat].value ?? 0) + 1;
+		entries[index] = { stat: newStat, level: newStat ? (oldStat ? entries[index].level : this._characterLevel) : null };
+		// One document write: the stat deltas and the mark record together.
+		await this._actor.update({ ...updates, ...this._moveResources.markUpdate(moveName, optionSlug, entries) });
+	}
+
+	// Checkbox mark options (e.g. max HP, damage die): set how many are checked,
+	// auto-filling the current level on newly checked marks.
+	async setCountMark(moveName, optionSlug, newCount) {
+		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
+		while (entries.length < newCount) entries.push({ stat: "", level: this._characterLevel });
+		entries.length = Math.max(0, newCount);
+		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
+	}
+
+	// Edit-mode override of the level recorded for a given mark slot.
+	async setMarkLevel(moveName, optionSlug, index, level) {
+		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
+		if (!entries[index]) return;
+		entries[index] = { ...entries[index], level: Number.isFinite(level) && level > 0 ? level : null };
+		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
+	}
+
 	async updateName(name) {
 		const previousName = this._actor.name ?? "";
 		const prototypeTokenName = this._actor.prototypeToken?.name;
@@ -169,22 +201,64 @@ export class StonetopCharacter {
 		const moves    = await this._buildMovesSection(playbookData, ownedAllByName, actorLevel);
 		const inventory = await this._buildInventorySection(playbookData, ownedAllByName, actorLevel);
 		const allOutfitItems = await this._inventoryRepo.getAll();
-		const armor = this._inventory.calculateArmor(allOutfitItems);
 		const postDeath = await this._postDeath.buildSnapshot();
 		const pdiLabel  = postDeath.activeInsert?.name ?? null;
+		const moveBonuses = await this._ownedMoveBonuses(playbookData, ownedAllByName);
+		// Armor counts standard items plus any special items the character has added —
+		// never an unadded special item whose checked flag happens to linger.
+		const addedSet = new Set(this._inventory.addedSpecial);
+		const armorItems = allOutfitItems.filter(i => !i.special || addedSet.has(i.slug));
+		const armor = this._inventory.calculateArmor(armorItems) + moveBonuses.armor;
+		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
+			? await this._arcana.buildLoreDisplay()
+			: null;
 		return new CharacterSnapshotBuilder()
 			.withName(actor.name)
-			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name) : null)
+			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, !!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG)) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withStats(_buildStatsSection(actor))
-			.withVitals(_buildVitalsSection(actor, playbookData, armor))
+			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses))
 			.withMoves(moves)
 			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel))
 			.withInventory(inventory)
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
 			.withRollMode(_normalizeSheetRollMode(resolvedFlags(actor).rollMode))
+			.withCrewBonuses(_buildCrewStats(playbookData?.crew, moveBonuses))
 			.build();
+	}
+
+	// Sum the max-HP and armor bonuses granted by owned playbook moves (e.g. the
+	// Heavy's Carved Out of Wood / Cut from Granite). Read from the move definitions
+	// so it works regardless of when the owned copy was added.
+	async _ownedMoveBonuses(playbookData, ownedAllByName) {
+		const totals = { hp: 0, armor: 0, crewHp: 0, damageDie: null, crewDamageSteps: 0, crewDamageCap: "d10", crewRollSteps: 0 };
+		if (!playbookData) return totals;
+		const defs  = await this._moveRepo.getPlaybookMoves(playbookData.name);
+		const marks = this._moveResources.getMarks();
+		for (const m of defs) {
+			if (!ownedAllByName.has(m.name)) continue;
+			totals.hp    += m.hpBonus    || 0;
+			totals.armor += m.armorBonus || 0;
+			// Per-option marks (e.g. Potential for Greatness): apply each checked box.
+			const moveMarks = marks[m.name] ?? {};
+			for (const opt of (m.markOptions ?? [])) {
+				// Stat-choice marks (e.g. Potential for Greatness) store an array of
+				// chosen stats and are applied directly to the stored stats on change,
+				// not derived here — multiplying by the array would yield NaN.
+				if (opt.choice === "stat") continue;
+				const count = _markEntries(moveMarks[opt.slug]).length;
+				if (!count) continue;
+				totals.hp     += (opt.hp     || 0) * count;
+				totals.armor  += (opt.armor  || 0) * count;
+				totals.crewHp += (opt.crewHp || 0) * count;
+				if (opt.damageDie) totals.damageDie = maxDie(totals.damageDie, opt.damageDie);
+				totals.crewDamageSteps += (opt.crewDamageStep || 0) * count;
+				if (opt.crewDamageCap) totals.crewDamageCap = opt.crewDamageCap;
+				totals.crewRollSteps += (opt.crewRoll || 0) * count;
+			}
+		}
+		return totals;
 	}
 
 	async _buildMovesSection(playbookData, ownedAllByName, actorLevel) {
@@ -200,6 +274,7 @@ export class StonetopCharacter {
 					this.buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, playbookData.name)
 				);
 				const moveResourcesMap = this._moveResources.getMoveResources();
+				const moveMarksMap     = this._moveResources.getMarks();
 				const moveBackgroundAnswers = resolvedFlags(this._actor).moves?.backgroundAnswers ?? {};
 				const improvedStatChoices   = resolvedFlags(this._actor).improvedStatChoices ?? {};
 				const source = { type: "playbook", slug: playbookData.slug };
@@ -207,7 +282,7 @@ export class StonetopCharacter {
 					.withKey("playbook")
 					.withTitle(`${playbookData.name} Moves`)
 					.withNote(playbookData.startingMovesNote ?? null)
-					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices))))
+					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap))))
 					.build()
 				);
 			}
@@ -218,37 +293,12 @@ export class StonetopCharacter {
 			if (b.name === "Aid") return 1;
 			return a.name.localeCompare(b.name);
 		});
-		if (basicEntries.length > 0) {
-			categories.push(new MoveCategorySnapshotBuilder()
-				.withKey("basic")
-				.withTitle("Basic Moves")
-				.withNote(null)
-				.withMoves(_sortOwnedFirst(basicEntries.map(e => {
-					const instances = ownedAllByName.get(e.name) ?? [];
-					return new MoveSnapshotBuilder()
-						.withId(e.id)
-						.withCompendiumId(e.id)
-						.withOwnedId(instances[0]?._id ?? null)
-						.withName(e.name)
-						.withDescription(e.description ?? "")
-						.withRollType(e.rollType)
-						.withRollLabel(_rollLabelForMove(e.name, e.rollType, { moveType: "basic", description: e.description }))
-						.withIsStarting(false)
-						.withSource({ type: "basic" })
-						.withSourceLabel(null)
-						.withOwned(instances.length > 0)
-						.withOwnedIds(instances.map(i => i._id))
-						.withLocked(false)
-						.withRequirement(null)
-						.withRequiresLabel(null)
-						.withResource(null)
-						.withRepeat(null)
-						.withRepeatable(false)
-						.build();
-				})))
-				.build()
-			);
-		}
+		const basicCategory = _buildCompendiumMoveCategory(basicEntries, { key: "basic", title: "Basic Moves" }, ownedAllByName);
+		if (basicCategory) categories.push(basicCategory);
+
+		const expeditionEntries = (await this._moveRepo.getExpeditionMoves()).sort((a, b) => a.name.localeCompare(b.name));
+		const expeditionCategory = _buildCompendiumMoveCategory(expeditionEntries, { key: "expedition", title: "Expedition Moves" }, ownedAllByName);
+		if (expeditionCategory) categories.push(expeditionCategory);
 
 		for (const moveType of OTHER_MOVE_TYPES) {
 			const items = this._actor.items.filter(i => i.type === "move" && i.system?.moveType === moveType);
@@ -371,11 +421,19 @@ export class StonetopCharacter {
 			.withBreakBefore(false)
 			.build();
 
+		// Special (handout) items are kept off the default checklist; they appear only
+		// once the player adds them via the "Add Special Item" picker.
+		const addedSpecialSet = new Set(this._inventory.addedSpecial);
+		const mapAddedSpecial = i => { const s = mapItem(i); s.isAddedSpecial = true; return s; };
+		const addedSpecial = allItems.filter(i => i.special && addedSpecialSet.has(i.slug));
+		const standardItems = allItems.filter(i => !i.special);
+
 		const arcanaItems = await this._arcana.weightedInventoryItems();
 		const arcanaSection = arcanaItems.filter(i => i.inventoryColumn === "arcana").map(mapItem);
-		const allSmall = allItems.filter(i => i.inventoryColumn === "small");
+		const allSmall = standardItems.filter(i => i.inventoryColumn === "small");
 		const regularNonArcana = [
-			...allItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
+			...standardItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
+			...addedSpecial.filter(i => i.inventoryColumn === "regular").map(mapAddedSpecial),
 			...customItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
 		];
 		const regularArcana = arcanaItems.filter(i => i.inventoryColumn === "regular").map(mapItem);
@@ -412,34 +470,23 @@ export class StonetopCharacter {
 			])
 			.build();
 
-		// When a Stonetop steading exists, the small pool is derived from how many
-		// small items are currently selected, so it always stays in sync automatically.
-		const smallItemSlugs = new Set([
-			...allSmall.map(i => i.slug),
-			...customItems.filter(i => i.system.inventoryColumn === "small").map(i => i._id),
-			...arcanaItems.filter(i => i.inventoryColumn === "small").map(i => i.slug),
-		]);
+		const addedSmall = addedSpecial.filter(i => i.inventoryColumn === "small");
+		// The undefined ◇/□ pools are set when the player Outfits and are read-only
+		// (decrement-only) afterwards, so display the stored counts directly rather
+		// than deriving "remaining capacity" from checked items.
 		const smallPoolMax     = smallItemLimit ?? 9;
-		const smallPoolCurrent = smallItemLimit !== null
-			? Math.max(0, smallItemLimit - [...smallItemSlugs].filter(s => !!checked[s]).length)
-			: sPool;
+		const smallPoolCurrent = Math.min(sPool, smallPoolMax);
 
-		const regularPoolMax = LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy;
-		const checkedRegularWeight = flatRegular
-			.filter(item => item.checked)
-			.reduce((sum, item) => sum + (item.weight ?? 0), 0);
-		const regularPoolCurrent = Math.max(0, regularPoolMax - checkedRegularWeight);
-		const regularPoolEmpty = regularPoolCurrent === 0;
-		flatRegular.forEach(item => { item.disabled = !item.checked && regularPoolEmpty; });
+		const regularPoolMax     = LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy;
+		const regularPoolCurrent = Math.min(rPool, regularPoolMax);
 
 		const smallItems = [
 			...allSmall.filter(i => !i.smallGrid).map(mapItem),
+			...addedSmall.filter(i => !i.smallGrid).map(mapAddedSpecial),
 			...customItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
 			...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
 		];
 		const smallGridItems = allSmall.filter(i => i.smallGrid).map(mapItem);
-		const smallPoolEmpty = smallPoolCurrent === 0;
-		[...smallItems, ...smallGridItems].forEach(item => { item.disabled = !item.checked && smallPoolEmpty; });
 
 		const outfit = new OutfitSnapshotBuilder()
 			.withLoad(load)
@@ -604,6 +651,7 @@ export class StonetopCharacter {
 	async setInventoryLoadLevel(level)              { await this._inventory.setLoadLevel(level); }
 	async setInventoryRegularPool(count)            { await this._inventory.setRegularPool(count); }
 	async setInventorySmallPool(count)              { await this._inventory.setSmallPool(count); }
+	async removeSpecialItem(slug)                   { await this._inventory.removeSpecial(slug); }
 
 	getSteadingActor() {
 		const storedSteadingId = resolvedFlagProperty(this._actor, "steadingId");
@@ -619,31 +667,39 @@ export class StonetopCharacter {
 		return isNaN(prosperity) ? null : 4 + prosperity;
 	}
 
-	async adjustSmallPool(isChecked) {
-		const limit = this.getSmallItemLimit();
-		if (limit === null) return;
-		const current = this._inventory.smallPool;
-		const next = isChecked
-			? Math.max(0, current - 1)
-			: Math.min(limit, current + 1);
-		await this._inventory.setSmallPool(next);
+	/**
+	 * Have What You Need (one-click): marking a specific item on the Inventory tab
+	 * moves marks out of the undefined pool onto it; un-marking returns them. The
+	 * total load is fixed at Outfit, so checking + undefined stays constant.
+	 *
+	 * @param {string}  slug
+	 * @param {boolean} isChecked  Whether the item is now carried.
+	 * @param {object}  opts
+	 * @param {boolean} [opts.small]   Small item (□, costs 1) vs regular item (◇, costs its weight).
+	 * @param {number}  [opts.weight]  Regular item weight (◇ to move).
+	 * @returns {Promise<boolean>}  False if there aren't enough undefined marks to define the item.
+	 */
+	async toggleCarriedItem(slug, isChecked, { small = false, weight = 1 } = {}) {
+		const cost = small ? 1 : Math.max(0, weight);
+		const pool = small ? this._inventory.smallPool : this._inventory.regularPool;
+		if (isChecked && cost > pool) return false;
+		await this._inventory.setItemChecked(slug, isChecked);
+		const next = isChecked ? pool - cost : pool + cost;
+		if (small) await this._inventory.setSmallPool(next);
+		else       await this._inventory.setRegularPool(next);
+		return true;
 	}
 
-	async adjustRegularPool(isChecked, weight) {
-		const loadLevel = this._inventory.loadLevel;
-		if (!loadLevel) return;
-		const limit   = LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy;
-		const current = this._inventory.regularPool;
-		const next    = isChecked
-			? Math.max(0, current - weight)
-			: Math.min(limit, current + weight);
-		await this._inventory.setRegularPool(next);
-	}
-
-	async applyOutfit(checkedMap, loadLevel) {
+	// The Outfit move is the only place the load level and the "undefined" ◇/□
+	// pools are set — the player decides their load and how many marks to reserve
+	// as undefined. On the Inventory tab those pools are read-only (decrement-only,
+	// for Have What You Need); they're never increased outside Outfit.
+	async applyOutfit(checkedMap, loadLevel, regularPool = 0, smallPool = 0) {
 		await Promise.all([
 			this._inventory.setAllChecked(checkedMap),
 			this._inventory.setLoadLevel(loadLevel),
+			this._inventory.setRegularPool(regularPool),
+			this._inventory.setSmallPool(smallPool),
 		]);
 	}
 
@@ -689,6 +745,7 @@ export class StonetopCharacter {
 					slug: opt.slug,
 					label: opt.label,
 					description: opt.description ?? "",
+					detailsSection: opt.detailsSection ?? null,
 					checked: isSelected,
 					preselected: isPre,
 					preselectedSource,
@@ -882,10 +939,16 @@ export class StonetopCharacter {
 			await this._actor.createEmbeddedDocuments("Item", docs.filter(Boolean).map(d => d.toObject()));
 		}
 
-		const basicEntries = await this._moveRepo.getBasicMoves();
-		const missingBasic = basicEntries.filter(e => !ownedNames.has(e.name));
-		if (missingBasic.length) {
-			const docs = await Promise.all(missingBasic.map(e => this._moveRepo.getBasicMoveDocument(e.id)));
+		const [basicEntries, expeditionEntries] = await Promise.all([
+			this._moveRepo.getBasicMoves(),
+			this._moveRepo.getExpeditionMoves(),
+		]);
+		const missingUniversal = [
+			...basicEntries.filter(e => !ownedNames.has(e.name)),
+			...expeditionEntries.filter(e => !ownedNames.has(e.name)),
+		];
+		if (missingUniversal.length) {
+			const docs = await Promise.all(missingUniversal.map(e => this._moveRepo.getBasicMoveDocument(e.id)));
 			await this._actor.createEmbeddedDocuments("Item", docs.filter(Boolean).map(d => d.toObject()));
 		}
 	}
@@ -927,11 +990,11 @@ export class StonetopCharacter {
 		await this.ensureStartingMoves();
 	}
 
-	async onRoll(event) {
+	async onRoll(event, { statOverride = null } = {}) {
 		const itemId = event.currentTarget.closest(".item")?.dataset.itemId;
 		if (!itemId) return false;
 		const item = this._actor.items.get(itemId);
-		const stat = normalizeRollType(item?.system?.rollType);
+		const stat = statOverride ?? normalizeRollType(item?.system?.rollType);
 		if (!stat) return false;
 
 		const isDescription = event.currentTarget.getAttribute("data-show") === "description";
@@ -942,7 +1005,7 @@ export class StonetopCharacter {
 		const ongoing  = descriptionOnly ? 0 : this._actor.system?.attributes?.ongoing?.value ?? 0;
 
 		const modifier    = forward + ongoing;
-		const rollOptions = { rollMode, modifier, forward, ongoing };
+		const rollOptions = { rollMode, modifier, forward, ongoing, statOverride: stat };
 
 		await item.roll({ ...this.applyDebilityRollMode(stat, rollOptions), descriptionOnly });
 
@@ -952,7 +1015,7 @@ export class StonetopCharacter {
 		return true;
 	}
 
-	async onDirectStatRoll(stat) {
+	async onDirectStatRoll(stat, extraOptions = {}) {
 		const { rollStat } = await import("../../utils/roll-engine.js");
 		const rollMode = this.rollMode;
 		const forward  = this._actor.system?.attributes?.forward?.value ?? 0;
@@ -964,6 +1027,7 @@ export class StonetopCharacter {
 			modifier,
 			forward,
 			ongoing,
+			...extraOptions,
 		}));
 
 		if (forward !== 0) {
@@ -1014,6 +1078,7 @@ export class StonetopCharacter {
 	async identifyArcanum(slug)                      { await this._arcana.identifyArcanum(slug); }
 	async getArcanumChatContent(slug, flipped)       { return this._arcana.getArcanumChatContent(slug, flipped); }
 	async flipArcanum(slug)     { await this._arcana.flipArcanum(slug); }
+	async setMinorArcanumRole(role, slug) { await this._arcana.setMinorRole(role, slug); }
 	async unflipArcanum(slug)   { await this._arcana.unflipArcanum(slug); }
 	async setArcanumUnlockCount(arcanumSlug, optionSlug, count)          { await this._arcana.setUnlockCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBackOptionCount(arcanumSlug, optionSlug, count)      { await this._arcana.setBackOptionCount(arcanumSlug, optionSlug, count); }
@@ -1138,16 +1203,31 @@ function _buildDebilitiesSection(actor) {
 }
 
 
-function _buildVitalsSection(actor, playbookData, armorValue) {
+function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}) {
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
+	const hpBonus = moveBonuses.hp ?? 0;
+	const damage = playbookData
+		? (moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage)
+		: null;
 	return new VitalsSnapshotBuilder()
-		.withHp(playbookData ? new ValueMax(attrs.hp?.value ?? 0, playbookData.hp ?? 0) : new ValueMax(0, 0))
-		.withDamage(playbookData?.damage ?? null)
+		.withHp(playbookData ? new ValueMax(attrs.hp?.value ?? 0, (playbookData.hp ?? 0) + hpBonus) : new ValueMax(0, 0))
+		.withDamage(damage)
 		.withArmor(armorValue)
 		.withLevel(level)
 		.withXp(new ValueMax(attrs.xp?.value ?? 0, 6 + level * 2))
 		.build();
+}
+
+// Final per-Crew-member stats: the playbook's data-driven base plus the bonuses
+// from marked Marshal moves (Heroes to the Last / Veteran Crew).
+function _buildCrewStats(crew, moveBonuses) {
+	return {
+		memberHp:  (crew?.hp ?? 6) + (moveBonuses.crewHp ?? 0),
+		armor:     crew?.armor ?? 0,
+		damageDie: stepDie(crew?.damageDie ?? "d6", moveBonuses.crewDamageSteps ?? 0, moveBonuses.crewDamageCap),
+		rollMod:   (crew?.roll ?? 1) + (moveBonuses.crewRollSteps ?? 0),
+	};
 }
 
 function _originDescriptionForRegion(region) {
@@ -1172,7 +1252,7 @@ function _normalizeOriginRegion(region) {
 		.trim();
 }
 
-function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore, actorName) {
+function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore, actorName, arcanaDisplay = null, becameHero = false) {
 	const savedBg      = background.selectedSlug || null;
 	const savedChoices = background.choices;
 	const savedSetupTexts = background.setupTexts ?? {};
@@ -1247,11 +1327,11 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 
 	return new PlaybookSnapshotBuilder()
 		.withSlug(playbookData.slug)
-		.withName(playbookData.name)
+		.withName(heroDisplayName(playbookData.name, becameHero))
 		.withImg(playbookData.img ?? null)
 		.withDescription(playbookData.description ?? null)
 		.withStatsNote(playbookData.statsNote ?? null)
-		.withLore(buildLoreSection(playbookData.lore ?? [], lore))
+		.withLore(buildLoreSection(playbookData.lore ?? [], lore, arcanaDisplay))
 		.withBackground(new BackgroundSection(savedBg, bgOptions))
 		.withInstinct(new InstinctSection(savedInstinct, instinctOptions))
 		.withAppearance(new AppearanceSection(appearanceOptions))
@@ -1259,7 +1339,53 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 		.build();
 }
 
-function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}) {
+// Normalize a stored mark value into an array of { stat, level } entries.
+// Handles legacy shapes: a plain count (number) or an array of stat strings.
+function _markEntries(stored) {
+	if (Array.isArray(stored)) {
+		return stored.map(e => (e && typeof e === "object")
+			? { stat: e.stat ?? "", level: e.level ?? null }
+			: { stat: typeof e === "string" ? e : "", level: null });
+	}
+	if (typeof stored === "number") return Array.from({ length: stored }, () => ({ stat: "", level: null }));
+	return [];
+}
+
+// Build a move's mark options for display: stat-choice options (Potential for
+// Greatness) get a stat dropdown per slot; the rest get checkbox arrays. Each
+// filled slot / checked mark carries the level it was marked on.
+function _buildMarkOptions(entry, markCounts) {
+	if (!entry.markOptions?.length) return null;
+	const statList = Object.entries(_STAT_DEFS).map(([key, { abbr }]) => ({ key, abbr }));
+	return entry.markOptions.map(opt => {
+		const entries = _markEntries(markCounts[opt.slug]);
+		const marks = opt.marks ?? 1;
+		if (opt.choice === "stat") {
+			const statSlots = Array.from({ length: marks }, (_, i) => {
+				const sel = entries[i]?.stat ?? "";
+				return {
+					index: i,
+					level: entries[i]?.level ?? null,
+					options: [{ key: "", abbr: "—", selected: sel === "" },
+						...statList.map(s => ({ key: s.key, abbr: s.abbr, selected: sel === s.key }))],
+				};
+			});
+			return { slug: opt.slug, label: opt.label, choice: "stat", statSlots };
+		}
+		const count = entries.length;
+		return {
+			slug:   opt.slug,
+			label:  opt.label,
+			checks: Array.from({ length: marks }, (_, i) => ({
+				index: i,
+				checked: i < count,
+				level: entries[i]?.level ?? null,
+			})),
+		};
+	});
+}
+
+function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}) {
 	const resourceDef = entry.resource;
 	const resource = resourceDef ? new ResourceBuilder()
 		.withCurrent(moveResourcesMap[entry.name] ?? 0)
@@ -1274,6 +1400,8 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		? new RequirementSnapshot(entry.requiresLabel, !entry.locked)
 		: null;
 	const sourceLabel = entry.isStarting ? (bgSlugs.has(_toSlug(entry.name)) ? "Background" : "Starting move") : null;
+
+	const markOptions = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {});
 
 	const statChoices = (entry.name === "Improved Stat" && entry.ownedIds.length > 0)
 		? entry.ownedIds
@@ -1306,10 +1434,49 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withRepeatable(repeat !== null)
 		.withBackgroundAnswer(moveBackgroundAnswers[entry.name] ?? null)
 		.withStatChoices(statChoices)
+		.withMarkOptions(markOptions)
+		.withAsterisk(!!entry.asterisk)
 		.build();
 }
 
 // ── Snapshot helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Builds a move category snapshot for a universal, compendium-sourced move list
+ * (e.g. Basic Moves, Expedition Moves) — every entry is shown to every actor,
+ * with ownership/roll info layered on from `ownedAllByName`.
+ */
+function _buildCompendiumMoveCategory(entries, { key, title }, ownedAllByName) {
+	if (entries.length === 0) return null;
+	return new MoveCategorySnapshotBuilder()
+		.withKey(key)
+		.withTitle(title)
+		.withNote(null)
+		.withMoves(_sortOwnedFirst(entries.map(e => {
+			const instances = ownedAllByName.get(e.name) ?? [];
+			return new MoveSnapshotBuilder()
+				.withId(e.id)
+				.withCompendiumId(e.id)
+				.withOwnedId(instances[0]?._id ?? null)
+				.withName(e.name)
+				.withDescription(e.description ?? "")
+				.withRollType(e.rollType)
+				.withRollLabel(_rollLabelForMove(e.name, e.rollType, { moveType: key, description: e.description }))
+				.withIsStarting(false)
+				.withSource({ type: key })
+				.withSourceLabel(null)
+				.withOwned(instances.length > 0)
+				.withOwnedIds(instances.map(i => i._id))
+				.withLocked(false)
+				.withRequirement(null)
+				.withRequiresLabel(null)
+				.withResource(null)
+				.withRepeat(null)
+				.withRepeatable(false)
+				.build();
+		})))
+		.build();
+}
 
 function _rollLabelForMove(name, rollType, data = {}) {
 	const normalizedRollType = normalizeRollType(rollType);
@@ -1321,15 +1488,16 @@ function _rollLabelForMove(name, rollType, data = {}) {
 		const match = String(data.description ?? "").match(/roll\s+\+([A-Za-z][A-Za-z ]*)/i);
 		if (match) return match[1].trim();
 	}
-	if (data.moveType === "basic" && normalizedRollType === "ask") return "ANY";
+	if ((data.moveType === "basic" || data.moveType === "expedition") && normalizedRollType === "ask") return "ANY";
 	return ROLL_LABELS_BY_TYPE[normalizedRollType] ?? null;
 }
 
 function _buildMovelist(categories, other, pdiLabel = null) {
-	const playbookCat  = categories.find(c => c.key === "playbook");
-	const basicCat     = categories.find(c => c.key === "basic");
-	const postDeathCat = categories.find(c => c.key === "post-death");
-	const otherCats    = categories.filter(c => !["basic", "playbook", "post-death", "special", "follower", "expedition", "homefront"].includes(c.key));
+	const playbookCat   = categories.find(c => c.key === "playbook");
+	const basicCat      = categories.find(c => c.key === "basic");
+	const expeditionCat = categories.find(c => c.key === "expedition");
+	const postDeathCat  = categories.find(c => c.key === "post-death");
+	const otherCats     = categories.filter(c => !["basic", "playbook", "expedition", "post-death"].includes(c.key));
 	const postDeathGroup = postDeathCat && pdiLabel
 		? { label: pdiLabel, moves: postDeathCat.moves }
 		: null;
@@ -1341,6 +1509,7 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 	return new MovelistBuilder()
 		.withPlaybookMoves(playbookCat?.moves ?? [])
 		.withBasicMoves(basicCat?.moves ?? [])
+		.withExpeditionMoves(expeditionCat?.moves ?? [])
 		.withOtherGroups(otherCats.map(cat => new MoveGroupSnapshot(cat.key, cat.title, cat.moves)))
 		.withOtherMoves(other)
 		.withStartingMovesNote(startingNote)

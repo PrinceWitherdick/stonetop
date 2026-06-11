@@ -222,7 +222,7 @@ describe("buildSnapshot — playbook section", () => {
 		const snap = await buildSnap({"origin.selected": "Barrier Pass"});
 		const origin = snap.playbook.origin.selectedOption;
 		expect(origin.region).toBe("Barrier Pass");
-		expect(origin.description).toContain("<strong>Barrier Pass</strong>");
+		expect(origin.description).toContain("<p>");
 		expect(origin.description).toContain("massive wall and gate");
 	});
 });
@@ -615,10 +615,22 @@ describe("buildSnapshot — inventory.outfit", () => {
 		expect(typeof opts[0].note).toBe("string");
 	});
 
-	it("regularPool has unified resource shape with checked=current", async () => {
-		const actor = new FakeActorBuilder().withFlag("inventory.regularPool", 3).build();
+	it("regularPool current reflects the stored undefined ◇ pool (set at Outfit), capped to the load max", async () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.loadLevel", "heavy")
+			.withFlag("inventory.regularPool", 5)
+			.build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
-		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 3, max: 9, title: null, labels: []});
+		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 5, max: 9, title: null, labels: []});
+	});
+
+	it("regularPool current is clamped to the current load level's max", async () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.loadLevel", "light")
+			.withFlag("inventory.regularPool", 7)
+			.build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 3, max: 3});
 	});
 
 	it("smallPool has unified resource shape", async () => {

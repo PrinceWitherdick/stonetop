@@ -11,6 +11,8 @@ export class OutfitItem {
 		this.smallGrid          = b._smallGrid;
 		this.breakBefore        = b._breakBefore;
 		this.armor              = b._armor ?? null;
+		this.special            = b._special ?? false;
+		this.specialCategory    = b._specialCategory ?? null;
 	}
 }
 
@@ -26,5 +28,7 @@ export class OutfitItemBuilder {
 	withSmallGrid(v)          { this._smallGrid          = v; return this; }
 	withBreakBefore(v)        { this._breakBefore        = v; return this; }
 	withArmor(v)              { this._armor              = v; return this; }
+	withSpecial(v)            { this._special            = v; return this; }
+	withSpecialCategory(v)    { this._specialCategory    = v; return this; }
 	build()                   { return new OutfitItem(this); }
 }

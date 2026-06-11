@@ -15,7 +15,7 @@
         {
           "slug": "initiate",
           "label": "Initiate",
-          "description": "<p>Stonetop has long been home to a sacred order, keepers of the old ways and speakers for Danu. You are one such initiate, the most gifted in generations. You gain the <strong>Rites of the Land</strong> move.</p>",
+          "description": "<p>Stonetop has long been home to a sacred order, keepers of the old ways and speakers for Danu. You are one such initiate, the most gifted in generations.</p><p>You gain the <strong>Rites of the Land</strong> move.</p>",
           "moves": [
             "Rites of the Land"
           ],
@@ -257,7 +257,7 @@
           "moves": [
             "Danu's Grasp"
           ],
-          "description": "<p>A seed of Danu's power has taken root in your soul. Perhaps it has always been there and only recently sprouted. Or maybe it was planted in you during some portentous event. Take the <strong>Danu's Grasp</strong> move. When you <strong><em>would spend 1 Stock from your sacred pouch</strong></em>, you may choose to lose 2d4 HP instead.</p>"
+          "description": "<p>A seed of Danu's power has taken root in your soul. Perhaps it has always been there and only recently sprouted. Or maybe it was planted in you during some portentous event.</p><p>Take the <strong>Danu's Grasp</strong> move. When you <strong><em>would spend 1 Stock from your sacred pouch</em></strong>, you may choose to lose 2d4 HP instead.</p>"
         }
       ],
       "instincts": [
@@ -402,6 +402,7 @@
           {
             "slug": "sacred-pouch",
             "label": "Sacred pouch (<em>magical</em>)",
+            "detailsSection": "Sacred Pouch",
             "description": "<p>Doesn't take up space in your inventory. It can hold up to 3 Stock (sacred herbs, powders, stones, pigments, chalks, clay, and so forth). Each time you gain an even-numbered level, your pouch can hold +1 Stock. When anyone but you looks inside your sacred pouch and touches the materials therein, the Stock is ruined.</p><p>When you have a few days of downtime in familiar terrain, you may replenish your Stock.</p><p>When you Forage, you can produce Stock instead of provisions.</p>",
             "usesBonus": {
               "evenLevelBonus": 1,

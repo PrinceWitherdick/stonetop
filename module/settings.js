@@ -42,8 +42,34 @@ export function registerSettings() {
 			"im-fell-english": "stonetop.settings.sheetFont.imFellEnglish",
 			"signika":         "stonetop.settings.sheetFont.signika",
 		},
-		default: "libre-caslon",
+		default: "signika",
 		onChange: value => applySheetFont(value),
+	});
+
+	game.settings.register("stonetop_pwd", "sheetFontScale", {
+		name: "stonetop.settings.sheetFontScale.name",
+		hint: "stonetop.settings.sheetFontScale.hint",
+		scope: "client",
+		config: true,
+		type: String,
+		choices: {
+			"1":    "stonetop.settings.sheetFontScale.normal",
+			"1.1":  "stonetop.settings.sheetFontScale.large",
+			"1.25": "stonetop.settings.sheetFontScale.larger",
+			"1.4":  "stonetop.settings.sheetFontScale.largest",
+		},
+		default: "1",
+		onChange: value => applySheetFontScale(value),
+	});
+
+	// Remembers each character (playbook) sheet's width so it reopens at the size
+	// the user last left it. Per-user (client) and per-actor: a map of actor id
+	// -> width. Internal (not shown in the settings menu).
+	game.settings.register("stonetop_pwd", "characterSheetWidths", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
 	});
 
 	game.settings.register("stonetop_pwd", "showRollStatChips", {
@@ -54,6 +80,16 @@ export function registerSettings() {
 		type: Boolean,
 		default: true,
 		onChange: () => _rerenderActorSheets(),
+	});
+
+	game.settings.register("stonetop_pwd", "showMoveDescriptionsInChat", {
+		name: "stonetop.settings.showMoveDescriptionsInChat.name",
+		hint: "stonetop.settings.showMoveDescriptionsInChat.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: value => applyMoveDescriptionBodyClass(value),
 	});
 
 	game.settings.register("stonetop_pwd", "hoverDescriptionsEnabled", {
@@ -141,8 +177,31 @@ export function applySheetFont(value) {
 	document.documentElement.style.setProperty("--font-stonetop", font);
 }
 
+export function applySheetFontScale(value) {
+	const scale = Number(value);
+	const safe  = Number.isFinite(scale) && scale > 0 ? scale : 1;
+	document.documentElement.style.setProperty("--stonetop-font-scale", String(safe));
+}
+
 export function getSetting(key) {
 	return game.settings.get("stonetop_pwd", key);
+}
+
+// Last-used width for a given character sheet, or null if none stored yet.
+export function getCharacterSheetWidth(actorId) {
+	if (!actorId) return null;
+	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSheetWidths");
+	const w = map?.[actorId];
+	return Number.isFinite(w) && w > 0 ? w : null;
+}
+
+export function setCharacterSheetWidth(actorId, width) {
+	if (!actorId) return;
+	const w = Math.round(Number(width));
+	if (!Number.isFinite(w) || w <= 0) return;
+	if (w === getCharacterSheetWidth(actorId)) return; // avoid redundant writes
+	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSheetWidths") ?? {};
+	return game.settings.set("stonetop_pwd", "characterSheetWidths", { ...map, [actorId]: w });
 }
 
 export function getHoverDescriptionSetting(key, { ignoreMaster = false } = {}) {
@@ -154,6 +213,10 @@ export function getHoverDescriptionSetting(key, { ignoreMaster = false } = {}) {
 
 export function getRollStatChipsSetting() {
 	return globalThis.game?.settings?.get?.("stonetop_pwd", "showRollStatChips") ?? true;
+}
+
+export function applyMoveDescriptionBodyClass(show) {
+	document.body.classList.toggle("stonetop-hide-roll-descriptions", !show);
 }
 
 export function setSetting(key, value) {

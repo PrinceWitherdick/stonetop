@@ -1,3 +1,6 @@
+import { KeepOnTop } from "../utils/keep-on-top.js";
+import { resetOmenReminder } from "../hooks/StonetopSingleton.js";
+
 const GROUP_QUESTIONS = [
 	{ key: "learnedWorld",       label: "Did we learn more about the world or its history?" },
 	{ key: "defeatedThreat",     label: "Did we defeat a threat to Stonetop or the region?" },
@@ -9,6 +12,7 @@ export class EndOfSessionDialog extends Application {
 	constructor(options = {}) {
 		super(options);
 		this._groupChecks = Object.fromEntries(GROUP_QUESTIONS.map(q => [q.key, false]));
+		this._keepOnTop = new KeepOnTop(this);
 	}
 
 	static get defaultOptions() {
@@ -23,6 +27,16 @@ export class EndOfSessionDialog extends Application {
 		});
 	}
 
+	async _render(force, options) {
+		await super._render(force, options);
+		this._keepOnTop.apply();
+	}
+
+	async close(options = {}) {
+		this._keepOnTop.stop();
+		return super.close(options);
+	}
+
 	getData() {
 		const xpCount  = Object.values(this._groupChecks).filter(Boolean).length;
 		const questions = GROUP_QUESTIONS.map(q => ({
@@ -35,6 +49,7 @@ export class EndOfSessionDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		this._keepOnTop.start();
 
 		html.find(".stonetop-eos-group-check").on("change", ev => {
 			this._groupChecks[ev.currentTarget.dataset.key] = ev.currentTarget.checked;
@@ -67,6 +82,7 @@ export class EndOfSessionDialog extends Application {
 			});
 		}
 
+		await resetOmenReminder();
 		this.close();
 	}
 }

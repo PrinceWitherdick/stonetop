@@ -237,7 +237,14 @@
       "statsNote": "Assign these scores to your stats: +2, +1, +1, +0, +0, -1",
       "lore": [
         {
+          "slug": "violence-reputation",
+          "title": "A History of Violence",
+          "description": "",
+          "options": []
+        },
+        {
           "slug": "violence-fame",
+          "continuation": true,
           "title": "Just About Everyone Here Talks About the Time You…",
           "description": "<p><em>(pick 1 or 2)</em></p>",
           "options": [

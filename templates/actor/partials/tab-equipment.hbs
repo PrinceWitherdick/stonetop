@@ -16,21 +16,21 @@
 		<ul class="stonetop-outfit-loads">
 			<li>
 				<label class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelLight}} is-checked{{/if}}">
-					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level"
+					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" disabled
 					       value="light" {{#if stonetop.inventory.outfit.load.loadLevelLight}}checked{{/if}}>
 					<span>{{{localize "stonetop.inventory.outfit.light"}}}</span>
 				</label>
 			</li>
 			<li>
 				<label class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelNormal}} is-checked{{/if}}">
-					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level"
+					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" disabled
 					       value="normal" {{#if stonetop.inventory.outfit.load.loadLevelNormal}}checked{{/if}}>
 					<span>{{{localize "stonetop.inventory.outfit.normal"}}}</span>
 				</label>
 			</li>
 			<li>
 				<label class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelHeavy}} is-checked{{/if}}">
-					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level"
+					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" disabled
 					       value="heavy" {{#if stonetop.inventory.outfit.load.loadLevelHeavy}}checked{{/if}}>
 					<span>{{{localize "stonetop.inventory.outfit.heavy"}}}</span>
 				</label>
@@ -60,7 +60,6 @@
 				</span>
 			</div>
 			<p class="stonetop-supplies-pool-note">{{{localize "stonetop.inventory.regularUndefinedPoolNote"}}}</p>
-			<p class="stonetop-inv-section-note">{{{localize "stonetop.inventory.regularItemsNote"}}}</p>
 			<hr class="stonetop-inv-separator">
 			{{#each stonetop.inventory.outfit.regularSegments}}
 			{{#if isGrid}}
@@ -103,18 +102,17 @@
 						{{/each}}
 					</span>
 					<span class="stonetop-inv-label">{{name}}
-						{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
+						{{#if (or note resource)}}<span class="stonetop-inv-note">({{{note}}}{{#if resource}}{{#if note}} {{/if}}<span class="stonetop-inv-resources">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}</span>{{/if}})</span>{{/if}}
 					</span>
 				</label>
-				{{#if resource}}
-				<span class="stonetop-inv-resources">
-					{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}
-				</span>
-				{{/if}}
 				{{#if isCustom}}
 				<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
 				{{/if}}
+				{{#if isAddedSpecial}}
+				<a class="stonetop-inv-remove-special" data-slug="{{slug}}" title="Remove special item"><i class="fas fa-times"></i></a>
+				{{/if}}
 			</div>
+			{{#if (eq slug "even-more-supplies")}}<p class="stonetop-inv-section-note">{{{localize "stonetop.inventory.regularItemsNote"}}}</p>{{/if}}
 			{{/each}}
 			{{/if}}
 			{{/each}}
@@ -176,16 +174,14 @@
 					       {{#if checked}}checked{{/if}}
 					       {{#if disabled}}disabled{{/if}}>
 					<span class="stonetop-inv-label">{{name}}
-						{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
+						{{#if (or note resource)}}<span class="stonetop-inv-note">({{{note}}}{{#if resource}}{{#if note}} {{/if}}<span class="stonetop-inv-resources">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}</span>{{/if}})</span>{{/if}}
 					</span>
 				</label>
-				{{#if resource}}
-				<span class="stonetop-inv-resources">
-					{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}
-				</span>
-				{{/if}}
 				{{#if isCustom}}
 				<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
+				{{/if}}
+				{{#if isAddedSpecial}}
+				<a class="stonetop-inv-remove-special" data-slug="{{slug}}" title="Remove special item"><i class="fas fa-times"></i></a>
 				{{/if}}
 			</div>
 			{{/each}}
@@ -263,35 +259,7 @@
 				{{/each}}
 				</ol>
 				{{/if}}
-				{{#if (and checked choiceGroups)}}
-				{{#each choiceGroups}}
-				<div class="stonetop-choice-group">
-					<p class="stonetop-choice-group-heading">{{heading}}{{#if note}} <em>({{note}})</em>{{/if}}</p>
-					{{#each subgroups}}
-					<div class="stonetop-choice-subgroup">
-						{{#each options}}
-						<label class="stonetop-choice-option-label">
-							{{#if ../multiSelect}}
-							<input type="checkbox" class="stonetop-item-check stonetop-possession-sub-check"
-							       data-possession-slug="{{../../../slug}}"
-							       data-choice-slug="{{slug}}"
-							       {{#if checked}}checked{{/if}}>
-							{{else}}
-							<input type="radio" class="stonetop-possession-sub-radio"
-							       name="stonetop-{{../groupId}}"
-							       data-possession-slug="{{../../../slug}}"
-							       data-choice-slug="{{slug}}"
-							       data-sibling-slugs-csv="{{../slugsCsv}}"
-							       {{#if checked}}checked{{/if}}>
-							{{/if}}
-							{{{label}}}
-						</label>
-						{{/each}}
-					</div>
-					{{/each}}
-				</div>
-				{{/each}}
-				{{/if}}
+				{{> "stonetop.possession-choice-groups"}}
 			</li>
 		{{/each}}
 		</ol>

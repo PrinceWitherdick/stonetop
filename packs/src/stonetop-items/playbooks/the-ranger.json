@@ -400,9 +400,15 @@
       "statsNote": "Assign these scores to your stats: +2, +1, +1, +0, +0, -1",
       "lore": [
         {
-          "slug": "wicked-threat",
+          "slug": "something-wicked",
           "title": "Something Wicked This Way Comes",
-          "description": "<p>You know firsthand that trouble is out there, and like it or not, one of these days the folk of Stonetop are going to have to face it. What is it that you're so worried about? <em>(choose 1)</em></p>",
+          "description": "<p>You know firsthand that trouble is out there, and like it or not, one of these days the folk of Stonetop are going to have to face it.</p>"
+        },
+        {
+          "slug": "wicked-threat",
+          "continuation": true,
+          "title": "What is it that you're so worried about?",
+          "description": "<p><em>(choose 1)</em></p>",
           "options": [
             {
               "slug": "great-wood",
@@ -433,6 +439,8 @@
         },
         {
           "slug": "wicked-questions",
+          "continuation": true,
+          "columnBreak": true,
           "title": "Answer At Least 3 of the Following",
           "description": "",
           "options": [

@@ -4,7 +4,8 @@ export function onRenderPause() {
 
 	info("Overriding the default pause spinner.");
 	const pause = document.getElementById("pause");
-	pause.lastElementChild.innerText = "Time Frozen";
-	pause.firstElementChild.src = "/systems/stonetop_pwd/assets/graphics/pause.webp";
+	if (!pause) return;
+	const caption = pause.querySelector("figcaption, label, p");
+	if (caption) caption.innerText = "Time Frozen";
 
 }

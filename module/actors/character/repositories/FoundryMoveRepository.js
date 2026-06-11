@@ -2,7 +2,8 @@ import { MoveDefinition } from "../../../model/MoveDefinition.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
 
 const PLAYBOOK_FIELDS   = ["system.playbook", "system.isStartingMove", "system.requirement",
-                            "system.rollType", "system.description", "system.repeatMax", "system.resource"];
+                            "system.rollType", "system.description", "system.repeatMax", "system.resource",
+                            "system.hpBonus", "system.armorBonus", "system.markOptions", "system.asterisk"];
 const POST_DEATH_FIELDS = ["system.playbook", "system.rollType", "system.description", "system.resource"];
 
 export class FoundryMoveRepository {
@@ -10,9 +11,10 @@ export class FoundryMoveRepository {
 		this._playbookStore  = new FoundryPackStore("stonetop_pwd.stonetop-items", PLAYBOOK_FIELDS);
 		this._basicStore     = new FoundryPackStore("stonetop_pwd.stonetop-items", ["system.moveType", "system.rollType", "system.description"]);
 		this._postDeathStore = new FoundryPackStore("stonetop_pwd.stonetop-items", POST_DEATH_FIELDS);
-		this._playbookCache  = new Map();
-		this._postDeathCache = new Map();
-		this._basicCache     = null;
+		this._playbookCache    = new Map();
+		this._postDeathCache   = new Map();
+		this._basicCache       = null;
+		this._expeditionCache  = null;
 	}
 
 	async getPlaybookMoves(playbookName) {
@@ -37,6 +39,14 @@ export class FoundryMoveRepository {
 	async getBasicMoveDocument(id) {
 		return this._basicStore.getDocument(id);
 	}
+
+	async getExpeditionMoves() {
+		if (this._expeditionCache) return this._expeditionCache;
+		const entries         = await this._basicStore.filterEntries(e => e.system?.moveType === "expedition");
+		this._expeditionCache = entries.map(e => new MoveDefinition(e));
+		return this._expeditionCache;
+	}
+
 
 	async getPostDeathMoves(insertSlug) {
 		if (this._postDeathCache.has(insertSlug)) return this._postDeathCache.get(insertSlug);
