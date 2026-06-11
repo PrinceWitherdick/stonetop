@@ -1,6 +1,6 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
-import { applySheetFont, getSetting, setSetting } from "../settings.js";
+import { applySheetFont, applySheetFontScale, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
@@ -25,6 +25,7 @@ const _FATE_HOTBAR_SLOT  = 2;
 
 export async function onReady() {
 	applySheetFont(getSetting("sheetFont"));
+	applySheetFontScale(getSetting("sheetFontScale"));
 	await _migrateArmourToArmor();
 	await runStartupMigrations();
 	await ensureStonetopSingleton();
@@ -145,8 +146,8 @@ function _buildStartupWelcomeContent() {
 				<div class="row stonetop-startup-card__section">
 					<h3 class="cell__subtitle">Useful Settings</h3>
 					<ul>
-						<li><strong>Sheet Font</strong>: choose the typeface used on Stonetop sheets.</li>
-						<li><strong>On Hover Info</strong>: turn all hover info on/off, or tune Stats, Basic Moves, Playbook Moves, Traits, and Gear Tags individually.</li>
+						<li><span><strong>Sheet Font &amp; Size</strong>: choose the typeface and scale the text on Stonetop sheets.</span></li>
+						<li><span><strong>On Hover Info</strong>: turn all hover info on/off, or tune Stats, Basic Moves, Playbook Moves, Traits, and Gear Tags individually.</span></li>
 					</ul>
 				</div>
 			</div>

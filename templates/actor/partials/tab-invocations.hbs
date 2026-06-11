@@ -1,21 +1,22 @@
 <div class="tab stonetop-invocations{{#if stonetop.invocations.hideUnknown}} hide-unknown-invocations{{/if}}" data-group="primary" data-tab="invocations">
 
-	{{#if stonetop.editMode}}
-	<div class="stonetop-invocations-rules">
-		<p>You start knowing <strong>{{stonetop.invocations.startingCount}}</strong> Invocations. Each time you reach an even-numbered level, learn 1 new Invocation.</p>
-	</div>
-	{{/if}}
-
 	<div class="stonetop-invocations-toolbar">
+		<label class="stonetop-hide-unselected-label">
+			<input type="checkbox" class="stonetop-hide-unknown-invocations-check"{{#if stonetop.invocations.hideUnknown}} checked{{/if}}>
+			Hide un-learned invocations
+		</label>
 		<input type="search" class="stonetop-invocation-search" placeholder="Filter invocations…">
 		<select class="stonetop-invocation-sort">
 			<option value="known"{{#if stonetop.invocations.sortKnown}} selected{{/if}}>Known first</option>
 			<option value="alpha"{{#if stonetop.invocations.sortAlpha}} selected{{/if}}>A–Z</option>
 		</select>
-		<label class="stonetop-hide-unselected-label">
-			<input type="checkbox" class="stonetop-hide-unknown-invocations-check"{{#if stonetop.invocations.hideUnknown}} checked{{/if}}>
-			Hide un-learned invocations
-		</label>
+	</div>
+
+	<div class="stonetop-invocations-rules">
+		<p>While one Invocation is ongoing, you can't use another. You can end an Invocation whenever you wish, and it will end immediately if your holy light is extinguished. An invocation's range is equal to that of its light source.</p>
+		{{#if stonetop.editMode}}
+		<p>You start knowing <strong>{{stonetop.invocations.startingCount}}</strong> Invocations. Each time you reach an even-numbered level, learn 1 new Invocation.</p>
+		{{/if}}
 	</div>
 
 	<div class="stonetop-invocations-grid">

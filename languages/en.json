@@ -163,6 +163,14 @@
         "imFellEnglish": "IM Fell English",
         "signika": "Signika"
       },
+      "sheetFontScale": {
+        "name": "Sheet Font Size",
+        "hint": "Scale the text on Stonetop sheets and dialogs to make it easier to read.",
+        "normal": "Normal (100%)",
+        "large": "Large (110%)",
+        "larger": "Larger (125%)",
+        "largest": "Largest (140%)"
+      },
       "showRollStatChips": {
         "name": "Show Roll Stat Chips",
         "hint": "Show labels like +STR and +ANY beside rollable move icons on character sheets."

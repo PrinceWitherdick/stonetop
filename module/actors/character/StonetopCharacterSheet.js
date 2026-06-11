@@ -16,8 +16,9 @@ import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth} from "../../settings.js";
 import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
+import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -434,7 +435,6 @@ const _MOVE_REF_RE = new RegExp(
 	`(?<!\\w)(${_MOVE_REF_NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?!\\w)`,
 	"g"
 );
-const _GLYPH_RE = /[○◇◆□]+/g;
 const _moveRefCache = new Map();
 
 async function _fetchMoveRef(name) {
@@ -487,42 +487,6 @@ function _enrichMoveRefsInEl(container) {
 	}
 }
 
-function _wrapStonetopGlyphsInEl(container) {
-	const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-		acceptNode: node =>
-			node.parentElement?.closest(".stonetop-glyph, .stonetop-move-ref")
-				? NodeFilter.FILTER_REJECT
-				: NodeFilter.FILTER_ACCEPT,
-	});
-	const toReplace = [];
-	let node;
-	while ((node = walker.nextNode())) {
-		_GLYPH_RE.lastIndex = 0;
-		if (_GLYPH_RE.test(node.textContent)) toReplace.push(node);
-	}
-	for (const textNode of toReplace) {
-		const text = textNode.textContent;
-		const frag = document.createDocumentFragment();
-		let lastIdx = 0;
-		_GLYPH_RE.lastIndex = 0;
-		let m;
-		while ((m = _GLYPH_RE.exec(text)) !== null) {
-			if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
-			for (const glyph of m[0]) {
-				const span = document.createElement("span");
-				span.className = "stonetop-glyph";
-				if (glyph === "◇") span.classList.add("stonetop-glyph--diamond");
-				else if (glyph === "◆") span.classList.add("stonetop-glyph--diamond-selected");
-				span.textContent = glyph;
-				frag.appendChild(span);
-			}
-			lastIdx = m.index + m[0].length;
-		}
-		if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
-		textNode.parentNode?.replaceChild(frag, textNode);
-	}
-}
-
 export function createStonetopCharacterSheetClass(Base) {
 	return class StonetopCharacterSheet extends Base {
 		_stonetopCharacter;
@@ -531,6 +495,13 @@ export function createStonetopCharacterSheetClass(Base) {
 		constructor(...args) {
 			super(...args);
 			this._stonetopCharacter = this.actor.typedActor;
+
+			// Reopen at the width this user last left this character's sheet.
+			const storedWidth = getCharacterSheetWidth(this.actor?.id);
+			if (storedWidth) {
+				this.options.width  = storedWidth;
+				this.position.width = storedWidth;
+			}
 		}
 
 		static get defaultOptions() {
@@ -555,9 +526,28 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async close(options) {
+			this._persistSheetWidth();
 			this._movePanel?.remove();
 			this._movePanel = null;
 			return super.close(options);
+		}
+
+		// Remember the width so the sheet reopens at the size the user left it.
+		// setPosition fires on every resize frame, so debounce it; close() also
+		// saves immediately to cover a resize-then-close within the debounce window.
+		setPosition(options = {}) {
+			const position = super.setPosition(options);
+			clearTimeout(this._widthSaveTimer);
+			this._widthSaveTimer = setTimeout(() => this._persistSheetWidth(), 500);
+			return position;
+		}
+
+		_persistSheetWidth() {
+			if (this._minimized) return;
+			const width = this.position?.width;
+			if (Number.isFinite(width) && width >= (this.options.minWidth ?? 0)) {
+				setCharacterSheetWidth(this.actor?.id, width);
+			}
 		}
 
 		_injectHeaderToggle() {
@@ -1234,27 +1224,33 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}, true);
 
-			html.find(".stonetop-basic-move-open, .stonetop-expedition-move-open").on("click", async ev => {
+			// The whole basic/expedition row is tappable, not just the dice icon.
+			// The dice icon and the "+stat" chip roll via the capture handler above
+			// (which stopPropagation()s), so a click only reaches here when it lands
+			// on the move name or empty row space.
+			html.find(".stonetop-move-item").on("click", async ev => {
 				if (!this.isEditable) return;
-				const li       = ev.currentTarget.closest("li");
-				const moveName = ev.currentTarget.textContent.trim();
+				const li     = ev.currentTarget;
+				const nameEl = li.querySelector(".stonetop-move-name");
+				if (!nameEl) return;
+				const moveName = nameEl.textContent.trim();
 
 				// Expedition moves each do something on click: a bespoke dialog
 				// (Requisition assets, Outfit), a guided step/roll modal, a direct
 				// roll, or — failing those — posting the move text to chat.
-				if (ev.currentTarget.classList.contains("stonetop-expedition-move-open")) {
+				if (nameEl.classList.contains("stonetop-expedition-move-open")) {
 					const handler = EXPEDITION_MOVE_HANDLERS[moveName];
 					if (handler) { handler(this); return; }
 					const guide = GUIDED_CHARACTER_MOVES[moveName];
 					if (guide) {
-						this._openGuidedCharacterMove({ name: moveName, guide }, li?.querySelector(".rollable"));
+						this._openGuidedCharacterMove({ name: moveName, guide }, li.querySelector(".rollable"));
 						return;
 					}
 				}
 
-				const rollable = li?.querySelector(".rollable");
+				const rollable = li.querySelector(".rollable");
 				if (rollable) { rollable.click(); return; }
-				const { compendiumId } = ev.currentTarget.dataset;
+				const { compendiumId } = nameEl.dataset;
 				if (!compendiumId) return;
 				const doc = await this._stonetopCharacter._moveRepo.getBasicMoveDocument(compendiumId);
 				if (!doc) return;
@@ -1310,11 +1306,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				document.body.appendChild(moveRefPanel);
 			}
 
-			html.find(".stonetop-item-description").each((_, el) => {
-				if (el.dataset.moveRefsEnriched) return;
-				el.dataset.moveRefsEnriched = "1";
-				_enrichMoveRefsInEl(el);
-				_wrapStonetopGlyphsInEl(el);
+			// Render inline glyphs (◇ Conduit tracks, etc.) as SVG across every
+			// description container. Move-ref enrichment is limited to move
+			// descriptions; the other containers only need glyph wrapping.
+			html.find(".stonetop-item-description, .stonetop-arcanum-body, .stonetop-invocation-desc").each((_, el) => {
+				if (el.dataset.glyphsWrapped) return;
+				el.dataset.glyphsWrapped = "1";
+				if (el.matches(".stonetop-item-description")) _enrichMoveRefsInEl(el);
+				wrapStonetopGlyphsInEl(el);
 			});
 
 			if (showMoveRefHover) {
