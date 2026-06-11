@@ -1309,6 +1309,11 @@ input.stonetop-name-field {
 
 .stonetop-roll-mode-option input {
 	margin: 0;
+	/* align-items: center lands the radio on the text's line-box center, which is a
+	   hair below the letterforms' optical center, so the label reads higher than the
+	   radio. Lift the radio slightly to meet the label. */
+	position: relative;
+	top: -1px;
 }
 
 /* Each row is a left-aligned, vertically-centered flex row. No left padding so
@@ -2982,6 +2987,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    consequence names. */
 .stonetop-arcanum-box {
 	vertical-align: middle;
+	/* vertical-align: middle alone leaves the box sitting a touch low (its center
+	   lands on the x-height middle, below the cap center of the bold move name), so
+	   the label reads higher than the box. Lift it like the circle/diamond markers. */
+	position: relative;
+	top: -2px;
 }
 
 /* Diamond tracks reuse the shared diamond glyph icons (outline / filled) so the
@@ -5191,8 +5201,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-moves-sidebar .steading-moves-list {
 	display: block;
 	margin: 4px 0 0;
-	padding-left: 1.5em;
-	list-style: decimal;
+	/* No left indent — rows sit flush with the "Homefront Moves" heading, matching the
+	   character sheet's Basic Moves sidebar. The rows are display:flex (rule above), so
+	   they're not list-items and the decimal markers never rendered anyway. */
+	padding-left: 0;
+	list-style: none;
 }
 
 .steading-moves-sidebar .steading-move-row {
