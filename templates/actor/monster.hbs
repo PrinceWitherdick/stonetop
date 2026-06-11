@@ -85,30 +85,25 @@
 				</ul>
 				{{/if}}
 				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--traits">
-					{{#if stonetop.editMode}}<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.grouping"}}</span>{{/if}}
 					{{#if stonetop.editMode}}
+					<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.grouping"}}</span>
 					<input class="stonetop-monster-stat-input" type="text"
 					       name="system.grouping" value="{{system.grouping}}"
 					       placeholder="horde, group, solitary">
-					{{else}}<span>{{system.grouping}}</span>{{/if}}
 					<span class="stonetop-monster-stat-sep"> · </span>
-					{{#if stonetop.editMode}}<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.size"}}</span>{{/if}}
-					{{#if stonetop.editMode}}
+					<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.size"}}</span>
 					<input class="stonetop-monster-stat-input" type="text"
 					       name="system.size" value="{{system.size}}"
 					       placeholder="tiny, large, huge">
-					{{else}}<span>{{system.size}}</span>{{/if}}
-					{{#if stonetop.editMode}}
 					<span class="stonetop-monster-stat-sep"> · </span>
 					<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.tags"}}</span>
 					<input class="stonetop-monster-stat-input" type="text"
 					       name="system.tags" value="{{system.tags}}"
 					       placeholder="horde, small, cautious, stealthy...">
 					{{else}}
-					{{#if stonetop.displayTags}}
-					<span class="stonetop-monster-stat-sep"> · </span>
-					<span>{{stonetop.displayTags}}</span>
-					{{/if}}
+					{{#if system.grouping}}<span>{{system.grouping}}</span>{{/if}}
+					{{#if system.size}}{{#if system.grouping}}<span class="stonetop-monster-stat-sep"> · </span>{{/if}}<span>{{system.size}}</span>{{/if}}
+					{{#if stonetop.displayTags}}{{#if (or system.grouping system.size)}}<span class="stonetop-monster-stat-sep"> · </span>{{/if}}<span>{{stonetop.displayTags}}</span>{{/if}}
 					{{/if}}
 				</div>
 			</div>

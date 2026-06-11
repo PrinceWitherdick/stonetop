@@ -195,7 +195,8 @@ body,
 .stonetop-glyph { font-style: normal; }
 
 .stonetop-glyph--diamond,
-.stonetop-glyph--diamond-selected {
+.stonetop-glyph--diamond-selected,
+.stonetop-glyph--arrow {
 	display: inline-block;
 	width: 0.78em;
 	height: 0.78em;
@@ -1473,6 +1474,7 @@ input.stonetop-name-field {
 .stonetop-item-check,
 .stonetop-lore-option-check,
 .stonetop-arcanum-unlock-check,
+.stonetop-arcanum-box,
 .stonetop-hide-unselected-check,
 .stonetop-hide-unknown-invocations-check,
 .stonetop-possession-check,
@@ -1501,6 +1503,7 @@ input.stonetop-name-field {
 .stonetop-item-check:checked,
 .stonetop-lore-option-check:checked,
 .stonetop-arcanum-unlock-check:checked,
+.stonetop-arcanum-box:checked,
 .stonetop-hide-unselected-check:checked,
 .stonetop-hide-unknown-invocations-check:checked,
 .stonetop-possession-check:checked,
@@ -1648,7 +1651,8 @@ input.stonetop-name-field {
 .stonetop-readonly .steading-list-add,
 .stonetop-readonly .stonetop-outfit-open-btn,
 .stonetop-readonly .stonetop-deathsdoor-open-btn,
-.stonetop-readonly .stonetop-levelup-open-btn {
+.stonetop-readonly .stonetop-levelup-open-btn,
+.stonetop-readonly .stonetop-item-resource-check {
 	pointer-events: auto;
 	opacity: 1;
 }
@@ -1700,23 +1704,38 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	font-family: Signika, sans-serif;
 }
 
-/* -- Move-to-chat message ----------------------------------------- */
+/* -- Move / Invocation to-chat message ----------------------------------------
+   Mirrors the stat-roll card look: parchment message background (applied via the
+   shared :has() rule above), a stonetop-font title bar with a gold-tan accent,
+   and a tinted description block. */
 
-.stonetop-chat-move {
-	padding-top: 8px;
+:is(#chat, #chat-notifications) .message .stonetop-chat-move {
+	border-radius: 6px;
+	overflow: hidden;
 }
 
-.stonetop-chat-move-name {
-	margin: 0 0 8px;
-	font-size: 1rem;
-	border-bottom: 1px solid var(--color-border-light-tertiary, #ccc);
-	padding-bottom: 8px;
+:is(#chat, #chat-notifications) .message .stonetop-chat-move-name {
+	font-family: var(--font-stonetop, "Signika", serif);
+	font-size: var(--font-size-16);
+	font-weight: bold;
+	line-height: 1.2;
+	margin: 0;
+	padding: 6px 8px;
+	border: 0;
+	border-bottom: 1px solid rgba(159, 146, 117, 0.4);
+	background: rgba(159, 146, 117, 0.08);
 }
 
-.stonetop-chat-move-description {
-	font-size: 0.85rem;
+:is(#chat, #chat-notifications) .message .stonetop-chat-move-description {
+	font-size: var(--font-size-12);
 	line-height: 1.5;
+	color: #333;
+	padding: 8px;
 }
+:is(#chat, #chat-notifications) .message .stonetop-chat-move-description p { margin: 0 0 4px; }
+:is(#chat, #chat-notifications) .message .stonetop-chat-move-description p:last-child { margin-bottom: 0; }
+/* Bullet sizing/gap deliberately uses bare selectors so the system-wide spiral
+   normalization rules (further down) layer on top at matching specificity. */
 .stonetop-chat-move-description ul { margin: 0 0 5px; padding-left: 0; list-style: none; }
 .stonetop-chat-move-description li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
 .stonetop-chat-move-description li::before {
@@ -1882,7 +1901,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 
 :is(#chat, #chat-notifications) .message:has(.stonetop-roll-card),
-:is(#chat, #chat-notifications) .message:has(.stonetop-startup-card) {
+:is(#chat, #chat-notifications) .message:has(.stonetop-startup-card),
+:is(#chat, #chat-notifications) .message:has(.stonetop-chat-move) {
 	background: var(--stonetop-bg, #f0ece3) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp) center / cover;
 	border-radius: 6px;
 	border-width: 1px;
@@ -2682,12 +2702,29 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	text-align: center;
 }
 
+/* 16px between the Major and Minor sections (only between — not trailing the last). */
+.stonetop-arcana-section + .stonetop-arcana-section {
+	margin-top: 16px;
+}
+
+/* Two-column masonry. JS (see StonetopCharacterSheet) measures the cards and packs them
+   into two .stonetop-arcana-col stacks by height, so tall flipped cards stay whole (CSS
+   multi-column would split them) and short cards don't leave a big row-gap beside a tall
+   one. The grid just lays the two column stacks side by side; with a single card the JS
+   leaves it directly in the grid. */
 .stonetop-arcana-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 10px;
 	padding: 8px;
 	align-items: start;
+}
+
+.stonetop-arcana-col {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
 }
 
 .stonetop-arcanum-card {
@@ -2700,22 +2737,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	position: relative;
 }
 
+/* Arcana-tab card art: sits at the left of the header and fills its height. */
 .stonetop-arcanum-thumb {
-	position: absolute;
-	top: 4px;
-	right: 4px;
-	width: 36px;
-	height: 36px;
+	align-self: stretch;
+	width: 44px;
+	height: auto;
+	min-height: 0;
 	object-fit: contain;
+	object-position: center;
 	cursor: pointer;
-	opacity: 0.85;
-	transition: opacity 0.15s, transform 0.15s;
-	z-index: 1;
+	opacity: 0.9;
+	transition: opacity 0.15s;
+	flex-shrink: 0;
 }
 
 .stonetop-arcanum-thumb:hover {
 	opacity: 1;
-	transform: scale(1.15);
 }
 
 .stonetop-arcanum-img {
@@ -2725,15 +2762,46 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	object-fit: contain;
 }
 
+/* Item sheet: art becomes a left-hand column, with the title + description stacked
+   to its right. */
+.stonetop-arcanum-sheet-side--withart {
+	flex-direction: row;
+	align-items: stretch;
+}
+
+.stonetop-arcanum-sheet-side--withart .stonetop-arcanum-img {
+	flex-shrink: 0;
+	width: 38%;
+	max-width: 170px;
+	max-height: none;
+	align-self: stretch;
+	background: var(--stonetop-bg);
+	border-right: 1px solid var(--color-border-dark);
+	border-radius: 3px 0 0 3px;
+}
+
+.stonetop-arcanum-sheet-main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
 .stonetop-arcanum-header {
 	background: var(--stonetop-bg);
 	padding: 5px 8px;
 	border-bottom: 1px solid var(--color-border-dark);
 	border-radius: 3px 3px 0 0;
 	display: flex;
-	justify-content: space-between;
+	justify-content: flex-start;
 	align-items: flex-start;
 	gap: 6px;
+}
+
+/* Keep any header-right resource block pinned to the right now that the header is
+   left-packed (to make room for the leading card art). */
+.stonetop-arcanum-header-resource {
+	margin-left: auto;
 }
 
 .stonetop-arcanum-header-left {
@@ -2781,6 +2849,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex: 1;
 	padding: 6px 8px;
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
 	overflow-y: auto;
 }
 
@@ -2791,6 +2860,50 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
+}
+
+/* A list item that carries its own checkbox / circle / diamond already has a bullet, so
+   drop the redundant spiral and show only the marker. Inline markers (box/circle/diamond)
+   are direct children, so match them with `>` to avoid suppressing a parent item that
+   merely contains a nested marked sub-item. Unlock-option checkboxes are wrapped in a
+   <span>, and that list never nests, so match them as a descendant. */
+.stonetop-arcanum-body li:has(> .stonetop-arcanum-box, > .stonetop-arcanum-circle, > .stonetop-arcanum-diamond, .stonetop-arcanum-unlock-check)::before {
+	content: none;
+}
+
+/* Consequence / move items lead with their checkbox(es) and then a full paragraph. Use
+   normal block flow instead of the flex bullet layout so the text wraps across the full
+   width and stacks vertically — matching the printed cards — rather than being squeezed
+   into a narrow column to the right of the boxes (which also strands trailing tracks like
+   ○○○). Scoped to inline markers; unlock options keep their own checkbox + text flex row. */
+.stonetop-arcanum-body li:has(> .stonetop-arcanum-box, > .stonetop-arcanum-circle, > .stonetop-arcanum-diamond) {
+	display: block;
+}
+
+/* Section headings ("Moves", "Consequences", spell lists, follower blocks) sit on a
+   ruled underline, as on the printed cards. */
+.stonetop-arcanum-body h3 {
+	font-family: var(--font-stonetop);
+	font-size: calc(1.05rem * var(--stonetop-font-scale, 1));
+	font-weight: bold;
+	margin: 10px 0 5px;
+	padding-bottom: 3px;
+	border-bottom: 1px solid var(--color-border-dark);
+}
+.stonetop-arcanum-body h3:first-child { margin-top: 0; }
+
+/* Each move/spell entry — a paragraph led by its bolded name — is divided from the
+   preceding block by a thin rule, matching the ruled divisions on the cards. */
+.stonetop-arcanum-body p:has(> strong:first-child) {
+	border-top: 1px solid var(--color-border-light, #ccc);
+	margin-top: 6px;
+	padding-top: 6px;
+}
+/* The first entry right after a heading uses the heading's own rule — no double line. */
+.stonetop-arcanum-body h3 + p:has(> strong:first-child) {
+	border-top: none;
+	margin-top: 0;
+	padding-top: 0;
 }
 
 .stonetop-arcanum-footer {
@@ -2844,7 +2957,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-style: normal;
 }
 
-.stonetop-arcanum-box,
 .stonetop-arcanum-circle {
 	appearance: none;
 	-webkit-appearance: none;
@@ -2853,6 +2965,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 13px;
 	height: 13px;
 	border: 1.5px solid currentColor;
+	border-radius: 50%;
 	cursor: pointer;
 	margin: 0 1px;
 	position: relative;
@@ -2860,13 +2973,40 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex-shrink: 0;
 }
 
-.stonetop-arcanum-circle {
-	border-radius: 50%;
-}
-
-.stonetop-arcanum-box:checked,
 .stonetop-arcanum-circle:checked {
 	background-color: currentColor;
+}
+
+/* The □ markers render via the shared SVG checkbox above; that rule is tuned for flex
+   rows, so keep these vertically centered where they sit inline before move and
+   consequence names. */
+.stonetop-arcanum-box {
+	vertical-align: middle;
+}
+
+/* Diamond tracks reuse the shared diamond glyph icons (outline / filled) so the
+   selected state matches the inventory weight diamonds. */
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	flex: none !important;
+	display: inline-block;
+	vertical-align: middle;
+	width: 13px !important;
+	height: 13px !important;
+	/* Transparent border matches the circle's 1.5px border so both boxes render at
+	   the same size regardless of box-sizing; the icon fills the full border-box. */
+	border: 1.5px solid transparent;
+	margin: 0 2px;
+	padding: 0;
+	position: relative;
+	top: -1px;
+	background: center / contain no-repeat var(--stonetop-diamond-icon) border-box !important;
+	cursor: pointer;
+}
+
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond:checked {
+	background-image: var(--stonetop-diamond-selected-icon) !important;
 }
 
 .stonetop-arcanum-unlock-lead {
@@ -2947,6 +3087,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-arcanum-move-trigger {
 	margin: 6px 0 2px;
+}
+
+/* Standalone mark/charge tracks (◇◇◇, ○○○○) sit on their own centered line, as on
+   the printed cards. Wrapped at render time by centerArcanumTracks(). */
+.stonetop-arcanum-track {
+	display: block;
+	text-align: center;
+	letter-spacing: 0.2em;
+	margin: 3px 0;
 }
 
 .stonetop-arcanum-chat-card {
@@ -3100,10 +3249,23 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-lore-arcana-card {
+	display: flex;
+	align-items: center;
+	gap: var(--stonetop-spiral-gap);
 	margin: 1px 0;
 	font-family: var(--font-stonetop);
 	font-weight: bold;
 	font-size: 0.85em;
+}
+
+/* Spiral bullet marking a value chosen from the arcana-picker dropdown.
+   Light parchment background here, so the dark spiral SVG needs no invert. */
+.stonetop-lore-arcana-card::before {
+	content: "";
+	flex: 0 0 0.85em;
+	width: 0.85em;
+	height: 0.85em;
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
 }
 
 .stonetop-lore-arcana-card.is-muted {
@@ -3127,16 +3289,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 /* Checkbox lore rows (e.g. "The Worship of Helior Is…"): vertically center the
-   description against the checkbox, and render the checkbox at double size.
-   Text rows (--text) stay column-aligned, so they're excluded. */
+   description against the checkbox. Text rows (--text) stay column-aligned, so
+   they're excluded. */
 .stonetop-lore-option:not(.stonetop-lore-option--text) {
 	align-items: center;
 }
 
+/* Match the standard checkbox size used by move titles and other
+   .stonetop-item-check controls (15px) so checkmarks are consistent. */
 .stonetop-lore-option-check {
-	width: calc(16px * var(--stonetop-font-scale, 1)) !important;
-	height: calc(16px * var(--stonetop-font-scale, 1)) !important;
-	flex: 0 0 calc(16px * var(--stonetop-font-scale, 1)) !important;
+	width: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1)) !important;
 }
 
 .stonetop-lore-option-checks {
@@ -3176,7 +3340,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* Read-only Details tab */
 
 .stonetop-lore-option--text.stonetop-lore-option--readonly .stonetop-lore-option-desc {
-	font-size: 0.9em;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	font-weight: normal;
 	font-style: normal;
 	color: var(--color-text-dark-secondary);
@@ -3193,6 +3357,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-lore-readonly-value {
 	margin: 2px 0 4px;
+	/* Match the edit-mode textarea (.stonetop-lore-option-text) so the answer
+	   text doesn't resize when toggling between edit and read-only. */
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-lore-option--readonly {
@@ -3212,7 +3379,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	opacity: 1;
 	pointer-events: none;
 	cursor: default;
-	/* Size comes from the shared .stonetop-lore-option-check rule (16px). */
+	/* Size comes from the shared .stonetop-lore-option-check rule (15px). */
 }
 
 .stonetop-lore-readonly-marker {
@@ -3224,6 +3391,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-bg-choice-readonly {
 	margin: 1px 0 4px 12px;
+	/* Match the edit-mode choice label (.stonetop-bg-choice-option) so background
+	   choices and setup texts don't resize when toggling edit ↔ read-only. */
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 }
 
 /* Moves tab: hide-unselected toggle */
@@ -4522,7 +4692,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .deaths-door-move-name {
 	margin: 0;
-	font-size: 1.05em;
+	font-size: 1.2em;
 	font-family: var(--font-stonetop);
 	font-weight: bold;
 }
@@ -4531,7 +4701,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .deaths-door-mechanic-intro,
 .deaths-door-reflection {
 	margin: 0;
-	font-size: 0.88em;
+	font-size: 0.95em;
 	color: var(--color-text-dark-secondary);
 	line-height: 1.45;
 }
@@ -4546,10 +4716,49 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 1px 6px;
 	border: 1px solid var(--color-text-dark-secondary);
 	border-radius: 3px;
-	font-size: 0.85em;
+	font-size: 0.92em;
 	line-height: 1.2;
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
+}
+
+/* Rollable "+nothing" control on the overview step */
+.deaths-door-roll-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	margin: 0 2px;
+	padding: 2px 8px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.8);
+	color: var(--color-text-dark-primary);
+	cursor: pointer;
+	line-height: 1.2;
+	transition: background 0.1s, border-color 0.1s;
+}
+
+.deaths-door-roll-btn:hover {
+	background: rgba(0, 0, 0, 0.05);
+	border-color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-roll-btn .deaths-door-roll-chip {
+	border: none;
+	padding: 0;
+}
+
+.deaths-door-roll-btn i {
+	font-size: 0.95em;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-result-banner {
+	margin: 0;
+	font-size: 0.95em;
+	font-weight: bold;
+	color: var(--color-text-dark-primary);
 }
 
 .deaths-door-flavor {
@@ -4570,7 +4779,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .deaths-door-instruction {
 	margin: 0;
 	font-style: italic;
-	font-size: 0.82em;
+	font-size: 0.92em;
 	color: var(--color-text-dark-secondary);
 }
 
@@ -4587,6 +4796,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: rgba(0, 0, 0, 0.02);
 }
 
+/* The tier that matches the roll just made */
+.deaths-door-outcome.is-result {
+	border-color: #c9a227;
+	background: rgba(201, 162, 39, 0.12);
+}
+
 .deaths-door-outcome-label {
 	display: inline-flex;
 	align-items: center;
@@ -4594,7 +4809,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 1px 6px;
 	border: 1px solid var(--color-text-dark-secondary);
 	border-radius: 3px;
-	font-size: 0.78em;
+	font-size: 0.85em;
 	line-height: 1.2;
 	font-family: var(--font-stonetop);
 	font-weight: bold;
@@ -4603,7 +4818,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .deaths-door-outcome-text {
 	margin: 0;
-	font-size: 0.82em;
+	font-size: 0.92em;
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
 }
@@ -4611,7 +4826,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .deaths-door-outcome-choices {
 	margin: 6px 0 0 0;
 	padding-left: 18px;
-	font-size: 0.82em;
+	font-size: 0.92em;
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
 }
@@ -8196,6 +8411,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-weight: 700;
 	letter-spacing: 0.02em;
 	flex: 1;
+	cursor: pointer;
+}
+
+.stonetop-invocation-name:hover {
+	text-decoration: underline;
 }
 
 .stonetop-invocation-desc {

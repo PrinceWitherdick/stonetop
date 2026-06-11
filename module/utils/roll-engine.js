@@ -10,7 +10,11 @@ function _rollFormula(rollMode, modifier = 0) {
 	return modifier !== 0 ? `${dice}+@stat+@mod` : `${dice}+@stat`;
 }
 
-function _classifyResult(total) {
+/**
+ * Classify a 2d6 PbtA total into its tier: success (10+) / partial (7-9) / failure (6-).
+ * `key` doubles as the chat-card result CSS class.
+ */
+export function classifyResult(total) {
 	if (total >= 10) return { key: "success", label: "Strong Hit" };
 	if (total >= 7)  return { key: "partial", label: "Weak Hit"   };
 	return                   { key: "failure", label: "Miss"       };
@@ -105,7 +109,7 @@ export async function rollStat(statKey, actor, options = {}) {
 
 	const roll   = await new Roll(_rollFormula(rollMode, modifier), rollData, rollOptions).evaluate();
 	const total  = roll.total;
-	const result = _classifyResult(total);
+	const result = classifyResult(total);
 
 	const header = moveName ?? statLabel;
 

@@ -1,3 +1,9 @@
+/**
+ * Authoritative registry of the Major Arcana, each mapped to its card-art icon. The game
+ * defines a fixed set of Major Arcana, so membership in this map IS the taxonomy (use
+ * {@link isMajorArcana}); Minor Arcana are everything else and have no card art. Keep this
+ * the single source of truth — don't re-derive "is major" from `majorArcanaImg() !== null`.
+ */
 export const MAJOR_ARCANA_ICONS = {
 	"azure-hand":                 "icon-arcana-azurehand.webp",
 	"blackwood-fetishes":         "icon-arcana-blackwoodfetishes.webp",
@@ -22,4 +28,8 @@ export const MAJOR_ARCANA_ICONS = {
 export function majorArcanaImg(slug) {
 	const file = MAJOR_ARCANA_ICONS[slug];
 	return file ? `systems/stonetop_pwd/assets/icons/arcana/${file}` : null;
+}
+
+export function isMajorArcana(slug) {
+	return Object.prototype.hasOwnProperty.call(MAJOR_ARCANA_ICONS, slug);
 }

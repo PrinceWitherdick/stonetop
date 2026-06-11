@@ -1,8 +1,9 @@
 <form class="stonetop-arcanum-sheet-form" autocomplete="off">
 
 	{{!-- Front Side --}}
-	{{#if arcanaImg}}<img class="stonetop-arcanum-img" src="{{arcanaImg}}" alt="">{{/if}}
-	<div class="stonetop-arcanum-card stonetop-arcanum-sheet-side">
+	<div class="stonetop-arcanum-card stonetop-arcanum-sheet-side{{#if arcanaImg}} stonetop-arcanum-sheet-side--withart{{/if}}">
+		{{#if arcanaImg}}<img class="stonetop-arcanum-img" src="{{arcanaImg}}" alt="">{{/if}}
+		<div class="stonetop-arcanum-sheet-main">
 		<div class="stonetop-arcanum-header">
 			<div class="stonetop-arcanum-header-left">
 				<span class="stonetop-arcanum-title">{{front.title}}</span>
@@ -31,6 +32,7 @@
 				{{/each}}
 			</ul>
 			{{/if}}
+		</div>
 		</div>
 	</div>
 

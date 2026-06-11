@@ -13,7 +13,8 @@
 			<textarea class="stonetop-lore-option-text"
 			          data-lore-slug="{{../slug}}"
 			          data-option-slug="{{slug}}"
-			          >{{textValue}}</textarea>
+			          placeholder="To be written."
+			          >{{#if hasAnswer}}{{textValue}}{{/if}}</textarea>
 			{{else}}
 			<span class="stonetop-lore-option-checks">
 				{{#each checks}}

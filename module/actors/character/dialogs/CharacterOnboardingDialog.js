@@ -1,5 +1,5 @@
 // Descriptions for animal companion trait tags — checked before compendium lookup.
-import { majorArcanaImg } from "../../../arcana-icons.js";
+import { isMajorArcana } from "../../../arcana-icons.js";
 import { parseMovePickCount } from "../StonetopCharacter.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
 import { loreMarkerForText } from "../../../model/PlaybookSnapshot.js";
@@ -587,7 +587,7 @@ export class CharacterOnboardingDialog extends Application {
 					name:        this._normalizeOnboardingText(doc.name ?? flags.front?.title ?? slug),
 					description: this._firstParagraph(flags.front?.description ?? ""),
 					img:         doc.img && doc.img !== "icons/svg/item-bag.svg" ? doc.img : null,
-					isMajor:     majorArcanaImg(slug) !== null,
+					isMajor:     isMajorArcana(slug),
 				}];
 			});
 			this._arcanaCache = {

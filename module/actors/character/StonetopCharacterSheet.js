@@ -526,6 +526,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async close(options) {
+			this._arcanaMasonryObserver?.disconnect();
 			this._persistSheetWidth();
 			this._movePanel?.remove();
 			this._movePanel = null;
@@ -1082,7 +1083,18 @@ export function createStonetopCharacterSheetClass(Base) {
 							return;
 						}
 					}
-					this._onDropItem(ev, data);
+					// Resolve the dropped item and route it through our own creation
+					// handler. We can't rely on the inherited _onDropItem → _onDropItemCreate
+					// chain (deprecated AppV1 plumbing), so call _onDropItemCreate directly;
+					// fall back to the base handler only for re-ordering an item already on
+					// this actor.
+					const item = await Item.implementation.fromDropData(data);
+					if (!item) return;
+					if (item.parent?.uuid === this.actor.uuid) {
+						await this._onDropItem(ev, data);
+						return;
+					}
+					await this._onDropItemCreate(item.toObject());
 				}
 			}, true);
 
@@ -1315,6 +1327,43 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (el.matches(".stonetop-item-description")) _enrichMoveRefsInEl(el);
 				wrapStonetopGlyphsInEl(el);
 			});
+
+			// Masonry: pack arcana cards into two columns by measured height (each card
+			// goes in the currently-shortest column). Unlike CSS multi-column, cards stay
+			// whole — a tall flipped card never splits — and short cards never leave a big
+			// row-gap beside a tall one.
+			//
+			// A ResizeObserver on each grid drives it: it fires when the grid first becomes
+			// measurable (the Arcana tab is shown, 0 → width) and whenever the sheet is
+			// resized, so the columns re-balance for the new width. The original card order
+			// is captured once per grid; the width guard makes the re-pack idempotent — and
+			// also breaks the feedback loop, since re-packing changes the grid's own height,
+			// which would otherwise re-trigger the observer.
+			const packArcanaMasonry = grid => {
+				const cards = (grid._stonetopCards ??= Array.from(grid.children)
+					.filter(el => el.classList.contains("stonetop-arcanum-card")));
+				const width = grid.clientWidth;
+				if (cards.length < 2 || !width || !cards[0].offsetHeight || grid._packedWidth === width) return;
+				const cols = [0, 1].map(() => {
+					const c = document.createElement("div");
+					c.className = "stonetop-arcana-col";
+					return c;
+				});
+				const heights = [0, 0];
+				for (const card of cards) {
+					const i = heights[0] <= heights[1] ? 0 : 1;
+					heights[i] += card.offsetHeight;
+					cols[i].appendChild(card);
+				}
+				grid.replaceChildren(...cols);
+				grid._packedWidth = width;
+			};
+			this._arcanaMasonryObserver?.disconnect();
+			this._arcanaMasonryObserver = new ResizeObserver(entries => {
+				for (const entry of entries) packArcanaMasonry(entry.target);
+			});
+			html[0].querySelectorAll(".stonetop-arcana-grid")
+				.forEach(grid => this._arcanaMasonryObserver.observe(grid));
 
 			if (showMoveRefHover) {
 				let _moveRefHovered = null;
@@ -1678,6 +1727,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop_pwd", "invocations.selected", updated);
 				this.render(false);
 			});
+			// Tapping an Invocation's title posts its details to chat, mirroring moves.
+			html.find(".stonetop-invocation-name").on("click", ev => {
+				const card = ev.currentTarget.closest(".stonetop-invocation-card");
+				if (!card) return;
+				const name = ev.currentTarget.textContent.trim();
+				const description = card.querySelector(".stonetop-invocation-desc")?.innerHTML ?? "";
+				ChatMessage.create({
+					content: _buildMoveChatContent(name, description),
+					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+				});
+			});
 			html.find(".stonetop-other-move-delete").on("click", async ev => {
 				const { itemId } = ev.currentTarget.dataset;
 				await this._stonetopCharacter.removeMove(itemId);
@@ -1757,7 +1817,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, true);
 
 			html[0].addEventListener("change", ev => {
-				const cb = ev.target.closest(".stonetop-arcanum-box, .stonetop-arcanum-circle");
+				const cb = ev.target.closest(".stonetop-arcanum-box, .stonetop-arcanum-circle, .stonetop-arcanum-diamond");
 				if (!cb) return;
 				ev.stopPropagation();
 				const { arcanumSlug, context, index } = cb.dataset;

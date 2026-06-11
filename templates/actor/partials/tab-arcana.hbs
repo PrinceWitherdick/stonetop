@@ -1,23 +1,21 @@
 <div class="tab arcana" data-group="primary" data-tab="arcana">
 
-	{{#unless stonetop.arcana.minor.hasOwned}}
+	{{#unless stonetop.arcana.major.hasOwned}}{{#unless stonetop.arcana.minor.hasOwned}}
 	<p class="stonetop-arcana-empty">{{localize "stonetop.arcana.empty"}}</p>
-	{{/unless}}
+	{{/unless}}{{/unless}}
 
-	<div class="stonetop-arcana-grid">
-	{{#each stonetop.arcana.minor.items}}
+	{{#*inline "arcanumCard"}}
 	{{#if owned}}
 	<div class="stonetop-arcanum-card{{#if flipped}} is-flipped{{/if}}" data-slug="{{slug}}">
 
 		{{#if identified}}
 
-		{{#if img}}
-		<img class="stonetop-arcanum-thumb" src="{{img}}" data-name="{{front.title}}" alt="" title="{{front.title}}">
-		{{/if}}
-
 		{{#if flipped}}
 		{{!-- Back side --}}
 		<div class="stonetop-arcanum-header">
+			{{#if img}}
+			<img class="stonetop-arcanum-thumb" src="{{img}}" data-name="{{back.title}}" alt="" title="{{back.title}}">
+			{{/if}}
 			<div class="stonetop-arcanum-header-left">
 				<span class="stonetop-arcanum-title stonetop-arcanum-title--clickable"
 				      data-slug="{{slug}}" data-flipped="true">{{back.title}}</span>
@@ -62,6 +60,9 @@
 		{{else}}
 		{{!-- Front side --}}
 		<div class="stonetop-arcanum-header">
+			{{#if img}}
+			<img class="stonetop-arcanum-thumb" src="{{img}}" data-name="{{front.title}}" alt="" title="{{front.title}}">
+			{{/if}}
 			<div class="stonetop-arcanum-header-left">
 				<span class="stonetop-arcanum-title stonetop-arcanum-title--clickable"
 				      data-slug="{{slug}}" data-flipped="false">{{front.title}}</span>
@@ -156,7 +157,24 @@
 
 	</div>
 	{{/if}}
-	{{/each}}
-	</div>
+	{{/inline}}
+
+	{{#if stonetop.arcana.major.hasOwned}}
+	<section class="stonetop-arcana-section">
+		{{> "stonetop.section-heading" title=stonetop.arcana.major.title}}
+		<div class="stonetop-arcana-grid">
+		{{#each stonetop.arcana.major.items}}{{> arcanumCard}}{{/each}}
+		</div>
+	</section>
+	{{/if}}
+
+	{{#if stonetop.arcana.minor.hasOwned}}
+	<section class="stonetop-arcana-section">
+		{{> "stonetop.section-heading" title=stonetop.arcana.minor.title}}
+		<div class="stonetop-arcana-grid">
+		{{#each stonetop.arcana.minor.items}}{{> arcanumCard}}{{/each}}
+		</div>
+	</section>
+	{{/if}}
 
 </div>
