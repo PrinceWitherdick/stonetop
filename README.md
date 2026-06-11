@@ -48,14 +48,7 @@ When a character dies and returns, selecting a post-death insert automatically r
 
 ## Screenshots
 
-**Character Sheet — Filterable Moves**
-![Character Sheet Moves](.github/screenshots/character-sheet-moves.webp)
-
-**Character & Stonetop Sheet — Ledgers**
-![Character Sheet Ledger](.github/screenshots/character-sheet-ledger.webp)
-
-**New Character Creation**
-![Playbook Picker](.github/screenshots/playbook-picker.webp)
+![Character and Stonetop steading sheets](.github/screenshots/sheets-overview.webp)
 
 ---
 
