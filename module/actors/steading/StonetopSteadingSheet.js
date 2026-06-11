@@ -1,6 +1,7 @@
 import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS } from "./StonetopSteading.js";
 import {rollStat} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
+import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
 import {escHtml} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
@@ -401,6 +402,8 @@ export function createStonetopSteadingSheetClass(Base) {
 				}).join("")
 				: `<li class="stonetop-ledger-empty">No ledger entries yet.</li>`;
 
+			const nounOptions = ledgerNounOptionsHtml(entries);
+
 			const content = `<div class="stonetop-ledger-container">
 				<div class="stonetop-ledger-toolbar">
 					<label class="stonetop-edit-toggle stonetop-ledger-edit-toggle" title="Edit entries">
@@ -416,6 +419,10 @@ export function createStonetopSteadingSheetClass(Base) {
 						<i class="fas fa-trash"></i> Delete
 					</button>
 					<input type="search" class="stonetop-ledger-search" placeholder="Filter entries…">
+					<select class="stonetop-ledger-noun" title="Filter by subject">
+						<option value="">All changes</option>
+						${nounOptions}
+					</select>
 					<select class="stonetop-ledger-sort">
 						<option value="desc">Newest first</option>
 						<option value="asc">Oldest first</option>
@@ -494,19 +501,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						if (ev.target.closest(".stonetop-ledger-row-check")) syncSelectAll();
 					});
 
-					html.find(".stonetop-ledger-entry").each((_, el) => {
-						el._ledgerText = el.querySelector(".stonetop-ledger-entry-main")
-							?.textContent?.toLowerCase() ?? "";
-					});
-
-					html.find(".stonetop-ledger-search").on("input", ev => {
-						const term = ev.currentTarget.value.trim().toLowerCase();
-						html.find(".stonetop-ledger-entry").each((_, el) => {
-							el.hidden = !!term && !el._ledgerText.includes(term);
-						});
-						syncDateHeaders();
-						syncSelectAll();
-					});
+					wireLedgerFilters(html, () => { syncDateHeaders(); syncSelectAll(); });
 
 					html.find(".stonetop-ledger-sort").on("change", ev => {
 						const asc  = ev.currentTarget.value === "asc";
@@ -696,6 +691,14 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.stopPropagation();
 				const { list, index } = cb.dataset;
 				this._onListItemCheck(list, parseInt(index), cb.checked);
+			}, true);
+
+			// Click a requisitioned ("taken") asset to return it to the steading.
+			html[0].addEventListener("click", ev => {
+				const taken = ev.target.closest(".steading-asset-taken");
+				if (!taken) return;
+				ev.stopPropagation();
+				this._onReturnAsset(parseInt(taken.dataset.index));
 			}, true);
 
 			// Add list item (residents/neighbors are handled above, regardless of edit mode)
@@ -1469,6 +1472,13 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!arr[index]) return;
 			arr[index].checked = checked;
 			await this._stonetopSteading.setFlags({ [list]: arr });
+		}
+
+		async _onReturnAsset(index) {
+			const name = this._stonetopSteading._flags.assets?.[index]?.name ?? "Asset";
+			await this._stonetopSteading.returnAsset(index);
+			this.render(false);
+			ui.notifications.info(`${name} returned to ${this.actor.name}.`);
 		}
 
 		async _onListItemAdd(list) {

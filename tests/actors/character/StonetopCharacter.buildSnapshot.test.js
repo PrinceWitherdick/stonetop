@@ -615,13 +615,22 @@ describe("buildSnapshot — inventory.outfit", () => {
 		expect(typeof opts[0].note).toBe("string");
 	});
 
-	it("regularPool current is derived from max minus checked item weight", async () => {
-		const actor = new FakeActorBuilder().withFlag("inventory.checked", {"bow-arrows": true}).build();
-		const item = makeOutfitItem({slug: "bow-arrows", name: "Bow", weight: 4});
-		const snap = await new TestCharacterBuilder(actor)
-			.withInventoryRepo(new FakeInventoryRepository([item]))
-			.build().buildSnapshot();
+	it("regularPool current reflects the stored undefined ◇ pool (set at Outfit), capped to the load max", async () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.loadLevel", "heavy")
+			.withFlag("inventory.regularPool", 5)
+			.build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
 		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 5, max: 9, title: null, labels: []});
+	});
+
+	it("regularPool current is clamped to the current load level's max", async () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.loadLevel", "light")
+			.withFlag("inventory.regularPool", 7)
+			.build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 3, max: 3});
 	});
 
 	it("smallPool has unified resource shape", async () => {

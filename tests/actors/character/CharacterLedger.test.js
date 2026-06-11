@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CharacterLedger } from "../../../module/actors/character/CharacterLedger.js";
+import { CharacterLedger, ledgerNoun, ledgerNounCounts } from "../../../module/actors/character/CharacterLedger.js";
 
 function makeActor(system = {}, flags = {}) {
 	return {
@@ -134,5 +134,58 @@ describe("CharacterLedger", () => {
 		const item = { name: "Ambush", type: "move", system: { moveType: "playbook" } };
 		expect(CharacterLedger.entriesForCreatedItems([item]).map(e => e.action)).toEqual(["Ambush learned"]);
 		expect(CharacterLedger.entriesForDeletedItems([item]).map(e => e.action)).toEqual(["Ambush removed"]);
+	});
+});
+
+describe("ledgerNoun", () => {
+	it("derives the subject before the change verb", () => {
+		expect(ledgerNoun("HP changed from 5 to 3")).toBe("HP");
+		expect(ledgerNoun("STR set to +1")).toBe("STR");
+		expect(ledgerNoun("Forward cleared")).toBe("Forward");
+		expect(ledgerNoun("Bow & arrows selected")).toBe("Bow & arrows");
+		expect(ledgerNoun("Bow & arrows deselected")).toBe("Bow & arrows");
+		expect(ledgerNoun("Ambush learned")).toBe("Ambush");
+		expect(ledgerNoun("Ambush removed")).toBe("Ambush");
+	});
+
+	it("uses the type label as the noun for typed add/remove entries", () => {
+		expect(ledgerNoun("Playbook added: The Fox")).toBe("Playbook");
+		expect(ledgerNoun("Playbook removed: The Fox")).toBe("Playbook");
+		expect(ledgerNoun("Arcanum added: Gold Ring")).toBe("Arcanum");
+		expect(ledgerNoun("Asset removed: Wagon")).toBe("Asset");
+		expect(ledgerNoun("Neighbor renamed from A to B")).toBe("Neighbor");
+	});
+
+	it("keeps the full subject phrase for compound and currency nouns", () => {
+		expect(ledgerNoun("Silver purses changed from 1 to 2")).toBe("Silver purses");
+		expect(ledgerNoun("The Red Shields loyalty changed from 1 to 2")).toBe("The Red Shields loyalty");
+		expect(ledgerNoun("Place A set to The Stone")).toBe("Place A");
+	});
+
+	it("falls back to the whole action when no verb is recognised", () => {
+		expect(ledgerNoun("Some freeform note")).toBe("Some freeform note");
+		expect(ledgerNoun("")).toBe("");
+		expect(ledgerNoun(null)).toBe("");
+	});
+});
+
+describe("ledgerNounCounts", () => {
+	it("counts distinct nouns and sorts them alphabetically", () => {
+		const entries = [
+			{ action: "HP changed from 5 to 3" },
+			{ action: "HP changed from 3 to 4" },
+			{ action: "STR set to +1" },
+			{ action: "Ambush learned" },
+		];
+		expect(ledgerNounCounts(entries)).toEqual([
+			{ noun: "Ambush", count: 1 },
+			{ noun: "HP", count: 2 },
+			{ noun: "STR", count: 1 },
+		]);
+	});
+
+	it("handles empty input", () => {
+		expect(ledgerNounCounts([])).toEqual([]);
+		expect(ledgerNounCounts(undefined)).toEqual([]);
 	});
 });

@@ -95,7 +95,8 @@
         "arcanaItems": "Arcana",
         "smallItemLimit": "Mark up to <strong>{limit}</strong> small items (4+Prosperity)",
         "confirm": "Confirm Outfit",
-        "totalWeight": "<span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> used"
+        "totalWeight": "<span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> marked",
+        "undefinedLabel": "Undefined"
       }
     },
     "postDeath": {
@@ -130,10 +131,11 @@
       "resetLabel": "Reset Inventory",
       "resetTitle": "Reset Inventory",
       "resetConfirm": "Clear all item selections and load level? Supply pools are not affected.",
+      "notEnoughUndefined": "Not enough undefined ◇ to carry that — Outfit to bring more.",
       "regularUndefinedPoolLabel": "Undefined",
-      "regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here to <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below.",
+      "regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, mark an item below — it draws <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here.",
       "smallUndefinedPoolLabel": "Undefined",
-      "smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, move <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here to items below, or expend supplies to mark an additional <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span>.",
+      "smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, mark a small item below — it draws <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here.",
       "choosePossessionsButton": "Choose Special Possessions",
       "outfit": {
         "heading": "When you <em><strong>Outfit</strong></em>, mark a number of <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below on specific items or as a group.",

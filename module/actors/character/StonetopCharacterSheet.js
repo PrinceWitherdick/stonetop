@@ -2,11 +2,13 @@ import {MoveResourceButton} from "./elements/move-resource-button.js";
 import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
+import {RequisitionDialog} from "./dialogs/RequisitionDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
+import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {rollDamage, sign} from "../../utils/roll-engine.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
@@ -18,6 +20,7 @@ import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../setting
 import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
+const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
 
 const STAT_TOOLTIPS = {
 	str: "Your physical power and ability to use it. Roll +STR to Clash, or to Defy Danger with raw might or power.",
@@ -259,6 +262,96 @@ const GUIDED_CHARACTER_MOVES = {
 		picksLabel: "Pick 1:",
 		picks: ["Select 2 new tags for your Crew", "Increase their damage die from d6 to d8", "Increase their max HP by 2 each"],
 	},
+
+	// ── Expedition moves ──────────────────────────────────────────────
+	// Procedural moves open a step-by-step guide; rolling moves add a Roll
+	// button driven by `roll` (a stat key, or "ask" to pick a stat). Requisition
+	// and Outfit have their own dialogs and are dispatched separately.
+	"Chart a Course": {
+		trigger: "When you wish to travel to a distant place, name or describe your destination; if the route is unclear, tell the GM how you intend to reach it. The GM tells you what's required, the risks, and how long it will take.",
+		fields: [
+			{ name: "destination", label: "Destination", placeholder: "Where are you headed?" },
+			{ name: "route", label: "Intended route", placeholder: "How do you mean to get there?", type: "textarea" },
+		],
+		results: [
+			"The GM presents each challenge — plus surprises — one at a time.",
+			"Address them all to reach your destination.",
+		],
+		note: "Travel times from Stonetop are listed in the move's description.",
+	},
+	"Forage": {
+		trigger: "When you spend a few hours seeking food in the wild, roll +WIS. In winter, you have disadvantage.",
+		results: ["10+: pick 2.", "7-9: pick 1.", "6-: you find nothing, and there is danger or risk."],
+		picksLabel: "Pick:",
+		picks: [
+			"Acquire 4 provisions (1d6 uses)",
+			"Acquire an extra 1d6 uses of provisions",
+			"Discover something interesting or useful",
+			"Avoid danger or risk (else, there is some)",
+		],
+		note: "Provisions can substitute for supplies when you Make Camp, 1-for-1.",
+		roll: "wis",
+	},
+	"Have What You Need": {
+		trigger: "When you decide that you had something all along, transfer a mark (or marks) from your unassigned inventory to a specific item or slot.",
+		fields: [{ name: "item", label: "What you had all along", placeholder: "The item you're revealing…" }],
+		results: [
+			"Mark a slot: fill it with a common mundane item or something from your special possessions.",
+			"Or expend a use of supplies to mark an additional small item/slot.",
+		],
+		note: "It must be something you could plausibly have had all along; the GM or any player can veto unreasonable items.",
+	},
+	"Keep Company": {
+		trigger: "When you spend a stretch of time together, ask the others if they want to Keep Company. If they do, take turns asking a PC or NPC one of the following.",
+		picksLabel: "Ask one another:",
+		picks: [
+			"What do you do that's annoying/endearing?",
+			"What do I do that you find annoying/endearing?",
+			"Who or what seems to be on your mind?",
+			"What do we find ourselves talking about?",
+			"How do you/we pass the time?",
+			"What new thing do you reveal about yourself?",
+		],
+	},
+	"Make Camp": {
+		trigger: "When you settle in to rest in an unsafe area, answer the GM's questions about your campsite. Each member consumes 1 use of supplies or provisions.",
+		results: ["If you eat and drink your fill and get at least a few hours' sleep, pick 1:"],
+		picksLabel: "Pick 1:",
+		picks: [
+			"Regain HP equal to ½ your max (round up)",
+			"Clear a debility",
+		],
+		note: "A mess kit (fire & water) lets 1 use provide for up to four people. If your rest was particularly peaceful, also gain advantage on your next roll.",
+	},
+	"Recover": {
+		trigger: "When you take time to catch your breath and tend to what ails you, expend 1 use of supplies and regain HP equal to 4 + Prosperity.",
+		fields: [{ name: "ailment", label: "What you're tending", placeholder: "Wound or debility…", type: "textarea" }],
+		results: ["You can't gain this benefit again until you take more damage."],
+		note: "When you tend to a debility or problematic wound, say how. The GM will say it's taken care of, or tell you what else is required.",
+	},
+	"Return Triumphant": {
+		trigger: "When you return home in triumph — having saved your fellows, put down the threat, seized the opportunity, etc. — clear one of the steading's debilities (diminished, lacking, or malcontent).",
+		fields: [{ name: "triumph", label: "Your triumph", placeholder: "What did you accomplish?", type: "textarea" }],
+		note: "If the steading has no debilities marked, increase Fortunes by 1 instead.",
+	},
+	"Struggle as One": {
+		trigger: "When you Defy Danger as a group, establish the party's approach and each roll +STAT (per Defy Danger).",
+		fields: [{ name: "approach", label: "Party's approach", placeholder: "How are you facing this danger together?" }],
+		results: [
+			"10+: you do well enough to get someone else out of a spot, if you can tell us how.",
+			"7-9: you pull your weight.",
+			"6-: you find yourself in a spot — the GM will describe it or ask you to.",
+		],
+		note: "If you roll a 6- but someone saves you, don't mark XP.",
+		roll: "ask",
+	},
+};
+
+// Expedition moves that open their own bespoke dialog instead of the generic
+// guided modal. Keyed by move name so the click handler stays a single lookup.
+const EXPEDITION_MOVE_HANDLERS = {
+	Requisition: sheet => sheet._onRequisition(),
+	Outfit:      sheet => sheet._onOutfitOpen(),
 };
 
 /** Canonical HTML for a move chat card. Both `name` and `description` are trusted module HTML. */
@@ -540,6 +633,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				}).join("")
 				: `<li class="stonetop-ledger-empty">No ledger entries yet.</li>`;
 
+			const nounOptions = ledgerNounOptionsHtml(entries);
+
 			const content = `<div class="stonetop-ledger-container">
 				<div class="stonetop-ledger-toolbar">
 					<label class="stonetop-edit-toggle stonetop-ledger-edit-toggle" title="Edit entries">
@@ -555,6 +650,10 @@ export function createStonetopCharacterSheetClass(Base) {
 						<i class="fas fa-trash"></i> Delete
 					</button>
 					<input type="search" class="stonetop-ledger-search" placeholder="Filter entries…">
+					<select class="stonetop-ledger-noun" title="Filter by subject">
+						<option value="">All changes</option>
+						${nounOptions}
+					</select>
 					<select class="stonetop-ledger-sort">
 						<option value="desc">Newest first</option>
 						<option value="asc">Oldest first</option>
@@ -633,21 +732,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						if (ev.target.closest(".stonetop-ledger-row-check")) syncSelectAll();
 					});
 
-					// Cache lowercased text once per entry so the search handler
-					// doesn't re-query the DOM and call toLowerCase on every keystroke.
-					html.find(".stonetop-ledger-entry").each((_, el) => {
-						el._ledgerText = el.querySelector(".stonetop-ledger-entry-main")
-							?.textContent?.toLowerCase() ?? "";
-					});
-
-					html.find(".stonetop-ledger-search").on("input", ev => {
-						const term = ev.currentTarget.value.trim().toLowerCase();
-						html.find(".stonetop-ledger-entry").each((_, el) => {
-							el.hidden = !!term && !el._ledgerText.includes(term);
-						});
-						syncDateHeaders();
-						syncSelectAll();
-					});
+					wireLedgerFilters(html, () => { syncDateHeaders(); syncSelectAll(); });
 
 					html.find(".stonetop-ledger-sort").on("change", ev => {
 						const asc  = ev.currentTarget.value === "asc";
@@ -684,7 +769,8 @@ export function createStonetopCharacterSheetClass(Base) {
 							content: `<p>You're about to delete ${checked.length} entries. Are you sure?</p>`,
 							yes: doDelete,
 							render: keepDialogOnTop,
-						}, { classes: ["dialog", "stonetop-ledger-child"] });
+							options: { classes: ["dialog", "stonetop-ledger-child"] },
+						});
 					});
 				},
 			}, {
@@ -956,14 +1042,22 @@ export function createStonetopCharacterSheetClass(Base) {
 				known:       selected.has(opt.slug),
 				ongoing:     !!opt.ongoing,
 			}));
-			// Sort known invocations first, then alphabetically — mirrors the moves tab's owned-first order.
-			options.sort((a, b) => {
-				if (a.known !== b.known) return a.known ? -1 : 1;
-				return a.label.localeCompare(b.label);
-			});
+			const sort = this.actor.getFlag("stonetop_pwd", "invocationsSort") ?? "known";
+			if (sort === "alpha") {
+				options.sort((a, b) => a.label.localeCompare(b.label));
+			} else {
+				// Known first, then alphabetically — mirrors the moves tab's owned-first order.
+				options.sort((a, b) => {
+					if (a.known !== b.known) return a.known ? -1 : 1;
+					return a.label.localeCompare(b.label);
+				});
+			}
 			return {
 				startingCount: raw.startingCount ?? 2,
 				hideUnknown:   this.actor.getFlag("stonetop_pwd", "hideUnknownInvocations") ?? false,
+				sort,
+				sortKnown:     sort === "known",
+				sortAlpha:     sort === "alpha",
 				options,
 			};
 		}
@@ -1027,6 +1121,25 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			html.find(".stonetop-hide-unknown-invocations-check").on("change", async (ev) => {
 				await this.actor.setFlag('stonetop_pwd', 'hideUnknownInvocations', ev.currentTarget.checked);
+			});
+
+			html.find(".stonetop-invocation-sort").on("change", async (ev) => {
+				await this.actor.setFlag("stonetop_pwd", "invocationsSort", ev.currentTarget.value);
+			});
+
+			// Live text filter over invocation cards (name + description). Client-side
+			// only, mirroring the Ledger search; composes with the hide-un-learned CSS.
+			const invCards = [...html[0].querySelectorAll(".stonetop-invocation-card")];
+			invCards.forEach(card => {
+				const name = card.querySelector(".stonetop-invocation-name")?.textContent ?? "";
+				const desc = card.querySelector(".stonetop-invocation-desc")?.textContent ?? "";
+				card._invText = `${name} ${desc}`.toLowerCase();
+			});
+			html.find(".stonetop-invocation-search").on("input", (ev) => {
+				const term = ev.currentTarget.value.trim().toLowerCase();
+				invCards.forEach(card => {
+					card.hidden = !!term && !card._invText.includes(term);
+				});
 			});
 
 			html.find(".stonetop-roll-mode-input").on("change", async (ev) => {
@@ -1124,6 +1237,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-basic-move-open, .stonetop-expedition-move-open").on("click", async ev => {
 				if (!this.isEditable) return;
 				const li       = ev.currentTarget.closest("li");
+				const moveName = ev.currentTarget.textContent.trim();
+
+				// Expedition moves each do something on click: a bespoke dialog
+				// (Requisition assets, Outfit), a guided step/roll modal, a direct
+				// roll, or — failing those — posting the move text to chat.
+				if (ev.currentTarget.classList.contains("stonetop-expedition-move-open")) {
+					const handler = EXPEDITION_MOVE_HANDLERS[moveName];
+					if (handler) { handler(this); return; }
+					const guide = GUIDED_CHARACTER_MOVES[moveName];
+					if (guide) {
+						this._openGuidedCharacterMove({ name: moveName, guide }, li?.querySelector(".rollable"));
+						return;
+					}
+				}
+
 				const rollable = li?.querySelector(".rollable");
 				if (rollable) { rollable.click(); return; }
 				const { compendiumId } = ev.currentTarget.dataset;
@@ -1258,11 +1386,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-inv-add-btn").on("click", this._onAddInventoryItem.bind(this));
 			html.find(".stonetop-inv-delete").on("click", this._onDeleteCustomInventoryItem.bind(this));
 			html.find(".stonetop-inv-remove-special").on("click", this._onRemoveSpecialItem.bind(this));
-			html.find(".stonetop-outfit-load-radio").on("change", this._onOutfitLoad.bind(this));
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
 			html.find(".stonetop-possession-sub-radio").on("change", this._onPossessionSubRadio.bind(this));
-			html.find(".stonetop-regular-pool-btn").on("change", this._onRegularPool.bind(this));
 			html.find(".stonetop-outfit-open-btn").on("click", this._onOutfitOpen.bind(this));
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
@@ -1755,8 +1881,6 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			this._applyTabOrder(root);
 
-			if (!this._editMode) return;
-
 			let dragSource = null;
 
 			nav.querySelectorAll(".item[data-tab]").forEach(tab => { tab.draggable = true; });
@@ -1941,6 +2065,16 @@ export function createStonetopCharacterSheetClass(Base) {
 				</div>`
 				: "";
 
+			// A guide may roll without an owned item (e.g. expedition moves): `guide.roll`
+			// is a stat key, or "ask" to let the player pick a stat in the dialog.
+			const askStat = !rollable && guide.roll === "ask";
+			const statPickerHtml = askStat
+				? `<label class="stonetop-homestead-field stonetop-guided-stat-pick">
+					<span>Roll with</span>
+					<select name="guidedRollStat">${_STAT_CHOICES.map(([key, label]) => `<option value="${key}">+${label}</option>`).join("")}</select>
+				</label>`
+				: "";
+
 			const buttons = {
 				cancel: { label: "Cancel" },
 				post: {
@@ -1956,19 +2090,29 @@ export function createStonetopCharacterSheetClass(Base) {
 						await this._stonetopCharacter.onRoll({ currentTarget: rollable });
 					},
 				};
+			} else if (guide.roll) {
+				const fixedStat = askStat ? null : guide.roll;
+				buttons.roll = {
+					label: fixedStat ? `Roll +${fixedStat.toUpperCase()}` : "Roll",
+					callback: async html => {
+						await this._postGuidedCharacterMove(name, guide, html);
+						const stat = fixedStat ?? html[0]?.querySelector('[name="guidedRollStat"]')?.value ?? "wis";
+						await this._stonetopCharacter.onDirectStatRoll(stat, { moveName: name });
+					},
+				};
 			}
 
 			new Dialog({
 				title: name,
 				content: `<form class="stonetop-homestead-dialog stonetop-character-move-dialog">
 					<p class="stonetop-homestead-trigger"><em>${_esc(guide.trigger)}</em></p>
-					${fieldsHtml ? `<div class="stonetop-homestead-fields">${fieldsHtml}</div>` : ""}
+					${fieldsHtml || statPickerHtml ? `<div class="stonetop-homestead-fields">${fieldsHtml}${statPickerHtml}</div>` : ""}
 					${resultsHtml}
 					${picksHtml}
 					${guide.note ? `<p class="stonetop-homestead-note">${_esc(guide.note)}</p>` : ""}
 				</form>`,
 				buttons,
-				default: rollable ? "roll" : "post",
+				default: (rollable || guide.roll) ? "roll" : "post",
 				render: keepDialogOnTop,
 			}, { width: 520 }).render(true);
 		}
@@ -2078,15 +2222,16 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onInventoryItemCheck(ev) {
-			const slug      = ev.currentTarget.dataset.slug;
-			const isChecked = ev.currentTarget.checked;
-			await this._stonetopCharacter.setInventoryItemChecked(slug, isChecked);
-			if (ev.currentTarget.closest(".stonetop-inventory-small")) {
-				await this._stonetopCharacter.adjustSmallPool(isChecked);
-			} else if (ev.currentTarget.closest(".stonetop-inventory-regular")) {
-				const weight = Number(ev.currentTarget.dataset.weight ?? 1);
-				await this._stonetopCharacter.adjustRegularPool(isChecked, weight);
-			}
+			// Have What You Need: marking an item pulls marks from the undefined pool
+			// (its weight, or 1 for a small item); un-marking returns them. The load
+			// total is fixed at Outfit, so a mark must be available to define an item.
+			const el = ev.currentTarget;
+			if (!el.dataset.slug) return; // ignore the slug-less undefined-pool diamonds
+			const ok = await this._stonetopCharacter.toggleCarriedItem(el.dataset.slug, el.checked, {
+				small:  !!el.closest(".stonetop-inventory-small"),
+				weight: Number(el.dataset.weight ?? 1),
+			});
+			if (!ok) ui.notifications.warn(game.i18n.localize("stonetop.inventory.notEnoughUndefined"));
 			this.render(false);
 		}
 
@@ -2133,26 +2278,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			}).render(true);
 		}
 
-		async _onOutfitLoad(ev) {
-			await this._stonetopCharacter.setInventoryLoadLevel(ev.currentTarget.value);
-			this.render(false);
-		}
-
-		async _onRegularPool(ev) {
-			const idx = Number(ev.currentTarget.dataset.index);
-			await this._stonetopCharacter.setInventoryRegularPool(
-				ev.currentTarget.checked ? idx + 1 : idx
-			);
-			this.render(false);
-		}
-
-		async _onSmallPool(ev) {
-			const idx = Number(ev.currentTarget.dataset.index);
-			await this._stonetopCharacter.setInventorySmallPool(
-				ev.currentTarget.checked ? idx + 1 : idx
-			);
-			this.render(false);
-		}
 
 		async _onDeleteCustomInventoryItem(ev) {
 			await this._stonetopCharacter.removeCustomInventoryItem(ev.currentTarget.dataset.ownedId);
@@ -2172,6 +2297,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				render: keepDialogOnTop,
 			});
+		}
+
+		_onRequisition() {
+			const steading = this._stonetopCharacter?.getSteadingActor();
+			if (!steading) {
+				ui.notifications.warn("This character isn't linked to a steading.");
+				return;
+			}
+			new RequisitionDialog(
+				this._stonetopCharacter,
+				this.actor,
+				steading,
+				() => this.render(false),
+			).render(true);
 		}
 
 		async _onOutfitOpen() {

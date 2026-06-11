@@ -234,3 +234,50 @@ describe("StonetopCharacter.buildInventoryContext", () => {
 		expect(ctx.smallGridItems[0].slug).toBe("b");
 	});
 });
+
+// -- StonetopCharacter.toggleCarriedItem (Have What You Need) ------------------
+
+describe("StonetopCharacter.toggleCarriedItem", () => {
+	function makeChar(actor) {
+		return new TestCharacterBuilder(actor)
+			.withPlaybookRepo(null)
+			.withMoveRepo(null)
+			.withInventoryRepo(new FakeInventoryRepository([]))
+			.build();
+	}
+
+	it("marks an item by moving its weight out of the undefined ◇ pool", async () => {
+		const actor = new FakeActorBuilder().withFlag("inventory.regularPool", 3).build();
+		const ok = await makeChar(actor).toggleCarriedItem("rope", true, { weight: 2 });
+		expect(ok).toBe(true);
+		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toEqual({ rope: true });
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(1);
+	});
+
+	it("refuses to mark an item when the undefined pool can't cover its weight", async () => {
+		const actor = new FakeActorBuilder().withFlag("inventory.regularPool", 1).build();
+		const ok = await makeChar(actor).toggleCarriedItem("armor", true, { weight: 3 });
+		expect(ok).toBe(false);
+		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toBeNull();
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(1);
+	});
+
+	it("un-marking an item returns its weight to the undefined pool", async () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.regularPool", 1)
+			.withFlag("inventory.checked", { rope: true })
+			.build();
+		const ok = await makeChar(actor).toggleCarriedItem("rope", false, { weight: 2 });
+		expect(ok).toBe(true);
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(3);
+	});
+
+	it("small items move a single □ to and from the small pool", async () => {
+		const actor = new FakeActorBuilder().withFlag("inventory.smallPool", 2).build();
+		const char = makeChar(actor);
+		await char.toggleCarriedItem("flint", true, { small: true });
+		expect(actor.getFlag("stonetop_pwd", "inventory.smallPool")).toBe(1);
+		await char.toggleCarriedItem("flint", false, { small: true });
+		expect(actor.getFlag("stonetop_pwd", "inventory.smallPool")).toBe(2);
+	});
+});

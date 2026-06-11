@@ -6,10 +6,17 @@
 	</div>
 	{{/if}}
 
-	<label class="stonetop-hide-unselected-label">
-		<input type="checkbox" class="stonetop-hide-unknown-invocations-check"{{#if stonetop.invocations.hideUnknown}} checked{{/if}}>
-		Hide un-learned invocations
-	</label>
+	<div class="stonetop-invocations-toolbar">
+		<input type="search" class="stonetop-invocation-search" placeholder="Filter invocations…">
+		<select class="stonetop-invocation-sort">
+			<option value="known"{{#if stonetop.invocations.sortKnown}} selected{{/if}}>Known first</option>
+			<option value="alpha"{{#if stonetop.invocations.sortAlpha}} selected{{/if}}>A–Z</option>
+		</select>
+		<label class="stonetop-hide-unselected-label">
+			<input type="checkbox" class="stonetop-hide-unknown-invocations-check"{{#if stonetop.invocations.hideUnknown}} checked{{/if}}>
+			Hide un-learned invocations
+		</label>
+	</div>
 
 	<div class="stonetop-invocations-grid">
 		{{#each stonetop.invocations.options}}

@@ -28,6 +28,9 @@ export async function ensureStonetopSingleton() {
 		name: _STEADING_ACTOR_NAME,
 		type: _STEADING_ACTOR_TYPE,
 		img: _STEADING_ACTOR_IMG,
+		// The steading is shared: every player owns it so they can edit it directly
+		// (e.g. requisitioning assets, tracking Fortunes) without GM relaying.
+		ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER },
 		prototypeToken: {
 			texture: { src: _STEADING_ACTOR_IMG },
 		},
@@ -115,6 +118,10 @@ async function _ensureStartingValues(actor) {
 	}
 	if (_shouldReplaceSteadingImg(actor.img)) updates.img = _STEADING_ACTOR_IMG;
 	if (_shouldReplaceSteadingImg(actor.prototypeToken?.texture?.src)) updates["prototypeToken.texture.src"] = _STEADING_ACTOR_IMG;
+	// Keep the shared steading owned by all players (preserves any per-user overrides).
+	if (actor.ownership?.default !== CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) {
+		updates["ownership.default"] = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+	}
 	if (Object.keys(updates).length) await actor.update(updates);
 }
 

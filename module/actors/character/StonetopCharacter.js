@@ -470,27 +470,15 @@ export class StonetopCharacter {
 			])
 			.build();
 
-		// When a Stonetop steading exists, the small pool is derived from how many
-		// small items are currently selected, so it always stays in sync automatically.
 		const addedSmall = addedSpecial.filter(i => i.inventoryColumn === "small");
-		const smallItemSlugs = new Set([
-			...allSmall.map(i => i.slug),
-			...addedSmall.map(i => i.slug),
-			...customItems.filter(i => i.system.inventoryColumn === "small").map(i => i._id),
-			...arcanaItems.filter(i => i.inventoryColumn === "small").map(i => i.slug),
-		]);
+		// The undefined ◇/□ pools are set when the player Outfits and are read-only
+		// (decrement-only) afterwards, so display the stored counts directly rather
+		// than deriving "remaining capacity" from checked items.
 		const smallPoolMax     = smallItemLimit ?? 9;
-		const smallPoolCurrent = smallItemLimit !== null
-			? Math.max(0, smallItemLimit - [...smallItemSlugs].filter(s => !!checked[s]).length)
-			: sPool;
+		const smallPoolCurrent = Math.min(sPool, smallPoolMax);
 
-		const regularPoolMax = LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy;
-		const checkedRegularWeight = flatRegular
-			.filter(item => item.checked)
-			.reduce((sum, item) => sum + (item.weight ?? 0), 0);
-		const regularPoolCurrent = Math.max(0, regularPoolMax - checkedRegularWeight);
-		const regularPoolEmpty = regularPoolCurrent === 0;
-		flatRegular.forEach(item => { item.disabled = !item.checked && regularPoolEmpty; });
+		const regularPoolMax     = LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy;
+		const regularPoolCurrent = Math.min(rPool, regularPoolMax);
 
 		const smallItems = [
 			...allSmall.filter(i => !i.smallGrid).map(mapItem),
@@ -499,8 +487,6 @@ export class StonetopCharacter {
 			...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
 		];
 		const smallGridItems = allSmall.filter(i => i.smallGrid).map(mapItem);
-		const smallPoolEmpty = smallPoolCurrent === 0;
-		[...smallItems, ...smallGridItems].forEach(item => { item.disabled = !item.checked && smallPoolEmpty; });
 
 		const outfit = new OutfitSnapshotBuilder()
 			.withLoad(load)
@@ -681,31 +667,39 @@ export class StonetopCharacter {
 		return isNaN(prosperity) ? null : 4 + prosperity;
 	}
 
-	async adjustSmallPool(isChecked) {
-		const limit = this.getSmallItemLimit();
-		if (limit === null) return;
-		const current = this._inventory.smallPool;
-		const next = isChecked
-			? Math.max(0, current - 1)
-			: Math.min(limit, current + 1);
-		await this._inventory.setSmallPool(next);
+	/**
+	 * Have What You Need (one-click): marking a specific item on the Inventory tab
+	 * moves marks out of the undefined pool onto it; un-marking returns them. The
+	 * total load is fixed at Outfit, so checking + undefined stays constant.
+	 *
+	 * @param {string}  slug
+	 * @param {boolean} isChecked  Whether the item is now carried.
+	 * @param {object}  opts
+	 * @param {boolean} [opts.small]   Small item (□, costs 1) vs regular item (◇, costs its weight).
+	 * @param {number}  [opts.weight]  Regular item weight (◇ to move).
+	 * @returns {Promise<boolean>}  False if there aren't enough undefined marks to define the item.
+	 */
+	async toggleCarriedItem(slug, isChecked, { small = false, weight = 1 } = {}) {
+		const cost = small ? 1 : Math.max(0, weight);
+		const pool = small ? this._inventory.smallPool : this._inventory.regularPool;
+		if (isChecked && cost > pool) return false;
+		await this._inventory.setItemChecked(slug, isChecked);
+		const next = isChecked ? pool - cost : pool + cost;
+		if (small) await this._inventory.setSmallPool(next);
+		else       await this._inventory.setRegularPool(next);
+		return true;
 	}
 
-	async adjustRegularPool(isChecked, weight) {
-		const loadLevel = this._inventory.loadLevel;
-		if (!loadLevel) return;
-		const limit   = LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy;
-		const current = this._inventory.regularPool;
-		const next    = isChecked
-			? Math.max(0, current - weight)
-			: Math.min(limit, current + weight);
-		await this._inventory.setRegularPool(next);
-	}
-
-	async applyOutfit(checkedMap, loadLevel) {
+	// The Outfit move is the only place the load level and the "undefined" ◇/□
+	// pools are set — the player decides their load and how many marks to reserve
+	// as undefined. On the Inventory tab those pools are read-only (decrement-only,
+	// for Have What You Need); they're never increased outside Outfit.
+	async applyOutfit(checkedMap, loadLevel, regularPool = 0, smallPool = 0) {
 		await Promise.all([
 			this._inventory.setAllChecked(checkedMap),
 			this._inventory.setLoadLevel(loadLevel),
+			this._inventory.setRegularPool(regularPool),
+			this._inventory.setSmallPool(smallPool),
 		]);
 	}
 

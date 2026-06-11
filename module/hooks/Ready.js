@@ -3,19 +3,25 @@ import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingl
 import { applySheetFont, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
+import { rollDieOfFate } from "../utils/die-of-fate.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
-const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/end-of-session.png";
+const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
 const _EOS_MACRO_SCRIPT = "game.stonetop?.openEndOfSession?.()";
 const _EOS_HOTBAR_SLOT  = 10;
 
 const _INTRO_MACRO_NAME   = "Character Introductions";
-const _INTRO_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/introductions.webp";
+const _INTRO_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/introductions.svg";
 const _INTRO_MACRO_SCRIPT = `\
 const w = Object.values(ui.windows).find(w => w.id === "stonetop-introductions");
 if (w?.rendered) { w.bringToTop(); return; }
 game.stonetop?.openIntroductions?.();`;
 const _INTRO_HOTBAR_SLOT  = 1;
+
+const _FATE_MACRO_NAME   = "Die of Fate";
+const _FATE_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg";
+const _FATE_MACRO_SCRIPT = "game.stonetop?.rollDieOfFate?.()";
+const _FATE_HOTBAR_SLOT  = 2;
 
 export async function onReady() {
 	applySheetFont(getSetting("sheetFont"));
@@ -26,9 +32,11 @@ export async function onReady() {
 	game.stonetop ??= {};
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
 	game.stonetop.openIntroductions = () => new IntroductionsDialog().render(true);
+	game.stonetop.rollDieOfFate     = rollDieOfFate;
 
 	if (game.user.isGM) await _ensureEndOfSessionMacro();
 	if (game.user.isGM) await _ensureIntroductionsMacro();
+	if (game.user.isGM) await _ensureDieOfFateMacro();
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
 	if (game.user.isGM) await remindDestinedOmenRoll();
 }
@@ -43,6 +51,8 @@ async function _ensureEndOfSessionMacro() {
 			command: _EOS_MACRO_SCRIPT,
 			scope:   "global",
 		});
+	} else if (macro.img !== _EOS_MACRO_IMG) {
+		await macro.update({ img: _EOS_MACRO_IMG });
 	}
 
 	const alreadySlotted = Object.entries(game.user.hotbar).some(([, id]) => id === macro.id);
@@ -68,6 +78,26 @@ async function _ensureIntroductionsMacro() {
 	const alreadySlotted = Object.entries(game.user.hotbar).some(([, id]) => id === macro.id);
 	if (!alreadySlotted) {
 		await game.user.assignHotbarMacro(macro, _INTRO_HOTBAR_SLOT);
+	}
+}
+
+async function _ensureDieOfFateMacro() {
+	let macro = game.macros.find(m => m.name === _FATE_MACRO_NAME);
+	if (!macro) {
+		macro = await Macro.create({
+			name:    _FATE_MACRO_NAME,
+			type:    "script",
+			img:     _FATE_MACRO_IMG,
+			command: _FATE_MACRO_SCRIPT,
+			scope:   "global",
+		});
+	} else if (macro.img !== _FATE_MACRO_IMG) {
+		await macro.update({ img: _FATE_MACRO_IMG });
+	}
+
+	const alreadySlotted = Object.entries(game.user.hotbar).some(([, id]) => id === macro.id);
+	if (!alreadySlotted) {
+		await game.user.assignHotbarMacro(macro, _FATE_HOTBAR_SLOT);
 	}
 }
 

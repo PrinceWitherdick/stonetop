@@ -496,6 +496,38 @@ export class StonetopSteading {
 		return Number(this.getSystemValue(`stats.${statKey}.value`, statDefaults[statKey] ?? 0));
 	}
 
+	/** Named assets that are currently on hand (have a name and are not out on requisition). */
+	getAvailableAssets() {
+		const assets = this._flags.assets ?? STEADING_DEFAULTS.assets;
+		return assets
+			.map((asset, index) => ({ ...asset, index }))
+			.filter(asset => asset.name && !asset.takenBy);
+	}
+
+	/**
+	 * Mark an asset as requisitioned (taken out on an expedition): uncheck it and
+	 * record who took it. Returns false if the index is out of range.
+	 * @param {number} index
+	 * @param {{name: string, id: string}} takenBy
+	 */
+	async setAssetTaken(index, takenBy) {
+		const assets = foundry.utils.deepClone(this._flags.assets ?? STEADING_DEFAULTS.assets);
+		if (!assets[index]?.name) return false;
+		assets[index] = { ...assets[index], checked: false, takenBy };
+		await this.setFlags({ assets });
+		return true;
+	}
+
+	/** Return a requisitioned asset to the steading: re-check it and clear the taken-by note. */
+	async returnAsset(index) {
+		const assets = foundry.utils.deepClone(this._flags.assets ?? STEADING_DEFAULTS.assets);
+		if (!assets[index]) return false;
+		const { takenBy, ...rest } = assets[index];
+		assets[index] = { ...rest, checked: true };
+		await this.setFlags({ assets });
+		return true;
+	}
+
 	async buildSnapshot() {
 		const f = this._flags;
 		const storedImps = f.improvements ?? {};
