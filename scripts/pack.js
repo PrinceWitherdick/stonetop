@@ -20,7 +20,37 @@ function slugToLabel(slug) {
 // - folderType:    "Item" | "JournalEntry" — written into folder docs
 // - rootFoldersDir: the single _folders/ dir at the top of this pack (all
 //                   folder docs live there regardless of nesting depth)
-async function ensureFolders(srcDir, parentId = null, folderType = "Item", rootFoldersDir = null) {
+// Folder docs whose slug matches no directory anywhere in the pack are "virtual"
+// grouping folders — a parent category authored purely in the folder docs (e.g.
+// regions nested under a "Regions" category that has no directory of its own).
+// `ensureFolders` must not reparent a real folder back to root just because its
+// category has no matching directory. Returns the set of such folder _ids.
+async function collectVirtualFolderIds(src) {
+	const foldersDir = path.join(src, "_folders");
+	let files;
+	try { files = await fs.readdir(foldersDir); } catch { return new Set(); }
+
+	const dirNames = new Set();
+	async function walkDirs(dir) {
+		for (const e of await fs.readdir(dir, { withFileTypes: true })) {
+			if (!e.isDirectory() || e.name.startsWith("_")) continue;
+			dirNames.add(e.name);
+			await walkDirs(path.join(dir, e.name));
+		}
+	}
+	await walkDirs(src);
+
+	const virtual = new Set();
+	for (const f of files) {
+		if (!f.endsWith(".json")) continue;
+		if (dirNames.has(f.slice(0, -5))) continue; // directory-backed
+		const doc = JSON.parse(await fs.readFile(path.join(foldersDir, f), "utf8"));
+		virtual.add(doc._id);
+	}
+	return virtual;
+}
+
+async function ensureFolders(srcDir, parentId = null, folderType = "Item", rootFoldersDir = null, virtualFolderIds = new Set()) {
 	if (!rootFoldersDir) rootFoldersDir = path.join(srcDir, "_folders");
 
 	const entries = await fs.readdir(srcDir, { withFileTypes: true });
@@ -54,8 +84,11 @@ async function ensureFolders(srcDir, parentId = null, folderType = "Item", rootF
 			console.log(`  Created folder: ${folderDoc.name}`);
 		}
 
-		// Sync parent reference.
-		if (folderDoc.folder !== (parentId ?? null)) {
+		// Sync parent reference — but don't clobber a parent that points at a
+		// virtual grouping folder (a category authored in the folder docs, with no
+		// directory of its own).
+		const parentIsVirtual = folderDoc.folder && virtualFolderIds.has(folderDoc.folder);
+		if (!parentIsVirtual && folderDoc.folder !== (parentId ?? null)) {
 			folderDoc.folder = parentId ?? null;
 		}
 		await fs.writeFile(folderFile, JSON.stringify(folderDoc, null, 2));
@@ -67,7 +100,7 @@ async function ensureFolders(srcDir, parentId = null, folderType = "Item", rootF
 
 		if (subSubdirs.length > 0) {
 			// Nested pack — recurse; sub-folder docs live in the same rootFoldersDir.
-			await ensureFolders(subDirPath, folderId, folderType, rootFoldersDir);
+			await ensureFolders(subDirPath, folderId, folderType, rootFoldersDir, virtualFolderIds);
 		} else {
 			// Flat — assign every item doc to this folder.
 			const files = subEntries.filter(e => !e.isDirectory() && e.name.endsWith(".json"));
@@ -137,7 +170,8 @@ async function main() {
 			console.log(`Skipping ${pack} — no source directory at ${src}`);
 			continue;
 		}
-		await ensureFolders(src, null, packType);
+		const virtualFolderIds = await collectVirtualFolderIds(src);
+		await ensureFolders(src, null, packType, null, virtualFolderIds);
 		await ensureIds(src, DOC_KEY_PREFIX[packType] ?? "items");
 		const dest = `packs/${pack}`;
 		await fs.rm(dest, { recursive: true, force: true });

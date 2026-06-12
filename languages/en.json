@@ -267,6 +267,7 @@
       "noMoves": "No moves yet.",
       "tabs": {
         "moves": "Moves",
+        "description": "Description",
         "notes": "Notes"
       }
     },

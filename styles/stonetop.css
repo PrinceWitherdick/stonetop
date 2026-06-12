@@ -437,6 +437,18 @@ body,
 	box-sizing: border-box;
 }
 
+/* Read-only HP max outside edit mode: matches the value input's box metrics so
+   the "value / max" pair stays aligned, but reads as static text (no border). */
+.stonetop-monster-hp-max-readonly {
+	display: block;
+	width: 100%;
+	text-align: center;
+	border: 1px solid transparent;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
+	padding: 2px 8px;
+	box-sizing: border-box;
+}
+
 .sheet-attributes-top .cell--Resource .cell__separator {
 	flex-shrink: 0;
 	font-size: calc(1.1rem * var(--stonetop-font-scale, 1));
@@ -9832,13 +9844,38 @@ li.question-bullet {
 	font-family: var(--font-stonetop);
 }
 
-/* The lone stat-block sheet isn't tabbed (unlike the Bestiary Entry), so drop
-   the tab-style horizontal inset and align its sections — Special Qualities,
-   Moves, etc. — flush with the stat lines (Instinct, Type) above. */
+/* Drop the tab-style horizontal inset so the stat-block sections — Special
+   Qualities, Moves, etc. — align flush with the stat lines (Instinct, Type) above. */
 .stonetop-monster-sheet .stonetop-monster-body {
 	padding-left: 0;
 	padding-right: 0;
 }
+
+/* The stat-block sheet shows its core (Special Qualities, Moves, Combat) above a
+   Description / Notes tab strip. The whole sheet-main scrolls as one unit, so a
+   tall stat block (lots of moves, the Combat abstraction block) can never push the
+   tabs — and the tab content — off-screen where they can't be reached. */
+.stonetop-monster-sheet .stonetop-monster-main {
+	overflow-y: auto;
+	scrollbar-width: thin;
+}
+
+.stonetop-monster-sheet .stonetop-monster-core,
+.stonetop-monster-sheet .stonetop-monster-tab-body {
+	flex: 0 0 auto;
+	overflow: visible;
+}
+
+/* Align the tab nav flush with the zeroed body padding. */
+.stonetop-monster-sheet .sheet-tabs {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+/* Explicit show/hide pairing — keeps the Description/Notes panels from bleeding
+   into each other under Foundry V13 cascade layers (see unlayered-tab note). */
+.stonetop-monster-sheet .stonetop-monster-tab-body > .tab { display: none; }
+.stonetop-monster-sheet .stonetop-monster-tab-body > .tab.active { display: block; }
 
 .stonetop-monster-grid {
 	display: grid;
@@ -9855,9 +9892,11 @@ li.question-bullet {
 	margin: 0;
 }
 
-/* Breathing room between the stacked sections on the stat-block sheet
-   (Special Qualities, Moves, Combat, Notes). */
-.stonetop-monster-sheet .stonetop-monster-body > .stonetop-monster-field + .stonetop-monster-field {
+/* Breathing room between the stacked sections on the stat-block sheet — both the
+   always-visible core (Special Qualities, Moves, Combat) and the stacked sections
+   inside a tab panel (Description + codex flavor). */
+.stonetop-monster-sheet .stonetop-monster-body > .stonetop-monster-field + .stonetop-monster-field,
+.stonetop-monster-sheet .stonetop-monster-tab-body > .tab > .stonetop-monster-field + .stonetop-monster-field {
 	margin-top: 24px;
 }
 

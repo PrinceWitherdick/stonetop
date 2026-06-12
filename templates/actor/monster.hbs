@@ -32,9 +32,13 @@
 										</span>
 										<span class="cell__separator">/</span>
 										<span class="cell__max">
+											{{#if stonetop.editMode}}
 											<input class="attr-max" type="number"
 											       name="system.attributes.hp.max"
 											       value="{{system.attributes.hp.max}}" min="0">
+											{{else}}
+											<span class="attr-max stonetop-monster-hp-max-readonly">{{system.attributes.hp.max}}</span>
+											{{/if}}
 										</span>
 									</div>
 								</div>
@@ -138,20 +142,9 @@
 		</section>
 
 		<section class="sheet-main flexcol stonetop-monster-main">
-			<section class="sheet-body stonetop-monster-body">
 
-				{{!-- Description (codex flavor) --}}
-				{{#if stonetop.show.description}}
-				<section class="stonetop-monster-field stonetop-monster-field--full">
-					{{> "stonetop.section-heading" title=(localize "stonetop.bestiary.description")}}
-					{{#if stonetop.editMode}}
-					<prose-mirror class="stonetop-entry-rich-editor stonetop-monster-rich-editor--full"
-					              data-field="description" toggled>{{{stonetop.enrichedDescription}}}</prose-mirror>
-					{{else}}
-					<div class="stonetop-monster-readonly-text stonetop-monster-rich-text">{{{stonetop.enrichedDescription}}}</div>
-					{{/if}}
-				</section>
-				{{/if}}
+			{{!-- Core stat block — Special Qualities, Moves, Combat stay visible above the tabs --}}
+			<section class="stonetop-monster-body stonetop-monster-core">
 
 				<section class="stonetop-monster-field stonetop-monster-field--full">
 					{{> "stonetop.section-heading" title=(localize "stonetop.monster.qualities")}}
@@ -246,6 +239,31 @@
 					</div>
 					{{/if}}
 				</section>
+
+			</section>
+
+			<nav class="sheet-tabs tabs" data-group="primary">
+				<a class="item" data-tab="description">{{localize "stonetop.monster.tabs.description"}}</a>
+				<a class="item" data-tab="notes">{{localize "stonetop.monster.tabs.notes"}}</a>
+			</nav>
+
+			<section class="sheet-body stonetop-monster-body stonetop-monster-tab-body">
+
+				{{!-- DESCRIPTION TAB: narrative + codex flavor --}}
+				<div class="tab" data-tab="description">
+
+				{{!-- Description (codex flavor) --}}
+				{{#if stonetop.show.description}}
+				<section class="stonetop-monster-field stonetop-monster-field--full">
+					{{> "stonetop.section-heading" title=(localize "stonetop.bestiary.description")}}
+					{{#if stonetop.editMode}}
+					<prose-mirror class="stonetop-entry-rich-editor stonetop-monster-rich-editor--full"
+					              data-field="description" toggled>{{{stonetop.enrichedDescription}}}</prose-mirror>
+					{{else}}
+					<div class="stonetop-monster-readonly-text stonetop-monster-rich-text">{{{stonetop.enrichedDescription}}}</div>
+					{{/if}}
+				</section>
+				{{/if}}
 
 				{{!-- Codex: Questions & Lore --}}
 				{{#each stonetop.qaSections}}
@@ -360,15 +378,19 @@
 				</section>
 				{{/if}}
 
-				{{!-- Notes --}}
-				<section class="stonetop-monster-field stonetop-monster-field--full">
-					{{> "stonetop.section-heading" title=(localize "stonetop.monster.notes")}}
-					{{#if stonetop.editMode}}
-					<textarea name="system.notes">{{system.notes}}</textarea>
-					{{else}}
-					<div class="stonetop-monster-readonly-text">{{system.notes}}</div>
-					{{/if}}
-				</section>
+				</div>{{!-- /description tab --}}
+
+				{{!-- NOTES TAB --}}
+				<div class="tab" data-tab="notes">
+					<section class="stonetop-monster-field stonetop-monster-field--full">
+						{{> "stonetop.section-heading" title=(localize "stonetop.monster.notes")}}
+						{{#if stonetop.editMode}}
+						<textarea name="system.notes">{{system.notes}}</textarea>
+						{{else}}
+						<div class="stonetop-monster-readonly-text">{{system.notes}}</div>
+						{{/if}}
+					</section>
+				</div>{{!-- /notes tab --}}
 
 			</section>
 		</section>

@@ -59,6 +59,7 @@ export function createStonetopMonsterSheetClass(Base) {
 				classes: ["stonetop", "sheet", "actor", "monster"],
 				width:   760,
 				height:  720,
+				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".stonetop-monster-tab-body", initial: "description" }],
 			});
 		}
 

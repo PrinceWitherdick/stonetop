@@ -49,7 +49,7 @@
   },
   "items": [
     {
-      "_id": "0Y7K5fij2Bk6eZqj",
+      "_id": "uTiXcFoB3f8L7x5h",
       "name": "Whisper their longings to the wearer",
       "type": "monsterMove",
       "img": "icons/svg/sword.svg",
@@ -57,10 +57,10 @@
         "description": "",
         "rollFormula": ""
       },
-      "_key": "!actors.items!cJQVY6LG7CC2BhzM.0Y7K5fij2Bk6eZqj"
+      "_key": "!actors.items!usjzCbvuSsDykZeY.uTiXcFoB3f8L7x5h"
     },
     {
-      "_id": "fOYv9fXLmAhSZZXZ",
+      "_id": "b4widmymXQDHGCCM",
       "name": "Manifest a form of shadow and cold (harmed only by silver and salt)",
       "type": "monsterMove",
       "img": "icons/magic/water/snowflake-ice-blue.webp",
@@ -68,10 +68,10 @@
         "description": "",
         "rollFormula": ""
       },
-      "_key": "!actors.items!cJQVY6LG7CC2BhzM.fOYv9fXLmAhSZZXZ"
+      "_key": "!actors.items!usjzCbvuSsDykZeY.b4widmymXQDHGCCM"
     },
     {
-      "_id": "SUjiaQH9cHrYb83y",
+      "_id": "EVItoTbZ5imAN0Ot",
       "name": "Hurl themselves at the living",
       "type": "monsterMove",
       "img": "icons/skills/ranged/target-bullseye-arrow-blue.webp",
@@ -79,10 +79,10 @@
         "description": "",
         "rollFormula": ""
       },
-      "_key": "!actors.items!cJQVY6LG7CC2BhzM.SUjiaQH9cHrYb83y"
+      "_key": "!actors.items!usjzCbvuSsDykZeY.EVItoTbZ5imAN0Ot"
     },
     {
-      "_id": "3si6gE5iAT6RFPUf",
+      "_id": "ZSIWUBU3dUaw55Rj",
       "name": "Suck the vitality from their prey",
       "type": "monsterMove",
       "img": "icons/svg/sword.svg",
@@ -90,12 +90,12 @@
         "description": "",
         "rollFormula": ""
       },
-      "_key": "!actors.items!cJQVY6LG7CC2BhzM.3si6gE5iAT6RFPUf"
+      "_key": "!actors.items!usjzCbvuSsDykZeY.ZSIWUBU3dUaw55Rj"
     }
   ],
   "effects": [],
   "flags": {},
-  "folder": "YA9M91yI1egeR0ye",
-  "_id": "cJQVY6LG7CC2BhzM",
-  "_key": "!actors!cJQVY6LG7CC2BhzM"
+  "folder": "EFgcYyVfAWu3kPtb",
+  "_id": "usjzCbvuSsDykZeY",
+  "_key": "!actors!usjzCbvuSsDykZeY"
 }
