@@ -9,6 +9,7 @@ import { createStonetopBestiaryEntrySheetClass } from "./module/actors/bestiary/
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
+import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
@@ -176,6 +177,16 @@ Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDesc
 
 // -- RENDER ACTOR SHEET ----------------------------------------
 Hooks.on("renderActorSheet", onRenderActorSheet);
+
+// -- LOCATION CROSS-LINK TOOLTIPS ------------------------------
+// Give cross-links into the Locations pack a useful hover summary instead of the
+// default "Journal Entry". Covers the journal sheet/page render hooks across
+// Foundry v12–v14; the index warms on ready so the first hover is instant.
+Hooks.once("ready", () => ensureLocationSummaryIndex());
+const _applyLocTips = (_app, html) => applyLocationTooltips(html);
+for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJournalPageSheet", "renderJournalEntryPageSheet"]) {
+	Hooks.on(hook, _applyLocTips);
+}
 
 // -- BESTIARY CROSS-LINK INDEX ---------------------------------
 // Drop the cached creature name index when a world monster/entry is added,

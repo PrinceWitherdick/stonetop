@@ -62,6 +62,12 @@
                       "path":  "packs/stonetop-bestiary",
                       "type":  "Actor",
                       "system":  "stonetop_pwd"
+                  },
+                  {
+                      "name":  "stonetop-locations",
+                      "label":  "Stonetop Locations",
+                      "path":  "packs/stonetop-locations",
+                      "type":  "JournalEntry"
                   }
               ],
     "primaryTokenAttribute":  "attributes.hp",

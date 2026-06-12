@@ -1,0 +1,157 @@
+{
+  "_id": "o7qpevFfrKXuVlGo",
+  "_key": "!journal!o7qpevFfrKXuVlGo",
+  "name": "Red Groves",
+  "ownership": {
+    "default": 0
+  },
+  "flags": {
+    "stonetop": {
+      "summary": "Half a day east of Stonetop is a copse of trees that turn blood red (leaves, bark, and all) at the autumnal equinox."
+    }
+  },
+  "folder": "pPuBkcyvgk4zjCYl",
+  "sort": 26000,
+  "pages": [
+    {
+      "_id": "arnKHBq91bZ8TBXl",
+      "_key": "!journal.pages!o7qpevFfrKXuVlGo.arnKHBq91bZ8TBXl",
+      "name": "Overview",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Half a day east of @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop} is a copse of trees that turn blood red (leaves, bark, and all) at the autumnal equinox. By spring, the color has returned to normal. The Forest Folk warned the villagers to avoid this place. They never said why.</p><ul><li>An iron tang in the air</li><li>The scrutiny of the forest upon you, heavy like a blanket</li><li>Words of warning, faintly heard in the breeze, in the rustling leaves, in the insect hum and birdsong.</li><li>Spring/Summer: bright green shoots/ leaves bursting from black bark and mud</li><li>Autumn/Winter: overwhelming, glossy red</li></ul><p>Tip: faintly whisper things like “turn back” or “not welcome” or “go away” and then pretend you didn’t say anything</p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "1TBSdm6rHD3nX033",
+      "_key": "!journal.pages!o7qpevFfrKXuVlGo.1TBSdm6rHD3nX033",
+      "name": "Lore",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Something interesting: A dozen such groves dot @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6kt1b8ozEREDCi4k]{the Great Wood}. Some redden in the fall, others in spring. Some, like the one near @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}, are large and old; others are just a few young trees.</p><p>Something useful: When you enter a red grove, you draw the forest’s wrath unless…</p><ul><li>… you come naked and empty handed, having been ritually purified; … you bear a dying spirit, wishing to pass on; or … you are cloaked in subtle magic.</li></ul><p>Redwood serves as a conduit for spirits of the wild. Some of the Forest Folks’ most powerful totems are made of redwood. Alas, harvesting redwood without the permission of the forest spirits is sure to draw their primal, relentless ire.</p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "nMNV27NJQ0vsuDcF",
+      "_key": "!journal.pages!o7qpevFfrKXuVlGo.nMNV27NJQ0vsuDcF",
+      "name": "Why are they so special?",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>That’s for you to decide. Maybe...</p><ul><li>… they are where spirits of the wild are born and where they come to die; … they each imprison some terrible evil; … they each mark the grave of a champion of Danu; or … it’s different for each grove.</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 300000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "eLR32IRnsG23gdSV",
+      "_key": "!journal.pages!o7qpevFfrKXuVlGo.eLR32IRnsG23gdSV",
+      "name": "Hooks",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><ul><li>A dying glasbren seeks a mortal to convey her to the Red Grove.</li><li>The Red Grove is corrupted by the Things Below. Its spirits are confused and unwell, and the Grove will soon start spawning horrors.</li><li>A villager steals a branch of redwood, and is cursed with the forest’s wrath.</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 400000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "1TJhv0YgJ3AmRyBY",
+      "_key": "!journal.pages!o7qpevFfrKXuVlGo.1TJhv0YgJ3AmRyBY",
+      "name": "Inhabitants",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Any spirit of the wild might be found here, but each grove hosts at least a few brennauwed and is protected by coedwaig. Butcherbirds frequent the Groves while they are red.</p><ul><li>The Forest's Wrath</li><li>Threat (affliction) Instinct to punish the perpetrator and those who protect them</li></ul><p>The greater the transgression, the more quickly the curse escalates and the greater the penance required.</p><ul><li>Nightmares, ire from beasts and birds, plants tend to wither and die</li><li>Friends and family are affected, too; birds and small beasts harass them in town</li><li>The whole village is affected; sleep is scarce, nerves frayed, the Wood is hostile</li><li>Saplings sprout in town overnight, or when folk aren’t looking</li><li>Impending doom: Crops fail, livestock revolt, homes collapse, the granary rots</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 500000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    }
+  ]
+}

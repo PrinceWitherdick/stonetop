@@ -1,0 +1,157 @@
+{
+  "_id": "KJUzuYlurcjPxHd7",
+  "_key": "!journal!KJUzuYlurcjPxHd7",
+  "name": "The Stream",
+  "ownership": {
+    "default": 0
+  },
+  "flags": {
+    "stonetop": {
+      "summary": "A few minutes from Stonetop, near the base of the bluff, in the Great Wood."
+    }
+  },
+  "folder": "CdN6WPlmlLkrCj2Z",
+  "sort": 30000,
+  "pages": [
+    {
+      "_id": "L0O6HAXhUgnsVwpr",
+      "_key": "!journal.pages!KJUzuYlurcjPxHd7.L0O6HAXhUgnsVwpr",
+      "name": "Overview",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>A few minutes from @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}, near the base of the bluff, in @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6kt1b8ozEREDCi4k]{the Great Wood}. Wide, shallow, swift, lined with small stones. Folks come here to wash and fetch water, but rarely alone. It's not deep, but it's still a body of water.</p><ul><li>The current's constant rush and murmur</li><li>Flat plain on either side, gravelly, dotted with saplings, weeds, wildflowers</li><li>Vague sense of dread, of being watched</li><li>Spring: cold snowmelt swelling the Stream</li><li>Summer: dragonflies, lightning bugs</li><li>Spring/Autumn: leaves in current</li><li>Winter: eerie stillness, icy surface</li></ul><p>Tip: raise your voice a little, like you’re talking over background sound</p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "LC8fzf7xLACLr2zf",
+      "_key": "!journal.pages!KJUzuYlurcjPxHd7.LC8fzf7xLACLr2zf",
+      "name": "Questions",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><ul><li class=\"question-bullet\">What little ritual do villagers perform every time they cross the Stream? Why?</li><li class=\"question-bullet\">How far have you followed the Stream? Which way? What strange sight did you see on the way?</li><li class=\"question-bullet\">Which of you have encountered the Quiet Twins, the ghostly children who haunt the Stream?</li><li class=\"question-bullet\">What's the scariest, darkest story you've ever heard about the Stream? Who told it to you?</li><li class=\"question-bullet\">Who do you think the Quiet Twins were? Why?</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "raGk3zwRSwiwFh6v",
+      "_key": "!journal.pages!KJUzuYlurcjPxHd7.raGk3zwRSwiwFh6v",
+      "name": "Hooks",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><ul><li>A dangerous beast takes to watering near town.</li><li>The Stream runs dry, despite ample rains</li><li>Something mysterious (dangerous?) is deposited by the current.</li><li>Haunting songs are heard on misty days; hot-blooded youths are intent on finding the source (an entrancing Fae, like Blush-of-Dawn, page 112).</li></ul><p>The Quiet Twins appear more frequently, urgently trying to warn of… something.</p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 300000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "KpdC1yO90ozEJaG2",
+      "_key": "!journal.pages!KJUzuYlurcjPxHd7.KpdC1yO90ozEJaG2",
+      "name": "Inhabitants",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Tip: shrink into your seat, to make yourself smaller, bug eyed, while mouthing gibberish.</p><p>A pair of ghostly children who haunt the Stream. Sightings are uncommon, but common enough.</p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 400000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "BZJobNcqtrpXrGYm",
+      "_key": "!journal.pages!KJUzuYlurcjPxHd7.BZJobNcqtrpXrGYm",
+      "name": "Creatures of this Area",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Stream. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.1C0Jhihrg28bX7Ry]{The Quiet Twins}</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 500000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    }
+  ]
+}

@@ -1,0 +1,297 @@
+{
+  "_id": "6kt1b8ozEREDCi4k",
+  "_key": "!journal!6kt1b8ozEREDCi4k",
+  "name": "The Great Wood",
+  "ownership": {
+    "default": 0
+  },
+  "flags": {
+    "stonetop": {
+      "summary": "Stonetop sits on a bluff overlooking the Great Wood, which stretches hundreds of miles to the east."
+    }
+  },
+  "folder": "qblzH1yVdmFswlSD",
+  "sort": 2000,
+  "pages": [
+    {
+      "_id": "15XeppyKdsmZ0Aoy",
+      "_key": "!journal.pages!6kt1b8ozEREDCi4k.15XeppyKdsmZ0Aoy",
+      "name": "Overview",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>@UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop} sits on a bluff overlooking the Great Wood, which stretches hundreds of miles to the east. Few villagers dare to even cross @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.KJUzuYlurcjPxHd7]{the Stream} that flows near the base of the bluff. Hunters, trappers, and foragers go deeper, but even they venture a day or two into the forest at most.</p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "HDb9Ep8td1q9ZrJb",
+      "_key": "!journal.pages!6kt1b8ozEREDCi4k.HDb9Ep8td1q9ZrJb",
+      "name": "Impressions",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p><strong>Always</strong></p><ul><li>Massive trunks, reaching up up up, some bigger around than houses</li></ul><ul><li>Pale sky glimpsed through the canopy</li><li>Trees bending, creaking, rustling in the wind</li></ul><ul><li>A skittering in the distance</li><li>A sense of smallness, of being swallowed up by something ancient and vast</li></ul><p><strong>Spring</strong></p><ul><li>Feet slipping on mud, rotting leaves</li><li>Drip drip dripping of snowmelt, rain, mist</li></ul><ul><li>Pale buds and early blooms, blue and yellow and violet</li></ul><p>Hopeful swell of birdsong</p><p>The terrain is hilly and rugged, laced with small streams and dotted with ponds. The trees are a mix of deciduous and evergreen. In some spots, the trees grow tightly, surrounded by thick brush so that one can barely walk. In others, massive old growth trees dominate, the space between them sparse and open.</p><p><strong>Summer</strong></p><ul><li>Brilliant, overwhelming green</li><li>Drone of insects buzzing, birds chirping</li><li>Oppressive heat and humidity</li></ul><p><strong>Autumn</strong></p><ul><li>A world aflame with reds and golds</li><li>Crunch of needles and leaves underfoot</li><li>Stark long shadows cast by a low sun</li><li>Sharp smell of cold, damp air</li></ul><p><strong>Winter</strong></p><ul><li>A frosty coating, a deathly stillness</li><li>Shocking white of snow drifts</li><li>Trees like boney fingers</li><li>Surprising chirp and rustle of finches</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "GEaTUpcUvZ5wjyEJ",
+      "_key": "!journal.pages!6kt1b8ozEREDCi4k.GEaTUpcUvZ5wjyEJ",
+      "name": "The Compact",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>For generations, the people of @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop} have kept their promise to the Forest Folk: they never cut down a living tree in the Great Wood. The villagers gather deadfall, but timber comes from elsewhere.</p><ul><li class=\"question-bullet\">According to the elders, when did someone last break the compact? What happened to them?</li></ul><ul><li class=\"question-bullet\">Who’s been pushing to start harvesting trees, since the Forest Folk seem to have vanished?</li></ul><p>What will happen if someone fells a living tree? That’s for you to decide. Maybe…</p><ul><li>… they suffer the Forest’s Wrath; … they risk releasing an evil spirit, held captive by the tree’s roots; … the trees house the spirits of dead</li><li>Forest Folk, and they’ve just created a specter; or … nothing—unless the Forest Folk return.</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 300000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "8TgcxD1h1B85Vy2Z",
+      "_key": "!journal.pages!6kt1b8ozEREDCi4k.8TgcxD1h1B85Vy2Z",
+      "name": "Questions",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><ul><li>Who in your family used to ply the</li><li class=\"question-bullet\">Wood? How did they lose their nerve?</li></ul><ul><li class=\"question-bullet\">What did you see deep in the Wood that you’ve never told to another?</li></ul><ul><li class=\"question-bullet\">Who did you lose to the Wood? How?</li><li>Of all the stories you’ve heard of the</li><li class=\"question-bullet\">Wood, which one scares you most?</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 400000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "soP7TODthEnkHZ6T",
+      "_key": "!journal.pages!6kt1b8ozEREDCi4k.soP7TODthEnkHZ6T",
+      "name": "Places",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.2NsZu7ZKzdrEHfjk]{The Golden Oak}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.vwP9YSr3qrc4Tq7k]{The Maw}</li><li>Red groves</li><li>@UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.KJUzuYlurcjPxHd7]{The Stream}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.76FKkdtTFxWEGIKQ]{Vor Svetelik}</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 500000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "qgoGZJhdGfMpd2mN",
+      "_key": "!journal.pages!6kt1b8ozEREDCi4k.qgoGZJhdGfMpd2mN",
+      "name": "Hooks",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><ul><li>A villager wanders off into the Wood for unknown reasons</li></ul><ul><li>A hunter stumbles home, having narrowly escaped some new danger</li></ul><ul><li>A southern scholar arrives in @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}, seeking a guide into the Great Wood</li></ul><ul><li>A hunter or trapper who the PCs care about hasn’t returned home</li></ul><p>Trappers are catching strange game: sickly, mutated, and wrong</p><p><strong>. steading improvement .</strong></p><p><strong>GREAT WOOD TIMBER</strong> Requires all of the following:</p><ul><li>Proof that trees can be felled without dire consequence</li></ul><ul><li>A crew of brave lumberjacks</li><li>A skilled carpenter, working full time</li></ul><ul><li>Pulling Together once, over a course of a few weeks, to generate the first load of timber.</li></ul><p>When you mark all the requirements, increase Fortunes by 1 and add “Timber from the Great Wood” to the Resources list.</p><p>Henceforth, the steading has a ready supply of timber for improvements and other projects, and it consumes 1 less Surplus every winter.</p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 600000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "BLNtAkPS2Cr3p4kk",
+      "_key": "!journal.pages!6kt1b8ozEREDCi4k.BLNtAkPS2Cr3p4kk",
+      "name": "Terrain",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Pick 1 or combine 2, or have someone roll the Die of Fate (d12).</p><table><thead><tr><th>Roll</th><th>Result</th></tr></thead><tbody><tr><td>1</td><td>Pond, wetland, or lake</td></tr><tr><td>2</td><td>Creek, stream, or river</td></tr><tr><td>3</td><td>Rocky outcropping, cave(s)</td></tr><tr><td>4–5</td><td>Clearing, meadow, sparse trees</td></tr><tr><td>6–7</td><td>Dense thicket</td></tr><tr><td>8–9</td><td>Swath of one type of tree</td></tr><tr><td>10</td><td>Briars, thorns, nettles</td></tr><tr><td>11</td><td>Slope, hill, ridge, ravine</td></tr><tr><td>12</td><td>Single, notable tree</td></tr></tbody></table><p>If you like, roll 1d6 for size/scope/intensity.</p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 700000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "X3ai9ZNi8uIZiP9i",
+      "_key": "!journal.pages!6kt1b8ozEREDCi4k.X3ai9ZNi8uIZiP9i",
+      "name": "Discoveries",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>For any of these, pick 1 or have someone roll the Die of Fate.</p><p><strong>1d6 discovery</strong></p><table><thead><tr><th>Roll</th><th>Result</th></tr></thead><tbody><tr><td>1</td><td>A change of terrain and roll again</td></tr><tr><td>2</td><td>A chance for insight into a threat or danger (e.g. tracks that reveal numbers, whereabouts, etc.)</td></tr><tr><td>3</td><td>game (see below)</td></tr><tr><td>4</td><td>Useful or valuable flora</td></tr><tr><td>5</td><td>A crinwin, Fae or spirit of the wild, curious or indifferent</td></tr><tr><td>6</td><td>A point of interest</td></tr></tbody></table><p><strong>1d6 game</strong></p><table><thead><tr><th>Roll</th><th>Result</th></tr></thead><tbody><tr><td>1–3</td><td>Mostly harmless but prone to bolt: deer, fowl, rabbits, etc.</td></tr><tr><td>4–5</td><td>Big and dangerous if provoked: boars, wisents, tal gerdwyr, etc.</td></tr><tr><td>6</td><td>Deadly and easily provoked: cave bears, ceirwmawr, raselbaedd, etc.</td></tr></tbody></table><p><strong>1d6 point of interest</strong></p><table><thead><tr><th>Roll</th><th>Result</th></tr></thead><tbody><tr><td>1</td><td>A place corrupted by the Things Below or the Fomoraij</td></tr><tr><td>2</td><td>A place haunted by death and the undying</td></tr><tr><td>3</td><td>A place bearing traces of the Forest Folk</td></tr><tr><td>4</td><td>A place sacred to the spirits of the wild</td></tr><tr><td>5</td><td>A Fae domain or waystone</td></tr><tr><td>6</td><td>A ruin or artifact of the Green Lords</td></tr></tbody></table><p>If it’s been there for at least 10 years, it’s likely marked by Forest Folk glyphs.</p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 800000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "wnIIDo1FoWR6DfTu",
+      "_key": "!journal.pages!6kt1b8ozEREDCi4k.wnIIDo1FoWR6DfTu",
+      "name": "Dangers",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p><strong>Hazards</strong></p><ul><li>Getting lost</li><li>Treacherous terrain (loose footing, mudslides, sinkholes, deadfall, etc.)</li></ul><ul><li>Swarm (bees, wasps, midges, bats, etc.)</li><li>Tall tree to climb, and a reason to climb it</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 900000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "uRFSftRl8Ghjzdyv",
+      "_key": "!journal.pages!6kt1b8ozEREDCi4k.uRFSftRl8Ghjzdyv",
+      "name": "Creatures of this Area",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Great Wood. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.oZS0ErG5Jl909oCE]{Boar}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.dLxI39zRgbt5baD5]{Butcherbird}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.cdZDkK4FL1QoQ9ak]{Cave Bear}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.Qe9HW1xQCicVwtGC]{Ceirwmawr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.IFQVMEF9ngS8fED9]{Cougar}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.CrinwinEntry0001]{Crinwin}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.Y9l5lNncyPjnqdCE]{Cwisarff}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.BVvWxKNlDdOzu9Ac]{Cynddaraig}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.30NDurP2YczoGj6B]{Feathered Drake}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.fz8g74CpQcYrqSki]{Hagr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.yoHXsBjzR8AVHzXj]{Nailadd}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.RiyVzcQMTvqowYdo]{Raselbaedd}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.Xa6zaAxbSXE4EslL]{Tal Gerdwyr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.P6VzX2jNCZNAZBSD]{Wisent}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.j5J31XX2Lt7rP9UC]{Wolf}</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1000000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    }
+  ]
+}

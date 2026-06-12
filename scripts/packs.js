@@ -2,6 +2,7 @@ export const PACKS = [
 	{ name: "stonetop-items",    type: "Item" },
 	{ name: "stonetop-journals", type: "JournalEntry" },
 	{ name: "stonetop-bestiary", type: "Actor" },
+	{ name: "stonetop-locations", type: "JournalEntry" },
 ];
 
 // LevelDB key prefix for each pack's primary document type.
