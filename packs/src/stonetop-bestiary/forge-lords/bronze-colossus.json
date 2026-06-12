@@ -1,0 +1,110 @@
+{
+  "name": "Bronze Colossus",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/construct.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 31,
+        "max": 31
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "trample d10+5 (hand, close, area, forceful), crushing hands d10+5 (close, reach, forceful, grabby), or hurled object d10+5 (far, area, forceful, reload)",
+        "rollFormula": "d10+5"
+      },
+      "instinct": {
+        "value": "to defend its creator's honor"
+      }
+    },
+    "concept": "A 60-foot, aetherium-veined bronze sentinel of a Forge Lord's gate.",
+    "organization": "solitary",
+    "size": "huge",
+    "tags": "solitary, huge, construct, plodding, implacable",
+    "qualities": "<p>Fireproof; too big to hurt with most weapons; vulnerable to lightning. Armor 4 (metal, lacks organs).</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "construct",
+    "description": "<p>It stands nearly sixty feet tall, a muscular Forge Lord cast in bronze. Similar statues loom about, each grand and imposing — but this one is shot through with blueish veins, and it feels like it's watching you. Because it is. The colossus guards the entrance to its master's domain: approach honorably, speaking the Forge Lord's tongue, and it politely tells you to come again later, for its master is away. Intruders, blowhards, and thieves are dealt with forcibly.</p>",
+    "questions": [],
+    "lore": [
+      {
+        "prompt": "**Something interesting:** Those blueish veins are aetherium, and likely what animates the statue — which means there's no single weak point. Maybe you could harm it by drawing the lightning from it.",
+        "answer": ""
+      },
+      {
+        "prompt": "**Something useful:** Or you could, you know, just blast it with lightning and overload it.",
+        "answer": ""
+      }
+    ],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Bronze Colossus",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/construct.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "miz9lGaj0AjF73rT",
+      "name": "Pretend to be 'just' another statue",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!5nfugU7444Jh6D0e.miz9lGaj0AjF73rT"
+    },
+    {
+      "_id": "oZF0HpGDx6itsxua",
+      "name": "Come to life, screeching as it moves",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!5nfugU7444Jh6D0e.oZF0HpGDx6itsxua"
+    },
+    {
+      "_id": "Lduw74x2lBGXgGMh",
+      "name": "Issue a booming challenge in a forgotten tongue",
+      "type": "monsterMove",
+      "img": "icons/creatures/tentacles/tentacles-octopus-purple.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!5nfugU7444Jh6D0e.Lduw74x2lBGXgGMh"
+    },
+    {
+      "_id": "hcbRCpGsJMPUhbsY",
+      "name": "Block their path",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!5nfugU7444Jh6D0e.hcbRCpGsJMPUhbsY"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "FVxXTCE8hSDuYOmL",
+  "_id": "5nfugU7444Jh6D0e",
+  "_key": "!actors!5nfugU7444Jh6D0e"
+}

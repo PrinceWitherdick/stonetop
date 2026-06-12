@@ -208,6 +208,10 @@
       "hoverDescriptionsGearTags": {
         "name": "Hover Descriptions: Gear Tags",
         "hint": "Show rules descriptions when hovering over gear tags such as close, piercing, or messy."
+      },
+      "hoverDescriptionsMonsterRefs": {
+        "name": "Hover Descriptions: Creature Cross-links",
+        "hint": "On bestiary and stat-block sheets, highlight other creatures' names — hover for their concept, click to open their sheet."
       }
     },
     "newCharacter": {

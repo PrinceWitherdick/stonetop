@@ -1,0 +1,99 @@
+{
+  "name": "Fire Drake",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 10,
+        "max": 10
+      },
+      "armor": {
+        "value": 2
+      },
+      "damage": {
+        "value": "bite d8 (hand, grabby)",
+        "rollFormula": "d8"
+      },
+      "instinct": {
+        "value": "to get riled up easily"
+      }
+    },
+    "concept": "Ember-hot horned lizards with caustic, burning blood.",
+    "organization": "group",
+    "size": "",
+    "tags": "group, aggressive, tough",
+    "qualities": "<p>Fireproof; caustic, burning blood. Armor 2 from scales.</p>",
+    "count": 3,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>Picture a horned lizard, but big as a large boar and with a mouth full of short jagged teeth. They're often encountered basking near hot springs, mudpots, or geothermal vents, soaking up the heat until they swell and glow like embers. Of course, once they notice you, they stop basking and start attacking.</p>",
+    "questions": [],
+    "lore": [
+      {
+        "prompt": "**Something interesting:** Fire drake blood is caustic and catches fire when exposed to air; a jar of it deals d6 damage (thrown, area, dangerous, ignores armor, Value 1) — but good luck harvesting it.",
+        "answer": ""
+      },
+      {
+        "prompt": "**Something useful:** The trick is to tap a vein with a metal tube and drain the blood directly into a wax-sealed jar. Just… be careful.",
+        "answer": ""
+      }
+    ],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Fire Drake",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "6WrULT8xMYSdmI52",
+      "name": "Sound off in a deep, threatening chorus",
+      "type": "monsterMove",
+      "img": "icons/skills/social/diplomacy-handshake.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!w4bnUheymDzA7cxr.6WrULT8xMYSdmI52"
+    },
+    {
+      "_id": "HPx0HqyChCaPBSDl",
+      "name": "Blast a jet of burning, caustic blood from its eyes, d8 damage (near, messy, reload, ignores armor) — but lose 1d4 HP",
+      "type": "monsterMove",
+      "img": "icons/magic/fire/flame-burning-creature-orange.webp",
+      "system": {
+        "description": "",
+        "rollFormula": "d8"
+      },
+      "_key": "!actors.items!w4bnUheymDzA7cxr.HPx0HqyChCaPBSDl"
+    },
+    {
+      "_id": "KG8C7bo6woqo9UlK",
+      "name": "Shake, worry, and toss aside a foe it has bitten, d8+2 damage (hand, forceful)",
+      "type": "monsterMove",
+      "img": "icons/skills/ranged/target-bullseye-arrow-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": "d8+2"
+      },
+      "_key": "!actors.items!w4bnUheymDzA7cxr.KG8C7bo6woqo9UlK"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "LIFxBsthfFEHCus6",
+  "_id": "w4bnUheymDzA7cxr",
+  "_key": "!actors!w4bnUheymDzA7cxr"
+}

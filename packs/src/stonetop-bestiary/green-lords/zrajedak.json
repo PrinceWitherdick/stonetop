@@ -1,0 +1,101 @@
+{
+  "name": "Zrajedak",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/construct.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 16,
+        "max": 16
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "maw full of iron teeth d10+3 w/advantage (hand, messy, grabby, 1 piercing), iron tail-quills d10+1 (near, area, reload)",
+        "rollFormula": "d10+3"
+      },
+      "instinct": {
+        "value": "to torment its prey"
+      }
+    },
+    "concept": "An iron-fanged chimera that wears a not-quite-right copy of your face.",
+    "organization": "solitary",
+    "size": "large",
+    "tags": "solitary, large, construct, corrupted, devious, terrifying, stealthy",
+    "qualities": "<p>Keen sense of smell. Armor 4 (resilience), 1 vs. bronze (hide).</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "construct",
+    "description": "<p>When the Fae rebelled, the Green Lords made living weapons to use against them. The zrajedak — or 'treachery-eaters' — were one such weapon: the body of a lion, the tail of a spiny drake, and the face of their mortal servants, all infused with iron, malice, and the cruel power of the Things Below. Some are trapped by Fae magic; others remain in stasis. But surely some few stalk the world still, for the Forest Folk would tell hushed tales of them. 'Never trust someone who will not show you their teeth,' they'd say, 'for Zrajedak smiles only before he bites.'</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Zrajedak",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/construct.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "gQJmf1psWeJ0ikd8",
+      "name": "Assume a form similar to its prey, but just a little off",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!3JaMhYyy0qDzf06q.gQJmf1psWeJ0ikd8"
+    },
+    {
+      "_id": "Br3wpqZD9Co8naPH",
+      "name": "Reveal its horrible, smiling maw",
+      "type": "monsterMove",
+      "img": "icons/creatures/abilities/mouth-teeth-rows-red.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!3JaMhYyy0qDzf06q.Br3wpqZD9Co8naPH"
+    },
+    {
+      "_id": "kXT0Sdz4hIvO68U3",
+      "name": "Cripple a victim and let it suffer",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!3JaMhYyy0qDzf06q.kXT0Sdz4hIvO68U3"
+    },
+    {
+      "_id": "rMMTjMSZRjsF0gMr",
+      "name": "Chew right through a limb",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!3JaMhYyy0qDzf06q.rMMTjMSZRjsF0gMr"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "FO5poGFHi5Udrsfz",
+  "_id": "3JaMhYyy0qDzf06q",
+  "_key": "!actors!3JaMhYyy0qDzf06q"
+}

@@ -1,0 +1,101 @@
+{
+  "name": "Raselbaedd",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 20,
+        "max": 20
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "gore d10+5 (hand, close, forceful, messy, 3 piercing)",
+        "rollFormula": "d10+5"
+      },
+      "instinct": {
+        "value": "to hold a grudge"
+      }
+    },
+    "concept": "An ancient boar grown iron-hided, scarred, and grudge-bound.",
+    "organization": "solitary",
+    "size": "large",
+    "tags": "solitary, large",
+    "qualities": "<p><strong>Iron hide</strong> (Armor 4, unnatural resilience): a hit dealing 2 or less damage before armor chips or shatters the weapon. Always hungry, easily provoked, and afraid of fire.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>When a boar lives long enough, survives enough close calls, and dines year after year on the roots and nuts of ferro trees, it eventually becomes a raselbaedd: the size of a horse, with tusks like short spears and a hide crisscrossed with scars and bristling with broken blades. Its hide (immobile, Value 2) can be harvested by a competent hunter with a fine steel blade and fashioned into 1d4 raselbaedd cuirasses (2 armor, Value 3).</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Raselbaedd",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "6Msq7A68uzeAuJo2",
+      "name": "Rip things apart: armor, weapons, flesh",
+      "type": "monsterMove",
+      "img": "icons/svg/shield.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!RiyVzcQMTvqowYdo.6Msq7A68uzeAuJo2"
+    },
+    {
+      "_id": "WdirVLG5KiPyZuLt",
+      "name": "Eat almost anything",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!RiyVzcQMTvqowYdo.WdirVLG5KiPyZuLt"
+    },
+    {
+      "_id": "Y76RBgfPzh2hGemy",
+      "name": "Refuse to back off or let go, even when dying",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!RiyVzcQMTvqowYdo.Y76RBgfPzh2hGemy"
+    },
+    {
+      "_id": "JsU5KJAebEKhHKpI",
+      "name": "Recover from even mortal wounds, over time",
+      "type": "monsterMove",
+      "img": "icons/skills/wounds/injury-hand-blood-red.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!RiyVzcQMTvqowYdo.JsU5KJAebEKhHKpI"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "BestiaryWoodFldr",
+  "_id": "RiyVzcQMTvqowYdo",
+  "_key": "!actors!RiyVzcQMTvqowYdo"
+}

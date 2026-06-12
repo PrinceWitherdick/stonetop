@@ -1,0 +1,103 @@
+{
+  "name": "Pack Drake",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 3,
+        "max": 3
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "sawtooth teeth d6 (hand, grabby)",
+        "rollFormula": "d6"
+      },
+      "instinct": {
+        "value": "to bring down easy prey"
+      }
+    },
+    "concept": "Sneaky, dog-sized pack hunters of the tall grass. Just the worst.",
+    "organization": "horde",
+    "size": "small",
+    "tags": "horde, small, stealthy, organized, cautious",
+    "qualities": "<p>Armor 1 from quick reflexes.</p>",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>Sneaky little dog-sized critters that prowl the Flats, hunting in packs ranging from six to a couple dozen. Just the worst.</p>",
+    "questions": [
+      {
+        "prompt": "What's the surest sign of their presence?",
+        "answer": ""
+      },
+      {
+        "prompt": "What do all wise travelers do to keep them at bay?",
+        "answer": ""
+      },
+      {
+        "prompt": "Which of you has seen them tear apart their prey? What haunts you about it to this day?",
+        "answer": ""
+      }
+    ],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Pack Drake",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "ySnYrl96vZ0PIrAv",
+      "name": "Dart through tall grass, unseen",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!W7YFeowcF0yptQC3.ySnYrl96vZ0PIrAv"
+    },
+    {
+      "_id": "qGefr0zydg445whp",
+      "name": "Surround their prey",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!W7YFeowcF0yptQC3.qGefr0zydg445whp"
+    },
+    {
+      "_id": "7HHVYThLnAI0UikP",
+      "name": "Bite down and pull in one direction while a packmate pulls in the other (+messy)",
+      "type": "monsterMove",
+      "img": "icons/creatures/abilities/mouth-teeth-rows-red.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!W7YFeowcF0yptQC3.7HHVYThLnAI0UikP"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "hnWxs7XPc9PtVGpS",
+  "_id": "W7YFeowcF0yptQC3",
+  "_key": "!actors!W7YFeowcF0yptQC3"
+}

@@ -1,0 +1,110 @@
+{
+  "name": "Gouzadn",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 16,
+        "max": 16
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "tooth and claw d10 (hand, grabby), hoof and antler d10+2 (close, forceful), rending strength d10+2 (hand, forceful, messy)",
+        "rollFormula": "d10+2"
+      },
+      "instinct": {
+        "value": "to see people as either threat or prey"
+      }
+    },
+    "concept": "A spirit-touched Hillfolk gone feral, host to dozens of bound beast-spirits.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, magical, cautious, stealthy, shapeshifter",
+    "qualities": "<p>Armor 4 (resilience), 0 vs. certain sacred wood. Confused and frustrated by human speech; host to dozens of beast-spirits.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "spirit",
+    "description": "<p>When a young Hillfolk shows signs of being touched by spirits, their band had best find a spirit-talker to mentor the child — without such guidance, these youths might forsake their humanity, forget their language, and bind spirits of the wild to their very flesh. A gouzadn shuns people, living with only spirits for company, more likely to flee and hide than fight. But an aggressive or unwary party might find their numbers picked off one by one in the dark — and once a gouzadn gets a taste of killing people, it might get a taste for their flesh.</p>",
+    "questions": [],
+    "lore": [
+      {
+        "prompt": "**Something interesting:** Tales tell of using 'sacred wood' to put down a gouzadn. Maybe a Hillfolk elder could tell you the specific type?",
+        "answer": ""
+      },
+      {
+        "prompt": "**Something useful:** To kill this gouzadn you'll need a weapon of a specific sacred wood (roll the Die of Fate): redwood; heartwood of lightning-struck ash; elder wood blackened in sacrificial fire; oak etched with words of grounding and renewal; yew carved with a sorcerer's bone; or willow felled by an innocent and carved by one stooped with regrets.",
+        "answer": ""
+      }
+    ],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Gouzadn",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "jFUOOGnOxsVaFyd2",
+      "name": "Assume the aspect(s) of one or more beasts",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!SerJ5gYYlRuUmI9k.jFUOOGnOxsVaFyd2"
+    },
+    {
+      "_id": "ruemPMoohwosDTSt",
+      "name": "Do something impossible for a human, easy for a beast",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!SerJ5gYYlRuUmI9k.ruemPMoohwosDTSt"
+    },
+    {
+      "_id": "zwiISAdxvJhqGG2M",
+      "name": "Suffer through a terrible wound unfazed, healing with a few days' rest",
+      "type": "monsterMove",
+      "img": "icons/skills/wounds/injury-hand-blood-red.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!SerJ5gYYlRuUmI9k.zwiISAdxvJhqGG2M"
+    },
+    {
+      "_id": "5SYchsBnE8sApDlL",
+      "name": "Ask beasts or spirits (even quiet ones) for information or favors",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!SerJ5gYYlRuUmI9k.5SYchsBnE8sApDlL"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "A5pBFgOjdwXRwZNz",
+  "_id": "SerJ5gYYlRuUmI9k",
+  "_key": "!actors!SerJ5gYYlRuUmI9k"
+}

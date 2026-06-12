@@ -1,0 +1,101 @@
+{
+  "name": "Caralandrao",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 3,
+        "max": 3
+      },
+      "armor": {
+        "value": 2
+      },
+      "damage": {
+        "value": "pincers d4 w/disadvantage (hand, grabby)",
+        "rollFormula": "d4"
+      },
+      "instinct": {
+        "value": "to feed on magic"
+      }
+    },
+    "concept": "Crab-spiders that hunger for and steal magic.",
+    "organization": "horde",
+    "size": "small",
+    "tags": "horde, small, stealthy, hoarder",
+    "qualities": "<p>Spider-climb; camouflaged shell. Armor 2 from shell.</p>",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>Are they crabs? Spiders? Hard to say. Whatever they are, they've got too many too-long limbs, shells that blend in with the rocky terrain, and an appetite for magical artifacts, which they drag back to their nests to feed on. They can suck the power right out of minor trinkets, and powerful arcana can feed a small colony indefinitely — and yet they keep venturing out to find more.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Caralandrao",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "r0LZWqLaIdRAR8fK",
+      "name": "Sense mystic emanations from afar",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!PFHwDgBNwVbZHEIO.r0LZWqLaIdRAR8fK"
+    },
+    {
+      "_id": "Rc23BkQ6WsdCUbLV",
+      "name": "Get close without being noticed",
+      "type": "monsterMove",
+      "img": "icons/magic/water/snowflake-ice-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!PFHwDgBNwVbZHEIO.Rc23BkQ6WsdCUbLV"
+    },
+    {
+      "_id": "frmyqxRbxPmXfyq2",
+      "name": "Skitter-skatter, dart and weave",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!PFHwDgBNwVbZHEIO.frmyqxRbxPmXfyq2"
+    },
+    {
+      "_id": "jxyfbsCFTnUNodeH",
+      "name": "Make off with something magical",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!PFHwDgBNwVbZHEIO.jxyfbsCFTnUNodeH"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "LIFxBsthfFEHCus6",
+  "_id": "PFHwDgBNwVbZHEIO",
+  "_key": "!actors!PFHwDgBNwVbZHEIO"
+}

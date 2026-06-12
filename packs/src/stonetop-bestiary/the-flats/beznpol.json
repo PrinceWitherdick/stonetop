@@ -1,0 +1,101 @@
+{
+  "name": "Beznpol",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 12,
+        "max": 12
+      },
+      "armor": {
+        "value": 3
+      },
+      "damage": {
+        "value": "burrowing talons d10 (hand), needle teeth d8 (hand, messy, 3 piercing)",
+        "rollFormula": "d10"
+      },
+      "instinct": {
+        "value": "to constantly search for food"
+      }
+    },
+    "concept": "A six-foot armored mustelid, forever digging up the Flats for food.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, cautious, fierce",
+    "qualities": "<p>Acid-proof.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>Great big armored mustelids, like a cross between a stoat, a badger, and a pangolin, but six feet long not counting the tail. They roam the Flats digging up burrows of just about anything, but they especially love to stir up a hlomren nest and chomp chomp chomp. Far from the top of the food chain: if startled they spray musk and flee; if cornered they curl up and hope the attacker grows bored. A skilled tanner can turn a pair of hides into a magnificent beznpol scale coat (2 armor, warm, protects against acid, Value 3).</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Beznpol",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "qGTYZMfq3D85nS6b",
+      "name": "Dig up serious quantities of soil",
+      "type": "monsterMove",
+      "img": "icons/environment/wilderness/cave-entrance-dark.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!Cva7oGwmIwLEvo6S.qGTYZMfq3D85nS6b"
+    },
+    {
+      "_id": "EEkVjkId7zZheBnt",
+      "name": "Bound out of the grass and onto prey",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!Cva7oGwmIwLEvo6S.EEkVjkId7zZheBnt"
+    },
+    {
+      "_id": "sZuTzhByTzL1RynJ",
+      "name": "Spray a stupefying musk (reach, area, debilities)",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!Cva7oGwmIwLEvo6S.sZuTzhByTzL1RynJ"
+    },
+    {
+      "_id": "OWGMvXmpbeJy0Y5N",
+      "name": "Curl up into a ball of hard, jagged scales (4 armor)",
+      "type": "monsterMove",
+      "img": "icons/svg/shield.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!Cva7oGwmIwLEvo6S.OWGMvXmpbeJy0Y5N"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "hnWxs7XPc9PtVGpS",
+  "_id": "Cva7oGwmIwLEvo6S",
+  "_key": "!actors!Cva7oGwmIwLEvo6S"
+}

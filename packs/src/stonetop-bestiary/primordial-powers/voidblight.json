@@ -1,0 +1,101 @@
+{
+  "name": "Voidblight",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 10,
+        "max": 10
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "spirit-rending bite d6+2 (hand, grabby)",
+        "rollFormula": "d6+2"
+      },
+      "instinct": {
+        "value": "to eat and spawn"
+      }
+    },
+    "concept": "Star-black, eyeless spirit-eaters that swarm in from the void through rifts.",
+    "organization": "horde",
+    "size": "",
+    "tags": "horde, spirit, primordial, stealthy, hungry, cautious",
+    "qualities": "<p>Can harm only spirits and mortals sensitive to the spirit world; harmed only by other spirits or magical attacks. Armor 1 (lacks vitals).</p>",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "spirit",
+    "description": "<p>To those who can perceive them, they seem like many-limbed salamanders made of star-filled night, their broad, flat, eyeless heads splitting open into rows of glittering teeth. They are alien things, spiritual scavengers and predators, haunting forgotten corners of the spirit world and the dead world-motes that float through the cosmic void. Mostly they wait and hunger — but if they catch the scent of a traveler, or worse, a rift into our world, they will follow it.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Voidblight",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "c4RQN9QhFKqB9PJz",
+      "name": "Follow the 'scent' of a rift or a spirit-walker",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!P4UPY5CmKLihfSQO.c4RQN9QhFKqB9PJz"
+    },
+    {
+      "_id": "TG1TbmiZpYY1uMIL",
+      "name": "Mimic a spirit it has eaten",
+      "type": "monsterMove",
+      "img": "icons/skills/social/diplomacy-handshake.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!P4UPY5CmKLihfSQO.TG1TbmiZpYY1uMIL"
+    },
+    {
+      "_id": "6H8y2H1xd3LR3aQN",
+      "name": "Pounce on unsuspecting prey",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!P4UPY5CmKLihfSQO.6H8y2H1xd3LR3aQN"
+    },
+    {
+      "_id": "oh9W1RZk8z81c6tX",
+      "name": "After a good meal, spawn another of its kind",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!P4UPY5CmKLihfSQO.oh9W1RZk8z81c6tX"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "YyLZdHoqRqGLuPZN",
+  "_id": "P4UPY5CmKLihfSQO",
+  "_key": "!actors!P4UPY5CmKLihfSQO"
+}

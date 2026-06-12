@@ -1,0 +1,99 @@
+{
+  "name": "Anan Gllo",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 11,
+        "max": 11
+      },
+      "armor": {
+        "value": 5
+      },
+      "damage": {
+        "value": "weapon d6 (tags by weapon) or crushing grip d4 (hand, grabby)",
+        "rollFormula": "d6"
+      },
+      "instinct": {
+        "value": "to follow orders"
+      }
+    },
+    "concept": "The Empty Dead — corpses risen from a Thing Below's vessel, fading a little each dawn.",
+    "organization": "horde",
+    "size": "",
+    "tags": "horde, undead, corrupted, tireless, fearless, terrifying",
+    "qualities": "<p>Weaken over time (see the entry). Armor 5 (resilience, armor), 1 vs. bronze or fire.</p>",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "undead",
+    "description": "<p>The Hillfolk speak of dark times, when the Things Below gave a gift to a petty chief. Depending on who tells the tale, it was a patch of loose soil or a deep pool of water, the hollow of a dool tree or a great cauldron of rusted iron. Regardless: a corpse placed within this vessel would rise as one of the Anan Gllo, the Empty Dead. The chief raised an undead army, and set out to make themselves king.</p>",
+    "questions": [],
+    "lore": [
+      {
+        "prompt": "**Something interesting:** The chief's power was broken when a hero entered the vessel while still alive, giving their life to destroy it. A number of Anan Gllo linger, though, inert and waiting.",
+        "answer": ""
+      },
+      {
+        "prompt": "**Something useful:** An Anan Gllo regains all its HP when it drinks fresh blood or re-enters the vessel; it cannot otherwise heal. And every dawn it loses 1 HP — at 0 HP it becomes inert until its HP are restored.",
+        "answer": ""
+      }
+    ],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Anan Gllo",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "pPbfbsfjaO4P5wGV",
+      "name": "Advance implacably",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!9wN9UhM3IORfcw0J.pPbfbsfjaO4P5wGV"
+    },
+    {
+      "_id": "LluPiHDb5KO81NUA",
+      "name": "Unnerve foes with their silence, their empty eyes",
+      "type": "monsterMove",
+      "img": "icons/svg/terror.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!9wN9UhM3IORfcw0J.LluPiHDb5KO81NUA"
+    },
+    {
+      "_id": "z2JCAC3pWUrbQR8w",
+      "name": "Fight on despite crippling injury",
+      "type": "monsterMove",
+      "img": "icons/magic/acid/dissolve-bone-white.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!9wN9UhM3IORfcw0J.z2JCAC3pWUrbQR8w"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "EFgcYyVfAWu3kPtb",
+  "_id": "9wN9UhM3IORfcw0J",
+  "_key": "!actors!9wN9UhM3IORfcw0J"
+}

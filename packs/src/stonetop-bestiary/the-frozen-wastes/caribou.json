@@ -1,0 +1,90 @@
+{
+  "name": "Caribou",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 7,
+        "max": 7
+      },
+      "armor": {
+        "value": 0
+      },
+      "damage": {
+        "value": "antlers/hoofs d6 (hand, close)",
+        "rollFormula": "d6"
+      },
+      "instinct": {
+        "value": "to stampede"
+      }
+    },
+    "concept": "Hardy tundra deer that move and panic as one great herd.",
+    "organization": "horde",
+    "size": "",
+    "tags": "horde, hardy",
+    "qualities": "",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>Caribou graze the windswept plateau of the Frozen Wastes in great herds, preyed on by wolves, saber-toothed cats, and worse things that crawl from the lakes in summer.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Caribou",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "4CpjzjOAfAAbOvRZ",
+      "name": "Run back to the herd",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!MFsosEI9EtAc7cbE.4CpjzjOAfAAbOvRZ"
+    },
+    {
+      "_id": "30DKTIoi64zsjqxF",
+      "name": "Huddle close at signs of danger",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!MFsosEI9EtAc7cbE.30DKTIoi64zsjqxF"
+    },
+    {
+      "_id": "ohHZwvem2FE98Pps",
+      "name": "Stampede, d6+4 damage (hand, area, messy, forceful, 1 piercing)",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": "d6+4"
+      },
+      "_key": "!actors.items!MFsosEI9EtAc7cbE.ohHZwvem2FE98Pps"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "uL2qZrxWiEuUIscv",
+  "_id": "MFsosEI9EtAc7cbE",
+  "_key": "!actors!MFsosEI9EtAc7cbE"
+}

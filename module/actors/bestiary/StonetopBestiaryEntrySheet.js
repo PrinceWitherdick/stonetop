@@ -1,98 +1,11 @@
 import { escHtml, isDefaultImg } from "../../utils/strings.js";
-
-const ENTRY_RICH_TEXT_FIELDS = [
-	{ key: "description", enrichedKey: "enrichedDescription" },
-	{ key: "dangers",     enrichedKey: "enrichedDangers" },
-	{ key: "nests",       enrichedKey: "enrichedNests" },
-];
-
-const ENTRY_PREP_LINE_FIELDS = [
-	{ key: "hooks",       label: "stonetop.bestiary.hooks" },
-	{ key: "origins",     label: "stonetop.bestiary.origins" },
-];
-const ENTRY_LINE_FIELDS = [...ENTRY_PREP_LINE_FIELDS];
-
-const ENTRY_QA_FIELDS = [
-	{ key: "questions", label: "stonetop.bestiary.questions" },
-	{ key: "lore",      label: "stonetop.bestiary.lore" },
-];
-
-// Render the lightweight inline markup we allow in prep/impression text:
-// **bold** -> <strong>bold</strong>. Everything else is HTML-escaped so the
-// stored text stays plain and editable while reading nicely.
-function _inlineMarkup(text) {
-	return escHtml(text).replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>");
-}
-
-function _splitLines(value, editMode) {
-	const text = value ?? "";
-	if (!text) return editMode ? [{ text: "", html: "" }] : [];
-	const lines = String(text).split(/\r?\n/);
-	const kept = editMode ? lines : lines.filter(line => line.trim());
-	return kept.map(line => ({ text: line, html: _inlineMarkup(line) }));
-}
-
-function _qaPairs(value, editMode) {
-	const pairs = Array.isArray(value)
-		? value.map(p => {
-			const prompt = p?.prompt ?? "";
-			const answer = p?.answer ?? "";
-			// A leading **bold** run (e.g. "**Something interesting:**") is a header
-			// shown on its own line above the question; the rest is the question body.
-			const lead = /^\s*\*\*(.+?)\*\*\s*([\s\S]*)$/.exec(prompt);
-			return {
-				prompt,
-				answer,
-				lead: lead ? lead[1] : "",
-				promptHtml: _inlineMarkup(lead ? lead[2] : prompt),
-				answerHtml: _inlineMarkup(answer),
-			};
-		})
-		: [];
-	if (editMode) return pairs;
-	return pairs.filter(p => p.prompt.trim() || p.answer.trim());
-}
-
-// True if a value carries meaningful content. Strips HTML tags/entities so an
-// "empty" rich-text field (e.g. "<p></p>") doesn't count as present.
-function _hasText(value) {
-	return String(value ?? "")
-		.replace(/<[^>]*>/g, "")
-		.replace(/&nbsp;/gi, " ")
-		.trim().length > 0;
-}
-
-// A Discoveries entry is a series of sub-sections, each with a heading, optional
-// body prose, and an optional bullet list. Items are edited as one-per-line text.
-function _discoveryGroups(value, editMode) {
-	const groups = Array.isArray(value) ? value : [];
-	const mapped = groups.map(g => {
-		const heading  = g?.heading ?? "";
-		const body     = g?.body ?? "";
-		const itemsArr = Array.isArray(g?.items) ? g.items : [];
-		const keptItems = editMode ? itemsArr : itemsArr.filter(i => (i ?? "").trim());
-		return {
-			heading,
-			headingHtml: _inlineMarkup(heading),
-			body,
-			bodyHtml: _inlineMarkup(body),
-			itemsText: editMode ? itemsArr.join("\n") : "",
-			items: keptItems.map(i => ({ text: i, html: _inlineMarkup(i) })),
-		};
-	});
-	if (editMode) return mapped;
-	return mapped.filter(g => g.heading.trim() || g.body.trim() || g.items.length);
-}
-
-async function _enrichHTML(value) {
-	const textEditor = globalThis.foundry?.applications?.ux?.TextEditor;
-	if (!textEditor?.enrichHTML) return value ?? "";
-	return textEditor.enrichHTML(value ?? "");
-}
+import { unlockForEditing, relockIfWeUnlocked } from "../../utils/compendium-edit.js";
+import { buildCodexContext, onCodexClick, onCodexChange } from "./codex.js";
 
 export function createStonetopBestiaryEntrySheetClass(Base) {
 	return class StonetopBestiaryEntrySheet extends Base {
 		_editMode = false;
+		_weUnlockedPack = false;
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
@@ -144,33 +57,54 @@ export function createStonetopBestiaryEntrySheetClass(Base) {
 
 		_injectHeaderToggle() {
 			const header = this.element[0]?.querySelector(".window-header");
-			if (!header || !this.isEditable) return;
+			if (!header || !this.actor.isOwner) return;
 			header.querySelector(".stonetop-header-toggle")?.remove();
+
+			// Locked == viewed from a locked compendium. Show a lock affordance;
+			// toggling it on unlocks the pack so the fields become editable.
+			const locked = !this.isEditable;
 
 			const label = document.createElement("label");
 			label.className = "stonetop-edit-toggle stonetop-header-toggle";
-			label.title = this._editMode ? "Lock Entry" : "Edit Entry";
+			label.title = locked
+				? "Unlock & edit (unlocks the compendium)"
+				: (this._editMode ? "Lock Entry" : "Edit Entry");
 
 			const checkbox = document.createElement("input");
 			checkbox.type = "checkbox";
 			checkbox.checked = this._editMode;
-			checkbox.addEventListener("change", () => {
-				this._editMode = !this._editMode;
-				this.render(false);
-			});
+			checkbox.addEventListener("change", () => this._onToggleEdit(checkbox));
 
 			const track = document.createElement("span");
 			track.className = "stonetop-toggle-track";
 			const thumb = document.createElement("span");
 			thumb.className = "stonetop-toggle-thumb";
 			const icon = document.createElement("i");
-			icon.className = "fas fa-wrench";
+			icon.className = locked ? "fas fa-lock" : "fas fa-wrench";
 			thumb.appendChild(icon);
 			track.appendChild(thumb);
 			label.appendChild(checkbox);
 			label.appendChild(track);
 
 			header.insertBefore(label, header.querySelector(".window-title"));
+		}
+
+		async _onToggleEdit(checkbox) {
+			const turningOn = checkbox.checked;
+			if (turningOn && !this.isEditable) {
+				if (!await unlockForEditing(this)) { checkbox.checked = false; return; }
+			}
+			// Set the mode before re-locking: relocking the pack triggers an async
+			// re-render, and if _editMode were still true that render would paint
+			// edit-mode markup into a now-locked form (disabled inputs everywhere).
+			this._editMode = turningOn;
+			if (!turningOn) await relockIfWeUnlocked(this);
+			this.render(false);
+		}
+
+		async close(options) {
+			await relockIfWeUnlocked(this);
+			return super.close(options);
 		}
 
 		_getHeaderButtons() {
@@ -185,48 +119,19 @@ export function createStonetopBestiaryEntrySheetClass(Base) {
 			const edit = st.editMode = this._editMode;
 			st.hasPortrait = !isDefaultImg(this.actor.img);
 
-			// Independent enrichments — resolve in parallel (each may await @UUID links).
-			await Promise.all(ENTRY_RICH_TEXT_FIELDS.map(async field => {
-				st[field.enrichedKey] = await _enrichHTML(system?.[field.key]);
-			}));
+			// Codex content (description / Q&A / prep / discoveries / nests / dangers).
+			Object.assign(st, await buildCodexContext(system, edit));
 
-			st.prepLineSections = ENTRY_PREP_LINE_FIELDS.map(field => {
-				const introField = `${field.key}Intro`;
-				const introRaw = system?.[introField] ?? "";
-				return {
-					...field,
-					lines: _splitLines(system?.[field.key], edit),
-					introField,
-					intro: introRaw,
-					introHtml: _inlineMarkup(introRaw),
-					show: edit || _hasText(system?.[field.key]) || _hasText(introRaw),
-				};
-			});
-
-			st.qaSections = ENTRY_QA_FIELDS.map(field => {
-				const pairs = _qaPairs(system?.[field.key], edit);
-				return { ...field, pairs, show: edit || pairs.length > 0 };
-			});
-
-			st.discoveryGroups = _discoveryGroups(system?.discoveries, edit);
 			st.statBlocks = await this._resolveStatBlocks(system?.statBlocks);
 
-			// Per-section presence drives hide-when-empty in read mode; in edit mode
-			// everything is shown so it can be filled in. The mapper outputs above
-			// already drop empty entries in read mode, so a non-empty result == content.
-			st.show = {
-				description: edit || _hasText(system?.description),
-				dangers:     edit || _hasText(system?.dangers),
-				nests:       edit || _hasText(system?.nests),
-			};
 			// Tab visibility. Overview is always present (the landing tab); the rest
 			// appear only when they hold content (always, in edit mode).
 			st.showTab = {
-				codex:       edit || st.qaSections.some(s => s.show),
-				prep:        edit || st.prepLineSections.some(s => s.show),
-				discoveries: edit || st.discoveryGroups.length > 0,
+				codex:       st.has.codex,
+				prep:        st.has.prep,
+				discoveries: st.has.discoveries,
 				statBlocks:  edit || st.statBlocks.length > 0,
-				notes:       edit || _hasText(system?.notes),
+				notes:       st.has.notes,
 			};
 
 			return context;
@@ -260,44 +165,30 @@ export function createStonetopBestiaryEntrySheetClass(Base) {
 		activateListeners(html) {
 			super.activateListeners(html);
 			const root = html[0];
+
+			// Navigation works even when the sheet is read-only (e.g. viewed from
+			// the compendium): open a linked stat block on click.
+			root.addEventListener("click", async ev => {
+				const open = ev.target.closest(".stonetop-entry-open-statblock");
+				if (!open) return;
+				const uuid = open.closest("[data-statblock-uuid]")?.dataset?.statblockUuid;
+				const doc  = uuid ? await fromUuid(uuid).catch(() => null) : null;
+				doc?.sheet?.render(true);
+			});
+
 			if (!this.isEditable) return;
 
 			root.addEventListener("click", async ev => {
+				if (await onCodexClick(this, ev)) return;
 				const t = ev.target;
 
-				if (t.closest(".stonetop-entry-add-line")) {
-					if (!this._editMode) return;
-					await this._addLine(t.closest(".stonetop-entry-add-line")?.dataset?.field);
-
-				} else if (t.closest(".stonetop-entry-add-qa")) {
-					if (!this._editMode) return;
-					await this._addQa(t.closest(".stonetop-entry-add-qa")?.dataset?.field);
-
-				} else if (t.closest(".stonetop-entry-remove-qa")) {
-					if (!this._editMode) return;
-					const row = t.closest("[data-qa-index]");
-					await this._removeQa(row?.closest("[data-qa-field]")?.dataset?.qaField, Number(row?.dataset?.qaIndex));
-
-				} else if (t.closest(".stonetop-discovery-add-group")) {
-					if (!this._editMode) return;
-					await this._addDiscoveryGroup();
-
-				} else if (t.closest(".stonetop-discovery-remove-group")) {
-					if (!this._editMode) return;
-					await this._removeDiscoveryGroup(Number(t.closest("[data-discovery-index]")?.dataset?.discoveryIndex));
-
-				} else if (t.closest(".stonetop-entry-create-statblock")) {
+				if (t.closest(".stonetop-entry-create-statblock")) {
 					if (!this._editMode) return;
 					await this._createStatBlock();
 
 				} else if (t.closest(".stonetop-entry-link-statblock")) {
 					if (!this._editMode) return;
 					await this._linkStatBlockDialog();
-
-				} else if (t.closest(".stonetop-entry-open-statblock")) {
-					const uuid = t.closest("[data-statblock-uuid]")?.dataset?.statblockUuid;
-					const doc  = uuid ? await fromUuid(uuid) : null;
-					doc?.sheet?.render(true);
 
 				} else if (t.closest(".stonetop-entry-unlink-statblock")) {
 					if (!this._editMode) return;
@@ -306,100 +197,10 @@ export function createStonetopBestiaryEntrySheetClass(Base) {
 				}
 			});
 
-			root.addEventListener("change", async ev => {
-				const editor = ev.target.closest(".stonetop-entry-rich-editor");
-				if (editor && this._editMode) {
-					await this._updateRichTextField(editor.dataset?.field, editor.value);
-					return;
-				}
-
-				const lineInput = ev.target.closest(".stonetop-entry-line-input");
-				if (lineInput && this._editMode) {
-					await this._updateLineField(root, lineInput.closest("[data-line-field]")?.dataset?.lineField);
-					return;
-				}
-
-				const qaInput = ev.target.closest(".stonetop-entry-qa-input");
-				if (qaInput && this._editMode) {
-					await this._updateQaField(root, qaInput.closest("[data-qa-field]")?.dataset?.qaField);
-					return;
-				}
-
-				const discoveryInput = ev.target.closest(".stonetop-discovery-input");
-				if (discoveryInput && this._editMode) {
-					await this._updateDiscoveries(root);
-				}
-			});
+			root.addEventListener("change", ev => onCodexChange(this, ev));
 		}
 
-		async _updateRichTextField(field, value) {
-			if (!ENTRY_RICH_TEXT_FIELDS.some(f => f.key === field)) return;
-			await this.actor.update({ [`system.${field}`]: value ?? "" });
-		}
-
-		async _addLine(field) {
-			if (!ENTRY_LINE_FIELDS.some(f => f.key === field)) return;
-			const current = this.actor.system?.[field] ?? "";
-			await this.actor.update({ [`system.${field}`]: `${current}\n` });
-		}
-
-		async _updateLineField(root, field) {
-			if (!ENTRY_LINE_FIELDS.some(f => f.key === field)) return;
-			const section = root.querySelector(`[data-line-field="${field}"]`);
-			if (!section) return;
-			const lines = Array.from(section.querySelectorAll(".stonetop-entry-line-input")).map(i => i.value);
-			await this.actor.update({ [`system.${field}`]: lines.join("\n") });
-		}
-
-		async _addQa(field) {
-			if (!ENTRY_QA_FIELDS.some(f => f.key === field)) return;
-			const current = Array.isArray(this.actor.system?.[field]) ? this.actor.system[field] : [];
-			await this.actor.update({ [`system.${field}`]: [...current, { prompt: "", answer: "" }] });
-		}
-
-		async _removeQa(field, index) {
-			if (!ENTRY_QA_FIELDS.some(f => f.key === field) || Number.isNaN(index)) return;
-			const current = Array.isArray(this.actor.system?.[field]) ? [...this.actor.system[field]] : [];
-			current.splice(index, 1);
-			await this.actor.update({ [`system.${field}`]: current });
-		}
-
-		async _updateQaField(root, field) {
-			if (!ENTRY_QA_FIELDS.some(f => f.key === field)) return;
-			const section = root.querySelector(`[data-qa-field="${field}"]`);
-			if (!section) return;
-			const pairs = Array.from(section.querySelectorAll("[data-qa-index]")).map(row => ({
-				prompt: row.querySelector(".stonetop-entry-qa-prompt")?.value ?? "",
-				answer: row.querySelector(".stonetop-entry-qa-answer")?.value ?? "",
-			}));
-			await this.actor.update({ [`system.${field}`]: pairs });
-		}
-
-		async _addDiscoveryGroup() {
-		const current = Array.isArray(this.actor.system?.discoveries) ? this.actor.system.discoveries : [];
-		await this.actor.update({ "system.discoveries": [...current, { heading: "", body: "", items: [] }] });
-	}
-
-	async _removeDiscoveryGroup(index) {
-		if (Number.isNaN(index)) return;
-		const current = Array.isArray(this.actor.system?.discoveries) ? [...this.actor.system.discoveries] : [];
-		current.splice(index, 1);
-		await this.actor.update({ "system.discoveries": current });
-	}
-
-	async _updateDiscoveries(root) {
-		const wrap = root.querySelector("[data-discovery-field]");
-		if (!wrap) return;
-		const groups = Array.from(wrap.querySelectorAll("[data-discovery-index]")).map(el => ({
-			heading: el.querySelector(".stonetop-discovery-heading-input")?.value ?? "",
-			body:    el.querySelector(".stonetop-discovery-body-input")?.value ?? "",
-			items:   (el.querySelector(".stonetop-discovery-items-input")?.value ?? "")
-				.split(/\r?\n/).filter(line => line.trim()),
-		}));
-		await this.actor.update({ "system.discoveries": groups });
-	}
-
-	/** The creature name without the " (Bestiary)" entry suffix. */
+		/** The creature name without the " (Bestiary)" entry suffix. */
 		_creatureName() {
 			return this.actor.name.replace(/\s*\(Bestiary\)\s*$/i, "").trim() || this.actor.name;
 		}

@@ -1,0 +1,90 @@
+{
+  "name": "The Quiet Twins",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 13,
+        "max": 13
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "icy touch d6 w/disadvantage (hand, ignores armor)",
+        "rollFormula": "d6"
+      },
+      "instinct": {
+        "value": "to warn of some danger, real or not"
+      }
+    },
+    "concept": "Two mute ghost-children who haunt the Stream, mouthing silent warnings.",
+    "organization": "group",
+    "size": "small",
+    "tags": "group, small, spirit, undead, cautious, unnerving",
+    "qualities": "<p>Mute; bound to the Stream. Armor 1 (lacks organs).</p>",
+    "count": 3,
+    "entry": "",
+    "notes": "",
+    "creatureType": "undead",
+    "description": "<p>A pair of ghostly children who haunt the Stream, a few minutes from Stonetop near the base of the bluff. Sightings are uncommon, but common enough. They watch what happens at the water — seen or unseen — and manifest in silent terror, mouthing and gesturing at some danger, real or not.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Quiet Twin",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "mi267Ojtnza8mNgb",
+      "name": "Watch what happens at the Stream, seen or unseen",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!1C0Jhihrg28bX7Ry.mi267Ojtnza8mNgb"
+    },
+    {
+      "_id": "iik5j4q20Iu2zIHR",
+      "name": "Manifest a ghostly form of mist and cold air (harmed only by silver or salt)",
+      "type": "monsterMove",
+      "img": "icons/magic/water/snowflake-ice-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!1C0Jhihrg28bX7Ry.iik5j4q20Iu2zIHR"
+    },
+    {
+      "_id": "UBYb3PfJnSb9NVyI",
+      "name": "Mouth and gesture in silent terror",
+      "type": "monsterMove",
+      "img": "icons/svg/terror.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!1C0Jhihrg28bX7Ry.UBYb3PfJnSb9NVyI"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "cvDGOp7YmErCmjEM",
+  "_id": "1C0Jhihrg28bX7Ry",
+  "_key": "!actors!1C0Jhihrg28bX7Ry"
+}

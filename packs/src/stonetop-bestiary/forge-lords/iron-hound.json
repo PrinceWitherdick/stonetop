@@ -1,0 +1,90 @@
+{
+  "name": "Iron Hound",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/construct.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 10,
+        "max": 10
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "bite d6+2 (hand, grabby)",
+        "rollFormula": "d6+2"
+      },
+      "instinct": {
+        "value": "to punish and torment"
+      }
+    },
+    "concept": "Effigy-hounds with dead dogs' spirits for eyes, hunting all who touch stolen goods.",
+    "organization": "horde",
+    "size": "",
+    "tags": "horde, construct, undead, corrupted, tireless, terrifying",
+    "qualities": "<p>Fireproof; heat-sensing. Armor 4 (metal, lacks organs).</p>",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "construct",
+    "description": "<p>There was a Forge Lord who prized his hounds as much as his treasure. When one would die, he'd capture its spirit in red crystal and set it as the eyes of a crudely-wrought effigy — and if anyone was so foolish as to steal from him, he'd loose his iron hounds to punish not just the thief but all whose hands had sullied his property. That Forge Lord is long gone, but his iron hounds remain. They've learned to leave their master's treasures in plain sight and to give thieves a head start — for the more hands touch the stolen goods, the more victims they can claim.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Iron Hound",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/construct.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "HWZx0uTqDciWbOes",
+      "name": "Follow the trail of its master's property",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!BgPtjVOTWvJBYE7z.HWZx0uTqDciWbOes"
+    },
+    {
+      "_id": "IqmpiKBEVTV4viaJ",
+      "name": "Fix its prey with a soul-chilling stare",
+      "type": "monsterMove",
+      "img": "icons/magic/water/snowflake-ice-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!BgPtjVOTWvJBYE7z.IqmpiKBEVTV4viaJ"
+    },
+    {
+      "_id": "A1syzX4Pdp8mQpcG",
+      "name": "Bite down and crush bone, shred muscle, tear apart (+messy, 3 piercing)",
+      "type": "monsterMove",
+      "img": "icons/creatures/abilities/mouth-teeth-rows-red.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!BgPtjVOTWvJBYE7z.A1syzX4Pdp8mQpcG"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "FVxXTCE8hSDuYOmL",
+  "_id": "BgPtjVOTWvJBYE7z",
+  "_key": "!actors!BgPtjVOTWvJBYE7z"
+}

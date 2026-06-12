@@ -8,6 +8,7 @@ import { createStonetopMonsterSheetClass } from "./module/actors/monster/Stoneto
 import { createStonetopBestiaryEntrySheetClass } from "./module/actors/bestiary/StonetopBestiaryEntrySheet.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
+import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
@@ -175,6 +176,17 @@ Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDesc
 
 // -- RENDER ACTOR SHEET ----------------------------------------
 Hooks.on("renderActorSheet", onRenderActorSheet);
+
+// -- BESTIARY CROSS-LINK INDEX ---------------------------------
+// Drop the cached creature name index when a world monster/entry is added,
+// removed, or renamed/re-conceived so cross-links stay accurate.
+const _BESTIARY_TYPES = new Set(["monster", "bestiaryEntry"]);
+Hooks.on("createActor", (actor) => { if (_BESTIARY_TYPES.has(actor?.type)) invalidateMonsterRefIndex(); });
+Hooks.on("deleteActor", (actor) => { if (_BESTIARY_TYPES.has(actor?.type)) invalidateMonsterRefIndex(); });
+Hooks.on("updateActor", (actor, changes) => {
+	if (!_BESTIARY_TYPES.has(actor?.type)) return;
+	if ("name" in (changes ?? {}) || changes?.system?.concept !== undefined) invalidateMonsterRefIndex();
+});
 
 // -- CHAT SPEAKER ALIAS ----------------------------------------
 Hooks.on("preCreateChatMessage", (message) => {

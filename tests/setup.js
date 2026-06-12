@@ -15,6 +15,9 @@ global.foundry = {
 	utils: {
 		mergeObject: (a, b) => ({ ...a, ...b }),
 		deepClone: (value) => structuredClone(value),
+		escapeHTML: (value) => String(value ?? "")
+			.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;").replace(/'/g, "&#39;"),
 		getProperty: (obj, path) => path.split(".").reduce((value, key) => value?.[key], obj),
 		flattenObject: (obj, prefix = "") => Object.entries(obj ?? {}).reduce((acc, [key, value]) => {
 			const path = prefix ? `${prefix}.${key}` : key;

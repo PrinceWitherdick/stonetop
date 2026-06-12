@@ -4,7 +4,7 @@ import { GEAR_TERMS } from "../data/gear-terms.js";
  * Given a single raw tag string (e.g. "+1 damage", "x piercing", "○ low ammo", "forceful"),
  * return the tooltip description string, or null if not a known gear term.
  */
-function findGearTerm(rawText) {
+export function findGearTerm(rawText) {
 	// Strip inventory/resource symbols, then normalise whitespace.
 	const text = rawText.replace(/[○◇□]/g, "").trim().toLowerCase();
 

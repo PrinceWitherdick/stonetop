@@ -1,0 +1,99 @@
+{
+  "name": "Nailadd",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 6,
+        "max": 6
+      },
+      "armor": {
+        "value": 2
+      },
+      "damage": {
+        "value": "venomous bite d8 (hand)",
+        "rollFormula": "d8"
+      },
+      "instinct": {
+        "value": "to capture prey and slowly consume it"
+      }
+    },
+    "concept": "Hound-sized spiders that paralyze and cocoon their prey.",
+    "organization": "group",
+    "size": "",
+    "tags": "group, cunning, stealthy",
+    "qualities": "<p>Webs; prodigious leaps. Armor 2 from carapace.</p>",
+    "count": 3,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>So far, these hound-sized spiders have thankfully avoided hunters and trappers in the Wood, and certainly haven't come near town. But they're out there, rest assured, and growing in numbers.</p>",
+    "questions": [],
+    "lore": [
+      {
+        "prompt": "**Something interesting:** Nailadd venom paralyzes prey, rather than killing it.",
+        "answer": ""
+      },
+      {
+        "prompt": "**Something useful:** You can harvest the venom (d4 uses, dangerous, reload, Value 1) from an intact corpse. A blade coated in nailadd venom deals +1d4 damage and numbs the wounded area.",
+        "answer": ""
+      }
+    ],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Nailadd",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "04wyfNwFbQ8z6biw",
+      "name": "Leap on prey and knock it prone",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!yoHXsBjzR8AVHzXj.04wyfNwFbQ8z6biw"
+    },
+    {
+      "_id": "8aabAmbKm7kJUMlB",
+      "name": "Inject a paralytic venom",
+      "type": "monsterMove",
+      "img": "icons/magic/acid/dissolve-bone-white.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!yoHXsBjzR8AVHzXj.8aabAmbKm7kJUMlB"
+    },
+    {
+      "_id": "KbOVVXPPOG47cAjR",
+      "name": "Drag helpless prey into the canopy and cocoon it",
+      "type": "monsterMove",
+      "img": "icons/sundries/gaming/playing-cards-grab.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!yoHXsBjzR8AVHzXj.KbOVVXPPOG47cAjR"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "BestiaryWoodFldr",
+  "_id": "yoHXsBjzR8AVHzXj",
+  "_key": "!actors!yoHXsBjzR8AVHzXj"
+}

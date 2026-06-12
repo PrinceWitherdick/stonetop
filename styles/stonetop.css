@@ -9457,6 +9457,22 @@ li.question-bullet {
 	cursor: help;
 }
 
+/* Creature cross-links on bestiary sheets — hover for the concept, click to
+   open that creature's sheet. Applied via enrichBestiaryElement(). */
+.stonetop-monster-ref {
+	color: inherit;
+	text-decoration: none;
+	border-bottom: 1px dashed currentColor;
+	cursor: pointer;
+	transition: background-color 0.1s ease, border-bottom-color 0.1s ease;
+}
+
+.stonetop-monster-ref:hover {
+	background-color: rgba(0, 0, 0, 0.07);
+	border-bottom-style: solid;
+	text-shadow: none;
+}
+
 .stonetop-so-playbooks {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
@@ -9816,6 +9832,14 @@ li.question-bullet {
 	font-family: var(--font-stonetop);
 }
 
+/* The lone stat-block sheet isn't tabbed (unlike the Bestiary Entry), so drop
+   the tab-style horizontal inset and align its sections — Special Qualities,
+   Moves, etc. — flush with the stat lines (Instinct, Type) above. */
+.stonetop-monster-sheet .stonetop-monster-body {
+	padding-left: 0;
+	padding-right: 0;
+}
+
 .stonetop-monster-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -10036,28 +10060,42 @@ li.question-bullet {
 .stonetop-monster-move-item {
 	display: grid;
 	grid-template-columns: auto minmax(0, 1fr);
-	gap: 8px;
-	padding: 8px 0;
-	border-bottom: 1px solid rgba(0,0,0,0.12);
+	gap: var(--stonetop-spiral-gap, 8px);
+	align-items: start;
 }
 
-.stonetop-monster-move-controls {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	color: slategrey;
-	padding-top: 2px;
+/* Arrow bullet leading each move (matching the move summary), in place of the
+   separator lines that used to divide the items. */
+.stonetop-monster-move-item::before {
+	content: "";
+	width: 0.7em;
+	height: 1.4em; /* span the name's first line so the arrow centers on it */
+	background: center / 0.7em no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+	opacity: 0.7;
 }
 
 .stonetop-monster-move-body {
 	min-width: 0;
 }
 
+.stonetop-monster-move-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin-bottom: 2px;
+}
+
+.stonetop-monster-move-controls {
+	margin-left: auto;
+	display: inline-flex;
+	gap: 8px;
+	color: slategrey;
+	flex-shrink: 0;
+}
+
 .stonetop-monster-move-name {
-	display: inline-block;
 	font-weight: bold;
 	color: var(--color-text-dark-primary);
-	margin-bottom: 3px;
 }
 
 .stonetop-monster-move-description {

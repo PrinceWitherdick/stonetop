@@ -1,0 +1,90 @@
+{
+  "name": "Wretch",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 7,
+        "max": 7
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "malformed appendages d6 (hand, close, grabby)",
+        "rollFormula": "d6"
+      },
+      "instinct": {
+        "value": "to make the pain stop"
+      }
+    },
+    "concept": "Fused, deathless masses of tormented flesh, begging only for release.",
+    "organization": "horde",
+    "size": "",
+    "tags": "horde, hardy, terrifying, corrupted",
+    "qualities": "<p>Horribly misshapen; bound to their prison; burnt by bronze (+1d6 damage). Armor 4 (resilience), 0 vs. bronze.</p>",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "corrupted",
+    "description": "<p>The victims of L'bin'bozia (Flesh-Candle, the Wax Skull, Roiling Tomb) find themselves turned into… things. Furniture. Decoration. Masses of flesh where it's hard to see where one poor soul ends and the other begins. They do not die of old age. They cannot starve. They must endure, trapped in the cave or the mire or the tomb where they met their fate — persisting in pain, begging for some outsider to come and end their suffering.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Wretch",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "v8Wgu9NHSMcektYz",
+      "name": "Moan, whisper, wail",
+      "type": "monsterMove",
+      "img": "icons/skills/social/diplomacy-handshake.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!sPAOECPRkZHUCcHD.v8Wgu9NHSMcektYz"
+    },
+    {
+      "_id": "HuFJ7wHTCMKceqkv",
+      "name": "Reveal themselves, terribly",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!sPAOECPRkZHUCcHD.HuFJ7wHTCMKceqkv"
+    },
+    {
+      "_id": "f5SbjKAJ5MHpCIQa",
+      "name": "Heal wounds, regrow limbs, get back up",
+      "type": "monsterMove",
+      "img": "icons/skills/wounds/injury-hand-blood-red.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!sPAOECPRkZHUCcHD.f5SbjKAJ5MHpCIQa"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "zZ0svqMO6kwbNUaR",
+  "_id": "sPAOECPRkZHUCcHD",
+  "_key": "!actors!sPAOECPRkZHUCcHD"
+}

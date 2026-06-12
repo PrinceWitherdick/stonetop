@@ -1,0 +1,101 @@
+{
+  "name": "Aurochs",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 14,
+        "max": 14
+      },
+      "armor": {
+        "value": 2
+      },
+      "damage": {
+        "value": "gore d8+5 (close, forceful, messy, 1 piercing), kick/trample d8+3 (hand, forceful)",
+        "rollFormula": "d8+5"
+      },
+      "instinct": {
+        "value": "to spook or to get angry, in equal measure"
+      }
+    },
+    "concept": "Big, powerful wild cattle with horns longer than your arm.",
+    "organization": "group",
+    "size": "large",
+    "tags": "group, large, ornery, powerful",
+    "qualities": "<p>Armor 2 from thick hide and sheer toughness.</p>",
+    "count": 3,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>Big, powerful, wild cattle with horns longer than your arm and thicker than your hand can grip around. Even the does have big horns, and aren't shy about using them.</p><p>They winter in the Steplands in small bands of 3-5 adults. In spring they come down to the Flats, form herds of 30 or more, and graze and graze and graze, breaking up into smaller bands by midsummer and heading back into the hills before first snow.</p><p>The Hillfolk hunt them, riding at the flanks of a herd and picking off one or two with arrows, keeping their distance. You do not want to get too close to one of these things, especially not after you wound it. A full-grown carcass, properly butchered and hauled home, counts as 1 Surplus; a pair of horns is Value 1.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Aurochs",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "UjnUKYAvdIfcnIne",
+      "name": "Send an attacker flying",
+      "type": "monsterMove",
+      "img": "icons/creatures/abilities/wing-membrane-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!fVOXp33igDV70sc0.UjnUKYAvdIfcnIne"
+    },
+    {
+      "_id": "vL8AAfFu5PdV57AA",
+      "name": "Stampede (area, forceful, messy)",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!fVOXp33igDV70sc0.vL8AAfFu5PdV57AA"
+    },
+    {
+      "_id": "0PQubdDogpBoaiyz",
+      "name": "Wheel suddenly, with surprising grace and speed",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!fVOXp33igDV70sc0.0PQubdDogpBoaiyz"
+    },
+    {
+      "_id": "KvZsfb0zZ7eUl5Wq",
+      "name": "Keep going past when it should be dead or dying",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!fVOXp33igDV70sc0.KvZsfb0zZ7eUl5Wq"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "hnWxs7XPc9PtVGpS",
+  "_id": "fVOXp33igDV70sc0",
+  "_key": "!actors!fVOXp33igDV70sc0"
+}

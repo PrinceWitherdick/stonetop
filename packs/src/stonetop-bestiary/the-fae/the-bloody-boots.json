@@ -1,0 +1,101 @@
+{
+  "name": "The Bloody Boots",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/fae.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 12,
+        "max": 12
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "oversized club d8 w/advantage (close, crude) or iron-shod boots d8+2 w/advantage (hand, forceful)",
+        "rollFormula": "d8+2"
+      },
+      "instinct": {
+        "value": "to brawl, the nastier the better"
+      }
+    },
+    "concept": "A gang of craggy fae brawlers in iron boots, sworn never to start a fight.",
+    "organization": "group",
+    "size": "small",
+    "tags": "group, small, fae, ugly, violent",
+    "qualities": "<p>Fae nature; tolerates iron; can't start violence. Armor 4 (resilience), 2 vs. iron.</p>",
+    "count": 3,
+    "entry": "",
+    "notes": "",
+    "creatureType": "fae",
+    "description": "<p>A gang of hoodlums, with names like Hobnail, Spitkicker, Big Thunk, Tusk, and Grub: short, squat brutes with lopsided limbs, mismatched parts, and craggy skin, stomping about in oversized iron-shod boots and delighting in the disgust of other Fae. Back in the day they quarried stone; given the chance to fight and spill blood, they became among the most feared shock-troops of the war, first into the fray and dyeing their Red Pennant in trodden foes. After the war, some schemer bought every debt they owed and extracted a promise: no starting fights. They can finish one someone else starts, though — and oh, will they enjoy it.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Bloody Boot",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/fae.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "zeuxUArifskGoHVJ",
+      "name": "Insult, mock, and heap abuse",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!J0rZfQ09hcXkA9mr.zeuxUArifskGoHVJ"
+    },
+    {
+      "_id": "FR8VrF9jKpkEVaEw",
+      "name": "Get in your face, dare you",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!J0rZfQ09hcXkA9mr.FR8VrF9jKpkEVaEw"
+    },
+    {
+      "_id": "0QzF971BYqLmGY0k",
+      "name": "Leverage their unlikely strength",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!J0rZfQ09hcXkA9mr.0QzF971BYqLmGY0k"
+    },
+    {
+      "_id": "HCB1QfZQP4kMNxL8",
+      "name": "Stomp someone who's down (messy)",
+      "type": "monsterMove",
+      "img": "icons/skills/melee/strike-hammer-destructive-orange.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!J0rZfQ09hcXkA9mr.HCB1QfZQP4kMNxL8"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "4CogaMcyAuszIFDN",
+  "_id": "J0rZfQ09hcXkA9mr",
+  "_key": "!actors!J0rZfQ09hcXkA9mr"
+}

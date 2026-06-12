@@ -1,0 +1,99 @@
+{
+  "name": "Spitting Drake",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 6,
+        "max": 6
+      },
+      "armor": {
+        "value": 2
+      },
+      "damage": {
+        "value": "vice-like jaws d8 (hand, grabby, messy, 1 piercing)",
+        "rollFormula": "d8"
+      },
+      "instinct": {
+        "value": "to pin down a good meal, then swarm it"
+      }
+    },
+    "concept": "Chameleon-skinned ambush drakes that spit pinning mucus.",
+    "organization": "group",
+    "size": "",
+    "tags": "group, stealthy, organized",
+    "qualities": "<p>Chameleon skin; excellent climbers. Armor 2 from pebbly scales.</p>",
+    "count": 3,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>They're about the size of a big wolf, but lower and squatter, with arms out to the sides like lizards and a big old frill that pops up when they're startled or bearing down on prey. They favor canyons, defiles, or overlooks where they can bask in the sun but have a good angle to ambush passersby.</p>",
+    "questions": [],
+    "lore": [
+      {
+        "prompt": "**Something interesting:** Their mucus adheres quickly to rock, pinning prey in place; even unpinned it gloms on and slows them up, drying and flaking away after a few hours.",
+        "answer": ""
+      },
+      {
+        "prompt": "**Something useful:** Strong spirits (yes, like whisky) quickly dissolve the mucus. You can also identify their territory by the pale chalky stains it leaves on stone.",
+        "answer": ""
+      }
+    ],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Spitting Drake",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "AXcCnUxKwZwA6AjR",
+      "name": "Lay an ambush, where they can surround prey",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!qULBTb5zDEPTWTWF.AXcCnUxKwZwA6AjR"
+    },
+    {
+      "_id": "JzFTJF8w5TQ93KDB",
+      "name": "Spit a head-sized gob of sticky mucus (near, grabby, reload)",
+      "type": "monsterMove",
+      "img": "icons/sundries/gaming/playing-cards-grab.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!qULBTb5zDEPTWTWF.JzFTJF8w5TQ93KDB"
+    },
+    {
+      "_id": "PgCYzWGDoCG5JbOU",
+      "name": "Sprint much more quickly than you'd expect",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!qULBTb5zDEPTWTWF.PgCYzWGDoCG5JbOU"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "A5pBFgOjdwXRwZNz",
+  "_id": "qULBTb5zDEPTWTWF",
+  "_key": "!actors!qULBTb5zDEPTWTWF"
+}

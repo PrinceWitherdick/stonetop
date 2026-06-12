@@ -1,0 +1,90 @@
+{
+  "name": "Lithic Servant",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/construct.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 11,
+        "max": 11
+      },
+      "armor": {
+        "value": 3
+      },
+      "damage": {
+        "value": "stone fists d6 (hand, grabby)",
+        "rollFormula": "d6"
+      },
+      "instinct": {
+        "value": "to follow its last orders"
+      }
+    },
+    "concept": "Faceless stone mannequin-servants grinding through their last orders forever.",
+    "organization": "horde",
+    "size": "",
+    "tags": "horde, construct, implacable",
+    "qualities": "<p>Externally powered; bug-like intellect; blind; tremorsense. Armor 3 (made of stone).</p>",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "construct",
+    "description": "<p>Imagine one of those artists' mannequins, but full-sized and made of polished rock: two fingers and a thumb on each hand, faceless, expressionless, making a stone-on-stone grinding noise as they move. They're most often found inert and covered in dust, waiting for an energy source — a Stone Lord's song or a thrumming power-crystal — to give them 'life,' whereupon they follow any orders given in the Stone Lord's tongue. A few are still active, powered by inexhaustible sources, their joints worn smooth and their hands ground to nubs, some crawling on broken limbs at tasks that will never end.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Lithic Servant",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/construct.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "NtWit7a5KxrPdpZj",
+      "name": "Act with eternal patience and endurance",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!CoqfzAvGUkjfvMpi.NtWit7a5KxrPdpZj"
+    },
+    {
+      "_id": "MaMFo0GgWh99AitN",
+      "name": "Act with no sense of consequence",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!CoqfzAvGUkjfvMpi.MaMFo0GgWh99AitN"
+    },
+    {
+      "_id": "WwX6qm0eu51Bo34N",
+      "name": "Hurt someone unintentionally while performing its tasks",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!CoqfzAvGUkjfvMpi.WwX6qm0eu51Bo34N"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "1yj6UyLp9x9oxtmS",
+  "_id": "CoqfzAvGUkjfvMpi",
+  "_key": "!actors!CoqfzAvGUkjfvMpi"
+}

@@ -1,4 +1,6 @@
 import { CREATURE_TYPE_CHOICES, creatureTypeIcon, creatureTypeLabel } from "../../bestiary/creature-types.js";
+import { unlockForEditing, relockIfWeUnlocked } from "../../utils/compendium-edit.js";
+import { buildCodexContext, onCodexClick, onCodexChange } from "../bestiary/codex.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
 const ORGANIZATION_DEFAULTS = {
@@ -50,6 +52,7 @@ async function _enrichHTML(value) {
 export function createStonetopMonsterSheetClass(Base) {
 	return class StonetopMonsterSheet extends Base {
 		_editMode = false;
+		_weUnlockedPack = false;
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
@@ -95,28 +98,31 @@ export function createStonetopMonsterSheetClass(Base) {
 
 		_injectHeaderToggle() {
 			const header = this.element[0]?.querySelector(".window-header");
-			if (!header || !this.isEditable) return;
+			if (!header || !this.actor.isOwner) return;
 
 			header.querySelector(".stonetop-header-toggle")?.remove();
 
+			// Locked == viewed from a locked compendium. Show a lock affordance;
+			// toggling it on unlocks the pack so the fields become editable.
+			const locked = !this.isEditable;
+
 			const label = document.createElement("label");
 			label.className = "stonetop-edit-toggle stonetop-header-toggle";
-			label.title = this._editMode ? "Lock Sheet" : "Edit Stat Block";
+			label.title = locked
+				? "Unlock & edit (unlocks the compendium)"
+				: (this._editMode ? "Lock stat block" : "Edit stat block");
 
 			const checkbox = document.createElement("input");
 			checkbox.type = "checkbox";
 			checkbox.checked = this._editMode;
-			checkbox.addEventListener("change", () => {
-				this._editMode = !this._editMode;
-				this.render(false);
-			});
+			checkbox.addEventListener("change", () => this._onToggleEdit(checkbox));
 
 			const track = document.createElement("span");
 			track.className = "stonetop-toggle-track";
 			const thumb = document.createElement("span");
 			thumb.className = "stonetop-toggle-thumb";
 			const icon = document.createElement("i");
-			icon.className = "fas fa-wrench";
+			icon.className = locked ? "fas fa-lock" : "fas fa-wrench";
 			thumb.appendChild(icon);
 			track.appendChild(thumb);
 
@@ -125,6 +131,24 @@ export function createStonetopMonsterSheetClass(Base) {
 
 			const title = header.querySelector(".window-title");
 			header.insertBefore(label, title);
+		}
+
+		async _onToggleEdit(checkbox) {
+			const turningOn = checkbox.checked;
+			if (turningOn && !this.isEditable) {
+				if (!await unlockForEditing(this)) { checkbox.checked = false; return; }
+			}
+			// Set the mode before re-locking: relocking the pack triggers an async
+			// re-render, and if _editMode were still true that render would paint
+			// edit-mode markup into a now-locked form (disabled inputs everywhere).
+			this._editMode = turningOn;
+			if (!turningOn) await relockIfWeUnlocked(this);
+			this.render(false);
+		}
+
+		async close(options) {
+			await relockIfWeUnlocked(this);
+			return super.close(options);
 		}
 
 		_getHeaderButtons() {
@@ -153,6 +177,10 @@ export function createStonetopMonsterSheetClass(Base) {
 				st[field.enrichedKey] = await _enrichHTML(system?.[field.key]);
 			}
 
+			// Codex flavor carried directly on a lone stat block (description, Q&A,
+			// prep, discoveries, nests, dangers) — shown only when populated.
+			Object.assign(st, await buildCodexContext(system, this._editMode));
+
 			// Organization-driven combat budget.
 			const org = _normalizeTag(system?.organization);
 			st.organizationChoices = ORGANIZATION_CHOICES;
@@ -179,24 +207,32 @@ export function createStonetopMonsterSheetClass(Base) {
 				} catch (_e) { /* stale link — ignore */ }
 			}
 
+			// Preserve the book's move order — don't sort.
 			context.monsterMoves = this.actor.items
 				.filter(i => i.type === "monsterMove")
-				.map(i => ({ id: i.id, name: i.name, system: i.system }))
-				.sort((a, b) => {
-					const aRollable = !!a.system?.rollFormula;
-					const bRollable = !!b.system?.rollFormula;
-					if (aRollable !== bRollable) return aRollable ? -1 : 1;
-					return a.name.localeCompare(b.name);
-				});
+				.map(i => ({ id: i.id, name: i.name, system: i.system }));
 			return context;
 		}
 
 		activateListeners(html) {
 			super.activateListeners(html);
 			this._bindOutnumberCalc(html[0]);
+
+			// Navigation works even when the sheet is read-only (e.g. viewed from
+			// the compendium): open the linked Bestiary Entry on click.
+			html[0].addEventListener("click", async ev => {
+				const link = ev.target.closest(".stonetop-monster-entry-link");
+				if (!link) return;
+				ev.preventDefault();
+				const doc = link.dataset.entryUuid ? await fromUuid(link.dataset.entryUuid).catch(() => null) : null;
+				doc?.sheet?.render(true);
+			});
+
 			if (!this.isEditable) return;
 
 			html[0].addEventListener("click", async ev => {
+				if (await onCodexClick(this, ev)) return;
+
 				if (ev.target.closest(".stonetop-monster-damage-roll")) {
 					const formula = this.actor.system?.attributes?.damage?.rollFormula;
 					if (!formula) return;
@@ -239,12 +275,6 @@ export function createStonetopMonsterSheetClass(Base) {
 				} else if (ev.target.closest(".stonetop-monster-reset-defaults")) {
 					if (!this._editMode) return;
 					await this._resetOrganizationDefaults();
-
-				} else if (ev.target.closest(".stonetop-monster-entry-link")) {
-					ev.preventDefault();
-					const uuid = ev.target.closest(".stonetop-monster-entry-link")?.dataset?.entryUuid;
-					const doc  = uuid ? await fromUuid(uuid) : null;
-					doc?.sheet?.render(true);
 				}
 			});
 
@@ -252,7 +282,9 @@ export function createStonetopMonsterSheetClass(Base) {
 				const editor = ev.target.closest(".stonetop-monster-rich-editor");
 				if (editor && this._editMode) {
 					await this._updateRichTextField(editor.dataset?.field, editor.value);
+					return;
 				}
+				await onCodexChange(this, ev);
 			});
 		}
 

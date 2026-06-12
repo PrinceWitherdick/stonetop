@@ -1,0 +1,99 @@
+{
+  "name": "Cynddaraig",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 20,
+        "max": 20
+      },
+      "armor": {
+        "value": 2
+      },
+      "damage": {
+        "value": "three-inch-long teeth d10+3 (close, reach, grabby, messy, 3 piercing, advantage)",
+        "rollFormula": "d10+3"
+      },
+      "instinct": {
+        "value": "to dominate its territory"
+      }
+    },
+    "concept": "The 'rage drake' — ten feet of knives, quills, and fury.",
+    "organization": "solitary",
+    "size": "large",
+    "tags": "solitary, large, terrifying, fearless",
+    "qualities": "<p>Armor 2 from scales.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>The mighty 'rage drake,' almost ten feet tall and twenty feet from nose to tail-tip. Its jaws are full of knives, blood-red patterns surround its eyes, and a frill of feathered quills sprouts from its neck and runs down its back. Maybe a half-dozen of them stalk the whole Great Wood, and one hasn't been spotted near Stonetop for generations (Tor be praised).</p>",
+    "questions": [],
+    "lore": [
+      {
+        "prompt": "**Something interesting:** They prey mostly on large game (wisents, tal gerdwyr, etc.). They'll attack people, but rarely hunt them.",
+        "answer": ""
+      },
+      {
+        "prompt": "**Something useful:** They attack people to establish dominance, seeing us as rivals. An appropriate offering or show of obeisance might calm one enough for you to get the hell out of there.",
+        "answer": ""
+      }
+    ],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Cynddaraig",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "sB16z8TNFm2506Rw",
+      "name": "Roar and unfurl its quills, making even brave warriors quail",
+      "type": "monsterMove",
+      "img": "icons/skills/social/diplomacy-handshake.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!BVvWxKNlDdOzu9Ac.sB16z8TNFm2506Rw"
+    },
+    {
+      "_id": "Nfl6pVRy8odEMstP",
+      "name": "Bite a limb clean off",
+      "type": "monsterMove",
+      "img": "icons/creatures/abilities/mouth-teeth-rows-red.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!BVvWxKNlDdOzu9Ac.Nfl6pVRy8odEMstP"
+    },
+    {
+      "_id": "JfVMcxNEDPcFGewi",
+      "name": "Lose itself in primal fury",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!BVvWxKNlDdOzu9Ac.JfVMcxNEDPcFGewi"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "BestiaryWoodFldr",
+  "_id": "BVvWxKNlDdOzu9Ac",
+  "_key": "!actors!BVvWxKNlDdOzu9Ac"
+}

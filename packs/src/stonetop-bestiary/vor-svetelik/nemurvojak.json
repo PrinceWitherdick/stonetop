@@ -1,0 +1,90 @@
+{
+  "name": "Nemurvojak",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 11,
+        "max": 11
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "iron-wood spears d6 w/advantage (close, messy, 1 piercing) or bare-handed rending d4 w/advantage (hand, grabby, messy, 1 piercing)",
+        "rollFormula": "d6"
+      },
+      "instinct": {
+        "value": "to revel in their prey's fear and suffering"
+      }
+    },
+    "concept": "Demon-seeded corpses of loyal Green Lord servants, still guarding the dead city.",
+    "organization": "horde",
+    "size": "",
+    "tags": "horde, construct, undead, corrupted, fearless",
+    "qualities": "<p>Armor 4 (resilience), 0 vs. bronze. Bound by its last orders; shuns the sun and holy light.</p>",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "undead",
+    "description": "<p>When the Fae rebelled, some of the Green Lords' mortal servants — ancestors of the Forest Folk — sided with the traitors. But most remained loyal, or at least too afraid of their masters to risk turning. Their loyalty did not save them: the Green Lords planted demon-seeds in fallen servants' bodies, then, seeing how effective the animated corpses were, in the living too. Many of these horrors remain in Vor Svetelik, bound by orders to protect the city or certain sites within. Thank the gods they were not allowed to roam free.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Nemurvojak",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "jtTCXzq0UJwHQy3H",
+      "name": "Rush a foe with an unearthly howl",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!RtF6xF9mdCPujX08.jtTCXzq0UJwHQy3H"
+    },
+    {
+      "_id": "wp00xuE1W090sJuH",
+      "name": "Lash out with a mass of black, viny tendrils (reach, grabby)",
+      "type": "monsterMove",
+      "img": "icons/sundries/gaming/playing-cards-grab.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!RtF6xF9mdCPujX08.wp00xuE1W090sJuH"
+    },
+    {
+      "_id": "p4I2w99bRWJY2xLx",
+      "name": "Brutalize an already fallen foe",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!RtF6xF9mdCPujX08.p4I2w99bRWJY2xLx"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "xjeECNnZIoBEkVix",
+  "_id": "RtF6xF9mdCPujX08",
+  "_key": "!actors!RtF6xF9mdCPujX08"
+}

@@ -1,0 +1,101 @@
+{
+  "name": "Hollow Fae",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/fae.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 19,
+        "max": 19
+      },
+      "armor": {
+        "value": 5
+      },
+      "damage": {
+        "value": "life-drain d10 (hand, close, area, ignores armor)",
+        "rollFormula": "d10"
+      },
+      "instinct": {
+        "value": "to consume life-force"
+      }
+    },
+    "concept": "A black-iron-cursed fae husk that devours all life around it.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, fae, undead, confused, terrifying",
+    "qualities": "<p>Senses life; surrounded by inert death and ash. Armor 5 (resilience, lacks vitals), 1 vs. black iron — and can be truly destroyed only by black iron.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "fae",
+    "description": "<p>A Fae wounded by black iron will pray for death, for to survive such a wound is a curse. They grow weak, then confused, then hungry, until they become a walking husk, surrounded by death, inhaling any source of life they find. Hollow Fae are no longer vulnerable to mere iron; debts and promises no longer bind them; they will tear their way free of any domain. Only black iron can destroy them — and what living Fae would be fool enough to try? A large Hollow Fae is tougher (23 HP, +1 damage, +reach); a huge one tougher still (27 HP, +3 damage, +reach).</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Hollow Fae",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/fae.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "RUr8250WkHRSZ0NF",
+      "name": "Moan, filling all with dread",
+      "type": "monsterMove",
+      "img": "icons/svg/terror.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!0ZKo6trYa54afrSZ.RUr8250WkHRSZ0NF"
+    },
+    {
+      "_id": "RhPPOZXK0D76FlsP",
+      "name": "Tear apart Fae magic",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!0ZKo6trYa54afrSZ.RhPPOZXK0D76FlsP"
+    },
+    {
+      "_id": "UNAEgjDqCycMfN3H",
+      "name": "Pause in confusion when confronted with who it once was",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!0ZKo6trYa54afrSZ.UNAEgjDqCycMfN3H"
+    },
+    {
+      "_id": "TOQDEAj5tBL72mce",
+      "name": "Open wide, drinking in the vitality of the living (inflicting debilities)",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!0ZKo6trYa54afrSZ.TOQDEAj5tBL72mce"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "4CogaMcyAuszIFDN",
+  "_id": "0ZKo6trYa54afrSZ",
+  "_key": "!actors!0ZKo6trYa54afrSZ"
+}

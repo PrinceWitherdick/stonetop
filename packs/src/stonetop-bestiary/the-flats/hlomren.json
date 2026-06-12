@@ -1,0 +1,90 @@
+{
+  "name": "Hlomren",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 1,
+        "max": 1
+      },
+      "armor": {
+        "value": 3
+      },
+      "damage": {
+        "value": "acid-dripping mandibles d6-2 (hand, messy, 3 piercing), acid glob d6-2 (reach, messy, reload, 1 piercing)",
+        "rollFormula": "d6-2"
+      },
+      "instinct": {
+        "value": "to protect the colony"
+      }
+    },
+    "concept": "Cat-sized red insects that swarm and burst with acid.",
+    "organization": "horde",
+    "size": "tiny",
+    "tags": "horde, tiny, organized",
+    "qualities": "<p>Armor 3 from carapace and tiny size.</p>",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>Red-shelled insects that look like a cross between an ant and a beetle, but the size of a small cat. They form colonies a few-hundred large, typically on higher ground, harvesting all the dead grass in a few miles, hibernating through winter, then relocating in spring to a part of the Flats that hasn't burned or been harvested in years. They mostly ignore people and large animals, but they'll swarm if threatened.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Hlomren",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "z1E8UMosyiYM9bzr",
+      "name": "Burrow into, out of, and through loose soil",
+      "type": "monsterMove",
+      "img": "icons/environment/wilderness/cave-entrance-dark.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!WrXgtdFAMVIRlJ9G.z1E8UMosyiYM9bzr"
+    },
+    {
+      "_id": "Sx0rxxnKBcIrPEof",
+      "name": "Swarm over a threat",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!WrXgtdFAMVIRlJ9G.Sx0rxxnKBcIrPEof"
+    },
+    {
+      "_id": "ZuJuPQmVZBqimSRc",
+      "name": "Burst with acid when killed, d4 damage (close, area)",
+      "type": "monsterMove",
+      "img": "icons/magic/acid/dissolve-bone-white.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!WrXgtdFAMVIRlJ9G.ZuJuPQmVZBqimSRc"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "hnWxs7XPc9PtVGpS",
+  "_id": "WrXgtdFAMVIRlJ9G",
+  "_key": "!actors!WrXgtdFAMVIRlJ9G"
+}

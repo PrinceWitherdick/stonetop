@@ -1,0 +1,68 @@
+{
+  "name": "Lightning Sconce",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/construct.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 1,
+        "max": 1
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "lightning 1d6+2 (near, forceful, reload, ignores armor)",
+        "rollFormula": "d6+2"
+      },
+      "instinct": {
+        "value": "to blast the unkeyed"
+      }
+    },
+    "concept": "An aetherium sentry-gem that blasts the unkeyed with lightning.",
+    "organization": "",
+    "size": "",
+    "tags": "magical, construct, immobile",
+    "qualities": "<p>Immobile. Armor 4 from tiny size, metal fittings, and crystal body. Keyed to a phrase, signal, color, or token.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "construct",
+    "description": "<p>A glowing gem, set in a fixture of aetherium. Found in pairs, or sets of up to six. Each set is keyed to something — a pass phrase, a hand signal, a color of robes, a style of locket. Get too close without the key, and zzzolt, they start blasting.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Lightning Sconce",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/construct.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "gYFXx51yRpBjq5d4",
+      "name": "Zzzolt — blast intruders with lightning (near, forceful, reload, ignores armor)",
+      "type": "monsterMove",
+      "img": "icons/magic/lightning/bolt-strike-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": "d6+2"
+      },
+      "_key": "!actors.items!dfsDOpDS6JcOBnCe.gYFXx51yRpBjq5d4"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "bgB0BcdHBaPnlv3w",
+  "_id": "dfsDOpDS6JcOBnCe",
+  "_key": "!actors!dfsDOpDS6JcOBnCe"
+}

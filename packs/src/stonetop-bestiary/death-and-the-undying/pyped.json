@@ -1,0 +1,90 @@
+{
+  "name": "Pyped",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 16,
+        "max": 16
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "bone-snapping grip d8+2 (hand, grabby, forceful)",
+        "rollFormula": "d8+2"
+      },
+      "instinct": {
+        "value": "to avoid the Last Door"
+      }
+    },
+    "concept": "A ghost-ridden corpse that lurches after marrow and the weak.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, undead, terrifying, craven",
+    "qualities": "<p>Burned by silver (+1d4 damage); harmed by salt (1d8 damage, hand, close); foul stench; sustained by bone marrow. Armor 1 from sheer speed.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "undead",
+    "description": "<p>When an untethered ghost or a shade possesses an empty corpse, it becomes a pyped. They are wretched things, all rotting flesh and lurching movements, hungering for sweet marrow, scavenging on carrion and graves. But hunger can make them bold — bold enough to hunt the weak and sick at the edge of a village, or a lone traveler caught unawares. Pypeds rise only from relatively intact corpses that have not undergone proper funeral rites.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Pyped",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "RiHGUdPvpsjDOrJB",
+      "name": "Move with a surprising, jerky speed",
+      "type": "monsterMove",
+      "img": "icons/skills/social/diplomacy-handshake.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!3DlUOSnpOxSzU7BO.RiHGUdPvpsjDOrJB"
+    },
+    {
+      "_id": "3JMBG2taAxp9WKXC",
+      "name": "Jumble up its memories with those of its host and those whose bones it's eaten",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!3DlUOSnpOxSzU7BO.3JMBG2taAxp9WKXC"
+    },
+    {
+      "_id": "eGB0xzYSNj5w2atQ",
+      "name": "Possess a new corpse, if it can or must",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!3DlUOSnpOxSzU7BO.eGB0xzYSNj5w2atQ"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "EFgcYyVfAWu3kPtb",
+  "_id": "3DlUOSnpOxSzU7BO",
+  "_key": "!actors!3DlUOSnpOxSzU7BO"
+}

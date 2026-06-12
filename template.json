@@ -61,6 +61,16 @@
             "qualities": "",
             "count": 0,
             "entry": "",
+            "description": "",
+            "questions": [],
+            "lore": [],
+            "hooks": "",
+            "hooksIntro": "",
+            "origins": "",
+            "originsIntro": "",
+            "discoveries": [],
+            "nests": "",
+            "dangers": "",
             "notes": ""
         },
         "bestiaryEntry": {

@@ -1,0 +1,90 @@
+{
+  "name": "Gingkara",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 10,
+        "max": 10
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "bony fingers d4 (hand, grabby)",
+        "rollFormula": "d4"
+      },
+      "instinct": {
+        "value": "to keep their master's house in order"
+      }
+    },
+    "concept": "Carved-bone skeletons bound by spirits, still tidying their long-dead masters' homes.",
+    "organization": "horde",
+    "size": "",
+    "tags": "horde, spirit, construct, organized",
+    "qualities": "<p>Tethered to one specific bone. Armor 1 (lacks organs), or 4 vs. stabbing (just bones).</p>",
+    "count": 6,
+    "entry": "",
+    "notes": "",
+    "creatureType": "spirit-construct",
+    "description": "<p>Some of the simplest tulpas to create, each of these spirits is bound to a skeleton that's been stripped of flesh and intricately carved. The Rime Lords and their disciples used them as domestic servants, tending to material needs and serving as guardians when needed. Gingkara still attempt to preserve their masters' homes — for what else should they do with their existence?</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Gingkara",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "ZF2NdiZdShApOnur",
+      "name": "Animate its particular skeleton",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!ktS8JqsS9RThoLIJ.ZF2NdiZdShApOnur"
+    },
+    {
+      "_id": "2n1THjytihCct8Aj",
+      "name": "Grab on and pull them down with numbers",
+      "type": "monsterMove",
+      "img": "icons/sundries/gaming/playing-cards-grab.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!ktS8JqsS9RThoLIJ.2n1THjytihCct8Aj"
+    },
+    {
+      "_id": "shopswwriGnrkknH",
+      "name": "Reassemble themselves (regaining 1d4 HP), unless their tether is shattered",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!ktS8JqsS9RThoLIJ.shopswwriGnrkknH"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "FV8OtHi4fcpmL3w5",
+  "_id": "ktS8JqsS9RThoLIJ",
+  "_key": "!actors!ktS8JqsS9RThoLIJ"
+}

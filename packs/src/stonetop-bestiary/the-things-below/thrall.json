@@ -1,0 +1,101 @@
+{
+  "name": "Thrall",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 16,
+        "max": 16
+      },
+      "armor": {
+        "value": 0
+      },
+      "damage": {
+        "value": "weapon d10 (tags by weapon)",
+        "rollFormula": "d10"
+      },
+      "instinct": {
+        "value": "to explore their condition, to hide it, or to serve their master's whims"
+      }
+    },
+    "concept": "One who refused the Last Door by selling themselves to a Thing Below — now undying and marked.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, undead, hardy, magical, corrupted",
+    "qualities": "<p>Marked by their master. Armor by worn armor, if any.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "undead",
+    "description": "<p>When the Last Door stands open before you, what will you do? Some step through bravely, with a nod to the Lady of Crows. Others stagger through, weeping and wailing. Others — consumed by longing, vengeance, or duty — spit on fate, turn their back on the Last Door, and cling to this world for a time. But what if you simply want to live? What if, when faced with oblivion, you called upon one of the Things Below and offered yourself up to them? And what if they said yes?</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Thrall",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "SwVU7VWu9hPFcypY",
+      "name": "Use one of their gifts",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!yllCLAsqWbqNYgTd.SwVU7VWu9hPFcypY"
+    },
+    {
+      "_id": "8o8IRI7jnOThrO9O",
+      "name": "Struggle against their master's impulses",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!yllCLAsqWbqNYgTd.8o8IRI7jnOThrO9O"
+    },
+    {
+      "_id": "Ez5ErSi5liLX4Nzw",
+      "name": "Act on their master's impulses",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!yllCLAsqWbqNYgTd.Ez5ErSi5liLX4Nzw"
+    },
+    {
+      "_id": "pMbSxrZ0T2GrgbBk",
+      "name": "Recover from terrible, even mortal injury",
+      "type": "monsterMove",
+      "img": "icons/skills/wounds/injury-hand-blood-red.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!yllCLAsqWbqNYgTd.pMbSxrZ0T2GrgbBk"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "zZ0svqMO6kwbNUaR",
+  "_id": "yllCLAsqWbqNYgTd",
+  "_key": "!actors!yllCLAsqWbqNYgTd"
+}

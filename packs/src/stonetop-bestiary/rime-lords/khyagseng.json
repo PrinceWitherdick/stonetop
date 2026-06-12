@@ -1,0 +1,90 @@
+{
+  "name": "Khyagseng",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 13,
+        "max": 13
+      },
+      "armor": {
+        "value": 2
+      },
+      "damage": {
+        "value": "icy jaws and paws d8+2 w/advantage (hand, close, grabby, forceful)",
+        "rollFormula": "d8+2"
+      },
+      "instinct": {
+        "value": "to repel intruders"
+      }
+    },
+    "concept": "Three-eyed dark-ice guardian lions that challenge all who pass their threshold.",
+    "organization": "group",
+    "size": "",
+    "tags": "group, spirit, construct, resolute, observant, fierce",
+    "qualities": "<p>Tethered to its pedestal; body made of dark ice; cold-proof. Armor 2 (icy 'skin,' lacks organs).</p>",
+    "count": 3,
+    "entry": "",
+    "notes": "",
+    "creatureType": "spirit-construct",
+    "description": "<p>These tulpas inhabit dark-ice sculptures of three-eyed, stylized lions — muscular, proud, fierce — standing atop decorated pedestals. They are always found in pairs, guarding doorways or thresholds, dutifully challenging any who approach without an invitation from their master. Never mind that their masters are all long gone. The grander ruins boast large khyagseng of stone-hard dark ice (+8 HP, +1 Armor, +1 damage) that can unleash an avalanche-triggering roar.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Khyagseng",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "o84a8V0DdpIVDj2t",
+      "name": "See through illusions and deceptions",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!LLdvSUypBNDeKI5Z.o84a8V0DdpIVDj2t"
+    },
+    {
+      "_id": "WyQbgeO5ofQheEbP",
+      "name": "Offer a rumbling (though polite) warning",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!LLdvSUypBNDeKI5Z.WyQbgeO5ofQheEbP"
+    },
+    {
+      "_id": "ZsXXbUfMwlFNjIq9",
+      "name": "Repair itself while on its pedestal",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!LLdvSUypBNDeKI5Z.ZsXXbUfMwlFNjIq9"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "FV8OtHi4fcpmL3w5",
+  "_id": "LLdvSUypBNDeKI5Z",
+  "_key": "!actors!LLdvSUypBNDeKI5Z"
+}

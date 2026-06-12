@@ -38,7 +38,7 @@ describe("StonetopMonsterSheet", () => {
 		]);
 	});
 
-	it("sorts rollable monster moves first, alphabetically within each group", async () => {
+	it("preserves the book's move order (does not sort)", async () => {
 		const actor = {
 			system: {},
 			items: makeItems([
@@ -52,10 +52,10 @@ describe("StonetopMonsterSheet", () => {
 		const data = await makeSheet(actor).getData();
 
 		expect(data.monsterMoves.map(move => move.name)).toEqual([
-			"Bite",
+			"Claw",
 			"Zap",
 			"Ambush",
-			"Claw",
+			"Bite",
 		]);
 	});
 
@@ -112,6 +112,7 @@ describe("StonetopMonsterSheet", () => {
 	it("enriches the qualities rich-text field for display", async () => {
 		const originalFoundry = globalThis.foundry;
 		globalThis.foundry = {
+			utils: originalFoundry.utils,   // getData also escapes codex text
 			applications: {
 				ux: {
 					TextEditor: {

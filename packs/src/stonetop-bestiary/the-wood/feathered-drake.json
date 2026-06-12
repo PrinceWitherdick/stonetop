@@ -1,0 +1,90 @@
+{
+  "name": "Feathered Drake",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 6,
+        "max": 6
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "boney crest d8+2 (close, forceful), talon & teeth d8+2 (hand, messy, 1 piercing)",
+        "rollFormula": "d8+2"
+      },
+      "instinct": {
+        "value": "to spring on unwary prey"
+      }
+    },
+    "concept": "Man-sized flightless pack drakes that crash through the brush.",
+    "organization": "group",
+    "size": "",
+    "tags": "group, stealthy, organized",
+    "qualities": "<p>Flightless. Armor 1 from feathers and scales.</p>",
+    "count": 3,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>Bigger than a grown man, with a yard-long talon on each foot and a boney ridge on their heads they use to go crashing through the undergrowth. They might follow a party for days, waiting for them to let their guard down or for someone to fall behind. Then? Bam. Their feathers are much-sought by merchants — a bundle of drake feathers (fragile, Value 3) can be harvested from a flock of 3-4.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Feathered Drake",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "TeHXiNfpnzA31I9F",
+      "name": "Burst out of the brush",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!30NDurP2YczoGj6B.TeHXiNfpnzA31I9F"
+    },
+    {
+      "_id": "6w3VrqMODVsGRETV",
+      "name": "Bash prey to the ground, senseless",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!30NDurP2YczoGj6B.6w3VrqMODVsGRETV"
+    },
+    {
+      "_id": "QPJFw74SAtmIiIpz",
+      "name": "Surround downed prey, and rend",
+      "type": "monsterMove",
+      "img": "icons/creatures/claws/claw-curved-jagged-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!30NDurP2YczoGj6B.QPJFw74SAtmIiIpz"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "BestiaryWoodFldr",
+  "_id": "30NDurP2YczoGj6B",
+  "_key": "!actors!30NDurP2YczoGj6B"
+}

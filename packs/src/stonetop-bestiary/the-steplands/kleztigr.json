@@ -1,0 +1,99 @@
+{
+  "name": "Kleztigr",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 16,
+        "max": 16
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "huge saber-like fangs d10+3 w/advantage (hand, grabby, messy, 1 piercing), claws or pounce d10+1 w/advantage (close)",
+        "rollFormula": "d10+3"
+      },
+      "instinct": {
+        "value": "to bring down a good, solid meal"
+      }
+    },
+    "concept": "A saber-toothed cat the size of two cougars; once Stone Lord pets.",
+    "organization": "solitary",
+    "size": "large",
+    "tags": "solitary, large, cagey, stealthy, agile, powerful",
+    "qualities": "<p>Armor 1 from sheer reflexes.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>Like a cougar but twice as big, with eight-inch fangs hanging out of their mouths. Hillfolk tales claim they once were much more common — pets of the Stone Lords, even. Now they are, thankfully, rare.</p>",
+    "questions": [],
+    "lore": [
+      {
+        "prompt": "**Something interesting:** Some Hillfolk bands 'adopt' a kleztigr, making offerings of meat or young goats, sheep, or even horses. The kleztigr follows the band about, protecting them from outsiders.",
+        "answer": ""
+      },
+      {
+        "prompt": "**Something useful:** Such a kleztigr won't harm anyone wearing some item or clothing distinctive to 'their' band (but it might expect a present).",
+        "answer": ""
+      }
+    ],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Kleztigr",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "C30vvLxroAEtlcHZ",
+      "name": "Follow prey for hours, even days",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!8nNyWAoSsT3VXRx5.C30vvLxroAEtlcHZ"
+    },
+    {
+      "_id": "CMVWW4cSMZbLkOIO",
+      "name": "Pounce on prey from hiding (reach, forceful, grabby)",
+      "type": "monsterMove",
+      "img": "icons/sundries/gaming/playing-cards-grab.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!8nNyWAoSsT3VXRx5.CMVWW4cSMZbLkOIO"
+    },
+    {
+      "_id": "FI7dLXrwzTSyhsBp",
+      "name": "Inflict a deadly, bleeding wound",
+      "type": "monsterMove",
+      "img": "icons/skills/wounds/injury-hand-blood-red.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!8nNyWAoSsT3VXRx5.FI7dLXrwzTSyhsBp"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "A5pBFgOjdwXRwZNz",
+  "_id": "8nNyWAoSsT3VXRx5",
+  "_key": "!actors!8nNyWAoSsT3VXRx5"
+}

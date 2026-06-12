@@ -1,0 +1,90 @@
+{
+  "name": "Wraith",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 19,
+        "max": 19
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "life drain d10 (hand, ignores armor)",
+        "rollFormula": "d10"
+      },
+      "instinct": {
+        "value": "to feast upon living souls"
+      }
+    },
+    "concept": "A hungering husk of a soul that drains the life from the living.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, spirit, undead, stealthy, terrifying",
+    "qualities": "<p>Bound to its tether (usually); powerless in daylight. Armor 1 (lacks organs).</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "undead",
+    "description": "<p>Wraiths are cursed with endless hunger. They are damaged souls, wounded by dark magic, by another wraith, or by the dehumanizing effects of starvation or addiction. They are little more than beasts, driven by the emptiness within, with only the vaguest sense of who they once were. Unbound wraiths — ghosts whose tethers were destroyed — are weaker, but often form packs (group, vicious, 13 HP each, d8 damage, afraid of firelight).</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Wraith",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "3fHxlUT8MWInCTfB",
+      "name": "Manifest a form of shadow and cold (harmed only by silver and salt)",
+      "type": "monsterMove",
+      "img": "icons/magic/water/snowflake-ice-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!zNH67lRb1oL8rXA0.3fHxlUT8MWInCTfB"
+    },
+    {
+      "_id": "aDExYqwB84P73Zet",
+      "name": "Hurl itself at the living",
+      "type": "monsterMove",
+      "img": "icons/skills/ranged/target-bullseye-arrow-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!zNH67lRb1oL8rXA0.aDExYqwB84P73Zet"
+    },
+    {
+      "_id": "xCwbWydB7fHR0AH2",
+      "name": "Suck vitality from its prey",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!zNH67lRb1oL8rXA0.xCwbWydB7fHR0AH2"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "EFgcYyVfAWu3kPtb",
+  "_id": "zNH67lRb1oL8rXA0",
+  "_key": "!actors!zNH67lRb1oL8rXA0"
+}

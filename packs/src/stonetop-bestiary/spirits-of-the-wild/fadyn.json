@@ -1,0 +1,110 @@
+{
+  "name": "Fadyn",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 16,
+        "max": 16
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "bite, scratches, or knife d6 w/disadvantage (hand)",
+        "rollFormula": "d6"
+      },
+      "instinct": {
+        "value": "to make mischief"
+      }
+    },
+    "concept": "The trickster fox-spirit — charming and thieving, bound to its old skull.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, spirit, magical, stealthy, devious, audacious, cautious, beautiful",
+    "qualities": "<p>Tethered to a fox skull. Armor 1 from sheer reflexes.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "spirit",
+    "description": "<p>Every child has heard stories of the fox-spirit, the trickster, the fadyn. In some tales, a fadyn makes fools of the cruel or the proud. In others, they steal chickens from the slow-witted. And in still others, they seduce a beautiful human, disappearing when bored or discovered. Truth be told, there's little pattern to who a fadyn torments or fancies. They are fickle, fickle things.</p>",
+    "questions": [],
+    "lore": [
+      {
+        "prompt": "**Something interesting:** When a fadyn takes the form of a person, it always has some fox-like feature (a tail, feet, hands, ears) that it strives to hide. It is easily embarrassed by this feature, and flees if it's discovered.",
+        "answer": ""
+      },
+      {
+        "prompt": "**Something useful:** Fadyn are the spirits of old, cagey foxes who passed away, tethered to their old skulls. One can't travel far from its skull — get hold of it to destroy or bind the fadyn.",
+        "answer": ""
+      }
+    ],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Fadyn",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "V20UtAhg8ARuIPg9",
+      "name": "Manifest as a fox (small) or a charming stranger",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!rlZQmShUiK2HpF9j.V20UtAhg8ARuIPg9"
+    },
+    {
+      "_id": "LAmGu173XbnU02ds",
+      "name": "Be all manner of charming and ingratiating",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!rlZQmShUiK2HpF9j.LAmGu173XbnU02ds"
+    },
+    {
+      "_id": "YNISHmTRWkmCf0ZA",
+      "name": "Steal something when no one's looking",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!rlZQmShUiK2HpF9j.YNISHmTRWkmCf0ZA"
+    },
+    {
+      "_id": "Rjepuu0xVKGgeewS",
+      "name": "Make something seem like something else",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!rlZQmShUiK2HpF9j.Rjepuu0xVKGgeewS"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "ibJDuYYijIrE6bdW",
+  "_id": "rlZQmShUiK2HpF9j",
+  "_key": "!actors!rlZQmShUiK2HpF9j"
+}

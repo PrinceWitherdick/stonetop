@@ -1,0 +1,112 @@
+{
+  "name": "Mummified Green Lord",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 24,
+        "max": 24
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "mighty blows d10+2 (hand, close, forceful)",
+        "rollFormula": "d10+2"
+      },
+      "instinct": {
+        "value": "to preserve its glorious afterlife"
+      }
+    },
+    "concept": "An embalmed god-king who leaves its Fae paradise only to slaughter tomb-robbers.",
+    "organization": "solitary",
+    "size": "large",
+    "tags": "solitary, large, spirit, undead, magical, cunning, cautious, organized, terrifying",
+    "qualities": "<p>Tethered to its canopic jars; can sense all that happens in its tomb. Armor 4 (potent wards), 0 vs. fire.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "undead",
+    "description": "<p>They lie entombed, their corpses embalmed, their souls bound to heavily-warded canopic jars that store their most-vital organs — yet those souls linger forever in Fae-woven realms of glamour and delight, where the Green Lords are as gods. They are loathe to leave, and rarely need to. But should their existence be truly threatened, they will return to this world of base flesh, inhabit their long-dead bodies, and punish any intruders with the savagery of the cruelest beasts.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Mummified Green Lord",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "KjFSMlnnqYyAvYUi",
+      "name": "Animate its preserved corpse",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!TGLFOv8AqB8gHXvM.KjFSMlnnqYyAvYUi"
+    },
+    {
+      "_id": "08JULJTk0BBLvpHJ",
+      "name": "Overawe anyone in its presence",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!TGLFOv8AqB8gHXvM.08JULJTk0BBLvpHJ"
+    },
+    {
+      "_id": "3Zw16VDLSIhOmbqm",
+      "name": "Twist, mutate, or transform living things with a gesture",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!TGLFOv8AqB8gHXvM.3Zw16VDLSIhOmbqm"
+    },
+    {
+      "_id": "bnz6UFYa2aDojv8n",
+      "name": "Wield nearby plants and beasts as extensions of itself",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!TGLFOv8AqB8gHXvM.bnz6UFYa2aDojv8n"
+    },
+    {
+      "_id": "M9uRSpkXOgMRF5UD",
+      "name": "Regenerate its corpse, even if burned — unless its canopic jars are destroyed",
+      "type": "monsterMove",
+      "img": "icons/magic/fire/flame-burning-creature-orange.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!TGLFOv8AqB8gHXvM.M9uRSpkXOgMRF5UD"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "FO5poGFHi5Udrsfz",
+  "_id": "TGLFOv8AqB8gHXvM",
+  "_key": "!actors!TGLFOv8AqB8gHXvM"
+}

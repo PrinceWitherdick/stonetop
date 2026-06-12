@@ -1,0 +1,99 @@
+{
+  "name": "Thunder Drake",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 20,
+        "max": 20
+      },
+      "armor": {
+        "value": 3
+      },
+      "damage": {
+        "value": "gore, trample, swat d10+3 (hand, close, forceful, messy, 1 piercing)",
+        "rollFormula": "d10+3"
+      },
+      "instinct": {
+        "value": "to protect its turf"
+      }
+    },
+    "concept": "A hill-sized burrowing drake that belches lightning.",
+    "organization": "solitary",
+    "size": "large",
+    "tags": "solitary, large",
+    "qualities": "<p>Lightning-proof; hard of hearing.</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "natural-beast",
+    "description": "<p>Sometimes, out on the Flats, you'll see what looks to be small hills in the distance. Steer clear: they probably aren't hills, but huge piles of dirt a thunder drake has moved as it digs. You do not want to stumble into one on its home turf. When one bellows nearby, roll +CON: on a 10+ pick 1, on a 7-9 pick 2, on a 6- all three — drop what you're holding and cover your ears; stagger back a few steps; be deafened and disoriented for a few moments.</p>",
+    "questions": [],
+    "lore": [
+      {
+        "prompt": "**Something interesting:** Thunder drakes eat mostly grass and shrubs, but they have a taste for certain ores. They spend their time grazing, sleeping, and digging up rocks.",
+        "answer": ""
+      },
+      {
+        "prompt": "**Something useful:** They particularly savor copper and relish aetherium. If they find a source, they'll chew it right up and spend the next few days belching lightning bolts.",
+        "answer": ""
+      }
+    ],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Thunder Drake",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "sQGApuEShiA14wgW",
+      "name": "Bellow (near, area, loud, forceful, reload)",
+      "type": "monsterMove",
+      "img": "icons/skills/social/diplomacy-handshake.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!sFo40dgjm1DmyJps.sQGApuEShiA14wgW"
+    },
+    {
+      "_id": "4M9eEQpcGehbwygF",
+      "name": "Burrow and gnaw through rock",
+      "type": "monsterMove",
+      "img": "icons/creatures/abilities/mouth-teeth-rows-red.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!sFo40dgjm1DmyJps.4M9eEQpcGehbwygF"
+    },
+    {
+      "_id": "MsXBUehQrEwtl3xy",
+      "name": "Belch forth a bolt of lightning, d10+3 damage (near, forceful, loud, ignores armor)",
+      "type": "monsterMove",
+      "img": "icons/magic/lightning/bolt-strike-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": "d10+3"
+      },
+      "_key": "!actors.items!sFo40dgjm1DmyJps.MsXBUehQrEwtl3xy"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "hnWxs7XPc9PtVGpS",
+  "_id": "sFo40dgjm1DmyJps",
+  "_key": "!actors!sFo40dgjm1DmyJps"
+}

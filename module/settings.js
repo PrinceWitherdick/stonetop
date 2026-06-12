@@ -128,6 +128,7 @@ export const HOVER_DESCRIPTION_SETTING_KEYS = [
 	"hoverDescriptionsPlaybookMoves",
 	"hoverDescriptionsTraits",
 	"hoverDescriptionsGearTags",
+	"hoverDescriptionsMonsterRefs",
 ];
 
 function _createHoverDescriptionSettingsApp() {

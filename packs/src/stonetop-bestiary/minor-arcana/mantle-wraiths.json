@@ -1,0 +1,101 @@
+{
+  "name": "Mantle Wraiths",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 13,
+        "max": 13
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "life drain d8 (hand, ignores armor)",
+        "rollFormula": "d8"
+      },
+      "instinct": {
+        "value": "to run rampant"
+      }
+    },
+    "concept": "Three vicious wraiths bound to a tattered mantle, longing to slip free and feast.",
+    "organization": "group",
+    "size": "",
+    "tags": "group (3), spirit, undead, terrifying, vicious",
+    "qualities": "<p>Powerless in daylight. Armor 1 (amorphous).</p>",
+    "count": 3,
+    "entry": "",
+    "notes": "",
+    "creatureType": "undead",
+    "description": "<p>A trio of wraiths tethered to a tattered mantle. They whisper their longings to whoever wears it, and the wearer can let them slip free to feast on the living — though they are loathe to return to the mantle, and must be spent or Persuaded back. Their cost is the souls they feast upon.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Mantle Wraith",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "0Y7K5fij2Bk6eZqj",
+      "name": "Whisper their longings to the wearer",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!cJQVY6LG7CC2BhzM.0Y7K5fij2Bk6eZqj"
+    },
+    {
+      "_id": "fOYv9fXLmAhSZZXZ",
+      "name": "Manifest a form of shadow and cold (harmed only by silver and salt)",
+      "type": "monsterMove",
+      "img": "icons/magic/water/snowflake-ice-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!cJQVY6LG7CC2BhzM.fOYv9fXLmAhSZZXZ"
+    },
+    {
+      "_id": "SUjiaQH9cHrYb83y",
+      "name": "Hurl themselves at the living",
+      "type": "monsterMove",
+      "img": "icons/skills/ranged/target-bullseye-arrow-blue.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!cJQVY6LG7CC2BhzM.SUjiaQH9cHrYb83y"
+    },
+    {
+      "_id": "3si6gE5iAT6RFPUf",
+      "name": "Suck the vitality from their prey",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!cJQVY6LG7CC2BhzM.3si6gE5iAT6RFPUf"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "YA9M91yI1egeR0ye",
+  "_id": "cJQVY6LG7CC2BhzM",
+  "_key": "!actors!cJQVY6LG7CC2BhzM"
+}

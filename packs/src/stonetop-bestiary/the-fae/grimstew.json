@@ -1,0 +1,112 @@
+{
+  "name": "Grimstew",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/fae.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 16,
+        "max": 16
+      },
+      "armor": {
+        "value": 4
+      },
+      "damage": {
+        "value": "crushing grip d10+2 (hand, grabby, forceful)",
+        "rollFormula": "d10+2"
+      },
+      "instinct": {
+        "value": "to fill the emptiness inside"
+      }
+    },
+    "concept": "A lonely cave-troll fae who craves company, then eats it.",
+    "organization": "solitary",
+    "size": "small",
+    "tags": "solitary, small, fae, magical, tough, stealthy, cautious, ugly",
+    "qualities": "<p>Fae nature. Armor 4 (resilience), 1 vs. iron (thick fur).</p>",
+    "count": 1,
+    "entry": "",
+    "notes": "",
+    "creatureType": "fae",
+    "description": "<p>He dwells in a cave full of smoke and bones, tending his stew pot and stewing. He might venture out to fetch firewood, water, or meat — and when he's out, he might cross paths with a mortal. In his loneliness, he might forget just how poorly things went last time. When you Haggle with Grimstew he wants company, not things.</p>",
+    "questions": [],
+    "lore": [],
+    "hooks": "",
+    "hooksIntro": "",
+    "origins": "",
+    "originsIntro": "",
+    "discoveries": [],
+    "nests": "",
+    "dangers": ""
+  },
+  "prototypeToken": {
+    "name": "Grimstew",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/fae.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "qz0lhbMIxHMHDIbG",
+      "name": "Stalk a mortal, curious and lonely",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!qDIbc21OgAwQJvjo.qz0lhbMIxHMHDIbG"
+    },
+    {
+      "_id": "8qYTBQWkE5I2Mv8B",
+      "name": "Offer aid, in exchange for company",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!qDIbc21OgAwQJvjo.8qYTBQWkE5I2Mv8B"
+    },
+    {
+      "_id": "3FOfdo3dU6B3Ete2",
+      "name": "Perform an impossible labor",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!qDIbc21OgAwQJvjo.3FOfdo3dU6B3Ete2"
+    },
+    {
+      "_id": "pYFqCHSWDd5X4QUz",
+      "name": "Grow when angered: +large, +4 HP, +3 damage, +close, +reach",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!qDIbc21OgAwQJvjo.pYFqCHSWDd5X4QUz"
+    },
+    {
+      "_id": "iowue9t6uLFssBoD",
+      "name": "Get hungry, eat a companion",
+      "type": "monsterMove",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "description": "",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!qDIbc21OgAwQJvjo.iowue9t6uLFssBoD"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "4CogaMcyAuszIFDN",
+  "_id": "qDIbc21OgAwQJvjo",
+  "_key": "!actors!qDIbc21OgAwQJvjo"
+}
