@@ -68,6 +68,12 @@
                       "label":  "Stonetop Locations",
                       "path":  "packs/stonetop-locations",
                       "type":  "JournalEntry"
+                  },
+                  {
+                      "name":  "stonetop-lore",
+                      "label":  "Stonetop Lore",
+                      "path":  "packs/stonetop-lore",
+                      "type":  "JournalEntry"
                   }
               ],
     "primaryTokenAttribute":  "attributes.hp",
