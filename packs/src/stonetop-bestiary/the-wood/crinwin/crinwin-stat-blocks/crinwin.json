@@ -1,0 +1,91 @@
+{
+  "name": "Crinwin",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 3,
+        "max": 3
+      },
+      "armor": {
+        "value": 1
+      },
+      "damage": {
+        "value": "claws, rocks, choking d6 (hand)",
+        "rollFormula": "d6"
+      },
+      "instinct": {
+        "value": "to covet"
+      }
+    },
+    "concept": "Small, gray, squirrel-quick vermin of the treetops.",
+    "organization": "horde",
+    "size": "small",
+    "tags": "horde, small, hoarder, cautious, stealthy",
+    "qualities": "<p>Climbs and jumps like a squirrel.</p><p>Armor 1 comes from sheer reflexes — not hide or shell.</p>",
+    "count": 6,
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary.Actor.CrinwinEntry0001",
+    "notes": "",
+    "creatureType": "natural-beast"
+  },
+  "prototypeToken": {
+    "name": "Crinwin",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "crinmovemimic001",
+      "name": "Mimic noises, words, cries for help",
+      "type": "monsterMove",
+      "img": "icons/skills/social/diplomacy-handshake.webp",
+      "system": {
+        "description": "A partial bird call, an off-season insect buzz, a snatch of nonsense speech, or a desperate plea for help — often echoing a sound or word the PCs just made.",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!CrinwinStatBlk01.crinmovemimic001"
+    },
+    {
+      "_id": "crinmovehide0001",
+      "name": "Hide or vanish into the trees",
+      "type": "monsterMove",
+      "img": "icons/magic/nature/leaf-glow-green.webp",
+      "system": {
+        "description": "It scurries, leaps, and swings up into the boughs and is simply gone.",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!CrinwinStatBlk01.crinmovehide0001"
+    },
+    {
+      "_id": "crinmovesnatch01",
+      "name": "Snatch something and dart away",
+      "type": "monsterMove",
+      "img": "icons/sundries/gaming/playing-cards-grab.webp",
+      "system": {
+        "description": "Driven to covet, it grabs whatever it can — a tool, a trinket, a keepsake, even an infant — and flees into the canopy.",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!CrinwinStatBlk01.crinmovesnatch01"
+    },
+    {
+      "_id": "crinmovechoke001",
+      "name": "Choke with sinewy fingers",
+      "type": "monsterMove",
+      "img": "icons/skills/wounds/injury-hand-blood-red.webp",
+      "system": {
+        "description": "Clammy, too-cold fingers close around a throat. Claws, rocks, choking: d6 damage (hand).",
+        "rollFormula": "d6"
+      },
+      "_key": "!actors.items!CrinwinStatBlk01.crinmovechoke001"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "BestiaryCrinStat",
+  "_id": "CrinwinStatBlk01",
+  "_key": "!actors!CrinwinStatBlk01"
+}

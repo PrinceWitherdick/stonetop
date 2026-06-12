@@ -1,6 +1,6 @@
 {
     "Actor": {
-        "types": ["character", "stonetop", "monster"],
+        "types": ["character", "stonetop", "monster", "bestiaryEntry"],
         "character": {
             "stats": {
                 "str": { "value": 0 },
@@ -54,18 +54,29 @@
                 "instinct": { "value": "" }
             },
             "concept": "",
-            "grouping": "",
+            "organization": "",
+            "creatureType": "",
             "size": "",
             "tags": "",
             "qualities": "",
-            "description": "",
-            "questions": "",
-            "lore": "",
-            "hooks": "",
-            "origins": "",
-            "discoveries": "",
-            "dangers": "",
+            "count": 0,
+            "entry": "",
             "notes": ""
+        },
+        "bestiaryEntry": {
+            "concept": "",
+            "description": "",
+            "questions": [],
+            "lore": [],
+            "hooks": "",
+            "hooksIntro": "",
+            "origins": "",
+            "originsIntro": "",
+            "discoveries": [],
+            "nests": "",
+            "dangers": "",
+            "notes": "",
+            "statBlocks": []
         }
     },
     "Item": {

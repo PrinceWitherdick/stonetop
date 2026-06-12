@@ -1,7 +1,7 @@
 import { compilePack } from "@foundryvtt/foundryvtt-cli";
 import { promises as fs } from "fs";
 import path from "path";
-import { PACKS } from "./packs.js";
+import { PACKS, DOC_KEY_PREFIX } from "./packs.js";
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 function randomId() {
@@ -82,12 +82,27 @@ async function ensureFolders(srcDir, parentId = null, folderType = "Item", rootF
 	}
 }
 
-async function ensureIds(srcDir) {
+// Stamps _id/_key onto every embedded doc in `collection` (e.g. an actor's
+// items/effects), matching the foundryvtt-cli key scheme so compilePack can
+// write each as its own LevelDB record. Returns true if anything changed.
+function ensureEmbeddedKeys(doc, parentId, parentCollection, collection) {
+	const arr = doc[collection];
+	if (!Array.isArray(arr)) return false;
+	let changed = false;
+	for (const embedded of arr) {
+		if (!embedded._id) { embedded._id = randomId(); changed = true; }
+		const key = `!${parentCollection}.${collection}!${parentId}.${embedded._id}`;
+		if (embedded._key !== key) { embedded._key = key; changed = true; }
+	}
+	return changed;
+}
+
+async function ensureIds(srcDir, keyPrefix = "items") {
 	const entries = await fs.readdir(srcDir, { withFileTypes: true });
 	for (const entry of entries) {
 		const full = path.join(srcDir, entry.name);
 		if (entry.isDirectory()) {
-			await ensureIds(full);
+			await ensureIds(full, keyPrefix);
 			continue;
 		}
 		if (!entry.name.endsWith(".json")) continue;
@@ -98,11 +113,18 @@ async function ensureIds(srcDir) {
 			throw new Error("Failed parsing " + full, { cause: e });
 		}
 
-		if (doc._id && doc._key) continue;
-		doc._id ??= randomId();
-		doc._key ??= `!items!${doc._id}`;
-		await fs.writeFile(full, JSON.stringify(doc, null, 2));
-		console.log(`  Assigned ID to ${entry.name}`);
+		let changed = false;
+		if (!doc._id)  { doc._id = randomId(); changed = true; }
+		if (!doc._key) { doc._key = `!${keyPrefix}!${doc._id}`; changed = true; }
+		// Actor packs store embedded items/effects as their own keyed records.
+		if (keyPrefix === "actors") {
+			changed = ensureEmbeddedKeys(doc, doc._id, "actors", "items")   || changed;
+			changed = ensureEmbeddedKeys(doc, doc._id, "actors", "effects") || changed;
+		}
+		if (changed) {
+			await fs.writeFile(full, JSON.stringify(doc, null, 2));
+			console.log(`  Assigned ID/keys to ${entry.name}`);
+		}
 	}
 }
 
@@ -116,7 +138,7 @@ async function main() {
 			continue;
 		}
 		await ensureFolders(src, null, packType);
-		await ensureIds(src);
+		await ensureIds(src, DOC_KEY_PREFIX[packType] ?? "items");
 		const dest = `packs/${pack}`;
 		await fs.rm(dest, { recursive: true, force: true });
 		await fs.mkdir(dest, { recursive: true });

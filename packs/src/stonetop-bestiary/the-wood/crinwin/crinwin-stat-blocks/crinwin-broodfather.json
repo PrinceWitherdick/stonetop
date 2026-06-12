@@ -1,0 +1,80 @@
+{
+  "name": "Crinwin Broodfather",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 12,
+        "max": 12
+      },
+      "armor": {
+        "value": 0
+      },
+      "damage": {
+        "value": "spindly choking fingers d8 (close), maw full of teeth d10+2 (hand, messy, 1 piercing)",
+        "rollFormula": "d10+2"
+      },
+      "instinct": {
+        "value": "to feed the younglings"
+      }
+    },
+    "concept": "The bloated, blind patriarch that tends the deepest nursery.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, stealthy, terrifying",
+    "qualities": "<p>Blind; <strong>tremorsense</strong>.</p>",
+    "count": 1,
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary.Actor.CrinwinEntry0001",
+    "notes": "",
+    "creatureType": "natural-beast"
+  },
+  "prototypeToken": {
+    "name": "Broodfather",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+    }
+  },
+  "items": [
+    {
+      "_id": "broodmoveunfurl1",
+      "name": "Unfurl from its hiding place in shocking glory",
+      "type": "monsterMove",
+      "img": "icons/creatures/tentacles/tentacles-octopus-purple.webp",
+      "system": {
+        "description": "What looked like a wall of the nursery rises, blind and vast, maw gaping.",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!CrinwinBroodftr1.broodmoveunfurl1"
+    },
+    {
+      "_id": "broodmovetongue1",
+      "name": "Lash out with a choking tongue",
+      "type": "monsterMove",
+      "img": "icons/creatures/abilities/mouth-teeth-rows-red.webp",
+      "system": {
+        "description": "A long tongue snaps out: d6+2 (reach, forceful, grabby).",
+        "rollFormula": "d6+2"
+      },
+      "_key": "!actors.items!CrinwinBroodftr1.broodmovetongue1"
+    },
+    {
+      "_id": "broodmovedrag001",
+      "name": "Drag a grabbed foe closer",
+      "type": "monsterMove",
+      "img": "icons/skills/movement/figure-running-gray.webp",
+      "system": {
+        "description": "Reels a grabbed victim toward its waiting maw.",
+        "rollFormula": ""
+      },
+      "_key": "!actors.items!CrinwinBroodftr1.broodmovedrag001"
+    }
+  ],
+  "effects": [],
+  "flags": {},
+  "folder": "BestiaryCrinStat",
+  "_id": "CrinwinBroodftr1",
+  "_key": "!actors!CrinwinBroodftr1"
+}

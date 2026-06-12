@@ -1,44 +1,43 @@
-const MONSTER_LORE_FIELDS = [
-	{ key: "questions",   label: "stonetop.monster.questions" },
-	{ key: "lore",        label: "stonetop.monster.lore" },
-	{ key: "origins",     label: "stonetop.monster.origins" },
-	{ key: "discoveries", label: "stonetop.monster.discoveries" },
-];
+import { CREATURE_TYPE_CHOICES, creatureTypeIcon, creatureTypeLabel } from "../../bestiary/creature-types.js";
 
-const MONSTER_PREP_LINE_FIELDS = [
-	{ key: "hooks", label: "stonetop.monster.hooks" },
-];
+// Per-organization combat budget (Book I, "Dangers", pp.396-398).
+const ORGANIZATION_DEFAULTS = {
+	horde:    { hp: 3,  die: "d6"  },
+	group:    { hp: 6,  die: "d8"  },
+	solitary: { hp: 12, die: "d10" },
+};
 
-const MONSTER_LINE_FIELDS = [...MONSTER_LORE_FIELDS, ...MONSTER_PREP_LINE_FIELDS];
+const ORGANIZATION_CHOICES = {
+	horde:    "stonetop.monster.organizationHorde",
+	group:    "stonetop.monster.organizationGroup",
+	solitary: "stonetop.monster.organizationSolitary",
+};
 
 const MONSTER_RICH_TEXT_FIELDS = [
-	{ key: "description", enrichedKey: "enrichedDescription" },
-	{ key: "qualities",   enrichedKey: "enrichedQualities" },
-	{ key: "dangers",     enrichedKey: "enrichedDangers" },
+	{ key: "qualities", enrichedKey: "enrichedQualities" },
 ];
-
-function _splitLines(value, editMode) {
-	const text = value ?? "";
-	if (!text) return editMode ? [""] : [];
-
-	const lines = String(text).split(/\r?\n/);
-	return editMode ? lines : lines.filter(line => line.trim());
-}
 
 function _normalizeTag(value) {
 	return String(value ?? "").trim().toLocaleLowerCase();
 }
 
+function _hasPortrait(img) {
+	const defaultToken = globalThis.foundry?.CONST?.DEFAULT_TOKEN
+		?? globalThis.CONST?.DEFAULT_TOKEN
+		?? "icons/svg/mystery-man.svg";
+	return !!img && img !== defaultToken;
+}
+
 function _displayMonsterTags(system) {
-	const hiddenTags = new Set([
-		_normalizeTag(system?.grouping),
+	const hidden = new Set([
+		_normalizeTag(system?.organization),
 		_normalizeTag(system?.size),
 	].filter(Boolean));
 
 	return String(system?.tags ?? "")
 		.split(",")
 		.map(tag => tag.trim())
-		.filter(tag => tag && !hiddenTags.has(_normalizeTag(tag)))
+		.filter(tag => tag && !hidden.has(_normalizeTag(tag)))
 		.join(", ");
 }
 
@@ -57,7 +56,6 @@ export function createStonetopMonsterSheetClass(Base) {
 				classes: ["stonetop", "sheet", "actor", "monster"],
 				width:   760,
 				height:  720,
-				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "overview" }],
 			});
 		}
 
@@ -70,26 +68,28 @@ export function createStonetopMonsterSheetClass(Base) {
 			this._injectHeaderToggle();
 			this._stripHeaderChrome();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
-			this._debugFonts();
+			this._hideBrokenPortrait();
 		}
 
-		_debugFonts() {
-			const root = this.element[0];
-			if (!root) return;
-			const desc = root.querySelector(".stonetop-monster-readonly-text");
-			if (!desc) return;
-			const cs = getComputedStyle(desc);
-			console.log("[stonetop] monster description font-family:", cs.fontFamily);
-			console.log("[stonetop] --font-stonetop resolves to:", cs.getPropertyValue("--font-stonetop").trim());
-			console.log("[stonetop] --font-primary resolves to:  ", cs.getPropertyValue("--font-primary").trim());
-			const p = desc.querySelector("p");
-			if (p) console.log("[stonetop] description <p> font-family:", getComputedStyle(p).fontFamily);
+		_hideBrokenPortrait() {
+			if (this._editMode) return;
+			const img = this.element[0]?.querySelector(".stonetop-portrait");
+			if (!img) return;
+			const header = img.closest(".stonetop-monster-header");
+			const drop = () => {
+				img.remove();
+				header?.classList.add("stonetop-monster-header--no-portrait");
+			};
+			if (img.complete && img.naturalWidth === 0) {
+				drop();
+				return;
+			}
+			img.addEventListener("error", drop, { once: true });
 		}
 
 		_stripHeaderChrome() {
 			const header = this.element[0]?.querySelector(".window-header");
 			if (!header) return;
-
 			header.querySelectorAll(".document-id-link").forEach(el => el.remove());
 		}
 
@@ -101,7 +101,7 @@ export function createStonetopMonsterSheetClass(Base) {
 
 			const label = document.createElement("label");
 			label.className = "stonetop-edit-toggle stonetop-header-toggle";
-			label.title = this._editMode ? "Lock Sheet" : "Edit Monster";
+			label.title = this._editMode ? "Lock Sheet" : "Edit Stat Block";
 
 			const checkbox = document.createElement("input");
 			checkbox.type = "checkbox";
@@ -133,21 +133,52 @@ export function createStonetopMonsterSheetClass(Base) {
 
 		async getData() {
 			const context = await super.getData();
-			context.system ??= this.actor.system;
+			const system = context.system ??= this.actor.system;
 			context.stonetop ??= {};
-			context.stonetop.editMode = this._editMode;
-			context.stonetop.displayTags = _displayMonsterTags(context.system);
+			const st = context.stonetop;
+
+			st.editMode    = this._editMode;
+			st.displayTags = _displayMonsterTags(system);
+
+			// Creature type + its icon, which doubles as the default portrait when
+			// the stat block has no custom art (Book I "Monster types", p.392).
+			st.creatureTypeChoices = CREATURE_TYPE_CHOICES;
+			st.creatureTypeLabel   = creatureTypeLabel(system?.creatureType);
+			const realImg  = _hasPortrait(this.actor.img) ? this.actor.img : null;
+			const typeIcon = creatureTypeIcon(system?.creatureType);
+			st.displayImg   = realImg ?? typeIcon ?? null;
+			st.hasPortrait  = !!st.displayImg;
+
 			for (const field of MONSTER_RICH_TEXT_FIELDS) {
-				context.stonetop[field.enrichedKey] = await _enrichHTML(context.system?.[field.key]);
+				st[field.enrichedKey] = await _enrichHTML(system?.[field.key]);
 			}
-			context.stonetop.loreSections = MONSTER_LORE_FIELDS.map(field => ({
-				...field,
-				lines: _splitLines(context.system?.[field.key], this._editMode),
-			}));
-			context.stonetop.prepLineSections = MONSTER_PREP_LINE_FIELDS.map(field => ({
-				...field,
-				lines: _splitLines(context.system?.[field.key], this._editMode),
-			}));
+
+			// Organization-driven combat budget.
+			const org = _normalizeTag(system?.organization);
+			st.organizationChoices = ORGANIZATION_CHOICES;
+			st.organizationLabel   = ORGANIZATION_CHOICES[org] ?? "";
+			const def = ORGANIZATION_DEFAULTS[org];
+			st.budgetNote = def ? `${def.hp} HP each · ${def.die} damage` : "";
+
+			// Group abstraction helper.
+			const count = Number(system?.count) || 0;
+			st.abstracted = count > 1;
+			if (st.abstracted) {
+				const hpMax = Number(system?.attributes?.hp?.max) || 0;
+				const half  = Math.ceil(count / 2);
+				st.casualtyNote = hpMax
+					? `≈ ${half} of ${count} out at ${Math.floor(hpMax / 2)} HP`
+					: `≈ ${half} of ${count} out at half HP`;
+			}
+
+			// Linked bestiary entry ("Open Entry" affordance).
+			if (system?.entry) {
+				try {
+					const doc = await fromUuid(system.entry);
+					if (doc) st.entryLink = { name: doc.name, uuid: system.entry };
+				} catch (_e) { /* stale link — ignore */ }
+			}
+
 			context.monsterMoves = this.actor.items
 				.filter(i => i.type === "monsterMove")
 				.map(i => ({ id: i.id, name: i.name, system: i.system }))
@@ -162,6 +193,7 @@ export function createStonetopMonsterSheetClass(Base) {
 
 		activateListeners(html) {
 			super.activateListeners(html);
+			this._bindOutnumberCalc(html[0]);
 			if (!this.isEditable) return;
 
 			html[0].addEventListener("click", async ev => {
@@ -204,50 +236,50 @@ export function createStonetopMonsterSheetClass(Base) {
 					const item = this.actor.items.get(li?.dataset?.itemId);
 					item?.sheet?.render(true);
 
-				} else if (ev.target.closest(".stonetop-monster-add-line")) {
+				} else if (ev.target.closest(".stonetop-monster-reset-defaults")) {
 					if (!this._editMode) return;
-					const field = ev.target.closest(".stonetop-monster-add-line")?.dataset?.field;
-					await this._addLineField(field);
+					await this._resetOrganizationDefaults();
+
+				} else if (ev.target.closest(".stonetop-monster-entry-link")) {
+					ev.preventDefault();
+					const uuid = ev.target.closest(".stonetop-monster-entry-link")?.dataset?.entryUuid;
+					const doc  = uuid ? await fromUuid(uuid) : null;
+					doc?.sheet?.render(true);
 				}
 			});
 
 			html[0].addEventListener("change", async ev => {
 				const editor = ev.target.closest(".stonetop-monster-rich-editor");
-				if (editor) {
-					if (!this._editMode) return;
-					const field = editor.dataset?.field;
-					await this._updateRichTextField(field, editor.value);
-					return;
+				if (editor && this._editMode) {
+					await this._updateRichTextField(editor.dataset?.field, editor.value);
 				}
-
-				const input = ev.target.closest(".stonetop-monster-line-input");
-				if (!input || !this._editMode) return;
-
-				const field = input.closest("[data-monster-line-field]")?.dataset?.monsterLineField;
-				await this._updateLineField(html[0], field);
 			});
 		}
 
-		async _addLineField(field) {
-			if (!MONSTER_LINE_FIELDS.some(entry => entry.key === field)) return;
+		/** Live outnumber-bonus readout: +1 dmg/armor per full multiplier past 1x. */
+		_bindOutnumberCalc(root) {
+			const input  = root?.querySelector(".stonetop-monster-outnumber-foes");
+			const result = root?.querySelector(".stonetop-monster-outnumber-result");
+			if (!input || !result) return;
 
-			const current = this.actor.system?.[field] ?? "";
+			const update = () => {
+				const count = Number(result.dataset.count) || 0;
+				const foes  = Number(input.value) || 0;
+				const bonus = foes > 0 ? Math.max(0, Math.floor(count / foes) - 1) : 0;
+				result.textContent = `+${bonus} / +${bonus}`;
+			};
+			input.addEventListener("input", update);
+		}
+
+		async _resetOrganizationDefaults() {
+			const org = _normalizeTag(this.actor.system?.organization);
+			const def = ORGANIZATION_DEFAULTS[org];
+			if (!def) return;
 			await this.actor.update({
-				[`system.${field}`]: `${current}\n`,
+				"system.attributes.hp.value":            def.hp,
+				"system.attributes.hp.max":              def.hp,
+				"system.attributes.damage.rollFormula":  def.die,
 			});
-		}
-
-		async _updateLineField(root, field) {
-			if (!MONSTER_LINE_FIELDS.some(entry => entry.key === field)) return;
-
-			const section = root.querySelector(`[data-monster-line-field="${field}"]`);
-			if (!section) return;
-
-			const lines = Array
-				.from(section.querySelectorAll(".stonetop-monster-line-input"))
-				.map(input => input.value);
-
-			await this.actor.update({ [`system.${field}`]: lines.join("\n") });
 		}
 
 		async _updateRichTextField(field, value) {

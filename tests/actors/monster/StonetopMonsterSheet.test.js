@@ -59,51 +59,10 @@ describe("StonetopMonsterSheet", () => {
 		]);
 	});
 
-	it("builds lore sections from newline-separated system fields", async () => {
+	it("filters organization and size out of readonly display tags", async () => {
 		const actor = {
 			system: {
-				questions: "Where does it nest?\n\nWhat does it fear?",
-				lore: "",
-				origins: "Old forest story",
-				discoveries: "Fresh tracks",
-			},
-			items: makeItems([]),
-		};
-
-		const data = await makeSheet(actor).getData();
-
-		expect(data.stonetop.loreSections.map(section => ({
-			key: section.key,
-			lines: section.lines,
-		}))).toEqual([
-			{ key: "questions", lines: ["Where does it nest?", "What does it fear?"] },
-			{ key: "lore", lines: [] },
-			{ key: "origins", lines: ["Old forest story"] },
-			{ key: "discoveries", lines: ["Fresh tracks"] },
-		]);
-	});
-
-	it("builds prep hook sections from newline-separated system fields", async () => {
-		const actor = {
-			system: {
-				hooks: "Tracks near the old road\nA missing shepherd",
-			},
-			items: makeItems([]),
-		};
-
-		const data = await makeSheet(actor).getData();
-
-		expect(data.stonetop.prepLineSections).toEqual([{
-			key: "hooks",
-			label: "stonetop.monster.hooks",
-			lines: ["Tracks near the old road", "A missing shepherd"],
-		}]);
-	});
-
-	it("filters grouping and size out of readonly display tags", async () => {
-		const actor = {
-			system: {
-				grouping: "Horde",
+				organization: "Horde",
 				size: "small",
 				tags: "horde, small, cautious, stealthy",
 			},
@@ -115,7 +74,42 @@ describe("StonetopMonsterSheet", () => {
 		expect(data.stonetop.displayTags).toBe("cautious, stealthy");
 	});
 
-	it("enriches overview rich-text fields for display", async () => {
+	it("derives the organization label and combat budget note", async () => {
+		const actor = {
+			system: { organization: "horde" },
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.organizationLabel).toBe("stonetop.monster.organizationHorde");
+		expect(data.stonetop.budgetNote).toBe("3 HP each · d6 damage");
+	});
+
+	it("marks the stat block abstracted with a casualty note when count > 1", async () => {
+		const actor = {
+			system: { count: 7, attributes: { hp: { max: 3 } } },
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.abstracted).toBe(true);
+		expect(data.stonetop.casualtyNote).toBe("≈ 4 of 7 out at 1 HP");
+	});
+
+	it("is not abstracted for a single creature", async () => {
+		const actor = {
+			system: { count: 1 },
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.abstracted).toBe(false);
+	});
+
+	it("enriches the qualities rich-text field for display", async () => {
 		const originalFoundry = globalThis.foundry;
 		globalThis.foundry = {
 			applications: {
@@ -127,42 +121,56 @@ describe("StonetopMonsterSheet", () => {
 			},
 		};
 		const actor = {
-			system: {
-				description: "Needle teeth",
-				qualities: "Silent",
-				dangers: "Ambush",
-			},
+			system: { qualities: "Climbs like a squirrel" },
 			items: makeItems([]),
 		};
 
 		try {
 			const data = await makeSheet(actor).getData();
-
-			expect(data.stonetop.enrichedDescription).toBe("<p>Needle teeth</p>");
-			expect(data.stonetop.enrichedQualities).toBe("<p>Silent</p>");
-			expect(data.stonetop.enrichedDangers).toBe("<p>Ambush</p>");
+			expect(data.stonetop.enrichedQualities).toBe("<p>Climbs like a squirrel</p>");
 		} finally {
 			globalThis.foundry = originalFoundry;
 		}
 	});
 
-	it("preserves blank lore lines while in edit mode", async () => {
+	it("falls back to the creature-type icon as the portrait when there is no custom art", async () => {
 		const actor = {
-			system: {
-				questions: "Where does it nest?\n\nWhat does it fear?",
-			},
+			img: "icons/svg/mystery-man.svg",   // default placeholder, not real art
+			system: { creatureType: "natural-beast" },
 			items: makeItems([]),
 		};
-		const sheet = makeSheet(actor);
-		sheet._editMode = true;
 
-		const data = await sheet.getData();
+		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.loreSections[0].lines).toEqual([
-			"Where does it nest?",
-			"",
-			"What does it fear?",
-		]);
+		expect(data.stonetop.creatureTypeLabel).toBe("Natural / Beast");
+		expect(data.stonetop.hasPortrait).toBe(true);
+		expect(data.stonetop.displayImg).toBe(
+			"systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp");
+	});
+
+	it("prefers real portrait art over the creature-type icon", async () => {
+		const actor = {
+			img: "worlds/test/crinwin-art.webp",
+			system: { creatureType: "natural-beast" },
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.displayImg).toBe("worlds/test/crinwin-art.webp");
+	});
+
+	it("has no portrait when there is neither art nor a creature type", async () => {
+		const actor = {
+			img: "icons/svg/mystery-man.svg",
+			system: {},
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.hasPortrait).toBe(false);
+		expect(data.stonetop.displayImg).toBeNull();
 	});
 
 	it("creates monsterMove items from the add move control", async () => {
@@ -178,6 +186,7 @@ describe("StonetopMonsterSheet", () => {
 			addEventListener: (eventName, handler) => {
 				if (eventName === "click") clickHandler = handler;
 			},
+			querySelector: () => null,
 		};
 		const target = {
 			closest: selector => selector === ".stonetop-monster-add-move" ? target : null,
@@ -204,6 +213,7 @@ describe("StonetopMonsterSheet", () => {
 			addEventListener: (eventName, handler) => {
 				if (eventName === "click") clickHandler = handler;
 			},
+			querySelector: () => null,
 		};
 		const target = {
 			closest: selector => selector === ".stonetop-monster-add-move" ? target : null,
@@ -215,44 +225,37 @@ describe("StonetopMonsterSheet", () => {
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 	});
 
-	it("adds a blank lore line by appending a newline to the field", async () => {
+	it("resets HP and damage die to the organization defaults", async () => {
 		const actor = {
-			system: { questions: "Where does it nest?" },
+			system: { organization: "solitary", attributes: {} },
 			items: makeItems([]),
 			update: vi.fn(),
 		};
 		const sheet = makeSheet(actor);
 
-		await sheet._addLineField("questions");
+		await sheet._resetOrganizationDefaults();
 
 		expect(actor.update).toHaveBeenCalledWith({
-			"system.questions": "Where does it nest?\n",
+			"system.attributes.hp.value":           12,
+			"system.attributes.hp.max":             12,
+			"system.attributes.damage.rollFormula": "d10",
 		});
 	});
 
-	it("updates a lore section from its line inputs", async () => {
+	it("ignores reset when the organization is unset", async () => {
 		const actor = {
-			system: {},
+			system: { organization: "" },
 			items: makeItems([]),
 			update: vi.fn(),
 		};
-		const inputs = [{ value: "First" }, { value: "Second" }];
-		const section = {
-			querySelectorAll: selector => selector === ".stonetop-monster-line-input" ? inputs : [],
-		};
-		const root = {
-			querySelector: selector => selector === '[data-monster-line-field="questions"]' ? section : null,
-		};
 		const sheet = makeSheet(actor);
 
-		await sheet._updateLineField(root, "questions");
+		await sheet._resetOrganizationDefaults();
 
-		expect(actor.update).toHaveBeenCalledWith({
-			"system.questions": "First\nSecond",
-		});
+		expect(actor.update).not.toHaveBeenCalled();
 	});
 
-	it("updates overview rich-text fields", async () => {
+	it("updates the qualities rich-text field", async () => {
 		const actor = {
 			system: {},
 			items: makeItems([]),
@@ -260,11 +263,24 @@ describe("StonetopMonsterSheet", () => {
 		};
 		const sheet = makeSheet(actor);
 
-		await sheet._updateRichTextField("description", "<p>Formatted</p>");
+		await sheet._updateRichTextField("qualities", "<p>Formatted</p>");
 
 		expect(actor.update).toHaveBeenCalledWith({
-			"system.description": "<p>Formatted</p>",
+			"system.qualities": "<p>Formatted</p>",
 		});
+	});
+
+	it("refuses to update fields that are not rich-text fields", async () => {
+		const actor = {
+			system: {},
+			items: makeItems([]),
+			update: vi.fn(),
+		};
+		const sheet = makeSheet(actor);
+
+		await sheet._updateRichTextField("notes", "<p>nope</p>");
+
+		expect(actor.update).not.toHaveBeenCalled();
 	});
 
 	it("keeps the window title element as a header spacer", () => {

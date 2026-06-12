@@ -55,6 +55,13 @@
                       "label":  "Stonetop Journals",
                       "path":  "packs/stonetop-journals",
                       "type":  "JournalEntry"
+                  },
+                  {
+                      "name":  "stonetop-bestiary",
+                      "label":  "Stonetop Bestiary",
+                      "path":  "packs/stonetop-bestiary",
+                      "type":  "Actor",
+                      "system":  "stonetop_pwd"
                   }
               ],
     "primaryTokenAttribute":  "attributes.hp",

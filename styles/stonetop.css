@@ -88,8 +88,14 @@
 	--stonetop-diamond-selected-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond_selected.svg');
 	/* Standard gap between a spiral bullet and its text (matches the Stonetop Assets list). */
 	--stonetop-spiral-gap: 8px;
+	/* Standard vertical gap between sections on the bestiary/monster sheets — used by
+	   the section grid, the Discoveries sub-sections, and the Dangers custom moves. */
+	--stonetop-section-gap: 12px;
 	/* The spiral icon used for bullets/markers throughout the sheets. */
 	--stonetop-spiral-icon: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	/* The exclamation "legend" marker the rulebook puts beside hazard custom moves
+	   (e.g. Crinwin's "Unstable nest" and "Wasps" dangers). */
+	--stonetop-danger-icon: url('/systems/stonetop_pwd/assets/icons/bestiary/danger-move.svg');
 
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
@@ -3366,7 +3372,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-lore-readonly-value {
-	margin: 2px 0 4px;
+	margin: 2px 0 4px 16px;
 	/* Match the edit-mode textarea (.stonetop-lore-option-text) so the answer
 	   text doesn't resize when toggling between edit and read-only. */
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
@@ -5120,7 +5126,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .pbta.sheet .sheet-tabs .item,
-.stonetop-monster-sheet .sheet-tabs .item {
+.stonetop-monster-sheet .sheet-tabs .item,
+.stonetop-bestiary-sheet .sheet-tabs .item {
 	border-radius: 4px 4px 0 0;
 	background: #999;
 	color: #fff;
@@ -5138,14 +5145,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .pbta.sheet .sheet-tabs .item:hover,
 .pbta.sheet .sheet-tabs .item:focus,
 .stonetop-monster-sheet .sheet-tabs .item:hover,
-.stonetop-monster-sheet .sheet-tabs .item:focus {
+.stonetop-monster-sheet .sheet-tabs .item:focus,
+.stonetop-bestiary-sheet .sheet-tabs .item:hover,
+.stonetop-bestiary-sheet .sheet-tabs .item:focus {
 	background: #bbb;
 	color: #000;
 	text-shadow: none;
 }
 
 .pbta.sheet .sheet-tabs .item.active,
-.stonetop-monster-sheet .sheet-tabs .item.active {
+.stonetop-monster-sheet .sheet-tabs .item.active,
+.stonetop-bestiary-sheet .sheet-tabs .item.active {
 	background: #000;
 	color: #fff;
 	text-shadow: none;
@@ -9515,6 +9525,11 @@ li.question-bullet {
 	height: 150px;
 }
 
+/* No avatar (locked, missing/broken image): name sits flush with the header edge. */
+.stonetop-monster-header .stonetop-name-field {
+	padding-left: 0;
+}
+
 .stonetop-monster-header .sheet-header__fields {
 	gap: 6px;
 }
@@ -9561,40 +9576,51 @@ li.question-bullet {
 	flex: 0 0 auto;
 }
 
+/* HP & Armor reuse the character sheet's boxed vital cells, but sit compact and
+   left-aligned rather than stretching across the full stat block. */
 .stonetop-monster-statbar {
-	margin: 8px 0 6px;
+	margin: 2px 0 6px;
 }
 
 .stonetop-monster-statbar .cell--attributes-top {
 	gap: 6px;
+	justify-content: flex-start;
 }
 
-.stonetop-monster-statbar .cell {
-	min-height: 72px;
+.stonetop-monster-statbar .cell--attributes-top .cell {
+	flex: 0 0 auto;
+	min-height: 64px;
 }
 
 .stonetop-monster-statbar .cell--attr-hp {
-	flex: 1.05 1 0;
+	width: 132px;
 }
 
 .stonetop-monster-statbar .cell--attr-armor {
-	flex: 0.72 1 0;
+	width: 92px;
 }
 
-.stonetop-monster-statbar .cell--attr-damage {
-	flex: 1.05 1 0;
+/* Name and the HP/Armor boxes share a row, vertically centered together;
+   the concept subtitle sits below them. */
+.stonetop-monster-header-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+	/* Parent .sheet-header__fields is align-items:flex-start, which would shrink
+	   this row to content width; stretch so margin-left:auto can right-align. */
+	align-self: stretch;
 }
 
-.stonetop-monster-statbar .stonetop-monster-instinct-cell {
-	flex: 2.4 1 0;
+.stonetop-monster-header-row .stonetop-name-field {
+	flex: 0 1 auto;
+	min-width: 0;
 }
 
-.stonetop-monster-statbar .cell--Number > input {
-	margin-top: 6px;
-}
-
-.stonetop-monster-instinct-cell input {
-	text-align: left !important;
+/* margin-left: auto is the flexible spacer that pins the boxes to the right. */
+.stonetop-monster-header-statbar {
+	flex: 0 0 auto;
+	margin: 0 0 0 auto;
 }
 
 .stonetop-monster-traits {
@@ -9762,7 +9788,8 @@ li.question-bullet {
 	min-height: 0;
 }
 
-.stonetop-monster-sheet .sheet-tabs {
+.stonetop-monster-sheet .sheet-tabs,
+.stonetop-bestiary-sheet .sheet-tabs {
 	display: flex;
 	flex-direction: row;
 	align-items: flex-end;
@@ -9773,6 +9800,11 @@ li.question-bullet {
 	min-height: 0;
 	height: auto;
 }
+
+/* Explicit show/hide pairing for the bestiary tabs — keeps panels from bleeding
+   into each other under Foundry V13 cascade layers (see unlayered-tab note). */
+.stonetop-bestiary-sheet .sheet-body > .tab { display: none; }
+.stonetop-bestiary-sheet .sheet-body > .tab.active { display: block; }
 
 .stonetop-monster-body {
 	flex: 1;
@@ -9787,7 +9819,7 @@ li.question-bullet {
 .stonetop-monster-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 14px;
+	gap: var(--stonetop-section-gap);
 	align-items: start;
 }
 
@@ -9797,6 +9829,12 @@ li.question-bullet {
 	gap: 6px;
 	min-width: 0;
 	margin: 0;
+}
+
+/* Breathing room between the stacked sections on the stat-block sheet
+   (Special Qualities, Moves, Combat, Notes). */
+.stonetop-monster-sheet .stonetop-monster-body > .stonetop-monster-field + .stonetop-monster-field {
+	margin-top: 24px;
 }
 
 .stonetop-monster-field .stonetop-move-group-title {
@@ -9871,6 +9909,44 @@ li.question-bullet {
 	margin-bottom: 0;
 }
 
+/* Each top-level danger in the Dangers field is a hazard "custom move"; mark its
+   bold heading with the rulebook's exclamation legend icon (matches the printed
+   Crinwin "Unstable nest" / "Wasps" entries). Space the moves apart — but not the
+   first, which sits directly under the section heading like every other section.
+   (:not(:first-child) keeps the :has rule from out-specifying a separate reset.)
+   NB: this keys off a real leading <strong> element, so it depends on Dangers being
+   a ProseMirror rich-text field (unlike the plain **bold** prep/QA fields). */
+.stonetop-dangers-text > p:has(> strong:first-child):not(:first-child) {
+	margin-top: var(--stonetop-section-gap);
+}
+
+.stonetop-dangers-text > p > strong:first-child::before {
+	content: "";
+	display: inline-block;
+	width: 1.35em;
+	height: 1.35em;
+	margin-right: 0.4em;
+	vertical-align: -0.3em;
+	background: var(--stonetop-danger-icon) no-repeat center / contain;
+}
+
+/* Optional intro paragraph above a prep line list (e.g. Origins). */
+.stonetop-monster-line-intro {
+	margin: 0 0 8px;
+	line-height: 1.4;
+}
+
+.stonetop-monster-line-intro-input {
+	width: 100%;
+	min-height: 48px;
+	margin-bottom: 8px;
+	resize: vertical;
+	border: 1px solid rgba(0,0,0,0.22);
+	border-radius: 3px;
+	background: rgba(255,255,255,0.32);
+	line-height: 1.4;
+}
+
 .stonetop-monster-line-list {
 	display: flex;
 	flex-direction: column;
@@ -9881,14 +9957,35 @@ li.question-bullet {
 }
 
 .stonetop-monster-line {
-	padding: 6px 0;
-	border-bottom: 1px solid rgba(0,0,0,0.12);
+	padding: 2px 0;
 	line-height: 1.4;
+	display: flex;
+	align-items: flex-start;
+	gap: var(--stonetop-spiral-gap);
+}
+
+/* Spiral bullet on each prep line, replacing the old row separators. */
+.stonetop-monster-line:not(.stonetop-monster-line--empty)::before {
+	content: "";
+	flex: 0 0 var(--stonetop-bullet-size, 12px);
+	width: var(--stonetop-bullet-size, 12px);
+	height: var(--stonetop-bullet-size, 12px);
+	margin-top: 0.25em;
+	background-image: var(--stonetop-spiral-icon);
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
 }
 
 .stonetop-monster-line span {
 	display: block;
 	white-space: pre-wrap;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.stonetop-monster-line .stonetop-entry-line-input {
+	flex: 1 1 auto;
 }
 
 .stonetop-monster-line-input {
@@ -9973,6 +10070,39 @@ li.question-bullet {
 	margin: 0 0 5px;
 }
 
+/* Spiral bullets for monster body lists (rich-text fields + move descriptions),
+   matching the character Moves tab (.stonetop-item-description) instead of the
+   browser's default disc bullets. */
+.stonetop-monster-rich-text ul,
+.stonetop-monster-move-description ul {
+	margin: 0 0 2px;
+	padding-left: 0;
+	list-style: none;
+}
+
+.stonetop-monster-rich-text li,
+.stonetop-monster-move-description li {
+	margin: 2px 0;
+	display: flex;
+	align-items: flex-start;
+	gap: var(--stonetop-spiral-gap);
+}
+
+.stonetop-monster-rich-text li::before,
+.stonetop-monster-move-description li::before {
+	content: "";
+	flex-shrink: 0;
+	width: var(--stonetop-bullet-size, 10px);
+	/* Span the first text line and center the spiral within it, so the bullet
+	   aligns with the line-height:1.45 glyphs rather than sitting above them. */
+	height: 1.45em;
+	background-image: var(--stonetop-spiral-icon);
+	background-size: var(--stonetop-bullet-size, 10px);
+	background-repeat: no-repeat;
+	background-position: center;
+	opacity: 0.5;
+}
+
 .stonetop-monster-add-controls {
 	margin-top: 10px;
 }
@@ -9981,6 +10111,426 @@ li.question-bullet {
 .stonetop-monster-moves-empty {
 	color: slategrey;
 	font-size: 0.9em;
+}
+
+/* ── Stat-block: organization select, reset, entry link ───────────────────────── */
+
+.stonetop-monster-org-select {
+	flex: none;
+	min-width: 9em;
+}
+
+.stonetop-monster-reset-defaults {
+	margin-left: auto;
+	color: slategrey;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.stonetop-monster-reset-defaults:hover {
+	color: var(--color-text-hyperlink, slategrey);
+}
+
+.stonetop-monster-entry-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	font-family: var(--font-stonetop);
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+
+.stonetop-monster-entry-link:hover {
+	color: var(--color-text-hyperlink, slategrey);
+}
+
+/* ── Stat-block: Combat / group abstraction panel ─────────────────────────────── */
+
+.stonetop-monster-combat-grid {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px 18px;
+}
+
+.stonetop-monster-combat-budget {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.stonetop-monster-combat-pill {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: 999px;
+	background: #000;
+	color: #fff;
+	font-size: 0.78em;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.stonetop-monster-combat-note {
+	color: var(--color-text-dark-secondary);
+	font-size: 0.9em;
+}
+
+.stonetop-monster-count-field {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+}
+
+.stonetop-monster-count-field > span {
+	font-size: 0.9em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-monster-count-input {
+	width: 4em;
+	text-align: center;
+	border: 1px solid #aaa;
+	border-radius: 3px;
+	background: transparent;
+}
+
+.stonetop-monster-abstraction {
+	margin-top: 10px;
+	padding: 8px 10px;
+	border: 1px dashed rgba(0,0,0,0.25);
+	border-radius: 4px;
+	background: rgba(0,0,0,0.03);
+}
+
+.stonetop-monster-abstraction-hint {
+	margin: 0 0 8px;
+	font-size: 0.88em;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-monster-outnumber {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.stonetop-monster-outnumber label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+}
+
+.stonetop-monster-outnumber-vs {
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-monster-outnumber-foes {
+	width: 5em;
+	text-align: center;
+	border: 1px solid #aaa;
+	border-radius: 3px;
+	background: transparent;
+}
+
+.stonetop-monster-outnumber-result {
+	font-weight: bold;
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-monster-abstraction-casualty {
+	margin: 8px 0 0;
+	font-size: 0.88em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-monster-casualty-detail {
+	display: block;
+	font-style: italic;
+}
+
+/* ── Bestiary Entry sheet ─────────────────────────────────────────────────────── */
+
+.stonetop-bestiary-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.stonetop-bestiary-header {
+	margin-bottom: 12px;
+}
+
+.stonetop-bestiary-header .stonetop-portrait {
+	width: 132px;
+	height: 132px;
+}
+
+.stonetop-bestiary-header .stonetop-name-field {
+	padding-left: 0;
+}
+
+/* Questions & Lore — prompt + answer pairs */
+.stonetop-entry-qa-list {
+	list-style: none;
+	/* Top margin matches the 6px padding-top that .stonetop-monster-readonly-text
+	   gives Overview sections, so the gap below the header separator is consistent. */
+	margin: 6px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.stonetop-entry-qa-row {
+	border-bottom: 1px solid rgba(0,0,0,0.12);
+	padding-bottom: 8px;
+}
+
+/* Lore is just two prompts ("Something interesting" / "Something useful"); lay them
+   side by side with equal width instead of stacked, so each answer reads clearly
+   under its own prompt. */
+.stonetop-entry-qa-section[data-qa-field="lore"] .stonetop-entry-qa-list {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px 14px;
+	align-items: start;
+}
+
+/* Lead-in header (e.g. "Something interesting:") stacked above its question. */
+.stonetop-entry-qa-read .stonetop-entry-qa-lead-text {
+	margin: 0 0 2px;
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+}
+
+.stonetop-entry-qa-read .stonetop-entry-qa-prompt-text {
+	margin: 0 0 2px;
+	font-weight: normal;
+	display: flex;
+	align-items: flex-start;
+	gap: var(--stonetop-spiral-gap);
+}
+
+.stonetop-entry-qa-read .stonetop-entry-qa-prompt-text::before {
+	content: "";
+	flex: 0 0 var(--stonetop-question-spiral-size, 14px);
+	width: var(--stonetop-question-spiral-size, 14px);
+	height: var(--stonetop-question-spiral-size, 14px);
+	margin-top: 0.1em;
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	opacity: 0.55;
+}
+
+/* Answers read like the Seeker's readonly Details Collection values: italic text
+   with a left accent bar (.stonetop-lore-readonly-value). */
+.stonetop-entry-qa-read .stonetop-entry-qa-answer-text {
+	/* Indent 12px past the left edge of the question text above (which starts after
+	   the question-spiral icon + its gap), so the answer reads nested under it. */
+	margin: 2px 0 0 calc(var(--stonetop-question-spiral-size, 14px) + var(--stonetop-spiral-gap) + 12px);
+	white-space: pre-wrap;
+	font-style: italic;
+	padding-left: 6px;
+	border-left: 2px solid rgba(0,0,0,0.12);
+}
+
+.stonetop-entry-qa-edit {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 6px;
+	align-items: start;
+}
+
+.stonetop-entry-qa-prompt {
+	grid-column: 1 / 2;
+	width: 100%;
+	border: 1px solid rgba(0,0,0,0.22);
+	border-radius: 4px;
+	background: rgba(255,255,255,0.28);
+	font-weight: normal;
+}
+
+.stonetop-entry-qa-answer {
+	grid-column: 1 / 2;
+	width: 100%;
+	min-height: 48px;
+	resize: vertical;
+	border: 1px solid rgba(0,0,0,0.22);
+	border-radius: 4px;
+	background: rgba(255,255,255,0.28);
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-entry-remove-qa {
+	grid-column: 2 / 3;
+	grid-row: 1 / 3;
+	align-self: center;
+	color: slategrey;
+	cursor: pointer;
+}
+
+.stonetop-entry-remove-qa:hover {
+	color: #a33;
+}
+
+.stonetop-entry-add-qa,
+.stonetop-entry-add-line,
+.stonetop-discovery-add-group {
+	margin-top: 8px;
+	background: none;
+	border: none;
+	color: slategrey;
+	cursor: pointer;
+	font-family: var(--font-stonetop);
+	font-size: 0.9em;
+	padding: 0;
+	width: auto;
+}
+
+.stonetop-entry-add-qa:hover,
+.stonetop-entry-add-line:hover,
+.stonetop-discovery-add-group:hover {
+	color: var(--color-text-hyperlink, slategrey);
+}
+
+/* Discoveries — sub-headed groups (heading + body + bullet list) */
+.stonetop-discovery-group {
+	margin-bottom: var(--stonetop-section-gap);
+}
+
+.stonetop-discovery-group:last-child {
+	margin-bottom: 0;
+}
+
+/* Discovery sub-headings reuse the Overview section-heading look (font + underline). */
+.stonetop-discovery-group .stonetop-move-group-title {
+	margin: 0 0 0.3em;
+}
+
+.stonetop-discovery-body {
+	margin: 0 0 0.4em;
+	line-height: 1.4;
+}
+
+/* Edit mode: one block per group — heading, body prose, then one bullet per line. */
+.stonetop-discovery-edit {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 6px;
+	align-items: start;
+	margin-bottom: 12px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid rgba(0,0,0,0.12);
+}
+
+.stonetop-discovery-heading-input,
+.stonetop-discovery-body-input,
+.stonetop-discovery-items-input {
+	grid-column: 1 / 2;
+	width: 100%;
+	border: 1px solid rgba(0,0,0,0.22);
+	border-radius: 4px;
+	background: rgba(255,255,255,0.28);
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-discovery-heading-input {
+	font-weight: bold;
+}
+
+.stonetop-discovery-body-input {
+	min-height: 44px;
+	resize: vertical;
+}
+
+.stonetop-discovery-items-input {
+	min-height: 72px;
+	resize: vertical;
+}
+
+.stonetop-discovery-remove-group {
+	grid-column: 2 / 3;
+	grid-row: 1 / 4;
+	align-self: center;
+	color: slategrey;
+	cursor: pointer;
+}
+
+.stonetop-discovery-remove-group:hover {
+	color: #a33;
+}
+
+/* Stat-block list */
+.stonetop-entry-statblock-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.stonetop-entry-statblock {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 8px;
+	border: 1px solid rgba(0,0,0,0.15);
+	border-radius: 4px;
+	background: rgba(255,255,255,0.25);
+}
+
+.stonetop-entry-statblock-img {
+	width: 40px;
+	height: 40px;
+	object-fit: cover;
+	border: 1px solid var(--color-border-dark, #888);
+	border-radius: 3px;
+	flex-shrink: 0;
+}
+
+.stonetop-entry-statblock-body {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	flex: 1;
+}
+
+.stonetop-entry-statblock-name {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	cursor: pointer;
+	text-decoration: underline dotted;
+}
+
+.stonetop-entry-statblock-meta {
+	font-size: 0.85em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-entry-statblock-controls {
+	display: flex;
+	gap: 10px;
+	flex-shrink: 0;
+	color: slategrey;
+}
+
+.stonetop-entry-statblock-controls a {
+	cursor: pointer;
+}
+
+.stonetop-entry-statblock-controls a:hover {
+	color: var(--color-text-hyperlink, slategrey);
 }
 
 @media (max-width: 720px) {
