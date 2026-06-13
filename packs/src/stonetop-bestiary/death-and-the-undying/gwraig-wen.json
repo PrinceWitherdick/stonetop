@@ -25,19 +25,9 @@
     "tags": "solitary, spirit, undead, forlorn",
     "qualities": "<p>Bound to within a few miles of her bones; can't form new memories; leaves no footprints. Armor 1 (lacks organs).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.i74FkC9ROlheQBIF",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>Those who ply the Great Wood tell an old tale of a bride, newly married to a handsome trapper. He failed to come home one night, and she unwisely entered the forest to find him, falling into a deep pond and drowning. Ever since, her ghost has roamed the woods on moonlit nights: wet and shivering, desperate and pleading, certain that her husband is still out there.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Gwraig Wen",

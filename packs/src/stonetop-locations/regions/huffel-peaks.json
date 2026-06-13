@@ -279,7 +279,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around Huffel Peaks. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.PFHwDgBNwVbZHEIO]{Caralandrao}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.w4bnUheymDzA7cxr]{Fire Drake}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.RGU7Qtp9xioMxQ3k]{Frythanc Fledgling}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around Huffel Peaks. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.eAcyCUGDDeqkLrKJ]{Caralandrao}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.CIBOcY6E4EMOsQqO]{Fire Drake}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.XiAOrP04c2oqpkDg]{Frythanc Fledgling}</li></ul></div>"
       },
       "video": {
         "controls": true,

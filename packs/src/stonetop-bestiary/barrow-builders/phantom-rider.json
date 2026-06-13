@@ -25,19 +25,9 @@
     "tags": "group, large, spirit, undead, organized",
     "qualities": "<p>Bound to their bones; can travel far and wide; can't manifest in daylight; takes +1d4 damage from silver. Armor 2 (lacks organs, shield).</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.llEqxrhsKD2DvYdP",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>For a time, it was common for warriors to pledge both their lives and their deaths to their lieges, and to be interred with their horses and their fellows in their master's tomb. Thus, they could live on in death — still basking in a grim and joyless glory.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Phantom Rider",

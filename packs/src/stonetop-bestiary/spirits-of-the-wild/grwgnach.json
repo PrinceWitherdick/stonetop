@@ -25,19 +25,9 @@
     "tags": "solitary, huge, spirit, magical, mesmerizing",
     "qualities": "<p>Armor 2 from reflexes and the sheer swarm.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.YTr1h2SyKlxiRIDK",
     "notes": "",
-    "creatureType": "spirit",
-    "description": "<p>When the sun sets, starlings flock in absurd numbers: thousands upon thousands dancing and wheeling in the sky, like a chittering thunderhead, like a cloud of living smoke. Farmers do what they can to keep starlings far from town — and not just because they eat precious seeds and bury the land in droppings, but for fear of the grwgnach. It is the spirit of the mob, of the many coming together to become something more — not a king or queen of starlings, but what a million starlings become when each bird loses itself to the flock.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit"
   },
   "prototypeToken": {
     "name": "Grwgnach",

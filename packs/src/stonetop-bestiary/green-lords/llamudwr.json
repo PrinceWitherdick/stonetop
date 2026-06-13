@@ -25,19 +25,9 @@
     "tags": "solitary, large, construct, corrupted, cautious, stealthy",
     "qualities": "<p>Clumsy when grounded; hates the sun. Armor 4 (resilience), 0 vs. bronze.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.7qfPIuaRwuUPi4nV",
     "notes": "",
-    "creatureType": "construct",
-    "description": "<p>Everyone knows to shun deep, still water, and the llamudwr — the 'water leapers' — are surely one reason why. Take the body of a frog, six or seven feet long. Add another eight or nine feet of whipping tail, tipped with a venomous barb. Get rid of its legs, but give it bat wings, a span of nearly twenty feet unfurled. Hide it in a lake or fen, away from the sun's cruel light. And finally, make it hungry. Very, very hungry.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "construct"
   },
   "prototypeToken": {
     "name": "Llamudwr",

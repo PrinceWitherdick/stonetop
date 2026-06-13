@@ -25,19 +25,9 @@
     "tags": "solitary, large, cautious, terrifying, ancient",
     "qualities": "<p>Heals injuries in a few hours; regenerates limbs in a few days. Armor 3 from carapace.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.JeFYzThOekEepQUH",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>An enormous albino crayfish, older than the Fen itself. If you encounter it, pray it's not hungry. But fat chance of that.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "The Gliomor",

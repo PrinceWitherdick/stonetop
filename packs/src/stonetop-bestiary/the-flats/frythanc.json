@@ -25,19 +25,9 @@
     "tags": "solitary, large, stealthy, terrifying",
     "qualities": "<p>Incredible eyesight; terrible hearing.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.oAW6aV8Fmw6ZQPX4",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Great scaly birds, wings some forty feet across, sky-blue and white feathers on their undersides to hide against the sky. They roost in the Huffel Peaks but hunt the Flats, snatching up the unwary — man, woman, deer, horse — and dropping them to the ground. The drop usually kills or cripples its prey, and then it alights to dine at its leisure. Thank Tor, they're very rare, with only one mated pair hunting the Flats at a time.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Frythanc",

@@ -49,7 +49,7 @@
         "monster": {
             "attributes": {
                 "hp":       { "value": 0, "max": 0 },
-                "armor":    { "value": 0 },
+                "armor":    { "value": 0, "source": "" },
                 "damage":   { "value": "", "rollFormula": "" },
                 "instinct": { "value": "" }
             },

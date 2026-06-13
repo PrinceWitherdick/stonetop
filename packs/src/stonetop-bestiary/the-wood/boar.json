@@ -25,19 +25,9 @@
     "tags": "group, gluttonous",
     "qualities": "",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.GCwoVVL355ENXJ25",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Wild boars of the Great Wood. Given enough years, enough close calls, and a steady diet of ferro-tree roots and nuts, a boar can eventually become a raselbaedd.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Boar",

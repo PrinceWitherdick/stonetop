@@ -25,19 +25,9 @@
     "tags": "horde, construct, undead, corrupted, fearless",
     "qualities": "<p>Armor 4 (resilience), 0 vs. bronze. Bound by its last orders; shuns the sun and holy light.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Ql4u2UbNBjoTxvBp",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>When the Fae rebelled, some of the Green Lords' mortal servants — ancestors of the Forest Folk — sided with the traitors. But most remained loyal, or at least too afraid of their masters to risk turning. Their loyalty did not save them: the Green Lords planted demon-seeds in fallen servants' bodies, then, seeing how effective the animated corpses were, in the living too. Many of these horrors remain in Vor Svetelik, bound by orders to protect the city or certain sites within. Thank the gods they were not allowed to roam free.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Nemurvojak",

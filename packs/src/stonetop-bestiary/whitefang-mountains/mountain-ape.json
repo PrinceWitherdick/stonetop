@@ -25,19 +25,9 @@
     "tags": "group, cautious, stealthy, hoarder",
     "qualities": "<p>Arboreal; cold-proof; keen senses of smell and hearing. Armor 1 from thick fur and hide.</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.cBKPMt36JtRzMeCv",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Like orangutans but taller, more powerfully built, with thick, shaggy white hair. They dwell in small bands, in Rime Lord ruins or sacred sites far from any well-trod trails, venturing out to hunt and gather but avoiding people as much as they can. Each band collects things — a particular plant, the bones of certain animals, bits of writing, dark ice — and keeps the hoard hidden away, revered and treasured even more than their own children. Large bands keep an alpha (large, leader, +6 HP, +1 damage) who does nothing but protect it.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Mountain Ape",

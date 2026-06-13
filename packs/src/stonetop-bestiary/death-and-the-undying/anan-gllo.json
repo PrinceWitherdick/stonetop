@@ -25,28 +25,9 @@
     "tags": "horde, undead, corrupted, tireless, fearless, terrifying",
     "qualities": "<p>Weaken over time (see the entry). Armor 5 (resilience, armor), 1 vs. bronze or fire.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.5SQHTsAkmgqupgVw",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>The Hillfolk speak of dark times, when the Things Below gave a gift to a petty chief. Depending on who tells the tale, it was a patch of loose soil or a deep pool of water, the hollow of a dool tree or a great cauldron of rusted iron. Regardless: a corpse placed within this vessel would rise as one of the Anan Gllo, the Empty Dead. The chief raised an undead army, and set out to make themselves king.</p>",
-    "questions": [],
-    "lore": [
-      {
-        "prompt": "**Something interesting:** The chief's power was broken when a hero entered the vessel while still alive, giving their life to destroy it. A number of Anan Gllo linger, though, inert and waiting.",
-        "answer": ""
-      },
-      {
-        "prompt": "**Something useful:** An Anan Gllo regains all its HP when it drinks fresh blood or re-enters the vessel; it cannot otherwise heal. And every dawn it loses 1 HP — at 0 HP it becomes inert until its HP are restored.",
-        "answer": ""
-      }
-    ],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Anan Gllo",

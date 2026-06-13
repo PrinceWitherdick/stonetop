@@ -223,7 +223,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Stone Lords. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.CoqfzAvGUkjfvMpi]{Lithic Servant}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.fNEJcPa37GBqXwOq]{Mosaic Swarm}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.59u1Y4Rjasgp0Ylr]{Pacifier}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.mRpMqY81O24lXlPG]{Stone Sentinel}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Stone Lords. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.91EWIGU7SaOUHbS9]{Lithic Servant}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.qlGSzAdbwRzcPJ70]{Mosaic Swarm}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.gm2GHWbSa8mM8Fnp]{Pacifier}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.hNTwQMEAue41DzAx]{Stone Sentinel}</li></ul></div>"
       },
       "video": {
         "controls": true,

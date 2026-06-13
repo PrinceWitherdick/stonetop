@@ -25,19 +25,9 @@
     "tags": "solitary, spirit, cautious, stealthy, terrifying",
     "qualities": "<p>Hates daylight; must be manifest to feed. Armor 4 (resilience), 0 vs. silver.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.rBQSbe8jcGbTO6nA",
     "notes": "",
-    "creatureType": "spirit",
-    "description": "<p>A gwyllgi is a harbinger of death, a being from beyond. A necromancer might call one forth to send against their foes, or one might slip through the Last Door when dark magic or the death of many causes it to swing wide open. When a gwyllgi curses a victim, they know they will die before the next full moon — it can curse only one at a time, and manifests each night to feed on its victim's emotions. Destroy its form, and the curse is lifted.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit"
   },
   "prototypeToken": {
     "name": "Gwyllgi",

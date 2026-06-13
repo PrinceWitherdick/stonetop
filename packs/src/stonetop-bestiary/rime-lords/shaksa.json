@@ -25,19 +25,9 @@
     "tags": "solitary, spirit, construct, hoarder, magical, terrifying",
     "qualities": "<p>Tethered to its cemetery; can only leave to track looters or vandals. Armor 1 (lacks organs).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.JK9EeLUOBHfNoHCw",
     "notes": "",
-    "creatureType": "spirit-construct",
-    "description": "<p>The Rime Lords and their disciples created shaksa to guard over cemeteries and charnel grounds; they usually watch, unseen and unmanifest. A shaksa manifests only within its cemetery, appearing as a powerful goat made of rock and soil, with a human (?) skull for a head, three eyes of floating light, and a single great antler of jagged bone. Once manifest, it can leave the cemetery in pursuit of looters or vandals — but should this form be destroyed, the spirit returns to the cemetery and cannot remanifest until the next sunset.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit-construct"
   },
   "prototypeToken": {
     "name": "Shaksa",

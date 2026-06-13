@@ -25,19 +25,9 @@
     "tags": "group, large, cautious, swift",
     "qualities": "",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.nXxqWnbt932F98UJ",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>They roam the Flats in herds ranging from a half-dozen to a couple dozen. The larger herds will, in time, give rise to a ceffylwraig.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Wild Horse",

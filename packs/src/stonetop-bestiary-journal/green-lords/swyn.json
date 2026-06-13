@@ -1,0 +1,61 @@
+{
+  "_id": "k9Buk0QDWg2PIIqj",
+  "_key": "!journal!k9Buk0QDWg2PIIqj",
+  "name": "Swyn",
+  "ownership": {
+    "default": 0
+  },
+  "flags": {
+    "stonetop": {
+      "summary": "A vain, hypnotic serpent with a simian head that enthralls the weak-willed."
+    }
+  },
+  "folder": "jQoDL6IhABvMYnZf",
+  "sort": 81000,
+  "pages": [
+    {
+      "_id": "yzXUzONTGla9ZzfM",
+      "_key": "!journal.pages!k9Buk0QDWg2PIIqj.yzXUzONTGla9ZzfM",
+      "name": "Swyn",
+      "type": "bestiary",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": ""
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {
+        "concept": "A vain, hypnotic serpent with a simian head that enthralls the weak-willed.",
+        "description": "<p>Swyn are great serpents with simian heads and hypnotic eyes. The Green Lords bred them out of desperation, borrowing secrets from the Things Below; they wanted spymasters and saboteurs, and what they got was a race of petty, craven narcissists. Each swyn fancies itself the greatest and most beautiful of beings — but embarrass, defy, or simply bore one and expect to be brutally devoured. The Fae hunt them, and they shun their own kind, but every dozen years some urge drives them all to the ruins of Vor Svetelik for ostentatious displays and mating rituals.</p>",
+        "questions": [],
+        "lore": [],
+        "hooks": "",
+        "hooksIntro": "",
+        "origins": "",
+        "originsIntro": "",
+        "discoveries": [],
+        "nests": "",
+        "dangers": [],
+        "notes": "",
+        "statBlocks": [
+          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.gI80yymFTixu1alc"
+        ]
+      },
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    }
+  ]
+}

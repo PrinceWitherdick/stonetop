@@ -25,19 +25,9 @@
     "tags": "horde, hardy, organized, fearless, sadistic, terrifying, corrupted",
     "qualities": "<p>Inured to cold; take +1d4 damage from bronze; see only in shades of red. Armor 1 from sheer toughness.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.pOtdFLTTywDCKXPM",
     "notes": "",
-    "creatureType": "corrupted",
-    "description": "<p>These are the Howlers, the Ones-Who-Laugh, those who have succumbed to the Howling Curse. They are gaunt and hairy, dressed in rags, with jaws that have grown into snarling, fang-filled snouts. They pierce their own flesh. They hunch and howl and cackle. During the Time of Cataclysm they roamed freely; now they are, thankfully, rare. They take up residence near a community, kidnap locals and force them to commit atrocities, and turn surviving captives into more kyakaara — until they overrun the place and move on to the next.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "corrupted"
   },
   "prototypeToken": {
     "name": "Kyakaara",

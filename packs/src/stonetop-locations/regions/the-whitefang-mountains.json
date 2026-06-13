@@ -391,7 +391,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Whitefang Mountains. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.Vb5tyDtljq9QiGwW]{Bhoka}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.KYNQ2Ekdv3JzJUc7]{Ice Drake}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.Iyc7KUONkBO5Ibyz]{Kyakaara}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.ASyoP5BXGukeIrG5]{Mountain Ape}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Whitefang Mountains. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Qy6WvpBjmoGnG0m8]{Bhoka}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.fda14OGdrUYiepS5]{Ice Drake}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.pOtdFLTTywDCKXPM]{Kyakaara}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.cBKPMt36JtRzMeCv]{Mountain Ape}</li></ul></div>"
       },
       "video": {
         "controls": true,

@@ -251,7 +251,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for The Pale Hunter. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.RgAlTHEe8AhPH0Yb]{The Pale Hunter}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for The Pale Hunter. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.6wnyTkZl7GRhVM8g]{The Pale Hunter}</li></ul></div>"
       },
       "video": {
         "controls": true,

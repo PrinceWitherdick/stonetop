@@ -25,19 +25,9 @@
     "tags": "solitary, large, spirit, magical, stubborn, terrifying",
     "qualities": "<p>Armor 2 (woody, lacks organs).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Qvh128WhhOrglLEH",
     "notes": "",
-    "creatureType": "spirit",
-    "description": "<p>What becomes of a dead tree's spirit? Most linger as simple log-spirits, weakening as the log rots to mulch. But when generations of trees grow and die in the same place, they might become something more — something that defends the grove, and its current trees, and all the trees that are yet to come.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit"
   },
   "prototypeToken": {
     "name": "Prenysbyrd",

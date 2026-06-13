@@ -25,19 +25,9 @@
     "tags": "group, gluttonous, hardy, vicious, corrupted",
     "qualities": "<p>Fireproof; hot as banked coals; bleeds oily, choking smoke. Armor 4 (resilience), 0 vs. bronze.</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.SNRXkBbhyuCCXwBa",
     "notes": "",
-    "creatureType": "corrupted",
-    "description": "<p>There is a burnt and blasted place, where the Steplands abut Ferrier's Fen. It once boasted a Stone Lord fortress: grand, a tower eternal, lit by a fiery gem. But the servants rebelled, the seals were sundered, and Ta'l Themyin, the Burning Child, shattered the gem and toppled the tower and laughed and laughed and laughed. His rage still boils to the surface, poisoning any beast bold enough to forage in these ruins — and his cruelty sends them forth, to uproot and topple, to sunder and burn.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "corrupted"
   },
   "prototypeToken": {
     "name": "Cinderboar",

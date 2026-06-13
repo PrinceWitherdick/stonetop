@@ -25,19 +25,9 @@
     "tags": "solitary, large, corrupted, aquatic, terrifying",
     "qualities": "<p>Chained to a heavy block of makerglass. Takes +1d6 damage from bronze. Soothed by a well-sung song. Armor 2 from fur and scales.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.psptlaD9mE9Rk1YI",
     "notes": "",
-    "creatureType": "corrupted",
-    "description": "<p>It was a gift from the Things Below, a present to some Barrow Builder tyrant. They bound it fast and kept it in the waters nearby, feeding it a steady diet of screaming, bleeding victims. It's still out there, sleeping for years or decades at a time, roused by copious amounts of fresh blood in the lake — or by a few drops somewhere nearby.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "corrupted"
   },
   "prototypeToken": {
     "name": "The Chained Beast",

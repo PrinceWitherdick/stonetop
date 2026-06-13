@@ -25,28 +25,9 @@
     "tags": "group, cunning, stealthy",
     "qualities": "<p>Webs; prodigious leaps. Armor 2 from carapace.</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.TtB1H0FcNCFGRTK0",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>So far, these hound-sized spiders have thankfully avoided hunters and trappers in the Wood, and certainly haven't come near town. But they're out there, rest assured, and growing in numbers.</p>",
-    "questions": [],
-    "lore": [
-      {
-        "prompt": "**Something interesting:** Nailadd venom paralyzes prey, rather than killing it.",
-        "answer": ""
-      },
-      {
-        "prompt": "**Something useful:** You can harvest the venom (d4 uses, dangerous, reload, Value 1) from an intact corpse. A blade coated in nailadd venom deals +1d4 damage and numbs the wounded area.",
-        "answer": ""
-      }
-    ],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Nailadd",

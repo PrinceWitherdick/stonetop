@@ -251,7 +251,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Forge Lords. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.5nfugU7444Jh6D0e]{Bronze Colossus}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.4EAwSShKj05G2Dls]{Cinderwraith}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.0E5ih40SJt6W1nDp]{Clockwork Spider}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.9kcSzC3uPavigsyF]{Draventao}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.BgPtjVOTWvJBYE7z]{Iron Hound}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.6dXBK2ZSWVk51wAp]{Singing Sword}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Forge Lords. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.JcJ1Kg1avKIFJqdh]{Bronze Colossus}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.x54yvxxbXbmKYZ8e]{Cinderwraith}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.rFt8fD3NyBuX1BJD]{Clockwork Spider}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.sKYvwXBCiWfqNZlU]{Draventao}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.QuvCnDgNGwtul1Cl]{Iron Hound}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.nJozgr8Ox6CO3lBR]{Singing Sword}</li></ul></div>"
       },
       "video": {
         "controls": true,

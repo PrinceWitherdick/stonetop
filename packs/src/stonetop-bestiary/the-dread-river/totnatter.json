@@ -25,19 +25,9 @@
     "tags": "solitary, large, stealthy, terrifying",
     "qualities": "<p>Thermal vision; extraordinary sense of smell.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.w8oBC7s7o7AlEqIQ",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>These grey-white rattlesnakes grow to absurd size, big enough to eat a boar, a deer, or even a person. Manmarchers say they haunt the bluffs and ruins along the river, waiting months, years, even decades between meals. Where most rattlesnakes rattle to warn off threats, totnatter use their rattle to hunt, delighting in the terror it causes. Once envenomed, prey runs a grim countdown: weakened, then dazed, then miserable, then dying.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Totnatter",

@@ -307,7 +307,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Labyrinth. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.qSYAPFrFZd8BOCVA]{Magma Worm}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.GdZQKCMmPANEuFyb]{Tcaventes, Shackle and Key}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.7ODfftMaLxM07Wu8]{Thraulgwyn}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Labyrinth. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.r7ExiEQIX6sKJCXA]{Magma Worm}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.muAijyov4VTFfqBL]{Tcaventes, Shackle and Key}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.J0eNyUcWDLD2ornV]{Thraulgwyn}</li></ul></div>"
       },
       "video": {
         "controls": true,

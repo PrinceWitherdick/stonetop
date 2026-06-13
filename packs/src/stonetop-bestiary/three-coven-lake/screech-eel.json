@@ -25,19 +25,9 @@
     "tags": "horde, small, aquatic, stealthy, cautious",
     "qualities": "<p>Armor 1 from sheer speed; 2 vs. attacks from above the water.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Efv986sm5JyehsJC",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>About five or six feet long. They mostly prey on fish or fowl, hunting silently and by themselves. Somehow, though, they learned that people are delicious. Too big for one eel to tackle, sure — but people in the water are clumsy and oblivious. So when a screech eel spots someone in the water, it calls out to its friends, and when enough have gathered, they feast.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Screech Eel",

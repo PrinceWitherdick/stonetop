@@ -25,19 +25,9 @@
     "tags": "solitary, spirit, hoarder, devious, watery, beautiful, corrupted",
     "qualities": "<p>Tethered to a skull or trinket, deep in its pond. Armor 1 (lacks organs).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.lEnzsCftDmDarvlN",
     "notes": "",
-    "creatureType": "corrupted",
-    "description": "<p>The spirits of even shallow ponds can be callous and uncaring. How much worse, then, are the spirits of those deeper pools that have claimed the lives of mortals? For — willing or not — they have made offering to Daagon, and let it into their watery hearts. Listen to a morgais' song or let your gaze linger on its graceful form, and your heart fills with a longing that draws you to the water's edge.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "corrupted"
   },
   "prototypeToken": {
     "name": "Morgais",

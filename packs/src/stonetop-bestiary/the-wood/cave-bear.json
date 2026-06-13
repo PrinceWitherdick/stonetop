@@ -25,19 +25,9 @@
     "tags": "solitary, large, cautious",
     "qualities": "<p>Armor 1 from thick fur and hide.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.VJf1tzQZ3nGxBNsC",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Great big silver-brown things, eating anything they can dig up or catch. They mostly hibernate through winter and grow especially bold and ornery in autumn as they fatten up, though they've been known to wake and forage even in the cold. They lair in big caves, usually two mates and maybe their cubs. They're not usually aggressive towards people — unless surprised, extra hungry, or protecting the cubs. Then? Watch out.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Cave Bear",

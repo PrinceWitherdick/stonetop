@@ -25,19 +25,9 @@
     "tags": "solitary, huge, magical, terrifying, aquatic, corrupted",
     "qualities": "<p>Many-eyed; impossible to surprise. Armor 2 from scales.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Hv4lWQtBLYYJ67Cg",
     "notes": "",
-    "creatureType": "corrupted",
-    "description": "<p>It's a thing of legend: a great scaly wurm, they say, hundreds of feet long, festooned with eyes along its bulk — hundreds of eyes, so very many. They say it sees all that happens along the river, brooks no trespass, and drowns or devours all who encroach on its domain. But that's not entirely true: some have met the Suileach and lived, haunted by what they saw reflected in its eyes. Stare transfixed into one and you mark dazed and glimpse a fate — yourself unburdened, yourself as you might have been, your death as it will occur, or the truth reflected darkly.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "corrupted"
   },
   "prototypeToken": {
     "name": "The Suileach",

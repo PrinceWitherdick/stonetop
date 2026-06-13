@@ -25,19 +25,9 @@
     "tags": "magical, construct, immobile",
     "qualities": "<p>Immobile. Armor 4 from tiny size, metal fittings, and crystal body. Keyed to a phrase, signal, color, or token.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.5QceSajZpMX0eS4Q",
     "notes": "",
-    "creatureType": "construct",
-    "description": "<p>A glowing gem, set in a fixture of aetherium. Found in pairs, or sets of up to six. Each set is keyed to something — a pass phrase, a hand signal, a color of robes, a style of locket. Get too close without the key, and zzzolt, they start blasting.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "construct"
   },
   "prototypeToken": {
     "name": "Lightning Sconce",

@@ -25,28 +25,9 @@
     "tags": "solitary, large, terrifying, fearless",
     "qualities": "<p>Awe-inspiring antlers.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.idLzu8GfQknwWCby",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Majestic. Proud. Antlers so large you can scarce believe how deftly it moves through the woods. They are the royalty of deer. It is said that only the Pale Hunter can give them chase, and that any mortal who dares to stalk them quickly finds the tables turned.</p>",
-    "questions": [
-      {
-        "prompt": "What special property does folklore say the ceirwmawr's antlers possess?",
-        "answer": ""
-      },
-      {
-        "prompt": "What dire fate is said to befall those who slay a ceirwmawr without the Pale Hunter's permission?",
-        "answer": ""
-      }
-    ],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Ceirwmawr",

@@ -58,10 +58,16 @@
                   },
                   {
                       "name":  "stonetop-bestiary",
-                      "label":  "Stonetop Bestiary",
+                      "label":  "Monsters",
                       "path":  "packs/stonetop-bestiary",
                       "type":  "Actor",
                       "system":  "stonetop_pwd"
+                  },
+                  {
+                      "name":  "stonetop-bestiary-journal",
+                      "label":  "Stonetop Bestiary",
+                      "path":  "packs/stonetop-bestiary-journal",
+                      "type":  "JournalEntry"
                   },
                   {
                       "name":  "stonetop-locations",
@@ -76,6 +82,11 @@
                       "type":  "JournalEntry"
                   }
               ],
+    "documentTypes":  {
+                          "JournalEntryPage":  {
+                                                   "bestiary":  {}
+                                               }
+                      },
     "primaryTokenAttribute":  "attributes.hp",
     "initiative":  "2d6"
 }

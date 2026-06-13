@@ -25,19 +25,9 @@
     "tags": "horde, emanation, terrifying, sadistic, aggressive",
     "qualities": "<p>Spider-climb; blind; senses life (heat, heartbeats, breathing, movement). Disoriented by intense noise or heat. Armor 4 (resilience), 0 vs. bronze.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.KcEptvDi3nhRFoBB",
     "notes": "",
-    "creatureType": "emanation",
-    "description": "<p>Six feet long, with segmented bodies and too many legs, scythe-like forelimbs, and feathery antennae that caress the air and quiver when they sense prey. No eyes, just red crystal pulsing within the skull. No mouth, for it never eats and lives on hate and malice. Each is a manifestation of Og'molok's cruel will, born of blood and sent skittering up to slaughter — until Stormcatcher's final spell turned most of them to glass. A few dozen avoided it, lingering in torpor until they sense a living, feeling being. Then they wake. Then they hunt.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "emanation"
   },
   "prototypeToken": {
     "name": "Skittering Horror",

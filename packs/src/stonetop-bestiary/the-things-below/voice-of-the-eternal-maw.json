@@ -25,19 +25,9 @@
     "tags": "solitary, spirit, emanation, devious, terrifying, hungry",
     "qualities": "<p>Tethered to the vortex; unable to leave the mountain. Armor 4 (resilience), 0 vs. bronze.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Mt6MCzNsS6khASpi",
     "notes": "",
-    "creatureType": "emanation",
-    "description": "<p>Hidden in the southern arm of the Huffel Peaks, there is a gorge that splits a mountain, cloaked in constantly churning mist, cold and clammy. At the base of the gorge is a thin split in reality — a vortex, a manifestation of Hlad the Devourer, sucking in everything it touches. The mountain is shunned now, but the Barrow Builders once fed the vortex gifts, offerings, and living, screaming sacrifice. In time, these offerings gave the vortex a Voice. And the Voice roams the mountain still.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "emanation"
   },
   "prototypeToken": {
     "name": "Voice of the Maw",

@@ -25,19 +25,9 @@
     "tags": "horde, small, amphibious, corrupted",
     "qualities": "<p>Lightning-proof. Armor 1 from hide.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.3BvxOqjeOtQei8cG",
     "notes": "",
-    "creatureType": "corrupted",
-    "description": "<p>Each one is a few feet long, like a cuttlefish crossed with a giant maggot, squirming wet and gray, a face full of feelers whose touch stings like lightning. They spend most of their lives in the water, congregating near power-crystals and aetherium artifacts claimed by the river, entranced by the passive energy — but when they sense something meatier, they wriggle out fast. Some Hillfolk claim they're merely tadpoles, and tell of larger, many-legged terrors that fling lightning from man-long feelers. Probably just spook-stories. Probably.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "corrupted"
   },
   "prototypeToken": {
     "name": "Luglfsk",

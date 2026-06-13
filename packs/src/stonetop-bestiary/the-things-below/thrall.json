@@ -25,19 +25,9 @@
     "tags": "solitary, undead, hardy, magical, corrupted",
     "qualities": "<p>Marked by their master. Armor by worn armor, if any.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.DobvWxcXu5RXmXbT",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>When the Last Door stands open before you, what will you do? Some step through bravely, with a nod to the Lady of Crows. Others stagger through, weeping and wailing. Others — consumed by longing, vengeance, or duty — spit on fate, turn their back on the Last Door, and cling to this world for a time. But what if you simply want to live? What if, when faced with oblivion, you called upon one of the Things Below and offered yourself up to them? And what if they said yes?</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Thrall",

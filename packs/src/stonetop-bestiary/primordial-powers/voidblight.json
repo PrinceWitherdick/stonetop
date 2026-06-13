@@ -25,19 +25,9 @@
     "tags": "horde, spirit, primordial, stealthy, hungry, cautious",
     "qualities": "<p>Can harm only spirits and mortals sensitive to the spirit world; harmed only by other spirits or magical attacks. Armor 1 (lacks vitals).</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.smqjMCaaxstHY5nZ",
     "notes": "",
-    "creatureType": "spirit",
-    "description": "<p>To those who can perceive them, they seem like many-limbed salamanders made of star-filled night, their broad, flat, eyeless heads splitting open into rows of glittering teeth. They are alien things, spiritual scavengers and predators, haunting forgotten corners of the spirit world and the dead world-motes that float through the cosmic void. Mostly they wait and hunger — but if they catch the scent of a traveler, or worse, a rift into our world, they will follow it.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit"
   },
   "prototypeToken": {
     "name": "Voidblight",

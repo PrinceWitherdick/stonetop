@@ -25,19 +25,9 @@
     "tags": "horde, hardy",
     "qualities": "",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.CutEOTuoS3mAcu8n",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Caribou graze the windswept plateau of the Frozen Wastes in great herds, preyed on by wolves, saber-toothed cats, and worse things that crawl from the lakes in summer.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Caribou",

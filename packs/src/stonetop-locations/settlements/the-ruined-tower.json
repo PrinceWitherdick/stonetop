@@ -279,7 +279,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Ruined Tower. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.jd4L6VMQhTXba2r0]{Blue Magpie}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.GwnTCgTINiA49N9c]{Ferocedes Ogran}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.dfsDOpDS6JcOBnCe]{Lightning Sconce}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.BwDgsHeLfhJWrS5w]{Patchwork Construct}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.mk4kCF2buJrsSlK2]{Skittering Horror}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.89ZjFUUS1I9bP2MH]{Star-Mole}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Ruined Tower. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.iyJ1X2X1AZE1zjWl]{Blue Magpie}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.D42rXN4BtGJACqqt]{Ferocedes Ogran}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.5QceSajZpMX0eS4Q]{Lightning Sconce}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.n1UvqWHNDj9Nihcm]{Patchwork Construct}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.KcEptvDi3nhRFoBB]{Skittering Horror}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.5JC9gQCHQUHugXsQ]{Star-Mole}</li></ul></div>"
       },
       "video": {
         "controls": true,

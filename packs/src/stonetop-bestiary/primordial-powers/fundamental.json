@@ -25,19 +25,9 @@
     "tags": "solitary, spirit, primordial",
     "qualities": "<p>Harmed only by black iron. Armor 1 (lacks vitals).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.WObWuLHBHqBYlZlA",
     "notes": "",
-    "creatureType": "spirit",
-    "description": "<p>These are spirits of fundamental forces, far removed from mortal concerns. They are active only near sites of primordial power and uncontrolled rifts, or when called forth by powerful, dangerous magic. Examples include Time (a form of flowing sand, to plod forward), Gravity (a voice from below, to be greedy), Fate (a weaver or spider, to be coy), Light (a prismatic pattern, to overwhelm), Void (a hole in reality, to get confused), Order (an unmoving crystalline form, to arrange and preserve), and Chaos (a bewildering series of impressions, to undermine and surprise).</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit"
   },
   "prototypeToken": {
     "name": "Fundamental",

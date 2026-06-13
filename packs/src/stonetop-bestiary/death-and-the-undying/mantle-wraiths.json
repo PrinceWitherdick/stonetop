@@ -25,19 +25,9 @@
     "tags": "group (3), spirit, undead, terrifying, vicious",
     "qualities": "<p>Powerless in daylight. Armor 1 (amorphous).</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Ix0kIQeEN7xkTUsK",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>A trio of wraiths tethered to a tattered mantle. They whisper their longings to whoever wears it, and the wearer can let them slip free to feast on the living — though they are loathe to return to the mantle, and must be spent or Persuaded back. Their cost is the souls they feast upon.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Mantle Wraith",

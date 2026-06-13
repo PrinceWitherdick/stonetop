@@ -25,19 +25,9 @@
     "tags": "group, small, construct, amorphous",
     "qualities": "<p>Must recharge after a few hours; limited autonomy; blind; tremorsense; has trouble with stairs; vulnerable to blunt, forceful attacks. Armor 4 (just a stone sphere).</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.gm2GHWbSa8mM8Fnp",
     "notes": "",
-    "creatureType": "construct",
-    "description": "<p>They're basically hollow stone spheres, maybe scratched and dinged but otherwise featureless, often found in their little alcoves, charging. The Stone Lords would deploy them among the rowdier servants to keep things running smoothly. When you are in range of a pacifier's hum, your emotions lose their edge, and rousing yourself to act violently, urgently, or passionately means rolling +WIS to shake off the effect.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "construct"
   },
   "prototypeToken": {
     "name": "Pacifier",

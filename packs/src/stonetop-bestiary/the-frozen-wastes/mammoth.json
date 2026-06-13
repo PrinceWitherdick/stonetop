@@ -25,19 +25,9 @@
     "tags": "horde, huge, hardy",
     "qualities": "<p>Armor 1 from fur and hide. Keen-nosed; sickly in warmer climes.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.H4EkNtJ49Mpz9O8a",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Mammoths graze the Frozen Wastes, herded by the mammoth bands for wool, ivory, bone, transport, and labor — kept in herds of ten to twenty adults, butchered only in desperation. Wild herds suffer no insult or threat.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Mammoth",

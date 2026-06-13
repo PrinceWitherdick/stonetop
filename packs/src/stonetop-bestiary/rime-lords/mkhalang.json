@@ -25,19 +25,9 @@
     "tags": "solitary, huge, spirit, construct, cautious, devious",
     "qualities": "<p>Tethered to its dome but far-ranging; perfect memory; unable to lie. Armor 1 (lacks organs).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.BcpBqOAGilg6RtJb",
     "notes": "",
-    "creatureType": "spirit-construct",
-    "description": "<p>The Rime Lords created these mighty spirits to act as emissaries and spies. A few still remain, tethered to the meditation-halls in which they were made but roaming the Whitefangs in search of novelty and diversion. They have grown bored in their masters' absence, and from boredom has grown a subtle cruelty. The people of the Whitefangs treat them with respect, for they are still the emissaries of the Rime Lords — but they also know better than to trust their counsel.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit-construct"
   },
   "prototypeToken": {
     "name": "Mkhalang",

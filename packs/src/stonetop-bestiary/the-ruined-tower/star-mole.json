@@ -25,19 +25,9 @@
     "tags": "horde, cautious, devious, organized, hardy",
     "qualities": "<p>Blind; tremorsense; bioluminescent.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.5JC9gQCHQUHugXsQ",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Big, naked mole-rats, like five feet long, with saggy skin, glowing freckles, and clusters of wriggling feelers on their noses. They eat vermin and fungus that grow near leaking pipes, and they tunnel through bedrock, collapse passages, and expose sealed-off rooms. Every so often they wake a skittering horror from its torpor — doom for the colony, unless they can trap it. They'll treat the PCs as a similar threat.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Star-Mole",

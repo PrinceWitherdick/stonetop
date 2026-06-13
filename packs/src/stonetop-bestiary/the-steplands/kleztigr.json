@@ -25,28 +25,9 @@
     "tags": "solitary, large, cagey, stealthy, agile, powerful",
     "qualities": "<p>Armor 1 from sheer reflexes.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.3e1HimZxPWvqLyu1",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Like a cougar but twice as big, with eight-inch fangs hanging out of their mouths. Hillfolk tales claim they once were much more common — pets of the Stone Lords, even. Now they are, thankfully, rare.</p>",
-    "questions": [],
-    "lore": [
-      {
-        "prompt": "**Something interesting:** Some Hillfolk bands 'adopt' a kleztigr, making offerings of meat or young goats, sheep, or even horses. The kleztigr follows the band about, protecting them from outsiders.",
-        "answer": ""
-      },
-      {
-        "prompt": "**Something useful:** Such a kleztigr won't harm anyone wearing some item or clothing distinctive to 'their' band (but it might expect a present).",
-        "answer": ""
-      }
-    ],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Kleztigr",

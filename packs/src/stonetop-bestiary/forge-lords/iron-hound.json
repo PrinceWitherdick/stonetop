@@ -25,19 +25,9 @@
     "tags": "horde, construct, undead, corrupted, tireless, terrifying",
     "qualities": "<p>Fireproof; heat-sensing. Armor 4 (metal, lacks organs).</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.QuvCnDgNGwtul1Cl",
     "notes": "",
-    "creatureType": "construct",
-    "description": "<p>There was a Forge Lord who prized his hounds as much as his treasure. When one would die, he'd capture its spirit in red crystal and set it as the eyes of a crudely-wrought effigy — and if anyone was so foolish as to steal from him, he'd loose his iron hounds to punish not just the thief but all whose hands had sullied his property. That Forge Lord is long gone, but his iron hounds remain. They've learned to leave their master's treasures in plain sight and to give thieves a head start — for the more hands touch the stolen goods, the more victims they can claim.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "construct"
   },
   "prototypeToken": {
     "name": "Iron Hound",

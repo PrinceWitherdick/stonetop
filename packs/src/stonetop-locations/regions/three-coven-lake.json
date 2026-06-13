@@ -335,7 +335,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around Three Coven Lake. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.DHXlFUAc6mX5eEtp]{Screech Eel}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.2UnnOaKPTABc13S4]{The Chained Beast}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around Three Coven Lake. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Efv986sm5JyehsJC]{Screech Eel}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.psptlaD9mE9Rk1YI]{The Chained Beast}</li></ul></div>"
       },
       "video": {
         "controls": true,

@@ -25,28 +25,9 @@
     "tags": "solitary, spirit, magical, stealthy, devious, audacious, cautious, beautiful",
     "qualities": "<p>Tethered to a fox skull. Armor 1 from sheer reflexes.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.1fcosNxgJeIAYHGS",
     "notes": "",
-    "creatureType": "spirit",
-    "description": "<p>Every child has heard stories of the fox-spirit, the trickster, the fadyn. In some tales, a fadyn makes fools of the cruel or the proud. In others, they steal chickens from the slow-witted. And in still others, they seduce a beautiful human, disappearing when bored or discovered. Truth be told, there's little pattern to who a fadyn torments or fancies. They are fickle, fickle things.</p>",
-    "questions": [],
-    "lore": [
-      {
-        "prompt": "**Something interesting:** When a fadyn takes the form of a person, it always has some fox-like feature (a tail, feet, hands, ears) that it strives to hide. It is easily embarrassed by this feature, and flees if it's discovered.",
-        "answer": ""
-      },
-      {
-        "prompt": "**Something useful:** Fadyn are the spirits of old, cagey foxes who passed away, tethered to their old skulls. One can't travel far from its skull — get hold of it to destroy or bind the fadyn.",
-        "answer": ""
-      }
-    ],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit"
   },
   "prototypeToken": {
     "name": "Fadyn",

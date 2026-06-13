@@ -25,19 +25,9 @@
     "tags": "solitary, large, spirit, undead, magical, cunning, cautious, organized, terrifying",
     "qualities": "<p>Tethered to its canopic jars; can sense all that happens in its tomb. Armor 4 (potent wards), 0 vs. fire.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.EwO2lHfT38Fi7uqK",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>They lie entombed, their corpses embalmed, their souls bound to heavily-warded canopic jars that store their most-vital organs — yet those souls linger forever in Fae-woven realms of glamour and delight, where the Green Lords are as gods. They are loathe to leave, and rarely need to. But should their existence be truly threatened, they will return to this world of base flesh, inhabit their long-dead bodies, and punish any intruders with the savagery of the cruelest beasts.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Mummified Green Lord",

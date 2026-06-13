@@ -25,19 +25,9 @@
     "tags": "solitary, large, stealthy",
     "qualities": "<p>Senses vibrations; strong burrower.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.9iGIKUGklHraBaZB",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Great big beetles that live out beneath the Flats, preying on large game like horses and aurochs. They undermine the soil and lie in wait. The Hillfolk know what signs to watch for, but they rarely tell outsiders — what better way to keep the Flats free of fools?</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Klezln",

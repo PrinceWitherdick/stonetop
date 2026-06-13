@@ -25,19 +25,9 @@
     "tags": "group, primordial, cautious, devious, organized, magical, all-wise",
     "qualities": "<p>Armor 4 (wards, resilience), 0 vs. black iron. Impossible to deceive or surprise. Divide damage taken equally between the three witches (round down).</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.M8gYXMHKcRqCshbC",
     "notes": "",
-    "creatureType": "spirit",
-    "description": "<p>Many tales are told of the weird sisters of the Fen. There are always three, but they might be old, young, or middling; tall and regal or twisted and gnarled. All stories agree they have what you seek — an answer, an artifact, a way to do the impossible — and that there's always a price. In truth they are a single entity: the inscrutable incarnation of a primordial being of knowledge, fate, costs, and consequences, greatly diminished and dwelling in this broken land. They observe the old ways of hospitality and do no true harm to a guest who keeps guest-right; violate it, and beware.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit"
   },
   "prototypeToken": {
     "name": "Willow Witches",

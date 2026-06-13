@@ -25,19 +25,9 @@
     "tags": "horde, spirit, undead, organized, relentless",
     "qualities": "<p>Takes +1d4 damage from fire; tethered to canopic jars.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.bO6QXFMmtAmKL3zO",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>Some of the Green Lords were mummified and interred with their most faithful mortal servants. These servants get to enjoy their master's false afterlife — but when threats to the tomb arise, they are sent back to their corpses, to rise and crush any intruders they find.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Mummified Servant",

@@ -25,19 +25,9 @@
     "tags": "horde, tiny, fae, magical, stealthy, organized",
     "qualities": "<p>Fae nature. Armor 6 (resilience, size, speed), 2 vs. iron. Each band leans toward a role: <strong>guardians</strong> (guard against old evil), <strong>workers</strong> (prepare for lean times), or <strong>hooligans</strong> (amuse themselves at others' expense).</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.aThMYefGFmE0mG73",
     "notes": "",
-    "creatureType": "fae",
-    "description": "<p>Tiny little things, winged and fluttering, the size of mice or dragonflies — mishmashes of fur and feather, scales and chitin, gossamer and wings, beautiful or cute or grotesque. Some lived together under the Green Lords; others came together after the war; a surprising number were born into freedom. You might find them keeping watch over a corrupted site or crumbling ruin, or in one of their teeming hidden cities, or — if you're unlucky — roaming the woods bored and cruel and looking for sport.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "fae"
   },
   "prototypeToken": {
     "name": "Wee Folk",

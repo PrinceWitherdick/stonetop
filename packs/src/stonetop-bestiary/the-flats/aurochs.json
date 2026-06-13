@@ -25,19 +25,9 @@
     "tags": "group, large, ornery, powerful",
     "qualities": "<p>Armor 2 from thick hide and sheer toughness.</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.tx9I3QGe5ldHuhho",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Big, powerful, wild cattle with horns longer than your arm and thicker than your hand can grip around. Even the does have big horns, and aren't shy about using them.</p><p>They winter in the Steplands in small bands of 3-5 adults. In spring they come down to the Flats, form herds of 30 or more, and graze and graze and graze, breaking up into smaller bands by midsummer and heading back into the hills before first snow.</p><p>The Hillfolk hunt them, riding at the flanks of a herd and picking off one or two with arrows, keeping their distance. You do not want to get too close to one of these things, especially not after you wound it. A full-grown carcass, properly butchered and hauled home, counts as 1 Surplus; a pair of horns is Value 1.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Aurochs",

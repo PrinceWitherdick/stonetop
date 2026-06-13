@@ -25,19 +25,9 @@
     "tags": "solitary, small, construct, lonely, dutiful",
     "qualities": "<p>Flies; fireproof; blind; heat-sense; bound to its hall. Armor 4 (quick, made of metal).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.nJozgr8Ox6CO3lBR",
     "notes": "",
-    "creatureType": "construct",
-    "description": "<p>This naked blade needs no wielder. It dances about the air, making music as it moves: every bob a hum, every slice a whistle. It was set here long ago as guardian to this crumbling hall, and for ages it has kept its vigil — yet it is no mindless thing. It remembers and yearns for the days when this hall was filled with light, laughter, and music. And so it waits, in the dark, singing songs that no living mortal ear has heard, worrying that it has misremembered the music it once knew. It waits, dutiful, and alone.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "construct"
   },
   "prototypeToken": {
     "name": "Singing Sword",

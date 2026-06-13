@@ -279,7 +279,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around Vor Svetelik. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.RtF6xF9mdCPujX08]{Nemurvojak}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.nh6h60KGgx2IlxfF]{Plasmic Horror}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around Vor Svetelik. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Ql4u2UbNBjoTxvBp]{Nemurvojak}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.mBQElv2JfT8AW8KH]{Plasmic Horror}</li></ul></div>"
       },
       "video": {
         "controls": true,

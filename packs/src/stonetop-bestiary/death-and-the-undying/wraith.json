@@ -25,19 +25,9 @@
     "tags": "solitary, spirit, undead, stealthy, terrifying",
     "qualities": "<p>Bound to its tether (usually); powerless in daylight. Armor 1 (lacks organs).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.MVICDuKvbrNllUY3",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>Wraiths are cursed with endless hunger. They are damaged souls, wounded by dark magic, by another wraith, or by the dehumanizing effects of starvation or addiction. They are little more than beasts, driven by the emptiness within, with only the vaguest sense of who they once were. Unbound wraiths — ghosts whose tethers were destroyed — are weaker, but often form packs (group, vicious, 13 HP each, d8 damage, afraid of firelight).</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Wraith",

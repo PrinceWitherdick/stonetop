@@ -25,19 +25,9 @@
     "tags": "solitary, fae, undead, confused, terrifying",
     "qualities": "<p>Senses life; surrounded by inert death and ash. Armor 5 (resilience, lacks vitals), 1 vs. black iron — and can be truly destroyed only by black iron.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.KgJ8NTJSYfoMhX0Y",
     "notes": "",
-    "creatureType": "fae",
-    "description": "<p>A Fae wounded by black iron will pray for death, for to survive such a wound is a curse. They grow weak, then confused, then hungry, until they become a walking husk, surrounded by death, inhaling any source of life they find. Hollow Fae are no longer vulnerable to mere iron; debts and promises no longer bind them; they will tear their way free of any domain. Only black iron can destroy them — and what living Fae would be fool enough to try? A large Hollow Fae is tougher (23 HP, +1 damage, +reach); a huge one tougher still (27 HP, +3 damage, +reach).</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "fae"
   },
   "prototypeToken": {
     "name": "Hollow Fae",

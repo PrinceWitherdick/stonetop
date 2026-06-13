@@ -251,7 +251,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Rime Lords. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.yutvCMDSx2HQ6Ery]{False Adept}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.ktS8JqsS9RThoLIJ]{Gingkara}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.LLdvSUypBNDeKI5Z]{Khyagseng}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.CK1q0r9Hp21IpFpX]{Mkhalang}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.knIBykmqBqa8lMFN]{Rime Lord}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.h9IhOM9HBNmdrzUh]{Shaksa}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Rime Lords. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.oe8mlG7LcAvCd0aE]{False Adept}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ztrQnbFLBK1siEPk]{Gingkara}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ADc1Jry8qeYXhKjs]{Khyagseng}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.BcpBqOAGilg6RtJb]{Mkhalang}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.lMOwbXpvkp9KL5SG]{Rime Lord}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.JK9EeLUOBHfNoHCw]{Shaksa}</li></ul></div>"
       },
       "video": {
         "controls": true,

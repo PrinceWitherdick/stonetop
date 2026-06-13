@@ -223,7 +223,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Green Lords. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.zWFuS69kPihbwlKp]{Llamudwr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.TGLFOv8AqB8gHXvM]{Mummified Green Lord}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.WVBxp5Ii2Ahd6Xln]{Mummified Servant}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.Pz0n6nkxIVq2xH4u]{Rhagedn}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.gI80yymFTixu1alc]{Swyn}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.3JaMhYyy0qDzf06q]{Zrajedak}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Green Lords. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.7qfPIuaRwuUPi4nV]{Llamudwr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.EwO2lHfT38Fi7uqK]{Mummified Green Lord}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.bO6QXFMmtAmKL3zO]{Mummified Servant}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.h9ZdkjGYXgOAOhx8]{Rhagedn}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.k9Buk0QDWg2PIIqj]{Swyn}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.CGPfnYi6Y86dEdE0]{Zrajedak}</li></ul></div>"
       },
       "video": {
         "controls": true,

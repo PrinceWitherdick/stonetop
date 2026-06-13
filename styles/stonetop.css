@@ -5138,7 +5138,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .pbta.sheet .sheet-tabs .item,
-.stonetop-monster-sheet .sheet-tabs .item,
 .stonetop-bestiary-sheet .sheet-tabs .item {
 	border-radius: 4px 4px 0 0;
 	background: #999;
@@ -5156,8 +5155,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .pbta.sheet .sheet-tabs .item:hover,
 .pbta.sheet .sheet-tabs .item:focus,
-.stonetop-monster-sheet .sheet-tabs .item:hover,
-.stonetop-monster-sheet .sheet-tabs .item:focus,
 .stonetop-bestiary-sheet .sheet-tabs .item:hover,
 .stonetop-bestiary-sheet .sheet-tabs .item:focus {
 	background: #bbb;
@@ -5166,7 +5163,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .pbta.sheet .sheet-tabs .item.active,
-.stonetop-monster-sheet .sheet-tabs .item.active,
 .stonetop-bestiary-sheet .sheet-tabs .item.active {
 	background: #000;
 	color: #fff;
@@ -9572,14 +9568,30 @@ li.question-bullet {
 /* Monster sheet */
 
 .stonetop-monster-sheet {
-	height: 100%;
+	min-height: 100%;
 }
 
+/* Clamp the stat-block window so it can't be resized below the width its
+   two-column header/body needs. Foundry's setPosition() reads the app root's
+   computed min-width when resizing, so the rule has to live on the window element
+   (.app.window-app + the `monster` class from the sheet's defaultOptions). */
+.window-app.monster {
+	min-width: 600px;
+}
+
+/* The sheet opens with height: "auto" (see StonetopMonsterSheet defaultOptions),
+   so the window hugs its content. Cap the scrolling body at the viewport so a
+   monster with many moves still scrolls rather than overrunning the screen. */
+.window-app.monster .window-content {
+	max-height: 90vh;
+	overflow-y: auto;
+}
+
+/* One continuous sheet — header, the two-column upper area, Combat, and Notes all
+   flow together and scroll as a unit via .window-content (no inner scroll box). */
 .stonetop-monster-container {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
-	min-height: 0;
 }
 
 .stonetop-monster-header {
@@ -9596,23 +9608,52 @@ li.question-bullet {
 	padding-left: 0;
 }
 
+/* Two rows: the name shares the top row with the HP/Armor boxes (pinned right),
+   and the concept + traits sit on their own row below, spanning the full width so
+   they stretch underneath the stat boxes. */
 .stonetop-monster-header .sheet-header__fields {
-	gap: 6px;
+	display: grid;
+	grid-template-columns: 1fr auto;
+	grid-template-areas:
+		"name    stats"
+		"details details";
+	align-items: center;
+	gap: 10px 10px;
+}
+
+.stonetop-monster-namewrap {
+	grid-area: name;
+	min-width: 0;
+}
+
+.stonetop-monster-header-details {
+	grid-area: details;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0px;
 }
 
 .stonetop-monster-header .stonetop-name-field {
 	font-family: var(--font-avara);
 	font-weight: bold;
+	/* The shared locked-name style centers the text in a tall 2em box; for the
+	   stat block we want it flush with the top of the avatar instead. */
+	min-height: 0;
+	padding-top: 0;
+	align-items: flex-start;
 }
 
 .stonetop-monster-header input.stonetop-name-field {
-	height: 58px;
+	height: auto;
 	line-height: 1.2;
-	padding: 4px 6px 0;
+	padding: 0 6px 2px;
 }
 
+/* Concept stretches the full width of its row (under the name and stat boxes);
+   the traits line sits just below it via the details-row gap. */
 .stonetop-monster-subtitle {
-	width: min(100%, 520px);
+	width: 100%;
 }
 
 .stonetop-monster-subtitle p {
@@ -9642,6 +9683,19 @@ li.question-bullet {
 	flex: 0 0 auto;
 }
 
+/* Special Qualities reads as a stat line (label + value) rather than its own
+   section: keep the rich-text value inline after the "Special Qualities:" label,
+   and let the edit-mode editor take the full width on its own line. */
+.stonetop-monster-stat-line--qualities .stonetop-monster-rich-text,
+.stonetop-monster-stat-line--qualities .stonetop-monster-rich-text > * {
+	display: inline;
+	margin: 0;
+}
+
+.stonetop-monster-stat-line--qualities .stonetop-monster-qualities-editor {
+	flex: 1 1 100%;
+}
+
 /* HP & Armor reuse the character sheet's boxed vital cells, but sit compact and
    left-aligned rather than stretching across the full stat block. */
 .stonetop-monster-statbar {
@@ -9666,27 +9720,31 @@ li.question-bullet {
 	width: 92px;
 }
 
-/* Name and the HP/Armor boxes share a row, vertically centered together;
-   the concept subtitle sits below them. */
-.stonetop-monster-header-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	gap: 10px;
-	/* Parent .sheet-header__fields is align-items:flex-start, which would shrink
-	   this row to content width; stretch so margin-left:auto can right-align. */
-	align-self: stretch;
+/* Armor source, shown under the value as a parenthetical ("Armor 1 (reflexes)"). */
+.stonetop-monster-armor-source {
+	margin-top: 2px;
+	font-size: 0.7rem;
+	font-style: italic;
+	line-height: 1.1;
+	text-align: center;
+	color: var(--color-text-dark-secondary);
 }
 
-.stonetop-monster-header-row .stonetop-name-field {
-	flex: 0 1 auto;
+input.stonetop-monster-armor-source {
+	width: 100%;
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 0;
+	background: transparent;
+	font-style: normal;
+}
+
+.stonetop-monster-namewrap .stonetop-name-field {
 	min-width: 0;
 }
 
-/* margin-left: auto is the flexible spacer that pins the boxes to the right. */
 .stonetop-monster-header-statbar {
-	flex: 0 0 auto;
-	margin: 0 0 0 auto;
+	grid-area: stats;
 }
 
 .stonetop-monster-traits {
@@ -9801,6 +9859,32 @@ li.question-bullet {
 	opacity: 1;
 }
 
+/* Damage modes: one per line, the leading roll icon acting as a bullet. */
+.stonetop-monster-damage-modes {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.stonetop-monster-damage-mode {
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
+	gap: 5px;
+	min-width: 0;
+}
+
+/* 2+ modes: drop the whole list onto its own line below the "Damage:" header. */
+.stonetop-monster-damage-modes--stacked {
+	flex: 0 0 100%;
+	margin-top: 2px;
+}
+
 .stonetop-monster-moves-header {
 	margin-top: 4px;
 }
@@ -9849,12 +9933,16 @@ li.question-bullet {
 	text-decoration: underline dotted;
 }
 
+/* Full-width sections below the stat block (Moves, Notes), spaced apart and set
+   off from the stat block above. */
 .stonetop-monster-main {
-	flex: 1;
-	min-height: 0;
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+	margin-top: 10px;
 }
 
-.stonetop-monster-sheet .sheet-tabs,
 .stonetop-bestiary-sheet .sheet-tabs {
 	display: flex;
 	flex-direction: row;
@@ -9882,39 +9970,6 @@ li.question-bullet {
 	font-family: var(--font-stonetop);
 }
 
-/* Drop the tab-style horizontal inset so the stat-block sections — Special
-   Qualities, Moves, etc. — align flush with the stat lines (Instinct, Type) above. */
-.stonetop-monster-sheet .stonetop-monster-body {
-	padding-left: 0;
-	padding-right: 0;
-}
-
-/* The stat-block sheet shows its core (Special Qualities, Moves, Combat) above a
-   Description / Notes tab strip. The whole sheet-main scrolls as one unit, so a
-   tall stat block (lots of moves, the Combat abstraction block) can never push the
-   tabs — and the tab content — off-screen where they can't be reached. */
-.stonetop-monster-sheet .stonetop-monster-main {
-	overflow-y: auto;
-	scrollbar-width: thin;
-}
-
-.stonetop-monster-sheet .stonetop-monster-core,
-.stonetop-monster-sheet .stonetop-monster-tab-body {
-	flex: 0 0 auto;
-	overflow: visible;
-}
-
-/* Align the tab nav flush with the zeroed body padding. */
-.stonetop-monster-sheet .sheet-tabs {
-	padding-left: 0;
-	padding-right: 0;
-}
-
-/* Explicit show/hide pairing — keeps the Description/Notes panels from bleeding
-   into each other under Foundry V13 cascade layers (see unlayered-tab note). */
-.stonetop-monster-sheet .stonetop-monster-tab-body > .tab { display: none; }
-.stonetop-monster-sheet .stonetop-monster-tab-body > .tab.active { display: block; }
-
 .stonetop-monster-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -9928,14 +9983,6 @@ li.question-bullet {
 	gap: 6px;
 	min-width: 0;
 	margin: 0;
-}
-
-/* Breathing room between the stacked sections on the stat-block sheet — both the
-   always-visible core (Special Qualities, Moves, Combat) and the stacked sections
-   inside a tab panel (Description + codex flavor). */
-.stonetop-monster-sheet .stonetop-monster-body > .stonetop-monster-field + .stonetop-monster-field,
-.stonetop-monster-sheet .stonetop-monster-tab-body > .tab > .stonetop-monster-field + .stonetop-monster-field {
-	margin-top: 24px;
 }
 
 .stonetop-monster-field .stonetop-move-group-title {
@@ -9978,6 +10025,26 @@ li.question-bullet {
 .stonetop-monster-rich-editor .editor-content {
 	min-height: inherit;
 	padding: 6px 8px;
+}
+
+/* Notes stays a live rich-text editor in play mode: a small box while displaying
+   (so there's always something to hover), expanding once you start editing. The
+   edit pencil appears on hover (or while editing) to signal it's editable without
+   entering the sheet's edit mode. 16px of breathing room sits below it. */
+.stonetop-monster-notes-editor {
+	min-height: 100px;
+	margin-bottom: 16px;
+	border-radius: 4px;
+}
+
+.stonetop-monster-notes-editor .toggle {
+	opacity: 0;
+	transition: opacity 0.12s ease;
+}
+
+.stonetop-monster-notes-editor:hover .toggle,
+.stonetop-monster-notes-editor.active .toggle {
+	opacity: 1;
 }
 
 .stonetop-monster-readonly-text {
@@ -10134,6 +10201,21 @@ li.question-bullet {
 	gap: 8px;
 }
 
+/* Full-width Moves below the stat block: balance the moves across two columns.
+   CSS multi-column (not flex) so they flow and split as evenly as possible; each
+   move is kept whole with break-inside, and the flex `gap` is replaced by an item
+   margin since multi-column ignores it. */
+.stonetop-monster-moves-list--cols {
+	display: block;
+	columns: 2;
+	column-gap: 28px;
+}
+
+.stonetop-monster-moves-list--cols .stonetop-monster-move-item {
+	break-inside: avoid;
+	margin-bottom: 8px;
+}
+
 .stonetop-monster-move-item {
 	display: grid;
 	grid-template-columns: auto minmax(0, 1fr);
@@ -10158,7 +10240,7 @@ li.question-bullet {
 .stonetop-monster-move-head {
 	display: flex;
 	align-items: baseline;
-	gap: 8px;
+	gap: 5px;
 	margin-bottom: 2px;
 }
 
@@ -10170,9 +10252,20 @@ li.question-bullet {
 	flex-shrink: 0;
 }
 
+.stonetop-monster-move-head > .stonetop-monster-move-roll {
+	color: slategrey;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.stonetop-monster-move-head > .stonetop-monster-move-roll:hover {
+	color: var(--color-text-dark-primary);
+}
+
 .stonetop-monster-move-name {
 	font-weight: bold;
 	color: var(--color-text-dark-primary);
+	cursor: pointer;
 }
 
 .stonetop-monster-move-description {
@@ -10208,9 +10301,11 @@ li.question-bullet {
 	content: "";
 	flex-shrink: 0;
 	width: var(--stonetop-bullet-size, 10px);
-	/* Span the first text line and center the spiral within it, so the bullet
-	   aligns with the line-height:1.45 glyphs rather than sitting above them. */
-	height: 1.45em;
+	/* Span the first text line (1lh = the element's actual line-height, whatever it
+	   is) and center the spiral within it, so the bullet lines up with the glyphs
+	   instead of sitting above them — robust to differing line-heights (e.g. the
+	   journal's) rather than assuming 1.45. */
+	height: 1lh;
 	background-image: var(--stonetop-spiral-icon);
 	background-size: var(--stonetop-bullet-size, 10px);
 	background-repeat: no-repeat;
@@ -10246,128 +10341,16 @@ li.question-bullet {
 	color: var(--color-text-hyperlink, slategrey);
 }
 
-.stonetop-monster-entry-link {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	margin-top: 6px;
-	font-family: var(--font-stonetop);
-	font-style: italic;
-	color: var(--color-text-dark-secondary);
-	cursor: pointer;
-}
-
-.stonetop-monster-entry-link:hover {
-	color: var(--color-text-hyperlink, slategrey);
-}
-
-/* ── Stat-block: Combat / group abstraction panel ─────────────────────────────── */
-
-.stonetop-monster-combat-grid {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 12px 18px;
-}
-
-.stonetop-monster-combat-budget {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	min-width: 0;
-}
-
-.stonetop-monster-combat-pill {
+/* The organization chip in the header traits line — a small outlined pill that
+   keeps the label's authored casing ("Horde (6+)"). */
+.stonetop-monster-org-pill {
 	display: inline-block;
-	padding: 1px 8px;
+	padding: 0 7px;
 	border-radius: 999px;
-	background: #000;
-	color: #fff;
+	background: transparent;
+	color: #000;
+	border: 1px solid #000;
 	font-size: 0.78em;
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
-}
-
-.stonetop-monster-combat-note {
-	color: var(--color-text-dark-secondary);
-	font-size: 0.9em;
-}
-
-.stonetop-monster-count-field {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	margin: 0;
-}
-
-.stonetop-monster-count-field > span {
-	font-size: 0.9em;
-	color: var(--color-text-dark-secondary);
-}
-
-.stonetop-monster-count-input {
-	width: 4em;
-	text-align: center;
-	border: 1px solid #aaa;
-	border-radius: 3px;
-	background: transparent;
-}
-
-.stonetop-monster-abstraction {
-	margin-top: 10px;
-	padding: 8px 10px;
-	border: 1px dashed rgba(0,0,0,0.25);
-	border-radius: 4px;
-	background: rgba(0,0,0,0.03);
-}
-
-.stonetop-monster-abstraction-hint {
-	margin: 0 0 8px;
-	font-size: 0.88em;
-	font-style: italic;
-	color: var(--color-text-dark-secondary);
-}
-
-.stonetop-monster-outnumber {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	flex-wrap: wrap;
-}
-
-.stonetop-monster-outnumber label {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	margin: 0;
-}
-
-.stonetop-monster-outnumber-vs {
-	color: var(--color-text-dark-secondary);
-}
-
-.stonetop-monster-outnumber-foes {
-	width: 5em;
-	text-align: center;
-	border: 1px solid #aaa;
-	border-radius: 3px;
-	background: transparent;
-}
-
-.stonetop-monster-outnumber-result {
-	font-weight: bold;
-	font-family: var(--font-stonetop);
-}
-
-.stonetop-monster-abstraction-casualty {
-	margin: 8px 0 0;
-	font-size: 0.88em;
-	color: var(--color-text-dark-secondary);
-}
-
-.stonetop-monster-casualty-detail {
-	display: block;
-	font-style: italic;
 }
 
 /* ── Bestiary Entry sheet ─────────────────────────────────────────────────────── */
@@ -10377,6 +10360,141 @@ li.question-bullet {
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
+}
+
+/* Bestiary journal page (prototype): the multi-section edit form must scroll
+   internally — core forces overflow:hidden on `.journal-entry-page form.editable`
+   (fine for a single ProseMirror editor, but clips our stacked sections). */
+.sheet.journal-entry-page.stonetop-bestiary-page .window-content {
+	display: flex;
+	flex-direction: column;
+}
+.sheet.journal-entry-page.stonetop-bestiary-page .window-content > form.editable {
+	flex: 1;
+	min-height: 0;
+}
+.stonetop-bestiary-page-edit {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding-bottom: 1rem;
+}
+
+/* Space the stacked sections apart (edit form + read-only view). Scoped to the
+   journal page so the actor sheet's shared `.stonetop-bestiary-container` is
+   untouched. */
+.stonetop-bestiary-page-edit,
+.stonetop-bestiary-page.stonetop-bestiary-container {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+/* Hide the journal's page-level "Edit Page" button on bestiary pages — they use
+   the per-section pencils instead. The button is injected by the journal sheet
+   as a `.edit-container` child of the page element (which carries the `bestiary`
+   type class), not by our template, so it has to be hidden via CSS. */
+.journal-entry-page.bestiary > .edit-container {
+	display: none;
+}
+
+/* Section header row: title + per-section edit/done toggle, with a divider rule
+   under the whole row (matches the section-divider look used across the
+   character/stat-block sheets). */
+.stonetop-bestiary-page .stonetop-section-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.18);
+}
+.stonetop-bestiary-page .stonetop-section-head .stonetop-move-group-title {
+	flex: 1 1 auto;
+}
+
+/* Per-section edit pencil / done check, and the inline concept pencil. */
+.stonetop-section-edit,
+.stonetop-section-done,
+.stonetop-concept-edit {
+	flex: 0 0 auto;
+	cursor: pointer;
+	opacity: 0.5;
+	color: inherit;
+	font-size: 0.8em;
+}
+.stonetop-section-edit:hover,
+.stonetop-section-done:hover,
+.stonetop-concept-edit:hover { opacity: 1; }
+.stonetop-concept-edit { margin-left: 6px; }
+.stonetop-section-done { color: var(--color-level-success, #2e8b57); opacity: 0.85; }
+
+/* Dark mode: the dark separator rule and the dark spiral-bullet artwork both
+   disappear on a dark surface (this page follows Foundry's journal theme, unlike
+   the always-parchment actor sheet). Lighten the rule; invert the spirals. */
+.theme-dark .stonetop-bestiary-page .stonetop-section-head {
+	border-bottom-color: rgba(255, 255, 255, 0.28);
+}
+.theme-dark .stonetop-bestiary-page .stonetop-monster-line:not(.stonetop-monster-line--empty)::before,
+.theme-dark .stonetop-bestiary-page .stonetop-monster-rich-text li::before,
+.theme-dark .stonetop-bestiary-page .stonetop-entry-qa-read .stonetop-entry-qa-prompt-text::before,
+.theme-dark .stonetop-bestiary-page .stonetop-danger-heading::before {
+	filter: invert(1);
+}
+
+/* Structured Dangers & Hazards: a danger glyph in front of each hazard name. */
+.stonetop-danger-group .stonetop-danger-heading {
+	display: flex;
+	align-items: center;
+	gap: 0.4em;
+	margin: 0 0 4px;
+}
+.stonetop-danger-group .stonetop-danger-heading::before {
+	content: "";
+	flex: 0 0 1.1em;
+	width: 1.1em;
+	height: 1.1em;
+	background: var(--stonetop-danger-icon) no-repeat center / contain;
+}
+
+/* Uniform divider-to-content gap for every section: the 6px flex gap of
+   `.stonetop-monster-field` plus 6px here, matching the rich-text sections whose
+   `.stonetop-monster-readonly-text` adds 6px top padding. Zero any built-in top
+   margin on the first content element (e.g. the Q&A list, line-list intro) so it
+   doesn't double up — the result is one consistent gap across read and edit. */
+.stonetop-bestiary-page .stonetop-monster-field > .stonetop-section-head + * {
+	margin-top: 0;
+	padding-top: 6px;
+}
+
+/* Read-mode rich text: drop the redundant bottom border (the section already has
+   its header divider above), and give lists the same vertical rhythm as
+   paragraphs so the bullets — and any text after them, e.g. a trailing "Tip:"
+   line — aren't cramped. */
+.stonetop-bestiary-page .stonetop-monster-readonly-text {
+	border-bottom: none;
+}
+.stonetop-bestiary-page .stonetop-monster-rich-text ul,
+.stonetop-bestiary-page .stonetop-monster-rich-text ol {
+	margin-top: 0.55em;
+	margin-bottom: 0.55em;
+}
+.stonetop-bestiary-page .stonetop-monster-rich-text ul:last-child,
+.stonetop-bestiary-page .stonetop-monster-rich-text ol:last-child {
+	margin-bottom: 0;
+}
+
+/* Edit mode: let the rich-text editors (Description / Lair / Dangers) grow to fit
+   their content rather than scrolling inside a fixed box — the whole form already
+   scrolls. Core pins `.editor-content { height:100%; overflow-y:auto }` and
+   `prose-mirror.inactive { overflow:hidden auto }`, so we override both. The
+   `body.game .sheet.app` prefix is needed to outrank core's selector. */
+body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor-content {
+	height: auto;
+	overflow-y: visible;
+}
+.stonetop-bestiary-page-edit prose-mirror.inactive {
+	overflow: visible;
 }
 
 .stonetop-bestiary-header {
@@ -10603,6 +10721,14 @@ li.question-bullet {
 	border: 1px solid rgba(0,0,0,0.15);
 	border-radius: 4px;
 	background: rgba(255,255,255,0.25);
+}
+
+.stonetop-entry-statblock[draggable="true"] {
+	cursor: grab;
+}
+
+.stonetop-entry-statblock[draggable="true"]:active {
+	cursor: grabbing;
 }
 
 .stonetop-entry-statblock-img {

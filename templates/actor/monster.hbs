@@ -10,66 +10,103 @@
 			     title="{{actor.name}}" alt="{{actor.name}}">
 			{{/if}}{{/if}}
 			<div class="sheet-header__fields">
-				<div class="stonetop-monster-header-row">
+				<div class="stonetop-monster-namewrap">
 					{{#if stonetop.editMode}}
 					<input class="input--title stonetop-name-field" name="name" type="text"
 					       value="{{actor.name}}" placeholder='{{localize "stonetop.monster.namePlaceholder"}}'>
 					{{else}}
 					<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}</span>
 					{{/if}}
+				</div>{{!-- /name wrapper --}}
 
-					{{!-- HP & Armor — boxed vital cells, vertically centered on the name --}}
-					<div class="sheet-attributes-top stonetop-monster-statbar stonetop-monster-header-statbar">
-						<div class="cell--attributes-top flexrow">
-							<div class="cell cell--Resource cell--attr-hp">
-								<div class="stonetop-vital-inner">
-									<label class="cell__title">{{localize "stonetop.monster.hitPoints"}}</label>
-									<div class="cell__resource">
-										<span class="cell__value">
-											<input class="attr-value" type="number"
-											       name="system.attributes.hp.value"
-											       value="{{system.attributes.hp.value}}" min="0">
-										</span>
-										<span class="cell__separator">/</span>
-										<span class="cell__max">
-											{{#if stonetop.editMode}}
-											<input class="attr-max" type="number"
-											       name="system.attributes.hp.max"
-											       value="{{system.attributes.hp.max}}" min="0">
-											{{else}}
-											<span class="attr-max stonetop-monster-hp-max-readonly">{{system.attributes.hp.max}}</span>
-											{{/if}}
-										</span>
-									</div>
-								</div>
-							</div>
+				{{!-- Concept + traits on their own row, stretching full width beneath
+				      the name and HP/Armor. --}}
+				<div class="stonetop-monster-header-details">
+					<div class="stonetop-monster-subtitle">
+						{{#if stonetop.editMode}}
+						<textarea name="system.concept"
+						          placeholder='{{localize "stonetop.monster.conceptPlaceholder"}}'>{{system.concept}}</textarea>
+						{{else}}
+						<p class="stonetop-monster-prose">{{system.concept}}</p>
+						{{/if}}
+					</div>
 
-							<div class="cell cell--Number cell--attr-armor">
-								<div class="stonetop-vital-inner">
-									<label class="cell__title">{{localize "stonetop.monster.armor"}}</label>
-									<input class="attr-value" type="number"
-									       name="system.attributes.armor.value"
-									       value="{{system.attributes.armor.value}}" min="0">
+					<div class="stonetop-monster-stat-line stonetop-monster-stat-line--traits stonetop-monster-header-traits">
+						{{#if stonetop.editMode}}
+						<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.organization"}}</span>
+						<select class="stonetop-monster-stat-input stonetop-monster-org-select" name="system.organization">
+							{{selectOptions stonetop.organizationChoices selected=system.organization localize=true blank=""}}
+						</select>
+						<span class="stonetop-monster-stat-sep"> · </span>
+						<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.size"}}</span>
+						<input class="stonetop-monster-stat-input" type="text"
+						       name="system.size" value="{{system.size}}"
+						       placeholder="tiny, small, large, huge">
+						<span class="stonetop-monster-stat-sep"> · </span>
+						<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.tags"}}</span>
+						<input class="stonetop-monster-stat-input" type="text"
+						       name="system.tags" value="{{system.tags}}"
+						       placeholder="hoarder, cautious, stealthy...">
+						<a class="stonetop-monster-reset-defaults" title='{{localize "stonetop.monster.resetDefaults"}}'>
+							<i class="fas fa-rotate-left"></i>
+						</a>
+						{{else}}
+						{{#if stonetop.organizationLabel}}<span class="stonetop-monster-org-pill">{{localize stonetop.organizationLabel}}</span>{{/if}}
+						{{#if system.size}}<span>{{system.size}}</span>{{/if}}
+						{{#if stonetop.displayTags}}{{#if system.size}}<span class="stonetop-monster-stat-sep"> · </span>{{/if}}<span>{{stonetop.displayTags}}</span>{{/if}}
+						{{/if}}
+					</div>
+				</div>
+				{{!-- HP & Armor — boxed vital cells, top-aligned with the name --}}
+				<div class="sheet-attributes-top stonetop-monster-statbar stonetop-monster-header-statbar">
+					<div class="cell--attributes-top flexrow">
+						<div class="cell cell--Resource cell--attr-hp">
+							<div class="stonetop-vital-inner">
+								<label class="cell__title">{{localize "stonetop.monster.hitPoints"}}</label>
+								<div class="cell__resource">
+									<span class="cell__value">
+										<input class="attr-value" type="number"
+										       name="system.attributes.hp.value"
+										       value="{{system.attributes.hp.value}}" min="0">
+									</span>
+									<span class="cell__separator">/</span>
+									<span class="cell__max">
+										{{#if stonetop.editMode}}
+										<input class="attr-max" type="number"
+										       name="system.attributes.hp.max"
+										       value="{{system.attributes.hp.max}}" min="0">
+										{{else}}
+										<span class="attr-max stonetop-monster-hp-max-readonly">{{system.attributes.hp.max}}</span>
+										{{/if}}
+									</span>
 								</div>
 							</div>
 						</div>
-					</div>
-				</div>
 
-				<div class="stonetop-monster-subtitle">
-					{{#if stonetop.editMode}}
-					<textarea name="system.concept"
-					          placeholder='{{localize "stonetop.monster.conceptPlaceholder"}}'>{{system.concept}}</textarea>
-					{{else}}
-					<p class="stonetop-monster-prose">{{system.concept}}</p>
-					{{/if}}
+						<div class="cell cell--Number cell--attr-armor">
+							<div class="stonetop-vital-inner">
+								<label class="cell__title">{{localize "stonetop.monster.armor"}}</label>
+								<input class="attr-value" type="number"
+								       name="system.attributes.armor.value"
+								       value="{{system.attributes.armor.value}}" min="0">
+								{{!-- Source of the armor, shown as a parenthetical like the book ("Armor 1 (reflexes)"). --}}
+								{{#if stonetop.editMode}}
+								<input class="stonetop-monster-armor-source" type="text"
+								       name="system.attributes.armor.source"
+								       value="{{system.attributes.armor.source}}" placeholder="reflexes">
+								{{else}}{{#if system.attributes.armor.source}}
+								<span class="stonetop-monster-armor-source">({{system.attributes.armor.source}})</span>
+								{{/if}}{{/if}}
+							</div>
+						</div>
+					</div>
 				</div>
 			</div>
 		</header>
 
 		<section class="sheet-top stonetop-monster-top">
 			<div class="stonetop-monster-stat-block">
-				<div class="stonetop-monster-stat-line">
+				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--damage">
 					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.damage"}}</strong>
 					{{#if stonetop.editMode}}
 					<input class="stonetop-monster-stat-input" type="text"
@@ -79,12 +116,27 @@
 					       name="system.attributes.damage.rollFormula" value="{{system.attributes.damage.rollFormula}}"
 					       title="Rollable dice formula (e.g. d6, 1d8+2)" placeholder="d6">
 					{{else}}
-					<span class="stonetop-monster-prose">{{system.attributes.damage.value}}</span>
+					{{!-- One line per damage mode; the leading dice icon doubles as a bullet and rolls that mode. --}}
+					<ul class="stonetop-monster-damage-modes{{#if stonetop.multiDamage}} stonetop-monster-damage-modes--stacked{{/if}}">
+						{{#each stonetop.damageModes}}
+						<li class="stonetop-monster-damage-mode">
+							{{#if formula}}
+							<a class="stonetop-monster-damage-roll" data-roll-formula="{{formula}}" title="Roll damage ({{formula}})">
+								<i class="fas fa-dice-d6"></i>
+							</a>
+							{{/if}}
+							<span class="stonetop-monster-prose">{{text}}</span>
+						</li>
+						{{/each}}
+					</ul>
 					{{/if}}
-					{{#if system.attributes.damage.rollFormula}}
-					<a class="stonetop-monster-damage-roll" title="Roll damage ({{system.attributes.damage.rollFormula}})">
-						<i class="fas fa-dice-d6"></i>
-					</a>
+				</div>
+				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--qualities">
+					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.qualities"}}</strong>
+					{{#if stonetop.editMode}}
+					<prose-mirror class="stonetop-monster-rich-editor stonetop-monster-qualities-editor" data-field="qualities" toggled>{{{stonetop.enrichedQualities}}}</prose-mirror>
+					{{else}}
+					<span class="stonetop-monster-prose stonetop-monster-rich-text">{{{stonetop.enrichedQualities}}}</span>
 					{{/if}}
 				</div>
 				<div class="stonetop-monster-stat-line">
@@ -107,292 +159,64 @@
 					<span>{{stonetop.creatureTypeLabel}}</span>
 					{{/if}}
 				</div>
-				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--traits">
-					{{#if stonetop.editMode}}
-					<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.organization"}}</span>
-					<select class="stonetop-monster-stat-input stonetop-monster-org-select" name="system.organization">
-						{{selectOptions stonetop.organizationChoices selected=system.organization localize=true blank=""}}
-					</select>
-					<span class="stonetop-monster-stat-sep"> · </span>
-					<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.size"}}</span>
-					<input class="stonetop-monster-stat-input" type="text"
-					       name="system.size" value="{{system.size}}"
-					       placeholder="tiny, small, large, huge">
-					<span class="stonetop-monster-stat-sep"> · </span>
-					<span class="stonetop-monster-stat-key">{{localize "stonetop.monster.tags"}}</span>
-					<input class="stonetop-monster-stat-input" type="text"
-					       name="system.tags" value="{{system.tags}}"
-					       placeholder="hoarder, cautious, stealthy...">
-					<a class="stonetop-monster-reset-defaults" title='{{localize "stonetop.monster.resetDefaults"}}'>
-						<i class="fas fa-rotate-left"></i>
-					</a>
-					{{else}}
-					{{#if stonetop.organizationLabel}}<span>{{localize stonetop.organizationLabel}}</span>{{/if}}
-					{{#if system.size}}{{#if stonetop.organizationLabel}}<span class="stonetop-monster-stat-sep"> · </span>{{/if}}<span>{{system.size}}</span>{{/if}}
-					{{#if stonetop.displayTags}}{{#if (or stonetop.organizationLabel system.size)}}<span class="stonetop-monster-stat-sep"> · </span>{{/if}}<span>{{stonetop.displayTags}}</span>{{/if}}
-					{{/if}}
-				</div>
 			</div>
-
-			{{#if stonetop.entryLink}}
-			<a class="stonetop-monster-entry-link" data-entry-uuid="{{system.entry}}">
-				<i class="fas fa-book"></i> {{stonetop.entryLink.name}}
-			</a>
-			{{/if}}
 		</section>
 
 		<section class="sheet-main flexcol stonetop-monster-main">
 
-			{{!-- Core stat block — Special Qualities, Moves, Combat stay visible above the tabs --}}
-			<section class="stonetop-monster-body stonetop-monster-core">
-
-				<section class="stonetop-monster-field stonetop-monster-field--full">
-					{{> "stonetop.section-heading" title=(localize "stonetop.monster.qualities")}}
-					{{#if stonetop.editMode}}
-					<prose-mirror class="stonetop-monster-rich-editor"
-					              data-field="qualities" toggled>{{{stonetop.enrichedQualities}}}</prose-mirror>
-					{{else}}
-					<div class="stonetop-monster-readonly-text stonetop-monster-rich-text">{{{stonetop.enrichedQualities}}}</div>
-					{{/if}}
-				</section>
-
-				{{!-- Moves --}}
-				<section class="stonetop-monster-field stonetop-monster-field--full">
-					{{> "stonetop.section-heading" title=(localize "stonetop.monster.tabs.moves")}}
-					<ul class="stonetop-monster-moves-list">
-						{{#each monsterMoves}}
-						<li class="stonetop-monster-move-item" data-item-id="{{id}}">
-							<div class="stonetop-monster-move-body">
-								<div class="stonetop-monster-move-head">
-									{{#if ../stonetop.editMode}}
-									<a class="stonetop-monster-move-name">{{name}}</a>
-									{{else}}
-									<span class="stonetop-monster-move-name">{{name}}</span>
-									{{/if}}
-									<span class="stonetop-monster-move-controls">
-										{{#if system.rollFormula}}
-										<a class="stonetop-monster-move-roll" title="Roll {{system.rollFormula}}">
-											<i class="fas fa-dice-d6"></i>
-										</a>
-										{{/if}}
-										{{#if ../stonetop.editMode}}
-										<a class="stonetop-monster-delete-move" title='{{localize "stonetop.monster.deleteMove"}}'>
-											<i class="fas fa-trash"></i>
-										</a>
-										{{/if}}
-									</span>
-								</div>
-								{{#if system.description}}
-								<div class="stonetop-monster-move-description">{{{boldMissText system.description}}}</div>
+			{{!-- Moves — full width below the stat block; the list splits into two
+			     balanced columns. --}}
+			<section class="stonetop-monster-field stonetop-monster-field--full stonetop-monster-moves">
+				{{> "stonetop.section-heading" title=(localize "stonetop.monster.moves")}}
+				<ul class="stonetop-monster-moves-list stonetop-monster-moves-list--cols">
+					{{#each monsterMoves}}
+					<li class="stonetop-monster-move-item" data-item-id="{{id}}">
+						<div class="stonetop-monster-move-body">
+							<div class="stonetop-monster-move-head">
+								{{#if system.rollFormula}}
+								<a class="stonetop-monster-move-roll" title="Roll {{system.rollFormula}}">
+									<i class="fas fa-dice-d6"></i>
+								</a>
 								{{/if}}
+								{{#if ../stonetop.editMode}}
+								<a class="stonetop-monster-move-name">{{name}}</a>
+								{{else}}
+								<span class="stonetop-monster-move-name">{{name}}</span>
+								{{/if}}
+								<span class="stonetop-monster-move-controls">
+									{{#if ../stonetop.editMode}}
+									<a class="stonetop-monster-delete-move" title='{{localize "stonetop.monster.deleteMove"}}'>
+										<i class="fas fa-trash"></i>
+									</a>
+									{{/if}}
+								</span>
 							</div>
-						</li>
-						{{else}}
-						<li class="stonetop-monster-moves-empty">{{localize "stonetop.monster.noMoves"}}</li>
-						{{/each}}
-					</ul>
-					{{#if stonetop.editMode}}
-					<div class="stonetop-monster-add-controls">
-						<a class="stonetop-monster-add-move">
-							<i class="fas fa-plus"></i> {{localize "stonetop.monster.addMove"}}
-						</a>
-					</div>
-					{{/if}}
-				</section>
-
-				{{!-- Combat: organization budget + group abstraction helper --}}
-				<section class="stonetop-monster-field stonetop-monster-field--full stonetop-monster-combat">
-					{{> "stonetop.section-heading" title=(localize "stonetop.monster.combat")}}
-					<div class="stonetop-monster-combat-grid">
-						<div class="stonetop-monster-combat-budget">
-							{{#if stonetop.organizationLabel}}
-							<span class="stonetop-monster-combat-pill">{{localize stonetop.organizationLabel}}</span>
-							<span class="stonetop-monster-combat-note">{{stonetop.budgetNote}}</span>
-							{{else}}
-							<span class="stonetop-monster-combat-note">{{localize "stonetop.monster.individual"}}</span>
+							{{#if system.description}}
+							<div class="stonetop-monster-move-description">{{{boldMissText system.description}}}</div>
 							{{/if}}
 						</div>
-
-						<label class="stonetop-monster-count-field">
-							<span>{{localize "stonetop.monster.count"}}</span>
-							<input type="number" min="1" name="system.count"
-							       value="{{system.count}}" class="stonetop-monster-count-input">
-						</label>
-					</div>
-
-					{{#if stonetop.abstracted}}
-					<div class="stonetop-monster-abstraction">
-						<p class="stonetop-monster-abstraction-hint">{{localize "stonetop.monster.abstractionHint"}}</p>
-						<div class="stonetop-monster-outnumber">
-							<label>
-								<span>{{localize "stonetop.monster.outnumberBonus"}}</span>
-								<span class="stonetop-monster-outnumber-vs">vs</span>
-								<input type="number" min="1" class="stonetop-monster-outnumber-foes"
-								       placeholder="# foes" value="">
-							</label>
-							<span class="stonetop-monster-outnumber-result" data-count="{{system.count}}">+0 / +0</span>
-						</div>
-						<p class="stonetop-monster-abstraction-casualty">
-							{{localize "stonetop.monster.casualtyThreshold"}}
-							<span class="stonetop-monster-casualty-detail">{{stonetop.casualtyNote}}</span>
-						</p>
-					</div>
-					{{/if}}
-				</section>
-
-			</section>
-
-			<nav class="sheet-tabs tabs" data-group="primary">
-				<a class="item" data-tab="description">{{localize "stonetop.monster.tabs.description"}}</a>
-				<a class="item" data-tab="notes">{{localize "stonetop.monster.tabs.notes"}}</a>
-			</nav>
-
-			<section class="sheet-body stonetop-monster-body stonetop-monster-tab-body">
-
-				{{!-- DESCRIPTION TAB: narrative + codex flavor --}}
-				<div class="tab" data-tab="description">
-
-				{{!-- Description (codex flavor) --}}
-				{{#if stonetop.show.description}}
-				<section class="stonetop-monster-field stonetop-monster-field--full">
-					{{> "stonetop.section-heading" title=(localize "stonetop.bestiary.description")}}
-					{{#if stonetop.editMode}}
-					<prose-mirror class="stonetop-entry-rich-editor stonetop-monster-rich-editor--full"
-					              data-field="description" toggled>{{{stonetop.enrichedDescription}}}</prose-mirror>
+					</li>
 					{{else}}
-					<div class="stonetop-monster-readonly-text stonetop-monster-rich-text">{{{stonetop.enrichedDescription}}}</div>
-					{{/if}}
-				</section>
-				{{/if}}
-
-				{{!-- Codex: Questions & Lore --}}
-				{{#each stonetop.qaSections}}
-				{{#if show}}
-				<section class="stonetop-monster-field stonetop-monster-field--full stonetop-entry-qa-section"
-				         data-qa-field="{{key}}">
-					{{> "stonetop.section-heading" title=(localize label)}}
-					<ul class="stonetop-entry-qa-list">
-						{{#each pairs}}
-						<li class="stonetop-entry-qa-row" data-qa-index="{{@index}}">
-							{{#if @root.stonetop.editMode}}
-							<div class="stonetop-entry-qa-edit">
-								<input type="text" class="stonetop-entry-qa-input stonetop-entry-qa-prompt"
-								       value="{{prompt}}" placeholder='{{localize "stonetop.bestiary.questionPlaceholder"}}'>
-								<textarea class="stonetop-entry-qa-input stonetop-entry-qa-answer"
-								          placeholder='{{localize "stonetop.bestiary.answerPlaceholder"}}'>{{answer}}</textarea>
-								<a class="stonetop-entry-remove-qa" title="Remove"><i class="fas fa-trash"></i></a>
-							</div>
-							{{else}}
-							<div class="stonetop-entry-qa-read">
-								{{#if lead}}<p class="stonetop-entry-qa-lead-text">{{lead}}</p>{{/if}}
-								<p class="stonetop-entry-qa-prompt-text">{{{promptHtml}}}</p>
-								{{#if answer}}<p class="stonetop-entry-qa-answer-text">{{{answerHtml}}}</p>{{/if}}
-							</div>
-							{{/if}}
-						</li>
-						{{else}}
-						<li class="stonetop-monster-line stonetop-monster-line--empty">{{localize "stonetop.bestiary.noLines"}}</li>
-						{{/each}}
-					</ul>
-					{{#if @root.stonetop.editMode}}
-					<button type="button" class="stonetop-entry-add-qa" data-field="{{key}}">
-						<i class="fas fa-plus"></i> {{localize "stonetop.bestiary.addQuestion"}}
-					</button>
-					{{/if}}
-				</section>
-				{{/if}}
-				{{/each}}
-
-				{{!-- Prep: hooks, origins --}}
-				{{#each stonetop.prepLineSections}}
-				{{#if show}}
-				<section class="stonetop-monster-field stonetop-monster-field--full stonetop-monster-line-section"
-				         data-line-field="{{key}}">
-					{{> "stonetop.section-heading" title=(localize label)}}
-					{{> "stonetop.bestiary-line-list" this}}
-				</section>
-				{{/if}}
-				{{/each}}
-
-				{{!-- Discoveries --}}
-				{{#if stonetop.has.discoveries}}
-				<section class="stonetop-monster-field stonetop-monster-field--full stonetop-discovery-section"
-				         data-discovery-field="discoveries">
-					{{> "stonetop.section-heading" title=(localize "stonetop.bestiary.discoveries")}}
-					{{#each stonetop.discoveryGroups}}
-					{{#if @root.stonetop.editMode}}
-					<div class="stonetop-discovery-edit" data-discovery-index="{{@index}}">
-						<input type="text" class="stonetop-discovery-input stonetop-discovery-heading-input"
-						       value="{{heading}}" placeholder='{{localize "stonetop.bestiary.discoveryHeadingPlaceholder"}}'>
-						<textarea class="stonetop-discovery-input stonetop-discovery-body-input"
-						          placeholder='{{localize "stonetop.bestiary.discoveryBodyPlaceholder"}}'>{{body}}</textarea>
-						<textarea class="stonetop-discovery-input stonetop-discovery-items-input"
-						          placeholder='{{localize "stonetop.bestiary.discoveryItemsPlaceholder"}}'>{{itemsText}}</textarea>
-						<a class="stonetop-discovery-remove-group" title="Remove"><i class="fas fa-trash"></i></a>
-					</div>
-					{{else}}
-					<div class="stonetop-discovery-group">
-						{{#if heading}}{{> "stonetop.section-heading" title=heading}}{{/if}}
-						{{#if bodyHtml}}<p class="stonetop-discovery-body">{{{bodyHtml}}}</p>{{/if}}
-						{{#if items.length}}
-						<ul class="stonetop-monster-line-list">
-							{{#each items}}
-							<li class="stonetop-monster-line"><span>{{{html}}}</span></li>
-							{{/each}}
-						</ul>
-						{{/if}}
-					</div>
-					{{/if}}
+					<li class="stonetop-monster-moves-empty">{{localize "stonetop.monster.noMoves"}}</li>
 					{{/each}}
-					{{#if stonetop.editMode}}
-					<button type="button" class="stonetop-discovery-add-group">
-						<i class="fas fa-plus"></i> {{localize "stonetop.bestiary.addDiscovery"}}
-					</button>
-					{{/if}}
-				</section>
+				</ul>
+				{{#if stonetop.editMode}}
+				<div class="stonetop-monster-add-controls">
+					<a class="stonetop-monster-add-move">
+						<i class="fas fa-plus"></i> {{localize "stonetop.monster.addMove"}}
+					</a>
+				</div>
 				{{/if}}
-
-				{{!-- Nests --}}
-				{{#if stonetop.show.nests}}
-				<section class="stonetop-monster-field stonetop-monster-field--full">
-					{{> "stonetop.section-heading" title=(localize "stonetop.bestiary.nests")}}
-					{{#if stonetop.editMode}}
-					<prose-mirror class="stonetop-entry-rich-editor"
-					              data-field="nests" toggled>{{{stonetop.enrichedNests}}}</prose-mirror>
-					{{else}}
-					<div class="stonetop-monster-readonly-text stonetop-monster-rich-text">{{{stonetop.enrichedNests}}}</div>
-					{{/if}}
-				</section>
-				{{/if}}
-
-				{{!-- Dangers --}}
-				{{#if stonetop.show.dangers}}
-				<section class="stonetop-monster-field stonetop-monster-field--full">
-					{{> "stonetop.section-heading" title=(localize "stonetop.bestiary.dangers")}}
-					{{#if stonetop.editMode}}
-					<prose-mirror class="stonetop-entry-rich-editor"
-					              data-field="dangers" toggled>{{{stonetop.enrichedDangers}}}</prose-mirror>
-					{{else}}
-					<div class="stonetop-monster-readonly-text stonetop-monster-rich-text stonetop-dangers-text">{{{stonetop.enrichedDangers}}}</div>
-					{{/if}}
-				</section>
-				{{/if}}
-
-				</div>{{!-- /description tab --}}
-
-				{{!-- NOTES TAB --}}
-				<div class="tab" data-tab="notes">
-					<section class="stonetop-monster-field stonetop-monster-field--full">
-						{{> "stonetop.section-heading" title=(localize "stonetop.monster.notes")}}
-						{{#if stonetop.editMode}}
-						<textarea name="system.notes">{{system.notes}}</textarea>
-						{{else}}
-						<div class="stonetop-monster-readonly-text">{{system.notes}}</div>
-						{{/if}}
-					</section>
-				</div>{{!-- /notes tab --}}
-
 			</section>
+
+			{{!-- Notes — free-form GM notes; rich text that stays editable in play
+			     mode (the edit pencil appears on hover), like the steading sheet. --}}
+			<section class="stonetop-monster-field stonetop-monster-field--full stonetop-monster-notes">
+				{{> "stonetop.section-heading" title=(localize "stonetop.monster.notes")}}
+				<prose-mirror class="stonetop-monster-rich-editor stonetop-monster-notes-editor"
+				              data-field="notes" toggled>{{{stonetop.enrichedNotes}}}</prose-mirror>
+			</section>
+
 		</section>
 	</div>
 </form>

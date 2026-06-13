@@ -25,24 +25,9 @@
     "tags": "horde, small, cautious, stealthy",
     "qualities": "<p>Cold-proof; camouflaged; winged.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.fda14OGdrUYiepS5",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Like cranes — long-legged and long-necked, with long whipping tails. They're hardly a threat in warmer months. But in winter, when their scales and feathers grow laden with hoarfrost, shepherds watch for their sign and avoid them. Wander into their midst and you'll get coated in a clinging, frozen mist that often leads to hypothermia and frostbite.</p>",
-    "questions": [],
-    "lore": [
-      {
-        "prompt": "**Something useful:** Ice drake fat and blood never freezes. Properly rendered, it makes an oil used to insulate leather and wool garments — a flock of 8-12 drakes yields a jar (Value 1 locally, Value 3 in the south).",
-        "answer": ""
-      }
-    ],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Ice Drake",

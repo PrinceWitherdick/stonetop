@@ -25,19 +25,9 @@
     "tags": "solitary, patient, stealthy",
     "qualities": "<p>Blind; senses prey by scent, hearing, and vibration.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.BUMZ5O0VT9SDjfwE",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Pale, eyeless things that spawn in the lightless lakes below the Steplands — like a great big pale salamander or snake with two stubby, muscular legs. As they grow, they find food down there sparse and make their way to the surface. Mostly they stick to cave mouths, but sometimes they get bold enough to leave their sheltered holes of rock and lurk in places where you'd never expect them.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Grochslon",

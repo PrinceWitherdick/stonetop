@@ -25,19 +25,9 @@
     "tags": "solitary, large, spirit, undead, fiery, terrifying",
     "qualities": "<p>Fireproof; dormant without fresh air to 'breathe'; tethered to its bones. Armor 1 (amorphous).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.x54yvxxbXbmKYZ8e",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>The Forge Lords burned with an inner fire, one that threatened to consume them even in life. And when one died badly — slowly, desperately, betrayed and full of helpless rage — that fire could linger on, burning away first the flesh, then the spirit, then the soul. Then it waits in the bones, like heat in banked coals, for fresh air to give it new life and fresh souls to burn for fuel.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Cinderwraith",

@@ -25,19 +25,9 @@
     "tags": "solitary, large, construct, corrupted, stealthy, magical, devious, cautious, hoarder",
     "qualities": "<p>Armor 4 (resilience), 2 vs. bronze (scales).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.k9Buk0QDWg2PIIqj",
     "notes": "",
-    "creatureType": "construct",
-    "description": "<p>Swyn are great serpents with simian heads and hypnotic eyes. The Green Lords bred them out of desperation, borrowing secrets from the Things Below; they wanted spymasters and saboteurs, and what they got was a race of petty, craven narcissists. Each swyn fancies itself the greatest and most beautiful of beings — but embarrass, defy, or simply bore one and expect to be brutally devoured. The Fae hunt them, and they shun their own kind, but every dozen years some urge drives them all to the ruins of Vor Svetelik for ostentatious displays and mating rituals.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "construct"
   },
   "prototypeToken": {
     "name": "Swyn",

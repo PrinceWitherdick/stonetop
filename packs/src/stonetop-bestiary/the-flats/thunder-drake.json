@@ -25,28 +25,9 @@
     "tags": "solitary, large",
     "qualities": "<p>Lightning-proof; hard of hearing.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.pwQ68WIhCcu5pqzq",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Sometimes, out on the Flats, you'll see what looks to be small hills in the distance. Steer clear: they probably aren't hills, but huge piles of dirt a thunder drake has moved as it digs. You do not want to stumble into one on its home turf. When one bellows nearby, roll +CON: on a 10+ pick 1, on a 7-9 pick 2, on a 6- all three — drop what you're holding and cover your ears; stagger back a few steps; be deafened and disoriented for a few moments.</p>",
-    "questions": [],
-    "lore": [
-      {
-        "prompt": "**Something interesting:** Thunder drakes eat mostly grass and shrubs, but they have a taste for certain ores. They spend their time grazing, sleeping, and digging up rocks.",
-        "answer": ""
-      },
-      {
-        "prompt": "**Something useful:** They particularly savor copper and relish aetherium. If they find a source, they'll chew it right up and spend the next few days belching lightning bolts.",
-        "answer": ""
-      }
-    ],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Thunder Drake",

@@ -74,7 +74,7 @@ describe("StonetopMonsterSheet", () => {
 		expect(data.stonetop.displayTags).toBe("cautious, stealthy");
 	});
 
-	it("derives the organization label and combat budget note", async () => {
+	it("derives the organization label for the header chip", async () => {
 		const actor = {
 			system: { organization: "horde" },
 			items: makeItems([]),
@@ -83,30 +83,39 @@ describe("StonetopMonsterSheet", () => {
 		const data = await makeSheet(actor).getData();
 
 		expect(data.stonetop.organizationLabel).toBe("stonetop.monster.organizationHorde");
-		expect(data.stonetop.budgetNote).toBe("3 HP each · d6 damage");
 	});
 
-	it("marks the stat block abstracted with a casualty note when count > 1", async () => {
+	it("keeps a single damage mode whose descriptor has commas as one mode", async () => {
 		const actor = {
-			system: { count: 7, attributes: { hp: { max: 3 } } },
+			system: {
+				attributes: { damage: { value: "claws, bite, hug d10+4 (hand, close, messy, 1 piercing)" } },
+			},
 			items: makeItems([]),
 		};
 
 		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.abstracted).toBe(true);
-		expect(data.stonetop.casualtyNote).toBe("≈ 4 of 7 out at 1 HP");
+		expect(data.stonetop.damageModes).toEqual([
+			{ text: "claws, bite, hug d10+4 (hand, close, messy, 1 piercing)", formula: "d10+4" },
+		]);
+		expect(data.stonetop.multiDamage).toBe(false);
 	});
 
-	it("is not abstracted for a single creature", async () => {
+	it("splits multiple damage modes, each carrying its own die", async () => {
 		const actor = {
-			system: { count: 1 },
+			system: {
+				attributes: { damage: { value: "fingers d8 (close), maw d10+2 (hand, messy)" } },
+			},
 			items: makeItems([]),
 		};
 
 		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.abstracted).toBe(false);
+		expect(data.stonetop.damageModes).toEqual([
+			{ text: "fingers d8 (close)", formula: "d8" },
+			{ text: "maw d10+2 (hand, messy)", formula: "d10+2" },
+		]);
+		expect(data.stonetop.multiDamage).toBe(true);
 	});
 
 	it("enriches the qualities rich-text field for display", async () => {
@@ -279,9 +288,24 @@ describe("StonetopMonsterSheet", () => {
 		};
 		const sheet = makeSheet(actor);
 
-		await sheet._updateRichTextField("notes", "<p>nope</p>");
+		await sheet._updateRichTextField("concept", "<p>nope</p>");
 
 		expect(actor.update).not.toHaveBeenCalled();
+	});
+
+	it("updates notes as a rich-text field (editable outside edit mode)", async () => {
+		const actor = {
+			system: {},
+			items: makeItems([]),
+			update: vi.fn(),
+		};
+		const sheet = makeSheet(actor);
+
+		await sheet._updateRichTextField("notes", "<p>Spotted near the river.</p>");
+
+		expect(actor.update).toHaveBeenCalledWith({
+			"system.notes": "<p>Spotted near the river.</p>",
+		});
 	});
 
 	it("keeps the window title element as a header spacer", () => {

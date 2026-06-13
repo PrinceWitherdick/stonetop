@@ -25,19 +25,9 @@
     "tags": "solitary, undead, terrifying, craven",
     "qualities": "<p>Burned by silver (+1d4 damage); harmed by salt (1d8 damage, hand, close); foul stench; sustained by bone marrow. Armor 1 from sheer speed.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.pDanXfWCKezDrSGQ",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>When an untethered ghost or a shade possesses an empty corpse, it becomes a pyped. They are wretched things, all rotting flesh and lurching movements, hungering for sweet marrow, scavenging on carrion and graves. But hunger can make them bold — bold enough to hunt the weak and sick at the edge of a village, or a lone traveler caught unawares. Pypeds rise only from relatively intact corpses that have not undergone proper funeral rites.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Pyped",

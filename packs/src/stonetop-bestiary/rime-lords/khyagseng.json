@@ -25,19 +25,9 @@
     "tags": "group, spirit, construct, resolute, observant, fierce",
     "qualities": "<p>Tethered to its pedestal; body made of dark ice; cold-proof. Armor 2 (icy 'skin,' lacks organs).</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ADc1Jry8qeYXhKjs",
     "notes": "",
-    "creatureType": "spirit-construct",
-    "description": "<p>These tulpas inhabit dark-ice sculptures of three-eyed, stylized lions — muscular, proud, fierce — standing atop decorated pedestals. They are always found in pairs, guarding doorways or thresholds, dutifully challenging any who approach without an invitation from their master. Never mind that their masters are all long gone. The grander ruins boast large khyagseng of stone-hard dark ice (+8 HP, +1 Armor, +1 damage) that can unleash an avalanche-triggering roar.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit-construct"
   },
   "prototypeToken": {
     "name": "Khyagseng",

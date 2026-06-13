@@ -25,19 +25,9 @@
     "tags": "solitary, small, stealthy, cautious",
     "qualities": "<p><strong>Venomous.</strong> A bitten target marks a debility in addition to taking damage; until the poison is treated they can't regain HP and risk further damage and debility.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.jGNndphW4xzirRkT",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>The vaunted 'tree adder,' most lethal serpent in the Wood, up to six feet long and dripping with venom. In warm months they hunt and bask in the canopy or sunny clearings; in colder months they hide in hollows and under logs, going into torpor in winter. They don't hunt people, but they don't fear them either.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Cwisarff",

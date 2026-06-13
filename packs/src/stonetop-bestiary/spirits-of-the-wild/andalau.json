@@ -25,19 +25,9 @@
     "tags": "horde, tiny, spirit, stealthy, mischievous",
     "qualities": "<p>Armor 2 from tiny, agile forms.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Y6pj88e7QJGdPYJl",
     "notes": "",
-    "creatureType": "spirit",
-    "description": "<p>There are places where the wind dances constantly, fluttering and flitting, and here the andalau dwell. They are more prone to mischief than violence. Win their favor, and you might convince them to help you — especially if it involves going somewhere new or playing pranks. Just don't be surprised when their attention flits elsewhere.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit"
   },
   "prototypeToken": {
     "name": "Andalau",

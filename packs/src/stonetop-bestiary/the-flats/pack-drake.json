@@ -25,32 +25,9 @@
     "tags": "horde, small, stealthy, organized, cautious",
     "qualities": "<p>Armor 1 from quick reflexes.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Gxjvid2IYJmTU41M",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Sneaky little dog-sized critters that prowl the Flats, hunting in packs ranging from six to a couple dozen. Just the worst.</p>",
-    "questions": [
-      {
-        "prompt": "What's the surest sign of their presence?",
-        "answer": ""
-      },
-      {
-        "prompt": "What do all wise travelers do to keep them at bay?",
-        "answer": ""
-      },
-      {
-        "prompt": "Which of you has seen them tear apart their prey? What haunts you about it to this day?",
-        "answer": ""
-      }
-    ],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Pack Drake",

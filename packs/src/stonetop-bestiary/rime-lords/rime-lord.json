@@ -25,19 +25,9 @@
     "tags": "solitary, large, cautious, cunning, magical, organized, terrifying",
     "qualities": "<p>Spirit sight; telepathic; cold-proof; ageless; no need to eat, drink, sleep, or breathe; an aura of bitter cold. Armor 5 (potent wards, skill).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.lMOwbXpvkp9KL5SG",
     "notes": "",
-    "creatureType": "maker",
-    "description": "<p>Only thirteen Rime Lords survive; each remains in stasis in some key place of power. Their spirits are merged in an eternal dance and song, continuously weaving the dark-ice glacier that keeps the voice of Y'aaw'kara bound and prevents madness from spreading unchecked across the world. Pray, o mortal — pray that they continue their vigil, that their wills do not falter, that no interloper is so foolish as to disturb them. Pray that they do not wake.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "maker"
   },
   "prototypeToken": {
     "name": "Rime Lord",

@@ -25,19 +25,9 @@
     "tags": "group, organized, cautious",
     "qualities": "<p>Keen sense of smell.</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.cTOd0rT6S7LOD3vI",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Wolves of the Great Wood, ranging in packs that follow prey for miles, surround and flank, and bring down the weakest and the stragglers.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Wolf",

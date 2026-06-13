@@ -25,19 +25,9 @@
     "tags": "group, construct, cautious",
     "qualities": "<p>Must recharge every few days; dog-like intellect; blind; tremorsense. Armor 3 from metal.</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.n1UvqWHNDj9Nihcm",
     "notes": "",
-    "creatureType": "construct",
-    "description": "<p>Ferocedes once had dozens of constructs to defend and maintain the tower, but the years have not been kind — only ten or so remain, and one or two are usually offline for repairs. Each one is generally humanoid, though most lack a 'head' and all are made of mismatched parts, and each holds an aetherium core (magical, fragile, Value 2 to the right buyer).</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "construct"
   },
   "prototypeToken": {
     "name": "Patchwork Construct",

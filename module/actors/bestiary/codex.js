@@ -20,6 +20,11 @@ export const CODEX_QA_FIELDS = [
 	{ key: "questions", label: "stonetop.bestiary.questions" },
 	{ key: "lore",      label: "stonetop.bestiary.lore" },
 ];
+// Grouped sections (heading + body + bullet items). The journal page adds a
+// `dangers` group; the actor sheet keeps just discoveries (the default).
+export const CODEX_GROUP_FIELDS = [
+	{ key: "discoveries", outKey: "discoveryGroups" },
+];
 
 // ── Pure render helpers ────────────────────────────────────────────────────
 
@@ -97,9 +102,10 @@ async function enrichHTML(value) {
  * Returns enriched rich-text, prep line sections, Q&A sections, discovery
  * groups, and `show`/`has` flags for hide-when-empty layout.
  */
-export async function buildCodexContext(system, editMode) {
+export async function buildCodexContext(system, editMode, options = {}) {
+	const richFields = options.richFields ?? CODEX_RICH_FIELDS;
 	const out = {};
-	await Promise.all(CODEX_RICH_FIELDS.map(async f => {
+	await Promise.all(richFields.map(async f => {
 		out[f.enrichedKey] = await enrichHTML(system?.[f.key]);
 	}));
 
@@ -121,7 +127,8 @@ export async function buildCodexContext(system, editMode) {
 		return { ...field, pairs, show: editMode || pairs.length > 0 };
 	});
 
-	out.discoveryGroups = discoveryGroups(system?.discoveries, editMode);
+	const groupFields = options.groupFields ?? CODEX_GROUP_FIELDS;
+	for (const g of groupFields) out[g.outKey] = discoveryGroups(system?.[g.key], editMode);
 
 	out.show = {
 		description: editMode || hasText(system?.description),
@@ -187,20 +194,22 @@ export async function codexUpdateQa(actor, root, field) {
 	await actor.update({ [`system.${field}`]: pairs });
 }
 
-export async function codexAddDiscovery(actor) {
-	const current = Array.isArray(actor.system?.discoveries) ? actor.system.discoveries : [];
-	await actor.update({ "system.discoveries": [...current, { heading: "", body: "", items: [] }] });
+// Grouped sections (heading + body + bullet items) — Discoveries and, on the
+// journal page, Dangers & Hazards. `field` selects the system array.
+export async function codexAddDiscovery(actor, field = "discoveries") {
+	const current = Array.isArray(actor.system?.[field]) ? actor.system[field] : [];
+	await actor.update({ [`system.${field}`]: [...current, { heading: "", body: "", items: [] }] });
 }
 
-export async function codexRemoveDiscovery(actor, index) {
+export async function codexRemoveDiscovery(actor, index, field = "discoveries") {
 	if (Number.isNaN(index)) return;
-	const current = Array.isArray(actor.system?.discoveries) ? [...actor.system.discoveries] : [];
+	const current = Array.isArray(actor.system?.[field]) ? [...actor.system[field]] : [];
 	current.splice(index, 1);
-	await actor.update({ "system.discoveries": current });
+	await actor.update({ [`system.${field}`]: current });
 }
 
-export async function codexUpdateDiscoveries(actor, root) {
-	const wrap = root.querySelector("[data-discovery-field]");
+export async function codexUpdateDiscoveries(actor, root, field = "discoveries") {
+	const wrap = root.querySelector(`[data-discovery-field="${field}"]`);
 	if (!wrap) return;
 	const groups = Array.from(wrap.querySelectorAll("[data-discovery-index]")).map(el => ({
 		heading: el.querySelector(".stonetop-discovery-heading-input")?.value ?? "",
@@ -208,7 +217,7 @@ export async function codexUpdateDiscoveries(actor, root) {
 		items:   (el.querySelector(".stonetop-discovery-items-input")?.value ?? "")
 			.split(/\r?\n/).filter(line => line.trim()),
 	}));
-	await actor.update({ "system.discoveries": groups });
+	await actor.update({ [`system.${field}`]: groups });
 }
 
 // ── Event dispatchers ──────────────────────────────────────────────────────
@@ -237,12 +246,16 @@ export async function onCodexClick(sheet, ev) {
 		return true;
 	}
 	if (t.closest(".stonetop-discovery-add-group")) {
-		if (sheet._editMode) await codexAddDiscovery(sheet.actor);
+		if (sheet._editMode) {
+			const field = t.closest(".stonetop-discovery-add-group").dataset?.field || "discoveries";
+			await codexAddDiscovery(sheet.actor, field);
+		}
 		return true;
 	}
 	if (t.closest(".stonetop-discovery-remove-group")) {
 		if (sheet._editMode) {
-			await codexRemoveDiscovery(sheet.actor, Number(t.closest("[data-discovery-index]")?.dataset?.discoveryIndex));
+			const field = t.closest("[data-discovery-field]")?.dataset?.discoveryField || "discoveries";
+			await codexRemoveDiscovery(sheet.actor, Number(t.closest("[data-discovery-index]")?.dataset?.discoveryIndex), field);
 		}
 		return true;
 	}
@@ -271,7 +284,8 @@ export async function onCodexChange(sheet, ev) {
 		return true;
 	}
 	if (t.closest(".stonetop-discovery-input")) {
-		await codexUpdateDiscoveries(sheet.actor, root);
+		const field = t.closest("[data-discovery-field]")?.dataset?.discoveryField || "discoveries";
+		await codexUpdateDiscoveries(sheet.actor, root, field);
 		return true;
 	}
 	return false;

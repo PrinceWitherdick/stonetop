@@ -25,19 +25,9 @@
     "tags": "solitary, large, stealthy, amorphous, mindless",
     "qualities": "<p>Immune to stabbing; takes half damage from weapons unless they're forceful; acid-proof; harmed by chalk, quicklime, and similar chemics. Armor 1 — it lacks organs.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.1oYvUFEeUNKJTbFM",
     "notes": "",
-    "creatureType": "corrupted",
-    "description": "<p>Sometimes the waters of the Dread River overflow their banks and flood the cursed ruins and tainted places. And sometimes, when the floodwaters recede, they leave behind… something. Something that just isn't right.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "corrupted"
   },
   "prototypeToken": {
     "name": "Jellied Horror",

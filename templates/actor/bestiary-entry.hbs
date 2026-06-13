@@ -129,7 +129,7 @@
 						{{#if show}}
 						<section class="stonetop-monster-field stonetop-monster-line-section" data-line-field="{{key}}">
 							{{> "stonetop.section-heading" title=(localize label)}}
-							{{> "stonetop.bestiary-line-list" this}}
+							{{> "stonetop.bestiary-line-list" this editMode=@root.stonetop.editMode}}
 						</section>
 						{{/if}}
 						{{/each}}

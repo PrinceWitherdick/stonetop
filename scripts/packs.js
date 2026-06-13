@@ -2,6 +2,7 @@ export const PACKS = [
 	{ name: "stonetop-items",    type: "Item" },
 	{ name: "stonetop-journals", type: "JournalEntry" },
 	{ name: "stonetop-bestiary", type: "Actor" },
+	{ name: "stonetop-bestiary-journal", type: "JournalEntry" },
 	{ name: "stonetop-locations", type: "JournalEntry" },
 	{ name: "stonetop-lore",     type: "JournalEntry" },
 ];

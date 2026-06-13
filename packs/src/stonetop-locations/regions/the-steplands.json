@@ -307,7 +307,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Steplands. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.eU2PTY1DoA2n95RT]{Brawzbedr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.SerJ5gYYlRuUmI9k]{Gouzadn}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.uP9zE6MDiS3TwIWF]{Grochslon}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.8nNyWAoSsT3VXRx5]{Kleztigr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.qULBTb5zDEPTWTWF]{Spitting Drake}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Steplands. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.sc28aHnwvhvBDyjh]{Brawzbedr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.IS7Y75Kbqe5KILXW]{Gouzadn}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.BUMZ5O0VT9SDjfwE]{Grochslon}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.3e1HimZxPWvqLyu1]{Kleztigr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ooVg9LaPN3bSAnge]{Spitting Drake}</li></ul></div>"
       },
       "video": {
         "controls": true,

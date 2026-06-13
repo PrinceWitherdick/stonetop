@@ -25,19 +25,9 @@
     "tags": "solitary, large, hoarder, paranoid, terrifying, fierce",
     "qualities": "<p>Fireproof; bestial intellect; slumbers for years at a time. Armor 4 (scales, steel plates).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.sKYvwXBCiWfqNZlU",
     "notes": "",
-    "creatureType": "corrupted",
-    "description": "<p>Picture a long and sinuous beast with serpentine scales, curled upon a pile of treasure beneath a layer of long-cold soot, bits of rusted steel protruding from its flesh, smoke drifting from its nostrils. Hard to believe this thing was once a Maker. But it was. A draventao is what remains of a Forge Lord that survived the Cataclysm by Changing — letting its inner fire burn until its heart was a blackened coal of wrath, shedding its beautiful form, bolting living metal onto its twisted flesh, then eating the servants who did the work. Now it mostly sleeps, for years at a time, brooding on its hoard, drawn forth only by hunger or by vengeance upon some brazen thief. Each draventao has its own particular strength, metal augmentation, and a single thing it still remembers.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "corrupted"
   },
   "prototypeToken": {
     "name": "Draventao",

@@ -25,19 +25,9 @@
     "tags": "solitary, spirit, undead, cautious",
     "qualities": "<p>Banished by daylight. Armor 1 (lacks organs).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.H4OPwwD1035hAPzs",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>Shades are the souls of the quiet dead, called back through the Last Door — or perhaps merely echoes of a dead person's personality, given shape by magic. Either way, they might be called up at the Crossroads, via an arcanum, or by some other form of necromancy. A shade can ride a living, willing host (or one properly prepared), withstanding daylight only with great effort, experiencing what its host experiences and communicating only through impulse and desire.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Shade",

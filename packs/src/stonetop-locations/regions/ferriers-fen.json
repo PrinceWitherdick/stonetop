@@ -279,7 +279,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around Ferrier's Fen. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.4Ah0RoLTY5wSRvAF]{Fen-Troll}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.b2qQnUGrCVbfL2mV]{Suarachan}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.cYSCUVhhHfpbgRPS]{The Gliomor}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.q6EfKl09RA6NKWEc]{Willow Witches}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around Ferrier's Fen. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.iNio1HI0NcZuNGTc]{Fen-Troll}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ylzYCg2AyRVY24Hb]{Suarachan}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.JeFYzThOekEepQUH]{The Gliomor}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.M8gYXMHKcRqCshbC]{Willow Witches}</li></ul></div>"
       },
       "video": {
         "controls": true,

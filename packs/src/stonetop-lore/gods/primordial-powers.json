@@ -391,7 +391,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Primordial Powers. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.kjKV3SgkKh8gC8Y1]{Base Archon}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.iPBB5qDX5urJ30FU]{Fundamental}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.P4UPY5CmKLihfSQO]{Voidblight}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Primordial Powers. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.h8QoSAJnc3Z80m8F]{Base Archon}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.WObWuLHBHqBYlZlA]{Fundamental}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.smqjMCaaxstHY5nZ]{Voidblight}</li></ul></div>"
       },
       "video": {
         "controls": true,

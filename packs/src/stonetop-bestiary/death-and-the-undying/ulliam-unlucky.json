@@ -25,19 +25,9 @@
     "tags": "solitary, undead, stealthy, terrifying, loyal",
     "qualities": "<p>Burned and blinded by daylight; chill aura.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.nkZC8g63JoTERrx5",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>Ulliam Unlucky dragged his family from Marshedge up to Gordin's Delve, in search of a better life. But things never did work out. Last time he went out prospecting, he got lost; then the blizzard rolled in; and that's how Ulliam died. But say what you will about Ulliam, he loved his wife and kids — still does — and dragged his frozen self home to see 'em again. He knows they can't see him like this, but he can't keep himself from lurking. And when some lech comes sniffing around his wife? Well, there's only so much a man can take. And that little spark of warmth he draws out of them? He's starting to acquire a taste.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Ulliam",

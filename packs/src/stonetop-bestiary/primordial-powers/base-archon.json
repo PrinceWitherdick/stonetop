@@ -25,19 +25,9 @@
     "tags": "solitary, large, primordial, spirit, construct, magical, terrifying",
     "qualities": "<p>Ageless; immune to the elements; perceives thought and matter; omnilingual. Armor 5 (resilience, lacks vitals), 1 vs. black iron. Adjust its stat block, manifestation move, and powers to its purpose.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.h8QoSAJnc3Z80m8F",
     "notes": "",
-    "creatureType": "spirit-construct",
-    "description": "<p>Archons are constructed spirits, made by the First Creators or one of the great spirits as guardians and enforcers of the cosmic order. Each is built around this base stat block, then given a purpose (to destroy, to judge, to retrieve, to correct, or to stand watch), a manifestation (light, an animate statue, a mass of vapor, a ripple in reality, a figure plucked from your mind, or something impossible), and up to three powers. For a named example, see Tcaventes, Shackle and Key.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit-construct"
   },
   "prototypeToken": {
     "name": "Base Archon",

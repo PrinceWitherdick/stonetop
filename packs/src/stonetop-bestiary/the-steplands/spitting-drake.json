@@ -25,28 +25,9 @@
     "tags": "group, stealthy, organized",
     "qualities": "<p>Chameleon skin; excellent climbers. Armor 2 from pebbly scales.</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ooVg9LaPN3bSAnge",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>They're about the size of a big wolf, but lower and squatter, with arms out to the sides like lizards and a big old frill that pops up when they're startled or bearing down on prey. They favor canyons, defiles, or overlooks where they can bask in the sun but have a good angle to ambush passersby.</p>",
-    "questions": [],
-    "lore": [
-      {
-        "prompt": "**Something interesting:** Their mucus adheres quickly to rock, pinning prey in place; even unpinned it gloms on and slows them up, drying and flaking away after a few hours.",
-        "answer": ""
-      },
-      {
-        "prompt": "**Something useful:** Strong spirits (yes, like whisky) quickly dissolve the mucus. You can also identify their territory by the pale chalky stains it leaves on stone.",
-        "answer": ""
-      }
-    ],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Spitting Drake",

@@ -25,19 +25,9 @@
     "tags": "solitary, cautious, hardy, patient",
     "qualities": "<p>Nearly blind; senses vibrations.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.1c9b44uDspcLrAEk",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Like a snapping turtle, but six feet long and four hundred pounds, with big badger-like claws — and way faster than you think. It digs itself under a layer of soil and waits long enough for the gwead to start growing over it. Then, when something comes near? SNAP! An intact shell is worth quite a bit (immobile, Value 2), but good luck killing one without cracking it.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Shellback Drake",

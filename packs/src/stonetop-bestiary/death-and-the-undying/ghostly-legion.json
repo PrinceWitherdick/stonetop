@@ -25,19 +25,9 @@
     "tags": "horde, spirit, undead, organized, terrifying, hoarder, violent",
     "qualities": "<p>Roams far and wide, but tethered to the cave; shuns daylight; can only touch the world through violence; upset by and afraid of dogs. Armor 1 (lacks organs).</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.sgwKSp8PEmkIv21v",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>They were a band of southern mercenaries, come north in search of treasure. They heard tell of a hdour and his hoard, trapped him in his cave, and slew him — then divvied up the loot and left. Only later did they learn why the Hillfolk fear to kill a hdour: he had cursed them all, their souls doomed to linger after death in endless hunger and thirst, to fear the sun, to be hounded like the dogs they were — until every piece of the far-flung loot they stole is returned to the hdour's cave.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Ghostly Soldier",

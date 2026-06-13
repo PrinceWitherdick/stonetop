@@ -279,7 +279,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Barrow Builders. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.FrvZI5HssAop00KC]{Barrow Wight}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.8T8jqS04adlc5107]{Phantom Rider}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for Barrow Builders. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.C9HHEVNFl8Cw6w0U]{Barrow Wight}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.llEqxrhsKD2DvYdP]{Phantom Rider}</li></ul></div>"
       },
       "video": {
         "controls": true,

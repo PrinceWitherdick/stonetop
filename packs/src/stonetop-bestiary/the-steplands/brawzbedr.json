@@ -25,19 +25,9 @@
     "tags": "solitary, huge, stubborn, grumpy",
     "qualities": "<p>Poor vision and hearing; excellent sense of smell. Armor 3 from thick hide and boney nodules.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.sc28aHnwvhvBDyjh",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Think of something like a badger or a sloth, but big as a house: twenty feet long, nine feet at the shoulder, forearms nearly twelve feet long when you include those shovel-like claws. Mostly they just lumber about looking for their favorite trees to tear up and chew through, sometimes clearing whole slopes. Just about everything gives them a wide berth — even apex predators like a kleztigr don't think they're worth the trouble. Sometimes, though, you round a bend and there one is, and you'd best circle around, quiet-like.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Brawzbedr",

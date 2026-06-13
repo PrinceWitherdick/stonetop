@@ -447,7 +447,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for The Things Below. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.6jDwnqjA3VmyKZ9F]{Cinderboar}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.k3PXbKdBREj0esro]{Hand of Daagon}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.ntvN8CPfvbY06vUE]{Morgais}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.yllCLAsqWbqNYgTd]{Thrall}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.RO5Fa1m4AMc9qZR1]{Voice of the Eternal Maw}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.sPAOECPRkZHUCcHD]{Wretch}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues for The Things Below. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.SNRXkBbhyuCCXwBa]{Cinderboar}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.m46X5auaZwdxphBl]{Hand of Daagon}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.lEnzsCftDmDarvlN]{Morgais}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.DobvWxcXu5RXmXbT]{Thrall}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Mt6MCzNsS6khASpi]{Voice of the Eternal Maw}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.c8f8TEwhVoaWA1Tm]{Wretch}</li></ul></div>"
       },
       "video": {
         "controls": true,

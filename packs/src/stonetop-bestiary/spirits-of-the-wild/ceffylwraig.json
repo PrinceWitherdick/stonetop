@@ -25,37 +25,9 @@
     "tags": "solitary, large, spirit, swift, tireless, cautious, magical, beautiful",
     "qualities": "",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.0CoKAbSZu0voBdK7",
     "notes": "",
-    "creatureType": "spirit",
-    "description": "<p>A herd of wild horses has a life — nay, a spirit — all its own, a spirit as free and fickle as the wind. Take care, you who would poach wild horses for your own purpose, lest you find your heart turned against you!</p>",
-    "questions": [
-      {
-        "prompt": "What sort of gift do the ceffylwraig most value?",
-        "answer": ""
-      },
-      {
-        "prompt": "What sort of gift will do in a pinch?",
-        "answer": ""
-      }
-    ],
-    "lore": [
-      {
-        "prompt": "**Something interesting:** 'Ceffylwraig' means 'horse wife,' but she sees herself more as queen than wife: proud and haughty, disdainful of the weak and the slow, the herd her subjects more than her children.",
-        "answer": ""
-      },
-      {
-        "prompt": "**Something useful:** A ceffylwraig is scornful and suspicious of praise or fancy words, but can be appeased by thoughtful gifts, offered with appropriate respect from proud women of noble bearing.",
-        "answer": ""
-      }
-    ],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit"
   },
   "prototypeToken": {
     "name": "Ceffylwraig",

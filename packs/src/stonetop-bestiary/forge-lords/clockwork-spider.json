@@ -25,19 +25,9 @@
     "tags": "horde, small, construct, creepy",
     "qualities": "<p>Fireproof; blind; tremorsense; active only for short periods. Armor 2 (metal), 0 vs. crushing.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.rFt8fD3NyBuX1BJD",
     "notes": "",
-    "creatureType": "construct",
-    "description": "<p>They're not really shaped like spiders, but that's what they make you think of. Picture a metal basket, holding gears and springs and a glowing central core, with articulated legs extending out, each ending in a little three-clawed pincer. They squeak as they move, their many joints needing oil. They were made to be little servants, extra sets of hands around a house or forge — and even now, they're just trying to help.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "construct"
   },
   "prototypeToken": {
     "name": "Clockwork Spider",

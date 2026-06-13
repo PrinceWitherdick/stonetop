@@ -1,0 +1,61 @@
+{
+  "_id": "SUe3zYQvT9AGKgzG",
+  "_key": "!journal!SUe3zYQvT9AGKgzG",
+  "name": "Nine-Fingered Stranger",
+  "ownership": {
+    "default": 0
+  },
+  "flags": {
+    "stonetop": {
+      "summary": "Tor walking the world in disguise, testing mortals with a challenge and a missing finger."
+    }
+  },
+  "folder": "wC2H1OERHvvS8G7u",
+  "sort": 125000,
+  "pages": [
+    {
+      "_id": "m9OXzvC1peHLx1TF",
+      "_key": "!journal.pages!SUe3zYQvT9AGKgzG.m9OXzvC1peHLx1TF",
+      "name": "Nine-Fingered Stranger",
+      "type": "bestiary",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": ""
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {
+        "concept": "Tor walking the world in disguise, testing mortals with a challenge and a missing finger.",
+        "description": "<p>Many tales tell of a stranger met in an unlikely place. The stranger is in some sort of pickle, or challenges our hero, or presents a tempting opportunity. Whatever else happens, the stranger ends up vanishing — but not before our hero notices his missing finger, and realizes that they just met Tor. Rise to the occasion and you win a gift: a treasure, a secret, a prophecy, or some useful advice. Come up short, and you wind up cursed, or 'win' some treasure that brings only ruin and woe.</p>",
+        "questions": [],
+        "lore": [],
+        "hooks": "",
+        "hooksIntro": "",
+        "origins": "",
+        "originsIntro": "",
+        "discoveries": [],
+        "nests": "",
+        "dangers": [],
+        "notes": "",
+        "statBlocks": [
+          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.Kh5NQGe2zSAEV3BZ"
+        ]
+      },
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    }
+  ]
+}

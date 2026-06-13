@@ -25,19 +25,9 @@
     "tags": "horde, spirit, construct, organized",
     "qualities": "<p>Tethered to one specific bone. Armor 1 (lacks organs), or 4 vs. stabbing (just bones).</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ztrQnbFLBK1siEPk",
     "notes": "",
-    "creatureType": "spirit-construct",
-    "description": "<p>Some of the simplest tulpas to create, each of these spirits is bound to a skeleton that's been stripped of flesh and intricately carved. The Rime Lords and their disciples used them as domestic servants, tending to material needs and serving as guardians when needed. Gingkara still attempt to preserve their masters' homes — for what else should they do with their existence?</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit-construct"
   },
   "prototypeToken": {
     "name": "Gingkara",

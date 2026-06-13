@@ -25,19 +25,9 @@
     "tags": "group, terrifying, violent, wretched, emanation",
     "qualities": "<p>Amphibious, or close enough. HP, armor, and damage vary by the form you build — see the entry.</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.SmHddXJMWp3niCln",
     "notes": "",
-    "creatureType": "emanation",
-    "description": "<p>Horrid things, wet and wriggling. Maybe they're emanations of Daagon, or mortal beings so thoroughly corrupted as to seem utterly alien to this world. They crawl forth, feast on flesh and bone, and drag home wealth, beauty, and treasured things to feed their master's hunger. Build each by rolling its number, size, traits, and additional moves — baselines: horde (HP 3, d6), group (HP 6, d8), solitary (HP 12, d10); horse-sized adds +4 HP and +2 damage. The stat block below is a person-sized group baseline.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "emanation"
   },
   "prototypeToken": {
     "name": "Servant of Daagon",

@@ -335,7 +335,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Frozen Wastes. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.MFsosEI9EtAc7cbE]{Caribou}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.cy5OhsU0kVFUoppF]{Mammoth}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Frozen Wastes. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.CutEOTuoS3mAcu8n]{Caribou}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.H4EkNtJ49Mpz9O8a]{Mammoth}</li></ul></div>"
       },
       "video": {
         "controls": true,

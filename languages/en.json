@@ -252,24 +252,13 @@
       "size": "Size",
       "tags": "Tags",
       "qualities": "Special Qualities",
-      "combat": "Combat",
-      "count": "Number in group",
-      "abstraction": "Run as one abstracted group",
-      "abstractionHint": "Treat the whole group as a single entity: one member's HP & armor, one damage die, plus an outnumber bonus. Damage represents casualties.",
-      "outnumberBonus": "Outnumber bonus",
-      "casualtyThreshold": "Half HP lost ≈ half the group out of the fight",
-      "individual": "Individual creatures (each its own token & HP)",
       "openEntry": "Open Bestiary Entry",
       "noEntry": "Not linked to a bestiary entry.",
       "notes": "Notes",
+      "moves": "Moves",
       "addMove": "Add Move",
       "deleteMove": "Delete Move",
-      "noMoves": "No moves yet.",
-      "tabs": {
-        "moves": "Moves",
-        "description": "Description",
-        "notes": "Notes"
-      }
+      "noMoves": "No moves yet."
     },
     "bestiary": {
       "namePlaceholder": "Creature Name",
@@ -292,6 +281,8 @@
       "noLines": "No entries yet.",
       "introPlaceholder": "Intro text shown above the list (optional). Use **text** for bold.",
       "addDiscovery": "Add Discovery",
+      "addDanger": "Add Danger or Hazard",
+      "dangerHeadingPlaceholder": "Hazard name (e.g. \"Unstable nest\"). Use **text** for bold.",
       "discoveryHeadingPlaceholder": "Discovery heading (e.g. \"Strange growths\"). Use **text** for bold.",
       "discoveryBodyPlaceholder": "Body text (optional)",
       "discoveryItemsPlaceholder": "Bullet items, one per line (optional)",

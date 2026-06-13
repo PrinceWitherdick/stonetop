@@ -25,19 +25,9 @@
     "tags": "solitary, small, fae, magical, tough, stealthy, cautious, ugly",
     "qualities": "<p>Fae nature. Armor 4 (resilience), 1 vs. iron (thick fur).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.fSV9XtOChfthnbDG",
     "notes": "",
-    "creatureType": "fae",
-    "description": "<p>He dwells in a cave full of smoke and bones, tending his stew pot and stewing. He might venture out to fetch firewood, water, or meat — and when he's out, he might cross paths with a mortal. In his loneliness, he might forget just how poorly things went last time. When you Haggle with Grimstew he wants company, not things.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "fae"
   },
   "prototypeToken": {
     "name": "Grimstew",

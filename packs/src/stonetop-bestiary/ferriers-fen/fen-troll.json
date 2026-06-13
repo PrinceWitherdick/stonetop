@@ -25,19 +25,9 @@
     "tags": "solitary, large, corrupted, hoarder, gluttonous, stealthy",
     "qualities": "<p>Sharp senses; horrid odor; ashamed of its visage. Armor 1 from thick hide.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.iNio1HI0NcZuNGTc",
     "notes": "",
-    "creatureType": "corrupted",
-    "description": "<p>They were human once, corrupted by the Fen and the foul forces flowing through it. Little remains of that humanity: a rough shape, half-forgotten words, a terrible anger at what it has lost. They prize finery and mundane goods, anything that reminds them of their former life — and even more, they long for human connection. But hunger, shame, and greed usually lead them to lash out at any who show them kindness.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "corrupted"
   },
   "prototypeToken": {
     "name": "Fen-Troll",

@@ -25,19 +25,9 @@
     "tags": "solitary, spirit, magical, enigmatic, moody, curious",
     "qualities": "<p>Unable or unwilling to solve problems — only causes or presents them; unaware of its true nature. Armor 4 (resilience), 0 vs. black iron.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.SUe3zYQvT9AGKgzG",
     "notes": "",
-    "creatureType": "spirit",
-    "description": "<p>Many tales tell of a stranger met in an unlikely place. The stranger is in some sort of pickle, or challenges our hero, or presents a tempting opportunity. Whatever else happens, the stranger ends up vanishing — but not before our hero notices his missing finger, and realizes that they just met Tor. Rise to the occasion and you win a gift: a treasure, a secret, a prophecy, or some useful advice. Come up short, and you wind up cursed, or 'win' some treasure that brings only ruin and woe.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "spirit"
   },
   "prototypeToken": {
     "name": "The Stranger",

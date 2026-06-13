@@ -25,19 +25,9 @@
     "tags": "group, huge",
     "qualities": "<p>Extremely long neck. Armor 2 from feathers and scales.</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.F5CHB8YqT63jY04J",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>The Forest Folk would tell stories of the 'tall walkers,' drakes with necks like trees and bodies like small hills, draped in feathers that look like vines and leaves. Supposedly they roam deep in the forest, blithely chewing leaves from the canopy and singing mournful songs to each other.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Tal Gerdwyr",

@@ -25,19 +25,9 @@
     "tags": "solitary, large, emanation, terrifying, cautious, curious",
     "qualities": "<p>Blind; tremorsense; reaches through matter like it was water. Armor 4 (resilience), 0 vs. bronze.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.m46X5auaZwdxphBl",
     "notes": "",
-    "creatureType": "emanation",
-    "description": "<p>In a deep, deep cave, where light has never shined, there is a lake. In that lake, there is a Mouth of Daagon: ever-hungry, ever-greedy, consuming all that it is offered. And in the caverns around that lake? There you will find the Hand: ever-groping, ever-grasping, dragging all it finds of value back to the Mouth.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "emanation"
   },
   "prototypeToken": {
     "name": "Hand of Daagon",

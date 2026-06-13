@@ -25,28 +25,9 @@
     "tags": "solitary, huge, construct, plodding, implacable",
     "qualities": "<p>Fireproof; too big to hurt with most weapons; vulnerable to lightning. Armor 4 (metal, lacks organs).</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.JcJ1Kg1avKIFJqdh",
     "notes": "",
-    "creatureType": "construct",
-    "description": "<p>It stands nearly sixty feet tall, a muscular Forge Lord cast in bronze. Similar statues loom about, each grand and imposing — but this one is shot through with blueish veins, and it feels like it's watching you. Because it is. The colossus guards the entrance to its master's domain: approach honorably, speaking the Forge Lord's tongue, and it politely tells you to come again later, for its master is away. Intruders, blowhards, and thieves are dealt with forcibly.</p>",
-    "questions": [],
-    "lore": [
-      {
-        "prompt": "**Something interesting:** Those blueish veins are aetherium, and likely what animates the statue — which means there's no single weak point. Maybe you could harm it by drawing the lightning from it.",
-        "answer": ""
-      },
-      {
-        "prompt": "**Something useful:** Or you could, you know, just blast it with lightning and overload it.",
-        "answer": ""
-      }
-    ],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "construct"
   },
   "prototypeToken": {
     "name": "Bronze Colossus",

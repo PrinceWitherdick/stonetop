@@ -25,19 +25,9 @@
     "tags": "solitary, cautious, fierce",
     "qualities": "<p>Acid-proof.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.PJEotX7fbLPcZpC9",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>Great big armored mustelids, like a cross between a stoat, a badger, and a pangolin, but six feet long not counting the tail. They roam the Flats digging up burrows of just about anything, but they especially love to stir up a hlomren nest and chomp chomp chomp. Far from the top of the food chain: if startled they spray musk and flee; if cornered they curl up and hope the attacker grows bored. A skilled tanner can turn a pair of hides into a magnificent beznpol scale coat (2 armor, warm, protects against acid, Value 3).</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Beznpol",

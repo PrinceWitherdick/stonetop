@@ -25,28 +25,9 @@
     "tags": "solitary, large, cautious, magical, corrupted",
     "qualities": "<p>Blinded by full daylight or holy light; takes +1d4 damage from bronze. Armor 1 from hide. Recoils from the Rime Lords' meditative chant. Each bhoka bears a special trait: huge (+4 HP, +2 damage), four or six arms (+area), a lashing tongue/tail, ice/rock scales (Armor 3), wings (flight), or regeneration.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Qy6WvpBjmoGnG0m8",
     "notes": "",
-    "creatureType": "corrupted",
-    "description": "<p>These hulking brutes dwell in dark places: caves, north-facing slopes, and deep mountain forests. They're hairy things, hunched and wild, only vaguely looking like people. They'd be little more than dangerous beasts, easily avoided, if they weren't driven by an obsessive vice — and if they didn't wield the wild elements themselves. Each bhoka has its own instinct (to bask in fear, to steal precious things, to sate an endless hunger, to avenge any slight, or to force others into servitude) and a special trait, from great size to extra arms to wings to ice-rock scales to regeneration.</p>",
-    "questions": [],
-    "lore": [
-      {
-        "prompt": "**Something interesting:** The people of the Whitefangs fear bhoka and are well aware of the dangers they pose, but they never hunt them — they're content to drive them off or appease them.",
-        "answer": ""
-      },
-      {
-        "prompt": "**Something useful:** The monks claim bhoka descended from Rime Lords corrupted by the Things Below. They cannot abide the sound of the Rime Lords' meditative chants, recoiling and fleeing from anyone who performs such a chant without faltering.",
-        "answer": ""
-      }
-    ],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "corrupted"
   },
   "prototypeToken": {
     "name": "Bhoka",

@@ -25,19 +25,9 @@
     "tags": "horde, fae, athletic, raucous",
     "qualities": "<p>Fae nature. Armor 4 (resilience), 0 vs. iron.</p>",
     "count": 6,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.MsrMiy6ljbqoemjr",
     "notes": "",
-    "creatureType": "fae",
-    "description": "<p>Muscular folk with cloven hooves, birch-white fur, and horns in every size and shape. They seem so happy, their endless days spent dancing and singing, drinking and rutting, indulging in good-natured brawls. But when you look closer, you see the scars — the missing limbs, the broken horns, the eyes briefly so full of pain. But no, no, it's gone. Another dance! Another round! Another bawdy song! Join their revels and you lose HP, mark debilities, and risk reveling endlessly until someone rescues you.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "fae"
   },
   "prototypeToken": {
     "name": "White Billy",

@@ -25,19 +25,9 @@
     "tags": "solitary, stealthy, cautious, athletic",
     "qualities": "<p>Keen night vision and sense of smell.</p>",
     "count": 1,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.hW4pZ1OuPa0yOEFJ",
     "notes": "",
-    "creatureType": "natural-beast",
-    "description": "<p>They don't usually hunt people. But when game is scarce, or some fool provokes them, they sometimes get a taste for human blood. Even then, they mostly leave groups alone, waiting for someone to fall behind or wander off. Mostly.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "natural-beast"
   },
   "prototypeToken": {
     "name": "Cougar",

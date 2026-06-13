@@ -279,7 +279,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Dread River. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.aWbHPmGW9htXdyUN]{Jellied Horror}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.L9dlnvkyRdbLZCEI]{Luglfsk}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.j0hciXWdoWrUeYF7]{The Suileach}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary.Actor.4vXt3vYLBjH8b18j]{Totnatter}</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Creatures the bestiary catalogues in and around The Dread River. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.1oYvUFEeUNKJTbFM]{Jellied Horror}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.3BvxOqjeOtQei8cG]{Luglfsk}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.Hv4lWQtBLYYJ67Cg]{The Suileach}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.w8oBC7s7o7AlEqIQ]{Totnatter}</li></ul></div>"
       },
       "video": {
         "controls": true,

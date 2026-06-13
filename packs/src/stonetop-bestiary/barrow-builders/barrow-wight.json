@@ -25,19 +25,9 @@
     "tags": "group, undead, corrupted, terrifying, hardy, hoarder",
     "qualities": "<p>Bound to their barrow. Armor 4 (resilience), 2 vs. bronze or fire (mail).</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.C9HHEVNFl8Cw6w0U",
     "notes": "",
-    "creatureType": "undead",
-    "description": "<p>As you might expect, grave robbing was always a problem for the Barrow Builders. But a clever sorcerer had a solution! So many hateful spirits roamed the world in those days — why not bind some to the corpses of the deceased, and let the dead guard their own treasure?</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "undead"
   },
   "prototypeToken": {
     "name": "Barrow Wight",

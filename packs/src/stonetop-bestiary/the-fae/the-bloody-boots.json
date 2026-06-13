@@ -25,19 +25,9 @@
     "tags": "group, small, fae, ugly, violent",
     "qualities": "<p>Fae nature; tolerates iron; can't start violence. Armor 4 (resilience), 2 vs. iron.</p>",
     "count": 3,
-    "entry": "",
+    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.qWNA7gHJH7z3K0bg",
     "notes": "",
-    "creatureType": "fae",
-    "description": "<p>A gang of hoodlums, with names like Hobnail, Spitkicker, Big Thunk, Tusk, and Grub: short, squat brutes with lopsided limbs, mismatched parts, and craggy skin, stomping about in oversized iron-shod boots and delighting in the disgust of other Fae. Back in the day they quarried stone; given the chance to fight and spill blood, they became among the most feared shock-troops of the war, first into the fray and dyeing their Red Pennant in trodden foes. After the war, some schemer bought every debt they owed and extracted a promise: no starting fights. They can finish one someone else starts, though — and oh, will they enjoy it.</p>",
-    "questions": [],
-    "lore": [],
-    "hooks": "",
-    "hooksIntro": "",
-    "origins": "",
-    "originsIntro": "",
-    "discoveries": [],
-    "nests": "",
-    "dangers": ""
+    "creatureType": "fae"
   },
   "prototypeToken": {
     "name": "Bloody Boot",

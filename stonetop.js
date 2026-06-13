@@ -6,6 +6,8 @@ import { createStonetopCharacterSheetClass } from "./module/actors/character/Sto
 import { createStonetopSteadingSheetClass } from "./module/actors/steading/StonetopSteadingSheet.js";
 import { createStonetopMonsterSheetClass } from "./module/actors/monster/StonetopMonsterSheet.js";
 import { createStonetopBestiaryEntrySheetClass } from "./module/actors/bestiary/StonetopBestiaryEntrySheet.js";
+import { BestiaryPageModel } from "./module/journal/BestiaryPageModel.js";
+import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopBestiaryPageSheet.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
@@ -27,6 +29,7 @@ Hooks.once("init", () => {
 	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
 	Handlebars.registerHelper("boldMissText", value => boldMissText(value));
 	Handlebars.registerHelper("eq", (a, b) => a === b);
+	Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
 
 	const _STAT_LABEL_KEYS = {
 		str: "stonetop.character.stats.strength",
@@ -122,6 +125,17 @@ Hooks.once("init", () => {
 		label:       "Stonetop Bestiary Entry Sheet",
 	});
 
+	// PROTOTYPE: bestiary entry as a custom JournalEntryPage subtype.
+	CONFIG.JournalEntryPage.dataModels ??= {};
+	CONFIG.JournalEntryPage.dataModels["bestiary"] = BestiaryPageModel;
+	const JournalPageSheetV1 = foundry.appv1?.sheets?.JournalPageSheet ?? globalThis.JournalPageSheet;
+	const StonetopBestiaryPageSheet = createStonetopBestiaryPageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopBestiaryPageSheet, {
+		types:       ["bestiary"],
+		makeDefault: true,
+		label:       "Stonetop Bestiary Page",
+	});
+
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
 	Items.registerSheet("stonetop_pwd", StonetopArcanumSheet, {
 		types:       ["move"],
@@ -160,6 +174,9 @@ Hooks.once("init", () => {
 		"stonetop.monster-sheet":             "systems/stonetop_pwd/templates/actor/monster.hbs",
 		"stonetop.bestiary-entry-sheet":      "systems/stonetop_pwd/templates/actor/bestiary-entry.hbs",
 		"stonetop.bestiary-line-list":        "systems/stonetop_pwd/templates/actor/partials/bestiary-line-list.hbs",
+		"stonetop.bestiary-page":             "systems/stonetop_pwd/templates/journal/bestiary.hbs",
+		"stonetop.bestiary-section-head":     "systems/stonetop_pwd/templates/journal/partials/bestiary-section-head.hbs",
+		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
 	});
 });
