@@ -8513,6 +8513,33 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	max-width: 660px;
 }
 
+/* Livestock & Beast cards (added via the inventory's special items). Follower
+   beasts (dog/mule/horse) take the warm-tan trait accent; plain livestock read
+   a touch greener. */
+.stonetop-follower-card--beast {
+	border-left: 3px solid hsl(40 35% 60%);
+}
+
+.stonetop-follower-card--beast .stonetop-follower-header {
+	background: hsl(40 30% 93%);
+}
+
+.stonetop-follower-card--livestock {
+	border-left-color: hsl(95 18% 62%);
+}
+
+.stonetop-follower-card--livestock .stonetop-follower-header {
+	background: hsl(95 16% 93%);
+}
+
+/* "pick 2 more" / "swift or hardy" choose-hint shown after the fixed trait tags */
+.stonetop-follower-trait-note {
+	align-self: center;
+	font-size: 0.82em;
+	font-style: italic;
+	color: #888;
+}
+
 .stonetop-follower-header {
 	display: flex;
 	align-items: flex-start;

@@ -19,6 +19,7 @@ import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth} from "../../settings.js";
 import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -849,7 +850,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.hasFollowers = !!(
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
-				context.stonetop.followers.initiates?.length
+				context.stonetop.followers.initiates?.length ||
+				context.stonetop.followers.beasts?.length
 			);
 			context.stonetop.hasArcana = !!(
 				context.stonetop.arcana?.minor?.hasOwned ||
@@ -1050,7 +1052,42 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}
 
-			return { animalCompanion, crew, initiates };
+			// -- Livestock & Beasts (any playbook; from added special items) --
+			// A character "owns" a beast when its slug is in inventory.addedSpecial
+			// (the Add Special Item picker). HP and Loyalty track per-slug, mirroring
+			// the initiate flags. Follower beasts (dog/mule/horse) earn Loyalty and
+			// pay a Cost; the rest are livestock (butcher note, no Loyalty).
+			const ownedSlugs      = sf.inventory?.addedSpecial ?? [];
+			const beastHpFlags      = sf.beastHp      ?? {};
+			const beastLoyaltyFlags = sf.beastLoyalty ?? {};
+			const beasts = BEAST_ORDER
+				.filter(slug => ownedSlugs.includes(slug))
+				.map(slug => {
+					const b     = BEAST_CATALOG[slug];
+					const hpMax = Number(b.hp) || 0;
+					const hpRaw = beastHpFlags[slug];
+					const card  = {
+						slug,
+						name:       b.name,
+						subtitle:   b.subtitle ?? null,
+						isFollower: !!b.follower,
+						hpMax,
+						hpCurrent:  hpRaw != null ? Math.min(Math.max(0, Number(hpRaw)), hpMax) : hpMax,
+						armor:      b.armor ?? 0,
+						damage:     b.damage + (b.damageForm ? ` (${b.damageForm})` : ""),
+						damageRoll: b.damage ?? null,
+						damageForm: b.damageForm ?? null,
+						traits:     (b.traits ?? []).map(label => ({ label })),
+						traitsNote: b.traitsNote ?? null,
+						instinct:   b.instinct ?? "",
+						cost:       b.cost ?? "",
+						butcher:    b.butcher ?? null,
+					};
+					if (b.follower) card.loyalty = _makeLoyaltyPips(beastLoyaltyFlags[slug] ?? 0);
+					return card;
+				});
+
+			return { animalCompanion, crew, initiates, beasts };
 		}
 
 		_buildInvocationsData(playbookDoc) {
@@ -1255,6 +1292,9 @@ export function createStonetopCharacterSheetClass(Base) {
 							} else if (followerType === "initiate") {
 								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
 								label = `${this.actor.name}'s ${followerName || "initiate"} attacks${formPart}`;
+							} else if (followerType === "beast") {
+								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
+								label = `${this.actor.name}'s ${followerName || "beast"} attacks${formPart}`;
 							} else {
 								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
 								label = `${this.actor.name}'s ${followerName || "crew"} attacks${formPart}`;
@@ -1502,6 +1542,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				const current = (this.actor.getFlag("stonetop_pwd", "initiatesLoyalty") ?? {})[slug] ?? 0;
 				const newVal  = current === idx + 1 ? idx : idx + 1;
 				await this.actor.update({ [`flags.stonetop_pwd.initiatesLoyalty.${slug}`]: newVal });
+				this.render(false);
+			});
+			// Beast (follower livestock) loyalty pips
+			html.find("button.stonetop-beast-loyalty-pip").on("click", async ev => {
+				const { slug, index } = ev.currentTarget.dataset;
+				const idx     = Number(index);
+				const current = (this.actor.getFlag("stonetop_pwd", "beastLoyalty") ?? {})[slug] ?? 0;
+				const newVal  = current === idx + 1 ? idx : idx + 1;
+				await this.actor.update({ [`flags.stonetop_pwd.beastLoyalty.${slug}`]: newVal });
 				this.render(false);
 			});
 			// Crew gear pip circles — each pip is independently selectable;
@@ -1958,6 +2007,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					const current = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "crew.individualsHp") ?? {});
 					current[Number(index)] = val;
 					await this.actor.setFlag("stonetop_pwd", "crew.individualsHp", current);
+				} else if (follower === "beast") {
+					const current = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "beastHp") ?? {});
+					current[slug] = val;
+					await this.actor.setFlag("stonetop_pwd", "beastHp", current);
 				}
 				this.render(false);
 			}, true);
