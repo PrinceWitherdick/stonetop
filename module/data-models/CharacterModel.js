@@ -1,44 +1,28 @@
 // System data model for the "character" Actor subtype. Replaces the character
 // block of the former template.json. The bulk of a character lives in embedded
 // Items (moves, playbook) and flags; this schema is just the core sheet data.
+import { valueField, valueMaxField, debility } from "./fields.js";
+
 const fields = foundry.data.fields;
-
-const statField = (initial = 0) => new fields.SchemaField({
-	value: new fields.NumberField({ required: true, integer: true, initial }),
-});
-
-const debility = (label, stat) => new fields.SchemaField({
-	label: new fields.StringField({ required: true, initial: label }),
-	value: new fields.BooleanField({ required: true, initial: false }),
-	stat:  new fields.ArrayField(new fields.StringField(), { initial: stat }),
-});
 
 export class CharacterModel extends foundry.abstract.TypeDataModel {
 	static defineSchema() {
 		return {
 			stats: new fields.SchemaField({
-				str: statField(),
-				dex: statField(),
-				int: statField(),
-				wis: statField(),
-				con: statField(),
-				cha: statField(),
+				str: valueField(),
+				dex: valueField(),
+				int: valueField(),
+				wis: valueField(),
+				con: valueField(),
+				cha: valueField(),
 			}),
 			attributes: new fields.SchemaField({
-				hp:      new fields.SchemaField({
-					value: new fields.NumberField({ required: true, integer: true, initial: 16 }),
-					max:   new fields.NumberField({ required: true, integer: true, initial: 16 }),
-				}),
-				xp:      new fields.SchemaField({
-					value: new fields.NumberField({ required: true, integer: true, initial: 0 }),
-					max:   new fields.NumberField({ required: true, integer: true, initial: 8 }),
-				}),
-				level:   new fields.SchemaField({
-					value: new fields.NumberField({ required: true, integer: true, initial: 1 }),
-				}),
-				armor:   statField(),
-				forward: statField(),
-				ongoing: statField(),
+				hp:      valueMaxField(16, 16),
+				xp:      valueMaxField(0, 8),
+				level:   valueField(1),
+				armor:   valueField(),
+				forward: valueField(),
+				ongoing: valueField(),
 				damage:  new fields.SchemaField({
 					value: new fields.StringField({ required: true, blank: true, initial: "d4" }),
 				}),

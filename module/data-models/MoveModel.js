@@ -8,9 +8,9 @@
 // and — crucially — they default to null rather than {}. Code such as
 // MoveDefinition treats `system.resource` truthily, so an empty {} default would
 // wrongly give every move a resource track.
-const fields = foundry.data.fields;
+import { looseObject } from "./fields.js";
 
-const looseObject = () => new fields.ObjectField({ required: false, nullable: true, initial: null });
+const fields = foundry.data.fields;
 
 export class MoveModel extends foundry.abstract.TypeDataModel {
 	static defineSchema() {

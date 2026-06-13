@@ -124,13 +124,16 @@ export function createStonetopMonsterSheetClass(Base) {
 	return class StonetopMonsterSheet extends Base {
 		_editMode = false;
 		_weUnlockedPack = false;
+		_initialHeightApplied = false;
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["stonetop", "sheet", "actor", "monster"],
 				width:   760,
-				// Numeric height so the window is drag-resizable (a "auto" height
-				// pins the window to its content and kills the resize handle).
+				// Numeric height keeps the window drag-resizable. The real opening
+				// height is computed per-monster in _applyInitialHeight() so the
+				// window opens with everything above Notes visible and Notes itself
+				// just below the fold (scroll/resize to reach it).
 				height:    680,
 				resizable: true,
 			});
@@ -146,6 +149,35 @@ export function createStonetopMonsterSheetClass(Base) {
 			this._stripHeaderChrome();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
 			this._hideBrokenPortrait();
+			this._applyInitialHeight();
+		}
+
+		/**
+		 * Open the window tall enough to show everything above Notes, with the
+		 * Notes section sitting just below the fold (the body scrolls, and the
+		 * window stays drag-resizable to reveal it). Runs once per sheet so it
+		 * doesn't fight the user's manual resizing on later re-renders.
+		 */
+		_applyInitialHeight() {
+			if (this._initialHeightApplied) return;
+			const el = this.element?.[0];
+			if (!el) return;
+			const content = el.querySelector(".window-content");
+			const notes   = el.querySelector(".stonetop-monster-notes");
+			const header  = el.querySelector(".window-header");
+			if (!content || !notes) return;
+
+			// Measure after layout settles (prose-mirror upgrades asynchronously).
+			requestAnimationFrame(() => {
+				if (this._initialHeightApplied || !this.element?.[0]) return;
+				const contentTop = content.getBoundingClientRect().top;
+				const notesTop   = notes.getBoundingClientRect().top;
+				const headerH    = header ? header.getBoundingClientRect().height : 0;
+				const height = Math.ceil(headerH + (notesTop - contentTop));
+				if (height <= 0) return;
+				this._initialHeightApplied = true;
+				this.setPosition({ height });
+			});
 		}
 
 		_hideBrokenPortrait() {

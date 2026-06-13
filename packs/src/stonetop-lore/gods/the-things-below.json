@@ -11,7 +11,7 @@
     }
   },
   "folder": "IIxADXjnF97PXJDg",
-  "sort": 9000,
+  "sort": 8000,
   "pages": [
     {
       "_id": "d2MBIXcGT0kjrgZl",
@@ -111,7 +111,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><ul><li>A local unwittingly offers sacrifice to a corrupted spirit, gaining power; the spirit asks for (and offers) more</li><li>A conundrum vexes the PCs; consulting a black menhir might help</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HAyocH8fEqnuHGfE]{Crinwin} have started to worship at a corrupted site becoming corrupted in turn</li><li>An antiquarian is secretly a thrall to a Thing Below, and seeks to unleash a more powerful servant</li><li>A spot in the fields around @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop} goes bad, festering like an infected boil, corrupted by a discarded artifact</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><ul><li>A local unwittingly offers sacrifice to a corrupted spirit, gaining power; the spirit asks for (and offers) more</li><li>A conundrum vexes the PCs; consulting a black menhir might help</li><li>Crinwin have started to worship at a corrupted site becoming corrupted in turn</li><li>An antiquarian is secretly a thrall to a Thing Below, and seeks to unleash a more powerful servant</li><li>A spot in the fields around @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop} goes bad, festering like an infected boil, corrupted by a discarded artifact</li></ul></div>"
       },
       "video": {
         "controls": true,

@@ -9666,9 +9666,9 @@ li.question-bullet {
 	min-width: 600px;
 }
 
-/* The window opens at a fixed, drag-resizable height (see StonetopMonsterSheet
-   defaultOptions). Let the body scroll so a monster with many moves stays
-   contained when the window is sized shorter than its content. */
+/* The window auto-fits its content height (see StonetopMonsterSheet
+   defaultOptions). Keep the body scrollable so an unusually tall stat block
+   still stays contained if it exceeds the viewport. */
 .window-app.monster .window-content {
 	overflow-y: auto;
 }

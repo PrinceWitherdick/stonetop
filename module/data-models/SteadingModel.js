@@ -1,15 +1,8 @@
 // System data model for the "stonetop" Actor subtype (the steading). Replaces
 // the stonetop block of the former template.json.
+import { valueField, debility } from "./fields.js";
+
 const fields = foundry.data.fields;
-
-const valueField = (initial = 0) => new fields.SchemaField({
-	value: new fields.NumberField({ required: true, integer: true, initial }),
-});
-
-const debility = label => new fields.SchemaField({
-	label: new fields.StringField({ required: true, initial: label }),
-	value: new fields.BooleanField({ required: true, initial: false }),
-});
 
 export class SteadingModel extends foundry.abstract.TypeDataModel {
 	static defineSchema() {

@@ -11,7 +11,7 @@
     }
   },
   "folder": "IIxADXjnF97PXJDg",
-  "sort": 7000,
+  "sort": 6000,
   "pages": [
     {
       "_id": "spIaCpZs3dX36Rds",
@@ -55,7 +55,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Choose or roll 1, or 2 and combine.</p><table><thead><tr><th>Roll</th><th>Result</th></tr></thead><tbody><tr><td>1</td><td>Death personified: the Lady of Crows, @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.B9NeAD4kIAwv4yPF]{the Pale Hunter}, other gods/spirits of death</td></tr><tr><td>2</td><td>The Last Door/brushes with death/ the afterlife/things from beyond</td></tr><tr><td>3</td><td>Graves/funeral rites/grief/mourning</td></tr><tr><td>4</td><td>Death foretold: prophecies, omens, visions, harbingers</td></tr><tr><td>5</td><td>Good death: peaceful, dignified, bravely met, an end of suffering</td></tr></tbody></table><p>6 Ignoble death: traumatic, desperate, torturous, terrifying 7 Untimely death: sudden, surprising, things left unsaid or undone 8 Violent death: murder, assassination, execution, battle, suicide 9 Mass death: famine, plague, war, cataclysm, collapse 10 The fear of death: denial, bargaining, panic, cheating 11 The curse of undeath: respite denied, eternal hunger/pain/ loneliness/regret 12 Necromancy and death-magic, likely with aid from @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{the Things Below}</p></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Choose or roll 1, or 2 and combine.</p><table><thead><tr><th>Roll</th><th>Result</th></tr></thead><tbody><tr><td>1</td><td>Death personified: the Lady of Crows, @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{the Pale Hunter}, other gods/spirits of death</td></tr><tr><td>2</td><td>The Last Door/brushes with death/ the afterlife/things from beyond</td></tr><tr><td>3</td><td>Graves/funeral rites/grief/mourning</td></tr><tr><td>4</td><td>Death foretold: prophecies, omens, visions, harbingers</td></tr><tr><td>5</td><td>Good death: peaceful, dignified, bravely met, an end of suffering</td></tr></tbody></table><p>6 Ignoble death: traumatic, desperate, torturous, terrifying 7 Untimely death: sudden, surprising, things left unsaid or undone 8 Violent death: murder, assassination, execution, battle, suicide 9 Mass death: famine, plague, war, cataclysm, collapse 10 The fear of death: denial, bargaining, panic, cheating 11 The curse of undeath: respite denied, eternal hunger/pain/ loneliness/regret 12 Necromancy and death-magic, likely with aid from @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{the Things Below}</p></div>"
       },
       "video": {
         "controls": true,
@@ -195,7 +195,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>She has many titles. Carrion Queen and Black-Feather Woman. The Kindly One. The Keeper of Secrets. She Who Dances on the Field of Battle. None know her true name, if she even has one. Most call her simply: the Lady of Crows.</p><p>Her nature and demeanor are for you and your table to decide, but ask/consider:</p><ul><li class=\"question-bullet\">What is her role? Psychopomp? Judge? Ruler of the afterlife? Or what?</li><li class=\"question-bullet\">What does she want? What pleases her?</li><li class=\"question-bullet\">Is she worshipped as a god? If so, what are her observances?</li><li class=\"question-bullet\">What is her origin said to be?</li><li class=\"question-bullet\">What is her relationship to @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.B9NeAD4kIAwv4yPF]{the Pale Hunter}?</li><li class=\"question-bullet\">How do tales of her differ among __? What is notably the same?</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>She has many titles. Carrion Queen and Black-Feather Woman. The Kindly One. The Keeper of Secrets. She Who Dances on the Field of Battle. None know her true name, if she even has one. Most call her simply: the Lady of Crows.</p><p>Her nature and demeanor are for you and your table to decide, but ask/consider:</p><ul><li class=\"question-bullet\">What is her role? Psychopomp? Judge? Ruler of the afterlife? Or what?</li><li class=\"question-bullet\">What does she want? What pleases her?</li><li class=\"question-bullet\">Is she worshipped as a god? If so, what are her observances?</li><li class=\"question-bullet\">What is her origin said to be?</li><li class=\"question-bullet\">What is her relationship to @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{the Pale Hunter}?</li><li class=\"question-bullet\">How do tales of her differ among __? What is notably the same?</li></ul></div>"
       },
       "video": {
         "controls": true,
@@ -251,7 +251,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>Dool trees often grow in or near haunted sites. A grove stands near the Crossroads, and lone dool trees are often found near Barrow Builder tombs. They are thick and knobby and multi-stemmed. The bark is papery, the color of bleached bone. @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.B9NeAD4kIAwv4yPF]{The Pale Hunter} shuns them, and they are often home to dool spirits if nothing else.</p><p>The leaves of a dool tree are deep purple, almost black, shot through with pale white veins. Dried leaves can be steeped to make a bitter tea, which brings on a death-like sleep from which some folk never wake.</p></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>Dool trees often grow in or near haunted sites. A grove stands near the Crossroads, and lone dool trees are often found near Barrow Builder tombs. They are thick and knobby and multi-stemmed. The bark is papery, the color of bleached bone. @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{The Pale Hunter} shuns them, and they are often home to dool spirits if nothing else.</p><p>The leaves of a dool tree are deep purple, almost black, shot through with pale white veins. Dried leaves can be steeped to make a bitter tea, which brings on a death-like sleep from which some folk never wake.</p></div>"
       },
       "video": {
         "controls": true,

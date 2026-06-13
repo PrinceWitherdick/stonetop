@@ -10,7 +10,7 @@ import { BEAST_CATALOG, BEAST_ORDER, BEAST_SLUGS } from "../../module/data/beast
 
 const INV_DIR = path.resolve("packs/src/stonetop-items/inventory-items");
 const SETTING_OVERVIEW = path.resolve(
-	"packs/src/stonetop-journals/setting-overview/setting-overview.json",
+	"packs/src/stonetop-journals/setting-overview.json",
 );
 
 let slugToItem;     // slug -> { _id, name, specialCategory }

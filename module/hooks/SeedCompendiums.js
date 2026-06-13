@@ -10,8 +10,9 @@ import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.j
 // and dumping every creature into the sidebar would just clutter it.
 //
 // Runs once per world, guarded by the `seedingComplete` world setting, GM-only.
-// `importJournalPack` recreates the folder tree the seeded entries use under a
-// top-level world folder named after the pack, so they keep their organisation.
+// `importJournalPack` recreates the compendium's folder tree at the world's top
+// level (Lore, Places, etc.), so the seeded entries keep their organisation
+// without burying everything under an extra wrapper folder.
 //
 // Cross-links between the imported journals are then rewritten from their
 // `@UUID[Compendium…]` form to point at the freshly-created world copies, so a GM
@@ -82,27 +83,28 @@ export async function seedCompendiumJournalsOnce() {
 // Import a journal pack into the world EXCEPT its bestiary codex entries (each a
 // single `bestiary` page). Foundry's `importAll` is all-or-nothing, so we filter
 // here: load the docs, drop the bestiary ones, and recreate just the folder
-// subtree the remaining entries use under a top-level world folder named for the
-// pack. Folder resolution is best-effort — anything it can't place falls back to
-// the top folder rather than failing the whole seed. Returns the created entries.
+// subtree the remaining entries use, mirroring the compendium's layout at the
+// world's top level. Folder resolution is best-effort — anything it can't place
+// falls back to the world top level rather than failing the whole seed. Returns
+// the created entries.
 async function importJournalPack(pack) {
 	const docs = await pack.getDocuments();
 	const seed = docs.filter(d => !d.pages.some(p => p.type === "bestiary"));
 	if (!seed.length) return [];
 
-	const top = await Folder.create({ name: pack.title, type: "JournalEntry" });
-
 	const packFolders = new Map();
 	for (const f of pack.folders ?? []) packFolders.set(f.id, f);
 
 	// Recreate a compendium folder (and its ancestors) in the world, memoised.
+	// A null parent (compendium top-level folder, or an entry filed loose) maps
+	// to the world's top level so the layout mirrors the compendium exactly.
 	const worldFolderId = new Map();
 	async function resolveFolder(cf) {
 		const id = cf?.id ?? null; // `cf` is a Folder doc (or null)
-		if (!id) return top.id;
+		if (!id) return null;
 		if (worldFolderId.has(id)) return worldFolderId.get(id);
 		const folder = packFolders.get(id);
-		if (!folder) return top.id;
+		if (!folder) return null;
 		const parentId = await resolveFolder(folder.folder);
 		const wf = await Folder.create({
 			name: folder.name, type: "JournalEntry", folder: parentId,
