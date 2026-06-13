@@ -51,9 +51,9 @@
 							<i class="fas fa-rotate-left"></i>
 						</a>
 						{{else}}
-						{{#if stonetop.organizationLabel}}<span class="stonetop-monster-org-pill">{{localize stonetop.organizationLabel}}</span>{{/if}}
-						{{#if system.size}}<span>{{system.size}}</span>{{/if}}
-						{{#if stonetop.displayTags}}{{#if system.size}}<span class="stonetop-monster-stat-sep"> · </span>{{/if}}<span>{{stonetop.displayTags}}</span>{{/if}}
+						{{#if stonetop.organizationLabel}}<span class="stonetop-monster-org-pill"{{#if stonetop.organizationTooltip}} data-tooltip="{{stonetop.organizationTooltip}}" data-tooltip-direction="UP"{{/if}}>{{localize stonetop.organizationLabel}}</span>{{/if}}
+						{{#if system.size}}<span class="stonetop-monster-size{{#if stonetop.sizeTooltip}} stonetop-monster-tag{{/if}}"{{#if stonetop.sizeTooltip}} data-tooltip="{{stonetop.sizeTooltip}}" data-tooltip-direction="UP"{{/if}}>{{system.size}}</span>{{/if}}
+						{{#if stonetop.displayTags}}{{#if system.size}}<span class="stonetop-monster-stat-sep"> · </span>{{/if}}<span class="stonetop-monster-tags">{{{stonetop.displayTagsHtml}}}</span>{{/if}}
 						{{/if}}
 					</div>
 				</div>

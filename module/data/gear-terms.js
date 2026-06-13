@@ -22,7 +22,7 @@ export const GEAR_TERMS = {
 	warm:            "Keeps you warm in cold weather, but uncomfortable and exhausting (and possibly dangerous) in hot weather.",
 	// Parameterized tags — matched by pattern in gear-term-tooltips.js
 	armor:           "When you take damage, subtract this value. Doesn't stack with other armor values (but +1 armor does stack).",
-	piercing:        "When you deal damage, ignore this many points of the target's armor. 'x piercing' = the steading's current Prosperity.",
+	piercing:        "When you deal damage, ignore this many points of the target's armor.",
 	damage:          "Increases the damage you deal with this weapon.",
 	uses:            "Mark a use each time you expend it; it's gone/useless when all uses are marked.",
 	hours:           "It lasts about an hour for each mark; mark to track time used.",
@@ -31,3 +31,9 @@ export const GEAR_TERMS = {
 	"all out":       "The weapon has no ammunition remaining.",
 	"ignores armor": "The damage completely bypasses the target's armor.",
 };
+
+// Appended to the piercing tooltip in steading/character contexts: "x piercing"
+// on the village's gear scales with the steading's current Prosperity. A monster
+// that lists "x piercing" doesn't draw from Prosperity, so this clause is omitted
+// on the bestiary sheet.
+export const PIERCING_STEADING_NOTE = " 'x piercing' = the steading's current Prosperity.";

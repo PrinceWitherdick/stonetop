@@ -219,6 +219,22 @@
       "hoverDescriptionsMonsterRefs": {
         "name": "Hover Descriptions: Creature Cross-links",
         "hint": "On bestiary and stat-block sheets, highlight other creatures' names — hover for their concept, click to open their sheet."
+      },
+      "hoverDescriptionsInvocations": {
+        "name": "Hover Descriptions: Invocation Effects",
+        "hint": "On the Lightbearer's Invocations tab, explain what an Invocation's Reduced and Empowered effects mean when hovering their labels."
+      },
+      "hoverDescriptionsVitals": {
+        "name": "Hover Descriptions: Vitals",
+        "hint": "Show what Damage, HP, Armor, XP, and Level mean when hovering those labels on the character sheet."
+      },
+      "hoverDescriptionsMonsterTags": {
+        "name": "Hover Descriptions: Monster Tags",
+        "hint": "On stat blocks, explain a creature's organization, size, and quality tags (solitary, terrifying, magical, etc.) when hovering them."
+      },
+      "hoverDescriptionsSteadingStats": {
+        "name": "Hover Descriptions: Steading Stats",
+        "hint": "On Stonetop's sheet, explain Surplus, Fortunes, Prosperity, Defenses, Population, and Size when hovering those labels."
       }
     },
     "newCharacter": {

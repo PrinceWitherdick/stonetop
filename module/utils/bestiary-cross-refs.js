@@ -77,7 +77,7 @@ function _tagGearParens(root) {
 		const PAREN = /\(([^()]*)\)/g;
 		let match, last = 0, frag = null;
 		while ((match = PAREN.exec(text)) !== null) {
-			const parts = match[1].split(",").map(p => ({ raw: p, trimmed: p.trim(), desc: findGearTerm(p.trim()) }));
+			const parts = match[1].split(",").map(p => ({ raw: p, trimmed: p.trim(), desc: findGearTerm(p.trim(), { omitSteadingNote: true }) }));
 			if (!parts.some(p => p.desc)) continue;
 			frag ??= document.createDocumentFragment();
 			if (match.index > last) frag.appendChild(document.createTextNode(text.slice(last, match.index)));

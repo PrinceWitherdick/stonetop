@@ -357,6 +357,9 @@ body,
 	margin-bottom: 2px;
 }
 
+/* Vitals labels that carry a hover description (Damage/HP/Armor/XP/Level). */
+.cell__title[data-vital][data-tooltip] { cursor: help; }
+
 /* Damage roll cell */
 .sheet-attributes-top .cell--Roll .cell__roll {
 	display: flex;
@@ -5263,6 +5266,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: block;
 }
 
+/* Stat labels that carry a hover description (Surplus/Fortunes/etc.). */
+.steading-stat-label[data-tooltip] { cursor: help; }
+
 .steading-stat-hint {
 	font-size: 0.72em;
 	color: #777;
@@ -8458,6 +8464,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-invocation-desc p { margin: 3px 0; }
 
+/* Reduced / Empowered effect labels carry a hover tooltip explaining the tier;
+   hint at it with a dotted underline and a help cursor. */
+.stonetop-invocation-effect-label[data-tooltip] {
+	cursor: help;
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+}
+
 .stonetop-invocation-desc li { margin: 1px 0; }
 
 /* Spiral bullets for prose lists that don't already get them via
@@ -9080,23 +9094,30 @@ li.question-bullet {
 	gap: var(--stonetop-spiral-gap);
 }
 
-/* Stonetop Locations journal pages: spiral bullets, with the question-spiral on
-   question items — matching the sheets. Lists are wrapped in .stonetop-location-body
-   by the locations generator. The spiral is drawn as a currentColor MASK (not a
-   fixed-color background) so it inherits the journal's text color and stays
-   visible in both light and dark themes. */
-.stonetop-location-body ul {
+/* Stonetop journal prose: spiral bullets, with the question-spiral on question
+   items — matching the sheets. Two ways in: `.stonetop-location-body`, wrapped
+   around lists by the locations/lore generators; and `.stonetop-journal-body`,
+   added at render time to every shipped prose journal's `.journal-page-content`
+   (see module/utils/journal-spiral-bullets.js) so hand-authored journals (the
+   Setting Overview, reference & arcana journals) follow the same rule without
+   each list needing a baked-in wrapper. The spiral is drawn as a currentColor
+   MASK (not a fixed-color background) so it inherits the journal's text color and
+   stays visible in both light and dark themes. */
+.stonetop-location-body ul,
+.stonetop-journal-body ul {
 	list-style: none;
-	padding-left: 0;
+	padding-left: 14px;
 	margin: 0.4em 0;
 }
-.stonetop-location-body li {
+.stonetop-location-body li,
+.stonetop-journal-body li {
 	display: flex;
 	align-items: flex-start;
 	gap: var(--stonetop-spiral-gap);
 	margin: 3px 0;
 }
-.stonetop-location-body li::before {
+.stonetop-location-body li::before,
+.stonetop-journal-body li::before {
 	content: "";
 	flex: 0 0 var(--stonetop-bullet-size, 10px);
 	width: var(--stonetop-bullet-size, 10px);
@@ -9113,9 +9134,47 @@ li.question-bullet {
 	-webkit-mask-size: contain;
 	mask-size: contain;
 }
-.stonetop-location-body li.question-bullet::before {
+.stonetop-location-body li.question-bullet::before,
+.stonetop-journal-body li.question-bullet::before {
 	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
+}
+
+/* Journal cross-links: drop Foundry's boxed "book chip" — its grey background,
+   border, padding, and the leading document icon — so an `@UUID` link reads like
+   the system's other cross-references (`.stonetop-monster-ref`): a plain word with
+   a dashed underline that shows the target's summary on hover (data-tooltip, set
+   by location-tooltips.js) and opens the entry on click. Scoped to journal page
+   content so it covers every shipped journal without a per-link wrapper. */
+.journal-page-content a.content-link {
+	background: none;
+	border: none;
+	border-bottom: 1px dashed currentColor;
+	border-radius: 0;
+	padding: 0;
+	margin: 0;
+	color: inherit;
+	text-decoration: none;
+	white-space: normal;
+	cursor: pointer;
+}
+.journal-page-content a.content-link:hover {
+	background-color: rgba(0, 0, 0, 0.07);
+	border-bottom-style: solid;
+	text-shadow: none;
+}
+/* Hide the leading document/book icon that Foundry injects into the chip. */
+.journal-page-content a.content-link > i {
+	display: none;
+}
+/* A broken link (target missing) keeps Foundry's warning treatment so it's still
+   obviously broken rather than masquerading as a normal cross-reference. */
+.journal-page-content a.content-link.broken {
+	border-bottom-color: var(--color-text-bad, #aa2222);
+	color: var(--color-text-bad, #aa2222);
+}
+.journal-page-content a.content-link.broken > i {
+	display: inline;
 }
 
 /* Travel times table (collapsible inside Chart a Course description) */
@@ -9607,11 +9666,10 @@ li.question-bullet {
 	min-width: 600px;
 }
 
-/* The sheet opens with height: "auto" (see StonetopMonsterSheet defaultOptions),
-   so the window hugs its content. Cap the scrolling body at the viewport so a
-   monster with many moves still scrolls rather than overrunning the screen. */
+/* The window opens at a fixed, drag-resizable height (see StonetopMonsterSheet
+   defaultOptions). Let the body scroll so a monster with many moves stays
+   contained when the window is sized shorter than its content. */
 .window-app.monster .window-content {
-	max-height: 90vh;
 	overflow-y: auto;
 }
 
@@ -9641,17 +9699,21 @@ li.question-bullet {
    they stretch underneath the stat boxes. */
 .stonetop-monster-header .sheet-header__fields {
 	display: grid;
-	grid-template-columns: 1fr auto;
+	grid-template-columns: minmax(0, 1fr) auto;
 	grid-template-areas:
 		"name    stats"
 		"details details";
-	align-items: center;
+	/* Top-align the name and the HP/Armor boxes so their top edges line up. */
+	align-items: start;
 	gap: 10px 10px;
 }
 
 .stonetop-monster-namewrap {
 	grid-area: name;
 	min-width: 0;
+	/* Clip rather than overflow: when the row gets tight the name wraps/truncates
+	   inside its own column instead of sliding under the (fixed-width) stat boxes. */
+	overflow: hidden;
 }
 
 .stonetop-monster-header-details {
@@ -9769,10 +9831,22 @@ input.stonetop-monster-armor-source {
 
 .stonetop-monster-namewrap .stonetop-name-field {
 	min-width: 0;
+	white-space: normal;
+	/* Wrap between words; only break inside a word if a single word can't fit. */
+	overflow-wrap: break-word;
+	/* Cap the name at two lines; anything longer is truncated with an ellipsis. */
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
 }
 
 .stonetop-monster-header-statbar {
 	grid-area: stats;
+	/* Override the base statbar's top margin so its top edge aligns flush with the
+	   monster name (which sits at padding-top: 0). */
+	margin-top: 0;
 }
 
 .stonetop-monster-traits {
@@ -10058,10 +10132,11 @@ input.stonetop-monster-armor-source {
 /* Notes stays a live rich-text editor in play mode: a small box while displaying
    (so there's always something to hover), expanding once you start editing. The
    edit pencil appears on hover (or while editing) to signal it's editable without
-   entering the sheet's edit mode. 16px of breathing room sits below it. */
+   entering the sheet's edit mode. The gap below it matches the window-content
+   padding above the avatar (8px) so the sheet is balanced top and bottom. */
 .stonetop-monster-notes-editor {
 	min-height: 100px;
-	margin-bottom: 16px;
+	margin-bottom: 8px;
 	border-radius: 4px;
 }
 
@@ -10379,6 +10454,16 @@ input.stonetop-monster-armor-source {
 	color: #000;
 	border: 1px solid #000;
 	font-size: 0.78em;
+}
+
+/* Hover-info affordance on the header tag line: the org pill gets a help cursor;
+   recognised size/quality tags get a dotted underline so they stand out from the
+   plain (flavor) tags that carry no tooltip. */
+.stonetop-monster-org-pill[data-tooltip] { cursor: help; }
+.stonetop-monster-tag[data-tooltip] {
+	cursor: help;
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
 }
 
 /* ── Bestiary Entry sheet ─────────────────────────────────────────────────────── */

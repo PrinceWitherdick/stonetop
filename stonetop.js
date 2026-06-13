@@ -16,6 +16,7 @@ import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
+import { applyJournalSpiralBullets } from "./module/utils/journal-spiral-bullets.js";
 import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
 
 // -- INIT ------------------------------------------------------
@@ -191,9 +192,13 @@ Hooks.on("renderActorSheet", onRenderActorSheet);
 // default "Journal Entry". Covers the journal sheet/page render hooks across
 // Foundry v12–v14; the index warms on ready so the first hover is instant.
 Hooks.once("ready", () => ensureLocationSummaryIndex());
-const _applyLocTips = (_app, html) => applyLocationTooltips(html);
+const _onJournalRender = (app, html) => {
+	applyLocationTooltips(html);
+	// Spiral bullets / question-spirals for this system's prose journals.
+	applyJournalSpiralBullets(app, html);
+};
 for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJournalPageSheet", "renderJournalEntryPageSheet"]) {
-	Hooks.on(hook, _applyLocTips);
+	Hooks.on(hook, _onJournalRender);
 }
 
 // -- BESTIARY CROSS-LINK INDEX ---------------------------------

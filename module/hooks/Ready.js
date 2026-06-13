@@ -42,6 +42,22 @@ export async function onReady() {
 	if (game.user.isGM) await _ensureDieOfFateMacro();
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
 	if (game.user.isGM) await remindDestinedOmenRoll();
+
+	await _openSettingOverviewOnce();
+}
+
+const _SETTING_OVERVIEW_NAME = "Setting Overview";
+
+// Pop the Setting Overview journal open the first time each user connects, so a
+// fresh install lands everyone on the startup info. Runs for every user (the GM
+// seeds it; SeedCompendiums grants players read access). Guarded by a per-client
+// flag so it opens once and never re-interrupts later sessions.
+async function _openSettingOverviewOnce() {
+	if (getSetting("settingOverviewShown")) return;
+	const overview = game.journal?.find(j => j.name === _SETTING_OVERVIEW_NAME && j.visible);
+	if (!overview) return; // not seeded yet (or not visible to this user) — try again next load
+	overview.sheet.render(true);
+	await setSetting("settingOverviewShown", true);
 }
 
 async function _ensureEndOfSessionMacro() {

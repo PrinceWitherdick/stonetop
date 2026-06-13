@@ -26,6 +26,12 @@ const SYSTEM_LINK = /@UUID\[(Compendium\.stonetop_pwd\.[^\]]+)\]/g;
 // never seed — so dumping it into every world would just clutter the sidebar.
 const SEED_EXCLUDE = new Set(["stonetop-bestiary-journal"]);
 
+// The fresh-start orientation journal. Its compendium source is hidden from
+// players (`ownership.default: 0`); once seeded we open up the world copy to
+// OBSERVER so every player can read it — and `_openSettingOverviewOnce` (in
+// hooks/Ready.js) pops it open for each user the first time they connect.
+const SETTING_OVERVIEW_NAME = "Setting Overview";
+
 export async function seedCompendiumJournalsOnce() {
 	if (!game.user?.isGM) return;
 	if (getSetting("seedingComplete")) return;
@@ -60,6 +66,7 @@ export async function seedCompendiumJournalsOnce() {
 	}
 
 	await remapCrossLinks(created, linkMap);
+	await openSettingOverviewToPlayers(created);
 
 	// The seeded world journals carry the same `flags.stonetop.summary` as their
 	// compendium source; drop the cached tooltip index so it rebuilds and the
@@ -73,6 +80,21 @@ export async function seedCompendiumJournalsOnce() {
 	if (created.length) {
 		info(`Seeded ${created.length} journal entries from compendiums into the world.`);
 		ui.notifications?.info(`Stonetop: imported ${created.length} journal entries into your world.`);
+	}
+}
+
+// Grant players read access to the seeded Setting Overview journal so the
+// fresh-start auto-open (hooks/Ready.js) can show it to them. Edits the world
+// copy only; the compendium source stays GM-only.
+async function openSettingOverviewToPlayers(entries) {
+	const overview = entries.find(e => e.name === SETTING_OVERVIEW_NAME);
+	if (!overview) return;
+	const observer = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
+	if (overview.ownership?.default >= observer) return;
+	try {
+		await overview.update({ "ownership.default": observer });
+	} catch (err) {
+		error(`Failed to grant players access to "${SETTING_OVERVIEW_NAME}":`, err);
 	}
 }
 

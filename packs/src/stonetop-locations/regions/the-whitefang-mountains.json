@@ -404,6 +404,34 @@
         "default": -1
       },
       "flags": {}
+    },
+    {
+      "_id": "amut24mF82hxd4bK",
+      "_key": "!journal.pages!5vFbBIn18TKtCF91.amut24mF82hxd4bK",
+      "name": "Folk of this Area",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Folk you might meet in and around The Whitefang Mountains. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.uGh38GPx9hdbQ0XH]{Guardian}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.AXCc64h6QQiyBGpx]{Mammoth Herder}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.iXAH0ry7QKDChAqE]{Monk}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.hYf2HyXCbJa4j9Fc]{Novice}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.5Sv77XzHPMBgZqJZ]{Shantyara}</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1500000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
     }
   ]
 }

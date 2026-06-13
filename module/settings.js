@@ -32,6 +32,17 @@ export function registerSettings() {
 
 	// -- CLIENT SPECIFIC SETTINGS --------------------------------
 
+	// Whether this user has had the Setting Overview journal auto-opened once (see
+	// hooks/Ready.js). Per-client so each player gets the fresh-start orientation
+	// the first time they connect, GM included, without re-popping every load.
+	game.settings.register("stonetop_pwd", "settingOverviewShown", {
+		name: "Setting Overview Shown",
+		scope: "client",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	game.settings.register("stonetop_pwd", "sheetFont", {
 		name: "stonetop.settings.sheetFont.name",
 		hint: "stonetop.settings.sheetFont.hint",
@@ -130,6 +141,10 @@ export const HOVER_DESCRIPTION_SETTING_KEYS = [
 	"hoverDescriptionsTraits",
 	"hoverDescriptionsGearTags",
 	"hoverDescriptionsMonsterRefs",
+	"hoverDescriptionsInvocations",
+	"hoverDescriptionsVitals",
+	"hoverDescriptionsMonsterTags",
+	"hoverDescriptionsSteadingStats",
 ];
 
 function _createHoverDescriptionSettingsApp() {

@@ -10,6 +10,7 @@ import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDia
 import {CharacterInventory} from "../character/CharacterInventory.js";
 import {SPECIAL_ITEM_CATALOG} from "../../data/special-items.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
+import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 
@@ -144,6 +145,17 @@ const STEADING_STAT_CHIP_LABELS = {
 	Fortunes: "FOR",
 	Population: "POP",
 	Prosperity: "PRO",
+};
+
+// Hover tooltips for the steading stat labels, keyed by data-steading-stat
+// (Book I "Homefront"). Gated by hoverDescriptionsSteadingStats.
+const STEADING_STAT_TOOLTIPS = {
+	surplus:    "Stores of food and trade goods. A resource you accumulate, spend, and consume — not rolled. Generated in summer and autumn, eaten through in winter.",
+	fortunes:   "The steading's morale, social cohesion, and the favor of the gods — “how things are going.” Roll +Fortunes to Requisition and when the Seasons Change; resets to +1 each season.",
+	size:       "How big the steading is (hamlet, village, town, city). Mostly descriptive, but it affects winter Surplus consumption and the Muster, Pull Together, and Trade & Barter moves.",
+	population: "The number of able bodies living here, relative to its Size. Roll +Population to Muster or Pull Together; higher Population also eats more Surplus each winter.",
+	prosperity: "The goods in circulation, the variety of tradesfolk, and merchant traffic. Roll +Prosperity to Trade & Barter; it also sets the value of “x piercing” and what gear is available.",
+	defenses:   "The steading's martial readiness — trained, armed residents and veteran warriors. Roll +Defenses to Deploy its people against a threat.",
 };
 const _esc = escHtml;
 
@@ -558,13 +570,18 @@ export function createStonetopSteadingSheetClass(Base) {
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
-			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? true;
+			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? false;
 			return context;
 		}
 
 		activateListeners(html) {
 			super.activateListeners(html);
 			wrapStonetopGlyphsInEl(html[0]);
+
+			applyLabelTooltips(html, {
+				selector: ".steading-stat-label[data-steading-stat]", datasetKey: "steadingStat",
+				table: STEADING_STAT_TOOLTIPS, settingKey: "hoverDescriptionsSteadingStats", direction: "UP",
+			});
 
 			// Rollable move buttons (both editable and read-only)
 			html[0].addEventListener("click", ev => {

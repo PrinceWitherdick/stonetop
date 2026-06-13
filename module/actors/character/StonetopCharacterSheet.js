@@ -18,6 +18,7 @@ import {getStonetopSteadingActor} from "../../utils/world.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth} from "../../settings.js";
 import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
+import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 
@@ -32,6 +33,32 @@ const STAT_TOOLTIPS = {
 	con: "Your stamina, grit, determination, and endurance. Roll +CON to Defend, or to Defy Danger by holding steady or enduring hardship.",
 	cha: "Your ability to charm and connect with others, and to get a read on what others want. Roll +CHA to Persuade, or to Defy Danger socially.",
 };
+
+// Hover tooltips for the vitals row (Damage/HP/Armor/XP/Level), keyed by the
+// label's data-vital attribute. Gated by hoverDescriptionsVitals.
+const VITAL_TOOLTIPS = {
+	damage: "Your damage die. Roll it when you deal damage; moves, gear, and tags can raise or lower it.",
+	hp:     "Hit points. Lose them when you take damage; at 0 HP you're dying and must roll Last Breath. Your max is set by your playbook and CON.",
+	armor:  "Reduces the damage you take — subtract it from each hit. Computed from the gear you're wearing.",
+	xp:     "Experience. Mark 1 XP on a miss (roll 6-) and from some moves; when the track fills, spend it to level up.",
+	level:  "Your character level. Higher levels let you learn advanced moves and raise the XP needed to advance.",
+};
+
+// Plain-language explanations for an Invocation's Reduced / Empowered effects,
+// surfaced as hover tooltips on those labels in the Invocations tab.
+const INVOCATION_EFFECT_TOOLTIPS = {
+	reduced:   "When you Invoke the Sun God, one consequence you can choose — and must, on a 7-9 — is for the Invocation to take this weaker, reduced effect instead.",
+	empowered: "With the Empowered Invocations move (6th level), you can choose an extra consequence before you roll to give the Invocation this stronger, empowered effect.",
+};
+
+// Wrap the "Reduced:" / "Empowered:" labels inside an Invocation's description
+// HTML so they carry a hover tooltip explaining what those effect tiers mean.
+function _annotateInvocationEffects(html) {
+	return String(html).replace(/<strong>(Reduced|Empowered):<\/strong>/g, (_match, label) => {
+		const tip = INVOCATION_EFFECT_TOOLTIPS[label.toLowerCase()];
+		return `<strong class="stonetop-invocation-effect-label" data-tooltip="${escHtml(tip)}" data-tooltip-direction="UP">${label}:</strong>`;
+	});
+}
 
 const _esc = escHtml;
 
@@ -1094,13 +1121,17 @@ export function createStonetopCharacterSheetClass(Base) {
 			const raw = playbookDoc?.invocations;
 			if (!raw?.options?.length) return null;
 			const selected = new Set(this.actor.getFlag("stonetop_pwd", "invocations.selected") ?? []);
-			const options = raw.options.map(opt => ({
-				slug:        opt.slug,
-				label:       opt.label,
-				description: opt.description ?? "",
-				known:       selected.has(opt.slug),
-				ongoing:     !!opt.ongoing,
-			}));
+			const showEffectTips = getHoverDescriptionSetting("hoverDescriptionsInvocations");
+			const options = raw.options.map(opt => {
+				const description = opt.description ?? "";
+				return {
+					slug:        opt.slug,
+					label:       opt.label,
+					description: showEffectTips ? _annotateInvocationEffects(description) : description,
+					known:       selected.has(opt.slug),
+					ongoing:     !!opt.ongoing,
+				};
+			});
 			const sort = this.actor.getFlag("stonetop_pwd", "invocationsSort") ?? "known";
 			if (sort === "alpha") {
 				options.sort((a, b) => a.label.localeCompare(b.label));
@@ -1176,13 +1207,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".cell--stats .stat-value").each((_, el) => {
 				el.value = el.value.replace(/^\+/, "");
 			});
-			html.find(".cell--stats .stat[data-stat]").each((_, el) => {
-				if (!getHoverDescriptionSetting("hoverDescriptionsStats")) return;
-				const tooltip = STAT_TOOLTIPS[el.dataset.stat];
-				if (tooltip) {
-					el.dataset.tooltip = tooltip;
-					el.dataset.tooltipDirection = "DOWN";
-				}
+			applyLabelTooltips(html, {
+				selector: ".cell--stats .stat[data-stat]", datasetKey: "stat",
+				table: STAT_TOOLTIPS, settingKey: "hoverDescriptionsStats", direction: "DOWN",
+			});
+			applyLabelTooltips(html, {
+				selector: ".cell__title[data-vital]", datasetKey: "vital",
+				table: VITAL_TOOLTIPS, settingKey: "hoverDescriptionsVitals", direction: "DOWN",
 			});
 
 			html.find(".stonetop-hide-unselected-check").on("change", async (ev) => {

@@ -3,7 +3,7 @@
 	{{!-- Damage die — rollable in play mode, editable text input in edit mode --}}
 	<div class="cell cell--Roll cell--attr-damage">
 		<div class="stonetop-vital-inner">
-			<label class="cell__title">{{localize "stonetop.character.attributes.damage"}}</label>
+			<label class="cell__title" data-vital="damage">{{localize "stonetop.character.attributes.damage"}}</label>
 			<div class="cell__roll">
 				<a class="rollable" data-roll="{{system.attributes.damage.value}}" data-label="Damage">
 					<i class="fas fa-dice-d6"></i>
@@ -19,7 +19,7 @@
 	{{!-- HP --}}
 	<div class="cell cell--Resource cell--attr-hp">
 		<div class="stonetop-vital-inner">
-			<label class="cell__title">HP</label>
+			<label class="cell__title" data-vital="hp">HP</label>
 			<div class="cell__resource">
 				<span class="cell__value">
 					<input class="attr-value" type="number"
@@ -42,7 +42,7 @@
 	{{!-- Armor (computed from inventory; always read-only) --}}
 	<div class="cell cell--Number cell--attr-armor">
 		<div class="stonetop-vital-inner">
-			<label class="cell__title">{{localize "stonetop.character.attributes.armor"}}</label>
+			<label class="cell__title" data-vital="armor">{{localize "stonetop.character.attributes.armor"}}</label>
 			<input class="attr-value" type="number"
 			       name="system.attributes.armor.value"
 			       value="{{system.attributes.armor.value}}"
@@ -53,7 +53,7 @@
 	{{!-- XP — max is derived from level, so its input is read-only --}}
 	<div class="cell cell--Resource cell--attr-xp">
 		<div class="stonetop-vital-inner">
-			<label class="cell__title">{{localize "stonetop.character.attributes.xp"}}</label>
+			<label class="cell__title" data-vital="xp">{{localize "stonetop.character.attributes.xp"}}</label>
 			<div class="cell__resource">
 				<span class="cell__value">
 					<input class="attr-value" type="number"
@@ -75,7 +75,7 @@
 	{{!-- Level --}}
 	<div class="cell cell--Number cell--attr-level">
 		<div class="stonetop-vital-inner">
-			<label class="cell__title">{{localize "stonetop.character.attributes.level"}}</label>
+			<label class="cell__title" data-vital="level">{{localize "stonetop.character.attributes.level"}}</label>
 			<input class="attr-value" type="number"
 			       name="system.attributes.level.value"
 			       value="{{system.attributes.level.value}}"

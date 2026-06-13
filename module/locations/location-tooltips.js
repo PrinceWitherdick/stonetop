@@ -11,7 +11,15 @@
 // `flags.stonetop.summary` and cross-link into one another, so both are indexed.
 const SUMMARY_PACKS = ["stonetop_pwd.stonetop-locations", "stonetop_pwd.stonetop-lore"];
 
+// The bestiary codex is reference material a GM may withhold from players: its
+// journal pack carries the same `flags.stonetop.summary` but is GM-gated. Links
+// into it (e.g. the creatures named in the Setting Overview) only get their hover
+// summary and stay clickable for users who can view the pack (the GM, or a player
+// granted Observer+); for everyone else the link is flattened to plain text.
+const BESTIARY_JOURNAL_PACK = "stonetop_pwd.stonetop-bestiary-journal";
+
 let _indexPromise = null;
+let _bestiaryIndexPromise = null;
 
 /**
  * Build (or return the cached) Map<uuid, summary> across every summary pack.
@@ -21,15 +29,7 @@ let _indexPromise = null;
 export function ensureLocationSummaryIndex() {
 	return _indexPromise ??= (async () => {
 		const map = new Map();
-		for (const packId of SUMMARY_PACKS) {
-			const pack = game.packs?.get(packId);
-			if (!pack) continue;
-			const index = await pack.getIndex({ fields: ["flags.stonetop.summary"] });
-			for (const entry of index) {
-				const summary = entry.flags?.stonetop?.summary;
-				if (summary) map.set(entry.uuid, summary);
-			}
-		}
+		for (const packId of SUMMARY_PACKS) await _indexPackSummaries(map, packId);
 		// Also index world journals carrying the summary flag — e.g. the copies
 		// seeded into the world on first load (SeedCompendiums.js), whose
 		// cross-links are rewritten to world uuids and so wouldn't match the
@@ -46,6 +46,47 @@ export function ensureLocationSummaryIndex() {
  *  world journals carrying summaries are added (e.g. compendium seeding). */
 export function invalidateLocationSummaryIndex() {
 	_indexPromise = null;
+	_bestiaryIndexPromise = null;
+}
+
+/** True if the current user may view the bestiary codex pack — the GM always,
+ *  or a player a GM has granted Observer+ on the pack. */
+function canUseBestiaryLinks() {
+	if (globalThis.game?.user?.isGM) return true;
+	const pack = globalThis.game?.packs?.get?.(BESTIARY_JOURNAL_PACK);
+	if (!pack || typeof pack.getUserLevel !== "function") return false;
+	const observer = globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OBSERVER ?? 2;
+	return pack.getUserLevel(globalThis.game.user) >= observer;
+}
+
+/** Index every summarized entry of one compendium pack into `map`, keyed by uuid
+ *  (falling back to a constructed Compendium uuid for indexes that omit it). */
+async function _indexPackSummaries(map, packId) {
+	const pack = globalThis.game?.packs?.get?.(packId);
+	if (!pack) return;
+	const index = await pack.getIndex({ fields: ["flags.stonetop.summary"] });
+	for (const entry of index) {
+		const summary = entry.flags?.stonetop?.summary;
+		if (summary) map.set(entry.uuid ?? `Compendium.${pack.collection}.JournalEntry.${entry._id}`, summary);
+	}
+}
+
+/** Set `data-tooltip` on each link from `map` keyed by its target uuid. */
+function _applyLinkSummaries(links, map) {
+	for (const a of links) {
+		const summary = map.get(a.dataset.uuid);
+		if (summary) a.dataset.tooltip = summary;
+	}
+}
+
+/** Build (or return the cached) Map<uuid, summary> for the bestiary codex pack.
+ *  Only built for users who can view it — non-privileged players never touch it. */
+function ensureBestiarySummaryIndex() {
+	return _bestiaryIndexPromise ??= (async () => {
+		const map = new Map();
+		await _indexPackSummaries(map, BESTIARY_JOURNAL_PACK);
+		return map;
+	})();
 }
 
 /**
@@ -59,9 +100,23 @@ export async function applyLocationTooltips(root) {
 	if (!el?.querySelectorAll) return;
 	const links = el.querySelectorAll("a.content-link[data-uuid]");
 	if (!links.length) return;
-	const map = await ensureLocationSummaryIndex();
+
+	const bestiaryLinks = [], otherLinks = [];
 	for (const a of links) {
-		const summary = map.get(a.dataset.uuid);
-		if (summary) a.dataset.tooltip = summary;
+		(a.dataset.uuid.includes(".stonetop-bestiary-journal.") ? bestiaryLinks : otherLinks).push(a);
 	}
+
+	_applyLinkSummaries(otherLinks, await ensureLocationSummaryIndex());
+	if (bestiaryLinks.length) await applyBestiaryLinkGating(bestiaryLinks);
+}
+
+// Bestiary links: GM/privileged users get the creature's concept on hover and a
+// working click-through; everyone else has the link flattened to plain text so
+// there's nothing to hover and nothing to click.
+async function applyBestiaryLinkGating(links) {
+	if (!canUseBestiaryLinks()) {
+		for (const a of links) a.replaceWith(document.createTextNode(a.textContent));
+		return;
+	}
+	_applyLinkSummaries(links, await ensureBestiarySummaryIndex());
 }

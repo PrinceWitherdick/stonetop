@@ -42,8 +42,36 @@
       "flags": {}
     },
     {
-      "_id": "WcXAzDmxc3jrI0DK",
-      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.WcXAzDmxc3jrI0DK",
+      "_id": "ZNT5WIrwqPMUEh7A",
+      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.ZNT5WIrwqPMUEh7A",
+      "name": "Steading",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p><strong>Size</strong> village (~200 souls)<br><strong>Population</strong> +0<br><strong>Prosperity</strong> +0 (taxes from nearby farm valleys; farming (terraced gardens, barley); livestock (goats, sheep, milk, fine wool, meat); timber from the Foothills; parchment, vellum, and ink; trades in smithing, weaving, tanning, and scribing; trade with mammoth herders and other fortress-monasteries)<br><strong>Defenses</strong> +2 (a score of guardians, a handful of adepts, a number of tulpas, blunt weapons and nets and bolas and bronze shields and mail, and exceptional fortifications)</p><p><em>When the PCs treat Barrier Pass as a steading — mustering its forces, deploying its defenses, or rolling Trade &amp; Barter against its Prosperity — use these values.</em></p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "gCODRFZOXL3SjnrD",
+      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.gCODRFZOXL3SjnrD",
       "name": "Questions",
       "type": "text",
       "title": {
@@ -63,15 +91,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 200000,
+      "sort": 300000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "K7go8mPH7lRzUOFA",
-      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.K7go8mPH7lRzUOFA",
+      "_id": "SMSLFq2RZwHeUD53",
+      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.SMSLFq2RZwHeUD53",
       "name": "Places",
       "type": "text",
       "title": {
@@ -91,15 +119,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 300000,
+      "sort": 400000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "2WTF6HwbheEwGxSe",
-      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.2WTF6HwbheEwGxSe",
+      "_id": "xe39EN852yEA7F2g",
+      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.xe39EN852yEA7F2g",
       "name": "People",
       "type": "text",
       "title": {
@@ -119,15 +147,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 400000,
+      "sort": 500000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "Kb4WIj3eHiK0IHLO",
-      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.Kb4WIj3eHiK0IHLO",
+      "_id": "ftf7rIRTDZxBLK7F",
+      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.ftf7rIRTDZxBLK7F",
       "name": "Trade & Barter",
       "type": "text",
       "title": {
@@ -147,15 +175,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "k6QiHE0yk8xekUhv",
-      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.k6QiHE0yk8xekUhv",
+      "_id": "Fo8K84x4CGipWVeY",
+      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.Fo8K84x4CGipWVeY",
       "name": "Secrets",
       "type": "text",
       "title": {
@@ -175,15 +203,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "Eq1ZDHCC15wxqW2B",
-      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.Eq1ZDHCC15wxqW2B",
+      "_id": "FNaAxV7How9lHFqr",
+      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.FNaAxV7How9lHFqr",
       "name": "Hooks",
       "type": "text",
       "title": {
@@ -203,15 +231,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "NeZxHefBtamKPqb8",
-      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.NeZxHefBtamKPqb8",
+      "_id": "5lTaUWJnaZNXVDHn",
+      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.5lTaUWJnaZNXVDHn",
       "name": "Dangers",
       "type": "text",
       "title": {
@@ -231,7 +259,35 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "HtbO1DExDHIexwX5",
+      "_key": "!journal.pages!VZ3YkXn70E1C7TEO.HtbO1DExDHIexwX5",
+      "name": "Folk of this Area",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Folk you might meet in and around Barrier Pass. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.uGh38GPx9hdbQ0XH]{Guardian}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.AXCc64h6QQiyBGpx]{Mammoth Herder}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.iXAH0ry7QKDChAqE]{Monk}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.hYf2HyXCbJa4j9Fc]{Novice}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.5Sv77XzHPMBgZqJZ]{Shantyara}</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },

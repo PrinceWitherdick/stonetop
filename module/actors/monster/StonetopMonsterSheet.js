@@ -2,7 +2,9 @@ import { CREATURE_TYPE_CHOICES, creatureTypeIcon, creatureTypeLabel } from "../.
 import { rollDamage } from "../../utils/roll-engine.js";
 import { relockIfWeUnlocked } from "../../utils/compendium-edit.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
-import { isDefaultImg } from "../../utils/strings.js";
+import { escHtml, isDefaultImg } from "../../utils/strings.js";
+import { findMonsterTag } from "../../data/monster-tags.js";
+import { getHoverDescriptionSetting } from "../../settings.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
 const ORGANIZATION_DEFAULTS = {
@@ -85,6 +87,9 @@ function _parseDamageModes(value) {
 		});
 }
 
+// The creature's flavor/quality tags with the organization and size dropped
+// (those get their own header chips), trimmed and de-blanked. Returned as an
+// array so callers can join it for display or wrap each tag individually.
 function _displayMonsterTags(system) {
 	const hidden = new Set([
 		_normalizeTag(system?.organization),
@@ -94,8 +99,19 @@ function _displayMonsterTags(system) {
 	return String(system?.tags ?? "")
 		.split(",")
 		.map(tag => tag.trim())
-		.filter(tag => tag && !hidden.has(_normalizeTag(tag)))
-		.join(", ");
+		.filter(tag => tag && !hidden.has(_normalizeTag(tag)));
+}
+
+// Render the display tags as HTML, wrapping each recognised tag in a tooltip
+// span. Unknown (flavor) tags render as plain text. Returns the escaped plain
+// string when `withTooltips` is false.
+function _displayTagsHtml(tags, withTooltips) {
+	return tags.map(tag => {
+		const tip = withTooltips ? findMonsterTag(tag) : null;
+		return tip
+			? `<span class="stonetop-monster-tag" data-tooltip="${escHtml(tip)}" data-tooltip-direction="UP">${escHtml(tag)}</span>`
+			: escHtml(tag);
+	}).join(", ");
 }
 
 async function _enrichHTML(value) {
@@ -113,11 +129,10 @@ export function createStonetopMonsterSheetClass(Base) {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["stonetop", "sheet", "actor", "monster"],
 				width:   760,
-				// Fit the window to its content — these lean stat blocks vary a lot in
-				// length, so a fixed height left big empty gaps. A CSS cap (.window-app
-				// .monster .window-content max-height) keeps a move-heavy monster from
-				// running off the bottom of the screen.
-				height:  "auto",
+				// Numeric height so the window is drag-resizable (a "auto" height
+				// pins the window to its content and kills the resize handle).
+				height:    680,
+				resizable: true,
 			});
 		}
 
@@ -131,10 +146,80 @@ export function createStonetopMonsterSheetClass(Base) {
 			this._stripHeaderChrome();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
 			this._hideBrokenPortrait();
+			this._applyNameMinWidth();
 		}
 
 		_hideBrokenPortrait() {
 			hideBrokenPortrait(this, "stonetop-monster-header");
+		}
+
+		/**
+		 * The monster name is capped at two lines (CSS line-clamp). Rather than let it
+		 * truncate when the window is dragged narrow, pin a min-width on the window at
+		 * the exact point where the name would need a third line — so it can shrink
+		 * (wrapping from one line to two) and then stops. Recomputed per render since
+		 * the floor depends on the name's text.
+		 */
+		async _applyNameMinWidth() {
+			const root    = this.element?.[0];
+			const nameEl  = root?.querySelector(".stonetop-monster-namewrap .stonetop-name-field");
+			const namewrap = root?.querySelector(".stonetop-monster-namewrap");
+			// Only the locked read-mode <span> wraps; the edit-mode <input> is single-line.
+			if (!root || !nameEl || !namewrap || nameEl.tagName === "INPUT") return;
+
+			const text = nameEl.textContent.trim();
+			if (!text) { root.style.minWidth = ""; return; }
+
+			// Avara may still be loading on first paint; bad metrics give a wrong floor.
+			try { await document.fonts.ready; } catch (_) { /* best effort */ }
+			if (!root.isConnected) return;
+
+			const cs   = getComputedStyle(nameEl);
+			const ctx  = (this.constructor._measureCtx ??= document.createElement("canvas").getContext("2d"));
+			ctx.font   = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize}/${cs.lineHeight} ${cs.fontFamily}`;
+
+			// Smallest column width whose greedy word-wrap still fits in two lines.
+			const requiredCol = this._minColumnWidthForLines(ctx, text, 2);
+
+			// Everything except the name column (portrait, stat boxes, gaps, padding) is
+			// fixed as the window resizes, so derive it from the current layout.
+			const overhead = root.offsetWidth - namewrap.offsetWidth;
+			const namePad  = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+			// +1px guards against sub-pixel rounding tipping the last word onto line 3.
+			const needed   = Math.ceil(overhead + namePad + requiredCol + 1);
+			// Don't auto-grow the window past its default for an unusually long name —
+			// at that point the line-clamp ellipsis takes over instead.
+			const minWidth = Math.min(needed, this.options.width ?? root.offsetWidth);
+
+			root.style.minWidth = `${minWidth}px`;
+		}
+
+		/** Minimum line width (px) at which greedy word-wrap of `text` fits in `maxLines`. */
+		_minColumnWidthForLines(ctx, text, maxLines) {
+			const words   = text.split(/\s+/);
+			const spaceW  = ctx.measureText(" ").width;
+			const longest = Math.max(...words.map(w => ctx.measureText(w).width));
+			const full    = ctx.measureText(text).width;
+
+			const countLines = (width) => {
+				let lines = 1, cur = 0;
+				for (const word of words) {
+					const ww  = ctx.measureText(word).width;
+					const add = cur === 0 ? ww : spaceW + ww;
+					if (cur === 0 || cur + add <= width) cur += add;
+					else { lines++; cur = ww; }
+				}
+				return lines;
+			};
+
+			// Binary search between "widest single word" and "whole name on one line".
+			let lo = Math.ceil(longest), hi = Math.ceil(full);
+			while (lo < hi) {
+				const mid = (lo + hi) >> 1;
+				if (countLines(mid) <= maxLines) hi = mid;
+				else lo = mid + 1;
+			}
+			return lo;
 		}
 
 		_stripHeaderChrome() {
@@ -191,9 +276,16 @@ export function createStonetopMonsterSheetClass(Base) {
 			const st = context.stonetop;
 
 			st.editMode    = this._editMode;
-			st.displayTags = _displayMonsterTags(system);
+			const displayTags = _displayMonsterTags(system);
+			st.displayTags = displayTags.join(", ");
 			st.damageModes = _parseDamageModes(system?.attributes?.damage?.value);
 			st.multiDamage = st.damageModes.length > 1;
+
+			// Hover tooltips for the organization / size / quality tags on the
+			// header stat line, explaining each term (Book I "Dangers").
+			const showTagTips  = getHoverDescriptionSetting("hoverDescriptionsMonsterTags");
+			st.displayTagsHtml = _displayTagsHtml(displayTags, showTagTips);
+			st.sizeTooltip     = showTagTips ? findMonsterTag(system?.size) : null;
 
 			// Creature type + its icon, which doubles as the default portrait when
 			// the stat block has no custom art (Book I "Monster types", p.392).
@@ -213,6 +305,7 @@ export function createStonetopMonsterSheetClass(Base) {
 			const org = _normalizeTag(system?.organization);
 			st.organizationChoices = ORGANIZATION_CHOICES;
 			st.organizationLabel   = ORGANIZATION_CHOICES[org] ?? "";
+			st.organizationTooltip = showTagTips ? findMonsterTag(org) : null;
 
 			// Preserve the book's move order — don't sort.
 			context.monsterMoves = this.actor.items

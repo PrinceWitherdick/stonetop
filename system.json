@@ -67,7 +67,12 @@
                       "name":  "stonetop-bestiary-journal",
                       "label":  "Stonetop Bestiary",
                       "path":  "packs/stonetop-bestiary-journal",
-                      "type":  "JournalEntry"
+                      "type":  "JournalEntry",
+                      "ownership":  {
+                                        "PLAYER":  "NONE",
+                                        "TRUSTED":  "NONE",
+                                        "ASSISTANT":  "OWNER"
+                                    }
                   },
                   {
                       "name":  "stonetop-locations",

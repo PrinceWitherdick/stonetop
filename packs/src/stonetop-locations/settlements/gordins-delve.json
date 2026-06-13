@@ -42,8 +42,36 @@
       "flags": {}
     },
     {
-      "_id": "i9FecRmcps2cN4i5",
-      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.i9FecRmcps2cN4i5",
+      "_id": "f1xF2AQpx0D2DVdH",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.f1xF2AQpx0D2DVdH",
+      "name": "Steading",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p><strong>Size</strong> town (~700–800 souls)<br><strong>Population</strong> +2<br><strong>Prosperity</strong> +0 (mining (iron, copper, lead, tin, silver); trades in smithing and tinkering; timber, goats, and an aqueduct; trade with Marshedge and Stonetop)<br><strong>Defenses</strong> -1 (Maker-ramparts and an all-but-unassailable position — but no town council, no militia, and little sense of community)</p><p><em>When the PCs treat Gordin's Delve as a steading — mustering its forces, deploying its defenses, or rolling Trade &amp; Barter against its Prosperity — use these values.</em></p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "y7awECBOGwtRP4Yv",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.y7awECBOGwtRP4Yv",
       "name": "Questions",
       "type": "text",
       "title": {
@@ -63,15 +91,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 200000,
+      "sort": 300000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "w72XWfw68uAjXR3N",
-      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.w72XWfw68uAjXR3N",
+      "_id": "CSHromO40H2R9Odi",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.CSHromO40H2R9Odi",
       "name": "Places",
       "type": "text",
       "title": {
@@ -91,15 +119,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 300000,
+      "sort": 400000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "9zsDSelqjLVluUJf",
-      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.9zsDSelqjLVluUJf",
+      "_id": "c5704JcKEHWHQwRc",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.c5704JcKEHWHQwRc",
       "name": "People",
       "type": "text",
       "title": {
@@ -119,15 +147,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 400000,
+      "sort": 500000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "hxSNQBBCh6EaxnsG",
-      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.hxSNQBBCh6EaxnsG",
+      "_id": "KNZ2AClIA2ngN0Ng",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.KNZ2AClIA2ngN0Ng",
       "name": "Trade & Barter",
       "type": "text",
       "title": {
@@ -147,15 +175,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "HLnew3Y82XWE7oHv",
-      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.HLnew3Y82XWE7oHv",
+      "_id": "qEKH70H5kAV4Bn8B",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.qEKH70H5kAV4Bn8B",
       "name": "Moves",
       "type": "text",
       "title": {
@@ -175,15 +203,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "EFo2pije7jmcvJje",
-      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.EFo2pije7jmcvJje",
+      "_id": "cEelc0fp68ak5hKK",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.cEelc0fp68ak5hKK",
       "name": "Secrets",
       "type": "text",
       "title": {
@@ -203,15 +231,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "iEpaeDEJNvOGHQuM",
-      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.iEpaeDEJNvOGHQuM",
+      "_id": "D3hCxcNpxaPD6wBQ",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.D3hCxcNpxaPD6wBQ",
       "name": "Hooks",
       "type": "text",
       "title": {
@@ -231,15 +259,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "qaMwhsuZuWUCDPvz",
-      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.qaMwhsuZuWUCDPvz",
+      "_id": "zj3PbHpfX83EDNoK",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.zj3PbHpfX83EDNoK",
       "name": "Dangers",
       "type": "text",
       "title": {
@@ -259,15 +287,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "EgJmA0WELmH7kvUm",
-      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.EgJmA0WELmH7kvUm",
+      "_id": "OM8Hw9gIpFJknROK",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.OM8Hw9gIpFJknROK",
       "name": "The Delves",
       "type": "text",
       "title": {
@@ -287,7 +315,35 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "JXvf4wMmwIokHC9A",
+      "_key": "!journal.pages!HesP5wBhjA0l9Ffk.JXvf4wMmwIokHC9A",
+      "name": "Folk of this Area",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Folk you might meet in and around Gordin's Delve. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.49lW4BgpS3pMT2V4]{Alley Cutthroats}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.HmHoC0TwqSBbaUyN]{Dawa Eyegouger}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.t5IDMGAw6mK7tzWU]{Desperate Souls}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.KArFYOqrEF9Y8icz]{Laborers}</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },

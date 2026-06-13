@@ -376,6 +376,34 @@
         "default": -1
       },
       "flags": {}
+    },
+    {
+      "_id": "lr7jEEoGgo6nTztp",
+      "_key": "!journal.pages!NERZ6p7FNc1pxNWL.lr7jEEoGgo6nTztp",
+      "name": "Folk of this Area",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Folk you might meet in and around North Manmarch. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.iXs37AagGZ1bxsUt]{Chosen Shield}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ilmYZAlDHX6yXeTp]{Manmarcher Recruit}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.tVyIps1TouyG6khe]{Manmarcher Veteran}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.pmrOvOfxbUopilDk]{War-chariot}</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1400000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
     }
   ]
 }

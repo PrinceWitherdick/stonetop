@@ -236,6 +236,34 @@
         "default": -1
       },
       "flags": {}
+    },
+    {
+      "_id": "aHjav5budVZPWcBW",
+      "_key": "!journal.pages!DPUvs6Ss8UHXEsCJ.aHjav5budVZPWcBW",
+      "name": "Folk of this Area",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Folk you might meet in and around Lygos &amp; the South. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.mqbnYBt53E6uF73P]{Adventurer}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.T1ELDbVtepRKsf3d]{Antiquarian}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ew3px3xfQiIpxEtg]{Assassin}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.eLDyz1PDrdPnbnG9]{Caravan Guard}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ODYHrREuw5K1yWh7]{Cavalry}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.RrC8q9cFYtODqipS]{Infantry}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.DqstaADjKd7GKa1n]{Legionary}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.wVG9WYC3dpOlFEZp]{Skirmisher}</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 900000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
     }
   ]
 }

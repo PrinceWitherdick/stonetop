@@ -85,6 +85,44 @@ describe("StonetopMonsterSheet", () => {
 		expect(data.stonetop.organizationLabel).toBe("stonetop.monster.organizationHorde");
 	});
 
+	it("wraps recognised display tags with tooltips and resolves org/size tips", async () => {
+		const actor = {
+			system: { organization: "horde", size: "small", tags: "horde, small, cautious, grumpy" },
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+		const st = data.stonetop;
+
+		// Known tag gets a tooltip span; the one-off flavor tag stays plain text.
+		expect(st.displayTagsHtml).toContain('<span class="stonetop-monster-tag" data-tooltip=');
+		expect(st.displayTagsHtml).toMatch(/>cautious<\/span>/);
+		expect(st.displayTagsHtml).not.toMatch(/<span[^>]*>grumpy/);
+		expect(st.displayTagsHtml).toContain("grumpy");
+		// Organization and size resolve their own tooltips.
+		expect(st.organizationTooltip).toMatch(/large groups of 6/);
+		expect(st.sizeTooltip).toMatch(/human child/);
+	});
+
+	it("renders plain escaped tags and no tooltips when hover info is off", async () => {
+		const originalGame = globalThis.game;
+		globalThis.game = { ...originalGame, settings: { get: () => false } };
+		try {
+			const actor = {
+				system: { organization: "horde", size: "small", tags: "cautious" },
+				items: makeItems([]),
+			};
+
+			const data = await makeSheet(actor).getData();
+
+			expect(data.stonetop.displayTagsHtml).toBe("cautious");
+			expect(data.stonetop.organizationTooltip).toBeNull();
+			expect(data.stonetop.sizeTooltip).toBeNull();
+		} finally {
+			globalThis.game = originalGame;
+		}
+	});
+
 	it("keeps a single damage mode whose descriptor has commas as one mode", async () => {
 		const actor = {
 			system: {

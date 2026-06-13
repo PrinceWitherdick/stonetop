@@ -42,8 +42,36 @@
       "flags": {}
     },
     {
-      "_id": "JDnULHSkGxPNwzOK",
-      "_key": "!journal.pages!uXlyry9CpXUz4ooR.JDnULHSkGxPNwzOK",
+      "_id": "nUaKCCjiFXF57OXV",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.nUaKCCjiFXF57OXV",
+      "name": "Steading",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p><strong>Size</strong> town (~800–900 souls)<br><strong>Population</strong> +0<br><strong>Prosperity</strong> +2 (farming (wheat, hemp, wild rice, herbs); trades in textiles, pottery, glass, rope, and medicine; foraging the Fen for herbs, peat, and clay; a marketplace and a windmill; trade with Lygos, the Manmarch, Gordin's Delve, and Stonetop)<br><strong>Defenses</strong> +1 (the Guard, a wooden palisade, and braziers of bendis root)</p><p><em>When the PCs treat Marshedge as a steading — mustering its forces, deploying its defenses, or rolling Trade &amp; Barter against its Prosperity — use these values.</em></p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "cB0xDZt77q4WrLL3",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.cB0xDZt77q4WrLL3",
       "name": "Questions",
       "type": "text",
       "title": {
@@ -63,15 +91,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 200000,
+      "sort": 300000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "E4hSc6CjwLrAaFaw",
-      "_key": "!journal.pages!uXlyry9CpXUz4ooR.E4hSc6CjwLrAaFaw",
+      "_id": "J5gw3u3tH7GXaHBt",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.J5gw3u3tH7GXaHBt",
       "name": "Places",
       "type": "text",
       "title": {
@@ -91,15 +119,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 300000,
+      "sort": 400000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "9Nd9xd5vM4oN0VAR",
-      "_key": "!journal.pages!uXlyry9CpXUz4ooR.9Nd9xd5vM4oN0VAR",
+      "_id": "ptphUQIpM5eixCT5",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.ptphUQIpM5eixCT5",
       "name": "Ruins of the past",
       "type": "text",
       "title": {
@@ -119,15 +147,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 400000,
+      "sort": 500000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "uATduvIje2VYn6qI",
-      "_key": "!journal.pages!uXlyry9CpXUz4ooR.uATduvIje2VYn6qI",
+      "_id": "urXuQDp1UAGmwPHz",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.urXuQDp1UAGmwPHz",
       "name": "Names",
       "type": "text",
       "title": {
@@ -147,15 +175,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "qY1t9i9BUqux2lnF",
-      "_key": "!journal.pages!uXlyry9CpXUz4ooR.qY1t9i9BUqux2lnF",
+      "_id": "N21bFmewrtaD7BrK",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.N21bFmewrtaD7BrK",
       "name": "People",
       "type": "text",
       "title": {
@@ -175,15 +203,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "MbF6GT3zwvCHxeKS",
-      "_key": "!journal.pages!uXlyry9CpXUz4ooR.MbF6GT3zwvCHxeKS",
+      "_id": "6XVAX0dvVGBKKY7n",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.6XVAX0dvVGBKKY7n",
       "name": "Secrets",
       "type": "text",
       "title": {
@@ -203,15 +231,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "xG7eL8ooWtghroAy",
-      "_key": "!journal.pages!uXlyry9CpXUz4ooR.xG7eL8ooWtghroAy",
+      "_id": "4cEpRFC6qA3zhEqr",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.4cEpRFC6qA3zhEqr",
       "name": "Hooks",
       "type": "text",
       "title": {
@@ -231,15 +259,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "T5daDABDlWahIIHG",
-      "_key": "!journal.pages!uXlyry9CpXUz4ooR.T5daDABDlWahIIHG",
+      "_id": "Scz2j1xEAVKQBI3g",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.Scz2j1xEAVKQBI3g",
       "name": "Trade & Barter",
       "type": "text",
       "title": {
@@ -259,15 +287,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "wImflqINfLrhYMeL",
-      "_key": "!journal.pages!uXlyry9CpXUz4ooR.wImflqINfLrhYMeL",
+      "_id": "iGG1el6jFbtzR36q",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.iGG1el6jFbtzR36q",
       "name": "Moves",
       "type": "text",
       "title": {
@@ -287,7 +315,35 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "PdU3head3uCGMipD",
+      "_key": "!journal.pages!uXlyry9CpXUz4ooR.PdU3head3uCGMipD",
+      "name": "Folk of this Area",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p>Folk you might meet in and around Marshedge. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.3aGN8PEsxue31FpR]{Bandit}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.aJvnNwaxVw8BTHA6]{Bandit Chief}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.rztqfU6X75vkMarl]{Brennan}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.vmZHAuziESAq3yf8]{The Guard}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.ytyTMHny5iAK6yZB]{Thieves}</li></ul></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },

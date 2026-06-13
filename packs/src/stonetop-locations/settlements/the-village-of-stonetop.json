@@ -42,8 +42,36 @@
       "flags": {}
     },
     {
-      "_id": "5lEwgvFIGrMJuq2Q",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.5lEwgvFIGrMJuq2Q",
+      "_id": "VO4ZBEFXnSXfJPjc",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.VO4ZBEFXnSXfJPjc",
+      "name": "Steading",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": ""
+      },
+      "text": {
+        "format": 1,
+        "content": "<div class=\"stonetop-location-body\"><p><strong>Size</strong> village (~300 souls)<br><strong>Population</strong> +0<br><strong>Prosperity</strong> +0 (farming; hunting and trapping; distilling (whisky); stone from the Old Wall; the cistern; tradesfolk (cobbler, midwife, publican, smith, tanner); trade with Gordin's Delve and Marshedge)<br><strong>Defenses</strong> +0 (the village militia, the Ringwall (low, stone), three watchtowers, a spear and shield in every home, and some bows)</p><p><em>When the PCs treat The Village of Stonetop as a steading — mustering its forces, deploying its defenses, or rolling Trade &amp; Barter against its Prosperity — use these values.</em></p></div>"
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {}
+    },
+    {
+      "_id": "a2bGsHBsfgDYiTik",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.a2bGsHBsfgDYiTik",
       "name": "Places",
       "type": "text",
       "title": {
@@ -63,15 +91,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 200000,
+      "sort": 300000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "rJGHIzzf0jRv1kAZ",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.rJGHIzzf0jRv1kAZ",
+      "_id": "GqTtNgQ2v7VMSMHB",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.GqTtNgQ2v7VMSMHB",
       "name": "Questions",
       "type": "text",
       "title": {
@@ -91,15 +119,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 300000,
+      "sort": 400000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "B55sATptnQs062Kt",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.B55sATptnQs062Kt",
+      "_id": "OmI4AAWUNeqkWmpa",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.OmI4AAWUNeqkWmpa",
       "name": "Impressions",
       "type": "text",
       "title": {
@@ -119,15 +147,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 400000,
+      "sort": 500000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "wUTrRqB50JidrEov",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.wUTrRqB50JidrEov",
+      "_id": "1tB0egpsRjqeCnf2",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.1tB0egpsRjqeCnf2",
       "name": "Names",
       "type": "text",
       "title": {
@@ -147,15 +175,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "Ul9KfRfDaxBGWo7h",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.Ul9KfRfDaxBGWo7h",
+      "_id": "qVaJx6tk1zlGCa13",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.qVaJx6tk1zlGCa13",
       "name": "People",
       "type": "text",
       "title": {
@@ -175,15 +203,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "zOLQ96AEFak45Bgk",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.zOLQ96AEFak45Bgk",
+      "_id": "pLlUlt0zMZQGSFhT",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.pLlUlt0zMZQGSFhT",
       "name": "Home & hearth",
       "type": "text",
       "title": {
@@ -203,15 +231,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "xRihMuYWAcngDFTw",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.xRihMuYWAcngDFTw",
+      "_id": "woi03JN2pPYDRcmJ",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.woi03JN2pPYDRcmJ",
       "name": "Trade & commerce",
       "type": "text",
       "title": {
@@ -231,15 +259,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "ZrpIiv57Z9SyMmB6",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.ZrpIiv57Z9SyMmB6",
+      "_id": "AYN1p3CrhjpA8QUA",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.AYN1p3CrhjpA8QUA",
       "name": "Governance",
       "type": "text",
       "title": {
@@ -259,15 +287,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "1hexA4JwgaNtUlBC",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.1hexA4JwgaNtUlBC",
+      "_id": "XR0c4vQLZCrc6wzR",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.XR0c4vQLZCrc6wzR",
       "name": "Defense",
       "type": "text",
       "title": {
@@ -287,15 +315,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "fEgL4cO1gPgZEmur",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.fEgL4cO1gPgZEmur",
+      "_id": "nprxMD9rfNiyjPi6",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.nprxMD9rfNiyjPi6",
       "name": "Culture and lore",
       "type": "text",
       "title": {
@@ -315,15 +343,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "SieFYQiCzrfM1QbC",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.SieFYQiCzrfM1QbC",
+      "_id": "3x7nC5A12wSW9HOS",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.3x7nC5A12wSW9HOS",
       "name": "Hooks",
       "type": "text",
       "title": {
@@ -343,15 +371,15 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
       "flags": {}
     },
     {
-      "_id": "bil8vPMAuuncxPAn",
-      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.bil8vPMAuuncxPAn",
+      "_id": "aBvH0rY2f2nLnK5D",
+      "_key": "!journal.pages!6yScslDfqrcCQ6CJ.aBvH0rY2f2nLnK5D",
       "name": "Mysteries",
       "type": "text",
       "title": {
@@ -371,7 +399,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
