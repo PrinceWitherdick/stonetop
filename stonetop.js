@@ -6,6 +6,13 @@ import { createStonetopCharacterSheetClass } from "./module/actors/character/Sto
 import { createStonetopSteadingSheetClass } from "./module/actors/steading/StonetopSteadingSheet.js";
 import { createStonetopMonsterSheetClass } from "./module/actors/monster/StonetopMonsterSheet.js";
 import { BestiaryPageModel } from "./module/journal/BestiaryPageModel.js";
+import { CharacterModel } from "./module/data-models/CharacterModel.js";
+import { SteadingModel } from "./module/data-models/SteadingModel.js";
+import { MonsterModel } from "./module/data-models/MonsterModel.js";
+import { MoveModel } from "./module/data-models/MoveModel.js";
+import { PlaybookModel } from "./module/data-models/PlaybookModel.js";
+import { NpcMoveModel } from "./module/data-models/NpcMoveModel.js";
+import { MonsterMoveModel } from "./module/data-models/MonsterMoveModel.js";
 import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopBestiaryPageSheet.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
@@ -96,6 +103,17 @@ Hooks.once("init", () => {
 
 	CONFIG.Actor.documentClass = createStonetopActorClass(CONFIG.Actor.documentClass);
 	CONFIG.Item.documentClass  = createStonetopItemClass(CONFIG.Item.documentClass);
+
+	// System data models for each Actor/Item subtype (replaces template.json).
+	CONFIG.Actor.dataModels ??= {};
+	CONFIG.Item.dataModels  ??= {};
+	CONFIG.Actor.dataModels.character = CharacterModel;
+	CONFIG.Actor.dataModels.stonetop  = SteadingModel;
+	CONFIG.Actor.dataModels.monster   = MonsterModel;
+	CONFIG.Item.dataModels.move        = MoveModel;
+	CONFIG.Item.dataModels.playbook    = PlaybookModel;
+	CONFIG.Item.dataModels.npcMove     = NpcMoveModel;
+	CONFIG.Item.dataModels.monsterMove = MonsterMoveModel;
 
 	const StonetopCharacterSheet = createStonetopCharacterSheetClass(ActorSheet);
 	Actors.registerSheet("stonetop_pwd", StonetopCharacterSheet, {

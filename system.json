@@ -64,6 +64,17 @@
                   }
               ],
     "documentTypes":  {
+                          "Actor":  {
+                                        "character":  {},
+                                        "stonetop":  {},
+                                        "monster":  {}
+                                    },
+                          "Item":  {
+                                       "move":  {},
+                                       "playbook":  {},
+                                       "npcMove":  {},
+                                       "monsterMove":  {}
+                                   },
                           "JournalEntryPage":  {
                                                    "bestiary":  {}
                                                }
