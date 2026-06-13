@@ -1,5 +1,6 @@
 import { compilePack } from "@foundryvtt/foundryvtt-cli";
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
 import { PACKS, DOC_KEY_PREFIX } from "./packs.js";
 
@@ -162,26 +163,53 @@ async function ensureIds(srcDir, keyPrefix = "items") {
 }
 
 async function main() {
-	for (const { name: pack, type: packType } of PACKS) {
-		const src = `packs/src/${pack}`;
-		try {
-			await fs.access(src);
-		} catch {
-			console.log(`Skipping ${pack} — no source directory at ${src}`);
+	for (const { name: pack, type: packType, sources } of PACKS) {
+		// One published pack may be assembled from several source dirs (see PACKS);
+		// each is folder/id-normalised on its own, then all compile into one dest.
+		const srcDirs = (sources ?? [pack]).map(s => `packs/src/${s}`);
+		const present = [];
+		for (const src of srcDirs) {
+			try { await fs.access(src); present.push(src); }
+			catch { console.log(`Skipping source ${src} — not found`); }
+		}
+		if (!present.length) {
+			console.log(`Skipping ${pack} — no source directories`);
 			continue;
 		}
-		const virtualFolderIds = await collectVirtualFolderIds(src);
-		await ensureFolders(src, null, packType, null, virtualFolderIds);
-		await ensureIds(src, DOC_KEY_PREFIX[packType] ?? "items");
+
+		// Normalise each source dir in place (folder docs + ids), as the generators do.
+		for (const src of present) {
+			const virtualFolderIds = await collectVirtualFolderIds(src);
+			await ensureFolders(src, null, packType, null, virtualFolderIds);
+			await ensureIds(src, DOC_KEY_PREFIX[packType] ?? "items");
+		}
+
 		const dest = `packs/${pack}`;
 		await fs.rm(dest, { recursive: true, force: true });
 		await fs.mkdir(dest, { recursive: true });
+
+		// compilePack clears its dest on each call, so it can't accumulate across
+		// several sources. For a multi-source pack, stage every (already-normalised)
+		// source tree into one temp dir — folder/entry ids are globally unique, so
+		// they coexist — then compile that once. A single-source pack compiles direct.
+		let compileSrc = present[0];
+		let staging = null;
+		if (present.length > 1) {
+			staging = await fs.mkdtemp(path.join(os.tmpdir(), `${pack}-`));
+			for (const src of present) {
+				await fs.cp(src, path.join(staging, path.basename(src)), { recursive: true });
+			}
+			compileSrc = staging;
+		}
+
 		try {
-			await compilePack(src, dest, { nedb: false, log: true, recursive: true });
+			await compilePack(compileSrc, dest, { nedb: false, log: true, recursive: true });
 		} catch (err) {
 			// Node v24 + abstract-level teardown race: iterator cleanup races with DB close.
 			// All files are written before this throws, so it's safe to ignore.
 			if (err.code !== "LEVEL_ITERATOR_NOT_OPEN") throw err;
+		} finally {
+			if (staging) await fs.rm(staging, { recursive: true, force: true });
 		}
 	}
 }

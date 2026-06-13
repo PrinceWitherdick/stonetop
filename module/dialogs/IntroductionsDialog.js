@@ -1,4 +1,5 @@
 import { KeepOnTop } from "../utils/keep-on-top.js";
+import { shuffle } from "../utils/arrays.js";
 
 // ── Playbook-specific introduction data ────────────────────────────────────────
 
@@ -206,17 +207,27 @@ function _iconPath(slug) {
 		: null;
 }
 
-function _getAllPlayerActors() {
-	return (game.actors?.contents ?? []).filter(a => a.type === "character" && a.hasPlayerOwner);
+// Only player characters carry a playbook, so "has a playbook" is our test for
+// who belongs in the introductions round-robin.
+function _hasPlaybook(actor) {
+	return !!_slug(actor);
+}
+
+function _getPlaybookActors() {
+	return (game.actors?.contents ?? []).filter(a => a.type === "character" && _hasPlaybook(a));
 }
 
 function _getCombatPcs() {
-	if (!game.combat?.combatants?.size) return [];
+	const combat = game.combat;
+	if (!combat) return [];
+	// Prefer turn order (honours how the GM arranged the tracker); fall back to
+	// raw combatant order before turns are set up.
+	const order = combat.turns?.length ? combat.turns : [...combat.combatants];
 	const seen = new Set();
 	const pcs  = [];
-	for (const c of game.combat.combatants) {
+	for (const c of order) {
 		const actor = c.actor;
-		if (actor?.type === "character" && actor.hasPlayerOwner && !seen.has(actor.id)) {
+		if (actor?.type === "character" && _hasPlaybook(actor) && !seen.has(actor.id)) {
 			seen.add(actor.id);
 			pcs.push(actor);
 		}
@@ -234,6 +245,46 @@ export class IntroductionsDialog extends Application {
 		this._pcs         = [];
 		this._keepOnTop   = new KeepOnTop(this);
 		this._combatHooks = null;
+	}
+
+	// Entry point used by the macro: auto-populate the Combat Tracker with every
+	// playbook-bearing character, then show the dialog.
+	static async open() {
+		const dialog = new IntroductionsDialog();
+		try {
+			await dialog.ensureCombatRoster();
+		} catch (err) {
+			console.error("Stonetop | Introductions: failed to set up the combat tracker", err);
+		}
+		return dialog.render(true);
+	}
+
+	// Ensure an active combat exists and every player character (any actor with a
+	// playbook) is in it. Only the GM can mutate combat, so this is a no-op for
+	// players — they just see whatever the GM has already set up.
+	async ensureCombatRoster() {
+		if (!game.user?.isGM) return;
+
+		const actors = _getPlaybookActors();
+		if (!actors.length) return;
+
+		let combat = game.combat;
+		if (!combat) {
+			const CombatCls = getDocumentClass("Combat");
+			combat = await CombatCls.create({ scene: canvas?.scene?.id ?? null });
+			await combat?.activate?.();
+		}
+		if (!combat) return;
+
+		const present = new Set(combat.combatants.map(c => c.actorId));
+		const toAdd   = actors.filter(a => !present.has(a.id));
+		if (!toAdd.length) return;
+
+		await combat.createEmbeddedDocuments("Combatant", toAdd.map(a => ({
+			actorId: a.id,
+			name:    a.name,
+			img:     a.img,
+		})));
 	}
 
 	static get defaultOptions() {
@@ -256,6 +307,11 @@ export class IntroductionsDialog extends Application {
 	activateListeners(html) {
 		super.activateListeners(html);
 		this._keepOnTop.start();
+		html.find(".stonetop-intros-add").on("click", async () => {
+			await this.ensureCombatRoster();
+			this.render(false);
+		});
+		html.find(".stonetop-intros-shuffle").on("click", () => this._shuffleOrder());
 		html.find(".stonetop-intros-begin").on("click", () => this._begin());
 		html.find(".stonetop-intros-next").on("click",  () => this._advance());
 		html.find(".stonetop-intros-back").on("click",  () => this._retreat());
@@ -287,20 +343,24 @@ export class IntroductionsDialog extends Application {
 	}
 
 	getData() {
-		const allPcs    = _getAllPlayerActors();
+		const allPcs    = _getPlaybookActors();
 		const combatPcs = _getCombatPcs();
 		const combatIds = new Set(combatPcs.map(a => a.id));
 		const missing   = allPcs.filter(a => !combatIds.has(a.id));
 
 		if (this._phase === 0) {
+			const isGM = game.user?.isGM ?? false;
 			return {
-				isPreCheck: true,
-				canBegin:   combatPcs.length > 0 && missing.length === 0,
-				hasNone:    combatPcs.length === 0,
-				hasMissing: missing.length > 0,
-				missingPcs: missing.map(a => a.name),
-				pcNames:    combatPcs.map(a => a.name),
-				pcCount:    combatPcs.length,
+				isPreCheck:   true,
+				isGM,
+				canShuffle:   isGM && combatPcs.length > 1,
+				canBegin:     combatPcs.length > 0,
+				hasNone:      allPcs.length === 0,
+				noneInCombat: allPcs.length > 0 && combatPcs.length === 0,
+				hasMissing:   missing.length > 0,
+				missingPcs:   missing.map(a => a.name),
+				pcNames:      combatPcs.map(a => a.name),
+				pcCount:      combatPcs.length,
 			};
 		}
 
@@ -336,6 +396,31 @@ export class IntroductionsDialog extends Application {
 			isPrevDisabled: this._phase === 1 && this._pcIndex === 0,
 			isDone,
 		};
+	}
+
+	// Randomize the round-robin order. We express the new order as descending
+	// initiative on the PC combatants, so both the Combat Tracker and the dialog's
+	// turn order (which reads `combat.turns`) reflect the shuffle.
+	async _shuffleOrder() {
+		const combat = game.combat;
+		if (!combat || !game.user?.isGM) return;
+
+		const pcs = _getCombatPcs();
+		if (pcs.length < 2) return;
+
+		const ids = pcs.map(a => a.id);
+		let order = shuffle(ids);
+		// Re-roll a few times if the shuffle happened to land on the same order.
+		let guard = 0;
+		while (order.every((id, i) => id === ids[i]) && guard++ < 10) order = shuffle(ids);
+
+		const updates = [];
+		order.forEach((actorId, idx) => {
+			const c = combat.combatants.find(cb => cb.actorId === actorId);
+			if (c) updates.push({ _id: c.id, initiative: order.length - idx });
+		});
+		if (updates.length) await combat.updateEmbeddedDocuments("Combatant", updates);
+		this.render(false);
 	}
 
 	_begin() {

@@ -4,6 +4,7 @@ import { parseMovePickCount } from "../StonetopCharacter.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
 import { loreMarkerForText } from "../../../model/PlaybookSnapshot.js";
 import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { shuffle } from "../../../utils/arrays.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -475,17 +476,8 @@ export class CharacterOnboardingDialog extends Application {
 		}
 	}
 
-	_shuffled(arr) {
-		const out = [...arr];
-		for (let i = out.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[out[i], out[j]] = [out[j], out[i]];
-		}
-		return out;
-	}
-
 	_drawSeekerMinorArcana(minorOptions) {
-		this._selections.arcana.minorDraw = this._shuffled(minorOptions.map(option => option.slug)).slice(0, 3);
+		this._selections.arcana.minorDraw = shuffle(minorOptions.map(option => option.slug)).slice(0, 3);
 		this._selections.arcana.minorRoles = { mastered: "", found: "", lead: "" };
 	}
 

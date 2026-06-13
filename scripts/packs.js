@@ -1,10 +1,16 @@
+// Each entry compiles into one published pack at packs/<name>. `sources` lists
+// the packs/src/<dir> trees that compile into it — the journals, bestiary codex,
+// locations, and lore are authored by independent generators in their own source
+// dirs but ship as a single "Stonetop" JournalEntry compendium. Omit `sources`
+// for a 1:1 pack whose source dir matches its name.
 export const PACKS = [
 	{ name: "stonetop-items",    type: "Item" },
-	{ name: "stonetop-journals", type: "JournalEntry" },
+	{
+		name: "stonetop-journal",
+		type: "JournalEntry",
+		sources: ["stonetop-journals", "stonetop-bestiary-journal", "stonetop-locations", "stonetop-lore"],
+	},
 	{ name: "stonetop-bestiary", type: "Actor" },
-	{ name: "stonetop-bestiary-journal", type: "JournalEntry" },
-	{ name: "stonetop-locations", type: "JournalEntry" },
-	{ name: "stonetop-lore",     type: "JournalEntry" },
 ];
 
 // LevelDB key prefix for each pack's primary document type.

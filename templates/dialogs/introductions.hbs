@@ -5,36 +5,41 @@
   <div class="stonetop-intros-precheck">
 
     <p class="stonetop-intros-preamble">
-      Before beginning, add every player character to the Combat Tracker and arrange them in the turn order you want to go around the table.
+      Every player character (any actor with a playbook) has been added to the Combat Tracker automatically. Set the order you want to go around the table — randomize it below, or roll/set initiative in the Combat Tracker — then begin.
     </p>
-    <ol class="stonetop-intros-setup-steps">
-      <li>Drag each player character's actor onto an active scene.</li>
-      <li>On the canvas, select all of their tokens (drag to select, or Shift+click each one).</li>
-      <li>Right-click any selected token and choose <strong>Toggle Combat</strong> (may appear as <strong>Enter Combat</strong>).</li>
-      <li>Set the turn order in the <strong>Combat Tracker</strong>, then return here.</li>
-    </ol>
 
     {{#if hasNone}}
     <div class="stonetop-intros-notice stonetop-intros-notice--warn">
       <i class="fas fa-exclamation-triangle"></i>
-      <span>No player characters are in the Combat Tracker yet.</span>
+      <span>No characters with a playbook were found. Create your player characters first.</span>
     </div>
-    {{else if hasMissing}}
+    {{else if noneInCombat}}
     <div class="stonetop-intros-notice stonetop-intros-notice--warn">
       <i class="fas fa-exclamation-triangle"></i>
-      <div>
-        <p>The following PCs are <strong>not in the Combat Tracker</strong>:</p>
-        <ul>{{#each missingPcs}}<li>{{this}}</li>{{/each}}</ul>
-      </div>
+      <span>No player characters are in the Combat Tracker yet.{{#if isGM}} Use <strong>Add Player Characters</strong> below.{{else}} Ask your GM to open this.{{/if}}</span>
     </div>
     {{else}}
     <div class="stonetop-intros-notice stonetop-intros-notice--ok">
       <i class="fas fa-check-circle"></i>
-      <div>
+      <div class="stonetop-intros-ok-body">
         <p>All {{pcCount}} player characters are ready, in order:</p>
         <ol>{{#each pcNames}}<li>{{this}}</li>{{/each}}</ol>
       </div>
+      {{#if canShuffle}}
+      <button type="button" class="stonetop-intros-shuffle" title="Randomize the order">
+        <i class="fas fa-shuffle"></i> Randomize
+      </button>
+      {{/if}}
     </div>
+    {{#if hasMissing}}
+    <div class="stonetop-intros-notice stonetop-intros-notice--warn">
+      <i class="fas fa-exclamation-triangle"></i>
+      <div>
+        <p>Not yet in the Combat Tracker:</p>
+        <ul>{{#each missingPcs}}<li>{{this}}</li>{{/each}}</ul>
+      </div>
+    </div>
+    {{/if}}
     {{/if}}
 
     <p class="stonetop-intros-reminder">
@@ -77,7 +82,7 @@
   <div class="stonetop-intros-nav">
     {{#if isPreCheck}}
 
-    <span></span>
+    {{#if isGM}}<button class="stonetop-intros-add">Add Player Characters</button>{{else}}<span></span>{{/if}}
     <button class="stonetop-intros-begin" {{#unless canBegin}}disabled{{/unless}}>
       Begin Introductions ▶
     </button>

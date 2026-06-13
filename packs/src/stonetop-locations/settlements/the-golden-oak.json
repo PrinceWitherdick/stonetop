@@ -27,7 +27,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>On a clear day, sharp-eyed folk in @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop} can spot the Golden Oak, gleaming at the horizon and dwarfing the trees around it. According to the tales of the Forest Folk, a hero buried at the roots of the Oak can find their way back from beyond the Last Door. But no one from Stonetop has ever made it there and back.</p></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>On a clear day, sharp-eyed folk in @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop} can spot the Golden Oak, gleaming at the horizon and dwarfing the trees around it. According to the tales of the Forest Folk, a hero buried at the roots of the Oak can find their way back from beyond the Last Door. But no one from Stonetop has ever made it there and back.</p></div>"
       },
       "video": {
         "controls": true,
@@ -55,7 +55,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><ul><li class=\"question-bullet\">When was @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}’s last expedition to the Golden Oak? Who were they trying to save?</li><li class=\"question-bullet\">What other tales have you heard about the Oak? How much of them do you believe?</li><li class=\"question-bullet\">Who would have to die for you to risk a journey to the Golden Oak?</li></ul></div>"
+        "content": "<div class=\"stonetop-location-body\"><ul><li class=\"question-bullet\">When was @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}’s last expedition to the Golden Oak? Who were they trying to save?</li><li class=\"question-bullet\">What other tales have you heard about the Oak? How much of them do you believe?</li><li class=\"question-bullet\">Who would have to die for you to risk a journey to the Golden Oak?</li></ul></div>"
       },
       "video": {
         "controls": true,
@@ -251,7 +251,7 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p>When you bury a corpse at the roots of the Golden Oak, close to the trunk, roll and add…</p><ul><li>…</li><li>+1 if the corpse has not yet started to rot; …</li><li>+1 if they died bravely in their prime; and …</li><li>+1 if their name is still well-known. On a 10+, they return from beyond the Last Door when the sun next rises, whole and healthy though likely shaken; on a 7-9, they do not yet rise, but maybe if you give it another night? On a 6-, they return, but something else comes with them, something dangerous and dark, something now tied to them in a deep and primal way.</li></ul><p><strong>. steading improvement .</strong></p><p><strong>GOLDEN SAPLING</strong> Requires all of the following, in order:</p><ul><li>Retrieve an acorn from the boughs of the Golden Oak in late autumn</li></ul><ul><li>Plant the acorn in the fields near @UUID[Compendium.stonetop_pwd.stonetop-locations.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}, watering it with the lifeblood of a great virile beast, like an aurochs bull</li></ul><ul><li>Nurture and protect the sapling through 4 years of growth</li></ul><p>When you mark all the requirements, add “Golden Sapling” to the Resources list and automatically mark the Greater Harvest improvement.</p><p>Henceforth, when the steading generates Surplus, even just 1, it generates +1 Surplus.</p></div>"
+        "content": "<div class=\"stonetop-location-body\"><p>When you bury a corpse at the roots of the Golden Oak, close to the trunk, roll and add…</p><ul><li>…</li><li>+1 if the corpse has not yet started to rot; …</li><li>+1 if they died bravely in their prime; and …</li><li>+1 if their name is still well-known. On a 10+, they return from beyond the Last Door when the sun next rises, whole and healthy though likely shaken; on a 7-9, they do not yet rise, but maybe if you give it another night? On a 6-, they return, but something else comes with them, something dangerous and dark, something now tied to them in a deep and primal way.</li></ul><p><strong>. steading improvement .</strong></p><p><strong>GOLDEN SAPLING</strong> Requires all of the following, in order:</p><ul><li>Retrieve an acorn from the boughs of the Golden Oak in late autumn</li></ul><ul><li>Plant the acorn in the fields near @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}, watering it with the lifeblood of a great virile beast, like an aurochs bull</li></ul><ul><li>Nurture and protect the sapling through 4 years of growth</li></ul><p>When you mark all the requirements, add “Golden Sapling” to the Resources list and automatically mark the Greater Harvest improvement.</p><p>Henceforth, when the steading generates Surplus, even just 1, it generates +1 Surplus.</p></div>"
       },
       "video": {
         "controls": true,

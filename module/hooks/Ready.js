@@ -33,7 +33,7 @@ export async function onReady() {
 
 	game.stonetop ??= {};
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
-	game.stonetop.openIntroductions = () => new IntroductionsDialog().render(true);
+	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
 
 	if (game.user.isGM) await seedCompendiumJournalsOnce();

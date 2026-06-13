@@ -146,80 +146,10 @@ export function createStonetopMonsterSheetClass(Base) {
 			this._stripHeaderChrome();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
 			this._hideBrokenPortrait();
-			this._applyNameMinWidth();
 		}
 
 		_hideBrokenPortrait() {
 			hideBrokenPortrait(this, "stonetop-monster-header");
-		}
-
-		/**
-		 * The monster name is capped at two lines (CSS line-clamp). Rather than let it
-		 * truncate when the window is dragged narrow, pin a min-width on the window at
-		 * the exact point where the name would need a third line — so it can shrink
-		 * (wrapping from one line to two) and then stops. Recomputed per render since
-		 * the floor depends on the name's text.
-		 */
-		async _applyNameMinWidth() {
-			const root    = this.element?.[0];
-			const nameEl  = root?.querySelector(".stonetop-monster-namewrap .stonetop-name-field");
-			const namewrap = root?.querySelector(".stonetop-monster-namewrap");
-			// Only the locked read-mode <span> wraps; the edit-mode <input> is single-line.
-			if (!root || !nameEl || !namewrap || nameEl.tagName === "INPUT") return;
-
-			const text = nameEl.textContent.trim();
-			if (!text) { root.style.minWidth = ""; return; }
-
-			// Avara may still be loading on first paint; bad metrics give a wrong floor.
-			try { await document.fonts.ready; } catch (_) { /* best effort */ }
-			if (!root.isConnected) return;
-
-			const cs   = getComputedStyle(nameEl);
-			const ctx  = (this.constructor._measureCtx ??= document.createElement("canvas").getContext("2d"));
-			ctx.font   = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize}/${cs.lineHeight} ${cs.fontFamily}`;
-
-			// Smallest column width whose greedy word-wrap still fits in two lines.
-			const requiredCol = this._minColumnWidthForLines(ctx, text, 2);
-
-			// Everything except the name column (portrait, stat boxes, gaps, padding) is
-			// fixed as the window resizes, so derive it from the current layout.
-			const overhead = root.offsetWidth - namewrap.offsetWidth;
-			const namePad  = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-			// +1px guards against sub-pixel rounding tipping the last word onto line 3.
-			const needed   = Math.ceil(overhead + namePad + requiredCol + 1);
-			// Don't auto-grow the window past its default for an unusually long name —
-			// at that point the line-clamp ellipsis takes over instead.
-			const minWidth = Math.min(needed, this.options.width ?? root.offsetWidth);
-
-			root.style.minWidth = `${minWidth}px`;
-		}
-
-		/** Minimum line width (px) at which greedy word-wrap of `text` fits in `maxLines`. */
-		_minColumnWidthForLines(ctx, text, maxLines) {
-			const words   = text.split(/\s+/);
-			const spaceW  = ctx.measureText(" ").width;
-			const longest = Math.max(...words.map(w => ctx.measureText(w).width));
-			const full    = ctx.measureText(text).width;
-
-			const countLines = (width) => {
-				let lines = 1, cur = 0;
-				for (const word of words) {
-					const ww  = ctx.measureText(word).width;
-					const add = cur === 0 ? ww : spaceW + ww;
-					if (cur === 0 || cur + add <= width) cur += add;
-					else { lines++; cur = ww; }
-				}
-				return lines;
-			};
-
-			// Binary search between "widest single word" and "whole name on one line".
-			let lo = Math.ceil(longest), hi = Math.ceil(full);
-			while (lo < hi) {
-				const mid = (lo + hi) >> 1;
-				if (countLines(mid) <= maxLines) hi = mid;
-				else lo = mid + 1;
-			}
-			return lo;
 		}
 
 		_stripHeaderChrome() {

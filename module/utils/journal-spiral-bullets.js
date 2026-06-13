@@ -10,11 +10,12 @@ import { markQuestionBullets } from "./question-bullets.js";
 // generated journals (the Setting Overview, plus the reference and arcana
 // journals) that have no such wrapper.
 
-// This system's plain-prose JournalEntry packs. The bestiary pack is deliberately
-// absent: it renders through a custom page sheet with its own list styling. The
-// pattern matches both a live pack id (`stonetop_pwd.stonetop-lore`) and the
-// `Compendium.…` source uuid stamped on a world copy imported from such a pack.
-const PROSE_PACK = /stonetop_pwd\.stonetop-(journals|locations|lore)\b/;
+// This system's merged "Stonetop" JournalEntry pack. Its bestiary pages are
+// excluded separately (by `page.type === "bestiary"` in isStonetopProseJournal),
+// since they render through a custom page sheet with their own list styling. The
+// pattern matches both a live pack id (`stonetop_pwd.stonetop-journal`) and the
+// `Compendium.…` source uuid stamped on a world copy imported from the pack.
+const PROSE_PACK = /stonetop_pwd\.stonetop-journal\b/;
 
 /** The JournalEntry behind a rendered journal- or page-sheet app. */
 function resolveEntry(app) {

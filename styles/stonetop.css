@@ -10941,16 +10941,6 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 }
 
-.stonetop-intros-setup-steps {
-	margin: 0;
-	padding: 0 0 0 1.4em;
-	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
-	line-height: 1.5;
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
 .stonetop-intros-notice {
 	display: flex;
 	align-items: flex-start;
@@ -10978,6 +10968,28 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 .stonetop-intros-notice--ok > i { color: #2a8a46; }
+
+.stonetop-intros-ok-body { flex: 1; min-width: 0; }
+
+.stonetop-intros-shuffle {
+	flex: 0 0 auto;
+	align-self: flex-start;
+	width: auto;
+	white-space: nowrap;
+	padding: 3px 9px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
+	line-height: 1.3;
+	cursor: pointer;
+	border: 1px solid hsl(140 25% 55%);
+	border-radius: 3px;
+	background: rgba(255, 255, 255, 0.55);
+	color: hsl(140 40% 18%);
+	transition: background 0.15s;
+}
+
+.stonetop-intros-shuffle:hover { background: hsl(140 35% 82%); }
+.stonetop-intros-shuffle > i { margin-right: 3px; }
 
 .stonetop-intros-notice p { margin: 0 0 4px; }
 

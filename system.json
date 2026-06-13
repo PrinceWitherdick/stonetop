@@ -1,5 +1,4 @@
 {
-    "$schema":  "https://json.schemastore.org/foundryvtt-system-manifest.json",
     "id":  "stonetop_pwd",
     "title":  "Stonetop",
     "description":  "An unofficial system for playing Stonetop in Foundry VTT.",
@@ -51,9 +50,9 @@
                       "system":  "stonetop_pwd"
                   },
                   {
-                      "name":  "stonetop-journals",
-                      "label":  "Stonetop Journals",
-                      "path":  "packs/stonetop-journals",
+                      "name":  "stonetop-journal",
+                      "label":  "Stonetop",
+                      "path":  "packs/stonetop-journal",
                       "type":  "JournalEntry"
                   },
                   {
@@ -62,29 +61,6 @@
                       "path":  "packs/stonetop-bestiary",
                       "type":  "Actor",
                       "system":  "stonetop_pwd"
-                  },
-                  {
-                      "name":  "stonetop-bestiary-journal",
-                      "label":  "Stonetop Bestiary",
-                      "path":  "packs/stonetop-bestiary-journal",
-                      "type":  "JournalEntry",
-                      "ownership":  {
-                                        "PLAYER":  "NONE",
-                                        "TRUSTED":  "NONE",
-                                        "ASSISTANT":  "OWNER"
-                                    }
-                  },
-                  {
-                      "name":  "stonetop-locations",
-                      "label":  "Stonetop Locations",
-                      "path":  "packs/stonetop-locations",
-                      "type":  "JournalEntry"
-                  },
-                  {
-                      "name":  "stonetop-lore",
-                      "label":  "Stonetop Lore",
-                      "path":  "packs/stonetop-lore",
-                      "type":  "JournalEntry"
                   }
               ],
     "documentTypes":  {

@@ -2,29 +2,26 @@ import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.js";
 
-// On a fresh world, copy the system's JournalEntry compendiums (the gazetteer:
-// Locations, Lore, and the bundled Journals) into the world's Journal sidebar so
-// the GM has them ready to browse and edit without manually importing each pack.
+// On a fresh world, copy the system's "Stonetop" JournalEntry compendium (the
+// gazetteer — Locations, Lore, and the bundled Journals) into the world's Journal
+// sidebar so the GM has it ready to browse and edit without manually importing the
+// pack. The bestiary codex (~160 `bestiary`-page reference entries) shares that
+// pack but is left out of the world copy — it's best browsed in the compendium,
+// and dumping every creature into the sidebar would just clutter it.
 //
 // Runs once per world, guarded by the `seedingComplete` world setting, GM-only.
-// `importAll` recreates each pack's internal folder tree under a top-level world
-// folder named after the pack, so the imported journals keep their organisation.
+// `importJournalPack` recreates the folder tree the seeded entries use under a
+// top-level world folder named after the pack, so they keep their organisation.
 //
 // Cross-links between the imported journals are then rewritten from their
 // `@UUID[Compendium…]` form to point at the freshly-created world copies, so a GM
-// browsing the seeded journals stays inside the world. Links that target packs we
-// do NOT seed — the bestiary (Actor) and arcana (Item) compendiums — stay pointed
-// at their compendiums, which is where those documents live.
+// browsing the seeded journals stays inside the world. Links that target things we
+// do NOT seed — the bestiary codex (same pack), and the monster stat-block (Actor)
+// and arcana (Item) compendiums — stay pointed at the compendium, where they live.
 
 // Any @UUID into one of this system's compendiums. We only rewrite the ones whose
 // target we actually imported (i.e. that resolve in `linkMap`); the rest pass through.
 const SYSTEM_LINK = /@UUID\[(Compendium\.stonetop_pwd\.[^\]]+)\]/g;
-
-// JournalEntry packs we deliberately DON'T import into the world. The bestiary
-// codex is reference material (one entry per creature, ~150 of them) best browsed
-// in the compendium alongside the monster stat-block actors — which we likewise
-// never seed — so dumping it into every world would just clutter the sidebar.
-const SEED_EXCLUDE = new Set(["stonetop-bestiary-journal"]);
 
 // The fresh-start orientation journal. Its compendium source is hidden from
 // players (`ownership.default: 0`); once seeded we open up the world copy to
@@ -39,7 +36,6 @@ export async function seedCompendiumJournalsOnce() {
 	const packs = game.packs.filter(
 		p => p.documentName === "JournalEntry"
 			&& p.metadata?.packageName === "stonetop_pwd"
-			&& !SEED_EXCLUDE.has(p.metadata?.name)
 	);
 
 	// compendium entry uuid → freshly-imported world entry uuid. The generators'
@@ -51,7 +47,7 @@ export async function seedCompendiumJournalsOnce() {
 
 	for (const pack of packs) {
 		try {
-			const docs = await pack.importAll({ folderName: pack.title });
+			const docs = await importJournalPack(pack);
 			if (!Array.isArray(docs)) continue;
 			await pack.getIndex();
 			const worldUuidByName = new Map(docs.map(d => [d.name, d.uuid]));
@@ -81,6 +77,51 @@ export async function seedCompendiumJournalsOnce() {
 		info(`Seeded ${created.length} journal entries from compendiums into the world.`);
 		ui.notifications?.info(`Stonetop: imported ${created.length} journal entries into your world.`);
 	}
+}
+
+// Import a journal pack into the world EXCEPT its bestiary codex entries (each a
+// single `bestiary` page). Foundry's `importAll` is all-or-nothing, so we filter
+// here: load the docs, drop the bestiary ones, and recreate just the folder
+// subtree the remaining entries use under a top-level world folder named for the
+// pack. Folder resolution is best-effort — anything it can't place falls back to
+// the top folder rather than failing the whole seed. Returns the created entries.
+async function importJournalPack(pack) {
+	const docs = await pack.getDocuments();
+	const seed = docs.filter(d => !d.pages.some(p => p.type === "bestiary"));
+	if (!seed.length) return [];
+
+	const top = await Folder.create({ name: pack.title, type: "JournalEntry" });
+
+	const packFolders = new Map();
+	for (const f of pack.folders ?? []) packFolders.set(f.id, f);
+
+	// Recreate a compendium folder (and its ancestors) in the world, memoised.
+	const worldFolderId = new Map();
+	async function resolveFolder(cf) {
+		const id = cf?.id ?? null; // `cf` is a Folder doc (or null)
+		if (!id) return top.id;
+		if (worldFolderId.has(id)) return worldFolderId.get(id);
+		const folder = packFolders.get(id);
+		if (!folder) return top.id;
+		const parentId = await resolveFolder(folder.folder);
+		const wf = await Folder.create({
+			name: folder.name, type: "JournalEntry", folder: parentId,
+			sort: folder.sort ?? 0, color: folder.color ?? null,
+		});
+		worldFolderId.set(id, wf.id);
+		return wf.id;
+	}
+
+	// fromCompendium prepares each doc for world creation (drops the id, stamps
+	// `_stats.compendiumSource`) exactly as core's importAll does; we keep sort so
+	// the seeded entries retain their authored order, and place them by folder.
+	const data = [];
+	for (const d of seed) {
+		const obj = game.journal.fromCompendium(d, { clearSort: false });
+		obj.folder = await resolveFolder(d.folder);
+		data.push(obj);
+	}
+	return JournalEntry.createDocuments(data);
 }
 
 // Grant players read access to the seeded Setting Overview journal so the

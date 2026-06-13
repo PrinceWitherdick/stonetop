@@ -25,7 +25,7 @@
     "tags": "group, small, spirit, undead, cautious, unnerving",
     "qualities": "<p>Mute; bound to the Stream. Armor 1 (lacks organs).</p>",
     "count": 3,
-    "entry": "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry.SrcFk83C0Gxm7Jwj",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.SrcFk83C0Gxm7Jwj",
     "notes": "",
     "creatureType": "undead"
   },

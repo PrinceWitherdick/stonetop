@@ -3,7 +3,8 @@ import { promises as fs } from "fs";
 import path from "path";
 
 // The bestiary lives in two packs that reference each other: the codex is a
-// `bestiary` JournalEntryPage in stonetop-bestiary-journal, and the mechanical
+// `bestiary` JournalEntryPage authored in the stonetop-bestiary-journal source
+// dir (which ships inside the merged `stonetop-journal` pack), and the mechanical
 // stat blocks are `monster` actors in stonetop-bestiary. This test guards the
 // two-way wiring the generator produces:
 //   • every page links its stat-block actors (system.statBlocks)
@@ -15,7 +16,7 @@ const JOURNAL_DIR = path.join(SRC, "stonetop-bestiary-journal");
 const ACTOR_DIR = path.join(SRC, "stonetop-bestiary");
 
 const ACTOR_PACK = "Compendium.stonetop_pwd.stonetop-bestiary.Actor";
-const JOURNAL_PACK = "Compendium.stonetop_pwd.stonetop-bestiary-journal.JournalEntry";
+const JOURNAL_PACK = "Compendium.stonetop_pwd.stonetop-journal.JournalEntry";
 
 async function readDocs(dir) {
 	const out = [];
