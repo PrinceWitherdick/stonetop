@@ -2,12 +2,11 @@
 //
 // Maps creature names (plus a few natural variants — a stripped leading "The",
 // a comma-prefix, an optional trailing plural "s") to the UUID + one-line
-// `concept` of the actor that best represents them. Preference order, highest
-// wins: a world actor over the compendium copy (so a click opens the user's own
-// copy when they have one), and a codex Bestiary Entry over a lean stat block.
+// `concept` of the monster that best represents them. A world actor wins over
+// the compendium copy, so a click opens the user's own copy when they have one.
 //
 // Built lazily from the `stonetop-bestiary` compendium index + any world
-// monster/bestiaryEntry actors, then cached for the session. Call
+// monster actors, then cached for the session. Call
 // invalidateMonsterRefIndex() when bestiary actors are created/updated/deleted.
 
 const PACK_ID = "stonetop_pwd.stonetop-bestiary";
@@ -39,15 +38,14 @@ function _register(map, rawName, rec) {
 }
 
 function _addActorLike({ name, type, uuid, concept }, map, basePriority) {
-	const isEntry = type === "bestiaryEntry";
-	if (!isEntry && type !== "monster") return;
-	const display = isEntry ? creatureDisplayName(name) : String(name ?? "").trim();
+	if (type !== "monster") return;
+	const display = String(name ?? "").trim();
 	if (!display || !uuid) return;
 	_register(map, display, {
 		uuid,
 		name: display,
 		concept: String(concept ?? "").trim(),
-		priority: basePriority + (isEntry ? 1 : 0), // entry beats stat block
+		priority: basePriority,
 	});
 }
 

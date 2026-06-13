@@ -9,12 +9,11 @@ import {
 
 // Minimal fakes for the compendium index + world actors the builder reads.
 const COMPENDIUM = [
-	{ _id: "aaaaaaaaaaaaaaa1", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa1", type: "bestiaryEntry", name: "Crinwin (Bestiary)", system: { concept: "Gray vermin of the treetops." } },
-	{ _id: "aaaaaaaaaaaaaaa2", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa2", type: "monster",       name: "Crinwin",            system: { concept: "Small gray vermin." } },
-	{ _id: "aaaaaaaaaaaaaaa3", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa3", type: "bestiaryEntry", name: "The Bear of Winter (Bestiary)", system: { concept: "A house-sized fae bear-lord." } },
-	{ _id: "aaaaaaaaaaaaaaa4", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa4", type: "bestiaryEntry", name: "The Suileach (Bestiary)", system: { concept: "The Wurm with Two-Hundred Eyes." } },
-	{ _id: "aaaaaaaaaaaaaaa5", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa5", type: "bestiaryEntry", name: "Tcaventes, Shackle and Key (Bestiary)", system: { concept: "A mad archon." } },
-	{ _id: "aaaaaaaaaaaaaaa6", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa6", type: "bestiaryEntry", name: "Wolf (Bestiary)", system: { concept: "Pack hunters." } },
+	{ _id: "aaaaaaaaaaaaaaa1", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa1", type: "monster", name: "Crinwin",            system: { concept: "Small gray vermin." } },
+	{ _id: "aaaaaaaaaaaaaaa3", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa3", type: "monster", name: "The Bear of Winter", system: { concept: "A house-sized fae bear-lord." } },
+	{ _id: "aaaaaaaaaaaaaaa4", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa4", type: "monster", name: "The Suileach", system: { concept: "The Wurm with Two-Hundred Eyes." } },
+	{ _id: "aaaaaaaaaaaaaaa5", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa5", type: "monster", name: "Tcaventes, Shackle and Key", system: { concept: "A mad archon." } },
+	{ _id: "aaaaaaaaaaaaaaa6", uuid: "Compendium.x.Actor.aaaaaaaaaaaaaaa6", type: "monster", name: "Wolf", system: { concept: "Pack hunters." } },
 ];
 
 function setGame(actors = []) {
@@ -48,14 +47,10 @@ describe("monster reference index", () => {
 	beforeAll(async () => {
 		invalidateMonsterRefIndex();
 		setGame([
-			// A world copy of the Wolf entry — should win over the compendium copy.
-			{ uuid: "Actor.world-wolf", type: "bestiaryEntry", name: "Wolf (Bestiary)", system: { concept: "Your wolves." } },
+			// A world copy of the Wolf monster — should win over the compendium copy.
+			{ uuid: "Actor.world-wolf", type: "monster", name: "Wolf", system: { concept: "Your wolves." } },
 		]);
 		await buildMonsterRefIndex();
-	});
-
-	it("prefers the Bestiary Entry over the lean stat block for a name", () => {
-		expect(lookupMonsterRef("Crinwin").uuid).toBe("Compendium.x.Actor.aaaaaaaaaaaaaaa1");
 	});
 
 	it("prefers a world actor over the compendium copy", () => {

@@ -355,6 +355,10 @@ const EXPEDITION_MOVE_HANDLERS = {
 	Outfit:      sheet => sheet._onOutfitOpen(),
 };
 
+// Inventory slugs that hold "uses of supplies", in the order Recover depletes
+// them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
+const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
+
 /** Canonical HTML for a move chat card. Both `name` and `description` are trusted module HTML. */
 function _buildMoveChatContent(name, description) {
 	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${name}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
@@ -856,7 +860,34 @@ export function createStonetopCharacterSheetClass(Base) {
 			const { xp } = context.stonetop.vitals;
 			context.stonetop.canLevelUp = xp.value >= xp.max;
 			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
+			context.stonetop.recover = this._buildRecoverData(context.stonetop);
 			return context;
+		}
+
+		// Recover (special move): expend 1 use of supplies, regain HP equal to
+		// 4+Prosperity. The benefit is locked after use until the character takes
+		// damage again (cleared by the preUpdateActor hook in stonetop.js).
+		_buildRecoverData(snapshot) {
+			const locked      = !!this.actor.getFlag("stonetop_pwd", "recover.spent");
+			const resources   = this.actor.getFlag("stonetop_pwd", "inventory.resources") ?? {};
+			const suppliesLeft = RECOVER_SUPPLY_SLUGS.reduce((sum, slug) => sum + (Number(resources[slug]) || 0), 0);
+			const healAmount  = snapshot.inventory?.smallItemLimit ?? 4;
+			const hp          = snapshot.vitals.hp;
+			const atFullHp    = hp.value >= hp.max;
+
+			let hint = null;
+			if (locked)                 hint = { icon: "fa-lock",                text: game.i18n.localize("stonetop.specialMoves.recover.lockedHint") };
+			else if (suppliesLeft <= 0) hint = { icon: "fa-triangle-exclamation", text: game.i18n.localize("stonetop.specialMoves.recover.noSuppliesHint") };
+			else if (atFullHp)          hint = { icon: "fa-heart",               text: game.i18n.localize("stonetop.specialMoves.recover.fullHpHint") };
+
+			return {
+				locked,
+				suppliesLeft,
+				healAmount,
+				atFullHp,
+				hint,
+				canRecover: !locked && suppliesLeft > 0 && !atFullHp,
+			};
 		}
 
 		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }) {
@@ -1440,6 +1471,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-outfit-open-btn").on("click", this._onOutfitOpen.bind(this));
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
+			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 
 			// -- Followers tab: crew interactions --------------------------
 			// Crew name (editable in edit mode on Followers tab)
@@ -2396,6 +2428,66 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter,
 				() => this.render(false),
 			).render(true);
+		}
+
+		async _onRecoverOpen() {
+			const snapshot = await this._stonetopCharacter.buildSnapshot();
+			const hp = snapshot.vitals.hp;
+			if (this.actor.getFlag("stonetop_pwd", "recover.spent")) return;
+			if (hp.value >= hp.max) return;
+
+			const resources  = this.actor.getFlag("stonetop_pwd", "inventory.resources") ?? {};
+			const supplySlug = RECOVER_SUPPLY_SLUGS.find(slug => (Number(resources[slug]) || 0) > 0);
+			if (!supplySlug) return;
+
+			const healAmount = snapshot.inventory?.smallItemLimit ?? 4;
+			const newHp      = Math.min(hp.value + healAmount, hp.max);
+			const guide      = GUIDED_CHARACTER_MOVES.Recover;
+
+			new Dialog({
+				title: "Recover",
+				content: `<form class="stonetop-homestead-dialog stonetop-recover-dialog">
+					<p class="stonetop-homestead-trigger"><em>${_esc(guide.trigger)}</em></p>
+					<div class="stonetop-homestead-reference">
+						<ul>
+							<li>Expend <strong>1 use of supplies</strong>.</li>
+							<li>Regain HP: <strong>${hp.value} &rarr; ${newHp}</strong> (4+Prosperity = ${healAmount}).</li>
+						</ul>
+					</div>
+					<label class="stonetop-homestead-field">
+						<span>What you're tending <em>(optional)</em></span>
+						<textarea name="ailment" rows="2" placeholder="Wound or debility…"></textarea>
+					</label>
+					<p class="stonetop-homestead-note">${_esc(guide.note)} You can't gain this benefit again until you take more damage.</p>
+				</form>`,
+				buttons: {
+					cancel:  { label: "Cancel" },
+					recover: {
+						label: `Recover (+${newHp - hp.value} HP)`,
+						callback: html => this._applyRecover(html, { supplySlug, currentUses: Number(resources[supplySlug]) || 0, oldHp: hp.value, newHp }),
+					},
+				},
+				default: "recover",
+				render: keepDialogOnTop,
+			}, { width: 480 }).render(true);
+		}
+
+		async _applyRecover(html, { supplySlug, currentUses, oldHp, newHp }) {
+			await this._stonetopCharacter.setInventoryResource(supplySlug, Math.max(0, currentUses - 1));
+			await this.actor.update({
+				"system.attributes.hp.value": newHp,
+				"flags.stonetop_pwd.recover.spent": true,
+			});
+
+			const ailment = String(html[0]?.querySelector('[name="ailment"]')?.value ?? "").trim();
+			const rows = [
+				{ label: "Supplies", value: "Expended 1 use" },
+				{ label: "HP", value: `${oldHp} → ${newHp} (+${newHp - oldHp})` },
+			];
+			if (ailment) rows.push({ label: "Tending", value: ailment });
+			postMoveToChat(this.actor, "Recover", rows);
+
+			this.render(false);
 		}
 
 		async _onNewCharacter() {

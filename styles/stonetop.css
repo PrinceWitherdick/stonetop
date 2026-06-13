@@ -1675,6 +1675,7 @@ input.stonetop-name-field {
 .stonetop-readonly .stonetop-outfit-open-btn,
 .stonetop-readonly .stonetop-deathsdoor-open-btn,
 .stonetop-readonly .stonetop-levelup-open-btn,
+.stonetop-readonly .stonetop-recover-open-btn,
 .stonetop-readonly .stonetop-item-resource-check {
 	pointer-events: auto;
 	opacity: 1;

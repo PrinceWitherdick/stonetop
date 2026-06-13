@@ -64,6 +64,10 @@ In Foundry VTT, go to **Game Systems -> Install System** and paste this manifest
 https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json
 ```
 
+## Recommended Modules
+
+- **[Dice So Nice!](https://foundryvtt.com/packages/dice-so-nice)** — renders 3D dice rolls on the tabletop. Every move, damage, and steading roll in this system uses Foundry's dice, so Dice So Nice adds a tactile sense of immersion to the table without any extra setup.
+
 ## Development
 
 ```bash

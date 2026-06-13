@@ -33,7 +33,12 @@ function makeCharacterMock(actor) {
 		onDropMove: vi.fn(async () => false),
 		moveResources: { add: vi.fn() },
 		buildSnapshot: vi.fn(async () => ({})),
+		setInventoryResource: vi.fn(),
 	};
+}
+
+function recoverSnapshot({ hpValue = 4, hpMax = 8, smallItemLimit = 5 } = {}) {
+	return { vitals: { hp: { value: hpValue, max: hpMax } }, inventory: { smallItemLimit } };
 }
 
 function makeActor() {
@@ -101,6 +106,88 @@ describe("StonetopCharacterSheet event handlers", () => {
 		const sheet = makeSheet(actor);
 		await sheet._onOriginNameClick({ currentTarget: { value: "Arwel" } });
 		expect(actor.typedActor.updateName).toHaveBeenCalledWith("Arwel");
+	});
+});
+
+describe("StonetopCharacterSheet._buildRecoverData", () => {
+	it("can recover when supplies remain, HP is below max, and not locked", () => {
+		const actor = new FakeActorBuilder().withFlag("inventory.resources", { supplies: 3 }).build();
+		actor.typedActor = makeCharacterMock(actor);
+		const sheet = makeSheet(actor);
+		const data = sheet._buildRecoverData(recoverSnapshot({ hpValue: 4, hpMax: 8, smallItemLimit: 5 }));
+		expect(data.canRecover).toBe(true);
+		expect(data.healAmount).toBe(5);
+		expect(data.suppliesLeft).toBe(3);
+		expect(data.hint).toBeNull();
+	});
+
+	it("sums uses across all three supply tiers", () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.resources", { supplies: 1, "more-supplies": 2, "even-more-supplies": 4 })
+			.build();
+		actor.typedActor = makeCharacterMock(actor);
+		const sheet = makeSheet(actor);
+		const data = sheet._buildRecoverData(recoverSnapshot());
+		expect(data.suppliesLeft).toBe(7);
+	});
+
+	it("locks (with hint) once recover.spent is set, until damage is taken", () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.resources", { supplies: 3 })
+			.withFlag("recover.spent", true)
+			.build();
+		actor.typedActor = makeCharacterMock(actor);
+		const sheet = makeSheet(actor);
+		const data = sheet._buildRecoverData(recoverSnapshot({ hpValue: 4 }));
+		expect(data.locked).toBe(true);
+		expect(data.canRecover).toBe(false);
+		expect(data.hint.icon).toBe("fa-lock");
+	});
+
+	it("cannot recover with no supplies", () => {
+		const actor = new FakeActorBuilder().withFlag("inventory.resources", {}).build();
+		actor.typedActor = makeCharacterMock(actor);
+		const sheet = makeSheet(actor);
+		const data = sheet._buildRecoverData(recoverSnapshot({ hpValue: 4 }));
+		expect(data.canRecover).toBe(false);
+		expect(data.hint.icon).toBe("fa-triangle-exclamation");
+	});
+
+	it("cannot recover at full HP", () => {
+		const actor = new FakeActorBuilder().withFlag("inventory.resources", { supplies: 3 }).build();
+		actor.typedActor = makeCharacterMock(actor);
+		const sheet = makeSheet(actor);
+		const data = sheet._buildRecoverData(recoverSnapshot({ hpValue: 8, hpMax: 8 }));
+		expect(data.canRecover).toBe(false);
+		expect(data.hint.icon).toBe("fa-heart");
+	});
+});
+
+describe("StonetopCharacterSheet._applyRecover", () => {
+	const emptyHtml = [{ querySelector: () => ({ value: "" }) }];
+
+	it("decrements one use of the chosen supply slug", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._applyRecover(emptyHtml, { supplySlug: "supplies", currentUses: 3, oldHp: 4, newHp: 8 });
+		expect(actor.typedActor.setInventoryResource).toHaveBeenCalledWith("supplies", 2);
+	});
+
+	it("heals to the new HP and locks the move", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._applyRecover(emptyHtml, { supplySlug: "supplies", currentUses: 1, oldHp: 4, newHp: 9 });
+		expect(actor.update).toHaveBeenCalledWith({
+			"system.attributes.hp.value": 9,
+			"flags.stonetop_pwd.recover.spent": true,
+		});
+	});
+
+	it("re-renders after applying", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._applyRecover(emptyHtml, { supplySlug: "supplies", currentUses: 2, oldHp: 4, newHp: 8 });
+		expect(sheet.render).toHaveBeenCalledWith(false);
 	});
 });
 

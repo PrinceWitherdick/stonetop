@@ -5,7 +5,6 @@ import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSh
 import { createStonetopCharacterSheetClass } from "./module/actors/character/StonetopCharacterSheet.js";
 import { createStonetopSteadingSheetClass } from "./module/actors/steading/StonetopSteadingSheet.js";
 import { createStonetopMonsterSheetClass } from "./module/actors/monster/StonetopMonsterSheet.js";
-import { createStonetopBestiaryEntrySheetClass } from "./module/actors/bestiary/StonetopBestiaryEntrySheet.js";
 import { BestiaryPageModel } from "./module/journal/BestiaryPageModel.js";
 import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopBestiaryPageSheet.js";
 import { onReady } from "./module/hooks/Ready.js";
@@ -118,13 +117,6 @@ Hooks.once("init", () => {
 		label:       "Stonetop Monster Sheet",
 	});
 
-	const StonetopBestiaryEntrySheet = createStonetopBestiaryEntrySheetClass(ActorSheet);
-	Actors.registerSheet("stonetop_pwd", StonetopBestiaryEntrySheet, {
-		types:       ["bestiaryEntry"],
-		makeDefault: true,
-		label:       "Stonetop Bestiary Entry Sheet",
-	});
-
 	// PROTOTYPE: bestiary entry as a custom JournalEntryPage subtype.
 	CONFIG.JournalEntryPage.dataModels ??= {};
 	CONFIG.JournalEntryPage.dataModels["bestiary"] = BestiaryPageModel;
@@ -172,7 +164,6 @@ Hooks.once("init", () => {
 		"stonetop.steading-tab-moves":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-moves.hbs",
 		"stonetop.steading-tab-notes":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-notes.hbs",
 		"stonetop.monster-sheet":             "systems/stonetop_pwd/templates/actor/monster.hbs",
-		"stonetop.bestiary-entry-sheet":      "systems/stonetop_pwd/templates/actor/bestiary-entry.hbs",
 		"stonetop.bestiary-line-list":        "systems/stonetop_pwd/templates/actor/partials/bestiary-line-list.hbs",
 		"stonetop.bestiary-page":             "systems/stonetop_pwd/templates/journal/bestiary.hbs",
 		"stonetop.bestiary-section-head":     "systems/stonetop_pwd/templates/journal/partials/bestiary-section-head.hbs",
@@ -206,14 +197,26 @@ for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJour
 }
 
 // -- BESTIARY CROSS-LINK INDEX ---------------------------------
-// Drop the cached creature name index when a world monster/entry is added,
-// removed, or renamed/re-conceived so cross-links stay accurate.
-const _BESTIARY_TYPES = new Set(["monster", "bestiaryEntry"]);
-Hooks.on("createActor", (actor) => { if (_BESTIARY_TYPES.has(actor?.type)) invalidateMonsterRefIndex(); });
-Hooks.on("deleteActor", (actor) => { if (_BESTIARY_TYPES.has(actor?.type)) invalidateMonsterRefIndex(); });
+// Drop the cached creature name index when a world monster is added, removed,
+// or renamed/re-conceived so cross-links stay accurate.
+Hooks.on("createActor", (actor) => { if (actor?.type === "monster") invalidateMonsterRefIndex(); });
+Hooks.on("deleteActor", (actor) => { if (actor?.type === "monster") invalidateMonsterRefIndex(); });
 Hooks.on("updateActor", (actor, changes) => {
-	if (!_BESTIARY_TYPES.has(actor?.type)) return;
+	if (actor?.type !== "monster") return;
 	if ("name" in (changes ?? {}) || changes?.system?.concept !== undefined) invalidateMonsterRefIndex();
+});
+
+// -- RECOVER LOCK ----------------------------------------------
+// The Recover special move can't be used again until the character takes more
+// damage; clear its lock flag the moment HP drops.
+Hooks.on("preUpdateActor", (actor, changes) => {
+	if (actor?.type !== "character") return;
+	const newHp = foundry.utils.getProperty(changes, "system.attributes.hp.value");
+	if (newHp === undefined) return;
+	const oldHp = actor.system?.attributes?.hp?.value ?? 0;
+	if (newHp < oldHp && actor.getFlag("stonetop_pwd", "recover.spent")) {
+		foundry.utils.setProperty(changes, "flags.stonetop_pwd.recover.spent", false);
+	}
 });
 
 // -- CHAT SPEAKER ALIAS ----------------------------------------

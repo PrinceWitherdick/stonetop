@@ -1,4 +1,5 @@
 import { CREATURE_TYPE_CHOICES, creatureTypeIcon, creatureTypeLabel } from "../../bestiary/creature-types.js";
+import { rollDamage } from "../../utils/roll-engine.js";
 import { relockIfWeUnlocked } from "../../utils/compendium-edit.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
@@ -141,7 +142,7 @@ export function createStonetopMonsterSheetClass(Base) {
 		}
 
 		_injectHeaderToggle() {
-			injectHeaderToggle(this, "stat block");
+			injectHeaderToggle(this, "monster");
 		}
 
 		async close(options) {
@@ -230,12 +231,11 @@ export function createStonetopMonsterSheetClass(Base) {
 				if (dmgRoll) {
 					const formula = dmgRoll.dataset.rollFormula || this.actor.system?.attributes?.damage?.rollFormula;
 					if (!formula) return;
-					const roll = await new Roll(formula).evaluate();
-					await roll.toMessage({
-						speaker:  ChatMessage.getSpeaker({ actor: this.actor }),
-						flavor:   `<strong>${this.actor.name} — Damage</strong>`,
-						rollMode: game.settings.get("core", "rollMode"),
-					});
+					// Route through the shared roll-engine so the monster's damage posts
+					// in the same Stonetop roll-card shell as character/follower damage,
+					// not a bare Foundry roll card. The speaker alias names the monster,
+					// so the card header is just "Damage".
+					await rollDamage(formula, this.actor, { label: "Damage" });
 
 				} else if (ev.target.closest(".stonetop-monster-move-roll")) {
 					const li   = ev.target.closest("[data-item-id]");

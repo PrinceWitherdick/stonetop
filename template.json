@@ -1,6 +1,6 @@
 {
     "Actor": {
-        "types": ["character", "stonetop", "monster", "bestiaryEntry"],
+        "types": ["character", "stonetop", "monster"],
         "character": {
             "stats": {
                 "str": { "value": 0 },
@@ -72,21 +72,6 @@
             "nests": "",
             "dangers": "",
             "notes": ""
-        },
-        "bestiaryEntry": {
-            "concept": "",
-            "description": "",
-            "questions": [],
-            "lore": [],
-            "hooks": "",
-            "hooksIntro": "",
-            "origins": "",
-            "originsIntro": "",
-            "discoveries": [],
-            "nests": "",
-            "dangers": "",
-            "notes": "",
-            "statBlocks": []
         }
     },
     "Item": {

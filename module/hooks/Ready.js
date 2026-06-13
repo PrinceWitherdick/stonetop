@@ -152,6 +152,12 @@ function _buildStartupWelcomeContent() {
 						<li><span><strong>On Hover Info</strong>: turn all hover info on/off, or tune Stats, Basic Moves, Playbook Moves, Traits, and Gear Tags individually.</span></li>
 					</ul>
 				</div>
+				<div class="row stonetop-startup-card__section">
+					<h3 class="cell__subtitle">Recommended Add-on</h3>
+					<ul>
+						<li><span>Install <strong><a href="https://foundryvtt.com/packages/dice-so-nice">Dice So Nice!</a></strong> for 3D dice on the tabletop &mdash; every move, damage, and steading roll uses Foundry's dice, so it adds a little immersion to your rolls.</span></li>
+					</ul>
+				</div>
 			</div>
 			<div class="row row--border stonetop-startup-card__footer">
 				Open <strong>Configure Settings</strong> and filter for <strong>Stonetop</strong> to adjust these options.

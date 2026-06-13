@@ -8,18 +8,14 @@ import { markQuestionBullets } from "../utils/question-bullets.js";
 // and other structural elements we shouldn't touch.
 const GEAR_TAG_SELECTORS = ".stonetop-inv-note, .stonetop-item-description";
 
-// Read-mode prose containers on the monster + bestiary-entry sheets that hold
-// damage/quality/instinct/move/codex text worth cross-linking and tagging.
+// Read-mode prose containers on the monster sheet that hold
+// damage/quality/instinct/move text worth cross-linking and tagging.
 const BESTIARY_PROSE_SELECTORS = [
 	".stonetop-monster-prose",            // concept, damage value, instinct value
 	".stonetop-monster-readonly-text",    // qualities, dangers, nests, notes
 	".stonetop-monster-move-description",  // monster move bodies
 	".stonetop-monster-line",             // hooks / origins lines
 	".stonetop-discovery-body",           // discovery sub-section prose
-	".stonetop-entry-qa-lead-text",       // questions / lore headers
-	".stonetop-entry-qa-prompt-text",     // question / lore prompts
-	".stonetop-entry-qa-answer-text",     // recorded answers
-	".stonetop-entry-statblock-body",     // stat-block list blurbs
 ].join(", ");
 
 export function onRenderActorSheet(sheet, html) {
@@ -28,7 +24,7 @@ export function onRenderActorSheet(sheet, html) {
 	markQuestionBullets(root);
 
 	const type = sheet?.actor?.type;
-	if (type === "monster" || type === "bestiaryEntry") {
+	if (type === "monster") {
 		_enrichBestiarySheet(sheet, root);
 		return;
 	}

@@ -3,8 +3,7 @@
     "Actor": {
       "character": "Character",
       "stonetop": "Stonetop",
-      "monster": "Monster Stat Block",
-      "bestiaryEntry": "Bestiary Entry"
+      "monster": "Monster"
     },
     "Item": {
       "move": "Move",
@@ -97,6 +96,14 @@
         "confirm": "Confirm Outfit",
         "totalWeight": "<span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> marked",
         "undefinedLabel": "Undefined"
+      },
+      "recover": {
+        "title": "Recover",
+        "button": "Recover",
+        "summary": "When you <em><strong>take time to catch your breath and tend to what ails you</strong></em>, expend 1 use of supplies and regain HP equal to 4+Prosperity.",
+        "lockedHint": "You've already caught your breath — you can't gain this benefit again until you take more damage.",
+        "noSuppliesHint": "You have no uses of supplies to expend.",
+        "fullHpHint": "You're already at full HP."
       }
     },
     "postDeath": {

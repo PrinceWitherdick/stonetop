@@ -1,6 +1,6 @@
-// Data model for the prototype "Bestiary" JournalEntryPage subtype.
-// Mirrors the `bestiaryEntry` actor schema from template.json so the shared
-// codex renderer (module/actors/bestiary/codex.js) works unchanged on a page.
+// Data model for the "Bestiary" JournalEntryPage subtype — the codex lives here
+// now that the bestiaryEntry actor type is gone. Its field shape matches what the
+// shared codex renderer (module/actors/bestiary/codex.js) expects on a page.
 const fields = foundry.data.fields;
 
 const qaArray = () => new fields.ArrayField(new fields.SchemaField({
