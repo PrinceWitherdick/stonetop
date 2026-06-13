@@ -30,8 +30,22 @@ export function ensureLocationSummaryIndex() {
 				if (summary) map.set(entry.uuid, summary);
 			}
 		}
+		// Also index world journals carrying the summary flag — e.g. the copies
+		// seeded into the world on first load (SeedCompendiums.js), whose
+		// cross-links are rewritten to world uuids and so wouldn't match the
+		// compendium-keyed entries above.
+		for (const entry of game.journal ?? []) {
+			const summary = entry.flags?.stonetop?.summary;
+			if (summary) map.set(entry.uuid, summary);
+		}
 		return map;
 	})();
+}
+
+/** Drop the cached summary index so the next lookup rebuilds it — call after
+ *  world journals carrying summaries are added (e.g. compendium seeding). */
+export function invalidateLocationSummaryIndex() {
+	_indexPromise = null;
 }
 
 /**

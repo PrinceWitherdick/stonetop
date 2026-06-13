@@ -1,0 +1,100 @@
+import { getSetting, setSetting } from "../settings.js";
+import { info, error } from "../utils/logger.js";
+import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.js";
+
+// On a fresh world, copy the system's JournalEntry compendiums (the gazetteer:
+// Locations, Lore, and the bundled Journals) into the world's Journal sidebar so
+// the GM has them ready to browse and edit without manually importing each pack.
+//
+// Runs once per world, guarded by the `seedingComplete` world setting, GM-only.
+// `importAll` recreates each pack's internal folder tree under a top-level world
+// folder named after the pack, so the imported journals keep their organisation.
+//
+// Cross-links between the imported journals are then rewritten from their
+// `@UUID[Compendium…]` form to point at the freshly-created world copies, so a GM
+// browsing the seeded journals stays inside the world. Links that target packs we
+// do NOT seed — the bestiary (Actor) and arcana (Item) compendiums — stay pointed
+// at their compendiums, which is where those documents live.
+
+// Any @UUID into one of this system's compendiums. We only rewrite the ones whose
+// target we actually imported (i.e. that resolve in `linkMap`); the rest pass through.
+const SYSTEM_LINK = /@UUID\[(Compendium\.stonetop_pwd\.[^\]]+)\]/g;
+
+// JournalEntry packs we deliberately DON'T import into the world. The bestiary
+// codex is reference material (one entry per creature, ~150 of them) best browsed
+// in the compendium alongside the monster stat-block actors — which we likewise
+// never seed — so dumping it into every world would just clutter the sidebar.
+const SEED_EXCLUDE = new Set(["stonetop-bestiary-journal"]);
+
+export async function seedCompendiumJournalsOnce() {
+	if (!game.user?.isGM) return;
+	if (getSetting("seedingComplete")) return;
+
+	const packs = game.packs.filter(
+		p => p.documentName === "JournalEntry"
+			&& p.metadata?.packageName === "stonetop_pwd"
+			&& !SEED_EXCLUDE.has(p.metadata?.name)
+	);
+
+	// compendium entry uuid → freshly-imported world entry uuid. The generators'
+	// cross-links all target whole entries, so an entry-level map is enough and we
+	// don't depend on import preserving ids. Entry names are unique within a pack,
+	// so name is a safe join key.
+	const linkMap = new Map();
+	const created = [];
+
+	for (const pack of packs) {
+		try {
+			const docs = await pack.importAll({ folderName: pack.title });
+			if (!Array.isArray(docs)) continue;
+			await pack.getIndex();
+			const worldUuidByName = new Map(docs.map(d => [d.name, d.uuid]));
+			for (const idx of pack.index) {
+				const worldUuid = worldUuidByName.get(idx.name);
+				if (worldUuid) linkMap.set(`Compendium.${pack.collection}.JournalEntry.${idx._id}`, worldUuid);
+			}
+			created.push(...docs);
+		} catch (err) {
+			error(`Failed to seed journals from ${pack.collection}:`, err);
+		}
+	}
+
+	await remapCrossLinks(created, linkMap);
+
+	// The seeded world journals carry the same `flags.stonetop.summary` as their
+	// compendium source; drop the cached tooltip index so it rebuilds and the
+	// rewritten (world-uuid) cross-links get their hover summaries.
+	invalidateLocationSummaryIndex();
+
+	// Set the flag regardless of partial failures: a retry would re-import the
+	// packs that already succeeded and duplicate them, which is worse than a gap.
+	await setSetting("seedingComplete", true);
+
+	if (created.length) {
+		info(`Seeded ${created.length} journal entries from compendiums into the world.`);
+		ui.notifications?.info(`Stonetop: imported ${created.length} journal entries into your world.`);
+	}
+}
+
+// Rewrite @UUID links that target a seeded journal so they open the world copy.
+// Links to documents we didn't import (bestiary, arcana) aren't in `linkMap`, so
+// the replacer leaves them as compendium links.
+async function remapCrossLinks(entries, linkMap) {
+	if (!linkMap.size) return;
+	for (const entry of entries) {
+		const updates = [];
+		for (const page of entry.pages ?? []) {
+			const content = page.text?.content;
+			if (!content || !content.includes("Compendium.stonetop_pwd.")) continue;
+			const rewritten = content.replace(SYSTEM_LINK, (m, uuid) => {
+				const world = linkMap.get(uuid);
+				return world ? `@UUID[${world}]` : m;
+			});
+			if (rewritten !== content) updates.push({ _id: page.id, "text.content": rewritten });
+		}
+		if (updates.length) {
+			try { await entry.updateEmbeddedDocuments("JournalEntryPage", updates); }
+			catch (err) { error(`Failed to remap cross-links in "${entry.name}":`, err); }
+		}
+	}
+}
