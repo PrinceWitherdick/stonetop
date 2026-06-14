@@ -9,7 +9,8 @@
         "max": 14
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "thick hide and sheer toughness"
       },
       "damage": {
         "value": "gore d8+5 (close, forceful, messy, 1 piercing), kick/trample d8+3 (hand, forceful)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "large",
     "tags": "group, large, ornery, powerful",
-    "qualities": "<p>Armor 2 from thick hide and sheer toughness.</p>",
+    "qualities": "",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.tx9I3QGe5ldHuhho",
     "notes": "",

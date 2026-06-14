@@ -9,7 +9,8 @@
         "max": 13
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "lacks organs"
       },
       "damage": {
         "value": "icy touch d6 w/disadvantage (hand, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "small",
     "tags": "group, small, spirit, undead, cautious, unnerving",
-    "qualities": "<p>Mute; bound to the Stream. Armor 1 (lacks organs).</p>",
+    "qualities": "<p>Mute; bound to the Stream.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.SrcFk83C0Gxm7Jwj",
     "notes": "",

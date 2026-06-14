@@ -44,7 +44,7 @@
             "answer": ""
           },
           {
-            "prompt": "**Something useful:** The monks claim bhoka descended from Rime Lords corrupted by the Things Below. They cannot abide the sound of the Rime Lords' meditative chants, recoiling and fleeing from anyone who performs such a chant without faltering.",
+            "prompt": "**Something useful:** The monks claim bhoka descended from @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.oi5Mg2wPABRjvHri]{Rime Lords} corrupted by @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{the Things Below}. They cannot abide the sound of the Rime Lords' meditative chants, recoiling and fleeing from anyone who performs such a chant without faltering.",
             "answer": ""
           }
         ],

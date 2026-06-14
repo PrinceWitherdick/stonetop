@@ -106,6 +106,16 @@
 
 		<section class="sheet-top stonetop-monster-top">
 			<div class="stonetop-monster-stat-block">
+				<div class="stonetop-monster-stat-line">
+					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.creatureType"}}</strong>
+					{{#if stonetop.editMode}}
+					<select class="stonetop-monster-stat-input stonetop-monster-org-select" name="system.creatureType">
+						{{selectOptions stonetop.creatureTypeChoices selected=system.creatureType blank=""}}
+					</select>
+					{{else}}
+					<span>{{stonetop.creatureTypeLabel}}</span>
+					{{/if}}
+				</div>
 				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--damage">
 					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.damage"}}</strong>
 					{{#if stonetop.editMode}}
@@ -131,6 +141,7 @@
 					</ul>
 					{{/if}}
 				</div>
+				{{#if (or stonetop.editMode stonetop.hasQualities)}}
 				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--qualities">
 					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.qualities"}}</strong>
 					{{#if stonetop.editMode}}
@@ -139,6 +150,7 @@
 					<span class="stonetop-monster-prose stonetop-monster-rich-text">{{{stonetop.enrichedQualities}}}</span>
 					{{/if}}
 				</div>
+				{{/if}}
 				<div class="stonetop-monster-stat-line">
 					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.instinct"}}</strong>
 					{{#if stonetop.editMode}}
@@ -147,16 +159,6 @@
 					       placeholder="to...">
 					{{else}}
 					<span class="stonetop-monster-prose">{{system.attributes.instinct.value}}</span>
-					{{/if}}
-				</div>
-				<div class="stonetop-monster-stat-line">
-					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.creatureType"}}</strong>
-					{{#if stonetop.editMode}}
-					<select class="stonetop-monster-stat-input stonetop-monster-org-select" name="system.creatureType">
-						{{selectOptions stonetop.creatureTypeChoices selected=system.creatureType blank=""}}
-					</select>
-					{{else}}
-					<span>{{stonetop.creatureTypeLabel}}</span>
 					{{/if}}
 				</div>
 			</div>

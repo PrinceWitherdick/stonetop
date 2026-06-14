@@ -9,7 +9,8 @@
         "max": 24
       },
       "armor": {
-        "value": 3
+        "value": 3,
+        "source": "thousands of ceramic tiles"
       },
       "damage": {
         "value": "jagged fists of ceramic d10+3 (hand, close, forceful)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, construct, amorphous, stealthy",
-    "qualities": "<p>Externally powered; bug-like mind; blind; tremorsense. Unharmed by piercing weapons; half damage from cutting weapons; vulnerable to blunt-and-forceful or area attacks. Armor 3 (thousands of ceramic tiles).</p>",
+    "qualities": "<p>Externally powered; bug-like mind; blind; tremorsense. Unharmed by piercing weapons; half damage from cutting weapons; vulnerable to blunt-and-forceful or area attacks.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.qlGSzAdbwRzcPJ70",
     "notes": "",

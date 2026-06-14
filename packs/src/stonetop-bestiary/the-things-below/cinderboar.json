@@ -9,7 +9,8 @@
         "max": 14
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "gore d8+2 (hand, forceful, messy, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, gluttonous, hardy, vicious, corrupted",
-    "qualities": "<p>Fireproof; hot as banked coals; bleeds oily, choking smoke. Armor 4 (resilience), 0 vs. bronze.</p>",
+    "qualities": "<p>Fireproof; hot as banked coals; bleeds oily, choking smoke. Armor 0 vs. bronze.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.SNRXkBbhyuCCXwBa",
     "notes": "",

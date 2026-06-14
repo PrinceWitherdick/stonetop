@@ -9,7 +9,8 @@
         "max": 3
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "woody hide"
       },
       "damage": {
         "value": "talons, antlers d6+2 (hand, messy, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "",
     "tags": "horde, construct, stealthy",
-    "qualities": "<p>Clumsy fliers. Armor 2 from woody hide.</p>",
+    "qualities": "<p>Clumsy fliers.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.h9ZdkjGYXgOAOhx8",
     "notes": "",

@@ -95,7 +95,7 @@
             "kind": "prose",
             "heading": "Hooks",
             "danger": false,
-            "body": "<ul><li>A dangerous beast takes to watering near town.</li><li>The Stream runs dry, despite ample rains</li><li>Something mysterious (dangerous?) is deposited by the current.</li><li>Haunting songs are heard on misty days; hot-blooded youths are intent on finding the source (an entrancing Fae, like Blush-of-Dawn, page 112).</li></ul><p>The Quiet Twins appear more frequently, urgently trying to warn of… something.</p>",
+            "body": "<ul><li>A dangerous beast takes to watering near town.</li><li>The Stream runs dry, despite ample rains</li><li>Something mysterious (dangerous?) is deposited by the current.</li><li>Haunting songs are heard on misty days; hot-blooded youths are intent on finding the source (an entrancing <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong>, like Blush-of-Dawn, page 112).</li></ul><p>The Quiet Twins appear more frequently, urgently trying to warn of… something.</p>",
             "pairs": []
           },
           {

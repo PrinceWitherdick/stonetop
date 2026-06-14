@@ -87,7 +87,10 @@ function _tagGearParens(root) {
 					const leading = p.raw.match(/^\s*/)[0];
 					if (leading) frag.appendChild(document.createTextNode(leading));
 					const span = document.createElement("span");
-					span.className = "stonetop-gear-term";
+					// Tags italicise (see .stonetop-gear-term), but "n piercing" stays upright.
+					span.className = /piercing\b/i.test(p.trimmed)
+						? "stonetop-gear-term stonetop-gear-term--no-italic"
+						: "stonetop-gear-term";
 					span.dataset.tooltip = p.desc;
 					span.textContent = p.trimmed;
 					frag.appendChild(span);

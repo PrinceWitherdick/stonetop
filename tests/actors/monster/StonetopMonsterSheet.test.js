@@ -196,6 +196,22 @@ describe("StonetopMonsterSheet", () => {
 		}
 	});
 
+	it("flags hasQualities only when the field holds real content", async () => {
+		const withText = await makeSheet({
+			system: { qualities: "<p>Climbs like a squirrel</p>" },
+			items: makeItems([]),
+		}).getData();
+		expect(withText.stonetop.hasQualities).toBe(true);
+
+		for (const empty of ["", "<p></p>", "<p><br></p>", "<p>&nbsp;</p>"]) {
+			const data = await makeSheet({
+				system: { qualities: empty },
+				items: makeItems([]),
+			}).getData();
+			expect(data.stonetop.hasQualities, `qualities=${JSON.stringify(empty)}`).toBe(false);
+		}
+	});
+
 	it("falls back to the creature-type icon as the portrait when there is no custom art", async () => {
 		const actor = {
 			img: "icons/svg/mystery-man.svg",   // default placeholder, not real art

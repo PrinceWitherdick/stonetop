@@ -9,7 +9,8 @@
         "max": 19
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "lacks vitals"
       },
       "damage": {
         "value": "destructive touch d10 w/advantage (hand, grabby, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, spirit, primordial",
-    "qualities": "<p>Harmed only by black iron. Armor 1 (lacks vitals).</p>",
+    "qualities": "<p>Harmed only by black iron.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.WObWuLHBHqBYlZlA",
     "notes": "",

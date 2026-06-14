@@ -9,7 +9,8 @@
         "max": 23
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "lacks vitals"
       },
       "damage": {
         "value": "telekinesis d10+2 (hand, close, near, grabby, forceful)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, spirit, undead, stealthy, terrifying, cruel",
-    "qualities": "<p>Bound to its tether; one or more weaknesses. Armor 1 (lacks vitals).</p>",
+    "qualities": "<p>Bound to its tether; one or more weaknesses.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.EBKcoyX7cPlMtzG7",
     "notes": "",

@@ -9,7 +9,8 @@
         "max": 3
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "quick reflexes"
       },
       "damage": {
         "value": "sawtooth teeth d6 (hand, grabby)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "small",
     "tags": "horde, small, stealthy, organized, cautious",
-    "qualities": "<p>Armor 1 from quick reflexes.</p>",
+    "qualities": "",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Gxjvid2IYJmTU41M",
     "notes": "",

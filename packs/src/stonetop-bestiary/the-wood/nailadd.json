@@ -9,7 +9,8 @@
         "max": 6
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "carapace"
       },
       "damage": {
         "value": "venomous bite d8 (hand)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, cunning, stealthy",
-    "qualities": "<p>Webs; prodigious leaps. Armor 2 from carapace.</p>",
+    "qualities": "<p>Webs; prodigious leaps.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.TtB1H0FcNCFGRTK0",
     "notes": "",

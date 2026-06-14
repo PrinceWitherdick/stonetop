@@ -11,7 +11,7 @@
     }
   },
   "folder": "2voaTguEVQ7GxBGr",
-  "sort": 127000,
+  "sort": 144000,
   "pages": [
     {
       "_id": "FUyYoLbaxcMQ2XTA",
@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Gray, long-limbed vermin that lurk in the treetops of the Wood, mimicking voices and coveting whatever they can snatch.",
-        "description": "<p><em>Trust not thine ears, among the trees<br>Despite the most desp'rate of pleas<br>Look ye up and scan the skies<br>For snarling teeth and pale-dead eyes<br>Long of limb and gray of skin<br>Crinwin! Crinwin!</em></p><p>They've always been there, in the Wood, lurking in the trees. For generations, the Forest Folk hunted them and kept their numbers in check. No longer.</p><ul><li>Out-of-place noises: partial bird calls, off-season insect buzz, a bear's growl from the treetops, snippets of nonsense speech</li><li>Figures scurrying, leaping, swinging through the branches</li><li>Sinewy strong fingers around your throat</li><li>Clammy, blackish blood; too cold and putrid to be natural</li></ul><p><em>Tip: pick a sound or word that the PCs have made, and repeat it over and over at different volumes and tones.</em></p>",
+        "description": "<p><em>Trust not thine ears, among the trees<br>Despite the most desp'rate of pleas<br>Look ye up and scan the skies<br>For snarling teeth and pale-dead eyes<br>Long of limb and gray of skin<br>Crinwin! Crinwin!</em></p><p>They've always been there, in the Wood, lurking in the trees. For generations, the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{Forest Folk}</strong> hunted them and kept their numbers in check. No longer.</p><ul><li>Out-of-place noises: partial bird calls, off-season insect buzz, a bear's growl from the treetops, snippets of nonsense speech</li><li>Figures scurrying, leaping, swinging through the branches</li><li>Sinewy strong fingers around your throat</li><li>Clammy, blackish blood; too cold and putrid to be natural</li></ul><p><em>Tip: pick a sound or word that the PCs have made, and repeat it over and over at different volumes and tones.</em></p>",
         "questions": [
           {
             "prompt": "What odd noise, heard in the night, is attributed to the crinwin? What is it said to mean?",
@@ -73,9 +73,9 @@
             "answer": ""
           }
         ],
-        "hooks": "The crinwin have dug something up — something evil and powerful — and it's changing them.\nA hunter stumbles on a colony of nests, 5 or 6 in one place.\nCrinwin numbers near Stonetop are steadily growing. Is something leading them? Compelling them? Scaring them closer?\nCrinwin start boldly raiding homes at night, soon stealing something precious (an heirloom, an arcana, an infant).\nA trapper's child has secretly befriended a crinwin, meeting it to play and trade gifts.",
+        "hooks": "The crinwin have dug something up — something evil and powerful — and it's changing them.\nA hunter stumbles on a colony of nests, 5 or 6 in one place.\nCrinwin numbers near @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop} are steadily growing. Is something leading them? Compelling them? Scaring them closer?\nCrinwin start boldly raiding homes at night, soon stealing something precious (an heirloom, an arcana, an infant).\nA trapper's child has secretly befriended a crinwin, meeting it to play and trade gifts.",
         "hooksIntro": "",
-        "origins": "They were made by the **Fomoraij**, as warriors to fight the **Fae**.\nThey were a failed experiment of the **Green Lords**, escaped into the wild when the Fae rebelled.\nThey were once **Forest Folk**, who were cursed or corrupted by some witch or sorcerer.\nThey came through the cracked portal of **Vor Svetelik**, from some distant place (or even another world).\nThey crawled out of some lake, vile spawn of the **Things Below**.",
+        "origins": "They were made by the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lB57gclVP4TiOIRb]{Fomoraij}**, as warriors to fight the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}**.\nThey were a failed experiment of the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VosjScKksp5B3hsc]{Green Lords}**, escaped into the wild when the Fae rebelled.\nThey were once **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{Forest Folk}**, who were cursed or corrupted by some witch or sorcerer.\nThey came through the cracked portal of **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.76FKkdtTFxWEGIKQ]{Vor Svetelik}**, from some distant place (or even another world).\nThey crawled out of some lake, vile spawn of the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}**.",
         "originsIntro": "What are they, and where did they come from? That's for you and your group to decide, but possibilities include:",
         "discoveries": [
           {
@@ -125,7 +125,7 @@
             "items": [
               "Signs of crinwin biology (remains of what they eat/won't eat, or excrement, or the utter lack thereof)",
               "Cast-off possessions, giving hints to what they value and what they don't",
-              "Evidence of contact with the **Forest Folk**, over a decade old and buried deep"
+              "Evidence of contact with the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{Forest Folk}**, over a decade old and buried deep"
             ]
           }
         ],

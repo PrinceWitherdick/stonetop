@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "sheer reflexes"
       },
       "damage": {
         "value": "huge saber-like fangs d10+3 w/advantage (hand, grabby, messy, 1 piercing), claws or pounce d10+1 w/advantage (close)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, cagey, stealthy, agile, powerful",
-    "qualities": "<p>Armor 1 from sheer reflexes.</p>",
+    "qualities": "",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.3e1HimZxPWvqLyu1",
     "notes": "",

@@ -9,7 +9,8 @@
         "max": 19
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "lacks organs"
       },
       "damage": {
         "value": "pseudopod d10+1 (reach, hand, grabby, messy, 1 piercing), engulf d10+3 w/advantage (hand, messy, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, stealthy, amorphous, mindless",
-    "qualities": "<p>Immune to stabbing; takes half damage from weapons unless they're forceful; acid-proof; harmed by chalk, quicklime, and similar chemics. Armor 1 — it lacks organs.</p>",
+    "qualities": "<p>Immune to stabbing; takes half damage from weapons unless they're forceful; acid-proof; harmed by chalk, quicklime, and similar chemics.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.1oYvUFEeUNKJTbFM",
     "notes": "",

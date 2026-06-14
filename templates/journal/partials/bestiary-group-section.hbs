@@ -26,7 +26,7 @@
 		{{!-- Sub-headings are h4 (one level below the h3 section headers) so the journal
 		     TOC nests them under their section, the same way Dangers' hazards nest. --}}
 		{{#if heading}}
-		<h4 class="stonetop-move-group-title{{#if ../danger}} stonetop-danger-heading{{/if}}">{{{headingHtml}}}</h4>
+		<h4 class="stonetop-move-group-title{{#if ../danger}} stonetop-danger-heading{{/if}}"><span>{{{headingHtml}}}</span></h4>
 		{{/if}}
 		{{#if bodyHtml}}<p class="stonetop-discovery-body">{{{bodyHtml}}}</p>{{/if}}
 		{{#if items.length}}

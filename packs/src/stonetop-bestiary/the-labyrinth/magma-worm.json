@@ -9,7 +9,8 @@
         "max": 19
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "rocky plates, lacks vitals"
       },
       "damage": {
         "value": "bite d10+3 (hand, close, grabby, messy, 1 piercing) or searing touch d10 (hand, area)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, primordial, large, terrifying",
-    "qualities": "<p>Blind; tremorsense; fireproof; superheated body; can move only forward, never back up. Armor 4 (rocky plates, lacks vitals).</p>",
+    "qualities": "<p>Blind; tremorsense; fireproof; superheated body; can move only forward, never back up.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.r7ExiEQIX6sKJCXA",
     "notes": "",

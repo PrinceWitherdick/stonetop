@@ -9,7 +9,8 @@
         "max": 6
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "scaly hide"
       },
       "damage": {
         "value": "cudgel d8 (close, crude), snapping tongue d6 (reach), poison blowgun needles d6 (near)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, stealthy, cautious, organized, amphibious",
-    "qualities": "<p>Excellent night vision; salt burns their skin. Armor 1 from scaly hide.</p>",
+    "qualities": "<p>Excellent night vision; salt burns their skin.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ylzYCg2AyRVY24Hb",
     "notes": "",

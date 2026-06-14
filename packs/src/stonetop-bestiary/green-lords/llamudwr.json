@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "stinging tail d10+1 (reach), crunching bite d10+1 (hand, grabby, messy, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, construct, corrupted, cautious, stealthy",
-    "qualities": "<p>Clumsy when grounded; hates the sun. Armor 4 (resilience), 0 vs. bronze.</p>",
+    "qualities": "<p>Clumsy when grounded; hates the sun. Armor 0 vs. bronze.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.7qfPIuaRwuUPi4nV",
     "notes": "",

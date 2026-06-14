@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "One who refused the Last Door by selling themselves to a Thing Below — now undying and marked.",
-        "description": "<p>When the Last Door stands open before you, what will you do? Some step through bravely, with a nod to the Lady of Crows. Others stagger through, weeping and wailing. Others — consumed by longing, vengeance, or duty — spit on fate, turn their back on the Last Door, and cling to this world for a time. But what if you simply want to live? What if, when faced with oblivion, you called upon one of the Things Below and offered yourself up to them? And what if they said yes?</p>",
+        "description": "<p>When the Last Door stands open before you, what will you do? Some step through bravely, with a nod to the Lady of Crows. Others stagger through, weeping and wailing. Others — consumed by longing, vengeance, or duty — spit on fate, turn their back on the Last Door, and cling to this world for a time. But what if you simply want to live? What if, when faced with oblivion, you called upon one of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong> and offered yourself up to them? And what if they said yes?</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

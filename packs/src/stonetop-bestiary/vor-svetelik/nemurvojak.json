@@ -9,7 +9,8 @@
         "max": 11
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "iron-wood spears d6 w/advantage (close, messy, 1 piercing) or bare-handed rending d4 w/advantage (hand, grabby, messy, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "",
     "tags": "horde, construct, undead, corrupted, fearless",
-    "qualities": "<p>Armor 4 (resilience), 0 vs. bronze. Bound by its last orders; shuns the sun and holy light.</p>",
+    "qualities": "<p>Armor 0 vs. bronze. Bound by its last orders; shuns the sun and holy light.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ql4u2UbNBjoTxvBp",
     "notes": "",

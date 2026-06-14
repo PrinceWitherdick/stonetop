@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "blubbery hide"
       },
       "damage": {
         "value": "meaty hands d10+3 (hand, close, grabby, forceful), tree trunk d10+5 (reach, area, crude, forceful), or hurled heavy thing d10+3 (thrown, forceful)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, terrifying",
-    "qualities": "<p>Armor 1 from blubbery hide.</p>",
+    "qualities": "",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ckxdN0P9cHJfsZgQ",
     "notes": "",

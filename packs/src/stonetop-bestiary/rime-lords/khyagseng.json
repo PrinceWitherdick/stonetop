@@ -9,7 +9,8 @@
         "max": 13
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "icy 'skin,' lacks organs"
       },
       "damage": {
         "value": "icy jaws and paws d8+2 w/advantage (hand, close, grabby, forceful)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, spirit, construct, resolute, observant, fierce",
-    "qualities": "<p>Tethered to its pedestal; body made of dark ice; cold-proof. Armor 2 (icy 'skin,' lacks organs).</p>",
+    "qualities": "<p>Tethered to its pedestal; body made of dark ice; cold-proof.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ADc1Jry8qeYXhKjs",
     "notes": "",

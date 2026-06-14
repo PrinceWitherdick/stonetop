@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "wards, resilience"
       },
       "damage": {
         "value": "gnarled fists and fingers d10+2 w/disadvantage (hand, forceful, grabby)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, primordial, cautious, devious, organized, magical, all-wise",
-    "qualities": "<p>Armor 4 (wards, resilience), 0 vs. black iron. Impossible to deceive or surprise. Divide damage taken equally between the three witches (round down).</p>",
+    "qualities": "<p>Armor 0 vs. black iron. Impossible to deceive or surprise. Divide damage taken equally between the three witches (round down).</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.M8gYXMHKcRqCshbC",
     "notes": "",

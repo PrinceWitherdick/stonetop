@@ -9,7 +9,8 @@
         "max": 27
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "reflexes and the sheer swarm"
       },
       "damage": {
         "value": "whirlwind of pecks, claws, and buffets d8+3 w/disadvantage (hand, area)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "huge",
     "tags": "solitary, huge, spirit, magical, mesmerizing",
-    "qualities": "<p>Armor 2 from reflexes and the sheer swarm.</p>",
+    "qualities": "",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.YTr1h2SyKlxiRIDK",
     "notes": "",

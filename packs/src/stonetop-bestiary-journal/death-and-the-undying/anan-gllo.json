@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "The Empty Dead — corpses risen from a Thing Below's vessel, fading a little each dawn.",
-        "description": "<p>The Hillfolk speak of dark times, when the Things Below gave a gift to a petty chief. Depending on who tells the tale, it was a patch of loose soil or a deep pool of water, the hollow of a dool tree or a great cauldron of rusted iron. Regardless: a corpse placed within this vessel would rise as one of the Anan Gllo, the Empty Dead. The chief raised an undead army, and set out to make themselves king.</p>",
+        "description": "<p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{The Hillfolk}</strong> speak of dark times, when the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong> gave a gift to a petty chief. Depending on who tells the tale, it was a patch of loose soil or a deep pool of water, the hollow of a dool tree or a great cauldron of rusted iron. Regardless: a corpse placed within this vessel would rise as one of the Anan Gllo, the Empty Dead. The chief raised an undead army, and set out to make themselves king.</p>",
         "questions": [],
         "lore": [
           {

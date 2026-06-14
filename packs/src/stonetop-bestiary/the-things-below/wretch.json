@@ -9,7 +9,8 @@
         "max": 7
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "malformed appendages d6 (hand, close, grabby)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "",
     "tags": "horde, hardy, terrifying, corrupted",
-    "qualities": "<p>Horribly misshapen; bound to their prison; burnt by bronze (+1d6 damage). Armor 4 (resilience), 0 vs. bronze.</p>",
+    "qualities": "<p>Horribly misshapen; bound to their prison; burnt by bronze (+1d6 damage). Armor 0 vs. bronze.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.c8f8TEwhVoaWA1Tm",
     "notes": "",

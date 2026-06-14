@@ -9,7 +9,8 @@
         "max": 23
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "woody, lacks organs"
       },
       "damage": {
         "value": "club-like fists d10+3 (close, forceful)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, spirit, magical, stubborn, terrifying",
-    "qualities": "<p>Armor 2 (woody, lacks organs).</p>",
+    "qualities": "",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Qvh128WhhOrglLEH",
     "notes": "",

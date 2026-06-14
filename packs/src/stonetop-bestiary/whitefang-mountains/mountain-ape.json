@@ -9,7 +9,8 @@
         "max": 6
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "thick fur and hide"
       },
       "damage": {
         "value": "grasping hands d8+2 (reach, close, grabby, forceful)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, cautious, stealthy, hoarder",
-    "qualities": "<p>Arboreal; cold-proof; keen senses of smell and hearing. Armor 1 from thick fur and hide.</p>",
+    "qualities": "<p>Arboreal; cold-proof; keen senses of smell and hearing.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.cBKPMt36JtRzMeCv",
     "notes": "",

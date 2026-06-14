@@ -9,7 +9,8 @@
         "max": 10
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "lacks organs"
       },
       "damage": {
         "value": "ghostly short sword or spear d6 w/advantage (hand, close)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "",
     "tags": "horde, spirit, undead, organized, terrifying, hoarder, violent",
-    "qualities": "<p>Roams far and wide, but tethered to the cave; shuns daylight; can only touch the world through violence; upset by and afraid of dogs. Armor 1 (lacks organs).</p>",
+    "qualities": "<p>Roams far and wide, but tethered to the cave; shuns daylight; can only touch the world through violence; upset by and afraid of dogs.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.sgwKSp8PEmkIv21v",
     "notes": "",

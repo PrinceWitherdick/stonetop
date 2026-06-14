@@ -79,7 +79,7 @@
                 "answer": ""
               },
               {
-                "prompt": "What do folks in **Stonetop** say awaits us, beyond the Last Door?",
+                "prompt": "What do folks in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}** say awaits us, beyond the Last Door?",
                 "answer": ""
               },
               {
@@ -172,7 +172,7 @@
             "kind": "prose",
             "heading": "Associated Creatures",
             "danger": false,
-            "body": "<p>Creatures the bestiary catalogues for Death &amp; the Undying. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5SQHTsAkmgqupgVw]{Anan Gllo}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6uW9IHa66SmQdeEM]{Dialeddwr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.N7e7deA8brYpOz66]{Dool Spirit}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rBQSbe8jcGbTO6nA]{Gwyllgi}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ix0kIQeEN7xkTUsK]{Mantle Wraiths}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.pDanXfWCKezDrSGQ]{Pyped}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.H4OPwwD1035hAPzs]{Shade}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.EBKcoyX7cPlMtzG7]{Specter}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.sgwKSp8PEmkIv21v]{The Ghostly Legion}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.i74FkC9ROlheQBIF]{The Gwraig Wen}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.bgGP0Dpdt51lXYmK]{Tomb-Bog Spirit}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nkZC8g63JoTERrx5]{Ulliam Unlucky}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.MVICDuKvbrNllUY3]{Wraith}</li></ul>",
+            "body": "<p>Creatures the bestiary catalogues for Death &amp; the Undying. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5SQHTsAkmgqupgVw]{Anan Gllo}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6uW9IHa66SmQdeEM]{Dialeddwr}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.N7e7deA8brYpOz66]{Dool Spirit}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rBQSbe8jcGbTO6nA]{Gwyllgi}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ix0kIQeEN7xkTUsK]{Mantle Wraiths}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.pDanXfWCKezDrSGQ]{Pyped}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.H4OPwwD1035hAPzs]{Shade}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.EBKcoyX7cPlMtzG7]{Specter}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.sgwKSp8PEmkIv21v]{The Ghostly Legion}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.i74FkC9ROlheQBIF]{The Gwraig Wen}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.bgGP0Dpdt51lXYmK]{Tomb-Bog Spirit}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nkZC8g63JoTERrx5]{Ulliam Unlucky}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.MzyHBOx4ZhOMsQod]{Unliving Chimera}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.MVICDuKvbrNllUY3]{Wraith}</li></ul>",
             "pairs": []
           }
         ]

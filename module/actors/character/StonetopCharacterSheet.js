@@ -558,6 +558,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
 		}
 
+		// All tabs share one scroll container, so a scroll position from a tall tab
+		// carries over to the next. Reset to the top on every switch so the new tab
+		// always starts at the top instead of mid-content.
+		_onChangeTab(event, tabs, active) {
+			super._onChangeTab(event, tabs, active);
+			this.element?.[0]?.querySelector(".sheet-body")?.scrollTo({ top: 0 });
+		}
+
 		async close(options) {
 			this._arcanaMasonryObserver?.disconnect();
 			this._persistSheetWidth();

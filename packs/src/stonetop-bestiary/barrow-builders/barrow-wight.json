@@ -9,7 +9,8 @@
         "max": 14
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "rusty sword d8+2 (close, forceful) or crushing grip d8+2 (hand, grabby, forceful)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, undead, corrupted, terrifying, hardy, hoarder",
-    "qualities": "<p>Bound to their barrow. Armor 4 (resilience), 2 vs. bronze or fire (mail).</p>",
+    "qualities": "<p>Bound to their barrow. Armor 2 vs. bronze or fire (mail).</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.C9HHEVNFl8Cw6w0U",
     "notes": "",

@@ -9,7 +9,8 @@
         "max": 23
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "metal, amorphous"
       },
       "damage": {
         "value": "pummel d12+3 (close, reach, forceful) or barrage of metal d10+1 (near, area, messy, forceful, reload, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, spirit, undead, magical, organized, obsessive, absentminded",
-    "qualities": "<p>Tethered to his forge; can't venture far from it. Speaks Tempest Lord (understood by all). Armor 4 (metal, amorphous).</p>",
+    "qualities": "<p>Tethered to his forge; can't venture far from it. Speaks Tempest Lord (understood by all).</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.D42rXN4BtGJACqqt",
     "notes": "",

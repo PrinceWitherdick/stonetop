@@ -9,7 +9,8 @@
         "max": 20
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "bite & constriction d10+3 (hand, close, forceful, grabby)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, construct, corrupted, stealthy, magical, devious, cautious, hoarder",
-    "qualities": "<p>Armor 4 (resilience), 2 vs. bronze (scales).</p>",
+    "qualities": "<p>Armor 2 vs. bronze (scales).</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.k9Buk0QDWg2PIIqj",
     "notes": "",

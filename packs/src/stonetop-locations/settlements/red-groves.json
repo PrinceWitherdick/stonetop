@@ -40,7 +40,7 @@
             "kind": "prose",
             "heading": "Overview",
             "danger": false,
-            "body": "<p>Half a day east of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}</strong> is a copse of trees that turn blood red (leaves, bark, and all) at the autumnal equinox. By spring, the color has returned to normal. The Forest Folk warned the villagers to avoid this place. They never said why.</p><ul><li>An iron tang in the air</li><li>The scrutiny of the forest upon you, heavy like a blanket</li><li>Words of warning, faintly heard in the breeze, in the rustling leaves, in the insect hum and birdsong.</li><li>Spring/Summer: bright green shoots/ leaves bursting from black bark and mud</li><li>Autumn/Winter: overwhelming, glossy red</li></ul><p>Tip: faintly whisper things like “turn back” or “not welcome” or “go away” and then pretend you didn’t say anything</p>",
+            "body": "<p>Half a day east of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}</strong> is a copse of trees that turn blood red (leaves, bark, and all) at the autumnal equinox. By spring, the color has returned to normal. <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{The Forest Folk}</strong> warned the villagers to avoid this place. They never said why.</p><ul><li>An iron tang in the air</li><li>The scrutiny of the forest upon you, heavy like a blanket</li><li>Words of warning, faintly heard in the breeze, in the rustling leaves, in the insect hum and birdsong.</li><li>Spring/Summer: bright green shoots/ leaves bursting from black bark and mud</li><li>Autumn/Winter: overwhelming, glossy red</li></ul><p>Tip: faintly whisper things like “turn back” or “not welcome” or “go away” and then pretend you didn’t say anything</p>",
             "pairs": []
           },
           {
@@ -54,14 +54,14 @@
             "kind": "prose",
             "heading": "Why are they so special?",
             "danger": false,
-            "body": "<p>That’s for you to decide. Maybe...</p><p>… they are where spirits of the wild are born and where they come to die;<br>… they each imprison some terrible evil;<br>… they each mark the grave of a champion of Danu; or<br>… it’s different for each grove.</p>",
+            "body": "<p>That’s for you to decide. Maybe...</p><p>… they are where spirits of the wild are born and where they come to die;<br>… they each imprison some terrible evil;<br>… they each mark the grave of a champion of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.i0WjzHh0Ugynv2Tl]{Danu}</strong>; or<br>… it’s different for each grove.</p>",
             "pairs": []
           },
           {
             "kind": "prose",
             "heading": "Hooks",
             "danger": false,
-            "body": "<ul><li>A dying glasbren seeks a mortal to convey her to the Red Grove.</li><li>The Red Grove is corrupted by the Things Below. Its spirits are confused and unwell, and the Grove will soon start spawning horrors.</li><li>A villager steals a branch of redwood, and is cursed with the forest’s wrath.</li></ul>",
+            "body": "<ul><li>A dying glasbren seeks a mortal to convey her to the Red Grove.</li><li>The Red Grove is corrupted by the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong>. Its spirits are confused and unwell, and the Grove will soon start spawning horrors.</li><li>A villager steals a branch of redwood, and is cursed with the forest’s wrath.</li></ul>",
             "pairs": []
           },
           {

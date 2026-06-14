@@ -9,7 +9,8 @@
         "max": 8
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "tiny, agile forms"
       },
       "damage": {
         "value": "none",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "tiny",
     "tags": "horde, tiny, spirit, stealthy, mischievous",
-    "qualities": "<p>Armor 2 from tiny, agile forms.</p>",
+    "qualities": "",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Y6pj88e7QJGdPYJl",
     "notes": "",

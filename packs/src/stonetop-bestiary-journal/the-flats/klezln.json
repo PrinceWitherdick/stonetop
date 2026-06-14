@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A giant ambush beetle that pulls prey down through the soil.",
-        "description": "<p>Great big beetles that live out beneath the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong>, preying on large game like horses and aurochs. They undermine the soil and lie in wait. The Hillfolk know what signs to watch for, but they rarely tell outsiders — what better way to keep the Flats free of fools?</p>",
+        "description": "<p>Great big beetles that live out beneath the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong>, preying on large game like horses and aurochs. They undermine the soil and lie in wait. <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{The Hillfolk}</strong> know what signs to watch for, but they rarely tell outsiders — what better way to keep the Flats free of fools?</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

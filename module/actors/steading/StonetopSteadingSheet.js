@@ -24,6 +24,12 @@ function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
 }
 
+// Season glyph path; Autumn shares the one "fall" icon. The static moves table
+// below spells the four paths out for readability; the season dialogs derive
+// theirs from the picked id, so both share this one autumn→fall rule.
+const _seasonIconSrc = id =>
+	`systems/stonetop_pwd/assets/icons/seasons/${id === "autumn" ? "fall" : id}_icon.svg`;
+
 const _STEADING_MOVES_RAW = [
 	{
 		slug: "seasonsChange",
@@ -33,16 +39,16 @@ const _STEADING_MOVES_RAW = [
 		rollable: false,
 		interactive: true,
 		description: `<div class="stonetop-seasons-grid">
-  <img src="systems/stonetop_pwd/assets/icons/seasons/spring_icon.webp" class="stonetop-season-row-icon" alt="Spring">
+  <img src="systems/stonetop_pwd/assets/icons/seasons/spring_icon.svg" class="stonetop-season-row-icon" alt="Spring">
   <div><strong>Spring</strong> — The <em>most hopeful</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. Reset Fortunes to +1.</div>
 
-  <img src="systems/stonetop_pwd/assets/icons/seasons/summer_icon.webp" class="stonetop-season-row-icon" alt="Summer">
+  <img src="systems/stonetop_pwd/assets/icons/seasons/summer_icon.svg" class="stonetop-season-row-icon" alt="Summer">
   <div><strong>Summer</strong> — The <em>most content</em> rolls +Fortunes. <strong>10+:</strong> pick 2 seasonal gains. <strong>7–9:</strong> pick 1. <strong>6−:</strong> a threat makes itself known; don't mark XP. The steading generates 1d4−1 Surplus. Reset Fortunes to +1.</div>
 
-  <img src="systems/stonetop_pwd/assets/icons/seasons/fall_icon.webp" class="stonetop-season-row-icon" alt="Autumn">
+  <img src="systems/stonetop_pwd/assets/icons/seasons/fall_icon.svg" class="stonetop-season-row-icon" alt="Autumn">
   <div><strong>Autumn</strong> — The <em>most determined</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. The steading generates 1d4 Surplus at harvest. Reset Fortunes to +1.</div>
 
-  <img src="systems/stonetop_pwd/assets/icons/seasons/winter_icon.webp" class="stonetop-season-row-icon" alt="Winter">
+  <img src="systems/stonetop_pwd/assets/icons/seasons/winter_icon.svg" class="stonetop-season-row-icon" alt="Winter">
   <div><strong>Winter</strong> — The <em>weariest</em> rolls 1d4+Population (min 0); the steading consumes that much Surplus. If there isn't enough: Surplus → 0, Fortunes −1, pick 1 consequence. Then roll +Fortunes. Reset Fortunes to +1.</div>
 </div>
 <p class="stonetop-seasons-cta">Click <i class="fas fa-dice-d6"></i> to walk through the current season step by step.</p>`,
@@ -1217,8 +1223,6 @@ export function createStonetopSteadingSheetClass(Base) {
 				{ id: "autumn", label: "Autumn" },
 				{ id: "winter", label: "Winter" },
 			];
-			const iconSrc = id => `systems/stonetop_pwd/assets/icons/seasons/${id === "autumn" ? "fall" : id}_icon.webp`;
-
 			let dialog;
 			dialog = new Dialog({
 				title: "Seasons Change",
@@ -1227,7 +1231,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					<div class="stonetop-season-cards">
 						${SEASONS.map(s => `
 							<div class="stonetop-season-card" data-season="${s.id}">
-								<img src="${iconSrc(s.id)}" alt="${s.label}" class="stonetop-season-icon">
+								<img src="${_seasonIconSrc(s.id)}" alt="${s.label}" class="stonetop-season-icon">
 								<span class="stonetop-season-label">${s.label}</span>
 							</div>`).join("")}
 					</div>
@@ -1253,7 +1257,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			const resetFortunes = malcontent ? 0 : 1;
 
 			const label   = { spring: "Spring", summer: "Summer", autumn: "Autumn", winter: "Winter" }[seasonId];
-			const iconSrc = `systems/stonetop_pwd/assets/icons/seasons/${seasonId === "autumn" ? "fall" : seasonId}_icon.webp`;
+			const iconSrc = _seasonIconSrc(seasonId);
 
 			const header = `<div class="stonetop-season-flow-header">
 				<img src="${iconSrc}" alt="${label}" class="stonetop-season-icon-sm">

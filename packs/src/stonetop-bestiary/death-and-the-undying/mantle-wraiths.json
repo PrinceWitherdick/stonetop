@@ -9,7 +9,8 @@
         "max": 13
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "amorphous"
       },
       "damage": {
         "value": "life drain d8 (hand, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group (3), spirit, undead, terrifying, vicious",
-    "qualities": "<p>Powerless in daylight. Armor 1 (amorphous).</p>",
+    "qualities": "<p>Powerless in daylight.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ix0kIQeEN7xkTUsK",
     "notes": "",

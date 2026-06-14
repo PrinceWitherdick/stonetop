@@ -194,7 +194,7 @@
             "kind": "prose",
             "heading": "Associated Creatures",
             "danger": false,
-            "body": "<p>Creatures the bestiary catalogues for The Things Below. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.SNRXkBbhyuCCXwBa]{Cinderboar}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m46X5auaZwdxphBl]{Hand of Daagon}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lEnzsCftDmDarvlN]{Morgais}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.DobvWxcXu5RXmXbT]{Thrall}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Mt6MCzNsS6khASpi]{Voice of the Eternal Maw}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.c8f8TEwhVoaWA1Tm]{Wretch}</li></ul>",
+            "body": "<p>Creatures the bestiary catalogues for The Things Below. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.SNRXkBbhyuCCXwBa]{Cinderboar}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.g8AKcpFJTeVx51xV]{Corrupted Glasbren}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m46X5auaZwdxphBl]{Hand of Daagon}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lEnzsCftDmDarvlN]{Morgais}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.DobvWxcXu5RXmXbT]{Thrall}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Mt6MCzNsS6khASpi]{Voice of the Eternal Maw}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.c8f8TEwhVoaWA1Tm]{Wretch}</li></ul>",
             "pairs": []
           }
         ]

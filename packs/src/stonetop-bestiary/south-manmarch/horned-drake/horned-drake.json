@@ -9,7 +9,8 @@
         "max": 24
       },
       "armor": {
-        "value": 3
+        "value": 3,
+        "source": "stony, quartz-like hide"
       },
       "damage": {
         "value": "trampling charge d10+5 (hand, area, forceful) or horn gore d10+5 (close, forceful, messy, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "huge",
     "tags": "solitary, huge, hardy",
-    "qualities": "<p>Armor 3 from stony, quartz-like hide.</p>",
+    "qualities": "",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VJDP2ETcmA8GeHdT",
     "notes": "",

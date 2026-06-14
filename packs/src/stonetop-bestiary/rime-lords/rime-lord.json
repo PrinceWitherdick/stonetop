@@ -9,7 +9,8 @@
         "max": 26
       },
       "armor": {
-        "value": 5
+        "value": 5,
+        "source": "potent wards, skill"
       },
       "damage": {
         "value": "conjured ice d12+3 (any range, area, grabby, forceful) or heat-drain d12+1 (reach, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, cautious, cunning, magical, organized, terrifying",
-    "qualities": "<p>Spirit sight; telepathic; cold-proof; ageless; no need to eat, drink, sleep, or breathe; an aura of bitter cold. Armor 5 (potent wards, skill).</p>",
+    "qualities": "<p>Spirit sight; telepathic; cold-proof; ageless; no need to eat, drink, sleep, or breathe; an aura of bitter cold.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lMOwbXpvkp9KL5SG",
     "notes": "",

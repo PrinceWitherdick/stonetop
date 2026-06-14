@@ -59,7 +59,10 @@ describe("bestiary journal ↔ actor cross-links", () => {
 		for (const { file, doc } of entries) {
 			const entryUuid = `${JOURNAL_PACK}.${doc._id}`;
 			const sbs = doc.pages?.[0]?.system?.statBlocks ?? [];
-			if (!sbs.length) { bad.push(`${file}: no statBlocks`); continue; }
+			// A lore-only entry (the book gives no stat block, e.g. the Manmarcher
+			// Chief) intentionally links no actors; the actor→entry test below still
+			// guards against orphaned stat blocks.
+			if (!sbs.length) continue;
 			for (const uuid of sbs) {
 				const id = uuid.startsWith(`${ACTOR_PACK}.`) ? uuid.slice(ACTOR_PACK.length + 1) : null;
 				const actor = id && actorById.get(id);

@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "maw full of iron teeth d10+3 w/advantage (hand, messy, grabby, 1 piercing), iron tail-quills d10+1 (near, area, reload)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, construct, corrupted, devious, terrifying, stealthy",
-    "qualities": "<p>Keen sense of smell. Armor 4 (resilience), 1 vs. bronze (hide).</p>",
+    "qualities": "<p>Keen sense of smell. Armor 1 vs. bronze (hide).</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.CGPfnYi6Y86dEdE0",
     "notes": "",

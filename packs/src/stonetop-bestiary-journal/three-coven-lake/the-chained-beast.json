@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "A blood-roused horror chained beneath the lake, a gift of the Things Below.",
-        "description": "<p>It was a gift from the Things Below, a present to some Barrow Builder tyrant. They bound it fast and kept it in the waters nearby, feeding it a steady diet of screaming, bleeding victims. It's still out there, sleeping for years or decades at a time, roused by copious amounts of fresh blood in the lake — or by a few drops somewhere nearby.</p>",
+        "concept": "A blood-roused horror chained beneath the lake, a gift of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong>.",
+        "description": "<p>It was a gift from the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong>, a present to some Barrow Builder tyrant. They bound it fast and kept it in the waters nearby, feeding it a steady diet of screaming, bleeding victims. It's still out there, sleeping for years or decades at a time, roused by copious amounts of fresh blood in the lake — or by a few drops somewhere nearby.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

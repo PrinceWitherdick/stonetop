@@ -9,7 +9,8 @@
         "max": 19
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "scream d10 (near, area, reload, ignores armor) or unnaturally large, toothy maw d10+2 (hand, messy, 3 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, spirit, emanation, devious, terrifying, hungry",
-    "qualities": "<p>Tethered to the vortex; unable to leave the mountain. Armor 4 (resilience), 0 vs. bronze.</p>",
+    "qualities": "<p>Tethered to the vortex; unable to leave the mountain. Armor 0 vs. bronze.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Mt6MCzNsS6khASpi",
     "notes": "",

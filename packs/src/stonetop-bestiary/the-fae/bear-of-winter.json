@@ -9,7 +9,8 @@
         "max": 26
       },
       "armor": {
-        "value": 5
+        "value": 5,
+        "source": "resilience, ice"
       },
       "damage": {
         "value": "bite or maul d12+5 (close, hand, reach, forceful, grabby, messy, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "huge",
     "tags": "solitary, huge, fae, magical, hoarder, devious, fierce, terrifying",
-    "qualities": "<p>Fae nature; immune to cold; an aura of wintry weather that matches his mood. Armor 5 (resilience, ice), 2 vs. iron (hide, ice).</p>",
+    "qualities": "<p>Fae nature; immune to cold; an aura of wintry weather that matches his mood. Armor 2 vs. iron (hide, ice).</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.9QYBsIBHZESD9ErE",
     "notes": "",

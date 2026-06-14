@@ -9,7 +9,8 @@
         "max": 20
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "choking grip or powerful blows d8+2 w/advantage (hand, grabby, forceful)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, undead, terrifying, implacable",
-    "qualities": "<p>Cannot open doors, eat, or drink. Armor 4 (resilience), 0 vs. silver or fire.</p>",
+    "qualities": "<p>Cannot open doors, eat, or drink. Armor 0 vs. silver or fire.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6uW9IHa66SmQdeEM",
     "notes": "",

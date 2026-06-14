@@ -9,7 +9,8 @@
         "max": 10
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "scales"
       },
       "damage": {
         "value": "bite d8 (hand, grabby)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, aggressive, tough",
-    "qualities": "<p>Fireproof; caustic, burning blood. Armor 2 from scales.</p>",
+    "qualities": "<p>Fireproof; caustic, burning blood.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.CIBOcY6E4EMOsQqO",
     "notes": "",

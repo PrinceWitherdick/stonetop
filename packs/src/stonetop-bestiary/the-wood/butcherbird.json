@@ -9,7 +9,8 @@
         "max": 1
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "sheer tiny size"
       },
       "damage": {
         "value": "peck d6-2 (hand, messy, 2 piercing)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "tiny",
     "tags": "horde, tiny, organized",
-    "qualities": "<p>Armor 1 from sheer tiny size.</p>",
+    "qualities": "",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.vuCG2gnrr5slc2Cj",
     "notes": "",

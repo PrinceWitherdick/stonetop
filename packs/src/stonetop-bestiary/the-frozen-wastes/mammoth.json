@@ -9,7 +9,8 @@
         "max": 15
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "fur and hide"
       },
       "damage": {
         "value": "tusks d6+5 (reach, forceful) or trample d6+5 (hand, area, forceful)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "huge",
     "tags": "horde, huge, hardy",
-    "qualities": "<p>Armor 1 from fur and hide. Keen-nosed; sickly in warmer climes.</p>",
+    "qualities": "<p>Keen-nosed; sickly in warmer climes.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.H4EkNtJ49Mpz9O8a",
     "notes": "",

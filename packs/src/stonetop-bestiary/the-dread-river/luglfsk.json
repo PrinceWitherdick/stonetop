@@ -9,7 +9,8 @@
         "max": 3
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "hide"
       },
       "damage": {
         "value": "electric shock d6 (hand, reload), or chew d4 (hand)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "small",
     "tags": "horde, small, amphibious, corrupted",
-    "qualities": "<p>Lightning-proof. Armor 1 from hide.</p>",
+    "qualities": "<p>Lightning-proof.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.3BvxOqjeOtQei8cG",
     "notes": "",

@@ -11,7 +11,7 @@
     }
   },
   "folder": "nVv6GF39nE8RN4lQ",
-  "sort": 155000,
+  "sort": 174000,
   "pages": [
     {
       "_id": "z5nwKTBHIShR1lmm",
@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Devotees whose zeal for a faith or leader has curdled into something dangerous.",
-        "description": "<p>A Lightbearer often attracts faithful followers, as do some of Helior's more charismatic devotees. Some of these followers might take things a little far.</p>",
+        "description": "<p>A Lightbearer often attracts faithful followers, as do some of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.b1VYlB39pY0gZA0C]{Helior}</strong>'s more charismatic devotees. Some of these followers might take things a little far.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

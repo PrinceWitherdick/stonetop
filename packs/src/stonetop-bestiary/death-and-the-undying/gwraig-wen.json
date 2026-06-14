@@ -9,7 +9,8 @@
         "max": 19
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "lacks organs"
       },
       "damage": {
         "value": "bare hands d6 w/disadvantage (hand)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, spirit, undead, forlorn",
-    "qualities": "<p>Bound to within a few miles of her bones; can't form new memories; leaves no footprints. Armor 1 (lacks organs).</p>",
+    "qualities": "<p>Bound to within a few miles of her bones; can't form new memories; leaves no footprints.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.i74FkC9ROlheQBIF",
     "notes": "",

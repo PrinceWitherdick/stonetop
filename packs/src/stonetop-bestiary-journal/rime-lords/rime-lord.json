@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "One of the last thirteen ice-gods, in eternal stasis, weaving the glacier that binds Y'aaw'kara.",
-        "description": "<p>Only thirteen Rime Lords survive; each remains in stasis in some key place of power. Their spirits are merged in an eternal dance and song, continuously weaving the dark-ice glacier that keeps the voice of Y'aaw'kara bound and prevents madness from spreading unchecked across the world. Pray, o mortal — pray that they continue their vigil, that their wills do not falter, that no interloper is so foolish as to disturb them. Pray that they do not wake.</p>",
+        "description": "<p>Only thirteen <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.oi5Mg2wPABRjvHri]{Rime Lords}</strong> survive; each remains in stasis in some key place of power. Their spirits are merged in an eternal dance and song, continuously weaving the dark-ice glacier that keeps the voice of Y'aaw'kara bound and prevents madness from spreading unchecked across the world. Pray, o mortal — pray that they continue their vigil, that their wills do not falter, that no interloper is so foolish as to disturb them. Pray that they do not wake.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

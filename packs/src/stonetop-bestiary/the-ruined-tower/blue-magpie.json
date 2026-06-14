@@ -9,7 +9,8 @@
         "max": 1
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "sheer tiny size"
       },
       "damage": {
         "value": "peck d4-2 w/disadvantage (hand)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "tiny",
     "tags": "horde, tiny, devious, organized, hoarder, magical",
-    "qualities": "<p>Smart as a child, at least; can speak Tempest Lord (understood by all). Armor 1 from sheer tiny size.</p>",
+    "qualities": "<p>Smart as a child, at least; can speak Tempest Lord (understood by all).</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.iyJ1X2X1AZE1zjWl",
     "notes": "",

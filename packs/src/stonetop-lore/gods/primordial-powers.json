@@ -57,7 +57,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "**The Pale Hunter** is associated with “the” moon, but are there other moons?",
+                "prompt": "**@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{The Pale Hunter}** is associated with “the” moon, but are there other moons?",
                 "answer": ""
               },
               {
@@ -156,7 +156,7 @@
             "kind": "prose",
             "heading": "Associated Creatures",
             "danger": false,
-            "body": "<p>Creatures the bestiary catalogues for Primordial Powers. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.h8QoSAJnc3Z80m8F]{Base Archon}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.WObWuLHBHqBYlZlA]{Fundamental}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.smqjMCaaxstHY5nZ]{Voidblight}</li></ul>",
+            "body": "<p>Creatures the bestiary catalogues for Primordial Powers. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.h8QoSAJnc3Z80m8F]{Base Archon}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.WObWuLHBHqBYlZlA]{Fundamental}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Z2PNfBJpuurYN778]{Livrothos, Cleansing Flame}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.aGS4afk7P2DhhFN0]{The Nightingale}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.brdZWD7CY1KZsHMG]{Void Elemental}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.smqjMCaaxstHY5nZ]{Voidblight}</li></ul>",
             "pairs": []
           }
         ]

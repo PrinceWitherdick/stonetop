@@ -9,7 +9,8 @@
         "max": 20
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "scales"
       },
       "damage": {
         "value": "three-inch-long teeth d10+3 (close, reach, grabby, messy, 3 piercing, advantage)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, terrifying, fearless",
-    "qualities": "<p>Armor 2 from scales.</p>",
+    "qualities": "",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JWXOAXD9nd8rkB3I",
     "notes": "",

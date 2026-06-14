@@ -9,7 +9,8 @@
         "max": 22
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "scales, steel plates"
       },
       "damage": {
         "value": "bite d12+3 w/advantage (close, reach, forceful, messy, grabby, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, hoarder, paranoid, terrifying, fierce",
-    "qualities": "<p>Fireproof; bestial intellect; slumbers for years at a time. Armor 4 (scales, steel plates).</p>",
+    "qualities": "<p>Fireproof; bestial intellect; slumbers for years at a time.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.sKYvwXBCiWfqNZlU",
     "notes": "",

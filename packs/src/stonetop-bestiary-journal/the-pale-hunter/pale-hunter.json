@@ -11,7 +11,7 @@
     }
   },
   "folder": "NAeCKcQKhzGh1y9y",
-  "sort": 123000,
+  "sort": 126000,
   "pages": [
     {
       "_id": "6Nw4LldBvZJA3Lm8",
@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "The antlered, silver-speared huntsman of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>, who claims the souls of the dead.",
-        "description": "<p>On certain nights, the Pale Hunter stalks the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong> with his ghostly hounds, and even the bravest hunters stay in town. The Forest Folk spoke of him as something like a force of nature — less a god to worship than a storm to endure. Tales differ on what happens should you cross his path: he might ignore you, call you to join him, or mark you as his quarry. But all agree: impress him, and you'll be well rewarded; get caught, or fail to do your part — well, best not to think on it. He appears as a looming, antlered figure, luminous white, his face in shadow, his straight spear tipped with a silver crescent, draped with the jangling trophies of past hunts.</p>",
+        "description": "<p>On certain nights, the Pale Hunter stalks the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong> with his ghostly hounds, and even the bravest hunters stay in town. <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{The Forest Folk}</strong> spoke of him as something like a force of nature — less a god to worship than a storm to endure. Tales differ on what happens should you cross his path: he might ignore you, call you to join him, or mark you as his quarry. But all agree: impress him, and you'll be well rewarded; get caught, or fail to do your part — well, best not to think on it. He appears as a looming, antlered figure, luminous white, his face in shadow, his straight spear tipped with a silver crescent, draped with the jangling trophies of past hunts.</p>",
         "questions": [
           {
             "prompt": "What is he — spirit, ghost, or something else?",
@@ -63,11 +63,11 @@
             "answer": ""
           },
           {
-            "prompt": "What observances did the Forest Folk use to appease him?",
+            "prompt": "What observances did @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{the Forest Folk} use to appease him?",
             "answer": ""
           },
           {
-            "prompt": "What tales do they tell of him in Marshedge? Or among the Manmarchers?",
+            "prompt": "What tales do they tell of him in @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}? Or among the Manmarchers?",
             "answer": ""
           },
           {
@@ -81,7 +81,7 @@
         ],
         "lore": [
           {
-            "prompt": "**Something interesting:** He forgoes all other prey to hunt the undead, pursuing them even outside the Great Wood and on nights he would not normally roam.",
+            "prompt": "**Something interesting:** He forgoes all other prey to hunt the undead, pursuing them even outside @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{the Great Wood} and on nights he would not normally roam.",
             "answer": ""
           },
           {

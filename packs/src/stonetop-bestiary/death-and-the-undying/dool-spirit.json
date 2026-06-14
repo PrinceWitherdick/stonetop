@@ -9,7 +9,8 @@
         "max": 13
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "lacks organs"
       },
       "damage": {
         "value": "feast on fears d6 w/disadvantage (hand, close, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, spirit, terrifying, stealthy, devious",
-    "qualities": "<p>Powerless in bright light; bound to its tree or a victim's bones. Armor 1 (lacks organs).</p>",
+    "qualities": "<p>Powerless in bright light; bound to its tree or a victim's bones.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.N7e7deA8brYpOz66",
     "notes": "",

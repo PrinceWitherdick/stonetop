@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A skull-headed, antlered grave-guardian goat of rock and bone.",
-        "description": "<p>The Rime Lords and their disciples created shaksa to guard over cemeteries and charnel grounds; they usually watch, unseen and unmanifest. A shaksa manifests only within its cemetery, appearing as a powerful goat made of rock and soil, with a human (?) skull for a head, three eyes of floating light, and a single great antler of jagged bone. Once manifest, it can leave the cemetery in pursuit of looters or vandals — but should this form be destroyed, the spirit returns to the cemetery and cannot remanifest until the next sunset.</p>",
+        "description": "<p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.oi5Mg2wPABRjvHri]{The Rime Lords}</strong> and their disciples created shaksa to guard over cemeteries and charnel grounds; they usually watch, unseen and unmanifest. A shaksa manifests only within its cemetery, appearing as a powerful goat made of rock and soil, with a human (?) skull for a head, three eyes of floating light, and a single great antler of jagged bone. Once manifest, it can leave the cemetery in pursuit of looters or vandals — but should this form be destroyed, the spirit returns to the cemetery and cannot remanifest until the next sunset.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

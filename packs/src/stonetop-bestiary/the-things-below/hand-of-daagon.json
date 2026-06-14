@@ -9,7 +9,8 @@
         "max": 23
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "many hands d12+1 (hand, close, grabby, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, emanation, terrifying, cautious, curious",
-    "qualities": "<p>Blind; tremorsense; reaches through matter like it was water. Armor 4 (resilience), 0 vs. bronze.</p>",
+    "qualities": "<p>Blind; tremorsense; reaches through matter like it was water. Armor 0 vs. bronze.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m46X5auaZwdxphBl",
     "notes": "",

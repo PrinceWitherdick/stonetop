@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "choking fingers/tendrils d10+1 (hand, close, reach, grabby)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, fae, magical, stealthy, corrupted, terrifying",
-    "qualities": "<p>Fae nature. Armor 4 (resilience), 1 vs. iron (bark); takes +1d4 damage from bronze. Leaches color from her surroundings; knows whatever her moths know.</p>",
+    "qualities": "<p>Fae nature. Armor 1 vs. iron (bark); takes +1d4 damage from bronze. Leaches color from her surroundings; knows whatever her moths know.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.xkAtN3IG7KgIDQVk",
     "notes": "",

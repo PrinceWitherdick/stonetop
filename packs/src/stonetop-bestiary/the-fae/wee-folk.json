@@ -9,7 +9,8 @@
         "max": 1
       },
       "armor": {
-        "value": 6
+        "value": 6,
+        "source": "resilience, size, speed"
       },
       "damage": {
         "value": "stings/darts d6-2 (hand or reach)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "tiny",
     "tags": "horde, tiny, fae, magical, stealthy, organized",
-    "qualities": "<p>Fae nature. Armor 6 (resilience, size, speed), 2 vs. iron. Each band leans toward a role: <strong>guardians</strong> (guard against old evil), <strong>workers</strong> (prepare for lean times), or <strong>hooligans</strong> (amuse themselves at others' expense).</p>",
+    "qualities": "<p>Fae nature. Armor 2 vs. iron. Each band leans toward a role: <strong>guardians</strong> (guard against old evil), <strong>workers</strong> (prepare for lean times), or <strong>hooligans</strong> (amuse themselves at others' expense).</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.aThMYefGFmE0mG73",
     "notes": "",

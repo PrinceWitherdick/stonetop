@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "crushing grip d10+2 (hand, grabby, forceful)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "small",
     "tags": "solitary, small, fae, magical, tough, stealthy, cautious, ugly",
-    "qualities": "<p>Fae nature. Armor 4 (resilience), 1 vs. iron (thick fur).</p>",
+    "qualities": "<p>Fae nature. Armor 1 vs. iron (thick fur).</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.fSV9XtOChfthnbDG",
     "notes": "",

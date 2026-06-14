@@ -9,7 +9,8 @@
         "max": 6
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "pebbly scales"
       },
       "damage": {
         "value": "vice-like jaws d8 (hand, grabby, messy, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, stealthy, organized",
-    "qualities": "<p>Chameleon skin; excellent climbers. Armor 2 from pebbly scales.</p>",
+    "qualities": "<p>Chameleon skin; excellent climbers.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ooVg9LaPN3bSAnge",
     "notes": "",

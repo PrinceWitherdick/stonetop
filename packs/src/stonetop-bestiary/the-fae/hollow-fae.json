@@ -9,7 +9,8 @@
         "max": 19
       },
       "armor": {
-        "value": 5
+        "value": 5,
+        "source": "resilience, lacks vitals"
       },
       "damage": {
         "value": "life-drain d10 (hand, close, area, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, fae, undead, confused, terrifying",
-    "qualities": "<p>Senses life; surrounded by inert death and ash. Armor 5 (resilience, lacks vitals), 1 vs. black iron — and can be truly destroyed only by black iron.</p>",
+    "qualities": "<p>Senses life; surrounded by inert death and ash. Armor 1 vs. black iron — and can be truly destroyed only by black iron.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.KgJ8NTJSYfoMhX0Y",
     "notes": "",

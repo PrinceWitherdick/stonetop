@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Spirit-bound corpses set to guard their own barrow hoards.",
-        "description": "<p>As you might expect, grave robbing was always a problem for the Barrow Builders. But a clever sorcerer had a solution! So many hateful spirits roamed the world in those days — why not bind some to the corpses of the deceased, and let the dead guard their own treasure?</p>",
+        "description": "<p>As you might expect, grave robbing was always a problem for the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JDCcrvQhMYFFlUIe]{Barrow Builders}</strong>. But a clever sorcerer had a solution! So many hateful spirits roamed the world in those days — why not bind some to the corpses of the deceased, and let the dead guard their own treasure?</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

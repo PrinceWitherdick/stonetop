@@ -1,4 +1,5 @@
 import { CREATURE_TYPE_CHOICES, creatureTypeIcon, creatureTypeLabel } from "../../bestiary/creature-types.js";
+import { hasText } from "../bestiary/codex.js";
 import { rollDamage } from "../../utils/roll-engine.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { escHtml, isDefaultImg } from "../../utils/strings.js";
@@ -25,6 +26,12 @@ const MONSTER_RICH_TEXT_FIELDS = [
 
 function _normalizeTag(value) {
 	return String(value ?? "").trim().toLocaleLowerCase();
+}
+
+// The compendium UUID a world document was imported from (stamped by
+// fromCompendium), or null — mirrors SeedCompendiums' idempotency check.
+function _compendiumSource(doc) {
+	return doc?._stats?.compendiumSource ?? doc?.flags?.core?.sourceId ?? null;
 }
 
 const DAMAGE_DIE = /\d*d\d+(?:\s*[+-]\s*\d+)?/i;
@@ -115,6 +122,16 @@ function _displayTagsHtml(tags, withTooltips) {
 			? `<span class="stonetop-monster-tag" data-tooltip="${escHtml(tip)}" data-tooltip-direction="UP">${escHtml(tag)}</span>`
 			: escHtml(tag);
 	}).join(", ");
+}
+
+// True when rich text holds real content: any non-whitespace text, or an
+// embedded element (img, etc.). Empty editors serialize to markup like
+// "<p></p>" or "<p><br></p>", which strip to no text and so read as empty.
+function _hasRichContent(value) {
+	// Embedded media counts as content even with no surrounding text; otherwise
+	// fall back to the shared "strip tags and check for text" predicate.
+	if (/<(img|hr|table|iframe|video|audio)\b/i.test(String(value ?? ""))) return true;
+	return hasText(value);
 }
 
 async function _enrichHTML(value) {
@@ -215,17 +232,42 @@ export function createStonetopMonsterSheetClass(Base) {
 		 * Resolve `system.entry` and open it. The bestiary is migrating from actors
 		 * to journal pages, so it may resolve to a JournalEntryPage (open its journal
 		 * scrolled to that page), a whole JournalEntry, or a legacy bestiary actor —
-		 * open each in its natural sheet.
+		 * open each in its natural sheet. When the entry has been imported into the
+		 * world, open that copy instead of the compendium original.
 		 */
 		async _openEntryFromHeader() {
 			const uuid = this.actor.system?.entry;
 			const doc = uuid ? await fromUuid(uuid).catch(() => null) : null;
 			if (!doc) return;
-			if (doc.documentName === "JournalEntryPage") {
-				doc.parent?.sheet?.render(true, { pageId: doc.id });
+			const target = this._preferWorldCopy(doc);
+			if (target.documentName === "JournalEntryPage") {
+				target.parent?.sheet?.render(true, { pageId: target.id });
 				return;
 			}
-			doc.sheet?.render(true);
+			target.sheet?.render(true);
+		}
+
+		/**
+		 * Given a (usually compendium) bestiary doc, return the GM's in-world copy if
+		 * one has been imported from it, else the original. Edits and links resolve
+		 * against the working copy, so the Journal button should land there when it
+		 * exists. A JournalEntryPage resolves via its parent entry's world copy, then
+		 * re-locates the page inside it (its id differs from the compendium's).
+		 */
+		_preferWorldCopy(doc) {
+			if (!doc.pack) return doc; // already a world document
+			const isPage = doc.documentName === "JournalEntryPage";
+			const entry  = isPage ? doc.parent : doc;
+			if (!entry) return doc;
+
+			const worldEntry = (game.journal ?? []).find(j => _compendiumSource(j) === entry.uuid);
+			if (!worldEntry) return doc;
+			if (!isPage) return worldEntry;
+
+			return worldEntry.pages.find(p => _compendiumSource(p) === doc.uuid)
+				?? worldEntry.pages.find(p => p.name === doc.name)
+				?? worldEntry.pages.contents[0]
+				?? worldEntry;
 		}
 
 		async getData() {
@@ -258,6 +300,10 @@ export function createStonetopMonsterSheetClass(Base) {
 			for (const field of MONSTER_RICH_TEXT_FIELDS) {
 				st[field.enrichedKey] = await _enrichHTML(system?.[field.key]);
 			}
+
+			// Empty rich text round-trips through ProseMirror as "<p></p>" etc.,
+			// so check for actual text/embeds rather than a truthy string.
+			st.hasQualities = _hasRichContent(system?.qualities);
 
 			// Organization label + choices for the header (organization also drives
 			// the HP/damage defaults applied by the reset-defaults button).

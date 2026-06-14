@@ -9,7 +9,8 @@
         "max": 5
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "bark, no vital organs"
       },
       "damage": {
         "value": "nasty thorns d6 (hand, grabby)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "tiny",
     "tags": "horde, tiny, spirit, magical",
-    "qualities": "<p>Thorns all over — to touch them is to bleed. Armor 2 (bark, no vital organs).</p>",
+    "qualities": "<p>Thorns all over — to touch them is to bleed.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.4cuy0KcuT5WO0S5A",
     "notes": "",

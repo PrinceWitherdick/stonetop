@@ -9,7 +9,8 @@
         "max": 24
       },
       "armor": {
-        "value": 3
+        "value": 3,
+        "source": "made of stone"
       },
       "damage": {
         "value": "crushing fists d10+3 (hand, close, grabby, messy, forceful, 3 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, construct, implacable",
-    "qualities": "<p>Can animate for only a few minutes at a time; dog-like mind; blind; tremorsense. Armor 3 (made of stone).</p>",
+    "qualities": "<p>Can animate for only a few minutes at a time; dog-like mind; blind; tremorsense.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.hNTwQMEAue41DzAx",
     "notes": "",

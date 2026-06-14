@@ -1,4 +1,4 @@
-import { qaPairs, hasText } from "../actors/bestiary/codex.js";
+import { qaPairs, hasText, enrichQaPairs } from "../actors/bestiary/codex.js";
 import { applyJournalCheckboxes } from "../utils/journal-checkboxes.js";
 import { bindSteadingImprovementDrag } from "./steading-improvement-cards.js";
 import { applyJournalRollTables } from "../utils/journal-roll-tables.js";
@@ -70,6 +70,12 @@ export function createStonetopLocationPageSheetClass(Base) {
 				const filled = isQa
 					? (s.pairs ?? []).some(p => p?.prompt || p?.answer)
 					: hasText(s.body);
+				// In read mode, enrich each prompt/answer so baked @UUID cross-links (e.g. a
+				// place name linked in a Questions section) resolve and become clickable —
+				// the same enrichment the prose sections get. Edit mode shows the raw value
+				// in an input, so it's left unenriched.
+				let pairs = isQa ? qaPairs(s.pairs, editing) : [];
+				if (isQa && !editing) pairs = await enrichQaPairs(pairs, enrich);
 				return {
 					index,
 					kind: s.kind,
@@ -81,7 +87,7 @@ export function createStonetopLocationPageSheetClass(Base) {
 					visible: owner || filled, // non-owners only see filled sections
 					body: isQa ? "" : (s.body ?? ""),      // raw source for the editor's `value`
 					enrichedBody: isQa ? "" : await enrich(s.body), // enriched for read-only display
-					pairs: isQa ? qaPairs(s.pairs, editing) : [],
+					pairs,
 				};
 			}));
 

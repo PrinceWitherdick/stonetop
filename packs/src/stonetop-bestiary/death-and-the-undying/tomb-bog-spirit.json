@@ -9,7 +9,8 @@
         "max": 19
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "lacks organs"
       },
       "damage": {
         "value": "smothering grip d10+2 (hand, forceful, grabby)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, spirit, terrifying, implacable",
-    "qualities": "<p>Harms only those whose life is forfeit. Armor 1 (lacks organs).</p>",
+    "qualities": "<p>Harms only those whose life is forfeit.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.bgGP0Dpdt51lXYmK",
     "notes": "",

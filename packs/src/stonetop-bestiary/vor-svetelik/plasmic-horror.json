@@ -9,7 +9,8 @@
         "max": 19
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "membrane, lacks organs"
       },
       "damage": {
         "value": "pseudopod d10+3 (hand, close, reach, grabby, forceful) or acidic engulf d10+5 (hand, grabby, forceful, messy, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, construct, amorphous, terrifying",
-    "qualities": "<p>Child-like intellect; susceptible to strong wills. Armor 2 (membrane, lacks organs).</p>",
+    "qualities": "<p>Child-like intellect; susceptible to strong wills.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.mBQElv2JfT8AW8KH",
     "notes": "",

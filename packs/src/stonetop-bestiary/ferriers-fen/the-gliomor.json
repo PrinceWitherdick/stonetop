@@ -9,7 +9,8 @@
         "max": 22
       },
       "armor": {
-        "value": 3
+        "value": 3,
+        "source": "carapace"
       },
       "damage": {
         "value": "smaller claw d12+3 (reach, grabby), bigger claw d12+5 w/advantage (reach, forceful, messy, 3 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, cautious, terrifying, ancient",
-    "qualities": "<p>Heals injuries in a few hours; regenerates limbs in a few days. Armor 3 from carapace.</p>",
+    "qualities": "<p>Heals injuries in a few hours; regenerates limbs in a few days.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JeFYzThOekEepQUH",
     "notes": "",

@@ -9,7 +9,8 @@
         "max": 19
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "lacks organs"
       },
       "damage": {
         "value": "watery tendril d8 (close, reach, grabby)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, spirit, hoarder, devious, watery, beautiful, corrupted",
-    "qualities": "<p>Tethered to a skull or trinket, deep in its pond. Armor 1 (lacks organs).</p>",
+    "qualities": "<p>Tethered to a skull or trinket, deep in its pond.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lEnzsCftDmDarvlN",
     "notes": "",

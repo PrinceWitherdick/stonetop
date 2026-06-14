@@ -9,7 +9,8 @@
         "max": 6
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "feathers and scales"
       },
       "damage": {
         "value": "boney crest d8+2 (close, forceful), talon & teeth d8+2 (hand, messy, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "",
     "tags": "group, stealthy, organized",
-    "qualities": "<p>Flightless. Armor 1 from feathers and scales.</p>",
+    "qualities": "<p>Flightless.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.T17yRp50eDt8cyXO",
     "notes": "",

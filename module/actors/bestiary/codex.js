@@ -97,6 +97,23 @@ async function enrichHTML(value) {
 	return textEditor.enrichHTML(value ?? "");
 }
 
+// Enrich the `.html` of a list of { text, html } entries (prep lines, group
+// items) — their inlineMarkup output may carry baked @UUID cross-links that
+// only become clickable once enriched. Each entry is cloned, not mutated.
+const enrichHtmlList = list =>
+	Promise.all(list.map(async entry => ({ ...entry, html: await enrichHTML(entry.html) })));
+
+// Enrich the prompt/answer HTML of qa pairs, same purpose as enrichHtmlList. The
+// enrich fn is injected because the codex and the location page resolve their
+// TextEditor slightly differently; both share this loop instead of re-rolling it.
+export async function enrichQaPairs(pairs, enrich) {
+	return Promise.all(pairs.map(async pair => ({
+		...pair,
+		promptHtml: await enrich(pair.promptHtml),
+		answerHtml: await enrich(pair.answerHtml),
+	})));
+}
+
 /**
  * Build the codex portion of a sheet's render context from `system`.
  * Returns enriched rich-text, prep line sections, Q&A sections, discovery
@@ -115,26 +132,42 @@ export async function buildCodexContext(system, editMode, options = {}) {
 		(async () => { out.enrichedConcept = await enrichHTML(system?.concept); })(),
 	]);
 
-	out.prepLineSections = CODEX_PREP_FIELDS.map(field => {
-		const introField = `${field.key}Intro`;
-		const introRaw = system?.[introField] ?? "";
-		return {
-			...field,
-			lines: splitLines(system?.[field.key], editMode),
-			introField,
-			intro: introRaw,
-			introHtml: inlineMarkup(introRaw),
-			show: editMode || hasText(system?.[field.key]) || hasText(introRaw),
-		};
-	});
-
-	out.qaSections = CODEX_QA_FIELDS.map(field => {
-		const pairs = qaPairs(system?.[field.key], editMode);
-		return { ...field, pairs, show: editMode || pairs.length > 0 };
-	});
-
+	// The inline-markup fields (prep lines, Q&A, grouped sections) may carry baked
+	// @UUID cross-links (place / lore / arcana names). inlineMarkup leaves the token
+	// intact; enrich it here so it resolves to a clickable link in read markup — the
+	// same treatment the rich fields get above. Edit markup uses the raw value, so
+	// enriching the *Html output is harmless there. The three kinds are independent,
+	// so enrich them concurrently rather than one whole kind after another.
 	const groupFields = options.groupFields ?? CODEX_GROUP_FIELDS;
-	for (const g of groupFields) out[g.outKey] = discoveryGroups(system?.[g.key], editMode);
+	await Promise.all([
+		(async () => {
+			out.prepLineSections = await Promise.all(CODEX_PREP_FIELDS.map(async field => {
+				const introField = `${field.key}Intro`;
+				const introRaw = system?.[introField] ?? "";
+				return {
+					...field,
+					lines: await enrichHtmlList(splitLines(system?.[field.key], editMode)),
+					introField,
+					intro: introRaw,
+					introHtml: await enrichHTML(inlineMarkup(introRaw)),
+					show: editMode || hasText(system?.[field.key]) || hasText(introRaw),
+				};
+			}));
+		})(),
+		(async () => {
+			out.qaSections = await Promise.all(CODEX_QA_FIELDS.map(async field => {
+				const pairs = await enrichQaPairs(qaPairs(system?.[field.key], editMode), enrichHTML);
+				return { ...field, pairs, show: editMode || pairs.length > 0 };
+			}));
+		})(),
+		...groupFields.map(g => (async () => {
+			out[g.outKey] = await Promise.all(discoveryGroups(system?.[g.key], editMode).map(async grp => ({
+				...grp,
+				bodyHtml: await enrichHTML(grp.bodyHtml),
+				items: await enrichHtmlList(grp.items),
+			})));
+		})()),
+	]);
 
 	out.show = {
 		description: editMode || hasText(system?.description),

@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "sheer speed"
       },
       "damage": {
         "value": "bone-snapping grip d8+2 (hand, grabby, forceful)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, undead, terrifying, craven",
-    "qualities": "<p>Burned by silver (+1d4 damage); harmed by salt (1d8 damage, hand, close); foul stench; sustained by bone marrow. Armor 1 from sheer speed.</p>",
+    "qualities": "<p>Burned by silver (+1d4 damage); harmed by salt (1d8 damage, hand, close); foul stench; sustained by bone marrow.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.pDanXfWCKezDrSGQ",
     "notes": "",

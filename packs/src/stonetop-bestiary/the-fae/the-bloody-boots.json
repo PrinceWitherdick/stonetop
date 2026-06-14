@@ -9,7 +9,8 @@
         "max": 12
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "oversized club d8 w/advantage (close, crude) or iron-shod boots d8+2 w/advantage (hand, forceful)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "small",
     "tags": "group, small, fae, ugly, violent",
-    "qualities": "<p>Fae nature; tolerates iron; can't start violence. Armor 4 (resilience), 2 vs. iron.</p>",
+    "qualities": "<p>Fae nature; tolerates iron; can't start violence. Armor 2 vs. iron.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.qWNA7gHJH7z3K0bg",
     "notes": "",

@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A cursed mercenary band, hungering and sun-shunning until their stolen loot is returned.",
-        "description": "<p>They were a band of southern mercenaries, come north in search of treasure. They heard tell of a hdour and his hoard, trapped him in his cave, and slew him — then divvied up the loot and left. Only later did they learn why the Hillfolk fear to kill a hdour: he had cursed them all, their souls doomed to linger after death in endless hunger and thirst, to fear the sun, to be hounded like the dogs they were — until every piece of the far-flung loot they stole is returned to the hdour's cave.</p>",
+        "description": "<p>They were a band of southern mercenaries, come north in search of treasure. They heard tell of a hdour and his hoard, trapped him in his cave, and slew him — then divvied up the loot and left. Only later did they learn why the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk}</strong> fear to kill a hdour: he had cursed them all, their souls doomed to linger after death in endless hunger and thirst, to fear the sun, to be hounded like the dogs they were — until every piece of the far-flung loot they stole is returned to the hdour's cave.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

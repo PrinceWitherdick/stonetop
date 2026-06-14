@@ -9,7 +9,8 @@
         "max": 25
       },
       "armor": {
-        "value": 6
+        "value": 6,
+        "source": "hard, warded, lacks vitals"
       },
       "damage": {
         "value": "word of force d12+3 (near, area, forceful) or four fists d12+3 w/advantage (close, reach, forceful)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, primordial, construct, magical, terrifying, corrupted",
-    "qualities": "<p>Armor 6 (hard, warded, lacks vitals), 4 vs. black iron. Ageless; immune to the elements; perceives thought and matter; omnilingual.</p>",
+    "qualities": "<p>Armor 4 vs. black iron. Ageless; immune to the elements; perceives thought and matter; omnilingual.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.muAijyov4VTFfqBL",
     "notes": "",

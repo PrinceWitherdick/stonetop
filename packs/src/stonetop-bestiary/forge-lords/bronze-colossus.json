@@ -9,7 +9,8 @@
         "max": 31
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "metal, lacks organs"
       },
       "damage": {
         "value": "trample d10+5 (hand, close, area, forceful), crushing hands d10+5 (close, reach, forceful, grabby), or hurled object d10+5 (far, area, forceful, reload)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "huge",
     "tags": "solitary, huge, construct, plodding, implacable",
-    "qualities": "<p>Fireproof; too big to hurt with most weapons; vulnerable to lightning. Armor 4 (metal, lacks organs).</p>",
+    "qualities": "<p>Fireproof; too big to hurt with most weapons; vulnerable to lightning.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JcJ1Kg1avKIFJqdh",
     "notes": "",

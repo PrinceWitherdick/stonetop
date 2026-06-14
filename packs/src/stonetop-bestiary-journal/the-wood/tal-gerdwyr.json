@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "The 'tall walkers' — gentle, hill-sized, long-necked drakes.",
-        "description": "<p>The Forest Folk would tell stories of the 'tall walkers,' drakes with necks like trees and bodies like small hills, draped in feathers that look like vines and leaves. Supposedly they roam deep in the forest, blithely chewing leaves from the canopy and singing mournful songs to each other.</p>",
+        "description": "<p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{The Forest Folk}</strong> would tell stories of the 'tall walkers,' drakes with necks like trees and bodies like small hills, draped in feathers that look like vines and leaves. Supposedly they roam deep in the forest, blithely chewing leaves from the canopy and singing mournful songs to each other.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

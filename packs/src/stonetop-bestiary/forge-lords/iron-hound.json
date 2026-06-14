@@ -9,7 +9,8 @@
         "max": 10
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "metal, lacks organs"
       },
       "damage": {
         "value": "bite d6+2 (hand, grabby)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "",
     "tags": "horde, construct, undead, corrupted, tireless, terrifying",
-    "qualities": "<p>Fireproof; heat-sensing. Armor 4 (metal, lacks organs).</p>",
+    "qualities": "<p>Fireproof; heat-sensing.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.QuvCnDgNGwtul1Cl",
     "notes": "",

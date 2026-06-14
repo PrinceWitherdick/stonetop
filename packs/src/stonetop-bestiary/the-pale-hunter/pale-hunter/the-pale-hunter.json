@@ -9,7 +9,8 @@
         "max": 26
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "silver spear d12+3 w/advantage (close, reach, thrown, forceful, messy, 2 piercing), silver antlers d12+5 w/advantage (close, forceful), or grapple d10+3 w/advantage (hand, grabby, forceful)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, athletic, cunning, hoarder, magical, terrifying, tireless",
-    "qualities": "<p>Surrounded by mist; can grab and grapple even undead spirits; keen senses; uncanny reflexes. Armor 4 (resilience). When you deal damage he might dodge or roll with, roll with disadvantage.</p>",
+    "qualities": "<p>Surrounded by mist; can grab and grapple even undead spirits; keen senses; uncanny reflexes. When you deal damage he might dodge or roll with, roll with disadvantage.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g",
     "notes": "",

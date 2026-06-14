@@ -9,7 +9,8 @@
         "max": 7
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "headbutt d6+2 (hand, forceful)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "",
     "tags": "horde, fae, athletic, raucous",
-    "qualities": "<p>Fae nature. Armor 4 (resilience), 0 vs. iron.</p>",
+    "qualities": "<p>Fae nature. Armor 0 vs. iron.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.MsrMiy6ljbqoemjr",
     "notes": "",

@@ -9,7 +9,8 @@
         "max": 14
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "feathers and scales"
       },
       "damage": {
         "value": "trample, kick d8+5 (close, forceful), tail sweep d8+5 (reach, area, forceful)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "huge",
     "tags": "group, huge",
-    "qualities": "<p>Extremely long neck. Armor 2 from feathers and scales.</p>",
+    "qualities": "<p>Extremely long neck.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.F5CHB8YqT63jY04J",
     "notes": "",

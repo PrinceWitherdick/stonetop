@@ -96,7 +96,7 @@
             "kind": "prose",
             "heading": "Associated Creatures",
             "danger": false,
-            "body": "<p>Creatures the bestiary catalogues for Forge Lords. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JcJ1Kg1avKIFJqdh]{Bronze Colossus}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.x54yvxxbXbmKYZ8e]{Cinderwraith}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rFt8fD3NyBuX1BJD]{Clockwork Spider}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.sKYvwXBCiWfqNZlU]{Draventao}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.QuvCnDgNGwtul1Cl]{Iron Hound}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nJozgr8Ox6CO3lBR]{Singing Sword}</li></ul>",
+            "body": "<p>Creatures the bestiary catalogues for Forge Lords. Click through for full stat blocks and lore.</p><ul><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JcJ1Kg1avKIFJqdh]{Bronze Colossus}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HLSdXkHMonjHAPU8]{Bronze Protector}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.x54yvxxbXbmKYZ8e]{Cinderwraith}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rFt8fD3NyBuX1BJD]{Clockwork Spider}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.sKYvwXBCiWfqNZlU]{Draventao}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.QuvCnDgNGwtul1Cl]{Iron Hound}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nJozgr8Ox6CO3lBR]{Singing Sword}</li></ul>",
             "pairs": []
           }
         ]

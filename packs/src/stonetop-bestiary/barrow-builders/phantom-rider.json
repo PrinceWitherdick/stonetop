@@ -9,7 +9,8 @@
         "max": 14
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "lacks organs, shield"
       },
       "damage": {
         "value": "spear d8 (close, thrown), trample d8+2 (hand, forceful), or bow d8 (near)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "large",
     "tags": "group, large, spirit, undead, organized",
-    "qualities": "<p>Bound to their bones; can travel far and wide; can't manifest in daylight; takes +1d4 damage from silver. Armor 2 (lacks organs, shield).</p>",
+    "qualities": "<p>Bound to their bones; can travel far and wide; can't manifest in daylight; takes +1d4 damage from silver.</p>",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.llEqxrhsKD2DvYdP",
     "notes": "",

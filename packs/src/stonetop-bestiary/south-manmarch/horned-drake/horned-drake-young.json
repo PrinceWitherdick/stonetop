@@ -9,7 +9,8 @@
         "max": 14
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "a still-soft, hardening hide"
       },
       "damage": {
         "value": "butt and trample d8+3 (hand, close, forceful)",
@@ -23,7 +24,7 @@
     "organization": "group",
     "size": "large",
     "tags": "group, large, hardy",
-    "qualities": "<p>Armor 1 from a still-soft, hardening hide.</p>",
+    "qualities": "",
     "count": 3,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VJDP2ETcmA8GeHdT",
     "notes": "",

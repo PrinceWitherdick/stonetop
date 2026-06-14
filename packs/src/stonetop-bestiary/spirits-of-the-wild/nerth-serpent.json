@@ -9,7 +9,8 @@
         "max": 20
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "bite and constrict d10+3 (hand, close, reach, forceful, grabby)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, spirit, fearless",
-    "qualities": "<p>Tethered to the Nerth Tree. Armor 4 (resilience), but 0 against bare hands.</p>",
+    "qualities": "<p>Tethered to the Nerth Tree. Armor 0 against bare hands.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.kgK5XHokIprg9Vr1",
     "notes": "",

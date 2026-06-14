@@ -9,7 +9,8 @@
         "max": 10
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "sheer toughness"
       },
       "damage": {
         "value": "rending fingers/claws d4+2 w/advantage (hand, grabby, forceful, messy, 1 piercing), or crude weapons d6 w/advantage (tags by weapon)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "",
     "tags": "horde, hardy, organized, fearless, sadistic, terrifying, corrupted",
-    "qualities": "<p>Inured to cold; take +1d4 damage from bronze; see only in shades of red. Armor 1 from sheer toughness.</p>",
+    "qualities": "<p>Inured to cold; take +1d4 damage from bronze; see only in shades of red.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.pOtdFLTTywDCKXPM",
     "notes": "",

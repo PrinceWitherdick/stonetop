@@ -9,7 +9,8 @@
         "max": 20
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "fur and scales"
       },
       "damage": {
         "value": "toothy maw d10+3 w/advantage (close, grabby, messy, 1 piercing) or raking claws d10+1 (hand, messy, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, corrupted, aquatic, terrifying",
-    "qualities": "<p>Chained to a heavy block of makerglass. Takes +1d6 damage from bronze. Soothed by a well-sung song. Armor 2 from fur and scales.</p>",
+    "qualities": "<p>Chained to a heavy block of makerglass. Takes +1d6 damage from bronze. Soothed by a well-sung song.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.psptlaD9mE9Rk1YI",
     "notes": "",

@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "A shape-stealing flesh-weaving ooze, blank canvas of the Green Lords.",
-        "description": "<p>These… things… served as blank canvasses for the Green Lords' flesh-weaving. Once they were kept carefully locked away in laboratories and breeding pits; now, with their creators gone all these years, who knows where they might be found? Command one in the tongue of the Green Lords and it might obey — or accept you as its master. It grows by consuming the living, and can split off smaller copies of itself.</p>",
+        "concept": "A shape-stealing flesh-weaving ooze, blank canvas of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VosjScKksp5B3hsc]{Green Lords}</strong>.",
+        "description": "<p>These… things… served as blank canvasses for the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VosjScKksp5B3hsc]{Green Lords}</strong>' flesh-weaving. Once they were kept carefully locked away in laboratories and breeding pits; now, with their creators gone all these years, who knows where they might be found? Command one in the tongue of the Green Lords and it might obey — or accept you as its master. It grows by consuming the living, and can split off smaller copies of itself.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

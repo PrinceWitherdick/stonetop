@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "thick fur and hide"
       },
       "damage": {
         "value": "claws, bite, hug d10+4 (hand, close, forceful, messy, 1 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, cautious",
-    "qualities": "<p>Armor 1 from thick fur and hide.</p>",
+    "qualities": "",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VJf1tzQZ3nGxBNsC",
     "notes": "",

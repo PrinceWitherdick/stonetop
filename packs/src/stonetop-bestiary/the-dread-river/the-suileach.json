@@ -9,7 +9,8 @@
         "max": 26
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "scales"
       },
       "damage": {
         "value": "jaws like a cave d10+7 (reach, forceful, messy, 3 piercing) or thrashing coils d10+5 (close, area, forceful)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "huge",
     "tags": "solitary, huge, magical, terrifying, aquatic, corrupted",
-    "qualities": "<p>Many-eyed; impossible to surprise. Armor 2 from scales.</p>",
+    "qualities": "<p>Many-eyed; impossible to surprise.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Hv4lWQtBLYYJ67Cg",
     "notes": "",

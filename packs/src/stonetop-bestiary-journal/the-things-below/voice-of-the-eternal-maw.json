@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A possessing, screaming Voice spawned of Hlad's vortex, making mouths and wraiths.",
-        "description": "<p>Hidden in the southern arm of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.RxUdCkI2lL6gE5IH]{Huffel Peaks}</strong>, there is a gorge that splits a mountain, cloaked in constantly churning mist, cold and clammy. At the base of the gorge is a thin split in reality — a vortex, a manifestation of Hlad the Devourer, sucking in everything it touches. The mountain is shunned now, but the Barrow Builders once fed the vortex gifts, offerings, and living, screaming sacrifice. In time, these offerings gave the vortex a Voice. And the Voice roams the mountain still.</p>",
+        "description": "<p>Hidden in the southern arm of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.RxUdCkI2lL6gE5IH]{Huffel Peaks}</strong>, there is a gorge that splits a mountain, cloaked in constantly churning mist, cold and clammy. At the base of the gorge is a thin split in reality — a vortex, a manifestation of Hlad the Devourer, sucking in everything it touches. The mountain is shunned now, but the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JDCcrvQhMYFFlUIe]{Barrow Builders}</strong> once fed the vortex gifts, offerings, and living, screaming sacrifice. In time, these offerings gave the vortex a Voice. And the Voice roams the mountain still.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

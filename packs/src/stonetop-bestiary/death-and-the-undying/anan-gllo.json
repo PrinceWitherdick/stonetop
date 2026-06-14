@@ -9,7 +9,8 @@
         "max": 11
       },
       "armor": {
-        "value": 5
+        "value": 5,
+        "source": "resilience, armor"
       },
       "damage": {
         "value": "weapon d6 (tags by weapon) or crushing grip d4 (hand, grabby)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "",
     "tags": "horde, undead, corrupted, tireless, fearless, terrifying",
-    "qualities": "<p>Weaken over time (see the entry). Armor 5 (resilience, armor), 1 vs. bronze or fire.</p>",
+    "qualities": "<p>Weaken over time (see the entry). Armor 1 vs. bronze or fire.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5SQHTsAkmgqupgVw",
     "notes": "",

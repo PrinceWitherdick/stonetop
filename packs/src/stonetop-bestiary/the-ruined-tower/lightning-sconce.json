@@ -9,7 +9,8 @@
         "max": 1
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "tiny size, metal fittings, and crystal body"
       },
       "damage": {
         "value": "lightning 1d6+2 (near, forceful, reload, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "",
     "size": "",
     "tags": "magical, construct, immobile",
-    "qualities": "<p>Immobile. Armor 4 from tiny size, metal fittings, and crystal body. Keyed to a phrase, signal, color, or token.</p>",
+    "qualities": "<p>Immobile. Keyed to a phrase, signal, color, or token.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5QceSajZpMX0eS4Q",
     "notes": "",

@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A Green Lord's faithful dead, rising from the false afterlife to kill intruders.",
-        "description": "<p>Some of the Green Lords were mummified and interred with their most faithful mortal servants. These servants get to enjoy their master's false afterlife — but when threats to the tomb arise, they are sent back to their corpses, to rise and crush any intruders they find.</p>",
+        "description": "<p>Some of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VosjScKksp5B3hsc]{Green Lords}</strong> were mummified and interred with their most faithful mortal servants. These servants get to enjoy their master's false afterlife — but when threats to the tomb arise, they are sent back to their corpses, to rise and crush any intruders they find.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

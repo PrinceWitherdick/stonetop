@@ -9,7 +9,8 @@
         "max": 20
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "iron hide, unnatural resilience"
       },
       "damage": {
         "value": "gore d10+5 (hand, close, forceful, messy, 3 piercing)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large",
-    "qualities": "<p><strong>Iron hide</strong> (Armor 4, unnatural resilience): a hit dealing 2 or less damage before armor chips or shatters the weapon. Always hungry, easily provoked, and afraid of fire.</p>",
+    "qualities": "<p><strong>Iron hide:</strong> a hit dealing 2 or less damage before armor chips or shatters the weapon. Always hungry, easily provoked, and afraid of fire.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.vZjyZNaEPLIeD7VJ",
     "notes": "",

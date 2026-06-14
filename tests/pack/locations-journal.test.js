@@ -82,4 +82,30 @@ describe("locations journal — structured location pages", () => {
 		);
 		expect(bad.map(b => b.file)).toEqual([]);
 	});
+
+	// The "Dangers" section lists danger references under Hazards / Monsters /
+	// People sub-labels and THEN dumps the region's creature stat-block catalog. We
+	// keep the reference lists and cut only the catalog — so the gazetteer's Monsters
+	// list survives (a past bug cut it along with the catalog), and no Dangers
+	// section ever leaks a stat block (an "HP <n>" descriptor).
+	const dangersOf = (name) => {
+		const e = entries.find(x => x.doc.name === name);
+		return (e?.doc.pages?.[0]?.system?.sections ?? []).find(s => s.heading === "Dangers");
+	};
+
+	it("keeps the gazetteer Monsters reference list in Dangers", () => {
+		for (const name of ["North Manmarch", "South Manmarch"]) {
+			const d = dangersOf(name);
+			expect(d, `${name} has a Dangers section`).toBeTruthy();
+			expect(d.body, `${name} Dangers keeps its Monsters list`).toMatch(/<strong>Monsters<\/strong>/);
+		}
+	});
+
+	it("cuts the creature catalog: no Dangers section leaks a stat block", () => {
+		const bad = entries
+			.filter(({ doc }) => (doc.pages?.[0]?.system?.sections ?? [])
+				.some(s => s.heading === "Dangers" && /HP\s*\d/.test(s.body ?? "")))
+			.map(b => b.file);
+		expect(bad).toEqual([]);
+	});
 });

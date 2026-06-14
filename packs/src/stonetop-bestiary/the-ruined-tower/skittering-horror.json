@@ -9,7 +9,8 @@
         "max": 7
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "scythe-like limbs d6+2 w/advantage (hand, close, messy, 2 piercing except vs. bronze)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "",
     "tags": "horde, emanation, terrifying, sadistic, aggressive",
-    "qualities": "<p>Spider-climb; blind; senses life (heat, heartbeats, breathing, movement). Disoriented by intense noise or heat. Armor 4 (resilience), 0 vs. bronze.</p>",
+    "qualities": "<p>Spider-climb; blind; senses life (heat, heartbeats, breathing, movement). Disoriented by intense noise or heat. Armor 0 vs. bronze.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.KcEptvDi3nhRFoBB",
     "notes": "",

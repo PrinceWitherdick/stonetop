@@ -9,7 +9,8 @@
         "max": 23
       },
       "armor": {
-        "value": 1
+        "value": 1,
+        "source": "amorphous"
       },
       "damage": {
         "value": "blistering flames d10+1 (hand, grabby, messy, ignores armor)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, spirit, undead, fiery, terrifying",
-    "qualities": "<p>Fireproof; dormant without fresh air to 'breathe'; tethered to its bones. Armor 1 (amorphous).</p>",
+    "qualities": "<p>Fireproof; dormant without fresh air to 'breathe'; tethered to its bones.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.x54yvxxbXbmKYZ8e",
     "notes": "",

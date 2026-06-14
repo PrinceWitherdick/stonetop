@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 0
+        "value": 0,
+        "source": "by worn armor, if any"
       },
       "damage": {
         "value": "weapon d10 (tags by weapon)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, undead, hardy, magical, corrupted",
-    "qualities": "<p>Marked by their master. Armor by worn armor, if any.</p>",
+    "qualities": "<p>Marked by their master.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.DobvWxcXu5RXmXbT",
     "notes": "",

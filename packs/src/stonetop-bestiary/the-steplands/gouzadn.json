@@ -9,7 +9,8 @@
         "max": 16
       },
       "armor": {
-        "value": 4
+        "value": 4,
+        "source": "resilience"
       },
       "damage": {
         "value": "tooth and claw d10 (hand, grabby), hoof and antler d10+2 (close, forceful), rending strength d10+2 (hand, forceful, messy)",
@@ -23,7 +24,7 @@
     "organization": "solitary",
     "size": "",
     "tags": "solitary, magical, cautious, stealthy, shapeshifter",
-    "qualities": "<p>Armor 4 (resilience), 0 vs. certain sacred wood. Confused and frustrated by human speech; host to dozens of beast-spirits.</p>",
+    "qualities": "<p>Armor 0 vs. certain sacred wood. Confused and frustrated by human speech; host to dozens of beast-spirits.</p>",
     "count": 1,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.IS7Y75Kbqe5KILXW",
     "notes": "",

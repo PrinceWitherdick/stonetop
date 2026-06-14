@@ -11,7 +11,7 @@
     }
   },
   "folder": "nVv6GF39nE8RN4lQ",
-  "sort": 152000,
+  "sort": 171000,
   "pages": [
     {
       "_id": "ubngxZppYsCqh38W",
@@ -35,7 +35,7 @@
       },
       "src": null,
       "system": {
-        "concept": "Ordinary folk drawn, one small dark deed at a time, into the service of the Things Below.",
+        "concept": "Ordinary folk drawn, one small dark deed at a time, into the service of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong>.",
         "description": "<p>Folks are capable of all sorts of dark things if someone else suggests them — especially if they're desperate, and especially if the one leading them is trusted, respected, or admired. And if that first little dark deed comes without any consequence to them? Well, then the next one might not be so little.</p>",
         "questions": [],
         "lore": [],

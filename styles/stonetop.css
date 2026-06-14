@@ -99,6 +99,12 @@
 	/* The exclamation "legend" marker the rulebook puts beside hazard custom moves
 	   (e.g. Crinwin's "Unstable nest" and "Wasps" dangers). */
 	--stonetop-danger-icon: url('/systems/stonetop_pwd/assets/icons/bestiary/danger-move.svg');
+	/* Season glyphs for the gazetteer "Impressions" subsections. Autumn shares the
+	   one "fall" icon. */
+	--stonetop-season-spring-icon: url('/systems/stonetop_pwd/assets/icons/seasons/spring_icon.svg');
+	--stonetop-season-summer-icon: url('/systems/stonetop_pwd/assets/icons/seasons/summer_icon.svg');
+	--stonetop-season-fall-icon: url('/systems/stonetop_pwd/assets/icons/seasons/fall_icon.svg');
+	--stonetop-season-winter-icon: url('/systems/stonetop_pwd/assets/icons/seasons/winter_icon.svg');
 	/* Accent for journal-sourced ("added") steading improvements — the draggable
 	   journal card and the custom-improvement card it becomes on the sheet. */
 	--stonetop-improvement-accent: #7a5c2e;
@@ -1290,6 +1296,10 @@ input.stonetop-name-field {
 	overflow-y: auto;
 	overflow-x: hidden;
 	height: 100%;
+	/* Always reserve the scrollbar gutter so switching between a tall tab (which
+	   needs a scrollbar) and a short one doesn't pop the bar in/out and reflow
+	   the content sideways. */
+	scrollbar-gutter: stable;
 }
 
 .stonetop-moves-sidebar {
@@ -6608,6 +6618,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 72px;
 	height: 72px;
 	object-fit: contain;
+	border: none;
 }
 
 .stonetop-season-label {
@@ -6627,6 +6638,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 36px;
 	object-fit: contain;
 	flex-shrink: 0;
+	border: none;
 }
 
 .stonetop-season-flow { padding-bottom: 12px; }
@@ -6645,6 +6657,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 28px;
 	object-fit: contain;
 	padding-top: 1px;
+	/* The icons render inside Foundry's dark tooltip; invert the black glyphs to
+	   white so they read against the dark background, matching the tooltip text. */
+	filter: invert(1);
 }
 
 .stonetop-seasons-cta {
@@ -9716,8 +9731,18 @@ li.question-bullet {
 
 /* Gear term tooltips — applied via applyGearTermTooltips() */
 .stonetop-gear-term {
+	/* Weapon/damage tags read as italic in the books (e.g. "(hand, grabby,
+	   forceful)"). On the character/steading sheets the trait is already inside
+	   an authored <em>, so this only visibly italicises the bestiary's
+	   data-driven damage line, where the tag span sits in plain text. */
+	font-style: italic;
 	border-bottom: 1px dotted currentColor;
 	cursor: help;
+}
+
+/* "n piercing" / "x piercing" is the exception — it stays upright. */
+.stonetop-gear-term--no-italic {
+	font-style: normal;
 }
 
 /* Creature cross-links on bestiary sheets — hover for the concept, click to
@@ -9788,12 +9813,15 @@ li.question-bullet {
 	min-height: 100%;
 }
 
-/* Clamp the stat-block window so it can't be resized below the width its
-   two-column header/body needs. Foundry's setPosition() reads the app root's
-   computed min-width when resizing, so the rule has to live on the window element
-   (.app.window-app + the `monster` class from the sheet's defaultOptions). */
+/* Clamp the stat-block window so it can't be resized below the width its header
+   needs. The header packs a 150px portrait, two fixed stat boxes (HP 132 + Armor
+   92), and the 42px display-font name into one row; below this width the name
+   column is squeezed under its own word and a single-word name (e.g. "Grimstew")
+   breaks onto two lines. Foundry's setPosition() reads the app root's computed
+   min-width when resizing, so the rule lives on the window element (.app.window-app
+   + the `monster` class from the sheet's defaultOptions). */
 .window-app.monster {
-	min-width: 600px;
+	min-width: 700px;
 }
 
 /* The window auto-fits its content height (see StonetopMonsterSheet
@@ -10639,6 +10667,14 @@ input.stonetop-monster-armor-source {
    recognised size/quality tags get a dotted underline so they stand out from the
    plain (flavor) tags that carry no tooltip. */
 .stonetop-monster-org-pill[data-tooltip] { cursor: help; }
+
+/* Size + tags read as a single italic descriptor in the book ("Small * fae,
+   magical…"); the org chip is the only un-italic element on the line. */
+.stonetop-monster-size,
+.stonetop-monster-tags {
+	font-style: italic;
+}
+
 .stonetop-monster-tag[data-tooltip] {
 	cursor: help;
 	text-decoration: underline dotted;
@@ -10766,6 +10802,23 @@ input.stonetop-monster-armor-source {
 	filter: invert(1);
 }
 
+/* "Impressions" season sub-headers (Spring/Summer/Autumn/Winter) get the matching
+   season glyph hung off their bold label, the same at-a-glance flavor as the
+   Dangers icon. The icons are full-colour illustrations, so no dark-theme invert. */
+.stonetop-location-page .stonetop-season::before {
+	content: "";
+	display: inline-block;
+	width: 2.2em;
+	height: 2.2em;
+	margin-right: 0.4em;
+	vertical-align: -0.7em;
+	background: no-repeat center / contain;
+}
+.stonetop-location-page .stonetop-season--spring::before { background-image: var(--stonetop-season-spring-icon); }
+.stonetop-location-page .stonetop-season--summer::before { background-image: var(--stonetop-season-summer-icon); }
+.stonetop-location-page .stonetop-season--fall::before   { background-image: var(--stonetop-season-fall-icon); }
+.stonetop-location-page .stonetop-season--winter::before { background-image: var(--stonetop-season-winter-icon); }
+
 /* Uniform divider-to-content gap for every section: the 6px flex gap of
    `.stonetop-monster-field` plus 6px here, matching the rich-text sections whose
    `.stonetop-monster-readonly-text` adds 6px top padding. Zero any built-in top
@@ -10853,19 +10906,23 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 .stonetop-entry-qa-read .stonetop-entry-qa-prompt-text {
+	/* Keep the question as one continuous run of inline text so an inline
+	   <strong> cross-ref doesn't fragment it. The spiral sits in a left gutter
+	   via absolute positioning (a flex layout here would split the sentence into
+	   separate flex items at every inline element). */
+	position: relative;
 	margin: 0 0 2px;
+	padding-left: calc(var(--stonetop-question-spiral-size, 14px) + var(--stonetop-spiral-gap));
 	font-weight: normal;
-	display: flex;
-	align-items: flex-start;
-	gap: var(--stonetop-spiral-gap);
 }
 
 .stonetop-entry-qa-read .stonetop-entry-qa-prompt-text::before {
 	content: "";
-	flex: 0 0 var(--stonetop-question-spiral-size, 14px);
+	position: absolute;
+	left: 0;
+	top: 0.1em;
 	width: var(--stonetop-question-spiral-size, 14px);
 	height: var(--stonetop-question-spiral-size, 14px);
-	margin-top: 0.1em;
 	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 	background-size: contain;
 	background-repeat: no-repeat;

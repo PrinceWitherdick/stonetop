@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "Thorn-spirits — Danu's little swords, drawn to defend her most delicate children.",
-        "description": "<p>Each thorn on a plant is a sword, brandished boldly against a world that would defile its flowers, steal its fruit, and devour its delicate buds. What, then, are the coedwaig? Only Danu's swords, brandished by the Mother herself in defense of her most beautiful and vulnerable children.</p>",
+        "concept": "Thorn-spirits — <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.i0WjzHh0Ugynv2Tl]{Danu}</strong>'s little swords, drawn to defend her most delicate children.",
+        "description": "<p>Each thorn on a plant is a sword, brandished boldly against a world that would defile its flowers, steal its fruit, and devour its delicate buds. What, then, are the coedwaig? Only <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.i0WjzHh0Ugynv2Tl]{Danu}</strong>'s swords, brandished by the Mother herself in defense of her most beautiful and vulnerable children.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

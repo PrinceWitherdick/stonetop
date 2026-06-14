@@ -9,7 +9,8 @@
         "max": 3
       },
       "armor": {
-        "value": 2
+        "value": 2,
+        "source": "shell"
       },
       "damage": {
         "value": "pincers d4 w/disadvantage (hand, grabby)",
@@ -23,7 +24,7 @@
     "organization": "horde",
     "size": "small",
     "tags": "horde, small, stealthy, hoarder",
-    "qualities": "<p>Spider-climb; camouflaged shell. Armor 2 from shell.</p>",
+    "qualities": "<p>Spider-climb; camouflaged shell.</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.eAcyCUGDDeqkLrKJ",
     "notes": "",

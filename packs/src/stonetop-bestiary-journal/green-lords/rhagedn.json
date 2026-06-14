@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Antlered wooden sentinels that roost disguised as boughs, guarding old Green Lord sites.",
-        "description": "<p>Hunched humanoid forms carved of wood, with great wings, taloned feet, and heads crowned with branch-like antlers. They were made by the Green Lords to be sentinels and guardians, to watch over their borders and their most important sites. Now, ages and generations later, they still watch, and wait, and protect their nests.</p>",
+        "description": "<p>Hunched humanoid forms carved of wood, with great wings, taloned feet, and heads crowned with branch-like antlers. They were made by the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VosjScKksp5B3hsc]{Green Lords}</strong> to be sentinels and guardians, to watch over their borders and their most important sites. Now, ages and generations later, they still watch, and wait, and protect their nests.</p>",
         "questions": [],
         "lore": [
           {
