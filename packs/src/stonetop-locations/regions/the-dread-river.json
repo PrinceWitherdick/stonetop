@@ -40,7 +40,7 @@
             "kind": "prose",
             "heading": "Overview",
             "danger": false,
-            "body": "<p>The Dread River is the eastern border of the World’s End. It flows down from @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5vFbBIn18TKtCF91]{the Whitefang Mountains}, through the North and @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.apczJSWiu0M5dFrF]{South Manmarch} (pages 282 and 350), fed by numerous creeks and streams along the way.</p>",
+            "body": "<p>The Dread River is the eastern border of the World’s End. It flows down from the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5vFbBIn18TKtCF91]{Whitefang Mountains}</strong>, through the North and <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.apczJSWiu0M5dFrF]{South Manmarch}</strong> (pages 282 and 350), fed by numerous creeks and streams along the way.</p>",
             "pairs": []
           },
           {
@@ -81,7 +81,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Does one cross the Dread River en route to Lygos?",
+                "prompt": "Does one cross the Dread River en route to **Lygos**?",
                 "answer": ""
               },
               {
@@ -117,7 +117,7 @@
             "kind": "prose",
             "heading": "The Ruins at Road’s End",
             "danger": false,
-            "body": "<p>The Highway runs from @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VZ3YkXn70E1C7TEO]{Barrier Pass} through @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge} and ends at the Dread River. Where the road ends, there was once a sizeable city, a bustling hub of trade and learning.</p><p>The Tempest Lords called this city “Northernmost,” for it was founded as their most far-flung outpost. The Stone Lords called it Aavonkaer (“River City”). To the Green Lords it was Pazara (“The Marketplace”). The Rime Lords called it Jalampravahati (“Through Where the Waters Flow”).</p><p>Now, though, the city is called the Ruins at Road’s End. For when the Stone Lords’ servants rebelled and woke the Things Below, the Dread River belched forth countless horrors. The city’s inhabitants were slaughtered in a single night.</p><p>Throughout the time of the Barrow- Builders, various warlords and would-be sorcerer-kings claimed the ruined city. They sought to recover the lost artifacts of the Makers, or to harness the city’s restless souls, or to bend the horrors in the river to their will. Sometimes, they even succeeded. But never for very long.</p><p>The ruins sprawl for miles along the shore, and similar vestiges of the past are visible across the river. The legs of a once-mighty bridge still poke out from the water. Everyone agrees that great wealth and troves of lore remain among the crumbling walls. But everyone also agrees that those old cellar holes and skeletal structures—along with anything dug out of them—are cursed.</p>",
+            "body": "<p>The Highway runs from <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VZ3YkXn70E1C7TEO]{Barrier Pass}</strong> through <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> and ends at the Dread River. Where the road ends, there was once a sizeable city, a bustling hub of trade and learning.</p><p>The Tempest Lords called this city “Northernmost,” for it was founded as their most far-flung outpost. The Stone Lords called it Aavonkaer (“River City”). To the Green Lords it was Pazara (“The Marketplace”). The Rime Lords called it Jalampravahati (“Through Where the Waters Flow”).</p><p>Now, though, the city is called the Ruins at Road’s End. For when the Stone Lords’ servants rebelled and woke the Things Below, the Dread River belched forth countless horrors. The city’s inhabitants were slaughtered in a single night.</p><p>Throughout the time of the Barrow- Builders, various warlords and would-be sorcerer-kings claimed the ruined city. They sought to recover the lost artifacts of the Makers, or to harness the city’s restless souls, or to bend the horrors in the river to their will. Sometimes, they even succeeded. But never for very long.</p><p>The ruins sprawl for miles along the shore, and similar vestiges of the past are visible across the river. The legs of a once-mighty bridge still poke out from the water. Everyone agrees that great wealth and troves of lore remain among the crumbling walls. But everyone also agrees that those old cellar holes and skeletal structures—along with anything dug out of them—are cursed.</p>",
             "pairs": []
           },
           {

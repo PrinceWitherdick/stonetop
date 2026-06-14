@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Huge woolly tuskers of the northern steppe.",
-        "description": "<p>Mammoths graze the Frozen Wastes, herded by the mammoth bands for wool, ivory, bone, transport, and labor — kept in herds of ten to twenty adults, butchered only in desperation. Wild herds suffer no insult or threat.</p>",
+        "description": "<p>Mammoths graze the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.xg8MEuSbbEt1wqg8]{Frozen Wastes}</strong>, herded by the mammoth bands for wool, ivory, bone, transport, and labor — kept in herds of ten to twenty adults, butchered only in desperation. Wild herds suffer no insult or threat.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

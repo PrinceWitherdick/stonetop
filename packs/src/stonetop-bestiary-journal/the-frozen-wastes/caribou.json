@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Hardy tundra deer that move and panic as one great herd.",
-        "description": "<p>Caribou graze the windswept plateau of the Frozen Wastes in great herds, preyed on by wolves, saber-toothed cats, and worse things that crawl from the lakes in summer.</p>",
+        "description": "<p>Caribou graze the windswept plateau of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.xg8MEuSbbEt1wqg8]{Frozen Wastes}</strong> in great herds, preyed on by wolves, saber-toothed cats, and worse things that crawl from the lakes in summer.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

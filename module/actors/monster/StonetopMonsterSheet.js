@@ -1,6 +1,5 @@
 import { CREATURE_TYPE_CHOICES, creatureTypeIcon, creatureTypeLabel } from "../../bestiary/creature-types.js";
 import { rollDamage } from "../../utils/roll-engine.js";
-import { relockIfWeUnlocked } from "../../utils/compendium-edit.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { escHtml, isDefaultImg } from "../../utils/strings.js";
 import { findMonsterTag } from "../../data/monster-tags.js";
@@ -83,7 +82,11 @@ function _parseDamageModes(value) {
 		.filter(Boolean)
 		.map(text => {
 			const match = text.match(DAMAGE_DIE);
-			return { text, formula: match ? match[0].replace(/\s+/g, "") : "" };
+			// A mode can note "w/disadvantage" (or advantage) on its die; the roll
+			// button then rolls twice and keeps the worse/better result.
+			const rollMode = /disadvantage/i.test(text) ? "dis"
+				: /advantage/i.test(text) ? "adv" : "";
+			return { text, formula: match ? match[0].replace(/\s+/g, "") : "", rollMode };
 		});
 }
 
@@ -123,7 +126,6 @@ async function _enrichHTML(value) {
 export function createStonetopMonsterSheetClass(Base) {
 	return class StonetopMonsterSheet extends Base {
 		_editMode = false;
-		_weUnlockedPack = false;
 		_initialHeightApplied = false;
 
 		static get defaultOptions() {
@@ -190,11 +192,6 @@ export function createStonetopMonsterSheetClass(Base) {
 
 		_injectHeaderToggle() {
 			injectHeaderToggle(this, "monster");
-		}
-
-		async close(options) {
-			await relockIfWeUnlocked(this);
-			return super.close(options);
 		}
 
 		_getHeaderButtons() {
@@ -288,9 +285,12 @@ export function createStonetopMonsterSheetClass(Base) {
 					if (!formula) return;
 					// Route through the shared roll-engine so the monster's damage posts
 					// in the same Stonetop roll-card shell as character/follower damage,
-					// not a bare Foundry roll card. The speaker alias names the monster,
-					// so the card header is just "Damage".
-					await rollDamage(formula, this.actor, { label: "Damage" });
+					// not a bare Foundry roll card. The speaker alias names the monster;
+					// the card header is this mode's stat-block text (e.g. "icy touch d6
+					// w/disadvantage"), and a noted dis/advantage applies to the die.
+					const label    = dmgRoll.dataset.rollLabel || "Damage";
+					const rollMode = dmgRoll.dataset.rollMode  || "normal";
+					await rollDamage(formula, this.actor, { label, rollMode });
 
 				} else if (ev.target.closest(".stonetop-monster-move-roll")) {
 					const li   = ev.target.closest("[data-item-id]");

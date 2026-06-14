@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Cat-sized red insects that swarm and burst with acid.",
-        "description": "<p>Red-shelled insects that look like a cross between an ant and a beetle, but the size of a small cat. They form colonies a few-hundred large, typically on higher ground, harvesting all the dead grass in a few miles, hibernating through winter, then relocating in spring to a part of the Flats that hasn't burned or been harvested in years. They mostly ignore people and large animals, but they'll swarm if threatened.</p>",
+        "description": "<p>Red-shelled insects that look like a cross between an ant and a beetle, but the size of a small cat. They form colonies a few-hundred large, typically on higher ground, harvesting all the dead grass in a few miles, hibernating through winter, then relocating in spring to a part of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong> that hasn't burned or been harvested in years. They mostly ignore people and large animals, but they'll swarm if threatened.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

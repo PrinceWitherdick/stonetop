@@ -12,7 +12,7 @@
 
 		<div class="steading-improvements-grid">
 			{{#each stonetop.improvements}}
-			<div class="steading-improvement {{#if completed}}is-complete{{/if}}{{#if earned}} is-earned{{/if}}">
+			<div class="steading-improvement {{#if completed}}is-complete{{/if}}{{#if earned}} is-earned{{/if}}{{#if custom}} is-custom{{/if}}">
 
 				<div class="steading-improvement-header">
 					<label class="steading-improvement-complete-label"
@@ -22,9 +22,15 @@
 						       data-slug="{{slug}}" {{#if completed}}checked{{/if}}>
 					</label>
 					<div class="steading-improvement-summary">
-						<h4 class="steading-improvement-title">{{label}}</h4>
+						<h4 class="steading-improvement-title">{{label}}{{#if custom}} <span class="steading-improvement-custom-tag">added</span>{{/if}}</h4>
 						<p class="steading-improvement-flavor">{{flavor}}</p>
 					</div>
+					{{#if (and custom @root.stonetop.editMode)}}
+					<button type="button" class="steading-improvement-remove" data-slug="{{slug}}"
+					        data-tooltip="Remove this added improvement" data-tooltip-direction="UP">
+						<i class="fas fa-trash"></i>
+					</button>
+					{{/if}}
 					<span class="steading-improvement-chevron">
 						<i class="fas fa-chevron-down"></i>
 					</span>

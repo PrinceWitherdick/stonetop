@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "The drowned bride who roams moonlit woods, dragging others into her endless search.",
-        "description": "<p>Those who ply the Great Wood tell an old tale of a bride, newly married to a handsome trapper. He failed to come home one night, and she unwisely entered the forest to find him, falling into a deep pond and drowning. Ever since, her ghost has roamed the woods on moonlit nights: wet and shivering, desperate and pleading, certain that her husband is still out there.</p>",
+        "description": "<p>Those who ply the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong> tell an old tale of a bride, newly married to a handsome trapper. He failed to come home one night, and she unwisely entered the forest to find him, falling into a deep pond and drowning. Ever since, her ghost has roamed the woods on moonlit nights: wet and shivering, desperate and pleading, certain that her husband is still out there.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

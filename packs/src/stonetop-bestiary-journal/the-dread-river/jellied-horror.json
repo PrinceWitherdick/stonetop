@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A mindless flood-spawned ooze that dissolves and engulfs.",
-        "description": "<p>Sometimes the waters of the Dread River overflow their banks and flood the cursed ruins and tainted places. And sometimes, when the floodwaters recede, they leave behind… something. Something that just isn't right.</p>",
+        "description": "<p>Sometimes the waters of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lGNIQWIn8CPHuM7E]{Dread River}</strong> overflow their banks and flood the cursed ruins and tainted places. And sometimes, when the floodwaters recede, they leave behind… something. Something that just isn't right.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

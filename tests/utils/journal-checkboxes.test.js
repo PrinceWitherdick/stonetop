@@ -52,12 +52,19 @@ beforeAll(() => {
 	global.game = { ...(global.game ?? {}), user: { id: "u1" } };
 });
 
-function makePage({ checks = {}, editable = true, pack = "stonetop_pwd.stonetop-journal" } = {}) {
+function makePage({ checks = {}, editable = true, inCompendium = false, pack } = {}) {
 	const flags = { stonetop: { checks: { ...checks } } };
+	// A Stonetop journal is recognised either by its compendium `pack` (the immutable
+	// compendium copy) or, for a world copy, by Foundry's import stamp (no pack). Only
+	// the compendium copy is read-only; the world copy is what players actually tick.
+	let parent;
+	if (pack !== undefined) parent = { pack };                                  // explicit (e.g. a non-Stonetop pack)
+	else if (inCompendium) parent = { pack: "stonetop_pwd.stonetop-journal" };  // immutable compendium copy
+	else parent = { pack: null, _stats: { compendiumSource: "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.abc" } };
 	return {
 		documentName: "JournalEntryPage",
 		id: "page1",
-		parent: { pack },
+		parent,
 		flags,
 		getFlag: (scope, key) => flags[scope]?.[key],
 		canUserModify: () => editable,
@@ -65,7 +72,8 @@ function makePage({ checks = {}, editable = true, pack = "stonetop_pwd.stonetop-
 			for (const [path, val] of Object.entries(data)) {
 				const m = path.match(/^flags\.stonetop\.checks\.(-=)?(.+)$/);
 				if (!m) continue;
-				if (m[1]) delete flags.stonetop.checks[m[2]];
+				// Accept either delete form: v12's `-=key`/null or v13+'s ForcedDeletion sentinel.
+				if (m[1] || val === foundry.data?.operators?.ForcedDeletion) delete flags.stonetop.checks[m[2]];
 				else flags.stonetop.checks[m[2]] = val;
 			}
 			return Promise.resolve();
@@ -112,8 +120,23 @@ describe("applyJournalCheckboxes", () => {
 		expect(a.classList.contains("checked")).toBe(true);
 
 		b.control.fire("click");
-		expect(page.update).toHaveBeenCalledWith({ "flags.stonetop.checks.-=c1": null });
+		expect(page.update).toHaveBeenCalledWith({ "flags.stonetop.checks.c1": foundry.data.operators.ForcedDeletion });
 		expect(b.control.getAttribute("aria-checked")).toBe("false");
+	});
+
+	it("unchecks via the legacy `-=` syntax when ForcedDeletion is unavailable (v12)", () => {
+		const operators = foundry.data.operators;
+		foundry.data.operators = undefined; // simulate a v12 core
+		try {
+			const page = makePage({ checks: { c0: true } });
+			const [a] = run(page, 1);
+
+			a.control.fire("click");
+			expect(page.update).toHaveBeenCalledWith({ "flags.stonetop.checks.-=c0": null });
+			expect(a.control.getAttribute("aria-checked")).toBe("false");
+		} finally {
+			foundry.data.operators = operators;
+		}
 	});
 
 	it("toggles via keyboard (Space/Enter) only", () => {
@@ -135,6 +158,19 @@ describe("applyJournalCheckboxes", () => {
 		expect(b.control).toBeNull();
 		expect(a.classList.contains("checked")).toBe(true);
 		expect(b.classList.contains("checked")).toBe(false);
+	});
+
+	it("shows checked state read-only on a compendium (immutable) page, even for a GM", () => {
+		// editable:true == the user *could* modify it permission-wise, but it's the
+		// compendium copy, so no editable control is injected (it would fail to persist).
+		const page = makePage({ checks: { c0: true }, editable: true, inCompendium: true });
+		const [a, b] = run(page, 2);
+
+		expect(a.control).toBeNull();
+		expect(b.control).toBeNull();
+		expect(a.classList.contains("checked")).toBe(true);
+		expect(b.classList.contains("checked")).toBe(false);
+		expect(page.update).not.toHaveBeenCalled();
 	});
 
 	it("ignores journals outside the Stonetop pack", () => {

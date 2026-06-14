@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Territorial wild boars that ignore pain.",
-        "description": "<p>Wild boars of the Great Wood. Given enough years, enough close calls, and a steady diet of ferro-tree roots and nuts, a boar can eventually become a raselbaedd.</p>",
+        "description": "<p>Wild boars of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>. Given enough years, enough close calls, and a steady diet of ferro-tree roots and nuts, a boar can eventually become a raselbaedd.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

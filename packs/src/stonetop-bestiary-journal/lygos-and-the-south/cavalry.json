@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Armored riders of the southern legions, striking where the foe is weak.",
-        "description": "<p>The armies of the south are said to be as countless as the leaves in the Great Wood. Their heavy horse circle and harry, then form a wedge and charge home. Thankfully, the southern nations have so far seen no value in invading the north. At least, not yet.</p>",
+        "description": "<p>The armies of the south are said to be as countless as the leaves in the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>. Their heavy horse circle and harry, then form a wedge and charge home. Thankfully, the southern nations have so far seen no value in invading the north. At least, not yet.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

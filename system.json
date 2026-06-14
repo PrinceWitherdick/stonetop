@@ -47,20 +47,23 @@
                       "label":  "Stonetop Items",
                       "path":  "packs/stonetop-items",
                       "type":  "Item",
-                      "system":  "stonetop_pwd"
+                      "system":  "stonetop_pwd",
+                      "locked":  true
                   },
                   {
                       "name":  "stonetop-journal",
                       "label":  "Stonetop",
                       "path":  "packs/stonetop-journal",
-                      "type":  "JournalEntry"
+                      "type":  "JournalEntry",
+                      "locked":  true
                   },
                   {
                       "name":  "stonetop-bestiary",
                       "label":  "Monsters",
                       "path":  "packs/stonetop-bestiary",
                       "type":  "Actor",
-                      "system":  "stonetop_pwd"
+                      "system":  "stonetop_pwd",
+                      "locked":  true
                   }
               ],
     "documentTypes":  {

@@ -49,7 +49,7 @@ import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
-import {capitalizeFirst} from "../../utils/strings.js";
+import {capitalizeFirst, slugify} from "../../utils/strings.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {maxDie, stepDie} from "../../utils/damage-die.js";
@@ -267,7 +267,7 @@ export class StonetopCharacter {
 		if (playbookData) {
 			const background = playbookData.backgrounds?.find(b => b.slug === this._background.selectedSlug);
 			const bgMoveNames = new Set(background?.moves ?? []);
-			const bgSlugs = new Set([...bgMoveNames].map(_toSlug));
+			const bgSlugs = new Set([...bgMoveNames].map(slugify));
 			const entries = await this._moveRepo.getPlaybookMoves(playbookData.name);
 			if (entries.length > 0) {
 				const sorted = this.sortPlaybookMoves(
@@ -1160,10 +1160,6 @@ function _loc(key) {
 	return typeof game !== "undefined" ? game.i18n.localize(key) : key;
 }
 
-function _toSlug(name) {
-	return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
 const _STAT_DEFS = {
 	str: { name: "Strength",     abbr: "STR" },
 	dex: { name: "Dexterity",    abbr: "DEX" },
@@ -1276,7 +1272,7 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 			.withLabel(b.label)
 			.withDescription(b.description ?? "")
 			.withSelected(b.slug === savedBg)
-			.withMoves((b.moves ?? []).map(_toSlug))
+			.withMoves((b.moves ?? []).map(slugify))
 			.withChoices(choices)
 			.withSetupTexts((b.setup?.texts ?? []).map(t => ({
 				key: t.key,
@@ -1399,7 +1395,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 	const requirement = entry.requiresLabel
 		? new RequirementSnapshot(entry.requiresLabel, !entry.locked)
 		: null;
-	const sourceLabel = entry.isStarting ? (bgSlugs.has(_toSlug(entry.name)) ? "Background" : "Starting move") : null;
+	const sourceLabel = entry.isStarting ? (bgSlugs.has(slugify(entry.name)) ? "Background" : "Starting move") : null;
 
 	const markOptions = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {});
 

@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "The antlered, silver-speared huntsman of the Great Wood, who claims the souls of the dead.",
-        "description": "<p>On certain nights, the Pale Hunter stalks the Great Wood with his ghostly hounds, and even the bravest hunters stay in town. The Forest Folk spoke of him as something like a force of nature — less a god to worship than a storm to endure. Tales differ on what happens should you cross his path: he might ignore you, call you to join him, or mark you as his quarry. But all agree: impress him, and you'll be well rewarded; get caught, or fail to do your part — well, best not to think on it. He appears as a looming, antlered figure, luminous white, his face in shadow, his straight spear tipped with a silver crescent, draped with the jangling trophies of past hunts.</p>",
+        "concept": "The antlered, silver-speared huntsman of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>, who claims the souls of the dead.",
+        "description": "<p>On certain nights, the Pale Hunter stalks the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong> with his ghostly hounds, and even the bravest hunters stay in town. The Forest Folk spoke of him as something like a force of nature — less a god to worship than a storm to endure. Tales differ on what happens should you cross his path: he might ignore you, call you to join him, or mark you as his quarry. But all agree: impress him, and you'll be well rewarded; get caught, or fail to do your part — well, best not to think on it. He appears as a looming, antlered figure, luminous white, his face in shadow, his straight spear tipped with a silver crescent, draped with the jangling trophies of past hunts.</p>",
         "questions": [
           {
             "prompt": "What is he — spirit, ghost, or something else?",

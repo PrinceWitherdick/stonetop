@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A hill-sized burrowing drake that belches lightning.",
-        "description": "<p>Sometimes, out on the Flats, you'll see what looks to be small hills in the distance. Steer clear: they probably aren't hills, but huge piles of dirt a thunder drake has moved as it digs. You do not want to stumble into one on its home turf. When one bellows nearby, roll +CON: on a 10+ pick 1, on a 7-9 pick 2, on a 6- all three — drop what you're holding and cover your ears; stagger back a few steps; be deafened and disoriented for a few moments.</p>",
+        "description": "<p>Sometimes, out on the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong>, you'll see what looks to be small hills in the distance. Steer clear: they probably aren't hills, but huge piles of dirt a thunder drake has moved as it digs. You do not want to stumble into one on its home turf. When one bellows nearby, roll +CON: on a 10+ pick 1, on a 7-9 pick 2, on a 6- all three — drop what you're holding and cover your ears; stagger back a few steps; be deafened and disoriented for a few moments.</p>",
         "questions": [],
         "lore": [
           {

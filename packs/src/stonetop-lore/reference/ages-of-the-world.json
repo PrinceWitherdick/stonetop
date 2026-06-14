@@ -14,10 +14,10 @@
   "sort": 23000,
   "pages": [
     {
-      "_id": "HbpICSkAwKLpqkYV",
-      "_key": "!journal.pages!w9WJjHZCXeziYChA.HbpICSkAwKLpqkYV",
-      "name": "The Primordial Age",
-      "type": "text",
+      "_id": "e2XTf7iAVcuaecmY",
+      "_key": "!journal.pages!w9WJjHZCXeziYChA.e2XTf7iAVcuaecmY",
+      "name": "Ages of the World",
+      "type": "location",
       "title": {
         "show": true,
         "level": 1
@@ -27,155 +27,60 @@
       },
       "text": {
         "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p><em>Eons ago, over a span beyond reckoning.</em></p><ul><li>Light fills the void; @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{the Things Below} were already there</li><li class=\"question-bullet\">First Creators become aware of themselves ?</li><li>The first of the great spirits arise</li></ul><ul><li>Things Below stoke the Creators’ egos, urge war</li><li>First Creators forge the world and trap the Things Below inside</li><li class=\"question-bullet\">Tcaventes, Shackle and Key, is set to guard the Utterwell ?</li><li class=\"question-bullet\">The gods do many legendary things ?</li><li>The earliest peoples evolve or are created</li></ul></div>"
+        "content": ""
       },
       "video": {
         "controls": true,
         "volume": 0.5
       },
       "src": null,
-      "system": {},
+      "system": {
+        "sections": [
+          {
+            "kind": "prose",
+            "heading": "The Primordial Age",
+            "danger": false,
+            "body": "<p><em>Eons ago, over a span beyond reckoning.</em></p><ul><li>Light fills the void; the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong> were already there</li><li class=\"question-bullet\">First Creators become aware of themselves ?</li><li>The first of the great spirits arise</li></ul><ul><li>Things Below stoke the Creators’ egos, urge war</li><li>First Creators forge the world and trap the Things Below inside</li><li class=\"question-bullet\">Tcaventes, Shackle and Key, is set to guard the Utterwell ?</li><li class=\"question-bullet\">The gods do many legendary things ?</li><li>The earliest peoples evolve or are created</li></ul>",
+            "pairs": []
+          },
+          {
+            "kind": "prose",
+            "heading": "Time of the Makers",
+            "danger": false,
+            "body": "<p><em>Millennia ago, over a span of centuries (at least).</em></p><ul><li>Rise of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wsIFXTjnJFgO6vnI]{Tempest Lords}</strong>’ civilization</li><li>Tempest Lords establish their empire</li><li>Rise of other Maker groups</li><li>Tempest Lords found “Northernmost” (the Ruins at Road’s End, page 87)</li><li class=\"question-bullet\">Tempest Lord homeland sinks, empire crumbles; other <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.eoTIBDMIzJXByPCZ]{Makers}</strong> grow in power ?</li><li class=\"question-bullet\">Construction of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ezquwGFbne6uxzJK]{Makers’ Roads}</strong> begins ?</li><li class=\"question-bullet\"><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VosjScKksp5B3hsc]{Green Lords}</strong> breed the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong> ?</li><li>Manmarchers come from across the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lGNIQWIn8CPHuM7E]{Dread River}</strong></li></ul><ul><li>Stormcatcher establishes her Tower in the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong></li><li>Fae rebellion! the Green Lords call on the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong></li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rJiU3RhbILojTC2u]{Stone Lords}</strong> destroy the heart of the Green Lord’s territory, creating what is now <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.UstvXnD6EA9IBBO3]{Ferrier’s Fen}</strong></li><li>Siege of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.76FKkdtTFxWEGIKQ]{Vor Svetelik}</strong>; Green Lords retreat, become <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lB57gclVP4TiOIRb]{Fomoraij}</strong></li><li>Stone Lords’ servants start to plot rebellion and embrace the Things Below</li></ul><p>Were the civilizations of the South founded during the Time of the Makers, or even before? Or perhaps during the Time of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JDCcrvQhMYFFlUIe]{Barrow Builders}</strong>?</p><p>Most events are listed in the order they occurred, but events in italics and starting with ? are approximate, their specific placement unclear. Did construction begin on the Makers’ Roads before or after the Tempest Lords’ capital sank? Did Brennan become <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong>’s marshal before or after the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{Forest Folk}</strong> disappeared? That’s for you and your group to decide, if it matters.</p>",
+            "pairs": []
+          },
+          {
+            "kind": "prose",
+            "heading": "Time of Cataclysm",
+            "danger": false,
+            "body": "<p><em>Centuries ago, over a span of decades.</em></p><ul><li class=\"question-bullet\"><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rJiU3RhbILojTC2u]{Stone Lords}</strong>’ servants rebel, unleash the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong>, sink Dulenn and create <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.25HD51CKompWLFvB]{Blackwater Lake}</strong> ?</li><li>“Northernmost” overrun by horrors from the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lGNIQWIn8CPHuM7E]{Dread River}</strong></li></ul><ul><li>Stone Lords hunted down by rebels</li><li>Teirstered falls, becomes <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.zUeBMA1XS4Lq3KdK]{Three Coven Lake}</strong></li><li class=\"question-bullet\">Refugees start heading to Stormcatcher’s tower ?</li><li class=\"question-bullet\">Howling Curse causes Rime Lord civilization to nearly collapse ?</li><li>Volcanic eruptions, Moratia Rubra destroyed, Forge Lord society collapses</li></ul><ul><li>More refugees arrive at Stormcatcher’s tower</li><li>Surviving <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.oi5Mg2wPABRjvHri]{Rime Lords}</strong> sacrifice themselves to contain the Howling Curse</li><li>Stormcatcher’s tower falls</li></ul>",
+            "pairs": []
+          },
+          {
+            "kind": "prose",
+            "heading": "Time of the Barrow Builders",
+            "danger": false,
+            "body": "<p><em>Centuries ago, over a span of generations.</em></p><ul><li>First barrows built to honor freedom fighters</li><li>Emanations of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong> roam freely, are worshipped/appeased</li><li>Warlords/sorcerer-kings vie for power, build more elaborate barrows</li><li>Battles fought over <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.zUeBMA1XS4Lq3KdK]{Three Coven Lake}</strong>, the Ruins at Road’s End, etc.</li><li>Refugees, enslavement, human sacrifice, all-around bad times</li><li>Subjects of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JDCcrvQhMYFFlUIe]{Barrow Builders}</strong> overthrow/abandon/imprison their tyrannical rulers</li><li>Certain bands of Barrow Builders flee into the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.v4slCO5mFJLcZO1q]{Labyrinth}</strong></li></ul>",
+            "pairs": []
+          },
+          {
+            "kind": "prose",
+            "heading": "The Current Age",
+            "danger": false,
+            "body": "<p><em>Starting a few centuries ago.</em></p><ul><li>Power of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong> ebbs (reasons unclear)</li><li class=\"question-bullet\">Barrow Builder culture gives rise to <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk}</strong> culture ?</li><li class=\"question-bullet\"><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> founded ?</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}</strong> founded</li></ul><ul><li>Region stabilizes, trade routes established</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin’s Delve}</strong> settled, Foundry established</li></ul>",
+            "pairs": []
+          },
+          {
+            "kind": "prose",
+            "heading": "Recent memory",
+            "danger": false,
+            "body": "<p><em>The last decade or so.</em></p><ul><li class=\"question-bullet\">?</li><li>Brennan and the Claws start raiding</li></ul><ul><li>Earthquakes become more common</li><li class=\"question-bullet\"><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{Forest Folk}</strong> disappear ?</li><li>Brennan hired as <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong>’s marshal</li></ul><p>Crinwin, nailadd, etc. grow in numbers</p>",
+            "pairs": []
+          }
+        ]
+      },
       "sort": 100000,
-      "ownership": {
-        "default": -1
-      },
-      "flags": {}
-    },
-    {
-      "_id": "vDAhMocGreCMQu4A",
-      "_key": "!journal.pages!w9WJjHZCXeziYChA.vDAhMocGreCMQu4A",
-      "name": "Time of the Makers",
-      "type": "text",
-      "title": {
-        "show": true,
-        "level": 1
-      },
-      "image": {
-        "caption": ""
-      },
-      "text": {
-        "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p><em>Millennia ago, over a span of centuries (at least).</em></p><ul><li>Rise of @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wsIFXTjnJFgO6vnI]{the Tempest Lords}’ civilization</li><li>Tempest Lords establish their empire</li><li>Rise of other Maker groups</li><li>Tempest Lords found “Northernmost” (the Ruins at Road’s End, page 87)</li><li class=\"question-bullet\">Tempest Lord homeland sinks, empire crumbles; other @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.eoTIBDMIzJXByPCZ]{Makers} grow in power ?</li><li class=\"question-bullet\">Construction of @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ezquwGFbne6uxzJK]{the Makers’ Roads} begins ?</li><li class=\"question-bullet\">@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VosjScKksp5B3hsc]{Green Lords} breed @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{the Fae} ?</li><li>Manmarchers come from across @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lGNIQWIn8CPHuM7E]{the Dread River}</li></ul><ul><li>Stormcatcher establishes her Tower in @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{the Flats}</li><li>Fae rebellion! the Green Lords call on @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{the Things Below}</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rJiU3RhbILojTC2u]{Stone Lords} destroy the heart of the Green Lord’s territory, creating what is now @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.UstvXnD6EA9IBBO3]{Ferrier’s Fen}</li><li>Siege of @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.76FKkdtTFxWEGIKQ]{Vor Svetelik}; Green Lords retreat, become @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lB57gclVP4TiOIRb]{Fomoraij}</li><li>Stone Lords’ servants start to plot rebellion and embrace the Things Below</li></ul><p>Were the civilizations of the South founded during the Time of the Makers, or even before? Or perhaps during the Time of @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JDCcrvQhMYFFlUIe]{the Barrow Builders}?</p><p>Most events are listed in the order they occurred, but events in italics and starting with ? are approximate, their specific placement unclear. Did construction begin on the Makers’ Roads before or after the Tempest Lords’ capital sank? Did Brennan become @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}’s marshal before or after @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{the Forest Folk} disappeared? That’s for you and your group to decide, if it matters.</p></div>"
-      },
-      "video": {
-        "controls": true,
-        "volume": 0.5
-      },
-      "src": null,
-      "system": {},
-      "sort": 200000,
-      "ownership": {
-        "default": -1
-      },
-      "flags": {}
-    },
-    {
-      "_id": "9YnUZ50s6DreRwsV",
-      "_key": "!journal.pages!w9WJjHZCXeziYChA.9YnUZ50s6DreRwsV",
-      "name": "Time of Cataclysm",
-      "type": "text",
-      "title": {
-        "show": true,
-        "level": 1
-      },
-      "image": {
-        "caption": ""
-      },
-      "text": {
-        "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p><em>Centuries ago, over a span of decades.</em></p><ul><li class=\"question-bullet\">@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rJiU3RhbILojTC2u]{Stone Lords}’ servants rebel, unleash @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{the Things Below}, sink Dulenn and create @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.25HD51CKompWLFvB]{Blackwater Lake} ?</li><li>“Northernmost” overrun by horrors from @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lGNIQWIn8CPHuM7E]{the Dread River}</li></ul><ul><li>Stone Lords hunted down by rebels</li><li>Teirstered falls, becomes @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.zUeBMA1XS4Lq3KdK]{Three Coven Lake}</li><li class=\"question-bullet\">Refugees start heading to Stormcatcher’s tower ?</li><li class=\"question-bullet\">Howling Curse causes Rime Lord civilization to nearly collapse ?</li><li>Volcanic eruptions, Moratia Rubra destroyed, Forge Lord society collapses</li></ul><ul><li>More refugees arrive at Stormcatcher’s tower</li><li>Surviving @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.oi5Mg2wPABRjvHri]{Rime Lords} sacrifice themselves to contain the Howling Curse</li><li>Stormcatcher’s tower falls</li></ul></div>"
-      },
-      "video": {
-        "controls": true,
-        "volume": 0.5
-      },
-      "src": null,
-      "system": {},
-      "sort": 300000,
-      "ownership": {
-        "default": -1
-      },
-      "flags": {}
-    },
-    {
-      "_id": "kqDPaM05hUlEFEEz",
-      "_key": "!journal.pages!w9WJjHZCXeziYChA.kqDPaM05hUlEFEEz",
-      "name": "Time of the Barrow Builders",
-      "type": "text",
-      "title": {
-        "show": true,
-        "level": 1
-      },
-      "image": {
-        "caption": ""
-      },
-      "text": {
-        "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p><em>Centuries ago, over a span of generations.</em></p><ul><li>First barrows built to honor freedom fighters</li><li>Emanations of @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{the Things Below} roam freely, are worshipped/appeased</li><li>Warlords/sorcerer-kings vie for power, build more elaborate barrows</li><li>Battles fought over @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.zUeBMA1XS4Lq3KdK]{Three Coven Lake}, the Ruins at Road’s End, etc.</li><li>Refugees, enslavement, human sacrifice, all-around bad times</li><li>Subjects of @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JDCcrvQhMYFFlUIe]{the Barrow Builders} overthrow/abandon/imprison their tyrannical rulers</li><li>Certain bands of Barrow Builders flee into @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.v4slCO5mFJLcZO1q]{the Labyrinth}</li></ul></div>"
-      },
-      "video": {
-        "controls": true,
-        "volume": 0.5
-      },
-      "src": null,
-      "system": {},
-      "sort": 400000,
-      "ownership": {
-        "default": -1
-      },
-      "flags": {}
-    },
-    {
-      "_id": "ljpYuyWAZm2AwJJ1",
-      "_key": "!journal.pages!w9WJjHZCXeziYChA.ljpYuyWAZm2AwJJ1",
-      "name": "The Current Age",
-      "type": "text",
-      "title": {
-        "show": true,
-        "level": 1
-      },
-      "image": {
-        "caption": ""
-      },
-      "text": {
-        "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p><em>Starting a few centuries ago.</em></p><ul><li>Power of @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{the Things Below} ebbs (reasons unclear)</li><li class=\"question-bullet\">Barrow Builder culture gives rise to @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk} culture ?</li><li class=\"question-bullet\">@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge} founded ?</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop} founded</li></ul><ul><li>Region stabilizes, trade routes established</li><li>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin’s Delve} settled, Foundry established</li></ul></div>"
-      },
-      "video": {
-        "controls": true,
-        "volume": 0.5
-      },
-      "src": null,
-      "system": {},
-      "sort": 500000,
-      "ownership": {
-        "default": -1
-      },
-      "flags": {}
-    },
-    {
-      "_id": "TV5BE5XYJ7C7fL9a",
-      "_key": "!journal.pages!w9WJjHZCXeziYChA.TV5BE5XYJ7C7fL9a",
-      "name": "Recent memory",
-      "type": "text",
-      "title": {
-        "show": true,
-        "level": 1
-      },
-      "image": {
-        "caption": ""
-      },
-      "text": {
-        "format": 1,
-        "content": "<div class=\"stonetop-location-body\"><p><em>The last decade or so.</em></p><ul><li class=\"question-bullet\">?</li><li>Brennan and the Claws start raiding</li></ul><ul><li>Earthquakes become more common</li><li class=\"question-bullet\">@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{Forest Folk} disappear ?</li><li>Brennan hired as @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}’s marshal</li></ul><p>Crinwin, nailadd, etc. grow in numbers</p></div>"
-      },
-      "video": {
-        "controls": true,
-        "volume": 0.5
-      },
-      "src": null,
-      "system": {},
-      "sort": 600000,
       "ownership": {
         "default": -1
       },

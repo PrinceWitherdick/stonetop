@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A scaly bird with a forty-foot wingspan that drops its prey from the sky.",
-        "description": "<p>Great scaly birds, wings some forty feet across, sky-blue and white feathers on their undersides to hide against the sky. They roost in the Huffel Peaks but hunt the Flats, snatching up the unwary — man, woman, deer, horse — and dropping them to the ground. The drop usually kills or cripples its prey, and then it alights to dine at its leisure. Thank Tor, they're very rare, with only one mated pair hunting the Flats at a time.</p>",
+        "description": "<p>Great scaly birds, wings some forty feet across, sky-blue and white feathers on their undersides to hide against the sky. They roost in the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.RxUdCkI2lL6gE5IH]{Huffel Peaks}</strong> but hunt the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong>, snatching up the unwary — man, woman, deer, horse — and dropping them to the ground. The drop usually kills or cripples its prey, and then it alights to dine at its leisure. Thank Tor, they're very rare, with only one mated pair hunting the Flats at a time.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

@@ -12,6 +12,8 @@ global.Hooks = {
 global.CONFIG = {};
 
 global.foundry = {
+	// V13 sentinel that, when set as an update value, forces deletion of that key.
+	data: { operators: { ForcedDeletion: Symbol.for("ForcedDeletion") } },
 	utils: {
 		mergeObject: (a, b) => ({ ...a, ...b }),
 		deepClone: (value) => structuredClone(value),

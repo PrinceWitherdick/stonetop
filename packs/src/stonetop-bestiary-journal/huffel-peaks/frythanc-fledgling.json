@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Mountain-dwelling young frythancs, twelve-foot wingspans and all.",
-        "description": "<p>The full-grown frythancs that hunt the Flats are terrors. Their young, thankfully, keep to the mountains, where they hunt goats, sheep, and the occasional unwary traveler. The fledglings aren't nearly as dangerous as their full-grown parents — but still, let's see how you do when birds with twelve-foot wingspans try to tear you off some switchback trail.</p>",
+        "description": "<p>The full-grown frythancs that hunt the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong> are terrors. Their young, thankfully, keep to the mountains, where they hunt goats, sheep, and the occasional unwary traveler. The fledglings aren't nearly as dangerous as their full-grown parents — but still, let's see how you do when birds with twelve-foot wingspans try to tear you off some switchback trail.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

@@ -105,9 +105,15 @@ async function enrichHTML(value) {
 export async function buildCodexContext(system, editMode, options = {}) {
 	const richFields = options.richFields ?? CODEX_RICH_FIELDS;
 	const out = {};
-	await Promise.all(richFields.map(async f => {
-		out[f.enrichedKey] = await enrichHTML(system?.[f.key]);
-	}));
+	await Promise.all([
+		...richFields.map(async f => {
+			out[f.enrichedKey] = await enrichHTML(system?.[f.key]);
+		}),
+		// The concept tagline is plain text in edit mode, but read mode enriches it so
+		// baked @UUID links (e.g. a place name cross-linked by the bestiary generator)
+		// resolve and become clickable in the subtitle.
+		(async () => { out.enrichedConcept = await enrichHTML(system?.concept); })(),
+	]);
 
 	out.prepLineSections = CODEX_PREP_FIELDS.map(field => {
 		const introField = `${field.key}Intro`;

@@ -134,7 +134,7 @@ describe("StonetopMonsterSheet", () => {
 		const data = await makeSheet(actor).getData();
 
 		expect(data.stonetop.damageModes).toEqual([
-			{ text: "claws, bite, hug d10+4 (hand, close, messy, 1 piercing)", formula: "d10+4" },
+			{ text: "claws, bite, hug d10+4 (hand, close, messy, 1 piercing)", formula: "d10+4", rollMode: "" },
 		]);
 		expect(data.stonetop.multiDamage).toBe(false);
 	});
@@ -150,10 +150,25 @@ describe("StonetopMonsterSheet", () => {
 		const data = await makeSheet(actor).getData();
 
 		expect(data.stonetop.damageModes).toEqual([
-			{ text: "fingers d8 (close)", formula: "d8" },
-			{ text: "maw d10+2 (hand, messy)", formula: "d10+2" },
+			{ text: "fingers d8 (close)", formula: "d8", rollMode: "" },
+			{ text: "maw d10+2 (hand, messy)", formula: "d10+2", rollMode: "" },
 		]);
 		expect(data.stonetop.multiDamage).toBe(true);
+	});
+
+	it("flags a damage mode that notes disadvantage on its die", async () => {
+		const actor = {
+			system: {
+				attributes: { damage: { value: "icy touch d6 w/disadvantage (hand, ignores armor)" } },
+			},
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.damageModes).toEqual([
+			{ text: "icy touch d6 w/disadvantage (hand, ignores armor)", formula: "d6", rollMode: "dis" },
+		]);
 	});
 
 	it("enriches the qualities rich-text field for display", async () => {

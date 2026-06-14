@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "Warrior-protectors of the Whitefang fortress-monasteries and Barrier Pass.",
-        "description": "<p>The fortress-monasteries of the Whitefangs each keep a cadre of warriors, recruited from local farm valleys, bands of mammoth herders, or failed novices. They focus on the arts of battle rather than the esoteric ways of the monks. The folk of Barrier Pass keep their own guardians, armed less to kill than to subdue or drive off threats.</p>",
+        "concept": "Warrior-protectors of the Whitefang fortress-monasteries and <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VZ3YkXn70E1C7TEO]{Barrier Pass}</strong>.",
+        "description": "<p>The fortress-monasteries of the Whitefangs each keep a cadre of warriors, recruited from local farm valleys, bands of mammoth herders, or failed novices. They focus on the arts of battle rather than the esoteric ways of the monks. The folk of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VZ3YkXn70E1C7TEO]{Barrier Pass}</strong> keep their own guardians, armed less to kill than to subdue or drive off threats.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

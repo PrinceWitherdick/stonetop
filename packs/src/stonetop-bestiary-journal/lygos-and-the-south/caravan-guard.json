@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Hired muscle protecting a merchant caravan on the long road north.",
-        "description": "<p>Much of the way between Lygos and Marshedge runs through trackless wilds, without the protection of the Makers' Roads. Bandits, beasts, and Hillfolk are all a threat, and plenty of would-be clients would as soon rob a merchant as trade fairly. So merchants hire guards — and when danger looms, they hope they hired well.</p>",
+        "description": "<p>Much of the way between <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.DPUvs6Ss8UHXEsCJ]{Lygos}</strong> and <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> runs through trackless wilds, without the protection of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ezquwGFbne6uxzJK]{Makers' Roads}</strong>. Bandits, beasts, and Hillfolk are all a threat, and plenty of would-be clients would as soon rob a merchant as trade fairly. So merchants hire guards — and when danger looms, they hope they hired well.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

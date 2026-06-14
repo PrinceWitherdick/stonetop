@@ -4,7 +4,7 @@
 // The only per-sheet variation is the header's BEM class and the toggle's noun,
 // so those are parameters rather than two copies of the logic.
 
-import { unlockForEditing, relockIfWeUnlocked } from "./compendium-edit.js";
+import { isInCompendium, warnCompendiumImmutable } from "./compendium-edit-guard.js";
 
 /**
  * Drop the header portrait if its image fails to load, flagging the header so
@@ -43,14 +43,14 @@ export function injectHeaderToggle(sheet, noun) {
 	if (!header || !sheet.actor.isOwner) return;
 	header.querySelector(".stonetop-header-toggle")?.remove();
 
-	// Locked == viewed from a locked compendium. Show a lock affordance;
-	// toggling it on unlocks the pack so the fields become editable.
+	// Locked == viewed from a (read-only) compendium. Show a lock affordance; clicking
+	// it explains that compendium content is immutable and to edit a world copy instead.
 	const locked = !sheet.isEditable;
 
 	const label = document.createElement("label");
 	label.className = "stonetop-edit-toggle stonetop-header-toggle";
 	label.title = locked
-		? "Unlock & edit (unlocks the compendium)"
+		? "Read-only — import to your world to edit"
 		: (sheet._editMode ? `Lock ${noun}` : `Edit ${noun}`);
 
 	const checkbox = document.createElement("input");
@@ -73,18 +73,18 @@ export function injectHeaderToggle(sheet, noun) {
 }
 
 /**
- * Handle the edit/lock toggle: unlock the pack when turning on (from a locked
- * compendium), flip `_editMode`, re-lock when turning off, then re-render.
+ * Handle the edit/lock toggle: flip `_editMode` and re-render. A non-editable sheet
+ * means a read-only compendium document (the toggle only shows for owners, so world
+ * actors are always editable here); compendium content is immutable, so explain how to
+ * edit a world copy instead of entering edit mode.
  */
 export async function toggleEdit(sheet, checkbox) {
 	const turningOn = checkbox.checked;
 	if (turningOn && !sheet.isEditable) {
-		if (!await unlockForEditing(sheet)) { checkbox.checked = false; return; }
+		checkbox.checked = false;
+		if (isInCompendium(sheet.actor)) warnCompendiumImmutable(sheet.actor);
+		return;
 	}
-	// Set the mode before re-locking: relocking the pack triggers an async
-	// re-render, and if _editMode were still true that render would paint
-	// edit-mode markup into a now-locked form (disabled inputs everywhere).
 	sheet._editMode = turningOn;
-	if (!turningOn) await relockIfWeUnlocked(sheet);
 	sheet.render(false);
 }

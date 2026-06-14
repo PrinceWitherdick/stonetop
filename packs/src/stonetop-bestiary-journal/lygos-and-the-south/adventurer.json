@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Scoundrels, mercenaries, and treasure-hunters come north in search of a big score.",
-        "description": "<p>They make their way north now and then: scoundrels, mercenaries, treasure-hunters — folk who just can't make a go of a normal life. They show up in Marshedge or Stonetop or Gordin's Delve, in search of some big score, or running from the consequences of the last one. Or both.</p>",
+        "description": "<p>They make their way north now and then: scoundrels, mercenaries, treasure-hunters — folk who just can't make a go of a normal life. They show up in <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> or <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}</strong> or <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin's Delve}</strong>, in search of some big score, or running from the consequences of the last one. Or both.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

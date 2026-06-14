@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A chief's very best, brought to bear when war-bands meet on the open plain.",
-        "description": "<p>Most violence in the North Manmarch is small and intimate — a nighttime raid on a steading, an ambush in the hills, throats slit around a campfire. But when chiefs raise large forces and meet on the open plains, they bring their very best. Each chariot is pulled by two tonnerhorns and carries a driver and two warriors.</p>",
+        "description": "<p>Most violence in the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NERZ6p7FNc1pxNWL]{North Manmarch}</strong> is small and intimate — a nighttime raid on a steading, an ambush in the hills, throats slit around a campfire. But when chiefs raise large forces and meet on the open plains, they bring their very best. Each chariot is pulled by two tonnerhorns and carries a driver and two warriors.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

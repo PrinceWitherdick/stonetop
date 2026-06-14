@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Sneaky, dog-sized pack hunters of the tall grass. Just the worst.",
-        "description": "<p>Sneaky little dog-sized critters that prowl the Flats, hunting in packs ranging from six to a couple dozen. Just the worst.</p>",
+        "description": "<p>Sneaky little dog-sized critters that prowl the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong>, hunting in packs ranging from six to a couple dozen. Just the worst.</p>",
         "questions": [
           {
             "prompt": "What's the surest sign of their presence?",

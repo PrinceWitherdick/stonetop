@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A fireproof, giggling boar that burns and devours, spawned of the Burning Child's rage.",
-        "description": "<p>There is a burnt and blasted place, where the Steplands abut Ferrier's Fen. It once boasted a Stone Lord fortress: grand, a tower eternal, lit by a fiery gem. But the servants rebelled, the seals were sundered, and Ta'l Themyin, the Burning Child, shattered the gem and toppled the tower and laughed and laughed and laughed. His rage still boils to the surface, poisoning any beast bold enough to forage in these ruins — and his cruelty sends them forth, to uproot and topple, to sunder and burn.</p>",
+        "description": "<p>There is a burnt and blasted place, where the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.No8UN1MJEb2mrLXo]{Steplands}</strong> abut <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.UstvXnD6EA9IBBO3]{Ferrier's Fen}</strong>. It once boasted a Stone Lord fortress: grand, a tower eternal, lit by a fiery gem. But the servants rebelled, the seals were sundered, and Ta'l Themyin, the Burning Child, shattered the gem and toppled the tower and laughed and laughed and laughed. His rage still boils to the surface, poisoning any beast bold enough to forage in these ruins — and his cruelty sends them forth, to uproot and topple, to sunder and burn.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

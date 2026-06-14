@@ -40,7 +40,7 @@
             "kind": "prose",
             "heading": "Overview",
             "danger": false,
-            "body": "<p>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{The Great Wood} and @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.UstvXnD6EA9IBBO3]{Ferrier’s Fen} are dotted with massive markers of pale gray stone, moss-covered and largely overgrown, deeply etched with the curling, branching runes of the Green Lords. Fae magic binds the waystones together.</p>",
+            "body": "<p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{The Great Wood}</strong> and <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.UstvXnD6EA9IBBO3]{Ferrier’s Fen}</strong> are dotted with massive markers of pale gray stone, moss-covered and largely overgrown, deeply etched with the curling, branching runes of the Green Lords. Fae magic binds the waystones together.</p>",
             "pairs": []
           },
           {
@@ -61,7 +61,7 @@
             "kind": "prose",
             "heading": "Hooks",
             "danger": false,
-            "body": "<ul><li>Something dangerous has learned to use the waystones, emerging near the one closest to @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}, causing trouble, and retreating.</li><li>Someone was lost to the Fae paths years or decades or even centuries ago. Now they reappear, stumbling back to Stonetop, thinking that only hours or days have passed.</li><li>Someone the PCs care about steps onto the Fae paths and doesn’t return.</li></ul>",
+            "body": "<ul><li>Something dangerous has learned to use the waystones, emerging near the one closest to <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}</strong>, causing trouble, and retreating.</li><li>Someone was lost to the Fae paths years or decades or even centuries ago. Now they reappear, stumbling back to Stonetop, thinking that only hours or days have passed.</li><li>Someone the PCs care about steps onto the Fae paths and doesn’t return.</li></ul>",
             "pairs": []
           }
         ]

@@ -22,7 +22,7 @@ When a character rolls a miss, the system awards +1 XP and posts a chat notifica
 
 Clicking Level Up opens a step-by-step wizard: it shows the XP cost, presents every move the character is eligible for (locking moves whose prerequisites aren't met), and — on even levels — surfaces available Invocations. Confirming the wizard applies the new level, deducts XP, and adds the chosen move to the sheet in one click.
 
-### End of Session Macro
+### <img src="assets/icons/macros/truce.svg" alt="End of Session macro icon" width="24" height="24" align="absmiddle"> End of Session Macro
 
 A **End of Session** macro is automatically slotted into hotbar slot 10. The GM checks off which of the four group XP criteria were met and the system awards XP to every player-owned character simultaneously, then posts a summary to chat.
 

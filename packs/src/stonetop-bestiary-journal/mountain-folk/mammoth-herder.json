@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "Tundra nomads who follow the mammoth herds across the Frozen Wastes.",
-        "description": "<p>The nomads of the Frozen Wastes follow the mammoth herds across the tundra, putting their people and their beasts before all else. They greet strangers from a distance, politely and formally, and remain unsettlingly calm even as they ready for violence.</p>",
+        "concept": "Tundra nomads who follow the mammoth herds across the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.xg8MEuSbbEt1wqg8]{Frozen Wastes}</strong>.",
+        "description": "<p>The nomads of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.xg8MEuSbbEt1wqg8]{Frozen Wastes}</strong> follow the mammoth herds across the tundra, putting their people and their beasts before all else. They greet strangers from a distance, politely and formally, and remain unsettlingly calm even as they ready for violence.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

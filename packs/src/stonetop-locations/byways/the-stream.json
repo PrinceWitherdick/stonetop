@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "A few minutes from Stonetop, near the base of the bluff, in the Great Wood."
+      "summary": "A few minutes from Stonetop , near the base of the bluff, in the Great Wood ."
     }
   },
   "folder": "CdN6WPlmlLkrCj2Z",
@@ -40,7 +40,7 @@
             "kind": "prose",
             "heading": "Overview",
             "danger": false,
-            "body": "<p>A few minutes from @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}, near the base of the bluff, in @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{the Great Wood}. Wide, shallow, swift, lined with small stones. Folks come here to wash and fetch water, but rarely alone. It's not deep, but it's still a body of water.</p><ul><li>The current's constant rush and murmur</li><li>Flat plain on either side, gravelly, dotted with saplings, weeds, wildflowers</li><li>Vague sense of dread, of being watched</li><li>Spring: cold snowmelt swelling the Stream</li><li>Summer: dragonflies, lightning bugs</li><li>Spring/Autumn: leaves in current</li><li>Winter: eerie stillness, icy surface</li></ul><p>Tip: raise your voice a little, like you’re talking over background sound</p>",
+            "body": "<p>A few minutes from <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}</strong>, near the base of the bluff, in the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>. Wide, shallow, swift, lined with small stones. Folks come here to wash and fetch water, but rarely alone. It's not deep, but it's still a body of water.</p><ul><li>The current's constant rush and murmur</li><li>Flat plain on either side, gravelly, dotted with saplings, weeds, wildflowers</li><li>Vague sense of dread, of being watched</li><li>Spring: cold snowmelt swelling the Stream</li><li>Summer: dragonflies, lightning bugs</li><li>Spring/Autumn: leaves in current</li><li>Winter: eerie stillness, icy surface</li></ul><p>Tip: raise your voice a little, like you’re talking over background sound</p>",
             "pairs": []
           },
           {

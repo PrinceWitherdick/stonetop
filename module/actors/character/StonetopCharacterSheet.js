@@ -15,6 +15,7 @@ import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
+import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth} from "../../settings.js";
 import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
@@ -2129,8 +2130,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		_getDragEventData(ev) {
-			const textEditor = foundry?.applications?.ux?.TextEditor?.implementation;
-			return textEditor?.getDragEventData(ev) ?? TextEditor.getDragEventData(ev);
+			return getDragEventData(ev);
 		}
 
 		// Initial HP for a newly-assigned playbook (full HP). max is also synced in
@@ -2989,8 +2989,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (Object.keys(obj).length) {
 					upd[`flags.${STONETOP_SCOPE}.${key}`] = obj;
 				} else {
-					const parts = key.split(".");
-					upd[`flags.${STONETOP_SCOPE}.${parts.slice(0, -1).join(".")}.-=${parts.at(-1)}`] = null;
+					const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.${key}`);
+					upd[updKey] = val;
 				}
 			}
 			if (Object.keys(upd).length) await this.actor.update(upd);

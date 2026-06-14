@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "The bandit-turned-marshal who rules Marshedge through his old gang, the Claws.",
-        "description": "<p>A notorious bandit the council of Marshedge once asked to take the job of marshal. He's still in charge, and his old gang — the Claws — dominate the town watch. A canny operator who would far rather out-think a problem than fight it, and who hides his true strength until the moment it matters.</p>",
+        "concept": "The bandit-turned-marshal who rules <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> through his old gang, the Claws.",
+        "description": "<p>A notorious bandit the council of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> once asked to take the job of marshal. He's still in charge, and his old gang — the Claws — dominate the town watch. A canny operator who would far rather out-think a problem than fight it, and who hides his true strength until the moment it matters.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

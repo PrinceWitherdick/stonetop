@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Pack hunters that follow for miles and harry the weak.",
-        "description": "<p>Wolves of the Great Wood, ranging in packs that follow prey for miles, surround and flank, and bring down the weakest and the stragglers.</p>",
+        "description": "<p>Wolves of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>, ranging in packs that follow prey for miles, surround and flank, and bring down the weakest and the stragglers.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "An eyeless, double-jawed cave predator from the lightless lakes.",
-        "description": "<p>Pale, eyeless things that spawn in the lightless lakes below the Steplands — like a great big pale salamander or snake with two stubby, muscular legs. As they grow, they find food down there sparse and make their way to the surface. Mostly they stick to cave mouths, but sometimes they get bold enough to leave their sheltered holes of rock and lurk in places where you'd never expect them.</p>",
+        "description": "<p>Pale, eyeless things that spawn in the lightless lakes below the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.No8UN1MJEb2mrLXo]{Steplands}</strong> — like a great big pale salamander or snake with two stubby, muscular legs. As they grow, they find food down there sparse and make their way to the surface. Mostly they stick to cave mouths, but sometimes they get bold enough to leave their sheltered holes of rock and lurk in places where you'd never expect them.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

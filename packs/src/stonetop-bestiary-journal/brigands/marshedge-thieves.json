@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "Pickpockets and cutpurses working the crowds of Marshedge.",
-        "description": "<p>The pickpockets and cutpurses of Marshedge's Edgemarket and the crowded streets of Dropoff. Go in unwary and, at best, they make off with only trifles — at worst, with whatever you'll miss most.</p>",
+        "concept": "Pickpockets and cutpurses working the crowds of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong>.",
+        "description": "<p>The pickpockets and cutpurses of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong>'s Edgemarket and the crowded streets of Dropoff. Go in unwary and, at best, they make off with only trifles — at worst, with whatever you'll miss most.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",

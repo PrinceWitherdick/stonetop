@@ -13,6 +13,8 @@ import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../setting
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
+import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
+import {getDragEventData} from "../../utils/foundry-compat.js";
 
 function _signedNum(n) {
 	return n >= 0 ? `+${n}` : String(n);
@@ -646,6 +648,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				const hdr = ev.target.closest(".steading-improvement-header");
 				if (!hdr) return;
 				if (ev.target.closest(".steading-improvement-complete-label")) return;
+				if (ev.target.closest(".steading-improvement-remove")) return;
 				const card = hdr.closest(".steading-improvement");
 				if (!card) return;
 				card.classList.toggle("is-open");
@@ -822,7 +825,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					ev.preventDefault();
 					ev.stopPropagation();
 					playersSection?.classList.remove("drag-over");
-					const data = TextEditor.getDragEventData(ev);
+					const data = getDragEventData(ev);
 					if (data?.type === "Actor" && data.uuid) {
 						const actor = await fromUuid(data.uuid);
 						if (actor && actor.type === "character") {
@@ -831,6 +834,37 @@ export function createStonetopSteadingSheetClass(Base) {
 					}
 				}, true);
 			}
+
+			// Drop a "Steading Improvement" card (dragged from a journal) onto the
+			// Improvements tab to add it as a tracked custom improvement.
+			const improvementsTab = html[0].querySelector(".tab.improvements");
+			if (improvementsTab) {
+				const setDrag = on => improvementsTab.classList.toggle("steading-improvement-drag-over", on);
+				improvementsTab.addEventListener("dragover", (ev) => {
+					ev.preventDefault();
+					ev.dataTransfer.dropEffect = "copy";
+					setDrag(true);
+				});
+				improvementsTab.addEventListener("dragleave", (ev) => {
+					if (!improvementsTab.contains(ev.relatedTarget)) setDrag(false);
+				});
+				improvementsTab.addEventListener("drop", async (ev) => {
+					const data = getDragEventData(ev);
+					if (data?.type !== STEADING_IMPROVEMENT_DRAG_TYPE) return;
+					ev.preventDefault();
+					ev.stopPropagation();
+					setDrag(false);
+					await this._onDropSteadingImprovement(data.improvement);
+				});
+			}
+
+			// Remove a custom (journal-sourced) improvement.
+			html[0].addEventListener("click", (ev) => {
+				const btn = ev.target.closest(".steading-improvement-remove");
+				if (!btn) return;
+				ev.stopPropagation();
+				this._onRemoveCustomImprovement(btn.dataset.slug);
+			}, true);
 		}
 
 		_onHomesteadMove(moveSlug) {
@@ -1647,6 +1681,23 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!improvements[slug].r) improvements[slug].r = [];
 			improvements[slug].r[index] = checked;
 			await this._stonetopSteading.setFlags({ improvements });
+		}
+
+		async _onDropSteadingImprovement(improvement) {
+			if (!improvement?.name) return;
+			const result = await this._stonetopSteading.addCustomImprovement(improvement);
+			if (result.ok) {
+				globalThis.ui?.notifications?.info?.(`Added steading improvement: ${result.label}.`);
+				this.render(false);
+			} else if (result.reason === "duplicate") {
+				globalThis.ui?.notifications?.warn?.(`${result.label} is already a steading improvement.`);
+			}
+		}
+
+		async _onRemoveCustomImprovement(slug) {
+			if (!slug) return;
+			const removed = await this._stonetopSteading.removeCustomImprovement(slug);
+			if (removed) this.render(false);
 		}
 	};
 }

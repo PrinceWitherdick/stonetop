@@ -99,6 +99,9 @@
 	/* The exclamation "legend" marker the rulebook puts beside hazard custom moves
 	   (e.g. Crinwin's "Unstable nest" and "Wasps" dangers). */
 	--stonetop-danger-icon: url('/systems/stonetop_pwd/assets/icons/bestiary/danger-move.svg');
+	/* Accent for journal-sourced ("added") steading improvements — the draggable
+	   journal card and the custom-improvement card it becomes on the sheet. */
+	--stonetop-improvement-accent: #7a5c2e;
 
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
@@ -6393,6 +6396,49 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	transform: rotate(180deg);
 }
 
+/* Custom (journal-sourced) improvements — dropped onto the sheet from a journal
+   card. A left accent and an "added" tag distinguish them from the book's built-ins,
+   and a trash control (edit mode only) removes them. */
+.steading-improvement.is-custom {
+	border-left: 3px solid var(--stonetop-improvement-accent);
+}
+
+.steading-improvement-custom-tag {
+	font-size: 0.62em;
+	font-weight: normal;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--stonetop-improvement-accent);
+	border: 1px solid var(--stonetop-improvement-accent);
+	border-radius: 3px;
+	padding: 0 4px;
+	vertical-align: middle;
+}
+
+.steading-improvement-remove {
+	flex-shrink: 0;
+	width: auto;
+	line-height: 1;
+	padding: 2px 5px;
+	border: 1px solid rgba(0,0,0,0.18);
+	border-radius: 3px;
+	background: rgba(255,255,255,0.5);
+	color: #8a3a3a;
+	cursor: pointer;
+}
+
+.steading-improvement-remove:hover {
+	background: #8a3a3a;
+	color: #fff;
+}
+
+/* Drop target highlight while dragging a Steading Improvement card over the tab. */
+.tab.improvements.steading-improvement-drag-over {
+	outline: 2px dashed var(--stonetop-improvement-accent);
+	outline-offset: -4px;
+	background: color-mix(in srgb, var(--stonetop-improvement-accent) 6%, transparent);
+}
+
 /* Body — hidden until is-open */
 
 .steading-improvement-body {
@@ -9783,7 +9829,10 @@ li.question-bullet {
    they stretch underneath the stat boxes. */
 .stonetop-monster-header .sheet-header__fields {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
+	/* Floor the name column so it can't collapse under the (fixed-width) stat
+	   boxes; when the window narrows the column holds this width instead of
+	   squeezing the name down to three lines. */
+	grid-template-columns: minmax(220px, 1fr) auto;
 	grid-template-areas:
 		"name    stats"
 		"details details";
@@ -9918,7 +9967,9 @@ input.stonetop-monster-armor-source {
 	white-space: normal;
 	/* Wrap between words; only break inside a word if a single word can't fit. */
 	overflow-wrap: break-word;
-	/* Cap the name at two lines; anything longer is truncated with an ellipsis. */
+	/* Cap the name at two lines; anything longer is truncated with an ellipsis.
+	   This two-class selector outranks the shared .stonetop-header-locked
+	   `display: flex` on specificity, so the clamp wins without !important. */
 	display: -webkit-box;
 	-webkit-box-orient: vertical;
 	-webkit-line-clamp: 2;
@@ -10785,12 +10836,11 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	padding-bottom: 8px;
 }
 
-/* Lore is just two prompts ("Something interesting" / "Something useful"); lay them
-   side by side with equal width instead of stacked, so each answer reads clearly
-   under its own prompt. */
+/* Lore is two prompts ("Something interesting" / "Something useful"); stack them
+   one per row, each filling the full width, so the answers have room to read. */
 .stonetop-entry-qa-section[data-qa-field="lore"] .stonetop-entry-qa-list {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: 1fr;
 	gap: 10px 14px;
 	align-items: start;
 }
@@ -11030,6 +11080,117 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 
 .stonetop-entry-statblock-controls a:hover {
 	color: var(--color-text-hyperlink, slategrey);
+}
+
+/* Draggable "Steading Improvement" cards baked into journal prose by the gazetteer
+   generator (scripts/local/shared/gazetteer.mjs). Styled like the bestiary stat-block
+   cards; dragging one onto the Stonetop steading sheet adds it as a tracked custom
+   improvement (module/journal/steading-improvement-cards.js). */
+.stonetop-journal-improvement {
+	/* Theme-agnostic surface: tint and border are derived from the journal's own
+	   text colour, so the card reads on both light and dark pages without hardcoded
+	   white/black. The accent is a local var so dark mode can lighten just the hue. */
+	--st-improvement-accent: var(--stonetop-improvement-accent);
+	border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+	border-left: 4px solid var(--st-improvement-accent);
+	border-radius: 4px;
+	background: color-mix(in srgb, currentColor 6%, transparent);
+	padding: 8px 12px;
+	margin: 0.9em 0;
+}
+
+/* The book accent (#7a5c2e) is too dark to read on a dark journal page; lighten
+   the stripe + icon to a warm tan. Surface/border already adapt via currentColor. */
+.theme-dark .stonetop-journal-improvement {
+	--st-improvement-accent: #c9a063;
+}
+
+/* On a dark page the requirement headings' #444 is nearly invisible; match the
+   eyebrow ("Steading Improvement") colour so they read as the same muted label. */
+.theme-dark .stonetop-journal-improvement .steading-req-heading {
+	color: color-mix(in srgb, currentColor 60%, transparent);
+}
+
+.stonetop-journal-improvement[draggable="true"] {
+	cursor: grab;
+}
+
+.stonetop-journal-improvement[draggable="true"]:active {
+	cursor: grabbing;
+}
+
+.stonetop-journal-improvement-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.stonetop-journal-improvement-head > i {
+	color: var(--st-improvement-accent);
+	flex-shrink: 0;
+}
+
+/* The eyebrow sits at the far-right edge of the header (like the Incantations
+   "Ongoing" badge); the name grows to fill and pushes it there. `order` flips the
+   visual sequence without re-baking the cards' DOM, which is name-after-eyebrow. */
+.stonetop-journal-improvement-eyebrow {
+	order: 2;
+	flex-shrink: 0;
+	font-size: 0.72em;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: color-mix(in srgb, currentColor 60%, transparent);
+}
+
+.stonetop-journal-improvement-name {
+	order: 1;
+	flex: 1 1 auto;
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	font-size: 1.1em;
+}
+
+.stonetop-journal-improvement-body {
+	margin-top: 6px;
+}
+
+.stonetop-journal-improvement-flavor {
+	font-style: italic;
+	margin: 0 0 6px 0;
+}
+
+.stonetop-journal-improvement-effect {
+	margin: 8px 0 0 0;
+}
+
+/* Rollable die in a random table's "Roll" header (module/utils/journal-roll-tables.js).
+   Sits just before the "Roll" label; clicking it rolls the table and posts to chat. */
+
+/* Keep the die and the "Roll" label on one line when the column gets narrow. */
+th:has(> .stonetop-roll-table-btn) {
+	white-space: nowrap;
+}
+
+.stonetop-roll-table-btn {
+	display: inline-flex;
+	align-items: center;
+	margin-right: 0.4em;
+	color: var(--st-improvement-accent, var(--stonetop-improvement-accent));
+	cursor: pointer;
+	text-decoration: none;
+	vertical-align: baseline;
+}
+
+.stonetop-roll-table-btn:hover {
+	color: color-mix(in srgb, currentColor 55%, #b8862b);
+	transform: scale(1.12);
+}
+
+.stonetop-roll-table-btn:focus-visible {
+	outline: 2px solid var(--stonetop-improvement-accent);
+	outline-offset: 2px;
+	border-radius: 2px;
 }
 
 @media (max-width: 720px) {

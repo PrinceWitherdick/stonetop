@@ -1,5 +1,12 @@
 import { qaPairs, hasText } from "../actors/bestiary/codex.js";
 import { applyJournalCheckboxes } from "../utils/journal-checkboxes.js";
+import { bindSteadingImprovementDrag } from "./steading-improvement-cards.js";
+import { applyJournalRollTables } from "../utils/journal-roll-tables.js";
+import { isInCompendium, blockCompendiumEdit } from "../utils/compendium-edit-guard.js";
+
+// Edit affordances on the location page; clicking any of these in a compendium gets
+// the immutable-journal dialog instead of mutating the read-only document.
+const LOCATION_EDIT_SELECTOR = ".stonetop-section-edit, .stonetop-section-done, .stonetop-entry-add-qa, .stonetop-entry-remove-qa";
 
 // A gazetteer place rendered as a structured JournalEntryPage (subtype
 // "location"), the locations counterpart of StonetopBestiaryPageSheet. The page
@@ -28,6 +35,11 @@ export function createStonetopLocationPageSheetClass(Base) {
 		}
 
 		get _editMode() { return this.isEditable || this._editingSections.size > 0; }
+
+		// Compendium journals are immutable reference content — never editable in place,
+		// regardless of the pack's lock state. Edit attempts are redirected to a dialog
+		// (see activateListeners) pointing the user at the world copy.
+		get isEditable() { return super.isEditable && !isInCompendium(this.document); }
 
 		get template() {
 			return "systems/stonetop_pwd/templates/journal/location.hbs";
@@ -118,10 +130,18 @@ export function createStonetopLocationPageSheetClass(Base) {
 			// hooks that drive this elsewhere, so run the pass here. Before the owner
 			// gate: non-owners still see the shared checked state (they just can't edit).
 			applyJournalCheckboxes(this, html);
+			// Roll the random tables from their "Roll" header (this custom sheet fires its
+			// own render event, so the generic journal hook never reaches it — run it here).
+			applyJournalRollTables(this, html);
+			// Baked steading-improvement cards drag onto the Stonetop sheet (any viewer).
+			bindSteadingImprovementDrag(html);
 			if (!root || !this.document.isOwner) return;
 
 			root.addEventListener("click", async ev => {
 				const t = ev.target;
+
+				// Immutable compendium copy: redirect any edit click to the explainer dialog.
+				if (blockCompendiumEdit(this.document, ev, LOCATION_EDIT_SELECTOR)) return;
 
 				// Per-section edit/done toggles.
 				const edit = t.closest(".stonetop-section-edit");

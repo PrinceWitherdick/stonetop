@@ -1,4 +1,6 @@
 import { resolveEntry, isStonetopJournalEntry } from "./journal-spiral-bullets.js";
+import { isInCompendium } from "./compendium-edit-guard.js";
+import { deletionEntry } from "./foundry-compat.js";
 
 // Make the requirement/option "check-bullet" list items in this system's journals
 // tickable straight from the reading view — no edit mode, no pack rebuild. The
@@ -41,9 +43,11 @@ function resolvePage(app, el) {
 /** Persist one box's state on its page (absent key === unchecked, to stay lean). */
 function writeCheck(page, key, checked) {
 	const path = `flags.${FLAG_SCOPE}.${FLAG_KEY}`;
-	return checked
-		? page.update({ [`${path}.${key}`]: true })
-		: page.update({ [`${path}.-=${key}`]: null });
+	if (checked) return page.update({ [`${path}.${key}`]: true });
+	// Drop the key when unchecking (absent key === unchecked) using whichever delete
+	// form this core understands — see deletionEntry in foundry-compat.js.
+	const [updKey, val] = deletionEntry(`${path}.${key}`);
+	return page.update({ [updKey]: val });
 }
 
 /** Reflect `checked` on the item (drives the read-only ::before) and its control. */
@@ -100,8 +104,11 @@ export function applyJournalCheckboxes(app, html) {
 			// rest of the system reads its baked `flags.stonetop.*` the same direct way.
 			const checked = page.flags?.[FLAG_SCOPE]?.[FLAG_KEY]?.[key] === true;
 
+		// In a compendium the page is immutable reference content (see
+		// compendium-edit-guard.js): show the stored ticks read-only, never an editable
+		// control, so a click can't attempt a write that would fail or be lost.
 		let control = li.querySelector(":scope > .stonetop-journal-check");
-		if (!control && page.canUserModify?.(game.user, "update")) {
+		if (!control && !isInCompendium(page) && page.canUserModify?.(game.user, "update")) {
 			control = document.createElement("span");
 			control.className = "stonetop-journal-check";
 			control.setAttribute("role", "checkbox");

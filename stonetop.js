@@ -27,6 +27,8 @@ import { boldMissText } from "./module/utils/strings.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { applyJournalSpiralBullets } from "./module/utils/journal-spiral-bullets.js";
 import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
+import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
+import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
 import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
 
 // -- INIT ------------------------------------------------------
@@ -230,6 +232,10 @@ const _onJournalRender = (app, html) => {
 	applyJournalSpiralBullets(app, html);
 	// Tick-off the requirement check-lists in view mode (state stored on the page).
 	applyJournalCheckboxes(app, html);
+	// Roll the random tables straight from their "Roll" header.
+	applyJournalRollTables(app, html);
+	// Make baked steading-improvement cards draggable onto the Stonetop sheet.
+	bindSteadingImprovementDrag(html);
 };
 for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJournalPageSheet", "renderJournalEntryPageSheet"]) {
 	Hooks.on(hook, _onJournalRender);

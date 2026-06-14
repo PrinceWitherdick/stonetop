@@ -1,6 +1,12 @@
 import { isDefaultImg } from "../utils/strings.js";
 import { applyJournalCheckboxes } from "../utils/journal-checkboxes.js";
+import { applyJournalRollTables } from "../utils/journal-roll-tables.js";
 import { buildCodexContext, onCodexClick, onCodexChange, codexUpdateRichField, hasText, CODEX_RICH_FIELDS, CODEX_GROUP_FIELDS } from "../actors/bestiary/codex.js";
+import { isInCompendium, blockCompendiumEdit } from "../utils/compendium-edit-guard.js";
+
+// Edit affordances on the bestiary page (section pencils + codex add/remove controls);
+// clicking any of these in a compendium gets the immutable-journal dialog.
+const BESTIARY_EDIT_SELECTOR = ".stonetop-section-edit, .stonetop-section-done, .stonetop-entry-add-line, .stonetop-entry-add-qa, .stonetop-entry-remove-qa, .stonetop-discovery-add-group, .stonetop-discovery-remove-group";
 
 // Dangers is a structured group field on the page (unlike the actor sheet, where
 // it's rich text), so it's pulled out of the rich-field path and added as a group.
@@ -37,6 +43,11 @@ export function createStonetopBestiaryPageSheetClass(Base) {
 		// must be true while any inline section is open, or codex add/remove bail.
 		get actor() { return this.document; }
 		get _editMode() { return this.isEditable || this._editingSections.size > 0; }
+
+		// Compendium journals are immutable reference content — never editable in place,
+		// regardless of the pack's lock state. Edit attempts are redirected to a dialog
+		// (see activateListeners) pointing the user at the world copy.
+		get isEditable() { return super.isEditable && !isInCompendium(this.document); }
 
 		get template() {
 			return "systems/stonetop_pwd/templates/journal/bestiary.hbs";
@@ -163,11 +174,17 @@ export function createStonetopBestiaryPageSheetClass(Base) {
 			// drive checkboxes elsewhere, so run the pass here. Before the owner gate so
 			// non-owners still see the shared checked state.
 			applyJournalCheckboxes(this, html);
+			// Roll the random tables from their "Roll" header (this custom sheet fires its
+			// own render event, so the generic journal hook never reaches it — run it here).
+			applyJournalRollTables(this, html);
 
 			if (!this.document.isOwner) return;
 
 			root.addEventListener("click", async ev => {
 				const t = ev.target;
+
+				// Immutable compendium copy: redirect any edit click to the explainer dialog.
+				if (blockCompendiumEdit(this.document, ev, BESTIARY_EDIT_SELECTOR)) return;
 
 				// Per-section edit/done toggles.
 				const edit = t.closest(".stonetop-section-edit");
