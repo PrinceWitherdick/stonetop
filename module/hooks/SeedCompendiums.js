@@ -3,11 +3,11 @@ import { info, error } from "../utils/logger.js";
 import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.js";
 
 // On a fresh world, copy the system's "Stonetop" JournalEntry compendium (the
-// gazetteer — Locations, Lore, and the bundled Journals) into the world's Journal
-// sidebar so the GM has it ready to browse and edit without manually importing the
-// pack. The bestiary codex (~160 `bestiary`-page reference entries) shares that
-// pack but is left out of the world copy — it's best browsed in the compendium,
-// and dumping every creature into the sidebar would just clutter it.
+// gazetteer — Locations, Lore, the bundled Journals, and the bestiary codex) into
+// the world's Journal sidebar so the GM has it ready to browse and edit without
+// manually importing the pack. The bestiary codex (~160 `bestiary`-page reference
+// entries) is seeded too, so monsters turn up in the world's journal search and the
+// GM can edit their questions in place.
 //
 // Runs once per world, guarded by the `seedingComplete` world setting, GM-only.
 // `importJournalPack` recreates the compendium's folder tree at the world's top
@@ -17,8 +17,8 @@ import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.j
 // Cross-links between the imported journals are then rewritten from their
 // `@UUID[Compendium…]` form to point at the freshly-created world copies, so a GM
 // browsing the seeded journals stays inside the world. Links that target things we
-// do NOT seed — the bestiary codex (same pack), and the monster stat-block (Actor)
-// and arcana (Item) compendiums — stay pointed at the compendium, where they live.
+// do NOT seed — the monster stat-block (Actor) and arcana (Item) compendiums —
+// stay pointed at the compendium, where they live.
 
 // Any @UUID into one of this system's compendiums. We only rewrite the ones whose
 // target we actually imported (i.e. that resolve in `linkMap`); the rest pass through.
@@ -80,16 +80,13 @@ export async function seedCompendiumJournalsOnce() {
 	}
 }
 
-// Import a journal pack into the world EXCEPT its bestiary codex entries (each a
-// single `bestiary` page). Foundry's `importAll` is all-or-nothing, so we filter
-// here: load the docs, drop the bestiary ones, and recreate just the folder
-// subtree the remaining entries use, mirroring the compendium's layout at the
-// world's top level. Folder resolution is best-effort — anything it can't place
-// falls back to the world top level rather than failing the whole seed. Returns
-// the created entries.
+// Import every entry in a journal pack into the world, recreating the folder
+// subtree the entries use so the world mirrors the compendium's layout at its top
+// level. Folder resolution is best-effort — anything it can't place falls back to
+// the world top level rather than failing the whole seed. Returns the created
+// entries.
 async function importJournalPack(pack) {
-	const docs = await pack.getDocuments();
-	const seed = docs.filter(d => !d.pages.some(p => p.type === "bestiary"));
+	const seed = await pack.getDocuments();
 	if (!seed.length) return [];
 
 	const packFolders = new Map();
@@ -106,7 +103,12 @@ async function importJournalPack(pack) {
 		const folder = packFolders.get(id);
 		if (!folder) return null;
 		const parentId = await resolveFolder(folder.folder);
-		const wf = await Folder.create({
+		// Reuse an existing world folder of the same name/parent (e.g. from an
+		// earlier partial seed) instead of creating a duplicate.
+		const existing = (game.folders ?? []).find(f =>
+			f.type === "JournalEntry" && f.name === folder.name && (f.folder?.id ?? null) === parentId
+		);
+		const wf = existing ?? await Folder.create({
 			name: folder.name, type: "JournalEntry", folder: parentId,
 			sort: folder.sort ?? 0, color: folder.color ?? null,
 		});
@@ -114,16 +116,27 @@ async function importJournalPack(pack) {
 		return wf.id;
 	}
 
+	// Skip entries already present in the world (matched on the compendium source
+	// `fromCompendium` stamps), so the seed is idempotent: if an earlier run only
+	// imported some packs/entries — e.g. a partial failure — re-running imports just
+	// the missing ones rather than duplicating what's already there.
+	const alreadySeeded = new Set(
+		(game.journal ?? [])
+			.map(j => j._stats?.compendiumSource ?? j.flags?.core?.sourceId)
+			.filter(Boolean)
+	);
+
 	// fromCompendium prepares each doc for world creation (drops the id, stamps
 	// `_stats.compendiumSource`) exactly as core's importAll does; we keep sort so
 	// the seeded entries retain their authored order, and place them by folder.
 	const data = [];
 	for (const d of seed) {
+		if (alreadySeeded.has(d.uuid)) continue;
 		const obj = game.journal.fromCompendium(d, { clearSort: false });
 		obj.folder = await resolveFolder(d.folder);
 		data.push(obj);
 	}
-	return JournalEntry.createDocuments(data);
+	return data.length ? JournalEntry.createDocuments(data) : [];
 }
 
 // Grant players read access to the seeded Setting Overview journal so the
@@ -146,15 +159,32 @@ async function openSettingOverviewToPlayers(entries) {
 // the replacer leaves them as compendium links.
 async function remapCrossLinks(entries, linkMap) {
 	if (!linkMap.size) return;
+	const rewrite = str => (typeof str === "string" && str.includes("Compendium.stonetop_pwd."))
+		? str.replace(SYSTEM_LINK, (m, uuid) => { const world = linkMap.get(uuid); return world ? `@UUID[${world}]` : m; })
+		: str;
 	for (const entry of entries) {
 		const updates = [];
 		for (const page of entry.pages ?? []) {
+			// Structured "location" pages keep their cross-links in system.sections
+			// (prose bodies + Q&A), not text.content — rewrite those in place so a
+			// seeded world's links open the world copies, as text pages do below.
+			if (page.type === "location") {
+				const sections = foundry.utils.deepClone(page.system?.sections ?? []);
+				let changed = false;
+				for (const s of sections) {
+					const body = rewrite(s.body);
+					if (body !== s.body) { s.body = body; changed = true; }
+					for (const p of s.pairs ?? []) {
+						const prompt = rewrite(p.prompt), answer = rewrite(p.answer);
+						if (prompt !== p.prompt || answer !== p.answer) { p.prompt = prompt; p.answer = answer; changed = true; }
+					}
+				}
+				if (changed) updates.push({ _id: page.id, "system.sections": sections });
+				continue;
+			}
 			const content = page.text?.content;
 			if (!content || !content.includes("Compendium.stonetop_pwd.")) continue;
-			const rewritten = content.replace(SYSTEM_LINK, (m, uuid) => {
-				const world = linkMap.get(uuid);
-				return world ? `@UUID[${world}]` : m;
-			});
+			const rewritten = rewrite(content);
 			if (rewritten !== content) updates.push({ _id: page.id, "text.content": rewritten });
 		}
 		if (updates.length) {

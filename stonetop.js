@@ -6,6 +6,7 @@ import { createStonetopCharacterSheetClass } from "./module/actors/character/Sto
 import { createStonetopSteadingSheetClass } from "./module/actors/steading/StonetopSteadingSheet.js";
 import { createStonetopMonsterSheetClass } from "./module/actors/monster/StonetopMonsterSheet.js";
 import { BestiaryPageModel } from "./module/journal/BestiaryPageModel.js";
+import { LocationPageModel } from "./module/journal/LocationPageModel.js";
 import { CharacterModel } from "./module/data-models/CharacterModel.js";
 import { SteadingModel } from "./module/data-models/SteadingModel.js";
 import { MonsterModel } from "./module/data-models/MonsterModel.js";
@@ -14,6 +15,7 @@ import { PlaybookModel } from "./module/data-models/PlaybookModel.js";
 import { NpcMoveModel } from "./module/data-models/NpcMoveModel.js";
 import { MonsterMoveModel } from "./module/data-models/MonsterMoveModel.js";
 import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopBestiaryPageSheet.js";
+import { createStonetopLocationPageSheetClass } from "./module/journal/StonetopLocationPageSheet.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
@@ -24,6 +26,7 @@ import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { applyJournalSpiralBullets } from "./module/utils/journal-spiral-bullets.js";
+import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
 
 // -- INIT ------------------------------------------------------
@@ -147,6 +150,16 @@ Hooks.once("init", () => {
 		label:       "Stonetop Bestiary Page",
 	});
 
+	// Gazetteer places as a structured JournalEntryPage subtype (sectioned, with
+	// per-section inline editing) — mirrors the bestiary page above.
+	CONFIG.JournalEntryPage.dataModels["location"] = LocationPageModel;
+	const StonetopLocationPageSheet = createStonetopLocationPageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopLocationPageSheet, {
+		types:       ["location"],
+		makeDefault: true,
+		label:       "Stonetop Location Page",
+	});
+
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
 	Items.registerSheet("stonetop_pwd", StonetopArcanumSheet, {
 		types:       ["move"],
@@ -185,6 +198,7 @@ Hooks.once("init", () => {
 		"stonetop.monster-sheet":             "systems/stonetop_pwd/templates/actor/monster.hbs",
 		"stonetop.bestiary-line-list":        "systems/stonetop_pwd/templates/actor/partials/bestiary-line-list.hbs",
 		"stonetop.bestiary-page":             "systems/stonetop_pwd/templates/journal/bestiary.hbs",
+		"stonetop.location-page":             "systems/stonetop_pwd/templates/journal/location.hbs",
 		"stonetop.bestiary-section-head":     "systems/stonetop_pwd/templates/journal/partials/bestiary-section-head.hbs",
 		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
@@ -214,6 +228,8 @@ const _onJournalRender = (app, html) => {
 	applyLocationTooltips(html);
 	// Spiral bullets / question-spirals for this system's prose journals.
 	applyJournalSpiralBullets(app, html);
+	// Tick-off the requirement check-lists in view mode (state stored on the page).
+	applyJournalCheckboxes(app, html);
 };
 for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJournalPageSheet", "renderJournalEntryPageSheet"]) {
 	Hooks.on(hook, _onJournalRender);

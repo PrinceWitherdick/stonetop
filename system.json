@@ -76,7 +76,8 @@
                                        "monsterMove":  {}
                                    },
                           "JournalEntryPage":  {
-                                                   "bestiary":  {}
+                                                   "bestiary":  {},
+                                                   "location":  {}
                                                }
                       },
     "primaryTokenAttribute":  "attributes.hp",

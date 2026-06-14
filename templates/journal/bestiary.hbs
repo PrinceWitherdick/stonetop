@@ -31,7 +31,7 @@
 			{{> "stonetop.bestiary-section-head" key="description" title=(localize "stonetop.bestiary.description") inlineOwner=stonetop.inlineOwner open=stonetop.open.description}}
 			{{#if stonetop.editing.description}}
 			<prose-mirror class="stonetop-entry-rich-editor stonetop-monster-rich-editor--full"
-			              data-field="description">{{{stonetop.enrichedDescription}}}</prose-mirror>
+			              data-field="description" value="{{system.description}}">{{{stonetop.enrichedDescription}}}</prose-mirror>
 			{{else}}
 			<div class="stonetop-monster-readonly-text stonetop-monster-rich-text">{{{stonetop.enrichedDescription}}}</div>
 			{{/if}}
@@ -104,7 +104,7 @@
 			{{> "stonetop.bestiary-section-head" key="nests" title=(localize "stonetop.bestiary.nests") inlineOwner=stonetop.inlineOwner open=stonetop.open.nests sub=true}}
 			{{#if stonetop.editing.nests}}
 			<prose-mirror class="stonetop-entry-rich-editor stonetop-monster-rich-editor--full"
-			              data-field="nests">{{{stonetop.enrichedNests}}}</prose-mirror>
+			              data-field="nests" value="{{system.nests}}">{{{stonetop.enrichedNests}}}</prose-mirror>
 			{{else}}
 			<div class="stonetop-monster-readonly-text stonetop-monster-rich-text">{{{stonetop.enrichedNests}}}</div>
 			{{/if}}

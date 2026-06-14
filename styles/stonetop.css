@@ -64,6 +64,9 @@
 	/* Spiral bullet size. Default here (used by chat cards / hover panels); the
 	   sheet/dialog value is scaled with the font setting on .stonetop .window-content. */
 	--stonetop-bullet-size: 10px;
+	/* Journal checkbox markers (check-off lists) read better a touch larger than the
+	   spiral; 1.5× the bullet size, so it still tracks the font-scale below. */
+	--stonetop-checkbox-size: calc(var(--stonetop-bullet-size, 10px) * 1.5);
 	--font-size-display: 42px;
 	--stonetop-bg: hsl(30deg 20% 94%);
 	--color-border-highlight-alt: slategrey;
@@ -9109,20 +9112,26 @@ li.question-bullet {
 	padding-left: 14px;
 	margin: 0.4em 0;
 }
+/* Block flow (not flex): a flex `li` turns every inline child — each `<strong>`
+   and content-link — into its own flex item, so at narrow widths the bold/linked
+   phrases shatter into separate vertical columns (and the inter-item gap shows as
+   a stray space before following punctuation). Keep the li as normal prose and
+   hang the spiral bullet in the left padding via an absolutely-positioned marker
+   so the text wraps as one continuous run. */
 .stonetop-location-body li,
 .stonetop-journal-body li {
-	display: flex;
-	align-items: flex-start;
-	gap: var(--stonetop-spiral-gap);
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
 	margin: 3px 0;
 }
 .stonetop-location-body li::before,
 .stonetop-journal-body li::before {
 	content: "";
-	flex: 0 0 var(--stonetop-bullet-size, 10px);
+	position: absolute;
+	left: 0;
+	top: 0.3em;
 	width: var(--stonetop-bullet-size, 10px);
 	height: var(--stonetop-bullet-size, 10px);
-	margin-top: 0.3em;
 	background-color: currentColor;
 	opacity: 0.7;
 	-webkit-mask-image: var(--stonetop-spiral-icon);
@@ -9138,6 +9147,81 @@ li.question-bullet {
 .stonetop-journal-body li.question-bullet::before {
 	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
+}
+/* Requirement/option check-lists swap the spiral for the checkbox marker (drawn
+   as a currentColor mask, so it inherits the journal's text color in both
+   themes). Items are tagged `check-bullet` — baked by the generator, or applied
+   at render time by module/utils/check-bullets.js for hand-authored journals. */
+.stonetop-location-body li.check-bullet::before,
+.stonetop-journal-body li.check-bullet::before {
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg');
+	width: var(--stonetop-checkbox-size);
+	height: var(--stonetop-checkbox-size);
+}
+/* The marker hangs in the left padding here (absolute), so widen the padding to
+   keep the same marker→text gap as the spiral items now that the box is larger. */
+.stonetop-location-body li.check-bullet,
+.stonetop-journal-body li.check-bullet {
+	padding-left: calc(var(--stonetop-checkbox-size) + var(--stonetop-spiral-gap));
+}
+/* A check-item with nested sub-options indents its sub-list under the parent
+   text (the li here is block flow, so the list naturally falls below). Zero the
+   nested list's own margin so the sub-items keep the same spacing as the rest. */
+.stonetop-location-body li > ul,
+.stonetop-journal-body li > ul {
+	margin: 0;
+}
+/* Interactive check-lists: ticked-off in view mode, state saved on the page (see
+   module/utils/journal-checkboxes.js). A reader who can update the page gets a
+   real focusable control injected in place of the static ::before marker; every
+   reader sees the checked state via the `.checked` swap below. */
+.stonetop-location-body li.check-bullet.stonetop-check-interactive::before,
+.stonetop-journal-body li.check-bullet.stonetop-check-interactive::before {
+	display: none; /* the injected control replaces the static marker */
+}
+.stonetop-location-body li.check-bullet.checked::before,
+.stonetop-journal-body li.check-bullet.checked::before {
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
+}
+/* Same treatment inside the bestiary/location rich-text bodies, whose markers are
+   drawn as a background-image rather than a currentColor mask. */
+.stonetop-monster-rich-text li.check-bullet.stonetop-check-interactive::before,
+.stonetop-monster-move-description li.check-bullet.stonetop-check-interactive::before {
+	display: none;
+}
+.stonetop-monster-rich-text li.check-bullet.checked::before,
+.stonetop-monster-move-description li.check-bullet.checked::before {
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
+}
+/* The injected control sits where the ::before marker hung (left padding), drawn
+   as the same currentColor mask so it inherits the journal text colour in both
+   themes; checked swaps in the ticked box. */
+.stonetop-journal-check {
+	position: absolute;
+	left: 0;
+	top: 0.3em;
+	width: var(--stonetop-checkbox-size);
+	height: var(--stonetop-checkbox-size);
+	background-color: currentColor;
+	opacity: 0.7;
+	cursor: pointer;
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain;
+	mask: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain;
+}
+.stonetop-journal-check:hover {
+	opacity: 1;
+}
+.stonetop-journal-check[aria-checked="true"] {
+	opacity: 1;
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
+}
+.stonetop-journal-check:focus-visible {
+	outline: 2px solid var(--color-shadow-primary, #ff6400);
+	outline-offset: 2px;
+	border-radius: 2px;
 }
 
 /* Journal cross-links: drop Foundry's boxed "book chip" — its grey background,
@@ -10391,29 +10475,73 @@ input.stonetop-monster-armor-source {
 	list-style: none;
 }
 
+/* Block flow (not flex) with an absolutely-positioned marker — mirrors the
+   journal-body lists (see the `.stonetop-journal-body li` block). A flex `li`
+   makes every inline child (each content-link, `<strong>`, and the text runs
+   between them) its own flex item, so a question/prose item with a cross-link
+   shatters into a gap-spaced "grid" instead of one continuous line. Hanging the
+   marker in the left padding keeps the text as normal wrapping prose. */
 .stonetop-monster-rich-text li,
 .stonetop-monster-move-description li {
+	position: relative;
 	margin: 2px 0;
-	display: flex;
-	align-items: flex-start;
-	gap: var(--stonetop-spiral-gap);
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
 }
 
 .stonetop-monster-rich-text li::before,
 .stonetop-monster-move-description li::before {
 	content: "";
-	flex-shrink: 0;
+	position: absolute;
+	left: 0;
+	/* Hang the marker beside the text's first line. The journal's display font has
+	   tall metrics, so a small em-relative top offset aligns the icon with the
+	   glyphs' visual center (matching the chat cards / sheet spiral lists). */
+	top: 0.3em;
 	width: var(--stonetop-bullet-size, 10px);
-	/* Span the first text line (1lh = the element's actual line-height, whatever it
-	   is) and center the spiral within it, so the bullet lines up with the glyphs
-	   instead of sitting above them — robust to differing line-heights (e.g. the
-	   journal's) rather than assuming 1.45. */
-	height: 1lh;
+	height: var(--stonetop-bullet-size, 10px);
 	background-image: var(--stonetop-spiral-icon);
-	background-size: var(--stonetop-bullet-size, 10px);
+	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
 	opacity: 0.5;
+}
+
+/* Question items use the question-spiral. The global `li.question-bullet::before`
+   rule has the same specificity as the spiral default just above and loses to it
+   on source order inside the rich-text body, so re-assert it here (matches the
+   journal-body path). Keeps the standard spiral size — only the icon changes. */
+.stonetop-monster-rich-text li.question-bullet::before,
+.stonetop-monster-move-description li.question-bullet::before {
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
+}
+
+/* Requirement/option check-lists (baked `class="check-bullet"` by the gazetteer
+   generator) use the checkbox marker instead of the spiral. Scoped inside the
+   rich-text body so it outranks the spiral default just above; dark mode inverts
+   it via the existing `.theme-dark … li::before` rule. */
+.stonetop-monster-rich-text li.check-bullet::before,
+.stonetop-monster-move-description li.check-bullet::before {
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg');
+	width: var(--stonetop-checkbox-size);
+	height: var(--stonetop-checkbox-size);
+	background-size: contain;
+}
+/* The marker hangs in the left padding (absolute), so widen the padding to keep
+   the same marker→text gap as the spiral items now that the box is larger. */
+.stonetop-monster-rich-text li.check-bullet,
+.stonetop-monster-move-description li.check-bullet {
+	padding-left: calc(var(--stonetop-checkbox-size) + var(--stonetop-spiral-gap));
+}
+
+/* A check-item with nested sub-options: the li is block flow, so the sub-list
+   naturally falls below the parent text. Zero its margins so the first sub-item
+   sits the same 2px below the parent as the items sit from each other. The
+   `.stonetop-bestiary-page …` prefix outranks that page's `… rich-text ul` rule
+   (margin-top: 0.55em), which would otherwise push the sub-list down. */
+.stonetop-bestiary-page .stonetop-monster-rich-text li > ul,
+.stonetop-monster-rich-text li > ul,
+.stonetop-monster-move-description li > ul {
+	margin: 0;
 }
 
 .stonetop-monster-add-controls {
@@ -10503,11 +10631,12 @@ input.stonetop-monster-armor-source {
 	gap: 1.5rem;
 }
 
-/* Hide the journal's page-level "Edit Page" button on bestiary pages — they use
-   the per-section pencils instead. The button is injected by the journal sheet
-   as a `.edit-container` child of the page element (which carries the `bestiary`
-   type class), not by our template, so it has to be hidden via CSS. */
-.journal-entry-page.bestiary > .edit-container {
+/* Hide the journal's page-level "Edit Page" button on bestiary AND location pages
+   — they use the per-section pencils instead. The button is injected by the
+   journal sheet as a `.edit-container` child of the page element (which carries
+   the page `type` as a class), not by our template, so it's hidden via CSS. */
+.journal-entry-page.bestiary > .edit-container,
+.journal-entry-page.location > .edit-container {
 	display: none;
 }
 
@@ -10568,6 +10697,22 @@ input.stonetop-monster-armor-source {
 	width: 1.1em;
 	height: 1.1em;
 	background: var(--stonetop-danger-icon) no-repeat center / contain;
+}
+
+/* Location pages render Dangers as a prose section (to keep its tables and
+   cross-links) rather than the structured hazard groups above, so the danger
+   glyph hangs off the section heading itself for the same at-a-glance flavor. */
+.stonetop-location-page .stonetop-danger-section > .stonetop-section-head .stonetop-move-group-title::before {
+	content: "";
+	display: inline-block;
+	width: 1em;
+	height: 1em;
+	margin-right: 0.4em;
+	vertical-align: -0.12em;
+	background: var(--stonetop-danger-icon) no-repeat center / contain;
+}
+.theme-dark .stonetop-location-page .stonetop-danger-section > .stonetop-section-head .stonetop-move-group-title::before {
+	filter: invert(1);
 }
 
 /* Uniform divider-to-content gap for every section: the 6px flex gap of

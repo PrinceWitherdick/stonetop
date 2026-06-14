@@ -1,4 +1,5 @@
 import { markQuestionBullets } from "./question-bullets.js";
+import { markCheckBullets } from "./check-bullets.js";
 
 // Give this system's journal prose the same spiral bullets (and question-spiral
 // on list items that pose a question) as the actor sheets, applied live at render
@@ -18,26 +19,36 @@ import { markQuestionBullets } from "./question-bullets.js";
 const PROSE_PACK = /stonetop_pwd\.stonetop-journal\b/;
 
 /** The JournalEntry behind a rendered journal- or page-sheet app. */
-function resolveEntry(app) {
+export function resolveEntry(app) {
 	const doc = app?.document ?? app?.object;
 	if (!doc) return null;
 	return doc.documentName === "JournalEntryPage" ? doc.parent : doc;
 }
 
-/** True for journals this system ships as plain prose (i.e. not the bestiary). */
-function isStonetopProseJournal(entry, page) {
-	if (!entry || page?.type === "bestiary") return false;
-	// Open from the compendium → `pack`. A world copy (e.g. seeded by
-	// SeedCompendiums) keeps Foundry's import stamp pointing back at the source
-	// pack — this is what survives the bundled journals' empty `flags` scope being
-	// dropped at compile time. Matching on the source pack (rather than a
-	// `flags.stonetop` namespace, which the bestiary pages also carry) keeps the
-	// bestiary cleanly excluded.
+/**
+ * True when `entry` is one of this system's shipped journals (the merged Stonetop
+ * pack), regardless of page type. Open from the compendium → `pack`; a world copy
+ * (e.g. seeded by SeedCompendiums) keeps Foundry's import stamp pointing back at
+ * the source pack — this is what survives the bundled journals' empty `flags`
+ * scope being dropped at compile time.
+ */
+export function isStonetopJournalEntry(entry) {
+	if (!entry) return false;
 	const source = entry.pack
 		|| entry._stats?.compendiumSource
 		|| entry.flags?.core?.sourceId
 		|| "";
 	return PROSE_PACK.test(source);
+}
+
+/** True for journals this system ships as plain prose (i.e. not the bestiary). */
+function isStonetopProseJournal(entry, page) {
+	// Bestiary and location pages render through their own custom page sheets with
+	// their own list styling — never apply the runtime prose spiral-bullet pass.
+	if (page?.type === "bestiary" || page?.type === "location") return false;
+	// Matching on the source pack (rather than a `flags.stonetop` namespace, which
+	// the bestiary pages also carry) keeps the bestiary cleanly excluded.
+	return isStonetopJournalEntry(entry);
 }
 
 /**
@@ -61,5 +72,6 @@ export function applyJournalSpiralBullets(app, html) {
 		if (section.closest(".stonetop-bestiary-page")) continue;
 		section.classList.add("stonetop-journal-body");
 		markQuestionBullets(section);
+		markCheckBullets(section);
 	}
 }

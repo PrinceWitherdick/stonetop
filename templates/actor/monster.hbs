@@ -134,7 +134,7 @@
 				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--qualities">
 					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.qualities"}}</strong>
 					{{#if stonetop.editMode}}
-					<prose-mirror class="stonetop-monster-rich-editor stonetop-monster-qualities-editor" data-field="qualities" toggled>{{{stonetop.enrichedQualities}}}</prose-mirror>
+					<prose-mirror class="stonetop-monster-rich-editor stonetop-monster-qualities-editor" data-field="qualities" toggled value="{{system.qualities}}">{{{stonetop.enrichedQualities}}}</prose-mirror>
 					{{else}}
 					<span class="stonetop-monster-prose stonetop-monster-rich-text">{{{stonetop.enrichedQualities}}}</span>
 					{{/if}}
@@ -214,7 +214,7 @@
 			<section class="stonetop-monster-field stonetop-monster-field--full stonetop-monster-notes">
 				{{> "stonetop.section-heading" title=(localize "stonetop.monster.notes")}}
 				<prose-mirror class="stonetop-monster-rich-editor stonetop-monster-notes-editor"
-				              data-field="notes" toggled>{{{stonetop.enrichedNotes}}}</prose-mirror>
+				              data-field="notes" toggled value="{{system.notes}}">{{{stonetop.enrichedNotes}}}</prose-mirror>
 			</section>
 
 		</section>

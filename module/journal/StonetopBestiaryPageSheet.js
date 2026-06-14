@@ -1,4 +1,5 @@
 import { isDefaultImg } from "../utils/strings.js";
+import { applyJournalCheckboxes } from "../utils/journal-checkboxes.js";
 import { buildCodexContext, onCodexClick, onCodexChange, codexUpdateRichField, hasText, CODEX_RICH_FIELDS, CODEX_GROUP_FIELDS } from "../actors/bestiary/codex.js";
 
 // Dangers is a structured group field on the page (unlike the actor sheet, where
@@ -156,6 +157,12 @@ export function createStonetopBestiaryPageSheetClass(Base) {
 			// Stat-block cards drag onto a scene to drop a token. Available to anyone
 			// viewing the page; Foundry enforces the actual token-creation permission.
 			this._bindStatBlockDrag(root);
+
+			// Make the requirement/option check-lists tickable in view mode. This sheet
+			// fires `renderStonetopBestiaryPageSheet`, not the journal render hooks that
+			// drive checkboxes elsewhere, so run the pass here. Before the owner gate so
+			// non-owners still see the shared checked state.
+			applyJournalCheckboxes(this, html);
 
 			if (!this.document.isOwner) return;
 
