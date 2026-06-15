@@ -275,7 +275,7 @@
 	<div class="stonetop-follower-card stonetop-follower-card--initiate">
 		<div class="stonetop-follower-header">
 			<div class="stonetop-follower-title">
-				<span class="stonetop-follower-name">{{label}}{{#if pronoun}} <span class="stonetop-follower-pronoun">({{pronoun}})</span>{{/if}}</span>
+				<span class="stonetop-follower-name stonetop-follower-name--multiline">{{#each labelLines}}<span class="stonetop-follower-name-line">{{text}}{{#if pronoun}} <span class="stonetop-follower-pronoun">({{pronoun}})</span>{{/if}}</span>{{/each}}</span>
 				<span class="stonetop-follower-type">initiate of Danu</span>
 			</div>
 			<div class="stonetop-follower-stats">

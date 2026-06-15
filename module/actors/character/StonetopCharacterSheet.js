@@ -1083,9 +1083,19 @@ export function createStonetopCharacterSheetClass(Base) {
 							.filter(Boolean);
 						const initHpMax = Number(opt.hp) || 0;
 						const initHpRaw = initiatesHp[opt.slug];
+						// Break the comma-separated epithet name onto one line per
+						// segment (keeping the trailing comma); the pronoun rides
+						// on the final line.
+						const labelParts = String(opt.label ?? "").split(",").map(s => s.trim()).filter(Boolean);
+						const labelLines = (labelParts.length ? labelParts : [String(opt.label ?? "")])
+							.map((text, i, arr) => ({
+								text:    i < arr.length - 1 ? `${text},` : text,
+								pronoun: i === arr.length - 1 ? (det.pronoun ?? null) : null,
+							}));
 						return {
 							slug:          opt.slug,
 							label:         opt.label,
+							labelLines,
 							tags:          (opt.subtitle ?? "").split(", ").map(t => t.trim()).filter(Boolean),
 							hp:            opt.hp      ?? "—",
 							hpMax:         initHpMax,

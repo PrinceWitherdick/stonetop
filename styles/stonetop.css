@@ -8703,6 +8703,26 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: 1em;
 }
 
+/* Comma-separated epithet names (Blessed initiates) stack one segment per
+   line; the proper name keeps the bold weight while the descriptor lines read
+   lighter so a multi-line block doesn't look heavy. */
+.stonetop-follower-name--multiline {
+	display: flex;
+	flex-direction: column;
+	line-height: 1.25;
+}
+
+.stonetop-follower-name-line {
+	display: block;
+}
+
+.stonetop-follower-name-line:not(:first-child) {
+	font-weight: 400;
+	font-size: 0.85em;
+	font-style: italic;
+	color: #555;
+}
+
 .stonetop-follower-type {
 	font-size: 0.75em;
 	color: slategrey;
