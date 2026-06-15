@@ -15,10 +15,14 @@ import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
+import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth} from "../../settings.js";
 import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
+import {withSectionEditing} from "../../utils/section-editing.js";
+import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -31,6 +35,32 @@ const STAT_TOOLTIPS = {
 	con: "Your stamina, grit, determination, and endurance. Roll +CON to Defend, or to Defy Danger by holding steady or enduring hardship.",
 	cha: "Your ability to charm and connect with others, and to get a read on what others want. Roll +CHA to Persuade, or to Defy Danger socially.",
 };
+
+// Hover tooltips for the vitals row (Damage/HP/Armor/XP/Level), keyed by the
+// label's data-vital attribute. Gated by hoverDescriptionsVitals.
+const VITAL_TOOLTIPS = {
+	damage: "Your damage die. Roll it when you deal damage; moves, gear, and tags can raise or lower it.",
+	hp:     "Hit points. Lose them when you take damage; at 0 HP you're dying and must roll Last Breath. Your max is set by your playbook and CON.",
+	armor:  "Reduces the damage you take — subtract it from each hit. Computed from the gear you're wearing.",
+	xp:     "Experience. Mark 1 XP on a miss (roll 6-) and from some moves; when the track fills, spend it to level up.",
+	level:  "Your character level. Higher levels let you learn advanced moves and raise the XP needed to advance.",
+};
+
+// Plain-language explanations for an Invocation's Reduced / Empowered effects,
+// surfaced as hover tooltips on those labels in the Invocations tab.
+const INVOCATION_EFFECT_TOOLTIPS = {
+	reduced:   "When you Invoke the Sun God, one consequence you can choose — and must, on a 7-9 — is for the Invocation to take this weaker, reduced effect instead.",
+	empowered: "With the Empowered Invocations move (6th level), you can choose an extra consequence before you roll to give the Invocation this stronger, empowered effect.",
+};
+
+// Wrap the "Reduced:" / "Empowered:" labels inside an Invocation's description
+// HTML so they carry a hover tooltip explaining what those effect tiers mean.
+function _annotateInvocationEffects(html) {
+	return String(html).replace(/<strong>(Reduced|Empowered):<\/strong>/g, (_match, label) => {
+		const tip = INVOCATION_EFFECT_TOOLTIPS[label.toLowerCase()];
+		return `<strong class="stonetop-invocation-effect-label" data-tooltip="${escHtml(tip)}" data-tooltip-direction="UP">${label}:</strong>`;
+	});
+}
 
 const _esc = escHtml;
 
@@ -355,6 +385,10 @@ const EXPEDITION_MOVE_HANDLERS = {
 	Outfit:      sheet => sheet._onOutfitOpen(),
 };
 
+// Inventory slugs that hold "uses of supplies", in the order Recover depletes
+// them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
+const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
+
 /** Canonical HTML for a move chat card. Both `name` and `description` are trusted module HTML. */
 function _buildMoveChatContent(name, description) {
 	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${name}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
@@ -488,7 +522,10 @@ function _enrichMoveRefsInEl(container) {
 }
 
 export function createStonetopCharacterSheetClass(Base) {
-	return class StonetopCharacterSheet extends Base {
+	// Details-tab sections (Background, Instinct, Appearance, Origin, Lore) each
+	// carry their own edit pencil via the shared section-editing mixin, tracked
+	// independently of the global header-wrench `_editMode`.
+	return class StonetopCharacterSheet extends withSectionEditing(Base) {
 		_stonetopCharacter;
 		_editMode = false;
 
@@ -523,6 +560,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			await super._render(force, options);
 			this._injectHeaderToggle();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
+		}
+
+		// All tabs share one scroll container, so a scroll position from a tall tab
+		// carries over to the next. Reset to the top on every switch so the new tab
+		// always starts at the top instead of mid-content.
+		_onChangeTab(event, tabs, active) {
+			super._onChangeTab(event, tabs, active);
+			this.element?.[0]?.querySelector(".sheet-body")?.scrollTo({ top: 0 });
 		}
 
 		async close(options) {
@@ -806,10 +851,26 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.system ??= this.actor.system;
 			context.isCharacter = this.actor.type === "character";
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
-			context.stonetop.statsNoteDisplay = this._editMode ? context.stonetop.playbook?.statsNote ?? null : null;
-			context.stonetop.movelist.startingMovesNoteDisplay = this._editMode ? context.stonetop.movelist.startingMovesNote ?? null : null;
+			// Per-section edit flags: a section is editable when the global wrench is
+			// on OR its own pencil is toggled.
+			const sectionEdit = section => this.isSectionEditable(section);
+			context.stonetop.statsNoteDisplay = sectionEdit("stats") ? context.stonetop.playbook?.statsNote ?? null : null;
+			context.stonetop.movelist.startingMovesNoteDisplay = sectionEdit("moves") ? context.stonetop.movelist.startingMovesNote ?? null : null;
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop_pwd', 'hideUnselected') ?? true;
 			context.stonetop.editMode = this._editMode;
+			context.stonetop.canEdit = this.isEditable;
+			context.stonetop.detailsEdit = {
+				background: sectionEdit("background"),
+				instinct:   sectionEdit("instinct"),
+				appearance: sectionEdit("appearance"),
+				origin:     sectionEdit("origin"),
+				lore:       sectionEdit("lore"),
+			};
+			context.stonetop.statsEdit       = sectionEdit("stats");
+			context.stonetop.movesEdit       = sectionEdit("moves");
+			context.stonetop.possessionsEdit = sectionEdit("possessions");
+			context.stonetop.invocationsEdit = sectionEdit("invocations");
+			context.stonetop.followersEdit   = sectionEdit("followers");
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
 			// Mirror computed vitals back onto system attributes for the sheet's inputs.
@@ -845,7 +906,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.hasFollowers = !!(
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
-				context.stonetop.followers.initiates?.length
+				context.stonetop.followers.initiates?.length ||
+				context.stonetop.followers.beasts?.length
 			);
 			context.stonetop.hasArcana = !!(
 				context.stonetop.arcana?.minor?.hasOwned ||
@@ -856,7 +918,34 @@ export function createStonetopCharacterSheetClass(Base) {
 			const { xp } = context.stonetop.vitals;
 			context.stonetop.canLevelUp = xp.value >= xp.max;
 			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
+			context.stonetop.recover = this._buildRecoverData(context.stonetop);
 			return context;
+		}
+
+		// Recover (special move): expend 1 use of supplies, regain HP equal to
+		// 4+Prosperity. The benefit is locked after use until the character takes
+		// damage again (cleared by the preUpdateActor hook in stonetop.js).
+		_buildRecoverData(snapshot) {
+			const locked      = !!this.actor.getFlag("stonetop_pwd", "recover.spent");
+			const resources   = this.actor.getFlag("stonetop_pwd", "inventory.resources") ?? {};
+			const suppliesLeft = RECOVER_SUPPLY_SLUGS.reduce((sum, slug) => sum + (Number(resources[slug]) || 0), 0);
+			const healAmount  = snapshot.inventory?.smallItemLimit ?? 4;
+			const hp          = snapshot.vitals.hp;
+			const atFullHp    = hp.value >= hp.max;
+
+			let hint = null;
+			if (locked)                 hint = { icon: "fa-lock",                text: game.i18n.localize("stonetop.specialMoves.recover.lockedHint") };
+			else if (suppliesLeft <= 0) hint = { icon: "fa-triangle-exclamation", text: game.i18n.localize("stonetop.specialMoves.recover.noSuppliesHint") };
+			else if (atFullHp)          hint = { icon: "fa-heart",               text: game.i18n.localize("stonetop.specialMoves.recover.fullHpHint") };
+
+			return {
+				locked,
+				suppliesLeft,
+				healAmount,
+				atFullHp,
+				hint,
+				canRecover: !locked && suppliesLeft > 0 && !atFullHp,
+			};
 		}
 
 		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }) {
@@ -994,9 +1083,19 @@ export function createStonetopCharacterSheetClass(Base) {
 							.filter(Boolean);
 						const initHpMax = Number(opt.hp) || 0;
 						const initHpRaw = initiatesHp[opt.slug];
+						// Break the comma-separated epithet name onto one line per
+						// segment (keeping the trailing comma); the pronoun rides
+						// on the final line.
+						const labelParts = String(opt.label ?? "").split(",").map(s => s.trim()).filter(Boolean);
+						const labelLines = (labelParts.length ? labelParts : [String(opt.label ?? "")])
+							.map((text, i, arr) => ({
+								text:    i < arr.length - 1 ? `${text},` : text,
+								pronoun: i === arr.length - 1 ? (det.pronoun ?? null) : null,
+							}));
 						return {
 							slug:          opt.slug,
 							label:         opt.label,
+							labelLines,
 							tags:          (opt.subtitle ?? "").split(", ").map(t => t.trim()).filter(Boolean),
 							hp:            opt.hp      ?? "—",
 							hpMax:         initHpMax,
@@ -1019,20 +1118,59 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}
 
-			return { animalCompanion, crew, initiates };
+			// -- Livestock & Beasts (any playbook; from added special items) --
+			// A character "owns" a beast when its slug is in inventory.addedSpecial
+			// (the Add Special Item picker). HP and Loyalty track per-slug, mirroring
+			// the initiate flags. Follower beasts (dog/mule/horse) earn Loyalty and
+			// pay a Cost; the rest are livestock (butcher note, no Loyalty).
+			const ownedSlugs      = sf.inventory?.addedSpecial ?? [];
+			const beastHpFlags      = sf.beastHp      ?? {};
+			const beastLoyaltyFlags = sf.beastLoyalty ?? {};
+			const beasts = BEAST_ORDER
+				.filter(slug => ownedSlugs.includes(slug))
+				.map(slug => {
+					const b     = BEAST_CATALOG[slug];
+					const hpMax = Number(b.hp) || 0;
+					const hpRaw = beastHpFlags[slug];
+					const card  = {
+						slug,
+						name:       b.name,
+						subtitle:   b.subtitle ?? null,
+						isFollower: !!b.follower,
+						hpMax,
+						hpCurrent:  hpRaw != null ? Math.min(Math.max(0, Number(hpRaw)), hpMax) : hpMax,
+						armor:      b.armor ?? 0,
+						damage:     b.damage + (b.damageForm ? ` (${b.damageForm})` : ""),
+						damageRoll: b.damage ?? null,
+						damageForm: b.damageForm ?? null,
+						traits:     (b.traits ?? []).map(label => ({ label })),
+						traitsNote: b.traitsNote ?? null,
+						instinct:   b.instinct ?? "",
+						cost:       b.cost ?? "",
+						butcher:    b.butcher ?? null,
+					};
+					if (b.follower) card.loyalty = _makeLoyaltyPips(beastLoyaltyFlags[slug] ?? 0);
+					return card;
+				});
+
+			return { animalCompanion, crew, initiates, beasts };
 		}
 
 		_buildInvocationsData(playbookDoc) {
 			const raw = playbookDoc?.invocations;
 			if (!raw?.options?.length) return null;
 			const selected = new Set(this.actor.getFlag("stonetop_pwd", "invocations.selected") ?? []);
-			const options = raw.options.map(opt => ({
-				slug:        opt.slug,
-				label:       opt.label,
-				description: opt.description ?? "",
-				known:       selected.has(opt.slug),
-				ongoing:     !!opt.ongoing,
-			}));
+			const showEffectTips = getHoverDescriptionSetting("hoverDescriptionsInvocations");
+			const options = raw.options.map(opt => {
+				const description = opt.description ?? "";
+				return {
+					slug:        opt.slug,
+					label:       opt.label,
+					description: showEffectTips ? _annotateInvocationEffects(description) : description,
+					known:       selected.has(opt.slug),
+					ongoing:     !!opt.ongoing,
+				};
+			});
 			const sort = this.actor.getFlag("stonetop_pwd", "invocationsSort") ?? "known";
 			if (sort === "alpha") {
 				options.sort((a, b) => a.label.localeCompare(b.label));
@@ -1108,13 +1246,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".cell--stats .stat-value").each((_, el) => {
 				el.value = el.value.replace(/^\+/, "");
 			});
-			html.find(".cell--stats .stat[data-stat]").each((_, el) => {
-				if (!getHoverDescriptionSetting("hoverDescriptionsStats")) return;
-				const tooltip = STAT_TOOLTIPS[el.dataset.stat];
-				if (tooltip) {
-					el.dataset.tooltip = tooltip;
-					el.dataset.tooltipDirection = "DOWN";
-				}
+			applyLabelTooltips(html, {
+				selector: ".cell--stats .stat[data-stat]", datasetKey: "stat",
+				table: STAT_TOOLTIPS, settingKey: "hoverDescriptionsStats", direction: "DOWN",
+			});
+			applyLabelTooltips(html, {
+				selector: ".cell__title[data-vital]", datasetKey: "vital",
+				table: VITAL_TOOLTIPS, settingKey: "hoverDescriptionsVitals", direction: "DOWN",
 			});
 
 			html.find(".stonetop-hide-unselected-check").on("change", async (ev) => {
@@ -1224,6 +1362,9 @@ export function createStonetopCharacterSheetClass(Base) {
 							} else if (followerType === "initiate") {
 								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
 								label = `${this.actor.name}'s ${followerName || "initiate"} attacks${formPart}`;
+							} else if (followerType === "beast") {
+								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
+								label = `${this.actor.name}'s ${followerName || "beast"} attacks${formPart}`;
 							} else {
 								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
 								label = `${this.actor.name}'s ${followerName || "crew"} attacks${formPart}`;
@@ -1393,7 +1534,13 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			if (!this.isEditable) return;
 
-			if (this._editMode) {
+			// Details-tab per-section edit pencils: toggle just that section's edit
+			// state, independent of the global header-wrench edit mode.
+			this._wireSectionEditToggle(html, ".stonetop-details-section-edit-toggle");
+
+			// The Details-tab change handlers below are wired whenever any section is
+			// editable — either the global wrench or an individual section pencil.
+			if (this.hasActiveEdits) {
 				html.find("[name=stonetop-background]").on("change", this._onBackgroundChange.bind(this));
 				html.find("[name=stonetop-instinct]").on("change", ev => {
 					const val = ev.currentTarget.value;
@@ -1440,6 +1587,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-outfit-open-btn").on("click", this._onOutfitOpen.bind(this));
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
+			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 
 			// -- Followers tab: crew interactions --------------------------
 			// Crew name (editable in edit mode on Followers tab)
@@ -1470,6 +1618,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				const current = (this.actor.getFlag("stonetop_pwd", "initiatesLoyalty") ?? {})[slug] ?? 0;
 				const newVal  = current === idx + 1 ? idx : idx + 1;
 				await this.actor.update({ [`flags.stonetop_pwd.initiatesLoyalty.${slug}`]: newVal });
+				this.render(false);
+			});
+			// Beast (follower livestock) loyalty pips
+			html.find("button.stonetop-beast-loyalty-pip").on("click", async ev => {
+				const { slug, index } = ev.currentTarget.dataset;
+				const idx     = Number(index);
+				const current = (this.actor.getFlag("stonetop_pwd", "beastLoyalty") ?? {})[slug] ?? 0;
+				const newVal  = current === idx + 1 ? idx : idx + 1;
+				await this.actor.update({ [`flags.stonetop_pwd.beastLoyalty.${slug}`]: newVal });
 				this.render(false);
 			});
 			// Crew gear pip circles — each pip is independently selectable;
@@ -1926,6 +2083,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					const current = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "crew.individualsHp") ?? {});
 					current[Number(index)] = val;
 					await this.actor.setFlag("stonetop_pwd", "crew.individualsHp", current);
+				} else if (follower === "beast") {
+					const current = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "beastHp") ?? {});
+					current[slug] = val;
+					await this.actor.setFlag("stonetop_pwd", "beastHp", current);
 				}
 				this.render(false);
 			}, true);
@@ -2013,8 +2174,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		_getDragEventData(ev) {
-			const textEditor = foundry?.applications?.ux?.TextEditor?.implementation;
-			return textEditor?.getDragEventData(ev) ?? TextEditor.getDragEventData(ev);
+			return getDragEventData(ev);
 		}
 
 		// Initial HP for a newly-assigned playbook (full HP). max is also synced in
@@ -2396,6 +2556,66 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter,
 				() => this.render(false),
 			).render(true);
+		}
+
+		async _onRecoverOpen() {
+			const snapshot = await this._stonetopCharacter.buildSnapshot();
+			const hp = snapshot.vitals.hp;
+			if (this.actor.getFlag("stonetop_pwd", "recover.spent")) return;
+			if (hp.value >= hp.max) return;
+
+			const resources  = this.actor.getFlag("stonetop_pwd", "inventory.resources") ?? {};
+			const supplySlug = RECOVER_SUPPLY_SLUGS.find(slug => (Number(resources[slug]) || 0) > 0);
+			if (!supplySlug) return;
+
+			const healAmount = snapshot.inventory?.smallItemLimit ?? 4;
+			const newHp      = Math.min(hp.value + healAmount, hp.max);
+			const guide      = GUIDED_CHARACTER_MOVES.Recover;
+
+			new Dialog({
+				title: "Recover",
+				content: `<form class="stonetop-homestead-dialog stonetop-recover-dialog">
+					<p class="stonetop-homestead-trigger"><em>${_esc(guide.trigger)}</em></p>
+					<div class="stonetop-homestead-reference">
+						<ul>
+							<li>Expend <strong>1 use of supplies</strong>.</li>
+							<li>Regain HP: <strong>${hp.value} &rarr; ${newHp}</strong> (4+Prosperity = ${healAmount}).</li>
+						</ul>
+					</div>
+					<label class="stonetop-homestead-field">
+						<span>What you're tending <em>(optional)</em></span>
+						<textarea name="ailment" rows="2" placeholder="Wound or debility…"></textarea>
+					</label>
+					<p class="stonetop-homestead-note">${_esc(guide.note)} You can't gain this benefit again until you take more damage.</p>
+				</form>`,
+				buttons: {
+					cancel:  { label: "Cancel" },
+					recover: {
+						label: `Recover (+${newHp - hp.value} HP)`,
+						callback: html => this._applyRecover(html, { supplySlug, currentUses: Number(resources[supplySlug]) || 0, oldHp: hp.value, newHp }),
+					},
+				},
+				default: "recover",
+				render: keepDialogOnTop,
+			}, { width: 480 }).render(true);
+		}
+
+		async _applyRecover(html, { supplySlug, currentUses, oldHp, newHp }) {
+			await this._stonetopCharacter.setInventoryResource(supplySlug, Math.max(0, currentUses - 1));
+			await this.actor.update({
+				"system.attributes.hp.value": newHp,
+				"flags.stonetop_pwd.recover.spent": true,
+			});
+
+			const ailment = String(html[0]?.querySelector('[name="ailment"]')?.value ?? "").trim();
+			const rows = [
+				{ label: "Supplies", value: "Expended 1 use" },
+				{ label: "HP", value: `${oldHp} → ${newHp} (+${newHp - oldHp})` },
+			];
+			if (ailment) rows.push({ label: "Tending", value: ailment });
+			postMoveToChat(this.actor, "Recover", rows);
+
+			this.render(false);
 		}
 
 		async _onNewCharacter() {
@@ -2813,8 +3033,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (Object.keys(obj).length) {
 					upd[`flags.${STONETOP_SCOPE}.${key}`] = obj;
 				} else {
-					const parts = key.split(".");
-					upd[`flags.${STONETOP_SCOPE}.${parts.slice(0, -1).join(".")}.-=${parts.at(-1)}`] = null;
+					const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.${key}`);
+					upd[updKey] = val;
 				}
 			}
 			if (Object.keys(upd).length) await this.actor.update(upd);

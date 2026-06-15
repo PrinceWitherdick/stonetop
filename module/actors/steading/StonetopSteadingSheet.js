@@ -10,8 +10,12 @@ import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDia
 import {CharacterInventory} from "../character/CharacterInventory.js";
 import {SPECIAL_ITEM_CATALOG} from "../../data/special-items.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
+import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
+import {withSectionEditing} from "../../utils/section-editing.js";
+import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
+import {getDragEventData} from "../../utils/foundry-compat.js";
 
 function _signedNum(n) {
 	return n >= 0 ? `+${n}` : String(n);
@@ -20,6 +24,12 @@ function _signedNum(n) {
 function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
 }
+
+// Season glyph path; Autumn shares the one "fall" icon. The static moves table
+// below spells the four paths out for readability; the season dialogs derive
+// theirs from the picked id, so both share this one autumn→fall rule.
+const _seasonIconSrc = id =>
+	`systems/stonetop_pwd/assets/icons/seasons/${id === "autumn" ? "fall" : id}_icon.svg`;
 
 const _STEADING_MOVES_RAW = [
 	{
@@ -30,16 +40,16 @@ const _STEADING_MOVES_RAW = [
 		rollable: false,
 		interactive: true,
 		description: `<div class="stonetop-seasons-grid">
-  <img src="systems/stonetop_pwd/assets/icons/seasons/spring_icon.webp" class="stonetop-season-row-icon" alt="Spring">
+  <img src="systems/stonetop_pwd/assets/icons/seasons/spring_icon.svg" class="stonetop-season-row-icon" alt="Spring">
   <div><strong>Spring</strong> — The <em>most hopeful</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. Reset Fortunes to +1.</div>
 
-  <img src="systems/stonetop_pwd/assets/icons/seasons/summer_icon.webp" class="stonetop-season-row-icon" alt="Summer">
+  <img src="systems/stonetop_pwd/assets/icons/seasons/summer_icon.svg" class="stonetop-season-row-icon" alt="Summer">
   <div><strong>Summer</strong> — The <em>most content</em> rolls +Fortunes. <strong>10+:</strong> pick 2 seasonal gains. <strong>7–9:</strong> pick 1. <strong>6−:</strong> a threat makes itself known; don't mark XP. The steading generates 1d4−1 Surplus. Reset Fortunes to +1.</div>
 
-  <img src="systems/stonetop_pwd/assets/icons/seasons/fall_icon.webp" class="stonetop-season-row-icon" alt="Autumn">
+  <img src="systems/stonetop_pwd/assets/icons/seasons/fall_icon.svg" class="stonetop-season-row-icon" alt="Autumn">
   <div><strong>Autumn</strong> — The <em>most determined</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. The steading generates 1d4 Surplus at harvest. Reset Fortunes to +1.</div>
 
-  <img src="systems/stonetop_pwd/assets/icons/seasons/winter_icon.webp" class="stonetop-season-row-icon" alt="Winter">
+  <img src="systems/stonetop_pwd/assets/icons/seasons/winter_icon.svg" class="stonetop-season-row-icon" alt="Winter">
   <div><strong>Winter</strong> — The <em>weariest</em> rolls 1d4+Population (min 0); the steading consumes that much Surplus. If there isn't enough: Surplus → 0, Fortunes −1, pick 1 consequence. Then roll +Fortunes. Reset Fortunes to +1.</div>
 </div>
 <p class="stonetop-seasons-cta">Click <i class="fas fa-dice-d6"></i> to walk through the current season step by step.</p>`,
@@ -144,6 +154,17 @@ const STEADING_STAT_CHIP_LABELS = {
 	Fortunes: "FOR",
 	Population: "POP",
 	Prosperity: "PRO",
+};
+
+// Hover tooltips for the steading stat labels, keyed by data-steading-stat
+// (Book I "Homefront"). Gated by hoverDescriptionsSteadingStats.
+const STEADING_STAT_TOOLTIPS = {
+	surplus:    "Stores of food and trade goods. A resource you accumulate, spend, and consume — not rolled. Generated in summer and autumn, eaten through in winter.",
+	fortunes:   "The steading's morale, social cohesion, and the favor of the gods — “how things are going.” Roll +Fortunes to Requisition and when the Seasons Change; resets to +1 each season.",
+	size:       "How big the steading is (hamlet, village, town, city). Mostly descriptive, but it affects winter Surplus consumption and the Muster, Pull Together, and Trade & Barter moves.",
+	population: "The number of able bodies living here, relative to its Size. Roll +Population to Muster or Pull Together; higher Population also eats more Surplus each winter.",
+	prosperity: "The goods in circulation, the variety of tradesfolk, and merchant traffic. Roll +Prosperity to Trade & Barter; it also sets the value of “x piercing” and what gear is available.",
+	defenses:   "The steading's martial readiness — trained, armed residents and veteran warriors. Roll +Defenses to Deploy its people against a threat.",
 };
 const _esc = escHtml;
 
@@ -280,10 +301,27 @@ const HOMESTEAD_MOVE_FLOWS = {
 	},
 };
 
+// Every editable section carries its own hover edit pencil; each is read-only
+// until its pencil (or the global header wrench) turns it on. Keys match the
+// `data-section` attributes in the templates.
+const STEADING_EDIT_SECTIONS = [
+	"surplusFortunes", "sizePopulation", "defenses", "fortifications",
+	"prosperity", "currency",
+	"resources", "assets", "places",
+	"players", "residents", "neighbors", "improvements",
+];
+
 export function createStonetopSteadingSheetClass(Base) {
-	return class StonetopSteadingSheet extends Base {
+	// Sections with their own heading pencil (Residents, Neighbors) track edit
+	// state independently of the global header-wrench `_editMode` via the shared
+	// section-editing mixin.
+	return class StonetopSteadingSheet extends withSectionEditing(Base) {
 		_stonetopSteading;
 		_editMode = false;
+		// Sections whose edit mode was just turned off: their "done" check lingers
+		// for a beat, fades out, then reverts to the hover pencil. Each has a timer.
+		_recentlyEditedSections = new Set();
+		_recentlyEditedTimers = new Map();
 
 		constructor(...args) {
 			super(...args);
@@ -324,13 +362,20 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			const label = document.createElement("label");
 			label.className = "stonetop-edit-toggle stonetop-header-toggle";
-			label.title = this._editMode ? "Lock Sheet" : "Edit Steading";
+			// Master edit toggle: when on, every section is editable. Each section
+			// also has its own hover pencil for editing it in isolation.
+			label.title = this._editMode ? "Lock Steading" : "Edit Steading";
 
 			const checkbox = document.createElement("input");
 			checkbox.type = "checkbox";
 			checkbox.checked = this._editMode;
 			checkbox.addEventListener("change", () => {
-				this._editMode = !this._editMode;
+				this._editMode = checkbox.checked;
+				// Locking the sheet resets any per-section pencils back to read-only.
+				if (!this._editMode) {
+					this._editingSections.clear();
+					this._clearAllSectionDoneTimers();
+				}
 				this.render(false);
 			});
 
@@ -547,6 +592,44 @@ export function createStonetopSteadingSheetClass(Base) {
 			}).render(true);
 		}
 
+		// Section-editing hooks: entering edit cancels any lingering "done" check;
+		// leaving edit starts the fade-out check (see _markSectionDone).
+		_onSectionEditOpened(section) { this._clearSectionDone(section); }
+		_onSectionEditClosed(section) { this._markSectionDone(section); }
+
+		// Show a section's "done" check for a beat after leaving edit, then fade it
+		// out (CSS) and re-render so the section reverts to its hover pencil.
+		_markSectionDone(section) {
+			this._clearSectionDone(section);
+			this._recentlyEditedSections.add(section);
+			const timer = setTimeout(() => {
+				this._recentlyEditedSections.delete(section);
+				this._recentlyEditedTimers.delete(section);
+				if (this.rendered) this.render(false);
+			}, 1000);
+			this._recentlyEditedTimers.set(section, timer);
+		}
+
+		_clearSectionDone(section) {
+			this._recentlyEditedSections.delete(section);
+			const timer = this._recentlyEditedTimers.get(section);
+			if (timer) {
+				clearTimeout(timer);
+				this._recentlyEditedTimers.delete(section);
+			}
+		}
+
+		_clearAllSectionDoneTimers() {
+			for (const timer of this._recentlyEditedTimers.values()) clearTimeout(timer);
+			this._recentlyEditedTimers.clear();
+			this._recentlyEditedSections.clear();
+		}
+
+		async close(options) {
+			this._clearAllSectionDoneTimers();
+			return super.close(options);
+		}
+
 		async getData() {
 			const context = await super.getData();
 			context.stonetop = await this._stonetopSteading.buildSnapshot();
@@ -558,13 +641,28 @@ export function createStonetopSteadingSheetClass(Base) {
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
-			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? true;
+			context.stonetop.canEdit = this.isEditable;
+			// Per-section edit flags: a section is editable when the global header
+			// wrench is on OR its own pencil is toggled.
+			const sectionEdit = section => this.isSectionEditable(section);
+			context.stonetop.edit = Object.fromEntries(
+				STEADING_EDIT_SECTIONS.map(section => [section, sectionEdit(section)])
+			);
+			context.stonetop.recentlyEdited = Object.fromEntries(
+				STEADING_EDIT_SECTIONS.map(section => [section, this._recentlyEditedSections.has(section)])
+			);
+			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? false;
 			return context;
 		}
 
 		activateListeners(html) {
 			super.activateListeners(html);
 			wrapStonetopGlyphsInEl(html[0]);
+
+			applyLabelTooltips(html, {
+				selector: ".steading-stat-label[data-steading-stat]", datasetKey: "steadingStat",
+				table: STEADING_STAT_TOOLTIPS, settingKey: "hoverDescriptionsSteadingStats", direction: "UP",
+			});
 
 			// Rollable move buttons (both editable and read-only)
 			html[0].addEventListener("click", ev => {
@@ -629,6 +727,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				const hdr = ev.target.closest(".steading-improvement-header");
 				if (!hdr) return;
 				if (ev.target.closest(".steading-improvement-complete-label")) return;
+				if (ev.target.closest(".steading-improvement-remove")) return;
 				const card = hdr.closest(".steading-improvement");
 				if (!card) return;
 				card.classList.toggle("is-open");
@@ -640,6 +739,11 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.stopPropagation();
 				this.actor.setFlag("stonetop_pwd", "hideUnearnedImprovements", cb.checked);
 			}, true);
+
+			// Per-section edit toggle (pencil/check at each section's corner) flips
+			// just that section's edit state, independent of the global wrench. The
+			// fade-out "done" check is driven by the _onSectionEdit* hooks above.
+			this._wireSectionEditToggle(html, ".steading-section-edit-toggle");
 
 			// Add resident / neighbor — allowed even outside edit mode
 			html[0].addEventListener("click", ev => {
@@ -661,7 +765,6 @@ export function createStonetopSteadingSheetClass(Base) {
 			html[0].addEventListener("change", ev => {
 				const input = ev.target;
 				if (input.type !== "radio" || !input.name || !input.closest(".steading-track-option")) return;
-				if (!this._editMode) return;
 				ev.stopPropagation();
 				this._onSteadingTrackChange(input.name, Number(input.value));
 			}, true);
@@ -669,7 +772,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Surplus is in the custom stat bar, so persist it explicitly.
 			const onSurplusInput = ev => {
 				const input = ev.target.closest(".steading-surplus-input");
-				if (!input || !this._editMode) return;
+				if (!input) return;
 				ev.stopPropagation();
 				this._onSteadingTrackChange(input.name, Math.max(0, parseInt(input.value) || 0));
 			};
@@ -679,7 +782,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Debilities live in the same custom bar and need the same legacy-safe persistence.
 			html[0].addEventListener("change", ev => {
 				const input = ev.target.closest(".steading-debility-check");
-				if (!input || !this._editMode) return;
+				if (!input) return;
 				ev.stopPropagation();
 				this._onSteadingTrackChange(input.name, input.checked);
 			}, true);
@@ -805,7 +908,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					ev.preventDefault();
 					ev.stopPropagation();
 					playersSection?.classList.remove("drag-over");
-					const data = TextEditor.getDragEventData(ev);
+					const data = getDragEventData(ev);
 					if (data?.type === "Actor" && data.uuid) {
 						const actor = await fromUuid(data.uuid);
 						if (actor && actor.type === "character") {
@@ -814,6 +917,37 @@ export function createStonetopSteadingSheetClass(Base) {
 					}
 				}, true);
 			}
+
+			// Drop a "Steading Improvement" card (dragged from a journal) onto the
+			// Improvements tab to add it as a tracked custom improvement.
+			const improvementsTab = html[0].querySelector(".tab.improvements");
+			if (improvementsTab) {
+				const setDrag = on => improvementsTab.classList.toggle("steading-improvement-drag-over", on);
+				improvementsTab.addEventListener("dragover", (ev) => {
+					ev.preventDefault();
+					ev.dataTransfer.dropEffect = "copy";
+					setDrag(true);
+				});
+				improvementsTab.addEventListener("dragleave", (ev) => {
+					if (!improvementsTab.contains(ev.relatedTarget)) setDrag(false);
+				});
+				improvementsTab.addEventListener("drop", async (ev) => {
+					const data = getDragEventData(ev);
+					if (data?.type !== STEADING_IMPROVEMENT_DRAG_TYPE) return;
+					ev.preventDefault();
+					ev.stopPropagation();
+					setDrag(false);
+					await this._onDropSteadingImprovement(data.improvement);
+				});
+			}
+
+			// Remove a custom (journal-sourced) improvement.
+			html[0].addEventListener("click", (ev) => {
+				const btn = ev.target.closest(".steading-improvement-remove");
+				if (!btn) return;
+				ev.stopPropagation();
+				this._onRemoveCustomImprovement(btn.dataset.slug);
+			}, true);
 		}
 
 		_onHomesteadMove(moveSlug) {
@@ -1166,8 +1300,6 @@ export function createStonetopSteadingSheetClass(Base) {
 				{ id: "autumn", label: "Autumn" },
 				{ id: "winter", label: "Winter" },
 			];
-			const iconSrc = id => `systems/stonetop_pwd/assets/icons/seasons/${id === "autumn" ? "fall" : id}_icon.webp`;
-
 			let dialog;
 			dialog = new Dialog({
 				title: "Seasons Change",
@@ -1176,7 +1308,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					<div class="stonetop-season-cards">
 						${SEASONS.map(s => `
 							<div class="stonetop-season-card" data-season="${s.id}">
-								<img src="${iconSrc(s.id)}" alt="${s.label}" class="stonetop-season-icon">
+								<img src="${_seasonIconSrc(s.id)}" alt="${s.label}" class="stonetop-season-icon">
 								<span class="stonetop-season-label">${s.label}</span>
 							</div>`).join("")}
 					</div>
@@ -1202,7 +1334,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			const resetFortunes = malcontent ? 0 : 1;
 
 			const label   = { spring: "Spring", summer: "Summer", autumn: "Autumn", winter: "Winter" }[seasonId];
-			const iconSrc = `systems/stonetop_pwd/assets/icons/seasons/${seasonId === "autumn" ? "fall" : seasonId}_icon.webp`;
+			const iconSrc = _seasonIconSrc(seasonId);
 
 			const header = `<div class="stonetop-season-flow-header">
 				<img src="${iconSrc}" alt="${label}" class="stonetop-season-icon-sm">
@@ -1630,6 +1762,23 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!improvements[slug].r) improvements[slug].r = [];
 			improvements[slug].r[index] = checked;
 			await this._stonetopSteading.setFlags({ improvements });
+		}
+
+		async _onDropSteadingImprovement(improvement) {
+			if (!improvement?.name) return;
+			const result = await this._stonetopSteading.addCustomImprovement(improvement);
+			if (result.ok) {
+				globalThis.ui?.notifications?.info?.(`Added steading improvement: ${result.label}.`);
+				this.render(false);
+			} else if (result.reason === "duplicate") {
+				globalThis.ui?.notifications?.warn?.(`${result.label} is already a steading improvement.`);
+			}
+		}
+
+		async _onRemoveCustomImprovement(slug) {
+			if (!slug) return;
+			const removed = await this._stonetopSteading.removeCustomImprovement(slug);
+			if (removed) this.render(false);
 		}
 	};
 }

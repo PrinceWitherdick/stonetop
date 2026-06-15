@@ -8,7 +8,7 @@
 				<input class="stat-value" type="number"
 				       name="system.stats.{{@key}}.value"
 				       value="{{value}}"
-				       {{#unless @root.stonetop.editMode}}readonly{{/unless}}>
+				       {{#unless @root.stonetop.statsEdit}}readonly{{/unless}}>
 			</div>
 		</div>
 		<span class="stonetop-stat-abbr">({{@key}})</span>

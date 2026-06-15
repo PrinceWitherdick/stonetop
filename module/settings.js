@@ -11,14 +11,27 @@ export function registerSettings() {
 		default: ""
 	});
 
-	// Whether the compendium seeding prompt has been dismissed.
-	// Prevents nagging the GM every session if they've already seeded.
+	// Whether the one-time import of the JournalEntry compendiums into the world
+	// has run (see hooks/SeedCompendiums.js). Set true after the first GM load so
+	// the gazetteer is seeded exactly once and never re-duplicated.
 	game.settings.register("stonetop_pwd", "seedingComplete", {
 		name: "Compendium Seeding Complete",
 		scope: "world",
 		config: false,
 		type: Boolean,
 		default: false
+	});
+
+	// The system version whose shipped journal content was last rolled into the
+	// world's seeded copies (see hooks/SeedCompendiums.js). When this trails the
+	// running version, the update pass refreshes pristine (un-edited) seeded
+	// journals and records the new version here.
+	game.settings.register("stonetop_pwd", "journalSyncVersion", {
+		name: "Journal Sync Version",
+		scope: "world",
+		config: false,
+		type: String,
+		default: ""
 	});
 
 	game.settings.register("stonetop_pwd", "startupWelcomeShown", {
@@ -30,6 +43,17 @@ export function registerSettings() {
 	});
 
 	// -- CLIENT SPECIFIC SETTINGS --------------------------------
+
+	// Whether this user has had the Setting Overview journal auto-opened once (see
+	// hooks/Ready.js). Per-client so each player gets the fresh-start orientation
+	// the first time they connect, GM included, without re-popping every load.
+	game.settings.register("stonetop_pwd", "settingOverviewShown", {
+		name: "Setting Overview Shown",
+		scope: "client",
+		config: false,
+		type: Boolean,
+		default: false
+	});
 
 	game.settings.register("stonetop_pwd", "sheetFont", {
 		name: "stonetop.settings.sheetFont.name",
@@ -128,6 +152,11 @@ export const HOVER_DESCRIPTION_SETTING_KEYS = [
 	"hoverDescriptionsPlaybookMoves",
 	"hoverDescriptionsTraits",
 	"hoverDescriptionsGearTags",
+	"hoverDescriptionsMonsterRefs",
+	"hoverDescriptionsInvocations",
+	"hoverDescriptionsVitals",
+	"hoverDescriptionsMonsterTags",
+	"hoverDescriptionsSteadingStats",
 ];
 
 function _createHoverDescriptionSettingsApp() {

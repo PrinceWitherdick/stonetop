@@ -1,4 +1,5 @@
 import {resolvedFlagProperty, STONETOP_SCOPE} from "../character/StonetopFlags.js";
+import {slugify} from "../../utils/strings.js";
 
 export const IMPROVEMENT_DEFINITIONS = [
 	// ── Page 2 ──────────────────────────────────────────────────
@@ -357,6 +358,9 @@ export const IMPROVEMENT_DEFINITIONS = [
 	},
 ];
 
+/** Lower-cased built-in improvement labels, used to reject custom dupes of a book improvement. */
+const BUILTIN_IMPROVEMENT_LABELS = new Set(IMPROVEMENT_DEFINITIONS.map(d => d.label.toLowerCase()));
+
 export const STEADING_DEFAULTS = {
 	resources: [
 		{ name: "Farming (beans, potatoes, oats, barley)", checked: true },
@@ -392,16 +396,11 @@ export const STEADING_DEFAULTS = {
 		{ name: "", checked: false },
 		{ name: "", checked: false },
 	],
-	residents: [
-		{ name: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-		{ name: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-		{ name: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-	],
-	neighbors: [
-		{ name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-		{ name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-		{ name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-	],
+	// Start empty — residents/neighbors are added on demand via "Add Resident/
+	// Neighbor" (or by typing into a row in edit mode). Seeding blank rows here
+	// made three empty rows appear whenever a fresh sheet's section was edited.
+	residents: [],
+	neighbors: [],
 	players: [],
 	places: [
 		{ letter: "A", name: "The Stone" },
@@ -496,6 +495,55 @@ export class StonetopSteading {
 		return Number(this.getSystemValue(`stats.${statKey}.value`, statDefaults[statKey] ?? 0));
 	}
 
+	/** Slug for a journal-sourced custom improvement, namespaced so it never collides
+	 *  with the camelCase built-in slugs and so re-dropping the same card is idempotent. */
+	_customImprovementSlug(name) {
+		return `custom-${slugify(name)}`;
+	}
+
+	/**
+	 * Add a journal-sourced steading improvement (dropped from a bestiary-style card)
+	 * as a tracked custom improvement. The definition is normalized into the same
+	 * shape as IMPROVEMENT_DEFINITIONS so the snapshot/template treat it identically.
+	 * No-op (returns `{ ok: false }`) when the name is empty or already present (by
+	 * built-in label or existing custom slug), so re-dropping the same card is safe.
+	 * @param {{name:string, flavor?:string, effect?:string, sections?:Array}} def
+	 */
+	async addCustomImprovement(def) {
+		const name = String(def?.name ?? "").trim();
+		if (!name) return { ok: false, reason: "empty" };
+
+		const slug = this._customImprovementSlug(name);
+		const existing = this._flags.customImprovements ?? [];
+		if (BUILTIN_IMPROVEMENT_LABELS.has(name.toLowerCase()) || existing.some(d => d.slug === slug)) {
+			return { ok: false, reason: "duplicate", slug, label: name };
+		}
+
+		const normalized = {
+			slug,
+			label: name,
+			flavor: String(def.flavor ?? ""),
+			sections: (Array.isArray(def.sections) ? def.sections : []).map(s => ({
+				heading: String(s?.heading ?? ""),
+				items: (Array.isArray(s?.items) ? s.items : []).map(String),
+			})),
+			effect: String(def.effect ?? ""),
+		};
+		await this.setFlags({ customImprovements: [...existing, normalized] });
+		return { ok: true, slug, label: name };
+	}
+
+	/** Remove a custom improvement and clear its tracking state. */
+	async removeCustomImprovement(slug) {
+		const existing = this._flags.customImprovements ?? [];
+		const next = existing.filter(d => d.slug !== slug);
+		if (next.length === existing.length) return false;
+		const improvements = { ...(this._flags.improvements ?? {}) };
+		delete improvements[slug];
+		await this.setFlags({ customImprovements: next, improvements });
+		return true;
+	}
+
 	/** Named assets that are currently on hand (have a name and are not out on requisition). */
 	getAvailableAssets() {
 		const assets = this._flags.assets ?? STEADING_DEFAULTS.assets;
@@ -569,7 +617,7 @@ export class StonetopSteading {
 			return { traits: "", relations: "", ...p, notes: p.notes ?? p.etc ?? "", resolvedOccupation };
 		});
 
-		const improvements = IMPROVEMENT_DEFINITIONS.map(def => {
+		const mapImprovement = (def, custom) => {
 			const stored = storedImps[def.slug] ?? {};
 			let idx = 0;
 			const sections = def.sections.map(section => ({
@@ -589,8 +637,15 @@ export class StonetopSteading {
 				earned,
 				sections,
 				effect: def.effect,
+				custom: !!custom,
 			};
-		});
+		};
+		// Built-in improvements first, then any journal-sourced custom ones (dropped
+		// onto the sheet); both share the same tracking store keyed by slug.
+		const improvements = [
+			...IMPROVEMENT_DEFINITIONS.map(def => mapImprovement(def, false)),
+			...(f.customImprovements ?? []).map(def => mapImprovement(def, true)),
+		];
 
 		return {
 			system: {

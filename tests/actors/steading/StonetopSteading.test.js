@@ -65,6 +65,82 @@ describe("StonetopSteading", () => {
 		]);
 	});
 
+	describe("custom (journal-sourced) improvements", () => {
+		function makeMutableSteadingActor(steadingFlags = {}) {
+			const actor = {
+				type: "stonetop",
+				system: {},
+				flags: { stonetop: { steading: steadingFlags } },
+				getFlag: (scope, key) => (key === "steading" ? actor.flags.stonetop.steading : null),
+				setFlag: vi.fn((scope, key, value) => { actor.flags.stonetop.steading = value; return Promise.resolve(); }),
+				update: vi.fn(),
+			};
+			return actor;
+		}
+
+		const roadbuilding = {
+			name: "ROADBUILDING",
+			flavor: "",
+			effect: "When you mark all the requirements, you can repair the Roads.",
+			sections: [{ heading: "Requires all of the following:", items: ["Unlock the runes", "Recruit a crew"] }],
+		};
+
+		it("adds a dropped improvement and surfaces it in the snapshot as custom", async () => {
+			const actor = makeMutableSteadingActor();
+			const steading = new StonetopSteading(actor);
+
+			const result = await steading.addCustomImprovement(roadbuilding);
+			expect(result).toMatchObject({ ok: true, slug: "custom-roadbuilding", label: "ROADBUILDING" });
+
+			const snapshot = await steading.buildSnapshot();
+			const added = snapshot.improvements.find(i => i.slug === "custom-roadbuilding");
+			expect(added).toBeTruthy();
+			expect(added.custom).toBe(true);
+			expect(added.label).toBe("ROADBUILDING");
+			expect(added.sections[0].items.map(i => i.label)).toEqual(["Unlock the runes", "Recruit a crew"]);
+			// Built-ins are still present and flagged non-custom.
+			expect(snapshot.improvements.find(i => i.slug === "palisade").custom).toBe(false);
+		});
+
+		it("refuses a duplicate name (existing custom or built-in label) and an empty name", async () => {
+			const actor = makeMutableSteadingActor({ customImprovements: [
+				{ slug: "custom-roadbuilding", label: "ROADBUILDING", flavor: "", sections: [], effect: "" },
+			] });
+			const steading = new StonetopSteading(actor);
+
+			expect(await steading.addCustomImprovement(roadbuilding)).toMatchObject({ ok: false, reason: "duplicate" });
+			expect(await steading.addCustomImprovement({ name: "Palisade" })).toMatchObject({ ok: false, reason: "duplicate" });
+			expect(await steading.addCustomImprovement({ name: "   " })).toMatchObject({ ok: false, reason: "empty" });
+		});
+
+		it("tracks requirement/completion state for a custom improvement by its slug", async () => {
+			const actor = makeMutableSteadingActor({
+				customImprovements: [{ slug: "custom-roadbuilding", label: "ROADBUILDING", flavor: "", effect: "",
+					sections: [{ heading: "Requires:", items: ["Unlock the runes", "Recruit a crew"] }] }],
+				improvements: { "custom-roadbuilding": { completed: false, r: [true, false] } },
+			});
+			const snapshot = await new StonetopSteading(actor).buildSnapshot();
+			const added = snapshot.improvements.find(i => i.slug === "custom-roadbuilding");
+			expect(added.earned).toBe(true);
+			expect(added.sections[0].items[0].checked).toBe(true);
+			expect(added.sections[0].items[1].checked).toBe(false);
+		});
+
+		it("removes a custom improvement and clears its tracking state", async () => {
+			const actor = makeMutableSteadingActor({
+				customImprovements: [{ slug: "custom-roadbuilding", label: "ROADBUILDING", flavor: "", effect: "", sections: [] }],
+				improvements: { "custom-roadbuilding": { completed: true, r: [] }, palisade: { completed: true, r: [] } },
+			});
+			const steading = new StonetopSteading(actor);
+
+			expect(await steading.removeCustomImprovement("custom-roadbuilding")).toBe(true);
+			expect(actor.flags.stonetop.steading.customImprovements).toEqual([]);
+			expect(actor.flags.stonetop.steading.improvements).toEqual({ palisade: { completed: true, r: [] } });
+			// Removing an unknown slug is a no-op.
+			expect(await steading.removeCustomImprovement("custom-nope")).toBe(false);
+		});
+	});
+
 	describe("requisition assets", () => {
 		function makeAssetActor(assets) {
 			const actor = {

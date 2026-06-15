@@ -15,7 +15,10 @@
 		{{else}}
 
 		<section class="sheet-top flexcol">
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.statsNoteDisplay}}
+			<div class="stonetop-details-heading-row">
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.statsNoteDisplay}}
+				{{> "stonetop.details-section-edit-toggle" section="stats" editing=stonetop.statsEdit}}
+			</div>
 
 			<section class="sheet-attributes flexrow">
 				{{> "stonetop.actor-stats"}}

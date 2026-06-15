@@ -172,21 +172,46 @@ export async function rollStat(statKey, actor, options = {}) {
 }
 
 /**
- * Roll a character damage formula using the same Stonetop chat card shell as stat rolls.
+ * Apply advantage/disadvantage to a damage formula by doubling its first dice
+ * term and keeping the better/worse half — Stonetop "roll damage twice, take the
+ * higher/lower" (e.g. "d6" with disadvantage → "2d6kl1", "d8+2" → "2d8kl1+2").
+ * Non-adv/dis modes and dieless formulas pass through unchanged.
+ */
+function _damageRollFormula(formula, rollMode) {
+	if (rollMode !== "adv" && rollMode !== "dis") return formula;
+	return String(formula).replace(/(\d*)d(\d+)/i, (match, count, faces) => {
+		const n = Number(count || 1);
+		const keep = rollMode === "adv" ? "kh" : "kl";
+		return `${n * 2}d${faces}${keep}${n}`;
+	});
+}
+
+/**
+ * Roll a character or monster damage formula using the same Stonetop chat card
+ * shell as stat rolls.
  *
  * @param {string} formula
  * @param {Actor} actor
  * @param {object} options
  * @param {string} [options.label]
+ * @param {string} [options.rollMode]  - "adv" | "dis" | "normal" (advantage/disadvantage on the damage die)
  * @returns {Promise<Roll>}
  */
 export async function rollDamage(formula, actor, options = {}) {
-	const roll = await new Roll(formula).evaluate();
+	const rollMode = options.rollMode ?? "normal";
+	const roll = await new Roll(_damageRollFormula(formula, rollMode)).evaluate();
 	const label = options.label ?? "Damage";
+
+	const conditions = [];
+	if (rollMode === "adv") {
+		conditions.push(`<li class="stonetop-condition-advantage">Advantage</li>`);
+	} else if (rollMode === "dis") {
+		conditions.push(`<li class="stonetop-condition-disadvantage">Disadvantage</li>`);
+	}
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, buttons: true }),
+		flavor:   _rollCard({ header: label, buttons: true, conditionsHtml: _conditionsHtml(conditions) }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 

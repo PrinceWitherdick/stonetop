@@ -1,6 +1,11 @@
 <div class="tab followers" data-group="primary" data-tab="followers">
 <div class="stonetop-followers">
 
+	<div class="stonetop-details-heading-row">
+		{{> "stonetop.section-heading" title=(localize "stonetop.sheet.tabs.followers")}}
+		{{> "stonetop.details-section-edit-toggle" section="followers" editing=stonetop.followersEdit}}
+	</div>
+
 	{{!-- ── Animal Companion (Ranger) ──────────────────────────── --}}
 	{{#if stonetop.followers.animalCompanion}}
 	{{#with stonetop.followers.animalCompanion}}
@@ -9,7 +14,7 @@
 			<div class="stonetop-follower-title">
 				<span class="stonetop-follower-name">
 					{{#if name}}{{name}}{{else}}Animal Companion{{/if}}{{#if pronoun}} <span class="stonetop-follower-pronoun">({{pronoun}})</span>{{/if}}
-					{{#if @root.stonetop.editMode}}<input class="stonetop-animal-companion-pronoun-input stonetop-follower-pronoun-input" type="text" value="{{pronoun}}" placeholder="pronoun…" maxlength="10">{{/if}}
+					{{#if @root.stonetop.followersEdit}}<input class="stonetop-animal-companion-pronoun-input stonetop-follower-pronoun-input" type="text" value="{{pronoun}}" placeholder="pronoun…" maxlength="10">{{/if}}
 				</span>
 				<span class="stonetop-follower-type">{{#if kind}}{{kindDisplay}} ({{typeDisplay}}){{else}}{{type}}{{/if}}</span>
 			</div>
@@ -55,7 +60,7 @@
 			<span class="stonetop-follower-row-label">Loyalty</span>
 			<div class="stonetop-loyalty-pips">
 				{{#each loyalty}}
-				{{#if @root.stonetop.editMode}}
+				{{#if @root.stonetop.followersEdit}}
 				<button type="button"
 				        class="stonetop-loyalty-pip stonetop-animal-companion-loyalty-pip{{#if filled}} is-filled{{/if}}"
 				        data-index="{{index}}"></button>
@@ -77,7 +82,7 @@
 		{{!-- Header --}}
 		<div class="stonetop-follower-header">
 			<div class="stonetop-follower-title">
-				{{#if @root.stonetop.editMode}}
+				{{#if @root.stonetop.followersEdit}}
 				<input class="stonetop-crew-name-input stonetop-follower-name-input"
 				       type="text" value="{{name}}" placeholder="Name your crew…">
 				{{else}}
@@ -121,7 +126,7 @@
 			<span class="stonetop-follower-row-label">Loyalty</span>
 			<div class="stonetop-loyalty-pips">
 				{{#each loyalty}}
-				{{#if @root.stonetop.editMode}}
+				{{#if @root.stonetop.followersEdit}}
 				<button type="button"
 				        class="stonetop-loyalty-pip stonetop-crew-loyalty-pip{{#if filled}} is-filled{{/if}}"
 				        data-index="{{index}}"></button>
@@ -144,7 +149,7 @@
 						       class="stonetop-crew-gear-check stonetop-crew-pip"
 						       data-slug="{{../slug}}" data-pip="{{index}}"
 						       {{#if filled}}checked{{/if}}
-						       {{#unless @root.stonetop.editMode}}disabled{{/unless}}>{{/each}}
+						       {{#unless @root.stonetop.followersEdit}}disabled{{/unless}}>{{/each}}
 					</span>
 					<span>{{{label}}}</span>
 				</label>
@@ -159,7 +164,7 @@
 						       class="stonetop-crew-supplies-pip stonetop-crew-pip"
 						       data-set="{{setIndex}}" data-pip="{{pipIndex}}"
 						       {{#if filled}}checked{{/if}}
-						       {{#unless @root.stonetop.editMode}}disabled{{/unless}}>{{/each}}
+						       {{#unless @root.stonetop.followersEdit}}disabled{{/unless}}>{{/each}}
 					</div>
 					{{/each}}
 				</div>
@@ -184,7 +189,7 @@
 							<span class="stonetop-hp-sep">/</span>
 							<span class="stonetop-hp-max">{{hpMax}}</span>
 						</span>
-						{{#if @root.stonetop.editMode}}
+						{{#if @root.stonetop.followersEdit}}
 						<button type="button" class="stonetop-crew-delete-individual stonetop-inline-btn stonetop-inline-btn--danger"
 						        data-index="{{index}}" title="Remove">
 							<i class="fas fa-times"></i>
@@ -211,7 +216,7 @@
 			{{else}}
 			<p class="stonetop-follower-empty-note">No notable individuals yet. When one stands out, add them here.</p>
 			{{/if}}
-			{{#if @root.stonetop.editMode}}
+			{{#if @root.stonetop.followersEdit}}
 			<button type="button" class="stonetop-crew-create-individual stonetop-inline-btn stonetop-create-individual-btn">
 				<i class="fas fa-user-plus"></i> Create Individual
 			</button>
@@ -270,7 +275,7 @@
 	<div class="stonetop-follower-card stonetop-follower-card--initiate">
 		<div class="stonetop-follower-header">
 			<div class="stonetop-follower-title">
-				<span class="stonetop-follower-name">{{label}}{{#if pronoun}} <span class="stonetop-follower-pronoun">({{pronoun}})</span>{{/if}}</span>
+				<span class="stonetop-follower-name stonetop-follower-name--multiline">{{#each labelLines}}<span class="stonetop-follower-name-line">{{text}}{{#if pronoun}} <span class="stonetop-follower-pronoun">({{pronoun}})</span>{{/if}}</span>{{/each}}</span>
 				<span class="stonetop-follower-type">initiate of Danu</span>
 			</div>
 			<div class="stonetop-follower-stats">
@@ -320,7 +325,7 @@
 			<span class="stonetop-follower-row-label">Loyalty</span>
 			<div class="stonetop-loyalty-pips">
 				{{#each loyalty}}
-				{{#if @root.stonetop.editMode}}
+				{{#if @root.stonetop.followersEdit}}
 				<button type="button"
 				        class="stonetop-loyalty-pip stonetop-initiate-loyalty-pip{{#if filled}} is-filled{{/if}}"
 				        data-slug="{{slug}}" data-index="{{index}}"></button>
@@ -334,6 +339,75 @@
 	{{/each}}
 
 	{{/if}}
+
+	{{!-- ── Livestock & Beasts (added via the inventory's special items) ── --}}
+	{{#each stonetop.followers.beasts}}
+	<div class="stonetop-follower-card stonetop-follower-card--beast{{#unless isFollower}} stonetop-follower-card--livestock{{/unless}}">
+		<div class="stonetop-follower-header">
+			<div class="stonetop-follower-title">
+				<span class="stonetop-follower-name">{{name}}</span>
+				<span class="stonetop-follower-type">{{#if isFollower}}beast follower{{else}}livestock{{/if}}</span>
+			</div>
+			<div class="stonetop-follower-stats">
+				<span class="stonetop-follower-stat">
+					<strong>HP</strong>
+					<span class="stonetop-follower-hp-track">
+						<input class="stonetop-follower-hp-input" type="number"
+						       data-follower="beast" data-slug="{{slug}}"
+						       value="{{hpCurrent}}" min="0" max="{{hpMax}}">
+						<span class="stonetop-hp-sep">/</span>
+						<span class="stonetop-hp-max">{{hpMax}}</span>
+					</span>
+				</span>
+				<span class="stonetop-follower-stat"><strong>Armor</strong> {{armor}}</span>
+				<span class="stonetop-follower-stat"><strong>Damage</strong> {{#if damageRoll}}<a class="rollable stonetop-follower-damage-roll" data-roll="{{damageRoll}}" data-follower-type="beast" data-follower-name="{{name}}" data-follower-pronoun="it" data-damage-form="{{damageForm}}"><i class="fas fa-dice-d6"></i></a>{{/if}} {{damage}}</span>
+			</div>
+		</div>
+		{{#if traits.length}}
+		<div class="stonetop-follower-row">
+			<span class="stonetop-follower-row-label">Traits</span>
+			<div class="stonetop-follower-tags">
+				{{#each traits}}<span class="stonetop-follower-tag">{{label}}</span>{{/each}}
+				{{#if traitsNote}}<span class="stonetop-follower-trait-note">{{traitsNote}}</span>{{/if}}
+			</div>
+		</div>
+		{{/if}}
+		{{#if instinct}}
+		<div class="stonetop-follower-row">
+			<span class="stonetop-follower-row-label">Instinct</span>
+			<span class="stonetop-follower-row-value">{{instinct}}</span>
+		</div>
+		{{/if}}
+		{{#if cost}}
+		<div class="stonetop-follower-row">
+			<span class="stonetop-follower-row-label">Cost</span>
+			<span class="stonetop-follower-row-value">{{cost}}</span>
+		</div>
+		{{/if}}
+		{{#if butcher}}
+		<div class="stonetop-follower-row">
+			<span class="stonetop-follower-row-label">Butcher</span>
+			<span class="stonetop-follower-row-value">{{butcher}}</span>
+		</div>
+		{{/if}}
+		{{#if isFollower}}
+		<div class="stonetop-follower-row stonetop-follower-loyalty-row">
+			<span class="stonetop-follower-row-label">Loyalty</span>
+			<div class="stonetop-loyalty-pips">
+				{{#each loyalty}}
+				{{#if @root.stonetop.followersEdit}}
+				<button type="button"
+				        class="stonetop-loyalty-pip stonetop-beast-loyalty-pip{{#if filled}} is-filled{{/if}}"
+				        data-slug="{{../slug}}" data-index="{{index}}"></button>
+				{{else}}
+				<span class="stonetop-loyalty-pip stonetop-beast-loyalty-pip{{#if filled}} is-filled{{/if}}"></span>
+				{{/if}}
+				{{/each}}
+			</div>
+		</div>
+		{{/if}}
+	</div>
+	{{/each}}
 
 	{{!-- Follower special moves shared across all followers --}}
 	<div class="stonetop-follower-card stonetop-follower-card--rules">

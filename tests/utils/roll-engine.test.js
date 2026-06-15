@@ -148,6 +148,24 @@ describe("rollDamage", () => {
 		expect(rollMessages[0].flavor).toContain("Hammer");
 		expect(rollMessages[0].flavor).toContain("stonetop-card-buttons");
 	});
+
+	it("rolls a disadvantaged die twice and keeps the lower, with a pill", async () => {
+		await rollDamage("d6", makeActor(), {
+			label: "icy touch d6 w/disadvantage (hand, ignores armor)",
+			rollMode: "dis",
+		});
+
+		expect(rollInstances[0].formula).toBe("2d6kl1");
+		expect(rollMessages[0].flavor).toContain("icy touch d6 w/disadvantage");
+		expect(rollMessages[0].flavor).toContain("stonetop-condition-disadvantage");
+	});
+
+	it("rolls an advantaged die twice and keeps the higher, preserving the modifier", async () => {
+		await rollDamage("d8+2", makeActor(), { label: "Maw", rollMode: "adv" });
+
+		expect(rollInstances[0].formula).toBe("2d8kh1+2");
+		expect(rollMessages[0].flavor).toContain("stonetop-condition-advantage");
+	});
 });
 
 describe("rollFormula", () => {

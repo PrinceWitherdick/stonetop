@@ -64,7 +64,8 @@ describe("pack source files", () => {
 		const bad = allDocs.filter(({ doc }) =>
 			doc._key !== `!items!${doc._id}` &&
 			doc._key !== `!folders!${doc._id}` &&
-			doc._key !== `!journal!${doc._id}`
+			doc._key !== `!journal!${doc._id}` &&
+			doc._key !== `!actors!${doc._id}`
 		);
 		expect(bad.map(b => b.file)).toEqual([]);
 	});

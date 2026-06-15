@@ -5,13 +5,30 @@ import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSh
 import { createStonetopCharacterSheetClass } from "./module/actors/character/StonetopCharacterSheet.js";
 import { createStonetopSteadingSheetClass } from "./module/actors/steading/StonetopSteadingSheet.js";
 import { createStonetopMonsterSheetClass } from "./module/actors/monster/StonetopMonsterSheet.js";
+import { BestiaryPageModel } from "./module/journal/BestiaryPageModel.js";
+import { LocationPageModel } from "./module/journal/LocationPageModel.js";
+import { CharacterModel } from "./module/data-models/CharacterModel.js";
+import { SteadingModel } from "./module/data-models/SteadingModel.js";
+import { MonsterModel } from "./module/data-models/MonsterModel.js";
+import { MoveModel } from "./module/data-models/MoveModel.js";
+import { PlaybookModel } from "./module/data-models/PlaybookModel.js";
+import { NpcMoveModel } from "./module/data-models/NpcMoveModel.js";
+import { MonsterMoveModel } from "./module/data-models/MonsterMoveModel.js";
+import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopBestiaryPageSheet.js";
+import { createStonetopLocationPageSheetClass } from "./module/journal/StonetopLocationPageSheet.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
+import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
+import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
+import { applyJournalSpiralBullets } from "./module/utils/journal-spiral-bullets.js";
+import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
+import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
+import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
 import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
 
 // -- INIT ------------------------------------------------------
@@ -24,6 +41,7 @@ Hooks.once("init", () => {
 	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
 	Handlebars.registerHelper("boldMissText", value => boldMissText(value));
 	Handlebars.registerHelper("eq", (a, b) => a === b);
+	Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
 
 	const _STAT_LABEL_KEYS = {
 		str: "stonetop.character.stats.strength",
@@ -91,6 +109,17 @@ Hooks.once("init", () => {
 	CONFIG.Actor.documentClass = createStonetopActorClass(CONFIG.Actor.documentClass);
 	CONFIG.Item.documentClass  = createStonetopItemClass(CONFIG.Item.documentClass);
 
+	// System data models for each Actor/Item subtype (replaces template.json).
+	CONFIG.Actor.dataModels ??= {};
+	CONFIG.Item.dataModels  ??= {};
+	CONFIG.Actor.dataModels.character = CharacterModel;
+	CONFIG.Actor.dataModels.stonetop  = SteadingModel;
+	CONFIG.Actor.dataModels.monster   = MonsterModel;
+	CONFIG.Item.dataModels.move        = MoveModel;
+	CONFIG.Item.dataModels.playbook    = PlaybookModel;
+	CONFIG.Item.dataModels.npcMove     = NpcMoveModel;
+	CONFIG.Item.dataModels.monsterMove = MonsterMoveModel;
+
 	const StonetopCharacterSheet = createStonetopCharacterSheetClass(ActorSheet);
 	Actors.registerSheet("stonetop_pwd", StonetopCharacterSheet, {
 		types:       ["character"],
@@ -110,6 +139,27 @@ Hooks.once("init", () => {
 		types:       ["monster"],
 		makeDefault: true,
 		label:       "Stonetop Monster Sheet",
+	});
+
+	// Bestiary entry as a custom JournalEntryPage subtype.
+	CONFIG.JournalEntryPage.dataModels ??= {};
+	CONFIG.JournalEntryPage.dataModels["bestiary"] = BestiaryPageModel;
+	const JournalPageSheetV1 = foundry.appv1?.sheets?.JournalPageSheet ?? globalThis.JournalPageSheet;
+	const StonetopBestiaryPageSheet = createStonetopBestiaryPageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopBestiaryPageSheet, {
+		types:       ["bestiary"],
+		makeDefault: true,
+		label:       "Stonetop Bestiary Page",
+	});
+
+	// Gazetteer places as a structured JournalEntryPage subtype (sectioned, with
+	// per-section inline editing) — mirrors the bestiary page above.
+	CONFIG.JournalEntryPage.dataModels["location"] = LocationPageModel;
+	const StonetopLocationPageSheet = createStonetopLocationPageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopLocationPageSheet, {
+		types:       ["location"],
+		makeDefault: true,
+		label:       "Stonetop Location Page",
 	});
 
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
@@ -141,13 +191,21 @@ Hooks.once("init", () => {
 		"stonetop.lore-arcana-image":     "systems/stonetop_pwd/templates/actor/partials/lore-arcana-image.hbs",
 		"stonetop.possession-choice-groups": "systems/stonetop_pwd/templates/actor/partials/possession-choice-groups.hbs",
 		"stonetop.section-heading":  "systems/stonetop_pwd/templates/actor/partials/section-heading.hbs",
+		"stonetop.section-edit-toggle": "systems/stonetop_pwd/templates/actor/partials/section-edit-toggle.hbs",
+		"stonetop.details-section-edit-toggle": "systems/stonetop_pwd/templates/actor/partials/details-section-edit-toggle.hbs",
 		"stonetop.resource-track":   "systems/stonetop_pwd/templates/actor/partials/resource-track.hbs",
+		"stonetop.steading-section-toggle":   "systems/stonetop_pwd/templates/actor/partials/steading-section-toggle.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop_pwd/templates/actor/partials/steading-tab-overview.hbs",
 		"stonetop.steading-tab-neighbors":    "systems/stonetop_pwd/templates/actor/partials/steading-tab-neighbors.hbs",
 		"stonetop.steading-tab-improvements": "systems/stonetop_pwd/templates/actor/partials/steading-tab-improvements.hbs",
 		"stonetop.steading-tab-moves":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-moves.hbs",
 		"stonetop.steading-tab-notes":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-notes.hbs",
 		"stonetop.monster-sheet":             "systems/stonetop_pwd/templates/actor/monster.hbs",
+		"stonetop.bestiary-line-list":        "systems/stonetop_pwd/templates/actor/partials/bestiary-line-list.hbs",
+		"stonetop.bestiary-page":             "systems/stonetop_pwd/templates/journal/bestiary.hbs",
+		"stonetop.location-page":             "systems/stonetop_pwd/templates/journal/location.hbs",
+		"stonetop.bestiary-section-head":     "systems/stonetop_pwd/templates/journal/partials/bestiary-section-head.hbs",
+		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
 	});
 });
@@ -165,6 +223,49 @@ Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDesc
 
 // -- RENDER ACTOR SHEET ----------------------------------------
 Hooks.on("renderActorSheet", onRenderActorSheet);
+
+// -- LOCATION CROSS-LINK TOOLTIPS ------------------------------
+// Give cross-links into the Locations pack a useful hover summary instead of the
+// default "Journal Entry". Covers the journal sheet/page render hooks across
+// Foundry v12–v14; the index warms on ready so the first hover is instant.
+Hooks.once("ready", () => ensureLocationSummaryIndex());
+const _onJournalRender = (app, html) => {
+	applyLocationTooltips(html);
+	// Spiral bullets / question-spirals for this system's prose journals.
+	applyJournalSpiralBullets(app, html);
+	// Tick-off the requirement check-lists in view mode (state stored on the page).
+	applyJournalCheckboxes(app, html);
+	// Roll the random tables straight from their "Roll" header.
+	applyJournalRollTables(app, html);
+	// Make baked steading-improvement cards draggable onto the Stonetop sheet.
+	bindSteadingImprovementDrag(html);
+};
+for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJournalPageSheet", "renderJournalEntryPageSheet"]) {
+	Hooks.on(hook, _onJournalRender);
+}
+
+// -- BESTIARY CROSS-LINK INDEX ---------------------------------
+// Drop the cached creature name index when a world monster is added, removed,
+// or renamed/re-conceived so cross-links stay accurate.
+Hooks.on("createActor", (actor) => { if (actor?.type === "monster") invalidateMonsterRefIndex(); });
+Hooks.on("deleteActor", (actor) => { if (actor?.type === "monster") invalidateMonsterRefIndex(); });
+Hooks.on("updateActor", (actor, changes) => {
+	if (actor?.type !== "monster") return;
+	if ("name" in (changes ?? {}) || changes?.system?.concept !== undefined) invalidateMonsterRefIndex();
+});
+
+// -- RECOVER LOCK ----------------------------------------------
+// The Recover special move can't be used again until the character takes more
+// damage; clear its lock flag the moment HP drops.
+Hooks.on("preUpdateActor", (actor, changes) => {
+	if (actor?.type !== "character") return;
+	const newHp = foundry.utils.getProperty(changes, "system.attributes.hp.value");
+	if (newHp === undefined) return;
+	const oldHp = actor.system?.attributes?.hp?.value ?? 0;
+	if (newHp < oldHp && actor.getFlag("stonetop_pwd", "recover.spent")) {
+		foundry.utils.setProperty(changes, "flags.stonetop_pwd.recover.spent", false);
+	}
+});
 
 // -- CHAT SPEAKER ALIAS ----------------------------------------
 Hooks.on("preCreateChatMessage", (message) => {

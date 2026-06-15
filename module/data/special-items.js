@@ -72,6 +72,19 @@ export const SPECIAL_ITEM_CATALOG = [
 		{ slug: "mule",         name: "Mule",          traits: "large, hardy, sure-footed, cautious, keen-nosed, sterile", value: "3" },
 		{ slug: "horse",        name: "Horse",         traits: "large, powerful, keen-nosed, swift or hardy",   value: "3" },
 	] },
+	// Useful or Valuable Flora (Book II, p.458) — the named sample specimens. Not
+	// from the Moves & Gear handout; these are gazetteer discoveries you can add
+	// once harvested. The gathering rules + dice generator live in the Lore
+	// compendium's "Useful or Valuable Flora" entry.
+	{ category: "Flora & Herbs", items: [
+		{ slug: "brightberry",        name: "Brightberry",        traits: "glowing berries; 3 uses, fragile; burn away within hours", value: "2" },
+		{ slug: "sleeping-elksheart", name: "Sleeping Elksheart", traits: "paralytic spores; a poison, or 1d4 Surplus",               value: "2" },
+		{ slug: "violet-lotus",       name: "Violet Lotus",       traits: "burnt petals → a Seek Insight question; perfume",          value: "1" },
+		{ slug: "twisting-pine",      name: "Twisting Pine",      traits: "sap seals wounds (Recover); sealant or glaze",             value: "1" },
+		{ slug: "vantas-blade",       name: "Vanta's Blade",      traits: "light-drinking dye/ink/paint; thought cursed",             value: "2" },
+		{ slug: "hartwood",           name: "Hartwood",           traits: "ashes ward against possession",                            value: "0" },
+		{ slug: "snowembers",         name: "Snowembers",         traits: "warm edible petals; 1d4+4 provisions",                     value: "0" },
+	] },
 ];
 
 // Footnote shown under the list (Weapons of War piercing rule).

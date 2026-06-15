@@ -3,7 +3,7 @@
     "id":  "stonetop_pwd",
     "title":  "Stonetop",
     "description":  "An unofficial system for playing Stonetop in Foundry VTT.",
-    "version":  "0.9.0",
+    "version":  "0.9.2",
     "compatibility":  {
                           "minimum":  "12",
                           "verified":  "14"
@@ -24,7 +24,7 @@
                 ],
     "url":  "https://github.com/PrinceWitherdick/stonetop",
     "manifest":  "https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json",
-    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/0.9.0/stonetop_pwd.zip",
+    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/0.9.2/stonetop_pwd.zip",
     "license":  "LICENSE",
     "readme":  "README.md",
     "bugs":  "https://github.com/PrinceWitherdick/stonetop/issues",
@@ -51,12 +51,36 @@
                       "system":  "stonetop_pwd"
                   },
                   {
-                      "name":  "stonetop-journals",
-                      "label":  "Stonetop Journals",
-                      "path":  "packs/stonetop-journals",
+                      "name":  "stonetop-journal",
+                      "label":  "Stonetop",
+                      "path":  "packs/stonetop-journal",
                       "type":  "JournalEntry"
+                  },
+                  {
+                      "name":  "stonetop-bestiary",
+                      "label":  "Monsters",
+                      "path":  "packs/stonetop-bestiary",
+                      "type":  "Actor",
+                      "system":  "stonetop_pwd"
                   }
               ],
+    "documentTypes":  {
+                          "Actor":  {
+                                        "character":  {},
+                                        "stonetop":  {},
+                                        "monster":  {}
+                                    },
+                          "Item":  {
+                                       "move":  {},
+                                       "playbook":  {},
+                                       "npcMove":  {},
+                                       "monsterMove":  {}
+                                   },
+                          "JournalEntryPage":  {
+                                                   "bestiary":  {},
+                                                   "location":  {}
+                                               }
+                      },
     "primaryTokenAttribute":  "attributes.hp",
     "initiative":  "2d6"
 }

@@ -7,7 +7,9 @@
 		    note=stonetop.movelist.startingMovesNoteDisplay
 		    moves=stonetop.movelist.playbookMoves
 		    hideToggle=true
-		    hideUnselected=stonetop.hideUnselected}}
+		    hideUnselected=stonetop.hideUnselected
+		    editSection="moves"
+		    editing=stonetop.movesEdit}}
 		{{#if stonetop.movelist.movesIncomplete}}
 		<div class="stonetop-details-onboarding-actions">
 			<button type="button" class="stonetop-choose-moves-btn" data-onboarding-start="moves">
@@ -77,7 +79,7 @@
 					</li>
 				{{/each}}
 				</ol>
-				{{#if stonetop.editMode}}
+				{{#if stonetop.movesEdit}}
 				<button type="button" class="item-control item-create" data-type="move" data-move-type="other" title="{{localize 'stonetop.character.moves.addMove'}}">
 					<i class="fas fa-plus"></i>
 				</button>

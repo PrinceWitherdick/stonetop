@@ -10,12 +10,22 @@
 		{{/if}}
 		{{/each}}
 
-		{{> "stonetop.lore-section" lore=stonetop.playbook.lore}}
+		<div class="stonetop-lore-section-wrapper{{#if stonetop.detailsEdit.lore}} stonetop-section-editing{{/if}}">
+			{{#if stonetop.playbook.lore.hasEntries}}{{> "stonetop.details-section-edit-toggle" section="lore" editing=stonetop.detailsEdit.lore}}{{/if}}
+			{{> "stonetop.lore-section" lore=stonetop.playbook.lore editMode=stonetop.detailsEdit.lore}}
+		</div>
 
 		{{#if stonetop.playbook.background.options.length}}
-		<div class="details-section">
-			{{#if stonetop.editMode}}
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.background.label") note=(localize "stonetop.character.selection.chooseOne")}}
+		<div class="details-section{{#if stonetop.detailsEdit.background}} stonetop-section-editing{{/if}}">
+			<div class="stonetop-details-heading-row">
+				{{#if stonetop.detailsEdit.background}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.background.label") note=(localize "stonetop.character.selection.chooseOne")}}
+				{{else}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.background.label")}}
+				{{/if}}
+				{{> "stonetop.details-section-edit-toggle" section="background" editing=stonetop.detailsEdit.background}}
+			</div>
+			{{#if stonetop.detailsEdit.background}}
 			{{#each stonetop.playbook.background.options}}
 			<label class="stonetop-item{{#if selected}} is-checked{{/if}}">
 				<div class="stonetop-item-header">
@@ -43,7 +53,6 @@
 			{{/each}}
 			{{else}}
 			{{#if stonetop.playbook.background.selected}}
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.background.label")}}
 			{{#each stonetop.playbook.background.options}}
 			{{#if selected}}
 			<div class="stonetop-item is-checked stonetop-bg-readonly">
@@ -96,9 +105,17 @@
 		</div>
 		{{/if}}
 
-		{{#if (and stonetop.playbook stonetop.editMode)}}
-		<div class="details-section">
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.instinct.label") note=(localize "stonetop.character.selection.chooseOne")}}
+		{{#if stonetop.playbook}}
+		<div class="details-section{{#if stonetop.detailsEdit.instinct}} stonetop-section-editing{{/if}}">
+			<div class="stonetop-details-heading-row">
+				{{#if stonetop.detailsEdit.instinct}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.instinct.label") note=(localize "stonetop.character.selection.chooseOne")}}
+				{{else}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.instinct.label")}}
+				{{/if}}
+				{{> "stonetop.details-section-edit-toggle" section="instinct" editing=stonetop.detailsEdit.instinct}}
+			</div>
+			{{#if stonetop.detailsEdit.instinct}}
 			<input type="text" class="stonetop-instinct-custom"
 			       value="{{stonetop.playbook.instinct.selected}}"
 			       placeholder="{{localize "stonetop.character.selection.instinct.customPlaceholder"}}">
@@ -116,12 +133,25 @@
 				{{/each}}
 			</div>
 			{{/if}}
+			{{else}}
+			{{#if stonetop.playbook.instinct.selected}}
+			<p class="stonetop-instinct-readonly">{{stonetop.playbook.instinct.selected}}</p>
+			{{/if}}
+			{{/if}}
 		</div>
 		{{/if}}
 
-		{{#if (and stonetop.playbook stonetop.editMode stonetop.playbook.appearance.options.length)}}
-		<div class="details-section">
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.appearance.label") note=(localize "stonetop.character.selection.appearance.instruction")}}
+		{{#if (and stonetop.playbook stonetop.playbook.appearance.options.length)}}
+		<div class="details-section{{#if stonetop.detailsEdit.appearance}} stonetop-section-editing{{/if}}">
+			<div class="stonetop-details-heading-row">
+				{{#if stonetop.detailsEdit.appearance}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.appearance.label") note=(localize "stonetop.character.selection.appearance.instruction")}}
+				{{else}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.appearance.label")}}
+				{{/if}}
+				{{> "stonetop.details-section-edit-toggle" section="appearance" editing=stonetop.detailsEdit.appearance}}
+			</div>
+			{{#if stonetop.detailsEdit.appearance}}
 			{{#each stonetop.playbook.appearance.options}}
 			<div class="stonetop-appearance-row">
 				{{#each options}}
@@ -137,13 +167,23 @@
 				{{/each}}
 			</div>
 			{{/each}}
+			{{else}}
+			<p class="stonetop-appearance-readonly">{{#each stonetop.playbook.appearance.options}}{{#each options}}{{#if selected}}<span class="stonetop-appearance-readonly-item">{{value}}</span>{{/if}}{{/each}}{{/each}}</p>
+			{{/if}}
 		</div>
 		{{/if}}
 
 		{{#if stonetop.playbook.origin.options.length}}
-		<div class="details-section">
-			{{#if stonetop.editMode}}
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.origin.label") note=(localize "stonetop.character.selection.origin.instruction")}}
+		<div class="details-section{{#if stonetop.detailsEdit.origin}} stonetop-section-editing{{/if}}">
+			<div class="stonetop-details-heading-row">
+				{{#if stonetop.detailsEdit.origin}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.origin.label") note=(localize "stonetop.character.selection.origin.instruction")}}
+				{{else}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.origin.label")}}
+				{{/if}}
+				{{> "stonetop.details-section-edit-toggle" section="origin" editing=stonetop.detailsEdit.origin}}
+			</div>
+			{{#if stonetop.detailsEdit.origin}}
 			{{#each stonetop.playbook.origin.options}}
 			<div class="stonetop-item stonetop-origin-option{{#if selected}} is-checked selected{{/if}}">
 				<label class="stonetop-item-header stonetop-origin-region">
@@ -166,7 +206,6 @@
 			{{/each}}
 			{{else}}
 			{{#if stonetop.playbook.origin.selected}}
-			{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.origin.label")}}
 			{{#each stonetop.playbook.origin.options}}
 			{{#if selected}}
 			<div class="stonetop-item is-checked stonetop-origin-readonly">

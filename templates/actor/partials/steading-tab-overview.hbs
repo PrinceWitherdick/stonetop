@@ -1,9 +1,10 @@
-<div class="tab overview{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="overview">
+<div class="tab overview" data-group="primary" data-tab="overview">
 	<section class="sheet-tab steading-overview">
 
 		{{!-- Resources + Assets --}}
 		<div class="steading-main-row">
-			<div class="steading-stat-block">
+			<div class="steading-stat-block steading-edit-section{{#unless stonetop.edit.resources}} stonetop-readonly{{/unless}}">
+				{{> "stonetop.steading-section-toggle" section="resources" editing=stonetop.edit.resources}}
 				<h3 class="steading-list-heading">Resources</h3>
 				<ul class="steading-list">
 					{{#each stonetop.resources}}
@@ -20,12 +21,15 @@
 					{{/if}}
 					{{/each}}
 				</ul>
+				{{#if stonetop.edit.resources}}
 				<button type="button" class="steading-list-add" data-list="resources">
 					<i class="fas fa-plus"></i> Add Resource
 				</button>
+				{{/if}}
 			</div>
 
-			<div class="steading-assets-section">
+			<div class="steading-assets-section steading-edit-section{{#unless stonetop.edit.assets}} stonetop-readonly{{/unless}}">
+				{{> "stonetop.steading-section-toggle" section="assets" editing=stonetop.edit.assets}}
 				<h3 class="steading-list-heading">Stonetop Assets
 					<span class="steading-list-heading-note">Owned by residents in common. Requisition to use them on expeditions.</span>
 				</h3>
@@ -44,14 +48,17 @@
 					{{/if}}
 					{{/each}}
 				</ul>
+				{{#if stonetop.edit.assets}}
 				<button type="button" class="steading-list-add" data-list="assets">
 					<i class="fas fa-plus"></i> Add Asset
 				</button>
+				{{/if}}
 			</div>
 		</div>
 
 		{{!-- Places of Interest --}}
-		<div class="steading-places-section">
+		<div class="steading-places-section steading-edit-section{{#unless stonetop.edit.places}} stonetop-readonly{{/unless}}">
+			{{> "stonetop.steading-section-toggle" section="places" editing=stonetop.edit.places}}
 			<h3 class="steading-list-heading">Places of Interest</h3>
 			<div class="steading-places-grid">
 				{{#each stonetop.places}}
@@ -59,7 +66,7 @@
 					<span class="steading-place-letter">{{letter}}</span>
 					<input type="text" class="steading-place-name"
 					       data-index="{{@index}}"
-					       value="{{name}}" placeholder="—">
+					       value="{{name}}" placeholder="—" {{#unless @root.stonetop.edit.places}}disabled{{/unless}}>
 				</div>
 				{{/each}}
 			</div>

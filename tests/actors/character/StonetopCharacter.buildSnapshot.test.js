@@ -737,7 +737,11 @@ describe("buildSnapshot — inventory.possessions", () => {
 			})).build().buildSnapshot();
 		const pouch = snap.inventory.possessions.items.find(i => i.slug === "pouch");
 		expect(pouch.resource.max).toBe(3);
-		expect(pouch.resource.title).toBe("Stock");
+		// The title is rendered as the italic `usesLabel` in the possessions block,
+		// so it's left off the resource to avoid the resource-track partial drawing
+		// a duplicate label next to it.
+		expect(pouch.resource.title).toBeNull();
+		expect(pouch.usesLabel).toBe("Stock");
 		expect(pouch.resource.labels).toEqual([]);
 	});
 

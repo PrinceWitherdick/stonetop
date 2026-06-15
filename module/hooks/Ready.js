@@ -1,5 +1,6 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
+import { seedCompendiumJournalsOnce, updateSeededJournalsOnVersionChange } from "./SeedCompendiums.js";
 import { applySheetFont, applySheetFontScale, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -32,14 +33,32 @@ export async function onReady() {
 
 	game.stonetop ??= {};
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
-	game.stonetop.openIntroductions = () => new IntroductionsDialog().render(true);
+	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
 
+	if (game.user.isGM) await seedCompendiumJournalsOnce();
+	if (game.user.isGM) await updateSeededJournalsOnVersionChange();
 	if (game.user.isGM) await _ensureEndOfSessionMacro();
 	if (game.user.isGM) await _ensureIntroductionsMacro();
 	if (game.user.isGM) await _ensureDieOfFateMacro();
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
 	if (game.user.isGM) await remindDestinedOmenRoll();
+
+	await _openSettingOverviewOnce();
+}
+
+const _SETTING_OVERVIEW_NAME = "Setting Overview";
+
+// Pop the Setting Overview journal open the first time each user connects, so a
+// fresh install lands everyone on the startup info. Runs for every user (the GM
+// seeds it; SeedCompendiums grants players read access). Guarded by a per-client
+// flag so it opens once and never re-interrupts later sessions.
+async function _openSettingOverviewOnce() {
+	if (getSetting("settingOverviewShown")) return;
+	const overview = game.journal?.find(j => j.name === _SETTING_OVERVIEW_NAME && j.visible);
+	if (!overview) return; // not seeded yet (or not visible to this user) — try again next load
+	overview.sheet.render(true);
+	await setSetting("settingOverviewShown", true);
 }
 
 async function _ensureEndOfSessionMacro() {
@@ -148,6 +167,12 @@ function _buildStartupWelcomeContent() {
 					<ul>
 						<li><span><strong>Sheet Font &amp; Size</strong>: choose the typeface and scale the text on Stonetop sheets.</span></li>
 						<li><span><strong>On Hover Info</strong>: turn all hover info on/off, or tune Stats, Basic Moves, Playbook Moves, Traits, and Gear Tags individually.</span></li>
+					</ul>
+				</div>
+				<div class="row stonetop-startup-card__section">
+					<h3 class="cell__subtitle">Recommended Add-on</h3>
+					<ul>
+						<li><span>Install <strong><a href="https://foundryvtt.com/packages/dice-so-nice">Dice So Nice!</a></strong> for 3D dice on the tabletop &mdash; every move, damage, and steading roll uses Foundry's dice, so it adds a little immersion to your rolls.</span></li>
 					</ul>
 				</div>
 			</div>

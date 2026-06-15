@@ -1,10 +1,14 @@
-import { GEAR_TERMS } from "../data/gear-terms.js";
+import { GEAR_TERMS, PIERCING_STEADING_NOTE } from "../data/gear-terms.js";
 
 /**
  * Given a single raw tag string (e.g. "+1 damage", "x piercing", "○ low ammo", "forceful"),
  * return the tooltip description string, or null if not a known gear term.
+ *
+ * `omitSteadingNote` drops the Prosperity clause from the piercing tooltip — used
+ * on the bestiary sheet, where a monster's "x piercing" doesn't scale with the
+ * steading's Prosperity.
  */
-function findGearTerm(rawText) {
+export function findGearTerm(rawText, { omitSteadingNote = false } = {}) {
 	// Strip inventory/resource symbols, then normalise whitespace.
 	const text = rawText.replace(/[○◇□]/g, "").trim().toLowerCase();
 
@@ -12,7 +16,7 @@ function findGearTerm(rawText) {
 
 	// Parameterised patterns
 	if (/^[+]?\d+\s+armor$/.test(text)) return GEAR_TERMS.armor;
-	if (/^[x\d]+\s*piercing$/.test(text))                   return GEAR_TERMS.piercing;
+	if (/^[x\d]+\s*piercing$/.test(text))                   return GEAR_TERMS.piercing + (omitSteadingNote ? "" : PIERCING_STEADING_NOTE);
 	if (/^[+]?\d+\s+damage$/.test(text))                    return GEAR_TERMS.damage;
 	if (/^\d*\s*hours?$/.test(text))                        return GEAR_TERMS.hours;
 	if (/^\d+\s*uses?$/.test(text))                         return GEAR_TERMS.uses;
