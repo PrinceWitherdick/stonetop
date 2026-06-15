@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sectionHtml } from "../../scripts/local/shared/gazetteer.mjs";
+import { sectionHtml, dangersToGroups } from "../../scripts/local/shared/gazetteer.mjs";
 
 // Within a "Dangers" section, sectionHtml(..., true) promotes danger sub-headers
 // that the PDF extraction stranded as bullets ("Lightning", "Drought",
@@ -72,5 +72,34 @@ describe("sectionHtml Dangers sub-headers", () => {
 		);
 		expect(out).not.toContain("<strong>Lightning</strong>");
 		expect(out).toContain("<li>Lightning</li>");
+	});
+});
+
+describe("dangersToGroups", () => {
+	it("splits each sub-header into its own {heading, body} entry", () => {
+		const html = "<p><strong>Hazards</strong></p><ul><li>Getting lost</li></ul>"
+			+ "<p><strong>Monsters</strong></p><ul><li>Crinwin</li></ul>";
+		const groups = dangersToGroups(html);
+		expect(groups.map(g => g.heading)).toEqual(["Hazards", "Monsters"]);
+		expect(groups[0].body).toBe("<ul><li>Getting lost</li></ul>");
+		expect(groups[1].body).toBe("<ul><li>Crinwin</li></ul>");
+	});
+
+	it("keeps a dice-table caption and its table inside the current entry, not as a new one", () => {
+		const html = "<p><strong>Mouth of Daagon</strong></p><p>It hungers.</p>"
+			+ "<p><strong>1d6 reward</strong></p><table><thead><tr><th>Roll</th></tr></thead></table>"
+			+ "<p><strong>Monsters</strong></p><ul><li>Daagon</li></ul>";
+		const groups = dangersToGroups(html);
+		expect(groups.map(g => g.heading)).toEqual(["Mouth of Daagon", "Monsters"]);
+		expect(groups[0].body).toContain("<p><strong>1d6 reward</strong></p>");
+		expect(groups[0].body).toContain("<table>");
+	});
+
+	it("decodes entities in the heading and keeps a headless intro entry", () => {
+		const html = "<p>General threats abound.</p>"
+			+ "<p><strong>Hypothermia &amp; frostbite</strong></p><p>Cold kills.</p>";
+		const groups = dangersToGroups(html);
+		expect(groups[0]).toEqual({ heading: "", body: "<p>General threats abound.</p>" });
+		expect(groups[1].heading).toBe("Hypothermia & frostbite");
 	});
 });

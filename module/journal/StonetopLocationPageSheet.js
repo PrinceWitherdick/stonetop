@@ -6,7 +6,12 @@ import { isInCompendium, blockCompendiumEdit } from "../utils/compendium-edit-gu
 
 // Edit affordances on the location page; clicking any of these in a compendium gets
 // the immutable-journal dialog instead of mutating the read-only document.
-const LOCATION_EDIT_SELECTOR = ".stonetop-section-edit, .stonetop-section-done, .stonetop-entry-add-qa, .stonetop-entry-remove-qa";
+const LOCATION_EDIT_SELECTOR = ".stonetop-section-edit, .stonetop-section-done, .stonetop-entry-add-qa, .stonetop-entry-remove-qa, .stonetop-entry-add-group, .stonetop-entry-remove-group";
+
+// Display labels for the three section "acts" (see gazetteer.mjs `groupFor`).
+// Rendered as an h2 above each act's sections so every journal's TOC nests the
+// same three anchors. Keyed by the section's stored `group` slug.
+const GROUP_LABELS = { glance: "At a Glance", place: "The Place", details: "Details", inplay: "In Play" };
 
 // A gazetteer place rendered as a structured JournalEntryPage (subtype
 // "location"), the locations counterpart of StonetopBestiaryPageSheet. The page
@@ -67,29 +72,61 @@ export function createStonetopLocationPageSheetClass(Base) {
 				const open = this._editingSections.has(index);
 				const editing = editable || open;
 				const isQa = s.kind === "qa";
-				const filled = isQa
-					? (s.pairs ?? []).some(p => p?.prompt || p?.answer)
-					: hasText(s.body);
+				const isGroups = s.kind === "groups";
+				const filled =
+					isQa     ? (s.pairs ?? []).some(p => p?.prompt || p?.answer) :
+					isGroups ? (s.groups ?? []).some(g => g?.heading || hasText(g?.body)) :
+					           hasText(s.body);
 				// In read mode, enrich each prompt/answer so baked @UUID cross-links (e.g. a
 				// place name linked in a Questions section) resolve and become clickable —
 				// the same enrichment the prose sections get. Edit mode shows the raw value
 				// in an input, so it's left unenriched.
 				let pairs = isQa ? qaPairs(s.pairs, editing) : [];
 				if (isQa && !editing) pairs = await enrichQaPairs(pairs, enrich);
+				// Grouped (Dangers) entries: each carries a raw body for the per-entry
+				// ProseMirror editor AND an enriched body for read-only display (links,
+				// lists, and any nested roll tables resolve there, like prose sections).
+				const groups = isGroups
+					? await Promise.all((s.groups ?? []).map(async g => ({
+						heading: g.heading ?? "",
+						body: g.body ?? "",
+						enrichedBody: await enrich(g.body),
+					})))
+					: [];
 				return {
 					index,
 					kind: s.kind,
 					heading: s.heading,
+					group: s.group, // schema-guaranteed non-blank act slug (initial "place")
 					danger: !!s.danger,
 					isQa,
+					isGroups,
 					open,
 					editing,
 					visible: owner || filled, // non-owners only see filled sections
-					body: isQa ? "" : (s.body ?? ""),      // raw source for the editor's `value`
-					enrichedBody: isQa ? "" : await enrich(s.body), // enriched for read-only display
+					body: (isQa || isGroups) ? "" : (s.body ?? ""),      // raw source for the editor's `value`
+					enrichedBody: (isQa || isGroups) ? "" : await enrich(s.body), // enriched for read-only display
 					pairs,
+					groups,
 				};
 			}));
+
+			// Mark the first RENDERED section of each act so the template can emit the
+			// act header (an h2 above the section h3s). Tracking only sections that
+			// actually render keeps the header from appearing over an empty act when a
+			// non-owner sees no filled sections in it.
+			let lastGroup = null;
+			for (const s of st.sections) {
+				if (!(s.visible || s.editing)) continue;
+				if (s.group === lastGroup) continue;
+				lastGroup = s.group;
+				// The opening "At a Glance" act gets NO banner — its sections (Overview,
+				// Impressions, …) sit directly beneath the journal's name, which already
+				// heads them. The remaining acts keep their dividers.
+				if (s.group === "glance") continue;
+				s.groupStart = true;
+				s.groupLabel = GROUP_LABELS[s.group] ?? "";
+			}
 
 			return context;
 		}
@@ -115,14 +152,31 @@ export function createStonetopLocationPageSheetClass(Base) {
 			await this.document.update({ "system.sections": sections });
 		}
 
-		// Rebuild a `qa` section's pairs from its current edit inputs.
-		_readPairs(root, index) {
+		// Rebuild a repeatable-row section's entries from its live edit inputs: walk the
+		// section's indexed rows, reading each field selector's value into its named key.
+		_readRows(root, index, rowSelector, fieldSelectors) {
 			const section = root.querySelector(`[data-section-index="${index}"]`);
 			if (!section) return [];
-			return Array.from(section.querySelectorAll("[data-qa-index]")).map(row => ({
-				prompt: row.querySelector(".stonetop-entry-qa-prompt")?.value ?? "",
-				answer: row.querySelector(".stonetop-entry-qa-answer")?.value ?? "",
-			}));
+			return Array.from(section.querySelectorAll(rowSelector)).map(row =>
+				Object.fromEntries(Object.entries(fieldSelectors)
+					.map(([key, sel]) => [key, row.querySelector(sel)?.value ?? ""])));
+		}
+
+		// Rebuild a `qa` section's pairs from its current edit inputs.
+		_readPairs(root, index) {
+			return this._readRows(root, index, "[data-qa-index]", {
+				prompt: ".stonetop-entry-qa-prompt",
+				answer: ".stonetop-entry-qa-answer",
+			});
+		}
+
+		// Rebuild a `groups` (Dangers) section's entries from its current edit inputs:
+		// each row's title field + the live HTML of its always-active ProseMirror body.
+		_readGroups(root, index) {
+			return this._readRows(root, index, "[data-group-index]", {
+				heading: ".stonetop-entry-group-heading",
+				body:    ".stonetop-entry-group-body",
+			});
 		}
 
 		activateListeners(html) {
@@ -158,9 +212,14 @@ export function createStonetopLocationPageSheetClass(Base) {
 					const index = Number(done.dataset.section);
 					const section = done.closest("[data-section-index]");
 					// Always-active rich editors only save via toolbar/Ctrl+S, not on
-					// blur, so flush their live content before closing the section.
-					const editor = section?.querySelector(".stonetop-entry-rich-editor");
-					if (editor) await this._patchSection(index, { body: editor.value });
+					// blur, so flush their live content before closing the section. A
+					// `groups` (Dangers) section flushes every entry's title + body at once.
+					if (section?.querySelector("[data-group-index]")) {
+						await this._patchSection(index, { groups: this._readGroups(root, index) });
+					} else {
+						const editor = section?.querySelector(".stonetop-entry-rich-editor");
+						if (editor) await this._patchSection(index, { body: editor.value });
+					}
 					this._editingSections.delete(index);
 					return this._refresh();
 				}
@@ -184,6 +243,26 @@ export function createStonetopLocationPageSheetClass(Base) {
 					if (!Number.isNaN(j)) pairs.splice(j, 1);
 					return this._patchSection(index, { pairs });
 				}
+
+				// Grouped (Dangers) entry add/remove — mirrors the Q&A add/remove above.
+				const addGroup = t.closest(".stonetop-entry-add-group");
+				if (addGroup) {
+					if (!this._editMode) return;
+					const index = Number(addGroup.closest("[data-section-index]")?.dataset?.sectionIndex);
+					const groups = this._readGroups(root, index);
+					groups.push({ heading: "", body: "" });
+					return this._patchSection(index, { groups });
+				}
+				const removeGroup = t.closest(".stonetop-entry-remove-group");
+				if (removeGroup) {
+					if (!this._editMode) return;
+					const section = removeGroup.closest("[data-section-index]");
+					const index = Number(section?.dataset?.sectionIndex);
+					const j = Number(removeGroup.closest("[data-group-index]")?.dataset?.groupIndex);
+					const groups = this._readGroups(root, index);
+					if (!Number.isNaN(j)) groups.splice(j, 1);
+					return this._patchSection(index, { groups });
+				}
 			});
 
 			root.addEventListener("change", async ev => {
@@ -192,12 +271,24 @@ export function createStonetopLocationPageSheetClass(Base) {
 
 				const editor = t.closest(".stonetop-entry-rich-editor");
 				if (editor) {
-					return this._patchSection(Number(editor.dataset.sectionIndex), { body: editor.value });
+					const index = Number(editor.dataset.sectionIndex);
+					// A grouped (Dangers) body editor carries data-group-index; persist the
+					// whole entry list so the matching title field rides along. A plain prose
+					// editor has no group index, so it patches the section body directly.
+					if (editor.dataset.groupIndex !== undefined) {
+						return this._patchSection(index, { groups: this._readGroups(root, index) });
+					}
+					return this._patchSection(index, { body: editor.value });
 				}
 				const qaInput = t.closest(".stonetop-entry-qa-input");
 				if (qaInput) {
 					const index = Number(qaInput.closest("[data-section-index]")?.dataset?.sectionIndex);
 					return this._patchSection(index, { pairs: this._readPairs(root, index) });
+				}
+				const groupHeading = t.closest(".stonetop-entry-group-heading");
+				if (groupHeading) {
+					const index = Number(groupHeading.closest("[data-section-index]")?.dataset?.sectionIndex);
+					return this._patchSection(index, { groups: this._readGroups(root, index) });
 				}
 			});
 		}

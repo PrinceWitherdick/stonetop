@@ -53,12 +53,16 @@ describe("lore journal — structured location pages", () => {
 			const sections = doc.pages?.[0]?.system?.sections;
 			if (!Array.isArray(sections) || !sections.length) { bad.push(`${file}: no sections`); continue; }
 			for (const [i, s] of sections.entries()) {
-				if (s.kind !== "prose" && s.kind !== "qa") { bad.push(`${file}#${i}: bad kind ${s.kind}`); continue; }
+				if (!["prose", "qa", "groups"].includes(s.kind)) { bad.push(`${file}#${i}: bad kind ${s.kind}`); continue; }
 				if (typeof s.heading !== "string") bad.push(`${file}#${i}: missing heading`);
 				if (s.kind === "qa") {
 					if (!Array.isArray(s.pairs)) bad.push(`${file}#${i}: qa without pairs[]`);
 					else if (s.pairs.some(p => typeof p.prompt !== "string" || typeof p.answer !== "string"))
 						bad.push(`${file}#${i}: qa pair not {prompt,answer}`);
+				} else if (s.kind === "groups") {
+					if (!Array.isArray(s.groups)) bad.push(`${file}#${i}: groups without groups[]`);
+					else if (s.groups.some(g => typeof g.heading !== "string" || typeof g.body !== "string"))
+						bad.push(`${file}#${i}: group entry not {heading,body}`);
 				} else if (typeof s.body !== "string") {
 					bad.push(`${file}#${i}: prose without body`);
 				}

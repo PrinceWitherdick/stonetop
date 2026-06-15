@@ -51,12 +51,16 @@ describe("locations journal — structured location pages", () => {
 			const sections = doc.pages?.[0]?.system?.sections;
 			if (!Array.isArray(sections) || !sections.length) { bad.push(`${file}: no sections`); continue; }
 			for (const [i, s] of sections.entries()) {
-				if (s.kind !== "prose" && s.kind !== "qa") { bad.push(`${file}#${i}: bad kind ${s.kind}`); continue; }
+				if (!["prose", "qa", "groups"].includes(s.kind)) { bad.push(`${file}#${i}: bad kind ${s.kind}`); continue; }
 				if (typeof s.heading !== "string") bad.push(`${file}#${i}: missing heading`);
 				if (s.kind === "qa") {
 					if (!Array.isArray(s.pairs)) bad.push(`${file}#${i}: qa without pairs[]`);
 					else if (s.pairs.some(p => typeof p.prompt !== "string" || typeof p.answer !== "string"))
 						bad.push(`${file}#${i}: qa pair not {prompt,answer}`);
+				} else if (s.kind === "groups") {
+					if (!Array.isArray(s.groups)) bad.push(`${file}#${i}: groups without groups[]`);
+					else if (s.groups.some(g => typeof g.heading !== "string" || typeof g.body !== "string"))
+						bad.push(`${file}#${i}: group entry not {heading,body}`);
 				} else if (typeof s.body !== "string") {
 					bad.push(`${file}#${i}: prose without body`);
 				}
@@ -97,14 +101,15 @@ describe("locations journal — structured location pages", () => {
 		for (const name of ["North Manmarch", "South Manmarch"]) {
 			const d = dangersOf(name);
 			expect(d, `${name} has a Dangers section`).toBeTruthy();
-			expect(d.body, `${name} Dangers keeps its Monsters list`).toMatch(/<strong>Monsters<\/strong>/);
+			expect(d.kind, `${name} Dangers is a groups section`).toBe("groups");
+			expect((d.groups ?? []).map(g => g.heading), `${name} Dangers keeps its Monsters entry`).toContain("Monsters");
 		}
 	});
 
 	it("cuts the creature catalog: no Dangers section leaks a stat block", () => {
 		const bad = entries
 			.filter(({ doc }) => (doc.pages?.[0]?.system?.sections ?? [])
-				.some(s => s.heading === "Dangers" && /HP\s*\d/.test(s.body ?? "")))
+				.some(s => s.heading === "Dangers" && (s.groups ?? []).some(g => /HP\s*\d/.test(g.body ?? ""))))
 			.map(b => b.file);
 		expect(bad).toEqual([]);
 	});

@@ -306,6 +306,7 @@
       "addDiscovery": "Add Discovery",
       "addDanger": "Add Danger or Hazard",
       "dangerHeadingPlaceholder": "Hazard name (e.g. \"Unstable nest\"). Use **text** for bold.",
+      "dangerTitlePlaceholder": "Danger title (e.g. \"Hazards\", \"Monsters\")",
       "discoveryHeadingPlaceholder": "Discovery heading (e.g. \"Strange growths\"). Use **text** for bold.",
       "discoveryBodyPlaceholder": "Body text (optional)",
       "discoveryItemsPlaceholder": "Bullet items, one per line (optional)",

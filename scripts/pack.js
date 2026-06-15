@@ -163,7 +163,12 @@ async function ensureIds(srcDir, keyPrefix = "items") {
 }
 
 async function main() {
+	// Optional CLI filter: `node scripts/pack.js stonetop-journal [...]` rebuilds
+	// only the named pack(s). With no args every pack is rebuilt. Handy when one
+	// pack's LevelDB is locked (e.g. open in Foundry) but another needs recompiling.
+	const only = new Set(process.argv.slice(2));
 	for (const { name: pack, type: packType, sources } of PACKS) {
+		if (only.size && !only.has(pack)) continue;
 		// One published pack may be assembled from several source dirs (see PACKS);
 		// each is folder/id-normalised on its own, then all compile into one dest.
 		const srcDirs = (sources ?? [pack]).map(s => `packs/src/${s}`);

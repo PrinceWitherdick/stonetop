@@ -10404,6 +10404,15 @@ input.stonetop-monster-armor-source {
 	margin-bottom: 0;
 }
 
+/* A random-table caption ("1d6 what it remembers") is a bold paragraph leading
+   into its table — and these tables often run back-to-back (table, caption,
+   table). Give the caption clear room above so each caption+table reads as its
+   own block instead of crowding the table before it. :not(:first-child) keeps a
+   caption that opens a section snug under its heading. */
+.stonetop-monster-rich-text p:has(> strong):has(+ table):not(:first-child) {
+	margin-top: var(--stonetop-section-gap);
+}
+
 /* Each top-level danger in the Dangers field is a hazard "custom move"; mark its
    bold heading with the rulebook's exclamation legend icon (matches the printed
    Crinwin "Unstable nest" / "Wasps" entries). Space the moves apart — but not the
@@ -10917,7 +10926,9 @@ input.stonetop-monster-armor-source {
 	filter: invert(1);
 }
 
-/* Structured Dangers & Hazards: a danger glyph in front of each hazard name. */
+/* Structured Dangers & Hazards: a danger glyph in front of each hazard name.
+   Location/lore journals now render Dangers as these grouped entries too (one
+   {heading, body} per hazard), so the glyph hangs off each entry's heading. */
 .stonetop-danger-group .stonetop-danger-heading {
 	display: flex;
 	align-items: center;
@@ -10932,23 +10943,11 @@ input.stonetop-monster-armor-source {
 	background: var(--stonetop-danger-icon) no-repeat center / contain;
 }
 
-/* Location pages render Dangers as a prose section (to keep its tables and
-   cross-links) rather than the structured hazard groups above. Hang the danger
-   glyph off each named danger's bold lead-in (e.g. "Hazards", "Fog") so every
-   hazard is flagged at a glance, rather than once on the section heading.
-   A bold line that directly precedes its own <table> is a dice-table label
-   (e.g. "1d6 reward"), not a danger — exclude it from the glyph. */
-.stonetop-danger-section .stonetop-monster-rich-text > p:has(> strong:first-child):not(:has(+ table)) > strong:first-child::before {
-	content: "";
-	display: inline-block;
-	width: 1.1em;
-	height: 1.1em;
-	margin-right: 0.4em;
-	vertical-align: -0.18em;
-	background: var(--stonetop-danger-icon) no-repeat center / contain;
-}
-.theme-dark .stonetop-danger-section .stonetop-monster-rich-text > p:has(> strong:first-child):not(:has(+ table)) > strong:first-child::before {
-	filter: invert(1);
+/* The opening sections (Overview, Impressions) now sit directly under the page's
+   name with no "At a Glance" banner between them, so give the name room to breathe
+   above the first section instead of letting it crowd the title. */
+.stonetop-location-page > .journal-page-header {
+	margin-bottom: 0.75rem;
 }
 
 /* "Impressions" season sub-headers (Spring/Summer/Autumn/Winter) get the matching
@@ -10967,6 +10966,29 @@ input.stonetop-monster-armor-source {
 .stonetop-location-page .stonetop-season--summer::before { background-image: var(--stonetop-season-summer-icon); }
 .stonetop-location-page .stonetop-season--fall::before   { background-image: var(--stonetop-season-fall-icon); }
 .stonetop-location-page .stonetop-season--winter::before { background-image: var(--stonetop-season-winter-icon); }
+
+/* ── Act headers (At a Glance / The Place / In Play) ──────────────────────
+   Every location/lore journal groups its sections into three fixed acts. The
+   act renders as an h2 above its sections (which stay h3), so the journal TOC
+   nests the same three anchors for every entry. Styled as a quiet small-caps
+   banner — distinct from the bolder section h3s, with breathing room above so
+   each act reads as its own band; the first one drops that top margin. */
+.stonetop-section-group {
+	font-family: var(--font-stonetop);
+	font-size: 1.05em;
+	font-weight: bold;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: rgba(0, 0, 0, 0.55);
+	margin: 22px 0 2px;
+	padding-bottom: 3px;
+	border-bottom: 2px solid rgba(0, 0, 0, 0.28);
+}
+.stonetop-section-group:first-child { margin-top: 0; }
+.theme-dark .stonetop-section-group {
+	color: rgba(255, 255, 255, 0.6);
+	border-bottom-color: rgba(255, 255, 255, 0.28);
+}
 
 /* Uniform divider-to-content gap for every section: the 6px flex gap of
    `.stonetop-monster-field` plus 6px here, matching the rich-text sections whose
@@ -11132,6 +11154,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 
 .stonetop-entry-add-qa,
 .stonetop-entry-add-line,
+.stonetop-entry-add-group,
 .stonetop-discovery-add-group {
 	margin-top: 8px;
 	background: none;
@@ -11146,8 +11169,56 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 
 .stonetop-entry-add-qa:hover,
 .stonetop-entry-add-line:hover,
+.stonetop-entry-add-group:hover,
 .stonetop-discovery-add-group:hover {
 	color: var(--color-text-hyperlink, slategrey);
+}
+
+/* Dangers — titled entries the GM adds/deletes, each a heading field + rich body
+   (matches the Q&A edit grid: content left, trash right spanning both rows). */
+.stonetop-entry-group-list {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+.stonetop-entry-group-row {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 6px;
+	align-items: start;
+	padding-bottom: 14px;
+	border-bottom: 1px dashed rgba(0, 0, 0, 0.18);
+}
+.stonetop-entry-group-row:last-child {
+	padding-bottom: 0;
+	border-bottom: none;
+}
+.stonetop-entry-group-heading {
+	grid-column: 1 / 2;
+	width: 100%;
+	border: 1px solid rgba(0, 0, 0, 0.22);
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.28);
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+}
+.stonetop-entry-group-body {
+	grid-column: 1 / 2;
+	min-height: 110px;
+}
+.stonetop-entry-group-body .editor-content {
+	min-height: inherit;
+	padding: 6px 8px;
+}
+.stonetop-entry-remove-group {
+	grid-column: 2 / 3;
+	grid-row: 1 / 3;
+	align-self: start;
+	color: slategrey;
+	cursor: pointer;
+}
+.stonetop-entry-remove-group:hover {
+	color: #a33;
 }
 
 /* Discoveries — sub-headed groups (heading + body + bullet list) */
