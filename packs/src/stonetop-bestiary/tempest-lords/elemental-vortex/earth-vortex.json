@@ -1,7 +1,7 @@
 {
   "name": "Earth Vortex",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.webp",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -34,7 +34,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.webp"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg"
     }
   },
   "items": [

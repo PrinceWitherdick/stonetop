@@ -1,7 +1,7 @@
 {
   "name": "Wee Folk",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/fae.webp",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/fae.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/fae.webp"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/fae.svg"
     }
   },
   "items": [

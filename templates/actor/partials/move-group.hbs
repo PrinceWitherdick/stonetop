@@ -1,5 +1,12 @@
 <div class="stonetop-move-group">
+	{{#if editSection}}
+	<div class="stonetop-details-heading-row">
+		{{> "stonetop.section-heading" title=title note=note}}
+		{{> "stonetop.details-section-edit-toggle" section=editSection editing=editing}}
+	</div>
+	{{else}}
 	{{> "stonetop.section-heading" title=title note=note}}
+	{{/if}}
 	{{#if hideToggle}}
 	<label class="stonetop-hide-unselected-label">
 		<input type="checkbox" class="stonetop-hide-unselected-check"{{#if hideUnselected}} checked{{/if}}>
@@ -21,7 +28,7 @@
 					       data-compendium-id="{{../compendiumId}}"
 					       data-owned-id="{{ownedId}}"
 					       {{#if checked}}checked{{/if}}
-					       {{#if (or disabled (not @root.stonetop.editMode))}}disabled{{/if}}>
+					       {{#if (or disabled (not @root.stonetop.movesEdit))}}disabled{{/if}}>
 					{{/each}}
 				</span>
 				{{else}}
@@ -29,7 +36,7 @@
 				       data-compendium-id="{{compendiumId}}"
 				       data-owned-id="{{ownedId}}"
 				       {{#if owned}}checked{{/if}}
-				       {{#if (or isStarting locked (not @root.stonetop.editMode))}}disabled{{/if}}>
+				       {{#if (or isStarting locked (not @root.stonetop.movesEdit))}}disabled{{/if}}>
 				{{/if}}
 				{{#if (and owned rollType)}}
 				<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">
@@ -66,7 +73,7 @@
 							        data-move-name="{{../../name}}"
 							        data-mark-slug="{{../slug}}"
 							        data-idx="{{index}}"
-							        {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+							        {{#unless @root.stonetop.movesEdit}}disabled{{/unless}}>
 								{{#each options}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{abbr}}</option>{{/each}}
 							</select>
 							{{> "stonetop.move-mark-level" moveName=../../name slug=../slug index=index level=level}}
@@ -81,7 +88,7 @@
 						       data-mark-slug="{{../slug}}"
 						       data-idx="{{index}}"
 						       {{#if checked}}checked{{/if}}
-						       {{#unless @root.stonetop.editMode}}disabled{{/unless}}>
+						       {{#unless @root.stonetop.movesEdit}}disabled{{/unless}}>
 						{{/each}}
 					</span>
 					<span class="stonetop-move-mark-label">{{label}}</span>

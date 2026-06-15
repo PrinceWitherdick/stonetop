@@ -396,16 +396,11 @@ export const STEADING_DEFAULTS = {
 		{ name: "", checked: false },
 		{ name: "", checked: false },
 	],
-	residents: [
-		{ name: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-		{ name: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-		{ name: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-	],
-	neighbors: [
-		{ name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-		{ name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-		{ name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false },
-	],
+	// Start empty — residents/neighbors are added on demand via "Add Resident/
+	// Neighbor" (or by typing into a row in edit mode). Seeding blank rows here
+	// made three empty rows appear whenever a fresh sheet's section was edited.
+	residents: [],
+	neighbors: [],
 	players: [],
 	places: [
 		{ letter: "A", name: "The Stone" },

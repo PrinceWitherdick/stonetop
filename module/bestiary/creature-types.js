@@ -29,7 +29,7 @@ export const CREATURE_TYPE_CHOICES = Object.fromEntries(
 export function creatureTypeIcon(slug) {
 	if (!slug) return null;
 	const found = CREATURE_TYPES.find(t => t.slug === slug);
-	return found ? `${CREATURE_TYPE_ICON_DIR}/${found.slug}.webp` : null;
+	return found ? `${CREATURE_TYPE_ICON_DIR}/${found.slug}.svg` : null;
 }
 
 export function creatureTypeLabel(slug) {

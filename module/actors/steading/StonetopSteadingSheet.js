@@ -13,6 +13,7 @@ import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../setting
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
+import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
 import {getDragEventData} from "../../utils/foundry-compat.js";
 
@@ -300,10 +301,27 @@ const HOMESTEAD_MOVE_FLOWS = {
 	},
 };
 
+// Every editable section carries its own hover edit pencil; each is read-only
+// until its pencil (or the global header wrench) turns it on. Keys match the
+// `data-section` attributes in the templates.
+const STEADING_EDIT_SECTIONS = [
+	"surplusFortunes", "sizePopulation", "defenses", "fortifications",
+	"prosperity", "currency",
+	"resources", "assets", "places",
+	"players", "residents", "neighbors", "improvements",
+];
+
 export function createStonetopSteadingSheetClass(Base) {
-	return class StonetopSteadingSheet extends Base {
+	// Sections with their own heading pencil (Residents, Neighbors) track edit
+	// state independently of the global header-wrench `_editMode` via the shared
+	// section-editing mixin.
+	return class StonetopSteadingSheet extends withSectionEditing(Base) {
 		_stonetopSteading;
 		_editMode = false;
+		// Sections whose edit mode was just turned off: their "done" check lingers
+		// for a beat, fades out, then reverts to the hover pencil. Each has a timer.
+		_recentlyEditedSections = new Set();
+		_recentlyEditedTimers = new Map();
 
 		constructor(...args) {
 			super(...args);
@@ -344,13 +362,20 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			const label = document.createElement("label");
 			label.className = "stonetop-edit-toggle stonetop-header-toggle";
-			label.title = this._editMode ? "Lock Sheet" : "Edit Steading";
+			// Master edit toggle: when on, every section is editable. Each section
+			// also has its own hover pencil for editing it in isolation.
+			label.title = this._editMode ? "Lock Steading" : "Edit Steading";
 
 			const checkbox = document.createElement("input");
 			checkbox.type = "checkbox";
 			checkbox.checked = this._editMode;
 			checkbox.addEventListener("change", () => {
-				this._editMode = !this._editMode;
+				this._editMode = checkbox.checked;
+				// Locking the sheet resets any per-section pencils back to read-only.
+				if (!this._editMode) {
+					this._editingSections.clear();
+					this._clearAllSectionDoneTimers();
+				}
 				this.render(false);
 			});
 
@@ -567,6 +592,44 @@ export function createStonetopSteadingSheetClass(Base) {
 			}).render(true);
 		}
 
+		// Section-editing hooks: entering edit cancels any lingering "done" check;
+		// leaving edit starts the fade-out check (see _markSectionDone).
+		_onSectionEditOpened(section) { this._clearSectionDone(section); }
+		_onSectionEditClosed(section) { this._markSectionDone(section); }
+
+		// Show a section's "done" check for a beat after leaving edit, then fade it
+		// out (CSS) and re-render so the section reverts to its hover pencil.
+		_markSectionDone(section) {
+			this._clearSectionDone(section);
+			this._recentlyEditedSections.add(section);
+			const timer = setTimeout(() => {
+				this._recentlyEditedSections.delete(section);
+				this._recentlyEditedTimers.delete(section);
+				if (this.rendered) this.render(false);
+			}, 1000);
+			this._recentlyEditedTimers.set(section, timer);
+		}
+
+		_clearSectionDone(section) {
+			this._recentlyEditedSections.delete(section);
+			const timer = this._recentlyEditedTimers.get(section);
+			if (timer) {
+				clearTimeout(timer);
+				this._recentlyEditedTimers.delete(section);
+			}
+		}
+
+		_clearAllSectionDoneTimers() {
+			for (const timer of this._recentlyEditedTimers.values()) clearTimeout(timer);
+			this._recentlyEditedTimers.clear();
+			this._recentlyEditedSections.clear();
+		}
+
+		async close(options) {
+			this._clearAllSectionDoneTimers();
+			return super.close(options);
+		}
+
 		async getData() {
 			const context = await super.getData();
 			context.stonetop = await this._stonetopSteading.buildSnapshot();
@@ -578,6 +641,16 @@ export function createStonetopSteadingSheetClass(Base) {
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
+			context.stonetop.canEdit = this.isEditable;
+			// Per-section edit flags: a section is editable when the global header
+			// wrench is on OR its own pencil is toggled.
+			const sectionEdit = section => this.isSectionEditable(section);
+			context.stonetop.edit = Object.fromEntries(
+				STEADING_EDIT_SECTIONS.map(section => [section, sectionEdit(section)])
+			);
+			context.stonetop.recentlyEdited = Object.fromEntries(
+				STEADING_EDIT_SECTIONS.map(section => [section, this._recentlyEditedSections.has(section)])
+			);
 			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? false;
 			return context;
 		}
@@ -667,6 +740,11 @@ export function createStonetopSteadingSheetClass(Base) {
 				this.actor.setFlag("stonetop_pwd", "hideUnearnedImprovements", cb.checked);
 			}, true);
 
+			// Per-section edit toggle (pencil/check at each section's corner) flips
+			// just that section's edit state, independent of the global wrench. The
+			// fade-out "done" check is driven by the _onSectionEdit* hooks above.
+			this._wireSectionEditToggle(html, ".steading-section-edit-toggle");
+
 			// Add resident / neighbor — allowed even outside edit mode
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".steading-list-add");
@@ -687,7 +765,6 @@ export function createStonetopSteadingSheetClass(Base) {
 			html[0].addEventListener("change", ev => {
 				const input = ev.target;
 				if (input.type !== "radio" || !input.name || !input.closest(".steading-track-option")) return;
-				if (!this._editMode) return;
 				ev.stopPropagation();
 				this._onSteadingTrackChange(input.name, Number(input.value));
 			}, true);
@@ -695,7 +772,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Surplus is in the custom stat bar, so persist it explicitly.
 			const onSurplusInput = ev => {
 				const input = ev.target.closest(".steading-surplus-input");
-				if (!input || !this._editMode) return;
+				if (!input) return;
 				ev.stopPropagation();
 				this._onSteadingTrackChange(input.name, Math.max(0, parseInt(input.value) || 0));
 			};
@@ -705,7 +782,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Debilities live in the same custom bar and need the same legacy-safe persistence.
 			html[0].addEventListener("change", ev => {
 				const input = ev.target.closest(".steading-debility-check");
-				if (!input || !this._editMode) return;
+				if (!input) return;
 				ev.stopPropagation();
 				this._onSteadingTrackChange(input.name, input.checked);
 			}, true);

@@ -1,7 +1,7 @@
 {
   "name": "Skittering Horror",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/emanation.webp",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/emanation.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/emanation.webp"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/emanation.svg"
     }
   },
   "items": [

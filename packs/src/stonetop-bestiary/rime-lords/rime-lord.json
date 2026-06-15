@@ -1,7 +1,7 @@
 {
   "name": "Rime Lord",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/maker.webp",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/maker.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/maker.webp"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/maker.svg"
     }
   },
   "items": [

@@ -19,6 +19,7 @@ import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth} from "../../settings.js";
 import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
+import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
@@ -521,7 +522,10 @@ function _enrichMoveRefsInEl(container) {
 }
 
 export function createStonetopCharacterSheetClass(Base) {
-	return class StonetopCharacterSheet extends Base {
+	// Details-tab sections (Background, Instinct, Appearance, Origin, Lore) each
+	// carry their own edit pencil via the shared section-editing mixin, tracked
+	// independently of the global header-wrench `_editMode`.
+	return class StonetopCharacterSheet extends withSectionEditing(Base) {
 		_stonetopCharacter;
 		_editMode = false;
 
@@ -847,10 +851,26 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.system ??= this.actor.system;
 			context.isCharacter = this.actor.type === "character";
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
-			context.stonetop.statsNoteDisplay = this._editMode ? context.stonetop.playbook?.statsNote ?? null : null;
-			context.stonetop.movelist.startingMovesNoteDisplay = this._editMode ? context.stonetop.movelist.startingMovesNote ?? null : null;
+			// Per-section edit flags: a section is editable when the global wrench is
+			// on OR its own pencil is toggled.
+			const sectionEdit = section => this.isSectionEditable(section);
+			context.stonetop.statsNoteDisplay = sectionEdit("stats") ? context.stonetop.playbook?.statsNote ?? null : null;
+			context.stonetop.movelist.startingMovesNoteDisplay = sectionEdit("moves") ? context.stonetop.movelist.startingMovesNote ?? null : null;
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop_pwd', 'hideUnselected') ?? true;
 			context.stonetop.editMode = this._editMode;
+			context.stonetop.canEdit = this.isEditable;
+			context.stonetop.detailsEdit = {
+				background: sectionEdit("background"),
+				instinct:   sectionEdit("instinct"),
+				appearance: sectionEdit("appearance"),
+				origin:     sectionEdit("origin"),
+				lore:       sectionEdit("lore"),
+			};
+			context.stonetop.statsEdit       = sectionEdit("stats");
+			context.stonetop.movesEdit       = sectionEdit("moves");
+			context.stonetop.possessionsEdit = sectionEdit("possessions");
+			context.stonetop.invocationsEdit = sectionEdit("invocations");
+			context.stonetop.followersEdit   = sectionEdit("followers");
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
 			// Mirror computed vitals back onto system attributes for the sheet's inputs.
@@ -1504,7 +1524,13 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			if (!this.isEditable) return;
 
-			if (this._editMode) {
+			// Details-tab per-section edit pencils: toggle just that section's edit
+			// state, independent of the global header-wrench edit mode.
+			this._wireSectionEditToggle(html, ".stonetop-details-section-edit-toggle");
+
+			// The Details-tab change handlers below are wired whenever any section is
+			// editable — either the global wrench or an individual section pencil.
+			if (this.hasActiveEdits) {
 				html.find("[name=stonetop-background]").on("change", this._onBackgroundChange.bind(this));
 				html.find("[name=stonetop-instinct]").on("change", ev => {
 					const val = ev.currentTarget.value;

@@ -1,7 +1,7 @@
 {
   "name": "Laborers",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/human-group.webp",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -34,7 +34,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/human-group.webp"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg"
     }
   },
   "items": [

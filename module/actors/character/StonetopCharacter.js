@@ -521,7 +521,10 @@ export class StonetopCharacter {
 			const resource = resourceDef ? new ResourceBuilder()
 				.withCurrent(currentUses)
 				.withMax(maxUses ?? resourceDef.max)
-				.withTitle(resourceDef.title ?? null)
+				// Title is rendered separately as the italic `usesLabel` in the
+				// possessions block; leave it off the resource so the shared
+				// resource-track partial doesn't render a duplicate label.
+				.withTitle(null)
 				.withLabels(resourceDef.labels ?? [])
 				.build() : null;
 			return new PossessionItemSnapshotBuilder()

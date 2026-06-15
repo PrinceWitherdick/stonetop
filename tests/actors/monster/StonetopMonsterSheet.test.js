@@ -224,7 +224,7 @@ describe("StonetopMonsterSheet", () => {
 		expect(data.stonetop.creatureTypeLabel).toBe("Natural / Beast");
 		expect(data.stonetop.hasPortrait).toBe(true);
 		expect(data.stonetop.displayImg).toBe(
-			"systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp");
+			"systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg");
 	});
 
 	it("prefers real portrait art over the creature-type icon", async () => {

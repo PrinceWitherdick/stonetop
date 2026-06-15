@@ -1302,6 +1302,23 @@ input.stonetop-name-field {
 	scrollbar-gutter: stable;
 }
 
+/* The active tab owns the scroll rather than the shared body, so each tab keeps its
+   own scroll position and the scrollbar track stays put when switching tabs —
+   otherwise tabs of different heights share one scrollbar and the thumb visibly
+   jumps up/down as you tab through. (The Invocations tab already self-scrolled; this
+   makes every tab consistent.) The body itself no longer scrolls. */
+.pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body {
+	overflow: hidden;
+}
+
+.pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body > .tab.active {
+	height: 100%;
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	scrollbar-gutter: stable;
+}
+
 .stonetop-moves-sidebar {
 	width: max-content;
 	min-width: max-content;
@@ -5218,8 +5235,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-sheet .sheet-body {
 	flex: 1;
+	min-height: 0;
+	/* The active tab owns the scroll (rule below) rather than this shared body, so
+	   each tab keeps its own scroll position and the scrollbar track stays put when
+	   switching tabs — otherwise tabs of different heights share one scrollbar and
+	   the thumb visibly jumps up/down as you tab through. */
+	overflow: hidden;
+}
+
+/* notes manages its own internal scroll (prose-mirror), so leave it out. */
+.steading-sheet .sheet-body > .tab.active:not(.notes) {
+	height: 100%;
 	overflow-y: auto;
+	overflow-x: hidden;
 	scrollbar-width: thin;
+	scrollbar-gutter: stable;
 }
 
 .steading-sheet-layout {
@@ -5504,9 +5534,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex-shrink: 0;
 	border: 2px solid slategrey;
 	border-radius: 3px;
-	cursor: default;
-	background: white;
+	cursor: pointer;
+	background: rgba(106, 120, 128, 0.15);
 	transition: background 0.1s;
+}
+
+/* Hover to signal interactivity (only fires in editable sections; read-only
+   ones get pointer-events: none from the shared .stonetop-readonly rule). */
+.steading-track-option input[type="radio"]:hover {
+	background: rgba(106, 120, 128, 0.35);
 }
 
 .steading-track-option input[type="radio"]:checked,
@@ -5514,29 +5550,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: slategrey;
 }
 
-/* View mode: restore full opacity so the slategrey fill looks crisp */
+/* Read-only section: calmer fill, default cursor, full opacity (overriding the
+   shared .stonetop-readonly radio dimming) so the slategrey fill stays crisp. */
 .stonetop-readonly .steading-track-option input[type="radio"] {
+	cursor: default;
 	opacity: 1;
 	background: rgba(106, 120, 128, 0.08);
 }
 
 .stonetop-readonly .steading-track-option input[type="radio"]:checked,
 .stonetop-readonly .steading-track-option.is-selected input[type="radio"] {
-	background: slategrey;
-}
-
-/* Edit mode: tint unselected options and show hover to signal interactivity */
-.steading-stats-bar:not(.stonetop-readonly) .steading-track-option input[type="radio"] {
-	cursor: pointer;
-	background: rgba(106, 120, 128, 0.15);
-}
-
-.steading-stats-bar:not(.stonetop-readonly) .steading-track-option input[type="radio"]:hover {
-	background: rgba(106, 120, 128, 0.35);
-}
-
-.steading-stats-bar:not(.stonetop-readonly) .steading-track-option input[type="radio"]:checked,
-.steading-stats-bar:not(.stonetop-readonly) .steading-track-option.is-selected input[type="radio"] {
 	background: slategrey;
 }
 
@@ -5918,6 +5941,48 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-family: var(--font-stonetop);
 }
 
+/* Every editable section is positioned so its hover pencil can sit in the
+   top-right corner. */
+.steading-edit-section {
+	position: relative;
+}
+
+/* The shared .stonetop-section-edit / .stonetop-section-done icon styling
+   (pencil/check, dimmed) is reused here from the journal sheets. The toggle
+   floats at the section's top-right; the edit pencil only appears on section
+   hover, while the done-check stays visible so there's always a way to lock
+   back. */
+.steading-edit-section > .steading-section-edit-toggle {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	line-height: 1;
+	z-index: 2;
+}
+.steading-edit-section > .steading-section-edit-toggle.stonetop-section-edit {
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.steading-edit-section:hover > .steading-section-edit-toggle.stonetop-section-edit {
+	opacity: 0.5;
+}
+.steading-edit-section:hover > .steading-section-edit-toggle.stonetop-section-edit:hover {
+	opacity: 1;
+}
+
+/* After leaving a section's edit mode, its "done" check lingers a moment then
+   fades out (non-interactive); a re-render then restores the hover pencil. */
+.steading-edit-section > .steading-section-edit-toggle.steading-section-toggle-faded {
+	pointer-events: none;
+	animation: steading-section-toggle-fade 1s ease forwards;
+}
+
+@keyframes steading-section-toggle-fade {
+	0%   { opacity: 0.85; }
+	60%  { opacity: 0.85; }
+	100% { opacity: 0; }
+}
+
 .steading-residents-table {
 	border: 1px solid rgba(0,0,0,0.12);
 	border-radius: 6px;
@@ -6230,9 +6295,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: 1.1em;
 	background: transparent;
 	padding: 2px 0;
-}
-
-.stonetop-readonly .steading-currency-input {
 	border: none !important;
 	outline: none !important;
 	box-shadow: none !important;
@@ -9287,14 +9349,14 @@ li.question-bullet {
 
 /* Journal cross-links: drop Foundry's boxed "book chip" — its grey background,
    border, padding, and the leading document icon — so an `@UUID` link reads like
-   the system's other cross-references (`.stonetop-monster-ref`): a plain word with
-   a dashed underline that shows the target's summary on hover (data-tooltip, set
-   by location-tooltips.js) and opens the entry on click. Scoped to journal page
-   content so it covers every shipped journal without a per-link wrapper. */
+   the system's other cross-references: a plain word that shows the target's
+   summary on hover (data-tooltip, set by location-tooltips.js) and opens the
+   entry on click. No underline affordance — the hover background is the only
+   hint — per author preference. Scoped to journal page content so it covers
+   every shipped journal without a per-link wrapper. */
 .journal-page-content a.content-link {
 	background: none;
 	border: none;
-	border-bottom: 1px dashed currentColor;
 	border-radius: 0;
 	padding: 0;
 	margin: 0;
@@ -9305,7 +9367,6 @@ li.question-bullet {
 }
 .journal-page-content a.content-link:hover {
 	background-color: rgba(0, 0, 0, 0.07);
-	border-bottom-style: solid;
 	text-shadow: none;
 }
 /* Hide the leading document/book icon that Foundry injects into the chip. */
@@ -9315,7 +9376,7 @@ li.question-bullet {
 /* A broken link (target missing) keeps Foundry's warning treatment so it's still
    obviously broken rather than masquerading as a normal cross-reference. */
 .journal-page-content a.content-link.broken {
-	border-bottom-color: var(--color-text-bad, #aa2222);
+	border-bottom: 1px dashed var(--color-text-bad, #aa2222);
 	color: var(--color-text-bad, #aa2222);
 }
 .journal-page-content a.content-link.broken > i {
@@ -10758,6 +10819,91 @@ input.stonetop-monster-armor-source {
 .stonetop-concept-edit { margin-left: 6px; }
 .stonetop-section-done { color: var(--color-level-success, #2e8b57); opacity: 0.85; }
 
+/* ── Details-tab per-section edit pencils ─────────────────────────────────
+   Each Details section (Background, Instinct, Appearance, Origin, Lore) gets a
+   heading row with a pencil/done toggle, like the steading's Residents/Neighbors.
+   The pencil stays hidden until the section is hovered; the done-check stays
+   visible while editing so there's always a way to lock it back. */
+/* The pencil/check floats over the right end of the heading instead of sitting in a
+   flex row beside it. As a flex sibling the h3 took flex: 1 1 auto and shrank to make
+   room for the icon — and since the separator line is the h3's own border-bottom, the
+   line stopped short of the right edge. Absolute-positioning the icon keeps the h3
+   full-width so its underline spans edge to edge, mirroring .stonetop-lore-section-wrapper. */
+.stonetop-details-heading-row {
+	position: relative;
+}
+.stonetop-details-heading-row .stonetop-move-group-title {
+	margin-bottom: 0;
+	/* Reserve room at the right so a long note doesn't run under the floated icon;
+	   padding keeps the border-bottom full-width (the border spans the padding box). */
+	padding-right: 1.5em;
+}
+/* Background/Origin get their heading→content gap from .stonetop-item's padding;
+   Instinct/Appearance content has none, so match it here without double-spacing
+   the padded sections. */
+.stonetop-details-heading-row + :not(.stonetop-item) {
+	margin-top: 4px;
+}
+/* The Followers tab is a 2-column grid: its heading-row spans both columns and
+   the grid gap (not the sibling margin) sets the spacing, so the first card
+   stays aligned with the second. */
+.stonetop-followers > .stonetop-details-heading-row {
+	grid-column: 1 / -1;
+}
+.stonetop-followers > .stonetop-details-heading-row + * {
+	margin-top: 0;
+}
+.stonetop-details-heading-row .stonetop-section-edit,
+.stonetop-details-heading-row .stonetop-section-done {
+	position: absolute;
+	top: 0;
+	right: 0;
+	z-index: 1;
+}
+/* Lore renders its own playbook-specific headings, so its pencil floats at the
+   top-right of the lore block rather than getting a redundant "Lore" heading. */
+.stonetop-lore-section-wrapper { position: relative; }
+.stonetop-lore-section-wrapper > .stonetop-section-edit,
+.stonetop-lore-section-wrapper > .stonetop-section-done {
+	position: absolute;
+	top: 0;
+	right: 0;
+	z-index: 1;
+}
+
+/* Both heading-row and lore-wrapper pencils reveal on container hover (the
+   done-check stays visible). Descendant combinator for the heading row, child
+   for the lore wrapper, which has nested section markup. */
+.stonetop-details-heading-row .stonetop-section-edit,
+.stonetop-lore-section-wrapper > .stonetop-section-edit {
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.stonetop-details-heading-row:hover .stonetop-section-edit,
+.stonetop-lore-section-wrapper:hover > .stonetop-section-edit { opacity: 0.5; }
+.stonetop-details-heading-row:hover .stonetop-section-edit:hover,
+.stonetop-lore-section-wrapper:hover > .stonetop-section-edit:hover { opacity: 1; }
+
+/* When the whole Details tab is read-only (global wrench off) but one section
+   has been opened with its own pencil, re-enable interaction in that section. */
+.stonetop-readonly .stonetop-section-editing input,
+.stonetop-readonly .stonetop-section-editing textarea,
+.stonetop-readonly .stonetop-section-editing button,
+.stonetop-readonly .stonetop-section-editing select,
+.stonetop-readonly .stonetop-section-editing label {
+	pointer-events: auto;
+}
+.stonetop-readonly .stonetop-section-editing input[type="radio"],
+.stonetop-readonly .stonetop-section-editing input[type="checkbox"] {
+	opacity: 1;
+}
+
+/* Read-only summaries for sections that previously showed nothing when locked. */
+.stonetop-instinct-readonly { margin: 0; }
+.stonetop-appearance-readonly { margin: 0; }
+.stonetop-appearance-readonly:empty { display: none; }
+.stonetop-appearance-readonly-item:not(:last-child)::after { content: ", "; }
+
 /* Dark mode: the dark separator rule and the dark spiral-bullet artwork both
    disappear on a dark surface (this page follows Foundry's journal theme, unlike
    the always-parchment actor sheet). Lighten the rule; invert the spirals. */
@@ -10787,18 +10933,21 @@ input.stonetop-monster-armor-source {
 }
 
 /* Location pages render Dangers as a prose section (to keep its tables and
-   cross-links) rather than the structured hazard groups above, so the danger
-   glyph hangs off the section heading itself for the same at-a-glance flavor. */
-.stonetop-location-page .stonetop-danger-section > .stonetop-section-head .stonetop-move-group-title::before {
+   cross-links) rather than the structured hazard groups above. Hang the danger
+   glyph off each named danger's bold lead-in (e.g. "Hazards", "Fog") so every
+   hazard is flagged at a glance, rather than once on the section heading.
+   A bold line that directly precedes its own <table> is a dice-table label
+   (e.g. "1d6 reward"), not a danger — exclude it from the glyph. */
+.stonetop-danger-section .stonetop-monster-rich-text > p:has(> strong:first-child):not(:has(+ table)) > strong:first-child::before {
 	content: "";
 	display: inline-block;
-	width: 1em;
-	height: 1em;
+	width: 1.1em;
+	height: 1.1em;
 	margin-right: 0.4em;
-	vertical-align: -0.12em;
+	vertical-align: -0.18em;
 	background: var(--stonetop-danger-icon) no-repeat center / contain;
 }
-.theme-dark .stonetop-location-page .stonetop-danger-section > .stonetop-section-head .stonetop-move-group-title::before {
+.theme-dark .stonetop-danger-section .stonetop-monster-rich-text > p:has(> strong:first-child):not(:has(+ table)) > strong:first-child::before {
 	filter: invert(1);
 }
 

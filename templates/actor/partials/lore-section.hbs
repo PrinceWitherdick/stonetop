@@ -1,5 +1,5 @@
 {{#if lore.hasEntries}}
-{{#if stonetop.editMode}}
+{{#if editMode}}
 <div class="details-section{{#if lore.hasColumnBreak}} stonetop-lore-columns{{/if}}">
 	{{#each lore.entries}}
 	{{#if (and @first ../lore.hasColumnBreak isContinuation)}}<div class="stonetop-lore-col">{{/if}}

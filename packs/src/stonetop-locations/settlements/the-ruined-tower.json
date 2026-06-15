@@ -94,10 +94,6 @@
               {
                 "prompt": "Or part of the slavering horde?",
                 "answer": ""
-              },
-              {
-                "prompt": "**the tower itself** **shallow crater**",
-                "answer": ""
               }
             ]
           },
@@ -119,7 +115,7 @@
             "kind": "prose",
             "heading": "Areas",
             "danger": false,
-            "body": "<ul><li>Overgrown berm, about 15-20’ tall, encircling the tower ~3/4 mile out. Huge dressed stones poke out, similar to the Old Wall.</li><li>Outer ruins between the berm and the tower. Once a thriving town, now just a jumble of ruins mostly swallowed by the prairie.</li><li>A shallow crater, stretching ~400’ from the tower’s northeast edge. Grass/soil/ mud/standing water cover glassy, slaglike bedrock.</li><li>The tower itself: ~300’ across. Northeast third is mostly rubble, but to the south and west a few floors remain, with walls ~200’ tall.</li><li>The upper tunnels start ~100’ below the surface. Heavily looted, very haunted, mostly maintained by a ghostly Forge Lord and his patchwork constructs.</li><li>The depths are even further down, a warren of chambers, halls, stairs, chutes, and burrows, all in various states of repair. Full of infrastructure, artifacts, experiments, prisons, and vitrified horrors.</li></ul><p><strong>overgrown berm</strong></p>",
+            "body": "<ul><li>Overgrown berm, about 15-20’ tall, encircling the tower ~3/4 mile out. Huge dressed stones poke out, similar to the Old Wall.</li><li>Outer ruins between the berm and the tower. Once a thriving town, now just a jumble of ruins mostly swallowed by the prairie.</li><li>A shallow crater, stretching ~400’ from the tower’s northeast edge. Grass/soil/ mud/standing water cover glassy, slaglike bedrock.</li><li>The tower itself: ~300’ across. Northeast third is mostly rubble, but to the south and west a few floors remain, with walls ~200’ tall.</li><li>The upper tunnels start ~100’ below the surface. Heavily looted, very haunted, mostly maintained by a ghostly Forge Lord and his patchwork constructs.</li><li>The depths are even further down, a warren of chambers, halls, stairs, chutes, and burrows, all in various states of repair. Full of infrastructure, artifacts, experiments, prisons, and vitrified horrors.</li></ul>",
             "pairs": []
           },
           {

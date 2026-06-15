@@ -1,7 +1,7 @@
 {
   "name": "The Crombil, Awakened",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.webp"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg"
     }
   },
   "items": [

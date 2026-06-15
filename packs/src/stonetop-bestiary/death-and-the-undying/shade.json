@@ -1,7 +1,7 @@
 {
   "name": "Shade",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.webp"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.svg"
     }
   },
   "items": [

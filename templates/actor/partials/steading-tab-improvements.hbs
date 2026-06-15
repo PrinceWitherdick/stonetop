@@ -1,4 +1,5 @@
-<div class="tab improvements{{#if stonetop.hideUnearnedImprovements}} hide-unearned-improvements{{/if}}{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="improvements">
+<div class="tab improvements{{#if stonetop.hideUnearnedImprovements}} hide-unearned-improvements{{/if}} steading-edit-section{{#unless stonetop.edit.improvements}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="improvements">
+	{{> "stonetop.steading-section-toggle" section="improvements" editing=stonetop.edit.improvements}}
 	<section class="sheet-tab steading-improvements">
 
 		<p class="steading-improvements-intro">
@@ -25,7 +26,7 @@
 						<h4 class="steading-improvement-title">{{label}}{{#if custom}} <span class="steading-improvement-custom-tag">added</span>{{/if}}</h4>
 						<p class="steading-improvement-flavor">{{flavor}}</p>
 					</div>
-					{{#if (and custom @root.stonetop.editMode)}}
+					{{#if (and custom @root.stonetop.edit.improvements)}}
 					<button type="button" class="steading-improvement-remove" data-slug="{{slug}}"
 					        data-tooltip="Remove this added improvement" data-tooltip-direction="UP">
 						<i class="fas fa-trash"></i>

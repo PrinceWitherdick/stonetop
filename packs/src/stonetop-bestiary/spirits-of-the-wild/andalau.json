@@ -1,7 +1,7 @@
 {
   "name": "Andalau",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.webp",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.webp"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
     }
   },
   "items": [

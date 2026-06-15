@@ -213,11 +213,14 @@
 
 	{{#if stonetop.inventory.possessions}}
 	<div class="tab-section tab-section--possessions">
-		{{#if stonetop.editMode}}
-		{{> "stonetop.section-heading" title=(localize "stonetop.character.gear.specialPossessions") note=stonetop.inventory.possessions.pickNote}}
-		{{else}}
-		{{> "stonetop.section-heading" title=(localize "stonetop.character.gear.specialPossessions")}}
-		{{/if}}
+		<div class="stonetop-details-heading-row">
+			{{#if stonetop.possessionsEdit}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.character.gear.specialPossessions") note=stonetop.inventory.possessions.pickNote}}
+			{{else}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.character.gear.specialPossessions")}}
+			{{/if}}
+			{{> "stonetop.details-section-edit-toggle" section="possessions" editing=stonetop.possessionsEdit}}
+		</div>
 		<ol class="stonetop-possession-list">
 		{{#each stonetop.inventory.possessions.items}}
 			<li class="stonetop-item{{#if checked}} is-checked{{/if}}">
@@ -225,7 +228,7 @@
 					<input type="checkbox" class="stonetop-item-check stonetop-possession-check"
 					       data-slug="{{slug}}"
 					       {{#if checked}}checked{{/if}}
-					       {{#if disabled}}disabled{{/if}}>
+					       {{#if (or disabled (not @root.stonetop.possessionsEdit))}}disabled{{/if}}>
 					<strong class="stonetop-item-name">{{{label}}}</strong>
 					{{#if preselectedSource}}<span class="stonetop-item-source">{{preselectedSource}}</span>{{/if}}
 					{{#if (and checked resource)}}
@@ -247,7 +250,7 @@
 							       data-possession-slug="{{../slug}}"
 							       data-choice-slug="{{slug}}"
 							       {{#if checked}}checked{{/if}}
-							       {{#if disabled}}disabled{{/if}}>
+							       {{#if (or disabled (not @root.stonetop.possessionsEdit))}}disabled{{/if}}>
 							{{{label}}}
 						</label>
 						{{#if (and checked resource)}}

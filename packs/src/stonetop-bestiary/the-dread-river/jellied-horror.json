@@ -1,7 +1,7 @@
 {
   "name": "Jellied Horror",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.webp",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.webp"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg"
     }
   },
   "items": [
