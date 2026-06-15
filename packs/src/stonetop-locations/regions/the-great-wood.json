@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "Stonetop sits on a bluff overlooking the Great Wood, which stretches hundreds of miles to the east."
+      "summary": "Stonetop sits on a bluff overlooking the Great Wood, which stretches hundreds of miles to the east. Few villagers dare to even cross the Stream that flows near the base of the bluff. Hunters, trappers, and foragers go deeper, but even they venture a day or two into the forest at most."
     }
   },
   "folder": "qblzH1yVdmFswlSD",
@@ -147,7 +147,7 @@
               },
               {
                 "heading": "Monsters",
-                "body": "<ul><li>Crinwin</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong></li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6v0jqH7HrNvALpjS]{Spirits of the Wild}</strong></li><li>Chimerae and other remnants of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VosjScKksp5B3hsc]{Green Lords}</strong></li><li>Servants of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lB57gclVP4TiOIRb]{Fomoraij}</strong></li><li>The ghosts or revenants of those who died in the Wood, like the Gwraig Wen</li><li>A copse of dool trees and its resident spirits</li></ul><ul><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{The Pale Hunter}</strong> and his hounds</li></ul><ul><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.UEQE5cKRurhX9gCE]{The Crombil}</strong>, should it wake</li><li>One of the many beasts that inhabit the Wood</li></ul>"
+                "body": "<ul><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ttz6Fnr2M0HNfIre]{Crinwin}</strong></li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong></li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6v0jqH7HrNvALpjS]{Spirits of the Wild}</strong></li><li>Chimerae and other remnants of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VosjScKksp5B3hsc]{Green Lords}</strong></li><li>Servants of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lB57gclVP4TiOIRb]{Fomoraij}</strong></li><li>The ghosts or revenants of those who died in the Wood, like the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.i74FkC9ROlheQBIF]{Gwraig Wen}</strong></li><li>A copse of dool trees and its resident spirits</li></ul><ul><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{The Pale Hunter}</strong> and his hounds</li></ul><ul><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.UEQE5cKRurhX9gCE]{The Crombil}</strong>, should it wake</li><li>One of the many beasts that inhabit the Wood</li></ul>"
               }
             ]
           }

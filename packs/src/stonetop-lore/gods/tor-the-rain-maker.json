@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "Tor, the Rain-maker, also called the Thunderhead and Slayer-of-Beasts, is one of the gods in Stonetop ’s pavilion of the gods."
+      "summary": "Tor, the Rain-maker, also called the Thunderhead and Slayer-of-Beasts, is one of the gods in Stonetop ’s pavilion of the gods. He is the god of wind and rain, weather and storms, patron of warriors and hunters too. Many tales are told of his victories, and yes, of his foibles, too."
     }
   },
   "folder": "IIxADXjnF97PXJDg",
@@ -143,7 +143,7 @@
             "groups": [
               {
                 "heading": "Associated entities",
-                "body": "<ul><li>Elemental spirits, especially those of rain, snow, storm, and wind</li><li>Andalau, who love to dance before a storm</li><li>Frythanc and thunder drakes, who rank among Tor’s most honored beasts</li><li>An elemental vortex, especially of lightning or wind</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{The Pale Hunter}</strong>, perhaps, who might be Tor’s child/rival/lover/ etc. or someone whom he cursed</li></ul>"
+                "body": "<ul><li>Elemental spirits, especially those of rain, snow, storm, and wind</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Y6pj88e7QJGdPYJl]{Andalau}</strong>, who love to dance before a storm</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.oAW6aV8Fmw6ZQPX4]{Frythanc}</strong> and thunder drakes, who rank among Tor’s most honored beasts</li><li>An elemental vortex, especially of lightning or wind</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{The Pale Hunter}</strong>, perhaps, who might be Tor’s child/rival/lover/ etc. or someone whom he cursed</li></ul>"
               },
               {
                 "heading": "Harsh weather",

@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "A few minutes from Stonetop , near the base of the bluff, in the Great Wood ."
+      "summary": "A few minutes from Stonetop, near the base of the bluff, in the Great Wood. Wide, shallow, swift, lined with small stones. Folks come here to wash and fetch water, but rarely alone. It's not deep, but it's still a body of water."
     }
   },
   "folder": "CdN6WPlmlLkrCj2Z",
@@ -88,7 +88,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Which of you have encountered the Quiet Twins, the ghostly children who haunt the Stream?",
+                "prompt": "Which of you have encountered the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.SrcFk83C0Gxm7Jwj]{Quiet Twins}**, the ghostly children who haunt the Stream?",
                 "answer": ""
               },
               {
@@ -114,7 +114,7 @@
             "heading": "Hooks",
             "group": "inplay",
             "danger": false,
-            "body": "<ul><li>A dangerous beast takes to watering near town.</li><li>The Stream runs dry, despite ample rains</li><li>Something mysterious (dangerous?) is deposited by the current.</li><li>Haunting songs are heard on misty days; hot-blooded youths are intent on finding the source (an entrancing <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong>, like Blush-of-Dawn, page 112).</li></ul><p>The Quiet Twins appear more frequently, urgently trying to warn of… something.</p>",
+            "body": "<ul><li>A dangerous beast takes to watering near town.</li><li>The Stream runs dry, despite ample rains</li><li>Something mysterious (dangerous?) is deposited by the current.</li><li>Haunting songs are heard on misty days; hot-blooded youths are intent on finding the source (an entrancing <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong>, like <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VT6aaEfcpnSj45t4]{Blush-of-Dawn}</strong>, page 112).</li></ul><p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.SrcFk83C0Gxm7Jwj]{The Quiet Twins}</strong> appear more frequently, urgently trying to warn of… something.</p>",
             "pairs": []
           }
         ]

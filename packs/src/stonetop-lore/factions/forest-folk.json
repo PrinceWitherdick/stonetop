@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "All the tales agree: the Folk were in the Great Wood long before Stonetop was founded."
+      "summary": "All the tales agree: the Folk were in the Great Wood long before Stonetop was founded. They welcomed the newcomers, or at least suffered them, but demanded that villagers never fell a living tree from the Wood."
     }
   },
   "folder": "pCXEbxpjLM9YSG9Q",
@@ -155,7 +155,7 @@
               },
               {
                 "heading": "Opportunists",
-                "body": "<p>Encroaching on territory vacated by the Forest Folk, or growing now that they are no longer kept in check.</p><ul><li>Crinwin</li><li>Beasts of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong></li><li>Hazardous growths and chimerae</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong>, released from old oaths and/or keen to claim new territory</li></ul>"
+                "body": "<p>Encroaching on territory vacated by the Forest Folk, or growing now that they are no longer kept in check.</p><ul><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ttz6Fnr2M0HNfIre]{Crinwin}</strong></li><li>Beasts of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong></li><li>Hazardous growths and chimerae</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong>, released from old oaths and/or keen to claim new territory</li></ul>"
               },
               {
                 "heading": "Spirits",

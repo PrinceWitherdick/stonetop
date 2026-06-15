@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "In the west of the Steplands , in the shadow of the Huffel Peaks , there is a large and placid lake."
+      "summary": "In the west of the Steplands, in the shadow of the Huffel Peaks, there is a large and placid lake. A low ridge surrounds it, and a wide, rocky shore. The Aberzh River flows in from the west. No rivers or streams flow out."
     }
   },
   "folder": "qblzH1yVdmFswlSD",
@@ -89,7 +89,7 @@
             "heading": "Hooks",
             "group": "inplay",
             "danger": false,
-            "body": "<ul><li>Servants of Daagon are roaming further from the lake than usual.</li><li>A thrall of Daagon drags a victim here to sacrifice.</li><li>A deathless one’s tether is hidden near the lake.</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk}</strong> spirit-talkers sing a certain song here every 7 years to keep the lake subdued.</li><li>A dangerous artifact needs to be cast into the Mouth of Daagon.</li><li>Certain NPCs hear a silent song, calling them to Blackwater Lake.</li></ul>",
+            "body": "<ul><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.SmHddXJMWp3niCln]{Servants of Daagon}</strong> are roaming further from the lake than usual.</li><li>A thrall of Daagon drags a victim here to sacrifice.</li><li>A deathless one’s tether is hidden near the lake.</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk}</strong> spirit-talkers sing a certain song here every 7 years to keep the lake subdued.</li><li>A dangerous artifact needs to be cast into the Mouth of Daagon.</li><li>Certain NPCs hear a silent song, calling them to Blackwater Lake.</li></ul>",
             "pairs": []
           },
           {
@@ -134,7 +134,7 @@
               },
               {
                 "heading": "Monsters",
-                "body": "<ul><li>Pypeds or unbound wraiths, desperate and ever-hungry, drawn here by Daagon’s call</li><li>A deathless one, dwelling in or bound to a nearby barrow</li><li>Cultists, sorcerers, or thralls, bearing many gifts and many marks</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk}</strong>, ready to assume the worst about the PCs</li><li>Stone Lord constructs in long-buried ruins, probably damaged, behaving erratically, and/or corrupted</li><li>Hdours, adventurers or antiquarians, answering Daagon’s call</li><li>Any number of corrupted beings or emanations, such as the Hand of Daagon</li></ul>"
+                "body": "<ul><li>Pypeds or unbound wraiths, desperate and ever-hungry, drawn here by Daagon’s call</li><li>A deathless one, dwelling in or bound to a nearby barrow</li><li>Cultists, sorcerers, or thralls, bearing many gifts and many marks</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk}</strong>, ready to assume the worst about the PCs</li><li>Stone Lord constructs in long-buried ruins, probably damaged, behaving erratically, and/or corrupted</li><li>Hdours, adventurers or antiquarians, answering Daagon’s call</li><li>Any number of corrupted beings or emanations, such as the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m46X5auaZwdxphBl]{Hand of Daagon}</strong></li></ul>"
               }
             ]
           }

@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "The Green Lords called this place “the Great White City.” It was a place of beauty, learning, and study."
+      "summary": "The Green Lords called this place “the Great White City.” It was a place of beauty, learning, and study. But when the Fae rebelled, the scholars of Vor Svetelik were tasked with breeding beasts of war. When the Green Lords turned in desperation to the Things Below, the city’s waters fouled and its white trees grew sickly. When other Makers shattered what is now Ferrier’s Fen, this city became the Green Lords’ last refuge and the site of the war’s last battle."
     }
   },
   "folder": "pPuBkcyvgk4zjCYl",
@@ -134,19 +134,15 @@
               },
               {
                 "heading": "The Undying",
-                "body": "<ul><li>Ghosts of mortal soldiers, reenacting ancient battles</li><li>Specters of those subjected to the Green Lords’ most terrible experiments</li><li>Hollow Fae, wounded by iron, abandoned by their fellows</li><li>Wraiths of Green Lords or their mummified servants, their canopic jars destroyed</li><li>Mummies of Green Lords and their servants, safe in their still-standing tombs</li></ul>"
+                "body": "<ul><li>Ghosts of mortal soldiers, reenacting ancient battles</li><li>Specters of those subjected to the Green Lords’ most terrible experiments</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.KgJ8NTJSYfoMhX0Y]{Hollow Fae}</strong>, wounded by iron, abandoned by their fellows</li><li>Wraiths of Green Lords or their mummified servants, their canopic jars destroyed</li><li>Mummies of Green Lords and their servants, safe in their still-standing tombs</li></ul>"
               },
               {
                 "heading": "Chimerae",
-                "body": "<ul><li>Llamudwr, lurking in darksome waters or flitting through the night sky</li><li>Rhagedn, still keeping watch</li><li>Swyn, their entourages in tow, congregating in Vor Svetelik every dozen years</li><li>Zrajedak or some other sort of chimera bred for war, ensnared by Fae magic or still in stasis, waiting to be deployed</li></ul>"
+                "body": "<ul><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.7qfPIuaRwuUPi4nV]{Llamudwr}</strong>, lurking in darksome waters or flitting through the night sky</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.h9ZdkjGYXgOAOhx8]{Rhagedn}</strong>, still keeping watch</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.k9Buk0QDWg2PIIqj]{Swyn}</strong>, their entourages in tow, congregating in Vor Svetelik every dozen years</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.CGPfnYi6Y86dEdE0]{Zrajedak}</strong> or some other sort of chimera bred for war, ensnared by Fae magic or still in stasis, waiting to be deployed</li></ul>"
               },
               {
                 "heading": "Other creatures",
-                "body": "<ul><li>Just about any sort of beast found in the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>, but twisted and mutated</li><li>Crinwin, perhaps doing decidedly un-crinwin things</li><li>The infected servant of a <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lB57gclVP4TiOIRb]{Fomoraij}</strong></li><li>A Fomoraij itself, deep in the undercity.</li></ul>"
-              },
-              {
-                "heading": "Nemurvojak",
-                "body": "<p>When the Fae rebelled, some of the Green Lord’s mortal servants—the ancestors of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{Forest Folk}</strong>—sided with the traitors. But not all. Most remained loyal, or at least too afraid of their masters to risk turning on them.</p><p>Their loyalty, alas, did not save them. At first, the Green Lords would plant demon-seeds in only the bodies of servants who had already fallen. But when they saw just how effective those animated corpses were, well… the Green Lords were nothing if not practical.</p><p>Many of these horrors remain in Vor Svetelik, bound by orders to protect the city or certain sites within. Thank the gods they were not allowed to roam free.</p>"
+                "body": "<ul><li>Just about any sort of beast found in the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>, but twisted and mutated</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ttz6Fnr2M0HNfIre]{Crinwin}</strong>, perhaps doing decidedly un-crinwin things</li><li>The infected servant of a <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lB57gclVP4TiOIRb]{Fomoraij}</strong></li><li>A Fomoraij itself, deep in the undercity.</li></ul><p><strong><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ql4u2UbNBjoTxvBp]{Nemurvojak}</strong></strong></p><p>When the Fae rebelled, some of the Green Lord’s mortal servants—the ancestors of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.wxslMExj4dQkTPfw]{Forest Folk}</strong>—sided with the traitors. But not all. Most remained loyal, or at least too afraid of their masters to risk turning on them.</p><p>Their loyalty, alas, did not save them. At first, the Green Lords would plant demon-seeds in only the bodies of servants who had already fallen. But when they saw just how effective those animated corpses were, well… the Green Lords were nothing if not practical.</p><p>Many of these horrors remain in Vor Svetelik, bound by orders to protect the city or certain sites within. Thank the gods they were not allowed to roam free.</p>"
               },
               {
                 "heading": "Plasmic horror",

@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "Picture a sun-drenched land, a semi-arid climate."
+      "summary": "Picture a sun-drenched land, a semi-arid climate. Roads stretch out between cities and oases. Farmers tend to orchards of figs, dates, and olives. Boundless fields of grain sway in gentle winds."
     }
   },
   "folder": "qblzH1yVdmFswlSD",
@@ -203,7 +203,7 @@
               },
               {
                 "heading": "Invasion",
-                "body": "<p>Threat (affliction) Instinct to subjugate</p><ul><li>A company (200-400 troops) establishes a foothold in the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.apczJSWiu0M5dFrF]{South Manmarch}</strong>, proceeds to subjugate local Hillfolk</li><li>2,000 soldiers march on Marshedge, their council surrenders, Brennan and the Claws flee</li><li>The army invades the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NERZ6p7FNc1pxNWL]{North Manmarch}</strong>, conquering a number of settlements, hillforts</li><li>Remaining Manmarch chiefs surrender; a company of soldiers besieges Gordin’s Delve; another marches on Stonetop and demands surrender</li><li>Impending doom: Stonetop is conquered and a garrison established</li></ul><p>Stakes Can the Hillfolk be united against the southerners? What about the Manmarchers? Will the PCs ally with Brennan?</p>"
+                "body": "<p>Threat (affliction) Instinct to subjugate</p><ul><li>A company (200-400 troops) establishes a foothold in the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.apczJSWiu0M5dFrF]{South Manmarch}</strong>, proceeds to subjugate local Hillfolk</li><li>2,000 soldiers march on Marshedge, their council surrenders, <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rztqfU6X75vkMarl]{Brennan}</strong> and the Claws flee</li><li>The army invades the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NERZ6p7FNc1pxNWL]{North Manmarch}</strong>, conquering a number of settlements, hillforts</li><li>Remaining Manmarch chiefs surrender; a company of soldiers besieges Gordin’s Delve; another marches on Stonetop and demands surrender</li><li>Impending doom: Stonetop is conquered and a garrison established</li></ul><p>Stakes Can the Hillfolk be united against the southerners? What about the Manmarchers? Will the PCs ally with Brennan?</p>"
               }
             ]
           }

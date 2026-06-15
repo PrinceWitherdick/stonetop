@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "The Green Lords damned themselves."
+      "summary": "The Green Lords damned themselves. Oh, they’ll tell you they had no other choice. That their treacherous servants drove them to it. That they knew not the cost. That they were lied to by the Things Below. But, no, they knew what they were doing. They just didn’t care."
     }
   },
   "folder": "pCXEbxpjLM9YSG9Q",
@@ -86,7 +86,7 @@
             "groups": [
               {
                 "heading": "Various creations",
-                "body": "<ul><li>Chimerae, bred for war or sick amusement</li><li>Hazardous growths, protecting the Fomoraij’s lair or extending its influence</li><li>Revenants of chimerae, possessed by dark spirits</li><li>Crinwin, llamudwr, rhagedn, swyn, or zrajedak—but somehow different, somehow worse</li><li>Almost any of the horrors found in <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.76FKkdtTFxWEGIKQ]{Vor Svetelik}</strong></li></ul>"
+                "body": "<ul><li>Chimerae, bred for war or sick amusement</li><li>Hazardous growths, protecting the Fomoraij’s lair or extending its influence</li><li>Revenants of chimerae, possessed by dark spirits</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ttz6Fnr2M0HNfIre]{Crinwin}</strong>, llamudwr, rhagedn, swyn, or zrajedak—but somehow different, somehow worse</li><li>Almost any of the horrors found in <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.76FKkdtTFxWEGIKQ]{Vor Svetelik}</strong></li></ul>"
               },
               {
                 "heading": "Attendant spirits",

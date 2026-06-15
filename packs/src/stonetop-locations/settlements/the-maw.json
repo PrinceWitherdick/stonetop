@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "Folks from elsewhere North Manmarch South Manmarch Hillfolk Lygos or other points south Stonetop Things from the fen Disease Fen blight Fen-trolls Suarachan Brennan Fire Much of Dropoff is…"
+      "summary": "A cave in the Great Wood, a few hours north of Stonetop. No underbrush grows within 30 feet of it, and bones litter the entrance."
     }
   },
   "folder": "pPuBkcyvgk4zjCYl",
@@ -66,7 +66,7 @@
               },
               {
                 "heading": "Things from the fen",
-                "body": "<ul><li>Disease</li><li>Fen blight</li><li>Fen-trolls</li><li>Suarachan</li></ul><ul><li>Brennan</li></ul>"
+                "body": "<ul><li>Disease</li><li>Fen blight</li><li>Fen-trolls</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ylzYCg2AyRVY24Hb]{Suarachan}</strong></li></ul><ul><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rztqfU6X75vkMarl]{Brennan}</strong></li></ul>"
               },
               {
                 "heading": "Fire",

@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "The Dread River is the eastern border of the World’s End."
+      "summary": "The Dread River is the eastern border of the World’s End. It flows down from the Whitefang Mountains, through the North and South Manmarch (pages 282 and 350), fed by numerous creeks and streams along the way."
     }
   },
   "folder": "qblzH1yVdmFswlSD",
@@ -104,7 +104,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Who do you know who once saw the Suileach, the Wurm with Two-Hundred Eyes?",
+                "prompt": "Who do you know who once saw the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Hv4lWQtBLYYJ67Cg]{Suileach}**, the Wurm with Two-Hundred Eyes?",
                 "answer": ""
               },
               {

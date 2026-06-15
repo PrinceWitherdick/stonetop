@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "Size village (~200 souls) Population +0 Prosperity +0 Trade with..."
+      "summary": "Five days north of Stonetop via the Highway, after winding through the Foothills and climbing into the Whitefang Mountains, you’ll come to a pass between two rocky slopes. The pass is blocked by a mighty wall, with dwellings and grander structures on the cliffs above."
     }
   },
   "folder": "pPuBkcyvgk4zjCYl",
@@ -199,7 +199,7 @@
               },
               {
                 "heading": "Folk from elsewhere",
-                "body": "<ul><li>Mammoth herders or valley farmers, here to trade, pay tribute, or seek redress</li><li>An adept, visiting from another fortress-monastery or some cave in the wilds</li><li>A mkhalang, claiming to bring tidings but really just stirring up trouble</li><li>A bandit or criminal from one of the nearby farm valleys, condemned to death, pleading for mercy</li><li>A spirit of the wild, come to visit or debate with the Honored Sages</li><li>A thrall of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong>, here under false pretense, urged to spread chaos and woe</li></ul>"
+                "body": "<ul><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.H4EkNtJ49Mpz9O8a]{Mammoth}</strong> herders or valley farmers, here to trade, pay tribute, or seek redress</li><li>An adept, visiting from another fortress-monastery or some cave in the wilds</li><li>A mkhalang, claiming to bring tidings but really just stirring up trouble</li><li>A bandit or criminal from one of the nearby farm valleys, condemned to death, pleading for mercy</li><li>A spirit of the wild, come to visit or debate with the Honored Sages</li><li>A thrall of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong>, here under false pretense, urged to spread chaos and woe</li></ul>"
               }
             ]
           }

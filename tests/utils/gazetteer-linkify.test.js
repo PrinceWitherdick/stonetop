@@ -41,3 +41,29 @@ describe("linkifyByIndex default (bold)", () => {
 			.toBe("the <strong>@UUID[Compendium.x.JournalEntry.S]{Stream}</strong> feeds the Stream");
 	});
 });
+
+// The creature index (hand-authored journals) is case-insensitive + plural so the
+// real-animal names the book/overview lowercase and pluralize ("cave bears",
+// "cougars") still link, resolving back to the singular record.
+describe("buildNameIndex { caseInsensitive, plural }", () => {
+	const ci = buildNameIndex(
+		[{ slug: "cave-bear", name: "Cave Bear", uuid: "Compendium.x.JournalEntry.B" }],
+		{ caseInsensitive: true, plural: true },
+	);
+
+	it("links a lowercase plural mention back to the singular entry", () => {
+		expect(linkifyByIndex("Hunted by cave bears in winter.", "self", ci))
+			.toBe("Hunted by <strong>@UUID[Compendium.x.JournalEntry.B]{cave bears}</strong> in winter.");
+	});
+
+	it("links a lowercase singular mention", () => {
+		expect(linkifyByIndex("a lone cave bear", "self", ci))
+			.toBe("a lone <strong>@UUID[Compendium.x.JournalEntry.B]{cave bear}</strong>");
+	});
+
+	it("stays case-sensitive and singular by default (no spurious lowercase match)", () => {
+		const cs = buildNameIndex([{ slug: "cave-bear", name: "Cave Bear", uuid: "Compendium.x.JournalEntry.B" }]);
+		expect(linkifyByIndex("Hunted by cave bears in winter.", "self", cs))
+			.toBe("Hunted by cave bears in winter.");
+	});
+});

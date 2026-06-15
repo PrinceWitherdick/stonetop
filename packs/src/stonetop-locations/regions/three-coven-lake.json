@@ -7,7 +7,7 @@
   },
   "flags": {
     "stonetop": {
-      "summary": "Deep in the Steplands lies a large lake, eight miles long by three."
+      "summary": "Deep in the Steplands lies a large lake, eight miles long by three. The waters are murky, often choppy, shallow in some places, in others 100 feet deep."
     }
   },
   "folder": "qblzH1yVdmFswlSD",
@@ -162,11 +162,11 @@
               },
               {
                 "heading": "The restless dead",
-                "body": "<ul><li>A multitude of ghosts, haunting battlefields, mass graves, and sites of more intimate death</li><li>Barrow wights guarding some “royal” tomb</li><li>Phantom riders, still serving their long-dead warlord</li><li>A waterlogged pyped, diving for bones of the drowned</li><li>A small army of Anan Gllo, in stasis, awaiting fresh blood</li><li>Shades bound by old Stone Lord magic</li></ul>"
+                "body": "<ul><li>A multitude of ghosts, haunting battlefields, mass graves, and sites of more intimate death</li><li>Barrow wights guarding some “royal” tomb</li><li>Phantom riders, still serving their long-dead warlord</li><li>A waterlogged pyped, diving for bones of the drowned</li><li>A small army of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5SQHTsAkmgqupgVw]{Anan Gllo}</strong>, in stasis, awaiting fresh blood</li><li>Shades bound by old Stone Lord magic</li></ul>"
               },
               {
                 "heading": "Local wildlife",
-                "body": "<ul><li>Bat swarms, cave bears, grochslons, or kleztigrs, lairing in bluffs or ruins</li><li>Cougars, wolves, or spitting drakes on the hunt or lurking in wait</li><li>Aurochs, boars, horned drakes, or a brawzbedr, foraging or watering at the lake</li><li>Any of the above, corrupted by the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong></li></ul>"
+                "body": "<ul><li>Bat swarms, cave bears, grochslons, or kleztigrs, lairing in bluffs or ruins</li><li>Cougars, wolves, or spitting drakes on the hunt or lurking in wait</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.tx9I3QGe5ldHuhho]{Aurochs}</strong>, boars, horned drakes, or a brawzbedr, foraging or watering at the lake</li><li>Any of the above, corrupted by the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong></li></ul>"
               },
               {
                 "heading": "Other entities",
