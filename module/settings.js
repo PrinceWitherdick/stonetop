@@ -22,6 +22,18 @@ export function registerSettings() {
 		default: false
 	});
 
+	// The system version whose shipped journal content was last rolled into the
+	// world's seeded copies (see hooks/SeedCompendiums.js). When this trails the
+	// running version, the update pass refreshes pristine (un-edited) seeded
+	// journals and records the new version here.
+	game.settings.register("stonetop_pwd", "journalSyncVersion", {
+		name: "Journal Sync Version",
+		scope: "world",
+		config: false,
+		type: String,
+		default: ""
+	});
+
 	game.settings.register("stonetop_pwd", "startupWelcomeShown", {
 		name: "Startup Welcome Shown",
 		scope: "world",

@@ -13,6 +13,10 @@ const BESTIARY_EDIT_SELECTOR = ".stonetop-section-edit, .stonetop-section-done, 
 const PAGE_RICH_FIELDS = CODEX_RICH_FIELDS.filter(f => f.key !== "dangers");
 const PAGE_GROUP_FIELDS = [...CODEX_GROUP_FIELDS, { key: "dangers", outKey: "dangerGroups" }];
 
+// Sections that fall under the "In Play" act banner (Concept/Description/nests stay
+// in the unbannered opening block). Drives whether the banner renders at all.
+const IN_PLAY_KEYS = ["questions", "lore", "hooks", "origins", "discoveries", "dangers", "statBlocks", "notes"];
+
 // Prototype: a bestiary "codex" rendered as a JournalEntryPage instead of an
 // actor. Reuses the actor sheet's shared codex engine wholesale.
 //
@@ -103,6 +107,14 @@ export function createStonetopBestiaryPageSheetClass(Base) {
 			st.open = open;
 			st.editing = editing;
 			st.visible = visible;
+
+			// An "In Play" act banner heads the GM-facing during-play sections (Questions
+			// onward), mirroring the location/lore pages' act headers so the bestiary's
+			// journal TOC nests the same anchor. The opening identity block (Concept,
+			// Description, Lair & Habitat) gets no banner — it sits under the page name,
+			// as "At a Glance" does on location pages. Suppress the banner when none of
+			// its sections render, so a non-owner never sees it orphaned over nothing.
+			st.showInPlayBanner = IN_PLAY_KEYS.some(key => visible[key] || editing[key]);
 
 			return context;
 		}

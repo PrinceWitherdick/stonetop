@@ -1,6 +1,6 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
-import { seedCompendiumJournalsOnce } from "./SeedCompendiums.js";
+import { seedCompendiumJournalsOnce, updateSeededJournalsOnVersionChange } from "./SeedCompendiums.js";
 import { applySheetFont, applySheetFontScale, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -37,6 +37,7 @@ export async function onReady() {
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
 
 	if (game.user.isGM) await seedCompendiumJournalsOnce();
+	if (game.user.isGM) await updateSeededJournalsOnVersionChange();
 	if (game.user.isGM) await _ensureEndOfSessionMacro();
 	if (game.user.isGM) await _ensureIntroductionsMacro();
 	if (game.user.isGM) await _ensureDieOfFateMacro();

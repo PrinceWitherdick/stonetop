@@ -10828,6 +10828,23 @@ input.stonetop-monster-armor-source {
 .stonetop-concept-edit { margin-left: 6px; }
 .stonetop-section-done { color: var(--color-level-success, #2e8b57); opacity: 0.85; }
 
+/* On the journal bestiary sheet, the per-section edit pencil only appears when its
+   section is hovered (matching the character/steading sheets); the done-check stays
+   visible so there's always a way to lock the section back. */
+.stonetop-bestiary-page .stonetop-section-edit,
+.stonetop-bestiary-page .stonetop-concept-edit {
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.stonetop-bestiary-page .stonetop-monster-field:hover .stonetop-section-edit,
+.stonetop-bestiary-page .stonetop-monster-field:hover .stonetop-concept-edit {
+	opacity: 0.5;
+}
+.stonetop-bestiary-page .stonetop-monster-field:hover .stonetop-section-edit:hover,
+.stonetop-bestiary-page .stonetop-monster-field:hover .stonetop-concept-edit:hover {
+	opacity: 1;
+}
+
 /* ── Details-tab per-section edit pencils ─────────────────────────────────
    Each Details section (Background, Instinct, Appearance, Origin, Lore) gets a
    heading row with a pencil/done toggle, like the steading's Residents/Neighbors.
@@ -11015,6 +11032,13 @@ input.stonetop-monster-armor-source {
 .stonetop-bestiary-page .stonetop-monster-rich-text ul:last-child,
 .stonetop-bestiary-page .stonetop-monster-rich-text ol:last-child {
 	margin-bottom: 0;
+}
+/* A rich-text block that opens with a list (e.g. a Dangers entry like "Spirits"
+   with no intro line) must sit snug under its heading, just as a leading <p>
+   does — otherwise the 0.55em above adds a phantom gap the prose entries lack. */
+.stonetop-bestiary-page .stonetop-monster-rich-text > ul:first-child,
+.stonetop-bestiary-page .stonetop-monster-rich-text > ol:first-child {
+	margin-top: 0;
 }
 
 /* Edit mode: let the rich-text editors (Description / Lair / Dangers) grow to fit

@@ -38,6 +38,23 @@
 		</section>
 		{{/if}}
 
+		{{!-- LAIR & HABITAT (rich text) — part of the opening identity block, under Description --}}
+		{{#if (or stonetop.visible.nests stonetop.editing.nests)}}
+		<section class="stonetop-monster-field stonetop-monster-field--full" data-section="nests">
+			{{> "stonetop.bestiary-section-head" key="nests" title=(localize "stonetop.bestiary.nests") inlineOwner=stonetop.inlineOwner open=stonetop.open.nests sub=true}}
+			{{#if stonetop.editing.nests}}
+			<prose-mirror class="stonetop-entry-rich-editor stonetop-monster-rich-editor--full"
+			              data-field="nests" value="{{system.nests}}">{{{stonetop.enrichedNests}}}</prose-mirror>
+			{{else}}
+			<div class="stonetop-monster-readonly-text stonetop-monster-rich-text">{{{stonetop.enrichedNests}}}</div>
+			{{/if}}
+		</section>
+		{{/if}}
+
+		{{!-- IN PLAY act banner — heads the GM-facing during-play sections (Questions
+		     onward), mirroring the location/lore pages' act headers. --}}
+		{{#if stonetop.showInPlayBanner}}<h2 class="stonetop-section-group stonetop-section-group--inplay">In Play</h2>{{/if}}
+
 		{{!-- QUESTIONS & LORE (prompt + answer pairs) --}}
 		{{#each stonetop.qaSections}}
 		{{#if (or (lookup @root.stonetop.visible key) (lookup @root.stonetop.editing key))}}
@@ -97,19 +114,6 @@
 		</section>
 		{{/if}}
 		{{/each}}
-
-		{{!-- LAIR & HABITAT (rich text) — nested under Description, after Origins --}}
-		{{#if (or stonetop.visible.nests stonetop.editing.nests)}}
-		<section class="stonetop-monster-field stonetop-monster-field--full" data-section="nests">
-			{{> "stonetop.bestiary-section-head" key="nests" title=(localize "stonetop.bestiary.nests") inlineOwner=stonetop.inlineOwner open=stonetop.open.nests sub=true}}
-			{{#if stonetop.editing.nests}}
-			<prose-mirror class="stonetop-entry-rich-editor stonetop-monster-rich-editor--full"
-			              data-field="nests" value="{{system.nests}}">{{{stonetop.enrichedNests}}}</prose-mirror>
-			{{else}}
-			<div class="stonetop-monster-readonly-text stonetop-monster-rich-text">{{{stonetop.enrichedNests}}}</div>
-			{{/if}}
-		</section>
-		{{/if}}
 
 		{{!-- DISCOVERIES --}}
 		{{#if (or stonetop.visible.discoveries stonetop.editing.discoveries)}}

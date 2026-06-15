@@ -1,6 +1,7 @@
 import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.js";
+import { makeRewriter, remapPageData, managedHash } from "./journal-sync-core.js";
 
 // On a fresh world, copy the system's "Stonetop" JournalEntry compendium (the
 // gazetteer — Locations, Lore, the bundled Journals, and the bestiary codex) into
@@ -19,10 +20,6 @@ import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.j
 // browsing the seeded journals stays inside the world. Links that target things we
 // do NOT seed — the monster stat-block (Actor) and arcana (Item) compendiums —
 // stay pointed at the compendium, where they live.
-
-// Any @UUID into one of this system's compendiums. We only rewrite the ones whose
-// target we actually imported (i.e. that resolve in `linkMap`); the rest pass through.
-const SYSTEM_LINK = /@UUID\[(Compendium\.stonetop_pwd\.[^\]]+)\]/g;
 
 // The fresh-start orientation journal. Its compendium source is hidden from
 // players (`ownership.default: 0`); once seeded we open up the world copy to
@@ -63,6 +60,12 @@ export async function seedCompendiumJournalsOnce() {
 	}
 
 	await remapCrossLinks(created, linkMap);
+	// Record the baseline fingerprint of each seeded entry (after the link remap, so
+	// it matches what's stored) plus the version it was seeded at. Future loads use
+	// this to tell a pristine entry — safe to refresh to a newer shipped version —
+	// from one the GM has edited. See updateSeededJournalsOnVersionChange.
+	await stampJournalBaselines(created);
+	await setSetting("journalSyncVersion", game.system.version);
 	await openSettingOverviewToPlayers(created);
 
 	// The seeded world journals carry the same `flags.stonetop.summary` as their
@@ -159,37 +162,120 @@ async function openSettingOverviewToPlayers(entries) {
 // the replacer leaves them as compendium links.
 async function remapCrossLinks(entries, linkMap) {
 	if (!linkMap.size) return;
-	const rewrite = str => (typeof str === "string" && str.includes("Compendium.stonetop_pwd."))
-		? str.replace(SYSTEM_LINK, (m, uuid) => { const world = linkMap.get(uuid); return world ? `@UUID[${world}]` : m; })
-		: str;
+	const rewrite = makeRewriter(linkMap);
 	for (const entry of entries) {
 		const updates = [];
 		for (const page of entry.pages ?? []) {
 			// Structured "location" pages keep their cross-links in system.sections
-			// (prose bodies + Q&A), not text.content — rewrite those in place so a
-			// seeded world's links open the world copies, as text pages do below.
-			if (page.type === "location") {
-				const sections = foundry.utils.deepClone(page.system?.sections ?? []);
-				let changed = false;
-				for (const s of sections) {
-					const body = rewrite(s.body);
-					if (body !== s.body) { s.body = body; changed = true; }
-					for (const p of s.pairs ?? []) {
-						const prompt = rewrite(p.prompt), answer = rewrite(p.answer);
-						if (prompt !== p.prompt || answer !== p.answer) { p.prompt = prompt; p.answer = answer; changed = true; }
-					}
-				}
-				if (changed) updates.push({ _id: page.id, "system.sections": sections });
-				continue;
-			}
-			const content = page.text?.content;
-			if (!content || !content.includes("Compendium.stonetop_pwd.")) continue;
-			const rewritten = rewrite(content);
-			if (rewritten !== content) updates.push({ _id: page.id, "text.content": rewritten });
+			// (prose bodies, Q&A, and grouped Dangers), not text.content; text pages in
+			// text.content. `remapPageData` rewrites both in place — clone first, then
+			// only write back the pages it actually changed.
+			const obj = page.toObject();
+			const before = JSON.stringify(page.type === "location" ? obj.system : obj.text);
+			remapPageData(obj, rewrite);
+			const after = JSON.stringify(page.type === "location" ? obj.system : obj.text);
+			if (after === before) continue;
+			updates.push(page.type === "location"
+				? { _id: page.id, "system.sections": obj.system.sections }
+				: { _id: page.id, "text.content": obj.text.content });
 		}
 		if (updates.length) {
 			try { await entry.updateEmbeddedDocuments("JournalEntryPage", updates); }
 			catch (err) { error(`Failed to remap cross-links in "${entry.name}":`, err); }
 		}
+	}
+}
+
+// Stamp each seeded entry with the fingerprint + version of the content we wrote, so
+// later loads can tell a pristine entry from a GM-edited one (see managedHash).
+async function stampJournalBaselines(entries) {
+	const version = game.system.version;
+	for (const entry of entries) {
+		try { await entry.setFlag("stonetop_pwd", "journalSync", { hash: managedHash(entry.toObject()), version }); }
+		catch (err) { error(`Failed to fingerprint seeded journal "${entry.name}":`, err); }
+	}
+}
+
+// compendium-entry uuid → world-entry uuid, drawn from journals already seeded into
+// the world (each stamped with its `compendiumSource`). Mirrors the map the seed
+// builds during import, so the update path rewrites new content's links the same way.
+function buildWorldLinkMap() {
+	const map = new Map();
+	for (const j of game.journal ?? []) {
+		const src = j._stats?.compendiumSource ?? j.flags?.core?.sourceId;
+		if (src && src.startsWith("Compendium.stonetop_pwd.")) map.set(src, j.uuid);
+	}
+	return map;
+}
+
+// On a system-version bump, roll newly-shipped journal content into the world — but
+// only for entries the GM hasn't touched. An entry is "pristine" when its current
+// content fingerprint still equals the baseline we stamped when we last wrote it; a
+// mismatch means the GM edited it, so we leave it and just point them at the
+// compendium for the latest. Pristine entries whose shipped content actually changed
+// are refreshed in place; the rest only have their version stamp bumped.
+//
+// Runs GM-only, once per version (guarded by the `journalSyncVersion` setting). Does
+// nothing until the world has been seeded — fresh installs go through the seed path.
+export async function updateSeededJournalsOnVersionChange() {
+	if (!game.user?.isGM) return;
+	if (!getSetting("seedingComplete")) return;
+	const version = game.system.version;
+	if (getSetting("journalSyncVersion") === version) return;
+
+	const rewrite = makeRewriter(buildWorldLinkMap());
+	const updated = [], skipped = [];
+
+	for (const entry of game.journal ?? []) {
+		const src = entry._stats?.compendiumSource ?? entry.flags?.core?.sourceId;
+		if (!src || !src.startsWith("Compendium.stonetop_pwd.")) continue;
+		const source = await fromUuid(src);
+		if (!source) continue; // entry dropped from the pack this version — leave the world copy
+
+		const worldHash = managedHash(entry.toObject());
+		const baseline = entry.getFlag("stonetop_pwd", "journalSync");
+		// GM-edited: fingerprint drifted from what we last wrote. Hands off.
+		if (baseline?.hash && baseline.hash !== worldHash) { skipped.push(entry.name); continue; }
+
+		// The newly-shipped content, with its links remapped to this world's copies.
+		const srcData = source.toObject();
+		const newPages = (srcData.pages ?? []).map(p => remapPageData(p, rewrite));
+		const newHash = managedHash({ pages: newPages });
+
+		// No baseline yet (seeded before this feature shipped): only adopt one if the
+		// world copy still matches the shipped content — otherwise we can't tell an edit
+		// from version drift, so we never risk clobbering it.
+		if (!baseline?.hash) {
+			if (worldHash === newHash) await entry.setFlag("stonetop_pwd", "journalSync", { hash: newHash, version });
+			else skipped.push(entry.name);
+			continue;
+		}
+
+		// Pristine. If the shipped content is unchanged, just bump the version stamp.
+		if (newHash === worldHash) { await entry.setFlag("stonetop_pwd", "journalSync", { hash: newHash, version }); continue; }
+
+		// Pristine and the shipped version differs → refresh the entry's pages in place.
+		try {
+			const oldPageIds = entry.pages.map(p => p.id);
+			await entry.createEmbeddedDocuments("JournalEntryPage", newPages.map(({ _id, ...rest }) => rest), { keepId: false });
+			if (oldPageIds.length) await entry.deleteEmbeddedDocuments("JournalEntryPage", oldPageIds);
+			if (entry.name !== srcData.name) await entry.update({ name: srcData.name });
+			await entry.setFlag("stonetop_pwd", "journalSync", { hash: newHash, version });
+			updated.push(entry.name);
+		} catch (err) {
+			error(`Failed to refresh seeded journal "${entry.name}":`, err);
+			skipped.push(entry.name);
+		}
+	}
+
+	await setSetting("journalSyncVersion", version);
+
+	if (updated.length || skipped.length) {
+		invalidateLocationSummaryIndex(); // links/summaries may have moved
+		const parts = [];
+		if (updated.length) parts.push(`updated ${updated.length} journal${updated.length === 1 ? "" : "s"}`);
+		if (skipped.length) parts.push(`kept your edits in ${skipped.length} (latest is in the compendium)`);
+		ui.notifications?.info(`Stonetop: ${parts.join("; ")}.`);
+		info(`Journal sync → v${version}. Updated: [${updated.join(", ")}]. Skipped (edited): [${skipped.join(", ")}].`);
 	}
 }
