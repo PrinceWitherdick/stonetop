@@ -141,7 +141,7 @@ Hooks.once("init", () => {
 		label:       "Stonetop Monster Sheet",
 	});
 
-	// PROTOTYPE: bestiary entry as a custom JournalEntryPage subtype.
+	// Bestiary entry as a custom JournalEntryPage subtype.
 	CONFIG.JournalEntryPage.dataModels ??= {};
 	CONFIG.JournalEntryPage.dataModels["bestiary"] = BestiaryPageModel;
 	const JournalPageSheetV1 = foundry.appv1?.sheets?.JournalPageSheet ?? globalThis.JournalPageSheet;
