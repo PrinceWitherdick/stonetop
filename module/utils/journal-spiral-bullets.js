@@ -52,6 +52,25 @@ function isStonetopProseJournal(entry, page) {
 }
 
 /**
+ * Apply this system's prose spiral-bullet treatment to a single rendered prose
+ * element: the spiral icon for bullets, the question-spiral on items that pose a
+ * question, and the checkbox marker on requirement/option check-lists. The
+ * `.stonetop-journal-body` class supplies the spiral CSS (a currentColor mask, so
+ * it adapts to the surrounding text colour); the two mark passes add the
+ * `question-bullet` / `check-bullet` classes that swap the icon. Idempotent.
+ *
+ * Used by the journal render pass below, and by the prose dialogs (Setting
+ * Overview, Level-Up) that render the same kind of content outside a journal.
+ * @param {HTMLElement} el
+ */
+export function markProseSpiralBullets(el) {
+	if (!el?.classList) return;
+	el.classList.add("stonetop-journal-body");
+	markQuestionBullets(el);
+	markCheckBullets(el);
+}
+
+/**
  * Mark the prose of a rendered Stonetop journal so its bullet lists use the
  * spiral icon, and the question-spiral on items that end in "?". Idempotent;
  * safe to run on every journal render hook.
@@ -70,8 +89,6 @@ export function applyJournalSpiralBullets(app, html) {
 		// The bestiary's custom page sheet also uses `.journal-page-content`; never
 		// restyle it (it has its own, differently-classed lists).
 		if (section.closest(".stonetop-bestiary-page")) continue;
-		section.classList.add("stonetop-journal-body");
-		markQuestionBullets(section);
-		markCheckBullets(section);
+		markProseSpiralBullets(section);
 	}
 }

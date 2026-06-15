@@ -1,5 +1,6 @@
 import { applyGearTermTooltips } from "../utils/gear-term-tooltips.js";
 import { wrapStonetopGlyphsInEl } from "../utils/glyphs.js";
+import { markProseSpiralBullets } from "../utils/journal-spiral-bullets.js";
 
 export class SettingOverviewDialog extends Application {
 	constructor(options = {}) {
@@ -32,6 +33,8 @@ export class SettingOverviewDialog extends Application {
 		super.activateListeners(html);
 		const entryBody = html.find(".stonetop-so-entry-body")[0];
 		if (entryBody) {
+			// Spiral / question-spiral / checkbox bullets, matching the journals.
+			markProseSpiralBullets(entryBody);
 			wrapStonetopGlyphsInEl(entryBody);
 			applyGearTermTooltips(entryBody);
 		}

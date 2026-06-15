@@ -109,6 +109,34 @@
 	   journal card and the custom-improvement card it becomes on the sheet. */
 	--stonetop-improvement-accent: #7a5c2e;
 
+	/* ── Shared type scale ────────────────────────────────────────────────
+	   Relative (em) steps so they scale with the sheet font setting through the
+	   cascade. Use these instead of ad-hoc em sizes so windows stay consistent.
+	   1em (body), 0.62/0.68em (micro) and the display sizes (1.6/2.2em) stay raw. */
+	--st-fs-2xs:  0.72em;  /* micro labels / tags */
+	--st-fs-xs:   0.78em;  /* meta / captions / footnotes / dense labels */
+	--st-fs-sm:   0.85em;  /* secondary / compact body */
+	--st-fs-base: 0.9em;   /* default sub-body */
+	--st-fs-md:   0.95em;  /* near-body emphasis */
+	--st-fs-lg:   1.1em;   /* sub-headings */
+	--st-fs-xl:   1.25em;  /* headings */
+
+	/* ── Text greyscale ramp ──────────────────────────────────────────────
+	   The neutral text greys; replaces the #222/#333/#444/#555/#666/#777/#888/
+	   #999/#aaa sprawl. Cool-grey accents and #fff are intentionally separate. */
+	--st-text:           #222;  /* primary / emphasis */
+	--st-text-body:      #333;  /* body */
+	--st-text-secondary: #555;  /* secondary */
+	--st-text-muted:     #777;  /* muted / captions */
+	--st-text-faint:     #999;  /* faint / disabled */
+
+	/* ── Corner radii ─────────────────────────────────────────────────────
+	   One default radius and its small/large companions; 50% and pill (999px)
+	   stay literal. */
+	--st-radius-sm: 3px;
+	--st-radius:    4px;
+	--st-radius-lg: 6px;
+
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
 
@@ -239,7 +267,7 @@ body,
 
 .tab-section--possessions .stonetop-item-description .stonetop-glyph {
 	display: inline-block;
-	font-size: 1.2em;
+	font-size: var(--st-fs-xl);
 	line-height: 1;
 	vertical-align: -0.04em;
 }
@@ -288,7 +316,7 @@ body,
 .app,
 .window-app,
 #controls ol.control-tools>li {
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	box-shadow: 2px 4px 8px 2px rgba(0, 0, 0, 0.4);
 }
 
@@ -362,7 +390,7 @@ body,
 }
 
 .sheet-attributes-top .cell--attributes-top .cell .cell__title {
-	font-size: 0.7em;
+	font-size: var(--st-fs-2xs);
 	text-transform: uppercase;
 	font-weight: bold;
 	text-decoration: underline;
@@ -404,7 +432,7 @@ body,
 	min-width: 0;
 	text-align: center;
 	border: 1px solid #aaa;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: transparent;
 	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 	padding: 2px 8px;
@@ -445,7 +473,7 @@ body,
 	width: 100%;
 	text-align: center;
 	border: 1px solid #aaa;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: transparent;
 	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 	padding: 2px 8px;
@@ -476,7 +504,7 @@ body,
 	width: 100%;
 	text-align: center;
 	border: 1px solid #aaa;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: transparent;
 	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 	padding: 2px 8px;
@@ -602,7 +630,7 @@ input.stonetop-name-field {
 	justify-content: center !important;
 	gap: 2px;
 	padding: 2px;
-	color: #1a1a1a !important;
+	color: var(--st-text) !important;
 	flex: 1 !important;
 	border-radius: 0 !important;
 	background: transparent !important;
@@ -619,12 +647,12 @@ input.stonetop-name-field {
 	width: 44px !important;
 	height: 44px !important;
 	min-width: 44px !important;
-	border-radius: 4px !important;
+	border-radius: var(--st-radius) !important;
 	border: 2px solid #555 !important;
 	text-align: center;
 	padding: 0 !important;
 	background: transparent !important;
-	color: #1a1a1a !important;
+	color: var(--st-text) !important;
 	font-size: calc(1.1rem * var(--stonetop-font-scale, 1));
 	line-height: 42px;
 	flex-shrink: 0;
@@ -686,7 +714,7 @@ input.stonetop-name-field {
 	font-variant: small-caps;
 	font-size: calc(0.82rem * var(--stonetop-font-scale, 1)) !important;
 	font-weight: bold;
-	color: #1a1a1a !important;
+	color: var(--st-text) !important;
 	text-align: center !important;
 	padding: 0 !important;
 	margin: 0 !important;
@@ -703,7 +731,7 @@ input.stonetop-name-field {
 }
 
 .pbta.sheet .sheet-attributes .cell--stats .stat-icon {
-	color: #1a1a1a !important;
+	color: var(--st-text) !important;
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1)) !important;
 	line-height: 1;
 	flex-shrink: 0;
@@ -1110,7 +1138,7 @@ input.stonetop-name-field {
 	gap: 10px;
 	padding: 8px;
 	border: 1px solid transparent;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 }
 
@@ -1218,7 +1246,7 @@ input.stonetop-name-field {
 .origin-option {
 	padding: 8px;
 	border: 1px solid transparent;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 }
 
@@ -1260,7 +1288,7 @@ input.stonetop-name-field {
 .origin-name {
 	background: none;
 	border: 1px solid var(--color-border-light-2);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	padding: 2px 6px;
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	cursor: pointer;
@@ -1351,7 +1379,7 @@ input.stonetop-name-field {
 	align-items: center;
 	gap: 5px;
 	padding: 2px 4px;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	cursor: pointer;
 	white-space: nowrap;
 }
@@ -1380,7 +1408,7 @@ input.stonetop-name-field {
 	align-items: center;
 	justify-content: flex-start;
 	gap: 5px;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	padding: 2px 4px 2px 0;
 	margin: 0;
 	cursor: pointer;
@@ -1412,9 +1440,9 @@ input.stonetop-name-field {
 	background: #1f1f1f;
 	color: #e8e0d0;
 	border: 1px solid #555;
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	padding: 10px 13px;
-	font-size: 0.8rem;
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
 	line-height: 1.5;
 	pointer-events: none;
 	z-index: 9999;
@@ -1422,7 +1450,7 @@ input.stonetop-name-field {
 }
 .stonetop-basic-move-panel-name {
 	display: block;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	font-weight: bold;
 	letter-spacing: 0.03em;
 	border-bottom: 1px solid rgba(255, 255, 255, 0.2);
@@ -1459,9 +1487,9 @@ input.stonetop-name-field {
 	border: 1px solid rgba(100,116,139,0.35);
 	border-radius: 999px;
 	background: hsl(210 12% 92%);
-	color: #333;
+	color: var(--st-text-body);
 	font-family: var(--font-stonetop);
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	font-weight: 700;
 	font-style: normal;
 	line-height: 1.2;
@@ -1479,7 +1507,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-section-note {
-	font-size: 0.7em;
+	font-size: var(--st-fs-2xs);
 	font-style: italic;
 	font-weight: normal;
 	color: var(--color-text-dark-secondary);
@@ -1622,14 +1650,14 @@ input.stonetop-name-field {
 	min-width: 44px;
 	height: 20px;
 	font-family: var(--font-stonetop);
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	padding: 0 2px;
 }
 /* "(level N)" recorded per mark; a compact editable number in edit mode. */
 .stonetop-move-mark-level-text,
 .stonetop-move-mark-level-wrap {
 	font-family: var(--font-stonetop);
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
 }
@@ -1670,7 +1698,7 @@ input.stonetop-name-field {
 .stonetop-move-roll-chip {
 	padding: 1px 6px;
 	border: 1px solid var(--color-text-dark-secondary);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
 	line-height: 1.2;
 	color: var(--color-text-dark-secondary);
@@ -1770,7 +1798,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
    and a tinted description block. */
 
 :is(#chat, #chat-notifications) .message .stonetop-chat-move {
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	overflow: hidden;
 }
 
@@ -1789,7 +1817,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 :is(#chat, #chat-notifications) .message .stonetop-chat-move-description {
 	font-size: var(--font-size-12);
 	line-height: 1.5;
-	color: #333;
+	color: var(--st-text-body);
 	padding: 8px;
 }
 :is(#chat, #chat-notifications) .message .stonetop-chat-move-description p { margin: 0 0 4px; }
@@ -1820,12 +1848,12 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	border: 1px solid rgba(0,0,0,0.2);
 	border-radius: 50%;
 	background: rgba(0,0,0,0.06);
-	color: #555;
+	color: var(--st-text-secondary);
 	font-size: var(--font-size-11);
 	cursor: pointer;
 	line-height: 1;
 }
-.stonetop-roll-card-desc-toggle:hover { background: rgba(0,0,0,0.12); color: #222; }
+.stonetop-roll-card-desc-toggle:hover { background: rgba(0,0,0,0.12); color: var(--st-text); }
 
 /* When the global body class is active (user setting off), show the button and hide descriptions. */
 body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .stonetop-roll-card-desc-toggle {
@@ -1842,7 +1870,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description {
 	font-size: var(--font-size-12);
-	color: #333;
+	color: var(--st-text-body);
 	padding: 6px 8px;
 	border-bottom: 1px solid rgba(0,0,0,0.08);
 }
@@ -1871,7 +1899,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: center;
 	gap: 10px;
 	padding: 6px 10px;
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	border-left: 5px solid currentColor;
 	margin: 0 0 8px;
 }
@@ -1890,11 +1918,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	list-style: none;
 	margin: 0;
 	padding: 0;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 }
 .stonetop-fate-legend-row {
 	padding: 2px 6px;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	opacity: 0.65;
 }
 .stonetop-fate-legend-row strong { display: inline-block; min-width: 2.6em; }
@@ -1964,10 +1992,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 :is(#chat, #chat-notifications) .message:has(.stonetop-startup-card),
 :is(#chat, #chat-notifications) .message:has(.stonetop-chat-move) {
 	background: var(--stonetop-bg, #f0ece3) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp) center / cover;
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	border-width: 1px;
 	border-bottom-width: 2px;
-	font-family: "Roboto", sans-serif;
+	font-family: var(--font-stonetop);
 	font-size: var(--font-size-13);
 }
 
@@ -1988,7 +2016,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .cell__subtitle {
-	font-family: "Roboto Condensed", sans-serif;
+	font-family: var(--font-stonetop);
 	font-size: var(--font-size-11);
 	font-weight: bold;
 	text-transform: uppercase;
@@ -2008,7 +2036,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .card-content .row {
 	background: rgba(0, 0, 0, 0.05);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	padding: 3px 6px;
 	margin: 0;
 }
@@ -2022,7 +2050,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: var(--font-size-18);
 	font-weight: bold;
 	border: 1px solid rgba(159, 146, 117, 0.5);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	margin: 0;
 	padding: 8px;
 	background: rgba(159, 146, 117, 0.1);
@@ -2082,14 +2110,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button {
-	font-family: "Roboto", sans-serif;
+	font-family: var(--font-stonetop);
 	font-size: var(--font-size-11);
 	font-weight: bold;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	background: rgba(159, 146, 117, 0.12);
 	border: 1px solid rgba(159, 146, 117, 0.5);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	padding: 4px 8px;
 	box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
 	color: inherit;
@@ -2208,7 +2236,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	-webkit-appearance: none !important;
 	width: 14px;
 	height: 14px;
-	border-radius: 2px !important;
+	border-radius: var(--st-radius-sm) !important;
 	border: 2px solid var(--color-text-dark-primary) !important;
 	background: transparent !important;
 	cursor: pointer;
@@ -2390,7 +2418,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-left: auto;
 	color: var(--color-text-dark-secondary);
 	cursor: pointer;
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 }
 
 .stonetop-item:hover .stonetop-other-move-delete {
@@ -2414,11 +2442,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: center;
 	gap: 4px;
 	margin: 1px 0;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 }
 
 /* Small items live in the narrow (half-width) column; keep each on a single line. */
-.stonetop-inv-item.stonetop-inv-small { font-size: 0.8em; }
+.stonetop-inv-item.stonetop-inv-small { font-size: var(--st-fs-xs); }
 .stonetop-inv-item.stonetop-inv-small .stonetop-inv-label { white-space: nowrap; }
 
 .stonetop-inv-diamonds {
@@ -2491,7 +2519,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-inv-resource-btn.stonetop-inventory-resource-btn.is-checked { background-color: var(--color-text-dark-primary) !important; }
 
 .stonetop-inv-resource-label {
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 	margin-left: 1px;
 }
 
@@ -2525,7 +2553,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-left: auto;
 	color: var(--color-text-dark-secondary);
 	cursor: pointer;
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 }
 
 .stonetop-inv-item:hover .stonetop-inv-delete,
@@ -2533,7 +2561,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-inv-add-btn,
 .stonetop-add-special-btn {
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	padding: 1px 6px;
 	margin-top: 4px;
 	cursor: pointer;
@@ -2549,14 +2577,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Add Special Item picker */
 .stonetop-special-picker { padding: 4px 2px; }
-.stonetop-special-picker-intro { font-size: 0.85em; color: var(--color-text-dark-secondary); margin: 0 0 8px; }
+.stonetop-special-picker-intro { font-size: var(--st-fs-sm); color: var(--color-text-dark-secondary); margin: 0 0 8px; }
 .stonetop-special-picker-cols { display: flex; gap: 18px; align-items: flex-start; }
 .stonetop-special-picker-col { flex: 1; min-width: 0; }
 .stonetop-special-picker-head {
 	display: flex;
 	justify-content: space-between;
 	font-family: var(--font-stonetop);
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	color: var(--color-text-dark-secondary);
@@ -2566,7 +2594,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-special-picker-head-value { width: 40px; text-align: center; flex: 0 0 40px; }
 .stonetop-special-picker-cat {
 	font-family: var(--font-stonetop);
-	font-size: 0.95em;
+	font-size: var(--st-fs-md);
 	margin: 8px 0 2px;
 	border-bottom: 1px solid var(--color-border-light, #ccc);
 }
@@ -2578,7 +2606,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	text-align: left;
 	background: transparent;
 	border: 1px solid transparent;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	padding: 1px 6px;
 	line-height: 1.25;
 	cursor: pointer;
@@ -2601,16 +2629,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	opacity: 0.6;
 	filter: invert(1);
 }
-.stonetop-special-picker-footnote { font-size: 0.78em; color: var(--color-text-dark-secondary); margin: 10px 0 0; }
+.stonetop-special-picker-footnote { font-size: var(--st-fs-xs); color: var(--color-text-dark-secondary); margin: 10px 0 0; }
 .stonetop-special-picker-actions { margin-top: 12px; text-align: right; }
 
 /* Requisition picker (player-side: steading assets + Fortunes roll) */
-.stonetop-requisition-picker { padding: 4px 2px; font-size: 0.9em; }
+.stonetop-requisition-picker { padding: 4px 2px; font-size: var(--st-fs-base); }
 .stonetop-requisition-trigger { font-style: italic; color: var(--color-text-dark-secondary); margin: 0 0 10px; }
 .stonetop-requisition-roll {
 	background: rgba(0, 0, 0, 0.04);
 	border: 1px solid rgba(0, 0, 0, 0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 	margin-bottom: 12px;
 }
@@ -2619,7 +2647,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	cursor: pointer;
 	font-weight: bold;
 }
-.stonetop-requisition-results { margin: 8px 0 0; padding-left: 18px; font-size: 0.85em; color: var(--color-text-dark-secondary); }
+.stonetop-requisition-results { margin: 8px 0 0; padding-left: 18px; font-size: var(--st-fs-sm); color: var(--color-text-dark-secondary); }
 .stonetop-requisition-results li { margin: 2px 0; }
 .stonetop-requisition-heading,
 .stonetop-requisition-subheading {
@@ -2628,7 +2656,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-bottom: 1px solid rgba(0, 0, 0, 0.15);
 	padding-bottom: 2px;
 }
-.stonetop-requisition-subheading { font-size: 0.92em; color: var(--color-text-dark-secondary); }
+.stonetop-requisition-subheading { font-size: var(--st-fs-base); color: var(--color-text-dark-secondary); }
 .stonetop-requisition-list { list-style: none; margin: 0; padding: 0; }
 .stonetop-requisition-item {
 	display: flex;
@@ -2640,7 +2668,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-requisition-item-name { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
 .stonetop-requisition-take { flex: 0 0 auto; width: auto; cursor: pointer; white-space: nowrap; }
 .stonetop-requisition-item.is-taken { opacity: 0.55; }
-.stonetop-requisition-taken-by { flex: 0 0 auto; font-size: 0.82em; font-style: italic; color: var(--color-text-dark-secondary); }
+.stonetop-requisition-taken-by { flex: 0 0 auto; font-size: var(--st-fs-sm); font-style: italic; color: var(--color-text-dark-secondary); }
 .stonetop-requisition-empty { font-style: italic; color: var(--color-text-dark-secondary); margin: 6px 0; }
 .stonetop-requisition-actions { margin-top: 12px; text-align: right; }
 
@@ -2684,7 +2712,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* -- Section notes -------------------------------------------- */
 .stonetop-inv-section-note {
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	color: var(--color-text-dark-secondary, #666);
 	margin: 0 0 4px;
 	font-style: italic;
@@ -2704,8 +2732,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 6px 8px;
 	background: rgba(0, 0, 0, 0.05);
 	border: 1px solid rgba(0, 0, 0, 0.15);
-	border-radius: 3px;
-	font-size: 0.9em;
+	border-radius: var(--st-radius-sm);
+	font-size: var(--st-fs-base);
 }
 .stonetop-outfit-heading { font-size: 1em; margin: 0 0 4px; }
 .stonetop-outfit-loads {
@@ -2766,7 +2794,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-regular-pool-btn { pointer-events: none; }
 
 .stonetop-supplies-pool-note {
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	color: var(--color-text-dark-secondary, #666);
 	font-style: italic;
 	margin: 0 0 4px;
@@ -2814,7 +2842,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	flex-direction: column;
 	border: 1px solid var(--color-border-dark);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: #fff;
 	min-height: 260px;
 	position: relative;
@@ -2924,7 +2952,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-arcanum-note {
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	color: var(--color-text-dark-secondary, #666);
 }
 
@@ -2999,13 +3027,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-arcanum-flip-btn {
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 	padding: 2px 8px;
 	flex: 1;
 }
 
 .stonetop-arcanum-delete {
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 	padding: 2px 8px;
 	flex: 1;
 	color: #9b1c1c;
@@ -3031,12 +3059,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-arcanum-unidentified-body p { margin: 0; }
 
 .stonetop-arcanum-identify-btn {
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	padding: 4px 14px;
 	cursor: pointer;
 	background-color: transparent;
 	border: 1px solid var(--color-border-dark);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	font-style: normal;
 }
 
@@ -3140,7 +3168,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-arcanum-resource-title {
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	font-weight: bold;
 	margin-right: 4px;
 }
@@ -3168,7 +3196,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-arcanum-resource-label {
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	color: var(--color-text-dark-secondary, #666);
 	margin-right: 4px;
 }
@@ -3187,12 +3215,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-arcanum-chat-card {
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 }
 
 .stonetop-arcanum-chat-title {
 	margin: 0 0 6px;
-	font-size: 1.1em;
+	font-size: var(--st-fs-lg);
 	border-bottom: 1px solid var(--color-border-dark);
 	padding-bottom: 4px;
 }
@@ -3243,7 +3271,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: auto;
 	padding: 6px 10px;
 	border: 1px solid var(--color-border-dark);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(255, 255, 255, 0.75);
 	color: var(--color-text-dark-primary);
 	font-weight: 700;
@@ -3282,14 +3310,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-lore-description {
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	font-style: normal;
 	margin: 0 0 4px;
 }
 
 .stonetop-lore-continuation-title {
 	margin: 6px 0 4px;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	font-weight: 400;
 	font-style: normal;
 	line-height: 1.35;
@@ -3300,7 +3328,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    question, but lighter than the full-width section heading. */
 .stonetop-lore-continuation-title.stonetop-lore-subheader {
 	font-family: var(--font-stonetop);
-	font-size: 0.98em;
+	font-size: var(--st-fs-md);
 	font-weight: bold;
 }
 
@@ -3318,7 +3346,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex-shrink: 0;
 	object-fit: contain;
 	border: 1px solid var(--color-border-light-2);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.03);
 	cursor: pointer;
 	transition: border-color 0.15s, box-shadow 0.15s;
@@ -3327,13 +3355,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-lore-arcana-name {
 	font-family: var(--font-stonetop);
 	font-weight: bold;
-	font-size: 0.95em;
+	font-size: var(--st-fs-md);
 }
 
 .stonetop-lore-arcana-select {
 	width: 100%;
 	margin: 2px 0;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 }
 
 .stonetop-lore-arcana-card {
@@ -3343,7 +3371,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 1px 0;
 	font-family: var(--font-stonetop);
 	font-weight: bold;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 }
 
 /* Spiral bullet marking a value chosen from the arcana-picker dropdown.
@@ -3437,7 +3465,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-lore-readonly-value,
 .stonetop-bg-choice-readonly {
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	font-style: italic;
 	padding-left: 6px;
 	border-left: 2px solid rgba(0,0,0,0.12);
@@ -3522,7 +3550,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .tab.moves .stonetop-item,
 .stonetop-invocation-card {
 	border: 1px solid var(--color-border-light-2);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
 	padding: 8px 12px;
 }
@@ -3599,7 +3627,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 180px;
 	object-fit: contain;
 	border: 2px solid var(--color-border-dark, #888);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	flex-shrink: 0;
 	align-self: flex-start;
 	cursor: pointer;
@@ -3621,7 +3649,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: inline-flex;
 	align-items: center;
 	min-height: 48px;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	padding: 0;
 	font-size: var(--font-size-display);
 	font-family: var(--font-avara);
@@ -3631,7 +3659,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-instinct-badge {
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	font-style: italic;
 	opacity: 0.75;
 	cursor: default;
@@ -3680,11 +3708,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: center;
 	gap: 8px;
 	padding: 12px 28px;
-	font-size: 1.1em;
+	font-size: var(--st-fs-lg);
 	font-family: inherit;
 	background: var(--stonetop-bg, #f5f0e8);
 	border: 2px solid var(--color-border-dark, #7a7971);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 	color: inherit;
 	transition: background 0.15s, border-color 0.15s;
@@ -3743,7 +3771,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-toggle-thumb i {
 	font-size: 8px;
-	color: #999;
+	color: var(--st-text-faint);
 	transition: color 250ms ease;
 }
 
@@ -3762,6 +3790,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-ledger-window .window-content {
 	overflow: hidden;
 	padding: 0;
+	/* The ledger is a bare Dialog (no `.stonetop` class), so it misses the
+	   `.stonetop .window-content` scale rule — anchor the font-size setting here so
+	   the whole ledger (incl. entry text with no explicit size) tracks it. */
+	font-size: calc(1em * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-ledger-window .dialog-buttons {
@@ -3797,9 +3829,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 24px;
 	padding: 0 8px;
 	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	font-family: var(--font-stonetop);
-	font-size: 13px;
+	font-size: calc(13px * var(--stonetop-font-scale, 1));
 	background: #fff;
 }
 
@@ -3809,9 +3841,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 24px;
 	padding: 0 4px;
 	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	font-family: var(--font-stonetop);
-	font-size: 13px;
+	font-size: calc(13px * var(--stonetop-font-scale, 1));
 	background: #fff;
 	cursor: pointer;
 }
@@ -3856,10 +3888,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: auto;
 	padding: 3px 8px;
 	border: 1px solid #a02020;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: none;
 	color: #a02020;
-	font-size: 12px;
+	font-size: calc(12px * var(--stonetop-font-scale, 1));
 	font-family: var(--font-stonetop);
 	line-height: 1;
 	cursor: pointer;
@@ -3877,7 +3909,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 4px 2px 3px;
 	border-bottom: 1px solid #a02020;
 	color: #2f2a24;
-	font-size: 20px;
+	font-size: calc(20px * var(--stonetop-font-scale, 1));
 	font-weight: 800;
 	letter-spacing: 0;
 	line-height: 1.2;
@@ -3890,7 +3922,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 8px;
 	padding: 8px 10px;
 	border: 1px solid rgba(0,0,0,0.16);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(255,255,255,0.55);
 }
 
@@ -3917,7 +3949,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-ledger-entry-user {
 	margin-top: 3px;
 	color: var(--color-text-dark-secondary, #555);
-	font-size: 12px;
+	font-size: calc(12px * var(--stonetop-font-scale, 1));
 	line-height: 1.25;
 	text-align: left;
 }
@@ -3928,7 +3960,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 12px;
 	margin-top: 2px;
 	color: var(--color-text-dark-secondary, #555);
-	font-size: 11px;
+	font-size: calc(11px * var(--stonetop-font-scale, 1));
 	line-height: 1.2;
 	text-align: left;
 }
@@ -3972,11 +4004,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-inventory-reset-btn {
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	padding: 2px 8px;
 	color: var(--color-text-dark-secondary);
 	border: 1px solid var(--color-border-light-2);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: transparent;
 	cursor: pointer;
 }
@@ -4002,7 +4034,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 8px;
 	padding: 12px 14px;
 	border: 1px solid var(--color-border-light-2);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
 	max-width: 320px;
 }
@@ -4057,7 +4089,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-special-move-locked-hint {
 	margin: 0;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	color: var(--color-text-dark-secondary);
 	font-style: italic;
 	display: flex;
@@ -4093,7 +4125,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .asm-label {
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	font-weight: 600;
 	text-align: right;
 	color: var(--color-text-dark-secondary);
@@ -4104,11 +4136,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .asm-select {
 	width: 100%;
 	height: 28px;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	font-family: inherit;
 	padding: 2px 6px;
 	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: rgba(255,255,255,0.8);
 	transition: border-color 0.1s;
 }
@@ -4146,9 +4178,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	justify-content: center;
 	padding: 0;
 	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	cursor: pointer;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	background: rgba(255,255,255,0.8);
 	color: var(--color-text-dark-secondary);
 	transition: background 0.1s, border-color 0.1s, color 0.1s;
@@ -4183,13 +4215,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-asm-home-info-entry h3 {
 	margin: 0 0 4px;
 	font-family: var(--font-stonetop);
-	font-size: 1.05em;
+	font-size: var(--st-fs-lg);
 	border: none;
 }
 
 .stonetop-asm-home-info-entry p {
 	margin: 0;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 }
 
 .asm-footer {
@@ -4206,9 +4238,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .asm-cancel {
 	padding: 6px 14px;
 	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	cursor: pointer;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	background: rgba(255,255,255,0.8);
 	transition: background 0.1s, border-color 0.1s;
 }
@@ -4256,16 +4288,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-outfit-description {
 	margin: 0;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	line-height: 1.4;
 }
 
 .stonetop-outfit-rule-note {
 	padding: 6px 8px;
 	border: 1px solid var(--color-border-light-2);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.35;
 	color: var(--color-text-dark-secondary);
 }
@@ -4313,9 +4345,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 2px;
 	padding: 6px 8px;
 	border: 1px solid var(--color-border-light-2);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	line-height: 1.3;
 	opacity: 0.5;
 	transition: opacity 120ms ease, background 120ms ease, border-color 120ms ease;
@@ -4329,7 +4361,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-outfit-load-badge {
 	font-weight: bold;
-	font-size: 1.1em;
+	font-size: var(--st-fs-lg);
 }
 
 /* Running weight display */
@@ -4338,7 +4370,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: center;
 	gap: 8px;
 	min-height: 20px;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 }
 
 .stonetop-outfit-diamond-filled {
@@ -4356,7 +4388,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-outfit-weight-count {
 	color: var(--color-text-dark-secondary);
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 }
 
 /* Two-column item layout */
@@ -4379,7 +4411,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-outfit-section-heading {
 	margin: 0 0 4px;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	font-weight: bold;
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
@@ -4391,7 +4423,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-outfit-small-limit {
 	margin: 0 0 4px;
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	color: var(--color-text-dark-secondary, #666);
 }
 
@@ -4401,9 +4433,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: baseline;
 	gap: 4px;
 	margin: 1px 0;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	cursor: pointer;
-	border-radius: 2px;
+	border-radius: var(--st-radius-sm);
 	padding: 1px 2px;
 }
 
@@ -4451,7 +4483,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-outfit-item-note {
 	color: var(--color-text-dark-secondary);
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 }
 
 /* Undefined ◇/□ stepper — reserve carrying capacity without assigning an item. */
@@ -4501,8 +4533,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: #3ba55d;
 	color: #fff;
 	border: 1px solid #2d8049;
-	border-radius: 3px;
-	font-size: 0.9em;
+	border-radius: var(--st-radius-sm);
+	font-size: var(--st-fs-base);
 	cursor: pointer;
 }
 
@@ -4539,7 +4571,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-levelup-intro {
 	margin: 0;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	line-height: 1.45;
 }
 
@@ -4547,9 +4579,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 0;
 	padding: 6px 8px 6px 24px;
 	border: 1px solid var(--color-border-light-2);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.03);
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.35;
 	color: var(--color-text-dark-secondary);
 }
@@ -4565,7 +4597,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 3px;
 	background: rgba(0, 0, 0, 0.03);
 	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	padding: 8px 12px;
 }
 
@@ -4573,7 +4605,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	justify-content: space-between;
 	align-items: baseline;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 }
 
 .stonetop-levelup-summary-row--highlight {
@@ -4592,7 +4624,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-levelup-summary-value {
 	font-family: var(--font-stonetop);
-	font-size: 1.05em;
+	font-size: var(--st-fs-lg);
 }
 
 .stonetop-levelup-summary-value--cost {
@@ -4601,7 +4633,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-levelup-aside {
 	margin: 0;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	border-left: 2px solid #c9a227;
@@ -4613,7 +4645,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	font-size: 0.83em;
+	font-size: var(--st-fs-sm);
 	color: var(--color-text-dark-secondary);
 	cursor: pointer;
 	user-select: none;
@@ -4625,7 +4657,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: center;
 	gap: 8px;
 	margin: 4px 0 2px;
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	color: var(--color-text-dark-secondary);
 	font-style: italic;
 }
@@ -4659,7 +4691,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-levelup-invocation-option {
 	padding: 6px 10px;
 	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 	background: rgba(0, 0, 0, 0.02);
 	transition: background 0.1s, border-color 0.1s;
@@ -4691,14 +4723,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-levelup-move-req {
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	color: var(--color-text-dark-secondary);
 	font-style: italic;
 }
 
 .stonetop-levelup-move-description,
 .stonetop-levelup-invocation-description {
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	color: var(--color-text-dark-secondary);
 	line-height: 1.4;
 	margin-top: 4px;
@@ -4706,7 +4738,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-levelup-empty {
 	margin: 0;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 }
@@ -4726,9 +4758,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 4px 14px;
 	background: transparent;
 	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	cursor: pointer;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 }
 
 .stonetop-levelup-back-btn:hover {
@@ -4741,7 +4773,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: #3ba55d;
 	color: #fff;
 	border: 1px solid #2d8049;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	cursor: pointer;
 }
 
@@ -4780,7 +4812,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .deaths-door-move-name {
 	margin: 0;
-	font-size: 1.2em;
+	font-size: var(--st-fs-xl);
 	font-family: var(--font-stonetop);
 	font-weight: bold;
 }
@@ -4789,7 +4821,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .deaths-door-mechanic-intro,
 .deaths-door-reflection {
 	margin: 0;
-	font-size: 0.95em;
+	font-size: var(--st-fs-md);
 	color: var(--color-text-dark-secondary);
 	line-height: 1.45;
 }
@@ -4803,8 +4835,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: inline-block;
 	padding: 1px 6px;
 	border: 1px solid var(--color-text-dark-secondary);
-	border-radius: 3px;
-	font-size: 0.92em;
+	border-radius: var(--st-radius-sm);
+	font-size: var(--st-fs-base);
 	line-height: 1.2;
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
@@ -4819,7 +4851,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 0 2px;
 	padding: 2px 8px;
 	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(255, 255, 255, 0.8);
 	color: var(--color-text-dark-primary);
 	cursor: pointer;
@@ -4838,13 +4870,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .deaths-door-roll-btn i {
-	font-size: 0.95em;
+	font-size: var(--st-fs-md);
 	color: var(--color-text-dark-secondary);
 }
 
 .deaths-door-result-banner {
 	margin: 0;
-	font-size: 0.95em;
+	font-size: var(--st-fs-md);
 	font-weight: bold;
 	color: var(--color-text-dark-primary);
 }
@@ -4852,10 +4884,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .deaths-door-flavor {
 	padding: 8px 10px;
 	border: 1px solid var(--color-border-light-2);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.03);
 	font-style: italic;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
 }
@@ -4867,7 +4899,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .deaths-door-instruction {
 	margin: 0;
 	font-style: italic;
-	font-size: 0.92em;
+	font-size: var(--st-fs-base);
 	color: var(--color-text-dark-secondary);
 }
 
@@ -4880,7 +4912,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .deaths-door-outcome {
 	padding: 6px 10px;
 	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.02);
 }
 
@@ -4896,8 +4928,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 0 0 4px 0;
 	padding: 1px 6px;
 	border: 1px solid var(--color-text-dark-secondary);
-	border-radius: 3px;
-	font-size: 0.85em;
+	border-radius: var(--st-radius-sm);
+	font-size: var(--st-fs-sm);
 	line-height: 1.2;
 	font-family: var(--font-stonetop);
 	font-weight: bold;
@@ -4906,7 +4938,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .deaths-door-outcome-text {
 	margin: 0;
-	font-size: 0.92em;
+	font-size: var(--st-fs-base);
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
 }
@@ -4914,7 +4946,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .deaths-door-outcome-choices {
 	margin: 6px 0 0 0;
 	padding-left: 18px;
-	font-size: 0.92em;
+	font-size: var(--st-fs-base);
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
 }
@@ -4926,9 +4958,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .deaths-door-notes {
 	padding: 8px 10px;
 	border: 1px solid #c9a227;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(201, 162, 39, 0.12);
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	color: var(--color-text-dark-secondary);
 }
 
@@ -4959,9 +4991,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .deaths-door-cancel-btn {
 	padding: 6px 14px;
 	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	cursor: pointer;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	background: rgba(255, 255, 255, 0.8);
 	transition: background 0.1s, border-color 0.1s;
 }
@@ -5027,7 +5059,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-eos-section-tag {
 	font-family: inherit;
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 	font-weight: normal;
 	color: var(--color-text-dark-secondary);
 	font-style: italic;
@@ -5036,7 +5068,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-eos-personal-list {
 	margin: 0;
 	padding-left: 1.2em;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	line-height: 1.5;
 	color: var(--color-text-dark-primary);
 }
@@ -5057,11 +5089,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 8px;
 	padding: 5px 8px;
 	border: 1px solid var(--color-border-light-primary, #ccc);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 	background: rgba(0, 0, 0, 0.02);
 	transition: background 0.1s, border-color 0.1s;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	line-height: 1.4;
 }
 
@@ -5097,7 +5129,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-eos-xp-tally {
 	margin: 0;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	font-style: italic;
 	color: #3ba55d;
 	font-weight: bold;
@@ -5117,7 +5149,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: #3ba55d;
 	color: #fff;
 	border: 1px solid #2d8049;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	cursor: pointer;
 }
 
@@ -5300,7 +5332,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-moves-sidebar .steading-move-row {
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	padding: 2px 4px;
 	cursor: pointer;
 	font-style: normal;
@@ -5329,7 +5361,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-section-label,
 .steading-stat-label {
 	font-weight: bold;
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	display: block;
@@ -5339,8 +5371,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-stat-label[data-tooltip] { cursor: help; }
 
 .steading-stat-hint {
-	font-size: 0.72em;
-	color: #777;
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-muted);
 	font-style: italic;
 }
 
@@ -5369,7 +5401,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex-direction: column;
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 	gap: 0;
 }
@@ -5467,7 +5499,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-stat-block {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 }
 
@@ -5556,7 +5588,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 18px;
 	flex-shrink: 0;
 	border: 2px solid slategrey;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	cursor: pointer;
 	background: rgba(106, 120, 128, 0.15);
 	transition: background 0.1s;
@@ -5587,19 +5619,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-track-label {
-	font-size: 0.78em;
-	color: #555;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
 	font-weight: bold;
 	min-width: 2ch;
 }
 
 .steading-track-option.is-selected .steading-track-label {
-	color: #222;
+	color: var(--st-text);
 }
 
 .steading-track-sublabel {
 	font-size: 0.68em;
-	color: #888;
+	color: var(--st-text-faint);
 	font-style: italic;
 }
 
@@ -5608,7 +5640,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-surplus-block {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 12px;
 	display: flex;
 	flex-direction: column;
@@ -5624,7 +5656,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: 1.6em;
 	font-weight: bold;
 	border: 2px solid slategrey;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: white;
 }
 
@@ -5638,9 +5670,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: 1.6em;
 	font-weight: bold;
 	border: 2px solid slategrey;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: white;
-	color: #222;
+	color: var(--st-text);
 }
 
 /* Size */
@@ -5665,7 +5697,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	grid-template-columns: 16px auto;
 	align-items: center;
 	gap: 6px;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	cursor: pointer;
 }
 
@@ -5678,7 +5710,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-debilities-section {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 12px;
 }
 
@@ -5734,12 +5766,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-debility-name {
 	font-weight: bold;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 }
 
 .steading-debility-desc {
-	font-size: 0.72em;
-	color: #666;
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-muted);
 	margin-left: 22px;
 }
 
@@ -5748,7 +5780,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-notes-block {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 	display: flex;
 	flex-direction: column;
@@ -5793,7 +5825,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-list-section {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 }
 
@@ -5804,7 +5836,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-list-heading {
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	font-weight: bold;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
@@ -5820,8 +5852,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-style: italic;
 	text-transform: none;
 	letter-spacing: 0;
-	color: #666;
-	font-size: 0.78em;
+	color: var(--st-text-muted);
+	font-size: var(--st-fs-xs);
 	line-height: 1.35;
 }
 
@@ -5870,7 +5902,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-list-name {
 	flex: 1 1 0;
 	min-width: 0;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	padding: 1px 4px;
 	line-height: 1.3;
 	overflow-wrap: anywhere;
@@ -5883,9 +5915,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: none !important;
 	border: none !important;
 	cursor: pointer;
-	color: #aaa;
+	color: var(--st-text-faint);
 	padding: 0 2px;
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 	line-height: 1;
 	opacity: 0;
 }
@@ -5907,10 +5939,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-list-add {
 	background: none;
 	border: 1px dashed rgba(0,0,0,0.25);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
-	font-size: 0.78em;
-	color: #666;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
 	padding: 2px 8px;
 	width: 100%;
 	text-align: left;
@@ -5918,17 +5950,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-list-add:hover {
 	background: rgba(0,0,0,0.05);
-	color: #333;
+	color: var(--st-text-body);
 }
 
 .steading-assets-section {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 }
 
-.steading-asset-name { font-size: 0.8em; }
+.steading-asset-name { font-size: var(--st-fs-xs); }
 
 /* An asset out on requisition: dimmed, struck through, click to return. */
 .steading-list-item.is-taken { opacity: 0.6; }
@@ -5959,7 +5991,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-residents-heading {
 	margin: 0;
-	font-size: 0.95em;
+	font-size: var(--st-fs-md);
 	font-weight: 700;
 	font-family: var(--font-stonetop);
 }
@@ -6008,7 +6040,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-residents-table {
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	overflow: hidden;
 	background: rgba(0,0,0,0.02);
 }
@@ -6021,7 +6053,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-bottom: 2px solid rgba(0,0,0,0.12);
 	padding: 0;
 	font-weight: 700;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
 }
@@ -6063,7 +6095,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 2px;
 	transform: translateX(-50%);
 	background: rgba(0,0,0,0.18);
-	border-radius: 1px;
+	border-radius: var(--st-radius-sm);
 }
 
 .steading-col-resize-handle:hover::after,
@@ -6110,7 +6142,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-resident-input {
 	width: 100%;
 	height: 24px;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	border: 1px solid transparent;
 	background: transparent;
 	padding: 2px 4px;
@@ -6146,7 +6178,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-residents-col-actions .steading-list-delete {
 	padding: 4px;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	opacity: 0.6;
 	transition: opacity 0.1s;
 }
@@ -6170,7 +6202,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex: 1;
 	min-width: 0;
 	font-weight: 700;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -6181,7 +6213,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 24px;
 	flex-shrink: 0;
 	border: 1px solid rgba(0,0,0,0.22);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	object-fit: cover;
 	background: rgba(255,255,255,0.55);
 }
@@ -6196,7 +6228,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-player-empty {
 	margin: 4px 0 0;
 	color: rgba(0,0,0,0.58);
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	font-style: italic;
 }
 
@@ -6219,7 +6251,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-neighbor-input {
 	width: 100%;
 	min-width: 0;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	height: 24px;
 	line-height: 1.2;
 }
@@ -6264,7 +6296,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 8px;
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 }
 
@@ -6289,7 +6321,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-currency-field {
 	position: relative;
 	border: 2px solid var(--color-text-dark-primary, #333);
-	border-radius: 8px;
+	border-radius: var(--st-radius-lg);
 	padding: 5px 8px 4px;
 	display: flex;
 	align-items: center;
@@ -6305,7 +6337,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	transform: translateX(-50%);
 	background: var(--stonetop-bg, #f0ece3);
 	padding: 0 4px;
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 	font-weight: bold;
 	white-space: nowrap;
 	color: var(--color-text-dark-primary);
@@ -6315,7 +6347,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-currency-input {
 	width: 40px;
 	text-align: center;
-	font-size: 1.1em;
+	font-size: var(--st-fs-lg);
 	background: transparent;
 	padding: 2px 0;
 	border: none !important;
@@ -6328,7 +6360,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-places-section {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 }
 
@@ -6347,7 +6379,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-place-letter {
 	font-weight: bold;
-	font-size: 0.7em;
+	font-size: var(--st-fs-2xs);
 	width: 20px;
 	height: 20px;
 	border-radius: 50%;
@@ -6362,7 +6394,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-place-name {
 	flex: 1 1 0 !important;
 	min-width: 0;
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	border: none !important;
 	background: transparent !important;
 	border-bottom: 1px solid rgba(0,0,0,0.18) !important;
@@ -6377,8 +6409,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* -- Improvements tab ------------------------------------------ */
 
 .steading-improvements .steading-improvements-intro {
-	font-size: 0.82em;
-	color: #555;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
 	font-style: italic;
 	margin: 0 0 10px 0;
 }
@@ -6408,7 +6440,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-improvement {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.14);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 	display: flex;
 	flex-direction: column;
@@ -6447,7 +6479,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 16px;
 	height: 16px;
 	border: 2px solid slategrey;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	flex-shrink: 0;
 	cursor: pointer;
 	background: white;
@@ -6465,7 +6497,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-improvement-title {
 	margin: 0;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	font-weight: bold;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
@@ -6473,16 +6505,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-improvement-flavor {
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	font-style: italic;
-	color: #666;
+	color: var(--st-text-muted);
 	margin: 2px 0 0 0;
 }
 
 .steading-improvement-chevron {
 	flex-shrink: 0;
-	font-size: 0.72em;
-	color: #999;
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-faint);
 	padding-top: 3px;
 	transition: transform 0.15s ease;
 }
@@ -6505,7 +6537,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	letter-spacing: 0.06em;
 	color: var(--stonetop-improvement-accent);
 	border: 1px solid var(--stonetop-improvement-accent);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	padding: 0 4px;
 	vertical-align: middle;
 }
@@ -6516,7 +6548,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	line-height: 1;
 	padding: 2px 5px;
 	border: 1px solid rgba(0,0,0,0.18);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: rgba(255,255,255,0.5);
 	color: #8a3a3a;
 	cursor: pointer;
@@ -6548,8 +6580,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-req-heading {
-	font-size: 0.76em;
-	color: #444;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
 	margin: 6px 0 2px 0;
 }
 
@@ -6570,7 +6602,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	align-items: flex-start;
 	gap: 6px;
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	cursor: pointer;
 	line-height: 1.3;
 }
@@ -6581,7 +6613,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 13px;
 	height: 13px;
 	border: 1px solid slategrey;
-	border-radius: 2px;
+	border-radius: var(--st-radius-sm);
 	flex-shrink: 0;
 	margin-top: 1px;
 	cursor: pointer;
@@ -6596,8 +6628,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-top: 8px;
 	padding-top: 6px;
 	border-top: 1px dashed rgba(0,0,0,0.15);
-	font-size: 0.78em;
-	color: #333;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-body);
 	line-height: 1.45;
 	font-style: italic;
 }
@@ -6611,8 +6643,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-moves-tab .steading-moves-intro {
-	font-size: 0.82em;
-	color: #555;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
 	font-style: italic;
 	margin: 0 0 4px 0;
 }
@@ -6626,7 +6658,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-move-card {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.14);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	overflow: hidden;
 }
 
@@ -6668,7 +6700,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-roll-btn,
 .steading-interactive-btn {
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 }
 
 /* -- Seasons Change dialog ------------------------------------- */
@@ -6688,7 +6720,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 6px;
 	padding: 12px 8px;
 	border: 1px solid rgba(0,0,0,0.15);
-	border-radius: 8px;
+	border-radius: var(--st-radius-lg);
 	cursor: pointer;
 	background: rgba(0,0,0,0.03);
 	text-align: center;
@@ -6708,7 +6740,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-season-label {
 	font-weight: bold;
-	font-size: 0.95em;
+	font-size: var(--st-fs-md);
 }
 
 .stonetop-season-flow-header {
@@ -6750,21 +6782,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-seasons-cta {
 	margin: 6px 0 0;
 	font-style: italic;
-	font-size: 0.88em;
-	color: #666;
+	font-size: var(--st-fs-base);
+	color: var(--st-text-muted);
 	border-top: 1px solid rgba(0,0,0,0.08);
 	padding-top: 6px;
 }
 
-.stonetop-season-flow h3 { margin: 0; font-size: 1.1em; }
+.stonetop-season-flow h3 { margin: 0; font-size: var(--st-fs-lg); }
 .stonetop-season-flow p  { margin: 5px 0; }
 .stonetop-season-flow ul { margin: 4px 0; padding-left: 24px; }
 .stonetop-season-flow li { margin: 3px 0; padding-left: 16px; }
 
 .stonetop-season-note {
 	font-style: italic;
-	font-size: 0.84em;
-	color: #555;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
 }
 
 .stonetop-season-actions {
@@ -6780,10 +6812,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: slategrey;
 	color: white;
 	border: none;
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 	text-align: left;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 }
 
 .stonetop-season-btn:hover { background: #556b8b; }
@@ -6796,9 +6828,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-season-gains {
 	margin-top: 12px;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	padding: 4px 10px;
 	background: rgba(0,0,0,0.02);
 }
@@ -6838,7 +6870,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 2px;
 	padding: 8px 10px;
 	border: 1px solid rgba(0,0,0,0.15);
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 	background: rgba(0,0,0,0.03);
 }
@@ -6855,12 +6887,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-disaster-choice-label {
 	font-weight: bold;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 }
 
 .stonetop-disaster-choice-detail {
-	font-size: 0.8em;
-	color: #555;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
 }
 
 /* -- Homestead move dialogs ------------------------------------ */
@@ -6895,19 +6927,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: center;
 	gap: 6px;
 }
-.stonetop-homestead-field--check span { font-weight: normal; font-size: 0.9em; }
+.stonetop-homestead-field--check span { font-weight: normal; font-size: var(--st-fs-base); }
 
 .stonetop-homestead-field span {
 	font-weight: bold;
-	font-size: 0.84em;
-	color: #333;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-body);
 }
 
 .stonetop-homestead-field input,
 .stonetop-homestead-field textarea {
 	width: 100%;
 	border: 1px solid rgba(0,0,0,0.2);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(255,255,255,0.65);
 	padding: 5px 7px;
 	font: inherit;
@@ -6915,10 +6947,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-homestead-reference {
 	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
 	padding: 7px 10px;
-	font-size: 0.86em;
+	font-size: var(--st-fs-sm);
 }
 
 .stonetop-homestead-reference ul {
@@ -6944,7 +6976,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	column-gap: 16px;
 	row-gap: 3px;
 	align-items: start;
-	font-size: 0.96em;
+	font-size: var(--st-fs-md);
 	line-height: 1.35;
 }
 
@@ -6959,8 +6991,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-homestead-note {
 	margin: 0;
 	font-style: italic;
-	font-size: 0.84em;
-	color: #555;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
 }
 
 .stonetop-homestead-chat-list {
@@ -6983,8 +7015,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-move-expand-icon {
-	color: #888;
-	font-size: 0.75em;
+	color: var(--st-text-faint);
+	font-size: var(--st-fs-xs);
 	transition: transform 0.2s;
 }
 
@@ -6995,7 +7027,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-move-body {
 	display: none;
 	padding: 0 12px 10px 12px;
-	font-size: 0.84em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.5;
 	border-top: 1px solid rgba(0,0,0,0.08);
 }
@@ -7015,7 +7047,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Chat roll result styling */
 .steading-roll-result {
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	margin-top: 4px;
 }
 .steading-roll-result.stonetop-roll-success { color: #2d7a2d; }
@@ -7041,11 +7073,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-playbook-picker-setting-overview {
 	padding: 4px 8px;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	font-family: var(--font-stonetop);
 	border: none;
 	background: transparent;
-	color: #888;
+	color: var(--st-text-faint);
 	cursor: pointer;
 	text-decoration: underline;
 	text-underline-offset: 2px;
@@ -7069,7 +7101,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 16px 8px 12px;
 	background: white;
 	border: 2px solid transparent;
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	cursor: pointer;
 	transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
 	box-shadow: 0 1px 4px rgba(0,0,0,0.12);
@@ -7094,10 +7126,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-playbook-picker-card-name {
 	font-family: var(--font-stonetop);
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	font-weight: 600;
 	text-align: center;
-	color: #333;
+	color: var(--st-text-body);
 	line-height: 1.2;
 }
 
@@ -7118,7 +7150,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	max-width: 220px;
 	background: #2a2a2a;
 	color: #f0f0f0;
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 8px 12px;
 	pointer-events: none;
 	font-family: var(--font-stonetop);
@@ -7127,16 +7159,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-playbook-picker-tooltip-complexity {
 	display: block;
-	font-size: 0.7em;
+	font-size: var(--st-fs-2xs);
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
-	color: #aaa;
+	color: var(--st-text-faint);
 	margin-bottom: 4px;
 }
 
 .stonetop-playbook-picker-tooltip-desc {
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.45;
 	margin: 0;
 }
@@ -7181,12 +7213,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 40px;
 	object-fit: contain;
 	flex-shrink: 0;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 }
 
 .stonetop-onboarding-playbook-name {
 	margin: 0;
-	font-size: 1.2em;
+	font-size: var(--st-fs-xl);
 	font-weight: 700;
 	letter-spacing: 0.02em;
 }
@@ -7229,7 +7261,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-onboarding-step-hint {
 	margin: 0 0 10px;
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	color: var(--color-text-dark-secondary, #666);
 	font-style: italic;
 }
@@ -7247,7 +7279,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 8px 10px;
 	background: white;
 	border: 2px solid #ddd;
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 	transition: border-color 0.15s;
 }
@@ -7268,7 +7300,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-card-title {
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
@@ -7278,15 +7310,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-card-inline-desc {
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	color: var(--color-text-dark-secondary, #555);
 }
 
 .stonetop-onboarding-card-desc {
 	margin-top: 4px;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.45;
-	color: #444;
+	color: var(--st-text-secondary);
 }
 
 .stonetop-onboarding-card-desc p { margin: 3px 0; }
@@ -7308,18 +7340,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: center;
 	gap: 8px;
 	margin-top: 10px;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 }
 
-.stonetop-onboarding-custom-label span { white-space: nowrap; color: #666; }
+.stonetop-onboarding-custom-label span { white-space: nowrap; color: var(--st-text-muted); }
 
 .stonetop-onboarding-custom-label input[type="text"],
 .onboard-instinct-custom {
 	flex: 1;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	padding: 3px 7px;
 	border: 1px solid #ccc;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 }
 
 /* ── Appearance ──────────────────────────────────────────────────── */
@@ -7344,7 +7376,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-onboarding-appearance-label {
 	margin: 0;
 	color: var(--color-text-dark-secondary, #555);
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	font-weight: 700;
 	text-transform: uppercase;
 }
@@ -7364,7 +7396,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border: 1.5px solid #ccc;
 	border-radius: 20px;
 	cursor: pointer;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	transition: border-color 0.12s, background 0.12s;
 }
 
@@ -7380,7 +7412,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-appearance-custom {
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	padding: 2px 6px;
 }
 
@@ -7425,7 +7457,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border: 1.5px solid #ccc;
 	border-radius: 20px;
 	cursor: pointer;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	transition: border-color 0.12s, background 0.12s;
 }
 
@@ -7449,7 +7481,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-name-label {
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	font-weight: 600;
 	white-space: nowrap;
 }
@@ -7459,7 +7491,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: 1em;
 	padding: 5px 10px;
 	border: 1.5px solid #ccc;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 }
 
 .onboard-name-input:focus { outline: none; border-color: slategrey; }
@@ -7473,8 +7505,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-onboarding-names-section.is-visible { display: block; }
 
 .stonetop-onboarding-names-label {
-	font-size: 0.78em;
-	color: #777;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
 	margin: 0 0 5px;
 	font-style: italic;
 }
@@ -7484,10 +7516,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-name-group-label {
-	font-size: 0.76em;
+	font-size: var(--st-fs-xs);
 	font-weight: bold;
 	text-transform: uppercase;
-	color: #555;
+	color: var(--st-text-secondary);
 	margin: 0 0 4px;
 }
 
@@ -7499,7 +7531,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .onboard-name-chip {
 	padding: 2px 9px;
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	background: white;
 	border: 1px solid #ccc;
 	border-radius: 20px;
@@ -7545,8 +7577,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	grid-column: 2;
 	justify-self: center;
 	padding: 0 16px;
-	font-size: 0.8em;
-	color: #888;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-faint);
 	pointer-events: none;
 	white-space: nowrap;
 }
@@ -7571,9 +7603,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-onboarding-next,
 .stonetop-onboarding-confirm {
 	padding: 5px 48px;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	font-family: var(--font-stonetop);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 	border: 1.5px solid slategrey;
 	background: transparent;
@@ -7599,9 +7631,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-onboarding-skip {
 	padding: 5px 24px;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	font-family: var(--font-stonetop);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 	border: 1.5px solid #c0392b;
 	background: transparent;
@@ -7633,13 +7665,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 8px 12px;
 	margin-bottom: 14px;
 	background: rgba(100,116,139,0.08);
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 }
 
 .stonetop-onboarding-stats-pool-label {
 	flex: 1 1 100%;
 	text-align: center;
-	font-size: 0.72em;
+	font-size: var(--st-fs-2xs);
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.07em;
@@ -7654,17 +7686,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: auto;
 	min-height: 0;
 	padding: 2px 8px;
-	font-size: 0.72em;
+	font-size: var(--st-fs-2xs);
 	line-height: 1.4;
 	border: 1px solid rgba(100,116,139,0.35);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: white;
-	color: #555;
+	color: var(--st-text-secondary);
 }
 
 .stonetop-onboarding-stats-reset:hover {
 	border-color: slategrey;
-	color: #222;
+	color: var(--st-text);
 }
 
 .stonetop-onboarding-stats-chip {
@@ -7676,7 +7708,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-radius: 999px;
 	background: slategrey;
 	color: #fff;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	font-weight: 700;
 	letter-spacing: 0.03em;
 	cursor: grab;
@@ -7701,7 +7733,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 4px;
 	padding: 8px 6px 6px;
 	border: 2px solid rgba(100,116,139,0.2);
-	border-radius: 8px;
+	border-radius: var(--st-radius-lg);
 	background: #fff;
 	transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
@@ -7717,7 +7749,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-stat-abbr {
-	font-size: 0.7em;
+	font-size: var(--st-fs-2xs);
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
@@ -7727,25 +7759,25 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-onboarding-stat-select {
 	width: 100%;
 	text-align: center;
-	font-size: 1.05em;
+	font-size: var(--st-fs-lg);
 	font-weight: 700;
 	padding: 3px 2px;
 	border: 1px solid rgba(100,116,139,0.3);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: transparent;
 	cursor: pointer;
 }
 
 .stonetop-onboarding-stat-name {
 	font-size: 0.62em;
-	color: #888;
+	color: var(--st-text-faint);
 	text-align: center;
 }
 
 .stonetop-onboarding-stats-error {
 	margin: 2px 0 0;
 	color: #c0392b;
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	text-align: center;
 	font-style: italic;
 }
@@ -7755,14 +7787,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-onboarding-possession-counter {
 	margin: -6px 0 10px;
 	text-align: center;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	color: slategrey;
 }
 
 .stonetop-onboarding-move-count,
 .stonetop-onboarding-possession-count {
 	font-weight: 700;
-	font-size: 1.1em;
+	font-size: var(--st-fs-lg);
 }
 
 .stonetop-onboarding-card--possession.is-preselected {
@@ -7787,7 +7819,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	letter-spacing: 0.06em;
 	color: slategrey;
 	border: 1px solid rgba(100,116,139,0.5);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	white-space: nowrap;
 }
 
@@ -7817,8 +7849,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-initiate-row-label {
-	font-size: 0.75em;
-	color: #777;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
 	white-space: nowrap;
 	min-width: 110px;
 	flex-shrink: 0;
@@ -7839,7 +7871,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-onboarding-initiate-custom-input {
 	width: 80px;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	border: none;
 	border-bottom: 1px solid #ccc;
 	background: transparent;
@@ -7849,7 +7881,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-onboarding-insert-section-label {
 	margin: 0 0 6px;
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.07em;
@@ -7863,7 +7895,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-weight: 400;
 	text-transform: none;
 	letter-spacing: 0;
-	color: #888;
+	color: var(--st-text-faint);
 }
 
 .stonetop-onboarding-tag-grid {
@@ -7879,7 +7911,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 4px 10px;
 	border: 1.5px solid rgba(100,116,139,0.3);
 	border-radius: 999px;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	cursor: pointer;
 	user-select: none;
 	transition: border-color 0.12s, background 0.12s;
@@ -7907,13 +7939,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex-direction: column;
 	align-items: flex-start;
 	padding: 8px 12px;
-	border-radius: 8px;
+	border-radius: var(--st-radius-lg);
 	min-width: 110px;
 }
 
-.stonetop-onboarding-ac-type-name  { font-weight: 700; font-size: 1.05em; }
-.stonetop-onboarding-ac-type-stats { font-size: 0.85em; color: slategrey; margin-top: 2px; }
-.stonetop-onboarding-ac-type-examples { font-size: 0.81em; color: #aaa; font-style: italic; }
+.stonetop-onboarding-ac-type-name  { font-weight: 700; font-size: var(--st-fs-lg); }
+.stonetop-onboarding-ac-type-stats { font-size: var(--st-fs-sm); color: slategrey; margin-top: 2px; }
+.stonetop-onboarding-ac-type-examples { font-size: var(--st-fs-xs); color: var(--st-text-faint); font-style: italic; }
 
 .stonetop-onboarding-ac-kind-options {
 	display: flex;
@@ -7923,7 +7955,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-ac-kind-custom {
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	padding: 2px 6px;
 }
 
@@ -7945,8 +7977,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Lore (character history) step */
 .stonetop-onboarding-lore-desc {
-	font-size: 0.88em;
-	color: #555;
+	font-size: var(--st-fs-base);
+	color: var(--st-text-secondary);
 	margin-bottom: 12px;
 	line-height: 1.5;
 }
@@ -7959,14 +7991,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-left: 3px solid slategrey;
 	background: rgba(112,128,144,0.08);
 	color: #1f2937;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	line-height: 1.4;
 }
 
 .stonetop-onboarding-lore-context-label {
 	margin-bottom: 3px;
 	color: #64748b;
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
@@ -7994,7 +8026,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-onboarding-lore-section-title {
 	margin: 0 0 6px;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	font-weight: 700;
 	color: #1f2937;
 	text-transform: uppercase;
@@ -8022,7 +8054,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-onboarding-background-move-choice-label,
 .stonetop-onboarding-background-setup-label {
 	margin: 0 0 5px;
-	font-size: 0.72em;
+	font-size: var(--st-fs-2xs);
 	font-weight: 700;
 	color: #64748b;
 	text-transform: uppercase;
@@ -8051,10 +8083,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 5px;
 	padding: 5px 8px;
 	border: 1.5px solid #e0e0e0;
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	background: #fff;
 	cursor: pointer;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.25;
 	transition: border-color 0.12s, background 0.12s;
 }
@@ -8121,10 +8153,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	resize: vertical;
 	padding: 6px 8px;
 	border: 1.5px solid #e0e0e0;
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	background: rgba(255,255,255,0.86);
 	font-family: var(--font-stonetop);
-	font-size: 0.86em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.35;
 }
 
@@ -8137,7 +8169,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-background-neighbor-name {
-	font-size: 0.84em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.25;
 	color: #334155;
 }
@@ -8155,9 +8187,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 28px;
 	padding: 4px 7px;
 	border: 1.5px solid #e0e0e0;
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	background: rgba(255,255,255,0.86);
-	font-size: 0.86em;
+	font-size: var(--st-fs-sm);
 }
 
 .stonetop-onboarding-background-neighbor .hidden {
@@ -8185,9 +8217,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 0;
 	padding: 5px 8px;
 	border: 1.5px solid #e0e0e0;
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	background: rgba(255,255,255,0.7);
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.25;
 	color: #334155;
 }
@@ -8218,10 +8250,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	min-height: 34px;
 	padding: 5px 8px;
 	border: 1.5px solid #e0e0e0;
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	background: #fff;
 	cursor: pointer;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.25;
 	transition: border-color 0.12s, background 0.12s;
 }
@@ -8280,7 +8312,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: min(280px, 88vw);
 	padding: 10px 12px;
 	border: 1px solid #9ca3af;
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	background: #fffdf7;
 	box-shadow: 0 4px 18px rgba(0,0,0,0.18);
 	color: #1f2937;
@@ -8298,12 +8330,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-arcana-preview-popup strong {
 	color: #111827;
-	font-size: 0.92em;
+	font-size: var(--st-fs-base);
 	text-align: center;
 }
 
 .stonetop-arcana-preview-popup span {
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 }
 
 .stonetop-onboarding-minor-roles {
@@ -8319,9 +8351,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 4px;
 	padding: 3px 4px;
 	border: 1px solid rgba(100,116,139,0.25);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(100,116,139,0.06);
-	font-size: 0.84em;
+	font-size: var(--st-fs-sm);
 }
 
 .stonetop-onboarding-minor-roles label input[type="radio"] {
@@ -8334,14 +8366,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	min-height: 0;
 	margin-left: 8px;
 	padding: 1px 7px;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	line-height: 1.4;
 }
 
 .stonetop-onboarding-lore-counter {
 	margin: -4px 0 8px;
-	font-size: 0.8em;
-	color: #888;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-faint);
 }
 
 .stonetop-onboarding-lore-picks {
@@ -8356,9 +8388,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 8px;
 	padding: 6px 10px;
 	border: 1.5px solid #e0e0e0;
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	line-height: 1.45;
 	transition: border-color 0.12s, background 0.12s;
 }
@@ -8424,8 +8456,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-lore-text-label {
-	font-size: 0.85em;
-	color: #444;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
 	line-height: 1.4;
 }
 
@@ -8435,13 +8467,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 100%;
 	box-sizing: border-box;
 	font-family: var(--font-stonetop);
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	border: 1.5px solid #ddd;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	padding: 5px 8px;
 	resize: vertical;
 	line-height: 1.4;
-	color: #222;
+	color: var(--st-text);
 	background: #fafafa;
 }
 
@@ -8469,11 +8501,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	max-width: 300px;
 	background: #fffdf7;
 	border: 1px solid #9ca3af;
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	padding: 10px 14px;
 	box-shadow: 0 4px 18px rgba(0,0,0,0.18);
 	color: #1f2937;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.5;
 	pointer-events: none;
 }
@@ -8483,7 +8515,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding-bottom: 5px;
 	border-bottom: 1px solid #eee;
 	font-weight: 700;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	color: #111827;
@@ -8522,8 +8554,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-invocations-rules {
-	font-size: 0.82em;
-	color: #555;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
 	border-bottom: 1px solid #ddd;
 	padding-bottom: 8px;
 }
@@ -8556,9 +8588,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 24px;
 	padding: 0 8px;
 	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	font-family: var(--font-stonetop);
-	font-size: 13px;
+	font-size: calc(13px * var(--stonetop-font-scale, 1));
 	background: #fff;
 }
 
@@ -8567,9 +8599,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 24px;
 	padding: 0 4px;
 	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	font-family: var(--font-stonetop);
-	font-size: 13px;
+	font-size: calc(13px * var(--stonetop-font-scale, 1));
 	background: #fff;
 	cursor: pointer;
 }
@@ -8608,7 +8640,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-invocation-desc {
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	line-height: 1.4;
-	color: #333;
+	color: var(--st-text-body);
 }
 
 .stonetop-invocation-desc p { margin: 3px 0; }
@@ -8659,7 +8691,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-follower-card {
 	border: 1px solid #ddd;
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 	overflow: hidden;
 	background: #fff;
 	min-width: 280px;
@@ -8698,9 +8730,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* "pick 2 more" / "swift or hardy" choose-hint shown after the fixed trait tags */
 .stonetop-follower-trait-note {
 	align-self: center;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	font-style: italic;
-	color: #888;
+	color: var(--st-text-faint);
 }
 
 .stonetop-follower-header {
@@ -8741,13 +8773,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-follower-name-line:not(:first-child) {
 	font-weight: 400;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	font-style: italic;
-	color: #555;
+	color: var(--st-text-secondary);
 }
 
 .stonetop-follower-type {
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 	color: slategrey;
 	font-style: italic;
 }
@@ -8771,13 +8803,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 12px;
 	flex-shrink: 0;
 	font-size: calc(0.78em + 2pt);
-	color: #444;
+	color: var(--st-text-secondary);
 }
 
 .stonetop-follower-stat strong {
 	color: slategrey;
 	text-transform: uppercase;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	letter-spacing: 0.04em;
 	margin-right: 2px;
 }
@@ -8802,7 +8834,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 36px;
 	text-align: center;
 	border: 1px solid rgba(0, 0, 0, 0.25);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: rgba(255, 255, 255, 0.6);
 	font-size: inherit;
 	padding: 1px 2px;
@@ -8822,13 +8854,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-follower-hp-track--individual {
 	margin-left: auto;
 	margin-right: 6px;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 }
 
 .stonetop-follower-hp-label {
 	color: slategrey;
 	text-transform: uppercase;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	letter-spacing: 0.04em;
 }
 
@@ -8838,7 +8870,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 8px;
 	padding: 6px 12px;
 	border-bottom: 1px solid #f0f0f0;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 }
 
 .stonetop-follower-row:last-child { border-bottom: none; }
@@ -8846,7 +8878,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-follower-row-label {
 	flex-shrink: 0;
 	font-weight: 700;
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 	color: slategrey;
@@ -8854,7 +8886,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding-top: 1px;
 }
 
-.stonetop-follower-row-value { color: #333; }
+.stonetop-follower-row-value { color: var(--st-text-body); }
 
 .stonetop-follower-tags {
 	display: flex;
@@ -8868,8 +8900,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: hsl(210 12% 92%);
 	border: 1px solid rgba(100,116,139,0.3);
 	border-radius: 999px;
-	font-size: 0.82em;
-	color: #333;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-body);
 }
 
 .stonetop-follower-tag--tooltip {
@@ -8887,19 +8919,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-follower-pronoun {
-	font-size: 0.78em;
-	color: #777;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
 	font-weight: normal;
 }
 
 .stonetop-follower-pronoun-input {
 	width: 72px;
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	padding: 1px 4px;
 	border: 1px solid rgba(0, 0, 0, 0.2);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: rgba(255, 255, 255, 0.5);
-	color: #777;
+	color: var(--st-text-muted);
 	margin-left: 4px;
 }
 
@@ -8937,7 +8969,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 
 .stonetop-follower-section-heading {
 	margin: 0 0 6px;
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.07em;
@@ -8948,11 +8980,11 @@ span.stonetop-loyalty-pip { cursor: default; }
 }
 
 .stonetop-follower-section-subtitle {
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	font-weight: normal;
 	text-transform: none;
 	letter-spacing: 0;
-	color: #666;
+	color: var(--st-text-muted);
 	font-style: italic;
 }
 
@@ -8967,7 +8999,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	font-size: 0.84em;
+	font-size: var(--st-fs-sm);
 	font-weight: normal;
 	cursor: pointer;
 }
@@ -9024,9 +9056,9 @@ span.stonetop-loyalty-pip { cursor: default; }
 	width: 52px;
 	text-align: center;
 	border: 1px solid #ccc;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	padding: 2px 4px;
-	font-size: 0.95em;
+	font-size: var(--st-fs-md);
 }
 
 /* Individuals */
@@ -9043,8 +9075,8 @@ span.stonetop-loyalty-pip { cursor: default; }
 	padding: 6px 8px;
 	background: rgba(0,0,0,0.03);
 	border: 1px solid #e8e8e8;
-	border-radius: 4px;
-	font-size: 0.85em;
+	border-radius: var(--st-radius);
+	font-size: var(--st-fs-sm);
 }
 
 .stonetop-crew-individual-header {
@@ -9074,19 +9106,19 @@ span.stonetop-loyalty-pip { cursor: default; }
 }
 
 .stonetop-crew-individual-row-label {
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
-	color: #666;
+	color: var(--st-text-muted);
 	white-space: nowrap;
 	padding-top: 2px;
 	min-width: 36px;
 }
 
 .stonetop-follower-empty-note {
-	font-size: 0.82em;
-	color: #999;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-faint);
 	font-style: italic;
 	margin: 0;
 }
@@ -9098,10 +9130,10 @@ span.stonetop-loyalty-pip { cursor: default; }
 	gap: 4px;
 	padding: 2px 8px;
 	border: 1px solid slategrey;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: transparent;
 	color: slategrey;
-	font-size: 0.75em;
+	font-size: var(--st-fs-xs);
 	cursor: pointer;
 	font-family: var(--font-stonetop);
 }
@@ -9123,7 +9155,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 .stonetop-follower-rules-title {
 	margin: 0;
 	border-bottom: none;
-	color: #333;
+	color: var(--st-text-body);
 	font-size: 1em;
 	font-weight: 700;
 	line-height: 1.25;
@@ -9142,13 +9174,13 @@ span.stonetop-loyalty-pip { cursor: default; }
 
 .stonetop-follower-rule {
 	border: 1px solid #eee;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	overflow: hidden;
 }
 
 .stonetop-follower-rule summary {
 	padding: 5px 10px;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
@@ -9176,7 +9208,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 .stonetop-follower-rule p,
 .stonetop-follower-rule ul {
 	margin: 4px 10px 6px;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	line-height: 1.4;
 }
 
@@ -9209,22 +9241,8 @@ li.question-bullet::before {
 	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 }
 
-/* Normalize spiral bullets to match Overview > Resources spacing. */
-.stonetop-basic-move-panel li,
-.stonetop-chat-move-description li,
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li,
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li,
-.stonetop-item-description li,
-.stonetop-arcanum-body li,
-.stonetop-arcanum-chat-card li,
-.stonetop-special-move-list li,
-.stonetop-outfit-rule-note li,
-.steading-move-body li,
-.stonetop-onboarding-card-desc li,
-.stonetop-follower-rule li {
-	gap: 6px;
-}
-
+/* Normalize spiral bullets to match Overview > Resources spacing. The bullet → text
+   gap is set once, below, from --stonetop-spiral-gap (same selector list). */
 .stonetop-basic-move-panel li::before,
 .stonetop-chat-move-description li::before,
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description li::before,
@@ -9387,7 +9405,7 @@ li.question-bullet {
 .stonetop-journal-check:focus-visible {
 	outline: 2px solid var(--color-shadow-primary, #ff6400);
 	outline-offset: 2px;
-	border-radius: 2px;
+	border-radius: var(--st-radius-sm);
 }
 
 /* Journal cross-links: drop Foundry's boxed "book chip" — its grey background,
@@ -9442,7 +9460,7 @@ li.question-bullet {
 	font-weight: 700;
 	padding: 0 4px 3px;
 	border-bottom: 1px solid currentColor;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	opacity: 0.65;
@@ -9493,7 +9511,7 @@ li.question-bullet {
 	overflow-y: auto;
 	padding: 4px;
 	border: 1px solid #eee;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 }
 
 /* Scoped dialog overrides */
@@ -9530,9 +9548,9 @@ li.question-bullet {
 	height: auto;
 	padding: 5px 16px;
 	line-height: 1.4;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	font-family: var(--font-stonetop);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	cursor: pointer;
 	border: 1.5px solid slategrey;
 	background: transparent;
@@ -9560,7 +9578,7 @@ li.question-bullet {
 	display: flex;
 	gap: 16px;
 	flex-wrap: wrap;
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	margin-bottom: 6px;
 }
 
@@ -9571,15 +9589,15 @@ li.question-bullet {
 }
 
 .stonetop-group-fight-dmg-label {
-	font-size: 0.9em;
-	color: #444;
+	font-size: var(--st-fs-base);
+	color: var(--st-text-secondary);
 }
 
 .stonetop-group-fight-outnumber-row {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	font-size: 0.84em;
+	font-size: var(--st-fs-sm);
 	margin-bottom: 8px;
 	flex-wrap: wrap;
 }
@@ -9596,13 +9614,13 @@ li.question-bullet {
 	height: 24px;
 	padding: 2px 4px;
 	text-align: center;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	border: 1px solid #ccc;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 }
 
 .stonetop-outnumber-vs {
-	color: #888;
+	color: var(--st-text-faint);
 	font-style: italic;
 }
 
@@ -9623,10 +9641,10 @@ li.question-bullet {
 	align-items: center;
 	gap: 5px;
 	padding: 4px 12px;
-	font-size: 0.84em;
+	font-size: var(--st-fs-sm);
 	font-family: var(--font-stonetop);
 	border: 1.5px solid slategrey;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: transparent;
 	color: slategrey;
 	cursor: pointer;
@@ -9657,7 +9675,7 @@ li.question-bullet {
 	padding: 2px 8px;
 	border: 1px solid #ccc;
 	border-radius: 999px;
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	cursor: pointer;
 }
 
@@ -9684,12 +9702,12 @@ li.question-bullet {
 	flex-wrap: nowrap;
 	gap: 4px;
 	width: 100%;
-	border-radius: 6px;
+	border-radius: var(--st-radius-lg);
 }
 
 .stonetop-trait-blank {
 	padding: 0 2px;
-	color: #999;
+	color: var(--st-text-faint);
 }
 
 /* Inline fill input, select, and custom text — inside expanded chip */
@@ -9697,10 +9715,10 @@ li.question-bullet {
 .stonetop-trait-select,
 .stonetop-trait-custom {
 	display: none;
-	font-size: 0.82em;
+	font-size: var(--st-fs-sm);
 	padding: 1px 5px;
 	border: 1px solid slategrey;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: white;
 	line-height: 1.4;
 }
@@ -9740,11 +9758,11 @@ li.question-bullet {
 
 .stonetop-so-sidebar-header {
 	padding: 14px 14px 8px;
-	font-size: 0.7em;
+	font-size: var(--st-fs-2xs);
 	font-weight: bold;
 	letter-spacing: 0.07em;
 	text-transform: uppercase;
-	color: #999;
+	color: var(--st-text-faint);
 	border-bottom: 1px solid #e0e0e0;
 	flex-shrink: 0;
 }
@@ -9754,9 +9772,9 @@ li.question-bullet {
 	width: 100%;
 	text-align: left;
 	padding: 9px 14px;
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	font-family: var(--font-stonetop);
-	color: #444;
+	color: var(--st-text-secondary);
 	background: transparent;
 	border: none;
 	border-bottom: 1px solid #ebebeb;
@@ -9764,7 +9782,7 @@ li.question-bullet {
 	transition: background 0.12s, color 0.12s;
 }
 
-.stonetop-so-nav-entry:hover         { background: hsl(210 12% 91%); color: #222; }
+.stonetop-so-nav-entry:hover         { background: hsl(210 12% 91%); color: var(--st-text); }
 .stonetop-so-nav-entry.is-active     { background: slategrey; color: white; font-weight: 600; }
 .stonetop-so-nav-entry.is-active:hover { background: hsl(210 13% 47%); }
 
@@ -9775,7 +9793,7 @@ li.question-bullet {
 }
 
 .stonetop-so-entry-title {
-	font-size: 1.15em;
+	font-size: var(--st-fs-lg);
 	font-weight: bold;
 	color: slategrey;
 	margin: 0 0 14px;
@@ -9784,9 +9802,9 @@ li.question-bullet {
 }
 
 .stonetop-so-entry-body {
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	line-height: 1.55;
-	color: #333;
+	color: var(--st-text-body);
 }
 
 .stonetop-so-map {
@@ -9794,7 +9812,7 @@ li.question-bullet {
 	width: 100%;
 	height: auto;
 	border: 1px solid #ddd;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	margin-bottom: 16px;
 	cursor: zoom-in;
 	transition: opacity 0.15s;
@@ -9803,23 +9821,24 @@ li.question-bullet {
 .stonetop-so-map:hover { opacity: 0.85; }
 
 .stonetop-so-entry-body h3 {
-	font-size: 0.95em;
+	font-size: var(--st-fs-md);
 	font-weight: bold;
-	color: #444;
+	color: var(--st-text-secondary);
 	margin: 16px 0 5px;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
 
 .stonetop-so-entry-body p  { margin: 0 0 8px; }
-.stonetop-so-entry-body ul { margin: 0 0 8px; padding-left: 18px; }
-.stonetop-so-entry-body li { margin-bottom: 3px; }
+/* Bullet lists get the spiral / question-spiral / checkbox treatment from the
+   shared `.stonetop-journal-body` rules, added at render by the dialog (see
+   SettingOverviewDialog) — no list-style/padding here or it would override them. */
 
 .stonetop-so-entry-body dl { margin: 0 0 12px; }
 .stonetop-so-entry-body dt {
 	display: inline;
 	font-weight: 700;
-	color: #222;
+	color: var(--st-text);
 	text-shadow: none;
 }
 .stonetop-so-entry-body dt::after { content: ": "; }
@@ -9874,12 +9893,12 @@ li.question-bullet {
 .stonetop-so-playbook {
 	background: hsl(210 12% 97%);
 	border: 1px solid #e0e0e0;
-	border-radius: 5px;
+	border-radius: var(--st-radius);
 	padding: 10px 12px;
 }
 
 .stonetop-so-playbook h3 {
-	font-size: 0.88em;
+	font-size: var(--st-fs-base);
 	font-weight: bold;
 	margin: 0 0 4px;
 	color: slategrey;
@@ -9892,12 +9911,12 @@ li.question-bullet {
 	gap: 8px;
 }
 
-.stonetop-so-playbook p { margin: 0; font-size: 0.9em; color: #555; }
+.stonetop-so-playbook p { margin: 0; font-size: var(--st-fs-base); color: var(--st-text-secondary); }
 
 .stonetop-so-playbook-icon {
 	width: 24px;
 	height: 24px;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	flex-shrink: 0;
 	align-self: center;
 }
@@ -9905,9 +9924,9 @@ li.question-bullet {
 .stonetop-so-playbook h3 .stonetop-so-complexity { margin-left: auto; }
 
 .stonetop-so-complexity {
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 	font-weight: normal;
-	color: #999;
+	color: var(--st-text-faint);
 	font-style: italic;
 }
 
@@ -10078,7 +10097,7 @@ li.question-bullet {
 /* Armor source, shown under the value as a parenthetical ("Armor 1 (reflexes)"). */
 .stonetop-monster-armor-source {
 	margin-top: 2px;
-	font-size: 0.7rem;
+	font-size: calc(0.7rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	line-height: 1.1;
 	text-align: center;
@@ -10132,7 +10151,7 @@ input.stonetop-monster-armor-source {
 	min-width: 0;
 	margin-top: 6px;
 	border: 1px solid #aaa;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: transparent;
 	text-align: center;
 }
@@ -10287,7 +10306,7 @@ input.stonetop-monster-armor-source {
 }
 
 .stonetop-monster-moves-summary-item .stonetop-monster-move-roll {
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	opacity: 0.55;
 	cursor: pointer;
 	flex-shrink: 0;
@@ -10369,7 +10388,7 @@ input.stonetop-monster-armor-source {
 	line-height: 1.45;
 	background: rgba(255,255,255,0.28);
 	border: 1px solid rgba(0,0,0,0.22);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	color: var(--color-text-dark-primary);
 }
 
@@ -10404,7 +10423,7 @@ input.stonetop-monster-armor-source {
 .stonetop-monster-notes-editor {
 	min-height: 100px;
 	margin-bottom: 8px;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 }
 
 .stonetop-monster-notes-editor .toggle {
@@ -10489,7 +10508,7 @@ input.stonetop-monster-armor-source {
 	margin-bottom: 8px;
 	resize: vertical;
 	border: 1px solid rgba(0,0,0,0.22);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: rgba(255,255,255,0.32);
 	line-height: 1.4;
 }
@@ -10539,7 +10558,7 @@ input.stonetop-monster-armor-source {
 	width: 100%;
 	min-width: 0;
 	border: 1px solid rgba(0,0,0,0.22);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: rgba(255,255,255,0.32);
 }
 
@@ -10556,7 +10575,7 @@ input.stonetop-monster-armor-source {
 	margin-top: 2px;
 	padding: 4px 8px;
 	border: 1px solid slategrey;
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: rgba(255,255,255,0.25);
 	color: inherit;
 	cursor: pointer;
@@ -10648,9 +10667,9 @@ input.stonetop-monster-armor-source {
 }
 
 .stonetop-monster-move-description {
-	font-size: 0.92em;
+	font-size: var(--st-fs-base);
 	line-height: 1.45;
-	color: #333;
+	color: var(--st-text-body);
 }
 
 .stonetop-monster-move-description p {
@@ -10743,7 +10762,7 @@ input.stonetop-monster-armor-source {
 .stonetop-monster-add-move,
 .stonetop-monster-moves-empty {
 	color: slategrey;
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 }
 
 /* ── Stat-block: organization select, reset, entry link ───────────────────────── */
@@ -10773,7 +10792,7 @@ input.stonetop-monster-armor-source {
 	background: transparent;
 	color: #000;
 	border: 1px solid #000;
-	font-size: 0.78em;
+	font-size: var(--st-fs-xs);
 }
 
 /* Hover-info affordance on the header tag line: the org pill gets a help cursor;
@@ -10863,7 +10882,7 @@ input.stonetop-monster-armor-source {
 	cursor: pointer;
 	opacity: 0.5;
 	color: inherit;
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 }
 .stonetop-section-edit:hover,
 .stonetop-section-done:hover,
@@ -11035,7 +11054,7 @@ input.stonetop-monster-armor-source {
    each act reads as its own band; the first one drops that top margin. */
 .stonetop-section-group {
 	font-family: var(--font-stonetop);
-	font-size: 1.05em;
+	font-size: var(--st-fs-lg);
 	font-weight: bold;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
@@ -11191,7 +11210,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	grid-column: 1 / 2;
 	width: 100%;
 	border: 1px solid rgba(0,0,0,0.22);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(255,255,255,0.28);
 	font-weight: normal;
 }
@@ -11202,7 +11221,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	min-height: 48px;
 	resize: vertical;
 	border: 1px solid rgba(0,0,0,0.22);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(255,255,255,0.28);
 	font-family: var(--font-stonetop);
 }
@@ -11229,7 +11248,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	color: slategrey;
 	cursor: pointer;
 	font-family: var(--font-stonetop);
-	font-size: 0.9em;
+	font-size: var(--st-fs-base);
 	padding: 0;
 	width: auto;
 }
@@ -11264,7 +11283,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	grid-column: 1 / 2;
 	width: 100%;
 	border: 1px solid rgba(0, 0, 0, 0.22);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(255, 255, 255, 0.28);
 	font-family: var(--font-stonetop);
 	font-weight: bold;
@@ -11324,7 +11343,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	grid-column: 1 / 2;
 	width: 100%;
 	border: 1px solid rgba(0,0,0,0.22);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(255,255,255,0.28);
 	font-family: var(--font-stonetop);
 }
@@ -11371,7 +11390,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	gap: 10px;
 	padding: 6px 8px;
 	border: 1px solid rgba(0,0,0,0.15);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: rgba(255,255,255,0.25);
 }
 
@@ -11388,7 +11407,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	height: 40px;
 	object-fit: cover;
 	border: 1px solid var(--color-border-dark, #888);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	flex-shrink: 0;
 }
 
@@ -11407,7 +11426,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 .stonetop-entry-statblock-meta {
-	font-size: 0.85em;
+	font-size: var(--st-fs-sm);
 	color: var(--color-text-dark-secondary);
 }
 
@@ -11437,7 +11456,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	--st-improvement-accent: var(--stonetop-improvement-accent);
 	border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
 	border-left: 4px solid var(--st-improvement-accent);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: color-mix(in srgb, currentColor 6%, transparent);
 	padding: 8px 12px;
 	margin: 0.9em 0;
@@ -11481,7 +11500,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 .stonetop-journal-improvement-eyebrow {
 	order: 2;
 	flex-shrink: 0;
-	font-size: 0.72em;
+	font-size: var(--st-fs-2xs);
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
 	color: color-mix(in srgb, currentColor 60%, transparent);
@@ -11492,7 +11511,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	flex: 1 1 auto;
 	font-family: var(--font-stonetop);
 	font-weight: bold;
-	font-size: 1.1em;
+	font-size: var(--st-fs-lg);
 }
 
 .stonetop-journal-improvement-body {
@@ -11534,7 +11553,7 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-roll-table-btn:focus-visible {
 	outline: 2px solid var(--stonetop-improvement-accent);
 	outline-offset: 2px;
-	border-radius: 2px;
+	border-radius: var(--st-radius-sm);
 }
 
 @media (max-width: 720px) {
@@ -11596,12 +11615,12 @@ th:has(> .stonetop-roll-table-btn) {
 	align-items: flex-start;
 	gap: 10px;
 	padding: 10px 14px;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 	line-height: 1.5;
 }
 
-.stonetop-intros-notice > i { flex-shrink: 0; font-size: 1.1em; margin-top: 2px; }
+.stonetop-intros-notice > i { flex-shrink: 0; font-size: var(--st-fs-lg); margin-top: 2px; }
 
 .stonetop-intros-notice--warn {
 	background: rgba(200, 120, 20, 0.1);
@@ -11632,7 +11651,7 @@ th:has(> .stonetop-roll-table-btn) {
 	line-height: 1.3;
 	cursor: pointer;
 	border: 1px solid hsl(140 25% 55%);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: rgba(255, 255, 255, 0.55);
 	color: hsl(140 40% 18%);
 	transition: background 0.15s;
@@ -11677,7 +11696,7 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: 10px 14px;
 	background: rgba(0, 0, 0, 0.04);
 	border: 1px solid rgba(0, 0, 0, 0.1);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 }
 
 .stonetop-intros-pc-icon {
@@ -11701,14 +11720,14 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-intros-pc-playbook {
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	color: var(--color-text-dark-secondary);
 	font-style: italic;
 }
 
 .stonetop-intros-pc-count {
 	flex-shrink: 0;
-	font-size: 0.8em;
+	font-size: var(--st-fs-xs);
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
 }
@@ -11721,7 +11740,7 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-intros-questions-wrap {
 	background: rgba(0, 0, 0, 0.03);
 	border: 1px solid rgba(0, 0, 0, 0.1);
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	padding: 10px 14px;
 }
 
@@ -11771,7 +11790,7 @@ th:has(> .stonetop-roll-table-btn) {
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 	cursor: pointer;
 	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: 3px;
+	border-radius: var(--st-radius-sm);
 	background: var(--stonetop-bg, #f5f0e8);
 	color: inherit;
 	transition: background 0.15s;

@@ -1,4 +1,5 @@
 import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { markProseSpiralBullets } from "../../../utils/journal-spiral-bullets.js";
 
 export class LevelUpDialog extends Application {
 	constructor(character, levelUpData, onDone, options = {}) {
@@ -93,6 +94,12 @@ export class LevelUpDialog extends Application {
 	activateListeners(html) {
 		super.activateListeners(html);
 		this._keepOnTop.start();
+
+		// Move / invocation descriptions are enriched move HTML that can contain
+		// bulleted option lists; give them the same spiral bullets as the sheet.
+		for (const desc of html.find(".stonetop-levelup-move-description, .stonetop-levelup-invocation-description")) {
+			markProseSpiralBullets(desc);
+		}
 
 		html.find(".stonetop-levelup-move-option:not(.is-locked)").on("click", ev => {
 			this._selectedMoveId = ev.currentTarget.dataset.compendiumId;
