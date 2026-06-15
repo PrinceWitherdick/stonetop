@@ -403,7 +403,13 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 			await roll._evaluate();
 
 			const speakerUpdate = playbookName ? { alias: `${actor.name} ${playbookName}` } : {};
-			await message.update({ rolls, speaker: { ...message.speaker, ...speakerUpdate }, flags: { stonetop_pwd: { burnBrightly: true } } });
+			await message.update({
+				rolls,
+				// Regenerate the card so the result label and per-tier outcome reflect the +1.
+				flavor:  _shiftRollCardFlavor(message.flavor, roll.total),
+				speaker: { ...message.speaker, ...speakerUpdate },
+				flags:   { stonetop_pwd: { burnBrightly: true } },
+			});
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
 			btn.disabled = false;
@@ -494,6 +500,19 @@ function _shiftRollCardFlavor(flavor, total) {
 	resultRow.classList.remove("success", "partial", "failure", "critical");
 	resultRow.classList.add(result.key);
 	resultLabel.textContent = result.label;
+
+	// Keep the per-tier outcome line (if any) in sync with the shifted tier. The
+	// three outcomes are stashed on the row as data-outcome-* by _rollCard.
+	const details = resultRow.querySelector(".result-details");
+	if (details) {
+		const tierKey = result.key === "critical" ? "success" : result.key;
+		const outcome = {
+			success: resultRow.dataset.outcomeSuccess,
+			partial: resultRow.dataset.outcomePartial,
+			failure: resultRow.dataset.outcomeFailure,
+		}[tierKey];
+		if (outcome !== undefined) details.textContent = outcome;
+	}
 
 	return wrapper.innerHTML;
 }

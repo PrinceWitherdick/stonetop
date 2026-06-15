@@ -47,6 +47,7 @@
 				<strong class="stonetop-item-name">{{name}}{{#if asterisk}}<span class="stonetop-move-asterisk" data-tooltip="The first time you use this move, cross off &quot;Would-be&quot; — you become a Hero." data-tooltip-direction="UP"> *</span>{{/if}}</strong>
 				{{#if (and owned resource)}}
 				<span class="stonetop-item-resources">
+					{{#if resource.title}}<span class="stonetop-item-resource-title"{{#if resource.spendTooltip}} data-tooltip="{{resource.spendTooltip}}" data-tooltip-direction="UP"{{/if}}>{{resource.title}}</span>{{/if}}
 					{{#each (resourceChecks resource)}}
 					<span class="stonetop-item-resource-entry">
 						<button type="button" class="stonetop-item-resource-check{{#if checked}} is-checked{{/if}}"

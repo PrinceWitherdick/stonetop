@@ -9,18 +9,19 @@
     "isStartingMove": true,
     "description": "<p>When you <strong><em>are at Death's Door</em></strong>, you can roll +CON or +nothing (your choice). <strong><em>On a 7-9</em></strong>, you can mark a debility of your choice to regain 1 HP.</p>",
     "rollType": "con",
+    "noXpOnMiss": true,
     "moveResults": {
       "success": {
         "label": "10+",
-        "value": "Stabilize — see Death's Door rules."
+        "value": "You wrest yourself back to life — return to 1 HP; say how your brush with death has marked you."
       },
       "partial": {
         "label": "7-9",
-        "value": "Mark a debility of your choice to regain 1 HP."
+        "value": "You're no longer dying but out of the action — or mark a debility of your choice to regain 1 HP."
       },
       "failure": {
         "label": "6-",
-        "value": "The GM makes a move."
+        "value": "Your time has come — resolve Death's Door (a last move, refuse and gain an insert, or beseech the Things Below)."
       }
     }
   },

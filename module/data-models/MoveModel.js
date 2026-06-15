@@ -27,6 +27,9 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			hpBonus:         new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			repeatMax:       new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			isStartingMove:  new fields.BooleanField({ required: true, initial: false }),
+			// Suppresses the engine's automatic +1 XP on a miss for moves whose text
+			// overrides it (e.g. Danger Sense; Death's Door rolls like Hard to Kill).
+			noXpOnMiss:      new fields.BooleanField({ required: false, initial: false }),
 			slug:            new fields.StringField({ required: true, blank: true }),
 			playbook:        new fields.StringField({ required: true, blank: true }),
 			replaces:        new fields.StringField({ required: true, blank: true }),

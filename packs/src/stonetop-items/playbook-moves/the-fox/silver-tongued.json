@@ -24,7 +24,12 @@
     },
     "resource": {
       "max": 3,
-      "title": "Nerve"
+      "title": "Nerve",
+      "spendOptions": [
+        "Move about or maneuver unchallenged",
+        "Withstand direct scrutiny or questioning",
+        "Direct suspicion or attention elsewhere"
+      ]
     }
   },
   "folder": "cdhcHAxQ02WaH2Dm"

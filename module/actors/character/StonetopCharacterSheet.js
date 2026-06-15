@@ -27,6 +27,19 @@ import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
 
+// Playbook moves that let a character roll a different stat for a basic move. When
+// the actor owns `ownsMove`, the basic move named `whenMove` (or, for blanket
+// grants, any move whose default stat is `whenDefaultStat`) offers `altStat` as an
+// extra choice in the roll's stat picker. Mind Over Magic (arcanum rolls) is not
+// covered here — arcana roll through a separate path.
+const ALT_STAT_GRANTS = [
+	{ whenMove: "Clash",               ownsMove: "Skill at Arms",    altStat: "dex" },
+	{ whenMove: "Clash",               ownsMove: "Purifying Flames", altStat: "wis" },
+	{ whenMove: "Know Things",         ownsMove: "Well-Read",        altStat: "wis" },
+	{ whenMove: "Persuade (vs. NPCs)", ownsMove: "Wild Speech",      altStat: "wis" },
+	{ whenDefaultStat: "con",          ownsMove: "Laugh at Danger",  altStat: "cha" },
+];
+
 const STAT_TOOLTIPS = {
 	str: "Your physical power and ability to use it. Roll +STR to Clash, or to Defy Danger with raw might or power.",
 	dex: "Your grace and fine motor control. Roll +DEX to Let Fly, or to Defy Danger with speed, agility, finesse.",
@@ -1338,6 +1351,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					this._promptStatChoice(askItem, rollable);
 					return;
 				}
+				const altChoice = this._altStatChoiceForRollable(rollable);
+				if (altChoice) {
+					this._promptStatChoice(altChoice.item, rollable, altChoice.stats);
+					return;
+				}
 				const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable });
 				if (!handled) {
 					const roll = rollable.dataset.roll;
@@ -2232,10 +2250,33 @@ export function createStonetopCharacterSheetClass(Base) {
 			return item;
 		}
 
-		_promptStatChoice(item, rollable) {
+		// A fixed-stat move (e.g. Clash +STR) becomes a stat choice when the actor owns a
+		// move that grants an alternate stat for it (e.g. Skill at Arms → +DEX). Returns
+		// { item, stats: [default, ...alts] } or null. See ALT_STAT_GRANTS.
+		_altStatChoiceForRollable(rollable) {
+			const itemId = rollable.closest(".item")?.dataset.itemId;
+			if (!itemId) return null;
+			const item = this.actor.items.get(itemId);
+			if (!item || item.type !== "move") return null;
+			const defaultStat = normalizeRollType(item.system?.rollType);
+			if (!defaultStat || !_STAT_KEYS.has(defaultStat)) return null; // skip "ask"/formula moves
+			const owned = new Set(this.actor.items.filter(i => i.type === "move").map(i => i.name));
+			const alts = [];
+			for (const g of ALT_STAT_GRANTS) {
+				const matches = (g.whenMove && g.whenMove === item.name)
+					|| (g.whenDefaultStat && g.whenDefaultStat === defaultStat);
+				if (matches && owned.has(g.ownsMove) && g.altStat !== defaultStat && !alts.includes(g.altStat)) {
+					alts.push(g.altStat);
+				}
+			}
+			if (!alts.length) return null;
+			return { item, stats: [defaultStat, ...alts] };
+		}
+
+		_promptStatChoice(item, rollable, statKeys = _STAT_KEYS) {
 			const stats = this.actor.system?.stats ?? {};
 			const buttons = {};
-			for (const key of _STAT_KEYS) {
+			for (const key of statKeys) {
 				const value = stats[key]?.value ?? 0;
 				const label = Handlebars.helpers.statLabel(key);
 				buttons[key] = {

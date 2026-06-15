@@ -11,6 +11,10 @@
       "moves": [
         "Hard to Kill"
       ]
+    },
+    "resource": {
+      "max": 6,
+      "title": "Marks"
     }
   },
   "folder": "EGBb1iIndbhAI7zU"

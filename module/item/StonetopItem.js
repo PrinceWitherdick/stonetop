@@ -41,16 +41,28 @@ export function createStonetopItemClass(BaseItem) {
 				});
 			}
 
+			// "ask" moves (Defy Danger/Interfere) carry per-stat option lines to filter.
 			const isStatChoice = rollType === "ask" && !!options.statOverride;
+			// A fixed-stat move rolled with an alternate stat (e.g. Skill at Arms → Clash
+			// with DEX) isn't an "ask" move but should still label the chosen stat.
+			const usingAltStat = !!options.statOverride && options.statOverride !== rollType;
 			const description = this.system?.description ?? "";
 			const moveDescription = isStatChoice
 				? filterStatOptionLines(description, options.statOverride)
 				: description;
-			const moveName = isStatChoice
+			const moveName = (isStatChoice || usingAltStat)
 				? `${this.name} with ${options.statOverride.toUpperCase()}`
 				: this.name;
 
-			if (stat) return rollStat(stat, actor, { ...options, moveName, moveDescription });
+			if (stat) return rollStat(stat, actor, {
+				...options,
+				moveName,
+				moveDescription,
+				moveResults: this.system?.moveResults ?? null,
+				// Moves that explicitly override the standard "+1 XP on a miss" (e.g. Danger
+				// Sense, Hard to Kill / Death's Door rolls) set system.noXpOnMiss.
+				noXpOnMiss:  this.system?.noXpOnMiss ?? false,
+			});
 
 			// Raw formula path — used by npcMove items
 			return rollFormula(rawFormula, actor, { label: this.name, description: moveDescription });

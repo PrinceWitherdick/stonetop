@@ -2057,6 +2057,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 0 10px;
 }
 
+/* Per-tier move outcome (10+/7-9/6-) surfaced beneath the result label. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .result-details:not(:empty) {
+	padding: 7px 10px 3px;
+	text-align: center;
+	font-size: var(--font-size-13, 13px);
+	line-height: 1.35;
+}
+
 :is(#chat, #chat-notifications) .message .pbta-chat-card .failure { color: #6e0000; }
 :is(#chat, #chat-notifications) .message .pbta-chat-card .partial { color: #6b4400; }
 :is(#chat, #chat-notifications) .message .pbta-chat-card .success { color: #1a4a1a; }
@@ -2319,6 +2327,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-item-resource-check.is-checked {
 	background-color: var(--color-text-dark-primary) !important;
+}
+
+/* Hold-track label (e.g. "Nerve", "Command") shown before its check circles. */
+.stonetop-item-resource-title {
+	font-family: var(--font-stonetop);
+	font-size: calc(var(--font-size-12, 12px) * var(--stonetop-font-scale, 1));
+	font-variant: small-caps;
+	letter-spacing: 0.03em;
+	opacity: 0.85;
+	white-space: nowrap;
+}
+
+.stonetop-item-resource-title[data-tooltip] {
+	cursor: help;
+	border-bottom: 1px dotted currentcolor;
 }
 
 /* -- attrLeft header row ---------------------------------- */

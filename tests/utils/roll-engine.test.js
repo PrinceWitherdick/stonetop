@@ -133,6 +133,53 @@ describe("rollStat", () => {
 		expect(actor.update).not.toHaveBeenCalled();
 		expect(ChatMessage.create).not.toHaveBeenCalled();
 	});
+
+	it("renders the matched-tier move outcome and stashes every tier for shifting", async () => {
+		rollTotal = 10;
+		const moveResults = {
+			success: { value: "You pull it off." },
+			partial: { value: "A cost or consequence." },
+			failure: { value: "Things get worse." },
+		};
+
+		await rollStat("str", makeActor(), { noXpOnMiss: true, moveResults });
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("You pull it off.");
+		expect(flavor).toContain('data-outcome-success="You pull it off."');
+		expect(flavor).toContain('data-outcome-partial="A cost or consequence."');
+		expect(flavor).toContain('data-outcome-failure="Things get worse."');
+	});
+
+	it("shows the failure outcome on a miss", async () => {
+		rollTotal = 6;
+
+		await rollStat("str", makeActor(), {
+			noXpOnMiss: true,
+			moveResults: { failure: { value: "Disaster strikes." } },
+		});
+
+		expect(rollMessages[0].flavor).toContain("Disaster strikes.");
+	});
+
+	it("escapes HTML in outcome text", async () => {
+		rollTotal = 10;
+
+		await rollStat("str", makeActor(), {
+			noXpOnMiss: true,
+			moveResults: { success: { value: "A & B < C" } },
+		});
+
+		expect(rollMessages[0].flavor).toContain("A &amp; B &lt; C");
+	});
+
+	it("omits the outcome line when the move has no moveResults", async () => {
+		rollTotal = 10;
+
+		await rollStat("str", makeActor(), { noXpOnMiss: true });
+
+		expect(rollMessages[0].flavor).toContain('<div class="result-details"></div>');
+	});
 });
 
 describe("rollDamage", () => {

@@ -25,4 +25,16 @@ describe("ResourceDef", () => {
 	it("defaults labels to [] when absent", () => {
 		expect(new ResourceDef({}).labels).toEqual([]);
 	});
+
+	it("defaults spendOptions to [] and spendTooltip to null when absent", () => {
+		const def = new ResourceDef({});
+		expect(def.spendOptions).toEqual([]);
+		expect(def.spendTooltip).toBeNull();
+	});
+
+	it("builds a spend tooltip from spendOptions", () => {
+		const def = new ResourceDef({ title: "Nerve", spendOptions: ["Slip away", "Hold steady"] });
+		expect(def.spendOptions).toEqual(["Slip away", "Hold steady"]);
+		expect(def.spendTooltip).toBe("Spend 1 to:<br>• Slip away<br>• Hold steady");
+	});
 });

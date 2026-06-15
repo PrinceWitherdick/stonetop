@@ -9,7 +9,11 @@
     "description": "<p>When you <strong><em>lead your crew into battle</em></strong>, hold 2 Presence. Spend Presence in lieu of your crew's Loyalty or as Readiness (as if you Defended them).</p>",
     "resource": {
       "max": 2,
-      "title": "Presence"
+      "title": "Presence",
+      "spendOptions": [
+        "Spend in lieu of your crew's Loyalty",
+        "Spend as Readiness (as if you Defended them)"
+      ]
     }
   },
   "folder": "qYVW8ZbK0hIds2lt"

@@ -22,6 +22,13 @@ export class ResourceDef {
 		this.maxStat = data.maxStat ?? null;
 		this.title   = data.title   ?? null;
 		this.labels  = data.labels  ?? [];
+		// Optional "spend 1 to…" menu for hold tracks (e.g. Nerve, Command). Surfaced
+		// as a tooltip on the track's title so the spendable options are visible
+		// without re-reading the move's full description.
+		this.spendOptions = data.spendOptions ?? [];
+		this.spendTooltip = this.spendOptions.length
+			? "Spend 1 to:<br>• " + this.spendOptions.join("<br>• ")
+			: null;
 	}
 }
 

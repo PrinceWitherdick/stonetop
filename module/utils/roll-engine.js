@@ -22,11 +22,27 @@ export function classifyResult(total) {
 
 export function sign(n) { return n >= 0 ? `+${n}` : `${n}`; }
 
-function _rollCard({ header, result = "", resultClass = "", conditionsHtml = "", buttons = false, formula = "", description = "" }) {
+/** Escape a plain-text string for safe insertion into HTML text or an attribute value. */
+function _escapeHtml(str) {
+	return String(str ?? "")
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
+}
+
+function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, conditionsHtml = "", buttons = false, formula = "", description = "" }) {
+	// Stash every tier's outcome on the row so a GM Shift Up/Down can swap the
+	// detail line to match the new tier (see _shiftRollCardFlavor in stonetop.js).
+	const outcomeAttrs = resultOutcomes
+		? ` data-outcome-success="${_escapeHtml(resultOutcomes.success ?? "")}"`
+			+ ` data-outcome-partial="${_escapeHtml(resultOutcomes.partial ?? "")}"`
+			+ ` data-outcome-failure="${_escapeHtml(resultOutcomes.failure ?? "")}"`
+		: "";
 	const resultHtml = result
-		? `<div class="row result ${resultClass}">
+		? `<div class="row result ${resultClass}"${outcomeAttrs}>
 			<div class="result-label">${result}</div>
-			<div class="result-details"></div>
+			<div class="result-details">${_escapeHtml(resultDetail)}</div>
 			<div class="result-choices"></div>
 		</div>`
 		: "";
@@ -111,6 +127,20 @@ export async function rollStat(statKey, actor, options = {}) {
 	const total  = roll.total;
 	const result = classifyResult(total);
 
+	// Surface the move's own per-tier outcome (10+/7-9/6-) on the result card. Some
+	// moves (e.g. the Blessed's Borrow Power, Suck the Poison Out) keep their outcomes
+	// only in moveResults and omit them from the description, so this is the only place
+	// a player would otherwise see them.
+	const moveResults    = options.moveResults ?? null;
+	const resultOutcomes = moveResults
+		? {
+			success: moveResults.success?.value ?? "",
+			partial: moveResults.partial?.value ?? "",
+			failure: moveResults.failure?.value ?? "",
+		}
+		: null;
+	const resultDetail = resultOutcomes?.[result.key] ?? "";
+
 	const header = moveName ?? statLabel;
 
 	// Build condition pills
@@ -137,6 +167,8 @@ export async function rollStat(statKey, actor, options = {}) {
 		header,
 		result: result.label,
 		resultClass: result.key,
+		resultDetail,
+		resultOutcomes,
 		conditionsHtml,
 		buttons: true,
 		description: moveDescription,
