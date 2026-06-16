@@ -5,6 +5,9 @@ import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../..
 import { escHtml, isDefaultImg } from "../../utils/strings.js";
 import { findMonsterTag } from "../../data/monster-tags.js";
 import { getHoverDescriptionSetting } from "../../settings.js";
+import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
+import { postListCard } from "../../utils/chat.js";
+import { localize, format } from "../../utils/i18n.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
 const ORGANIZATION_DEFAULTS = {
@@ -312,10 +315,52 @@ export function createStonetopMonsterSheetClass(Base) {
 			st.organizationLabel   = ORGANIZATION_CHOICES[org] ?? "";
 			st.organizationTooltip = showTagTips ? findMonsterTag(org) : null;
 
+			// Armor-boost moves (e.g. "Withdraw into its shell (Armor 5)") act as
+			// toggles in play mode: clicking sets the stat block's Armor to that
+			// value, clicking again reverts. The live boost (if any) is remembered
+			// on a flag so it survives re-renders, but only counts while (a) its
+			// move still exists — a deleted move shouldn't strand the indicator —
+			// and (b) the sheet is editable, since the toggle writes to the actor,
+			// so a read-only view (e.g. a compendium preview) shows nothing to click.
+			const editable     = this.isEditable;
+			const monsterMoves = this.actor.items.filter(i => i.type === "monsterMove");
+			const boostFlag    = this.actor.flags?.stonetop_pwd?.armorBoost ?? null;
+			const activeMove   = boostFlag?.moveId
+				? monsterMoves.find(m => m.id === boostFlag.moveId) : null;
+			const boost = activeMove && editable ? boostFlag : null;
+
 			// Preserve the book's move order — don't sort.
-			context.monsterMoves = this.actor.items
-				.filter(i => i.type === "monsterMove")
-				.map(i => ({ id: i.id, name: i.name, system: i.system }));
+			context.monsterMoves = monsterMoves.map(i => {
+				const armorBoost  = parseArmorBoost(i.name);
+				const boostActive = boost?.moveId === i.id;
+				// The shield marks a togglable move: any move whose name grants Armor,
+				// plus the live boost itself (so a move whose name was since edited to
+				// drop "(Armor N)" can still be reverted from its own row). 0 is a real
+				// Armor value, so test `!= null`, not falsiness.
+				const isBoost = editable && (armorBoost != null || boostActive);
+				return {
+					id: i.id, name: i.name, system: i.system,
+					armorBoost,
+					boostActive,
+					showBoostIcon: isBoost,
+					boostTooltip: !isBoost ? null
+						: boostActive
+							? localize("stonetop.monster.armorBoostRevert")
+							: format("stonetop.monster.armorBoostApply", { value: armorBoost }),
+				};
+			});
+
+			// Read the label from the move's current name (so a rename shows through
+			// instead of the value frozen on the flag). Escape it: Foundry renders
+			// data-tooltip as innerHTML, so a name with markup would otherwise inject.
+			const boostLabel = boost ? armorBoostLabel(activeMove.name) : "";
+			st.armorBoost = boost ? {
+				value:     boost.value,
+				baseValue: boost.baseValue,
+				label:     boostLabel,
+				tooltip:   format("stonetop.monster.armorBoostNote",
+					{ value: boost.value, base: boost.baseValue, move: escHtml(boostLabel) }),
+			} : null;
 			return context;
 		}
 
@@ -344,11 +389,23 @@ export function createStonetopMonsterSheetClass(Base) {
 					await item?.roll();
 
 				} else if (!this._editMode && ev.target.closest(".stonetop-monster-move-name")) {
-					// Play mode: clicking the name posts the move to chat (with its
-					// roll if it has one), like move names on the character sheet.
 					const li   = ev.target.closest("[data-item-id]");
 					const item = this.actor.items.get(li?.dataset?.itemId);
-					await item?.roll();
+					if (!item) return;
+					// A move that bakes an Armor value into its name ("…(Armor 5)")
+					// toggles that boost instead of posting to chat — provided the
+					// stat block is editable (the toggle writes to the actor). The live
+					// boost move also toggles even if its name was since edited to drop
+					// the parenthetical, so the boost can always be reverted from its row.
+					const boost    = parseArmorBoost(item.name);
+					const isActive = this.actor.flags?.stonetop_pwd?.armorBoost?.moveId === item.id;
+					if (this.isEditable && (boost != null || isActive)) {
+						await this._toggleArmorBoost(item, boost);
+					} else {
+						// Otherwise, clicking the name posts the move to chat (with its
+						// roll if it has one), like move names on the character sheet.
+						await item.roll();
+					}
 				}
 			});
 
@@ -371,7 +428,13 @@ export function createStonetopMonsterSheetClass(Base) {
 						title:   "Delete Move",
 						content: `<p>Delete <strong>${item.name}</strong>?</p>`,
 					});
-					if (confirmed) await item.delete();
+					if (!confirmed) return;
+					// If the move being deleted is the live armor boost, revert it first
+					// so its Armor value isn't stranded on the stat block once it's gone.
+					if (this.actor.flags?.stonetop_pwd?.armorBoost?.moveId === item.id) {
+						await this._toggleArmorBoost(item, parseArmorBoost(item.name));
+					}
+					await item.delete();
 
 				} else if (ev.target.closest(".stonetop-monster-move-name")) {
 					if (!this._editMode) return;
@@ -404,6 +467,61 @@ export function createStonetopMonsterSheetClass(Base) {
 				"system.attributes.hp.max":              def.hp,
 				"system.attributes.damage.rollFormula":  def.die,
 			});
+		}
+
+		/**
+		 * Toggle an Armor-boost move on the stat block. Clicking the move sets
+		 * Armor to the move's value and records a flag holding the pre-boost Armor
+		 * (so the green sheet indicator can explain it and a second click reverts).
+		 * Clicking a different boost move while one is active switches to it, keeping
+		 * the original base — the base is never one boosted value layered on another.
+		 * Armor change and flag are written in a single update so the sheet repaints
+		 * once. `flags.<scope>.-=key` is Foundry's delete-on-update syntax.
+		 *
+		 * @param {Item}   item   the monsterMove being toggled
+		 * @param {number} value  the Armor value its name grants
+		 */
+		async _toggleArmorBoost(item, value) {
+			const current   = this.actor.flags?.stonetop_pwd?.armorBoost ?? null;
+			const baseArmor = this.actor.system?.attributes?.armor?.value ?? 0;
+			const label     = armorBoostLabel(item.name);
+
+			if (current?.moveId === item.id) {
+				const base = current.baseValue ?? baseArmor;
+				await this.actor.update({
+					"system.attributes.armor.value": base,
+					"flags.stonetop_pwd.-=armorBoost": null,
+				});
+				this._postArmorBoostNote(label, baseArmor, base, false);
+				return;
+			}
+
+			// Keep the original pre-boost Armor as the flag's base (never layer one
+			// boost's value on another), but report the *current* Armor as the chat
+			// "from" so switching boosts reads as the real change (5 → 6, not 3 → 6).
+			const baseValue = current ? current.baseValue : baseArmor;
+			await this.actor.update({
+				"system.attributes.armor.value": value,
+				"flags.stonetop_pwd.armorBoost": { moveId: item.id, value, baseValue, label },
+			});
+			this._postArmorBoostNote(label, baseArmor, value, true);
+		}
+
+		/**
+		 * Announce an armor-boost toggle in chat so anyone watching the token sees
+		 * why the creature's Armor changed (the speaker names the stat block). Posts
+		 * a "from → to" row in the same card shell as the system's stat-change notes.
+		 *
+		 * @param {string}  label  the move's name (boost parenthetical stripped)
+		 * @param {number}  from   Armor before this toggle
+		 * @param {number}  to     Armor after it
+		 * @param {boolean} isOn   true when applying the boost, false when reverting
+		 */
+		_postArmorBoostNote(label, from, to, isOn) {
+			const armorLabel = localize("stonetop.monster.armor");
+			const reverted   = isOn ? "" : ` <em>(${localize("stonetop.monster.armorBoostReverted")})</em>`;
+			const row = `<li><strong>${escHtml(armorLabel)}:</strong> ${escHtml(String(from))} &rarr; ${escHtml(String(to))}${reverted}</li>`;
+			postListCard(this.actor, label, row);
 		}
 
 		async _updateRichTextField(field, value) {

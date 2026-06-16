@@ -281,7 +281,11 @@
       "moves": "Moves",
       "addMove": "Add Move",
       "deleteMove": "Delete Move",
-      "noMoves": "No moves yet."
+      "noMoves": "No moves yet.",
+      "armorBoostApply": "Click to set Armor to {value}",
+      "armorBoostRevert": "Click to revert Armor to normal",
+      "armorBoostReverted": "reverted",
+      "armorBoostNote": "Armor boosted to {value} (normally {base}) by “{move}.” Click the move again to revert."
     },
     "bestiary": {
       "namePlaceholder": "Creature Name",

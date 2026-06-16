@@ -1,7 +1,28 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 global.Application = class {};
 
+// Load the real English table so localize()/format() return the strings players
+// actually see — production code can call game.i18n directly without carrying
+// duplicate English fallbacks just for the tests.
+const _i18nTable = JSON.parse(fs.readFileSync(
+	path.join(path.dirname(fileURLToPath(import.meta.url)), "../languages/en.json"), "utf8"));
+
+// Resolve a dot-path key to its leaf string, mirroring Foundry's localize():
+// a missing key (or a non-leaf path) returns the key unchanged.
+function _localize(key) {
+	const value = String(key).split(".").reduce((node, part) => node?.[part], _i18nTable);
+	return typeof value === "string" ? value : key;
+}
+
 global.game = {
-	i18n: { localize: (key) => key },
+	i18n: {
+		localize: _localize,
+		// {placeholder} interpolation from `data`, like Foundry's format().
+		format: (key, data = {}) => _localize(key).replace(/\{(\w+)\}/g, (m, name) => (name in data ? data[name] : m)),
+	},
 };
 
 global.Hooks = {

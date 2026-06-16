@@ -2142,7 +2142,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* Debility name in conditions list — signals it's hoverable */
 .stonetop-debility-hint {
 	cursor: help;
-	text-decoration: underline dotted;
 }
 
 /* ── Burn Brightly ──────────────────────────────────────────────────────────── */
@@ -2369,7 +2368,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-item-resource-title[data-tooltip] {
 	cursor: help;
-	border-bottom: 1px dotted currentcolor;
 }
 
 /* -- attrLeft header row ---------------------------------- */
@@ -2445,8 +2443,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: var(--st-fs-base);
 }
 
-/* Small items live in the narrow (half-width) column; keep each on a single line. */
-.stonetop-inv-item.stonetop-inv-small { font-size: var(--st-fs-xs); }
+/* Small items live in the narrow (half-width) column; keep each on a single line.
+   Name size matches the regular Items column (inherits --st-fs-base). */
 .stonetop-inv-item.stonetop-inv-small .stonetop-inv-label { white-space: nowrap; }
 
 .stonetop-inv-diamonds {
@@ -2617,7 +2615,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-special-pick-name { font-weight: bold; }
 .stonetop-special-pick-traits { font-style: italic; color: var(--color-text-dark-secondary); }
 .stonetop-special-pick-value { flex: 0 0 40px; text-align: center; font-variant-numeric: tabular-nums; }
-.stonetop-special-pick-value[data-tooltip] { cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
+.stonetop-special-pick-value[data-tooltip] { cursor: help; }
 
 /* Relative Value hover list (rendered inside the dark Foundry tooltip): spiral
    bullets, inverted so the dark spiral SVG shows on the dark tooltip background. */
@@ -2712,7 +2710,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* -- Section notes -------------------------------------------- */
 .stonetop-inv-section-note {
-	font-size: var(--st-fs-xs);
+	font-size: var(--st-fs-sm); /* match the pool-note ("Have What You Need…") size */
 	color: var(--color-text-dark-secondary, #666);
 	margin: 0 0 4px;
 	font-style: italic;
@@ -8622,8 +8620,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* "Ongoing" badge carries the ongoing-rules text on hover. */
 .stonetop-invocation-ongoing {
 	cursor: help;
-	text-decoration: underline dotted;
-	text-underline-offset: 2px;
 }
 
 .stonetop-invocation-name {
@@ -8646,11 +8642,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-invocation-desc p { margin: 3px 0; }
 
 /* Reduced / Empowered effect labels carry a hover tooltip explaining the tier;
-   hint at it with a dotted underline and a help cursor. */
+   hint at it with a help cursor. */
 .stonetop-invocation-effect-label[data-tooltip] {
 	cursor: help;
-	text-decoration: underline dotted;
-	text-underline-offset: 2px;
 }
 
 .stonetop-invocation-desc li { margin: 1px 0; }
@@ -9859,7 +9853,6 @@ li.question-bullet {
 	   an authored <em>, so this only visibly italicises the bestiary's
 	   data-driven damage line, where the tag span sits in plain text. */
 	font-style: italic;
-	border-bottom: 1px dotted currentColor;
 	cursor: help;
 }
 
@@ -10111,6 +10104,25 @@ input.stonetop-monster-armor-source {
 	border-radius: 0;
 	background: transparent;
 	font-style: normal;
+}
+
+/* Armor boosted by a move (e.g. "Withdraw into its shell (Armor 5)"): the value
+   goes green and the move's name replaces the source line, explaining why it is
+   higher than normal. Reverts when the move is tapped again. */
+.stonetop-monster-armor--boosted .attr-value {
+	color: var(--stonetop-armor-boost, #1f7a3d);
+	font-weight: 700;
+}
+
+.stonetop-monster-armor-boost-note {
+	color: var(--stonetop-armor-boost, #1f7a3d);
+	font-weight: 600;
+	font-style: normal;
+	cursor: help;
+}
+
+.stonetop-monster-armor-boost-note > .fa-arrow-up {
+	font-size: 0.85em;
 }
 
 .stonetop-monster-namewrap .stonetop-name-field {
@@ -10666,6 +10678,20 @@ input.stonetop-monster-armor-source {
 	cursor: pointer;
 }
 
+/* Shield marker on a move that grants Armor when clicked — a quiet affordance
+   that the move is a toggle, like the dice icon marks a rollable move. */
+.stonetop-monster-move-boost-icon {
+	color: slategrey;
+	font-size: 0.85em;
+}
+
+/* The currently-active armor-boost move: name turns green and the shield fills
+   in, matching the boosted Armor value in the header. */
+.stonetop-monster-move-item.is-boost-active .stonetop-monster-move-name,
+.stonetop-monster-move-item.is-boost-active .stonetop-monster-move-boost-icon {
+	color: var(--stonetop-armor-boost, #1f7a3d);
+}
+
 .stonetop-monster-move-description {
 	font-size: var(--st-fs-base);
 	line-height: 1.45;
@@ -10795,9 +10821,9 @@ input.stonetop-monster-armor-source {
 	font-size: var(--st-fs-xs);
 }
 
-/* Hover-info affordance on the header tag line: the org pill gets a help cursor;
-   recognised size/quality tags get a dotted underline so they stand out from the
-   plain (flavor) tags that carry no tooltip. */
+/* Hover-info affordance on the header tag line: the org pill and recognised
+   size/quality tags get a help cursor (they carry a tooltip); plain (flavor)
+   tags carry no tooltip. */
 .stonetop-monster-org-pill[data-tooltip] { cursor: help; }
 
 /* Size + tags read as a single italic descriptor in the book ("Small * fae,
@@ -10809,8 +10835,6 @@ input.stonetop-monster-armor-source {
 
 .stonetop-monster-tag[data-tooltip] {
 	cursor: help;
-	text-decoration: underline dotted;
-	text-underline-offset: 2px;
 }
 
 /* ── Bestiary Entry sheet ─────────────────────────────────────────────────────── */

@@ -50,6 +50,7 @@ import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
 import {capitalizeFirst, slugify} from "../../utils/strings.js";
+import {localize as _loc} from "../../utils/i18n.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {maxDie, stepDie} from "../../utils/damage-die.js";
@@ -1158,10 +1159,6 @@ export class StonetopCharacter {
 }
 
 // ── Snapshot helpers ──────────────────────────────────────────────────────────
-
-function _loc(key) {
-	return typeof game !== "undefined" ? game.i18n.localize(key) : key;
-}
 
 const _STAT_DEFS = {
 	str: { name: "Strength",     abbr: "STR" },

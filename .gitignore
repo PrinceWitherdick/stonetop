@@ -11,6 +11,7 @@ scripts/local/
 /free pdfs
 
 # Build artifacts and dev scratch files
+*.lnk
 stonetop_pwd.zip
 extracted_text.txt
 sample-data.md

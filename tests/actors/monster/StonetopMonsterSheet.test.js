@@ -8,11 +8,11 @@ function makeItems(items) {
 	};
 }
 
-function makeSheet(actor) {
+function makeSheet(actor, { editable = true } = {}) {
 	const Base = class {
 		constructor() { this._actor = actor; }
 		get actor() { return this._actor; }
-		get isEditable() { return true; }
+		get isEditable() { return editable; }
 		async getData() { return {}; }
 		activateListeners() {}
 	};
@@ -34,7 +34,10 @@ describe("StonetopMonsterSheet", () => {
 
 		expect(data.system).toBe(actor.system);
 		expect(data.monsterMoves).toEqual([
-			{ id: "move1", name: "Snatch", system: { rollFormula: "1d6" } },
+			{
+				id: "move1", name: "Snatch", system: { rollFormula: "1d6" },
+				armorBoost: null, boostActive: false, showBoostIcon: false, boostTooltip: null,
+			},
 		]);
 	});
 
@@ -396,6 +399,366 @@ describe("StonetopMonsterSheet", () => {
 
 		expect(idLink.removed).toBe(true);
 		expect(title.removed).toBe(false);
+	});
+
+	// --- Armor-boost moves -------------------------------------------------
+
+	it("tags armor-boost moves and reports no active boost when none is set", async () => {
+		const actor = {
+			system: { attributes: { armor: { value: 3 } } },
+			flags: {},
+			items: makeItems([
+				{ id: "b1", type: "monsterMove", name: "Withdraw into its shell (Armor 5)", system: {} },
+			]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.monsterMoves[0].armorBoost).toBe(5);
+		expect(data.monsterMoves[0].boostActive).toBe(false);
+		expect(data.monsterMoves[0].boostTooltip).toBe("Click to set Armor to 5");
+		expect(data.stonetop.armorBoost).toBeNull();
+	});
+
+	it("marks the active armor-boost move and exposes the header indicator", async () => {
+		const actor = {
+			system: { attributes: { armor: { value: 5 } } },
+			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
+			items: makeItems([
+				{ id: "b1", type: "monsterMove", name: "Withdraw into its shell (Armor 5)", system: {} },
+				{ id: "n1", type: "monsterMove", name: "Burrow into soil", system: {} },
+			]),
+		};
+
+		const data = await makeSheet(actor).getData();
+		const [boostMove, plainMove] = data.monsterMoves;
+
+		expect(boostMove.boostActive).toBe(true);
+		expect(boostMove.boostTooltip).toBe("Click to revert Armor to normal");
+		expect(plainMove.armorBoost).toBeNull();
+		expect(plainMove.boostActive).toBe(false);
+		expect(data.stonetop.armorBoost).toMatchObject({
+			value: 5, baseValue: 3, label: "Withdraw into its shell",
+		});
+	});
+
+	it("ignores a boost flag whose move no longer exists", async () => {
+		const actor = {
+			system: { attributes: { armor: { value: 5 } } },
+			flags: { stonetop_pwd: { armorBoost: { moveId: "gone", value: 5, baseValue: 3, label: "X" } } },
+			items: makeItems([
+				{ id: "b1", type: "monsterMove", name: "Burrow into soil", system: {} },
+			]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.armorBoost).toBeNull();
+		expect(data.monsterMoves[0].boostActive).toBe(false);
+	});
+
+	it("toggles an armor boost on, recording the pre-boost armor as the base", async () => {
+		const actor = {
+			system: { attributes: { armor: { value: 3 } } },
+			flags: {},
+			items: makeItems([]),
+			update: vi.fn(),
+		};
+		const sheet = makeSheet(actor);
+
+		await sheet._toggleArmorBoost({ id: "m1", name: "Withdraw into its shell (Armor 5)" }, 5);
+
+		expect(actor.update).toHaveBeenCalledWith({
+			"system.attributes.armor.value": 5,
+			"flags.stonetop_pwd.armorBoost": {
+				moveId: "m1", value: 5, baseValue: 3, label: "Withdraw into its shell",
+			},
+		});
+	});
+
+	it("toggles the active armor boost off, restoring the base armor", async () => {
+		const actor = {
+			system: { attributes: { armor: { value: 5 } } },
+			flags: { stonetop_pwd: { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
+			items: makeItems([]),
+			update: vi.fn(),
+		};
+		const sheet = makeSheet(actor);
+
+		await sheet._toggleArmorBoost({ id: "m1", name: "Withdraw into its shell (Armor 5)" }, 5);
+
+		expect(actor.update).toHaveBeenCalledWith({
+			"system.attributes.armor.value": 3,
+			"flags.stonetop_pwd.-=armorBoost": null,
+		});
+	});
+
+	it("switching to a different boost move keeps the original base armor", async () => {
+		const actor = {
+			system: { attributes: { armor: { value: 5 } } }, // already boosted by m1
+			flags: { stonetop_pwd: { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Shell" } } },
+			items: makeItems([]),
+			update: vi.fn(),
+		};
+		const sheet = makeSheet(actor);
+
+		await sheet._toggleArmorBoost({ id: "m2", name: "Hunker down (Armor 6)" }, 6);
+
+		expect(actor.update).toHaveBeenCalledWith({
+			"system.attributes.armor.value": 6,
+			"flags.stonetop_pwd.armorBoost": {
+				moveId: "m2", value: 6, baseValue: 3, label: "Hunker down",
+			},
+		});
+	});
+
+	it("clicking an armor-boost move name toggles the boost instead of rolling", async () => {
+		const boostItem = { id: "b1", name: "Withdraw into its shell (Armor 5)", roll: vi.fn() };
+		const actor = {
+			system: { attributes: { armor: { value: 3 } } },
+			flags: {},
+			items: makeItems([boostItem]),
+		};
+		const sheet = makeSheet(actor);
+		sheet._toggleArmorBoost = vi.fn();
+
+		const handlers = [];
+		const root = {
+			addEventListener: (name, handler) => { if (name === "click") handlers.push(handler); },
+			querySelector: () => null,
+		};
+		sheet.activateListeners([root]);
+
+		const target = {
+			closest: selector => selector === ".stonetop-monster-move-name" ? target
+				: selector === "[data-item-id]" ? { dataset: { itemId: "b1" } } : null,
+		};
+		await handlers[0]({ target });
+
+		expect(sheet._toggleArmorBoost).toHaveBeenCalledWith(boostItem, 5);
+		expect(boostItem.roll).not.toHaveBeenCalled();
+	});
+
+	it("announces an applied armor boost in chat (base → boosted)", async () => {
+		const created = [];
+		const originalChat = globalThis.ChatMessage;
+		globalThis.ChatMessage = { create: msg => created.push(msg), getSpeaker: () => ({ alias: "Shellback Drake" }) };
+		try {
+			const actor = {
+				name: "Shellback Drake",
+				system: { attributes: { armor: { value: 3 } } },
+				flags: {},
+				items: makeItems([]),
+				update: vi.fn(),
+			};
+			await makeSheet(actor)._toggleArmorBoost({ id: "m1", name: "Withdraw into its shell (Armor 5)" }, 5);
+
+			expect(created).toHaveLength(1);
+			expect(created[0].content).toContain("Withdraw into its shell");
+			expect(created[0].content).toMatch(/3 &rarr; 5/);
+			expect(created[0].content).not.toContain("reverted");
+		} finally {
+			globalThis.ChatMessage = originalChat;
+		}
+	});
+
+	it("announces reverting an armor boost in chat (boosted → base)", async () => {
+		const created = [];
+		const originalChat = globalThis.ChatMessage;
+		globalThis.ChatMessage = { create: msg => created.push(msg), getSpeaker: () => ({}) };
+		try {
+			const actor = {
+				name: "Shellback Drake",
+				system: { attributes: { armor: { value: 5 } } },
+				flags: { stonetop_pwd: { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
+				items: makeItems([]),
+				update: vi.fn(),
+			};
+			await makeSheet(actor)._toggleArmorBoost({ id: "m1", name: "Withdraw into its shell (Armor 5)" }, 5);
+
+			expect(created[0].content).toMatch(/5 &rarr; 3/);
+			expect(created[0].content).toContain("reverted");
+		} finally {
+			globalThis.ChatMessage = originalChat;
+		}
+	});
+
+	it("clicking a non-boost move name posts it to chat (rolls)", async () => {
+		const plainItem = { id: "n1", name: "Burrow into soil", roll: vi.fn() };
+		const actor = { system: {}, flags: {}, items: makeItems([plainItem]) };
+		const sheet = makeSheet(actor);
+
+		const handlers = [];
+		const root = {
+			addEventListener: (name, handler) => { if (name === "click") handlers.push(handler); },
+			querySelector: () => null,
+		};
+		sheet.activateListeners([root]);
+
+		const target = {
+			closest: selector => selector === ".stonetop-monster-move-name" ? target
+				: selector === "[data-item-id]" ? { dataset: { itemId: "n1" } } : null,
+		};
+		await handlers[0]({ target });
+
+		expect(plainItem.roll).toHaveBeenCalled();
+	});
+
+	it("deleting the active boost move reverts its armor before removing it", async () => {
+		const boostItem = { id: "b1", name: "Withdraw into its shell (Armor 5)", delete: vi.fn() };
+		const actor = {
+			system: { attributes: { armor: { value: 5 } } }, // currently boosted
+			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
+			items: makeItems([boostItem]),
+			update: vi.fn(),
+		};
+		const sheet = makeSheet(actor);
+		sheet._editMode = true;
+
+		const originalDialog = globalThis.Dialog;
+		globalThis.Dialog = { confirm: vi.fn().mockResolvedValue(true) };
+		try {
+			const handlers = [];
+			const root = {
+				addEventListener: (name, handler) => { if (name === "click") handlers.push(handler); },
+				querySelector: () => null,
+			};
+			sheet.activateListeners([root]);
+
+			// The add/delete/edit handler is the second click listener (registered after isEditable).
+			const target = {
+				closest: selector => selector === ".stonetop-monster-delete-move" ? target
+					: selector === "[data-item-id]" ? { dataset: { itemId: "b1" } } : null,
+			};
+			await handlers[1]({ target });
+
+			expect(actor.update).toHaveBeenCalledWith({
+				"system.attributes.armor.value": 3,
+				"flags.stonetop_pwd.-=armorBoost": null,
+			});
+			expect(boostItem.delete).toHaveBeenCalled();
+		} finally {
+			globalThis.Dialog = originalDialog;
+		}
+	});
+
+	it("deleting a non-boost move leaves an active boost untouched", async () => {
+		const plainItem = { id: "n1", name: "Burrow into soil", delete: vi.fn() };
+		const actor = {
+			system: { attributes: { armor: { value: 5 } } },
+			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
+			items: makeItems([plainItem]),
+			update: vi.fn(),
+		};
+		const sheet = makeSheet(actor);
+		sheet._editMode = true;
+
+		const originalDialog = globalThis.Dialog;
+		globalThis.Dialog = { confirm: vi.fn().mockResolvedValue(true) };
+		try {
+			const handlers = [];
+			const root = {
+				addEventListener: (name, handler) => { if (name === "click") handlers.push(handler); },
+				querySelector: () => null,
+			};
+			sheet.activateListeners([root]);
+
+			const target = {
+				closest: selector => selector === ".stonetop-monster-delete-move" ? target
+					: selector === "[data-item-id]" ? { dataset: { itemId: "n1" } } : null,
+			};
+			await handlers[1]({ target });
+
+			expect(actor.update).not.toHaveBeenCalled();
+			expect(plainItem.delete).toHaveBeenCalled();
+		} finally {
+			globalThis.Dialog = originalDialog;
+		}
+	});
+
+	it("hides the boost affordance on a read-only sheet (can't write the actor)", async () => {
+		const actor = {
+			system: { attributes: { armor: { value: 5 } } },
+			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
+			items: makeItems([
+				{ id: "b1", type: "monsterMove", name: "Withdraw into its shell (Armor 5)", system: {} },
+			]),
+		};
+
+		const data = await makeSheet(actor, { editable: false }).getData();
+
+		expect(data.stonetop.armorBoost).toBeNull();
+		expect(data.monsterMoves[0].armorBoost).toBe(5);   // still parsed…
+		expect(data.monsterMoves[0].showBoostIcon).toBe(false); // …but no toggle affordance
+		expect(data.monsterMoves[0].boostActive).toBe(false);
+		expect(data.monsterMoves[0].boostTooltip).toBeNull();
+	});
+
+	it("keeps an active boost revertable after its move is renamed to drop '(Armor N)'", async () => {
+		const actor = {
+			system: { attributes: { armor: { value: 5 } } },
+			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
+			items: makeItems([
+				// Name no longer parses as a boost, but the flag still points at it.
+				{ id: "b1", type: "monsterMove", name: "Withdraw into its shell", system: {} },
+			]),
+		};
+
+		const data = await makeSheet(actor).getData();
+		const move = data.monsterMoves[0];
+
+		expect(move.armorBoost).toBeNull();        // name no longer advertises a value
+		expect(move.boostActive).toBe(true);       // …but it is still the live boost
+		expect(move.showBoostIcon).toBe(true);     // so it keeps a shield + revert hint
+		expect(move.boostTooltip).toBe("Click to revert Armor to normal");
+		// Header label tracks the move's current (renamed) name, not the stale flag.
+		expect(data.stonetop.armorBoost.label).toBe("Withdraw into its shell");
+	});
+
+	it("clicking the renamed active boost move reverts it instead of rolling", async () => {
+		const boostItem = { id: "b1", name: "Withdraw into its shell", roll: vi.fn() };
+		const actor = {
+			system: { attributes: { armor: { value: 5 } } },
+			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
+			items: makeItems([boostItem]),
+		};
+		const sheet = makeSheet(actor);
+		sheet._toggleArmorBoost = vi.fn();
+
+		const handlers = [];
+		const root = {
+			addEventListener: (name, handler) => { if (name === "click") handlers.push(handler); },
+			querySelector: () => null,
+		};
+		sheet.activateListeners([root]);
+
+		const target = {
+			closest: selector => selector === ".stonetop-monster-move-name" ? target
+				: selector === "[data-item-id]" ? { dataset: { itemId: "b1" } } : null,
+		};
+		await handlers[0]({ target });
+
+		expect(sheet._toggleArmorBoost).toHaveBeenCalledWith(boostItem, null);
+		expect(boostItem.roll).not.toHaveBeenCalled();
+	});
+
+	it("reports the current armor (not the original base) when switching boost moves", async () => {
+		const created = [];
+		const originalChat = globalThis.ChatMessage;
+		globalThis.ChatMessage = { create: msg => created.push(msg), getSpeaker: () => ({}) };
+		try {
+			const actor = {
+				system: { attributes: { armor: { value: 5 } } }, // already boosted to 5 by m1
+				flags: { stonetop_pwd: { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Shell" } } },
+				items: makeItems([]),
+				update: vi.fn(),
+			};
+			await makeSheet(actor)._toggleArmorBoost({ id: "m2", name: "Hunker down (Armor 6)" }, 6);
+
+			expect(created[0].content).toMatch(/5 &rarr; 6/); // current 5 → new 6, not 3 → 6
+		} finally {
+			globalThis.ChatMessage = originalChat;
+		}
 	});
 
 });

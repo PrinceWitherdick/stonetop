@@ -47,19 +47,33 @@ export function stonetopChatCard(title, innerHtml, sectionClass = "") {
 }
 
 /**
+ * Post a card whose body is the shared "card-content → homestead list" shape: a
+ * <ul> of pre-built <li> rows under the stonetop chat-card shell, spoken by the
+ * actor. Centralizes the list wrapper + speaker boilerplate so the move/stat/
+ * armor notes don't each re-type it (the markup the comment on {@link stonetopCardShell}
+ * promises lives in one place).
+ * @param {Actor}  actor
+ * @param {string} title     Card header text (escaped by the shell).
+ * @param {string} rowsHtml  Pre-built, already-escaped <li>…</li> rows.
+ */
+export function postListCard(actor, title, rowsHtml) {
+	if (!globalThis.ChatMessage || !rowsHtml) return;
+	const content = stonetopChatCard(title,
+		`<div class="card-content"><ul class="stonetop-homestead-chat-list">${rowsHtml}</ul></div>`,
+		"stonetop-homestead-chat-card");
+	ChatMessage.create({ content, speaker: ChatMessage.getSpeaker({ actor }) });
+}
+
+/**
  * Post a guided-move summary card to chat.
  * @param {Actor} actor
  * @param {string} title   Move name shown in the card header.
  * @param {{label: string, value: string}[]} rows  Non-empty rows to display.
  */
 export function postMoveToChat(actor, title, rows) {
-	if (!globalThis.ChatMessage || !rows.length) return;
-	const content = stonetopChatCard(title, `<div class="card-content">
-				<ul class="stonetop-homestead-chat-list">
-					${rows.map(r => `<li><strong>${escHtml(r.label)}:</strong> ${escHtml(r.value)}</li>`).join("")}
-				</ul>
-			</div>`, "stonetop-homestead-chat-card");
-	ChatMessage.create({ content, speaker: ChatMessage.getSpeaker({ actor }) });
+	if (!rows.length) return;
+	postListCard(actor, title,
+		rows.map(r => `<li><strong>${escHtml(r.label)}:</strong> ${escHtml(r.value)}</li>`).join(""));
 }
 
 /**
@@ -68,13 +82,10 @@ export function postMoveToChat(actor, title, rows) {
  * @param {{label: string, oldValue: *, newValue: *}[]} changes
  */
 export function postStatChangesToChat(actor, changes) {
-	if (!globalThis.ChatMessage || !changes?.length) return;
+	if (!changes?.length) return;
 	const rows = changes.map(c =>
 		`<li><strong>${escHtml(c.label)}:</strong> ${escHtml(formatStatValue(c.oldValue))} &rarr; ${escHtml(formatStatValue(c.newValue))}</li>`
 	).join("");
 	const title = changes.length > 1 ? "Stats changed" : "Stat changed";
-	const content = stonetopChatCard(title,
-		`<div class="card-content"><ul class="stonetop-homestead-chat-list">${rows}</ul></div>`,
-		"stonetop-homestead-chat-card");
-	ChatMessage.create({ content, speaker: ChatMessage.getSpeaker({ actor }) });
+	postListCard(actor, title, rows);
 }
