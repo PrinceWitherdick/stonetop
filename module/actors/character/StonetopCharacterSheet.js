@@ -9,20 +9,22 @@ import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
-import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
+import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE} from "./StonetopFlags.js";
 import {rollDamage, sign} from "../../utils/roll-engine.js";
+import {dieFromDamage} from "../../utils/damage.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
-import {escHtml, isDefaultImg} from "../../utils/strings.js";
+import {escHtml, isDefaultImg, normalizePlaybookGlyphs} from "../../utils/strings.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen} from "../../settings.js";
 import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
+import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -455,6 +457,116 @@ function _makeLoyaltyPips(val, max = 3) {
 	return Array.from({ length: max }, (_, i) => ({ index: i, filled: i < val }));
 }
 
+// Followers that can gain the "exceptional" tag, and the playbook move that
+// grants it (Book I p.462: the crew "requires Heroes to the Last"; the Ranger's
+// animal companion gets it from Beast of Legend). Other follower types have no
+// such option in the rulebook, so they never show the exceptional control.
+const FOLLOWER_EXCEPTIONAL = {
+	"crew":             { move: "Heroes to the Last", noun: "crew" },
+	"animal-companion": { move: "Beast of Legend",    noun: "animal companion" },
+};
+
+// Per-follower-type presentation constants, spread into each card builder in
+// _buildFollowersData so a type's icon / damage-type tag / capability flags /
+// default damage pronoun live in one place instead of being re-typed across the
+// four builders. Only genuinely constant fields go here; per-instance values (a
+// named companion's pronoun, a beast's follower-vs-livestock icon and label) are
+// set after the spread and override these. A type omits a key when it has no
+// constant for it — crew has static HP so no `hpFollower`; the beast's icon is
+// per-instance so it sets `portraitIcon` itself.
+const FOLLOWER_FTYPE_DEFAULTS = {
+	"animal-companion": { ftype: "animal-companion", portraitIcon: "fas fa-paw",      damageType: "animal",   hpFollower: "animal-companion", showGear: true,  nameEditable: true, namePlaceholder: "Animal Companion" },
+	"crew":             { ftype: "crew",             portraitIcon: "fas fa-users",    damageType: "crew",     damagePronoun: "they",          showGear: false, nameEditable: true, namePlaceholder: "Crew" },
+	"initiate":         { ftype: "initiate",         portraitIcon: "fas fa-seedling", damageType: "initiate", hpFollower: "initiate",         showGear: true },
+	"beast":            { ftype: "beast",            damageType: "beast",             damagePronoun: "it",    hpFollower: "beast",            showGear: true },
+};
+
+// Common, hand-editable follower fields shared by every card type on the
+// Followers tab (matching the rulebook's blank Follower card): the exceptional
+// toggle, free-text Moves and Notes, and a diamond Gear checklist. Each follower
+// stores these under its own flag namespace (see _followerDetailBase); `d` is
+// that raw object (may be undefined).
+function _followerExtras(d = {}) {
+	const moves   = String(d?.moves ?? "");
+	const gearArr = Array.isArray(d?.gear) ? d.gear : [];
+	return {
+		exceptional: !!d?.exceptional,
+		moves,
+		movesLines:  moves.split("\n").map(s => s.trim()).filter(Boolean),
+		gear:        gearArr.map((g, i) => ({ index: i, label: g?.label ?? "", checked: !!g?.checked })),
+		notes:       String(d?.notes ?? ""),
+	};
+}
+
+// Per-follower-type flag layout — the single source of truth both the read side
+// (_buildFollowersData) and the write side (activateListeners) resolve paths
+// through, so the two can't drift and a new follower type is one row:
+//   detailBase  – `.details` namespace for hand-edited extras (moves / notes /
+//                 gear) and the Damage / Instinct / Cost overrides. The `.details`
+//                 sub-key on the singular types keeps these clear of the
+//                 structural flags (name, loyalty, the crew's gear-pip inventory
+//                 at `crew.gear`, tags…). `{slug}` is filled per instance for the
+//                 repeatable types.
+//   loyalty     – the (older) Loyalty store: scalar for the singular animal
+//                 companion / crew, per-slug for initiates / beasts.
+//   structural  – type-root fields the player edits directly. name / pronoun,
+//                 plus instinct / cost on the types that carry them from
+//                 onboarding. Editing one writes here, NOT to the override layer,
+//                 so it can be cleared — an empty override would otherwise fall
+//                 back to the onboarding value (see withStatOverrides).
+const _FOLLOWER_FLAGS = {
+	"animal-companion": { detailBase: "animalCompanion.details", loyalty: "animalCompanion.loyalty",
+		structural: { name: "animalCompanion.name", pronoun: "animalCompanion.pronoun", instinct: "animalCompanion.instinct", cost: "animalCompanion.cost" } },
+	"crew":             { detailBase: "crew.details",            loyalty: "crew.loyalty",
+		structural: { name: "crew.name", instinct: "crew.instinct", cost: "crew.cost" } },
+	"initiate":         { detailBase: "initiateDetails.{slug}",  loyalty: "initiatesLoyalty.{slug}", structural: {} },
+	"beast":            { detailBase: "beastDetails.{slug}",     loyalty: "beastLoyalty.{slug}",     structural: {} },
+};
+const _fillSlug = (tpl, slug) => tpl == null ? null : tpl.replaceAll("{slug}", slug ?? "");
+
+// `.details` namespace for a follower's hand-edited extras + stat overrides, or null.
+function _followerDetailBase(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.detailBase, slug); }
+
+// Type-root path for a structurally-stored field (name / pronoun / instinct / cost), or null.
+function _followerStructuralPath(ftype, field) { return _FOLLOWER_FLAGS[ftype]?.structural?.[field] ?? null; }
+
+// Effective crew headcount: the stored size, else the rulebook's default
+// half-dozen (Crew insert, p.144), but never fewer than the named individuals.
+// Only a genuinely unset (null/undefined/non-numeric) size defaults to 6 — an
+// explicit 0 is honoured, so emptying the roster doesn't spring back to six.
+// Shared by the read side (_buildFollowersData) and the resize/delete handlers.
+function _effectiveCrewSize(rawSize, namedCount) {
+	const n = Number(rawSize);
+	const base = Number.isFinite(n) ? Math.max(0, n) : 6;
+	return Math.max(namedCount, base);
+}
+
+// Hard cap on crew headcount, so a fat-fingered roster size can't build a
+// thousand-member anonymous list (and a thousand-die group HP pool).
+const _CREW_SIZE_MAX = 99;
+
+// Flag path where a follower type stores its Loyalty value, driving the single
+// shared loyalty-pip click handler (see _FOLLOWER_FLAGS).
+function _followerLoyaltyPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.loyalty, slug); }
+
+// Current HP against a max, with the shared "unset → full" default: a missing or
+// non-numeric stored value means the follower is at full HP.
+function _clampHp(raw, max) {
+	const n = Number(raw);
+	return raw != null && Number.isFinite(n) ? Math.min(Math.max(0, n), max) : max;
+}
+
+// Pull the rollable die and parenthetical "form" (e.g. "forceful") out of a
+// free-text damage string like "d8 (forceful)". `band`→`hand` repairs a common
+// OCR slip from the transcribed stat blocks.
+function _parseFollowerDamage(str) {
+	const s = String(str ?? "");
+	return {
+		damageRoll: dieFromDamage(s),
+		damageForm: (s.match(/\(([^)]+)\)/)?.[1] ?? "").replace(/\bband\b/gi, "hand") || null,
+	};
+}
+
 // ── Move cross-reference hover tooltips ──────────────────────────────────────
 // Longest names first so the alternation prefers the longer match.
 const _MOVE_REF_NAMES = [
@@ -552,6 +664,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				this.options.width  = storedWidth;
 				this.position.width = storedWidth;
 			}
+
+			// Reopen the collapsible crew sections (Inventory / Roster / Group Fight)
+			// in the state this user last left them — persisted per-actor, per-user.
+			this._openCrewSections = new Set(getCrewSectionsOpen(this.actor?.id));
+		}
+
+		// Persist the current crew-section open state so it survives a sheet reopen.
+		_persistCrewSections() {
+			setCrewSectionsOpen(this.actor?.id, [...(this._openCrewSections ?? [])]);
 		}
 
 		static get defaultOptions() {
@@ -922,6 +1043,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				context.stonetop.followers.initiates?.length ||
 				context.stonetop.followers.beasts?.length
 			);
+			// Universal "Follower Special Moves" (same for every character), rendered
+			// read-only from the follower-moves items via their build export.
+			context.stonetop.followerSpecialMoves = FOLLOWER_MOVES;
 			context.stonetop.hasArcana = !!(
 				context.stonetop.arcana?.minor?.hasOwned ||
 				context.stonetop.arcana?.major?.hasOwned
@@ -961,12 +1085,87 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 		}
 
+		/** Opening a card's editor queues its name input to grab focus on the next
+		 *  render (see activateListeners). Opening a crew collapsible's editor (or the
+		 *  whole Followers tab) also expands that <details> so the controls being
+		 *  edited are visible. This expansion is in-memory only (for the current
+		 *  render); it is NOT persisted, so entering edit mode never overwrites the
+		 *  user's saved collapse preference — only an explicit <details> toggle does. */
+		_onSectionEditOpened(section) {
+			section ??= "";
+			const m = /^follower-card:([^:]*):(.*)$/.exec(section);
+			if (m) this._pendingFollowerFocus = `follower-name:${m[1]}:${m[2]}`;
+			this._openCrewSections ??= new Set();
+			if (section === "followers") this._openCrewSections.add("inventory").add("roster").add("groupFight");
+			else if (/^follower-individuals:crew:/.test(section)) this._openCrewSections.add("roster");
+		}
+
 		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }) {
 			const sf = resolvedFlags(this.actor);
+			// Which collapsible crew sections are expanded. Seeded from the persisted
+			// per-actor setting in the constructor (so it survives a sheet reopen);
+			// the ??= is just a defensive fallback.
+			this._openCrewSections ??= new Set();
 			const crewMaxHp = crewStats.memberHp ?? 6;
+			// Stash the per-member HP max so the resize/delete handlers can re-clamp
+			// the abstracted group-fight pool (crewSize × memberHp) when it shrinks.
+			this._crewMemberHpMax = crewMaxHp;
 			const crewArmor = crewStats.armor ?? 0;
 			const crewDamageDie = crewStats.damageDie ?? "d6";
 			const crewRollMod = crewStats.rollMod ?? 1;
+			// Edit state for follower cards. One card-level pencil (top-right of the
+			// card) makes the whole body — name, stats, moves, notes, gear — editable
+			// at once; it is on when the whole Followers tab is in edit mode (global
+			// wrench or the tab's pencil) or that card's own pencil has been opened,
+			// tracked as `follower-card:<ftype>:<slug>` in the section-editing mixin.
+			// The crew's Roster keeps its own separate pencil (`follower-individuals:…`).
+			const followersEditing = this.isSectionEditable("followers");
+			const cardEditing = (ftype, slug) =>
+				followersEditing || this._editingSections.has(`follower-card:${ftype}:${slug}`);
+			const withSectionEdits = (card) => {
+				if (!card) return card;
+				const { ftype, slug } = card;
+				const cardOn = cardEditing(ftype, slug);
+				card.edit = {
+					card:  cardOn,
+					name:  cardOn,
+					stats: cardOn,
+					moves: cardOn,
+					notes: cardOn,
+					gear:  cardOn,
+					// Roster: governed by its own pencil (or the whole-tab edit), not the card button.
+					individuals: followersEditing || this._editingSections.has(`follower-individuals:${ftype}:${slug}`),
+				};
+				return card;
+			};
+			// The stat-block editor lets the player override Damage / Instinct / Cost with
+			// free text, stored on the same per-follower detail flags as moves/notes (see
+			// followerDetailPath). An empty override keeps the rules-derived default; a set
+			// Damage override also re-derives its rollable die + parenthetical form.
+			// Instinct / Cost are skipped for types that store them structurally (animal
+			// companion / crew): those edit the type-root value directly so it can be
+			// cleared, instead of layering an override that an empty value can't unset.
+			const detailFlagsFor = (ftype, slug) => {
+				const base = _followerDetailBase(ftype, slug);
+				return base ? (foundry.utils.getProperty(sf, base) ?? {}) : {};
+			};
+			const withStatOverrides = (card) => {
+				if (!card) return card;
+				const d = detailFlagsFor(card.ftype, card.slug);
+				const has = (v) => v != null && String(v).trim() !== "";
+				if (!_followerStructuralPath(card.ftype, "instinct") && has(d.instinct)) card.instinct = d.instinct;
+				if (!_followerStructuralPath(card.ftype, "cost")     && has(d.cost))     card.cost     = d.cost;
+				if (has(d.damage)) {
+					card.damage = String(d.damage).trim();
+					const parsed = _parseFollowerDamage(card.damage);
+					card.damageForm = parsed.damageForm;
+					// Keep the rules-derived rollable die if the override has no die of
+					// its own (e.g. a free-text "special"), so the damage roll button —
+					// and the crew Group Fight roll — never goes empty.
+					if (parsed.damageRoll) card.damageRoll = parsed.damageRoll;
+				}
+				return card;
+			};
 
 			// -- Animal Companion (Ranger) ------------------------------
 			let animalCompanion = null;
@@ -981,24 +1180,31 @@ export function createStonetopCharacterSheetClass(Base) {
 				const hpMax = Number(stats.hp) || 0;
 				const hpRaw = sf.animalCompanion?.hpCurrent;
 				const showTraitHover = getHoverDescriptionSetting("hoverDescriptionsTraits");
+				const acName = sf.animalCompanion?.name ?? "";
+				const acPronoun = sf.animalCompanion?.pronoun ?? "";
 				animalCompanion = {
-					name:     sf.animalCompanion?.name     ?? "",
-					pronoun:  sf.animalCompanion?.pronoun  ?? "",
-					type:     typeLabel,
-					kind,
-					kindDisplay: _titleCase(kind),
-					typeDisplay: String(typeLabel).toLowerCase(),
-					hp:       stats.hp                     ?? "—",
+					...FOLLOWER_FTYPE_DEFAULTS["animal-companion"],
+					slug:         "",
+					name:         acName,
+					pronoun:      acPronoun,
+					pronounEditable: true,
+					typeLabel:    kind ? `${_titleCase(kind)} (${String(typeLabel).toLowerCase()})` : String(typeLabel),
+					tags:         traits.map(label => ({ label, tooltip: showTraitHover ? _animalCompanionTraitTooltip(label) : null })),
+					hpSlug:       "",
 					hpMax,
-					hpCurrent: hpRaw != null ? Math.min(Math.max(0, Number(hpRaw)), hpMax) : hpMax,
-					armor:      stats.armor                ?? "—",
-					damage:     stats.damage               ?? "—",
-					damageRoll: String(stats.damage ?? "").match(/(\d*d\d+(?:[+-]\d+)?)/i)?.[1] ?? null,
-					damageForm: (String(stats.damage ?? "").match(/\(([^)]+)\)/)?.[1] ?? "").replace(/\bband\b/gi, "hand") || null,
-					traits: traits.map(label => ({ label, tooltip: showTraitHover ? _animalCompanionTraitTooltip(label) : null })),
-					instinct: sf.animalCompanion?.instinct ?? "",
-					cost:     sf.animalCompanion?.cost     ?? "",
-					loyalty:  _makeLoyaltyPips(loyaltyVal),
+					hpCurrent:    _clampHp(hpRaw, hpMax),
+					maxHpDisplay: hpMax,
+					armor:        stats.armor              ?? "—",
+					damage:       stats.damage             ?? "—",
+					..._parseFollowerDamage(stats.damage),
+					damageKind:   kind || String(typeLabel).toLowerCase(),
+					damageName:   acName,
+					damagePronoun: acPronoun,
+					instinct:     sf.animalCompanion?.instinct ?? "",
+					cost:         sf.animalCompanion?.cost     ?? "",
+					loyalty:      _makeLoyaltyPips(loyaltyVal),
+					loyaltySlug:  "",
+					..._followerExtras(sf.animalCompanion?.details),
 				};
 			}
 
@@ -1038,23 +1244,109 @@ export function createStonetopCharacterSheetClass(Base) {
 				};
 				const crewIndividuals = (sf.crew?.individuals ?? []).map((ind, idx) => {
 					const indHpRaw = (sf.crew?.individualsHp ?? {})[idx];
-					return { ...ind, index: idx, hpMax: crewMaxHp, hpCurrent: indHpRaw != null ? Math.min(Math.max(0, Number(indHpRaw)), crewMaxHp) : crewMaxHp };
+					return { ...ind, index: idx, hpMax: crewMaxHp, hpCurrent: _clampHp(indHpRaw, crewMaxHp) };
 				});
+				// Roster: the crew is "a half-dozen strong by default" (Crew insert,
+				// p.144). Named individuals are the members who've "stood out"; the
+				// rest are tracked as anonymous members. Every member has their own
+				// current HP against the one shared max (NPCs & Followers, p.470/472).
+				const crewNamedCount = crewIndividuals.length;
+				const crewSize       = _effectiveCrewSize(sf.crew?.size, crewNamedCount);
+				const crewAnonCount  = Math.max(0, crewSize - crewNamedCount);
+				const crewMemberHp   = Array.isArray(sf.crew?.memberHp) ? sf.crew.memberHp : [];
+				const crewAnonMembers = Array.from({ length: crewAnonCount }, (_, i) => {
+					const raw = crewMemberHp[i];
+					return {
+						index:     i,
+						label:     `Crew member ${crewNamedCount + i + 1}`,
+						hpMax:     crewMaxHp,
+						hpCurrent: _clampHp(raw, crewMaxHp),
+					};
+				});
+				const crewAliveCount = crewIndividuals.filter(m => m.hpCurrent > 0).length
+				                     + crewAnonMembers.filter(m => m.hpCurrent > 0).length;
+				// Abstracted "treat the whole group as one combatant" pool, tracked
+				// independently of per-member HP (Followers in Fights, p.409/473).
+				const crewGroupHpMax     = crewSize * crewMaxHp;
+				const crewGroupHpRaw     = Number(sf.crew?.groupHp);
+				const crewGroupHpCurrent = _clampHp(crewGroupHpRaw, crewGroupHpMax);
+				// Readiness held when the crew Defends (common pool, p.473).
+				const crewReadiness = Math.max(0, Number(sf.crew?.readiness) || 0);
+				// Crew shares the common card body but supplies its own gear (the
+				// inventory section below), so spread the shared extras then override
+				// `gear`. Details live under crew.details so they don't collide with the
+				// inventory pip map stored at crew.gear (see _followerDetailBase).
+				const crewExtras = _followerExtras(sf.crew?.details);
+				// Playbook-defined tag / instinct / cost options (the lists printed on
+				// the Crew sheet), surfaced as pickers in edit mode. Tags store the raw
+				// option string (one auto tag from the chosen background is locked on);
+				// instinct/cost store the glyph-normalized text, matching onboarding.
+				// Only the edit-mode pickers consume these, and each entry runs the
+				// glyph normalizer, so skip the whole build outside edit mode.
+				// The background-granted "auto" tag is DERIVED from the active background,
+				// never baked into crew.tags — so changing background swaps it cleanly
+				// instead of leaving the old one stranded in storage. crew.tags holds
+				// only the player's chosen tags.
+				const crewBgTag = (playbookDoc?.crew?.backgroundTags ?? {})[sf.background?.selected ?? ""] ?? null;
+				const crewChosenTags = (sf.crew.tags ?? []).filter(t => t !== crewBgTag);
+				let crewTagOptions = null, crewInstinctOptions = null, crewCostOptions = null;
+				let crewTagLimit = 2;
+				if (cardEditing("crew", "")) {
+					const crewOpts     = playbookDoc?.crew ?? {};
+					crewTagLimit       = Number.isFinite(crewOpts.additionalTagCount) ? crewOpts.additionalTagCount : 2;
+					const crewTagSet   = new Set(sf.crew.tags ?? []);
+					const crewTagsAtLimit = [...crewTagSet].filter(t => t !== crewBgTag).length >= crewTagLimit;
+					crewTagOptions = (crewOpts.availableTags ?? []).map(tag => {
+						const isAuto     = tag === crewBgTag;
+						const isSelected = isAuto || crewTagSet.has(tag);
+						return { value: tag, label: normalizePlaybookGlyphs(tag), isAuto, isSelected, disabled: isAuto || (!isSelected && crewTagsAtLimit) };
+					});
+					crewInstinctOptions = (crewOpts.instincts ?? []).map(v => {
+						const value = normalizePlaybookGlyphs(v);
+						return { value, selected: (sf.crew.instinct ?? "") === value };
+					});
+					crewCostOptions = (crewOpts.costs ?? []).map(v => {
+						const value = normalizePlaybookGlyphs(v);
+						return { value, selected: (sf.crew.cost ?? "") === value };
+					});
+				}
 				crew = {
+					...FOLLOWER_FTYPE_DEFAULTS["crew"],
+					slug:      "",
 					name:      sf.crew.name     ?? "",
-					tags:      sf.crew.tags     ?? [],
+					typeLabel: "group follower",
+					tags:      (crewBgTag ? [crewBgTag, ...crewChosenTags] : crewChosenTags).map(t => ({ label: normalizePlaybookGlyphs(t) })),
+					tagOptions: crewTagOptions?.length ? crewTagOptions : null,
+					tagLimit:   crewTagLimit,
+					tagAutoLabel: crewBgTag ? normalizePlaybookGlyphs(crewBgTag) : null,
 					instinct:  sf.crew.instinct ?? "",
+					instinctOptions: crewInstinctOptions?.length ? crewInstinctOptions : null,
 					cost:      sf.crew.cost     ?? "",
+					costOptions: crewCostOptions?.length ? crewCostOptions : null,
 					loyalty:   _makeLoyaltyPips(loyaltyVal),
+					loyaltySlug: "",
+					hpStaticValue: crewMaxHp,
+					hpStaticSuffix: "each",
+					maxHpDisplay: `${crewMaxHp} each`,
+					damage:    crewDamageDie,
+					damageRoll: crewDamageDie,
+					damageKind: "",
+					damageName: sf.crew.name || "Crew",
+					damageForm: "",
+					...crewExtras,        // exceptional / moves / movesLines / notes (gear overridden below)
 					gear:      inventoryDef.map(item => {
+						// A weightless entry still gets one pip, so it's toggleable (matches
+						// the data-weight `|| 1` fallback in the gear-check handler).
+						const weight      = Number(item.weight) || 1;
 						const flagVal     = gearFlags[item.slug];
 						// backward-compat: old boolean true ? all pips filled
-						const filledCount = typeof flagVal === "number" ? flagVal : (flagVal ? item.weight : 0);
+						const filledCount = typeof flagVal === "number" ? flagVal : (flagVal ? weight : 0);
 						return {
 							...item,
+							weight,
 							label:   applyPiercing(item.label),
-							checked: filledCount >= item.weight,
-							pips:    Array.from({ length: item.weight }, (_, i) => ({ index: i, filled: i < filledCount })),
+							checked: filledCount >= weight,
+							pips:    Array.from({ length: weight }, (_, i) => ({ index: i, filled: i < filledCount })),
 						};
 					}),
 					supplySets: Array.from({ length: 6 }, (_, setIdx) => {
@@ -1070,10 +1362,20 @@ export function createStonetopCharacterSheetClass(Base) {
 					}),
 					individuals:       crewIndividuals,
 					individualOptions: playbookDoc?.crew?.individualOptions ?? {},
-					groupHp:           crewIndividuals.length * crewMaxHp,
+					namedCount:        crewNamedCount,
+					size:              crewSize,
+					anonMembers:       crewAnonMembers,
+					memberCount:       crewAliveCount,
+					groupHpCurrent:    crewGroupHpCurrent,
+					groupHpMax:        crewGroupHpMax,
+					readiness:         crewReadiness,
+					sectionsOpen:      {
+						inventory:  this._openCrewSections.has("inventory"),
+						roster:     this._openCrewSections.has("roster"),
+						groupFight: this._openCrewSections.has("groupFight"),
+					},
 					memberHp:          crewMaxHp,
 					armor:             crewArmor,
-					damageDie:         crewDamageDie,
 					rollMod:           crewRollMod,
 				};
 			}
@@ -1105,27 +1407,36 @@ export function createStonetopCharacterSheetClass(Base) {
 								text:    i < arr.length - 1 ? `${text},` : text,
 								pronoun: i === arr.length - 1 ? (det.pronoun ?? null) : null,
 							}));
+						const subtitleTags = (opt.subtitle ?? "").split(", ").map(t => t.trim()).filter(Boolean);
 						return {
+							...FOLLOWER_FTYPE_DEFAULTS["initiate"],
 							slug:          opt.slug,
 							label:         opt.label,
-							labelLines,
-							tags:          (opt.subtitle ?? "").split(", ").map(t => t.trim()).filter(Boolean),
-							hp:            opt.hp      ?? "—",
+							nameLines:     labelLines,
+							typeLabel:     "initiate of Danu",
+							// subtitle tags plus any non-pronoun choice rows, flagged so the
+							// card can tint the chosen details differently.
+							tags:          [
+								...subtitleTags.map(label => ({ label })),
+								...choiceDetails.map(label => ({ label, cls: "stonetop-follower-tag--detail" })),
+							],
+							hpSlug:        opt.slug,
 							hpMax:         initHpMax,
-							hpCurrent:     initHpRaw != null ? Math.min(Math.max(0, Number(initHpRaw)), initHpMax) : initHpMax,
+							hpCurrent:     _clampHp(initHpRaw, initHpMax),
+							maxHpDisplay:  initHpMax || "—",
 							armor:         opt.armor   ?? "—",
 							damage:        opt.damage  ?? "—",
-							damageRoll:    String(opt.damage ?? "").match(/(\d*d\d+(?:[+-]\d+)?)/i)?.[1] ?? null,
-							damageForm:    String(opt.damage ?? "").match(/\(([^)]+)\)/)?.[1] ?? null,
+							..._parseFollowerDamage(opt.damage),
+							damageKind:    "",
+							damageName:    opt.label,
+							damagePronoun: det.pronoun ?? "",
 							instinct:      opt.instinct ?? null,
 							cost:          opt.cost    ?? null,
 							pronoun:       det.pronoun ?? null,
 							choiceDetails,
-							loyalty: Array.from({ length: 3 }, (_, i) => ({
-								slug:   opt.slug,
-								index:  i,
-								filled: i < (initiatesLoyalty[opt.slug] ?? 0),
-							})),
+							loyalty:       _makeLoyaltyPips(initiatesLoyalty[opt.slug] ?? 0),
+							loyaltySlug:   opt.slug,
+							..._followerExtras(det),
 						};
 					});
 				}
@@ -1139,6 +1450,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const ownedSlugs      = sf.inventory?.addedSpecial ?? [];
 			const beastHpFlags      = sf.beastHp      ?? {};
 			const beastLoyaltyFlags = sf.beastLoyalty ?? {};
+			const beastDetailFlags  = sf.beastDetails ?? {};
 			const beasts = BEAST_ORDER
 				.filter(slug => ownedSlugs.includes(slug))
 				.map(slug => {
@@ -1146,27 +1458,64 @@ export function createStonetopCharacterSheetClass(Base) {
 					const hpMax = Number(b.hp) || 0;
 					const hpRaw = beastHpFlags[slug];
 					const card  = {
+						...FOLLOWER_FTYPE_DEFAULTS["beast"],
 						slug,
-						name:       b.name,
-						subtitle:   b.subtitle ?? null,
-						isFollower: !!b.follower,
+						portraitIcon: b.follower ? "fas fa-dog" : "fas fa-wheat-awn",
+						name:         b.name,
+						typeLabel:    b.follower ? "beast follower" : "livestock",
+						isFollower:   !!b.follower,
+						hpSlug:       slug,
 						hpMax,
-						hpCurrent:  hpRaw != null ? Math.min(Math.max(0, Number(hpRaw)), hpMax) : hpMax,
-						armor:      b.armor ?? 0,
-						damage:     b.damage + (b.damageForm ? ` (${b.damageForm})` : ""),
-						damageRoll: b.damage ?? null,
-						damageForm: b.damageForm ?? null,
-						traits:     (b.traits ?? []).map(label => ({ label })),
-						traitsNote: b.traitsNote ?? null,
-						instinct:   b.instinct ?? "",
-						cost:       b.cost ?? "",
-						butcher:    b.butcher ?? null,
+						hpCurrent:    _clampHp(hpRaw, hpMax),
+						maxHpDisplay: hpMax,
+						armor:        b.armor ?? 0,
+						damage:       b.damage + (b.damageForm ? ` (${b.damageForm})` : ""),
+						damageRoll:   b.damage ?? null,
+						damageForm:   b.damageForm ?? null,
+						damageKind:   "",
+						damageName:   b.name,
+						tags:         (b.traits ?? []).map(label => ({ label })),
+						traitsNote:   b.traitsNote ?? null,
+						instinct:     b.instinct ?? "",
+						cost:         b.cost ?? "",
+						butcher:      b.butcher ?? null,
+						..._followerExtras(beastDetailFlags[slug]),
 					};
-					if (b.follower) card.loyalty = _makeLoyaltyPips(beastLoyaltyFlags[slug] ?? 0);
+					if (b.follower) {
+						card.loyalty = _makeLoyaltyPips(beastLoyaltyFlags[slug] ?? 0);
+						card.loyaltySlug = slug;
+					}
 					return card;
 				});
 
-			return { animalCompanion, crew, initiates, beasts };
+			// "exceptional" is a gated tag (see FOLLOWER_EXCEPTIONAL): the chip only
+			// shows for follower types whose playbook grants it, and can be switched
+			// on only once that move is owned. Surfaced per-card so the tags-row chip
+			// and its click handler can warn when the requirement isn't met.
+			// Only the animal companion and crew can ever become exceptional (the only
+			// FOLLOWER_EXCEPTIONAL keys), so skip the whole-collection item scan unless
+			// one of them is present.
+			const ownedMoveNames = (animalCompanion || crew)
+				? new Set(this.actor.items.filter(i => i.type === "move").map(i => i.name))
+				: null;
+			const withExceptional = (card) => {
+				if (!card) return card;
+				const def = FOLLOWER_EXCEPTIONAL[card.ftype];
+				card.exceptionalAvailable = !!def;
+				if (def) {
+					card.exceptionalMoveName = def.move;
+					card.exceptionalMet      = ownedMoveNames.has(def.move);
+					card.exceptionalHint     = `Your ${def.noun} can become exceptional only after you take the move “${def.move}.”`;
+				}
+				return card;
+			};
+			const finalize = (card) => withExceptional(withSectionEdits(withStatOverrides(card)));
+			return {
+				animalCompanion: finalize(animalCompanion),
+				crew:            finalize(crew),
+				initiates:       initiates?.map(finalize) ?? null,
+				beasts:          beasts.map(finalize),
+			};
 		}
 
 		_buildInvocationsData(playbookDoc) {
@@ -1556,6 +1905,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			// state, independent of the global header-wrench edit mode.
 			this._wireSectionEditToggle(html, ".stonetop-details-section-edit-toggle");
 
+			// Followers tab: per-card, per-section edit pencils. Same per-section toggle
+			// mechanism, keyed on `follower-<section>:<ftype>:<slug>`; opening a text
+			// section (name/moves/notes) focuses its input.
+			this._wireSectionEditToggle(html, ".stonetop-follower-edit, .stonetop-follower-done");
+			if (this._pendingFollowerFocus) {
+				const m = /^follower-(\w+):([^:]*):(.*)$/.exec(this._pendingFollowerFocus);
+				this._pendingFollowerFocus = null;
+				if (m) {
+					const [, field, ftype, slug] = m;
+					const el = html.find(`[data-field="${field}"][data-ftype="${ftype}"][data-slug="${slug}"]`)[0];
+					if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) { el.focus(); el.select(); }
+				}
+			}
+
 			// The Details-tab change handlers below are wired whenever any section is
 			// editable — either the global wrench or an individual section pencil.
 			if (this.hasActiveEdits) {
@@ -1607,54 +1970,132 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 
+			// -- Followers tab: shared follower-card fields ----------------
+			// Common, hand-editable fields on every follower card (name,
+			// exceptional/group toggles, free-text Moves/Notes, diamond Gear
+			// checklist). The flag path per (ftype, slug, field) is resolved here;
+			// see _followerExtras / _buildFollowersData for how they are read back.
+			const followerDetailPath = (ftype, slug, field) => {
+				const base = _followerDetailBase(ftype, slug);
+				return base ? `${base}.${field}` : null;
+			};
+			// Name / pronoun and free-text Moves / Notes / stat fields. Structural
+			// fields (name, pronoun, and instinct/cost on the types that store them)
+			// write to the type root so they can be cleared; everything else is a
+			// `.details` override field. _followerStructuralPath decides which.
+			html.find(".stonetop-follower-name-field, .stonetop-follower-text, .stonetop-follower-stat-input").on("change", async ev => {
+				const el   = ev.currentTarget;
+				const path = _followerStructuralPath(el.dataset.ftype, el.dataset.field)
+					?? followerDetailPath(el.dataset.ftype, el.dataset.slug, el.dataset.field);
+				if (!path) return;
+				await this.actor.setFlag("stonetop_pwd", path, el.value.trim());
+				this.render(false);
+			});
+			// Exceptional tag chip (edit mode). A gated tag: only follower types whose
+			// playbook grants it show the chip (see FOLLOWER_EXCEPTIONAL), and it can
+			// be switched on only once that move is owned. Turning it off is always
+			// allowed; trying to turn it on without the move warns instead of toggling.
+			html.find(".stonetop-exceptional-toggle").on("click", async ev => {
+				const el   = ev.currentTarget;
+				const path = followerDetailPath(el.dataset.ftype, el.dataset.slug, "exceptional");
+				if (!path) return;
+				const turnOn = !el.classList.contains("is-selected");
+				if (turnOn && el.dataset.met !== "true") {
+					ui.notifications.warn(el.dataset.hint || "This follower can't be marked exceptional yet.");
+					return;
+				}
+				await this.actor.setFlag("stonetop_pwd", path, turnOn);
+				this.render(false);
+			});
+			// Crew tag picker: store only the player's chosen tags. The background-auto
+			// tag is the disabled option, so `:not(:disabled)` excludes it — it's
+			// re-derived from the active background at render, never persisted, so a
+			// later background change can't strand a stale auto tag in crew.tags. The
+			// pick limit is enforced on render by disabling the unchecked options once full.
+			html.find(".stonetop-crew-tag-option").on("change", async () => {
+				const tags = html.find(".stonetop-crew-tag-option:checked:not(:disabled)").toArray().map(el => el.value);
+				await this.actor.setFlag("stonetop_pwd", "crew.tags", tags);
+				this.render(false);
+			});
+			// Crew instinct / cost pickers (pick one from the playbook list)
+			html.find(".stonetop-crew-instinct-option").on("change", async ev => {
+				await this.actor.setFlag("stonetop_pwd", "crew.instinct", ev.currentTarget.value);
+				this.render(false);
+			});
+			html.find(".stonetop-crew-cost-option").on("change", async ev => {
+				await this.actor.setFlag("stonetop_pwd", "crew.cost", ev.currentTarget.value);
+				this.render(false);
+			});
+			// Gear checklist: toggle carried, rename, add, remove
+			const readFollowerGear = (ftype, slug) => {
+				const path = followerDetailPath(ftype, slug, "gear");
+				const cur  = path ? this.actor.getFlag("stonetop_pwd", path) : null;
+				return { path, list: Array.isArray(cur) ? foundry.utils.deepClone(cur) : [] };
+			};
+			html.find(".stonetop-follower-gear-check").on("change", async ev => {
+				const el = ev.currentTarget;
+				const { path, list } = readFollowerGear(el.dataset.ftype, el.dataset.slug);
+				const i = Number(el.dataset.index);
+				if (!path || !list[i]) return;
+				list[i].checked = el.checked;
+				await this.actor.setFlag("stonetop_pwd", path, list);
+				this.render(false);
+			});
+			html.find(".stonetop-follower-gear-label").on("change", async ev => {
+				const el = ev.currentTarget;
+				const { path, list } = readFollowerGear(el.dataset.ftype, el.dataset.slug);
+				const i = Number(el.dataset.index);
+				if (!path || !list[i]) return;
+				list[i].label = el.value.trim();
+				await this.actor.setFlag("stonetop_pwd", path, list);
+				// no re-render: the typed value already shows; avoids a focus jump
+			});
+			html.find(".stonetop-follower-gear-add").on("click", async ev => {
+				const el = ev.currentTarget;
+				const { path, list } = readFollowerGear(el.dataset.ftype, el.dataset.slug);
+				if (!path) return;
+				list.push({ label: "", checked: false });
+				await this.actor.setFlag("stonetop_pwd", path, list);
+				this.render(false);
+			});
+			html.find(".stonetop-follower-gear-remove").on("click", async ev => {
+				const el = ev.currentTarget;
+				const { path, list } = readFollowerGear(el.dataset.ftype, el.dataset.slug);
+				const i = Number(el.dataset.index);
+				if (!path) return;
+				list.splice(i, 1);
+				await this.actor.setFlag("stonetop_pwd", path, list);
+				this.render(false);
+			});
+
 			// -- Followers tab: crew interactions --------------------------
-			// Crew name (editable in edit mode on Followers tab)
-			html.find(".stonetop-crew-name-input").on("change", async ev => {
-				await this.actor.setFlag("stonetop_pwd", "crew.name", ev.currentTarget.value.trim());
-			});
-			// Crew loyalty pips
-			html.find("button.stonetop-crew-loyalty-pip").on("click", async ev => {
-				const idx = Number(ev.currentTarget.dataset.index);
-				const current = this.actor.getFlag("stonetop_pwd", "crew.loyalty") ?? 0;
-				// clicking a filled pip clears up to that pip; clicking empty fills up to it
-				const newVal = current === idx + 1 ? idx : idx + 1;
-				await this.actor.setFlag("stonetop_pwd", "crew.loyalty", newVal);
+			// Loyalty pips (all follower types). The pip's data-loyalty carries its
+			// ftype; clicking a filled pip clears up to it, an empty one fills up to it.
+			html.find("button.stonetop-loyalty-pip").on("click", async ev => {
+				const { loyalty: ftype, slug } = ev.currentTarget.dataset;
+				const path = _followerLoyaltyPath(ftype, slug);
+				if (!path) return;
+				const idx     = Number(ev.currentTarget.dataset.index);
+				const current = Number(this.actor.getFlag("stonetop_pwd", path)) || 0;
+				await this.actor.setFlag("stonetop_pwd", path, current === idx + 1 ? idx : idx + 1);
 				this.render(false);
 			});
-			// Animal companion loyalty pips
-			html.find("button.stonetop-animal-companion-loyalty-pip").on("click", async ev => {
-				const idx = Number(ev.currentTarget.dataset.index);
-				const current = this.actor.getFlag("stonetop_pwd", "animalCompanion.loyalty") ?? 0;
-				const newVal = current === idx + 1 ? idx : idx + 1;
-				await this.actor.setFlag("stonetop_pwd", "animalCompanion.loyalty", newVal);
-				this.render(false);
-			});
-			// Initiate loyalty pips
-			html.find("button.stonetop-initiate-loyalty-pip").on("click", async ev => {
-				const { slug, index } = ev.currentTarget.dataset;
-				const idx     = Number(index);
-				const current = (this.actor.getFlag("stonetop_pwd", "initiatesLoyalty") ?? {})[slug] ?? 0;
-				const newVal  = current === idx + 1 ? idx : idx + 1;
-				await this.actor.update({ [`flags.stonetop_pwd.initiatesLoyalty.${slug}`]: newVal });
-				this.render(false);
-			});
-			// Beast (follower livestock) loyalty pips
-			html.find("button.stonetop-beast-loyalty-pip").on("click", async ev => {
-				const { slug, index } = ev.currentTarget.dataset;
-				const idx     = Number(index);
-				const current = (this.actor.getFlag("stonetop_pwd", "beastLoyalty") ?? {})[slug] ?? 0;
-				const newVal  = current === idx + 1 ? idx : idx + 1;
-				await this.actor.update({ [`flags.stonetop_pwd.beastLoyalty.${slug}`]: newVal });
-				this.render(false);
-			});
-			// Crew gear pip circles — each pip is independently selectable;
-			// clicking pip N fills up to N+1 circles (or down to N if unchecking)
+			// Crew gear pip circles. An inventory item is carried as a unit — its
+			// pips just show its load weight — so a multi-pip ("double diamond")
+			// item like the Shield or Thick hides is either fully equipped or not
+			// at all. Toggling any pip fills or clears all of that item's pips
+			// together (data-weight is the item's pip count).
 			html.find(".stonetop-crew-gear-check").on("change", async ev => {
-				const { slug, pip } = ev.currentTarget.dataset;
-				const pipIdx  = Number(pip);
+				const { slug, weight } = ev.currentTarget.dataset;
 				const checked = ev.currentTarget.checked;
+				// Flip every pip of this item (and its label styling) in the same
+				// frame as the clicked one, so a double-diamond item reads as a
+				// single toggle instead of one pip lagging behind the async persist.
+				const pips = ev.currentTarget.closest(".stonetop-crew-gear-pips");
+				if (pips) pips.querySelectorAll(".stonetop-crew-gear-check").forEach(cb => { cb.checked = checked; });
+				ev.currentTarget.closest(".stonetop-crew-gear-item")?.classList.toggle("is-checked", checked);
 				const gear    = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "crew.gear") ?? {});
-				gear[slug]    = checked ? pipIdx + 1 : pipIdx;
+				gear[slug]    = checked ? (Number(weight) || 1) : 0;
 				await this.actor.setFlag("stonetop_pwd", "crew.gear", gear);
 				this.render(false);
 			});
@@ -1670,16 +2111,112 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop_pwd", "crew.supplies", arr);
 				this.render(false);
 			});
+			// Add a group-fight pool clamp to a pending update when the roster shrinks:
+			// the pool maxes at crewSize × per-member HP, so a smaller crew must not
+			// leave a stale over-max value stored. Only an explicitly-set value is
+			// touched — an unset groupHp tracks the full max on its own.
+			const clampStoredGroupHp = (update, crewSize) => {
+				const raw = Number(this.actor.getFlag("stonetop_pwd", "crew.groupHp"));
+				if (!Number.isFinite(raw)) return;
+				const max = Math.max(0, crewSize) * (this._crewMemberHpMax ?? 6);
+				if (raw > max) update["flags.stonetop_pwd.crew.groupHp"] = max;
+			};
 			// Delete individual crew member
 			html.find(".stonetop-crew-delete-individual").on("click", async ev => {
 				const idx = Number(ev.currentTarget.dataset.index);
 				const individuals = [...(this.actor.getFlag("stonetop_pwd", "crew.individuals") ?? [])];
+				if (idx < 0 || idx >= individuals.length) return;
 				individuals.splice(idx, 1);
-				await this.actor.setFlag("stonetop_pwd", "crew.individuals", individuals);
+				// Re-key per-individual HP to stay aligned with the spliced array:
+				// the removed entry is dropped and every entry above it shifts down
+				// one. (individualsHp is an index-keyed map, not part of the array.)
+				const oldHp = this.actor.getFlag("stonetop_pwd", "crew.individualsHp") ?? {};
+				const newHp = {};
+				for (const [k, v] of Object.entries(oldHp)) {
+					const i = Number(k);
+					if (i < idx)      newHp[i]     = v;
+					else if (i > idx) newHp[i - 1] = v;
+				}
+				// Write the re-keyed entries and per-key delete any stale indices the
+				// shift left behind, in one update. (Foundry recursively merges
+				// object-valued flags, so without the `-=` deletes the dropped/old
+				// trailing entries would persist.)
+				const survivors = new Set(Object.keys(newHp));
+				const update = { "flags.stonetop_pwd.crew.individuals": individuals };
+				for (const k of Object.keys(oldHp))
+					if (!survivors.has(k)) update[`flags.stonetop_pwd.crew.individualsHp.-=${k}`] = null;
+				for (const [k, v] of Object.entries(newHp))
+					update[`flags.stonetop_pwd.crew.individualsHp.${k}`] = v;
+				// Shrink the roster by one: "Remove" takes the member out of the crew
+				// entirely. Without this the freed slot reappears as a fresh full-HP
+				// anonymous member (`size` would still imply the old headcount).
+				const sizeBefore = _effectiveCrewSize(this.actor.getFlag("stonetop_pwd", "crew.size"), individuals.length + 1);
+				const newSize = Math.max(individuals.length, sizeBefore - 1);
+				update["flags.stonetop_pwd.crew.size"] = newSize;
+				clampStoredGroupHp(update, newSize);
+				await this.actor.update(update);
 				this.render(false);
 			});
-			// Create individual crew member
-			html.find(".stonetop-crew-create-individual").on("click", async () => {
+
+			// Crew roster size — total headcount; never below the number of named
+			// individuals. Trims trailing anonymous-member HP entries when shrinking.
+			const setCrewSize = async (size) => {
+				const namedCount = (this.actor.getFlag("stonetop_pwd", "crew.individuals") ?? []).length;
+				const clamped    = Math.min(_CREW_SIZE_MAX, Math.max(namedCount, Math.max(0, size)));
+				const anonCount  = Math.max(0, clamped - namedCount);
+				const memberHp   = (this.actor.getFlag("stonetop_pwd", "crew.memberHp") ?? []).slice(0, anonCount);
+				const update = {
+					"flags.stonetop_pwd.crew.size":     clamped,
+					"flags.stonetop_pwd.crew.memberHp": memberHp,
+				};
+				clampStoredGroupHp(update, clamped);
+				await this.actor.update(update);
+				this.render(false);
+			};
+			html.find(".stonetop-crew-size-step").on("click", ev => {
+				const delta = Number(ev.currentTarget.dataset.delta) || 0;
+				const input = ev.currentTarget.parentElement.querySelector(".stonetop-crew-size-input");
+				setCrewSize((parseInt(input?.value) || 0) + delta);
+			});
+			html.find(".stonetop-crew-size-input").on("change", ev => {
+				const v = parseInt(ev.currentTarget.value);
+				// Blank/non-numeric input: revert to the current size rather than
+				// collapsing the roster to the named count (which would drop every
+				// anonymous member's tracked HP).
+				if (!Number.isFinite(v)) return this.render(false);
+				setCrewSize(v);
+			});
+
+			// Crew Readiness (Defend pool)
+			html.find(".stonetop-crew-readiness-step").on("click", async ev => {
+				const delta = Number(ev.currentTarget.dataset.delta) || 0;
+				const cur   = Math.max(0, Number(this.actor.getFlag("stonetop_pwd", "crew.readiness")) || 0);
+				await this.actor.setFlag("stonetop_pwd", "crew.readiness", Math.max(0, cur + delta));
+				this.render(false);
+			});
+
+			// Restore the abstracted group-fight pool to full (clears the override)
+			html.find(".stonetop-group-hp-reset").on("click", async () => {
+				await this.actor.unsetFlag("stonetop_pwd", "crew.groupHp");
+				this.render(false);
+			});
+
+			// Remember which collapsible crew sections are open across re-renders and,
+			// via the persisted per-actor setting, across sheet reopens. Native
+			// <details> already updates the DOM, so we only record the state (no
+			// re-render) for the next render to honour.
+			html.find(".stonetop-crew-collapsible").on("toggle", ev => {
+				const id = ev.currentTarget.dataset.section;
+				if (!id) return;
+				this._openCrewSections ??= new Set();
+				if (ev.currentTarget.open) this._openCrewSections.add(id);
+				else                       this._openCrewSections.delete(id);
+				this._persistCrewSections();
+			});
+			// Name an (anonymous) crew member: promote them to a named individual,
+			// carrying their current HP across. Opened from each member's "Name them"
+			// button in edit mode, which targets that specific roster slot.
+			const openNameMemberDialog = async (anonIndex) => {
 				// Crew individual options are defined here rather than read from the
 				// LevelDB pack so they are always available without a rebuild step.
 				const CREW_INDIVIDUAL_NAMES  = ["Aled","Culhwch","Eira","Gerat","Glaw","Harri","Lowri","Mervyn","Nesta"];
@@ -1782,13 +2319,13 @@ export function createStonetopCharacterSheetClass(Base) {
 					</form>`;
 
 				new Dialog({
-					title:   "Add Crew Individual",
+					title:   "Name this Crew Member",
 					content,
 					buttons: {
 						cancel: { label: "Cancel" },
 						add: {
-							icon:  "<i class='fas fa-user-plus'></i>",
-							label: "Add",
+							icon:  "<i class='fas fa-user-pen'></i>",
+							label: "Name",
 							callback: async (dlgHtml) => {
 								const name = dlgHtml.find("[name='ind-name']").val().trim();
 								if (!name) return;
@@ -1819,9 +2356,21 @@ export function createStonetopCharacterSheetClass(Base) {
 									}
 									traits.push(result);
 								});
-								const current = this.actor.getFlag("stonetop_pwd", "crew.individuals") ?? [];
-								await this.actor.setFlag("stonetop_pwd", "crew.individuals",
-									[...current, { name, tag, traits }]);
+								// Promote the targeted anonymous member: append the named
+								// individual, carry its current HP over, and drop it from
+								// the anonymous-member HP list.
+								const individuals   = [...(this.actor.getFlag("stonetop_pwd", "crew.individuals") ?? [])];
+								const newIndex      = individuals.length;
+								const memberHp      = [...(this.actor.getFlag("stonetop_pwd", "crew.memberHp") ?? [])];
+								const carriedHp     = memberHp[anonIndex];
+								const individualsHp = { ...(this.actor.getFlag("stonetop_pwd", "crew.individualsHp") ?? {}) };
+								if (carriedHp != null) individualsHp[newIndex] = carriedHp;
+								memberHp.splice(anonIndex, 1);
+								await this.actor.update({
+									"flags.stonetop_pwd.crew.individuals":   [...individuals, { name, tag, traits }],
+									"flags.stonetop_pwd.crew.individualsHp": individualsHp,
+									"flags.stonetop_pwd.crew.memberHp":      memberHp,
+								});
 								this.render(false);
 							},
 						},
@@ -1858,6 +2407,9 @@ export function createStonetopCharacterSheetClass(Base) {
 						});
 					},
 				}, { width: 540, height: 580, classes: ["dialog", "stonetop-individual-dialog"] }).render(true);
+			};
+			html.find(".stonetop-crew-name-member").on("click", ev => {
+				openNameMemberDialog(Number(ev.currentTarget.dataset.index));
 			});
 			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
 
@@ -1875,7 +2427,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				const section  = row.closest(".stonetop-group-fight-section");
 				const dmgBtn   = section?.querySelector(".stonetop-group-fight-dmg-roll");
 				const dmgLabel = section?.querySelector(".stonetop-group-fight-dmg-label");
-				const roll     = bonus > 0 ? `d6+${bonus}` : "d6";
+				// Build on the crew's actual damage die (carried in data-base-roll,
+				// which honours any Damage override), not a hardcoded d6.
+				const baseDie  = dmgBtn?.dataset.baseRoll || "d6";
+				const roll     = bonus > 0 ? `${baseDie}+${bonus}` : baseDie;
 				if (dmgBtn)   dmgBtn.dataset.roll     = roll;
 				if (dmgLabel) dmgLabel.textContent    = roll;
 			}, true);
@@ -1887,8 +2442,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.stopPropagation();
 				const stat = btn.dataset.stat;
 				if (!stat) return;
-				const card     = btn.closest(".stonetop-follower-card");
-				const crewName = card?.querySelector(".stonetop-follower-name")?.textContent?.trim() || "Crew";
+				// Read the name off the group-fight damage button's data attribute, not
+				// the header's name text — that text node is replaced by an <input> in
+				// edit mode, which would drop the name to the "Crew" fallback.
+				const section  = btn.closest(".stonetop-group-fight-section");
+				const crewName = section?.querySelector(".stonetop-group-fight-dmg-roll")?.dataset.followerName?.trim() || "Crew";
 				const moveName = stat === "str" ? `${crewName}: Clash` : `${crewName}: Let Fly`;
 				await this._stonetopCharacter.onDirectStatRoll(stat, { moveName });
 			}, true);
@@ -2077,34 +2635,37 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter.setPostDeathLoreText(loreSlug, optionSlug, ta.value);
 			}, true);
 
-			// -- Followers tab: pronoun ------------------------------------
-			html[0].addEventListener("change", async ev => {
-				const input = ev.target.closest(".stonetop-animal-companion-pronoun-input");
-				if (!input) return;
-				await this.actor.setFlag("stonetop_pwd", "animalCompanion.pronoun", input.value.trim());
-				this.render(false);
-			}, true);
+			// (Pronoun is a structural field routed through the shared
+			// .stonetop-follower-name-field change handler above.)
 
 			// -- Followers tab: HP tracking --------------------------------
 			html[0].addEventListener("change", async ev => {
 				const input = ev.target.closest(".stonetop-follower-hp-input");
 				if (!input) return;
-				const val = Math.max(0, parseInt(input.value) || 0);
+				const max = Number(input.max);
+				// Clamp to the field's max on write, not just on the next render's
+				// display — otherwise a typed over-max value (the max= attribute is
+				// advisory) would persist and resurface if the max later grows.
+				let val = Math.max(0, parseInt(input.value) || 0);
+				if (Number.isFinite(max) && max > 0) val = Math.min(val, max);
 				const { follower, slug, index } = input.dataset;
+				// The per-slug / per-index HP stores are object-valued flags; write the
+				// single changed key with a dotted path (Foundry merges it in) instead
+				// of cloning and rewriting the whole map on every blur.
 				if (follower === "animal-companion") {
 					await this.actor.setFlag("stonetop_pwd", "animalCompanion.hpCurrent", val);
 				} else if (follower === "initiate") {
-					const current = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "initiatesHp") ?? {});
-					current[slug] = val;
-					await this.actor.setFlag("stonetop_pwd", "initiatesHp", current);
+					await this.actor.update({ [`flags.stonetop_pwd.initiatesHp.${slug}`]: val });
 				} else if (follower === "crew-individual") {
-					const current = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "crew.individualsHp") ?? {});
-					current[Number(index)] = val;
-					await this.actor.setFlag("stonetop_pwd", "crew.individualsHp", current);
+					await this.actor.update({ [`flags.stonetop_pwd.crew.individualsHp.${Number(index)}`]: val });
+				} else if (follower === "crew-member") {
+					const arr = [...(this.actor.getFlag("stonetop_pwd", "crew.memberHp") ?? [])];
+					arr[Number(index)] = val;
+					await this.actor.setFlag("stonetop_pwd", "crew.memberHp", arr);
+				} else if (follower === "crew-group") {
+					await this.actor.setFlag("stonetop_pwd", "crew.groupHp", val);
 				} else if (follower === "beast") {
-					const current = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", "beastHp") ?? {});
-					current[slug] = val;
-					await this.actor.setFlag("stonetop_pwd", "beastHp", current);
+					await this.actor.update({ [`flags.stonetop_pwd.beastHp.${slug}`]: val });
 				}
 				this.render(false);
 			}, true);
@@ -3042,11 +3603,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			const f = key => `flags.${STONETOP_SCOPE}.${key}`;
 			if (Object.keys(backgroundAnswers).length)                flagUpd[f("moves.backgroundAnswers")] = backgroundAnswers;
 			if (selections.invocations?.length)                       flagUpd[f("invocations.selected")]    = selections.invocations;
-			if (Object.keys(selections.initiateDetails ?? {}).length) flagUpd[f("initiateDetails")]         = selections.initiateDetails;
+			// Initiate onboarding owns only each initiate's pronoun + per-row choices.
+			// Write those with dotted paths (Foundry merges, leaving sibling keys intact)
+			// so a hand-edit of the same initiate's moves / notes / gear / stat overrides
+			// — which share the initiateDetails.<slug> namespace — is never clobbered.
+			for (const [slug, det] of Object.entries(selections.initiateDetails ?? {})) {
+				if (det?.pronoun != null) flagUpd[f(`initiateDetails.${slug}.pronoun`)] = det.pronoun;
+				if (det?.rows)            flagUpd[f(`initiateDetails.${slug}.rows`)]    = det.rows;
+			}
 			if (selections.crew?.instinct || selections.crew?.cost || selections.crew?.tags?.length || selections.crew?.name) {
-				const bgTag = playbookDoc.flags?.[ITEM_FLAG_SCOPE]?.crew?.backgroundTags?.[selections.backgroundSlug] ?? null;
 				flagUpd[f("crew.name")]     = selections.crew.name?.trim() ?? "";
-				flagUpd[f("crew.tags")]     = bgTag ? [bgTag, ...selections.crew.tags] : [...selections.crew.tags];
+				// Store only the chosen tags; the background-auto tag is derived from the
+				// active background at render (see _buildFollowersData), so baking it in
+				// here would strand a stale copy if the background later changes.
+				flagUpd[f("crew.tags")]     = [...selections.crew.tags];
 				flagUpd[f("crew.instinct")] = selections.crew.instinct ?? "";
 				flagUpd[f("crew.cost")]     = selections.crew.cost     ?? "";
 			}

@@ -1,7 +1,7 @@
 import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.js";
-import { makeRewriter, remapPageData, managedHash } from "./journal-sync-core.js";
+import { makeRewriter, remapPageData, managedHash, carryOverPageState } from "./journal-sync-core.js";
 
 // On a fresh world, copy the system's "Stonetop" JournalEntry compendium (the
 // gazetteer — Locations, Lore, the bundled Journals, and the bestiary codex) into
@@ -254,10 +254,14 @@ export async function updateSeededJournalsOnVersionChange() {
 		// Pristine. If the shipped content is unchanged, just bump the version stamp.
 		if (newHash === worldHash) { await entry.setFlag("stonetop_pwd", "journalSync", { hash: newHash, version }); continue; }
 
-		// Pristine and the shipped version differs → refresh the entry's pages in place.
+		// Pristine and the shipped version differs → refresh the entry's pages in place,
+		// carrying over reader state (checkbox ticks) the content hash doesn't track so
+		// updating the content doesn't wipe a player's progress.
 		try {
 			const oldPageIds = entry.pages.map(p => p.id);
-			await entry.createEmbeddedDocuments("JournalEntryPage", newPages.map(({ _id, ...rest }) => rest), { keepId: false });
+			const pagesToCreate = carryOverPageState(newPages, entry.toObject().pages)
+				.map(({ _id, ...rest }) => rest);
+			await entry.createEmbeddedDocuments("JournalEntryPage", pagesToCreate, { keepId: false });
 			if (oldPageIds.length) await entry.deleteEmbeddedDocuments("JournalEntryPage", oldPageIds);
 			if (entry.name !== srcData.name) await entry.update({ name: srcData.name });
 			await entry.setFlag("stonetop_pwd", "journalSync", { hash: newHash, version });

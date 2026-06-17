@@ -67,6 +67,11 @@
 	/* Journal checkbox markers (check-off lists) read better a touch larger than the
 	   spiral; 1.5× the bullet size, so it still tracks the font-scale below. */
 	--stonetop-checkbox-size: calc(var(--stonetop-bullet-size, 10px) * 1.5);
+	/* How long you must hover a section before its edit pencil fades in. The pencils
+	   stay clickable while still invisible (opacity:0 keeps pointer events), so you
+	   can hit one immediately without waiting out the delay. Leaving a section hides
+	   the pencil instantly — the delay is only on the reveal direction. */
+	--st-edit-reveal-delay: 1s;
 	--font-size-display: 42px;
 	--stonetop-bg: hsl(30deg 20% 94%);
 	--color-border-highlight-alt: slategrey;
@@ -1459,7 +1464,7 @@ input.stonetop-name-field {
 }
 .stonetop-basic-move-panel p  { margin: 0 0 5px; }
 .stonetop-basic-move-panel ul { margin: 0 0 5px; padding-left: 0; list-style: none; }
-.stonetop-basic-move-panel li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
+.stonetop-basic-move-panel li { margin: 2px 0; }
 .stonetop-basic-move-panel li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: var(--stonetop-spiral-icon);
@@ -1825,7 +1830,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 /* Bullet sizing/gap deliberately uses bare selectors so the system-wide spiral
    normalization rules (further down) layer on top at matching specificity. */
 .stonetop-chat-move-description ul { margin: 0 0 5px; padding-left: 0; list-style: none; }
-.stonetop-chat-move-description li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
+.stonetop-chat-move-description li { margin: 2px 0; }
 .stonetop-chat-move-description li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: var(--stonetop-spiral-icon);
@@ -1878,7 +1883,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description p { margin: 0 0 4px; }
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description p:last-child { margin-bottom: 0; }
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li { margin: 2px 0; }
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: var(--stonetop-spiral-icon);
@@ -1966,9 +1971,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 4px 0 0;
 	padding-left: 0;
 	list-style: none;
-}
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li {
-	display: flex; align-items: flex-start; gap: 5px;
 }
 :is(#chat, #chat-notifications) .message .stonetop-startup-card__section li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
@@ -2282,9 +2284,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-item-description li {
 	margin: 2px 0;
-	display: flex;
-	align-items: flex-start;
-	gap: 5px;
 }
 
 .stonetop-item-description li::before {
@@ -2359,7 +2358,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* Hold-track label (e.g. "Nerve", "Command") shown before its check circles. */
 .stonetop-item-resource-title {
 	font-family: var(--font-stonetop);
-	font-size: calc(var(--font-size-12, 12px) * var(--stonetop-font-scale, 1));
+	font-size: calc(var(--font-size-14, 14px) * var(--stonetop-font-scale, 1));
 	font-variant: small-caps;
 	letter-spacing: 0.03em;
 	opacity: 0.85;
@@ -2620,9 +2619,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* Relative Value hover list (rendered inside the dark Foundry tooltip): spiral
    bullets, inverted so the dark spiral SVG shows on the dark tooltip background. */
 .stonetop-rel-value { list-style: none; margin: 4px 0 0; padding: 0; text-align: left; }
-.stonetop-rel-value li { display: flex; align-items: flex-start; gap: var(--stonetop-spiral-gap); margin: 2px 0; }
+.stonetop-rel-value li { position: relative; padding-left: calc(10px + var(--stonetop-spiral-gap)); margin: 2px 0; }
 .stonetop-rel-value li::before {
-	content: ""; flex: 0 0 10px; width: 10px; height: 10px; margin-top: 0.2em;
+	content: ""; position: absolute; left: 0; top: 0.2em; width: 10px; height: 10px;
 	background: var(--stonetop-spiral-icon) no-repeat center / contain;
 	opacity: 0.6;
 	filter: invert(1);
@@ -2964,7 +2963,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-arcanum-body p { margin: 0 0 4px; }
 .stonetop-arcanum-body ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
-.stonetop-arcanum-body li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
+.stonetop-arcanum-body li { margin: 2px 0; }
 .stonetop-arcanum-body li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: var(--stonetop-spiral-icon);
@@ -3225,7 +3224,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-arcanum-chat-card p { margin: 0 0 4px; }
 .stonetop-arcanum-chat-card ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
-.stonetop-arcanum-chat-card li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
+.stonetop-arcanum-chat-card li { margin: 2px 0; }
 .stonetop-arcanum-chat-card li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: var(--stonetop-spiral-icon);
@@ -4059,9 +4058,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-special-move-list li {
 	margin: 2px 0;
-	display: flex;
-	align-items: flex-start;
-	gap: 5px;
 }
 
 .stonetop-special-move-list li::before {
@@ -4312,9 +4308,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-outfit-rule-note li {
 	margin: 2px 0;
-	display: flex;
-	align-items: flex-start;
-	gap: 5px;
 }
 
 .stonetop-outfit-rule-note li::before {
@@ -6018,9 +6011,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 .steading-edit-section:hover > .steading-section-edit-toggle.stonetop-section-edit {
 	opacity: 0.5;
+	transition-delay: var(--st-edit-reveal-delay);
 }
 .steading-edit-section:hover > .steading-section-edit-toggle.stonetop-section-edit:hover {
 	opacity: 1;
+	transition-delay: 0s;
 }
 
 /* After leaving a section's edit mode, its "done" check lingers a moment then
@@ -7032,7 +7027,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-move-body p { margin: 6px 0; }
 .steading-move-body ul { margin: 4px 0; padding-left: 0; list-style: none; }
-.steading-move-body li { margin: 2px 0; display: flex; align-items: flex-start; gap: 5px; }
+.steading-move-body li { margin: 2px 0; }
 .steading-move-body li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: var(--stonetop-spiral-icon);
@@ -7321,7 +7316,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-onboarding-card-desc p { margin: 3px 0; }
 .stonetop-onboarding-card-desc ul { margin: 3px 0; padding-left: 0; list-style: none; }
-.stonetop-onboarding-card-desc li { margin: 2px 0; display: flex; align-items: flex-start; gap: 16px; }
+.stonetop-onboarding-card-desc li { margin: 2px 0; }
 .stonetop-onboarding-card-desc li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: var(--stonetop-spiral-icon);
@@ -8684,6 +8679,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-follower-card {
+	position: relative; /* anchor for the card-level edit pencil */
 	border: 1px solid #ddd;
 	border-radius: var(--st-radius-lg);
 	overflow: hidden;
@@ -8724,7 +8720,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* "pick 2 more" / "swift or hardy" choose-hint shown after the fixed trait tags */
 .stonetop-follower-trait-note {
 	align-self: center;
-	font-size: var(--st-fs-sm);
+	font-size: var(--st-fs-base);
 	font-style: italic;
 	color: var(--st-text-faint);
 }
@@ -8767,13 +8763,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-follower-name-line:not(:first-child) {
 	font-weight: 400;
-	font-size: var(--st-fs-sm);
+	font-size: var(--st-fs-base);
 	font-style: italic;
 	color: var(--st-text-secondary);
 }
 
 .stonetop-follower-type {
-	font-size: var(--st-fs-xs);
+	font-size: var(--st-fs-sm);
 	color: slategrey;
 	font-style: italic;
 }
@@ -8789,23 +8785,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 100%;
 	min-width: 0;
 	box-sizing: border-box;
-}
-
-.stonetop-follower-stats {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	flex-shrink: 0;
-	font-size: calc(0.78em + 2pt);
-	color: var(--st-text-secondary);
-}
-
-.stonetop-follower-stat strong {
-	color: slategrey;
-	text-transform: uppercase;
-	font-size: var(--st-fs-sm);
-	letter-spacing: 0.04em;
-	margin-right: 2px;
 }
 
 .stonetop-follower-damage-roll {
@@ -8848,39 +8827,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-follower-hp-track--individual {
 	margin-left: auto;
 	margin-right: 6px;
-	font-size: var(--st-fs-sm);
+	font-size: var(--st-fs-base);
 }
 
 .stonetop-follower-hp-label {
 	color: slategrey;
 	text-transform: uppercase;
-	font-size: var(--st-fs-sm);
+	font-size: var(--st-fs-base);
 	letter-spacing: 0.04em;
 }
-
-.stonetop-follower-row {
-	display: flex;
-	align-items: flex-start;
-	gap: 8px;
-	padding: 6px 12px;
-	border-bottom: 1px solid #f0f0f0;
-	font-size: var(--st-fs-sm);
-}
-
-.stonetop-follower-row:last-child { border-bottom: none; }
-
-.stonetop-follower-row-label {
-	flex-shrink: 0;
-	font-weight: 700;
-	font-size: var(--st-fs-xs);
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	color: slategrey;
-	min-width: 56px;
-	padding-top: 1px;
-}
-
-.stonetop-follower-row-value { color: var(--st-text-body); }
 
 .stonetop-follower-tags {
 	display: flex;
@@ -8894,7 +8849,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: hsl(210 12% 92%);
 	border: 1px solid rgba(100,116,139,0.3);
 	border-radius: 999px;
-	font-size: var(--st-fs-sm);
+	font-size: var(--st-fs-base);
 	color: var(--st-text-body);
 }
 
@@ -8902,7 +8857,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	cursor: help;
 }
 
-.stonetop-follower-tag--trait {
+.stonetop-follower-tag--trait,
+.stonetop-follower-tag--exceptional {
 	background: hsl(40 30% 92%);
 	border-color: rgba(160,130,80,0.3);
 }
@@ -8913,14 +8869,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-follower-pronoun {
-	font-size: var(--st-fs-xs);
+	font-size: var(--st-fs-sm);
 	color: var(--st-text-muted);
 	font-weight: normal;
 }
 
 .stonetop-follower-pronoun-input {
 	width: 72px;
-	font-size: var(--st-fs-xs);
+	font-size: var(--st-fs-sm);
 	padding: 1px 4px;
 	border: 1px solid rgba(0, 0, 0, 0.2);
 	border-radius: var(--st-radius-sm);
@@ -8930,8 +8886,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 /* Loyalty pips */
-.stonetop-follower-loyalty-row { gap: 10px; }
-
 .stonetop-loyalty-pips {
 	display: flex;
 	gap: 5px;
@@ -8953,8 +8907,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 span.stonetop-loyalty-pip { cursor: default; }
 
-.stonetop-follower-loyalty { display: none; }
-
 /* Crew sections (inventory, individuals, rules) */
 .stonetop-follower-section {
 	padding: 8px 12px;
@@ -8963,23 +8915,50 @@ span.stonetop-loyalty-pip { cursor: default; }
 
 .stonetop-follower-section-heading {
 	margin: 0 0 6px;
-	font-size: var(--st-fs-xs);
+	font-size: var(--st-fs-sm);
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.07em;
 	color: slategrey;
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 8px;
+	gap: 2px 8px;
 }
 
 .stonetop-follower-section-subtitle {
+	flex-basis: 100%;
 	font-size: var(--st-fs-base);
 	font-weight: normal;
 	text-transform: none;
 	letter-spacing: 0;
 	color: var(--st-text-muted);
 	font-style: italic;
+}
+
+/* Collapsible crew sections (Inventory / Roster / Group Fight): the section
+   heading doubles as the <summary> toggle, with a rotating arrow marker matching
+   the Follower Special Moves rules. */
+.stonetop-follower-section-summary {
+	cursor: pointer;
+	user-select: none;
+	list-style: none;
+}
+
+.stonetop-follower-section-summary::-webkit-details-marker { display: none; }
+
+.stonetop-follower-section-summary::before {
+	content: "";
+	display: inline-block;
+	width: 0.6em;
+	height: 0.6em;
+	flex: none;
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+	transition: transform 0.15s;
+}
+
+details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::before {
+	transform: rotate(90deg);
 }
 
 /* Inventory */
@@ -8993,7 +8972,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	font-size: var(--st-fs-sm);
+	font-size: var(--st-fs-base);
 	font-weight: normal;
 	cursor: pointer;
 }
@@ -9002,7 +8981,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 
 .stonetop-crew-gear-pips {
 	display: flex;
-	gap: 3px;
+	gap: 0px;
 	flex-shrink: 0;
 }
 
@@ -9028,8 +9007,18 @@ span.stonetop-loyalty-pip { cursor: default; }
 	cursor: default;
 }
 
+/* Inventory carry pips are diamonds (matching the rulebook gear checklist); the
+   Supplies pips below keep the round .stonetop-crew-pip shape. */
+.vtt .window-app input[type=checkbox].stonetop-crew-gear-check {
+	width: calc(11px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(11px * var(--stonetop-font-scale, 1)) !important;
+	border-radius: 1px;
+	transform: rotate(45deg);
+	margin: 0 2px;
+}
+
 .stonetop-crew-supplies-section {
-	margin-top: 4px;
+	margin-top: 14px;
 }
 
 .stonetop-crew-supplies-grid {
@@ -9110,12 +9099,521 @@ span.stonetop-loyalty-pip { cursor: default; }
 	min-width: 36px;
 }
 
-.stonetop-follower-empty-note {
+/* Roster: crew-size stepper + anonymous member HP rows */
+.stonetop-crew-size-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 6px;
 	font-size: var(--st-fs-sm);
+}
+
+.stonetop-crew-size-label {
+	font-weight: 600;
+	color: slategrey;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	font-size: var(--st-fs-xs);
+}
+
+.stonetop-crew-size-input {
+	width: 44px;
+	height: 24px;
+	padding: 2px 4px;
+	text-align: center;
+	font-size: var(--st-fs-base);
+	border: 1px solid #ccc;
+	border-radius: var(--st-radius-sm);
+}
+
+/* Square mini stepper buttons shared by the crew-size and Readiness +/- controls. */
+.stonetop-crew-size-step,
+.stonetop-crew-readiness-step {
+	width: 22px !important;
+	height: 22px !important;
+	padding: 0 !important;
+	justify-content: center;
+}
+
+.stonetop-crew-size-suffix {
 	color: var(--st-text-faint);
 	font-style: italic;
-	margin: 0;
 }
+
+.stonetop-crew-members {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-top: 6px;
+}
+
+.stonetop-crew-member-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	background: rgba(0, 0, 0, 0.02);
+	border: 1px solid #eee;
+	border-radius: var(--st-radius);
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-crew-member-name {
+	flex: 1 1 auto;
+	color: var(--st-text-muted);
+}
+
+/* ── Rulebook "Follower" card layout ─────────────────────────────────────────
+   Header = portrait + Name/Tags fill-lines + octagonal HP box; body = a stack
+   of labeled fill-line rows (Max.HP/Armor, Damage, Instinct, Moves, Cost/
+   Loyalty, Gear, Notes) matching the blank Follower card in the rulebook. */
+.stonetop-follower-portrait {
+	flex: none;
+	width: 34px;
+	height: 34px;
+	border-radius: 50%;
+	border: 1.5px solid var(--st-text-body);
+	background: rgba(255, 255, 255, 0.5);
+	display: grid;
+	place-items: center;
+	color: var(--st-text-secondary);
+	font-size: var(--st-fs-md);
+}
+
+.stonetop-follower-name-row,
+.stonetop-follower-tags-row {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+}
+
+/* Shared bold label used for Name/Tags in the header and every body field. */
+.stonetop-follower-field-label {
+	flex: none;
+	font-family: var(--font-stonetop);
+	font-weight: 700;
+	font-size: var(--st-fs-base);
+	color: var(--st-text-body);
+	white-space: nowrap;
+}
+
+.stonetop-follower-name-row .stonetop-follower-name {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.stonetop-follower-name-row .stonetop-follower-name-input { flex: 1 1 auto; }
+
+/* Per-card, per-section edit pencils (name / moves / notes / gear / crew
+   inventory + individuals). They reuse the shared .stonetop-section-edit /
+   .stonetop-section-done base styling; here we only add the hover-reveal and
+   placement. The pencil hides until its row/section is hovered; the done-check
+   stays visible while editing so there's always a way to close the section.
+   Container-scoped so these beat .stonetop-section-edit's base opacity. */
+.stonetop-follower-name-row .stonetop-follower-edit,
+.stonetop-follower-field-row .stonetop-follower-edit,
+.stonetop-follower-section .stonetop-follower-edit {
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.stonetop-follower-name-row:hover .stonetop-follower-edit,
+.stonetop-follower-field-row:hover .stonetop-follower-edit,
+.stonetop-follower-section:hover .stonetop-follower-edit {
+	opacity: 0.5;
+	transition-delay: var(--st-edit-reveal-delay);
+}
+.stonetop-follower-name-row:hover .stonetop-follower-edit:hover,
+.stonetop-follower-field-row:hover .stonetop-follower-edit:hover,
+.stonetop-follower-section:hover .stonetop-follower-edit:hover {
+	opacity: 1;
+	transition-delay: 0s;
+}
+
+/* Block field rows (Moves / Gear / Notes) and crew sections stack vertically, so
+   float the pencil/done at the top-right corner rather than in the label's flow.
+   The inline name-row keeps its pencil inline after the name. */
+.stonetop-follower-field-row--block,
+.stonetop-follower-section { position: relative; }
+.stonetop-follower-field-row--block > .stonetop-follower-edit,
+.stonetop-follower-field-row--block > .stonetop-follower-done {
+	position: absolute;
+	top: 0;
+	right: 0;
+}
+.stonetop-follower-section > .stonetop-follower-edit,
+.stonetop-follower-section > .stonetop-follower-done {
+	position: absolute;
+	top: 8px;
+	right: 12px;
+}
+
+/* Card-level edit pencil: a single control in the top-right corner of the whole
+   card (above the HP box) that makes the entire body editable. Hover-reveal like
+   the others; the done-check stays visible while editing. */
+.stonetop-follower-card > .stonetop-follower-edit,
+.stonetop-follower-card > .stonetop-follower-done {
+	position: absolute;
+	top: 6px;
+	right: 8px;
+	z-index: 3; /* sit above the octagonal HP box */
+}
+.stonetop-follower-card > .stonetop-follower-edit {
+	opacity: 0;
+	pointer-events: none; /* while hidden, don't intercept clicks on the HP box below */
+	transition: opacity 0.12s;
+}
+.stonetop-follower-card:hover > .stonetop-follower-edit { opacity: 0.5; pointer-events: auto; transition-delay: var(--st-edit-reveal-delay); }
+.stonetop-follower-card:hover > .stonetop-follower-edit:hover { opacity: 1; transition-delay: 0s; }
+
+/* The "stat block" section (exceptional/group flags through Cost/Loyalty) wraps
+   several body rows, so it re-establishes the body's column gap and floats its own
+   pencil at the top-right. Child combinators (>) keep this from revealing or
+   positioning the nested Moves / Gear pencils inside it. */
+.stonetop-follower-stats-section {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+}
+.stonetop-follower-stats-section > .stonetop-follower-edit {
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.stonetop-follower-stats-section:hover > .stonetop-follower-edit { opacity: 0.5; transition-delay: var(--st-edit-reveal-delay); }
+.stonetop-follower-stats-section:hover > .stonetop-follower-edit:hover { opacity: 1; transition-delay: 0s; }
+.stonetop-follower-stats-section > .stonetop-follower-edit,
+.stonetop-follower-stats-section > .stonetop-follower-done {
+	position: absolute;
+	top: 0;
+	right: 0;
+}
+
+/* Empty fill-line stand-in (no tags yet) */
+.stonetop-follower-fill-line {
+	flex: 1 1 auto;
+	align-self: stretch;
+	border-bottom: 1px dotted rgba(0, 0, 0, 0.25);
+	margin-bottom: 3px;
+}
+
+/* Octagonal HP box (two-layer clip-path so the diagonal cuts keep their border) */
+.stonetop-follower-hp-octagon {
+	--oct-cut: 11px;
+	position: relative;
+	flex: none;
+	width: 82px;
+	min-height: 62px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 1px;
+	padding: 4px;
+	clip-path: polygon(
+		var(--oct-cut) 0, calc(100% - var(--oct-cut)) 0,
+		100% var(--oct-cut), 100% calc(100% - var(--oct-cut)),
+		calc(100% - var(--oct-cut)) 100%, var(--oct-cut) 100%,
+		0 calc(100% - var(--oct-cut)), 0 var(--oct-cut)
+	);
+	background: var(--st-text-body);
+}
+
+.stonetop-follower-hp-octagon::before {
+	content: "";
+	position: absolute;
+	inset: 2px;
+	clip-path: inherit;
+	background: #fff;
+	z-index: 0;
+}
+
+.stonetop-follower-hp-octagon > * { position: relative; z-index: 1; }
+
+.stonetop-follower-hp-octagon-label {
+	font-family: var(--font-stonetop);
+	font-weight: 700;
+	font-size: var(--st-fs-sm);
+	letter-spacing: 0.06em;
+	color: var(--st-text-body);
+	line-height: 1;
+}
+
+.stonetop-follower-hp-octagon-body {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 3px;
+}
+
+.stonetop-follower-hp-octagon-max { font-size: var(--st-fs-sm); color: var(--st-text-secondary); }
+.stonetop-follower-hp-octagon-static { font-size: var(--st-fs-lg); font-weight: 700; color: var(--st-text-body); }
+.stonetop-follower-hp-octagon-suffix { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+
+/* Body */
+.stonetop-follower-body {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	padding: 9px 12px 11px;
+}
+
+/* Single-line labeled field with a fill line under the value. No font-size here:
+   the label and value carry their own sizing (var(--st-fs-base)), and setting an
+   em-based font-size on the row would compound — making these labels (Damage /
+   Instinct / Cost) render smaller than the Max.HP / Armor stat-row labels, which
+   sit in a row with no font-size. */
+.stonetop-follower-field-row {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.stonetop-follower-field-value {
+	flex: 1 1 auto;
+	min-width: 0;
+	color: var(--st-text-body);
+}
+
+.stonetop-follower-field-row > .stonetop-follower-field-value {
+	border-bottom: 1px dotted rgba(0, 0, 0, 0.18);
+}
+
+/* Inline editable stat fields (Damage / Instinct / Cost under the stat-block
+   pencil). Sit on the value's fill line, matching the gear-label inline input. */
+.stonetop-follower-stat-input {
+	flex: 1 1 auto;
+	min-width: 0;
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	background: transparent;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-base);
+	color: var(--st-text-body);
+	padding: 0 2px;
+}
+
+/* Block fields (Moves / Gear / Notes) stack their value under the label */
+.stonetop-follower-field-row--block {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 3px;
+}
+
+.stonetop-follower-field-row--block > .stonetop-follower-field-value { border-bottom: none; }
+
+/* Two stats sharing a row (Max.HP + Armor, Cost + Loyalty) */
+.stonetop-follower-stat-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 18px;
+}
+
+.stonetop-follower-statline {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	flex: 1 1 130px;
+	min-width: 120px;
+}
+
+.stonetop-follower-statline .stonetop-follower-field-value {
+	border-bottom: 1px dotted rgba(0, 0, 0, 0.18);
+}
+
+.stonetop-follower-loyalty-statline {
+	flex: 0 0 auto;
+	min-width: 0;
+	align-items: center;
+}
+
+/* Crew option pickers (edit mode): the playbook's tag list as toggle chips, and
+   the instinct / cost lists as pick-one radio rows — the choices printed on the
+   Crew sheet in the rulebook. */
+.stonetop-crew-tag-picker {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex: 1 1 100%;
+	min-width: 0;
+}
+
+.stonetop-crew-tag-hint {
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--st-text-faint);
+	line-height: 1.3;
+}
+
+.stonetop-follower-tag.stonetop-crew-tag-choice {
+	cursor: pointer;
+	user-select: none;
+	opacity: 0.7;
+}
+.stonetop-crew-tag-choice input { display: none; }
+.stonetop-crew-tag-choice:hover { opacity: 1; }
+.stonetop-crew-tag-choice.is-selected {
+	opacity: 1;
+	background: var(--st-text-body);
+	border-color: var(--st-text-body);
+	color: #fff;
+}
+.stonetop-crew-tag-choice.is-auto { cursor: default; }
+.stonetop-crew-tag-choice.is-disabled:not(.is-selected) { opacity: 0.35; cursor: default; }
+
+/* Exceptional: a gated, selectable tag chip (edit mode). Mirrors the crew tag
+   choices but keeps the amber "exceptional" tint and shows a lock until the
+   granting playbook move is owned. */
+.stonetop-follower-tag.stonetop-exceptional-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	user-select: none;
+	opacity: 0.7;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-base);
+	line-height: 1.4;
+}
+.stonetop-exceptional-toggle:hover { opacity: 1; }
+.stonetop-follower-tag.stonetop-exceptional-toggle.is-selected {
+	opacity: 1;
+	background: hsl(40 45% 78%);
+	border-color: rgba(160,130,80,0.65);
+	color: var(--st-text-body);
+}
+.stonetop-exceptional-toggle.is-locked { border-style: dashed; opacity: 0.85; }
+.stonetop-exceptional-toggle.is-locked .fa-lock { font-size: 0.8em; opacity: 0.6; }
+
+/* Pick-one option list (instinct / cost) */
+.stonetop-follower-option-list {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+.stonetop-follower-option {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	cursor: pointer;
+	font-size: var(--st-fs-base);
+}
+.stonetop-follower-option > input { flex: none; margin: 0; align-self: center; }
+.stonetop-follower-option.is-selected { font-weight: 600; }
+
+/* When the Cost statline holds an option list, let it span the full row so the
+   choices aren't squeezed into the half-width column (Loyalty wraps below). */
+.stonetop-follower-statline--options { flex-basis: 100%; }
+
+/* Moves: PDF-style arrow markers, one move per fill line */
+.stonetop-follower-moves-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.stonetop-follower-moves-list li {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	font-size: var(--st-fs-base);
+	border-bottom: 1px dotted rgba(0, 0, 0, 0.15);
+	padding-bottom: 1px;
+}
+
+.stonetop-follower-moves-list li::before {
+	content: "\27A4"; /* ➤ — matches the rulebook's Moves marker */
+	flex: none;
+	color: var(--st-text-secondary);
+	font-size: 0.78em;
+	line-height: 1.3;
+}
+
+/* Gear: diamond checkboxes + fill-line names, two-up to echo the PDF */
+.stonetop-follower-gear-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 3px 14px;
+}
+
+.stonetop-follower-gear-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--st-fs-base);
+}
+
+.vtt .window-app input[type=checkbox].stonetop-follower-gear-check {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	flex: none !important;
+	width: calc(11px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(11px * var(--stonetop-font-scale, 1)) !important;
+	border: 1.5px solid currentColor;
+	border-radius: 1px;
+	background: transparent;
+	transform: rotate(45deg);
+	margin: 0 2px;
+	padding: 0;
+	cursor: pointer;
+}
+.vtt .window-app input[type=checkbox].stonetop-follower-gear-check:checked { background: currentColor; }
+.vtt .window-app input[type=checkbox].stonetop-follower-gear-check:disabled { opacity: 1; cursor: default; }
+
+.stonetop-follower-gear-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	border-bottom: 1px dotted rgba(0, 0, 0, 0.18);
+}
+
+.stonetop-follower-gear-label {
+	flex: 1 1 auto;
+	min-width: 0;
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	background: transparent;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-base);
+	padding: 0 2px;
+}
+
+.stonetop-follower-gear-item .stonetop-follower-gear-remove {
+	flex: none;
+	width: 18px !important;
+	height: 18px !important;
+	padding: 0 !important;
+	justify-content: center;
+}
+
+.stonetop-follower-gear-add {
+	grid-column: 1 / -1;
+	justify-self: start;
+	margin-top: 2px;
+}
+
+/* Free-text Moves / Notes inputs */
+.stonetop-follower-text {
+	width: 100%;
+	box-sizing: border-box;
+	border: 1px solid rgba(0, 0, 0, 0.2);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.6);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-base);
+	line-height: 1.35;
+	padding: 3px 6px;
+	resize: vertical;
+}
+
+.stonetop-follower-notes-text {
+	font-size: var(--st-fs-base);
+	color: var(--st-text-body);
+	white-space: pre-wrap;
+	line-height: 1.4;
+}
+
+.stonetop-follower-empty { color: var(--st-text-faint); }
 
 /* Inline action buttons */
 .stonetop-inline-btn {
@@ -9136,8 +9634,6 @@ span.stonetop-loyalty-pip { cursor: default; }
 
 .stonetop-inline-btn--danger { border-color: #c0392b; color: #c0392b; }
 .stonetop-inline-btn--danger:hover { background: rgba(192,57,43,0.08); }
-
-.stonetop-create-individual-btn { margin-top: 6px; }
 
 /* Follower rules (collapsible <details>) */
 .stonetop-follower-rules-header {
@@ -9174,7 +9670,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 
 .stonetop-follower-rule summary {
 	padding: 5px 10px;
-	font-size: var(--st-fs-sm);
+	font-size: var(--st-fs-base);
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
@@ -9202,7 +9698,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 .stonetop-follower-rule p,
 .stonetop-follower-rule ul {
 	margin: 4px 10px 6px;
-	font-size: var(--st-fs-sm);
+	font-size: var(--st-fs-base);
 	line-height: 1.4;
 }
 
@@ -9212,9 +9708,7 @@ span.stonetop-loyalty-pip { cursor: default; }
 }
 
 .stonetop-follower-rule li {
-	display: flex;
-	align-items: flex-start;
-	gap: 5px;
+	margin: 2px 0;
 }
 
 .stonetop-follower-rule li::before {
@@ -9235,8 +9729,13 @@ li.question-bullet::before {
 	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 }
 
-/* Normalize spiral bullets to match Overview > Resources spacing. The bullet → text
-   gap is set once, below, from --stonetop-spiral-gap (same selector list). */
+/* Block flow (not flex) — same fix as the journal bodies below: a flex `li` turns
+   every inline child (each `<strong>`/`<em>` and content-link) into its own flex
+   item, so phrases like "<em>exceptional</em>" shatter into separate columns
+   instead of wrapping as one continuous run. Hang the spiral bullet in the left
+   padding via an absolutely-positioned marker instead. This rule sizes/positions
+   the marker for the whole spiral-list family; bullet size from --stonetop-bullet-size,
+   bullet → text gap from --stonetop-spiral-gap (matching Overview > Resources). */
 .stonetop-basic-move-panel li::before,
 .stonetop-chat-move-description li::before,
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description li::before,
@@ -9250,15 +9749,15 @@ li.question-bullet::before {
 .stonetop-onboarding-card-desc li::before,
 .stonetop-follower-rule li::before,
 li.question-bullet::before {
+	position: absolute;
+	left: 0;
+	top: 0.2em;
 	width: var(--stonetop-bullet-size, 10px);
 	height: var(--stonetop-bullet-size, 10px);
-	flex: 0 0 var(--stonetop-bullet-size, 10px);
-	margin-top: 0.2em;
+	margin-top: 0;
 	opacity: 0.55;
 }
 
-/* Consistent spiral-bullet → text spacing across every spiral list, matching the
-   Stonetop Assets list. Single source: --stonetop-spiral-gap. */
 .stonetop-basic-move-panel li,
 .stonetop-chat-move-description li,
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description li,
@@ -9272,7 +9771,8 @@ li.question-bullet::before {
 .stonetop-onboarding-card-desc li,
 .stonetop-follower-rule li,
 li.question-bullet {
-	gap: var(--stonetop-spiral-gap);
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
 }
 
 /* Stonetop journal prose: spiral bullets, with the question-spiral on question
@@ -9488,10 +9988,6 @@ li.question-bullet {
 	gap: 6px;
 }
 
-.steading-move-body li {
-	gap: 12px;
-}
-
 /* Individual creation dialog */
 .stonetop-individual-form .form-group { margin-bottom: 10px; }
 
@@ -9585,6 +10081,47 @@ li.question-bullet {
 .stonetop-group-fight-dmg-label {
 	font-size: var(--st-fs-base);
 	color: var(--st-text-secondary);
+}
+
+.stonetop-group-hp-input {
+	width: 44px;
+}
+
+.stonetop-group-hp-reset {
+	color: var(--st-text-faint);
+	cursor: pointer;
+	font-size: var(--st-fs-xs);
+}
+
+.stonetop-group-hp-reset:hover {
+	color: var(--color-text-hyperlink, slategrey);
+}
+
+.stonetop-group-fight-readiness-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--st-fs-sm);
+	margin-bottom: 8px;
+	flex-wrap: wrap;
+}
+
+.stonetop-group-fight-readiness-label {
+	font-weight: 600;
+	color: slategrey;
+	white-space: nowrap;
+}
+
+.stonetop-crew-readiness-value {
+	min-width: 16px;
+	text-align: center;
+	font-weight: 700;
+	font-size: var(--st-fs-base);
+}
+
+.stonetop-group-fight-readiness-note {
+	color: var(--st-text-faint);
+	font-style: italic;
 }
 
 .stonetop-group-fight-outnumber-row {
@@ -10443,9 +10980,14 @@ input.stonetop-monster-armor-source {
 	transition: opacity 0.12s ease;
 }
 
-.stonetop-monster-notes-editor:hover .toggle,
+.stonetop-monster-notes-editor:hover .toggle {
+	opacity: 1;
+	transition-delay: var(--st-edit-reveal-delay);
+}
+/* While editing, the toggle (back to read mode) must stay available without delay. */
 .stonetop-monster-notes-editor.active .toggle {
 	opacity: 1;
+	transition-delay: 0s;
 }
 
 .stonetop-monster-readonly-text {
@@ -10925,10 +11467,12 @@ input.stonetop-monster-armor-source {
 .stonetop-bestiary-page .stonetop-monster-field:hover .stonetop-section-edit,
 .stonetop-bestiary-page .stonetop-monster-field:hover .stonetop-concept-edit {
 	opacity: 0.5;
+	transition-delay: var(--st-edit-reveal-delay);
 }
 .stonetop-bestiary-page .stonetop-monster-field:hover .stonetop-section-edit:hover,
 .stonetop-bestiary-page .stonetop-monster-field:hover .stonetop-concept-edit:hover {
 	opacity: 1;
+	transition-delay: 0s;
 }
 
 /* ── Details-tab per-section edit pencils ─────────────────────────────────
@@ -10992,9 +11536,15 @@ input.stonetop-monster-armor-source {
 	transition: opacity 0.12s;
 }
 .stonetop-details-heading-row:hover .stonetop-section-edit,
-.stonetop-lore-section-wrapper:hover > .stonetop-section-edit { opacity: 0.5; }
+.stonetop-lore-section-wrapper:hover > .stonetop-section-edit {
+	opacity: 0.5;
+	transition-delay: var(--st-edit-reveal-delay);
+}
 .stonetop-details-heading-row:hover .stonetop-section-edit:hover,
-.stonetop-lore-section-wrapper:hover > .stonetop-section-edit:hover { opacity: 1; }
+.stonetop-lore-section-wrapper:hover > .stonetop-section-edit:hover {
+	opacity: 1;
+	transition-delay: 0s;
+}
 
 /* When the whole Details tab is read-only (global wrench off) but one section
    has been opened with its own pencil, re-enable interaction in that section. */

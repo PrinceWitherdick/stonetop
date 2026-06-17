@@ -5,14 +5,38 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import crypto from "crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root    = path.join(__dirname, "..");
-const src     = path.join(root, "packs", "src");
-const outDir  = path.join(root, "packs", "src", "reference-journals");
+// Item sources live under the stonetop-items pack-source dir; reference journals
+// are staged from this output dir into the merged "Stonetop" journal pack (pack.js).
+const src     = path.join(root, "packs", "src", "stonetop-items");
+const outDir  = path.join(root, "packs", "src", "stonetop-journals", "reference-journals");
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-const randomId = () => Array.from({ length: 16 }, () => CHARS[Math.floor(Math.random() * CHARS.length)]).join("");
+
+// Deterministic 16-char id derived from a stable key. Compendium ids must stay
+// stable across releases or updating worlds re-seed duplicate journals (the seeder
+// matches by compendiumSource uuid — see SeedCompendiums.js), so we never use a
+// random id: re-running this generator must be idempotent.
+function deterministicId(key) {
+    const bytes = crypto.createHash("sha256").update(key).digest();
+    let id = "";
+    for (let i = 0; i < 16; i++) id += CHARS[bytes[i] % CHARS.length];
+    return id;
+}
+
+// Reuse the ids already committed for a journal so regeneration keeps existing
+// content stable; only genuinely new journals/pages get a fresh (deterministic) id.
+async function loadExistingIds(filename) {
+    try {
+        const doc = JSON.parse(await fs.readFile(path.join(outDir, filename), "utf8"));
+        const pages = {};
+        for (const p of doc.pages ?? []) if (p?.name) pages[p.name] = p._id;
+        return { journalId: doc._id, folder: doc.folder ?? null, pages };
+    } catch { return { journalId: null, folder: null, pages: {} }; }
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -45,8 +69,8 @@ async function readJsonDirRecursive(dir, filter = () => true) {
     return results.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function makePage(journalId, name, content, sort) {
-    const pageId = randomId();
+function makePage(journalId, name, content, sort, existing = { pages: {} }) {
+    const pageId = existing.pages?.[name] ?? deterministicId(`${journalId}::${name}`);
     return {
         _id:   pageId,
         _key:  `!journal.pages!${journalId}.${pageId}`,
@@ -64,15 +88,15 @@ function makePage(journalId, name, content, sort) {
     };
 }
 
-function makeJournal(name, pages) {
-    const id = randomId();
+function makeJournal(name, existing, pages) {
+    const id = existing.journalId ?? deterministicId(name);
     return {
         _id:       id,
         _key:      `!journal!${id}`,
         name,
         ownership: { default: 0 },
         flags:     { stonetop: {} },
-        folder:    null,
+        folder:    existing.folder ?? null,
         sort:      0,
         pages:     pages(id),
     };
@@ -117,9 +141,10 @@ async function buildMovesJournal() {
         { name: "Post-Death: Thrall",   moves: thrall },
     ].filter(s => s.moves.length);
 
-    return makeJournal("Reference: Moves", (id) =>
+    const existing = await loadExistingIds("moves.json");
+    return makeJournal("Reference: Moves", existing, (id) =>
         sections.map(({ name, moves }, i) =>
-            makePage(id, name, moveSectionHtml(moves), (i + 1) * 100000)
+            makePage(id, name, moveSectionHtml(moves), (i + 1) * 100000, existing)
         )
     );
 }
@@ -141,9 +166,10 @@ async function buildPlaybookMovesJournal() {
         sections.push({ name: playbookName, moves });
     }
 
-    return makeJournal("Reference: Playbook Moves", (id) =>
+    const existing = await loadExistingIds("playbook-moves.json");
+    return makeJournal("Reference: Playbook Moves", existing, (id) =>
         sections.map(({ name, moves }, i) =>
-            makePage(id, name, moveSectionHtml(moves), (i + 1) * 100000)
+            makePage(id, name, moveSectionHtml(moves), (i + 1) * 100000, existing)
         )
     );
 }
@@ -177,8 +203,9 @@ ${items.map(itemRow).join("\n")}
     const content =
         `<h3>Regular Items</h3>${table(regular)}<h3>Small Items</h3>${table(small)}`;
 
-    return makeJournal("Reference: Inventory Items", (id) => [
-        makePage(id, "Inventory Items", content, 100000),
+    const existing = await loadExistingIds("inventory-items.json");
+    return makeJournal("Reference: Inventory Items", existing, (id) => [
+        makePage(id, "Inventory Items", content, 100000, existing),
     ]);
 }
 
@@ -203,7 +230,7 @@ async function main() {
         fs.writeFile(path.join(outDir, name), JSON.stringify(data, null, 2))
     ));
 
-    console.log("✓ Written to packs/src/reference-journals/");
+    console.log("✓ Written to packs/src/stonetop-journals/reference-journals/");
     for (const [name, data] of writes) {
         console.log(`  ${name} (${data.pages.length} page${data.pages.length !== 1 ? "s" : ""})`);
     }

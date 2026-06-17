@@ -5,6 +5,7 @@ import { markQuestionBullets } from "../../../utils/question-bullets.js";
 import { loreMarkerForText } from "../../../model/PlaybookSnapshot.js";
 import { KeepOnTop } from "../../../utils/keep-on-top.js";
 import { shuffle } from "../../../utils/arrays.js";
+import { normalizePlaybookGlyphs } from "../../../utils/strings.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -237,25 +238,7 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	_normalizeOnboardingText(value) {
-		const char = (...codes) => String.fromCodePoint(...codes);
-		const replacements = [
-			[[0xe2, 0x2014, 0x2039], [0x25cb]], // circle
-			[[0xe2, 0x2014, 0x2021], [0x25c7]], // diamond
-			[[0xe2, 0x2014, 0x2020], [0x25c6]], // filled diamond
-			[[0xe2, 0x2013, 0x00a1], [0x25a1]], // square
-			[[0x00c2, 0x00b7], [0x00b7]],       // middle dot
-			[[0xe2, 0x20ac, 0x201d], [0x2014]], // em dash
-			[[0xe2, 0x20ac, 0x201c], [0x2013]], // en dash
-			[[0xe2, 0x20ac, 0x00a6], [0x2026]], // ellipsis
-			[[0xe2, 0x20ac, 0x2122], [0x2019]], // apostrophe
-			[[0xe2, 0x20ac, 0x0153], [0x201c]], // opening quote
-			[[0xe2, 0x20ac, 0x009d], [0x201d]], // closing quote
-		];
-		let text = String(value ?? "");
-		for (const [from, to] of replacements) {
-			text = text.replaceAll(char(...from), char(...to));
-		}
-		return text;
+		return normalizePlaybookGlyphs(value);
 	}
 
 	_parseMovePickCount() {

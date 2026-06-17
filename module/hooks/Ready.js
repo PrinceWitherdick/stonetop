@@ -1,7 +1,7 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { seedCompendiumJournalsOnce, updateSeededJournalsOnVersionChange } from "./SeedCompendiums.js";
-import { applySheetFont, applySheetFontScale, getSetting, setSetting } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
@@ -27,6 +27,7 @@ const _FATE_HOTBAR_SLOT  = 2;
 export async function onReady() {
 	applySheetFont(getSetting("sheetFont"));
 	applySheetFontScale(getSetting("sheetFontScale"));
+	applyEditPencilRevealDelay(getSetting("editPencilRevealDelay"));
 	await _migrateArmourToArmor();
 	await runStartupMigrations();
 	await ensureStonetopSingleton();

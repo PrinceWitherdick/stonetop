@@ -76,3 +76,34 @@ export function managedHash(entryData) {
 	}));
 	return hashString(stableStringify(projection));
 }
+
+// Reader state that must survive a content refresh. Checkbox ticks
+// (journal-checkboxes.js) live in `flags.stonetop.checks`, and managedHash
+// deliberately ignores flags — so a content-pristine entry still gets refreshed to
+// the newly-shipped version, but without this its readers' ticked boxes would be
+// wiped when the old pages are replaced. Carry that state from the old pages onto
+// the matching new page, joined by name (page names are unique within an entry —
+// the same join key the seeder uses). Only `checks` is copied, so the shipped
+// page's own (baked) flags are left intact. Returns new page objects (inputs are
+// not mutated).
+export function carryOverPageState(newPages, oldPages) {
+	const checksByName = new Map();
+	for (const p of oldPages ?? []) {
+		const checks = p?.flags?.stonetop?.checks;
+		if (checks && typeof checks === "object" && Object.keys(checks).length) {
+			checksByName.set(p.name, checks);
+		}
+	}
+	if (!checksByName.size) return newPages ?? [];
+	return (newPages ?? []).map(p => {
+		const checks = checksByName.get(p.name);
+		if (!checks) return p;
+		return {
+			...p,
+			flags: {
+				...(p.flags ?? {}),
+				stonetop: { ...(p.flags?.stonetop ?? {}), checks: { ...checks } },
+			},
+		};
+	});
+}

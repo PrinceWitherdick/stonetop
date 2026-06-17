@@ -86,10 +86,35 @@ export function registerSettings() {
 		onChange: value => applySheetFontScale(value),
 	});
 
+	// How long you must hover a section before its edit pencil fades in (seconds).
+	// Drives the --st-edit-reveal-delay CSS variable. The pencils stay clickable
+	// while still invisible, so this only affects when they become visible.
+	game.settings.register("stonetop_pwd", "editPencilRevealDelay", {
+		name: "stonetop.settings.editPencilRevealDelay.name",
+		hint: "stonetop.settings.editPencilRevealDelay.hint",
+		scope: "client",
+		config: true,
+		type: Number,
+		range: { min: 0, max: 3, step: 0.1 },
+		default: 1,
+		onChange: value => applyEditPencilRevealDelay(value),
+	});
+
 	// Remembers each character (playbook) sheet's width so it reopens at the size
 	// the user last left it. Per-user (client) and per-actor: a map of actor id
 	// -> width. Internal (not shown in the settings menu).
 	game.settings.register("stonetop_pwd", "characterSheetWidths", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
+	// Remembers which collapsible crew follower sections (Inventory / Roster /
+	// Group Fight) each character left expanded, so the sheet reopens in the same
+	// state. Per-user (client) and per-actor: a map of actor id -> array of open
+	// section ids. Internal (not shown in the settings menu).
+	game.settings.register("stonetop_pwd", "crewSectionsOpen", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -212,6 +237,12 @@ export function applySheetFontScale(value) {
 	document.documentElement.style.setProperty("--stonetop-font-scale", String(safe));
 }
 
+export function applyEditPencilRevealDelay(value) {
+	const seconds = Number(value);
+	const safe    = Number.isFinite(seconds) && seconds >= 0 ? seconds : 1;
+	document.documentElement.style.setProperty("--st-edit-reveal-delay", `${safe}s`);
+}
+
 export function getSetting(key) {
 	return game.settings.get("stonetop_pwd", key);
 }
@@ -231,6 +262,24 @@ export function setCharacterSheetWidth(actorId, width) {
 	if (w === getCharacterSheetWidth(actorId)) return; // avoid redundant writes
 	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSheetWidths") ?? {};
 	return game.settings.set("stonetop_pwd", "characterSheetWidths", { ...map, [actorId]: w });
+}
+
+// The collapsible crew follower sections a character left expanded (array of
+// section ids), or [] if none stored yet.
+export function getCrewSectionsOpen(actorId) {
+	if (!actorId) return [];
+	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "crewSectionsOpen");
+	const arr = map?.[actorId];
+	return Array.isArray(arr) ? arr : [];
+}
+
+export function setCrewSectionsOpen(actorId, sections) {
+	if (!actorId) return;
+	const next = Array.from(new Set(sections ?? [])).sort();
+	const map  = globalThis.game?.settings?.get?.("stonetop_pwd", "crewSectionsOpen") ?? {};
+	const prev = Array.isArray(map[actorId]) ? [...map[actorId]].sort() : [];
+	if (next.join("|") === prev.join("|")) return; // avoid redundant writes
+	return game.settings.set("stonetop_pwd", "crewSectionsOpen", { ...map, [actorId]: next });
 }
 
 export function getHoverDescriptionSetting(key, { ignoreMaster = false } = {}) {

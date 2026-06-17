@@ -39,3 +39,28 @@ export function isDefaultImg(img) {
 	const defaultToken = globalThis.CONST?.DEFAULT_TOKEN ?? "icons/svg/mystery-man.svg";
 	return !img || img === "icons/svg/mystery-man.svg" || img === defaultToken;
 }
+
+// Mis-decoded UTF-8 sequences seen in the transcribed playbook text → their real
+// glyph. Used to clean playbook option text (instincts, costs, tags, choices)
+// wherever it is shown or stored, so the onboarding dialog and the character
+// sheet normalise identically.
+const _PLAYBOOK_GLYPH_FIXES = [
+	[[0xe2, 0x2014, 0x2039], [0x25cb]], // circle
+	[[0xe2, 0x2014, 0x2021], [0x25c7]], // diamond
+	[[0xe2, 0x2014, 0x2020], [0x25c6]], // filled diamond
+	[[0xe2, 0x2013, 0x00a1], [0x25a1]], // square
+	[[0x00c2, 0x00b7], [0x00b7]],       // middle dot
+	[[0xe2, 0x20ac, 0x201d], [0x2014]], // em dash
+	[[0xe2, 0x20ac, 0x201c], [0x2013]], // en dash
+	[[0xe2, 0x20ac, 0x00a6], [0x2026]], // ellipsis
+	[[0xe2, 0x20ac, 0x2122], [0x2019]], // apostrophe
+	[[0xe2, 0x20ac, 0x0153], [0x201c]], // opening quote
+	[[0xe2, 0x20ac, 0x009d], [0x201d]], // closing quote
+].map(([from, to]) => [String.fromCodePoint(...from), String.fromCodePoint(...to)]);
+
+/** Repair mis-decoded glyphs in transcribed playbook text. */
+export function normalizePlaybookGlyphs(value) {
+	let text = String(value ?? "");
+	for (const [from, to] of _PLAYBOOK_GLYPH_FIXES) text = text.replaceAll(from, to);
+	return text;
+}

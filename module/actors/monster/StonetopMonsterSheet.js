@@ -1,6 +1,7 @@
 import { CREATURE_TYPE_CHOICES, creatureTypeIcon, creatureTypeLabel } from "../../bestiary/creature-types.js";
 import { hasText } from "../bestiary/codex.js";
 import { rollDamage } from "../../utils/roll-engine.js";
+import { DAMAGE_DIE_RE } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { escHtml, isDefaultImg } from "../../utils/strings.js";
 import { findMonsterTag } from "../../data/monster-tags.js";
@@ -37,7 +38,6 @@ function _compendiumSource(doc) {
 	return doc?._stats?.compendiumSource ?? doc?.flags?.core?.sourceId ?? null;
 }
 
-const DAMAGE_DIE = /\d*d\d+(?:\s*[+-]\s*\d+)?/i;
 
 /**
  * Split a monster's free-text Damage value into its separate attack modes, each
@@ -76,7 +76,7 @@ function _parseDamageModes(value) {
 	let buffer = "";
 	for (const part of parts) {
 		buffer = buffer ? `${buffer},${part}` : part;
-		if (DAMAGE_DIE.test(buffer)) {
+		if (DAMAGE_DIE_RE.test(buffer)) {
 			modes.push(buffer);
 			buffer = "";
 		}
@@ -91,7 +91,7 @@ function _parseDamageModes(value) {
 		.map(text => text.trim())
 		.filter(Boolean)
 		.map(text => {
-			const match = text.match(DAMAGE_DIE);
+			const match = text.match(DAMAGE_DIE_RE);
 			// A mode can note "w/disadvantage" (or advantage) on its die; the roll
 			// button then rolls twice and keeps the worse/better result.
 			const rollMode = /disadvantage/i.test(text) ? "dis"

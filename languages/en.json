@@ -178,6 +178,10 @@
         "larger": "Larger (125%)",
         "largest": "Largest (140%)"
       },
+      "editPencilRevealDelay": {
+        "name": "Edit Pencil Reveal Delay",
+        "hint": "How long to hover a section (in seconds) before its edit pencil fades in. The pencils stay clickable while still invisible, so you can click one without waiting. Set to 0 to show them instantly."
+      },
       "showRollStatChips": {
         "name": "Show Roll Stat Chips",
         "hint": "Show labels like +STR and +ANY beside rollable move icons on character sheets."

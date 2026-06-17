@@ -42,6 +42,7 @@ Hooks.once("init", () => {
 	Handlebars.registerHelper("boldMissText", value => boldMissText(value));
 	Handlebars.registerHelper("eq", (a, b) => a === b);
 	Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
+	Handlebars.registerHelper("and", (...args) => args.slice(0, -1).every(Boolean));
 
 	const _STAT_LABEL_KEYS = {
 		str: "stonetop.character.stats.strength",
@@ -193,6 +194,7 @@ Hooks.once("init", () => {
 		"stonetop.section-heading":  "systems/stonetop_pwd/templates/actor/partials/section-heading.hbs",
 		"stonetop.section-edit-toggle": "systems/stonetop_pwd/templates/actor/partials/section-edit-toggle.hbs",
 		"stonetop.details-section-edit-toggle": "systems/stonetop_pwd/templates/actor/partials/details-section-edit-toggle.hbs",
+		"stonetop.follower-section-edit": "systems/stonetop_pwd/templates/actor/partials/follower-section-edit.hbs",
 		"stonetop.resource-track":   "systems/stonetop_pwd/templates/actor/partials/resource-track.hbs",
 		"stonetop.steading-section-toggle":   "systems/stonetop_pwd/templates/actor/partials/steading-section-toggle.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop_pwd/templates/actor/partials/steading-tab-overview.hbs",

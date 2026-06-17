@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeRewriter, remapPageData, managedHash, stableStringify } from "../../module/hooks/journal-sync-core.js";
+import { makeRewriter, remapPageData, managedHash, stableStringify, carryOverPageState } from "../../module/hooks/journal-sync-core.js";
 
 // The managed-journal update channel decides "did the GM edit this?" by comparing a
 // content fingerprint to the baseline we stamped. These tests pin the two properties
@@ -64,6 +64,55 @@ describe("managedHash", () => {
 	it("changes when a page is added or removed", () => {
 		const fewer = { pages: [base.pages[0]] };
 		expect(managedHash(fewer)).not.toBe(managedHash(base));
+	});
+});
+
+describe("carryOverPageState", () => {
+	// A reader has ticked checkboxes on two pages; only flags.stonetop.checks holds
+	// that state, and managedHash ignores flags — so a content refresh must carry it.
+	const oldPages = [
+		{ name: "Requirements", type: "text", flags: { stonetop: { checks: { a: true, c: true } } } },
+		{ name: "Overview", type: "text", flags: {} },
+	];
+
+	it("carries checkbox ticks onto the matching new page, by name", () => {
+		const newPages = [
+			{ name: "Requirements", type: "text", text: { content: "<p>new</p>" } },
+			{ name: "Overview", type: "text", text: { content: "<p>new</p>" } },
+		];
+		const [req, overview] = carryOverPageState(newPages, oldPages);
+		expect(req.flags.stonetop.checks).toEqual({ a: true, c: true });
+		expect(overview.flags?.stonetop?.checks).toBeUndefined();
+	});
+
+	it("preserves the shipped page's own baked flags, only adding checks", () => {
+		const newPages = [{ name: "Requirements", type: "text", flags: { stonetop: { summary: "S" }, core: { x: 1 } } }];
+		const [req] = carryOverPageState(newPages, oldPages);
+		expect(req.flags).toEqual({ stonetop: { summary: "S", checks: { a: true, c: true } }, core: { x: 1 } });
+	});
+
+	it("does not mutate the inputs", () => {
+		const newPages = [{ name: "Requirements", type: "text" }];
+		carryOverPageState(newPages, oldPages);
+		expect(newPages[0].flags).toBeUndefined();
+	});
+
+	it("returns pages unchanged when there is no stored state", () => {
+		const newPages = [{ name: "Requirements", type: "text" }];
+		expect(carryOverPageState(newPages, [{ name: "Requirements", flags: {} }])).toBe(newPages);
+		expect(carryOverPageState(newPages, [])).toBe(newPages);
+	});
+
+	it("leaves a renamed/removed page's ticks behind (no match) without erroring", () => {
+		const newPages = [{ name: "Renamed", type: "text" }];
+		const [page] = carryOverPageState(newPages, oldPages);
+		expect(page.flags?.stonetop?.checks).toBeUndefined();
+	});
+
+	it("a carried-over page still hashes equal to the shipped content (flags ignored)", () => {
+		const shipped = { pages: [{ name: "Requirements", type: "text", text: { content: "<p>v2</p>" } }] };
+		const carried = { pages: carryOverPageState(shipped.pages, oldPages) };
+		expect(managedHash(carried)).toBe(managedHash(shipped));
 	});
 });
 
