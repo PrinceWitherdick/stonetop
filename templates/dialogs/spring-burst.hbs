@@ -1,0 +1,85 @@
+<div class="stonetop-spring">
+
+  <div class="stonetop-spring-main">
+
+    <div class="stonetop-spring-banner">
+      <i class="fas {{step.icon}} stonetop-spring-banner-icon"></i>
+      <div class="stonetop-spring-banner-info">
+        <div class="stonetop-spring-banner-title">{{step.title}}</div>
+        <div class="stonetop-spring-banner-sub">Let spring burst forth</div>
+      </div>
+      <div class="stonetop-spring-count">{{stepIndex}} / {{stepCount}}</div>
+    </div>
+
+    <div class="stonetop-spring-body">{{{step.body}}}</div>
+
+    {{#if showRoll}}
+    <div class="stonetop-spring-roll-wrap">
+      {{#if roll}}
+      <div class="stonetop-spring-roll-result stonetop-spring--{{roll.tier}}">
+        <span class="stonetop-spring-roll-result-total">{{roll.total}}</span>
+        <span class="stonetop-spring-roll-result-label">{{{roll.label}}}</span>
+      </div>
+      <button type="button" class="stonetop-spring-roll-btn">
+        <i class="fas fa-rotate-right"></i> Roll again
+      </button>
+      {{else}}
+      <button type="button" class="stonetop-spring-roll-btn stonetop-spring-roll-btn--primary">
+        <i class="fas fa-dice"></i> Roll +Fortunes (+1)
+      </button>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    {{#if showTiers}}
+    <ul class="stonetop-spring-tiers">
+      {{#each tiers}}
+      <li class="stonetop-spring-tier{{#if isActive}} is-active{{/if}}">
+        <span class="stonetop-spring-tier-label">{{{label}}}</span>
+        <span class="stonetop-spring-tier-text">{{{text}}}</span>
+      </li>
+      {{/each}}
+    </ul>
+    {{/if}}
+
+    {{#if qa}}
+    <div class="stonetop-spring-qa-wrap">
+      {{#if (eq qa.kind "perPc")}}
+        {{#if qa.empty}}
+        <p class="stonetop-spring-qa-empty"><i class="fas fa-info-circle"></i> {{qa.empty}}</p>
+        {{else}}
+        <ul class="stonetop-spring-qa-list">
+          {{#each qa.rows}}
+          <li class="stonetop-spring-qa">
+            <p class="stonetop-spring-qa-prompt">{{{prompt}}}</p>
+            <textarea class="stonetop-spring-qa-answer" rows="2"
+                      data-answer-key="{{../qa.key}}" data-answer-id="{{id}}"
+                      placeholder="{{../qa.placeholder}}">{{answer}}</textarea>
+          </li>
+          {{/each}}
+        </ul>
+        {{/if}}
+      {{else}}
+      <div class="stonetop-spring-qa">
+        <p class="stonetop-spring-qa-prompt">{{{qa.prompt}}}</p>
+        <textarea class="stonetop-spring-qa-answer" rows="2"
+                  data-answer-key="{{qa.key}}"
+                  placeholder="{{qa.placeholder}}">{{qa.answer}}</textarea>
+      </div>
+      {{/if}}
+    </div>
+    {{/if}}
+
+  </div>
+
+  <div class="stonetop-spring-nav">
+    <button class="stonetop-spring-back" {{#if isFirst}}disabled{{/if}}>◀ Back</button>
+    <span class="stonetop-spring-step-label">{{stepLabel}}</span>
+    {{#if isLast}}
+    <button class="stonetop-spring-done stonetop-spring-done--spring">Done ✦</button>
+    {{else}}
+    <button class="stonetop-spring-next">Next ▶</button>
+    {{/if}}
+  </div>
+
+</div>

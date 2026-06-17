@@ -4,6 +4,7 @@ import { seedCompendiumJournalsOnce, updateSeededJournalsOnVersionChange } from 
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
+import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
 import { WelcomeDialog } from "../dialogs/WelcomeDialog.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
@@ -13,13 +14,14 @@ const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
 const _EOS_MACRO_SCRIPT = "game.stonetop?.openEndOfSession?.()";
 const _EOS_HOTBAR_SLOT  = 10;
 
+// Retired hotbar macro — the Introductions walkthrough now launches from the
+// Welcome guide, so the standalone macro is deleted rather than slotted (see
+// _retireIntroductionsMacro). Name + command identify the system-created one.
 const _INTRO_MACRO_NAME   = "Character Introductions";
-const _INTRO_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/introductions.svg";
 const _INTRO_MACRO_SCRIPT = `\
 const w = Object.values(ui.windows).find(w => w.id === "stonetop-introductions");
 if (w?.rendered) { w.bringToTop(); return; }
 game.stonetop?.openIntroductions?.();`;
-const _INTRO_HOTBAR_SLOT  = 1;
 
 const _FATE_MACRO_NAME   = "Die of Fate";
 const _FATE_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg";
@@ -29,7 +31,7 @@ const _FATE_HOTBAR_SLOT  = 2;
 const _WELCOME_MACRO_NAME   = "Welcome to Stonetop";
 const _WELCOME_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/spring.svg";
 const _WELCOME_MACRO_SCRIPT = "game.stonetop?.openWelcome?.()";
-const _WELCOME_HOTBAR_SLOT  = 3;
+const _WELCOME_HOTBAR_SLOT  = 1;
 
 export async function onReady() {
 	applySheetFont(getSetting("sheetFont"));
@@ -42,6 +44,7 @@ export async function onReady() {
 	game.stonetop ??= {};
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
 	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
+	game.stonetop.openSpringBurst   = () => SpringBurstDialog.open();
 	game.stonetop.openWelcome       = () => WelcomeDialog.open();
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
 
@@ -50,11 +53,11 @@ export async function onReady() {
 	if (game.user.isGM) await seedCompendiumJournalsOnce();
 	if (game.user.isGM) await updateSeededJournalsOnVersionChange();
 	if (game.user.isGM) {
+		await _retireIntroductionsMacro();
 		await _ensureHotbarMacro({
 			name: _EOS_MACRO_NAME, img: _EOS_MACRO_IMG, command: _EOS_MACRO_SCRIPT, slot: _EOS_HOTBAR_SLOT,
 			match: m => m.command === _EOS_MACRO_SCRIPT && m.name === _EOS_MACRO_NAME,
 		});
-		await _ensureHotbarMacro({ name: _INTRO_MACRO_NAME,   img: _INTRO_MACRO_IMG,   command: _INTRO_MACRO_SCRIPT,   slot: _INTRO_HOTBAR_SLOT });
 		await _ensureHotbarMacro({ name: _FATE_MACRO_NAME,    img: _FATE_MACRO_IMG,    command: _FATE_MACRO_SCRIPT,    slot: _FATE_HOTBAR_SLOT });
 		await _ensureHotbarMacro({ name: _WELCOME_MACRO_NAME, img: _WELCOME_MACRO_IMG, command: _WELCOME_MACRO_SCRIPT, slot: _WELCOME_HOTBAR_SLOT });
 	}
@@ -79,9 +82,16 @@ function _registerCharacterAutoOpen() {
 function _maybeAutoOpenCharacter(actor) {
 	if (actor?.type !== "character") return;
 	if (actor.getFlag?.("stonetop_pwd", "autoOpenFor") !== game.user.id) return;
-	actor.sheet.render(true);
+	const sheet = actor.sheet;
+	sheet.render(true);
 	// Owner-only flag; drop it so the sheet doesn't re-open on later loads.
 	actor.unsetFlag("stonetop_pwd", "autoOpenFor").catch(() => {});
+	// Then run the sheet's own "Create Character" action so the player lands
+	// straight in the playbook picker / onboarding instead of a blank sheet — the
+	// same flow the sheet button triggers. Only for a playbook-less character (a
+	// fresh Welcome-minted one always is); the picker keeps itself above the
+	// sheet, so it doesn't matter that the sheet is still mid-render here.
+	if (!actor.system?.playbook?.slug) sheet._onNewCharacter?.();
 }
 
 // Pop the first-session Welcome guide for the GM until they tick "Don't show
@@ -121,6 +131,23 @@ async function _ensureHotbarMacro({ name, img, command, slot, match }) {
 	const alreadySlotted = Object.entries(game.user.hotbar).some(([, id]) => id === macro.id);
 	if (!alreadySlotted) {
 		await game.user.assignHotbarMacro(macro, slot);
+	}
+}
+
+// Retire the standalone "Character Introductions" hotbar macro: its walkthrough
+// now launches from the Welcome guide, so delete the system-created macro (which
+// also clears its hotbar slot) and free the Welcome macro from any slot other
+// than its new home (slot 1) so the _ensureHotbarMacro call below re-pins it
+// there. Both steps are no-ops once done, so this is safe to run every load.
+async function _retireIntroductionsMacro() {
+	const intro = game.macros.find(m => m.name === _INTRO_MACRO_NAME && m.command === _INTRO_MACRO_SCRIPT);
+	if (intro) await intro.delete();
+
+	const welcome = game.macros.find(m => m.name === _WELCOME_MACRO_NAME && m.command === _WELCOME_MACRO_SCRIPT);
+	if (!welcome) return;
+	const slot = Object.entries(game.user.hotbar).find(([, id]) => id === welcome.id)?.[0];
+	if (slot && Number(slot) !== _WELCOME_HOTBAR_SLOT) {
+		await game.user.assignHotbarMacro(null, Number(slot));
 	}
 }
 

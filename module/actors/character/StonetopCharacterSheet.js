@@ -1561,8 +1561,22 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._openEditCharacterOnboarding({ startAtStep: ev.currentTarget.dataset.onboardingStart });
 			});
 
+			// Reveal the "Drop a playbook here" hint only while a drag is actually
+			// over the sheet — a blank sheet shouldn't show a confusing dashed box,
+			// but the player can still drop a playbook anywhere on it. dragenter and
+			// dragleave bubble up from every child, so track the nesting depth and
+			// only clear the hint once the drag has truly left the form.
+			let dragDepth = 0;
+			const clearDropHint = () => { dragDepth = 0; html[0].classList.remove("stonetop-dragging-playbook"); };
+			html[0].addEventListener("dragenter", () => {
+				dragDepth++;
+				html[0].classList.add("stonetop-dragging-playbook");
+			});
+			html[0].addEventListener("dragleave", () => { if (--dragDepth <= 0) clearDropHint(); });
+
 			html[0].addEventListener("dragover", (ev) => ev.preventDefault());
 			html[0].addEventListener("drop", async (ev) => {
+				clearDropHint();
 				if (ev.target.closest(".sheet-tabs")) return;
 				ev.stopImmediatePropagation();
 				const data = this._getDragEventData(ev);

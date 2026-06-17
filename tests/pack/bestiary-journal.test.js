@@ -92,4 +92,16 @@ describe("bestiary journal ↔ actor cross-links", () => {
 		const bad = actors.filter(({ doc }) => doc.type === "monster" && CODEX.some(k => doc.system?.[k] !== undefined));
 		expect(bad.map(b => b.file)).toEqual([]);
 	});
+
+	// The generator links the "Fae nature" special-quality shorthand to The Fae lore
+	// entry so a reader can jump to the full rules. Guards against a new Fae stat
+	// block (or a dropped link after an edit) leaving the term un-linked.
+	it("every stat block mentioning 'Fae nature' links it to The Fae lore entry", async () => {
+		const lore = JSON.parse(await fs.readFile(path.join(SRC, "stonetop-lore", "factions", "the-fae.json"), "utf8"));
+		const expected = `@UUID[${JOURNAL_PACK}.${lore._id}]{Fae nature}`;
+		const bad = actors.filter(({ doc }) =>
+			doc.type === "monster" && (doc.system?.qualities ?? "").includes("Fae nature") && !doc.system.qualities.includes(expected)
+		);
+		expect(bad.map(b => b.file)).toEqual([]);
+	});
 });

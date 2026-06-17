@@ -1,8 +1,8 @@
 import { applyGearTermTooltips } from "../utils/gear-term-tooltips.js";
-import { wrapStonetopGlyphsInEl } from "../utils/glyphs.js";
 import { markProseSpiralBullets } from "../utils/journal-spiral-bullets.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import { settingOverviewPages } from "../utils/seeded-journals.js";
+import { applyLocationTooltips } from "../locations/location-tooltips.js";
 
 // This popup is now a *renderer* over the seeded "Setting Overview" journal — the
 // single source of truth. The journal's pages become the popup's tabs, so there's
@@ -52,10 +52,12 @@ export class SettingOverviewDialog extends Application {
 		super.activateListeners(html);
 		const entryBody = html.find(".stonetop-so-entry-body")[0];
 		if (entryBody) {
-			// Spiral / question-spiral / checkbox bullets, matching the journals.
+			// Spiral / question-spiral / checkbox bullets + glyph SVGs, matching the journals.
 			markProseSpiralBullets(entryBody);
-			wrapStonetopGlyphsInEl(entryBody);
 			applyGearTermTooltips(entryBody);
+			// Cross-link hover summaries — this is a dialog, not a journal render, so
+			// it isn't covered by the journal render hooks in stonetop.js.
+			applyLocationTooltips(entryBody);
 		}
 		// X button should always close, bypassing the z-index guard
 		this.element?.find('[data-action="close"]').off("click").on("click", () => this.close({force: true}));

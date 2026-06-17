@@ -1,5 +1,28 @@
 <form class="stonetop-arcanum-sheet-form" autocomplete="off">
 
+{{#unless isArcanum}}
+	{{!-- Plain readout for non-arcanum move items (inventory livestock/gear,
+	     basic/special moves) that resolve to this sheet but have no glyph tracks. --}}
+	<div class="stonetop-arcanum-card stonetop-arcanum-card--readout stonetop-arcanum-sheet-side">
+		<div class="stonetop-arcanum-sheet-main">
+			<div class="stonetop-arcanum-header">
+				<div class="stonetop-arcanum-header-left">
+					<span class="stonetop-arcanum-title">{{simple.name}}</span>
+					{{#if simple.weight}}
+					<div class="stonetop-arcanum-weight-note-row">
+						<span class="stonetop-arcanum-note">Weight {{simple.weight}}</span>
+					</div>
+					{{/if}}
+				</div>
+			</div>
+			<div class="stonetop-arcanum-body">
+				{{#if simple.note}}<p>{{{simple.note}}}</p>{{/if}}
+				{{{simple.description}}}
+			</div>
+		</div>
+	</div>
+{{else}}
+
 	{{!-- Front Side --}}
 	<div class="stonetop-arcanum-card stonetop-arcanum-sheet-side{{#if arcanaImg}} stonetop-arcanum-sheet-side--withart{{/if}}">
 		{{#if arcanaImg}}<img class="stonetop-arcanum-img" src="{{arcanaImg}}" alt="">{{/if}}
@@ -60,5 +83,7 @@
 		</div>
 	</div>
 	{{/if}}
+
+{{/unless}}
 
 </form>

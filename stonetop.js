@@ -20,11 +20,14 @@ import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
+import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
+import { addJournalShareButton } from "./module/journal/share-journal.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
+import { wrapStonetopGlyphsInEl } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets } from "./module/utils/journal-spiral-bullets.js";
 import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
@@ -232,6 +235,10 @@ Hooks.on("renderActorSheet", onRenderActorSheet);
 // Foundry v12–v14; the index warms on ready so the first hover is instant.
 Hooks.once("ready", () => ensureLocationSummaryIndex());
 const _onJournalRender = (app, html) => {
+	// First, neuter any cross-link a player can't follow (e.g. into the GM-only
+	// bestiary codex) so they can't click through to entries they aren't meant
+	// to see yet — and the prose doesn't tease the hidden entry. No-op for GMs.
+	restrictContentLinks(html);
 	applyLocationTooltips(html);
 	// Spiral bullets / question-spirals for this system's prose journals.
 	applyJournalSpiralBullets(app, html);
@@ -244,6 +251,14 @@ const _onJournalRender = (app, html) => {
 };
 for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJournalPageSheet", "renderJournalEntryPageSheet"]) {
 	Hooks.on(hook, _onJournalRender);
+}
+
+// -- JOURNAL SHARE BUTTON --------------------------------------
+// Give the GM a one-click eye button on the journal entry's header bar to toggle
+// whether players can see it (and at what access level). Scoped to the whole-entry
+// sheet — v12 fires renderJournalSheet, v13+ renderJournalEntrySheet.
+for (const hook of ["renderJournalSheet", "renderJournalEntrySheet"]) {
+	Hooks.on(hook, addJournalShareButton);
 }
 
 // -- BESTIARY CROSS-LINK INDEX ---------------------------------
@@ -280,9 +295,14 @@ Hooks.on("preCreateChatMessage", (message) => {
 	message.updateSource({ "speaker.alias": `${actor.name} ${playbookName}` });
 });
 
-// -- QUESTION BULLETS ------------------------------------------
+// -- CHAT-CARD PROSE TREATMENT ---------------------------------
 Hooks.on("renderChatMessageHTML", (message, html) => {
 	markQuestionBullets(html);
+	// Swap inline ◇/◆/○/●/□ ASCII for this system's styled glyphs in our chat-card
+	// prose — matching the sheets and journals. Scoped to the card description
+	// containers so a literal glyph someone types in chat is left alone.
+	html.querySelectorAll(".stonetop-chat-move-description, .stonetop-roll-card-description")
+		.forEach(el => wrapStonetopGlyphsInEl(el));
 });
 
 // -- STARTUP CARD: OPEN WELCOME GUIDE --------------------------

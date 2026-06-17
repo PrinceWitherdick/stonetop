@@ -1,5 +1,6 @@
 import { markQuestionBullets } from "./question-bullets.js";
 import { markCheckBullets } from "./check-bullets.js";
+import { wrapStonetopGlyphsInEl } from "./glyphs.js";
 
 // Give this system's journal prose the same spiral bullets (and question-spiral
 // on list items that pose a question) as the actor sheets, applied live at render
@@ -57,7 +58,9 @@ function isStonetopProseJournal(entry, page) {
  * question, and the checkbox marker on requirement/option check-lists. The
  * `.stonetop-journal-body` class supplies the spiral CSS (a currentColor mask, so
  * it adapts to the surrounding text colour); the two mark passes add the
- * `question-bullet` / `check-bullet` classes that swap the icon. Idempotent.
+ * `question-bullet` / `check-bullet` classes that swap the icon. The glyph pass
+ * swaps inline ◇/◆/▶/○/□ ASCII for this system's styled SVG glyphs (e.g. the gear
+ * terms on "Gear: Terms & Value"). Idempotent.
  *
  * Used by the journal render pass below, and by the prose dialogs (Setting
  * Overview, Level-Up) that render the same kind of content outside a journal.
@@ -68,6 +71,7 @@ export function markProseSpiralBullets(el) {
 	el.classList.add("stonetop-journal-body");
 	markQuestionBullets(el);
 	markCheckBullets(el);
+	wrapStonetopGlyphsInEl(el);
 }
 
 /**

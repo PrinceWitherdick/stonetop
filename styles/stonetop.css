@@ -71,7 +71,7 @@
 	   stay clickable while still invisible (opacity:0 keeps pointer events), so you
 	   can hit one immediately without waiting out the delay. Leaving a section hides
 	   the pencil instantly — the delay is only on the reveal direction. */
-	--st-edit-reveal-delay: 1s;
+	--st-edit-reveal-delay: 0.5s;
 	--font-size-display: 42px;
 	--stonetop-bg: hsl(30deg 20% 94%);
 	--color-border-highlight-alt: slategrey;
@@ -149,6 +149,15 @@
 	--st-green-bg:       hsl(140 35% 88%);
 	--st-green-bg-hover: hsl(140 35% 82%);
 	--st-green-text:     hsl(140 40% 18%);
+
+	/* ── Red "destructive" accent ─────────────────────────────────────────
+	   Mirrors the green action palette for buttons that delete or replace
+	   something — e.g. the Welcome guide's "New Character", which discards
+	   the player's existing character. */
+	--st-red-border:     hsl(0 45% 58%);
+	--st-red-bg:         hsl(0 60% 91%);
+	--st-red-bg-hover:   hsl(0 60% 85%);
+	--st-red-text:       hsl(0 55% 30%);
 
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
@@ -255,7 +264,9 @@ body,
 
 .stonetop-glyph--diamond,
 .stonetop-glyph--diamond-selected,
-.stonetop-glyph--arrow {
+.stonetop-glyph--arrow,
+.stonetop-glyph--checkbox,
+.stonetop-glyph--checkbox-checked {
 	display: inline-block;
 	width: 0.78em;
 	height: 0.78em;
@@ -276,6 +287,38 @@ body,
 
 .stonetop-glyph--arrow {
 	background-image: url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+}
+
+/* Inline ASCII checkboxes (e.g. the gear-value table's "□ Small metal tool")
+   swapped for the same checkbox SVGs the interactive lists use. */
+.stonetop-glyph--checkbox {
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg');
+}
+
+.stonetop-glyph--checkbox-checked {
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
+}
+
+/* Inline ASCII circles (e.g. arcana charge tracks "○○○○") drawn to match the
+   round trackers on the sheets — there's no circle SVG; the in-app circles are
+   CSS-drawn too, so draw it here and let currentColor track the text colour.
+   The source glyph is pushed out and clipped so only the ring shows. */
+.stonetop-glyph--circle,
+.stonetop-glyph--circle-filled {
+	display: inline-block;
+	box-sizing: border-box;
+	width: 0.72em;
+	height: 0.72em;
+	border: 0.1em solid currentColor;
+	border-radius: 50%;
+	vertical-align: -0.02em;
+	overflow: hidden;
+	text-indent: 1.5em;
+	white-space: nowrap;
+}
+
+.stonetop-glyph--circle-filled {
+	background-color: currentColor;
 }
 
 .tab-section--possessions .stonetop-item-description .stonetop-glyph {
@@ -1701,6 +1744,13 @@ input.stonetop-name-field {
 	font-weight: normal;
 }
 
+/* Parenthetical qualifier on an item name (e.g. "Sacred pouch (magical)") is a
+   descriptor, not part of the name, so it sits at normal weight inside the bold
+   <strong>. The <em> inside it keeps its italics via the rule above. */
+.stonetop-item-name .stonetop-item-qualifier {
+	font-weight: normal;
+}
+
 /* Would-Be Hero: asterisked moves whose first use crosses off "Would-be". */
 .stonetop-move-asterisk {
 	cursor: help;
@@ -2875,6 +2925,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	position: relative;
 }
 
+/* Plain readout (non-arcanum move items) has no fixed card geometry to fill —
+   let it size to its contents instead of the tall arcana-card minimum. */
+.stonetop-arcanum-card--readout {
+	min-height: 0;
+}
+
 /* Arcana-tab card art: sits at the left of the header and fills its height. */
 .stonetop-arcanum-thumb {
 	align-self: stretch;
@@ -3543,6 +3599,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-hide-unselected-label {
 	display: flex;
+	width: fit-content;
 	align-items: center;
 	gap: 4px;
 	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
@@ -3701,11 +3758,20 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	line-height: 1.4;
 }
 
+/* The empty "Drop a playbook here" hint is hidden by default so a fresh sheet
+   isn't cluttered with a confusing dashed box — the whole sheet still accepts a
+   playbook drop. It surfaces only while something is being dragged over the
+   sheet (see the .stonetop-dragging-playbook toggle in StonetopCharacterSheet). */
 .stonetop-playbook-drop-zone.empty {
+	display: none;
 	padding: 6px 10px;
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 	border: 1px dashed var(--color-border-light-2, #ccc);
+}
+
+.stonetop-dragging-playbook .stonetop-playbook-drop-zone.empty {
+	display: inline-flex;
 }
 
 .stonetop-playbook-drop-zone.drag-over {
@@ -3722,7 +3788,23 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop.actor .window-header .stonetop-new-character { display: none; }
 .stonetop.actor.stonetop-edit-mode .window-header .stonetop-new-character { display: flex; }
 
-/* Empty state — no playbook assigned yet */
+/* Empty state — no playbook assigned yet.
+   Stretch the whole content column to the full window height so the lone
+   "Create Character" call-to-action sits dead-center. Scoped with :has so it
+   only reshapes the blank sheet, never the normal populated layout. */
+.pbta.sheet.actor .window-content:has(.stonetop-no-playbook-state),
+.pbta.sheet.actor .window-content form:has(.stonetop-no-playbook-state),
+.stonetop.actor .sheet-wrapper:has(.stonetop-no-playbook-state) {
+	display: flex;
+	flex-direction: column;
+}
+
+.pbta.sheet.actor .window-content form:has(.stonetop-no-playbook-state),
+.stonetop.actor .sheet-wrapper:has(.stonetop-no-playbook-state) {
+	flex: 1;
+	min-height: 0;
+}
+
 .stonetop-no-playbook-state {
 	flex: 1;
 	display: flex;
@@ -3737,17 +3819,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 12px 28px;
 	font-size: var(--st-fs-lg);
 	font-family: inherit;
-	background: var(--stonetop-bg, #f5f0e8);
-	border: 2px solid var(--color-border-dark, #7a7971);
+	background: var(--st-green-bg);
+	border: 2px solid var(--st-green-border);
 	border-radius: var(--st-radius);
 	cursor: pointer;
-	color: inherit;
+	color: var(--st-green-text);
 	transition: background 0.15s, border-color 0.15s;
 }
 
 .stonetop-create-character-btn:hover {
-	background: hsl(40 30% 88%);
-	border-color: slategrey;
+	background: var(--st-green-bg-hover);
+	border-color: var(--st-green-border);
 }
 
 .stonetop-edit-toggle {
@@ -6440,6 +6522,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-hide-unearned-improvements-label {
 	display: flex;
+	width: fit-content;
 	align-items: center;
 	gap: 4px;
 	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
@@ -9937,9 +10020,9 @@ li.question-bullet {
    the system's other cross-references: a plain word that shows the target's
    summary on hover (data-tooltip, set by location-tooltips.js) and opens the
    entry on click. No underline affordance — the hover background is the only
-   hint — per author preference. Scoped to journal page content so it covers
-   every shipped journal without a per-link wrapper. */
-.journal-page-content a.content-link {
+   hint — per author preference. Covers journal page content and the Setting
+   Overview dialog (a renderer over that same journal), so both look identical. */
+:is(.journal-page-content, .stonetop-so-entry-body) a.content-link {
 	background: none;
 	border: none;
 	border-radius: 0;
@@ -9950,22 +10033,40 @@ li.question-bullet {
 	white-space: normal;
 	cursor: pointer;
 }
-.journal-page-content a.content-link:hover {
+:is(.journal-page-content, .stonetop-so-entry-body) a.content-link:hover {
 	background-color: rgba(0, 0, 0, 0.07);
 	text-shadow: none;
 }
 /* Hide the leading document/book icon that Foundry injects into the chip. */
-.journal-page-content a.content-link > i {
+:is(.journal-page-content, .stonetop-so-entry-body) a.content-link > i {
 	display: none;
 }
 /* A broken link (target missing) keeps Foundry's warning treatment so it's still
    obviously broken rather than masquerading as a normal cross-reference. */
-.journal-page-content a.content-link.broken {
+:is(.journal-page-content, .stonetop-so-entry-body) a.content-link.broken {
 	border-bottom: 1px dashed var(--color-text-bad, #aa2222);
 	color: var(--color-text-bad, #aa2222);
 }
-.journal-page-content a.content-link.broken > i {
+:is(.journal-page-content, .stonetop-so-entry-body) a.content-link.broken > i {
 	display: inline;
+}
+
+/* Foundry's journal window paints a faint text-shadow on its prose — most visible
+   on dense, bold runs like the gear-term <dt>s in the Setting Overview's "Gear:
+   Terms & Value" page, where it just looks muddy. Clear it across shipped Stonetop
+   journal bodies (the `.stonetop-journal-body` class added at render; bestiary
+   excluded). !important because the base window rule outspecifies a plain
+   per-element override — mirrors the Setting Overview dialog rule. */
+.stonetop-journal-body,
+.stonetop-journal-body * {
+	text-shadow: none !important;
+}
+
+/* Keep definition terms (e.g. the gear-term <dt>s on "Gear: Terms & Value") bold
+   in their own right, not leaning on Foundry's default or the removed shadow for
+   weight. Matches the Setting Overview dialog's dt treatment. */
+.stonetop-journal-body dt {
+	font-weight: bold;
 }
 
 /* Travel times table (collapsible inside Chart a Course description) */
@@ -12437,7 +12538,29 @@ th:has(> .stonetop-roll-table-btn) {
 	line-height: 1.5;
 	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
 	color: var(--st-text-body);
+	font-style: italic;
 }
+
+/* The premise's `@UUID` links (e.g. "Stonetop") shouldn't read as Foundry's
+   chip-with-book-icon. Strip the chip and mark them tappable/hoverable with bold
+   alone — per author preference. Mirrors the journal-body treatment but uses
+   weight, not a hover background, as the affordance. */
+.stonetop-welcome-lead a.content-link {
+	background: none;
+	border: none;
+	border-radius: 0;
+	padding: 0;
+	margin: 0;
+	color: inherit;
+	font-weight: bold;
+	text-decoration: none;
+	white-space: normal;
+	cursor: pointer;
+}
+.stonetop-welcome-lead a.content-link > i { display: none; }
+/* Kill Foundry's default content-link hover glow (a red text-shadow) so the
+   premise link just reads as a bold word — matches the journal-body treatment. */
+.stonetop-welcome-lead a.content-link:hover { text-shadow: none; }
 
 .stonetop-welcome-intro {
 	margin: 0 0 14px;
@@ -12510,6 +12633,52 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-welcome-action:hover { background: hsl(40 25% 85%); }
 .stonetop-welcome-action > i { margin-right: 4px; }
+
+/* Inline preview of the "spring" hotbar macro icon, so the GM can recognise it
+   when the text points them back to the hotbar. The SVG is white-on-black, so a
+   size + rounded border is all it takes to read like the hotbar tile. */
+.stonetop-welcome-springicon-wrap {
+	position: relative;
+	display: inline-block;
+}
+
+.stonetop-welcome-springicon {
+	display: inline-block;
+	width: 1.3em;
+	height: 1.3em;
+	vertical-align: -0.35em;
+	margin: 0 1px;
+	border-radius: var(--st-radius-sm);
+	border: 1px solid var(--color-border-dark, #7a7971);
+	cursor: zoom-in;
+}
+
+/* Hovering the inline icon pops a larger copy above it — a quick "this is the
+   one" preview without leaving the guide. Driven off the wrapping span because
+   replaced <img> elements can't host pseudo-elements. */
+.stonetop-welcome-springicon-wrap::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	bottom: calc(100% + 6px);
+	width: 96px;
+	height: 96px;
+	background: #000 url('/systems/stonetop_pwd/assets/icons/macros/spring.svg') center / contain no-repeat;
+	border-radius: var(--st-radius);
+	border: 1px solid var(--color-border-dark, #7a7971);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+	opacity: 0;
+	transform: translateX(-50%) scale(0.4);
+	transform-origin: bottom center;
+	transition: opacity 0.12s ease, transform 0.12s ease;
+	pointer-events: none;
+	z-index: 100;
+}
+
+.stonetop-welcome-springicon-wrap:hover::after {
+	opacity: 1;
+	transform: translateX(-50%) scale(1);
+}
 
 .stonetop-welcome-notice {
 	display: flex;
@@ -12631,6 +12800,14 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-welcome-create:hover { background: var(--st-green-bg-hover); }
 .stonetop-welcome-create > i { margin-right: 4px; }
 
+/* Replacing an existing character deletes the old one — flag it as destructive. */
+.stonetop-welcome-create--replace {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+}
+.stonetop-welcome-create--replace:hover { background: var(--st-red-bg-hover); }
+
 .stonetop-welcome-outro {
 	margin: 16px 0 4px;
 	padding: 10px 14px;
@@ -12670,5 +12847,512 @@ th:has(> .stonetop-roll-table-btn) {
 	margin: 0;
 	flex: 0 0 auto;
 }
+
+/* ── Let spring burst forth (first-session walkthrough) ─────────────────────── */
+
+/* Drop Foundry's default window padding and make the content a full-width column
+   (mirrors the Introductions dialog). Without this, `.stonetop-spring` shrinks to
+   its content width and the space-between nav pushes its buttons past the edge. */
+.stonetop-spring-dialog .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden auto;
+}
+
+.stonetop-spring {
+	display: flex;
+	flex-direction: column;
+	/* Shrink with the window as a flex child of .window-content (V13) so the nav
+	   below can never force the container wider than the dialog. */
+	min-width: 0;
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-spring-main {
+	padding: 12px 20px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.stonetop-spring-banner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	background: rgba(0, 0, 0, 0.04);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+}
+
+.stonetop-spring-banner-icon {
+	flex-shrink: 0;
+	width: 28px;
+	text-align: center;
+	font-size: var(--st-fs-xl);
+	color: var(--st-green-text);
+}
+
+.stonetop-spring-banner-info { flex: 1; min-width: 0; }
+
+.stonetop-spring-banner-title {
+	font-weight: 700;
+	font-size: 1em;
+	line-height: 1.2;
+}
+
+.stonetop-spring-banner-sub {
+	font-size: var(--st-fs-xs);
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-spring-count {
+	flex-shrink: 0;
+	font-size: var(--st-fs-xs);
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.stonetop-spring-body {
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
+	line-height: 1.6;
+}
+
+.stonetop-spring-body p { margin: 0 0 8px; }
+.stonetop-spring-body p:last-child { margin-bottom: 0; }
+
+.stonetop-spring-body ul {
+	margin: 4px 0 0;
+	padding-left: 1.3em;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.stonetop-spring-body li { line-height: 1.45; }
+
+.stonetop-spring-body blockquote {
+	margin: 8px 0;
+	padding: 8px 14px;
+	border: none;
+	border-left: 3px solid var(--st-green-border);
+	background: rgba(0, 0, 0, 0.03);
+	border-radius: var(--st-radius-sm);
+	font-style: italic;
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
+}
+
+/* Roll step */
+
+.stonetop-spring-roll-wrap {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.stonetop-spring-roll-btn {
+	flex: 0 0 auto;
+	width: auto;
+	white-space: nowrap;
+	padding: 5px 14px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s;
+}
+
+.stonetop-spring-roll-btn:hover { background: hsl(40 25% 85%); }
+.stonetop-spring-roll-btn > i { margin-right: 4px; }
+
+.stonetop-spring-roll-btn--primary {
+	font-weight: 600;
+	background: var(--st-green-bg);
+	border-color: var(--st-green-border);
+	color: var(--st-green-text);
+}
+
+.stonetop-spring-roll-btn--primary:hover { background: var(--st-green-bg-hover); }
+
+.stonetop-spring-roll-result {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	padding: 4px 12px;
+	border-radius: var(--st-radius-sm);
+	border: 1px solid transparent;
+}
+
+.stonetop-spring-roll-result-total {
+	font-weight: 700;
+	font-size: calc(1.4rem * var(--stonetop-font-scale, 1));
+	line-height: 1;
+}
+
+.stonetop-spring-roll-result-label {
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+/* Omen tiers */
+
+.stonetop-spring-tiers {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.stonetop-spring-tier {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	padding: 8px 12px;
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.02);
+	opacity: 0.65;
+	transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.stonetop-spring-tier.is-active {
+	opacity: 1;
+	border-color: var(--st-green-border);
+	background: var(--st-green-bg);
+}
+
+.stonetop-spring-tier-label {
+	flex: 0 0 auto;
+	min-width: 2.6em;
+	font-weight: 700;
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-spring-tier-text {
+	flex: 1;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+}
+
+/* Tier colour-coding (shared by the dialog roll result and the chat card) */
+
+.stonetop-spring--success { color: #1a5c2e; }
+.stonetop-spring--partial { color: #7a4a00; }
+.stonetop-spring--failure { color: #8a2020; }
+
+.stonetop-spring-roll-result.stonetop-spring--success {
+	background: rgba(40, 140, 70, 0.1);
+	border-color: rgba(40, 140, 70, 0.4);
+}
+
+.stonetop-spring-roll-result.stonetop-spring--partial {
+	background: rgba(200, 120, 20, 0.1);
+	border-color: rgba(200, 120, 20, 0.4);
+}
+
+.stonetop-spring-roll-result.stonetop-spring--failure {
+	background: rgba(176, 48, 48, 0.1);
+	border-color: rgba(176, 48, 48, 0.4);
+}
+
+/* Q&A answer fields (styled after the journal Q&A: question-spiral prompt + a
+   stored answer the GM types in) */
+
+.stonetop-spring-qa-wrap {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.stonetop-spring-qa-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.stonetop-spring-qa {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-spring-qa-prompt {
+	position: relative;
+	margin: 0;
+	padding-left: calc(var(--stonetop-question-spiral-size, 14px) + var(--stonetop-spiral-gap));
+	font-weight: normal;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+}
+
+.stonetop-spring-qa-prompt::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.1em;
+	width: var(--stonetop-question-spiral-size, 14px);
+	height: var(--stonetop-question-spiral-size, 14px);
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	opacity: 0.55;
+}
+
+.stonetop-spring-qa-answer {
+	margin-left: calc(var(--stonetop-question-spiral-size, 14px) + var(--stonetop-spiral-gap));
+	width: auto;
+	min-height: 44px;
+	resize: vertical;
+	padding: 4px 6px;
+	border: 1px solid rgba(0, 0, 0, 0.22);
+	border-radius: var(--st-radius);
+	background: rgba(255, 255, 255, 0.4);
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+}
+
+.stonetop-spring-qa-empty {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	margin: 0;
+	font-size: calc(0.82rem * var(--stonetop-font-scale, 1));
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-spring-qa-empty > i { margin-top: 2px; }
+
+/* Navigation (mirrors the Introductions dialog) */
+
+.stonetop-spring-nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 20px 14px;
+	gap: 12px;
+	min-width: 0;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.stonetop-spring-step-label {
+	/* Let the centre label absorb the slack and truncate, so the Back/Next
+	   buttons always stay within the dialog instead of being pushed off-edge. */
+	flex: 1 1 auto;
+	min-width: 0;
+	text-align: center;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.stonetop-spring-nav button {
+	flex-shrink: 0;
+	padding: 5px 14px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s;
+}
+
+.stonetop-spring-nav button:hover:not(:disabled) { background: hsl(40 25% 85%); }
+.stonetop-spring-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.stonetop-spring-done--spring {
+	font-weight: 600;
+	background: var(--st-green-bg) !important;
+	border-color: var(--st-green-border) !important;
+	color: var(--st-green-text) !important;
+}
+
+.stonetop-spring-done--spring:hover { background: var(--st-green-bg-hover) !important; }
+
+/* Seasons Change chat card */
+
+.stonetop-spring-roll {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.stonetop-spring-roll-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.stonetop-spring-roll-total {
+	font-weight: 700;
+	font-size: calc(1.5rem * var(--stonetop-font-scale, 1));
+	line-height: 1;
+}
+
+.stonetop-spring-roll-tier {
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-spring-roll-line {
+	margin: 0;
+	line-height: 1.45;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+}
+
+/* ── Share With Players ─────────────────────────────────────────────────────── */
+
+/* Header button on the journal entry sheet. The v12 <a> form shows an icon +
+   "Share"; the v13+ icon-only <button> inherits the native header-control look. */
+.stonetop-share-journal.is-shared { color: var(--st-green-text); }
+a.stonetop-share-journal > i { margin-right: 3px; }
+
+.stonetop-share {
+	display: flex;
+	flex-direction: column;
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-share-main {
+	padding: 12px 20px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.stonetop-share-banner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	background: rgba(0, 0, 0, 0.04);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+}
+
+.stonetop-share-banner-icon {
+	flex-shrink: 0;
+	width: 28px;
+	text-align: center;
+	font-size: var(--st-fs-xl);
+	color: var(--st-green-text);
+}
+
+.stonetop-share-banner-info { flex: 1; min-width: 0; }
+
+.stonetop-share-banner-title {
+	font-weight: 700;
+	font-size: 1em;
+	line-height: 1.2;
+}
+
+.stonetop-share-banner-sub {
+	font-size: var(--st-fs-xs);
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.stonetop-share-intro {
+	margin: 0;
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
+	line-height: 1.5;
+}
+
+.stonetop-share-option {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 8px 12px;
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.02);
+	cursor: pointer;
+	transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.stonetop-share-option > input[type="checkbox"] {
+	flex-shrink: 0;
+	margin-top: 0.15em;
+}
+
+.stonetop-share-option-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.stonetop-share-option-title {
+	font-weight: 600;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+	line-height: 1.3;
+}
+
+.stonetop-share-option-hint {
+	font-size: var(--st-fs-xs);
+	color: var(--color-text-dark-secondary);
+	line-height: 1.35;
+}
+
+.stonetop-share-owner-row.is-disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.stonetop-share-nav {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	padding: 10px 20px 14px;
+	gap: 10px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.stonetop-share-nav button {
+	flex-shrink: 0;
+	padding: 5px 16px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s;
+}
+
+.stonetop-share-nav button:hover { background: hsl(40 25% 85%); }
+
+.stonetop-share-save--primary {
+	font-weight: 600;
+	background: var(--st-green-bg) !important;
+	border-color: var(--st-green-border) !important;
+	color: var(--st-green-text) !important;
+}
+
+.stonetop-share-save--primary:hover { background: var(--st-green-bg-hover) !important; }
 
 

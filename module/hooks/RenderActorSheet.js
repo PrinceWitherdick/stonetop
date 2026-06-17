@@ -1,5 +1,6 @@
 import { applyGearTermTooltips } from "../utils/gear-term-tooltips.js";
 import { ensureMonsterRefIndex, enrichBestiaryElement } from "../utils/bestiary-cross-refs.js";
+import { applyLocationTooltips } from "../locations/location-tooltips.js";
 import { getHoverDescriptionSetting } from "../settings.js";
 import { markQuestionBullets } from "../utils/question-bullets.js";
 
@@ -26,6 +27,11 @@ export function onRenderActorSheet(sheet, html) {
 	const type = sheet?.actor?.type;
 	if (type === "monster") {
 		_enrichBestiarySheet(sheet, root);
+		// Baked @UUID cross-links in the stat block's prose (e.g. a Fae's "Fae nature"
+		// → The Fae lore entry) render as content-links via enrichHTML; give them the
+		// same entry-summary hover the journal sheets show. Independent of the creature/
+		// gear hover settings — it's the cross-link tooltip, a separate feature.
+		applyLocationTooltips(root);
 		return;
 	}
 

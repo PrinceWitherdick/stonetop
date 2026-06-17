@@ -53,6 +53,18 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Answers the GM records in the "Let spring burst forth" walkthrough (see
+	// dialogs/SpringBurstDialog.js) — the first-session notes that have no document
+	// of their own (who's most hopeful, the season's chosen gain/hook, and what
+	// excites each player about their PC). Shape: { hopeful, gain, excites: { <actorId>: text } }.
+	game.settings.register("stonetop_pwd", "springBurstAnswers", {
+		name: "Let Spring Burst Forth Answers",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {}
+	});
+
 	// -- CLIENT SPECIFIC SETTINGS --------------------------------
 
 	// Whether this user has had the Setting Overview journal auto-opened once (see

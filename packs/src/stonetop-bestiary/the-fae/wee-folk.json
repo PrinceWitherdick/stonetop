@@ -24,7 +24,7 @@
     "organization": "horde",
     "size": "tiny",
     "tags": "horde, tiny, fae, magical, stealthy, organized",
-    "qualities": "<p>Fae nature. Armor 2 vs. iron. Each band leans toward a role: <strong>guardians</strong> (guard against old evil), <strong>workers</strong> (prepare for lean times), or <strong>hooligans</strong> (amuse themselves at others' expense).</p>",
+    "qualities": "<p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae nature}</strong>. Armor 2 vs. iron. Each band leans toward a role: <strong>guardians</strong> (guard against old evil), <strong>workers</strong> (prepare for lean times), or <strong>hooligans</strong> (amuse themselves at others' expense).</p>",
     "count": 6,
     "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.aThMYefGFmE0mG73",
     "notes": "",

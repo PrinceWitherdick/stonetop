@@ -58,10 +58,16 @@ export class PlaybookPickerDialog extends Application {
 					.map(d => {
 						const slug = d.system?.slug ?? "";
 						const info = PLAYBOOK_DESCRIPTIONS[slug] ?? {};
+						// Use the same avatar art applied to a character on pick
+						// (assets/icons/playbooks/<slug>_icon.webp), not the flat
+						// playbook item icon.
+						const avatar = slug
+							? `systems/stonetop_pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`
+							: null;
 						return {
 							uuid:        d.uuid,
 							name:        d.name,
-							img:         d.img,
+							img:         avatar ?? d.img,
 							slug,
 							complexity:  info.complexity ?? "",
 							description: info.desc       ?? "",

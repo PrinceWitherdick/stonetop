@@ -54,14 +54,26 @@
                       "name":  "stonetop-journal",
                       "label":  "Stonetop",
                       "path":  "packs/stonetop-journal",
-                      "type":  "JournalEntry"
+                      "type":  "JournalEntry",
+                      "ownership":  {
+                                        "PLAYER":  "NONE",
+                                        "TRUSTED":  "NONE",
+                                        "ASSISTANT":  "OWNER",
+                                        "GAMEMASTER":  "OWNER"
+                                    }
                   },
                   {
                       "name":  "stonetop-bestiary",
                       "label":  "Monsters",
                       "path":  "packs/stonetop-bestiary",
                       "type":  "Actor",
-                      "system":  "stonetop_pwd"
+                      "system":  "stonetop_pwd",
+                      "ownership":  {
+                                        "PLAYER":  "NONE",
+                                        "TRUSTED":  "NONE",
+                                        "ASSISTANT":  "OWNER",
+                                        "GAMEMASTER":  "OWNER"
+                                    }
                   }
               ],
     "documentTypes":  {

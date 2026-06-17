@@ -1,4 +1,4 @@
-const _GLYPH_RE = /[○◇◆□▶]+/g;
+const _GLYPH_RE = /[○●◇◆□☐■☑▶]+/g;
 
 /**
  * Wrap standalone mark/charge tracks (runs of ◇ or ○) in a block span so CSS can drop
@@ -46,6 +46,10 @@ export function wrapStonetopGlyphsInEl(container) {
 				if (glyph === "◇") span.classList.add("stonetop-glyph--diamond");
 				else if (glyph === "◆") span.classList.add("stonetop-glyph--diamond-selected");
 				else if (glyph === "▶") span.classList.add("stonetop-glyph--arrow");
+				else if (glyph === "□" || glyph === "☐") span.classList.add("stonetop-glyph--checkbox");
+				else if (glyph === "■" || glyph === "☑") span.classList.add("stonetop-glyph--checkbox-checked");
+				else if (glyph === "○") span.classList.add("stonetop-glyph--circle");
+				else if (glyph === "●") span.classList.add("stonetop-glyph--circle-filled");
 				span.textContent = glyph;
 				frag.appendChild(span);
 			}

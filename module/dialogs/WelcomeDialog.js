@@ -2,6 +2,8 @@ import { getSetting, setSetting } from "../settings.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import { findVisibleJournal, settingOverviewPages, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
+import { applyLocationTooltips } from "../locations/location-tooltips.js";
+import { keepDialogOnTop } from "../utils/keep-on-top.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -9,9 +11,9 @@ import { openOrFocus } from "../utils/open-or-focus.js";
 // introduce the PCs → let spring burst forth), and turns the two interactive
 // steps into one-click actions:
 //   • Create characters — a roster of the world's players, each with a button
-//     that mints a fresh character, hands that player ownership, and pops the
-//     sheet open on their screen (where the big "Create Character" button takes
-//     over). See _maybeAutoOpenCharacter in hooks/Ready.js.
+//     that mints a fresh character, hands that player ownership, pops the sheet
+//     open on their screen, and kicks the player straight into the playbook
+//     picker / onboarding. See _maybeAutoOpenCharacter in hooks/Ready.js.
 //   • Introduce the PCs — launches the existing guided Introductions dialog.
 
 // Premise blurb at the top of the guide, pulled from the seeded Setting Overview
@@ -56,6 +58,12 @@ export class WelcomeDialog extends Application {
 	}
 
 	async getData() {
+		// The premise can carry compendium `@UUID` links (e.g. the village "Stonetop"
+		// entry). Those only resolve while enriching if that pack's index is already
+		// loaded — and this guide often opens before anything else warms it, which
+		// renders the link "broken". Load the index first so it always resolves.
+		await game.packs.get("stonetop_pwd.stonetop-journal")?.getIndex();
+
 		const owner = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
 		const players = game.users
 			.filter(u => !u.isGM)
@@ -81,8 +89,14 @@ export class WelcomeDialog extends Application {
 	activateListeners(html) {
 		super.activateListeners(html);
 
+		// Give the premise's cross-links (e.g. the village "Stonetop" entry) their
+		// hover summary, the same as journal sheets get — this dialog isn't a journal
+		// render, so it isn't covered by the journal render hooks in stonetop.js.
+		applyLocationTooltips(html);
+
 		html.find('[data-action="setting-overview"]').on("click", () => this._openSettingOverview());
 		html.find('[data-action="introductions"]').on("click", () => this._openIntroductions());
+		html.find('[data-action="spring-burst"]').on("click", () => this._openSpringBurst());
 		html.find('[data-action="configure-players"]').on("click", () => this._openPlayerConfig());
 		html.find(".stonetop-welcome-create").on("click", ev =>
 			this._onCreateCharacter(ev.currentTarget.dataset.userId));
@@ -111,6 +125,12 @@ export class WelcomeDialog extends Application {
 		openOrFocus("stonetop-introductions", () => game.stonetop?.openIntroductions?.());
 	}
 
+	// Walk the GM through Book I's final "Getting Started" step. SpringBurstDialog
+	// is its own singleton (it focuses an already-open copy), so just call open().
+	_openSpringBurst() {
+		game.stonetop?.openSpringBurst?.();
+	}
+
 	// Jump to Foundry's core "Configure Players" screen — the same full-page route
 	// the gear-tab button uses. It navigates away from the game (the GM returns
 	// once they've added users), so there's nothing to re-render here.
@@ -125,14 +145,45 @@ export class WelcomeDialog extends Application {
 		const user = game.users.get(userId);
 		if (!user) return;
 
+		// A player only ever has one character, so making a "New Character" for
+		// someone who already has one is a replacement, not an addition. Confirm the
+		// deletion before discarding their existing sheet — it can't be undone.
+		const owner = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+		const existing = game.actors.filter(
+			a => a.type === "character" && (a.ownership?.[userId] ?? 0) >= owner,
+		);
+		if (existing.length) {
+			const names = existing.map(a => `<strong>${a.name}</strong>`).join(", ");
+			const it    = existing.length === 1 ? "it" : "them";
+			const confirmed = await Dialog.confirm({
+				title:      `Replace ${user.name}'s character?`,
+				content:
+					`<p><strong>${user.name}</strong> already has a character assigned: ${names}.</p>` +
+					`<p>Creating a new character will <strong>permanently delete</strong> ${it}. ` +
+					`This can't be undone.</p>`,
+				defaultYes: false,
+				render:     keepDialogOnTop,
+			});
+			if (!confirmed) return;
+
+			try {
+				await getDocumentClass("Actor").deleteDocuments(existing.map(a => a.id));
+			} catch (err) {
+				console.error("Stonetop | Welcome: failed to delete old character", err);
+				ui.notifications.error(`Couldn't replace ${user.name}'s character.`);
+				return;
+			}
+		}
+
 		let actor;
 		try {
 			actor = await getDocumentClass("Actor").create({
 				name:      `${user.name}'s Character`,
 				type:      "character",
-				ownership: { [userId]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER },
-				// The owner's client opens (and clears) this on the next createActor,
-				// or on their next login — see _maybeAutoOpenCharacter in hooks/Ready.js.
+				ownership: { [userId]: owner },
+				// The owner's client opens the sheet, starts onboarding, and clears this
+				// on the next createActor, or on their next login — see
+				// _maybeAutoOpenCharacter in hooks/Ready.js.
 				flags:     { stonetop_pwd: { autoOpenFor: userId } },
 			});
 		} catch (err) {
@@ -141,6 +192,17 @@ export class WelcomeDialog extends Application {
 			return;
 		}
 		if (!actor) return;
+
+		// Ownership alone only grants the player permission to edit the sheet — it
+		// doesn't make this their character. Assign it as the user's player
+		// character too, so Foundry treats it as their PC everywhere (the player
+		// list, token assignment, default speaker, "release control", etc.).
+		try {
+			await user.update({ character: actor.id });
+		} catch (err) {
+			console.error("Stonetop | Welcome: failed to assign character to player", err);
+			ui.notifications.warn(`Created “${actor.name}” but couldn't set it as ${user.name}'s character.`);
+		}
 
 		if (user.active) {
 			ui.notifications.info(`Created “${actor.name}” and opened it on ${user.name}'s screen.`);

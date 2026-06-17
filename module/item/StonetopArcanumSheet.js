@@ -17,6 +17,24 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 		async getData() {
 			const data = await super.getData();
 			const flags = this.item.flags?.[ITEM_FLAG_SCOPE] ?? {};
+			data.isArcanum = this.item.system?.moveType === "arcanum";
+
+			// This is the only system item sheet registered for the "move" subtype, so
+			// the sheet registry resolves it as the default for *every* move item that
+			// has no explicit `flags.core.sheetClass` — including plain inventory items
+			// (the Setting Overview's Livestock & Beasts links: Dog, Goat, Sheep) and
+			// basic/special moves. Those carry no front/back glyph tracks, so render a
+			// plain read-only readout instead of an empty Arcanum card.
+			if (!data.isArcanum) {
+				data.simple = {
+					name:        this.item.name,
+					weight:      flags.weight ?? null,
+					note:        flags.note ?? "",
+					description: this.item.system?.description ?? "",
+				};
+				return data;
+			}
+
 			// Deep-clone before transforming so we never mutate the item's live flags.
 			const front = foundry.utils.deepClone(flags.front ?? {});
 			const back  = foundry.utils.deepClone(flags.back ?? {});
