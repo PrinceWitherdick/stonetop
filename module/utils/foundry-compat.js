@@ -14,6 +14,19 @@ export function getDragEventData(ev) {
 }
 
 /**
+ * Enrich stored HTML for display (resolves `@UUID` links, inline rolls, etc.).
+ * V13 moved TextEditor under `foundry.applications.ux`; on older cores (or before
+ * it's ready) fall back to the raw value so callers always get a usable string.
+ * @param {string} value
+ * @returns {Promise<string>}
+ */
+export async function enrichHTML(value) {
+	const textEditor = foundry?.applications?.ux?.TextEditor;
+	if (!textEditor?.enrichHTML) return value ?? "";
+	return textEditor.enrichHTML(value ?? "");
+}
+
+/**
  * Build the `document.update()` entry that deletes `keyPath`. v13+ wants the
  * ForcedDeletion sentinel (and warns on the legacy `-=` syntax); v12 has no such
  * sentinel and only understands `-=`. Returns `[updateKey, value]` for whichever

@@ -4,7 +4,9 @@ import { seedCompendiumJournalsOnce, updateSeededJournalsOnVersionChange } from 
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
+import { WelcomeDialog } from "../dialogs/WelcomeDialog.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
+import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
@@ -24,6 +26,11 @@ const _FATE_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/die-of-fate
 const _FATE_MACRO_SCRIPT = "game.stonetop?.rollDieOfFate?.()";
 const _FATE_HOTBAR_SLOT  = 2;
 
+const _WELCOME_MACRO_NAME   = "Welcome to Stonetop";
+const _WELCOME_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/spring.svg";
+const _WELCOME_MACRO_SCRIPT = "game.stonetop?.openWelcome?.()";
+const _WELCOME_HOTBAR_SLOT  = 3;
+
 export async function onReady() {
 	applySheetFont(getSetting("sheetFont"));
 	applySheetFontScale(getSetting("sheetFontScale"));
@@ -35,20 +42,55 @@ export async function onReady() {
 	game.stonetop ??= {};
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
 	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
+	game.stonetop.openWelcome       = () => WelcomeDialog.open();
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
+
+	_registerCharacterAutoOpen();
 
 	if (game.user.isGM) await seedCompendiumJournalsOnce();
 	if (game.user.isGM) await updateSeededJournalsOnVersionChange();
-	if (game.user.isGM) await _ensureEndOfSessionMacro();
-	if (game.user.isGM) await _ensureIntroductionsMacro();
-	if (game.user.isGM) await _ensureDieOfFateMacro();
+	if (game.user.isGM) {
+		await _ensureHotbarMacro({
+			name: _EOS_MACRO_NAME, img: _EOS_MACRO_IMG, command: _EOS_MACRO_SCRIPT, slot: _EOS_HOTBAR_SLOT,
+			match: m => m.command === _EOS_MACRO_SCRIPT && m.name === _EOS_MACRO_NAME,
+		});
+		await _ensureHotbarMacro({ name: _INTRO_MACRO_NAME,   img: _INTRO_MACRO_IMG,   command: _INTRO_MACRO_SCRIPT,   slot: _INTRO_HOTBAR_SLOT });
+		await _ensureHotbarMacro({ name: _FATE_MACRO_NAME,    img: _FATE_MACRO_IMG,    command: _FATE_MACRO_SCRIPT,    slot: _FATE_HOTBAR_SLOT });
+		await _ensureHotbarMacro({ name: _WELCOME_MACRO_NAME, img: _WELCOME_MACRO_IMG, command: _WELCOME_MACRO_SCRIPT, slot: _WELCOME_HOTBAR_SLOT });
+	}
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
 	if (game.user.isGM) await remindDestinedOmenRoll();
 
 	await _openSettingOverviewOnce();
+	if (game.user.isGM) _openGmWelcomeGuide();
 }
 
-const _SETTING_OVERVIEW_NAME = "Setting Overview";
+// Auto-open a freshly-minted character on its owner's screen. The GM stamps the
+// new actor with an `autoOpenFor` flag (see WelcomeDialog._onCreateCharacter);
+// the owning client opens the sheet and clears the flag so it only ever pops
+// once. This is race-free either way: a character created while the owner is
+// online fires `createActor` on their client, and one created while they're
+// offline is caught by the ready-time sweep when they next log in.
+function _registerCharacterAutoOpen() {
+	Hooks.on("createActor", actor => _maybeAutoOpenCharacter(actor));
+	for (const actor of game.actors) _maybeAutoOpenCharacter(actor);
+}
+
+function _maybeAutoOpenCharacter(actor) {
+	if (actor?.type !== "character") return;
+	if (actor.getFlag?.("stonetop_pwd", "autoOpenFor") !== game.user.id) return;
+	actor.sheet.render(true);
+	// Owner-only flag; drop it so the sheet doesn't re-open on later loads.
+	actor.unsetFlag("stonetop_pwd", "autoOpenFor").catch(() => {});
+}
+
+// Pop the first-session Welcome guide for the GM until they tick "Don't show
+// this automatically" (which sets gmWelcomeShown). The flag is only written by
+// that checkbox, so the guide keeps greeting the GM across the first few loads.
+function _openGmWelcomeGuide() {
+	if (getSetting("gmWelcomeShown")) return;
+	WelcomeDialog.open();
+}
 
 // Pop the Setting Overview journal open the first time each user connects, so a
 // fresh install lands everyone on the startup info. Runs for every user (the GM
@@ -56,69 +98,29 @@ const _SETTING_OVERVIEW_NAME = "Setting Overview";
 // flag so it opens once and never re-interrupts later sessions.
 async function _openSettingOverviewOnce() {
 	if (getSetting("settingOverviewShown")) return;
-	const overview = game.journal?.find(j => j.name === _SETTING_OVERVIEW_NAME && j.visible);
+	const overview = findVisibleJournal(SETTING_OVERVIEW_JOURNAL);
 	if (!overview) return; // not seeded yet (or not visible to this user) — try again next load
 	overview.sheet.render(true);
 	await setSetting("settingOverviewShown", true);
 }
 
-async function _ensureEndOfSessionMacro() {
-	let macro = game.macros.find(m => m.command === _EOS_MACRO_SCRIPT && m.name === _EOS_MACRO_NAME);
+// Find-or-create a global script macro and pin it to a hotbar slot. Idempotent:
+// refreshes the icon if it drifted, and only claims the slot when the macro isn't
+// already on the user's hotbar. `match` overrides the default name-based lookup
+// (the End of Session macro also keys on its command to avoid clashing with any
+// user macro of the same name). Run these serially — each assignHotbarMacro writes
+// the same user.hotbar document, so concurrent calls would clobber each other.
+async function _ensureHotbarMacro({ name, img, command, slot, match }) {
+	let macro = game.macros.find(match ?? (m => m.name === name));
 	if (!macro) {
-		macro = await Macro.create({
-			name:    _EOS_MACRO_NAME,
-			type:    "script",
-			img:     _EOS_MACRO_IMG,
-			command: _EOS_MACRO_SCRIPT,
-			scope:   "global",
-		});
-	} else if (macro.img !== _EOS_MACRO_IMG) {
-		await macro.update({ img: _EOS_MACRO_IMG });
+		macro = await Macro.create({ name, type: "script", img, command, scope: "global" });
+	} else if (macro.img !== img) {
+		await macro.update({ img });
 	}
 
 	const alreadySlotted = Object.entries(game.user.hotbar).some(([, id]) => id === macro.id);
 	if (!alreadySlotted) {
-		await game.user.assignHotbarMacro(macro, _EOS_HOTBAR_SLOT);
-	}
-}
-
-async function _ensureIntroductionsMacro() {
-	let macro = game.macros.find(m => m.name === _INTRO_MACRO_NAME);
-	if (!macro) {
-		macro = await Macro.create({
-			name:    _INTRO_MACRO_NAME,
-			type:    "script",
-			img:     _INTRO_MACRO_IMG,
-			command: _INTRO_MACRO_SCRIPT,
-			scope:   "global",
-		});
-	} else if (macro.img !== _INTRO_MACRO_IMG) {
-		await macro.update({ img: _INTRO_MACRO_IMG });
-	}
-
-	const alreadySlotted = Object.entries(game.user.hotbar).some(([, id]) => id === macro.id);
-	if (!alreadySlotted) {
-		await game.user.assignHotbarMacro(macro, _INTRO_HOTBAR_SLOT);
-	}
-}
-
-async function _ensureDieOfFateMacro() {
-	let macro = game.macros.find(m => m.name === _FATE_MACRO_NAME);
-	if (!macro) {
-		macro = await Macro.create({
-			name:    _FATE_MACRO_NAME,
-			type:    "script",
-			img:     _FATE_MACRO_IMG,
-			command: _FATE_MACRO_SCRIPT,
-			scope:   "global",
-		});
-	} else if (macro.img !== _FATE_MACRO_IMG) {
-		await macro.update({ img: _FATE_MACRO_IMG });
-	}
-
-	const alreadySlotted = Object.entries(game.user.hotbar).some(([, id]) => id === macro.id);
-	if (!alreadySlotted) {
-		await game.user.assignHotbarMacro(macro, _FATE_HOTBAR_SLOT);
+		await game.user.assignHotbarMacro(macro, slot);
 	}
 }
 
@@ -176,6 +178,11 @@ function _buildStartupWelcomeContent() {
 						<li><span>Install <strong><a href="https://foundryvtt.com/packages/dice-so-nice">Dice So Nice!</a></strong> for 3D dice on the tabletop &mdash; every move, damage, and steading roll uses Foundry's dice, so it adds a little immersion to your rolls.</span></li>
 					</ul>
 				</div>
+			</div>
+			<div class="row stonetop-startup-card__actions">
+				<button type="button" class="stonetop-startup-open-welcome">
+					<i class="fas fa-feather"></i> Open the First-Session Guide
+				</button>
 			</div>
 			<div class="row row--border stonetop-startup-card__footer">
 				Open <strong>Configure Settings</strong> and filter for <strong>Stonetop</strong> to adjust these options.

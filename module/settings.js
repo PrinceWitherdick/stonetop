@@ -42,6 +42,17 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the GM has dismissed the "first session" Welcome guide's automatic
+	// pop-up (see dialogs/WelcomeDialog.js). While false, the guide opens for the
+	// GM on every world load; ticking "Don't show this automatically" sets it true.
+	game.settings.register("stonetop_pwd", "gmWelcomeShown", {
+		name: "GM Welcome Guide Dismissed",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// -- CLIENT SPECIFIC SETTINGS --------------------------------
 
 	// Whether this user has had the Setting Overview journal auto-opened once (see

@@ -285,6 +285,17 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	markQuestionBullets(html);
 });
 
+// -- STARTUP CARD: OPEN WELCOME GUIDE --------------------------
+// The new-install welcome card carries a button into the first-session guide.
+// The card is visible to everyone, but the guide is a GM tool, so hide it for
+// players and wire it up for the GM.
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	const btn = html.querySelector(".stonetop-startup-open-welcome");
+	if (!btn) return;
+	if (!game.user.isGM) { btn.style.display = "none"; return; }
+	btn.addEventListener("click", () => game.stonetop?.openWelcome?.());
+});
+
 // -- MOVE DESCRIPTION TOGGLE -----------------------------------
 Hooks.on("renderChatMessageHTML", (message, html) => {
 	const toggle = html.querySelector(".stonetop-roll-card-desc-toggle");

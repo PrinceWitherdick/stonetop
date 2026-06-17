@@ -9,6 +9,7 @@ import { getHoverDescriptionSetting } from "../../settings.js";
 import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
 import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
+import { enrichHTML } from "../../utils/foundry-compat.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
 const ORGANIZATION_DEFAULTS = {
@@ -135,12 +136,6 @@ function _hasRichContent(value) {
 	// fall back to the shared "strip tags and check for text" predicate.
 	if (/<(img|hr|table|iframe|video|audio)\b/i.test(String(value ?? ""))) return true;
 	return hasText(value);
-}
-
-async function _enrichHTML(value) {
-	const textEditor = globalThis.foundry?.applications?.ux?.TextEditor;
-	if (!textEditor?.enrichHTML) return value ?? "";
-	return textEditor.enrichHTML(value ?? "");
 }
 
 export function createStonetopMonsterSheetClass(Base) {
@@ -301,7 +296,7 @@ export function createStonetopMonsterSheetClass(Base) {
 			st.hasPortrait  = !!st.displayImg;
 
 			for (const field of MONSTER_RICH_TEXT_FIELDS) {
-				st[field.enrichedKey] = await _enrichHTML(system?.[field.key]);
+				st[field.enrichedKey] = await enrichHTML(system?.[field.key]);
 			}
 
 			// Empty rich text round-trips through ProseMirror as "<p></p>" etc.,

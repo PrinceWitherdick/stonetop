@@ -142,6 +142,14 @@
 	--st-radius:    4px;
 	--st-radius-lg: 6px;
 
+	/* ── Green "action" accent ────────────────────────────────────────────
+	   Call-to-action buttons (create / open) and the numbered step badges in
+	   the Welcome guide and the startup chat card all share this palette. */
+	--st-green-border:   hsl(140 25% 55%);
+	--st-green-bg:       hsl(140 35% 88%);
+	--st-green-bg-hover: hsl(140 35% 82%);
+	--st-green-text:     hsl(140 40% 18%);
+
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
 
@@ -1988,6 +1996,28 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: var(--color-text-dark-secondary);
 	font-size: var(--font-size-12);
 }
+
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__actions {
+	display: flex;
+	justify-content: center;
+	padding-top: 6px;
+}
+
+:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome {
+	width: auto;
+	padding: 5px 14px;
+	font-family: var(--font-stonetop);
+	font-weight: 600;
+	cursor: pointer;
+	border: 1px solid var(--st-green-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+	transition: background 0.15s;
+}
+
+:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome:hover { background: var(--st-green-bg-hover); }
+:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome > i { margin-right: 4px; }
 
 
 :is(#chat, #chat-notifications) .message:has(.stonetop-roll-card),
@@ -10338,18 +10368,14 @@ li.question-bullet {
 	color: var(--st-text-body);
 }
 
-.stonetop-so-map {
-	display: block;
-	width: 100%;
-	height: auto;
-	border: 1px solid #ddd;
-	border-radius: var(--st-radius);
-	margin-bottom: 16px;
-	cursor: zoom-in;
-	transition: opacity 0.15s;
+/* The overview is raw HTML in a base Foundry window, which paints a faint
+   text-shadow onto its text (most visible on the dense, bold gear-term <dt>s).
+   Nothing here wants a shadow, so clear it across the whole body — !important
+   because the base window rule outspecifies a plain per-element override. */
+.stonetop-so-entry-body,
+.stonetop-so-entry-body * {
+	text-shadow: none !important;
 }
-
-.stonetop-so-map:hover { opacity: 0.85; }
 
 .stonetop-so-entry-body h3 {
 	font-size: var(--st-fs-md);
@@ -10370,7 +10396,6 @@ li.question-bullet {
 	display: inline;
 	font-weight: 700;
 	color: var(--st-text);
-	text-shadow: none;
 }
 .stonetop-so-entry-body dt::after { content: ": "; }
 .stonetop-so-entry-body dd {
@@ -10381,6 +10406,28 @@ li.question-bullet {
 	content: "";
 	display: block;
 	margin-bottom: 3px;
+}
+
+/* Tables come from the source journal as clean HTML (no inline styles), so they
+   get their styling here. */
+.stonetop-so-entry-body table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 0 0 12px;
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-so-entry-body th,
+.stonetop-so-entry-body td {
+	border: 1px solid #ddd;
+	padding: 3px 7px;
+	text-align: left;
+	vertical-align: top;
+}
+
+.stonetop-so-entry-body thead th {
+	background: hsl(210 12% 95%);
+	font-weight: 700;
 }
 
 /* Gear term tooltips — applied via applyGearTermTooltips() */
@@ -10412,52 +10459,6 @@ li.question-bullet {
 	background-color: rgba(0, 0, 0, 0.07);
 	border-bottom-style: solid;
 	text-shadow: none;
-}
-
-.stonetop-so-playbooks {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 10px;
-}
-
-.stonetop-so-playbook {
-	background: hsl(210 12% 97%);
-	border: 1px solid #e0e0e0;
-	border-radius: var(--st-radius);
-	padding: 10px 12px;
-}
-
-.stonetop-so-playbook h3 {
-	font-size: var(--st-fs-base);
-	font-weight: bold;
-	margin: 0 0 4px;
-	color: slategrey;
-	text-transform: none;
-	letter-spacing: 0;
-	display: flex;
-	justify-content: flex-start;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 8px;
-}
-
-.stonetop-so-playbook p { margin: 0; font-size: var(--st-fs-base); color: var(--st-text-secondary); }
-
-.stonetop-so-playbook-icon {
-	width: 24px;
-	height: 24px;
-	border-radius: var(--st-radius-sm);
-	flex-shrink: 0;
-	align-self: center;
-}
-
-.stonetop-so-playbook h3 .stonetop-so-complexity { margin-left: auto; }
-
-.stonetop-so-complexity {
-	font-size: var(--st-fs-xs);
-	font-weight: normal;
-	color: var(--st-text-faint);
-	font-style: italic;
 }
 
 /* Monster sheet */
@@ -12224,14 +12225,14 @@ th:has(> .stonetop-roll-table-btn) {
 	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
 	line-height: 1.3;
 	cursor: pointer;
-	border: 1px solid hsl(140 25% 55%);
+	border: 1px solid var(--st-green-border);
 	border-radius: var(--st-radius-sm);
 	background: rgba(255, 255, 255, 0.55);
-	color: hsl(140 40% 18%);
+	color: var(--st-green-text);
 	transition: background 0.15s;
 }
 
-.stonetop-intros-shuffle:hover { background: hsl(140 35% 82%); }
+.stonetop-intros-shuffle:hover { background: var(--st-green-bg-hover); }
 .stonetop-intros-shuffle > i { margin-right: 3px; }
 
 .stonetop-intros-notice p { margin: 0 0 4px; }
@@ -12376,14 +12377,14 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-intros-begin,
 .stonetop-intros-close--spring {
 	font-weight: 600;
-	background: hsl(140 35% 88%) !important;
-	border-color: hsl(140 25% 55%) !important;
-	color: hsl(140 40% 18%) !important;
+	background: var(--st-green-bg) !important;
+	border-color: var(--st-green-border) !important;
+	color: var(--st-green-text) !important;
 }
 
 .stonetop-intros-begin:hover:not(:disabled),
 .stonetop-intros-close--spring:hover:not(:disabled) {
-	background: hsl(140 35% 82%) !important;
+	background: var(--st-green-bg-hover) !important;
 }
 
 .stonetop-intros-begin:disabled {
@@ -12391,6 +12392,283 @@ th:has(> .stonetop-roll-table-btn) {
 	border-color: var(--color-border-dark, #7a7971) !important;
 	color: inherit !important;
 	opacity: 0.4;
+}
+
+/* ── Welcome / first-session guide ─────────────────────────────────────────── */
+
+.stonetop-welcome-dialog .window-content {
+	padding: 0;
+	overflow: hidden;
+}
+
+.stonetop-welcome {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-welcome-scroll {
+	flex: 1;
+	min-height: 0;
+	padding: 16px 20px 4px;
+	overflow-y: auto;
+}
+
+.stonetop-welcome-hero {
+	text-align: center;
+	margin-bottom: 10px;
+}
+
+.stonetop-welcome-hero h2 {
+	margin: 0;
+	border: none;
+	font-size: calc(1.5rem * var(--stonetop-font-scale, 1));
+	line-height: 1.1;
+}
+
+.stonetop-welcome-logo {
+	font-family: var(--font-avara, var(--font-stonetop));
+	font-weight: bold;
+}
+
+.stonetop-welcome-lead {
+	margin: 0 0 12px;
+	line-height: 1.5;
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
+	color: var(--st-text-body);
+}
+
+.stonetop-welcome-intro {
+	margin: 0 0 14px;
+	line-height: 1.5;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-welcome-steps {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.stonetop-welcome-step {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+}
+
+.stonetop-welcome-step-num {
+	flex: 0 0 auto;
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	font-size: var(--st-fs-sm);
+	color: var(--st-green-text);
+	background: var(--st-green-bg);
+	border: 1px solid var(--st-green-border);
+}
+
+.stonetop-welcome-step-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.stonetop-welcome-step-body h3 {
+	margin: 2px 0 4px;
+	border: none;
+	font-size: var(--st-fs-lg);
+	line-height: 1.2;
+}
+
+.stonetop-welcome-step-body p {
+	margin: 0;
+	line-height: 1.5;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-welcome-action {
+	width: auto;
+	margin-top: 8px;
+	padding: 4px 12px;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	line-height: 1.3;
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s;
+}
+
+.stonetop-welcome-action:hover { background: hsl(40 25% 85%); }
+.stonetop-welcome-action > i { margin-right: 4px; }
+
+.stonetop-welcome-notice {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin-top: 8px;
+	padding: 10px 14px;
+	border-radius: var(--st-radius);
+	font-size: var(--st-fs-sm);
+	line-height: 1.5;
+}
+
+.stonetop-welcome-notice > i { flex-shrink: 0; font-size: var(--st-fs-lg); margin-top: 2px; }
+
+.stonetop-welcome-notice-body {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	min-width: 0;
+}
+
+.stonetop-welcome-notice--warn {
+	background: rgba(200, 120, 20, 0.1);
+	border: 1px solid rgba(200, 120, 20, 0.4);
+	color: #7a4a00;
+}
+
+.stonetop-welcome-notice--warn > i { color: #c07820; }
+
+/* Player roster */
+
+.stonetop-welcome-players {
+	list-style: none;
+	margin: 10px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.stonetop-welcome-player {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 10px;
+	background: rgba(0, 0, 0, 0.03);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+}
+
+.stonetop-welcome-player-status {
+	flex: 0 0 auto;
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+}
+
+.stonetop-welcome-player-status.is-online  { background: #2a8a46; }
+.stonetop-welcome-player-status.is-offline { background: #b9b3a8; }
+
+.stonetop-welcome-player-avatar {
+	flex: 0 0 auto;
+	width: 30px;
+	height: 30px;
+	object-fit: cover;
+	border-radius: var(--st-radius-sm);
+	border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.stonetop-welcome-player-info {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	line-height: 1.25;
+}
+
+.stonetop-welcome-player-name {
+	font-weight: 700;
+	font-size: var(--st-fs-base);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.stonetop-welcome-player-has {
+	font-size: var(--st-fs-2xs);
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-welcome-player-char {
+	cursor: pointer;
+	text-decoration: underline;
+	text-decoration-style: dotted;
+}
+
+.stonetop-welcome-player-char:not(:last-child)::after {
+	content: ", ";
+	text-decoration: none;
+}
+
+.stonetop-welcome-create {
+	flex: 0 0 auto;
+	width: auto;
+	white-space: nowrap;
+	padding: 4px 11px;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	line-height: 1.3;
+	cursor: pointer;
+	border: 1px solid var(--st-green-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+	transition: background 0.15s;
+}
+
+.stonetop-welcome-create:hover { background: var(--st-green-bg-hover); }
+.stonetop-welcome-create > i { margin-right: 4px; }
+
+.stonetop-welcome-outro {
+	margin: 16px 0 4px;
+	padding: 10px 14px;
+	background: rgba(0, 0, 0, 0.03);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+	line-height: 1.5;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-welcome-outro > p {
+	margin: 0;
+}
+
+/* Footer */
+
+.stonetop-welcome-footer {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 12px;
+	padding: 10px 20px 14px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.stonetop-welcome-dontshow {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--st-fs-sm);
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+
+.stonetop-welcome-dontshow-input {
+	width: auto;
+	margin: 0;
+	flex: 0 0 auto;
 }
 
 

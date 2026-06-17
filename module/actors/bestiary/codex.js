@@ -6,6 +6,7 @@
 // implementation of the codex, not two.
 
 import { escHtml } from "../../utils/strings.js";
+import { enrichHTML } from "../../utils/foundry-compat.js";
 
 export const CODEX_RICH_FIELDS = [
 	{ key: "description", enrichedKey: "enrichedDescription" },
@@ -89,12 +90,6 @@ export function discoveryGroups(value, editMode) {
 	});
 	if (editMode) return mapped;
 	return mapped.filter(g => g.heading.trim() || g.body.trim() || g.items.length);
-}
-
-async function enrichHTML(value) {
-	const textEditor = globalThis.foundry?.applications?.ux?.TextEditor;
-	if (!textEditor?.enrichHTML) return value ?? "";
-	return textEditor.enrichHTML(value ?? "");
 }
 
 // Enrich the `.html` of a list of { text, html } entries (prep lines, group
