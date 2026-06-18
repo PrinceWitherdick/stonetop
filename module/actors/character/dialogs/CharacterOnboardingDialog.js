@@ -2313,9 +2313,8 @@ export class CharacterOnboardingDialog extends Application {
 
 	// Open the seeded "Character Creation FAQ" journal page, or warn if it isn't
 	// available in this world yet (e.g. the Setting Overview hasn't been seeded).
-	// Floated as a child of this dialog so KeepOnTop pins it above the modal's high
-	// z-index — otherwise the journal opens behind the (always-on-top) onboarding
-	// window and can't be reached.
+	// Opened via openJournalSheetAsChild so it's brought to the front on top of
+	// this dialog when it appears.
 	_openFaqPage() {
 		this._clearPopups();
 		const page = faqPage();

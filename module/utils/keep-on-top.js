@@ -1,68 +1,37 @@
-const DEFAULT_BASE_Z_INDEX = 100000;
-const GUARD_EVENTS = ["pointerdown", "mousedown", "mouseup", "click", "focusin"];
-
 /**
- * Keeps a Foundry Application rendered above other windows, while ensuring
- * hover tooltips (#tooltip) still float above the application itself.
- * Extracted from CharacterOnboardingDialog's keep-on-top behavior so other
- * sheet-spawned dialogs (LevelUpDialog, DeathsDoorDialog, etc.) can share it.
+ * Floats a Foundry Application above other windows *when it appears*, using
+ * Foundry's own window stacking (`bringToTop`). This means a sheet-spawned
+ * dialog opens above the sheet that spawned it, but — unlike a forced, static
+ * high z-index — it still participates in normal stacking afterward, so Foundry
+ * windows the user opens later (e.g. the Settings dialog) can come forward over
+ * it.
+ *
+ * Extracted from CharacterOnboardingDialog's behavior so other sheet-spawned
+ * dialogs (LevelUpDialog, DeathsDoorDialog, etc.) can share it.
+ *
+ * The constructor keeps its original signature (`baseZIndex`, `childDialogClass`)
+ * for call-site compatibility, but those options are no longer needed now that
+ * we defer to native stacking.
  */
 export class KeepOnTop {
 	/**
 	 * @param {Application} app
-	 * @param {object}      [options]
-	 * @param {number}      [options.baseZIndex]
-	 * @param {string}      [options.childDialogClass] - CSS class marking "child" dialogs
-	 *        spawned from `app` (e.g. info popups). These are excluded from the
-	 *        z-index race and instead pinned just above `app`, so the host dialog's
-	 *        own keep-on-top guard doesn't fight its children for the top spot.
+	 * @param {object}      [options] - Accepted for backwards compatibility; unused.
 	 */
-	constructor(app, { baseZIndex = DEFAULT_BASE_Z_INDEX, childDialogClass = null } = {}) {
+	constructor(app, _options = {}) {
 		this._app = app;
-		this._baseZIndex = baseZIndex;
-		this._childDialogClass = childDialogClass;
 		this._queued = false;
-		this._listener = () => this.queue();
-		this._observer = null;
 	}
 
+	/** Float the window on top once, via Foundry's native window stacking. */
 	apply() {
 		const app = this._app;
-		const el = app.element?.[0];
+		const el = app?.element?.jquery ? app.element[0] : app?.element;
 		if (!el) return;
-
-		const isChild = w => this._childDialogClass && w.element?.[0]?.classList.contains(this._childDialogClass);
-		const otherWindowZ = Object.values(globalThis.ui?.windows ?? {})
-			.filter(w => w !== app && !isChild(w))
-			.map(w => parseInt(w.element?.[0]?.style?.zIndex || 0))
-			.filter(Number.isFinite);
-		const zIndex = Math.max(this._baseZIndex, ...otherWindowZ) + 1;
-		if (el.style.zIndex !== String(zIndex)) {
-			el.style.setProperty("z-index", String(zIndex), "important");
-		}
-
-		// Pin child dialogs (e.g. info popups) just above their host. Match both the
-		// AppV1 (`.window-app`) and AppV2 (`.application`) window roots so a child can
-		// be a v13+ sheet — e.g. the Setting Overview journal opened from the playbook
-		// picker, which is AppV2 and otherwise opens behind the picker's high z-index.
-		let topZ = zIndex;
-		if (this._childDialogClass) {
-			const childZ = String(zIndex + 1);
-			const cls = this._childDialogClass;
-			document.querySelectorAll(`.window-app.${cls}, .application.${cls}`).forEach(childEl => {
-				if (childEl.style.zIndex !== childZ) childEl.style.setProperty("z-index", childZ, "important");
-			});
-			topZ = zIndex + 1;
-		}
-
-		// Hover tooltips must always float above the dialog (and any children).
-		const tooltip = document.querySelector("#tooltip");
-		const tooltipZ = String(topZ + 1);
-		if (tooltip && tooltip.style.zIndex !== tooltipZ) {
-			tooltip.style.setProperty("z-index", tooltipZ, "important");
-		}
+		(app.bringToTop ?? app.bringToFront)?.call(app);
 	}
 
+	/** Debounced one-shot re-float (e.g. after late-loading content settles). */
 	queue() {
 		if (this._queued || !this._app.rendered) return;
 		this._queued = true;
@@ -70,34 +39,17 @@ export class KeepOnTop {
 			this._queued = false;
 			this.apply();
 		});
-		// Catches DOM changes that settle after the next frame (e.g. late-loading content).
-		setTimeout(() => this.apply(), 50);
 	}
 
 	start() {
-		for (const eventName of GUARD_EVENTS) {
-			document.removeEventListener(eventName, this._listener, true);
-			document.addEventListener(eventName, this._listener, true);
-		}
-		if (!this._observer) {
-			this._observer = new MutationObserver(() => this.queue());
-			this._observer.observe(document.body, {
-				subtree: true,
-				childList: true,
-				attributes: true,
-				attributeFilter: ["class", "style"],
-			});
-		}
+		// One-time positioning: float the window on top as it appears. We do NOT
+		// attach event/MutationObserver guards, so the window is free to fall
+		// behind other windows the user subsequently brings forward.
 		this.apply();
 	}
 
 	stop() {
-		for (const eventName of GUARD_EVENTS) {
-			document.removeEventListener(eventName, this._listener, true);
-		}
-		this._observer?.disconnect();
-		this._observer = null;
-		document.querySelector("#tooltip")?.style.removeProperty("z-index");
+		// Nothing to tear down — native stacking needs no cleanup.
 	}
 }
 
@@ -152,10 +104,10 @@ export function keepDialogOnTop(html) {
 }
 
 /**
- * Open a journal(-page) sheet floated as a *child* of a KeepOnTop host, so the
- * host's high z-index doesn't bury it. The window is tagged with `childClass`
- * (the host's `childDialogClass`) the instant it renders, and the host is
- * re-applied so it pins the child just above itself.
+ * Open a journal(-page) sheet from a host dialog and float it on top. With
+ * native window stacking a sheet opened after the host naturally lands above
+ * it, so we simply render it and bring it to front once shown. The `childClass`
+ * marker is still applied for any styling/identification that relies on it.
  *
  * Listens for both the v12 (`renderJournalSheet`) and v13 (`renderJournalEntrySheet`)
  * hook names and removes BOTH once either fires; a safety timeout removes them even
@@ -163,21 +115,18 @@ export function keepDialogOnTop(html) {
  *
  * @param {Application} sheet                The journal- or page-sheet to open.
  * @param {object}      opts
- * @param {string}      opts.childClass      Marker class KeepOnTop floats above the host.
- * @param {KeepOnTop}   opts.keepOnTop       The host's KeepOnTop, re-applied once tagged.
+ * @param {string}      opts.childClass      Marker class applied to the opened sheet.
  * @param {object}      [opts.renderOptions] Extra render options (e.g. `{ pageId }`).
  */
-export function openJournalSheetAsChild(sheet, { childClass, keepOnTop, renderOptions = {} } = {}) {
+export function openJournalSheetAsChild(sheet, { childClass, renderOptions = {} } = {}) {
 	if (!sheet) return;
-	const tag = (app) => {
+	const bringToFront = (app) => {
 		const el = app?.element?.jquery ? app.element[0] : app?.element;
-		el?.classList?.add(childClass);
-		keepOnTop?.queue();
+		if (childClass) el?.classList?.add(childClass);
+		(app.bringToTop ?? app.bringToFront)?.call(app);
 	};
 	if (sheet.rendered) {
-		tag(sheet);
-		sheet.bringToTop?.();
-		keepOnTop?.queue();
+		bringToFront(sheet);
 		return;
 	}
 	let done = false;
@@ -190,7 +139,7 @@ export function openJournalSheetAsChild(sheet, { childClass, keepOnTop, renderOp
 	const onRender = (app) => {
 		if (app !== sheet) return;
 		cleanup();
-		tag(app);
+		bringToFront(app);
 	};
 	Hooks.on("renderJournalSheet", onRender);
 	Hooks.on("renderJournalEntrySheet", onRender);

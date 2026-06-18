@@ -23,10 +23,9 @@ export class PlaybookPickerDialog extends Application {
 		// it too, so callers that care (the first-session flow) track that themselves.
 		this._onClose  = onClose ?? null;
 		this._playbooks = [];
-		// "stonetop-picker-child" is a style-free marker: KeepOnTop floats any window
-		// carrying it just above the picker (the Setting Overview journal, opened from
-		// the button below), instead of letting the picker's high z-index bury it.
-		this._keepOnTop = new KeepOnTop(this, { childDialogClass: "stonetop-picker-child" });
+		// KeepOnTop floats the picker to the front when it appears, via Foundry's
+		// native window stacking (it no longer forces itself above other windows).
+		this._keepOnTop = new KeepOnTop(this);
 	}
 
 	static get defaultOptions() {
@@ -104,9 +103,8 @@ export class PlaybookPickerDialog extends Application {
 	}
 
 	// Open the real seeded Setting Overview journal (the single source of truth),
-	// floated just above the picker. The journal is player-readable; if it isn't
-	// seeded/visible yet, say so rather than opening an empty window. Floated as a
-	// "stonetop-picker-child" so KeepOnTop pins it above the picker's high z-index.
+	// brought to the front on top of the picker. The journal is player-readable;
+	// if it isn't seeded/visible yet, say so rather than opening an empty window.
 	_openSettingOverview() {
 		const journal = findVisibleJournal(SETTING_OVERVIEW_JOURNAL);
 		if (!journal) {
@@ -115,7 +113,6 @@ export class PlaybookPickerDialog extends Application {
 		}
 		openJournalSheetAsChild(journal.sheet, {
 			childClass: "stonetop-picker-child",
-			keepOnTop:  this._keepOnTop,
 		});
 	}
 
@@ -133,11 +130,9 @@ export class PlaybookPickerDialog extends Application {
 		tip.innerHTML =
 			(complexity ? `<span class="stonetop-playbook-picker-tooltip-complexity">${complexity} complexity</span>` : "") +
 			`<p class="stonetop-playbook-picker-tooltip-desc">${description}</p>`;
-		// Append inside the dialog, not <body>: KeepOnTop pushes this window to a
-		// very high z-index, so a body-level tooltip would render behind it. As a
-		// child it shares the window's stacking context and sits above it. (The
-		// window has no transform, so the tooltip's fixed positioning still tracks
-		// the viewport.)
+		// Append inside the dialog, not <body>, so the tooltip shares the picker's
+		// stacking context and stays above its content. (The window has no
+		// transform, so the tooltip's fixed positioning still tracks the viewport.)
 		(this.element?.[0] ?? document.body).appendChild(tip);
 
 		const ar  = card.getBoundingClientRect();

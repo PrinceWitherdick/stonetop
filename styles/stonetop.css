@@ -7393,14 +7393,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* -- Character Onboarding Dialog ------------------------------------------ */
 
-.window-app.stonetop-onboarding {
-	z-index: 110000 !important;
-}
-
-.window-app.stonetop-onboarding-child-dialog {
-	z-index: 110001 !important;
-}
-
 .stonetop-onboarding .window-content {
 	padding: 0;
 	background: var(--stonetop-bg);

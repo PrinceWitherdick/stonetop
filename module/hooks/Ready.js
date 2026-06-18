@@ -76,7 +76,7 @@ export async function onReady() {
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
 	if (game.user.isGM) await remindDestinedOmenRoll();
 
-	await _openSettingOverviewOnce();
+	await _openSettingOverview();
 	if (game.user.isGM) _openGmWelcomeGuide();
 }
 
@@ -143,16 +143,25 @@ function _openGmWelcomeGuide() {
 	WelcomeDialog.open();
 }
 
-// Pop the Setting Overview journal open the first time each user connects, so a
-// fresh install lands everyone on the startup info. Runs for every user (the GM
-// seeds it; SeedCompendiums grants players read access). Guarded by a per-client
-// flag so it opens once and never re-interrupts later sessions.
-async function _openSettingOverviewOnce() {
-	if (getSetting("settingOverviewShown")) return;
+// Pop the Setting Overview journal open so a fresh-start user lands on the
+// world's orientation material. Two cases:
+//   • everyone (GM included) sees it once per client the first time they connect,
+//     guarded by the client-scoped `settingOverviewShown` flag so it never
+//     re-interrupts later sessions; and
+//   • a player with no character assigned yet sees it every load regardless of
+//     that flag — until the GM mints them a character, the Overview is the thing
+//     for them to read, so we keep surfacing it (a player with an assigned
+//     character instead gets character creation via _maybeOpenCharacterCreation).
+// The GM seeds the journal; SeedCompendiums grants players read access.
+async function _openSettingOverview() {
 	const overview = findVisibleJournal(SETTING_OVERVIEW_JOURNAL);
 	if (!overview) return; // not seeded yet (or not visible to this user) — try again next load
+
+	const needsOrientation = !game.user.isGM && !game.user.character;
+	if (!needsOrientation && getSetting("settingOverviewShown")) return;
+
 	overview.sheet.render(true);
-	await setSetting("settingOverviewShown", true);
+	if (!getSetting("settingOverviewShown")) await setSetting("settingOverviewShown", true);
 }
 
 // Find-or-create a global script macro and pin it to a hotbar slot. Idempotent:
