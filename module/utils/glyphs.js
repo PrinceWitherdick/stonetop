@@ -40,7 +40,8 @@ export function wrapStonetopGlyphsInEl(container) {
 		let match;
 		while ((match = _GLYPH_RE.exec(text)) !== null) {
 			if (match.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, match.index)));
-			for (const glyph of match[0]) {
+			const runGlyphs = [...match[0]];
+			for (const [gi, glyph] of runGlyphs.entries()) {
 				const span = document.createElement("span");
 				span.className = "stonetop-glyph";
 				if (glyph === "◇") span.classList.add("stonetop-glyph--diamond");
@@ -50,6 +51,12 @@ export function wrapStonetopGlyphsInEl(container) {
 				else if (glyph === "■" || glyph === "☑") span.classList.add("stonetop-glyph--checkbox-checked");
 				else if (glyph === "○") span.classList.add("stonetop-glyph--circle");
 				else if (glyph === "●") span.classList.add("stonetop-glyph--circle-filled");
+				// A diamond directly followed by another diamond in the same run is
+				// "joined": the journal CSS drops its trailing gap so a "◇◇" load track
+				// reads as one unit — the gap only opens up before the following text.
+				const isDiamond     = glyph === "◇" || glyph === "◆";
+				const nextIsDiamond = runGlyphs[gi + 1] === "◇" || runGlyphs[gi + 1] === "◆";
+				if (isDiamond && nextIsDiamond) span.classList.add("stonetop-glyph--joined");
 				span.textContent = glyph;
 				frag.appendChild(span);
 			}

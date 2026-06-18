@@ -7,6 +7,7 @@ import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
+import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE} from "./StonetopFlags.js";
@@ -14,6 +15,7 @@ import {rollDamage, sign} from "../../utils/roll-engine.js";
 import {dieFromDamage} from "../../utils/damage.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs} from "../../utils/strings.js";
+import {playbookIconPath} from "../../utils/playbook-actors.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
@@ -3234,24 +3236,78 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
-		async _onNewCharacter() {
-			const existingPlaybook = this.actor.system?.playbook?.slug;
-			const openPicker = () => {
-				new PlaybookPickerDialog(async (playbookDoc) => {
-					new CharacterOnboardingDialog(
-						playbookDoc,
-						async (selections) => {
-							await this._applyPlaybookSelections(playbookDoc, selections);
-						},
-						{
-							onBack: openPicker,
-							onSave: async (selections) => {
-								await this._applyPlaybookSelections(playbookDoc, selections);
-							},
-						},
-					).render(true);
-				}).render(true);
+		// Stamp the character with where the player is in creation, so the GM's
+		// first-session Welcome roster can show their progress. `state` is one of
+		// "picker" (choosing a playbook), "onboarding" (with 1-based step + total),
+		// or "exited" (closed mid-creation). Fire-and-forget — a failed write must
+		// never interrupt the player's creation flow.
+		_setOnboardingState(state, extra = {}) {
+			this.actor.setFlag("stonetop_pwd", "onboardingProgress", { state, ...extra })
+				.catch(err => console.error("Stonetop | failed to record onboarding progress", err));
+		}
+
+		// Drop the progress flag once creation is finished, so the roster stops
+		// showing progress for a completed character.
+		_clearOnboardingProgress() {
+			return this.actor.unsetFlag("stonetop_pwd", "onboardingProgress").catch(() => {});
+		}
+
+		async _onNewCharacter(options = {}) {
+			// Launched from the player's first-session intro (CharacterCreationDialog),
+			// the sheet is still closed — `openSheetWhenDone` asks us to pop it open once
+			// the player lands at the end of the flow, so they never face an empty sheet.
+			// The in-sheet button leaves it false: the sheet is already on screen.
+			const openSheetWhenDone = options.openSheetWhenDone ?? false;
+			let sheetOpened = false;
+			const openSheetOnce = () => {
+				if (!openSheetWhenDone || sheetOpened) return;
+				sheetOpened = true;
+				this.render(true);
 			};
+
+			const openPicker = () => {
+				// Did this picker hand off to onboarding? Closing it without a pick means
+				// the player backed all the way out, so fall back to opening their sheet.
+				let picked = false;
+				this._setOnboardingState("picker");
+				new PlaybookPickerDialog(
+					async (playbookDoc) => {
+						picked = true;
+						this._launchOnboarding(playbookDoc, { openSheetOnce, openPicker });
+					},
+					// Closing the picker without picking is leaving creation entirely.
+					{ onClose: () => { if (!picked) { this._setOnboardingState("exited"); openSheetOnce(); } } },
+				).render(true);
+			};
+
+			const existingPlaybook = this.actor.system?.playbook?.slug;
+
+			// Resume an interrupted creation straight into onboarding at the saved page.
+			// The picked playbook + selections live in client-local storage (not
+			// system.playbook) because creation isn't committed until the player
+			// finishes — so the character still "has no playbook" until then, which is
+			// what the reload sweep in hooks/Ready.js keys off to re-offer creation.
+			// We also resume when re-entered from the sheet's own button (no explicit
+			// `resume`) for a still-uncommitted character that has saved progress, so a
+			// player who closed the walkthrough and clicked "Create Character" again
+			// continues where they left off instead of starting over and losing answers.
+			if (options.resume || !existingPlaybook) {
+				const snap = readOnboardingResume(this.actor);
+				const playbookDoc = snap?.playbookUuid ? await fromUuid(snap.playbookUuid) : null;
+				if (playbookDoc && snap?.selections) {
+					this._launchOnboarding(playbookDoc, {
+						openSheetOnce, openPicker,
+						initialSelections: snap.selections,
+						startAtStep:       snap.stepType ?? null,
+					});
+					return;
+				}
+				// A snapshot that can't be used (playbook deleted / re-imported, or no
+				// selections) — drop it so a stale entry can't shadow a fresh start, then
+				// fall through to a normal pick.
+				if (snap) clearOnboardingResume(this.actor);
+			}
+
 			if (existingPlaybook) {
 				new Dialog({
 					title:   game.i18n.localize("stonetop.newCharacter.confirmTitle"),
@@ -3280,25 +3336,86 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
+		// Open the guided onboarding for a chosen playbook, wired into the full
+		// creation flow: commit on finish, step back to the picker, land on the sheet
+		// when done, and keep a resume snapshot so a reload can reopen this page (see
+		// _onNewCharacter's `resume`). The heavy snapshot (playbook + selections) goes
+		// to cheap client-local storage; only the small page number reaches the actor
+		// flag (and only on page change, not per keystroke) for the GM's roster.
+		// `initialSelections` / `startAtStep` resume an interrupted creation.
+		_launchOnboarding(playbookDoc, { openSheetOnce, openPicker, initialSelections = null, startAtStep = null } = {}) {
+			const saveResume = info => writeOnboardingResume(this.actor, {
+				playbookUuid: playbookDoc.uuid,
+				stepType:     info.stepType,
+				selections:   info.selections,
+			});
+			new CharacterOnboardingDialog(
+				playbookDoc,
+				async (selections) => {
+					await this._applyPlaybookSelections(playbookDoc, selections);
+					await this._clearOnboardingProgress();
+					clearOnboardingResume(this.actor);
+				},
+				{
+					initialSelections,
+					startAtStep,
+					onBack: openPicker,
+					onSave: async (selections) => {
+						await this._applyPlaybookSelections(playbookDoc, selections);
+					},
+					// Finishing, saving-and-closing, or closing onboarding all land the
+					// player on their now-populated sheet. Back-navigation to the picker
+					// suppresses this (see CharacterOnboardingDialog._goBack).
+					onClose: openSheetOnce,
+					// Page change: update the GM's "page X of Y" (small flag) and snapshot.
+					onProgress: info => {
+						this._setOnboardingState("onboarding", { step: info.step + 1, total: info.total });
+						saveResume(info);
+					},
+					// Every edit (debounced): just the local snapshot — no network — so a
+					// dropped connection mid-page still leaves the writing recoverable.
+					onLiveSave: saveResume,
+					// Closing mid-creation keeps the snapshot so a reload can resume here.
+					onExit: info => {
+						this._setOnboardingState("exited");
+						saveResume(info);
+					},
+				},
+			).render(true);
+		}
+
 		async _openEditCharacterOnboarding(options = {}) {
 			const playbookUuid = this.actor.system?.playbook?.uuid;
 			if (!playbookUuid) return;
 			const playbookDoc = await fromUuid(playbookUuid);
 			if (!playbookDoc) return;
 
+			// Track live progress for the GM's Welcome roster only while creation is
+			// still unfinished — re-opening onboarding to tweak a completed character
+			// shouldn't make the roster claim they're mid-creation again.
+			const selections = this._readSelectionsFromActor(playbookDoc);
+			const trackProgress = CharacterOnboardingDialog.hasIncompleteQuestions(playbookDoc, selections);
+
 			// Note: _applyPlaybookSelections updates the prototype token image but not
 			// any already-placed tokens; those are left for the GM to sync manually.
 			new CharacterOnboardingDialog(
 				playbookDoc,
-				async (selections) => {
-					await this._applyPlaybookSelections(playbookDoc, selections);
+				async (sel) => {
+					await this._applyPlaybookSelections(playbookDoc, sel);
+					if (trackProgress) await this._clearOnboardingProgress();
 				},
 				{
-					initialSelections: this._readSelectionsFromActor(playbookDoc),
+					initialSelections: selections,
 					startAtStep: options.startAtStep ?? null,
-					onSave: async (selections) => {
-						await this._applyPlaybookSelections(playbookDoc, selections);
+					onSave: async (sel) => {
+						await this._applyPlaybookSelections(playbookDoc, sel);
 					},
+					...(trackProgress
+						? {
+							onProgress: info => this._setOnboardingState("onboarding", { step: info.step + 1, total: info.total }),
+							onExit: () => this._setOnboardingState("exited"),
+						}
+						: {}),
 				},
 				// no onBack ? back button is hidden
 			).render(true);
@@ -3460,7 +3577,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				...this._playbookHpInit(playbookDoc),
 			};
 			if (slug && isDefaultImg(this.actor.img)) {
-				const icon = `systems/stonetop_pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`;
+				const icon = playbookIconPath(slug);
 				updates.img = icon;
 				updates["prototypeToken.texture.src"] = icon;
 			}

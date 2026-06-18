@@ -1,5 +1,6 @@
 import { KeepOnTop } from "../utils/keep-on-top.js";
 import { shuffle } from "../utils/arrays.js";
+import { playbookSlug, getPlayerCharacters, playbookIconPath } from "../utils/playbook-actors.js";
 
 // ── Playbook-specific introduction data ────────────────────────────────────────
 
@@ -159,7 +160,7 @@ const _PHASES = [
 	{
 		roundRobin: true,
 		getInstruction: (pc) => {
-			const d = _PLAYBOOK_DATA[_slug(pc)];
+			const d = _PLAYBOOK_DATA[playbookSlug(pc)];
 			return d
 				? `On your <strong>third turn</strong>, ${d.step3}`
 				: `On your <strong>third turn</strong>, tell us something about your character and their place in Stonetop.`;
@@ -169,22 +170,22 @@ const _PHASES = [
 	{
 		roundRobin: true,
 		getInstruction: () => `On your <strong>next turn</strong>, <strong>answer one of the following</strong>, naming one or more NPCs who live in Stonetop.`,
-		getQuestions:   (pc) => _PLAYBOOK_DATA[_slug(pc)]?.step4 ?? null,
+		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step4 ?? null,
 	},
 	{
 		roundRobin: true,
 		getInstruction: () => `<strong>Go around again.</strong> Answer another question from round 4, or pass. When everyone has passed, go on.`,
-		getQuestions:   (pc) => _PLAYBOOK_DATA[_slug(pc)]?.step4 ?? null,
+		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step4 ?? null,
 	},
 	{
 		roundRobin: true,
 		getInstruction: () => `On your <strong>next turn</strong>, <strong>ask your fellow PCs one of these</strong>. When others ask you, answer as you like.`,
-		getQuestions:   (pc) => _PLAYBOOK_DATA[_slug(pc)]?.step6 ?? null,
+		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step6 ?? null,
 	},
 	{
 		roundRobin: true,
 		getInstruction: () => `<strong>Go around again.</strong> Ask another question from round 6, or pass. When everyone has passed, go on.`,
-		getQuestions:   (pc) => _PLAYBOOK_DATA[_slug(pc)]?.step6 ?? null,
+		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step6 ?? null,
 	},
 	{
 		roundRobin: false,
@@ -194,28 +195,6 @@ const _PHASES = [
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function _slug(actor) {
-	return actor?.system?.playbook?.slug
-		?? actor?.items?.find?.(i => i.type === "playbook")?.system?.slug
-		?? "";
-}
-
-function _iconPath(slug) {
-	return slug
-		? `/systems/stonetop_pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`
-		: null;
-}
-
-// Only player characters carry a playbook, so "has a playbook" is our test for
-// who belongs in the introductions round-robin.
-function _hasPlaybook(actor) {
-	return !!_slug(actor);
-}
-
-function _getPlaybookActors() {
-	return (game.actors?.contents ?? []).filter(a => a.type === "character" && _hasPlaybook(a));
-}
 
 function _getCombatPcs() {
 	const combat = game.combat;
@@ -227,7 +206,7 @@ function _getCombatPcs() {
 	const pcs  = [];
 	for (const c of order) {
 		const actor = c.actor;
-		if (actor?.type === "character" && _hasPlaybook(actor) && !seen.has(actor.id)) {
+		if (actor?.type === "character" && playbookSlug(actor) && !seen.has(actor.id)) {
 			seen.add(actor.id);
 			pcs.push(actor);
 		}
@@ -265,7 +244,7 @@ export class IntroductionsDialog extends Application {
 	async ensureCombatRoster() {
 		if (!game.user?.isGM) return;
 
-		const actors = _getPlaybookActors();
+		const actors = getPlayerCharacters();
 		if (!actors.length) return;
 
 		let combat = game.combat;
@@ -343,7 +322,7 @@ export class IntroductionsDialog extends Application {
 	}
 
 	getData() {
-		const allPcs    = _getPlaybookActors();
+		const allPcs    = getPlayerCharacters();
 		const combatPcs = _getCombatPcs();
 		const combatIds = new Set(combatPcs.map(a => a.id));
 		const missing   = allPcs.filter(a => !combatIds.has(a.id));
@@ -370,11 +349,11 @@ export class IntroductionsDialog extends Application {
 
 		let currentPc = null;
 		if (phase.roundRobin && actor) {
-			const slug = _slug(actor);
+			const slug = playbookSlug(actor);
 			currentPc = {
 				name:         actor.name,
 				playbookName: actor.system?.playbook?.name ?? "",
-				icon:         _iconPath(slug),
+				icon:         playbookIconPath(slug),
 				index:        this._pcIndex + 1,
 				total:        pcs.length,
 			};

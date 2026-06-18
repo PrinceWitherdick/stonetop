@@ -28,7 +28,9 @@ import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./module/utils/glyphs.js";
-import { applyJournalSpiralBullets } from "./module/utils/journal-spiral-bullets.js";
+import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
+import { applyGearTermTooltips } from "./module/utils/gear-term-tooltips.js";
+import { SETTING_OVERVIEW_JOURNAL } from "./module/utils/seeded-journals.js";
 import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
 import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
@@ -242,6 +244,15 @@ const _onJournalRender = (app, html) => {
 	applyLocationTooltips(html);
 	// Spiral bullets / question-spirals for this system's prose journals.
 	applyJournalSpiralBullets(app, html);
+	// Gear/weapon-tag hover tooltips for the curated Setting Overview prose (the
+	// Character Creation FAQ's "various tags," the Gear: Terms & Value page). Scoped
+	// to that one journal — other prose's em-emphasis on common words like
+	// "near"/"close"/"far" would draw spurious range tooltips. Mirrors what
+	// SettingOverviewDialog does when it renders the same pages outside a journal.
+	if (resolveEntry(app)?.name === SETTING_OVERVIEW_JOURNAL) {
+		const root = html?.jquery ? html[0] : html;
+		root?.querySelectorAll?.(".journal-page-content").forEach(applyGearTermTooltips);
+	}
 	// Tick-off the requirement check-lists in view mode (state stored on the page).
 	applyJournalCheckboxes(app, html);
 	// Roll the random tables straight from their "Roll" header.

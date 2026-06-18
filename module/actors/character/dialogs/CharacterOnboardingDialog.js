@@ -3,9 +3,14 @@ import { isMajorArcana } from "../../../arcana-icons.js";
 import { parseMovePickCount } from "../StonetopCharacter.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
 import { loreMarkerForText } from "../../../model/PlaybookSnapshot.js";
-import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { KeepOnTop, openJournalSheetAsChild } from "../../../utils/keep-on-top.js";
 import { shuffle } from "../../../utils/arrays.js";
 import { normalizePlaybookGlyphs } from "../../../utils/strings.js";
+import { wrapStonetopGlyphsInEl } from "../../../utils/glyphs.js";
+import { faqForStep, faqPage } from "../../../utils/onboarding-faq.js";
+import { markFaqItems } from "../../../utils/faq-bullets.js";
+import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
+import { wellVersedTopicSummary } from "./well-versed-topics.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -90,12 +95,28 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	constructor(playbookDoc, onComplete, options = {}) {
-		const { onBack, onSave, initialSelections, startAtStep = null, ...appOptions } = options;
+		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ...appOptions } = options;
 		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
 		this._onBack             = onBack ?? null;
 		this._onSave             = onSave ?? null;
+		// Fired when the dialog closes for good (finish / save-and-close / window X),
+		// but NOT on back-navigation to the picker (see _goBack). The first-session
+		// flow uses it to open the player's sheet once they're done.
+		this._onClose            = onClose ?? null;
+		// Reports the player's live position (current step index, total steps) each
+		// time the page changes, so the GM's first-session roster can show how far
+		// along they are. Null outside the guided creation/resume flow.
+		this._onProgress         = onProgress ?? null;
+		// Cheap, frequent autosave of the current page's answers (debounced, on every
+		// edit) so written content survives a reload. Kept separate from onProgress
+		// because it must NOT hit the database/network on every keystroke.
+		this._onLiveSave         = onLiveSave ?? null;
+		// Fired when the player closes onboarding without finishing it (window X or
+		// save-and-close), but NOT on completion or back-navigation — lets the roster
+		// show that they stepped away mid-creation.
+		this._onExit             = onExit ?? null;
 		// Pre-seed cache with glossary so getData() and _lookupWord share one lookup path.
 		this._wordCache = new Map(Object.entries(ANIMAL_COMPANION_TRAIT_GLOSSARY));
 		this._hoveredAnchor = null;
@@ -340,11 +361,15 @@ export class CharacterOnboardingDialog extends Application {
 				move: choice.move ?? key,
 				label: this._normalizeOnboardingText(choice.label ?? key),
 				value: this._normalizeOnboardingText(choice.value ?? ""),
+				// Player-safe "known by most in Stonetop" summary for the granted topic,
+				// shown on hover so a new player knows what e.g. "the Things Below" means.
+				valueTopicSummary: wellVersedTopicSummary(choice.value) ?? "",
 				hasOptions: !!choice.options?.length,
 				options: (choice.options ?? []).map(value => ({
 					value,
 					label: this._normalizeOnboardingText(value),
 					selected: selectedValue === value,
+					topicSummary: wellVersedTopicSummary(value) ?? "",
 				})),
 			};
 		});
@@ -945,6 +970,48 @@ export class CharacterOnboardingDialog extends Application {
 	async _render(force, options) {
 		await super._render(force, options);
 		this._keepOnTop.apply();
+		this._reportProgress();
+	}
+
+	// Tell the creation flow which page the player is on, but only when it actually
+	// changes — every option click re-renders, and we don't want to write the same
+	// progress flag (a server round-trip + broadcast to the GM) on every tick.
+	_reportProgress() {
+		if (!this._onProgress) return;
+		const step  = this._step;
+		const total = this._steps.length;
+		if (this._reportedStep === step && this._reportedTotal === total) return;
+		this._reportedStep  = step;
+		this._reportedTotal = total;
+		this._onProgress(this._progressInfo());
+	}
+
+	// Where the player currently is: the page (for the GM's "page X of Y") plus the
+	// chosen step + selections, so a reload can reopen this exact page (the creation
+	// flow stamps this on the actor — see _launchOnboarding in StonetopCharacterSheet).
+	_progressInfo() {
+		return {
+			step:       this._step,
+			total:      this._steps.length,
+			stepType:   this._steps[this._step] ?? null,
+			selections: this._selections,
+		};
+	}
+
+	// Debounced live-save of the current page (see the delegated input/change
+	// listener in activateListeners). Routes through onLiveSave, which writes only to
+	// cheap client-local storage — never the database/network — so typing fast can't
+	// generate traffic. Skips when there's nowhere to save, or once the dialog has
+	// finished, so a save in flight when the player clicks Finish can't resurrect the
+	// snapshot the completion just cleared.
+	_scheduleSnapshotSave() {
+		if (!this._onLiveSave) return;
+		clearTimeout(this._snapshotSaveTimer);
+		this._snapshotSaveTimer = setTimeout(() => {
+			this._snapshotSaveTimer = null;
+			if (this._completed) return;
+			this._onLiveSave(this._progressInfo());
+		}, 600);
 	}
 
 	_getHeaderButtons() {
@@ -1315,10 +1382,20 @@ export class CharacterOnboardingDialog extends Application {
 			};
 		}
 
+		// FAQ entries relevant to this step — stashed so activateListeners can build
+		// the hover popup, and surfaced as `hasFaq` to render the corner badge.
+		// Memoized per step: getData runs on every re-render (each option click), but
+		// the seeded FAQ journal is immutable for this dialog's lifetime, so parse it
+		// at most once per step instead of re-scanning the whole FAQ HTML each tick.
+		(this._faqByStep ??= new Map());
+		if (!this._faqByStep.has(stepType)) this._faqByStep.set(stepType, faqForStep(stepType));
+		this._currentFaq = this._faqByStep.get(stepType);
+
 		return {
 			playbookName:      this._playbookDoc.name,
 			playbookImg:       this._playbookDoc.img,
 			stepType,
+			hasFaq:            this._currentFaq.length > 0,
 			stepNumber:        this._step + 1,
 			stepCount:         this._steps.length,
 			isFirst, isLast, hasBack,
@@ -1363,6 +1440,14 @@ export class CharacterOnboardingDialog extends Application {
 		html.find(".stonetop-onboarding-skip").on("click", () => this._skip());
 		html.find(".stonetop-onboarding-next").on("click", () => this._navigate(1));
 		html.find(".stonetop-onboarding-confirm").on("click", () => this._confirm());
+
+		// Persist what's typed/picked on the current page shortly after the player
+		// pauses, so written answers survive an unexpected reload (lost connection)
+		// before they advance. Debounced to avoid a write per keystroke; delegated so
+		// it catches every field's own input/change handler (each updates _selections
+		// first as the event bubbles up). A clean window-close persists immediately
+		// via onExit, so only the last fraction of a second of typing is ever at risk.
+		html.on("input change", () => this._scheduleSnapshotSave());
 
 		const _refreshNextButton = () => {
 			html.find(".stonetop-onboarding-next, .stonetop-onboarding-confirm")
@@ -2030,6 +2115,12 @@ export class CharacterOnboardingDialog extends Application {
 			.on("mouseenter", ev => this._showArcanaPreview(ev.currentTarget))
 			.on("mouseleave", () => this._removeArcanaPreview());
 
+		// ── FAQ badge: hover shows this step's questions, click opens the full FAQ ──
+		html.find(".stonetop-onboarding-faq-badge")
+			.on("mouseenter", ev => this._showFaqPopup(ev.currentTarget))
+			.on("mouseleave", () => this._scheduleFaqPopupHide())
+			.on("click", () => this._openFaqPage());
+
 		// ── Bold-word hover tooltips ───────────────────────────────────
 		const bindWordTooltip = (el) => {
 			if (el.dataset.tooltipBound) return;
@@ -2085,10 +2176,14 @@ export class CharacterOnboardingDialog extends Application {
 	_clearPopups() {
 		this._removeTooltip();
 		this._removeArcanaPreview();
+		this._removeFaqPopup();
 	}
 
 	async _goBack() {
 		this._clearPopups();
+		// Returning to the picker is navigation, not an exit — don't let the close
+		// trigger the "open the finished sheet" callback.
+		this._suppressOnClose = true;
 		await this.close();
 		if (this._onBack) this._onBack();
 	}
@@ -2097,6 +2192,7 @@ export class CharacterOnboardingDialog extends Application {
 		this._clearPopups();
 		const next = this._step + 1;
 		if (next >= this._steps.length) {
+			this._completed = true;
 			if (this._onComplete) await this._onComplete(this._selections);
 			this.close();
 			return;
@@ -2116,6 +2212,7 @@ export class CharacterOnboardingDialog extends Application {
 
 	async _confirm() {
 		if (!this._isStepComplete()) return;
+		this._completed = true;
 		if (this._onComplete) await this._onComplete(this._selections);
 		this.close();
 	}
@@ -2144,7 +2241,18 @@ export class CharacterOnboardingDialog extends Application {
 	async close(options) {
 		this._keepOnTop.stop();
 		this._clearPopups();
-		return super.close(options);
+		// Cancel any debounced live-save; the current answers are captured below
+		// (onExit) or were already committed (onComplete), and a late timer could
+		// otherwise re-stamp a flag the completion just cleared.
+		clearTimeout(this._snapshotSaveTimer);
+		const result = await super.close(options);
+		if (!this._suppressOnClose) {
+			// Closed without finishing (and not heading back to the picker) → exited.
+			// Hand over the snapshot so the resume flow keeps the player's place.
+			if (this._onExit && !this._completed) this._onExit(this._progressInfo());
+			if (this._onClose) this._onClose();
+		}
+		return result;
 	}
 
 	// ── Word tooltip ──────────────────────────────────────────────────
@@ -2155,6 +2263,73 @@ export class CharacterOnboardingDialog extends Application {
 
 	_removeArcanaPreview() {
 		document.querySelector(".stonetop-arcana-preview-popup")?.remove();
+	}
+
+	// ── FAQ popup ─────────────────────────────────────────────────────
+	// Hovering the corner badge surfaces the FAQ entries relevant to the current
+	// step (computed in getData → this._currentFaq). The popup is interactive so a
+	// reader can move into it and scroll long answers; a short hide delay bridges
+	// the gap between badge and popup.
+
+	_removeFaqPopup() {
+		clearTimeout(this._faqPopupHideTimer);
+		this._faqPopupHideTimer = null;
+		document.querySelector(".stonetop-onboarding-faq-popup")?.remove();
+	}
+
+	_scheduleFaqPopupHide() {
+		clearTimeout(this._faqPopupHideTimer);
+		this._faqPopupHideTimer = setTimeout(() => this._removeFaqPopup(), 200);
+	}
+
+	_showFaqPopup(anchor) {
+		clearTimeout(this._faqPopupHideTimer);
+		this._faqPopupHideTimer = null;
+		this._removeFaqPopup();
+		if (!this._currentFaq?.length) return;
+		const popup = document.createElement("div");
+		popup.className = "stonetop-onboarding-faq-popup";
+		popup.innerHTML =
+			`<p class="stonetop-onboarding-faq-popup-title">Related questions</p>` +
+			`<div class="stonetop-onboarding-faq-popup-body">${this._currentFaq.map(i => i.html).join("")}</div>` +
+			`<p class="stonetop-onboarding-faq-popup-more">Click the <i class="fas fa-circle-question"></i> for the full FAQ</p>`;
+		// Spiral bullet beside each Q&A, matching the full FAQ journal page.
+		markFaqItems(popup);
+		// Redraw the ◇/◆ load glyphs as the masked, theme-aware spans the journal
+		// uses (CSS scoped to .stonetop-onboarding-faq-popup-body), so the answer to
+		// "What do ◇ and ◇◇ mean?" doesn't show raw, unstyled Unicode diamonds.
+		wrapStonetopGlyphsInEl(popup);
+		// Give the weapon/gear tags in "What do the various tags mean?" the same hover
+		// descriptions they get everywhere else (range/fiction cues), matching the journal.
+		applyGearTermTooltips(popup);
+		// Keep the popup open while the pointer is over it, so it can be read/scrolled.
+		popup.addEventListener("mouseenter", () => {
+			clearTimeout(this._faqPopupHideTimer);
+			this._faqPopupHideTimer = null;
+		});
+		popup.addEventListener("mouseleave", () => this._scheduleFaqPopupHide());
+		this._positionPopup(popup, anchor, { align: "right", gap: 8, placement: "below" });
+	}
+
+	// Open the seeded "Character Creation FAQ" journal page, or warn if it isn't
+	// available in this world yet (e.g. the Setting Overview hasn't been seeded).
+	// Floated as a child of this dialog so KeepOnTop pins it above the modal's high
+	// z-index — otherwise the journal opens behind the (always-on-top) onboarding
+	// window and can't be reached.
+	_openFaqPage() {
+		this._clearPopups();
+		const page = faqPage();
+		if (!page) {
+			ui.notifications?.warn("The Character Creation FAQ isn't set up in this world yet.");
+			return;
+		}
+		const sheet = page.parent?.sheet;
+		if (!sheet) return;
+		openJournalSheetAsChild(sheet, {
+			childClass:    "stonetop-onboarding-child-dialog",
+			keepOnTop:     this._keepOnTop,
+			renderOptions: { pageId: page.id },
+		});
 	}
 
 	_showArcanaPreview(anchor) {
@@ -2184,17 +2359,23 @@ export class CharacterOnboardingDialog extends Application {
 	_positionPopup(el, anchor, { align = "left", gap = 6, placement = "above" } = {}) {
 		document.body.appendChild(el);
 		const ar = anchor.getBoundingClientRect();
-		const pr = el.getBoundingClientRect();
-		const above = ar.top - pr.height - gap;
+		// Use offset dimensions, not getBoundingClientRect: the arcana popup's grow-in
+		// animation starts at scale(0.4), which would shrink the measured rect and throw
+		// off placement. offsetWidth/Height report the untransformed layout box.
+		const pw = el.offsetWidth;
+		const ph = el.offsetHeight;
+		const above = ar.top - ph - gap;
 		const below = ar.bottom + gap;
 		let top  = placement === "below"
-			? (below + pr.height > window.innerHeight - 8 ? above : below)
+			? (below + ph > window.innerHeight - 8 ? above : below)
 			: (above < 8 ? below : above);
 		let left = align === "center"
-			? ar.left + ar.width / 2 - pr.width / 2
-			: ar.left;
+			? ar.left + ar.width / 2 - pw / 2
+			: align === "right"
+				? ar.right - pw
+				: ar.left;
 		top  = Math.max(8, top);
-		left = Math.max(8, Math.min(left, window.innerWidth - pr.width - 8));
+		left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
 		el.style.top  = `${top}px`;
 		el.style.left = `${left}px`;
 		const dialogZ = parseInt(this.element?.[0]?.style?.zIndex || 0);

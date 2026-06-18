@@ -1,5 +1,6 @@
 import { markQuestionBullets } from "./question-bullets.js";
 import { markCheckBullets } from "./check-bullets.js";
+import { markFaqItems } from "./faq-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./glyphs.js";
 
 // Give this system's journal prose the same spiral bullets (and question-spiral
@@ -60,7 +61,9 @@ function isStonetopProseJournal(entry, page) {
  * it adapts to the surrounding text colour); the two mark passes add the
  * `question-bullet` / `check-bullet` classes that swap the icon. The glyph pass
  * swaps inline ◇/◆/▶/○/□ ASCII for this system's styled SVG glyphs (e.g. the gear
- * terms on "Gear: Terms & Value"). Idempotent.
+ * terms on "Gear: Terms & Value"). The FAQ pass tags the Character Creation FAQ's
+ * `<p><strong>Question?</strong>…` Q&A blocks so they share a spiral bullet too.
+ * Idempotent.
  *
  * Used by the journal render pass below, and by the prose dialogs (Setting
  * Overview, Level-Up) that render the same kind of content outside a journal.
@@ -71,6 +74,7 @@ export function markProseSpiralBullets(el) {
 	el.classList.add("stonetop-journal-body");
 	markQuestionBullets(el);
 	markCheckBullets(el);
+	markFaqItems(el);
 	wrapStonetopGlyphsInEl(el);
 }
 

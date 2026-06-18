@@ -285,6 +285,45 @@ body,
 	background-image: var(--stonetop-diamond-selected-icon);
 }
 
+/* In journal prose the load diamonds (◇/◆) are redrawn as a currentColor mask —
+   like the spiral/checkbox bullets — instead of the shipped fixed dark-stroke
+   background SVG, which vanished on dark backgrounds. Painting the diamond in the
+   inherited text colour keeps it legible in both themes and in every render path
+   (the journal sheet and the Setting Overview dialog both carry
+   `.stonetop-journal-body`; locations use `.stonetop-location-body`). The literal
+   ◇/◆ character is pushed out of the masked box so it can't double up, and the
+   right margin opens the gap between the diamond(s) and the item text. */
+.stonetop-location-body .stonetop-glyph--diamond,
+.stonetop-location-body .stonetop-glyph--diamond-selected,
+.stonetop-journal-body .stonetop-glyph--diamond,
+.stonetop-journal-body .stonetop-glyph--diamond-selected,
+.stonetop-onboarding-faq-popup-body .stonetop-glyph--diamond,
+.stonetop-onboarding-faq-popup-body .stonetop-glyph--diamond-selected {
+	color: inherit;
+	background: none;
+	background-color: currentColor;
+	-webkit-mask: var(--stonetop-diamond-icon) center / contain no-repeat;
+	mask: var(--stonetop-diamond-icon) center / contain no-repeat;
+	overflow: hidden;
+	text-indent: 2em;
+	white-space: nowrap;
+	margin-right: 0.3em;
+}
+.stonetop-location-body .stonetop-glyph--diamond-selected,
+.stonetop-journal-body .stonetop-glyph--diamond-selected,
+.stonetop-onboarding-faq-popup-body .stonetop-glyph--diamond-selected {
+	-webkit-mask-image: var(--stonetop-diamond-selected-icon);
+	mask-image: var(--stonetop-diamond-selected-icon);
+}
+/* Consecutive diamonds in a run (the "◇◇" load track) are tagged `--joined` by
+   wrapStonetopGlyphsInEl — drop the trailing gap between them so they read as one
+   unit; the margin above still opens the gap before the following text. */
+.stonetop-location-body .stonetop-glyph--joined,
+.stonetop-journal-body .stonetop-glyph--joined,
+.stonetop-onboarding-faq-popup-body .stonetop-glyph--joined {
+	margin-right: 0;
+}
+
 .stonetop-glyph--arrow {
 	background-image: url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 }
@@ -2654,7 +2693,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Add Special Item picker */
 .stonetop-special-picker { padding: 4px 2px; }
-.stonetop-special-picker-intro { font-size: var(--st-fs-sm); color: var(--color-text-dark-secondary); margin: 0 0 8px; }
+.stonetop-special-picker-intro { font-size: calc(0.9rem * var(--stonetop-font-scale, 1)); color: var(--color-text-dark-secondary); margin: 0 0 8px; }
 .stonetop-special-picker-cols { display: flex; gap: 18px; align-items: flex-start; }
 .stonetop-special-picker-col { flex: 1; min-width: 0; }
 .stonetop-special-picker-head {
@@ -3808,13 +3847,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-no-playbook-state {
 	flex: 1;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 }
 
+/* Bias the button to sit 2/3 of the way up (1/3 from the top) by splitting
+   the free space above/below it 1:2 with flex spacers. */
+.stonetop-no-playbook-state::before { content: ""; flex: 1; }
+.stonetop-no-playbook-state::after  { content: ""; flex: 2; }
+
 .stonetop-create-character-btn {
 	display: inline-flex;
 	align-items: center;
+	justify-content: center;
+	width: 100%;
+	max-width: 400px;
 	gap: 8px;
 	padding: 12px 28px;
 	font-size: var(--st-fs-lg);
@@ -4674,7 +4722,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-levelup-intro {
 	margin: 0;
-	font-size: var(--st-fs-base);
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	line-height: 1.45;
 }
 
@@ -7193,6 +7241,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-playbook-picker-setting-overview:hover { color: slategrey; }
 
+.stonetop-playbook-picker-intro {
+	margin: 0 0 12px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+	line-height: 1.5;
+	color: var(--st-text-body);
+}
+
+.stonetop-playbook-picker-intro p { margin: 0 0 8px; }
+.stonetop-playbook-picker-intro p:last-child { margin-bottom: 0; }
+.stonetop-playbook-picker-intro strong { color: var(--st-text); }
+
 .stonetop-playbook-picker-grid {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
@@ -7228,6 +7288,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 72px;
 	height: 72px;
 	object-fit: contain;
+	border: none;
 }
 
 .stonetop-playbook-picker-card-name {
@@ -7636,8 +7697,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .onboard-name-chip {
-	padding: 2px 9px;
-	font-size: var(--st-fs-xs);
+	padding: 3px 11px;
+	font-size: var(--st-fs-base);
 	background: white;
 	border: 1px solid #ccc;
 	border-radius: 20px;
@@ -8330,6 +8391,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: #334155;
 }
 
+/* Well Versed topic. The label carries the "known by most in Stonetop" summary as
+   a hover tooltip so a new player learns what e.g. "the Things Below" means; a
+   dotted underline hints there's something to hover. It stays plain, selectable
+   text (no journal link) so clicking it still picks the option. */
+.stonetop-onboarding-well-versed-topic {
+	text-decoration: underline dotted rgba(100,116,139,0.7);
+	text-underline-offset: 2px;
+	cursor: help;
+}
+
 .stonetop-onboarding-arcana-grid {
 	display: grid;
 	gap: 6px;
@@ -8395,6 +8466,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: 22px;
 	object-fit: contain;
 	flex-shrink: 0;
+	cursor: zoom-in;
 }
 
 .stonetop-onboarding-arcana-name {
@@ -8409,7 +8481,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: none;
 }
 
-/* Arcana preview popup — shown via JS, fixed so it escapes the modal's overflow container. */
+/* Arcana preview popup — shown via JS, fixed so it escapes the modal's overflow
+   container. Mirrors the Welcome guide's spring-icon hover: a framed, drop-shadowed
+   card that grows in from the hovered option (see .stonetop-welcome-springicon-wrap). */
+@keyframes stonetop-arcana-pop-in {
+	from { opacity: 0; transform: scale(0.4); }
+	to   { opacity: 1; transform: scale(1); }
+}
+
 .stonetop-arcana-preview-popup {
 	position: fixed;
 	z-index: 10000;
@@ -8417,14 +8496,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 6px;
 	width: min(280px, 88vw);
 	padding: 10px 12px;
-	border: 1px solid #9ca3af;
-	border-radius: var(--st-radius-lg);
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius);
 	background: #fffdf7;
-	box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 	color: #1f2937;
 	font-family: var(--font-stonetop);
 	line-height: 1.4;
 	pointer-events: none;
+	transform-origin: center top;
+	animation: stonetop-arcana-pop-in 0.12s ease;
 }
 
 .stonetop-arcana-preview-popup img {
@@ -8432,6 +8513,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	max-width: 96px;
 	max-height: 96px;
 	object-fit: contain;
+	border-radius: var(--st-radius-sm);
+	border: 1px solid var(--color-border-dark, #7a7971);
 }
 
 .stonetop-arcana-preview-popup strong {
@@ -8636,6 +8719,90 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-word-tooltip-desc p { margin: 2px 0; }
+
+/* FAQ badge — orange "?" in the onboarding step header. Hover surfaces the
+   step's related questions; click opens the full Character Creation FAQ page. */
+.stonetop-onboarding-faq-badge {
+	margin-left: auto;
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: 1px solid rgba(255, 255, 255, 0.55);
+	border-radius: 50%;
+	background: #e8822a;
+	color: #fff;
+	font-size: var(--st-fs-base);
+	line-height: 1;
+	cursor: help;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+	transition: background 0.12s, transform 0.12s, box-shadow 0.12s;
+}
+
+.stonetop-onboarding-faq-badge:hover {
+	background: #f59e0b;
+	transform: translateY(-1px);
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.stonetop-onboarding-faq-badge i { margin: 0; }
+
+/* FAQ popup — like the word tooltip, but wider, scrollable, and interactive so
+   long answers can be read. */
+.stonetop-onboarding-faq-popup {
+	position: fixed;
+	z-index: 10000;
+	width: min(360px, 90vw);
+	max-height: min(60vh, 460px);
+	overflow-y: auto;
+	background: #fffdf7;
+	border: 1px solid #9ca3af;
+	border-radius: var(--st-radius-lg);
+	padding: 10px 14px;
+	box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+	color: #1f2937;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	line-height: 1.5;
+	pointer-events: auto;
+}
+
+.stonetop-onboarding-faq-popup-title {
+	margin: 0 0 6px;
+	padding-bottom: 5px;
+	border-bottom: 1px solid #eee;
+	font-weight: 700;
+	font-size: var(--st-fs-base);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #111827;
+}
+
+.stonetop-onboarding-faq-popup-body p {
+	margin: 0 0 8px;
+}
+
+.stonetop-onboarding-faq-popup-body p:last-child {
+	margin-bottom: 0;
+}
+
+.stonetop-onboarding-faq-popup-body strong {
+	color: #111827;
+}
+
+.stonetop-onboarding-faq-popup-more {
+	margin: 8px 0 0;
+	padding-top: 6px;
+	border-top: 1px solid #eee;
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	color: var(--st-text-faint);
+}
+
+.stonetop-onboarding-faq-popup-more i { color: #e8822a; }
 
 /* ── Invocations tab ──────────────────────────────────────────────────── */
 
@@ -9939,6 +10106,49 @@ li.question-bullet {
 	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 }
+/* Some prose opts out of the question-spiral auto-detection by wrapping its
+   content in `.stonetop-no-question-spiral` (e.g. the Setting Overview's "Agenda &
+   Principles" page, where a principle that ends on a rhetorical "…who will?" isn't
+   really a prompt). The runtime still tags those items `question-bullet`; revert
+   them to the plain spiral here. Higher specificity + later source order than the
+   question-spiral swap above, so it wins on both render surfaces. */
+.stonetop-journal-body .stonetop-no-question-spiral li.question-bullet::before,
+.stonetop-so-entry-body .stonetop-no-question-spiral li.question-bullet::before {
+	-webkit-mask-image: var(--stonetop-spiral-icon);
+	mask-image: var(--stonetop-spiral-icon);
+}
+/* Character Creation FAQ: each Q&A is a single `<p><strong>Question?</strong><br>
+   Answer</p>` block (not a list item), tagged `faq-item` at render by
+   module/utils/faq-bullets.js. Hang one question-spiral bullet beside the pair —
+   shared by the bold question and the answer below it. These are all questions, so
+   they use the same question-spiral icon the question list items get above, not
+   the plain spiral. Covers the FAQ journal page / Setting Overview popup (both
+   carry `.stonetop-journal-body`) and the onboarding badge's hover popup. Section
+   <h3> headers and the intro paragraph stay unmarked, so they get no bullet. */
+.stonetop-journal-body p.faq-item,
+.stonetop-onboarding-faq-popup-body p.faq-item {
+	position: relative;
+	padding-left: calc(var(--stonetop-question-spiral-size, 14px) + var(--stonetop-spiral-gap));
+}
+.stonetop-journal-body p.faq-item::before,
+.stonetop-onboarding-faq-popup-body p.faq-item::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.15em;
+	width: var(--stonetop-question-spiral-size, 14px);
+	height: var(--stonetop-question-spiral-size, 14px);
+	background-color: currentColor;
+	opacity: 0.7;
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
+	-webkit-mask-size: contain;
+	mask-size: contain;
+}
 /* Requirement/option check-lists swap the spiral for the checkbox marker (drawn
    as a currentColor mask, so it inherits the journal's text color in both
    themes). Items are tagged `check-bullet` — baked by the generator, or applied
@@ -10020,9 +10230,11 @@ li.question-bullet {
    the system's other cross-references: a plain word that shows the target's
    summary on hover (data-tooltip, set by location-tooltips.js) and opens the
    entry on click. No underline affordance — the hover background is the only
-   hint — per author preference. Covers journal page content and the Setting
-   Overview dialog (a renderer over that same journal), so both look identical. */
-:is(.journal-page-content, .stonetop-so-entry-body) a.content-link {
+   hint — per author preference. Covers journal page content, the Setting
+   Overview dialog (a renderer over that same journal), and the Welcome guide's
+   premise lead — they share this chip-stripping reset (the lead overrides the
+   affordance to bold below). */
+:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-welcome-lead) a.content-link {
 	background: none;
 	border: none;
 	border-radius: 0;
@@ -10038,7 +10250,7 @@ li.question-bullet {
 	text-shadow: none;
 }
 /* Hide the leading document/book icon that Foundry injects into the chip. */
-:is(.journal-page-content, .stonetop-so-entry-body) a.content-link > i {
+:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-welcome-lead) a.content-link > i {
 	display: none;
 }
 /* A broken link (target missing) keeps Foundry's warning treatment so it's still
@@ -10337,7 +10549,7 @@ li.question-bullet {
 	padding: 2px 8px;
 	border: 1px solid #ccc;
 	border-radius: 999px;
-	font-size: var(--st-fs-xs);
+	font-size: var(--st-fs-sm);
 	cursor: pointer;
 }
 
@@ -10464,7 +10676,7 @@ li.question-bullet {
 }
 
 .stonetop-so-entry-body {
-	font-size: var(--st-fs-base);
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	line-height: 1.55;
 	color: var(--st-text-body);
 }
@@ -10487,10 +10699,35 @@ li.question-bullet {
 	letter-spacing: 0.04em;
 }
 
+/* A header immediately followed by a rule (the "If You Want To…" page's
+   `<h3>…</h3><hr>` sections) sat too far above its separator — the <hr>'s default
+   top margin collapses in and opens a big gap. Pull the rule up tight to the
+   header without touching the rule→paragraph gap below it. Covers the journal
+   window and the Setting Overview popup. */
+.stonetop-journal-body h3 + hr,
+.stonetop-so-entry-body h3 + hr {
+	margin-top: 0;
+}
+.stonetop-journal-body h3:has(+ hr),
+.stonetop-so-entry-body h3:has(+ hr) {
+	margin-bottom: 4px;
+}
+
 .stonetop-so-entry-body p  { margin: 0 0 8px; }
 /* Bullet lists get the spiral / question-spiral / checkbox treatment from the
    shared `.stonetop-journal-body` rules, added at render by the dialog (see
    SettingOverviewDialog) — no list-style/padding here or it would override them. */
+
+/* Pages that wrap their prose in `.stonetop-spaced-sections` (e.g. the Setting
+   Overview's "The Vicinity") read as a list of standalone landmarks, so push an
+   extra gap above every paragraph after the first — one clear break per section.
+   Scoped to both render surfaces (the journal window's `.stonetop-journal-body`
+   and the popup's `.stonetop-so-entry-body`); the two-class+element selector
+   outspecifies the per-body `p` margin above. */
+.stonetop-journal-body .stonetop-spaced-sections p + p,
+.stonetop-so-entry-body .stonetop-spaced-sections p + p {
+	margin-top: 1.25em;
+}
 
 .stonetop-so-entry-body dl { margin: 0 0 12px; }
 .stonetop-so-entry-body dt {
@@ -12257,6 +12494,122 @@ th:has(> .stonetop-roll-table-btn) {
 	}
 }
 
+/* ── Shared guide-dialog chrome ───────────────────────────────────────────────
+   Scaffolding shared by the step/guide dialogs — Introductions, Let Spring Burst
+   Forth, and Share With Players: the padded content column, the icon + title +
+   sub banner, and the bottom button nav. Each dialog supplies its own body
+   content and a few modifiers (--truncate, --end, --primary) for the spots where
+   they legitimately differ. */
+
+.stonetop-guide-main {
+	padding: 12px 20px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.stonetop-guide-banner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	background: rgba(0, 0, 0, 0.04);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+}
+
+/* Font Awesome banner glyph (Spring / Share). Introductions shows a PC avatar
+   image in this slot instead — see .stonetop-intros-pc-icon. */
+.stonetop-guide-banner-icon {
+	flex-shrink: 0;
+	width: 28px;
+	text-align: center;
+	font-size: var(--st-fs-xl);
+	color: var(--st-green-text);
+}
+
+.stonetop-guide-banner-info { flex: 1; min-width: 0; }
+
+.stonetop-guide-banner-title {
+	font-weight: 700;
+	font-size: 1em;
+	line-height: 1.2;
+}
+
+.stonetop-guide-banner-sub {
+	font-size: var(--st-fs-xs);
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-guide-count {
+	flex-shrink: 0;
+	font-size: var(--st-fs-xs);
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+/* Single-line truncation for banner text that can run long (a PC name, a journal
+   title). */
+.stonetop-guide-truncate {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.stonetop-guide-nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 20px 14px;
+	gap: 12px;
+	/* Let the nav shrink with the window (V13 flex child) so a truncating centre
+	   label can absorb the slack instead of pushing the buttons off-edge. */
+	min-width: 0;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Right-align the buttons when there's no centre label (Share's Cancel / Save). */
+.stonetop-guide-nav--end {
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.stonetop-guide-nav button {
+	flex-shrink: 0;
+	padding: 5px 14px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s;
+}
+
+.stonetop-guide-nav button:hover:not(:disabled) { background: hsl(40 25% 85%); }
+.stonetop-guide-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Green "go" button (Begin / Done / Save). !important to beat the base nav-button
+   background, whose descendant selector outspecifies this one class. */
+.stonetop-guide-btn--primary {
+	font-weight: 600;
+	background: var(--st-green-bg) !important;
+	border-color: var(--st-green-border) !important;
+	color: var(--st-green-text) !important;
+}
+
+.stonetop-guide-btn--primary:hover:not(:disabled) { background: var(--st-green-bg-hover) !important; }
+
+/* A disabled primary (e.g. Begin Introductions before the order is set) drops the
+   green and reads as a plain disabled button. */
+.stonetop-guide-btn--primary:disabled {
+	background: var(--stonetop-bg, #f5f0e8) !important;
+	border-color: var(--color-border-dark, #7a7971) !important;
+	color: inherit !important;
+}
+
 /* ── Introductions Dialog ─────────────────────────────────────────────────────── */
 
 .stonetop-introductions .window-content {
@@ -12356,56 +12709,13 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-intros-reminder > i { flex-shrink: 0; margin-top: 2px; }
 
-/* Main content */
-
-.stonetop-intros-main {
-	padding: 12px 20px 16px;
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-
-.stonetop-intros-pc-banner {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 10px 14px;
-	background: rgba(0, 0, 0, 0.04);
-	border: 1px solid rgba(0, 0, 0, 0.1);
-	border-radius: var(--st-radius);
-}
+/* Main content (the banner/info/count chrome is shared — see .stonetop-guide-*) */
 
 .stonetop-intros-pc-icon {
 	width: 36px;
 	height: 36px;
 	object-fit: contain;
 	flex-shrink: 0;
-}
-
-.stonetop-intros-pc-info {
-	flex: 1;
-	min-width: 0;
-}
-
-.stonetop-intros-pc-name {
-	font-weight: 700;
-	font-size: 1em;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.stonetop-intros-pc-playbook {
-	font-size: var(--st-fs-xs);
-	color: var(--color-text-dark-secondary);
-	font-style: italic;
-}
-
-.stonetop-intros-pc-count {
-	flex-shrink: 0;
-	font-size: var(--st-fs-xs);
-	color: var(--color-text-dark-secondary);
-	white-space: nowrap;
 }
 
 .stonetop-intros-instruction {
@@ -12442,57 +12752,12 @@ th:has(> .stonetop-roll-table-btn) {
 	line-height: 1.45;
 }
 
-/* Navigation */
-
-.stonetop-intros-nav {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 10px 20px 14px;
-	gap: 12px;
-	border-top: 1px solid rgba(0, 0, 0, 0.08);
-}
+/* Navigation (the nav bar + buttons are shared — see .stonetop-guide-nav) */
 
 .stonetop-intros-step-label {
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
-}
-
-.stonetop-intros-nav button {
-	flex-shrink: 0;
-	padding: 5px 14px;
-	font-family: var(--font-stonetop);
-	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
-	cursor: pointer;
-	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: var(--st-radius-sm);
-	background: var(--stonetop-bg, #f5f0e8);
-	color: inherit;
-	transition: background 0.15s;
-}
-
-.stonetop-intros-nav button:hover:not(:disabled) { background: hsl(40 25% 85%); }
-.stonetop-intros-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.stonetop-intros-begin,
-.stonetop-intros-close--spring {
-	font-weight: 600;
-	background: var(--st-green-bg) !important;
-	border-color: var(--st-green-border) !important;
-	color: var(--st-green-text) !important;
-}
-
-.stonetop-intros-begin:hover:not(:disabled),
-.stonetop-intros-close--spring:hover:not(:disabled) {
-	background: var(--st-green-bg-hover) !important;
-}
-
-.stonetop-intros-begin:disabled {
-	background: var(--stonetop-bg, #f5f0e8) !important;
-	border-color: var(--color-border-dark, #7a7971) !important;
-	color: inherit !important;
-	opacity: 0.4;
 }
 
 /* ── Welcome / first-session guide ─────────────────────────────────────────── */
@@ -12534,32 +12799,20 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-welcome-lead {
-	margin: 0 0 12px;
+	max-width: 28rem;
+	margin: 0 auto 16px;
 	line-height: 1.5;
-	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.825rem * var(--stonetop-font-scale, 1));
 	color: var(--st-text-body);
 	font-style: italic;
+	text-align: center;
 }
 
-/* The premise's `@UUID` links (e.g. "Stonetop") shouldn't read as Foundry's
-   chip-with-book-icon. Strip the chip and mark them tappable/hoverable with bold
-   alone — per author preference. Mirrors the journal-body treatment but uses
-   weight, not a hover background, as the affordance. */
-.stonetop-welcome-lead a.content-link {
-	background: none;
-	border: none;
-	border-radius: 0;
-	padding: 0;
-	margin: 0;
-	color: inherit;
-	font-weight: bold;
-	text-decoration: none;
-	white-space: normal;
-	cursor: pointer;
-}
-.stonetop-welcome-lead a.content-link > i { display: none; }
-/* Kill Foundry's default content-link hover glow (a red text-shadow) so the
-   premise link just reads as a bold word — matches the journal-body treatment. */
+/* The premise's `@UUID` links (e.g. "Stonetop") share the chip-stripping reset
+   above; here they take bold as the affordance instead of a hover background —
+   per author preference. The hover rule kills Foundry's default content-link glow
+   (a red text-shadow) so the premise link just reads as a bold word. */
+.stonetop-welcome-lead a.content-link { font-weight: bold; }
 .stonetop-welcome-lead a.content-link:hover { text-shadow: none; }
 
 .stonetop-welcome-intro {
@@ -12776,9 +13029,29 @@ th:has(> .stonetop-roll-table-btn) {
 	text-decoration-style: dotted;
 }
 
-.stonetop-welcome-player-char:not(:last-child)::after {
+/* Comma-separate consecutive character entries — each entry is the name link plus
+   its optional progress note, so the comma lands between characters and never
+   turns a name into "Name, on page…" (the note stays inside the entry). */
+.stonetop-welcome-player-entry + .stonetop-welcome-player-entry::before {
 	content: ", ";
 	text-decoration: none;
+}
+
+.stonetop-welcome-player-progress {
+	font-style: italic;
+	white-space: nowrap;
+}
+
+.stonetop-welcome-player-progress::before {
+	content: " \2014 "; /* em dash, separating the name from its page count */
+	font-style: normal;
+}
+
+/* A completed character reads as a done state, not a status-in-progress. */
+.stonetop-welcome-player-progress--finished {
+	color: var(--st-green-text);
+	font-style: normal;
+	font-weight: 700;
 }
 
 .stonetop-welcome-create {
@@ -12848,6 +13121,61 @@ th:has(> .stonetop-roll-table-btn) {
 	flex: 0 0 auto;
 }
 
+/* ── Character creation intro (player-facing first step) ───────────────────── */
+
+.stonetop-charintro {
+	font-family: var(--font-stonetop);
+	padding: 4px 4px 8px;
+}
+
+.stonetop-charintro-hero {
+	text-align: center;
+	margin-bottom: 12px;
+}
+
+.stonetop-charintro-hero h2 {
+	margin: 0;
+	border: none;
+	font-size: calc(1.5rem * var(--stonetop-font-scale, 1));
+	line-height: 1.1;
+}
+
+.stonetop-charintro-logo {
+	font-family: var(--font-avara, var(--font-stonetop));
+	font-weight: bold;
+}
+
+.stonetop-charintro-body {
+	margin: 0 0 12px;
+	line-height: 1.5;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+	color: var(--st-text-body);
+}
+
+.stonetop-charintro-actions {
+	display: flex;
+	justify-content: center;
+	margin-top: 16px;
+}
+
+.stonetop-charintro-create {
+	width: auto;
+	white-space: nowrap;
+	padding: 8px 22px;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-lg);
+	line-height: 1.3;
+	cursor: pointer;
+	border: 1px solid var(--st-green-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+	transition: background 0.15s;
+}
+
+.stonetop-charintro-create:hover { background: var(--st-green-bg-hover); }
+.stonetop-charintro-create > i { margin-right: 6px; }
+
 /* ── Let spring burst forth (first-session walkthrough) ─────────────────────── */
 
 /* Drop Foundry's default window padding and make the content a full-width column
@@ -12867,52 +13195,6 @@ th:has(> .stonetop-roll-table-btn) {
 	   below can never force the container wider than the dialog. */
 	min-width: 0;
 	font-family: var(--font-stonetop);
-}
-
-.stonetop-spring-main {
-	padding: 12px 20px 16px;
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-
-.stonetop-spring-banner {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 10px 14px;
-	background: rgba(0, 0, 0, 0.04);
-	border: 1px solid rgba(0, 0, 0, 0.1);
-	border-radius: var(--st-radius);
-}
-
-.stonetop-spring-banner-icon {
-	flex-shrink: 0;
-	width: 28px;
-	text-align: center;
-	font-size: var(--st-fs-xl);
-	color: var(--st-green-text);
-}
-
-.stonetop-spring-banner-info { flex: 1; min-width: 0; }
-
-.stonetop-spring-banner-title {
-	font-weight: 700;
-	font-size: 1em;
-	line-height: 1.2;
-}
-
-.stonetop-spring-banner-sub {
-	font-size: var(--st-fs-xs);
-	color: var(--color-text-dark-secondary);
-	font-style: italic;
-}
-
-.stonetop-spring-count {
-	flex-shrink: 0;
-	font-size: var(--st-fs-xs);
-	color: var(--color-text-dark-secondary);
-	white-space: nowrap;
 }
 
 .stonetop-spring-body {
@@ -13137,17 +13419,8 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-spring-qa-empty > i { margin-top: 2px; }
 
-/* Navigation (mirrors the Introductions dialog) */
-
-.stonetop-spring-nav {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 10px 20px 14px;
-	gap: 12px;
-	min-width: 0;
-	border-top: 1px solid rgba(0, 0, 0, 0.08);
-}
+/* Navigation (the nav bar + buttons are shared — see .stonetop-guide-nav). Only
+   the truncating centre step-label is spring-specific. */
 
 .stonetop-spring-step-label {
 	/* Let the centre label absorb the slack and truncate, so the Back/Next
@@ -13161,31 +13434,6 @@ th:has(> .stonetop-roll-table-btn) {
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
 }
-
-.stonetop-spring-nav button {
-	flex-shrink: 0;
-	padding: 5px 14px;
-	font-family: var(--font-stonetop);
-	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
-	cursor: pointer;
-	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: var(--st-radius-sm);
-	background: var(--stonetop-bg, #f5f0e8);
-	color: inherit;
-	transition: background 0.15s;
-}
-
-.stonetop-spring-nav button:hover:not(:disabled) { background: hsl(40 25% 85%); }
-.stonetop-spring-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.stonetop-spring-done--spring {
-	font-weight: 600;
-	background: var(--st-green-bg) !important;
-	border-color: var(--st-green-border) !important;
-	color: var(--st-green-text) !important;
-}
-
-.stonetop-spring-done--spring:hover { background: var(--st-green-bg-hover) !important; }
 
 /* Seasons Change chat card */
 
@@ -13231,48 +13479,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	display: flex;
 	flex-direction: column;
 	font-family: var(--font-stonetop);
-}
-
-.stonetop-share-main {
-	padding: 12px 20px 16px;
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-
-.stonetop-share-banner {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 10px 14px;
-	background: rgba(0, 0, 0, 0.04);
-	border: 1px solid rgba(0, 0, 0, 0.1);
-	border-radius: var(--st-radius);
-}
-
-.stonetop-share-banner-icon {
-	flex-shrink: 0;
-	width: 28px;
-	text-align: center;
-	font-size: var(--st-fs-xl);
-	color: var(--st-green-text);
-}
-
-.stonetop-share-banner-info { flex: 1; min-width: 0; }
-
-.stonetop-share-banner-title {
-	font-weight: 700;
-	font-size: 1em;
-	line-height: 1.2;
-}
-
-.stonetop-share-banner-sub {
-	font-size: var(--st-fs-xs);
-	color: var(--color-text-dark-secondary);
-	font-style: italic;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .stonetop-share-intro {
@@ -13321,38 +13527,3 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	opacity: 0.45;
 	cursor: not-allowed;
 }
-
-.stonetop-share-nav {
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	padding: 10px 20px 14px;
-	gap: 10px;
-	border-top: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.stonetop-share-nav button {
-	flex-shrink: 0;
-	padding: 5px 16px;
-	font-family: var(--font-stonetop);
-	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
-	cursor: pointer;
-	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: var(--st-radius-sm);
-	background: var(--stonetop-bg, #f5f0e8);
-	color: inherit;
-	transition: background 0.15s;
-}
-
-.stonetop-share-nav button:hover { background: hsl(40 25% 85%); }
-
-.stonetop-share-save--primary {
-	font-weight: 600;
-	background: var(--st-green-bg) !important;
-	border-color: var(--st-green-border) !important;
-	color: var(--st-green-text) !important;
-}
-
-.stonetop-share-save--primary:hover { background: var(--st-green-bg-hover) !important; }
-
-

@@ -6,6 +6,11 @@
 		<img class="stonetop-onboarding-playbook-icon" src="{{playbookImg}}" alt="">
 		{{/if}}
 		<h2 class="stonetop-onboarding-playbook-name">{{playbookName}}</h2>
+		{{#if hasFaq}}
+		<button type="button" class="stonetop-onboarding-faq-badge" title="Related questions — click for the full FAQ" aria-label="Related questions">
+			<i class="fas fa-circle-question"></i>
+		</button>
+		{{/if}}
 	</div>
 
 	{{!-- Progress dots --}}
@@ -50,12 +55,20 @@
 								       data-choice-key="{{../key}}"
 								       data-choice-label="{{../label}}"
 								       {{#if selected}}checked{{/if}}>
+								{{#if topicSummary}}
+								<span class="stonetop-onboarding-well-versed-topic" data-tooltip="{{topicSummary}}">{{label}}</span>
+								{{else}}
 								<span>{{label}}</span>
+								{{/if}}
 							</span>
 							{{/each}}
 						</div>
 						{{else}}
+						{{#if valueTopicSummary}}
+						<p class="stonetop-onboarding-background-choice-fixed"><span class="stonetop-onboarding-well-versed-topic" data-tooltip="{{valueTopicSummary}}">{{value}}</span></p>
+						{{else}}
 						<p class="stonetop-onboarding-background-choice-fixed">{{value}}</p>
+						{{/if}}
 						{{/if}}
 					</div>
 					{{/each}}

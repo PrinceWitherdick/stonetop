@@ -1,14 +1,14 @@
 <div class="stonetop-spring">
 
-  <div class="stonetop-spring-main">
+  <div class="stonetop-guide-main">
 
-    <div class="stonetop-spring-banner">
-      <i class="fas {{step.icon}} stonetop-spring-banner-icon"></i>
-      <div class="stonetop-spring-banner-info">
-        <div class="stonetop-spring-banner-title">{{step.title}}</div>
-        <div class="stonetop-spring-banner-sub">Let spring burst forth</div>
+    <div class="stonetop-guide-banner">
+      <i class="fas {{step.icon}} stonetop-guide-banner-icon"></i>
+      <div class="stonetop-guide-banner-info">
+        <div class="stonetop-guide-banner-title">{{step.title}}</div>
+        <div class="stonetop-guide-banner-sub">Let spring burst forth</div>
       </div>
-      <div class="stonetop-spring-count">{{stepIndex}} / {{stepCount}}</div>
+      <div class="stonetop-guide-count">{{stepIndex}} / {{stepCount}}</div>
     </div>
 
     <div class="stonetop-spring-body">{{{step.body}}}</div>
@@ -72,11 +72,11 @@
 
   </div>
 
-  <div class="stonetop-spring-nav">
+  <div class="stonetop-guide-nav">
     <button class="stonetop-spring-back" {{#if isFirst}}disabled{{/if}}>◀ Back</button>
     <span class="stonetop-spring-step-label">{{stepLabel}}</span>
     {{#if isLast}}
-    <button class="stonetop-spring-done stonetop-spring-done--spring">Done ✦</button>
+    <button class="stonetop-spring-done stonetop-guide-btn--primary">Done ✦</button>
     {{else}}
     <button class="stonetop-spring-next">Next ▶</button>
     {{/if}}

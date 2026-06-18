@@ -41,11 +41,15 @@ export class KeepOnTop {
 			el.style.setProperty("z-index", String(zIndex), "important");
 		}
 
-		// Pin child dialogs (e.g. info popups) just above their host.
+		// Pin child dialogs (e.g. info popups) just above their host. Match both the
+		// AppV1 (`.window-app`) and AppV2 (`.application`) window roots so a child can
+		// be a v13+ sheet — e.g. the Setting Overview journal opened from the playbook
+		// picker, which is AppV2 and otherwise opens behind the picker's high z-index.
 		let topZ = zIndex;
 		if (this._childDialogClass) {
 			const childZ = String(zIndex + 1);
-			document.querySelectorAll(`.window-app.${this._childDialogClass}`).forEach(childEl => {
+			const cls = this._childDialogClass;
+			document.querySelectorAll(`.window-app.${cls}, .application.${cls}`).forEach(childEl => {
 				if (childEl.style.zIndex !== childZ) childEl.style.setProperty("z-index", childZ, "important");
 			});
 			topZ = zIndex + 1;
@@ -145,4 +149,52 @@ export function keepDialogOnTop(html) {
 	const appId = el?.dataset?.appid;
 	const app = appId ? globalThis.ui?.windows?.[appId] : null;
 	if (app) attachKeepOnTop(app);
+}
+
+/**
+ * Open a journal(-page) sheet floated as a *child* of a KeepOnTop host, so the
+ * host's high z-index doesn't bury it. The window is tagged with `childClass`
+ * (the host's `childDialogClass`) the instant it renders, and the host is
+ * re-applied so it pins the child just above itself.
+ *
+ * Listens for both the v12 (`renderJournalSheet`) and v13 (`renderJournalEntrySheet`)
+ * hook names and removes BOTH once either fires; a safety timeout removes them even
+ * if the sheet never renders, so a cancelled/errored open can't leak the listeners.
+ *
+ * @param {Application} sheet                The journal- or page-sheet to open.
+ * @param {object}      opts
+ * @param {string}      opts.childClass      Marker class KeepOnTop floats above the host.
+ * @param {KeepOnTop}   opts.keepOnTop       The host's KeepOnTop, re-applied once tagged.
+ * @param {object}      [opts.renderOptions] Extra render options (e.g. `{ pageId }`).
+ */
+export function openJournalSheetAsChild(sheet, { childClass, keepOnTop, renderOptions = {} } = {}) {
+	if (!sheet) return;
+	const tag = (app) => {
+		const el = app?.element?.jquery ? app.element[0] : app?.element;
+		el?.classList?.add(childClass);
+		keepOnTop?.queue();
+	};
+	if (sheet.rendered) {
+		tag(sheet);
+		sheet.bringToTop?.();
+		keepOnTop?.queue();
+		return;
+	}
+	let done = false;
+	const cleanup = () => {
+		if (done) return;
+		done = true;
+		Hooks.off("renderJournalSheet", onRender);
+		Hooks.off("renderJournalEntrySheet", onRender);
+	};
+	const onRender = (app) => {
+		if (app !== sheet) return;
+		cleanup();
+		tag(app);
+	};
+	Hooks.on("renderJournalSheet", onRender);
+	Hooks.on("renderJournalEntrySheet", onRender);
+	// Safety net: never leak the listeners if the sheet never renders.
+	setTimeout(cleanup, 10000);
+	sheet.render(true, renderOptions);
 }

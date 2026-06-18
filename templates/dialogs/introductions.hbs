@@ -51,16 +51,16 @@
 
   {{!-- ── Main intro content ─────────────────────────────────────────────────── --}}
   {{else}}
-  <div class="stonetop-intros-main">
+  <div class="stonetop-guide-main">
 
     {{#if currentPc}}
-    <div class="stonetop-intros-pc-banner">
+    <div class="stonetop-guide-banner">
       {{#if currentPc.icon}}<img class="stonetop-intros-pc-icon" src="{{currentPc.icon}}" alt="">{{/if}}
-      <div class="stonetop-intros-pc-info">
-        <div class="stonetop-intros-pc-name">{{currentPc.name}}</div>
-        {{#if currentPc.playbookName}}<div class="stonetop-intros-pc-playbook">{{currentPc.playbookName}}</div>{{/if}}
+      <div class="stonetop-guide-banner-info">
+        <div class="stonetop-guide-banner-title stonetop-guide-truncate">{{currentPc.name}}</div>
+        {{#if currentPc.playbookName}}<div class="stonetop-guide-banner-sub">{{currentPc.playbookName}}</div>{{/if}}
       </div>
-      <div class="stonetop-intros-pc-count">{{currentPc.index}} / {{currentPc.total}}</div>
+      <div class="stonetop-guide-count">{{currentPc.index}} / {{currentPc.total}}</div>
     </div>
     {{/if}}
 
@@ -79,11 +79,11 @@
   {{/if}}
 
   {{!-- ── Navigation ─────────────────────────────────────────────────────────── --}}
-  <div class="stonetop-intros-nav">
+  <div class="stonetop-guide-nav">
     {{#if isPreCheck}}
 
     {{#if isGM}}<button class="stonetop-intros-add">Add Player Characters</button>{{else}}<span></span>{{/if}}
-    <button class="stonetop-intros-begin" {{#unless canBegin}}disabled{{/unless}}>
+    <button class="stonetop-intros-begin stonetop-guide-btn--primary" {{#unless canBegin}}disabled{{/unless}}>
       Begin Introductions ▶
     </button>
 
@@ -91,7 +91,7 @@
 
     <button class="stonetop-intros-back">◀ Back</button>
     <span class="stonetop-intros-step-label">{{stepLabel}}</span>
-    <button class="stonetop-intros-close stonetop-intros-close--spring">Let spring break forth!</button>
+    <button class="stonetop-intros-close stonetop-guide-btn--primary">Let spring break forth!</button>
 
     {{else}}
 

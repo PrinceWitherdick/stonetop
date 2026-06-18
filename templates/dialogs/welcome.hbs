@@ -9,7 +9,7 @@
     <p class="stonetop-welcome-lead">{{{premiseHtml}}}</p>
 
     <p class="stonetop-welcome-intro">
-      The first session is mostly about building the village and its heroes together &mdash; and it's play in its own right. Work through these steps as a group; there are no wrong answers, only the world you make.
+      The first session is mostly about building the village and its heroes together. Work through these steps as a group; there are no wrong answers, only the world you make.
     </p>
 
     <ol class="stonetop-welcome-steps">
@@ -60,7 +60,7 @@
                 {{#if characters.length}}
                 <span class="stonetop-welcome-player-has">
                   has
-                  {{#each characters}}<a class="stonetop-welcome-player-char" data-actor-id="{{id}}" title="Open this character sheet">{{name}}</a>{{/each}}
+                  {{#each characters}}<span class="stonetop-welcome-player-entry"><a class="stonetop-welcome-player-char" data-actor-id="{{id}}" title="Open this character sheet">{{name}}</a>{{#if progress}}<span class="stonetop-welcome-player-progress stonetop-welcome-player-progress--{{progress.status}}" title="Character creation progress">{{progress.text}}</span>{{/if}}</span>{{/each}}
                 </span>
                 {{/if}}
               </div>

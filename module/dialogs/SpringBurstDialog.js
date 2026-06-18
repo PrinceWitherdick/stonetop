@@ -2,21 +2,10 @@ import { KeepOnTop } from "../utils/keep-on-top.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { stonetopCardShell } from "../utils/chat.js";
 import { escHtml } from "../utils/strings.js";
+import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { getSetting, setSetting } from "../settings.js";
 
 const ANSWERS_SETTING = "springBurstAnswers";
-
-// A character (player character) is any actor carrying a playbook — the same test
-// the Introductions dialog uses. Drives the per-PC "what excites you" answers.
-function _playbookSlug(actor) {
-	return actor?.system?.playbook?.slug
-		?? actor?.items?.find?.(i => i.type === "playbook")?.system?.slug
-		?? "";
-}
-
-function _playerCharacters() {
-	return (game.actors?.contents ?? []).filter(a => a.type === "character" && _playbookSlug(a));
-}
 
 // ── SpringBurstDialog ──────────────────────────────────────────────────────────
 // A GM-only walkthrough of Book I's final "Getting Started" step, "Let spring
@@ -40,22 +29,20 @@ const _SPRING_RESULT = {
 };
 
 // The same three tiers, framed for the GM running the first session: you're
-// fishing for a plot hook, not just any seasonal gain (Book I, p.32).
+// fishing for a plot hook, not just any seasonal gain (Book I, p.32). The tier
+// label ("10+" etc.) comes from _SPRING_RESULT so it's only written once.
 const _OMEN_TIERS = [
 	{
-		key:   "success",
-		label: "10+",
-		text:  "Pick a gain that hands you a <strong>hook</strong>: <strong>Interesting news</strong>, <strong>Valuable insight</strong>, or a <strong>Trade opportunity</strong>. (Tor's blessing, an unexpected bounty, and the like don't give you one.)",
+		key:  "success",
+		text: "Pick a gain that hands you a <strong>hook</strong>: <strong>Interesting news</strong>, <strong>Valuable insight</strong>, or a <strong>Trade opportunity</strong>. (Tor's blessing, an unexpected bounty, and the like don't give you one.)",
 	},
 	{
-		key:   "partial",
-		label: "7&ndash;9",
-		text:  "They pick whatever gain they like &mdash; you'll pair it with a <strong>threat</strong> to the steading to build your starting situation.",
+		key:  "partial",
+		text: "They pick whatever gain they like &mdash; you'll pair it with a <strong>threat</strong> to the steading to build your starting situation.",
 	},
 	{
-		key:   "failure",
-		label: "6-",
-		text:  "Chuckle grimly and <strong>start thinking about threats</strong>.",
+		key:  "failure",
+		text: "Chuckle grimly and <strong>start thinking about threats</strong>.",
 	},
 ];
 
@@ -199,7 +186,7 @@ export class SpringBurstDialog extends Application {
 			roll:      step.showRoll ? this._roll : null,
 			showTiers: !!step.showTiers,
 			tiers:     step.showTiers
-				? _OMEN_TIERS.map(t => ({ ...t, isActive: this._roll?.tier === t.key }))
+				? _OMEN_TIERS.map(t => ({ ...t, label: _SPRING_RESULT[t.key].label, isActive: this._roll?.tier === t.key }))
 				: null,
 			qa:        this._qaContext(step.qa),
 		};
@@ -219,7 +206,7 @@ export class SpringBurstDialog extends Application {
 		const all = this._answers();
 		if (qa.kind === "perPc") {
 			const stored = all[qa.key] ?? {};
-			const rows = _playerCharacters().map(pc => ({
+			const rows = getPlayerCharacters().map(pc => ({
 				id:     pc.id,
 				prompt: qa.prompt(escHtml(pc.name)),
 				answer: stored[pc.id] ?? "",

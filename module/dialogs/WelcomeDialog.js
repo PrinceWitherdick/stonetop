@@ -11,9 +11,10 @@ import { keepDialogOnTop } from "../utils/keep-on-top.js";
 // introduce the PCs → let spring burst forth), and turns the two interactive
 // steps into one-click actions:
 //   • Create characters — a roster of the world's players, each with a button
-//     that mints a fresh character, hands that player ownership, pops the sheet
-//     open on their screen, and kicks the player straight into the playbook
-//     picker / onboarding. See _maybeAutoOpenCharacter in hooks/Ready.js.
+//     that mints a fresh character, hands that player ownership, and greets the
+//     player with the creation intro on their screen — which walks them through
+//     the playbook picker / onboarding and then opens their finished sheet. See
+//     _maybeOpenCharacterCreation in hooks/Ready.js.
 //   • Introduce the PCs — launches the existing guided Introductions dialog.
 
 // Premise blurb at the top of the guide, pulled from the seeded Setting Overview
@@ -35,6 +36,25 @@ function premiseSource() {
 	return firstParagraph ?? PREMISE_FALLBACK;
 }
 
+// Turn a character's onboardingProgress flag into a short roster note —
+// { text, status } where status keys the styling. With no flag, a character with
+// no playbook yet hasn't been touched ("not started yet"); one that has a playbook
+// is finished.
+function progressLabel(p, hasPlaybook) {
+	// A committed playbook means creation is done (or was explicitly saved), so it
+	// always reads "Finished" — even if a mid-creation "Save & close" or an edit pass
+	// left a stale onboardingProgress flag behind that hasn't been cleared yet. The
+	// live "picker"/"on page N" states only apply before a playbook is committed,
+	// which is exactly when there's no playbook.
+	if (hasPlaybook) return { text: "Finished", status: "finished" };
+	if (!p) return { text: "not started yet", status: "not-started" };
+	if (p.state === "picker") return { text: "on playbook picker", status: "picker" };
+	if (p.state === "exited") return { text: "exited onboarding", status: "exited" };
+	// "onboarding" — or a legacy flag with just step/total and no state.
+	if (p.total > 0) return { text: `on page ${p.step} of ${p.total}`, status: "onboarding" };
+	return null;
+}
+
 export class WelcomeDialog extends Application {
 	constructor(options = {}) {
 		super(options);
@@ -54,6 +74,9 @@ export class WelcomeDialog extends Application {
 			height:    680,
 			resizable: true,
 			classes:   ["stonetop", "stonetop-welcome-dialog"],
+			// Preserve the reader's place when the roster re-renders (e.g. after
+			// minting a character), instead of snapping back to the top.
+			scrollY:   [".stonetop-welcome-scroll"],
 		});
 	}
 
@@ -75,7 +98,16 @@ export class WelcomeDialog extends Application {
 				color:  String(u.color ?? ""),
 				characters: game.actors
 					.filter(a => a.type === "character" && (a.ownership?.[u.id] ?? 0) >= owner)
-					.map(a => ({ id: a.id, name: a.name, img: a.img })),
+					.map(a => ({
+						id: a.id, name: a.name, img: a.img,
+						// Live creation progress, stamped by the player's creation flow (see
+						// _setOnboardingState in StonetopCharacterSheet); cleared once they
+						// finish, so a completed character shows no note.
+						progress: progressLabel(
+							a.getFlag?.("stonetop_pwd", "onboardingProgress"),
+							!!a.system?.playbook?.slug,
+						),
+					})),
 			}));
 
 		return {
@@ -181,9 +213,9 @@ export class WelcomeDialog extends Application {
 				name:      `${user.name}'s Character`,
 				type:      "character",
 				ownership: { [userId]: owner },
-				// The owner's client opens the sheet, starts onboarding, and clears this
-				// on the next createActor, or on their next login — see
-				// _maybeAutoOpenCharacter in hooks/Ready.js.
+				// The owner's client greets the player with the creation intro, then
+				// clears this — on the next createActor, or on their next login. See
+				// _maybeOpenCharacterCreation in hooks/Ready.js.
 				flags:     { stonetop_pwd: { autoOpenFor: userId } },
 			});
 		} catch (err) {
@@ -205,7 +237,7 @@ export class WelcomeDialog extends Application {
 		}
 
 		if (user.active) {
-			ui.notifications.info(`Created “${actor.name}” and opened it on ${user.name}'s screen.`);
+			ui.notifications.info(`Created “${actor.name}” and started character creation on ${user.name}'s screen.`);
 		} else {
 			ui.notifications.info(`Created “${actor.name}” for ${user.name}. It'll be waiting when they log in.`);
 		}
@@ -217,7 +249,10 @@ export class WelcomeDialog extends Application {
 	// and characters being created/assigned should refresh the list.
 	_registerHooks() {
 		if (this._hooks) return;
-		const refresh = () => { if (this.rendered) this.render(false); };
+		// Debounced: a player clicking through onboarding writes the progress flag on
+		// every page change (each broadcast to the GM), and several players creating
+		// at once would otherwise trigger a burst of full roster re-renders.
+		const refresh = foundry.utils.debounce(() => { if (this.rendered) this.render(false); }, 150);
 		// The roster only reflects characters and their owners, so ignore actor
 		// churn (monsters, HP ticks, token moves) that can't change what we show.
 		const refreshIfCharacter = actor => { if (actor?.type === "character") refresh(); };
@@ -227,7 +262,11 @@ export class WelcomeDialog extends Application {
 			["deleteActor",   Hooks.on("deleteActor",   refreshIfCharacter)],
 			["updateActor",   Hooks.on("updateActor", (actor, changes) => {
 				if (actor?.type !== "character") return;
-				if ("name" in changes || "img" in changes || "ownership" in changes) refresh();
+				if ("name" in changes || "img" in changes || "ownership" in changes) { refresh(); return; }
+				// Onboarding progress writes (and the unset on completion, which arrives
+				// as a "-=onboardingProgress" key) should update the page count live.
+				const stFlags = changes.flags?.stonetop_pwd;
+				if (stFlags && Object.keys(stFlags).some(k => k.replace(/^-=/, "") === "onboardingProgress")) refresh();
 			})],
 		];
 	}

@@ -2,7 +2,7 @@
 // closing quotes/brackets (e.g. "…Or what?)"). Kept identical to the gazetteer
 // generator's baked-in test (scripts/local/shared/gazetteer.mjs) so runtime
 // marking and pre-baked content agree.
-const QUESTION_END = /\?["'’)\]]*\s*$/;
+export const QUESTION_END = /\?["'’)\]]*\s*$/;
 
 /**
  * Marks <li> elements whose text poses a question with the "question-bullet"
