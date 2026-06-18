@@ -92,11 +92,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Which of you has encountered the Ustrina before?",
-                "answer": ""
-              },
-              {
-                "prompt": "In **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin’s Delve}**, or elsewhere in the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.RxUdCkI2lL6gE5IH]{Huffel Peaks}**?",
+                "prompt": "Which of you has encountered the Ustrina before? In **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin’s Delve}**, or elsewhere in the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.RxUdCkI2lL6gE5IH]{Huffel Peaks}**?",
                 "answer": ""
               },
               {

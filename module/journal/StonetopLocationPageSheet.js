@@ -2,6 +2,7 @@ import { qaPairs, hasText, enrichQaPairs } from "../actors/bestiary/codex.js";
 import { applyJournalCheckboxes } from "../utils/journal-checkboxes.js";
 import { bindSteadingImprovementDrag } from "./steading-improvement-cards.js";
 import { applyJournalRollTables } from "../utils/journal-roll-tables.js";
+import { markValueTooltips } from "../utils/value-tooltips.js";
 import { isInCompendium, blockCompendiumEdit } from "../utils/compendium-edit-guard.js";
 
 // Edit affordances on the location page; clicking any of these in a compendium gets
@@ -195,6 +196,9 @@ export function createStonetopLocationPageSheetClass(Base) {
 			applyJournalRollTables(this, html);
 			// Baked steading-improvement cards drag onto the Stonetop sheet (any viewer).
 			bindSteadingImprovementDrag(html);
+			// Hover tooltips on "Value N" trade-tier mentions (treasure tables, valuables).
+			// Same reason as above — the generic journal render pass never reaches this sheet.
+			markValueTooltips(root);
 			if (!root || !this.document.isOwner) return;
 
 			root.addEventListener("click", async ev => {

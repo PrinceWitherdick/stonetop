@@ -92,11 +92,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Who did you once meet who claimed to have reached the far side of the Huffel Peaks?",
-                "answer": ""
-              },
-              {
-                "prompt": "Do you believe their stories about an endless body of water?",
+                "prompt": "Who did you once meet who claimed to have reached the far side of the Huffel Peaks? Do you believe their stories about an endless body of water?",
                 "answer": ""
               },
               {
@@ -104,11 +100,7 @@
                 "answer": ""
               },
               {
-                "prompt": "How long has it been since one of the volcanoes erupted violently?",
-                "answer": ""
-              },
-              {
-                "prompt": "How did it affect **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}**/**@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin’s Delve}**/the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk}**?",
+                "prompt": "How long has it been since one of the volcanoes erupted violently? How did it affect **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}**/**@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin’s Delve}**/the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk}**?",
                 "answer": ""
               },
               {

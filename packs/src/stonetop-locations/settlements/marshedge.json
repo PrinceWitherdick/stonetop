@@ -108,11 +108,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Which of the Old Families (Ferrier, Hawtrey, Tricklebank, Eldershaw) have you dealt with most?",
-                "answer": ""
-              },
-              {
-                "prompt": "How so?",
+                "prompt": "Which of the Old Families (Ferrier, Hawtrey, Tricklebank, Eldershaw) have you dealt with most? How so?",
                 "answer": ""
               },
               {
@@ -120,11 +116,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Do they worship ____ here?",
-                "answer": ""
-              },
-              {
-                "prompt": "How?",
+                "prompt": "Do they worship ____ here? How?",
                 "answer": ""
               },
               {

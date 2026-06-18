@@ -140,7 +140,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "In general: Who among you has lost a sibling or a child, stolen from the crib?",
+                "prompt": "**In general:** Who among you has lost a sibling or a child, stolen from the crib?",
                 "answer": ""
               },
               {
@@ -148,27 +148,15 @@
                 "answer": ""
               },
               {
-                "prompt": "Who in town once made a deal with a Fae?",
+                "prompt": "Who in town once made a deal with a Fae? What did they lose? What did they get in return?",
                 "answer": ""
               },
               {
-                "prompt": "What did they lose?",
+                "prompt": "What Fae being did you once meet in the Wood? How did you get away unscathed?",
                 "answer": ""
               },
               {
-                "prompt": "What did they get in return?",
-                "answer": ""
-              },
-              {
-                "prompt": "What Fae being did you once meet in the Wood?",
-                "answer": ""
-              },
-              {
-                "prompt": "How did you get away unscathed?",
-                "answer": ""
-              },
-              {
-                "prompt": "About any given Fae they meet: What about their presence fills you with awe/longing/sadness/joy/__?",
+                "prompt": "**About any given Fae they meet:** What about their presence fills you with awe/longing/sadness/joy/__?",
                 "answer": ""
               },
               {

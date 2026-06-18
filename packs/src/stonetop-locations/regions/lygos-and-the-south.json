@@ -104,11 +104,7 @@
                 "answer": ""
               },
               {
-                "prompt": "What clothing/markings/traits are distinctive to Lygosi?",
-                "answer": ""
-              },
-              {
-                "prompt": "To southerners in general?",
+                "prompt": "What clothing/markings/traits are distinctive to Lygosi? To southerners in general?",
                 "answer": ""
               },
               {
@@ -120,11 +116,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Do they worship __?",
-                "answer": ""
-              },
-              {
-                "prompt": "How does that worship differ from up here in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}**?",
+                "prompt": "Do they worship __? How does that worship differ from up here in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}**?",
                 "answer": ""
               },
               {
@@ -132,11 +124,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Personal questions If a PC hails from the south, ask some or all of the following. Are you from Lygos proper?",
-                "answer": ""
-              },
-              {
-                "prompt": "Or some where else down south?",
+                "prompt": "**Personal questions If a PC hails from the south, ask some or all of the following.** Are you from Lygos proper? Or some where else down south?",
                 "answer": ""
               },
               {
@@ -164,11 +152,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Are there other southerners in Stonetop?",
-                "answer": ""
-              },
-              {
-                "prompt": "Who?",
+                "prompt": "Are there other southerners in Stonetop? Who?",
                 "answer": ""
               }
             ]

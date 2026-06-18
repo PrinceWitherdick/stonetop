@@ -132,11 +132,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "**@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{The Pale Hunter}** is associated with “the” moon, but are there other moons?",
-                "answer": ""
-              },
-              {
-                "prompt": "What are they associated with?",
+                "prompt": "**@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{The Pale Hunter}** is associated with “the” moon, but are there other moons? What are they associated with?",
                 "answer": ""
               },
               {
@@ -144,11 +140,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Do you believe in fate?",
-                "answer": ""
-              },
-              {
-                "prompt": "Or do we chart our own destinies?",
+                "prompt": "Do you believe in fate? Or do we chart our own destinies?",
                 "answer": ""
               },
               {

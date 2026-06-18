@@ -132,27 +132,15 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Have you seen the Last Door and the Lady of Crows?",
+                "prompt": "Have you seen the Last Door and the Lady of Crows? What do you recall?",
                 "answer": ""
               },
               {
-                "prompt": "What do you recall?",
+                "prompt": "What do folks in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}** say awaits us, beyond the Last Door? What do they say in/among the __?",
                 "answer": ""
               },
               {
-                "prompt": "What do folks in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}** say awaits us, beyond the Last Door?",
-                "answer": ""
-              },
-              {
-                "prompt": "What do they say in/among the __?",
-                "answer": ""
-              },
-              {
-                "prompt": "What do you think awaits us?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why?",
+                "prompt": "What do you think awaits us? Why?",
                 "answer": ""
               },
               {

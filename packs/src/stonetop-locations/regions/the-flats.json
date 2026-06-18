@@ -92,11 +92,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Who among you has ventured deep into the Flats?",
-                "answer": ""
-              },
-              {
-                "prompt": "What did you see there that no one quite believes?",
+                "prompt": "Who among you has ventured deep into the Flats? What did you see there that no one quite believes?",
                 "answer": ""
               },
               {
@@ -108,15 +104,7 @@
                 "answer": ""
               },
               {
-                "prompt": "What flower, root, seed, or stem that can be found on the Flats is particularly useful?",
-                "answer": ""
-              },
-              {
-                "prompt": "How so?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why is it so hard to harvest?",
+                "prompt": "What flower, root, seed, or stem that can be found on the Flats is particularly useful? How so? Why is it so hard to harvest?",
                 "answer": ""
               }
             ]

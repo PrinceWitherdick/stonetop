@@ -92,19 +92,11 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "When was **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}**’s last expedition to the Golden Oak?",
+                "prompt": "When was **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}**’s last expedition to the Golden Oak? Who were they trying to save?",
                 "answer": ""
               },
               {
-                "prompt": "Who were they trying to save?",
-                "answer": ""
-              },
-              {
-                "prompt": "What other tales have you heard about the Oak?",
-                "answer": ""
-              },
-              {
-                "prompt": "How much of them do you believe?",
+                "prompt": "What other tales have you heard about the Oak? How much of them do you believe?",
                 "answer": ""
               },
               {

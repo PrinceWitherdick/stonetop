@@ -100,11 +100,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Which of you has seen the Labyrinth in your dreams?",
-                "answer": ""
-              },
-              {
-                "prompt": "What do you recall?",
+                "prompt": "Which of you has seen the Labyrinth in your dreams? What do you recall?",
                 "answer": ""
               },
               {

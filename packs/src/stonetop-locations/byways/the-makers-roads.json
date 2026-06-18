@@ -108,11 +108,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Which of you have travelled the Highway or the West Road before?",
-                "answer": ""
-              },
-              {
-                "prompt": "When and to where?",
+                "prompt": "Which of you have travelled the Highway or the West Road before? When and to where?",
                 "answer": ""
               },
               {

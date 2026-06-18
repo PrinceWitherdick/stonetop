@@ -92,35 +92,15 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "In their art, how did these Makers depict themselves?",
+                "prompt": "In their art, how did these Makers depict themselves? How were they different than humans, beyond just their size?",
                 "answer": ""
               },
               {
-                "prompt": "How were they different than humans, beyond just their size?",
+                "prompt": "Can Maker-ruins be found in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.DPUvs6Ss8UHXEsCJ]{Lygos}** and the South? If so, how are they different than those often found around here?",
                 "answer": ""
               },
               {
-                "prompt": "Can Maker-ruins be found in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.DPUvs6Ss8UHXEsCJ]{Lygos}** and the South?",
-                "answer": ""
-              },
-              {
-                "prompt": "If so, how are they different than those often found around here?",
-                "answer": ""
-              },
-              {
-                "prompt": "Who is the authoritative scholar on the(se) Makers?",
-                "answer": ""
-              },
-              {
-                "prompt": "When were they active?",
-                "answer": ""
-              },
-              {
-                "prompt": "On what did they base their research?",
-                "answer": ""
-              },
-              {
-                "prompt": "What did they clearly get wrong?",
+                "prompt": "Who is the authoritative scholar on the(se) Makers? When were they active? On what did they base their research? What did they clearly get wrong?",
                 "answer": ""
               },
               {

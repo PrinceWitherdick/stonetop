@@ -239,6 +239,10 @@
       "hoverDescriptionsSteadingStats": {
         "name": "Hover Descriptions: Steading Stats",
         "hint": "On Stonetop's sheet, explain Surplus, Fortunes, Prosperity, Defenses, Population, and Size when hovering those labels."
+      },
+      "hoverDescriptionsValues": {
+        "name": "Hover Descriptions: Trade Values",
+        "hint": "In journals and on sheets, explain what a “Value N” trade tier is worth (loot, treasure, gear) when hovering it."
       }
     },
     "newCharacter": {

@@ -1,6 +1,7 @@
 import { isDefaultImg } from "../utils/strings.js";
 import { applyJournalCheckboxes } from "../utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "../utils/journal-roll-tables.js";
+import { markValueTooltips } from "../utils/value-tooltips.js";
 import { buildCodexContext, onCodexClick, onCodexChange, codexUpdateRichField, hasText, CODEX_RICH_FIELDS, CODEX_GROUP_FIELDS } from "../actors/bestiary/codex.js";
 import { isInCompendium, blockCompendiumEdit } from "../utils/compendium-edit-guard.js";
 
@@ -189,6 +190,9 @@ export function createStonetopBestiaryPageSheetClass(Base) {
 			// Roll the random tables from their "Roll" header (this custom sheet fires its
 			// own render event, so the generic journal hook never reaches it — run it here).
 			applyJournalRollTables(this, html);
+			// Hover tooltips on "Value N" trade-tier mentions (loot, treasure). Same reason
+			// as above — the generic journal render pass never reaches this custom sheet.
+			markValueTooltips(root);
 
 			if (!this.document.isOwner) return;
 

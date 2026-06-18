@@ -82,11 +82,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Who among you have been here before?",
-                "answer": ""
-              },
-              {
-                "prompt": "What brought you?",
+                "prompt": "Who among you have been here before? What brought you?",
                 "answer": ""
               },
               {
@@ -94,11 +90,7 @@
                 "answer": ""
               },
               {
-                "prompt": "What do you think is in there?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why?",
+                "prompt": "What do you think is in there? Why?",
                 "answer": ""
               }
             ]

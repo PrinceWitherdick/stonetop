@@ -2,6 +2,7 @@ import { markQuestionBullets } from "./question-bullets.js";
 import { markCheckBullets } from "./check-bullets.js";
 import { markFaqItems } from "./faq-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./glyphs.js";
+import { markValueTooltips } from "./value-tooltips.js";
 
 // Give this system's journal prose the same spiral bullets (and question-spiral
 // on list items that pose a question) as the actor sheets, applied live at render
@@ -63,6 +64,7 @@ function isStonetopProseJournal(entry, page) {
  * swaps inline ◇/◆/▶/○/□ ASCII for this system's styled SVG glyphs (e.g. the gear
  * terms on "Gear: Terms & Value"). The FAQ pass tags the Character Creation FAQ's
  * `<p><strong>Question?</strong>…` Q&A blocks so they share a spiral bullet too.
+ * The Value pass gives every "Value N" trade-tier mention a hover tooltip.
  * Idempotent.
  *
  * Used by the journal render pass below, and by the prose dialogs (Setting
@@ -76,6 +78,7 @@ export function markProseSpiralBullets(el) {
 	markCheckBullets(el);
 	markFaqItems(el);
 	wrapStonetopGlyphsInEl(el);
+	markValueTooltips(el);
 }
 
 /**

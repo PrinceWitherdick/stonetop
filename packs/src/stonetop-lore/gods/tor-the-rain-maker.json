@@ -76,11 +76,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "According to the tales: How did Tor come to be (a god)?",
-                "answer": ""
-              },
-              {
-                "prompt": "What’s his origin story?",
+                "prompt": "**According to the tales:** How did Tor come to be (a god)? What’s his origin story?",
                 "answer": ""
               },
               {

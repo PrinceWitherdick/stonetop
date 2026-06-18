@@ -108,11 +108,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "What’s distinctive about it?",
-                "answer": ""
-              },
-              {
-                "prompt": "How did you spot or recognize it?",
+                "prompt": "What’s distinctive about it? How did you spot or recognize it?",
                 "answer": ""
               },
               {

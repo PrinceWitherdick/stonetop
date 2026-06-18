@@ -100,23 +100,11 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "When was the last round of violence between the Delvers and the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk}**?",
+                "prompt": "When was the last round of violence between the Delvers and the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.NS2bhYMi23m0eWao]{Hillfolk}**? What did it cost you, personally?",
                 "answer": ""
               },
               {
-                "prompt": "What did it cost you, personally?",
-                "answer": ""
-              },
-              {
-                "prompt": "Which of you have been here before?",
-                "answer": ""
-              },
-              {
-                "prompt": "When?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why?",
+                "prompt": "Which of you have been here before? When? Why?",
                 "answer": ""
               },
               {
@@ -128,11 +116,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Who left Stonetop to come up here?",
-                "answer": ""
-              },
-              {
-                "prompt": "What’s the last you’ve heard of them?",
+                "prompt": "Who left Stonetop to come up here? What’s the last you’ve heard of them?",
                 "answer": ""
               },
               {

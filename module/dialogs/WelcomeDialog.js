@@ -4,6 +4,7 @@ import { findVisibleJournal, settingOverviewPages, SETTING_OVERVIEW_JOURNAL } fr
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { applyLocationTooltips } from "../locations/location-tooltips.js";
 import { keepDialogOnTop } from "../utils/keep-on-top.js";
+import { FoundryBasicsDialog } from "./FoundryBasicsDialog.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -36,23 +37,33 @@ function premiseSource() {
 	return firstParagraph ?? PREMISE_FALLBACK;
 }
 
-// Turn a character's onboardingProgress flag into a short roster note —
-// { text, status } where status keys the styling. With no flag, a character with
-// no playbook yet hasn't been touched ("not started yet"); one that has a playbook
-// is finished.
-function progressLabel(p, hasPlaybook) {
+// Turn a character's onboardingProgress flag (+ its committed playbook, if any)
+// into a short roster note — { playbook, text, status } where status keys the
+// styling and playbook names the chosen playbook (committed wins; otherwise the
+// in-progress pick the onboarding flow stamps onto the flag — see _launchOnboarding,
+// since the GM can't read the player's local resume snapshot). With no flag, a
+// character with no playbook yet hasn't been touched ("not started yet"); one that
+// has a playbook is finished.
+function progressLabel(p, playbook) {
+	const hasPlaybook = !!playbook?.slug;
+	// Committed name wins; before commit, fall back to the playbook stamped on the
+	// progress flag (blank at the picker stage, where nothing is chosen yet).
+	const name = (hasPlaybook ? playbook.name : p?.playbook) || "";
 	// A committed playbook means creation is done (or was explicitly saved), so it
 	// always reads "Finished" — even if a mid-creation "Save & close" or an edit pass
 	// left a stale onboardingProgress flag behind that hasn't been cleared yet. The
 	// live "picker"/"on page N" states only apply before a playbook is committed,
-	// which is exactly when there's no playbook.
-	if (hasPlaybook) return { text: "Finished", status: "finished" };
-	if (!p) return { text: "not started yet", status: "not-started" };
-	if (p.state === "picker") return { text: "on playbook picker", status: "picker" };
-	if (p.state === "exited") return { text: "exited onboarding", status: "exited" };
-	// "onboarding" — or a legacy flag with just step/total and no state.
-	if (p.total > 0) return { text: `on page ${p.step} of ${p.total}`, status: "onboarding" };
-	return null;
+	// which is exactly when there's no playbook. `playbook` is attached once at the
+	// return, so each branch only carries its own status text.
+	const label =
+		hasPlaybook          ? { text: "Finished", status: "finished" } :
+		!p                   ? { text: "not started yet", status: "not-started" } :
+		p.state === "picker" ? { text: "on playbook picker", status: "picker" } :
+		p.state === "exited" ? { text: "exited onboarding", status: "exited" } :
+		// "onboarding" — or a legacy flag with just step/total and no state.
+		p.total > 0          ? { text: `on page ${p.step} of ${p.total}`, status: "onboarding" } :
+		null;
+	return label && { playbook: name, ...label };
 }
 
 export class WelcomeDialog extends Application {
@@ -105,7 +116,7 @@ export class WelcomeDialog extends Application {
 						// finish, so a completed character shows no note.
 						progress: progressLabel(
 							a.getFlag?.("stonetop_pwd", "onboardingProgress"),
-							!!a.system?.playbook?.slug,
+							a.system?.playbook,
 						),
 					})),
 			}));
@@ -127,6 +138,7 @@ export class WelcomeDialog extends Application {
 		applyLocationTooltips(html);
 
 		html.find('[data-action="setting-overview"]').on("click", () => this._openSettingOverview());
+		html.find('[data-action="foundry-basics"]').on("click", () => FoundryBasicsDialog.open());
 		html.find('[data-action="introductions"]').on("click", () => this._openIntroductions());
 		html.find('[data-action="spring-burst"]').on("click", () => this._openSpringBurst());
 		html.find('[data-action="configure-players"]').on("click", () => this._openPlayerConfig());

@@ -92,11 +92,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "According to the tales… How did Aratis come to be (a god)?",
-                "answer": ""
-              },
-              {
-                "prompt": "What’s her origin story?",
+                "prompt": "**According to the tales…** How did Aratis come to be (a god)? What’s her origin story?",
                 "answer": ""
               },
               {
@@ -112,19 +108,11 @@
                 "answer": ""
               },
               {
-                "prompt": "What constellation is tied to Aratis?",
+                "prompt": "What constellation is tied to Aratis? How so?",
                 "answer": ""
               },
               {
-                "prompt": "How so?",
-                "answer": ""
-              },
-              {
-                "prompt": "Who was the first Judge?",
-                "answer": ""
-              },
-              {
-                "prompt": "What great deed is attributed to them?",
+                "prompt": "Who was the first Judge? What great deed is attributed to them?",
                 "answer": ""
               },
               {

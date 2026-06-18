@@ -3368,8 +3368,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					// suppresses this (see CharacterOnboardingDialog._goBack).
 					onClose: openSheetOnce,
 					// Page change: update the GM's "page X of Y" (small flag) and snapshot.
+					// Stamp the chosen playbook onto the flag too — it lives only in the
+					// player's local resume snapshot otherwise, which the GM can't read, so
+					// the Welcome roster has no other way to name the in-progress playbook.
 					onProgress: info => {
-						this._setOnboardingState("onboarding", { step: info.step + 1, total: info.total });
+						this._setOnboardingState("onboarding", { step: info.step + 1, total: info.total, playbook: playbookDoc.name });
 						saveResume(info);
 					},
 					// Every edit (debounced): just the local snapshot — no network — so a
@@ -3377,7 +3380,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					onLiveSave: saveResume,
 					// Closing mid-creation keeps the snapshot so a reload can resume here.
 					onExit: info => {
-						this._setOnboardingState("exited");
+						this._setOnboardingState("exited", { playbook: playbookDoc.name });
 						saveResume(info);
 					},
 				},

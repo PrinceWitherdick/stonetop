@@ -128,35 +128,19 @@
                 "answer": ""
               },
               {
-                "prompt": "When did the last round of fighting start among the Manmarchers?",
+                "prompt": "When did the last round of fighting start among the Manmarchers? Has it ended yet?",
                 "answer": ""
               },
               {
-                "prompt": "Has it ended yet?",
+                "prompt": "Who all did you lose to the violence? Which clan/family/chief is to blame?",
                 "answer": ""
               },
               {
-                "prompt": "Who all did you lose to the violence?",
+                "prompt": "Which hamlet or hillfort do you hail from? What was it notable for?",
                 "answer": ""
               },
               {
-                "prompt": "Which clan/family/chief is to blame?",
-                "answer": ""
-              },
-              {
-                "prompt": "Which hamlet or hillfort do you hail from?",
-                "answer": ""
-              },
-              {
-                "prompt": "What was it notable for?",
-                "answer": ""
-              },
-              {
-                "prompt": "Do they worship ___ there?",
-                "answer": ""
-              },
-              {
-                "prompt": "How does it differ from what’s done in Stonetop?",
+                "prompt": "Do they worship ___ there? How does it differ from what’s done in Stonetop?",
                 "answer": ""
               },
               {
@@ -164,23 +148,11 @@
                 "answer": ""
               },
               {
-                "prompt": "How do Manmarchers treat Green Lord ruins and artifacts?",
+                "prompt": "How do Manmarchers treat Green Lord ruins and artifacts? Do they shun them? Treasure them?",
                 "answer": ""
               },
               {
-                "prompt": "Do they shun them?",
-                "answer": ""
-              },
-              {
-                "prompt": "Treasure them?",
-                "answer": ""
-              },
-              {
-                "prompt": "What is this clan best known for?",
-                "answer": ""
-              },
-              {
-                "prompt": "How can you tell them from other clans?",
+                "prompt": "What is this clan best known for? How can you tell them from other clans?",
                 "answer": ""
               },
               {

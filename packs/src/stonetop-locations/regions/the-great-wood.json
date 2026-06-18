@@ -92,11 +92,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Who in your family used to ply the Wood?",
-                "answer": ""
-              },
-              {
-                "prompt": "How did they lose their nerve?",
+                "prompt": "Who in your family used to ply the Wood? How did they lose their nerve?",
                 "answer": ""
               },
               {
@@ -104,11 +100,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Who did you lose to the Wood?",
-                "answer": ""
-              },
-              {
-                "prompt": "How?",
+                "prompt": "Who did you lose to the Wood? How?",
                 "answer": ""
               },
               {

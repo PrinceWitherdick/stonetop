@@ -100,35 +100,19 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Who did you know who tried to settle in the South Manmarch?",
+                "prompt": "Who did you know who tried to settle in the South Manmarch? What fate befell them?",
                 "answer": ""
               },
               {
-                "prompt": "What fate befell them?",
+                "prompt": "What bandit crew is currently the most feared? Who leads them, and what makes them so dangerous?",
                 "answer": ""
               },
               {
-                "prompt": "What bandit crew is currently the most feared?",
+                "prompt": "At what landmark do merchant caravans typically encamp? Why do they stop there?",
                 "answer": ""
               },
               {
-                "prompt": "Who leads them, and what makes them so dangerous?",
-                "answer": ""
-              },
-              {
-                "prompt": "At what landmark do merchant caravans typically encamp?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why do they stop there?",
-                "answer": ""
-              },
-              {
-                "prompt": "What landmark does everyone who travels these lands know to avoid?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why?",
+                "prompt": "What landmark does everyone who travels these lands know to avoid? Why?",
                 "answer": ""
               }
             ]

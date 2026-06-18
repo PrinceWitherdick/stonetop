@@ -108,35 +108,19 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Which one of you has braved these ruins before?",
+                "prompt": "Which one of you has braved these ruins before? What kept you from going very far?",
                 "answer": ""
               },
               {
-                "prompt": "What kept you from going very far?",
+                "prompt": "What wondrous trinket back in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}** supposedly came from here? Who has it now, and what do they use it for?",
                 "answer": ""
               },
               {
-                "prompt": "What wondrous trinket back in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}** supposedly came from here?",
+                "prompt": "What marvel is said to lie below the Ruined Tower? From whom did you hear such tales?",
                 "answer": ""
               },
               {
-                "prompt": "Who has it now, and what do they use it for?",
-                "answer": ""
-              },
-              {
-                "prompt": "What marvel is said to lie below the Ruined Tower?",
-                "answer": ""
-              },
-              {
-                "prompt": "From whom did you hear such tales?",
-                "answer": ""
-              },
-              {
-                "prompt": "When the nightmares come and you dream of the tower’s fall, are you one of the doomed defenders?",
-                "answer": ""
-              },
-              {
-                "prompt": "Or part of the slavering horde?",
+                "prompt": "When the nightmares come and you dream of the tower’s fall, are you one of the doomed defenders? Or part of the slavering horde?",
                 "answer": ""
               }
             ]

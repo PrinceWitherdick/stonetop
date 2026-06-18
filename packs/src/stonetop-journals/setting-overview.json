@@ -40,34 +40,6 @@
       "flags": {}
     },
     {
-      "_id": "stonetopSOp00002",
-      "_key": "!journal.pages!stonetopSO000001.stonetopSOp00002",
-      "name": "The Characters",
-      "type": "text",
-      "title": {
-        "show": true,
-        "level": 1
-      },
-      "image": {
-        "caption": ""
-      },
-      "text": {
-        "format": 1,
-        "content": "<p>You’ll play a local hero, someone with deep ties to <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}</strong>. You might be…</p><h3><img src='systems/stonetop_pwd/assets/icons/playbooks/the_blessed_icon.webp' alt='' style='height:1.2em;width:1.2em;vertical-align:middle;border-radius:3px;margin-right:0.4em;'>The Blessed <em>medium complexity</em></h3><p>Nature priest. Speaks to spirits and beasts. Works subtle magics via sacred markings and materials.</p><h3><img src='systems/stonetop_pwd/assets/icons/playbooks/the_fox_icon.webp' alt='' style='height:1.2em;width:1.2em;vertical-align:middle;border-radius:3px;margin-right:0.4em;'>The Fox <em>low complexity</em></h3><p>Clever, quick, and skillful. Not above bending the rules or fighting dirty. Can be quite the charmer, too.</p><h3><img src='systems/stonetop_pwd/assets/icons/playbooks/the_heavy_icon.webp' alt='' style='height:1.2em;width:1.2em;vertical-align:middle;border-radius:3px;margin-right:0.4em;'>The Heavy <em>low/medium complexity</em></h3><p>Not just a violent individual—<em>our</em> violent individual. A champion, yes, but a bit of a liability, too.</p><h3><img src='systems/stonetop_pwd/assets/icons/playbooks/the_judge_icon.webp' alt='' style='height:1.2em;width:1.2em;vertical-align:middle;border-radius:3px;margin-right:0.4em;'>The Judge <em>low complexity</em></h3><p>Settler of disputes, chronicler, and divine bulwark against chaos. Insightful, tough, not necessarily persuasive.</p><h3><img src='systems/stonetop_pwd/assets/icons/playbooks/the_lightbearer_icon.webp' alt='' style='height:1.2em;width:1.2em;vertical-align:middle;border-radius:3px;margin-right:0.4em;'>The Lightbearer <em>high complexity</em></h3><p>Invokes divine power via flame and candle. Beacon of hope, charity, and mercy. Fiery foe of the dark.</p><h3><img src='systems/stonetop_pwd/assets/icons/playbooks/the_marshal_icon.webp' alt='' style='height:1.2em;width:1.2em;vertical-align:middle;border-radius:3px;margin-right:0.4em;'>The Marshal <em>high complexity</em></h3><p>Leads the town’s militia, plus a crew of followers. Makes choices about who lives and who dies.</p><h3><img src='systems/stonetop_pwd/assets/icons/playbooks/the_ranger_icon.webp' alt='' style='height:1.2em;width:1.2em;vertical-align:middle;border-radius:3px;margin-right:0.4em;'>The Ranger <em>low complexity</em></h3><p>At home in the wild, the one you want with you when you travel. A resourceful guide and deadly hunter.</p><h3><img src='systems/stonetop_pwd/assets/icons/playbooks/the_seeker_icon.webp' alt='' style='height:1.2em;width:1.2em;vertical-align:middle;border-radius:3px;margin-right:0.4em;'>The Seeker <em>high complexity</em></h3><p>Collector of lost lore and power, with potent artifacts that might well lead to their ruin.</p><h3><img src='systems/stonetop_pwd/assets/icons/playbooks/the_would_be_hero_icon.webp' alt='' style='height:1.2em;width:1.2em;vertical-align:middle;border-radius:3px;margin-right:0.4em;'>The Would-Be Hero <em>medium complexity</em></h3><p>They’re in over their head and full of fear and anger, but they just might outshine us all.</p>"
-      },
-      "video": {
-        "controls": true,
-        "volume": 0.5
-      },
-      "src": null,
-      "system": {},
-      "sort": 200000,
-      "ownership": {
-        "default": -1
-      },
-      "flags": {}
-    },
-    {
       "_id": "stonetopSOp00011",
       "_key": "!journal.pages!stonetopSO000001.stonetopSOp00011",
       "name": "Character Creation FAQ",

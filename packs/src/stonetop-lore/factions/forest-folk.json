@@ -92,35 +92,19 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Who (among you/among your kin/that you know) bears the strange eyes of the Forest Folk?",
+                "prompt": "Who (among you/among your kin/that you know) bears the strange eyes of the Forest Folk? What do they look like?",
                 "answer": ""
               },
               {
-                "prompt": "What do they look like?",
+                "prompt": "How are folk with “the forest eyes” treated in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}**? What about their parents?",
                 "answer": ""
               },
               {
-                "prompt": "How are folk with “the forest eyes” treated in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}**?",
+                "prompt": "Did you ever meet one of the Forest Folk? Aside from their eyes, which of their inhuman features did you find most disturbing?",
                 "answer": ""
               },
               {
-                "prompt": "What about their parents?",
-                "answer": ""
-              },
-              {
-                "prompt": "Did you ever meet one of the Forest Folk?",
-                "answer": ""
-              },
-              {
-                "prompt": "Aside from their eyes, which of their inhuman features did you find most disturbing?",
-                "answer": ""
-              },
-              {
-                "prompt": "It’s a mystery for sure, but what do you think happened to the Forest Folk?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why?",
+                "prompt": "It’s a mystery for sure, but what do you think happened to the Forest Folk? Why?",
                 "answer": ""
               }
             ]

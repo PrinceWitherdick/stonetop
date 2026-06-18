@@ -96,11 +96,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Are **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}**’s gods part of a coherent pantheon?",
-                "answer": ""
-              },
-              {
-                "prompt": "Or a mix of gods from different cultures?",
+                "prompt": "Are **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}**’s gods part of a coherent pantheon? Or a mix of gods from different cultures?",
                 "answer": ""
               },
               {
@@ -108,11 +104,7 @@
                 "answer": ""
               },
               {
-                "prompt": "What other gods are known in Stonetop?",
-                "answer": ""
-              },
-              {
-                "prompt": "Do any have shrines in the pavilion?",
+                "prompt": "What other gods are known in Stonetop? Do any have shrines in the pavilion?",
                 "answer": ""
               },
               {

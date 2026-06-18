@@ -96,19 +96,11 @@
                 "answer": ""
               },
               {
-                "prompt": "What once drove you to spend a night encamped along the Dread River?",
+                "prompt": "What once drove you to spend a night encamped along the Dread River? What evil did you encounter?",
                 "answer": ""
               },
               {
-                "prompt": "What evil did you encounter?",
-                "answer": ""
-              },
-              {
-                "prompt": "Who do you know who once saw the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Hv4lWQtBLYYJ67Cg]{Suileach}**, the Wurm with Two-Hundred Eyes?",
-                "answer": ""
-              },
-              {
-                "prompt": "How did it change them?",
+                "prompt": "Who do you know who once saw the **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Hv4lWQtBLYYJ67Cg]{Suileach}**, the Wurm with Two-Hundred Eyes? How did it change them?",
                 "answer": ""
               },
               {
@@ -116,27 +108,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Does one cross the Dread River en route to **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.DPUvs6Ss8UHXEsCJ]{Lygos}**?",
-                "answer": ""
-              },
-              {
-                "prompt": "If so, how?",
-                "answer": ""
-              },
-              {
-                "prompt": "And what separates the southern lands from those east of the river?",
-                "answer": ""
-              },
-              {
-                "prompt": "Mountains?",
-                "answer": ""
-              },
-              {
-                "prompt": "A desert?",
-                "answer": ""
-              },
-              {
-                "prompt": "A sea?",
+                "prompt": "Does one cross the Dread River en route to **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.DPUvs6Ss8UHXEsCJ]{Lygos}**? If so, how? And what separates the southern lands from those east of the river? Mountains? A desert? A sea?",
                 "answer": ""
               }
             ]

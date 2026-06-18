@@ -12,6 +12,13 @@
       The first session is mostly about building the village and its heroes together. Work through these steps as a group; there are no wrong answers, only the world you make.
     </p>
 
+    <p class="stonetop-welcome-newbie">
+      Never run a game in Foundry before?
+      <button type="button" class="stonetop-welcome-textlink" data-action="foundry-basics">
+        <i class="fas fa-circle-question"></i> New to Foundry?
+      </button>
+    </p>
+
     <ol class="stonetop-welcome-steps">
 
       <li class="stonetop-welcome-step">
@@ -60,7 +67,7 @@
                 {{#if characters.length}}
                 <span class="stonetop-welcome-player-has">
                   has
-                  {{#each characters}}<span class="stonetop-welcome-player-entry"><a class="stonetop-welcome-player-char" data-actor-id="{{id}}" title="Open this character sheet">{{name}}</a>{{#if progress}}<span class="stonetop-welcome-player-progress stonetop-welcome-player-progress--{{progress.status}}" title="Character creation progress">{{progress.text}}</span>{{/if}}</span>{{/each}}
+                  {{#each characters}}<span class="stonetop-welcome-player-entry"><a class="stonetop-welcome-player-char" data-actor-id="{{id}}" title="Open this character sheet">{{name}}</a>{{#if progress.playbook}}<span class="stonetop-welcome-player-playbook" title="Selected playbook">{{progress.playbook}}</span>{{/if}}{{#if progress}}<span class="stonetop-welcome-player-progress stonetop-welcome-player-progress--{{progress.status}}" title="Character creation progress">{{progress.text}}</span>{{/if}}</span>{{/each}}
                 </span>
                 {{/if}}
               </div>

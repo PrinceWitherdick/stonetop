@@ -6,6 +6,7 @@ import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
 import { WelcomeDialog } from "../dialogs/WelcomeDialog.js";
+import { FoundryBasicsDialog } from "../dialogs/FoundryBasicsDialog.js";
 import { CharacterCreationDialog } from "../actors/character/dialogs/CharacterCreationDialog.js";
 import { readOnboardingResume, clearOnboardingResume } from "../actors/character/onboarding-resume.js";
 import { playbookSlug } from "../utils/playbook-actors.js";
@@ -49,6 +50,7 @@ export async function onReady() {
 	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
 	game.stonetop.openSpringBurst   = () => SpringBurstDialog.open();
 	game.stonetop.openWelcome       = () => WelcomeDialog.open();
+	game.stonetop.openFoundryBasics = () => FoundryBasicsDialog.open();
 	// Preview/test the player-facing creation intro for any character on demand
 	// (it normally only auto-pops on the owning player's client). Pass an actor, or
 	// it falls back to the current user's assigned character:
@@ -92,11 +94,12 @@ function _registerCharacterAutoOpen() {
 // Greet a player with character creation, or resume an interrupted one:
 //   • a freshly GM-minted character (the `autoOpenFor` flag names its owner) gets
 //     the creation intro, once; and
-//   • the player's own assigned character that still has no playbook resumes
-//     straight back into onboarding IF there's saved progress — so a reload mid-
-//     creation drops them back in. A blank, untouched assigned character is left
-//     alone (no saved progress): they start from the sheet's button when ready,
-//     rather than being re-prompted on every single reload.
+//   • the player's own assigned character that still has no playbook is re-prompted
+//     every load until they actually pick one: with saved progress it resumes
+//     straight back into onboarding at that page (a reload mid-creation drops them
+//     back in); with none it re-pops the creation intro. Either way a player who
+//     reloaded before choosing a playbook lands back in creation rather than on a
+//     blank sheet they'd have to start onboarding from themselves.
 // A character that already has a playbook is finished (or was explicitly saved):
 // only a brand-new mint pops its sheet; a reload leaves a finished character alone.
 function _maybeOpenCharacterCreation(actor) {
@@ -119,14 +122,15 @@ function _maybeOpenCharacterCreation(actor) {
 
 	// No playbook yet. When there's a saved snapshot (picked playbook + selections,
 	// autosaved client-side by _launchOnboarding), resume straight into onboarding at
-	// that page; otherwise greet a freshly minted character with the creation intro —
-	// its "Create Character" button walks them through the picker / onboarding and
-	// then opens their finished sheet (see CharacterCreationDialog /
-	// _onNewCharacter's `openSheetWhenDone`).
+	// that page; otherwise greet them with the creation intro — its "Create Character"
+	// button walks them through the picker / onboarding and then opens their finished
+	// sheet (see CharacterCreationDialog / _onNewCharacter's `openSheetWhenDone`). This
+	// fires for both a fresh mint and the player's own assigned-but-unstarted character,
+	// so reloading before picking a playbook re-prompts rather than stranding them.
 	const snap = readOnboardingResume(actor);
 	if (snap?.playbookUuid && snap?.selections) {
 		actor.sheet._onNewCharacter({ openSheetWhenDone: true, resume: true });
-	} else if (mintedForMe) {
+	} else {
 		new CharacterCreationDialog(actor).render(true);
 	}
 }

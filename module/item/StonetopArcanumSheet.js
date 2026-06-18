@@ -1,6 +1,7 @@
 import { majorArcanaImg } from "../arcana-icons.js";
 import { ITEM_FLAG_SCOPE } from "../actors/character/StonetopFlags.js";
 import { centerArcanumTracks } from "../utils/glyphs.js";
+import { markValueTooltips } from "../utils/value-tooltips.js";
 
 export function createStonetopArcanumSheetClass(BaseItemSheet) {
 	return class StonetopArcanumSheet extends BaseItemSheet {
@@ -46,6 +47,14 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			data.slug = flags.slug ?? "";
 			data.arcanaImg = majorArcanaImg(flags.slug);
 			return data;
+		}
+
+		// This is the registered sheet for every "move"-type item — arcana, plus the
+		// plain inventory items (violet lotus, etc.). Give their "Value N" mentions the
+		// same hover tooltip the journals and actor sheets show. Self-gated by setting.
+		activateListeners(html) {
+			super.activateListeners(html);
+			markValueTooltips(html?.[0] ?? html);
 		}
 	};
 }

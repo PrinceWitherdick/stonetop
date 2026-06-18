@@ -52,6 +52,57 @@
 	font-display: swap;
 }
 
+/* Keep parentheses and square brackets upright in italic text everywhere
+ * (journals + sheets). Italic ( ) [ ] glyphs read poorly, so each of these
+ * declares font-style: italic but points at the UPRIGHT font file, scoped to
+ * just those bracket codepoints — U+0028 "(", U+0029 ")", U+005B "[", U+005D "]"
+ * (U+005C "\" is intentionally skipped). When the browser needs an italic
+ * bracket it pulls the upright glyph from here; every other character still uses
+ * the real italic face. These must come after the italic @font-face rules above
+ * so they win the unicode-range overlap (last matching rule wins per char). */
+@font-face {
+	font-family: "Libre Caslon Text";
+	src: url("../assets/fonts/libre-caslon-text/LibreCaslonText-Regular.ttf") format("truetype");
+	font-weight: normal;
+	font-style: italic;
+	font-display: swap;
+	unicode-range: U+0028-0029, U+005B, U+005D;
+}
+@font-face {
+	font-family: "Libre Caslon Text";
+	src: url("../assets/fonts/libre-caslon-text/LibreCaslonText-Bold.ttf") format("truetype");
+	font-weight: bold;
+	font-style: italic;
+	font-display: swap;
+	unicode-range: U+0028-0029, U+005B, U+005D;
+}
+@font-face {
+	font-family: "IM Fell English";
+	src: url("../assets/fonts/im-fell-english/IMFeENrm28P.ttf") format("truetype");
+	font-weight: normal;
+	font-style: italic;
+	font-display: swap;
+	unicode-range: U+0028-0029, U+005B, U+005D;
+}
+@font-face {
+	font-family: "Avara";
+	src: url("../assets/fonts/avara/Avara.woff2") format("woff2"),
+	     url("../assets/fonts/avara/Avara.woff") format("woff");
+	font-weight: normal;
+	font-style: italic;
+	font-display: swap;
+	unicode-range: U+0028-0029, U+005B, U+005D;
+}
+@font-face {
+	font-family: "Avara";
+	src: url("../assets/fonts/avara/Avara-Bold.woff2") format("woff2"),
+	     url("../assets/fonts/avara/Avara-Bold.woff") format("woff");
+	font-weight: bold;
+	font-style: italic;
+	font-display: swap;
+	unicode-range: U+0028-0029, U+005B, U+005D;
+}
+
 /* Custom CSS */
 :root {
 	--font-avara: "Avara", serif;
@@ -7356,6 +7407,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	flex-direction: column;
 	overflow: hidden; /* step area scrolls internally; footer/header stay pinned */
+	/* Bump the base text size for the whole onboarding flow — its content ran small
+	   (e.g. the Lightbearer background descriptions). Everything below sizes off
+	   em-relative --st-fs-* tokens, so raising this anchor scales them together.
+	   Overrides the 1em anchor on `.stonetop .window-content` (same specificity, this
+	   rule is later); keeps the sheetFontScale multiplier so the setting still tunes. */
+	font-size: calc(1.15em * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-onboarding-body {
@@ -10083,7 +10140,8 @@ li.question-bullet {
 	margin: 3px 0;
 }
 .stonetop-location-body li::before,
-.stonetop-journal-body li::before {
+.stonetop-journal-body li::before,
+.stonetop-fb-list li::before {
 	content: "";
 	position: absolute;
 	left: 0;
@@ -10781,6 +10839,15 @@ li.question-bullet {
 /* "n piercing" / "x piercing" is the exception — it stays upright. */
 .stonetop-gear-term--no-italic {
 	font-style: normal;
+}
+
+/* Trade "Value N" mentions in journal prose — applied via markValueTooltips(). A
+   dotted underline hints there's a hover explanation of what the trade-value tier is
+   worth; the text stays plain and selectable. */
+.stonetop-value-term[data-tooltip] {
+	text-decoration: underline dotted rgba(100, 116, 139, 0.7);
+	text-underline-offset: 2px;
+	cursor: help;
 }
 
 /* Creature cross-links on bestiary sheets — hover for the concept, click to
@@ -13037,6 +13104,22 @@ th:has(> .stonetop-roll-table-btn) {
 	text-decoration: none;
 }
 
+/* The chosen playbook, between the character name and its progress note. A quiet
+   chip so it reads as metadata distinct from the italic progress state. Hidden at
+   the picker stage / before a pick, where progress.playbook is blank. */
+.stonetop-welcome-player-playbook {
+	display: inline-block;
+	margin-left: 5px;
+	padding: 0 6px;
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius-sm);
+	background: rgba(0, 0, 0, 0.05);
+	font-size: var(--st-fs-2xs);
+	font-weight: 700;
+	white-space: nowrap;
+	vertical-align: baseline;
+}
+
 .stonetop-welcome-player-progress {
 	font-style: italic;
 	white-space: nowrap;
@@ -13119,6 +13202,169 @@ th:has(> .stonetop-roll-table-btn) {
 	width: auto;
 	margin: 0;
 	flex: 0 0 auto;
+}
+
+/* "New to Foundry?" text link, sitting under the intro on the Welcome guide. A
+   quiet prompt → the FoundryBasicsDialog primer, styled as a text button (no
+   box) so it reads as a link rather than competing with the step actions. */
+.stonetop-welcome-newbie {
+	margin: -4px 0 14px;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-welcome-textlink {
+	width: auto;
+	margin: 0;
+	padding: 0;
+	border: none;
+	background: none;
+	box-shadow: none;
+	font-family: var(--font-stonetop);
+	font-size: inherit;
+	font-weight: 700;
+	color: var(--st-green-text);
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.stonetop-welcome-textlink:hover { color: var(--st-green-border); text-shadow: none; }
+.stonetop-welcome-textlink > i { margin-right: 3px; }
+
+/* ── New to Foundry? primer (FoundryBasicsDialog) ──────────────────────────── */
+
+.stonetop-foundry-basics-dialog .window-content {
+	padding: 0;
+	overflow: hidden;
+}
+
+.stonetop-foundry-basics {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-foundry-basics-scroll {
+	flex: 1;
+	min-height: 0;
+	padding: 16px 20px 14px;
+	overflow-y: auto;
+}
+
+.stonetop-fb-hero {
+	text-align: center;
+	margin-bottom: 16px;
+}
+
+.stonetop-fb-hero h2 {
+	margin: 0 0 8px;
+	border: none;
+	font-size: calc(1.5rem * var(--stonetop-font-scale, 1));
+	line-height: 1.1;
+}
+
+.stonetop-fb-logo {
+	font-family: var(--font-avara, var(--font-stonetop));
+	font-weight: bold;
+}
+
+.stonetop-fb-lead {
+	max-width: 30rem;
+	margin: 0 auto;
+	line-height: 1.5;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--st-text-body);
+}
+
+.stonetop-fb-cards {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.stonetop-fb-card {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+}
+
+.stonetop-fb-card-icon {
+	flex: 0 0 auto;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: var(--st-fs-sm);
+	color: var(--st-green-text);
+	background: var(--st-green-bg);
+	border: 1px solid var(--st-green-border);
+}
+
+.stonetop-fb-card-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.stonetop-fb-card-body h3 {
+	margin: 4px 0 4px;
+	border: none;
+	font-size: var(--st-fs-lg);
+	line-height: 1.2;
+}
+
+.stonetop-fb-card-body p {
+	margin: 0 0 6px;
+	line-height: 1.5;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+}
+.stonetop-fb-card-body p:last-child { margin-bottom: 0; }
+
+/* Spiral-bulleted lists. The spiral marker itself comes from the shared
+   `.stonetop-journal-body li::before` rule above (this list is added to its
+   selector); here we only set the flex layout and per-item spacing/sizing. */
+.stonetop-fb-list {
+	list-style: none;
+	margin: 4px 0 0;
+	padding-left: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-fb-list li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+	line-height: 1.45;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-fb-tips,
+.stonetop-fb-outro {
+	margin-top: 16px;
+	padding: 10px 14px;
+	background: rgba(0, 0, 0, 0.03);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+}
+
+.stonetop-fb-tips h3 {
+	margin: 0 0 6px;
+	border: none;
+	font-size: var(--st-fs-md);
+	line-height: 1.2;
+}
+.stonetop-fb-tips h3 > i { margin-right: 5px; color: var(--st-green-text); }
+
+.stonetop-fb-outro p {
+	margin: 0;
+	line-height: 1.5;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 }
 
 /* ── Character creation intro (player-facing first step) ───────────────────── */

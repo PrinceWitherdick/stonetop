@@ -96,19 +96,7 @@
                 "answer": ""
               },
               {
-                "prompt": "When was the last time anyone from **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}** tried to trade with Barrier Pass?",
-                "answer": ""
-              },
-              {
-                "prompt": "Were they ignored?",
-                "answer": ""
-              },
-              {
-                "prompt": "Chased off?",
-                "answer": ""
-              },
-              {
-                "prompt": "Or what?",
+                "prompt": "When was the last time anyone from **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6yScslDfqrcCQ6CJ]{Stonetop}** tried to trade with Barrier Pass? Were they ignored? Chased off? Or what?",
                 "answer": ""
               },
               {
@@ -116,11 +104,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Who do you know (in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin’s Delve}**, perhaps) who hails from Barrier Pass or beyond?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why did they leave?",
+                "prompt": "Who do you know (in **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin’s Delve}**, perhaps) who hails from Barrier Pass or beyond? Why did they leave?",
                 "answer": ""
               },
               {
@@ -136,7 +120,7 @@
                 "answer": ""
               },
               {
-                "prompt": "If a PC has visited Barrier Pass, or beyond: What brought you there in the first place?",
+                "prompt": "**If a PC has visited Barrier Pass, or beyond:** What brought you there in the first place?",
                 "answer": ""
               },
               {
@@ -148,19 +132,11 @@
                 "answer": ""
               },
               {
-                "prompt": "What taboo or point of etiquette did you run afoul of?",
+                "prompt": "What taboo or point of etiquette did you run afoul of? How so?",
                 "answer": ""
               },
               {
-                "prompt": "How so?",
-                "answer": ""
-              },
-              {
-                "prompt": "Do they worship the same gods up there?",
-                "answer": ""
-              },
-              {
-                "prompt": "If so, how does that worship differ from down here in Stonetop?",
+                "prompt": "Do they worship the same gods up there? If so, how does that worship differ from down here in Stonetop?",
                 "answer": ""
               }
             ]

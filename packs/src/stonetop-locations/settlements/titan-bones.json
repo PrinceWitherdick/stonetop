@@ -84,11 +84,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Which of you has been (t)here before?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why?",
+                "prompt": "Which of you has been (t)here before? Why?",
                 "answer": ""
               },
               {
@@ -96,19 +92,11 @@
                 "answer": ""
               },
               {
-                "prompt": "According to the tales, what are they bones of?",
+                "prompt": "According to the tales, what are they bones of? How did they come to be here?",
                 "answer": ""
               },
               {
-                "prompt": "How did they come to be here?",
-                "answer": ""
-              },
-              {
-                "prompt": "What superstitions surround the bones?",
-                "answer": ""
-              },
-              {
-                "prompt": "What little rites do folks observe in their presence?",
+                "prompt": "What superstitions surround the bones? What little rites do folks observe in their presence?",
                 "answer": ""
               },
               {

@@ -68,23 +68,11 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "What little ritual do villagers perform every time they cross the Stream?",
+                "prompt": "What little ritual do villagers perform every time they cross the Stream? Why?",
                 "answer": ""
               },
               {
-                "prompt": "Why?",
-                "answer": ""
-              },
-              {
-                "prompt": "How far have you followed the Stream?",
-                "answer": ""
-              },
-              {
-                "prompt": "Which way?",
-                "answer": ""
-              },
-              {
-                "prompt": "What strange sight did you see on the way?",
+                "prompt": "How far have you followed the Stream? Which way? What strange sight did you see on the way?",
                 "answer": ""
               },
               {
@@ -92,19 +80,11 @@
                 "answer": ""
               },
               {
-                "prompt": "What's the scariest, darkest story you've ever heard about the Stream?",
+                "prompt": "What's the scariest, darkest story you've ever heard about the Stream? Who told it to you?",
                 "answer": ""
               },
               {
-                "prompt": "Who told it to you?",
-                "answer": ""
-              },
-              {
-                "prompt": "Who do you think the Quiet Twins were?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why?",
+                "prompt": "Who do you think the Quiet Twins were? Why?",
                 "answer": ""
               }
             ]

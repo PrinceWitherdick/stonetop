@@ -205,6 +205,7 @@ export const HOVER_DESCRIPTION_SETTING_KEYS = [
 	"hoverDescriptionsVitals",
 	"hoverDescriptionsMonsterTags",
 	"hoverDescriptionsSteadingStats",
+	"hoverDescriptionsValues",
 ];
 
 function _createHoverDescriptionSettingsApp() {

@@ -41,7 +41,7 @@
             "heading": "Overview",
             "group": "glance",
             "danger": false,
-            "body": "<p>Size village (~300 souls) Population +0 Prosperity +0</p><ul><li>Trade with... ...</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin’s Delve}</strong> (metal, tools) ...</li><li><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> (textiles, herbs, glass) Resources</li></ul><ul><li>Farming (beans, potatoes, oats, barley)</li><li>Hunting/trapping (fur, meat, hides)</li><li>Distilling (whisky)</li><li>Stone (taken from the Old Wall)</li><li>Cistern (filled with rain, snow)</li><li>Tradesfolk (midwife, potter, publican, smith, tanner)</li><li>Two draft horses, two iron plows, two carts, a wagon Defenses +0</li></ul><ul><li>Village militia</li><li>The Ringwall (low, stone)</li><li>Three watchtowers</li><li>Spears &amp; shields in every home</li><li>Some bows</li></ul><p>A farming village on the eastern edge of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong>, on a bluff overlooking the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>. A great, rune-etched megalith stands amidst a cluster of squat stone homes, surrounded by an arc of farmland.</p><p>The PCs call this village home. It’s a tightknit community, poor but a good place to live. Everyone is expected to pull their weight, but few think badly of those who suffer misfortune. The town pulls together; its community is its strength.</p>",
+            "body": "<p>A farming village on the eastern edge of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong>, on a bluff overlooking the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>. A great, rune-etched megalith stands amidst a cluster of squat stone homes, surrounded by an arc of farmland.</p><p>The PCs call this village home. It’s a tightknit community, poor but a good place to live. Everyone is expected to pull their weight, but few think badly of those who suffer misfortune. The town pulls together; its community is its strength.</p>",
             "pairs": []
           },
           {
@@ -144,47 +144,19 @@
                 "answer": ""
               },
               {
-                "prompt": "What do scholars of the South claim of the Stone’s origin?",
+                "prompt": "What do scholars of the South claim of the Stone’s origin? Why do you think that’s nonsense?",
                 "answer": ""
               },
               {
-                "prompt": "Why do you think that’s nonsense?",
+                "prompt": "What’s the opening to the Cistern like? A low stone wall? A building over an open shaft? A crack in the earth? Or what?",
                 "answer": ""
               },
               {
-                "prompt": "What’s the opening to the Cistern like?",
+                "prompt": "Has anyone been down in the Cistern, that you know of? What did they supposedly find?",
                 "answer": ""
               },
               {
-                "prompt": "A low stone wall?",
-                "answer": ""
-              },
-              {
-                "prompt": "A building over an open shaft?",
-                "answer": ""
-              },
-              {
-                "prompt": "A crack in the earth?",
-                "answer": ""
-              },
-              {
-                "prompt": "Or what?",
-                "answer": ""
-              },
-              {
-                "prompt": "Has anyone been down in the Cistern, that you know of?",
-                "answer": ""
-              },
-              {
-                "prompt": "What did they supposedly find?",
-                "answer": ""
-              },
-              {
-                "prompt": "How is the public house laid out?",
-                "answer": ""
-              },
-              {
-                "prompt": "What’s the most notable furnishing?",
+                "prompt": "How is the public house laid out? What’s the most notable furnishing?",
                 "answer": ""
               },
               {

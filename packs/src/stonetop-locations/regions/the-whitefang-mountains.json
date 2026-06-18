@@ -148,11 +148,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Who among you have traveled here before?",
-                "answer": ""
-              },
-              {
-                "prompt": "When and why?",
+                "prompt": "Who among you have traveled here before? When and why?",
                 "answer": ""
               },
               {
@@ -160,11 +156,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Why do you think storms swirl around **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.UoAk5JtClo9sjL1O]{Tor}**’s Fist?",
-                "answer": ""
-              },
-              {
-                "prompt": "What do you think those strange lights are?",
+                "prompt": "Why do you think storms swirl around **@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.UoAk5JtClo9sjL1O]{Tor}**’s Fist? What do you think those strange lights are?",
                 "answer": ""
               },
               {
@@ -188,11 +180,7 @@
                 "answer": ""
               },
               {
-                "prompt": "Do they worship ___ up there?",
-                "answer": ""
-              },
-              {
-                "prompt": "If so, how is that worship different than in Stonetop?",
+                "prompt": "Do they worship ___ up there? If so, how is that worship different than in Stonetop?",
                 "answer": ""
               }
             ]

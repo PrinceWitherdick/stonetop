@@ -3,6 +3,7 @@ import { ensureMonsterRefIndex, enrichBestiaryElement } from "../utils/bestiary-
 import { applyLocationTooltips } from "../locations/location-tooltips.js";
 import { getHoverDescriptionSetting } from "../settings.js";
 import { markQuestionBullets } from "../utils/question-bullets.js";
+import { markValueTooltips } from "../utils/value-tooltips.js";
 
 // Apply gear-term tooltips only to the containers we know hold gear-tag <em>
 // elements. Applying to html[0] wholesale reaches into PBTA system partials
@@ -23,6 +24,11 @@ export function onRenderActorSheet(sheet, html) {
 	const root = html[0];
 	root?.closest(".app")?.classList.add("stonetop");
 	markQuestionBullets(root);
+	// Hover tooltips on "Value N" trade-tier mentions in item/move/loot prose — across
+	// every actor type (character inventory & moves, the steading, the monster's loot).
+	// Self-gated by the hoverDescriptionsValues setting; the literal "Value N" pattern is
+	// specific enough (capital V + a digit) to run on the whole sheet root safely.
+	markValueTooltips(root);
 
 	const type = sheet?.actor?.type;
 	if (type === "monster") {

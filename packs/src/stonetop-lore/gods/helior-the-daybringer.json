@@ -100,11 +100,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "According to the tales… How did Helior come to be (a god)?",
-                "answer": ""
-              },
-              {
-                "prompt": "What’s his origin story?",
+                "prompt": "**According to the tales…** How did Helior come to be (a god)? What’s his origin story?",
                 "answer": ""
               },
               {
@@ -120,19 +116,11 @@
                 "answer": ""
               },
               {
-                "prompt": "What causes eclipses?",
+                "prompt": "What causes eclipses? What do they mean or portend?",
                 "answer": ""
               },
               {
-                "prompt": "What do they mean or portend?",
-                "answer": ""
-              },
-              {
-                "prompt": "Who was famously martyred in Helior’s name?",
-                "answer": ""
-              },
-              {
-                "prompt": "Who killed them, and why?",
+                "prompt": "Who was famously martyred in Helior’s name? Who killed them, and why?",
                 "answer": ""
               },
               {

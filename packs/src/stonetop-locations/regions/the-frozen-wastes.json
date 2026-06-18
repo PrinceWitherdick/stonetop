@@ -116,11 +116,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "What precious flower grows only in the Frozen Wastes, blooming for a few days each summer?",
-                "answer": ""
-              },
-              {
-                "prompt": "Why is it so valuable?",
+                "prompt": "What precious flower grows only in the Frozen Wastes, blooming for a few days each summer? Why is it so valuable?",
                 "answer": ""
               },
               {

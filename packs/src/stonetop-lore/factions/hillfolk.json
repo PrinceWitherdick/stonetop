@@ -92,11 +92,7 @@
             "body": "",
             "pairs": [
               {
-                "prompt": "Which of you knows the Hillfolk best?",
-                "answer": ""
-              },
-              {
-                "prompt": "How so?",
+                "prompt": "Which of you knows the Hillfolk best? How so?",
                 "answer": ""
               },
               {
@@ -108,39 +104,15 @@
                 "answer": ""
               },
               {
-                "prompt": "What do the Hillfolk call themselves?",
+                "prompt": "What do the Hillfolk call themselves? What do they call each other?",
                 "answer": ""
               },
               {
-                "prompt": "What do they call each other?",
+                "prompt": "What are groups of Hillfolk called? Bands? Rides? Herds? Families? Etc.",
                 "answer": ""
               },
               {
-                "prompt": "What are groups of Hillfolk called?",
-                "answer": ""
-              },
-              {
-                "prompt": "Bands?",
-                "answer": ""
-              },
-              {
-                "prompt": "Rides?",
-                "answer": ""
-              },
-              {
-                "prompt": "Herds?",
-                "answer": ""
-              },
-              {
-                "prompt": "Families?",
-                "answer": ""
-              },
-              {
-                "prompt": "Etc. What affiliations do they have beyond their bands?",
-                "answer": ""
-              },
-              {
-                "prompt": "Clans, nations, sects, etc?",
+                "prompt": "What affiliations do they have beyond their bands? Clans, nations, sects, etc?",
                 "answer": ""
               },
               {
