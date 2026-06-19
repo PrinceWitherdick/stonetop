@@ -502,7 +502,7 @@ export class StonetopCharacter {
 			.withSteadingName(steadingName)
 			.build();
 
-		return new InventorySnapshot(outfit, possessions, other);
+		return new InventorySnapshot(outfit, possessions, other, this._inventory.manualMode);
 	}
 
 	_buildPossessionsSnapshot(specialPossessions, maxUsesMap) {
@@ -657,6 +657,9 @@ export class StonetopCharacter {
 	async setInventorySmallPool(count)              { await this._inventory.setSmallPool(count); }
 	async removeSpecialItem(slug)                   { await this._inventory.removeSpecial(slug); }
 
+	get inventoryManualMode()                       { return this._inventory.manualMode; }
+	async setInventoryManualMode(on)                { await this._inventory.setManualMode(on); }
+
 	getSteadingActor() {
 		const storedSteadingId = resolvedFlagProperty(this._actor, "steadingId");
 		return (storedSteadingId ? game.actors?.get(storedSteadingId) : null)
@@ -684,6 +687,12 @@ export class StonetopCharacter {
 	 * @returns {Promise<boolean>}  False if there aren't enough undefined marks to define the item.
 	 */
 	async toggleCarriedItem(slug, isChecked, { small = false, weight = 1 } = {}) {
+		// In manual mode the player owns the pools directly, so marking an item is a
+		// plain toggle that doesn't draw from (or return to) the undefined supply.
+		if (this._inventory.manualMode) {
+			await this._inventory.setItemChecked(slug, isChecked);
+			return true;
+		}
 		const cost = small ? 1 : Math.max(0, weight);
 		const pool = small ? this._inventory.smallPool : this._inventory.regularPool;
 		if (isChecked && cost > pool) return false;

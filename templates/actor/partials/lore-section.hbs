@@ -6,7 +6,7 @@
 	{{#if isContinuation}}
 	{{#if columnBreak}}</div><div class="stonetop-lore-col">{{/if}}
 	<div class="stonetop-lore-entry">
-		<p class="stonetop-lore-continuation-title{{#if subheader}} stonetop-lore-subheader{{/if}}">{{title}}</p>
+		{{#if title}}<p class="stonetop-lore-continuation-title{{#if subheader}} stonetop-lore-subheader{{/if}}">{{title}}</p>{{/if}}
 		{{#if description}}
 		<div class="stonetop-lore-description">{{{description}}}</div>
 		{{/if}}
@@ -50,7 +50,7 @@
 	{{#if columnBreak}}</div><div class="stonetop-lore-col">{{/if}}
 	{{#if showInReadonly}}
 	<div class="stonetop-lore-entry">
-		<p class="stonetop-lore-continuation-title{{#if subheader}} stonetop-lore-subheader{{/if}}">{{title}}</p>
+		{{#if title}}<p class="stonetop-lore-continuation-title{{#if subheader}} stonetop-lore-subheader{{/if}}">{{title}}</p>{{/if}}
 		{{#if readonlyDescription}}
 		<div class="stonetop-lore-description">{{{readonlyDescription}}}</div>
 		{{/if}}

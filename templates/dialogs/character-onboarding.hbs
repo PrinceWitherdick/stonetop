@@ -736,7 +736,7 @@
 		{{/if}}
 
 		{{#if isLore}}
-		<h3 class="stonetop-onboarding-step-title">{{loreSectionData.title}}</h3>
+		{{#if loreSectionData.title}}<h3 class="stonetop-onboarding-step-title">{{loreSectionData.title}}</h3>{{/if}}
 		{{#if loreSectionData.description}}
 		<div class="stonetop-onboarding-lore-desc">{{{loreSectionData.description}}}</div>
 		{{/if}}

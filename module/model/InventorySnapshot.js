@@ -208,9 +208,10 @@ export class PossessionItemSnapshotBuilder {
  * @property {OtherItemSnapshot[]} other
  */
 export class InventorySnapshot {
-	constructor(outfit, possessions, other) {
+	constructor(outfit, possessions, other, manualMode = false) {
 		this.outfit      = outfit;
 		this.possessions = possessions;
 		this.other       = other;
+		this.manualMode  = manualMode;
 	}
 }

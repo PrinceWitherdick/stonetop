@@ -1,5 +1,6 @@
 {{#if moves.length}}
-{{> "stonetop.section-heading" title=(localize titleKey)}}
+<div class="stonetop-moves-collapsible{{#unless open}} is-collapsed{{/unless}}" data-section="{{sectionId}}">
+<div class="stonetop-moves-summary" role="button" tabindex="0" aria-expanded="{{#if open}}true{{else}}false{{/if}}">{{> "stonetop.section-heading" title=(localize titleKey)}}</div>
 <ol class="items-list">
 {{#each moves}}
 	{{#if (and owned rollType)}}
@@ -19,4 +20,5 @@
 	</li>
 {{/each}}
 </ol>
+</div>
 {{/if}}

@@ -280,4 +280,16 @@ describe("StonetopCharacter.toggleCarriedItem", () => {
 		await char.toggleCarriedItem("flint", false, { small: true });
 		expect(actor.getFlag("stonetop_pwd", "inventory.smallPool")).toBe(2);
 	});
+
+	it("in manual mode, marking an item is a plain toggle that leaves the pool untouched", async () => {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.manualInventory", true)
+			.withFlag("inventory.regularPool", 1)
+			.build();
+		// Weight exceeds the pool, but manual mode bypasses the Have What You Need check.
+		const ok = await makeChar(actor).toggleCarriedItem("armor", true, { weight: 3 });
+		expect(ok).toBe(true);
+		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toEqual({ armor: true });
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(1);
+	});
 });

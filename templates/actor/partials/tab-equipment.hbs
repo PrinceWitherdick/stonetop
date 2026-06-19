@@ -1,11 +1,19 @@
-<div class="tab equipment" data-group="primary" data-tab="inventory">
+<div class="tab equipment{{#if stonetop.inventory.manualMode}} stonetop-manual-inventory{{/if}}" data-group="primary" data-tab="inventory">
 
 	{{#if stonetop.editMode}}
 	<div class="stonetop-inventory-toolbar">
+		<label class="stonetop-inventory-manual-toggle" title="{{localize 'stonetop.inventory.manualTitle'}}">
+			<input type="checkbox" class="stonetop-inventory-manual-check"{{#if stonetop.inventory.manualMode}} checked{{/if}}>
+			<span>{{localize "stonetop.inventory.manualLabel"}}</span>
+		</label>
 		<button type="button" class="stonetop-inventory-reset-btn" title="{{localize 'stonetop.inventory.resetTitle'}}">
 			<i class="fas fa-undo"></i> {{localize "stonetop.inventory.resetLabel"}}
 		</button>
 	</div>
+	{{/if}}
+
+	{{#if stonetop.inventory.manualMode}}
+	<p class="stonetop-inventory-manual-note">{{{localize "stonetop.inventory.manualNote"}}}</p>
 	{{/if}}
 
 	{{#if stonetop.inventory}}
@@ -16,21 +24,21 @@
 		<ul class="stonetop-outfit-loads">
 			<li>
 				<label class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelLight}} is-checked{{/if}}">
-					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" disabled
+					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" {{#unless stonetop.inventory.manualMode}}disabled{{/unless}}
 					       value="light" {{#if stonetop.inventory.outfit.load.loadLevelLight}}checked{{/if}}>
 					<span>{{{localize "stonetop.inventory.outfit.light"}}}</span>
 				</label>
 			</li>
 			<li>
 				<label class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelNormal}} is-checked{{/if}}">
-					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" disabled
+					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" {{#unless stonetop.inventory.manualMode}}disabled{{/unless}}
 					       value="normal" {{#if stonetop.inventory.outfit.load.loadLevelNormal}}checked{{/if}}>
 					<span>{{{localize "stonetop.inventory.outfit.normal"}}}</span>
 				</label>
 			</li>
 			<li>
 				<label class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelHeavy}} is-checked{{/if}}">
-					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" disabled
+					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" {{#unless stonetop.inventory.manualMode}}disabled{{/unless}}
 					       value="heavy" {{#if stonetop.inventory.outfit.load.loadLevelHeavy}}checked{{/if}}>
 					<span>{{{localize "stonetop.inventory.outfit.heavy"}}}</span>
 				</label>

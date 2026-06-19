@@ -20,7 +20,7 @@ import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed} from "../../settings.js";
 import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
@@ -670,11 +670,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Reopen the collapsible crew sections (Inventory / Roster / Group Fight)
 			// in the state this user last left them — persisted per-actor, per-user.
 			this._openCrewSections = new Set(getCrewSectionsOpen(this.actor?.id));
+
+			// Likewise the sidebar move groups (Basic / Expedition), which default to
+			// expanded, so we track the ones left collapsed.
+			this._collapsedMoveSections = new Set(getMovesSectionsCollapsed(this.actor?.id));
 		}
 
 		// Persist the current crew-section open state so it survives a sheet reopen.
 		_persistCrewSections() {
 			setCrewSectionsOpen(this.actor?.id, [...(this._openCrewSections ?? [])]);
+		}
+
+		// Persist which sidebar move groups are collapsed so it survives a reopen.
+		_persistMoveSections() {
+			setMovesSectionsCollapsed(this.actor?.id, [...(this._collapsedMoveSections ?? [])]);
 		}
 
 		static get defaultOptions() {
@@ -992,6 +1001,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			const sectionEdit = section => this.isSectionEditable(section);
 			context.stonetop.statsNoteDisplay = sectionEdit("stats") ? context.stonetop.playbook?.statsNote ?? null : null;
 			context.stonetop.movelist.startingMovesNoteDisplay = sectionEdit("moves") ? context.stonetop.movelist.startingMovesNote ?? null : null;
+			// Sidebar move groups default to expanded; a group is open unless this
+			// user collapsed it (persisted per-actor in _collapsedMoveSections).
+			const collapsedMoves = this._collapsedMoveSections ?? new Set();
+			context.stonetop.movesOpen = {
+				basicMoves:      !collapsedMoves.has("basicMoves"),
+				expeditionMoves: !collapsedMoves.has("expeditionMoves"),
+			};
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop_pwd', 'hideUnselected') ?? true;
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.canEdit = this.isEditable;
@@ -1195,7 +1211,6 @@ export function createStonetopCharacterSheetClass(Base) {
 					hpSlug:       "",
 					hpMax,
 					hpCurrent:    _clampHp(hpRaw, hpMax),
-					maxHpDisplay: hpMax,
 					armor:        stats.armor              ?? "—",
 					damage:       stats.damage             ?? "—",
 					..._parseFollowerDamage(stats.damage),
@@ -1329,7 +1344,6 @@ export function createStonetopCharacterSheetClass(Base) {
 					loyaltySlug: "",
 					hpStaticValue: crewMaxHp,
 					hpStaticSuffix: "each",
-					maxHpDisplay: `${crewMaxHp} each`,
 					damage:    crewDamageDie,
 					damageRoll: crewDamageDie,
 					damageKind: "",
@@ -1425,7 +1439,6 @@ export function createStonetopCharacterSheetClass(Base) {
 							hpSlug:        opt.slug,
 							hpMax:         initHpMax,
 							hpCurrent:     _clampHp(initHpRaw, initHpMax),
-							maxHpDisplay:  initHpMax || "—",
 							armor:         opt.armor   ?? "—",
 							damage:        opt.damage  ?? "—",
 							..._parseFollowerDamage(opt.damage),
@@ -1469,7 +1482,6 @@ export function createStonetopCharacterSheetClass(Base) {
 						hpSlug:       slug,
 						hpMax,
 						hpCurrent:    _clampHp(hpRaw, hpMax),
-						maxHpDisplay: hpMax,
 						armor:        b.armor ?? 0,
 						damage:       b.damage + (b.damageForm ? ` (${b.damageForm})` : ""),
 						damageRoll:   b.damage ?? null,
@@ -1970,6 +1982,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}, true);
 			html.find(".stonetop-inventory-item-check").on("change", this._onInventoryItemCheck.bind(this));
+			html.find(".stonetop-inventory-manual-check").on("change", this._onInventoryManualToggle.bind(this));
+			html.find(".stonetop-outfit-load-radio").on("change", this._onInventoryLoadLevel.bind(this));
+			html.find(".stonetop-regular-pool-btn, .stonetop-small-pool-display").on("change", this._onInventoryPoolEdit.bind(this));
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-inventory-resource-btn");
 				if (!btn) return;
@@ -2228,6 +2243,29 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (ev.currentTarget.open) this._openCrewSections.add(id);
 				else                       this._openCrewSections.delete(id);
 				this._persistCrewSections();
+			});
+
+			// Collapse / expand a sidebar move group (Basic / Expedition). We use a
+			// custom toggle rather than <details> so the move list stays in normal
+			// flow and keeps contributing its width — that way the sidebar doesn't
+			// reflow (jitter) when a group collapses. The collapsed ids are recorded
+			// and persisted (default expanded) so the state survives a reopen.
+			const toggleMoveGroup = el => {
+				const group = el.closest(".stonetop-moves-collapsible");
+				const id    = group?.dataset.section;
+				if (!id) return;
+				const collapsed = group.classList.toggle("is-collapsed");
+				el.setAttribute("aria-expanded", String(!collapsed));
+				this._collapsedMoveSections ??= new Set();
+				if (collapsed) this._collapsedMoveSections.add(id);
+				else           this._collapsedMoveSections.delete(id);
+				this._persistMoveSections();
+			};
+			html.find(".stonetop-moves-summary").on("click", ev => toggleMoveGroup(ev.currentTarget));
+			html.find(".stonetop-moves-summary").on("keydown", ev => {
+				if (ev.key !== "Enter" && ev.key !== " ") return;
+				ev.preventDefault();
+				toggleMoveGroup(ev.currentTarget);
 			});
 			// Name an (anonymous) crew member: promote them to a named individual,
 			// carrying their current HP across. Opened from each member's "Name them"
@@ -3134,6 +3172,33 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				render: keepDialogOnTop,
 			});
+		}
+
+		async _onInventoryManualToggle(ev) {
+			await this._stonetopCharacter.setInventoryManualMode(ev.currentTarget.checked);
+			this.render(false);
+		}
+
+		async _onInventoryLoadLevel(ev) {
+			// Load level is only directly editable in manual mode; otherwise it's set by Outfit.
+			if (!this._stonetopCharacter.inventoryManualMode) { this.render(false); return; }
+			await this._stonetopCharacter.setInventoryLoadLevel(ev.currentTarget.value);
+			this.render(false);
+		}
+
+		async _onInventoryPoolEdit(ev) {
+			// The undefined ◇/□ pools are read-only displays except in manual mode, where
+			// clicking a diamond sets the pool count as a track (click sets/clears to here).
+			const el = ev.currentTarget;
+			if (!this._stonetopCharacter.inventoryManualMode) { this.render(false); return; }
+			const index    = Number(el.dataset.index);
+			const newCount = el.checked ? index + 1 : index;
+			if (el.classList.contains("stonetop-small-pool-display")) {
+				await this._stonetopCharacter.setInventorySmallPool(newCount);
+			} else {
+				await this._stonetopCharacter.setInventoryRegularPool(newCount);
+			}
+			this.render(false);
 		}
 
 		_onRequisition() {

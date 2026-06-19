@@ -78,6 +78,18 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether this user has dismissed the per-player "The Seasons Change" upkeep
+	// reminder for good (see seasons/seasons-change-reminders.js). Client-scoped so
+	// each player decides for themselves; ticking "Don't show this again" sets it
+	// true. Mirrors the GM Welcome guide's dismissal pattern.
+	game.settings.register("stonetop_pwd", "seasonsChangeReminderDismissed", {
+		name: "Seasons Change Reminder Dismissed",
+		scope: "client",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	game.settings.register("stonetop_pwd", "sheetFont", {
 		name: "stonetop.settings.sheetFont.name",
 		hint: "stonetop.settings.sheetFont.hint",
@@ -138,6 +150,18 @@ export function registerSettings() {
 	// state. Per-user (client) and per-actor: a map of actor id -> array of open
 	// section ids. Internal (not shown in the settings menu).
 	game.settings.register("stonetop_pwd", "crewSectionsOpen", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
+	// Remembers which sidebar move groups (Basic Moves / Expedition Moves) each
+	// character left collapsed, so the sheet reopens in the same state. These
+	// default to expanded, so we store the *collapsed* ids (absence = open).
+	// Per-user (client) and per-actor: a map of actor id -> array of collapsed
+	// section ids. Internal (not shown in the settings menu).
+	game.settings.register("stonetop_pwd", "movesSectionsCollapsed", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -288,22 +312,41 @@ export function setCharacterSheetWidth(actorId, width) {
 	return game.settings.set("stonetop_pwd", "characterSheetWidths", { ...map, [actorId]: w });
 }
 
-// The collapsible crew follower sections a character left expanded (array of
-// section ids), or [] if none stored yet.
-export function getCrewSectionsOpen(actorId) {
+// Per-actor, per-user list of collapsible section ids (sorted, de-duped), or []
+// if nothing stored yet. Shared by the crew follower sections and the sidebar
+// move groups, which differ only in the setting key they persist under.
+function getSectionList(key, actorId) {
 	if (!actorId) return [];
-	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "crewSectionsOpen");
-	const arr = map?.[actorId];
+	const arr = globalThis.game?.settings?.get?.("stonetop_pwd", key)?.[actorId];
 	return Array.isArray(arr) ? arr : [];
 }
 
-export function setCrewSectionsOpen(actorId, sections) {
+function setSectionList(key, actorId, sections) {
 	if (!actorId) return;
 	const next = Array.from(new Set(sections ?? [])).sort();
-	const map  = globalThis.game?.settings?.get?.("stonetop_pwd", "crewSectionsOpen") ?? {};
+	const map  = globalThis.game?.settings?.get?.("stonetop_pwd", key) ?? {};
 	const prev = Array.isArray(map[actorId]) ? [...map[actorId]].sort() : [];
 	if (next.join("|") === prev.join("|")) return; // avoid redundant writes
-	return game.settings.set("stonetop_pwd", "crewSectionsOpen", { ...map, [actorId]: next });
+	return game.settings.set("stonetop_pwd", key, { ...map, [actorId]: next });
+}
+
+// The collapsible crew follower sections a character left expanded.
+export function getCrewSectionsOpen(actorId) {
+	return getSectionList("crewSectionsOpen", actorId);
+}
+
+export function setCrewSectionsOpen(actorId, sections) {
+	return setSectionList("crewSectionsOpen", actorId, sections);
+}
+
+// The sidebar move groups a character left collapsed. Move groups default to
+// expanded, so an id present here means that group should reopen collapsed.
+export function getMovesSectionsCollapsed(actorId) {
+	return getSectionList("movesSectionsCollapsed", actorId);
+}
+
+export function setMovesSectionsCollapsed(actorId, sections) {
+	return setSectionList("movesSectionsCollapsed", actorId, sections);
 }
 
 export function getHoverDescriptionSetting(key, { ignoreMaster = false } = {}) {

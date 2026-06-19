@@ -12,6 +12,7 @@ import { readOnboardingResume, clearOnboardingResume } from "../actors/character
 import { playbookSlug } from "../utils/playbook-actors.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
+import { registerSeasonsChangeSocket } from "../seasons/seasons-change-reminders.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
@@ -61,6 +62,7 @@ export async function onReady() {
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
 
 	_registerCharacterAutoOpen();
+	registerSeasonsChangeSocket();
 
 	if (game.user.isGM) await seedCompendiumJournalsOnce();
 	if (game.user.isGM) await updateSeededJournalsOnVersionChange();

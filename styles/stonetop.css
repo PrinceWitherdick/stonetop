@@ -1225,24 +1225,6 @@ input.stonetop-name-field {
 	font-weight: bold;
 }
 
-.stonetop-origin-name-check {
-	appearance: none !important;
-	-webkit-appearance: none !important;
-	width: calc(10px * var(--stonetop-font-scale, 1)) !important;
-	height: calc(10px * var(--stonetop-font-scale, 1)) !important;
-	flex: 0 0 calc(10px * var(--stonetop-font-scale, 1)) !important;
-	border-radius: 0 !important;
-	border: 1.5px solid var(--color-text-dark-primary) !important;
-	background: transparent !important;
-	clip-path: polygon(25% 0%, 75% 0%, 100% 25%, 100% 75%, 75% 100%, 25% 100%, 0% 75%, 0% 25%);
-	cursor: pointer;
-	margin: 0;
-}
-
-.stonetop-origin-name-check:checked {
-	background-color: var(--color-text-dark-primary) !important;
-}
-
 .stonetop-origin-readonly .stonetop-item-description {
 	margin-top: 2px;
 }
@@ -1458,7 +1440,10 @@ input.stonetop-name-field {
 .stonetop-sheet-layout {
 	display: flex;
 	align-items: flex-start;
-	gap: 16px;
+	/* No flex `gap` here: a gap is rigid dead space between the items, so when the
+	   sheet narrows it competes with the non-shrinking moves sidebar and clips
+	   content. The separation lives as padding-right on .sheet-body instead, where
+	   it collapses gracefully as space gets tight, before any text is cut off. */
 	flex: 1;
 	min-height: 0;
 	overflow: hidden;
@@ -1466,7 +1451,14 @@ input.stonetop-name-field {
 
 .stonetop-sheet-layout .sheet-body {
 	flex: 1;
-	min-width: 0;
+	/* Give the tab content a floor so it can't be squeezed to 0 width. The moves
+	   sidebar is flex-shrink:0 with min-width:max-content, so without a min-width
+	   here the body collapses to nothing on a narrow sheet and its content vanishes
+	   "behind" the sidebar. With a floor, the rigid sidebar is what gets clipped on
+	   its right edge instead (reference text, left-aligned) — the working tab stays
+	   readable. */
+	min-width: 240px;
+	padding-right: 8px;
 	overflow-y: auto;
 	overflow-x: hidden;
 	height: 100%;
@@ -1508,9 +1500,49 @@ input.stonetop-name-field {
 	margin-top: 0;
 }
 
-.stonetop-sidebar-rules {
-	margin-top: 8px;
-	width: 200px;
+/* Collapsible Basic / Expedition move groups. The summary is the group heading
+   with a rotating arrow on the right marking open/closed. Open state persists per
+   actor (movesSectionsCollapsed), defaulting to expanded. A custom toggle (not
+   <details>) keeps the list in normal flow so the sidebar width doesn't reflow
+   when a group collapses — only its height is clamped. */
+/* Space each group from the next (matches the Roll Modifier section's spacing),
+   so the headings stay separated even when both groups are collapsed. */
+.stonetop-moves-collapsible {
+	margin-bottom: 12px;
+}
+
+.stonetop-moves-summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.stonetop-moves-summary > .stonetop-move-group-title { margin: 0; }
+
+.stonetop-moves-summary::after {
+	content: "";
+	display: inline-block;
+	width: 0.6em;
+	height: 0.6em;
+	flex: none;
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+	transform: rotate(90deg); /* expanded: arrow points down */
+	transition: transform 0.15s;
+}
+
+.stonetop-moves-collapsible.is-collapsed > .stonetop-moves-summary::after {
+	transform: rotate(0deg); /* collapsed: arrow points right */
+}
+
+/* Collapsed: keep the list in flow (so it still sets the sidebar width) but clamp
+   it to zero height and hide it. */
+.stonetop-moves-collapsible.is-collapsed > .items-list {
+	height: 0;
+	margin: 0;
+	overflow: hidden;
+	visibility: hidden;
 }
 
 .stonetop-roll-mode-control {
@@ -1673,9 +1705,9 @@ input.stonetop-name-field {
 	columns: 1;
 	/* pbta only zeroes .items-list padding inside .cell--* move blocks, not our
 	   custom sidebar, so the <ol> keeps its default left indent. Remove it so rows
-	   sit flush with the "Basic Moves" heading. Bottom margin matches the Roll
-	   Modifier section's spacing so each section is separated evenly. */
-	margin: 0 0 12px;
+	   sit flush with the "Basic Moves" heading. The between-group spacing lives on
+	   the collapsible wrapper instead, so it holds even when a group is collapsed. */
+	margin: 0;
 	padding: 0;
 }
 
@@ -1705,6 +1737,8 @@ input.stonetop-name-field {
 
 .stonetop-check,
 .stonetop-item-check,
+.stonetop-origin-name-check,
+.stonetop-possession-sub-radio,
 .stonetop-lore-option-check,
 .stonetop-arcanum-unlock-check,
 .stonetop-arcanum-box,
@@ -1734,6 +1768,8 @@ input.stonetop-name-field {
 
 .stonetop-check:checked,
 .stonetop-item-check:checked,
+.stonetop-origin-name-check:checked,
+.stonetop-possession-sub-radio:checked,
 .stonetop-lore-option-check:checked,
 .stonetop-arcanum-unlock-check:checked,
 .stonetop-arcanum-box:checked,
@@ -1753,6 +1789,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-item-check:disabled,
+.stonetop-possession-sub-radio:disabled,
 .stonetop-lore-option-check:disabled,
 .stonetop-move-mark-check:disabled,
 .stonetop-arcanum-unlock-check:disabled {
@@ -2402,28 +2439,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	cursor: pointer;
 }
 
-.stonetop-possession-sub-radio {
-	appearance: none !important;
-	-webkit-appearance: none !important;
-	width: 14px;
-	height: 14px;
-	border-radius: var(--st-radius-sm) !important;
-	border: 2px solid var(--color-text-dark-primary) !important;
-	background: transparent !important;
-	cursor: pointer;
-	flex-shrink: 0;
-	margin: 0;
-}
-
-.stonetop-possession-sub-radio:checked {
-	background-color: var(--color-text-dark-primary) !important;
-}
-
-.stonetop-possession-sub-radio:disabled {
-	opacity: 0.35;
-	cursor: default;
-}
-
 .stonetop-item-description {
 	padding-left: 20px;
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
@@ -2471,7 +2486,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-move-ref {
 	cursor: help;
-	border-bottom: 1px dotted currentColor;
+	font-weight: bold;
 }
 
 .stonetop-move-ref:hover {
@@ -2514,7 +2529,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: calc(16px * var(--stonetop-font-scale, 1));
 	height: calc(16px * var(--stonetop-font-scale, 1));
 	border-radius: 50% !important;
-	border: 2px solid var(--color-text-dark-primary) !important;
+	border: 1px solid var(--color-text-dark-primary) !important;
 	background: none !important;
 	padding: 0;
 	cursor: pointer;
@@ -2959,6 +2974,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    an item (Have What You Need). */
 .stonetop-small-pool-display,
 .stonetop-regular-pool-btn { pointer-events: none; }
+/* In manual mode the pools are directly editable. */
+.stonetop-manual-inventory .stonetop-small-pool-display,
+.stonetop-manual-inventory .stonetop-regular-pool-btn { pointer-events: auto; cursor: pointer; }
 
 .stonetop-supplies-pool-note {
 	font-size: var(--st-fs-sm);
@@ -4207,8 +4225,32 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-inventory-toolbar {
 	display: flex;
+	align-items: center;
 	justify-content: flex-end;
+	gap: 10px;
 	margin-bottom: 6px;
+}
+
+.stonetop-inventory-manual-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: var(--st-fs-xs);
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.stonetop-inventory-manual-toggle input[type=checkbox] {
+	cursor: pointer;
+	margin: 0;
+}
+
+.stonetop-inventory-manual-note {
+	font-size: var(--st-fs-sm);
+	color: var(--color-text-dark-secondary, #666);
+	font-style: italic;
+	margin: 0 0 8px;
 }
 
 .stonetop-inventory-reset-btn {
@@ -8445,8 +8487,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    dotted underline hints there's something to hover. It stays plain, selectable
    text (no journal link) so clicking it still picks the option. */
 .stonetop-onboarding-well-versed-topic {
-	text-decoration: underline dotted rgba(100,116,139,0.7);
-	text-underline-offset: 2px;
+	font-weight: bold;
 	cursor: help;
 }
 
@@ -8724,7 +8765,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-onboarding-lookup {
 	color: #1f2937;
 	cursor: help;
-	border-bottom: 1px dotted currentColor;
+	font-weight: bold;
 }
 
 .stonetop-onboarding-lookup:hover {
@@ -9002,7 +9043,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-followers {
 	display: grid;
-	grid-template-columns: repeat(2, 1fr);
+	/* Responsive columns: fit as many ~280px cards as the tab is wide enough for,
+	   then collapse to a single full-width column when it isn't — rather than a
+	   fixed 2-up grid that locks at ~572px and overflows (clipping the right card)
+	   on a narrow sheet. min(280px, 100%) lets the track shrink below 280px when the
+	   container itself is narrower, so it never overflows. */
+	grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
 	align-items: start;
 	gap: 12px;
 }
@@ -9013,7 +9059,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-radius: var(--st-radius-lg);
 	overflow: hidden;
 	background: #fff;
-	min-width: 280px;
+	/* No min-width here: the grid track (minmax above) sets the comfortable width and
+	   collapses to one column when cramped. A fixed card min-width would overflow its
+	   own track on a narrow sheet and get clipped. */
+	min-width: 0;
 	max-width: 560px;
 	width: 100%; /* fill available but won't exceed max-width */
 }
@@ -9056,12 +9105,20 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-follower-header {
 	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
+	flex-direction: column;
 	gap: 8px;
 	padding: 10px 12px 8px;
 	background: hsl(210 12% 94%);
 	border-bottom: 1px solid #ddd;
+}
+
+/* Top hstack: portrait icon + the Name/type vstack + octagonal HP box. Tags
+   live in their own full-width row below this (see .stonetop-follower-tags-row). */
+.stonetop-follower-header-main {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
 }
 
 .stonetop-follower-title {
@@ -9178,7 +9235,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: hsl(210 12% 92%);
 	border: 1px solid rgba(100,116,139,0.3);
 	border-radius: 999px;
-	font-size: var(--st-fs-base);
+	font-size: var(--st-fs-sm);
 	color: var(--st-text-body);
 }
 
@@ -9913,6 +9970,14 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	height: 18px !important;
 	padding: 0 !important;
 	justify-content: center;
+	/* Collapse the inherited line box so the FontAwesome glyph (drawn on the
+	   baseline) actually centers in the square instead of riding high. */
+	line-height: 1;
+}
+
+.stonetop-follower-gear-item .stonetop-follower-gear-remove > i {
+	margin: 0;
+	line-height: 1;
 }
 
 .stonetop-follower-gear-add {
@@ -10833,12 +10898,11 @@ li.question-bullet {
 	font-style: normal;
 }
 
-/* Trade "Value N" mentions in journal prose — applied via markValueTooltips(). A
-   dotted underline hints there's a hover explanation of what the trade-value tier is
-   worth; the text stays plain and selectable. */
+/* Trade "Value N" mentions in journal prose — applied via markValueTooltips(). Bold
+   hints there's a hover explanation of what the trade-value tier is worth; the text
+   stays selectable. */
 .stonetop-value-term[data-tooltip] {
-	text-decoration: underline dotted rgba(100, 116, 139, 0.7);
-	text-underline-offset: 2px;
+	font-weight: bold;
 	cursor: help;
 }
 
@@ -11265,7 +11329,7 @@ input.stonetop-monster-armor-source {
 
 .stonetop-monster-moves-summary-item .stonetop-monster-move-name {
 	cursor: pointer;
-	text-decoration: underline dotted;
+	font-weight: bold;
 }
 
 /* Full-width sections below the stat block (Moves, Notes), spaced apart and set
@@ -12394,7 +12458,6 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	font-family: var(--font-stonetop);
 	font-weight: bold;
 	cursor: pointer;
-	text-decoration: underline dotted;
 }
 
 .stonetop-entry-statblock-meta {
@@ -13084,8 +13147,7 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-welcome-player-char {
 	cursor: pointer;
-	text-decoration: underline;
-	text-decoration-style: dotted;
+	font-weight: bold;
 }
 
 /* Comma-separate consecutive character entries — each entry is the name link plus
@@ -13195,6 +13257,133 @@ th:has(> .stonetop-roll-table-btn) {
 	margin: 0;
 	flex: 0 0 auto;
 }
+
+/* ── Seasons Change upkeep reminder ────────────────────────────────────────── */
+
+.stonetop-seasons-reminder-dialog .window-content {
+	padding: 0;
+	overflow: hidden;
+}
+
+.stonetop-seasons-reminder {
+	display: flex;
+	flex-direction: column;
+	font-family: var(--font-stonetop);
+	padding: 16px 20px 0;
+}
+
+.stonetop-seasons-reminder-hero {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+.stonetop-seasons-reminder-icon {
+	width: 44px;
+	height: 44px;
+	flex: 0 0 auto;
+	border: none;
+}
+
+.stonetop-seasons-reminder-heading h2 {
+	margin: 0;
+	border: none;
+	font-size: calc(1.35rem * var(--stonetop-font-scale, 1));
+	line-height: 1.1;
+}
+
+.stonetop-seasons-reminder-season {
+	font-size: var(--st-fs-sm);
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-seasons-reminder-lead {
+	margin: 0 0 10px;
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-seasons-reminder-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.stonetop-seasons-reminder-item {
+	padding: 8px 10px;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+}
+
+.stonetop-seasons-reminder-item-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.stonetop-seasons-reminder-item-name {
+	font-weight: 600;
+}
+
+.stonetop-seasons-reminder-item-char {
+	font-size: var(--st-fs-xs);
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.stonetop-seasons-reminder-item-rule {
+	margin: 4px 0 0;
+	font-size: var(--st-fs-sm);
+	line-height: 1.35;
+}
+
+.stonetop-seasons-reminder-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 0 14px;
+	margin-top: 12px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.stonetop-seasons-reminder-dontshow {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--st-fs-sm);
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+
+.stonetop-seasons-reminder-dontshow-input {
+	width: auto;
+	margin: 0;
+	flex: 0 0 auto;
+}
+
+.stonetop-seasons-reminder-ok {
+	width: auto;
+	flex: 0 0 auto;
+	padding: 4px 16px;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	line-height: 1.3;
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s;
+}
+
+.stonetop-seasons-reminder-ok:hover { background: hsl(40 25% 85%); }
+.stonetop-seasons-reminder-ok > i { margin-right: 4px; }
 
 /* "New to Foundry?" text link, sitting under the intro on the Welcome guide. A
    quiet prompt → the FoundryBasicsDialog primer, styled as a text button (no

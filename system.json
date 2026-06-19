@@ -94,5 +94,6 @@
                                                }
                       },
     "primaryTokenAttribute":  "attributes.hp",
-    "initiative":  "2d6"
+    "initiative":  "2d6",
+    "socket":  true
 }

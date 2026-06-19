@@ -9,6 +9,9 @@ export class CharacterInventory {
 	get loadLevel()    { return this._flags.getFlag("loadLevel") ?? null; }
 	get regularPool()  { return this._flags.getFlag("regularPool") ?? 0; }
 	get smallPool()    { return this._flags.getFlag("smallPool") ?? 0; }
+	// When on, the player edits load level, the undefined ◇/□ pools, and item
+	// marks directly instead of letting Outfit / Have What You Need drive them.
+	get manualMode()   { return this._flags.getFlag("manualInventory") ?? false; }
 
 	async setItemChecked(slug, isChecked) {
 		await this._flags.setFlag("checked", { ...this.checked, [slug]: isChecked });
@@ -28,6 +31,10 @@ export class CharacterInventory {
 
 	async setSmallPool(count) {
 		await this._flags.setFlag("smallPool", count);
+	}
+
+	async setManualMode(on) {
+		await this._flags.setFlag("manualInventory", !!on);
 	}
 
 	async setAllChecked(checkedMap) {

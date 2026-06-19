@@ -4,6 +4,7 @@ import { stonetopCardShell } from "../utils/chat.js";
 import { escHtml } from "../utils/strings.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { getSetting, setSetting } from "../settings.js";
+import { broadcastSeasonsChange } from "../seasons/seasons-change-reminders.js";
 
 const ANSWERS_SETTING = "springBurstAnswers";
 
@@ -242,6 +243,9 @@ export class SpringBurstDialog extends Application {
 			speaker: { alias: "Seasons Change — Spring" },
 			flavor:  stonetopCardShell(this._springCardBody(roll.total, tier), "stonetop-spring-card"),
 		});
+		// First spring is still a Seasons Change move — remind players carrying a
+		// seasonal move/possession (e.g. The Blessed's Rites of the Land).
+		broadcastSeasonsChange("spring");
 		this.render(false);
 	}
 

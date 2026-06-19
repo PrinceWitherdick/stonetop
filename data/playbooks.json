@@ -570,7 +570,8 @@
       },
       {
         "slug": "danu-offerings",
-        "title": "Offerings to Danu",
+        "title": "",
+        "continuation": true,
         "description": "<p>What do the folk of Stonetop leave as offerings? <em>(choose 2–3)</em></p>",
         "options": [
           {

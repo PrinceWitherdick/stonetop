@@ -16,6 +16,7 @@ import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
 import {getDragEventData} from "../../utils/foundry-compat.js";
+import {broadcastSeasonsChange, seasonIconSrc, seasonLabel} from "../../seasons/seasons-change-reminders.js";
 
 function _signedNum(n) {
 	return n >= 0 ? `+${n}` : String(n);
@@ -24,12 +25,6 @@ function _signedNum(n) {
 function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
 }
-
-// Season glyph path; Autumn shares the one "fall" icon. The static moves table
-// below spells the four paths out for readability; the season dialogs derive
-// theirs from the picked id, so both share this one autumn→fall rule.
-const _seasonIconSrc = id =>
-	`systems/stonetop_pwd/assets/icons/seasons/${id === "autumn" ? "fall" : id}_icon.svg`;
 
 const _STEADING_MOVES_RAW = [
 	{
@@ -1308,7 +1303,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					<div class="stonetop-season-cards">
 						${SEASONS.map(s => `
 							<div class="stonetop-season-card" data-season="${s.id}">
-								<img src="${_seasonIconSrc(s.id)}" alt="${s.label}" class="stonetop-season-icon">
+								<img src="${seasonIconSrc(s.id)}" alt="${s.label}" class="stonetop-season-icon">
 								<span class="stonetop-season-label">${s.label}</span>
 							</div>`).join("")}
 					</div>
@@ -1327,14 +1322,18 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		async _showSeasonDialog(seasonId) {
+			// The seasons have turned: remind any player whose character carries a
+			// seasonal move/possession (Rites of the Land, Collected offerings, etc.).
+			broadcastSeasonsChange(seasonId);
+
 			const fortunes   = this._stonetopSteading.getStatValue("fortunes");
 			const surplus    = this._stonetopSteading.getStatValue("surplus");
 			const population = this._stonetopSteading.getStatValue("population");
 			const malcontent = this._stonetopSteading.getSystemValue("attributes.debilities.options.malcontent.value", false);
 			const resetFortunes = malcontent ? 0 : 1;
 
-			const label   = { spring: "Spring", summer: "Summer", autumn: "Autumn", winter: "Winter" }[seasonId];
-			const iconSrc = _seasonIconSrc(seasonId);
+			const label   = seasonLabel(seasonId);
+			const iconSrc = seasonIconSrc(seasonId);
 
 			const header = `<div class="stonetop-season-flow-header">
 				<img src="${iconSrc}" alt="${label}" class="stonetop-season-icon-sm">
