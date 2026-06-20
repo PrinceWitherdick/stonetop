@@ -253,7 +253,13 @@
 				{{> "stonetop.steading-tab-notes"}}
 			</section>
 
-			<div class="stonetop-moves-sidebar steading-moves-sidebar">
+			<div class="stonetop-moves-sidebar steading-moves-sidebar{{#if stonetop.sidebarCollapsed}} is-collapsed{{/if}}">
+				<button type="button" class="stonetop-sidebar-toggle"
+				        aria-expanded="{{#if stonetop.sidebarCollapsed}}false{{else}}true{{/if}}"
+				        aria-label="{{#if stonetop.sidebarCollapsed}}Expand moves sidebar{{else}}Collapse moves sidebar{{/if}}">
+					<i class="fas fa-chevron-right"></i>
+				</button>
+				<div class="stonetop-sidebar-body">
 				{{> "stonetop.section-heading" title="Roll Modifier"}}
 				<div class="stonetop-roll-mode-control" role="group" aria-label="Roll mode">
 					<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "adv")}} is-checked{{/if}}">
@@ -275,6 +281,7 @@
 
 				{{> "stonetop.section-heading" title=(localize "stonetop.steading.tabs.moves")}}
 				{{> "stonetop.steading-tab-moves"}}
+				</div>
 			</div>
 		</div>
 

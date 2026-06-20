@@ -5975,7 +5975,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 0;
 }
 
-.steading-moves-sidebar {
+/* Breathing room on the right of the move rows. Lives on the body (not the outer
+   flex container) so it collapses away with the body, leaving a clean handle strip. */
+.steading-moves-sidebar .stonetop-sidebar-body {
 	padding-right: 12px;
 }
 

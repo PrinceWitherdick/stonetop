@@ -9,7 +9,7 @@ import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
 import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDialog.js";
 import {CharacterInventory} from "../character/CharacterInventory.js";
 import {SPECIAL_ITEM_CATALOG} from "../../data/special-items.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getSidebarCollapsed, setSidebarCollapsed} from "../../settings.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
@@ -634,6 +634,9 @@ export function createStonetopSteadingSheetClass(Base) {
 			}));
 			context.stonetop.rollMode = this._sheetRollMode();
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
+			// Whether the whole moves sidebar is collapsed (defaults to expanded),
+			// persisted per-actor, per-user.
+			context.stonetop.sidebarCollapsed = getSidebarCollapsed(this.actor?.id);
 			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.canEdit = this.isEditable;
@@ -670,6 +673,19 @@ export function createStonetopSteadingSheetClass(Base) {
 			html.find(".stonetop-roll-mode-input").on("change", async (ev) => {
 				await this.actor.setFlag(STONETOP_SCOPE, "rollMode", _normalizeSheetRollMode(ev.currentTarget.value));
 				this.render(false);
+			});
+
+			// Collapse / expand the whole moves sidebar (Roll Modifier + Homefront Moves).
+			// Toggling a class (rather than re-rendering) lets the tab content reclaim
+			// the freed width without flicker; the state is persisted so the sidebar
+			// reopens the same way.
+			html.find(".stonetop-sidebar-toggle").on("click", ev => {
+				const sidebar = ev.currentTarget.closest(".stonetop-moves-sidebar");
+				if (!sidebar) return;
+				const collapsed = sidebar.classList.toggle("is-collapsed");
+				ev.currentTarget.setAttribute("aria-expanded", String(!collapsed));
+				ev.currentTarget.setAttribute("aria-label", collapsed ? "Expand moves sidebar" : "Collapse moves sidebar");
+				setSidebarCollapsed(this.actor?.id, collapsed);
 			});
 
 			// Clicking the move name or its "+STAT" chip rolls the same as tapping the dice icon beside it.
