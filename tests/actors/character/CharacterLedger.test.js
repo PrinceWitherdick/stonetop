@@ -162,6 +162,14 @@ describe("ledgerNoun", () => {
 		expect(ledgerNoun("Place A set to The Stone")).toBe("Place A");
 	});
 
+	it("ignores a trailing move attribution when deriving the subject", () => {
+		// The ledger dialog renders move-caused entries as "<action> via <move>"; the
+		// subject filter must still group them by the action's real subject.
+		expect(ledgerNoun("XP changed from 4 to 5 via Defy Danger")).toBe("XP");
+		expect(ledgerNoun("Forward changed from 1 to 0 via Defy Danger")).toBe("Forward");
+		expect(ledgerNoun("Surplus changed from 2 to 3 via Seasons Change")).toBe("Surplus");
+	});
+
 	it("falls back to the whole action when no verb is recognised", () => {
 		expect(ledgerNoun("Some freeform note")).toBe("Some freeform note");
 		expect(ledgerNoun("")).toBe("");

@@ -73,12 +73,12 @@
   </div>
 
   <div class="stonetop-guide-nav">
-    <button class="stonetop-spring-back" {{#if isFirst}}disabled{{/if}}>◀ Back</button>
+    <button class="stonetop-spring-back" {{#if isFirst}}disabled{{/if}}><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
     <span class="stonetop-spring-step-label">{{stepLabel}}</span>
     {{#if isLast}}
     <button class="stonetop-spring-done stonetop-guide-btn--primary">Done ✦</button>
     {{else}}
-    <button class="stonetop-spring-next">Next ▶</button>
+    <button class="stonetop-spring-next">Next<span class="stonetop-nav-arrow"></span></button>
     {{/if}}
   </div>
 

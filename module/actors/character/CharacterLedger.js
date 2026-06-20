@@ -480,6 +480,10 @@ export class CharacterLedger {
 			userId: userId ?? null,
 			userName: user?.name ?? globalThis.game?.user?.name ?? "Unknown",
 			action: entry.action,
+			// Name of the move that caused this change, when the change was a move's
+			// automated effect (e.g. "+1 XP on a miss" → the rolled move). null for
+			// plain sheet edits.
+			move: entry.move ?? null,
 		}));
 		await actor.update({
 			[`flags.${LEDGER_SCOPE}.${LEDGER_KEY}`]: stamped.concat(current.slice(0, LEDGER_MAX_ENTRIES - stamped.length)),

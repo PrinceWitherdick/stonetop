@@ -432,7 +432,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					return `${header}<li class="stonetop-ledger-entry" data-id="${_esc(entry.id)}" data-timestamp="${entry.timestamp ?? 0}" data-date-key="${_esc(date.key)}" data-date-label="${_esc(date.label)}">
 						<input type="checkbox" class="stonetop-ledger-row-check">
 						<div class="stonetop-ledger-entry-content">
-							<div class="stonetop-ledger-entry-main">${_esc(entry.action)}</div>
+							<div class="stonetop-ledger-entry-main">${_esc(entry.action)}${entry.move ? ` <span class="stonetop-ledger-entry-move">via ${_esc(entry.move)}</span>` : ""}</div>
 							<div class="stonetop-ledger-entry-user">Changed by ${_esc(entry.userName)}</div>
 							<div class="stonetop-ledger-entry-meta">
 								<span>${_esc(entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "")}</span>
@@ -1497,26 +1497,29 @@ export function createStonetopSteadingSheetClass(Base) {
 				buttons: { done: { label: "Done" } },
 				render: (html) => {
 					const root = html[0];
+					// Every stat change in this walkthrough is an effect of the Seasons Change
+					// homefront move, so the ledger attributes them to it.
+					const seasonsMove = { stonetopMove: "Seasons Change" };
 
 					root.querySelector("[data-action='roll-fortunes']")?.addEventListener("click", () => {
 						this._onSteadingRoll("Seasons Change", "fortunes");
 					});
 
 					root.querySelector("[data-action='reset-fortunes']")?.addEventListener("click", async () => {
-						await this._stonetopSteading.setSystemValue("stats.fortunes.value", resetFortunes);
+						await this._stonetopSteading.setSystemValue("stats.fortunes.value", resetFortunes, seasonsMove);
 						this.render(false);
 						ui.notifications.info(`Fortunes reset to ${_signedNum(resetFortunes)}.`);
 					});
 
 					root.querySelector("[data-action='gain-population']")?.addEventListener("click", async () => {
 						const newPopulation = Math.min(population + 1, 3);
-						await this._stonetopSteading.setSystemValue("attributes.population.value", newPopulation);
+						await this._stonetopSteading.setSystemValue("attributes.population.value", newPopulation, seasonsMove);
 						this.render(false);
 						ui.notifications.info(`Population increased to ${_signedNum(newPopulation)}.`);
 					});
 
 					root.querySelector("[data-action='gain-surplus']")?.addEventListener("click", async () => {
-						await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus + 1);
+						await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus + 1, seasonsMove);
 						this.render(false);
 						ui.notifications.info(`Surplus increased to ${surplus + 1}.`);
 					});
@@ -1526,7 +1529,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						const roll = await new Roll(formula).evaluate();
 						const gain = Math.max(0, roll.total);
 						await roll.toMessage({ flavor: `Surplus Generation (${label})` });
-						await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus + gain);
+						await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus + gain, seasonsMove);
 						this.render(false);
 						ui.notifications.info(`Generated ${gain} Surplus. New total: ${surplus + gain}.`);
 					});
@@ -1547,7 +1550,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						if (surplus >= consumption) {
 							root.querySelector("#stonetop-winter-ok").hidden = false;
 							root.querySelector("[data-action='apply-consumption']").addEventListener("click", async () => {
-								await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus - consumption);
+								await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus - consumption, seasonsMove);
 								this.render(false);
 								root.querySelector("#stonetop-winter-ok").hidden = true;
 								root.querySelector("#stonetop-winter-step3").hidden = false;
@@ -1558,11 +1561,11 @@ export function createStonetopSteadingSheetClass(Base) {
 							root.querySelectorAll("[data-consequence]").forEach(el => {
 								el.addEventListener("click", async () => {
 									const newFortunes = Math.max(fortunes - 1, -1);
-									await this._stonetopSteading.setSystemValue("attributes.surplus.value", 0);
-									await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes);
+									await this._stonetopSteading.setSystemValue("attributes.surplus.value", 0, seasonsMove);
+									await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes, seasonsMove);
 									if (el.dataset.consequence === "population") {
 										const newPop = Math.max(population - 1, -1);
-										await this._stonetopSteading.setSystemValue("attributes.population.value", newPop);
+										await this._stonetopSteading.setSystemValue("attributes.population.value", newPop, seasonsMove);
 										ui.notifications.info(`Shortfall: Surplus → 0, Fortunes → ${_signedNum(newFortunes)}, Population → ${_signedNum(newPop)}.`);
 									} else {
 										ui.notifications.info(`Shortfall: Surplus → 0, Fortunes → ${_signedNum(newFortunes)}. Apply the narrative consequence.`);

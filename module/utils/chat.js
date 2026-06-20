@@ -10,6 +10,15 @@ export const STAT_CHAT_LABELS = {
 	"system.stats.cha.value": "CHA",
 };
 
+/** Steading ("stonetop") stat paths (in a flattened update) mapped to their chat labels. */
+export const STEADING_STAT_CHAT_LABELS = {
+	"system.stats.fortunes.value": "Fortunes",
+	"system.stats.defenses.value": "Defenses",
+	"system.attributes.population.value": "Population",
+	"system.attributes.prosperity.value": "Prosperity",
+	"system.attributes.surplus.value": "Surplus",
+};
+
 /** Format a stat value for chat: numbers get a leading sign (+1, -1, 0); blanks show as a dash. */
 function formatStatValue(value) {
 	if (value === undefined || value === null || value === "") return "—";

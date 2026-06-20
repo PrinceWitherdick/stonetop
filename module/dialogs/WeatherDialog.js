@@ -17,7 +17,6 @@ export class WeatherDialog extends Application {
 		// Restore the last-used season, defaulting to the first table.
 		const saved = getSetting(SEASON_SETTING);
 		this._season    = getWeatherSeason(saved) ? saved : WEATHER_SEASONS[0].key;
-		this._roll      = null;
 		this._keepOnTop = new KeepOnTop(this);
 	}
 
@@ -60,28 +59,25 @@ export class WeatherDialog extends Application {
 			seasons: WEATHER_SEASONS.map(s => ({ key: s.key, label: s.label, isActive: s.key === this._season })),
 			label:   season.label,
 			rows:    season.rows.map(r => ({
-				range:    rowRange(r),
-				text:     r.text,
-				reroll:   !!r.reroll,
-				isActive: !!this._roll && this._roll.total >= r.min && this._roll.total <= r.max,
+				range:  rowRange(r),
+				text:   r.text,
+				reroll: !!r.reroll,
 			})),
-			roll:    this._roll,
 		};
 	}
 
-	// Switch season (clearing any stale roll) and remember it for next time.
+	// Switch season and remember it for next time.
 	async _pickSeason(key) {
 		if (!getWeatherSeason(key) || key === this._season) return;
 		this._season = key;
-		this._roll   = null;
 		await setSetting(SEASON_SETTING, key);
 		this.render(false);
 	}
 
-	// Roll 1d6 on the current season's table and post the card.
+	// Roll 1d6 on the current season's table; the result posts to chat, so just
+	// close the picker rather than echoing the roll back into the dialog.
 	async _roll2() {
-		const result = await rollWeather(this._season);
-		if (result) this._roll = result;
-		this.render(false);
+		await rollWeather(this._season);
+		this.close();
 	}
 }

@@ -861,7 +861,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					return `${header}<li class="stonetop-ledger-entry" data-id="${_esc(entry.id)}" data-timestamp="${entry.timestamp ?? 0}" data-date-key="${_esc(date.key)}" data-date-label="${_esc(date.label)}">
 						<input type="checkbox" class="stonetop-ledger-row-check">
 						<div class="stonetop-ledger-entry-content">
-							<div class="stonetop-ledger-entry-main">${_esc(entry.action)}</div>
+							<div class="stonetop-ledger-entry-main">${_esc(entry.action)}${entry.move ? ` <span class="stonetop-ledger-entry-move">via ${_esc(entry.move)}</span>` : ""}</div>
 							<div class="stonetop-ledger-entry-user">Changed by ${_esc(entry.userName)}</div>
 							<div class="stonetop-ledger-entry-meta">
 								<span>${_esc(entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "")}</span>

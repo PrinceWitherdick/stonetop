@@ -13,7 +13,7 @@
 
   <ul class="stonetop-weather-rows">
     {{#each rows}}
-    <li class="stonetop-weather-row{{#if isActive}} is-active{{/if}}">
+    <li class="stonetop-weather-row">
       <span class="stonetop-weather-row-range">{{range}}</span>
       <span class="stonetop-weather-row-text">{{text}}{{#if reroll}} <em class="stonetop-weather-row-reroll">(roll again later with disadvantage)</em>{{/if}}</span>
     </li>
@@ -24,9 +24,6 @@
     <button type="button" class="stonetop-weather-roll-btn">
       <i class="fas fa-cloud-sun-rain"></i> Roll the weather
     </button>
-    {{#if roll}}
-    <span class="stonetop-weather-roll-total">Rolled <strong>{{roll.total}}</strong></span>
-    {{/if}}
   </div>
 
 </div>

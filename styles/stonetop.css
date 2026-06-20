@@ -158,6 +158,8 @@
 	--stonetop-section-gap: 12px;
 	/* The spiral icon used for bullets/markers throughout the sheets. */
 	--stonetop-spiral-icon: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
+	/* The arrow glyph used on wizard/stepper Back/Next buttons (masked → currentColor). */
+	--stonetop-arrow-icon: url('/systems/stonetop_pwd/assets/icons/arrow.svg');
 	/* The exclamation "legend" marker the rulebook puts beside hazard custom moves
 	   (e.g. Crinwin's "Unstable nest" and "Wasps" dangers). */
 	--stonetop-danger-icon: url('/systems/stonetop_pwd/assets/icons/bestiary/danger-move.svg');
@@ -1589,7 +1591,7 @@ input.stonetop-name-field {
 	   its right edge instead (reference text, left-aligned) — the working tab stays
 	   readable. */
 	min-width: 240px;
-	padding-right: 8px;
+	padding-right: 0px;
 	overflow-y: auto;
 	overflow-x: hidden;
 	height: 100%;
@@ -1785,12 +1787,29 @@ input.stonetop-name-field {
 }
 
 .stonetop-roll-mode-option input {
+	/* Round slate-dot radio (matches the onboarding background picker / create-
+	   follower radios) instead of the native control. The row's `.is-checked`
+	   background still signals selection alongside the dot. */
+	appearance: none;
+	-webkit-appearance: none;
+	flex-shrink: 0;
+	width: calc(13px * var(--stonetop-font-scale, 1));
+	height: calc(13px * var(--stonetop-font-scale, 1));
+	border: 1.5px solid slategrey;
+	border-radius: 50%;
+	background: #fff;
+	cursor: pointer;
+	box-shadow: none;
 	margin: 0;
 	/* align-items: center lands the radio on the text's line-box center, which is a
 	   hair below the letterforms' optical center, so the label reads higher than the
 	   radio. Lift the radio slightly to meet the label. */
 	position: relative;
 	top: -1px;
+}
+
+.stonetop-roll-mode-option input:checked {
+	background: radial-gradient(circle, slategrey 0 44%, transparent 48%);
 }
 
 /* Each row is a left-aligned, vertically-centered flex row. No left padding so
@@ -1973,6 +1992,16 @@ input.stonetop-name-field {
 .stonetop-crew-instinct-option,
 .stonetop-crew-cost-option,
 .stonetop-initiate-trait-option,
+.stonetop-cf-hp-mod,
+.stonetop-cf-armor-mod,
+.stonetop-share-visible,
+.stonetop-share-owner,
+.stonetop-ledger-row-check,
+.stonetop-ledger-edit-check,
+.stonetop-ledger-select-all,
+.stonetop-welcome-dontshow-input,
+.stonetop-seasons-reminder-dontshow-input,
+.stonetop-exp-checkbox,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
@@ -2007,8 +2036,28 @@ input.stonetop-name-field {
 .stonetop-crew-instinct-option:checked,
 .stonetop-crew-cost-option:checked,
 .stonetop-initiate-trait-option:checked,
+.stonetop-cf-hp-mod:checked,
+.stonetop-cf-armor-mod:checked,
+.stonetop-share-visible:checked,
+.stonetop-share-owner:checked,
+.stonetop-ledger-row-check:checked,
+.stonetop-ledger-edit-check:checked,
+.stonetop-ledger-select-all:checked,
+.stonetop-welcome-dontshow-input:checked,
+.stonetop-seasons-reminder-dontshow-input:checked,
+.stonetop-exp-checkbox:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
+}
+
+/* Select-all goes indeterminate when only some ledger rows are picked (the sheets
+   set selectAllEl.indeterminate on row toggles). appearance:none above hides the
+   native dash, so paint our own: the empty checkbox SVG with a short centred bar
+   layered over it, distinct from both the empty and fully-checked states. */
+.stonetop-ledger-select-all:indeterminate {
+	background:
+		linear-gradient(currentColor, currentColor) no-repeat center / 56% 2px,
+		url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
 }
 
 .stonetop-item-check:disabled,
@@ -2314,7 +2363,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 6px 10px;
 	border-radius: var(--st-radius-lg);
 	border-left: 5px solid currentColor;
-	margin: 0 0 8px;
+	margin: 0;
 }
 .stonetop-fate-number {
 	font-family: var(--font-stonetop);
@@ -2446,14 +2495,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: rgba(0, 0, 0, 0.02);
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	line-height: 1.4;
-	opacity: 0.7;
-	transition: opacity 0.15s, border-color 0.15s, background 0.15s;
-}
-
-.stonetop-weather-row.is-active {
-	opacity: 1;
-	border-color: var(--st-green-border);
-	background: var(--st-green-bg);
 }
 
 .stonetop-weather-row-range {
@@ -2489,11 +2530,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-weather-roll-btn:hover { background: var(--st-btn-primary-bg-hover); }
 .stonetop-weather-roll-btn > i { margin-right: 4px; }
-
-.stonetop-weather-roll-total {
-	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
-	color: var(--color-text-dark-secondary);
-}
 
 :is(#chat, #chat-notifications) .message .stonetop-startup-card__content {
 	display: grid;
@@ -2589,6 +2625,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border: 1px solid rgba(159, 146, 117, 0.4);
 	border-radius: var(--st-radius-sm);
 	opacity: 0.85;
+}
+/* The formula chip carries a data-tooltip with the individual die faces ("2 4"); hint
+   that it's hoverable — this is the spot players intuitively mouse over to see the dice. */
+.stonetop-roll-formula[data-tooltip] {
+	cursor: help;
 }
 :is(#chat, #chat-notifications) .message:has(.stonetop-roll-card) .message-content .dice-roll {
 	display: none;
@@ -2805,6 +2846,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Shared mask-icon recipe — size/repeat/position are constant; each class supplies its own url + background. */
 .stonetop-burn-brightly-icon,
+.stonetop-nav-arrow,
 .stonetop-onboarding-lore-marker--spiral {
 	-webkit-mask-size: contain;
 	mask-size: contain;
@@ -2822,6 +2864,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/flame.svg');
 	mask-image: url('/systems/stonetop_pwd/assets/icons/flame.svg');
 }
+
+/* Wizard/stepper Back/Next arrow — replaces the old ▶/◀ unicode glyphs. Masked so
+   it inherits the button's text colour; --back flips it for the Back button. The
+   guide-nav buttons (inline-flex + gap) handle spacing from the label. */
+.stonetop-nav-arrow {
+	display: inline-block;
+	width: 0.7em;
+	height: 0.8em;
+	background: currentColor;
+	-webkit-mask-image: var(--stonetop-arrow-icon);
+	mask-image: var(--stonetop-arrow-icon);
+}
+.stonetop-nav-arrow--back { transform: scaleX(-1); }
 
 /* ── Item source ──────────────────────────────────────────────────────────── */
 
@@ -4725,6 +4780,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	line-height: 1.3;
 }
 
+/* Attribution tag for changes a move caused, e.g. "XP changed … via Defy Danger". */
+.stonetop-ledger-entry-move {
+	font-weight: 400;
+	font-style: italic;
+	color: var(--st-text-secondary, #555);
+	font-size: var(--st-fs-xs);
+	white-space: nowrap;
+}
+
 .stonetop-ledger-entry-user {
 	margin-top: 3px;
 	color: var(--color-text-dark-secondary, #555);
@@ -6499,7 +6563,23 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-size-option input[type="radio"] {
-	accent-color: slategrey;
+	/* Round slate-dot radio (matches the onboarding background picker). The adjacent
+	   stat tracks use slate squares, but size is a discrete "pick one", so a round
+	   dot reads more clearly than a fill-track square. */
+	appearance: none;
+	-webkit-appearance: none;
+	flex-shrink: 0;
+	width: calc(13px * var(--stonetop-font-scale, 1));
+	height: calc(13px * var(--stonetop-font-scale, 1));
+	margin: 0;
+	border: 1.5px solid slategrey;
+	border-radius: 50%;
+	background: #fff;
+	cursor: pointer;
+}
+
+.steading-size-option input[type="radio"]:checked {
+	background: radial-gradient(circle, slategrey 0 44%, transparent 48%);
 }
 
 /* Debilities */
@@ -8430,6 +8510,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-onboarding-back:hover,
 .stonetop-onboarding-back-to-picker:hover,
 .stonetop-onboarding-next:hover  { background: hsl(210 10% 92%); }
+
+/* Sit the nav arrow beside the label (these buttons aren't part of .stonetop-guide-nav). */
+.stonetop-onboarding-next,
+.stonetop-onboarding-back,
+.stonetop-onboarding-back-to-picker { display: inline-flex; align-items: center; justify-content: center; gap: 0.4em; }
 
 .stonetop-onboarding-confirm {
 	background: var(--st-btn-primary-bg);
@@ -14558,10 +14643,12 @@ th:has(> .stonetop-roll-table-btn) {
 	line-height: 1.4;
 }
 
-.stonetop-exp-check input[type="checkbox"] {
-	flex-shrink: 0;
-	margin-top: 0.2em;
-}
+/* No per-row checkbox override: .stonetop-exp-checkbox is in the shared 15px-glyph
+   master block, so it inherits the exact seating of every other checklist (lore
+   options, arcana unlocks, …). Those peers keep Foundry core's `margin: 3px 5px`,
+   which centres the 15px glyph on the first line of `align-items: flex-start` text.
+   Do NOT add `margin: 0` here — that was tuned for the old native 20px box; on a
+   15px glyph it lifts the box ~3px ABOVE where the peer checklists sit. */
 
 /* Inline d6 reference table embedded in a step body (e.g. Make Camp occurrences). */
 .stonetop-spring-body ul.stonetop-exp-fatetable {
@@ -14676,6 +14763,31 @@ th:has(> .stonetop-roll-table-btn) {
 	color: var(--st-text-secondary);
 }
 .stonetop-cf-option.is-selected .stonetop-cf-option-val { color: var(--st-green-text); }
+
+/* The three "pick 1" choices (HP base, armor base, damage die) are radios sitting
+   beside the pick-all checkbox options. Skin all three as round radios (filled dot
+   when chosen) so they read as single-select, distinct from the SVG checkboxes.
+   currentColor lets the dot pick up the green selected-state text colour like the
+   rest of the option row. */
+.stonetop-cf-hp-base,
+.stonetop-cf-armor-base,
+.stonetop-cf-damage {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	width: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	flex: 0 0 auto !important;
+	border: 1.5px solid currentColor !important;
+	border-radius: 50% !important;
+	background: transparent !important;
+	cursor: pointer;
+	margin: 0 !important;
+}
+.stonetop-cf-hp-base:checked,
+.stonetop-cf-armor-base:checked,
+.stonetop-cf-damage:checked {
+	background: radial-gradient(circle, currentColor 0 45%, transparent 50%) !important;
+}
 
 .stonetop-cf-total {
 	align-self: flex-start;
@@ -14882,10 +14994,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	transition: opacity 0.15s, border-color 0.15s, background 0.15s;
 }
 
-.stonetop-share-option > input[type="checkbox"] {
-	flex-shrink: 0;
-	margin-top: 0.15em;
-}
+/* No per-row checkbox override: .stonetop-share-visible / .stonetop-share-owner are
+   in the shared 15px-glyph master block and inherit the same seating as every other
+   checklist (see the note on .stonetop-exp-check above). */
 
 .stonetop-share-option-text {
 	display: flex;

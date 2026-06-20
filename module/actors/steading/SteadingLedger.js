@@ -219,6 +219,9 @@ export class SteadingLedger {
 			userId: userId ?? null,
 			userName: user?.name ?? globalThis.game?.user?.name ?? "Unknown",
 			action: entry.action,
+			// Name of the move that caused this change (e.g. "Seasons Change"), or null
+			// for a plain sheet edit.
+			move: entry.move ?? null,
 		}));
 		await actor.update({
 			[`flags.${LEDGER_SCOPE}.${LEDGER_KEY}`]: stamped.concat(current.slice(0, LEDGER_MAX_ENTRIES - stamped.length)),

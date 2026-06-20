@@ -55,8 +55,11 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 		: "";
 	// The die formula gets its own chip above the result, mirroring Foundry's vanilla
 	// dice-formula placement. We hide Foundry's auto-rendered dice block in CSS, so
-	// this is the only place the formula appears.
-	const formulaHtml = formula ? `<div class="stonetop-roll-formula">${formula}</div>` : "";
+	// this is the only place the formula appears. The chip carries the individual die
+	// faces ("2 4") as a hover tooltip — hovering "2d6" to see what the d6s came up is
+	// the intuitive spot (the total below carries the same readout for discoverability).
+	const dieFacesAttr = dieResults ? ` data-tooltip="${_escapeHtml(dieResults)}"` : "";
+	const formulaHtml = formula ? `<div class="stonetop-roll-formula"${dieFacesAttr}>${formula}</div>` : "";
 
 	// One left-edge result block: the rolled total plus (for move / Death's-Door rolls)
 	// the hit tier and its per-tier outcome, colour-coded down the left edge. Replaces
@@ -64,7 +67,7 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 	// (e.g. the "+1 XP on a miss" follow-up) pass no total and just show the label.
 	const resultBlockHtml = (total != null || result)
 		? `<div class="stonetop-roll-result ${resultClass}"${outcomeAttrs}>
-			${total != null ? `<span class="stonetop-roll-result-number"${dieResults ? ` data-tooltip="${_escapeHtml(dieResults)}"` : ""}>${total}</span>` : ""}
+			${total != null ? `<span class="stonetop-roll-result-number"${dieFacesAttr}>${total}</span>` : ""}
 			<div class="stonetop-roll-result-body">
 				${result ? `<span class="stonetop-roll-result-label">${result}</span>` : ""}
 				<span class="stonetop-roll-result-details">${_escapeHtml(resultDetail)}</span>
@@ -222,7 +225,8 @@ export async function rollStat(statKey, actor, options = {}) {
 		const level     = actor.system?.attributes?.level?.value ?? 1;
 		const maxXp     = 6 + level * 2;
 		const newXp     = currentXp + 1;
-		await actor.update({ "system.attributes.xp.value": newXp });
+		// Attribute the marked XP to the move that missed, so the ledger reads "via <move>".
+		await actor.update({ "system.attributes.xp.value": newXp }, moveName ? { stonetopMove: moveName } : {});
 		const xpCard = _rollCard({
 			header: "Miss",
 			result: `+1 XP (${newXp} / ${maxXp})`,

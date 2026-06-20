@@ -1,5 +1,6 @@
 import {resolvedFlagProperty, STONETOP_SCOPE} from "../character/StonetopFlags.js";
 import {slugify} from "../../utils/strings.js";
+import {OCCUPATIONS, TRAITS, HOMES} from "../../data/steading-members.js";
 
 export const IMPROVEMENT_DEFINITIONS = [
 	// ── Page 2 ──────────────────────────────────────────────────
@@ -479,11 +480,11 @@ export class StonetopSteading {
 		return _systemValue(this._actor, this._flags, path, defaultValue);
 	}
 
-	async setSystemValue(path, value) {
+	async setSystemValue(path, value, options = {}) {
 		await this._actor.update({
 			[`system.${path}`]: value,
 			[`flags.${STONETOP_SCOPE}.steading.system.${path}`]: value,
-		});
+		}, options);
 	}
 
 	getStatValue(statKey) {
@@ -672,6 +673,10 @@ export class StonetopSteading {
 		residents,
 			neighbors,
 			players,
+			// Suggestion pools for the inline combo fields (occupation / traits /
+			// home) on the Residents / Neighbors / Players tables — same source as
+			// the Add Steading Member dialog.
+			suggestions: { occupations: OCCUPATIONS, traits: TRAITS, homes: HOMES },
 			places:         f.places         ?? STEADING_DEFAULTS.places,
 			notes:          f.notes          ?? STEADING_DEFAULTS.notes,
 			size:           f.size           ?? STEADING_DEFAULTS.size,

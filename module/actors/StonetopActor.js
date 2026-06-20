@@ -2,7 +2,7 @@ import {StonetopCharacter} from "./character/StonetopCharacter.js";
 import {StonetopSteading} from "./steading/StonetopSteading.js";
 import {CharacterLedger} from "./character/CharacterLedger.js";
 import {SteadingLedger} from "./steading/SteadingLedger.js";
-import {STAT_CHAT_LABELS, postStatChangesToChat} from "../utils/chat.js";
+import {STAT_CHAT_LABELS, STEADING_STAT_CHAT_LABELS, postStatChangesToChat} from "../utils/chat.js";
 
 export function createStonetopActorClass(BaseActor) {
 	return class StonetopActor extends BaseActor {
@@ -40,27 +40,45 @@ export function createStonetopActorClass(BaseActor) {
 			const result = await super._preUpdate(changed, options, user);
 			if (!options?.stonetopLedger) {
 				if (this.type === "character") {
-					options.stonetopLedgerEntries = await CharacterLedger.entriesForActorUpdate(this, changed);
-					options.stonetopStatChanges = this._collectStatChanges(changed);
+					options.stonetopLedgerEntries = this._tagLedgerMove(await CharacterLedger.entriesForActorUpdate(this, changed), options);
+					options.stonetopStatChanges = this._collectStatChanges(changed, STAT_CHAT_LABELS);
 				} else if (this.type === "stonetop" || this.system?.customType === "stonetop") {
-					options.stonetopLedgerEntries = SteadingLedger.entriesForActorUpdate(this, changed);
+					options.stonetopLedgerEntries = this._tagLedgerMove(SteadingLedger.entriesForActorUpdate(this, changed), options);
+					options.stonetopStatChanges = this._collectStatChanges(changed, STEADING_STAT_CHAT_LABELS);
 				}
 			}
 			return result;
 		}
 
-		/** Diff the incoming update against current values for the six core stats. */
-		_collectStatChanges(changed) {
-			// Most updates (HP, XP, debilities, flags…) never touch the core stats, so
-			// skip the flatten unless this one could. Covers both update shapes: nested
-			// ({system:{stats}}) and dot-path ({"system.stats.str.value"}).
-			const couldTouchStats = changed?.system?.stats !== undefined
-				|| Object.keys(changed).some(k => k.startsWith("system.stats."));
+		/**
+		 * Attribute ledger entries to the move that caused them. When an update is the
+		 * automated effect of a move (the caller passes `options.stonetopMove`), stamp
+		 * each generated entry with that move's name so the ledger can show "via <move>".
+		 */
+		_tagLedgerMove(entries, options) {
+			const moveName = options?.stonetopMove;
+			if (moveName) for (const entry of entries) entry.move = moveName;
+			return entries;
+		}
+
+		/**
+		 * Diff the incoming update against current values for the watched stats.
+		 * @param {object} changed  The incoming update (nested or dot-path shape).
+		 * @param {Record<string,string>} labels  Stat path → chat label map for this actor type.
+		 */
+		_collectStatChanges(changed, labels) {
+			// Most updates (HP, XP, debilities, flags…) never touch the watched stats,
+			// so skip the flatten unless this one could. Covers both update shapes:
+			// nested ({system:{stats}}) and dot-path ({"system.stats.str.value"}).
+			const groups = [...new Set(Object.keys(labels).map(p => p.split(".").slice(0, 2).join(".")))];
+			const couldTouchStats = groups.some(group =>
+				foundry.utils.getProperty(changed, group) !== undefined
+				|| Object.keys(changed).some(k => k.startsWith(`${group}.`)));
 			if (!couldTouchStats) return [];
 
 			const flat = foundry.utils.flattenObject(changed);
 			const changes = [];
-			for (const [path, label] of Object.entries(STAT_CHAT_LABELS)) {
+			for (const [path, label] of Object.entries(labels)) {
 				if (!(path in flat)) continue;
 				const oldValue = foundry.utils.getProperty(this, path);
 				const newValue = flat[path];
@@ -80,6 +98,10 @@ export function createStonetopActorClass(BaseActor) {
 				}
 			} else if (this.type === "stonetop" || this.system?.customType === "stonetop") {
 				await SteadingLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
+				// Only the user who made the change posts, so the card isn't duplicated per client.
+				if (userId === globalThis.game?.user?.id) {
+					postStatChangesToChat(this, options.stonetopStatChanges ?? []);
+				}
 			}
 		}
 

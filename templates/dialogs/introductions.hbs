@@ -84,20 +84,20 @@
 
     {{#if isGM}}<button class="stonetop-intros-add">Add Player Characters</button>{{else}}<span></span>{{/if}}
     <button class="stonetop-intros-begin stonetop-guide-btn--primary" {{#unless canBegin}}disabled{{/unless}}>
-      Begin Introductions ▶
+      Begin Introductions<span class="stonetop-nav-arrow"></span>
     </button>
 
     {{else if isDone}}
 
-    <button class="stonetop-intros-back">◀ Back</button>
+    <button class="stonetop-intros-back"><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
     <span class="stonetop-intros-step-label">{{stepLabel}}</span>
     <button class="stonetop-intros-close stonetop-guide-btn--primary">Let spring break forth!</button>
 
     {{else}}
 
-    <button class="stonetop-intros-back" {{#if isPrevDisabled}}disabled{{/if}}>◀ Back</button>
+    <button class="stonetop-intros-back" {{#if isPrevDisabled}}disabled{{/if}}><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
     <span class="stonetop-intros-step-label">{{stepLabel}}</span>
-    <button class="stonetop-intros-next">Next ▶</button>
+    <button class="stonetop-intros-next">Next<span class="stonetop-nav-arrow"></span></button>
 
     {{/if}}
   </div>

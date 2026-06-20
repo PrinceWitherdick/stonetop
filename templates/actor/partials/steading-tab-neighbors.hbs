@@ -1,5 +1,16 @@
 <div class="tab neighbors" data-group="primary" data-tab="neighbors">
 	<section class="sheet-tab steading-neighbors-tab">
+		{{!-- Shared suggestion pools for the inline occupation / traits / home combo
+		      fields below; every row's input points at these via list="". --}}
+		<datalist id="steading-occupation-suggestions">
+			{{#each stonetop.suggestions.occupations}}<option value="{{this}}"></option>{{/each}}
+		</datalist>
+		<datalist id="steading-trait-suggestions">
+			{{#each stonetop.suggestions.traits}}<option value="{{this}}"></option>{{/each}}
+		</datalist>
+		<datalist id="steading-home-suggestions">
+			{{#each stonetop.suggestions.homes}}<option value="{{this}}"></option>{{/each}}
+		</datalist>
 		<div class="steading-players-section steading-edit-section{{#unless stonetop.edit.players}} stonetop-readonly{{/unless}}">
 			{{> "stonetop.steading-section-toggle" section="players" editing=stonetop.edit.players}}
 			<h3 class="steading-residents-heading">Player Characters</h3>
@@ -29,7 +40,7 @@
 						</div>
 						<div class="steading-residents-col steading-residents-col-occupation">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="occupation" data-list="players"
+							       data-index="{{@index}}" data-field="occupation" data-list="players" list="steading-occupation-suggestions"
 							       value="{{#if @root.stonetop.edit.players}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}"
 							       title="{{#if @root.stonetop.edit.players}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}"
 							       {{#if @root.stonetop.edit.players}}placeholder="Occupation or Playbook"{{/if}}
@@ -37,7 +48,7 @@
 						</div>
 						<div class="steading-residents-col steading-residents-col-traits">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="traits" data-list="players"
+							       data-index="{{@index}}" data-field="traits" data-list="players" list="steading-trait-suggestions"
 							       value="{{traits}}" title="{{traits}}"
 							       {{#if @root.stonetop.edit.players}}placeholder="Traits"{{/if}}
 							       {{#unless @root.stonetop.edit.players}}disabled{{/unless}}>
@@ -95,7 +106,7 @@
 						</div>
 						<div class="steading-residents-col steading-residents-col-occupation">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="occupation"
+							       data-index="{{@index}}" data-field="occupation" list="steading-occupation-suggestions"
 							       value="{{#if @root.stonetop.edit.residents}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}"
 							       title="{{#if @root.stonetop.edit.residents}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}"
 							       {{#if @root.stonetop.edit.residents}}placeholder="Occupation or Playbook"{{/if}}
@@ -103,7 +114,7 @@
 						</div>
 						<div class="steading-residents-col steading-residents-col-traits">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="traits"
+							       data-index="{{@index}}" data-field="traits" list="steading-trait-suggestions"
 							       value="{{traits}}" title="{{traits}}"
 							       {{#if @root.stonetop.edit.residents}}placeholder="Traits"{{/if}}
 							       {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
@@ -140,12 +151,12 @@
 						</div>
 						<div class="steading-residents-col steading-residents-col-occupation">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="occupation"
+							       data-index="{{@index}}" data-field="occupation" list="steading-occupation-suggestions"
 							       value="{{occupation}}" title="{{occupation}}" placeholder="Occupation or Playbook">
 						</div>
 						<div class="steading-residents-col steading-residents-col-traits">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="traits"
+							       data-index="{{@index}}" data-field="traits" list="steading-trait-suggestions"
 							       value="{{traits}}" title="{{traits}}" placeholder="Traits">
 						</div>
 						<div class="steading-residents-col steading-residents-col-relations">
@@ -202,21 +213,21 @@
 						</div>
 						<div class="steading-residents-col steading-residents-col-home">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="home" data-list="neighbors"
+							       data-index="{{@index}}" data-field="home" data-list="neighbors" list="steading-home-suggestions"
 							       value="{{home}}" title="{{home}}"
 							       {{#if @root.stonetop.edit.neighbors}}placeholder="Home"{{/if}}
 							       {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
 						</div>
 						<div class="steading-residents-col steading-residents-col-occupation">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="occupation" data-list="neighbors"
+							       data-index="{{@index}}" data-field="occupation" data-list="neighbors" list="steading-occupation-suggestions"
 							       value="{{occupation}}" title="{{occupation}}"
 							       {{#if @root.stonetop.edit.neighbors}}placeholder="Occupation or Playbook"{{/if}}
 							       {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
 						</div>
 						<div class="steading-residents-col steading-residents-col-traits">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="traits" data-list="neighbors"
+							       data-index="{{@index}}" data-field="traits" data-list="neighbors" list="steading-trait-suggestions"
 							       value="{{traits}}" title="{{traits}}"
 							       {{#if @root.stonetop.edit.neighbors}}placeholder="Traits"{{/if}}
 							       {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
@@ -253,17 +264,17 @@
 						</div>
 						<div class="steading-residents-col steading-residents-col-home">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="home" data-list="neighbors"
+							       data-index="{{@index}}" data-field="home" data-list="neighbors" list="steading-home-suggestions"
 							       value="{{home}}" title="{{home}}" placeholder="Home">
 						</div>
 						<div class="steading-residents-col steading-residents-col-occupation">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="occupation" data-list="neighbors"
+							       data-index="{{@index}}" data-field="occupation" data-list="neighbors" list="steading-occupation-suggestions"
 							       value="{{occupation}}" title="{{occupation}}" placeholder="Occupation or Playbook">
 						</div>
 						<div class="steading-residents-col steading-residents-col-traits">
 							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="traits" data-list="neighbors"
+							       data-index="{{@index}}" data-field="traits" data-list="neighbors" list="steading-trait-suggestions"
 							       value="{{traits}}" title="{{traits}}" placeholder="Traits">
 						</div>
 						<div class="steading-residents-col steading-residents-col-relations">

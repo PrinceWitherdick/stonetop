@@ -68,7 +68,7 @@ export class EndOfSessionDialog extends Application {
 		if (playerChars.length > 0 && xpToAward > 0) {
 			for (const actor of playerChars) {
 				const current = actor.system?.attributes?.xp?.value ?? 0;
-				await actor.update({ "system.attributes.xp.value": current + xpToAward });
+				await actor.update({ "system.attributes.xp.value": current + xpToAward }, { stonetopMove: "End of Session" });
 			}
 
 			const yeses = GROUP_QUESTIONS

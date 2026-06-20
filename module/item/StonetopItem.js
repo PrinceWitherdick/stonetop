@@ -3,8 +3,31 @@ import {rollFormula, rollStat} from "../utils/roll-engine.js";
 import {normalizeRollType} from "../utils/roll-types.js";
 import {filterStatOptionLines} from "../utils/strings.js";
 
+// Item sub-types that only ever exist as packaged content or embedded documents:
+// playbooks ship in the compendium, npcMove/monsterMove are added through the
+// follower/monster sheets. None of them has a registered sheet, so hand-creating
+// one from the sidebar "Create Item" dialog only produces a broken item — hide
+// them from the type picker, leaving just the generic "move" (arcana) creatable.
+const NON_CREATABLE_ITEM_TYPES = ["playbook", "npcMove", "monsterMove"];
+
 export function createStonetopItemClass(BaseItem) {
 	return class StonetopItem extends BaseItem {
+
+		/**
+		 * Restrict the "Create Item" dialog's type menu to the sub-types a user can
+		 * actually author. Callers that pass an explicit `types` restriction (e.g.
+		 * internal tooling) are left untouched.
+		 * @override
+		 */
+		static async createDialog(data = {}, createOptions = {}, options = {}, renderOptions = {}) {
+			if (!options.types) {
+				options = {
+					...options,
+					types: this.TYPES.filter(type => !NON_CREATABLE_ITEM_TYPES.includes(type)),
+				};
+			}
+			return super.createDialog(data, createOptions, options, renderOptions);
+		}
 
 		asPlaybook() {
 			return new StonetopPlaybook(this);

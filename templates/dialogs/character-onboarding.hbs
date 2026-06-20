@@ -799,9 +799,9 @@
 			{{#if showBack}}
 			<div class="stonetop-onboarding-footer-back">
 				{{#if isFirst}}
-				<button type="button" class="stonetop-onboarding-back-to-picker">← Back</button>
+				<button type="button" class="stonetop-onboarding-back-to-picker"><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
 				{{else}}
-				<button type="button" class="stonetop-onboarding-back">← Back</button>
+				<button type="button" class="stonetop-onboarding-back"><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
 				{{/if}}
 			</div>
 			{{/if}}
@@ -812,7 +812,7 @@
 				{{#if isLast}}
 				<button type="button" class="stonetop-onboarding-confirm" {{#unless stepComplete}}disabled{{/unless}}>Create Character</button>
 				{{else}}
-				<button type="button" class="stonetop-onboarding-next" {{#unless stepComplete}}disabled{{/unless}}>Next →</button>
+				<button type="button" class="stonetop-onboarding-next" {{#unless stepComplete}}disabled{{/unless}}>Next<span class="stonetop-nav-arrow"></span></button>
 				{{/if}}
 			</div>
 		</div>

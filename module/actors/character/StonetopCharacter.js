@@ -1023,7 +1023,7 @@ export class StonetopCharacter {
 		await item.roll({ ...this.applyDebilityRollMode(stat, rollOptions), descriptionOnly });
 
 		if (forward !== 0) {
-			await this._actor.update({ "system.attributes.forward.value": 0 });
+			await this._actor.update({ "system.attributes.forward.value": 0 }, { stonetopMove: item?.name });
 		}
 		return true;
 	}
@@ -1044,7 +1044,7 @@ export class StonetopCharacter {
 		}));
 
 		if (forward !== 0) {
-			await this._actor.update({ "system.attributes.forward.value": 0 });
+			await this._actor.update({ "system.attributes.forward.value": 0 }, extraOptions.moveName ? { stonetopMove: extraOptions.moveName } : {});
 		}
 	}
 

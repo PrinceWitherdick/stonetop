@@ -62,13 +62,21 @@ describe("rollStat", () => {
 		expect(rollMessage.flavor).toContain("stonetop-roll-card");
 		expect(rollMessage.flavor).toContain("result failure");
 		expect(rollMessage.flavor).toContain("Miss");
-		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.xp.value": 3 });
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.xp.value": 3 }, {});
 		expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
 			content: expect.stringContaining("stonetop-roll-card"),
 		}));
 		const xpMessage = ChatMessage.create.mock.calls[0][0];
 		expect(xpMessage.content).toContain("result success");
 		expect(xpMessage.content).toContain("+1 XP (3 / 8)");
+	});
+
+	it("attributes the miss XP to the rolled move so the ledger can name it", async () => {
+		const actor = makeActor();
+
+		await rollStat("str", actor, { moveName: "Defy Danger" });
+
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.xp.value": 3 }, { stonetopMove: "Defy Danger" });
 	});
 
 	it("shows each rolled die face as a tooltip on the result total", async () => {

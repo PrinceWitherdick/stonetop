@@ -30,7 +30,7 @@ describe("StonetopSteading", () => {
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.prosperity.value": 2,
 			"flags.stonetop_pwd.steading.system.attributes.prosperity.value": 2,
-		});
+		}, {});
 	});
 
 	it("marks improvements as earned when completed or requirement progress exists", async () => {
