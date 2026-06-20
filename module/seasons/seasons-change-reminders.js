@@ -56,6 +56,10 @@ export function seasonIconSrc(season) {
 	return `systems/stonetop_pwd/assets/icons/seasons/${id}_icon.svg`;
 }
 
+// The four seasons in turn order — the single source for the season picker and
+// any other season-cycle UI, so ids/labels live in one place.
+export const SEASON_IDS = ["spring", "summer", "autumn", "winter"];
+
 export function seasonLabel(season) {
 	return { spring: "Spring", summer: "Summer", autumn: "Autumn", winter: "Winter" }[season] ?? "A New Season";
 }

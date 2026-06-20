@@ -4,7 +4,7 @@ import { stonetopCardShell, springRollCardBody } from "../utils/chat.js";
 import { classifyResult } from "../utils/roll-engine.js";
 import { escHtml } from "../utils/strings.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
-import { getSetting, setSetting } from "../settings.js";
+import { setSetting } from "../settings.js";
 import { broadcastSeasonsChange } from "../seasons/seasons-change-reminders.js";
 
 const ANSWERS_SETTING = "springBurstAnswers";
@@ -134,6 +134,7 @@ export class SpringBurstDialog extends StepperDialog {
 	}
 
 	get _steps() { return _STEPS; }
+	get _answersSetting() { return ANSWERS_SETTING; }
 
 	static open() {
 		return openOrFocus("stonetop-spring-burst", () => new SpringBurstDialog().render(true));
@@ -176,12 +177,6 @@ export class SpringBurstDialog extends StepperDialog {
 				: null,
 			qa:        this._qaContext(step.qa),
 		};
-	}
-
-	// The persisted answers blob, keyed by question. Reads the world setting fresh
-	// each render so navigating Back/Next shows whatever the GM has already typed.
-	_answers() {
-		return getSetting(ANSWERS_SETTING) ?? {};
 	}
 
 	// Build the current step's Q&A field(s) for the template. `single` is one

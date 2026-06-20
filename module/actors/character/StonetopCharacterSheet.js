@@ -31,6 +31,7 @@ import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower} from "../../data/follower-build.js";
 import {arcanaSummon, joinNames} from "../../data/arcana-summons.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
+import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -719,6 +720,32 @@ export function createStonetopCharacterSheetClass(Base) {
 			setArcanaSectionsCollapsed(this.actor?.id, [...(this._collapsedArcanaSections ?? [])]);
 		}
 
+		// Wire a custom collapse/expand toggle for a set of collapsible sections. Used
+		// by both the sidebar move groups and the Arcana sections — both use a custom
+		// toggle (not <details>) so the content keeps contributing layout, and both
+		// track COLLAPSED ids (default expanded). `getSet` returns the live Set to
+		// mutate; `persist` writes it back. (Crew sections use <details>.open instead,
+		// so they keep their own handler.)
+		_wireCollapsible(html, { summarySel, collapsibleSel, getSet, persist }) {
+			const toggle = el => {
+				const wrap = el.closest(collapsibleSel);
+				const id   = wrap?.dataset.section;
+				if (!id) return;
+				const collapsed = wrap.classList.toggle("is-collapsed");
+				el.setAttribute("aria-expanded", String(!collapsed));
+				const set = getSet();
+				if (collapsed) set.add(id);
+				else           set.delete(id);
+				persist();
+			};
+			html.find(summarySel).on("click", ev => toggle(ev.currentTarget));
+			html.find(summarySel).on("keydown", ev => {
+				if (ev.key !== "Enter" && ev.key !== " ") return;
+				ev.preventDefault();
+				toggle(ev.currentTarget);
+			});
+		}
+
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["pbta", "stonetop", "sheet", "actor", "character"],
@@ -1016,7 +1043,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				height: 640,
 				classes: ["dialog", "stonetop-ledger-window"],
 			});
-			attachKeepOnTop(ledgerDialog, { childDialogClass: "stonetop-ledger-child" });
+			attachKeepOnTop(ledgerDialog);
 			ledgerDialog.render(true);
 		}
 
@@ -2377,7 +2404,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				Dialog.confirm({
 					title:   "Remove follower",
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from your followers? This can't be undone.</p>`,
-					yes:     () => this.actor.update({ [`flags.stonetop_pwd.customFollowers.-=${slug}`]: null }).then(() => this.render(false)),
+					yes:     () => {
+						const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.customFollowers.${slug}`);
+						return this.actor.update({ [updKey]: val }).then(() => this.render(false));
+					},
 					render:  keepDialogOnTop,
 				});
 			});
@@ -2454,12 +2484,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 				// Write the re-keyed entries and per-key delete any stale indices the
 				// shift left behind, in one update. (Foundry recursively merges
-				// object-valued flags, so without the `-=` deletes the dropped/old
+				// object-valued flags, so without the key deletes the dropped/old
 				// trailing entries would persist.)
 				const survivors = new Set(Object.keys(newHp));
 				const update = { "flags.stonetop_pwd.crew.individuals": individuals };
 				for (const k of Object.keys(oldHp))
-					if (!survivors.has(k)) update[`flags.stonetop_pwd.crew.individualsHp.-=${k}`] = null;
+					if (!survivors.has(k)) {
+						const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.crew.individualsHp.${k}`);
+						update[updKey] = val;
+					}
 				for (const [k, v] of Object.entries(newHp))
 					update[`flags.stonetop_pwd.crew.individualsHp.${k}`] = v;
 				// Shrink the roster by one: "Remove" takes the member out of the crew
@@ -2533,49 +2566,25 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._persistCrewSections();
 			});
 
-			// Collapse / expand a sidebar move group (Basic / Expedition). We use a
-			// custom toggle rather than <details> so the move list stays in normal
-			// flow and keeps contributing its width — that way the sidebar doesn't
-			// reflow (jitter) when a group collapses. The collapsed ids are recorded
-			// and persisted (default expanded) so the state survives a reopen.
-			const toggleMoveGroup = el => {
-				const group = el.closest(".stonetop-moves-collapsible");
-				const id    = group?.dataset.section;
-				if (!id) return;
-				const collapsed = group.classList.toggle("is-collapsed");
-				el.setAttribute("aria-expanded", String(!collapsed));
-				this._collapsedMoveSections ??= new Set();
-				if (collapsed) this._collapsedMoveSections.add(id);
-				else           this._collapsedMoveSections.delete(id);
-				this._persistMoveSections();
-			};
-			html.find(".stonetop-moves-summary").on("click", ev => toggleMoveGroup(ev.currentTarget));
-			html.find(".stonetop-moves-summary").on("keydown", ev => {
-				if (ev.key !== "Enter" && ev.key !== " ") return;
-				ev.preventDefault();
-				toggleMoveGroup(ev.currentTarget);
+			// Collapse / expand the sidebar move groups (Basic / Expedition). A custom
+			// toggle rather than <details> keeps the move list in normal flow and
+			// contributing its width, so the sidebar doesn't reflow (jitter) when a
+			// group collapses. Collapsed ids are persisted (default expanded).
+			this._wireCollapsible(html, {
+				summarySel:     ".stonetop-moves-summary",
+				collapsibleSel: ".stonetop-moves-collapsible",
+				getSet:         () => (this._collapsedMoveSections ??= new Set()),
+				persist:        () => this._persistMoveSections(),
 			});
 
-			// Collapse / expand an Arcana section (Major / Minor arcanum). Same custom-
-			// toggle approach as the move groups: the section heading is the summary and
-			// the card grid below it clamps to zero height (so the masonry packing it
-			// holds stays intact). Collapsed ids are persisted (default expanded).
-			const toggleArcanaSection = el => {
-				const section = el.closest(".stonetop-arcana-collapsible");
-				const id      = section?.dataset.section;
-				if (!id) return;
-				const collapsed = section.classList.toggle("is-collapsed");
-				el.setAttribute("aria-expanded", String(!collapsed));
-				this._collapsedArcanaSections ??= new Set();
-				if (collapsed) this._collapsedArcanaSections.add(id);
-				else           this._collapsedArcanaSections.delete(id);
-				this._persistArcanaSections();
-			};
-			html.find(".stonetop-arcana-summary").on("click", ev => toggleArcanaSection(ev.currentTarget));
-			html.find(".stonetop-arcana-summary").on("keydown", ev => {
-				if (ev.key !== "Enter" && ev.key !== " ") return;
-				ev.preventDefault();
-				toggleArcanaSection(ev.currentTarget);
+			// Collapse / expand the Arcana sections (Major / Minor arcanum). Same custom-
+			// toggle approach as the move groups: the heading is the summary and the card
+			// grid below clamps to zero height (keeping its masonry packing intact).
+			this._wireCollapsible(html, {
+				summarySel:     ".stonetop-arcana-summary",
+				collapsibleSel: ".stonetop-arcana-collapsible",
+				getSet:         () => (this._collapsedArcanaSections ??= new Set()),
+				persist:        () => this._persistArcanaSections(),
 			});
 
 			// Collapse / expand the whole moves sidebar (Roll Modifier + move lists).
@@ -2594,13 +2603,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// carrying their current HP across. Opened from each member's "Name them"
 			// button in edit mode, which targets that specific roster slot.
 			const openNameMemberDialog = async (anonIndex) => {
-				// Crew individual options are defined here rather than read from the
-				// LevelDB pack so they are always available without a rebuild step.
-				const CREW_INDIVIDUAL_NAMES  = ["Aled","Culhwch","Eira","Gerat","Glaw","Harri","Lowri","Mervyn","Nesta"];
-				const CREW_INDIVIDUAL_TAGS   = ["animal-lover","big","bully","cynical","drunkard","eager","gambler","greedy","grumpy","gullible","hearthrob","honest","kind","little","naive","old","popular","proud","reckless","rookie","shameless","sharp-eyed","short-tempered"];
-				const CREW_INDIVIDUAL_TRAITS = ["__'s kid/sibling/parent/cousin/__","bald","crush on __","grudge against __","hates __","idolizes __","jokes a lot","messy","missing eye/finger/hand/__","misses their kids","nightmares","recently married","religious","scars","skinny","sharp-tongued","sings","snores","tells tall tales","too serious","whistler","whittler"];
-
-				// Fall back to playbook data if present (post-rebuild), otherwise use constants above.
+				// Fall back to the shared crew suggestion lists (module/data/steading-members.js)
+				// when the playbook pack doesn't carry its own crew.individualOptions.
 				const playbookDoc = await this._stonetopCharacter.playbook();
 				const indOpts     = playbookDoc?.flags?.stonetop?.crew?.individualOptions ?? {};
 				const names  = indOpts.names?.length  ? indOpts.names  : CREW_INDIVIDUAL_NAMES;

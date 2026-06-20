@@ -3,9 +3,7 @@ import { openOrFocus } from "../utils/open-or-focus.js";
 import { stonetopCardShell, springRollCardBody } from "../utils/chat.js";
 import { classifyResult, sign } from "../utils/roll-engine.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
-import { escHtml } from "../utils/strings.js";
-import { getPlayerCharacters } from "../utils/playbook-actors.js";
-import { getSetting, setSetting } from "../settings.js";
+import { setSetting } from "../settings.js";
 
 const ANSWERS_SETTING = "expeditionAnswers";
 
@@ -256,6 +254,7 @@ export class ExpeditionDialog extends StepperDialog {
 	}
 
 	get _steps() { return _STEPS; }
+	get _answersSetting() { return ANSWERS_SETTING; }
 
 	static open() {
 		return openOrFocus("stonetop-expedition", () => new ExpeditionDialog().render(true));
@@ -311,12 +310,6 @@ export class ExpeditionDialog extends StepperDialog {
 		};
 	}
 
-	// The persisted notes blob, read fresh each render so Back/Next shows whatever
-	// the GM has typed.
-	_answers() {
-		return getSetting(ANSWERS_SETTING) ?? {};
-	}
-
 	// The steading's current Fortunes, for the Requisition roll. Falls back to +0
 	// if there's no steading sheet yet.
 	_steadingFortunes() {
@@ -330,24 +323,14 @@ export class ExpeditionDialog extends StepperDialog {
 	}
 
 	// Build the current step's note field(s) for the template. `single` is one
-	// prompt + answer; `perPc` is one row per player character; `checklist` is an
-	// optional intro note, tickable groups, and an optional trailing note. Every
-	// field/box carries an `answerPath` into the persisted blob.
+	// prompt + answer; `checklist` is an optional intro note, tickable groups, and
+	// an optional trailing note. Every field/box carries an `answerPath` into the
+	// persisted blob. (No expedition step uses per-PC notes — that kind lives only
+	// in SpringBurstDialog.)
 	_qaContext(qa) {
 		if (!qa) return null;
 		const all = this._answers();
 		const read = path => foundry.utils.getProperty(all, path);
-
-		if (qa.kind === "perPc") {
-			const stored = all[qa.key] ?? {};
-			const rows = getPlayerCharacters().map(pc => ({
-				id:     pc.id,
-				path:   `${qa.key}.${pc.id}`,
-				prompt: qa.prompt(escHtml(pc.name)),
-				answer: stored[pc.id] ?? "",
-			}));
-			return { kind: "perPc", key: qa.key, placeholder: qa.placeholder, rows, empty: rows.length ? "" : qa.empty };
-		}
 
 		if (qa.kind === "checklist") {
 			const field = (f, label = "field") => ({

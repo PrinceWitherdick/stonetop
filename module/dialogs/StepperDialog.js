@@ -1,4 +1,5 @@
 import { KeepOnTop } from "../utils/keep-on-top.js";
+import { getSetting } from "../settings.js";
 
 // ── StepperDialog ────────────────────────────────────────────────────────────
 // Shared scaffolding for the linear "walkthrough" dialogs (Spring Burst,
@@ -17,6 +18,16 @@ export class StepperDialog extends Application {
 
 	/** @returns {Array<object>} The ordered steps; the final one is flagged `isFinal`. */
 	get _steps() { return []; }
+
+	/** The world-setting key holding this dialog's persisted Q&A notes. Subclasses
+	 *  that show note fields override this; others leave it null. */
+	get _answersSetting() { return null; }
+
+	/** The persisted answers blob, read fresh each render so navigating Back/Next
+	 *  shows whatever the GM has already typed. */
+	_answers() {
+		return (this._answersSetting ? getSetting(this._answersSetting) : null) ?? {};
+	}
 
 	async _render(force, options) {
 		await super._render(force, options);

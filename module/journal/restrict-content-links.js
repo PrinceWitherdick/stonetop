@@ -35,14 +35,25 @@ export function restrictContentLinks(root) {
 	if (game.user?.isGM) return;
 	const el = root?.jquery ? root[0] : root;
 	if (!el?.querySelectorAll) return;
+	// Stonetop prose links the same entry many times per page, and the view check
+	// and spoiler check each need the resolved document. Resolve every uuid at most
+	// once per render and share that doc with both checks, so a single link never
+	// hits fromUuidSync twice and a repeated link resolves only once.
+	const resolved = new Map();
+	const resolve = (uuid) => {
+		if (resolved.has(uuid)) return resolved.get(uuid);
+		const doc = _resolveUuid(uuid);
+		resolved.set(uuid, doc);
+		return doc;
+	};
 	for (const a of el.querySelectorAll("a.content-link[data-uuid]")) {
-		if (currentUserCanView(a.dataset.uuid)) continue;
+		if (currentUserCanView(a.dataset.uuid, resolve)) continue;
 		// Most cross-links are authored as `<strong>@UUID…</strong>`, so replacing
 		// only the anchor leaves the wrapping <strong> in place and the word stays
 		// bold — exactly what the GM sees, just no longer clickable.
 		const label = (a.textContent ?? "").trim() || a.dataset.uuid;
 		const summary = a.dataset.tooltip;
-		if (summary && !isSpoilerTarget(a.dataset.uuid)) {
+		if (summary && !isSpoilerTarget(a.dataset.uuid, resolve)) {
 			// Safe to summarize (a Location or Lore entry): keep the hover
 			// description on a non-clickable span. No link affordance, no click —
 			// just the same one-liner the GM gets on hover.
@@ -67,9 +78,8 @@ export function restrictContentLinks(root) {
  * (world) entry the cross-link points at and checks its pages. Anything we can't
  * resolve is treated as a spoiler — the safe default.
  */
-function isSpoilerTarget(uuid) {
-	let doc = null;
-	try { doc = fromUuidSync(uuid); } catch { doc = null; }
+function isSpoilerTarget(uuid, resolve = _resolveUuid) {
+	const doc = resolve(uuid);
 	if (!doc) return true;
 	if (doc.type === "bestiary") return true; // a direct page-level link
 	for (const page of doc.pages ?? []) {
@@ -84,15 +94,19 @@ function isSpoilerTarget(uuid) {
  * ownership. Anything we can't resolve (a broken link, or a compendium pack the
  * user can't see) is treated as off-limits, which is the safe default here.
  */
-function currentUserCanView(uuid) {
+function currentUserCanView(uuid, resolve = _resolveUuid) {
 	if (!uuid) return true;
 	if (uuid.startsWith("Compendium.")) {
 		const [, scope, packName] = uuid.split(".");
 		const pack = game.packs?.get(`${scope}.${packName}`);
 		return pack ? pack.visible : false;
 	}
-	let doc = null;
-	try { doc = fromUuidSync(uuid); } catch { doc = null; }
+	const doc = resolve(uuid);
 	if (!doc) return false;
 	return doc.testUserPermission?.(game.user, CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER) ?? true;
+}
+
+/** Resolve a uuid to its document, swallowing the throw on a broken/foreign link. */
+function _resolveUuid(uuid) {
+	try { return fromUuidSync(uuid); } catch { return null; }
 }

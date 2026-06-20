@@ -62,23 +62,7 @@
     {{#if qa}}
     <div class="stonetop-spring-qa-wrap">
 
-      {{#if (eq qa.kind "perPc")}}
-        {{#if qa.empty}}
-        <p class="stonetop-spring-qa-empty"><i class="fas fa-info-circle"></i> {{qa.empty}}</p>
-        {{else}}
-        <ul class="stonetop-spring-qa-list">
-          {{#each qa.rows}}
-          <li class="stonetop-spring-qa">
-            <p class="stonetop-spring-qa-prompt">{{{prompt}}}</p>
-            <textarea class="stonetop-exp-field stonetop-spring-qa-answer" rows="2"
-                      data-answer-path="{{path}}"
-                      placeholder="{{../qa.placeholder}}">{{answer}}</textarea>
-          </li>
-          {{/each}}
-        </ul>
-        {{/if}}
-
-      {{else if (eq qa.kind "checklist")}}
+      {{#if (eq qa.kind "checklist")}}
         {{#if qa.intro}}
         <div class="stonetop-spring-qa">
           <p class="stonetop-spring-qa-prompt">{{{qa.intro.prompt}}}</p>

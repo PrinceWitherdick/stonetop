@@ -60,10 +60,13 @@ function progressLabel(p, playbook) {
 		!p                   ? { text: "not started yet", status: "not-started" } :
 		p.state === "picker" ? { text: "on playbook picker", status: "picker" } :
 		p.state === "exited" ? { text: "exited onboarding", status: "exited" } :
-		// "onboarding" — or a legacy flag with just step/total and no state.
+		// "onboarding" — or a legacy flag with just step/total and no state. A
+		// known page count reads "on page N of M"; otherwise (a partial/legacy flag
+		// with no usable total) still show the player as mid-creation rather than
+		// dropping them from the roster entirely.
 		p.total > 0          ? { text: `on page ${p.step} of ${p.total}`, status: "onboarding" } :
-		null;
-	return label && { playbook: name, ...label };
+		                       { text: "in character creation", status: "onboarding" };
+	return { playbook: name, ...label };
 }
 
 export class WelcomeDialog extends Application {

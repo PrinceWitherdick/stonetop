@@ -326,45 +326,45 @@ Hooks.on("preCreateChatMessage", (message) => {
 // rolls, private rolls), drop our card entirely: that lets the `:has(.stonetop-roll-card)`
 // rule stop hiding Foundry's own native dice block, which renders as a "??? = ?"
 // hidden-roll placeholder. Runs before the button-wiring hooks below so they no-op.
-Hooks.on("renderChatMessageHTML", (message, html) => {
+function _chatStripBlindRoll(message, html) {
 	if (message.isContentVisible) return;
 	html.querySelector(".stonetop-roll-card")?.remove();
-});
+}
 
 // -- CHAT-CARD PROSE TREATMENT ---------------------------------
-Hooks.on("renderChatMessageHTML", (message, html) => {
+function _chatProseTreatment(message, html) {
 	markQuestionBullets(html);
 	// Swap inline ◇/◆/○/●/□ ASCII for this system's styled glyphs in our chat-card
 	// prose — matching the sheets and journals. Scoped to the card description
 	// containers so a literal glyph someone types in chat is left alone.
 	html.querySelectorAll(".stonetop-chat-move-description, .stonetop-roll-card-description, .stonetop-arcanum-chat-card")
 		.forEach(el => wrapStonetopGlyphsInEl(el));
-});
+}
 
 // -- STARTUP CARD: OPEN WELCOME GUIDE --------------------------
 // The new-install welcome card carries a button into the first-session guide.
 // The card is visible to everyone, but the guide is a GM tool, so hide it for
 // players and wire it up for the GM.
-Hooks.on("renderChatMessageHTML", (message, html) => {
+function _chatWireStartupWelcome(message, html) {
 	const btn = html.querySelector(".stonetop-startup-open-welcome");
 	if (!btn) return;
 	if (!game.user.isGM) { btn.style.display = "none"; return; }
 	btn.addEventListener("click", () => game.stonetop?.openWelcome?.());
-});
+}
 
 // -- MOVE DESCRIPTION TOGGLE -----------------------------------
-Hooks.on("renderChatMessageHTML", (message, html) => {
+function _chatWireDescToggle(message, html) {
 	const toggle = html.querySelector(".stonetop-roll-card-desc-toggle");
 	if (!toggle) return;
 	toggle.addEventListener("click", () => {
 		toggle.closest(".stonetop-roll-card")?.classList.toggle("desc-revealed");
 	});
-});
+}
 
 // -- DEBILITY DISADVANTAGE ANNOTATION -------------------------
 // When a roll was penalised by a debility, annotate the
 // "Disadvantage" condition in the chat card with the debility name.
-Hooks.on("renderChatMessageHTML", (message, html) => {
+function _chatAnnotateDebility(message, html) {
 	const opts = message.rolls?.[0]?.options ?? {};
 	const { stonetopDebility: debility, stonetopDebilityTooltip: tooltip } = opts;
 	if (!debility) return;
@@ -375,7 +375,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 			: debility;
 		pill.innerHTML = `Disadvantage (${hint})`;
 	}
-});
+}
 
 // -- DIE-FACES TOOLTIP ON THE FORMULA CHIP / TOTAL -------------
 // Every Stonetop roll card prints its formula in a chip (e.g. "2d6 + 1") above the
@@ -384,17 +384,17 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 // Death's-Door / journal-table cards build their chip + total ad-hoc, so stamp any
 // that lacks one from the message's roll. Skip single-die rolls (e.g. the Die of
 // Fate's / Weather's 1d6) where the readout would just echo the total already shown.
-Hooks.on("renderChatMessageHTML", (message, html) => {
+function _chatStampDieFaces(message, html) {
 	const roll = message.rolls?.[0];
 	if (!roll) return;
 	const faces = dieResultsText(roll);
 	if (!faces.includes(" ")) return;
 	html.querySelectorAll(".stonetop-roll-formula:not([data-tooltip]), .stonetop-roll-result-number:not([data-tooltip])")
 		.forEach(el => { el.dataset.tooltip = faces; });
-});
+}
 
 // -- ROLL RESULT SHIFTING --------------------------------------
-Hooks.on("renderChatMessageHTML", (message, html) => {
+function _chatWireRollShifting(message, html) {
 	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
 	if (!cardButtons) return;
 
@@ -410,14 +410,14 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 		button.addEventListener("click", ev => _onRollShift(ev, message));
 	}
 	cardButtons.style.display = game.user.isGM ? "flex" : "none";
-});
+}
 
 // -- BURN BRIGHTLY ---------------------------------------------
 const BURN_BRIGHTLY_TOOLTIP =
 	"When you have enough XP to Level Up (6 + twice your current level), " +
 	"you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).";
 
-Hooks.on("renderChatMessageHTML", (message, html) => {
+function _chatWireBurnBrightly(message, html) {
 	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
 	if (!cardButtons) return;
 
@@ -500,11 +500,11 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 			btn.disabled = false;
 		}
 	});
-});
+}
 
 // -- WOULD-BE HERO: BECOME A HERO ------------------------------
 // Wire the "Become a Hero" button on asterisk-move prompt cards.
-Hooks.on("renderChatMessageHTML", (message, html) => {
+function _chatWireBecomeHero(message, html) {
 	const btn = html.querySelector(".stonetop-become-hero-btn");
 	if (!btn) return;
 
@@ -520,6 +520,23 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 		btn.disabled = true;
 		await crossOffWouldBe(actor);
 	});
+}
+
+// One render hook drives all of the above, in this order: the blind-roll strip
+// MUST run first (it removes our card so the button-wiring helpers below no-op
+// for viewers who can't see the result), then prose treatment, then the button
+// and annotation passes. A single dispatch beats nine separate hook registrations
+// each re-scanning the same message DOM on every chat render.
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	_chatStripBlindRoll(message, html);
+	_chatProseTreatment(message, html);
+	_chatWireStartupWelcome(message, html);
+	_chatWireDescToggle(message, html);
+	_chatAnnotateDebility(message, html);
+	_chatStampDieFaces(message, html);
+	_chatWireRollShifting(message, html);
+	_chatWireBurnBrightly(message, html);
+	_chatWireBecomeHero(message, html);
 });
 
 async function _onRollShift(event, message) {

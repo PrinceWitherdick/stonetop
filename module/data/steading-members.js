@@ -54,3 +54,11 @@ export const HOMES = [
 	"Marshedge", "Gordin's Delve", "The Steplands",
 	"Lygos", "Barrier Pass", "The Manmarch",
 ];
+
+// Suggestion lists for naming an anonymous Marshal-crew member (the "Name them"
+// flow on the character sheet's Followers tab). Used as <datalist> fallbacks when
+// the playbook pack doesn't carry its own `crew.individualOptions` — kept here so
+// the data lives outside the sheet's render code.
+export const CREW_INDIVIDUAL_NAMES = ["Aled","Culhwch","Eira","Gerat","Glaw","Harri","Lowri","Mervyn","Nesta"];
+export const CREW_INDIVIDUAL_TAGS = ["animal-lover","big","bully","cynical","drunkard","eager","gambler","greedy","grumpy","gullible","hearthrob","honest","kind","little","naive","old","popular","proud","reckless","rookie","shameless","sharp-eyed","short-tempered"];
+export const CREW_INDIVIDUAL_TRAITS = ["__'s kid/sibling/parent/cousin/__","bald","crush on __","grudge against __","hates __","idolizes __","jokes a lot","messy","missing eye/finger/hand/__","misses their kids","nightmares","recently married","religious","scars","skinny","sharp-tongued","sings","snores","tells tall tales","too serious","whistler","whittler"];

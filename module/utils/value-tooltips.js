@@ -29,6 +29,11 @@ export function markValueTooltips(container) {
 	if (!container?.querySelectorAll) return;
 	if (!getHoverDescriptionSetting("hoverDescriptionsValues")) return;
 
+	// Cheap pre-check before the (relatively expensive) text-node walk: most sheet
+	// re-renders carry no "Value N" at all, so a single textContent regex test lets
+	// us skip building the TreeWalker and running `.closest(_SKIP)` per text node.
+	if (!_VALUE_RE.test(container.textContent ?? "")) return;
+
 	const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
 		acceptNode: node =>
 			node.parentElement?.closest(_SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,

@@ -8,19 +8,11 @@
  *
  * Extracted from CharacterOnboardingDialog's behavior so other sheet-spawned
  * dialogs (LevelUpDialog, DeathsDoorDialog, etc.) can share it.
- *
- * The constructor keeps its original signature (`baseZIndex`, `childDialogClass`)
- * for call-site compatibility, but those options are no longer needed now that
- * we defer to native stacking.
  */
 export class KeepOnTop {
-	/**
-	 * @param {Application} app
-	 * @param {object}      [options] - Accepted for backwards compatibility; unused.
-	 */
-	constructor(app, _options = {}) {
+	/** @param {Application} app */
+	constructor(app) {
 		this._app = app;
-		this._queued = false;
 	}
 
 	/** Float the window on top once, via Foundry's native window stacking. */
@@ -29,16 +21,6 @@ export class KeepOnTop {
 		const el = app?.element?.jquery ? app.element[0] : app?.element;
 		if (!el) return;
 		(app.bringToTop ?? app.bringToFront)?.call(app);
-	}
-
-	/** Debounced one-shot re-float (e.g. after late-loading content settles). */
-	queue() {
-		if (this._queued || !this._app.rendered) return;
-		this._queued = true;
-		requestAnimationFrame(() => {
-			this._queued = false;
-			this.apply();
-		});
 	}
 
 	start() {
@@ -59,9 +41,9 @@ export class KeepOnTop {
  * popups spawned from sheets, which can't be given their own subclass.
  * Safe to call before or after the app's first render.
  */
-export function attachKeepOnTop(app, options) {
+export function attachKeepOnTop(app) {
 	if (app._keepOnTop) return app._keepOnTop;
-	const keepOnTop = new KeepOnTop(app, options);
+	const keepOnTop = new KeepOnTop(app);
 	app._keepOnTop = keepOnTop;
 
 	const baseRender = app._render.bind(app);

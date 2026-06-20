@@ -76,6 +76,14 @@ const _STEPS = [
 	},
 ];
 
+// The free-text fields the generic [data-field] change handler is allowed to
+// persist onto `_sel`. Anything else (a typo or future data-field) is ignored,
+// so a stray attribute can't quietly write a junk key that buildCustomFollower
+// would silently drop.
+const _TEXT_FIELDS = new Set([
+	"name", "pronoun", "typeLabel", "notes", "instinct", "moves", "cost", "damageForm",
+]);
+
 export class CreateFollowerDialog extends StepperDialog {
 	constructor(actor, onApply, options = {}) {
 		super(options);
@@ -189,6 +197,7 @@ export class CreateFollowerDialog extends StepperDialog {
 		html.find("[data-field]").on("change", ev => {
 			const el = ev.currentTarget;
 			if (el.type === "radio" || el.type === "checkbox") return;
+			if (!_TEXT_FIELDS.has(el.dataset.field)) return;
 			this._sel[el.dataset.field] = el.value;
 		});
 
@@ -258,6 +267,7 @@ export class CreateFollowerDialog extends StepperDialog {
 		if (!root) return;
 		root.querySelectorAll("[data-field]").forEach(el => {
 			if (el.type === "radio" || el.type === "checkbox") return;
+			if (!_TEXT_FIELDS.has(el.dataset.field)) return;
 			this._sel[el.dataset.field] = el.value;
 		});
 		root.querySelectorAll(".stonetop-cf-gear-label").forEach(el => {
@@ -290,6 +300,9 @@ export class CreateFollowerDialog extends StepperDialog {
 }
 
 // Signed display for a modifier value (e.g. 4 → "+4", -2 → "−2", 0 → "+0").
+// Display-only signed number for the HP/armor mod pills. Deliberately NOT
+// roll-engine's sign(): this uses the typographic minus (U+2212) for the pills,
+// whereas sign() must stay ASCII "-" because it feeds into Roll formula strings.
 function _signed(n) {
 	const v = Number(n) || 0;
 	return v < 0 ? `−${Math.abs(v)}` : `+${v}`;

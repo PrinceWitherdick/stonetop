@@ -9,6 +9,7 @@ import { getHoverDescriptionSetting } from "../../settings.js";
 import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
 import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
+import { deletionEntry } from "../../utils/foundry-compat.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
@@ -471,7 +472,8 @@ export function createStonetopMonsterSheetClass(Base) {
 		 * Clicking a different boost move while one is active switches to it, keeping
 		 * the original base — the base is never one boosted value layered on another.
 		 * Armor change and flag are written in a single update so the sheet repaints
-		 * once. `flags.<scope>.-=key` is Foundry's delete-on-update syntax.
+		 * once. The flag delete goes through `deletionEntry` so it uses whichever
+		 * delete form the running core wants (ForcedDeletion on v13+, `-=` otherwise).
 		 *
 		 * @param {Item}   item   the monsterMove being toggled
 		 * @param {number} value  the Armor value its name grants
@@ -483,9 +485,10 @@ export function createStonetopMonsterSheetClass(Base) {
 
 			if (current?.moveId === item.id) {
 				const base = current.baseValue ?? baseArmor;
+				const [boostKey, boostVal] = deletionEntry("flags.stonetop_pwd.armorBoost");
 				await this.actor.update({
 					"system.attributes.armor.value": base,
-					"flags.stonetop_pwd.-=armorBoost": null,
+					[boostKey]: boostVal,
 				});
 				this._postArmorBoostNote(label, baseArmor, base, false);
 				return;

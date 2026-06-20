@@ -72,7 +72,7 @@ export class AddSteadingMemberDialog extends Application {
 		this._onConfirm = onConfirm;
 		this._formData = { name: "", occupation: "", traits: "", relations: "", notes: "" };
 		if (type === "neighbor") this._formData.home = "";
-		this._keepOnTop = new KeepOnTop(this, { childDialogClass: HOME_INFO_DIALOG_CLASS });
+		this._keepOnTop = new KeepOnTop(this);
 	}
 
 	static get defaultOptions() {
@@ -137,6 +137,13 @@ export class AddSteadingMemberDialog extends Application {
 		const list = root.querySelector("#asm-list-name");
 		if (!list) return;
 		const names = this._namesForHome(this._formData.home);
+		// _namesForHome returns a stable array reference per resolved home, so the
+		// suggestion set only actually changes when the typed value resolves to a
+		// different known home. Skip the option-node teardown/rebuild otherwise —
+		// the listener fires on every keystroke, but most keystrokes stay on the
+		// same (default) pool.
+		if (names === this._lastNameOptions) return;
+		this._lastNameOptions = names;
 		list.replaceChildren(...names.map(n => {
 			const o = document.createElement("option");
 			o.value = n;
@@ -148,6 +155,9 @@ export class AddSteadingMemberDialog extends Application {
 		super.activateListeners(html);
 		this._keepOnTop.start();
 		const root = html[0];
+		// Track the suggestion set the template already rendered, so the first home
+		// keystroke that stays on the same pool doesn't trigger a needless rebuild.
+		this._lastNameOptions = this._namesForHome(this._formData.home);
 
 		// Every field is a free-type input now (combos are inputs backed by a
 		// <datalist>), so listen on "input" to capture typing live as well as picks.

@@ -80,8 +80,6 @@ export const ANIMAL_COMPANION_TRAIT_GLOSSARY = {
 };
 
 export class CharacterOnboardingDialog extends Application {
-	static TOP_Z_INDEX = 110000;
-
 	static hasIncompleteQuestions(playbookDoc, initialSelections = null) {
 		const d = Object.create(CharacterOnboardingDialog.prototype);
 		d._initializeState(playbookDoc, initialSelections, null);
@@ -120,10 +118,7 @@ export class CharacterOnboardingDialog extends Application {
 		// Pre-seed cache with glossary so getData() and _lookupWord share one lookup path.
 		this._wordCache = new Map(Object.entries(ANIMAL_COMPANION_TRAIT_GLOSSARY));
 		this._hoveredAnchor = null;
-		this._keepOnTop = new KeepOnTop(this, {
-			baseZIndex:       this.constructor.TOP_Z_INDEX,
-			childDialogClass: "stonetop-onboarding-child-dialog",
-		});
+		this._keepOnTop = new KeepOnTop(this);
 
 		this._initializeState(playbookDoc, initialSelections, startAtStep);
 	}
@@ -2297,7 +2292,6 @@ export class CharacterOnboardingDialog extends Application {
 		if (!sheet) return;
 		openJournalSheetAsChild(sheet, {
 			childClass:    "stonetop-onboarding-child-dialog",
-			keepOnTop:     this._keepOnTop,
 			renderOptions: { pageId: page.id },
 		});
 	}

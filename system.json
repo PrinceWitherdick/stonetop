@@ -5,7 +5,7 @@
     "description":  "An unofficial system for playing Stonetop in Foundry VTT.",
     "version":  "0.9.2",
     "compatibility":  {
-                          "minimum":  "12",
+                          "minimum":  "13",
                           "verified":  "14"
                       },
     "authors":  [

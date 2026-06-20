@@ -1,5 +1,5 @@
 import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS } from "./StonetopSteading.js";
-import {rollStat} from "../../utils/roll-engine.js";
+import {rollStat, sign} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
 import {escHtml} from "../../utils/strings.js";
@@ -16,11 +16,8 @@ import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
 import {getDragEventData} from "../../utils/foundry-compat.js";
-import {broadcastSeasonsChange, seasonIconSrc, seasonLabel} from "../../seasons/seasons-change-reminders.js";
+import {broadcastSeasonsChange, seasonIconSrc, seasonLabel, SEASON_IDS} from "../../seasons/seasons-change-reminders.js";
 
-function _signedNum(n) {
-	return n >= 0 ? `+${n}` : String(n);
-}
 
 function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
@@ -1113,7 +1110,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			const fortunes = this._stonetopSteading.getStatValue("fortunes");
 			await this._stonetopSteading.setSystemValue("stats.fortunes.value", Math.max(fortunes - 1, -1));
 			this.render(false);
-			ui.notifications.info(`Muster cost applied: Fortunes ${ _signedNum(fortunes) } -> ${ _signedNum(Math.max(fortunes - 1, -1)) }.`);
+			ui.notifications.info(`Muster cost applied: Fortunes ${ sign(fortunes) } -> ${ sign(Math.max(fortunes - 1, -1)) }.`);
 		}
 
 		_homesteadRollOptions(flow, html) {
@@ -1157,7 +1154,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					title: "Meet with Disaster",
 					content: `<div class="stonetop-disaster-dialog">
 						<p><em>Calamity befalls the steading or panic spreads.</em></p>
-						<p>Fortunes: <strong>${_signedNum(fortunes)}</strong> → <strong>${_signedNum(newFortunes)}</strong></p>
+						<p>Fortunes: <strong>${sign(fortunes)}</strong> → <strong>${sign(newFortunes)}</strong></p>
 					</div>`,
 					buttons: {
 						cancel: { label: "Cancel" },
@@ -1274,7 +1271,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					</div>
 					<div class="stonetop-season-actions">
 						<button type="button" class="stonetop-season-btn" data-action="miss-cost">
-							<i class="fas fa-arrow-down"></i> Take it on a miss: Fortunes ${_signedNum(fortunes)} -> ${_signedNum(newFortunes)}
+							<i class="fas fa-arrow-down"></i> Take it on a miss: Fortunes ${sign(fortunes)} -> ${sign(newFortunes)}
 						</button>
 					</div>
 				</form>`,
@@ -1297,7 +1294,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					html[0].querySelector("[data-action='miss-cost']")?.addEventListener("click", async () => {
 						await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes);
 						this.render(false);
-						ui.notifications.info(`Fortunes reduced to ${_signedNum(newFortunes)}.`);
+						ui.notifications.info(`Fortunes reduced to ${sign(newFortunes)}.`);
 					});
 				},
 			}, { width: 520 });
@@ -1305,12 +1302,8 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		async _onSeasonsChange() {
-			const SEASONS = [
-				{ id: "spring", label: "Spring" },
-				{ id: "summer", label: "Summer" },
-				{ id: "autumn", label: "Autumn" },
-				{ id: "winter", label: "Winter" },
-			];
+			// Ids + labels come from the shared season source, not a local copy.
+			const SEASONS = SEASON_IDS.map(id => ({ id, label: seasonLabel(id) }));
 			let dialog;
 			dialog = new Dialog({
 				title: "Seasons Change",
@@ -1356,14 +1349,14 @@ export function createStonetopSteadingSheetClass(Base) {
 				<h3>${label}</h3>
 			</div>`;
 
-			const statsNote = `<p class="stonetop-season-note">Fortunes: <strong>${_signedNum(fortunes)}</strong> &nbsp;·&nbsp; Surplus: <strong>${surplus}</strong> &nbsp;·&nbsp; Population: <strong>${_signedNum(population)}</strong></p>`;
+			const statsNote = `<p class="stonetop-season-note">Fortunes: <strong>${sign(fortunes)}</strong> &nbsp;·&nbsp; Surplus: <strong>${surplus}</strong> &nbsp;·&nbsp; Population: <strong>${sign(population)}</strong></p>`;
 
 			const fortunesBtns = `<div class="stonetop-season-actions">
 				<button class="stonetop-season-btn" data-action="roll-fortunes">
-					<i class="fas fa-dice-d6"></i> Roll +Fortunes (current: ${_signedNum(fortunes)})
+					<i class="fas fa-dice-d6"></i> Roll +Fortunes (current: ${sign(fortunes)})
 				</button>
 				<button class="stonetop-season-btn" data-action="reset-fortunes">
-					<i class="fas fa-undo"></i> Reset Fortunes to ${_signedNum(resetFortunes)}
+					<i class="fas fa-undo"></i> Reset Fortunes to ${sign(resetFortunes)}
 				</button>
 			</div>`;
 
@@ -1379,7 +1372,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				</ul>
 				<div class="stonetop-season-actions">
 					<button class="stonetop-season-btn" data-action="gain-population">
-						<i class="fas fa-users"></i> Apply Population boom: Population ${_signedNum(population)} -> ${_signedNum(Math.min(population + 1, 3))}
+						<i class="fas fa-users"></i> Apply Population boom: Population ${sign(population)} -> ${sign(Math.min(population + 1, 3))}
 					</button>
 					<button class="stonetop-season-btn" data-action="gain-surplus">
 						<i class="fas fa-plus"></i> Apply Unexpected bounty: Surplus ${surplus} -> ${surplus + 1}
@@ -1508,14 +1501,14 @@ export function createStonetopSteadingSheetClass(Base) {
 					root.querySelector("[data-action='reset-fortunes']")?.addEventListener("click", async () => {
 						await this._stonetopSteading.setSystemValue("stats.fortunes.value", resetFortunes, seasonsMove);
 						this.render(false);
-						ui.notifications.info(`Fortunes reset to ${_signedNum(resetFortunes)}.`);
+						ui.notifications.info(`Fortunes reset to ${sign(resetFortunes)}.`);
 					});
 
 					root.querySelector("[data-action='gain-population']")?.addEventListener("click", async () => {
 						const newPopulation = Math.min(population + 1, 3);
 						await this._stonetopSteading.setSystemValue("attributes.population.value", newPopulation, seasonsMove);
 						this.render(false);
-						ui.notifications.info(`Population increased to ${_signedNum(newPopulation)}.`);
+						ui.notifications.info(`Population increased to ${sign(newPopulation)}.`);
 					});
 
 					root.querySelector("[data-action='gain-surplus']")?.addEventListener("click", async () => {
@@ -1566,9 +1559,9 @@ export function createStonetopSteadingSheetClass(Base) {
 									if (el.dataset.consequence === "population") {
 										const newPop = Math.max(population - 1, -1);
 										await this._stonetopSteading.setSystemValue("attributes.population.value", newPop, seasonsMove);
-										ui.notifications.info(`Shortfall: Surplus → 0, Fortunes → ${_signedNum(newFortunes)}, Population → ${_signedNum(newPop)}.`);
+										ui.notifications.info(`Shortfall: Surplus → 0, Fortunes → ${sign(newFortunes)}, Population → ${sign(newPop)}.`);
 									} else {
-										ui.notifications.info(`Shortfall: Surplus → 0, Fortunes → ${_signedNum(newFortunes)}. Apply the narrative consequence.`);
+										ui.notifications.info(`Shortfall: Surplus → 0, Fortunes → ${sign(newFortunes)}. Apply the narrative consequence.`);
 									}
 									this.render(false);
 									root.querySelector("#stonetop-winter-step2").hidden = true;
