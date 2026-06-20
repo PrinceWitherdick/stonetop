@@ -200,6 +200,18 @@ export class CharacterArcana {
 
 			const backDesc = _processSideDescription(item.back.description, item.slug, "back", arcanaBoxes);
 
+			// Redwood Effigy: the two "potential" Conduit slots on the front stay locked
+			// until the Greater Conduit mystery (a □ on the back) is checked. Find that
+			// box's own □ — the last one at/before the label, since the text reads
+			// "□ GREATER CONDUIT" — then index it by counting the □ before it, rather than
+			// hard-coding an index, so it survives edits to the back text. The order matches
+			// _injectMarkers, which indexes □ in document order.
+			const backDescText = item.back.description ?? "";
+			const gcLabelPos = backDescText.indexOf("GREATER CONDUIT");
+			const gcBoxPos   = gcLabelPos >= 0 ? backDescText.lastIndexOf("□", gcLabelPos) : -1;
+			const greaterConduit = gcBoxPos >= 0
+				&& !!arcanaBoxes[`${item.slug}:back:${(backDescText.slice(0, gcBoxPos).match(/□/g) || []).length}`];
+
 			const back = new MinorArcanumBackSnapshotBuilder()
 				.withTitle(item.back.title)
 				.withItem(_buildOutfitItem(item.slug, item.back.item, backItemResource))
@@ -219,6 +231,7 @@ export class CharacterArcana {
 				.withUnlocked(unlocked)
 				.withIdentified(identifiedSlugs.has(item.slug))
 				.withImg(majorArcanaImg(item.slug))
+				.withGreaterConduit(greaterConduit)
 				.build();
 		});
 

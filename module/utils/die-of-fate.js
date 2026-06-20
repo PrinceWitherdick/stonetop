@@ -19,6 +19,7 @@ export async function rollDieOfFate() {
 
 	// No title row — the message's speaker alias already reads "Die of Fate".
 	const body = `<div class="card-content stonetop-fate">
+		<div class="stonetop-roll-formula">${roll.formula}</div>
 		<div class="stonetop-fate-result stonetop-fate--${band.key}">
 			<span class="stonetop-fate-number">${roll.total}</span>
 			<span class="stonetop-fate-label">${band.label}</span>

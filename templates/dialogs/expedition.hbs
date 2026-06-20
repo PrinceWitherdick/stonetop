@@ -1,0 +1,139 @@
+{{!-- Expedition walkthrough. Reuses the spring dialog's shared chrome
+      (.stonetop-guide-*) and body/qa/tier styling (.stonetop-spring-*); only the
+      Chart-a-Course / arriving-home checklist and Die of Fate button are new
+      (.stonetop-exp-*). See dialogs/ExpeditionDialog.js. --}}
+<div class="stonetop-spring">
+
+  <div class="stonetop-guide-main">
+
+    <div class="stonetop-guide-banner">
+      <i class="fas {{step.icon}} stonetop-guide-banner-icon"></i>
+      <div class="stonetop-guide-banner-info">
+        <div class="stonetop-guide-banner-title">{{step.title}}</div>
+        <div class="stonetop-guide-banner-sub">Run an expedition</div>
+      </div>
+      <div class="stonetop-guide-count">{{stepIndex}} / {{stepCount}}</div>
+    </div>
+
+    <div class="stonetop-spring-body">{{{step.body}}}</div>
+
+    {{#if showRoll}}
+    <div class="stonetop-spring-roll-wrap">
+      {{#if roll}}
+      <div class="stonetop-spring-roll-result stonetop-spring--{{roll.tier}}">
+        <span class="stonetop-spring-roll-result-total">{{roll.total}}</span>
+        <span class="stonetop-spring-roll-result-label">{{{roll.label}}}</span>
+      </div>
+      <button type="button" class="stonetop-exp-roll-btn stonetop-spring-roll-btn">
+        <i class="fas fa-rotate-right"></i> Roll again
+      </button>
+      {{else}}
+      <button type="button" class="stonetop-exp-roll-btn stonetop-spring-roll-btn stonetop-spring-roll-btn--primary">
+        <i class="fas fa-dice"></i> Roll +Fortunes ({{fortunesLabel}})
+      </button>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    {{#if showTiers}}
+    <ul class="stonetop-spring-tiers">
+      {{#each tiers}}
+      <li class="stonetop-spring-tier{{#if isActive}} is-active{{/if}}">
+        <span class="stonetop-spring-tier-label">{{{label}}}</span>
+        <span class="stonetop-spring-tier-text">{{{text}}}</span>
+      </li>
+      {{/each}}
+    </ul>
+    {{/if}}
+
+    {{#if showFate}}
+    <div class="stonetop-spring-roll-wrap">
+      <button type="button" class="stonetop-exp-fate-btn stonetop-spring-roll-btn{{#unless showWeather}} stonetop-spring-roll-btn--primary{{/unless}}">
+        <i class="fas fa-dice-d6"></i> Roll the Die of Fate
+      </button>
+      {{#if showWeather}}
+      <button type="button" class="stonetop-exp-weather-btn stonetop-spring-roll-btn stonetop-spring-roll-btn--primary">
+        <i class="fas fa-cloud-sun-rain"></i> Seasonal weather
+      </button>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    {{#if qa}}
+    <div class="stonetop-spring-qa-wrap">
+
+      {{#if (eq qa.kind "perPc")}}
+        {{#if qa.empty}}
+        <p class="stonetop-spring-qa-empty"><i class="fas fa-info-circle"></i> {{qa.empty}}</p>
+        {{else}}
+        <ul class="stonetop-spring-qa-list">
+          {{#each qa.rows}}
+          <li class="stonetop-spring-qa">
+            <p class="stonetop-spring-qa-prompt">{{{prompt}}}</p>
+            <textarea class="stonetop-exp-field stonetop-spring-qa-answer" rows="2"
+                      data-answer-path="{{path}}"
+                      placeholder="{{../qa.placeholder}}">{{answer}}</textarea>
+          </li>
+          {{/each}}
+        </ul>
+        {{/if}}
+
+      {{else if (eq qa.kind "checklist")}}
+        {{#if qa.intro}}
+        <div class="stonetop-spring-qa">
+          <p class="stonetop-spring-qa-prompt">{{{qa.intro.prompt}}}</p>
+          <textarea class="stonetop-exp-field stonetop-spring-qa-answer" rows="2"
+                    data-answer-path="{{qa.intro.path}}"
+                    placeholder="{{qa.intro.placeholder}}">{{qa.intro.value}}</textarea>
+        </div>
+        {{/if}}
+        {{#each qa.groups}}
+        <div class="stonetop-exp-checkgroup">
+          <div class="stonetop-exp-checkgroup-label">{{label}}</div>
+          <ul class="stonetop-exp-checks">
+            {{#each items}}
+            <li class="stonetop-exp-check">
+              <label>
+                <input type="checkbox" class="stonetop-exp-checkbox"
+                       data-answer-path="{{path}}" {{#if checked}}checked{{/if}}>
+                <span>{{{text}}}</span>
+              </label>
+            </li>
+            {{/each}}
+          </ul>
+        </div>
+        {{/each}}
+        {{#if qa.notes}}
+        <div class="stonetop-spring-qa">
+          <p class="stonetop-spring-qa-prompt">{{{qa.notes.prompt}}}</p>
+          <textarea class="stonetop-exp-field stonetop-spring-qa-answer" rows="2"
+                    data-answer-path="{{qa.notes.path}}"
+                    placeholder="{{qa.notes.placeholder}}">{{qa.notes.value}}</textarea>
+        </div>
+        {{/if}}
+
+      {{else}}
+      <div class="stonetop-spring-qa">
+        <p class="stonetop-spring-qa-prompt">{{{qa.prompt}}}</p>
+        <textarea class="stonetop-exp-field stonetop-spring-qa-answer" rows="2"
+                  data-answer-path="{{qa.path}}"
+                  placeholder="{{qa.placeholder}}">{{qa.answer}}</textarea>
+      </div>
+      {{/if}}
+
+    </div>
+    {{/if}}
+
+  </div>
+
+  <div class="stonetop-guide-nav">
+    <button class="stonetop-spring-back" {{#if isFirst}}disabled{{/if}}>◀ Back</button>
+    <span class="stonetop-spring-step-label">{{stepLabel}}</span>
+    {{#if isLast}}
+    <button class="stonetop-spring-done stonetop-guide-btn--primary">Done ✦</button>
+    {{else}}
+    <button class="stonetop-spring-next">Next ▶</button>
+    {{/if}}
+  </div>
+
+</div>

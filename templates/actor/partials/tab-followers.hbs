@@ -48,10 +48,20 @@
 				<span class="stonetop-follower-hp-octagon-body">
 					{{#if hpFollower}}
 					<input class="stonetop-follower-hp-input stonetop-follower-hp-octagon-input" type="number" data-follower="{{hpFollower}}" {{#if hpSlug}}data-slug="{{hpSlug}}"{{/if}} value="{{hpCurrent}}" min="0" max="{{hpMax}}">
+					{{#if edit.stats}}
+					<span class="stonetop-follower-hp-octagon-max">/</span>
+					<input class="stonetop-follower-stat-input stonetop-follower-hp-octagon-max-input" type="number" min="1" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="hpMax" value="{{hpMax}}">
+					{{else}}
 					{{#if hpMax}}<span class="stonetop-follower-hp-octagon-max">/ {{hpMax}}</span>{{/if}}
+					{{/if}}
+					{{else}}
+					{{#if edit.stats}}
+					<input class="stonetop-follower-stat-input stonetop-follower-hp-octagon-max-input" type="number" min="1" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="hpMax" value="{{hpStaticValue}}">
+					{{#if hpStaticSuffix}}<span class="stonetop-follower-hp-octagon-suffix">{{hpStaticSuffix}}</span>{{/if}}
 					{{else}}
 					<span class="stonetop-follower-hp-octagon-static">{{hpStaticValue}}</span>
 					{{#if hpStaticSuffix}}<span class="stonetop-follower-hp-octagon-suffix">{{hpStaticSuffix}}</span>{{/if}}
+					{{/if}}
 					{{/if}}
 				</span>
 			</div>
@@ -68,6 +78,46 @@
 					<label class="stonetop-follower-tag stonetop-crew-tag-choice{{#if isSelected}} is-selected{{/if}}{{#if isAuto}} is-auto{{/if}}{{#if disabled}} is-disabled{{/if}}">
 						<input type="checkbox" class="stonetop-crew-tag-option" value="{{value}}" {{#if isSelected}}checked{{/if}} {{#if disabled}}disabled{{/if}}>{{label}}
 					</label>
+					{{/each}}
+				</div>
+			</div>
+			{{else if (and edit.stats traitChoices)}}
+			{{!-- Edit mode (animal companion): pick the type's traits, up to the
+			      pickCount the rulebook allows. Traits drive HP / armor / damage, so
+			      the card's stats re-derive as they're toggled. --}}
+			<div class="stonetop-crew-tag-picker">
+				<span class="stonetop-crew-tag-hint">Pick {{traitChoices.limit}} trait{{#unless (eq traitChoices.limit 1)}}s{{/unless}} for your animal companion:</span>
+				<div class="stonetop-follower-tags">
+					{{> stonetopExceptionalChip}}
+					{{#each traitChoices.options}}
+					<label class="stonetop-follower-tag stonetop-crew-tag-choice{{#if selected}} is-selected{{/if}}{{#if disabled}} is-disabled{{/if}}">
+						<input type="checkbox" class="stonetop-ac-trait-option" value="{{value}}" {{#if selected}}checked{{/if}} {{#if disabled}}disabled{{/if}}>{{value}}
+					</label>
+					{{/each}}
+				</div>
+			</div>
+			{{else if (and edit.stats traitRows)}}
+			{{!-- Edit mode (initiate of Danu): the rulebook's "pick 1 on each line".
+			      Fixed subtitle traits stay as read-only chips above the line pickers. --}}
+			<div class="stonetop-crew-tag-picker">
+				{{#if subtitleTags.length}}
+				<div class="stonetop-follower-tags">
+					{{#each subtitleTags}}<span class="stonetop-follower-tag">{{label}}</span>{{/each}}
+				</div>
+				{{/if}}
+				<div class="stonetop-initiate-trait-rows">
+					{{#each traitRows}}
+					<div class="stonetop-follower-field-row stonetop-follower-field-row--block">
+						{{#if label}}<span class="stonetop-follower-field-label">{{label}}</span>{{/if}}
+						<div class="stonetop-follower-field-value stonetop-follower-option-list">
+							{{#each options}}
+							<label class="stonetop-follower-option{{#if selected}} is-selected{{/if}}">
+								<input type="radio" class="stonetop-initiate-trait-option" name="initiate-trait-{{../slug}}-{{../rowIdx}}" data-slug="{{../slug}}" data-row-idx="{{../rowIdx}}" value="{{value}}" {{#if selected}}checked{{/if}}>
+								<span>{{value}}</span>
+							</label>
+							{{/each}}
+						</div>
+					</div>
 					{{/each}}
 				</div>
 			</div>
@@ -88,11 +138,16 @@
 		      exceptional tag lives up in the chips row, not here. --}}
 		<div class="stonetop-follower-stats-section">
 
-		{{!-- Armor (Max. HP lives in the octagonal HP box up in the header) --}}
+		{{!-- Armor (Max. HP lives in the octagonal HP box up in the header). Editable
+		      in edit mode for every follower type — stored as a stat override. --}}
 		<div class="stonetop-follower-stat-row">
 			<div class="stonetop-follower-statline">
 				<span class="stonetop-follower-field-label">Armor</span>
+				{{#if edit.stats}}
+				<input class="stonetop-follower-stat-input stonetop-follower-stat-input--num" type="number" min="0" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="armor" value="{{armorInput}}">
+				{{else}}
 				<span class="stonetop-follower-field-value">{{armor}}</span>
+				{{/if}}
 			</div>
 		</div>
 
@@ -455,6 +510,33 @@
 		{{> stonetopFollowerCardBody}}
 	</div>
 	{{/each}}
+
+	{{!-- ── Custom followers (the Create-a-Follower walkthrough or a converted
+	      monster). Same card body as the others; a Remove button appears with the
+	      card's edit pencil since these are wholly player-made. ── --}}
+	{{#each stonetop.followers.custom}}
+	<div class="stonetop-follower-card stonetop-follower-card--custom">
+		{{> stonetopFollowerCardBody}}
+		{{#if edit.card}}
+		<div class="stonetop-follower-card-actions">
+			<button type="button" class="stonetop-follower-remove stonetop-inline-btn stonetop-inline-btn--danger" data-slug="{{slug}}">
+				<i class="fas fa-trash"></i> Remove follower
+			</button>
+		</div>
+		{{/if}}
+	</div>
+	{{/each}}
+
+	{{!-- Create / convert entry points. The walkthrough mirrors Book I's "Creating
+	      followers" steps; a dropped monster opens the conversion modal instead. --}}
+	{{#if stonetop.canAddFollower}}
+	<div class="stonetop-follower-add-bar">
+		<button type="button" class="stonetop-create-follower-btn stonetop-follower-add-btn">
+			<i class="fas fa-user-plus"></i> Create a follower
+		</button>
+		<span class="stonetop-follower-add-hint"><i class="fas fa-hand-pointer"></i> &hellip;or drag a monster onto this sheet to convert it to a follower.</span>
+	</div>
+	{{/if}}
 
 	{{!-- Follower special moves shared across all followers --}}
 	<div class="stonetop-follower-card stonetop-follower-card--rules">

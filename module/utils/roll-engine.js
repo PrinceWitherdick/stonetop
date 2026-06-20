@@ -22,6 +22,20 @@ export function classifyResult(total) {
 
 export function sign(n) { return n >= 0 ? `+${n}` : `${n}`; }
 
+/**
+ * Pull the individual die faces out of an evaluated Roll, e.g. a 2d6 that came up
+ * 2 and 3 yields "2 3". Discarded dice (the dropped die on adv/dis) are flagged with
+ * a strike-through so the hover readout still shows what was rolled. Returns "" when
+ * the roll has no dice terms.
+ */
+export function dieResultsText(roll) {
+	const dice = roll?.dice ?? [];
+	const faces = dice.flatMap(term =>
+		(term.results ?? []).map(r => (r.active === false || r.discarded ? `(${r.result})` : `${r.result}`))
+	);
+	return faces.join(" ");
+}
+
 /** Escape a plain-text string for safe insertion into HTML text or an attribute value. */
 function _escapeHtml(str) {
 	return String(str ?? "")
@@ -31,7 +45,7 @@ function _escapeHtml(str) {
 		.replace(/"/g, "&quot;");
 }
 
-function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, conditionsHtml = "", buttons = false, formula = "", description = "" }) {
+function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, conditionsHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "" }) {
 	// Stash every tier's outcome on the row so a GM Shift Up/Down can swap the
 	// detail line to match the new tier (see _shiftRollCardFlavor in stonetop.js).
 	const outcomeAttrs = resultOutcomes
@@ -39,15 +53,26 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 			+ ` data-outcome-partial="${_escapeHtml(resultOutcomes.partial ?? "")}"`
 			+ ` data-outcome-failure="${_escapeHtml(resultOutcomes.failure ?? "")}"`
 		: "";
-	const resultHtml = result
-		? `<div class="row result ${resultClass}"${outcomeAttrs}>
-			<div class="result-label">${result}</div>
-			<div class="result-details">${_escapeHtml(resultDetail)}</div>
-			<div class="result-choices"></div>
+	// The die formula gets its own chip above the result, mirroring Foundry's vanilla
+	// dice-formula placement. We hide Foundry's auto-rendered dice block in CSS, so
+	// this is the only place the formula appears.
+	const formulaHtml = formula ? `<div class="stonetop-roll-formula">${formula}</div>` : "";
+
+	// One left-edge result block: the rolled total plus (for move / Death's-Door rolls)
+	// the hit tier and its per-tier outcome, colour-coded down the left edge. Replaces
+	// the old separate centred readout + boxed "Weak Hit" label. Cards without a roll
+	// (e.g. the "+1 XP on a miss" follow-up) pass no total and just show the label.
+	const resultBlockHtml = (total != null || result)
+		? `<div class="stonetop-roll-result ${resultClass}"${outcomeAttrs}>
+			${total != null ? `<span class="stonetop-roll-result-number"${dieResults ? ` data-tooltip="${_escapeHtml(dieResults)}"` : ""}>${total}</span>` : ""}
+			<div class="stonetop-roll-result-body">
+				${result ? `<span class="stonetop-roll-result-label">${result}</span>` : ""}
+				<span class="stonetop-roll-result-details">${_escapeHtml(resultDetail)}</span>
+			</div>
 		</div>`
 		: "";
-	const formulaHtml = formula
-		? `<div class="card-content"><div class="row"><em>${formula}</em></div></div>`
+	const bodyHtml = (formulaHtml || resultBlockHtml)
+		? `<div class="card-content">${formulaHtml}${resultBlockHtml}</div>`
 		: "";
 	const descriptionHtml = description
 		? `<div class="stonetop-roll-card-description">${description}</div>`
@@ -69,10 +94,9 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 				${descToggleHtml}
 			</div>
 			${descriptionHtml}
-			${buttonsHtml}
-			${formulaHtml}
-			${resultHtml}
+			${bodyHtml}
 			${conditionsHtml}
+			${buttonsHtml}
 		</div>
 	</section>`;
 }
@@ -171,14 +195,27 @@ export async function rollStat(statKey, actor, options = {}) {
 		resultOutcomes,
 		conditionsHtml,
 		buttons: true,
+		total: roll.total,
+		formula: roll.formula,
+		dieResults: dieResultsText(roll),
 		description: moveDescription,
 	});
 
-	await roll.toMessage({
+	const resultMessage = await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
 		flavor,
 		rollMode: game.settings.get("core", "rollMode"),
 	});
+
+	// Wait for the Dice So Nice 3D animation (if installed) to finish before
+	// posting any follow-up cards, so the Miss/XP card doesn't reveal the result
+	// while the dice are still rolling. Guard the wait: if DSN rejects (lookup race,
+	// internal error), we still must mark the miss XP below, not bail out of rollStat.
+	if (resultMessage?.id) {
+		try {
+			await game.dice3d?.waitFor3DAnimationByMessageID(resultMessage.id);
+		} catch (_err) { /* animation wait failed — proceed to the follow-up cards */ }
+	}
 
 	if (result.key === "failure" && actor?.type === "character" && !options.noXpOnMiss) {
 		const currentXp = actor.system?.attributes?.xp?.value ?? 0;
@@ -194,7 +231,7 @@ export async function rollStat(statKey, actor, options = {}) {
 				<p>A miss doesn&rsquo;t always mean you screwed up; it means something bad happens that your character won&rsquo;t like, and the GM gets to say what. At least you get a little wiser for it.</p>
 				<p>Once you&rsquo;ve marked XP equal to <strong>6 + twice your level</strong> (currently ${maxXp}), you can spend it to Level Up.</p>`,
 		});
-		ChatMessage.create({
+		await ChatMessage.create({
 			content:  xpCard,
 			speaker:  ChatMessage.getSpeaker({ actor }),
 			rollMode: game.settings.get("core", "rollMode"),
@@ -246,7 +283,7 @@ export async function rollDamage(formula, actor, options = {}) {
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, buttons: true, conditionsHtml: _conditionsHtml(conditions) }),
+		flavor:   _rollCard({ header: label, buttons: true, total: roll.total, formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: _conditionsHtml(conditions) }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 
@@ -269,7 +306,7 @@ export async function rollFormula(formula, actor, options = {}) {
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, formula, buttons: true, description }),
+		flavor:   _rollCard({ header: label, total: roll.total, formula, buttons: true, dieResults: dieResultsText(roll), description }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 

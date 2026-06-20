@@ -5,6 +5,8 @@ import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, getSet
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
+import { ExpeditionDialog } from "../dialogs/ExpeditionDialog.js";
+import { WeatherDialog } from "../dialogs/WeatherDialog.js";
 import { WelcomeDialog } from "../dialogs/WelcomeDialog.js";
 import { FoundryBasicsDialog } from "../dialogs/FoundryBasicsDialog.js";
 import { CharacterCreationDialog } from "../actors/character/dialogs/CharacterCreationDialog.js";
@@ -28,15 +30,16 @@ const w = Object.values(ui.windows).find(w => w.id === "stonetop-introductions")
 if (w?.rendered) { w.bringToTop(); return; }
 game.stonetop?.openIntroductions?.();`;
 
-const _FATE_MACRO_NAME   = "Die of Fate";
-const _FATE_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg";
-const _FATE_MACRO_SCRIPT = "game.stonetop?.rollDieOfFate?.()";
-const _FATE_HOTBAR_SLOT  = 2;
-
-const _WELCOME_MACRO_NAME   = "Welcome to Stonetop";
-const _WELCOME_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/spring.svg";
-const _WELCOME_MACRO_SCRIPT = "game.stonetop?.openWelcome?.()";
-const _WELCOME_HOTBAR_SLOT  = 1;
+// The ordered system hotbar macros (slots 1–4), in their canonical order. The
+// single source of truth for both _ensureHotbarMacro (places any that are missing)
+// and _reorderSystemMacrosOnce (snaps them into this order once). End of Session
+// (slot 10) is handled separately below because it also keys on its command.
+const _SYSTEM_MACROS = [
+	{ name: "Welcome to Stonetop", img: "systems/stonetop_pwd/assets/icons/macros/spring.svg",       command: "game.stonetop?.openWelcome?.()",    slot: 1 },
+	{ name: "Run an Expedition",   img: "systems/stonetop_pwd/assets/icons/macros/treasure-map.svg", command: "game.stonetop?.openExpedition?.()", slot: 2 },
+	{ name: "Weather",             img: "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",    command: "game.stonetop?.openWeather?.()",    slot: 3 },
+	{ name: "Die of Fate",         img: "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",  command: "game.stonetop?.rollDieOfFate?.()",  slot: 4 },
+];
 
 export async function onReady() {
 	applySheetFont(getSetting("sheetFont"));
@@ -50,6 +53,8 @@ export async function onReady() {
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
 	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
 	game.stonetop.openSpringBurst   = () => SpringBurstDialog.open();
+	game.stonetop.openExpedition    = () => ExpeditionDialog.open();
+	game.stonetop.openWeather       = () => WeatherDialog.open();
 	game.stonetop.openWelcome       = () => WelcomeDialog.open();
 	game.stonetop.openFoundryBasics = () => FoundryBasicsDialog.open();
 	// Preview/test the player-facing creation intro for any character on demand
@@ -68,12 +73,16 @@ export async function onReady() {
 	if (game.user.isGM) await updateSeededJournalsOnVersionChange();
 	if (game.user.isGM) {
 		await _retireIntroductionsMacro();
+		// Place any missing system macros at their default slots (existing placements
+		// are left alone, so a manual rearrangement sticks). Their fixed starting order
+		// — 1 Welcome · 2 Run an Expedition · 3 Weather · 4 Die of Fate · 10 End of
+		// Session — is applied once by _reorderSystemMacrosOnce, below.
+		for (const macro of _SYSTEM_MACROS) await _ensureHotbarMacro(macro);
 		await _ensureHotbarMacro({
 			name: _EOS_MACRO_NAME, img: _EOS_MACRO_IMG, command: _EOS_MACRO_SCRIPT, slot: _EOS_HOTBAR_SLOT,
 			match: m => m.command === _EOS_MACRO_SCRIPT && m.name === _EOS_MACRO_NAME,
 		});
-		await _ensureHotbarMacro({ name: _FATE_MACRO_NAME,    img: _FATE_MACRO_IMG,    command: _FATE_MACRO_SCRIPT,    slot: _FATE_HOTBAR_SLOT });
-		await _ensureHotbarMacro({ name: _WELCOME_MACRO_NAME, img: _WELCOME_MACRO_IMG, command: _WELCOME_MACRO_SCRIPT, slot: _WELCOME_HOTBAR_SLOT });
+		await _reorderSystemMacrosOnce();
 	}
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
 	if (game.user.isGM) await remindDestinedOmenRoll();
@@ -166,12 +175,30 @@ async function _openSettingOverview() {
 	if (!getSetting("settingOverviewShown")) await setSetting("settingOverviewShown", true);
 }
 
-// Find-or-create a global script macro and pin it to a hotbar slot. Idempotent:
-// refreshes the icon if it drifted, and only claims the slot when the macro isn't
-// already on the user's hotbar. `match` overrides the default name-based lookup
-// (the End of Session macro also keys on its command to avoid clashing with any
-// user macro of the same name). Run these serially — each assignHotbarMacro writes
-// the same user.hotbar document, so concurrent calls would clobber each other.
+// Is a hotbar slot empty? The hotbar is a sparse map of slot → macro id, so an
+// absent key means free. (`in` stringifies the slot, matching the string keys.)
+function _isHotbarSlotFree(slot) {
+	return !(slot in game.user.hotbar);
+}
+
+// The first empty hotbar slot at or after `from` (1–50, across all five pages), or
+// null if the hotbar is somehow full. Lets us place a macro without evicting one
+// the GM put in our default slot.
+function _firstFreeHotbarSlot(from = 1) {
+	for (let s = from; s <= 50; s++) if (_isHotbarSlotFree(s)) return s;
+	return null;
+}
+
+// Find-or-create a global script macro and place it on the hotbar. Idempotent:
+// refreshes the icon if it drifted, and only places the macro when it isn't already
+// on the user's hotbar — so once it's placed, a manual rearrangement sticks. It
+// takes its default `slot` only if that slot is free; otherwise it falls back to the
+// first empty slot, so we never bump a macro the GM put there. The fixed system
+// order is applied just once, by _reorderSystemMacrosOnce. `match` overrides the
+// default name-based lookup (the End of Session macro also keys on its command to
+// avoid clashing with any user macro of the same name). Run these serially — each
+// assignHotbarMacro writes the same user.hotbar document, so concurrent calls would
+// clobber each other.
 async function _ensureHotbarMacro({ name, img, command, slot, match }) {
 	let macro = game.macros.find(match ?? (m => m.name === name));
 	if (!macro) {
@@ -180,27 +207,54 @@ async function _ensureHotbarMacro({ name, img, command, slot, match }) {
 		await macro.update({ img });
 	}
 
-	const alreadySlotted = Object.entries(game.user.hotbar).some(([, id]) => id === macro.id);
-	if (!alreadySlotted) {
-		await game.user.assignHotbarMacro(macro, slot);
+	const alreadySlotted = Object.values(game.user.hotbar).includes(macro.id);
+	if (alreadySlotted) return;
+
+	const target = _isHotbarSlotFree(slot) ? slot : _firstFreeHotbarSlot();
+	if (target) await game.user.assignHotbarMacro(macro, target);
+}
+
+// One-time: snap the system macros into their canonical order
+// (1 Welcome · 2 Run an Expedition · 3 Weather · 4 Die of Fate), then never touch
+// the arrangement again so the GM is free to rearrange the hotbar. Guarded by a
+// per-client flag (the hotbar is per-user), so it runs once per GM and leaves later
+// manual moves alone.
+//
+// Non-destructive: it never evicts a macro the GM placed in one of our slots. We
+// first lift our own macros off the bar (freeing their slots), then re-place each at
+// its canonical slot if free, else the first empty slot. So a personal macro sitting
+// in slot 2 keeps its spot and ours flows around it.
+async function _reorderSystemMacrosOnce() {
+	if (getSetting("systemHotbarArranged")) return;
+
+	const macros = _SYSTEM_MACROS
+		.map(o => ({ macro: game.macros.find(m => m.name === o.name && m.command === o.command), slot: o.slot }))
+		.filter(o => o.macro);
+
+	// Lift our macros off the hotbar so their canonical slots open up (a user macro
+	// in one of those slots stays put). assignHotbarMacro(null, slot) clears a slot.
+	for (const { macro } of macros) {
+		const slot = Object.entries(game.user.hotbar).find(([, id]) => id === macro.id)?.[0];
+		if (slot) await game.user.assignHotbarMacro(null, Number(slot));
 	}
+
+	// Re-place each at its canonical slot if free, else the first open slot.
+	for (const { macro, slot } of macros) {
+		const target = _isHotbarSlotFree(slot) ? slot : _firstFreeHotbarSlot();
+		if (target) await game.user.assignHotbarMacro(macro, target);
+	}
+
+	await setSetting("systemHotbarArranged", true);
 }
 
 // Retire the standalone "Character Introductions" hotbar macro: its walkthrough
 // now launches from the Welcome guide, so delete the system-created macro (which
-// also clears its hotbar slot) and free the Welcome macro from any slot other
-// than its new home (slot 1) so the _ensureHotbarMacro call below re-pins it
-// there. Both steps are no-ops once done, so this is safe to run every load.
+// also clears its hotbar slot). No-op once done, so it's safe to run every load.
+// (The Welcome macro re-homes itself: _ensureHotbarMacro now relocates any system
+// macro that's pinned at the wrong slot.)
 async function _retireIntroductionsMacro() {
 	const intro = game.macros.find(m => m.name === _INTRO_MACRO_NAME && m.command === _INTRO_MACRO_SCRIPT);
 	if (intro) await intro.delete();
-
-	const welcome = game.macros.find(m => m.name === _WELCOME_MACRO_NAME && m.command === _WELCOME_MACRO_SCRIPT);
-	if (!welcome) return;
-	const slot = Object.entries(game.user.hotbar).find(([, id]) => id === welcome.id)?.[0];
-	if (slot && Number(slot) !== _WELCOME_HOTBAR_SLOT) {
-		await game.user.assignHotbarMacro(null, Number(slot));
-	}
 }
 
 async function _migrateArmourToArmor() {

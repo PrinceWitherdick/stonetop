@@ -78,10 +78,15 @@ export class DeathsDoorDialog extends Application {
 		const total = roll.total;
 		const { key } = classifyResult(total);
 
-		const flavor = stonetopChatCard("Death's Door", `<div class="row result ${key}">
-				<div class="result-label">${_DEATHS_DOOR_LABELS[key]}</div>
-				<div class="result-details"></div>
-				<div class="result-choices"></div>
+		const flavor = stonetopChatCard("Death's Door", `<div class="card-content">
+				<div class="stonetop-roll-formula">${roll.formula}</div>
+				<div class="stonetop-roll-result ${key}">
+					<span class="stonetop-roll-result-number">${total}</span>
+					<div class="stonetop-roll-result-body">
+						<span class="stonetop-roll-result-label">${_DEATHS_DOOR_LABELS[key]}</span>
+						<span class="stonetop-roll-result-details"></span>
+					</div>
+				</div>
 			</div>`);
 
 		await roll.toMessage({

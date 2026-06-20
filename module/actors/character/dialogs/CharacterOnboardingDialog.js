@@ -1433,6 +1433,14 @@ export class CharacterOnboardingDialog extends Application {
 	activateListeners(html) {
 		super.activateListeners(html);
 		markQuestionBullets(html[0]);
+		// Redraw inline ◇/○/□/▶ glyphs in the read-only prose (background & possession
+		// descriptions, lore section text, lore pick options like the Seeker's "mark 1 ○
+		// on the front of its insert") as the system's styled SVG glyphs — the same
+		// treatment the FAQ popup and the live character sheet get. Scoped to display-only
+		// containers; the editable answer <textarea>s (onboard-lore-text / -setup-text)
+		// are never matched, so a typed glyph in an answer is left untouched.
+		html.find(".stonetop-onboarding-card-desc, .stonetop-onboarding-card-inline-desc, .stonetop-onboarding-lore-desc, .stonetop-onboarding-lore-pick-text, .stonetop-onboarding-lore-text-label")
+			.each((_, el) => wrapStonetopGlyphsInEl(el));
 		this._keepOnTop.start();
 
 		html.find(".stonetop-onboarding-back-to-picker").on("click", () => this._goBack());

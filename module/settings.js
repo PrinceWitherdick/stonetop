@@ -65,6 +65,41 @@ export function registerSettings() {
 		default: {}
 	});
 
+	// Notes the GM records in the Expedition walkthrough (see dialogs/ExpeditionDialog.js)
+	// — the Chart a Course destination/checklist, Outfit/Requisition notes, points of
+	// interest, the arriving-home checklist, etc. Nested by step key, e.g.
+	// { chart: { route, checks: { warmClothes: true }, notes }, outfit: "…" }.
+	game.settings.register("stonetop_pwd", "expeditionAnswers", {
+		name: "Expedition Walkthrough Notes",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {}
+	});
+
+	// Whether this client has had the system hotbar macros snapped into their
+	// canonical starting order once (see hooks/Ready.js _reorderSystemMacrosOnce).
+	// Per-client because the hotbar is per-user; once set, the GM's own arrangement
+	// of those macros is left untouched.
+	game.settings.register("stonetop_pwd", "systemHotbarArranged", {
+		name: "System Hotbar Arranged",
+		scope: "client",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// The season last picked in the Weather roll dialog (see dialogs/WeatherDialog.js),
+	// so it reopens to where the GM left off. Client-scoped — it's a GM convenience,
+	// not shared world state. Holds a WEATHER_SEASONS key (or "" before first use).
+	game.settings.register("stonetop_pwd", "weatherSeason", {
+		name: "Weather Roll Season",
+		scope: "client",
+		config: false,
+		type: String,
+		default: ""
+	});
+
 	// -- CLIENT SPECIFIC SETTINGS --------------------------------
 
 	// Whether this user has had the Setting Overview journal auto-opened once (see
@@ -162,6 +197,28 @@ export function registerSettings() {
 	// Per-user (client) and per-actor: a map of actor id -> array of collapsed
 	// section ids. Internal (not shown in the settings menu).
 	game.settings.register("stonetop_pwd", "movesSectionsCollapsed", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
+	// Remembers which Arcana sections (Major / Minor arcanum) each character left
+	// collapsed, so the sheet reopens in the same state. These default to expanded,
+	// so we store the *collapsed* ids (absence = open). Per-user (client) and
+	// per-actor: a map of actor id -> array of collapsed section ids. Internal.
+	game.settings.register("stonetop_pwd", "arcanaSectionsCollapsed", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
+	// Remembers whether each character left the whole moves sidebar (Roll Modifier
+	// + Basic / Expedition move lists) collapsed, so the sheet reopens the same way.
+	// The sidebar defaults to expanded. Per-user (client) and per-actor: a map of
+	// actor id -> boolean. Internal (not shown in the settings menu).
+	game.settings.register("stonetop_pwd", "characterSidebarCollapsed", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -347,6 +404,32 @@ export function getMovesSectionsCollapsed(actorId) {
 
 export function setMovesSectionsCollapsed(actorId, sections) {
 	return setSectionList("movesSectionsCollapsed", actorId, sections);
+}
+
+// The Arcana sections (Major / Minor) a character left collapsed. They default to
+// expanded, so an id present here means that section should reopen collapsed.
+export function getArcanaSectionsCollapsed(actorId) {
+	return getSectionList("arcanaSectionsCollapsed", actorId);
+}
+
+export function setArcanaSectionsCollapsed(actorId, sections) {
+	return setSectionList("arcanaSectionsCollapsed", actorId, sections);
+}
+
+// Whether a character left the whole moves sidebar collapsed (defaults to false /
+// expanded). Per-actor, per-user.
+export function getSidebarCollapsed(actorId) {
+	if (!actorId) return false;
+	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSidebarCollapsed");
+	return !!map?.[actorId];
+}
+
+export function setSidebarCollapsed(actorId, collapsed) {
+	if (!actorId) return;
+	const next = !!collapsed;
+	const map  = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSidebarCollapsed") ?? {};
+	if (next === !!map[actorId]) return; // avoid redundant writes
+	return game.settings.set("stonetop_pwd", "characterSidebarCollapsed", { ...map, [actorId]: next });
 }
 
 export function getHoverDescriptionSetting(key, { ignoreMaster = false } = {}) {

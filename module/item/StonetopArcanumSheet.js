@@ -1,6 +1,6 @@
 import { majorArcanaImg } from "../arcana-icons.js";
 import { ITEM_FLAG_SCOPE } from "../actors/character/StonetopFlags.js";
-import { centerArcanumTracks } from "../utils/glyphs.js";
+import { centerArcanumTracks, wrapStonetopGlyphsInEl } from "../utils/glyphs.js";
 import { markValueTooltips } from "../utils/value-tooltips.js";
 
 export function createStonetopArcanumSheetClass(BaseItemSheet) {
@@ -54,7 +54,12 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 		// same hover tooltip the journals and actor sheets show. Self-gated by setting.
 		activateListeners(html) {
 			super.activateListeners(html);
-			markValueTooltips(html?.[0] ?? html);
+			const root = html?.[0] ?? html;
+			markValueTooltips(root);
+			// Render inline glyphs (◇ charge tracks, □ move boxes, ▶ arrows) as SVG, the
+			// same as the character sheet's arcana cards — centerArcanumTracks only moves
+			// standalone tracks onto their own line; it doesn't swap the raw Unicode for art.
+			root?.querySelectorAll(".stonetop-arcanum-body").forEach(el => wrapStonetopGlyphsInEl(el));
 		}
 	};
 }

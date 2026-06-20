@@ -75,7 +75,13 @@ async function rollTable({ formula, label, rows }) {
 		return;
 	}
 	const outcome = outcomeFor(rows, roll.total) ?? `<em>No result for ${roll.total}.</em>`;
-	const flavor = stonetopChatCard(label, `<div class="stonetop-roll-card-description">${outcome}</div>`);
+	const flavor = stonetopChatCard(label, `<div class="card-content">
+			<div class="stonetop-roll-formula">${roll.formula}</div>
+			<div class="stonetop-roll-result">
+				<span class="stonetop-roll-result-number">${roll.total}</span>
+				<div class="stonetop-roll-result-body stonetop-roll-card-description">${outcome}</div>
+			</div>
+		</div>`);
 	await roll.toMessage({
 		speaker: ChatMessage.getSpeaker(),
 		flavor,

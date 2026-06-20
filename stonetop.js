@@ -306,13 +306,25 @@ Hooks.on("preCreateChatMessage", (message) => {
 	message.updateSource({ "speaker.alias": `${actor.name} ${playbookName}` });
 });
 
+// -- BLIND / PRIVATE ROLLS -------------------------------------
+// Our roll cards print the rolled total (and result tier) in the message flavor,
+// which Foundry renders for everyone regardless of whether the roll's result is
+// visible to them. So for a viewer who isn't allowed to see the result (blind GM
+// rolls, private rolls), drop our card entirely: that lets the `:has(.stonetop-roll-card)`
+// rule stop hiding Foundry's own native dice block, which renders as a "??? = ?"
+// hidden-roll placeholder. Runs before the button-wiring hooks below so they no-op.
+Hooks.on("renderChatMessageHTML", (message, html) => {
+	if (message.isContentVisible) return;
+	html.querySelector(".stonetop-roll-card")?.remove();
+});
+
 // -- CHAT-CARD PROSE TREATMENT ---------------------------------
 Hooks.on("renderChatMessageHTML", (message, html) => {
 	markQuestionBullets(html);
 	// Swap inline ◇/◆/○/●/□ ASCII for this system's styled glyphs in our chat-card
 	// prose — matching the sheets and journals. Scoped to the card description
 	// containers so a literal glyph someone types in chat is left alone.
-	html.querySelectorAll(".stonetop-chat-move-description, .stonetop-roll-card-description")
+	html.querySelectorAll(".stonetop-chat-move-description, .stonetop-roll-card-description, .stonetop-arcanum-chat-card")
 		.forEach(el => wrapStonetopGlyphsInEl(el));
 });
 
@@ -449,8 +461,8 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 			const speakerUpdate = playbookName ? { alias: `${actor.name} ${playbookName}` } : {};
 			await message.update({
 				rolls,
-				// Regenerate the card so the result label and per-tier outcome reflect the +1.
-				flavor:  _shiftRollCardFlavor(message.flavor, roll.total),
+				// Regenerate the card so the readout, result label and per-tier outcome reflect the +1.
+				flavor:  _shiftRollCardFlavor(message.flavor, roll.total, roll.formula),
 				speaker: { ...message.speaker, ...speakerUpdate },
 				flags:   { stonetop_pwd: { burnBrightly: true } },
 			});
@@ -495,7 +507,7 @@ async function _onRollShift(event, message) {
 
 		await message.update({
 			rolls:  message.rolls,
-			flavor: _shiftRollCardFlavor(message.flavor, roll.total),
+			flavor: _shiftRollCardFlavor(message.flavor, roll.total, roll.formula),
 		});
 	} catch (err) {
 		console.error("Stonetop | Error shifting roll result:", err);
@@ -530,32 +542,43 @@ async function _shiftRoll(roll, shift) {
 	await roll._evaluate();
 }
 
-function _shiftRollCardFlavor(flavor, total) {
+function _shiftRollCardFlavor(flavor, total, formula = null) {
 	if (!flavor) return flavor;
 
 	const wrapper = document.createElement("div");
 	wrapper.innerHTML = flavor;
 
-	const resultRow = wrapper.querySelector(".stonetop-roll-card .row.result");
-	const resultLabel = resultRow?.querySelector(".result-label");
-	if (!resultRow || !resultLabel) return flavor;
+	// Keep our own total + formula (which stand in for Foundry's hidden dice block)
+	// in sync with the shifted roll. This runs for every roll card, including damage
+	// cards that have no result tier. (The die-faces tooltip is left as-is: a shift
+	// only adjusts the rollShifting modifier term, never the rolled d6 faces.)
+	const numberEl = wrapper.querySelector(".stonetop-roll-card .stonetop-roll-result-number");
+	if (numberEl) numberEl.textContent = total;
+	if (formula != null) {
+		const formulaEl = wrapper.querySelector(".stonetop-roll-card .stonetop-roll-formula");
+		if (formulaEl) formulaEl.textContent = formula;
+	}
 
-	const result = _classifyShiftedTotal(total);
-	resultRow.classList.remove("success", "partial", "failure", "critical");
-	resultRow.classList.add(result.key);
-	resultLabel.textContent = result.label;
+	const resultEl = wrapper.querySelector(".stonetop-roll-card .stonetop-roll-result");
+	const resultLabel = resultEl?.querySelector(".stonetop-roll-result-label");
+	if (resultEl && resultLabel) {
+		const result = _classifyShiftedTotal(total);
+		resultEl.classList.remove("success", "partial", "failure", "critical");
+		resultEl.classList.add(result.key);
+		resultLabel.textContent = result.label;
 
-	// Keep the per-tier outcome line (if any) in sync with the shifted tier. The
-	// three outcomes are stashed on the row as data-outcome-* by _rollCard.
-	const details = resultRow.querySelector(".result-details");
-	if (details) {
-		const tierKey = result.key === "critical" ? "success" : result.key;
-		const outcome = {
-			success: resultRow.dataset.outcomeSuccess,
-			partial: resultRow.dataset.outcomePartial,
-			failure: resultRow.dataset.outcomeFailure,
-		}[tierKey];
-		if (outcome !== undefined) details.textContent = outcome;
+		// Keep the per-tier outcome line (if any) in sync with the shifted tier. The
+		// three outcomes are stashed on the result block as data-outcome-* by _rollCard.
+		const details = resultEl.querySelector(".stonetop-roll-result-details");
+		if (details) {
+			const tierKey = result.key === "critical" ? "success" : result.key;
+			const outcome = {
+				success: resultEl.dataset.outcomeSuccess,
+				partial: resultEl.dataset.outcomePartial,
+				failure: resultEl.dataset.outcomeFailure,
+			}[tierKey];
+			if (outcome !== undefined) details.textContent = outcome;
+		}
 	}
 
 	return wrapper.innerHTML;

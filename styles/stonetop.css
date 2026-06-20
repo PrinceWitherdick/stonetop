@@ -145,6 +145,12 @@
 	--color-the-judge: hsl(244, 93%, 18%);
 	--stonetop-diamond-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond.svg');
 	--stonetop-diamond-selected-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond_selected.svg');
+	/* Blood-drop charge marks: the Red Scepter's "still-warm blood" charges and the
+	   Redwood Effigy's Conduit track render as drops, not diamonds. Three states:
+	   hollow (empty/available), filled (marked), and dotted (a locked Conduit slot). */
+	--stonetop-blood-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/blood.svg');
+	--stonetop-blood-filled-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/blood-filled.svg');
+	--stonetop-blood-dotted-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/blood-dotted.svg');
 	/* Standard gap between a spiral bullet and its text (matches the Stonetop Assets list). */
 	--stonetop-spiral-gap: 8px;
 	/* Standard vertical gap between sections on the bestiary/monster sheets — used by
@@ -1486,14 +1492,100 @@ input.stonetop-name-field {
 }
 
 .stonetop-moves-sidebar {
+	display: flex;
+	align-items: stretch;
+	/* Stretch to the layout's full height (the parent .stonetop-sheet-layout uses
+	   align-items:flex-start). The move content scrolls inside .stonetop-sidebar-body;
+	   the collapse handle is absolutely positioned so it doesn't consume layout width. */
+	align-self: stretch;
+	position: relative;
 	width: max-content;
 	min-width: max-content;
 	flex-shrink: 0;
 	border-left: 1px solid var(--color-border-light-2);
-	padding-left: 12px;
+	/* visible (not hidden) so the handle, parked just left of the border, isn't
+	   clipped. The body owns its own scroll, so nothing else needs clipping here. */
+	overflow: visible;
+}
+
+/* Handle that collapses / expands the whole sidebar. Absolutely positioned just to
+   the left of the border (the vertical separator), parked in the gutter so it takes
+   no flow width and the move content stays tucked close to the border. Anchored to
+   the top, so the chevron stays put regardless of panel height. */
+.stonetop-sidebar-toggle {
+	position: absolute;
+	top: 0;
+	/* width + 1px border, so the handle's right edge meets the separator's left edge */
+	left: -15px;
+	z-index: 1;
+	display: flex;
+	justify-content: center;
+	width: 14px;
+	padding: 10px 0;
+	border: none;
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	color: var(--color-text-dark-secondary, #4b4a44);
+	cursor: pointer;
+	line-height: 1;
+}
+
+.stonetop-sidebar-toggle:hover {
+	background: rgba(0, 0, 0, 0.06);
+}
+
+/* Kill Foundry's default button focus/active glow (an orange box-shadow that
+   lingers after the click because the button keeps focus) and any transition, so
+   the highlight tracks the pointer exactly and clears the moment you leave. */
+.stonetop-sidebar-toggle,
+.stonetop-sidebar-toggle:hover,
+.stonetop-sidebar-toggle:focus,
+.stonetop-sidebar-toggle:active {
+	box-shadow: none;
+	outline: none;
+	transition: none;
+}
+
+.stonetop-sidebar-toggle:focus:not(:hover) {
+	background: transparent;
+}
+
+/* Chevron is hidden until the pointer is over the sidebar, then fades in. */
+.stonetop-sidebar-toggle i {
+	font-size: 0.8em;
+	opacity: 0;
+	transition: transform 0.15s, opacity 0.12s;
+}
+
+.stonetop-moves-sidebar:hover .stonetop-sidebar-toggle i {
+	opacity: 1;
+}
+
+.stonetop-sidebar-body {
+	min-width: max-content;
+	/* The handle now lives in the gutter left of the border, so the content only needs
+	   a normal gutter here. */
+	padding-left: 8px;
 	padding-top: 12px;
 	overflow-y: auto;
 	overflow-x: visible;
+}
+
+/* Collapsed: the move content is removed and the sidebar shrinks to just the handle
+   strip (matching the handle width), handing the freed width to the active tab. */
+.stonetop-moves-sidebar.is-collapsed {
+	width: 14px;
+	min-width: 14px;
+}
+
+.stonetop-moves-sidebar.is-collapsed .stonetop-sidebar-body {
+	display: none;
+}
+
+/* Expanded: chevron points right (collapse →). Collapsed: flips to point left
+   (← expand). */
+.stonetop-moves-sidebar.is-collapsed .stonetop-sidebar-toggle i {
+	transform: rotate(180deg);
 }
 
 .stonetop-moves-sidebar .stonetop-move-group-title:first-of-type {
@@ -1753,6 +1845,9 @@ input.stonetop-name-field {
 .stonetop-levelup-locked-check,
 .steading-improvement-complete,
 .steading-improvement-req,
+.stonetop-crew-instinct-option,
+.stonetop-crew-cost-option,
+.stonetop-initiate-trait-option,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
@@ -1784,6 +1879,9 @@ input.stonetop-name-field {
 .stonetop-levelup-locked-check:checked,
 .steading-improvement-complete:checked,
 .steading-improvement-req:checked,
+.stonetop-crew-instinct-option:checked,
+.stonetop-crew-cost-option:checked,
+.stonetop-initiate-trait-option:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
@@ -2130,6 +2228,148 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-fate-result.stonetop-fate--mixed { background: rgba(154, 116, 0, 0.12); }
 .stonetop-fate-result.stonetop-fate--good  { background: rgba(46, 125, 50, 0.10); }
 
+/* Weather roll chat card (Book I seasonal tables, p.325) */
+.stonetop-weather-card .cell--chat { padding-top: 16px; }
+.stonetop-weather-result {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 6px 10px;
+	margin: 0;
+	border-radius: var(--st-radius-lg);
+	border-left: 5px solid var(--st-green-border, #6b8e23);
+	background: rgba(0, 0, 0, 0.04);
+}
+.stonetop-weather-number {
+	font-family: var(--font-stonetop);
+	font-size: 2.2em;
+	line-height: 1;
+	font-weight: bold;
+	flex: 0 0 auto;
+}
+.stonetop-weather-text { line-height: 1.35; }
+.stonetop-weather-reroll {
+	margin: 8px 0 0;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	opacity: 0.8;
+}
+.stonetop-weather-reroll > i { margin-right: 4px; }
+
+/* Weather roll picker dialog */
+.stonetop-weather-dialog .window-content { font-family: var(--font-stonetop); }
+
+.stonetop-weather-pick {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.stonetop-weather-intro {
+	margin: 0;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-weather-seasons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.stonetop-weather-season {
+	flex: 0 0 auto;
+	width: auto;
+	white-space: nowrap;
+	padding: 4px 10px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.82rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.stonetop-weather-season:hover { background: hsl(40 25% 85%); }
+
+.stonetop-weather-season.is-active {
+	font-weight: 600;
+	background: var(--st-green-bg);
+	border-color: var(--st-green-border);
+	color: var(--st-green-text);
+}
+
+.stonetop-weather-rows {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-weather-row {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	padding: 5px 10px;
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.02);
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+	opacity: 0.7;
+	transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.stonetop-weather-row.is-active {
+	opacity: 1;
+	border-color: var(--st-green-border);
+	background: var(--st-green-bg);
+}
+
+.stonetop-weather-row-range {
+	flex: 0 0 auto;
+	min-width: 2.4em;
+	font-weight: 700;
+}
+
+.stonetop-weather-row-reroll { opacity: 0.75; }
+
+.stonetop-weather-roll-wrap {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.stonetop-weather-roll-btn {
+	flex: 0 0 auto;
+	width: auto;
+	white-space: nowrap;
+	padding: 5px 14px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	font-weight: 600;
+	cursor: pointer;
+	border: 1px solid var(--st-green-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+	transition: background 0.15s;
+}
+
+.stonetop-weather-roll-btn:hover { background: var(--st-green-bg-hover); }
+.stonetop-weather-roll-btn > i { margin-right: 4px; }
+
+.stonetop-weather-roll-total {
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+}
+
 :is(#chat, #chat-notifications) .message .stonetop-startup-card__content {
 	display: grid;
 	gap: 8px;
@@ -2207,6 +2447,69 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-family: var(--font-stonetop);
 	font-size: var(--font-size-13);
 }
+
+/* Every Stonetop roll card prints its own rolled total and carries its die formula
+   in a chip above the result (mirroring Foundry's vanilla dice-formula placement),
+   so we suppress Foundry's auto-rendered dice block to keep the total from showing
+   twice. Cards without a roll (e.g. the "+1 XP on a miss" follow-up) have no dice
+   block to hide. */
+.stonetop-roll-formula {
+	margin: 0 0 8px;
+	padding: 3px 8px;
+	font-family: var(--font-stonetop);
+	font-size: var(--font-size-16);
+	font-weight: bold;
+	text-align: center;
+	background: rgba(0, 0, 0, 0.05);
+	border: 1px solid rgba(159, 146, 117, 0.4);
+	border-radius: var(--st-radius-sm);
+	opacity: 0.85;
+}
+:is(#chat, #chat-notifications) .message:has(.stonetop-roll-card) .message-content .dice-roll {
+	display: none;
+}
+
+/* Shared left-edge result block: big total + label/outcome, colour-coded down the
+   left edge by hit tier (matches the weather/fate/spring result styling). */
+.stonetop-roll-result {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 6px 10px;
+	margin: 0;
+	border-radius: var(--st-radius-lg);
+	border-left: 5px solid rgba(159, 146, 117, 0.7);
+	background: rgba(0, 0, 0, 0.04);
+}
+.stonetop-roll-result-number {
+	font-family: var(--font-stonetop);
+	font-size: 2.2em;
+	line-height: 1;
+	font-weight: bold;
+	flex: 0 0 auto;
+}
+/* The total carries a data-tooltip with the individual die faces ("2 3"); hint at it. */
+.stonetop-roll-result-number[data-tooltip] {
+	cursor: help;
+}
+.stonetop-roll-result-body {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.stonetop-roll-result-label {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	font-size: var(--font-size-16);
+	line-height: 1.1;
+}
+.stonetop-roll-result-details:empty { display: none; }
+.stonetop-roll-result-details { line-height: 1.35; }
+.stonetop-roll-result.failure { border-left-color: #8b1a1a; background: rgba(139, 26, 26, 0.08); }
+.stonetop-roll-result.partial { border-left-color: #9f7640; background: rgba(159, 118, 64, 0.10); }
+.stonetop-roll-result.success,
+.stonetop-roll-result.critical { border-left-color: #2d6a2d; background: rgba(45, 106, 45, 0.10); }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .chat-title {
 	align-items: center;
@@ -3016,6 +3319,46 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: start;
 }
 
+/* Collapsible Major / Minor arcana sections. The section heading is the summary,
+   with a rotating arrow on the right marking open/closed; collapsing clamps the
+   card grid to zero height (keeping its masonry packing intact for when it
+   reopens). Open state persists per actor (arcanaSectionsCollapsed), default open. */
+.stonetop-arcana-summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.stonetop-arcana-summary > .stonetop-move-group-title {
+	margin: 0;
+	flex: 1 1 auto;
+}
+
+.stonetop-arcana-summary::after {
+	content: "";
+	display: inline-block;
+	width: 0.6em;
+	height: 0.6em;
+	flex: none;
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+	transform: rotate(90deg); /* expanded: arrow points down */
+	transition: transform 0.15s;
+}
+
+.stonetop-arcana-collapsible.is-collapsed > .stonetop-arcana-summary::after {
+	transform: rotate(0deg); /* collapsed: arrow points right */
+}
+
+.stonetop-arcana-collapsible.is-collapsed > .stonetop-arcana-grid {
+	height: 0;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	visibility: hidden;
+}
+
 .stonetop-arcana-col {
 	display: flex;
 	flex-direction: column;
@@ -3223,6 +3566,30 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex: 1;
 }
 
+/* "Add as follower" button on a summoning arcanum's reverse (Blackwood Fetishes,
+   metal man, etc.). Sits below the back-side stat block; once the creature(s) are on
+   the Followers tab it goes quiet (the is-added state). */
+.stonetop-arcanum-summon {
+	margin-top: 8px;
+	display: flex;
+	justify-content: center;
+}
+
+.stonetop-arcanum-summon-btn {
+	font-size: var(--st-fs-xs);
+	padding: 3px 10px;
+	cursor: pointer;
+	background-color: transparent;
+	border: 1px solid var(--color-border-dark);
+	border-radius: var(--st-radius-sm);
+}
+
+.stonetop-arcanum-summon-btn.is-added {
+	cursor: default;
+	opacity: 0.7;
+	color: var(--color-text-dark-secondary);
+}
+
 .stonetop-arcanum-delete {
 	font-size: var(--st-fs-xs);
 	padding: 2px 8px;
@@ -3314,6 +3681,59 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .vtt .window-app input[type=checkbox].stonetop-arcanum-diamond:checked {
 	background-image: var(--stonetop-diamond-selected-icon) !important;
+}
+
+/* ── Blood-drop tracks ────────────────────────────────────────────────────────
+   A couple of arcana mark their ◇ tracks with blood drops instead of diamonds on
+   the printed cards. The marks stay the same interactive ◇ checkboxes (so they're
+   still clickable and persist); only the icon is swapped, scoped by arcanum slug.
+
+   Red Scepter — 3 "still-warm blood" charges: red drops, hollow when empty and
+   filled (red) when marked; all clickable. Redwood Effigy — Conduit track: slot 0
+   is your base Conduit, a clickable red drop (hollow when empty, filled when held);
+   slots 1-2 are the locked potential Conduit — static black dotted drops that are
+   not clickable and never fill (gaining them is tracked by Greater Conduit on the
+   reverse). */
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="red-scepter"],
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="redwood-effigy"][data-index="0"] {
+	background-image: var(--stonetop-blood-icon) !important;
+}
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="red-scepter"]:checked,
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="redwood-effigy"][data-index="0"]:checked {
+	background-image: var(--stonetop-blood-filled-icon) !important;
+}
+/* Locked potential Conduit: black dotted, not interactive, never filled (the dotted
+   icon wins over the base :checked rule for any stale stored state). */
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="redwood-effigy"][data-index="1"],
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="redwood-effigy"][data-index="2"] {
+	background-image: var(--stonetop-blood-dotted-icon) !important;
+	pointer-events: none;
+}
+/* Once Greater Conduit is checked on the back (data-greater-conduit on the card), the
+   two potential slots unlock: normal red drops, tappable, hollow → filled when marked. */
+.vtt .window-app .stonetop-arcanum-card[data-greater-conduit] input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="redwood-effigy"][data-index="1"],
+.vtt .window-app .stonetop-arcanum-card[data-greater-conduit] input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="redwood-effigy"][data-index="2"] {
+	background-image: var(--stonetop-blood-icon) !important;
+	pointer-events: auto;
+}
+.vtt .window-app .stonetop-arcanum-card[data-greater-conduit] input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="redwood-effigy"][data-index="1"]:checked,
+.vtt .window-app .stonetop-arcanum-card[data-greater-conduit] input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="redwood-effigy"][data-index="2"]:checked {
+	background-image: var(--stonetop-blood-filled-icon) !important;
+}
+
+/* The standalone arcanum item sheet (compendium view) renders these tracks as static
+   display glyphs rather than checkboxes, so skin .stonetop-glyph--diamond there too.
+   They show the unselected (empty) state: Red Scepter is 3 hollow charge drops;
+   Redwood Effigy is its base Conduit (first drop, hollow) plus two locked (dotted)
+   slots. */
+.stonetop-arcanum-sheet-side[data-slug="red-scepter"] .stonetop-glyph--diamond {
+	background-image: var(--stonetop-blood-icon);
+}
+.stonetop-arcanum-sheet-side[data-slug="redwood-effigy"] .stonetop-arcanum-track .stonetop-glyph--diamond {
+	background-image: var(--stonetop-blood-dotted-icon);
+}
+.stonetop-arcanum-sheet-side[data-slug="redwood-effigy"] .stonetop-arcanum-track .stonetop-glyph--diamond:first-child {
+	background-image: var(--stonetop-blood-icon);
 }
 
 .stonetop-arcanum-unlock-lead {
@@ -9095,6 +9515,56 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: hsl(95 16% 93%);
 }
 
+/* Custom followers (the walkthrough / a converted monster) take a cool accent to
+   set them apart from the playbook-granted cards. */
+.stonetop-follower-card--custom {
+	border-left: 3px solid hsl(210 40% 60%);
+}
+.stonetop-follower-card--custom .stonetop-follower-header {
+	background: hsl(210 28% 94%);
+}
+
+/* Remove-follower action row (shown with a custom card's edit pencil) */
+.stonetop-follower-card-actions {
+	display: flex;
+	justify-content: flex-end;
+	padding: 6px 12px 10px;
+}
+
+/* Create-a-follower entry bar at the foot of the Followers tab */
+.stonetop-follower-add-bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	padding: 4px 2px;
+}
+/* Matches the inventory tab's "Add item" button (.stonetop-inv-add-btn): a quiet
+   dashed entry point rather than a filled green CTA. Sized inline so it sits
+   beside the drag-a-monster hint. */
+.stonetop-follower-add-btn {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 8px;
+	border: 1px dashed var(--color-border-light, #ccc);
+	background: transparent;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	cursor: pointer;
+	transition: background 0.15s;
+}
+.stonetop-follower-add-btn:hover { background: hsl(210 10% 92%); }
+.stonetop-follower-add-hint {
+	flex: 1 1 14em;
+	min-width: 0;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+.stonetop-follower-add-hint i { margin-right: 3px; opacity: 0.7; }
+
 /* "pick 2 more" / "swift or hardy" choose-hint shown after the fixed trait tags */
 .stonetop-follower-trait-note {
 	align-self: center;
@@ -9734,6 +10204,23 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 .stonetop-follower-hp-octagon-static { font-size: var(--st-fs-lg); font-weight: 700; color: var(--st-text-body); }
 .stonetop-follower-hp-octagon-suffix { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
 
+/* Edit mode: the max-HP becomes an editable field inside the octagon. Both the
+   current and max inputs shrink so the pair fits the 82px box. */
+.stonetop-follower-hp-octagon-body .stonetop-follower-hp-octagon-input { width: 30px; }
+.stonetop-follower-hp-octagon-max-input {
+	width: 30px;
+	text-align: center;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.6);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-body);
+	padding: 0 1px;
+	line-height: 1;
+}
+.stonetop-follower-hp-octagon-max-input:focus { outline: 2px solid slategrey; outline-offset: 1px; }
+
 /* Body */
 .stonetop-follower-body {
 	display: flex;
@@ -9775,6 +10262,17 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	font-size: var(--st-fs-base);
 	color: var(--st-text-body);
 	padding: 0 2px;
+}
+
+/* Compact numeric variant (Armor) — a small boxed field instead of the wide
+   fill-line input, since the value is a single digit or two. */
+.stonetop-follower-stat-input--num {
+	flex: 0 0 auto;
+	width: 3em;
+	text-align: center;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.6);
 }
 
 /* Block fields (Moves / Gear / Notes) stack their value under the label */
@@ -9827,6 +10325,24 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	font-style: italic;
 	color: var(--st-text-faint);
 	line-height: 1.3;
+}
+
+/* Initiate "pick 1 on each line" trait picker (edit mode): one labelled option
+   row per choiceRow, stacked. Reuses the shared .stonetop-follower-option-list. */
+.stonetop-initiate-trait-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.stonetop-initiate-trait-rows .stonetop-follower-field-row {
+	gap: 2px;
+}
+/* Short trait words read better as a wrapping "pick 1 on this line" row than as
+   the tall vertical column the instinct / cost lists use. */
+.stonetop-initiate-trait-rows .stonetop-follower-option-list {
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 3px 12px;
 }
 
 .stonetop-follower-tag.stonetop-crew-tag-choice {
@@ -13612,20 +14128,33 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: 0;
 	display: flex;
 	flex-direction: column;
-	overflow: hidden auto;
+	/* Cap to the viewport so tall steps (the follower tag pool, HP/armor lists)
+	   scroll inside the dialog instead of growing the auto-height window past the
+	   screen and pushing the Back/Next footer out of view. The step content scrolls
+	   (.stonetop-guide-main, below); the nav stays pinned. */
+	max-height: calc(100vh - 80px);
+	overflow: hidden;
 }
 
 .stonetop-spring {
 	display: flex;
 	flex-direction: column;
-	/* Shrink with the window as a flex child of .window-content (V13) so the nav
-	   below can never force the container wider than the dialog. */
+	/* Fill the dialog as a flex child of .window-content (V13): min-width:0 keeps the
+	   nav from forcing the container wider than the dialog; flex + min-height:0 let the
+	   step content scroll while the nav stays put. */
+	flex: 1 1 auto;
 	min-width: 0;
+	min-height: 0;
 	font-family: var(--font-stonetop);
 }
 
+/* The step content scrolls (banner + body together); the nav is a fixed footer so
+   Back/Next/Create stay visible no matter how tall the step is. */
+.stonetop-spring-dialog .stonetop-guide-main { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.stonetop-spring-dialog .stonetop-guide-nav { flex: 0 0 auto; }
+
 .stonetop-spring-body {
-	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
+	font-size: var(--st-fs-md);
 	line-height: 1.6;
 }
 
@@ -13846,6 +14375,60 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-spring-qa-empty > i { margin-top: 2px; }
 
+/* ── Expedition walkthrough extras ─────────────────────────────────────────────
+   The Expedition dialog reuses the spring chrome/body/qa styling; these are the
+   only Expedition-specific pieces: the Chart-a-Course / arriving-home checklist
+   and the inline d6 reference table. See dialogs/ExpeditionDialog.js. */
+
+.stonetop-exp-checkgroup {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.stonetop-exp-checkgroup-label {
+	font-weight: 600;
+	font-size: calc(0.82rem * var(--stonetop-font-scale, 1));
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-exp-checks {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-exp-check > label {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	cursor: pointer;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+}
+
+.stonetop-exp-check input[type="checkbox"] {
+	flex-shrink: 0;
+	margin-top: 0.2em;
+}
+
+/* Inline d6 reference table embedded in a step body (e.g. Make Camp occurrences). */
+.stonetop-spring-body ul.stonetop-exp-fatetable {
+	margin-top: 6px;
+	padding: 8px 12px;
+	gap: 3px;
+	list-style: none;
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.02);
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+}
+
 /* Navigation (the nav bar + buttons are shared — see .stonetop-guide-nav). Only
    the truncating centre step-label is spring-specific. */
 
@@ -13861,6 +14444,218 @@ th:has(> .stonetop-roll-table-btn) {
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
 }
+
+/* ── Create-a-Follower walkthrough + Monster→Follower conversion ──────────────
+   Step controls inside the shared spring/guide dialog chrome. .stonetop-cf-* are
+   used by both dialogs; .stonetop-mf-* are conversion-only. See
+   dialogs/CreateFollowerDialog.js and dialogs/MonsterToFollowerDialog.js. */
+
+.stonetop-cf-controls {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-cf-field-grid {
+	display: flex;
+	gap: 10px;
+}
+.stonetop-cf-field-grid .stonetop-cf-label { flex: 1 1 auto; }
+.stonetop-cf-field-grid .stonetop-cf-label--narrow { flex: 0 0 9em; }
+
+.stonetop-cf-label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: var(--st-fs-sm);
+	font-weight: 600;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-cf-input,
+.stonetop-cf-textarea {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 4px 8px;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-base);
+	font-weight: 400;
+	color: var(--st-text-body);
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+}
+.stonetop-cf-textarea { resize: vertical; line-height: 1.45; }
+
+/* Stat pick lists (HP / armor / damage) */
+.stonetop-cf-pick { display: flex; flex-direction: column; gap: 5px; }
+
+.stonetop-cf-pick-label {
+	font-size: var(--st-fs-sm);
+	font-weight: 700;
+	color: var(--st-text-secondary);
+}
+.stonetop-cf-pick-hint {
+	font-weight: 400;
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
+.stonetop-cf-option-list { display: flex; flex-direction: column; gap: 3px; }
+
+.stonetop-cf-option {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 3px 8px;
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	border-radius: var(--st-radius-sm);
+	background: rgba(0, 0, 0, 0.02);
+	cursor: pointer;
+	font-size: var(--st-fs-base);
+}
+.stonetop-cf-option:hover { background: rgba(0, 0, 0, 0.05); }
+.stonetop-cf-option.is-selected {
+	border-color: var(--st-green-border);
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+}
+.stonetop-cf-option input { flex: 0 0 auto; margin: 0; }
+.stonetop-cf-option-text { flex: 1 1 auto; }
+.stonetop-cf-option-val {
+	flex: 0 0 auto;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--st-text-secondary);
+}
+.stonetop-cf-option.is-selected .stonetop-cf-option-val { color: var(--st-green-text); }
+
+.stonetop-cf-total {
+	align-self: flex-start;
+	padding: 3px 12px;
+	border: 1px solid var(--st-green-border);
+	border-radius: 999px;
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+	font-size: var(--st-fs-md);
+}
+.stonetop-cf-total i { margin-right: 4px; }
+
+/* Chosen-tag row + the tag pools */
+.stonetop-cf-chosen { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.stonetop-cf-chosen-label {
+	font-size: var(--st-fs-sm);
+	font-weight: 700;
+	color: var(--st-text-secondary);
+}
+.stonetop-cf-chosen-empty { font-size: var(--st-fs-sm); font-style: italic; color: var(--st-text-muted); }
+.stonetop-cf-chosen-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.stonetop-cf-chosen-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 1px 8px;
+	border: 1px solid var(--st-green-border);
+	border-radius: 999px;
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+}
+.stonetop-cf-chosen-tag i { font-size: 0.85em; opacity: 0.7; }
+.stonetop-cf-chosen-tag:hover { background: var(--st-red-bg); border-color: var(--st-red-border); color: var(--st-red-text); }
+
+.stonetop-cf-tag-add-row { display: flex; gap: 6px; align-items: center; }
+.stonetop-cf-tag-add-row .stonetop-cf-input { flex: 1 1 auto; }
+
+.stonetop-cf-tag-group { display: flex; flex-direction: column; gap: 4px; }
+.stonetop-cf-tag-group-label {
+	font-size: var(--st-fs-xs);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--st-text-muted);
+}
+.stonetop-cf-tag-pool { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.stonetop-cf-tag,
+.stonetop-cf-chip {
+	padding: 1px 9px;
+	border: 1px solid rgba(100, 116, 139, 0.3);
+	border-radius: 999px;
+	background: hsl(210 12% 92%);
+	color: var(--st-text-body);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+	transition: background 0.12s, border-color 0.12s;
+}
+.stonetop-cf-tag:hover,
+.stonetop-cf-chip:hover { background: hsl(210 12% 85%); }
+.stonetop-cf-tag.is-selected,
+.stonetop-cf-chip.is-selected {
+	border-color: var(--st-green-border);
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+}
+
+.stonetop-cf-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.stonetop-cf-mini-btn {
+	flex: 0 0 auto;
+	padding: 3px 10px;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+	white-space: nowrap;
+}
+.stonetop-cf-mini-btn:hover { background: hsl(40 25% 85%); }
+.stonetop-cf-mini-btn--danger { border-color: var(--st-red-border); color: var(--st-red-text); }
+.stonetop-cf-mini-btn--danger:hover { background: var(--st-red-bg); }
+
+/* Gear rows (final step) */
+.stonetop-cf-gear { display: flex; flex-direction: column; gap: 5px; }
+.stonetop-cf-gear-row { display: flex; gap: 6px; align-items: center; }
+.stonetop-cf-gear-row .stonetop-cf-input { flex: 1 1 auto; }
+.stonetop-cf-gear-add { align-self: flex-start; }
+
+/* Review card (final step) + the conversion's kept-stats line */
+.stonetop-cf-preview,
+.stonetop-mf-stats {
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.03);
+	padding: 8px 12px;
+}
+.stonetop-cf-preview { display: flex; flex-direction: column; gap: 5px; }
+
+.stonetop-cf-preview-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.stonetop-cf-preview-name { font-weight: 700; font-size: var(--st-fs-md); }
+.stonetop-cf-preview-pronoun { font-weight: 400; color: var(--st-text-muted); }
+.stonetop-cf-preview-type { font-size: var(--st-fs-sm); font-style: italic; color: var(--st-text-secondary); }
+.stonetop-cf-preview-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.stonetop-cf-preview-tag {
+	padding: 0 7px;
+	border: 1px solid rgba(100, 116, 139, 0.3);
+	border-radius: 999px;
+	background: hsl(210 12% 92%);
+	font-size: var(--st-fs-xs);
+}
+.stonetop-cf-preview-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: var(--st-fs-sm); }
+.stonetop-cf-preview-line { font-size: var(--st-fs-sm); line-height: 1.4; }
+.stonetop-cf-preview-loyalty { color: var(--st-text-muted); }
+
+/* Monster→Follower conversion specifics */
+.stonetop-mf-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: var(--st-fs-sm); }
+.stonetop-mf-kept { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.stonetop-mf-arrow { font-size: 0.8em; margin: 0 2px; color: var(--st-text-muted); }
 
 /* Seasons Change chat card */
 

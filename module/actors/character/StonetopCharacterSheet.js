@@ -7,6 +7,8 @@ import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
+import {CreateFollowerDialog} from "./dialogs/CreateFollowerDialog.js";
+import {MonsterToFollowerDialog} from "./dialogs/MonsterToFollowerDialog.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
@@ -20,12 +22,14 @@ import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getSidebarCollapsed, setSidebarCollapsed} from "../../settings.js";
 import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
+import {parseFollowerArmor, buildCustomFollower} from "../../data/follower-build.js";
+import {arcanaSummon, joinNames} from "../../data/arcana-summons.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
@@ -481,6 +485,7 @@ const FOLLOWER_FTYPE_DEFAULTS = {
 	"crew":             { ftype: "crew",             portraitIcon: "fas fa-users",    damageType: "crew",     damagePronoun: "they",          showGear: false, nameEditable: true, namePlaceholder: "Crew" },
 	"initiate":         { ftype: "initiate",         portraitIcon: "fas fa-seedling", damageType: "initiate", hpFollower: "initiate",         showGear: true },
 	"beast":            { ftype: "beast",            damageType: "beast",             damagePronoun: "it",    hpFollower: "beast",            showGear: true },
+	"custom":           { ftype: "custom",           portraitIcon: "fas fa-user",     damageType: "custom",   damagePronoun: "they",  hpFollower: "custom",   showGear: true,  nameEditable: true, pronounEditable: true, namePlaceholder: "Follower" },
 };
 
 // Common, hand-editable follower fields shared by every card type on the
@@ -523,6 +528,13 @@ const _FOLLOWER_FLAGS = {
 		structural: { name: "crew.name", instinct: "crew.instinct", cost: "crew.cost" } },
 	"initiate":         { detailBase: "initiateDetails.{slug}",  loyalty: "initiatesLoyalty.{slug}", structural: {} },
 	"beast":            { detailBase: "beastDetails.{slug}",     loyalty: "beastLoyalty.{slug}",     structural: {} },
+	// Custom followers (the walkthrough / monster conversion) store everything —
+	// structural stats, the hand-edited overrides, Loyalty and current HP — in one
+	// object keyed by the follower's id. detailBase points at that whole object, so
+	// the shared override (damage/instinct/cost) and extras (moves/notes/gear)
+	// handlers read and write it directly; name/pronoun fall through to it too
+	// (structural is empty, so the name-field change handler uses the detail path).
+	"custom":           { detailBase: "customFollowers.{slug}",  loyalty: "customFollowers.{slug}.loyalty", structural: {} },
 };
 const _fillSlug = (tpl, slug) => tpl == null ? null : tpl.replaceAll("{slug}", slug ?? "");
 
@@ -556,6 +568,18 @@ function _followerLoyaltyPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ft
 function _clampHp(raw, max) {
 	const n = Number(raw);
 	return raw != null && Number.isFinite(n) ? Math.min(Math.max(0, n), max) : max;
+}
+
+// A hand-edited stat override (follower armor / max HP, or a crew's per-member
+// stats): a non-negative integer, or null when blank/non-numeric so callers can
+// fall back to the rules-derived value.
+function _intOverrideOrNull(value) {
+	// Treat blank/empty/null as "no override" → null. (Number("") and Number(null)
+	// are both 0, so without this guard a cleared field would read as an explicit 0,
+	// zeroing crew armor or collapsing per-member HP instead of reverting to derived.)
+	if (value == null || String(value).trim() === "") return null;
+	const n = Number(value);
+	return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : null;
 }
 
 // Pull the rollable die and parenthetical "form" (e.g. "forceful") out of a
@@ -674,6 +698,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Likewise the sidebar move groups (Basic / Expedition), which default to
 			// expanded, so we track the ones left collapsed.
 			this._collapsedMoveSections = new Set(getMovesSectionsCollapsed(this.actor?.id));
+
+			// And the Arcana sections (Major / Minor arcanum), which also default to
+			// expanded; we track the ones left collapsed.
+			this._collapsedArcanaSections = new Set(getArcanaSectionsCollapsed(this.actor?.id));
 		}
 
 		// Persist the current crew-section open state so it survives a sheet reopen.
@@ -686,6 +714,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			setMovesSectionsCollapsed(this.actor?.id, [...(this._collapsedMoveSections ?? [])]);
 		}
 
+		// Persist which Arcana sections are collapsed so it survives a reopen.
+		_persistArcanaSections() {
+			setArcanaSectionsCollapsed(this.actor?.id, [...(this._collapsedArcanaSections ?? [])]);
+		}
+
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["pbta", "stonetop", "sheet", "actor", "character"],
@@ -694,6 +727,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				dragDrop: [{ dragSelector: ".items-list .item" }],
+				// Each tab body and the moves sidebar own their own scroll. Register them
+				// so Foundry saves/restores scrollTop across re-renders — otherwise adding
+				// an item / arcanum / follower (which re-renders the sheet) snaps the user
+				// back to the top of whatever tab they were on.
+				scrollY: [".sheet-body > .tab.active", ".stonetop-sidebar-body"],
 			});
 		}
 
@@ -1008,6 +1046,16 @@ export function createStonetopCharacterSheetClass(Base) {
 				basicMoves:      !collapsedMoves.has("basicMoves"),
 				expeditionMoves: !collapsedMoves.has("expeditionMoves"),
 			};
+			// Arcana sections (Major / Minor arcanum) default to expanded; a section is
+			// open unless this user collapsed it (persisted in _collapsedArcanaSections).
+			const collapsedArcana = this._collapsedArcanaSections ?? new Set();
+			context.stonetop.arcanaOpen = {
+				major: !collapsedArcana.has("arcanaMajor"),
+				minor: !collapsedArcana.has("arcanaMinor"),
+			};
+			// Whether the whole moves sidebar is collapsed (defaults to expanded),
+			// persisted per-actor, per-user.
+			context.stonetop.sidebarCollapsed = getSidebarCollapsed(this.actor?.id);
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop_pwd', 'hideUnselected') ?? true;
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.canEdit = this.isEditable;
@@ -1059,8 +1107,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
 				context.stonetop.followers.initiates?.length ||
-				context.stonetop.followers.beasts?.length
+				context.stonetop.followers.beasts?.length ||
+				context.stonetop.followers.custom?.length
 			);
+			// Owners can always reach the tab (even with no followers yet) so they can
+			// run the Create-a-Follower walkthrough or drop a monster to convert it;
+			// non-owners only see it once the character actually has followers. The
+			// add/convert controls themselves are gated on editability.
+			context.stonetop.showFollowersTab = context.stonetop.hasFollowers || this.isEditable;
+			context.stonetop.canAddFollower   = this.isEditable;
 			// Universal "Follower Special Moves" (same for every character), rendered
 			// read-only from the follower-moves items via their build export.
 			context.stonetop.followerSpecialMoves = FOLLOWER_MOVES;
@@ -1068,6 +1123,32 @@ export function createStonetopCharacterSheetClass(Base) {
 				context.stonetop.arcana?.minor?.hasOwned ||
 				context.stonetop.arcana?.major?.hasOwned
 			);
+			// Decorate summoning arcana (those whose reverse "Treats it/them as a
+			// follower") with what the "Add as follower" button needs: its label and
+			// whether the creature(s) are already on the Followers tab (matched by the
+			// stable sourceUuid marker). See module/data/arcana-summons.js.
+			const summonedUuids = new Set(
+				Object.values(this.actor.getFlag("stonetop_pwd", "customFollowers") ?? {})
+					.map(f => f?.sourceUuid).filter(Boolean)
+			);
+			for (const section of [context.stonetop.arcana?.major, context.stonetop.arcana?.minor]) {
+				for (const item of (section?.items ?? [])) {
+					const entry = arcanaSummon(item.slug);
+					if (!entry) continue;
+					const names   = joinNames(entry.followers.map(f => f.name));
+					const plural  = entry.followers.length > 1;
+					// A repeatable follower (the Ring's Servants) can always be summoned
+					// again, so the button never reads "added" / disables while one exists.
+					const hasRepeatable = entry.followers.some(f => f.repeatable);
+					const addedAll = !hasRepeatable && entry.followers.every(f => summonedUuids.has(f.sourceUuid));
+					item.summon = {
+						added: addedAll,
+						label: addedAll
+							? `${names} ${plural ? "are" : "is"} in your Followers`
+							: `Add ${names} as ${plural ? "followers" : "a follower"}`,
+					};
+				}
+			}
 			context.stonetop.invocations          = this._buildInvocationsData(playbookDoc);
 			context.stonetop.showOtherMovesSection = this._editMode || !!(context.stonetop.movelist?.otherMoves?.length);
 			const { xp } = context.stonetop.vitals;
@@ -1124,11 +1205,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			// per-actor setting in the constructor (so it survives a sheet reopen);
 			// the ??= is just a defensive fallback.
 			this._openCrewSections ??= new Set();
-			const crewMaxHp = crewStats.memberHp ?? 6;
+			// Per-member HP / armor derive from the Marshal's crew bonuses, but a
+			// hand-edited override (crew.details.hpMax / .armor — the same flags the
+			// shared stat-override layer reads) wins, so the player can adjust the
+			// crew as it grows (Updating followers, p.480).
+			const _crewOverride = (field) => _intOverrideOrNull(sf.crew?.details?.[field]);
+			const crewMaxHp = (_crewOverride("hpMax") ?? crewStats.memberHp ?? 6) || 1;
 			// Stash the per-member HP max so the resize/delete handlers can re-clamp
 			// the abstracted group-fight pool (crewSize × memberHp) when it shrinks.
 			this._crewMemberHpMax = crewMaxHp;
-			const crewArmor = crewStats.armor ?? 0;
+			const crewArmor = _crewOverride("armor") ?? crewStats.armor ?? 0;
 			const crewDamageDie = crewStats.damageDie ?? "d6";
 			const crewRollMod = crewStats.rollMod ?? 1;
 			// Edit state for follower cards. One card-level pencil (top-right of the
@@ -1182,6 +1268,29 @@ export function createStonetopCharacterSheetClass(Base) {
 					// and the crew Group Fight roll — never goes empty.
 					if (parsed.damageRoll) card.damageRoll = parsed.damageRoll;
 				}
+				// Hand-edited Armor / Max HP overrides (Updating followers, p.480: a
+				// follower can grow more resilient or better armored). The crew also
+				// re-derives crewMaxHp / crewArmor from the same flags up top so its
+				// roster + group-fight pool stay in step; here we just apply to the
+				// card so every type's stat block + HP box reflect the override.
+				if (has(d.armor)) {
+					const a = _intOverrideOrNull(d.armor);
+					if (a !== null) card.armor = a;
+				}
+				if (has(d.hpMax)) {
+					const m = _intOverrideOrNull(d.hpMax);
+					if (m !== null && m > 0) {
+						card.hpMax = m;
+						if (typeof card.hpCurrent === "number") card.hpCurrent = Math.min(card.hpCurrent, m);
+						// Crew shows its per-member HP in the static octagon slot.
+						if (card.hpStaticValue != null) card.hpStaticValue = m;
+					}
+				}
+				// The `armor` field can be a placeholder ("—") or, on legacy/converted
+				// data, a book-format string ("2 (0 vs. iron)") — fine for the read-only
+				// value span, but it must never reach the <input type="number">. Give the
+				// number input its own always-numeric value.
+				card.armorInput = parseFollowerArmor(card.armor);
 				return card;
 			};
 
@@ -1200,6 +1309,24 @@ export function createStonetopCharacterSheetClass(Base) {
 				const showTraitHover = getHoverDescriptionSetting("hoverDescriptionsTraits");
 				const acName = sf.animalCompanion?.name ?? "";
 				const acPronoun = sf.animalCompanion?.pronoun ?? "";
+				// Edit mode: the type's trait list as a pick-up-to-pickCount picker
+				// (the rulebook's animal-companion build). Traits drive HP / armor /
+				// damage via _applyAnimalCompanionTraits, so toggling one re-derives the
+				// card's stats. Only built when editing; view mode shows the trait chips.
+				let acTraitChoices = null;
+				if (cardEditing("animal-companion", "")) {
+					const acTypeTraits = typeData?.traits ?? [];
+					const pickCount    = Number(typeData?.pickCount) || 0;
+					const selectedSet  = new Set(traits);
+					const atLimit      = pickCount > 0 && selectedSet.size >= pickCount;
+					if (acTypeTraits.length) acTraitChoices = {
+						limit:   pickCount,
+						options: acTypeTraits.map(value => {
+							const selected = selectedSet.has(value);
+							return { value, selected, disabled: !selected && atLimit };
+						}),
+					};
+				}
 				animalCompanion = {
 					...FOLLOWER_FTYPE_DEFAULTS["animal-companion"],
 					slug:         "",
@@ -1208,6 +1335,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					pronounEditable: true,
 					typeLabel:    kind ? `${_titleCase(kind)} (${String(typeLabel).toLowerCase()})` : String(typeLabel),
 					tags:         traits.map(label => ({ label, tooltip: showTraitHover ? _animalCompanionTraitTooltip(label) : null })),
+					traitChoices: acTraitChoices,
 					hpSlug:       "",
 					hpMax,
 					hpCurrent:    _clampHp(hpRaw, hpMax),
@@ -1424,6 +1552,22 @@ export function createStonetopCharacterSheetClass(Base) {
 								pronoun: i === arr.length - 1 ? (det.pronoun ?? null) : null,
 							}));
 						const subtitleTags = (opt.subtitle ?? "").split(", ").map(t => t.trim()).filter(Boolean);
+						// Edit mode: the rulebook's "pick 1 on each line". One radio row
+						// per non-pronoun choiceRow (the pronoun line is edited up in the
+						// name section). Selections persist to initiateDetails.<slug>.rows,
+						// the same store onboarding writes — see the trait-option handler.
+						let initTraitRows = null;
+						if (cardEditing("initiate", opt.slug)) {
+							initTraitRows = (opt.choiceRows ?? [])
+								.map((row, rowIdx) => row.type === "pronoun" ? null : {
+									slug:    opt.slug,
+									rowIdx,
+									label:   row.label ?? null,
+									options: (row.options ?? []).map(value => ({ value, selected: (det.rows?.[rowIdx] ?? "") === value })),
+								})
+								.filter(Boolean);
+							if (!initTraitRows.length) initTraitRows = null;
+						}
 						return {
 							...FOLLOWER_FTYPE_DEFAULTS["initiate"],
 							slug:          opt.slug,
@@ -1436,6 +1580,8 @@ export function createStonetopCharacterSheetClass(Base) {
 								...subtitleTags.map(label => ({ label })),
 								...choiceDetails.map(label => ({ label, cls: "stonetop-follower-tag--detail" })),
 							],
+							subtitleTags:  subtitleTags.map(label => ({ label })),
+							traitRows:     initTraitRows,
 							hpSlug:        opt.slug,
 							hpMax:         initHpMax,
 							hpCurrent:     _clampHp(initHpRaw, initHpMax),
@@ -1502,6 +1648,47 @@ export function createStonetopCharacterSheetClass(Base) {
 					return card;
 				});
 
+			// -- Custom followers (any playbook; built via the Create-a-Follower
+			// walkthrough or by converting a dropped monster) -----------------
+			// Each is a self-contained card stored under customFollowers.<id>. Its
+			// structural stats (tags, max HP, armor) live alongside the hand-edited
+			// fields (name, damage, instinct, cost, moves, gear, notes), Loyalty and
+			// current HP in that one object — the same object the shared detail /
+			// override / loyalty / HP handlers resolve through _FOLLOWER_FLAGS["custom"].
+			// Ordered by their stored `order` (creation time) so the list is stable.
+			const customMap = sf.customFollowers ?? {};
+			const customFollowers = Object.entries(customMap)
+				.sort((a, b) => (Number(a[1]?.order) || 0) - (Number(b[1]?.order) || 0))
+				.map(([id, c]) => {
+					const hpMax  = Number(c?.hpMax) || 0;
+					const damage = String(c?.damage ?? "");
+					return {
+						...FOLLOWER_FTYPE_DEFAULTS["custom"],
+						slug:         id,
+						hpSlug:       id,
+						portraitIcon: c?.portraitIcon || "fas fa-user",
+						name:         c?.name ?? "",
+						pronoun:      c?.pronoun ?? "",
+						typeLabel:    c?.typeLabel || "follower",
+						isFollower:   true,
+						removable:    true,
+						hpMax,
+						hpCurrent:    _clampHp(c?.hpCurrent, hpMax),
+						armor:        parseFollowerArmor(c?.armor),
+						damage,
+						..._parseFollowerDamage(damage),
+						damageKind:   "",
+						damageName:   c?.name || "follower",
+						tags:         (Array.isArray(c?.tags) ? c.tags : []).map(label => ({ label })),
+						instinct:     c?.instinct ?? "",
+						cost:         c?.cost ?? "",
+						butcher:      c?.butcher ?? null,
+						loyalty:      _makeLoyaltyPips(c?.loyalty ?? 0),
+						loyaltySlug:  id,
+						..._followerExtras(c),
+					};
+				});
+
 			// "exceptional" is a gated tag (see FOLLOWER_EXCEPTIONAL): the chip only
 			// shows for follower types whose playbook grants it, and can be switched
 			// on only once that move is owned. Surfaced per-card so the tags-row chip
@@ -1529,6 +1716,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				crew:            finalize(crew),
 				initiates:       initiates?.map(finalize) ?? null,
 				beasts:          beasts.map(finalize),
+				custom:          customFollowers.map(finalize),
 			};
 		}
 
@@ -1600,6 +1788,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					if (doc?.system?.customType === "stonetop") {
 						await this.actor.setFlag("stonetop_pwd", "steadingId", doc.id);
 						this.render(false);
+					} else if (doc?.type === "monster") {
+						// Dropping a monster offers to convert it to a follower (NPCs &
+						// Followers, p.475): keep its stats, add tags, choose a cost.
+						this._onMonsterDropConvert(doc);
 					}
 					return;
 				}
@@ -1760,6 +1952,9 @@ export function createStonetopCharacterSheetClass(Base) {
 							} else if (followerType === "beast") {
 								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
 								label = `${this.actor.name}'s ${followerName || "beast"} attacks${formPart}`;
+							} else if (followerType === "custom") {
+								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
+								label = `${this.actor.name}'s ${followerName || "follower"} attacks${formPart}`;
 							} else {
 								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
 								label = `${this.actor.name}'s ${followerName || "crew"} attacks${formPart}`;
@@ -1854,10 +2049,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				document.body.appendChild(moveRefPanel);
 			}
 
-			// Render inline glyphs (◇ Conduit tracks, etc.) as SVG across every
-			// description container. Move-ref enrichment is limited to move
-			// descriptions; the other containers only need glyph wrapping.
-			html.find(".stonetop-item-description, .stonetop-arcanum-body, .stonetop-invocation-desc").each((_, el) => {
+			// Render inline glyphs (◇ Conduit tracks, ○ marks, □ boxes, ▶ arrows) as SVG
+			// across every read-only description container. Move-ref enrichment is limited
+			// to move descriptions; the other containers only need glyph wrapping. The lore
+			// option/description containers are display-only — their editable answers live
+			// in a sibling <textarea>, which this selector never matches (wrapping a
+			// textarea's value would corrupt the saved text).
+			html.find(".stonetop-item-description, .stonetop-arcanum-body, .stonetop-invocation-desc, .stonetop-lore-description, .stonetop-lore-option-desc").each((_, el) => {
 				if (el.dataset.glyphsWrapped) return;
 				el.dataset.glyphsWrapped = "1";
 				if (el.matches(".stonetop-item-description")) _enrichMoveRefsInEl(el);
@@ -1898,8 +2096,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			this._arcanaMasonryObserver = new ResizeObserver(entries => {
 				for (const entry of entries) packArcanaMasonry(entry.target);
 			});
-			html[0].querySelectorAll(".stonetop-arcana-grid")
-				.forEach(grid => this._arcanaMasonryObserver.observe(grid));
+			html[0].querySelectorAll(".stonetop-arcana-grid").forEach(grid => {
+				// Pack the visible grid now (it has width because super.activateListeners
+				// already activated the tab) so its final, shorter height is in place
+				// before Foundry restores scrollTop — otherwise the async observer repacks
+				// after the restore, shrinking the grid and clamping the scroll position.
+				packArcanaMasonry(grid);
+				this._arcanaMasonryObserver.observe(grid);
+			});
 
 			if (showMoveRefHover) {
 				let _moveRefHovered = null;
@@ -2048,6 +2252,30 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop_pwd", "crew.tags", tags);
 				this.render(false);
 			});
+			// Animal-companion trait picker: pick up to the type's pickCount. Same
+			// "checked, not disabled" gather as the crew tags; the limit is enforced on
+			// render by disabling unchecked options once full. Traits drive the
+			// companion's HP / armor / damage, so a re-render re-derives those stats.
+			html.find(".stonetop-ac-trait-option").on("change", async () => {
+				const traits = html.find(".stonetop-ac-trait-option:checked:not(:disabled)").toArray().map(el => el.value);
+				await this.actor.setFlag("stonetop_pwd", "animalCompanion.traits", traits);
+				this.render(false);
+			});
+			// Initiate of Danu trait lines: "pick 1 on each line". Each radio row writes
+			// its choice to initiateDetails.<slug>.rows[rowIdx] — the same object store
+			// onboarding fills — so the two stay in sync (the pronoun line is edited up
+			// in the name section, never here).
+			html.find(".stonetop-initiate-trait-option").on("change", async ev => {
+				const el     = ev.currentTarget;
+				const slug   = el.dataset.slug;
+				const rowIdx = Number(el.dataset.rowIdx);
+				if (!slug || !Number.isInteger(rowIdx)) return;
+				const path = `initiateDetails.${slug}.rows`;
+				const rows = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", path) ?? {});
+				rows[rowIdx] = el.value;
+				await this.actor.setFlag("stonetop_pwd", path, rows);
+				this.render(false);
+			});
 			// Crew instinct / cost pickers (pick one from the playbook list)
 			html.find(".stonetop-crew-instinct-option").on("change", async ev => {
 				await this.actor.setFlag("stonetop_pwd", "crew.instinct", ev.currentTarget.value);
@@ -2097,6 +2325,22 @@ export function createStonetopCharacterSheetClass(Base) {
 				list.splice(i, 1);
 				await this.actor.setFlag("stonetop_pwd", path, list);
 				this.render(false);
+			});
+
+			// Create a follower via the Book I walkthrough (NPCs & Followers, p.474).
+			html.find(".stonetop-create-follower-btn").on("click", () => this._onCreateFollowerOpen());
+			// Remove a custom follower (built by the walkthrough or converted from a
+			// monster) entirely — drops its whole customFollowers.<id> object.
+			html.find(".stonetop-follower-remove").on("click", ev => {
+				const slug = ev.currentTarget.dataset.slug;
+				if (!slug) return;
+				const name = this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}.name`) || "this follower";
+				Dialog.confirm({
+					title:   "Remove follower",
+					content: `<p>Remove <strong>${escHtml(name)}</strong> from your followers? This can't be undone.</p>`,
+					yes:     () => this.actor.update({ [`flags.stonetop_pwd.customFollowers.-=${slug}`]: null }).then(() => this.render(false)),
+					render:  keepDialogOnTop,
+				});
 			});
 
 			// -- Followers tab: crew interactions --------------------------
@@ -2153,10 +2397,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (raw > max) update["flags.stonetop_pwd.crew.groupHp"] = max;
 			};
 			// Delete individual crew member
-			html.find(".stonetop-crew-delete-individual").on("click", async ev => {
+			html.find(".stonetop-crew-delete-individual").on("click", ev => {
 				const idx = Number(ev.currentTarget.dataset.index);
 				const individuals = [...(this.actor.getFlag("stonetop_pwd", "crew.individuals") ?? [])];
 				if (idx < 0 || idx >= individuals.length) return;
+				const name = individuals[idx]?.name || "this crew member";
 				individuals.splice(idx, 1);
 				// Re-key per-individual HP to stay aligned with the spliced array:
 				// the removed entry is dropped and every entry above it shifts down
@@ -2185,8 +2430,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				const newSize = Math.max(individuals.length, sizeBefore - 1);
 				update["flags.stonetop_pwd.crew.size"] = newSize;
 				clampStoredGroupHp(update, newSize);
-				await this.actor.update(update);
-				this.render(false);
+				Dialog.confirm({
+					title:   "Remove crew member",
+					content: `<p>Remove <strong>${escHtml(name)}</strong> from the crew? This can't be undone.</p>`,
+					yes:     async () => { await this.actor.update(update); this.render(false); },
+					render:  keepDialogOnTop,
+				});
 			});
 
 			// Crew roster size — total headcount; never below the number of named
@@ -2266,6 +2515,41 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (ev.key !== "Enter" && ev.key !== " ") return;
 				ev.preventDefault();
 				toggleMoveGroup(ev.currentTarget);
+			});
+
+			// Collapse / expand an Arcana section (Major / Minor arcanum). Same custom-
+			// toggle approach as the move groups: the section heading is the summary and
+			// the card grid below it clamps to zero height (so the masonry packing it
+			// holds stays intact). Collapsed ids are persisted (default expanded).
+			const toggleArcanaSection = el => {
+				const section = el.closest(".stonetop-arcana-collapsible");
+				const id      = section?.dataset.section;
+				if (!id) return;
+				const collapsed = section.classList.toggle("is-collapsed");
+				el.setAttribute("aria-expanded", String(!collapsed));
+				this._collapsedArcanaSections ??= new Set();
+				if (collapsed) this._collapsedArcanaSections.add(id);
+				else           this._collapsedArcanaSections.delete(id);
+				this._persistArcanaSections();
+			};
+			html.find(".stonetop-arcana-summary").on("click", ev => toggleArcanaSection(ev.currentTarget));
+			html.find(".stonetop-arcana-summary").on("keydown", ev => {
+				if (ev.key !== "Enter" && ev.key !== " ") return;
+				ev.preventDefault();
+				toggleArcanaSection(ev.currentTarget);
+			});
+
+			// Collapse / expand the whole moves sidebar (Roll Modifier + move lists).
+			// Toggling a class (rather than re-rendering) lets the tab content reclaim
+			// the freed width without flicker; the state is persisted so the sidebar
+			// reopens the same way.
+			html.find(".stonetop-sidebar-toggle").on("click", ev => {
+				const sidebar   = ev.currentTarget.closest(".stonetop-moves-sidebar");
+				if (!sidebar) return;
+				const collapsed = sidebar.classList.toggle("is-collapsed");
+				ev.currentTarget.setAttribute("aria-expanded", String(!collapsed));
+				ev.currentTarget.setAttribute("aria-label", collapsed ? "Expand moves sidebar" : "Collapse moves sidebar");
+				setSidebarCollapsed(this.actor?.id, collapsed);
 			});
 			// Name an (anonymous) crew member: promote them to a named individual,
 			// carrying their current HP across. Opened from each member's "Name them"
@@ -2525,9 +2809,15 @@ export function createStonetopCharacterSheetClass(Base) {
 					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 				});
 			});
-			html.find(".stonetop-other-move-delete").on("click", async ev => {
+			html.find(".stonetop-other-move-delete").on("click", ev => {
 				const { itemId } = ev.currentTarget.dataset;
-				await this._stonetopCharacter.removeMove(itemId);
+				const name = this.actor.items.get(itemId)?.name || "this move";
+				Dialog.confirm({
+					title:   "Remove move",
+					content: `<p>Remove <strong>${escHtml(name)}</strong> from your moves? This can't be undone.</p>`,
+					yes:     () => this._stonetopCharacter.removeMove(itemId),
+					render:  keepDialogOnTop,
+				});
 			});
 
 			html[0].addEventListener("click", ev => {
@@ -2578,6 +2868,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, true);
 
 			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-summon-btn");
+				if (!btn || btn.disabled) return;
+				ev.stopPropagation();
+				this._onArcanaSummon(btn.dataset.slug);
+			}, true);
+
+			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-arcanum-resource-btn");
 				if (!btn) return;
 				ev.stopPropagation();
@@ -2592,7 +2889,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!btn) return;
 				ev.stopPropagation();
 				const { slug } = btn.dataset;
-				this._stonetopCharacter.removeArcanum(slug).then(() => this.render(true));
+				const title = btn.closest(".stonetop-arcanum-card")
+					?.querySelector(".stonetop-arcanum-title")?.textContent?.trim() || "this arcanum";
+				Dialog.confirm({
+					title:   "Remove arcanum",
+					content: `<p>Remove <strong>${escHtml(title)}</strong> from your arcana? This can't be undone.</p>`,
+					yes:     () => this._stonetopCharacter.removeArcanum(slug).then(() => this.render(true)),
+					render:  keepDialogOnTop,
+				});
 			}, true);
 
 			html[0].addEventListener("change", ev => {
@@ -2720,6 +3024,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					await this.actor.setFlag("stonetop_pwd", "crew.groupHp", val);
 				} else if (follower === "beast") {
 					await this.actor.update({ [`flags.stonetop_pwd.beastHp.${slug}`]: val });
+				} else if (follower === "custom") {
+					await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.hpCurrent`]: val });
 				}
 				this.render(false);
 			}, true);
@@ -3239,6 +3545,84 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter,
 				() => this.render(false),
 			).render(true);
+		}
+
+		// Open the Create-a-Follower walkthrough (Book I, NPCs & Followers, p.474).
+		// On finish it hands back buildCustomFollower() data, which we persist.
+		async _onCreateFollowerOpen() {
+			if (!this.isEditable) return;
+			new CreateFollowerDialog(
+				this.actor,
+				(data) => this._applyCustomFollower(data),
+			).render(true);
+		}
+
+		// Offer to convert a dropped monster into a follower (keep its stats, add
+		// tags, choose a cost — p.475). Cancelling the modal does nothing.
+		_onMonsterDropConvert(monsterDoc) {
+			if (!this.isEditable || !monsterDoc) return;
+			new MonsterToFollowerDialog(
+				this.actor,
+				monsterDoc,
+				(data) => this._applyCustomFollower(data),
+			).render(true);
+		}
+
+		// Manifest an arcanum's bound creature(s) as followers (the arcana whose reverse
+		// says "Treat it/them as a follower" — see ARCANA_SUMMONS). Triggered by the
+		// "Add as follower" button on the arcanum's back side. Confirm first (it adds
+		// cards to the Followers tab), then add any not already present — matched by their
+		// stable sourceUuid marker so re-summoning never piles up duplicate cards.
+		async _onArcanaSummon(slug) {
+			if (!this.isEditable) return;
+			const entry = arcanaSummon(slug);
+			if (!entry?.followers?.length) return;
+			const names = joinNames(entry.followers.map(f => f.name));
+			const plural = entry.followers.length > 1;
+			const confirmed = await Dialog.confirm({
+				title:      "Manifest follower",
+				content:    `<p>Manifest <strong>${escHtml(names)}</strong> and add ${plural ? "them" : "it"} to your Followers tab?</p>`,
+				yes:        () => true,
+				no:         () => false,
+				defaultYes: false,
+				render:     keepDialogOnTop,
+			});
+			if (!confirmed) return;
+
+			const existing = this.actor.getFlag("stonetop_pwd", "customFollowers") ?? {};
+			const present  = new Set(Object.values(existing).map(f => f?.sourceUuid).filter(Boolean));
+			const update   = {};
+			let order = this._nextFollowerOrder();
+			for (const input of entry.followers) {
+				// `repeatable` followers (e.g. the Ring of Daagon's Servants) can be
+				// summoned again and again, so they're never deduped by sourceUuid.
+				if (!input.repeatable && present.has(input.sourceUuid)) continue;
+				const id = foundry.utils.randomID(16);
+				update[`flags.stonetop_pwd.customFollowers.${id}`] = { ...buildCustomFollower(input), order: order++ };
+			}
+			if (Object.keys(update).length) await this.actor.update(update);
+			this.render(false);
+		}
+
+		// Persist a built custom follower under a fresh id and re-render. `data` is
+		// the buildCustomFollower() shape; we stamp a creation-order key for stable
+		// ordering on the Followers tab.
+		async _applyCustomFollower(data) {
+			if (!data) return;
+			const id = foundry.utils.randomID(16);
+			await this.actor.update({
+				[`flags.stonetop_pwd.customFollowers.${id}`]: { ...data, order: this._nextFollowerOrder() },
+			});
+			this.render(false);
+		}
+
+		// Next creation-order stamp for a custom follower: one past the largest existing
+		// `order`, so two followers added in the same millisecond still sort by insertion
+		// (Date.now() alone can tie). Date.now() is the floor for the first follower.
+		_nextFollowerOrder() {
+			const existing = this.actor.getFlag("stonetop_pwd", "customFollowers") ?? {};
+			const max = Object.values(existing).reduce((m, f) => Math.max(m, Number(f?.order) || 0), 0);
+			return Math.max(max + 1, Date.now());
 		}
 
 		async _onRecoverOpen() {

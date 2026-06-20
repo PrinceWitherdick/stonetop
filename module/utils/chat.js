@@ -33,6 +33,27 @@ export function stonetopCardShell(innerHtml, sectionClass = "") {
 }
 
 /**
+ * Body markup for a "Seasons Change"-style 2d6 result card: a formula chip, the
+ * total badge tinted by tier, the tier label, and the result line. Shared by the
+ * Spring Burst and Expedition Requisition rolls so the two cards stay in lockstep.
+ * @param {number} total    The 2d6 (+Fortunes) total.
+ * @param {string} tier     Result tier key (success/partial/failure) — tints the total badge.
+ * @param {string} label    Tier label shown beside the total (e.g. "10+").
+ * @param {string} line     Result line markup shown below.
+ * @param {string} formula  Roll formula text for the chip.
+ */
+export function springRollCardBody(total, tier, label, line, formula) {
+	return `<div class="card-content stonetop-spring-roll">
+		<div class="stonetop-roll-formula">${formula}</div>
+		<div class="stonetop-spring-roll-head">
+			<span class="stonetop-spring-roll-total stonetop-spring--${tier}">${total}</span>
+			<span class="stonetop-spring-roll-tier">${label}</span>
+		</div>
+		<p class="stonetop-spring-roll-line">${line}</p>
+	</div>`;
+}
+
+/**
  * The card shell with a title row. Most cards want this; use {@link stonetopCardShell}
  * directly when the message's speaker alias already names the card.
  * @param {string} title       Card header text (escaped here).

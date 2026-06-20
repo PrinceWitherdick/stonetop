@@ -5,11 +5,13 @@ import { rollDamage, rollFormula, rollStat, sign } from "../../module/utils/roll
 let rollMessages;
 let rollTotal;
 let rollInstances;
+let rollDice;
 
 beforeEach(() => {
 	rollMessages = [];
 	rollTotal = 6;
 	rollInstances = [];
+	rollDice = [{ results: [{ result: 2, active: true }, { result: 4, active: true }] }];
 	global.game.settings = { get: vi.fn(() => "publicroll") };
 	global.ChatMessage = {
 		getSpeaker: vi.fn(({ actor }) => ({ alias: actor.name })),
@@ -21,6 +23,7 @@ beforeEach(() => {
 			this.data = data;
 			this.options = options;
 			this.total = rollTotal;
+			this.dice = rollDice;
 			rollInstances.push(this);
 		}
 
@@ -66,6 +69,28 @@ describe("rollStat", () => {
 		const xpMessage = ChatMessage.create.mock.calls[0][0];
 		expect(xpMessage.content).toContain("result success");
 		expect(xpMessage.content).toContain("+1 XP (3 / 8)");
+	});
+
+	it("shows each rolled die face as a tooltip on the result total", async () => {
+		rollTotal = 8;
+		rollDice = [{ results: [{ result: 3, active: true }, { result: 5, active: true }] }];
+
+		await rollStat("str", makeActor(), { noXpOnMiss: true });
+
+		expect(rollMessages[0].flavor).toContain('class="stonetop-roll-result-number" data-tooltip="3 5"');
+	});
+
+	it("brackets the dropped die on an advantage/disadvantage roll", async () => {
+		rollTotal = 9;
+		rollDice = [{ results: [
+			{ result: 2, active: false, discarded: true },
+			{ result: 4, active: true },
+			{ result: 5, active: true },
+		] }];
+
+		await rollStat("str", makeActor(), { rollMode: "adv", noXpOnMiss: true });
+
+		expect(rollMessages[0].flavor).toContain('data-tooltip="(2) 4 5"');
 	});
 
 	it.each([
@@ -178,7 +203,7 @@ describe("rollStat", () => {
 
 		await rollStat("str", makeActor(), { noXpOnMiss: true });
 
-		expect(rollMessages[0].flavor).toContain('<div class="result-details"></div>');
+		expect(rollMessages[0].flavor).toContain('<span class="stonetop-roll-result-details"></span>');
 	});
 });
 

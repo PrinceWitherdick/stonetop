@@ -116,6 +116,9 @@ export class MinorArcanumSnapshot {
 		this.unlocked   = b._unlocked;
 		this.identified = b._identified;
 		this.img        = b._img ?? null;
+		// Redwood Effigy: true once the Greater Conduit mystery is checked on the back,
+		// which unlocks the two "potential" Conduit slots on the front.
+		this.greaterConduit = b._greaterConduit ?? false;
 	}
 }
 
@@ -129,6 +132,7 @@ export class MinorArcanumSnapshotBuilder {
 	withUnlocked(v)    { this._unlocked   = v; return this; }
 	withIdentified(v)  { this._identified = v; return this; }
 	withImg(v)         { this._img        = v; return this; }
+	withGreaterConduit(v) { this._greaterConduit = v; return this; }
 	build()            { return new MinorArcanumSnapshot(this); }
 }
 

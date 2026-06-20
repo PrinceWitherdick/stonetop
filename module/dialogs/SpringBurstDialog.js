@@ -1,6 +1,7 @@
-import { KeepOnTop } from "../utils/keep-on-top.js";
+import { StepperDialog } from "./StepperDialog.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
-import { stonetopCardShell } from "../utils/chat.js";
+import { stonetopCardShell, springRollCardBody } from "../utils/chat.js";
+import { classifyResult } from "../utils/roll-engine.js";
 import { escHtml } from "../utils/strings.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { getSetting, setSetting } from "../settings.js";
@@ -126,13 +127,13 @@ const _STEPS = [
 	},
 ];
 
-export class SpringBurstDialog extends Application {
+export class SpringBurstDialog extends StepperDialog {
 	constructor(options = {}) {
 		super(options);
-		this._step      = 0;
-		this._roll      = null;
-		this._keepOnTop = new KeepOnTop(this);
+		this._roll = null;
 	}
+
+	get _steps() { return _STEPS; }
 
 	static open() {
 		return openOrFocus("stonetop-spring-burst", () => new SpringBurstDialog().render(true));
@@ -150,17 +151,10 @@ export class SpringBurstDialog extends Application {
 		});
 	}
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._keepOnTop.apply();
-	}
-
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._bindStepNav(html);
 		html.find(".stonetop-spring-roll-btn").on("click", () => this._rollSeasons());
-		html.find(".stonetop-spring-back").on("click", () => this._retreat());
-		html.find(".stonetop-spring-next").on("click", () => this._advance());
 		html.find(".stonetop-spring-done").on("click", () => this.close());
 		// Save answers on blur/change so the textarea keeps focus while typing.
 		html.find(".stonetop-spring-qa-answer").on("change", ev => {
@@ -169,20 +163,11 @@ export class SpringBurstDialog extends Application {
 		});
 	}
 
-	async close(options = {}) {
-		this._keepOnTop.stop();
-		return super.close(options);
-	}
-
 	getData() {
-		const step = _STEPS[this._step];
+		const nav  = this._stepNav();
+		const step = nav.step;
 		return {
-			step,
-			stepIndex: this._step + 1,
-			stepCount: _STEPS.length,
-			stepLabel: `Step ${this._step + 1} of ${_STEPS.length}`,
-			isFirst:   this._step === 0,
-			isLast:    !!step.isFinal,
+			...nav,
 			showRoll:  !!step.showRoll,
 			roll:      step.showRoll ? this._roll : null,
 			showTiers: !!step.showTiers,
@@ -236,41 +221,17 @@ export class SpringBurstDialog extends Application {
 	async _rollSeasons() {
 		if (!globalThis.Roll) return;
 		const roll = await new Roll(`2d6 + ${FIRST_SPRING_FORTUNES}`).evaluate();
-		const tier = roll.total >= 10 ? "success" : roll.total >= 7 ? "partial" : "failure";
-		this._roll = { total: roll.total, tier, label: _SPRING_RESULT[tier].label };
+		const tier = classifyResult(roll.total).key;
+		const result = _SPRING_RESULT[tier];
+		this._roll = { total: roll.total, tier, label: result.label };
 
 		await roll.toMessage({
 			speaker: { alias: "Seasons Change — Spring" },
-			flavor:  stonetopCardShell(this._springCardBody(roll.total, tier), "stonetop-spring-card"),
+			flavor:  stonetopCardShell(springRollCardBody(roll.total, tier, result.label, result.line, roll.formula), "stonetop-spring-card"),
 		});
 		// First spring is still a Seasons Change move — remind players carrying a
 		// seasonal move/possession (e.g. The Blessed's Rites of the Land).
 		broadcastSeasonsChange("spring");
 		this.render(false);
-	}
-
-	_springCardBody(total, tier) {
-		const result = _SPRING_RESULT[tier];
-		return `<div class="card-content stonetop-spring-roll">
-			<div class="stonetop-spring-roll-head">
-				<span class="stonetop-spring-roll-total stonetop-spring--${tier}">${total}</span>
-				<span class="stonetop-spring-roll-tier">${result.label}</span>
-			</div>
-			<p class="stonetop-spring-roll-line">${result.line}</p>
-		</div>`;
-	}
-
-	_advance() {
-		if (this._step < _STEPS.length - 1) {
-			this._step++;
-			this.render(false);
-		}
-	}
-
-	_retreat() {
-		if (this._step > 0) {
-			this._step--;
-			this.render(false);
-		}
 	}
 }
