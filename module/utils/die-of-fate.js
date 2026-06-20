@@ -1,4 +1,4 @@
-import { stonetopCardShell } from "./chat.js";
+import { stonetopCardShell, rollFormulaChip } from "./chat.js";
 
 // Stonetop's d6 oracle (weather, the Vellum Scroll's costs, etc.). Results read
 // like a traffic light: 1–2 bad, 3–4 mixed, 5–6 good.
@@ -20,7 +20,7 @@ export async function rollDieOfFate() {
 	// No title row — the message's speaker alias already reads "Die of Fate".
 	const body = `<div class="card-content stonetop-fate">
 		<ul class="stonetop-fate-legend">${legend}</ul>
-		<div class="stonetop-roll-formula">${roll.formula}</div>
+		${rollFormulaChip(roll.formula)}
 		<div class="stonetop-fate-result stonetop-fate--${band.key}">
 			<span class="stonetop-fate-number">${roll.total}</span>
 			<span class="stonetop-fate-label">${band.label}</span>

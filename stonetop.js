@@ -33,7 +33,6 @@ import { applyGearTermTooltips } from "./module/utils/gear-term-tooltips.js";
 import { SETTING_OVERVIEW_JOURNAL } from "./module/utils/seeded-journals.js";
 import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
-import { dieResultsText } from "./module/utils/roll-engine.js";
 import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
 import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
 import { makeDialogsResizable } from "./module/utils/resizable-dialogs.js";
@@ -377,22 +376,6 @@ function _chatAnnotateDebility(message, html) {
 	}
 }
 
-// -- DIE-FACES TOOLTIP ON THE FORMULA CHIP / TOTAL -------------
-// Every Stonetop roll card prints its formula in a chip (e.g. "2d6 + 1") above the
-// rolled total; hovering either should reveal the individual d6 faces ("2 4"). The
-// move/stat/damage cards bake this tooltip in via _rollCard, but the oracle /
-// Death's-Door / journal-table cards build their chip + total ad-hoc, so stamp any
-// that lacks one from the message's roll. Skip single-die rolls (e.g. the Die of
-// Fate's / Weather's 1d6) where the readout would just echo the total already shown.
-function _chatStampDieFaces(message, html) {
-	const roll = message.rolls?.[0];
-	if (!roll) return;
-	const faces = dieResultsText(roll);
-	if (!faces.includes(" ")) return;
-	html.querySelectorAll(".stonetop-roll-formula:not([data-tooltip]), .stonetop-roll-result-number:not([data-tooltip])")
-		.forEach(el => { el.dataset.tooltip = faces; });
-}
-
 // -- ROLL RESULT SHIFTING --------------------------------------
 function _chatWireRollShifting(message, html) {
 	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
@@ -533,7 +516,6 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireStartupWelcome(message, html);
 	_chatWireDescToggle(message, html);
 	_chatAnnotateDebility(message, html);
-	_chatStampDieFaces(message, html);
 	_chatWireRollShifting(message, html);
 	_chatWireBurnBrightly(message, html);
 	_chatWireBecomeHero(message, html);

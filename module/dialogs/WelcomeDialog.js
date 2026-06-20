@@ -5,6 +5,7 @@ import { openOrFocus } from "../utils/open-or-focus.js";
 import { applyLocationTooltips } from "../locations/location-tooltips.js";
 import { keepDialogOnTop } from "../utils/keep-on-top.js";
 import { FoundryBasicsDialog } from "./FoundryBasicsDialog.js";
+import { charactersOwnedBy } from "../utils/playbook-actors.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -101,7 +102,6 @@ export class WelcomeDialog extends Application {
 		// renders the link "broken". Load the index first so it always resolves.
 		await game.packs.get("stonetop_pwd.stonetop-journal")?.getIndex();
 
-		const owner = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
 		const players = game.users
 			.filter(u => !u.isGM)
 			.map(u => ({
@@ -110,8 +110,7 @@ export class WelcomeDialog extends Application {
 				avatar: u.avatar,
 				active: u.active,
 				color:  String(u.color ?? ""),
-				characters: game.actors
-					.filter(a => a.type === "character" && (a.ownership?.[u.id] ?? 0) >= owner)
+				characters: charactersOwnedBy(u.id)
 					.map(a => ({
 						id: a.id, name: a.name, img: a.img,
 						// Live creation progress, stamped by the player's creation flow (see
@@ -200,10 +199,7 @@ export class WelcomeDialog extends Application {
 		// A player only ever has one character, so making a "New Character" for
 		// someone who already has one is a replacement, not an addition. Confirm the
 		// deletion before discarding their existing sheet — it can't be undone.
-		const owner = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-		const existing = game.actors.filter(
-			a => a.type === "character" && (a.ownership?.[userId] ?? 0) >= owner,
-		);
+		const existing = charactersOwnedBy(userId);
 		if (existing.length) {
 			const names = existing.map(a => `<strong>${a.name}</strong>`).join(", ");
 			const it    = existing.length === 1 ? "it" : "them";

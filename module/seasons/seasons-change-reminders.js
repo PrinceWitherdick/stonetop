@@ -1,5 +1,6 @@
 import { getSetting } from "../settings.js";
 import { SeasonsChangeReminderDialog } from "../dialogs/SeasonsChangeReminderDialog.js";
+import { charactersOwnedBy } from "../utils/playbook-actors.js";
 
 // ── Seasons Change reminders ─────────────────────────────────────────────────
 // A few playbook moves and special possessions have rules that fire "each
@@ -80,10 +81,7 @@ export function remindersForActor(actor) {
 // the GM's blanket ownership), so a GM only sees reminders for PCs actually
 // assigned to them — not every character in the world.
 function mySeasonalReminders() {
-	const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-	const mine = game.actors.filter(
-		a => a.type === "character" && (a.ownership?.[game.user.id] ?? 0) >= OWNER,
-	);
+	const mine = charactersOwnedBy(game.user.id);
 	return mine.flatMap(actor =>
 		remindersForActor(actor).map(r =>
 			({ character: actor.name, name: r.label ?? r.name, playbook: r.playbook, rule: r.rule })),

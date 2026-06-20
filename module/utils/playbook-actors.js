@@ -20,6 +20,18 @@ export function getPlayerCharacters() {
 }
 
 /**
+ * Every `character` the given user explicitly owns — using the per-user OWNER
+ * entry, not a GM's blanket ownership, so it returns only the PCs actually
+ * assigned to that player.
+ */
+export function charactersOwnedBy(userId) {
+	const owner = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+	return (game.actors?.contents ?? []).filter(
+		a => a.type === "character" && (a.ownership?.[userId] ?? 0) >= owner,
+	);
+}
+
+/**
  * Path to a playbook's avatar art (`assets/icons/playbooks/<slug>_icon.webp`), or
  * `null` for a slug-less actor. Server-root-relative (no leading slash) — the same
  * string stored as the character's avatar on pick, so previews match the art.

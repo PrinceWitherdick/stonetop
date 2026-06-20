@@ -1,4 +1,4 @@
-import { stonetopCardShell } from "./chat.js";
+import { stonetopCardShell, rollFormulaChip } from "./chat.js";
 
 // Stonetop's seasonal weather tables (Book I, p.325). Each season is a 1d6 table;
 // the GM picks the season (informed by the latest Seasons Change move, p.517) and
@@ -119,7 +119,7 @@ function _weatherCardBody(total, row, formula) {
 		? `<p class="stonetop-weather-reroll"><i class="fas fa-rotate-right"></i> ${REROLL_NOTE}</p>`
 		: "";
 	return `<div class="card-content stonetop-weather">
-		<div class="stonetop-roll-formula">${formula}</div>
+		${rollFormulaChip(formula)}
 		<div class="stonetop-weather-result">
 			<span class="stonetop-weather-number">${total}</span>
 			<span class="stonetop-weather-text">${row?.text ?? ""}</span>

@@ -9,8 +9,7 @@ import { getHoverDescriptionSetting } from "../../settings.js";
 import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
 import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
-import { deletionEntry } from "../../utils/foundry-compat.js";
-import { enrichHTML } from "../../utils/foundry-compat.js";
+import { deletionEntry, enrichHTML } from "../../utils/foundry-compat.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
 const ORGANIZATION_DEFAULTS = {

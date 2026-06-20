@@ -1,6 +1,6 @@
 import { KeepOnTop } from "../../../utils/keep-on-top.js";
-import { stonetopChatCard } from "../../../utils/chat.js";
-import { classifyResult } from "../../../utils/roll-engine.js";
+import { stonetopChatCard, rollFormulaChip, rollResultNumber } from "../../../utils/chat.js";
+import { classifyResult, multiDieFaces } from "../../../utils/roll-engine.js";
 
 // Death's Door result labels, keyed by the shared 2d6 tier (classifyResult().key).
 const _DEATHS_DOOR_LABELS = {
@@ -78,10 +78,11 @@ export class DeathsDoorDialog extends Application {
 		const total = roll.total;
 		const { key } = classifyResult(total);
 
+		const dieFaces = multiDieFaces(roll);
 		const flavor = stonetopChatCard("Death's Door", `<div class="card-content">
-				<div class="stonetop-roll-formula">${roll.formula}</div>
+				${rollFormulaChip(roll.formula, dieFaces)}
 				<div class="stonetop-roll-result ${key}">
-					<span class="stonetop-roll-result-number">${total}</span>
+					${rollResultNumber(total, dieFaces)}
 					<div class="stonetop-roll-result-body">
 						<span class="stonetop-roll-result-label">${_DEATHS_DOOR_LABELS[key]}</span>
 						<span class="stonetop-roll-result-details"></span>

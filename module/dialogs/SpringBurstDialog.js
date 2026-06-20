@@ -1,7 +1,6 @@
 import { StepperDialog } from "./StepperDialog.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
-import { stonetopCardShell, springRollCardBody } from "../utils/chat.js";
-import { classifyResult } from "../utils/roll-engine.js";
+import { rollSeasonsCard } from "../utils/roll-engine.js";
 import { escHtml } from "../utils/strings.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { setSetting } from "../settings.js";
@@ -215,14 +214,10 @@ export class SpringBurstDialog extends StepperDialog {
 	// chat. Re-rollable — the latest roll wins.
 	async _rollSeasons() {
 		if (!globalThis.Roll) return;
-		const roll = await new Roll(`2d6 + ${FIRST_SPRING_FORTUNES}`).evaluate();
-		const tier = classifyResult(roll.total).key;
-		const result = _SPRING_RESULT[tier];
-		this._roll = { total: roll.total, tier, label: result.label };
-
-		await roll.toMessage({
-			speaker: { alias: "Seasons Change — Spring" },
-			flavor:  stonetopCardShell(springRollCardBody(roll.total, tier, result.label, result.line, roll.formula), "stonetop-spring-card"),
+		this._roll = await rollSeasonsCard({
+			formula:     `2d6 + ${FIRST_SPRING_FORTUNES}`,
+			alias:       "Seasons Change — Spring",
+			resultTable: _SPRING_RESULT,
 		});
 		// First spring is still a Seasons Change move — remind players carrying a
 		// seasonal move/possession (e.g. The Blessed's Rites of the Land).

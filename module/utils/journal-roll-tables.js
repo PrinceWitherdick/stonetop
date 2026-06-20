@@ -1,5 +1,6 @@
 import { resolveEntry, isStonetopJournalEntry } from "./journal-spiral-bullets.js";
-import { stonetopChatCard } from "./chat.js";
+import { stonetopChatCard, rollFormulaChip, rollResultNumber } from "./chat.js";
+import { multiDieFaces } from "./roll-engine.js";
 
 // Add a rollable die control to the left of the "Roll" header of the random
 // tables baked into this system's journals (the gazetteer generator's
@@ -75,10 +76,11 @@ async function rollTable({ formula, label, rows }) {
 		return;
 	}
 	const outcome = outcomeFor(rows, roll.total) ?? `<em>No result for ${roll.total}.</em>`;
+	const dieFaces = multiDieFaces(roll);
 	const flavor = stonetopChatCard(label, `<div class="card-content">
-			<div class="stonetop-roll-formula">${roll.formula}</div>
+			${rollFormulaChip(roll.formula, dieFaces)}
 			<div class="stonetop-roll-result">
-				<span class="stonetop-roll-result-number">${roll.total}</span>
+				${rollResultNumber(roll.total, dieFaces)}
 				<div class="stonetop-roll-result-body stonetop-roll-card-description">${outcome}</div>
 			</div>
 		</div>`);

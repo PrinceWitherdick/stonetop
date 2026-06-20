@@ -41,6 +41,31 @@ export function stonetopCardShell(innerHtml, sectionClass = "") {
 	</section>`;
 }
 
+/** The ` data-tooltip="2 4"` attribute (with leading space) for a die-faces hover
+ *  readout, or "" when there are no faces to show. */
+function _dieFacesTip(dieFaces) {
+	return dieFaces ? ` data-tooltip="${escHtml(dieFaces)}"` : "";
+}
+
+/**
+ * The roll-formula chip ("2d6+@stat") shown above a result, with the individual
+ * die faces ("2 4") baked in as a hover tooltip when given. Every Stonetop roll
+ * card (moves, damage, the oracle, weather, the seasonal rolls) emits its formula
+ * through here, so the chip — and its faces readout — live in exactly one place.
+ */
+export function rollFormulaChip(formula, dieFaces = "") {
+	return `<div class="stonetop-roll-formula"${_dieFacesTip(dieFaces)}>${formula}</div>`;
+}
+
+/**
+ * The rolled-total badge for a `stonetop-roll-result` block, carrying the same
+ * die-faces readout as the formula chip. Shared by the cards built on the
+ * `stonetop-roll-result-*` markup (moves, Death's Door, journal tables).
+ */
+export function rollResultNumber(total, dieFaces = "") {
+	return `<span class="stonetop-roll-result-number"${_dieFacesTip(dieFaces)}>${total}</span>`;
+}
+
 /**
  * Body markup for a "Seasons Change"-style 2d6 result card: a formula chip, the
  * total badge tinted by tier, the tier label, and the result line. Shared by the
@@ -50,10 +75,11 @@ export function stonetopCardShell(innerHtml, sectionClass = "") {
  * @param {string} label    Tier label shown beside the total (e.g. "10+").
  * @param {string} line     Result line markup shown below.
  * @param {string} formula  Roll formula text for the chip.
+ * @param {string} [dieFaces] Individual die faces ("3 5") for the chip's hover tooltip.
  */
-export function springRollCardBody(total, tier, label, line, formula) {
+export function springRollCardBody(total, tier, label, line, formula, dieFaces = "") {
 	return `<div class="card-content stonetop-spring-roll">
-		<div class="stonetop-roll-formula">${formula}</div>
+		${rollFormulaChip(formula, dieFaces)}
 		<div class="stonetop-spring-roll-head">
 			<span class="stonetop-spring-roll-total stonetop-spring--${tier}">${total}</span>
 			<span class="stonetop-spring-roll-tier">${label}</span>

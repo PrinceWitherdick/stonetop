@@ -1,7 +1,6 @@
 import { StepperDialog } from "./StepperDialog.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
-import { stonetopCardShell, springRollCardBody } from "../utils/chat.js";
-import { classifyResult, sign } from "../utils/roll-engine.js";
+import { sign, rollSeasonsCard } from "../utils/roll-engine.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
 import { setSetting } from "../settings.js";
 
@@ -372,15 +371,11 @@ export class ExpeditionDialog extends StepperDialog {
 	async _rollRequisition() {
 		if (!globalThis.Roll) return;
 		const fortunes = this._steadingFortunes();
-		// sign() keeps a negative Fortunes value a valid formula ("2d6 -1", not "2d6 + -1").
-		const roll = await new Roll(`2d6 ${sign(fortunes)}`).evaluate();
-		const tier = classifyResult(roll.total).key;
-		const result = _REQ_RESULT[tier];
-		this._rolls.requisition = { total: roll.total, tier, label: result.label };
-
-		await roll.toMessage({
-			speaker: { alias: "Requisition" },
-			flavor:  stonetopCardShell(springRollCardBody(roll.total, tier, result.label, result.line, roll.formula), "stonetop-spring-card"),
+		this._rolls.requisition = await rollSeasonsCard({
+			// sign() keeps a negative Fortunes value a valid formula ("2d6 -1", not "2d6 + -1").
+			formula:     `2d6 ${sign(fortunes)}`,
+			alias:       "Requisition",
+			resultTable: _REQ_RESULT,
 		});
 		this.render(false);
 	}

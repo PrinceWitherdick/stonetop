@@ -1,4 +1,6 @@
 import { maybePromptAsteriskMove } from "../actors/character/WouldBeHeroAsterisk.js";
+import { escHtml } from "./strings.js";
+import { stonetopCardShell, springRollCardBody, rollFormulaChip, rollResultNumber } from "./chat.js";
 
 const _STAT_LABELS = {
 	str: "Strength", dex: "Dexterity", int: "Intelligence",
@@ -36,30 +38,45 @@ export function dieResultsText(roll) {
 	return faces.join(" ");
 }
 
-/** Escape a plain-text string for safe insertion into HTML text or an attribute value. */
-function _escapeHtml(str) {
-	return String(str ?? "")
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
+/** Die faces for a *multi*-die roll ("2 4"), or "" for a single die — the readout
+ *  only helps when more than one die contributed (a 1d6 just echoes its total). */
+export function multiDieFaces(roll) {
+	const faces = dieResultsText(roll);
+	return faces.includes(" ") ? faces : "";
+}
+
+/**
+ * Roll a Seasons-Change-style omen card (Spring Burst's first spring, the
+ * Expedition's Requisition): evaluate `formula`, classify the tier, post a
+ * `stonetop-spring-card` to chat, and hand back `{ total, tier, label }` so the
+ * walkthrough can highlight the matching outcome. `resultTable` maps each tier
+ * key to `{ label, line }`. Keeps the two cards in lockstep by construction.
+ */
+export async function rollSeasonsCard({ formula, alias, resultTable }) {
+	const roll = await new Roll(formula).evaluate();
+	const tier = classifyResult(roll.total).key;
+	const result = resultTable[tier];
+	await roll.toMessage({
+		speaker: { alias },
+		flavor:  stonetopCardShell(springRollCardBody(roll.total, tier, result.label, result.line, roll.formula, multiDieFaces(roll)), "stonetop-spring-card"),
+	});
+	return { total: roll.total, tier, label: result.label };
 }
 
 function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, conditionsHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "" }) {
 	// Stash every tier's outcome on the row so a GM Shift Up/Down can swap the
 	// detail line to match the new tier (see _shiftRollCardFlavor in stonetop.js).
 	const outcomeAttrs = resultOutcomes
-		? ` data-outcome-success="${_escapeHtml(resultOutcomes.success ?? "")}"`
-			+ ` data-outcome-partial="${_escapeHtml(resultOutcomes.partial ?? "")}"`
-			+ ` data-outcome-failure="${_escapeHtml(resultOutcomes.failure ?? "")}"`
+		? ` data-outcome-success="${escHtml(resultOutcomes.success ?? "")}"`
+			+ ` data-outcome-partial="${escHtml(resultOutcomes.partial ?? "")}"`
+			+ ` data-outcome-failure="${escHtml(resultOutcomes.failure ?? "")}"`
 		: "";
 	// The die formula gets its own chip above the result, mirroring Foundry's vanilla
 	// dice-formula placement. We hide Foundry's auto-rendered dice block in CSS, so
 	// this is the only place the formula appears. The chip carries the individual die
 	// faces ("2 4") as a hover tooltip — hovering "2d6" to see what the d6s came up is
 	// the intuitive spot (the total below carries the same readout for discoverability).
-	const dieFacesAttr = dieResults ? ` data-tooltip="${_escapeHtml(dieResults)}"` : "";
-	const formulaHtml = formula ? `<div class="stonetop-roll-formula"${dieFacesAttr}>${formula}</div>` : "";
+	const formulaHtml = formula ? rollFormulaChip(formula, dieResults) : "";
 
 	// One left-edge result block: the rolled total plus (for move / Death's-Door rolls)
 	// the hit tier and its per-tier outcome, colour-coded down the left edge. Replaces
@@ -67,10 +84,10 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 	// (e.g. the "+1 XP on a miss" follow-up) pass no total and just show the label.
 	const resultBlockHtml = (total != null || result)
 		? `<div class="stonetop-roll-result ${resultClass}"${outcomeAttrs}>
-			${total != null ? `<span class="stonetop-roll-result-number"${dieFacesAttr}>${total}</span>` : ""}
+			${total != null ? rollResultNumber(total, dieResults) : ""}
 			<div class="stonetop-roll-result-body">
 				${result ? `<span class="stonetop-roll-result-label">${result}</span>` : ""}
-				<span class="stonetop-roll-result-details">${_escapeHtml(resultDetail)}</span>
+				<span class="stonetop-roll-result-details">${escHtml(resultDetail)}</span>
 			</div>
 		</div>`
 		: "";
