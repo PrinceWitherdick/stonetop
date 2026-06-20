@@ -35,3 +35,27 @@ export function creatureTypeIcon(slug) {
 export function creatureTypeLabel(slug) {
 	return CREATURE_TYPE_CHOICES[slug] ?? "";
 }
+
+// Font Awesome (solid) glyph per type, for compact UI like the monster→follower
+// banner where the circular art icons would be too heavy. Keyed by the same
+// slugs as CREATURE_TYPES.
+const CREATURE_TYPE_FA = {
+	"human-individual": "fa-user",
+	"human-group":      "fa-users",
+	"natural-beast":    "fa-paw",
+	"spirit":           "fa-ghost",
+	"construct":        "fa-gear",
+	"spirit-construct": "fa-gears",
+	"fae":              "fa-hat-wizard",
+	"undead":           "fa-skull",
+	"corrupted":        "fa-biohazard",
+	"maker":            "fa-hammer",
+	"emanation":        "fa-bolt",
+	"thing-below":      "fa-water",
+	"unknown-origin":   "fa-circle-question",
+};
+
+/** Font Awesome class for a type, defaulting to a generic monster glyph. */
+export function creatureTypeFaIcon(slug) {
+	return CREATURE_TYPE_FA[slug] ?? "fa-dragon";
+}

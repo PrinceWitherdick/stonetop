@@ -36,6 +36,7 @@ export class SeasonsChangeReminderDialog extends Application {
 			template:  "systems/stonetop_pwd/templates/dialogs/seasons-change-reminder.hbs",
 			width:     460,
 			height:    "auto",
+			resizable: true,
 			classes:   ["stonetop", "stonetop-seasons-reminder-dialog"],
 		});
 	}

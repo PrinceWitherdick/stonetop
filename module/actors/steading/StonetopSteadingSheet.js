@@ -1700,7 +1700,7 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		async _onPlayerFieldChange(index, field, value) {
-			if (!["traits", "relations", "notes"].includes(field)) return;
+			if (!["occupation", "traits", "relations", "notes"].includes(field)) return;
 			const f = this._stonetopSteading._flags;
 			const players = foundry.utils.deepClone(f.players ?? STEADING_DEFAULTS.players);
 			if (!players[index]) return;

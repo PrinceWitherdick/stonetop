@@ -199,13 +199,23 @@
 	--st-radius:    4px;
 	--st-radius-lg: 6px;
 
-	/* ── Green "action" accent ────────────────────────────────────────────
-	   Call-to-action buttons (create / open) and the numbered step badges in
-	   the Welcome guide and the startup chat card all share this palette. */
+	/* ── Green "active/accent" tint ───────────────────────────────────────
+	   Selected/active states (weather + spring tiers, character-foundry
+	   options/tags), the startup chat card, and done-state text all share this
+	   palette. The Welcome guide's numbered step badges use the blue step tint
+	   below. Primary action buttons use the slate --st-btn-primary-* tokens. */
 	--st-green-border:   hsl(140 25% 55%);
 	--st-green-bg:       hsl(140 35% 88%);
 	--st-green-bg-hover: hsl(140 35% 82%);
 	--st-green-text:     hsl(140 40% 18%);
+
+	/* ── Blue "step/sequence" tint ────────────────────────────────────────
+	   Mirrors the green accent palette for ordered, numbered sequences — the
+	   circle step badges in the Welcome guide read as steps, not active states. */
+	--st-blue-border:    hsl(212 45% 58%);
+	--st-blue-bg:        hsl(212 55% 90%);
+	--st-blue-bg-hover:  hsl(212 55% 84%);
+	--st-blue-text:      hsl(212 55% 28%);
 
 	/* ── Red "destructive" accent ─────────────────────────────────────────
 	   Mirrors the green action palette for buttons that delete or replace
@@ -215,6 +225,17 @@
 	--st-red-bg:         hsl(0 60% 91%);
 	--st-red-bg-hover:   hsl(0 60% 85%);
 	--st-red-text:       hsl(0 55% 30%);
+
+	/* ── Slate "primary" action ───────────────────────────────────────────
+	   Solid-fill primary buttons share one palette — every dialog's confirm /
+	   submit (Add resident, Outfit, Death's Door, End of Session, onboarding,
+	   season) and the create / open call-to-action buttons. Modeled on the
+	   "Add" button of the add-resident dialog. */
+	--st-btn-primary-bg:           slategrey;   /* #708090 */
+	--st-btn-primary-bg-hover:     #556b8b;
+	--st-btn-primary-border:       #4f5b66;
+	--st-btn-primary-border-hover: #465a75;
+	--st-btn-primary-text:         #fff;
 
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
@@ -236,13 +257,8 @@ body,
 	gap: 8px;
 }
 
-.vtt .dialog .dialog-buttons [data-button="cancel"],
-.vtt .dialog .dialog-buttons [data-button="no"],
-.vtt .dialog .dialog-buttons [data-button="close"] {
-	order: -10;
-	margin-right: auto;
-}
-
+/* Match Foundry's convention: the affirmative action sits on the left, the
+   dismissive one (cancel/no/close) on the right. */
 .vtt .dialog .dialog-buttons [data-button="yes"],
 .vtt .dialog .dialog-buttons [data-button="continue"],
 .vtt .dialog .dialog-buttons [data-button="edit"],
@@ -252,6 +268,13 @@ body,
 .vtt .dialog .dialog-buttons [data-button="post"],
 .vtt .dialog .dialog-buttons [data-button="roll"],
 .vtt .dialog .dialog-buttons [data-button="done"] {
+	order: -10;
+	margin-right: auto;
+}
+
+.vtt .dialog .dialog-buttons [data-button="cancel"],
+.vtt .dialog .dialog-buttons [data-button="no"],
+.vtt .dialog .dialog-buttons [data-button="close"] {
 	order: 10;
 }
 
@@ -470,6 +493,108 @@ body,
 #controls ol.control-tools>li {
 	border-radius: var(--st-radius);
 	box-shadow: 2px 4px 8px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Stonetop-themed core windows ──────────────────────────────────────────
+   Opt-in skin for core Foundry windows (e.g. User Configuration) that
+   window-theme.js tags with `.stonetop-themed`. Scoped entirely to that marker
+   class, so untagged core/module windows are untouched. `:is(.application,
+   .window-app)` covers both v13+ (ApplicationV2 → `.application`) and v12
+   (AppV1 → `.window-app`) roots. Core's own rules live in @layer, so these
+   unlayered rules win regardless of specificity; the `:is()` prefix also keeps
+   us specific enough (0,3,0) to beat our own unlayered `.vtt .window-header`
+   and the `.window-content` parchment rule above. */
+:is(.application, .window-app).stonetop-themed {
+	font-family: var(--font-stonetop);
+	--font-h1: var(--font-stonetop);
+	--font-h2: var(--font-stonetop);
+	--font-h3: var(--font-stonetop);
+	--font-h4: var(--font-stonetop);
+	--font-body: var(--font-stonetop);
+	--font-sans: var(--font-stonetop);
+	/* Override Foundry's theme tokens — the intended, framework-blessed knobs.
+	   Any name that doesn't exist in a given version is simply inert; the
+	   element rules below back up the ones that carry the look. */
+	--color-text-primary: var(--st-text);
+	--color-text-secondary: var(--st-text-secondary);
+	--color-text-subtle: var(--st-text-muted);
+	--color-text-emphatic: var(--st-text);
+	--color-form-label: var(--st-text);
+	--color-form-label-hover: var(--st-text);
+	--color-form-hint: var(--st-text-muted);
+	--color-form-hint-hover: var(--st-text-secondary);
+	--input-background-color: rgba(255, 255, 255, 0.7);
+	--input-border-color: #999;
+	--input-text-color: var(--st-text);
+	--input-focus-outline-color: var(--st-btn-primary-border);
+	--button-background-color: var(--st-btn-primary-bg);
+	--button-border-color: var(--st-btn-primary-border);
+	--button-text-color: var(--st-btn-primary-text);
+	--button-hover-background-color: var(--st-btn-primary-bg-hover);
+	--button-hover-border-color: var(--st-btn-primary-border-hover);
+	--button-hover-text-color: var(--st-btn-primary-text);
+}
+
+/* Header: solid slate bar with a light, serif title — our primary palette.
+   `color` is safe on everything (it just tints the FA icons light), but the
+   serif `font-family` must stay OFF the icon/control elements: Font Awesome
+   sets its icon font on the element itself and draws the glyph from an inherited
+   `::before`, so overriding font-family there renders raw codepoints (boxes).
+   Hence only the title gets our serif. */
+:is(.application, .window-app).stonetop-themed .window-header {
+	background: var(--st-btn-primary-bg);
+	border-bottom: 1px solid var(--st-btn-primary-border);
+}
+:is(.application, .window-app).stonetop-themed .window-header :is(.window-title, .header-control, .window-icon, a, button) {
+	color: var(--st-btn-primary-text);
+}
+:is(.application, .window-app).stonetop-themed .window-header .window-title {
+	font-family: var(--font-stonetop);
+}
+
+/* Content: the same parchment field our sheets use, with dark legible text. */
+:is(.application, .window-app).stonetop-themed .window-content {
+	background: var(--stonetop-bg) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp);
+	background-position: center;
+	background-size: cover;
+	color: var(--st-text-body);
+}
+:is(.application, .window-app).stonetop-themed .window-content :is(label, p, h1, h2, h3, h4, .form-group > label) {
+	color: var(--st-text-body);
+}
+:is(.application, .window-app).stonetop-themed .window-content :is(.hint, .notes) {
+	color: var(--st-text-muted);
+}
+
+/* Form fields: translucent white wells with a slate focus ring. Skip toggles
+   (checkbox/radio/range/color) so they keep their native look. */
+:is(.application, .window-app).stonetop-themed .window-content
+	:is(input:not([type=checkbox], [type=radio], [type=range], [type=color]), select, textarea) {
+	font-family: var(--font-stonetop);
+	color: var(--st-text);
+	background: rgba(255, 255, 255, 0.7);
+	border: 1px solid #999;
+}
+:is(.application, .window-app).stonetop-themed .window-content
+	:is(input:not([type=checkbox], [type=radio], [type=range], [type=color]), select, textarea):focus {
+	border-color: var(--st-btn-primary-border);
+	box-shadow: 0 0 4px var(--color-shadow-highlight);
+}
+
+/* Buttons in the body: our primary slate fill (footer submit + generic). The
+   `:not([class*="fa-"])` guard keeps the serif font off icon-on-button elements
+   (same Font Awesome caveat as the header above); fill/colour are safe on all. */
+:is(.application, .window-app).stonetop-themed .window-content button:not([type=checkbox]) {
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+:is(.application, .window-app).stonetop-themed .window-content button:not([type=checkbox], [class*="fa-"]) {
+	font-family: var(--font-stonetop);
+}
+:is(.application, .window-app).stonetop-themed .window-content button:not([type=checkbox]):hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
 }
 
 .pbta.sheet .sheet-tab {
@@ -2355,14 +2480,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 	font-weight: 600;
 	cursor: pointer;
-	border: 1px solid var(--st-green-border);
+	border: 1px solid var(--st-btn-primary-border);
 	border-radius: var(--st-radius-sm);
-	background: var(--st-green-bg);
-	color: var(--st-green-text);
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
 	transition: background 0.15s;
 }
 
-.stonetop-weather-roll-btn:hover { background: var(--st-green-bg-hover); }
+.stonetop-weather-roll-btn:hover { background: var(--st-btn-primary-bg-hover); }
 .stonetop-weather-roll-btn > i { margin-right: 4px; }
 
 .stonetop-weather-roll-total {
@@ -2426,14 +2551,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-family: var(--font-stonetop);
 	font-weight: 600;
 	cursor: pointer;
-	border: 1px solid var(--st-green-border);
+	border: 1px solid var(--st-btn-primary-border);
 	border-radius: var(--st-radius-sm);
-	background: var(--st-green-bg);
-	color: var(--st-green-text);
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
 	transition: background 0.15s;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome:hover { background: var(--st-green-bg-hover); }
+:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome:hover { background: var(--st-btn-primary-bg-hover); }
 :is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome > i { margin-right: 4px; }
 
 
@@ -3631,8 +3756,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	-webkit-appearance: none;
 	display: inline-block;
 	vertical-align: middle;
-	width: 13px;
-	height: 13px;
+	width: 15px;
+	height: 15px;
 	border: 1.5px solid currentColor;
 	border-radius: 50%;
 	cursor: pointer;
@@ -3694,6 +3819,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    slots 1-2 are the locked potential Conduit — static black dotted drops that are
    not clickable and never fill (gaining them is tracked by Greater Conduit on the
    reverse). */
+/* Blood drops read a touch smaller than the diamond/circle tracks beside them, so
+   size up the whole blood track (both slugs, all indices) on the character sheet. */
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="red-scepter"],
+.vtt .window-app input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="redwood-effigy"] {
+	width: 16px !important;
+	height: 16px !important;
+}
 .vtt .window-app input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="red-scepter"],
 .vtt .window-app input[type=checkbox].stonetop-arcanum-diamond[data-arcanum-slug="redwood-effigy"][data-index="0"] {
 	background-image: var(--stonetop-blood-icon) !important;
@@ -4271,7 +4403,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-instinct-badge {
-	font-size: var(--st-fs-base);
+	margin-left: 0.20em;
+	font-size: var(--st-fs-sm);
 	font-style: italic;
 	opacity: 0.75;
 	cursor: default;
@@ -4356,17 +4489,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 12px 28px;
 	font-size: var(--st-fs-lg);
 	font-family: inherit;
-	background: var(--st-green-bg);
-	border: 2px solid var(--st-green-border);
+	background: var(--st-btn-primary-bg);
+	border: 2px solid var(--st-btn-primary-border);
 	border-radius: var(--st-radius);
 	cursor: pointer;
-	color: var(--st-green-text);
+	color: var(--st-btn-primary-text);
 	transition: background 0.15s, border-color 0.15s;
 }
 
 .stonetop-create-character-btn:hover {
-	background: var(--st-green-bg-hover);
-	border-color: var(--st-green-border);
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
 }
 
 .stonetop-edit-toggle {
@@ -4799,8 +4932,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	white-space: nowrap;
 }
 
-.asm-input,
-.asm-select {
+.asm-input {
 	width: 100%;
 	height: 28px;
 	font-size: var(--st-fs-sm);
@@ -4812,22 +4944,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	transition: border-color 0.1s;
 }
 
-.asm-input:hover,
-.asm-select:hover {
+.asm-input:hover {
 	border-color: rgba(100,150,255,0.35);
 	background: #fff;
 }
 
-.asm-input:focus,
-.asm-select:focus {
+.asm-input:focus {
 	border-color: rgba(100,150,255,0.5);
 	outline: none;
 	background: #fff;
-}
-
-.asm-select {
-	cursor: pointer;
-	padding: 2px 4px;
 }
 
 .asm-field-actions {
@@ -4848,9 +4973,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-radius: var(--st-radius-sm);
 	cursor: pointer;
 	font-size: var(--st-fs-base);
+	line-height: 1;
 	background: rgba(255,255,255,0.8);
 	color: var(--color-text-dark-secondary);
 	transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.asm-info i,
+.asm-randomize i {
+	margin: 0;
 }
 
 .asm-info:hover,
@@ -4914,16 +5045,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .asm-confirm {
 	margin-left: auto;
-	background: slategrey;
-	color: #fff;
-	border-color: #4f5b66;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	border-color: var(--st-btn-primary-border);
 	font-family: var(--font-stonetop);
 	box-shadow: none;
 }
 
 .asm-confirm:hover {
-	background: #556b8b;
-	border-color: #465a75;
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
 }
 
 .asm-cancel {
@@ -5194,16 +5325,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-outfit-confirm-btn {
 	padding: 4px 14px;
-	background: #3ba55d;
-	color: #fff;
-	border: 1px solid #2d8049;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	border: 1px solid var(--st-btn-primary-border);
 	border-radius: var(--st-radius-sm);
 	font-size: var(--st-fs-base);
 	cursor: pointer;
 }
 
 .stonetop-outfit-confirm-btn:hover {
-	background: #45c46e;
+	background: var(--st-btn-primary-bg-hover);
 }
 
 /* ── Level Up dialog ────────────────────────────────────────────── */
@@ -5434,15 +5565,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-levelup-next-btn {
 	margin-left: auto;
 	padding: 4px 14px;
-	background: #3ba55d;
-	color: #fff;
-	border: 1px solid #2d8049;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	border: 1px solid var(--st-btn-primary-border);
 	border-radius: var(--st-radius-sm);
 	cursor: pointer;
 }
 
 .stonetop-levelup-next-btn:hover:not(:disabled) {
-	background: #45c46e;
+	background: var(--st-btn-primary-bg-hover);
 }
 
 .stonetop-levelup-next-btn:disabled {
@@ -5668,13 +5799,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .deaths-door-confirm-btn {
-	background: #3ba55d;
-	color: #fff;
-	border-color: #2d8049;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	border-color: var(--st-btn-primary-border);
 }
 
 .deaths-door-confirm-btn:hover {
-	background: #45c46e;
+	background: var(--st-btn-primary-bg-hover);
 }
 
 .deaths-door-cancel-btn {
@@ -5810,24 +5941,24 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-eos-confirm-btn {
 	padding: 4px 16px;
-	background: #3ba55d;
-	color: #fff;
-	border: 1px solid #2d8049;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	border: 1px solid var(--st-btn-primary-border);
 	border-radius: var(--st-radius-sm);
 	cursor: pointer;
 }
 
 .stonetop-eos-confirm-btn:hover {
-	background: #45c46e;
+	background: var(--st-btn-primary-bg-hover);
 }
 
 .stonetop-outfit-confirm-btn,
 .stonetop-levelup-next-btn,
 .deaths-door-confirm-btn,
 .stonetop-eos-confirm-btn {
-	background: slategrey;
-	color: #fff;
-	border-color: #4f5b66;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	border-color: var(--st-btn-primary-border);
 	font-family: var(--font-stonetop);
 	box-shadow: none;
 }
@@ -5836,8 +5967,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-levelup-next-btn:hover:not(:disabled),
 .deaths-door-confirm-btn:hover,
 .stonetop-eos-confirm-btn:hover {
-	background: #556b8b;
-	border-color: #465a75;
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
 }
 
 /* ================================================================
@@ -7478,8 +7609,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-season-btn {
 	width: 100%;
 	padding: 7px 12px;
-	background: slategrey;
-	color: white;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
 	border: none;
 	border-radius: var(--st-radius);
 	cursor: pointer;
@@ -7487,7 +7618,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: var(--st-fs-base);
 }
 
-.stonetop-season-btn:hover { background: #556b8b; }
+.stonetop-season-btn:hover { background: var(--st-btn-primary-bg-hover); }
 
 .stonetop-season-divider {
 	margin: 10px 0;
@@ -8301,13 +8432,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-onboarding-next:hover  { background: hsl(210 10% 92%); }
 
 .stonetop-onboarding-confirm {
-	background: slategrey;
-	color: white;
-	border-color: slategrey;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	border-color: var(--st-btn-primary-border);
 	min-width: max-content;
 }
 
-.stonetop-onboarding-confirm:hover { background: hsl(210 13% 47%); }
+.stonetop-onboarding-confirm:hover { background: var(--st-btn-primary-bg-hover); }
 
 .stonetop-onboarding-skip {
 	padding: 5px 24px;
@@ -8860,7 +8991,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-style: normal;
 }
 
-.stonetop-onboarding-background-neighbor select,
 .stonetop-onboarding-background-neighbor input {
 	width: 100%;
 	min-width: 0;
@@ -8872,22 +9002,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: var(--st-fs-sm);
 }
 
-.stonetop-onboarding-background-neighbor .hidden {
-	display: none;
-}
-
-.onboard-background-neighbor-trait-custom {
-	margin-top: 4px;
-	grid-column: 2;
-}
-
 @media (max-width: 560px) {
 	.stonetop-onboarding-background-neighbor {
 		grid-template-columns: 1fr;
-	}
-
-	.onboard-background-neighbor-trait-custom {
-		grid-column: 1;
 	}
 }
 
@@ -9763,7 +9880,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-loyalty-pip.is-filled { background: slategrey; }
 
-span.stonetop-loyalty-pip { cursor: default; }
+.stonetop-loyalty-pip:hover { background: rgba(112, 128, 144, 0.45); }
 
 /* Crew sections (inventory, individuals, rules) */
 .stonetop-follower-section {
@@ -9865,14 +9982,19 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	cursor: default;
 }
 
-/* Inventory carry pips are diamonds (matching the rulebook gear checklist); the
-   Supplies pips below keep the round .stonetop-crew-pip shape. */
+/* Inventory carry pips are diamonds (matching the rulebook gear checklist). Reuse
+   the shared SVG diamond icons so they're the same size/shape as the inventory tab's
+   weight diamonds; the Supplies pips below keep the round .stonetop-crew-pip shape. */
 .vtt .window-app input[type=checkbox].stonetop-crew-gear-check {
-	width: calc(11px * var(--stonetop-font-scale, 1)) !important;
-	height: calc(11px * var(--stonetop-font-scale, 1)) !important;
-	border-radius: 1px;
-	transform: rotate(45deg);
-	margin: 0 2px;
+	width: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	border: none;
+	border-radius: 0;
+	background: center / contain no-repeat var(--stonetop-diamond-icon) !important;
+	margin: 0 1px;
+}
+.vtt .window-app input[type=checkbox].stonetop-crew-gear-check:checked {
+	background: center / contain no-repeat var(--stonetop-diamond-selected-icon) !important;
 }
 
 .stonetop-crew-supplies-section {
@@ -10424,6 +10546,11 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	font-size: var(--st-fs-base);
 	border-bottom: 1px dotted rgba(0, 0, 0, 0.15);
 	padding-bottom: 1px;
+	cursor: pointer; /* tap a move to post it to chat (see activateListeners) */
+}
+
+.stonetop-follower-moves-list li:hover {
+	text-decoration: underline;
 }
 
 .stonetop-follower-moves-list li::before {
@@ -10452,17 +10579,15 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	appearance: none !important;
 	-webkit-appearance: none !important;
 	flex: none !important;
-	width: calc(11px * var(--stonetop-font-scale, 1)) !important;
-	height: calc(11px * var(--stonetop-font-scale, 1)) !important;
-	border: 1.5px solid currentColor;
-	border-radius: 1px;
-	background: transparent;
-	transform: rotate(45deg);
+	width: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	border: none;
+	background: center / contain no-repeat var(--stonetop-diamond-icon) !important;
 	margin: 0 2px;
 	padding: 0;
 	cursor: pointer;
 }
-.vtt .window-app input[type=checkbox].stonetop-follower-gear-check:checked { background: currentColor; }
+.vtt .window-app input[type=checkbox].stonetop-follower-gear-check:checked { background-image: var(--stonetop-diamond-selected-icon) !important; }
 .vtt .window-app input[type=checkbox].stonetop-follower-gear-check:disabled { opacity: 1; cursor: default; }
 
 .stonetop-follower-gear-name {
@@ -10895,6 +11020,15 @@ li.question-bullet {
 :is(.journal-page-content, .stonetop-so-entry-body) a.content-link.broken > i {
 	display: inline;
 }
+/* A cross-link a player can't open (a Location or Lore entry they haven't been
+   granted) is de-linked at render time to a plain <span class="content-summary">
+   that keeps the GM-authored hover summary but never clicks through
+   (restrict-content-links.js). It reads as normal prose; the help cursor is the
+   only hint there's a description on hover. The bestiary codex is flattened to
+   bare text instead, so it gets no such treatment. */
+:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-welcome-lead) .content-summary[data-tooltip] {
+	cursor: help;
+}
 
 /* Foundry's journal window paints a faint text-shadow on its prose — most visible
    on dense, bold runs like the gear-term <dt>s in the Setting Overview's "Gear:
@@ -10994,8 +11128,7 @@ li.question-bullet {
 	font-weight: 600;
 }
 
-.stonetop-individual-dialog .form-group input[type="text"],
-.stonetop-individual-dialog .form-group select {
+.stonetop-individual-dialog .form-group input[type="text"] {
 	width: 100%;
 	flex: none;
 }
@@ -11217,10 +11350,9 @@ li.question-bullet {
 	color: var(--st-text-faint);
 }
 
-/* Inline fill input, select, and custom text — inside expanded chip */
+/* Inline fill input and slash-option combo — inside expanded chip */
 .stonetop-trait-fill,
-.stonetop-trait-select,
-.stonetop-trait-custom {
+.stonetop-trait-select {
 	display: none;
 	font-size: var(--st-fs-sm);
 	padding: 1px 5px;
@@ -11230,8 +11362,7 @@ li.question-bullet {
 	line-height: 1.4;
 }
 
-.stonetop-trait-fill,
-.stonetop-trait-custom {
+.stonetop-trait-fill {
 	flex: 1;
 	min-width: 60px;
 	max-width: 160px;
@@ -13216,6 +13347,13 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-guide-nav button {
+	/* Content-sized buttons at the row's ends; without inline-flex + width:auto,
+	   Foundry core's block-level `button { display: flex }` makes each fill the row,
+	   stacking them and pushing the primary action off-screen. */
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	width: auto;
 	flex-shrink: 0;
 	padding: 5px 14px;
 	font-family: var(--font-stonetop);
@@ -13231,19 +13369,19 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-guide-nav button:hover:not(:disabled) { background: hsl(40 25% 85%); }
 .stonetop-guide-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Green "go" button (Begin / Done / Save). !important to beat the base nav-button
+/* Primary "go" button (Begin / Done / Save). !important to beat the base nav-button
    background, whose descendant selector outspecifies this one class. */
 .stonetop-guide-btn--primary {
 	font-weight: 600;
-	background: var(--st-green-bg) !important;
-	border-color: var(--st-green-border) !important;
-	color: var(--st-green-text) !important;
+	background: var(--st-btn-primary-bg) !important;
+	border-color: var(--st-btn-primary-border) !important;
+	color: var(--st-btn-primary-text) !important;
 }
 
-.stonetop-guide-btn--primary:hover:not(:disabled) { background: var(--st-green-bg-hover) !important; }
+.stonetop-guide-btn--primary:hover:not(:disabled) { background: var(--st-btn-primary-bg-hover) !important; }
 
 /* A disabled primary (e.g. Begin Introductions before the order is set) drops the
-   green and reads as a plain disabled button. */
+   slate fill and reads as a plain disabled button. */
 .stonetop-guide-btn--primary:disabled {
 	background: var(--stonetop-bg, #f5f0e8) !important;
 	border-color: var(--color-border-dark, #7a7971) !important;
@@ -13486,9 +13624,9 @@ th:has(> .stonetop-roll-table-btn) {
 	justify-content: center;
 	font-weight: 700;
 	font-size: var(--st-fs-sm);
-	color: var(--st-green-text);
-	background: var(--st-green-bg);
-	border: 1px solid var(--st-green-border);
+	color: var(--st-blue-text);
+	background: var(--st-blue-bg);
+	border: 1px solid var(--st-blue-border);
 }
 
 .stonetop-welcome-step-body {
@@ -13500,6 +13638,7 @@ th:has(> .stonetop-roll-table-btn) {
 	margin: 2px 0 4px;
 	border: none;
 	font-size: var(--st-fs-lg);
+	font-weight: 700;
 	line-height: 1.2;
 }
 
@@ -13718,14 +13857,14 @@ th:has(> .stonetop-roll-table-btn) {
 	font-size: var(--st-fs-sm);
 	line-height: 1.3;
 	cursor: pointer;
-	border: 1px solid var(--st-green-border);
+	border: 1px solid var(--st-btn-primary-border);
 	border-radius: var(--st-radius-sm);
-	background: var(--st-green-bg);
-	color: var(--st-green-text);
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
 	transition: background 0.15s;
 }
 
-.stonetop-welcome-create:hover { background: var(--st-green-bg-hover); }
+.stonetop-welcome-create:hover { background: var(--st-btn-primary-bg-hover); }
 .stonetop-welcome-create > i { margin-right: 4px; }
 
 /* Replacing an existing character deletes the old one — flag it as destructive. */
@@ -13930,6 +14069,11 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-welcome-textlink:hover { color: var(--st-green-border); text-shadow: none; }
 .stonetop-welcome-textlink > i { margin-right: 3px; }
 
+/* Inline variant: flows mid-sentence (core's `button { display: flex }` would
+   otherwise break it onto its own line). Used by the step 2 "Agenda & Principles"
+   link. */
+.stonetop-welcome-textlink--inline { display: inline; }
+
 /* ── New to Foundry? primer (FoundryBasicsDialog) ──────────────────────────── */
 
 .stonetop-foundry-basics-dialog .window-content {
@@ -14111,14 +14255,14 @@ th:has(> .stonetop-roll-table-btn) {
 	font-size: var(--st-fs-lg);
 	line-height: 1.3;
 	cursor: pointer;
-	border: 1px solid var(--st-green-border);
+	border: 1px solid var(--st-btn-primary-border);
 	border-radius: var(--st-radius-sm);
-	background: var(--st-green-bg);
-	color: var(--st-green-text);
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
 	transition: background 0.15s;
 }
 
-.stonetop-charintro-create:hover { background: var(--st-green-bg-hover); }
+.stonetop-charintro-create:hover { background: var(--st-btn-primary-bg-hover); }
 .stonetop-charintro-create > i { margin-right: 6px; }
 
 /* ── Let spring burst forth (first-session walkthrough) ─────────────────────── */
@@ -14213,12 +14357,12 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-spring-roll-btn--primary {
 	font-weight: 600;
-	background: var(--st-green-bg);
-	border-color: var(--st-green-border);
-	color: var(--st-green-text);
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
 }
 
-.stonetop-spring-roll-btn--primary:hover { background: var(--st-green-bg-hover); }
+.stonetop-spring-roll-btn--primary:hover { background: var(--st-btn-primary-bg-hover); }
 
 .stonetop-spring-roll-result {
 	display: flex;
@@ -14570,8 +14714,10 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-chosen-tag i { font-size: 0.85em; opacity: 0.7; }
 .stonetop-cf-chosen-tag:hover { background: var(--st-red-bg); border-color: var(--st-red-border); color: var(--st-red-text); }
 
-.stonetop-cf-tag-add-row { display: flex; gap: 6px; align-items: center; }
-.stonetop-cf-tag-add-row .stonetop-cf-input { flex: 1 1 auto; }
+.stonetop-cf-tag-add-row { display: flex; gap: 6px; align-items: center; min-width: 0; }
+/* Grow the input from a 0 basis (not width:100% + shrink) so input + Add button can
+   never out-size the row and push the button off the narrow 520px modal. */
+.stonetop-cf-tag-add-row .stonetop-cf-input { flex: 1 1 0; min-width: 0; width: auto; }
 
 .stonetop-cf-tag-group { display: flex; flex-direction: column; gap: 4px; }
 .stonetop-cf-tag-group-label {
@@ -14585,6 +14731,10 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-cf-tag,
 .stonetop-cf-chip {
+	/* inline-flex so these <button> pills shrink to content + wrap; otherwise Foundry
+	   core's `button { display: flex }` makes them block-level and full-width. */
+	display: inline-flex;
+	align-items: center;
 	padding: 1px 9px;
 	border: 1px solid rgba(100, 116, 139, 0.3);
 	border-radius: 999px;
@@ -14607,7 +14757,13 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 
 .stonetop-cf-mini-btn {
+	/* inline-flex + width:auto keep this content-sized; Foundry core's block-level
+	   `button { display: flex }` would otherwise stretch it to fill the row. */
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35em;
 	flex: 0 0 auto;
+	width: auto;
 	padding: 3px 10px;
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: var(--st-radius-sm);
@@ -14624,8 +14780,8 @@ th:has(> .stonetop-roll-table-btn) {
 
 /* Gear rows (final step) */
 .stonetop-cf-gear { display: flex; flex-direction: column; gap: 5px; }
-.stonetop-cf-gear-row { display: flex; gap: 6px; align-items: center; }
-.stonetop-cf-gear-row .stonetop-cf-input { flex: 1 1 auto; }
+.stonetop-cf-gear-row { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.stonetop-cf-gear-row .stonetop-cf-input { flex: 1 1 0; min-width: 0; width: auto; }
 .stonetop-cf-gear-add { align-self: flex-start; }
 
 /* Review card (final step) + the conversion's kept-stats line */
@@ -14655,8 +14811,11 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-preview-loyalty { color: var(--st-text-muted); }
 
 /* Monster→Follower conversion specifics */
-.stonetop-mf-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: var(--st-fs-sm); }
+.stonetop-mf-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: var(--st-fs-base); }
 .stonetop-mf-kept { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+/* Kept tags are primary data here — size them like the modal's other tag pills
+   (the added-tags row), not the dense xs of the create-follower review card. */
+.stonetop-mf-kept .stonetop-cf-preview-tag { font-size: var(--st-fs-sm); }
 .stonetop-mf-arrow { font-size: 0.8em; margin: 0 2px; color: var(--st-text-muted); }
 
 /* Seasons Change chat card */

@@ -298,6 +298,7 @@ function _createHoverDescriptionSettingsApp() {
 				template: "systems/stonetop_pwd/templates/settings/hover-descriptions.hbs",
 				width: 520,
 				height: "auto",
+				resizable: true,
 				closeOnSubmit: true,
 			});
 		}

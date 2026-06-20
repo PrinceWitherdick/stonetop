@@ -32,7 +32,7 @@ export class WeatherDialog extends Application {
 			template:  "systems/stonetop_pwd/templates/dialogs/weather.hbs",
 			width:     420,
 			height:    "auto",
-			resizable: false,
+			resizable: true,
 			classes:   ["stonetop", "stonetop-weather-dialog"],
 		});
 	}

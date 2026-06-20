@@ -441,6 +441,7 @@
           "slug": "wicked-questions",
           "continuation": true,
           "columnBreak": true,
+          "readonlyMerge": true,
           "title": "Answer At Least 3 of the Following",
           "description": "",
           "options": [

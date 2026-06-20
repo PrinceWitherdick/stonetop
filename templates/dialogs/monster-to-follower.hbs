@@ -5,7 +5,7 @@
   <div class="stonetop-guide-main">
 
     <div class="stonetop-guide-banner">
-      <i class="fas fa-paw stonetop-guide-banner-icon"></i>
+      <i class="fas {{bannerIcon}} stonetop-guide-banner-icon"></i>
       <div class="stonetop-guide-banner-info">
         <div class="stonetop-guide-banner-title">{{monsterName}} <i class="fas fa-arrow-right stonetop-mf-arrow"></i> {{actorName}}'s follower</div>
         <div class="stonetop-guide-banner-sub">Convert a monster to a follower</div>
@@ -53,7 +53,7 @@
 
       {{!-- Pronoun --}}
       <label class="stonetop-cf-label stonetop-cf-label--narrow">Pronoun
-        <input type="text" class="stonetop-cf-input stonetop-mf-pronoun" value="{{pronoun}}" placeholder="it/they…" maxlength="12">
+        <input type="text" class="stonetop-cf-input stonetop-mf-pronoun" value="{{pronoun}}" placeholder="she/he/they…" maxlength="12">
       </label>
 
       {{!-- Cost --}}
@@ -71,8 +71,8 @@
   </div>
 
   <div class="stonetop-guide-nav">
-    <button class="stonetop-mf-cancel">Cancel</button>
     <button class="stonetop-mf-create stonetop-guide-btn--primary"><i class="fas fa-user-plus"></i> Create follower</button>
+    <button class="stonetop-mf-cancel">Cancel</button>
   </div>
 
 </div>

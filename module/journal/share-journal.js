@@ -129,7 +129,7 @@ export class ShareJournalDialog extends Application {
 			template:  "systems/stonetop_pwd/templates/dialogs/share-journal.hbs",
 			width:     440,
 			height:    "auto",
-			resizable: false,
+			resizable: true,
 			classes:   ["stonetop", "stonetop-share-dialog"],
 		});
 	}

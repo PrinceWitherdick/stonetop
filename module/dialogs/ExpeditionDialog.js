@@ -268,7 +268,7 @@ export class ExpeditionDialog extends StepperDialog {
 			template:  "systems/stonetop_pwd/templates/dialogs/expedition.hbs",
 			width:     540,
 			height:    "auto",
-			resizable: false,
+			resizable: true,
 			// Reuse the spring dialog's window-content reset + body/qa/tier styling.
 			classes:   ["stonetop", "stonetop-spring-dialog", "stonetop-expedition-dialog"],
 		});

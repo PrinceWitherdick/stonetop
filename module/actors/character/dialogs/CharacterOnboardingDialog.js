@@ -430,26 +430,16 @@ export class CharacterOnboardingDialog extends Application {
 			placeholder: this._normalizeOnboardingText(text.placeholder ?? ""),
 			value: this._selections.backgroundSetup.texts[text.key] ?? "",
 		}));
-		const neighbors = (setup.neighbors ?? []).map(neighbor => {
-			const trait = this._selections.backgroundSetup.neighborTraits[neighbor.traitKey] ?? "";
-			const hasListedTrait = STEADING_NPC_TRAITS.includes(trait);
-			const isCustomTrait = !!trait && !hasListedTrait;
-			return {
-				name: this._normalizeOnboardingText(neighbor.name ?? ""),
-				origin: this._normalizeOnboardingText(neighbor.origin ?? ""),
-				backgroundSlug: background.slug,
-				traitKey: neighbor.traitKey ?? "",
-				traitLabel: this._normalizeOnboardingText(neighbor.traitLabel ?? "Trait"),
-				trait,
-				customTrait: isCustomTrait ? trait : "",
-				isCustomTrait,
-				traitOptions: STEADING_NPC_TRAITS.map(value => ({
-					value,
-					label: this._normalizeOnboardingText(value),
-					selected: trait === value,
-				})),
-			};
-		});
+		// The trait field is a free-type combo (input + shared <datalist>), so the
+		// suggestion list is rendered once for all neighbors via neighborTraitOptions.
+		const neighbors = (setup.neighbors ?? []).map(neighbor => ({
+			name: this._normalizeOnboardingText(neighbor.name ?? ""),
+			origin: this._normalizeOnboardingText(neighbor.origin ?? ""),
+			backgroundSlug: background.slug,
+			traitKey: neighbor.traitKey ?? "",
+			traitLabel: this._normalizeOnboardingText(neighbor.traitLabel ?? "Trait"),
+			trait: this._selections.backgroundSetup.neighborTraits[neighbor.traitKey] ?? "",
+		}));
 		const neighborChoices = (setup.neighborChoices ?? []).map(choice => {
 			const selected = this._selections.backgroundSetup.neighborPicks[choice.key] ?? [];
 			return {
@@ -467,7 +457,7 @@ export class CharacterOnboardingDialog extends Application {
 			};
 		});
 		return choices.length || texts.length || neighbors.length || neighborChoices.length
-			? { choices, texts, neighbors, neighborChoices }
+			? { choices, texts, neighbors, neighborChoices, neighborTraitOptions: STEADING_NPC_TRAITS }
 			: null;
 	}
 
@@ -1544,39 +1534,12 @@ export class CharacterOnboardingDialog extends Application {
 			}
 			_refreshNextButton();
 		});
-		html.find(".onboard-background-neighbor-trait").on("change", ev => {
-			const { backgroundSlug, traitKey } = ev.currentTarget.dataset;
-			const prevBackground = this._selections.backgroundSlug;
-			this._applyBackgroundChange(backgroundSlug);
-			const value = ev.currentTarget.value;
-			const customInput = ev.currentTarget
-				.closest(".stonetop-onboarding-background-neighbor")
-				?.querySelector(".onboard-background-neighbor-trait-custom");
-			if (value === "custom") {
-				customInput?.classList.remove("hidden");
-				this._selections.backgroundSetup.neighborTraits[traitKey] = customInput?.value.trim() ?? "";
-			} else {
-				customInput?.classList.add("hidden");
-				this._selections.backgroundSetup.neighborTraits[traitKey] = value;
-			}
-			if (prevBackground !== backgroundSlug) {
-				html.find("[name='onboard-background']").each((_, radio) => {
-					radio.checked = radio.value === backgroundSlug;
-					radio.closest(".stonetop-onboarding-card")
-						?.classList.toggle("is-selected", radio.value === backgroundSlug);
-				});
-			}
-			_refreshNextButton();
-		});
-		html.find(".onboard-background-neighbor-trait-custom").on("input", ev => {
+		// Free-type combo: pick a listed trait from the datalist or type a custom one.
+		html.find(".onboard-background-neighbor-trait").on("input", ev => {
 			const { backgroundSlug, traitKey } = ev.currentTarget.dataset;
 			const prevBackground = this._selections.backgroundSlug;
 			this._applyBackgroundChange(backgroundSlug);
 			this._selections.backgroundSetup.neighborTraits[traitKey] = ev.currentTarget.value.trim();
-			const select = ev.currentTarget
-				.closest(".stonetop-onboarding-background-neighbor")
-				?.querySelector(".onboard-background-neighbor-trait");
-			if (select) select.value = "custom";
 			if (prevBackground !== backgroundSlug) {
 				html.find("[name='onboard-background']").each((_, radio) => {
 					radio.checked = radio.value === backgroundSlug;

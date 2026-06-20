@@ -146,7 +146,7 @@ export class SpringBurstDialog extends StepperDialog {
 			template:  "systems/stonetop_pwd/templates/dialogs/spring-burst.hbs",
 			width:     520,
 			height:    "auto",
-			resizable: false,
+			resizable: true,
 			classes:   ["stonetop", "stonetop-spring-dialog"],
 		});
 	}

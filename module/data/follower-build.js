@@ -4,6 +4,8 @@
 // framework-free (no Foundry globals) so the derivations can be unit-tested and
 // reused by both dialogs and the character sheet.
 
+import { creatureTypeFaIcon } from "../bestiary/creature-types.js";
+
 // ── Step 3: hit points (p.476–477) ───────────────────────────────────────────
 // "How resilient are they? (pick 1)" then "What else applies? (pick all)".
 export const FOLLOWER_HP_BASE = [
@@ -211,7 +213,9 @@ export function followerFromMonster(monster = {}, opts = {}) {
 		name:         monster.name ?? "",
 		pronoun:      opts.pronoun ?? "",
 		typeLabel:    "follower",
-		portraitIcon: "fas fa-paw",
+		// Match the conversion dialog's banner: a follower keeps its monster's
+		// creature-type glyph (an Adept is human → fa-user, not the generic paw).
+		portraitIcon: `fas ${creatureTypeFaIcon(system.creatureType)}`,
 		tags,
 		hp:           hpMax,
 		// Carry current HP as-is (buildCustomFollower clamps/normalizes); `?? hpMax`

@@ -35,7 +35,7 @@ export class PlaybookPickerDialog extends Application {
 			title:     game.i18n.localize("stonetop.newCharacter.pickerTitle"),
 			width:     640,
 			height:    "auto",
-			resizable: false,
+			resizable: true,
 			classes:   ["stonetop", "stonetop-playbook-picker"],
 		});
 	}

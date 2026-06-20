@@ -20,6 +20,7 @@ export class CharacterCreationDialog extends Application {
 			title:    "Create Your Character",
 			width:    480,
 			height:   "auto",
+			resizable: true,
 			classes:  ["stonetop", "stonetop-charintro-dialog"],
 		});
 	}

@@ -1,4 +1,5 @@
 import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { creatureTypeFaIcon } from "../../../bestiary/creature-types.js";
 import {
 	FOLLOWER_COST_EXAMPLES,
 	monsterFollowerTags, normalizeTags, followerFromMonster,
@@ -30,7 +31,7 @@ export class MonsterToFollowerDialog extends Application {
 			template:  "systems/stonetop_pwd/templates/dialogs/monster-to-follower.hbs",
 			width:     520,
 			height:    "auto",
-			resizable: false,
+			resizable: true,
 			classes:   ["stonetop", "stonetop-spring-dialog", "stonetop-monster-follower-dialog"],
 		});
 	}
@@ -60,6 +61,7 @@ export class MonsterToFollowerDialog extends Application {
 		return {
 			monsterName: m?.name ?? "Monster",
 			actorName:   this._actor?.name ?? "this character",
+			bannerIcon:  creatureTypeFaIcon(system.creatureType),
 			keptTags:    monsterFollowerTags(system),
 			addedTags:   this._addedTags,
 			hp:          attrs.hp?.max ?? attrs.hp?.value ?? 0,

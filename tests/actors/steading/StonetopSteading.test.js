@@ -65,6 +65,18 @@ describe("StonetopSteading", () => {
 		]);
 	});
 
+	it("uses a player's manual occupation override when one is set", async () => {
+		const actor = makeSteadingActor({
+			steadingFlags: {
+				players: [{ uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true, occupation: "Hawker of Trinkets" }],
+			},
+		});
+
+		const snapshot = await new StonetopSteading(actor).buildSnapshot();
+
+		expect(snapshot.players[0].resolvedOccupation).toBe("Hawker of Trinkets");
+	});
+
 	describe("custom (journal-sourced) improvements", () => {
 		function makeMutableSteadingActor(steadingFlags = {}) {
 			const actor = {

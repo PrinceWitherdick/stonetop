@@ -3,6 +3,7 @@ import { markProseSpiralBullets } from "../utils/journal-spiral-bullets.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import { settingOverviewPages } from "../utils/seeded-journals.js";
 import { applyLocationTooltips } from "../locations/location-tooltips.js";
+import { restrictContentLinks } from "../journal/restrict-content-links.js";
 
 // This popup is now a *renderer* over the seeded "Setting Overview" journal — the
 // single source of truth. The journal's pages become the popup's tabs, so there's
@@ -55,9 +56,13 @@ export class SettingOverviewDialog extends Application {
 			// Spiral / question-spiral / checkbox bullets + glyph SVGs, matching the journals.
 			markProseSpiralBullets(entryBody);
 			applyGearTermTooltips(entryBody);
-			// Cross-link hover summaries — this is a dialog, not a journal render, so
-			// it isn't covered by the journal render hooks in stonetop.js.
-			applyLocationTooltips(entryBody);
+			// Cross-link hover summaries, then de-link the ones a player can't open —
+			// this is a dialog, not a journal render, so it isn't covered by the
+			// journal render hooks in stonetop.js. Order matches that hook: tooltips
+			// first so restrictContentLinks can carry the summary onto the de-linked
+			// span (Locations & Lore keep their hover description; the GM-only
+			// bestiary codex flattens to plain text). No-op for GMs.
+			applyLocationTooltips(entryBody).then(() => restrictContentLinks(entryBody));
 		}
 		// X button should always close, bypassing the z-index guard
 		this.element?.find('[data-action="close"]').off("click").on("click", () => this.close({force: true}));

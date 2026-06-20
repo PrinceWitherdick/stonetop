@@ -101,7 +101,7 @@ export class CreateFollowerDialog extends StepperDialog {
 			template:  "systems/stonetop_pwd/templates/dialogs/create-follower.hbs",
 			width:     560,
 			height:    "auto",
-			resizable: false,
+			resizable: true,
 			classes:   ["stonetop", "stonetop-spring-dialog", "stonetop-create-follower-dialog"],
 		});
 	}

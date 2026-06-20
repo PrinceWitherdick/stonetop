@@ -222,6 +222,11 @@ export class LoreEntrySnapshot {
 		this.description = b._description;
 		this.options     = b._options;
 		this.columnBreak = b._columnBreak ?? false;
+		// In read-only, a `readonlyMerge` continuation (e.g. the Marshal/Ranger
+		// "Answer at least 3…" follow-up questions) flows into the preceding column
+		// with its title hidden, so the answers sit directly under the choice they
+		// relate to instead of stranding a lopsided, half-empty second column.
+		this.readonlyMerge = b._readonlyMerge ?? false;
 		this.subheader   = b._subheader ?? false;
 		// Seeker Major Arcanum: { slug, name, img } of the chosen arcanum, shown below the heading.
 		this.arcanaImage = b._arcanaImage ?? null;
@@ -236,6 +241,12 @@ export class LoreEntrySnapshot {
 	}
 	get hasSelection() {
 		return this.options.some(o => o.hasAnswer);
+	}
+	// Whether this entry starts a new column in read-only. A `readonlyMerge` entry
+	// keeps the edit-mode column break (so the long question list sits beside the
+	// choice while filling it in) but collapses back into one column read-only.
+	get readonlyColumnBreak() {
+		return this.columnBreak && !this.readonlyMerge;
 	}
 	// True when any option has an assigned arcana card (Seeker Minor Arcana), so the
 	// read-only entry still renders to show the assignment even with no written note.
@@ -255,6 +266,7 @@ export class LoreEntrySnapshotBuilder {
 	withDescription(v) { this._description = v; return this; }
 	withOptions(v)     { this._options     = v; return this; }
 	withColumnBreak(v) { this._columnBreak = v; return this; }
+	withReadonlyMerge(v) { this._readonlyMerge = v; return this; }
 	withContinuation(v) { this._continuation = v; return this; }
 	withSubheader(v)   { this._subheader   = v; return this; }
 	withArcanaImage(v) { this._arcanaImage = v; return this; }
@@ -266,6 +278,9 @@ export class LoreSection {
 		this.entries = entries;
 		// Read once per entry inside the lore-section render loop, so precompute to keep it O(1).
 		this.hasColumnBreak = entries.some(e => e.columnBreak);
+		// Read-only counterpart: ignores breaks that merge away (see readonlyColumnBreak),
+		// so a section whose only break is a merged one renders as a single full-width column.
+		this.hasReadonlyColumnBreak = entries.some(e => e.readonlyColumnBreak);
 	}
 
 	get hasEntries() {

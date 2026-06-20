@@ -740,7 +740,26 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _render(force, options) {
+			// Foundry replaces the whole window content on every render, so a fresh
+			// <img> portrait is built and the browser must re-fetch/decode it before
+			// it paints — a visible flicker on each data-only re-render (toggling
+			// supplies pips, rapport "hold" circles, etc.). Carry the already-decoded
+			// portrait element forward when nothing about it changed (same src, same
+			// edit state) so it never reloads. The live node keeps the click listener
+			// wired in activateListeners for that state, so reuse is only safe when
+			// neither changed.
+			const oldImg = this.element?.[0]?.querySelector("img.stonetop-portrait");
+			const oldSrc = oldImg?.getAttribute("src");
+			const oldEditable = oldImg?.hasAttribute("data-edit");
 			await super._render(force, options);
+			const newImg = this.element?.[0]?.querySelector("img.stonetop-portrait");
+			if (oldImg && newImg
+				&& oldSrc === newImg.getAttribute("src")
+				&& oldEditable === newImg.hasAttribute("data-edit")) {
+				oldImg.title = newImg.title;
+				oldImg.alt = newImg.alt;
+				newImg.replaceWith(oldImg);
+			}
 			this._injectHeaderToggle();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
 		}
@@ -2327,6 +2346,26 @@ export function createStonetopCharacterSheetClass(Base) {
 				this.render(false);
 			});
 
+			// Tapping one of a follower's own moves posts it to chat, spoken with the
+			// follower's name (mirrors how basic moves / Invocations post to chat). Only
+			// the read-only list is clickable; edit mode shows a textarea instead.
+			html.find(".stonetop-follower-moves-list li").on("click", ev => {
+				const moveText = ev.currentTarget.textContent.trim();
+				if (!moveText) return;
+				const card   = ev.currentTarget.closest(".stonetop-follower-card");
+				// Read the name without its pronoun span so the type label doesn't
+				// double up the parentheses (e.g. "Brindle (follower)", not "(she) (follower)").
+				const nameEl = card?.querySelector(".stonetop-follower-name")?.cloneNode(true);
+				nameEl?.querySelectorAll(".stonetop-follower-pronoun").forEach(n => n.remove());
+				const name = (nameEl?.textContent.trim().replace(/\s+/g, " ")) || "Follower";
+				const type = card?.querySelector(".stonetop-follower-type")?.textContent.trim();
+				const title = type ? `${name} (${type})` : name;
+				ChatMessage.create({
+					content: _buildMoveChatContent(escHtml(title), `<p>${escHtml(moveText)}</p>`),
+					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+				});
+			});
+
 			// Create a follower via the Book I walkthrough (NPCs & Followers, p.474).
 			html.find(".stonetop-create-follower-btn").on("click", () => this._onCreateFollowerOpen());
 			// Remove a custom follower (built by the walkthrough or converted from a
@@ -2569,7 +2608,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const traits = indOpts.traits?.length ? indOpts.traits : CREW_INDIVIDUAL_TRAITS;
 
 				const namesHtml = names.map(n => `<option value="${n}">`).join("");
-				const tagsHtml  = tags.map(t => `<option value="${t}">${t}</option>`).join("");
+				const tagsHtml  = tags.map(t => `<option value="${t}"></option>`).join("");
 
 				// -- Trait tokenizer ---------------------------------------
 				// Splits a trait into: text | standalone __ | slash-option group
@@ -2590,8 +2629,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					return tokens;
 				};
 
-				// Build one chip's inner HTML from its tokens, tracking slot indices
-				const buildChipInner = (tokens, safeVal) => {
+				// Build one chip's inner HTML from its tokens, tracking slot indices.
+				// Slash-option slots are free-type combos: the slash choices become
+				// <datalist> suggestions, but you can type anything (replacing the old
+				// "___ (type your own)" select option). traitIndex keeps datalist ids unique.
+				const buildChipInner = (tokens, safeVal, traitIndex) => {
 					let html    = `<input type="checkbox" class="stonetop-check" name="traits" value="${safeVal}">`;
 					let slotIdx = 0;
 					for (const tok of tokens) {
@@ -2602,26 +2644,20 @@ export function createStonetopCharacterSheetClass(Base) {
 							html += `<span class="stonetop-trait-blank">___</span>`;
 							html += `<input type="text" class="stonetop-trait-fill" data-slot="${s}" style="display:none" placeholder="…">`;
 						} else { // opts
-							const s       = slotIdx++;
-							const hasCust = tok.opts.includes("__");
-							const display = tok.opts.map(o => o === "__" ? "___" : o).join("/");
-							const optHtml = tok.opts.map(o =>
-								o === "__" ? `<option value="__">___ (type your own)</option>`
-								           : `<option value="${o}">${o}</option>`
-							).join("");
+							const s        = slotIdx++;
+							const realOpts = tok.opts.filter(o => o !== "__");
+							const display  = tok.opts.map(o => o === "__" ? "___" : o).join("/");
+							const listId   = `trait-opts-${traitIndex}-${s}`;
+							const optHtml  = realOpts.map(o => `<option value="${o.replace(/"/g, "&quot;")}"></option>`).join("");
 							html += `<span class="stonetop-trait-blank">${display}</span>`;
-							html += `<select class="stonetop-trait-select" data-slot="${s}" style="display:none">
-								<option value="">— pick one —</option>${optHtml}
-							</select>`;
-							if (hasCust) {
-								html += `<input type="text" class="stonetop-trait-custom" data-slot="${s}" style="display:none" placeholder="custom…">`;
-							}
+							html += `<input type="text" class="stonetop-trait-select" data-slot="${s}" list="${listId}" style="display:none" placeholder="…" autocomplete="off">`;
+							html += `<datalist id="${listId}">${optHtml}</datalist>`;
 						}
 					}
 					return html;
 				};
 
-				const traitsHtml = traits.map(t => {
+				const traitsHtml = traits.map((t, ti) => {
 					const safeVal = t.replace(/"/g, "&quot;");
 					const tokens  = tokenize(t);
 					const simple  = tokens.every(tok => tok.type === "text");
@@ -2634,7 +2670,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					}
 					return `<span class="stonetop-trait-chip-group" data-trait="${safeVal}">
 						<label class="stonetop-individual-trait-chip">
-							${buildChipInner(tokens, safeVal)}
+							${buildChipInner(tokens, safeVal, ti)}
 						</label>
 					</span>`;
 				}).join("");
@@ -2648,7 +2684,8 @@ export function createStonetopCharacterSheetClass(Base) {
 						</div>
 						<div class="form-group">
 							<label>Tag</label>
-							<select name="ind-tag"><option value="">— choose one —</option>${tagsHtml}</select>
+							<input type="text" name="ind-tag" list="ind-tags" placeholder="Choose or type a tag…" autocomplete="off">
+							<datalist id="ind-tags">${tagsHtml}</datalist>
 						</div>
 						<div class="form-group stonetop-individual-traits-group">
 							<label>Traits <em>(choose one or more)</em></label>
@@ -2667,7 +2704,7 @@ export function createStonetopCharacterSheetClass(Base) {
 							callback: async (dlgHtml) => {
 								const name = dlgHtml.find("[name='ind-name']").val().trim();
 								if (!name) return;
-								const tag    = dlgHtml.find("[name='ind-tag']").val();
+								const tag    = dlgHtml.find("[name='ind-tag']").val().trim();
 								const traits = [];
 								dlgHtml.find("[name='traits']:checked").each((_, cb) => {
 									const group  = cb.closest(".stonetop-trait-chip-group");
@@ -2684,12 +2721,8 @@ export function createStonetopCharacterSheetClass(Base) {
 										} else { // opts
 											const s   = slotIdx++;
 											const sel = group.querySelector(`.stonetop-trait-select[data-slot="${s}"]`);
-											if (sel?.value === "__") {
-												const cust = group.querySelector(`.stonetop-trait-custom[data-slot="${s}"]`);
-												result += cust?.value.trim() || "__";
-											} else {
-												result += sel?.value || tok.opts[0];
-											}
+											const val = sel?.value.trim();
+											result += val || tok.opts.find(o => o !== "__") || tok.opts[0];
 										}
 									}
 									traits.push(result);
@@ -2728,20 +2761,6 @@ export function createStonetopCharacterSheetClass(Base) {
 								el.style.display = checked ? "inline-block" : "none";
 								if (!checked) el.value = "";
 							});
-							group?.querySelectorAll(".stonetop-trait-custom").forEach(el => {
-								el.style.display = "none";
-								el.value = "";
-							});
-						});
-						// Select ? show custom input when "__ (type your own)" chosen
-						dlgHtml[0].addEventListener("change", ev => {
-							const sel = ev.target;
-							if (!sel.classList.contains("stonetop-trait-select")) return;
-							const group  = sel.closest(".stonetop-trait-chip-group");
-							const custom = group?.querySelector(`.stonetop-trait-custom[data-slot="${sel.dataset.slot}"]`);
-							if (!custom) return;
-							custom.style.display = sel.value === "__" ? "inline-block" : "none";
-							if (sel.value !== "__") custom.value = "";
 						});
 					},
 				}, { width: 540, height: 580, classes: ["dialog", "stonetop-individual-dialog"] }).render(true);

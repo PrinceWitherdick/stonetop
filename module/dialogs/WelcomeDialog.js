@@ -138,6 +138,7 @@ export class WelcomeDialog extends Application {
 		applyLocationTooltips(html);
 
 		html.find('[data-action="setting-overview"]').on("click", () => this._openSettingOverview());
+		html.find('[data-action="agenda-principles"]').on("click", () => this._openSettingOverview("Agenda & Principles"));
 		html.find('[data-action="foundry-basics"]').on("click", () => FoundryBasicsDialog.open());
 		html.find('[data-action="introductions"]').on("click", () => this._openIntroductions());
 		html.find('[data-action="spring-burst"]').on("click", () => this._openSpringBurst());
@@ -155,14 +156,18 @@ export class WelcomeDialog extends Application {
 	}
 
 	// Open the shareable "Setting Overview" journal — the same one that auto-opens
-	// for everyone — so the GM can reread it or show it to players. The journal is
-	// the sole source of this content now, so if it isn't seeded/visible yet, say
-	// so rather than opening an empty reader.
-	_openSettingOverview() {
+	// for everyone — so the GM can reread it or show it to players. Pass a page name
+	// to jump straight to it (e.g. the "Agenda & Principles" tab cited in step 2).
+	// The journal is the sole source of this content now, so if it isn't
+	// seeded/visible yet, say so rather than opening an empty reader.
+	_openSettingOverview(pageName) {
 		const journal = findVisibleJournal(SETTING_OVERVIEW_JOURNAL);
-		if (journal) { journal.sheet.render(true); return; }
-
-		ui.notifications.warn("The Setting Overview journal isn't set up in this world yet.");
+		if (!journal) {
+			ui.notifications.warn("The Setting Overview journal isn't set up in this world yet.");
+			return;
+		}
+		const page = pageName ? journal.pages.find(p => p.name === pageName) : null;
+		journal.sheet.render(true, page ? { pageId: page.id } : {});
 	}
 
 	_openIntroductions() {

@@ -227,9 +227,7 @@ export async function rollStat(statKey, actor, options = {}) {
 			header: "Miss",
 			result: `+1 XP (${newXp} / ${maxXp})`,
 			resultClass: "success",
-			description: `<p>On a <strong>miss</strong> (a total of 6 or less), you <strong>mark XP</strong> &mdash; a tick mark that raises your total by 1 &mdash; unless the move says otherwise.</p>
-				<p>A miss doesn&rsquo;t always mean you screwed up; it means something bad happens that your character won&rsquo;t like, and the GM gets to say what. At least you get a little wiser for it.</p>
-				<p>Once you&rsquo;ve marked XP equal to <strong>6 + twice your level</strong> (currently ${maxXp}), you can spend it to Level Up.</p>`,
+			description: `<p>On a <strong>miss</strong> (a total of 6 or less), you <strong>mark XP</strong> &mdash; a tick mark that raises your total by 1 &mdash; unless the move says otherwise.</p>`
 		});
 		await ChatMessage.create({
 			content:  xpCard,

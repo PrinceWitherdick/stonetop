@@ -128,7 +128,7 @@ export class AddSteadingMemberDialog extends Application {
 			template: "systems/stonetop_pwd/templates/dialogs/add-steading-member.hbs",
 			width: 460,
 			height: "auto",
-			resizable: false,
+			resizable: true,
 			classes: ["stonetop", "stonetop-add-member-dialog"],
 		});
 	}
@@ -177,14 +177,19 @@ export class AddSteadingMemberDialog extends Application {
 		}, { width: 480, classes: ["dialog", "stonetop-asm-home-info-dialog", HOME_INFO_DIALOG_CLASS] }).render(true);
 	}
 
+	/**
+	 * The name field is a free-type combo box, so we only refresh its suggestion
+	 * list when the Home changes — whatever the user has typed is left untouched.
+	 */
 	_refreshNameOptions(root) {
-		const select = root.querySelector('.asm-select[name="name"]');
-		if (!select) return;
+		const list = root.querySelector("#asm-list-name");
+		if (!list) return;
 		const names = this._namesForHome(this._formData.home);
-		const current = select.value;
-		select.replaceChildren(new Option("— choose a name —", ""), ...names.map(n => new Option(n, n)));
-		select.value = names.includes(current) ? current : "";
-		this._formData.name = select.value;
+		list.replaceChildren(...names.map(n => {
+			const o = document.createElement("option");
+			o.value = n;
+			return o;
+		}));
 	}
 
 	activateListeners(html) {
@@ -192,15 +197,17 @@ export class AddSteadingMemberDialog extends Application {
 		this._keepOnTop.start();
 		const root = html[0];
 
-		root.querySelectorAll(".asm-input, .asm-select").forEach(el => {
-			el.addEventListener("change", () => {
+		// Every field is a free-type input now (combos are inputs backed by a
+		// <datalist>), so listen on "input" to capture typing live as well as picks.
+		root.querySelectorAll(".asm-input").forEach(el => {
+			el.addEventListener("input", () => {
 				this._formData[el.name] = el.value;
 			});
 		});
 
-		// The pool of names depends on which "Home" is selected (see the Steading
-		// playbook's "Notable neighbors" reference) — refilter when it changes.
-		root.querySelector('.asm-select[name="home"]')?.addEventListener("change", () => {
+		// The pool of suggested names depends on which "Home" is selected (see the
+		// Steading playbook's "Notable neighbors" reference) — refilter when it changes.
+		root.querySelector('.asm-combo[name="home"]')?.addEventListener("input", () => {
 			this._refreshNameOptions(root);
 		});
 
@@ -208,12 +215,12 @@ export class AddSteadingMemberDialog extends Application {
 
 		root.querySelectorAll(".asm-randomize").forEach(btn => {
 			btn.addEventListener("click", () => {
-				const select = root.querySelector(`.asm-select[name="${btn.dataset.target}"]`);
-				if (!select) return;
-				const options = Array.from(select.options).filter(o => o.value);
+				const input = root.querySelector(`.asm-combo[name="${btn.dataset.target}"]`);
+				if (!input) return;
+				const options = input.list ? Array.from(input.list.options).map(o => o.value).filter(Boolean) : [];
 				if (!options.length) return;
-				select.value = options[Math.floor(Math.random() * options.length)].value;
-				select.dispatchEvent(new Event("change"));
+				input.value = options[Math.floor(Math.random() * options.length)];
+				input.dispatchEvent(new Event("input"));
 			});
 		});
 

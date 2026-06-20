@@ -25,9 +25,15 @@
 								<i class="fas fa-user"></i>
 							</span>
 							{{/if}}
-							<span class="steading-player-name-text" title="{{name}}{{#if resolvedOccupation}} {{resolvedOccupation}}{{/if}}">{{name}}{{#if resolvedOccupation}} {{resolvedOccupation}}{{/if}}</span>
+							<span class="steading-player-name-text" title="{{name}}">{{name}}</span>
 						</div>
 						<div class="steading-residents-col steading-residents-col-occupation">
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="occupation" data-list="players"
+							       value="{{#if @root.stonetop.edit.players}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}"
+							       title="{{#if @root.stonetop.edit.players}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}"
+							       {{#if @root.stonetop.edit.players}}placeholder="Occupation or Playbook"{{/if}}
+							       {{#unless @root.stonetop.edit.players}}disabled{{/unless}}>
 						</div>
 						<div class="steading-residents-col steading-residents-col-traits">
 							<input type="text" class="steading-resident-input"

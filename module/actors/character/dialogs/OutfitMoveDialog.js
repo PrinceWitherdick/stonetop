@@ -1,6 +1,7 @@
 import { KeepOnTop } from "../../../utils/keep-on-top.js";
 import { getHoverDescriptionSetting } from "../../../settings.js";
 import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
+import { wrapStonetopGlyphsInEl } from "../../../utils/glyphs.js";
 
 export class OutfitMoveDialog extends Application {
 	constructor(character, outfitSnapshot, onDone, options = {}) {
@@ -131,6 +132,11 @@ export class OutfitMoveDialog extends Application {
 		if (getHoverDescriptionSetting("hoverDescriptionsGearTags")) {
 			html[0].querySelectorAll(".stonetop-outfit-item-note").forEach(el => applyGearTermTooltips(el));
 		}
+
+		// Skin any raw ○/◇/□ glyphs in the item notes to the same SVG marks the
+		// sheets use; the tree-walker skips the template's already-classed glyph
+		// spans (load badges, undefined-pool marks), so it only touches note text.
+		wrapStonetopGlyphsInEl(html[0]);
 
 		html.find(".stonetop-outfit-item-check").on("change", ev => {
 			this._checked[ev.currentTarget.dataset.slug] = ev.currentTarget.checked;

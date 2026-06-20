@@ -109,23 +109,21 @@
 						<span class="stonetop-onboarding-background-neighbor-name">
 							<strong>{{name}}</strong>{{#if origin}} <span>from {{origin}}</span>{{/if}}
 						</span>
-						<select class="onboard-background-neighbor-trait"
-						        data-background-slug="{{backgroundSlug}}"
-						        data-trait-key="{{traitKey}}">
-							<option value="">{{traitLabel}}</option>
-							{{#each traitOptions}}
-							<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-							{{/each}}
-							<option value="custom" {{#if isCustomTrait}}selected{{/if}}>Other...</option>
-						</select>
 						<input type="text"
-						       class="onboard-background-neighbor-trait-custom{{#unless isCustomTrait}} hidden{{/unless}}"
+						       class="onboard-background-neighbor-trait"
+						       list="onboard-neighbor-traits"
 						       data-background-slug="{{backgroundSlug}}"
 						       data-trait-key="{{traitKey}}"
-						       value="{{customTrait}}"
-						       placeholder="Custom trait">
+						       value="{{trait}}"
+						       placeholder="{{traitLabel}}"
+						       autocomplete="off">
 					</label>
 					{{/each}}
+					{{#if setup.neighborTraitOptions.length}}
+					<datalist id="onboard-neighbor-traits">
+						{{#each setup.neighborTraitOptions}}<option value="{{this}}"></option>{{/each}}
+					</datalist>
+					{{/if}}
 					{{#each setup.neighborChoices}}
 					<div class="stonetop-onboarding-background-neighbor-choice">
 						<p class="stonetop-onboarding-background-setup-label">{{label}} ({{selectedCount}}/{{count}})</p>

@@ -86,6 +86,7 @@ export function buildLoreSection(loreData, loreState, arcanaDisplay = null) {
 			.withDescription(entry.description ?? "")
 			.withOptions(options)
 			.withColumnBreak(entry.columnBreak)
+			.withReadonlyMerge(entry.readonlyMerge)
 			.withContinuation(entry.continuation)
 			.withSubheader(entry.subheader);
 		if (arcanaDisplay?.major && entry.arcanaImage) {

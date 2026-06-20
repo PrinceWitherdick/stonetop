@@ -273,7 +273,7 @@ export class IntroductionsDialog extends Application {
 			template:  "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
 			width:     520,
 			height:    "auto",
-			resizable: false,
+			resizable: true,
 			classes:   ["stonetop", "stonetop-introductions"],
 		});
 	}

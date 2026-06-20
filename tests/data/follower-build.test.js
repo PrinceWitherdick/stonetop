@@ -158,6 +158,7 @@ describe("followerFromMonster", () => {
 		system: {
 			organization: "group",
 			size: "",
+			creatureType: "natural-beast",
 			tags: "group, organized, cautious",
 			attributes: {
 				hp: { value: 4, max: 6 },
@@ -184,9 +185,25 @@ describe("followerFromMonster", () => {
 		expect(f.damage).toBe("bite d8 (hand, grabby)");
 		expect(f.instinct).toBe("to bring down the weakest prey");
 		expect(f.pronoun).toBe("it");
-		expect(f.portraitIcon).toBe("fas fa-paw");
+		expect(f.portraitIcon).toBe("fas fa-paw"); // a beast keeps the paw
 		expect(f.sourceUuid).toBe("Actor.abc123");
 		expect(f.loyalty).toBe(0); // gains a Loyalty track at 0
+	});
+
+	it("uses the monster's creature-type glyph, not the generic paw (e.g. an Adept is human)", () => {
+		const f = followerFromMonster(
+			{ name: "Rime Adept", system: { creatureType: "human-individual", attributes: { hp: { max: 6 } } }, moves: [] },
+			{},
+		);
+		expect(f.portraitIcon).toBe("fas fa-user");
+	});
+
+	it("falls back to a generic monster glyph when no creature type is set", () => {
+		const f = followerFromMonster(
+			{ name: "Mystery", system: { attributes: { hp: { max: 6 } } }, moves: [] },
+			{},
+		);
+		expect(f.portraitIcon).toBe("fas fa-dragon");
 	});
 
 	it("keeps flavor tags and appends the player's added tags", () => {

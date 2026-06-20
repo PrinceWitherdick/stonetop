@@ -35,6 +35,8 @@ import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
 import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
 import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
+import { makeDialogsResizable } from "./module/utils/resizable-dialogs.js";
+import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -42,6 +44,14 @@ Hooks.once("init", () => {
 
 	registerSettings();
 	registerStonetopSingletonHooks();
+
+	// Every window and modal in the system is drag-resizable; the ad-hoc
+	// Dialog popups we spawn from sheets default to resizable too.
+	makeDialogsResizable();
+
+	// Skin a curated allowlist of core Foundry windows (e.g. User Configuration)
+	// to match our sheets/modals; scoped to a marker class so nothing else moves.
+	registerStonetopWindowTheme();
 
 	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
 	Handlebars.registerHelper("boldMissText", value => boldMissText(value));
@@ -237,11 +247,13 @@ Hooks.on("renderActorSheet", onRenderActorSheet);
 // Foundry v12–v14; the index warms on ready so the first hover is instant.
 Hooks.once("ready", () => ensureLocationSummaryIndex());
 const _onJournalRender = (app, html) => {
-	// First, neuter any cross-link a player can't follow (e.g. into the GM-only
-	// bestiary codex) so they can't click through to entries they aren't meant
-	// to see yet — and the prose doesn't tease the hidden entry. No-op for GMs.
-	restrictContentLinks(html);
-	applyLocationTooltips(html);
+	// Give cross-links their hover summary FIRST, then neuter any a player can't
+	// follow. Order matters: restrictContentLinks carries the just-stamped
+	// data-tooltip onto the de-linked span, so a player still gets the description
+	// on hover for Locations & Lore — while the GM-only bestiary codex is flattened
+	// to plain text with no tooltip. No-op for GMs (they keep every link). The
+	// tooltip index is async, so chain the restriction after it resolves.
+	applyLocationTooltips(html).then(() => restrictContentLinks(html));
 	// Spiral bullets / question-spirals for this system's prose journals.
 	applyJournalSpiralBullets(app, html);
 	// Gear/weapon-tag hover tooltips for the curated Setting Overview prose (the

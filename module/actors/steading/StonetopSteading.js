@@ -613,7 +613,7 @@ export class StonetopSteading {
 		const rawPlayers = f.players ?? STEADING_DEFAULTS.players;
 		const players = rawPlayers.map(p => {
 			const actor = p.id ? allActors.get(p.id) : null;
-			const resolvedOccupation = actor?.system?.playbook?.name ?? "";
+			const resolvedOccupation = p.occupation || (actor?.system?.playbook?.name ?? "");
 			return { traits: "", relations: "", ...p, notes: p.notes ?? p.etc ?? "", resolvedOccupation };
 		});
 

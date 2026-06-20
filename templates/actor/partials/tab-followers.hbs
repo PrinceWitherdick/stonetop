@@ -223,12 +223,11 @@
 			<div class="stonetop-follower-statline stonetop-follower-loyalty-statline">
 				<span class="stonetop-follower-field-label">Loyalty</span>
 				<div class="stonetop-loyalty-pips">
+					{{!-- Loyalty is always click-editable, even outside edit mode: a
+					      single click fills/clears up to the pip (handler keys off the
+					      data-loyalty ftype). --}}
 					{{#each loyalty}}
-					{{#if ../edit.stats}}
-					<button type="button" class="stonetop-loyalty-pip{{#if filled}} is-filled{{/if}}" data-loyalty="{{../ftype}}" data-slug="{{../loyaltySlug}}" data-index="{{index}}"></button>
-					{{else}}
-					<span class="stonetop-loyalty-pip{{#if filled}} is-filled{{/if}}"></span>
-					{{/if}}
+					<button type="button" class="stonetop-loyalty-pip{{#if filled}} is-filled{{/if}}" data-loyalty="{{../ftype}}" data-slug="{{../loyaltySlug}}" data-index="{{index}}" title="Set Loyalty"></button>
 					{{/each}}
 				</div>
 			</div>

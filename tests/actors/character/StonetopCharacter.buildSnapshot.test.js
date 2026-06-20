@@ -1101,6 +1101,66 @@ describe("buildSnapshot — lore section", () => {
 		expect(entries.slice(1).every(e => e.isContinuation)).toBe(true);
 	});
 
+	// Mirrors the Marshal/Ranger "War Stories" shape: a (choose 1) entry followed by
+	// an "Answer at least 3…" text-question entry flagged readonlyMerge.
+	const READONLY_MERGE_LORE_PLAYBOOK = {
+		...HEAVY_PLAYBOOK,
+		lore: [
+			{ slug: "war-stories", title: "War Stories", description: "", options: [] },
+			{
+				slug: "war-stories-action",
+				continuation: true,
+				title: "The Last Time the Militia Saw Serious Action, It Was…",
+				description: "<p><em>(pick 1)</em></p>",
+				options: [{ slug: "bandits", description: "… to drive off bandits.", max: 1 }],
+			},
+			{
+				slug: "war-stories-questions",
+				continuation: true,
+				columnBreak: true,
+				readonlyMerge: true,
+				title: "Answer At Least 3 of the Following",
+				description: "",
+				options: [{ slug: "when", description: "When did it happen?", type: "text" }],
+			},
+		],
+	};
+
+	it("readonlyMerge entry keeps its edit-mode column break but collapses it read-only", async () => {
+		const snap = await buildLoreSnap(READONLY_MERGE_LORE_PLAYBOOK);
+		const questions = snap.playbook.lore.entries[2];
+		expect(questions.readonlyMerge).toBe(true);
+		expect(questions.columnBreak).toBe(true);        // edit mode still two-column
+		expect(questions.readonlyColumnBreak).toBe(false); // read-only merges in
+	});
+
+	it("a section whose only break is merged renders single-column read-only", async () => {
+		const snap = await buildLoreSnap(READONLY_MERGE_LORE_PLAYBOOK);
+		expect(snap.playbook.lore.hasColumnBreak).toBe(true);
+		expect(snap.playbook.lore.hasReadonlyColumnBreak).toBe(false);
+	});
+
+	it("a subheader column break is preserved read-only (not merged)", async () => {
+		const snap = await buildLoreSnap({
+			...HEAVY_PLAYBOOK,
+			lore: [
+				{ slug: "collection", title: "Collection", description: "", options: [] },
+				{
+					slug: "arcana-minor",
+					continuation: true,
+					columnBreak: true,
+					subheader: true,
+					title: "Minor Arcana",
+					description: "",
+					options: [{ slug: "where", description: "Where?", type: "text" }],
+				},
+			],
+		});
+		const minor = snap.playbook.lore.entries[1];
+		expect(minor.readonlyColumnBreak).toBe(true);
+		expect(snap.playbook.lore.hasReadonlyColumnBreak).toBe(true);
+	});
+
 	it("lore option checks has length equal to max", async () => {
 		const snap = await buildSnap();
 		const opt = snap.playbook.lore.entries[1].options[0];

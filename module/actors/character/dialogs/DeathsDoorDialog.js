@@ -25,7 +25,7 @@ export class DeathsDoorDialog extends Application {
 			title:     "Death's Door",
 			width:     600,
 			height:    "auto",
-			resizable: false,
+			resizable: true,
 			classes:   ["stonetop", "stonetop-deathsdoor-dialog"],
 		});
 	}

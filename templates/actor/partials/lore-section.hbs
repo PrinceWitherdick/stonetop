@@ -43,14 +43,14 @@
 </div>
 {{else}}
 {{#if lore.hasReadonlyContent}}
-<div class="details-section{{#if lore.hasColumnBreak}} stonetop-lore-columns{{/if}}">
+<div class="details-section{{#if lore.hasReadonlyColumnBreak}} stonetop-lore-columns{{/if}}">
 	{{#each lore.entries}}
-	{{#if (and @first ../lore.hasColumnBreak isContinuation)}}<div class="stonetop-lore-col">{{/if}}
+	{{#if (and @first ../lore.hasReadonlyColumnBreak isContinuation)}}<div class="stonetop-lore-col">{{/if}}
 	{{#if isContinuation}}
-	{{#if columnBreak}}</div><div class="stonetop-lore-col">{{/if}}
+	{{#if readonlyColumnBreak}}</div><div class="stonetop-lore-col">{{/if}}
 	{{#if showInReadonly}}
 	<div class="stonetop-lore-entry">
-		{{#if title}}<p class="stonetop-lore-continuation-title{{#if subheader}} stonetop-lore-subheader{{/if}}">{{title}}</p>{{/if}}
+		{{#unless readonlyMerge}}{{#if title}}<p class="stonetop-lore-continuation-title{{#if subheader}} stonetop-lore-subheader{{/if}}">{{title}}</p>{{/if}}{{/unless}}
 		{{#if readonlyDescription}}
 		<div class="stonetop-lore-description">{{{readonlyDescription}}}</div>
 		{{/if}}
@@ -59,14 +59,14 @@
 	</div>
 	{{/if}}
 	{{else}}
-	{{#if ../lore.hasColumnBreak}}{{#if columnBreak}}</div>{{/if}}{{/if}}
+	{{#if ../lore.hasReadonlyColumnBreak}}{{#if readonlyColumnBreak}}</div>{{/if}}{{/if}}
 	<div class="stonetop-lore-entry stonetop-lore-entry--section-head">
 		{{> "stonetop.section-heading" title=title}}
 		{{#if readonlyDescription}}
 		<div class="stonetop-lore-description">{{{readonlyDescription}}}</div>
 		{{/if}}
 	</div>
-	{{#if ../lore.hasColumnBreak}}<div class="stonetop-lore-col">{{/if}}
+	{{#if ../lore.hasReadonlyColumnBreak}}<div class="stonetop-lore-col">{{/if}}
 	{{#if hasSelection}}
 	<div class="stonetop-lore-entry">
 		{{> "stonetop.lore-options-readonly"}}
@@ -74,7 +74,7 @@
 	{{/if}}
 	{{/if}}
 	{{/each}}
-	{{#if lore.hasColumnBreak}}</div>{{/if}}
+	{{#if lore.hasReadonlyColumnBreak}}</div>{{/if}}
 </div>
 {{/if}}
 {{/if}}
