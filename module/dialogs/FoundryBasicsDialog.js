@@ -1,4 +1,4 @@
-import { attachKeepOnTop } from "../utils/keep-on-top.js";
+import { attachFrontOnOpen } from "../utils/front-on-open.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 
 // ── FoundryBasicsDialog ──────────────────────────────────────────────────────
@@ -15,8 +15,8 @@ export class FoundryBasicsDialog extends Application {
 		super(options);
 		// Spawned from the Welcome guide (itself a floating window) — keep this reader
 		// above it the same way SpringBurstDialog does, so clicking back to the guide
-		// doesn't bury the primer. attachKeepOnTop wraps render/activate/close for us.
-		attachKeepOnTop(this);
+		// doesn't bury the primer. attachFrontOnOpen wraps render/activate/close for us.
+		attachFrontOnOpen(this);
 	}
 
 	static open() {

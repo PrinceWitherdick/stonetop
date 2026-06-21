@@ -1,10 +1,10 @@
-import { KeepOnTop } from "../utils/keep-on-top.js";
+import { FrontOnOpen } from "../utils/front-on-open.js";
 import { getSetting } from "../settings.js";
 
 // ── StepperDialog ────────────────────────────────────────────────────────────
 // Shared scaffolding for the linear "walkthrough" dialogs (Spring Burst,
 // Expedition, Create Follower): a `_step` cursor over a list of steps, the
-// KeepOnTop lifecycle, Back/Next navigation, and the per-render nav context.
+// FrontOnOpen lifecycle, Back/Next navigation, and the per-render nav context.
 //
 // Subclasses provide the steps via `get _steps()`, spread `_stepNav()` into their
 // `getData`, call `_bindStepNav(html)` from `activateListeners`, and may override
@@ -13,7 +13,7 @@ export class StepperDialog extends Application {
 	constructor(options = {}) {
 		super(options);
 		this._step      = 0;
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	/** @returns {Array<object>} The ordered steps; the final one is flagged `isFinal`. */
@@ -31,11 +31,11 @@ export class StepperDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 	}
 
 	async close(options = {}) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		return super.close(options);
 	}
 
@@ -61,10 +61,10 @@ export class StepperDialog extends Application {
 		};
 	}
 
-	// Start the keep-on-top watcher and wire the shared Back/Next buttons plus any
+	// Start the front-on-open watcher and wire the shared Back/Next buttons plus any
 	// jump-to-step table-of-contents buttons.
 	_bindStepNav(html) {
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 		html.find(".stonetop-spring-back").on("click", () => this._retreat());
 		html.find(".stonetop-spring-next").on("click", () => this._advance());
 		html.find(".stonetop-guide-toc-btn").on("click", ev => this._goTo(Number(ev.currentTarget.dataset.stepIndex)));

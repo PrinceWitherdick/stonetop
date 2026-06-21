@@ -1,7 +1,7 @@
 [
   {
     "name": "Aid",
-    "description": "<p>When you <strong><em>help someone who has not yet rolled</em></strong>, the GM picks 1:</p><p><ul><li>They can accomplish more than they could alone</li><li>They gain advantage on their roll</li></ul></p><p>Either way, you are exposed to any risk, cost, or consequence associated with their roll.</p>",
+    "description": "<p>When you <strong><em>help someone who has not yet rolled</em></strong>, the GM picks 1:</p><ul><li>They can accomplish more than they could alone</li><li>They gain advantage on their roll</li></ul><p>Either way, you are exposed to any risk, cost, or consequence associated with their roll.</p>",
     "rollType": null
   },
   {
@@ -11,7 +11,7 @@
     "results": {
       "success": {
         "label": "10+",
-        "value": "Your maneuver works as expected (deal your damage) and pick 1:</p><ul><li>Avoid, prevent, or counter your enemy's attack</li><li>Strike hard and fast, for 1d6 extra damage, but suffer your enemy's attack</li></ul>"
+        "value": "Your maneuver works as expected (deal your damage) and pick 1: Avoid, prevent, or counter your enemy's attack / Strike hard and fast, for 1d6 extra damage, but suffer your enemy's attack."
       },
       "partial": {
         "label": "7-9",
@@ -110,7 +110,7 @@
       },
       "partial": {
         "label": "7-9",
-        "value": "<p>Pick 1:</p><ul><li>Deal your damage, but deplete your ammo (mark the next status by your weapon; don’t pick this if your weapon lacks such statuses)</li><li>Hold steady and wait for a clear shot; when the moment arrives (GM’s call), deal your damage</li><li>Move to get a clear shot - exposing yourself to danger or giving up some advantage (GM says how) - then deal your damage</li><li>Rush the shot and deal your damage, leading to a cost or complication of the GM’s choice</li></ul>"
+        "value": "Pick 1: Deal your damage, but deplete your ammo (mark the next status by your weapon; don’t pick this if your weapon lacks such statuses) / Hold steady and wait for a clear shot; when the moment arrives (GM’s call), deal your damage / Move to get a clear shot - exposing yourself to danger or giving up some advantage (GM says how) - then deal your damage / Rush the shot and deal your damage, leading to a cost or complication of the GM’s choice."
       },
       "failure": {
         "label": "6-",

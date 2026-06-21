@@ -581,20 +581,6 @@ export class StonetopSteading {
 		const f = this._flags;
 		const storedImps = f.improvements ?? {};
 
-		// Migrate neighbors to residents for backward compatibility
-		if (f.neighbors && !f.residents) {
-			const migratedResidents = f.neighbors.map(n => ({
-				name: n.name,
-				occupation: n.origin || "",
-				traits: n.trait || "",
-				relations: "",
-				etc: "",
-				checked: n.checked,
-			}));
-			this.setFlags({ residents: migratedResidents });
-			f.residents = migratedResidents;
-		}
-
 		const allActors = (typeof game !== "undefined" && game?.actors) ? game.actors : { filter: () => [], get: () => null };
 		const allCharacters = allActors.filter(a => a.type === "character");
 
@@ -613,9 +599,17 @@ export class StonetopSteading {
 
 		const rawPlayers = f.players ?? STEADING_DEFAULTS.players;
 		const players = rawPlayers.map(p => {
-			const actor = p.id ? allActors.get(p.id) : null;
-			const resolvedOccupation = p.occupation || (actor?.system?.playbook?.name ?? "");
-			return { traits: "", relations: "", ...p, notes: p.notes ?? p.etc ?? "", resolvedOccupation };
+			// Resolve the live character so we can surface their playbook — by stored
+			// id first, then name (drag-added players carry an id; older ones may not).
+			const actor = (p.id ? allActors.get(p.id) : null)
+				|| (p.name ? allCharacters.find(a => a.name?.toLowerCase() === p.name.toLowerCase()) : null)
+				|| null;
+			// A playbook isn't an occupation — players may hold any job — so the
+			// Occupation column shows only an explicit occupation; the playbook name
+			// surfaces on the portrait's hover tooltip instead (see the neighbors tab).
+			const playbookName = actor?.system?.playbook?.name ?? "";
+			const resolvedOccupation = p.occupation || "";
+			return { traits: "", relations: "", ...p, notes: p.notes ?? p.etc ?? "", resolvedOccupation, playbookName };
 		});
 
 		const mapImprovement = (def, custom) => {

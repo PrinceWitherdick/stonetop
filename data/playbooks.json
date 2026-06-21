@@ -572,7 +572,7 @@
         "slug": "danu-offerings",
         "title": "",
         "continuation": true,
-        "description": "<p>What do the folk of Stonetop leave as offerings? <em>(choose 2–3)</em></p>",
+        "description": "<p>What do the folk of Stonetop leave as offerings to Danu? <em>(choose 2–3)</em></p>",
         "options": [
           {
             "slug": "fruits-of-harvest",
@@ -1790,7 +1790,7 @@
       {
         "slug": "soul-on-fire",
         "label": "Soul on Fire",
-        "description": "<p>You once led a worldly life, full of fear and doubt, base pleasures and petty grudges. But something happened. Injury, illness, a brush with death. Or just a moment of such profound misery and self-loathing that you thought you could go no further.</p><p>There, in the dark, Helior's light shined upon you, igniting in your soul, lifting you and filling you with a profound sense of purpose.</p><p>When you <strong><em>Persuade a group by preaching charity, mercy, and hope and roll a 7+</em></strong>, aside from the usual effect, choose 1: <ul><li>Your name and your message spread</li><li>Someone approaches you, now or later, eager to know more.</li></ul></p>"
+        "description": "<p>You once led a worldly life, full of fear and doubt, base pleasures and petty grudges. But something happened. Injury, illness, a brush with death. Or just a moment of such profound misery and self-loathing that you thought you could go no further.</p><p>There, in the dark, Helior's light shined upon you, igniting in your soul, lifting you and filling you with a profound sense of purpose.</p><p>When you <strong><em>Persuade a group by preaching charity, mercy, and hope and roll a 7+</em></strong>, aside from the usual effect, choose 1:</p><ul><li>Your name and your message spread</li><li>Someone approaches you, now or later, eager to know more.</li></ul>"
       }
     ],
     "instincts": [
@@ -2680,7 +2680,7 @@
       {
         "slug": "wide-wanderer",
         "label": "Wide Wanderer",
-        "description": "<p>You have travelled much of the known world and perhaps parts beyond. Add each of the following to the Neighbors list in the Stonetop playbook, choosing 1 trait for each: <ul><li><strong>Ennis</strong> (from Marshedge)</li><li><strong>Shahar</strong> (from Gordin's Delve)</li><li><strong>Yannic</strong> (from the Hillfolk)</li><li><strong>Tovia</strong> (from Lygos)</li><li><strong>Sasca</strong> (from the northern Manmarch)</li></ul></p><p>You start with the <strong>Mental Map</strong> move.</p><p>When you <em>Know Things about the wider world</em>, you can roll +WIS instead of +INT. When you <em>arrive somewhere you've visited before</em> (your call), tell the GM when you were last here, and the GM will tell you how it's changed.</p>",
+        "description": "<p>You have travelled much of the known world and perhaps parts beyond. Add each of the following to the Neighbors list in the Stonetop playbook, choosing 1 trait for each:</p><ul><li><strong>Ennis</strong> (from Marshedge)</li><li><strong>Shahar</strong> (from Gordin's Delve)</li><li><strong>Yannic</strong> (from the Hillfolk)</li><li><strong>Tovia</strong> (from Lygos)</li><li><strong>Sasca</strong> (from the northern Manmarch)</li></ul><p>You start with the <strong>Mental Map</strong> move.</p><p>When you <em>Know Things about the wider world</em>, you can roll +WIS instead of +INT. When you <em>arrive somewhere you've visited before</em> (your call), tell the GM when you were last here, and the GM will tell you how it's changed.</p>",
         "setup": {
           "neighbors": [
             {

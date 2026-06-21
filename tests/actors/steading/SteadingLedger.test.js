@@ -111,13 +111,13 @@ describe("SteadingLedger", () => {
 		]);
 	});
 
-	it("records neighbor changes with origin and trait text", () => {
+	it("records neighbor changes with home and trait text", () => {
 		const actor = makeActor({
 			stonetop: {
 				steading: {
 					neighbors: [
-						{ name: "Ennis", origin: "Marshedge", trait: "generous", checked: true },
-						{ name: "Shahar", origin: "Gordin's Delve", trait: "", checked: false },
+						{ name: "Ennis", home: "Marshedge", traits: "generous", checked: true },
+						{ name: "Shahar", home: "Gordin's Delve", traits: "", checked: false },
 					],
 				},
 			},
@@ -128,9 +128,9 @@ describe("SteadingLedger", () => {
 				stonetop: {
 					steading: {
 						neighbors: [
-							{ name: "Ennis", origin: "Marshedge", trait: "wary", checked: true },
-							{ name: "Shahar", origin: "Gordin's Delve", trait: "ambitious", checked: true },
-							{ name: "Tovia", origin: "Lygos", trait: "", checked: true },
+							{ name: "Ennis", home: "Marshedge", traits: "wary", checked: true },
+							{ name: "Shahar", home: "Gordin's Delve", traits: "ambitious", checked: true },
+							{ name: "Tovia", home: "Lygos", traits: "", checked: true },
 						],
 					},
 				},

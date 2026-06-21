@@ -1,4 +1,4 @@
-import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { FrontOnOpen } from "../../../utils/front-on-open.js";
 import { stonetopChatCard, rollFormulaChip, rollResultNumber } from "../../../utils/chat.js";
 import { classifyResult, multiDieFaces } from "../../../utils/roll-engine.js";
 
@@ -15,7 +15,7 @@ export class DeathsDoorDialog extends Application {
 		this._character = character;
 		this._step = "overview"; // "overview" | "mechanics" | "results"
 		this._onDone = onDone;
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -32,13 +32,13 @@ export class DeathsDoorDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 		// Re-measure so the window always shrinks to fit the current step's content.
 		this.setPosition({ height: "auto" });
 	}
 
 	async close(options = {}) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		return super.close(options);
 	}
 
@@ -63,7 +63,7 @@ export class DeathsDoorDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 
 		html.find(".deaths-door-next-btn").on("click", () => this._onNext());
 		html.find(".deaths-door-back-btn").on("click", () => this._onBack());

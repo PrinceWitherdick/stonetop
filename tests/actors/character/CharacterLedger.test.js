@@ -62,6 +62,92 @@ describe("CharacterLedger", () => {
 		expect(entries.map(e => e.action)).toEqual(["Sacred pouch deselected"]);
 	});
 
+	it("records move resource changes by move name and resource title", async () => {
+		const actor = makeActor({}, { stonetop: { moves: { backgroundChoices: { "Rites of the Land": 1 } } } });
+		actor.typedActor = {
+			buildSnapshot: async () => ({
+				moves: [{ moves: [{ name: "Rites of the Land", resource: { title: "Favor" } }] }],
+			}),
+		};
+
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.moves.backgroundChoices": { "Rites of the Land": 3 },
+		});
+		expect(entries.map(e => e.action)).toEqual(["Rites of the Land - Favor changed from 1 to 3"]);
+	});
+
+	it("falls back to the move name when a move resource has no title", async () => {
+		const actor = makeActor({}, { stonetop: { moves: { backgroundChoices: {} } } });
+		actor.typedActor = {
+			buildSnapshot: async () => ({
+				moves: [{ moves: [{ name: "Untitled Track", resource: { title: null } }] }],
+			}),
+		};
+
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.moves.backgroundChoices": { "Untitled Track": 2 },
+		});
+		expect(entries.map(e => e.action)).toEqual(["Untitled Track resource set to 2"]);
+	});
+
+	it("names titled inventory resource tracks by their title (e.g. arcana charges)", async () => {
+		const actor = makeActor({}, { stonetop: { inventory: { resources: { "shell-game-of-souls": 0 } } } });
+		actor.typedActor = {
+			buildSnapshot: async () => ({
+				inventory: {
+					outfit: { arcanaItems: [{ slug: "shell-game-of-souls", name: "Shell Game of Souls", resource: { title: "Souls" } }] },
+				},
+			}),
+		};
+
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.inventory.resources.shell-game-of-souls": 2,
+		});
+		expect(entries.map(e => e.action)).toEqual(["Shell Game of Souls - Souls changed from 0 to 2"]);
+	});
+
+	it("falls back to 'resource' for untitled inventory tracks", async () => {
+		const actor = makeActor({}, { stonetop: { inventory: { resources: {} } } });
+		actor.typedActor = {
+			buildSnapshot: async () => ({
+				inventory: { outfit: { regularItems: [{ slug: "bow-arrows", name: "Bow & arrows", resource: { title: null, labels: ["low", "out"] } }] } },
+			}),
+		};
+
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.inventory.resources.bow-arrows": 1,
+		});
+		expect(entries.map(e => e.action)).toEqual(["Bow & arrows resource set to 1"]);
+	});
+
+	it("records count-style move marks by move name and option label", async () => {
+		const actor = makeActor({}, { stonetop: { moves: { moveMarks: { "Heroes to the Last": { "crew-hp": [] } } } } });
+		actor.typedActor = {
+			buildSnapshot: async () => ({
+				moves: [{ moves: [{ name: "Heroes to the Last", markOptions: [{ slug: "crew-hp", label: "Increase their max HP by 4 each" }] }] }],
+			}),
+		};
+
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.moves.moveMarks": { "Heroes to the Last": { "crew-hp": [{ stat: "", level: 6 }] } },
+		});
+		expect(entries.map(e => e.action)).toEqual(["Heroes to the Last - Increase their max HP by 4 each marked"]);
+	});
+
+	it("records stat-choice move marks with the chosen stat", async () => {
+		const actor = makeActor({ stats: { str: { value: 0 } } }, { stonetop: { moves: { moveMarks: { "Potential for Greatness": { stat: [] } } } } });
+		actor.typedActor = {
+			buildSnapshot: async () => ({
+				moves: [{ moves: [{ name: "Potential for Greatness", markOptions: [{ slug: "stat", label: "Increase the stat you rolled by 1, to a max of +2", choice: "stat" }] }] }],
+			}),
+		};
+
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.moves.moveMarks": { "Potential for Greatness": { stat: [{ stat: "str", level: 2 }] } },
+		});
+		expect(entries.map(e => e.action)).toEqual(["Potential for Greatness - Increase the stat you rolled by 1, to a max of +2: STR marked"]);
+	});
+
 	it("records background choices by choice label", async () => {
 		const actor = makeActor({}, { stonetop: { background: { choices: { enfys: false } } } });
 		actor.items = [{
@@ -146,6 +232,8 @@ describe("ledgerNoun", () => {
 		expect(ledgerNoun("Bow & arrows deselected")).toBe("Bow & arrows");
 		expect(ledgerNoun("Ambush learned")).toBe("Ambush");
 		expect(ledgerNoun("Ambush removed")).toBe("Ambush");
+		expect(ledgerNoun("Heroes to the Last - Increase their max HP by 4 each marked")).toBe("Heroes to the Last - Increase their max HP by 4 each");
+		expect(ledgerNoun("Veteran Crew - Select 2 new tags for your Crew unmarked")).toBe("Veteran Crew - Select 2 new tags for your Crew");
 	});
 
 	it("uses the type label as the noun for typed add/remove entries", () => {

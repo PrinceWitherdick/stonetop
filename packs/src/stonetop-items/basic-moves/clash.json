@@ -7,7 +7,7 @@
     "moveResults": {
       "success": {
         "label": "10+",
-        "value": "Your maneuver works as expected (deal your damage) and pick 1:</p><ul><li>Avoid, prevent, or counter your enemy's attack</li><li>Strike hard and fast, for 1d6 extra damage, but suffer your enemy's attack</li></ul>"
+        "value": "Your maneuver works as expected (deal your damage) and pick 1: Avoid, prevent, or counter your enemy's attack / Strike hard and fast, for 1d6 extra damage, but suffer your enemy's attack."
       },
       "partial": {
         "label": "7-9",

@@ -24,7 +24,7 @@
         {
           "slug": "wide-wanderer",
           "label": "Wide Wanderer",
-          "description": "<p>You have travelled much of the known world and perhaps parts beyond. Add each of the following to the Neighbors list in the Stonetop playbook, choosing 1 trait for each: <ul><li><strong>Ennis</strong> (from Marshedge)</li><li><strong>Shahar</strong> (from Gordin's Delve)</li><li><strong>Yannic</strong> (from the Hillfolk)</li><li><strong>Tovia</strong> (from Lygos)</li><li><strong>Sasca</strong> (from the northern Manmarch)</li></ul></p><p>You start with the <strong>Mental Map</strong> move.</p><p>When you <em>Know Things about the wider world</em>, you can roll +WIS instead of +INT. When you <em>arrive somewhere you've visited before</em> (your call), tell the GM when you were last here, and the GM will tell you how it's changed.</p>",
+          "description": "<p>You have travelled much of the known world and perhaps parts beyond. Add each of the following to the Neighbors list in the Stonetop playbook, choosing 1 trait for each:</p><ul><li><strong>Ennis</strong> (from Marshedge)</li><li><strong>Shahar</strong> (from Gordin's Delve)</li><li><strong>Yannic</strong> (from the Hillfolk)</li><li><strong>Tovia</strong> (from Lygos)</li><li><strong>Sasca</strong> (from the northern Manmarch)</li></ul><p>You start with the <strong>Mental Map</strong> move.</p><p>When you <em>Know Things about the wider world</em>, you can roll +WIS instead of +INT. When you <em>arrive somewhere you've visited before</em> (your call), tell the GM when you were last here, and the GM will tell you how it's changed.</p>",
           "setup": {
             "neighbors": [
               {

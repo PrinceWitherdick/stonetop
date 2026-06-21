@@ -63,8 +63,8 @@ function itemName(item) {
 
 function neighborLabel(item) {
 	const name = itemName(item);
-	const origin = String(item?.origin ?? "").trim();
-	return origin ? `${name} (from ${origin})` : name;
+	const home = String(item?.home ?? "").trim();
+	return home ? `${name} (from ${home})` : name;
 }
 
 function listEntries(label, oldValue, newValue) {
@@ -140,8 +140,8 @@ function neighborEntries(oldValue, newValue) {
 
 		if (oldName || newName) {
 			const name = newLabel || oldLabel;
-			const oldTrait = String(oldItem?.trait ?? "").trim();
-			const newTrait = String(newItem?.trait ?? "").trim();
+			const oldTrait = String(oldItem?.traits ?? "").trim();
+			const newTrait = String(newItem?.traits ?? "").trim();
 			if (oldTrait !== newTrait) {
 				if (!oldTrait && newTrait) entries.push({ action: `${name} trait set to ${newTrait}` });
 				else if (oldTrait && !newTrait) entries.push({ action: `${name} trait cleared (${oldTrait})` });

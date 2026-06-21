@@ -30,9 +30,11 @@
 					<li class="steading-residents-row">
 						<div class="steading-residents-col steading-residents-col-name steading-player-name-cell">
 							{{#if img}}
-							<img class="steading-player-portrait" src="{{img}}" alt="">
+							<img class="steading-player-portrait" src="{{img}}" alt=""
+							     {{#if playbookName}}data-tooltip="{{playbookName}}" data-tooltip-direction="UP"{{/if}}>
 							{{else}}
-							<span class="steading-player-portrait steading-player-portrait--empty">
+							<span class="steading-player-portrait steading-player-portrait--empty"
+							      {{#if playbookName}}data-tooltip="{{playbookName}}" data-tooltip-direction="UP"{{/if}}>
 								<i class="fas fa-user"></i>
 							</span>
 							{{/if}}

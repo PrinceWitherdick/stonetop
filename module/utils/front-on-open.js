@@ -1,15 +1,15 @@
 /**
- * Floats a Foundry Application above other windows *when it appears*, using
- * Foundry's own window stacking (`bringToTop`). This means a sheet-spawned
- * dialog opens above the sheet that spawned it, but — unlike a forced, static
- * high z-index — it still participates in normal stacking afterward, so Foundry
- * windows the user opens later (e.g. the Settings dialog) can come forward over
- * it.
+ * Brings a Foundry Application to the front *once, as it opens*, using Foundry's
+ * own window stacking (`bringToTop`). This means a sheet-spawned dialog opens
+ * above the sheet that spawned it, but — unlike a forced, static high z-index, or
+ * an observer that re-raises it — it does NOT stay on top: it participates in
+ * normal stacking afterward, so any window the user brings forward later (e.g. the
+ * Settings dialog, or the parent sheet) can sit over it.
  *
  * Extracted from CharacterOnboardingDialog's behavior so other sheet-spawned
  * dialogs (LevelUpDialog, DeathsDoorDialog, etc.) can share it.
  */
-export class KeepOnTop {
+export class FrontOnOpen {
 	/** @param {Application} app */
 	constructor(app) {
 		this._app = app;
@@ -36,53 +36,53 @@ export class KeepOnTop {
 }
 
 /**
- * Wires KeepOnTop into an arbitrary Application/Dialog instance by wrapping
+ * Wires FrontOnOpen into an arbitrary Application/Dialog instance by wrapping
  * its _render/activateListeners/close methods. Useful for ad-hoc `new Dialog(...)`
  * popups spawned from sheets, which can't be given their own subclass.
  * Safe to call before or after the app's first render.
  */
-export function attachKeepOnTop(app) {
-	if (app._keepOnTop) return app._keepOnTop;
-	const keepOnTop = new KeepOnTop(app);
-	app._keepOnTop = keepOnTop;
+export function attachFrontOnOpen(app) {
+	if (app._frontOnOpen) return app._frontOnOpen;
+	const frontOnOpen = new FrontOnOpen(app);
+	app._frontOnOpen = frontOnOpen;
 
 	const baseRender = app._render.bind(app);
 	app._render = async function (force, opts) {
 		await baseRender(force, opts);
-		keepOnTop.apply();
+		frontOnOpen.apply();
 	};
 
 	const baseActivateListeners = app.activateListeners.bind(app);
 	app.activateListeners = function (html) {
 		baseActivateListeners(html);
-		keepOnTop.start();
+		frontOnOpen.start();
 	};
 
 	const baseClose = app.close.bind(app);
 	app.close = async function (opts) {
-		keepOnTop.stop();
+		frontOnOpen.stop();
 		return baseClose(opts);
 	};
 
 	if (app.rendered) {
-		keepOnTop.apply();
-		keepOnTop.start();
+		frontOnOpen.apply();
+		frontOnOpen.start();
 	}
 
-	return keepOnTop;
+	return frontOnOpen;
 }
 
 /**
  * Render-callback hook for `new Dialog(...)`/`Dialog.confirm`/`Dialog.wait`
  * configs, none of which expose the Application instance directly. Resolves
  * it from the rendered html via the window app's data-appid, then attaches
- * KeepOnTop to it. Pass directly as `render`, or call from an existing one.
+ * FrontOnOpen to it. Pass directly as `render`, or call from an existing one.
  */
-export function keepDialogOnTop(html) {
+export function bringDialogToFront(html) {
 	const el = html?.closest?.(".window-app")?.[0];
 	const appId = el?.dataset?.appid;
 	const app = appId ? globalThis.ui?.windows?.[appId] : null;
-	if (app) attachKeepOnTop(app);
+	if (app) attachFrontOnOpen(app);
 }
 
 /**

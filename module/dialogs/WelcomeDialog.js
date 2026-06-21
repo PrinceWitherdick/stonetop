@@ -3,7 +3,7 @@ import { enrichHTML } from "../utils/foundry-compat.js";
 import { findVisibleJournal, settingOverviewPages, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { applyLocationTooltips } from "../locations/location-tooltips.js";
-import { keepDialogOnTop } from "../utils/keep-on-top.js";
+import { bringDialogToFront } from "../utils/front-on-open.js";
 import { FoundryBasicsDialog } from "./FoundryBasicsDialog.js";
 import { charactersOwnedBy } from "../utils/playbook-actors.js";
 
@@ -210,7 +210,7 @@ export class WelcomeDialog extends Application {
 					`<p>Creating a new character will <strong>permanently delete</strong> ${it}. ` +
 					`This can't be undone.</p>`,
 				defaultYes: false,
-				render:     keepDialogOnTop,
+				render:     bringDialogToFront,
 			});
 			if (!confirmed) return;
 

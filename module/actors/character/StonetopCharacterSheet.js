@@ -22,8 +22,9 @@ import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getSidebarCollapsed, setSidebarCollapsed} from "../../settings.js";
-import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
+import {attachFrontOnOpen, bringDialogToFront} from "../../utils/front-on-open.js";
+import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
@@ -607,6 +608,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			super(...args);
 			this._stonetopCharacter = this.actor.typedActor;
 
+			// Honor the "Open Sheets in Edit Mode" client setting on first open; the
+			// header wrench still toggles modes per-sheet afterward.
+			this._editMode = getOpenSheetsInEditMode();
+
 			// Reopen at the width this user last left this character's sheet.
 			const storedWidth = getCharacterSheetWidth(this.actor?.id);
 			if (storedWidth) {
@@ -955,7 +960,7 @@ export function createStonetopCharacterSheetClass(Base) {
 							title: "Delete Ledger Entries",
 							content: `<p>You're about to delete ${checked.length} entries. Are you sure?</p>`,
 							yes: doDelete,
-							render: keepDialogOnTop,
+							render: bringDialogToFront,
 							options: { classes: ["dialog", "stonetop-ledger-child"] },
 						});
 					});
@@ -965,7 +970,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				height: 640,
 				classes: ["dialog", "stonetop-ledger-window"],
 			});
-			attachKeepOnTop(ledgerDialog);
+			attachFrontOnOpen(ledgerDialog);
 			ledgerDialog.render(true);
 		}
 
@@ -1844,15 +1849,30 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 
 			html[0].addEventListener("click", ev => {
-				if (this._editMode) return;
 				const nameEl = ev.target.closest(".stonetop-item-name");
 				if (!nameEl) return;
+				// Move names stay "play-like" (open guided move / roll / post to chat) even in
+				// edit mode — only moves live inside a `.stonetop-move-group`. Other item names
+				// (equipment, details) keep the edit-mode guard so a stray click there doesn't
+				// fire a chat post while you're editing the sheet.
+				if (this._editMode && !nameEl.closest(".stonetop-move-group")) return;
 				ev.preventDefault();
 				const li = nameEl.closest("li");
 				const name = nameEl.textContent.trim();
 				const guide = GUIDED_CHARACTER_MOVES[name];
 				if (guide) {
 					this._openGuidedCharacterMove({ name, guide }, li?.querySelector(".rollable"));
+					return;
+				}
+				// With "Hide Rollable Icon" on, the dice icon is gone, so the move name
+				// becomes the roll trigger — forward to the (hidden) rollable the way the
+				// steading sheet does. Only rollable moves have a `.rollable`; description-
+				// only moves (no rollType, hence no icon) fall through and post to chat.
+				// Re-dispatch a click carrying the Shift state (a plain `.click()` would drop
+				// it) so "Shift to skip the modifier prompt" still works when rolling here.
+				const rollable = li?.querySelector(".rollable");
+				if (rollable && getHideRollableIconSetting()) {
+					rollable.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, shiftKey: ev.shiftKey }));
 					return;
 				}
 				const description = li.querySelector(".stonetop-item-description")?.innerHTML ?? "";
@@ -1885,21 +1905,28 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 				const askItem = this._statChoiceMoveForRollable(rollable);
 				if (askItem) {
-					this._promptStatChoice(askItem, rollable);
+					this._promptStatChoice(askItem, rollable, undefined, { shiftKey: ev.shiftKey });
 					return;
 				}
 				const altChoice = this._altStatChoiceForRollable(rollable);
 				if (altChoice) {
-					this._promptStatChoice(altChoice.item, rollable, altChoice.stats);
+					this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey: ev.shiftKey });
 					return;
 				}
-				const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable });
+				// Optional pre-roll modifier prompt for 2d6 move/stat rolls (not damage).
+				// Returns null when the player cancels the prompt — abort the roll then.
+				let situational = 0;
+				if (rollable.classList.contains("move-rollable") || _STAT_KEYS.has(rollable.dataset.roll)) {
+					situational = await this._maybePromptRollModifier({ shiftKey: ev.shiftKey, rollable });
+					if (situational === null) return;
+				}
+				const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { situational });
 				if (!handled) {
 					const roll = rollable.dataset.roll;
 					if (!roll) return;
 					if (_STAT_KEYS.has(roll)) {
 						// Stat roll (STR, DEX, etc.)
-						await this._stonetopCharacter.onDirectStatRoll(roll);
+						await this._stonetopCharacter.onDirectStatRoll(roll, { situational });
 					} else {
 						// Raw formula roll (e.g. damage die "d8")
 						let label;
@@ -2173,7 +2200,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
 			html.find(".stonetop-possession-sub-radio").on("change", this._onPossessionSubRadio.bind(this));
-			html.find(".stonetop-outfit-open-btn").on("click", this._onOutfitOpen.bind(this));
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
@@ -2335,7 +2361,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.customFollowers.${slug}`);
 						return this.actor.update({ [updKey]: val }).then(() => this.render(false));
 					},
-					render:  keepDialogOnTop,
+					render:  bringDialogToFront,
 				});
 			});
 
@@ -2433,7 +2459,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					title:   "Remove crew member",
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from the crew? This can't be undone.</p>`,
 					yes:     async () => { await this.actor.update(update); this.render(false); },
-					render:  keepDialogOnTop,
+					render:  bringDialogToFront,
 				});
 			});
 
@@ -2679,7 +2705,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					},
 					default: "add",
 					render: (dlgHtml) => {
-						keepDialogOnTop(dlgHtml);
+						bringDialogToFront(dlgHtml);
 						// Checkbox toggle: expand/collapse the chip
 						dlgHtml.find("[name='traits']").on("change", ev => {
 							const group   = ev.currentTarget.closest(".stonetop-trait-chip-group");
@@ -2766,7 +2792,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					title:   "Remove move",
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from your moves? This can't be undone.</p>`,
 					yes:     () => this._stonetopCharacter.removeMove(itemId),
-					render:  keepDialogOnTop,
+					render:  bringDialogToFront,
 				});
 			});
 
@@ -2794,7 +2820,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					title: game.i18n.localize("stonetop.arcana.identifyTitle"),
 					content: `<p>${game.i18n.localize("stonetop.arcana.identifyConfirm")}</p>`,
 					yes: () => this._stonetopCharacter.identifyArcanum(slug).then(() => this.render(false)),
-					render: keepDialogOnTop,
+					render: bringDialogToFront,
 				});
 			}, true);
 
@@ -2845,7 +2871,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					title:   "Remove arcanum",
 					content: `<p>Remove <strong>${escHtml(title)}</strong> from your arcana? This can't be undone.</p>`,
 					yes:     () => this._stonetopCharacter.removeArcanum(slug).then(() => this.render(true)),
-					render:  keepDialogOnTop,
+					render:  bringDialogToFront,
 				});
 			}, true);
 
@@ -3144,23 +3170,45 @@ export function createStonetopCharacterSheetClass(Base) {
 			return { item, stats: [defaultStat, ...alts] };
 		}
 
-		_promptStatChoice(item, rollable, statKeys = _STAT_KEYS) {
+		// Optional pre-roll modifier prompt, gated by the "Prompt for Roll Modifier"
+		// client setting. Returns the situational modifier to apply (0 when the setting
+		// is off or the prompt is skipped), or null when the player cancels the prompt so
+		// the caller can abort the roll. Holding Shift on the originating click skips it.
+		// Pass a `rollable` to derive the title from its move/stat, or an explicit `title`.
+		async _maybePromptRollModifier({ shiftKey = false, rollable = null, title = null } = {}) {
+			if (!getPromptRollModifierSetting()) return 0;
+			if (shiftKey) return 0;
+			const moveName = rollable?.closest(".stonetop-item")?.querySelector(".stonetop-item-name")?.textContent?.trim();
+			const statKey  = rollable?.dataset?.roll;
+			const resolvedTitle = title
+				|| moveName
+				|| (statKey && _STAT_KEYS.has(statKey) ? `Roll +${statKey.toUpperCase()}` : "Roll Modifier");
+			return promptRollModifier({ title: resolvedTitle });
+		}
+
+		_promptStatChoice(item, rollable, statKeys = _STAT_KEYS, { shiftKey = false } = {}) {
 			const stats = this.actor.system?.stats ?? {};
 			const buttons = {};
 			for (const key of statKeys) {
 				const value = stats[key]?.value ?? 0;
 				const label = Handlebars.helpers.statLabel(key);
 				buttons[key] = {
+					// Offer the modifier prompt once the stat is chosen, mirroring the inline
+					// roll path; Shift on the original click skips it, a cancel aborts the roll.
+					callback: async () => {
+						const situational = await this._maybePromptRollModifier({ shiftKey, title: item.name });
+						if (situational === null) return;
+						await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { statOverride: key, situational });
+					},
 					label: `${label} (${sign(value)})`,
-					callback: () => this._stonetopCharacter.onRoll({ currentTarget: rollable }, { statOverride: key }),
 				};
 			}
 			new Dialog({
 				title: `${item.name} — Choose a Stat`,
 				content: `<p>Which stat are you rolling with?</p>`,
 				buttons,
-				render: keepDialogOnTop,
-			}, { width: 480, classes: ["dialog", "stonetop-stat-picker-dialog"] }).render(true);
+				render: bringDialogToFront,
+			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-stat-picker-dialog"] }).render(true);
 		}
 
 		_guidedMoveForRollable(rollable) {
@@ -3216,9 +3264,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (rollable) {
 				buttons.roll = {
 					label: `Roll +${(rollable.dataset.roll ?? "").toUpperCase()}`,
+					// Prompt for the modifier before posting, so cancelling is a clean abort
+					// (nothing hits the chat). Title comes from the rollable's move/stat.
 					callback: async html => {
+						const situational = await this._maybePromptRollModifier({ rollable });
+						if (situational === null) return;
 						await this._postGuidedCharacterMove(name, guide, html);
-						await this._stonetopCharacter.onRoll({ currentTarget: rollable });
+						await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { situational });
 					},
 				};
 			} else if (guide.roll) {
@@ -3226,9 +3278,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				buttons.roll = {
 					label: fixedStat ? `Roll +${fixedStat.toUpperCase()}` : "Roll",
 					callback: async html => {
-						await this._postGuidedCharacterMove(name, guide, html);
 						const stat = fixedStat ?? html[0]?.querySelector('[name="guidedRollStat"]')?.value ?? "wis";
-						await this._stonetopCharacter.onDirectStatRoll(stat, { moveName: name });
+						const situational = await this._maybePromptRollModifier({ title: name });
+						if (situational === null) return;
+						await this._postGuidedCharacterMove(name, guide, html);
+						await this._stonetopCharacter.onDirectStatRoll(stat, { moveName: name, situational });
 					},
 				};
 			}
@@ -3244,8 +3298,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				</form>`,
 				buttons,
 				default: (rollable || guide.roll) ? "roll" : "post",
-				render: keepDialogOnTop,
-			}, { width: 520 }).render(true);
+				render: bringDialogToFront,
+			}, { width: 520, classes: ["dialog", "stonetop", "stonetop-character-move-dialog"] }).render(true);
 		}
 
 		async _postGuidedCharacterMove(name, guide, html) {
@@ -3424,8 +3478,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					},
 				},
 				default: "add",
-				render: keepDialogOnTop,
-			}).render(true);
+				render: bringDialogToFront,
+			}, { classes: ["dialog", "stonetop", "stonetop-add-item-dialog"] }).render(true);
 		}
 
 
@@ -3445,7 +3499,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					await this._stonetopCharacter.resetInventorySelections();
 					this.render(false);
 				},
-				render: keepDialogOnTop,
+				render: bringDialogToFront,
 			});
 		}
 
@@ -3455,15 +3509,23 @@ export function createStonetopCharacterSheetClass(Base) {
 			const el = ev.currentTarget;
 			const index    = Number(el.dataset.index);
 			const isSmall  = el.classList.contains("stonetop-small-pool-display");
-			// Cap = room left under the load limit after the items already marked. Trying
-			// to reserve past it (clicking an empty slot a draw left behind) can't take —
-			// explain why instead of silently snapping the mark back.
-			const cap = Number(el.closest(".stonetop-supplies-pool-diamonds")?.dataset.poolCap ?? Infinity);
+			const track    = el.closest(".stonetop-supplies-pool-diamonds");
+			// Cap = room left under the load limit after the items already marked. The track
+			// always shows the full capacity, so it includes empty slots past the cap; a
+			// click that would reserve beyond it is clamped to the cap. filledBefore = the
+			// reserve already showing (the .is-checked diamonds — that class is render-time,
+			// so the just-clicked box isn't counted yet), which tells us if there was room.
+			const cap = Number(track?.dataset.poolCap ?? Infinity);
+			const filledBefore = track?.querySelectorAll(".is-checked").length ?? 0;
 			let newCount = el.checked ? index + 1 : index;
 			if (el.checked && newCount > cap) {
-				ui.notifications.warn(game.i18n.localize(
-					isSmall ? "stonetop.inventory.smallPoolAtLimit" : "stonetop.inventory.regularPoolAtLimit"));
 				newCount = cap;
+				// Only warn when the reserve was already maxed (truly no room); otherwise
+				// the click just filled the remaining room up to the cap.
+				if (filledBefore >= cap) {
+					ui.notifications.warn(game.i18n.localize(
+						isSmall ? "stonetop.inventory.smallPoolAtLimit" : "stonetop.inventory.regularPoolAtLimit"));
+				}
 			}
 			if (isSmall) {
 				await this._stonetopCharacter.setInventorySmallPool(newCount);
@@ -3551,7 +3613,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				yes:        () => true,
 				no:         () => false,
 				defaultYes: false,
-				render:     keepDialogOnTop,
+				render:     bringDialogToFront,
 			});
 			if (!confirmed) return;
 
@@ -3629,8 +3691,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					},
 				},
 				default: "recover",
-				render: keepDialogOnTop,
-			}, { width: 480 }).render(true);
+				render: bringDialogToFront,
+			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-recover-dialog"] }).render(true);
 		}
 
 		async _applyRecover(html, { supplySlug, currentUses, oldHp, newHp }) {
@@ -3744,8 +3806,8 @@ export function createStonetopCharacterSheetClass(Base) {
 						},
 					},
 					default: "cancel",
-					render: keepDialogOnTop,
-				}).render(true);
+					render: bringDialogToFront,
+				}, { classes: ["dialog", "stonetop", "stonetop-new-character-confirm"] }).render(true);
 			} else {
 				openPicker();
 			}
@@ -3931,12 +3993,16 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		_backgroundSetupNeighbors(backgroundSetup, selections) {
 			const out = [];
+			// Playbook backgrounds author a neighbor's place of origin as `origin` and
+			// their trait as `trait`; the steading's Neighbors table stores these under
+			// `home` and `traits` (see _onNeighborChange / the neighbors partial), so map
+			// them across — the location belongs in the Home column, not Occupation.
 			for (const neighbor of (backgroundSetup?.neighbors ?? [])) {
 				if (!neighbor.name) continue;
 				out.push({
 					name: neighbor.name,
-					origin: neighbor.origin ?? "",
-					trait: neighbor.traitKey
+					home: neighbor.origin ?? "",
+					traits: neighbor.traitKey
 						? selections.backgroundSetup?.neighborTraits?.[neighbor.traitKey]?.trim() ?? ""
 						: neighbor.trait ?? "",
 					checked: true,
@@ -3948,8 +4014,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					if (!selected.has(option.value)) continue;
 					out.push({
 						name: option.name ?? option.value,
-						origin: option.origin ?? "",
-						trait: option.trait ?? "",
+						home: option.origin ?? "",
+						traits: option.trait ?? "",
 						checked: true,
 					});
 				}
@@ -3968,7 +4034,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const stonetopSteading = steadingActor.typedActor ?? new StonetopSteading(steadingActor);
 			const flags = resolvedFlagProperty(steadingActor, "steading") ?? {};
 			const neighbors = foundry.utils.deepClone(flags.neighbors ?? STEADING_DEFAULTS.neighbors);
-			const keyFor = neighbor => `${String(neighbor.name ?? "").trim().toLowerCase()}|${String(neighbor.origin ?? "").trim().toLowerCase()}`;
+			const keyFor = neighbor => `${String(neighbor.name ?? "").trim().toLowerCase()}|${String(neighbor.home ?? "").trim().toLowerCase()}`;
 
 			for (const addition of additions) {
 				const key = keyFor(addition);
@@ -3977,8 +4043,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (idx >= 0) {
 					neighbors[idx] = {
 						...neighbors[idx],
-						origin: addition.origin || neighbors[idx].origin || "",
-						trait: addition.trait || neighbors[idx].trait || "",
+						home: addition.home || neighbors[idx].home || "",
+						traits: addition.traits || neighbors[idx].traits || "",
 						checked: true,
 					};
 				} else {

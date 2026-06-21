@@ -2,7 +2,7 @@
 import { isMajorArcana } from "../../../arcana-icons.js";
 import { parseMovePickCount } from "../StonetopCharacter.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
-import { KeepOnTop, openJournalSheetAsChild } from "../../../utils/keep-on-top.js";
+import { FrontOnOpen, openJournalSheetAsChild } from "../../../utils/front-on-open.js";
 import { shuffle } from "../../../utils/arrays.js";
 import { normalizePlaybookGlyphs, composeInstinct, parseInstinct } from "../../../utils/strings.js";
 import { wrapStonetopGlyphsInEl } from "../../../utils/glyphs.js";
@@ -124,7 +124,7 @@ export class CharacterOnboardingDialog extends Application {
 			...Object.entries(LORE_TERM_TOOLTIPS),
 		]);
 		this._hoveredAnchor = null;
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 
 		this._initializeState(playbookDoc, initialSelections, startAtStep);
 	}
@@ -989,7 +989,7 @@ export class CharacterOnboardingDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 		this._reportProgress();
 	}
 
@@ -1477,7 +1477,7 @@ export class CharacterOnboardingDialog extends Application {
 		// are never matched, so a typed glyph in an answer is left untouched.
 		html.find(".stonetop-onboarding-card-desc, .stonetop-onboarding-card-inline-desc, .stonetop-onboarding-lore-desc, .stonetop-onboarding-lore-pick-text, .stonetop-onboarding-lore-text-label")
 			.each((_, el) => wrapStonetopGlyphsInEl(el));
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 
 		html.find(".stonetop-onboarding-back-to-picker").on("click", () => this._goBack());
 		html.find(".stonetop-onboarding-back").on("click", () => this._navigate(-1));
@@ -2299,12 +2299,12 @@ export class CharacterOnboardingDialog extends Application {
 			},
 			default: "continue",
 		}, {
-			classes: ["dialog", "stonetop-onboarding-child-dialog"],
+			classes: ["dialog", "stonetop", "stonetop-onboarding-child-dialog"],
 		}).render(true);
 	}
 
 	async close(options) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		this._clearPopups();
 		// Cancel any debounced live-save; the current answers are captured below
 		// (onExit) or were already committed (onComplete), and a late timer could

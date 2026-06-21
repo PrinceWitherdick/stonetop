@@ -1,4 +1,4 @@
-import { KeepOnTop } from "../utils/keep-on-top.js";
+import { FrontOnOpen } from "../utils/front-on-open.js";
 import { OCCUPATIONS, TRAITS, HOMES } from "../data/steading-members.js";
 
 const HOME_INFO_DIALOG_CLASS = "stonetop-asm-child-dialog";
@@ -72,7 +72,7 @@ export class AddSteadingMemberDialog extends Application {
 		this._onConfirm = onConfirm;
 		this._formData = { name: "", occupation: "", traits: "", relations: "", notes: "" };
 		if (type === "neighbor") this._formData.home = "";
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -87,11 +87,11 @@ export class AddSteadingMemberDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 	}
 
 	async close(options = {}) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		return super.close(options);
 	}
 
@@ -153,7 +153,7 @@ export class AddSteadingMemberDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 		const root = html[0];
 		// Track the suggestion set the template already rendered, so the first home
 		// keystroke that stays on the same pool doesn't trigger a needless rebuild.

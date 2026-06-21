@@ -1,4 +1,4 @@
-import { KeepOnTop } from "../utils/keep-on-top.js";
+import { FrontOnOpen } from "../utils/front-on-open.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { getSetting, setSetting } from "../settings.js";
 import { WEATHER_SEASONS, getWeatherSeason, rollWeather, rowRange } from "../utils/weather.js";
@@ -17,7 +17,7 @@ export class WeatherDialog extends Application {
 		// Restore the last-used season, defaulting to the first table.
 		const saved = getSetting(SEASON_SETTING);
 		this._season    = getWeatherSeason(saved) ? saved : WEATHER_SEASONS[0].key;
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static open() {
@@ -38,18 +38,18 @@ export class WeatherDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 	}
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 		html.find(".stonetop-weather-season").on("click", ev => this._pickSeason(ev.currentTarget.dataset.season));
 		html.find(".stonetop-weather-roll-btn").on("click", () => this._roll2());
 	}
 
 	async close(options = {}) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		return super.close(options);
 	}
 

@@ -12,7 +12,7 @@
 // Per-user grants the GM set by hand are left untouched — default is only the
 // floor, so this never clobbers an intentional one-off share.
 
-import { KeepOnTop } from "../utils/keep-on-top.js";
+import { FrontOnOpen } from "../utils/front-on-open.js";
 
 // Looked up lazily (not at module load) so the file imports cleanly outside
 // Foundry — e.g. under the unit tests — and never races the global's setup.
@@ -119,7 +119,7 @@ export class ShareJournalDialog extends Application {
 	constructor(journal, options = {}) {
 		super(options);
 		this.journal = journal;
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -136,11 +136,11 @@ export class ShareJournalDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 	}
 
 	async close(options = {}) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		return super.close(options);
 	}
 
@@ -156,7 +156,7 @@ export class ShareJournalDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 
 		const visibleCb = html.find(".stonetop-share-visible");
 		const ownerRow  = html.find(".stonetop-share-owner-row");

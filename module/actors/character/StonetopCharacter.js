@@ -101,19 +101,6 @@ function _transformPiercingNote(note, prosperity) {
 	return note.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
 }
 
-// Total ◇/□ a Have-What-You-Need check drew from a reserve across the given items.
-// `drawn` is keyed by slug; only *currently-marked* items still hold their draw — an
-// un-marked item's draw has been returned to the pool, so its entry (which can linger
-// if rapid toggles race) must be ignored or it would reserve phantom empty slots.
-// The marks of marked items stay visible (as empty slots) in the track.
-function _sumDrawn(drawn, items) {
-	let total = 0;
-	for (const item of items) {
-		if (item.checked) total += Number(drawn[item.slug]) || 0;
-	}
-	return total;
-}
-
 // A move can raise every load cap via its `loadBonus` field (the Ranger's Pack
 // Horse sets it to 1). The caps and the count→tier bucketing live in utils/load.js
 // so the sheet, snapshot defaults, and dialog can't drift.
@@ -488,16 +475,15 @@ export class StonetopCharacter {
 		const checkedRegularWeight = allRegularForLoad
 			.filter(i => i.checked).reduce((sum, i) => sum + (i.weight ?? 0), 0);
 		// The undefined pool can hold whatever's left under the heavy cap; the stored
-		// count is clamped to that so checking heavy loot naturally shrinks the reserve.
-		const drawn              = this._inventory.drawn;
+		// count is clamped to that so the reserve never pushes the load past heavy.
 		const regularPoolMax     = Math.max(0, loadLimits.heavy - checkedRegularWeight);
 		const regularPoolCurrent = Math.min(rPool, regularPoolMax);
-		// Reserve marks a Have-What-You-Need check drew into an item keep their slot in
-		// the displayed track (an empty ◇), instead of vanishing — only genuinely new
-		// loot (weight that wasn't drawn from here) shrinks the slot count. The track
-		// never grows past the load cap, so an overloaded carry can't sprout a 10th ◇
-		// (only a Pack Horse / loadBonus move raises the cap to 10).
-		const regularPoolSlots   = Math.min(loadLimits.heavy, regularPoolMax + _sumDrawn(drawn, allRegularForLoad));
+		// The ◇ track always shows the full load capacity, so the diamonds never vanish
+		// as you mark items: reserve that no longer fits under the cap simply renders as
+		// empty ◇ (clicking one warns you're at your limit — see regularPoolCap). Only a
+		// Pack Horse / loadBonus move raises the cap (to 10), so an overloaded carry still
+		// tops out at heavy rather than sprouting extra ◇.
+		const regularPoolSlots   = loadLimits.heavy;
 		const totalRegularMarks  = checkedRegularWeight + regularPoolCurrent;
 		const derivedLoadLevel   = deriveLoadLevel(totalRegularMarks, loadLimits);
 
@@ -525,9 +511,9 @@ export class StonetopCharacter {
 		const checkedSmallCount = [...smallItems, ...smallGridItems].filter(i => i.checked).length;
 		const smallPoolMax     = Math.max(0, (smallItemLimit ?? 9) - checkedSmallCount);
 		const smallPoolCurrent = Math.min(sPool, smallPoolMax);
-		// Likewise cap the □ track at the small-item allotment so marking past it can't
-		// add a phantom slot.
-		const smallPoolSlots   = Math.min(smallItemLimit ?? 9, smallPoolMax + _sumDrawn(drawn, [...smallItems, ...smallGridItems]));
+		// Like the ◇ track, the □ track always shows the full 4+Prosperity allotment, so
+		// boxes never vanish as small items are marked.
+		const smallPoolSlots   = smallItemLimit ?? 9;
 
 		const outfit = new OutfitSnapshotBuilder()
 			.withLoad(load)
@@ -968,7 +954,7 @@ export class StonetopCharacter {
 		await this.ensureStartingMoves();
 	}
 
-	async onRoll(event, { statOverride = null } = {}) {
+	async onRoll(event, { statOverride = null, situational = 0 } = {}) {
 		const itemId = event.currentTarget.closest(".item")?.dataset.itemId;
 		if (!itemId) return false;
 		const item = this._actor.items.get(itemId);
@@ -981,8 +967,11 @@ export class StonetopCharacter {
 		const rollMode = this.rollMode;
 		const forward  = descriptionOnly ? 0 : this._actor.system?.attributes?.forward?.value ?? 0;
 		const ongoing  = descriptionOnly ? 0 : this._actor.system?.attributes?.ongoing?.value ?? 0;
+		// A one-off situational modifier from the optional pre-roll prompt; the roll
+		// engine surfaces it as a "Situational" pill (modifier − forward − ongoing).
+		const situ     = descriptionOnly ? 0 : situational;
 
-		const modifier    = forward + ongoing;
+		const modifier    = forward + ongoing + situ;
 		const rollOptions = { rollMode, modifier, forward, ongoing, statOverride: stat };
 
 		await item.roll({ ...this.applyDebilityRollMode(stat, rollOptions), descriptionOnly });
@@ -995,17 +984,20 @@ export class StonetopCharacter {
 
 	async onDirectStatRoll(stat, extraOptions = {}) {
 		const { rollStat } = await import("../../utils/roll-engine.js");
+		const { situational = 0, ...rest } = extraOptions;
 		const rollMode = this.rollMode;
 		const forward  = this._actor.system?.attributes?.forward?.value ?? 0;
 		const ongoing  = this._actor.system?.attributes?.ongoing?.value ?? 0;
-		const modifier = forward + ongoing;
+		// `situational` is the one-off modifier from the optional pre-roll prompt; the
+		// roll engine renders it as a "Situational" pill (modifier − forward − ongoing).
+		const modifier = forward + ongoing + situational;
 
 		await rollStat(stat, this._actor, this.applyDebilityRollMode(stat, {
 			rollMode,
 			modifier,
 			forward,
 			ongoing,
-			...extraOptions,
+			...rest,
 		}));
 
 		if (forward !== 0) {

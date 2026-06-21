@@ -1,4 +1,4 @@
-import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { FrontOnOpen } from "../../../utils/front-on-open.js";
 import { creatureTypeFaIcon } from "../../../bestiary/creature-types.js";
 import {
 	FOLLOWER_COST_EXAMPLES,
@@ -21,7 +21,7 @@ export class MonsterToFollowerDialog extends Application {
 		this._addedTags = [];
 		this._cost      = "";
 		this._pronoun   = "";
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -38,12 +38,12 @@ export class MonsterToFollowerDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 		this.setPosition({ height: "auto" });
 	}
 
 	async close(options = {}) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		return super.close(options);
 	}
 
@@ -77,7 +77,7 @@ export class MonsterToFollowerDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 
 		html.find(".stonetop-mf-cancel").on("click", () => this.close());
 		html.find(".stonetop-mf-create").on("click", () => this._finish());

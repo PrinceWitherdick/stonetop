@@ -147,6 +147,7 @@ export function registerSettings() {
 		config: true,
 		type: String,
 		choices: {
+			"0.9":  "stonetop.settings.sheetFontScale.smaller",
 			"1":    "stonetop.settings.sheetFontScale.normal",
 			"1.1":  "stonetop.settings.sheetFontScale.large",
 			"1.25": "stonetop.settings.sheetFontScale.larger",
@@ -168,6 +169,56 @@ export function registerSettings() {
 		range: { min: 0, max: 3, step: 0.1 },
 		default: 1,
 		onChange: value => applyEditPencilRevealDelay(value),
+	});
+
+	// Hide the decorative dice (rollable) icon that marks rollable moves and stats.
+	// Rolling still works without it — clicking the move name or stat row fires the
+	// same roll. Drives the `stonetop-hide-rollable-icon` root class.
+	game.settings.register("stonetop_pwd", "hideRollableIcon", {
+		name: "stonetop.settings.hideRollableIcon.name",
+		hint: "stonetop.settings.hideRollableIcon.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: false,
+		onChange: value => applyHideRollableIcon(value),
+	});
+
+	// Prompt for a one-off situational modifier before each 2d6 move/stat roll on
+	// the character sheet (a held bonus, a GM-granted +1, etc.). Read at roll time
+	// (StonetopCharacterSheet); Shift-clicking the roll skips the prompt.
+	game.settings.register("stonetop_pwd", "promptRollModifier", {
+		name: "stonetop.settings.promptRollModifier.name",
+		hint: "stonetop.settings.promptRollModifier.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: false,
+	});
+
+	// Open actor sheets (character / steading / monster) in Edit mode instead of
+	// Play mode. Read once when the sheet is constructed; the header wrench still
+	// toggles modes per-sheet afterward.
+	game.settings.register("stonetop_pwd", "openSheetsInEditMode", {
+		name: "stonetop.settings.openSheetsInEditMode.name",
+		hint: "stonetop.settings.openSheetsInEditMode.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: false,
+	});
+
+	// Strip the decorative animations, transitions, and hover-zoom image popups
+	// from Stonetop UI for users who find them distracting or are motion-sensitive.
+	// Drives the `stonetop-reduce-motion` root class.
+	game.settings.register("stonetop_pwd", "reduceMotion", {
+		name: "stonetop.settings.reduceMotion.name",
+		hint: "stonetop.settings.reduceMotion.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: false,
+		onChange: value => applyReduceMotion(value),
 	});
 
 	// Remembers each character (playbook) sheet's width so it reopens at the size
@@ -347,6 +398,30 @@ export function applyEditPencilRevealDelay(value) {
 	const seconds = Number(value);
 	const safe    = Number.isFinite(seconds) && seconds >= 0 ? seconds : 1;
 	document.documentElement.style.setProperty("--st-edit-reveal-delay", `${safe}s`);
+}
+
+export function applyHideRollableIcon(value) {
+	document.documentElement.classList.toggle("stonetop-hide-rollable-icon", !!value);
+}
+
+export function applyReduceMotion(value) {
+	document.documentElement.classList.toggle("stonetop-reduce-motion", !!value);
+}
+
+// Whether to prompt for a one-off situational modifier before a move/stat roll.
+export function getPromptRollModifierSetting() {
+	return globalThis.game?.settings?.get?.("stonetop_pwd", "promptRollModifier") ?? false;
+}
+
+// Whether actor sheets should open in Edit mode rather than Play mode.
+export function getOpenSheetsInEditMode() {
+	return globalThis.game?.settings?.get?.("stonetop_pwd", "openSheetsInEditMode") ?? false;
+}
+
+// Whether the rollable dice icon is hidden; when it is, rolls fire from the move
+// name / stat row instead of the (now absent) icon.
+export function getHideRollableIconSetting() {
+	return globalThis.game?.settings?.get?.("stonetop_pwd", "hideRollableIcon") ?? false;
 }
 
 export function getSetting(key) {

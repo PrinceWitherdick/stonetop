@@ -290,6 +290,23 @@ body {
 	order: 10;
 }
 
+/* Slate primary look for the footer buttons of our own native Dialog popups — the
+   ones we tag `.stonetop` (guided moves like Struggle as One, Recover, the stat
+   picker, …) — so they match the custom Application modals (Outfit, Level Up). Scoped
+   to `.stonetop.dialog`: actor sheets aren't `.dialog` and other modules' dialogs
+   aren't `.stonetop`, so neither is touched. Font-family stays off the button here —
+   `.vtt .stonetop button` already sets it, and each FA `<i>` keeps its own icon font. */
+.vtt .stonetop.dialog .dialog-buttons button {
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+.vtt .stonetop.dialog .dialog-buttons button:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+	color: var(--st-btn-primary-text);
+}
+
 /* Strange Scene navigation bug fix */
 #navigation {
 	overflow: visible;
@@ -1876,6 +1893,80 @@ input.stonetop-name-field {
 	font-style: normal;
 }
 
+/* "Hide Rollable Icon" client setting (settings.js -> applyHideRollableIcon adds
+   this root class). Hides the decorative dice that marks rollable moves and stats.
+   Rolling is unaffected: clicking the move name or stat row fires the same roll
+   (StonetopCharacterSheet/StonetopSteadingSheet name handlers). Scoped to the
+   move/stat markers only — damage and monster roll dice are the sole click target
+   for their rolls, so they are deliberately left visible. */
+.stonetop-hide-rollable-icon .move-rollable,
+.stonetop-hide-rollable-icon .cell--stat.rollable .stat-icon {
+	display: none !important;
+}
+
+/* "Reduce Motion" client setting (settings.js -> applyReduceMotion adds this root
+   class). Strips the decorative animations, transitions, and hover-zoom image
+   popups from Stonetop UI for users who find them distracting or are motion-
+   sensitive. Scoped to .stonetop (our sheets + dialogs) so core and third-party
+   windows are untouched; the body-level hover popups are suppressed by name. */
+.stonetop-reduce-motion .stonetop,
+.stonetop-reduce-motion .stonetop *,
+.stonetop-reduce-motion .stonetop *::before,
+.stonetop-reduce-motion .stonetop *::after {
+	animation-duration: 0s !important;
+	animation-delay: 0s !important;
+	transition-duration: 0s !important;
+	transition-delay: 0s !important;
+}
+
+/* Suppress the on-hover image enlargements outright, not just their animation. */
+.stonetop-reduce-motion .stonetop-welcome-springicon-wrap::after,
+.stonetop-reduce-motion .stonetop-arcana-preview-popup {
+	display: none !important;
+}
+.stonetop-reduce-motion .stonetop-welcome-springicon,
+.stonetop-reduce-motion .stonetop-onboarding-arcana-thumb {
+	cursor: default !important;
+}
+
+/* Pre-roll modifier prompt (RollModifierDialog.js) — a centered −/＋ stepper around
+   a number input. Gated by the "Prompt for Roll Modifier" client setting. */
+
+/* Top/bottom breathing room on Foundry's bare 8px compatibility inset — the same
+   `4px 0 12px` rhythm the other ad-hoc move Dialogs use (.stonetop-homestead-dialog,
+   .stonetop-disaster-dialog), so the stepper isn't cramped against the title or the
+   Roll/Cancel row. */
+.stonetop-roll-modifier-form {
+	padding: 4px 0 12px;
+}
+
+.stonetop-roll-modifier-form .stonetop-roll-modifier-prompt {
+	margin: 0 0 8px;
+}
+.stonetop-roll-modifier-stepper {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+.stonetop-roll-modifier-stepper input[name="modifier"] {
+	width: 5em;
+	text-align: center;
+	font-size: var(--st-fs-lg);
+	font-weight: bold;
+}
+.stonetop-roll-modifier-step {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: calc(1.9em * var(--stonetop-font-scale, 1));
+	height: calc(1.9em * var(--stonetop-font-scale, 1));
+	flex: 0 0 auto;
+	padding: 0;
+	font-size: var(--st-fs-lg);
+	line-height: 1;
+}
+
 /* Basic move hover panel */
 .stonetop-basic-move-panel {
 	position: fixed;
@@ -1952,7 +2043,9 @@ input.stonetop-name-field {
 }
 
 .stonetop-section-note {
-	font-size: var(--st-fs-2xs);
+	/* Body-relative (not em) so it stays a small caption — em would inherit the
+	   enclosing <h3>'s enlarged size and render too big. Still honours font-scale. */
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	font-weight: normal;
 	color: var(--color-text-dark-secondary);
@@ -2232,7 +2325,6 @@ input.stonetop-name-field {
 .stonetop-readonly .steading-interactive-btn,
 .stonetop-readonly .stonetop-answer-character-questions-btn,
 .stonetop-readonly .steading-list-add,
-.stonetop-readonly .stonetop-outfit-open-btn,
 .stonetop-readonly .stonetop-deathsdoor-open-btn,
 .stonetop-readonly .stonetop-levelup-open-btn,
 .stonetop-readonly .stonetop-recover-open-btn,
@@ -2365,7 +2457,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description {
-	font-size: var(--font-size-12);
+	font-size: var(--font-size-13);
 	color: var(--st-text-body);
 	padding: 6px 8px;
 	border-bottom: 1px solid rgba(0,0,0,0.08);
@@ -3340,11 +3432,32 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 8px 10px;
 	margin-bottom: 12px;
 }
-.stonetop-requisition-roll-btn {
+/* Slate primary buttons, matching the custom Application modals. (RequisitionDialog
+   is a `.stonetop` Application, not a `.dialog`, so it styles its own buttons rather
+   than picking up the shared `.stonetop.dialog .dialog-buttons` rule.) */
+.stonetop-requisition-roll-btn,
+.stonetop-requisition-take,
+.stonetop-requisition-close {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
 	width: auto;
+	padding: 4px 12px;
 	cursor: pointer;
 	font-weight: bold;
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	border-radius: var(--st-radius-sm);
+	color: var(--st-btn-primary-text);
+	transition: background 0.15s;
 }
+.stonetop-requisition-roll-btn:hover,
+.stonetop-requisition-take:hover,
+.stonetop-requisition-close:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+}
+.stonetop-requisition-take:disabled { opacity: 0.5; cursor: not-allowed; }
 .stonetop-requisition-results { margin: 8px 0 0; padding-left: 18px; font-size: var(--st-fs-sm); color: var(--color-text-dark-secondary); }
 .stonetop-requisition-results li { margin: 2px 0; }
 .stonetop-requisition-heading,
@@ -7129,6 +7242,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: rgba(0,0,0,0.55);
 }
 
+/* Portrait doubles as the playbook badge: hover reveals the playbook name. */
+.steading-player-portrait[data-tooltip] {
+	cursor: help;
+}
+
 .steading-player-empty {
 	margin: 4px 0 0;
 	color: rgba(0,0,0,0.58);
@@ -7806,6 +7924,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
+	padding: 4px 0 12px;
+}
+
+/* "Add to which character?" picker — a lone labelled <select>. Same `4px 0 12px`
+   rhythm as the other ad-hoc move Dialogs so it isn't cramped against Foundry's
+   bare 8px inset. */
+.stonetop-tb-char-pick {
 	padding: 4px 0 12px;
 }
 

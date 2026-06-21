@@ -1,4 +1,4 @@
-import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { FrontOnOpen } from "../../../utils/front-on-open.js";
 import { getHoverDescriptionSetting } from "../../../settings.js";
 import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
 import { wrapStonetopGlyphsInEl } from "../../../utils/glyphs.js";
@@ -7,7 +7,7 @@ import { LOAD_LEVEL_LIMITS, deriveLoadLevel } from "../../../utils/load.js";
 export class OutfitMoveDialog extends Application {
 	constructor(character, outfitSnapshot, onDone, options = {}) {
 		super(options);
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 		this._character      = character;
 		this._regularItems   = outfitSnapshot.regularSegments.flatMap(seg => seg.items);
 		this._smallItems     = [
@@ -45,11 +45,11 @@ export class OutfitMoveDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 	}
 
 	async close(options = {}) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		return super.close(options);
 	}
 
@@ -135,7 +135,7 @@ export class OutfitMoveDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 
 		// Gear-term hover descriptions (e.g. "near", "forceful", "x piercing") on
 		// item notes — the dialog isn't an actor sheet, so onRenderActorSheet's

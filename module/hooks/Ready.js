@@ -1,7 +1,7 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { seedCompendiumJournalsOnce, updateSeededJournalsOnVersionChange } from "./SeedCompendiums.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, getSetting, setSetting } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
@@ -45,6 +45,8 @@ export async function onReady() {
 	applySheetFont(getSetting("sheetFont"));
 	applySheetFontScale(getSetting("sheetFontScale"));
 	applyEditPencilRevealDelay(getSetting("editPencilRevealDelay"));
+	applyHideRollableIcon(getSetting("hideRollableIcon"));
+	applyReduceMotion(getSetting("reduceMotion"));
 	await _migrateArmourToArmor();
 	await runStartupMigrations();
 	await ensureStonetopSingleton();

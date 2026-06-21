@@ -51,7 +51,7 @@ export function warnCompendiumImmutable(doc) {
 		buttons: { ok: { icon: '<i class="fas fa-check"></i>', label: "Got it" } },
 		default: "ok",
 		close: () => { _dialogOpen = false; },
-	}).render(true);
+	}, { classes: ["dialog", "stonetop", "stonetop-compendium-immutable-dialog"] }).render(true);
 }
 
 /**

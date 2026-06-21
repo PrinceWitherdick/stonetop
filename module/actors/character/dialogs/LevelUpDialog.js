@@ -1,4 +1,4 @@
-import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { FrontOnOpen } from "../../../utils/front-on-open.js";
 import { markProseSpiralBullets } from "../../../utils/journal-spiral-bullets.js";
 
 export class LevelUpDialog extends Application {
@@ -11,7 +11,7 @@ export class LevelUpDialog extends Application {
 		this._selectedInvocationSlug = null;
 		this._showLockedMoves        = false;
 		this._onDone = onDone;
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -28,11 +28,11 @@ export class LevelUpDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 	}
 
 	async close(options = {}) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		return super.close(options);
 	}
 
@@ -93,7 +93,7 @@ export class LevelUpDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 
 		// Move / invocation descriptions are enriched move HTML that can contain
 		// bulleted option lists; give them the same spiral bullets as the sheet.

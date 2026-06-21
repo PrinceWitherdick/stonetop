@@ -9,15 +9,15 @@
     "moveResults": {
       "success": {
         "label": "10+",
-        "value": "<p>Your actions are your own.</p>"
+        "value": "Your actions are your own."
       },
       "partial": {
         "label": "7-9",
-        "value": "<p>Choose 1: struggle for control until something snaps you out of it, start acting as compelled (putting yourself or an ally in a spot), or harm yourself (d6 damage, ignores armor) to regain control.</p>"
+        "value": "Choose 1: struggle for control until something snaps you out of it, start acting as compelled (putting yourself or an ally in a spot), or harm yourself (d6 damage, ignores armor) to regain control."
       },
       "failure": {
         "label": "6-",
-        "value": "<p>You come to your senses later, having done gods-know-what.</p>"
+        "value": "You come to your senses later, having done gods-know-what."
       }
     }
   },

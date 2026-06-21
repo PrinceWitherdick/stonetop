@@ -1,4 +1,4 @@
-import { KeepOnTop } from "../../../utils/keep-on-top.js";
+import { FrontOnOpen } from "../../../utils/front-on-open.js";
 import { rollStat, sign } from "../../../utils/roll-engine.js";
 import { StonetopSteading } from "../../steading/StonetopSteading.js";
 
@@ -23,7 +23,7 @@ export class RequisitionDialog extends Application {
 		this._steadingActor = steadingActor;
 		this._steading = new StonetopSteading(steadingActor);
 		this._onChange = onChange;
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -40,11 +40,11 @@ export class RequisitionDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 	}
 
 	async close(options = {}) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		return super.close(options);
 	}
 
@@ -62,7 +62,7 @@ export class RequisitionDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 		const root = html[0];
 
 		root.querySelector(".stonetop-requisition-roll-btn")?.addEventListener("click", () => {

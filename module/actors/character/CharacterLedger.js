@@ -58,6 +58,12 @@ const FLAG_NAMESPACE_LABELS = {
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
 const INVENTORY_CHECKED_PREFIX = "flags.stonetop_pwd.inventory.checked.";
 const INVENTORY_RESOURCE_PREFIX = "flags.stonetop_pwd.inventory.resources.";
+// Move resource tracks (e.g. the Blessed's "Rites of the Land" Favor) are keyed
+// by move name under the misnamed "backgroundChoices" sub-flag (see MoveResources).
+const MOVE_RESOURCE_PREFIX = "flags.stonetop_pwd.moves.backgroundChoices.";
+// Per-option advancement marks (e.g. Potential for Greatness): keyed
+// "<moveName>.<optionSlug>", each an array of { stat, level } entries.
+const MOVE_MARKS_PREFIX = "flags.stonetop_pwd.moves.moveMarks.";
 const BACKGROUND_CHOICES_PREFIX = "flags.stonetop_pwd.background.choices.";
 const INITIATES_LOYALTY_PREFIX = "flags.stonetop_pwd.initiatesLoyalty.";
 const ANIMAL_COMPANION_PREFIX = "flags.stonetop_pwd.animalCompanion.";
@@ -122,6 +128,8 @@ const LEDGER_VERB_MARKERS = [
 	" cleared",
 	" selected",
 	" deselected",
+	" marked",
+	" unmarked",
 	" learned",
 	" removed",
 	" added",
@@ -206,9 +214,12 @@ function addPossessionChoiceNames(names, possession) {
 async function buildNameLookup(actor) {
 	const names = {
 		inventory: new Map(),
+		inventoryResourceTitles: new Map(),
 		possessions: new Map(),
 		possessionChoices: new Map(),
 		backgroundChoices: new Map(),
+		moveResourceTitles: new Map(),
+		moveMarkOptions: new Map(),
 		followers: new Map(),
 		crewIndividuals: new Map(),
 		followerFields: new Map([
@@ -248,7 +259,11 @@ async function buildNameLookup(actor) {
 			...(outfit?.smallGridItems ?? []),
 			...(outfit?.arcanaItems ?? []),
 		]) {
-			if (item?.slug) names.inventory.set(item.slug, stripHtml(item.name) ?? prettifySlug(item.slug));
+			if (!item?.slug) continue;
+			names.inventory.set(item.slug, stripHtml(item.name) ?? prettifySlug(item.slug));
+			// Titled resource tracks (e.g. an arcanum's "Souls") name the track in the
+			// ledger; untitled tracks (e.g. "Bow & arrows" ammo) just say "resource".
+			if (item.resource?.title) names.inventoryResourceTitles.set(item.slug, stripHtml(item.resource.title));
 		}
 		for (const item of snapshot?.inventory?.other ?? []) {
 			if (item?.ownedId) names.inventory.set(item.ownedId, stripHtml(item.name) ?? prettifySlug(item.ownedId));
@@ -262,6 +277,15 @@ async function buildNameLookup(actor) {
 			for (const choice of background.choices?.options ?? []) {
 				addBackgroundChoice(choice);
 				if (background.slug === "initiate") addFollower(`initiate:${choice.slug}`, choice.label);
+			}
+		}
+		for (const category of snapshot?.moves ?? []) {
+			for (const move of category?.moves ?? []) {
+				if (!move?.name) continue;
+				if (move.resource?.title) names.moveResourceTitles.set(move.name, stripHtml(move.resource.title));
+				for (const opt of move.markOptions ?? []) {
+					if (opt?.slug) names.moveMarkOptions.set(`${move.name}:${opt.slug}`, { label: stripHtml(opt.label) ?? prettifySlug(opt.slug), choice: opt.choice ?? null });
+				}
 			}
 		}
 		for (const follower of snapshot?.followers?.initiates ?? []) {
@@ -297,10 +321,52 @@ function inventorySelectionEntry(path, oldValue, newValue, names) {
 	return { action: `${itemName} ${newValue ? "selected" : "deselected"}` };
 }
 
+// "<Name> - <Title>" for a titled track (an arcanum's "Souls", the Blessed's
+// "Favor"), else "<Name> resource". Shared by inventory- and move-resource tracks.
+function resourceEntry(name, title, oldValue, newValue) {
+	const label = title ? `${name} - ${title}` : `${name} resource`;
+	return { action: actionForField(label, oldValue, newValue) };
+}
+
 function inventoryResourceEntry(path, oldValue, newValue, names) {
 	const slug = path.slice(INVENTORY_RESOURCE_PREFIX.length);
-	const itemName = nameFrom(names.inventory, slug);
-	return { action: `${itemName} resource changed from ${formatValue(oldValue)} to ${formatValue(newValue)}` };
+	return resourceEntry(nameFrom(names.inventory, slug), names.inventoryResourceTitles.get(slug), oldValue, newValue);
+}
+
+function moveResourceEntry(path, oldValue, newValue, names) {
+	const moveName = path.slice(MOVE_RESOURCE_PREFIX.length);
+	return resourceEntry(moveName, names.moveResourceTitles.get(moveName), oldValue, newValue);
+}
+
+function moveMarkEntries(path, oldValue, newValue, names) {
+	const key        = path.slice(MOVE_MARKS_PREFIX.length);
+	const dot        = key.lastIndexOf(".");
+	const moveName   = dot >= 0 ? key.slice(0, dot) : key;
+	const optionSlug = dot >= 0 ? key.slice(dot + 1) : key;
+	const option     = names.moveMarkOptions.get(`${moveName}:${optionSlug}`);
+	const subject    = `${moveName} - ${option?.label ?? prettifySlug(optionSlug)}`;
+	const oldEntries = Array.isArray(oldValue) ? oldValue : [];
+	const newEntries = Array.isArray(newValue) ? newValue : [];
+
+	// Stat-choice marks (Potential for Greatness): each slot picks a stat. Report
+	// every slot whose chosen stat changed. The +1/-1 to the stat itself rides the
+	// same update and is logged separately, so this just attributes it to the move.
+	if (option?.choice === "stat") {
+		const slots = Math.max(oldEntries.length, newEntries.length);
+		const entries = [];
+		for (let i = 0; i < slots; i++) {
+			const oldStat = oldEntries[i]?.stat ?? "";
+			const newStat = newEntries[i]?.stat ?? "";
+			if (oldStat === newStat) continue;
+			if (oldStat) entries.push({ action: `${subject}: ${oldStat.toUpperCase()} unmarked` });
+			if (newStat) entries.push({ action: `${subject}: ${newStat.toUpperCase()} marked` });
+		}
+		return entries;
+	}
+
+	// Count-style marks (a checkbox track): report the net direction of the change.
+	if (oldEntries.length === newEntries.length) return [];
+	return [{ action: `${subject} ${newEntries.length > oldEntries.length ? "marked" : "unmarked"}` }];
 }
 
 function backgroundChoiceEntry(path, oldValue, newValue, names) {
@@ -390,6 +456,8 @@ function possessionChoiceUsesEntry(path, oldValue, newValue, names) {
 function granularEntriesForPath(path, oldValue, newValue, names) {
 	if (path.startsWith(INVENTORY_CHECKED_PREFIX)) return [inventorySelectionEntry(path, oldValue, newValue, names)].filter(Boolean);
 	if (path.startsWith(INVENTORY_RESOURCE_PREFIX)) return [inventoryResourceEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(MOVE_RESOURCE_PREFIX)) return [moveResourceEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(MOVE_MARKS_PREFIX)) return moveMarkEntries(path, oldValue, newValue, names);
 	if (path.startsWith(BACKGROUND_CHOICES_PREFIX)) return [backgroundChoiceEntry(path, oldValue, newValue, names)].filter(Boolean);
 	if (path.startsWith(INITIATES_LOYALTY_PREFIX)) return [initiateLoyaltyEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(ANIMAL_COMPANION_PREFIX)) return [animalCompanionEntry(path, oldValue, newValue, names)];

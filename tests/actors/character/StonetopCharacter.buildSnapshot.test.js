@@ -631,7 +631,7 @@ describe("buildSnapshot — inventory.outfit", () => {
 		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 5, max: 9, title: null, labels: []});
 	});
 
-	it("regularPool max is the heavy cap minus checked item weight", async () => {
+	it("regularPool always shows the full heavy cap of slots, regardless of checked item weight", async () => {
 		const actor = new FakeActorBuilder()
 			.withFlag("inventory.checked", {"big-load": true})
 			.withFlag("inventory.regularPool", 7)
@@ -639,14 +639,15 @@ describe("buildSnapshot — inventory.outfit", () => {
 		const snap = await new TestCharacterBuilder(actor)
 			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({slug: "big-load", weight: 6})]))
 			.build().buildSnapshot();
-		// 6 of the 9-◇ heavy cap is spoken for, so the pool tops out at 3.
-		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 3, max: 3});
+		// The 9-◇ track never collapses: only 3 fit under the cap (so 3 stay filled), but
+		// the row still shows all 9 — the rest render as empty ◇ rather than vanishing.
+		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 3, max: 9});
 	});
 
-	it("regularPool keeps a slot for each ◇ a Have-What-You-Need check drew (shown empty, not vanished)", async () => {
+	it("regularPool reserve drawn into an item shows as empty ◇, not a collapsed track", async () => {
 		// Reserve was 7; checking a weight-4 item drew all 4 from it, leaving 3 stored.
-		// The 4 drawn ◇ moved onto the item but keep their slots in the track as empties,
-		// so the displayed length stays at the heavy cap instead of collapsing.
+		// The 4 drawn ◇ moved onto the item; the track still shows the full cap, so they
+		// read as empty slots instead of disappearing.
 		const actor = new FakeActorBuilder()
 			.withFlag("inventory.checked", {"big-load": true})
 			.withFlag("inventory.drawn", {"big-load": 4})
@@ -655,34 +656,30 @@ describe("buildSnapshot — inventory.outfit", () => {
 		const snap = await new TestCharacterBuilder(actor)
 			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({slug: "big-load", weight: 4})]))
 			.build().buildSnapshot();
-		// 3 reserved ◇ remain filled; the 4 drawn render as empty slots (max 5 + 4 drawn = 9).
 		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 3, max: 9});
 	});
 
-	it("regularPool slots shrink only for loot weight that wasn't drawn from the reserve", async () => {
-		// Weight-6 item drew 4 ◇ from the reserve; the other 2 weight is fresh loot.
-		// Only that loot shrinks the track, so the 4 drawn still show as empty slots.
+	it("regularPool keeps the full track as loot fills it, with the cap reporting room left", async () => {
+		// Weight-6 item leaves only 3 ◇ of room under the cap. The track still shows all 9
+		// (current 3 filled, the rest empty); the reservable ceiling (cap) is the room left.
 		const actor = new FakeActorBuilder()
 			.withFlag("inventory.checked", {"big-load": true})
-			.withFlag("inventory.drawn", {"big-load": 4})
 			.withFlag("inventory.regularPool", 3)
 			.build();
 		const snap = await new TestCharacterBuilder(actor)
 			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({slug: "big-load", weight: 6})]))
 			.build().buildSnapshot();
-		// Cap 9 − 2 loot = 7 slots; 3 reserved filled, 4 drawn empty.
-		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 3, max: 7});
-		// The reservable ceiling is the room left under the cap (3), below the 7 shown
-		// slots — clicking past it is what the "at your limit" toast guards.
+		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 3, max: 9});
+		// The cap is the room left under the load limit (3) — clicking an empty slot past
+		// it is what the "at your limit" toast guards.
 		expect(snap.inventory.outfit.regularPoolCap).toBe(3);
 	});
 
-	it("regularPool never shows more than the heavy cap when overloaded (no 10th ◇ without Pack Horse)", async () => {
-		// Overloaded by a heavy item; a large lingering draw would otherwise push the
-		// track past 9. The cap holds it at the heavy limit (9 with no load-bonus move).
+	it("regularPool stays at the heavy cap when overloaded (no 10th ◇ without Pack Horse)", async () => {
+		// Overloaded by a heavy item: no room for any reserve (current 0), but the track
+		// still shows the full 9-◇ capacity — all empty — rather than collapsing or growing.
 		const actor = new FakeActorBuilder()
 			.withFlag("inventory.checked", {"anvil": true})
-			.withFlag("inventory.drawn", {"anvil": 10})
 			.build();
 		const snap = await new TestCharacterBuilder(actor)
 			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({slug: "anvil", weight: 11})]))
@@ -691,23 +688,19 @@ describe("buildSnapshot — inventory.outfit", () => {
 		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 0, max: 9});
 	});
 
-	it("Pack Horse raises the overloaded ◇ ceiling to 10", async () => {
+	it("Pack Horse raises the ◇ track to 10", async () => {
 		const actor = new FakeActorBuilder()
-			.withFlag("inventory.checked", {"anvil": true})
-			.withFlag("inventory.drawn", {"anvil": 12})
 			.addItem({type: "move", name: "Pack Horse", system: {moveType: "playbook", loadBonus: 1}})
 			.build();
-		const snap = await new TestCharacterBuilder(actor)
-			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({slug: "anvil", weight: 12})]))
-			.build().buildSnapshot();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
 		expect(snap.inventory.outfit.regularPool.max).toBe(10);
 	});
 
-	it("smallPool never shows more boxes than the 4+Prosperity allotment", async () => {
-		// Defensive: an oversized/stale draw can't push the □ track past the allotment.
+	it("smallPool always shows exactly the 4+Prosperity allotment of boxes", async () => {
+		// Marking small items never collapses the track: it stays at the full allotment,
+		// with marked items' boxes rendering as empties rather than vanishing.
 		const actor = new FakeActorBuilder()
 			.withFlag("inventory.checked", {"trinket": true})
-			.withFlag("inventory.drawn", {"trinket": 12})
 			.build();
 		const snap = await new TestCharacterBuilder(actor)
 			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({slug: "trinket", inventoryColumn: "small"})]))
@@ -725,22 +718,6 @@ describe("buildSnapshot — inventory.outfit", () => {
 			.build().buildSnapshot();
 		expect(snap.inventory.outfit.regularPoolCap).toBe(3); // 9 heavy − 6 marked weight
 		expect(snap.inventory.outfit.smallPoolCap).toBe(9);   // no small items marked
-	});
-
-	it("regularPool ignores a stale draw left on an un-marked item (no phantom slots)", async () => {
-		// A racing un-mark can leave a `drawn` entry behind after the item is unchecked.
-		// That reserve is already back in the pool, so it must not also reserve a slot —
-		// otherwise the track balloons past the heavy cap.
-		const actor = new FakeActorBuilder()
-			.withFlag("inventory.checked", {"big-load": false})
-			.withFlag("inventory.drawn", {"big-load": 4})
-			.withFlag("inventory.regularPool", 9)
-			.build();
-		const snap = await new TestCharacterBuilder(actor)
-			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({slug: "big-load", weight: 4})]))
-			.build().buildSnapshot();
-		// Nothing marked → full 9-◇ cap, all reserved; the stale draw adds no extra slots.
-		expect(snap.inventory.outfit.regularPool).toMatchObject({current: 9, max: 9});
 	});
 
 	it("smallPool has unified resource shape", async () => {

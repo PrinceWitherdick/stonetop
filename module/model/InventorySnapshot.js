@@ -114,15 +114,14 @@ export class OutfitSnapshot {
 		this.regularItems    = b._regularItems;
 		this.regularSegments = b._regularSegments;
 		this.regularPool      = b._regularPool;
-		this.regularPoolEmpty = (b._regularPool?.current ?? 0) === 0;
 		// True reservable ceiling for the undefined pool (room left under the load cap
-		// after marked items), distinct from regularPool.max which also counts the empty
-		// slots a Have-What-You-Need draw left behind. Drives the "at your limit" toast.
+		// after marked items). The track itself (regularPool.max) always shows the full
+		// load capacity, so this smaller cap is what drives the "at your limit" toast when
+		// a player clicks an empty slot past the room they actually have.
 		this.regularPoolCap   = b._regularPoolCap ?? 0;
 		this.smallItems       = b._smallItems;
 		this.smallGridItems   = b._smallGridItems;
 		this.smallPool        = b._smallPool;
-		this.smallPoolEmpty   = (b._smallPool?.current ?? 0) === 0;
 		this.smallPoolCap     = b._smallPoolCap ?? 0;
 		this.arcanaItems     = b._arcanaItems ?? [];
 		this.smallItemLimit  = b._smallItemLimit ?? null;

@@ -9,7 +9,7 @@ import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
 import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDialog.js";
 import {CharacterInventory} from "../character/CharacterInventory.js";
 import {SPECIAL_ITEM_CATALOG} from "../../data/special-items.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getSidebarCollapsed, setSidebarCollapsed} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode} from "../../settings.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
@@ -318,6 +318,8 @@ export function createStonetopSteadingSheetClass(Base) {
 		constructor(...args) {
 			super(...args);
 			this._stonetopSteading = this.actor.typedActor;
+			// Honor the "Open Sheets in Edit Mode" client setting on first open.
+			this._editMode = getOpenSheetsInEditMode();
 		}
 
 		static get defaultOptions() {
@@ -1054,6 +1056,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				},
 			}, {
 				width: 520,
+				classes: ["dialog", "stonetop", "stonetop-homestead-move-dialog"],
 			});
 			dialog.render(true);
 		}
@@ -1096,7 +1099,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					},
 					default: "add",
 					close: () => resolve(null),
-				}).render(true);
+				}, { classes: ["dialog", "stonetop", "stonetop-tb-char-pick-dialog"] }).render(true);
 			});
 		}
 
@@ -1167,7 +1170,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						},
 					},
 					default: "apply",
-				}).render(true);
+				}, { classes: ["dialog", "stonetop", "stonetop-disaster-move-dialog"] }).render(true);
 				return;
 			}
 
@@ -1227,7 +1230,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						});
 					});
 				},
-			});
+			}, { classes: ["dialog", "stonetop", "stonetop-disaster-move-dialog"] });
 			dialog.render(true);
 		}
 
@@ -1297,7 +1300,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						ui.notifications.info(`Fortunes reduced to ${sign(newFortunes)}.`);
 					});
 				},
-			}, { width: 520 });
+			}, { width: 520, classes: ["dialog", "stonetop", "stonetop-homestead-move-dialog"] });
 			dialog.render(true);
 		}
 
@@ -1326,7 +1329,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						});
 					});
 				},
-			});
+			}, { classes: ["dialog", "stonetop", "stonetop-season-picker-dialog"] });
 			dialog.render(true);
 		}
 
@@ -1571,7 +1574,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						}
 					});
 				},
-			});
+			}, { classes: ["dialog", "stonetop", "stonetop-season-flow-dialog"] });
 			dialog.render(true);
 		}
 
@@ -1668,7 +1671,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				},
 				default: "add",
 				render: (html) => html.find("[name=entry-name]").focus(),
-			}).render(true);
+			}, { classes: ["dialog", "stonetop", "stonetop-steading-add-dialog"] }).render(true);
 		}
 
 		async _onListItemDelete(list, index) {

@@ -76,8 +76,6 @@
       },
       "outfit": {
         "title": "Outfit",
-        "button": "Open Outfit Move",
-        "summary": "When you <em><strong>prepare for an expedition in a friendly community</strong></em>, mark which items you wish to carry.",
         "description": "When you <em><strong>prepare for an expedition in a friendly community</strong></em>, mark as many &loz; on your Inventory insert as you wish to carry, either on specific items or in \"undefined.\" Mark up to 3 &loz; for a light load (quick and quiet), 4-6 &loz; for a normal load, or 7-9 &loz; for a heavy load (noisy, slow, quick to tire). Also, mark a number of &#9633; in the Small items section equal to 4+Prosperity (on specific items or \"undefined\").",
         "selectIntro": "You can select:",
         "selectPrinted": "Items printed on the Inventory insert",
@@ -181,6 +179,7 @@
       "sheetFontScale": {
         "name": "Sheet Font Size",
         "hint": "Scale the text on Stonetop sheets and dialogs to make it easier to read.",
+        "smaller": "Smaller (90%)",
         "normal": "Normal (100%)",
         "large": "Large (110%)",
         "larger": "Larger (125%)",
@@ -189,6 +188,22 @@
       "editPencilRevealDelay": {
         "name": "Edit Pencil Reveal Delay",
         "hint": "How long to hover a section (in seconds) before its edit pencil fades in. The pencils stay clickable while still invisible, so you can click one without waiting. Set to 0 to show them instantly."
+      },
+      "hideRollableIcon": {
+        "name": "Hide Rollable Icon",
+        "hint": "Hide the dice icon that marks rollable moves and stats. Rolling still works — click the move name or stat row to roll."
+      },
+      "promptRollModifier": {
+        "name": "Prompt for Roll Modifier",
+        "hint": "Ask for a one-off modifier (a held bonus, a GM-granted +1, etc.) before each move or stat roll on the character sheet. Hold Shift while clicking the roll to skip the prompt."
+      },
+      "openSheetsInEditMode": {
+        "name": "Open Sheets in Edit Mode",
+        "hint": "Open character, steading, and monster sheets in Edit mode instead of Play mode. The header wrench still switches modes per sheet."
+      },
+      "reduceMotion": {
+        "name": "Reduce Motion",
+        "hint": "Turn off the decorative animations, transitions, and hover-zoom image popups on Stonetop sheets and dialogs."
       },
       "showRollStatChips": {
         "name": "Show Roll Stat Chips",

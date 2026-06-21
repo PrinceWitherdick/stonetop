@@ -61,8 +61,29 @@ describe("StonetopSteading", () => {
 
 		expect(snapshot.players).toEqual([
 			{ uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true,
-			  traits: "", relations: "", notes: "", resolvedOccupation: "" },
+			  traits: "", relations: "", notes: "", resolvedOccupation: "", playbookName: "" },
 		]);
+	});
+
+	it("surfaces the player's playbook for the tooltip, not the Occupation column", async () => {
+		const hero = {
+			id: "hero", type: "character", name: "Wren",
+			system: { playbook: { name: "The Blessed", slug: "the-blessed" } },
+		};
+		const prevActors = game.actors;
+		game.actors = { get: (id) => (id === "hero" ? hero : null), filter: (fn) => [hero].filter(fn) };
+		try {
+			const actor = makeSteadingActor({
+				steadingFlags: {
+					players: [{ id: "hero", uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true }],
+				},
+			});
+			const snapshot = await new StonetopSteading(actor).buildSnapshot();
+			expect(snapshot.players[0].playbookName).toBe("The Blessed");
+			expect(snapshot.players[0].resolvedOccupation).toBe("");
+		} finally {
+			game.actors = prevActors;
+		}
 	});
 
 	it("uses a player's manual occupation override when one is set", async () => {

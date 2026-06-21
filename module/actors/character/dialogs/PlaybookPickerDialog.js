@@ -1,5 +1,5 @@
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../../../utils/seeded-journals.js";
-import { KeepOnTop, openJournalSheetAsChild } from "../../../utils/keep-on-top.js";
+import { FrontOnOpen, openJournalSheetAsChild } from "../../../utils/front-on-open.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
 
 const PLAYBOOK_DESCRIPTIONS = {
@@ -23,9 +23,9 @@ export class PlaybookPickerDialog extends Application {
 		// it too, so callers that care (the first-session flow) track that themselves.
 		this._onClose  = onClose ?? null;
 		this._playbooks = [];
-		// KeepOnTop floats the picker to the front when it appears, via Foundry's
+		// FrontOnOpen floats the picker to the front when it appears, via Foundry's
 		// native window stacking (it no longer forces itself above other windows).
-		this._keepOnTop = new KeepOnTop(this);
+		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -42,11 +42,11 @@ export class PlaybookPickerDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 	}
 
 	async close(options = {}) {
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		const result = await super.close(options);
 		this._onClose?.();
 		return result;
@@ -87,7 +87,7 @@ export class PlaybookPickerDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 		html.find(".stonetop-playbook-picker-setting-overview").on("click", () => this._openSettingOverview());
 		html.find(".stonetop-playbook-picker-card")
 			.on("click", async ev => {

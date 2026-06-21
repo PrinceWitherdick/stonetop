@@ -1,4 +1,4 @@
-import { KeepOnTop } from "../utils/keep-on-top.js";
+import { FrontOnOpen } from "../utils/front-on-open.js";
 import { shuffle } from "../utils/arrays.js";
 import { playbookSlug, getPlayerCharacters, playbookIconPath } from "../utils/playbook-actors.js";
 import { wrapLoreTerms } from "../utils/lore-terms.js";
@@ -223,7 +223,7 @@ export class IntroductionsDialog extends Application {
 		this._phase       = 0;
 		this._pcIndex     = 0;
 		this._pcs         = [];
-		this._keepOnTop   = new KeepOnTop(this);
+		this._frontOnOpen   = new FrontOnOpen(this);
 		this._combatHooks = null;
 	}
 
@@ -281,12 +281,12 @@ export class IntroductionsDialog extends Application {
 
 	async _render(force, options) {
 		await super._render(force, options);
-		this._keepOnTop.apply();
+		this._frontOnOpen.apply();
 	}
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._keepOnTop.start();
+		this._frontOnOpen.start();
 		html.find(".stonetop-intros-add").on("click", async () => {
 			await this.ensureCombatRoster();
 			this.render(false);
@@ -318,7 +318,7 @@ export class IntroductionsDialog extends Application {
 
 	async close(options = {}) {
 		this._unregisterCombatHooks();
-		this._keepOnTop.stop();
+		this._frontOnOpen.stop();
 		return super.close(options);
 	}
 

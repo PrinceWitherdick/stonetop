@@ -5,7 +5,7 @@ import { DAMAGE_DIE_RE } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { escHtml, isDefaultImg } from "../../utils/strings.js";
 import { findMonsterTag } from "../../data/monster-tags.js";
-import { getHoverDescriptionSetting } from "../../settings.js";
+import { getHoverDescriptionSetting, getOpenSheetsInEditMode } from "../../settings.js";
 import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
 import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
@@ -142,6 +142,12 @@ export function createStonetopMonsterSheetClass(Base) {
 	return class StonetopMonsterSheet extends Base {
 		_editMode = false;
 		_initialHeightApplied = false;
+
+		constructor(...args) {
+			super(...args);
+			// Honor the "Open Sheets in Edit Mode" client setting on first open.
+			this._editMode = getOpenSheetsInEditMode();
+		}
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
