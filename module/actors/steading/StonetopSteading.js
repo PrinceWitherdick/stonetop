@@ -11,6 +11,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 		sections: [
 			{
 				heading: "Requires either one of these:",
+				min: 1,
 				items: [
 					"An exceptional engineer/foreman, to design much roomier houses on the current land",
 					"Building on parts of the fields, resulting in −1 Surplus generated with each autumn's harvest",
@@ -36,6 +37,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 		sections: [
 			{
 				heading: "Requires 2 of the following:",
+				min: 2,
 				items: [
 					"A Herd of Horses (and hunters to ride them)",
 					"Cooperating with the Hillfolk",
@@ -56,6 +58,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 		sections: [
 			{
 				heading: "Requires one of the following improvements, to free up enough time to support more tradesfolk:",
+				min: 1,
 				items: [
 					"Harnessing the Stream",
 					"Raincatching",
@@ -64,6 +67,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 			},
 			{
 				heading: "And establishing at least 3 of the following:",
+				min: 3,
 				items: [
 					"A chandler with extensive tools and supplies (Value 3)",
 					"A glassblower with a full glassworks (Value 3)",
@@ -83,6 +87,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 		sections: [
 			{
 				heading: "Requires 1 of the following:",
+				min: 1,
 				items: [
 					"Doubling the yield of crops inside the Old Wall",
 					"Clearing/taming new fields beyond the Old Wall",
@@ -134,6 +139,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 		sections: [
 			{
 				heading: "Requires any 3 of the following:",
+				min: 3,
 				items: [
 					"Impressing a band of Hillfolk",
 					"Braving a lake and coming back with proof",
@@ -173,6 +179,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 		sections: [
 			{
 				heading: "Requires 1 of the following:",
+				min: 1,
 				items: [
 					"A compelling good/service, exclusive to Stonetop",
 					"Establishing some other reason to visit Stonetop (place of pilgrimage, etc.)",
@@ -310,12 +317,14 @@ export const IMPROVEMENT_DEFINITIONS = [
 		sections: [
 			{
 				heading: "Requires either this:",
+				group: "weapons-source",
 				items: [
 					"Acquiring a few dozen good swords, battleaxes, maces, flails, warhammers, etc. (Value 3)",
 				],
 			},
 			{
 				heading: "Or all of these:",
+				group: "weapons-source",
 				items: [
 					"A smith, with a full staff and upgraded tools (Value 2)",
 					"A cartload of good iron ore (Value 2)",
@@ -346,6 +355,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 			},
 			{
 				heading: "For each tactic below, you must then <em>Pull Together</em>, requiring a season of drills and 1 Surplus:",
+				min: 1,
 				items: [
 					"Archery: barrages, ranged ambushes, sniping, etc.",
 					"Cavalry (requires a Herd of Horses): fighting from horseback, charges",
@@ -361,6 +371,35 @@ export const IMPROVEMENT_DEFINITIONS = [
 
 /** Lower-cased built-in improvement labels, used to reject custom dupes of a book improvement. */
 const BUILTIN_IMPROVEMENT_LABELS = new Set(IMPROVEMENT_DEFINITIONS.map(d => d.label.toLowerCase()));
+
+/** How many of a requirement section's items must be checked (defaults to all). */
+function sectionRequiredCount(section) {
+	return Number.isFinite(section?.min) ? section.min : (section?.items?.length ?? 0);
+}
+
+/**
+ * Whether every requirement group of an improvement is satisfied by its flat,
+ * in-order stored checkbox state `r`. A section's `min` is how many of its items
+ * must be checked (defaulting to all of them). Sections that share a `group` id
+ * are alternatives (OR) — the group is met if any of them meets its count;
+ * ungrouped sections each stand on their own (AND). An improvement with no
+ * requirement sections is always met.
+ * @param {{sections?: Array}} def
+ * @param {Array<boolean>} r
+ */
+export function improvementRequirementsMet(def, r = []) {
+	const groups = new Map();
+	let idx = 0;
+	(def?.sections ?? []).forEach((section, i) => {
+		const items = section?.items ?? [];
+		let checked = 0;
+		for (let k = 0; k < items.length; k++) if (r[idx++]) checked++;
+		const satisfied = checked >= sectionRequiredCount(section);
+		const key = section?.group ?? `__${i}`;
+		groups.set(key, (groups.get(key) ?? false) || satisfied);
+	});
+	return [...groups.values()].every(Boolean);
+}
 
 export const STEADING_DEFAULTS = {
 	resources: [
@@ -534,6 +573,13 @@ export class StonetopSteading {
 		return { ok: true, slug, label: name };
 	}
 
+	/** Resolve an improvement definition by slug — built-in first, then custom. */
+	improvementDef(slug) {
+		return IMPROVEMENT_DEFINITIONS.find(d => d.slug === slug)
+			?? (this._flags.customImprovements ?? []).find(d => d.slug === slug)
+			?? null;
+	}
+
 	/** Remove a custom improvement and clear its tracking state. */
 	async removeCustomImprovement(slug) {
 		const existing = this._flags.customImprovements ?? [];
@@ -623,13 +669,19 @@ export class StonetopSteading {
 					return item;
 				}),
 			}));
-			const earned = (stored.completed ?? false) || (stored.r ?? []).some(Boolean);
+			const completed = stored.completed ?? false;
+			const earned = completed || (stored.r ?? []).some(Boolean);
+			// An improvement can only be marked complete once its requirements are
+			// met; an already-complete one stays toggleable so it can be undone.
+			const requirementsMet = improvementRequirementsMet(def, stored.r ?? []);
 			return {
 				slug: def.slug,
 				label: def.label,
 				flavor: def.flavor,
-				completed: stored.completed ?? false,
+				completed,
 				earned,
+				requirementsMet,
+				completeLocked: !requirementsMet && !completed,
 				sections,
 				effect: def.effect,
 				custom: !!custom,

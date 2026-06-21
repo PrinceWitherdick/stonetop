@@ -6317,12 +6317,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding-right: 12px;
 }
 
-.steading-moves-sidebar .steading-moves-intro {
-	width: 0;
-	min-width: 100%;
-	white-space: normal;
-}
-
 .steading-moves-sidebar .steading-moves-list {
 	display: block;
 	margin: 4px 0 0;
@@ -7538,6 +7532,20 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-color: #4a8c4a;
 }
 
+/* Locked until the improvement's requirements are checked off. The SVG skin
+   (border/background) is locked in with !important by the shared checkbox master
+   block, so dimming is the lever we have; the read-only rule above keeps these
+   live for gameplay (opacity:1), so the locked style is scoped to win there too. */
+.steading-improvement-complete-label.is-locked,
+.steading-improvement-complete:disabled {
+	cursor: not-allowed;
+}
+
+input[type="checkbox"].steading-improvement-complete:disabled,
+.stonetop-readonly input[type="checkbox"].steading-improvement-complete:disabled {
+	opacity: 0.5;
+}
+
 .steading-improvement-summary {
 	flex: 1;
 	min-width: 0;
@@ -7688,13 +7696,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-}
-
-.steading-moves-tab .steading-moves-intro {
-	font-size: var(--st-fs-sm);
-	color: var(--st-text-secondary);
-	font-style: italic;
-	margin: 0 0 4px 0;
 }
 
 .steading-moves-list {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { StonetopSteading } from "../../../module/actors/steading/StonetopSteading.js";
+import { StonetopSteading, improvementRequirementsMet, IMPROVEMENT_DEFINITIONS } from "../../../module/actors/steading/StonetopSteading.js";
 
 function makeSteadingActor({ system = {}, steadingFlags = {} } = {}) {
 	return {
@@ -48,6 +48,51 @@ describe("StonetopSteading", () => {
 		expect(bySlug.standingWatch.earned).toBe(true);
 		expect(bySlug.palisade.earned).toBe(true);
 		expect(bySlug.weaponsOfWar.earned).toBe(false);
+	});
+
+	describe("requirement gating (completeLocked / requirementsMet)", () => {
+		const snapshotBySlug = async (improvements) => {
+			const actor = makeSteadingActor({ steadingFlags: { improvements } });
+			const snapshot = await new StonetopSteading(actor).buildSnapshot();
+			return Object.fromEntries(snapshot.improvements.map(imp => [imp.slug, imp]));
+		};
+
+		it("locks completion until an 'all of the following' section is fully checked", async () => {
+			// palisade: one section, all 4 items required.
+			let bySlug = await snapshotBySlug({ palisade: { completed: false, r: [true, true, true] } });
+			expect(bySlug.palisade.requirementsMet).toBe(false);
+			expect(bySlug.palisade.completeLocked).toBe(true);
+
+			bySlug = await snapshotBySlug({ palisade: { completed: false, r: [true, true, true, true] } });
+			expect(bySlug.palisade.requirementsMet).toBe(true);
+			expect(bySlug.palisade.completeLocked).toBe(false);
+		});
+
+		it("honors a section's 'N of the following' minimum", async () => {
+			// heroicReputation: one section, any 3 of 6.
+			let bySlug = await snapshotBySlug({ heroicReputation: { r: [true, true, false, false, false, false] } });
+			expect(bySlug.heroicReputation.requirementsMet).toBe(false);
+
+			bySlug = await snapshotBySlug({ heroicReputation: { r: [true, true, true, false, false, false] } });
+			expect(bySlug.heroicReputation.requirementsMet).toBe(true);
+		});
+
+		it("treats grouped sections as alternatives (weaponsOfWar: either-source AND finish)", () => {
+			const weaponsOfWar = IMPROVEMENT_DEFINITIONS.find(d => d.slug === "weaponsOfWar");
+			// idx 0 = "either this"; 1-6 = "or all of these"; 7-8 = "and then".
+			const sourceViaSingle = [true, false, false, false, false, false, false, true, true];
+			expect(improvementRequirementsMet(weaponsOfWar, sourceViaSingle)).toBe(true);
+
+			// Source met but the finishing section incomplete → not met.
+			const finishIncomplete = [true, false, false, false, false, false, false, true, false];
+			expect(improvementRequirementsMet(weaponsOfWar, finishIncomplete)).toBe(false);
+		});
+
+		it("leaves an already-completed improvement toggleable even if requirements lapse", async () => {
+			const bySlug = await snapshotBySlug({ palisade: { completed: true, r: [] } });
+			expect(bySlug.palisade.requirementsMet).toBe(false);
+			expect(bySlug.palisade.completeLocked).toBe(false);
+		});
 	});
 
 	it("includes dragged player characters in the sheet snapshot", async () => {

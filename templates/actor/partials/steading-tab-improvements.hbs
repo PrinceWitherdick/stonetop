@@ -13,14 +13,14 @@
 
 		<div class="steading-improvements-grid">
 			{{#each stonetop.improvements}}
-			<div class="steading-improvement {{#if completed}}is-complete{{/if}}{{#if earned}} is-earned{{/if}}{{#if custom}} is-custom{{/if}}">
+			<div class="steading-improvement {{#if completed}}is-complete{{/if}}{{#if earned}} is-earned{{/if}}{{#if custom}} is-custom{{/if}}{{#if isOpen}} is-open{{/if}}" data-slug="{{slug}}">
 
 				<div class="steading-improvement-header">
-					<label class="steading-improvement-complete-label"
-					       data-tooltip="Mark completed when all requirements are met"
+					<label class="steading-improvement-complete-label{{#if completeLocked}} is-locked{{/if}}"
+					       data-tooltip="{{#if completeLocked}}Check off the required steps before marking this complete{{else}}Mark this improvement complete{{/if}}"
 					       data-tooltip-direction="UP">
 						<input type="checkbox" class="steading-improvement-complete"
-						       data-slug="{{slug}}" {{#if completed}}checked{{/if}}>
+						       data-slug="{{slug}}" {{#if completed}}checked{{/if}}{{#if completeLocked}} disabled{{/if}}>
 					</label>
 					<div class="steading-improvement-summary">
 						<h4 class="steading-improvement-title">{{label}}{{#if custom}} <span class="steading-improvement-custom-tag">added</span>{{/if}}</h4>

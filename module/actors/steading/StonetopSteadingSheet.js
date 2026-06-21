@@ -1,4 +1,4 @@
-import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS } from "./StonetopSteading.js";
+import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS, improvementRequirementsMet } from "./StonetopSteading.js";
 import {rollStat, sign} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
@@ -314,6 +314,11 @@ export function createStonetopSteadingSheetClass(Base) {
 		// for a beat, fades out, then reverts to the hover pencil. Each has a timer.
 		_recentlyEditedSections = new Set();
 		_recentlyEditedTimers = new Map();
+		// Slugs of improvement cards the user has expanded. Tracked here (not in the
+		// DOM) so a card stays open across the re-render that ticking a requirement
+		// or completion checkbox triggers — it only collapses when its header/chevron
+		// is clicked.
+		_openImprovements = new Set();
 
 		constructor(...args) {
 			super(...args);
@@ -649,6 +654,10 @@ export function createStonetopSteadingSheetClass(Base) {
 				STEADING_EDIT_SECTIONS.map(section => [section, this._recentlyEditedSections.has(section)])
 			);
 			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop_pwd", "hideUnearnedImprovements") ?? false;
+			// Re-apply the user's expanded cards so they survive re-renders.
+			for (const imp of context.stonetop.improvements ?? []) {
+				imp.isOpen = this._openImprovements.has(imp.slug);
+			}
 			return context;
 		}
 
@@ -732,7 +741,8 @@ export function createStonetopSteadingSheetClass(Base) {
 				});
 			}
 
-			// Improvement card expand/collapse
+			// Improvement card expand/collapse. The open state is mirrored into
+			// _openImprovements so it persists across re-renders (see getData).
 			html[0].addEventListener("click", ev => {
 				const hdr = ev.target.closest(".steading-improvement-header");
 				if (!hdr) return;
@@ -740,7 +750,9 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (ev.target.closest(".steading-improvement-remove")) return;
 				const card = hdr.closest(".steading-improvement");
 				if (!card) return;
-				card.classList.toggle("is-open");
+				const open = card.classList.toggle("is-open");
+				const slug = card.dataset.slug;
+				if (slug) open ? this._openImprovements.add(slug) : this._openImprovements.delete(slug);
 			}, true);
 
 			html[0].addEventListener("change", ev => {
@@ -1765,6 +1777,16 @@ export function createStonetopSteadingSheetClass(Base) {
 			const f = this._stonetopSteading._flags;
 			const improvements = foundry.utils.deepClone(f.improvements ?? {});
 			if (!improvements[slug]) improvements[slug] = { completed: false, r: [] };
+			// Can't mark complete until the requirements are met (the checkbox is also
+			// disabled in that state — this guards a stale-DOM race). Unchecking is
+			// always allowed so a mistaken completion can be undone.
+			if (checked) {
+				const def = this._stonetopSteading.improvementDef(slug);
+				if (def && !improvementRequirementsMet(def, improvements[slug].r ?? [])) {
+					this.render(false);
+					return;
+				}
+			}
 			improvements[slug].completed = checked;
 			await this._stonetopSteading.setFlags({ improvements });
 		}
