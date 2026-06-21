@@ -23,7 +23,7 @@ export const STEP_FAQ_KEYS = {
 	origin:            ["pick one of these names", "have to live in stonetop"],
 	stats:             ["roll +", "6 or less", "advantage"],
 	possession:        ["armor", "◇", "different special possession", "weapons or gear", "damage do weapons", "various tags"],
-	moves:             ["6 or less", "advantage", "damage do weapons", "various tags"],
+	moves:             ["advantage", "various tags"],
 };
 
 // Minimal entity decode — enough to clean the question text we match/display a

@@ -578,7 +578,7 @@
           "slug": "danu-offerings",
           "title": "",
           "continuation": true,
-          "description": "<p>What do the folk of Stonetop leave as offerings? <em>(choose 2–3)</em></p>",
+          "description": "<p>What do the folk of Stonetop leave as offerings to Danu? <em>(choose 2–3)</em></p>",
           "options": [
             {
               "slug": "fruits-of-harvest",

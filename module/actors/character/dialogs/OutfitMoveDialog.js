@@ -2,6 +2,7 @@ import { KeepOnTop } from "../../../utils/keep-on-top.js";
 import { getHoverDescriptionSetting } from "../../../settings.js";
 import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
 import { wrapStonetopGlyphsInEl } from "../../../utils/glyphs.js";
+import { LOAD_LEVEL_LIMITS, deriveLoadLevel } from "../../../utils/load.js";
 
 export class OutfitMoveDialog extends Application {
 	constructor(character, outfitSnapshot, onDone, options = {}) {
@@ -15,6 +16,10 @@ export class OutfitMoveDialog extends Application {
 		];
 		this._arcanaItems    = outfitSnapshot.arcanaItems ?? [];
 		this._smallItemLimit = outfitSnapshot.smallItemLimit ?? null;
+		// Pack Horse raises each load cap by one; the snapshot carries the limits in
+		// effect so the thresholds and the regular ◇ ceiling here match the sheet.
+		this._loadLimits     = outfitSnapshot.loadLimits ?? LOAD_LEVEL_LIMITS;
+		this._hasPackHorse   = outfitSnapshot.hasPackHorse ?? false;
 		this._checked = {};
 		for (const item of [...this._regularItems, ...this._smallItems, ...this._arcanaItems]) {
 			this._checked[item.slug] = item.checked;
@@ -95,29 +100,35 @@ export class OutfitMoveDialog extends Application {
 			totalSmallMarks:   pools.totalSmallMarks,
 			smallItemLimit,
 			hasSmallItemLimit: smallItemLimit !== null,
+			hasPackHorse:      this._hasPackHorse,
+			loadBadgeLight:    `${this._loadLimits.light}`,
+			loadBadgeNormal:   `${this._loadLimits.light + 1}–${this._loadLimits.normal}`,
+			loadBadgeHeavy:    `${this._loadLimits.normal + 1}–${this._loadLimits.heavy}`,
 		};
 	}
 
 	// Clamp the undefined ◇/□ pools to what the checked items leave room for, and
-	// derive the load level from the total marks. Mutates the stored pools so the
-	// steppers stay in range; getData and _applyOutfit share this one computation.
+	// derive the load level from the total marks. Pure: returns the clamped values
+	// without mutating the stored reserves, so un-checking an item that had narrowed
+	// the room restores the marks rather than destroying them on the next render.
+	// getData renders from these; _applyOutfit persists them.
 	_resolvePools() {
 		const checkedRegularWeight = this._computeTotalWeight();
-		const undefinedRegularMax  = Math.max(0, 9 - checkedRegularWeight);
-		this._undefinedRegular     = Math.min(this._undefinedRegular, undefinedRegularMax);
+		const undefinedRegularMax  = Math.max(0, this._loadLimits.heavy - checkedRegularWeight);
+		const undefinedRegular     = Math.min(this._undefinedRegular, undefinedRegularMax);
 
 		const checkedSmallCount = this._smallItems.filter(i => this._checked[i.slug]).length;
 		const undefinedSmallMax = Math.max(0, (this._smallItemLimit ?? 9) - checkedSmallCount);
-		this._undefinedSmall    = Math.min(this._undefinedSmall, undefinedSmallMax);
+		const undefinedSmall    = Math.min(this._undefinedSmall, undefinedSmallMax);
 
-		const totalMarks = checkedRegularWeight + this._undefinedRegular;
+		const totalMarks = checkedRegularWeight + undefinedRegular;
 		return {
-			undefinedRegular:    this._undefinedRegular,
+			undefinedRegular,
 			undefinedRegularMax,
-			undefinedSmall:      this._undefinedSmall,
+			undefinedSmall,
 			undefinedSmallMax,
 			totalMarks,
-			totalSmallMarks:     checkedSmallCount + this._undefinedSmall,
+			totalSmallMarks:     checkedSmallCount + undefinedSmall,
 			loadLevel:           this._loadLevelFor(totalMarks),
 		};
 	}
@@ -145,10 +156,13 @@ export class OutfitMoveDialog extends Application {
 
 		html.find(".stonetop-outfit-undefined-btn").on("click", ev => {
 			const delta = Number(ev.currentTarget.dataset.dir);
+			// Step from the clamped display value so the buttons stay intuitive even
+			// when checked items have narrowed the room below the stored reserve.
+			const pools = this._resolvePools();
 			if (ev.currentTarget.dataset.pool === "regular") {
-				this._undefinedRegular = Math.max(0, this._undefinedRegular + delta);
+				this._undefinedRegular = Math.max(0, pools.undefinedRegular + delta);
 			} else {
-				this._undefinedSmall = Math.max(0, this._undefinedSmall + delta);
+				this._undefinedSmall = Math.max(0, pools.undefinedSmall + delta);
 			}
 			this.render(false);
 		});
@@ -160,8 +174,10 @@ export class OutfitMoveDialog extends Application {
 	}
 
 	async _applyOutfit() {
-		const { loadLevel, undefinedRegular, undefinedSmall } = this._resolvePools();
-		await this._character.applyOutfit(this._checked, loadLevel, undefinedRegular, undefinedSmall);
+		// Load is derived from the marks on the sheet, so Outfit only records the
+		// checked items and the two undefined reserves.
+		const { undefinedRegular, undefinedSmall } = this._resolvePools();
+		await this._character.applyOutfit(this._checked, undefinedRegular, undefinedSmall);
 		if (this._onDone) this._onDone();
 	}
 
@@ -172,9 +188,8 @@ export class OutfitMoveDialog extends Application {
 	}
 
 	_loadLevelFor(weight) {
-		if (weight === 0) return null;
-		if (weight <= 3)  return "light";
-		if (weight <= 6)  return "normal";
-		return "heavy";
+		// The Outfit bar has only three tiers, so fold "overloaded" back into heavy.
+		const level = deriveLoadLevel(weight, this._loadLimits);
+		return level === "overloaded" ? "heavy" : level;
 	}
 }

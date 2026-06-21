@@ -1,49 +1,42 @@
-<div class="tab equipment{{#if stonetop.inventory.manualMode}} stonetop-manual-inventory{{/if}}" data-group="primary" data-tab="inventory">
+<div class="tab equipment" data-group="primary" data-tab="inventory">
 
 	{{#if stonetop.editMode}}
 	<div class="stonetop-inventory-toolbar">
-		<label class="stonetop-inventory-manual-toggle" title="{{localize 'stonetop.inventory.manualTitle'}}">
-			<input type="checkbox" class="stonetop-inventory-manual-check"{{#if stonetop.inventory.manualMode}} checked{{/if}}>
-			<span>{{localize "stonetop.inventory.manualLabel"}}</span>
-		</label>
 		<button type="button" class="stonetop-inventory-reset-btn" title="{{localize 'stonetop.inventory.resetTitle'}}">
 			<i class="fas fa-undo"></i> {{localize "stonetop.inventory.resetLabel"}}
 		</button>
 	</div>
 	{{/if}}
 
-	{{#if stonetop.inventory.manualMode}}
-	<p class="stonetop-inventory-manual-note">{{{localize "stonetop.inventory.manualNote"}}}</p>
-	{{/if}}
-
 	{{#if stonetop.inventory}}
 
-	{{!-- Outfit header --}}
+	{{!-- Outfit header: load is a derived readout — the highlighted tier reflects
+	     the ◇ you've actually marked (item weights + the undefined pool). --}}
 	<div class="stonetop-outfit-header">
 		<p class="stonetop-outfit-heading">{{{localize "stonetop.inventory.outfit.heading"}}}</p>
 		<ul class="stonetop-outfit-loads">
 			<li>
-				<label class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelLight}} is-checked{{/if}}">
-					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" {{#unless stonetop.inventory.manualMode}}disabled{{/unless}}
-					       value="light" {{#if stonetop.inventory.outfit.load.loadLevelLight}}checked{{/if}}>
-					<span>{{{localize "stonetop.inventory.outfit.light"}}}</span>
-				</label>
+				<span class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelLight}} is-checked{{/if}}">
+					<span class="stonetop-outfit-load-marker"></span>
+					<span>{{#if stonetop.inventory.outfit.hasPackHorse}}{{{localize "stonetop.inventory.outfit.lightPackHorse"}}}{{else}}{{{localize "stonetop.inventory.outfit.light"}}}{{/if}}</span>
+				</span>
 			</li>
 			<li>
-				<label class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelNormal}} is-checked{{/if}}">
-					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" {{#unless stonetop.inventory.manualMode}}disabled{{/unless}}
-					       value="normal" {{#if stonetop.inventory.outfit.load.loadLevelNormal}}checked{{/if}}>
-					<span>{{{localize "stonetop.inventory.outfit.normal"}}}</span>
-				</label>
+				<span class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelNormal}} is-checked{{/if}}">
+					<span class="stonetop-outfit-load-marker"></span>
+					<span>{{#if stonetop.inventory.outfit.hasPackHorse}}{{{localize "stonetop.inventory.outfit.normalPackHorse"}}}{{else}}{{{localize "stonetop.inventory.outfit.normal"}}}{{/if}}</span>
+				</span>
 			</li>
 			<li>
-				<label class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelHeavy}} is-checked{{/if}}">
-					<input type="radio" class="stonetop-outfit-load-radio" name="stonetop-load-level" {{#unless stonetop.inventory.manualMode}}disabled{{/unless}}
-					       value="heavy" {{#if stonetop.inventory.outfit.load.loadLevelHeavy}}checked{{/if}}>
-					<span>{{{localize "stonetop.inventory.outfit.heavy"}}}</span>
-				</label>
+				<span class="stonetop-outfit-load-label{{#if stonetop.inventory.outfit.load.loadLevelHeavy}} is-checked{{/if}}">
+					<span class="stonetop-outfit-load-marker"></span>
+					<span>{{#if stonetop.inventory.outfit.hasPackHorse}}{{{localize "stonetop.inventory.outfit.heavyPackHorse"}}}{{else}}{{{localize "stonetop.inventory.outfit.heavy"}}}{{/if}}</span>
+				</span>
 			</li>
 		</ul>
+		<p class="stonetop-outfit-load-current">
+			{{{format "stonetop.inventory.outfit.currentLoad" count=stonetop.inventory.outfit.load.totalMarks}}}{{#if stonetop.inventory.outfit.load.loadLevelOverloaded}} <strong class="stonetop-outfit-overloaded">{{localize "stonetop.inventory.outfit.overloaded"}}</strong>{{/if}}
+		</p>
 	</div>
 
 	<section class="stonetop-inventory">
@@ -55,7 +48,7 @@
 			{{!-- Regular pool --}}
 			<div class="stonetop-supplies-pool">
 				<span class="stonetop-supplies-pool-label"><strong>{{localize "stonetop.inventory.regularUndefinedPoolLabel"}}</strong></span>
-				<span class="stonetop-supplies-pool-diamonds">
+				<span class="stonetop-supplies-pool-diamonds" data-pool-cap="{{stonetop.inventory.outfit.regularPoolCap}}">
 					{{#each (poolGroups stonetop.inventory.outfit.regularPool)}}
 					{{#unless @first}}<span class="stonetop-supplies-pool-gap"></span>{{/unless}}
 					{{#each this}}
@@ -151,7 +144,7 @@
 		</div>
 
 		{{!-- Small items (right column) --}}
-		<div class="stonetop-inventory-small">
+		<div class="stonetop-inventory-small" data-small-allotment="{{stonetop.inventory.outfit.smallItemLimit}}">
 			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.smallItems")}}
 			{{#if stonetop.inventory.outfit.smallItemLimit}}
 			<p class="stonetop-inv-section-note">{{{format "stonetop.inventory.smallItemsNoteWithLimit" limit=stonetop.inventory.outfit.smallItemLimit}}}</p>
@@ -162,7 +155,7 @@
 			{{!-- Small pool --}}
 			<div class="stonetop-supplies-pool">
 				<span class="stonetop-supplies-pool-label"><strong>{{localize "stonetop.inventory.smallUndefinedPoolLabel"}}</strong></span>
-				<span class="stonetop-supplies-pool-diamonds">
+				<span class="stonetop-supplies-pool-diamonds" data-pool-cap="{{stonetop.inventory.outfit.smallPoolCap}}">
 					{{#each (poolItems stonetop.inventory.outfit.smallPool)}}
 					<input type="checkbox"
 					       class="stonetop-inventory-item-check stonetop-small-pool-display{{#if checked}} is-checked{{/if}}"

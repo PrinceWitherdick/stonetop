@@ -10,6 +10,7 @@ import {
 	InstinctSection,
 	MoveSnapshotBuilder,
 } from "../../model/CharacterSnapshot.js";
+import { composeInstinct } from "../../utils/strings.js";
 
 export class CharacterPostDeath {
 	constructor(insertFlags, instinct, lore, insertRepo, moveRepo) {
@@ -99,7 +100,7 @@ export function buildLoreSection(loreData, loreState, arcanaDisplay = null) {
 
 function _buildInstinctSection(instincts, selectedValue) {
 	const options = (instincts ?? []).map(({ word, description }) => {
-		const value = `${word} — ${description}`;
+		const value = composeInstinct(word, description);
 		return new InstinctOptionSnapshotBuilder()
 			.withWord(word)
 			.withDescription(description)

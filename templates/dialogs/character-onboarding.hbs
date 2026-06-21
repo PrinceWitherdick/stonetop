@@ -190,11 +190,16 @@
 			</label>
 			{{/each}}
 		</div>
-		<label class="stonetop-onboarding-custom-label">
+		<label class="stonetop-onboarding-custom-label stonetop-onboarding-instinct-custom">
 			<span>Custom instinct</span>
-			<input type="text" class="onboard-instinct-custom"
-			       value="{{selectedInstinct}}"
-			       placeholder="Write your own instinct…">
+			<input type="text" class="onboard-instinct-word"
+			       value="{{customInstinctWord}}"
+			       aria-label="Instinct word"
+			       placeholder="One word">
+			<input type="text" class="onboard-instinct-desc"
+			       value="{{customInstinctDescription}}"
+			       aria-label="Instinct description"
+			       placeholder="Instinct description">
 		</label>
 		{{/if}}
 
@@ -330,7 +335,7 @@
 			{{#each possession.options}}
 			<label class="stonetop-onboarding-card stonetop-onboarding-card--possession{{#if isSelected}} is-selected{{/if}}{{#if isPreselected}} is-preselected{{/if}}">
 				<div class="stonetop-onboarding-card-header">
-					<input type="checkbox" name="onboard-possession" value="{{slug}}"
+					<input type="checkbox" class="stonetop-onboarding-check" name="onboard-possession" value="{{slug}}"
 					       {{#if isSelected}}checked{{/if}}
 					       {{#if disabled}}disabled{{/if}}
 					       {{#if isPreselected}}data-preselected="true"{{/if}}>
@@ -355,11 +360,23 @@
 			<span class="stonetop-onboarding-move-count">{{moveSelectedCount}}</span>
 			/ {{movePickCount}} chosen
 		</p>
+		<div class="stonetop-onboarding-move-search">
+			<i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+			<input type="search" class="onboard-move-search" placeholder="Filter moves…" aria-label="Filter moves">
+		</div>
+		{{#if moveGroups.length}}
+		<div class="stonetop-onboarding-move-chips">
+			{{#each moveGroups}}
+			<button type="button" class="stonetop-onboarding-move-chip" data-move-group="{{key}}">{{label}}</button>
+			{{/each}}
+		</div>
+		{{/if}}
 		<div class="stonetop-onboarding-cards">
 			{{#each moveOptions}}
-			<label class="stonetop-onboarding-card stonetop-onboarding-card--move{{#if selected}} is-selected{{/if}}">
+			<label class="stonetop-onboarding-card stonetop-onboarding-card--move{{#if selected}} is-selected{{/if}}"
+			       data-move-groups="{{#each groups}}{{this}} {{/each}}">
 				<div class="stonetop-onboarding-card-header">
-					<input type="checkbox" name="onboard-move" value="{{id}}"
+					<input type="checkbox" class="stonetop-onboarding-check" name="onboard-move" value="{{id}}"
 					       {{#if selected}}checked{{/if}}
 					       {{#if disabled}}disabled{{/if}}>
 					<strong class="stonetop-onboarding-card-title">{{name}}</strong>
@@ -384,7 +401,7 @@
 			{{#each invocationData.options}}
 			<label class="stonetop-onboarding-card stonetop-onboarding-card--invocation{{#if isSelected}} is-selected{{/if}}">
 				<div class="stonetop-onboarding-card-header">
-					<input type="checkbox" name="onboard-invocation" value="{{slug}}"
+					<input type="checkbox" class="stonetop-onboarding-check" name="onboard-invocation" value="{{slug}}"
 					       {{#if isSelected}}checked{{/if}}
 					       {{#if disabled}}disabled{{/if}}>
 					<strong class="stonetop-onboarding-card-title">{{label}}</strong>
@@ -399,8 +416,8 @@
 
 		{{!-- ── Initiates of Danu (Blessed + Initiate bg) ─────────── --}}
 		{{#if isInitiates}}
-		<h3 class="stonetop-onboarding-step-title">Initiates of Danu</h3>
-		<p class="stonetop-onboarding-step-hint">Choose {{initiatesData.minCount}}–{{initiatesData.maxCount}} fellow initiates who serve the goddess alongside you.</p>
+		<h3 class="stonetop-onboarding-step-title">Initiates of <span class="stonetop-onboarding-lookup">Danu</span></h3>
+		<p class="stonetop-onboarding-step-hint">Choose {{initiatesData.minCount}}–{{initiatesData.maxCount}} fellow initiates who serve <span class="stonetop-onboarding-lookup">the goddess</span> alongside you.</p>
 		<p class="stonetop-onboarding-move-counter">
 			<span class="stonetop-onboarding-initiate-count">{{initiatesData.selectedCount}}</span>
 			/ {{initiatesData.maxCount}} chosen
@@ -409,7 +426,7 @@
 			{{#each initiatesData.options}}
 			<label class="stonetop-onboarding-card stonetop-onboarding-card--initiate{{#if isSelected}} is-selected{{/if}}">
 				<div class="stonetop-onboarding-card-header">
-					<input type="checkbox" name="onboard-initiate" value="{{slug}}"
+					<input type="checkbox" class="stonetop-onboarding-check" name="onboard-initiate" value="{{slug}}"
 					       {{#if isSelected}}checked{{/if}}
 					       {{#if disabled}}disabled{{/if}}>
 					<strong class="stonetop-onboarding-card-title">{{label}}</strong>
@@ -759,16 +776,13 @@
 		<div class="stonetop-onboarding-lore-picks">
 			{{#each loreSectionData.options}}
 			<label class="stonetop-onboarding-lore-pick{{#if isSelected}} is-selected{{/if}}{{#if disabled}} stonetop-onboarding-lore-pick--disabled{{/if}}">
-				<input type="checkbox"
+				<input type="checkbox" class="stonetop-onboarding-check"
 				       name="onboard-lore-pick-{{sectionSlug}}"
 				       value="{{slug}}"
 				       data-section="{{sectionSlug}}"
 				       data-option="{{slug}}"
 				       {{#if isSelected}}checked{{/if}}
 				       {{#if disabled}}disabled{{/if}}>
-				<span class="stonetop-onboarding-lore-marker{{#if (eq ../loreSectionData.marker "spiral")}} stonetop-onboarding-lore-marker--spiral{{/if}}" aria-hidden="true">
-					{{#unless (eq ../loreSectionData.marker "spiral")}}{{../loreSectionData.marker}}{{/unless}}
-				</span>
 				<span class="stonetop-onboarding-lore-pick-text">{{{description}}}</span>
 			</label>
 			{{/each}}
@@ -797,16 +811,17 @@
 	<footer class="stonetop-onboarding-footer">
 		<div class="stonetop-onboarding-footer-nav">
 			{{#if showBack}}
-			<div class="stonetop-onboarding-footer-back">
-				{{#if isFirst}}
-				<button type="button" class="stonetop-onboarding-back-to-picker"><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
-				{{else}}
-				<button type="button" class="stonetop-onboarding-back"><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
-				{{/if}}
-			</div>
+			{{#if isFirst}}
+			<button type="button" class="stonetop-onboarding-back-to-picker"><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
+			{{else}}
+			<button type="button" class="stonetop-onboarding-back"><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
 			{{/if}}
-			<div class="stonetop-onboarding-footer-spacer" aria-hidden="true"></div>
+			{{else}}
+			<span class="stonetop-onboarding-footer-placeholder" aria-hidden="true"></span>
+			{{/if}}
+
 			<span class="stonetop-onboarding-step-counter">{{stepNumber}} / {{stepCount}}</span>
+
 			<div class="stonetop-onboarding-footer-right">
 				<button type="button" class="stonetop-onboarding-skip">Skip</button>
 				{{#if isLast}}

@@ -128,113 +128,6 @@ describe("CharacterInventory.calculateArmor", () => {
 	});
 });
 
-// -- StonetopCharacter.buildInventoryContext ----------------------------------
-
-describe("StonetopCharacter.buildInventoryContext", () => {
-	it("all items default to checked: false", async () => {
-		const char = new TestCharacterBuilder(new FakeActorBuilder().build())
-			.withPlaybookRepo(null)
-			.withMoveRepo(null)
-			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem()]))
-			.build();
-		const ctx = await char.buildInventoryContext();
-		expect(ctx.regularItems[0].checked).toBe(false);
-	});
-
-	it("checked items show checked: true", async () => {
-		const actor = new FakeActorBuilder().withFlag("inventory.checked", {"test-item": true}).build();
-		const char = new TestCharacterBuilder(actor)
-			.withPlaybookRepo(null)
-			.withMoveRepo(null)
-			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem()]))
-			.build();
-		const ctx = await char.buildInventoryContext();
-		expect(ctx.regularItems[0].checked).toBe(true);
-	});
-
-	it("resourceChecks is null for items with no resource", async () => {
-		const char = new TestCharacterBuilder(new FakeActorBuilder().build())
-			.withPlaybookRepo(null)
-			.withMoveRepo(null)
-			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({resource: null})]))
-			.build();
-		const ctx = await char.buildInventoryContext();
-		expect(ctx.regularItems[0].resourceChecks).toBeNull();
-	});
-
-	it("resourceChecks array length matches resource.max", async () => {
-		const char = new TestCharacterBuilder(new FakeActorBuilder().build())
-			.withPlaybookRepo(null)
-			.withMoveRepo(null)
-			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({resourceLabels: ["low ammo", "all out"]})]))
-			.build();
-		const ctx = await char.buildInventoryContext();
-		expect(ctx.regularItems[0].resourceChecks).toHaveLength(2);
-	});
-
-	it("resourceChecks[i].checked is true when i < resources[slug]", async () => {
-		const actor = new FakeActorBuilder().withFlag("inventory.resources", {"test-item": 1}).build();
-		const char = new TestCharacterBuilder(actor)
-			.withPlaybookRepo(null)
-			.withMoveRepo(null)
-			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({resourceLabels: ["low ammo", "all out"]})]))
-			.build();
-		const ctx = await char.buildInventoryContext();
-		expect(ctx.regularItems[0].resourceChecks[0].checked).toBe(true);
-		expect(ctx.regularItems[0].resourceChecks[1].checked).toBe(false);
-	});
-
-	it("resourceChecks[i].label is null for empty string entries", async () => {
-		const char = new TestCharacterBuilder(new FakeActorBuilder().build())
-			.withPlaybookRepo(null)
-			.withMoveRepo(null)
-			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({resourceLabels: ["", ""]})]))
-			.build();
-		const ctx = await char.buildInventoryContext();
-		expect(ctx.regularItems[0].resourceChecks[0].label).toBeNull();
-	});
-
-	it("weightSlots array length matches item weight", async () => {
-		const char = new TestCharacterBuilder(new FakeActorBuilder().build())
-			.withPlaybookRepo(null)
-			.withMoveRepo(null)
-			.withInventoryRepo(new FakeInventoryRepository([makeOutfitItem({weight: 2})]))
-			.build();
-		const ctx = await char.buildInventoryContext();
-		expect(ctx.regularItems[0].weightSlots).toHaveLength(2);
-	});
-
-	it("regularItems only contains inventoryColumn=regular items", async () => {
-		const char = new TestCharacterBuilder(new FakeActorBuilder().build())
-			.withPlaybookRepo(null)
-			.withMoveRepo(null)
-			.withInventoryRepo(new FakeInventoryRepository([
-				makeOutfitItem({slug: "a", inventoryColumn: "regular"}),
-				makeOutfitItem({slug: "b", inventoryColumn: "small", smallGrid: false}),
-			]))
-			.build();
-		const ctx = await char.buildInventoryContext();
-		expect(ctx.regularItems).toHaveLength(1);
-		expect(ctx.regularItems[0].slug).toBe("a");
-	});
-
-	it("smallItems only contains non-grid small items", async () => {
-		const char = new TestCharacterBuilder(new FakeActorBuilder().build())
-			.withPlaybookRepo(null)
-			.withMoveRepo(null)
-			.withInventoryRepo(new FakeInventoryRepository([
-				makeOutfitItem({slug: "a", inventoryColumn: "small", smallGrid: false, sortOrder: 1}),
-				makeOutfitItem({slug: "b", inventoryColumn: "small", smallGrid: true, sortOrder: 2}),
-			]))
-			.build();
-		const ctx = await char.buildInventoryContext();
-		expect(ctx.smallItems).toHaveLength(1);
-		expect(ctx.smallItems[0].slug).toBe("a");
-		expect(ctx.smallGridItems).toHaveLength(1);
-		expect(ctx.smallGridItems[0].slug).toBe("b");
-	});
-});
-
 // -- StonetopCharacter.toggleCarriedItem (Have What You Need) ------------------
 
 describe("StonetopCharacter.toggleCarriedItem", () => {
@@ -248,28 +141,43 @@ describe("StonetopCharacter.toggleCarriedItem", () => {
 
 	it("marks an item by moving its weight out of the undefined ◇ pool", async () => {
 		const actor = new FakeActorBuilder().withFlag("inventory.regularPool", 3).build();
-		const ok = await makeChar(actor).toggleCarriedItem("rope", true, { weight: 2 });
-		expect(ok).toBe(true);
+		await makeChar(actor).toggleCarriedItem("rope", true, { weight: 2 });
 		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toEqual({ rope: true });
 		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(1);
 	});
 
-	it("refuses to mark an item when the undefined pool can't cover its weight", async () => {
+	it("marks an item the pool can't fully cover, draining the reserve (the rest becomes load)", async () => {
 		const actor = new FakeActorBuilder().withFlag("inventory.regularPool", 1).build();
-		const ok = await makeChar(actor).toggleCarriedItem("armor", true, { weight: 3 });
-		expect(ok).toBe(false);
-		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toBeNull();
+		await makeChar(actor).toggleCarriedItem("armor", true, { weight: 3 });
+		// Item is carried; the 1 available ◇ is spent and the other 2 add to the load.
+		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toEqual({ armor: true });
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(0);
+	});
+
+	it("marking then un-marking an item returns exactly what was drawn (a no-op on the pool)", async () => {
+		const actor = new FakeActorBuilder().withFlag("inventory.regularPool", 3).build();
+		const char = makeChar(actor);
+		await char.toggleCarriedItem("rope", true, { weight: 2 });   // draw 2, pool 3 → 1
+		await char.toggleCarriedItem("rope", false, { weight: 2 });  // refund 2, pool 1 → 3
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(3);
+		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toEqual({ rope: false });
+	});
+
+	it("un-marking an item the pool couldn't cover refunds only what was drawn, never inventing marks", async () => {
+		const actor = new FakeActorBuilder().withFlag("inventory.regularPool", 1).build();
+		const char = makeChar(actor);
+		await char.toggleCarriedItem("armor", true, { weight: 3 });  // draw 1 (2 became loot), pool 1 → 0
+		await char.toggleCarriedItem("armor", false, { weight: 3 }); // refund only the 1 drawn
 		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(1);
 	});
 
-	it("un-marking an item returns its weight to the undefined pool", async () => {
+	it("un-marking an item defined at Outfit (no draw recorded) drops its weight without inflating the pool", async () => {
 		const actor = new FakeActorBuilder()
 			.withFlag("inventory.regularPool", 1)
 			.withFlag("inventory.checked", { rope: true })
 			.build();
-		const ok = await makeChar(actor).toggleCarriedItem("rope", false, { weight: 2 });
-		expect(ok).toBe(true);
-		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(3);
+		await makeChar(actor).toggleCarriedItem("rope", false, { weight: 2 });
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(1);
 	});
 
 	it("small items move a single □ to and from the small pool", async () => {
@@ -279,17 +187,5 @@ describe("StonetopCharacter.toggleCarriedItem", () => {
 		expect(actor.getFlag("stonetop_pwd", "inventory.smallPool")).toBe(1);
 		await char.toggleCarriedItem("flint", false, { small: true });
 		expect(actor.getFlag("stonetop_pwd", "inventory.smallPool")).toBe(2);
-	});
-
-	it("in manual mode, marking an item is a plain toggle that leaves the pool untouched", async () => {
-		const actor = new FakeActorBuilder()
-			.withFlag("inventory.manualInventory", true)
-			.withFlag("inventory.regularPool", 1)
-			.build();
-		// Weight exceeds the pool, but manual mode bypasses the Have What You Need check.
-		const ok = await makeChar(actor).toggleCarriedItem("armor", true, { weight: 3 });
-		expect(ok).toBe(true);
-		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toEqual({ armor: true });
-		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(1);
 	});
 });

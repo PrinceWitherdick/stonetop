@@ -1,4 +1,4 @@
-import { capitalizeFirst } from "../utils/strings.js";
+import { capitalizeFirst, parseInstinct } from "../utils/strings.js";
 
 // ── Appearance ────────────────────────────────────────────────────────────────
 
@@ -70,6 +70,11 @@ export class InstinctSection {
 	}
 	get selectedOption() { return this.options.find(o => o.selected) ?? null; }
 	get hasSelection()   { return !!this.selected || !!this.selectedOption; }
+	// When the saved value isn't one of the playbook's suggestions, it's a
+	// custom "Word — Description" instinct; expose its halves for the editor.
+	get isCustom()           { return !!this.selected && !this.options.some(o => o.value === this.selected); }
+	get customWord()         { return this.isCustom ? parseInstinct(this.selected).word : ""; }
+	get customDescription()  { return this.isCustom ? parseInstinct(this.selected).description : ""; }
 }
 
 // ── Origin ────────────────────────────────────────────────────────────────────

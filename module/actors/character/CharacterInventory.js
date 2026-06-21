@@ -6,12 +6,13 @@ export class CharacterInventory {
 	get checked()      { return this._flags.getFlag("checked") ?? {}; }
 	get resources()    { return this._flags.getFlag("resources") ?? {}; }
 	get addedSpecial() { return this._flags.getFlag("addedSpecial") ?? []; }
-	get loadLevel()    { return this._flags.getFlag("loadLevel") ?? null; }
 	get regularPool()  { return this._flags.getFlag("regularPool") ?? 0; }
 	get smallPool()    { return this._flags.getFlag("smallPool") ?? 0; }
-	// When on, the player edits load level, the undefined ◇/□ pools, and item
-	// marks directly instead of letting Outfit / Have What You Need drive them.
-	get manualMode()   { return this._flags.getFlag("manualInventory") ?? false; }
+	// Per-item record of how many undefined ◇/□ a Have-What-You-Need mark drew from
+	// the reserve, keyed by slug. Lets un-marking return exactly what was spent
+	// instead of the item's full cost (which would invent marks). Items defined at
+	// Outfit have no entry, so un-marking them just drops their weight from the load.
+	get drawn()        { return this._flags.getFlag("drawn") ?? {}; }
 
 	async setItemChecked(slug, isChecked) {
 		await this._flags.setFlag("checked", { ...this.checked, [slug]: isChecked });
@@ -19,10 +20,6 @@ export class CharacterInventory {
 
 	async setResource(slug, count) {
 		await this._flags.setFlag("resources", { ...this.resources, [slug]: count });
-	}
-
-	async setLoadLevel(level) {
-		await this._flags.setFlag("loadLevel", level);
 	}
 
 	async setRegularPool(count) {
@@ -33,8 +30,8 @@ export class CharacterInventory {
 		await this._flags.setFlag("smallPool", count);
 	}
 
-	async setManualMode(on) {
-		await this._flags.setFlag("manualInventory", !!on);
+	async setDrawn(drawnMap) {
+		await this._flags.setFlag("drawn", drawnMap);
 	}
 
 	async setAllChecked(checkedMap) {
@@ -56,11 +53,15 @@ export class CharacterInventory {
 		}
 	}
 
+	// Clears item marks, both undefined ◇/□ reserves (which is what drives the
+	// derived load), and the per-item draw records. Item uses (resources) and
+	// added-special items are left alone.
 	async resetSelections() {
 		await Promise.all([
 			this._flags.unsetFlag("checked"),
-			this.setLoadLevel(null),
 			this._flags.unsetFlag("regularPool"),
+			this._flags.unsetFlag("smallPool"),
+			this._flags.unsetFlag("drawn"),
 		]);
 	}
 

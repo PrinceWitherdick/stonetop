@@ -39,12 +39,20 @@ export class StepperDialog extends Application {
 		return super.close(options);
 	}
 
-	// Per-render navigation context: the active step plus its position labels.
+	// Per-render navigation context: the active step plus its position labels. The
+	// `steps` list lets a template render a jump-to-step table of contents (only the
+	// Expedition dialog does today); it's harmless extra data for the others.
 	_stepNav() {
 		const steps = this._steps;
 		const step  = steps[this._step];
 		return {
 			step,
+			steps: steps.map((s, i) => ({
+				index:    i,
+				title:    s.title,
+				icon:     s.icon,
+				isActive: i === this._step,
+			})),
 			stepIndex: this._step + 1,
 			stepCount: steps.length,
 			stepLabel: `Step ${this._step + 1} of ${steps.length}`,
@@ -53,11 +61,13 @@ export class StepperDialog extends Application {
 		};
 	}
 
-	// Start the keep-on-top watcher and wire the shared Back/Next buttons.
+	// Start the keep-on-top watcher and wire the shared Back/Next buttons plus any
+	// jump-to-step table-of-contents buttons.
 	_bindStepNav(html) {
 		this._keepOnTop.start();
 		html.find(".stonetop-spring-back").on("click", () => this._retreat());
 		html.find(".stonetop-spring-next").on("click", () => this._advance());
+		html.find(".stonetop-guide-toc-btn").on("click", ev => this._goTo(Number(ev.currentTarget.dataset.stepIndex)));
 	}
 
 	// Hook for subclasses to capture live field values before changing steps.
@@ -71,5 +81,14 @@ export class StepperDialog extends Application {
 	_retreat() {
 		this._onBeforeStepChange();
 		if (this._step > 0) { this._step--; this.render(false); }
+	}
+
+	// Jump straight to a step (table-of-contents click). Flushes the current field
+	// first, like Back/Next.
+	_goTo(index) {
+		if (!Number.isInteger(index) || index < 0 || index >= this._steps.length || index === this._step) return;
+		this._onBeforeStepChange();
+		this._step = index;
+		this.render(false);
 	}
 }

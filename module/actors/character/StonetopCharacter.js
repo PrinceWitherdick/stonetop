@@ -16,7 +16,6 @@ import {
 	InventoryItemSnapshotBuilder,
 	InventorySegmentSnapshot,
 	InventorySnapshot,
-	LoadOptionSnapshot,
 	LoadSnapshotBuilder,
 	MoveCategorySnapshotBuilder,
 	MoveGroupSnapshot,
@@ -49,10 +48,11 @@ import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
-import {capitalizeFirst, slugify} from "../../utils/strings.js";
+import {capitalizeFirst, slugify, composeInstinct} from "../../utils/strings.js";
 import {localize as _loc} from "../../utils/i18n.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
+import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie} from "../../utils/damage-die.js";
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
@@ -101,9 +101,27 @@ function _transformPiercingNote(note, prosperity) {
 	return note.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
 }
 
-// Maximum number of regular inventory slots for each load level.
-// OutfitMoveDialog._loadLevelFor uses these same thresholds (inverted).
-const LOAD_LEVEL_LIMITS = { light: 3, normal: 6, heavy: 9 };
+// Total ◇/□ a Have-What-You-Need check drew from a reserve across the given items.
+// `drawn` is keyed by slug; only *currently-marked* items still hold their draw — an
+// un-marked item's draw has been returned to the pool, so its entry (which can linger
+// if rapid toggles race) must be ignored or it would reserve phantom empty slots.
+// The marks of marked items stay visible (as empty slots) in the track.
+function _sumDrawn(drawn, items) {
+	let total = 0;
+	for (const item of items) {
+		if (item.checked) total += Number(drawn[item.slug]) || 0;
+	}
+	return total;
+}
+
+// A move can raise every load cap via its `loadBonus` field (the Ranger's Pack
+// Horse sets it to 1). The caps and the count→tier bucketing live in utils/load.js
+// so the sheet, snapshot defaults, and dialog can't drift.
+function _ownedLoadBonus(actor) {
+	return actor.items
+		.filter(i => i.type === "move")
+		.reduce((sum, i) => sum + (Number(i.system?.loadBonus) || 0), 0);
+}
 
 export class StonetopCharacter {
 	constructor(actor, repos) {
@@ -373,12 +391,17 @@ export class StonetopCharacter {
 		const resources      = this._inventory.resources;
 		const rPool          = this._inventory.regularPool;
 		const sPool          = this._inventory.smallPool;
-		const loadLevel      = this._inventory.loadLevel;
 		const allItems       = await this._inventoryRepo.getAll();
 		const steadingActor  = this.getSteadingActor();
 		const smallItemLimit = this.getSmallItemLimit(steadingActor);
 		const steadingName   = steadingActor?.name ?? null;
 		const prosperity     = smallItemLimit !== null ? smallItemLimit - 4 : null;
+		// A move's `loadBonus` raises every load cap (the Ranger's Pack Horse → +1).
+		// The boosted limits flow into the regular ◇ pool here and into the Outfit
+		// dialog via the snapshot. hasPackHorse drives the boosted help text/note.
+		const loadBonus      = _ownedLoadBonus(this._actor);
+		const hasPackHorse   = loadBonus > 0;
+		const loadLimits     = loadLimitsFor(loadBonus);
 
 		const mapItem = (outfitItem) => {
 			const res    = outfitItem.resource;
@@ -458,29 +481,37 @@ export class StonetopCharacter {
 				.build()
 			);
 
+		// Load is derived from the ◇ actually marked — checked item weights plus the
+		// undefined regular pool — never stored. Marking loot or editing the pool
+		// directly just re-derives it, matching the book's "count what you've marked."
+		const allRegularForLoad    = [...flatRegular, ...arcanaSection];
+		const checkedRegularWeight = allRegularForLoad
+			.filter(i => i.checked).reduce((sum, i) => sum + (i.weight ?? 0), 0);
+		// The undefined pool can hold whatever's left under the heavy cap; the stored
+		// count is clamped to that so checking heavy loot naturally shrinks the reserve.
+		const drawn              = this._inventory.drawn;
+		const regularPoolMax     = Math.max(0, loadLimits.heavy - checkedRegularWeight);
+		const regularPoolCurrent = Math.min(rPool, regularPoolMax);
+		// Reserve marks a Have-What-You-Need check drew into an item keep their slot in
+		// the displayed track (an empty ◇), instead of vanishing — only genuinely new
+		// loot (weight that wasn't drawn from here) shrinks the slot count. The track
+		// never grows past the load cap, so an overloaded carry can't sprout a 10th ◇
+		// (only a Pack Horse / loadBonus move raises the cap to 10).
+		const regularPoolSlots   = Math.min(loadLimits.heavy, regularPoolMax + _sumDrawn(drawn, allRegularForLoad));
+		const totalRegularMarks  = checkedRegularWeight + regularPoolCurrent;
+		const derivedLoadLevel   = deriveLoadLevel(totalRegularMarks, loadLimits);
+
 		const load = new LoadSnapshotBuilder()
 			.withInstruction(_loc("stonetop.inventory.outfit.heading"))
-			.withSelected(loadLevel ?? null)
-			.withLoadLevelLight(loadLevel === "light")
-			.withLoadLevelNormal(loadLevel === "normal")
-			.withLoadLevelHeavy(loadLevel === "heavy")
-			.withOptions([
-				new LoadOptionSnapshot("light",  "Light",  _loc("stonetop.inventory.outfit.light")),
-				new LoadOptionSnapshot("normal", "Normal", _loc("stonetop.inventory.outfit.normal")),
-				new LoadOptionSnapshot("heavy",  "Heavy",  _loc("stonetop.inventory.outfit.heavy")),
-			])
+			.withSelected(derivedLoadLevel)
+			.withLoadLevelLight(derivedLoadLevel === "light")
+			.withLoadLevelNormal(derivedLoadLevel === "normal")
+			.withLoadLevelHeavy(derivedLoadLevel === "heavy" || derivedLoadLevel === "overloaded")
+			.withLoadLevelOverloaded(derivedLoadLevel === "overloaded")
+			.withTotalMarks(totalRegularMarks)
 			.build();
 
 		const addedSmall = addedSpecial.filter(i => i.inventoryColumn === "small");
-		// The undefined ◇/□ pools are set when the player Outfits and are read-only
-		// (decrement-only) afterwards, so display the stored counts directly rather
-		// than deriving "remaining capacity" from checked items.
-		const smallPoolMax     = smallItemLimit ?? 9;
-		const smallPoolCurrent = Math.min(sPool, smallPoolMax);
-
-		const regularPoolMax     = LOAD_LEVEL_LIMITS[loadLevel] ?? LOAD_LEVEL_LIMITS.heavy;
-		const regularPoolCurrent = Math.min(rPool, regularPoolMax);
-
 		const smallItems = [
 			...allSmall.filter(i => !i.smallGrid).map(mapItem),
 			...addedSmall.filter(i => !i.smallGrid).map(mapAddedSpecial),
@@ -489,20 +520,33 @@ export class StonetopCharacter {
 		];
 		const smallGridItems = allSmall.filter(i => i.smallGrid).map(mapItem);
 
+		// Small marks are likewise derived: the undefined □ pool fills the room left
+		// under the 4+Prosperity Outfit allotment after checked small items.
+		const checkedSmallCount = [...smallItems, ...smallGridItems].filter(i => i.checked).length;
+		const smallPoolMax     = Math.max(0, (smallItemLimit ?? 9) - checkedSmallCount);
+		const smallPoolCurrent = Math.min(sPool, smallPoolMax);
+		// Likewise cap the □ track at the small-item allotment so marking past it can't
+		// add a phantom slot.
+		const smallPoolSlots   = Math.min(smallItemLimit ?? 9, smallPoolMax + _sumDrawn(drawn, [...smallItems, ...smallGridItems]));
+
 		const outfit = new OutfitSnapshotBuilder()
 			.withLoad(load)
 			.withRegularItems(flatRegular)
 			.withRegularSegments(_segmentByTwoCol(flatRegular))
-			.withRegularPool(new ResourceBuilder().withCurrent(regularPoolCurrent).withMax(regularPoolMax).withTitle(null).withLabels([]).build())
+			.withRegularPool(new ResourceBuilder().withCurrent(regularPoolCurrent).withMax(regularPoolSlots).withTitle(null).withLabels([]).build())
+			.withRegularPoolCap(regularPoolMax)
 			.withSmallItems(smallItems)
 			.withSmallGridItems(smallGridItems)
-			.withSmallPool(new ResourceBuilder().withCurrent(smallPoolCurrent).withMax(smallPoolMax).withTitle(null).withLabels([]).build())
+			.withSmallPool(new ResourceBuilder().withCurrent(smallPoolCurrent).withMax(smallPoolSlots).withTitle(null).withLabels([]).build())
+			.withSmallPoolCap(smallPoolMax)
 			.withArcanaItems(arcanaSection)
 			.withSmallItemLimit(smallItemLimit)
 			.withSteadingName(steadingName)
+			.withHasPackHorse(hasPackHorse)
+			.withLoadLimits(loadLimits)
 			.build();
 
-		return new InventorySnapshot(outfit, possessions, other, this._inventory.manualMode);
+		return new InventorySnapshot(outfit, possessions, other);
 	}
 
 	_buildPossessionsSnapshot(specialPossessions, maxUsesMap) {
@@ -548,87 +592,6 @@ export class StonetopCharacter {
 		return new PossessionsSnapshot(pickCount, pickNote, items, isIncomplete);
 	}
 
-	async buildInventoryContext() {
-		const checked = this._inventory.checked;
-		const resources = this._inventory.resources;
-		const loadLevel = this._inventory.loadLevel;
-		const rPool = this._inventory.regularPool;
-		const sPool = this._inventory.smallPool;
-		const allItems = await this._inventoryRepo.getAll();
-
-		const mapCompendium = (outfitItem) => ({
-			slug: outfitItem.slug,
-			label: outfitItem.name,
-			note: outfitItem.note,
-			isCustom: false,
-			ownedId: null,
-			checked: checked[outfitItem.slug] ?? false,
-			breakBefore: outfitItem.breakBefore,
-			smallGrid: false,
-			twoCol: outfitItem.twoCol,
-			resourceChecks: outfitItem.resource?.max
-				? outfitItem.resource.labels.map((label, i) => ({
-					label: label || null,
-					checked: i < (resources[outfitItem.slug] ?? 0),
-				}))
-				: null,
-			weightSlots: Array.from({ length: outfitItem.weight ?? 0 }, (_, i) => i),
-		});
-
-		const mapCustom = item => ({
-			slug: item._id,
-			label: item.name,
-			note: null,
-			isCustom: true,
-			ownedId: item._id,
-			checked: checked[item._id] ?? false,
-			breakBefore: false,
-			smallGrid: false,
-			twoCol: false,
-			resourceChecks: null,
-			weightSlots: Array.from({ length: item.system.weight ?? 1 }, (_, i) => i),
-		});
-
-		const customItems = this._actor.items.filter(i =>
-			i.type === "move" && i.system?.moveType === "inventory-custom"
-		);
-
-		const allRegular = allItems.filter(i => i.inventoryColumn === "regular");
-		const allSmall   = allItems.filter(i => i.inventoryColumn === "small");
-
-		const flatRegular = [
-			...allRegular.map(mapCompendium),
-			...customItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustom),
-		];
-
-		return {
-			regularItems: flatRegular,
-			regularSegments: _segmentByTwoCol(flatRegular),
-			smallItems: allSmall.filter(i => !i.smallGrid).map(mapCompendium).concat(
-				customItems.filter(i => i.system.inventoryColumn === "small").map(mapCustom)
-			),
-			smallGridItems: allSmall.filter(i => i.smallGrid).map(mapCompendium),
-			loadLevel,
-			loadLevelLight:  loadLevel === "light",
-			loadLevelNormal: loadLevel === "normal",
-			loadLevelHeavy:  loadLevel === "heavy",
-			regularPool: {
-				groups: [
-					Array.from({ length: 3 }, (_, i) => ({ checked: i < rPool, index: i })),
-					Array.from({ length: 3 }, (_, i) => ({ checked: (i + 3) < rPool, index: i + 3 })),
-					Array.from({ length: 3 }, (_, i) => ({ checked: (i + 6) < rPool, index: i + 6 })),
-				],
-			},
-			smallPool: {
-				groups: [
-					Array.from({ length: 3 }, (_, i) => ({ checked: i < sPool, index: i })),
-					Array.from({ length: 3 }, (_, i) => ({ checked: (i + 3) < sPool, index: i + 3 })),
-					Array.from({ length: 3 }, (_, i) => ({ checked: (i + 6) < sPool, index: i + 6 })),
-				],
-			},
-		};
-	}
-
 	async setPostDeathInsert(slug) {
 		const toRemove = this._actor.items
 			.filter(i => i.type === "move" && i.system?.moveType === "post-death")
@@ -652,13 +615,9 @@ export class StonetopCharacter {
 
 	async setInventoryItemChecked(slug, isChecked) { await this._inventory.setItemChecked(slug, isChecked); }
 	async setInventoryResource(slug, count)         { await this._inventory.setResource(slug, count); }
-	async setInventoryLoadLevel(level)              { await this._inventory.setLoadLevel(level); }
 	async setInventoryRegularPool(count)            { await this._inventory.setRegularPool(count); }
 	async setInventorySmallPool(count)              { await this._inventory.setSmallPool(count); }
 	async removeSpecialItem(slug)                   { await this._inventory.removeSpecial(slug); }
-
-	get inventoryManualMode()                       { return this._inventory.manualMode; }
-	async setInventoryManualMode(on)                { await this._inventory.setManualMode(on); }
 
 	getSteadingActor() {
 		const storedSteadingId = resolvedFlagProperty(this._actor, "steadingId");
@@ -676,43 +635,49 @@ export class StonetopCharacter {
 
 	/**
 	 * Have What You Need (one-click): marking a specific item on the Inventory tab
-	 * moves marks out of the undefined pool onto it; un-marking returns them. The
-	 * total load is fixed at Outfit, so checking + undefined stays constant.
+	 * draws marks from the undefined pool (its weight, or 1 for a small item). If
+	 * the pool can't cover it, the shortfall just adds to your load — that's loot
+	 * you picked up in the field (Book I p.87). We remember how much each mark drew
+	 * so un-marking returns exactly that (an item defined at Outfit drew nothing, so
+	 * un-marking just drops its weight) — toggling can never invent reserve marks.
+	 * The pool is also directly editable, so any state is reachable.
 	 *
 	 * @param {string}  slug
 	 * @param {boolean} isChecked  Whether the item is now carried.
 	 * @param {object}  opts
 	 * @param {boolean} [opts.small]   Small item (□, costs 1) vs regular item (◇, costs its weight).
 	 * @param {number}  [opts.weight]  Regular item weight (◇ to move).
-	 * @returns {Promise<boolean>}  False if there aren't enough undefined marks to define the item.
 	 */
 	async toggleCarriedItem(slug, isChecked, { small = false, weight = 1 } = {}) {
-		// In manual mode the player owns the pools directly, so marking an item is a
-		// plain toggle that doesn't draw from (or return to) the undefined supply.
-		if (this._inventory.manualMode) {
-			await this._inventory.setItemChecked(slug, isChecked);
-			return true;
-		}
-		const cost = small ? 1 : Math.max(0, weight);
-		const pool = small ? this._inventory.smallPool : this._inventory.regularPool;
-		if (isChecked && cost > pool) return false;
 		await this._inventory.setItemChecked(slug, isChecked);
-		const next = isChecked ? pool - cost : pool + cost;
+		const cost      = small ? 1 : Math.max(0, weight);
+		const pool      = small ? this._inventory.smallPool : this._inventory.regularPool;
+		const nextDrawn = { ...this._inventory.drawn };
+		let next;
+		if (isChecked) {
+			const spent = Math.min(cost, pool);
+			next = pool - spent;
+			if (spent > 0) nextDrawn[slug] = spent; else delete nextDrawn[slug];
+		} else {
+			next = pool + (nextDrawn[slug] ?? 0);
+			delete nextDrawn[slug];
+		}
+		await this._inventory.setDrawn(nextDrawn);
 		if (small) await this._inventory.setSmallPool(next);
 		else       await this._inventory.setRegularPool(next);
-		return true;
 	}
 
-	// The Outfit move is the only place the load level and the "undefined" ◇/□
-	// pools are set — the player decides their load and how many marks to reserve
-	// as undefined. On the Inventory tab those pools are read-only (decrement-only,
-	// for Have What You Need); they're never increased outside Outfit.
-	async applyOutfit(checkedMap, loadLevel, regularPool = 0, smallPool = 0) {
+	// Outfit batch-marks the inventory: it writes the checked items and the two
+	// "undefined" ◇/□ reserves. Load itself is derived from the marks, so there's
+	// nothing else to store. Outfit redefines the whole loadout, so the per-item
+	// draw records are cleared — its checked items are defined load, not drawn from
+	// the reserve. The pools and item marks stay freely editable afterwards.
+	async applyOutfit(checkedMap, regularPool = 0, smallPool = 0) {
 		await Promise.all([
 			this._inventory.setAllChecked(checkedMap),
-			this._inventory.setLoadLevel(loadLevel),
 			this._inventory.setRegularPool(regularPool),
 			this._inventory.setSmallPool(smallPool),
+			this._inventory.setDrawn({}),
 		]);
 	}
 
@@ -1306,7 +1271,7 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 	});
 
 	const instinctOptions = (playbookData.instincts ?? []).map(({ word, description }) => {
-		const value = `${word} — ${description}`;
+		const value = composeInstinct(word, description);
 		return new InstinctOptionSnapshotBuilder()
 			.withWord(word)
 			.withDescription(description)

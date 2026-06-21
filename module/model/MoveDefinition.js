@@ -14,6 +14,7 @@ export class MoveDefinition {
 		this.resource    = data.system?.resource ? new ResourceDef(data.system.resource) : null;
 		this.hpBonus     = data.system?.hpBonus         ?? 0;
 		this.armorBonus  = data.system?.armorBonus      ?? 0;
+		this.loadBonus   = data.system?.loadBonus       ?? 0;
 		// Per-option marks (e.g. WBH "Potential for Greatness"): each option carries a
 		// checkbox count and optional hp/armor/crewHp effect applied per checked box.
 		this.markOptions = data.system?.markOptions     ?? null;

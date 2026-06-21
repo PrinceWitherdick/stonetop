@@ -228,7 +228,7 @@ export class WelcomeDialog extends Application {
 			actor = await getDocumentClass("Actor").create({
 				name:      `${user.name}'s Character`,
 				type:      "character",
-				ownership: { [userId]: owner },
+				ownership: { [userId]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER },
 				// The owner's client greets the player with the creation intro, then
 				// clears this — on the next createActor, or on their next login. See
 				// _maybeOpenCharacterCreation in hooks/Ready.js.

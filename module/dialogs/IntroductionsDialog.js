@@ -1,6 +1,7 @@
 import { KeepOnTop } from "../utils/keep-on-top.js";
 import { shuffle } from "../utils/arrays.js";
 import { playbookSlug, getPlayerCharacters, playbookIconPath } from "../utils/playbook-actors.js";
+import { wrapLoreTerms } from "../utils/lore-terms.js";
 
 // ── Playbook-specific introduction data ────────────────────────────────────────
 
@@ -359,8 +360,10 @@ export class IntroductionsDialog extends Application {
 			};
 		}
 
-		const instruction = phase.getInstruction(actor);
-		const questions   = phase.getQuestions(actor);
+		// Add hover summaries to bare god names (Danu / Aratis / Helior) in the
+		// authored prompts; move names are intentionally left alone.
+		const instruction = wrapLoreTerms(phase.getInstruction(actor));
+		const questions   = phase.getQuestions(actor)?.map(wrapLoreTerms) ?? null;
 		const isLastPc    = !phase.roundRobin || this._pcIndex >= pcs.length - 1;
 		const isDone      = this._phase === 8 && isLastPc;
 

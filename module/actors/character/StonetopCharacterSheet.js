@@ -16,7 +16,7 @@ import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE} from "./StonetopFla
 import {rollDamage, sign} from "../../utils/roll-engine.js";
 import {dieFromDamage} from "../../utils/damage.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
-import {escHtml, isDefaultImg, normalizePlaybookGlyphs} from "../../utils/strings.js";
+import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
 import {playbookIconPath} from "../../utils/playbook-actors.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
@@ -27,6 +27,7 @@ import {attachKeepOnTop, keepDialogOnTop} from "../../utils/keep-on-top.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower} from "../../data/follower-build.js";
 import {arcanaSummon, joinNames} from "../../data/arcana-summons.js";
@@ -592,85 +593,6 @@ function _parseFollowerDamage(str) {
 		damageRoll: dieFromDamage(s),
 		damageForm: (s.match(/\(([^)]+)\)/)?.[1] ?? "").replace(/\bband\b/gi, "hand") || null,
 	};
-}
-
-// ── Move cross-reference hover tooltips ──────────────────────────────────────
-// Longest names first so the alternation prefers the longer match.
-const _MOVE_REF_NAMES = [
-	"Persuade (vs. NPCs)",
-	"Persuade (vs. PCs)",
-	"Have What You Need",
-	"Return Triumphant",
-	"Struggle as One",
-	"Chart a Course",
-	"Keep Company",
-	"Defy Danger",
-	"Know Things",
-	"Seek Insight",
-	"Make Camp",
-	"Requisition",
-	"Let Fly",
-	"Outfit",
-	"Forage",
-	"Recover",
-	"Defend",
-	"Clash",
-	"Aid",
-];
-const _MOVE_REF_RE = new RegExp(
-	`(?<!\\w)(${_MOVE_REF_NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?!\\w)`,
-	"g"
-);
-const _moveRefCache = new Map();
-
-async function _fetchMoveRef(name) {
-	const key = name.toLowerCase();
-	if (_moveRefCache.has(key)) return _moveRefCache.get(key);
-	const packs = game.packs.filter(p => p.metadata.packageName === "stonetop_pwd" && p.metadata.type === "Item");
-	for (const pack of packs) {
-		await pack.getIndex();
-		const entry = pack.index.find(e => e.name.toLowerCase() === key);
-		if (!entry) continue;
-		const doc  = await pack.getDocument(entry._id);
-		const desc = doc?.system?.description ?? null;
-		_moveRefCache.set(key, desc);
-		return desc;
-	}
-	_moveRefCache.set(key, null);
-	return null;
-}
-
-function _enrichMoveRefsInEl(container) {
-	const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-		acceptNode: node =>
-			node.parentElement?.closest(".stonetop-move-ref")
-				? NodeFilter.FILTER_REJECT
-				: NodeFilter.FILTER_ACCEPT,
-	});
-	const toReplace = [];
-	let node;
-	while ((node = walker.nextNode())) {
-		_MOVE_REF_RE.lastIndex = 0;
-		if (_MOVE_REF_RE.test(node.textContent)) toReplace.push(node);
-	}
-	for (const textNode of toReplace) {
-		const text = textNode.textContent;
-		const frag = document.createDocumentFragment();
-		let lastIdx = 0;
-		_MOVE_REF_RE.lastIndex = 0;
-		let m;
-		while ((m = _MOVE_REF_RE.exec(text)) !== null) {
-			if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
-			const span = document.createElement("span");
-			span.className = "stonetop-move-ref";
-			span.dataset.moveName = m[1];
-			span.textContent = m[1];
-			frag.appendChild(span);
-			lastIdx = m.index + m[1].length;
-		}
-		if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
-		textNode.parentNode?.replaceChild(frag, textNode);
-	}
 }
 
 export function createStonetopCharacterSheetClass(Base) {
@@ -2104,7 +2026,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-item-description, .stonetop-arcanum-body, .stonetop-invocation-desc, .stonetop-lore-description, .stonetop-lore-option-desc").each((_, el) => {
 				if (el.dataset.glyphsWrapped) return;
 				el.dataset.glyphsWrapped = "1";
-				if (el.matches(".stonetop-item-description")) _enrichMoveRefsInEl(el);
+				if (el.matches(".stonetop-item-description")) enrichMoveRefsInEl(el);
 				wrapStonetopGlyphsInEl(el);
 			});
 
@@ -2157,7 +2079,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					const anchor = ev.currentTarget;
 					_moveRefHovered = anchor;
 					const name = anchor.dataset.moveName;
-					const desc = await _fetchMoveRef(name);
+					const desc = await fetchMoveRef(name);
 					if (_moveRefHovered !== anchor || !desc) return;
 					moveRefPanel.innerHTML =
 						`<p class="stonetop-word-tooltip-name">${name}</p>` +
@@ -2202,13 +2124,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (this.hasActiveEdits) {
 				html.find("[name=stonetop-background]").on("change", this._onBackgroundChange.bind(this));
 				html.find("[name=stonetop-instinct]").on("change", ev => {
-					const val = ev.currentTarget.value;
-					html.find(".stonetop-instinct-custom").val(val);
-					this._stonetopCharacter.instinct.select(val);
+					html.find(".stonetop-instinct-custom-word, .stonetop-instinct-custom-desc").val("");
+					this._stonetopCharacter.instinct.select(ev.currentTarget.value);
 				});
-				html.find(".stonetop-instinct-custom").on("change", ev =>
-					this._stonetopCharacter.instinct.select(ev.currentTarget.value.trim())
-				);
+				// Keep the word field to a single token, then save the composed
+				// "Word — Description" so custom instincts match the suggestions.
+				html.find(".stonetop-instinct-custom-word").on("input", ev => {
+					ev.currentTarget.value = ev.currentTarget.value.replace(/\s+/g, "");
+				});
+				html.find(".stonetop-instinct-custom-word, .stonetop-instinct-custom-desc").on("change", () => {
+					html.find("[name=stonetop-instinct]").prop("checked", false);
+					const word = html.find(".stonetop-instinct-custom-word").val();
+					const desc = html.find(".stonetop-instinct-custom-desc").val();
+					this._stonetopCharacter.instinct.select(composeInstinct(word, desc));
+				});
 				html.find(".stonetop-appearance-radio").on("change", this._onAppearanceChange.bind(this));
 				html.find("[name=stonetop-origin]").on("change", ev =>
 					this._stonetopCharacter.origin.select(ev.currentTarget.value)
@@ -2232,8 +2161,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}, true);
 			html.find(".stonetop-inventory-item-check").on("change", this._onInventoryItemCheck.bind(this));
-			html.find(".stonetop-inventory-manual-check").on("change", this._onInventoryManualToggle.bind(this));
-			html.find(".stonetop-outfit-load-radio").on("change", this._onInventoryLoadLevel.bind(this));
 			html.find(".stonetop-regular-pool-btn, .stonetop-small-pool-display").on("change", this._onInventoryPoolEdit.bind(this));
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-inventory-resource-btn");
@@ -3426,17 +3353,36 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onInventoryItemCheck(ev) {
-			// Have What You Need: marking an item pulls marks from the undefined pool
-			// (its weight, or 1 for a small item); un-marking returns them. The load
-			// total is fixed at Outfit, so a mark must be available to define an item.
+			// Have What You Need: marking an item spends marks from the undefined pool
+			// (its weight, or 1 for a small item); any shortfall adds to your load as
+			// loot. Un-marking returns the marks. The derived load updates on re-render.
 			const el = ev.currentTarget;
 			if (!el.dataset.slug) return; // ignore the slug-less undefined-pool diamonds
-			const ok = await this._stonetopCharacter.toggleCarriedItem(el.dataset.slug, el.checked, {
-				small:  !!el.closest(".stonetop-inventory-small"),
+			const smallColumn = el.closest(".stonetop-inventory-small");
+			const small = !!smallColumn;
+			if (small && el.checked) this._warnIfOverSmallAllotment(smallColumn);
+			await this._stonetopCharacter.toggleCarriedItem(el.dataset.slug, el.checked, {
+				small,
 				weight: Number(el.dataset.weight ?? 1),
 			});
-			if (!ok) ui.notifications.warn(game.i18n.localize("stonetop.inventory.notEnoughUndefined"));
 			this.render(false);
+		}
+
+		// Small items don't count toward load and have no hard limit (Book I p.84/326),
+		// so marking past the 4+Prosperity Outfit allotment is allowed — but flag it, so
+		// the player remembers to expend supplies or square it with the GM. Only warns
+		// when a steading is linked (otherwise Prosperity, and the allotment, is unknown).
+		_warnIfOverSmallAllotment(smallColumn) {
+			const raw = smallColumn.dataset.smallAllotment;
+			if (raw == null || raw === "") return;
+			const allotment = Number(raw);
+			if (!Number.isFinite(allotment)) return;
+			// The clicked box is already checked, so the live count includes it.
+			const checkedSmall = smallColumn.querySelectorAll(
+				".stonetop-inventory-item-check[data-slug]:checked").length;
+			if (checkedSmall > allotment) {
+				ui.notifications.warn(game.i18n.format("stonetop.inventory.smallOverAllotment", { limit: allotment }));
+			}
 		}
 
 		async _onInventoryResource(ev) {
@@ -3503,26 +3449,23 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 		}
 
-		async _onInventoryManualToggle(ev) {
-			await this._stonetopCharacter.setInventoryManualMode(ev.currentTarget.checked);
-			this.render(false);
-		}
-
-		async _onInventoryLoadLevel(ev) {
-			// Load level is only directly editable in manual mode; otherwise it's set by Outfit.
-			if (!this._stonetopCharacter.inventoryManualMode) { this.render(false); return; }
-			await this._stonetopCharacter.setInventoryLoadLevel(ev.currentTarget.value);
-			this.render(false);
-		}
-
 		async _onInventoryPoolEdit(ev) {
-			// The undefined ◇/□ pools are read-only displays except in manual mode, where
-			// clicking a diamond sets the pool count as a track (click sets/clears to here).
+			// The undefined ◇/□ pools are freely editable tracks: clicking a diamond
+			// sets the reserve count (click a filled one to clear back to it).
 			const el = ev.currentTarget;
-			if (!this._stonetopCharacter.inventoryManualMode) { this.render(false); return; }
 			const index    = Number(el.dataset.index);
-			const newCount = el.checked ? index + 1 : index;
-			if (el.classList.contains("stonetop-small-pool-display")) {
+			const isSmall  = el.classList.contains("stonetop-small-pool-display");
+			// Cap = room left under the load limit after the items already marked. Trying
+			// to reserve past it (clicking an empty slot a draw left behind) can't take —
+			// explain why instead of silently snapping the mark back.
+			const cap = Number(el.closest(".stonetop-supplies-pool-diamonds")?.dataset.poolCap ?? Infinity);
+			let newCount = el.checked ? index + 1 : index;
+			if (el.checked && newCount > cap) {
+				ui.notifications.warn(game.i18n.localize(
+					isSmall ? "stonetop.inventory.smallPoolAtLimit" : "stonetop.inventory.regularPoolAtLimit"));
+				newCount = cap;
+			}
+			if (isSmall) {
 				await this._stonetopCharacter.setInventorySmallPool(newCount);
 			} else {
 				await this._stonetopCharacter.setInventoryRegularPool(newCount);

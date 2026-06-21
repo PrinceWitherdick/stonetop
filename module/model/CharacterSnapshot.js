@@ -25,7 +25,7 @@ export {
 	Movelist, MovelistBuilder,
 } from "./Movelist.js";
 export {
-	LoadOptionSnapshot, LoadSnapshot, LoadSnapshotBuilder,
+	LoadSnapshot, LoadSnapshotBuilder,
 	InventoryItemSnapshot, InventoryItemSnapshotBuilder,
 	InventorySegmentSnapshot,
 	OutfitSnapshot, OutfitSnapshotBuilder,

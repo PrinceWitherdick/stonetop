@@ -64,3 +64,43 @@ export function normalizePlaybookGlyphs(value) {
 	for (const [from, to] of _PLAYBOOK_GLYPH_FIXES) text = text.replaceAll(from, to);
 	return text;
 }
+
+// ── Instinct format ─────────────────────────────────────────────────────────
+// A character's instinct reads "Word — Description" (e.g. "Delight — To find
+// beauty…"). Custom instincts follow the same shape so they sit alongside the
+// playbook's suggestions. These compose / split the two halves around the
+// shared space-em-dash-space separator.
+
+export const INSTINCT_SEPARATOR = " — ";
+
+/** Reduce a custom instinct's word to a single token (an instinct is one word). */
+function oneWord(value) {
+	return String(value ?? "").trim().split(/\s+/)[0] ?? "";
+}
+
+/**
+ * Compose a "Word — Description" instinct value from its two halves. The
+ * separator is kept whenever there's a description (even with an empty word) so
+ * the value round-trips through {@link parseInstinct} losslessly: a
+ * description-only instinct stays a description and never collapses into the word
+ * half. A word with no description has no separator.
+ */
+export function composeInstinct(word, description) {
+	const w = oneWord(word);
+	const d = String(description ?? "").trim();
+	if (!w && !d) return "";
+	if (!d) return w;
+	return `${w}${INSTINCT_SEPARATOR}${d}`;
+}
+
+/** Split a stored instinct value back into { word, description }. */
+export function parseInstinct(value) {
+	const v = String(value ?? "").trim();
+	if (!v) return { word: "", description: "" };
+	const idx = v.indexOf(INSTINCT_SEPARATOR);
+	if (idx === -1) return { word: v, description: "" };
+	return {
+		word:        v.slice(0, idx).trim(),
+		description: v.slice(idx + INSTINCT_SEPARATOR.length).trim(),
+	};
+}

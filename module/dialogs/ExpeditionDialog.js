@@ -97,7 +97,7 @@ const _STEPS = [
 			key:   "chart",
 			intro: { field: "route", prompt: "Destination &amp; route", placeholder: "Where are they headed, and how do they intend to get there?" },
 			groups: _CHART_GROUPS,
-			notes: { field: "notes", prompt: "Other notes (custom requirements, nested legs, what you negotiated)", placeholder: "Anything else you told them&hellip;" },
+			notes: { field: "notes", prompt: "Other notes (custom requirements, nested legs, what you negotiated)", placeholder: "Anything else you told them…" },
 		},
 	},
 	{
@@ -110,7 +110,7 @@ const _STEPS = [
 			kind:        "single",
 			key:         "outfit",
 			prompt:      "Who's carrying what &mdash; and what loads?",
-			placeholder: "Notable gear, loads, and anything you flagged as required&hellip;",
+			placeholder: "Notable gear, loads, and anything you flagged as required…",
 		},
 	},
 	{
@@ -125,7 +125,7 @@ const _STEPS = [
 			kind:        "single",
 			key:         "requisition",
 			prompt:      "What did they borrow, and from whom?",
-			placeholder: "The asset(s), who they convinced, any strings attached&hellip;",
+			placeholder: "The asset(s), who they convinced, any strings attached…",
 		},
 	},
 	{
@@ -144,7 +144,7 @@ const _STEPS = [
 			kind:        "single",
 			key:         "prep",
 			prompt:      "Standing projects, joiners, and threads to remember",
-			placeholder: "Who's coming, what's been set in motion, what to resolve on return&hellip;",
+			placeholder: "Who's coming, what's been set in motion, what to resolve on return…",
 		},
 	},
 	{
@@ -163,7 +163,7 @@ const _STEPS = [
 			kind:        "single",
 			key:         "running",
 			prompt:      "Points of interest &amp; legs of travel",
-			placeholder: "Your route: landmarks, planned scenes, rough travel times&hellip;",
+			placeholder: "Your route: landmarks, planned scenes, rough travel times…",
 		},
 	},
 	{
@@ -264,7 +264,8 @@ export class ExpeditionDialog extends StepperDialog {
 			id:        "stonetop-expedition",
 			title:     "Run an Expedition",
 			template:  "systems/stonetop_pwd/templates/dialogs/expedition.hbs",
-			width:     540,
+			// Wider than the other steppers to seat the jump-to-step TOC rail.
+			width:     640,
 			height:    "auto",
 			resizable: true,
 			// Reuse the spring dialog's window-content reset + body/qa/tier styling.

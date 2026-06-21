@@ -2,15 +2,18 @@
 import { isMajorArcana } from "../../../arcana-icons.js";
 import { parseMovePickCount } from "../StonetopCharacter.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
-import { loreMarkerForText } from "../../../model/PlaybookSnapshot.js";
 import { KeepOnTop, openJournalSheetAsChild } from "../../../utils/keep-on-top.js";
 import { shuffle } from "../../../utils/arrays.js";
-import { normalizePlaybookGlyphs } from "../../../utils/strings.js";
+import { normalizePlaybookGlyphs, composeInstinct, parseInstinct } from "../../../utils/strings.js";
 import { wrapStonetopGlyphsInEl } from "../../../utils/glyphs.js";
+import { enrichMoveRefsInEl } from "../../../utils/move-refs.js";
 import { faqForStep, faqPage } from "../../../utils/onboarding-faq.js";
 import { markFaqItems } from "../../../utils/faq-bullets.js";
 import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
 import { wellVersedTopicSummary } from "./well-versed-topics.js";
+import { LORE_TERM_TOOLTIPS } from "../../../utils/lore-terms.js";
+import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
+import { playbookIconPath } from "../../../utils/playbook-actors.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -115,8 +118,11 @@ export class CharacterOnboardingDialog extends Application {
 		// save-and-close), but NOT on completion or back-navigation — lets the roster
 		// show that they stepped away mid-creation.
 		this._onExit             = onExit ?? null;
-		// Pre-seed cache with glossary so getData() and _lookupWord share one lookup path.
-		this._wordCache = new Map(Object.entries(ANIMAL_COMPANION_TRAIT_GLOSSARY));
+		// Pre-seed cache with glossaries so getData() and _lookupWord share one lookup path.
+		this._wordCache = new Map([
+			...Object.entries(ANIMAL_COMPANION_TRAIT_GLOSSARY),
+			...Object.entries(LORE_TERM_TOOLTIPS),
+		]);
 		this._hoveredAnchor = null;
 		this._keepOnTop = new KeepOnTop(this);
 
@@ -280,10 +286,6 @@ export class CharacterOnboardingDialog extends Application {
 		const opts = section?.options ?? [];
 		if (opts.length > 0 && opts.every(o => !o.type && (o.max ?? 1) === 1)) return 1;
 		return Infinity;
-	}
-
-	_loreMarkerForSection(section) {
-		return loreMarkerForText(section?.title, section?.description);
 	}
 
 	_countLoreSectionPicks(sectionSlug) {
@@ -502,7 +504,6 @@ export class CharacterOnboardingDialog extends Application {
 			description:        this._normalizeOnboardingText(section.description ?? ""),
 			contextTitle:        previousSelectedOptions.length ? this._normalizeOnboardingText(previousSection.title ?? "") : "",
 			contextAnswers:      previousSelectedOptions,
-			marker:              this._loreMarkerForSection(section),
 			isPickSection,
 			isTextSection,
 			hasOptions:         opts.length > 0,
@@ -664,7 +665,7 @@ export class CharacterOnboardingDialog extends Application {
 			}
 			case "instinct":       return !!this._selections.instinctValue.trim();
 			case "appearance":     return this._rawAppearance.every((_, i) => !!this._selections.appearance[i]);
-			case "origin":         return !!this._selections.originRegion;
+			case "origin":         return !!this._selections.originRegion && !!this._selections.name?.trim();
 			case "stats":          return this._validateStats();
 			case "possession":     return this._selections.possessions.length === (this._rawPossessions?.pickCount ?? 0);
 			case "moves":          return this._selections.moves.length === this._movePickCount;
@@ -701,7 +702,17 @@ export class CharacterOnboardingDialog extends Application {
 				return !!this._selections.arcana.major;
 			case "seekerArcanaMinor":
 				return Object.values(this._selections.arcana.minorRoles).filter(Boolean).length === 3;
-			default: return true;
+			default: {
+				// Lore steps gate Next on the same answered-check the resume flow uses,
+				// so a required section (e.g. the Ranger's "choose 1" wicked-threat page)
+				// can't be skipped past with no selection. Optional/prose-only sections
+				// (no options) report answered, so they stay freely advanceable.
+				const loreMatch = stepType?.match(/^lore:(\d+)$/);
+				if (loreMatch) {
+					return this._isLoreSectionAnswered(this._rawLore[parseInt(loreMatch[1], 10)]);
+				}
+				return true;
+			}
 		}
 	}
 
@@ -722,14 +733,34 @@ export class CharacterOnboardingDialog extends Application {
 		return 0;
 	}
 
+	// How many of a free-text section's prompts must be answered. These are "Answer at
+	// least N of the following" sets, so only N need text, not every one. The count
+	// lives in the section title ("Answer At Least 3 of the Following") or its
+	// description ("Answer at least 2 questions about it"). When the section states
+	// no such number it's a single multi-part prompt (e.g. the Would-Be Hero's
+	// "when / what did you do / how did it turn out"), so EVERY prompt is required —
+	// the default is the prompt count, never 1, or a multi-part question could be
+	// skipped past with one blank filled. Result is clamped to the prompt count.
+	_parseTextAnswerMin(section, textOptionCount) {
+		const haystack = `${section?.title ?? ""} ${section?.description ?? ""}`.toLowerCase();
+		const m = haystack.match(/answer\s+at\s+least\s+(\d+)/);
+		const min = m ? parseInt(m[1], 10) : textOptionCount;
+		return Math.max(0, Math.min(min, textOptionCount));
+	}
+
+	_countLoreSectionTextAnswers(section, textOptions = (section?.options ?? []).filter(o => o.type === "text")) {
+		return textOptions.filter(opt =>
+			!!this._selections.lore.texts[`${section.slug}:${opt.slug}`]?.trim()
+		).length;
+	}
+
 	_isLoreSectionAnswered(section) {
 		const opts = section?.options ?? [];
 		if (!opts.length) return true;
 		const textOptions = opts.filter(o => o.type === "text");
 		if (textOptions.length) {
-			return textOptions.every(opt =>
-				!!this._selections.lore.texts[`${section.slug}:${opt.slug}`]?.trim()
-			);
+			const min = this._parseTextAnswerMin(section, textOptions.length);
+			return this._countLoreSectionTextAnswers(section, textOptions) >= min;
 		}
 		const min = this._parseLorePickMin(section);
 		return min <= 0 || this._countLoreSectionPicks(section.slug) >= min;
@@ -838,6 +869,10 @@ export class CharacterOnboardingDialog extends Application {
 				sectionSlug: section.slug,
 				requiredPicks: textOptions.length ? null : min,
 				selectedPicks: textOptions.length ? null : selected,
+				// For "answer at least N" text sets, completeness is the count answered
+				// vs. N — not whether every prompt has text.
+				requiredAnswers: textOptions.length ? this._parseTextAnswerMin(section, textOptions.length) : null,
+				answeredCount: textOptions.length ? this._countLoreSectionTextAnswers(section, textOptions) : null,
 				textAnswers: textOptions.map(opt => ({
 					optionSlug: opt.slug,
 					hasAnswer: !!this._selections.lore.texts[`${section.slug}:${opt.slug}`]?.trim(),
@@ -1068,7 +1103,9 @@ export class CharacterOnboardingDialog extends Application {
 		// ── Instinct ──────────────────────────────────────────────────
 		if (stepType === "instinct") {
 			instincts = this._rawInstincts.map(inst => {
-				const value = `${inst.word} — ${inst.description}`;
+				// Compose via the shared helper so a suggestion's value matches the
+				// one the sheet/snapshot store, keeping the custom-vs-suggestion check honest.
+				const value = composeInstinct(inst.word, inst.description);
 				return { word: inst.word, description: inst.description, value,
 				         selected: this._selections.instinctValue === value };
 			});
@@ -1173,6 +1210,7 @@ export class CharacterOnboardingDialog extends Application {
 					description: this._normalizeOnboardingText(doc.system?.description),
 					selected:    chosenIds.has(doc.id),
 					disabled:    !chosenIds.has(doc.id) && atLimit,
+					groups:      moveGroupKeys(this._playbookDoc.name, doc.name),
 				}));
 		}
 
@@ -1376,9 +1414,19 @@ export class CharacterOnboardingDialog extends Application {
 		if (!this._faqByStep.has(stepType)) this._faqByStep.set(stepType, faqForStep(stepType));
 		this._currentFaq = this._faqByStep.get(stepType);
 
+		// A custom instinct (not one of the suggestions) splits into the word /
+		// description fields so it reads like the suggested "Word — Description".
+		const instinctIsCustom = !!this._selections.instinctValue &&
+			!(instincts ?? []).some(i => i.value === this._selections.instinctValue);
+		const customInstinct = instinctIsCustom
+			? parseInstinct(this._selections.instinctValue)
+			: { word: "", description: "" };
+
 		return {
 			playbookName:      this._playbookDoc.name,
-			playbookImg:       this._playbookDoc.img,
+			// Use the playbook avatar art (assets/icons/playbooks/<slug>_icon.webp),
+			// matching the picker, not the flat playbook item icon.
+			playbookImg:       playbookIconPath(this._playbookDoc.system?.slug) ?? this._playbookDoc.img,
 			stepType,
 			hasFaq:            this._currentFaq.length > 0,
 			stepNumber:        this._step + 1,
@@ -1402,10 +1450,13 @@ export class CharacterOnboardingDialog extends Application {
 			progressDots,
 			backgrounds, instincts, appearanceLines, origins,
 			selectedInstinct:  this._selections.instinctValue,
+			customInstinctWord:        customInstinct.word,
+			customInstinctDescription: customInstinct.description,
 			selectedName:      this._selections.name,
 			statBoxes, statScores, statScoresDisplay,
 			possession,
 			moveOptions, movePickNote,
+			moveGroups:         moveGroupsForPlaybook(this._playbookDoc.name),
 			movePickCount:      this._movePickCount,
 			moveSelectedCount:  this._selections.moves.length,
 			invocationData, initiatesData, crewData, acData, loreSectionData, seekerArcanaData, seekerArcanaChoices,
@@ -1625,11 +1676,18 @@ export class CharacterOnboardingDialog extends Application {
 		// ── Instinct ──────────────────────────────────────────────────
 		html.find("[name='onboard-instinct']").on("change", ev => {
 			this._selections.instinctValue = ev.currentTarget.value;
-			html.find(".onboard-instinct-custom").val(ev.currentTarget.value);
+			html.find(".onboard-instinct-word, .onboard-instinct-desc").val("");
 			_refreshNextButton();
 		});
-		html.find(".onboard-instinct-custom").on("input", ev => {
-			this._selections.instinctValue = ev.currentTarget.value;
+		// Custom instinct: keep the word to a single token and save the composed
+		// "Word — Description" so it matches the suggested instincts' shape.
+		html.find(".onboard-instinct-word").on("input", ev => {
+			ev.currentTarget.value = ev.currentTarget.value.replace(/\s+/g, "");
+		});
+		html.find(".onboard-instinct-word, .onboard-instinct-desc").on("input", () => {
+			const word = html.find(".onboard-instinct-word").val();
+			const desc = html.find(".onboard-instinct-desc").val();
+			this._selections.instinctValue = composeInstinct(word, desc);
 			html.find("[name='onboard-instinct']").prop("checked", false);
 			html.find(".stonetop-onboarding-card").removeClass("is-selected");
 			_refreshNextButton();
@@ -1676,6 +1734,7 @@ export class CharacterOnboardingDialog extends Application {
 		// ── Name ──────────────────────────────────────────────────────
 		html.find(".onboard-name-input").on("input", ev => {
 			this._selections.name = ev.currentTarget.value;
+			_refreshNextButton();
 		});
 
 		// ── Stats ─────────────────────────────────────────────────────
@@ -1822,6 +1881,32 @@ export class CharacterOnboardingDialog extends Application {
 			const atLimit = this._selections.moves.length >= limit;
 			html.find("[name='onboard-move']:not(:checked)").prop("disabled", atLimit);
 			_refreshNextButton();
+		});
+
+		// Filter the move cards by the search text and the active group chip. Pure
+		// DOM show/hide — never re-renders, so selection and disabled state survive.
+		// A card shows only when it satisfies both the query and the active chip.
+		let activeMoveGroup = null;
+		const applyMoveFilter = () => {
+			const query = (html.find(".onboard-move-search").val() ?? "").trim().toLowerCase();
+			html.find(".stonetop-onboarding-card--move").each((_, el) => {
+				const textMatch  = !query || el.textContent.toLowerCase().includes(query);
+				const groups     = (el.dataset.moveGroups ?? "").split(/\s+/).filter(Boolean);
+				const groupMatch = !activeMoveGroup || groups.includes(activeMoveGroup);
+				el.classList.toggle("is-filtered-out", !(textMatch && groupMatch));
+			});
+		};
+		html.find(".onboard-move-search").on("input", applyMoveFilter);
+		html.find(".stonetop-onboarding-move-chip").on("click", ev => {
+			const key = ev.currentTarget.dataset.moveGroup;
+			activeMoveGroup = activeMoveGroup === key ? null : key; // tap again to clear
+			html.find(".stonetop-onboarding-move-chip").each((_, b) => {
+				// Block body is load-bearing: classList.toggle returns a boolean, and a
+				// bare-arrow `false` return aborts jQuery's .each — which would stop the
+				// loop at the first deselected chip, leaving later chips never updated.
+				b.classList.toggle("is-active", b.dataset.moveGroup === activeMoveGroup);
+			});
+			applyMoveFilter();
 		});
 
 		// ── Invocations ───────────────────────────────────────────────
@@ -2074,6 +2159,7 @@ export class CharacterOnboardingDialog extends Application {
 			const name = ev.currentTarget.dataset.name;
 			this._selections.name = name;
 			html.find(".onboard-name-input").val(name);
+			_refreshNextButton();
 		});
 
 		// ── Arcana preview tooltips (fixed-position to escape modal overflow) ──
@@ -2087,7 +2173,18 @@ export class CharacterOnboardingDialog extends Application {
 			.on("mouseleave", () => this._scheduleFaqPopupHide())
 			.on("click", () => this._openFaqPage());
 
-		// ── Bold-word hover tooltips ───────────────────────────────────
+		// ── Move cross-references + bold-word hover tooltips ───────────
+		// Wrap basic-move names wherever they sit in a card's text — leading ("Know
+		// Things about beasts …") or mid-phrase ("… roll a 12+ to Clash …") — so the
+		// move name itself becomes the hover target, matching the character sheet. The
+		// span's text is exactly the move name, which _lookupWord resolves by exact
+		// match, so the shared bold-word binding handles it without a separate path.
+		html.find(".stonetop-onboarding-card-desc").each((_, el) => {
+			if (el.dataset.moveRefsEnriched) return;
+			el.dataset.moveRefsEnriched = "1";
+			enrichMoveRefsInEl(el);
+		});
+
 		const bindWordTooltip = (el) => {
 			if (el.dataset.tooltipBound) return;
 			el.dataset.tooltipBound = "1";
@@ -2107,9 +2204,11 @@ export class CharacterOnboardingDialog extends Application {
 		};
 
 		html.find(".stonetop-onboarding-lookup").each((_, el) => bindWordTooltip(el));
+		html.find(".stonetop-move-ref").each((_, el) => bindWordTooltip(el));
 
 		const pendingLookups = [];
 		html.find(".stonetop-onboarding-card-desc strong").each((_, el) => {
+			if (el.querySelector(".stonetop-move-ref")) return; // inner move-ref span handles it
 			const text = el.textContent.trim();
 			const key = text.toLowerCase();
 			const cached = this._wordCache.get(key);

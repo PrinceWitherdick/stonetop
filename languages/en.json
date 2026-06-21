@@ -88,9 +88,10 @@
         "regularItems": "Items",
         "smallItems": "Small Items",
         "loadNone": "No items selected",
-        "loadLight": "<strong>Light load</strong> (up to 3 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>) — quick &amp; quiet",
-        "loadNormal": "<strong>Normal load</strong> (4–6 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>)",
-        "loadHeavy": "<strong>Heavy load</strong> (7–9 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>) — noisy, slow, quick to tire",
+        "loadLight": "<strong>Light load</strong> — quick &amp; quiet",
+        "loadNormal": "<strong>Normal load</strong>",
+        "loadHeavy": "<strong>Heavy load</strong> — noisy, slow, quick to tire",
+        "packHorseNote": "Your <em><strong>Pack Horse</strong></em> raises each load by 1: up to 4 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> light, 7 normal, 10 heavy.",
         "arcanaItems": "Arcana",
         "smallItemLimit": "Mark up to <strong>{limit}</strong> small items (4+Prosperity)",
         "confirm": "Confirm Outfit",
@@ -137,21 +138,25 @@
       "removeItem": "Remove",
       "resetLabel": "Reset Inventory",
       "resetTitle": "Reset Inventory",
-      "resetConfirm": "Clear all item selections and load level? Supply pools are not affected.",
-      "manualLabel": "Manage manually",
-      "manualTitle": "Edit load, the undefined ◇/□ supply pools, and item marks directly instead of using Outfit / Have What You Need.",
-      "manualNote": "<strong>Manual mode:</strong> set your load, click the <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span>/<span class=\"stonetop-glyph stonetop-glyph--checkbox\">□</span> pools, and mark items directly — Outfit and Have What You Need won't adjust them for you.",
-      "notEnoughUndefined": "Not enough undefined ◇ to carry that — Outfit to bring more.",
+      "resetConfirm": "Clear all item marks and the undefined ◇/□ pools? Item uses (e.g. supplies) are not affected.",
       "regularUndefinedPoolLabel": "Undefined",
-      "regularUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, mark an item below — it draws <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> from here.",
+      "regularUndefinedPoolNote": "Click to reserve undefined <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>. When you <strong><em>Have What You Need</em></strong>, mark an item below — it draws from here.",
       "smallUndefinedPoolLabel": "Undefined",
-      "smallUndefinedPoolNote": "When you <strong><em>Have What You Need</em></strong>, mark a small item below — it draws <span class=\"stonetop-glyph stonetop-glyph--checkbox-checked\">■</span> from here.",
+      "smallUndefinedPoolNote": "Click to reserve undefined <span class=\"stonetop-glyph stonetop-glyph--checkbox-checked\">■</span>. When you <strong><em>Have What You Need</em></strong>, mark a small item below — it draws from here.",
+      "regularPoolAtLimit": "You're already carrying a full load, so there's no room to reserve more undefined ◇. Un-mark a carried item to free up room.",
+      "smallPoolAtLimit": "You've used all your small-item slots, so there's no room to reserve more undefined □. Un-mark a small item to free up room.",
+      "smallOverAllotment": "That's more small items than your Outfit allotment of {limit} (4+Prosperity). Expend a use of supplies to carry an extra small item, or check with your GM.",
       "choosePossessionsButton": "Choose Special Possessions",
       "outfit": {
-        "heading": "When you <em><strong>Outfit</strong></em>, mark a number of <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below on specific items or as a group.",
+        "heading": "When you <em><strong>Outfit</strong></em>, mark a number of <span class=\"stonetop-glyph stonetop-glyph--diamond\">◇</span> below on specific items or as a group. Your load is whatever you've marked:",
+        "currentLoad": "Carrying <strong>{count}</strong> <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>.",
+        "overloaded": "Overloaded! — risk exhaustion, accident, and injury.",
         "light": "For a <strong>light load</strong> (<em>quick &amp; quiet</em>), mark up to 3 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
         "normal": "For a <strong>normal load</strong>, mark 4–6 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
-        "heavy": "For a <strong>heavy load</strong> (<em>noisy, slow, hot, quick to tire</em>), mark 7–9 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>"
+        "heavy": "For a <strong>heavy load</strong> (<em>noisy, slow, hot, quick to tire</em>), mark 7–9 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span>",
+        "lightPackHorse": "For a <strong>light load</strong> (<em>quick &amp; quiet</em>), mark up to 4 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> <strong>with your packhorse</strong>",
+        "normalPackHorse": "For a <strong>normal load</strong>, mark 5–7 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> <strong>with your packhorse</strong>",
+        "heavyPackHorse": "For a <strong>heavy load</strong> (<em>noisy, slow, hot, quick to tire</em>), mark 8–10 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> <strong>with your packhorse</strong>"
       }
     },
     "settings": {
@@ -388,7 +393,8 @@
         "instinct": {
           "label": "Instinct",
           "dialogTitle": "Choose Instinct",
-          "customPlaceholder": "Write your own instinct…"
+          "customWordPlaceholder": "One word",
+          "customPlaceholder": "Instinct description"
         },
         "appearance": {
           "label": "Appearance",

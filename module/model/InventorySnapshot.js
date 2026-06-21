@@ -1,41 +1,41 @@
+import { LOAD_LEVEL_LIMITS } from "../utils/load.js";
+
 // ── Load ──────────────────────────────────────────────────────────────────────
 
-/** One load level option (light / normal / heavy). */
-export class LoadOptionSnapshot {
-	constructor(slug, label, note) {
-		this.slug  = slug;
-		this.label = label;
-		this.note  = note;
-	}
-}
-
 /**
+ * Load is a derived readout — the count of ◇ actually marked (checked item
+ * weights plus the undefined regular pool), bucketed into a load level. The
+ * player never picks it directly; marking items or editing the pool re-derives it.
+ *
  * @property {string} instruction
  * @property {string|null} selected
  * @property {boolean} loadLevelLight
  * @property {boolean} loadLevelNormal
  * @property {boolean} loadLevelHeavy
- * @property {LoadOptionSnapshot[]} options
+ * @property {boolean} loadLevelOverloaded - 10+ ◇ (heavy and then some): risk exhaustion/injury
+ * @property {number} totalMarks           - Total ◇ marked (checked weights + undefined pool)
  */
 export class LoadSnapshot {
 	constructor(b) {
-		this.instruction     = b._instruction;
-		this.selected        = b._selected;
-		this.loadLevelLight  = b._loadLevelLight;
-		this.loadLevelNormal = b._loadLevelNormal;
-		this.loadLevelHeavy  = b._loadLevelHeavy;
-		this.options         = b._options;
+		this.instruction        = b._instruction;
+		this.selected           = b._selected;
+		this.loadLevelLight     = b._loadLevelLight;
+		this.loadLevelNormal    = b._loadLevelNormal;
+		this.loadLevelHeavy     = b._loadLevelHeavy;
+		this.loadLevelOverloaded = b._loadLevelOverloaded ?? false;
+		this.totalMarks         = b._totalMarks ?? 0;
 	}
 }
 
 export class LoadSnapshotBuilder {
-	withInstruction(v)     { this._instruction     = v; return this; }
-	withSelected(v)        { this._selected        = v; return this; }
-	withLoadLevelLight(v)  { this._loadLevelLight  = v; return this; }
-	withLoadLevelNormal(v) { this._loadLevelNormal = v; return this; }
-	withLoadLevelHeavy(v)  { this._loadLevelHeavy  = v; return this; }
-	withOptions(v)         { this._options          = v; return this; }
-	build()                { return new LoadSnapshot(this); }
+	withInstruction(v)        { this._instruction        = v; return this; }
+	withSelected(v)           { this._selected           = v; return this; }
+	withLoadLevelLight(v)     { this._loadLevelLight     = v; return this; }
+	withLoadLevelNormal(v)    { this._loadLevelNormal    = v; return this; }
+	withLoadLevelHeavy(v)     { this._loadLevelHeavy     = v; return this; }
+	withLoadLevelOverloaded(v){ this._loadLevelOverloaded = v; return this; }
+	withTotalMarks(v)         { this._totalMarks         = v; return this; }
+	build()                   { return new LoadSnapshot(this); }
 }
 
 // ── Inventory item ────────────────────────────────────────────────────────────
@@ -105,6 +105,8 @@ export class InventorySegmentSnapshot {
  * @property {Resource} smallPool
  * @property {number|null} smallItemLimit - 4+Prosperity from the linked steading actor, or null if unavailable
  * @property {string|null} steadingName   - Name of the linked steading actor, or null if unavailable
+ * @property {boolean} hasPackHorse       - Ranger owns the Pack Horse move (boosted load caps)
+ * @property {{light:number, normal:number, heavy:number}} loadLimits - Per-load weight caps in effect
  */
 export class OutfitSnapshot {
 	constructor(b) {
@@ -113,13 +115,20 @@ export class OutfitSnapshot {
 		this.regularSegments = b._regularSegments;
 		this.regularPool      = b._regularPool;
 		this.regularPoolEmpty = (b._regularPool?.current ?? 0) === 0;
+		// True reservable ceiling for the undefined pool (room left under the load cap
+		// after marked items), distinct from regularPool.max which also counts the empty
+		// slots a Have-What-You-Need draw left behind. Drives the "at your limit" toast.
+		this.regularPoolCap   = b._regularPoolCap ?? 0;
 		this.smallItems       = b._smallItems;
 		this.smallGridItems   = b._smallGridItems;
 		this.smallPool        = b._smallPool;
 		this.smallPoolEmpty   = (b._smallPool?.current ?? 0) === 0;
+		this.smallPoolCap     = b._smallPoolCap ?? 0;
 		this.arcanaItems     = b._arcanaItems ?? [];
 		this.smallItemLimit  = b._smallItemLimit ?? null;
 		this.steadingName    = b._steadingName ?? null;
+		this.hasPackHorse    = b._hasPackHorse ?? false;
+		this.loadLimits      = b._loadLimits ?? LOAD_LEVEL_LIMITS;
 	}
 }
 
@@ -128,12 +137,16 @@ export class OutfitSnapshotBuilder {
 	withRegularItems(v)    { this._regularItems    = v; return this; }
 	withRegularSegments(v) { this._regularSegments = v; return this; }
 	withRegularPool(v)     { this._regularPool     = v; return this; }
+	withRegularPoolCap(v)  { this._regularPoolCap  = v; return this; }
 	withSmallItems(v)      { this._smallItems      = v; return this; }
 	withSmallGridItems(v)  { this._smallGridItems  = v; return this; }
 	withSmallPool(v)       { this._smallPool       = v; return this; }
+	withSmallPoolCap(v)    { this._smallPoolCap    = v; return this; }
 	withArcanaItems(v)     { this._arcanaItems     = v; return this; }
 	withSmallItemLimit(v)  { this._smallItemLimit  = v; return this; }
 	withSteadingName(v)    { this._steadingName    = v; return this; }
+	withHasPackHorse(v)    { this._hasPackHorse    = v; return this; }
+	withLoadLimits(v)      { this._loadLimits      = v; return this; }
 	build()                { return new OutfitSnapshot(this); }
 }
 
@@ -208,10 +221,9 @@ export class PossessionItemSnapshotBuilder {
  * @property {OtherItemSnapshot[]} other
  */
 export class InventorySnapshot {
-	constructor(outfit, possessions, other, manualMode = false) {
+	constructor(outfit, possessions, other) {
 		this.outfit      = outfit;
 		this.possessions = possessions;
 		this.other       = other;
-		this.manualMode  = manualMode;
 	}
 }

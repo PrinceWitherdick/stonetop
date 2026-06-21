@@ -116,9 +116,16 @@
 				{{> "stonetop.details-section-edit-toggle" section="instinct" editing=stonetop.detailsEdit.instinct}}
 			</div>
 			{{#if stonetop.detailsEdit.instinct}}
-			<input type="text" class="stonetop-instinct-custom"
-			       value="{{stonetop.playbook.instinct.selected}}"
-			       placeholder="{{localize "stonetop.character.selection.instinct.customPlaceholder"}}">
+			<div class="stonetop-instinct-custom-row">
+				<input type="text" class="stonetop-instinct-custom-word"
+				       value="{{stonetop.playbook.instinct.customWord}}"
+				       aria-label="Instinct word"
+				       placeholder="{{localize "stonetop.character.selection.instinct.customWordPlaceholder"}}">
+				<input type="text" class="stonetop-instinct-custom-desc"
+				       value="{{stonetop.playbook.instinct.customDescription}}"
+				       aria-label="Instinct description"
+				       placeholder="{{localize "stonetop.character.selection.instinct.customPlaceholder"}}">
+			</div>
 			{{#if stonetop.playbook.instinct.options.length}}
 			<div class="stonetop-instinct-options">
 				{{#each stonetop.playbook.instinct.options}}
