@@ -130,6 +130,7 @@ const LEDGER_VERB_MARKERS = [
 	" deselected",
 	" marked",
 	" unmarked",
+	" completed",
 	" learned",
 	" removed",
 	" added",
@@ -175,7 +176,7 @@ function labelForPath(path) {
 	return null;
 }
 
-function prettifySlug(slug) {
+export function prettifySlug(slug) {
 	return String(slug ?? "")
 		.split(/[-_:]/)
 		.filter(Boolean)

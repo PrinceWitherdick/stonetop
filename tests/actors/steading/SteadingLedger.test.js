@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { SteadingLedger } from "../../../module/actors/steading/SteadingLedger.js";
+import { ledgerNoun } from "../../../module/actors/character/CharacterLedger.js";
+
+function steadingUpdate(steading) {
+	return { flags: { stonetop: { steading } } };
+}
 
 function makeActor(flags = {}) {
 	return {
@@ -145,5 +150,79 @@ describe("SteadingLedger", () => {
 			"Tovia (from Lygos) selected",
 		]);
 		expect(entries.map(e => e.action).join(" ")).not.toContain("[object Object]");
+	});
+
+	it("records when a built-in improvement is completed", () => {
+		const actor = makeActor({
+			stonetop: { steading: { improvements: { palisade: { completed: false, r: [true, true, true, true] } } } },
+		});
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, steadingUpdate({
+			improvements: { palisade: { completed: true, r: [true, true, true, true] } },
+		}));
+
+		expect(entries.map(e => e.action)).toEqual(["Improvement completed: Palisade"]);
+		expect(entries.map(e => ledgerNoun(e.action))).toEqual(["Improvement"]);
+	});
+
+	it("records a requirement step toggle by its plain-text label", () => {
+		const actor = makeActor({
+			stonetop: { steading: { improvements: { mill: { completed: false, r: [false, false, false, false, false, false] } } } },
+		});
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, steadingUpdate({
+			improvements: { mill: { completed: false, r: [false, false, false, false, false, true] } },
+		}));
+
+		expect(entries.map(e => e.action)).toEqual(["Improvement step marked: Mill — A full-time miller"]);
+		expect(entries.map(e => ledgerNoun(e.action))).toEqual(["Improvement step"]);
+	});
+
+	it("strips HTML from requirement step labels", () => {
+		const actor = makeActor({
+			stonetop: { steading: { improvements: { palisade: { completed: false, r: [false, false, false, false] } } } },
+		});
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, steadingUpdate({
+			improvements: { palisade: { completed: false, r: [false, false, false, true] } },
+		}));
+
+		expect(entries.map(e => e.action)).toEqual([
+			"Improvement step marked: Palisade — Pulling Together, costing a month and 1 Surplus",
+		]);
+	});
+
+	it("names custom (journal-sourced) improvements from the actor's tracked list", () => {
+		const actor = makeActor({
+			stonetop: {
+				steading: {
+					customImprovements: [
+						{ slug: "custom-foo", label: "Foo Bar", sections: [{ heading: "", items: ["Do the thing"] }], effect: "" },
+					],
+					improvements: { "custom-foo": { completed: false, r: [false] } },
+				},
+			},
+		});
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, steadingUpdate({
+			customImprovements: [
+				{ slug: "custom-foo", label: "Foo Bar", sections: [{ heading: "", items: ["Do the thing"] }], effect: "" },
+			],
+			improvements: { "custom-foo": { completed: true, r: [true] } },
+		}));
+
+		expect(entries.map(e => e.action)).toEqual([
+			"Improvement completed: Foo Bar",
+			"Improvement step marked: Foo Bar — Do the thing",
+		]);
+	});
+
+	it("emits nothing when the improvements map is unchanged", () => {
+		const imps = { palisade: { completed: true, r: [true, true, true, true] } };
+		const actor = makeActor({ stonetop: { steading: { improvements: imps } } });
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, steadingUpdate({ improvements: imps }));
+
+		expect(entries).toEqual([]);
 	});
 });

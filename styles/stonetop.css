@@ -4737,6 +4737,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: var(--toggle-padding);
 	box-shadow: 0 0 8px rgb(0 0 0 / 45%);
 	transition: background 250ms ease;
+	/* Re-enable hits on just the switch (the label is pointer-events:none above). */
+	pointer-events: auto;
+	cursor: pointer;
 }
 
 .stonetop-toggle-thumb {
@@ -6586,6 +6589,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 18px;
 	height: 18px;
 	flex-shrink: 0;
+	margin: 0;
+	/* Foundry core nudges radios with `position: relative; top: 2px`, which drops the
+	   box ~2px below the grid cell's centre so the +3/+2/… labels read high. Zero it
+	   out so align-items:center lands the box level with its label. */
+	position: relative;
+	top: 0;
 	border: 2px solid slategrey;
 	border-radius: var(--st-radius-sm);
 	cursor: pointer;
@@ -6710,6 +6719,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: calc(13px * var(--stonetop-font-scale, 1));
 	height: calc(13px * var(--stonetop-font-scale, 1));
 	margin: 0;
+	/* Same core `top: 2px` radio nudge as the stat tracks — zero it so the dot
+	   sits level with the size label. */
+	position: relative;
+	top: 0;
 	border: 1.5px solid slategrey;
 	border-radius: 50%;
 	background: #fff;
@@ -7450,6 +7463,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-readonly .steading-hide-unearned-improvements-label,
 .stonetop-readonly input[type="checkbox"].steading-hide-unearned-improvements-check {
+	pointer-events: auto;
+	opacity: 1;
+}
+
+/* Earning/progressing an improvement (ticking its requirements, marking it
+   complete) is gameplay, not structural editing — so the requirement and
+   complete checkboxes stay live in read-only mode, like the resource/asset
+   list-checks. Adding/removing custom improvements still needs edit mode. */
+.stonetop-readonly .steading-improvement-complete-label,
+.stonetop-readonly .steading-req-item label,
+.stonetop-readonly input[type="checkbox"].steading-improvement-complete,
+.stonetop-readonly input[type="checkbox"].steading-improvement-req {
 	pointer-events: auto;
 	opacity: 1;
 }

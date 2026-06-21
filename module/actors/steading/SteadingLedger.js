@@ -1,8 +1,12 @@
-import { isBlank, formatValue, valuesEqual, actionForField, coalesceEntries } from "../character/CharacterLedger.js";
+import { isBlank, formatValue, valuesEqual, actionForField, coalesceEntries, prettifySlug } from "../character/CharacterLedger.js";
+import { IMPROVEMENT_DEFINITIONS } from "./StonetopSteading.js";
 
 const LEDGER_SCOPE = "stonetop_pwd";
 const LEDGER_KEY = "ledger";
 const LEDGER_MAX_ENTRIES = 300;
+
+const IMPROVEMENTS_PATH = `flags.${LEDGER_SCOPE}.steading.improvements`;
+const CUSTOM_IMPROVEMENTS_PATH = `flags.${LEDGER_SCOPE}.steading.customImprovements`;
 
 const SYSTEM_PATH_LABELS = {
 	"system.stats.fortunes.value":   "Fortunes",
@@ -159,6 +163,76 @@ function neighborEntries(oldValue, newValue) {
 	return entries;
 }
 
+function stripHtml(value) {
+	return String(value ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Build a `slug → { label, steps }` lookup spanning the book improvements and any
+ * journal-sourced custom ones tracked on this actor, so ledger entries can name an
+ * improvement (and its requirement steps) instead of its raw slug. `steps` is the
+ * requirement labels flattened across sections, matching the running index used by
+ * the tracking array `r` (see StonetopSteading.buildSnapshot).
+ */
+function improvementDefs(actor) {
+	const defs = new Map();
+	const add = def => {
+		if (!def?.slug) return;
+		defs.set(def.slug, {
+			label: def.label || prettifySlug(def.slug),
+			steps: (def.sections ?? []).flatMap(s => s.items ?? []).map(stripHtml),
+		});
+	};
+	IMPROVEMENT_DEFINITIONS.forEach(add);
+	const custom = getActorProperty(actor, CUSTOM_IMPROVEMENTS_PATH);
+	if (Array.isArray(custom)) custom.forEach(add);
+	return defs;
+}
+
+/**
+ * Reconstruct the post-update improvements map from the flattened changes. The
+ * store is an object keyed by slug, so a single toggle arrives as leaf sub-paths
+ * (`…improvements.<slug>.completed` / `.r`) rather than one whole-object key.
+ */
+function readChangedImprovements(flat) {
+	const result = {};
+	for (const [rawPath, value] of Object.entries(flat)) {
+		const path = normalizeFlagPath(rawPath);
+		if (path === IMPROVEMENTS_PATH) return value && typeof value === "object" ? value : {};
+		if (!path.startsWith(`${IMPROVEMENTS_PATH}.`)) continue;
+		const [slug, field] = path.slice(IMPROVEMENTS_PATH.length + 1).split(".");
+		(result[slug] ??= {})[field] = value;
+	}
+	return result;
+}
+
+function improvementEntries(actor, oldImps, newImps) {
+	const defs = improvementDefs(actor);
+	const entries = [];
+	for (const slug of new Set([...Object.keys(oldImps ?? {}), ...Object.keys(newImps ?? {})])) {
+		const def = defs.get(slug);
+		const label = def?.label ?? prettifySlug(slug);
+		const before = oldImps?.[slug] ?? {};
+		const after = newImps?.[slug] ?? {};
+
+		const wasComplete = !!before.completed;
+		const isComplete = !!after.completed;
+		if (wasComplete !== isComplete) {
+			entries.push({ action: isComplete ? `Improvement completed: ${label}` : `Improvement marked incomplete: ${label}` });
+		}
+
+		const beforeR = Array.isArray(before.r) ? before.r : [];
+		const afterR = Array.isArray(after.r) ? after.r : [];
+		const max = Math.max(beforeR.length, afterR.length);
+		for (let i = 0; i < max; i++) {
+			if (!!beforeR[i] === !!afterR[i]) continue;
+			const step = def?.steps?.[i] || `requirement ${i + 1}`;
+			entries.push({ action: `Improvement step ${afterR[i] ? "marked" : "unmarked"}: ${label} — ${step}` });
+		}
+	}
+	return entries;
+}
+
 const _currencyEntry = (label, o, n) =>
 	valuesEqual(o, n) ? [] : [{ action: actionForField(label, o, n) }];
 
@@ -178,10 +252,23 @@ const PATH_HANDLERS = {
 };
 
 function actorUpdateEntries(actor, changed) {
+	const flat = foundry.utils.flattenObject(changed);
 	const entries = [];
-	for (const [path, newValue] of Object.entries(foundry.utils.flattenObject(changed))) {
+	let improvementsHandled = false;
+	for (const [path, newValue] of Object.entries(flat)) {
 		const normalizedPath = normalizeFlagPath(path);
 		if (!normalizedPath || normalizedPath === `flags.${LEDGER_SCOPE}.${LEDGER_KEY}` || normalizedPath.startsWith(`flags.${LEDGER_SCOPE}.${LEDGER_KEY}.`)) continue;
+
+		// Improvements are an object keyed by slug, so a toggle arrives as leaf
+		// sub-paths; diff the whole map once rather than per sub-path.
+		if (normalizedPath === IMPROVEMENTS_PATH || normalizedPath.startsWith(`${IMPROVEMENTS_PATH}.`)) {
+			if (!improvementsHandled) {
+				improvementsHandled = true;
+				const oldImps = getActorProperty(actor, IMPROVEMENTS_PATH) ?? {};
+				entries.push(...improvementEntries(actor, oldImps, readChangedImprovements(flat)));
+			}
+			continue;
+		}
 
 		const handler = PATH_HANDLERS[normalizedPath];
 		if (handler) {
