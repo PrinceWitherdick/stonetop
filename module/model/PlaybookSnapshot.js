@@ -155,6 +155,9 @@ export class BackgroundOptionSnapshot {
 		this.choices     = b._choices;
 		this.setupTexts  = b._setupTexts;
 		this.setupResources = b._setupResources;
+		// Level-gated markable actions (Beast-Bonded), or null when the background
+		// has none. { allowed, markedCount, options: [{slug, label, checked, disabled}] }.
+		this.markableActions = b._markableActions ?? null;
 	}
 }
 
@@ -167,6 +170,7 @@ export class BackgroundOptionSnapshotBuilder {
 	withChoices(v)     { this._choices     = v; return this; }
 	withSetupTexts(v)  { this._setupTexts  = v; return this; }
 	withSetupResources(v) { this._setupResources = v; return this; }
+	withMarkableActions(v) { this._markableActions = v; return this; }
 	build()            { return new BackgroundOptionSnapshot(this); }
 }
 

@@ -15,7 +15,7 @@
       },
       "failure": {
         "label": "6-",
-        "value": "The work fails or causes serious problems. (Up to GM interpretation)"
+        "value": "Something interrupts the job and prevents it from getting done—work might resume if the PCs deal with it, or the job is scuttled and progress lost."
       }
     },
     "rollType": "ask"

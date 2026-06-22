@@ -1,5 +1,6 @@
 import { FrontOnOpen } from "../utils/front-on-open.js";
 import { OCCUPATIONS, TRAITS, HOMES } from "../data/steading-members.js";
+import { StonetopAutocomplete } from "../utils/autocomplete.js";
 
 const HOME_INFO_DIALOG_CLASS = "stonetop-asm-child-dialog";
 
@@ -155,6 +156,11 @@ export class AddSteadingMemberDialog extends Application {
 		super.activateListeners(html);
 		this._frontOnOpen.start();
 		const root = html[0];
+
+		// Replace the combo fields' native <datalist> popups with our scrollable one —
+		// Chromium's native popup has no scrollbar for long lists. The <datalist>s stay
+		// as the (live-refreshed) option source; see utils/autocomplete.js.
+		StonetopAutocomplete.upgradeAll(html);
 		// Track the suggestion set the template already rendered, so the first home
 		// keystroke that stays on the same pool doesn't trigger a needless rebuild.
 		this._lastNameOptions = this._namesForHome(this._formData.home);
@@ -179,7 +185,12 @@ export class AddSteadingMemberDialog extends Application {
 			btn.addEventListener("click", () => {
 				const input = root.querySelector(`.asm-combo[name="${btn.dataset.target}"]`);
 				if (!input) return;
-				const options = input.list ? Array.from(input.list.options).map(o => o.value).filter(Boolean) : [];
+				// The `list` attribute is gone (upgradeAll suppresses the native popup),
+				// so read the suggestions straight off the still-present <datalist>.
+				const datalist = root.querySelector(`#asm-list-${btn.dataset.target}`);
+				const options = datalist
+					? Array.from(datalist.options).map(o => o.value).filter(Boolean)
+					: [];
 				if (!options.length) return;
 				input.value = options[Math.floor(Math.random() * options.length)];
 				input.dispatchEvent(new Event("input"));

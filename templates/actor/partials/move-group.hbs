@@ -36,7 +36,10 @@
 				       data-compendium-id="{{compendiumId}}"
 				       data-owned-id="{{ownedId}}"
 				       {{#if owned}}checked{{/if}}
-				       {{#if (or isStarting locked (not @root.stonetop.movesEdit))}}disabled{{/if}}>
+				       {{!-- An owned starting move is locked (can't be dropped); an UNowned one
+				             — the unpicked side of an "either X OR Y" choice — stays pickable
+				             in edit mode so the choice can be made/changed by hand on the sheet. --}}
+				       {{#if (or (and isStarting owned) locked (not @root.stonetop.movesEdit))}}disabled{{/if}}>
 				{{/if}}
 				{{#if (and owned rollType)}}
 				<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">

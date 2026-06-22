@@ -66,7 +66,19 @@
         {
           "slug": "beast-bonded",
           "label": "Beast-Bonded",
-          "description": "<p>You grew up civilized, but your soul is bound to a beast of the wild. You're closer to it than to any man or woman. How did this bond come about? How long ago?</p><p>Regardless, you start with the <strong>Animal Companion</strong> move.</p><p>When you <strong><em>focus on your animal companion for a few moments</em><strong>, you can use any of the actions you've marked, no matter the distance between you. Mark 1 action at 1st level, then another at 3rd, 5th, 7th, and 9th.</p>"
+          "description": "<p>You grew up civilized, but your soul is bound to a beast of the wild. You're closer to it than to any man or woman. How did this bond come about? How long ago?</p><p>Regardless, you start with the <strong>Animal Companion</strong> move.</p><p>When you <strong><em>focus on your animal companion for a few moments</em></strong>, you can use any of the actions you've marked below, no matter the distance between you. Mark 1 action at 1st level, then another at 3rd, 5th, 7th, and 9th.</p>",
+          "moves": ["Animal Companion"],
+          "markableActions": {
+            "label": "Mark 1 action at 1st level, then another at 3rd, 5th, 7th, and 9th.",
+            "levels": [1, 3, 5, 7, 9],
+            "options": [
+              { "slug": "gauge-distance", "label": "Gauge its distance and direction from you" },
+              { "slug": "call-back", "label": "Call it back to your side" },
+              { "slug": "sense-emotion", "label": "Sense its emotional state" },
+              { "slug": "sense-impression", "label": "Get a brief impression of what it senses" },
+              { "slug": "lend-strength", "label": "Lend it your strength—lose 1d6 HP, and it regains an equal amount" }
+            ]
+          }
         }
       ],
       "instincts": [
@@ -203,12 +215,12 @@
           {
             "slug": "composite-bow",
             "label": "Composite bow",
-            "description": "<em>near/far</em>, 2 piercing. A powerful, well-crafted bow that can reach far and punch through armor."
+            "description": "<em>far</em>, +1 damage, x <em>piercing</em>; ○ low ammo, ○ all out"
           },
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "○○ uses: skins of fine whisky (grants advantage to Persuade), copper tubes, malt, firkins, stills, barrels, etc.",
+            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
             "resource": {
               "max": 2,
               "title": null,
@@ -218,7 +230,7 @@
           {
             "slug": "hideouts",
             "label": "Hideouts",
-            "description": "○○○ uses: 2-3 stocked shelters in the wild, each a safe place to sleep and cache supplies. When you arrive at a hideout, mark a use to restore Supplies or Ammo.",
+            "description": "○○○ uses: expend a use to have a well-stocked, safe shelter nearby; GM can veto.",
             "resource": {
               "max": 3,
               "title": null,
@@ -228,7 +240,7 @@
           {
             "slug": "hounds",
             "label": "Hounds",
-            "description": "2-3 followers (<em>alert, keen-nosed, fierce, overprotective</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct: to bark &amp; threaten; Cost: affection."
+            "description": "2-3 followers (<em>trackers, keen-nosed, fast</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct: to give chase; Cost: training."
           },
           {
             "slug": "husbandry-tools",
@@ -238,7 +250,7 @@
           {
             "slug": "lay-of-the-land",
             "label": "Lay of the land",
-            "description": "○○○ uses: your intimate knowledge of the terrain within two days' march. Expend a use to ask the GM a question about what's out there; the GM answers honestly.",
+            "description": "○○○ uses: expend a use to know where to find ___, without having to Know Things; GM can veto.",
             "resource": {
               "max": 3,
               "title": null,
@@ -248,7 +260,7 @@
           {
             "slug": "trapping-gear",
             "label": "Trapping gear",
-            "description": "snares, traps, lures, bait, stakes, ◇ a net, etc. When you <em>spend an evening setting traps</em>, the GM will tell you what you catch by morning."
+            "description": "snares, pelts, musk, bait, etc. When you <em>Forage</em>, get +1 use of provisions."
           }
         ]
       },

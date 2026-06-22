@@ -15,7 +15,7 @@
       },
       "failure": {
         "label": "6-",
-        "value": "Escalate the situation aggressively, failure, etc.  (Up to GM interpretation)."
+        "value": "Escalate the situation aggressively, or make an obvious hard move."
       }
     },
     "rollType": "con"

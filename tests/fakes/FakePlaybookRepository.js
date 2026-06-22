@@ -366,10 +366,18 @@ export const BLESSED_PLAYBOOK = {
 };
 
 export const HEAVY_PLAYBOOK = {
+	"slug": "the-heavy",
+	"name": "The Heavy",
 	"hp": 20,
 	"damage": "d10",
 	"moves": {
-		"startingMovesNote": "You start with Dangerous, Hard to Kill, and either Armored OR Uncanny Reflexes."
+		"startingMovesNote": "You start with Dangerous, Hard to Kill, and either Armored OR Uncanny Reflexes.",
+		"choices": [
+			{
+				"label": "Choose one",
+				"options": ["Armored", "Uncanny Reflexes"]
+			}
+		]
 	},
 	"backgrounds": [
 		{

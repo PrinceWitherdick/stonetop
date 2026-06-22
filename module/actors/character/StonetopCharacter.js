@@ -220,7 +220,7 @@ export class StonetopCharacter {
 			: null;
 		return new CharacterSnapshotBuilder()
 			.withName(actor.name)
-			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, !!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG)) : null)
+			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, !!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG), actorLevel) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withStats(_buildStatsSection(actor))
 			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses))
@@ -454,7 +454,7 @@ export class StonetopCharacter {
 		let possessions = null;
 		if (playbookData?.specialPossessions) {
 			const maxUsesMap = this.computePossessionMaxUses(playbookData.specialPossessions, ownedAllByName, actorLevel);
-			possessions = this._buildPossessionsSnapshot(playbookData.specialPossessions, maxUsesMap);
+			possessions = this._buildPossessionsSnapshot(playbookData.specialPossessions, maxUsesMap, prosperity);
 		}
 
 		const other = this._actor.items
@@ -535,7 +535,7 @@ export class StonetopCharacter {
 		return new InventorySnapshot(outfit, possessions, other);
 	}
 
-	_buildPossessionsSnapshot(specialPossessions, maxUsesMap) {
+	_buildPossessionsSnapshot(specialPossessions, maxUsesMap, prosperity = null) {
 		const { pickNote, pickCount, preselected = [], options } = specialPossessions;
 		const selectedSlugs = this._possessions.selected;
 		const usesMap = this._possessions.uses;
@@ -561,7 +561,10 @@ export class StonetopCharacter {
 			return new PossessionItemSnapshotBuilder()
 				.withSlug(opt.slug)
 				.withLabel(opt.label)
-				.withDescription(opt.description ?? "")
+				// "x piercing" weapons (e.g. the Ranger's composite bow) resolve to the
+				// steading's Prosperity for display here, just like outfit items — onboarding
+				// keeps the literal "x" since it renders the raw playbook description instead.
+				.withDescription(_transformPiercingNote(opt.description ?? "", prosperity))
 				.withSelected(isSelected)
 				.withChecked(isSelected)
 				.withDisabled(isPre)
@@ -574,8 +577,30 @@ export class StonetopCharacter {
 				.build();
 		});
 
+		// Player-written "something else (discuss with GM)" possessions live in their own
+		// flag (they match no listed option), so append them after the list. Each spends a
+		// pick like any other choice, and is removed via the × button rather than a checkbox.
+		const customItems = this._possessions.custom.map(c => {
+			chosenCount++;
+			return new PossessionItemSnapshotBuilder()
+				.withSlug(c.slug)
+				.withLabel(c.label)
+				.withDescription("")
+				.withSelected(true)
+				.withChecked(true)
+				.withDisabled(true)
+				.withPreselected(false)
+				.withPreselectedSource(null)
+				.withResource(null)
+				.withUsesLabel(null)
+				.withChoices(null)
+				.withChoiceGroups(null)
+				.withCustom(true)
+				.build();
+		});
+
 		const isIncomplete = pickCount > 0 && chosenCount < pickCount;
-		return new PossessionsSnapshot(pickCount, pickNote, items, isIncomplete);
+		return new PossessionsSnapshot(pickCount, pickNote, [...items, ...customItems], isIncomplete);
 	}
 
 	async setPostDeathInsert(slug) {
@@ -780,11 +805,24 @@ export class StonetopCharacter {
 
 	async selectPossession(slug)   { await this._possessions.select(slug); }
 	async deselectPossession(slug) { await this._possessions.deselect(slug); }
+	async setCustomPossessions(labels) { await this._possessions.setCustom(labels); }
+	async removeCustomPossession(slug) { await this._possessions.removeCustom(slug); }
 	async setPossessionUses(slug, count) { await this._possessions.setUses(slug, count); }
 	async selectSubChoice(possessionSlug, choiceSlug)   { await this._possessions.addSubChoice(possessionSlug, choiceSlug); }
+	async setPossessionSubChoices(possessionSlug, choiceSlugs) { await this._possessions.setSubChoices(possessionSlug, choiceSlugs); }
 	async deselectSubChoice(possessionSlug, choiceSlug) { await this._possessions.removeSubChoice(possessionSlug, choiceSlug); }
 	async selectSubChoiceExclusive(possessionSlug, choiceSlug, exclusiveSlugs) { await this._possessions.selectExclusive(possessionSlug, choiceSlug, exclusiveSlugs); }
 	async setSubChoiceUses(possessionSlug, choiceSlug, count) { await this._possessions.setChoiceUses(possessionSlug, choiceSlug, count); }
+
+	// How many of the selected background's markable actions the character may mark at its
+	// current level (Beast-Bonded: 1 at 1st, +1 at 3rd/5th/7th/9th). Lets the sheet enforce
+	// the limit directly rather than relying solely on the rendered disabled attribute.
+	async allowedMarkedActions() {
+		const playbookData = await this.playbook();
+		const bg = playbookData?.backgrounds?.find(b => b.slug === this._background.selectedSlug);
+		const level = this._actor.system?.attributes?.level?.value ?? 1;
+		return allowedMarkableActions(bg?.markableActions, level);
+	}
 
 	async getMoves() {
 		const playbookName = this._actor.system?.playbook?.name ?? null;
@@ -895,8 +933,16 @@ export class StonetopCharacter {
 		const background = playbookData?.backgrounds?.find(b => b.slug === this._background.selectedSlug);
 		const bgMoveNames = new Set(background?.moves ?? []);
 
+		// "Either X OR Y" starting moves (e.g. the Heavy's Armored OR Uncanny
+		// Reflexes) are a player choice, so they're never auto-granted — the chosen
+		// one is added by the onboarding flow (or picked by hand on the sheet).
+		const choiceMoveNames = new Set(
+			(playbookData?.startingMoveChoices ?? playbookData?.moves?.choices ?? [])
+				.flatMap(group => group.options ?? [])
+		);
+
 		const missing = entries.filter(e =>
-			(e.isStarting || bgMoveNames.has(e.name)) && !ownedNames.has(e.name)
+			((e.isStarting && !choiceMoveNames.has(e.name)) || bgMoveNames.has(e.name)) && !ownedNames.has(e.name)
 		);
 		if (missing.length) {
 			const docs = await Promise.all(missing.map(e => this._moveRepo.getPlaybookMoveDocument(e.id)));
@@ -935,6 +981,26 @@ export class StonetopCharacter {
 
 	async removeMove(ownedId) {
 		if (ownedId) await this._actor.deleteEmbeddedDocuments("Item", [ownedId]);
+	}
+
+	// Apply the "either X OR Y" starting-move picks: grant the chosen move in each group
+	// and remove any other option from the same group the actor still owns, so switching
+	// the choice (on a re-run of onboarding) doesn't leave the character owning both.
+	// `choiceGroups` is the playbook's `moves.choices`; `chosenIdByGroup` maps group index
+	// → chosen compendium id.
+	async applyStartingMoveChoices(choiceGroups, chosenIdByGroup) {
+		for (let i = 0; i < (choiceGroups?.length ?? 0); i++) {
+			const chosenId = chosenIdByGroup?.[i];
+			if (!chosenId) continue;
+			const chosenDoc = await this._moveRepo.getPlaybookMoveDocument(chosenId);
+			if (!chosenDoc) continue;
+			const optionNames = new Set(choiceGroups[i].options ?? []);
+			const stale = this._actor.items.filter(it =>
+				it.type === "move" && optionNames.has(it.name) && it.name !== chosenDoc.name
+			);
+			for (const it of stale) await this.removeMove(it._id);
+			await this.addMove(chosenId, { skipIfOwned: true });
+		}
 	}
 
 	async _onCreateDescendantDocuments(documents) {
@@ -1214,11 +1280,38 @@ function _normalizeOriginRegion(region) {
 		.trim();
 }
 
-function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore, actorName, arcanaDisplay = null, becameHero = false) {
+// How many of a background's level-gated markable actions are unlocked at a given
+// level: one per milestone level reached (Beast-Bonded marks at 1/3/5/7/9).
+// Exported so onboarding (always 1st level) shares this rule instead of re-deriving it.
+export function allowedMarkableActions(markable, actorLevel) {
+	const levels = markable?.levels ?? [];
+	return levels.filter(l => actorLevel >= l).length;
+}
+
+function _buildMarkableActions(b, savedMarkedActions, actorLevel) {
+	const markable = b.markableActions;
+	if (!markable?.options?.length) return null;
+	const marked  = new Set(savedMarkedActions);
+	const allowed = allowedMarkableActions(markable, actorLevel);
+	const markedCount = markable.options.filter(o => marked.has(o.slug)).length;
+	const atLimit = markedCount >= allowed;
+	return {
+		label:       markable.label ?? "",
+		allowed,
+		markedCount,
+		options: markable.options.map(o => {
+			const checked = marked.has(o.slug);
+			return { slug: o.slug, label: o.label, checked, disabled: !checked && atLimit };
+		}),
+	};
+}
+
+function _buildPlaybookSection(playbookData, background, instinct, appearance, origin, lore, actorName, arcanaDisplay = null, becameHero = false, actorLevel = 1) {
 	const savedBg      = background.selectedSlug || null;
 	const savedChoices = background.choices;
 	const savedSetupTexts = background.setupTexts ?? {};
 	const savedSetupResources = background.setupResources ?? {};
+	const savedMarkedActions = background.markedActions ?? [];
 	const savedInstinct = instinct.selectedValue || null;
 	const savedAppearance = appearance.saved;
 	const savedOrigin  = origin.selected || null;
@@ -1259,6 +1352,7 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 					})),
 				};
 			}))
+			.withMarkableActions(_buildMarkableActions(b, savedMarkedActions, actorLevel))
 			.build();
 	});
 

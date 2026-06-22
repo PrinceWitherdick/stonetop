@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 import {FakeMoveRepository} from "../../fakes/FakeMoveRepository.js";
 import {TestCharacterBuilder} from "../../fakes/TestCharacterBuilder.js";
-import {BLESSED_PLAYBOOK, FakePlaybookRepository} from "../../fakes/FakePlaybookRepository.js";
+import {BLESSED_PLAYBOOK, HEAVY_PLAYBOOK, FakePlaybookRepository} from "../../fakes/FakePlaybookRepository.js";
 import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
 import {MoveDefinition} from "../../../module/model/MoveDefinition.js";
 
@@ -377,6 +377,24 @@ describe("StonetopCharacter.ensureStartingMoves", () => {
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 	});
 
+	it("does not auto-grant 'either X OR Y' starting-move choices", async () => {
+		const actor = new FakeActorBuilder().withPlaybook("the-heavy", "The Heavy").build();
+		const char = new TestCharacterBuilder(actor)
+			.addPlaybook(HEAVY_PLAYBOOK)
+			.addPlaybookMove(makeMoveEntry("Dangerous", true, "d1"))
+			.addPlaybookMove(makeMoveEntry("Hard to Kill", true, "h1"))
+			.addPlaybookMove(makeMoveEntry("Armored", true, "a1"))
+			.addPlaybookMove(makeMoveEntry("Uncanny Reflexes", true, "u1"))
+			.build();
+		await char.ensureStartingMoves();
+		// Dangerous + Hard to Kill are granted; the Armored/Uncanny Reflexes choice is not.
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledTimes(1);
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [
+			{ name: "Dangerous" },
+			{ name: "Hard to Kill" },
+		]);
+	});
+
 	it("adds background-specific moves based on selected background", async () => {
 		const actor = new FakeActorBuilder()
 			.withPlaybook("the-blessed", "The Blessed")
@@ -389,6 +407,49 @@ describe("StonetopCharacter.ensureStartingMoves", () => {
 			.build();
 		await char.ensureStartingMoves();
 		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [{ name: "Rites of the Land" }]);
+	});
+});
+
+// -- applyStartingMoveChoices -------------------------------------------------
+
+describe("StonetopCharacter.applyStartingMoveChoices", () => {
+	const move = (name, id) => ({ _id: id, name, system: {}, toObject: () => ({ name }) });
+	const GROUPS = [{ label: "Choose one", options: ["Armored", "Uncanny Reflexes"] }];
+
+	function charWith(items) {
+		const actor = new FakeActorBuilder().withPlaybook("the-heavy", "The Heavy").withItems(items).build();
+		const char = new TestCharacterBuilder(actor)
+			.withMoveRepo(new FakeMoveRepository([move("Armored", "a1"), move("Uncanny Reflexes", "u1")], []))
+			.build();
+		return { actor, char };
+	}
+
+	it("grants the chosen move when nothing in the group is owned", async () => {
+		const { actor, char } = charWith([]);
+		await char.applyStartingMoveChoices(GROUPS, { 0: "a1" });
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [{ name: "Armored" }]);
+		expect(actor.deleteEmbeddedDocuments).not.toHaveBeenCalled();
+	});
+
+	it("removes a previously-chosen alternative when the pick changes", async () => {
+		const { actor, char } = charWith([{ type: "move", name: "Armored", _id: "owned-a" }]);
+		await char.applyStartingMoveChoices(GROUPS, { 0: "u1" });
+		expect(actor.deleteEmbeddedDocuments).toHaveBeenCalledWith("Item", ["owned-a"]);
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [{ name: "Uncanny Reflexes" }]);
+	});
+
+	it("leaves the already-owned chosen move alone (no duplicate, no removal)", async () => {
+		const { actor, char } = charWith([{ type: "move", name: "Armored", _id: "owned-a" }]);
+		await char.applyStartingMoveChoices(GROUPS, { 0: "a1" });
+		expect(actor.deleteEmbeddedDocuments).not.toHaveBeenCalled();
+		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
+	});
+
+	it("does nothing for a group with no pick", async () => {
+		const { actor, char } = charWith([]);
+		await char.applyStartingMoveChoices(GROUPS, {});
+		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
+		expect(actor.deleteEmbeddedDocuments).not.toHaveBeenCalled();
 	});
 });
 

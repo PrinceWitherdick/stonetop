@@ -186,31 +186,21 @@
           {
             "slug": "symbol-of-authority",
             "label": "Symbol of authority",
-            "description": "your official badge and symbol; recognized throughout the Manmarch.",
+            "description": "",
             "choices": {
               "pickCount": 1,
               "options": [
                 {
-                  "slug": "war-hammer",
-                  "label": "◇ War hammer, iron (<em>close</em>, +1 damage, 2 piercing)"
+                  "slug": "black-iron-maul",
+                  "label": "◇ Black iron maul, utterly immune to all magic (<em>close, forceful, awkward</em>, +1 damage)"
                 },
                 {
-                  "slug": "brace-of-knives",
-                  "label": "◇ Brace of knives (<em>hand, thrown</em>)",
-                  "resource": {
-                    "max": 2,
-                    "title": null,
-                    "labels": []
-                  }
+                  "slug": "makerglass-shield",
+                  "label": "◇ Makerglass shield, etched with Aratis's symbol (<em>indestructible</em>, +1 armor, +1 Readiness on a Defend 7+)"
                 },
                 {
-                  "slug": "crossbow",
-                  "label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>)",
-                  "resource": {
-                    "max": 2,
-                    "title": null,
-                    "labels": []
-                  }
+                  "slug": "helm",
+                  "label": "◇ Helm set with a dark ice \"jewel.\" Grants advantage to resist mind-affecting magic."
                 }
               ]
             }
@@ -223,7 +213,7 @@
           {
             "slug": "aviary",
             "label": "Aviary",
-            "description": "a building with trained birds to carry messages. When you <em>send a message by trained bird</em>, the GM will tell you when (or if) you receive a reply, and what it says."
+            "description": "thick gloves, bird hoods, tethers, seed, ◇ messenger birds, ◇ birdcages, etc."
           },
           {
             "slug": "carpenters-tools",
@@ -233,7 +223,7 @@
           {
             "slug": "engineers-tools",
             "label": "Engineer's tools",
-            "description": "measuring string, stakes, levels, plumb bobs, ◇ compasses, ◇ drawing tools, plans, etc."
+            "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc."
           },
           {
             "slug": "smithy",

@@ -64,6 +64,13 @@ export class StonetopPlaybook {
 		return this._stonetopFields.moves?.startingMovesNote ?? null;
 	}
 
+	// "Either X OR Y" starting-move choices: groups of move names the player picks
+	// one from (e.g. the Heavy's Armored OR Uncanny Reflexes). These are excluded
+	// from the auto-granted starting moves; the chosen one is added separately.
+	get startingMoveChoices() {
+		return this._stonetopFields.moves?.choices ?? [];
+	}
+
 	get invocations() {
 		return this._stonetopFields.invocations ?? null;
 	}

@@ -160,12 +160,12 @@
           {
             "slug": "apiary",
             "label": "Apiary",
-            "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hat &amp; veils, etc."
+            "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hats &amp; veils, etc."
           },
           {
             "slug": "books-and-scrolls",
             "label": "Books &amp; scrolls",
-            "description": "○○○○○ uses: a collection of religious texts and sacred histories. Mark a use to <em>Know Things about Helior, the Sun-Worshippers, or their lore</em> as if you rolled a 10+.",
+            "description": "○○○○○ uses: expend a use to consult your collection and turn a Know Things roll you just made into a 10+.",
             "resource": {
               "max": 5,
               "title": null,
@@ -175,12 +175,12 @@
           {
             "slug": "chandlery",
             "label": "Chandlery",
-            "description": "tallow, wax, wicks, dye, ◇ molds; candles, wick-holders, holy candles (<em>close, area</em>, ~1 hr), lanterns, etc."
+            "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), wicks, scented herbs, soap, lye, ash, etc."
           },
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "○○ uses: skins of fine spirits (Value 1; grants advantage to Persuade when shared), copper tubes, malt, firkins, stills, barrels, etc.",
+            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
             "resource": {
               "max": 2,
               "title": null,
@@ -190,12 +190,12 @@
           {
             "slug": "glassworks",
             "label": "Glassworks",
-            "description": "sand, ash, ◇ crucibles, ◇ blowpipes; bottles, flasks, lenses, lantern glass, etc."
+            "description": "vials, charms, lenses, sand, marbles, bellows, crucible, ◇ lanterns (○○○○○ hours, <em>close, area</em>), etc."
           },
           {
             "slug": "holy-relics",
             "label": "Holy relics",
-            "description": "○○○ uses: sacred objects of Helior's worship. Expend a use to add +1 to a roll involving the god's favor or power. Restore 1 use each season.",
+            "description": "○○○ uses: if you have one in inventory when you Invoke the Sun God, you can mark a use in lieu of choosing a consequence.",
             "resource": {
               "max": 3,
               "title": null,
@@ -205,7 +205,7 @@
           {
             "slug": "luthiers-tools",
             "label": "Luthier's tools",
-            "description": "gut strings, pegs, wood, varnish, ◇ chisels, ◇ clamps; instruments, repairs, etc."
+            "description": "chisels, files, catgut, various woods, stains, ◇ a lute, ◇ a fiddle, etc."
           }
         ]
       },

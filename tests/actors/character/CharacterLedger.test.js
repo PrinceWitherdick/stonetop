@@ -62,6 +62,22 @@ describe("CharacterLedger", () => {
 		expect(entries.map(e => e.action)).toEqual(["Sacred pouch deselected"]);
 	});
 
+	it("records a write-in possession being added by its label", async () => {
+		const actor = makeActor({}, { stonetop: { possessions: { custom: [] } } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.possessions.custom": [{ slug: "custom-1", label: "A locket" }],
+		});
+		expect(entries.map(e => e.action)).toEqual(["A locket added (write-in possession)"]);
+	});
+
+	it("records a write-in possession being removed by its label", async () => {
+		const actor = makeActor({}, { stonetop: { possessions: { custom: [{ slug: "custom-1", label: "A locket" }] } } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.possessions.custom": [],
+		});
+		expect(entries.map(e => e.action)).toEqual(["A locket removed (write-in possession)"]);
+	});
+
 	it("records move resource changes by move name and resource title", async () => {
 		const actor = makeActor({}, { stonetop: { moves: { backgroundChoices: { "Rites of the Land": 1 } } } });
 		actor.typedActor = {

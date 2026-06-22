@@ -15,7 +15,7 @@
       },
       "failure": {
         "label": "6-",
-        "value": "Makes a hard GM move (Up to GM interpretation)."
+        "value": "You fail to foil their action; the GM makes a hard move."
       }
     },
     "rollType": "ask"

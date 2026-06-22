@@ -15,7 +15,7 @@
       },
       "failure": {
         "label": "6-",
-        "value": "The muster fails; reduce Fortunes by 1 anyway. (Up to GM interpretation)"
+        "value": "Folks ignore your orders, armed rivals come to blows, or a threat overwhelms the village."
       }
     },
     "rollType": "ask"

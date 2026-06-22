@@ -37,7 +37,7 @@ export const ONBOARDING_MOVE_GROUPS = {
 	"The Marshal": [
 		{ key: "command", label: "Command", moves: ["Crew", "Veteran Crew", "Front Line Leader", "Heroes to the Last", "Sir, Permission to Die, Sir", "Shake It Off", "We Happy Few", "Stentorian", "Noble Mien"] },
 		{ key: "combat", label: "Combat", moves: ["Armored", "Battlefield Grace", "Focus Fire", "Set-Up Strike", "Shield Wall", "Peace Through Strength", "Prepare a Welcome", "Speak Softly", "Arts of War"] },
-		{ key: "tactics", label: "Tactics", moves: ["Logistics", "Pathfinder", "Read the Land", "Take the Measure", "Like an Open Book"] },
+		{ key: "tactics", label: "Tactics", moves: ["Logistics", "Read the Land", "Take the Measure", "Like an Open Book"] },
 	],
 	"The Ranger": [
 		{ key: "wilds", label: "Wilds", moves: ["A Safe Place", "Home on the Range", "Mental Map", "On the Hoof", "Pathfinder", "Survivalist", "Trailblazer", "Stalker", "Naturalist", "Expert Tracker", "Worldly", "Walk It Off", "Warden of the Wild", "Sniff Out Corruption"] },

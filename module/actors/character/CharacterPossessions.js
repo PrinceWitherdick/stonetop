@@ -8,6 +8,9 @@ export class CharacterPossessions {
 	get maxUses()     { return this._flags.getFlag("maxUses") ?? {}; }
 	get subChoices()  { return this._flags.getFlag("subChoices") ?? {}; }
 	get choiceUses()  { return this._flags.getFlag("choiceUses") ?? {}; }
+	// Player-written "something else (discuss with GM)" possessions — items not on the
+	// playbook's list, stored as { slug, label } since there's no option to match by slug.
+	get custom()      { return this._flags.getFlag("custom") ?? []; }
 
 	async select(slug) {
 		const s = this.selected;
@@ -32,6 +35,12 @@ export class CharacterPossessions {
 		await this._flags.setFlag("subChoices", { ...current, [possessionSlug]: [...existing, choiceSlug] });
 	}
 
+	// Replace a possession's whole sub-choice list (used when re-applying onboarding, so
+	// sub-choices the player deselected are dropped rather than left behind by add-only writes).
+	async setSubChoices(possessionSlug, choiceSlugs) {
+		await this._flags.setFlag("subChoices", { ...this.subChoices, [possessionSlug]: [...choiceSlugs] });
+	}
+
 	async removeSubChoice(possessionSlug, choiceSlug) {
 		const current = this.subChoices;
 		const existing = current[possessionSlug] ?? [];
@@ -49,5 +58,24 @@ export class CharacterPossessions {
 	async setChoiceUses(possessionSlug, choiceSlug, count) {
 		const key = `${possessionSlug}:${choiceSlug}`;
 		await this._flags.setFlag("choiceUses", { ...this.choiceUses, [key]: count });
+	}
+
+	// Replace the whole write-in list from a set of labels, assigning each a `custom-N`
+	// slug. Blank labels are dropped. Replacing (rather than appending) keeps re-running
+	// onboarding idempotent: the same write-in maps back to the same single entry.
+	async setCustom(labels) {
+		const entries = [];
+		let n = 1;
+		for (const label of labels ?? []) {
+			const trimmed = String(label ?? "").trim();
+			if (!trimmed) continue;
+			entries.push({ slug: `custom-${n}`, label: trimmed });
+			n++;
+		}
+		await this._flags.setFlag("custom", entries);
+	}
+
+	async removeCustom(slug) {
+		await this._flags.setFlag("custom", this.custom.filter(c => c.slug !== slug));
 	}
 }

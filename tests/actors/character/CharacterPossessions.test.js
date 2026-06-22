@@ -78,6 +78,65 @@ describe("CharacterPossessions — subChoices", () => {
 		await cp.removeSubChoice("weapons-of-war", "battleaxe");
 		expect(store.subChoices["weapons-of-war"]).toEqual(["sword"]);
 	});
+
+	it("setSubChoices replaces the whole array, dropping deselected picks", async () => {
+		const store = { subChoices: { "weapons-of-war": ["sword", "battleaxe"] } };
+		const cp = new CharacterPossessions(makeFlags(store));
+		await cp.setSubChoices("weapons-of-war", ["sword", "long-spear"]);
+		expect(store.subChoices["weapons-of-war"]).toEqual(["sword", "long-spear"]);
+	});
+
+	it("setSubChoices leaves other possessions' picks untouched", async () => {
+		const store = { subChoices: { "weapons-of-war": ["sword"], "sacred-pouch": ["heirloom"] } };
+		const cp = new CharacterPossessions(makeFlags(store));
+		await cp.setSubChoices("weapons-of-war", []);
+		expect(store.subChoices).toEqual({ "weapons-of-war": [], "sacred-pouch": ["heirloom"] });
+	});
+});
+
+describe("CharacterPossessions — custom write-ins", () => {
+	it("custom returns empty array when nothing saved", () => {
+		const cp = new CharacterPossessions(makeFlags());
+		expect(cp.custom).toEqual([]);
+	});
+
+	it("setCustom assigns custom-N slugs and drops blank labels", async () => {
+		const store = {};
+		const cp = new CharacterPossessions(makeFlags(store));
+		await cp.setCustom(["A locket", "   ", "Grandfather's blade"]);
+		expect(store.custom).toEqual([
+			{ slug: "custom-1", label: "A locket" },
+			{ slug: "custom-2", label: "Grandfather's blade" },
+		]);
+	});
+
+	it("setCustom trims labels", async () => {
+		const store = {};
+		const cp = new CharacterPossessions(makeFlags(store));
+		await cp.setCustom(["  A map  "]);
+		expect(store.custom).toEqual([{ slug: "custom-1", label: "A map" }]);
+	});
+
+	it("setCustom replaces the whole list (idempotent across re-applies)", async () => {
+		const store = { custom: [{ slug: "custom-1", label: "Old item" }] };
+		const cp = new CharacterPossessions(makeFlags(store));
+		await cp.setCustom(["Old item"]);
+		expect(store.custom).toEqual([{ slug: "custom-1", label: "Old item" }]);
+	});
+
+	it("setCustom with no labels clears the list", async () => {
+		const store = { custom: [{ slug: "custom-1", label: "Old item" }] };
+		const cp = new CharacterPossessions(makeFlags(store));
+		await cp.setCustom([]);
+		expect(store.custom).toEqual([]);
+	});
+
+	it("removeCustom drops the matching slug", async () => {
+		const store = { custom: [{ slug: "custom-1", label: "A" }, { slug: "custom-2", label: "B" }] };
+		const cp = new CharacterPossessions(makeFlags(store));
+		await cp.removeCustom("custom-1");
+		expect(store.custom).toEqual([{ slug: "custom-2", label: "B" }]);
+	});
 });
 
 describe("CharacterPossessions — choiceUses", () => {

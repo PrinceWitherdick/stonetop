@@ -1334,6 +1334,43 @@ input.stonetop-name-field {
 	margin: 0;
 }
 
+/* Beast-Bonded "focus on your companion" markable actions */
+.stonetop-bg-actions-count {
+	font-weight: normal;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-bg-action-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 2px 0;
+	cursor: pointer;
+}
+
+.stonetop-bg-action-row.is-checked .stonetop-bg-action-label {
+	font-weight: bold;
+}
+
+.stonetop-bg-action-label {
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+	line-height: 1.3;
+}
+
+.stonetop-bg-action-check:disabled ~ .stonetop-bg-action-label {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* Marking an action is gameplay (more slots unlock as you level), not structural
+   editing — so these stay live and undimmed in read-only mode, overriding the
+   shared .stonetop-readonly label/checkbox dimming + pointer-events:none. */
+.stonetop-readonly .stonetop-bg-action-row,
+.stonetop-readonly input[type="checkbox"].stonetop-bg-action-check {
+	pointer-events: auto;
+	opacity: 1;
+}
+
 .stonetop-instinct-custom-row {
 	display: flex;
 	gap: 6px;
@@ -2127,6 +2164,7 @@ input.stonetop-name-field {
 .stonetop-seasons-reminder-dontshow-input,
 .stonetop-exp-checkbox,
 .stonetop-onboarding-check,
+.stonetop-bg-action-check,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
@@ -2172,6 +2210,7 @@ input.stonetop-name-field {
 .stonetop-seasons-reminder-dontshow-input:checked,
 .stonetop-exp-checkbox:checked,
 .stonetop-onboarding-check:checked,
+.stonetop-bg-action-check:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
@@ -2191,6 +2230,7 @@ input.stonetop-name-field {
 .stonetop-lore-option-check:disabled,
 .stonetop-move-mark-check:disabled,
 .stonetop-onboarding-check:disabled,
+.stonetop-bg-action-check:disabled,
 .stonetop-arcanum-unlock-check:disabled {
 	opacity: 0.35;
 	cursor: default;
@@ -3348,6 +3388,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-inv-item:hover .stonetop-inv-delete,
 .stonetop-inv-item:hover .stonetop-inv-remove-special { display: inline; }
+
+/* Remove a write-in special possession (only rendered in possessions edit mode). */
+.stonetop-possession-custom-remove {
+	margin-left: auto;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+	font-size: var(--st-fs-xs);
+}
 
 .stonetop-inv-add-btn,
 .stonetop-add-special-btn {
@@ -8909,15 +8957,21 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	font-size: var(--st-fs-sm);
 }
 
-.stonetop-onboarding-move-search input {
+.stonetop-onboarding .stonetop-onboarding-move-search input {
 	flex: 1;
-	border: none;
-	background: none;
+	appearance: none;
+	/* pbta's high-specificity base input rules (7-class chain) otherwise win and
+	   draw an inner border/inset glow inside the wrapper — force them off (in the
+	   default state too, not just :focus) so only the wrapper's border shows. */
+	border: none !important;
+	background: none !important;
+	box-shadow: none !important;
+	outline: none !important;
 	padding: 0;
 	font-size: var(--st-fs-base);
 }
 
-.stonetop-onboarding-move-search input:focus {
+.stonetop-onboarding .stonetop-onboarding-move-search input:focus {
 	outline: none;
 	box-shadow: none;
 }
@@ -8970,6 +9024,19 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 
 .stonetop-onboarding-card--move.is-filtered-out { display: none; }
 
+/* "Either X OR Y" starting-move choice (e.g. the Heavy's Armored OR Uncanny
+   Reflexes): a radio group of move cards, spaced off from the free-pick list.
+   `--move-choice` is also the JS hook the change handler uses to toggle is-selected;
+   the card body is otherwise styled by the base .stonetop-onboarding-card. */
+.stonetop-onboarding-move-choice-group { margin-bottom: 14px; }
+.stonetop-onboarding-move-choice-group .stonetop-onboarding-step-hint { margin-bottom: 6px; }
+
+/* Center the radio against the bold title, matching the possession cards — the base
+   header baseline-aligns, which otherwise floats the radio low next to the title. */
+.stonetop-onboarding-card--move-choice .stonetop-onboarding-card-header {
+	align-items: center;
+}
+
 .stonetop-onboarding-card--possession.is-preselected {
 	background: rgba(100,116,139,0.06);
 	border-color: rgba(100,116,139,0.3);
@@ -8995,6 +9062,141 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	border-radius: var(--st-radius-sm);
 	white-space: nowrap;
 }
+
+/* Write-in possession card: a free-text alternative on par with the listed options
+   (Book I p.20). It's a div, not a clickable label — you type rather than select — so
+   override the card's pointer cursor, and the "(discuss with GM)" note flags that the
+   item needs the table's sign-off. */
+.stonetop-onboarding-card--custom {
+	cursor: default;
+}
+
+.stonetop-onboarding-possession-custom-gm {
+	margin-left: auto;
+	font-size: var(--st-fs-2xs);
+	font-style: italic;
+	color: slategrey;
+	white-space: nowrap;
+}
+
+/* Beat pbta's `.vtt .window-app input` base border (0,3,1) with the project's standard
+   shape — `.vtt .window-app` + the card class + the typed input — for (0,4,1). */
+.vtt .window-app .stonetop-onboarding-card--custom .onboard-possession-custom {
+	width: 100%;
+	min-width: 0;
+	margin-top: 6px;
+	padding: 4px 8px;
+	border: 1px solid rgba(100,116,139,0.35);
+	border-radius: var(--st-radius-sm);
+	background: white;
+	font: inherit;
+	color: inherit;
+	box-shadow: none;
+}
+
+.vtt .window-app .stonetop-onboarding-card--custom .onboard-possession-custom:focus {
+	outline: none;
+	border-color: slategrey;
+}
+
+.stonetop-onboarding-card--custom .onboard-possession-custom:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* Possession sub-choice bundles (Weapons of war, Symbol of authority…) — always
+   shown so players can read the list, but muted and non-interactive until the
+   parent possession is selected (owning the bundle is what spends a pick slot). */
+.stonetop-onboarding-possession-group {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.stonetop-onboarding-suboptions.is-locked {
+	opacity: 0.55;
+}
+
+.stonetop-onboarding-suboptions {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	margin: 0 0 0 18px;
+	padding: 8px 10px;
+	background: rgba(100,116,139,0.05);
+	border: 1px solid rgba(100,116,139,0.25);
+	border-radius: var(--st-radius-sm);
+}
+
+.stonetop-onboarding-suboptions-hint {
+	margin: 0 0 3px;
+	font-size: var(--st-fs-sm);
+	color: slategrey;
+}
+
+.stonetop-onboarding-suboption-count {
+	font-weight: 700;
+}
+
+.stonetop-onboarding-suboption {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 0;
+	cursor: pointer;
+}
+
+.stonetop-onboarding-suboption.is-selected .stonetop-onboarding-suboption-label {
+	font-weight: 700;
+}
+
+.stonetop-onboarding-suboption input:disabled {
+	cursor: default;
+}
+
+.stonetop-onboarding-suboption input:disabled ~ .stonetop-onboarding-suboption-label {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* When the whole bundle is locked it's already dimmed as a unit, so don't dim the
+   (uniformly disabled) labels again — that would stack opacity and over-fade them. */
+.stonetop-onboarding-suboptions.is-locked .stonetop-onboarding-suboption input:disabled ~ .stonetop-onboarding-suboption-label {
+	opacity: 1;
+}
+
+/* "Choose 1 on each line" flavor groups (the Blessed's sacred pouch). Shares the
+   slate-tinted sub-choice box; each subgroup is a wrapping row of radios (pick 1)
+   or, when multiSelect, checkboxes — reusing the .stonetop-onboarding-suboption row. */
+.stonetop-onboarding-choice-group {
+	margin: 6px 0 0 18px;
+	padding: 8px 10px;
+	background: rgba(100,116,139,0.05);
+	border: 1px solid rgba(100,116,139,0.25);
+	border-radius: var(--st-radius-sm);
+}
+
+.stonetop-onboarding-choice-group-heading {
+	margin: 0 0 4px;
+	font-size: var(--st-fs-sm);
+	color: slategrey;
+}
+
+.stonetop-onboarding-choice-subgroup {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px 14px;
+}
+
+.stonetop-onboarding-choice-subgroup + .stonetop-onboarding-choice-subgroup {
+	margin-top: 4px;
+	padding-top: 4px;
+	border-top: 1px solid rgba(100,116,139,0.15);
+}
+
+/* Native radios (sub-choice lines, either/or move cards) take the slate accent the
+   rest of the wizard uses, instead of the browser default. */
+.stonetop-onboarding-radio { flex-shrink: 0; accent-color: slategrey; }
 
 /* Insert steps — Invocations, Initiates, Crew, Animal Companion */
 .stonetop-onboarding-insert-section {
@@ -9166,6 +9368,30 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 
 .stonetop-onboarding-lore-desc p { margin: 2px 0; }
 
+/* Specific lore prompt shown under a folded umbrella heading (e.g. the Heavy's
+   "A History of Violence" pages). The umbrella takes the step-title slot, so the
+   prompt itself reads as a prominent, sentence-case sub-heading. */
+.stonetop-onboarding-lore-prompt {
+	margin: 0 0 6px;
+	font-size: var(--st-fs-md);
+	font-weight: 700;
+	line-height: 1.35;
+	color: var(--st-text);
+}
+
+/* Flavor prose folded down from an option-less intro section (e.g. the
+   Lightbearer's "Praise the Day"). Sits between the umbrella heading and the first
+   prompt, reading as a lead-in rather than a selectable instruction. */
+.stonetop-onboarding-lore-intro {
+	margin: 0 0 10px;
+	font-size: var(--st-fs-base);
+	font-style: italic;
+	line-height: 1.5;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-onboarding-lore-intro p { margin: 2px 0; }
+
 .stonetop-onboarding-lore-context {
 	margin: 0 0 12px;
 	padding: 8px 10px;
@@ -9243,13 +9469,23 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 }
 
 .stonetop-onboarding-background-move-choices,
-.stonetop-onboarding-background-setup {
+.stonetop-onboarding-background-setup,
+.stonetop-onboarding-background-actions {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 	margin-top: 8px;
 	padding-top: 8px;
 	border-top: 1px solid rgba(100,116,139,0.16);
+}
+
+/* Beast-Bonded actions are full sentences, so stack them instead of wrapping pills. */
+.stonetop-onboarding-background-actions-list {
+	flex-direction: column;
+}
+
+.stonetop-onboarding-background-action-option {
+	align-items: flex-start;
 }
 
 .stonetop-onboarding-background-choice-options {
@@ -9300,20 +9536,8 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	border-radius: 50%;
 }
 
-.stonetop-onboarding-background-neighbor-option input[type="checkbox"] {
-	width: calc(20px * var(--stonetop-font-scale, 1)) !important;
-	height: calc(20px * var(--stonetop-font-scale, 1)) !important;
-	border: none !important;
-	border-radius: 0 !important;
-	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
-}
-
 .stonetop-onboarding-bg-option input[type="radio"]:checked {
 	background: radial-gradient(circle, slategrey 0 44%, transparent 48%);
-}
-
-.stonetop-onboarding-background-neighbor-option input[type="checkbox"]:checked {
-	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
 
 .stonetop-onboarding-bg-option > span {
@@ -9376,6 +9600,43 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	.stonetop-onboarding-background-neighbor {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* Shared suggestion popup (utils/autocomplete.js) — our scrollable stand-in for the
+   native <datalist>, whose Chromium popup drops its scrollbar once the list outgrows
+   it. Used by the onboarding neighbor-trait inputs, the steading sheet's resident
+   fields, the Add Steading Member dialog, and the crew "name this member" dialog. Lives
+   on <body> as a fixed element (so no sheet/dialog scroll container can clip it) and is
+   height-capped so it never stretches the full screen; the inline max-height shrinks it
+   further near a viewport edge. */
+.stonetop-autocomplete {
+	position: fixed;
+	z-index: 10000;
+	max-height: 250px;
+	overflow-y: auto;
+	margin: 0;
+	padding: 4px;
+	list-style: none;
+	background: #fffdf7;
+	border: 1px solid #9ca3af;
+	border-radius: var(--st-radius);
+	box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	color: #1f2937;
+}
+
+.stonetop-autocomplete-option {
+	padding: 5px 8px;
+	border-radius: var(--st-radius-sm);
+	font-weight: 400;
+	line-height: 1.3;
+	cursor: pointer;
+}
+
+.stonetop-autocomplete-option:hover,
+.stonetop-autocomplete-option.is-active {
+	background: hsl(210 15% 92%);
 }
 
 .stonetop-onboarding-background-choice-fixed {
@@ -9559,7 +9820,7 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 }
 
 .stonetop-onboarding-lore-counter {
-	margin: -4px 0 8px;
+	margin: 0 0 8px;
 	font-size: var(--st-fs-xs);
 	color: var(--st-text-faint);
 }
@@ -9597,9 +9858,10 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 }
 
 /* Lore picks are genuine selections, so they show the shared SVG checkbox; nudge
-   it down to sit on the first line of the (possibly wrapping) option text. */
+   it down so the fixed 15px box centres within the first line box (line-height
+   1.45) of the (possibly wrapping) option text rather than sitting a hair high. */
 .stonetop-onboarding-lore-pick input[type="checkbox"] {
-	margin-top: 0.1em;
+	margin-top: 0.18em;
 }
 
 .stonetop-onboarding-lore-texts {

@@ -15,7 +15,7 @@
       },
       "failure": {
         "label": "6-",
-        "value": "It fails badly. (Up to GM interpretation)"
+        "value": "The villagers refuse your orders, suffer heavy losses (mark diminished), or you're put in a spot—carnage unless the PCs save the day."
       }
     },
     "rollType": "ask"

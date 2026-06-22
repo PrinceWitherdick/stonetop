@@ -9,7 +9,13 @@
       "hp": 20,
       "damage": "d10",
       "moves": {
-        "startingMovesNote": "You start with Dangerous, Hard to Kill, and either Armored OR Uncanny Reflexes."
+        "startingMovesNote": "You start with Dangerous, Hard to Kill, and either Armored OR Uncanny Reflexes.",
+        "choices": [
+          {
+            "label": "Choose one",
+            "options": ["Armored", "Uncanny Reflexes"]
+          }
+        ]
       },
       "backgrounds": [
         {
@@ -170,7 +176,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "○○ uses: skins of fine whisky (grants advantage to Persuade), copper tubes, malt, firkins, stills, barrels, etc.",
+            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
             "resource": {
               "max": 2,
               "title": null,
@@ -202,7 +208,9 @@
             "label": "Weapons of war",
             "description": "",
             "choices": {
+              "pickNote": "Choose up to 3 (now or later)",
               "pickCount": 3,
+              "optional": true,
               "options": [
                 {
                   "slug": "sword",
@@ -222,7 +230,7 @@
                 },
                 {
                   "slug": "crossbow",
-                  "label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>, x piercing)",
+                  "label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>, x <em>piercing</em>)",
                   "resource": {
                     "max": 2,
                     "title": null,

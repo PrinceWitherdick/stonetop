@@ -28,6 +28,7 @@ import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower} from "../../data/follower-build.js";
@@ -2187,6 +2188,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					this._onPossessionUseChange({ currentTarget: btn });
 				}
 			}, true);
+			// Beast-Bonded markable actions stay interactive in normal view (marked
+			// during play as levels unlock more), not just under the edit pencil.
+			html.find(".stonetop-bg-action-check").on("change", this._onBackgroundActionCheck.bind(this));
 			html.find(".stonetop-inventory-item-check").on("change", this._onInventoryItemCheck.bind(this));
 			html.find(".stonetop-regular-pool-btn, .stonetop-small-pool-display").on("change", this._onInventoryPoolEdit.bind(this));
 			html[0].addEventListener("click", ev => {
@@ -2198,6 +2202,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-inv-delete").on("click", this._onDeleteCustomInventoryItem.bind(this));
 			html.find(".stonetop-inv-remove-special").on("click", this._onRemoveSpecialItem.bind(this));
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
+			html.find(".stonetop-possession-custom-remove").on("click", this._onRemoveCustomPossession.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
 			html.find(".stonetop-possession-sub-radio").on("change", this._onPossessionSubRadio.bind(this));
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
@@ -2706,6 +2711,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					default: "add",
 					render: (dlgHtml) => {
 						bringDialogToFront(dlgHtml);
+						// Swap the name/tag/trait combos' native <datalist> popups (which
+						// lose their scrollbar when long, crbug.com/375637) for our
+						// scrollable one. See utils/autocomplete.js.
+						StonetopAutocomplete.upgradeAll(dlgHtml);
 						// Checkbox toggle: expand/collapse the chip
 						dlgHtml.find("[name='traits']").on("change", ev => {
 							const group   = ev.currentTarget.closest(".stonetop-trait-chip-group");
@@ -3372,6 +3381,26 @@ export function createStonetopCharacterSheetClass(Base) {
 			await this._stonetopCharacter.background.addChoice(choice);
 		}
 
+		async _onBackgroundActionCheck(ev) {
+			const cb = ev.currentTarget;
+			const { slug } = cb.dataset;
+			if (!slug) return;
+			if (cb.checked) {
+				// Enforce the level-gated limit directly, not just via the rendered disabled
+				// attribute — otherwise rapid clicks before the re-render lands could mark
+				// more than allowed. Revert the checkbox if the limit is already reached.
+				const allowed = await this._stonetopCharacter.allowedMarkedActions();
+				const marked  = this._stonetopCharacter.background.markedActions;
+				if (!marked.includes(slug) && marked.length >= allowed) {
+					cb.checked = false;
+					return;
+				}
+				await this._stonetopCharacter.background.markAction(slug);
+			} else {
+				await this._stonetopCharacter.background.unmarkAction(slug);
+			}
+		}
+
 		async _onPossessionCheck(ev) {
 			const { slug } = ev.currentTarget.dataset;
 			if (ev.currentTarget.checked) {
@@ -3379,6 +3408,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else {
 				await this._stonetopCharacter.deselectPossession(slug);
 			}
+		}
+
+		async _onRemoveCustomPossession(ev) {
+			await this._stonetopCharacter.removeCustomPossession(ev.currentTarget.dataset.slug);
 		}
 
 		async _onPossessionUseChange(ev) {
@@ -3924,6 +3957,22 @@ export function createStonetopCharacterSheetClass(Base) {
 			console.groupEnd();
 		}
 
+		// Restore each "either X OR Y" starting-move pick (e.g. the Heavy's Armored OR
+		// Uncanny Reflexes) by the owned move's NAME — its compendium id isn't knowable
+		// from the actor alone. The onboarding dialog swaps the name for the id once its
+		// move list loads, so the moves step shows the choice already made rather than
+		// forcing a re-pick. Keyed by choice-group index.
+		_restoreOwnedMoveChoices(playbookDoc) {
+			const groups = playbookDoc?.flags?.stonetop?.moves?.choices ?? [];
+			const ownedMoveNames = new Set(this.actor.items.filter(i => i.type === "move").map(i => i.name));
+			const picks = {};
+			groups.forEach((group, i) => {
+				const owned = (group.options ?? []).find(name => ownedMoveNames.has(name));
+				if (owned) picks[i] = owned;
+			});
+			return picks;
+		}
+
 		_readSelectionsFromActor(playbookDoc = null) {
 			const f  = resolvedFlags(this.actor);
 			const sys = this.actor.system ?? {};
@@ -3950,7 +3999,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					["str","dex","con","int","wis","cha"].map(k => [k, k in s ? s[k] : null])
 				))(f.onboardingStats ?? {}),
 				possessions:     [...(f.possessions?.selected ?? [])],
+				possessionChoices: foundry.utils.deepClone(f.possessions?.subChoices ?? {}),
+				customPossession: f.possessions?.custom?.[0]?.label ?? "",
 				moves:           [], // compendium IDs are hard to recover; player re-picks
+				moveChoices:     this._restoreOwnedMoveChoices(playbookDoc),
 				invocations:     [...(f.invocations?.selected ?? [])],
 				initiates:       Object.entries(f.background?.choices ?? {})
 				                       .filter(([, v]) => v === true)
@@ -3977,6 +4029,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					neighborTraits: foundry.utils.deepClone(f.background?.neighborTraits ?? {}),
 					neighborPicks:  foundry.utils.deepClone(f.background?.neighborPicks ?? {}),
 				},
+				markedActions:  [...(f.background?.markedActions ?? [])],
 				lore: {
 					picks: foundry.utils.deepClone(f.lore?.counts ?? {}),
 					texts: foundry.utils.deepClone(f.lore?.texts ?? {}),
@@ -4094,10 +4147,30 @@ export function createStonetopCharacterSheetClass(Base) {
 				for (const slug of slugsToSelect) {
 					await this._stonetopCharacter.selectPossession(slug);
 				}
+				// "Pick N" bundles (Weapons of war, Symbol of authority…): replace the
+				// chosen sub-options wholesale, but only for possessions actually selected.
+				// Replacing (not adding) drops picks the player deselected on a re-run.
+				const selectedSet = new Set(slugsToSelect);
+				for (const [possessionSlug, choiceSlugs] of Object.entries(selections.possessionChoices ?? {})) {
+					if (!selectedSet.has(possessionSlug)) continue;
+					await this._stonetopCharacter.setPossessionSubChoices(possessionSlug, choiceSlugs);
+				}
+				// Write-in "something else (discuss with GM)" possession. Replace rather
+				// than append so re-running onboarding doesn't duplicate it.
+				await this._stonetopCharacter.setCustomPossessions(
+					selections.customPossession?.trim() ? [selections.customPossession] : [],
+				);
 			}
 			for (const compendiumId of (selections.moves ?? [])) {
 				await this._stonetopCharacter.addMove(compendiumId, { skipIfOwned: true });
 			}
+			// "Either X OR Y" starting-move choices (e.g. the Heavy's Armored OR
+			// Uncanny Reflexes) — ensureStartingMoves skips these, so add the picks and
+			// drop any previously-chosen alternative so re-running doesn't leave both.
+			await this._stonetopCharacter.applyStartingMoveChoices(
+				playbookDoc.flags?.stonetop?.moves?.choices ?? [],
+				selections.moveChoices ?? {},
+			);
 			for (const slug of (selectedBackground?.extraPossessions ?? [])) {
 				await this._stonetopCharacter.selectPossession(slug);
 			}
@@ -4186,11 +4259,15 @@ export function createStonetopCharacterSheetClass(Base) {
 					const values = selections.backgroundSetup?.neighborPicks?.[choice.key] ?? [];
 					if (values.length) backgroundNeighborPicks[choice.key] = values;
 				}
+				// Beast-Bonded marked actions, filtered to the selected background's list.
+				const markableSlugs = new Set((selectedBackground.markableActions?.options ?? []).map(o => o.slug));
+				const backgroundMarkedActions = (selections.markedActions ?? []).filter(s => markableSlugs.has(s));
 				await this._batchFlagSetOrUnset({
 					"background.setupChoices":   backgroundSetupChoices,
 					"background.setupTexts":     backgroundSetupTexts,
 					"background.neighborTraits": backgroundNeighborTraits,
 					"background.neighborPicks":  backgroundNeighborPicks,
+					"background.markedActions":  backgroundMarkedActions,
 				});
 			}
 

@@ -42,6 +42,15 @@ const HEAVY_PLAYBOOK = {
 			description: "<p>You fought in a war.</p>",
 			moves: ["Harden"],
 			choices: null,
+			markableActions: {
+				label: "Mark 1 at 1st level, then 3rd/5th/7th/9th.",
+				levels: [1, 3, 5, 7, 9],
+				options: [
+					{slug: "act-a", label: "Action A"},
+					{slug: "act-b", label: "Action B"},
+					{slug: "act-c", label: "Action C"},
+				],
+			},
 		},
 		{
 			slug: "mercenary",
@@ -161,6 +170,47 @@ describe("buildSnapshot — playbook section", () => {
 		const mercenary = snap.playbook.background.options[1];
 		expect(mercenary.choices.saved).toEqual({"iron-will": true});
 		expect(mercenary.choices.options[0].slug).toBe("iron-will");
+	});
+
+	it("background.options[n].markableActions is null when none defined", async () => {
+		const snap = await buildSnap();
+		expect(snap.playbook.background.options[1].markableActions).toBeNull();
+	});
+
+	async function buildSnapAtLevel(level, flags = {}) {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withLevel(level)
+			.withFlags(flags)
+			.build();
+		return new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK)).build().buildSnapshot();
+	}
+
+	it("markableActions allows 1 mark at 1st level, with nothing marked", async () => {
+		const snap = await buildSnapAtLevel(1);
+		const veteran = snap.playbook.background.options[0];
+		expect(veteran.markableActions.allowed).toBe(1);
+		expect(veteran.markableActions.markedCount).toBe(0);
+		expect(veteran.markableActions.options.map(o => o.checked)).toEqual([false, false, false]);
+	});
+
+	it("markableActions reflects a saved mark and locks the rest at the limit", async () => {
+		const snap = await buildSnapAtLevel(1, {"background.markedActions": ["act-b"]});
+		const opts = snap.playbook.background.options[0].markableActions.options;
+		expect(snap.playbook.background.options[0].markableActions.markedCount).toBe(1);
+		expect(opts.find(o => o.slug === "act-b").checked).toBe(true);
+		// At the level-1 limit, the unmarked options are disabled (but the marked one is not).
+		expect(opts.find(o => o.slug === "act-a").disabled).toBe(true);
+		expect(opts.find(o => o.slug === "act-b").disabled).toBe(false);
+	});
+
+	it("markableActions unlocks a second mark at 3rd level", async () => {
+		const snap = await buildSnapAtLevel(3, {"background.markedActions": ["act-a"]});
+		const markable = snap.playbook.background.options[0].markableActions;
+		expect(markable.allowed).toBe(2);
+		// One marked, one slot left → remaining option still selectable.
+		expect(markable.options.find(o => o.slug === "act-b").disabled).toBe(false);
 	});
 
 	it("instinct.selected is null when none saved", async () => {
@@ -873,6 +923,69 @@ describe("buildSnapshot — inventory.possessions", () => {
 			})).build().buildSnapshot();
 		const pouch = snap.inventory.possessions.items.find(i => i.slug === "pouch");
 		expect(pouch.resource.current).toBe(2);
+	});
+
+	it("resolves a possession's \"x piercing\" against the steading's Prosperity", async () => {
+		// The composite bow's piercing scales with Stonetop's Prosperity (Book I p.94):
+		// the sheet shows the resolved value (capped at 2), while a null steading keeps
+		// the literal "x" — onboarding renders that raw playbook description directly.
+		const char = new TestCharacterBuilder(makeHeavyActor()).build();
+		const sp = {
+			pickNote: "Pick 1", pickCount: 1, preselected: ["composite-bow"],
+			options: [{
+				slug: "composite-bow", label: "Composite bow",
+				description: "<em>far</em>, +1 damage, x <em>piercing</em>",
+			}],
+		};
+		const descFor = (prosperity) =>
+			char._buildPossessionsSnapshot(sp, {}, prosperity).items[0].description;
+		expect(descFor(1)).toBe("<em>far</em>, +1 damage, 1 <em>piercing</em>");
+		expect(descFor(5)).toBe("<em>far</em>, +1 damage, 2 <em>piercing</em>"); // capped at 2
+		expect(descFor(null)).toBe("<em>far</em>, +1 damage, x <em>piercing</em>"); // no steading
+	});
+
+	it("appends write-in custom possessions as selected, removable items", async () => {
+		const actor = makeHeavyActor({
+			flags: {"possessions.custom": [{slug: "custom-1", label: "A locket"}]}
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository({
+				...HEAVY_PLAYBOOK,
+				specialPossessions: SP
+			})).build().buildSnapshot();
+		const custom = snap.inventory.possessions.items.find(i => i.slug === "custom-1");
+		expect(custom.label).toBe("A locket");
+		expect(custom.isCustom).toBe(true);
+		expect(custom.selected).toBe(true);
+		expect(custom.checked).toBe(true);
+		// Disabled so it can't be unchecked — it's removed via the × button instead.
+		expect(custom.disabled).toBe(true);
+	});
+
+	it("listed possessions report isCustom false", async () => {
+		const actor = makeHeavyActor({flags: {"possessions.selected": ["apiary"]}});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository({
+				...HEAVY_PLAYBOOK,
+				specialPossessions: SP
+			})).build().buildSnapshot();
+		expect(snap.inventory.possessions.items.find(i => i.slug === "apiary").isCustom).toBe(false);
+	});
+
+	it("write-in possessions count toward the pick budget", async () => {
+		// SP needs 2 non-preselected picks; one listed + one write-in fills it.
+		const actor = makeHeavyActor({
+			flags: {
+				"possessions.selected": ["apiary"],
+				"possessions.custom": [{slug: "custom-1", label: "A locket"}],
+			}
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository({
+				...HEAVY_PLAYBOOK,
+				specialPossessions: SP
+			})).build().buildSnapshot();
+		expect(snap.inventory.possessions.isIncomplete).toBe(false);
 	});
 });
 

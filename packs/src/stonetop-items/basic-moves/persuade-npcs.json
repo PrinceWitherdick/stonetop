@@ -15,7 +15,7 @@
       },
       "failure": {
         "label": "6-",
-        "value": "Up to GM"
+        "value": "The NPC won't be swayed (the GM may interrupt or end the scene), or they comply but with complications."
       }
     },
     "rollType": "cha"

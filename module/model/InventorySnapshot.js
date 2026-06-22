@@ -178,6 +178,8 @@ export class PossessionsSnapshot {
  * @property {string|null} usesLabel
  * @property {Object|null} choices
  * @property {Object|null} choiceGroups
+ * @property {boolean} isCustom  Player-written "something else (discuss with GM)" possession,
+ *                               removed via the × button rather than deselected from the list.
  */
 export class PossessionItemSnapshot {
 	constructor(b) {
@@ -193,6 +195,7 @@ export class PossessionItemSnapshot {
 		this.usesLabel         = b._usesLabel;
 		this.choices           = b._choices;
 		this.choiceGroups      = b._choiceGroups;
+		this.isCustom          = b._isCustom ?? false;
 	}
 }
 
@@ -209,6 +212,7 @@ export class PossessionItemSnapshotBuilder {
 	withUsesLabel(v)         { this._usesLabel         = v; return this; }
 	withChoices(v)           { this._choices           = v; return this; }
 	withChoiceGroups(v)      { this._choiceGroups      = v; return this; }
+	withCustom(v)            { this._isCustom          = v; return this; }
 	build()                  { return new PossessionItemSnapshot(this); }
 }
 

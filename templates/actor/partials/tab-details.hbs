@@ -98,6 +98,22 @@
 				{{/each}}
 			</div>
 			{{/if}}
+			{{#if markableActions}}
+			<div class="stonetop-bg-choices stonetop-bg-actions">
+				<p class="stonetop-bg-choices-label">Marked actions
+					<span class="stonetop-bg-actions-count">({{markableActions.markedCount}} / {{markableActions.allowed}})</span>
+				</p>
+				{{#each markableActions.options}}
+				<label class="stonetop-bg-action-row{{#if checked}} is-checked{{/if}}">
+					<input type="checkbox" class="stonetop-bg-action-check"
+					       data-slug="{{slug}}"
+					       {{#if checked}}checked{{/if}}
+					       {{#if disabled}}disabled{{/if}}>
+					<span class="stonetop-bg-action-label">{{{label}}}</span>
+				</label>
+				{{/each}}
+			</div>
+			{{/if}}
 			{{/if}}
 			{{/each}}
 			{{/if}}

@@ -232,11 +232,15 @@
 					       {{#if (or disabled (not @root.stonetop.possessionsEdit))}}disabled{{/if}}>
 					<strong class="stonetop-item-name">{{{label}}}</strong>
 					{{#if preselectedSource}}<span class="stonetop-item-source">{{preselectedSource}}</span>{{/if}}
+					{{#if isCustom}}<span class="stonetop-item-source">Write-in</span>{{/if}}
 					{{#if (and checked resource)}}
 					<span class="stonetop-item-resources">
 						{{#if usesLabel}}<span class="stonetop-uses-label">{{usesLabel}}</span>{{/if}}
 						{{> "stonetop.resource-track" resource=resource btnClass="stonetop-item-resource-check" possessionSlug=slug}}
 					</span>
+					{{/if}}
+					{{#if (and isCustom @root.stonetop.possessionsEdit)}}
+					<a class="stonetop-possession-custom-remove" data-slug="{{slug}}" title="{{localize 'stonetop.character.gear.removePossession'}}"><i class="fas fa-times"></i></a>
 					{{/if}}
 				</div>
 				{{#if description}}

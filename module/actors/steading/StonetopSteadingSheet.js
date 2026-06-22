@@ -12,6 +12,7 @@ import {SPECIAL_ITEM_CATALOG} from "../../data/special-items.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode} from "../../settings.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
@@ -664,6 +665,11 @@ export function createStonetopSteadingSheetClass(Base) {
 		activateListeners(html) {
 			super.activateListeners(html);
 			wrapStonetopGlyphsInEl(html[0]);
+
+			// Swap the resident/neighbor fields' native <datalist> popups (occupation,
+			// traits, home) for our scrollable one — Chromium's native popup has no
+			// scrollbar for long lists. See utils/autocomplete.js.
+			StonetopAutocomplete.upgradeAll(html);
 
 			applyLabelTooltips(html, {
 				selector: ".steading-stat-label[data-steading-stat]", datasetKey: "steadingStat",

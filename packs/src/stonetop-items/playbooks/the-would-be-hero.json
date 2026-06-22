@@ -153,12 +153,12 @@
           {
             "slug": "a-good-dog",
             "label": "A good dog",
-            "description": "a loyal follower; HP 6; Damage d4 (<em>hand, harmless</em>); Instinct: to guard &amp; protect; Cost: love and care."
+            "description": "follower (◇ <em>retriever</em> or ◇ <em>herder, keen-nosed, clever</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct to play; Cost: affection."
           },
           {
             "slug": "heap-of-expectations",
             "label": "Heap of expectations",
-            "description": "the hopes and dreams of all who believe in you. Of little practical use, but it's there."
+            "description": "of little use"
           },
           {
             "slug": "husbandry-tools",
@@ -167,27 +167,34 @@
           },
           {
             "slug": "personal-token",
-            "label": "Personal token",
-            "description": "something that marks your place as a would-be hero.",
+            "label": "Personal token, fraught with meaning",
+            "description": "",
             "choices": {
               "pickCount": 1,
               "options": [
                 {
-                  "slug": "family-heirloom",
-                  "label": "A family heirloom (reroll one failed roll per session)"
+                  "slug": "shield",
+                  "label": "◇◇ A shield, bearing ___'s crest"
                 },
                 {
-                  "slug": "lucky-charm",
-                  "label": "A lucky charm (mark it; clear when you Make Camp; while marked, +1 forward)",
-                  "resource": {
-                    "max": 1,
-                    "title": null,
-                    "labels": []
-                  }
+                  "slug": "wool-cloak",
+                  "label": "◇ A wool cloak, woven just for you by ___"
                 },
                 {
-                  "slug": "trophy",
-                  "label": "A trophy from a past victory"
+                  "slug": "letter",
+                  "label": "A letter, spattered with tears &amp; blood"
+                },
+                {
+                  "slug": "flute",
+                  "label": "A flute, a gift from someone you loved"
+                },
+                {
+                  "slug": "fine-locket",
+                  "label": "A fine locket, holding a strand of hair"
+                },
+                {
+                  "slug": "tinderbox",
+                  "label": "A tinderbox, lovingly engraved"
                 }
               ]
             }
@@ -205,7 +212,7 @@
           {
             "slug": "tannery",
             "label": "Tannery",
-            "description": "(or access to it): hides, pelts, alum, salt, ◇ frames, ◇ knives; leather goods, straps, armor, etc."
+            "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc."
           }
         ]
       },

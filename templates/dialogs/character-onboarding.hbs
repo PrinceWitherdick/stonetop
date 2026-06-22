@@ -111,7 +111,6 @@
 						</span>
 						<input type="text"
 						       class="onboard-background-neighbor-trait"
-						       list="onboard-neighbor-traits"
 						       data-background-slug="{{backgroundSlug}}"
 						       data-trait-key="{{traitKey}}"
 						       value="{{trait}}"
@@ -119,18 +118,13 @@
 						       autocomplete="off">
 					</label>
 					{{/each}}
-					{{#if setup.neighborTraitOptions.length}}
-					<datalist id="onboard-neighbor-traits">
-						{{#each setup.neighborTraitOptions}}<option value="{{this}}"></option>{{/each}}
-					</datalist>
-					{{/if}}
 					{{#each setup.neighborChoices}}
 					<div class="stonetop-onboarding-background-neighbor-choice">
 						<p class="stonetop-onboarding-background-setup-label">{{label}} ({{selectedCount}}/{{count}})</p>
 						<div class="stonetop-onboarding-background-choice-options">
 							{{#each options}}
 							<span class="stonetop-onboarding-bg-option stonetop-onboarding-background-neighbor-option{{#if selected}} is-selected{{/if}}">
-								<input type="checkbox"
+								<input type="checkbox" class="stonetop-onboarding-check"
 								       name="onboard-background-neighbor-pick-{{../key}}"
 								       value="{{value}}"
 								       data-background-slug="{{../../slug}}"
@@ -145,6 +139,26 @@
 						</div>
 					</div>
 					{{/each}}
+				</div>
+				{{/if}}
+				{{#if markableActions}}
+				<div class="stonetop-onboarding-background-actions">
+					<p class="stonetop-onboarding-background-setup-label">Mark an action
+						(<span class="stonetop-onboarding-background-actions-count">{{markableActions.markedCount}}</span>/{{markableActions.allowed}})
+					</p>
+					<div class="stonetop-onboarding-background-choice-options stonetop-onboarding-background-actions-list">
+						{{#each markableActions.options}}
+						<span class="stonetop-onboarding-bg-option stonetop-onboarding-background-action-option{{#if isSelected}} is-selected{{/if}}">
+							<input type="checkbox" class="stonetop-onboarding-check"
+							       name="onboard-background-action"
+							       value="{{slug}}"
+							       data-background-slug="{{backgroundSlug}}"
+							       {{#if isSelected}}checked{{/if}}
+							       {{#if disabled}}disabled{{/if}}>
+							<span>{{{label}}}</span>
+						</span>
+						{{/each}}
+					</div>
 				</div>
 				{{/if}}
 				{{#if majorArcana.length}}
@@ -333,28 +347,114 @@
 		</p>
 		<div class="stonetop-onboarding-cards">
 			{{#each possession.options}}
-			<label class="stonetop-onboarding-card stonetop-onboarding-card--possession{{#if isSelected}} is-selected{{/if}}{{#if isPreselected}} is-preselected{{/if}}">
-				<div class="stonetop-onboarding-card-header">
-					<input type="checkbox" class="stonetop-onboarding-check" name="onboard-possession" value="{{slug}}"
-					       {{#if isSelected}}checked{{/if}}
-					       {{#if disabled}}disabled{{/if}}
-					       {{#if isPreselected}}data-preselected="true"{{/if}}>
-					<strong class="stonetop-onboarding-card-title">{{{label}}}</strong>
-					{{#if isPreselected}}
-					<span class="stonetop-onboarding-possession-badge">Included</span>
+			<div class="stonetop-onboarding-possession-group{{#if isSelected}} is-selected{{/if}}">
+				<label class="stonetop-onboarding-card stonetop-onboarding-card--possession{{#if isSelected}} is-selected{{/if}}{{#if isPreselected}} is-preselected{{/if}}">
+					<div class="stonetop-onboarding-card-header">
+						<input type="checkbox" class="stonetop-onboarding-check" name="onboard-possession" value="{{slug}}"
+						       {{#if isSelected}}checked{{/if}}
+						       {{#if disabled}}disabled{{/if}}
+						       {{#if isPreselected}}data-preselected="true"{{/if}}>
+						<strong class="stonetop-onboarding-card-title">{{{label}}}</strong>
+						{{#if isPreselected}}
+						<span class="stonetop-onboarding-possession-badge">Included</span>
+						{{/if}}
+					</div>
+					{{#if description}}
+					<div class="stonetop-onboarding-card-desc">{{{description}}}</div>
 					{{/if}}
+				</label>
+				{{#if choices}}
+				<div class="stonetop-onboarding-suboptions{{#if choices.locked}} is-locked{{/if}}" data-possession="{{slug}}">
+					<p class="stonetop-onboarding-suboptions-hint">
+						{{choices.pickNote}} —
+						<span class="stonetop-onboarding-suboption-count" data-possession="{{slug}}">{{choices.selectedCount}}</span>
+						/ {{choices.pickCount}}
+					</p>
+					{{#each choices.options}}
+					<label class="stonetop-onboarding-suboption{{#if isSelected}} is-selected{{/if}}">
+						<input type="checkbox" class="stonetop-onboarding-check stonetop-onboarding-subcheck"
+						       name="onboard-possession-sub" value="{{slug}}" data-possession="{{possessionSlug}}"
+						       {{#if isSelected}}checked{{/if}}
+						       {{#if disabled}}disabled{{/if}}>
+						<span class="stonetop-onboarding-suboption-label">{{{label}}}</span>
+					</label>
+					{{/each}}
 				</div>
-				{{#if description}}
-				<div class="stonetop-onboarding-card-desc">{{{description}}}</div>
 				{{/if}}
-			</label>
+				{{#if choiceGroups}}
+				{{#each choiceGroups}}
+				<div class="stonetop-onboarding-choice-group">
+					<p class="stonetop-onboarding-choice-group-heading">{{heading}}{{#if note}} <em>({{note}})</em>{{/if}}</p>
+					{{#each subgroups}}
+					<div class="stonetop-onboarding-choice-subgroup">
+						{{#each options}}
+						<label class="stonetop-onboarding-suboption{{#if isSelected}} is-selected{{/if}}">
+							{{#if ../multiSelect}}
+							<input type="checkbox" class="stonetop-onboarding-check stonetop-onboarding-subcheck"
+							       name="onboard-possession-cg-check" value="{{slug}}" data-possession="{{possessionSlug}}"
+							       {{#if isSelected}}checked{{/if}}
+							       {{#if disabled}}disabled{{/if}}>
+							{{else}}
+							<input type="radio" class="stonetop-onboarding-radio"
+							       name="onboard-possession-cg-{{groupId}}" value="{{slug}}"
+							       data-possession="{{possessionSlug}}" data-siblings="{{siblingSlugsCsv}}"
+							       {{#if isSelected}}checked{{/if}}
+							       {{#if disabled}}disabled{{/if}}>
+							{{/if}}
+							<span class="stonetop-onboarding-suboption-label">{{{label}}}</span>
+						</label>
+						{{/each}}
+					</div>
+					{{/each}}
+				</div>
+				{{/each}}
+				{{/if}}
+			</div>
 			{{/each}}
+
+			{{!-- Write-in possession: anything not on the list, on par with the other
+			     options. Filling it spends a pick like any listed possession. --}}
+			<div class="stonetop-onboarding-possession-group stonetop-onboarding-possession-group--custom{{#if possession.custom.filled}} is-selected{{/if}}">
+				<div class="stonetop-onboarding-card stonetop-onboarding-card--possession stonetop-onboarding-card--custom{{#if possession.custom.filled}} is-selected{{/if}}">
+					<div class="stonetop-onboarding-card-header">
+						<strong class="stonetop-onboarding-card-title">Something else</strong>
+						<span class="stonetop-onboarding-possession-custom-gm">(discuss with GM)</span>
+					</div>
+					<input type="text" class="onboard-possession-custom"
+					       value="{{possession.custom.label}}"
+					       placeholder="Describe your own special possession…"
+					       {{#if possession.custom.disabled}}disabled{{/if}}>
+				</div>
+			</div>
 		</div>
 		{{/if}}
 
 		{{!-- ── Starting Moves ────────────────────────────────────── --}}
 		{{#if isMoves}}
 		<h3 class="stonetop-onboarding-step-title">Starting Moves</h3>
+
+		{{#each moveChoiceGroups}}
+		<div class="stonetop-onboarding-move-choice-group">
+			<p class="stonetop-onboarding-step-hint">{{label}}</p>
+			<div class="stonetop-onboarding-cards">
+				{{#each options}}
+				<label class="stonetop-onboarding-card stonetop-onboarding-card--move-choice{{#if selected}} is-selected{{/if}}">
+					<div class="stonetop-onboarding-card-header">
+						<input type="radio" class="stonetop-onboarding-radio" name="onboard-move-choice-{{groupIndex}}" value="{{id}}"
+						       data-group="{{groupIndex}}"
+						       {{#if selected}}checked{{/if}}>
+						<strong class="stonetop-onboarding-card-title">{{name}}</strong>
+					</div>
+					{{#if description}}
+					<div class="stonetop-onboarding-card-desc">{{{description}}}</div>
+					{{/if}}
+				</label>
+				{{/each}}
+			</div>
+		</div>
+		{{/each}}
+
+		{{#if movePickCount}}
 		<p class="stonetop-onboarding-step-hint">{{movePickNote}}</p>
 		<p class="stonetop-onboarding-move-counter">
 			<span class="stonetop-onboarding-move-count">{{moveSelectedCount}}</span>
@@ -387,6 +487,7 @@
 			</label>
 			{{/each}}
 		</div>
+		{{/if}}
 		{{/if}}
 
 		{{!-- ── Invocations (Lightbearer) ─────────────────────────── --}}
@@ -751,7 +852,13 @@
 		{{/if}}
 
 		{{#if isLore}}
+		{{#if loreSectionData.groupHeading}}
+		<h3 class="stonetop-onboarding-step-title">{{loreSectionData.groupHeading}}</h3>
+		{{#if loreSectionData.groupIntro}}<div class="stonetop-onboarding-lore-intro">{{{loreSectionData.groupIntro}}}</div>{{/if}}
+		{{#if loreSectionData.title}}<p class="stonetop-onboarding-lore-prompt">{{loreSectionData.title}}</p>{{/if}}
+		{{else}}
 		{{#if loreSectionData.title}}<h3 class="stonetop-onboarding-step-title">{{loreSectionData.title}}</h3>{{/if}}
+		{{/if}}
 		{{#if loreSectionData.description}}
 		<div class="stonetop-onboarding-lore-desc">{{{loreSectionData.description}}}</div>
 		{{/if}}

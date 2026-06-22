@@ -9,7 +9,17 @@
       "hp": 16,
       "damage": "d8",
       "moves": {
-        "startingMovesNote": "You start with Ambush OR Skill at Arms; Danger Sense OR Perceptive; and 1 of your choice."
+        "startingMovesNote": "You start with Ambush OR Skill at Arms; Danger Sense OR Perceptive; and 1 of your choice.",
+        "choices": [
+          {
+            "label": "Choose one",
+            "options": ["Ambush", "Skill at Arms"]
+          },
+          {
+            "label": "Choose one",
+            "options": ["Danger Sense", "Perceptive"]
+          }
+        ]
       },
       "backgrounds": [
         {
@@ -163,7 +173,7 @@
           {
             "slug": "burglars-kit",
             "label": "Burglar's kit",
-            "description": "picks, files, snippets, wire, ◇ prybars, ◇ hacksaws, ◇ a lantern (○○○○○ hours, <em>close, area</em>), ◇ a grappling hook, etc."
+            "description": "picks, files, snippers, wire, ◇ prybars, ◇ hacksaws, ◇ a lantern (○○○○○ hours, <em>close, area</em>), ◇ a grappling hook, etc."
           },
           {
             "slug": "carpenters-tools",
@@ -173,7 +183,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "skins of fine whisky (grants advantage to Persuade), copper tubes, malt, firkins, stills, barrels, etc.",
+            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
             "resource": {
               "max": 2,
               "title": null,
@@ -183,7 +193,7 @@
           {
             "slug": "hidden-stash",
             "label": "Hidden stash",
-            "description": "each use produces valuables worth a purse of silvers (Value 2).",
+            "description": "○○○ uses: each use produces valuables worth a purse of silvers (Value 2)",
             "resource": {
               "max": 3,
               "title": null,
@@ -199,6 +209,11 @@
             "slug": "scribes-tools",
             "label": "Scribe's tools",
             "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+          },
+          {
+            "slug": "tannery",
+            "label": "Tannery",
+            "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc."
           },
           {
             "slug": "trade-contacts",

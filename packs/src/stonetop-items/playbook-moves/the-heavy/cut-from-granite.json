@@ -6,7 +6,7 @@
   "system": {
     "playbook": "The Heavy",
     "moveType": "playbook",
-    "description": "<p>Gain +1 armor (stacks with other sources) and increase your max HP by another 2 (+6 HP total from both moves).</p>",
+    "description": "<p>Gain +1 armor (stacks with other sources) and increase your max HP by another 2 (+6 HP total).</p>",
     "hpBonus": 2,
     "armorBonus": 1,
     "requirement": {

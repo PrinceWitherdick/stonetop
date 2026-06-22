@@ -72,6 +72,7 @@ const POSSESSION_USES_PREFIX = "flags.stonetop_pwd.possessions.uses.";
 const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.";
 const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
 const POSSESSION_SELECTED_PATH = `flags.${LEDGER_SCOPE}.possessions.selected`;
+const POSSESSION_CUSTOM_PATH = `flags.${LEDGER_SCOPE}.possessions.custom`;
 
 function normalizeFlagPath(path) {
 	return String(path ?? "").replace(/^flags\.stonetop\./, `flags.${LEDGER_SCOPE}.`);
@@ -419,6 +420,21 @@ function possessionSelectionEntries(oldValue, newValue, names) {
 	return entries;
 }
 
+// Write-in possessions carry their own label, so diff the { slug, label } list
+// directly rather than looking names up in the snapshot.
+function possessionCustomEntries(oldValue, newValue) {
+	const oldBySlug = new Map((Array.isArray(oldValue) ? oldValue : []).map(c => [c.slug, c.label]));
+	const newBySlug = new Map((Array.isArray(newValue) ? newValue : []).map(c => [c.slug, c.label]));
+	const entries = [];
+	for (const [slug, label] of newBySlug) {
+		if (!oldBySlug.has(slug)) entries.push({ action: `${label} added (write-in possession)` });
+	}
+	for (const [slug, label] of oldBySlug) {
+		if (!newBySlug.has(slug)) entries.push({ action: `${label} removed (write-in possession)` });
+	}
+	return entries;
+}
+
 function possessionUsesEntry(path, oldValue, newValue, names) {
 	const slug = path.slice(POSSESSION_USES_PREFIX.length);
 	const itemName = nameFrom(names.possessions, slug);
@@ -464,6 +480,7 @@ function granularEntriesForPath(path, oldValue, newValue, names) {
 	if (path.startsWith(ANIMAL_COMPANION_PREFIX)) return [animalCompanionEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(CREW_PREFIX)) return [crewEntry(path, oldValue, newValue, names)];
 	if (path === POSSESSION_SELECTED_PATH) return possessionSelectionEntries(oldValue, newValue, names);
+	if (path === POSSESSION_CUSTOM_PATH) return possessionCustomEntries(oldValue, newValue);
 	if (path.startsWith(POSSESSION_USES_PREFIX)) return [possessionUsesEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(POSSESSION_SUBCHOICES_PREFIX)) return possessionSubchoiceEntries(path, oldValue, newValue, names);
 	if (path.startsWith(POSSESSION_CHOICE_USES_PREFIX)) return [possessionChoiceUsesEntry(path, oldValue, newValue, names)];

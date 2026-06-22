@@ -15,7 +15,7 @@
       },
       "failure": {
         "label": "6-",
-        "value": "Your maneuver fails and you suffer your enemy's attack. (Up to GM interpretation)"
+        "value": "Your maneuver fails and you suffer your enemy's attack."
       }
     },
     "rollType": "str"
