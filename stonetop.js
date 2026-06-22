@@ -35,7 +35,7 @@ import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
 import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
 import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
-import { makeDialogsResizable } from "./module/utils/resizable-dialogs.js";
+import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
 
 // -- INIT ------------------------------------------------------
@@ -46,8 +46,11 @@ Hooks.once("init", () => {
 	registerStonetopSingletonHooks();
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
-	// Dialog popups we spawn from sheets default to resizable too.
+	// Dialog popups we spawn from sheets default to resizable too. The companion
+	// patch lets auto-height windows (most of our modals) be dragged taller/shorter,
+	// which core otherwise blocks by refitting auto-height windows to their content.
 	makeDialogsResizable();
+	enableAutoHeightVerticalResize();
 
 	// Skin a curated allowlist of core Foundry windows (e.g. User Configuration)
 	// to match our sheets/modals; scoped to a marker class so nothing else moves.
@@ -176,6 +179,17 @@ Hooks.once("init", () => {
 		types:       ["location"],
 		makeDefault: true,
 		label:       "Stonetop Location Page",
+	});
+
+	// The Chronicle (session-zero record) reuses the same sectioned page model + sheet,
+	// so its Bonds / Asked-of-the-others Q&A is inline-editable like a location's "In
+	// Play" questions. Chronicle pages set every section's group to "glance", so no act
+	// banners render. See utils/chronicle.js.
+	CONFIG.JournalEntryPage.dataModels["chronicle"] = LocationPageModel;
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopLocationPageSheet, {
+		types:       ["chronicle"],
+		makeDefault: true,
+		label:       "Stonetop Chronicle Page",
 	});
 
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);

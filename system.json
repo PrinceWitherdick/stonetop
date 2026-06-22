@@ -90,7 +90,8 @@
                                    },
                           "JournalEntryPage":  {
                                                    "bestiary":  {},
-                                                   "location":  {}
+                                                   "location":  {},
+                                                   "chronicle":  {}
                                                }
                       },
     "primaryTokenAttribute":  "attributes.hp",

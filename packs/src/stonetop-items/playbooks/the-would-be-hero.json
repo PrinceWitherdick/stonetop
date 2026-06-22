@@ -327,12 +327,12 @@
           "slug": "fear-and-anger-story",
           "continuation": true,
           "columnBreak": true,
-          "title": "When Did Your Fear or Anger Last Cause You Trouble?",
+          "title": "",
           "description": "",
           "options": [
             {
               "slug": "when-trouble",
-              "description": "",
+              "description": "When did your fear or anger last cause you trouble?",
               "type": "text"
             },
             {

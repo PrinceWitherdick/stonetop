@@ -27,6 +27,9 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			hpBonus:         new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			// Raises every load cap by this many ◇ while owned (the Ranger's Pack Horse → 1).
 			loadBonus:       new fields.NumberField({ required: true, integer: true, initial: 0 }),
+			// Drops a carried shield's ◇ load by this many while owned (the Heavy/Judge/Marshal's
+			// Armored move → 1, so a shield reads ◆ instead of ◆◆). Floored at 1 ◇ in buildSnapshot.
+			shieldLoadReduction: new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			repeatMax:       new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			isStartingMove:  new fields.BooleanField({ required: true, initial: false }),
 			// Suppresses the engine's automatic +1 XP on a miss for moves whose text

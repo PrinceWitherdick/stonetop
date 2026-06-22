@@ -5,6 +5,7 @@ import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyH
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
+import { writeChronicle } from "../utils/chronicle.js";
 import { ExpeditionDialog } from "../dialogs/ExpeditionDialog.js";
 import { WeatherDialog } from "../dialogs/WeatherDialog.js";
 import { WelcomeDialog } from "../dialogs/WelcomeDialog.js";
@@ -55,6 +56,10 @@ export async function onReady() {
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
 	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
 	game.stonetop.openSpringBurst   = () => SpringBurstDialog.open();
+	// Compile the recorded Introductions + Spring Burst answers into the shared
+	// "Chronicle" journal and open it (GM-only). Callable from the Introductions
+	// dialog's "Save to the Chronicle" button, a macro, or the console.
+	game.stonetop.saveChronicle     = () => writeChronicle().then(j => j?.sheet?.render(true));
 	game.stonetop.openExpedition    = () => ExpeditionDialog.open();
 	game.stonetop.openWeather       = () => WeatherDialog.open();
 	game.stonetop.openWelcome       = () => WelcomeDialog.open();

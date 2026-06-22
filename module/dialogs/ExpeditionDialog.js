@@ -2,7 +2,18 @@ import { StepperDialog } from "./StepperDialog.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { sign, rollSeasonsCard } from "../utils/roll-engine.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
-import { setSetting } from "../settings.js";
+import { getSetting, setSetting } from "../settings.js";
+import { escHtml } from "../utils/strings.js";
+import { CHART_GROUPS, HOME_GROUP } from "./expedition-data.js";
+import { saveChronicleFromButton } from "../utils/chronicle.js";
+import {
+	normalizeLog,
+	currentExpedition,
+	ensureCurrent,
+	addExpedition,
+	selectExpedition,
+	deleteExpedition,
+} from "../utils/expedition-log-core.js";
 
 const ANSWERS_SETTING = "expeditionAnswers";
 
@@ -15,9 +26,15 @@ const ANSWERS_SETTING = "expeditionAnswers";
 // Interactive bits: a Chart a Course checklist (the requirements/challenges the
 // book tells you to "write down with tick boxes"), an inline Requisition roll
 // (2d6 +Fortunes, read off the steading), and "Roll the Die of Fate" buttons on
-// the steps where the rules reach for the d6 oracle. Every note the GM types is
-// persisted to a world setting, keyed by step, so the plan survives Back/Next and
-// reload. Opened from the treasure-map hotbar macro (see hooks/Ready.js).
+// the steps where the rules reach for the d6 oracle. Opened from the treasure-map
+// hotbar macro (see hooks/Ready.js).
+//
+// Expeditions recur, so the notes form a growing log: `expeditionAnswers` holds
+// { currentId, list: [{ id, title, createdAt, …step notes }] }. The dialog always
+// edits the "current" trip (its title, switcher, and "Start a new expedition" live
+// in the bar atop the walkthrough); each trip with content becomes its own
+// "Expedition: …" page in the shared Chronicle (see utils/chronicle-core.js). Every
+// field saves on change, so the plan survives Back/Next, switching, and reload.
 
 // Requisition (Book I, p.308): roll +Fortunes for the steading's communal assets.
 const _REQ_RESULT = {
@@ -32,48 +49,9 @@ const _REQ_TIERS = [
 	{ key: "failure", text: _REQ_RESULT.failure.line },
 ];
 
-// Chart a Course requirements & challenges (Book I, p.302–303). The GM ticks the
-// ones they're presenting; keys persist the tick state.
-const _CHART_GROUPS = [
-	{
-		label: "Requirements",
-		items: [
-			{ key: "firstTravel", text: "First travel to ___, and from there to your destination" },
-			{ key: "waitUntil",   text: "Wait until ___ (season, daybreak, a sign)" },
-			{ key: "guide",       text: "A knowledgeable guide / accurate map / detailed directions" },
-			{ key: "days",        text: "It'll take at least ___ days (and a corresponding amount of supplies)" },
-			{ key: "bring",       text: "You'll need to bring ___ (warm clothes, a cart, rope&hellip;)" },
-		],
-	},
-	{
-		label: "Challenges",
-		items: [
-			{ key: "watchOut",  text: "Watch out for ___" },
-			{ key: "perilous",  text: "The way is perilous, plagued with danger" },
-			{ key: "lost",      text: "You risk getting lost" },
-			{ key: "surmount",  text: "You must surmount / cross / brave ___" },
-			{ key: "terrain",   text: "The terrain is treacherous; you risk injury" },
-			{ key: "grueling",  text: "The way is grueling; you risk exhausting yourselves / your resources" },
-			{ key: "attention", text: "You risk drawing the attention of ___" },
-		],
-	},
-];
-
-// Arriving home — the questions to settle before the PCs walk back in (p.338).
-const _HOME_GROUP = [
-	{
-		label: "Before they arrive, consider",
-		items: [
-			{ key: "absence",   text: "How long have they been gone, and how has their absence been felt?" },
-			{ key: "casualties",text: "If they suffered casualties, who back home is most affected or upset?" },
-			{ key: "townDoings",text: "What have folks back home been up to?" },
-			{ key: "requisitioned", text: "If they Requisitioned assets, how has that impacted the village?" },
-			{ key: "threats",   text: "Did any threats advance toward their dooms while they were away?" },
-			{ key: "triumph",   text: "Are they Returning Triumphant &mdash; or could they, with some effort?" },
-			{ key: "disaster",  text: "Could their return cause panic or reveal calamity (Meet With Disaster)?" },
-		],
-	},
-];
+// The Chart a Course requirements/challenges (Book I p.302–303) and arriving-home
+// questions (p.338) live in expedition-data.js so the Chronicle compiler can resolve
+// a ticked key back to its text. See CHART_GROUPS / HOME_GROUP imports above.
 
 // Linear walkthrough. `body` is HTML. `fate` adds a Die of Fate button. `roll`
 // names an inline roll ("requisition"). `tiers` shows the matching outcome list.
@@ -96,7 +74,7 @@ const _STEPS = [
 			kind:  "checklist",
 			key:   "chart",
 			intro: { field: "route", prompt: "Destination &amp; route", placeholder: "Where are they headed, and how do they intend to get there?" },
-			groups: _CHART_GROUPS,
+			groups: CHART_GROUPS,
 			notes: { field: "notes", prompt: "Other notes (custom requirements, nested legs, what you negotiated)", placeholder: "Anything else you told them…" },
 		},
 	},
@@ -223,7 +201,7 @@ const _STEPS = [
 		qa:    {
 			kind:   "checklist",
 			key:    "home",
-			groups: _HOME_GROUP,
+			groups: HOME_GROUP,
 			notes:  { field: "notes", prompt: "Return Triumphant?", placeholder: "If their return is a true triumph, clear a steading debility (or +1 Fortunes). What does it look like?" },
 		},
 	},
@@ -280,6 +258,12 @@ export class ExpeditionDialog extends StepperDialog {
 		html.find(".stonetop-exp-fate-btn").on("click", () => game.stonetop?.rollDieOfFate?.());
 		html.find(".stonetop-exp-weather-btn").on("click", () => game.stonetop?.openWeather?.());
 		html.find(".stonetop-spring-done").on("click", () => this.close());
+		// Expedition-log bar: rename the current trip, switch trips, start a fresh one.
+		html.find(".stonetop-exp-title").on("change", ev => this._saveTitle(ev.currentTarget.value));
+		html.find(".stonetop-exp-switch").on("change", ev => this._switchExpedition(ev.currentTarget.value));
+		html.find(".stonetop-exp-delete").on("click", () => this._deleteCurrentExpedition());
+		html.find(".stonetop-exp-new").on("click", () => this._startNewExpedition());
+		html.find(".stonetop-exp-chronicle").on("click", ev => this._saveChronicle(ev.currentTarget));
 		// Save on change so fields keep focus while typing.
 		html.find(".stonetop-exp-field").on("change", ev => {
 			const el = ev.currentTarget;
@@ -295,8 +279,22 @@ export class ExpeditionDialog extends StepperDialog {
 		const nav  = this._stepNav();
 		const step = nav.step;
 		const roll = step.roll ? this._rolls[step.key] ?? null : null;
+		const { currentId, list } = this._log();
 		return {
 			...nav,
+			isGM:       game.user?.isGM ?? false,
+			// The expedition-log bar atop the walkthrough: the current trip's name, a
+			// switcher (only with more than one), a delete (once any exist), and New.
+			expedition: {
+				title:       list.find(e => e.id === currentId)?.title ?? "",
+				hasAny:      list.length > 0,
+				hasMultiple: list.length > 1,
+				options:     list.map((e, i) => ({
+					id:        e.id,
+					label:     e.title?.trim() ? e.title : `Expedition ${i + 1}`,
+					isCurrent: e.id === currentId,
+				})),
+			},
 			showRoll:  step.roll === "requisition",
 			roll,
 			fortunesLabel: step.roll === "requisition" ? this._fortunesLabel() : null,
@@ -322,11 +320,98 @@ export class ExpeditionDialog extends StepperDialog {
 		return sign(this._steadingFortunes());
 	}
 
+	// ── Expedition log ──────────────────────────────────────────────────────────
+	// The log, normalized to { currentId, list } (list-shape logic lives in the pure,
+	// unit-tested expedition-log-core). Held in an in-memory draft: world-settings
+	// writes are async and don't round-trip before the next handler runs, so reading
+	// getSetting right after a fire-and-forget field save returns stale state — which
+	// would let a structural action (New / Switch / Delete) or the Chronicle save
+	// overwrite or omit a just-typed note. Every write mutates the draft synchronously
+	// (then flushes to the setting), so the next read sees it. Same pattern as
+	// IntroductionsDialog. A stale currentId falls back to the most recent trip.
+	_log() {
+		return (this._logDraft ??= normalizeLog(getSetting(ANSWERS_SETTING)));
+	}
+
+	// Update the in-memory draft synchronously, then persist it to the world setting.
+	async _persistLog(log) {
+		this._logDraft = log;
+		await setSetting(ANSWERS_SETTING, log);
+	}
+
+	// The trip currently being edited, or null before any exists.
+	_currentExpedition() {
+		return currentExpedition(this._log());
+	}
+
+	// Override: the active trip's notes (chart/outfit/home/… at its top level), so the
+	// inherited qa-path logic ("chart.route", "outfit") resolves within the current
+	// trip. Returns {} before the first trip exists — the fields render blank and the
+	// first edit creates the trip (see ensureCurrent).
+	_answers() {
+		return this._currentExpedition() ?? {};
+	}
+
+	_newExpedition() {
+		return { id: foundry.utils.randomID(), title: "", createdAt: Date.now() };
+	}
+
+	// Rename the current trip (refreshes the switcher label).
+	async _saveTitle(value) {
+		const { log, entry } = ensureCurrent(this._log(), () => this._newExpedition());
+		entry.title = value;
+		await this._persistLog(log);
+		this.render(false);
+	}
+
+	// Begin a fresh expedition and jump back to the top of the walkthrough; the prior
+	// trip stays in the log (and its Chronicle page) untouched.
+	async _startNewExpedition() {
+		const log = addExpedition(this._log(), this._newExpedition());
+		await this._persistLog(log);
+		this._step = 0;
+		this.render(false);
+	}
+
+	// Switch which logged trip the dialog is editing.
+	async _switchExpedition(id) {
+		await this._persistLog(selectExpedition(this._log(), id));
+		this.render(false);
+	}
+
+	// Remove the current trip from the log (confirmed — it discards the trip's notes,
+	// and its Chronicle page is pruned on the next save). Selection falls back to the
+	// most recent remaining trip.
+	async _deleteCurrentExpedition() {
+		const current = this._currentExpedition();
+		if (!current) return;
+		const label = current.title?.trim() ? current.title : "this expedition";
+		const ok = await Dialog.confirm({
+			title:   "Delete Expedition",
+			content: `<p>Delete <strong>${escHtml(label)}</strong> from the log? Its notes can't be recovered.</p>`,
+		});
+		if (!ok) return;
+		await this._persistLog(deleteExpedition(this._log(), current.id));
+		this._step = 0;
+		this.render(false);
+	}
+
+	// Compile the recorded answers into the shared "Chronicle" journal and open it
+	// (GM-only). Flush the in-memory draft first so the compiler — which reads the
+	// persisted setting — sees the latest field edits (the just-blurred field's write
+	// may not have round-tripped yet).
+	async _saveChronicle(button) {
+		await saveChronicleFromButton(button, {
+			context:    "Expedition",
+			beforeSave: () => (this._logDraft ? setSetting(ANSWERS_SETTING, this._logDraft) : undefined),
+		});
+	}
+
 	// Build the current step's note field(s) for the template. `single` is one
 	// prompt + answer; `checklist` is an optional intro note, tickable groups, and
 	// an optional trailing note. Every field/box carries an `answerPath` into the
-	// persisted blob. (No expedition step uses per-PC notes — that kind lives only
-	// in SpringBurstDialog.)
+	// current trip's notes. (No expedition step uses per-PC notes — that kind lives
+	// only in SpringBurstDialog.)
 	_qaContext(qa) {
 		if (!qa) return null;
 		const all = this._answers();
@@ -358,13 +443,14 @@ export class ExpeditionDialog extends StepperDialog {
 		return { kind: "single", key: qa.key, prompt: qa.prompt, placeholder: qa.placeholder, path: qa.key, answer: read(qa.key) ?? "" };
 	}
 
-	// Persist one field/checkbox at its dotted path without re-rendering (so the
-	// active field keeps focus).
+	// Persist one field/checkbox at its dotted path within the current trip, without
+	// re-rendering (so the active field keeps focus). The first edit on an empty log
+	// creates the trip.
 	async _saveField(path, value) {
 		if (!path) return;
-		const all = foundry.utils.deepClone(this._answers());
-		foundry.utils.setProperty(all, path, value);
-		await setSetting(ANSWERS_SETTING, all);
+		const { log, entry } = ensureCurrent(this._log(), () => this._newExpedition());
+		foundry.utils.setProperty(entry, path, value);
+		await this._persistLog(log);
 	}
 
 	// Roll 2d6 +Fortunes for Requisition, remember the tier (to highlight the

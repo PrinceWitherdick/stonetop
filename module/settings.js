@@ -65,10 +65,28 @@ export function registerSettings() {
 		default: {}
 	});
 
-	// Notes the GM records in the Expedition walkthrough (see dialogs/ExpeditionDialog.js)
-	// — the Chart a Course destination/checklist, Outfit/Requisition notes, points of
-	// interest, the arriving-home checklist, etc. Nested by step key, e.g.
-	// { chart: { route, checks: { warmClothes: true }, notes }, outfit: "…" }.
+	// Answers the GM records in the guided Character Introductions (see
+	// dialogs/IntroductionsDialog.js) — what each PC established about themselves
+	// and Stonetop, round by round. Compiled into the shared "Chronicle" journal
+	// (utils/chronicle.js). Shape, keyed by actor id:
+	//   { <actorId>: { r1, r2, r3: "<text>", r4..r7: { q: <questionIndex>, a: "<text>" } } }
+	// where r1–r3 are the narration rounds and r4–r7 the answer/ask rounds.
+	game.settings.register("stonetop_pwd", "introductionsAnswers", {
+		name: "Character Introductions Answers",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {}
+	});
+
+	// Notes the GM records in the Expedition walkthrough (see dialogs/ExpeditionDialog.js).
+	// Expeditions recur, so this is a growing log of trips, each compiled into its own
+	// "Expedition: …" page in the shared Chronicle (utils/chronicle-core.js). Shape:
+	//   { currentId: "<id>",                     // the trip the dialog is editing
+	//     list: [ { id, title, createdAt,
+	//               chart: { route, checks: { warmClothes: true }, notes },
+	//               outfit, requisition, prep, running,   // single-text step notes
+	//               home: { checks, notes } }, … ] }      // oldest trip first
 	game.settings.register("stonetop_pwd", "expeditionAnswers", {
 		name: "Expedition Walkthrough Notes",
 		scope: "world",

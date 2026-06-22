@@ -1,146 +1,24 @@
 import { FrontOnOpen } from "../utils/front-on-open.js";
 import { shuffle } from "../utils/arrays.js";
-import { playbookSlug, getPlayerCharacters, playbookIconPath } from "../utils/playbook-actors.js";
+import { playbookSlug, getPlayerCharacters, playbookIconPath, orderByCombatTurns } from "../utils/playbook-actors.js";
 import { wrapLoreTerms } from "../utils/lore-terms.js";
+// Authored prompts/questions live in introductions-data.js so the Chronicle
+// compiler can resolve a recorded answer's question index back to its text.
+import { INTRO_PLAYBOOK_DATA as _PLAYBOOK_DATA } from "./introductions-data.js";
+import { saveChronicleFromButton } from "../utils/chronicle.js";
+import { getSetting, setSetting } from "../settings.js";
 
-// ── Playbook-specific introduction data ────────────────────────────────────────
+// The world setting holding the answers recorded during the introductions, keyed
+// by actor id → { r1, r2, r3 (strings); r4–r7 ({ q, a }) }. Compiled into the
+// Chronicle journal by utils/chronicle.js. See settings.js for the full shape.
+const _ANSWERS_SETTING = "introductionsAnswers";
 
-const _PLAYBOOK_DATA = {
-	"the-blessed": {
-		step3: `describe your <strong>sacred pouch</strong> and its remarkable trait. Then, tell us about <strong>Danu's shrine</strong> in Stonetop and how she is worshipped.`,
-		step4: [
-			"Who is your closest kin?",
-			"Whose heart &amp; soul is entwined with yours?",
-			"Who taught you the secret ways?",
-			"Who is beloved by the goddess, your charge to nurture, guide, protect, or heal?",
-		],
-		step6: [
-			"Which one of you do the spirits whisper of?",
-			"Which one of you has joined me in a sacred rite?",
-			"Which one of you has made a blood-oath with me?",
-			"Which one of you doubts the power of Danu?",
-		],
-	},
-	"the-fox": {
-		step3: `tell us your <strong>tall tales</strong>. Feel free to embellish and exaggerate to the other players, but always answer the GM truthfully.`,
-		step4: [
-			"Who is your closest kin?",
-			"Who holds the reins to your heart?",
-			"Whose respect means the world to you?",
-			"To whom do you owe a debt that cannot be repaid?",
-		],
-		step6: [
-			"Which one of you joined me in my latest hijinx?",
-			"Which one of you brings your problems to me?",
-			"Which one of you saved my bacon, mor'n once?",
-			"Which one of you trusts me not one bit?",
-		],
-	},
-	"the-heavy": {
-		step3: `tell us about your <strong>history of violence</strong>, and what keeps you up at night.`,
-		step4: [
-			"Who is your closest kin?",
-			"Who is your lover, spouse, or betrothed?",
-			"Who most needs or deserves your protection?",
-			"Whose forgiveness do you strive to earn?",
-		],
-		step6: [
-			"Which one of you once dragged me home, bleeding and unconscious?",
-			"Which one of you can I trust to always have my back?",
-			"Which one of you has stayed my hand?",
-			"Which one of you has traded blows with me?",
-		],
-	},
-	"the-judge": {
-		step3: `describe <strong>the Chronicle</strong>. Then, tell us about <strong>Aratis and her shrine</strong>, and what she demands of her true disciples.`,
-		step4: [
-			"Who is your closest kin?",
-			"Who is your lover, spouse, or betrothed?",
-			"Who is your apprentice?",
-			"Who is the wisest of the town elders?",
-		],
-		step6: [
-			"Which one of you is a true disciple of Aratis?",
-			"Which one of you is my closest confidant?",
-			"Which one of you has stood beside me in battle against unnatural chaos?",
-			"Against which of you have I passed judgement?",
-		],
-	},
-	"the-lightbearer": {
-		step3: `<strong>praise the day!</strong> Tell us of <strong>Helior</strong>, his worship and his shrine. Tell us, too, of the prior Lightbearer and how you gained your powers.`,
-		step4: [
-			"Who is your closest kin?",
-			"Who fans the flames of your heart?",
-			"Whose kindness and generosity warm your soul?",
-			"Who needs Helior's light, badly?",
-		],
-		step6: [
-			"Which one of you is an old and dear friend?",
-			"Which one of you shares my faith?",
-			"Which one of you scoffs at mercy and hope?",
-			"Which one of you will need my guidance soon?",
-		],
-	},
-	"the-marshal": {
-		step3: `tell us <strong>the town's war stories</strong>, plus the answers to the questions you chose.`,
-		step4: [
-			"Who is your closest kin?",
-			"Who is your lover, spouse, or betrothed?",
-			"Who is your lieutenant?",
-			"Whose kin is dead because of your decisions?",
-		],
-		step6: [
-			"Which one of you is or was part of my crew?",
-			"Which one of you have I promised to keep safe?",
-			"Which one of you do I still have doubts about?",
-			"Which one of you ignored my orders and got someone killed?",
-		],
-	},
-	"the-ranger": {
-		step3: `tell us <strong>what you're worried about</strong> (see "Something wicked this way comes" on your playbook).`,
-		step4: [
-			"Who is your closest kin?",
-			"To whom do you always return home?",
-			"Who would be lost without you?",
-			"Who has much to learn from you?",
-		],
-		step6: [
-			"Which one of you fears the wider world?",
-			"Which one of you has shown me great beauty?",
-			"Which one of you have I caught sometimes staring out at the horizon?",
-			"Which one of you lacked the stomach to put something out of its misery?",
-		],
-	},
-	"the-seeker": {
-		step3: `describe your <strong>major arcana</strong>. Tell us your answers to the questions you chose. Then, tell us about your <strong>minor arcana</strong>, too.`,
-		step4: [
-			"Who is your closest kin?",
-			"Who is your spouse, lover, or betrothed?",
-			"Whom do you trust, even more than yourself?",
-			"Whom do you secretly watch over, and why?",
-		],
-		step6: [
-			"Which one of you led me to a key discovery?",
-			"Which one of you has been at my side the entire way?",
-			"Which one of you most fears the path I tread?",
-			"Which one of you is keeping secrets from me?",
-		],
-	},
-	"the-would-be-hero": {
-		step3: `tell us of your <strong>fear &amp; anger</strong>, and of the last time they caused you trouble.`,
-		step4: [
-			"Whose heart do you hope to win?",
-			"Who is counting on you?",
-			"Who quietly understands the path you are on?",
-			"Who do you intend to prove wrong?",
-		],
-		step6: [
-			"Which one of you is my closest, truest friend?",
-			"Which one of you believes in me, despite it all?",
-			"Which one of you has promised to teach me?",
-			"Which one of you have I hurt, through what I have done or what I've failed to do?",
-		],
-	},
+// Placeholder copy for the narration rounds (1–3); rounds 4–7 set their own from
+// whether the PC is answering or asking.
+const _NARRATE_PLACEHOLDER = {
+	1: "Name, pronouns, background, origin, appearance…",
+	2: "Their special possessions, and how they help the village…",
+	3: "Their answer…",
 };
 
 // ── Phase definitions ─────────────────────────────────────────────────────────
@@ -197,22 +75,11 @@ const _PHASES = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Player characters on the combat tracker, in the GM's arranged turn order; [] before
+// a combat is set up. Resolves to roster actors so the ids line up with
+// getPlayerCharacters() (getData compares the two by id).
 function _getCombatPcs() {
-	const combat = game.combat;
-	if (!combat) return [];
-	// Prefer turn order (honours how the GM arranged the tracker); fall back to
-	// raw combatant order before turns are set up.
-	const order = combat.turns?.length ? combat.turns : [...combat.combatants];
-	const seen = new Set();
-	const pcs  = [];
-	for (const c of order) {
-		const actor = c.actor;
-		if (actor?.type === "character" && playbookSlug(actor) && !seen.has(actor.id)) {
-			seen.add(actor.id);
-			pcs.push(actor);
-		}
-	}
-	return pcs;
+	return orderByCombatTurns(getPlayerCharacters());
 }
 
 // ── IntroductionsDialog ───────────────────────────────────────────────────────
@@ -296,7 +163,64 @@ export class IntroductionsDialog extends Application {
 		html.find(".stonetop-intros-next").on("click",  () => this._advance());
 		html.find(".stonetop-intros-back").on("click",  () => this._retreat());
 		html.find(".stonetop-intros-close").on("click", () => this.close());
+		html.find(".stonetop-intros-chronicle").on("click", ev => this._saveChronicle(ev.currentTarget));
+
+		// Record the active PC's answer. The narration rounds (1–3) store a plain
+		// string; the question rounds (4–7) store the answer under `a`. Save on
+		// change (blur) so the textarea keeps focus while typing — clicking any nav
+		// or question button blurs first, firing this before the click handler.
+		html.find(".stonetop-intros-answer").on("change", ev => {
+			const el    = ev.currentTarget;
+			const value = el.dataset.answerField ? { [el.dataset.answerField]: el.value } : el.value;
+			this._saveAnswer(el.dataset.actorId, el.dataset.roundKey, value);
+		});
+		// Pick (or toggle off) which question the PC answered/asked, then re-render
+		// to move the highlight.
+		html.find(".stonetop-intros-question-pick").on("click", async ev => {
+			const el      = ev.currentTarget;
+			const idx     = Number(el.dataset.qIndex);
+			const current = this._answers()[el.dataset.actorId]?.[el.dataset.roundKey]?.q;
+			await this._saveAnswer(el.dataset.actorId, el.dataset.roundKey, { q: current === idx ? null : idx });
+			this.render(false);
+		});
+
 		this._registerCombatHooks();
+	}
+
+	// The recorded answers blob. The GM (the only writer) edits through an in-memory
+	// draft so rapid successive saves — e.g. an answer textarea blurring just as a
+	// question button is clicked — compose synchronously instead of racing the async
+	// world-settings write; players read the persisted value fresh each render.
+	_answers() {
+		if (game.user?.isGM) return (this._draft ??= { ...(getSetting(_ANSWERS_SETTING) ?? {}) });
+		return getSetting(_ANSWERS_SETTING) ?? {};
+	}
+
+	// Persist one answer without re-rendering (so a focused textarea keeps focus).
+	// `value` is a string for the narration rounds, or a `{ q }` / `{ a }` partial
+	// for the question rounds (merged into that round's record). Mutates the draft
+	// in place first so the next handler sees it, then flushes to the setting.
+	async _saveAnswer(actorId, roundKey, value) {
+		if (!actorId || !roundKey) return;
+		const all = this._answers();
+		all[actorId] = {
+			...(all[actorId] ?? {}),
+			[roundKey]: (value && typeof value === "object")
+				? { ...(all[actorId]?.[roundKey] ?? {}), ...value }
+				: value,
+		};
+		await setSetting(_ANSWERS_SETTING, all);
+	}
+
+	// Compile everything recorded so far (plus the Spring Burst notes) into the
+	// shared "Chronicle" journal and open it. GM-only — the button is hidden for
+	// players, who read the journal once it's shared. Flush the draft first so the
+	// compiler (which reads the persisted setting) sees the latest edits.
+	async _saveChronicle(button) {
+		await saveChronicleFromButton(button, {
+			context:    "Introductions",
+			beforeSave: () => (this._draft ? setSetting(_ANSWERS_SETTING, this._draft) : undefined),
+		});
 	}
 
 	_registerCombatHooks() {
@@ -344,11 +268,14 @@ export class IntroductionsDialog extends Application {
 			};
 		}
 
+		const isGM  = game.user?.isGM ?? false;
 		const pcs   = this._pcs;
 		const phase = _PHASES[this._phase];
 		const actor = phase.roundRobin ? (pcs[this._pcIndex] ?? null) : null;
 
 		let currentPc = null;
+		let capture   = null;
+		let questions = null;
 		if (phase.roundRobin && actor) {
 			const slug = playbookSlug(actor);
 			currentPc = {
@@ -358,22 +285,58 @@ export class IntroductionsDialog extends Application {
 				index:        this._pcIndex + 1,
 				total:        pcs.length,
 			};
+
+			// Recorded answer for this PC's turn. Rounds 1–3 store a plain string;
+			// rounds 4–7 store { q, a } — the chosen question index and the answer.
+			const roundKey = `r${this._phase}`;
+			const stored   = this._answers()[actor.id]?.[roundKey];
+			const isAsk    = this._phase >= 6;          // rounds 6–7 ask fellow PCs
+			const isAnswer = this._phase === 4 || this._phase === 5;
+
+			if (isAnswer || isAsk) {
+				const selectedQ = Number.isInteger(stored?.q) ? stored.q : null;
+				// Mark the chosen prompt so the GM (and read-only players) see which
+				// question this answer responded to.
+				questions = (phase.getQuestions(actor) ?? []).map((html, index) => ({
+					index,
+					html:       wrapLoreTerms(html),
+					isSelected: index === selectedQ,
+				}));
+				capture = {
+					isQuestion:  true,
+					actorId:     actor.id,
+					key:         roundKey,
+					answer:      typeof stored?.a === "string" ? stored.a : "",
+					placeholder: isAsk ? "Who you asked, and what they answered…" : "Their answer…",
+					canEdit:     isGM,
+				};
+			} else {
+				capture = {
+					isQuestion:  false,
+					actorId:     actor.id,
+					key:         roundKey,
+					answer:      typeof stored === "string" ? stored : "",
+					placeholder: _NARRATE_PLACEHOLDER[this._phase] ?? "Their answer…",
+					canEdit:     isGM,
+				};
+			}
 		}
 
 		// Add hover summaries to bare god names (Danu / Aratis / Helior) in the
 		// authored prompts; move names are intentionally left alone.
 		const instruction = wrapLoreTerms(phase.getInstruction(actor));
-		const questions   = phase.getQuestions(actor)?.map(wrapLoreTerms) ?? null;
 		const isLastPc    = !phase.roundRobin || this._pcIndex >= pcs.length - 1;
 		const isDone      = this._phase === 8 && isLastPc;
 
 		return {
 			isPreCheck:    false,
+			isGM,
 			phase:         this._phase,
 			currentPc,
 			instruction,
 			questions,
 			hasQuestions:  !!(questions?.length),
+			capture,
 			stepLabel:     `Round ${this._phase} of 8`,
 			isPrevDisabled: this._phase === 1 && this._pcIndex === 0,
 			isDone,

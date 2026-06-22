@@ -185,6 +185,38 @@ export function buildCustomFollower(input = {}) {
 	};
 }
 
+// ── Order Followers roll math (p.462) ────────────────────────────────────────
+// "Instead of rolling +STAT, roll and… +1 if they have at least one appropriate
+// tag or move, or +2 if they're also exceptional; +0 if no relevant tag or move;
+// roll with disadvantage if any of their tags would get in the way." Which tags
+// help or hinder is a table judgment call, so the caller passes the counts the
+// player resolved rather than this guessing from tag text.
+//
+// `helps`/`hinders` are how many of the follower's tags/moves the player marked as
+// applicable / in-the-way; `advantage` is an optional manual toggle (e.g. a group
+// focusing fire). Returns { bonus, rollMode } ready for rollStat. Note the
+// rulebook edge case: an exceptional follower with no other applicable tag is
+// still +0 — only helps > 0 earns the +1/+2.
+export function orderFollowersBonus({ helps = 0, hinders = 0, exceptional = false, advantage = false } = {}) {
+	const h = Math.max(0, Math.trunc(Number(helps)   || 0));
+	const x = Math.max(0, Math.trunc(Number(hinders) || 0));
+	const bonus = h <= 0 ? 0 : (exceptional ? 2 : 1);
+	// A hindering tag means disadvantage; it overrides the optional advantage
+	// toggle (the book says such a follower "rolls with disadvantage").
+	const rollMode = x > 0 ? "dis" : (advantage ? "adv" : "normal");
+	return { bonus, rollMode };
+}
+
+// ── Readiness cap (Defend, p.216 / followers p.469) ──────────────────────────
+// A follower (or crew) holds up to 3 Readiness on a 10+ Defend, 1 on a 7–9; a
+// borne shield adds +1 to either, raising the cap to 4. Centralized so the pip
+// builders and the on-sheet tooltips read the same numbers.
+export const READINESS_BASE_CAP = 3;
+export const READINESS_SHIELD_BONUS = 1;
+export function readinessCap(hasShield = false) {
+	return READINESS_BASE_CAP + (hasShield ? READINESS_SHIELD_BONUS : 0);
+}
+
 // A monster's flavor tags are its tag string minus the organization and size,
 // which the follower card surfaces differently (mirrors the monster sheet's
 // display-tag split, NPCs & Followers vs. Dangers).

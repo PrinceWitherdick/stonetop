@@ -31,6 +31,31 @@
       <div class="stonetop-guide-count">{{stepIndex}} / {{stepCount}}</div>
     </div>
 
+    {{!-- Expedition-log bar: name the current trip, switch between logged trips, or
+          start a fresh one. Each trip with content becomes its own Chronicle page. --}}
+    <div class="stonetop-exp-bar">
+      <label class="stonetop-exp-bar-field">
+        <span class="stonetop-exp-bar-label">Expedition</span>
+        <input type="text" class="stonetop-exp-title" value="{{expedition.title}}"
+               placeholder="Name this expedition (e.g. The Wandering Tower)">
+      </label>
+      {{#if expedition.hasMultiple}}
+      <select class="stonetop-exp-switch" aria-label="Switch expedition">
+        {{#each expedition.options}}
+        <option value="{{id}}" {{#if isCurrent}}selected{{/if}}>{{label}}</option>
+        {{/each}}
+      </select>
+      {{/if}}
+      {{#if expedition.hasAny}}
+      <button type="button" class="stonetop-exp-delete" title="Delete this expedition" aria-label="Delete this expedition">
+        <i class="fas fa-trash"></i>
+      </button>
+      {{/if}}
+      <button type="button" class="stonetop-exp-new" title="Start a new expedition">
+        <i class="fas fa-plus"></i> New
+      </button>
+    </div>
+
     <div class="stonetop-spring-body">{{{step.body}}}</div>
 
     {{#if showRoll}}
@@ -132,7 +157,10 @@
     <button class="stonetop-spring-back" {{#if isFirst}}disabled{{/if}}><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
     <span class="stonetop-spring-step-label">{{stepLabel}}</span>
     {{#if isLast}}
-    <button class="stonetop-spring-done stonetop-guide-btn--primary">Done ✦</button>
+    <span class="stonetop-exp-done-actions">
+      {{#if isGM}}<button type="button" class="stonetop-exp-chronicle" data-tooltip="Compiles each logged trip into the Expeditions journal (in a &quot;The Chronicle&quot; folder) — GM-only." data-tooltip-direction="UP"><i class="fas fa-feather"></i> Save to the Chronicle</button>{{/if}}
+      <button class="stonetop-spring-done stonetop-guide-btn--primary">Done ✦</button>
+    </span>
     {{else}}
     <button class="stonetop-spring-next">Next<span class="stonetop-nav-arrow"></span></button>
     {{/if}}

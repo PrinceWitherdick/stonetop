@@ -68,11 +68,41 @@
 
     {{#if hasQuestions}}
     <div class="stonetop-intros-questions-wrap">
-      <p class="stonetop-intros-questions-label">Choose one, or pass:</p>
+      <p class="stonetop-intros-questions-label">
+        {{#if capture.canEdit}}Tap the one they chose (optional):{{else}}Choose one, or pass:{{/if}}
+      </p>
       <ol class="stonetop-intros-questions">
-        {{#each questions}}<li>{{{this}}}</li>{{/each}}
+        {{#each questions}}
+        {{#if ../capture.canEdit}}
+        <li>
+          <button type="button" class="stonetop-intros-question-pick{{#if isSelected}} is-selected{{/if}}"
+                  data-actor-id="{{../capture.actorId}}" data-round-key="{{../capture.key}}" data-q-index="{{index}}">
+            {{{html}}}
+          </button>
+        </li>
+        {{else}}
+        <li class="{{#if isSelected}}is-selected{{/if}}">{{{html}}}</li>
+        {{/if}}
+        {{/each}}
       </ol>
     </div>
+    {{/if}}
+
+    {{#if capture}}
+    {{#if capture.canEdit}}
+    <div class="stonetop-intros-capture">
+      <label class="stonetop-intros-capture-label"><i class="fas fa-feather"></i> Record for the Chronicle</label>
+      <textarea class="stonetop-intros-answer" rows="3"
+                data-actor-id="{{capture.actorId}}" data-round-key="{{capture.key}}"
+                {{#if capture.isQuestion}}data-answer-field="a"{{/if}}
+                placeholder="{{capture.placeholder}}">{{capture.answer}}</textarea>
+    </div>
+    {{else if capture.answer}}
+    <div class="stonetop-intros-recorded">
+      <span class="stonetop-intros-recorded-label">Recorded</span>
+      <p class="stonetop-intros-recorded-text">{{capture.answer}}</p>
+    </div>
+    {{/if}}
     {{/if}}
 
   </div>
@@ -91,7 +121,10 @@
 
     <button class="stonetop-intros-back"><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
     <span class="stonetop-intros-step-label">{{stepLabel}}</span>
-    <button class="stonetop-intros-close stonetop-guide-btn--primary">Let spring break forth!</button>
+    <span class="stonetop-intros-done-actions">
+      {{#if isGM}}<button class="stonetop-intros-chronicle" data-tooltip="Compiles everyone's recorded answers into the Player Introductions journal (in a &quot;The Chronicle&quot; folder) — readable by the whole table." data-tooltip-direction="UP"><i class="fas fa-feather"></i> Save to the Chronicle</button>{{/if}}
+      <button class="stonetop-intros-close stonetop-guide-btn--primary">Let spring break forth!</button>
+    </span>
 
     {{else}}
 

@@ -110,6 +110,19 @@ function _ownedLoadBonus(actor) {
 		.reduce((sum, i) => sum + (Number(i.system?.loadBonus) || 0), 0);
 }
 
+// The standard Shield inventory item (Book I p.86). The Heavy/Judge/Marshal's Armored
+// move halves its ◇ load — see _ownedShieldLoadReduction.
+const _SHIELD_SLUG = "shield";
+
+// The Armored move ("carry a shield, mark only ◆ instead of ◆◆") drops a carried shield's
+// ◇ load by its `shieldLoadReduction`. Like loadBonus, the mechanic lives in the move's data
+// so buildSnapshot never hard-codes a move name.
+function _ownedShieldLoadReduction(actor) {
+	return actor.items
+		.filter(i => i.type === "move")
+		.reduce((sum, i) => sum + (Number(i.system?.shieldLoadReduction) || 0), 0);
+}
+
 export class StonetopCharacter {
 	constructor(actor, repos) {
 		this._actor = actor;
@@ -389,6 +402,8 @@ export class StonetopCharacter {
 		const loadBonus      = _ownedLoadBonus(this._actor);
 		const hasPackHorse   = loadBonus > 0;
 		const loadLimits     = loadLimitsFor(loadBonus);
+		// The Armored move drops a carried shield to ◆ (1 ◇) instead of ◆◆; floored at 1.
+		const shieldLoadReduction = _ownedShieldLoadReduction(this._actor);
 
 		const mapItem = (outfitItem) => {
 			const res    = outfitItem.resource;
@@ -397,11 +412,15 @@ export class StonetopCharacter {
 			const resMax = (isProsperityResource && smallItemLimit !== null)
 				? smallItemLimit
 				: res?.max;
+			// Armored reduces a carried shield's ◇ cost (min 1), so it reads ◆ instead of ◆◆.
+			const weight = (outfitItem.slug === _SHIELD_SLUG && shieldLoadReduction > 0)
+				? Math.max(1, outfitItem.weight - shieldLoadReduction)
+				: outfitItem.weight;
 			return new InventoryItemSnapshotBuilder()
 				.withSlug(outfitItem.slug)
 				.withName(outfitItem.name)
 				.withNote(_transformPiercingNote(outfitItem.note, prosperity))
-				.withWeight(outfitItem.weight)
+				.withWeight(weight)
 				.withChecked(checked[outfitItem.slug] ?? false)
 				.withResource(res ? new ResourceBuilder()
 					.withCurrent(Math.min(resources[outfitItem.slug] ?? 0, resMax ?? 0))
@@ -1069,6 +1088,31 @@ export class StonetopCharacter {
 		if (forward !== 0) {
 			await this._actor.update({ "system.attributes.forward.value": 0 }, extraOptions.moveName ? { stonetopMove: extraOptions.moveName } : {});
 		}
+	}
+
+	/**
+	 * Order Followers (Book I, NPCs & Followers p.462). A follower doesn't roll
+	 * +STAT — it rolls 2d6 plus the bonus the player resolved from its tags (+0/+1/
+	 * +2, see orderFollowersBonus), optionally with disadvantage when a tag gets in
+	 * the way. We route through rollStat with an explicit statValue so we reuse its
+	 * card, its disadvantage handling, and — crucially — its automatic +1 XP on a
+	 * 6-, which marks on this PC and is attributed to the move (the player marks XP
+	 * when their follower misses). The PC's own forward/ongoing/debility/global roll
+	 * mode deliberately do NOT apply: the follower is acting, not the PC.
+	 *
+	 * @param {object} opts
+	 * @param {number} [opts.bonus]     - 0, 1, or 2
+	 * @param {string} [opts.rollMode]  - "normal" | "adv" | "dis"
+	 * @param {string} [opts.moveName]  - Card header, e.g. "Hari: Defy Danger"
+	 */
+	async onOrderFollowersRoll({ bonus = 0, rollMode = "normal", moveName } = {}) {
+		const { rollStat } = await import("../../utils/roll-engine.js");
+		await rollStat("follower", this._actor, {
+			statValue: Math.trunc(Number(bonus) || 0),
+			rollMode:  ["adv", "dis"].includes(rollMode) ? rollMode : "normal",
+			moveName:  moveName || "Order Followers",
+			modifier:  0,
+		});
 	}
 
 	async onDropMove(itemData) {

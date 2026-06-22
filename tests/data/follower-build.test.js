@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
 	deriveHp, deriveArmor, deriveDamageDie, formatDamage,
 	normalizeTags, parseFollowerArmor, buildCustomFollower, monsterFollowerTags, followerFromMonster,
+	orderFollowersBonus,
 } from "../../module/data/follower-build.js";
 
 // The rules content + derivations behind the Create-a-Follower walkthrough and
@@ -57,6 +58,42 @@ describe("deriveDamageDie / formatDamage", () => {
 		expect(formatDamage("d6", "hand")).toBe("d6 (hand)");
 		expect(formatDamage("d8", "")).toBe("d8");
 		expect(formatDamage("d6", "(near, low ammo)")).toBe("d6 (near, low ammo)");
+	});
+});
+
+describe("orderFollowersBonus", () => {
+	it("adds +0 when no tag applies", () => {
+		expect(orderFollowersBonus({ helps: 0 })).toEqual({ bonus: 0, rollMode: "normal" });
+	});
+
+	it("adds +1 when at least one tag applies", () => {
+		expect(orderFollowersBonus({ helps: 1 })).toEqual({ bonus: 1, rollMode: "normal" });
+		// Multiple applicable tags still only grant +1.
+		expect(orderFollowersBonus({ helps: 3 }).bonus).toBe(1);
+	});
+
+	it("adds +2 only when exceptional AND another tag applies", () => {
+		expect(orderFollowersBonus({ helps: 1, exceptional: true }).bonus).toBe(2);
+	});
+
+	it("keeps an exceptional follower at +0 when nothing else applies", () => {
+		// Book edge case (p.462): exceptional alone, no applicable tag → +0.
+		expect(orderFollowersBonus({ helps: 0, exceptional: true }).bonus).toBe(0);
+	});
+
+	it("rolls with disadvantage when a tag gets in the way", () => {
+		expect(orderFollowersBonus({ helps: 1, hinders: 1 })).toEqual({ bonus: 1, rollMode: "dis" });
+		// Disadvantage can coexist with the +2 bonus.
+		expect(orderFollowersBonus({ helps: 1, hinders: 1, exceptional: true })).toEqual({ bonus: 2, rollMode: "dis" });
+	});
+
+	it("honors the optional advantage toggle, but a hindering tag overrides it", () => {
+		expect(orderFollowersBonus({ helps: 1, advantage: true }).rollMode).toBe("adv");
+		expect(orderFollowersBonus({ helps: 1, hinders: 1, advantage: true }).rollMode).toBe("dis");
+	});
+
+	it("defaults to a clean +0/normal with no arguments", () => {
+		expect(orderFollowersBonus()).toEqual({ bonus: 0, rollMode: "normal" });
 	});
 });
 

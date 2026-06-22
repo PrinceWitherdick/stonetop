@@ -2165,6 +2165,8 @@ input.stonetop-name-field {
 .stonetop-exp-checkbox,
 .stonetop-onboarding-check,
 .stonetop-bg-action-check,
+.stonetop-follower-party-check,
+.stonetop-of-adv,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
@@ -2211,6 +2213,8 @@ input.stonetop-name-field {
 .stonetop-exp-checkbox:checked,
 .stonetop-onboarding-check:checked,
 .stonetop-bg-action-check:checked,
+.stonetop-follower-party-check:checked,
+.stonetop-of-adv:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
@@ -2231,6 +2235,7 @@ input.stonetop-name-field {
 .stonetop-move-mark-check:disabled,
 .stonetop-onboarding-check:disabled,
 .stonetop-bg-action-check:disabled,
+.stonetop-of-adv:disabled,
 .stonetop-arcanum-unlock-check:disabled {
 	opacity: 0.35;
 	cursor: default;
@@ -10307,6 +10312,189 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 }
 .stonetop-follower-add-hint i { margin-right: 3px; opacity: 0.7; }
 
+/* -- Order Followers (p.462) ----------------------------------------------- */
+/* The per-card "Order" action: the primary play verb for a follower, so it reads
+   as a filled slate CTA (not a quiet dashed entry like Add). Right-aligned at the
+   foot of the card body. */
+.stonetop-follower-order-row {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 6px;
+}
+.stonetop-follower-order {
+	display: inline-flex;          /* V13 core sets button{display:flex}; keep it from stretching */
+	align-items: center;
+	gap: 6px;
+	padding: 3px 12px;
+	border: 1px solid var(--st-btn-primary-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+}
+.stonetop-follower-order:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+	color: var(--st-btn-primary-text);
+}
+
+/* The Order dialog: tri-state tag chips + live readout. */
+.stonetop-order-followers-dialog .stonetop-of-controls {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.stonetop-order-followers-dialog .stonetop-of-tags-hint {
+	font-weight: normal;
+	font-style: italic;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
+}
+.stonetop-order-followers-dialog .stonetop-of-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 5px;
+}
+/* Neutral by default; arrow-up + green when "helps", arrow-down + red when "in
+   the way" — green = helps / red = hinders, matching the rest of the palette. */
+.stonetop-order-followers-dialog .stonetop-of-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 9px;
+	border: 1px solid var(--color-border-light, #ccc);
+	border-radius: 999px;
+	background: transparent;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	cursor: pointer;
+	transition: background 0.12s, border-color 0.12s;
+}
+.stonetop-order-followers-dialog .stonetop-of-tag.is-help {
+	border-color: var(--st-green-border);
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+}
+.stonetop-order-followers-dialog .stonetop-of-tag.is-hinder {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+}
+.stonetop-order-followers-dialog .stonetop-of-exceptional {
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
+	margin-top: 5px;
+}
+.stonetop-order-followers-dialog .stonetop-of-exceptional i { color: goldenrod; }
+.stonetop-order-followers-dialog .stonetop-of-adv-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+}
+.stonetop-order-followers-dialog .stonetop-of-adv-row.is-disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+.stonetop-order-followers-dialog .stonetop-of-readout {
+	padding: 6px 10px;
+	border: 1px solid var(--st-btn-primary-border);
+	border-radius: var(--st-radius-sm);
+	background: hsl(210 10% 95%);
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	text-align: center;
+}
+.stonetop-order-followers-dialog .stonetop-of-readout i { margin-right: 4px; opacity: 0.8; }
+
+/* Strengthen Your Bond "Pay cost" button, sat after the Loyalty pips. Reuses the
+   .stonetop-inline-btn pill; just needs spacing + a muted disabled (at-max) look. */
+.stonetop-pay-cost { margin-left: 8px; }
+.stonetop-pay-cost:disabled { opacity: 0.45; cursor: default; }
+.stonetop-pay-cost:disabled:hover { background: transparent; }
+.stonetop-pay-cost-note { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+
+/* Per-follower Readiness circles (non-crew). Compact inline row mirroring the
+   crew's group-fight Readiness. */
+.stonetop-follower-readiness-controls {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.stonetop-follower-readiness-note {
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	color: var(--st-text-muted);
+	flex: 1 1 12em;
+	min-width: 0;
+}
+
+/* Party-wide follower badge + edit toggle (custom followers). */
+.stonetop-follower-party-badge {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	padding: 4px 8px;
+	border: 1px solid var(--st-green-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+	font-size: var(--st-fs-xs);
+}
+.stonetop-follower-party-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+}
+.stonetop-follower-party-hint { color: var(--st-text-muted); font-style: italic; }
+.stonetop-follower-card-actions-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Follower-fate dialog (a follower at 0 HP): vertical option buttons. */
+.stonetop-follower-fate-dialog .stonetop-ff-options {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 6px 0;
+}
+.stonetop-follower-fate-dialog .stonetop-ff-option {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px 12px;
+	border: 1px solid var(--color-border-light, #ccc);
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	font-family: var(--font-stonetop);
+	text-align: left;
+	cursor: pointer;
+	transition: background 0.12s, border-color 0.12s;
+}
+.stonetop-follower-fate-dialog .stonetop-ff-option:hover { background: hsl(210 10% 94%); }
+.stonetop-follower-fate-dialog .stonetop-ff-option--save {
+	border-color: var(--st-green-border);
+	background: var(--st-green-bg);
+}
+.stonetop-follower-fate-dialog .stonetop-ff-option--save:hover { background: var(--st-green-bg); border-color: var(--st-green-text); }
+.stonetop-follower-fate-dialog .stonetop-ff-option--dead { border-color: var(--st-red-border); }
+.stonetop-follower-fate-dialog .stonetop-ff-option-title { font-weight: bold; }
+.stonetop-follower-fate-dialog .stonetop-ff-option-title i { margin-right: 5px; opacity: 0.85; }
+.stonetop-follower-fate-dialog .stonetop-ff-option-desc { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+.stonetop-follower-fate-dialog .stonetop-ff-note {
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	color: var(--st-text-muted);
+	margin: 4px 0 0;
+}
+
 /* "pick 2 more" / "swift or hardy" choose-hint shown after the fixed trait tags */
 .stonetop-follower-trait-note {
 	align-self: center;
@@ -10484,12 +10672,14 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 }
 
 /* Loyalty pips */
-.stonetop-loyalty-pips {
+.stonetop-loyalty-pips,
+.stonetop-readiness-pips {
 	display: flex;
 	gap: 5px;
 }
 
-.stonetop-loyalty-pip {
+.stonetop-loyalty-pip,
+.stonetop-readiness-pip {
 	width: 16px;
 	height: 16px;
 	border-radius: 50%;
@@ -10501,9 +10691,11 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	flex-shrink: 0;
 }
 
-.stonetop-loyalty-pip.is-filled { background: slategrey; }
+.stonetop-loyalty-pip.is-filled,
+.stonetop-readiness-pip.is-filled { background: slategrey; }
 
-.stonetop-loyalty-pip:hover { background: rgba(112, 128, 144, 0.45); }
+.stonetop-loyalty-pip:hover,
+.stonetop-readiness-pip:hover { background: rgba(112, 128, 144, 0.45); }
 
 /* Crew sections (inventory, individuals, rules) */
 .stonetop-follower-section {
@@ -10729,9 +10921,8 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	border-radius: var(--st-radius-sm);
 }
 
-/* Square mini stepper buttons shared by the crew-size and Readiness +/- controls. */
-.stonetop-crew-size-step,
-.stonetop-crew-readiness-step {
+/* Square mini stepper buttons for the crew-size +/- control. */
+.stonetop-crew-size-step {
 	width: 22px !important;
 	height: 22px !important;
 	padding: 0 !important;
@@ -11836,13 +12027,6 @@ li.question-bullet {
 	font-weight: 600;
 	color: slategrey;
 	white-space: nowrap;
-}
-
-.stonetop-crew-readiness-value {
-	min-width: 16px;
-	text-align: center;
-	font-weight: 700;
-	font-size: var(--st-fs-base);
 }
 
 .stonetop-group-fight-readiness-note {
@@ -13358,6 +13542,13 @@ input.stonetop-monster-armor-source {
 .stonetop-location-page .stonetop-season--fall::before   { background-image: var(--stonetop-season-fall-icon); }
 .stonetop-location-page .stonetop-season--winter::before { background-image: var(--stonetop-season-winter-icon); }
 
+/* Give each season header clear room above so Spring/Summer/Autumn/Winter read
+   as distinct groups rather than one continuous list. :not(:first-child) keeps a
+   season that opens a section snug under its heading. */
+.stonetop-location-page .stonetop-season:not(:first-child) {
+	margin-top: 1.25em;
+}
+
 /* ── Act headers (At a Glance / The Place / In Play) ──────────────────────
    Every location/lore journal groups its sections into three fixed acts. The
    act renders as an h2 above its sections (which stay h3), so the journal TOC
@@ -14021,13 +14212,29 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: 0;
 	display: flex;
 	flex-direction: column;
+	/* Cap to the viewport so a tall round (long question lists) scrolls inside the
+	   dialog instead of pushing the nav off-screen, and so the body — not the window
+	   — absorbs the extra space when the window is dragged taller. Mirrors the Spring
+	   Burst stepper (see .stonetop-spring-dialog .window-content). */
+	max-height: calc(100vh - 80px);
+	overflow: hidden;
 }
 
 .stonetop-intros {
 	display: flex;
 	flex-direction: column;
+	/* Fill the (vertically resizable) window so the body scrolls and the nav pins,
+	   rather than leaving a gap below the nav when the window grows. */
+	flex: 1 1 auto;
+	min-height: 0;
 	font-family: var(--font-stonetop);
 }
+
+/* The body (pre-check screen or the round content) scrolls; the nav is a fixed
+   footer so Back/Next/Begin stay visible no matter how tall the content is. */
+.stonetop-intros-precheck,
+.stonetop-introductions .stonetop-guide-main { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.stonetop-introductions .stonetop-guide-nav { flex: 0 0 auto; }
 
 /* Pre-check screen */
 
@@ -14155,6 +14362,102 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-intros-questions li {
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 	line-height: 1.45;
+}
+
+/* Read-only highlight (players) for the question the GM marked as chosen. */
+.stonetop-intros-questions li.is-selected { font-weight: 600; }
+
+/* Selectable question (GM): the whole authored prompt becomes a click target that
+   marks which one the PC answered/asked. Full-width block so the list number stays
+   in the gutter; core's `button { display: flex }` is overridden to keep the text
+   flowing on one wrapped run. */
+.stonetop-intros-question-pick {
+	display: block;
+	width: 100%;
+	margin: 0;
+	padding: 3px 6px;
+	text-align: left;
+	font-family: var(--font-stonetop);
+	font-size: inherit;
+	line-height: 1.45;
+	color: inherit;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: var(--st-radius-sm);
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.stonetop-intros-question-pick:hover { background: rgba(0, 0, 0, 0.05); }
+
+.stonetop-intros-question-pick.is-selected {
+	font-weight: 600;
+	background: var(--st-green-bg, rgba(40, 140, 70, 0.1));
+	border-color: var(--st-green-border, rgba(40, 140, 70, 0.4));
+}
+
+/* Recording field (GM) — reuses the Spring Burst Q&A textarea look. */
+.stonetop-intros-capture {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.stonetop-intros-capture-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-intros-answer {
+	width: 100%;
+	min-height: 60px;
+	resize: vertical;
+	padding: 5px 7px;
+	border: 1px solid rgba(0, 0, 0, 0.22);
+	border-radius: var(--st-radius);
+	background: rgba(255, 255, 255, 0.4);
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+}
+
+/* Read-only recorded answer shown to players for the active PC's turn. */
+.stonetop-intros-recorded {
+	padding: 8px 12px;
+	background: rgba(0, 0, 0, 0.03);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+}
+
+.stonetop-intros-recorded-label {
+	display: block;
+	margin-bottom: 3px;
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-intros-recorded-text {
+	margin: 0;
+	white-space: pre-wrap;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.5;
+}
+
+/* Final-step right-side button cluster (Save to the Chronicle + close). */
+.stonetop-intros-done-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	flex-shrink: 0;
 }
 
 /* Navigation (the nav bar + buttons are shared — see .stonetop-guide-nav) */
@@ -14366,6 +14669,15 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-welcome-notice--warn > i { color: #c07820; }
+
+/* Info variant — where session-zero answers are saved (the Chronicle). */
+.stonetop-welcome-notice--info {
+	background: var(--st-blue-bg);
+	border: 1px solid var(--st-blue-border);
+	color: var(--st-blue-text);
+}
+
+.stonetop-welcome-notice--info > i { color: var(--st-blue-text); }
 
 /* Player roster */
 
@@ -15228,8 +15540,102 @@ th:has(> .stonetop-roll-table-btn) {
 
 /* ── Expedition walkthrough extras ─────────────────────────────────────────────
    The Expedition dialog reuses the spring chrome/body/qa styling; these are the
-   only Expedition-specific pieces: the Chart-a-Course / arriving-home checklist
-   and the inline d6 reference table. See dialogs/ExpeditionDialog.js. */
+   only Expedition-specific pieces: the expedition-log bar, the Chart-a-Course /
+   arriving-home checklist, and the inline d6 reference table. See
+   dialogs/ExpeditionDialog.js. */
+
+/* Log bar between the banner and step body: name the current trip, switch logged
+   trips, start a new one. */
+.stonetop-exp-bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 4px;
+}
+
+.stonetop-exp-bar-field {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.stonetop-exp-bar-label {
+	flex-shrink: 0;
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-weight: 600;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-exp-title,
+.stonetop-exp-switch {
+	height: 26px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	border: 1px solid rgba(0, 0, 0, 0.22);
+	border-radius: var(--st-radius);
+	background: rgba(255, 255, 255, 0.4);
+	color: inherit;
+}
+
+.stonetop-exp-title { flex: 1 1 auto; min-width: 0; padding: 2px 6px; }
+.stonetop-exp-switch { flex: 0 1 auto; max-width: 40%; padding: 2px 4px; }
+
+/* Core sets `button { display: flex }` (block-level → full-width); keep the New pill
+   content-sized (see the button-display-flex note). */
+.stonetop-exp-new {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	flex-shrink: 0;
+	width: auto;
+	padding: 4px 10px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s;
+}
+
+.stonetop-exp-new:hover { background: hsl(40 25% 85%); }
+
+/* Icon-only "delete this expedition" pill. No font-family (it holds a Font Awesome
+   glyph); danger tint on hover. */
+.stonetop-exp-delete {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: auto;
+	padding: 4px 8px;
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: var(--color-text-dark-secondary);
+	transition: background 0.15s, color 0.15s;
+}
+
+.stonetop-exp-delete:hover {
+	background: var(--st-red-bg, rgba(176, 48, 48, 0.1));
+	color: var(--st-red-text, #b03030);
+}
+
+/* Group the final step's "Save to the Chronicle" + Done buttons on the right (mirrors
+   .stonetop-intros-done-actions; the buttons themselves use .stonetop-guide-nav button). */
+.stonetop-exp-done-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	flex-shrink: 0;
+}
 
 .stonetop-exp-checkgroup {
 	display: flex;

@@ -20,6 +20,32 @@ export function getPlayerCharacters() {
 }
 
 /**
+ * The given actors ordered by the combat tracker's turn order — `combat.turns`
+ * (honouring how the GM arranged the table), or the raw combatants before turns
+ * are rolled. De-duped by id; actors not on the tracker are dropped, so the result
+ * is the intersection of `actors` with the tracker, in turn order. Returns [] when
+ * no combat is set up. Pass `getPlayerCharacters()` to order the PC roster.
+ */
+export function orderByCombatTurns(actors) {
+	const combat = game.combat;
+	if (!combat) return [];
+	// `turns` honours how the GM arranged the table; before turns are built, fall
+	// back to the raw combatants — spread to an array (combat.combatants is a
+	// Foundry Collection, which has `.size`, not `.length`) so the guard + iteration
+	// below work the same for both.
+	const order  = combat.turns?.length ? combat.turns : [...combat.combatants];
+	if (!order.length) return [];
+	const byId   = new Map(actors.map(a => [a.id, a]));
+	const seen   = new Set();
+	const result = [];
+	for (const c of order) {
+		const actor = byId.get(c.actorId ?? c.actor?.id);
+		if (actor && !seen.has(actor.id)) { seen.add(actor.id); result.push(actor); }
+	}
+	return result;
+}
+
+/**
  * Every `character` the given user explicitly owns — using the per-user OWNER
  * entry, not a GM's blanket ownership, so it returns only the PCs actually
  * assigned to that player.

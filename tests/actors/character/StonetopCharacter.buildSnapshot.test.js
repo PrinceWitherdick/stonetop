@@ -803,6 +803,42 @@ describe("buildSnapshot — inventory.outfit", () => {
 		expect(snap.inventory.outfit.load.selected).toBe("light");
 	});
 
+	it("a shield costs its full 2 ◇ without the Armored move", async () => {
+		const snap = await new TestCharacterBuilder(new FakeActorBuilder().build())
+			.withInventoryRepo(new FakeInventoryRepository([
+				makeOutfitItem({ slug: "shield", name: "Shield", weight: 2 }),
+			]))
+			.build().buildSnapshot();
+		const shield = snap.inventory.outfit.regularItems.find(i => i.slug === "shield");
+		expect(shield.weight).toBe(2);
+	});
+
+	it("Armored drops a carried shield from 2 ◇ to 1 ◇", async () => {
+		const actor = new FakeActorBuilder()
+			.addItem({type: "move", name: "Armored", system: {moveType: "playbook", shieldLoadReduction: 1}})
+			.build();
+		const snap = await new TestCharacterBuilder(actor)
+			.withInventoryRepo(new FakeInventoryRepository([
+				makeOutfitItem({ slug: "shield", name: "Shield", weight: 2 }),
+			]))
+			.build().buildSnapshot();
+		const shield = snap.inventory.outfit.regularItems.find(i => i.slug === "shield");
+		expect(shield.weight).toBe(1);
+	});
+
+	it("Armored only reduces the shield, not other carried items", async () => {
+		const actor = new FakeActorBuilder()
+			.addItem({type: "move", name: "Armored", system: {moveType: "playbook", shieldLoadReduction: 1}})
+			.build();
+		const snap = await new TestCharacterBuilder(actor)
+			.withInventoryRepo(new FakeInventoryRepository([
+				makeOutfitItem({ slug: "cart", name: "Cart", weight: 2 }),
+			]))
+			.build().buildSnapshot();
+		const cart = snap.inventory.outfit.regularItems.find(i => i.slug === "cart");
+		expect(cart.weight).toBe(2);
+	});
+
 	it("regularItems from inventory repo have resource shape when defined", async () => {
 		const item = makeOutfitItem({
 			slug: "bow-arrows", name: "Bow & arrows", weight: 1,
