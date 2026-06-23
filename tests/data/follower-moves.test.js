@@ -11,9 +11,14 @@ describe("FOLLOWER_MOVES", () => {
 		expect(FOLLOWER_MOVES.map(m => m.name)).toEqual([
 			"Order Followers",
 			"Strengthen Your Bond",
-			"Loyal to the End",
 			"Followers in Fights",
 		]);
+	});
+
+	// "Loyal to the End" is the Ranger's animal-companion move (Book I p.143), not a
+	// universal follower move — it must not leak back into the shared list.
+	it("does not include the Ranger's Loyal to the End", () => {
+		expect(FOLLOWER_MOVES.map(m => m.name)).not.toContain("Loyal to the End");
 	});
 
 	it("carries non-empty HTML descriptions", () => {

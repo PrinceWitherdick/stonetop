@@ -213,6 +213,10 @@
         "name": "Show Move Descriptions in Chat",
         "hint": "Include the full move description in the chat card when rolling a move."
       },
+      "startOfSessionReminders": {
+        "name": "Start-of-Session Reminders",
+        "hint": "Post the automatic start-of-session chat reminders, such as the Destined \"roll +Omens\" nudge. These are public cards the whole table sees. Turn this off to stop them."
+      },
       "hoverDescriptionSettings": {
         "name": "On Hover Info",
         "label": "Configure",

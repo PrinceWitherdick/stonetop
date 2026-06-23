@@ -407,6 +407,12 @@
           "Play, grooming, training, affection",
           "Time off on its own, free to roam",
           "Cozy quarters, comfort, ample food"
+        ],
+        "moves": [
+          {
+            "name": "Loyal to the End",
+            "description": "<p>When your <strong><em>companion is at 0 HP</em></strong>, roll +0, with advantage if it holds Loyalty:</p><ul><li>On a <strong>10+</strong>, it'll be fine once it regains any HP.</li><li>On a <strong>7&ndash;9</strong>, it gets the <em>injured</em> tag.</li><li>On a <strong>6&ndash;</strong>, it's injured and will die soon unless someone saves it.</li></ul>"
+          }
         ]
       },
       "statsNote": "Assign these scores to your stats: +2, +1, +1, +0, +0, -1",

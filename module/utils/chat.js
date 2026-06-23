@@ -67,24 +67,28 @@ export function rollResultNumber(total, dieFaces = "") {
 }
 
 /**
- * Body markup for a "Seasons Change"-style 2d6 result card: a formula chip, the
- * total badge tinted by tier, the tier label, and the result line. Shared by the
- * Spring Burst and Expedition Requisition rolls so the two cards stay in lockstep.
+ * Body markup for a "Seasons Change"-style 2d6 result card: a formula chip plus the
+ * shared roll-result block — the total (with its die-faces tooltip), the tier label,
+ * and the result line — coloured down the left edge by tier, exactly like a move roll
+ * card. Shared by the steading/Spring Burst Seasons Change roll and the Expedition
+ * Requisition roll so the two cards stay in lockstep.
  * @param {number} total    The 2d6 (+Fortunes) total.
- * @param {string} tier     Result tier key (success/partial/failure) — tints the total badge.
+ * @param {string} tier     Result tier key (success/partial/failure) — colours the block.
  * @param {string} label    Tier label shown beside the total (e.g. "10+").
- * @param {string} line     Result line markup shown below.
+ * @param {string} line     Result line markup (raw HTML) shown below the label.
  * @param {string} formula  Roll formula text for the chip.
- * @param {string} [dieFaces] Individual die faces ("3 5") for the chip's hover tooltip.
+ * @param {string} [dieFaces] Individual die faces ("3 5") for the total/chip hover tooltip.
  */
 export function springRollCardBody(total, tier, label, line, formula, dieFaces = "") {
-	return `<div class="card-content stonetop-spring-roll">
+	return `<div class="card-content">
 		${rollFormulaChip(formula, dieFaces)}
-		<div class="stonetop-spring-roll-head">
-			<span class="stonetop-spring-roll-total stonetop-spring--${tier}">${total}</span>
-			<span class="stonetop-spring-roll-tier">${label}</span>
+		<div class="stonetop-roll-result ${tier}">
+			${rollResultNumber(total, dieFaces)}
+			<div class="stonetop-roll-result-body">
+				<span class="stonetop-roll-result-label">${label}</span>
+				<span class="stonetop-roll-result-details">${line}</span>
+			</div>
 		</div>
-		<p class="stonetop-spring-roll-line">${line}</p>
 	</div>`;
 }
 

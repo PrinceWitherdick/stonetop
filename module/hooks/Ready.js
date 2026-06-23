@@ -5,6 +5,7 @@ import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyH
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
+import { reopenOpenWalkthroughs, sessionZeroComplete } from "../dialogs/walkthrough-resume.js";
 import { writeChronicle } from "../utils/chronicle.js";
 import { ExpeditionDialog } from "../dialogs/ExpeditionDialog.js";
 import { WeatherDialog } from "../dialogs/WeatherDialog.js";
@@ -15,12 +16,21 @@ import { readOnboardingResume, clearOnboardingResume } from "../actors/character
 import { playbookSlug } from "../utils/playbook-actors.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
-import { registerSeasonsChangeSocket } from "../seasons/seasons-change-reminders.js";
+import { getStonetopSteadingActorOrWarn } from "../utils/world.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
 const _EOS_MACRO_SCRIPT = "game.stonetop?.openEndOfSession?.()";
 const _EOS_HOTBAR_SLOT  = 10;
+
+// The "(TEST ONLY) Populate World" dev macro, added to the Macro Directory but never
+// the hotbar. Its body is the create-test-characters dev script — that gitignored file
+// is the single source of truth, fetched at runtime (see _ensureTestPopulateMacro), so
+// builds that omit it simply skip seeding the macro.
+const _TEST_MACRO_NAME   = "(TEST ONLY) Populate World";
+const _TEST_MACRO_SRC    = "systems/stonetop_pwd/scripts/local/create-test-characters.js";
+const _TEST_MACRO_IMG    = "icons/svg/cog.svg";
+const _TEST_MACRO_FOLDER = "For Testing Purposes";
 
 // Retired hotbar macro — the Introductions walkthrough now launches from the
 // Welcome guide, so the standalone macro is deleted rather than slotted (see
@@ -31,16 +41,23 @@ const w = Object.values(ui.windows).find(w => w.id === "stonetop-introductions")
 if (w?.rendered) { w.bringToTop(); return; }
 game.stonetop?.openIntroductions?.();`;
 
-// The ordered system hotbar macros (slots 1–4), in their canonical order. The
+// The ordered system hotbar macros (slots 1–5), in their canonical order. The
 // single source of truth for both _ensureHotbarMacro (places any that are missing)
-// and _reorderSystemMacrosOnce (snaps them into this order once). End of Session
-// (slot 10) is handled separately below because it also keys on its command.
+// and _reorderSystemMacros (snaps them into this order). End of Session (slot 10) is
+// handled separately below because it also keys on its command. Seasons Change took
+// the spring icon that Welcome used to carry; Welcome now uses the direction-signs.
 const _SYSTEM_MACROS = [
-	{ name: "Welcome to Stonetop", img: "systems/stonetop_pwd/assets/icons/macros/spring.svg",       command: "game.stonetop?.openWelcome?.()",    slot: 1 },
-	{ name: "Run an Expedition",   img: "systems/stonetop_pwd/assets/icons/macros/treasure-map.svg", command: "game.stonetop?.openExpedition?.()", slot: 2 },
-	{ name: "Weather",             img: "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",    command: "game.stonetop?.openWeather?.()",    slot: 3 },
-	{ name: "Die of Fate",         img: "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",  command: "game.stonetop?.rollDieOfFate?.()",  slot: 4 },
+	{ name: "Welcome to Stonetop", img: "systems/stonetop_pwd/assets/icons/macros/direction-signs.svg", command: "game.stonetop?.openWelcome?.()",        slot: 1 },
+	{ name: "Seasons Change",      img: "systems/stonetop_pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 2 },
+	{ name: "Run an Expedition",   img: "systems/stonetop_pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 3 },
+	{ name: "Weather",             img: "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 4 },
+	{ name: "Die of Fate",         img: "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 5 },
 ];
+
+// Bump to re-snap the system macros into their canonical slots once, on every client
+// (the per-client `systemHotbarLayoutVersion` setting trails this until then). Bumped
+// to 2 when Seasons Change was inserted at slot 2 and the rest shifted right.
+const _HOTBAR_LAYOUT_VERSION = 2;
 
 export async function onReady() {
 	applySheetFont(getSetting("sheetFont"));
@@ -56,9 +73,17 @@ export async function onReady() {
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
 	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
 	game.stonetop.openSpringBurst   = () => SpringBurstDialog.open();
+	// Run the steading's Seasons Change homefront move from the hotbar: launch the
+	// season-picker → roll flow (the same one the sheet's Seasons Change move uses)
+	// WITHOUT opening the steading sheet — the dialog carries a "Stonetop" header
+	// button to jump to the sheet if wanted. Warns if there's no steading yet.
+	game.stonetop.openSeasonsChange = () => {
+		getStonetopSteadingActorOrWarn()?.sheet._onSeasonsChange();
+	};
 	// Compile the recorded Introductions + Spring Burst answers into the shared
 	// "Chronicle" journal and open it (GM-only). Callable from the Introductions
-	// dialog's "Save to the Chronicle" button, a macro, or the console.
+	// dialog's "Let spring break forth!" finish, the Expedition dialog, a macro, or
+	// the console.
 	game.stonetop.saveChronicle     = () => writeChronicle().then(j => j?.sheet?.render(true));
 	game.stonetop.openExpedition    = () => ExpeditionDialog.open();
 	game.stonetop.openWeather       = () => WeatherDialog.open();
@@ -74,7 +99,6 @@ export async function onReady() {
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
 
 	_registerCharacterAutoOpen();
-	registerSeasonsChangeSocket();
 
 	if (game.user.isGM) await seedCompendiumJournalsOnce();
 	if (game.user.isGM) await updateSeededJournalsOnVersionChange();
@@ -82,20 +106,39 @@ export async function onReady() {
 		await _retireIntroductionsMacro();
 		// Place any missing system macros at their default slots (existing placements
 		// are left alone, so a manual rearrangement sticks). Their fixed starting order
-		// — 1 Welcome · 2 Run an Expedition · 3 Weather · 4 Die of Fate · 10 End of
-		// Session — is applied once by _reorderSystemMacrosOnce, below.
+		// — 1 Welcome · 2 Seasons Change · 3 Run an Expedition · 4 Weather · 5 Die of
+		// Fate · 10 End of Session — is applied per layout version by _reorderSystemMacros,
+		// below.
 		for (const macro of _SYSTEM_MACROS) await _ensureHotbarMacro(macro);
 		await _ensureHotbarMacro({
 			name: _EOS_MACRO_NAME, img: _EOS_MACRO_IMG, command: _EOS_MACRO_SCRIPT, slot: _EOS_HOTBAR_SLOT,
 			match: m => m.command === _EOS_MACRO_SCRIPT && m.name === _EOS_MACRO_NAME,
 		});
-		await _reorderSystemMacrosOnce();
+		await _reorderSystemMacros();
+		await _ensureTestPopulateMacro();
 	}
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
 	if (game.user.isGM) await remindDestinedOmenRoll();
 
 	await _openSettingOverview();
-	if (game.user.isGM) _openGmWelcomeGuide();
+
+	// Reopen any session-zero walkthrough (Introductions / Let Spring Burst Forth)
+	// that was open when this client last reloaded, at the page it was on. Per-client,
+	// so it only fires for whoever actually had one open. See walkthrough-resume.js.
+	//
+	// The GM Welcome guide auto-opens here too, but its getData awaits a pack index so
+	// it renders a beat later and would bury a resumed walkthrough — so when it's
+	// opening, reopen only once it's up (with a timeout fallback so a failed/absent
+	// Welcome render can't strand the resume).
+	if (game.user.isGM && !getSetting("gmWelcomeShown") && !sessionZeroComplete()) {
+		let resumed = false;
+		const resume = () => { if (resumed) return; resumed = true; reopenOpenWalkthroughs(); };
+		Hooks.once("renderWelcomeDialog", resume);
+		setTimeout(resume, 2500);
+		_openGmWelcomeGuide();
+	} else {
+		reopenOpenWalkthroughs();
+	}
 }
 
 // Auto-open a freshly-minted character on its owner's screen. The GM stamps the
@@ -153,11 +196,12 @@ function _maybeOpenCharacterCreation(actor) {
 	}
 }
 
-// Pop the first-session Welcome guide for the GM until they tick "Don't show
-// this automatically" (which sets gmWelcomeShown). The flag is only written by
-// that checkbox, so the guide keeps greeting the GM across the first few loads.
+// Pop the first-session Welcome guide for the GM until either they tick "Don't show
+// this automatically" (which sets gmWelcomeShown) or they finish both session-zero
+// walkthroughs — the guided Introductions and Let Spring Burst Forth (sessionZeroComplete).
+// Until one of those, the guide keeps greeting the GM across the first few loads.
 function _openGmWelcomeGuide() {
-	if (getSetting("gmWelcomeShown")) return;
+	if (getSetting("gmWelcomeShown") || sessionZeroComplete()) return;
 	WelcomeDialog.open();
 }
 
@@ -201,7 +245,7 @@ function _firstFreeHotbarSlot(from = 1) {
 // on the user's hotbar — so once it's placed, a manual rearrangement sticks. It
 // takes its default `slot` only if that slot is free; otherwise it falls back to the
 // first empty slot, so we never bump a macro the GM put there. The fixed system
-// order is applied just once, by _reorderSystemMacrosOnce. `match` overrides the
+// order is applied per layout version by _reorderSystemMacros. `match` overrides the
 // default name-based lookup (the End of Session macro also keys on its command to
 // avoid clashing with any user macro of the same name). Run these serially — each
 // assignHotbarMacro writes the same user.hotbar document, so concurrent calls would
@@ -221,18 +265,19 @@ async function _ensureHotbarMacro({ name, img, command, slot, match }) {
 	if (target) await game.user.assignHotbarMacro(macro, target);
 }
 
-// One-time: snap the system macros into their canonical order
-// (1 Welcome · 2 Run an Expedition · 3 Weather · 4 Die of Fate), then never touch
-// the arrangement again so the GM is free to rearrange the hotbar. Guarded by a
-// per-client flag (the hotbar is per-user), so it runs once per GM and leaves later
-// manual moves alone.
+// Snap the system macros into their canonical order (1 Welcome · 2 Seasons Change ·
+// 3 Run an Expedition · 4 Weather · 5 Die of Fate), then leave the arrangement alone
+// so the GM is free to rearrange the hotbar. Guarded by a per-client layout version
+// (the hotbar is per-user): it runs once per layout, so bumping _HOTBAR_LAYOUT_VERSION
+// re-snaps everyone once (e.g. when Seasons Change was inserted) but later manual moves
+// at the same version are left alone.
 //
 // Non-destructive: it never evicts a macro the GM placed in one of our slots. We
 // first lift our own macros off the bar (freeing their slots), then re-place each at
 // its canonical slot if free, else the first empty slot. So a personal macro sitting
 // in slot 2 keeps its spot and ours flows around it.
-async function _reorderSystemMacrosOnce() {
-	if (getSetting("systemHotbarArranged")) return;
+async function _reorderSystemMacros() {
+	if (getSetting("systemHotbarLayoutVersion") >= _HOTBAR_LAYOUT_VERSION) return;
 
 	const macros = _SYSTEM_MACROS
 		.map(o => ({ macro: game.macros.find(m => m.name === o.name && m.command === o.command), slot: o.slot }))
@@ -251,7 +296,42 @@ async function _reorderSystemMacrosOnce() {
 		if (target) await game.user.assignHotbarMacro(macro, target);
 	}
 
-	await setSetting("systemHotbarArranged", true);
+	await setSetting("systemHotbarLayoutVersion", _HOTBAR_LAYOUT_VERSION);
+}
+
+// Add the "(TEST ONLY) Populate World" script macro to the world's Macro Directory,
+// inside a "For Testing Purposes" folder — but never to the hotbar (creating a Macro
+// document doesn't slot it; only assignHotbarMacro does, which we deliberately skip).
+// Its body is the
+// create-test-characters dev script, fetched so that gitignored file stays the single
+// source of truth: a missing file (a build that omits scripts/) skips silently, leaving
+// real worlds untouched. Seeded once — a GM who deletes it keeps it gone — but while it
+// exists its command is re-synced so edits to the script propagate. GM-only.
+async function _ensureTestPopulateMacro() {
+	let command;
+	try {
+		const res = await fetch(_TEST_MACRO_SRC);
+		if (!res.ok) return;
+		command = await res.text();
+	} catch { return; }
+	if (!command?.trim()) return;
+
+	// Find-or-create the "For Testing Purposes" Macro folder the macro lives in.
+	let folder = game.folders.find(f => f.type === "Macro" && f.name === _TEST_MACRO_FOLDER);
+	if (!folder) folder = await Folder.create({ name: _TEST_MACRO_FOLDER, type: "Macro" });
+
+	const existing = game.macros.find(m => m.name === _TEST_MACRO_NAME);
+	if (existing) {
+		const update = {};
+		if (existing.command !== command) update.command = command;
+		if (folder && existing.folder?.id !== folder.id) update.folder = folder.id;
+		if (Object.keys(update).length) await existing.update(update);
+		return;
+	}
+	if (getSetting("testPopulateMacroSeeded")) return; // deleted on purpose — leave it gone
+
+	await Macro.create({ name: _TEST_MACRO_NAME, type: "script", img: _TEST_MACRO_IMG, command, scope: "global", folder: folder?.id ?? null });
+	await setSetting("testPopulateMacroSeeded", true);
 }
 
 // Retire the standalone "Character Introductions" hotbar macro: its walkthrough

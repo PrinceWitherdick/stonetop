@@ -34,8 +34,34 @@ export function registerSettings() {
 		default: ""
 	});
 
+	// Whether the GM wants the automatic start-of-session chat reminders (currently
+	// the Destined "+Omens" roll, see hooks/StonetopSingleton.js remindDestinedOmenRoll).
+	// World-scoped: showing the table its session-start upkeep is a per-world decision,
+	// and only the GM posts the card, so a per-browser client toggle would never match
+	// who actually fires it. Defaults on; GMs who don't want the nudge can untick it.
+	game.settings.register("stonetop_pwd", "startOfSessionReminders", {
+		name: "stonetop.settings.startOfSessionReminders.name",
+		hint: "stonetop.settings.startOfSessionReminders.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	game.settings.register("stonetop_pwd", "startupWelcomeShown", {
 		name: "Startup Welcome Shown",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether the "(TEST ONLY) Populate World" dev macro has been seeded into the
+	// world's Macro Directory (see hooks/Ready.js _ensureTestPopulateMacro). Set true
+	// after the first GM load so it's added exactly once — a GM who later deletes it
+	// keeps it gone rather than having it reappear every reload.
+	game.settings.register("stonetop_pwd", "testPopulateMacroSeeded", {
+		name: "Test Populate Macro Seeded",
 		scope: "world",
 		config: false,
 		type: Boolean,
@@ -51,6 +77,21 @@ export function registerSettings() {
 		config: false,
 		type: Boolean,
 		default: false
+	});
+
+	// Which session-zero walkthroughs THIS world has finished (Character Introductions
+	// and Let Spring Burst Forth). Set when a walkthrough's final button is pressed;
+	// once both are true the Welcome guide stops auto-opening (sessionZeroComplete in
+	// dialogs/walkthrough-resume.js). World-scoped on purpose: "has this world finished
+	// its first session" is world state, so a fresh world starts over — unlike the
+	// client-scoped `walkthroughResume` below, which would leak completion across every
+	// world opened in the same browser. Shape: { introductions: <bool>, springBurst: <bool> }.
+	game.settings.register("stonetop_pwd", "sessionZeroDone", {
+		name: "Session Zero Walkthroughs Complete",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {}
 	});
 
 	// Answers the GM records in the "Let spring burst forth" walkthrough (see
@@ -95,16 +136,17 @@ export function registerSettings() {
 		default: {}
 	});
 
-	// Whether this client has had the system hotbar macros snapped into their
-	// canonical starting order once (see hooks/Ready.js _reorderSystemMacrosOnce).
-	// Per-client because the hotbar is per-user; once set, the GM's own arrangement
-	// of those macros is left untouched.
-	game.settings.register("stonetop_pwd", "systemHotbarArranged", {
-		name: "System Hotbar Arranged",
+	// The system-macro hotbar layout version this client has been snapped to (see
+	// hooks/Ready.js _SYSTEM_MACROS / _reorderSystemMacros). Bumping _HOTBAR_LAYOUT_VERSION
+	// re-snaps the system macros into their new canonical slots once, then leaves the
+	// GM's own arrangement alone again. Per-client because the hotbar is per-user;
+	// starts at 0 so a fresh world (and any pre-versioning world) arranges on first load.
+	game.settings.register("stonetop_pwd", "systemHotbarLayoutVersion", {
+		name: "System Hotbar Layout Version",
 		scope: "client",
 		config: false,
-		type: Boolean,
-		default: false
+		type: Number,
+		default: 0
 	});
 
 	// The season last picked in the Weather roll dialog (see dialogs/WeatherDialog.js),
@@ -118,6 +160,23 @@ export function registerSettings() {
 		default: ""
 	});
 
+	// Reload-resume state for the session-zero walkthroughs — Character Introductions
+	// and Let Spring Burst Forth (see dialogs/walkthrough-resume.js). The dialogs don't
+	// survive a browser refresh, so each records where it is and whether it's open, and
+	// hooks/Ready.js reopens any that were still open at the page they were on. Client-
+	// scoped because this is per-user, local UI state (which browser had a dialog open).
+	// Completion lives in the world-scoped `sessionZeroDone` setting above instead, so it
+	// doesn't leak across worlds. Shape:
+	//   { introductions: { open: <bool>, phase: <0-8>, pcIndex: <int> },
+	//     springBurst:   { open: <bool>, step: <int>, delegated: <bool> } }
+	game.settings.register("stonetop_pwd", "walkthroughResume", {
+		name: "Walkthrough Resume State",
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {}
+	});
+
 	// -- CLIENT SPECIFIC SETTINGS --------------------------------
 
 	// Whether this user has had the Setting Overview journal auto-opened once (see
@@ -125,18 +184,6 @@ export function registerSettings() {
 	// the first time they connect, GM included, without re-popping every load.
 	game.settings.register("stonetop_pwd", "settingOverviewShown", {
 		name: "Setting Overview Shown",
-		scope: "client",
-		config: false,
-		type: Boolean,
-		default: false
-	});
-
-	// Whether this user has dismissed the per-player "The Seasons Change" upkeep
-	// reminder for good (see seasons/seasons-change-reminders.js). Client-scoped so
-	// each player decides for themselves; ticking "Don't show this again" sets it
-	// true. Mirrors the GM Welcome guide's dismissal pattern.
-	game.settings.register("stonetop_pwd", "seasonsChangeReminderDismissed", {
-		name: "Seasons Change Reminder Dismissed",
 		scope: "client",
 		config: false,
 		type: Boolean,

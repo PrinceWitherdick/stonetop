@@ -26,6 +26,7 @@ import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
+import { rollSeasonsCard, SPRING_SEASONS_RESULT } from "./module/utils/roll-engine.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
@@ -392,6 +393,11 @@ function _chatAnnotateDebility(message, html) {
 
 // -- ROLL RESULT SHIFTING --------------------------------------
 function _chatWireRollShifting(message, html) {
+	// Only actual roll results can be shifted (_onRollShift operates on message.rolls).
+	// Skip roll-less cards that merely reuse the .stonetop-card-buttons row — the
+	// "ask the most hopeful to roll" prompt and the Become-a-Hero prompt — so they
+	// don't get dead Shift Up/Down buttons injected.
+	if (!message.rolls?.length) return;
 	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
 	if (!cardButtons) return;
 
@@ -533,7 +539,33 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireRollShifting(message, html);
 	_chatWireBurnBrightly(message, html);
 	_chatWireBecomeHero(message, html);
+	_chatWireSeasonsRoll(message, html);
 });
+
+// -- SEASONS CHANGE: "ask the most hopeful to roll" -----------
+// Wire the roll button on a spring Seasons Change prompt card (postSeasonsRollPrompt):
+// any player can click it to make the +Fortunes roll for the table. The result posts
+// its own card; we just disable the button locally so a stray double-click can't fire
+// two rolls.
+function _chatWireSeasonsRoll(message, html) {
+	const btn = html.querySelector(".stonetop-seasons-roll-btn");
+	if (!btn) return;
+
+	btn.addEventListener("click", async () => {
+		btn.disabled = true;
+		const fortunes = Number(btn.dataset.fortunes) || 0;
+		// The carried name ("Seasons Change — <season>") heads the result card; the
+		// speaker is left to default to whoever clicked (see rollSeasonsCard).
+		const title    = btn.dataset.alias || "Seasons Change — Spring";
+		const formula  = fortunes >= 0 ? `2d6 + ${fortunes}` : `2d6 - ${-fortunes}`;
+		try {
+			await rollSeasonsCard({ formula, title, resultTable: SPRING_SEASONS_RESULT });
+		} catch (err) {
+			console.error("Stonetop | Error rolling Seasons Change from chat:", err);
+			btn.disabled = false;
+		}
+	});
+}
 
 async function _onRollShift(event, message) {
 	event.preventDefault();

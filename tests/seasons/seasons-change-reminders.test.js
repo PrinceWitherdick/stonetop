@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { remindersForActor } from "../../module/seasons/seasons-change-reminders.js";
+import {
+	collectSeasonalReminders,
+	remindersForActor,
+	seasonsReminderCard,
+} from "../../module/seasons/seasons-change-reminders.js";
 
 // A minimal stand-in for a character actor: `move` names become embedded move
 // Items, and `possessions` become the selected special-possession slugs (the
 // flags.stonetop_pwd.possessions.selected array the production flag reads).
-function fakeCharacter({ moves = [], possessions = [], type = "character" } = {}) {
+function fakeCharacter({ name = "Test PC", moves = [], possessions = [], type = "character" } = {}) {
 	return {
+		name,
 		type,
 		items: moves.map(name => ({ type: "move", name })),
 		getFlag: (scope, key) =>
@@ -49,5 +54,40 @@ describe("remindersForActor", () => {
 	it("tolerates a character with no selected-possessions flag", () => {
 		const actor = { type: "character", items: [], getFlag: () => undefined };
 		expect(remindersForActor(actor)).toEqual([]);
+	});
+});
+
+describe("collectSeasonalReminders", () => {
+	it("tags each matched reminder with its owning character", () => {
+		const reminders = collectSeasonalReminders([
+			fakeCharacter({ name: "Brother Hale", moves: ["Rites of the Land"], possessions: ["collected-offerings"] }),
+			fakeCharacter({ name: "Mira", possessions: ["holy-relics"] }),
+		]);
+		expect(reminders).toEqual([
+			expect.objectContaining({ character: "Brother Hale", name: "Rites of the Land" }),
+			expect.objectContaining({ character: "Brother Hale", name: "Collected offerings" }),
+			expect.objectContaining({ character: "Mira", name: "Holy relics" }),
+		]);
+	});
+
+	it("skips characters with no seasonal upkeep", () => {
+		const reminders = collectSeasonalReminders([
+			fakeCharacter({ name: "Eaglewise", moves: ["Consecrated Ground"], possessions: ["apiary"] }),
+		]);
+		expect(reminders).toEqual([]);
+	});
+});
+
+describe("seasonsReminderCard", () => {
+	it("renders the season hero and one item per reminder", () => {
+		const html = seasonsReminderCard("autumn", collectSeasonalReminders([
+			fakeCharacter({ name: "Brother Hale", possessions: ["collected-offerings"] }),
+		]));
+		expect(html).toContain("The Seasons Change");
+		expect(html).toContain("Autumn");
+		expect(html).toContain("fall_icon.svg"); // autumn maps to the "fall" art
+		expect(html).toContain("Brother Hale");
+		expect(html).toContain("Collected offerings");
+		expect(html).toContain("Restore 1 use this season");
 	});
 });

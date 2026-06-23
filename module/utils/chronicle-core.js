@@ -15,12 +15,14 @@
 import { escHtml } from "./strings.js";
 import { step4Questions, step6Questions } from "../dialogs/introductions-data.js";
 import { CHART_GROUPS } from "../dialogs/expedition-data.js";
+import { SEASONAL_GAINS } from "../dialogs/spring-burst-data.js";
 
 // "The Chronicle" is a Journal FOLDER holding two journals — the player
 // introductions and the expedition log. (Foundry folders hold entries, not pages, so
 // grouping the record means splitting it across two entries.) PC + Spring Burst pages
 // live in the introductions journal; expedition pages in the expeditions journal.
 export const CHRONICLE_FOLDER_NAME = "The Chronicle";
+export const CHRONICLE_FOLDER_COLOR = "#959BB8";
 export const INTRODUCTIONS_JOURNAL_NAME = "Player Introductions";
 export const EXPEDITIONS_JOURNAL_NAME = "Expeditions";
 export const SPRING_PAGE_NAME = "Let Spring Burst Forth";
@@ -180,7 +182,7 @@ export function mergeChronicleSections(existing = [], computed = []) {
  * @param {object}  opts
  * @param {Array<{id,name,playbookName,slug}>} opts.pcs  Player characters, in display order.
  * @param {object}  opts.introAnswers   `introductionsAnswers` blob, keyed by actor id.
- * @param {object}  opts.springAnswers  `springBurstAnswers` blob ({ hopeful, gain, excites }).
+ * @param {object}  opts.springAnswers  `springBurstAnswers` blob ({ gains, hook, excites }).
  * @param {Array<object>} opts.expeditions  The expedition log (`expeditionAnswers.list`),
  *   oldest first; each trip with content becomes its own page.
  * @returns {Array<{key,name,sections}>}  One page per PC with recorded content, then a
@@ -213,10 +215,15 @@ export function buildChroniclePages({ pcs = [], introAnswers = {}, springAnswers
 	}
 
 	// Party-level Spring Burst page (the per-PC "what excites you" already folded
-	// into each page above).
+	// into each page above). The omen section names the ticked seasonal gain(s),
+	// then the hook prose the GM noted. (Who's "most hopeful" is a table decision the
+	// walkthrough no longer records, so there's no section for it.)
+	const omenGains = SEASONAL_GAINS.filter(g => springAnswers?.gains?.[g.key]).map(g => g.name);
+	const omenBody  =
+		(omenGains.length ? `<p><strong>${omenGains.length > 1 ? "Gains" : "Gain"} chosen:</strong> ${omenGains.join(", ")}</p>` : "")
+		+ paragraphs(springAnswers?.hook);
 	const spring = [
-		proseSection("The most hopeful", paragraphs(springAnswers?.hopeful)),
-		proseSection("The season's omen", paragraphs(springAnswers?.gain)),
+		proseSection("The season's omen", omenBody),
 	].filter(Boolean);
 	if (spring.length) pages.push({ key: SPRING_PAGE_KEY, name: SPRING_PAGE_NAME, sections: spring });
 

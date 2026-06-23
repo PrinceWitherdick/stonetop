@@ -1,5 +1,8 @@
 import { FrontOnOpen } from "../utils/front-on-open.js";
 import { resetOmenReminder } from "../hooks/StonetopSingleton.js";
+import { getPlayerCharacters } from "../utils/playbook-actors.js";
+import { stonetopChatCard } from "../utils/chat.js";
+import { escHtml } from "../utils/strings.js";
 
 const GROUP_QUESTIONS = [
 	{ key: "learnedWorld",       label: "Did we learn more about the world or its history?" },
@@ -63,7 +66,10 @@ export class EndOfSessionDialog extends Application {
 
 	async _applyGroupXp() {
 		const xpToAward = Object.values(this._groupChecks).filter(Boolean).length;
-		const playerChars = game.actors.filter(a => a.type === "character" && a.hasPlayerOwner);
+		// Every player character (a `character` with a playbook), per the shared roster
+		// helper. Not `hasPlayerOwner`: that requires a non-GM user to already hold OWNER,
+		// so it silently skips any PC the GM hasn't assigned to a player yet.
+		const playerChars = getPlayerCharacters();
 
 		if (playerChars.length > 0 && xpToAward > 0) {
 			for (const actor of playerChars) {
@@ -73,13 +79,19 @@ export class EndOfSessionDialog extends Application {
 
 			const yeses = GROUP_QUESTIONS
 				.filter(q => this._groupChecks[q.key])
-				.map(q => `<li>${q.label}</li>`)
+				.map(q => `<li>${escHtml(q.label)}</li>`)
 				.join("");
-			const names = playerChars.map(a => `<strong>${a.name}</strong>`).join(", ");
+			const names = playerChars.map(a => `<strong>${escHtml(a.name)}</strong>`).join(", ");
 
-			ChatMessage.create({
-				content: `<p><strong>End of Session — Group XP (+${xpToAward})</strong></p><ul>${yeses}</ul><p>${names} each gained ${xpToAward} XP.</p>`,
-			});
+			const content = stonetopChatCard(
+				`End of Session — Group XP (+${xpToAward})`,
+				`<div class="card-content">
+					<ul class="stonetop-eos-award-list">${yeses}</ul>
+					<p>${names} each marked <strong>+${xpToAward} XP</strong>.</p>
+				</div>`,
+				"stonetop-eos-chat-card",
+			);
+			ChatMessage.create({ content });
 		}
 
 		await resetOmenReminder();

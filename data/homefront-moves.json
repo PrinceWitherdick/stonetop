@@ -24,7 +24,7 @@
       },
       "failure": {
         "label": "6-",
-        "value": "It fails badly. (Up to GM interpretation)"
+        "value": "The villagers refuse your orders, suffer heavy losses (mark diminished), or you're put in a spot—carnage unless the PCs save the day."
       }
     }
   },
@@ -58,7 +58,7 @@
       },
       "failure": {
         "label": "6-",
-        "value": "The muster fails; reduce Fortunes by 1 anyway. (Up to GM interpretation)"
+        "value": "Folks ignore your orders, armed rivals come to blows, or a threat overwhelms the village."
       }
     }
   },
@@ -77,7 +77,7 @@
       },
       "failure": {
         "label": "6-",
-        "value": "The work fails or causes serious problems. (Up to GM interpretation)"
+        "value": "Something interrupts the job and prevents it from getting done—work might resume if the PCs deal with it, or the job is scuttled and progress lost."
       }
     }
   },

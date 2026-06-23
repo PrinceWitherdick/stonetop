@@ -15,7 +15,7 @@ import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from
 import {CharacterLedger} from "./CharacterLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE} from "./StonetopFlags.js";
-import {rollDamage, sign} from "../../utils/roll-engine.js";
+import {rollDamage, rollStat, sign} from "../../utils/roll-engine.js";
 import {dieFromDamage} from "../../utils/damage.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
@@ -1117,6 +1117,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Universal "Follower Special Moves" (same for every character), rendered
 			// read-only from the follower-moves items via their build export.
 			context.stonetop.followerSpecialMoves = FOLLOWER_MOVES;
+			// The Ranger's Animal Companion insert carries its own special move (Loyal
+			// to the End, p.143) — not universal, so it shows only when a beast-bonded
+			// Ranger actually has a companion.
+			context.stonetop.animalCompanionMoves = context.stonetop.followers.animalCompanion
+				? (playbookDoc?.animalCompanion?.moves ?? [])
+				: [];
 			context.stonetop.hasArcana = !!(
 				context.stonetop.arcana?.minor?.hasOwned ||
 				context.stonetop.arcana?.major?.hasOwned
@@ -3189,7 +3195,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Loyal to the End is the Ranger's animal-companion move (p.469 → p.143):
 					// it replaces the standard fate choice, and only the companion gets it.
 					new FollowerFateDialog(this.actor, { name: fateName, loyalty, isAnimalCompanion: follower === "animal-companion" },
-						(action) => this._resolveFollowerFate(action, { name: fateName, loyaltyPath, loyalty }),
+						(action) => this._resolveFollowerFate(action, { name: fateName, loyalty }),
 					).render(true);
 				}
 			}, true);
@@ -3866,24 +3872,30 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		// Apply the fate chosen for a follower that hit 0 HP (FollowerFateDialog).
-		// "loyal" spends 1 Loyalty (they survive, out of action); "letgo" marks XP
-		// (they die); the rest just post a note recording the GM's call.
-		async _resolveFollowerFate(action, { name, loyaltyPath, loyalty } = {}) {
+		// "roll" is the Ranger's animal-companion move Loyal to the End (p.143): roll +0
+		// (advantage if it holds Loyalty) and the result card carries the 10+/7-9/6-
+		// outcome. Every other follower's "action" just posts a note recording the GM's
+		// call.
+		async _resolveFollowerFate(action, { name, loyalty } = {}) {
 			const who = escHtml(name || "Your follower");
+			if (action === "roll") {
+				await rollStat("", this.actor, {
+					statValue:   0,
+					moveName:    "Loyal to the End",
+					rollMode:    loyalty > 0 ? "adv" : "normal",
+					noXpOnMiss:  true,
+					moveDescription: `<p>When your <strong><em>companion is at 0 HP</em></strong>, roll +0, with advantage if it holds Loyalty.</p>`,
+					moveResults: {
+						success: { label: "10+", value: `<strong>${who}</strong> will be fine once it regains any HP.` },
+						partial: { label: "7–9", value: `<strong>${who}</strong> survives but takes the <em>injured</em> tag.` },
+						failure: { label: "6–", value: `<strong>${who}</strong> is injured and will die soon unless someone saves it.` },
+					},
+				});
+				this.render(false);
+				return;
+			}
 			let body;
-			if (action === "loyal") {
-				if (loyaltyPath && loyalty > 0) {
-					await this.actor.update(
-						{ [`flags.stonetop_pwd.${loyaltyPath}`]: loyalty - 1 },
-						{ stonetopMove: "Loyal to the End" },
-					);
-				}
-				body = `<p><strong>${who}</strong> survives &mdash; out of the action, but alive. You spend 1 of their Loyalty.</p>`;
-			} else if (action === "letgo") {
-				const cur = this.actor.system?.attributes?.xp?.value ?? 0;
-				await this.actor.update({ "system.attributes.xp.value": cur + 1 }, { stonetopMove: "Loyal to the End" });
-				body = `<p>You let <strong>${who}</strong> go. They die &mdash; mark <strong>+1 XP</strong>.</p>`;
-			} else if (action === "deathsdoor") {
+			if (action === "deathsdoor") {
 				body = `<p><strong>${who}</strong> triggers <strong>Death's Door</strong> &mdash; ${escHtml(this.actor.name)} rolls for them.</p>`;
 			} else if (action === "dying") {
 				body = `<p><strong>${who}</strong> is dying &mdash; out of the action; they'll die or hit Death's Door soon if no one intervenes.</p>`;

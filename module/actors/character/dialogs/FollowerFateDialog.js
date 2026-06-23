@@ -3,9 +3,10 @@ import { FrontOnOpen } from "../../../utils/front-on-open.js";
 // ── FollowerFateDialog ───────────────────────────────────────────────────────
 // A follower has dropped to 0 HP. Two distinct cases:
 //   • The Ranger's animal companion is the exception (Book I p.469 → Loyal to the
-//     End, p.143): the player spends 1 of its Loyalty to have it survive (out of the
-//     action, but alive), or lets it go and marks XP. This REPLACES the usual choice;
-//     it is the companion's move and no other follower gets it.
+//     End, p.143): roll +0 — with advantage if it holds Loyalty — to learn its fate
+//     (10+ fine once it heals; 7-9 takes the injured tag; 6- injured and dying unless
+//     saved). This REPLACES the usual choice; it is the companion's move and no other
+//     follower gets it.
 //   • Every other follower (crew, initiates, beasts, custom — even loyal ones) uses
 //     the standard p.469 fate, the GM's call: dead / Death's Door / dying (or just out
 //     of the action if the blow wasn't lethal — close the dialog).
@@ -58,9 +59,10 @@ export class FollowerFateDialog extends Application {
 		// fate choice for it; every other follower gets the standard p.469 options.
 		const loyalToTheEnd = !!this._ctx.isAnimalCompanion;
 		return {
-			followerName:    this._ctx.name || "Your follower",
+			followerName: this._ctx.name || "Your follower",
 			loyalToTheEnd,
-			canSpendLoyalty: loyalToTheEnd && loyalty > 0,
+			// The roll is +0 but gets advantage while the companion still holds Loyalty.
+			hasLoyalty:   loyalToTheEnd && loyalty > 0,
 			loyalty,
 		};
 	}

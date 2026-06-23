@@ -11,9 +11,9 @@ import { makeRewriter, remapPageData, managedHash, carryOverPageState } from "./
 // GM can edit their questions in place.
 //
 // Runs once per world, guarded by the `seedingComplete` world setting, GM-only.
-// `importJournalPack` recreates the compendium's folder tree at the world's top
-// level (Lore, Places, etc.), so the seeded entries keep their organisation
-// without burying everything under an extra wrapper folder.
+// `importJournalPack` recreates the compendium's folder tree (Lore, Places,
+// Bestiary, Reference) under a single top-level "The World" folder, so the seeded
+// entries keep their organisation while staying grouped together in the sidebar.
 //
 // Cross-links between the imported journals are then rewritten from their
 // `@UUID[Compendium…]` form to point at the freshly-created world copies, so a GM
@@ -26,6 +26,11 @@ import { makeRewriter, remapPageData, managedHash, carryOverPageState } from "./
 // OBSERVER so every player can read it — and `_openSettingOverviewOnce` (in
 // hooks/Ready.js) pops it open for each user the first time they connect.
 const SETTING_OVERVIEW_NAME = "Setting Overview";
+
+// Top-level world folder the seeded gazetteer (Places, Lore, Bestiary, Reference)
+// is grouped under, so a fresh install gets one tidy "The World" folder in the
+// Journal sidebar rather than four loose category folders at the root.
+const WORLD_FOLDER_NAME = "The World";
 
 export async function seedCompendiumJournalsOnce() {
 	if (!game.user?.isGM) return;
@@ -43,9 +48,12 @@ export async function seedCompendiumJournalsOnce() {
 	const linkMap = new Map();
 	const created = [];
 
+	// Group everything we seed under one top-level "The World" folder.
+	const worldRootId = await ensureWorldRootFolder();
+
 	for (const pack of packs) {
 		try {
-			const docs = await importJournalPack(pack);
+			const docs = await importJournalPack(pack, worldRootId);
 			if (!Array.isArray(docs)) continue;
 			await pack.getIndex();
 			const worldUuidByName = new Map(docs.map(d => [d.name, d.uuid]));
@@ -83,12 +91,30 @@ export async function seedCompendiumJournalsOnce() {
 	}
 }
 
+// Find (or create) the top-level "The World" JournalEntry folder the seed groups
+// everything under. Reuses an existing root folder of that name (e.g. from an
+// earlier partial seed) so re-running doesn't duplicate it. Returns its id, or
+// null if creation fails — in which case the seed falls back to the world root.
+async function ensureWorldRootFolder() {
+	const existing = (game.folders ?? []).find(f =>
+		f.type === "JournalEntry" && f.name === WORLD_FOLDER_NAME && !f.folder
+	);
+	if (existing) return existing.id;
+	try {
+		const created = await Folder.create({ name: WORLD_FOLDER_NAME, type: "JournalEntry" });
+		return created?.id ?? null;
+	} catch (err) {
+		error(`Failed to create the "${WORLD_FOLDER_NAME}" folder:`, err);
+		return null;
+	}
+}
+
 // Import every entry in a journal pack into the world, recreating the folder
-// subtree the entries use so the world mirrors the compendium's layout at its top
-// level. Folder resolution is best-effort — anything it can't place falls back to
-// the world top level rather than failing the whole seed. Returns the created
-// entries.
-async function importJournalPack(pack) {
+// subtree the entries use so the world mirrors the compendium's layout — but
+// nested under `rootParentId` ("The World") rather than loose at the world root.
+// Folder resolution is best-effort — anything it can't place falls back to that
+// root parent rather than failing the whole seed. Returns the created entries.
+async function importJournalPack(pack, rootParentId = null) {
 	const seed = await pack.getDocuments();
 	if (!seed.length) return [];
 
@@ -97,14 +123,14 @@ async function importJournalPack(pack) {
 
 	// Recreate a compendium folder (and its ancestors) in the world, memoised.
 	// A null parent (compendium top-level folder, or an entry filed loose) maps
-	// to the world's top level so the layout mirrors the compendium exactly.
+	// to `rootParentId`, so the compendium's top level nests under "The World".
 	const worldFolderId = new Map();
 	async function resolveFolder(cf) {
 		const id = cf?.id ?? null; // `cf` is a Folder doc (or null)
-		if (!id) return null;
+		if (!id) return rootParentId;
 		if (worldFolderId.has(id)) return worldFolderId.get(id);
 		const folder = packFolders.get(id);
-		if (!folder) return null;
+		if (!folder) return rootParentId;
 		const parentId = await resolveFolder(folder.folder);
 		// Reuse an existing world folder of the same name/parent (e.g. from an
 		// earlier partial seed) instead of creating a duplicate.

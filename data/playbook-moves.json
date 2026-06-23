@@ -43,7 +43,7 @@
     },
     {
       "name": "Armored",
-      "description": "<p>When you <strong><em>carry a shield</em></strong>, you suffer reduced encumbrance from it. Also, you can ignore the cumbersome tag on any armor you wear.</p><p>If you take this move at the start of play, add an iron hauberk, bronze cuirass, or scale coat to your inventory (all are 2 armor, warm, cumbersome).</p>",
+      "description": "<p>When you <strong><em>carry a shield</em></strong>, mark only ◆ (instead of ◆◆). Also, you can ignore the cumbersome tag on any armor you wear.</p><p>If you take this move at the start of play, add an iron hauberk, bronze cuirass, or scale coat to your inventory (all are 2 armor, warm, cumbersome).</p>",
       "rollType": null,
       "playbook": "The Judge"
     },
@@ -1552,7 +1552,7 @@
   "The Seeker": [
     {
       "name": "Arcane Adept",
-      "description": "<p>When you <strong><em>wish to invent a spell or magical effect</em></strong>, detail its workings with the GM and Make a Plan to invent it. If you like, pick one requirement and ask the GM to provide an alternative.</p>",
+      "description": "<p>When you <strong><em>wish to invent a spell or magical effect</em></strong>, detail its workings with the GM and Make a Plan to invent it. If you like, pick one requirement and ask the GM to provide an alternative (for example \"first you must ___\" could become \"first you must ___, or it will take months\").</p>",
       "rollType": null,
       "requirement": {
         "level": 6
@@ -1649,7 +1649,7 @@
     },
     {
       "name": "Improvise",
-      "description": "<p>When you <strong><em>wish to use an arcanum's move or option without having unlocked it</em></strong>, ask the GM what fool risk(s) it requires and/or what consequence(s) you'll incur. If you go for it, roll +INT: <strong><em>on a 7+</em></strong>, you get it to work this once; <strong>on a 10+</strong>, also mark one step towards unlocking the arcanum's mysteries.</p>",
+      "description": "<p>When you <strong><em>wish to use an arcanum's move or option without having unlocked it</em></strong>, ask the GM what fool risk(s) it requires and/or what consequence(s) you'll incur. If you go for it, roll +INT: <strong><em>on a 7+</em></strong>, you get it to work this once—trigger the move or use the option as if you'd unlocked it; <strong>on a 10+</strong>, also mark one step towards unlocking the arcanum's mysteries.</p>",
       "rollType": "int",
       "results": {
         "success": {
@@ -1808,7 +1808,7 @@
   "The Heavy": [
     {
       "name": "Armored",
-      "description": "<p>When you <strong><em>carry a shield</em></strong>, you suffer reduced encumbrance from it. Also, you can ignore the cumbersome tag on any armor you wear.</p><p>If you take this move at the start of play, add an iron hauberk, bronze cuirass, or scale coat to your inventory (all are 2 armor, warm, cumbersome).</p>",
+      "description": "<p>When you <strong><em>carry a shield</em></strong>, mark only ◆ (instead of ◆◆). Also, you can ignore the cumbersome tag on any armor you wear.</p><p>If you take this move at the start of play, add an iron hauberk, bronze cuirass, or scale coat to your inventory (all are 2 armor, warm, cumbersome).</p>",
       "rollType": null,
       "isStartingMove": true,
       "playbook": "The Heavy"
@@ -1861,7 +1861,7 @@
     },
     {
       "name": "Cut from Granite",
-      "description": "<p>Gain +1 armor (stacks with other sources) and increase your max HP by another 2 (+6 HP total from both moves).</p>",
+      "description": "<p>Gain +1 armor (stacks with other sources) and increase your max HP by another 2 (+6 HP total).</p>",
       "rollType": null,
       "requirement": {
         "level": 6,
@@ -2081,7 +2081,7 @@
   "The Marshal": [
     {
       "name": "Armored",
-      "description": "<p>When you <strong><em>carry a shield</em></strong>, you suffer reduced encumbrance from it. Also, you can ignore the cumbersome tag on any armor you wear.</p><p>If you take this move at the start of play, add an iron hauberk, bronze cuirass, or scale coat to your inventory (all are 2 armor, warm, cumbersome).</p>",
+      "description": "<p>When you <strong><em>carry a shield</em></strong>, mark only ◆ (instead of ◆◆). Also, you can ignore the cumbersome tag on any armor you wear.</p><p>If you take this move at the start of play, add an iron hauberk, bronze cuirass, or scale coat to your inventory (all are 2 armor, warm, cumbersome).</p>",
       "rollType": null,
       "playbook": "The Marshal"
     },
@@ -2180,12 +2180,6 @@
       "requirement": {
         "level": 6
       },
-      "playbook": "The Marshal"
-    },
-    {
-      "name": "Pathfinder",
-      "description": "<p>When you <strong><em>lead your people to Pull Together or Deploy beyond sight of home</em></strong>, you have advantage.</p>",
-      "rollType": null,
       "playbook": "The Marshal"
     },
     {

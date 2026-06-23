@@ -67,6 +67,7 @@ export function registerStonetopSingletonHooks() {
 // same-day session reminds again.
 export async function remindDestinedOmenRoll() {
 	if (!_isPrimaryGM()) return;
+	if (!game.settings?.get?.(STONETOP_SCOPE, "startOfSessionReminders")) return;
 	const destined = game.actors?.filter(a =>
 		a.type === "character" && resolvedFlagProperty(a, "background.selected") === "destined") ?? [];
 	if (!destined.length) return;

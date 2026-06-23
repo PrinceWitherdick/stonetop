@@ -22,6 +22,7 @@ import {
 	buildChroniclePages,
 	mergeChronicleSections,
 	CHRONICLE_FOLDER_NAME,
+	CHRONICLE_FOLDER_COLOR,
 	INTRODUCTIONS_JOURNAL_NAME,
 	EXPEDITIONS_JOURNAL_NAME,
 	EXPEDITION_PAGE_KEY_PREFIX,
@@ -55,24 +56,36 @@ function chroniclePcs() {
  * disable the button while compiling, surface failures, then re-enable it.
  * `context` labels the error log line; `beforeSave` lets a dialog flush a pending
  * draft to its setting first (the compiler reads the persisted values).
+ * Returns `true` if the save completed without error, `false` if it threw — so a
+ * caller can decide whether to proceed (e.g. close its dialog).
  */
 export async function saveChronicleFromButton(button, { context = "Chronicle", beforeSave } = {}) {
 	if (button) button.disabled = true;
 	try {
 		await beforeSave?.();
 		await game.stonetop?.saveChronicle?.();
+		return true;
 	} catch (err) {
 		console.error(`Stonetop | ${context}: failed to save the Chronicle`, err);
 		ui.notifications.error("Couldn't save the Chronicle.");
+		return false;
 	} finally {
 		if (button) button.disabled = false;
 	}
 }
 
+// Find (or create) the "The Chronicle" journal folder that holds the introductions,
+// expeditions, and Seasons Change journals. Shared so each journal builder finds the
+// one folder instead of re-implementing the lookup (see seasons/seasons-chronicle.js).
+export async function ensureChronicleFolder() {
+	const existing = (game.folders?.contents ?? []).find(f => f.type === "JournalEntry" && f.name === CHRONICLE_FOLDER_NAME);
+	return existing ?? await Folder.create({ name: CHRONICLE_FOLDER_NAME, type: "JournalEntry", color: CHRONICLE_FOLDER_COLOR }) ?? null;
+}
+
 // Find (or create) a journal named `name` inside `folder`. `ensureObserver` opens a
 // pre-existing GM-only entry to players (for the introductions journal); the
 // expeditions journal is left at whatever ownership the GM set.
-async function ensureChronicleJournal(name, folderId, defaultOwnership, { ensureObserver = false } = {}) {
+export async function ensureChronicleJournal(name, folderId, defaultOwnership, { ensureObserver = false } = {}) {
 	const OBSERVER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
 	let entry = (game.journal?.contents ?? []).find(j => j.folder?.id === folderId && j.name === name) ?? null;
 	if (!entry) {
@@ -159,8 +172,7 @@ export async function writeChronicle() {
 	const expePages  = pages.filter(p =>  p.key.startsWith(EXPEDITION_PAGE_KEY_PREFIX));
 
 	// "The Chronicle" journal folder, holding the two journals.
-	let folder = (game.folders?.contents ?? []).find(f => f.type === "JournalEntry" && f.name === CHRONICLE_FOLDER_NAME) ?? null;
-	if (!folder) folder = await Folder.create({ name: CHRONICLE_FOLDER_NAME, type: "JournalEntry" });
+	const folder = await ensureChronicleFolder();
 	if (!folder) return null;
 
 	const intro = await ensureChronicleJournal(INTRODUCTIONS_JOURNAL_NAME, folder.id, OBSERVER, { ensureObserver: true });

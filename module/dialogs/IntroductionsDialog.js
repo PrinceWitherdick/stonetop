@@ -1,5 +1,6 @@
 import { FrontOnOpen } from "../utils/front-on-open.js";
 import { shuffle } from "../utils/arrays.js";
+import { stonetopSteadingHeaderButton } from "../utils/world.js";
 import { playbookSlug, getPlayerCharacters, playbookIconPath, orderByCombatTurns } from "../utils/playbook-actors.js";
 import { wrapLoreTerms } from "../utils/lore-terms.js";
 // Authored prompts/questions live in introductions-data.js so the Chronicle
@@ -7,11 +8,21 @@ import { wrapLoreTerms } from "../utils/lore-terms.js";
 import { INTRO_PLAYBOOK_DATA as _PLAYBOOK_DATA } from "./introductions-data.js";
 import { saveChronicleFromButton } from "../utils/chronicle.js";
 import { getSetting, setSetting } from "../settings.js";
+import { getWalkthroughResume, patchWalkthroughResume, markWalkthroughDone } from "./walkthrough-resume.js";
 
 // The world setting holding the answers recorded during the introductions, keyed
 // by actor id → { r1, r2, r3 (strings); r4–r7 ({ q, a }) }. Compiled into the
 // Chronicle journal by utils/chronicle.js. See settings.js for the full shape.
 const _ANSWERS_SETTING = "introductionsAnswers";
+
+// Key for this dialog's reload-resume record (round + turn + open flag) in the
+// shared walkthroughResume setting. See walkthrough-resume.js.
+const _RESUME_KEY = "introductions";
+
+// Rounds that draw from the same question list ("go around again"): 4 & 5 share
+// the step-4 prompts, 6 & 7 share step-6. Used to gray out a prompt a PC already
+// answered/asked in the paired round.
+const _SIBLING_ROUND = { 4: 5, 5: 4, 6: 7, 7: 6 };
 
 // Placeholder copy for the narration rounds (1–3); rounds 4–7 set their own from
 // whether the PC is answering or asking.
@@ -68,7 +79,7 @@ const _PHASES = [
 	},
 	{
 		roundRobin: false,
-		getInstruction: () => `<strong>Add your home</strong> to the steading playbook. When everyone is done, <strong>let spring break forth!</strong>`,
+		getInstruction: () => `<strong>Add each player's home</strong> to Stonetop's Places of Interest. When everyone is done, <strong>let spring break forth!</strong><span class="stonetop-intros-instruction-note">Players can reach the Stonetop playbook by hitting the <strong>Stonetop</strong> button in the navbar of their character sheet.</span>`,
 		getQuestions:   () => null,
 	},
 ];
@@ -103,6 +114,9 @@ export class IntroductionsDialog extends Application {
 		} catch (err) {
 			console.error("Stonetop | Introductions: failed to set up the combat tracker", err);
 		}
+		// Resume where this user left off before a reload (combat is set up first so
+		// the resumed round-robin has its PC list).
+		dialog._restorePosition();
 		return dialog.render(true);
 	}
 
@@ -149,6 +163,19 @@ export class IntroductionsDialog extends Application {
 	async _render(force, options) {
 		await super._render(force, options);
 		this._frontOnOpen.apply();
+		// Record where we are + that we're open, so a reload can reopen here. Every
+		// render reflects the current round/turn (navigation always re-renders).
+		this._saveResume();
+	}
+
+	// GM-only "Stonetop" shortcut in the window header — mirrors the steading button
+	// on the character sheet header (StonetopCharacterSheet._getHeaderButtons) — so the
+	// GM can jump to the steading's Places of Interest while running introductions.
+	// Players are pointed to their own sheet's button by the final-round note.
+	_getHeaderButtons() {
+		const buttons = super._getHeaderButtons();
+		if (game.user?.isGM) buttons.unshift(stonetopSteadingHeaderButton());
+		return buttons;
 	}
 
 	activateListeners(html) {
@@ -162,8 +189,7 @@ export class IntroductionsDialog extends Application {
 		html.find(".stonetop-intros-begin").on("click", () => this._begin());
 		html.find(".stonetop-intros-next").on("click",  () => this._advance());
 		html.find(".stonetop-intros-back").on("click",  () => this._retreat());
-		html.find(".stonetop-intros-close").on("click", () => this.close());
-		html.find(".stonetop-intros-chronicle").on("click", ev => this._saveChronicle(ev.currentTarget));
+		html.find(".stonetop-intros-close").on("click", ev => this._finish(ev.currentTarget));
 
 		// Record the active PC's answer. The narration rounds (1–3) store a plain
 		// string; the question rounds (4–7) store the answer under `a`. Save on
@@ -217,10 +243,23 @@ export class IntroductionsDialog extends Application {
 	// players, who read the journal once it's shared. Flush the draft first so the
 	// compiler (which reads the persisted setting) sees the latest edits.
 	async _saveChronicle(button) {
-		await saveChronicleFromButton(button, {
+		return saveChronicleFromButton(button, {
 			context:    "Introductions",
 			beforeSave: () => (this._draft ? setSetting(_ANSWERS_SETTING, this._draft) : undefined),
 		});
+	}
+
+	// "Let spring break forth!" — the final button now also commits everything
+	// recorded to the Chronicle (GM only; there's no separate save step) before the
+	// dialog closes. Players just close. If the save errors, keep the dialog open so
+	// the GM can fix it and try again rather than losing the closing action.
+	async _finish(button) {
+		if (game.user?.isGM && !(await this._saveChronicle(button))) return;
+		// Mark the run finished (drops the saved round/turn so a manual reopen starts at
+		// the pre-check) — this is half of what stops the Welcome guide auto-opening once
+		// spring's also burst forth. close() then re-stamps open:false.
+		markWalkthroughDone(_RESUME_KEY, ["phase", "pcIndex"]);
+		return this.close();
 	}
 
 	_registerCombatHooks() {
@@ -243,6 +282,10 @@ export class IntroductionsDialog extends Application {
 	async close(options = {}) {
 		this._unregisterCombatHooks();
 		this._frontOnOpen.stop();
+		// Closing on purpose (the X or "Let spring break forth!") clears the open flag
+		// so we don't auto-reopen on the next load; a browser reload skips close() and
+		// leaves it set. The saved round/turn stays, so a manual reopen still resumes.
+		patchWalkthroughResume(_RESUME_KEY, { open: false });
 		return super.close(options);
 	}
 
@@ -295,12 +338,20 @@ export class IntroductionsDialog extends Application {
 
 			if (isAnswer || isAsk) {
 				const selectedQ = Number.isInteger(stored?.q) ? stored.q : null;
+				// Gray out the prompt this PC already used in the paired round (4&5
+				// share the step-4 list; 6&7 share step-6) so they can't answer/ask
+				// the same one twice — except the one selected this turn, which stays
+				// pickable so the GM can toggle it back off.
+				const siblingKey = _SIBLING_ROUND[this._phase];
+				const siblingQ   = siblingKey ? this._answers()[actor.id]?.[`r${siblingKey}`]?.q : null;
 				// Mark the chosen prompt so the GM (and read-only players) see which
-				// question this answer responded to.
+				// question this answer responded to. (A non-integer/absent siblingQ can
+				// never equal a real prompt index, so no extra guard is needed.)
 				questions = (phase.getQuestions(actor) ?? []).map((html, index) => ({
 					index,
 					html:       wrapLoreTerms(html),
 					isSelected: index === selectedQ,
+					isUsed:     index === siblingQ && index !== selectedQ,
 				}));
 				capture = {
 					isQuestion:  true,
@@ -375,7 +426,26 @@ export class IntroductionsDialog extends Application {
 		this.render(false);
 	}
 
+	// In the question rounds (4–7) a recorded answer has to name the prompt it
+	// responds to, so the Chronicle knows what was answered/asked. Passing (no
+	// answer recorded) is still fine. GM-only — players just follow along read-only.
+	_requireQuestionForAnswer() {
+		if (!game.user?.isGM) return true;
+		if (!(this._phase >= 4 && this._phase <= 7)) return true;
+		const actor = this._pcs[this._pcIndex];
+		if (!actor) return true;
+		const stored      = this._answers()[actor.id]?.[`r${this._phase}`];
+		const hasAnswer   = typeof stored?.a === "string" && stored.a.trim() !== "";
+		const hasQuestion = Number.isInteger(stored?.q);
+		if (hasAnswer && !hasQuestion) {
+			ui.notifications?.warn("Tap the question they chose before moving on, so it's recorded with their answer.");
+			return false;
+		}
+		return true;
+	}
+
 	_advance() {
+		if (!this._requireQuestionForAnswer()) return;
 		const phase = _PHASES[this._phase];
 		if (phase?.roundRobin && this._pcIndex < this._pcs.length - 1) {
 			this._pcIndex++;
@@ -401,5 +471,30 @@ export class IntroductionsDialog extends Application {
 			this._pcIndex = 0;
 		}
 		this.render(false);
+	}
+
+	// Resume the round/turn saved before a reload (the dialog doesn't survive a
+	// refresh). No-op when nothing's saved or no PCs are on the tracker — both leave
+	// the dialog on the pre-check screen.
+	_restorePosition() {
+		const saved = getWalkthroughResume(_RESUME_KEY);
+		const phase = Number(saved?.phase);
+		if (!Number.isInteger(phase) || phase < 1 || phase > 8) return;
+		const pcs = _getCombatPcs();
+		if (!pcs.length) return;
+		this._pcs     = pcs;
+		this._phase   = phase;
+		const maxIdx  = _PHASES[phase].roundRobin ? pcs.length - 1 : 0;
+		const idx     = Number(saved?.pcIndex);
+		this._pcIndex = Number.isInteger(idx) ? Math.min(Math.max(idx, 0), maxIdx) : 0;
+	}
+
+	// Persist the current round/turn (and that we're open) so a reload can reopen
+	// here. Fire-and-forget client-scoped write; guarded so same-spot re-renders
+	// don't re-write.
+	_saveResume() {
+		const cur = getWalkthroughResume(_RESUME_KEY);
+		if (cur?.open === true && cur.phase === this._phase && cur.pcIndex === this._pcIndex) return;
+		patchWalkthroughResume(_RESUME_KEY, { open: true, phase: this._phase, pcIndex: this._pcIndex });
 	}
 }

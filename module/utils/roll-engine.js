@@ -1,6 +1,6 @@
 import { maybePromptAsteriskMove } from "../actors/character/WouldBeHeroAsterisk.js";
 import { escHtml } from "./strings.js";
-import { stonetopCardShell, springRollCardBody, rollFormulaChip, rollResultNumber } from "./chat.js";
+import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber } from "./chat.js";
 
 const _STAT_LABELS = {
 	str: "Strength", dex: "Dexterity", int: "Intelligence",
@@ -23,6 +23,15 @@ export function classifyResult(total) {
 }
 
 export function sign(n) { return n >= 0 ? `+${n}` : `${n}`; }
+
+// The spring Seasons Change result table (Book I): the rolling PC picks a seasonal
+// gain on a 7+. Shared by the Spring Burst walkthrough, the steading's Seasons Change
+// flow, and the chat "ask the most hopeful to roll" prompt so all three stay in step.
+export const SPRING_SEASONS_RESULT = {
+	success: { label: "10+",       line: "Pick <strong>one seasonal gain</strong>." },
+	partial: { label: "7&ndash;9", line: "Pick <strong>one seasonal gain</strong>, but a threat to the steading makes itself known or gets worse." },
+	failure: { label: "6-",        line: "<strong>Threats abound</strong> &mdash; and don't mark XP." },
+};
 
 /**
  * Pull the individual die faces out of an evaluated Roll, e.g. a 2d6 that came up
@@ -51,16 +60,49 @@ export function multiDieFaces(roll) {
  * `stonetop-spring-card` to chat, and hand back `{ total, tier, label }` so the
  * walkthrough can highlight the matching outcome. `resultTable` maps each tier
  * key to `{ label, line }`. Keeps the two cards in lockstep by construction.
+ *
+ * Speaker/title: pass `title` to head the card with it (like a stat roll's
+ * "Dexterity") and speak the card as whoever made the roll (ChatMessage.getSpeaker) —
+ * used by the chat "Roll +Fortunes" button, so the result is spoken by the player who
+ * clicked it. Pass `alias` instead to speak the card under a fixed name with no header
+ * (the Expedition Requisition card).
  */
-export async function rollSeasonsCard({ formula, alias, resultTable }) {
+export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable } = {}) {
 	const roll = await new Roll(formula).evaluate();
 	const tier = classifyResult(roll.total).key;
 	const result = resultTable[tier];
+	const body = springRollCardBody(roll.total, tier, result.label, result.line, roll.formula, multiDieFaces(roll));
 	await roll.toMessage({
-		speaker: { alias },
-		flavor:  stonetopCardShell(springRollCardBody(roll.total, tier, result.label, result.line, roll.formula, multiDieFaces(roll)), "stonetop-spring-card"),
+		speaker: alias ? { alias } : ChatMessage.getSpeaker(),
+		flavor:  title
+			? stonetopChatCard(title, body, "stonetop-spring-card")
+			: stonetopCardShell(body, "stonetop-spring-card"),
 	});
 	return { total: roll.total, tier, label: result.label };
+}
+
+/**
+ * Post a chat card asking the most hopeful character's player to make the spring
+ * Seasons Change roll (+Fortunes). The card carries a button anyone at the table can
+ * click to roll it (wired in stonetop.js `_chatWireSeasonsRoll`, which rolls 2d6 +
+ * the carried Fortunes against SPRING_SEASONS_RESULT). `hopeful` is the recorded
+ * "most hopeful" note, if any; `fortunes` is the steading's +Fortunes modifier.
+ */
+export function postSeasonsRollPrompt({ alias = "Seasons Change — Spring", hopeful = "", fortunes = 0 } = {}) {
+	if (!globalThis.ChatMessage) return;
+	const who = hopeful ? `<strong>${escHtml(hopeful)}</strong>` : "Whoever is the <strong>most hopeful</strong>";
+	const body = `<div class="card-content stonetop-seasons-prompt">
+		<p class="stonetop-seasons-prompt-text">Spring bursts forth! ${who}, roll <strong>+Fortunes</strong> (${sign(fortunes)}) for the <em>Seasons Change</em>.</p>
+		<div class="card-buttons stonetop-card-buttons">
+			<button type="button" class="stonetop-seasons-roll-btn" data-fortunes="${fortunes}" data-alias="${escHtml(alias)}">
+				<i class="fas fa-dice-d6"></i> Roll +Fortunes (${sign(fortunes)})
+			</button>
+		</div>
+	</div>`;
+	ChatMessage.create({
+		speaker: { alias },
+		content: stonetopChatCard(alias, body, "stonetop-seasons-prompt-card"),
+	});
 }
 
 function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, conditionsHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "" }) {

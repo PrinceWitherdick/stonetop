@@ -599,6 +599,24 @@
 	</div>
 	{{/if}}
 
+	{{!-- Animal Companion special moves (Ranger insert, p.143) — only the beast-bonded
+	      Ranger gets these; rendered from the playbook's animalCompanion.moves. --}}
+	{{#if stonetop.animalCompanionMoves.length}}
+	<div class="stonetop-follower-card stonetop-follower-card--rules">
+		<div class="stonetop-follower-rules-header">
+			<h3 class="stonetop-follower-rules-title">Animal Companion Moves</h3>
+		</div>
+		<div class="stonetop-follower-section stonetop-follower-rules">
+			{{#each stonetop.animalCompanionMoves}}
+			<details class="stonetop-follower-rule">
+				<summary>{{name}}</summary>
+				{{{description}}}
+			</details>
+			{{/each}}
+		</div>
+	</div>
+	{{/if}}
+
 	{{!-- Follower special moves shared across all followers --}}
 	<div class="stonetop-follower-card stonetop-follower-card--rules">
 		<div class="stonetop-follower-rules-header">

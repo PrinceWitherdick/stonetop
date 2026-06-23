@@ -520,10 +520,19 @@ export class StonetopSteading {
 	}
 
 	async setSystemValue(path, value, options = {}) {
-		await this._actor.update({
-			[`system.${path}`]: value,
-			[`flags.${STONETOP_SCOPE}.steading.system.${path}`]: value,
-		}, options);
+		await this.setSystemValues({ [path]: value }, options);
+	}
+
+	/** Write several `system.*` values (and their mirrored steading-flag copies) in a
+	 *  single actor update, so move-driven batches (e.g. Seasons Change) produce one
+	 *  ledger append and one combined stat-change card rather than one per field. */
+	async setSystemValues(updates, options = {}) {
+		const data = {};
+		for (const [path, value] of Object.entries(updates)) {
+			data[`system.${path}`] = value;
+			data[`flags.${STONETOP_SCOPE}.steading.system.${path}`] = value;
+		}
+		await this._actor.update(data, options);
 	}
 
 	getStatValue(statKey) {

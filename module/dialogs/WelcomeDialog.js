@@ -6,6 +6,7 @@ import { applyLocationTooltips } from "../locations/location-tooltips.js";
 import { bringDialogToFront } from "../utils/front-on-open.js";
 import { FoundryBasicsDialog } from "./FoundryBasicsDialog.js";
 import { charactersOwnedBy } from "../utils/playbook-actors.js";
+import { stonetopSteadingHeaderButton } from "../utils/world.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -95,6 +96,15 @@ export class WelcomeDialog extends Application {
 		});
 	}
 
+	// "Stonetop" shortcut in the window header — mirrors the steading button on the
+	// character sheet header (and the Introductions dialog) — so the GM can jump to
+	// the steading sheet straight from the first-session guide.
+	_getHeaderButtons() {
+		const buttons = super._getHeaderButtons();
+		buttons.unshift(stonetopSteadingHeaderButton());
+		return buttons;
+	}
+
 	async getData() {
 		// The premise can carry compendium `@UUID` links (e.g. the village "Stonetop"
 		// entry). Those only resolve while enriching if that pack's index is already
@@ -176,8 +186,8 @@ export class WelcomeDialog extends Application {
 		openOrFocus("stonetop-introductions", () => game.stonetop?.openIntroductions?.());
 	}
 
-	// Walk the GM through Book I's final "Getting Started" step. SpringBurstDialog
-	// is its own singleton (it focuses an already-open copy), so just call open().
+	// Walk the GM through Book I's "Let spring burst forth" step. SpringBurstDialog is
+	// its own focus-singleton (it brings an already-open copy forward), so just open it.
 	_openSpringBurst() {
 		game.stonetop?.openSpringBurst?.();
 	}

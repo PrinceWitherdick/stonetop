@@ -1,25 +1,19 @@
-import { getSetting } from "../settings.js";
-import { SeasonsChangeReminderDialog } from "../dialogs/SeasonsChangeReminderDialog.js";
-import { charactersOwnedBy } from "../utils/playbook-actors.js";
+import { escHtml } from "../utils/strings.js";
+import { stonetopCardShell } from "../utils/chat.js";
+import { getPlayerCharacters } from "../utils/playbook-actors.js";
 
 // ── Seasons Change reminders ─────────────────────────────────────────────────
 // A few playbook moves and special possessions have rules that fire "each
 // season" / "once per season" (Book I). When the GM runs the Seasons Change move
-// on the steading, each player whose character carries one of these gets a popup
-// listing the item and its rule — so the seasonal upkeep doesn't get forgotten.
-//
-// The GM's steading flow broadcasts a transient "seasons change" event over the
-// system socket (see broadcastSeasonsChange); every connected client then checks
-// its own owned characters (maybeShowSeasonsChangeReminder) and only pops the
-// dialog if it has something to remind about. Per-client "don't show again" is a
-// client-scoped setting, mirroring the GM Welcome guide.
-
-const SOCKET = "system.stonetop_pwd";
+// on the steading, a single public chat card lists every player character that
+// carries one of these alongside its season-facing rule — so the seasonal upkeep
+// doesn't get forgotten. The card is an ordinary ChatMessage, so it syncs to the
+// whole table on its own (no socket needed).
 
 // The seasonal upkeep registry. `kind` decides how a character is matched:
 //   • "move"       — an embedded move Item with this exact name.
 //   • "possession" — a selected special-possession slug (flags.stonetop_pwd.possessions.selected).
-// `rule` is the season-facing reminder text shown in the popup.
+// `rule` is the season-facing reminder text shown in the card.
 const SEASONAL_REMINDERS = [
 	{
 		kind:     "move",
@@ -76,38 +70,51 @@ export function remindersForActor(actor) {
 	);
 }
 
-// Everything to remind the current user about: the seasonal items/moves carried
-// by characters this user explicitly owns. Uses the per-user ownership entry (not
-// the GM's blanket ownership), so a GM only sees reminders for PCs actually
-// assigned to them — not every character in the world.
-function mySeasonalReminders() {
-	const mine = charactersOwnedBy(game.user.id);
-	return mine.flatMap(actor =>
+// Display rows for every seasonal item carried by the given actors: the matched
+// move/possession's season-facing rule, tagged with the owning character. Pure
+// (no globals), so the card builder and the tests can drive it directly.
+export function collectSeasonalReminders(actors) {
+	return actors.flatMap(actor =>
 		remindersForActor(actor).map(r =>
 			({ character: actor.name, name: r.label ?? r.name, playbook: r.playbook, rule: r.rule })),
 	);
 }
 
-// Show the reminder on this client, if there's anything to show and the user
-// hasn't dismissed it for good. Called both by the socket handler (players) and
-// directly on the GM's client (the socket doesn't echo to the sender).
-export function maybeShowSeasonsChangeReminder(season) {
-	if (getSetting("seasonsChangeReminderDismissed")) return;
-	const reminders = mySeasonalReminders();
+// The public chat-card HTML for a season's upkeep reminders: a season hero plus an
+// item per carried move/possession (name · owning character · rule). Reuses the
+// `.stonetop-seasons-reminder-*` markup/styles inside the shared Stonetop chat shell.
+export function seasonsReminderCard(season, reminders) {
+	const items = reminders.map(r => `
+			<li class="stonetop-seasons-reminder-item">
+				<div class="stonetop-seasons-reminder-item-head">
+					<span class="stonetop-seasons-reminder-item-name">${escHtml(r.name)}</span>
+					<span class="stonetop-seasons-reminder-item-char">${escHtml(r.character)}</span>
+				</div>
+				<p class="stonetop-seasons-reminder-item-rule">${escHtml(r.rule)}</p>
+			</li>`).join("");
+	const body = `<div class="stonetop-seasons-reminder">
+			<header class="stonetop-seasons-reminder-hero">
+				<img class="stonetop-seasons-reminder-icon" src="${seasonIconSrc(season)}" alt="">
+				<div class="stonetop-seasons-reminder-heading">
+					<h2>The Seasons Change</h2>
+					<span class="stonetop-seasons-reminder-season">${escHtml(seasonLabel(season))}</span>
+				</div>
+			</header>
+			<p class="stonetop-seasons-reminder-lead">A new season has come to Stonetop. Don't forget your seasonal upkeep:</p>
+			<ul class="stonetop-seasons-reminder-list">${items}</ul>
+		</div>`;
+	return stonetopCardShell(body, "stonetop-seasons-reminder-chat-card");
+}
+
+// GM side of the Seasons Change move: gather every player character's seasonal
+// upkeep and post one public chat card for the table. A no-op when nothing in the
+// party carries seasonal upkeep (so off-season parties get no empty card).
+export function postSeasonsChangeReminder(season) {
+	if (!globalThis.ChatMessage) return;
+	const reminders = collectSeasonalReminders(getPlayerCharacters());
 	if (!reminders.length) return;
-	SeasonsChangeReminderDialog.open(season, reminders);
-}
-
-// GM side: tell every other client the seasons just changed, then run the same
-// check locally (emit doesn't loop back to the sender, and the GM may own a PC).
-export function broadcastSeasonsChange(season) {
-	game.socket?.emit(SOCKET, { type: "seasonsChange", season });
-	maybeShowSeasonsChangeReminder(season);
-}
-
-// Wire the receiving end. Registered once at ready (see hooks/Ready.js).
-export function registerSeasonsChangeSocket() {
-	game.socket?.on(SOCKET, data => {
-		if (data?.type === "seasonsChange") maybeShowSeasonsChangeReminder(data.season);
+	ChatMessage.create({
+		speaker: { alias: "The Seasons Change" },
+		content: seasonsReminderCard(season, reminders),
 	});
 }

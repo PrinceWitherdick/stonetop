@@ -14,11 +14,6 @@ export const FOLLOWER_MOVES = [
 		"rollType": null
 	},
 	{
-		"name": "Loyal to the End",
-		"description": "<p>When <strong><em>one of your followers would die</em></strong>, you can spend 1 of their Loyalty to have them survive (out of the action, but alive). If you let them go, mark XP.</p>",
-		"rollType": null
-	},
-	{
 		"name": "Followers in Fights",
 		"description": "<p>When a <strong><em>follower Aids you to Defend</em></strong>, you can spend 1 Readiness to have the follower suffer the damage/effects of an attack, or to have the follower draw all attention from your ward to itself.</p><p>When a <strong><em>group of followers fights another group</em></strong>, roll a single Clash or Let Fly once for the whole group. Each side has HP and Armor and deals damage as one individual. Lost HP represents casualties proportionate to the group's original HP.</p><p>If one side <strong><em>outnumbers the other</em></strong>, that side gets +1 Armor and +1 damage for each multiplier past the first (e.g. 3:1 gives +2 damage and +2 Armor).</p>",
 		"rollType": null

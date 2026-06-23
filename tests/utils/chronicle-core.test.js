@@ -36,8 +36,8 @@ function fullAnswers() {
 }
 
 const springFull = {
-	hopeful: "Ana — she still believes in the village.",
-	gain:    "Trade opportunity with the Hillfolk.",
+	gains:   { trade: true },
+	hook:    "Trade opportunity with the Hillfolk.",
 	excites: { pc1: "Playing a healer who can also fight." },
 };
 
@@ -90,13 +90,25 @@ describe("buildChroniclePages", () => {
 		expect(bodyOf(page, "What excites their player")).toContain("Playing a healer who can also fight.");
 	});
 
-	it("appends a party Spring Burst page from the hopeful + gain notes", () => {
+	it("appends a party Spring Burst page from the omen notes", () => {
 		const pages = buildChroniclePages({ pcs: [blessed], introAnswers: fullAnswers(), springAnswers: springFull });
 		const spring = pages.at(-1);
 		expect(spring.key).toBe(SPRING_PAGE_KEY);
 		expect(spring.name).toBe(SPRING_PAGE_NAME);
-		expect(bodyOf(spring, "The most hopeful")).toContain("she still believes in the village.");
+		expect(sec(spring, "The most hopeful")).toBeUndefined();
 		expect(bodyOf(spring, "The season's omen")).toContain("Trade opportunity with the Hillfolk.");
+	});
+
+	it("names the ticked seasonal gain(s) in the omen section", () => {
+		const spring = buildChroniclePages({
+			pcs: [blessed], introAnswers: fullAnswers(),
+			springAnswers: { gains: { trade: true, news: true }, hook: "Word from a passing merchant." },
+		}).at(-1);
+		const omen = bodyOf(spring, "The season's omen");
+		expect(omen).toContain("Gains chosen:");
+		expect(omen).toContain("Trade opportunity");
+		expect(omen).toContain("Interesting news");
+		expect(omen).toContain("Word from a passing merchant.");
 	});
 
 	it("omits empty sections and skips PCs with nothing recorded", () => {
