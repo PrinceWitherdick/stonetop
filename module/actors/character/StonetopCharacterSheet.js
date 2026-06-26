@@ -2105,7 +2105,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					const nameEl = document.createElement("strong");
 					nameEl.className = "stonetop-basic-move-panel-name";
 					nameEl.textContent = nameText;
-					panel.replaceChildren(nameEl, ...Array.from(descEl.cloneNode(true).childNodes));
+					const descClone = descEl.cloneNode(true);
+					// Drop collapsible <details> (e.g. Chart a Course's "Travel Times"
+					// table) — they can't be opened in this floating panel, which
+					// disappears on mouseleave. They stay clickable on the item sheet.
+					descClone.querySelectorAll("details").forEach(d => d.remove());
+					panel.replaceChildren(nameEl, ...Array.from(descClone.childNodes));
 					panel.hidden = false;
 					const rect = li.getBoundingClientRect();
 					panel.style.top   = `${Math.max(4, Math.min(rect.top, window.innerHeight - panel.offsetHeight - 8))}px`;
@@ -2194,6 +2199,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					moveRefPanel.innerHTML =
 						`<p class="stonetop-word-tooltip-name">${name}</p>` +
 						`<div class="stonetop-word-tooltip-desc">${desc}</div>`;
+					// Same as the move panel: drop collapsible <details> (e.g. Chart a
+					// Course's "Travel Times") that can't be opened in a hover tooltip.
+					moveRefPanel.querySelectorAll("details").forEach(d => d.remove());
 					moveRefPanel.hidden = false;
 					const ar = anchor.getBoundingClientRect();
 					const pr = moveRefPanel.getBoundingClientRect();
