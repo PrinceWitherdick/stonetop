@@ -205,7 +205,34 @@
           {
             "slug": "scribes-tools",
             "label": "Scribe's tools",
-            "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+            "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc.",
+            "grantsItems": [
+              {
+                "name": "Parchment",
+                "column": "small"
+              },
+              {
+                "name": "Ink",
+                "column": "small"
+              },
+              {
+                "name": "Pigments",
+                "column": "small"
+              },
+              {
+                "name": "Vials",
+                "column": "small"
+              },
+              {
+                "name": "Quills",
+                "column": "small"
+              },
+              {
+                "name": "Notebook",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "books-and-scrolls",
@@ -221,6 +248,33 @@
             "slug": "distillery",
             "label": "Distillery",
             "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+            "grantsItems": [
+              {
+                "name": "Fine whisky (advantage to Persuade)",
+                "column": "small"
+              },
+              {
+                "name": "Copper tubes",
+                "column": "small"
+              },
+              {
+                "name": "Malt",
+                "column": "small"
+              },
+              {
+                "name": "Stills",
+                "column": "small"
+              },
+              {
+                "name": "Barrels",
+                "column": "small"
+              },
+              {
+                "name": "Firkins",
+                "column": "regular",
+                "weight": 1
+              }
+            ],
             "resource": {
               "max": 2,
               "title": null,
@@ -230,22 +284,152 @@
           {
             "slug": "engineers-tools",
             "label": "Engineer's tools",
-            "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc."
+            "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc.",
+            "grantsItems": [
+              {
+                "name": "Rulers",
+                "column": "small"
+              },
+              {
+                "name": "Tapes",
+                "column": "small"
+              },
+              {
+                "name": "Rods",
+                "column": "small"
+              },
+              {
+                "name": "Plumb-bobs",
+                "column": "small"
+              },
+              {
+                "name": "Wheelbarrow",
+                "column": "small"
+              },
+              {
+                "name": "Tripods",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Block & tackles",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "laboratory",
             "label": "Laboratory",
-            "description": "chemics, reagents, vials, measures, ◇ scales, ◇ decanters, etc. Every season, produce d4-1 uses of ◇ naphtha (<em>thrown, area, dangerous, ignores armor</em>)."
+            "description": "chemics, reagents, vials, measures, ◇ scales, ◇ decanters, etc. Every season, produce d4-1 uses of ◇ naphtha (<em>thrown, area, dangerous, ignores armor</em>).",
+            "grantsItems": [
+              {
+                "name": "Chemics",
+                "column": "small"
+              },
+              {
+                "name": "Reagents",
+                "column": "small"
+              },
+              {
+                "name": "Vials",
+                "column": "small"
+              },
+              {
+                "name": "Measures",
+                "column": "small"
+              },
+              {
+                "name": "Scales",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Decanters",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "paraphernalia",
             "label": "Paraphernalia",
-            "description": "crystals, incense, talismans, blood, bone, horn, eye of newt, ◇ braziers, ◇ a cauldron, etc."
+            "description": "crystals, incense, talismans, blood, bone, horn, eye of newt, ◇ braziers, ◇ a cauldron, etc.",
+            "grantsItems": [
+              {
+                "name": "Crystals",
+                "column": "small"
+              },
+              {
+                "name": "Incense",
+                "column": "small"
+              },
+              {
+                "name": "Talismans",
+                "column": "small"
+              },
+              {
+                "name": "Blood",
+                "column": "small"
+              },
+              {
+                "name": "Bone",
+                "column": "small"
+              },
+              {
+                "name": "Horn",
+                "column": "small"
+              },
+              {
+                "name": "Eye of newt",
+                "column": "small"
+              },
+              {
+                "name": "Braziers",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Cauldron",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "trade-contacts",
             "label": "Trade contacts",
-            "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc."
+            "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc.",
+            "grantsItems": [
+              {
+                "name": "Salt",
+                "column": "small"
+              },
+              {
+                "name": "Glass",
+                "column": "small"
+              },
+              {
+                "name": "Silk",
+                "column": "small"
+              },
+              {
+                "name": "Spice",
+                "column": "small"
+              },
+              {
+                "name": "Medicinal herbs",
+                "column": "small"
+              },
+              {
+                "name": "Pigments",
+                "column": "small"
+              },
+              {
+                "name": "Ivory",
+                "column": "small"
+              }
+            ]
           }
         ]
       },

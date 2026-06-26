@@ -43,10 +43,12 @@ import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
 import {CharacterOrigin} from "./CharacterOrigin.js";
 import {CharacterPossessions} from "./CharacterPossessions.js";
+import {grantsToCreate} from "./possession-grants.js";
 import {CharacterInventory} from "./CharacterInventory.js";
 import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
+import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
 import {capitalizeFirst, slugify, composeInstinct} from "../../utils/strings.js";
 import {localize as _loc} from "../../utils/i18n.js";
@@ -99,6 +101,28 @@ function _transformPiercingNote(note, prosperity) {
 	if (prosperity === null) return note; // no steading → leave literal "x piercing"
 	if (prosperity <= -1) return note.replace('x <em>piercing</em>', '<em>crude</em>');
 	return note.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
+}
+
+// On the gear tab a possession's circle track renders in the component's top-right,
+// so the inline "○○○ uses" count baked into the playbook description is redundant.
+// Strip it — but only for possessions that actually have a track (onboarding shows
+// no track, so it keeps the raw description), and only circle-runs tied to the word
+// "use(s)". This leaves ◇ encumbrance markers and other counts ("○○○○○ hours",
+// "○○ firkins") untouched. Handles the three authoring shapes seen in the playbooks:
+// leading "(○○○ uses) …", leading bare "○○○ uses: …", and mid-text "(○○ uses, …)".
+function _stripPossessionUsesAnnotation(desc, resourceDef) {
+	if (!desc || !resourceDef) return desc;
+	let out = desc;
+	let strippedLead = false;
+	const lead1 = out.replace(/^\s*\(\s*[○●◯]+\s*uses?\b\s*\)\s*/i, "");
+	if (lead1 !== out) { out = lead1; strippedLead = true; }
+	const lead2 = out.replace(/^\s*[○●◯]+\s*uses?\b\s*:?\s*/i, "");
+	if (lead2 !== out) { out = lead2; strippedLead = true; }
+	out = out.replace(/\(\s*[○●◯]+\s*uses?\b\s*,\s*/gi, "(").trim();
+	// Re-capitalise the first letter only when a leading clause was removed, so the
+	// remaining text reads as its own sentence ("expend a use…" → "Expend a use…").
+	if (strippedLead && out) out = out.charAt(0).toUpperCase() + out.slice(1);
+	return out;
 }
 
 // A move can raise every load cap via its `loadBonus` field (the Ranger's Pack
@@ -227,7 +251,13 @@ export class StonetopCharacter {
 		// never an unadded special item whose checked flag happens to linger.
 		const addedSet = new Set(this._inventory.addedSpecial);
 		const armorItems = allOutfitItems.filter(i => !i.special || addedSet.has(i.slug));
-		const armor = this._inventory.calculateArmor(armorItems) + moveBonuses.armor;
+		// Possession-granted worn gear (the Tannery's boiled leather cuirass) also
+		// counts when checked. Custom items key their checked state by item id, so the
+		// armor calc sees them as `{ slug: id, armor }` alongside the outfit items.
+		const customArmorItems = this._actor.items
+			.filter(i => i.type === "move" && i.system?.moveType === "inventory-custom" && i.system?.armor)
+			.map(i => ({ slug: i._id, armor: i.system.armor }));
+		const armor = this._inventory.calculateArmor([...armorItems, ...customArmorItems]) + moveBonuses.armor;
 		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
 			? await this._arcana.buildLoreDisplay()
 			: null;
@@ -441,7 +471,9 @@ export class StonetopCharacter {
 		const mapCustomItem = item => new InventoryItemSnapshotBuilder()
 			.withSlug(item._id)
 			.withName(item.name)
-			.withNote(null)
+			// Items bundled by a special possession (Apiary, Burglar's kit…) carry a
+			// "from <possession>" note; plain write-ins have none.
+			.withNote(item.system?.sourceLabel ? `from ${item.system.sourceLabel}` : null)
 			.withWeight(item.system.weight ?? 1)
 			.withChecked(checked[item._id] ?? false)
 			.withResource(null)
@@ -558,6 +590,7 @@ export class StonetopCharacter {
 		const { pickNote, pickCount, preselected = [], options } = specialPossessions;
 		const selectedSlugs = this._possessions.selected;
 		const usesMap = this._possessions.uses;
+		const subChoicesMap = this._possessions.subChoices;
 		const preselectedSet = new Set(preselected);
 
 		let chosenCount = 0;
@@ -583,16 +616,26 @@ export class StonetopCharacter {
 				// "x piercing" weapons (e.g. the Ranger's composite bow) resolve to the
 				// steading's Prosperity for display here, just like outfit items — onboarding
 				// keeps the literal "x" since it renders the raw playbook description instead.
-				.withDescription(_transformPiercingNote(opt.description ?? "", prosperity))
+				.withDescription(_transformPiercingNote(_stripPossessionUsesAnnotation(opt.description ?? "", resourceDef), prosperity))
 				.withSelected(isSelected)
 				.withChecked(isSelected)
 				.withDisabled(isPre)
 				.withPreselected(isPre)
-				.withPreselectedSource(isPre ? "Starting move" : null)
+				// Preselected possessions (the Blessed's sacred pouch, Marshal's symbol of
+				// authority, etc.) are starting *gear*, not moves — show no source label
+				// (the disabled checkbox already signals they're locked in).
+				.withPreselectedSource(null)
 				.withResource(resource)
-				.withUsesLabel(resourceDef?.title ?? null)
+				// Untitled circle tracks default to a "Uses" label (mirrors the Blessed's
+				// "Stock"), so the top-right circles always read with a heading.
+				.withUsesLabel(resourceDef ? (resourceDef.title ?? "Uses") : null)
 				.withChoices(null)
 				.withChoiceGroups(null)
+				// Read-only prose of the player's flavor/trait picks (the Blessed's
+				// sacred pouch), woven under the description on the gear tab.
+				.withChoiceSummary(isSelected ? this._buildPossessionChoiceSummary(opt, subChoicesMap[opt.slug] ?? []) : null)
+				// Has editable choiceGroups → gear tab shows an "edit" pencil (in edit mode).
+				.withHasChoiceGroups(isSelected && !!opt.choiceGroups?.length)
 				.build();
 		});
 
@@ -614,12 +657,34 @@ export class StonetopCharacter {
 				.withUsesLabel(null)
 				.withChoices(null)
 				.withChoiceGroups(null)
+				.withChoiceSummary(null)
 				.withCustom(true)
 				.build();
 		});
 
 		const isIncomplete = pickCount > 0 && chosenCount < pickCount;
 		return new PossessionsSnapshot(pickCount, pickNote, [...items, ...customItems], isIncomplete);
+	}
+
+	// Read-only prose summary of a possession's `choiceGroups` picks (the Blessed's
+	// sacred pouch: "Your sacred pouch is..." flavor + "What remarkable trait..."),
+	// one entry per group heading with the chosen labels joined in book order. The
+	// remarkable-trait group is multi-select, so this naturally lists every trait a
+	// Blessed has taken via Big Magic. Returns null when nothing in any group is picked.
+	_buildPossessionChoiceSummary(opt, pickedSlugs) {
+		if (!opt?.choiceGroups?.length || !pickedSlugs?.length) return null;
+		const pickedSet = new Set(pickedSlugs);
+		const summary = [];
+		for (const cg of opt.choiceGroups) {
+			const labels = [];
+			for (const sg of (cg.subgroups ?? [])) {
+				for (const o of (sg.options ?? [])) {
+					if (pickedSet.has(o.slug)) labels.push(o.label);
+				}
+			}
+			if (labels.length) summary.push({ heading: cg.heading ?? "", selections: labels.join(", ") });
+		}
+		return summary.length ? summary : null;
 	}
 
 	async setPostDeathInsert(slug) {
@@ -735,76 +800,6 @@ export class StonetopCharacter {
 		await this._actor.deleteEmbeddedDocuments("Item", [itemId]);
 	}
 
-	buildPossessionsContext(specialPossessions, selectedSlugs, usesMap, maxUsesMap, extraPreselected = [], subChoicesMap = {}, choiceUsesMap = {}) {
-		if (!specialPossessions) return null;
-		const { pickNote, options } = specialPossessions;
-		const bgPreselectedSet = new Set(extraPreselected);
-		const preselectedSet = new Set([...((specialPossessions.preselected) ?? []), ...extraPreselected]);
-
-		return {
-			pickNote,
-			options: options.map(opt => {
-				const isPre = preselectedSet.has(opt.slug);
-				const isSelected = isPre || selectedSlugs.has(opt.slug);
-				const preselectedSource = isPre ? (bgPreselectedSet.has(opt.slug) ? "Background" : "Starting move") : null;
-				const maxUses = maxUsesMap[opt.slug] ?? opt.resource?.max ?? null;
-				const pickedSubs = subChoicesMap[opt.slug] ?? [];
-				return {
-					slug: opt.slug,
-					label: opt.label,
-					description: opt.description ?? "",
-					detailsSection: opt.detailsSection ?? null,
-					checked: isSelected,
-					preselected: isPre,
-					preselectedSource,
-					disabled: isPre,
-					uses: maxUses,
-					usesLabel: opt.resource?.title ?? null,
-					usesChecks: isSelected && maxUses
-						? Array.from({ length: maxUses }, (_, i) => ({ checked: i < (usesMap[opt.slug] ?? 0) }))
-						: null,
-					choices: isSelected && opt.choices ? {
-						pickCount: opt.choices.pickCount,
-						options: opt.choices.options.map(c => {
-							const picked = pickedSubs.includes(c.slug);
-							const cMaxUses = c.resource?.max ?? null;
-							return {
-								slug: c.slug,
-								label: c.label,
-								checked: picked,
-								disabled: !picked && pickedSubs.length >= opt.choices.pickCount,
-								uses: cMaxUses,
-								usesChecks: picked && cMaxUses
-									? Array.from({ length: cMaxUses }, (_, i) => ({
-										checked: i < (choiceUsesMap[`${opt.slug}:${c.slug}`] ?? 0),
-									}))
-									: null,
-							};
-						}),
-					} : null,
-					choiceGroups: isSelected && opt.choiceGroups ? opt.choiceGroups.map((cg, cgIdx) => ({
-						heading: cg.heading,
-						note: cg.note ?? null,
-						subgroups: cg.subgroups.map((sg, sgIdx) => {
-							const groupId = `${opt.slug}-cg${cgIdx}-sg${sgIdx}`;
-							const slugsCsv = sg.options.map(o => o.slug).join(",");
-							return {
-								groupId,
-								slugsCsv,
-								multiSelect: !!sg.multiSelect,
-								options: sg.options.map(o => ({
-									slug: o.slug,
-									label: o.label,
-									checked: pickedSubs.includes(o.slug),
-								})),
-							};
-						}),
-					})) : null,
-				};
-			}),
-		};
-	}
-
 	computePossessionMaxUses(specialPossessions, ownedAllByName, level) {
 		const result = { ...this._possessions.maxUses };
 		for (const opt of (specialPossessions?.options ?? [])) {
@@ -813,21 +808,125 @@ export class StonetopCharacter {
 			if (opt.usesBonus.evenLevelBonus) {
 				bonus += Math.floor(level / 2) * opt.usesBonus.evenLevelBonus;
 			}
-			for (const mb of (opt.usesBonus.moveBonus ?? [])) {
-				const instances = ownedAllByName.get(mb.moveName)?.length ?? 0;
-				bonus += instances * mb.perInstance;
-			}
+			bonus += sumMoveBonus(opt.usesBonus.moveBonus, n => ownedAllByName.get(n)?.length ?? 0);
 			if (bonus > 0) result[opt.slug] = (opt.resource?.max ?? 0) + bonus;
 		}
 		return result;
 	}
 
-	async selectPossession(slug)   { await this._possessions.select(slug); }
-	async deselectPossession(slug) { await this._possessions.deselect(slug); }
+	// Move name → how many of that move the actor owns. Feeds sub-choice caps that
+	// grow with a move (the Blessed's sacred-pouch remarkable traits, +1 per Big Magic).
+	ownedMoveCounts() {
+		const counts = {};
+		for (const [name, items] of this._buildOwnedMovesMap()) counts[name] = items.length;
+		return counts;
+	}
+
+	// Walk every subgroup of every selected (or preselected) possession that carries
+	// `choiceGroups`, yielding `{ opt, sg }`. Shared descent for the two sacred-pouch
+	// cap helpers below, which differ only in the innermost predicate.
+	*_selectedPossessionSubgroups(specialPossessions) {
+		const sp = specialPossessions;
+		if (!sp) return;
+		const selected = new Set([...(sp.preselected ?? []), ...this._possessions.selected]);
+		for (const opt of (sp.options ?? [])) {
+			if (!selected.has(opt.slug) || !opt.choiceGroups?.length) continue;
+			for (const cg of opt.choiceGroups) {
+				for (const sg of (cg.subgroups ?? [])) yield { opt, sg };
+			}
+		}
+	}
+
+	// Map of move name → possession slug for the character's selected possessions whose
+	// sub-choice cap grows with that move (sacred pouch ← Big Magic). Drives the "edit
+	// sacred pouch" affordance on those move cards and the auto-open on gaining one.
+	possessionTriggerMoves(playbookData) {
+		const map = {};
+		for (const { opt, sg } of this._selectedPossessionSubgroups(playbookData?.specialPossessions)) {
+			for (const mb of (sg.maxSelectBonus?.moveBonus ?? [])) {
+				if (mb.moveName) map[mb.moveName] = opt.slug;
+			}
+		}
+		return map;
+	}
+
+	// The selected possession (slug) whose sub-choice cap grows with `moveName` and
+	// currently has an unfilled slot (chosen < cap), or null. Lets the sheet auto-open
+	// the choices editor only when gaining the move actually frees a new pick.
+	async possessionWithOpenChoiceFor(moveName) {
+		if (!moveName) return null;
+		const sp = (await this.playbook())?.specialPossessions;
+		const moveCounts = this.ownedMoveCounts();
+		const subChoices = this._possessions.subChoices;
+		for (const { opt, sg } of this._selectedPossessionSubgroups(sp)) {
+			if (!sg.multiSelect) continue;
+			if (!(sg.maxSelectBonus?.moveBonus ?? []).some(mb => mb.moveName === moveName)) continue;
+			const max = effectiveSubgroupMax(sg, moveCounts);
+			const picked = new Set(subChoices[opt.slug] ?? []);
+			const count = (sg.options ?? []).filter(o => picked.has(o.slug)).length;
+			if (max != null && count < max) return opt.slug;
+		}
+		return null;
+	}
+
+	async selectPossession(slug)   { await this._possessions.select(slug); await this._addPossessionGrants(slug); }
+	async deselectPossession(slug) { await this._possessions.deselect(slug); await this._removePossessionGrants(slug); }
+
+	// Bundled-gear sync (see possession-grants.js). Materialize a possession's
+	// `grantsItems` as inventory items on select; tear them down on deselect.
+	_grantedItemsFor(slug) {
+		return this._actor.items.filter(i =>
+			i.type === "move" &&
+			i.system?.moveType === "inventory-custom" &&
+			i.system?.sourcePossession === slug,
+		);
+	}
+
+	async _addPossessionGrants(slug) {
+		const playbook = await this.playbook();
+		const opt = (playbook?.specialPossessions?.options ?? []).find(o => o.slug === slug);
+		if (!opt?.grantsItems?.length) return;
+		const existing    = new Set(this._grantedItemsFor(slug).map(i => i.system?.sourceKey ?? i.name));
+		const sourceLabel = (opt.label ?? "").replace(/<[^>]*>/g, "").trim();
+		const toCreate    = grantsToCreate(opt.grantsItems, existing, { slug, sourceLabel });
+		if (toCreate.length) await this._actor.createEmbeddedDocuments("Item", toCreate);
+	}
+
+	async _removePossessionGrants(slug) {
+		const ids = this._grantedItemsFor(slug).map(i => i._id);
+		if (ids.length) await this._actor.deleteEmbeddedDocuments("Item", ids);
+	}
 	async setCustomPossessions(labels) { await this._possessions.setCustom(labels); }
 	async removeCustomPossession(slug) { await this._possessions.removeCustom(slug); }
 	async setPossessionUses(slug, count) { await this._possessions.setUses(slug, count); }
-	async selectSubChoice(possessionSlug, choiceSlug)   { await this._possessions.addSubChoice(possessionSlug, choiceSlug); }
+
+	// The choiceGroups subgroup (if any) within `possessionSlug` that contains `choiceSlug`,
+	// so a sub-choice write can enforce that subgroup's cap. Null for radios / pick-N choices
+	// (which live in `opt.choices`, not `opt.choiceGroups`).
+	async _choiceSubgroupFor(possessionSlug, choiceSlug) {
+		const opt = (await this.playbook())?.specialPossessions?.options?.find(o => o.slug === possessionSlug);
+		for (const cg of (opt?.choiceGroups ?? [])) {
+			for (const sg of (cg.subgroups ?? [])) {
+				if ((sg.options ?? []).some(o => o.slug === choiceSlug)) return sg;
+			}
+		}
+		return null;
+	}
+
+	async selectSubChoice(possessionSlug, choiceSlug) {
+		// Enforce a capped multi-select line's limit in the model (the sacred pouch's
+		// remarkable traits, 1 + Big Magic): refuse a pick past the effective cap so over-cap
+		// is impossible regardless of which surface drove it. The UI `disabled` state is then a
+		// convenience, not the only guard. Radios / uncapped / pick-N lines fall straight through.
+		const sg = await this._choiceSubgroupFor(possessionSlug, choiceSlug);
+		if (sg?.multiSelect) {
+			const max = effectiveSubgroupMax(sg, this.ownedMoveCounts());
+			const picked = this._possessions.subChoices[possessionSlug] ?? [];
+			const atCap = max != null && (sg.options ?? []).filter(o => picked.includes(o.slug)).length >= max;
+			if (atCap && !picked.includes(choiceSlug)) return;
+		}
+		await this._possessions.addSubChoice(possessionSlug, choiceSlug);
+	}
 	async setPossessionSubChoices(possessionSlug, choiceSlugs) { await this._possessions.setSubChoices(possessionSlug, choiceSlugs); }
 	async deselectSubChoice(possessionSlug, choiceSlug) { await this._possessions.removeSubChoice(possessionSlug, choiceSlug); }
 	async selectSubChoiceExclusive(possessionSlug, choiceSlug, exclusiveSlugs) { await this._possessions.selectExclusive(possessionSlug, choiceSlug, exclusiveSlugs); }

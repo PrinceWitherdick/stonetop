@@ -68,6 +68,12 @@
 				</span>
 				{{/if}}
 				{{#if sourceLabel}}<span class="stonetop-item-source">{{sourceLabel}}</span>{{/if}}
+				{{#if (and @root.stonetop.movesEdit owned (lookup @root.stonetop.possessionTriggerMoves name))}}
+				<a class="stonetop-move-possession-edit" data-possession-choices="{{lookup @root.stonetop.possessionTriggerMoves name}}"
+				   data-tooltip="Choose your sacred pouch's remarkable trait(s)" data-tooltip-direction="UP">
+					<i class="fas fa-pen-to-square" aria-hidden="true"></i>
+				</a>
+				{{/if}}
 			</div>
 			<div class="stonetop-item-description">{{{boldMissText description}}}</div>
 			{{#if markOptions}}

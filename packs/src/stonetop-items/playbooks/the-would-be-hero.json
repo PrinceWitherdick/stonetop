@@ -163,7 +163,35 @@
           {
             "slug": "husbandry-tools",
             "label": "Husbandry tools",
-            "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
+            "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
+            "grantsItems": [
+              {
+                "name": "Brushes",
+                "column": "small"
+              },
+              {
+                "name": "Muzzles",
+                "column": "small"
+              },
+              {
+                "name": "Collars",
+                "column": "small"
+              },
+              {
+                "name": "Feed",
+                "column": "small"
+              },
+              {
+                "name": "Whips",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Bridles",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "personal-token",
@@ -202,17 +230,100 @@
           {
             "slug": "smithy",
             "label": "Smithy",
-            "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc."
+            "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc.",
+            "grantsItems": [
+              {
+                "name": "Iron goods",
+                "column": "small"
+              },
+              {
+                "name": "Ingots",
+                "column": "small"
+              },
+              {
+                "name": "Thick gloves",
+                "column": "small"
+              },
+              {
+                "name": "Anvil",
+                "column": "small"
+              },
+              {
+                "name": "Tongs",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Bellows",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "stoneworkers-tools",
             "label": "Stoneworker's tools",
-            "description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc."
+            "description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc.",
+            "grantsItems": [
+              {
+                "name": "Chisels",
+                "column": "small"
+              },
+              {
+                "name": "Drills",
+                "column": "small"
+              },
+              {
+                "name": "Wheelbarrow",
+                "column": "small"
+              },
+              {
+                "name": "Prybars",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Spikes",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Block & tackles",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "tannery",
             "label": "Tannery",
-            "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc."
+            "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc.",
+            "grantsItems": [
+              {
+                "name": "Lime",
+                "column": "small"
+              },
+              {
+                "name": "Acid",
+                "column": "small"
+              },
+              {
+                "name": "Salts",
+                "column": "small"
+              },
+              {
+                "name": "Thick gloves",
+                "column": "small"
+              },
+              {
+                "name": "Boiled leather cuirass (1 armor)",
+                "column": "regular",
+                "weight": 1,
+                "armor": {
+                  "modifier": 1
+                }
+              }
+            ]
           }
         ]
       },

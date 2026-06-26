@@ -401,9 +401,9 @@
         "options": [
           {
             "slug": "sacred-pouch",
-            "label": "Sacred pouch <span class=\"stonetop-item-qualifier\">(<em>magical</em>)</span>",
+            "label": "Sacred pouch",
             "detailsSection": "Sacred Pouch",
-            "description": "<p>Doesn't take up space in your inventory. It can hold up to 3 Stock (sacred herbs, powders, stones, pigments, chalks, clay, and so forth). Each time you gain an even-numbered level, your pouch can hold +1 Stock. When anyone but you looks inside your sacred pouch and touches the materials therein, the Stock is ruined.</p><p>When you have a few days of downtime in familiar terrain, you may replenish your Stock.</p><p>When you Forage, you can produce Stock instead of provisions.</p>",
+            "description": "<p>Doesn't take up space in your inventory. It can hold up to 3 Stock (sacred herbs, powders, stones, pigments, chalks, clay, and so forth). Each time you gain an even-numbered level, your pouch can hold +1 Stock. When <strong><em>anyone but you looks inside your sacred pouch and touches the materials therein</em></strong>, the Stock is ruined.</p><p>When you <strong><em>have a few days of downtime in familiar terrain</em></strong>, you may replenish your Stock.</p><p>When you <strong><em>Forage</em></strong>, you can produce Stock instead of provisions.</p>",
             "usesBonus": {
               "evenLevelBonus": 1,
               "moveBonus": [
@@ -485,6 +485,15 @@
                 "subgroups": [
                   {
                     "multiSelect": true,
+                    "maxSelect": 1,
+                    "maxSelectBonus": {
+                      "moveBonus": [
+                        {
+                          "moveName": "Big Magic",
+                          "perInstance": 1
+                        }
+                      ]
+                    },
                     "options": [
                       {
                         "slug": "trait-indestructible",
@@ -516,7 +525,31 @@
           {
             "slug": "apiary",
             "label": "Apiary",
-            "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hat &amp; veils, etc."
+            "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hat &amp; veils, etc.",
+            "grantsItems": [
+              {
+                "name": "Beeswax",
+                "column": "small"
+              },
+              {
+                "name": "Candles (close, area, ~1 hr)",
+                "column": "small"
+              },
+              {
+                "name": "Honey",
+                "column": "small"
+              },
+              {
+                "name": "Bee smokers",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Hat & veils",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "collected-offerings",
@@ -531,12 +564,73 @@
           {
             "slug": "goat-herd",
             "label": "Goat herd",
-            "description": "milk, cheese, pelts, meat, blood, horn, wool, etc. Each season, 1 in 4 chance of having a bezoar (swallow it to cure poison)."
+            "description": "milk, cheese, pelts, meat, blood, horn, wool, etc. Each season, 1 in 4 chance of having a bezoar (swallow it to cure poison).",
+            "grantsItems": [
+              {
+                "name": "Milk",
+                "column": "small"
+              },
+              {
+                "name": "Cheese",
+                "column": "small"
+              },
+              {
+                "name": "Pelts",
+                "column": "small"
+              },
+              {
+                "name": "Meat",
+                "column": "small"
+              },
+              {
+                "name": "Blood",
+                "column": "small"
+              },
+              {
+                "name": "Horn",
+                "column": "small"
+              },
+              {
+                "name": "Wool",
+                "column": "small"
+              }
+            ]
           },
           {
             "slug": "herb-garden",
             "label": "Herb garden",
-            "description": "shears, mortars &amp; pestles, herbs, seeds, remedies, mild poisons, ◇ spades, etc. Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature)."
+            "description": "shears, mortars &amp; pestles, herbs, seeds, remedies, mild poisons, ◇ spades, etc. Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature).",
+            "grantsItems": [
+              {
+                "name": "Shears",
+                "column": "small"
+              },
+              {
+                "name": "Mortars & pestles",
+                "column": "small"
+              },
+              {
+                "name": "Herbs",
+                "column": "small"
+              },
+              {
+                "name": "Seeds",
+                "column": "small"
+              },
+              {
+                "name": "Remedies",
+                "column": "small"
+              },
+              {
+                "name": "Mild poisons",
+                "column": "small"
+              },
+              {
+                "name": "Spades",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "mastiffs",

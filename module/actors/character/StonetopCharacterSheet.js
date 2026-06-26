@@ -4,6 +4,7 @@ import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {RequisitionDialog} from "./dialogs/RequisitionDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
+import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
@@ -1090,6 +1091,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Pass smallItemLimit from the already-computed snapshot so crew gear
 			// uses the exact same prosperity value as outfit inventory items.
 			const playbookDoc = await this._stonetopCharacter.playbook();
+			// Moves that grant a possession sub-choice (Big Magic → sacred-pouch trait):
+			// move name → possession slug, so those move cards show an "edit" affordance.
+			context.stonetop.possessionTriggerMoves = this._stonetopCharacter.possessionTriggerMoves(playbookDoc);
 			const selections = playbookDoc ? this._readSelectionsFromActor(playbookDoc) : null;
 			context.stonetop.hasIncompleteBackgroundQuestions = playbookDoc
 				? CharacterOnboardingDialog.hasIncompleteQuestions(playbookDoc, selections)
@@ -2282,7 +2286,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-custom-remove").on("click", this._onRemoveCustomPossession.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
-			html.find(".stonetop-possession-sub-radio").on("change", this._onPossessionSubRadio.bind(this));
+			// "Edit sacred pouch" affordances (Big Magic move card + gear-tab pencil):
+			// open the standalone choiceGroups editor for the named possession.
+			html.find("[data-possession-choices]").on("click", ev => {
+				ev.preventDefault();
+				ev.stopPropagation();
+				this._openPossessionChoices(ev.currentTarget.dataset.possessionChoices);
+			});
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-levelup-icon").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
@@ -3536,6 +3546,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const el = ev.currentTarget;
 			if (el.checked) {
 				await this._stonetopCharacter.addMove(el.dataset.compendiumId);
+				await this._maybeOpenPossessionChoicesForMove(el.dataset.moveName);
 			} else {
 				await this._stonetopCharacter.removeMove(el.dataset.ownedId);
 			}
@@ -3545,6 +3556,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const el = ev.currentTarget;
 			if (el.checked) {
 				await this._stonetopCharacter.addMove(el.dataset.compendiumId);
+				await this._maybeOpenPossessionChoicesForMove(el.dataset.moveName);
 			} else {
 				await this._stonetopCharacter.removeMove(el.dataset.ownedId);
 			}
@@ -3617,12 +3629,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else {
 				await this._stonetopCharacter.deselectSubChoice(possessionSlug, choiceSlug);
 			}
-		}
-
-		async _onPossessionSubRadio(ev) {
-			const { possessionSlug, choiceSlug, siblingSlugsCsv } = ev.currentTarget.dataset;
-			const exclusiveSlugs = siblingSlugsCsv ? siblingSlugsCsv.split(",") : [];
-			await this._stonetopCharacter.selectSubChoiceExclusive(possessionSlug, choiceSlug, exclusiveSlugs);
 		}
 
 		async _onInventoryItemCheck(ev) {
@@ -3782,7 +3788,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			new LevelUpDialog(
 				this._stonetopCharacter,
 				levelUpData,
-				() => this.render(false),
+				(addedMoveName) => {
+					this.render(false);
+					// Levelling into Big Magic frees an additional remarkable trait — open
+					// the sacred-pouch editor so the player picks it right away.
+					if (addedMoveName) this._maybeOpenPossessionChoicesForMove(addedMoveName);
+				},
 			).render(true);
 		}
 
@@ -4125,6 +4136,30 @@ export function createStonetopCharacterSheetClass(Base) {
 		// to cheap client-local storage; only the small page number reaches the actor
 		// flag (and only on page change, not per keystroke) for the GM's roster.
 		// `initialSelections` / `startAtStep` resume an interrupted creation.
+		// Move name → count owned by the actor. Threaded into onboarding so a sub-choice
+		// cap that grows with a move (the Blessed's sacred-pouch remarkable traits, +1 per
+		// Big Magic) is correct when re-opening onboarding after taking that move.
+		_ownedMoveCounts() {
+			return this._stonetopCharacter.ownedMoveCounts();
+		}
+
+		// Open the standalone sacred-pouch (possession choiceGroups) editor.
+		_openPossessionChoices(possessionSlug) {
+			if (!possessionSlug) return;
+			new PossessionChoicesDialog(
+				this._stonetopCharacter,
+				possessionSlug,
+				{ onDone: () => this.render(false) },
+			).render(true);
+		}
+
+		// After gaining a move, auto-open the possession editor if that move just freed a
+		// sub-choice slot (a Blessed taking Big Magic → an additional remarkable trait).
+		async _maybeOpenPossessionChoicesForMove(moveName) {
+			const slug = await this._stonetopCharacter.possessionWithOpenChoiceFor(moveName);
+			if (slug) this._openPossessionChoices(slug);
+		}
+
 		_launchOnboarding(playbookDoc, { openSheetOnce, openPicker, initialSelections = null, startAtStep = null } = {}) {
 			const saveResume = info => writeOnboardingResume(this.actor, {
 				playbookUuid: playbookDoc.uuid,
@@ -4141,6 +4176,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				{
 					initialSelections,
 					startAtStep,
+					ownedMoveCounts: this._ownedMoveCounts(),
 					onBack: openPicker,
 					onSave: async (selections) => {
 						await this._applyPlaybookSelections(playbookDoc, selections);
@@ -4192,6 +4228,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				{
 					initialSelections: selections,
 					startAtStep: options.startAtStep ?? null,
+					ownedMoveCounts: this._ownedMoveCounts(),
 					onSave: async (sel) => {
 						await this._applyPlaybookSelections(playbookDoc, sel);
 					},

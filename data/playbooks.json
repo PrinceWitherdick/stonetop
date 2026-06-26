@@ -396,9 +396,9 @@
       "options": [
         {
           "slug": "sacred-pouch",
-          "label": "Sacred pouch <span class=\"stonetop-item-qualifier\">(<em>magical</em>)</span>",
+          "label": "Sacred pouch",
           "detailsSection": "Sacred Pouch",
-          "description": "<p>Doesn't take up space in your inventory. It can hold up to 3 Stock (sacred herbs, powders, stones, pigments, chalks, clay, and so forth). Each time you gain an even-numbered level, your pouch can hold +1 Stock. When anyone but you looks inside your sacred pouch and touches the materials therein, the Stock is ruined.</p><p>When you have a few days of downtime in familiar terrain, you may replenish your Stock.</p><p>When you Forage, you can produce Stock instead of provisions.</p>",
+          "description": "<p>Doesn't take up space in your inventory. It can hold up to 3 Stock (sacred herbs, powders, stones, pigments, chalks, clay, and so forth). Each time you gain an even-numbered level, your pouch can hold +1 Stock. When <strong><em>anyone but you looks inside your sacred pouch and touches the materials therein</em></strong>, the Stock is ruined.</p><p>When you <strong><em>have a few days of downtime in familiar terrain</em></strong>, you may replenish your Stock.</p><p>When you <strong><em>Forage</em></strong>, you can produce Stock instead of provisions.</p>",
           "usesBonus": {
             "evenLevelBonus": 1,
             "moveBonus": [
@@ -480,6 +480,15 @@
               "subgroups": [
                 {
                   "multiSelect": true,
+                  "maxSelect": 1,
+                  "maxSelectBonus": {
+                    "moveBonus": [
+                      {
+                        "moveName": "Big Magic",
+                        "perInstance": 1
+                      }
+                    ]
+                  },
                   "options": [
                     {
                       "slug": "trait-indestructible",
@@ -511,7 +520,31 @@
         {
           "slug": "apiary",
           "label": "Apiary",
-          "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hat &amp; veils, etc."
+          "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hat &amp; veils, etc.",
+          "grantsItems": [
+            {
+              "name": "Beeswax",
+              "column": "small"
+            },
+            {
+              "name": "Candles (close, area, ~1 hr)",
+              "column": "small"
+            },
+            {
+              "name": "Honey",
+              "column": "small"
+            },
+            {
+              "name": "Bee smokers",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Hat & veils",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "collected-offerings",
@@ -526,12 +559,73 @@
         {
           "slug": "goat-herd",
           "label": "Goat herd",
-          "description": "milk, cheese, pelts, meat, blood, horn, wool, etc. Each season, 1 in 4 chance of having a bezoar (swallow it to cure poison)."
+          "description": "milk, cheese, pelts, meat, blood, horn, wool, etc. Each season, 1 in 4 chance of having a bezoar (swallow it to cure poison).",
+          "grantsItems": [
+            {
+              "name": "Milk",
+              "column": "small"
+            },
+            {
+              "name": "Cheese",
+              "column": "small"
+            },
+            {
+              "name": "Pelts",
+              "column": "small"
+            },
+            {
+              "name": "Meat",
+              "column": "small"
+            },
+            {
+              "name": "Blood",
+              "column": "small"
+            },
+            {
+              "name": "Horn",
+              "column": "small"
+            },
+            {
+              "name": "Wool",
+              "column": "small"
+            }
+          ]
         },
         {
           "slug": "herb-garden",
           "label": "Herb garden",
-          "description": "shears, mortars &amp; pestles, herbs, seeds, remedies, mild poisons, ◇ spades, etc. Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature)."
+          "description": "shears, mortars &amp; pestles, herbs, seeds, remedies, mild poisons, ◇ spades, etc. Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature).",
+          "grantsItems": [
+            {
+              "name": "Shears",
+              "column": "small"
+            },
+            {
+              "name": "Mortars & pestles",
+              "column": "small"
+            },
+            {
+              "name": "Herbs",
+              "column": "small"
+            },
+            {
+              "name": "Seeds",
+              "column": "small"
+            },
+            {
+              "name": "Remedies",
+              "column": "small"
+            },
+            {
+              "name": "Mild poisons",
+              "column": "small"
+            },
+            {
+              "name": "Spades",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "mastiffs",
@@ -792,17 +886,118 @@
         {
           "slug": "burglars-kit",
           "label": "Burglar's kit",
-          "description": "picks, files, snippers, wire, ◇ prybars, ◇ hacksaws, ◇ a lantern (○○○○○ hours, <em>close, area</em>), ◇ a grappling hook, etc."
+          "description": "picks, files, snippers, wire, ◇ prybars, ◇ hacksaws, ◇ a lantern (○○○○○ hours, <em>close, area</em>), ◇ a grappling hook, etc.",
+          "grantsItems": [
+            {
+              "name": "Picks",
+              "column": "small"
+            },
+            {
+              "name": "Files",
+              "column": "small"
+            },
+            {
+              "name": "Snippers",
+              "column": "small"
+            },
+            {
+              "name": "Wire",
+              "column": "small"
+            },
+            {
+              "name": "Prybars",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Hacksaws",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Lantern (close, area)",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Grappling hook",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "carpenters-tools",
           "label": "Carpenter's tools",
-          "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc."
+          "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc.",
+          "grantsItems": [
+            {
+              "name": "Chisels",
+              "column": "small"
+            },
+            {
+              "name": "Files",
+              "column": "small"
+            },
+            {
+              "name": "Nails",
+              "column": "small"
+            },
+            {
+              "name": "Pitch",
+              "column": "small"
+            },
+            {
+              "name": "Firkins",
+              "column": "small"
+            },
+            {
+              "name": "Barrels",
+              "column": "small"
+            },
+            {
+              "name": "Prybars",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Saws",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "distillery",
           "label": "Distillery",
           "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "grantsItems": [
+            {
+              "name": "Fine whisky (advantage to Persuade)",
+              "column": "small"
+            },
+            {
+              "name": "Copper tubes",
+              "column": "small"
+            },
+            {
+              "name": "Malt",
+              "column": "small"
+            },
+            {
+              "name": "Stills",
+              "column": "small"
+            },
+            {
+              "name": "Barrels",
+              "column": "small"
+            },
+            {
+              "name": "Firkins",
+              "column": "regular",
+              "weight": 1
+            }
+          ],
           "resource": {
             "max": 2,
             "title": null,
@@ -822,22 +1017,137 @@
         {
           "slug": "mummers-kit",
           "label": "Mummer's kit",
-          "description": "juggling balls, whirlybird seeds, motley, ribbons, bells, ◇ puppets, ◇ a fiddle, etc."
+          "description": "juggling balls, whirlybird seeds, motley, ribbons, bells, ◇ puppets, ◇ a fiddle, etc.",
+          "grantsItems": [
+            {
+              "name": "Juggling balls",
+              "column": "small"
+            },
+            {
+              "name": "Whirlybird seeds",
+              "column": "small"
+            },
+            {
+              "name": "Motley",
+              "column": "small"
+            },
+            {
+              "name": "Ribbons",
+              "column": "small"
+            },
+            {
+              "name": "Bells",
+              "column": "small"
+            },
+            {
+              "name": "Puppets",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Fiddle",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "scribes-tools",
           "label": "Scribe's tools",
-          "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+          "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc.",
+          "grantsItems": [
+            {
+              "name": "Parchment",
+              "column": "small"
+            },
+            {
+              "name": "Ink",
+              "column": "small"
+            },
+            {
+              "name": "Pigments",
+              "column": "small"
+            },
+            {
+              "name": "Vials",
+              "column": "small"
+            },
+            {
+              "name": "Quills",
+              "column": "small"
+            },
+            {
+              "name": "Notebook",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "tannery",
           "label": "Tannery",
-          "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc."
+          "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc.",
+          "grantsItems": [
+            {
+              "name": "Lime",
+              "column": "small"
+            },
+            {
+              "name": "Acid",
+              "column": "small"
+            },
+            {
+              "name": "Salts",
+              "column": "small"
+            },
+            {
+              "name": "Thick gloves",
+              "column": "small"
+            },
+            {
+              "name": "Boiled leather cuirass (1 armor)",
+              "column": "regular",
+              "weight": 1,
+              "armor": {
+                "modifier": 1
+              }
+            }
+          ]
         },
         {
           "slug": "trade-contacts",
           "label": "Trade contacts",
-          "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc."
+          "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc.",
+          "grantsItems": [
+            {
+              "name": "Salt",
+              "column": "small"
+            },
+            {
+              "name": "Glass",
+              "column": "small"
+            },
+            {
+              "name": "Silk",
+              "column": "small"
+            },
+            {
+              "name": "Spice",
+              "column": "small"
+            },
+            {
+              "name": "Medicinal herbs",
+              "column": "small"
+            },
+            {
+              "name": "Pigments",
+              "column": "small"
+            },
+            {
+              "name": "Ivory",
+              "column": "small"
+            }
+          ]
         }
       ]
     },
@@ -1191,6 +1501,33 @@
           "slug": "distillery",
           "label": "Distillery",
           "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "grantsItems": [
+            {
+              "name": "Fine whisky (advantage to Persuade)",
+              "column": "small"
+            },
+            {
+              "name": "Copper tubes",
+              "column": "small"
+            },
+            {
+              "name": "Malt",
+              "column": "small"
+            },
+            {
+              "name": "Stills",
+              "column": "small"
+            },
+            {
+              "name": "Barrels",
+              "column": "small"
+            },
+            {
+              "name": "Firkins",
+              "column": "regular",
+              "weight": 1
+            }
+          ],
           "resource": {
             "max": 2,
             "title": null,
@@ -1200,22 +1537,138 @@
         {
           "slug": "chirurgeons-tools",
           "label": "Chirurgeon's tools",
-          "description": "catgut, straps, bandages, tubes, poultices, willow bark, ◇ bonesaws, etc."
+          "description": "catgut, straps, bandages, tubes, poultices, willow bark, ◇ bonesaws, etc.",
+          "grantsItems": [
+            {
+              "name": "Catgut",
+              "column": "small"
+            },
+            {
+              "name": "Straps",
+              "column": "small"
+            },
+            {
+              "name": "Bandages",
+              "column": "small"
+            },
+            {
+              "name": "Tubes",
+              "column": "small"
+            },
+            {
+              "name": "Poultices",
+              "column": "small"
+            },
+            {
+              "name": "Willow bark",
+              "column": "small"
+            },
+            {
+              "name": "Bonesaws",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "husbandry-tools",
           "label": "Husbandry tools",
-          "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
+          "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
+          "grantsItems": [
+            {
+              "name": "Brushes",
+              "column": "small"
+            },
+            {
+              "name": "Muzzles",
+              "column": "small"
+            },
+            {
+              "name": "Collars",
+              "column": "small"
+            },
+            {
+              "name": "Feed",
+              "column": "small"
+            },
+            {
+              "name": "Whips",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Bridles",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "smithy",
           "label": "Smithy",
-          "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc."
+          "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc.",
+          "grantsItems": [
+            {
+              "name": "Iron goods",
+              "column": "small"
+            },
+            {
+              "name": "Ingots",
+              "column": "small"
+            },
+            {
+              "name": "Thick gloves",
+              "column": "small"
+            },
+            {
+              "name": "Anvil",
+              "column": "small"
+            },
+            {
+              "name": "Tongs",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Bellows",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "stoneworkers-tools",
           "label": "Stoneworker's tools",
-          "description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc."
+          "description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc.",
+          "grantsItems": [
+            {
+              "name": "Chisels",
+              "column": "small"
+            },
+            {
+              "name": "Drills",
+              "column": "small"
+            },
+            {
+              "name": "Wheelbarrow",
+              "column": "small"
+            },
+            {
+              "name": "Prybars",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Spikes",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Block & tackles",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "weapons-of-war",
@@ -1603,27 +2056,178 @@
         {
           "slug": "scribes-kit",
           "label": "Scribe's kit",
-          "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+          "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc.",
+          "grantsItems": [
+            {
+              "name": "Parchment",
+              "column": "small"
+            },
+            {
+              "name": "Ink",
+              "column": "small"
+            },
+            {
+              "name": "Pigments",
+              "column": "small"
+            },
+            {
+              "name": "Vials",
+              "column": "small"
+            },
+            {
+              "name": "Quills",
+              "column": "small"
+            },
+            {
+              "name": "Notebook",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "aviary",
           "label": "Aviary",
-          "description": "thick gloves, bird hoods, tethers, seed, ◇ messenger birds, ◇ birdcages, etc."
+          "description": "thick gloves, bird hoods, tethers, seed, ◇ messenger birds, ◇ birdcages, etc.",
+          "grantsItems": [
+            {
+              "name": "Thick gloves",
+              "column": "small"
+            },
+            {
+              "name": "Bird hoods",
+              "column": "small"
+            },
+            {
+              "name": "Tethers",
+              "column": "small"
+            },
+            {
+              "name": "Seed",
+              "column": "small"
+            },
+            {
+              "name": "Messenger birds",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Birdcages",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "carpenters-tools",
           "label": "Carpenter's tools",
-          "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc."
+          "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc.",
+          "grantsItems": [
+            {
+              "name": "Chisels",
+              "column": "small"
+            },
+            {
+              "name": "Files",
+              "column": "small"
+            },
+            {
+              "name": "Nails",
+              "column": "small"
+            },
+            {
+              "name": "Pitch",
+              "column": "small"
+            },
+            {
+              "name": "Firkins",
+              "column": "small"
+            },
+            {
+              "name": "Barrels",
+              "column": "small"
+            },
+            {
+              "name": "Prybars",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Saws",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "engineers-tools",
           "label": "Engineer's tools",
-          "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc."
+          "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc.",
+          "grantsItems": [
+            {
+              "name": "Rulers",
+              "column": "small"
+            },
+            {
+              "name": "Tapes",
+              "column": "small"
+            },
+            {
+              "name": "Rods",
+              "column": "small"
+            },
+            {
+              "name": "Plumb-bobs",
+              "column": "small"
+            },
+            {
+              "name": "Wheelbarrow",
+              "column": "small"
+            },
+            {
+              "name": "Tripods",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Block & tackles",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "smithy",
           "label": "Smithy",
-          "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc."
+          "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc.",
+          "grantsItems": [
+            {
+              "name": "Iron goods",
+              "column": "small"
+            },
+            {
+              "name": "Ingots",
+              "column": "small"
+            },
+            {
+              "name": "Thick gloves",
+              "column": "small"
+            },
+            {
+              "name": "Anvil",
+              "column": "small"
+            },
+            {
+              "name": "Tongs",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Bellows",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         }
       ]
     },
@@ -1927,7 +2531,31 @@
         {
           "slug": "apiary",
           "label": "Apiary",
-          "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hats &amp; veils, etc."
+          "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hats &amp; veils, etc.",
+          "grantsItems": [
+            {
+              "name": "Beeswax",
+              "column": "small"
+            },
+            {
+              "name": "Candles (close, area, ~1 hr)",
+              "column": "small"
+            },
+            {
+              "name": "Honey",
+              "column": "small"
+            },
+            {
+              "name": "Bee smokers",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Hat & veils",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "books-and-scrolls",
@@ -1942,12 +2570,69 @@
         {
           "slug": "chandlery",
           "label": "Chandlery",
-          "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), wicks, scented herbs, soap, lye, ash, etc."
+          "description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), wicks, scented herbs, soap, lye, ash, etc.",
+          "grantsItems": [
+            {
+              "name": "Beeswax",
+              "column": "small"
+            },
+            {
+              "name": "Candles (close, area, ~1 hr)",
+              "column": "small"
+            },
+            {
+              "name": "Wicks",
+              "column": "small"
+            },
+            {
+              "name": "Scented herbs",
+              "column": "small"
+            },
+            {
+              "name": "Soap",
+              "column": "small"
+            },
+            {
+              "name": "Lye",
+              "column": "small"
+            },
+            {
+              "name": "Ash",
+              "column": "small"
+            }
+          ]
         },
         {
           "slug": "distillery",
           "label": "Distillery",
           "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "grantsItems": [
+            {
+              "name": "Fine whisky (advantage to Persuade)",
+              "column": "small"
+            },
+            {
+              "name": "Copper tubes",
+              "column": "small"
+            },
+            {
+              "name": "Malt",
+              "column": "small"
+            },
+            {
+              "name": "Stills",
+              "column": "small"
+            },
+            {
+              "name": "Barrels",
+              "column": "small"
+            },
+            {
+              "name": "Firkins",
+              "column": "regular",
+              "weight": 1
+            }
+          ],
           "resource": {
             "max": 2,
             "title": null,
@@ -1957,7 +2642,42 @@
         {
           "slug": "glassworks",
           "label": "Glassworks",
-          "description": "vials, charms, lenses, sand, marbles, bellows, crucible, ◇ lanterns (○○○○○ hours, <em>close, area</em>), etc."
+          "description": "vials, charms, lenses, sand, marbles, bellows, crucible, ◇ lanterns (○○○○○ hours, <em>close, area</em>), etc.",
+          "grantsItems": [
+            {
+              "name": "Vials",
+              "column": "small"
+            },
+            {
+              "name": "Charms",
+              "column": "small"
+            },
+            {
+              "name": "Lenses",
+              "column": "small"
+            },
+            {
+              "name": "Sand",
+              "column": "small"
+            },
+            {
+              "name": "Marbles",
+              "column": "small"
+            },
+            {
+              "name": "Bellows",
+              "column": "small"
+            },
+            {
+              "name": "Crucible",
+              "column": "small"
+            },
+            {
+              "name": "Lanterns (close, area)",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "holy-relics",
@@ -1972,7 +2692,39 @@
         {
           "slug": "luthiers-tools",
           "label": "Luthier's tools",
-          "description": "chisels, files, catgut, various woods, stains, ◇ a lute, ◇ a fiddle, etc."
+          "description": "chisels, files, catgut, various woods, stains, ◇ a lute, ◇ a fiddle, etc.",
+          "grantsItems": [
+            {
+              "name": "Chisels",
+              "column": "small"
+            },
+            {
+              "name": "Files",
+              "column": "small"
+            },
+            {
+              "name": "Catgut",
+              "column": "small"
+            },
+            {
+              "name": "Various woods",
+              "column": "small"
+            },
+            {
+              "name": "Stains",
+              "column": "small"
+            },
+            {
+              "name": "Lute",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Fiddle",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         }
       ]
     },
@@ -2389,12 +3141,70 @@
         {
           "slug": "chirurgeons-tools",
           "label": "Chirurgeon's tools",
-          "description": "catgut, straps, bandages, tubes, poultice, willow bark, ◇ bonesaws, etc."
+          "description": "catgut, straps, bandages, tubes, poultice, willow bark, ◇ bonesaws, etc.",
+          "grantsItems": [
+            {
+              "name": "Catgut",
+              "column": "small"
+            },
+            {
+              "name": "Straps",
+              "column": "small"
+            },
+            {
+              "name": "Bandages",
+              "column": "small"
+            },
+            {
+              "name": "Tubes",
+              "column": "small"
+            },
+            {
+              "name": "Poultices",
+              "column": "small"
+            },
+            {
+              "name": "Willow bark",
+              "column": "small"
+            },
+            {
+              "name": "Bonesaws",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "distillery",
           "label": "Distillery",
           "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "grantsItems": [
+            {
+              "name": "Fine whisky (advantage to Persuade)",
+              "column": "small"
+            },
+            {
+              "name": "Copper tubes",
+              "column": "small"
+            },
+            {
+              "name": "Malt",
+              "column": "small"
+            },
+            {
+              "name": "Stills",
+              "column": "small"
+            },
+            {
+              "name": "Barrels",
+              "column": "small"
+            },
+            {
+              "name": "Firkins",
+              "column": "regular",
+              "weight": 1
+            }
+          ],
           "resource": {
             "max": 2,
             "title": null,
@@ -2404,7 +3214,39 @@
         {
           "slug": "engineers-tools",
           "label": "Engineer's tools",
-          "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc."
+          "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc.",
+          "grantsItems": [
+            {
+              "name": "Rulers",
+              "column": "small"
+            },
+            {
+              "name": "Tapes",
+              "column": "small"
+            },
+            {
+              "name": "Rods",
+              "column": "small"
+            },
+            {
+              "name": "Plumb-bobs",
+              "column": "small"
+            },
+            {
+              "name": "Wheelbarrow",
+              "column": "small"
+            },
+            {
+              "name": "Tripods",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Block & tackles",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "personal-symbol",
@@ -2414,7 +3256,34 @@
         {
           "slug": "scribes-tools",
           "label": "Scribe's tools",
-          "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+          "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc.",
+          "grantsItems": [
+            {
+              "name": "Parchment",
+              "column": "small"
+            },
+            {
+              "name": "Ink",
+              "column": "small"
+            },
+            {
+              "name": "Pigments",
+              "column": "small"
+            },
+            {
+              "name": "Vials",
+              "column": "small"
+            },
+            {
+              "name": "Quills",
+              "column": "small"
+            },
+            {
+              "name": "Notebook",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "weapons-of-war",
@@ -2926,6 +3795,33 @@
           "slug": "distillery",
           "label": "Distillery",
           "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "grantsItems": [
+            {
+              "name": "Fine whisky (advantage to Persuade)",
+              "column": "small"
+            },
+            {
+              "name": "Copper tubes",
+              "column": "small"
+            },
+            {
+              "name": "Malt",
+              "column": "small"
+            },
+            {
+              "name": "Stills",
+              "column": "small"
+            },
+            {
+              "name": "Barrels",
+              "column": "small"
+            },
+            {
+              "name": "Firkins",
+              "column": "regular",
+              "weight": 1
+            }
+          ],
           "resource": {
             "max": 2,
             "title": null,
@@ -2950,7 +3846,35 @@
         {
           "slug": "husbandry-tools",
           "label": "Husbandry tools",
-          "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
+          "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
+          "grantsItems": [
+            {
+              "name": "Brushes",
+              "column": "small"
+            },
+            {
+              "name": "Muzzles",
+              "column": "small"
+            },
+            {
+              "name": "Collars",
+              "column": "small"
+            },
+            {
+              "name": "Feed",
+              "column": "small"
+            },
+            {
+              "name": "Whips",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Bridles",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "lay-of-the-land",
@@ -2965,7 +3889,25 @@
         {
           "slug": "trapping-gear",
           "label": "Trapping gear",
-          "description": "snares, pelts, musk, bait, etc. When you <em>Forage</em>, get +1 use of provisions."
+          "description": "snares, pelts, musk, bait, etc. When you <em>Forage</em>, get +1 use of provisions.",
+          "grantsItems": [
+            {
+              "name": "Snares",
+              "column": "small"
+            },
+            {
+              "name": "Pelts",
+              "column": "small"
+            },
+            {
+              "name": "Musk",
+              "column": "small"
+            },
+            {
+              "name": "Bait",
+              "column": "small"
+            }
+          ]
         }
       ]
     },
@@ -3410,7 +4352,34 @@
         {
           "slug": "scribes-tools",
           "label": "Scribe's tools",
-          "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+          "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc.",
+          "grantsItems": [
+            {
+              "name": "Parchment",
+              "column": "small"
+            },
+            {
+              "name": "Ink",
+              "column": "small"
+            },
+            {
+              "name": "Pigments",
+              "column": "small"
+            },
+            {
+              "name": "Vials",
+              "column": "small"
+            },
+            {
+              "name": "Quills",
+              "column": "small"
+            },
+            {
+              "name": "Notebook",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "books-and-scrolls",
@@ -3426,6 +4395,33 @@
           "slug": "distillery",
           "label": "Distillery",
           "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "grantsItems": [
+            {
+              "name": "Fine whisky (advantage to Persuade)",
+              "column": "small"
+            },
+            {
+              "name": "Copper tubes",
+              "column": "small"
+            },
+            {
+              "name": "Malt",
+              "column": "small"
+            },
+            {
+              "name": "Stills",
+              "column": "small"
+            },
+            {
+              "name": "Barrels",
+              "column": "small"
+            },
+            {
+              "name": "Firkins",
+              "column": "regular",
+              "weight": 1
+            }
+          ],
           "resource": {
             "max": 2,
             "title": null,
@@ -3435,22 +4431,152 @@
         {
           "slug": "engineers-tools",
           "label": "Engineer's tools",
-          "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc."
+          "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc.",
+          "grantsItems": [
+            {
+              "name": "Rulers",
+              "column": "small"
+            },
+            {
+              "name": "Tapes",
+              "column": "small"
+            },
+            {
+              "name": "Rods",
+              "column": "small"
+            },
+            {
+              "name": "Plumb-bobs",
+              "column": "small"
+            },
+            {
+              "name": "Wheelbarrow",
+              "column": "small"
+            },
+            {
+              "name": "Tripods",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Block & tackles",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "laboratory",
           "label": "Laboratory",
-          "description": "chemics, reagents, vials, measures, ◇ scales, ◇ decanters, etc. Every season, produce d4-1 uses of ◇ naphtha (<em>thrown, area, dangerous, ignores armor</em>)."
+          "description": "chemics, reagents, vials, measures, ◇ scales, ◇ decanters, etc. Every season, produce d4-1 uses of ◇ naphtha (<em>thrown, area, dangerous, ignores armor</em>).",
+          "grantsItems": [
+            {
+              "name": "Chemics",
+              "column": "small"
+            },
+            {
+              "name": "Reagents",
+              "column": "small"
+            },
+            {
+              "name": "Vials",
+              "column": "small"
+            },
+            {
+              "name": "Measures",
+              "column": "small"
+            },
+            {
+              "name": "Scales",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Decanters",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "paraphernalia",
           "label": "Paraphernalia",
-          "description": "crystals, incense, talismans, blood, bone, horn, eye of newt, ◇ braziers, ◇ a cauldron, etc."
+          "description": "crystals, incense, talismans, blood, bone, horn, eye of newt, ◇ braziers, ◇ a cauldron, etc.",
+          "grantsItems": [
+            {
+              "name": "Crystals",
+              "column": "small"
+            },
+            {
+              "name": "Incense",
+              "column": "small"
+            },
+            {
+              "name": "Talismans",
+              "column": "small"
+            },
+            {
+              "name": "Blood",
+              "column": "small"
+            },
+            {
+              "name": "Bone",
+              "column": "small"
+            },
+            {
+              "name": "Horn",
+              "column": "small"
+            },
+            {
+              "name": "Eye of newt",
+              "column": "small"
+            },
+            {
+              "name": "Braziers",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Cauldron",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "trade-contacts",
           "label": "Trade contacts",
-          "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc."
+          "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc.",
+          "grantsItems": [
+            {
+              "name": "Salt",
+              "column": "small"
+            },
+            {
+              "name": "Glass",
+              "column": "small"
+            },
+            {
+              "name": "Silk",
+              "column": "small"
+            },
+            {
+              "name": "Spice",
+              "column": "small"
+            },
+            {
+              "name": "Medicinal herbs",
+              "column": "small"
+            },
+            {
+              "name": "Pigments",
+              "column": "small"
+            },
+            {
+              "name": "Ivory",
+              "column": "small"
+            }
+          ]
         }
       ]
     },
@@ -3687,7 +4813,35 @@
         {
           "slug": "husbandry-tools",
           "label": "Husbandry tools",
-          "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
+          "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
+          "grantsItems": [
+            {
+              "name": "Brushes",
+              "column": "small"
+            },
+            {
+              "name": "Muzzles",
+              "column": "small"
+            },
+            {
+              "name": "Collars",
+              "column": "small"
+            },
+            {
+              "name": "Feed",
+              "column": "small"
+            },
+            {
+              "name": "Whips",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Bridles",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "personal-token",
@@ -3726,17 +4880,100 @@
         {
           "slug": "smithy",
           "label": "Smithy",
-          "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc."
+          "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc.",
+          "grantsItems": [
+            {
+              "name": "Iron goods",
+              "column": "small"
+            },
+            {
+              "name": "Ingots",
+              "column": "small"
+            },
+            {
+              "name": "Thick gloves",
+              "column": "small"
+            },
+            {
+              "name": "Anvil",
+              "column": "small"
+            },
+            {
+              "name": "Tongs",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Bellows",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "stoneworkers-tools",
           "label": "Stoneworker's tools",
-          "description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc."
+          "description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc.",
+          "grantsItems": [
+            {
+              "name": "Chisels",
+              "column": "small"
+            },
+            {
+              "name": "Drills",
+              "column": "small"
+            },
+            {
+              "name": "Wheelbarrow",
+              "column": "small"
+            },
+            {
+              "name": "Prybars",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Spikes",
+              "column": "regular",
+              "weight": 1
+            },
+            {
+              "name": "Block & tackles",
+              "column": "regular",
+              "weight": 1
+            }
+          ]
         },
         {
           "slug": "tannery",
           "label": "Tannery",
-          "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc."
+          "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc.",
+          "grantsItems": [
+            {
+              "name": "Lime",
+              "column": "small"
+            },
+            {
+              "name": "Acid",
+              "column": "small"
+            },
+            {
+              "name": "Salts",
+              "column": "small"
+            },
+            {
+              "name": "Thick gloves",
+              "column": "small"
+            },
+            {
+              "name": "Boiled leather cuirass (1 armor)",
+              "column": "regular",
+              "weight": 1,
+              "armor": {
+                "modifier": 1
+              }
+            }
+          ]
         }
       ]
     },

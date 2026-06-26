@@ -399,6 +399,21 @@ describe("buildSnapshot — vitals", () => {
 		expect(snap.vitals.armor).toBe(2);
 	});
 
+	it("a checked possession-granted cuirass (custom item) adds its armor", async () => {
+		const cuirass = {
+			_id: "cuirass-1", type: "move", name: "Boiled leather cuirass (1 armor)",
+			system: { moveType: "inventory-custom", inventoryColumn: "regular", weight: 1, armor: { modifier: 1 }, sourcePossession: "tannery" },
+		};
+		const worn = new FakeActorBuilder().withItems([cuirass]).withFlag("inventory.checked", { "cuirass-1": true }).build();
+		const wornSnap = await new TestCharacterBuilder(worn).build().buildSnapshot();
+		expect(wornSnap.vitals.armor).toBe(1);
+
+		// Unchecked (owned but not worn) → no armor.
+		const stowed = new FakeActorBuilder().withItems([cuirass]).build();
+		const stowedSnap = await new TestCharacterBuilder(stowed).build().buildSnapshot();
+		expect(stowedSnap.vitals.armor).toBe(0);
+	});
+
 	it("level is a plain number", async () => {
 		const actor = new FakeActorBuilder().withLevel(4).build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
@@ -980,6 +995,63 @@ describe("buildSnapshot — inventory.possessions", () => {
 		expect(descFor(null)).toBe("<em>far</em>, +1 damage, x <em>piercing</em>"); // no steading
 	});
 
+	it("defaults an untitled circle track to a \"Uses\" label, keeps an explicit one", async () => {
+		const actor = makeHeavyActor({flags: {"possessions.selected": ["pouch", "apiary"]}});
+		const sp = {
+			pickNote: "Pick 2", pickCount: 2, preselected: [],
+			options: [
+				// explicit title is preserved…
+				{slug: "pouch", label: "Pouch", description: "<p>A pouch.</p>", resource: {max: 3, title: "Stock", labels: []}},
+				// …an untitled track falls back to "Uses"…
+				{slug: "apiary", label: "Books", description: "do a thing.", resource: {max: 3, title: null, labels: []}},
+				// …and a possession with no track gets no label at all.
+				{slug: "goats", label: "Goats", description: "milk, cheese."},
+			],
+		};
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository({...HEAVY_PLAYBOOK, specialPossessions: sp}))
+			.build().buildSnapshot();
+		const items = snap.inventory.possessions.items;
+		expect(items.find(i => i.slug === "pouch").usesLabel).toBe("Stock");
+		expect(items.find(i => i.slug === "apiary").usesLabel).toBe("Uses");
+		expect(items.find(i => i.slug === "goats").usesLabel).toBeNull();
+	});
+
+	it("strips the redundant \"uses\" circle count from a track's description", () => {
+		// The track renders the circles top-right, so the inline count baked into the
+		// playbook prose is dropped on the sheet (all three authoring shapes).
+		const char = new TestCharacterBuilder(makeHeavyActor()).build();
+		const descFor = (description) => char._buildPossessionsSnapshot({
+			pickNote: "Pick 1", pickCount: 1, preselected: ["p"],
+			options: [{slug: "p", label: "P", description, resource: {max: 3, title: null, labels: []}}],
+		}, {}, null).items[0].description;
+
+		// leading bare "○○○ uses:" clause → reflowed into its own capitalised sentence
+		expect(descFor("○○○ uses: expend a use to consult your collection."))
+			.toBe("Expend a use to consult your collection.");
+		// leading "(○○○ uses)" parenthetical count
+		expect(descFor("(○○○ uses) Expend a use to produce something."))
+			.toBe("Expend a use to produce something.");
+		// mid-text "(○○ uses, …)" keeps the non-count remainder of the note
+		expect(descFor("skins of fine whisky (○○ uses, grants advantage to Persuade), ◇ firkins, etc."))
+			.toBe("skins of fine whisky (grants advantage to Persuade), ◇ firkins, etc.");
+	});
+
+	it("leaves ◇ markers and non-\"uses\" circle counts untouched", () => {
+		const char = new TestCharacterBuilder(makeHeavyActor()).build();
+		const descFor = (description, resource) => char._buildPossessionsSnapshot({
+			pickNote: "Pick 1", pickCount: 1, preselected: ["p"],
+			options: [{slug: "p", label: "P", description, ...(resource ? {resource} : {})}],
+		}, {}, null).items[0].description;
+
+		// No track → nothing is stripped, even if the prose has circles.
+		expect(descFor("○○○○○ hours of light, ◇ lanterns, etc.", null))
+			.toBe("○○○○○ hours of light, ◇ lanterns, etc.");
+		// Track present, but its circles aren't "uses" (e.g. "○○ firkins") → kept.
+		expect(descFor("chisels, ◇ saws, ○○ firkins, barrels, etc.", {max: 2, title: null, labels: []}))
+			.toBe("chisels, ◇ saws, ○○ firkins, barrels, etc.");
+	});
+
 	it("appends write-in custom possessions as selected, removable items", async () => {
 		const actor = makeHeavyActor({
 			flags: {"possessions.custom": [{slug: "custom-1", label: "A locket"}]}
@@ -1022,6 +1094,74 @@ describe("buildSnapshot — inventory.possessions", () => {
 				specialPossessions: SP
 			})).build().buildSnapshot();
 		expect(snap.inventory.possessions.isIncomplete).toBe(false);
+	});
+
+	// ── choiceSummary (sacred-pouch flavor + remarkable trait) ─────────────────
+	// A possession with `choiceGroups` (the Blessed's sacred pouch) surfaces the
+	// player's picks as a read-only prose summary woven under the description.
+	const SP_FLAVOR = {
+		pickNote: "Pick 1", pickCount: 1, preselected: ["pouch"],
+		options: [{
+			slug: "pouch", label: "Sacred Pouch", description: "<p>A pouch.</p>",
+			choiceGroups: [
+				{ heading: "Your sacred pouch is...", note: "choose 1 on each line", subgroups: [
+					{ pickCount: 1, options: [
+						{slug: "origin-heirloom", label: "an heirloom made just for you"},
+						{slug: "origin-own-work", label: "your own work"},
+					]},
+					{ pickCount: 1, options: [
+						{slug: "material-fur", label: "fur"},
+						{slug: "material-woven", label: "woven"},
+					]},
+				]},
+				{ heading: "What remarkable trait does it possess?", note: "choose 1", subgroups: [
+					{ multiSelect: true, options: [
+						{slug: "trait-indestructible", label: "It cannot be cut, torn, or burned."},
+						{slug: "trait-unnoticed", label: "Ignored unless specifically sought."},
+					]},
+				]},
+			],
+		}],
+	};
+
+	const pouchSummary = async (subChoices) => {
+		const actor = makeHeavyActor({flags: subChoices ? {"possessions.subChoices": subChoices} : {}});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository({...HEAVY_PLAYBOOK, specialPossessions: SP_FLAVOR}))
+			.build().buildSnapshot();
+		return snap.inventory.possessions.items.find(i => i.slug === "pouch").choiceSummary;
+	};
+
+	it("choiceSummary is null when no sub-choices are picked", async () => {
+		expect(await pouchSummary(null)).toBeNull();
+	});
+
+	it("choiceSummary groups picks by heading, in book order", async () => {
+		const summary = await pouchSummary({
+			pouch: ["material-fur", "origin-heirloom", "trait-indestructible"],
+		});
+		expect(summary).toEqual([
+			{ heading: "Your sacred pouch is...", selections: "an heirloom made just for you, fur" },
+			{ heading: "What remarkable trait does it possess?", selections: "It cannot be cut, torn, or burned." },
+		]);
+	});
+
+	it("choiceSummary lists every remarkable trait (Big Magic adds more)", async () => {
+		const summary = await pouchSummary({
+			pouch: ["trait-unnoticed", "trait-indestructible"],
+		});
+		// Both traits, in book order regardless of pick order.
+		expect(summary).toEqual([
+			{ heading: "What remarkable trait does it possess?",
+			  selections: "It cannot be cut, torn, or burned., Ignored unless specifically sought." },
+		]);
+	});
+
+	it("choiceSummary omits a group with no picks", async () => {
+		const summary = await pouchSummary({ pouch: ["origin-own-work"] });
+		expect(summary).toEqual([
+			{ heading: "Your sacred pouch is...", selections: "your own work" },
+		]);
 	});
 });
 
@@ -1587,5 +1727,74 @@ describe("buildSnapshot - homefront moves", () => {
 
 		expect(homefront.moves[0].rollType).toBe("ask");
 		expect(homefront.moves[0].rollLabel).toBe("Population");
+	});
+});
+
+// ── possession choices: move triggers, caps, open-slot detection ───────────────
+// Backs the sacred-pouch editor: which moves grant a sub-choice (Big Magic → pouch),
+// owned-move counts that scale the cap, and whether gaining a move frees a new slot.
+describe("possession choices: triggers + open-slot detection", () => {
+	const SP_CAP = {
+		pickNote: "Pick 1", pickCount: 1, preselected: ["pouch"],
+		options: [
+			{
+				slug: "pouch", label: "Sacred Pouch", description: "<p>A pouch.</p>",
+				choiceGroups: [
+					{ heading: "Your sacred pouch is...", subgroups: [
+						{ options: [{slug: "o-a", label: "a"}, {slug: "o-b", label: "b"}] },
+					]},
+					{ heading: "What remarkable trait does it possess?", subgroups: [
+						{ multiSelect: true, maxSelect: 1,
+						  maxSelectBonus: { moveBonus: [{ moveName: "Big Magic", perInstance: 1 }] },
+						  options: [{slug: "t-a", label: "A"}, {slug: "t-b", label: "B"}] },
+					]},
+				],
+			},
+			{ slug: "apiary", label: "Apiary", description: "" },
+		],
+	};
+	const PB = { specialPossessions: SP_CAP };
+	const move = name => ({ type: "move", name });
+	const charWith = (items = [], flags = {}) =>
+		new TestCharacterBuilder(makeHeavyActor({ items, flags }))
+			.withPlaybookRepo(new FakePlaybookRepository({ ...HEAVY_PLAYBOOK, specialPossessions: SP_CAP }))
+			.build();
+
+	it("ownedMoveCounts counts move items by name (ignoring non-moves)", () => {
+		const c = charWith([move("Big Magic"), move("Big Magic"), move("Veil"), { type: "weapon", name: "Spear" }]);
+		expect(c.ownedMoveCounts()).toEqual({ "Big Magic": 2, "Veil": 1 });
+	});
+
+	it("possessionTriggerMoves maps a cap move to its selected possession", () => {
+		expect(charWith().possessionTriggerMoves(PB)).toEqual({ "Big Magic": "pouch" });
+	});
+
+	it("possessionTriggerMoves is empty when the possession isn't selected", () => {
+		const sp = { ...SP_CAP, preselected: [] };
+		const c = new TestCharacterBuilder(makeHeavyActor())
+			.withPlaybookRepo(new FakePlaybookRepository({ ...HEAVY_PLAYBOOK, specialPossessions: sp })).build();
+		expect(c.possessionTriggerMoves({ specialPossessions: sp })).toEqual({});
+	});
+
+	it("possessionWithOpenChoiceFor returns the pouch when Big Magic frees a slot", async () => {
+		const c = charWith([move("Big Magic")]); // cap 2, 0 traits chosen
+		expect(await c.possessionWithOpenChoiceFor("Big Magic")).toBe("pouch");
+	});
+
+	it("possessionWithOpenChoiceFor is null when trait slots are full", async () => {
+		// No Big Magic → cap 1; one trait chosen → full.
+		const c = charWith([], { "possessions.subChoices": { pouch: ["t-a"] } });
+		expect(await c.possessionWithOpenChoiceFor("Big Magic")).toBeNull();
+	});
+
+	it("possessionWithOpenChoiceFor ignores moves unrelated to any possession", async () => {
+		const c = charWith([move("Big Magic")]);
+		expect(await c.possessionWithOpenChoiceFor("Veil")).toBeNull();
+	});
+
+	it("possession snapshot flags hasChoiceGroups only for the selected pouch", async () => {
+		const snap = await charWith().buildSnapshot();
+		expect(snap.inventory.possessions.items.find(i => i.slug === "pouch").hasChoiceGroups).toBe(true);
+		expect(snap.inventory.possessions.items.find(i => i.slug === "apiary").hasChoiceGroups).toBe(false);
 	});
 });

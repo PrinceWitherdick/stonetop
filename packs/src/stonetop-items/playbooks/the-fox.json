@@ -13,11 +13,17 @@
         "choices": [
           {
             "label": "Choose one",
-            "options": ["Ambush", "Skill at Arms"]
+            "options": [
+              "Ambush",
+              "Skill at Arms"
+            ]
           },
           {
             "label": "Choose one",
-            "options": ["Danger Sense", "Perceptive"]
+            "options": [
+              "Danger Sense",
+              "Perceptive"
+            ]
           }
         ]
       },
@@ -38,8 +44,14 @@
                 "label": "Extra move",
                 "apply": "move",
                 "options": [
-                  { "value": "Burgle", "label": "Burgle" },
-                  { "value": "Light Fingers", "label": "Light Fingers" }
+                  {
+                    "value": "Burgle",
+                    "label": "Burgle"
+                  },
+                  {
+                    "value": "Light Fingers",
+                    "label": "Light Fingers"
+                  }
                 ]
               },
               {
@@ -47,8 +59,14 @@
                 "label": "Extra special possession",
                 "apply": "possession",
                 "options": [
-                  { "value": "burglars-kit", "label": "Burglar's kit" },
-                  { "value": "hidden-stash", "label": "Hidden stash" }
+                  {
+                    "value": "burglars-kit",
+                    "label": "Burglar's kit"
+                  },
+                  {
+                    "value": "hidden-stash",
+                    "label": "Hidden stash"
+                  }
                 ]
               }
             ]
@@ -173,17 +191,118 @@
           {
             "slug": "burglars-kit",
             "label": "Burglar's kit",
-            "description": "picks, files, snippers, wire, ◇ prybars, ◇ hacksaws, ◇ a lantern (○○○○○ hours, <em>close, area</em>), ◇ a grappling hook, etc."
+            "description": "picks, files, snippers, wire, ◇ prybars, ◇ hacksaws, ◇ a lantern (○○○○○ hours, <em>close, area</em>), ◇ a grappling hook, etc.",
+            "grantsItems": [
+              {
+                "name": "Picks",
+                "column": "small"
+              },
+              {
+                "name": "Files",
+                "column": "small"
+              },
+              {
+                "name": "Snippers",
+                "column": "small"
+              },
+              {
+                "name": "Wire",
+                "column": "small"
+              },
+              {
+                "name": "Prybars",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Hacksaws",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Lantern (close, area)",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Grappling hook",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "carpenters-tools",
             "label": "Carpenter's tools",
-            "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc."
+            "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc.",
+            "grantsItems": [
+              {
+                "name": "Chisels",
+                "column": "small"
+              },
+              {
+                "name": "Files",
+                "column": "small"
+              },
+              {
+                "name": "Nails",
+                "column": "small"
+              },
+              {
+                "name": "Pitch",
+                "column": "small"
+              },
+              {
+                "name": "Firkins",
+                "column": "small"
+              },
+              {
+                "name": "Barrels",
+                "column": "small"
+              },
+              {
+                "name": "Prybars",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Saws",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "distillery",
             "label": "Distillery",
             "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+            "grantsItems": [
+              {
+                "name": "Fine whisky (advantage to Persuade)",
+                "column": "small"
+              },
+              {
+                "name": "Copper tubes",
+                "column": "small"
+              },
+              {
+                "name": "Malt",
+                "column": "small"
+              },
+              {
+                "name": "Stills",
+                "column": "small"
+              },
+              {
+                "name": "Barrels",
+                "column": "small"
+              },
+              {
+                "name": "Firkins",
+                "column": "regular",
+                "weight": 1
+              }
+            ],
             "resource": {
               "max": 2,
               "title": null,
@@ -203,22 +322,137 @@
           {
             "slug": "mummers-kit",
             "label": "Mummer's kit",
-            "description": "juggling balls, whirlybird seeds, motley, ribbons, bells, ◇ puppets, ◇ a fiddle, etc."
+            "description": "juggling balls, whirlybird seeds, motley, ribbons, bells, ◇ puppets, ◇ a fiddle, etc.",
+            "grantsItems": [
+              {
+                "name": "Juggling balls",
+                "column": "small"
+              },
+              {
+                "name": "Whirlybird seeds",
+                "column": "small"
+              },
+              {
+                "name": "Motley",
+                "column": "small"
+              },
+              {
+                "name": "Ribbons",
+                "column": "small"
+              },
+              {
+                "name": "Bells",
+                "column": "small"
+              },
+              {
+                "name": "Puppets",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Fiddle",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "scribes-tools",
             "label": "Scribe's tools",
-            "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+            "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc.",
+            "grantsItems": [
+              {
+                "name": "Parchment",
+                "column": "small"
+              },
+              {
+                "name": "Ink",
+                "column": "small"
+              },
+              {
+                "name": "Pigments",
+                "column": "small"
+              },
+              {
+                "name": "Vials",
+                "column": "small"
+              },
+              {
+                "name": "Quills",
+                "column": "small"
+              },
+              {
+                "name": "Notebook",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "tannery",
             "label": "Tannery",
-            "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc."
+            "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc.",
+            "grantsItems": [
+              {
+                "name": "Lime",
+                "column": "small"
+              },
+              {
+                "name": "Acid",
+                "column": "small"
+              },
+              {
+                "name": "Salts",
+                "column": "small"
+              },
+              {
+                "name": "Thick gloves",
+                "column": "small"
+              },
+              {
+                "name": "Boiled leather cuirass (1 armor)",
+                "column": "regular",
+                "weight": 1,
+                "armor": {
+                  "modifier": 1
+                }
+              }
+            ]
           },
           {
             "slug": "trade-contacts",
             "label": "Trade contacts",
-            "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc."
+            "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc.",
+            "grantsItems": [
+              {
+                "name": "Salt",
+                "column": "small"
+              },
+              {
+                "name": "Glass",
+                "column": "small"
+              },
+              {
+                "name": "Silk",
+                "column": "small"
+              },
+              {
+                "name": "Spice",
+                "column": "small"
+              },
+              {
+                "name": "Medicinal herbs",
+                "column": "small"
+              },
+              {
+                "name": "Pigments",
+                "column": "small"
+              },
+              {
+                "name": "Ivory",
+                "column": "small"
+              }
+            ]
           }
         ]
       },
