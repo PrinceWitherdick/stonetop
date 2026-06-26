@@ -220,7 +220,6 @@ Hooks.once("init", () => {
 		"stonetop.lore-options-edit":     "systems/stonetop_pwd/templates/actor/partials/lore-options-edit.hbs",
 		"stonetop.lore-options-readonly": "systems/stonetop_pwd/templates/actor/partials/lore-options-readonly.hbs",
 		"stonetop.lore-arcana-image":     "systems/stonetop_pwd/templates/actor/partials/lore-arcana-image.hbs",
-		"stonetop.possession-choice-groups": "systems/stonetop_pwd/templates/actor/partials/possession-choice-groups.hbs",
 		"stonetop.section-heading":  "systems/stonetop_pwd/templates/actor/partials/section-heading.hbs",
 		"stonetop.section-edit-toggle": "systems/stonetop_pwd/templates/actor/partials/section-edit-toggle.hbs",
 		"stonetop.details-section-edit-toggle": "systems/stonetop_pwd/templates/actor/partials/details-section-edit-toggle.hbs",
@@ -417,7 +416,7 @@ function _chatWireRollShifting(message, html) {
 
 // -- BURN BRIGHTLY ---------------------------------------------
 const BURN_BRIGHTLY_TOOLTIP =
-	"When you have enough XP to Level Up (6 + twice your current level), " +
+	"When you have enough XP to Level Up, " +
 	"you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).";
 
 function _chatWireBurnBrightly(message, html) {

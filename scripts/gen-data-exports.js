@@ -87,12 +87,17 @@ function cleanMove(doc) {
     }
     if (s.resource?.max) out.resource = cleanResource(s.resource);
     if (s.isStartingMove) out.isStartingMove = true;
-    if (s.requirement && (s.requirement.level > 1 || s.requirement.moves?.length)) {
+    if (s.requirement && (s.requirement.level > 1 || s.requirement.moves?.length || s.requirement.note)) {
         out.requirement = {};
         if (s.requirement.level > 1) out.requirement.level = s.requirement.level;
         if (s.requirement.moves?.length) out.requirement.moves = s.requirement.moves;
+        // Display-only prerequisite the engine can't check mechanically (e.g. "Strength
+        // +2 or higher") — shown to the player but never used to lock the move.
+        if (s.requirement.note) out.requirement.note = s.requirement.note;
     }
     if (s.repeatMax) out.repeatMax = s.repeatMax;
+    // Stat-increase ceiling (Improved Stat = 2, Superior Stat = 3).
+    if (s.cap != null) out.cap = s.cap;
     if (s.replaces) out.replaces = s.replaces;
     return out;
 }

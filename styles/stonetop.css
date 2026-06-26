@@ -212,6 +212,12 @@
 	--st-green-bg-hover: hsl(140 35% 82%);
 	--st-green-text:     hsl(140 40% 18%);
 
+	/* ── Level-up cue ─────────────────────────────────────────────────────
+	   The "you can advance" upgrade icon on the vitals Level cell — a vivid
+	   green that reads as go/advance and stands out from the black sheet text. */
+	--st-levelup-accent:       hsl(140 60% 38%);
+	--st-levelup-accent-hover: hsl(140 65% 30%);
+
 	/* ── Blue "step/sequence" tint ────────────────────────────────────────
 	   Mirrors the green accent palette for ordered, numbered sequences — the
 	   circle step badges in the Welcome guide read as steps, not active states. */
@@ -816,6 +822,42 @@ body {
 	font-size: calc(1.1rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	line-height: 1;
+}
+
+/* Level cell: title + (when XP is full) the level-up cue, centered on one row.
+   The row owns the title→input gap so the label and icon share a single line and
+   stay vertically centred with each other (the label's own margin-bottom is zeroed
+   here, otherwise it would nudge the text up a pixel relative to the icon). */
+.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	margin-bottom: 2px;
+}
+
+.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row .cell__title {
+	margin-bottom: 0;
+}
+
+/* "Ready to level up" cue — the upgrade.svg masked so the accent colour fills it,
+   not the SVG's own black. Clicking opens the Level Up dialog (same handler as the
+   Special Moves tab button). */
+.stonetop-levelup-icon {
+	display: inline-block;
+	width: 15px;
+	height: 15px;
+	flex-shrink: 0;
+	cursor: pointer;
+	background-color: var(--st-levelup-accent);
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/upgrade.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop_pwd/assets/icons/upgrade.svg') center / contain no-repeat;
+	transition: background-color 0.12s, transform 0.12s;
+}
+
+.stonetop-levelup-icon:hover {
+	background-color: var(--st-levelup-accent-hover);
+	transform: scale(1.18);
 }
 
 /* Number cell (Armor, Level) */
@@ -3158,6 +3200,29 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	opacity: 0.4;
 }
 
+/* A move the player OWNS but whose prerequisites are no longer satisfied (they
+   edited their learned moves and lost a required move). Unlike `.move-locked`
+   (an un-takeable move, faded out), this must STAND OUT so the broken
+   prerequisite is noticed — a red border, tint, and inset left stripe (the
+   stripe via box-shadow so it adds no width and never shifts the row). */
+.tab.moves .stonetop-item.move-requirements-unmet {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+	box-shadow: inset 3px 0 0 var(--st-red-border);
+	opacity: 1;
+}
+
+.stonetop-move-req-warning {
+	margin-left: 5px;
+	color: var(--st-red-text);
+}
+
+.stonetop-move-note--unmet {
+	color: var(--st-red-text);
+	font-style: normal;
+	font-weight: 600;
+}
+
 .stonetop-item.move-unowned {
 	opacity: 0.5;
 }
@@ -3174,7 +3239,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-item-resources {
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: 2px;
 	flex-shrink: 0;
 }
 
@@ -5598,6 +5663,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* ── Level Up dialog ────────────────────────────────────────────── */
 
 .stonetop-eos-dialog .window-content,
+/* Cap the dialog height so the tall steps (the move grid, the 12-item invocation
+   list) scroll inside a comfortable window instead of ballooning to the full
+   viewport. The short steps (overview, the stat picker that follows a move) stay
+   snug because the window height is otherwise auto/fit-to-content — see
+   LevelUpDialog._applyStepSize. */
+.stonetop-levelup-dialog {
+	max-height: min(860px, 90vh);
+}
+
 .stonetop-levelup-dialog .window-content {
 	height: 100%;
 	overflow: hidden;
@@ -5626,21 +5700,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 0;
 	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	line-height: 1.45;
-}
-
-.stonetop-levelup-rule-list {
-	margin: 0;
-	padding: 6px 8px 6px 24px;
-	border: 1px solid var(--color-border-light-2);
-	border-radius: var(--st-radius);
-	background: rgba(0, 0, 0, 0.03);
-	font-size: var(--st-fs-sm);
-	line-height: 1.35;
-	color: var(--color-text-dark-secondary);
-}
-
-.stonetop-levelup-rule-list li {
-	margin: 2px 0;
 }
 
 /* XP / Level summary table */
@@ -5730,8 +5789,36 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	pointer-events: none;
 }
 
-/* Move list */
-.stonetop-levelup-move-list,
+/* Move list — scroll container for the masonry columns. */
+.stonetop-levelup-move-list {
+	flex: 1;
+	overflow-y: auto;
+}
+
+/*
+ * Masonry-style move grid: variable-height cards pack tightly into balanced
+ * columns (multi-column, not CSS grid, whose row tracks would leave gaps).
+ * Up to two columns, dropping to one when the window is narrowed. The columns
+ * live in their own auto-height wrapper so the list scrolls VERTICALLY — a
+ * multi-column box with a constrained height overflows sideways instead.
+ */
+.stonetop-levelup-move-grid {
+	columns: 210px 2;
+	column-gap: 6px;
+}
+
+.stonetop-levelup-move-grid > .stonetop-levelup-move-option {
+	break-inside: avoid;
+	-webkit-column-break-inside: avoid;
+	margin-bottom: 6px;
+}
+
+/* Section divider spans across the columns. */
+.stonetop-levelup-move-grid > .stonetop-levelup-locked-divider {
+	column-span: all;
+	margin-bottom: 6px;
+}
+
 .stonetop-levelup-invocation-list {
 	display: flex;
 	flex-direction: column;
@@ -5793,6 +5880,58 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 0;
 	font-size: var(--st-fs-base);
 	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+/* Stat-increase picker (Improved / Superior Stat) */
+.stonetop-levelup-stat-cap-note {
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-levelup-stat-list {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.stonetop-levelup-stat-option {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 12px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: var(--st-radius);
+	cursor: pointer;
+	background: rgba(0, 0, 0, 0.02);
+	transition: background 0.1s, border-color 0.1s;
+}
+
+.stonetop-levelup-stat-option:hover {
+	background: rgba(0, 0, 0, 0.06);
+}
+
+.stonetop-levelup-stat-option.is-selected {
+	background: rgba(201, 162, 39, 0.12);
+	border-color: #c9a227;
+}
+
+.stonetop-levelup-stat-option.is-at-cap {
+	cursor: not-allowed;
+	opacity: 0.45;
+	background: rgba(0, 0, 0, 0.02);
+}
+
+.stonetop-levelup-stat-name {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+}
+
+.stonetop-levelup-stat-value {
+	font-variant-numeric: tabular-nums;
 	color: var(--color-text-dark-secondary);
 }
 
@@ -9029,7 +9168,8 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 }
 
 /* Move filter search bar */
-.stonetop-onboarding-move-search {
+.stonetop-onboarding-move-search,
+.stonetop-levelup-move-search {
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -9040,14 +9180,17 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	border-radius: var(--st-radius-sm);
 }
 
-.stonetop-onboarding-move-search:focus-within { border-color: slategrey; }
+.stonetop-onboarding-move-search:focus-within,
+.stonetop-levelup-move-search:focus-within { border-color: slategrey; }
 
-.stonetop-onboarding-move-search i {
+.stonetop-onboarding-move-search i,
+.stonetop-levelup-move-search i {
 	color: slategrey;
 	font-size: var(--st-fs-sm);
 }
 
-.stonetop-onboarding .stonetop-onboarding-move-search input {
+.stonetop-onboarding .stonetop-onboarding-move-search input,
+.stonetop-levelup-dialog .stonetop-levelup-move-search input {
 	flex: 1;
 	appearance: none;
 	/* pbta's high-specificity base input rules (7-class chain) otherwise win and
@@ -9061,21 +9204,24 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	font-size: var(--st-fs-base);
 }
 
-.stonetop-onboarding .stonetop-onboarding-move-search input:focus {
+.stonetop-onboarding .stonetop-onboarding-move-search input:focus,
+.stonetop-levelup-dialog .stonetop-levelup-move-search input:focus {
 	outline: none;
 	box-shadow: none;
 }
 
 /* Group filter chips (per-playbook). Tap to show only that group; tap again to
    clear. Modeled on .onboard-name-chip with a filled active state. */
-.stonetop-onboarding-move-chips {
+.stonetop-onboarding-move-chips,
+.stonetop-levelup-move-chips {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 	margin: 0 0 10px;
 }
 
-.stonetop-onboarding-move-chip {
+.stonetop-onboarding-move-chip,
+.stonetop-levelup-move-chip {
 	display: inline-flex;
 	align-items: center;
 	width: auto;
@@ -9092,7 +9238,8 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	transition: border-color 0.12s, background 0.12s, color 0.12s;
 }
 
-.stonetop-onboarding-move-chip:hover {
+.stonetop-onboarding-move-chip:hover,
+.stonetop-levelup-move-chip:hover {
 	border-color: slategrey;
 	background: hsl(210 15% 94%);
 }
@@ -9101,18 +9248,22 @@ input[type="checkbox"].steading-improvement-complete:disabled,
    after the click because the chip keeps focus) so a deselected chip clears its
    highlight instantly instead of holding the glow until it loses focus. */
 .stonetop-onboarding-move-chip:focus,
-.stonetop-onboarding-move-chip:active {
+.stonetop-onboarding-move-chip:active,
+.stonetop-levelup-move-chip:focus,
+.stonetop-levelup-move-chip:active {
 	box-shadow: none;
 	outline: none;
 }
 
-.stonetop-onboarding-move-chip.is-active {
+.stonetop-onboarding-move-chip.is-active,
+.stonetop-levelup-move-chip.is-active {
 	color: white;
 	background: slategrey;
 	border-color: slategrey;
 }
 
-.stonetop-onboarding-card--move.is-filtered-out { display: none; }
+.stonetop-onboarding-card--move.is-filtered-out,
+.stonetop-levelup-move-option.is-filtered-out { display: none; }
 
 /* "Either X OR Y" starting-move choice (e.g. the Heavy's Armored OR Uncanny
    Reflexes): a radio group of move cards, spaced off from the free-pick list.

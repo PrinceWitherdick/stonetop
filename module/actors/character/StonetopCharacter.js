@@ -984,9 +984,10 @@ export class StonetopCharacter {
 
 	async addMove(compendiumId, { skipIfOwned = false } = {}) {
 		const doc = await this._moveRepo.getPlaybookMoveDocument(compendiumId);
-		if (!doc) return;
-		if (skipIfOwned && this._actor.items.some(i => i.type === "move" && i.name === doc.name)) return;
-		await this._actor.createEmbeddedDocuments("Item", [doc.toObject()]);
+		if (!doc) return null;
+		if (skipIfOwned && this._actor.items.some(i => i.type === "move" && i.name === doc.name)) return null;
+		const created = await this._actor.createEmbeddedDocuments("Item", [doc.toObject()]);
+		return created?.[0] ?? null;
 	}
 
 	async addPlaybookMoveByName(playbookName, moveName) {
@@ -1184,7 +1185,7 @@ export class StonetopCharacter {
 			const entries     = await this._moveRepo.getPlaybookMoves(playbookData.name);
 			const all = this.sortPlaybookMoves(
 				this.buildMovelistContext(entries, ownedAllByName, bgMoveNames, newLevel, playbookData.name)
-			).filter(e => !e.owned);
+			).filter(e => !e.owned || (e.repeatable && e.ownedIds.length < e.repeatMax));
 			availableMoves = all.filter(e => !e.locked);
 			lockedMoves    = all.filter(e => e.locked);
 		}
@@ -1200,14 +1201,25 @@ export class StonetopCharacter {
 		return {
 			level, xp, cost, newLevel,
 			xpRemaining: xp - cost,
+			playbookName: playbookData?.name ?? null,
 			availableMoves,
 			lockedMoves,
 			needsInvocation,
 			availableInvocations,
+			// Current stat values, so the stat-increase picker can grey out any stat
+			// already at the chosen move's cap (+2 / +3).
+			stats: Object.entries(_STAT_DEFS).map(([key, { name, abbr }]) => ({
+				key, name, abbr, value: actor.system?.stats?.[key]?.value ?? 0,
+			})),
 		};
 	}
 
-	async applyLevelUp(selectedMoveCompendiumId, selectedInvocationSlug) {
+	// `choices` carries any decision the picked move demands at acquisition. Today that
+	// is `{ stat, cap }` for the stat-increase moves (Improved/Superior Stat); the dialog
+	// collects it, this commits it. The move is added first so the choice can key off the
+	// new item's id, then the choice is applied — a mid-flow failure leaves the move owned
+	// (its choice re-collectable from the card) rather than a half-applied stat bump.
+	async applyLevelUp(selectedMoveCompendiumId, selectedInvocationSlug, choices = null) {
 		const level = this._actor.system?.attributes?.level?.value ?? 1;
 		const xp    = this._actor.system?.attributes?.xp?.value ?? 0;
 		const cost  = 6 + level * 2;
@@ -1215,12 +1227,31 @@ export class StonetopCharacter {
 			"system.attributes.level.value": level + 1,
 			"system.attributes.xp.value":   Math.max(0, xp - cost),
 		});
+		let addedItem = null;
 		if (selectedMoveCompendiumId) {
-			await this.addMove(selectedMoveCompendiumId);
+			addedItem = await this.addMove(selectedMoveCompendiumId);
+		}
+		if (addedItem && choices?.stat) {
+			await this._applyStatIncreaseChoice(addedItem, choices.stat, choices.cap ?? null);
 		}
 		if (selectedInvocationSlug) {
 			const current = this._actor.getFlag("stonetop_pwd", "invocations.selected") ?? [];
 			await this._actor.setFlag("stonetop_pwd", "invocations.selected", [...current, selectedInvocationSlug]);
+		}
+	}
+
+	// Record an Improved/Superior Stat pick: remember which stat this move instance raised
+	// (keyed by the new item's id, so a repeatable Improved Stat's instances stay distinct
+	// and the "+1 STR" chip renders on the right card), then bump that stat by +1, clamped
+	// to the move's cap (+2 / +3). Tagged with the move name so the ledger reads "via …".
+	async _applyStatIncreaseChoice(moveItem, statKey, cap) {
+		if (!_STAT_DEFS[statKey]) return;
+		const choices = { ...(this._actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {}), [moveItem.id]: statKey };
+		await this._actor.setFlag(STONETOP_SCOPE, "improvedStatChoices", choices);
+		const current = this._actor.system?.stats?.[statKey]?.value ?? 0;
+		const next    = cap != null ? Math.min(current + 1, cap) : current + 1;
+		if (next > current) {
+			await this._actor.update({ [`system.stats.${statKey}.value`]: next }, { stonetopMove: moveItem.name });
 		}
 	}
 
@@ -1503,7 +1534,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 
 	const markOptions = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {});
 
-	const statChoices = (entry.name === "Improved Stat" && entry.ownedIds.length > 0)
+	const statChoices = (entry.cap != null && entry.ownedIds.length > 0)
 		? entry.ownedIds
 			.map(ownedId => {
 				const statKey = improvedStatChoices[ownedId] ?? null;
@@ -1527,6 +1558,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withOwned(entry.owned)
 		.withOwnedIds(entry.ownedIds)
 		.withLocked(entry.locked)
+		.withRequirementsUnmet(entry.requirementsUnmet)
 		.withRequirement(requirement)
 		.withRequiresLabel(requirement?.label ?? null)
 		.withResource(resource)

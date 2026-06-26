@@ -135,6 +135,7 @@
       "description": "<p>Each time you take this move, increase one of your stats by 1 (to a max of +2).</p>",
       "rollType": null,
       "repeatMax": 3,
+      "cap": 2,
       "playbook": "The Judge"
     },
     {
@@ -191,6 +192,7 @@
       "requirement": {
         "level": 6
       },
+      "cap": 3,
       "playbook": "The Judge"
     },
     {
@@ -380,6 +382,7 @@
       "description": "<p>Each time you take this move, increase one of your stats by 1 (to a max of +2).</p>",
       "rollType": null,
       "repeatMax": 3,
+      "cap": 2,
       "playbook": "The Lightbearer"
     },
     {
@@ -521,6 +524,7 @@
       "requirement": {
         "level": 6
       },
+      "cap": 3,
       "playbook": "The Lightbearer"
     },
     {
@@ -610,6 +614,7 @@
       "description": "<p>Each time you take this move, increase one of your stats by 1 (to a max of +2).</p>",
       "rollType": null,
       "repeatMax": 3,
+      "cap": 2,
       "playbook": "The Would-Be Hero"
     },
     {
@@ -672,10 +677,9 @@
       "rollType": null,
       "requirement": {
         "level": 6,
-        "moves": [
-          "All 6 marks in Potential for Greatness"
-        ]
+        "note": "All 6 marks in Potential for Greatness"
       },
+      "cap": 3,
       "playbook": "The Would-Be Hero"
     },
     {
@@ -871,6 +875,7 @@
       "description": "<p>Each time you take this move, increase one of your stats by 1 (to a max of +2).</p>",
       "rollType": null,
       "repeatMax": 3,
+      "cap": 2,
       "playbook": "The Ranger"
     },
     {
@@ -939,6 +944,7 @@
       "requirement": {
         "level": 6
       },
+      "cap": 3,
       "playbook": "The Ranger"
     },
     {
@@ -1137,6 +1143,7 @@
       "description": "<p>Each time you take this move, increase one of your stats by 1 (to a max of +2).</p>",
       "rollType": null,
       "repeatMax": 3,
+      "cap": 2,
       "playbook": "The Fox"
     },
     {
@@ -1262,6 +1269,7 @@
       "requirement": {
         "level": 6
       },
+      "cap": 3,
       "playbook": "The Fox"
     },
     {
@@ -1379,6 +1387,7 @@
       "description": "<p>Each time you take this move, increase one of your stats by 1 (to a max of +2).</p>",
       "rollType": null,
       "repeatMax": 3,
+      "cap": 2,
       "playbook": "The Blessed"
     },
     {
@@ -1479,6 +1488,7 @@
       "requirement": {
         "level": 6
       },
+      "cap": 3,
       "playbook": "The Blessed"
     },
     {
@@ -1645,6 +1655,7 @@
       "description": "<p>Each time you take this move, increase one of your stats by 1 (to a max of +2).</p>",
       "rollType": null,
       "repeatMax": 3,
+      "cap": 2,
       "playbook": "The Seeker"
     },
     {
@@ -1774,6 +1785,7 @@
       "requirement": {
         "level": 6
       },
+      "cap": 3,
       "playbook": "The Seeker"
     },
     {
@@ -1940,6 +1952,7 @@
       "description": "<p>Each time you take this move, increase one of your stats by 1 (to a max of +2).</p>",
       "rollType": null,
       "repeatMax": 3,
+      "cap": 2,
       "playbook": "The Heavy"
     },
     {
@@ -1965,9 +1978,7 @@
       "description": "<p>When you <strong><em>make a hand-to-hand or thrown attack</em></strong>, it's forceful and messy. If it would already be forceful and/or messy, it's even more so.</p>",
       "rollType": null,
       "requirement": {
-        "moves": [
-          "Strength +2 or higher"
-        ]
+        "note": "Strength +2 or higher"
       },
       "playbook": "The Heavy"
     },
@@ -2041,6 +2052,7 @@
       "requirement": {
         "level": 6
       },
+      "cap": 3,
       "playbook": "The Heavy"
     },
     {
@@ -2152,6 +2164,7 @@
       "description": "<p>Each time you take this move, increase one of your stats by 1 (to a max of +2).</p>",
       "rollType": null,
       "repeatMax": 3,
+      "cap": 2,
       "playbook": "The Marshal"
     },
     {
@@ -2290,6 +2303,7 @@
       "requirement": {
         "level": 6
       },
+      "cap": 3,
       "playbook": "The Marshal"
     },
     {

@@ -2,7 +2,7 @@ import { MoveDefinition } from "../../../model/MoveDefinition.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
 
 const PLAYBOOK_FIELDS   = ["system.playbook", "system.isStartingMove", "system.requirement",
-                            "system.rollType", "system.description", "system.repeatMax", "system.resource",
+                            "system.rollType", "system.description", "system.repeatMax", "system.cap", "system.resource",
                             "system.hpBonus", "system.armorBonus", "system.loadBonus", "system.markOptions", "system.asterisk"];
 const POST_DEATH_FIELDS = ["system.playbook", "system.rollType", "system.description", "system.resource"];
 

@@ -16,9 +16,9 @@
 	<ol class="items-list">
 	{{#each moves}}
 		{{#if (and owned rollType)}}
-		<li class="item stonetop-item is-checked{{#if isStarting}} move-starting{{/if}}" data-item-id="{{ownedId}}">
+		<li class="item stonetop-item is-checked{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if isStarting}} move-starting{{/if}}" data-item-id="{{ownedId}}">
 		{{else}}
-		<li class="stonetop-item{{#if owned}} is-checked{{/if}}{{#if locked}} move-locked{{/if}}{{#if isStarting}} move-starting{{/if}}">
+		<li class="stonetop-item{{#if owned}} is-checked{{/if}}{{#if (and locked (not owned))}} move-locked{{/if}}{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if isStarting}} move-starting{{/if}}">
 		{{/if}}
 			<div class="stonetop-item-header">
 				{{#if repeatable}}
@@ -27,6 +27,7 @@
 					<input type="checkbox" class="stonetop-item-check stonetop-repeat-check"
 					       data-compendium-id="{{../compendiumId}}"
 					       data-owned-id="{{ownedId}}"
+					       data-move-name="{{../name}}"
 					       {{#if checked}}checked{{/if}}
 					       {{#if (or disabled (not @root.stonetop.movesEdit))}}disabled{{/if}}>
 					{{/each}}
@@ -35,11 +36,15 @@
 				<input type="checkbox" class="stonetop-item-check stonetop-move-check"
 				       data-compendium-id="{{compendiumId}}"
 				       data-owned-id="{{ownedId}}"
+				       data-move-name="{{name}}"
 				       {{#if owned}}checked{{/if}}
 				       {{!-- An owned starting move is locked (can't be dropped); an UNowned one
 				             — the unpicked side of an "either X OR Y" choice — stays pickable
-				             in edit mode so the choice can be made/changed by hand on the sheet. --}}
-				       {{#if (or (and isStarting owned) locked (not @root.stonetop.movesEdit))}}disabled{{/if}}>
+				             in edit mode so the choice can be made/changed by hand on the sheet.
+			             A move whose requirements aren't met stays faded (.move-locked) but is
+			             still pickable in edit mode, so a player can deliberately learn it anyway
+			             — it then shows the "requirement not met" warning. --}}
+				       {{#if (or (and isStarting owned) (not @root.stonetop.movesEdit))}}disabled{{/if}}>
 				{{/if}}
 				{{#if (and owned rollType)}}
 				<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">
@@ -48,6 +53,7 @@
 				{{/if}}
 				{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
 				<strong class="stonetop-item-name">{{name}}{{#if asterisk}}<span class="stonetop-move-asterisk" data-tooltip="The first time you use this move, cross off &quot;Would-be&quot; — you become a Hero." data-tooltip-direction="UP"> *</span>{{/if}}</strong>
+				{{#if requirementsUnmet}}<i class="fas fa-triangle-exclamation stonetop-move-req-warning" data-tooltip="You own this move but do not meet its requirement{{#if requiresLabel}} ({{requiresLabel}}){{/if}}. Add the missing prerequisite, or drop this move." data-tooltip-direction="UP" aria-hidden="true"></i>{{/if}}
 				{{#if (and owned resource)}}
 				<span class="stonetop-item-resources">
 					{{#if resource.title}}<span class="stonetop-item-resource-title"{{#if resource.spendTooltip}} data-tooltip="{{resource.spendTooltip}}" data-tooltip-direction="UP"{{/if}}>{{resource.title}}</span>{{/if}}
@@ -116,9 +122,9 @@
 				{{backgroundAnswer.label}}: {{backgroundAnswer.value}}
 			</p>
 			{{/if}}
-			{{#if requiresLabel}}<p class="stonetop-move-note">Requires: {{requiresLabel}}</p>{{/if}}
-			{{#if requiresPlaybook}}<p class="stonetop-move-note">Requires {{requiresPlaybook}} playbook</p>{{/if}}
-			{{#if minLevel}}<p class="stonetop-move-note">Level {{minLevel}}+</p>{{/if}}
+			{{#if requiresLabel}}<p class="stonetop-move-note{{#if requirementsUnmet}} stonetop-move-note--unmet{{/if}}">Requires: {{requiresLabel}}{{#if requirementsUnmet}} — not met{{/if}}</p>{{/if}}
+			{{#if requiresPlaybook}}<p class="stonetop-move-note{{#if requirementsUnmet}} stonetop-move-note--unmet{{/if}}">Requires {{requiresPlaybook}} playbook</p>{{/if}}
+			{{#if minLevel}}<p class="stonetop-move-note{{#if requirementsUnmet}} stonetop-move-note--unmet{{/if}}">Level {{minLevel}}+</p>{{/if}}
 		</li>
 	{{/each}}
 	</ol>

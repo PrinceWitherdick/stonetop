@@ -11,6 +11,9 @@ export class MoveDefinition {
 		this.isStarting  = data.system?.isStartingMove  ?? false;
 		this.requirement = data.system?.requirement     ?? null;
 		this.repeatMax   = data.system?.repeatMax       ?? null;
+		// Per-stat ceiling for stat-increase moves (+2 / +3); null otherwise. A non-null
+		// cap marks the move as needing a stat-choice picker at level-up.
+		this.cap         = data.system?.cap             ?? null;
 		this.resource    = data.system?.resource ? new ResourceDef(data.system.resource) : null;
 		this.hpBonus     = data.system?.hpBonus         ?? 0;
 		this.armorBonus  = data.system?.armorBonus      ?? 0;
