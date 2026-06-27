@@ -378,6 +378,53 @@ export class StonetopCharacter {
 			}
 		}
 
+		// "Learned Moves": moves gained from OTHER playbooks via a cross-playbook pick
+		// (Versatile/Worldly/…). They keep their origin playbook in system.playbook (so they
+		// don't surface under the actor's own playbook category) and carry a `grantedBy` item
+		// flag; group them here, labeled with the move that granted them + their origin.
+		const grantedItems = this._actor.items.filter(i => i.type === "move" && i.flags?.[STONETOP_SCOPE]?.grantedBy);
+		if (grantedItems.length > 0) {
+			const learnedResourcesMap = this._moveResources.getMoveResources();
+			const learnedMarksMap     = this._moveResources.getMarks();
+			categories.push(new MoveCategorySnapshotBuilder()
+				.withKey("learned")
+				.withTitle("Learned Moves")
+				.withNote("Moves you've gained from other playbooks.")
+				.withMoves(grantedItems.map(i => {
+					const grantedBy   = i.flags?.[STONETOP_SCOPE]?.grantedBy ?? {};
+					const origin      = i.system?.playbook ?? null;
+					// Full card fidelity: resource track + markOptions, keyed by move NAME (the
+					// same store playbook moves use), so e.g. a learned ammo/Marks track works.
+					const resourceDef = i.system?.resource ?? null;
+					const resource = resourceDef?.max ? new ResourceBuilder()
+						.withCurrent(learnedResourcesMap[i.name] ?? 0)
+						.withMax(resourceDef.max)
+						.withTitle(resourceDef.title ?? null)
+						.withLabels(resourceDef.labels ?? [])
+						.build() : null;
+					const { options: markOptions, budget: markBudget } = _buildMarkOptions(
+						{ markOptions: i.system?.markOptions, markBudget: i.system?.markBudget, ownedIds: [i._id], owned: true },
+						learnedMarksMap[i.name] ?? {});
+					return new MoveSnapshotBuilder()
+						.withId(i._id).withCompendiumId(i._id).withOwnedId(i._id)
+						.withName(i.name)
+						.withDescription(i.system?.description ?? "")
+						.withRollType(i.system?.rollType ?? null)
+						.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
+						.withIsStarting(false)
+						.withSource({ type: "learned" })
+						.withSourceLabel(`Granted by ${grantedBy.move ?? "—"}${origin ? ` · ${origin}` : ""}`)
+						.withOwned(true).withOwnedIds([i._id])
+						.withLocked(false).withRequirement(null).withRequiresLabel(null)
+						.withResource(resource)
+						.withMarkOptions(markOptions).withMarkBudget(markBudget)
+						.withRepeat(null).withRepeatable(false)
+						.build();
+				}))
+				.build()
+			);
+		}
+
 		const basicEntries = (await this._moveRepo.getBasicMoves()).sort((a, b) => {
 			if (a.name === "Aid") return -1;
 			if (b.name === "Aid") return 1;
@@ -635,10 +682,15 @@ export class StonetopCharacter {
 		const preselectedSet = new Set(preselected);
 
 		let chosenCount = 0;
-		const items = options.map(opt => {
+		const items = options
+			// Grant-only possessions (the Seeker's Initiate-granted Sacred Pouch) aren't
+			// pickable here — surface one only once it's actually been granted (selected).
+			.filter(opt => !opt.grantOnly || preselectedSet.has(opt.slug) || selectedSlugs.has(opt.slug))
+			.map(opt => {
 			const isPre = preselectedSet.has(opt.slug);
 			const isSelected = isPre || selectedSlugs.has(opt.slug);
-			if (isSelected && !isPre) chosenCount++;
+			// A granted possession doesn't consume one of the playbook's normal picks.
+			if (isSelected && !isPre && !opt.grantOnly) chosenCount++;
 			const maxUses = maxUsesMap[opt.slug] ?? opt.resource?.max ?? null;
 			const currentUses = isSelected ? (usesMap[opt.slug] ?? 0) : 0;
 			const resourceDef = opt.resource ?? null;
@@ -660,7 +712,10 @@ export class StonetopCharacter {
 				.withDescription(_transformPiercingNote(_stripPossessionUsesAnnotation(opt.description ?? "", resourceDef), prosperity))
 				.withSelected(isSelected)
 				.withChecked(isSelected)
-				.withDisabled(isPre)
+				// A granted grant-only possession (the Initiate Sacred Pouch) is locked like
+				// preselected gear: it can't be re-added from the sheet (it's filtered out of
+				// the picker), so don't let it be accidentally unchecked away either.
+				.withDisabled(isPre || (isSelected && !!opt.grantOnly))
 				.withPreselected(isPre)
 				// Preselected possessions (the Blessed's sacred pouch, Marshal's symbol of
 				// authority, etc.) are starting *gear*, not moves — show no source label
@@ -1354,6 +1409,35 @@ export class StonetopCharacter {
 		};
 	}
 
+	// Cross-playbook foreign-move pickers (Versatile/Worldly/Dabbler/Wild Soul/Initiate of
+	// the Secret Arts/Seasoned Warrior/Arts of War) let the player learn a move from another
+	// playbook "for which they otherwise qualify". Given the picked move's `crossPlaybook`
+	// config + the level being gained, returns the qualifying foreign moves
+	// ({compendiumId, name, description, playbook}), EXCLUDING: Improved/Superior Stat
+	// (cap != null), other cross-playbook moves (no third-playbook chaining), and moves
+	// already owned. The foreign move's own `requirement.playbook` is intentionally IGNORED
+	// — crossing playbooks is the point — but its level + required-move prereqs are honored.
+	async getForeignMovesForLevelUp(crossPlaybook, level) {
+		const ownName = (await this.playbook())?.name ?? this._actor.system?.playbook?.name ?? null;
+		const allowed = crossPlaybook?.playbooks === "any"
+			? _ALL_PLAYBOOK_NAMES.filter(p => p !== ownName)
+			: (crossPlaybook?.playbooks ?? []).filter(p => p !== ownName);
+		const ownedNames = new Set(this._actor.items.filter(i => i.type === "move").map(i => i.name));
+		const out = [], seen = new Set();
+		for (const pb of allowed) {
+			for (const def of await this._moveRepo.getPlaybookMoves(pb)) {
+				if (def.cap != null) continue;          // no Improved/Superior Stat
+				if (def.crossPlaybook) continue;         // no third-playbook chaining
+				if (ownedNames.has(def.name) || seen.has(def.name)) continue;
+				if (!_foreignMoveQualifies(def, ownedNames, level)) continue;
+				seen.add(def.name);
+				out.push({ compendiumId: def.id, name: def.name, description: def.description ?? "", playbook: pb, requiresLabel: _foreignRequiresLabel(def.requirement) });
+			}
+		}
+		out.sort((a, b) => a.playbook.localeCompare(b.playbook) || a.name.localeCompare(b.name));
+		return out;
+	}
+
 	// `choices` carries any decision the picked move demands at acquisition. Today that
 	// is `{ stat, cap }` for the stat-increase moves (Improved/Superior Stat); the dialog
 	// collects it, this commits it. The move is added first so the choice can key off the
@@ -1373,6 +1457,9 @@ export class StonetopCharacter {
 		}
 		if (addedItem && choices?.stat) {
 			await this._applyStatIncreaseChoice(addedItem, choices.stat, choices.cap ?? null);
+		}
+		if (addedItem && choices?.crossPlaybook) {
+			await this._applyForeignMoveChoice(addedItem, choices.foreignMoveId ?? null, choices.grantsPossession ?? null);
 		}
 		if (selectedInvocationSlug) {
 			const current = this._actor.getFlag("stonetop_pwd", "invocations.selected") ?? [];
@@ -1395,6 +1482,23 @@ export class StonetopCharacter {
 		}
 	}
 
+	// Cross-playbook pick (Versatile/Worldly/…): add the chosen foreign move and tag it
+	// "granted by" this cross-playbook move instance, so it renders in the "Learned Moves"
+	// category and a repeatable cross-playbook move can track each pick separately. Some
+	// cross-playbook moves (Initiate of the Secret Arts) also grant a possession — the
+	// Seeker's Sacred Pouch — on first take; the grant is idempotent (skips if already owned).
+	async _applyForeignMoveChoice(crossItem, foreignMoveCompendiumId, grantsPossession) {
+		if (foreignMoveCompendiumId) {
+			const foreign = await this.addMove(foreignMoveCompendiumId);
+			if (foreign) {
+				await foreign.setFlag(STONETOP_SCOPE, "grantedBy", { move: crossItem.name, instanceId: crossItem.id });
+			}
+		}
+		if (grantsPossession && !this._possessions.selected.has(grantsPossession)) {
+			await this.selectPossession(grantsPossession);
+		}
+	}
+
 	_buildOwnedMovesMap() {
 		const map = new Map();
 		for (const item of this._actor.items.filter(i => i.type === "move")) {
@@ -1406,6 +1510,39 @@ export class StonetopCharacter {
 }
 
 // ── Snapshot helpers ──────────────────────────────────────────────────────────
+
+// The 9 playbooks by display name (as stored in a move's system.playbook), for the
+// Versatile "any other playbook" cross-playbook pick.
+const _ALL_PLAYBOOK_NAMES = [
+	"The Blessed", "The Fox", "The Heavy", "The Judge", "The Lightbearer",
+	"The Marshal", "The Ranger", "The Seeker", "The Would-Be Hero",
+];
+
+// A foreign move qualifies for a cross-playbook pick when the actor owns its required
+// moves and meets its level. Its `requirement.playbook` is intentionally ignored (the
+// cross-playbook move grants the cross-playbook access); a null requirement always
+// qualifies. NOTE: `requirement.note` (a freeform gate like "Strength +2 or higher") is
+// NOT machine-checked — it can't be without a per-note rule engine — so such a move stays
+// pickable; the note is surfaced in the picker (via _foreignRequiresLabel) for the player
+// to self-police, exactly as the sheet shows note-only prerequisites on owned moves.
+function _foreignMoveQualifies(def, ownedNames, level) {
+	const req = def.requirement;
+	if (!req) return true;
+	if (req.level && level < req.level) return false;
+	for (const m of (req.moves ?? [])) if (!ownedNames.has(m)) return false;
+	return true;
+}
+
+// Display string of a foreign move's prerequisites for the picker (required moves + the
+// freeform note); the playbook requirement is omitted (crossing playbooks is the point)
+// and level is omitted (already enforced). Null when there's nothing to show.
+function _foreignRequiresLabel(req) {
+	if (!req) return null;
+	const parts = [];
+	if (req.moves?.length) parts.push(req.moves.join(", "));
+	if (req.note)          parts.push(req.note);
+	return parts.length ? parts.join("; ") : null;
+}
 
 const _STAT_DEFS = {
 	str: { name: "Strength",     abbr: "STR" },
@@ -1827,7 +1964,8 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 	const basicCat      = categories.find(c => c.key === "basic");
 	const expeditionCat = categories.find(c => c.key === "expedition");
 	const postDeathCat  = categories.find(c => c.key === "post-death");
-	const otherCats     = categories.filter(c => !["basic", "playbook", "expedition", "post-death"].includes(c.key));
+	const learnedCat    = categories.find(c => c.key === "learned");
+	const otherCats     = categories.filter(c => !["basic", "playbook", "expedition", "post-death", "learned"].includes(c.key));
 	const postDeathGroup = postDeathCat && pdiLabel
 		? { label: pdiLabel, moves: postDeathCat.moves }
 		: null;
@@ -1838,6 +1976,7 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 
 	return new MovelistBuilder()
 		.withPlaybookMoves(playbookCat?.moves ?? [])
+		.withLearnedMoves(learnedCat?.moves ?? [])
 		.withBasicMoves(basicCat?.moves ?? [])
 		.withExpeditionMoves(expeditionCat?.moves ?? [])
 		.withOtherGroups(otherCats.map(cat => new MoveGroupSnapshot(cat.key, cat.title, cat.moves)))

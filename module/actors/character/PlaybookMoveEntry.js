@@ -62,6 +62,8 @@ export class PlaybookMoveEntry {
 		this.markOptions = entry.markOptions ?? null;
 		// Repeat-scaling selection budget for markOptions ({ base, perExtra }); null ⇒ uncapped.
 		this.markBudget = entry.markBudget ?? null;
+		// Cross-playbook foreign-move config ({ playbooks, grantsPossession }); null otherwise.
+		this.crossPlaybook = entry.crossPlaybook ?? null;
 		this.asterisk = entry.asterisk ?? null;
 	}
 }

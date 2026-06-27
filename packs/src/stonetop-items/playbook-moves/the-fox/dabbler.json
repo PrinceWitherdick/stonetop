@@ -7,6 +7,8 @@
     "playbook": "The Fox",
     "moveType": "playbook",
     "description": "<p>Each time you take this move, choose a move from the Heavy, Marshal, Ranger, or Seeker playbooks for which you otherwise qualify. (You can't take Improved Stat or Superior Stat.)</p>",
+    "repeatMax": 5,
+    "crossPlaybook": { "playbooks": ["The Heavy", "The Marshal", "The Ranger", "The Seeker"] },
     "requirement": {
       "level": 2,
       "playbook": "The Fox"

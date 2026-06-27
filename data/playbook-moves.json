@@ -721,6 +721,7 @@
       "requirement": {
         "level": 2
       },
+      "repeatMax": 5,
       "playbook": "The Would-Be Hero"
     },
     {
@@ -995,6 +996,7 @@
       "requirement": {
         "level": 2
       },
+      "repeatMax": 5,
       "playbook": "The Ranger"
     }
   ],
@@ -1089,6 +1091,7 @@
       "requirement": {
         "level": 2
       },
+      "repeatMax": 5,
       "playbook": "The Fox"
     },
     {
@@ -1558,6 +1561,7 @@
       "requirement": {
         "level": 2
       },
+      "repeatMax": 5,
       "playbook": "The Blessed"
     }
   ],
@@ -1693,6 +1697,7 @@
       "requirement": {
         "level": 2
       },
+      "repeatMax": 5,
       "playbook": "The Seeker"
     },
     {
@@ -2016,6 +2021,7 @@
       "requirement": {
         "level": 2
       },
+      "repeatMax": 5,
       "playbook": "The Heavy"
     },
     {
@@ -2107,6 +2113,7 @@
       "requirement": {
         "level": 2
       },
+      "repeatMax": 5,
       "playbook": "The Marshal"
     },
     {

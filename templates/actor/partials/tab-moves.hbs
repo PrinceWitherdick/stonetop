@@ -20,6 +20,15 @@
 		{{/if}}
 		{{/if}}
 
+		{{#if stonetop.movelist.learnedMoves.length}}
+		{{> "stonetop.move-group"
+		    title=(localize "stonetop.character.moves.learnedMoves")
+		    note=null
+		    moves=stonetop.movelist.learnedMoves
+		    editSection="moves"
+		    editing=stonetop.movesEdit}}
+		{{/if}}
+
 		{{#if stonetop.movelist.postDeathGroup}}
 		{{> "stonetop.move-group"
 		    title=stonetop.movelist.postDeathGroup.label

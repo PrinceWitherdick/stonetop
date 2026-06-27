@@ -65,6 +65,8 @@
         "invocationIntro": "Choose one new Invocation to add to your repertoire.",
         "statIntro": "Choose which stat to raise by +1.",
         "statAllAtCap": "All of your stats are already at this move's maximum — go back and pick a different move.",
+        "foreignIntro": "Choose the move this grants you from another playbook (you must qualify for it):",
+        "foreignEmpty": "You don't currently qualify for any move from the allowed playbooks — continue to finish.",
         "back": "Back",
         "next": "Next",
         "apply": "Apply Level Up"
@@ -389,6 +391,7 @@
         "pickTitle": "Choose Starting Moves",
         "pickInstruction": "Pick up to {count} moves to start with.",
         "playbookMoves": "Playbook Moves",
+        "learnedMoves": "Learned Moves",
         "basicMoves": "Basic Moves",
         "expeditionMoves": "Expedition Moves",
         "otherMoves": "Other Moves",

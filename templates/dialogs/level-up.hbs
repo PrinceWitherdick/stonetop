@@ -120,6 +120,41 @@
 	</div>
 	{{/if}}
 
+	{{!-- ── Step: Choose a Foreign Move (cross-playbook moves) ────────── --}}
+	{{#if isForeignMove}}
+	<div class="stonetop-levelup-step">
+		<p class="stonetop-levelup-intro">
+			{{{localize "stonetop.specialMoves.levelUp.foreignIntro"}}}
+			{{#if foreignFromMoveName}}<span class="stonetop-levelup-stat-cap-note">via {{foreignFromMoveName}}{{#if foreignGrantsPouch}} · also grants a Sacred Pouch{{/if}}</span>{{/if}}
+		</p>
+		{{#if foreignMovesEmpty}}
+		<p class="stonetop-levelup-empty">{{{localize "stonetop.specialMoves.levelUp.foreignEmpty"}}}</p>
+		{{else}}
+		<div class="stonetop-levelup-move-search">
+			<i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+			<input type="search" class="levelup-foreign-search" placeholder="Filter moves…" aria-label="Filter moves">
+		</div>
+		<div class="stonetop-levelup-move-list">
+			<div class="stonetop-levelup-move-grid">
+			{{#each foreignMoves}}
+			<div class="stonetop-levelup-move-option stonetop-levelup-foreign-option{{#if selected}} is-selected{{/if}}"
+				data-compendium-id="{{compendiumId}}">
+				<div class="stonetop-levelup-move-header">
+					<span class="stonetop-levelup-move-name">{{name}}</span>
+					<span class="stonetop-levelup-move-req">{{playbook}}</span>
+				</div>
+				{{#if description}}
+				<div class="stonetop-levelup-move-description stonetop-levelup-foreign-description">{{{description}}}</div>
+				{{/if}}
+				{{#if requiresLabel}}<p class="stonetop-levelup-move-note">Requires: {{requiresLabel}}</p>{{/if}}
+			</div>
+			{{/each}}
+			</div>
+		</div>
+		{{/if}}
+	</div>
+	{{/if}}
+
 	{{!-- ── Step: Increase a Stat (Improved / Superior Stat) ──────────── --}}
 	{{#if isStat}}
 	<div class="stonetop-levelup-step">

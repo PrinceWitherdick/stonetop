@@ -16,7 +16,7 @@ export class LevelUpDialog extends Application {
 		super(options);
 		this._character  = character;
 		this._data       = levelUpData;
-		this._step       = "overview"; // "overview" | "move" | "stat" | "invocation"
+		this._step       = "overview"; // "overview" | "move" | "foreignMove" | "stat" | "invocation"
 		this._selectedMoveId         = null;
 		this._selectedStat           = null;
 		this._selectedInvocationSlug = null;
@@ -25,6 +25,12 @@ export class LevelUpDialog extends Application {
 		// dialog) so the search query and active chip survive selection.
 		this._moveSearch             = "";
 		this._activeMoveGroup        = null;
+		// Cross-playbook foreign-move pick (Phase 3): the qualifying foreign moves are
+		// fetched async when the step opens; the chosen one + a search filter live here.
+		this._selectedForeignMoveId  = null;
+		this._foreignMoves           = [];
+		this._foreignMovesForId      = null; // the move id _foreignMoves was loaded for (avoid re-fetch on Back/Next)
+		this._foreignSearch          = "";
 		this._onDone = onDone;
 		this._frontOnOpen = new FrontOnOpen(this);
 	}
@@ -67,7 +73,7 @@ export class LevelUpDialog extends Application {
 	_applyStepSize(prevCenter = null) {
 		if (this._sizedStep === this._step) return;
 		this._sizedStep = this._step;
-		const width = this._step === "move" ? LEVELUP_MOVE_WIDTH : LEVELUP_BASE_WIDTH;
+		const width = (this._step === "move" || this._step === "foreignMove") ? LEVELUP_MOVE_WIDTH : LEVELUP_BASE_WIDTH;
 		// Apply the new width + fit-to-content height first so Foundry resolves the
 		// final height, then recenter using the now-known dimensions.
 		this.setPosition({ width, height: "auto" });
@@ -86,15 +92,18 @@ export class LevelUpDialog extends Application {
 
 	getData() {
 		const d = this._data;
-		const isOverview   = this._step === "overview";
-		const isMove       = this._step === "move";
-		const isStat       = this._step === "stat";
-		const isInvocation = this._step === "invocation";
+		const isOverview    = this._step === "overview";
+		const isMove        = this._step === "move";
+		const isForeignMove = this._step === "foreignMove";
+		const isStat        = this._step === "stat";
+		const isInvocation  = this._step === "invocation";
 
-		const needsStat  = this._needsStatChoice();
+		const needsStat    = this._needsStatChoice();
+		const needsForeign = this._needsForeignMoveChoice();
 		const isLastStep = isInvocation
 			|| (isStat && !d.needsInvocation)
-			|| (isMove && !needsStat && !d.needsInvocation);
+			|| (isForeignMove && !d.needsInvocation)
+			|| (isMove && !needsForeign && !needsStat && !d.needsInvocation);
 
 		const playbookName = d.playbookName ?? null;
 
@@ -122,8 +131,21 @@ export class LevelUpDialog extends Application {
 			selected:    inv.slug === this._selectedInvocationSlug,
 		}));
 
+		// Foreign-move picker (cross-playbook moves): the qualifying foreign moves, with a
+		// text filter. An empty list (nothing qualifies) still allows Continue — e.g. an
+		// Initiate take that grants only the Sacred Pouch.
+		const foreignMoves = this._foreignMoves.map(m => ({
+			compendiumId:  m.compendiumId,
+			name:          m.name,
+			description:   m.description,
+			playbook:      m.playbook,
+			requiresLabel: m.requiresLabel ?? null,
+			selected:      m.compendiumId === this._selectedForeignMoveId,
+		}));
+
 		const canContinue = isOverview
 			|| (isMove && this._selectedMoveId !== null)
+			|| (isForeignMove && (this._selectedForeignMoveId !== null || foreignMoves.length === 0))
 			|| (isStat && this._selectedStat !== null)
 			|| (isInvocation && this._selectedInvocationSlug !== null);
 
@@ -141,6 +163,7 @@ export class LevelUpDialog extends Application {
 		return {
 			isOverview,
 			isMove,
+			isForeignMove,
 			isStat,
 			isInvocation,
 			isLastStep,
@@ -161,6 +184,11 @@ export class LevelUpDialog extends Application {
 			statMoveName:    selectedEntry?.name ?? null,
 			statCap,
 			statAllAtCap:    statOptions.length > 0 && statOptions.every(s => s.atCap),
+			foreignMoves,
+			hasForeignMoves: foreignMoves.length > 0,
+			foreignMovesEmpty: isForeignMove && foreignMoves.length === 0,
+			foreignFromMoveName: selectedEntry?.name ?? null,
+			foreignGrantsPouch:  !!selectedEntry?.crossPlaybook?.grantsPossession,
 		};
 	}
 
@@ -177,23 +205,65 @@ export class LevelUpDialog extends Application {
 		return (this._selectedMoveEntry()?.cap ?? null) != null;
 	}
 
+	// A cross-playbook move (Versatile/Worldly/…) carries a `crossPlaybook` config and so
+	// needs the foreign-move picker step inserted after the move pick.
+	_needsForeignMoveChoice() {
+		return !!this._selectedMoveEntry()?.crossPlaybook;
+	}
+
+	// Fetch the qualifying foreign moves for the selected cross-playbook move (async — the
+	// repo reads them from the compendium). Called when entering the foreignMove step. Skips
+	// the re-fetch (and preserves the current pick + filter) on a Back→Next round-trip where
+	// the source move is unchanged; a move change clears _foreignMovesForId so it reloads.
+	async _loadForeignMoves() {
+		const entry = this._selectedMoveEntry();
+		if (!entry?.crossPlaybook) {
+			this._foreignMoves = []; this._foreignMovesForId = null; this._selectedForeignMoveId = null;
+			return;
+		}
+		if (this._foreignMovesForId === entry.compendiumId) return; // already loaded for this move
+		this._foreignMoves = await this._character.getForeignMovesForLevelUp(entry.crossPlaybook, this._data.newLevel);
+		this._foreignMovesForId = entry.compendiumId;
+		this._selectedForeignMoveId = null;
+		this._foreignSearch = "";
+	}
+
 	activateListeners(html) {
 		super.activateListeners(html);
 		this._frontOnOpen.start();
 
 		// Move / invocation descriptions are enriched move HTML that can contain
 		// bulleted option lists; give them the same spiral bullets as the sheet.
-		for (const desc of html.find(".stonetop-levelup-move-description, .stonetop-levelup-invocation-description")) {
+		for (const desc of html.find(".stonetop-levelup-move-description, .stonetop-levelup-invocation-description, .stonetop-levelup-foreign-description")) {
 			markProseSpiralBullets(desc);
 		}
 
 		html.find(".stonetop-levelup-move-option:not(.is-locked)").on("click", ev => {
 			this._selectedMoveId = ev.currentTarget.dataset.compendiumId;
-			// Drop any stat picked for a previously-selected move so the cap re-validates
-			// against the new move (and a non-stat move simply ignores it).
+			// Drop any stat / foreign-move pick from a previously-selected move so they
+			// re-validate against the new move (a non-stat / non-cross-playbook move ignores them).
 			this._selectedStat = null;
+			this._selectedForeignMoveId = null;
+			this._foreignMoves = [];
+			this._foreignMovesForId = null;
 			this.render(false);
 		});
+
+		html.find(".stonetop-levelup-foreign-option").on("click", ev => {
+			this._selectedForeignMoveId = ev.currentTarget.dataset.compendiumId;
+			this.render(false);
+		});
+		// Foreign-move search (pure DOM show/hide; state survives the selection re-render).
+		const applyForeignFilter = () => {
+			const q = this._foreignSearch.trim().toLowerCase();
+			html.find(".stonetop-levelup-foreign-option").each((_, el) => {
+				el.classList.toggle("is-filtered-out", !!q && !el.textContent.toLowerCase().includes(q));
+			});
+		};
+		const foreignSearch = html.find(".levelup-foreign-search");
+		foreignSearch.val(this._foreignSearch);
+		foreignSearch.on("input", ev => { this._foreignSearch = ev.currentTarget.value; applyForeignFilter(); });
+		applyForeignFilter();
 
 		html.find(".stonetop-levelup-stat-option:not(.is-at-cap)").on("click", ev => {
 			this._selectedStat = ev.currentTarget.dataset.statKey;
@@ -246,35 +316,59 @@ export class LevelUpDialog extends Application {
 		});
 
 		html.find(".stonetop-levelup-back-btn").on("click", () => {
-			if (this._step === "invocation")  this._step = this._needsStatChoice() ? "stat" : "move";
-			else if (this._step === "stat")   this._step = "move";
-			else if (this._step === "move")   this._step = "overview";
+			if (this._step === "invocation")       this._step = this._needsStatChoice() ? "stat" : (this._needsForeignMoveChoice() ? "foreignMove" : "move");
+			else if (this._step === "stat")        this._step = "move";
+			else if (this._step === "foreignMove") this._step = "move";
+			else if (this._step === "move")        this._step = "overview";
 			this.render(false);
 		});
 
 		html.find(".stonetop-levelup-next-btn").on("click", async () => {
-			const d = this._data;
-			if (this._step === "overview") {
-				this._step = "move";
-			} else if (this._step === "move") {
-				if (this._needsStatChoice()) this._step = "stat";
-				else if (d.needsInvocation)  this._step = "invocation";
-				else await this._apply();
-			} else if (this._step === "stat") {
-				if (d.needsInvocation) this._step = "invocation";
-				else await this._apply();
-			} else if (this._step === "invocation") {
-				await this._apply();
+			// Re-entrancy guard: the handler awaits compendium reads and the level-up writes
+			// (which add moves / grant possessions). A fast double-click before those resolve
+			// would otherwise apply twice — bump the level and add the move/foreign move/pouch
+			// a second time. Ignore clicks while one is in flight.
+			if (this._busy) return;
+			this._busy = true;
+			try {
+				const d = this._data;
+				if (this._step === "overview") {
+					this._step = "move";
+				} else if (this._step === "move") {
+					if (this._needsForeignMoveChoice()) { await this._loadForeignMoves(); this._step = "foreignMove"; }
+					else if (this._needsStatChoice())   this._step = "stat";
+					else if (d.needsInvocation)         this._step = "invocation";
+					else await this._apply();
+				} else if (this._step === "foreignMove") {
+					if (d.needsInvocation) this._step = "invocation";
+					else await this._apply();
+				} else if (this._step === "stat") {
+					if (d.needsInvocation) this._step = "invocation";
+					else await this._apply();
+				} else if (this._step === "invocation") {
+					await this._apply();
+				}
+				this.render(false);
+			} finally {
+				this._busy = false;
 			}
-			this.render(false);
 		});
 	}
 
 	async _apply() {
 		const entry = this._selectedMoveEntry();
-		const choices = (this._selectedStat && entry?.cap != null)
-			? { stat: this._selectedStat, cap: entry.cap }
-			: null;
+		let choices = null;
+		if (this._selectedStat && entry?.cap != null) {
+			choices = { stat: this._selectedStat, cap: entry.cap };
+		} else if (entry?.crossPlaybook) {
+			// Cross-playbook pick: the chosen foreign move (may be null if nothing qualified)
+			// + whether this move also grants a possession (the Initiate Sacred Pouch).
+			choices = {
+				crossPlaybook:    true,
+				foreignMoveId:    this._selectedForeignMoveId,
+				grantsPossession: entry.crossPlaybook.grantsPossession ?? null,
+			};
+		}
 		await this._character.applyLevelUp(this._selectedMoveId, this._selectedInvocationSlug, choices);
 		// Hand back the chosen move's name so the sheet can auto-open the sacred-pouch
 		// editor when a Blessed levels into Big Magic (an additional remarkable trait).

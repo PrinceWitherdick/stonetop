@@ -666,6 +666,27 @@ describe("buildSnapshot — moves", () => {
 		expect(snap.companionBonuses).toEqual({ hp: 4, armor: 1, traitPicks: 2 });
 	});
 
+	it("groups granted foreign moves into a 'Learned Moves' category with a source label", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-fox", "The Fox")
+			.addItem({
+				_id: "fm1", type: "move", name: "Smash",
+				system: { moveType: "playbook", playbook: "The Heavy", description: "Smash desc", rollType: "str" },
+				flags: { stonetop_pwd: { grantedBy: { move: "Versatile", instanceId: "v1" } } },
+			})
+			.build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		const learned = snap.moves.find(c => c.key === "learned");
+		expect(learned).toBeDefined();
+		expect(learned.title).toBe("Learned Moves");
+		expect(learned.moves[0]).toMatchObject({
+			name: "Smash",
+			owned: true,
+			rollType: "str",
+			sourceLabel: "Granted by Versatile · The Heavy",
+		});
+	});
+
 	it("owned playbook moves are listed before unowned playbook moves", async () => {
 		const actor =  new FakeActorBuilder()
 			.withPlaybook("the-heavy", "The Heavy")

@@ -53,6 +53,11 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			// "pick N each time you take this move" cap (Veteran Crew, Heroes to the Last,
 			// Beast of Legend, Well Versed). Null/absent ⇒ unbudgeted, the prior behavior.
 			markBudget:      looseObject(),
+			// Cross-playbook "learn a move from another playbook" config (Versatile,
+			// Worldly, Dabbler, Wild Soul, Initiate of the Secret Arts, Seasoned Warrior,
+			// Arts of War): { playbooks: ["The Blessed", …] | "any", grantsPossession?: slug }.
+			// Its presence marks a move as needing the level-up foreign-move picker.
+			crossPlaybook:   looseObject(),
 		};
 	}
 }

@@ -4382,6 +4382,17 @@
           ]
         },
         {
+          "slug": "sacred-pouch",
+          "label": "Sacred Pouch",
+          "description": "A magical pouch holding Stock, as per the Blessed — but with no remarkable traits. Granted by Initiate of the Secret Arts.",
+          "grantOnly": true,
+          "resource": {
+            "max": 3,
+            "title": "Stock",
+            "labels": []
+          }
+        },
+        {
           "slug": "books-and-scrolls",
           "label": "Books &amp; scrolls",
           "description": "○○○○○ uses: expend a use to consult your collection and turn a Know Things roll you just made into a 10+.",

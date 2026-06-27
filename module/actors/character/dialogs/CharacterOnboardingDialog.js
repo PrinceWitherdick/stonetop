@@ -1649,7 +1649,9 @@ export class CharacterOnboardingDialog extends Application {
 					filled:   !!customLabel.trim(),
 					disabled: atLimit && !customLabel.trim(),
 				},
-				options: (raw.options ?? []).map(opt => {
+				// Grant-only possessions (the Seeker's Initiate-of-the-Secret-Arts Sacred
+				// Pouch) are gained by a level-up move, never picked at creation — hide them.
+				options: (raw.options ?? []).filter(opt => !opt.grantOnly).map(opt => {
 					const isPre = preselected.has(opt.slug);
 					const isChosen = chosen.has(opt.slug);
 					const isSelected = isPre || isChosen;

@@ -37,6 +37,9 @@ export class OtherItemSnapshotBuilder {
 export class Movelist {
 	constructor(b) {
 		this.playbookMoves     = b._playbookMoves;
+		// Moves learned from OTHER playbooks via a cross-playbook pick (Versatile/…),
+		// rendered with their full card (description/roll/marks/resource) like playbook moves.
+		this.learnedMoves      = b._learnedMoves ?? [];
 		this.basicMoves        = b._basicMoves;
 		this.expeditionMoves   = b._expeditionMoves;
 		this.otherGroups       = b._otherGroups;
@@ -49,6 +52,7 @@ export class Movelist {
 
 export class MovelistBuilder {
 	withPlaybookMoves(v)     { this._playbookMoves     = v; return this; }
+	withLearnedMoves(v)      { this._learnedMoves      = v; return this; }
 	withBasicMoves(v)        { this._basicMoves        = v; return this; }
 	withExpeditionMoves(v)   { this._expeditionMoves   = v; return this; }
 	withOtherGroups(v)       { this._otherGroups       = v; return this; }
