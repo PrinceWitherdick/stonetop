@@ -51,6 +51,20 @@ const STAT_MIX = {
 	},
 };
 
+// Beast of Legend (Ranger): the "tough" pick buffs the Animal Companion's HP/armor.
+const BEAST_OF_LEGEND = {
+	_id: "bol1",
+	name: "Beast of Legend",
+	system: {
+		playbook: "The Ranger",
+		markBudget: { base: 1, perExtra: 1 },
+		markOptions: [
+			{ slug: "tough",  label: "They get +4 HP and +1 armor", marks: 3, companionHp: 4, companionArmor: 1 },
+			{ slug: "unique", label: "They develop some unique ability or trait", marks: 3 },
+		],
+	},
+};
+
 const lvl = () => ({ stat: "", level: 5 });
 
 // An UN-budgeted markOptions move (no markBudget) — must stay uncapped, the prior behavior.
@@ -176,5 +190,13 @@ describe("StonetopCharacter.setCountMark — repeat-scaling budget", () => {
 		const { char } = makeChar({ def: VETERAN_CREW, copies: 2, marks: { tags: [lvl(), lvl()] } });
 		const totals = await char._ownedMoveBonuses({ name: "The Marshal" }, new Set(["Veteran Crew"]));
 		expect(totals.crewTags).toBe(4);
+	});
+
+	it("sums companionHp/companionArmor from Beast of Legend's 'tough' pick", async () => {
+		// 2 copies (budget 2), the tough option picked twice ⇒ +8 HP / +2 armor to the companion.
+		const { char } = makeChar({ def: BEAST_OF_LEGEND, copies: 2, marks: { tough: [lvl(), lvl()] } });
+		const totals = await char._ownedMoveBonuses({ name: "The Ranger" }, new Set(["Beast of Legend"]));
+		expect(totals.companionHp).toBe(8);
+		expect(totals.companionArmor).toBe(2);
 	});
 });

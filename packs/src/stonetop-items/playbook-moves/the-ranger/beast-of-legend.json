@@ -6,12 +6,11 @@
   "system": {
     "playbook": "The Ranger",
     "moveType": "playbook",
-    "description": "<p>Each time you take this move, pick 1:</p>",
+    "description": "<p>Each time you take this move, pick 1 for your animal companion. To make them <em>exceptional</em> (roll +2 instead of +1), mark <em>exceptional</em> on their card in the Followers tab; otherwise pick below.</p>",
     "repeatMax": 3,
     "markBudget": { "base": 1, "perExtra": 1 },
     "markOptions": [
-      { "slug": "exceptional", "label": "They are exceptional (and roll +2 instead of +1)", "marks": 1 },
-      { "slug": "tough", "label": "They get +4 HP and +1 armor", "marks": 3 },
+      { "slug": "tough", "label": "They get +4 HP and +1 armor", "marks": 3, "companionHp": 4, "companionArmor": 1 },
       { "slug": "unique", "label": "They develop some unique ability or trait", "marks": 3 }
     ],
     "requirement": {

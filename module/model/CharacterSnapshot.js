@@ -80,6 +80,9 @@ export class CharacterSnapshot {
 		this.postDeathInsert = b._postDeathInsert;
 		this.rollMode        = b._rollMode;
 		this.crewBonuses     = b._crewBonuses ?? null;
+		// { hp, armor, traitPicks } applied to the Animal Companion card (Beast of
+		// Legend "+4 HP/+1 armor", Magnificent Specimen extra trait picks).
+		this.companionBonuses = b._companionBonuses ?? null;
 	}
 }
 
@@ -96,5 +99,6 @@ export class CharacterSnapshotBuilder {
 	withPostDeathInsert(v) { this._postDeathInsert = v; return this; }
 	withRollMode(v)        { this._rollMode        = v; return this; }
 	withCrewBonuses(v)     { this._crewBonuses     = v; return this; }
+	withCompanionBonuses(v) { this._companionBonuses = v; return this; }
 	build()                { return new CharacterSnapshot(this); }
 }

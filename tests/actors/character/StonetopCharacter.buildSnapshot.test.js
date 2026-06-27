@@ -648,6 +648,24 @@ describe("buildSnapshot — moves", () => {
 		expect(move.markOptions.find(o => o.slug === "crew-hp").checks.every(c => !c.disabled)).toBe(true);
 	});
 
+	it("computes companionBonuses from Beast of Legend marks + Magnificent Specimen count", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "bol1", type: "move", name: "Beast of Legend",      system: {moveType: "playbook"}})
+			.addItem({_id: "ms1",  type: "move", name: "Magnificent Specimen", system: {moveType: "playbook"}})
+			.withFlags({ "moves.moveMarks": { "Beast of Legend": { tough: [{ stat: "", level: 6 }] } } })
+			.build();
+		const entry = makeMove("pm1", "Beast of Legend", {
+			markOptions: [{ slug: "tough", label: "+4 HP +1 armor", marks: 3, companionHp: 4, companionArmor: 1 }],
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+		// "tough" marked once ⇒ +4 HP / +1 armor; one Magnificent Specimen ⇒ +2 trait picks.
+		expect(snap.companionBonuses).toEqual({ hp: 4, armor: 1, traitPicks: 2 });
+	});
+
 	it("owned playbook moves are listed before unowned playbook moves", async () => {
 		const actor =  new FakeActorBuilder()
 			.withPlaybook("the-heavy", "The Heavy")

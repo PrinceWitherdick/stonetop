@@ -307,6 +307,7 @@ export class StonetopCharacter {
 			.withPostDeathInsert(postDeath)
 			.withRollMode(_normalizeSheetRollMode(resolvedFlags(actor).rollMode))
 			.withCrewBonuses(_buildCrewStats(playbookData?.crew, moveBonuses))
+			.withCompanionBonuses(_buildCompanionBonuses(moveBonuses, ownedAllByName))
 			.build();
 	}
 
@@ -314,7 +315,7 @@ export class StonetopCharacter {
 	// Heavy's Carved Out of Wood / Cut from Granite). Read from the move definitions
 	// so it works regardless of when the owned copy was added.
 	async _ownedMoveBonuses(playbookData, ownedAllByName) {
-		const totals = { hp: 0, armor: 0, crewHp: 0, damageDie: null, crewDamageSteps: 0, crewDamageCap: "d10", crewRollSteps: 0, crewTags: 0 };
+		const totals = { hp: 0, armor: 0, crewHp: 0, damageDie: null, crewDamageSteps: 0, crewDamageCap: "d10", crewRollSteps: 0, crewTags: 0, companionHp: 0, companionArmor: 0 };
 		if (!playbookData) return totals;
 		const defs  = await this._moveRepo.getPlaybookMoves(playbookData.name);
 		const marks = this._moveResources.getMarks();
@@ -341,6 +342,10 @@ export class StonetopCharacter {
 				// Veteran Crew's "Select 2 new tags" raises how many tags the player may
 				// pick for the Crew (the followers-tab tag picker reads this as tagBonus).
 				totals.crewTags += (opt.crewTags || 0) * count;
+				// Beast of Legend's "+4 HP and +1 armor" buffs the Animal Companion (the
+				// followers-tab companion card reads these as companionBonuses).
+				totals.companionHp    += (opt.companionHp    || 0) * count;
+				totals.companionArmor += (opt.companionArmor || 0) * count;
 			}
 		}
 		return totals;
@@ -1457,6 +1462,11 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}) 
 		.build();
 }
 
+// Magnificent Specimen (Ranger): "each time you take this move, your companion gains 2
+// additional options of your choice" → 2 extra trait picks on the companion per copy.
+const MAGNIFICENT_SPECIMEN_MOVE = "Magnificent Specimen";
+const COMPANION_TRAIT_PICKS_PER_MAGNIFICENT_SPECIMEN = 2;
+
 // Final per-Crew-member stats: the playbook's data-driven base plus the bonuses
 // from marked Marshal moves (Heroes to the Last / Veteran Crew).
 function _buildCrewStats(crew, moveBonuses) {
@@ -1468,6 +1478,18 @@ function _buildCrewStats(crew, moveBonuses) {
 		// Extra tags the player may pick (Veteran Crew "Select 2 new tags"), added to the
 		// followers-tab crew tag limit on top of the playbook's base allowance.
 		tagBonus:  moveBonuses.crewTags ?? 0,
+	};
+}
+
+// Animal Companion bonuses from owned Ranger moves, layered on top of the trait-derived
+// base stats by the followers-tab companion card: Beast of Legend's marked "+4 HP / +1
+// armor" pick (via moveBonuses), plus Magnificent Specimen's "+2 options of your choice
+// each time you take this move" — i.e. 2 extra companion trait picks per owned copy.
+function _buildCompanionBonuses(moveBonuses, ownedAllByName) {
+	return {
+		hp:         moveBonuses.companionHp    ?? 0,
+		armor:      moveBonuses.companionArmor ?? 0,
+		traitPicks: COMPANION_TRAIT_PICKS_PER_MAGNIFICENT_SPECIMEN * (ownedAllByName.get(MAGNIFICENT_SPECIMEN_MOVE)?.length ?? 0),
 	};
 }
 

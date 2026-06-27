@@ -1104,7 +1104,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				);
 			}
 			const crewStats               = context.stonetop.crewBonuses ?? { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 };
-			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null, crewStats);
+			const companionBonuses        = context.stonetop.companionBonuses ?? { hp: 0, armor: 0, traitPicks: 0 };
+			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null, crewStats, companionBonuses);
 			context.stonetop.hasFollowers = !!(
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
@@ -1207,7 +1208,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			else if (/^follower-individuals:crew:/.test(section)) this._openCrewSections.add("roster");
 		}
 
-		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }) {
+		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }, companionBonuses = { hp: 0, armor: 0, traitPicks: 0 }) {
 			const sf = resolvedFlags(this.actor);
 			// Which collapsible crew sections are expanded. Seeded from the persisted
 			// per-actor setting in the constructor (so it survives a sheet reopen);
@@ -1312,7 +1313,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				const kind = sf.animalCompanion?.kind ?? "";
 				const typeLabel = typeData?.label ?? acSlug;
 				const loyaltyVal = sf.animalCompanion?.loyalty ?? 0;
-				const hpMax = Number(stats.hp) || 0;
+				// Trait-derived base stats, then Beast of Legend's marked "+4 HP / +1 armor"
+				// (companionBonuses) layered onto the leading number of the base armor string
+				// (e.g. "1 (size)" → "2 (size)"), matching _applyAnimalCompanionTraits.
+				const hpMax = (Number(stats.hp) || 0) + (companionBonuses.hp ?? 0);
+				const acArmor = companionBonuses.armor
+					? _addToLeadingNumber(stats.armor, companionBonuses.armor)
+					: (stats.armor ?? "—");
 				const hpRaw = sf.animalCompanion?.hpCurrent;
 				const showTraitHover = getHoverDescriptionSetting("hoverDescriptionsTraits");
 				const acName = sf.animalCompanion?.name ?? "";
@@ -1324,7 +1331,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				let acTraitChoices = null;
 				if (cardEditing("animal-companion", "")) {
 					const acTypeTraits = typeData?.traits ?? [];
-					const pickCount    = Number(typeData?.pickCount) || 0;
+					// Base trait allowance + Magnificent Specimen's "+2 options" per owned copy.
+					const pickCount    = (Number(typeData?.pickCount) || 0) + (companionBonuses.traitPicks ?? 0);
 					const selectedSet  = new Set(traits);
 					const atLimit      = pickCount > 0 && selectedSet.size >= pickCount;
 					if (acTypeTraits.length) acTraitChoices = {
@@ -1347,7 +1355,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					hpSlug:       "",
 					hpMax,
 					hpCurrent:    _clampHp(hpRaw, hpMax),
-					armor:        stats.armor              ?? "—",
+					armor:        acArmor,
 					damage:       stats.damage             ?? "—",
 					..._parseFollowerDamage(stats.damage),
 					damageKind:   kind || String(typeLabel).toLowerCase(),

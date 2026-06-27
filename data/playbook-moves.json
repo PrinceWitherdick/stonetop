@@ -780,7 +780,7 @@
     },
     {
       "name": "Beast of Legend",
-      "description": "<p>Each time you take this move, pick 1:</p>",
+      "description": "<p>Each time you take this move, pick 1 for your animal companion. To make them <em>exceptional</em> (roll +2 instead of +1), mark <em>exceptional</em> on their card in the Followers tab; otherwise pick below.</p>",
       "rollType": null,
       "requirement": {
         "level": 6,
