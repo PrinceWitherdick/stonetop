@@ -36,6 +36,7 @@ import {
 } from "../../model/CharacterSnapshot.js";
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {MoveResources} from "./MoveResources.js";
+import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
@@ -204,12 +205,44 @@ export class StonetopCharacter {
 	}
 
 	// Checkbox mark options (e.g. max HP, damage die): set how many are checked,
-	// auto-filling the current level on newly checked marks.
+	// auto-filling the current level on newly checked marks. When the move declares a
+	// `markBudget`, an INCREASE is clamped so the picks across all its options never
+	// exceed the repeat-scaling budget — model-side enforcement so the cap holds from
+	// any write surface, not just the disabled checkboxes (mirrors the possession
+	// remarkable-trait cap in selectSubChoice). Decreases are never clamped, so a
+	// grandfathered over-budget mark can always be cleared.
 	async setCountMark(moveName, optionSlug, newCount) {
-		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
-		while (entries.length < newCount) entries.push({ stat: "", level: this._characterLevel });
-		entries.length = Math.max(0, newCount);
+		const allMarks = this._moveResources.getMarks();
+		const current  = _markEntries(allMarks[moveName]?.[optionSlug]).length;
+		// Clamp an INCREASE to the move's repeat-scaling pick budget (if any); a decrease
+		// is left as-is (budget null below), so a grandfathered over-budget mark clears.
+		let count = newCount;
+		const budget = newCount > current ? await this._moveSelectionBudget(moveName) : null;
+		if (budget) {
+			const others    = _sumMarkPicks(allMarks[moveName] ?? {}, budget.markOptions, optionSlug);
+			const remaining = Math.max(0, budget.max - others);      // picks still free across the move's options
+			count = Math.min(newCount, Math.max(current, remaining)); // never below what's already checked
+		}
+		const entries = _markEntries(allMarks[moveName]?.[optionSlug]);
+		while (entries.length < count) entries.push({ stat: "", level: this._characterLevel });
+		entries.length = Math.max(0, count);
 		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
+	}
+
+	// Repeat-scaling pick budget for a move's markOptions, or null when it declares
+	// none (uncapped). The definition is read from the compiled pack (fresh
+	// markBudget/markOptions, regardless of when the owned copy was created — matching
+	// the render path); `ownedCount` is how many copies the actor owns.
+	async _moveSelectionBudget(moveName) {
+		const owned = this._actor.items.filter(i => i.type === "move" && i.name === moveName);
+		if (!owned.length) return null;
+		const pbName = owned[0].system?.playbook ?? null;
+		const defs   = pbName ? await this._moveRepo.getPlaybookMoves(pbName) : [];
+		const def    = defs.find(d => d.name === moveName) ?? null;
+		const markBudget  = def?.markBudget  ?? owned[0].system?.markBudget  ?? null;
+		const markOptions = def?.markOptions ?? owned[0].system?.markOptions ?? [];
+		const max = moveMarkBudget(markBudget, owned.length);
+		return max == null ? null : { max, markOptions };
 	}
 
 	// Edit-mode override of the level recorded for a given mark slot.
@@ -281,7 +314,7 @@ export class StonetopCharacter {
 	// Heavy's Carved Out of Wood / Cut from Granite). Read from the move definitions
 	// so it works regardless of when the owned copy was added.
 	async _ownedMoveBonuses(playbookData, ownedAllByName) {
-		const totals = { hp: 0, armor: 0, crewHp: 0, damageDie: null, crewDamageSteps: 0, crewDamageCap: "d10", crewRollSteps: 0 };
+		const totals = { hp: 0, armor: 0, crewHp: 0, damageDie: null, crewDamageSteps: 0, crewDamageCap: "d10", crewRollSteps: 0, crewTags: 0 };
 		if (!playbookData) return totals;
 		const defs  = await this._moveRepo.getPlaybookMoves(playbookData.name);
 		const marks = this._moveResources.getMarks();
@@ -305,6 +338,9 @@ export class StonetopCharacter {
 				totals.crewDamageSteps += (opt.crewDamageStep || 0) * count;
 				if (opt.crewDamageCap) totals.crewDamageCap = opt.crewDamageCap;
 				totals.crewRollSteps += (opt.crewRoll || 0) * count;
+				// Veteran Crew's "Select 2 new tags" raises how many tags the player may
+				// pick for the Crew (the followers-tab tag picker reads this as tagBonus).
+				totals.crewTags += (opt.crewTags || 0) * count;
 			}
 		}
 		return totals;
@@ -1429,6 +1465,9 @@ function _buildCrewStats(crew, moveBonuses) {
 		armor:     crew?.armor ?? 0,
 		damageDie: stepDie(crew?.damageDie ?? "d6", moveBonuses.crewDamageSteps ?? 0, moveBonuses.crewDamageCap),
 		rollMod:   (crew?.roll ?? 1) + (moveBonuses.crewRollSteps ?? 0),
+		// Extra tags the player may pick (Veteran Crew "Select 2 new tags"), added to the
+		// followers-tab crew tag limit on top of the playbook's base allowance.
+		tagBonus:  moveBonuses.crewTags ?? 0,
 	};
 }
 
@@ -1581,13 +1620,38 @@ function _markEntries(stored) {
 	return [];
 }
 
+// Total checked marks across a move's budgeted (non-stat) options, optionally skipping
+// one slug. Drives both the render-side "used" badge and the writer-side "others
+// already spent" clamp, so they always count picks the same way.
+function _sumMarkPicks(moveMarks, markOptions, skipSlug = null) {
+	let n = 0;
+	for (const opt of markOptions) {
+		if (opt.choice === "stat" || opt.slug === skipSlug) continue;
+		n += _markEntries(moveMarks[opt.slug]).length;
+	}
+	return n;
+}
+
 // Build a move's mark options for display: stat-choice options (Potential for
 // Greatness) get a stat dropdown per slot; the rest get checkbox arrays. Each
 // filled slot / checked mark carries the level it was marked on.
+//
+// Returns `{ options, budget }`. When the move declares a `markBudget`, picks across
+// its (non-stat) options are capped at a repeat-scaling total (`moveMarkBudget`):
+// unchecked boxes lock once the budget is spent, and `budget = { used, max, atBudget,
+// over }` drives the card's "N / max" badge. Without a markBudget both are uncapped
+// (the prior behavior) and `budget` is null.
 function _buildMarkOptions(entry, markCounts) {
-	if (!entry.markOptions?.length) return null;
+	if (!entry.markOptions?.length) return { options: null, budget: null };
 	const statList = Object.entries(_STAT_DEFS).map(([key, { abbr }]) => ({ key, abbr }));
-	return entry.markOptions.map(opt => {
+
+	// Total checked across budgeted (non-stat) options — the spent picks.
+	const ownedCount = entry.ownedIds?.length ?? (entry.owned ? 1 : 0);
+	const max = moveMarkBudget(entry.markBudget, ownedCount);
+	const used = max != null ? _sumMarkPicks(markCounts, entry.markOptions) : 0;
+	const atBudget = max != null && used >= max;
+
+	const options = entry.markOptions.map(opt => {
 		const entries = _markEntries(markCounts[opt.slug]);
 		const marks = opt.marks ?? 1;
 		if (opt.choice === "stat") {
@@ -1610,9 +1674,21 @@ function _buildMarkOptions(entry, markCounts) {
 				index: i,
 				checked: i < count,
 				level: entries[i]?.level ?? null,
+				// Lock an UNchecked box once the budget is spent — checked boxes always
+				// stay editable so the player can free up a pick (and any grandfathered
+				// over-budget mark from before the cap existed is never force-cleared).
+				disabled: atBudget && !(i < count),
 			})),
 		};
 	});
+
+	// needsChoice: the move is owned and still has unspent picks — drives a "needs your
+	// input" cue on the card (distinct from the requirements-unmet warning). False when
+	// unowned (max 0), fully spent (used == max), or over budget (used > max).
+	const budget = max != null
+		? { used, max, atBudget, over: used > max, needsChoice: max > 0 && used < max }
+		: null;
+	return { options, budget };
 }
 
 function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}) {
@@ -1631,7 +1707,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		: null;
 	const sourceLabel = entry.isStarting ? (bgSlugs.has(slugify(entry.name)) ? "Background" : "Starting move") : null;
 
-	const markOptions = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {});
+	const { options: markOptions, budget: markBudget } = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {});
 
 	const statChoices = (entry.cap != null && entry.ownedIds.length > 0)
 		? entry.ownedIds
@@ -1666,6 +1742,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withBackgroundAnswer(moveBackgroundAnswers[entry.name] ?? null)
 		.withStatChoices(statChoices)
 		.withMarkOptions(markOptions)
+		.withMarkBudget(markBudget)
 		.withAsterisk(!!entry.asterisk)
 		.build();
 }

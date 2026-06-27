@@ -48,6 +48,11 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			resource:        looseObject(),
 			moveResults:     looseObject(),
 			markOptions:     new fields.ArrayField(new fields.ObjectField(), { required: false, initial: [] }),
+			// Repeat-scaling selection budget for `markOptions` moves: { base, perExtra }.
+			// Total picks allowed = base + perExtra*(ownedCount-1). Drives the move card's
+			// "pick N each time you take this move" cap (Veteran Crew, Heroes to the Last,
+			// Beast of Legend, Well Versed). Null/absent ⇒ unbudgeted, the prior behavior.
+			markBudget:      looseObject(),
 		};
 	}
 }

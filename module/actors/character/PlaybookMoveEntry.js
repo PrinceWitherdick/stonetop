@@ -60,6 +60,8 @@ export class PlaybookMoveEntry {
 		this.resource = entry.resource;
 		this.resourceChecks = null;
 		this.markOptions = entry.markOptions ?? null;
+		// Repeat-scaling selection budget for markOptions ({ base, perExtra }); null ⇒ uncapped.
+		this.markBudget = entry.markBudget ?? null;
 		this.asterisk = entry.asterisk ?? null;
 	}
 }

@@ -541,6 +541,113 @@ describe("buildSnapshot — moves", () => {
 		expect(move.ownedIds).toContain("o1");
 	});
 
+	it("budgeted markOptions move exposes a spent pick budget and locks unchosen options", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "vc1", type: "move", name: "Veteran Crew", system: {moveType: "playbook"}})
+			.withFlags({ "moves.moveMarks": { "Veteran Crew": { tags: [{ stat: "", level: 3 }] } } })
+			.build();
+		const entry = makeMove("pm1", "Veteran Crew", {
+			markBudget: { base: 1, perExtra: 1 },
+			markOptions: [
+				{ slug: "tags",    label: "Tags", marks: 4 },
+				{ slug: "crew-hp", label: "HP",   marks: 4 },
+			],
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+
+		const move = snap.moves.find(c => c.key === "playbook").moves.find(m => m.name === "Veteran Crew");
+		// 1 owned copy ⇒ budget 1; one tag already chosen ⇒ fully spent, no pending choice.
+		expect(move.markBudget).toMatchObject({ used: 1, max: 1, atBudget: true, over: false, needsChoice: false });
+		// Every UNchosen box locks once the budget is spent…
+		expect(move.markOptions.find(o => o.slug === "crew-hp").checks.every(c => c.disabled)).toBe(true);
+		// …but the already-chosen box stays editable so the pick can be released.
+		expect(move.markOptions.find(o => o.slug === "tags").checks[0]).toMatchObject({ checked: true, disabled: false });
+	});
+
+	it("omits the pick budget for a markOptions move that declares none", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "pg1", type: "move", name: "Uncapped", system: {moveType: "playbook"}})
+			.build();
+		const entry = makeMove("pm1", "Uncapped", { markOptions: [{ slug: "a", label: "A", marks: 2 }] });
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+		const move = snap.moves.find(c => c.key === "playbook").moves.find(m => m.name === "Uncapped");
+		expect(move.markBudget).toBeNull();
+		expect(move.markOptions.find(o => o.slug === "a").checks.every(c => !c.disabled)).toBe(true);
+	});
+
+	it("over-budget grandfathered marks expose over=true and keep chosen boxes editable while locking the rest", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "vc1", type: "move", name: "Veteran Crew", system: {moveType: "playbook"}})
+			.withFlags({ "moves.moveMarks": { "Veteran Crew": { tags: [{ stat: "", level: 2 }, { stat: "", level: 2 }, { stat: "", level: 2 }] } } })
+			.build();
+		const entry = makeMove("pm1", "Veteran Crew", {
+			markBudget: { base: 1, perExtra: 1 },
+			markOptions: [
+				{ slug: "tags",    label: "Tags", marks: 4 },
+				{ slug: "crew-hp", label: "HP",   marks: 4 },
+			],
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+
+		const move = snap.moves.find(c => c.key === "playbook").moves.find(m => m.name === "Veteran Crew");
+		// 1 owned ⇒ budget 1, but 3 tags marked ⇒ over budget.
+		expect(move.markBudget).toMatchObject({ used: 3, max: 1, atBudget: true, over: true });
+		// The 3 chosen tag boxes stay editable so the player can release back down…
+		expect(move.markOptions.find(o => o.slug === "tags").checks.slice(0, 3).every(c => c.checked && !c.disabled)).toBe(true);
+		// …while a different option's unchosen boxes are all locked.
+		expect(move.markOptions.find(o => o.slug === "crew-hp").checks.every(c => c.disabled)).toBe(true);
+	});
+
+	it("an UNowned budgeted move grants 0 picks and locks every mark box", async () => {
+		const actor = makeHeavyActor(); // does not own the move
+		const entry = makeMove("pm1", "Veteran Crew", {
+			markBudget: { base: 1, perExtra: 1 },
+			markOptions: [{ slug: "tags", label: "Tags", marks: 4 }],
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+		const move = snap.moves.find(c => c.key === "playbook").moves.find(m => m.name === "Veteran Crew");
+		expect(move.owned).toBe(false);
+		expect(move.markBudget).toMatchObject({ used: 0, max: 0, atBudget: true, needsChoice: false });
+		expect(move.markOptions.find(o => o.slug === "tags").checks.every(c => c.disabled)).toBe(true);
+	});
+
+	it("flags needsChoice when an owned budgeted move still has unspent picks", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "vc1", type: "move", name: "Veteran Crew", system: {moveType: "playbook"}})
+			.addItem({_id: "vc2", type: "move", name: "Veteran Crew", system: {moveType: "playbook"}})
+			.withFlags({ "moves.moveMarks": { "Veteran Crew": { tags: [{ stat: "", level: 2 }] } } })
+			.build();
+		const entry = makeMove("pm1", "Veteran Crew", {
+			markBudget: { base: 1, perExtra: 1 },
+			markOptions: [{ slug: "tags", label: "Tags", marks: 4 }, { slug: "crew-hp", label: "HP", marks: 4 }],
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+		const move = snap.moves.find(c => c.key === "playbook").moves.find(m => m.name === "Veteran Crew");
+		// 2 owned ⇒ budget 2, only 1 chosen ⇒ a pick is still pending → the "needs input" cue.
+		expect(move.markBudget).toMatchObject({ used: 1, max: 2, atBudget: false, needsChoice: true });
+		// Budget not spent ⇒ boxes remain pickable (not locked).
+		expect(move.markOptions.find(o => o.slug === "crew-hp").checks.every(c => !c.disabled)).toBe(true);
+	});
+
 	it("owned playbook moves are listed before unowned playbook moves", async () => {
 		const actor =  new FakeActorBuilder()
 			.withPlaybook("the-heavy", "The Heavy")

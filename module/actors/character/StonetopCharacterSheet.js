@@ -1456,7 +1456,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				let crewTagLimit = 2;
 				if (cardEditing("crew", "")) {
 					const crewOpts     = playbookDoc?.crew ?? {};
-					crewTagLimit       = Number.isFinite(crewOpts.additionalTagCount) ? crewOpts.additionalTagCount : 2;
+					// Base allowance (playbook data) + extra tags unlocked by Veteran Crew's
+					// "Select 2 new tags" picks (tagBonus, from the marked-move bonuses).
+					crewTagLimit       = (Number.isFinite(crewOpts.additionalTagCount) ? crewOpts.additionalTagCount : 2) + (crewStats.tagBonus ?? 0);
 					const crewTagSet   = new Set(sf.crew.tags ?? []);
 					const crewTagsAtLimit = [...crewTagSet].filter(t => t !== crewBgTag).length >= crewTagLimit;
 					crewTagOptions = (crewOpts.availableTags ?? []).map(tag => {
@@ -2222,6 +2224,24 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Details-tab per-section edit pencils: toggle just that section's edit
 			// state, independent of the global header-wrench edit mode.
 			this._wireSectionEditToggle(html, ".stonetop-details-section-edit-toggle");
+
+			// The "needs your input" hand on a move card (shown when a budgeted move still
+			// has unspent picks) is a one-tap shortcut into moves-edit — same as hitting the
+			// section pencil — so the player can make the pending pick immediately. Open-only:
+			// it never toggles edit OFF (the hand only shows while a choice is outstanding).
+			const openMovesEditFromHand = ev => {
+				const hand = ev.target.closest(".stonetop-move-choice-needed");
+				if (!hand) return;
+				if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				if (this.isSectionEditable("moves")) return; // already editable — nothing to do
+				this._editingSections.add("moves");
+				this._onSectionEditOpened("moves");
+				this.render(false);
+			};
+			html[0].addEventListener("click", openMovesEditFromHand, true);
+			html[0].addEventListener("keydown", openMovesEditFromHand, true);
 
 			// Followers tab: per-card, per-section edit pencils. Same per-section toggle
 			// mechanism, keyed on `follower-<section>:<ftype>:<slug>`; opening a text

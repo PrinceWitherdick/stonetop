@@ -2280,6 +2280,22 @@ input.stonetop-name-field {
 	cursor: default;
 }
 
+/* Pick-budget badge for repeat-scaling markOptions moves (Veteran Crew, Beast of
+   Legend, Well Versed …): "{used} / {max} chosen". Greens when the budget is fully
+   spent; a muted red when a grandfathered mark sits over the current budget. */
+.stonetop-move-mark-budget {
+	margin: 4px 0 0;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
+}
+.stonetop-move-mark-budget.is-at-budget {
+	color: var(--st-green-text);
+}
+.stonetop-move-mark-budget.is-over {
+	color: var(--st-red-text);
+}
+
 .stonetop-move-marks {
 	list-style: none;
 	margin: 4px 0 0;
@@ -3215,6 +3231,27 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-item.move-locked {
 	opacity: 0.4;
+}
+
+/* A move the player OWNS that still has unspent selection budget (e.g. Veteran Crew
+   taken but its pick not yet made). Deliberately DISTINCT from .move-requirements-unmet
+   (the red error below): this is a BLUE "needs your input" call-to-action — border,
+   tint, and inset left stripe (the stripe via box-shadow so it adds no width). Declared
+   before .move-requirements-unmet so the red error wins the tint if a move is both. */
+.tab.moves .stonetop-item.move-needs-choice {
+	border-color: var(--st-blue-border);
+	background: var(--st-blue-bg);
+	box-shadow: inset 3px 0 0 var(--st-blue-border);
+	opacity: 1;
+}
+.stonetop-move-choice-needed {
+	margin-left: 5px;
+	color: var(--st-blue-text);
+	cursor: pointer;
+}
+.stonetop-move-choice-needed:hover,
+.stonetop-move-choice-needed:focus-visible {
+	color: var(--st-blue-border);
 }
 
 /* A move the player OWNS but whose prerequisites are no longer satisfied (they

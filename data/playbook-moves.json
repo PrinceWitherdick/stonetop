@@ -780,7 +780,7 @@
     },
     {
       "name": "Beast of Legend",
-      "description": "<p>Each time you take this move, pick 1:</p><ul><li>They are exceptional (and roll +2 instead of +1)</li><li>They get +4 HP and +1 armor</li><li>They develop some unique ability or trait</li></ul>",
+      "description": "<p>Each time you take this move, pick 1:</p>",
       "rollType": null,
       "requirement": {
         "level": 6,
@@ -788,6 +788,7 @@
           "Magnificent Specimen"
         ]
       },
+      "repeatMax": 3,
       "playbook": "The Ranger"
     },
     {
@@ -887,6 +888,7 @@
           "Animal Companion"
         ]
       },
+      "repeatMax": 3,
       "playbook": "The Ranger"
     },
     {
@@ -1790,9 +1792,10 @@
     },
     {
       "name": "Well Versed",
-      "description": "<p>Mark 1 topic, in addition to the one noted in your Background. Each additional time you take this move, mark 2 more topics.</p><ul><li>The Last Door, death, and the undead</li><li>The civilizations of humanity</li><li>The Fae and their strange ways</li><li>The Makers and their arts</li><li>The primordial powers</li><li>The Things Below</li><li>The wild world and its spirits</li></ul><p>When you <strong><em>Know Things about one of your topics</em></strong>, you can ask the GM a follow-up question of your choice (even on a 6-).</p>",
+      "description": "<p>Mark 1 topic, in addition to the one noted in your Background. Each additional time you take this move, mark 2 more topics.</p><p>When you <strong><em>Know Things about one of your topics</em></strong>, you can ask the GM a follow-up question of your choice (even on a 6-).</p>",
       "rollType": null,
       "isStartingMove": true,
+      "repeatMax": 4,
       "playbook": "The Seeker"
     },
     {
@@ -2157,6 +2160,7 @@
           "Veteran Crew"
         ]
       },
+      "repeatMax": 4,
       "playbook": "The Marshal"
     },
     {
@@ -2321,6 +2325,7 @@
           "Crew"
         ]
       },
+      "repeatMax": 4,
       "playbook": "The Marshal"
     },
     {
