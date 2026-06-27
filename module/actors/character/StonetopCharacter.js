@@ -1195,7 +1195,15 @@ export class StonetopCharacter {
 	}
 
 	async removeMove(ownedId) {
-		if (ownedId) await this._actor.deleteEmbeddedDocuments("Item", [ownedId]);
+		if (!ownedId) return;
+		// Cascade: a cross-playbook move (Versatile/Worldly/…) tags each foreign move it
+		// granted with grantedBy.instanceId === its own item id. Removing the cross-playbook
+		// move must also remove those granted moves, or they'd linger in "Learned Moves" with
+		// a dangling "Granted by <gone move>" label and an ability the player no longer has.
+		const orphans = this._actor.items
+			.filter(i => i.type === "move" && i.flags?.[STONETOP_SCOPE]?.grantedBy?.instanceId === ownedId)
+			.map(i => i._id);
+		await this._actor.deleteEmbeddedDocuments("Item", [ownedId, ...orphans]);
 	}
 
 	// Apply the "either X OR Y" starting-move picks: grant the chosen move in each group

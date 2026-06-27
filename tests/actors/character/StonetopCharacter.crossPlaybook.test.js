@@ -103,4 +103,39 @@ describe("StonetopCharacter.applyLevelUp — cross-playbook threading", () => {
 		await char.applyLevelUp("badId", null, { crossPlaybook: true, foreignMoveId: "fId", grantsPossession: "sacred-pouch" });
 		expect(char._applyForeignMoveChoice).not.toHaveBeenCalled();
 	});
+
+	it("plain move (no choices): adds the move and deducts XP/level, calling no choice helper", async () => {
+		const actor = new FakeActorBuilder().withPlaybook("the-blessed", "The Blessed").withLevel(2).withXp(20, 30).build();
+		const char = new TestCharacterBuilder(actor).build();
+		char.addMove = vi.fn().mockResolvedValue({ id: "x", name: "Big Magic" });
+		char._applyForeignMoveChoice = vi.fn();
+		char._applyStatIncreaseChoice = vi.fn();
+		await char.applyLevelUp("bmId", null, null);
+		expect(char.addMove).toHaveBeenCalledWith("bmId");
+		expect(char._applyForeignMoveChoice).not.toHaveBeenCalled();
+		expect(char._applyStatIncreaseChoice).not.toHaveBeenCalled();
+		// level 2 → 3; cost = 6 + 2*2 = 10, so xp 20 → 10.
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.level.value": 3, "system.attributes.xp.value": 10 });
+	});
+});
+
+describe("StonetopCharacter.removeMove — cross-playbook cascade", () => {
+	it("removes the foreign moves a cross-playbook move granted (matched by grantedBy.instanceId)", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-fox", "The Fox")
+			.addItem({ _id: "cross1", type: "move", name: "Versatile", system: { moveType: "playbook" } })
+			.addItem({ _id: "g1", type: "move", name: "Smash", system: { moveType: "playbook", playbook: "The Heavy" },  flags: { stonetop_pwd: { grantedBy: { move: "Versatile", instanceId: "cross1" } } } })
+			.addItem({ _id: "g2", type: "move", name: "Other", system: { moveType: "playbook", playbook: "The Marshal" }, flags: { stonetop_pwd: { grantedBy: { move: "Versatile", instanceId: "OTHER"  } } } })
+			.build();
+		await new TestCharacterBuilder(actor).build().removeMove("cross1");
+		// cross1 + its grant g1; g2 belongs to a different instance and is left alone.
+		expect(actor.deleteEmbeddedDocuments).toHaveBeenCalledWith("Item", ["cross1", "g1"]);
+	});
+
+	it("removes just the move when it granted nothing", async () => {
+		const actor = new FakeActorBuilder().withPlaybook("the-fox", "The Fox")
+			.addItem({ _id: "m1", type: "move", name: "Harden", system: { moveType: "playbook" } }).build();
+		await new TestCharacterBuilder(actor).build().removeMove("m1");
+		expect(actor.deleteEmbeddedDocuments).toHaveBeenCalledWith("Item", ["m1"]);
+	});
 });
