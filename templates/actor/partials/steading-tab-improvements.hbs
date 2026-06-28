@@ -17,10 +17,10 @@
 
 				<div class="steading-improvement-header">
 					<label class="steading-improvement-complete-label{{#if completeLocked}} is-locked{{/if}}"
-					       data-tooltip="{{#if completeLocked}}Check off the required steps before marking this complete{{else}}Mark this improvement complete{{/if}}"
+					       data-tooltip="{{#if completeLocked}}Requirements not all met — tap to mark them complete and earn this improvement{{else}}Mark this improvement complete{{/if}}"
 					       data-tooltip-direction="UP">
 						<input type="checkbox" class="steading-improvement-complete"
-						       data-slug="{{slug}}" {{#if completed}}checked{{/if}}{{#if completeLocked}} disabled{{/if}}>
+						       data-slug="{{slug}}" {{#if completed}}checked{{/if}}>
 					</label>
 					<div class="steading-improvement-summary">
 						<h4 class="steading-improvement-title">{{label}}{{#if custom}} <span class="steading-improvement-custom-tag">added</span>{{/if}}</h4>

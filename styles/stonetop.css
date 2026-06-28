@@ -7848,17 +7848,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-color: #4a8c4a;
 }
 
-/* Locked until the improvement's requirements are checked off. The SVG skin
-   (border/background) is locked in with !important by the shared checkbox master
-   block, so dimming is the lever we have; the read-only rule above keeps these
+/* Not yet earned — requirements aren't all checked off. The checkbox stays tappable:
+   clicking it offers to mark every requirement complete and earn the improvement now
+   (see _onImprovementComplete). The dimmed look just signals it isn't earned yet. The
+   SVG skin (border/background) is locked in with !important by the shared checkbox
+   master block, so dimming is the lever we have; the read-only rule above keeps these
    live for gameplay (opacity:1), so the locked style is scoped to win there too. */
-.steading-improvement-complete-label.is-locked,
-.steading-improvement-complete:disabled {
-	cursor: not-allowed;
-}
-
-input[type="checkbox"].steading-improvement-complete:disabled,
-.stonetop-readonly input[type="checkbox"].steading-improvement-complete:disabled {
+.steading-improvement-complete-label.is-locked .steading-improvement-complete,
+.stonetop-readonly .steading-improvement-complete-label.is-locked .steading-improvement-complete {
 	opacity: 0.5;
 }
 

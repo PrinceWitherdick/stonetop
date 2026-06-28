@@ -401,6 +401,16 @@ export function improvementRequirementsMet(def, r = []) {
 	return [...groups.values()].every(Boolean);
 }
 
+/**
+ * Total number of requirement checkboxes across an improvement's sections — i.e. the
+ * flat length of its `r` tracking array. Used to force-complete every step at once
+ * when the user opts to earn an improvement whose requirements aren't all met.
+ * @param {{sections?: Array}} def
+ */
+export function improvementRequirementCount(def) {
+	return (def?.sections ?? []).reduce((n, s) => n + (s?.items?.length ?? 0), 0);
+}
+
 export const STEADING_DEFAULTS = {
 	resources: [
 		{ name: "Farming (beans, potatoes, oats, barley)", checked: true },

@@ -1,4 +1,4 @@
-import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS, improvementRequirementsMet } from "./StonetopSteading.js";
+import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS, improvementRequirementsMet, improvementRequirementCount } from "./StonetopSteading.js";
 import {rollStat, sign, postSeasonsRollPrompt} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
@@ -1887,18 +1887,35 @@ export function createStonetopSteadingSheetClass(Base) {
 			const f = this._stonetopSteading._flags;
 			const improvements = foundry.utils.deepClone(f.improvements ?? {});
 			if (!improvements[slug]) improvements[slug] = { completed: false, r: [] };
-			// Can't mark complete until the requirements are met (the checkbox is also
-			// disabled in that state — this guards a stale-DOM race). Unchecking is
-			// always allowed so a mistaken completion can be undone.
+			// Marking complete while the requirements aren't all met: rather than block
+			// it, offer to check off every required step at once and earn the improvement
+			// now. Unchecking is always allowed so a mistaken completion can be undone.
 			if (checked) {
 				const def = this._stonetopSteading.improvementDef(slug);
 				if (def && !improvementRequirementsMet(def, improvements[slug].r ?? [])) {
-					this.render(false);
-					return;
+					const confirmed = await this._confirmForceCompleteImprovement(def);
+					if (!confirmed) {
+						this.render(false); // revert the just-tapped checkbox
+						return;
+					}
+					improvements[slug].r = Array.from({ length: improvementRequirementCount(def) }, () => true);
 				}
 			}
 			improvements[slug].completed = checked;
 			await this._stonetopSteading.setFlags({ improvements });
+		}
+
+		// Confirm marking every requirement of a not-yet-earned improvement complete so
+		// it can be earned immediately. Resolves true when accepted, false/null otherwise.
+		_confirmForceCompleteImprovement(def) {
+			return Dialog.confirm({
+				title: "Earn this improvement?",
+				content: `<div class="stonetop-improvement-force-complete">
+					<p>Stonetop hasn't met all the requirements for <strong>${_esc(def.label)}</strong> yet.</p>
+					<p>Mark them all complete and earn this improvement?</p>
+				</div>`,
+				options: { classes: ["dialog", "stonetop", "stonetop-improvement-force-complete-dialog"] },
+			});
 		}
 
 		async _onImprovementReq(slug, index, checked) {

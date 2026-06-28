@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { StonetopSteading, improvementRequirementsMet, IMPROVEMENT_DEFINITIONS } from "../../../module/actors/steading/StonetopSteading.js";
+import { StonetopSteading, improvementRequirementsMet, improvementRequirementCount, IMPROVEMENT_DEFINITIONS } from "../../../module/actors/steading/StonetopSteading.js";
 
 function makeSteadingActor({ system = {}, steadingFlags = {} } = {}) {
 	return {
@@ -92,6 +92,15 @@ describe("StonetopSteading", () => {
 			const bySlug = await snapshotBySlug({ palisade: { completed: true, r: [] } });
 			expect(bySlug.palisade.requirementsMet).toBe(false);
 			expect(bySlug.palisade.completeLocked).toBe(false);
+		});
+
+		it("counts every requirement checkbox across an improvement's sections", () => {
+			// weaponsOfWar has 9 requirement items spread over its three sections; a
+			// no-section improvement has zero. This drives the force-complete fill-in.
+			const weaponsOfWar = IMPROVEMENT_DEFINITIONS.find(d => d.slug === "weaponsOfWar");
+			expect(improvementRequirementCount(weaponsOfWar)).toBe(9);
+			expect(improvementRequirementCount({ sections: [] })).toBe(0);
+			expect(improvementRequirementCount(null)).toBe(0);
 		});
 	});
 
