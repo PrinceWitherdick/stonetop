@@ -87,12 +87,14 @@ function cleanMove(doc) {
     }
     if (s.resource?.max) out.resource = cleanResource(s.resource);
     if (s.isStartingMove) out.isStartingMove = true;
-    if (s.requirement && (s.requirement.level > 1 || s.requirement.moves?.length || s.requirement.note)) {
+    if (s.requirement && (s.requirement.level > 1 || s.requirement.moves?.length || s.requirement.note || s.requirement.stats)) {
         out.requirement = {};
         if (s.requirement.level > 1) out.requirement.level = s.requirement.level;
         if (s.requirement.moves?.length) out.requirement.moves = s.requirement.moves;
-        // Display-only prerequisite the engine can't check mechanically (e.g. "Strength
-        // +2 or higher") — shown to the player but never used to lock the move.
+        // Machine-checkable per-stat minimum (Musclebound's { str: 2 }) — gates the move.
+        if (s.requirement.stats) out.requirement.stats = s.requirement.stats;
+        // Display-only prerequisite the engine can't check mechanically (e.g. "All 6 marks
+        // in Potential for Greatness") — shown to the player but never used to lock.
         if (s.requirement.note) out.requirement.note = s.requirement.note;
     }
     if (s.repeatMax) out.repeatMax = s.repeatMax;

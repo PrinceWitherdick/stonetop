@@ -1,6 +1,7 @@
 import { FrontOnOpen } from "../../../utils/front-on-open.js";
 import { markProseSpiralBullets } from "../../../utils/journal-spiral-bullets.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
+import { moveMarkBudget } from "../move-mark-budget.js";
 
 // Base width (overview, stat, invocation). The move step widens so its two-column
 // masonry list shows both columns comfortably by default. Heights are NOT fixed
@@ -16,10 +17,13 @@ export class LevelUpDialog extends Application {
 		super(options);
 		this._character  = character;
 		this._data       = levelUpData;
-		this._step       = "overview"; // "overview" | "move" | "foreignMove" | "stat" | "invocation"
+		this._step       = "overview"; // "overview" | "move" | "foreignMove" | "stat" | "marks" | "invocation"
 		this._selectedMoveId         = null;
 		this._selectedStat           = null;
 		this._selectedInvocationSlug = null;
+		// Level-up mark step (Veteran Crew / Well Versed / … and Potential for Greatness):
+		// the picks made this take, each { slug, stat? } (stat only for a stat-choice option).
+		this._selectedMarks          = [];
 		this._showLockedMoves        = false;
 		// Move-filter state, persisted across re-renders (a move click re-renders the
 		// dialog) so the search query and active chip survive selection.
@@ -96,14 +100,21 @@ export class LevelUpDialog extends Application {
 		const isMove        = this._step === "move";
 		const isForeignMove = this._step === "foreignMove";
 		const isStat        = this._step === "stat";
+		const isMarks       = this._step === "marks";
 		const isInvocation  = this._step === "invocation";
 
 		const needsStat    = this._needsStatChoice();
 		const needsForeign = this._needsForeignMoveChoice();
+		const markDesc     = this._markStepDescriptor();
+		const needsMark    = !!markDesc;
+		// Step order: overview → move → (foreignMove | stat)? → marks? → invocation?. The
+		// mark step always follows the move/foreign/stat steps and precedes invocation, so a
+		// step is "last" only when nothing downstream remains.
 		const isLastStep = isInvocation
-			|| (isStat && !d.needsInvocation)
-			|| (isForeignMove && !d.needsInvocation)
-			|| (isMove && !needsForeign && !needsStat && !d.needsInvocation);
+			|| (isMarks && !d.needsInvocation)
+			|| (isStat && !needsMark && !d.needsInvocation)
+			|| (isForeignMove && !needsMark && !d.needsInvocation)
+			|| (isMove && !needsForeign && !needsStat && !needsMark && !d.needsInvocation);
 
 		const playbookName = d.playbookName ?? null;
 
@@ -143,10 +154,23 @@ export class LevelUpDialog extends Application {
 			selected:      m.compendiumId === this._selectedForeignMoveId,
 		}));
 
+		// How many distinct options are actually SELECTABLE this take (a count option with a
+		// free box). The required allowance is capped to this, so a budgeted move whose budget
+		// exceeds its distinct options (e.g. Beast of Legend's 2 options on a 3-pick take) can
+		// never trap the player — one pick per option means the budget is filled as far as it
+		// can be, with the rest markable later on the sheet.
+		const markSelectable = markDesc ? markDesc.options.reduce((n, o) => o.existing < o.capacity ? n + 1 : n, 0) : 0;
+		const markAllowance = markDesc ? Math.min(markDesc.allowance, markSelectable) : 0;
+
+		// The mark step is satisfied when this take's allowance of picks is made (the player
+		// opted for "require the pick" over deferring a budgeted move's marks to the sheet).
+		const marksComplete = !!markDesc && this._selectedMarks.length === markAllowance;
+
 		const canContinue = isOverview
 			|| (isMove && this._selectedMoveId !== null)
 			|| (isForeignMove && (this._selectedForeignMoveId !== null || foreignMoves.length === 0))
 			|| (isStat && this._selectedStat !== null)
+			|| (isMarks && marksComplete)
 			|| (isInvocation && this._selectedInvocationSlug !== null);
 
 		// Stat-increase step: the six stats, greying out any already at the chosen
@@ -160,13 +184,33 @@ export class LevelUpDialog extends Application {
 			selected:   s.key === this._selectedStat,
 		}));
 
+		// Mark step (a budgeted move just picked): each option is a clickable checkbox-style
+		// row. A picked option highlights; an unpicked one locks when it's full or the take's
+		// allowance is spent (an allowance of 1 just swaps the lone pick instead of locking).
+		const markStep = markDesc ? {
+			moveName:  markDesc.moveName,
+			allowance: markAllowance,
+			used:      this._selectedMarks.length,
+			options: markDesc.options.map(o => {
+				const selected = this._selectedMarks.some(p => p.slug === o.slug);
+				const hasRoom  = o.existing < o.capacity;
+				return {
+					slug: o.slug, label: o.label, selected,
+					existingLabel: o.existing > 0 ? `marked ×${o.existing}` : null,
+					disabled: !selected && (!hasRoom || (this._selectedMarks.length >= markDesc.allowance && markDesc.allowance !== 1)),
+				};
+			}),
+		} : null;
+
 		return {
 			isOverview,
 			isMove,
 			isForeignMove,
 			isStat,
+			isMarks,
 			isInvocation,
 			isLastStep,
+			markStep,
 			canContinue,
 			newLevel:        d.newLevel,
 			cost:            d.cost,
@@ -211,6 +255,41 @@ export class LevelUpDialog extends Application {
 		return !!this._selectedMoveEntry()?.crossPlaybook;
 	}
 
+	// The mark step to show (or null) for a just-picked budgeted move (Veteran Crew /
+	// Heroes to the Last / Beast of Legend / Well Versed). Potential for Greatness is NOT
+	// collected at level-up — it's marked in play on a 10+ stat roll (see the chat reminder
+	// in WouldBeHeroAsterisk.js).
+	_markStepDescriptor() {
+		const entry = this._selectedMoveEntry();
+		return entry?.markOptions?.length ? this._buildPickedMoveMarkStep(entry) : null;
+	}
+
+	// Drives navigation routing — a mark step follows the move/foreign/stat steps.
+	_needsMarkChoice() {
+		return !!this._markStepDescriptor();
+	}
+
+	// Build the mark step for a just-picked budgeted move: its checkbox (count) options,
+	// what's already spent on prior copies, and the NEW picks this take grants (the move's
+	// repeat-scaling budget minus what's already spent). Stat-choice options are skipped —
+	// only Potential for Greatness has them, and it's served by its own precomputed step.
+	_buildPickedMoveMarkStep(entry) {
+		const ownedCountAfter = (entry.ownedIds?.length ?? 0) + 1; // this level-up adds one copy
+		const budgetMax = moveMarkBudget(entry.markBudget, ownedCountAfter);
+		const marksForMove = this._data?.marks?.[entry.name] ?? {};
+		const len = v => Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
+		const options = (entry.markOptions ?? [])
+			.filter(o => o.choice !== "stat")
+			.map(o => ({ slug: o.slug, label: o.label, choice: "count", capacity: o.marks ?? 1, existing: len(marksForMove[o.slug]) }));
+		if (!options.length) return null;
+		const used = options.reduce((n, o) => n + o.existing, 0);
+		// A null budget (move declares no markBudget) is uncapped; fall back to one pick so
+		// the step still asks for a choice rather than offering an unbounded count.
+		const allowance = budgetMax != null ? Math.max(0, budgetMax - used) : 1;
+		if (allowance <= 0) return null;
+		return { moveName: entry.name, allowance, options };
+	}
+
 	// Fetch the qualifying foreign moves for the selected cross-playbook move (async — the
 	// repo reads them from the compendium). Called when entering the foreignMove step. Skips
 	// the re-fetch (and preserves the current pick + filter) on a Back→Next round-trip where
@@ -240,12 +319,13 @@ export class LevelUpDialog extends Application {
 
 		html.find(".stonetop-levelup-move-option:not(.is-locked)").on("click", ev => {
 			this._selectedMoveId = ev.currentTarget.dataset.compendiumId;
-			// Drop any stat / foreign-move pick from a previously-selected move so they
+			// Drop any stat / foreign-move / mark pick from a previously-selected move so they
 			// re-validate against the new move (a non-stat / non-cross-playbook move ignores them).
 			this._selectedStat = null;
 			this._selectedForeignMoveId = null;
 			this._foreignMoves = [];
 			this._foreignMovesForId = null;
+			this._selectedMarks = [];
 			this.render(false);
 		});
 
@@ -267,6 +347,19 @@ export class LevelUpDialog extends Application {
 
 		html.find(".stonetop-levelup-stat-option:not(.is-at-cap)").on("click", ev => {
 			this._selectedStat = ev.currentTarget.dataset.statKey;
+			this.render(false);
+		});
+
+		// ── Mark step (budgeted moves: Veteran Crew / Heroes to the Last / …) ──────────
+		// Count options toggle; once this take's allowance is spent, a single-pick step
+		// swaps the lone pick instead of locking.
+		const markDesc = this._markStepDescriptor();
+		html.find(".stonetop-levelup-mark-option:not(.is-at-cap)").on("click", ev => {
+			const slug = ev.currentTarget.dataset.markSlug;
+			const i = this._selectedMarks.findIndex(p => p.slug === slug);
+			if (i >= 0) this._selectedMarks.splice(i, 1);                                        // deselect
+			else if (markDesc && this._selectedMarks.length < markDesc.allowance) this._selectedMarks.push({ slug });
+			else if (markDesc && markDesc.allowance === 1) this._selectedMarks = [{ slug }];     // single-pick: replace
 			this.render(false);
 		});
 
@@ -316,7 +409,8 @@ export class LevelUpDialog extends Application {
 		});
 
 		html.find(".stonetop-levelup-back-btn").on("click", () => {
-			if (this._step === "invocation")       this._step = this._needsStatChoice() ? "stat" : (this._needsForeignMoveChoice() ? "foreignMove" : "move");
+			if (this._step === "invocation")       this._step = this._needsMarkChoice() ? "marks" : (this._needsStatChoice() ? "stat" : (this._needsForeignMoveChoice() ? "foreignMove" : "move"));
+			else if (this._step === "marks")       this._step = this._needsStatChoice() ? "stat" : (this._needsForeignMoveChoice() ? "foreignMove" : "move");
 			else if (this._step === "stat")        this._step = "move";
 			else if (this._step === "foreignMove") this._step = "move";
 			else if (this._step === "move")        this._step = "overview";
@@ -337,12 +431,18 @@ export class LevelUpDialog extends Application {
 				} else if (this._step === "move") {
 					if (this._needsForeignMoveChoice()) { await this._loadForeignMoves(); this._step = "foreignMove"; }
 					else if (this._needsStatChoice())   this._step = "stat";
+					else if (this._needsMarkChoice())   this._step = "marks";
 					else if (d.needsInvocation)         this._step = "invocation";
 					else await this._apply();
 				} else if (this._step === "foreignMove") {
-					if (d.needsInvocation) this._step = "invocation";
+					if (this._needsMarkChoice())   this._step = "marks";
+					else if (d.needsInvocation)    this._step = "invocation";
 					else await this._apply();
 				} else if (this._step === "stat") {
+					if (this._needsMarkChoice())   this._step = "marks";
+					else if (d.needsInvocation)    this._step = "invocation";
+					else await this._apply();
+				} else if (this._step === "marks") {
 					if (d.needsInvocation) this._step = "invocation";
 					else await this._apply();
 				} else if (this._step === "invocation") {
@@ -357,19 +457,25 @@ export class LevelUpDialog extends Application {
 
 	async _apply() {
 		const entry = this._selectedMoveEntry();
-		let choices = null;
+		const choices = {};
 		if (this._selectedStat && entry?.cap != null) {
-			choices = { stat: this._selectedStat, cap: entry.cap };
+			choices.stat = this._selectedStat;
+			choices.cap  = entry.cap;
 		} else if (entry?.crossPlaybook) {
 			// Cross-playbook pick: the chosen foreign move (may be null if nothing qualified)
 			// + whether this move also grants a possession (the Initiate Sacred Pouch).
-			choices = {
-				crossPlaybook:    true,
-				foreignMoveId:    this._selectedForeignMoveId,
-				grantsPossession: entry.crossPlaybook.grantsPossession ?? null,
-			};
+			choices.crossPlaybook    = true;
+			choices.foreignMoveId    = this._selectedForeignMoveId;
+			choices.grantsPossession = entry.crossPlaybook.grantsPossession ?? null;
 		}
-		await this._character.applyLevelUp(this._selectedMoveId, this._selectedInvocationSlug, choices);
+		// Mark-step picks (a budgeted move just taken, or the Would-Be Hero's Potential for
+		// Greatness). Threaded INDEPENDENTLY of the stat/cross branches above, so a Would-Be
+		// Hero who took Improved Stat or a cross-playbook move still records this level's mark.
+		const markDesc = this._markStepDescriptor();
+		if (markDesc && this._selectedMarks.length) {
+			choices.marks = { moveName: markDesc.moveName, picks: this._selectedMarks };
+		}
+		await this._character.applyLevelUp(this._selectedMoveId, this._selectedInvocationSlug, Object.keys(choices).length ? choices : null);
 		// Hand back the chosen move's name so the sheet can auto-open the sacred-pouch
 		// editor when a Blessed levels into Big Magic (an additional remarkable trait).
 		if (this._onDone) this._onDone(entry?.name ?? null);

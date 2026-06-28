@@ -35,6 +35,7 @@ import {
 	VitalsSnapshotBuilder,
 } from "../../model/CharacterSnapshot.js";
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
+import {statRequirementLabel, statRequirementsUnmet} from "./stat-requirement.js";
 import {MoveResources} from "./MoveResources.js";
 import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
@@ -1117,8 +1118,9 @@ export class StonetopCharacter {
 	}
 
 	buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, actorPlaybook) {
+		const actorStats = _statValueMap(this._actor.system?.stats);
 		return entries.map(e =>
-			new PlaybookMoveEntry(e, ownedAllByName.get(e.name) ?? [], bgMoveNames, ownedAllByName, actorLevel, actorPlaybook)
+			new PlaybookMoveEntry(e, ownedAllByName.get(e.name) ?? [], bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats)
 		);
 	}
 
@@ -1414,6 +1416,10 @@ export class StonetopCharacter {
 			stats: Object.entries(_STAT_DEFS).map(([key, { name, abbr }]) => ({
 				key, name, abbr, value: actor.system?.stats?.[key]?.value ?? 0,
 			})),
+			// All current move marks, so the dialog's mark step can show what's already
+			// spent on a budgeted move (Veteran Crew / Well Versed / …) and compute the
+			// remaining picks for this take.
+			marks: this._moveResources.getMarks(),
 		};
 	}
 
@@ -1431,13 +1437,14 @@ export class StonetopCharacter {
 			? _ALL_PLAYBOOK_NAMES.filter(p => p !== ownName)
 			: (crossPlaybook?.playbooks ?? []).filter(p => p !== ownName);
 		const ownedNames = new Set(this._actor.items.filter(i => i.type === "move").map(i => i.name));
+		const actorStats = _statValueMap(this._actor.system?.stats);
 		const out = [], seen = new Set();
 		for (const pb of allowed) {
 			for (const def of await this._moveRepo.getPlaybookMoves(pb)) {
 				if (def.cap != null) continue;          // no Improved/Superior Stat
 				if (def.crossPlaybook) continue;         // no third-playbook chaining
 				if (ownedNames.has(def.name) || seen.has(def.name)) continue;
-				if (!_foreignMoveQualifies(def, ownedNames, level)) continue;
+				if (!_foreignMoveQualifies(def, ownedNames, level, actorStats)) continue;
 				seen.add(def.name);
 				out.push({ compendiumId: def.id, name: def.name, description: def.description ?? "", playbook: pb, requiresLabel: _foreignRequiresLabel(def.requirement) });
 			}
@@ -1468,6 +1475,15 @@ export class StonetopCharacter {
 		}
 		if (addedItem && choices?.crossPlaybook) {
 			await this._applyForeignMoveChoice(addedItem, choices.foreignMoveId ?? null, choices.grantsPossession ?? null);
+		}
+		// Mark-selection moves (Veteran Crew / Heroes to the Last / Beast of Legend / Well
+		// Versed) and the Would-Be Hero's Potential for Greatness collect their marks here.
+		// Keyed by move NAME — the same store the sheet writes — so this is NOT gated on
+		// `addedItem`: PfG's target is an already-owned move, not the one just picked. A
+		// budgeted move WAS added above, so its owned-count (and thus its repeat-scaling
+		// cap) already reflects this take when setCountMark clamps below.
+		if (choices?.marks?.picks?.length) {
+			await this._applyMarkChoices(choices.marks.moveName, choices.marks.picks);
 		}
 		if (selectedInvocationSlug) {
 			const current = this._actor.getFlag("stonetop_pwd", "invocations.selected") ?? [];
@@ -1507,6 +1523,18 @@ export class StonetopCharacter {
 		}
 	}
 
+	// Apply a level-up mark step's picks (the budgeted moves — Veteran Crew / Heroes to the
+	// Last / Beast of Legend / Well Versed) to the move's mark store via setCountMark
+	// (budget-clamped, level-stamped; hp/armor/crew/companion effects are derived on render,
+	// so we never apply them here). Writes flags.stonetop_pwd.moves.moveMarks keyed by move
+	// NAME, the same surface the sheet's own checkboxes use.
+	async _applyMarkChoices(moveName, picks) {
+		for (const pick of picks) {
+			const current = _markEntries(this._moveResources.getMarks()[moveName]?.[pick.slug]).length;
+			await this.setCountMark(moveName, pick.slug, current + 1);
+		}
+	}
+
 	_buildOwnedMovesMap() {
 		const map = new Map();
 		for (const item of this._actor.items.filter(i => i.type === "move")) {
@@ -1527,27 +1555,33 @@ const _ALL_PLAYBOOK_NAMES = [
 ];
 
 // A foreign move qualifies for a cross-playbook pick when the actor owns its required
-// moves and meets its level. Its `requirement.playbook` is intentionally ignored (the
+// moves, meets its level, and meets any machine-checkable stat minimum (Musclebound's
+// STR +2 — gated here just as it is on its home playbook, so crossing playbooks can't
+// dodge the prereq). Its `requirement.playbook` is intentionally ignored (the
 // cross-playbook move grants the cross-playbook access); a null requirement always
-// qualifies. NOTE: `requirement.note` (a freeform gate like "Strength +2 or higher") is
-// NOT machine-checked — it can't be without a per-note rule engine — so such a move stays
-// pickable; the note is surfaced in the picker (via _foreignRequiresLabel) for the player
-// to self-police, exactly as the sheet shows note-only prerequisites on owned moves.
-function _foreignMoveQualifies(def, ownedNames, level) {
+// qualifies. NOTE: a freeform `requirement.note` (e.g. "All 6 marks in Potential for
+// Greatness") is still NOT machine-checked — it can't be without a per-note rule engine —
+// so such a move stays pickable; the note is surfaced in the picker for the player to
+// self-police, exactly as the sheet shows note-only prerequisites on owned moves.
+function _foreignMoveQualifies(def, ownedNames, level, actorStats = {}) {
 	const req = def.requirement;
 	if (!req) return true;
 	if (req.level && level < req.level) return false;
 	for (const m of (req.moves ?? [])) if (!ownedNames.has(m)) return false;
+	if (statRequirementsUnmet(req.stats, actorStats)) return false;
 	return true;
 }
 
 // Display string of a foreign move's prerequisites for the picker (required moves + the
-// freeform note); the playbook requirement is omitted (crossing playbooks is the point)
-// and level is omitted (already enforced). Null when there's nothing to show.
+// machine-checked stat minimum + the freeform note); the playbook requirement is omitted
+// (crossing playbooks is the point) and level is omitted (already enforced). Null when
+// there's nothing to show.
 function _foreignRequiresLabel(req) {
 	if (!req) return null;
 	const parts = [];
 	if (req.moves?.length) parts.push(req.moves.join(", "));
+	const statLabel = statRequirementLabel(req.stats);
+	if (statLabel)         parts.push(statLabel);
 	if (req.note)          parts.push(req.note);
 	return parts.length ? parts.join("; ") : null;
 }
@@ -1576,6 +1610,13 @@ function _buildStatsSection(actor) {
 			new StatSnapshot(rawStats[key]?.value ?? 0, name, abbr),
 		])
 	);
+}
+
+// Flatten the actor's `system.stats` ({ str: { value }, … }) to a plain key→value map
+// for the move-list's machine-checkable stat prerequisites (Musclebound's STR +2).
+function _statValueMap(rawStats) {
+	const stats = rawStats ?? {};
+	return Object.fromEntries(Object.keys(_STAT_DEFS).map(key => [key, stats[key]?.value ?? 0]));
 }
 
 function _buildDebilitiesSection(actor) {

@@ -1,4 +1,4 @@
-import { maybePromptAsteriskMove } from "../actors/character/WouldBeHeroAsterisk.js";
+import { maybePromptAsteriskMove, maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
 import { escHtml } from "./strings.js";
 import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber } from "./chat.js";
 
@@ -300,6 +300,7 @@ export async function rollStat(statKey, actor, options = {}) {
 	}
 
 	await maybePromptAsteriskMove(actor, moveName, total);
+	await maybeRemindPotentialForGreatness(actor, statKey, total);
 
 	return roll;
 }

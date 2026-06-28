@@ -67,6 +67,7 @@
         "statAllAtCap": "All of your stats are already at this move's maximum — go back and pick a different move.",
         "foreignIntro": "Choose the move this grants you from another playbook (you must qualify for it):",
         "foreignEmpty": "You don't currently qualify for any move from the allowed playbooks — continue to finish.",
+        "marksIntro": "Make this move's selection(s) for the level you're gaining.",
         "back": "Back",
         "next": "Next",
         "apply": "Apply Level Up"

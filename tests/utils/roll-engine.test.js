@@ -213,6 +213,31 @@ describe("rollStat", () => {
 
 		expect(rollMessages[0].flavor).toContain('<span class="stonetop-roll-result-details"></span>');
 	});
+
+	// A Would-Be Hero who owns an unmarked Potential for Greatness.
+	function makeWouldBeHero(level = 3) {
+		return new FakeActorBuilder()
+			.withPlaybook("the-would-be-hero", "The Would-Be Hero")
+			.withLevel(level)
+			.withItems([{ type: "move", name: "Potential for Greatness", system: { markOptions: [
+				{ slug: "stat", marks: 4, choice: "stat" }, { slug: "hp", marks: 1 }, { slug: "damage", marks: 1 },
+			] } }])
+			.build();
+	}
+
+	const pfgReminder = () => ChatMessage.create.mock.calls.find(c => c[0].content?.includes("Potential for Greatness"));
+
+	it("reminds a Would-Be Hero to mark Potential for Greatness on a 10+ stat roll", async () => {
+		rollTotal = 11;
+		await rollStat("str", makeWouldBeHero(), { noXpOnMiss: true });
+		expect(pfgReminder()).toBeTruthy();
+	});
+
+	it("does not remind on a miss (6-) even for a Would-Be Hero", async () => {
+		rollTotal = 6;
+		await rollStat("str", makeWouldBeHero(), { noXpOnMiss: true });
+		expect(pfgReminder()).toBeFalsy();
+	});
 });
 
 describe("rollDamage", () => {

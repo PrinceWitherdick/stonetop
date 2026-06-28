@@ -6003,6 +6003,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: var(--color-text-dark-secondary);
 }
 
+/* Mark picker (Veteran Crew / Heroes to the Last / Beast of Legend / Well Versed) — the
+   option rows reuse .stonetop-levelup-stat-option; this just stacks them in one column. */
+.stonetop-levelup-mark-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 4px;
+}
+
 /* Footer */
 .stonetop-levelup-footer {
 	display: flex;

@@ -177,6 +177,25 @@
 	</div>
 	{{/if}}
 
+	{{!-- ── Step: Mark Selections (Veteran Crew / Heroes to the Last / Beast of Legend / Well Versed) ── --}}
+	{{#if isMarks}}
+	<div class="stonetop-levelup-step">
+		<p class="stonetop-levelup-intro">
+			{{{localize "stonetop.specialMoves.levelUp.marksIntro"}}}
+			{{#if markStep}}<span class="stonetop-levelup-stat-cap-note">{{markStep.moveName}} — {{markStep.used}} / {{markStep.allowance}} chosen</span>{{/if}}
+		</p>
+		<div class="stonetop-levelup-mark-list">
+			{{#each markStep.options}}
+			<div class="stonetop-levelup-stat-option stonetop-levelup-mark-option{{#if selected}} is-selected{{/if}}{{#if disabled}} is-at-cap{{/if}}"
+				data-mark-slug="{{slug}}">
+				<span class="stonetop-levelup-stat-name">{{label}}</span>
+				{{#if existingLabel}}<span class="stonetop-levelup-stat-value">{{existingLabel}}</span>{{/if}}
+			</div>
+			{{/each}}
+		</div>
+	</div>
+	{{/if}}
+
 	{{!-- ── Step 3: Choose an Invocation ──────────────────────────────── --}}
 	{{#if isInvocation}}
 	<div class="stonetop-levelup-step">

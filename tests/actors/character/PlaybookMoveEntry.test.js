@@ -98,25 +98,25 @@ describe("PlaybookMoveEntry (broken prerequisites on a learned move)", () => {
 
 	it("does NOT flag an owned move that only has a display-only requirement note", () => {
 		const def = new MoveDefinition({
-			_id: "mb", name: "Musclebound",
-			system: { playbook: "The Heavy", requirement: { note: "Strength +2 or higher" } },
+			_id: "wv", name: "Superior Stat",
+			system: { playbook: "The Would-Be Hero", requirement: { note: "All 6 marks in Potential for Greatness" } },
 		});
-		const entry = new PlaybookMoveEntry(def, [{ _id: "mb1" }], NO_BG, new Set(["Musclebound"]), 6, "The Heavy");
+		const entry = new PlaybookMoveEntry(def, [{ _id: "wv1" }], NO_BG, new Set(["Superior Stat"]), 6, "The Would-Be Hero");
 		expect(entry.requirementsUnmet).toBe(false);
 	});
 });
 
 describe("PlaybookMoveEntry (display-only requirement note)", () => {
 	it("shows requirement.note in the label but never uses it to lock the move", () => {
-		// "Strength +2 or higher" is a prose prereq the engine can't check; with only a
-		// note (no real move/playbook/level gate) the move must stay unlocked.
+		// "All 6 marks in Potential for Greatness" is a prose prereq the engine can't
+		// check; with only a note (no real move/playbook/level/stat gate) it stays unlocked.
 		const def = new MoveDefinition({
-			_id: "mb", name: "Musclebound",
-			system: { playbook: "The Heavy", requirement: { note: "Strength +2 or higher" } },
+			_id: "wv", name: "Superior Stat",
+			system: { playbook: "The Would-Be Hero", requirement: { note: "All 6 marks in Potential for Greatness" } },
 		});
-		const entry = new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 6, "The Heavy");
+		const entry = new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 6, "The Would-Be Hero");
 		expect(entry.locked).toBe(false);
-		expect(entry.requiresLabel).toBe("Strength +2 or higher");
+		expect(entry.requiresLabel).toBe("All 6 marks in Potential for Greatness");
 	});
 
 	it("combines a note with a real level gate (WBH Superior Stat) without locking on the note", () => {
@@ -131,5 +131,41 @@ describe("PlaybookMoveEntry (display-only requirement note)", () => {
 		expect(unlocked.requiresLabel).toContain("level 6+");
 		// Below level 6 it's locked by the level gate (not the note).
 		expect(new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 5, "The Would-Be Hero").locked).toBe(true);
+	});
+});
+
+describe("PlaybookMoveEntry (machine-checkable stat requirement)", () => {
+	// Musclebound: "Requires Strength +2 or higher" → { str: 2 }, a stat gate the engine
+	// CAN check (unlike a freeform note), so it actually locks the move.
+	const def = new MoveDefinition({
+		_id: "mb", name: "Musclebound",
+		system: { playbook: "The Heavy", requirement: { stats: { str: 2 } } },
+	});
+
+	it("locks the move when the actor's stat is below the minimum, and shows the gate label", () => {
+		const entry = new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 2, "The Heavy", { str: 1 });
+		expect(entry.locked).toBe(true);
+		expect(entry.requiresLabel).toBe("STR +2");
+	});
+
+	it("unlocks once the stat meets or exceeds the minimum", () => {
+		expect(new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 2, "The Heavy", { str: 2 }).locked).toBe(false);
+		expect(new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 2, "The Heavy", { str: 3 }).locked).toBe(false);
+	});
+
+	it("treats an absent/empty stat map as 0 (locked) and never throws", () => {
+		expect(new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 2, "The Heavy").locked).toBe(true);
+		expect(new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 2, "The Heavy", {}).locked).toBe(true);
+	});
+
+	it("flags an OWNED move whose stat fell below the gate (broken prerequisite)", () => {
+		const entry = new PlaybookMoveEntry(def, [{ _id: "mb1" }], NO_BG, new Set(["Musclebound"]), 2, "The Heavy", { str: 1 });
+		expect(entry.owned).toBe(true);
+		expect(entry.requirementsUnmet).toBe(true);
+	});
+
+	it("does NOT flag an OWNED move whose stat still meets the gate", () => {
+		const entry = new PlaybookMoveEntry(def, [{ _id: "mb1" }], NO_BG, new Set(["Musclebound"]), 2, "The Heavy", { str: 2 });
+		expect(entry.requirementsUnmet).toBe(false);
 	});
 });

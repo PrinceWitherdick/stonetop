@@ -87,3 +87,83 @@ describe("LevelUpDialog cross-playbook step machine", () => {
 		expect(char.applyLevelUp).toHaveBeenCalledWith("s1", null, { stat: "str", cap: 2 });
 	});
 });
+
+// A budgeted count-mark move (Veteran Crew shape): base 1 pick per take, repeat-scaling.
+const veteranCrew = {
+	compendiumId: "vc1", name: "Veteran Crew", cap: null, crossPlaybook: null,
+	markOptions: [
+		{ slug: "tags",    label: "Select 2 new tags", marks: 4 },
+		{ slug: "crew-hp", label: "+2 HP each",        marks: 4 },
+	],
+	markBudget: { base: 1, perExtra: 1 }, ownedIds: [],
+};
+
+describe("LevelUpDialog mark step — budgeted moves (Veteran Crew / Well Versed / …)", () => {
+	it("a budgeted move needs the mark step (disjoint from stat/foreign) with the budget's allowance", () => {
+		const { dlg } = makeDialog({ data: { availableMoves: [veteranCrew], marks: {} } });
+		dlg._selectedMoveId = "vc1";
+		expect(dlg._needsMarkChoice()).toBe(true);
+		expect(dlg._needsStatChoice()).toBe(false);
+		expect(dlg._needsForeignMoveChoice()).toBe(false);
+		expect(dlg._markStepDescriptor()).toMatchObject({ moveName: "Veteran Crew", allowance: 1 });
+	});
+
+	it("the allowance scales with the move's owned count (a 2nd copy of Well Versed grants more)", () => {
+		const wellVersed = { ...veteranCrew, name: "Well Versed", markBudget: { base: 1, perExtra: 2 }, ownedIds: ["o1"] };
+		const { dlg } = makeDialog({ data: { availableMoves: [{ ...wellVersed, compendiumId: "wv1" }], marks: {} } });
+		dlg._selectedMoveId = "wv1";
+		// 1 already owned ⇒ this take is the 2nd copy ⇒ budget 1 + 2·(2−1) = 3.
+		expect(dlg._markStepDescriptor().allowance).toBe(3);
+	});
+
+	it("the move step is non-terminal and Continue is gated until the take's pick is made", () => {
+		const { dlg } = makeDialog({ data: { availableMoves: [veteranCrew], marks: {} } });
+		dlg._selectedMoveId = "vc1";
+		dlg._step = "move";
+		expect(dlg.getData().isLastStep).toBe(false);
+		dlg._step = "marks";
+		expect(dlg.getData().canContinue).toBe(false);
+		dlg._selectedMarks = [{ slug: "tags" }];
+		const ctx = dlg.getData();
+		expect(ctx.canContinue).toBe(true);
+		expect(ctx.isLastStep).toBe(true); // no invocation follows
+		expect(ctx.markStep.used).toBe(1);
+	});
+
+	it("_apply threads the mark picks to applyLevelUp", async () => {
+		const { dlg, char } = makeDialog({ data: { availableMoves: [veteranCrew], marks: {} } });
+		dlg._selectedMoveId = "vc1";
+		dlg._selectedMarks = [{ slug: "tags" }];
+		await dlg._apply();
+		expect(char.applyLevelUp).toHaveBeenCalledWith("vc1", null, { marks: { moveName: "Veteran Crew", picks: [{ slug: "tags" }] } });
+	});
+
+	it("clamps the take's required picks to the selectable options so the step can't dead-end", () => {
+		// Beast-of-Legend shape: 2 options, 3rd take grants budget 3 — but one pick per
+		// option means only 2 are placeable, so the required count clamps to 2 (no hard lock).
+		const beast = {
+			compendiumId: "bol1", name: "Beast of Legend", cap: null, crossPlaybook: null,
+			markOptions: [
+				{ slug: "tough",  label: "+4 HP, +1 armor", marks: 3 },
+				{ slug: "unique", label: "unique trait",    marks: 3 },
+			],
+			markBudget: { base: 1, perExtra: 1 }, ownedIds: ["a", "b"], // 2 owned ⇒ 3rd take ⇒ budget 3
+		};
+		const { dlg } = makeDialog({ data: { availableMoves: [beast], marks: {} } });
+		dlg._selectedMoveId = "bol1";
+		dlg._step = "marks";
+		expect(dlg.getData().markStep.allowance).toBe(2); // clamped from budget 3 → 2 selectable
+		dlg._selectedMarks = [{ slug: "tough" }, { slug: "unique" }];
+		expect(dlg.getData().canContinue).toBe(true);
+	});
+});
+
+describe("LevelUpDialog mark step — no step when not applicable", () => {
+	it("no mark step for a plain (non-budgeted) move", () => {
+		const { dlg } = makeDialog({ data: { availableMoves: [plainMove] } });
+		dlg._selectedMoveId = "p1";
+		dlg._step = "move";
+		expect(dlg._needsMarkChoice()).toBe(false);
+		expect(dlg.getData().isLastStep).toBe(true); // nothing follows → move is terminal
+	});
+});

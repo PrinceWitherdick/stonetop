@@ -1,9 +1,12 @@
+import { statRequirementLabel, statRequirementsUnmet } from "./stat-requirement.js";
+
 export class PlaybookMoveEntry {
-	constructor(entry, ownedInstances, bgMoveNames, ownedAllByName, actorLevel, actorPlaybook) {
+	constructor(entry, ownedInstances, bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats = {}) {
 		const isFromPlaybook   = entry.isStarting;
 		const isFromBackground = bgMoveNames.has(entry.name);
 		const req              = entry.requirement;
 		const requiresMoves    = req?.moves ?? [];
+		const requiresStats    = req?.stats ?? null;
 		const repeatMax        = entry.repeatMax ?? 1;
 		const lastOwnedId      = ownedInstances[ownedInstances.length - 1]?._id ?? null;
 
@@ -21,10 +24,13 @@ export class PlaybookMoveEntry {
 		this.requires = requiresMoves[0] ?? null;
 		const requiresParts = [];
 		if (requiresMoves.length > 0) requiresParts.push(requiresMoves.join(", "));
+		// `req.stats` (e.g. Musclebound's { str: 2 }) is a machine-checkable per-stat
+		// prerequisite — its label rides here and it DOES feed `locked` below.
+		if (requiresStats)            requiresParts.push(statRequirementLabel(requiresStats));
 		// `req.note` is a display-only prerequisite (e.g. "All 6 marks in Potential for
-		// Greatness", "Strength +2 or higher") that the engine can't yet check
-		// mechanically — it's shown to the player but never feeds `locked`, so it can't
-		// permanently lock the move the way an un-matchable `requirement.moves` string does.
+		// Greatness") that the engine can't check mechanically — it's shown to the player
+		// but never feeds `locked`, so it can't permanently lock the move the way an
+		// un-matchable `requirement.moves` string does.
 		if (req?.note)                requiresParts.push(req.note);
 		if (this.minLevel)            requiresParts.push(`level ${this.minLevel}+`);
 		this.requiresLabel = requiresParts.length > 0 ? requiresParts.join("; ") : null;
@@ -37,13 +43,15 @@ export class PlaybookMoveEntry {
 		this.locked = !this.isStarting && !!(
 			requiresMoves.some(m => !ownedAllByName.has(m)) ||
 			(this.requiresPlaybook && this.requiresPlaybook !== actorPlaybook) ||
-			(this.minLevel && actorLevel < this.minLevel)
+			(this.minLevel && actorLevel < this.minLevel) ||
+			statRequirementsUnmet(requiresStats, actorStats)
 		);
 		// The player OWNS this move but its mechanically-checkable prerequisites
-		// (a required move / playbook / level) are no longer satisfied — e.g. they
-		// edited their learned moves and removed a prerequisite. Note-only ("display")
-		// prerequisites never set this, since the engine can't verify them. Drives a
-		// warning cue on the sheet so the broken prerequisite doesn't pass unnoticed.
+		// (a required move / playbook / level / stat minimum) are no longer satisfied —
+		// e.g. they edited their learned moves and removed a prerequisite, or lowered a
+		// stat below the gate in edit mode. Note-only ("display") prerequisites never set
+		// this, since the engine can't verify them. Drives a warning cue on the sheet so
+		// the broken prerequisite doesn't pass unnoticed.
 		this.requirementsUnmet = this.owned && this.locked;
 		this.repeatChecks = this.repeatable
 			? Array.from({ length: repeatMax }, (_, i) => ({

@@ -1986,7 +1986,9 @@
       "description": "<p>When you <strong><em>make a hand-to-hand or thrown attack</em></strong>, it's forceful and messy. If it would already be forceful and/or messy, it's even more so.</p>",
       "rollType": null,
       "requirement": {
-        "note": "Strength +2 or higher"
+        "stats": {
+          "str": 2
+        }
       },
       "playbook": "The Heavy"
     },
