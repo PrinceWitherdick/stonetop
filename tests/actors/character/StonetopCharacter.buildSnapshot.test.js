@@ -1838,6 +1838,96 @@ describe("buildSnapshot — movelist / post-death moves", () => {
 	});
 });
 
+// ── movelist: level move budget ───────────────────────────────────────────────
+
+describe("buildSnapshot — movelist / level move budget", () => {
+	// parseMovePickCount keys off the "… of your choice" phrasing, so the note must
+	// carry it for pickCount to be 2 (as real playbook notes do, e.g. the Judge's).
+	const BUDGET_PLAYBOOK = { ...HEAVY_PLAYBOOK, startingMovesNote: "Pick 2 moves of your choice." };
+	function pbMove(id, name, overrides = {}) {
+		return { _id: id, name, system: { moveType: "playbook", isStartingMove: false, rollType: null, ...overrides } };
+	}
+	function ownedMove(id, name) {
+		return { _id: id, type: "move", name, system: { moveType: "playbook" } };
+	}
+	async function buildMovelist({ level = 1, defs = [], items = [], flags = {} } = {}) {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withLevel(level)
+			.withItems(items)
+			.withFlags(flags)
+			.build();
+		let builder = new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(BUDGET_PLAYBOOK));
+		for (const def of defs) builder = builder.addPlaybookMove(def);
+		const snap = await builder.build().buildSnapshot();
+		return snap.movelist;
+	}
+
+	it("flags a character that is behind on move picks for its level", async () => {
+		// Level 3 ⇒ 2 starting picks + 2 advancements expected; only the 2 starting picks made.
+		const ml = await buildMovelist({
+			level: 3,
+			defs:  [pbMove("a", "Alpha"), pbMove("b", "Bravo")],
+			items: [ownedMove("a1", "Alpha"), ownedMove("b1", "Bravo")],
+		});
+		expect(ml.movesIncomplete).toBe(false);
+		expect(ml.levelMovesIncomplete).toBe(true);
+		expect(ml.levelMovesShortfall).toBe(2);
+		expect(ml.characterLevel).toBe(3);
+	});
+
+	it("does not flag a character that has made every pick for its level", async () => {
+		// Level 4 ⇒ 2 starting + 3 advancements = 5 picks; all five owned.
+		const ml = await buildMovelist({
+			level: 4,
+			defs:  ["a", "b", "c", "d", "e"].map((s, i) => pbMove(s, `Move ${i}`)),
+			items: ["a", "b", "c", "d", "e"].map((s, i) => ownedMove(`${s}1`, `Move ${i}`)),
+		});
+		expect(ml.levelMovesIncomplete).toBe(false);
+		expect(ml.levelMovesShortfall).toBe(0);
+	});
+
+	it("stays hidden at level 1 while the starting-moves onboarding prompt is still up", async () => {
+		const ml = await buildMovelist({
+			level: 1,
+			defs:  [pbMove("a", "Alpha"), pbMove("b", "Bravo")],
+			items: [],
+		});
+		expect(ml.movesIncomplete).toBe(true);     // onboarding prompt owns this case
+		expect(ml.levelMovesIncomplete).toBe(false);
+	});
+
+	it("counts each take of a repeatable move, not just the move name", async () => {
+		// Level 3 ⇒ 4 picks expected. Alpha once + Improved Stat taken twice = 3 instances.
+		const ml = await buildMovelist({
+			level: 3,
+			defs:  [pbMove("a", "Alpha"), pbMove("imp", "Improved Stat", { repeatMax: 3, cap: 2 })],
+			items: [ownedMove("a1", "Alpha"), ownedMove("imp1", "Improved Stat"), ownedMove("imp2", "Improved Stat")],
+		});
+		expect(ml.levelMovesIncomplete).toBe(true);
+		expect(ml.levelMovesShortfall).toBe(1);
+	});
+
+	it("never counts auto-granted starting moves toward the level budget", async () => {
+		// Level 2 ⇒ 3 picks expected. Owning a starting move plus 2 choice moves still
+		// leaves the character 1 advancement short — the starting move must not count.
+		const ml = await buildMovelist({
+			level: 2,
+			defs:  [pbMove("s", "Steadfast", { isStartingMove: true }), pbMove("a", "Alpha"), pbMove("b", "Bravo")],
+			items: [ownedMove("s1", "Steadfast"), ownedMove("a1", "Alpha"), ownedMove("b1", "Bravo")],
+		});
+		expect(ml.levelMovesIncomplete).toBe(true);
+		expect(ml.levelMovesShortfall).toBe(1);
+	});
+
+	it("never flags a character with no playbook", async () => {
+		const actor = new FakeActorBuilder().withLevel(4).build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		expect(snap.movelist.levelMovesIncomplete).toBe(false);
+	});
+});
+
 // ── rollMode ──────────────────────────────────────────────────────────────────
 
 describe("buildSnapshot — rollMode", () => {

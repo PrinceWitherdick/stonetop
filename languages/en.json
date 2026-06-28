@@ -268,6 +268,10 @@
       "hoverDescriptionsValues": {
         "name": "Hover Descriptions: Trade Values",
         "hint": "In journals and on sheets, explain what a “Value N” trade tier is worth (loot, treasure, gear) when hovering it."
+      },
+      "hoverDescriptionsDebilities": {
+        "name": "Hover Descriptions: Debilities",
+        "hint": "In move text and prose, embolden “debility” and explain the three character debilities (Weakened, Dazed, Miserable) when hovering it."
       }
     },
     "newCharacter": {
@@ -398,7 +402,10 @@
         "otherMoves": "Other Moves",
         "addMove": "Add Move",
         "removeMove": "Remove Move",
-        "chooseStartingMoves": "Choose Starting Moves"
+        "chooseStartingMoves": "Choose Starting Moves",
+        "levelMovesIncompleteOne": "You still have 1 move to choose for level {level}.",
+        "levelMovesIncompleteMany": "You still have {count} moves to choose for level {level}.",
+        "levelMovesIncompleteHint": "Turn on Edit and tick the playbook moves you've earned."
       },
       "selection": {
         "select": "Select",

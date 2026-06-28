@@ -74,6 +74,47 @@ export async function saveChronicleFromButton(button, { context = "Chronicle", b
 	}
 }
 
+// The "Player Introductions" journal inside "The Chronicle" folder, if it's been
+// seeded. Read-only lookup (doesn't create anything), for callers that just want to
+// jump to an existing page.
+function findIntroductionsJournal() {
+	const folder = (game.folders?.contents ?? []).find(f => f.type === "JournalEntry" && f.name === CHRONICLE_FOLDER_NAME);
+	if (!folder) return null;
+	return (game.journal?.contents ?? []).find(j => j.folder?.id === folder.id && j.name === INTRODUCTIONS_JOURNAL_NAME) ?? null;
+}
+
+// The page in `journal` that belongs to the actor with `actorId` — matched by the
+// stable chronicleKey flag (the actor id), so it survives renames.
+function findActorChroniclePage(journal, actorId) {
+	return journal?.pages?.find(p => p.getFlag?.("stonetop_pwd", "chronicleKey") === actorId) ?? null;
+}
+
+/**
+ * Open the Chronicle ("Player Introductions") page that belongs to `actor`, jumping
+ * straight to it. If the page hasn't been seeded yet, a GM gets a one-shot save to
+ * create it (writeChronicle is seed-once, so existing pages and inline edits are left
+ * untouched); a player is told it isn't set up yet. A page only exists once the PC has
+ * recorded introductions, so a PC with nothing recorded still gets the notice. Returns
+ * true once a page is opened.
+ */
+export async function openChroniclePageForActor(actor) {
+	if (!actor) return false;
+	let journal = findIntroductionsJournal();
+	let page = findActorChroniclePage(journal, actor.id);
+	if (!page && game.user?.isGM) {
+		journal = (await writeChronicle()) ?? journal;
+		page = findActorChroniclePage(journal, actor.id);
+	}
+	if (!page) {
+		ui.notifications?.warn?.(game.user?.isGM
+			? `${actor.name} has no Chronicle page yet — record their introductions to create one.`
+			: `${actor.name} doesn't have a Chronicle page yet.`);
+		return false;
+	}
+	journal.sheet.render(true, { pageId: page.id, focus: true });
+	return true;
+}
+
 // Find (or create) the "The Chronicle" journal folder that holds the introductions,
 // expeditions, and Seasons Change journals. Shared so each journal builder finds the
 // one folder instead of re-implementing the lookup (see seasons/seasons-chronicle.js).

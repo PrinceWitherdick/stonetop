@@ -3,6 +3,7 @@ import { markCheckBullets } from "./check-bullets.js";
 import { markFaqItems } from "./faq-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./glyphs.js";
 import { markValueTooltips } from "./value-tooltips.js";
+import { markDebilityTooltips } from "./debility-tooltips.js";
 
 // Give this system's journal prose the same spiral bullets (and question-spiral
 // on list items that pose a question) as the actor sheets, applied live at render
@@ -79,6 +80,7 @@ export function markProseSpiralBullets(el) {
 	markFaqItems(el);
 	wrapStonetopGlyphsInEl(el);
 	markValueTooltips(el);
+	markDebilityTooltips(el);
 }
 
 /**

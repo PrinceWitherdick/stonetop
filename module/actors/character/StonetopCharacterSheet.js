@@ -23,6 +23,7 @@ import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from ".
 import {playbookIconPath} from "../../utils/playbook-actors.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
+import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
@@ -811,6 +812,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			header.insertBefore(label, title);
 		}
 
+		// Jump to this character's page in the shared "Player Introductions" Chronicle
+		// journal (see utils/chronicle.js for the seeding/notice behaviour).
+		_openChroniclePage() {
+			return openChroniclePageForActor(this.actor);
+		}
+
 		_openLedgerDialog() {
 			const entries = CharacterLedger.getEntries(this.actor);
 			const ledgerDate = (timestamp) => {
@@ -1019,12 +1026,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				onclick: () => this._onNewCharacter(),
 			});
 			const steadingIdx = buttons.findIndex(b => b.class?.startsWith("stonetop-open-steading"));
-			buttons.splice(steadingIdx + 1, 0, {
-				label:   "Ledger",
-				class:   "stonetop-ledger-button",
-				icon:    "fas fa-scroll",
-				onclick: () => this._openLedgerDialog(),
-			});
+			buttons.splice(steadingIdx + 1, 0,
+				{
+					label:   "Ledger",
+					class:   "stonetop-ledger-button",
+					icon:    "fas fa-scroll",
+					onclick: () => this._openLedgerDialog(),
+				},
+				{
+					label:   "Chronicle",
+					class:   "stonetop-chronicle-button",
+					icon:    "fas fa-book",
+					onclick: () => this._openChroniclePage(),
+				},
+			);
 			return buttons;
 		}
 
@@ -3497,10 +3512,6 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			const buttons = {
 				cancel: { label: "Cancel" },
-				post: {
-					label: "Post",
-					callback: html => this._postGuidedCharacterMove(name, guide, html),
-				},
 			};
 			if (rollable) {
 				buttons.roll = {
@@ -3538,7 +3549,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					${guide.note ? `<p class="stonetop-homestead-note">${_esc(guide.note)}</p>` : ""}
 				</form>`,
 				buttons,
-				default: (rollable || guide.roll) ? "roll" : "post",
+				default: (rollable || guide.roll) ? "roll" : "cancel",
 				render: bringDialogToFront,
 			}, { width: 520, classes: ["dialog", "stonetop", "stonetop-character-move-dialog"] }).render(true);
 		}

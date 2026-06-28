@@ -4400,6 +4400,20 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: hsl(210 10% 92%);
 }
 
+/* Moves tab: "you owe move picks for your level" warning notice (reuses the
+   shared amber `.stonetop-intros-notice--warn` skin). */
+.stonetop .stonetop-moves-level-notice {
+	margin: 4px 0 14px;
+}
+
+.stonetop .stonetop-moves-level-notice-body { flex: 1; min-width: 0; }
+
+.stonetop .stonetop-moves-level-notice-hint {
+	margin: 0;
+	opacity: 0.85;
+	font-size: calc(0.8125rem * var(--stonetop-font-scale, 1));
+}
+
 /* -- Lore section (Details + Post-Death tabs) ------------------- */
 .stonetop-lore-entry {
 	margin-bottom: 8px;
@@ -6551,8 +6565,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .pbta.sheet .sheet-tabs .item.active,
 .stonetop-bestiary-sheet .sheet-tabs .item.active {
-	background: #000;
-	color: #fff;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
 	text-shadow: none;
 	font-weight: bold;
 }
@@ -12770,6 +12784,16 @@ li.question-bullet {
    wrapped by wrapLoreTerms(). A dotted underline signals the hover summary without
    forcing weight, since some sit inside an authored <strong> and some don't. */
 .stonetop-lore-term[data-tooltip] {
+	cursor: help;
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+}
+
+/* "debility" / "debilities" in move and prose text — applied via
+   markDebilityTooltips(). Bold draws the eye to the keyword; the dotted underline
+   signals the hover explanation of the three character debilities. */
+.stonetop-debility-term[data-tooltip] {
+	font-weight: bold;
 	cursor: help;
 	text-decoration: underline dotted;
 	text-underline-offset: 2px;

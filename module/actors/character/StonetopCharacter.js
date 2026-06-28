@@ -302,7 +302,7 @@ export class StonetopCharacter {
 			.withStats(_buildStatsSection(actor))
 			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses))
 			.withMoves(moves)
-			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel))
+			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel))
 			.withInventory(inventory)
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
@@ -2008,7 +2008,7 @@ function _rollLabelForMove(name, rollType, data = {}) {
 	return ROLL_LABELS_BY_TYPE[normalizedRollType] ?? null;
 }
 
-function _buildMovelist(categories, other, pdiLabel = null) {
+function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1) {
 	const playbookCat   = categories.find(c => c.key === "playbook");
 	const basicCat      = categories.find(c => c.key === "basic");
 	const expeditionCat = categories.find(c => c.key === "expedition");
@@ -2023,6 +2023,23 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 	const chosenCount    = (playbookCat?.moves ?? []).filter(m => m.sourceLabel === null && m.owned).length;
 	const movesIncomplete = pickCount > 0 && chosenCount < pickCount;
 
+	// Advancement budget: every level past 1 grants one move pick, on top of the
+	// `pickCount` starting "moves of your choice". Count OWNED INSTANCES of every
+	// non-starting playbook move so a repeatable retake (e.g. Improved Stat taken
+	// twice) counts each take, and a cross-playbook pick (Versatile) counts once —
+	// the foreign move it grants lives in the Learned category and is excluded.
+	// Background / auto-granted starting moves are `isStarting` and never counted.
+	const chosenInstances = (playbookCat?.moves ?? [])
+		.filter(m => !m.isStarting)
+		.reduce((n, m) => n + (m.ownedIds?.length ?? 0), 0);
+	const expectedPicks = pickCount + Math.max(0, actorLevel - 1);
+	const levelMovesShortfall = Math.max(0, expectedPicks - chosenInstances);
+	// Hidden while the starting-moves onboarding prompt is still up, so the two cues
+	// never stack; it surfaces once starting picks are done but the character is still
+	// behind for their level (e.g. a GM-bumped or imported pre-made character). Gated on
+	// a chosen playbook so a playbook-less character past level 1 never false-positives.
+	const levelMovesIncomplete = !!playbookCat && !movesIncomplete && levelMovesShortfall > 0;
+
 	return new MovelistBuilder()
 		.withPlaybookMoves(playbookCat?.moves ?? [])
 		.withLearnedMoves(learnedCat?.moves ?? [])
@@ -2033,6 +2050,9 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 		.withStartingMovesNote(startingNote)
 		.withPostDeathGroup(postDeathGroup)
 		.withMovesIncomplete(movesIncomplete)
+		.withLevelMovesIncomplete(levelMovesIncomplete)
+		.withLevelMovesShortfall(levelMovesShortfall)
+		.withCharacterLevel(actorLevel)
 		.build();
 }
 

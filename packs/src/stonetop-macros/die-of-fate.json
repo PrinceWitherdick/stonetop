@@ -1,0 +1,11 @@
+{
+  "name": "Die of Fate",
+  "type": "script",
+  "img": "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",
+  "scope": "global",
+  "command": "game.stonetop?.rollDieOfFate?.()",
+  "folder": null,
+  "sort": 500000,
+  "_id": "stMacroDieFate01",
+  "_key": "!macros!stMacroDieFate01"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "End of Session",
+  "type": "script",
+  "img": "systems/stonetop_pwd/assets/icons/macros/truce.svg",
+  "scope": "global",
+  "command": "game.stonetop?.openEndOfSession?.()",
+  "folder": null,
+  "sort": 700000,
+  "_id": "stMacroEndOfSes1",
+  "_key": "!macros!stMacroEndOfSes1"
+}

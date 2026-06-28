@@ -20,6 +20,22 @@
 		{{/if}}
 		{{/if}}
 
+		{{#if stonetop.movelist.levelMovesIncomplete}}
+		<div class="stonetop-intros-notice stonetop-intros-notice--warn stonetop-moves-level-notice">
+			<i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+			<div class="stonetop-moves-level-notice-body">
+				<p>
+				{{#if (eq stonetop.movelist.levelMovesShortfall 1)}}
+					{{localize "stonetop.character.moves.levelMovesIncompleteOne" level=stonetop.movelist.characterLevel}}
+				{{else}}
+					{{localize "stonetop.character.moves.levelMovesIncompleteMany" count=stonetop.movelist.levelMovesShortfall level=stonetop.movelist.characterLevel}}
+				{{/if}}
+				</p>
+				<p class="stonetop-moves-level-notice-hint">{{localize "stonetop.character.moves.levelMovesIncompleteHint"}}</p>
+			</div>
+		</div>
+		{{/if}}
+
 		{{#if stonetop.movelist.learnedMoves.length}}
 		{{> "stonetop.move-group"
 		    title=(localize "stonetop.character.moves.learnedMoves")

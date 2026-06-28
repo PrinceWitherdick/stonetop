@@ -74,6 +74,12 @@
                                         "ASSISTANT":  "OWNER",
                                         "GAMEMASTER":  "OWNER"
                                     }
+                  },
+                  {
+                      "name":  "stonetop-macros",
+                      "label":  "Stonetop Macros",
+                      "path":  "packs/stonetop-macros",
+                      "type":  "Macro"
                   }
               ],
     "documentTypes":  {

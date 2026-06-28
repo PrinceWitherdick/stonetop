@@ -32,7 +32,10 @@ export class OtherItemSnapshotBuilder {
  * @property {OtherItemSnapshot[]} otherMoves
  * @property {string|null} startingMovesNote
  * @property {{label: string, moves: MoveSnapshot[]}|null} postDeathGroup
- * @property {boolean} movesIncomplete
+ * @property {boolean} movesIncomplete - starting "moves of your choice" not all picked yet
+ * @property {boolean} levelMovesIncomplete - fewer move picks made than the current level entitles
+ * @property {number} levelMovesShortfall - how many move picks the character still owes for their level
+ * @property {number} characterLevel
  */
 export class Movelist {
 	constructor(b) {
@@ -47,6 +50,9 @@ export class Movelist {
 		this.startingMovesNote = b._startingMovesNote;
 		this.postDeathGroup    = b._postDeathGroup ?? null;
 		this.movesIncomplete   = b._movesIncomplete ?? false;
+		this.levelMovesIncomplete = b._levelMovesIncomplete ?? false;
+		this.levelMovesShortfall  = b._levelMovesShortfall ?? 0;
+		this.characterLevel       = b._characterLevel ?? 1;
 	}
 }
 
@@ -60,5 +66,8 @@ export class MovelistBuilder {
 	withStartingMovesNote(v) { this._startingMovesNote = v; return this; }
 	withPostDeathGroup(v)    { this._postDeathGroup    = v; return this; }
 	withMovesIncomplete(v)   { this._movesIncomplete   = v; return this; }
+	withLevelMovesIncomplete(v) { this._levelMovesIncomplete = v; return this; }
+	withLevelMovesShortfall(v)  { this._levelMovesShortfall  = v; return this; }
+	withCharacterLevel(v)       { this._characterLevel       = v; return this; }
 	build()                  { return new Movelist(this); }
 }

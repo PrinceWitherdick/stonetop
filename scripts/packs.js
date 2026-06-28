@@ -11,6 +11,7 @@ export const PACKS = [
 		sources: ["stonetop-journals", "stonetop-bestiary-journal", "stonetop-locations", "stonetop-lore"],
 	},
 	{ name: "stonetop-bestiary", type: "Actor" },
+	{ name: "stonetop-macros",   type: "Macro" },
 ];
 
 // LevelDB key prefix for each pack's primary document type.
@@ -18,4 +19,5 @@ export const DOC_KEY_PREFIX = {
 	Item:         "items",
 	JournalEntry: "journal",
 	Actor:        "actors",
+	Macro:        "macros",
 };

@@ -1053,10 +1053,6 @@ export function createStonetopSteadingSheetClass(Base) {
 				</form>`,
 				buttons: {
 					cancel: { label: "Cancel" },
-					post: {
-						label: "Post",
-						callback: html => this._postHomesteadMoveSummary(flow, html),
-					},
 					roll: {
 						label: `Roll +${flow.statLabel}`,
 						callback: async html => {
@@ -1301,10 +1297,6 @@ export function createStonetopSteadingSheetClass(Base) {
 				</form>`,
 				buttons: {
 					cancel: { label: "Cancel" },
-					post: {
-						label: "Post",
-						callback: html => this._postHomesteadMoveSummary(requisitionFlow, html),
-					},
 					roll: {
 						label: "Roll +Fortunes",
 						callback: async html => {

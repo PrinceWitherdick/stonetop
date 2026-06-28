@@ -403,6 +403,7 @@ export const HOVER_DESCRIPTION_SETTING_KEYS = [
 	"hoverDescriptionsMonsterTags",
 	"hoverDescriptionsSteadingStats",
 	"hoverDescriptionsValues",
+	"hoverDescriptionsDebilities",
 ];
 
 function _createHoverDescriptionSettingsApp() {

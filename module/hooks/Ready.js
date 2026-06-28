@@ -23,6 +23,17 @@ const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
 const _EOS_MACRO_SCRIPT = "game.stonetop?.openEndOfSession?.()";
 const _EOS_HOTBAR_SLOT  = 10;
 
+// The Chronicle hotbar macro (slot 9): compiles the recorded Introductions + Spring
+// Burst answers and expedition log into the shared "The Chronicle" journal and opens it
+// (GM-only — saveChronicle is seed-once, so re-running it preserves inline edits). Sits
+// just before End of Session and, like it, is handled separately from the slots-1–5
+// _SYSTEM_MACROS set and keyed on its command so it won't collide with a user macro of
+// the same name.
+const _CHRONICLE_MACRO_NAME   = "The Chronicle";
+const _CHRONICLE_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/bookmarklet.svg";
+const _CHRONICLE_MACRO_SCRIPT = "game.stonetop?.saveChronicle?.()";
+const _CHRONICLE_HOTBAR_SLOT  = 9;
+
 // The "(TEST ONLY) Populate World" dev macro, added to the Macro Directory but never
 // the hotbar. Its body is the create-test-characters dev script — that gitignored file
 // is the single source of truth, fetched at runtime (see _ensureTestPopulateMacro), so
@@ -107,9 +118,14 @@ export async function onReady() {
 		// Place any missing system macros at their default slots (existing placements
 		// are left alone, so a manual rearrangement sticks). Their fixed starting order
 		// — 1 Welcome · 2 Seasons Change · 3 Run an Expedition · 4 Weather · 5 Die of
-		// Fate · 10 End of Session — is applied per layout version by _reorderSystemMacros,
-		// below.
+		// Fate · 9 The Chronicle · 10 End of Session — is applied for the slots-1–5 set
+		// per layout version by _reorderSystemMacros, below; Chronicle and End of Session
+		// are placed (but not reordered) by their own _ensureHotbarMacro calls.
 		for (const macro of _SYSTEM_MACROS) await _ensureHotbarMacro(macro);
+		await _ensureHotbarMacro({
+			name: _CHRONICLE_MACRO_NAME, img: _CHRONICLE_MACRO_IMG, command: _CHRONICLE_MACRO_SCRIPT, slot: _CHRONICLE_HOTBAR_SLOT,
+			match: m => m.command === _CHRONICLE_MACRO_SCRIPT && m.name === _CHRONICLE_MACRO_NAME,
+		});
 		await _ensureHotbarMacro({
 			name: _EOS_MACRO_NAME, img: _EOS_MACRO_IMG, command: _EOS_MACRO_SCRIPT, slot: _EOS_HOTBAR_SLOT,
 			match: m => m.command === _EOS_MACRO_SCRIPT && m.name === _EOS_MACRO_NAME,

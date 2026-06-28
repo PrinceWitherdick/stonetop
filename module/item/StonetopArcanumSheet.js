@@ -2,6 +2,7 @@ import { majorArcanaImg } from "../arcana-icons.js";
 import { ITEM_FLAG_SCOPE } from "../actors/character/StonetopFlags.js";
 import { centerArcanumTracks, wrapStonetopGlyphsInEl } from "../utils/glyphs.js";
 import { markValueTooltips } from "../utils/value-tooltips.js";
+import { markDebilityTooltips } from "../utils/debility-tooltips.js";
 
 export function createStonetopArcanumSheetClass(BaseItemSheet) {
 	return class StonetopArcanumSheet extends BaseItemSheet {
@@ -56,6 +57,7 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			super.activateListeners(html);
 			const root = html?.[0] ?? html;
 			markValueTooltips(root);
+			markDebilityTooltips(root);
 			// Render inline glyphs (◇ charge tracks, □ move boxes, ▶ arrows) as SVG, the
 			// same as the character sheet's arcana cards — centerArcanumTracks only moves
 			// standalone tracks onto their own line; it doesn't swap the raw Unicode for art.
