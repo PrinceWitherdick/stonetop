@@ -212,6 +212,12 @@
 	--st-green-bg-hover: hsl(140 35% 82%);
 	--st-green-text:     hsl(140 40% 18%);
 
+	/* ── Level-up cue ─────────────────────────────────────────────────────
+	   The "you can advance" upgrade icon on the vitals Level cell — a vivid
+	   green that reads as go/advance and stands out from the black sheet text. */
+	--st-levelup-accent:       hsl(140 60% 38%);
+	--st-levelup-accent-hover: hsl(140 65% 30%);
+
 	/* ── Blue "step/sequence" tint ────────────────────────────────────────
 	   Mirrors the green accent palette for ordered, numbered sequences — the
 	   circle step badges in the Welcome guide read as steps, not active states. */
@@ -816,6 +822,42 @@ body {
 	font-size: calc(1.1rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	line-height: 1;
+}
+
+/* Level cell: title + (when XP is full) the level-up cue, centered on one row.
+   The row owns the title→input gap so the label and icon share a single line and
+   stay vertically centred with each other (the label's own margin-bottom is zeroed
+   here, otherwise it would nudge the text up a pixel relative to the icon). */
+.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	margin-bottom: 2px;
+}
+
+.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row .cell__title {
+	margin-bottom: 0;
+}
+
+/* "Ready to level up" cue — the upgrade.svg masked so the accent colour fills it,
+   not the SVG's own black. Clicking opens the Level Up dialog (same handler as the
+   Special Moves tab button). */
+.stonetop-levelup-icon {
+	display: inline-block;
+	width: 15px;
+	height: 15px;
+	flex-shrink: 0;
+	cursor: pointer;
+	background-color: var(--st-levelup-accent);
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/upgrade.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop_pwd/assets/icons/upgrade.svg') center / contain no-repeat;
+	transition: background-color 0.12s, transform 0.12s;
+}
+
+.stonetop-levelup-icon:hover {
+	background-color: var(--st-levelup-accent-hover);
+	transform: scale(1.18);
 }
 
 /* Number cell (Armor, Level) */
@@ -2135,7 +2177,6 @@ input.stonetop-name-field {
 .stonetop-check,
 .stonetop-item-check,
 .stonetop-origin-name-check,
-.stonetop-possession-sub-radio,
 .stonetop-lore-option-check,
 .stonetop-arcanum-unlock-check,
 .stonetop-arcanum-box,
@@ -2183,7 +2224,6 @@ input.stonetop-name-field {
 .stonetop-check:checked,
 .stonetop-item-check:checked,
 .stonetop-origin-name-check:checked,
-.stonetop-possession-sub-radio:checked,
 .stonetop-lore-option-check:checked,
 .stonetop-arcanum-unlock-check:checked,
 .stonetop-arcanum-box:checked,
@@ -2230,7 +2270,6 @@ input.stonetop-name-field {
 }
 
 .stonetop-item-check:disabled,
-.stonetop-possession-sub-radio:disabled,
 .stonetop-lore-option-check:disabled,
 .stonetop-move-mark-check:disabled,
 .stonetop-onboarding-check:disabled,
@@ -2239,6 +2278,22 @@ input.stonetop-name-field {
 .stonetop-arcanum-unlock-check:disabled {
 	opacity: 0.35;
 	cursor: default;
+}
+
+/* Pick-budget badge for repeat-scaling markOptions moves (Veteran Crew, Beast of
+   Legend, Well Versed …): "{used} / {max} chosen". Greens when the budget is fully
+   spent; a muted red when a grandfathered mark sits over the current budget. */
+.stonetop-move-mark-budget {
+	margin: 4px 0 0;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
+}
+.stonetop-move-mark-budget.is-at-budget {
+	color: var(--st-green-text);
+}
+.stonetop-move-mark-budget.is-over {
+	color: var(--st-red-text);
 }
 
 .stonetop-move-marks {
@@ -2518,6 +2573,30 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
+/* Roll-card "Conditions Applied" list (advantage / disadvantage / forward / ongoing
+   / situational): spiral bullets, matching the move description above it. Chat-scoped
+   so the ID specificity beats core's default disc bullets on chat-message lists. */
+:is(#chat, #chat-notifications) .message .stonetop-roll-conditions ul {
+	list-style: none;
+	margin: 4px 0 0;
+	padding-left: 14px;
+}
+:is(#chat, #chat-notifications) .message .stonetop-roll-conditions li {
+	position: relative;
+	margin: 2px 0;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+:is(#chat, #chat-notifications) .message .stonetop-roll-conditions li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
 :is(#chat, #chat-notifications) .message .pbta-chat-card .cell--chat {
 	display: flex;
 	flex-direction: column;
@@ -2684,9 +2763,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-weather-roll-btn {
-	flex: 0 0 auto;
-	width: auto;
-	white-space: nowrap;
+	width: 100%;
+	justify-content: center;
 	padding: 5px 14px;
 	font-family: var(--font-stonetop);
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
@@ -3104,6 +3182,26 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 0 0 2px;
 }
 
+/* Read-only summary of a possession's choiceGroups picks (the Blessed's sacred
+   pouch flavor + remarkable trait), woven under the description on the gear tab.
+   Matches the description's indent/size; the group heading reads as a lead-in. */
+.stonetop-possession-choice-summary {
+	padding-left: 20px;
+	margin-top: 3px;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+	line-height: 1.4;
+}
+
+.stonetop-possession-choice-summary-line {
+	margin: 0 0 2px;
+}
+
+.stonetop-possession-choice-summary-heading {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+}
+
 /* Background descriptions: give multi-paragraph text real separation so the
    flavor / mechanical beats read as distinct paragraphs (as in the PDF). */
 .stonetop-bg-description p {
@@ -3158,6 +3256,50 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	opacity: 0.4;
 }
 
+/* A move the player OWNS that still has unspent selection budget (e.g. Veteran Crew
+   taken but its pick not yet made). Deliberately DISTINCT from .move-requirements-unmet
+   (the red error below): this is a BLUE "needs your input" call-to-action — border,
+   tint, and inset left stripe (the stripe via box-shadow so it adds no width). Declared
+   before .move-requirements-unmet so the red error wins the tint if a move is both. */
+.tab.moves .stonetop-item.move-needs-choice {
+	border-color: var(--st-blue-border);
+	background: var(--st-blue-bg);
+	box-shadow: inset 3px 0 0 var(--st-blue-border);
+	opacity: 1;
+}
+.stonetop-move-choice-needed {
+	margin-left: 5px;
+	color: var(--st-blue-text);
+	cursor: pointer;
+}
+.stonetop-move-choice-needed:hover,
+.stonetop-move-choice-needed:focus-visible {
+	color: var(--st-blue-border);
+}
+
+/* A move the player OWNS but whose prerequisites are no longer satisfied (they
+   edited their learned moves and lost a required move). Unlike `.move-locked`
+   (an un-takeable move, faded out), this must STAND OUT so the broken
+   prerequisite is noticed — a red border, tint, and inset left stripe (the
+   stripe via box-shadow so it adds no width and never shifts the row). */
+.tab.moves .stonetop-item.move-requirements-unmet {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+	box-shadow: inset 3px 0 0 var(--st-red-border);
+	opacity: 1;
+}
+
+.stonetop-move-req-warning {
+	margin-left: 5px;
+	color: var(--st-red-text);
+}
+
+.stonetop-move-note--unmet {
+	color: var(--st-red-text);
+	font-style: normal;
+	font-weight: 600;
+}
+
 .stonetop-item.move-unowned {
 	opacity: 0.5;
 }
@@ -3174,7 +3316,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-item-resources {
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: 2px;
 	flex-shrink: 0;
 }
 
@@ -3473,9 +3615,36 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	filter: invert(1);
 }
 .stonetop-special-picker-footnote { font-size: var(--st-fs-xs); color: var(--color-text-dark-secondary); margin: 10px 0 0; }
-.stonetop-special-picker-actions { margin-top: 12px; text-align: right; }
+.stonetop-special-picker-actions { margin-top: 12px; }
+/* Lone footer button → full width, centered label, matching the other pickers'
+   slate primary buttons (the close button carried no styling of its own). */
+.stonetop-special-picker-close {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	padding: 4px 12px;
+	cursor: pointer;
+	font-weight: bold;
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	border-radius: var(--st-radius-sm);
+	color: var(--st-btn-primary-text);
+	transition: background 0.15s;
+}
+.stonetop-special-picker-close:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+}
 
 /* Requisition picker (player-side: steading assets + Fortunes roll) */
+/* Cap the auto-height window to the viewport so a steading with many assets
+   scrolls inside the dialog instead of ballooning past the screen. */
+.stonetop-requisition .window-content {
+	max-height: calc(100vh - 80px);
+	overflow-y: auto;
+}
+
 .stonetop-requisition-picker { padding: 4px 2px; font-size: var(--st-fs-base); }
 .stonetop-requisition-trigger { font-style: italic; color: var(--color-text-dark-secondary); margin: 0 0 10px; }
 .stonetop-requisition-roll {
@@ -3511,8 +3680,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-color: var(--st-btn-primary-border-hover);
 }
 .stonetop-requisition-take:disabled { opacity: 0.5; cursor: not-allowed; }
-.stonetop-requisition-results { margin: 8px 0 0; padding-left: 18px; font-size: var(--st-fs-sm); color: var(--color-text-dark-secondary); }
-.stonetop-requisition-results li { margin: 2px 0; }
+.stonetop-requisition-results { list-style: none; margin: 8px 0 0; padding-left: 14px; font-size: var(--st-fs-sm); color: var(--color-text-dark-secondary); }
+.stonetop-requisition-results li { position: relative; margin: 2px 0; padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap)); }
+.stonetop-requisition-results li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
 .stonetop-requisition-heading,
 .stonetop-requisition-subheading {
 	font-family: var(--font-stonetop);
@@ -3534,13 +3713,114 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-requisition-item.is-taken { opacity: 0.55; }
 .stonetop-requisition-taken-by { flex: 0 0 auto; font-size: var(--st-fs-sm); font-style: italic; color: var(--color-text-dark-secondary); }
 .stonetop-requisition-empty { font-style: italic; color: var(--color-text-dark-secondary); margin: 6px 0; }
-.stonetop-requisition-actions { margin-top: 12px; text-align: right; }
+.stonetop-requisition-actions { margin-top: 12px; }
+/* Lone footer button → full width, centered label (overrides the shared
+   roll/take/close rule above; the per-row Take buttons stay content-width). */
+.stonetop-requisition-close { width: 100%; justify-content: center; }
 
-/* Special possessions — 2 columns */
+/* -- Custom move authoring dialog ----------------------------- */
+/* Cap the auto-height window to the viewport so the form (Advanced section open:
+   resource + bonus + result fields) scrolls instead of growing past the screen. */
+.stonetop-custom-move-dialog .window-content {
+	max-height: calc(100vh - 80px);
+	overflow-y: auto;
+	/* Own the inset deterministically (the form below) rather than relying on
+	   core's window-content padding, which left the fields cramped at 2px. */
+	padding: 0;
+}
+
+.stonetop-custom-move-form { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; font-size: var(--st-fs-base); }
+.stonetop-custom-move-field { display: flex; flex-direction: column; gap: 3px; }
+.stonetop-custom-move-field > label { font-family: var(--font-stonetop); font-weight: bold; font-size: var(--st-fs-sm); }
+.stonetop-custom-move-form input[type="text"],
+.stonetop-custom-move-form textarea,
+.stonetop-custom-move-form select { width: 100%; }
+.stonetop-custom-move-form textarea { resize: vertical; min-height: 2.4em; }
+.stonetop-custom-move-hint { margin: 2px 0 0; font-size: var(--st-fs-xs); font-style: italic; color: var(--color-text-dark-secondary); }
+.stonetop-custom-move-results {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	border-radius: var(--st-radius-lg);
+	padding: 8px 10px;
+	background: rgba(0, 0, 0, 0.03);
+}
+.stonetop-custom-move-results.is-hidden { display: none; }
+.stonetop-custom-move-results-title { font-family: var(--font-stonetop); margin: 0; font-size: var(--st-fs-base); }
+.stonetop-custom-move-actions { display: flex; gap: 8px; margin-top: 4px; }
+.stonetop-custom-move-save,
+.stonetop-custom-move-cancel {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	padding: 4px 14px;
+	cursor: pointer;
+	font-weight: bold;
+	border-radius: var(--st-radius-sm);
+	transition: background 0.15s;
+}
+.stonetop-custom-move-save {
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+.stonetop-custom-move-save:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+}
+.stonetop-custom-move-cancel {
+	background: transparent;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	color: var(--color-text-dark-primary);
+}
+.stonetop-custom-move-cancel:hover { background: rgba(0, 0, 0, 0.06); }
+
+/* Moves-tab affordances for player-authored moves: the edit pencil mirrors the
+   hover-revealed delete link, and owns the right-push so the two sit together. */
+.stonetop-custom-move-edit {
+	display: none;
+	margin-left: auto;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+	font-size: var(--st-fs-xs);
+}
+.stonetop-item:hover .stonetop-custom-move-edit { display: inline; }
+.stonetop-custom-move-edit + .stonetop-other-move-delete { margin-left: 6px; }
+.stonetop-add-custom-move {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	margin-top: 8px;
+	padding: 3px 12px;
+	cursor: pointer;
+	font-size: var(--st-fs-sm);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+.stonetop-add-custom-move:hover { background: var(--st-btn-primary-bg-hover); border-color: var(--st-btn-primary-border-hover); }
+
+/* Custom move dialog — Advanced (resource track, bonuses, no-XP) */
+.stonetop-custom-move-advanced { border-top: 1px solid rgba(0, 0, 0, 0.12); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.stonetop-custom-move-advanced > summary { cursor: pointer; font-family: var(--font-stonetop); font-weight: bold; font-size: var(--st-fs-sm); }
+.stonetop-custom-move-advanced .stonetop-custom-move-results-title { margin: 4px 0 0; }
+.stonetop-custom-move-row { display: flex; gap: 8px; align-items: flex-end; }
+.stonetop-custom-move-row .stonetop-custom-move-field { flex: 1 1 0; }
+.stonetop-custom-move-field--num { flex: 0 0 5.5em; }
+.stonetop-custom-move-field--num input { width: 100%; }
+.stonetop-custom-move-check label { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-weight: normal; }
+.stonetop-custom-move-check input { width: auto; }
+
+/* Special possessions — 2-column card list, matching the Moves tab
+   (.stonetop-move-group .items-list): CSS columns so uneven-height cards pack
+   top-to-bottom instead of a grid stretching each row to its tallest item. */
 .stonetop-possession-list {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 4px 12px;
+	columns: 2;
+	column-gap: 16px;
 	list-style: none;
 	padding: 0;
 	margin: 0;
@@ -4280,6 +4560,20 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: hsl(210 10% 92%);
 }
 
+/* Moves tab: "you owe move picks for your level" warning notice (reuses the
+   shared amber `.stonetop-intros-notice--warn` skin). */
+.stonetop .stonetop-moves-level-notice {
+	margin: 4px 0 14px;
+}
+
+.stonetop .stonetop-moves-level-notice-body { flex: 1; min-width: 0; }
+
+.stonetop .stonetop-moves-level-notice-hint {
+	margin: 0;
+	opacity: 0.85;
+	font-size: calc(0.8125rem * var(--stonetop-font-scale, 1));
+}
+
 /* -- Lore section (Details + Post-Death tabs) ------------------- */
 .stonetop-lore-entry {
 	margin-bottom: 8px;
@@ -4545,29 +4839,40 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: none;
 }
 
-/* Card styling shared by the Moves tab and the Invocations tab cards. */
+/* Card styling shared by the Moves tab, the Invocations tab, and the Special
+   Possessions list (gear tab) so all three read as the same bordered cards. */
 
 .tab.moves .stonetop-item,
-.stonetop-invocation-card {
+.stonetop-invocation-card,
+.stonetop-possession-list .stonetop-item {
 	border: 1px solid var(--color-border-light-2);
 	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
 	padding: 8px 12px;
 }
 
-.tab.moves .stonetop-item {
+.tab.moves .stonetop-item,
+.stonetop-possession-list .stonetop-item {
 	margin-bottom: 6px;
 }
 
 .tab.moves .stonetop-item-header,
-.stonetop-invocation-header {
+.stonetop-invocation-header,
+.stonetop-possession-list .stonetop-item-header {
 	border-bottom: 1px solid rgba(0,0,0,0.12);
 	padding-bottom: 5px;
 	margin-bottom: 4px;
 }
 
+/* The possessions header can crowd (checkbox + name + source + Stock track +
+   edit pencil) — let it wrap like the Moves header rather than overflow. */
+.stonetop-possession-list .stonetop-item-header {
+	flex-wrap: wrap;
+}
+
 .tab.moves .stonetop-item-name,
-.stonetop-invocation-name {
+.stonetop-invocation-name,
+.stonetop-possession-list .stonetop-item-name {
 	font-family: var(--font-stonetop);
 	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 }
@@ -4576,6 +4881,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex: initial;
 }
 
+/* The name uses flex:initial here (so it sits at content width next to the
+   dice/roll-chip controls), which means it no longer grows to push the
+   resource ("hold & use") track to the right. Pin that track — and the source
+   label — to the right edge of the header instead. */
+.tab.moves .stonetop-item-resources,
 .tab.moves .stonetop-item-source {
 	margin-left: auto;
 }
@@ -4599,7 +4909,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .tab.moves .stonetop-item-description,
-.tab.moves .stonetop-move-note {
+.tab.moves .stonetop-move-note,
+.stonetop-possession-list .stonetop-item-description,
+.stonetop-possession-list .stonetop-possession-choice-summary {
 	padding-left: 0;
 }
 
@@ -4610,7 +4922,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex-direction: row;
 	align-items: stretch;
 	gap: 10px;
-	margin-bottom: 32px;
+	margin-bottom: 12px;
 }
 
 .stonetop-sheet-header .sheet-header__fields {
@@ -5582,6 +5894,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-outfit-confirm-btn {
+	width: 100%;
+	justify-content: center;
 	padding: 4px 14px;
 	background: var(--st-btn-primary-bg);
 	color: var(--st-btn-primary-text);
@@ -5598,6 +5912,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* ── Level Up dialog ────────────────────────────────────────────── */
 
 .stonetop-eos-dialog .window-content,
+/* Cap the dialog height so the tall steps (the move grid, the 12-item invocation
+   list) scroll inside a comfortable window instead of ballooning to the full
+   viewport. The short steps (overview, the stat picker that follows a move) stay
+   snug because the window height is otherwise auto/fit-to-content — see
+   LevelUpDialog._applyStepSize. */
+.stonetop-levelup-dialog {
+	max-height: min(860px, 90vh);
+}
+
 .stonetop-levelup-dialog .window-content {
 	height: 100%;
 	overflow: hidden;
@@ -5628,19 +5951,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	line-height: 1.45;
 }
 
-.stonetop-levelup-rule-list {
-	margin: 0;
-	padding: 6px 8px 6px 24px;
-	border: 1px solid var(--color-border-light-2);
-	border-radius: var(--st-radius);
-	background: rgba(0, 0, 0, 0.03);
-	font-size: var(--st-fs-sm);
-	line-height: 1.35;
-	color: var(--color-text-dark-secondary);
+/* Steps unique to one playbook (the Lightbearer-only invocation step) brand their
+   intro with the playbook's avatar art beside the prompt. */
+.stonetop-levelup-intro--playbook {
+	display: flex;
+	align-items: center;
+	gap: 10px;
 }
 
-.stonetop-levelup-rule-list li {
-	margin: 2px 0;
+.stonetop-levelup-intro-icon {
+	flex: 0 0 auto;
+	width: 40px;
+	height: 40px;
+	object-fit: contain;
+	border: none;
+	border-radius: var(--st-radius);
 }
 
 /* XP / Level summary table */
@@ -5681,7 +6006,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-levelup-summary-value--cost {
-	color: #b04040;
+	color: var(--st-red-text);
 }
 
 .stonetop-levelup-aside {
@@ -5730,12 +6055,41 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	pointer-events: none;
 }
 
-/* Move list */
-.stonetop-levelup-move-list,
+/* Move list — scroll container for the masonry columns. */
+.stonetop-levelup-move-list {
+	flex: 1;
+	overflow-y: auto;
+}
+
+/*
+ * Masonry-style card grids (move / foreign-move pickers and the invocation
+ * picker): variable-height cards pack tightly into balanced columns (multi-column,
+ * not CSS grid, whose row tracks would leave gaps). Up to two columns, dropping to
+ * one when the window is narrowed. The columns live in their own auto-height wrapper
+ * so the list scrolls VERTICALLY — a multi-column box with a constrained height
+ * overflows sideways instead.
+ */
+.stonetop-levelup-move-grid,
+.stonetop-levelup-invocation-grid {
+	columns: 210px 2;
+	column-gap: 6px;
+}
+
+.stonetop-levelup-move-grid > .stonetop-levelup-move-option,
+.stonetop-levelup-invocation-grid > .stonetop-levelup-invocation-option {
+	break-inside: avoid;
+	-webkit-column-break-inside: avoid;
+	margin-bottom: 6px;
+}
+
+/* Section divider spans across the columns. */
+.stonetop-levelup-move-grid > .stonetop-levelup-locked-divider {
+	column-span: all;
+	margin-bottom: 6px;
+}
+
+/* Invocation list — scroll container for the masonry columns (mirrors the move list). */
 .stonetop-levelup-invocation-list {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
 	flex: 1;
 	overflow-y: auto;
 }
@@ -5796,6 +6150,67 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: var(--color-text-dark-secondary);
 }
 
+/* Stat-increase picker (Improved / Superior Stat) */
+.stonetop-levelup-stat-cap-note {
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-levelup-stat-list {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.stonetop-levelup-stat-option {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 12px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: var(--st-radius);
+	cursor: pointer;
+	background: rgba(0, 0, 0, 0.02);
+	transition: background 0.1s, border-color 0.1s;
+}
+
+.stonetop-levelup-stat-option:hover {
+	background: rgba(0, 0, 0, 0.06);
+}
+
+.stonetop-levelup-stat-option.is-selected {
+	background: rgba(201, 162, 39, 0.12);
+	border-color: #c9a227;
+}
+
+.stonetop-levelup-stat-option.is-at-cap {
+	cursor: not-allowed;
+	opacity: 0.45;
+	background: rgba(0, 0, 0, 0.02);
+}
+
+.stonetop-levelup-stat-name {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+}
+
+.stonetop-levelup-stat-value {
+	font-variant-numeric: tabular-nums;
+	color: var(--color-text-dark-secondary);
+}
+
+/* Mark picker (Veteran Crew / Heroes to the Last / Beast of Legend / Well Versed) — the
+   option rows reuse .stonetop-levelup-stat-option; this just stacks them in one column. */
+.stonetop-levelup-mark-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 4px;
+}
+
 /* Footer */
 .stonetop-levelup-footer {
 	display: flex;
@@ -5843,7 +6258,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-deathsdoor-dialog .window-content {
 	height: 100%;
-	overflow: hidden;
+	/* Cap the auto-height window to the viewport so it can never grow past the
+	   screen; the body scrolls instead of pushing the footer out of view. */
+	max-height: calc(100vh - 80px);
+	overflow-y: auto;
 	display: flex;
 	flex-direction: column;
 }
@@ -5997,15 +6415,29 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .deaths-door-outcome-choices {
+	list-style: none;
 	margin: 6px 0 0 0;
-	padding-left: 18px;
+	padding-left: 14px;
 	font-size: var(--st-fs-base);
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
 }
 
 .deaths-door-outcome-choices li {
+	position: relative;
 	margin: 4px 0;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+
+.deaths-door-outcome-choices li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
 }
 
 .deaths-door-notes {
@@ -6119,15 +6551,32 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-eos-personal-list {
+	list-style: none;
 	margin: 0;
-	padding-left: 1.2em;
+	padding-left: 14px;
 	font-size: var(--st-fs-base);
 	line-height: 1.5;
 	color: var(--color-text-dark-primary);
 }
 
+.stonetop-eos-personal-list li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+
 .stonetop-eos-personal-list li + li {
 	margin-top: 4px;
+}
+
+.stonetop-eos-personal-list li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
 }
 
 .stonetop-eos-question-list {
@@ -6198,6 +6647,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-eos-confirm-btn {
+	width: 100%;
+	justify-content: center;
 	padding: 4px 16px;
 	background: var(--st-btn-primary-bg);
 	color: var(--st-btn-primary-text);
@@ -6335,8 +6786,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .pbta.sheet .sheet-tabs .item.active,
 .stonetop-bestiary-sheet .sheet-tabs .item.active {
-	background: #000;
-	color: #fff;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
 	text-shadow: none;
 	font-weight: bold;
 }
@@ -6355,6 +6806,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .sheet-tabs .stonetop-tab-drag-over {
 	outline: 2px dashed rgba(255, 255, 255, 0.75);
 	outline-offset: -2px;
+}
+
+/* Kill the stray orange dotted focus outline browsers draw around generic
+   layout containers (the tab strips, panels, etc.) when they receive focus.
+   Scoped to non-interactive elements so real inputs/buttons keep their ring. */
+:is(.stonetop, .stonetop-classic) :is(section, div, ul, ol, nav, table, tbody, dl):not([tabindex]):not([role]):not([contenteditable]):focus {
+	outline: none;
 }
 
 /* -- Tabs — steading sheet ------------------------------------- */
@@ -7611,17 +8069,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-color: #4a8c4a;
 }
 
-/* Locked until the improvement's requirements are checked off. The SVG skin
-   (border/background) is locked in with !important by the shared checkbox master
-   block, so dimming is the lever we have; the read-only rule above keeps these
+/* Not yet earned — requirements aren't all checked off. The checkbox stays tappable:
+   clicking it offers to mark every requirement complete and earn the improvement now
+   (see _onImprovementComplete). The dimmed look just signals it isn't earned yet. The
+   SVG skin (border/background) is locked in with !important by the shared checkbox
+   master block, so dimming is the lever we have; the read-only rule above keeps these
    live for gameplay (opacity:1), so the locked style is scoped to win there too. */
-.steading-improvement-complete-label.is-locked,
-.steading-improvement-complete:disabled {
-	cursor: not-allowed;
-}
-
-input[type="checkbox"].steading-improvement-complete:disabled,
-.stonetop-readonly input[type="checkbox"].steading-improvement-complete:disabled {
+.steading-improvement-complete-label.is-locked .steading-improvement-complete,
+.stonetop-readonly .steading-improvement-complete-label.is-locked .steading-improvement-complete {
 	opacity: 0.5;
 }
 
@@ -7941,6 +8396,28 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 .stonetop-season-flow ul { margin: 4px 0; padding-left: 24px; }
 .stonetop-season-flow li { margin: 3px 0; padding-left: 16px; }
 
+/* The bare roll-result lists (10+/7–9/6−) get spiral bullets like the rest of this
+   system's prose. Scoped to unclassed <ul> so the classed lists in this flow — the
+   seasonal-gains checklist and the winter disaster <ol> — keep their own styling. */
+.stonetop-season-flow ul:not([class]) {
+	list-style: none;
+	padding-left: 14px;
+}
+.stonetop-season-flow ul:not([class]) > li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+.stonetop-season-flow ul:not([class]) > li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
 .stonetop-season-note {
 	font-style: italic;
 	font-size: var(--st-fs-sm);
@@ -7962,11 +8439,22 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	border: none;
 	border-radius: var(--st-radius);
 	cursor: pointer;
+	/* V13 core makes <button> a flexbox; vertically center the icon + label and
+	   keep them left (text-align is inert under flex but harmless as a fallback). */
+	display: flex;
+	align-items: center;
 	text-align: left;
 	font-size: var(--st-fs-base);
 }
 
 .stonetop-season-btn:hover { background: var(--st-btn-primary-bg-hover); }
+
+/* This one sits outside .stonetop-season-actions, so it needs its own top gap,
+   and centers its label (the base rule aligns season buttons left). */
+.stonetop-season-btn[data-action="mark-diminished"] {
+	margin-top: 8px;
+	justify-content: center;
+}
 
 .stonetop-season-divider {
 	margin: 10px 0;
@@ -8148,13 +8636,26 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 }
 
 .stonetop-homestead-reference ul {
+	list-style: none;
 	margin: 4px 0 0;
-	padding-left: 24px;
+	padding-left: 14px;
 }
 
 .stonetop-homestead-reference li {
+	position: relative;
 	margin: 2px 0;
-	padding-left: 2px;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+
+.stonetop-homestead-reference li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
 }
 
 .stonetop-homestead-choice-list {
@@ -8190,13 +8691,27 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 }
 
 .stonetop-homestead-chat-list {
+	list-style: none;
 	margin: 0;
-	padding-left: 18px;
+	padding-left: 14px;
 }
 
 .stonetop-homestead-chat-list li {
+	position: relative;
 	margin: 3px 0;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
 	white-space: pre-wrap;
+}
+
+.stonetop-homestead-chat-list li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
 }
 
 .steading-move-name {
@@ -8867,15 +9382,15 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	font-family: var(--font-stonetop);
 	border-radius: var(--st-radius);
 	cursor: pointer;
-	border: 1.5px solid #c0392b;
+	border: 1.5px solid var(--st-red-border);
 	background: transparent;
-	color: #c0392b;
+	color: var(--st-red-text);
 	transition: background 0.15s;
 	white-space: nowrap;
 	flex: 0 0 auto;
 }
 
-.stonetop-onboarding-skip:hover { background: rgba(192,57,43,0.08); }
+.stonetop-onboarding-skip:hover { background: var(--st-red-bg); }
 
 .stonetop-onboarding-next:disabled,
 .stonetop-onboarding-confirm:disabled {
@@ -9007,7 +9522,7 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 
 .stonetop-onboarding-stats-error {
 	margin: 2px 0 0;
-	color: #c0392b;
+	color: var(--st-red-text);
 	font-size: var(--st-fs-xs);
 	text-align: center;
 	font-style: italic;
@@ -9029,7 +9544,8 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 }
 
 /* Move filter search bar */
-.stonetop-onboarding-move-search {
+.stonetop-onboarding-move-search,
+.stonetop-levelup-move-search {
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -9040,14 +9556,17 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	border-radius: var(--st-radius-sm);
 }
 
-.stonetop-onboarding-move-search:focus-within { border-color: slategrey; }
+.stonetop-onboarding-move-search:focus-within,
+.stonetop-levelup-move-search:focus-within { border-color: slategrey; }
 
-.stonetop-onboarding-move-search i {
+.stonetop-onboarding-move-search i,
+.stonetop-levelup-move-search i {
 	color: slategrey;
 	font-size: var(--st-fs-sm);
 }
 
-.stonetop-onboarding .stonetop-onboarding-move-search input {
+.stonetop-onboarding .stonetop-onboarding-move-search input,
+.stonetop-levelup-dialog .stonetop-levelup-move-search input {
 	flex: 1;
 	appearance: none;
 	/* pbta's high-specificity base input rules (7-class chain) otherwise win and
@@ -9061,21 +9580,24 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	font-size: var(--st-fs-base);
 }
 
-.stonetop-onboarding .stonetop-onboarding-move-search input:focus {
+.stonetop-onboarding .stonetop-onboarding-move-search input:focus,
+.stonetop-levelup-dialog .stonetop-levelup-move-search input:focus {
 	outline: none;
 	box-shadow: none;
 }
 
 /* Group filter chips (per-playbook). Tap to show only that group; tap again to
    clear. Modeled on .onboard-name-chip with a filled active state. */
-.stonetop-onboarding-move-chips {
+.stonetop-onboarding-move-chips,
+.stonetop-levelup-move-chips {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 	margin: 0 0 10px;
 }
 
-.stonetop-onboarding-move-chip {
+.stonetop-onboarding-move-chip,
+.stonetop-levelup-move-chip {
 	display: inline-flex;
 	align-items: center;
 	width: auto;
@@ -9092,7 +9614,8 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	transition: border-color 0.12s, background 0.12s, color 0.12s;
 }
 
-.stonetop-onboarding-move-chip:hover {
+.stonetop-onboarding-move-chip:hover,
+.stonetop-levelup-move-chip:hover {
 	border-color: slategrey;
 	background: hsl(210 15% 94%);
 }
@@ -9101,18 +9624,22 @@ input[type="checkbox"].steading-improvement-complete:disabled,
    after the click because the chip keeps focus) so a deselected chip clears its
    highlight instantly instead of holding the glow until it loses focus. */
 .stonetop-onboarding-move-chip:focus,
-.stonetop-onboarding-move-chip:active {
+.stonetop-onboarding-move-chip:active,
+.stonetop-levelup-move-chip:focus,
+.stonetop-levelup-move-chip:active {
 	box-shadow: none;
 	outline: none;
 }
 
-.stonetop-onboarding-move-chip.is-active {
+.stonetop-onboarding-move-chip.is-active,
+.stonetop-levelup-move-chip.is-active {
 	color: white;
 	background: slategrey;
 	border-color: slategrey;
 }
 
-.stonetop-onboarding-card--move.is-filtered-out { display: none; }
+.stonetop-onboarding-card--move.is-filtered-out,
+.stonetop-levelup-move-option.is-filtered-out { display: none; }
 
 /* "Either X OR Y" starting-move choice (e.g. the Heavy's Armored OR Uncanny
    Reflexes): a radio group of move cards, spaced off from the free-pick list.
@@ -9284,9 +9811,120 @@ input[type="checkbox"].steading-improvement-complete:disabled,
 	border-top: 1px solid rgba(100,116,139,0.15);
 }
 
+/* Live "N / max" badge on a capped multi-select line (the remarkable-trait line,
+   whose cap grows with Big Magic). Sits at the head of the wrapping row. */
+.stonetop-onboarding-subcheck-cap {
+	flex-shrink: 0;
+	align-self: center;
+	font-size: var(--st-fs-sm);
+	color: slategrey;
+}
+
+.stonetop-onboarding-subcheck-count {
+	font-weight: 700;
+}
+
 /* Native radios (sub-choice lines, either/or move cards) take the slate accent the
    rest of the wizard uses, instead of the browser default. */
 .stonetop-onboarding-radio { flex-shrink: 0; accent-color: slategrey; }
+
+/* ── Standalone possession-choices editor (sacred-pouch modal) ──────────────── */
+/* Reuses the shared .stonetop-choice-group / -subgroup / -option-label styling;
+   this adds the modal chrome, the cap badge, the disabled-option dimming, and the
+   two "edit" pencils (Big Magic move card + gear-tab possession). */
+/* Cap the auto-height window to the viewport so a long choiceGroups list (flavor
+   lines + remarkable traits) scrolls inside the dialog instead of ballooning. */
+.stonetop-possession-choices-dialog .window-content {
+	max-height: calc(100vh - 80px);
+	overflow-y: auto;
+}
+
+.stonetop-possession-choices {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 2px;
+}
+
+/* The desc carries .stonetop-item-description (padding-left:20px); drop it so the
+   intro line is flush-left with the choice-group boxes below it. */
+.stonetop-possession-choices .stonetop-possession-choices-desc {
+	padding-left: 0;
+}
+
+.stonetop-possession-choices .stonetop-choice-group {
+	padding: 8px 10px;
+	background: rgba(100,116,139,0.05);
+	border: 1px solid rgba(100,116,139,0.25);
+	border-radius: var(--st-radius-sm);
+}
+
+.stonetop-pc-subgroup { align-items: center; }
+
+.stonetop-pc-cap {
+	flex-shrink: 0;
+	align-self: center;
+	font-size: var(--st-fs-sm);
+	color: slategrey;
+}
+.stonetop-pc-count { font-weight: 700; }
+
+.stonetop-possession-choices .stonetop-choice-option-label.is-disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* Add-only (level-up) surface: a remarkable trait the pouch already has, shown
+   checked but not re-editable. Reads as kept/settled, NOT dimmed-as-unavailable —
+   so override the .is-disabled fade above (equal specificity, later wins). */
+.stonetop-possession-choices .stonetop-choice-option-label.is-locked {
+	opacity: 1;
+	cursor: default;
+}
+.stonetop-pc-locked-icon {
+	margin-left: 2px;
+	color: slategrey;
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-pc-footer {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 2px;
+}
+
+.stonetop-pc-done {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 4px 14px;
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	border-radius: var(--st-radius-sm);
+	color: var(--st-btn-primary-text);
+	cursor: pointer;
+	width: 100%;
+}
+.stonetop-pc-done:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+	color: var(--st-btn-primary-text);
+}
+
+/* The "edit" pencils that open the modal (move card + gear-tab possession). Slate,
+   inline, low-key until hovered. Colour only — no font-family on the FA glyph. */
+.stonetop-move-possession-edit,
+.stonetop-possession-choices-edit {
+	flex-shrink: 0;
+	margin-left: 4px;
+	color: slategrey;
+	cursor: pointer;
+}
+.stonetop-move-possession-edit:hover,
+.stonetop-possession-choices-edit:hover {
+	color: var(--st-btn-primary-bg-hover);
+}
 
 /* Insert steps — Invocations, Initiates, Crew, Animal Companion */
 .stonetop-onboarding-insert-section {
@@ -11568,8 +12206,8 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 
 .stonetop-inline-btn:hover { background: hsl(210 10% 92%); }
 
-.stonetop-inline-btn--danger { border-color: #c0392b; color: #c0392b; }
-.stonetop-inline-btn--danger:hover { background: rgba(192,57,43,0.08); }
+.stonetop-inline-btn--danger { border-color: var(--st-red-border); color: var(--st-red-text); }
+.stonetop-inline-btn--danger:hover { background: var(--st-red-bg); }
 
 /* Follower rules (collapsible <details>) */
 .stonetop-follower-rules-header {
@@ -12445,6 +13083,16 @@ li.question-bullet {
    wrapped by wrapLoreTerms(). A dotted underline signals the hover summary without
    forcing weight, since some sit inside an authored <strong> and some don't. */
 .stonetop-lore-term[data-tooltip] {
+	cursor: help;
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+}
+
+/* "debility" / "debilities" in move and prose text — applied via
+   markDebilityTooltips(). Bold draws the eye to the keyword; the dotted underline
+   signals the hover explanation of the three character debilities. */
+.stonetop-debility-term[data-tooltip] {
+	font-weight: bold;
 	cursor: help;
 	text-decoration: underline dotted;
 	text-underline-offset: 2px;
@@ -14412,6 +15060,28 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: 0;
 }
 
+/* Spiral bullets for the warning's PC list (matching the rest of the system's prose);
+   any <ol> here keeps its numbers. */
+.stonetop-intros-notice ul {
+	list-style: none;
+	margin-left: 0;
+	padding-left: 14px;
+}
+.stonetop-intros-notice ul > li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+.stonetop-intros-notice ul > li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
 .stonetop-intros-reminder {
 	margin: 0;
 	font-size: calc(0.82rem * var(--stonetop-font-scale, 1));
@@ -14715,6 +15385,10 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-welcome-action {
+	/* inline-flex (not the core button default of flex) so width:auto reads as a
+	   content-sized pill instead of stretching full-width, and icon+label center. */
+	display: inline-flex;
+	align-items: center;
 	width: auto;
 	margin-top: 8px;
 	padding: 4px 12px;
@@ -15280,8 +15954,8 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-charintro-create {
-	width: auto;
-	white-space: nowrap;
+	width: 100%;
+	justify-content: center;
 	padding: 8px 22px;
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-lg);
@@ -15432,6 +16106,29 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-spring-body li { line-height: 1.45; }
+
+/* Walkthrough body bullet lists (Expedition / Spring Burst steps) get spiral bullets
+   like the rest of the system's prose. Scoped to unclassed <ul> so the styled
+   Die-of-Fate result box (.stonetop-exp-fatetable) keeps its own look; <ol> step
+   lists keep their numbers. The flex column is preserved for its gap spacing. */
+.stonetop-spring-body ul:not([class]) {
+	list-style: none;
+	padding-left: 14px;
+}
+.stonetop-spring-body ul:not([class]) > li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+.stonetop-spring-body ul:not([class]) > li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
 
 .stonetop-spring-body blockquote {
 	margin: 8px 0;
@@ -16124,4 +16821,554 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-share-owner-row.is-disabled {
 	opacity: 0.45;
 	cursor: not-allowed;
+}
+
+/* ── Arcanum editor (StonetopArcanumSheet edit mode) ───────────────────────────
+   Scoped under .stonetop-arcanum-edit (only ever inside the arcanum item sheet),
+   so nothing here bleeds onto other windows. */
+.stonetop-arcanum-edit {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-height: 78vh;
+	overflow-y: auto;
+	padding: 4px 2px 10px;
+	font-family: var(--font-stonetop);
+	color: var(--st-text-body);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-section {
+	border: 1px solid var(--color-border-light, #c9c0ad);
+	border-radius: var(--st-radius-lg);
+	padding: 8px 10px 10px;
+	background: rgba(255, 255, 255, 0.35);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-h {
+	margin: 0 0 6px;
+	font-size: var(--st-fs-lg);
+	font-family: var(--font-stonetop);
+	border-bottom: 1px solid var(--color-border-light, #c9c0ad);
+	padding-bottom: 3px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-h-sub {
+	font-size: var(--st-fs-xs);
+	font-weight: normal;
+	font-style: italic;
+	color: var(--st-text-muted);
+	margin-left: 6px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-row > span {
+	flex: 0 0 92px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-row--wide > span { flex-basis: 92px; }
+.stonetop-arcanum-edit .stonetop-arc-row--wide { align-items: flex-start; }
+
+.stonetop-arcanum-edit .stonetop-arc-input {
+	flex: 1;
+	min-width: 0;
+}
+
+.stonetop-arcanum-edit textarea.stonetop-arc-input {
+	resize: vertical;
+	min-height: 2.4em;
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-label {
+	display: block;
+	margin: 8px 0 3px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-hint {
+	margin: 2px 0 6px;
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-muted);
+	font-style: italic;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-check {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin: 8px 0 2px;
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-check em {
+	color: var(--st-text-muted);
+	font-size: var(--st-fs-2xs);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-check--sub {
+	margin-left: 14px;
+	font-size: var(--st-fs-xs);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-subgrid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 4px 10px;
+	margin: 4px 0 6px 14px;
+	padding-left: 8px;
+	border-left: 2px solid var(--color-border-light, #c9c0ad);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-subgrid .stonetop-arc-row--wide { grid-column: 1 / -1; }
+
+.stonetop-arcanum-edit prose-mirror.stonetop-arc-rich {
+	display: block;
+	min-height: 90px;
+	border: 1px solid var(--color-border-light, #c9c0ad);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.5);
+	padding: 2px 4px;
+}
+
+/* Keep the editable area clickable/visible even when empty (a 0-height editor can't
+   be focused to type into). */
+.stonetop-arcanum-edit prose-mirror.stonetop-arc-rich .editor-content {
+	min-height: 70px;
+}
+
+/* Glyph-insert toolbar */
+.stonetop-arcanum-edit .stonetop-arc-glyphbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 8px;
+	background: var(--st-blue-bg);
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius-sm);
+	position: sticky;
+	top: 0;
+	z-index: 2;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-glyphbar-label {
+	font-size: var(--st-fs-xs);
+	color: var(--st-blue-text);
+	font-weight: 600;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-glyph {
+	flex: 0 0 auto;
+	width: auto;
+	min-width: 2.4em;
+	padding: 1px 8px;
+	font-size: var(--st-fs-md);
+	line-height: 1.4;
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-glyphbar-hint {
+	flex: 1 1 100%;
+	font-size: var(--st-fs-2xs);
+	color: var(--st-blue-text);
+	font-style: italic;
+}
+
+/* Unlock requirements list editor */
+.stonetop-arcanum-edit .stonetop-arc-reqs { margin-top: 8px; }
+
+.stonetop-arcanum-edit .stonetop-arc-reqs-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	margin-bottom: 4px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-req-add {
+	flex: 0 0 auto;
+	width: auto;
+	padding: 1px 8px;
+	font-size: var(--st-fs-2xs);
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-req-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-req-row {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-req-type { flex: 0 0 6.5em; }
+.stonetop-arcanum-edit .stonetop-arc-req-input { flex: 1; min-width: 0; }
+.stonetop-arcanum-edit .stonetop-arc-req-slug { flex: 0 0 7em; font-size: var(--st-fs-2xs); }
+.stonetop-arcanum-edit .stonetop-arc-req-max { flex: 0 0 3.5em; }
+
+.stonetop-arcanum-edit .stonetop-arc-req-remove {
+	flex: 0 0 auto;
+	width: auto;
+	padding: 1px 7px;
+	color: var(--st-red-text);
+	cursor: pointer;
+}
+
+/* Validation status */
+.stonetop-arcanum-edit .stonetop-arc-validation {
+	list-style: none;
+	margin: 0;
+	padding: 6px 8px;
+	border-radius: var(--st-radius-sm);
+	background: var(--st-red-bg);
+	border: 1px solid var(--st-red-border);
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-issue {
+	font-size: var(--st-fs-xs);
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-issue--error { color: var(--st-red-text); }
+.stonetop-arcanum-edit .stonetop-arc-issue--warn  { color: var(--st-text-secondary); }
+
+/* Live slug-collision warning under the slug field (amber, matches the shared notice). */
+.stonetop-arcanum-edit .stonetop-arc-slug-warning {
+	margin: 2px 0 0;
+	padding: 4px 8px;
+	border-radius: var(--st-radius-sm);
+	background: rgba(200, 120, 20, 0.1);
+	border: 1px solid rgba(200, 120, 20, 0.4);
+	color: #7a4a00;
+	font-size: var(--st-fs-2xs);
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+}
+.stonetop-arcanum-edit .stonetop-arc-slug-warning[hidden] { display: none; }
+.stonetop-arcanum-edit .stonetop-arc-slug-warning > i { color: #c07820; }
+
+/* Arcana-tab "create homebrew arcanum" bar (character sheet, edit mode) */
+.stonetop-arcana-create-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.stonetop-arcana-create-bar .stonetop-arcana-create,
+.stonetop-arcana-create-bar .stonetop-arcana-inspire {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 12px;
+	cursor: pointer;
+}
+
+/* The inspiration wizard launcher sits apart from the two "blank card" buttons. */
+.stonetop-arcana-create-bar .stonetop-arcana-inspire {
+	margin-left: auto;
+	font-style: italic;
+}
+
+/* ── Artifact Creation inspiration wizard (StonetopArcanaInspireDialog) ───────── */
+.stonetop-arcana-inspire-dialog .stonetop-inspire {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-step {
+	margin: 0;
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	color: var(--st-blue-text);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-intro {
+	margin: 0;
+	font-size: var(--st-fs-2xs);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field > label,
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field-label {
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field-row select {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-roll {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 3px 9px;
+	cursor: pointer;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-roll-all {
+	align-self: flex-start;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 12px;
+	cursor: pointer;
+	font-style: italic;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-radio {
+	display: block;
+	font-size: var(--st-fs-xs);
+	margin: 2px 0;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-radio em {
+	color: var(--st-text-muted);
+	font-size: var(--st-fs-2xs);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-summary {
+	border: 1px solid var(--st-blue-border, #9bb4d1);
+	background: var(--st-blue-bg);
+	border-radius: var(--st-radius-sm);
+	padding: 6px 10px;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-summary-title {
+	margin: 0 0 4px;
+	font-weight: 600;
+	font-size: var(--st-fs-xs);
+	color: var(--st-blue-text);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-summary ul {
+	list-style: none;
+	margin: 0;
+	padding-left: 14px;
+	font-size: var(--st-fs-xs);
+}
+.stonetop-arcana-inspire-dialog .stonetop-inspire-summary li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+.stonetop-arcana-inspire-dialog .stonetop-inspire-summary li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-hint {
+	margin: 4px 0 0;
+	font-size: var(--st-fs-2xs);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	margin-top: 4px;
+	padding-top: 8px;
+	border-top: 1px solid var(--color-border-light, #c9c0ad);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer-right {
+	display: flex;
+	gap: 8px;
+	margin-left: auto;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer button {
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 14px;
+	cursor: pointer;
+}
+
+/* Major-mode authoring tools (shown when the arcanum is a Major). */
+.stonetop-arcanum-edit .stonetop-arc-arttool {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 6px 0 2px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-art-thumb {
+	flex: 0 0 auto;
+	width: 40px;
+	height: 40px;
+	border: 1px solid var(--color-border-light, #c9c0ad);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.4);
+	overflow: hidden;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-art-thumb img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-pick-art {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 10px;
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-majorbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin: 6px 0;
+	padding: 5px 8px;
+	background: var(--st-green-bg);
+	border: 1px solid var(--st-green-border);
+	border-radius: var(--st-radius-sm);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-majorbar-label {
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	color: var(--st-green-text);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-marktrack,
+.stonetop-arcanum-edit .stonetop-arc-add-mystery,
+.stonetop-arcanum-edit .stonetop-arc-add-consequence {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 1px 9px;
+	font-size: var(--st-fs-xs);
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-majorbar .stonetop-arc-hint { flex: 1 1 100%; margin: 0; }
+
+/* Manifested-followers (summon) authoring list. */
+.stonetop-arcanum-edit .stonetop-arc-foll { margin-top: 10px; }
+
+.stonetop-arcanum-edit .stonetop-arc-foll-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	margin-bottom: 4px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-foll-add {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 1px 9px;
+	font-size: var(--st-fs-2xs);
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-foll-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-foll-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	border: 1px solid var(--color-border-light, #c9c0ad);
+	border-radius: var(--st-radius-sm);
+	padding: 6px 8px;
+	background: rgba(255, 255, 255, 0.35);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-foll-grid {
+	flex: 1;
+	min-width: 0;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 3px 10px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-foll-grid .stonetop-arc-row--wide { grid-column: 1 / -1; }
+.stonetop-arcanum-edit .stonetop-arc-foll-grid .stonetop-arc-check { grid-column: 1 / -1; }
+
+.stonetop-arcanum-edit .stonetop-arc-foll-remove {
+	flex: 0 0 auto;
+	width: auto;
+	padding: 1px 7px;
+	color: var(--st-red-text);
+	cursor: pointer;
 }

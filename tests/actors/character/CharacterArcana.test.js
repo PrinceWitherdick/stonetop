@@ -332,6 +332,36 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			expect((await arcana.buildSnapshot()).minor.items[0].back.resource).toBeNull();
 		});
 
+		// Regression: a card carrying BOTH a back-power resource and a back-ITEM resource must
+		// not share one stored value. The power track keys by bare slug; the item track keys
+		// `${slug}:item`. Without the split, ticking one moved the other.
+		describe("back power + back item resource don't collide", () => {
+			const BOTH_RESOURCES = {
+				...FFYRNIG_SPHERE,
+				slug: "both-tracks",
+				back: {
+					...FFYRNIG_SPHERE.back,
+					resource: { max: 3, maxStat: null, title: "Power", labels: [] },
+					item: { name: "Vessel", weight: 1, note: null, inventoryColumn: "regular",
+						resource: { max: 4, maxStat: null, title: "Ammo", labels: [] } },
+				},
+			};
+			const buildBoth = (inventoryResources) =>
+				new CharacterArcana(makeFlags({ owned: ["both-tracks"] }), new FakeArcanaRepository([BOTH_RESOURCES]))
+					.buildSnapshot({}, {}, inventoryResources);
+
+			it("reads the two tracks from independent keys", async () => {
+				const item = (await buildBoth({ "both-tracks": 2, "both-tracks:item": 4 })).minor.items[0];
+				expect(item.back.resource.current).toBe(2);       // power → bare slug
+				expect(item.back.item.resource.current).toBe(4);  // item  → :item key
+			});
+
+			it("item track falls back to the legacy bare-slug value when no :item key exists", async () => {
+				const item = (await buildBoth({ "both-tracks": 5 })).minor.items[0];
+				expect(item.back.item.resource.current).toBe(5);  // legacy data preserved
+			});
+		});
+
 		it("back.move is populated with correct name and rollType", async () => {
 			expect((await getItem()).back.move).toMatchObject({
 				name: "When you take a draught of ffyrnig tonic",

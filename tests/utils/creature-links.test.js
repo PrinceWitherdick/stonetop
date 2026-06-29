@@ -1,19 +1,25 @@
-import { describe, expect, it } from "vitest";
-import { CREATURES } from "../../scripts/local/bestiary/creatures.mjs";
-import { creatureUuid } from "../../scripts/local/bestiary/ids.mjs";
-import {
-	CREATURE_LINK_DENYLIST,
-	creatureLinkRecords,
-	buildCreatureLinkIndex,
-} from "../../scripts/local/bestiary/links.mjs";
-import { linkifyByIndex } from "../../scripts/local/shared/gazetteer.mjs";
+import { expect, it } from "vitest";
+import { describeLocal, loadLocal } from "../local-only.js";
+
+const mods = await loadLocal(
+	() => import("../../scripts/local/bestiary/creatures.mjs"),
+	() => import("../../scripts/local/bestiary/ids.mjs"),
+	() => import("../../scripts/local/bestiary/links.mjs"),
+	() => import("../../scripts/local/shared/gazetteer.mjs"),
+);
+const describeGen = describeLocal(mods);
+const [creaturesMod, idsMod, linksMod, gazetteerMod] = mods ?? [];
+const { CREATURES } = creaturesMod ?? {};
+const { creatureUuid } = idsMod ?? {};
+const { CREATURE_LINK_DENYLIST, creatureLinkRecords, buildCreatureLinkIndex } = linksMod ?? {};
+const { linkifyByIndex } = gazetteerMod ?? {};
 
 // The curated creature index is the one source of truth every generator uses to
 // auto-link bestiary creatures named in prose. It links distinctive names (and
 // real animals) while skipping generic role words that would mis-link ordinary
 // text, and the names that collide with a lore/location entry of the same name.
 
-describe("creatureLinkRecords", () => {
+describeGen("creatureLinkRecords", () => {
 	const records = creatureLinkRecords();
 	const names = new Set(records.map(r => r.name));
 
@@ -48,7 +54,7 @@ describe("creatureLinkRecords", () => {
 	});
 });
 
-describe("buildCreatureLinkIndex", () => {
+describeGen("buildCreatureLinkIndex", () => {
 	it("links a distinctive name and skips a denylisted generic word", () => {
 		const index = buildCreatureLinkIndex();
 		const suileach = CREATURES.find(c => c.name === "The Suileach");

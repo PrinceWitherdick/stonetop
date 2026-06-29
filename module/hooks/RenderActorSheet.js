@@ -4,6 +4,7 @@ import { applyLocationTooltips } from "../locations/location-tooltips.js";
 import { getHoverDescriptionSetting } from "../settings.js";
 import { markQuestionBullets } from "../utils/question-bullets.js";
 import { markValueTooltips } from "../utils/value-tooltips.js";
+import { markDebilityTooltips } from "../utils/debility-tooltips.js";
 
 // Apply gear-term tooltips only to the containers we know hold gear-tag <em>
 // elements. Applying to html[0] wholesale reaches into PBTA system partials
@@ -31,6 +32,12 @@ export function onRenderActorSheet(sheet, html) {
 	markValueTooltips(root);
 
 	const type = sheet?.actor?.type;
+	// Embolden + explain character debilities (Weakened/Dazed/Miserable) wherever
+	// "debility" appears in move/prose text. Skip the steading sheet (actor type
+	// "stonetop") — its own debilities (diminished/lacking/malcontent) are a
+	// different thing, and its "Debilities" section title shouldn't be tagged.
+	if (type !== "stonetop") markDebilityTooltips(root);
+
 	if (type === "monster") {
 		_enrichBestiarySheet(sheet, root);
 		// Baked @UUID cross-links in the stat block's prose (e.g. a Fae's "Fae nature"

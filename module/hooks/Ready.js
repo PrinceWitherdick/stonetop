@@ -15,6 +15,8 @@ import { CharacterCreationDialog } from "../actors/character/dialogs/CharacterCr
 import { readOnboardingResume, clearOnboardingResume } from "../actors/character/onboarding-resume.js";
 import { playbookSlug } from "../utils/playbook-actors.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
+import { createArcanumItem } from "../item/createArcanum.js";
+import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { getStonetopSteadingActorOrWarn } from "../utils/world.js";
 
@@ -23,13 +25,24 @@ const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
 const _EOS_MACRO_SCRIPT = "game.stonetop?.openEndOfSession?.()";
 const _EOS_HOTBAR_SLOT  = 10;
 
+// The Chronicle hotbar macro (slot 9): compiles the recorded Introductions + Spring
+// Burst answers and expedition log into the shared "The Chronicle" journal and opens it
+// (GM-only — saveChronicle is seed-once, so re-running it preserves inline edits). Sits
+// just before End of Session and, like it, is handled separately from the slots-1–5
+// _SYSTEM_MACROS set and keyed on its command so it won't collide with a user macro of
+// the same name.
+const _CHRONICLE_MACRO_NAME   = "The Chronicle";
+const _CHRONICLE_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/bookmarklet.svg";
+const _CHRONICLE_MACRO_SCRIPT = "game.stonetop?.saveChronicle?.()";
+const _CHRONICLE_HOTBAR_SLOT  = 9;
+
 // The "(TEST ONLY) Populate World" dev macro, added to the Macro Directory but never
 // the hotbar. Its body is the create-test-characters dev script — that gitignored file
 // is the single source of truth, fetched at runtime (see _ensureTestPopulateMacro), so
 // builds that omit it simply skip seeding the macro.
 const _TEST_MACRO_NAME   = "(TEST ONLY) Populate World";
 const _TEST_MACRO_SRC    = "systems/stonetop_pwd/scripts/local/create-test-characters.js";
-const _TEST_MACRO_IMG    = "icons/svg/cog.svg";
+const _TEST_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/hazard-sign.svg";
 const _TEST_MACRO_FOLDER = "For Testing Purposes";
 
 // Retired hotbar macro — the Introductions walkthrough now launches from the
@@ -97,6 +110,16 @@ export async function onReady() {
 		actor ? new CharacterCreationDialog(actor).render(true)
 		      : ui.notifications.warn("No character to start creation for.");
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
+	// Create a blank homebrew arcanum world Item and open its editor. Minor by default;
+	// pass { major: true } for a major. Callable from a macro/console/hotbar:
+	//   game.stonetop.createArcanum({ name: "My Charm" })
+	game.stonetop.createArcanum     = (opts = {}) => createArcanumItem(opts);
+	// Open the Artifact Creation inspiration wizard; on finish it creates a standalone
+	// homebrew arcanum world Item pre-filled with the rolled results and opens its editor.
+	// Callable from a macro/console/hotbar:  game.stonetop.inspireArcanum()
+	game.stonetop.inspireArcanum    = () => new StonetopArcanaInspireDialog({
+		onCreate: ({ name, major, front }) => createArcanumItem({ name, major, front }),
+	}).render(true);
 
 	_registerCharacterAutoOpen();
 
@@ -107,9 +130,14 @@ export async function onReady() {
 		// Place any missing system macros at their default slots (existing placements
 		// are left alone, so a manual rearrangement sticks). Their fixed starting order
 		// — 1 Welcome · 2 Seasons Change · 3 Run an Expedition · 4 Weather · 5 Die of
-		// Fate · 10 End of Session — is applied per layout version by _reorderSystemMacros,
-		// below.
+		// Fate · 9 The Chronicle · 10 End of Session — is applied for the slots-1–5 set
+		// per layout version by _reorderSystemMacros, below; Chronicle and End of Session
+		// are placed (but not reordered) by their own _ensureHotbarMacro calls.
 		for (const macro of _SYSTEM_MACROS) await _ensureHotbarMacro(macro);
+		await _ensureHotbarMacro({
+			name: _CHRONICLE_MACRO_NAME, img: _CHRONICLE_MACRO_IMG, command: _CHRONICLE_MACRO_SCRIPT, slot: _CHRONICLE_HOTBAR_SLOT,
+			match: m => m.command === _CHRONICLE_MACRO_SCRIPT && m.name === _CHRONICLE_MACRO_NAME,
+		});
 		await _ensureHotbarMacro({
 			name: _EOS_MACRO_NAME, img: _EOS_MACRO_IMG, command: _EOS_MACRO_SCRIPT, slot: _EOS_HOTBAR_SLOT,
 			match: m => m.command === _EOS_MACRO_SCRIPT && m.name === _EOS_MACRO_NAME,
@@ -324,6 +352,7 @@ async function _ensureTestPopulateMacro() {
 	if (existing) {
 		const update = {};
 		if (existing.command !== command) update.command = command;
+		if (existing.img !== _TEST_MACRO_IMG) update.img = _TEST_MACRO_IMG;
 		if (folder && existing.folder?.id !== folder.id) update.folder = folder.id;
 		if (Object.keys(update).length) await existing.update(update);
 		return;

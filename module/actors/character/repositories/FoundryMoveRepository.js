@@ -2,8 +2,8 @@ import { MoveDefinition } from "../../../model/MoveDefinition.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
 
 const PLAYBOOK_FIELDS   = ["system.playbook", "system.isStartingMove", "system.requirement",
-                            "system.rollType", "system.description", "system.repeatMax", "system.resource",
-                            "system.hpBonus", "system.armorBonus", "system.loadBonus", "system.markOptions", "system.asterisk"];
+                            "system.rollType", "system.description", "system.repeatMax", "system.cap", "system.resource",
+                            "system.hpBonus", "system.armorBonus", "system.loadBonus", "system.markOptions", "system.markBudget", "system.crossPlaybook", "system.asterisk"];
 const POST_DEATH_FIELDS = ["system.playbook", "system.rollType", "system.description", "system.resource"];
 
 export class FoundryMoveRepository {

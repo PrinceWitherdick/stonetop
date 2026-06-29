@@ -1,0 +1,235 @@
+{{!-- Edit mode for a homebrew arcanum (StonetopArcanumSheet). All controls carry
+     data-* attributes; the sheet's change/click listeners write to flags.stonetop via
+     item.update(). Rich fields are <prose-mirror>; the glyph bar inserts ◇/○/□ runs into
+     the focused editor. Switch to view (eye icon in the header) to preview the card. --}}
+<form class="stonetop-arcanum-edit" autocomplete="off">
+
+	{{#*inline "itemFields"}}
+	<div class="stonetop-arc-subgrid">
+		<label class="stonetop-arc-row"><span>Item name</span>
+			<input type="text" class="stonetop-arc-input" data-arc-field="{{prefix}}.name" value="{{item.name}}"></label>
+		<label class="stonetop-arc-row"><span>Weight</span>
+			<input type="number" class="stonetop-arc-input" data-arc-field="{{prefix}}.weight" data-arc-type="number" min="0" value="{{item.weight}}"></label>
+		<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Tags / note</span>
+			<input type="text" class="stonetop-arc-input" data-arc-field="{{prefix}}.note" value="{{item.note}}" placeholder="close, magical"></label>
+		<label class="stonetop-arc-row"><span>Column</span>
+			<select class="stonetop-arc-input" data-arc-field="{{prefix}}.inventoryColumn">
+				<option value="" {{#if (eq "" item.inventoryColumnValue)}}selected{{/if}}>(default)</option>
+				<option value="regular" {{#if (eq "regular" item.inventoryColumnValue)}}selected{{/if}}>Regular</option>
+				<option value="arcana" {{#if (eq "arcana" item.inventoryColumnValue)}}selected{{/if}}>Arcana</option>
+			</select></label>
+	</div>
+	{{/inline}}
+
+	{{#*inline "resourceFields"}}
+	<div class="stonetop-arc-subgrid">
+		<label class="stonetop-arc-row"><span>Track title</span>
+			<input type="text" class="stonetop-arc-input" data-arc-field="{{prefix}}.title" value="{{resource.title}}" placeholder="Charge"></label>
+		<label class="stonetop-arc-row"><span>Max</span>
+			<input type="number" class="stonetop-arc-input" data-arc-field="{{prefix}}.max" data-arc-type="number" min="0" value="{{resource.max}}"></label>
+		<label class="stonetop-arc-row"><span>Max = stat</span>
+			<select class="stonetop-arc-input" data-arc-field="{{prefix}}.maxStat">
+				<option value="" {{#if (eq "" resource.maxStatValue)}}selected{{/if}}>— fixed max —</option>
+				{{#each statOptions}}
+				<option value="{{key}}" {{#if (eq key ../resource.maxStatValue)}}selected{{/if}}>{{abbr}}</option>
+				{{/each}}
+			</select></label>
+		<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Stage labels (one per line)</span>
+			<textarea class="stonetop-arc-input" data-arc-field="{{prefix}}.labels" data-arc-type="lines" rows="2" placeholder="plenty&#10;low&#10;out">{{resource.labelsText}}</textarea></label>
+	</div>
+	{{/inline}}
+
+	{{#if edit.slugLocked}}
+	<ul class="stonetop-arc-validation">
+		<li class="stonetop-arc-issue stonetop-arc-issue--warn"><i class="fas fa-users"></i> A character already holds this card. Editing the mark tracks (◇ ○ □) can shift players' saved marks — add or remove glyphs at the <em>end</em> of a track, not before a marked one.</li>
+	</ul>
+	{{/if}}
+
+	{{#if validation.length}}
+	<ul class="stonetop-arc-validation">
+		{{#each validation}}
+		<li class="stonetop-arc-issue stonetop-arc-issue--{{level}}"><i class="fas {{#if (eq level "error")}}fa-circle-exclamation{{else}}fa-triangle-exclamation{{/if}}"></i> {{message}}</li>
+		{{/each}}
+	</ul>
+	{{/if}}
+
+	<div class="stonetop-arc-glyphbar">
+		<span class="stonetop-arc-glyphbar-label">Insert track:</span>
+		{{#each glyphs}}
+		<button type="button" class="stonetop-arc-glyph" data-glyph="{{ins}}" title="{{hint}}">{{label}}</button>
+		{{/each}}
+		<span class="stonetop-arc-glyphbar-hint">Click into a description first. Tracks need 2+ glyphs (◇◇ / ○○); a lone glyph stays decorative.</span>
+	</div>
+
+	{{!-- Identity --}}
+	<section class="stonetop-arc-section">
+		<h3 class="stonetop-arc-h">Identity</h3>
+		<label class="stonetop-arc-row"><span>Name</span>
+			<input type="text" class="stonetop-arc-input" data-arc-field="name" value="{{edit.name}}"></label>
+		<label class="stonetop-arc-row"><span>Slug</span>
+			<input type="text" class="stonetop-arc-input" data-arc-field="flags.stonetop.slug" value="{{edit.slug}}" {{#if edit.slugLocked}}readonly{{/if}}></label>
+		{{#if edit.slugLocked}}
+		<p class="stonetop-arc-hint"><i class="fas fa-lock"></i> A character already holds this card, so the slug is locked — changing it would orphan their saved marks and remove the card from their sheet.</p>
+		{{else}}
+		<p class="stonetop-arc-slug-warning" {{#unless edit.slugCollision}}hidden{{/unless}}><i class="fas fa-triangle-exclamation"></i> Another arcanum already uses this slug. A shipped card of the same slug wins, and cards that share a slug share saved marks — pick a unique one.</p>
+		<p class="stonetop-arc-hint">The slug identifies the card and keys saved marks — avoid changing it once players own it.</p>
+		{{/if}}
+		<label class="stonetop-arc-check"><input type="checkbox" data-arc-field="flags.stonetop.major" data-arc-type="boolean" {{#if edit.major}}checked{{/if}}>
+			<span>Major Arcanum <em>(gets card art + major semantics)</em></span></label>
+		{{#if edit.major}}
+		<div class="stonetop-arc-arttool">
+			<span class="stonetop-arc-art-thumb">{{#if edit.img}}<img src="{{edit.img}}" alt="">{{/if}}</span>
+			<button type="button" class="stonetop-arc-pick-art"><i class="fas fa-image"></i> Choose card art</button>
+			<span class="stonetop-arc-hint">Majors show this art on the card and the character sheet.</span>
+		</div>
+		{{/if}}
+	</section>
+
+	{{!-- Front --}}
+	<section class="stonetop-arc-section">
+		<h3 class="stonetop-arc-h">Front <span class="stonetop-arc-h-sub">the curio, face-up</span></h3>
+		<label class="stonetop-arc-row"><span>Title</span>
+			<input type="text" class="stonetop-arc-input" data-arc-field="flags.stonetop.front.title" value="{{edit.front.title}}"></label>
+		<label class="stonetop-arc-label">Description</label>
+		<prose-mirror class="stonetop-arc-rich" data-arc-field="flags.stonetop.front.description" value="{{edit.front.description}}">{{{edit.front.descriptionEnriched}}}</prose-mirror>
+
+		<label class="stonetop-arc-check"><input type="checkbox" data-arc-toggle="front.item" {{#if edit.front.hasItem}}checked{{/if}}>
+			<span>Carried item (weighs the pack while face-up)</span></label>
+		{{#if edit.front.hasItem}}
+		{{> itemFields item=edit.front.item prefix="flags.stonetop.front.item"}}
+		{{/if}}
+
+		<label class="stonetop-arc-label">Unlock text</label>
+		<prose-mirror class="stonetop-arc-rich" data-arc-field="flags.stonetop.front.unlock.description" value="{{edit.front.unlock.description}}">{{{edit.front.unlock.descriptionEnriched}}}</prose-mirror>
+
+		{{#if edit.major}}
+		<div class="stonetop-arc-majorbar">
+			<span class="stonetop-arc-majorbar-label">Mark track:</span>
+			<button type="button" class="stonetop-arc-marktrack" data-marks="3">3</button>
+			<button type="button" class="stonetop-arc-marktrack" data-marks="4">4</button>
+			<button type="button" class="stonetop-arc-marktrack" data-marks="5">5</button>
+			<span class="stonetop-arc-hint">Appends the ○-track + “make the last mark” unlock lead.</span>
+		</div>
+		{{/if}}
+
+		<div class="stonetop-arc-reqs">
+			<div class="stonetop-arc-reqs-head">
+				<span>Unlock requirements</span>
+				<button type="button" class="stonetop-arc-req-add" data-req-type="option">+ Option</button>
+				<button type="button" class="stonetop-arc-req-add" data-req-type="text">+ Text</button>
+			</div>
+			<ul class="stonetop-arc-req-list">
+				{{#each edit.front.unlock.requirements}}
+				<li class="stonetop-arc-req-row" data-req-index="{{@index}}">
+					<select class="stonetop-arc-req-type" data-req-prop="type">
+						<option value="option" {{#if isOption}}selected{{/if}}>Option</option>
+						<option value="text" {{#if isText}}selected{{/if}}>Text</option>
+					</select>
+					{{#if isOption}}
+					<input type="text" class="stonetop-arc-req-input" data-req-prop="description" placeholder="A requirement to check off…" value="{{description}}">
+					<input type="text" class="stonetop-arc-req-slug" data-req-prop="slug" title="stable key — avoid changing once in use" value="{{slug}}">
+					<input type="number" class="stonetop-arc-req-max" data-req-prop="max" min="1" value="{{max}}" title="number of checkboxes">
+					{{else}}
+					<input type="text" class="stonetop-arc-req-input stonetop-arc-req-input--wide" data-req-prop="content" placeholder="Interstitial label (e.g. “And then…”)" value="{{content}}">
+					{{/if}}
+					<button type="button" class="stonetop-arc-req-remove" title="Remove"><i class="fas fa-trash"></i></button>
+				</li>
+				{{/each}}
+			</ul>
+		</div>
+	</section>
+
+	{{!-- Back --}}
+	<section class="stonetop-arc-section">
+		<h3 class="stonetop-arc-h">Back <span class="stonetop-arc-h-sub">the revealed power</span></h3>
+		<label class="stonetop-arc-row"><span>Title</span>
+			<input type="text" class="stonetop-arc-input" data-arc-field="flags.stonetop.back.title" value="{{edit.back.title}}"></label>
+		<label class="stonetop-arc-label">Description</label>
+		<prose-mirror class="stonetop-arc-rich" data-arc-field="flags.stonetop.back.description" value="{{edit.back.description}}">{{{edit.back.descriptionEnriched}}}</prose-mirror>
+
+		{{#if edit.major}}
+		<div class="stonetop-arc-majorbar">
+			<span class="stonetop-arc-majorbar-label">Major content:</span>
+			<button type="button" class="stonetop-arc-add-mystery"><i class="fas fa-plus"></i> Mystery</button>
+			<button type="button" class="stonetop-arc-add-consequence" data-weight="1">Consequence □</button>
+			<button type="button" class="stonetop-arc-add-consequence" data-weight="2">□□</button>
+			<button type="button" class="stonetop-arc-add-consequence" data-weight="3">□□□</button>
+			<span class="stonetop-arc-hint">Appends a guided block to the description; edit it above.</span>
+		</div>
+		{{/if}}
+
+		<label class="stonetop-arc-check"><input type="checkbox" data-arc-toggle="back.item" {{#if edit.back.hasItem}}checked{{/if}}>
+			<span>Revealed / transformed item</span></label>
+		{{#if edit.back.hasItem}}
+		{{> itemFields item=edit.back.item prefix="flags.stonetop.back.item"}}
+		<label class="stonetop-arc-check stonetop-arc-check--sub"><input type="checkbox" data-arc-toggle="back.item.resource" {{#if edit.back.hasItemResource}}checked{{/if}}>
+			<span>Item has a resource track (ammo / uses)</span></label>
+		{{#if edit.back.hasItemResource}}
+		{{> resourceFields resource=edit.back.itemResource prefix="flags.stonetop.back.item.resource" statOptions=statOptions}}
+		{{/if}}
+		{{/if}}
+
+		<label class="stonetop-arc-check"><input type="checkbox" data-arc-toggle="back.resource" {{#if edit.back.hasResource}}checked{{/if}}>
+			<span>Resource track (charges, sway, …)</span></label>
+		{{#if edit.back.hasResource}}
+		{{> resourceFields resource=edit.back.resource prefix="flags.stonetop.back.resource" statOptions=statOptions}}
+		{{/if}}
+
+		<label class="stonetop-arc-check"><input type="checkbox" data-arc-toggle="back.move" {{#if edit.back.hasMove}}checked{{/if}}>
+			<span>Condensed move (trigger + effect)</span></label>
+		{{#if edit.back.hasMove}}
+		<div class="stonetop-arc-subgrid">
+			<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Trigger (“When you…”)</span>
+				<input type="text" class="stonetop-arc-input" data-arc-field="flags.stonetop.back.move.name" value="{{edit.back.move.name}}"></label>
+		</div>
+		<label class="stonetop-arc-label">Move effect</label>
+		<prose-mirror class="stonetop-arc-rich" data-arc-field="flags.stonetop.back.move.description" value="{{edit.back.move.description}}">{{{edit.back.move.descriptionEnriched}}}</prose-mirror>
+		{{/if}}
+
+		<div class="stonetop-arc-foll">
+			<div class="stonetop-arc-foll-head">
+				<span>Manifested followers</span>
+				<button type="button" class="stonetop-arc-foll-add"><i class="fas fa-user-plus"></i> Add follower</button>
+			</div>
+			{{#if edit.summonFollowers.length}}
+			<ul class="stonetop-arc-foll-list">
+				{{#each edit.summonFollowers}}
+				<li class="stonetop-arc-foll-row" data-foll-index="{{@index}}">
+					<div class="stonetop-arc-foll-grid">
+						<label class="stonetop-arc-row"><span>Name</span>
+							<input type="text" class="stonetop-arc-input" data-foll-prop="name" value="{{name}}"></label>
+						<label class="stonetop-arc-row"><span>Pronoun</span>
+							<input type="text" class="stonetop-arc-input" data-foll-prop="pronoun" value="{{pronoun}}"></label>
+						<label class="stonetop-arc-row"><span>Type</span>
+							<input type="text" class="stonetop-arc-input" data-foll-prop="typeLabel" value="{{typeLabel}}"></label>
+						<label class="stonetop-arc-row"><span>HP</span>
+							<input type="number" class="stonetop-arc-input" data-foll-prop="hp" value="{{hp}}"></label>
+						<label class="stonetop-arc-row"><span>Armor</span>
+							<input type="text" class="stonetop-arc-input" data-foll-prop="armor" value="{{armor}}"></label>
+						<label class="stonetop-arc-row"><span>Loyalty</span>
+							<input type="number" class="stonetop-arc-input" data-foll-prop="loyalty" value="{{loyalty}}"></label>
+						<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Tags</span>
+							<input type="text" class="stonetop-arc-input" data-foll-prop="tags" value="{{tags}}" placeholder="spirit, tiny, naive"></label>
+						<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Damage</span>
+							<input type="text" class="stonetop-arc-input" data-foll-prop="damage" value="{{damage}}" placeholder="d6 (hand)"></label>
+						<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Instinct</span>
+							<input type="text" class="stonetop-arc-input" data-foll-prop="instinct" value="{{instinct}}"></label>
+						<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Cost</span>
+							<input type="text" class="stonetop-arc-input" data-foll-prop="cost" value="{{cost}}"></label>
+						<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Moves</span>
+							<textarea class="stonetop-arc-input" data-foll-prop="moves" rows="2" placeholder="One move per line">{{moves}}</textarea></label>
+						<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Notes</span>
+							<textarea class="stonetop-arc-input" data-foll-prop="notes" rows="2">{{notes}}</textarea></label>
+						<label class="stonetop-arc-check stonetop-arc-check--sub"><input type="checkbox" data-foll-prop="repeatable" {{#if repeatable}}checked{{/if}}>
+							<span>Repeatable (can be summoned again each time)</span></label>
+					</div>
+					<button type="button" class="stonetop-arc-foll-remove" title="Remove follower"><i class="fas fa-trash"></i></button>
+				</li>
+				{{/each}}
+			</ul>
+			{{/if}}
+			<p class="stonetop-arc-hint">Each follower adds an “Add as follower” button to the card; it lands on the character’s Followers tab.</p>
+		</div>
+	</section>
+
+</form>

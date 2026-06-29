@@ -1,0 +1,79 @@
+{{!-- Artifact Creation inspiration wizard (StonetopArcanaInspireDialog). Steps walk the
+     Book II pick-or-roll tables; the final step names the card + picks a tier and creates
+     it pre-filled. All controls carry data-* / name attributes the dialog listens for. --}}
+<div class="stonetop-inspire">
+
+	<header class="stonetop-inspire-head">
+		<p class="stonetop-inspire-step">Step {{stepNum}} of {{stepTotal}} — {{stepTitle}}</p>
+	</header>
+
+	{{#if isReview}}
+
+	<div class="stonetop-inspire-review">
+		<div class="stonetop-inspire-field">
+			<label for="stonetop-inspire-name">Name</label>
+			<input type="text" id="stonetop-inspire-name" name="arcName" value="{{name}}" placeholder="Name your arcanum…">
+		</div>
+		<div class="stonetop-inspire-field">
+			<span class="stonetop-inspire-field-label">Tier</span>
+			<label class="stonetop-inspire-radio"><input type="radio" name="arcTier" value="minor" {{#unless major}}checked{{/unless}}> Minor arcanum <em>— a little card, front requirements &amp; back payoff</em></label>
+			<label class="stonetop-inspire-radio"><input type="radio" name="arcTier" value="major" {{#if major}}checked{{/if}}> Major arcanum <em>— a playbook insert with unlockable moves &amp; consequences</em></label>
+		</div>
+
+		{{#if lines.length}}
+		<div class="stonetop-inspire-summary">
+			<p class="stonetop-inspire-summary-title">Your artifact so far</p>
+			<ul>
+				{{#each lines}}<li><strong>{{label}}:</strong> {{text}}</li>{{/each}}
+			</ul>
+			<p class="stonetop-inspire-hint">These seed the card's front description — edit or delete them in the card editor that opens.</p>
+		</div>
+		{{else}}
+		<p class="stonetop-inspire-hint">You didn't pick any results — that's fine. A blank card opens for you to fill in.</p>
+		{{/if}}
+	</div>
+
+	{{else}}
+
+	<p class="stonetop-inspire-intro">Pick or roll each result. They're meant to spur your creativity, not limit it — interpret them loosely.</p>
+
+	{{#each fields}}
+	<div class="stonetop-inspire-field">
+		<label for="stonetop-inspire-{{key}}">{{label}}</label>
+		<div class="stonetop-inspire-field-row">
+			<select id="stonetop-inspire-{{key}}" data-inspire-field="{{key}}">
+				<option value="" {{#unless chosen}}selected{{/unless}}>— pick or roll —</option>
+				{{#each options}}
+				<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+				{{/each}}
+			</select>
+			<button type="button" class="stonetop-inspire-roll" data-field="{{key}}" title="Roll 1d12">
+				<i class="fas fa-dice-d20" aria-hidden="true"></i>
+			</button>
+		</div>
+	</div>
+	{{/each}}
+
+	{{#if fields.length}}
+	<button type="button" class="stonetop-inspire-roll-all"><i class="fas fa-dice" aria-hidden="true"></i> Roll this step</button>
+	{{/if}}
+
+	{{/if}}
+
+	<footer class="stonetop-inspire-footer">
+		<div class="stonetop-inspire-footer-left">
+			{{#unless isFirst}}
+			<button type="button" class="stonetop-inspire-back">Back</button>
+			{{/unless}}
+		</div>
+		<div class="stonetop-inspire-footer-right">
+			<button type="button" class="stonetop-inspire-cancel">Cancel</button>
+			{{#if isReview}}
+			<button type="button" class="stonetop-inspire-create"><i class="fas fa-check" aria-hidden="true"></i> Create arcanum</button>
+			{{else}}
+			<button type="button" class="stonetop-inspire-next">Next</button>
+			{{/if}}
+		</div>
+	</footer>
+
+</div>

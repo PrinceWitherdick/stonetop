@@ -1,3 +1,5 @@
+import { slugify } from "../utils/strings.js";
+
 // Arcana that manifest creature(s) as followers — the arcana whose reverse says
 // "Treat it/them as a follower" (Book II, The Things They Carried). Each entry's
 // `followers` are buildCustomFollower() inputs; the character sheet's "Add as
@@ -311,6 +313,26 @@ export function arcanaSummon(slug) {
 /** True if the arcanum manifests one or more followers. */
 export function hasArcanaSummon(slug) {
 	return !!ARCANA_SUMMONS[slug];
+}
+
+/**
+ * Resolve the follower list for a resolved arcanum ({@link MinorArcanum}), homebrew first:
+ * a card that authors its own followers in `flags.stonetop.summon.followers` uses those;
+ * otherwise fall back to the shipped {@link ARCANA_SUMMONS} map by slug. Homebrew followers
+ * get a derived, stable `sourceUuid` (`slug:name`) so re-summoning never duplicates a card.
+ * Returns an array (possibly empty → no summon) or null when nothing manifests.
+ */
+export function arcanaSummonFollowers(arcanum) {
+	const homebrew = arcanum?.summon?.followers;
+	if (Array.isArray(homebrew) && homebrew.length) {
+		return homebrew
+			.filter(f => String(f?.name ?? "").trim())
+			.map(f => ({
+				...f,
+				sourceUuid: f.sourceUuid || `${arcanum.slug}:${slugify(f.name) || "follower"}`,
+			}));
+	}
+	return arcanaSummon(arcanum?.slug)?.followers ?? null;
 }
 
 // Join names for display: ["Astor","Halix"] → "Astor & Halix"; three or more use an

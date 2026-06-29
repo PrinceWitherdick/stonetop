@@ -43,5 +43,14 @@ export class MinorArcanum {
 		this.slug  = data.slug;
 		this.front = new MinorArcanumFront(data.front);
 		this.back  = new MinorArcanumBack(data.back);
+		// Homebrew arcana declare their tier explicitly via `flags.stonetop.major`;
+		// shipped arcana omit it and fall back to the MAJOR_ARCANA_ICONS allowlist
+		// (see isMajorArcanumItem). `img` is the Item's own art, used as the card
+		// thumbnail for homebrew majors that aren't in the icon registry.
+		this.major = data.major ?? false;
+		this.img   = data.img ?? null;
+		// Homebrew summoners author their manifested follower(s) here; shipped summoners
+		// use the hard-coded ARCANA_SUMMONS map instead (see arcanaSummonFollowers).
+		this.summon = data.summon ?? null;
 	}
 }

@@ -1,0 +1,11 @@
+{
+  "name": "Seasons Change",
+  "type": "script",
+  "img": "systems/stonetop_pwd/assets/icons/macros/spring.svg",
+  "scope": "global",
+  "command": "game.stonetop?.openSeasonsChange?.()",
+  "folder": null,
+  "sort": 200000,
+  "_id": "stMacroSeasChng1",
+  "_key": "!macros!stMacroSeasChng1"
+}

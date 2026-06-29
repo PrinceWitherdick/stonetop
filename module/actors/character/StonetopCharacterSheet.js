@@ -3,7 +3,9 @@ import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {RequisitionDialog} from "./dialogs/RequisitionDialog.js";
+import {CustomMoveDialog} from "./dialogs/CustomMoveDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
+import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
@@ -14,7 +16,9 @@ import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
-import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE} from "./StonetopFlags.js";
+import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
+import {createArcanumItem} from "../../item/createArcanum.js";
+import {StonetopArcanaInspireDialog} from "../../item/StonetopArcanaInspireDialog.js";
 import {rollDamage, rollStat, sign} from "../../utils/roll-engine.js";
 import {dieFromDamage} from "../../utils/damage.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
@@ -22,6 +26,7 @@ import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from ".
 import {playbookIconPath} from "../../utils/playbook-actors.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
+import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
@@ -29,17 +34,29 @@ import {attachFrontOnOpen, bringDialogToFront} from "../../utils/front-on-open.j
 import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
+import {annotateInvocationEffects} from "./invocation-effects.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap} from "../../data/follower-build.js";
-import {arcanaSummon, joinNames} from "../../data/arcana-summons.js";
+import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
 
-const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
+const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
+
+// A GM may always author; a non-GM may only when the world hasn't flipped the given
+// "GM-only" setting. Shared by the custom-move and homebrew-arcana authoring gates.
+function gmOnlyGate(gmOnlySettingKey) {
+	if (game.user?.isGM) return true;
+	return !game.settings.get("stonetop_pwd", gmOnlySettingKey);
+}
+
+// Whether the current user may author custom moves / homebrew arcana.
+function canAuthorCustomMoves() { return gmOnlyGate("customMovesGmOnly"); }
+function canCreateArcana()      { return gmOnlyGate("arcanaCreationGmOnly"); }
 
 // Playbook moves that let a character roll a different stat for a basic move. When
 // the actor owns `ownsMove`, the basic move named `whenMove` (or, for blanket
@@ -72,22 +89,6 @@ const VITAL_TOOLTIPS = {
 	xp:     "Experience. Mark 1 XP on a miss (roll 6-) and from some moves; when the track fills, spend it to level up.",
 	level:  "Your character level. Higher levels let you learn advanced moves and raise the XP needed to advance.",
 };
-
-// Plain-language explanations for an Invocation's Reduced / Empowered effects,
-// surfaced as hover tooltips on those labels in the Invocations tab.
-const INVOCATION_EFFECT_TOOLTIPS = {
-	reduced:   "When you Invoke the Sun God, one consequence you can choose — and must, on a 7-9 — is for the Invocation to take this weaker, reduced effect instead.",
-	empowered: "With the Empowered Invocations move (6th level), you can choose an extra consequence before you roll to give the Invocation this stronger, empowered effect.",
-};
-
-// Wrap the "Reduced:" / "Empowered:" labels inside an Invocation's description
-// HTML so they carry a hover tooltip explaining what those effect tiers mean.
-function _annotateInvocationEffects(html) {
-	return String(html).replace(/<strong>(Reduced|Empowered):<\/strong>/g, (_match, label) => {
-		const tip = INVOCATION_EFFECT_TOOLTIPS[label.toLowerCase()];
-		return `<strong class="stonetop-invocation-effect-label" data-tooltip="${escHtml(tip)}" data-tooltip-direction="UP">${label}:</strong>`;
-	});
-}
 
 const _esc = escHtml;
 
@@ -416,9 +417,14 @@ const EXPEDITION_MOVE_HANDLERS = {
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
 
-/** Canonical HTML for a move chat card. Both `name` and `description` are trusted module HTML. */
+/**
+ * Canonical HTML for a move chat card. `name` is escaped here because it can be a
+ * player-authored custom-move name (untrusted) — never pre-escape it at the call site.
+ * `description` is rendered raw: it is either trusted module HTML or a custom move's
+ * description, which is already escaped at storage (formatCustomMoveDescription).
+ */
 function _buildMoveChatContent(name, description) {
-	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${name}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
+	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${escHtml(name)}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
 }
 
 
@@ -810,6 +816,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			header.insertBefore(label, title);
 		}
 
+		// Jump to this character's page in the shared "Player Introductions" Chronicle
+		// journal (see utils/chronicle.js for the seeding/notice behaviour).
+		_openChroniclePage() {
+			return openChroniclePageForActor(this.actor);
+		}
+
 		_openLedgerDialog() {
 			const entries = CharacterLedger.getEntries(this.actor);
 			const ledgerDate = (timestamp) => {
@@ -1018,12 +1030,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				onclick: () => this._onNewCharacter(),
 			});
 			const steadingIdx = buttons.findIndex(b => b.class?.startsWith("stonetop-open-steading"));
-			buttons.splice(steadingIdx + 1, 0, {
-				label:   "Ledger",
-				class:   "stonetop-ledger-button",
-				icon:    "fas fa-scroll",
-				onclick: () => this._openLedgerDialog(),
-			});
+			buttons.splice(steadingIdx + 1, 0,
+				{
+					label:   "Ledger",
+					class:   "stonetop-ledger-button",
+					icon:    "fas fa-scroll",
+					onclick: () => this._openLedgerDialog(),
+				},
+				{
+					label:   "Chronicle",
+					class:   "stonetop-chronicle-button",
+					icon:    "fas fa-book",
+					onclick: () => this._openChroniclePage(),
+				},
+			);
 			return buttons;
 		}
 
@@ -1090,6 +1110,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Pass smallItemLimit from the already-computed snapshot so crew gear
 			// uses the exact same prosperity value as outfit inventory items.
 			const playbookDoc = await this._stonetopCharacter.playbook();
+			// Moves that grant a possession sub-choice (Big Magic → sacred-pouch trait):
+			// move name → possession slug, so those move cards show an "edit" affordance.
+			context.stonetop.possessionTriggerMoves = this._stonetopCharacter.possessionTriggerMoves(playbookDoc);
 			const selections = playbookDoc ? this._readSelectionsFromActor(playbookDoc) : null;
 			context.stonetop.hasIncompleteBackgroundQuestions = playbookDoc
 				? CharacterOnboardingDialog.hasIncompleteQuestions(playbookDoc, selections)
@@ -1100,7 +1123,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				);
 			}
 			const crewStats               = context.stonetop.crewBonuses ?? { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 };
-			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null, crewStats);
+			const companionBonuses        = context.stonetop.companionBonuses ?? { hp: 0, armor: 0, traitPicks: 0 };
+			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null, crewStats, companionBonuses);
 			context.stonetop.hasFollowers = !!(
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
@@ -1137,14 +1161,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			);
 			for (const section of [context.stonetop.arcana?.major, context.stonetop.arcana?.minor]) {
 				for (const item of (section?.items ?? [])) {
-					const entry = arcanaSummon(item.slug);
-					if (!entry) continue;
-					const names   = joinNames(entry.followers.map(f => f.name));
-					const plural  = entry.followers.length > 1;
+					const followers = item.summonFollowers;
+					if (!followers?.length) continue;
+					const names   = joinNames(followers.map(f => f.name));
+					const plural  = followers.length > 1;
 					// A repeatable follower (the Ring's Servants) can always be summoned
 					// again, so the button never reads "added" / disables while one exists.
-					const hasRepeatable = entry.followers.some(f => f.repeatable);
-					const addedAll = !hasRepeatable && entry.followers.every(f => summonedUuids.has(f.sourceUuid));
+					const hasRepeatable = followers.some(f => f.repeatable);
+					const addedAll = !hasRepeatable && followers.every(f => summonedUuids.has(f.sourceUuid));
 					item.summon = {
 						added: addedAll,
 						label: addedAll
@@ -1155,6 +1179,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			context.stonetop.invocations          = this._buildInvocationsData(playbookDoc);
 			context.stonetop.showOtherMovesSection = this._editMode || !!(context.stonetop.movelist?.otherMoves?.length);
+			// Authoring custom moves can be restricted to the GM (world setting). When
+			// restricted, players still see/roll existing custom moves but get no "+"
+			// button or edit pencils. Existing moves always render regardless.
+			context.stonetop.canAuthorCustomMoves = canAuthorCustomMoves();
+			// Creating homebrew arcana can be restricted to the GM independently of
+			// custom moves (arcanaCreationGmOnly). When restricted, players don't see
+			// the create bar / inspiration wizard, but still edit cards they own.
+			context.stonetop.canCreateArcana = canCreateArcana();
 			const { xp } = context.stonetop.vitals;
 			context.stonetop.canLevelUp = xp.value >= xp.max;
 			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
@@ -1203,7 +1235,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			else if (/^follower-individuals:crew:/.test(section)) this._openCrewSections.add("roster");
 		}
 
-		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }) {
+		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }, companionBonuses = { hp: 0, armor: 0, traitPicks: 0 }) {
 			const sf = resolvedFlags(this.actor);
 			// Which collapsible crew sections are expanded. Seeded from the persisted
 			// per-actor setting in the constructor (so it survives a sheet reopen);
@@ -1308,7 +1340,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				const kind = sf.animalCompanion?.kind ?? "";
 				const typeLabel = typeData?.label ?? acSlug;
 				const loyaltyVal = sf.animalCompanion?.loyalty ?? 0;
-				const hpMax = Number(stats.hp) || 0;
+				// Trait-derived base stats, then Beast of Legend's marked "+4 HP / +1 armor"
+				// (companionBonuses) layered onto the leading number of the base armor string
+				// (e.g. "1 (size)" → "2 (size)"), matching _applyAnimalCompanionTraits.
+				const hpMax = (Number(stats.hp) || 0) + (companionBonuses.hp ?? 0);
+				const acArmor = companionBonuses.armor
+					? _addToLeadingNumber(stats.armor, companionBonuses.armor)
+					: (stats.armor ?? "—");
 				const hpRaw = sf.animalCompanion?.hpCurrent;
 				const showTraitHover = getHoverDescriptionSetting("hoverDescriptionsTraits");
 				const acName = sf.animalCompanion?.name ?? "";
@@ -1320,7 +1358,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				let acTraitChoices = null;
 				if (cardEditing("animal-companion", "")) {
 					const acTypeTraits = typeData?.traits ?? [];
-					const pickCount    = Number(typeData?.pickCount) || 0;
+					// Base trait allowance + Magnificent Specimen's "+2 options" per owned copy.
+					const pickCount    = (Number(typeData?.pickCount) || 0) + (companionBonuses.traitPicks ?? 0);
 					const selectedSet  = new Set(traits);
 					const atLimit      = pickCount > 0 && selectedSet.size >= pickCount;
 					if (acTypeTraits.length) acTraitChoices = {
@@ -1343,7 +1382,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					hpSlug:       "",
 					hpMax,
 					hpCurrent:    _clampHp(hpRaw, hpMax),
-					armor:        stats.armor              ?? "—",
+					armor:        acArmor,
 					damage:       stats.damage             ?? "—",
 					..._parseFollowerDamage(stats.damage),
 					damageKind:   kind || String(typeLabel).toLowerCase(),
@@ -1452,7 +1491,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				let crewTagLimit = 2;
 				if (cardEditing("crew", "")) {
 					const crewOpts     = playbookDoc?.crew ?? {};
-					crewTagLimit       = Number.isFinite(crewOpts.additionalTagCount) ? crewOpts.additionalTagCount : 2;
+					// Base allowance (playbook data) + extra tags unlocked by Veteran Crew's
+					// "Select 2 new tags" picks (tagBonus, from the marked-move bonuses).
+					crewTagLimit       = (Number.isFinite(crewOpts.additionalTagCount) ? crewOpts.additionalTagCount : 2) + (crewStats.tagBonus ?? 0);
 					const crewTagSet   = new Set(sf.crew.tags ?? []);
 					const crewTagsAtLimit = [...crewTagSet].filter(t => t !== crewBgTag).length >= crewTagLimit;
 					crewTagOptions = (crewOpts.availableTags ?? []).map(tag => {
@@ -1782,7 +1823,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				return {
 					slug:        opt.slug,
 					label:       opt.label,
-					description: showEffectTips ? _annotateInvocationEffects(description) : description,
+					description: showEffectTips ? annotateInvocationEffects(description) : description,
 					known:       selected.has(opt.slug),
 					ongoing:     !!opt.ongoing,
 				};
@@ -2101,7 +2142,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					const nameEl = document.createElement("strong");
 					nameEl.className = "stonetop-basic-move-panel-name";
 					nameEl.textContent = nameText;
-					panel.replaceChildren(nameEl, ...Array.from(descEl.cloneNode(true).childNodes));
+					const descClone = descEl.cloneNode(true);
+					// Drop collapsible <details> (e.g. Chart a Course's "Travel Times"
+					// table) — they can't be opened in this floating panel, which
+					// disappears on mouseleave. They stay clickable on the item sheet.
+					descClone.querySelectorAll("details").forEach(d => d.remove());
+					panel.replaceChildren(nameEl, ...Array.from(descClone.childNodes));
 					panel.hidden = false;
 					const rect = li.getBoundingClientRect();
 					panel.style.top   = `${Math.max(4, Math.min(rect.top, window.innerHeight - panel.offsetHeight - 8))}px`;
@@ -2190,6 +2236,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					moveRefPanel.innerHTML =
 						`<p class="stonetop-word-tooltip-name">${name}</p>` +
 						`<div class="stonetop-word-tooltip-desc">${desc}</div>`;
+					// Same as the move panel: drop collapsible <details> (e.g. Chart a
+					// Course's "Travel Times") that can't be opened in a hover tooltip.
+					moveRefPanel.querySelectorAll("details").forEach(d => d.remove());
 					moveRefPanel.hidden = false;
 					const ar = anchor.getBoundingClientRect();
 					const pr = moveRefPanel.getBoundingClientRect();
@@ -2210,6 +2259,24 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Details-tab per-section edit pencils: toggle just that section's edit
 			// state, independent of the global header-wrench edit mode.
 			this._wireSectionEditToggle(html, ".stonetop-details-section-edit-toggle");
+
+			// The "needs your input" hand on a move card (shown when a budgeted move still
+			// has unspent picks) is a one-tap shortcut into moves-edit — same as hitting the
+			// section pencil — so the player can make the pending pick immediately. Open-only:
+			// it never toggles edit OFF (the hand only shows while a choice is outstanding).
+			const openMovesEditFromHand = ev => {
+				const hand = ev.target.closest(".stonetop-move-choice-needed");
+				if (!hand) return;
+				if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				if (this.isSectionEditable("moves")) return; // already editable — nothing to do
+				this._editingSections.add("moves");
+				this._onSectionEditOpened("moves");
+				this.render(false);
+			};
+			html[0].addEventListener("click", openMovesEditFromHand, true);
+			html[0].addEventListener("keydown", openMovesEditFromHand, true);
 
 			// Followers tab: per-card, per-section edit pencils. Same per-section toggle
 			// mechanism, keyed on `follower-<section>:<ftype>:<slug>`; opening a text
@@ -2282,8 +2349,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-custom-remove").on("click", this._onRemoveCustomPossession.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
-			html.find(".stonetop-possession-sub-radio").on("change", this._onPossessionSubRadio.bind(this));
+			// "Edit sacred pouch" affordances (Big Magic move card + gear-tab pencil):
+			// open the standalone choiceGroups editor for the named possession.
+			html.find("[data-possession-choices]").on("click", ev => {
+				ev.preventDefault();
+				ev.stopPropagation();
+				this._openPossessionChoices(ev.currentTarget.dataset.possessionChoices);
+			});
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
+			html.find(".stonetop-levelup-icon").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 
@@ -2424,7 +2498,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const type = card?.querySelector(".stonetop-follower-type")?.textContent.trim();
 				const title = type ? `${name} (${type})` : name;
 				ChatMessage.create({
-					content: _buildMoveChatContent(escHtml(title), `<p>${escHtml(moveText)}</p>`),
+					content: _buildMoveChatContent(title, `<p>${escHtml(moveText)}</p>`),
 					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 				});
 			});
@@ -2946,13 +3020,30 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			html.find(".stonetop-other-move-delete").on("click", ev => {
 				const { itemId } = ev.currentTarget.dataset;
-				const name = this.actor.items.get(itemId)?.name || "this move";
+				const item = this.actor.items.get(itemId);
+				// Custom moves are read-only for players when authoring is GM-only — don't
+				// let them delete a GM-authored custom move either (matches the hidden +/pencil).
+				if (item?.flags?.[STONETOP_SCOPE]?.custom && !canAuthorCustomMoves()) return;
+				const name = item?.name || "this move";
 				Dialog.confirm({
 					title:   "Remove move",
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from your moves? This can't be undone.</p>`,
 					yes:     () => this._stonetopCharacter.removeMove(itemId),
 					render:  bringDialogToFront,
 				});
+			});
+
+			const openCustomMove = (item = null) => {
+				if (!this.isEditable || !canAuthorCustomMoves()) return;
+				new CustomMoveDialog(this._stonetopCharacter, {
+					item,
+					onSaved: () => this.render(false),
+				}).render(true);
+			};
+			html.find(".stonetop-add-custom-move").on("click", () => openCustomMove());
+			html.find(".stonetop-custom-move-edit").on("click", ev => {
+				const item = this.actor.items.get(ev.currentTarget.dataset.itemId);
+				if (item) openCustomMove(item);
 			});
 
 			html[0].addEventListener("click", ev => {
@@ -3013,10 +3104,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				const btn = ev.target.closest(".stonetop-arcanum-resource-btn");
 				if (!btn) return;
 				ev.stopPropagation();
-				const { slug, index } = btn.dataset;
+				const { slug, index, resourceKind } = btn.dataset;
 				const isChecked = btn.classList.contains("is-checked");
 				const newVal = isChecked ? Number(index) : Number(index) + 1;
-				this._stonetopCharacter.setArcanumResource(slug, newVal).then(() => this.render(false));
+				// A card's back-ITEM resource is keyed `${slug}:item` so it never shares storage
+				// with the back-power resource on the same card (see CharacterArcana buildSnapshot).
+				const key = resourceKind === "item" ? `${slug}:item` : slug;
+				this._stonetopCharacter.setArcanumResource(key, newVal).then(() => this.render(false));
 			}, true);
 
 			html[0].addEventListener("click", ev => {
@@ -3032,6 +3126,19 @@ export function createStonetopCharacterSheetClass(Base) {
 					yes:     () => this._stonetopCharacter.removeArcanum(slug).then(() => this.render(true)),
 					render:  bringDialogToFront,
 				});
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcana-create");
+				if (!btn) return;
+				ev.stopPropagation();
+				this._onArcanaCreate(btn.dataset.major === "true");
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				if (!ev.target.closest(".stonetop-arcana-inspire")) return;
+				ev.stopPropagation();
+				this._onArcanaInspire();
 			}, true);
 
 			html[0].addEventListener("change", ev => {
@@ -3410,7 +3517,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			const name = li?.querySelector(".stonetop-item-name")?.textContent?.trim()
 				?? rollable.dataset.label?.trim();
 			const guide = GUIDED_CHARACTER_MOVES[name];
-			return guide ? { name, guide } : null;
+			if (!guide) return null;
+			// A player-authored custom move (moveType "other") that happens to share a
+			// guided move's name should roll as itself, not hijack the built-in dialog.
+			const item = li?.dataset.itemId ? this.actor.items.get(li.dataset.itemId) : null;
+			if (item?.system?.moveType === "other") return null;
+			return { name, guide };
 		}
 
 		_openGuidedCharacterMove({ name, guide }, rollable) {
@@ -3450,10 +3562,6 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			const buttons = {
 				cancel: { label: "Cancel" },
-				post: {
-					label: "Post",
-					callback: html => this._postGuidedCharacterMove(name, guide, html),
-				},
 			};
 			if (rollable) {
 				buttons.roll = {
@@ -3491,7 +3599,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					${guide.note ? `<p class="stonetop-homestead-note">${_esc(guide.note)}</p>` : ""}
 				</form>`,
 				buttons,
-				default: (rollable || guide.roll) ? "roll" : "post",
+				default: (rollable || guide.roll) ? "roll" : "cancel",
 				render: bringDialogToFront,
 			}, { width: 520, classes: ["dialog", "stonetop", "stonetop-character-move-dialog"] }).render(true);
 		}
@@ -3535,6 +3643,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const el = ev.currentTarget;
 			if (el.checked) {
 				await this._stonetopCharacter.addMove(el.dataset.compendiumId);
+				await this._maybeOpenPossessionChoicesForMove(el.dataset.moveName);
 			} else {
 				await this._stonetopCharacter.removeMove(el.dataset.ownedId);
 			}
@@ -3544,6 +3653,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const el = ev.currentTarget;
 			if (el.checked) {
 				await this._stonetopCharacter.addMove(el.dataset.compendiumId);
+				await this._maybeOpenPossessionChoicesForMove(el.dataset.moveName);
 			} else {
 				await this._stonetopCharacter.removeMove(el.dataset.ownedId);
 			}
@@ -3616,12 +3726,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else {
 				await this._stonetopCharacter.deselectSubChoice(possessionSlug, choiceSlug);
 			}
-		}
-
-		async _onPossessionSubRadio(ev) {
-			const { possessionSlug, choiceSlug, siblingSlugsCsv } = ev.currentTarget.dataset;
-			const exclusiveSlugs = siblingSlugsCsv ? siblingSlugsCsv.split(",") : [];
-			await this._stonetopCharacter.selectSubChoiceExclusive(possessionSlug, choiceSlug, exclusiveSlugs);
 		}
 
 		async _onInventoryItemCheck(ev) {
@@ -3781,7 +3885,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			new LevelUpDialog(
 				this._stonetopCharacter,
 				levelUpData,
-				() => this.render(false),
+				(addedMoveName) => {
+					this.render(false);
+					// Levelling into Big Magic frees an additional remarkable trait — open
+					// the sacred-pouch editor so the player picks it right away.
+					if (addedMoveName) this._maybeOpenPossessionChoicesForMove(addedMoveName);
+				},
 			).render(true);
 		}
 
@@ -3821,10 +3930,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		// stable sourceUuid marker so re-summoning never piles up duplicate cards.
 		async _onArcanaSummon(slug) {
 			if (!this.isEditable) return;
-			const entry = arcanaSummon(slug);
-			if (!entry?.followers?.length) return;
-			const names = joinNames(entry.followers.map(f => f.name));
-			const plural = entry.followers.length > 1;
+			const arcanum = await this._stonetopCharacter.getArcanum(slug);
+			const followers = arcanaSummonFollowers(arcanum);
+			if (!followers?.length) return;
+			const names = joinNames(followers.map(f => f.name));
+			const plural = followers.length > 1;
 			const confirmed = await Dialog.confirm({
 				title:      "Manifest follower",
 				content:    `<p>Manifest <strong>${escHtml(names)}</strong> and add ${plural ? "them" : "it"} to your Followers tab?</p>`,
@@ -3839,7 +3949,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const present  = new Set(Object.values(existing).map(f => f?.sourceUuid).filter(Boolean));
 			const update   = {};
 			let order = this._nextFollowerOrder();
-			for (const input of entry.followers) {
+			for (const input of followers) {
 				// `repeatable` followers (e.g. the Ring of Daagon's Servants) can be
 				// summoned again and again, so they're never deduped by sourceUuid.
 				if (!input.repeatable && present.has(input.sourceUuid)) continue;
@@ -3848,6 +3958,38 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			if (Object.keys(update).length) await this.actor.update(update);
 			this.render(false);
+		}
+
+		// Create a blank homebrew arcanum world Item (minor or major), add it to this
+		// character by slug, mark it identified (the author made it — no mystery to
+		// solve), and open its editor. The arcana tab then resolves it via the
+		// world-item path of FoundryArcanaRepository.
+		async _onArcanaCreate(major = false) {
+			if (!this.isEditable || !canCreateArcana()) return;
+			await this._createAndAddArcanum({ name: major ? "New Major Arcanum" : "New Minor Arcanum", major });
+		}
+
+		// Open the Artifact Creation inspiration wizard; on finish it creates a card
+		// pre-filled with the rolled results and adds it to this character.
+		_onArcanaInspire() {
+			if (!this.isEditable || !canCreateArcana()) return;
+			new StonetopArcanaInspireDialog({
+				onCreate: ({ name, major, front }) => this._createAndAddArcanum({ name, major, front }),
+			}).render(true);
+		}
+
+		// Create a homebrew arcanum world Item (optionally pre-filled), add it to this
+		// character by slug, mark it identified (the author made it — no mystery to solve),
+		// and open its editor. The arcana tab then resolves it via the world-item path of
+		// FoundryArcanaRepository. Returns the created Item.
+		async _createAndAddArcanum({ name, major = false, front } = {}) {
+			const item = await createArcanumItem({ name, major, front });
+			const slug = item?.flags?.[ITEM_FLAG_SCOPE]?.slug;
+			if (!slug) return item;
+			await this._stonetopCharacter.addArcanum(slug);
+			await this._stonetopCharacter.identifyArcanum(slug);
+			this.render(true);
+			return item;
 		}
 
 		// Persist a built custom follower under a fresh id and re-render. `data` is
@@ -4124,6 +4266,33 @@ export function createStonetopCharacterSheetClass(Base) {
 		// to cheap client-local storage; only the small page number reaches the actor
 		// flag (and only on page change, not per keystroke) for the GM's roster.
 		// `initialSelections` / `startAtStep` resume an interrupted creation.
+		// Move name → count owned by the actor. Threaded into onboarding so a sub-choice
+		// cap that grows with a move (the Blessed's sacred-pouch remarkable traits, +1 per
+		// Big Magic) is correct when re-opening onboarding after taking that move.
+		_ownedMoveCounts() {
+			return this._stonetopCharacter.ownedMoveCounts();
+		}
+
+		// Open the standalone sacred-pouch (possession choiceGroups) editor. `addOnly`
+		// restricts it to the just-freed remarkable-trait slot (the level-up surface);
+		// the default full editor (gear-tab pencil) exposes flavor + all traits.
+		_openPossessionChoices(possessionSlug, { addOnly = false } = {}) {
+			if (!possessionSlug) return;
+			new PossessionChoicesDialog(
+				this._stonetopCharacter,
+				possessionSlug,
+				{ onDone: () => this.render(false), addOnly },
+			).render(true);
+		}
+
+		// After gaining a move, auto-open the possession editor if that move just freed a
+		// sub-choice slot (a Blessed taking Big Magic → an additional remarkable trait).
+		// Add-only: the player adds just the new trait, not re-edit the whole pouch.
+		async _maybeOpenPossessionChoicesForMove(moveName) {
+			const slug = await this._stonetopCharacter.possessionWithOpenChoiceFor(moveName);
+			if (slug) this._openPossessionChoices(slug, { addOnly: true });
+		}
+
 		_launchOnboarding(playbookDoc, { openSheetOnce, openPicker, initialSelections = null, startAtStep = null } = {}) {
 			const saveResume = info => writeOnboardingResume(this.actor, {
 				playbookUuid: playbookDoc.uuid,
@@ -4140,6 +4309,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				{
 					initialSelections,
 					startAtStep,
+					ownedMoveCounts: this._ownedMoveCounts(),
 					onBack: openPicker,
 					onSave: async (selections) => {
 						await this._applyPlaybookSelections(playbookDoc, selections);
@@ -4191,6 +4361,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				{
 					initialSelections: selections,
 					startAtStep: options.startAtStep ?? null,
+					ownedMoveCounts: this._ownedMoveCounts(),
 					onSave: async (sel) => {
 						await this._applyPlaybookSelections(playbookDoc, sel);
 					},

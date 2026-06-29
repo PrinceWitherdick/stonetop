@@ -242,9 +242,24 @@
 					{{#if (and isCustom @root.stonetop.possessionsEdit)}}
 					<a class="stonetop-possession-custom-remove" data-slug="{{slug}}" title="{{localize 'stonetop.character.gear.removePossession'}}"><i class="fas fa-times"></i></a>
 					{{/if}}
+					{{#if (and hasChoiceGroups @root.stonetop.possessionsEdit)}}
+					<a class="stonetop-possession-choices-edit" data-possession-choices="{{slug}}"
+					   data-tooltip="Edit your sacred pouch's details &amp; remarkable trait(s)" data-tooltip-direction="UP">
+						<i class="fas fa-pen-to-square" aria-hidden="true"></i>
+					</a>
+					{{/if}}
 				</div>
 				{{#if description}}
 				<div class="stonetop-item-description">{{{description}}}</div>
+				{{/if}}
+				{{#if choiceSummary}}
+				<div class="stonetop-possession-choice-summary">
+					{{#each choiceSummary}}
+					<p class="stonetop-possession-choice-summary-line">
+						<span class="stonetop-possession-choice-summary-heading">{{{heading}}}</span> {{{selections}}}
+					</p>
+					{{/each}}
+				</div>
 				{{/if}}
 				{{#if (and checked choices)}}
 				<ol class="stonetop-sub-choice-list">
@@ -267,7 +282,6 @@
 				{{/each}}
 				</ol>
 				{{/if}}
-				{{> "stonetop.possession-choice-groups"}}
 			</li>
 		{{/each}}
 		</ol>

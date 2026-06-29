@@ -13,7 +13,10 @@
         "choices": [
           {
             "label": "Choose one",
-            "options": ["Armored", "Uncanny Reflexes"]
+            "options": [
+              "Armored",
+              "Uncanny Reflexes"
+            ]
           }
         ]
       },
@@ -38,7 +41,10 @@
                 "slug": "storm-markings",
                 "identify": true,
                 "boxes": [
-                  { "context": "front", "index": 0 }
+                  {
+                    "context": "front",
+                    "index": 0
+                  }
                 ]
               }
             ],
@@ -177,6 +183,33 @@
             "slug": "distillery",
             "label": "Distillery",
             "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+            "grantsItems": [
+              {
+                "name": "Fine whisky (advantage to Persuade)",
+                "column": "small"
+              },
+              {
+                "name": "Copper tubes",
+                "column": "small"
+              },
+              {
+                "name": "Malt",
+                "column": "small"
+              },
+              {
+                "name": "Stills",
+                "column": "small"
+              },
+              {
+                "name": "Barrels",
+                "column": "small"
+              },
+              {
+                "name": "Firkins",
+                "column": "regular",
+                "weight": 1
+              }
+            ],
             "resource": {
               "max": 2,
               "title": null,
@@ -186,22 +219,138 @@
           {
             "slug": "chirurgeons-tools",
             "label": "Chirurgeon's tools",
-            "description": "catgut, straps, bandages, tubes, poultices, willow bark, ◇ bonesaws, etc."
+            "description": "catgut, straps, bandages, tubes, poultices, willow bark, ◇ bonesaws, etc.",
+            "grantsItems": [
+              {
+                "name": "Catgut",
+                "column": "small"
+              },
+              {
+                "name": "Straps",
+                "column": "small"
+              },
+              {
+                "name": "Bandages",
+                "column": "small"
+              },
+              {
+                "name": "Tubes",
+                "column": "small"
+              },
+              {
+                "name": "Poultices",
+                "column": "small"
+              },
+              {
+                "name": "Willow bark",
+                "column": "small"
+              },
+              {
+                "name": "Bonesaws",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "husbandry-tools",
             "label": "Husbandry tools",
-            "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
+            "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
+            "grantsItems": [
+              {
+                "name": "Brushes",
+                "column": "small"
+              },
+              {
+                "name": "Muzzles",
+                "column": "small"
+              },
+              {
+                "name": "Collars",
+                "column": "small"
+              },
+              {
+                "name": "Feed",
+                "column": "small"
+              },
+              {
+                "name": "Whips",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Bridles",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "smithy",
             "label": "Smithy",
-            "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc."
+            "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc.",
+            "grantsItems": [
+              {
+                "name": "Iron goods",
+                "column": "small"
+              },
+              {
+                "name": "Ingots",
+                "column": "small"
+              },
+              {
+                "name": "Thick gloves",
+                "column": "small"
+              },
+              {
+                "name": "Anvil",
+                "column": "small"
+              },
+              {
+                "name": "Tongs",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Bellows",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "stoneworkers-tools",
             "label": "Stoneworker's tools",
-            "description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc."
+            "description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc.",
+            "grantsItems": [
+              {
+                "name": "Chisels",
+                "column": "small"
+              },
+              {
+                "name": "Drills",
+                "column": "small"
+              },
+              {
+                "name": "Wheelbarrow",
+                "column": "small"
+              },
+              {
+                "name": "Prybars",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Spikes",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Block & tackles",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "weapons-of-war",

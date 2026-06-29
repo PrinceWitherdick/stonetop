@@ -514,302 +514,6 @@ describe("StonetopCharacter.computePossessionMaxUses", () => {
 	});
 });
 
-// -- buildPossessionsContext --------------------------------------------------
-
-const BASE_SP = {
-	pickNote: "Pick 2",
-	pickCount: 2,
-	preselected: ["sacred-pouch"],
-	options: [
-		{ slug: "sacred-pouch", label: "Sacred pouch", description: "a magical pouch", resource: { max: 3, title: null, labels: [] } },
-		{ slug: "apiary",       label: "Apiary",        description: "bees" },
-		{ slug: "mastiffs",     label: "Mastiffs",      description: "dogs" },
-		{ slug: "herb-garden",  label: "Herb garden",   description: "herbs" },
-	],
-};
-
-describe("buildPossessionsContext", () => {
-	function makeChar() {
-		return new TestCharacterBuilder(new FakeActorBuilder().build()).build();
-	}
-
-	it("returns null when specialPossessions is null", () => {
-		expect(makeChar().buildPossessionsContext(null, new Set(), {}, {})).toBeNull();
-	});
-
-	it("passes pickNote through to output", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(), {}, {});
-		expect(ctx.pickNote).toBe("Pick 2");
-	});
-
-	it("preselected option is always checked and disabled, source=Starting", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(), {}, {});
-		const pouch = ctx.options.find(o => o.slug === "sacred-pouch");
-		expect(pouch.checked).toBe(true);
-		expect(pouch.disabled).toBe(true);
-		expect(pouch.preselected).toBe(true);
-		expect(pouch.preselectedSource).toBe("Starting move");
-	});
-
-	it("unselected non-preselected option is unchecked and enabled when under limit", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(), {}, {});
-		const apiary = ctx.options.find(o => o.slug === "apiary");
-		expect(apiary.checked).toBe(false);
-		expect(apiary.disabled).toBe(false);
-	});
-
-	it("selected option is checked and not disabled", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(["apiary"]), {}, {});
-		const apiary = ctx.options.find(o => o.slug === "apiary");
-		expect(apiary.checked).toBe(true);
-		expect(apiary.disabled).toBe(false);
-	});
-
-	it("unselected options stay enabled even when pickCount is reached", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(["apiary", "mastiffs"]), {}, {});
-		const herb = ctx.options.find(o => o.slug === "herb-garden");
-		expect(herb.disabled).toBe(false);
-	});
-
-	it("already-selected options stay enabled even at pickCount limit", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(["apiary", "mastiffs"]), {}, {});
-		const apiary = ctx.options.find(o => o.slug === "apiary");
-		expect(apiary.disabled).toBe(false);
-	});
-
-	it("preselected option does not count against pickCount", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(["apiary", "mastiffs"]), {}, {});
-		const pouch = ctx.options.find(o => o.slug === "sacred-pouch");
-		expect(pouch.disabled).toBe(true);
-		expect(pouch.preselected).toBe(true);
-	});
-
-	it("selected option with uses produces usesChecks array of correct length", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(["sacred-pouch"]), { "sacred-pouch": 2 }, {});
-		const pouch = ctx.options.find(o => o.slug === "sacred-pouch");
-		expect(pouch.usesChecks).toHaveLength(3);
-		expect(pouch.usesChecks[0].checked).toBe(true);
-		expect(pouch.usesChecks[1].checked).toBe(true);
-		expect(pouch.usesChecks[2].checked).toBe(false);
-	});
-
-	it("unselected option with uses has usesChecks null", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(), {}, {});
-		const apiary = ctx.options.find(o => o.slug === "apiary");
-		expect(apiary.usesChecks).toBeNull();
-	});
-
-	it("option without uses field has usesChecks null even when selected", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(["apiary"]), {}, {});
-		const apiary = ctx.options.find(o => o.slug === "apiary");
-		expect(apiary.usesChecks).toBeNull();
-	});
-
-	it("maxUsesMap overrides base uses for circle count", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(["sacred-pouch"]), {}, { "sacred-pouch": 5 });
-		const pouch = ctx.options.find(o => o.slug === "sacred-pouch");
-		expect(pouch.usesChecks).toHaveLength(5);
-	});
-
-	it("extraPreselected slug is treated as preselected, source=Background", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(), {}, {}, ["apiary"]);
-		const apiary = ctx.options.find(o => o.slug === "apiary");
-		expect(apiary.checked).toBe(true);
-		expect(apiary.disabled).toBe(true);
-		expect(apiary.preselected).toBe(true);
-		expect(apiary.preselectedSource).toBe("Background");
-	});
-
-	it("non-preselected option has preselectedSource=null", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(), {}, {});
-		const apiary = ctx.options.find(o => o.slug === "apiary");
-		expect(apiary.preselectedSource).toBeNull();
-	});
-});
-
-// -- buildPossessionsContext: usesLabel + choiceGroups -----------------------
-
-const SP_WITH_GROUPS = {
-	pickNote: "Pick 1",
-	pickCount: 1,
-	preselected: ["pouch"],
-	options: [{
-		slug: "pouch",
-		label: "Sacred pouch",
-		description: "",
-		resource: { max: 3, title: "Stock", labels: [] },
-		choiceGroups: [{
-			heading: "Your pouch is...",
-			note: "choose 1",
-			subgroups: [{
-				pickCount: 1,
-				options: [
-					{ slug: "origin-a", label: "Option A" },
-					{ slug: "origin-b", label: "Option B" },
-				],
-			}],
-		}],
-	}],
-};
-
-describe("buildPossessionsContext — usesLabel and choiceGroups", () => {
-	function makeChar() {
-		return new TestCharacterBuilder(new FakeActorBuilder().build())
-			.withPlaybookRepo(undefined)
-			.withMoveRepo(undefined)
-			.build();
-	}
-
-	it("usesLabel passes through to option context", () => {
-		const ctx = makeChar().buildPossessionsContext(SP_WITH_GROUPS, new Set(), {}, {});
-		expect(ctx.options[0].usesLabel).toBe("Stock");
-	});
-
-	it("possession without usesLabel has usesLabel=null", () => {
-		const ctx = makeChar().buildPossessionsContext(BASE_SP, new Set(), {}, {});
-		expect(ctx.options[0].usesLabel).toBeNull();
-	});
-
-	it("choiceGroups is null when possession not selected", () => {
-		const sp = { ...SP_WITH_GROUPS, preselected: [] };
-		const ctx = makeChar().buildPossessionsContext(sp, new Set(), {}, {});
-		expect(ctx.options[0].choiceGroups).toBeNull();
-	});
-
-	it("choiceGroups renders when possession is preselected", () => {
-		const ctx = makeChar().buildPossessionsContext(SP_WITH_GROUPS, new Set(), {}, {});
-		const cg = ctx.options[0].choiceGroups;
-		expect(cg).toHaveLength(1);
-		expect(cg[0].heading).toBe("Your pouch is...");
-		expect(cg[0].note).toBe("choose 1");
-		expect(cg[0].subgroups[0].options).toHaveLength(2);
-	});
-
-	it("choiceGroups subgroup has groupId and slugsCsv", () => {
-		const ctx = makeChar().buildPossessionsContext(SP_WITH_GROUPS, new Set(), {}, {});
-		const sg = ctx.options[0].choiceGroups[0].subgroups[0];
-		expect(sg.groupId).toBe("pouch-cg0-sg0");
-		expect(sg.slugsCsv).toBe("origin-a,origin-b");
-	});
-
-	it("choiceGroups option checked when slug is in pickedSubs", () => {
-		const ctx = makeChar().buildPossessionsContext(SP_WITH_GROUPS, new Set(), {}, {}, [], { pouch: ["origin-a"] });
-		const opts = ctx.options[0].choiceGroups[0].subgroups[0].options;
-		expect(opts[0].checked).toBe(true);
-		expect(opts[1].checked).toBe(false);
-	});
-});
-
-// -- buildPossessionsContext: sub-choices ------------------------------------
-
-const SP_WITH_CHOICES = {
-	pickNote: "Pick 2",
-	pickCount: 2,
-	preselected: [],
-	options: [
-		{
-			slug: "weapons-of-war",
-			label: "Weapons of war",
-			description: "",
-			choices: {
-				pickCount: 3,
-				options: [
-					{ slug: "sword",    label: "◇ Sword" },
-					{ slug: "crossbow", label: "◇ Crossbow", resource: { max: 2, title: null, labels: [] } },
-					{ slug: "axe",      label: "◇ Axe" },
-					{ slug: "mace",     label: "◇ Mace" },
-				],
-			},
-		},
-		{ slug: "distillery", label: "Distillery", description: "whisky", resource: { max: 2, title: null, labels: [] } },
-	],
-};
-
-describe("buildPossessionsContext — sub-choices", () => {
-	function makeChar() {
-		return new TestCharacterBuilder(new FakeActorBuilder().build())
-			.withPlaybookRepo(undefined)
-			.withMoveRepo(undefined)
-			.build();
-	}
-
-	it("choices is null when possession is not selected", () => {
-		const ctx = makeChar().buildPossessionsContext(SP_WITH_CHOICES, new Set(), {}, {});
-		const war = ctx.options.find(o => o.slug === "weapons-of-war");
-		expect(war.choices).toBeNull();
-	});
-
-	it("choices is populated when possession is selected", () => {
-		const ctx = makeChar().buildPossessionsContext(SP_WITH_CHOICES, new Set(["weapons-of-war"]), {}, {});
-		const war = ctx.options.find(o => o.slug === "weapons-of-war");
-		expect(war.choices).not.toBeNull();
-		expect(war.choices.options).toHaveLength(4);
-	});
-
-	it("picked sub-choice is checked and not disabled", () => {
-		const ctx = makeChar().buildPossessionsContext(
-			SP_WITH_CHOICES, new Set(["weapons-of-war"]), {}, {}, [],
-			{ "weapons-of-war": ["sword"] }, {},
-		);
-		const war = ctx.options.find(o => o.slug === "weapons-of-war");
-		const sword = war.choices.options.find(c => c.slug === "sword");
-		expect(sword.checked).toBe(true);
-		expect(sword.disabled).toBe(false);
-	});
-
-	it("unpicked sub-choice under limit is not disabled", () => {
-		const ctx = makeChar().buildPossessionsContext(
-			SP_WITH_CHOICES, new Set(["weapons-of-war"]), {}, {}, [],
-			{ "weapons-of-war": ["sword"] }, {},
-		);
-		const war = ctx.options.find(o => o.slug === "weapons-of-war");
-		const axe = war.choices.options.find(c => c.slug === "axe");
-		expect(axe.disabled).toBe(false);
-	});
-
-	it("unpicked sub-choice at pickCount limit is disabled", () => {
-		const ctx = makeChar().buildPossessionsContext(
-			SP_WITH_CHOICES, new Set(["weapons-of-war"]), {}, {}, [],
-			{ "weapons-of-war": ["sword", "crossbow", "axe"] }, {},
-		);
-		const war = ctx.options.find(o => o.slug === "weapons-of-war");
-		const mace = war.choices.options.find(c => c.slug === "mace");
-		expect(mace.disabled).toBe(true);
-	});
-
-	it("picked sub-choice with uses produces usesChecks of correct length", () => {
-		const ctx = makeChar().buildPossessionsContext(
-			SP_WITH_CHOICES, new Set(["weapons-of-war"]), {}, {}, [],
-			{ "weapons-of-war": ["crossbow"] }, { "weapons-of-war:crossbow": 1 },
-		);
-		const war = ctx.options.find(o => o.slug === "weapons-of-war");
-		const crossbow = war.choices.options.find(c => c.slug === "crossbow");
-		expect(crossbow.usesChecks).toHaveLength(2);
-		expect(crossbow.usesChecks[0].checked).toBe(true);
-		expect(crossbow.usesChecks[1].checked).toBe(false);
-	});
-
-	it("unpicked sub-choice with uses has usesChecks null", () => {
-		const ctx = makeChar().buildPossessionsContext(
-			SP_WITH_CHOICES, new Set(["weapons-of-war"]), {}, {}, [],
-			{ "weapons-of-war": [] }, {},
-		);
-		const war = ctx.options.find(o => o.slug === "weapons-of-war");
-		const crossbow = war.choices.options.find(c => c.slug === "crossbow");
-		expect(crossbow.usesChecks).toBeNull();
-	});
-
-	it("sub-choice without uses field has usesChecks null even when picked", () => {
-		const ctx = makeChar().buildPossessionsContext(
-			SP_WITH_CHOICES, new Set(["weapons-of-war"]), {}, {}, [],
-			{ "weapons-of-war": ["sword"] }, {},
-		);
-		const war = ctx.options.find(o => o.slug === "weapons-of-war");
-		const sword = war.choices.options.find(c => c.slug === "sword");
-		expect(sword.usesChecks).toBeNull();
-	});
-});
-
 // -- applyDebilityRollMode ----------------------------------------------------
 
 function makeDebilityActor({ weakened = false, dazed = false, miserable = false } = {}) {
@@ -895,7 +599,7 @@ describe("StonetopCharacter.getMoves otherMoves", () => {
 		const move = { _id: "m1", type: "move", name: "Custom Move", system: { moveType: "other", rollType: "str", description: "<p>Do a thing.</p>" } };
 		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
 		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([{ name: "Custom Move", ownedId: "m1", rollType: "str", rollLabel: "STR", description: "<p>Do a thing.</p>" }]);
+		expect(result.otherMoves).toEqual([{ name: "Custom Move", ownedId: "m1", rollType: "str", rollLabel: "STR", description: "<p>Do a thing.</p>", custom: false }]);
 	});
 
 	it("normalizes object rollType values for homefront moves", async () => {
@@ -950,7 +654,7 @@ describe("StonetopCharacter.getMoves otherMoves", () => {
 			.withMoveRepo(new FakeMoveRepository([], []))
 			.build();
 		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([{ name: "Fox Move", ownedId: "m4", rollType: null, rollLabel: null, description: null }]);
+		expect(result.otherMoves).toEqual([{ name: "Fox Move", ownedId: "m4", rollType: null, rollLabel: null, description: null, custom: false }]);
 	});
 
 	it("does not include same-playbook moves in otherMoves", async () => {
@@ -973,6 +677,97 @@ describe("StonetopCharacter.getMoves otherMoves", () => {
 		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
 		const result = await char.getMoves();
 		expect(result.otherMoves[0].description).toBeNull();
+	});
+
+	it("marks player-authored moves (flags.stonetop_pwd.custom) with custom: true", async () => {
+		const move = { _id: "m6", type: "move", name: "Homebrew", system: { moveType: "other", rollType: null }, flags: { stonetop_pwd: { custom: true } } };
+		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
+		const result = await char.getMoves();
+		expect(result.otherMoves[0].custom).toBe(true);
+	});
+});
+
+// -- _buildCustomMoveData (custom move shaping) -------------------------------
+
+describe("StonetopCharacter._buildCustomMoveData", () => {
+	const build = (input) => new TestCharacterBuilder(new FakeActorBuilder().build()).build()._buildCustomMoveData(input);
+
+	it("forces moveType 'other' and flags the move as custom", () => {
+		const data = build({ name: "X" });
+		expect(data.system.moveType).toBe("other");
+		expect(data.flags.stonetop_pwd.custom).toBe(true);
+	});
+
+	it("builds moveResults from result text when a roll stat is set", () => {
+		const data = build({ name: "X", rollType: "str", results: { success: "win", partial: "meh", failure: "lose" } });
+		expect(data.system.rollType).toBe("str");
+		expect(data.system.moveResults).toEqual({
+			success: { label: "10+", value: "win" },
+			partial: { label: "7-9", value: "meh" },
+			failure: { label: "6-", value: "lose" },
+		});
+	});
+
+	it("leaves moveResults null for a no-roll move", () => {
+		const data = build({ name: "X", rollType: "", results: { success: "ignored" } });
+		expect(data.system.rollType).toBe("");
+		expect(data.system.moveResults).toBeNull();
+	});
+
+	it("leaves moveResults null when a roll move has no result text", () => {
+		const data = build({ name: "X", rollType: "dex", results: {} });
+		expect(data.system.moveResults).toBeNull();
+	});
+
+	it("rejects an invalid rollType, coercing it to ''", () => {
+		expect(build({ name: "X", rollType: "wis" }).system.rollType).toBe("wis");
+		expect(build({ name: "X", rollType: "bogus" }).system.rollType).toBe("");
+	});
+
+	it("wraps plain-text descriptions in paragraphs and escapes markup chars", () => {
+		expect(build({ name: "X", description: "a\n\nb" }).system.description).toBe("<p>a</p><p>b</p>");
+		expect(build({ name: "X", description: "5 < 6" }).system.description).toBe("<p>5 &lt; 6</p>");
+	});
+
+	it("escapes any HTML the player types (no live markup reaches the raw render)", () => {
+		// Descriptions render raw on the sheet, so markup must be inert, not stripped.
+		expect(build({ name: "X", description: "<p>hi</p>" }).system.description)
+			.toBe("<p>&lt;p&gt;hi&lt;/p&gt;</p>");
+		const xss = build({ name: "X", description: "<img src=x/onerror=alert(1)>" }).system.description;
+		expect(xss).not.toContain("<img");
+		expect(xss).toContain("&lt;img");
+	});
+
+	it("falls back to a default name when blank", () => {
+		expect(build({ name: "   " }).name).toBe("New Move");
+	});
+
+	// -- v2: resource track, bonuses, noXpOnMiss --
+
+	it("builds a resource track from a positive max", () => {
+		const data = build({ name: "X", resource: { max: "3", title: " Favor ", labels: "some, last, out" } });
+		expect(data.system.resource).toEqual({ max: 3, title: "Favor", labels: ["some", "last", "out"] });
+	});
+
+	it("leaves resource null when max is 0/blank and clamps an over-large max", () => {
+		expect(build({ name: "X", resource: { max: "0", title: "Favor" } }).system.resource).toBeNull();
+		expect(build({ name: "X", resource: {} }).system.resource).toBeNull();
+		expect(build({ name: "X", resource: { max: "999" } }).system.resource.max).toBe(20);
+	});
+
+	it("stores ongoing bonuses as non-negative ints", () => {
+		const data = build({ name: "X", hpBonus: "2", armorBonus: "1", loadBonus: "3" });
+		expect(data.system.hpBonus).toBe(2);
+		expect(data.system.armorBonus).toBe(1);
+		expect(data.system.loadBonus).toBe(3);
+		const neg = build({ name: "X", hpBonus: "-5", armorBonus: "abc" });
+		expect(neg.system.hpBonus).toBe(0);
+		expect(neg.system.armorBonus).toBe(0);
+	});
+
+	it("stores noXpOnMiss as a boolean", () => {
+		expect(build({ name: "X", noXpOnMiss: true }).system.noXpOnMiss).toBe(true);
+		expect(build({ name: "X" }).system.noXpOnMiss).toBe(false);
 	});
 });
 

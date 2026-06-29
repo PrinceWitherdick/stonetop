@@ -31,6 +31,10 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			// Armored move → 1, so a shield reads ◆ instead of ◆◆). Floored at 1 ◇ in buildSnapshot.
 			shieldLoadReduction: new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			repeatMax:       new fields.NumberField({ required: true, integer: true, initial: 0 }),
+			// Per-stat ceiling for stat-increase moves (Improved Stat = 2, Superior Stat
+			// = 3); null on every other move. Drives the level-up stat picker's cap
+			// enforcement and marks a move as one that needs a stat choice when taken.
+			cap:             new fields.NumberField({ required: false, integer: true, nullable: true, initial: null }),
 			isStartingMove:  new fields.BooleanField({ required: true, initial: false }),
 			// Suppresses the engine's automatic +1 XP on a miss for moves whose text
 			// overrides it (e.g. Danger Sense; Death's Door rolls like Hard to Kill).
@@ -44,6 +48,16 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			resource:        looseObject(),
 			moveResults:     looseObject(),
 			markOptions:     new fields.ArrayField(new fields.ObjectField(), { required: false, initial: [] }),
+			// Repeat-scaling selection budget for `markOptions` moves: { base, perExtra }.
+			// Total picks allowed = base + perExtra*(ownedCount-1). Drives the move card's
+			// "pick N each time you take this move" cap (Veteran Crew, Heroes to the Last,
+			// Beast of Legend, Well Versed). Null/absent ⇒ unbudgeted, the prior behavior.
+			markBudget:      looseObject(),
+			// Cross-playbook "learn a move from another playbook" config (Versatile,
+			// Worldly, Dabbler, Wild Soul, Initiate of the Secret Arts, Seasoned Warrior,
+			// Arts of War): { playbooks: ["The Blessed", …] | "any", grantsPossession?: slug }.
+			// Its presence marks a move as needing the level-up foreign-move picker.
+			crossPlaybook:   looseObject(),
 		};
 	}
 }

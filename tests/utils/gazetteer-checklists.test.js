@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { sectionHtml } from "../../scripts/local/shared/gazetteer.mjs";
+import { expect, it } from "vitest";
+import { describeLocal, loadLocal } from "../local-only.js";
+
+const gazetteer = await loadLocal(() => import("../../scripts/local/shared/gazetteer.mjs"));
+const describeGen = describeLocal(gazetteer);
+const { sectionHtml } = gazetteer ?? {};
 
 // sectionHtml turns parsed-gazetteer lines into journal HTML. These guard the
 // check-off list detection: a requirement/option lead-in turns the following
@@ -7,7 +11,7 @@ import { sectionHtml } from "../../scripts/local/shared/gazetteer.mjs";
 // while descriptive and example lists keep the default spiral.
 const html = (...lines) => sectionHtml(lines);
 
-describe("sectionHtml check-off lists", () => {
+describeGen("sectionHtml check-off lists", () => {
 	it("marks a list under a requirement lead-in as a check-off list", () => {
 		const out = html("Requires all of the following:", "", "- A crew", "- A carpenter");
 		expect(out).toContain('<li class="check-bullet">A crew</li>');

@@ -3,14 +3,30 @@ export function capitalizeFirst(str) {
 	return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
 }
 
-/** Lowercase kebab-case slug: non-alphanumerics collapse to dashes, edges trimmed. */
+/**
+ * Lowercase kebab-case slug: NFKD-decomposes accented letters and drops the combining
+ * diacritical marks (U+0300–U+036F), so "Café" → "cafe"; then any remaining run of
+ * non-alphanumerics collapses to a single hyphen, with edge hyphens trimmed.
+ */
 export function slugify(name) {
-	return String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+	let out = "";
+	for (const ch of String(name ?? "").normalize("NFKD")) {
+		const c = ch.codePointAt(0);
+		if (c >= 0x300 && c <= 0x36f) continue; // combining diacritical marks
+		out += ch;
+	}
+	return out.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-/** Escape a value for safe insertion into HTML. */
+// The single, audited HTML-escaper for the whole system. Pure (no Foundry/DOM) so it
+// is safe to import into unit-testable, Foundry-free modules (artifact-creation-tables,
+// custom-move-text). Escapes the five characters that matter for both element and
+// attribute contexts; do NOT add ad-hoc copies elsewhere — import this.
+const _HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#x27;" };
+
+/** Escape a value for safe insertion into HTML (element text or attribute value). */
 export function escHtml(v) {
-	return foundry.utils.escapeHTML(String(v ?? ""));
+	return String(v ?? "").replace(/[&<>"']/g, (c) => _HTML_ESCAPES[c]);
 }
 
 /** Ensure miss result labels are visually emphasized in rendered move text. */
@@ -34,10 +50,17 @@ export function filterStatOptionLines(html, statKey) {
 	);
 }
 
-/** Returns true when `img` is the Foundry default actor/token image or absent. */
+/**
+ * Returns true when `img` is absent or one of Foundry's stock default images — the actor/
+ * token portrait (mystery-man) or the default Item icon (item-bag). Used to decide whether
+ * a document has real, author-chosen art; a placeholder counts as "no art".
+ */
 export function isDefaultImg(img) {
 	const defaultToken = globalThis.CONST?.DEFAULT_TOKEN ?? "icons/svg/mystery-man.svg";
-	return !img || img === "icons/svg/mystery-man.svg" || img === defaultToken;
+	return !img
+		|| img === "icons/svg/mystery-man.svg"
+		|| img === "icons/svg/item-bag.svg"
+		|| img === defaultToken;
 }
 
 // Mis-decoded UTF-8 sequences seen in the transcribed playbook text → their real

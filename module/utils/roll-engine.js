@@ -1,4 +1,4 @@
-import { maybePromptAsteriskMove } from "../actors/character/WouldBeHeroAsterisk.js";
+import { maybePromptAsteriskMove, maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
 import { escHtml } from "./strings.js";
 import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber } from "./chat.js";
 
@@ -152,7 +152,7 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 	return `<section class="pbta-chat-card stonetop-roll-card">
 		<div class="cell cell--chat">
 			<div class="chat-title row flexrow">
-				<h2 class="cell__title">${header}</h2>
+				<h2 class="cell__title">${escHtml(header)}</h2>
 				${descToggleHtml}
 			</div>
 			${descriptionHtml}
@@ -300,6 +300,7 @@ export async function rollStat(statKey, actor, options = {}) {
 	}
 
 	await maybePromptAsteriskMove(actor, moveName, total);
+	await maybeRemindPotentialForGreatness(actor, statKey, total);
 
 	return roll;
 }

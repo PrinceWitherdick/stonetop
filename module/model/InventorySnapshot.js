@@ -178,6 +178,10 @@ export class PossessionsSnapshot {
  * @property {string|null} usesLabel
  * @property {Object|null} choices
  * @property {Object|null} choiceGroups
+ * @property {Array<{heading: string, selections: string}>|null} choiceSummary
+ *           Read-only prose summary of the player's picks from this possession's
+ *           `choiceGroups` (e.g. the Blessed's sacred pouch flavor + remarkable
+ *           trait), one line per group heading. Null when nothing is chosen.
  * @property {boolean} isCustom  Player-written "something else (discuss with GM)" possession,
  *                               removed via the × button rather than deselected from the list.
  */
@@ -195,6 +199,10 @@ export class PossessionItemSnapshot {
 		this.usesLabel         = b._usesLabel;
 		this.choices           = b._choices;
 		this.choiceGroups      = b._choiceGroups;
+		this.choiceSummary     = b._choiceSummary ?? null;
+		// Whether this possession has editable choiceGroups (the sacred pouch), so the
+		// gear tab can show an "edit" pencil that opens the standalone choices editor.
+		this.hasChoiceGroups   = b._hasChoiceGroups ?? false;
 		this.isCustom          = b._isCustom ?? false;
 	}
 }
@@ -212,6 +220,8 @@ export class PossessionItemSnapshotBuilder {
 	withUsesLabel(v)         { this._usesLabel         = v; return this; }
 	withChoices(v)           { this._choices           = v; return this; }
 	withChoiceGroups(v)      { this._choiceGroups      = v; return this; }
+	withChoiceSummary(v)     { this._choiceSummary     = v; return this; }
+	withHasChoiceGroups(v)   { this._hasChoiceGroups   = v; return this; }
 	withCustom(v)            { this._isCustom          = v; return this; }
 	build()                  { return new PossessionItemSnapshot(this); }
 }

@@ -4,6 +4,8 @@ An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop
 
 > This system is under active development and may be unstable.
 
+## 🤖 Proudly made with farm-raised AI
+
 ## Features
 
 ### Guided Character Creation

@@ -48,6 +48,33 @@ export function registerSettings() {
 		default: true,
 	});
 
+	// When on (the default), only the GM may author custom moves — players don't see
+	// the "+ Custom Move" button or the edit pencils, and the create/edit handlers are
+	// no-ops for them. Existing custom moves still display and roll for everyone; this
+	// only gates AUTHORING. Off lets any player author on their own character.
+	game.settings.register("stonetop_pwd", "customMovesGmOnly", {
+		name: "stonetop.settings.customMovesGmOnly.name",
+		hint: "stonetop.settings.customMovesGmOnly.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
+	// As customMovesGmOnly, but for homebrew arcana (minor & major) and the
+	// inspiration wizard. When on (the default), only the GM sees the "Create
+	// arcanum" bar and the inspiration wizard on the arcana tab; existing arcana
+	// still render and the editor still opens for whoever owns the card. Kept
+	// independent of customMovesGmOnly so a GM can permit one and not the other.
+	game.settings.register("stonetop_pwd", "arcanaCreationGmOnly", {
+		name: "stonetop.settings.arcanaCreationGmOnly.name",
+		hint: "stonetop.settings.arcanaCreationGmOnly.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	game.settings.register("stonetop_pwd", "startupWelcomeShown", {
 		name: "Startup Welcome Shown",
 		scope: "world",
@@ -403,6 +430,7 @@ export const HOVER_DESCRIPTION_SETTING_KEYS = [
 	"hoverDescriptionsMonsterTags",
 	"hoverDescriptionsSteadingStats",
 	"hoverDescriptionsValues",
+	"hoverDescriptionsDebilities",
 ];
 
 function _createHoverDescriptionSettingsApp() {

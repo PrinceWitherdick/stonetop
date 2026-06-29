@@ -1,0 +1,11 @@
+{
+  "name": "Weather",
+  "type": "script",
+  "img": "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",
+  "scope": "global",
+  "command": "game.stonetop?.openWeather?.()",
+  "folder": null,
+  "sort": 400000,
+  "_id": "stMacroWeather01",
+  "_key": "!macros!stMacroWeather01"
+}

@@ -22,6 +22,7 @@ export class RequirementSnapshot {
  * @property {boolean} owned
  * @property {string[]} ownedIds
  * @property {boolean} locked
+ * @property {boolean} requirementsUnmet - owned, but its prerequisites are no longer met
  * @property {RequirementSnapshot|null} requirement
  * @property {string|null} requiresLabel
  * @property {Resource|null} resource
@@ -45,6 +46,7 @@ export class MoveSnapshot {
 		this.owned         = b._owned;
 		this.ownedIds      = b._ownedIds;
 		this.locked        = b._locked;
+		this.requirementsUnmet = b._requirementsUnmet ?? false;
 		this.requirement   = b._requirement;
 		this.requiresLabel = b._requiresLabel;
 		this.resource      = b._resource;
@@ -53,6 +55,9 @@ export class MoveSnapshot {
 		this.backgroundAnswer = b._backgroundAnswer;
 		this.statChoices   = b._statChoices ?? null;
 		this.markOptions   = b._markOptions ?? null;
+		// { used, max, atBudget, over, needsChoice } for the move card's pick-budget badge
+		// + "needs your input" cue, or null when the move declares no markBudget.
+		this.markBudget    = b._markBudget ?? null;
 		this.asterisk      = b._asterisk ?? false;
 	}
 }
@@ -71,6 +76,7 @@ export class MoveSnapshotBuilder {
 	withOwned(v)         { this._owned         = v; return this; }
 	withOwnedIds(v)      { this._ownedIds      = v; return this; }
 	withLocked(v)        { this._locked        = v; return this; }
+	withRequirementsUnmet(v) { this._requirementsUnmet = !!v; return this; }
 	withRequirement(v)   { this._requirement   = v; return this; }
 	withRequiresLabel(v) { this._requiresLabel = v; return this; }
 	withResource(v)      { this._resource      = v; return this; }
@@ -79,6 +85,7 @@ export class MoveSnapshotBuilder {
 	withBackgroundAnswer(v) { this._backgroundAnswer = v ?? null; return this; }
 	withStatChoices(v)   { this._statChoices      = v ?? null; return this; }
 	withMarkOptions(v)   { this._markOptions      = v ?? null; return this; }
+	withMarkBudget(v)    { this._markBudget       = v ?? null; return this; }
 	withAsterisk(v)      { this._asterisk         = !!v; return this; }
 	build()              { return new MoveSnapshot(this); }
 }

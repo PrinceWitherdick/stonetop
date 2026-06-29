@@ -14,6 +14,7 @@ import { StonetopAutocomplete } from "../../../utils/autocomplete.js";
 import { wellVersedTopicSummary } from "./well-versed-topics.js";
 import { LORE_TERM_TOOLTIPS } from "../../../utils/lore-terms.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
+import { effectiveSubgroupMax } from "./possession-choice-cap.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
@@ -101,10 +102,15 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	constructor(playbookDoc, onComplete, options = {}) {
-		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ...appOptions } = options;
+		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, ...appOptions } = options;
 		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
+		// How many of each move the character already has (move name → count), so a
+		// possession sub-choice cap that grows with a move (the Blessed's sacred-pouch
+		// remarkable traits, +1 per Big Magic) is correct after taking that move at
+		// level-up. New characters pass none; in-session move picks add on top.
+		this._ownedMoveCounts    = ownedMoveCounts ?? {};
 		this._onBack             = onBack ?? null;
 		this._onSave             = onSave ?? null;
 		// Fired when the dialog closes for good (finish / save-and-close / window X),
@@ -839,7 +845,7 @@ export class CharacterOnboardingDialog extends Application {
 	// purely cosmetic, so they never gate step completion (see _possessionSubChoicesComplete).
 	// Each subgroup is a radio (pick 1) unless flagged multiSelect; locked until the
 	// parent possession is owned — the sacred pouch is preselected, so always open.
-	_possessionChoiceGroupsData(opt, parentSelected) {
+	_possessionChoiceGroupsData(opt, parentSelected, moveCounts = this._effectiveMoveCounts()) {
 		if (!opt?.choiceGroups?.length) return null;
 		const picked = new Set(this._selections.possessionChoices[opt.slug] ?? []);
 		return opt.choiceGroups.map((cg, cgIdx) => ({
@@ -848,10 +854,18 @@ export class CharacterOnboardingDialog extends Application {
 			subgroups: cg.subgroups.map((sg, sgIdx) => {
 				const groupId  = `${opt.slug}-cg${cgIdx}-sg${sgIdx}`;
 				const slugsCsv = sg.options.map(o => o.slug).join(",");
+				// A capped multi-select line (the remarkable-trait line: 1 + Big Magic)
+				// locks its remaining unchecked options once the cap is reached. A null
+				// max means unlimited, so nothing extra locks.
+				const max = sg.multiSelect ? effectiveSubgroupMax(sg, moveCounts) : null;
+				const selectedCount = sg.options.filter(o => picked.has(o.slug)).length;
+				const atLimit = max != null && selectedCount >= max;
 				return {
 					groupId,
 					possessionSlug: opt.slug,
 					multiSelect:    !!sg.multiSelect,
+					max,
+					selectedCount,
 					options: sg.options.map(o => ({
 						possessionSlug: opt.slug,
 						groupId,
@@ -859,11 +873,64 @@ export class CharacterOnboardingDialog extends Application {
 						label:          this._normalizeOnboardingText(o.label),
 						siblingSlugsCsv: slugsCsv,
 						isSelected:     picked.has(o.slug),
-						disabled:       !parentSelected,
+						disabled:       !parentSelected || (atLimit && !picked.has(o.slug)),
 					})),
 				};
 			}),
 		}));
+	}
+
+	// Move name → count for the character at this point in onboarding: moves already
+	// on the actor (passed in) plus this session's starting-move picks and either/or
+	// choices. Drives sub-choice caps that grow with a move (sacred-pouch remarkable
+	// traits, +1 per Big Magic). The in-session half needs the move list to map id →
+	// name, so it only contributes once the moves step has loaded it (the possession
+	// step precedes it, but re-visiting recomputes — see _refreshChoiceGroupLimits).
+	_effectiveMoveCounts() {
+		const counts = { ...this._ownedMoveCounts };
+		const idToName = new Map((this._movesCache ?? []).map(d => [d.id, d.name]));
+		const ids = [...this._selections.moves, ...Object.values(this._selections.moveChoices ?? {})];
+		for (const id of ids) {
+			const name = idToName.get(id);
+			if (name) counts[name] = (counts[name] ?? 0) + 1;
+		}
+		return counts;
+	}
+
+	// The choiceGroup subgroup (across all of a possession's groups) that contains a
+	// given choice slug, so a multi-select toggle can find its cap. Null if not found.
+	_possessionChoiceSubgroupFor(possessionSlug, choiceSlug) {
+		const opt = (this._rawPossessions?.options ?? []).find(o => o.slug === possessionSlug);
+		for (const cg of (opt?.choiceGroups ?? [])) {
+			for (const sg of (cg.subgroups ?? [])) {
+				if ((sg.options ?? []).some(o => o.slug === choiceSlug)) return sg;
+			}
+		}
+		return null;
+	}
+
+	// After a multi-select sub-choice toggles, re-lock/unlock its line's options to
+	// the current cap and refresh its count readout (the change handler re-renders
+	// nothing, so we touch the DOM, mirroring _refreshPossessionSubUi).
+	_refreshChoiceGroupLimits(html, possessionSlug) {
+		const opt = (this._rawPossessions?.options ?? []).find(o => o.slug === possessionSlug);
+		if (!opt?.choiceGroups?.length) return;
+		const picked = new Set(this._selections.possessionChoices[possessionSlug] ?? []);
+		const moveCounts = this._effectiveMoveCounts();
+		for (let cgIdx = 0; cgIdx < opt.choiceGroups.length; cgIdx++) {
+			const cg = opt.choiceGroups[cgIdx];
+			(cg.subgroups ?? []).forEach((sg, sgIdx) => {
+				if (!sg.multiSelect) return;
+				const max = effectiveSubgroupMax(sg, moveCounts);
+				const selectedCount = sg.options.filter(o => picked.has(o.slug)).length;
+				const atLimit = max != null && selectedCount >= max;
+				html.find(`.stonetop-onboarding-subcheck-count[data-group="${opt.slug}-cg${cgIdx}-sg${sgIdx}"]`).text(selectedCount);
+				for (const o of sg.options) {
+					const el = html.find(`[name='onboard-possession-cg-check'][data-possession="${possessionSlug}"][value="${o.slug}"]`)[0];
+					if (el) el.disabled = atLimit && !picked.has(o.slug);
+				}
+			});
+		}
 	}
 
 	// Total possession picks spent: listed options plus the write-in, when filled.
@@ -1568,6 +1635,10 @@ export class CharacterOnboardingDialog extends Application {
 			const customLabel = this._selections.customPossession ?? "";
 			const total       = this._possessionPickTotal();
 			const atLimit     = total >= pickCount;
+			// Identical for every option this render, so compute it once and thread it into
+			// each option's choiceGroups rather than rebuilding the id→name map + selection
+			// scan per option.
+			const moveCounts  = this._effectiveMoveCounts();
 			possession = {
 				pickNote:      raw.pickNote ?? `Pick ${pickCount}`,
 				pickCount,
@@ -1578,7 +1649,9 @@ export class CharacterOnboardingDialog extends Application {
 					filled:   !!customLabel.trim(),
 					disabled: atLimit && !customLabel.trim(),
 				},
-				options: (raw.options ?? []).map(opt => {
+				// Grant-only possessions (the Seeker's Initiate-of-the-Secret-Arts Sacred
+				// Pouch) are gained by a level-up move, never picked at creation — hide them.
+				options: (raw.options ?? []).filter(opt => !opt.grantOnly).map(opt => {
 					const isPre = preselected.has(opt.slug);
 					const isChosen = chosen.has(opt.slug);
 					const isSelected = isPre || isChosen;
@@ -1594,7 +1667,7 @@ export class CharacterOnboardingDialog extends Application {
 						choices: this._possessionChoiceData(opt, isSelected),
 						// "Choose 1 on each line" flavor groups (the sacred pouch's
 						// heirloom/material/decoration). Optional; same disabled rule.
-						choiceGroups: this._possessionChoiceGroupsData(opt, isSelected),
+						choiceGroups: this._possessionChoiceGroupsData(opt, isSelected, moveCounts),
 					};
 				}),
 			};
@@ -2309,16 +2382,26 @@ export class CharacterOnboardingDialog extends Application {
 			_refreshNextButton();
 		});
 
-		// Multi-select flavor lines are checkboxes: plain toggle into the picks array.
+		// Multi-select flavor lines are checkboxes: toggle into the picks array, but
+		// reject a check that would exceed the line's cap (the remarkable-trait line is
+		// 1 + Big Magic). The disabled state already blocks the click once at the cap;
+		// this guards the race where the cap shrank since render.
 		html.find("[name='onboard-possession-cg-check']").on("change", ev => {
 			const possession = ev.currentTarget.dataset.possession;
 			const value      = ev.currentTarget.value;
 			const current    = this._selections.possessionChoices[possession] ?? [];
-			this._selections.possessionChoices[possession] = ev.currentTarget.checked
-				? [...current.filter(s => s !== value), value]
-				: current.filter(s => s !== value);
+			if (ev.currentTarget.checked) {
+				const sg  = this._possessionChoiceSubgroupFor(possession, value);
+				const max = effectiveSubgroupMax(sg, this._effectiveMoveCounts());
+				const selectedInGroup = (sg?.options ?? []).filter(o => current.includes(o.slug)).length;
+				if (max != null && selectedInGroup >= max) { ev.currentTarget.checked = false; return; }
+				this._selections.possessionChoices[possession] = [...current.filter(s => s !== value), value];
+			} else {
+				this._selections.possessionChoices[possession] = current.filter(s => s !== value);
+			}
 			ev.currentTarget.closest(".stonetop-onboarding-suboption")
 				?.classList.toggle("is-selected", ev.currentTarget.checked);
+			this._refreshChoiceGroupLimits(html, possession);
 			_refreshNextButton();
 		});
 
@@ -2897,6 +2980,9 @@ export class CharacterOnboardingDialog extends Application {
 		tip.innerHTML =
 			`<p class="stonetop-word-tooltip-name">${text}</p>` +
 			`<div class="stonetop-word-tooltip-desc">${description}</div>`;
+		// Drop collapsible <details> (e.g. Chart a Course's "Travel Times") that
+		// can't be opened in a hover tooltip; they stay clickable on the item sheet.
+		tip.querySelectorAll("details").forEach(d => d.remove());
 		this._positionPopup(tip, anchor, { gap: 6, placement: "above" });
 	}
 

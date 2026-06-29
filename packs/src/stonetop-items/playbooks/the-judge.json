@@ -208,27 +208,178 @@
           {
             "slug": "scribes-kit",
             "label": "Scribe's kit",
-            "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc."
+            "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc.",
+            "grantsItems": [
+              {
+                "name": "Parchment",
+                "column": "small"
+              },
+              {
+                "name": "Ink",
+                "column": "small"
+              },
+              {
+                "name": "Pigments",
+                "column": "small"
+              },
+              {
+                "name": "Vials",
+                "column": "small"
+              },
+              {
+                "name": "Quills",
+                "column": "small"
+              },
+              {
+                "name": "Notebook",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "aviary",
             "label": "Aviary",
-            "description": "thick gloves, bird hoods, tethers, seed, ◇ messenger birds, ◇ birdcages, etc."
+            "description": "thick gloves, bird hoods, tethers, seed, ◇ messenger birds, ◇ birdcages, etc.",
+            "grantsItems": [
+              {
+                "name": "Thick gloves",
+                "column": "small"
+              },
+              {
+                "name": "Bird hoods",
+                "column": "small"
+              },
+              {
+                "name": "Tethers",
+                "column": "small"
+              },
+              {
+                "name": "Seed",
+                "column": "small"
+              },
+              {
+                "name": "Messenger birds",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Birdcages",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "carpenters-tools",
             "label": "Carpenter's tools",
-            "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc."
+            "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc.",
+            "grantsItems": [
+              {
+                "name": "Chisels",
+                "column": "small"
+              },
+              {
+                "name": "Files",
+                "column": "small"
+              },
+              {
+                "name": "Nails",
+                "column": "small"
+              },
+              {
+                "name": "Pitch",
+                "column": "small"
+              },
+              {
+                "name": "Firkins",
+                "column": "small"
+              },
+              {
+                "name": "Barrels",
+                "column": "small"
+              },
+              {
+                "name": "Prybars",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Saws",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "engineers-tools",
             "label": "Engineer's tools",
-            "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc."
+            "description": "rulers, tapes, rods, plumb-bobs, ◇ tripods, ◇ block &amp; tackles, wheelbarrow, etc.",
+            "grantsItems": [
+              {
+                "name": "Rulers",
+                "column": "small"
+              },
+              {
+                "name": "Tapes",
+                "column": "small"
+              },
+              {
+                "name": "Rods",
+                "column": "small"
+              },
+              {
+                "name": "Plumb-bobs",
+                "column": "small"
+              },
+              {
+                "name": "Wheelbarrow",
+                "column": "small"
+              },
+              {
+                "name": "Tripods",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Block & tackles",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           },
           {
             "slug": "smithy",
             "label": "Smithy",
-            "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc."
+            "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc.",
+            "grantsItems": [
+              {
+                "name": "Iron goods",
+                "column": "small"
+              },
+              {
+                "name": "Ingots",
+                "column": "small"
+              },
+              {
+                "name": "Thick gloves",
+                "column": "small"
+              },
+              {
+                "name": "Anvil",
+                "column": "small"
+              },
+              {
+                "name": "Tongs",
+                "column": "regular",
+                "weight": 1
+              },
+              {
+                "name": "Bellows",
+                "column": "regular",
+                "weight": 1
+              }
+            ]
           }
         ]
       },

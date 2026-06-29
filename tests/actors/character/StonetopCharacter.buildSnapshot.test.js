@@ -20,6 +20,8 @@ function makeOutfitItem(overrides = {}) {
 		.withSmallGrid(overrides.smallGrid ?? false)
 		.withBreakBefore(overrides.breakBefore ?? false)
 		.withArmor(overrides.armor ?? null)
+		.withSpecial(overrides.special ?? false)
+		.withSpecialCategory(overrides.specialCategory ?? null)
 		.build();
 }
 
@@ -399,6 +401,21 @@ describe("buildSnapshot — vitals", () => {
 		expect(snap.vitals.armor).toBe(2);
 	});
 
+	it("a checked possession-granted cuirass (custom item) adds its armor", async () => {
+		const cuirass = {
+			_id: "cuirass-1", type: "move", name: "Boiled leather cuirass (1 armor)",
+			system: { moveType: "inventory-custom", inventoryColumn: "regular", weight: 1, armor: { modifier: 1 }, sourcePossession: "tannery" },
+		};
+		const worn = new FakeActorBuilder().withItems([cuirass]).withFlag("inventory.checked", { "cuirass-1": true }).build();
+		const wornSnap = await new TestCharacterBuilder(worn).build().buildSnapshot();
+		expect(wornSnap.vitals.armor).toBe(1);
+
+		// Unchecked (owned but not worn) → no armor.
+		const stowed = new FakeActorBuilder().withItems([cuirass]).build();
+		const stowedSnap = await new TestCharacterBuilder(stowed).build().buildSnapshot();
+		expect(stowedSnap.vitals.armor).toBe(0);
+	});
+
 	it("level is a plain number", async () => {
 		const actor = new FakeActorBuilder().withLevel(4).build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
@@ -524,6 +541,152 @@ describe("buildSnapshot — moves", () => {
 		const move = snap.moves.find(c => c.key === "playbook").moves[0];
 		expect(move.owned).toBe(true);
 		expect(move.ownedIds).toContain("o1");
+	});
+
+	it("budgeted markOptions move exposes a spent pick budget and locks unchosen options", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "vc1", type: "move", name: "Veteran Crew", system: {moveType: "playbook"}})
+			.withFlags({ "moves.moveMarks": { "Veteran Crew": { tags: [{ stat: "", level: 3 }] } } })
+			.build();
+		const entry = makeMove("pm1", "Veteran Crew", {
+			markBudget: { base: 1, perExtra: 1 },
+			markOptions: [
+				{ slug: "tags",    label: "Tags", marks: 4 },
+				{ slug: "crew-hp", label: "HP",   marks: 4 },
+			],
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+
+		const move = snap.moves.find(c => c.key === "playbook").moves.find(m => m.name === "Veteran Crew");
+		// 1 owned copy ⇒ budget 1; one tag already chosen ⇒ fully spent, no pending choice.
+		expect(move.markBudget).toMatchObject({ used: 1, max: 1, atBudget: true, over: false, needsChoice: false });
+		// Every UNchosen box locks once the budget is spent…
+		expect(move.markOptions.find(o => o.slug === "crew-hp").checks.every(c => c.disabled)).toBe(true);
+		// …but the already-chosen box stays editable so the pick can be released.
+		expect(move.markOptions.find(o => o.slug === "tags").checks[0]).toMatchObject({ checked: true, disabled: false });
+	});
+
+	it("omits the pick budget for a markOptions move that declares none", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "pg1", type: "move", name: "Uncapped", system: {moveType: "playbook"}})
+			.build();
+		const entry = makeMove("pm1", "Uncapped", { markOptions: [{ slug: "a", label: "A", marks: 2 }] });
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+		const move = snap.moves.find(c => c.key === "playbook").moves.find(m => m.name === "Uncapped");
+		expect(move.markBudget).toBeNull();
+		expect(move.markOptions.find(o => o.slug === "a").checks.every(c => !c.disabled)).toBe(true);
+	});
+
+	it("over-budget grandfathered marks expose over=true and keep chosen boxes editable while locking the rest", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "vc1", type: "move", name: "Veteran Crew", system: {moveType: "playbook"}})
+			.withFlags({ "moves.moveMarks": { "Veteran Crew": { tags: [{ stat: "", level: 2 }, { stat: "", level: 2 }, { stat: "", level: 2 }] } } })
+			.build();
+		const entry = makeMove("pm1", "Veteran Crew", {
+			markBudget: { base: 1, perExtra: 1 },
+			markOptions: [
+				{ slug: "tags",    label: "Tags", marks: 4 },
+				{ slug: "crew-hp", label: "HP",   marks: 4 },
+			],
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+
+		const move = snap.moves.find(c => c.key === "playbook").moves.find(m => m.name === "Veteran Crew");
+		// 1 owned ⇒ budget 1, but 3 tags marked ⇒ over budget.
+		expect(move.markBudget).toMatchObject({ used: 3, max: 1, atBudget: true, over: true });
+		// The 3 chosen tag boxes stay editable so the player can release back down…
+		expect(move.markOptions.find(o => o.slug === "tags").checks.slice(0, 3).every(c => c.checked && !c.disabled)).toBe(true);
+		// …while a different option's unchosen boxes are all locked.
+		expect(move.markOptions.find(o => o.slug === "crew-hp").checks.every(c => c.disabled)).toBe(true);
+	});
+
+	it("an UNowned budgeted move grants 0 picks and locks every mark box", async () => {
+		const actor = makeHeavyActor(); // does not own the move
+		const entry = makeMove("pm1", "Veteran Crew", {
+			markBudget: { base: 1, perExtra: 1 },
+			markOptions: [{ slug: "tags", label: "Tags", marks: 4 }],
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+		const move = snap.moves.find(c => c.key === "playbook").moves.find(m => m.name === "Veteran Crew");
+		expect(move.owned).toBe(false);
+		expect(move.markBudget).toMatchObject({ used: 0, max: 0, atBudget: true, needsChoice: false });
+		expect(move.markOptions.find(o => o.slug === "tags").checks.every(c => c.disabled)).toBe(true);
+	});
+
+	it("flags needsChoice when an owned budgeted move still has unspent picks", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "vc1", type: "move", name: "Veteran Crew", system: {moveType: "playbook"}})
+			.addItem({_id: "vc2", type: "move", name: "Veteran Crew", system: {moveType: "playbook"}})
+			.withFlags({ "moves.moveMarks": { "Veteran Crew": { tags: [{ stat: "", level: 2 }] } } })
+			.build();
+		const entry = makeMove("pm1", "Veteran Crew", {
+			markBudget: { base: 1, perExtra: 1 },
+			markOptions: [{ slug: "tags", label: "Tags", marks: 4 }, { slug: "crew-hp", label: "HP", marks: 4 }],
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+		const move = snap.moves.find(c => c.key === "playbook").moves.find(m => m.name === "Veteran Crew");
+		// 2 owned ⇒ budget 2, only 1 chosen ⇒ a pick is still pending → the "needs input" cue.
+		expect(move.markBudget).toMatchObject({ used: 1, max: 2, atBudget: false, needsChoice: true });
+		// Budget not spent ⇒ boxes remain pickable (not locked).
+		expect(move.markOptions.find(o => o.slug === "crew-hp").checks.every(c => !c.disabled)).toBe(true);
+	});
+
+	it("computes companionBonuses from Beast of Legend marks + Magnificent Specimen count", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "bol1", type: "move", name: "Beast of Legend",      system: {moveType: "playbook"}})
+			.addItem({_id: "ms1",  type: "move", name: "Magnificent Specimen", system: {moveType: "playbook"}})
+			.withFlags({ "moves.moveMarks": { "Beast of Legend": { tough: [{ stat: "", level: 6 }] } } })
+			.build();
+		const entry = makeMove("pm1", "Beast of Legend", {
+			markOptions: [{ slug: "tough", label: "+4 HP +1 armor", marks: 3, companionHp: 4, companionArmor: 1 }],
+		});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(entry)
+			.build().buildSnapshot();
+		// "tough" marked once ⇒ +4 HP / +1 armor; one Magnificent Specimen ⇒ +2 trait picks.
+		expect(snap.companionBonuses).toEqual({ hp: 4, armor: 1, traitPicks: 2 });
+	});
+
+	it("groups granted foreign moves into a 'Learned Moves' category with a source label", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-fox", "The Fox")
+			.addItem({
+				_id: "fm1", type: "move", name: "Smash",
+				system: { moveType: "playbook", playbook: "The Heavy", description: "Smash desc", rollType: "str" },
+				flags: { stonetop_pwd: { grantedBy: { move: "Versatile", instanceId: "v1" } } },
+			})
+			.build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		const learned = snap.moves.find(c => c.key === "learned");
+		expect(learned).toBeDefined();
+		expect(learned.title).toBe("Learned Moves");
+		expect(learned.moves[0]).toMatchObject({
+			name: "Smash",
+			owned: true,
+			rollType: "str",
+			sourceLabel: "Granted by Versatile · The Heavy",
+		});
 	});
 
 	it("owned playbook moves are listed before unowned playbook moves", async () => {
@@ -882,6 +1045,95 @@ describe("buildSnapshot — inventory.outfit", () => {
 	});
 });
 
+// ── inventory: possession-derived special items ──────────────────────────────
+
+describe("buildSnapshot — inventory: possession-derived special items", () => {
+	// The Ranger's composite bow: a special ("handout") catalog item AND a preselected
+	// special possession of the same slug. Holding the possession should carry the gear
+	// into the Items column (◇ load + ○ ammo track), even though it's never added via
+	// the "Add Special Item" picker.
+	const COMPOSITE_BOW = makeOutfitItem({
+		slug: "composite-bow", name: "Composite bow", weight: 1,
+		special: true, specialCategory: "Weapons of War",
+		resource: { max: 2, title: null, labels: ["low ammo", "all out"] },
+	});
+
+	function bowPlaybook(preselected = ["composite-bow"]) {
+		return {
+			...HEAVY_PLAYBOOK,
+			specialPossessions: {
+				pickNote: "Pick 2, in addition to your composite bow",
+				pickCount: 2,
+				preselected,
+				options: [
+					{ slug: "composite-bow", label: "Composite bow", description: "<em>far</em>, +1 damage" },
+					{ slug: "hounds", label: "Hounds", description: "<p>Dogs.</p>" },
+				],
+			},
+		};
+	}
+
+	it("surfaces a preselected possession's matching special item in the Items column with its ◇ load + ○ ammo track", async () => {
+		const snap = await new TestCharacterBuilder(makeHeavyActor())
+			.withPlaybookRepo(new FakePlaybookRepository(bowPlaybook()))
+			.withInventoryRepo(new FakeInventoryRepository([COMPOSITE_BOW]))
+			.build().buildSnapshot();
+		const bow = snap.inventory.outfit.regularItems.find(i => i.slug === "composite-bow");
+		expect(bow).toBeDefined();
+		expect(bow.weight).toBe(1); // the ◇ load diamond
+		expect(bow.resource).toMatchObject({ max: 2, labels: ["low ammo", "all out"] }); // the ○ ammo track
+		// Locked starting gear (the possession is non-removable) → no "remove special" ✕.
+		expect(bow.isAddedSpecial).toBeFalsy();
+	});
+
+	it("surfaces it for a player-SELECTED (non-preselected) possession too", async () => {
+		const actor = makeHeavyActor({ flags: { "possessions.selected": ["composite-bow"] } });
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(bowPlaybook([])))
+			.withInventoryRepo(new FakeInventoryRepository([COMPOSITE_BOW]))
+			.build().buildSnapshot();
+		expect(snap.inventory.outfit.regularItems.some(i => i.slug === "composite-bow")).toBe(true);
+	});
+
+	it("keeps a special item OFF the Items column when no held possession matches it", async () => {
+		const snap = await new TestCharacterBuilder(makeHeavyActor())
+			.withPlaybookRepo(new FakePlaybookRepository(bowPlaybook([])))
+			.withInventoryRepo(new FakeInventoryRepository([COMPOSITE_BOW]))
+			.build().buildSnapshot();
+		expect(snap.inventory.outfit.regularItems.some(i => i.slug === "composite-bow")).toBe(false);
+	});
+
+	it("a picker-added special item keeps its removable ✕ and isn't duplicated by a same-slug possession", async () => {
+		const actor = makeHeavyActor({ flags: { "inventory.addedSpecial": ["composite-bow"] } });
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(bowPlaybook()))
+			.withInventoryRepo(new FakeInventoryRepository([COMPOSITE_BOW]))
+			.build().buildSnapshot();
+		const bows = snap.inventory.outfit.regularItems.filter(i => i.slug === "composite-bow");
+		expect(bows).toHaveLength(1); // not double-listed
+		expect(bows[0].isAddedSpecial).toBe(true); // explicit add wins → stays removable
+	});
+
+	it("surfaces a possession-matched special SMALL item into the Small Items column", async () => {
+		const smallSpecial = makeOutfitItem({
+			slug: "trinket-kit", name: "Trinket kit", weight: 0,
+			inventoryColumn: "small", special: true,
+		});
+		const pb = {
+			...HEAVY_PLAYBOOK,
+			specialPossessions: {
+				pickNote: "Pick 1", pickCount: 1, preselected: ["trinket-kit"],
+				options: [{ slug: "trinket-kit", label: "Trinket kit", description: "<p>Bits.</p>" }],
+			},
+		};
+		const snap = await new TestCharacterBuilder(makeHeavyActor())
+			.withPlaybookRepo(new FakePlaybookRepository(pb))
+			.withInventoryRepo(new FakeInventoryRepository([smallSpecial]))
+			.build().buildSnapshot();
+		expect(snap.inventory.outfit.smallItems.some(i => i.slug === "trinket-kit")).toBe(true);
+	});
+});
+
 // ── inventory.possessions ────────────────────────────────────────────────────
 
 describe("buildSnapshot — inventory.possessions", () => {
@@ -980,6 +1232,63 @@ describe("buildSnapshot — inventory.possessions", () => {
 		expect(descFor(null)).toBe("<em>far</em>, +1 damage, x <em>piercing</em>"); // no steading
 	});
 
+	it("defaults an untitled circle track to a \"Uses\" label, keeps an explicit one", async () => {
+		const actor = makeHeavyActor({flags: {"possessions.selected": ["pouch", "apiary"]}});
+		const sp = {
+			pickNote: "Pick 2", pickCount: 2, preselected: [],
+			options: [
+				// explicit title is preserved…
+				{slug: "pouch", label: "Pouch", description: "<p>A pouch.</p>", resource: {max: 3, title: "Stock", labels: []}},
+				// …an untitled track falls back to "Uses"…
+				{slug: "apiary", label: "Books", description: "do a thing.", resource: {max: 3, title: null, labels: []}},
+				// …and a possession with no track gets no label at all.
+				{slug: "goats", label: "Goats", description: "milk, cheese."},
+			],
+		};
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository({...HEAVY_PLAYBOOK, specialPossessions: sp}))
+			.build().buildSnapshot();
+		const items = snap.inventory.possessions.items;
+		expect(items.find(i => i.slug === "pouch").usesLabel).toBe("Stock");
+		expect(items.find(i => i.slug === "apiary").usesLabel).toBe("Uses");
+		expect(items.find(i => i.slug === "goats").usesLabel).toBeNull();
+	});
+
+	it("strips the redundant \"uses\" circle count from a track's description", () => {
+		// The track renders the circles top-right, so the inline count baked into the
+		// playbook prose is dropped on the sheet (all three authoring shapes).
+		const char = new TestCharacterBuilder(makeHeavyActor()).build();
+		const descFor = (description) => char._buildPossessionsSnapshot({
+			pickNote: "Pick 1", pickCount: 1, preselected: ["p"],
+			options: [{slug: "p", label: "P", description, resource: {max: 3, title: null, labels: []}}],
+		}, {}, null).items[0].description;
+
+		// leading bare "○○○ uses:" clause → reflowed into its own capitalised sentence
+		expect(descFor("○○○ uses: expend a use to consult your collection."))
+			.toBe("Expend a use to consult your collection.");
+		// leading "(○○○ uses)" parenthetical count
+		expect(descFor("(○○○ uses) Expend a use to produce something."))
+			.toBe("Expend a use to produce something.");
+		// mid-text "(○○ uses, …)" keeps the non-count remainder of the note
+		expect(descFor("skins of fine whisky (○○ uses, grants advantage to Persuade), ◇ firkins, etc."))
+			.toBe("skins of fine whisky (grants advantage to Persuade), ◇ firkins, etc.");
+	});
+
+	it("leaves ◇ markers and non-\"uses\" circle counts untouched", () => {
+		const char = new TestCharacterBuilder(makeHeavyActor()).build();
+		const descFor = (description, resource) => char._buildPossessionsSnapshot({
+			pickNote: "Pick 1", pickCount: 1, preselected: ["p"],
+			options: [{slug: "p", label: "P", description, ...(resource ? {resource} : {})}],
+		}, {}, null).items[0].description;
+
+		// No track → nothing is stripped, even if the prose has circles.
+		expect(descFor("○○○○○ hours of light, ◇ lanterns, etc.", null))
+			.toBe("○○○○○ hours of light, ◇ lanterns, etc.");
+		// Track present, but its circles aren't "uses" (e.g. "○○ firkins") → kept.
+		expect(descFor("chisels, ◇ saws, ○○ firkins, barrels, etc.", {max: 2, title: null, labels: []}))
+			.toBe("chisels, ◇ saws, ○○ firkins, barrels, etc.");
+	});
+
 	it("appends write-in custom possessions as selected, removable items", async () => {
 		const actor = makeHeavyActor({
 			flags: {"possessions.custom": [{slug: "custom-1", label: "A locket"}]}
@@ -1022,6 +1331,74 @@ describe("buildSnapshot — inventory.possessions", () => {
 				specialPossessions: SP
 			})).build().buildSnapshot();
 		expect(snap.inventory.possessions.isIncomplete).toBe(false);
+	});
+
+	// ── choiceSummary (sacred-pouch flavor + remarkable trait) ─────────────────
+	// A possession with `choiceGroups` (the Blessed's sacred pouch) surfaces the
+	// player's picks as a read-only prose summary woven under the description.
+	const SP_FLAVOR = {
+		pickNote: "Pick 1", pickCount: 1, preselected: ["pouch"],
+		options: [{
+			slug: "pouch", label: "Sacred Pouch", description: "<p>A pouch.</p>",
+			choiceGroups: [
+				{ heading: "Your sacred pouch is...", note: "choose 1 on each line", subgroups: [
+					{ pickCount: 1, options: [
+						{slug: "origin-heirloom", label: "an heirloom made just for you"},
+						{slug: "origin-own-work", label: "your own work"},
+					]},
+					{ pickCount: 1, options: [
+						{slug: "material-fur", label: "fur"},
+						{slug: "material-woven", label: "woven"},
+					]},
+				]},
+				{ heading: "What remarkable trait does it possess?", note: "choose 1", subgroups: [
+					{ multiSelect: true, options: [
+						{slug: "trait-indestructible", label: "It cannot be cut, torn, or burned."},
+						{slug: "trait-unnoticed", label: "Ignored unless specifically sought."},
+					]},
+				]},
+			],
+		}],
+	};
+
+	const pouchSummary = async (subChoices) => {
+		const actor = makeHeavyActor({flags: subChoices ? {"possessions.subChoices": subChoices} : {}});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository({...HEAVY_PLAYBOOK, specialPossessions: SP_FLAVOR}))
+			.build().buildSnapshot();
+		return snap.inventory.possessions.items.find(i => i.slug === "pouch").choiceSummary;
+	};
+
+	it("choiceSummary is null when no sub-choices are picked", async () => {
+		expect(await pouchSummary(null)).toBeNull();
+	});
+
+	it("choiceSummary groups picks by heading, in book order", async () => {
+		const summary = await pouchSummary({
+			pouch: ["material-fur", "origin-heirloom", "trait-indestructible"],
+		});
+		expect(summary).toEqual([
+			{ heading: "Your sacred pouch is...", selections: "an heirloom made just for you, fur" },
+			{ heading: "What remarkable trait does it possess?", selections: "It cannot be cut, torn, or burned." },
+		]);
+	});
+
+	it("choiceSummary lists every remarkable trait (Big Magic adds more)", async () => {
+		const summary = await pouchSummary({
+			pouch: ["trait-unnoticed", "trait-indestructible"],
+		});
+		// Both traits, in book order regardless of pick order.
+		expect(summary).toEqual([
+			{ heading: "What remarkable trait does it possess?",
+			  selections: "It cannot be cut, torn, or burned., Ignored unless specifically sought." },
+		]);
+	});
+
+	it("choiceSummary omits a group with no picks", async () => {
+		const summary = await pouchSummary({ pouch: ["origin-own-work"] });
+		expect(summary).toEqual([
+			{ heading: "Your sacred pouch is...", selections: "your own work" },
+		]);
 	});
 });
 
@@ -1552,6 +1929,96 @@ describe("buildSnapshot — movelist / post-death moves", () => {
 	});
 });
 
+// ── movelist: level move budget ───────────────────────────────────────────────
+
+describe("buildSnapshot — movelist / level move budget", () => {
+	// parseMovePickCount keys off the "… of your choice" phrasing, so the note must
+	// carry it for pickCount to be 2 (as real playbook notes do, e.g. the Judge's).
+	const BUDGET_PLAYBOOK = { ...HEAVY_PLAYBOOK, startingMovesNote: "Pick 2 moves of your choice." };
+	function pbMove(id, name, overrides = {}) {
+		return { _id: id, name, system: { moveType: "playbook", isStartingMove: false, rollType: null, ...overrides } };
+	}
+	function ownedMove(id, name) {
+		return { _id: id, type: "move", name, system: { moveType: "playbook" } };
+	}
+	async function buildMovelist({ level = 1, defs = [], items = [], flags = {} } = {}) {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withLevel(level)
+			.withItems(items)
+			.withFlags(flags)
+			.build();
+		let builder = new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(BUDGET_PLAYBOOK));
+		for (const def of defs) builder = builder.addPlaybookMove(def);
+		const snap = await builder.build().buildSnapshot();
+		return snap.movelist;
+	}
+
+	it("flags a character that is behind on move picks for its level", async () => {
+		// Level 3 ⇒ 2 starting picks + 2 advancements expected; only the 2 starting picks made.
+		const ml = await buildMovelist({
+			level: 3,
+			defs:  [pbMove("a", "Alpha"), pbMove("b", "Bravo")],
+			items: [ownedMove("a1", "Alpha"), ownedMove("b1", "Bravo")],
+		});
+		expect(ml.movesIncomplete).toBe(false);
+		expect(ml.levelMovesIncomplete).toBe(true);
+		expect(ml.levelMovesShortfall).toBe(2);
+		expect(ml.characterLevel).toBe(3);
+	});
+
+	it("does not flag a character that has made every pick for its level", async () => {
+		// Level 4 ⇒ 2 starting + 3 advancements = 5 picks; all five owned.
+		const ml = await buildMovelist({
+			level: 4,
+			defs:  ["a", "b", "c", "d", "e"].map((s, i) => pbMove(s, `Move ${i}`)),
+			items: ["a", "b", "c", "d", "e"].map((s, i) => ownedMove(`${s}1`, `Move ${i}`)),
+		});
+		expect(ml.levelMovesIncomplete).toBe(false);
+		expect(ml.levelMovesShortfall).toBe(0);
+	});
+
+	it("stays hidden at level 1 while the starting-moves onboarding prompt is still up", async () => {
+		const ml = await buildMovelist({
+			level: 1,
+			defs:  [pbMove("a", "Alpha"), pbMove("b", "Bravo")],
+			items: [],
+		});
+		expect(ml.movesIncomplete).toBe(true);     // onboarding prompt owns this case
+		expect(ml.levelMovesIncomplete).toBe(false);
+	});
+
+	it("counts each take of a repeatable move, not just the move name", async () => {
+		// Level 3 ⇒ 4 picks expected. Alpha once + Improved Stat taken twice = 3 instances.
+		const ml = await buildMovelist({
+			level: 3,
+			defs:  [pbMove("a", "Alpha"), pbMove("imp", "Improved Stat", { repeatMax: 3, cap: 2 })],
+			items: [ownedMove("a1", "Alpha"), ownedMove("imp1", "Improved Stat"), ownedMove("imp2", "Improved Stat")],
+		});
+		expect(ml.levelMovesIncomplete).toBe(true);
+		expect(ml.levelMovesShortfall).toBe(1);
+	});
+
+	it("never counts auto-granted starting moves toward the level budget", async () => {
+		// Level 2 ⇒ 3 picks expected. Owning a starting move plus 2 choice moves still
+		// leaves the character 1 advancement short — the starting move must not count.
+		const ml = await buildMovelist({
+			level: 2,
+			defs:  [pbMove("s", "Steadfast", { isStartingMove: true }), pbMove("a", "Alpha"), pbMove("b", "Bravo")],
+			items: [ownedMove("s1", "Steadfast"), ownedMove("a1", "Alpha"), ownedMove("b1", "Bravo")],
+		});
+		expect(ml.levelMovesIncomplete).toBe(true);
+		expect(ml.levelMovesShortfall).toBe(1);
+	});
+
+	it("never flags a character with no playbook", async () => {
+		const actor = new FakeActorBuilder().withLevel(4).build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		expect(snap.movelist.levelMovesIncomplete).toBe(false);
+	});
+});
+
 // ── rollMode ──────────────────────────────────────────────────────────────────
 
 describe("buildSnapshot — rollMode", () => {
@@ -1587,5 +2054,74 @@ describe("buildSnapshot - homefront moves", () => {
 
 		expect(homefront.moves[0].rollType).toBe("ask");
 		expect(homefront.moves[0].rollLabel).toBe("Population");
+	});
+});
+
+// ── possession choices: move triggers, caps, open-slot detection ───────────────
+// Backs the sacred-pouch editor: which moves grant a sub-choice (Big Magic → pouch),
+// owned-move counts that scale the cap, and whether gaining a move frees a new slot.
+describe("possession choices: triggers + open-slot detection", () => {
+	const SP_CAP = {
+		pickNote: "Pick 1", pickCount: 1, preselected: ["pouch"],
+		options: [
+			{
+				slug: "pouch", label: "Sacred Pouch", description: "<p>A pouch.</p>",
+				choiceGroups: [
+					{ heading: "Your sacred pouch is...", subgroups: [
+						{ options: [{slug: "o-a", label: "a"}, {slug: "o-b", label: "b"}] },
+					]},
+					{ heading: "What remarkable trait does it possess?", subgroups: [
+						{ multiSelect: true, maxSelect: 1,
+						  maxSelectBonus: { moveBonus: [{ moveName: "Big Magic", perInstance: 1 }] },
+						  options: [{slug: "t-a", label: "A"}, {slug: "t-b", label: "B"}] },
+					]},
+				],
+			},
+			{ slug: "apiary", label: "Apiary", description: "" },
+		],
+	};
+	const PB = { specialPossessions: SP_CAP };
+	const move = name => ({ type: "move", name });
+	const charWith = (items = [], flags = {}) =>
+		new TestCharacterBuilder(makeHeavyActor({ items, flags }))
+			.withPlaybookRepo(new FakePlaybookRepository({ ...HEAVY_PLAYBOOK, specialPossessions: SP_CAP }))
+			.build();
+
+	it("ownedMoveCounts counts move items by name (ignoring non-moves)", () => {
+		const c = charWith([move("Big Magic"), move("Big Magic"), move("Veil"), { type: "weapon", name: "Spear" }]);
+		expect(c.ownedMoveCounts()).toEqual({ "Big Magic": 2, "Veil": 1 });
+	});
+
+	it("possessionTriggerMoves maps a cap move to its selected possession", () => {
+		expect(charWith().possessionTriggerMoves(PB)).toEqual({ "Big Magic": "pouch" });
+	});
+
+	it("possessionTriggerMoves is empty when the possession isn't selected", () => {
+		const sp = { ...SP_CAP, preselected: [] };
+		const c = new TestCharacterBuilder(makeHeavyActor())
+			.withPlaybookRepo(new FakePlaybookRepository({ ...HEAVY_PLAYBOOK, specialPossessions: sp })).build();
+		expect(c.possessionTriggerMoves({ specialPossessions: sp })).toEqual({});
+	});
+
+	it("possessionWithOpenChoiceFor returns the pouch when Big Magic frees a slot", async () => {
+		const c = charWith([move("Big Magic")]); // cap 2, 0 traits chosen
+		expect(await c.possessionWithOpenChoiceFor("Big Magic")).toBe("pouch");
+	});
+
+	it("possessionWithOpenChoiceFor is null when trait slots are full", async () => {
+		// No Big Magic → cap 1; one trait chosen → full.
+		const c = charWith([], { "possessions.subChoices": { pouch: ["t-a"] } });
+		expect(await c.possessionWithOpenChoiceFor("Big Magic")).toBeNull();
+	});
+
+	it("possessionWithOpenChoiceFor ignores moves unrelated to any possession", async () => {
+		const c = charWith([move("Big Magic")]);
+		expect(await c.possessionWithOpenChoiceFor("Veil")).toBeNull();
+	});
+
+	it("possession snapshot flags hasChoiceGroups only for the selected pouch", async () => {
+		const snap = await charWith().buildSnapshot();
+		expect(snap.inventory.possessions.items.find(i => i.slug === "pouch").hasChoiceGroups).toBe(true);
+		expect(snap.inventory.possessions.items.find(i => i.slug === "apiary").hasChoiceGroups).toBe(false);
 	});
 });

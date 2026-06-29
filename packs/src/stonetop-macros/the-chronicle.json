@@ -1,0 +1,11 @@
+{
+  "name": "The Chronicle",
+  "type": "script",
+  "img": "systems/stonetop_pwd/assets/icons/macros/bookmarklet.svg",
+  "scope": "global",
+  "command": "game.stonetop?.saveChronicle?.()",
+  "folder": null,
+  "sort": 600000,
+  "_id": "stMacroChronicl1",
+  "_key": "!macros!stMacroChronicl1"
+}

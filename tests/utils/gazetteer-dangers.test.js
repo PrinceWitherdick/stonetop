@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { sectionHtml, dangersToGroups } from "../../scripts/local/shared/gazetteer.mjs";
+import { expect, it } from "vitest";
+import { describeLocal, loadLocal } from "../local-only.js";
+
+const gazetteer = await loadLocal(() => import("../../scripts/local/shared/gazetteer.mjs"));
+const describeGen = describeLocal(gazetteer);
+const { sectionHtml, dangersToGroups } = gazetteer ?? {};
 
 // Within a "Dangers" section, sectionHtml(..., true) promotes danger sub-headers
 // that the PDF extraction stranded as bullets ("Lightning", "Drought",
@@ -8,7 +12,7 @@ import { sectionHtml, dangersToGroups } from "../../scripts/local/shared/gazette
 const danger = (...lines) => sectionHtml(lines, [], true);
 const plain = (...lines) => sectionHtml(lines, [], false);
 
-describe("sectionHtml Dangers sub-headers", () => {
+describeGen("sectionHtml Dangers sub-headers", () => {
 	it("promotes a stranded label + long descriptor to a header and intro prose", () => {
 		const out = danger(
 			"- Lightning",
@@ -75,7 +79,7 @@ describe("sectionHtml Dangers sub-headers", () => {
 	});
 });
 
-describe("dangersToGroups", () => {
+describeGen("dangersToGroups", () => {
 	it("splits each sub-header into its own {heading, body} entry", () => {
 		const html = "<p><strong>Hazards</strong></p><ul><li>Getting lost</li></ul>"
 			+ "<p><strong>Monsters</strong></p><ul><li>Crinwin</li></ul>";

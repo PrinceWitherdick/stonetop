@@ -387,6 +387,11 @@
 					<p class="stonetop-onboarding-choice-group-heading">{{heading}}{{#if note}} <em>({{note}})</em>{{/if}}</p>
 					{{#each subgroups}}
 					<div class="stonetop-onboarding-choice-subgroup">
+						{{#if max}}
+						<span class="stonetop-onboarding-subcheck-cap">
+							<span class="stonetop-onboarding-subcheck-count" data-group="{{groupId}}">{{selectedCount}}</span> / {{max}}
+						</span>
+						{{/if}}
 						{{#each options}}
 						<label class="stonetop-onboarding-suboption{{#if isSelected}} is-selected{{/if}}">
 							{{#if ../multiSelect}}

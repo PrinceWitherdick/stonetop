@@ -35,7 +35,9 @@ import {
 	VitalsSnapshotBuilder,
 } from "../../model/CharacterSnapshot.js";
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
+import {statRequirementLabel, statRequirementsUnmet} from "./stat-requirement.js";
 import {MoveResources} from "./MoveResources.js";
+import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
@@ -43,15 +45,18 @@ import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
 import {CharacterOrigin} from "./CharacterOrigin.js";
 import {CharacterPossessions} from "./CharacterPossessions.js";
+import {grantsToCreate} from "./possession-grants.js";
 import {CharacterInventory} from "./CharacterInventory.js";
 import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
+import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
 import {capitalizeFirst, slugify, composeInstinct} from "../../utils/strings.js";
 import {localize as _loc} from "../../utils/i18n.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
-import {normalizeRollType} from "../../utils/roll-types.js";
+import {normalizeRollType, CUSTOM_MOVE_ROLL_TYPES} from "../../utils/roll-types.js";
+import {formatCustomMoveDescription} from "../../utils/custom-move-text.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie} from "../../utils/damage-die.js";
 
@@ -86,6 +91,33 @@ function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
 }
 
+// True for player-authored custom moves (flagged at creation in _buildCustomMoveData).
+// The flag distinguishes them from foreign playbook moves that also land in "other".
+function _isCustomMove(item) {
+	return !!item?.flags?.[STONETOP_SCOPE]?.custom;
+}
+
+// Coerce a value to an integer clamped to [lo, hi]; non-numeric / out-of-range → nearest bound.
+function _clampInt(value, lo, hi) {
+	return Math.max(lo, Math.min(hi, Math.trunc(Number(value) || 0)));
+}
+
+// Resource-track snapshot for an "other" move, in the shape the resourceChecks helper
+// consumes ({ title, max, labels, current }), or null when the move has no track. The
+// held value lives under flags.stonetop_pwd.moves.backgroundChoices, keyed by the move's
+// resourceKey (item id for custom moves, name otherwise — see buildMovelist), so the
+// existing .stonetop-item-resource-check handler works for custom moves unchanged.
+function _buildOtherMoveResource(resource, current) {
+	const max = _clampInt(resource?.max, 0, 20);
+	if (!(max > 0)) return null;
+	return {
+		title: resource?.title ?? null,
+		max,
+		labels: Array.isArray(resource?.labels) ? resource.labels : [],
+		current: Math.max(0, Math.min(max, Number(current) || 0)),
+	};
+}
+
 // Slugs whose resource max equals 4+Prosperity. Matches the `prosperityResource`
 // flag in the JSON source; acts as the runtime fallback until the pack is
 // recompiled with that flag present in the LevelDB.
@@ -99,6 +131,28 @@ function _transformPiercingNote(note, prosperity) {
 	if (prosperity === null) return note; // no steading → leave literal "x piercing"
 	if (prosperity <= -1) return note.replace('x <em>piercing</em>', '<em>crude</em>');
 	return note.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
+}
+
+// On the gear tab a possession's circle track renders in the component's top-right,
+// so the inline "○○○ uses" count baked into the playbook description is redundant.
+// Strip it — but only for possessions that actually have a track (onboarding shows
+// no track, so it keeps the raw description), and only circle-runs tied to the word
+// "use(s)". This leaves ◇ encumbrance markers and other counts ("○○○○○ hours",
+// "○○ firkins") untouched. Handles the three authoring shapes seen in the playbooks:
+// leading "(○○○ uses) …", leading bare "○○○ uses: …", and mid-text "(○○ uses, …)".
+function _stripPossessionUsesAnnotation(desc, resourceDef) {
+	if (!desc || !resourceDef) return desc;
+	let out = desc;
+	let strippedLead = false;
+	const lead1 = out.replace(/^\s*\(\s*[○●◯]+\s*uses?\b\s*\)\s*/i, "");
+	if (lead1 !== out) { out = lead1; strippedLead = true; }
+	const lead2 = out.replace(/^\s*[○●◯]+\s*uses?\b\s*:?\s*/i, "");
+	if (lead2 !== out) { out = lead2; strippedLead = true; }
+	out = out.replace(/\(\s*[○●◯]+\s*uses?\b\s*,\s*/gi, "(").trim();
+	// Re-capitalise the first letter only when a leading clause was removed, so the
+	// remaining text reads as its own sentence ("expend a use…" → "Expend a use…").
+	if (strippedLead && out) out = out.charAt(0).toUpperCase() + out.slice(1);
+	return out;
 }
 
 // A move can raise every load cap via its `loadBonus` field (the Ranger's Pack
@@ -180,12 +234,44 @@ export class StonetopCharacter {
 	}
 
 	// Checkbox mark options (e.g. max HP, damage die): set how many are checked,
-	// auto-filling the current level on newly checked marks.
+	// auto-filling the current level on newly checked marks. When the move declares a
+	// `markBudget`, an INCREASE is clamped so the picks across all its options never
+	// exceed the repeat-scaling budget — model-side enforcement so the cap holds from
+	// any write surface, not just the disabled checkboxes (mirrors the possession
+	// remarkable-trait cap in selectSubChoice). Decreases are never clamped, so a
+	// grandfathered over-budget mark can always be cleared.
 	async setCountMark(moveName, optionSlug, newCount) {
-		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
-		while (entries.length < newCount) entries.push({ stat: "", level: this._characterLevel });
-		entries.length = Math.max(0, newCount);
+		const allMarks = this._moveResources.getMarks();
+		const current  = _markEntries(allMarks[moveName]?.[optionSlug]).length;
+		// Clamp an INCREASE to the move's repeat-scaling pick budget (if any); a decrease
+		// is left as-is (budget null below), so a grandfathered over-budget mark clears.
+		let count = newCount;
+		const budget = newCount > current ? await this._moveSelectionBudget(moveName) : null;
+		if (budget) {
+			const others    = _sumMarkPicks(allMarks[moveName] ?? {}, budget.markOptions, optionSlug);
+			const remaining = Math.max(0, budget.max - others);      // picks still free across the move's options
+			count = Math.min(newCount, Math.max(current, remaining)); // never below what's already checked
+		}
+		const entries = _markEntries(allMarks[moveName]?.[optionSlug]);
+		while (entries.length < count) entries.push({ stat: "", level: this._characterLevel });
+		entries.length = Math.max(0, count);
 		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
+	}
+
+	// Repeat-scaling pick budget for a move's markOptions, or null when it declares
+	// none (uncapped). The definition is read from the compiled pack (fresh
+	// markBudget/markOptions, regardless of when the owned copy was created — matching
+	// the render path); `ownedCount` is how many copies the actor owns.
+	async _moveSelectionBudget(moveName) {
+		const owned = this._actor.items.filter(i => i.type === "move" && i.name === moveName);
+		if (!owned.length) return null;
+		const pbName = owned[0].system?.playbook ?? null;
+		const defs   = pbName ? await this._moveRepo.getPlaybookMoves(pbName) : [];
+		const def    = defs.find(d => d.name === moveName) ?? null;
+		const markBudget  = def?.markBudget  ?? owned[0].system?.markBudget  ?? null;
+		const markOptions = def?.markOptions ?? owned[0].system?.markOptions ?? [];
+		const max = moveMarkBudget(markBudget, owned.length);
+		return max == null ? null : { max, markOptions };
 	}
 
 	// Edit-mode override of the level recorded for a given mark slot.
@@ -224,10 +310,21 @@ export class StonetopCharacter {
 		const pdiLabel  = postDeath.activeInsert?.name ?? null;
 		const moveBonuses = await this._ownedMoveBonuses(playbookData, ownedAllByName);
 		// Armor counts standard items plus any special items the character has added —
-		// never an unadded special item whose checked flag happens to linger.
+		// never an unadded special item whose checked flag happens to linger. A special
+		// item the character holds via a same-slug special possession (see
+		// _selectedPossessionSlugs) counts too, so a future worn-armor possession is
+		// included alongside the picker-added ones.
 		const addedSet = new Set(this._inventory.addedSpecial);
-		const armorItems = allOutfitItems.filter(i => !i.special || addedSet.has(i.slug));
-		const armor = this._inventory.calculateArmor(armorItems) + moveBonuses.armor;
+		const possessionSpecialSet = this._selectedPossessionSlugs(playbookData);
+		const armorItems = allOutfitItems.filter(i =>
+			!i.special || addedSet.has(i.slug) || possessionSpecialSet.has(i.slug));
+		// Possession-granted worn gear (the Tannery's boiled leather cuirass) also
+		// counts when checked. Custom items key their checked state by item id, so the
+		// armor calc sees them as `{ slug: id, armor }` alongside the outfit items.
+		const customArmorItems = this._actor.items
+			.filter(i => i.type === "move" && i.system?.moveType === "inventory-custom" && i.system?.armor)
+			.map(i => ({ slug: i._id, armor: i.system.armor }));
+		const armor = this._inventory.calculateArmor([...armorItems, ...customArmorItems]) + moveBonuses.armor;
 		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
 			? await this._arcana.buildLoreDisplay()
 			: null;
@@ -238,12 +335,13 @@ export class StonetopCharacter {
 			.withStats(_buildStatsSection(actor))
 			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses))
 			.withMoves(moves)
-			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel))
+			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel))
 			.withInventory(inventory)
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
 			.withRollMode(_normalizeSheetRollMode(resolvedFlags(actor).rollMode))
 			.withCrewBonuses(_buildCrewStats(playbookData?.crew, moveBonuses))
+			.withCompanionBonuses(_buildCompanionBonuses(moveBonuses, ownedAllByName))
 			.build();
 	}
 
@@ -251,12 +349,28 @@ export class StonetopCharacter {
 	// Heavy's Carved Out of Wood / Cut from Granite). Read from the move definitions
 	// so it works regardless of when the owned copy was added.
 	async _ownedMoveBonuses(playbookData, ownedAllByName) {
-		const totals = { hp: 0, armor: 0, crewHp: 0, damageDie: null, crewDamageSteps: 0, crewDamageCap: "d10", crewRollSteps: 0 };
+		const totals = { hp: 0, armor: 0, crewHp: 0, damageDie: null, crewDamageSteps: 0, crewDamageCap: "d10", crewRollSteps: 0, crewTags: 0, companionHp: 0, companionArmor: 0 };
+		// Player-authored custom moves aren't in the pack, so the name-matched playbook
+		// loop below never sees them — read their hp/armor straight off the embedded item.
+		// Scoped to _isCustomMove (the stonetop_pwd.custom flag) so a foreign cross-playbook
+		// move that happens to be stored as moveType "other" doesn't get its bonus counted
+		// here. (loadBonus/shieldLoadReduction are summed across all owned moves elsewhere.)
+		for (const i of this._actor.items) {
+			if (!_isCustomMove(i)) continue;
+			totals.hp    += Number(i.system?.hpBonus)    || 0;
+			totals.armor += Number(i.system?.armorBonus) || 0;
+		}
 		if (!playbookData) return totals;
 		const defs  = await this._moveRepo.getPlaybookMoves(playbookData.name);
 		const marks = this._moveResources.getMarks();
 		for (const m of defs) {
-			if (!ownedAllByName.has(m.name)) continue;
+			// Require a genuine (non-custom) owned move of this name, so a player-authored
+			// custom move that merely reuses a playbook move's name can't pull in the def's
+			// hp/armor/marks (its own bonus is already counted in the loop above).
+			// `ownedAllByName` is a Map(name → owned items[]) in production; some tests pass a
+			// Set(name), which has `.has` but no `.get` — fall back to plain membership there.
+			const ownedItems = ownedAllByName.get?.(m.name);
+			if (ownedItems ? !ownedItems.some(i => !_isCustomMove(i)) : !ownedAllByName.has(m.name)) continue;
 			totals.hp    += m.hpBonus    || 0;
 			totals.armor += m.armorBonus || 0;
 			// Per-option marks (e.g. Potential for Greatness): apply each checked box.
@@ -275,6 +389,13 @@ export class StonetopCharacter {
 				totals.crewDamageSteps += (opt.crewDamageStep || 0) * count;
 				if (opt.crewDamageCap) totals.crewDamageCap = opt.crewDamageCap;
 				totals.crewRollSteps += (opt.crewRoll || 0) * count;
+				// Veteran Crew's "Select 2 new tags" raises how many tags the player may
+				// pick for the Crew (the followers-tab tag picker reads this as tagBonus).
+				totals.crewTags += (opt.crewTags || 0) * count;
+				// Beast of Legend's "+4 HP and +1 armor" buffs the Animal Companion (the
+				// followers-tab companion card reads these as companionBonuses).
+				totals.companionHp    += (opt.companionHp    || 0) * count;
+				totals.companionArmor += (opt.companionArmor || 0) * count;
 			}
 		}
 		return totals;
@@ -305,6 +426,53 @@ export class StonetopCharacter {
 					.build()
 				);
 			}
+		}
+
+		// "Learned Moves": moves gained from OTHER playbooks via a cross-playbook pick
+		// (Versatile/Worldly/…). They keep their origin playbook in system.playbook (so they
+		// don't surface under the actor's own playbook category) and carry a `grantedBy` item
+		// flag; group them here, labeled with the move that granted them + their origin.
+		const grantedItems = this._actor.items.filter(i => i.type === "move" && i.flags?.[STONETOP_SCOPE]?.grantedBy);
+		if (grantedItems.length > 0) {
+			const learnedResourcesMap = this._moveResources.getMoveResources();
+			const learnedMarksMap     = this._moveResources.getMarks();
+			categories.push(new MoveCategorySnapshotBuilder()
+				.withKey("learned")
+				.withTitle("Learned Moves")
+				.withNote("Moves you've gained from other playbooks.")
+				.withMoves(grantedItems.map(i => {
+					const grantedBy   = i.flags?.[STONETOP_SCOPE]?.grantedBy ?? {};
+					const origin      = i.system?.playbook ?? null;
+					// Full card fidelity: resource track + markOptions, keyed by move NAME (the
+					// same store playbook moves use), so e.g. a learned ammo/Marks track works.
+					const resourceDef = i.system?.resource ?? null;
+					const resource = resourceDef?.max ? new ResourceBuilder()
+						.withCurrent(learnedResourcesMap[i.name] ?? 0)
+						.withMax(resourceDef.max)
+						.withTitle(resourceDef.title ?? null)
+						.withLabels(resourceDef.labels ?? [])
+						.build() : null;
+					const { options: markOptions, budget: markBudget } = _buildMarkOptions(
+						{ markOptions: i.system?.markOptions, markBudget: i.system?.markBudget, ownedIds: [i._id], owned: true },
+						learnedMarksMap[i.name] ?? {});
+					return new MoveSnapshotBuilder()
+						.withId(i._id).withCompendiumId(i._id).withOwnedId(i._id)
+						.withName(i.name)
+						.withDescription(i.system?.description ?? "")
+						.withRollType(i.system?.rollType ?? null)
+						.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
+						.withIsStarting(false)
+						.withSource({ type: "learned" })
+						.withSourceLabel(`Granted by ${grantedBy.move ?? "—"}${origin ? ` · ${origin}` : ""}`)
+						.withOwned(true).withOwnedIds([i._id])
+						.withLocked(false).withRequirement(null).withRequiresLabel(null)
+						.withResource(resource)
+						.withMarkOptions(markOptions).withMarkBudget(markBudget)
+						.withRepeat(null).withRepeatable(false)
+						.build();
+				}))
+				.build()
+			);
 		}
 
 		const basicEntries = (await this._moveRepo.getBasicMoves()).sort((a, b) => {
@@ -386,6 +554,20 @@ export class StonetopCharacter {
 		return categories;
 	}
 
+	// Slugs of every special possession the character holds (preselected free gear +
+	// player-selected picks). Used to surface a special ("handout") inventory item that
+	// shares a possession's slug — the Ranger's composite bow — in the Items column with
+	// its ◇ load diamond and ○ ammo track, since such gear is never added through the
+	// "Add Special Item" picker. The `i.special` guard at each use site does the actual
+	// intersection, so returning the full possession-slug set here is fine. Derived at
+	// render, so it covers already-created characters and needs no stored flag/migration.
+	_selectedPossessionSlugs(playbookData) {
+		return new Set([
+			...(playbookData?.specialPossessions?.preselected ?? []),
+			...this._possessions.selected,
+		]);
+	}
+
 	async _buildInventorySection(playbookData, ownedAllByName, actorLevel) {
 		const checked        = this._inventory.checked;
 		const resources      = this._inventory.resources;
@@ -441,7 +623,9 @@ export class StonetopCharacter {
 		const mapCustomItem = item => new InventoryItemSnapshotBuilder()
 			.withSlug(item._id)
 			.withName(item.name)
-			.withNote(null)
+			// Items bundled by a special possession (Apiary, Burglar's kit…) carry a
+			// "from <possession>" note; plain write-ins have none.
+			.withNote(item.system?.sourceLabel ? `from ${item.system.sourceLabel}` : null)
 			.withWeight(item.system.weight ?? 1)
 			.withChecked(checked[item._id] ?? false)
 			.withResource(null)
@@ -452,11 +636,20 @@ export class StonetopCharacter {
 			.build();
 
 		// Special (handout) items are kept off the default checklist; they appear only
-		// once the player adds them via the "Add Special Item" picker.
-		const addedSpecialSet = new Set(this._inventory.addedSpecial);
-		const mapAddedSpecial = i => { const s = mapItem(i); s.isAddedSpecial = true; return s; };
-		const addedSpecial = allItems.filter(i => i.special && addedSpecialSet.has(i.slug));
-		const standardItems = allItems.filter(i => !i.special);
+		// once the player adds them via the "Add Special Item" picker — OR when a
+		// preselected/selected special possession shares the item's slug (the Ranger's
+		// composite bow), in which case the gear belongs in the Items column with its ◇
+		// load diamond + ○ ammo track. Possession-derived ones are locked starting gear
+		// (the possession itself is non-removable), so they render via plain mapItem —
+		// no isAddedSpecial flag, hence no "remove special" ✕. A slug added explicitly
+		// through the picker wins (keeps its removable ✕) and is excluded here.
+		const addedSpecialSet      = new Set(this._inventory.addedSpecial);
+		const possessionSpecialSet = this._selectedPossessionSlugs(playbookData);
+		const mapAddedSpecial      = i => { const s = mapItem(i); s.isAddedSpecial = true; return s; };
+		const addedSpecial         = allItems.filter(i => i.special && addedSpecialSet.has(i.slug));
+		const possessionSpecial    = allItems.filter(i =>
+			i.special && possessionSpecialSet.has(i.slug) && !addedSpecialSet.has(i.slug));
+		const standardItems        = allItems.filter(i => !i.special);
 
 		const arcanaItems = await this._arcana.weightedInventoryItems();
 		const arcanaSection = arcanaItems.filter(i => i.inventoryColumn === "arcana").map(mapItem);
@@ -464,6 +657,7 @@ export class StonetopCharacter {
 		const regularNonArcana = [
 			...standardItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...addedSpecial.filter(i => i.inventoryColumn === "regular").map(mapAddedSpecial),
+			...possessionSpecial.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...customItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
 		];
 		const regularArcana = arcanaItems.filter(i => i.inventoryColumn === "regular").map(mapItem);
@@ -476,16 +670,28 @@ export class StonetopCharacter {
 			possessions = this._buildPossessionsSnapshot(playbookData.specialPossessions, maxUsesMap, prosperity);
 		}
 
+		const moveResourceState = this._moveResources.getMoveResources();
 		const other = this._actor.items
 			.filter(i => i.type === "move" && i.system?.moveType === "other")
-			.map(i => new OtherItemSnapshotBuilder()
-				.withId(i._id)
-				.withName(i.name)
-				.withDescription(i.system?.description ?? null)
-				.withMoveType(i.system?.moveType ?? null)
-				.withOwnedId(i._id)
-				.build()
-			);
+			.map(i => {
+				// Custom moves persist their resource track by stable item id, not by name:
+				// player-chosen names aren't unique and can be renamed, which would collide
+				// two tracks or orphan a saved count. Shipped/foreign "other" moves keep name
+				// keying so their already-stored data is unaffected.
+				const resourceKey = _isCustomMove(i) ? i._id : i.name;
+				return new OtherItemSnapshotBuilder()
+					.withId(i._id)
+					.withName(i.name)
+					.withDescription(i.system?.description ?? null)
+					.withMoveType(i.system?.moveType ?? null)
+					.withOwnedId(i._id)
+					.withRollType(normalizeRollType(i.system?.rollType))
+					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
+					.withCustom(_isCustomMove(i))
+					.withResourceKey(resourceKey)
+					.withResource(_buildOtherMoveResource(i.system?.resource, moveResourceState[resourceKey]))
+					.build();
+			});
 
 		// Load is derived from the ◇ actually marked — checked item weights plus the
 		// undefined regular pool — never stored. Marking loot or editing the pool
@@ -517,9 +723,11 @@ export class StonetopCharacter {
 			.build();
 
 		const addedSmall = addedSpecial.filter(i => i.inventoryColumn === "small");
+		const possessionSmall = possessionSpecial.filter(i => i.inventoryColumn === "small");
 		const smallItems = [
 			...allSmall.filter(i => !i.smallGrid).map(mapItem),
 			...addedSmall.filter(i => !i.smallGrid).map(mapAddedSpecial),
+			...possessionSmall.filter(i => !i.smallGrid).map(mapItem),
 			...customItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
 			...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
 		];
@@ -558,13 +766,19 @@ export class StonetopCharacter {
 		const { pickNote, pickCount, preselected = [], options } = specialPossessions;
 		const selectedSlugs = this._possessions.selected;
 		const usesMap = this._possessions.uses;
+		const subChoicesMap = this._possessions.subChoices;
 		const preselectedSet = new Set(preselected);
 
 		let chosenCount = 0;
-		const items = options.map(opt => {
+		const items = options
+			// Grant-only possessions (the Seeker's Initiate-granted Sacred Pouch) aren't
+			// pickable here — surface one only once it's actually been granted (selected).
+			.filter(opt => !opt.grantOnly || preselectedSet.has(opt.slug) || selectedSlugs.has(opt.slug))
+			.map(opt => {
 			const isPre = preselectedSet.has(opt.slug);
 			const isSelected = isPre || selectedSlugs.has(opt.slug);
-			if (isSelected && !isPre) chosenCount++;
+			// A granted possession doesn't consume one of the playbook's normal picks.
+			if (isSelected && !isPre && !opt.grantOnly) chosenCount++;
 			const maxUses = maxUsesMap[opt.slug] ?? opt.resource?.max ?? null;
 			const currentUses = isSelected ? (usesMap[opt.slug] ?? 0) : 0;
 			const resourceDef = opt.resource ?? null;
@@ -583,16 +797,29 @@ export class StonetopCharacter {
 				// "x piercing" weapons (e.g. the Ranger's composite bow) resolve to the
 				// steading's Prosperity for display here, just like outfit items — onboarding
 				// keeps the literal "x" since it renders the raw playbook description instead.
-				.withDescription(_transformPiercingNote(opt.description ?? "", prosperity))
+				.withDescription(_transformPiercingNote(_stripPossessionUsesAnnotation(opt.description ?? "", resourceDef), prosperity))
 				.withSelected(isSelected)
 				.withChecked(isSelected)
-				.withDisabled(isPre)
+				// A granted grant-only possession (the Initiate Sacred Pouch) is locked like
+				// preselected gear: it can't be re-added from the sheet (it's filtered out of
+				// the picker), so don't let it be accidentally unchecked away either.
+				.withDisabled(isPre || (isSelected && !!opt.grantOnly))
 				.withPreselected(isPre)
-				.withPreselectedSource(isPre ? "Starting move" : null)
+				// Preselected possessions (the Blessed's sacred pouch, Marshal's symbol of
+				// authority, etc.) are starting *gear*, not moves — show no source label
+				// (the disabled checkbox already signals they're locked in).
+				.withPreselectedSource(null)
 				.withResource(resource)
-				.withUsesLabel(resourceDef?.title ?? null)
+				// Untitled circle tracks default to a "Uses" label (mirrors the Blessed's
+				// "Stock"), so the top-right circles always read with a heading.
+				.withUsesLabel(resourceDef ? (resourceDef.title ?? "Uses") : null)
 				.withChoices(null)
 				.withChoiceGroups(null)
+				// Read-only prose of the player's flavor/trait picks (the Blessed's
+				// sacred pouch), woven under the description on the gear tab.
+				.withChoiceSummary(isSelected ? this._buildPossessionChoiceSummary(opt, subChoicesMap[opt.slug] ?? []) : null)
+				// Has editable choiceGroups → gear tab shows an "edit" pencil (in edit mode).
+				.withHasChoiceGroups(isSelected && !!opt.choiceGroups?.length)
 				.build();
 		});
 
@@ -614,12 +841,34 @@ export class StonetopCharacter {
 				.withUsesLabel(null)
 				.withChoices(null)
 				.withChoiceGroups(null)
+				.withChoiceSummary(null)
 				.withCustom(true)
 				.build();
 		});
 
 		const isIncomplete = pickCount > 0 && chosenCount < pickCount;
 		return new PossessionsSnapshot(pickCount, pickNote, [...items, ...customItems], isIncomplete);
+	}
+
+	// Read-only prose summary of a possession's `choiceGroups` picks (the Blessed's
+	// sacred pouch: "Your sacred pouch is..." flavor + "What remarkable trait..."),
+	// one entry per group heading with the chosen labels joined in book order. The
+	// remarkable-trait group is multi-select, so this naturally lists every trait a
+	// Blessed has taken via Big Magic. Returns null when nothing in any group is picked.
+	_buildPossessionChoiceSummary(opt, pickedSlugs) {
+		if (!opt?.choiceGroups?.length || !pickedSlugs?.length) return null;
+		const pickedSet = new Set(pickedSlugs);
+		const summary = [];
+		for (const cg of opt.choiceGroups) {
+			const labels = [];
+			for (const sg of (cg.subgroups ?? [])) {
+				for (const o of (sg.options ?? [])) {
+					if (pickedSet.has(o.slug)) labels.push(o.label);
+				}
+			}
+			if (labels.length) summary.push({ heading: cg.heading ?? "", selections: labels.join(", ") });
+		}
+		return summary.length ? summary : null;
 	}
 
 	async setPostDeathInsert(slug) {
@@ -735,73 +984,69 @@ export class StonetopCharacter {
 		await this._actor.deleteEmbeddedDocuments("Item", [itemId]);
 	}
 
-	buildPossessionsContext(specialPossessions, selectedSlugs, usesMap, maxUsesMap, extraPreselected = [], subChoicesMap = {}, choiceUsesMap = {}) {
-		if (!specialPossessions) return null;
-		const { pickNote, options } = specialPossessions;
-		const bgPreselectedSet = new Set(extraPreselected);
-		const preselectedSet = new Set([...((specialPossessions.preselected) ?? []), ...extraPreselected]);
+	// --- Player-authored custom moves -------------------------------------
+	// A custom move is a plain embedded `move` item, forced to moveType "other"
+	// (so buildMovelist's otherMoves filter surfaces it) and flagged custom so the
+	// sheet offers an edit affordance only for player-authored ones (not foreign
+	// playbook moves that also land in "other"). It then rolls through the same
+	// engine as any move (StonetopItem.roll), no pack involvement, no rebuild.
 
+	async addCustomMove(input) {
+		const data = this._buildCustomMoveData(input);
+		data.type = "move";
+		const created = await this._actor.createEmbeddedDocuments("Item", [data]);
+		return created?.[0] ?? null;
+	}
+
+	async updateCustomMove(itemId, input) {
+		const item = this._actor.items.get(itemId);
+		if (!item) return;
+		await item.update(this._buildCustomMoveData(input));
+	}
+
+	// Shape raw dialog input into the embedded-item document data (used by both
+	// create and update). moveResults follows the shape rollStat consumes:
+	// { success|partial|failure: { label, value } }, or null for a no-roll move.
+	_buildCustomMoveData(input) {
+		const rt = String(input?.rollType ?? "").trim().toLowerCase();
+		const rollType = CUSTOM_MOVE_ROLL_TYPES.includes(rt) ? rt : "";
+		const r = input?.results ?? {};
+		const success = String(r.success ?? "").trim();
+		const partial = String(r.partial ?? "").trim();
+		const failure = String(r.failure ?? "").trim();
+		const moveResults = (rollType && (success || partial || failure))
+			? {
+				success: { label: "10+", value: success },
+				partial: { label: "7-9", value: partial },
+				failure: { label: "6-",  value: failure },
+			}
+			: null;
+
+		// Optional resource track ({ max, title, labels }); null unless a positive max.
+		const res = input?.resource ?? {};
+		const resMax = _clampInt(res.max, 0, 20);
+		const resLabels = Array.isArray(res.labels)
+			? res.labels.map(l => String(l).trim()).filter(Boolean)
+			: String(res.labels ?? "").split(",").map(l => l.trim()).filter(Boolean);
+		const resource = resMax > 0
+			? { max: resMax, title: String(res.title ?? "").trim() || null, labels: resLabels }
+			: null;
+
+		const intIn = (v) => _clampInt(v, 0, 99);
 		return {
-			pickNote,
-			options: options.map(opt => {
-				const isPre = preselectedSet.has(opt.slug);
-				const isSelected = isPre || selectedSlugs.has(opt.slug);
-				const preselectedSource = isPre ? (bgPreselectedSet.has(opt.slug) ? "Background" : "Starting move") : null;
-				const maxUses = maxUsesMap[opt.slug] ?? opt.resource?.max ?? null;
-				const pickedSubs = subChoicesMap[opt.slug] ?? [];
-				return {
-					slug: opt.slug,
-					label: opt.label,
-					description: opt.description ?? "",
-					detailsSection: opt.detailsSection ?? null,
-					checked: isSelected,
-					preselected: isPre,
-					preselectedSource,
-					disabled: isPre,
-					uses: maxUses,
-					usesLabel: opt.resource?.title ?? null,
-					usesChecks: isSelected && maxUses
-						? Array.from({ length: maxUses }, (_, i) => ({ checked: i < (usesMap[opt.slug] ?? 0) }))
-						: null,
-					choices: isSelected && opt.choices ? {
-						pickCount: opt.choices.pickCount,
-						options: opt.choices.options.map(c => {
-							const picked = pickedSubs.includes(c.slug);
-							const cMaxUses = c.resource?.max ?? null;
-							return {
-								slug: c.slug,
-								label: c.label,
-								checked: picked,
-								disabled: !picked && pickedSubs.length >= opt.choices.pickCount,
-								uses: cMaxUses,
-								usesChecks: picked && cMaxUses
-									? Array.from({ length: cMaxUses }, (_, i) => ({
-										checked: i < (choiceUsesMap[`${opt.slug}:${c.slug}`] ?? 0),
-									}))
-									: null,
-							};
-						}),
-					} : null,
-					choiceGroups: isSelected && opt.choiceGroups ? opt.choiceGroups.map((cg, cgIdx) => ({
-						heading: cg.heading,
-						note: cg.note ?? null,
-						subgroups: cg.subgroups.map((sg, sgIdx) => {
-							const groupId = `${opt.slug}-cg${cgIdx}-sg${sgIdx}`;
-							const slugsCsv = sg.options.map(o => o.slug).join(",");
-							return {
-								groupId,
-								slugsCsv,
-								multiSelect: !!sg.multiSelect,
-								options: sg.options.map(o => ({
-									slug: o.slug,
-									label: o.label,
-									checked: pickedSubs.includes(o.slug),
-								})),
-							};
-						}),
-					})) : null,
-				};
-			}),
+			name: String(input?.name ?? "").trim() || "New Move",
+			system: {
+				moveType: "other",
+				description: formatCustomMoveDescription(input?.description ?? ""),
+				rollType,
+				moveResults,
+				resource,
+				noXpOnMiss: !!input?.noXpOnMiss,
+				hpBonus:   intIn(input?.hpBonus),
+				armorBonus: intIn(input?.armorBonus),
+				loadBonus:  intIn(input?.loadBonus),
+			},
+			flags: { [STONETOP_SCOPE]: { custom: true } },
 		};
 	}
 
@@ -813,21 +1058,125 @@ export class StonetopCharacter {
 			if (opt.usesBonus.evenLevelBonus) {
 				bonus += Math.floor(level / 2) * opt.usesBonus.evenLevelBonus;
 			}
-			for (const mb of (opt.usesBonus.moveBonus ?? [])) {
-				const instances = ownedAllByName.get(mb.moveName)?.length ?? 0;
-				bonus += instances * mb.perInstance;
-			}
+			bonus += sumMoveBonus(opt.usesBonus.moveBonus, n => ownedAllByName.get(n)?.length ?? 0);
 			if (bonus > 0) result[opt.slug] = (opt.resource?.max ?? 0) + bonus;
 		}
 		return result;
 	}
 
-	async selectPossession(slug)   { await this._possessions.select(slug); }
-	async deselectPossession(slug) { await this._possessions.deselect(slug); }
+	// Move name → how many of that move the actor owns. Feeds sub-choice caps that
+	// grow with a move (the Blessed's sacred-pouch remarkable traits, +1 per Big Magic).
+	ownedMoveCounts() {
+		const counts = {};
+		for (const [name, items] of this._buildOwnedMovesMap()) counts[name] = items.length;
+		return counts;
+	}
+
+	// Walk every subgroup of every selected (or preselected) possession that carries
+	// `choiceGroups`, yielding `{ opt, sg }`. Shared descent for the two sacred-pouch
+	// cap helpers below, which differ only in the innermost predicate.
+	*_selectedPossessionSubgroups(specialPossessions) {
+		const sp = specialPossessions;
+		if (!sp) return;
+		const selected = new Set([...(sp.preselected ?? []), ...this._possessions.selected]);
+		for (const opt of (sp.options ?? [])) {
+			if (!selected.has(opt.slug) || !opt.choiceGroups?.length) continue;
+			for (const cg of opt.choiceGroups) {
+				for (const sg of (cg.subgroups ?? [])) yield { opt, sg };
+			}
+		}
+	}
+
+	// Map of move name → possession slug for the character's selected possessions whose
+	// sub-choice cap grows with that move (sacred pouch ← Big Magic). Drives the "edit
+	// sacred pouch" affordance on those move cards and the auto-open on gaining one.
+	possessionTriggerMoves(playbookData) {
+		const map = {};
+		for (const { opt, sg } of this._selectedPossessionSubgroups(playbookData?.specialPossessions)) {
+			for (const mb of (sg.maxSelectBonus?.moveBonus ?? [])) {
+				if (mb.moveName) map[mb.moveName] = opt.slug;
+			}
+		}
+		return map;
+	}
+
+	// The selected possession (slug) whose sub-choice cap grows with `moveName` and
+	// currently has an unfilled slot (chosen < cap), or null. Lets the sheet auto-open
+	// the choices editor only when gaining the move actually frees a new pick.
+	async possessionWithOpenChoiceFor(moveName) {
+		if (!moveName) return null;
+		const sp = (await this.playbook())?.specialPossessions;
+		const moveCounts = this.ownedMoveCounts();
+		const subChoices = this._possessions.subChoices;
+		for (const { opt, sg } of this._selectedPossessionSubgroups(sp)) {
+			if (!sg.multiSelect) continue;
+			if (!(sg.maxSelectBonus?.moveBonus ?? []).some(mb => mb.moveName === moveName)) continue;
+			const max = effectiveSubgroupMax(sg, moveCounts);
+			const picked = new Set(subChoices[opt.slug] ?? []);
+			const count = (sg.options ?? []).filter(o => picked.has(o.slug)).length;
+			if (max != null && count < max) return opt.slug;
+		}
+		return null;
+	}
+
+	async selectPossession(slug)   { await this._possessions.select(slug); await this._addPossessionGrants(slug); }
+	async deselectPossession(slug) { await this._possessions.deselect(slug); await this._removePossessionGrants(slug); }
+
+	// Bundled-gear sync (see possession-grants.js). Materialize a possession's
+	// `grantsItems` as inventory items on select; tear them down on deselect.
+	_grantedItemsFor(slug) {
+		return this._actor.items.filter(i =>
+			i.type === "move" &&
+			i.system?.moveType === "inventory-custom" &&
+			i.system?.sourcePossession === slug,
+		);
+	}
+
+	async _addPossessionGrants(slug) {
+		const playbook = await this.playbook();
+		const opt = (playbook?.specialPossessions?.options ?? []).find(o => o.slug === slug);
+		if (!opt?.grantsItems?.length) return;
+		const existing    = new Set(this._grantedItemsFor(slug).map(i => i.system?.sourceKey ?? i.name));
+		const sourceLabel = (opt.label ?? "").replace(/<[^>]*>/g, "").trim();
+		const toCreate    = grantsToCreate(opt.grantsItems, existing, { slug, sourceLabel });
+		if (toCreate.length) await this._actor.createEmbeddedDocuments("Item", toCreate);
+	}
+
+	async _removePossessionGrants(slug) {
+		const ids = this._grantedItemsFor(slug).map(i => i._id);
+		if (ids.length) await this._actor.deleteEmbeddedDocuments("Item", ids);
+	}
 	async setCustomPossessions(labels) { await this._possessions.setCustom(labels); }
 	async removeCustomPossession(slug) { await this._possessions.removeCustom(slug); }
 	async setPossessionUses(slug, count) { await this._possessions.setUses(slug, count); }
-	async selectSubChoice(possessionSlug, choiceSlug)   { await this._possessions.addSubChoice(possessionSlug, choiceSlug); }
+
+	// The choiceGroups subgroup (if any) within `possessionSlug` that contains `choiceSlug`,
+	// so a sub-choice write can enforce that subgroup's cap. Null for radios / pick-N choices
+	// (which live in `opt.choices`, not `opt.choiceGroups`).
+	async _choiceSubgroupFor(possessionSlug, choiceSlug) {
+		const opt = (await this.playbook())?.specialPossessions?.options?.find(o => o.slug === possessionSlug);
+		for (const cg of (opt?.choiceGroups ?? [])) {
+			for (const sg of (cg.subgroups ?? [])) {
+				if ((sg.options ?? []).some(o => o.slug === choiceSlug)) return sg;
+			}
+		}
+		return null;
+	}
+
+	async selectSubChoice(possessionSlug, choiceSlug) {
+		// Enforce a capped multi-select line's limit in the model (the sacred pouch's
+		// remarkable traits, 1 + Big Magic): refuse a pick past the effective cap so over-cap
+		// is impossible regardless of which surface drove it. The UI `disabled` state is then a
+		// convenience, not the only guard. Radios / uncapped / pick-N lines fall straight through.
+		const sg = await this._choiceSubgroupFor(possessionSlug, choiceSlug);
+		if (sg?.multiSelect) {
+			const max = effectiveSubgroupMax(sg, this.ownedMoveCounts());
+			const picked = this._possessions.subChoices[possessionSlug] ?? [];
+			const atCap = max != null && (sg.options ?? []).filter(o => picked.includes(o.slug)).length >= max;
+			if (atCap && !picked.includes(choiceSlug)) return;
+		}
+		await this._possessions.addSubChoice(possessionSlug, choiceSlug);
+	}
 	async setPossessionSubChoices(possessionSlug, choiceSlugs) { await this._possessions.setSubChoices(possessionSlug, choiceSlugs); }
 	async deselectSubChoice(possessionSlug, choiceSlug) { await this._possessions.removeSubChoice(possessionSlug, choiceSlug); }
 	async selectSubChoiceExclusive(possessionSlug, choiceSlug, exclusiveSlugs) { await this._possessions.selectExclusive(possessionSlug, choiceSlug, exclusiveSlugs); }
@@ -916,14 +1265,18 @@ export class StonetopCharacter {
 				rollType: normalizeRollType(i.system?.rollType),
 				rollLabel: _rollLabelForMove(i.name, i.system?.rollType, i.system),
 				description: i.system?.description ?? null,
+				// Only player-authored moves (not foreign playbook moves that also land
+				// in "other") get the edit affordance on the sheet.
+				custom: _isCustomMove(i),
 			}));
 
 		return { playbookMoves, basicMoves: orderedBasicMoves, otherGroups, otherMoves, startingMovesNote: playbookData?.startingMovesNote ?? null };
 	}
 
 	buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, actorPlaybook) {
+		const actorStats = _statValueMap(this._actor.system?.stats);
 		return entries.map(e =>
-			new PlaybookMoveEntry(e, ownedAllByName.get(e.name) ?? [], bgMoveNames, ownedAllByName, actorLevel, actorPlaybook)
+			new PlaybookMoveEntry(e, ownedAllByName.get(e.name) ?? [], bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats)
 		);
 	}
 
@@ -984,9 +1337,10 @@ export class StonetopCharacter {
 
 	async addMove(compendiumId, { skipIfOwned = false } = {}) {
 		const doc = await this._moveRepo.getPlaybookMoveDocument(compendiumId);
-		if (!doc) return;
-		if (skipIfOwned && this._actor.items.some(i => i.type === "move" && i.name === doc.name)) return;
-		await this._actor.createEmbeddedDocuments("Item", [doc.toObject()]);
+		if (!doc) return null;
+		if (skipIfOwned && this._actor.items.some(i => i.type === "move" && i.name === doc.name)) return null;
+		const created = await this._actor.createEmbeddedDocuments("Item", [doc.toObject()]);
+		return created?.[0] ?? null;
 	}
 
 	async addPlaybookMoveByName(playbookName, moveName) {
@@ -999,7 +1353,15 @@ export class StonetopCharacter {
 	}
 
 	async removeMove(ownedId) {
-		if (ownedId) await this._actor.deleteEmbeddedDocuments("Item", [ownedId]);
+		if (!ownedId) return;
+		// Cascade: a cross-playbook move (Versatile/Worldly/…) tags each foreign move it
+		// granted with grantedBy.instanceId === its own item id. Removing the cross-playbook
+		// move must also remove those granted moves, or they'd linger in "Learned Moves" with
+		// a dangling "Granted by <gone move>" label and an ability the player no longer has.
+		const orphans = this._actor.items
+			.filter(i => i.type === "move" && i.flags?.[STONETOP_SCOPE]?.grantedBy?.instanceId === ownedId)
+			.map(i => i._id);
+		await this._actor.deleteEmbeddedDocuments("Item", [ownedId, ...orphans]);
 	}
 
 	// Apply the "either X OR Y" starting-move picks: grant the chosen move in each group
@@ -1153,6 +1515,7 @@ export class StonetopCharacter {
 	async setRollMode(rollMode) {
 		await this._actor.setFlag(STONETOP_SCOPE, "rollMode", _normalizeSheetRollMode(rollMode));
 	}
+	async getArcanum(slug)                           { return this._arcana.getArcanum(slug); }
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
 	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); }
 	async identifyArcanum(slug)                      { await this._arcana.identifyArcanum(slug); }
@@ -1184,7 +1547,7 @@ export class StonetopCharacter {
 			const entries     = await this._moveRepo.getPlaybookMoves(playbookData.name);
 			const all = this.sortPlaybookMoves(
 				this.buildMovelistContext(entries, ownedAllByName, bgMoveNames, newLevel, playbookData.name)
-			).filter(e => !e.owned);
+			).filter(e => !e.owned || (e.repeatable && e.ownedIds.length < e.repeatMax));
 			availableMoves = all.filter(e => !e.locked);
 			lockedMoves    = all.filter(e => e.locked);
 		}
@@ -1200,14 +1563,65 @@ export class StonetopCharacter {
 		return {
 			level, xp, cost, newLevel,
 			xpRemaining: xp - cost,
+			playbookName: playbookData?.name ?? null,
+			playbookSlug: playbookData?.slug ?? actor.system?.playbook?.slug ?? null,
 			availableMoves,
 			lockedMoves,
 			needsInvocation,
 			availableInvocations,
+			// Current stat values, so the stat-increase picker can grey out any stat
+			// already at the chosen move's cap (+2 / +3).
+			stats: Object.entries(_STAT_DEFS).map(([key, { name, abbr }]) => ({
+				key, name, abbr, value: actor.system?.stats?.[key]?.value ?? 0,
+			})),
+			// All current move marks, so the dialog's mark step can show what's already
+			// spent on a budgeted move (Veteran Crew / Well Versed / …) and compute the
+			// remaining picks for this take.
+			marks: this._moveResources.getMarks(),
 		};
 	}
 
-	async applyLevelUp(selectedMoveCompendiumId, selectedInvocationSlug) {
+	// Cross-playbook foreign-move pickers (Versatile/Worldly/Dabbler/Wild Soul/Initiate of
+	// the Secret Arts/Seasoned Warrior/Arts of War) let the player learn a move from another
+	// playbook "for which they otherwise qualify". Given the picked move's `crossPlaybook`
+	// config + the level being gained, returns the qualifying foreign moves
+	// ({compendiumId, name, description, playbook}), EXCLUDING: Improved/Superior Stat
+	// (cap != null), other cross-playbook moves (no third-playbook chaining), and moves
+	// already owned. The foreign move's own `requirement.playbook` is intentionally IGNORED
+	// — crossing playbooks is the point — but its level + required-move prereqs are honored.
+	async getForeignMovesForLevelUp(crossPlaybook, level) {
+		const ownName = (await this.playbook())?.name ?? this._actor.system?.playbook?.name ?? null;
+		const allowed = crossPlaybook?.playbooks === "any"
+			? _ALL_PLAYBOOK_NAMES.filter(p => p !== ownName)
+			: (crossPlaybook?.playbooks ?? []).filter(p => p !== ownName);
+		const ownedNames = new Set(this._actor.items.filter(i => i.type === "move").map(i => i.name));
+		const actorStats = _statValueMap(this._actor.system?.stats);
+		const out = [], seen = new Set();
+		// Fetch every allowed playbook's moves concurrently — the reads are independent
+		// compendium lookups, so awaiting them one at a time just stacks latency (up to
+		// ~8 playbooks for an "any" cross-playbook move).
+		const movesPerPlaybook = await Promise.all(allowed.map(pb => this._moveRepo.getPlaybookMoves(pb)));
+		for (let i = 0; i < allowed.length; i++) {
+			const pb = allowed[i];
+			for (const def of movesPerPlaybook[i]) {
+				if (def.cap != null) continue;          // no Improved/Superior Stat
+				if (def.crossPlaybook) continue;         // no third-playbook chaining
+				if (ownedNames.has(def.name) || seen.has(def.name)) continue;
+				if (!_foreignMoveQualifies(def, ownedNames, level, actorStats)) continue;
+				seen.add(def.name);
+				out.push({ compendiumId: def.id, name: def.name, description: def.description ?? "", playbook: pb, requiresLabel: _foreignRequiresLabel(def.requirement) });
+			}
+		}
+		out.sort((a, b) => a.playbook.localeCompare(b.playbook) || a.name.localeCompare(b.name));
+		return out;
+	}
+
+	// `choices` carries any decision the picked move demands at acquisition. Today that
+	// is `{ stat, cap }` for the stat-increase moves (Improved/Superior Stat); the dialog
+	// collects it, this commits it. The move is added first so the choice can key off the
+	// new item's id, then the choice is applied — a mid-flow failure leaves the move owned
+	// (its choice re-collectable from the card) rather than a half-applied stat bump.
+	async applyLevelUp(selectedMoveCompendiumId, selectedInvocationSlug, choices = null) {
 		const level = this._actor.system?.attributes?.level?.value ?? 1;
 		const xp    = this._actor.system?.attributes?.xp?.value ?? 0;
 		const cost  = 6 + level * 2;
@@ -1215,12 +1629,72 @@ export class StonetopCharacter {
 			"system.attributes.level.value": level + 1,
 			"system.attributes.xp.value":   Math.max(0, xp - cost),
 		});
+		let addedItem = null;
 		if (selectedMoveCompendiumId) {
-			await this.addMove(selectedMoveCompendiumId);
+			addedItem = await this.addMove(selectedMoveCompendiumId);
+		}
+		if (addedItem && choices?.stat) {
+			await this._applyStatIncreaseChoice(addedItem, choices.stat, choices.cap ?? null);
+		}
+		if (addedItem && choices?.crossPlaybook) {
+			await this._applyForeignMoveChoice(addedItem, choices.foreignMoveId ?? null, choices.grantsPossession ?? null);
+		}
+		// Mark-selection moves (Veteran Crew / Heroes to the Last / Beast of Legend / Well
+		// Versed) and the Would-Be Hero's Potential for Greatness collect their marks here.
+		// Keyed by move NAME — the same store the sheet writes — so this is NOT gated on
+		// `addedItem`: PfG's target is an already-owned move, not the one just picked. A
+		// budgeted move WAS added above, so its owned-count (and thus its repeat-scaling
+		// cap) already reflects this take when setCountMark clamps below.
+		if (choices?.marks?.picks?.length) {
+			await this._applyMarkChoices(choices.marks.moveName, choices.marks.picks);
 		}
 		if (selectedInvocationSlug) {
 			const current = this._actor.getFlag("stonetop_pwd", "invocations.selected") ?? [];
 			await this._actor.setFlag("stonetop_pwd", "invocations.selected", [...current, selectedInvocationSlug]);
+		}
+	}
+
+	// Record an Improved/Superior Stat pick: remember which stat this move instance raised
+	// (keyed by the new item's id, so a repeatable Improved Stat's instances stay distinct
+	// and the "+1 STR" chip renders on the right card), then bump that stat by +1, clamped
+	// to the move's cap (+2 / +3). Tagged with the move name so the ledger reads "via …".
+	async _applyStatIncreaseChoice(moveItem, statKey, cap) {
+		if (!_STAT_DEFS[statKey]) return;
+		const choices = { ...(this._actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {}), [moveItem.id]: statKey };
+		await this._actor.setFlag(STONETOP_SCOPE, "improvedStatChoices", choices);
+		const current = this._actor.system?.stats?.[statKey]?.value ?? 0;
+		const next    = cap != null ? Math.min(current + 1, cap) : current + 1;
+		if (next > current) {
+			await this._actor.update({ [`system.stats.${statKey}.value`]: next }, { stonetopMove: moveItem.name });
+		}
+	}
+
+	// Cross-playbook pick (Versatile/Worldly/…): add the chosen foreign move and tag it
+	// "granted by" this cross-playbook move instance, so it renders in the "Learned Moves"
+	// category and a repeatable cross-playbook move can track each pick separately. Some
+	// cross-playbook moves (Initiate of the Secret Arts) also grant a possession — the
+	// Seeker's Sacred Pouch — on first take; the grant is idempotent (skips if already owned).
+	async _applyForeignMoveChoice(crossItem, foreignMoveCompendiumId, grantsPossession) {
+		if (foreignMoveCompendiumId) {
+			const foreign = await this.addMove(foreignMoveCompendiumId);
+			if (foreign) {
+				await foreign.setFlag(STONETOP_SCOPE, "grantedBy", { move: crossItem.name, instanceId: crossItem.id });
+			}
+		}
+		if (grantsPossession && !this._possessions.selected.has(grantsPossession)) {
+			await this.selectPossession(grantsPossession);
+		}
+	}
+
+	// Apply a level-up mark step's picks (the budgeted moves — Veteran Crew / Heroes to the
+	// Last / Beast of Legend / Well Versed) to the move's mark store via setCountMark
+	// (budget-clamped, level-stamped; hp/armor/crew/companion effects are derived on render,
+	// so we never apply them here). Writes flags.stonetop_pwd.moves.moveMarks keyed by move
+	// NAME, the same surface the sheet's own checkboxes use.
+	async _applyMarkChoices(moveName, picks) {
+		for (const pick of picks) {
+			const current = _markEntries(this._moveResources.getMarks()[moveName]?.[pick.slug]).length;
+			await this.setCountMark(moveName, pick.slug, current + 1);
 		}
 	}
 
@@ -1235,6 +1709,45 @@ export class StonetopCharacter {
 }
 
 // ── Snapshot helpers ──────────────────────────────────────────────────────────
+
+// The 9 playbooks by display name (as stored in a move's system.playbook), for the
+// Versatile "any other playbook" cross-playbook pick.
+const _ALL_PLAYBOOK_NAMES = [
+	"The Blessed", "The Fox", "The Heavy", "The Judge", "The Lightbearer",
+	"The Marshal", "The Ranger", "The Seeker", "The Would-Be Hero",
+];
+
+// A foreign move qualifies for a cross-playbook pick when the actor owns its required
+// moves, meets its level, and meets any machine-checkable stat minimum (Musclebound's
+// STR +2 — gated here just as it is on its home playbook, so crossing playbooks can't
+// dodge the prereq). Its `requirement.playbook` is intentionally ignored (the
+// cross-playbook move grants the cross-playbook access); a null requirement always
+// qualifies. NOTE: a freeform `requirement.note` (e.g. "All 6 marks in Potential for
+// Greatness") is still NOT machine-checked — it can't be without a per-note rule engine —
+// so such a move stays pickable; the note is surfaced in the picker for the player to
+// self-police, exactly as the sheet shows note-only prerequisites on owned moves.
+function _foreignMoveQualifies(def, ownedNames, level, actorStats = {}) {
+	const req = def.requirement;
+	if (!req) return true;
+	if (req.level && level < req.level) return false;
+	for (const m of (req.moves ?? [])) if (!ownedNames.has(m)) return false;
+	if (statRequirementsUnmet(req.stats, actorStats)) return false;
+	return true;
+}
+
+// Display string of a foreign move's prerequisites for the picker (required moves + the
+// machine-checked stat minimum + the freeform note); the playbook requirement is omitted
+// (crossing playbooks is the point) and level is omitted (already enforced). Null when
+// there's nothing to show.
+function _foreignRequiresLabel(req) {
+	if (!req) return null;
+	const parts = [];
+	if (req.moves?.length) parts.push(req.moves.join(", "));
+	const statLabel = statRequirementLabel(req.stats);
+	if (statLabel)         parts.push(statLabel);
+	if (req.note)          parts.push(req.note);
+	return parts.length ? parts.join("; ") : null;
+}
 
 const _STAT_DEFS = {
 	str: { name: "Strength",     abbr: "STR" },
@@ -1260,6 +1773,13 @@ function _buildStatsSection(actor) {
 			new StatSnapshot(rawStats[key]?.value ?? 0, name, abbr),
 		])
 	);
+}
+
+// Flatten the actor's `system.stats` ({ str: { value }, … }) to a plain key→value map
+// for the move-list's machine-checkable stat prerequisites (Musclebound's STR +2).
+function _statValueMap(rawStats) {
+	const stats = rawStats ?? {};
+	return Object.fromEntries(Object.keys(_STAT_DEFS).map(key => [key, stats[key]?.value ?? 0]));
 }
 
 function _buildDebilitiesSection(actor) {
@@ -1291,6 +1811,11 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}) 
 		.build();
 }
 
+// Magnificent Specimen (Ranger): "each time you take this move, your companion gains 2
+// additional options of your choice" → 2 extra trait picks on the companion per copy.
+const MAGNIFICENT_SPECIMEN_MOVE = "Magnificent Specimen";
+const COMPANION_TRAIT_PICKS_PER_MAGNIFICENT_SPECIMEN = 2;
+
 // Final per-Crew-member stats: the playbook's data-driven base plus the bonuses
 // from marked Marshal moves (Heroes to the Last / Veteran Crew).
 function _buildCrewStats(crew, moveBonuses) {
@@ -1299,6 +1824,21 @@ function _buildCrewStats(crew, moveBonuses) {
 		armor:     crew?.armor ?? 0,
 		damageDie: stepDie(crew?.damageDie ?? "d6", moveBonuses.crewDamageSteps ?? 0, moveBonuses.crewDamageCap),
 		rollMod:   (crew?.roll ?? 1) + (moveBonuses.crewRollSteps ?? 0),
+		// Extra tags the player may pick (Veteran Crew "Select 2 new tags"), added to the
+		// followers-tab crew tag limit on top of the playbook's base allowance.
+		tagBonus:  moveBonuses.crewTags ?? 0,
+	};
+}
+
+// Animal Companion bonuses from owned Ranger moves, layered on top of the trait-derived
+// base stats by the followers-tab companion card: Beast of Legend's marked "+4 HP / +1
+// armor" pick (via moveBonuses), plus Magnificent Specimen's "+2 options of your choice
+// each time you take this move" — i.e. 2 extra companion trait picks per owned copy.
+function _buildCompanionBonuses(moveBonuses, ownedAllByName) {
+	return {
+		hp:         moveBonuses.companionHp    ?? 0,
+		armor:      moveBonuses.companionArmor ?? 0,
+		traitPicks: COMPANION_TRAIT_PICKS_PER_MAGNIFICENT_SPECIMEN * (ownedAllByName.get?.(MAGNIFICENT_SPECIMEN_MOVE)?.length ?? 0),
 	};
 }
 
@@ -1451,13 +1991,38 @@ function _markEntries(stored) {
 	return [];
 }
 
+// Total checked marks across a move's budgeted (non-stat) options, optionally skipping
+// one slug. Drives both the render-side "used" badge and the writer-side "others
+// already spent" clamp, so they always count picks the same way.
+function _sumMarkPicks(moveMarks, markOptions, skipSlug = null) {
+	let n = 0;
+	for (const opt of markOptions) {
+		if (opt.choice === "stat" || opt.slug === skipSlug) continue;
+		n += _markEntries(moveMarks[opt.slug]).length;
+	}
+	return n;
+}
+
 // Build a move's mark options for display: stat-choice options (Potential for
 // Greatness) get a stat dropdown per slot; the rest get checkbox arrays. Each
 // filled slot / checked mark carries the level it was marked on.
+//
+// Returns `{ options, budget }`. When the move declares a `markBudget`, picks across
+// its (non-stat) options are capped at a repeat-scaling total (`moveMarkBudget`):
+// unchecked boxes lock once the budget is spent, and `budget = { used, max, atBudget,
+// over }` drives the card's "N / max" badge. Without a markBudget both are uncapped
+// (the prior behavior) and `budget` is null.
 function _buildMarkOptions(entry, markCounts) {
-	if (!entry.markOptions?.length) return null;
+	if (!entry.markOptions?.length) return { options: null, budget: null };
 	const statList = Object.entries(_STAT_DEFS).map(([key, { abbr }]) => ({ key, abbr }));
-	return entry.markOptions.map(opt => {
+
+	// Total checked across budgeted (non-stat) options — the spent picks.
+	const ownedCount = entry.ownedIds?.length ?? (entry.owned ? 1 : 0);
+	const max = moveMarkBudget(entry.markBudget, ownedCount);
+	const used = max != null ? _sumMarkPicks(markCounts, entry.markOptions) : 0;
+	const atBudget = max != null && used >= max;
+
+	const options = entry.markOptions.map(opt => {
 		const entries = _markEntries(markCounts[opt.slug]);
 		const marks = opt.marks ?? 1;
 		if (opt.choice === "stat") {
@@ -1480,9 +2045,21 @@ function _buildMarkOptions(entry, markCounts) {
 				index: i,
 				checked: i < count,
 				level: entries[i]?.level ?? null,
+				// Lock an UNchecked box once the budget is spent — checked boxes always
+				// stay editable so the player can free up a pick (and any grandfathered
+				// over-budget mark from before the cap existed is never force-cleared).
+				disabled: atBudget && !(i < count),
 			})),
 		};
 	});
+
+	// needsChoice: the move is owned and still has unspent picks — drives a "needs your
+	// input" cue on the card (distinct from the requirements-unmet warning). False when
+	// unowned (max 0), fully spent (used == max), or over budget (used > max).
+	const budget = max != null
+		? { used, max, atBudget, over: used > max, needsChoice: max > 0 && used < max }
+		: null;
+	return { options, budget };
 }
 
 function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}) {
@@ -1501,9 +2078,9 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		: null;
 	const sourceLabel = entry.isStarting ? (bgSlugs.has(slugify(entry.name)) ? "Background" : "Starting move") : null;
 
-	const markOptions = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {});
+	const { options: markOptions, budget: markBudget } = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {});
 
-	const statChoices = (entry.name === "Improved Stat" && entry.ownedIds.length > 0)
+	const statChoices = (entry.cap != null && entry.ownedIds.length > 0)
 		? entry.ownedIds
 			.map(ownedId => {
 				const statKey = improvedStatChoices[ownedId] ?? null;
@@ -1527,6 +2104,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withOwned(entry.owned)
 		.withOwnedIds(entry.ownedIds)
 		.withLocked(entry.locked)
+		.withRequirementsUnmet(entry.requirementsUnmet)
 		.withRequirement(requirement)
 		.withRequiresLabel(requirement?.label ?? null)
 		.withResource(resource)
@@ -1535,6 +2113,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withBackgroundAnswer(moveBackgroundAnswers[entry.name] ?? null)
 		.withStatChoices(statChoices)
 		.withMarkOptions(markOptions)
+		.withMarkBudget(markBudget)
 		.withAsterisk(!!entry.asterisk)
 		.build();
 }
@@ -1588,16 +2167,19 @@ function _rollLabelForMove(name, rollType, data = {}) {
 		const match = String(data.description ?? "").match(/roll\s+\+([A-Za-z][A-Za-z ]*)/i);
 		if (match) return match[1].trim();
 	}
-	if ((data.moveType === "basic" || data.moveType === "expedition") && normalizedRollType === "ask") return "ANY";
+	// "ask" = choose a stat each time → label it "ANY" for every move type (basic,
+	// expedition, and player-authored custom "other" moves alike).
+	if (normalizedRollType === "ask") return "ANY";
 	return ROLL_LABELS_BY_TYPE[normalizedRollType] ?? null;
 }
 
-function _buildMovelist(categories, other, pdiLabel = null) {
+function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1) {
 	const playbookCat   = categories.find(c => c.key === "playbook");
 	const basicCat      = categories.find(c => c.key === "basic");
 	const expeditionCat = categories.find(c => c.key === "expedition");
 	const postDeathCat  = categories.find(c => c.key === "post-death");
-	const otherCats     = categories.filter(c => !["basic", "playbook", "expedition", "post-death"].includes(c.key));
+	const learnedCat    = categories.find(c => c.key === "learned");
+	const otherCats     = categories.filter(c => !["basic", "playbook", "expedition", "post-death", "learned"].includes(c.key));
 	const postDeathGroup = postDeathCat && pdiLabel
 		? { label: pdiLabel, moves: postDeathCat.moves }
 		: null;
@@ -1606,8 +2188,26 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 	const chosenCount    = (playbookCat?.moves ?? []).filter(m => m.sourceLabel === null && m.owned).length;
 	const movesIncomplete = pickCount > 0 && chosenCount < pickCount;
 
+	// Advancement budget: every level past 1 grants one move pick, on top of the
+	// `pickCount` starting "moves of your choice". Count OWNED INSTANCES of every
+	// non-starting playbook move so a repeatable retake (e.g. Improved Stat taken
+	// twice) counts each take, and a cross-playbook pick (Versatile) counts once —
+	// the foreign move it grants lives in the Learned category and is excluded.
+	// Background / auto-granted starting moves are `isStarting` and never counted.
+	const chosenInstances = (playbookCat?.moves ?? [])
+		.filter(m => !m.isStarting)
+		.reduce((n, m) => n + (m.ownedIds?.length ?? 0), 0);
+	const expectedPicks = pickCount + Math.max(0, actorLevel - 1);
+	const levelMovesShortfall = Math.max(0, expectedPicks - chosenInstances);
+	// Hidden while the starting-moves onboarding prompt is still up, so the two cues
+	// never stack; it surfaces once starting picks are done but the character is still
+	// behind for their level (e.g. a GM-bumped or imported pre-made character). Gated on
+	// a chosen playbook so a playbook-less character past level 1 never false-positives.
+	const levelMovesIncomplete = !!playbookCat && !movesIncomplete && levelMovesShortfall > 0;
+
 	return new MovelistBuilder()
 		.withPlaybookMoves(playbookCat?.moves ?? [])
+		.withLearnedMoves(learnedCat?.moves ?? [])
 		.withBasicMoves(basicCat?.moves ?? [])
 		.withExpeditionMoves(expeditionCat?.moves ?? [])
 		.withOtherGroups(otherCats.map(cat => new MoveGroupSnapshot(cat.key, cat.title, cat.moves)))
@@ -1615,6 +2215,9 @@ function _buildMovelist(categories, other, pdiLabel = null) {
 		.withStartingMovesNote(startingNote)
 		.withPostDeathGroup(postDeathGroup)
 		.withMovesIncomplete(movesIncomplete)
+		.withLevelMovesIncomplete(levelMovesIncomplete)
+		.withLevelMovesShortfall(levelMovesShortfall)
+		.withCharacterLevel(actorLevel)
 		.build();
 }
 

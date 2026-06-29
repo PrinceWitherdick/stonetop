@@ -219,7 +219,7 @@ export const BLESSED_PLAYBOOK = {
 		"options": [
 			{
 				"slug": "sacred-pouch",
-				"label": "Sacred pouch <span class=\"stonetop-item-qualifier\">(<em>magical</em>)</span>",
+				"label": "Sacred pouch",
 				"description": "<p>Doesn't take up space in your inventory. It can hold up to 3 Stock (sacred herbs, powders, stones, pigments, chalks, clay, and so forth). Each time you gain an even-numbered level, your pouch can hold +1 Stock. When anyone but you looks inside your sacred pouch and touches the materials therein, the Stock is ruined.</p><p>When you have a few days of downtime in familiar terrain, you may replenish your Stock.</p><p>When you Forage, you can produce Stock instead of provisions.</p>",
 				"usesBonus": {
 					"evenLevelBonus": 1,
@@ -333,7 +333,14 @@ export const BLESSED_PLAYBOOK = {
 			{
 				"slug": "apiary",
 				"label": "Apiary",
-				"description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hat &amp; veils, etc."
+				"description": "beeswax, candles (<em>close, area</em>, lasts ~1 hr), honey, ◇ bee smokers, ◇ hat &amp; veils, etc.",
+				"grantsItems": [
+					{ "name": "Beeswax", "column": "small" },
+					{ "name": "Candles (close, area, ~1 hr)", "column": "small" },
+					{ "name": "Honey", "column": "small" },
+					{ "name": "Bee smokers", "column": "regular", "weight": 1 },
+					{ "name": "Hat & veils", "column": "regular", "weight": 1 }
+				]
 			},
 			{
 				"slug": "collected-offerings",
@@ -348,12 +355,30 @@ export const BLESSED_PLAYBOOK = {
 			{
 				"slug": "goat-herd",
 				"label": "Goat herd",
-				"description": "milk, cheese, pelts, meat, blood, horn, wool, etc. Each season, 1 in 4 chance of having a bezoar (swallow it to cure poison)."
+				"description": "milk, cheese, pelts, meat, blood, horn, wool, etc. Each season, 1 in 4 chance of having a bezoar (swallow it to cure poison).",
+				"grantsItems": [
+					{ "name": "Milk", "column": "small" },
+					{ "name": "Cheese", "column": "small" },
+					{ "name": "Pelts", "column": "small" },
+					{ "name": "Meat", "column": "small" },
+					{ "name": "Blood", "column": "small" },
+					{ "name": "Horn", "column": "small" },
+					{ "name": "Wool", "column": "small" }
+				]
 			},
 			{
 				"slug": "herb-garden",
 				"label": "Herb garden",
-				"description": "shears, mortars &amp; pestles, herbs, seeds, remedies, mild poisons, ◇ spades, etc. Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature)."
+				"description": "shears, mortars &amp; pestles, herbs, seeds, remedies, mild poisons, ◇ spades, etc. Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature).",
+				"grantsItems": [
+					{ "name": "Shears", "column": "small" },
+					{ "name": "Mortars & pestles", "column": "small" },
+					{ "name": "Herbs", "column": "small" },
+					{ "name": "Seeds", "column": "small" },
+					{ "name": "Remedies", "column": "small" },
+					{ "name": "Mild poisons", "column": "small" },
+					{ "name": "Spades", "column": "regular", "weight": 1 }
+				]
 			},
 			{
 				"slug": "mastiffs",
@@ -521,6 +546,14 @@ export const HEAVY_PLAYBOOK = {
 				"slug": "distillery",
 				"label": "Distillery",
 				"description": "○○ uses: skins of fine whisky (grants advantage to Persuade), copper tubes, malt, firkins, stills, barrels, etc.",
+				"grantsItems": [
+					{ "name": "Fine whisky (advantage to Persuade)", "column": "small" },
+					{ "name": "Copper tubes", "column": "small" },
+					{ "name": "Malt", "column": "small" },
+					{ "name": "Stills", "column": "small" },
+					{ "name": "Barrels", "column": "small" },
+					{ "name": "Firkins", "column": "regular", "weight": 1 }
+				],
 				"resource": {
 					"max": 2,
 					"title": null,
@@ -530,22 +563,55 @@ export const HEAVY_PLAYBOOK = {
 			{
 				"slug": "chirurgeons-tools",
 				"label": "Chirurgeon's tools",
-				"description": "catgut, straps, bandages, tubes, poultices, willow bark, ◇ bonesaws, etc."
+				"description": "catgut, straps, bandages, tubes, poultices, willow bark, ◇ bonesaws, etc.",
+				"grantsItems": [
+					{ "name": "Catgut", "column": "small" },
+					{ "name": "Straps", "column": "small" },
+					{ "name": "Bandages", "column": "small" },
+					{ "name": "Tubes", "column": "small" },
+					{ "name": "Poultices", "column": "small" },
+					{ "name": "Willow bark", "column": "small" },
+					{ "name": "Bonesaws", "column": "regular", "weight": 1 }
+				]
 			},
 			{
 				"slug": "husbandry-tools",
 				"label": "Husbandry tools",
-				"description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)."
+				"description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
+				"grantsItems": [
+					{ "name": "Brushes", "column": "small" },
+					{ "name": "Muzzles", "column": "small" },
+					{ "name": "Collars", "column": "small" },
+					{ "name": "Feed", "column": "small" },
+					{ "name": "Whips", "column": "regular", "weight": 1 },
+					{ "name": "Bridles", "column": "regular", "weight": 1 }
+				]
 			},
 			{
 				"slug": "smithy",
 				"label": "Smithy",
-				"description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc."
+				"description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc.",
+				"grantsItems": [
+					{ "name": "Iron goods", "column": "small" },
+					{ "name": "Ingots", "column": "small" },
+					{ "name": "Thick gloves", "column": "small" },
+					{ "name": "Anvil", "column": "small" },
+					{ "name": "Tongs", "column": "regular", "weight": 1 },
+					{ "name": "Bellows", "column": "regular", "weight": 1 }
+				]
 			},
 			{
 				"slug": "stoneworkers-tools",
 				"label": "Stoneworker's tools",
-				"description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc."
+				"description": "chisels, drills, ◇ prybars, ◇ spikes, ◇ block &amp; tackles, wheelbarrow, etc.",
+				"grantsItems": [
+					{ "name": "Chisels", "column": "small" },
+					{ "name": "Drills", "column": "small" },
+					{ "name": "Wheelbarrow", "column": "small" },
+					{ "name": "Prybars", "column": "regular", "weight": 1 },
+					{ "name": "Spikes", "column": "regular", "weight": 1 },
+					{ "name": "Block & tackles", "column": "regular", "weight": 1 }
+				]
 			},
 			{
 				"slug": "weapons-of-war",
