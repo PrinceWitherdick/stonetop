@@ -3724,9 +3724,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-custom-move-dialog .window-content {
 	max-height: calc(100vh - 80px);
 	overflow-y: auto;
+	/* Own the inset deterministically (the form below) rather than relying on
+	   core's window-content padding, which left the fields cramped at 2px. */
+	padding: 0;
 }
 
-.stonetop-custom-move-form { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; font-size: var(--st-fs-base); }
+.stonetop-custom-move-form { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; font-size: var(--st-fs-base); }
 .stonetop-custom-move-field { display: flex; flex-direction: column; gap: 3px; }
 .stonetop-custom-move-field > label { font-family: var(--font-stonetop); font-weight: bold; font-size: var(--st-fs-sm); }
 .stonetop-custom-move-form input[type="text"],
@@ -5948,6 +5951,23 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	line-height: 1.45;
 }
 
+/* Steps unique to one playbook (the Lightbearer-only invocation step) brand their
+   intro with the playbook's avatar art beside the prompt. */
+.stonetop-levelup-intro--playbook {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.stonetop-levelup-intro-icon {
+	flex: 0 0 auto;
+	width: 40px;
+	height: 40px;
+	object-fit: contain;
+	border: none;
+	border-radius: var(--st-radius);
+}
+
 /* XP / Level summary table */
 .stonetop-levelup-summary {
 	display: flex;
@@ -6042,18 +6062,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 /*
- * Masonry-style move grid: variable-height cards pack tightly into balanced
- * columns (multi-column, not CSS grid, whose row tracks would leave gaps).
- * Up to two columns, dropping to one when the window is narrowed. The columns
- * live in their own auto-height wrapper so the list scrolls VERTICALLY — a
- * multi-column box with a constrained height overflows sideways instead.
+ * Masonry-style card grids (move / foreign-move pickers and the invocation
+ * picker): variable-height cards pack tightly into balanced columns (multi-column,
+ * not CSS grid, whose row tracks would leave gaps). Up to two columns, dropping to
+ * one when the window is narrowed. The columns live in their own auto-height wrapper
+ * so the list scrolls VERTICALLY — a multi-column box with a constrained height
+ * overflows sideways instead.
  */
-.stonetop-levelup-move-grid {
+.stonetop-levelup-move-grid,
+.stonetop-levelup-invocation-grid {
 	columns: 210px 2;
 	column-gap: 6px;
 }
 
-.stonetop-levelup-move-grid > .stonetop-levelup-move-option {
+.stonetop-levelup-move-grid > .stonetop-levelup-move-option,
+.stonetop-levelup-invocation-grid > .stonetop-levelup-invocation-option {
 	break-inside: avoid;
 	-webkit-column-break-inside: avoid;
 	margin-bottom: 6px;
@@ -6065,10 +6088,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-bottom: 6px;
 }
 
+/* Invocation list — scroll container for the masonry columns (mirrors the move list). */
 .stonetop-levelup-invocation-list {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
 	flex: 1;
 	overflow-y: auto;
 }
@@ -9851,6 +9872,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-possession-choices .stonetop-choice-option-label.is-disabled {
 	opacity: 0.5;
 	cursor: default;
+}
+
+/* Add-only (level-up) surface: a remarkable trait the pouch already has, shown
+   checked but not re-editable. Reads as kept/settled, NOT dimmed-as-unavailable —
+   so override the .is-disabled fade above (equal specificity, later wins). */
+.stonetop-possession-choices .stonetop-choice-option-label.is-locked {
+	opacity: 1;
+	cursor: default;
+}
+.stonetop-pc-locked-icon {
+	margin-left: 2px;
+	color: slategrey;
+	font-size: var(--st-fs-sm);
 }
 
 .stonetop-pc-footer {

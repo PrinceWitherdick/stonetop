@@ -2,15 +2,22 @@ import { FrontOnOpen } from "../../../utils/front-on-open.js";
 import { markProseSpiralBullets } from "../../../utils/journal-spiral-bullets.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
 import { moveMarkBudget } from "../move-mark-budget.js";
+import { annotateInvocationEffects } from "../invocation-effects.js";
+import { getHoverDescriptionSetting } from "../../../settings.js";
+import { playbookIconPath } from "../../../utils/playbook-actors.js";
 
-// Base width (overview, stat, invocation). The move step widens so its two-column
-// masonry list shows both columns comfortably by default. Heights are NOT fixed
-// here: every step fits its own content (height:"auto"), and a CSS `max-height` on
-// `.stonetop-levelup-dialog` (stonetop.css) caps the tall steps — the move grid and
-// the invocation list — so they scroll inside a comfortable window instead of
-// ballooning to fill the viewport.
+// Base width (overview, stat, marks). The move, foreign-move, and invocation steps
+// widen so their two-column masonry lists show both columns comfortably by default.
+// Heights are NOT fixed here: every step fits its own content (height:"auto"), and a
+// CSS `max-height` on `.stonetop-levelup-dialog` (stonetop.css) caps the tall steps —
+// the move grid and the invocation grid — so they scroll inside a comfortable window
+// instead of ballooning to fill the viewport.
 const LEVELUP_BASE_WIDTH = 520;
 const LEVELUP_MOVE_WIDTH = 860;
+
+// Steps whose two-column masonry card grids need the wider window. Anything else
+// (overview, stat, marks) shows at LEVELUP_BASE_WIDTH.
+const LEVELUP_WIDE_STEPS = ["move", "foreignMove", "invocation"];
 
 // The level-up wizard is a linear sequence; each optional step appears only when its
 // predicate fires (`overview` and `move` are always present). Next/Back navigation and the
@@ -80,14 +87,14 @@ export class LevelUpDialog extends Application {
 	// changes, so a manual resize while picking moves isn't snapped back on the
 	// re-render a move click triggers. Every step fits its own content height (a CSS
 	// `max-height` caps the tall move/invocation lists so they scroll rather than
-	// balloon); only the width differs — the move picker widens for its two-column
-	// grid. So a short step that FOLLOWS the move pick — the stat picker — shrinks
-	// back down instead of hanging at the move step's large size. When `prevCenter`
-	// is known the window is re-centered on it so the resize stays put, not drifts.
+	// balloon); only the width differs — the move, foreign-move, and invocation
+	// pickers widen for their two-column grids (LEVELUP_WIDE_STEPS). So a short step
+	// like the stat picker shrinks back down instead of hanging at the wide size. When
+	// `prevCenter` is known the window is re-centered on it so the resize stays put.
 	_applyStepSize(prevCenter = null) {
 		if (this._sizedStep === this._step) return;
 		this._sizedStep = this._step;
-		const width = (this._step === "move" || this._step === "foreignMove") ? LEVELUP_MOVE_WIDTH : LEVELUP_BASE_WIDTH;
+		const width = LEVELUP_WIDE_STEPS.includes(this._step) ? LEVELUP_MOVE_WIDTH : LEVELUP_BASE_WIDTH;
 		// Apply the new width + fit-to-content height first so Foundry resolves the
 		// final height, then recenter using the now-known dimensions.
 		this.setPosition({ width, height: "auto" });
@@ -137,10 +144,13 @@ export class LevelUpDialog extends Application {
 			groupsAttr:    moveGroupKeys(playbookName, m.name).join(" "),
 		}));
 
+		// Mirror the Invocations tab: when the hover-descriptions setting is on, wrap the
+		// "Reduced:" / "Empowered:" labels so they carry the same explanatory tooltip here.
+		const showEffectTips = getHoverDescriptionSetting("hoverDescriptionsInvocations");
 		const invocations = d.availableInvocations.map(inv => ({
 			slug:        inv.slug,
 			label:       inv.label,
-			description: inv.description,
+			description: showEffectTips ? annotateInvocationEffects(inv.description ?? "") : inv.description,
 			selected:    inv.slug === this._selectedInvocationSlug,
 		}));
 
@@ -214,6 +224,10 @@ export class LevelUpDialog extends Application {
 			isLastStep,
 			markStep,
 			canContinue,
+			// Playbook avatar art, shown beside the intro of steps unique to one playbook
+			// (currently only the Lightbearer-only invocation step) to brand them.
+			playbookName:    d.playbookName,
+			playbookIcon:    playbookIconPath(d.playbookSlug),
 			newLevel:        d.newLevel,
 			cost:            d.cost,
 			xpRemaining:     d.xpRemaining,

@@ -8,12 +8,18 @@ import { buildChoiceGroupsView } from "./possession-choice-cap.js";
 // Blessed gains Big Magic (a fresh trait slot), or reached from the Big Magic move
 // card / the sacred-pouch edit pencil on the gear tab. Writes straight to the
 // actor's possession sub-choice flags, which re-renders the sheet under it.
+//
+// `addOnly` is the level-up surface: when auto-opened after a move frees a fresh
+// trait slot, it shows ONLY the capped remarkable-trait line with prior picks locked,
+// so the player adds the newly-earned trait without re-flavoring the pouch or swapping
+// an existing trait. The gear-tab pencil leaves addOnly false (full editor).
 export class PossessionChoicesDialog extends Application {
-	constructor(character, possessionSlug, { onDone } = {}, options = {}) {
+	constructor(character, possessionSlug, { onDone, addOnly = false } = {}, options = {}) {
 		super(options);
 		this._character      = character;
 		this._possessionSlug = possessionSlug;
 		this._onDone         = onDone ?? null;
+		this._addOnly        = addOnly;
 		this._title          = "Special Possession";
 		this._frontOnOpen    = new FrontOnOpen(this);
 	}
@@ -51,13 +57,24 @@ export class PossessionChoicesDialog extends Application {
 		this._title = (opt.label ?? "Special Possession").replace(/<[^>]*>/g, "").trim();
 		const picked     = this._character.possessions.subChoices[this._possessionSlug] ?? [];
 		const moveCounts = this._character.ownedMoveCounts();
+		const name = this._title.toLowerCase();
+		// Add-only mode locks the traits the pouch already had — captured ON FIRST
+		// RENDER so the fresh pick the player makes here stays toggleable until they
+		// click Done (re-renders after each toggle reuse this baseline, not the live set).
+		if (this._addOnly && this._lockedSlugs == null) this._lockedSlugs = [...picked];
 		return {
 			title:          this._title,
 			// Not the possession's mechanical rules (those live on the gear tab) —
-			// this editor only sets its descriptive traits, so say so.
-			description:    `<p>Update the traits of your ${this._title.toLowerCase()} below.</p>`,
+			// this editor only sets its descriptive traits, so say so. In add-only
+			// (level-up) mode, frame it as the single new trait just earned.
+			description:    this._addOnly
+				? `<p>You've gained an additional remarkable trait for your ${name}. Choose it below — your existing traits stay as they are.</p>`
+				: `<p>Update the traits of your ${name} below.</p>`,
 			possessionSlug: this._possessionSlug,
-			groups:         buildChoiceGroupsView(opt.choiceGroups, picked, moveCounts),
+			groups:         buildChoiceGroupsView(opt.choiceGroups, picked, moveCounts, {
+				addOnly:     this._addOnly,
+				lockedSlugs: this._lockedSlugs,
+			}),
 		};
 	}
 

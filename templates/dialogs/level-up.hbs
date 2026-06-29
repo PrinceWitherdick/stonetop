@@ -199,9 +199,13 @@
 	{{!-- ── Step 3: Choose an Invocation ──────────────────────────────── --}}
 	{{#if isInvocation}}
 	<div class="stonetop-levelup-step">
-		<p class="stonetop-levelup-intro">{{{localize "stonetop.specialMoves.levelUp.invocationIntro"}}}</p>
+		<div class="stonetop-levelup-intro stonetop-levelup-intro--playbook">
+			{{#if playbookIcon}}<img class="stonetop-levelup-intro-icon" src="{{playbookIcon}}" alt="{{playbookName}}">{{/if}}
+			<span>{{{localize "stonetop.specialMoves.levelUp.invocationIntro"}}}</span>
+		</div>
 
 		<div class="stonetop-levelup-invocation-list">
+			<div class="stonetop-levelup-invocation-grid">
 			{{#each invocations}}
 			<div class="stonetop-levelup-invocation-option{{#if selected}} is-selected{{/if}}"
 				data-slug="{{slug}}">
@@ -211,6 +215,7 @@
 				{{/if}}
 			</div>
 			{{/each}}
+			</div>
 		</div>
 	</div>
 	{{/if}}

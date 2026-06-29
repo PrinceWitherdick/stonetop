@@ -107,4 +107,64 @@ describe("buildChoiceGroupsView", () => {
 		expect(traitSg.options.find(o => o.slug === "t-b").disabled).toBe(false);
 		expect(traitSg.options.find(o => o.slug === "t-c").disabled).toBe(false);
 	});
+
+	describe("addOnly (level-up surface)", () => {
+		it("hides the flavor radio lines, keeping only the capped trait line", () => {
+			const view = buildChoiceGroupsView(GROUPS, ["origin-heirloom", "t-a"], { "Big Magic": 1 }, { addOnly: true });
+			expect(view).toHaveLength(1);
+			expect(view[0].heading).toBe("What remarkable trait does it possess?");
+			expect(view[0].subgroups).toHaveLength(1);
+			expect(view[0].subgroups[0].multiSelect).toBe(true);
+		});
+
+		it("drops the per-line note (it would contradict the raised cap readout)", () => {
+			const view = buildChoiceGroupsView(GROUPS, ["t-a"], { "Big Magic": 1 }, { addOnly: true });
+			expect(view[0].note).toBe("");
+		});
+
+		it("locks a prior pick (checked + disabled) but leaves the new slot open", () => {
+			const traitSg = buildChoiceGroupsView(GROUPS, ["t-a"], { "Big Magic": 1 }, { addOnly: true })[0].subgroups[0];
+			expect(traitSg.max).toBe(2);
+			const a = traitSg.options.find(o => o.slug === "t-a");
+			expect(a.checked).toBe(true);
+			expect(a.locked).toBe(true);
+			expect(a.disabled).toBe(true);  // can't be unchecked / swapped
+			// The freed slot stays addable.
+			const b = traitSg.options.find(o => o.slug === "t-b");
+			expect(b.locked).toBe(false);
+			expect(b.disabled).toBe(false);
+		});
+
+		it("once the new slot is filled, remaining options disable but only prior picks are locked", () => {
+			const traitSg = buildChoiceGroupsView(GROUPS, ["t-a", "t-b"], { "Big Magic": 1 }, { addOnly: true })[0].subgroups[0];
+			// Cap 2, both filled.
+			expect(traitSg.options.find(o => o.slug === "t-a").locked).toBe(true);
+			expect(traitSg.options.find(o => o.slug === "t-b").locked).toBe(true);
+			const c = traitSg.options.find(o => o.slug === "t-c");
+			expect(c.locked).toBe(false);     // never chosen → not "locked", just unavailable
+			expect(c.disabled).toBe(true);    // at cap
+		});
+
+		it("the full editor (addOnly false) leaves prior picks unlocked and toggleable", () => {
+			const traitSg = buildChoiceGroupsView(GROUPS, ["t-a"], { "Big Magic": 1 })[1].subgroups[0];
+			const a = traitSg.options.find(o => o.slug === "t-a");
+			expect(a.locked).toBe(false);
+			expect(a.disabled).toBe(false);
+		});
+
+		it("with an explicit lockedSlugs baseline, the fresh pick stays toggleable", () => {
+			// Baseline = the pouch's prior trait (t-a). The player has now also picked t-b
+			// in this session; t-b must NOT lock, so they can change their mind before Done.
+			const traitSg = buildChoiceGroupsView(GROUPS, ["t-a", "t-b"], { "Big Magic": 1 }, {
+				addOnly: true, lockedSlugs: ["t-a"],
+			})[0].subgroups[0];
+			const a = traitSg.options.find(o => o.slug === "t-a");
+			expect(a.locked).toBe(true);
+			expect(a.disabled).toBe(true);    // prior trait — committed
+			const b = traitSg.options.find(o => o.slug === "t-b");
+			expect(b.checked).toBe(true);
+			expect(b.locked).toBe(false);
+			expect(b.disabled).toBe(false);   // fresh pick — still changeable
+		});
+	});
 });

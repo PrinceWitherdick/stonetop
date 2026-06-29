@@ -34,6 +34,7 @@ import {attachFrontOnOpen, bringDialogToFront} from "../../utils/front-on-open.j
 import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
+import {annotateInvocationEffects} from "./invocation-effects.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
@@ -88,22 +89,6 @@ const VITAL_TOOLTIPS = {
 	xp:     "Experience. Mark 1 XP on a miss (roll 6-) and from some moves; when the track fills, spend it to level up.",
 	level:  "Your character level. Higher levels let you learn advanced moves and raise the XP needed to advance.",
 };
-
-// Plain-language explanations for an Invocation's Reduced / Empowered effects,
-// surfaced as hover tooltips on those labels in the Invocations tab.
-const INVOCATION_EFFECT_TOOLTIPS = {
-	reduced:   "When you Invoke the Sun God, one consequence you can choose — and must, on a 7-9 — is for the Invocation to take this weaker, reduced effect instead.",
-	empowered: "With the Empowered Invocations move (6th level), you can choose an extra consequence before you roll to give the Invocation this stronger, empowered effect.",
-};
-
-// Wrap the "Reduced:" / "Empowered:" labels inside an Invocation's description
-// HTML so they carry a hover tooltip explaining what those effect tiers mean.
-function _annotateInvocationEffects(html) {
-	return String(html).replace(/<strong>(Reduced|Empowered):<\/strong>/g, (_match, label) => {
-		const tip = INVOCATION_EFFECT_TOOLTIPS[label.toLowerCase()];
-		return `<strong class="stonetop-invocation-effect-label" data-tooltip="${escHtml(tip)}" data-tooltip-direction="UP">${label}:</strong>`;
-	});
-}
 
 const _esc = escHtml;
 
@@ -1838,7 +1823,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				return {
 					slug:        opt.slug,
 					label:       opt.label,
-					description: showEffectTips ? _annotateInvocationEffects(description) : description,
+					description: showEffectTips ? annotateInvocationEffects(description) : description,
 					known:       selected.has(opt.slug),
 					ongoing:     !!opt.ongoing,
 				};
@@ -4288,21 +4273,24 @@ export function createStonetopCharacterSheetClass(Base) {
 			return this._stonetopCharacter.ownedMoveCounts();
 		}
 
-		// Open the standalone sacred-pouch (possession choiceGroups) editor.
-		_openPossessionChoices(possessionSlug) {
+		// Open the standalone sacred-pouch (possession choiceGroups) editor. `addOnly`
+		// restricts it to the just-freed remarkable-trait slot (the level-up surface);
+		// the default full editor (gear-tab pencil) exposes flavor + all traits.
+		_openPossessionChoices(possessionSlug, { addOnly = false } = {}) {
 			if (!possessionSlug) return;
 			new PossessionChoicesDialog(
 				this._stonetopCharacter,
 				possessionSlug,
-				{ onDone: () => this.render(false) },
+				{ onDone: () => this.render(false), addOnly },
 			).render(true);
 		}
 
 		// After gaining a move, auto-open the possession editor if that move just freed a
 		// sub-choice slot (a Blessed taking Big Magic → an additional remarkable trait).
+		// Add-only: the player adds just the new trait, not re-edit the whole pouch.
 		async _maybeOpenPossessionChoicesForMove(moveName) {
 			const slug = await this._stonetopCharacter.possessionWithOpenChoiceFor(moveName);
-			if (slug) this._openPossessionChoices(slug);
+			if (slug) this._openPossessionChoices(slug, { addOnly: true });
 		}
 
 		_launchOnboarding(playbookDoc, { openSheetOnce, openPicker, initialSelections = null, startAtStep = null } = {}) {

@@ -1564,6 +1564,7 @@ export class StonetopCharacter {
 			level, xp, cost, newLevel,
 			xpRemaining: xp - cost,
 			playbookName: playbookData?.name ?? null,
+			playbookSlug: playbookData?.slug ?? actor.system?.playbook?.slug ?? null,
 			availableMoves,
 			lockedMoves,
 			needsInvocation,
