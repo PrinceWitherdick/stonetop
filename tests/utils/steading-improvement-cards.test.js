@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { sectionHtml, renderSteadingImprovementCard } from "../../scripts/local/shared/gazetteer.mjs";
+import { describeLocal, loadLocal } from "../local-only.js";
 import { readImprovementCard, STEADING_IMPROVEMENT_DRAG_TYPE } from "../../module/journal/steading-improvement-cards.js";
+
+// sectionHtml / renderSteadingImprovementCard come from the local-only generator; the
+// readImprovementCard suite below tests the shipped module and runs everywhere.
+const gazetteer = await loadLocal(() => import("../../scripts/local/shared/gazetteer.mjs"));
+const describeGen = describeLocal(gazetteer);
+const { sectionHtml, renderSteadingImprovementCard } = gazetteer ?? {};
 
 // Decode the data-steading-improvement attribute the way the browser would, then
 // JSON.parse it back into the structured definition.
@@ -19,7 +25,7 @@ const DEF = {
 	effect: "When you mark all the requirements, you can repair the Roads.",
 };
 
-describe("renderSteadingImprovementCard", () => {
+describeGen("renderSteadingImprovementCard", () => {
 	it("builds a draggable card carrying the definition as escaped JSON", () => {
 		const html = renderSteadingImprovementCard(DEF);
 		expect(html).toContain('class="stonetop-journal-improvement"');
@@ -36,7 +42,7 @@ describe("renderSteadingImprovementCard", () => {
 	});
 });
 
-describe("sectionHtml steading-improvement swap", () => {
+describeGen("sectionHtml steading-improvement swap", () => {
 	const lines = [
 		"Some lead-in prose about the place.",
 		"",

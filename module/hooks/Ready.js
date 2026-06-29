@@ -42,7 +42,7 @@ const _CHRONICLE_HOTBAR_SLOT  = 9;
 // builds that omit it simply skip seeding the macro.
 const _TEST_MACRO_NAME   = "(TEST ONLY) Populate World";
 const _TEST_MACRO_SRC    = "systems/stonetop_pwd/scripts/local/create-test-characters.js";
-const _TEST_MACRO_IMG    = "icons/svg/cog.svg";
+const _TEST_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/hazard-sign.svg";
 const _TEST_MACRO_FOLDER = "For Testing Purposes";
 
 // Retired hotbar macro — the Introductions walkthrough now launches from the
@@ -352,6 +352,7 @@ async function _ensureTestPopulateMacro() {
 	if (existing) {
 		const update = {};
 		if (existing.command !== command) update.command = command;
+		if (existing.img !== _TEST_MACRO_IMG) update.img = _TEST_MACRO_IMG;
 		if (folder && existing.folder?.id !== folder.id) update.folder = folder.id;
 		if (Object.keys(update).length) await existing.update(update);
 		return;

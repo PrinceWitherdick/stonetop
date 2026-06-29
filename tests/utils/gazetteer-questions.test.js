@@ -1,12 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { questionsToPairs } from "../../scripts/local/shared/gazetteer.mjs";
+import { expect, it } from "vitest";
+import { describeLocal, loadLocal } from "../local-only.js";
+
+const gazetteer = await loadLocal(() => import("../../scripts/local/shared/gazetteer.mjs"));
+const describeGen = describeLocal(gazetteer);
+const { questionsToPairs } = gazetteer ?? {};
 
 // questionsToPairs turns a rendered "Questions" section into qa prompt rows — one
 // row per source bullet. These guard the rule that a bullet bundling several "?"
 // sentences (an option menu, or a question + follow-up) stays a single prompt
 // rather than being shattered on every "?", which is how the PDF reads.
 
-describe("questionsToPairs", () => {
+describeGen("questionsToPairs", () => {
 	it("keeps a multi-question bullet on one prompt", () => {
 		const out = questionsToPairs(
 			"<ul><li>Has anyone been down in the Cistern, that you know of? What did they supposedly find?</li></ul>");

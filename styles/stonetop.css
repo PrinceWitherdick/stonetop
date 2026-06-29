@@ -2573,6 +2573,30 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
+/* Roll-card "Conditions Applied" list (advantage / disadvantage / forward / ongoing
+   / situational): spiral bullets, matching the move description above it. Chat-scoped
+   so the ID specificity beats core's default disc bullets on chat-message lists. */
+:is(#chat, #chat-notifications) .message .stonetop-roll-conditions ul {
+	list-style: none;
+	margin: 4px 0 0;
+	padding-left: 14px;
+}
+:is(#chat, #chat-notifications) .message .stonetop-roll-conditions li {
+	position: relative;
+	margin: 2px 0;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+:is(#chat, #chat-notifications) .message .stonetop-roll-conditions li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
 :is(#chat, #chat-notifications) .message .pbta-chat-card .cell--chat {
 	display: flex;
 	flex-direction: column;
@@ -2739,9 +2763,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-weather-roll-btn {
-	flex: 0 0 auto;
-	width: auto;
-	white-space: nowrap;
+	width: 100%;
+	justify-content: center;
 	padding: 5px 14px;
 	font-family: var(--font-stonetop);
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
@@ -3592,9 +3615,36 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	filter: invert(1);
 }
 .stonetop-special-picker-footnote { font-size: var(--st-fs-xs); color: var(--color-text-dark-secondary); margin: 10px 0 0; }
-.stonetop-special-picker-actions { margin-top: 12px; text-align: right; }
+.stonetop-special-picker-actions { margin-top: 12px; }
+/* Lone footer button → full width, centered label, matching the other pickers'
+   slate primary buttons (the close button carried no styling of its own). */
+.stonetop-special-picker-close {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	padding: 4px 12px;
+	cursor: pointer;
+	font-weight: bold;
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	border-radius: var(--st-radius-sm);
+	color: var(--st-btn-primary-text);
+	transition: background 0.15s;
+}
+.stonetop-special-picker-close:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+}
 
 /* Requisition picker (player-side: steading assets + Fortunes roll) */
+/* Cap the auto-height window to the viewport so a steading with many assets
+   scrolls inside the dialog instead of ballooning past the screen. */
+.stonetop-requisition .window-content {
+	max-height: calc(100vh - 80px);
+	overflow-y: auto;
+}
+
 .stonetop-requisition-picker { padding: 4px 2px; font-size: var(--st-fs-base); }
 .stonetop-requisition-trigger { font-style: italic; color: var(--color-text-dark-secondary); margin: 0 0 10px; }
 .stonetop-requisition-roll {
@@ -3630,8 +3680,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-color: var(--st-btn-primary-border-hover);
 }
 .stonetop-requisition-take:disabled { opacity: 0.5; cursor: not-allowed; }
-.stonetop-requisition-results { margin: 8px 0 0; padding-left: 18px; font-size: var(--st-fs-sm); color: var(--color-text-dark-secondary); }
-.stonetop-requisition-results li { margin: 2px 0; }
+.stonetop-requisition-results { list-style: none; margin: 8px 0 0; padding-left: 14px; font-size: var(--st-fs-sm); color: var(--color-text-dark-secondary); }
+.stonetop-requisition-results li { position: relative; margin: 2px 0; padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap)); }
+.stonetop-requisition-results li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
 .stonetop-requisition-heading,
 .stonetop-requisition-subheading {
 	font-family: var(--font-stonetop);
@@ -3653,9 +3713,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-requisition-item.is-taken { opacity: 0.55; }
 .stonetop-requisition-taken-by { flex: 0 0 auto; font-size: var(--st-fs-sm); font-style: italic; color: var(--color-text-dark-secondary); }
 .stonetop-requisition-empty { font-style: italic; color: var(--color-text-dark-secondary); margin: 6px 0; }
-.stonetop-requisition-actions { margin-top: 12px; text-align: right; }
+.stonetop-requisition-actions { margin-top: 12px; }
+/* Lone footer button → full width, centered label (overrides the shared
+   roll/take/close rule above; the per-row Take buttons stay content-width). */
+.stonetop-requisition-close { width: 100%; justify-content: center; }
 
 /* -- Custom move authoring dialog ----------------------------- */
+/* Cap the auto-height window to the viewport so the form (Advanced section open:
+   resource + bonus + result fields) scrolls instead of growing past the screen. */
+.stonetop-custom-move-dialog .window-content {
+	max-height: calc(100vh - 80px);
+	overflow-y: auto;
+}
+
 .stonetop-custom-move-form { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; font-size: var(--st-fs-base); }
 .stonetop-custom-move-field { display: flex; flex-direction: column; gap: 3px; }
 .stonetop-custom-move-field > label { font-family: var(--font-stonetop); font-weight: bold; font-size: var(--st-fs-sm); }
@@ -4808,6 +4878,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex: initial;
 }
 
+/* The name uses flex:initial here (so it sits at content width next to the
+   dice/roll-chip controls), which means it no longer grows to push the
+   resource ("hold & use") track to the right. Pin that track — and the source
+   label — to the right edge of the header instead. */
+.tab.moves .stonetop-item-resources,
 .tab.moves .stonetop-item-source {
 	margin-left: auto;
 }
@@ -4844,7 +4919,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex-direction: row;
 	align-items: stretch;
 	gap: 10px;
-	margin-bottom: 32px;
+	margin-bottom: 12px;
 }
 
 .stonetop-sheet-header .sheet-header__fields {
@@ -5816,6 +5891,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-outfit-confirm-btn {
+	width: 100%;
+	justify-content: center;
 	padding: 4px 14px;
 	background: var(--st-btn-primary-bg);
 	color: var(--st-btn-primary-text);
@@ -5909,7 +5986,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-levelup-summary-value--cost {
-	color: #b04040;
+	color: var(--st-red-text);
 }
 
 .stonetop-levelup-aside {
@@ -6160,7 +6237,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-deathsdoor-dialog .window-content {
 	height: 100%;
-	overflow: hidden;
+	/* Cap the auto-height window to the viewport so it can never grow past the
+	   screen; the body scrolls instead of pushing the footer out of view. */
+	max-height: calc(100vh - 80px);
+	overflow-y: auto;
 	display: flex;
 	flex-direction: column;
 }
@@ -6314,15 +6394,29 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .deaths-door-outcome-choices {
+	list-style: none;
 	margin: 6px 0 0 0;
-	padding-left: 18px;
+	padding-left: 14px;
 	font-size: var(--st-fs-base);
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
 }
 
 .deaths-door-outcome-choices li {
+	position: relative;
 	margin: 4px 0;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+
+.deaths-door-outcome-choices li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
 }
 
 .deaths-door-notes {
@@ -6436,15 +6530,32 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-eos-personal-list {
+	list-style: none;
 	margin: 0;
-	padding-left: 1.2em;
+	padding-left: 14px;
 	font-size: var(--st-fs-base);
 	line-height: 1.5;
 	color: var(--color-text-dark-primary);
 }
 
+.stonetop-eos-personal-list li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+
 .stonetop-eos-personal-list li + li {
 	margin-top: 4px;
+}
+
+.stonetop-eos-personal-list li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
 }
 
 .stonetop-eos-question-list {
@@ -6515,6 +6626,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-eos-confirm-btn {
+	width: 100%;
+	justify-content: center;
 	padding: 4px 16px;
 	background: var(--st-btn-primary-bg);
 	color: var(--st-btn-primary-text);
@@ -8262,6 +8375,28 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-season-flow ul { margin: 4px 0; padding-left: 24px; }
 .stonetop-season-flow li { margin: 3px 0; padding-left: 16px; }
 
+/* The bare roll-result lists (10+/7–9/6−) get spiral bullets like the rest of this
+   system's prose. Scoped to unclassed <ul> so the classed lists in this flow — the
+   seasonal-gains checklist and the winter disaster <ol> — keep their own styling. */
+.stonetop-season-flow ul:not([class]) {
+	list-style: none;
+	padding-left: 14px;
+}
+.stonetop-season-flow ul:not([class]) > li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+.stonetop-season-flow ul:not([class]) > li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
 .stonetop-season-note {
 	font-style: italic;
 	font-size: var(--st-fs-sm);
@@ -8283,11 +8418,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border: none;
 	border-radius: var(--st-radius);
 	cursor: pointer;
+	/* V13 core makes <button> a flexbox; vertically center the icon + label and
+	   keep them left (text-align is inert under flex but harmless as a fallback). */
+	display: flex;
+	align-items: center;
 	text-align: left;
 	font-size: var(--st-fs-base);
 }
 
 .stonetop-season-btn:hover { background: var(--st-btn-primary-bg-hover); }
+
+/* This one sits outside .stonetop-season-actions, so it needs its own top gap,
+   and centers its label (the base rule aligns season buttons left). */
+.stonetop-season-btn[data-action="mark-diminished"] {
+	margin-top: 8px;
+	justify-content: center;
+}
 
 .stonetop-season-divider {
 	margin: 10px 0;
@@ -8469,13 +8615,26 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-homestead-reference ul {
+	list-style: none;
 	margin: 4px 0 0;
-	padding-left: 24px;
+	padding-left: 14px;
 }
 
 .stonetop-homestead-reference li {
+	position: relative;
 	margin: 2px 0;
-	padding-left: 2px;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+
+.stonetop-homestead-reference li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
 }
 
 .stonetop-homestead-choice-list {
@@ -8511,13 +8670,27 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-homestead-chat-list {
+	list-style: none;
 	margin: 0;
-	padding-left: 18px;
+	padding-left: 14px;
 }
 
 .stonetop-homestead-chat-list li {
+	position: relative;
 	margin: 3px 0;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
 	white-space: pre-wrap;
+}
+
+.stonetop-homestead-chat-list li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
 }
 
 .steading-move-name {
@@ -9188,15 +9361,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-family: var(--font-stonetop);
 	border-radius: var(--st-radius);
 	cursor: pointer;
-	border: 1.5px solid #c0392b;
+	border: 1.5px solid var(--st-red-border);
 	background: transparent;
-	color: #c0392b;
+	color: var(--st-red-text);
 	transition: background 0.15s;
 	white-space: nowrap;
 	flex: 0 0 auto;
 }
 
-.stonetop-onboarding-skip:hover { background: rgba(192,57,43,0.08); }
+.stonetop-onboarding-skip:hover { background: var(--st-red-bg); }
 
 .stonetop-onboarding-next:disabled,
 .stonetop-onboarding-confirm:disabled {
@@ -9328,7 +9501,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-onboarding-stats-error {
 	margin: 2px 0 0;
-	color: #c0392b;
+	color: var(--st-red-text);
 	font-size: var(--st-fs-xs);
 	text-align: center;
 	font-style: italic;
@@ -9638,6 +9811,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* Reuses the shared .stonetop-choice-group / -subgroup / -option-label styling;
    this adds the modal chrome, the cap badge, the disabled-option dimming, and the
    two "edit" pencils (Big Magic move card + gear-tab possession). */
+/* Cap the auto-height window to the viewport so a long choiceGroups list (flavor
+   lines + remarkable traits) scrolls inside the dialog instead of ballooning. */
+.stonetop-possession-choices-dialog .window-content {
+	max-height: calc(100vh - 80px);
+	overflow-y: auto;
+}
+
 .stonetop-possession-choices {
 	display: flex;
 	flex-direction: column;
@@ -9682,6 +9862,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-pc-done {
 	display: inline-flex;
 	align-items: center;
+	justify-content: center;
 	gap: 6px;
 	padding: 4px 14px;
 	background: var(--st-btn-primary-bg);
@@ -9689,7 +9870,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-radius: var(--st-radius-sm);
 	color: var(--st-btn-primary-text);
 	cursor: pointer;
-	width: auto;
+	width: 100%;
 }
 .stonetop-pc-done:hover {
 	background: var(--st-btn-primary-bg-hover);
@@ -11991,8 +12172,8 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 
 .stonetop-inline-btn:hover { background: hsl(210 10% 92%); }
 
-.stonetop-inline-btn--danger { border-color: #c0392b; color: #c0392b; }
-.stonetop-inline-btn--danger:hover { background: rgba(192,57,43,0.08); }
+.stonetop-inline-btn--danger { border-color: var(--st-red-border); color: var(--st-red-text); }
+.stonetop-inline-btn--danger:hover { background: var(--st-red-bg); }
 
 /* Follower rules (collapsible <details>) */
 .stonetop-follower-rules-header {
@@ -14845,6 +15026,28 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: 0;
 }
 
+/* Spiral bullets for the warning's PC list (matching the rest of the system's prose);
+   any <ol> here keeps its numbers. */
+.stonetop-intros-notice ul {
+	list-style: none;
+	margin-left: 0;
+	padding-left: 14px;
+}
+.stonetop-intros-notice ul > li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+.stonetop-intros-notice ul > li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
 .stonetop-intros-reminder {
 	margin: 0;
 	font-size: calc(0.82rem * var(--stonetop-font-scale, 1));
@@ -15148,6 +15351,10 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-welcome-action {
+	/* inline-flex (not the core button default of flex) so width:auto reads as a
+	   content-sized pill instead of stretching full-width, and icon+label center. */
+	display: inline-flex;
+	align-items: center;
 	width: auto;
 	margin-top: 8px;
 	padding: 4px 12px;
@@ -15713,8 +15920,8 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-charintro-create {
-	width: auto;
-	white-space: nowrap;
+	width: 100%;
+	justify-content: center;
 	padding: 8px 22px;
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-lg);
@@ -15865,6 +16072,29 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-spring-body li { line-height: 1.45; }
+
+/* Walkthrough body bullet lists (Expedition / Spring Burst steps) get spiral bullets
+   like the rest of the system's prose. Scoped to unclassed <ul> so the styled
+   Die-of-Fate result box (.stonetop-exp-fatetable) keeps its own look; <ol> step
+   lists keep their numbers. The flex column is preserved for its gap spacing. */
+.stonetop-spring-body ul:not([class]) {
+	list-style: none;
+	padding-left: 14px;
+}
+.stonetop-spring-body ul:not([class]) > li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+.stonetop-spring-body ul:not([class]) > li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
 
 .stonetop-spring-body blockquote {
 	margin: 8px 0;
@@ -16926,9 +17156,24 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 .stonetop-arcana-inspire-dialog .stonetop-inspire-summary ul {
+	list-style: none;
 	margin: 0;
-	padding-left: 18px;
+	padding-left: 14px;
 	font-size: var(--st-fs-xs);
+}
+.stonetop-arcana-inspire-dialog .stonetop-inspire-summary li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+.stonetop-arcana-inspire-dialog .stonetop-inspire-summary li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
 }
 
 .stonetop-arcana-inspire-dialog .stonetop-inspire-hint {

@@ -1,24 +1,32 @@
-import { describe, expect, it } from "vitest";
-import { buildNameIndex, linkifyByIndex } from "../../scripts/local/shared/gazetteer.mjs";
+import { expect, it } from "vitest";
+import { describeLocal, loadLocal } from "../local-only.js";
+
+const gazetteer = await loadLocal(() => import("../../scripts/local/shared/gazetteer.mjs"));
+const describeGen = describeLocal(gazetteer);
+const { buildNameIndex, linkifyByIndex } = gazetteer ?? {};
 
 // linkifyByIndex turns plain-text mentions of named entries into @UUID content
 // links. These guard the `{ bold }` mode the bestiary codex uses: the place name
 // renders bold, and a lowercase leading "the" is left OUTSIDE the link (it's an
 // article, not part of the proper name) while a capitalized "The" stays inside.
 
-const index = buildNameIndex([
-	{ slug: "the-stream", name: "the Stream", uuid: "Compendium.x.JournalEntry.S" },
-	{ slug: "the-maw", name: "The Maw", uuid: "Compendium.x.JournalEntry.M" },
-]);
+// Guarded: this runs at module top level, before any suite body, so it must not call
+// into the generator when it is absent (the suites that use `index` are skipped then).
+const index = gazetteer
+	? buildNameIndex([
+			{ slug: "the-stream", name: "the Stream", uuid: "Compendium.x.JournalEntry.S" },
+			{ slug: "the-maw", name: "The Maw", uuid: "Compendium.x.JournalEntry.M" },
+		])
+	: null;
 
-describe("linkifyByIndex { bold: false }", () => {
+describeGen("linkifyByIndex { bold: false }", () => {
 	it("links the whole mention, article included, with no emphasis", () => {
 		expect(linkifyByIndex("They haunt the Stream.", "self", index, { bold: false }))
 			.toBe("They haunt @UUID[Compendium.x.JournalEntry.S]{the Stream}.");
 	});
 });
 
-describe("linkifyByIndex default (bold)", () => {
+describeGen("linkifyByIndex default (bold)", () => {
 	const bold = html => linkifyByIndex(html, "self", index);
 
 	it("bolds the name and leaves a lowercase 'the' outside the link", () => {
@@ -45,7 +53,7 @@ describe("linkifyByIndex default (bold)", () => {
 // The creature index (hand-authored journals) is case-insensitive + plural so the
 // real-animal names the book/overview lowercase and pluralize ("cave bears",
 // "cougars") still link, resolving back to the singular record.
-describe("buildNameIndex { caseInsensitive, plural }", () => {
+describeGen("buildNameIndex { caseInsensitive, plural }", () => {
 	const ci = buildNameIndex(
 		[{ slug: "cave-bear", name: "Cave Bear", uuid: "Compendium.x.JournalEntry.B" }],
 		{ caseInsensitive: true, plural: true },

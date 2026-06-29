@@ -310,9 +310,14 @@ export class StonetopCharacter {
 		const pdiLabel  = postDeath.activeInsert?.name ?? null;
 		const moveBonuses = await this._ownedMoveBonuses(playbookData, ownedAllByName);
 		// Armor counts standard items plus any special items the character has added —
-		// never an unadded special item whose checked flag happens to linger.
+		// never an unadded special item whose checked flag happens to linger. A special
+		// item the character holds via a same-slug special possession (see
+		// _selectedPossessionSlugs) counts too, so a future worn-armor possession is
+		// included alongside the picker-added ones.
 		const addedSet = new Set(this._inventory.addedSpecial);
-		const armorItems = allOutfitItems.filter(i => !i.special || addedSet.has(i.slug));
+		const possessionSpecialSet = this._selectedPossessionSlugs(playbookData);
+		const armorItems = allOutfitItems.filter(i =>
+			!i.special || addedSet.has(i.slug) || possessionSpecialSet.has(i.slug));
 		// Possession-granted worn gear (the Tannery's boiled leather cuirass) also
 		// counts when checked. Custom items key their checked state by item id, so the
 		// armor calc sees them as `{ slug: id, armor }` alongside the outfit items.
@@ -549,6 +554,20 @@ export class StonetopCharacter {
 		return categories;
 	}
 
+	// Slugs of every special possession the character holds (preselected free gear +
+	// player-selected picks). Used to surface a special ("handout") inventory item that
+	// shares a possession's slug — the Ranger's composite bow — in the Items column with
+	// its ◇ load diamond and ○ ammo track, since such gear is never added through the
+	// "Add Special Item" picker. The `i.special` guard at each use site does the actual
+	// intersection, so returning the full possession-slug set here is fine. Derived at
+	// render, so it covers already-created characters and needs no stored flag/migration.
+	_selectedPossessionSlugs(playbookData) {
+		return new Set([
+			...(playbookData?.specialPossessions?.preselected ?? []),
+			...this._possessions.selected,
+		]);
+	}
+
 	async _buildInventorySection(playbookData, ownedAllByName, actorLevel) {
 		const checked        = this._inventory.checked;
 		const resources      = this._inventory.resources;
@@ -617,11 +636,20 @@ export class StonetopCharacter {
 			.build();
 
 		// Special (handout) items are kept off the default checklist; they appear only
-		// once the player adds them via the "Add Special Item" picker.
-		const addedSpecialSet = new Set(this._inventory.addedSpecial);
-		const mapAddedSpecial = i => { const s = mapItem(i); s.isAddedSpecial = true; return s; };
-		const addedSpecial = allItems.filter(i => i.special && addedSpecialSet.has(i.slug));
-		const standardItems = allItems.filter(i => !i.special);
+		// once the player adds them via the "Add Special Item" picker — OR when a
+		// preselected/selected special possession shares the item's slug (the Ranger's
+		// composite bow), in which case the gear belongs in the Items column with its ◇
+		// load diamond + ○ ammo track. Possession-derived ones are locked starting gear
+		// (the possession itself is non-removable), so they render via plain mapItem —
+		// no isAddedSpecial flag, hence no "remove special" ✕. A slug added explicitly
+		// through the picker wins (keeps its removable ✕) and is excluded here.
+		const addedSpecialSet      = new Set(this._inventory.addedSpecial);
+		const possessionSpecialSet = this._selectedPossessionSlugs(playbookData);
+		const mapAddedSpecial      = i => { const s = mapItem(i); s.isAddedSpecial = true; return s; };
+		const addedSpecial         = allItems.filter(i => i.special && addedSpecialSet.has(i.slug));
+		const possessionSpecial    = allItems.filter(i =>
+			i.special && possessionSpecialSet.has(i.slug) && !addedSpecialSet.has(i.slug));
+		const standardItems        = allItems.filter(i => !i.special);
 
 		const arcanaItems = await this._arcana.weightedInventoryItems();
 		const arcanaSection = arcanaItems.filter(i => i.inventoryColumn === "arcana").map(mapItem);
@@ -629,6 +657,7 @@ export class StonetopCharacter {
 		const regularNonArcana = [
 			...standardItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...addedSpecial.filter(i => i.inventoryColumn === "regular").map(mapAddedSpecial),
+			...possessionSpecial.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...customItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
 		];
 		const regularArcana = arcanaItems.filter(i => i.inventoryColumn === "regular").map(mapItem);
@@ -694,9 +723,11 @@ export class StonetopCharacter {
 			.build();
 
 		const addedSmall = addedSpecial.filter(i => i.inventoryColumn === "small");
+		const possessionSmall = possessionSpecial.filter(i => i.inventoryColumn === "small");
 		const smallItems = [
 			...allSmall.filter(i => !i.smallGrid).map(mapItem),
 			...addedSmall.filter(i => !i.smallGrid).map(mapAddedSpecial),
+			...possessionSmall.filter(i => !i.smallGrid).map(mapItem),
 			...customItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
 			...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
 		];

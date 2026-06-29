@@ -1,12 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { summaryFor } from "../../scripts/local/shared/gazetteer.mjs";
+import { expect, it } from "vitest";
+import { describeLocal, loadLocal } from "../local-only.js";
+
+const gazetteer = await loadLocal(() => import("../../scripts/local/shared/gazetteer.mjs"));
+const describeGen = describeLocal(gazetteer);
+const { summaryFor } = gazetteer ?? {};
 
 // summaryFor builds the one-line hover-tooltip description from a place's own
 // prose. It must read as flavor, not numbers: a settlement leads its Overview with
 // the steading stat block (a stat <p> + trade/resource <li>s) and only then the
 // descriptive prose, so the summary has to skip past the clutter.
 
-describe("summaryFor", () => {
+describeGen("summaryFor", () => {
 	it("skips a settlement's steading stat block and returns the whole opening paragraph", () => {
 		const overview = {
 			name: "Overview",

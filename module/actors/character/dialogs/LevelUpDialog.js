@@ -54,6 +54,10 @@ export class LevelUpDialog extends Application {
 			height:    "auto", // every step fits its content; CSS max-height caps tall lists
 			resizable: true,
 			classes:   ["stonetop", "stonetop-levelup-dialog"],
+			// Picking a move / foreign move / invocation re-renders the step; without this
+			// Foundry would reset these tall scroll lists to the top on every selection.
+			// Listing the scroll containers lets the framework save/restore their scrollTop.
+			scrollY:   [".stonetop-levelup-move-list", ".stonetop-levelup-invocation-list"],
 		});
 	}
 

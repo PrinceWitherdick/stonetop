@@ -20,6 +20,8 @@ function makeOutfitItem(overrides = {}) {
 		.withSmallGrid(overrides.smallGrid ?? false)
 		.withBreakBefore(overrides.breakBefore ?? false)
 		.withArmor(overrides.armor ?? null)
+		.withSpecial(overrides.special ?? false)
+		.withSpecialCategory(overrides.specialCategory ?? null)
 		.build();
 }
 
@@ -1040,6 +1042,95 @@ describe("buildSnapshot — inventory.outfit", () => {
 			.withInventoryRepo(new FakeInventoryRepository([item]))
 			.build().buildSnapshot();
 		expect(snap.inventory.outfit.regularItems[0].resource.current).toBe(1);
+	});
+});
+
+// ── inventory: possession-derived special items ──────────────────────────────
+
+describe("buildSnapshot — inventory: possession-derived special items", () => {
+	// The Ranger's composite bow: a special ("handout") catalog item AND a preselected
+	// special possession of the same slug. Holding the possession should carry the gear
+	// into the Items column (◇ load + ○ ammo track), even though it's never added via
+	// the "Add Special Item" picker.
+	const COMPOSITE_BOW = makeOutfitItem({
+		slug: "composite-bow", name: "Composite bow", weight: 1,
+		special: true, specialCategory: "Weapons of War",
+		resource: { max: 2, title: null, labels: ["low ammo", "all out"] },
+	});
+
+	function bowPlaybook(preselected = ["composite-bow"]) {
+		return {
+			...HEAVY_PLAYBOOK,
+			specialPossessions: {
+				pickNote: "Pick 2, in addition to your composite bow",
+				pickCount: 2,
+				preselected,
+				options: [
+					{ slug: "composite-bow", label: "Composite bow", description: "<em>far</em>, +1 damage" },
+					{ slug: "hounds", label: "Hounds", description: "<p>Dogs.</p>" },
+				],
+			},
+		};
+	}
+
+	it("surfaces a preselected possession's matching special item in the Items column with its ◇ load + ○ ammo track", async () => {
+		const snap = await new TestCharacterBuilder(makeHeavyActor())
+			.withPlaybookRepo(new FakePlaybookRepository(bowPlaybook()))
+			.withInventoryRepo(new FakeInventoryRepository([COMPOSITE_BOW]))
+			.build().buildSnapshot();
+		const bow = snap.inventory.outfit.regularItems.find(i => i.slug === "composite-bow");
+		expect(bow).toBeDefined();
+		expect(bow.weight).toBe(1); // the ◇ load diamond
+		expect(bow.resource).toMatchObject({ max: 2, labels: ["low ammo", "all out"] }); // the ○ ammo track
+		// Locked starting gear (the possession is non-removable) → no "remove special" ✕.
+		expect(bow.isAddedSpecial).toBeFalsy();
+	});
+
+	it("surfaces it for a player-SELECTED (non-preselected) possession too", async () => {
+		const actor = makeHeavyActor({ flags: { "possessions.selected": ["composite-bow"] } });
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(bowPlaybook([])))
+			.withInventoryRepo(new FakeInventoryRepository([COMPOSITE_BOW]))
+			.build().buildSnapshot();
+		expect(snap.inventory.outfit.regularItems.some(i => i.slug === "composite-bow")).toBe(true);
+	});
+
+	it("keeps a special item OFF the Items column when no held possession matches it", async () => {
+		const snap = await new TestCharacterBuilder(makeHeavyActor())
+			.withPlaybookRepo(new FakePlaybookRepository(bowPlaybook([])))
+			.withInventoryRepo(new FakeInventoryRepository([COMPOSITE_BOW]))
+			.build().buildSnapshot();
+		expect(snap.inventory.outfit.regularItems.some(i => i.slug === "composite-bow")).toBe(false);
+	});
+
+	it("a picker-added special item keeps its removable ✕ and isn't duplicated by a same-slug possession", async () => {
+		const actor = makeHeavyActor({ flags: { "inventory.addedSpecial": ["composite-bow"] } });
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(bowPlaybook()))
+			.withInventoryRepo(new FakeInventoryRepository([COMPOSITE_BOW]))
+			.build().buildSnapshot();
+		const bows = snap.inventory.outfit.regularItems.filter(i => i.slug === "composite-bow");
+		expect(bows).toHaveLength(1); // not double-listed
+		expect(bows[0].isAddedSpecial).toBe(true); // explicit add wins → stays removable
+	});
+
+	it("surfaces a possession-matched special SMALL item into the Small Items column", async () => {
+		const smallSpecial = makeOutfitItem({
+			slug: "trinket-kit", name: "Trinket kit", weight: 0,
+			inventoryColumn: "small", special: true,
+		});
+		const pb = {
+			...HEAVY_PLAYBOOK,
+			specialPossessions: {
+				pickNote: "Pick 1", pickCount: 1, preselected: ["trinket-kit"],
+				options: [{ slug: "trinket-kit", label: "Trinket kit", description: "<p>Bits.</p>" }],
+			},
+		};
+		const snap = await new TestCharacterBuilder(makeHeavyActor())
+			.withPlaybookRepo(new FakePlaybookRepository(pb))
+			.withInventoryRepo(new FakeInventoryRepository([smallSpecial]))
+			.build().buildSnapshot();
+		expect(snap.inventory.outfit.smallItems.some(i => i.slug === "trinket-kit")).toBe(true);
 	});
 });
 
