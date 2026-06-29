@@ -180,9 +180,13 @@ export class CharacterArcana {
 				: null;
 
 			const backItemResourceDef = item.back.item?.resource ?? null;
+			// A card can carry BOTH a back-power resource (above, keyed by bare slug) and a
+			// back-ITEM resource. They'd otherwise share `resources[slug]` and clobber each
+			// other, so the item track is keyed `${slug}:item`. Fall back to the bare slug so
+			// shipped item-only cards (e.g. "A bow with no string") keep their saved counts.
 			const backItemResource = backItemResourceDef
 				? new ResourceBuilder()
-					.withCurrent(inventoryResources[item.slug] ?? 0)
+					.withCurrent(inventoryResources[`${item.slug}:item`] ?? inventoryResources[item.slug] ?? 0)
 					.withMax(backItemResourceDef.maxStat
 						? (stats[backItemResourceDef.maxStat]?.value ?? 0)
 						: backItemResourceDef.max)

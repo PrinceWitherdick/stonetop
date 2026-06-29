@@ -1,6 +1,6 @@
-// The six character stats in the canonical sheet display order (matches the
-// `_STAT_KEYS` order the character sheet renders and rolls with).
-export const STAT_KEYS = ["str", "dex", "int", "wis", "con", "cha"];
+// The six character stats in the canonical sheet display order (matches `_STAT_DEFS`
+// in StonetopCharacter, the order the character sheet renders and rolls with).
+export const STAT_KEYS = ["str", "dex", "con", "int", "wis", "cha"];
 
 // Roll types a player may pick for a custom move: any stat, or "ask" (choose a
 // stat each time). "" / absent means a no-roll narrative move.

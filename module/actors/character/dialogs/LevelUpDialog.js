@@ -12,6 +12,12 @@ import { moveMarkBudget } from "../move-mark-budget.js";
 const LEVELUP_BASE_WIDTH = 520;
 const LEVELUP_MOVE_WIDTH = 860;
 
+// The level-up wizard is a linear sequence; each optional step appears only when its
+// predicate fires (`overview` and `move` are always present). Next/Back navigation and the
+// "is this the final step?" check all derive from this single ordering via _adjacentStep —
+// keep this the one source of truth for step order + skip logic.
+const LEVELUP_STEPS = ["overview", "move", "foreignMove", "stat", "marks", "invocation"];
+
 export class LevelUpDialog extends Application {
 	constructor(character, levelUpData, onDone, options = {}) {
 		super(options);
@@ -103,18 +109,10 @@ export class LevelUpDialog extends Application {
 		const isMarks       = this._step === "marks";
 		const isInvocation  = this._step === "invocation";
 
-		const needsStat    = this._needsStatChoice();
-		const needsForeign = this._needsForeignMoveChoice();
 		const markDesc     = this._markStepDescriptor();
-		const needsMark    = !!markDesc;
-		// Step order: overview → move → (foreignMove | stat)? → marks? → invocation?. The
-		// mark step always follows the move/foreign/stat steps and precedes invocation, so a
-		// step is "last" only when nothing downstream remains.
-		const isLastStep = isInvocation
-			|| (isMarks && !d.needsInvocation)
-			|| (isStat && !needsMark && !d.needsInvocation)
-			|| (isForeignMove && !needsMark && !d.needsInvocation)
-			|| (isMove && !needsForeign && !needsStat && !needsMark && !d.needsInvocation);
+		// The wizard's final step — no active step remains after the current one. See
+		// LEVELUP_STEPS / _adjacentStep for the single source of step order + skip logic.
+		const isLastStep = this._adjacentStep(+1) === undefined;
 
 		const playbookName = d.playbookName ?? null;
 
@@ -269,6 +267,27 @@ export class LevelUpDialog extends Application {
 		return !!this._markStepDescriptor();
 	}
 
+	// Whether a given step is part of THIS level-up; the optional steps appear only when
+	// their move-driven predicate fires (`overview`/`move` are always present).
+	_stepActive(step) {
+		switch (step) {
+			case "foreignMove": return this._needsForeignMoveChoice();
+			case "stat":        return this._needsStatChoice();
+			case "marks":       return this._needsMarkChoice();
+			case "invocation":  return !!this._data?.needsInvocation;
+			default:            return true; // overview, move
+		}
+	}
+
+	// The next (dir = +1) or previous (dir = -1) ACTIVE step from the current one, skipping
+	// any steps this take doesn't need. Returns undefined past either end: forward-past-end
+	// means "nothing left — apply"; back-past-start means "stay on overview".
+	_adjacentStep(dir) {
+		let i = LEVELUP_STEPS.indexOf(this._step) + dir;
+		while (i >= 0 && i < LEVELUP_STEPS.length && !this._stepActive(LEVELUP_STEPS[i])) i += dir;
+		return LEVELUP_STEPS[i]; // undefined once i runs off either end
+	}
+
 	// Build the mark step for a just-picked budgeted move: its checkbox (count) options,
 	// what's already spent on prior copies, and the NEW picks this take grants (the move's
 	// repeat-scaling budget minus what's already spent). Stat-choice options are skipped —
@@ -409,11 +428,8 @@ export class LevelUpDialog extends Application {
 		});
 
 		html.find(".stonetop-levelup-back-btn").on("click", () => {
-			if (this._step === "invocation")       this._step = this._needsMarkChoice() ? "marks" : (this._needsStatChoice() ? "stat" : (this._needsForeignMoveChoice() ? "foreignMove" : "move"));
-			else if (this._step === "marks")       this._step = this._needsStatChoice() ? "stat" : (this._needsForeignMoveChoice() ? "foreignMove" : "move");
-			else if (this._step === "stat")        this._step = "move";
-			else if (this._step === "foreignMove") this._step = "move";
-			else if (this._step === "move")        this._step = "overview";
+			const prev = this._adjacentStep(-1);
+			if (prev) this._step = prev; // undefined only at overview — stay put
 			this.render(false);
 		});
 
@@ -425,28 +441,13 @@ export class LevelUpDialog extends Application {
 			if (this._busy) return;
 			this._busy = true;
 			try {
-				const d = this._data;
-				if (this._step === "overview") {
-					this._step = "move";
-				} else if (this._step === "move") {
-					if (this._needsForeignMoveChoice()) { await this._loadForeignMoves(); this._step = "foreignMove"; }
-					else if (this._needsStatChoice())   this._step = "stat";
-					else if (this._needsMarkChoice())   this._step = "marks";
-					else if (d.needsInvocation)         this._step = "invocation";
-					else await this._apply();
-				} else if (this._step === "foreignMove") {
-					if (this._needsMarkChoice())   this._step = "marks";
-					else if (d.needsInvocation)    this._step = "invocation";
-					else await this._apply();
-				} else if (this._step === "stat") {
-					if (this._needsMarkChoice())   this._step = "marks";
-					else if (d.needsInvocation)    this._step = "invocation";
-					else await this._apply();
-				} else if (this._step === "marks") {
-					if (d.needsInvocation) this._step = "invocation";
-					else await this._apply();
-				} else if (this._step === "invocation") {
-					await this._apply();
+				const next = this._adjacentStep(+1);
+				if (!next) {
+					await this._apply(); // nothing left to ask — commit the level-up
+				} else {
+					// The foreign-move picker needs its qualifying list fetched before it shows.
+					if (next === "foreignMove") await this._loadForeignMoves();
+					this._step = next;
 				}
 				this.render(false);
 			} finally {

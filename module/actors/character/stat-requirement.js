@@ -5,13 +5,12 @@
 // `requirement.note`, which stays display-only because the engine can't verify it
 // (e.g. the Would-Be Hero's "All 6 marks in Potential for Greatness").
 
-const STAT_ABBR = { str: "STR", dex: "DEX", con: "CON", int: "INT", wis: "WIS", cha: "CHA" };
-
 // Human-readable label for a stat-requirement map: "STR +2" (or "STR +2, DEX +1" when
 // more than one stat is gated). Null when there are no stat requirements to show.
+// The stat abbreviation is just the key upper-cased (str → STR) for all six stats.
 export function statRequirementLabel(stats) {
 	if (!stats) return null;
-	const parts = Object.entries(stats).map(([key, min]) => `${STAT_ABBR[key] ?? key.toUpperCase()} +${min}`);
+	const parts = Object.entries(stats).map(([key, min]) => `${key.toUpperCase()} +${min}`);
 	return parts.length ? parts.join(", ") : null;
 }
 

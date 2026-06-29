@@ -43,21 +43,19 @@ import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
 
-const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
+const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
 
-// Whether the current user may author custom moves: always for a GM, otherwise only
-// when the world hasn't restricted authoring to the GM (the customMovesGmOnly setting).
-function canAuthorCustomMoves() {
+// A GM may always author; a non-GM may only when the world hasn't flipped the given
+// "GM-only" setting. Shared by the custom-move and homebrew-arcana authoring gates.
+function gmOnlyGate(gmOnlySettingKey) {
 	if (game.user?.isGM) return true;
-	return !game.settings.get("stonetop_pwd", "customMovesGmOnly");
+	return !game.settings.get("stonetop_pwd", gmOnlySettingKey);
 }
 
-// As canAuthorCustomMoves, but for homebrew arcana (the arcanaCreationGmOnly setting).
-function canCreateArcana() {
-	if (game.user?.isGM) return true;
-	return !game.settings.get("stonetop_pwd", "arcanaCreationGmOnly");
-}
+// Whether the current user may author custom moves / homebrew arcana.
+function canAuthorCustomMoves() { return gmOnlyGate("customMovesGmOnly"); }
+function canCreateArcana()      { return gmOnlyGate("arcanaCreationGmOnly"); }
 
 // Playbook moves that let a character roll a different stat for a basic move. When
 // the actor owns `ownsMove`, the basic move named `whenMove` (or, for blanket
@@ -3121,10 +3119,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				const btn = ev.target.closest(".stonetop-arcanum-resource-btn");
 				if (!btn) return;
 				ev.stopPropagation();
-				const { slug, index } = btn.dataset;
+				const { slug, index, resourceKind } = btn.dataset;
 				const isChecked = btn.classList.contains("is-checked");
 				const newVal = isChecked ? Number(index) : Number(index) + 1;
-				this._stonetopCharacter.setArcanumResource(slug, newVal).then(() => this.render(false));
+				// A card's back-ITEM resource is keyed `${slug}:item` so it never shares storage
+				// with the back-power resource on the same card (see CharacterArcana buildSnapshot).
+				const key = resourceKind === "item" ? `${slug}:item` : slug;
+				this._stonetopCharacter.setArcanumResource(key, newVal).then(() => this.render(false));
 			}, true);
 
 			html[0].addEventListener("click", ev => {

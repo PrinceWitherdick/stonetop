@@ -41,11 +41,14 @@ function _arcanumSlugInUse(slug) {
 	const prefix = `${slug}:`;
 	const keyedBySlug = map => !!map && Object.keys(map).some(k => k === slug || k.startsWith(prefix));
 	for (const actor of globalThis.game?.actors ?? []) {
-		const arcana = actor.flags?.stonetop_pwd?.arcana;
-		if (!arcana) continue;
-		if ([arcana.owned, arcana.identified, arcana.flipped, arcana.minorDraw]
-			.some(list => Array.isArray(list) && list.includes(slug))) return true;
-		if ([arcana.boxes, arcana.unlock, arcana.backOptions, arcana.minorRoles].some(keyedBySlug)) return true;
+		// Check the live scope AND the legacy "stonetop" scope a migrated world may still
+		// store arcana marks under, so renaming a slug never orphans either set of marks.
+		for (const arcana of [actor.flags?.stonetop_pwd?.arcana, actor.flags?.stonetop?.arcana]) {
+			if (!arcana) continue;
+			if ([arcana.owned, arcana.identified, arcana.flipped, arcana.minorDraw]
+				.some(list => Array.isArray(list) && list.includes(slug))) return true;
+			if ([arcana.boxes, arcana.unlock, arcana.backOptions, arcana.minorRoles].some(keyedBySlug)) return true;
+		}
 	}
 	return false;
 }
@@ -103,6 +106,9 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 		}
 
 		async close(options) {
+			// Flush any pending rich-editor content before teardown, then drop the
+			// per-session slug cache so a reopened sheet rebuilds it fresh.
+			if (this._editMode) await this._flushRichEditors();
 			this._otherArcanumSlugs = null;
 			return super.close(options);
 		}
@@ -320,6 +326,15 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			}
 			if (value === "" && (path.endsWith(".maxStat") || path.endsWith(".inventoryColumn"))) value = null;
 
+			// A slug that collides with ANOTHER card's slug would make this one unresolvable
+			// (world/pack lookup is first-wins), so refuse to persist it — surface the live
+			// warning and bail. The author must pick a free slug. (The readonly lock above
+			// already covers slugs a character holds; this covers card-vs-card collisions.)
+			if (path === `flags.${ITEM_FLAG_SCOPE}.slug` && this._otherArcanumSlugs?.has(value)) {
+				this._updateSlugWarning(value);
+				return;
+			}
+
 			// Toggling major shows/hides the major-tools UI, so it needs a re-render.
 			if (path.endsWith(".major")) {
 				await this._flushRichEditors();
@@ -521,11 +536,6 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 				};
 			});
 			return this.item.update({ [`flags.${ITEM_FLAG_SCOPE}.summon.followers`]: followers }, { render });
-		}
-
-		async close(options) {
-			if (this._editMode) await this._flushRichEditors();
-			return super.close(options);
 		}
 	};
 }

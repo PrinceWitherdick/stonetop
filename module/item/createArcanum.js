@@ -28,7 +28,7 @@ export function uniqueArcanumSlug(name, takenSlugs = []) {
  * arcanum card; `major` declares the tier so it's first-class without an icon-registry edit.
  * Write via Item.create()/update(), NOT setFlag — that scope ("stonetop") rejects setFlag.
  */
-export function buildArcanumItemData({ slug, name = "New Arcanum", major = false, img, front, back } = {}) {
+export function buildArcanumItemData({ slug, name = "New Arcanum", major = false, img, front, back, ownerId = null } = {}) {
 	const data = {
 		name,
 		type: "move",
@@ -60,7 +60,10 @@ export function buildArcanumItemData({ slug, name = "New Arcanum", major = false
 		// world item authored by a non-GM defaults to no ownership for other users, so the
 		// arcanum vanishes from every OTHER player's view of the owning character's sheet.
 		// 2 === CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER (literal keeps this module Foundry-free).
-		ownership: { default: 2 },
+		// A non-GM author also needs explicit OWNER (3) on their own card, or the editor opens
+		// read-only — don't rely on Foundry's create-time owner grant surviving an explicit
+		// ownership block.
+		ownership: ownerId ? { default: 2, [ownerId]: 3 } : { default: 2 },
 	};
 	if (img) data.img = img;
 	return data;
@@ -114,7 +117,10 @@ export async function createArcanumItem({ name = "New Arcanum", major = false, f
 	const slug  = uniqueArcanumSlug(name, taken);
 	let item = null;
 	try {
-		item = await ItemCls.create(buildArcanumItemData({ slug, name, major, front, back }));
+		// Grant a non-GM author OWNER on their own card so its editor opens editable. A GM
+		// already owns everything, so only pass an ownerId for non-GM creators.
+		const ownerId = user && !user.isGM ? user.id : null;
+		item = await ItemCls.create(buildArcanumItemData({ slug, name, major, front, back, ownerId }));
 	} catch (err) {
 		console.error("Stonetop | Failed to create arcanum item", err);
 	}

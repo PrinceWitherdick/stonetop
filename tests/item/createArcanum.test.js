@@ -65,6 +65,13 @@ describe("createArcanum helpers", () => {
 			expect(buildArcanumItemData({ slug: "x" }).img).toBeUndefined();
 			expect(buildArcanumItemData({ slug: "x", img: "a.webp" }).img).toBe("a.webp");
 		});
+		it("defaults everyone to OBSERVER so the card is visible to all players", () => {
+			expect(buildArcanumItemData({ slug: "x" }).ownership).toEqual({ default: 2 });
+		});
+		it("grants the author OWNER when an ownerId is given, so the editor opens editable", () => {
+			const data = buildArcanumItemData({ slug: "x", ownerId: "user123" });
+			expect(data.ownership).toEqual({ default: 2, user123: 3 });
+		});
 		it("merges a front pre-fill over the defaults (wizard seed), keeping the scaffold", () => {
 			const seed = "<p><em>Inspiration</em></p>";
 			const { front } = buildArcanumItemData({ slug: "x", name: "Seeded", front: { description: seed } }).flags.stonetop;

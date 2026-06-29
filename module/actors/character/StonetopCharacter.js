@@ -1565,8 +1565,13 @@ export class StonetopCharacter {
 		const ownedNames = new Set(this._actor.items.filter(i => i.type === "move").map(i => i.name));
 		const actorStats = _statValueMap(this._actor.system?.stats);
 		const out = [], seen = new Set();
-		for (const pb of allowed) {
-			for (const def of await this._moveRepo.getPlaybookMoves(pb)) {
+		// Fetch every allowed playbook's moves concurrently — the reads are independent
+		// compendium lookups, so awaiting them one at a time just stacks latency (up to
+		// ~8 playbooks for an "any" cross-playbook move).
+		const movesPerPlaybook = await Promise.all(allowed.map(pb => this._moveRepo.getPlaybookMoves(pb)));
+		for (let i = 0; i < allowed.length; i++) {
+			const pb = allowed[i];
+			for (const def of movesPerPlaybook[i]) {
 				if (def.cap != null) continue;          // no Improved/Superior Stat
 				if (def.crossPlaybook) continue;         // no third-playbook chaining
 				if (ownedNames.has(def.name) || seen.has(def.name)) continue;
@@ -1801,7 +1806,7 @@ function _buildCompanionBonuses(moveBonuses, ownedAllByName) {
 	return {
 		hp:         moveBonuses.companionHp    ?? 0,
 		armor:      moveBonuses.companionArmor ?? 0,
-		traitPicks: COMPANION_TRAIT_PICKS_PER_MAGNIFICENT_SPECIMEN * (ownedAllByName.get(MAGNIFICENT_SPECIMEN_MOVE)?.length ?? 0),
+		traitPicks: COMPANION_TRAIT_PICKS_PER_MAGNIFICENT_SPECIMEN * (ownedAllByName.get?.(MAGNIFICENT_SPECIMEN_MOVE)?.length ?? 0),
 	};
 }
 

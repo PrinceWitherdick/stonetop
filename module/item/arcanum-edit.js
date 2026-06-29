@@ -1,5 +1,5 @@
 import { hasText } from "../actors/bestiary/codex.js";
-import { slugify } from "../utils/strings.js";
+import { slugify, escHtml } from "../utils/strings.js";
 
 // Pure helpers for the arcanum editor (StonetopArcanumSheet edit mode). Kept free of
 // Foundry/DOM so they're unit-testable; the sheet wires them to controls + item.update().
@@ -73,7 +73,9 @@ export function markTrackHtml(n = 4) {
 
 /** A reverse-side mystery move block, led by a □ box the player checks to choose it. */
 export function mysteryHtml(name = "NEW MYSTERY") {
-	const safe = String(name || "NEW MYSTERY").trim() || "NEW MYSTERY";
+	// escHtml because the result is appended into back.description and rendered via a
+	// triple-stache ({{{...}}}) on the card — any author-supplied name must not inject HTML.
+	const safe = escHtml(String(name || "NEW MYSTERY").trim() || "NEW MYSTERY");
 	return `<p><strong>□ ${safe}</strong><br>When you <strong><em>do something specific</em></strong>, `
 		+ `describe the effect. On a 10+, choose 2; on a 7&ndash;9, choose 1.</p>`;
 }
