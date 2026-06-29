@@ -1,8 +1,12 @@
+import { isDefaultImg } from "./utils/strings.js";
+
 /**
- * Authoritative registry of the Major Arcana, each mapped to its card-art icon. The game
- * defines a fixed set of Major Arcana, so membership in this map IS the taxonomy (use
- * {@link isMajorArcana}); Minor Arcana are everything else and have no card art. Keep this
- * the single source of truth — don't re-derive "is major" from `majorArcanaImg() !== null`.
+ * Registry of the SHIPPED Major Arcana, each mapped to its card-art icon. For shipped
+ * arcana, membership in this map IS the taxonomy (use {@link isMajorArcana} when all you
+ * have is a slug). Homebrew arcana instead declare their tier via `flags.stonetop.major`,
+ * so when you hold the resolved item prefer {@link isMajorArcanumItem} / {@link arcanumCardImg},
+ * which honor the stored flag and fall back to this allowlist. Don't re-derive "is major"
+ * from `majorArcanaImg() !== null`.
  */
 export const MAJOR_ARCANA_ICONS = {
 	"azure-hand":                 "icon-arcana-azurehand.webp",
@@ -32,4 +36,28 @@ export function majorArcanaImg(slug) {
 
 export function isMajorArcana(slug) {
 	return Object.prototype.hasOwnProperty.call(MAJOR_ARCANA_ICONS, slug);
+}
+
+/**
+ * Taxonomy for a resolved arcanum (a {@link MinorArcanum}, the snapshot, or any object
+ * with `slug`/`major`). Homebrew arcana declare `major: true` explicitly; shipped arcana
+ * omit it and fall back to the {@link MAJOR_ARCANA_ICONS} allowlist. Prefer this over
+ * {@link isMajorArcana} anywhere you hold the item, so user-created majors are first-class.
+ */
+export function isMajorArcanumItem(item) {
+	return item?.major === true || isMajorArcana(item?.slug);
+}
+
+/**
+ * Card-art path for a resolved arcanum, or null for minor arcana (which have no art).
+ * Shipped majors use their registered icon; homebrew majors fall back to the Item's own
+ * `img` — but a stock placeholder (the default item-bag icon / no img) counts as no art,
+ * so a freshly created major shows nothing rather than a generic Foundry icon. Pass a
+ * {@link MinorArcanum} (carries `slug`, `major`, `img`).
+ */
+export function arcanumCardImg(item) {
+	if (!isMajorArcanumItem(item)) return null;
+	const registered = majorArcanaImg(item?.slug);
+	if (registered) return registered;
+	return isDefaultImg(item?.img) ? null : item.img;
 }

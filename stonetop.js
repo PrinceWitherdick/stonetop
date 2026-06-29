@@ -201,7 +201,8 @@ Hooks.once("init", () => {
 	});
 
 	loadTemplates({
-		"stonetop.arcanum-sheet":    "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs",
+		"stonetop.arcanum-sheet":      "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs",
+		"stonetop.arcanum-sheet-edit": "systems/stonetop_pwd/templates/item/arcanum-sheet-edit.hbs",
 		"stonetop.actor-header":     "systems/stonetop_pwd/templates/actor/partials/actor-header.hbs",
 		"stonetop.actor-stats":      "systems/stonetop_pwd/templates/actor/partials/actor-stats.hbs",
 		"stonetop.actor-vitals":     "systems/stonetop_pwd/templates/actor/partials/actor-vitals.hbs",

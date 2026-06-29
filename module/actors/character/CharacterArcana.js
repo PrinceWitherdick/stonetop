@@ -7,7 +7,8 @@ import {
 	ResourceBuilder,
 } from "../../model/CharacterSnapshot.js";
 import { OutfitItemBuilder } from "../../model/OutfitItem.js";
-import { majorArcanaImg, isMajorArcana } from "../../arcana-icons.js";
+import { majorArcanaImg, isMajorArcanumItem, arcanumCardImg } from "../../arcana-icons.js";
+import { arcanaSummonFollowers } from "../../data/arcana-summons.js";
 import { centerArcanumTracks } from "../../utils/glyphs.js";
 
 function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
@@ -132,7 +133,7 @@ export class CharacterArcana {
 		const allItems = fetchedItems.map(item => {
 			const flipped = flippedSlugs.has(item.slug);
 
-			const unlockItems = item.front.unlock.requirements.map(li => {
+			const unlockItems = (item.front.unlock?.requirements ?? []).map(li => {
 				if (li.type === "text") return new ArcanaUnlockTextItem(li.content);
 				const count = unlockCounts[`${item.slug}:${li.slug}`] ?? 0;
 				return new ArcanaUnlockOptionSnapshotBuilder()
@@ -230,14 +231,22 @@ export class CharacterArcana {
 				.withChecked(checkedMap[item.slug] ?? false)
 				.withUnlocked(unlocked)
 				.withIdentified(identifiedSlugs.has(item.slug))
-				.withImg(majorArcanaImg(item.slug))
+				.withImg(arcanumCardImg(item))
+				.withMajor(isMajorArcanumItem(item))
+				.withSummonFollowers(arcanaSummonFollowers(item))
 				.withGreaterConduit(greaterConduit)
 				.build();
 		});
 
-		const major = new ArcanaSectionSnapshot("Major Arcana", allItems.filter(i => isMajorArcana(i.slug)));
-		const minor = new ArcanaSectionSnapshot("Minor Arcana", allItems.filter(i => !isMajorArcana(i.slug)));
+		const major = new ArcanaSectionSnapshot("Major Arcana", allItems.filter(i => i.major));
+		const minor = new ArcanaSectionSnapshot("Minor Arcana", allItems.filter(i => !i.major));
 		return new ArcanaSnapshot(minor, major);
+	}
+
+	/** The resolved {@link MinorArcanum} for a slug (pack or world), or null. */
+	async getArcanum(slug) {
+		const [item] = await this._arcanaRepo.findBySlugs([slug]);
+		return item ?? null;
 	}
 
 	async addArcanum(slug) {

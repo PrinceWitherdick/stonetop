@@ -1,5 +1,19 @@
 <div class="tab arcana" data-group="primary" data-tab="arcana">
 
+	{{#if stonetop.editMode}}{{#if stonetop.canCreateArcana}}
+	<div class="stonetop-arcana-create-bar">
+		<button type="button" class="stonetop-arcana-create" data-major="false">
+			<i class="fas fa-plus"></i> Create minor arcanum
+		</button>
+		<button type="button" class="stonetop-arcana-create" data-major="true">
+			<i class="fas fa-plus"></i> Create major arcanum
+		</button>
+		<button type="button" class="stonetop-arcana-inspire" title="Roll the Artifact Creation tables for inspiration, then build a card from the results">
+			<i class="fas fa-dice-d20"></i> Inspire me…
+		</button>
+	</div>
+	{{/if}}{{/if}}
+
 	{{#unless stonetop.arcana.major.hasOwned}}{{#unless stonetop.arcana.minor.hasOwned}}
 	<p class="stonetop-arcana-empty">{{localize "stonetop.arcana.empty"}}</p>
 	{{/unless}}{{/unless}}

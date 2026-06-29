@@ -1,19 +1,110 @@
-import { majorArcanaImg } from "../arcana-icons.js";
+import { arcanumCardImg } from "../arcana-icons.js";
 import { ITEM_FLAG_SCOPE } from "../actors/character/StonetopFlags.js";
 import { centerArcanumTracks, wrapStonetopGlyphsInEl } from "../utils/glyphs.js";
 import { markValueTooltips } from "../utils/value-tooltips.js";
 import { markDebilityTooltips } from "../utils/debility-tooltips.js";
+import { enrichHTML } from "../utils/foundry-compat.js";
+import { isInCompendium } from "../utils/compendium-edit-guard.js";
+import { isDefaultImg } from "../utils/strings.js";
+import { STAT_KEYS } from "../utils/roll-types.js";
+import { hasText } from "../actors/bestiary/codex.js";
+import { collectTakenArcanumSlugs } from "./createArcanum.js";
+import {
+	defaultArcanumItemLine, defaultResourceDef, defaultBackMove, defaultFollower,
+	newUnlockRequirement, nextOptionSlug, ensureOptionSlug, validateArcanumFlags,
+	markTrackHtml, mysteryHtml, consequenceHtml,
+} from "./arcanum-edit.js";
+
+const VIEW_TEMPLATE = "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs";
+const EDIT_TEMPLATE = "systems/stonetop_pwd/templates/item/arcanum-sheet-edit.hbs";
+
+// The "Max = stat" picker options, derived from the shared stat list so the order and
+// labels match the rest of the app (and can't drift). { key, abbr } is the template shape.
+const STAT_OPTIONS = STAT_KEYS.map(key => ({ key, abbr: key.toUpperCase() }));
+
+// Glyph runs the toolbar inserts into the focused rich editor. Tracks need a run of 2+ to
+// become interactive on the character sheet (see CharacterArcana._injectMarkers); a lone
+// glyph stays decorative — so the diamond/circle buttons insert a 3-run by default.
+const GLYPH_INSERTS = [
+	{ ins: "◇◇◇", label: "◇◇◇", hint: "Charge / diamond track (needs 2+ to be markable)" },
+	{ ins: "○○○", label: "○○○", hint: "Circle / Loyalty track (needs 2+ to be markable)" },
+	{ ins: "□", label: "□", hint: "One-shot box (move / consequence / task)" },
+	{ ins: "▶ ", label: "▶", hint: "Move / list arrow (decorative)" },
+];
+
+// True when any character already holds this arcanum slug — in their owned/identified
+// list, or via saved marks/unlock counts keyed by it. The slug is the identity key for
+// per-character marks AND the owned list, so changing it once in use orphans both; the
+// editor locks the slug field when this is true.
+function _arcanumSlugInUse(slug) {
+	if (!slug) return false;
+	const prefix = `${slug}:`;
+	const keyedBySlug = map => !!map && Object.keys(map).some(k => k === slug || k.startsWith(prefix));
+	for (const actor of globalThis.game?.actors ?? []) {
+		const arcana = actor.flags?.stonetop_pwd?.arcana;
+		if (!arcana) continue;
+		if ([arcana.owned, arcana.identified, arcana.flipped, arcana.minorDraw]
+			.some(list => Array.isArray(list) && list.includes(slug))) return true;
+		if ([arcana.boxes, arcana.unlock, arcana.backOptions, arcana.minorRoles].some(keyedBySlug)) return true;
+	}
+	return false;
+}
 
 export function createStonetopArcanumSheetClass(BaseItemSheet) {
 	return class StonetopArcanumSheet extends BaseItemSheet {
+		_editMode = false;
+
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				classes: ["stonetop", "sheet", "item", "stonetop-arcanum-sheet"],
 				width: 460,
 				height: "auto",
-				template: "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs",
+				template: VIEW_TEMPLATE,
 				resizable: true,
+				submitOnChange: false,
+				closeOnSubmit: false,
 			});
+		}
+
+		// Switch templates by mode; editing is gated to world-owned arcana.
+		get template() {
+			return (this._editMode && this._canEditArcanum()) ? EDIT_TEMPLATE : VIEW_TEMPLATE;
+		}
+
+		// Only homebrew (world, owned, editable) arcana can be edited in place; shipped
+		// compendium cards are immutable reference content.
+		_canEditArcanum() {
+			return this.item?.system?.moveType === "arcanum"
+				&& this.isEditable
+				&& !isInCompendium(this.item);
+		}
+
+		_getHeaderButtons() {
+			const buttons = super._getHeaderButtons();
+			if (this._canEditArcanum()) {
+				buttons.unshift({
+					label: this._editMode ? "Done" : "Edit",
+					class: "stonetop-arcanum-edit-toggle",
+					icon:  this._editMode ? "fas fa-eye" : "fas fa-pen-to-square",
+					onclick: () => this._toggleEditMode(),
+				});
+			}
+			return buttons;
+		}
+
+		async _toggleEditMode() {
+			if (this._editMode) {
+				await this._flushRichEditors();
+				this._otherArcanumSlugs = null; // drop the per-session slug cache on exit
+			}
+			this._editMode = !this._editMode;
+			await this.render(false);
+			this.setPosition({ width: this._editMode ? 560 : 460, height: "auto" });
+		}
+
+		async close(options) {
+			this._otherArcanumSlugs = null;
+			return super.close(options);
 		}
 
 		async getData() {
@@ -37,7 +128,27 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 				return data;
 			}
 
-			// Deep-clone before transforming so we never mutate the item's live flags.
+			// Edit mode: hand the template raw values (+ enriched copies for the rich
+			// editors) and the live validation status.
+			if (this._editMode && this._canEditArcanum()) {
+				// Cache the slugs in use elsewhere (pack + other world cards) once per edit
+				// session so the live slug-collision warning doesn't re-query the pack index +
+				// scan every world item on every structural re-render. Cleared on edit exit/close.
+				if (!this._otherArcanumSlugs) {
+					this._otherArcanumSlugs = await collectTakenArcanumSlugs({ excludeId: this.item.id });
+				}
+				data.editMode   = true;
+				data.edit       = await this._buildEditContext(flags);
+				// Lock the slug once a character holds the card — changing it would orphan
+				// their saved marks and break the owned-slug link (the card would vanish).
+				data.edit.slugLocked = _arcanumSlugInUse(flags.slug);
+				data.statOptions = STAT_OPTIONS;
+				data.glyphs     = GLYPH_INSERTS;
+				data.validation = validateArcanumFlags(flags);
+				return data;
+			}
+
+			// View mode: deep-clone before transforming so we never mutate live flags.
 			const front = foundry.utils.deepClone(flags.front ?? {});
 			const back  = foundry.utils.deepClone(flags.back ?? {});
 			if (front.description)         front.description         = centerArcanumTracks(front.description);
@@ -46,22 +157,375 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			data.front = front;
 			data.back = back;
 			data.slug = flags.slug ?? "";
-			data.arcanaImg = majorArcanaImg(flags.slug);
+			// Card art resolved by the shared helper: shipped majors use their registered icon,
+			// homebrew majors fall back to author-chosen art (a stock placeholder counts as none),
+			// minor arcana have none. Keeps this in lockstep with the character-sheet snapshot.
+			data.arcanaImg = arcanumCardImg({ slug: flags.slug, major: flags.major, img: this.item.img });
 			return data;
 		}
 
-		// This is the registered sheet for every "move"-type item — arcana, plus the
-		// plain inventory items (violet lotus, etc.). Give their "Value N" mentions the
-		// same hover tooltip the journals and actor sheets show. Self-gated by setting.
+		async _buildEditContext(flags) {
+			const front  = flags.front ?? {};
+			const back   = flags.back ?? {};
+			const unlock = front.unlock ?? {};
+
+			const itemForForm = it => {
+				const base = it ?? defaultArcanumItemLine();
+				return { ...base, inventoryColumnValue: base.inventoryColumn ?? "" };
+			};
+			const resourceForForm = r => {
+				const base = r ?? defaultResourceDef();
+				return {
+					title:        base.title ?? "",
+					max:          base.max ?? null,
+					maxStat:      base.maxStat ?? null,
+					maxStatValue: base.maxStat ?? "",
+					labelsText:   (base.labels ?? []).join("\n"),
+				};
+			};
+
+			const slug = flags.slug ?? "";
+			// Enrich the four rich-text fields in parallel — they're independent and each
+			// enrichHTML resolves @UUID links asynchronously, and this runs on every
+			// structural-edit re-render (toggling major, adding a mystery, etc.).
+			const [frontEnriched, unlockEnriched, backEnriched, moveEnriched] = await Promise.all([
+				enrichHTML(front.description ?? ""),
+				enrichHTML(unlock.description ?? ""),
+				enrichHTML(back.description ?? ""),
+				enrichHTML(back.move?.description ?? ""),
+			]);
+			return {
+				name:   this.item.name ?? "",
+				slug,
+				slugCollision: !!slug && !!this._otherArcanumSlugs?.has(slug),
+				major:  !!flags.major,
+				img:    isDefaultImg(this.item.img) ? null : this.item.img,
+				front: {
+					title:               front.title ?? "",
+					description:         front.description ?? "",
+					descriptionEnriched: frontEnriched,
+					hasItem:             !!front.item,
+					item:                itemForForm(front.item),
+					unlock: {
+						description:         unlock.description ?? "",
+						descriptionEnriched: unlockEnriched,
+						requirements: (unlock.requirements ?? []).map(r => ({
+							type:        r.type,
+							isOption:    r.type === "option",
+							isText:      r.type === "text",
+							slug:        r.slug ?? "",
+							description: r.description ?? "",
+							content:     r.content ?? "",
+							max:         r.max ?? 1,
+						})),
+					},
+				},
+				back: {
+					title:               back.title ?? "",
+					description:         back.description ?? "",
+					descriptionEnriched: backEnriched,
+					hasItem:             !!back.item,
+					item:                itemForForm(back.item),
+					hasItemResource:     !!back.item?.resource,
+					itemResource:        resourceForForm(back.item?.resource),
+					hasResource:         !!back.resource,
+					resource:            resourceForForm(back.resource),
+					hasMove:             !!back.move,
+					move: {
+						name:                back.move?.name ?? "",
+						description:         back.move?.description ?? "",
+						descriptionEnriched: moveEnriched,
+					},
+				},
+				summonFollowers: (flags.summon?.followers ?? []).map(f => ({
+					name:       f.name ?? "",
+					pronoun:    f.pronoun ?? "",
+					typeLabel:  f.typeLabel ?? "",
+					tags:       Array.isArray(f.tags) ? f.tags.join(", ") : (f.tags ?? ""),
+					hp:         f.hp ?? 0,
+					armor:      f.armor ?? "",
+					damage:     f.damage ?? "",
+					instinct:   f.instinct ?? "",
+					moves:      f.moves ?? "",
+					cost:       f.cost ?? "",
+					loyalty:    f.loyalty ?? 0,
+					notes:      f.notes ?? "",
+					repeatable: !!f.repeatable,
+				})),
+			};
+		}
+
 		activateListeners(html) {
 			super.activateListeners(html);
 			const root = html?.[0] ?? html;
+			if (!root) return;
+
+			if (this._editMode && this._canEditArcanum()) {
+				root.addEventListener("change", ev => this._onEditChange(ev));
+				root.addEventListener("click",  ev => this._onEditClick(ev));
+				// Insert glyph runs on mousedown so the focused editor keeps focus.
+				root.querySelectorAll(".stonetop-arc-glyph").forEach(btn =>
+					btn.addEventListener("mousedown", ev => { ev.preventDefault(); this._insertGlyph(btn.dataset.glyph); }));
+				return;
+			}
+
+			// View mode. Give "Value N" mentions the shared hover tooltip the journals and
+			// actor sheets show, and render inline glyphs (◇ □ ○ ▶) as SVG like the
+			// character sheet's arcana cards. Self-gated by setting.
 			markValueTooltips(root);
 			markDebilityTooltips(root);
-			// Render inline glyphs (◇ charge tracks, □ move boxes, ▶ arrows) as SVG, the
-			// same as the character sheet's arcana cards — centerArcanumTracks only moves
-			// standalone tracks onto their own line; it doesn't swap the raw Unicode for art.
-			root?.querySelectorAll(".stonetop-arcanum-body").forEach(el => wrapStonetopGlyphsInEl(el));
+			root.querySelectorAll(".stonetop-arcanum-body").forEach(el => wrapStonetopGlyphsInEl(el));
+		}
+
+		// ── Edit dispatch ─────────────────────────────────────────────────────────
+
+		async _onEditChange(ev) {
+			const t = ev.target;
+
+			// Requirement type select restructures the row (option ↔ text fields differ).
+			if (t.classList?.contains("stonetop-arc-req-type")) {
+				await this._flushRichEditors();
+				return this._rebuildRequirements({ render: true });
+			}
+			// Any other requirement input → rebuild the array silently (DOM already correct).
+			if (t.closest(".stonetop-arc-req-row")) return this._rebuildRequirements({ render: false });
+
+			// Follower field → rebuild the followers array silently.
+			if (t.closest(".stonetop-arc-foll-row")) return this._rebuildSummon({ render: false });
+
+			// Presence toggles add/remove a sub-object → restructure.
+			const toggle = t.closest("[data-arc-toggle]");
+			if (toggle) return this._onToggle(toggle.dataset.arcToggle, toggle.checked);
+
+			// Generic scalar / select field. Rich (prose-mirror) content is intentionally NOT
+			// saved here — it's flushed on Done/close/toggle/append (every path before a
+			// re-render or exit). Saving on the per-change event lets a prose-mirror's stale
+			// teardown `change` (fired when a re-render replaces it) clobber freshly-saved content.
+			const fieldEl = t.closest("[data-arc-field]");
+			if (!fieldEl || fieldEl.tagName === "PROSE-MIRROR") return;
+			const path = fieldEl.dataset.arcField;
+			// The slug is an identity key for saved marks + ownership; once a character holds
+			// the card it's locked (the input renders readonly), so never persist a changed slug.
+			if (path === `flags.${ITEM_FLAG_SCOPE}.slug` && _arcanumSlugInUse(this._flags().slug)) return;
+			let value;
+			if (fieldEl.matches?.('input[type="checkbox"]')) {
+				value = fieldEl.checked;
+			} else if (fieldEl.dataset.arcType === "number") {
+				value = fieldEl.value === "" ? null : Number(fieldEl.value);
+				if (Number.isNaN(value)) value = null;
+			} else if (fieldEl.dataset.arcType === "lines") {
+				value = fieldEl.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+			} else {
+				value = fieldEl.value;
+			}
+			if (value === "" && (path.endsWith(".maxStat") || path.endsWith(".inventoryColumn"))) value = null;
+
+			// Toggling major shows/hides the major-tools UI, so it needs a re-render.
+			if (path.endsWith(".major")) {
+				await this._flushRichEditors();
+				return this.item.update({ [path]: value });
+			}
+			await this.item.update({ [path]: value }, { render: false });
+			// Editing the slug → live-refresh the collision warning (no re-render).
+			if (path === `flags.${ITEM_FLAG_SCOPE}.slug`) this._updateSlugWarning(value);
+		}
+
+		// Show/hide the inline "another card uses this slug" warning against the cached
+		// set of other arcana slugs. Called on each slug edit so it tracks live.
+		_updateSlugWarning(slug) {
+			const el = this.element?.[0]?.querySelector(".stonetop-arc-slug-warning");
+			if (!el) return;
+			el.hidden = !slug || !this._otherArcanumSlugs?.has(slug);
+		}
+
+		_onEditClick(ev) {
+			const add = ev.target.closest(".stonetop-arc-req-add");
+			if (add) { ev.preventDefault(); return this._addRequirement(add.dataset.reqType || "option"); }
+			const rem = ev.target.closest(".stonetop-arc-req-remove");
+			if (rem) {
+				ev.preventDefault();
+				return this._removeRequirement(Number(rem.closest(".stonetop-arc-req-row")?.dataset?.reqIndex));
+			}
+			// Major-mode authoring helpers.
+			const art = ev.target.closest(".stonetop-arc-pick-art");
+			if (art) { ev.preventDefault(); return this._onPickArt(); }
+			const track = ev.target.closest(".stonetop-arc-marktrack");
+			if (track) { ev.preventDefault(); return this._appendToField(`flags.${ITEM_FLAG_SCOPE}.front.unlock.description`, markTrackHtml(track.dataset.marks)); }
+			const myst = ev.target.closest(".stonetop-arc-add-mystery");
+			if (myst) { ev.preventDefault(); return this._appendToField(`flags.${ITEM_FLAG_SCOPE}.back.description`, mysteryHtml()); }
+			const cons = ev.target.closest(".stonetop-arc-add-consequence");
+			if (cons) { ev.preventDefault(); return this._appendToField(`flags.${ITEM_FLAG_SCOPE}.back.description`, consequenceHtml(cons.dataset.weight)); }
+			// Manifested-follower list.
+			const fadd = ev.target.closest(".stonetop-arc-foll-add");
+			if (fadd) { ev.preventDefault(); return this._addFollower(); }
+			const frem = ev.target.closest(".stonetop-arc-foll-remove");
+			if (frem) {
+				ev.preventDefault();
+				return this._removeFollower(Number(frem.closest(".stonetop-arc-foll-row")?.dataset?.follIndex));
+			}
+		}
+
+		// Append a guided HTML snippet to a rich field, then re-render to show it. Does it in a
+		// SINGLE update that also flushes the other live editors (so unsaved edits survive the
+		// re-render) — a flush-then-append pair of rapid updates drops the second write.
+		async _appendToField(path, snippet) {
+			if (this._appending) return;
+			this._appending = true;
+			try {
+				const updates = this._collectEditorUpdates();
+				const base = (path in updates) ? updates[path] : (foundry.utils.getProperty(this.item, path) ?? "");
+				updates[path] = `${base}${snippet}`;
+				await this.item.update(updates);
+			} finally {
+				this._appending = false;
+			}
+		}
+
+		// Map of flag-path → live editor value for every rich editor whose content changed,
+		// skipping empty reads from un-activated editors (which would clobber stored content).
+		_collectEditorUpdates() {
+			const root = this.element?.[0];
+			const updates = {};
+			root?.querySelectorAll("prose-mirror[data-arc-field]").forEach(pm => {
+				const path = pm.dataset.arcField;
+				if (!path) return;
+				const val    = pm.value ?? "";
+				const stored = foundry.utils.getProperty(this.item, path) ?? "";
+				if (!hasText(val) && hasText(stored)) return;
+				if (val !== stored) updates[path] = val;
+			});
+			return updates;
+		}
+
+		_onPickArt() {
+			const FP = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+			new FP({
+				type: "image",
+				current: this.item.img,
+				callback: path => this.item.update({ img: path }),
+			}).render(true);
+		}
+
+		async _insertGlyph(text) {
+			if (!text) return;
+			// Resolve the focused rich field, scoped to THIS sheet's editors so a glyph never
+			// lands in some other app's editor that happens to hold focus.
+			const root = this.element?.[0];
+			const pm   = document.activeElement?.closest?.("prose-mirror[data-arc-field]");
+			if (!pm || (root && !root.contains(pm))) {
+				ui.notifications?.info("Click into a description, then insert the track.");
+				return;
+			}
+			// Insert at the caret. execCommand still works inside ProseMirror's contenteditable
+			// in current Chromium (its DOM observer syncs the mutation the same way it syncs
+			// typing), but it's deprecated — if the platform no longer supports it, fall back to
+			// appending the run to the field's stored value so the glyph never silently vanishes.
+			const inserted = document.execCommand("insertText", false, text);
+			if (!inserted) await this._appendToField(pm.dataset.arcField, text);
+		}
+
+		_flags() { return this.item.flags?.[ITEM_FLAG_SCOPE] ?? {}; }
+
+		// Persist any unsaved rich-editor content (e.g. before a re-render or on close) without
+		// re-rendering. An un-activated ProseMirror can report an empty value; _collectEditorUpdates
+		// never lets that clobber stored content (legitimate clears go through the editor's own
+		// change event).
+		async _flushRichEditors() {
+			const updates = this._collectEditorUpdates();
+			if (Object.keys(updates).length) await this.item.update(updates, { render: false });
+		}
+
+		_defaultForToggle(which) {
+			if (which.endsWith(".resource")) return defaultResourceDef();
+			if (which.endsWith(".move"))     return defaultBackMove();
+			return defaultArcanumItemLine();
+		}
+
+		async _onToggle(which, on) {
+			await this._flushRichEditors();
+			await this.item.update({ [`flags.${ITEM_FLAG_SCOPE}.${which}`]: on ? this._defaultForToggle(which) : null });
+		}
+
+		async _addRequirement(type) {
+			await this._flushRichEditors();
+			const reqs  = [...(this._flags().front?.unlock?.requirements ?? [])];
+			const taken = new Set(reqs.filter(r => r.type === "option").map(r => r.slug));
+			const slug  = type === "option" ? nextOptionSlug(taken) : "";
+			reqs.push(newUnlockRequirement(type, slug));
+			await this.item.update({ [`flags.${ITEM_FLAG_SCOPE}.front.unlock.requirements`]: reqs });
+		}
+
+		async _removeRequirement(index) {
+			if (Number.isNaN(index)) return;
+			await this._flushRichEditors();
+			const reqs = [...(this._flags().front?.unlock?.requirements ?? [])];
+			reqs.splice(index, 1);
+			await this.item.update({ [`flags.${ITEM_FLAG_SCOPE}.front.unlock.requirements`]: reqs });
+		}
+
+		_rebuildRequirements({ render = false } = {}) {
+			const root = this.element?.[0];
+			if (!root) return;
+			const taken = new Set();
+			const reqs = [...root.querySelectorAll(".stonetop-arc-req-row")].map(row => {
+				const type = row.querySelector('[data-req-prop="type"]')?.value ?? "option";
+				if (type === "text") {
+					return { type: "text", content: row.querySelector('[data-req-prop="content"]')?.value ?? "" };
+				}
+				const description = row.querySelector('[data-req-prop="description"]')?.value ?? "";
+				const slug = ensureOptionSlug(row.querySelector('[data-req-prop="slug"]')?.value ?? "", description, taken);
+				taken.add(slug);
+				const maxRaw = row.querySelector('[data-req-prop="max"]')?.value;
+				const max = maxRaw ? Math.max(1, Number(maxRaw) || 1) : 1;
+				return { type: "option", slug, description, max };
+			});
+			return this.item.update({ [`flags.${ITEM_FLAG_SCOPE}.front.unlock.requirements`]: reqs }, { render });
+		}
+
+		// ── Manifested followers (data-driven summons) ──────────────────────────────
+
+		async _addFollower() {
+			await this._flushRichEditors();
+			const followers = [...(this._flags().summon?.followers ?? []), defaultFollower()];
+			await this.item.update({ [`flags.${ITEM_FLAG_SCOPE}.summon.followers`]: followers });
+		}
+
+		async _removeFollower(index) {
+			if (Number.isNaN(index)) return;
+			await this._flushRichEditors();
+			const followers = [...(this._flags().summon?.followers ?? [])];
+			followers.splice(index, 1);
+			await this.item.update({ [`flags.${ITEM_FLAG_SCOPE}.summon.followers`]: followers });
+		}
+
+		_rebuildSummon({ render = false } = {}) {
+			const root = this.element?.[0];
+			if (!root) return;
+			const num = el => { const x = el?.value; return x === "" || x == null ? 0 : (Number(x) || 0); };
+			const followers = [...root.querySelectorAll(".stonetop-arc-foll-row")].map(row => {
+				const v = p => row.querySelector(`[data-foll-prop="${p}"]`)?.value ?? "";
+				return {
+					name:       v("name"),
+					pronoun:    v("pronoun"),
+					typeLabel:  v("typeLabel"),
+					tags:       v("tags"),
+					hp:         num(row.querySelector('[data-foll-prop="hp"]')),
+					armor:      v("armor"),
+					damage:     v("damage"),
+					instinct:   v("instinct"),
+					moves:      v("moves"),
+					cost:       v("cost"),
+					loyalty:    num(row.querySelector('[data-foll-prop="loyalty"]')),
+					notes:      v("notes"),
+					repeatable: row.querySelector('[data-foll-prop="repeatable"]')?.checked || false,
+				};
+			});
+			return this.item.update({ [`flags.${ITEM_FLAG_SCOPE}.summon.followers`]: followers }, { render });
+		}
+
+		async close(options) {
+			if (this._editMode) await this._flushRichEditors();
+			return super.close(options);
 		}
 	};
 }

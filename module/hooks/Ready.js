@@ -15,6 +15,8 @@ import { CharacterCreationDialog } from "../actors/character/dialogs/CharacterCr
 import { readOnboardingResume, clearOnboardingResume } from "../actors/character/onboarding-resume.js";
 import { playbookSlug } from "../utils/playbook-actors.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
+import { createArcanumItem } from "../item/createArcanum.js";
+import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { getStonetopSteadingActorOrWarn } from "../utils/world.js";
 
@@ -108,6 +110,16 @@ export async function onReady() {
 		actor ? new CharacterCreationDialog(actor).render(true)
 		      : ui.notifications.warn("No character to start creation for.");
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
+	// Create a blank homebrew arcanum world Item and open its editor. Minor by default;
+	// pass { major: true } for a major. Callable from a macro/console/hotbar:
+	//   game.stonetop.createArcanum({ name: "My Charm" })
+	game.stonetop.createArcanum     = (opts = {}) => createArcanumItem(opts);
+	// Open the Artifact Creation inspiration wizard; on finish it creates a standalone
+	// homebrew arcanum world Item pre-filled with the rolled results and opens its editor.
+	// Callable from a macro/console/hotbar:  game.stonetop.inspireArcanum()
+	game.stonetop.inspireArcanum    = () => new StonetopArcanaInspireDialog({
+		onCreate: ({ name, major, front }) => createArcanumItem({ name, major, front }),
+	}).render(true);
 
 	_registerCharacterAutoOpen();
 

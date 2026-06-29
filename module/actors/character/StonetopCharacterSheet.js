@@ -16,7 +16,9 @@ import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
-import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE} from "./StonetopFlags.js";
+import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
+import {createArcanumItem} from "../../item/createArcanum.js";
+import {StonetopArcanaInspireDialog} from "../../item/StonetopArcanaInspireDialog.js";
 import {rollDamage, rollStat, sign} from "../../utils/roll-engine.js";
 import {dieFromDamage} from "../../utils/damage.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
@@ -37,7 +39,7 @@ import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap} from "../../data/follower-build.js";
-import {arcanaSummon, joinNames} from "../../data/arcana-summons.js";
+import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
 
@@ -49,6 +51,12 @@ const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
 function canAuthorCustomMoves() {
 	if (game.user?.isGM) return true;
 	return !game.settings.get("stonetop_pwd", "customMovesGmOnly");
+}
+
+// As canAuthorCustomMoves, but for homebrew arcana (the arcanaCreationGmOnly setting).
+function canCreateArcana() {
+	if (game.user?.isGM) return true;
+	return !game.settings.get("stonetop_pwd", "arcanaCreationGmOnly");
 }
 
 // Playbook moves that let a character roll a different stat for a basic move. When
@@ -1170,14 +1178,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			);
 			for (const section of [context.stonetop.arcana?.major, context.stonetop.arcana?.minor]) {
 				for (const item of (section?.items ?? [])) {
-					const entry = arcanaSummon(item.slug);
-					if (!entry) continue;
-					const names   = joinNames(entry.followers.map(f => f.name));
-					const plural  = entry.followers.length > 1;
+					const followers = item.summonFollowers;
+					if (!followers?.length) continue;
+					const names   = joinNames(followers.map(f => f.name));
+					const plural  = followers.length > 1;
 					// A repeatable follower (the Ring's Servants) can always be summoned
 					// again, so the button never reads "added" / disables while one exists.
-					const hasRepeatable = entry.followers.some(f => f.repeatable);
-					const addedAll = !hasRepeatable && entry.followers.every(f => summonedUuids.has(f.sourceUuid));
+					const hasRepeatable = followers.some(f => f.repeatable);
+					const addedAll = !hasRepeatable && followers.every(f => summonedUuids.has(f.sourceUuid));
 					item.summon = {
 						added: addedAll,
 						label: addedAll
@@ -1192,6 +1200,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// restricted, players still see/roll existing custom moves but get no "+"
 			// button or edit pencils. Existing moves always render regardless.
 			context.stonetop.canAuthorCustomMoves = canAuthorCustomMoves();
+			// Creating homebrew arcana can be restricted to the GM independently of
+			// custom moves (arcanaCreationGmOnly). When restricted, players don't see
+			// the create bar / inspiration wizard, but still edit cards they own.
+			context.stonetop.canCreateArcana = canCreateArcana();
 			const { xp } = context.stonetop.vitals;
 			context.stonetop.canLevelUp = xp.value >= xp.max;
 			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
@@ -3130,6 +3142,19 @@ export function createStonetopCharacterSheetClass(Base) {
 				});
 			}, true);
 
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcana-create");
+				if (!btn) return;
+				ev.stopPropagation();
+				this._onArcanaCreate(btn.dataset.major === "true");
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				if (!ev.target.closest(".stonetop-arcana-inspire")) return;
+				ev.stopPropagation();
+				this._onArcanaInspire();
+			}, true);
+
 			html[0].addEventListener("change", ev => {
 				const cb = ev.target.closest(".stonetop-arcanum-unlock-check");
 				if (!cb) return;
@@ -3919,10 +3944,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		// stable sourceUuid marker so re-summoning never piles up duplicate cards.
 		async _onArcanaSummon(slug) {
 			if (!this.isEditable) return;
-			const entry = arcanaSummon(slug);
-			if (!entry?.followers?.length) return;
-			const names = joinNames(entry.followers.map(f => f.name));
-			const plural = entry.followers.length > 1;
+			const arcanum = await this._stonetopCharacter.getArcanum(slug);
+			const followers = arcanaSummonFollowers(arcanum);
+			if (!followers?.length) return;
+			const names = joinNames(followers.map(f => f.name));
+			const plural = followers.length > 1;
 			const confirmed = await Dialog.confirm({
 				title:      "Manifest follower",
 				content:    `<p>Manifest <strong>${escHtml(names)}</strong> and add ${plural ? "them" : "it"} to your Followers tab?</p>`,
@@ -3937,7 +3963,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const present  = new Set(Object.values(existing).map(f => f?.sourceUuid).filter(Boolean));
 			const update   = {};
 			let order = this._nextFollowerOrder();
-			for (const input of entry.followers) {
+			for (const input of followers) {
 				// `repeatable` followers (e.g. the Ring of Daagon's Servants) can be
 				// summoned again and again, so they're never deduped by sourceUuid.
 				if (!input.repeatable && present.has(input.sourceUuid)) continue;
@@ -3946,6 +3972,38 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			if (Object.keys(update).length) await this.actor.update(update);
 			this.render(false);
+		}
+
+		// Create a blank homebrew arcanum world Item (minor or major), add it to this
+		// character by slug, mark it identified (the author made it — no mystery to
+		// solve), and open its editor. The arcana tab then resolves it via the
+		// world-item path of FoundryArcanaRepository.
+		async _onArcanaCreate(major = false) {
+			if (!this.isEditable || !canCreateArcana()) return;
+			await this._createAndAddArcanum({ name: major ? "New Major Arcanum" : "New Minor Arcanum", major });
+		}
+
+		// Open the Artifact Creation inspiration wizard; on finish it creates a card
+		// pre-filled with the rolled results and adds it to this character.
+		_onArcanaInspire() {
+			if (!this.isEditable || !canCreateArcana()) return;
+			new StonetopArcanaInspireDialog({
+				onCreate: ({ name, major, front }) => this._createAndAddArcanum({ name, major, front }),
+			}).render(true);
+		}
+
+		// Create a homebrew arcanum world Item (optionally pre-filled), add it to this
+		// character by slug, mark it identified (the author made it — no mystery to solve),
+		// and open its editor. The arcana tab then resolves it via the world-item path of
+		// FoundryArcanaRepository. Returns the created Item.
+		async _createAndAddArcanum({ name, major = false, front } = {}) {
+			const item = await createArcanumItem({ name, major, front });
+			const slug = item?.flags?.[ITEM_FLAG_SCOPE]?.slug;
+			if (!slug) return item;
+			await this._stonetopCharacter.addArcanum(slug);
+			await this._stonetopCharacter.identifyArcanum(slug);
+			this.render(true);
+			return item;
 		}
 
 		// Persist a built custom follower under a fresh id and re-render. `data` is

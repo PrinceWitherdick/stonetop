@@ -16558,3 +16558,538 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	opacity: 0.45;
 	cursor: not-allowed;
 }
+
+/* ── Arcanum editor (StonetopArcanumSheet edit mode) ───────────────────────────
+   Scoped under .stonetop-arcanum-edit (only ever inside the arcanum item sheet),
+   so nothing here bleeds onto other windows. */
+.stonetop-arcanum-edit {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-height: 78vh;
+	overflow-y: auto;
+	padding: 4px 2px 10px;
+	font-family: var(--font-stonetop);
+	color: var(--st-text-body);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-section {
+	border: 1px solid var(--color-border-light, #c9c0ad);
+	border-radius: var(--st-radius-lg);
+	padding: 8px 10px 10px;
+	background: rgba(255, 255, 255, 0.35);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-h {
+	margin: 0 0 6px;
+	font-size: var(--st-fs-lg);
+	font-family: var(--font-stonetop);
+	border-bottom: 1px solid var(--color-border-light, #c9c0ad);
+	padding-bottom: 3px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-h-sub {
+	font-size: var(--st-fs-xs);
+	font-weight: normal;
+	font-style: italic;
+	color: var(--st-text-muted);
+	margin-left: 6px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-row > span {
+	flex: 0 0 92px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-row--wide > span { flex-basis: 92px; }
+.stonetop-arcanum-edit .stonetop-arc-row--wide { align-items: flex-start; }
+
+.stonetop-arcanum-edit .stonetop-arc-input {
+	flex: 1;
+	min-width: 0;
+}
+
+.stonetop-arcanum-edit textarea.stonetop-arc-input {
+	resize: vertical;
+	min-height: 2.4em;
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-label {
+	display: block;
+	margin: 8px 0 3px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-hint {
+	margin: 2px 0 6px;
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-muted);
+	font-style: italic;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-check {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin: 8px 0 2px;
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-check em {
+	color: var(--st-text-muted);
+	font-size: var(--st-fs-2xs);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-check--sub {
+	margin-left: 14px;
+	font-size: var(--st-fs-xs);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-subgrid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 4px 10px;
+	margin: 4px 0 6px 14px;
+	padding-left: 8px;
+	border-left: 2px solid var(--color-border-light, #c9c0ad);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-subgrid .stonetop-arc-row--wide { grid-column: 1 / -1; }
+
+.stonetop-arcanum-edit prose-mirror.stonetop-arc-rich {
+	display: block;
+	min-height: 90px;
+	border: 1px solid var(--color-border-light, #c9c0ad);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.5);
+	padding: 2px 4px;
+}
+
+/* Keep the editable area clickable/visible even when empty (a 0-height editor can't
+   be focused to type into). */
+.stonetop-arcanum-edit prose-mirror.stonetop-arc-rich .editor-content {
+	min-height: 70px;
+}
+
+/* Glyph-insert toolbar */
+.stonetop-arcanum-edit .stonetop-arc-glyphbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 8px;
+	background: var(--st-blue-bg);
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius-sm);
+	position: sticky;
+	top: 0;
+	z-index: 2;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-glyphbar-label {
+	font-size: var(--st-fs-xs);
+	color: var(--st-blue-text);
+	font-weight: 600;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-glyph {
+	flex: 0 0 auto;
+	width: auto;
+	min-width: 2.4em;
+	padding: 1px 8px;
+	font-size: var(--st-fs-md);
+	line-height: 1.4;
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-glyphbar-hint {
+	flex: 1 1 100%;
+	font-size: var(--st-fs-2xs);
+	color: var(--st-blue-text);
+	font-style: italic;
+}
+
+/* Unlock requirements list editor */
+.stonetop-arcanum-edit .stonetop-arc-reqs { margin-top: 8px; }
+
+.stonetop-arcanum-edit .stonetop-arc-reqs-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	margin-bottom: 4px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-req-add {
+	flex: 0 0 auto;
+	width: auto;
+	padding: 1px 8px;
+	font-size: var(--st-fs-2xs);
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-req-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-req-row {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-req-type { flex: 0 0 6.5em; }
+.stonetop-arcanum-edit .stonetop-arc-req-input { flex: 1; min-width: 0; }
+.stonetop-arcanum-edit .stonetop-arc-req-slug { flex: 0 0 7em; font-size: var(--st-fs-2xs); }
+.stonetop-arcanum-edit .stonetop-arc-req-max { flex: 0 0 3.5em; }
+
+.stonetop-arcanum-edit .stonetop-arc-req-remove {
+	flex: 0 0 auto;
+	width: auto;
+	padding: 1px 7px;
+	color: var(--st-red-text);
+	cursor: pointer;
+}
+
+/* Validation status */
+.stonetop-arcanum-edit .stonetop-arc-validation {
+	list-style: none;
+	margin: 0;
+	padding: 6px 8px;
+	border-radius: var(--st-radius-sm);
+	background: var(--st-red-bg);
+	border: 1px solid var(--st-red-border);
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-issue {
+	font-size: var(--st-fs-xs);
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-issue--error { color: var(--st-red-text); }
+.stonetop-arcanum-edit .stonetop-arc-issue--warn  { color: var(--st-text-secondary); }
+
+/* Live slug-collision warning under the slug field (amber, matches the shared notice). */
+.stonetop-arcanum-edit .stonetop-arc-slug-warning {
+	margin: 2px 0 0;
+	padding: 4px 8px;
+	border-radius: var(--st-radius-sm);
+	background: rgba(200, 120, 20, 0.1);
+	border: 1px solid rgba(200, 120, 20, 0.4);
+	color: #7a4a00;
+	font-size: var(--st-fs-2xs);
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+}
+.stonetop-arcanum-edit .stonetop-arc-slug-warning[hidden] { display: none; }
+.stonetop-arcanum-edit .stonetop-arc-slug-warning > i { color: #c07820; }
+
+/* Arcana-tab "create homebrew arcanum" bar (character sheet, edit mode) */
+.stonetop-arcana-create-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.stonetop-arcana-create-bar .stonetop-arcana-create,
+.stonetop-arcana-create-bar .stonetop-arcana-inspire {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 12px;
+	cursor: pointer;
+}
+
+/* The inspiration wizard launcher sits apart from the two "blank card" buttons. */
+.stonetop-arcana-create-bar .stonetop-arcana-inspire {
+	margin-left: auto;
+	font-style: italic;
+}
+
+/* ── Artifact Creation inspiration wizard (StonetopArcanaInspireDialog) ───────── */
+.stonetop-arcana-inspire-dialog .stonetop-inspire {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	font-family: var(--font-stonetop);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-step {
+	margin: 0;
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	color: var(--st-blue-text);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-intro {
+	margin: 0;
+	font-size: var(--st-fs-2xs);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field > label,
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field-label {
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field-row select {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-roll {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 3px 9px;
+	cursor: pointer;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-roll-all {
+	align-self: flex-start;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 12px;
+	cursor: pointer;
+	font-style: italic;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-radio {
+	display: block;
+	font-size: var(--st-fs-xs);
+	margin: 2px 0;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-radio em {
+	color: var(--st-text-muted);
+	font-size: var(--st-fs-2xs);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-summary {
+	border: 1px solid var(--st-blue-border, #9bb4d1);
+	background: var(--st-blue-bg);
+	border-radius: var(--st-radius-sm);
+	padding: 6px 10px;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-summary-title {
+	margin: 0 0 4px;
+	font-weight: 600;
+	font-size: var(--st-fs-xs);
+	color: var(--st-blue-text);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-summary ul {
+	margin: 0;
+	padding-left: 18px;
+	font-size: var(--st-fs-xs);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-hint {
+	margin: 4px 0 0;
+	font-size: var(--st-fs-2xs);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	margin-top: 4px;
+	padding-top: 8px;
+	border-top: 1px solid var(--color-border-light, #c9c0ad);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer-right {
+	display: flex;
+	gap: 8px;
+	margin-left: auto;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer button {
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 14px;
+	cursor: pointer;
+}
+
+/* Major-mode authoring tools (shown when the arcanum is a Major). */
+.stonetop-arcanum-edit .stonetop-arc-arttool {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 6px 0 2px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-art-thumb {
+	flex: 0 0 auto;
+	width: 40px;
+	height: 40px;
+	border: 1px solid var(--color-border-light, #c9c0ad);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.4);
+	overflow: hidden;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-art-thumb img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-pick-art {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 10px;
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-majorbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin: 6px 0;
+	padding: 5px 8px;
+	background: var(--st-green-bg);
+	border: 1px solid var(--st-green-border);
+	border-radius: var(--st-radius-sm);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-majorbar-label {
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	color: var(--st-green-text);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-marktrack,
+.stonetop-arcanum-edit .stonetop-arc-add-mystery,
+.stonetop-arcanum-edit .stonetop-arc-add-consequence {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 1px 9px;
+	font-size: var(--st-fs-xs);
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-majorbar .stonetop-arc-hint { flex: 1 1 100%; margin: 0; }
+
+/* Manifested-followers (summon) authoring list. */
+.stonetop-arcanum-edit .stonetop-arc-foll { margin-top: 10px; }
+
+.stonetop-arcanum-edit .stonetop-arc-foll-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	margin-bottom: 4px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-foll-add {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 1px 9px;
+	font-size: var(--st-fs-2xs);
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-foll-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-foll-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	border: 1px solid var(--color-border-light, #c9c0ad);
+	border-radius: var(--st-radius-sm);
+	padding: 6px 8px;
+	background: rgba(255, 255, 255, 0.35);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-foll-grid {
+	flex: 1;
+	min-width: 0;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 3px 10px;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-foll-grid .stonetop-arc-row--wide { grid-column: 1 / -1; }
+.stonetop-arcanum-edit .stonetop-arc-foll-grid .stonetop-arc-check { grid-column: 1 / -1; }
+
+.stonetop-arcanum-edit .stonetop-arc-foll-remove {
+	flex: 0 0 auto;
+	width: auto;
+	padding: 1px 7px;
+	color: var(--st-red-text);
+	cursor: pointer;
+}
