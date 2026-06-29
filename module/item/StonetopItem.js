@@ -1,7 +1,7 @@
 import {StonetopPlaybook} from "./StonetopPlaybook.js";
 import {rollFormula, rollStat} from "../utils/roll-engine.js";
 import {normalizeRollType} from "../utils/roll-types.js";
-import {filterStatOptionLines} from "../utils/strings.js";
+import {filterStatOptionLines, escHtml} from "../utils/strings.js";
 
 // Item sub-types that only ever exist as packaged content or embedded documents:
 // playbooks ship in the compendium, npcMove/monsterMove are added through the
@@ -57,7 +57,7 @@ export function createStonetopItemClass(BaseItem) {
 			if (descriptionOnly) {
 				return ChatMessage.create({
 					content: `<div class="stonetop-chat-move">
-						<h3 class="stonetop-chat-move-name">${this.name}</h3>
+						<h3 class="stonetop-chat-move-name">${escHtml(this.name)}</h3>
 						<div class="stonetop-chat-move-description">${this.system?.description ?? ""}</div>
 					</div>`,
 					speaker: ChatMessage.getSpeaker({ actor }),

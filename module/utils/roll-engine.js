@@ -152,7 +152,7 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 	return `<section class="pbta-chat-card stonetop-roll-card">
 		<div class="cell cell--chat">
 			<div class="chat-title row flexrow">
-				<h2 class="cell__title">${header}</h2>
+				<h2 class="cell__title">${escHtml(header)}</h2>
 				${descToggleHtml}
 			</div>
 			${descriptionHtml}

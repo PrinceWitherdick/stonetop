@@ -156,6 +156,14 @@
       }
     },
     "settings": {
+      "customMovesGmOnly": {
+        "name": "Custom Moves: GM Only",
+        "hint": "When on, only the GM can create or edit custom moves — players don't see the \"+ Custom Move\" button or the edit pencils. Existing custom moves still display and roll for everyone. Turn off to let players author their own custom moves (including ongoing bonuses)."
+      },
+      "arcanaCreationGmOnly": {
+        "name": "Arcana Creation: GM Only",
+        "hint": "When on, only the GM can create homebrew arcana — players don't see the \"Create arcanum\" bar or the inspiration wizard on the arcana tab. Existing arcana still display, flip, and roll for everyone, and players can still edit cards they own. Turn off to let players author their own arcana."
+      },
       "expandMoveDescriptions": {
         "name": "Expand Move Descriptions",
         "hint": "Show move descriptions expanded by default on character sheets."
