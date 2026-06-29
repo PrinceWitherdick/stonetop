@@ -3,6 +3,7 @@ import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {RequisitionDialog} from "./dialogs/RequisitionDialog.js";
+import {CustomMoveDialog} from "./dialogs/CustomMoveDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
@@ -42,6 +43,13 @@ import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} fro
 
 const _STAT_KEYS = new Set(["str", "dex", "int", "wis", "con", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
+
+// Whether the current user may author custom moves: always for a GM, otherwise only
+// when the world hasn't restricted authoring to the GM (the customMovesGmOnly setting).
+function canAuthorCustomMoves() {
+	if (game.user?.isGM) return true;
+	return !game.settings.get("stonetop_pwd", "customMovesGmOnly");
+}
 
 // Playbook moves that let a character roll a different stat for a basic move. When
 // the actor owns `ownsMove`, the basic move named `whenMove` (or, for blanket
@@ -418,9 +426,14 @@ const EXPEDITION_MOVE_HANDLERS = {
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
 
-/** Canonical HTML for a move chat card. Both `name` and `description` are trusted module HTML. */
+/**
+ * Canonical HTML for a move chat card. `name` is escaped here because it can be a
+ * player-authored custom-move name (untrusted) — never pre-escape it at the call site.
+ * `description` is rendered raw: it is either trusted module HTML or a custom move's
+ * description, which is already escaped at storage (formatCustomMoveDescription).
+ */
 function _buildMoveChatContent(name, description) {
-	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${name}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
+	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${escHtml(name)}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
 }
 
 
@@ -1175,6 +1188,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			context.stonetop.invocations          = this._buildInvocationsData(playbookDoc);
 			context.stonetop.showOtherMovesSection = this._editMode || !!(context.stonetop.movelist?.otherMoves?.length);
+			// Authoring custom moves can be restricted to the GM (world setting). When
+			// restricted, players still see/roll existing custom moves but get no "+"
+			// button or edit pencils. Existing moves always render regardless.
+			context.stonetop.canAuthorCustomMoves = canAuthorCustomMoves();
 			const { xp } = context.stonetop.vitals;
 			context.stonetop.canLevelUp = xp.value >= xp.max;
 			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
@@ -2486,7 +2503,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const type = card?.querySelector(".stonetop-follower-type")?.textContent.trim();
 				const title = type ? `${name} (${type})` : name;
 				ChatMessage.create({
-					content: _buildMoveChatContent(escHtml(title), `<p>${escHtml(moveText)}</p>`),
+					content: _buildMoveChatContent(title, `<p>${escHtml(moveText)}</p>`),
 					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 				});
 			});
@@ -3008,13 +3025,30 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			html.find(".stonetop-other-move-delete").on("click", ev => {
 				const { itemId } = ev.currentTarget.dataset;
-				const name = this.actor.items.get(itemId)?.name || "this move";
+				const item = this.actor.items.get(itemId);
+				// Custom moves are read-only for players when authoring is GM-only — don't
+				// let them delete a GM-authored custom move either (matches the hidden +/pencil).
+				if (item?.flags?.[STONETOP_SCOPE]?.custom && !canAuthorCustomMoves()) return;
+				const name = item?.name || "this move";
 				Dialog.confirm({
 					title:   "Remove move",
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from your moves? This can't be undone.</p>`,
 					yes:     () => this._stonetopCharacter.removeMove(itemId),
 					render:  bringDialogToFront,
 				});
+			});
+
+			const openCustomMove = (item = null) => {
+				if (!this.isEditable || !canAuthorCustomMoves()) return;
+				new CustomMoveDialog(this._stonetopCharacter, {
+					item,
+					onSaved: () => this.render(false),
+				}).render(true);
+			};
+			html.find(".stonetop-add-custom-move").on("click", () => openCustomMove());
+			html.find(".stonetop-custom-move-edit").on("click", ev => {
+				const item = this.actor.items.get(ev.currentTarget.dataset.itemId);
+				if (item) openCustomMove(item);
 			});
 
 			html[0].addEventListener("click", ev => {
@@ -3472,7 +3506,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			const name = li?.querySelector(".stonetop-item-name")?.textContent?.trim()
 				?? rollable.dataset.label?.trim();
 			const guide = GUIDED_CHARACTER_MOVES[name];
-			return guide ? { name, guide } : null;
+			if (!guide) return null;
+			// A player-authored custom move (moveType "other") that happens to share a
+			// guided move's name should roll as itself, not hijack the built-in dialog.
+			const item = li?.dataset.itemId ? this.actor.items.get(li.dataset.itemId) : null;
+			if (item?.system?.moveType === "other") return null;
+			return { name, guide };
 		}
 
 		_openGuidedCharacterMove({ name, guide }, rollable) {

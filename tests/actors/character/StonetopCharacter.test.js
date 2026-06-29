@@ -599,7 +599,7 @@ describe("StonetopCharacter.getMoves otherMoves", () => {
 		const move = { _id: "m1", type: "move", name: "Custom Move", system: { moveType: "other", rollType: "str", description: "<p>Do a thing.</p>" } };
 		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
 		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([{ name: "Custom Move", ownedId: "m1", rollType: "str", rollLabel: "STR", description: "<p>Do a thing.</p>" }]);
+		expect(result.otherMoves).toEqual([{ name: "Custom Move", ownedId: "m1", rollType: "str", rollLabel: "STR", description: "<p>Do a thing.</p>", custom: false }]);
 	});
 
 	it("normalizes object rollType values for homefront moves", async () => {
@@ -654,7 +654,7 @@ describe("StonetopCharacter.getMoves otherMoves", () => {
 			.withMoveRepo(new FakeMoveRepository([], []))
 			.build();
 		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([{ name: "Fox Move", ownedId: "m4", rollType: null, rollLabel: null, description: null }]);
+		expect(result.otherMoves).toEqual([{ name: "Fox Move", ownedId: "m4", rollType: null, rollLabel: null, description: null, custom: false }]);
 	});
 
 	it("does not include same-playbook moves in otherMoves", async () => {
@@ -677,6 +677,97 @@ describe("StonetopCharacter.getMoves otherMoves", () => {
 		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
 		const result = await char.getMoves();
 		expect(result.otherMoves[0].description).toBeNull();
+	});
+
+	it("marks player-authored moves (flags.stonetop_pwd.custom) with custom: true", async () => {
+		const move = { _id: "m6", type: "move", name: "Homebrew", system: { moveType: "other", rollType: null }, flags: { stonetop_pwd: { custom: true } } };
+		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
+		const result = await char.getMoves();
+		expect(result.otherMoves[0].custom).toBe(true);
+	});
+});
+
+// -- _buildCustomMoveData (custom move shaping) -------------------------------
+
+describe("StonetopCharacter._buildCustomMoveData", () => {
+	const build = (input) => new TestCharacterBuilder(new FakeActorBuilder().build()).build()._buildCustomMoveData(input);
+
+	it("forces moveType 'other' and flags the move as custom", () => {
+		const data = build({ name: "X" });
+		expect(data.system.moveType).toBe("other");
+		expect(data.flags.stonetop_pwd.custom).toBe(true);
+	});
+
+	it("builds moveResults from result text when a roll stat is set", () => {
+		const data = build({ name: "X", rollType: "str", results: { success: "win", partial: "meh", failure: "lose" } });
+		expect(data.system.rollType).toBe("str");
+		expect(data.system.moveResults).toEqual({
+			success: { label: "10+", value: "win" },
+			partial: { label: "7-9", value: "meh" },
+			failure: { label: "6-", value: "lose" },
+		});
+	});
+
+	it("leaves moveResults null for a no-roll move", () => {
+		const data = build({ name: "X", rollType: "", results: { success: "ignored" } });
+		expect(data.system.rollType).toBe("");
+		expect(data.system.moveResults).toBeNull();
+	});
+
+	it("leaves moveResults null when a roll move has no result text", () => {
+		const data = build({ name: "X", rollType: "dex", results: {} });
+		expect(data.system.moveResults).toBeNull();
+	});
+
+	it("rejects an invalid rollType, coercing it to ''", () => {
+		expect(build({ name: "X", rollType: "wis" }).system.rollType).toBe("wis");
+		expect(build({ name: "X", rollType: "bogus" }).system.rollType).toBe("");
+	});
+
+	it("wraps plain-text descriptions in paragraphs and escapes markup chars", () => {
+		expect(build({ name: "X", description: "a\n\nb" }).system.description).toBe("<p>a</p><p>b</p>");
+		expect(build({ name: "X", description: "5 < 6" }).system.description).toBe("<p>5 &lt; 6</p>");
+	});
+
+	it("escapes any HTML the player types (no live markup reaches the raw render)", () => {
+		// Descriptions render raw on the sheet, so markup must be inert, not stripped.
+		expect(build({ name: "X", description: "<p>hi</p>" }).system.description)
+			.toBe("<p>&lt;p&gt;hi&lt;/p&gt;</p>");
+		const xss = build({ name: "X", description: "<img src=x/onerror=alert(1)>" }).system.description;
+		expect(xss).not.toContain("<img");
+		expect(xss).toContain("&lt;img");
+	});
+
+	it("falls back to a default name when blank", () => {
+		expect(build({ name: "   " }).name).toBe("New Move");
+	});
+
+	// -- v2: resource track, bonuses, noXpOnMiss --
+
+	it("builds a resource track from a positive max", () => {
+		const data = build({ name: "X", resource: { max: "3", title: " Favor ", labels: "some, last, out" } });
+		expect(data.system.resource).toEqual({ max: 3, title: "Favor", labels: ["some", "last", "out"] });
+	});
+
+	it("leaves resource null when max is 0/blank and clamps an over-large max", () => {
+		expect(build({ name: "X", resource: { max: "0", title: "Favor" } }).system.resource).toBeNull();
+		expect(build({ name: "X", resource: {} }).system.resource).toBeNull();
+		expect(build({ name: "X", resource: { max: "999" } }).system.resource.max).toBe(20);
+	});
+
+	it("stores ongoing bonuses as non-negative ints", () => {
+		const data = build({ name: "X", hpBonus: "2", armorBonus: "1", loadBonus: "3" });
+		expect(data.system.hpBonus).toBe(2);
+		expect(data.system.armorBonus).toBe(1);
+		expect(data.system.loadBonus).toBe(3);
+		const neg = build({ name: "X", hpBonus: "-5", armorBonus: "abc" });
+		expect(neg.system.hpBonus).toBe(0);
+		expect(neg.system.armorBonus).toBe(0);
+	});
+
+	it("stores noXpOnMiss as a boolean", () => {
+		expect(build({ name: "X", noXpOnMiss: true }).system.noXpOnMiss).toBe(true);
+		expect(build({ name: "X" }).system.noXpOnMiss).toBe(false);
 	});
 });
 

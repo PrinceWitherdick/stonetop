@@ -55,7 +55,8 @@ import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.
 import {capitalizeFirst, slugify, composeInstinct} from "../../utils/strings.js";
 import {localize as _loc} from "../../utils/i18n.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
-import {normalizeRollType} from "../../utils/roll-types.js";
+import {normalizeRollType, CUSTOM_MOVE_ROLL_TYPES} from "../../utils/roll-types.js";
+import {formatCustomMoveDescription} from "../../utils/custom-move-text.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie} from "../../utils/damage-die.js";
 
@@ -88,6 +89,33 @@ const ORIGIN_DESCRIPTIONS = {
 
 function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
+}
+
+// True for player-authored custom moves (flagged at creation in _buildCustomMoveData).
+// The flag distinguishes them from foreign playbook moves that also land in "other".
+function _isCustomMove(item) {
+	return !!item?.flags?.[STONETOP_SCOPE]?.custom;
+}
+
+// Coerce a value to an integer clamped to [lo, hi]; non-numeric / out-of-range → nearest bound.
+function _clampInt(value, lo, hi) {
+	return Math.max(lo, Math.min(hi, Math.trunc(Number(value) || 0)));
+}
+
+// Resource-track snapshot for an "other" move, in the shape the resourceChecks helper
+// consumes ({ title, max, labels, current }), or null when the move has no track. The
+// held value lives under flags.stonetop_pwd.moves.backgroundChoices, keyed by the move's
+// resourceKey (item id for custom moves, name otherwise — see buildMovelist), so the
+// existing .stonetop-item-resource-check handler works for custom moves unchanged.
+function _buildOtherMoveResource(resource, current) {
+	const max = _clampInt(resource?.max, 0, 20);
+	if (!(max > 0)) return null;
+	return {
+		title: resource?.title ?? null,
+		max,
+		labels: Array.isArray(resource?.labels) ? resource.labels : [],
+		current: Math.max(0, Math.min(max, Number(current) || 0)),
+	};
 }
 
 // Slugs whose resource max equals 4+Prosperity. Matches the `prosperityResource`
@@ -317,11 +345,27 @@ export class StonetopCharacter {
 	// so it works regardless of when the owned copy was added.
 	async _ownedMoveBonuses(playbookData, ownedAllByName) {
 		const totals = { hp: 0, armor: 0, crewHp: 0, damageDie: null, crewDamageSteps: 0, crewDamageCap: "d10", crewRollSteps: 0, crewTags: 0, companionHp: 0, companionArmor: 0 };
+		// Player-authored custom moves aren't in the pack, so the name-matched playbook
+		// loop below never sees them — read their hp/armor straight off the embedded item.
+		// Scoped to _isCustomMove (the stonetop_pwd.custom flag) so a foreign cross-playbook
+		// move that happens to be stored as moveType "other" doesn't get its bonus counted
+		// here. (loadBonus/shieldLoadReduction are summed across all owned moves elsewhere.)
+		for (const i of this._actor.items) {
+			if (!_isCustomMove(i)) continue;
+			totals.hp    += Number(i.system?.hpBonus)    || 0;
+			totals.armor += Number(i.system?.armorBonus) || 0;
+		}
 		if (!playbookData) return totals;
 		const defs  = await this._moveRepo.getPlaybookMoves(playbookData.name);
 		const marks = this._moveResources.getMarks();
 		for (const m of defs) {
-			if (!ownedAllByName.has(m.name)) continue;
+			// Require a genuine (non-custom) owned move of this name, so a player-authored
+			// custom move that merely reuses a playbook move's name can't pull in the def's
+			// hp/armor/marks (its own bonus is already counted in the loop above).
+			// `ownedAllByName` is a Map(name → owned items[]) in production; some tests pass a
+			// Set(name), which has `.has` but no `.get` — fall back to plain membership there.
+			const ownedItems = ownedAllByName.get?.(m.name);
+			if (ownedItems ? !ownedItems.some(i => !_isCustomMove(i)) : !ownedAllByName.has(m.name)) continue;
 			totals.hp    += m.hpBonus    || 0;
 			totals.armor += m.armorBonus || 0;
 			// Per-option marks (e.g. Potential for Greatness): apply each checked box.
@@ -597,16 +641,28 @@ export class StonetopCharacter {
 			possessions = this._buildPossessionsSnapshot(playbookData.specialPossessions, maxUsesMap, prosperity);
 		}
 
+		const moveResourceState = this._moveResources.getMoveResources();
 		const other = this._actor.items
 			.filter(i => i.type === "move" && i.system?.moveType === "other")
-			.map(i => new OtherItemSnapshotBuilder()
-				.withId(i._id)
-				.withName(i.name)
-				.withDescription(i.system?.description ?? null)
-				.withMoveType(i.system?.moveType ?? null)
-				.withOwnedId(i._id)
-				.build()
-			);
+			.map(i => {
+				// Custom moves persist their resource track by stable item id, not by name:
+				// player-chosen names aren't unique and can be renamed, which would collide
+				// two tracks or orphan a saved count. Shipped/foreign "other" moves keep name
+				// keying so their already-stored data is unaffected.
+				const resourceKey = _isCustomMove(i) ? i._id : i.name;
+				return new OtherItemSnapshotBuilder()
+					.withId(i._id)
+					.withName(i.name)
+					.withDescription(i.system?.description ?? null)
+					.withMoveType(i.system?.moveType ?? null)
+					.withOwnedId(i._id)
+					.withRollType(normalizeRollType(i.system?.rollType))
+					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
+					.withCustom(_isCustomMove(i))
+					.withResourceKey(resourceKey)
+					.withResource(_buildOtherMoveResource(i.system?.resource, moveResourceState[resourceKey]))
+					.build();
+			});
 
 		// Load is derived from the ◇ actually marked — checked item weights plus the
 		// undefined regular pool — never stored. Marking loot or editing the pool
@@ -897,6 +953,72 @@ export class StonetopCharacter {
 		await this._actor.deleteEmbeddedDocuments("Item", [itemId]);
 	}
 
+	// --- Player-authored custom moves -------------------------------------
+	// A custom move is a plain embedded `move` item, forced to moveType "other"
+	// (so buildMovelist's otherMoves filter surfaces it) and flagged custom so the
+	// sheet offers an edit affordance only for player-authored ones (not foreign
+	// playbook moves that also land in "other"). It then rolls through the same
+	// engine as any move (StonetopItem.roll), no pack involvement, no rebuild.
+
+	async addCustomMove(input) {
+		const data = this._buildCustomMoveData(input);
+		data.type = "move";
+		const created = await this._actor.createEmbeddedDocuments("Item", [data]);
+		return created?.[0] ?? null;
+	}
+
+	async updateCustomMove(itemId, input) {
+		const item = this._actor.items.get(itemId);
+		if (!item) return;
+		await item.update(this._buildCustomMoveData(input));
+	}
+
+	// Shape raw dialog input into the embedded-item document data (used by both
+	// create and update). moveResults follows the shape rollStat consumes:
+	// { success|partial|failure: { label, value } }, or null for a no-roll move.
+	_buildCustomMoveData(input) {
+		const rt = String(input?.rollType ?? "").trim().toLowerCase();
+		const rollType = CUSTOM_MOVE_ROLL_TYPES.includes(rt) ? rt : "";
+		const r = input?.results ?? {};
+		const success = String(r.success ?? "").trim();
+		const partial = String(r.partial ?? "").trim();
+		const failure = String(r.failure ?? "").trim();
+		const moveResults = (rollType && (success || partial || failure))
+			? {
+				success: { label: "10+", value: success },
+				partial: { label: "7-9", value: partial },
+				failure: { label: "6-",  value: failure },
+			}
+			: null;
+
+		// Optional resource track ({ max, title, labels }); null unless a positive max.
+		const res = input?.resource ?? {};
+		const resMax = _clampInt(res.max, 0, 20);
+		const resLabels = Array.isArray(res.labels)
+			? res.labels.map(l => String(l).trim()).filter(Boolean)
+			: String(res.labels ?? "").split(",").map(l => l.trim()).filter(Boolean);
+		const resource = resMax > 0
+			? { max: resMax, title: String(res.title ?? "").trim() || null, labels: resLabels }
+			: null;
+
+		const intIn = (v) => _clampInt(v, 0, 99);
+		return {
+			name: String(input?.name ?? "").trim() || "New Move",
+			system: {
+				moveType: "other",
+				description: formatCustomMoveDescription(input?.description ?? ""),
+				rollType,
+				moveResults,
+				resource,
+				noXpOnMiss: !!input?.noXpOnMiss,
+				hpBonus:   intIn(input?.hpBonus),
+				armorBonus: intIn(input?.armorBonus),
+				loadBonus:  intIn(input?.loadBonus),
+			},
+			flags: { [STONETOP_SCOPE]: { custom: true } },
+		};
+	}
+
 	computePossessionMaxUses(specialPossessions, ownedAllByName, level) {
 		const result = { ...this._possessions.maxUses };
 		for (const opt of (specialPossessions?.options ?? [])) {
@@ -1112,6 +1234,9 @@ export class StonetopCharacter {
 				rollType: normalizeRollType(i.system?.rollType),
 				rollLabel: _rollLabelForMove(i.name, i.system?.rollType, i.system),
 				description: i.system?.description ?? null,
+				// Only player-authored moves (not foreign playbook moves that also land
+				// in "other") get the edit affordance on the sheet.
+				custom: _isCustomMove(i),
 			}));
 
 		return { playbookMoves, basicMoves: orderedBasicMoves, otherGroups, otherMoves, startingMovesNote: playbookData?.startingMovesNote ?? null };
@@ -2004,7 +2129,9 @@ function _rollLabelForMove(name, rollType, data = {}) {
 		const match = String(data.description ?? "").match(/roll\s+\+([A-Za-z][A-Za-z ]*)/i);
 		if (match) return match[1].trim();
 	}
-	if ((data.moveType === "basic" || data.moveType === "expedition") && normalizedRollType === "ask") return "ANY";
+	// "ask" = choose a stat each time → label it "ANY" for every move type (basic,
+	// expedition, and player-authored custom "other" moves alike).
+	if (normalizedRollType === "ask") return "ANY";
 	return ROLL_LABELS_BY_TYPE[normalizedRollType] ?? null;
 }
 

@@ -58,8 +58,9 @@ const FLAG_NAMESPACE_LABELS = {
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
 const INVENTORY_CHECKED_PREFIX = "flags.stonetop_pwd.inventory.checked.";
 const INVENTORY_RESOURCE_PREFIX = "flags.stonetop_pwd.inventory.resources.";
-// Move resource tracks (e.g. the Blessed's "Rites of the Land" Favor) are keyed
-// by move name under the misnamed "backgroundChoices" sub-flag (see MoveResources).
+// Move resource tracks (e.g. the Blessed's "Rites of the Land" Favor) live under the
+// misnamed "backgroundChoices" sub-flag (see MoveResources), keyed by move name for
+// shipped moves and by stable item id for player-authored custom moves.
 const MOVE_RESOURCE_PREFIX = "flags.stonetop_pwd.moves.backgroundChoices.";
 // Per-option advancement marks (e.g. Potential for Greatness): keyed
 // "<moveName>.<optionSlug>", each an array of { stat, level } entries.
@@ -221,6 +222,7 @@ async function buildNameLookup(actor) {
 		possessionChoices: new Map(),
 		backgroundChoices: new Map(),
 		moveResourceTitles: new Map(),
+		moveResourceNames: new Map(),
 		moveMarkOptions: new Map(),
 		followers: new Map(),
 		crewIndividuals: new Map(),
@@ -249,6 +251,12 @@ async function buildNameLookup(actor) {
 
 	for (const item of actor.items ?? []) {
 		if (item?._id && item.name) names.inventory.set(item._id, item.name);
+		// Custom moves persist their resource track by item id; map that id back to the
+		// move's name/title so a ledger tick reads "<Move> - <Title>", not a raw id.
+		if (item?.type === "move" && item.flags?.stonetop_pwd?.custom && item._id) {
+			names.moveResourceNames.set(item._id, stripHtml(item.name) ?? item.name);
+			if (item.system?.resource?.title) names.moveResourceTitles.set(item._id, stripHtml(item.system.resource.title));
+		}
 	}
 
 	try {
@@ -336,8 +344,10 @@ function inventoryResourceEntry(path, oldValue, newValue, names) {
 }
 
 function moveResourceEntry(path, oldValue, newValue, names) {
-	const moveName = path.slice(MOVE_RESOURCE_PREFIX.length);
-	return resourceEntry(moveName, names.moveResourceTitles.get(moveName), oldValue, newValue);
+	const key = path.slice(MOVE_RESOURCE_PREFIX.length);
+	// Custom moves key by item id; resolve it back to the move name for the subject.
+	const subject = names.moveResourceNames.get(key) ?? key;
+	return resourceEntry(subject, names.moveResourceTitles.get(key), oldValue, newValue);
 }
 
 function moveMarkEntries(path, oldValue, newValue, names) {

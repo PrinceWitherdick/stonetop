@@ -4,6 +4,13 @@
  * @property {string|null} description
  * @property {string|null} moveType
  * @property {string} ownedId - same as id; provided for template convenience
+ * @property {string|null} rollType - normalized stat/"ask" so the row renders a dice control
+ * @property {string|null} rollLabel - stat-chip label for the roll
+ * @property {boolean} custom - player-authored (shows the edit affordance)
+ * @property {string} resourceKey - stable key the resource track persists under (item id for
+ *   custom moves, name otherwise); written to the box's data-move-name so renames/duplicate
+ *   names never collide or orphan the saved count
+ * @property {{title: string|null, max: number, labels: string[], current: number}|null} resource
  */
 export class OtherItemSnapshot {
 	constructor(b) {
@@ -12,6 +19,11 @@ export class OtherItemSnapshot {
 		this.description = b._description;
 		this.moveType    = b._moveType;
 		this.ownedId     = b._ownedId;
+		this.rollType    = b._rollType ?? null;
+		this.rollLabel   = b._rollLabel ?? null;
+		this.custom      = b._custom ?? false;
+		this.resourceKey = b._resourceKey ?? b._name;
+		this.resource    = b._resource ?? null;
 	}
 }
 
@@ -21,6 +33,11 @@ export class OtherItemSnapshotBuilder {
 	withDescription(v) { this._description = v; return this; }
 	withMoveType(v)    { this._moveType    = v; return this; }
 	withOwnedId(v)     { this._ownedId     = v; return this; }
+	withRollType(v)    { this._rollType    = v; return this; }
+	withRollLabel(v)   { this._rollLabel   = v; return this; }
+	withCustom(v)      { this._custom      = v; return this; }
+	withResourceKey(v) { this._resourceKey = v; return this; }
+	withResource(v)    { this._resource    = v; return this; }
 	build()            { return new OtherItemSnapshot(this); }
 }
 

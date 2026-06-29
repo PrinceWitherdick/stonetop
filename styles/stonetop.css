@@ -3655,6 +3655,93 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-requisition-empty { font-style: italic; color: var(--color-text-dark-secondary); margin: 6px 0; }
 .stonetop-requisition-actions { margin-top: 12px; text-align: right; }
 
+/* -- Custom move authoring dialog ----------------------------- */
+.stonetop-custom-move-form { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; font-size: var(--st-fs-base); }
+.stonetop-custom-move-field { display: flex; flex-direction: column; gap: 3px; }
+.stonetop-custom-move-field > label { font-family: var(--font-stonetop); font-weight: bold; font-size: var(--st-fs-sm); }
+.stonetop-custom-move-form input[type="text"],
+.stonetop-custom-move-form textarea,
+.stonetop-custom-move-form select { width: 100%; }
+.stonetop-custom-move-form textarea { resize: vertical; min-height: 2.4em; }
+.stonetop-custom-move-hint { margin: 2px 0 0; font-size: var(--st-fs-xs); font-style: italic; color: var(--color-text-dark-secondary); }
+.stonetop-custom-move-results {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	border-radius: var(--st-radius-lg);
+	padding: 8px 10px;
+	background: rgba(0, 0, 0, 0.03);
+}
+.stonetop-custom-move-results.is-hidden { display: none; }
+.stonetop-custom-move-results-title { font-family: var(--font-stonetop); margin: 0; font-size: var(--st-fs-base); }
+.stonetop-custom-move-actions { display: flex; gap: 8px; margin-top: 4px; }
+.stonetop-custom-move-save,
+.stonetop-custom-move-cancel {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	padding: 4px 14px;
+	cursor: pointer;
+	font-weight: bold;
+	border-radius: var(--st-radius-sm);
+	transition: background 0.15s;
+}
+.stonetop-custom-move-save {
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+.stonetop-custom-move-save:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+}
+.stonetop-custom-move-cancel {
+	background: transparent;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	color: var(--color-text-dark-primary);
+}
+.stonetop-custom-move-cancel:hover { background: rgba(0, 0, 0, 0.06); }
+
+/* Moves-tab affordances for player-authored moves: the edit pencil mirrors the
+   hover-revealed delete link, and owns the right-push so the two sit together. */
+.stonetop-custom-move-edit {
+	display: none;
+	margin-left: auto;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+	font-size: var(--st-fs-xs);
+}
+.stonetop-item:hover .stonetop-custom-move-edit { display: inline; }
+.stonetop-custom-move-edit + .stonetop-other-move-delete { margin-left: 6px; }
+.stonetop-add-custom-move {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	margin-top: 8px;
+	padding: 3px 12px;
+	cursor: pointer;
+	font-size: var(--st-fs-sm);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+.stonetop-add-custom-move:hover { background: var(--st-btn-primary-bg-hover); border-color: var(--st-btn-primary-border-hover); }
+
+/* Custom move dialog — Advanced (resource track, bonuses, no-XP) */
+.stonetop-custom-move-advanced { border-top: 1px solid rgba(0, 0, 0, 0.12); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.stonetop-custom-move-advanced > summary { cursor: pointer; font-family: var(--font-stonetop); font-weight: bold; font-size: var(--st-fs-sm); }
+.stonetop-custom-move-advanced .stonetop-custom-move-results-title { margin: 4px 0 0; }
+.stonetop-custom-move-row { display: flex; gap: 8px; align-items: flex-end; }
+.stonetop-custom-move-row .stonetop-custom-move-field { flex: 1 1 0; }
+.stonetop-custom-move-field--num { flex: 0 0 5.5em; }
+.stonetop-custom-move-field--num input { width: 100%; }
+.stonetop-custom-move-check label { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-weight: normal; }
+.stonetop-custom-move-check input { width: auto; }
+
 /* Special possessions — 2-column card list, matching the Moves tab
    (.stonetop-move-group .items-list): CSS columns so uneven-height cards pack
    top-to-bottom instead of a grid stretching each row to its tallest item. */
