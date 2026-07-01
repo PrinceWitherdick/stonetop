@@ -164,6 +164,90 @@ describe("CharacterLedger", () => {
 		expect(entries.map(e => e.action)).toEqual(["Potential for Greatness - Increase the stat you rolled by 1, to a max of +2: STR marked"]);
 	});
 
+	it("records an arcana unlock requirement by card name and requirement text", async () => {
+		const actor = makeActor({}, { stonetop: { arcana: { unlock: { "the-key:master-fear": 0 } } } });
+		actor.typedActor = {
+			buildSnapshot: async () => ({
+				arcana: {
+					minor: { items: [{
+						slug: "the-key", major: false,
+						front: { title: "The Key", unlock: { requirements: [
+							{ type: "option", slug: "master-fear", description: "… master your fear and force yourself to touch it." },
+						] } },
+						back: { options: [] },
+					}] },
+					major: { items: [] },
+				},
+			}),
+		};
+
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.arcana.unlock.the-key:master-fear": 1,
+		});
+		expect(entries.map(e => e.action)).toEqual([
+			"Minor Arcana The Key: … master your fear and force yourself to touch it. selected",
+		]);
+	});
+
+	it("truncates a long unlock requirement to a readable ledger length", async () => {
+		const long = "… calm your mind, gaze upon the sigil, and roll +WIS: on a 10+, the sigil becomes clear and you may proceed.";
+		const actor = makeActor({}, { stonetop: { arcana: { unlock: { "sunken-tablet:calm": 1 } } } });
+		actor.typedActor = {
+			buildSnapshot: async () => ({
+				arcana: {
+					minor: { items: [{
+						slug: "sunken-tablet", major: false,
+						front: { title: "Sunken Tablet", unlock: { requirements: [{ type: "option", slug: "calm", description: long }] } },
+						back: { options: [] },
+					}] },
+					major: { items: [] },
+				},
+			}),
+		};
+
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.arcana.unlock.sunken-tablet:calm": 0,
+		});
+		expect(entries.map(e => e.action)).toEqual([
+			"Minor Arcana Sunken Tablet: … calm your mind, gaze upon the sigil, and roll +WIS: on a 10+,… deselected",
+		]);
+	});
+
+	it("records a marked arcana track box by card name, side, kind, and position", async () => {
+		const actor = makeActor({}, { stonetop: { arcana: { boxes: { "blood-quenched-sword:unlock:2": false } } } });
+		actor.typedActor = {
+			buildSnapshot: async () => ({
+				arcana: {
+					minor: { items: [] },
+					major: { items: [{
+						slug: "blood-quenched-sword", major: true,
+						front: { title: "Blood-quenched Sword", unlock: { requirements: [] } },
+						back: { options: [] },
+					}] },
+				},
+			}),
+		};
+
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.arcana.boxes.blood-quenched-sword:unlock:2": true,
+		});
+		expect(entries.map(e => e.action)).toEqual([
+			"Major Arcana Blood-quenched Sword: unlock 3 marked",
+		]);
+	});
+
+	it("falls back to a prettified slug when the arcanum is not in the snapshot", async () => {
+		const actor = makeActor({}, { stonetop: { arcana: { boxes: { "lost-card:frontDiamond:0": true } } } });
+		actor.typedActor = { buildSnapshot: async () => ({ arcana: { minor: { items: [] }, major: { items: [] } } }) };
+
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.arcana.boxes.lost-card:frontDiamond:0": false,
+		});
+		expect(entries.map(e => e.action)).toEqual([
+			"Arcana Lost Card: front diamond 1 unmarked",
+		]);
+	});
+
 	it("records background choices by choice label", async () => {
 		const actor = makeActor({}, { stonetop: { background: { choices: { enfys: false } } } });
 		actor.items = [{
