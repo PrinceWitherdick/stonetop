@@ -111,8 +111,14 @@
     },
     "arcana": {
       "empty": "Drag arcana here from the Arcana compendium.",
-      "showFront": "Show Front",
-      "showBack": "Reveal Back",
+      "showFront": "Show front",
+      "showBack": "Show back",
+      "showBothSides": "Show both sides",
+      "showFrontOnly": "Show front only",
+      "frontLabel": "Front",
+      "backLabel": "Back",
+      "revealToPlayers": "Reveal back to player",
+      "hideFromPlayers": "Hide back from player",
       "removeArcanum": "Remove",
       "identify": "Identify",
       "identifyTitle": "Identify Arcanum",
@@ -163,6 +169,10 @@
       "arcanaCreationGmOnly": {
         "name": "Arcana Creation: GM Only",
         "hint": "When on, only the GM can create homebrew arcana — players don't see the \"Create arcanum\" bar or the inspiration wizard on the arcana tab. Existing arcana still display, flip, and roll for everyone, and players can still edit cards they own. Turn off to let players author their own arcana."
+      },
+      "arcanaPlayersSeeBothSides": {
+        "name": "Arcana: Players See Both Sides",
+        "hint": "When on (the default), a player sees both the front and back of their arcana once a card is unlocked, shown together with no flipping. Turn off for a more secretive table: players then see a card's back only after you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). You always see both sides as the GM."
       },
       "expandMoveDescriptions": {
         "name": "Expand Move Descriptions",

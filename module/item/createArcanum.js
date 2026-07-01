@@ -99,8 +99,13 @@ export async function collectTakenArcanumSlugs({ excludeId = null } = {}) {
  * `front`/`back` optionally pre-fill the card (the inspiration wizard seeds front.description
  * with the rolled artifact notes). Returns the created Item, or null if creation was blocked
  * (no permission) or failed.
+ *
+ * `onSave` (optional) makes the opened editor a *pending draft*: the card is NOT attached to
+ * anything on creation — `onSave(item)` runs only when the author clicks Save & Done (or the
+ * header Done). Closing the editor first offers to discard the draft. Callers that want the
+ * old "exists as a loose world item immediately" behavior (console/macro) just omit it.
  */
-export async function createArcanumItem({ name = "New Arcanum", major = false, front, back } = {}) {
+export async function createArcanumItem({ name = "New Arcanum", major = false, front, back, onSave = null } = {}) {
 	// Arcana are WORLD items, so a non-GM needs the world "Create New Items" permission to
 	// author one (unlike embedded custom moves, which any actor owner can create). Fail loudly
 	// here instead of the silent no-op a downstream `if (!slug) return` would produce.
@@ -135,6 +140,13 @@ export async function createArcanumItem({ name = "New Arcanum", major = false, f
 	const sheet = item.sheet;
 	if (sheet) {
 		sheet._editMode = true;
+		// A draft opened from a character's Create button holds its "attach to that
+		// character" callback and won't be committed until Save & Done. Without onSave the
+		// card is just a standalone world item (the macro/console path), so leave it non-draft.
+		if (onSave) {
+			sheet._arcanumDraft  = true;
+			sheet._arcanumOnSave = onSave;
+		}
 		sheet.render(true);
 	}
 	return item;

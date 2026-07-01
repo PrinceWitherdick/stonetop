@@ -232,4 +232,14 @@
 		</div>
 	</section>
 
+	{{!-- Save / Done. A draft (created from a character's Create button) only lands on the
+	     Arcana tab when this is clicked; Cancel discards it. An existing card's edits already
+	     persist live, so it just gets "Done" (switch to the card preview). --}}
+	<footer class="stonetop-arc-footer">
+		<button type="button" class="stonetop-arc-save"><i class="fas fa-check"></i> {{#if edit.isDraft}}Save &amp; Done{{else}}Done{{/if}}</button>
+		{{#if edit.isDraft}}
+		<button type="button" class="stonetop-arc-cancel">Cancel</button>
+		{{/if}}
+	</footer>
+
 </form>

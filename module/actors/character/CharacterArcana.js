@@ -10,6 +10,7 @@ import { OutfitItemBuilder } from "../../model/OutfitItem.js";
 import { majorArcanaImg, isMajorArcanumItem, arcanumCardImg } from "../../arcana-icons.js";
 import { arcanaSummonFollowers } from "../../data/arcana-summons.js";
 import { centerArcanumTracks } from "../../utils/glyphs.js";
+import { stonetopChatCard } from "../../utils/chat.js";
 
 function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
 	const reqs = item.front.unlock?.requirements ?? [];
@@ -87,6 +88,7 @@ export class CharacterArcana {
 
 	get ownedSlugs()       { return new Set(this._flags.getFlag("owned") ?? []); }
 	get flippedSlugs()     { return new Set(this._flags.getFlag("flipped") ?? []); }
+	get revealedSlugs()    { return new Set(this._flags.getFlag("revealed") ?? []); }
 	get identifiedSlugs()  { return new Set(this._flags.getFlag("identified") ?? []); }
 	get unlockCounts()     { return this._flags.getFlag("unlock") ?? {}; }
 	get backOptionCounts() { return this._flags.getFlag("backOptions") ?? {}; }
@@ -288,6 +290,20 @@ export class CharacterArcana {
 		await this._flags.setFlag("flipped", [...s]);
 	}
 
+	// GM-only: expose / hide a card's back to the owning player. Only consulted when the
+	// world setting `arcanaPlayersSeeBothSides` is off; the GM always sees both sides.
+	async revealArcanum(slug) {
+		const s = this.revealedSlugs;
+		s.add(slug);
+		await this._flags.setFlag("revealed", [...s]);
+	}
+
+	async hideArcanum(slug) {
+		const s = this.revealedSlugs;
+		s.delete(slug);
+		await this._flags.setFlag("revealed", [...s]);
+	}
+
 	async setUnlockCount(arcanumSlug, optionSlug, count) {
 		const key = `${arcanumSlug}:${optionSlug}`;
 		await this._flags.setFlag("unlock", { ...this.unlockCounts, [key]: count });
@@ -313,31 +329,36 @@ export class CharacterArcana {
 
 		if (flipped) {
 			const { title, description, move } = item.back;
-			let html = `<div class="stonetop-arcanum-chat-card"><h3 class="stonetop-arcanum-chat-title">${title}</h3>${description ?? ""}`;
-			if (move) html += `<p class="stonetop-arcanum-move-trigger"><strong><em>${move.name}</em></strong></p>${move.description ?? ""}`;
-			return html + `</div>`;
+			let body = `<div class="card-content">${description ?? ""}`;
+			if (move) body += `<p class="stonetop-arcanum-move-trigger"><strong><em>${move.name}</em></strong></p>${move.description ?? ""}`;
+			return stonetopChatCard(title, body + `</div>`, "stonetop-arcanum-chat-card");
 		} else {
 			const { title, description, unlock } = item.front;
-			let html = `<div class="stonetop-arcanum-chat-card"><h3 class="stonetop-arcanum-chat-title">${title}</h3>${description ?? ""}`;
+			let body = `<div class="card-content">${description ?? ""}`;
 			if (unlock?.description) {
-				html += `<p class="stonetop-arcanum-unlock-lead">${unlock.description}</p>`;
+				body += `<p class="stonetop-arcanum-unlock-lead">${unlock.description}</p>`;
 				const reqs = unlock.requirements ?? [];
 				if (reqs.length) {
 					const items = reqs.map(r => `<li>${r.type === "text" ? r.content : r.description}</li>`).join("");
-					html += `<ul class="stonetop-arcanum-unlock-list">${items}</ul>`;
+					body += `<ul class="stonetop-arcanum-unlock-list">${items}</ul>`;
 				}
 			}
-			return html + `</div>`;
+			return stonetopChatCard(title, body + `</div>`, "stonetop-arcanum-chat-card");
 		}
 	}
 
 	async weightedInventoryItems() {
 		const ownedSlugs   = this.ownedSlugs;
-		const flippedSlugs = this.flippedSlugs;
+		const unlockCounts = this.unlockCounts;
+		const arcanaBoxes  = this._flags.getFlag("boxes") ?? {};
 		const items = await this._arcanaRepo.findBySlugs([...ownedSlugs]);
 		return items.flatMap(item => {
-			const flipped  = flippedSlugs.has(item.slug);
-			const sideItem = flipped ? item.back.item : item.front.item;
+			// Which side's item you carry follows the card's unlock state, not the old
+			// manual flip: a card realises its back-side item once unlocked, otherwise
+			// it's the front item. circleCount mirrors buildSnapshot's ○-marker count.
+			const circleCount = (item.front.unlock?.description?.match(/○/g) || []).length;
+			const unlocked = _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount);
+			const sideItem = (unlocked && item.back.item) ? item.back.item : item.front.item;
 			if (!sideItem?.name) return [];
 			return [new OutfitItemBuilder()
 				.withSlug(item.slug)

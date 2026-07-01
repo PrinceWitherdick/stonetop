@@ -1,6 +1,6 @@
 <div class="tab arcana" data-group="primary" data-tab="arcana">
 
-	{{#if stonetop.editMode}}{{#if stonetop.canCreateArcana}}
+	{{#if stonetop.arcanaAnyEdit}}{{#if stonetop.canCreateArcana}}
 	<div class="stonetop-arcana-create-bar">
 		<button type="button" class="stonetop-arcana-create" data-major="false">
 			<i class="fas fa-plus"></i> Create minor arcanum
@@ -20,16 +20,75 @@
 
 	{{#*inline "arcanumCard"}}
 	{{#if owned}}
-	<div class="stonetop-arcanum-card{{#if flipped}} is-flipped{{/if}}" data-slug="{{slug}}"{{#if greaterConduit}} data-greater-conduit="true"{{/if}}>
+	<div class="stonetop-arcanum-card{{#if isSpread}} stonetop-arcanum-card--spread{{/if}}" data-slug="{{slug}}"{{#if greaterConduit}} data-greater-conduit="true"{{/if}}>
 
 		{{#if identified}}
 
-		{{#if flipped}}
-		{{!-- Back side --}}
+		{{!-- Front and (when visible) back render as side-by-side panels: front | back.
+		      With only the front shown the single panel fills the card. --}}
+		<div class="stonetop-arcanum-sides">
+		{{#if frontVisible}}
+		<div class="stonetop-arcanum-side stonetop-arcanum-side--front">
+		{{!-- Front side — shown once identified, unless the viewer has flipped the card to
+		      its back (back-only view). Always present in a spread. --}}
 		<div class="stonetop-arcanum-header">
 			{{#if img}}
-			<img class="stonetop-arcanum-thumb" src="{{img}}" data-name="{{back.title}}" alt="" title="{{back.title}}">
+			<img class="stonetop-arcanum-thumb" src="{{img}}" data-name="{{front.title}}" alt="" title="{{front.title}}">
 			{{/if}}
+			<div class="stonetop-arcanum-header-left">
+				<span class="stonetop-arcanum-title stonetop-arcanum-title--clickable"
+				      data-slug="{{slug}}" data-flipped="false">{{front.title}}</span>
+				{{#if front.item}}
+				<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
+					{{#if front.item.weight}}
+					<span class="stonetop-inv-diamonds">
+						{{#each (times front.item.weight)}}
+						<input type="checkbox"
+						       class="stonetop-inventory-item-check stonetop-inv-diamond"
+						       data-slug="{{../slug}}"
+						       {{#if ../checked}}checked{{/if}}>
+						{{/each}}
+					</span>
+					{{/if}}
+					{{#if front.item.note}}<span class="stonetop-inv-note">{{{front.item.note}}}</span>{{/if}}
+				</div>
+				{{/if}}
+			</div>
+		</div>
+		<div class="stonetop-arcanum-body">
+			<span class="stonetop-arcanum-side-label">{{localize "stonetop.arcana.frontLabel"}}</span>
+			{{{front.description}}}
+			<p class="stonetop-arcanum-unlock-lead">{{{front.unlock.description}}}</p>
+			<ul class="stonetop-arcanum-unlock-list">
+				{{#each front.unlock.requirements}}
+				{{#if (eq type "text")}}
+				<li class="stonetop-arcanum-unlock-text">{{{content}}}</li>
+				{{else}}
+				<li class="stonetop-arcanum-unlock-option">
+					<span class="stonetop-arcanum-unlock-checks">
+						{{#each (times max)}}
+						<input type="checkbox" class="stonetop-arcanum-unlock-check"
+						       data-arcanum-slug="{{../../slug}}"
+						       data-option-slug="{{../slug}}"
+						       data-index="{{@index}}"
+						       {{#if (lt @index ../count)}}checked{{/if}}>
+						{{/each}}
+					</span>
+					<span class="stonetop-arcanum-unlock-desc">{{{description}}}</span>
+				</li>
+				{{/if}}
+				{{/each}}
+			</ul>
+		</div>
+		</div>
+		{{/if}}
+
+		{{#if backVisible}}
+		{{!-- Back side. In a spread it sits to the right of the front; in the back-only
+		      flip view it stands alone. Shown per backVisible: always to the GM; to players
+		      once unlocked when the world setting allows; or when the GM has revealed it. --}}
+		<div class="stonetop-arcanum-side stonetop-arcanum-side--back">
+		<div class="stonetop-arcanum-header">
 			<div class="stonetop-arcanum-header-left">
 				<span class="stonetop-arcanum-title stonetop-arcanum-title--clickable"
 				      data-slug="{{slug}}" data-flipped="true">{{back.title}}</span>
@@ -64,6 +123,7 @@
 			{{/if}}
 		</div>
 		<div class="stonetop-arcanum-body">
+			<span class="stonetop-arcanum-side-label">{{localize "stonetop.arcana.backLabel"}}</span>
 			{{{back.description}}}
 			{{#if back.move}}
 			<p class="stonetop-arcanum-move-trigger"><strong><em>{{back.move.name}}</em></strong></p>
@@ -78,80 +138,47 @@
 			</div>
 			{{/if}}
 		</div>
-
-		{{else}}
-		{{!-- Front side --}}
-		<div class="stonetop-arcanum-header">
-			{{#if img}}
-			<img class="stonetop-arcanum-thumb" src="{{img}}" data-name="{{front.title}}" alt="" title="{{front.title}}">
-			{{/if}}
-			<div class="stonetop-arcanum-header-left">
-				<span class="stonetop-arcanum-title stonetop-arcanum-title--clickable"
-				      data-slug="{{slug}}" data-flipped="false">{{front.title}}</span>
-				{{#if front.item}}
-				<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
-					{{#if front.item.weight}}
-					<span class="stonetop-inv-diamonds">
-						{{#each (times front.item.weight)}}
-						<input type="checkbox"
-						       class="stonetop-inventory-item-check stonetop-inv-diamond"
-						       data-slug="{{../slug}}"
-						       {{#if ../checked}}checked{{/if}}>
-						{{/each}}
-					</span>
-					{{/if}}
-					{{#if front.item.note}}<span class="stonetop-inv-note">{{{front.item.note}}}</span>{{/if}}
-				</div>
-				{{/if}}
-			</div>
-		</div>
-		<div class="stonetop-arcanum-body">
-			{{{front.description}}}
-			<p class="stonetop-arcanum-unlock-lead">{{{front.unlock.description}}}</p>
-			<ul class="stonetop-arcanum-unlock-list">
-				{{#each front.unlock.requirements}}
-				{{#if (eq type "text")}}
-				<li class="stonetop-arcanum-unlock-text">{{{content}}}</li>
-				{{else}}
-				<li class="stonetop-arcanum-unlock-option">
-					<span class="stonetop-arcanum-unlock-checks">
-						{{#each (times max)}}
-						<input type="checkbox" class="stonetop-arcanum-unlock-check"
-						       data-arcanum-slug="{{../../slug}}"
-						       data-option-slug="{{../slug}}"
-						       data-index="{{@index}}"
-						       {{#if (lt @index ../count)}}checked{{/if}}>
-						{{/each}}
-					</span>
-					<span class="stonetop-arcanum-unlock-desc">{{{description}}}</span>
-				</li>
-				{{/if}}
-				{{/each}}
-			</ul>
 		</div>
 		{{/if}}
+		</div>
 
+		{{#if (or sectionEditable canToggleBoth)}}
 		<div class="stonetop-arcanum-footer">
-			{{#if flipped}}
+			{{!-- Flip toggle (front ⇄ back): swaps the single visible side. Like show-both it
+			      renders in and out of edit mode and only when the viewer may see the back; it
+			      hides while the card is spread open (nothing to flip). Sits left of show-both. --}}
+			{{#if canFlip}}
 			<button type="button" class="stonetop-arcanum-flip-btn"
-			        data-slug="{{slug}}" data-flipped="{{flipped}}">
-				{{localize "stonetop.arcana.showFront"}}
-			</button>
-			{{else}}
-			{{#if unlocked}}
-			<button type="button" class="stonetop-arcanum-flip-btn"
-			        data-slug="{{slug}}" data-flipped="{{flipped}}">
-				{{localize "stonetop.arcana.showBack"}}
+			        data-slug="{{slug}}" data-show="{{showBack}}">
+				<i class="fas fa-rotate"></i>
+				{{#if showBack}}{{localize "stonetop.arcana.showFront"}}{{else}}{{localize "stonetop.arcana.showBack"}}{{/if}}
 			</button>
 			{{/if}}
+			{{!-- The show-both toggle renders whenever the viewer may see the back (the GM
+			      always, or a player once permitted) — not only in edit mode — so a spread
+			      can be opened/closed while reading in play mode. Reveal/Remove stay edit-only. --}}
+			{{#if canToggleBoth}}
+			<button type="button" class="stonetop-arcanum-showboth-btn{{#if showBoth}} is-active{{/if}}"
+			        data-slug="{{slug}}" data-show="{{showBoth}}">
+				<i class="fas {{#if showBoth}}fa-book{{else}}fa-book-open{{/if}}"></i>
+				{{#if showBoth}}{{localize "stonetop.arcana.showFrontOnly"}}{{else}}{{localize "stonetop.arcana.showBothSides"}}{{/if}}
+			</button>
 			{{/if}}
-			{{#if @root.stonetop.editMode}}
+			{{#if sectionEditable}}
+			{{#if canReveal}}
+			<button type="button" class="stonetop-arcanum-reveal-btn{{#if revealedToPlayers}} is-revealed{{/if}}"
+			        data-slug="{{slug}}" data-revealed="{{revealedToPlayers}}">
+				<i class="fas {{#if revealedToPlayers}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
+				{{#if revealedToPlayers}}{{localize "stonetop.arcana.hideFromPlayers"}}{{else}}{{localize "stonetop.arcana.revealToPlayers"}}{{/if}}
+			</button>
+			{{/if}}
 			<button type="button" class="stonetop-arcanum-delete" data-slug="{{slug}}"
 			        title="{{localize 'stonetop.arcana.removeArcanum'}}">
 				<i class="fas fa-trash"></i> Remove
 			</button>
 			{{/if}}
 		</div>
+		{{/if}}
 
 		{{else}}
 		{{!-- Unidentified state --}}
@@ -166,7 +193,7 @@
 				{{localize "stonetop.arcana.identify"}}
 			</button>
 		</div>
-		{{#if @root.stonetop.editMode}}
+		{{#if sectionEditable}}
 		<div class="stonetop-arcanum-footer">
 			<button type="button" class="stonetop-arcanum-delete" data-slug="{{slug}}"
 			        title="{{localize 'stonetop.arcana.removeArcanum'}}">
@@ -186,6 +213,7 @@
 		<div class="stonetop-arcana-summary" role="button" tabindex="0"
 		     aria-expanded="{{#if stonetop.arcanaOpen.major}}true{{else}}false{{/if}}">
 			{{> "stonetop.section-heading" title=stonetop.arcana.major.title}}
+			{{> "stonetop.section-edit-toggle" toggleClass="stonetop-arcana-section-edit-toggle" section="arcanaMajor" editing=stonetop.arcanaEdit.major}}
 		</div>
 		<div class="stonetop-arcana-grid">
 		{{#each stonetop.arcana.major.items}}{{> arcanumCard}}{{/each}}
@@ -198,6 +226,7 @@
 		<div class="stonetop-arcana-summary" role="button" tabindex="0"
 		     aria-expanded="{{#if stonetop.arcanaOpen.minor}}true{{else}}false{{/if}}">
 			{{> "stonetop.section-heading" title=stonetop.arcana.minor.title}}
+			{{> "stonetop.section-edit-toggle" toggleClass="stonetop-arcana-section-edit-toggle" section="arcanaMinor" editing=stonetop.arcanaEdit.minor}}
 		</div>
 		<div class="stonetop-arcana-grid">
 		{{#each stonetop.arcana.minor.items}}{{> arcanumCard}}{{/each}}

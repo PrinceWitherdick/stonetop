@@ -154,11 +154,9 @@ export class StonetopArcanaInspireDialog extends Application {
 				this._picks[sel.dataset.inspireField] = v === "" ? undefined : Number(v);
 			}));
 
-		// Per-field roll.
+		// Per-field roll (the randomizer button beside each dropdown).
 		root.querySelectorAll(".stonetop-inspire-roll").forEach(btn =>
 			btn.addEventListener("click", () => this._rollField(btn.dataset.field)));
-		// Roll every field on the step.
-		root.querySelector(".stonetop-inspire-roll-all")?.addEventListener("click", () => this._rollAll());
 
 		// Review-step inputs.
 		root.querySelector("[name=arcName]")?.addEventListener("input", ev => { this._name = ev.target.value; });
@@ -177,14 +175,6 @@ export class StonetopArcanaInspireDialog extends Application {
 		if (!field) return;
 		const entry = rollOnTable(field.table);
 		this._picks[key] = field.table.indexOf(entry);
-		this.render(false);
-	}
-
-	_rollAll() {
-		for (const f of this._fieldsForStep(this._step)) {
-			const entry = rollOnTable(f.table);
-			this._picks[f.key] = f.table.indexOf(entry);
-		}
 		this.render(false);
 	}
 

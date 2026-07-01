@@ -1523,6 +1523,10 @@ export class StonetopCharacter {
 	async flipArcanum(slug)     { await this._arcana.flipArcanum(slug); }
 	async setMinorArcanumRole(role, slug) { await this._arcana.setMinorRole(role, slug); }
 	async unflipArcanum(slug)   { await this._arcana.unflipArcanum(slug); }
+	async revealArcanum(slug)   { await this._arcana.revealArcanum(slug); }
+	async hideArcanum(slug)     { await this._arcana.hideArcanum(slug); }
+	get revealedArcanaSlugs()   { return this._arcana.revealedSlugs; }
+	get ownedArcanaSlugs()      { return this._arcana.ownedSlugs; }
 	async setArcanumUnlockCount(arcanumSlug, optionSlug, count)          { await this._arcana.setUnlockCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBackOptionCount(arcanumSlug, optionSlug, count)      { await this._arcana.setBackOptionCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBoxChecked(slug, context, index, checked)            { await this._arcana.setArcanumBoxChecked(slug, context, index, checked); }

@@ -29,7 +29,7 @@ import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
 import {attachFrontOnOpen, bringDialogToFront} from "../../utils/front-on-open.js";
 import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
@@ -97,161 +97,33 @@ function _formatResultLine(text) {
 }
 
 const GUIDED_CHARACTER_MOVES = {
-	"The Hammer and the Book": {
-		trigger: "When you strike a thing of supernatural chaos, roll +WIS.",
-		fields: [
-			{ name: "target", label: "Target", placeholder: "What supernatural chaos are you striking?" },
-		],
-		results: ["10+: deal your damage and choose 1.", "7-9: deal damage and choose 1, but expose yourself to harm or unwanted attention."],
-		picksLabel: "Choose 1:",
-		picks: ["Deal +1d6 damage", "Ignore the thing's armor or other defenses", "Suppress one of its unnatural powers", "Force it from its host"],
-	},
-	"All is Illuminated": {
-		trigger: "When you look closely on another and see their soul laid bare, roll +WIS.",
-		fields: [{ name: "subject", label: "Subject", placeholder: "Whose soul are you seeing?" }],
-		results: ["10+: ask 1 question from the list, plus what would make them feel loved, beautiful, or worthy.", "7-9: ask 1 question from the list."],
-		picksLabel: "Questions:",
-		picks: ["Of what are they most ashamed?", "What do they most desire or covet?", "What hope have they abandoned?", "Who or what is most precious to them?", "What would make them feel loved, beautiful, or worthy?"],
-	},
-	"Helior's Unblinking Eye": {
-		trigger: "When you stare into the sun long enough to lose your vision, name a person or place that you know and roll +WIS.",
-		fields: [{ name: "subject", label: "Person or place", placeholder: "Who or where are you seeking?" }],
-		results: ["10+: briefly glimpse your subject and choose 2.", "7-9: briefly glimpse your subject and choose 1."],
-		picksLabel: "Choose:",
-		picks: ["The glimpse lasts as long as you wish", "Your point of view shifts to very close range", "You recover your vision quickly"],
-	},
-	"Invoke the Sun God": {
-		trigger: "When you imbue a holy light with Helior's power, choose an Invocation you know and roll +WIS.",
-		fields: [{ name: "invocation", label: "Invocation", placeholder: "Which Invocation are you using?" }],
-		results: ["10+: it works, but choose 1 consequence.", "7-9: it works, but you and the GM each choose 1 consequence."],
-		picksLabel: "Consequences:",
-		picks: ["The Invocation has its reduced effect", "The effort taxes you; mark a debility", "The light is snuffed out when the Invocation is complete, its fuel consumed", "You must bask in sunlight for an hour or so before using that Invocation again"],
-	},
-	"Alpha": {
-		trigger: "When you assert dominance over another, roll +WIS.",
-		fields: [{ name: "target", label: "Target", placeholder: "Beast, spirit, Fae, person..." }],
-		results: ["7+: they must pick 1.", "10+: you also have advantage on your next roll against them."],
-		picksLabel: "They pick 1:",
-		picks: ["Accept your authority, at least for now", "Slink away or flee, then avoid you", "Fight you for dominance"],
-	},
-	"Call the Shot": {
-		trigger: "When you take your time and calmly line up the perfect shot, either deal your damage or roll +DEX.",
-		fields: [{ name: "target", label: "Target", placeholder: "Who or what are you shooting?" }],
-		results: ["10+: deal your damage and pick 2.", "7-9: deal your damage and pick 1."],
-		picksLabel: "Pick:",
-		picks: ["Ignore armor or deal +1d4 damage", "Stun, hobble, or hinder them", "Make them trip or drop what they're holding", "Do no harm; do not deal your damage after all"],
-	},
-	"Expert Tracker": {
-		trigger: "When you follow a creature's trail, roll +WIS.",
-		fields: [{ name: "quarry", label: "Quarry", placeholder: "Whose trail are you following?" }],
-		results: ["7+: follow it to a significant change in terrain or activity.", "10+: ask a reasonable question about your quarry and get a useful answer."],
-		picksLabel: "Possible question:",
-		picks: ["What happened here recently?", "Ask another reasonable question about your quarry"],
-	},
-	"Ambush": {
-		trigger: "When you get the drop on a nearby foe, deal your damage or roll +DEX.",
-		fields: [{ name: "target", label: "Target", placeholder: "Who are you ambushing?" }],
-		results: ["10+: deal your damage and pick 2.", "7-9: deal damage and pick 1."],
-		picksLabel: "Pick:",
-		picks: ["Deal +1d4 damage", "Stop them from making noise/raising an alarm", "Slip away before they can react", "Create an opportunity; you or an ally gains advantage on the next move to act on it"],
-	},
-	"Burgle": {
-		trigger: "When you sneak off on your own into a dangerous place, roll +INT.",
-		fields: [{ name: "place", label: "Place", placeholder: "Where are you sneaking?" }],
-		results: ["7+: you make it back; the GM says where you got to and what you learned.", "10+: also pick 2.", "7-9: also pick 1.", "6-: make it back with trouble in tow, or you are missing in action."],
-		picksLabel: "Pick:",
-		picks: ["You got away clean, rousing no suspicion", "You swiped something valuable", "You set something up to exploit on your return", "Ask a Seek Insight question about what you saw"],
-	},
-	"Danger Sense": {
-		trigger: "When the GM says yes, there is an ambush or trap here, roll +INT.",
-		fields: [{ name: "hazard", label: "Ambush or trap", placeholder: "What are you worried about?" }],
-		results: ["10+: ask both questions.", "7-9: ask 1 question.", "Either way, gain advantage on your next roll to act on the answer."],
-		picksLabel: "Questions:",
-		picks: ["What will trigger the ambush or trap?", "What will happen once it is triggered?"],
-	},
-	"Silver Tongued": {
-		trigger: "When you use words to avoid suspicion or trouble, roll +CHA.",
-		fields: [{ name: "situation", label: "Situation", placeholder: "What suspicion or trouble are you avoiding?" }],
-		results: ["10+: hold 3 Nerve.", "7-9: hold 1 Nerve."],
-		picksLabel: "Spend Nerve 1-for-1 to:",
-		picks: ["Move about or maneuver unchallenged", "Withstand direct scrutiny or questioning", "Direct suspicion or attention elsewhere"],
-	},
-	"Danu's Grasp": {
-		trigger: "When you call on the world itself to bind a spirit or a perversion of nature, spend 1 Stock and roll +WIS.",
-		fields: [{ name: "target", label: "Target", placeholder: "What are you binding?" }],
-		results: ["7+: roots, vines, and earth pull at them, and they pick 1.", "10+: both apply."],
-		picksLabel: "They pick:",
-		picks: ["They are restrained, unable to act freely until your focus slips or they tear their way free", "They take 2d4 damage, ignores armor"],
-		note: "Spend 1 Stock before rolling.",
-	},
-	"Veil": {
-		trigger: "When you wrap yourself or another in a subtle veil, spend 1 Stock and choose 1. When your deception comes under scrutiny, roll +INT.",
-		fields: [{ name: "subject", label: "Subject", placeholder: "Who is veiled?" }],
-		results: ["Choose the veil effect before scrutiny. Roll +INT when the deception comes under scrutiny."],
-		picksLabel: "Choose 1:",
-		picks: ["A type of being you name will tend to ignore your presence", "People will perceive you as someone else"],
-		note: "Spend 1 Stock when wrapping the veil.",
-	},
-	"Work With What You've Got": {
-		trigger: "When you cleverly use your environment to harm or impede your foe(s), roll +INT.",
-		fields: [{ name: "environment", label: "Environment", placeholder: "What are you using?" }],
-		results: ["10+: pick 2.", "7-9: pick 1."],
-		picksLabel: "Pick:",
-		picks: ["Interrupt or thwart their action(s)", "Create an opportunity that grants advantage on the next roll to exploit it", "Deal damage appropriate to the source"],
-	},
-	"Formidable": {
-		trigger: "When you wade into battle, you can choose to roll +CHA.",
-		fields: [{ name: "battle", label: "Battle", placeholder: "Where are you wading in?" }],
-		results: ["10+: both.", "7-9: pick 1.", "6-: pick 1 but ask the GM what you missed."],
-		picksLabel: "Effects:",
-		picks: ["Lesser foes quail, hesitate, or flee before you", "Doughty foes focus on you as the greatest threat"],
-	},
-	"Prepare a Welcome": {
-		trigger: "When battle is joined, spend 1 Surprise to reveal a ploy, defense, or dirty trick and roll +INT.",
-		fields: [{ name: "ploy", label: "Ploy", placeholder: "What did you prepare?" }],
-		results: ["10+: it works as well as can be expected, and you regain 1 Surprise.", "7-9: it works as well as can be expected."],
-		note: "Hold 1 Surprise if rushed or 2 Surprise if you can take your time.",
-	},
-	"We Happy Few": {
-		trigger: "When you give an inspiring speech to your allies before facing a dire threat, roll +CHA.",
-		fields: [{ name: "threat", label: "Dire threat", placeholder: "What are you facing?" }],
-		results: ["10+: each ally holds 2 Inspiration.", "7-9: each ally holds 1 Inspiration.", "6-: each ally holds 1, but you have disadvantage until you share your doubts."],
-		picksLabel: "Spend Inspiration 1-for-1 to:",
-		picks: ["Act fearlessly in the face of terror or overwhelming odds", "Keep 1 HP instead of being reduced to 0 HP", "Add 1d6 to a damage roll they just made"],
-	},
 	"Censure": {
 		trigger: "When you first denounce an individual in your presence as an agent of chaos or anathema to civilization, they pick 1.",
-		fields: [{ name: "target", label: "Target", placeholder: "Who are you denouncing?" }],
 		picksLabel: "They pick 1:",
 		picks: ["They are ashamed, and act accordingly", "They are doubtful, and hesitate, pause", "They are afraid, and seek to escape", "They are enraged, and lash out predictably"],
 	},
 	"Piety": {
 		trigger: "When you spend at least an hour in proper worship to Helior, hold 1 Blessing. Other faithful PCs who partake also hold 1 Blessing.",
-		fields: [{ name: "worship", label: "Worship", placeholder: "Where and how do you worship?" }],
 		picksLabel: "Spend Blessing to:",
 		picks: ["Add +1 to a roll you just made in pursuit of a righteous cause"],
 	},
 	"Anger is a Gift": {
 		trigger: "When you burn with righteous anger, hold 2 Resolve.",
-		fields: [{ name: "anger", label: "Righteous anger", placeholder: "What makes you burn?" }],
 		picksLabel: "Spend Resolve 1-for-1 to:",
 		picks: ["Set aside fear and doubt to do what must be done", "Act suddenly, catching them off-guard", "Inspire allies or bystanders to follow your lead", "Strike hard (+1d4 damage, forceful)", "Keep your footing, position, and/or your course despite what befalls you"],
 	},
 	"I Get Knocked Down": {
 		trigger: "When you take damage despite your best efforts to avoid it, you can halve the damage but pick 1.",
-		fields: [{ name: "damage", label: "Damage", placeholder: "What damage are you halving?" }],
 		picksLabel: "Pick 1:",
 		picks: ["You lose something", "Something on your person breaks", "You are out of it for a moment"],
 	},
 	"Up With People": {
 		trigger: "When you converse with someone, you can hold 2 Rapport with them. If you do, they hold 1 Rapport with you.",
-		fields: [{ name: "person", label: "Person", placeholder: "Who are you talking with?" }],
 		picksLabel: "Spend Rapport to ask:",
 		picks: ["What weighs you down or holds you back?", "What drives you forward?", "What lesson would you have me learn?", "What do you think of me, truly?"],
 	},
 	"A Safe Place": {
 		trigger: "When you select and prepare the party's camp site, hold 1 Precaution, or 2 if well-versed with this area and its dangers.",
-		fields: [{ name: "camp", label: "Camp site", placeholder: "Where are you making camp?" }],
 		picksLabel: "Spend Precaution to reveal:",
 		picks: ["A simple defense", "A warning", "A trick prepared in advance"],
 	},
@@ -297,7 +169,6 @@ const GUIDED_CHARACTER_MOVES = {
 	},
 	"Mighty Thews": {
 		trigger: "When you perform a feat of extraordinary strength, you do it but pick 1.",
-		fields: [{ name: "feat", label: "Feat", placeholder: "What are you doing?" }],
 		picksLabel: "Pick 1:",
 		picks: ["It takes a while", "You cause unwanted damage or harm", "It takes a toll (mark a debility)"],
 	},
@@ -328,10 +199,6 @@ const GUIDED_CHARACTER_MOVES = {
 	// and Outfit have their own dialogs and are dispatched separately.
 	"Chart a Course": {
 		trigger: "When you wish to travel to a distant place, name or describe your destination; if the route is unclear, tell the GM how you intend to reach it. The GM tells you what's required, the risks, and how long it will take.",
-		fields: [
-			{ name: "destination", label: "Destination", placeholder: "Where are you headed?" },
-			{ name: "route", label: "Intended route", placeholder: "How do you mean to get there?", type: "textarea" },
-		],
 		results: [
 			"The GM presents each challenge — plus surprises — one at a time.",
 			"Address them all to reach your destination.",
@@ -353,7 +220,6 @@ const GUIDED_CHARACTER_MOVES = {
 	},
 	"Have What You Need": {
 		trigger: "When you decide that you had something all along, transfer a mark (or marks) from your unassigned inventory to a specific item or slot.",
-		fields: [{ name: "item", label: "What you had all along", placeholder: "The item you're revealing…" }],
 		results: [
 			"Mark a slot: fill it with a common mundane item or something from your special possessions.",
 			"Or expend a use of supplies to mark an additional small item/slot.",
@@ -384,18 +250,15 @@ const GUIDED_CHARACTER_MOVES = {
 	},
 	"Recover": {
 		trigger: "When you take time to catch your breath and tend to what ails you, expend 1 use of supplies and regain HP equal to 4 + Prosperity.",
-		fields: [{ name: "ailment", label: "What you're tending", placeholder: "Wound or debility…", type: "textarea" }],
 		results: ["You can't gain this benefit again until you take more damage."],
 		note: "When you tend to a debility or problematic wound, say how. The GM will say it's taken care of, or tell you what else is required.",
 	},
 	"Return Triumphant": {
 		trigger: "When you return home in triumph — having saved your fellows, put down the threat, seized the opportunity, etc. — clear one of the steading's debilities (diminished, lacking, or malcontent).",
-		fields: [{ name: "triumph", label: "Your triumph", placeholder: "What did you accomplish?", type: "textarea" }],
 		note: "If the steading has no debilities marked, increase Fortunes by 1 instead.",
 	},
 	"Struggle as One": {
 		trigger: "When you Defy Danger as a group, establish the party's approach and each roll +STAT (per Defy Danger).",
-		fields: [{ name: "approach", label: "Party's approach", placeholder: "How are you facing this danger together?" }],
 		results: [
 			"10+: you do well enough to get someone else out of a spot, if you can tell us how.",
 			"7-9: you pull your weight.",
@@ -661,6 +524,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			// And the Arcana sections (Major / Minor arcanum), which also default to
 			// expanded; we track the ones left collapsed.
 			this._collapsedArcanaSections = new Set(getArcanaSectionsCollapsed(this.actor?.id));
+
+			// Reverse-side arcanum content folds (the "Consequences" section on major
+			// arcana). Unlike the sections above these default to COLLAPSED, so we track
+			// the ones left EXPANDED (absence = collapsed).
+			this._expandedArcanaContent = new Set(getArcanaContentExpanded(this.actor?.id));
 		}
 
 		// Persist the current crew-section open state so it survives a sheet reopen.
@@ -676,6 +544,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		// Persist which Arcana sections are collapsed so it survives a reopen.
 		_persistArcanaSections() {
 			setArcanaSectionsCollapsed(this.actor?.id, [...(this._collapsedArcanaSections ?? [])]);
+		}
+
+		// Persist which reverse-side arcanum content folds (Consequences) are expanded.
+		_persistArcanaContent() {
+			setArcanaContentExpanded(this.actor?.id, [...(this._expandedArcanaContent ?? [])]);
 		}
 
 		// Wire a custom collapse/expand toggle for a set of collapsible sections. Used
@@ -1088,6 +961,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.movesEdit       = sectionEdit("moves");
 			context.stonetop.possessionsEdit = sectionEdit("possessions");
 			context.stonetop.invocationsEdit = sectionEdit("invocations");
+			// The two Arcana sections (Major / Minor) each get their own pencil, like every
+			// other section. `arcanaAnyEdit` drives the shared "Create arcanum" bar at the top
+			// of the tab, so pencilling either section surfaces the creation controls.
+			context.stonetop.arcanaEdit = {
+				major: sectionEdit("arcanaMajor"),
+				minor: sectionEdit("arcanaMinor"),
+			};
+			context.stonetop.arcanaAnyEdit = context.stonetop.arcanaEdit.major || context.stonetop.arcanaEdit.minor;
 			context.stonetop.followersEdit   = sectionEdit("followers");
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
@@ -1159,8 +1040,59 @@ export function createStonetopCharacterSheetClass(Base) {
 				Object.values(this.actor.getFlag("stonetop_pwd", "customFollowers") ?? {})
 					.map(f => f?.sourceUuid).filter(Boolean)
 			);
-			for (const section of [context.stonetop.arcana?.major, context.stonetop.arcana?.minor]) {
+			// Per-card arcana back visibility. Two independent things gate whether the back
+			// panel renders beside the front: PERMISSION (may this viewer see the back at
+			// all) and the per-card "show both" toggle (a view preference, default off, so
+			// cards read front-only until spread). Permission: the GM always may; a player
+			// may once the GM revealed the card, or when arcanaPlayersSeeBothSides is on and
+			// the card is unlocked. The toggle is an edit-mode, PER-USER preference — stored
+			// on the viewing user (not the actor), so the GM's spread choices are independent
+			// of the owning player's and each client renders its own. It persists so a spread
+			// stays open while reading in play mode, and can never expose a back the viewer
+			// isn't permitted to see. canReveal drives the GM-only reveal toggle, shown only
+			// when it would change what the player sees. isSpread marks a card that renders
+			// both sides, laid out full-width by the masonry. See settings.js and tab-arcana.hbs.
+			const playersSeeBothArcana = game.settings.get("stonetop_pwd", "arcanaPlayersSeeBothSides");
+			const viewerIsGM           = game.user.isGM;
+			const revealedArcana       = this._stonetopCharacter.revealedArcanaSlugs;
+			// Keyed by actor id since one user (esp. the GM) may view several character sheets.
+			const showBothArcana       = new Set(
+				(game.user.getFlag("stonetop_pwd", "arcanaShowBoth") ?? {})[this.actor.id] ?? []
+			);
+			// The single-side flip (front ⇄ back) is a second, independent per-user view
+			// preference, stored the same way. It only takes effect when the card isn't
+			// already laid open as a spread (show-both wins), and never on a card whose back
+			// this viewer isn't permitted to see.
+			const showBackArcana       = new Set(
+				(game.user.getFlag("stonetop_pwd", "arcanaShowBack") ?? {})[this.actor.id] ?? []
+			);
+			for (const [section, sectionEditable] of [
+				[context.stonetop.arcana?.major, context.stonetop.arcanaEdit.major],
+				[context.stonetop.arcana?.minor, context.stonetop.arcanaEdit.minor],
+			]) {
 				for (const item of (section?.items ?? [])) {
+					// Card footers (Remove / reveal / show-both) show when this card's section
+					// is editable — via the global wrench or that section's own pencil.
+					item.sectionEditable   = sectionEditable;
+					const revealed         = revealedArcana.has(item.slug);
+					const permittedBack    = viewerIsGM || revealed || (playersSeeBothArcana && item.unlocked);
+					item.showBoth          = showBothArcana.has(item.slug);
+					item.showBack          = showBackArcana.has(item.slug);
+					const spread           = permittedBack && item.showBoth;
+					// Back-only: the viewer flipped this card to its reverse. Suppressed while
+					// spread (both already shown). Front hides only in this single-side view.
+					const backOnly         = permittedBack && !spread && item.showBack;
+					item.frontVisible      = !backOnly;
+					item.backVisible       = spread || backOnly;
+					item.isSpread          = item.identified && spread;
+					item.revealedToPlayers = revealed;
+					item.canReveal         = viewerIsGM && !(playersSeeBothArcana && item.unlocked);
+					// The show-both toggle is only meaningful when the viewer may see the back.
+					item.canToggleBoth     = permittedBack;
+					// The flip button shows whenever the back is permitted and the card isn't
+					// already a spread (nothing to flip when both sides are open).
+					item.canFlip           = permittedBack && !spread;
+
 					const followers = item.summonFollowers;
 					if (!followers?.length) continue;
 					const names   = joinNames(followers.map(f => f.name));
@@ -2182,10 +2114,89 @@ export function createStonetopCharacterSheetClass(Base) {
 				wrapStonetopGlyphsInEl(el);
 			});
 
-			// Masonry: pack arcana cards into two columns by measured height (each card
-			// goes in the currently-shortest column). Unlike CSS multi-column, cards stay
-			// whole — a tall flipped card never splits — and short cards never leave a big
-			// row-gap beside a tall one.
+			// Fold the long, secondary "Consequences" section on each major arcanum's
+			// reverse behind a collapsible heading (like the basic-moves sidebar groups),
+			// defaulting to collapsed. The section lives inside the card's authored back
+			// HTML, so we wrap it at render time: the <h3>Consequences</h3> becomes a
+			// clickable summary and everything after it (until the next heading) folds
+			// into the body. Expanded state is per-user/per-actor and persisted, so
+			// marking a consequence — which re-renders the sheet — doesn't refold it.
+			// Runs before the masonry below so cards are measured at their folded height.
+			html[0].querySelectorAll(".stonetop-arcanum-side--back .stonetop-arcanum-body").forEach(body => {
+				const slug = body.closest(".stonetop-arcanum-card")?.dataset.slug;
+				if (!slug) return;
+				// Fold stops at the next heading or at template-appended siblings (the back
+				// move trigger / "Add as follower" button that follow the authored HTML),
+				// so folding the last section never swallows them.
+				const isFoldBoundary = n => n.nodeType === 1 && (
+					n.tagName === "H3" ||
+					n.classList.contains("stonetop-arcanum-move-trigger") ||
+					n.classList.contains("stonetop-arcanum-summon")
+				);
+				for (const heading of [...body.children].filter(n => n.tagName === "H3")) {
+					if (heading.textContent.trim().toLowerCase() !== "consequences") continue;
+
+					// Everything from just after the heading up to the next boundary is the fold body.
+					const bodyNodes = [];
+					for (let n = heading.nextSibling; n && !isFoldBoundary(n); ) {
+						const next = n.nextSibling;
+						bodyNodes.push(n);
+						n = next;
+					}
+
+					const id = `${slug}:consequences`;
+					const expanded = this._expandedArcanaContent?.has(id);
+					const fold = document.createElement("div");
+					fold.className = `stonetop-arcanum-foldable${expanded ? "" : " is-collapsed"}`;
+					fold.dataset.section = id;
+					const summary = document.createElement("div");
+					summary.className = "stonetop-arcanum-foldable-summary";
+					summary.setAttribute("role", "button");
+					summary.setAttribute("tabindex", "0");
+					summary.setAttribute("aria-expanded", String(!!expanded));
+					const foldBody = document.createElement("div");
+					foldBody.className = "stonetop-arcanum-foldable-body";
+
+					heading.replaceWith(fold);
+					summary.appendChild(heading);      // move the heading into the summary
+					bodyNodes.forEach(n => foldBody.appendChild(n));
+					fold.append(summary, foldBody);
+				}
+			});
+
+			// Toggle a "Consequences" fold (see above). Tracks EXPANDED ids since these
+			// default collapsed; persisted per-user/per-actor.
+			const toggleArcanaFold = summary => {
+				const fold = summary.closest(".stonetop-arcanum-foldable");
+				const id   = fold?.dataset.section;
+				if (!id) return;
+				const collapsed = fold.classList.toggle("is-collapsed");
+				summary.setAttribute("aria-expanded", String(!collapsed));
+				const set = (this._expandedArcanaContent ??= new Set());
+				if (collapsed) set.delete(id); else set.add(id);
+				this._persistArcanaContent();
+			};
+			html[0].addEventListener("click", ev => {
+				const summary = ev.target.closest(".stonetop-arcanum-foldable-summary");
+				if (!summary) return;
+				ev.stopPropagation();
+				toggleArcanaFold(summary);
+			}, true);
+			html[0].addEventListener("keydown", ev => {
+				if (ev.key !== "Enter" && ev.key !== " ") return;
+				const summary = ev.target.closest(".stonetop-arcanum-foldable-summary");
+				if (!summary) return;
+				ev.preventDefault();
+				toggleArcanaFold(summary);
+			}, true);
+
+			// Masonry: lay arcana cards out by measured height, preserving authored order.
+			// A both-sides "spread" card (front | back) spans the full grid width; the
+			// narrower front-only cards pack two-up. The cards are walked into ordered
+			// segments — each spread its own full-width segment, and each run of consecutive
+			// narrow cards into a two-column block (each card placed in the currently-shortest
+			// of that block's two columns). Unlike CSS multi-column, cards stay whole — a tall
+			// card never splits — and a short card never leaves a big row-gap beside a tall one.
 			//
 			// A ResizeObserver on each grid drives it: it fires when the grid first becomes
 			// measurable (the Arcana tab is shown, 0 → width) and whenever the sheet is
@@ -2194,22 +2205,44 @@ export function createStonetopCharacterSheetClass(Base) {
 			// also breaks the feedback loop, since re-packing changes the grid's own height,
 			// which would otherwise re-trigger the observer.
 			const packArcanaMasonry = grid => {
-				const cards = (grid._stonetopCards ??= Array.from(grid.children)
-					.filter(el => el.classList.contains("stonetop-arcanum-card")));
+				const cards = (grid._stonetopCards ??=
+					Array.from(grid.querySelectorAll(".stonetop-arcanum-card")));
 				const width = grid.clientWidth;
 				if (cards.length < 2 || !width || !cards[0].offsetHeight || grid._packedWidth === width) return;
-				const cols = [0, 1].map(() => {
-					const c = document.createElement("div");
-					c.className = "stonetop-arcana-col";
-					return c;
-				});
-				const heights = [0, 0];
+
+				// Walk cards into ordered segments: a spread card stands alone (full width);
+				// consecutive narrow cards accumulate into a two-column array to balance.
+				const segments = [];
+				let run = null;
 				for (const card of cards) {
-					const i = heights[0] <= heights[1] ? 0 : 1;
-					heights[i] += card.offsetHeight;
-					cols[i].appendChild(card);
+					if (card.classList.contains("stonetop-arcanum-card--spread")) {
+						run = null;
+						segments.push(card);
+					} else {
+						if (!run) segments.push(run = []);
+						run.push(card);
+					}
 				}
-				grid.replaceChildren(...cols);
+
+				const nodes = segments.map(seg => {
+					if (!Array.isArray(seg)) return seg; // a full-width spread card
+					const block = document.createElement("div");
+					block.className = "stonetop-arcana-masonry";
+					const cols = [0, 1].map(() => {
+						const c = document.createElement("div");
+						c.className = "stonetop-arcana-col";
+						return c;
+					});
+					const heights = [0, 0];
+					for (const card of seg) {
+						const i = heights[0] <= heights[1] ? 0 : 1;
+						heights[i] += card.offsetHeight;
+						cols[i].appendChild(card);
+					}
+					block.append(...cols);
+					return block;
+				});
+				grid.replaceChildren(...nodes);
 				grid._packedWidth = width;
 			};
 			this._arcanaMasonryObserver?.disconnect();
@@ -2259,6 +2292,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Details-tab per-section edit pencils: toggle just that section's edit
 			// state, independent of the global header-wrench edit mode.
 			this._wireSectionEditToggle(html, ".stonetop-details-section-edit-toggle");
+
+			// Arcana-tab per-section edit pencils (Major / Minor). Same mechanism; the
+			// pencil sits in the collapsible section's summary, so its capture-phase
+			// handler stops the click before the collapse toggle sees it.
+			this._wireSectionEditToggle(html, ".stonetop-arcana-section-edit-toggle");
 
 			// The "needs your input" hand on a move card (shown when a budgeted move still
 			// has unspent picks) is a one-tap shortcut into moves-edit — same as hitting the
@@ -2519,6 +2557,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						return this.actor.update({ [updKey]: val }).then(() => this.render(false));
 					},
 					render:  bringDialogToFront,
+					options: { classes: ["dialog", "stonetop"] },
 				});
 			});
 			// Hand a custom follower off to another PC (p.480).
@@ -2662,6 +2701,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from the crew? This can't be undone.</p>`,
 					yes:     async () => { await this.actor.update(update); this.render(false); },
 					render:  bringDialogToFront,
+					options: { classes: ["dialog", "stonetop"] },
 				});
 			});
 
@@ -3030,6 +3070,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from your moves? This can't be undone.</p>`,
 					yes:     () => this._stonetopCharacter.removeMove(itemId),
 					render:  bringDialogToFront,
+					options: { classes: ["dialog", "stonetop"] },
 				});
 			});
 
@@ -3071,6 +3112,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					content: `<p>${game.i18n.localize("stonetop.arcana.identifyConfirm")}</p>`,
 					yes: () => this._stonetopCharacter.identifyArcanum(slug).then(() => this.render(false)),
 					render: bringDialogToFront,
+					options: { classes: ["dialog", "stonetop"] },
 				});
 			}, true);
 
@@ -3081,16 +3123,43 @@ export function createStonetopCharacterSheetClass(Base) {
 				new ImagePopout(thumb.src, { title: thumb.dataset.name }).render(true);
 			}, true);
 
+			// "Show both sides" ⇄ "show front only" toggle (available in and out of edit
+			// mode). Persists a PER-USER display preference so the card renders as a front|back
+			// spread while reading in play mode. Stored on the viewing user, so the GM's and the
+			// owning player's choices are independent. It never overrides back permission — the
+			// button is only rendered for cards whose back this viewer may already see.
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-showboth-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				const { slug, show } = btn.dataset;
+				this._toggleArcanumShowBoth(slug, show !== "true").then(() => this.render(false));
+			}, true);
+
+			// "Show back" ⇄ "Show front" single-side flip. A sibling PER-USER preference to
+			// show-both; it swaps which lone side renders while the card isn't spread. Same
+			// permission guard — only ever offered for a back this viewer may already see.
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-arcanum-flip-btn");
 				if (!btn) return;
 				ev.stopPropagation();
-				const { slug, flipped } = btn.dataset;
-				if (flipped === "true") {
-					this._stonetopCharacter.unflipArcanum(slug).then(() => this.render(false));
-				} else {
-					this._stonetopCharacter.flipArcanum(slug).then(() => this.render(false));
-				}
+				const { slug, show } = btn.dataset;
+				this._toggleArcanumShowBack(slug, show !== "true").then(() => this.render(false));
+			}, true);
+
+			// GM-only: toggle whether the owning player can see this card's back. Only
+			// meaningful when the world setting `arcanaPlayersSeeBothSides` is off (the
+			// button is otherwise hidden). Writing the actor flag propagates to the
+			// player's open sheet, which re-renders and reveals/hides the back.
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-reveal-btn");
+				if (!btn || !game.user.isGM) return;
+				ev.stopPropagation();
+				const { slug, revealed } = btn.dataset;
+				const action = revealed === "true"
+					? this._stonetopCharacter.hideArcanum(slug)
+					: this._stonetopCharacter.revealArcanum(slug);
+				action.then(() => this.render(false));
 			}, true);
 
 			html[0].addEventListener("click", ev => {
@@ -3125,6 +3194,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					content: `<p>Remove <strong>${escHtml(title)}</strong> from your arcana? This can't be undone.</p>`,
 					yes:     () => this._stonetopCharacter.removeArcanum(slug).then(() => this.render(true)),
 					render:  bringDialogToFront,
+					options: { classes: ["dialog", "stonetop", "stonetop-remove-arcanum-dialog"] },
 				});
 			}, true);
 
@@ -3426,10 +3496,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			const moves  = items.filter(i => i.type === "move" && i.system?.moveType !== "arcanum");
 			const others = items.filter(i => i.type !== "move");
 			let anyAdded = false;
+			// A dropped arcanum is added UNIDENTIFIED — a face-down "mystery" card the player
+			// Identifies in play (drop is the only path that plants a mystery; onboarding,
+			// level-up, and the homebrew creator all identify on add). Because that card shows
+			// no name or art until identified, and can land on a tab you aren't looking at, a
+			// silent add reads as "nothing happened". So collect the freshly-added ones (skip
+			// arcana already owned — a re-drop is a no-op) to toast and reveal the Arcana tab.
+			const ownedArcana = this._stonetopCharacter.ownedArcanaSlugs;
+			const addedArcana = [];
 			for (const item of arcana) {
 				const slug = item.flags?.stonetop?.slug;
-				if (slug) {
+				if (slug && !ownedArcana.has(slug)) {
 					await this._stonetopCharacter.addArcanum(slug);
+					addedArcana.push(item.name || item.flags?.stonetop?.front?.title || "an arcanum");
 					anyAdded = true;
 				}
 			}
@@ -3437,6 +3516,21 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (await this._stonetopCharacter.onDropMove(item)) anyAdded = true;
 			}
 			if (others.length) await super._onDropItemCreate(others);
+			if (addedArcana.length) {
+				const one = addedArcana.length === 1;
+				ui.notifications?.info?.(
+					`Added ${joinNames(addedArcana)} to the Arcana tab, face-down — use Identify to reveal ${one ? "it" : "them"}.`,
+				);
+				// Reveal the Arcana tab so the new (face-down) card is visible — but do it AFTER
+				// the re-render lands, as a cheap DOM toggle, not by presetting active before a
+				// render. The flag write above schedules its own auto-render, which races the
+				// explicit render(false) below; presetting active lost that race intermittently,
+				// leaving the card on a hidden tab until the sheet was reopened. A one-shot
+				// post-render hook makes the switch deterministic regardless of which render wins.
+				Hooks.once(`render${this.constructor.name}`, app => {
+					if (app === this) this._tabs?.[0]?.activate?.("arcana");
+				});
+			}
 			if (anyAdded) this.render(false);
 		}
 
@@ -3822,6 +3916,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					this.render(false);
 				},
 				render: bringDialogToFront,
+				options: { classes: ["dialog", "stonetop"] },
 			});
 		}
 
@@ -3923,6 +4018,29 @@ export function createStonetopCharacterSheetClass(Base) {
 			).render(true);
 		}
 
+		// Toggle the viewing user's "show both sides" preference for one arcanum. Kept as a
+		// User flag (not on the actor) so the GM's spread choices stay independent of the
+		// owning player's — each client renders its own. Keyed by actor id, since one user
+		// may view several character sheets. Writing only this actor's key lets Foundry's
+		// mergeObject preserve preferences for the user's other sheets.
+		async _toggleArcanumShowBoth(slug, show) {
+			const set = new Set((game.user.getFlag("stonetop_pwd", "arcanaShowBoth") ?? {})[this.actor.id] ?? []);
+			if (show) set.add(slug); else set.delete(slug);
+			await game.user.setFlag("stonetop_pwd", "arcanaShowBoth", { [this.actor.id]: [...set] });
+			// Collapsing a spread ("Show front only") returns to the front, so clear any lingering
+			// back-only flip on this card — otherwise it would land on the back, belying the label.
+			if (!show) await this._toggleArcanumShowBack(slug, false);
+		}
+
+		// Toggle the viewing user's single-side "show back" preference for one arcanum. Stored
+		// exactly like show-both (a per-user, per-actor User flag) so each client renders its own
+		// flip state and the GM's choices stay independent of the owning player's.
+		async _toggleArcanumShowBack(slug, show) {
+			const set = new Set((game.user.getFlag("stonetop_pwd", "arcanaShowBack") ?? {})[this.actor.id] ?? []);
+			if (show) set.add(slug); else set.delete(slug);
+			await game.user.setFlag("stonetop_pwd", "arcanaShowBack", { [this.actor.id]: [...set] });
+		}
+
 		// Manifest an arcanum's bound creature(s) as followers (the arcana whose reverse
 		// says "Treat it/them as a follower" — see ARCANA_SUMMONS). Triggered by the
 		// "Add as follower" button on the arcanum's back side. Confirm first (it adds
@@ -3942,6 +4060,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				no:         () => false,
 				defaultYes: false,
 				render:     bringDialogToFront,
+				options:    { classes: ["dialog", "stonetop"] },
 			});
 			if (!confirmed) return;
 
@@ -3960,17 +4079,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
-		// Create a blank homebrew arcanum world Item (minor or major), add it to this
-		// character by slug, mark it identified (the author made it — no mystery to
-		// solve), and open its editor. The arcana tab then resolves it via the
-		// world-item path of FoundryArcanaRepository.
+		// Open a blank homebrew arcanum (minor or major) in the editor as a draft. It's added
+		// to this character only when the author clicks Save & Done (see _createAndAddArcanum).
 		async _onArcanaCreate(major = false) {
 			if (!this.isEditable || !canCreateArcana()) return;
 			await this._createAndAddArcanum({ name: major ? "New Major Arcanum" : "New Minor Arcanum", major });
 		}
 
-		// Open the Artifact Creation inspiration wizard; on finish it creates a card
-		// pre-filled with the rolled results and adds it to this character.
+		// Open the Artifact Creation inspiration wizard; on finish it opens a card pre-filled
+		// with the rolled results in the editor as a draft, added on Save & Done.
 		_onArcanaInspire() {
 			if (!this.isEditable || !canCreateArcana()) return;
 			new StonetopArcanaInspireDialog({
@@ -3978,18 +4095,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			}).render(true);
 		}
 
-		// Create a homebrew arcanum world Item (optionally pre-filled), add it to this
-		// character by slug, mark it identified (the author made it — no mystery to solve),
-		// and open its editor. The arcana tab then resolves it via the world-item path of
-		// FoundryArcanaRepository. Returns the created Item.
+		// Create a homebrew arcanum world Item (optionally pre-filled) and open its editor as a
+		// DRAFT — it is NOT added to this character until the author clicks Save & Done in the
+		// editor, at which point `attach` runs: adds it by slug, marks it identified (the author
+		// made it — no mystery to solve), and re-renders so the arcana tab shows the finished
+		// card (resolved via the world-item path of FoundryArcanaRepository). Closing the editor
+		// without saving offers to discard the draft. Returns the created Item.
 		async _createAndAddArcanum({ name, major = false, front } = {}) {
-			const item = await createArcanumItem({ name, major, front });
-			const slug = item?.flags?.[ITEM_FLAG_SCOPE]?.slug;
-			if (!slug) return item;
-			await this._stonetopCharacter.addArcanum(slug);
-			await this._stonetopCharacter.identifyArcanum(slug);
-			this.render(true);
-			return item;
+			const attach = async (item) => {
+				const slug = item?.flags?.[ITEM_FLAG_SCOPE]?.slug;
+				if (!slug) return;
+				await this._stonetopCharacter.addArcanum(slug);
+				await this._stonetopCharacter.identifyArcanum(slug);
+				if (this.rendered) this.render(false);
+			};
+			return createArcanumItem({ name, major, front, onSave: attach });
 		}
 
 		// Persist a built custom follower under a fresh id and re-render. `data` is
@@ -4652,7 +4772,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this._stonetopCharacter.addArcanum(slug);
 				await this._stonetopCharacter.identifyArcanum(slug);
 			}
-			if (masteredMinor) await this._stonetopCharacter.flipArcanum(masteredMinor);
 
 			if (Object.keys(flagUpd).length) await this.actor.update(flagUpd);
 			await this._applyBackgroundNeighbors(backgroundSetup, selections);

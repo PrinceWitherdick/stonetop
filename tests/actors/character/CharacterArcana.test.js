@@ -448,6 +448,20 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			expect(flags.setFlag).toHaveBeenCalledWith("flipped", []);
 		});
 
+		it("revealArcanum adds slug to revealed flag", async () => {
+			const flags = makeFlags();
+			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
+			await arcana.revealArcanum("some-slug");
+			expect(flags.setFlag).toHaveBeenCalledWith("revealed", ["some-slug"]);
+		});
+
+		it("hideArcanum removes slug from revealed flag", async () => {
+			const flags = makeFlags({ revealed: ["some-slug"] });
+			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
+			await arcana.hideArcanum("some-slug");
+			expect(flags.setFlag).toHaveBeenCalledWith("revealed", []);
+		});
+
 		it("setUnlockCount stores the count under arcanumSlug:optionSlug key", async () => {
 			const flags = makeFlags();
 			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
@@ -565,6 +579,45 @@ describe("CharacterArcana.buildSnapshot() — inventoryResources param", () => {
 			new FakeArcanaRepository([noResource]),
 		);
 		expect((await arcana.buildSnapshot()).minor.items[0].back.resource).toBeNull();
+	});
+});
+
+describe("CharacterArcana.weightedInventoryItems() — carried side follows unlock state", () => {
+	// FFYRNIG_SPHERE has unmet option requirements by default, so it's locked → you carry
+	// the front item; once every requirement is met it unlocks → you carry the back item.
+	// (Previously this was driven by the manual flip flag; now it tracks unlock state.)
+	const LOCKED = { owned: ["huge-wooden-sphere"] };
+	const UNLOCKED = {
+		owned: ["huge-wooden-sphere"],
+		unlock: {
+			"huge-wooden-sphere:dig-sphere": 1,
+			"huge-wooden-sphere:study-glyphs": 1,
+			"huge-wooden-sphere:risk-recipe": 3,
+		},
+	};
+
+	it("carries the FRONT item while the card is still locked", async () => {
+		const arcana = new CharacterArcana(makeFlags(LOCKED), new FakeArcanaRepository([FFYRNIG_SPHERE]));
+		const items = await arcana.weightedInventoryItems();
+		expect(items).toHaveLength(1);
+		expect(items[0].name).toBe("A Huge Wooden Sphere");
+	});
+
+	it("carries the BACK item once the card is unlocked", async () => {
+		const arcana = new CharacterArcana(makeFlags(UNLOCKED), new FakeArcanaRepository([FFYRNIG_SPHERE]));
+		const items = await arcana.weightedInventoryItems();
+		expect(items).toHaveLength(1);
+		expect(items[0].name).toBe("Ffyrnig Tonic");
+	});
+
+	it("ignores the legacy flipped flag entirely", async () => {
+		// A leftover flipped flag must not flip the carried side anymore.
+		const arcana = new CharacterArcana(
+			makeFlags({ ...LOCKED, flipped: ["huge-wooden-sphere"] }),
+			new FakeArcanaRepository([FFYRNIG_SPHERE]),
+		);
+		const items = await arcana.weightedInventoryItems();
+		expect(items[0].name).toBe("A Huge Wooden Sphere");
 	});
 });
 

@@ -75,6 +75,21 @@ export function registerSettings() {
 		default: true,
 	});
 
+	// Whether players may always see the BACK of their arcana. The back isn't truly
+	// secret in the rules, so this defaults on (and preserves prior behaviour, where an
+	// unlocked card's back was always viewable). Turn it off for a more secretive table:
+	// players then see a card's back only once the GM clicks "Reveal back to player" on
+	// that specific card. The GM always sees both sides regardless. See the per-card
+	// visibility model in StonetopCharacterSheet.getData / CharacterArcana.
+	game.settings.register("stonetop_pwd", "arcanaPlayersSeeBothSides", {
+		name: "stonetop.settings.arcanaPlayersSeeBothSides.name",
+		hint: "stonetop.settings.arcanaPlayersSeeBothSides.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	game.settings.register("stonetop_pwd", "startupWelcomeShown", {
 		name: "Startup Welcome Shown",
 		scope: "world",
@@ -357,6 +372,18 @@ export function registerSettings() {
 		default: {},
 	});
 
+	// Remembers which reverse-side arcanum content sections (e.g. "Consequences") each
+	// character left EXPANDED. Unlike the Major / Minor sections above, these default to
+	// COLLAPSED — they're long, secondary reference — so we store the *expanded* ids
+	// (absence = collapsed). Per-user (client) and per-actor: a map of actor id -> array
+	// of expanded section ids. Internal (not shown in the settings menu).
+	game.settings.register("stonetop_pwd", "arcanaContentExpanded", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
 	// Remembers whether each character left the whole moves sidebar (Roll Modifier
 	// + Basic / Expedition move lists) collapsed, so the sheet reopens the same way.
 	// The sidebar defaults to expanded. Per-user (client) and per-actor: a map of
@@ -583,6 +610,17 @@ export function getArcanaSectionsCollapsed(actorId) {
 
 export function setArcanaSectionsCollapsed(actorId, sections) {
 	return setSectionList("arcanaSectionsCollapsed", actorId, sections);
+}
+
+// The reverse-side arcanum content sections (e.g. Consequences) a character left
+// expanded. These default to collapsed, so an id present here means that section
+// should reopen expanded.
+export function getArcanaContentExpanded(actorId) {
+	return getSectionList("arcanaContentExpanded", actorId);
+}
+
+export function setArcanaContentExpanded(actorId, sections) {
+	return setSectionList("arcanaContentExpanded", actorId, sections);
 }
 
 // Whether a character left the whole moves sidebar collapsed (defaults to false /
