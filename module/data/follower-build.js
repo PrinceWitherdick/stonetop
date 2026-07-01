@@ -35,12 +35,23 @@ export const FOLLOWER_ARMOR_MODS = [
 ];
 
 // ── Step 5: damage (p.477) ───────────────────────────────────────────────────
-// "How dangerous are they? (pick 1)". Range and other tags come from gear, so
-// the player appends a free-text form ("hand", "near, low ammo") themselves.
+// "How dangerous are they? (pick 1)". Range and other tags come from gear.
 export const FOLLOWER_DAMAGE_OPTIONS = [
 	{ key: "weak",    label: "Not very",                  die: "d4" },
 	{ key: "defends", label: "Can defend themselves",     die: "d6" },
 	{ key: "veteran", label: "Veteran fighter or predator", die: "d8" },
+];
+
+// "Range and other tags come from their gear." Offered as chips on the damage
+// step (grounded in the weapon ranges & tags used across Stonetop's gear); the
+// player can also type their own. Selected chips + custom entries become the
+// damage parenthetical, e.g. d6 (near, low ammo, forceful).
+export const FOLLOWER_DAMAGE_TAG_GROUPS = [
+	{ label: "Range", tags: ["hand", "close", "reach", "near", "far"] },
+	{ label: "Gear tags", tags: [
+		"forceful", "messy", "piercing", "thrown", "reload", "low ammo",
+		"precise", "slow", "stun", "dangerous", "awkward", "grabby",
+	] },
 ];
 
 // ── Step 2: tags (p.476) ─────────────────────────────────────────────────────

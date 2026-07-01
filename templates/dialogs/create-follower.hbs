@@ -131,9 +131,30 @@
           {{/each}}
         </div>
       </div>
-      <label class="stonetop-cf-label">Range &amp; gear tags (the parenthetical)
-        <input type="text" class="stonetop-cf-input" data-field="damageForm" value="{{sel.damageForm}}" placeholder="e.g. hand · near, low ammo, out · forceful">
-      </label>
+      <div class="stonetop-cf-chosen">
+        <span class="stonetop-cf-chosen-label">Range &amp; gear tags:</span>
+        {{#if chosenTags.length}}
+        <div class="stonetop-cf-chosen-tags">
+          {{#each chosenTags}}
+          <button type="button" class="stonetop-cf-chosen-tag" data-tag="{{this}}">{{this}} <i class="fas fa-times"></i></button>
+          {{/each}}
+        </div>
+        {{else}}<span class="stonetop-cf-chosen-empty">none yet</span>{{/if}}
+      </div>
+      <div class="stonetop-cf-tag-add-row">
+        <input type="text" class="stonetop-cf-input stonetop-cf-tag-input" placeholder="add your own (or comma-separated)…">
+        <button type="button" class="stonetop-cf-tag-add stonetop-cf-mini-btn"><i class="fas fa-plus"></i> Add</button>
+      </div>
+      {{#each tagGroups}}
+      <div class="stonetop-cf-tag-group">
+        <div class="stonetop-cf-tag-group-label">{{label}}</div>
+        <div class="stonetop-cf-tag-pool">
+          {{#each tags}}
+          <button type="button" class="stonetop-cf-tag{{#if selected}} is-selected{{/if}}" data-tag="{{value}}">{{value}}</button>
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
       <div class="stonetop-cf-total"><i class="fas fa-burst"></i> <strong>{{damagePreview}}</strong></div>
       {{/if}}
 
