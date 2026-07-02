@@ -10,6 +10,9 @@
                       },
     "authors":  [
                     {
+                        "name":  "PrinceWitherdick"
+                    },
+                    {
                         "name":  "aMediocerDad"
                     },
                     {
@@ -17,9 +20,6 @@
                     },
                     {
                         "name":  "Dice-Goblin-Click-Clack"
-                    },
-                    {
-                        "name":  "PrinceWitherdick"
                     }
                 ],
     "url":  "https://github.com/PrinceWitherdick/stonetop",
