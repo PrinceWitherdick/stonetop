@@ -18,8 +18,8 @@ export class CharacterInventory {
 		await this._flags.setFlag("checked", { ...this.checked, [slug]: isChecked });
 	}
 
-	async setResource(slug, count) {
-		await this._flags.setFlag("resources", { ...this.resources, [slug]: count });
+	async setResource(slug, count, options) {
+		await this._flags.setFlag("resources", { ...this.resources, [slug]: count }, options);
 	}
 
 	async setRegularPool(count) {

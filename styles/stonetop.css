@@ -4263,6 +4263,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-arcanum-header .stonetop-inv-item { flex-wrap: wrap; }
 .stonetop-arcanum-header .stonetop-inv-item .stonetop-inv-resources { flex-basis: 100%; }
 
+/* Likewise, a card's top-level resource track (e.g. Sublime Words' Voice debility) drops
+   below the title instead of sharing its line. This block appears only on the back side
+   and never beside the front's card art, so :has() lets that header wrap without
+   disturbing the art-beside-title layout; margin-left:0 undoes the right-pin above. */
+.stonetop-arcanum-header:has(.stonetop-arcanum-header-resource) { flex-wrap: wrap; }
+.stonetop-arcanum-header-resource { flex-basis: 100%; margin-left: 0; }
+
+/* Separate each labeled option (○ plenty left / ○ low ammo / ○ all out) from the next
+   option's checkbox. The track container's gap is only 2px, so a label otherwise hugs
+   the following box; a trailing margin groups each box with its own label instead. */
+.stonetop-arcanum-header .stonetop-resource-label { margin-right: 8px; }
+
 .stonetop-arcanum-body {
 	flex: 1;
 	padding: 6px 8px;

@@ -3176,10 +3176,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { slug, index, resourceKind } = btn.dataset;
 				const isChecked = btn.classList.contains("is-checked");
 				const newVal = isChecked ? Number(index) : Number(index) + 1;
+				// Reflect the new fill in place and persist WITHOUT a re-render. An arcana
+				// resource track is self-contained — nothing else on the sheet derives from its
+				// count — and a full re-render repacks the arcana masonry, which jumps the tab's
+				// scroll position on every click. Toggle the track's own buttons directly (a
+				// button at index i is filled when i < count, matching the resourceChecks helper).
+				btn.parentElement.querySelectorAll(".stonetop-arcanum-resource-btn").forEach(b =>
+					b.classList.toggle("is-checked", Number(b.dataset.index) < newVal));
 				// A card's back-ITEM resource is keyed `${slug}:item` so it never shares storage
 				// with the back-power resource on the same card (see CharacterArcana buildSnapshot).
 				const key = resourceKind === "item" ? `${slug}:item` : slug;
-				this._stonetopCharacter.setArcanumResource(key, newVal).then(() => this.render(false));
+				this._stonetopCharacter.setArcanumResource(key, newVal, { render: false });
 			}, true);
 
 			html[0].addEventListener("click", ev => {

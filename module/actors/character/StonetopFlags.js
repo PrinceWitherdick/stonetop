@@ -19,8 +19,11 @@ export class StonetopFlags {
 			?? this._actor.flags?.[LEGACY_STONETOP_SCOPE]?.[this.buildKey(key)];
 	}
 
-	async setFlag(key, value) {
-		await this._actor.setFlag(_scope, this.buildKey(key), value);
+	async setFlag(key, value, options) {
+		// With document options (e.g. { render: false }) route through actor.update so the
+		// caller can suppress the automatic sheet re-render; setFlag() takes no options.
+		if (options) await this._actor.update(this.updateData(key, value), options);
+		else await this._actor.setFlag(_scope, this.buildKey(key), value);
 	}
 
 	async unsetFlag(key) {
