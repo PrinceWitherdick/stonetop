@@ -333,6 +333,11 @@
 		{{> "stonetop.details-section-edit-toggle" section="followers" editing=stonetop.followersEdit}}
 	</div>
 
+	{{!-- Left column: the player's actual followers, stacked. The reference "rules"
+	      cards live in their own column (stonetop-followers-rules) so they always
+	      travel together and the roster / rules columns can each be wider. --}}
+	<div class="stonetop-followers-roster">
+
 	{{!-- ── Animal Companion (Ranger) ──────────────────────────── --}}
 	{{#if stonetop.followers.animalCompanion}}
 	{{#with stonetop.followers.animalCompanion}}
@@ -588,16 +593,10 @@
 	</div>
 	{{/each}}
 
-	{{!-- Create / convert entry points. The walkthrough mirrors Book I's "Creating
-	      followers" steps; a dropped monster opens the conversion modal instead. --}}
-	{{#if stonetop.canAddFollower}}
-	<div class="stonetop-follower-add-bar">
-		<button type="button" class="stonetop-create-follower-btn stonetop-follower-add-btn">
-			<i class="fas fa-user-plus"></i> Create a follower
-		</button>
-		<span class="stonetop-follower-add-hint"><i class="fas fa-hand-pointer"></i> &hellip;or drag a monster onto this sheet to convert it to a follower.</span>
-	</div>
-	{{/if}}
+	</div>{{!-- /stonetop-followers-roster --}}
+
+	{{!-- Right column: the shared reference cards, stacked together. --}}
+	<div class="stonetop-followers-rules">
 
 	{{!-- Animal Companion special moves (Ranger insert, p.143) — only the beast-bonded
 	      Ranger gets these; rendered from the playbook's animalCompanion.moves. --}}
@@ -605,6 +604,9 @@
 	<div class="stonetop-follower-card stonetop-follower-card--rules">
 		<div class="stonetop-follower-rules-header">
 			<h3 class="stonetop-follower-rules-title">Animal Companion Moves</h3>
+			<button type="button" class="stonetop-follower-rules-toggle" aria-expanded="false" title="Expand or collapse all moves">
+				<i class="fas fa-chevron-down"></i>
+			</button>
 		</div>
 		<div class="stonetop-follower-section stonetop-follower-rules">
 			{{#each stonetop.animalCompanionMoves}}
@@ -621,6 +623,9 @@
 	<div class="stonetop-follower-card stonetop-follower-card--rules">
 		<div class="stonetop-follower-rules-header">
 			<h3 class="stonetop-follower-rules-title">Follower Special Moves</h3>
+			<button type="button" class="stonetop-follower-rules-toggle" aria-expanded="false" title="Expand or collapse all moves">
+				<i class="fas fa-chevron-down"></i>
+			</button>
 		</div>
 		<div class="stonetop-follower-section stonetop-follower-rules">
 			{{!-- Rendered from the follower-moves items (module/data/follower-moves.js,
@@ -634,6 +639,20 @@
 			{{/each}}
 		</div>
 	</div>
+
+	</div>{{!-- /stonetop-followers-rules --}}
+
+	{{!-- Create / convert entry points. The walkthrough mirrors Book I's "Creating
+	      followers" steps; a dropped monster opens the conversion modal instead. Pinned
+	      to the bottom of the tab, below every follower card and the rules cards. --}}
+	{{#if stonetop.canAddFollower}}
+	<div class="stonetop-follower-add-bar">
+		<button type="button" class="stonetop-create-follower-btn stonetop-follower-add-btn">
+			<i class="fas fa-user-plus"></i> Create a follower
+		</button>
+		<span class="stonetop-follower-add-hint"><i class="fas fa-hand-pointer"></i> &hellip;or drag a monster onto this sheet to convert it to a follower.</span>
+	</div>
+	{{/if}}
 
 </div>
 </div>

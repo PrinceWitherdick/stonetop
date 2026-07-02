@@ -40,7 +40,7 @@ function _worldArcanumItem(slug) {
 
 export class FoundryArcanaRepository {
 	constructor() {
-		this._store = new FoundryPackStore("stonetop_pwd.stonetop-items", [`flags.${ITEM_FLAG_SCOPE}.slug`]);
+		this._store = new FoundryPackStore("stonetop_pwd.stonetop-arcana", [`flags.${ITEM_FLAG_SCOPE}.slug`]);
 		this._cache = new Map();
 	}
 

@@ -124,11 +124,17 @@
 					</li>
 				{{/each}}
 				</ol>
-				{{#if (and stonetop.movesEdit stonetop.canAuthorCustomMoves)}}
+			</div>
+			{{/if}}
+
+			{{!-- Create-a-move entry point. A quiet dashed button pinned to the foot of the
+			      Moves tab, mirroring the Followers tab's "Create a follower" bar. Visible in
+			      and out of edit mode so authoring never depends on the Edit toggle. --}}
+			{{#if stonetop.canAuthorCustomMoves}}
+			<div class="stonetop-move-add-bar">
 				<button type="button" class="stonetop-add-custom-move" title="{{localize 'stonetop.character.moves.addMove'}}">
 					<i class="fas fa-plus" aria-hidden="true"></i> {{localize "stonetop.character.moves.custom.addButton"}}
 				</button>
-				{{/if}}
 			</div>
 			{{/if}}
 

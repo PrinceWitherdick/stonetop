@@ -12,6 +12,9 @@ const root    = path.join(__dirname, "..");
 // sources were reorganized into per-pack subdirs; everything this generator
 // reads — moves, arcana, playbooks, inventory — is an item).
 const src     = path.join(root, "packs", "src", "stonetop-items");
+// Arcana were split into their own (GM-only) compendium, so they read from a
+// separate source dir with Major/Minor at its root.
+const arcanaSrc = path.join(root, "packs", "src", "stonetop-arcana");
 const outDir  = path.join(root, "data");
 const moduleDataDir = path.join(root, "module", "data");
 
@@ -230,8 +233,8 @@ async function main() {
     await write("post-death-moves.json", postDeathMoves);
 
     // Arcana
-    const major = (await readDir(path.join(src, "arcana", "major"))).map(d => cleanArcanum(d, "major"));
-    const minor = (await readDir(path.join(src, "arcana", "minor"))).map(d => cleanArcanum(d, "minor"));
+    const major = (await readDir(path.join(arcanaSrc, "major"))).map(d => cleanArcanum(d, "major"));
+    const minor = (await readDir(path.join(arcanaSrc, "minor"))).map(d => cleanArcanum(d, "minor"));
     await write("arcana-major.json", major);
     await write("arcana-minor.json", minor);
     await write("arcana.json", { major, minor });

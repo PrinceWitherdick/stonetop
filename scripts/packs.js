@@ -5,6 +5,7 @@
 // for a 1:1 pack whose source dir matches its name.
 export const PACKS = [
 	{ name: "stonetop-items",    type: "Item" },
+	{ name: "stonetop-arcana",   type: "Item" },
 	{
 		name: "stonetop-journal",
 		type: "JournalEntry",

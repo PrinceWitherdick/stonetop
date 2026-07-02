@@ -3341,8 +3341,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-item-resources {
 	display: flex;
 	align-items: center;
-	gap: 2px;
-	flex-shrink: 0;
+	/* A fully-upgraded blessed sacred pouch holds up to 20 Stock; without
+	   wrapping the circle row (each circle is flex-shrink:0) overflows the
+	   panel. Let the circles wrap onto additional lines instead. The row
+	   itself must be allowed to shrink (min-width:0) or it keeps its
+	   max-content width and the wrap never engages. */
+	flex-wrap: wrap;
+	gap: 3px 2px;
+	min-width: 0;
 }
 
 .stonetop-item-resource-check {
@@ -3813,21 +3819,32 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 .stonetop-item:hover .stonetop-custom-move-edit { display: inline; }
 .stonetop-custom-move-edit + .stonetop-other-move-delete { margin-left: 6px; }
+/* Create-a-move entry bar at the foot of the Moves tab. Mirrors the Followers
+   tab's .stonetop-follower-add-bar so both tabs share the same quiet "add"
+   affordance. */
+.stonetop-move-add-bar {
+	display: flex;
+	align-items: center;
+	padding: 4px 2px;
+	margin-top: 8px;
+}
+/* Matches .stonetop-follower-add-btn: a quiet dashed entry point rather than a
+   filled CTA, shown in and out of edit mode. */
 .stonetop-add-custom-move {
+	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
 	width: auto;
-	margin-top: 8px;
-	padding: 3px 12px;
+	padding: 2px 8px;
 	cursor: pointer;
-	font-size: var(--st-fs-sm);
-	border-radius: var(--st-radius-sm);
-	background: var(--st-btn-primary-bg);
-	border: 1px solid var(--st-btn-primary-border);
-	color: var(--st-btn-primary-text);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	border: 1px dashed var(--color-border-light, #ccc);
+	background: transparent;
+	transition: background 0.15s;
 }
-.stonetop-add-custom-move:hover { background: var(--st-btn-primary-bg-hover); border-color: var(--st-btn-primary-border-hover); }
+.stonetop-add-custom-move:hover { background: hsl(210 10% 92%); }
 
 /* Custom move dialog — Advanced (resource track, bonuses, no-XP) */
 .stonetop-custom-move-advanced { border-top: 1px solid rgba(0, 0, 0, 0.12); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
@@ -4013,6 +4030,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* A both-sides spread always occupies the full grid width, un-packed or packed. */
 .stonetop-arcanum-card--spread {
 	grid-column: 1 / -1;
+}
+
+/* A front-only card the packer measured as especially long (more than twice as tall
+   as it is wide at the narrow one-column width) is promoted to span the full grid
+   width, so an over-long arcanum reads as one short, wide card instead of a skinny
+   tall sliver. See packArcanaMasonry in StonetopCharacterSheet. */
+.stonetop-arcanum-card--wide {
+	grid-column: 1 / -1;
+	max-width: 460px; /* keep in sync with WIDE_MAX_PX in packArcanaMasonry */
 }
 
 /* A packed run of narrow cards: full-width block, two balanced columns inside. */
@@ -11202,16 +11228,30 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* ── Followers tab ─────────────────────────────────────────────────── */
 
 .stonetop-followers {
-	display: grid;
-	/* Responsive columns: fit as many ~280px cards as the tab is wide enough for,
-	   then collapse to a single full-width column when it isn't — rather than a
-	   fixed 2-up grid that locks at ~572px and overflows (clipping the right card)
-	   on a narrow sheet. min(280px, 100%) lets the track shrink below 280px when the
-	   container itself is narrower, so it never overflows. */
-	grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
-	align-items: start;
+	/* Two stacked columns: the player's followers (stonetop-followers-roster) on the
+	   left, the shared rules reference cards (stonetop-followers-rules) on the right,
+	   each a vertical stack so the two rules cards always travel together. Flex-wrap
+	   keeps it responsive without a container query — the columns sit side by side
+	   while the tab is wide enough for both flex-bases, then wrap to a single
+	   full-width stack when it isn't (so a narrow sheet never overflows). The heading
+	   row and the Create-a-follower bar force their own full-width lines. */
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
 	gap: 12px;
 }
+.stonetop-followers-roster,
+.stonetop-followers-rules {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0; /* let the column shrink instead of overflowing on a narrow sheet */
+}
+/* Roster takes the greater share of the width; the rules column stays a touch
+   narrower. Below ~650px the two bases no longer fit on one line, so both wrap to
+   full width and stack — roster first, then the rules. */
+.stonetop-followers-roster { flex: 3 1 340px; }
+.stonetop-followers-rules  { flex: 2 1 300px; }
 
 .stonetop-follower-card {
 	position: relative; /* anchor for the card-level edit pencil */
@@ -12481,6 +12521,10 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 
 /* Follower rules (collapsible <details>) */
 .stonetop-follower-rules-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
 	padding: 10px 12px 8px;
 	background: hsl(210 12% 94%);
 	border-bottom: 1px solid #ddd;
@@ -12497,6 +12541,38 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 
 .stonetop-follower-rules-title::after {
 	display: none;
+}
+
+/* Expand/collapse-all caret in a rules card header. inline-flex + fixed size so
+   V13's core button{display:flex} doesn't stretch it full-width; the chevron
+   flips 180° when the moves are all expanded (JS toggles .is-expanded). */
+.stonetop-follower-rules-toggle {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.7em;
+	height: 1.7em;
+	padding: 0;
+	border: 1px solid #ccc;
+	border-radius: var(--st-radius);
+	background: #fff;
+	color: var(--st-text-body);
+	line-height: 1;
+	cursor: pointer;
+}
+
+.stonetop-follower-rules-toggle:hover {
+	background: hsl(210 12% 88%);
+	border-color: #bbb;
+}
+
+.stonetop-follower-rules-toggle i {
+	transition: transform 0.15s;
+}
+
+.stonetop-follower-rules-toggle.is-expanded i {
+	transform: rotate(180deg);
 }
 
 .stonetop-follower-rules {
@@ -14424,11 +14500,13 @@ input.stonetop-monster-armor-source {
 .stonetop-details-heading-row + :not(.stonetop-item) {
 	margin-top: 4px;
 }
-/* The Followers tab is a 2-column grid: its heading-row spans both columns and
-   the grid gap (not the sibling margin) sets the spacing, so the first card
-   stays aligned with the second. */
-.stonetop-followers > .stonetop-details-heading-row {
-	grid-column: 1 / -1;
+/* The Followers tab is a flex-wrap 2-column layout (roster | rules). Its heading
+   row and the Create-a-follower bar each take a full-width line of their own —
+   above the columns and at the foot of the tab respectively — rather than sitting
+   in one of the columns. */
+.stonetop-followers > .stonetop-details-heading-row,
+.stonetop-followers > .stonetop-follower-add-bar {
+	flex: 1 1 100%;
 }
 .stonetop-followers > .stonetop-details-heading-row + * {
 	margin-top: 0;

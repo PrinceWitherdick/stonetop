@@ -172,7 +172,7 @@
       },
       "arcanaPlayersSeeBothSides": {
         "name": "Arcana: Players See Both Sides",
-        "hint": "When on (the default), a player sees both the front and back of their arcana once a card is unlocked, shown together with no flipping. Turn off for a more secretive table: players then see a card's back only after you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). You always see both sides as the GM."
+        "hint": "A player always sees the back of a card once they've unlocked it (filled every spot) — that's their own achievement, no setting needed. This switch is a separate peek: when on (the default), players may also open the back of a card they haven't unlocked yet, reading the whole card up front. Turn off for a more secretive table, and an un-unlocked back stays hidden until you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). You always see both sides as the GM."
       },
       "expandMoveDescriptions": {
         "name": "Expand Move Descriptions",
@@ -427,7 +427,7 @@
         "custom": {
           "createTitle": "Create a Custom Move",
           "editTitle": "Edit Custom Move",
-          "addButton": "Custom Move",
+          "addButton": "Create Move",
           "editMove": "Edit this move",
           "nameLabel": "Move name",
           "namePlaceholder": "e.g. Reckless Charge",

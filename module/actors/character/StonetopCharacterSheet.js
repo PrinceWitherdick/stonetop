@@ -1043,17 +1043,25 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Per-card arcana back visibility. Two independent things gate whether the back
 			// panel renders beside the front: PERMISSION (may this viewer see the back at
 			// all) and the per-card "show both" toggle (a view preference, default off, so
-			// cards read front-only until spread). Permission: the GM always may; a player
-			// may once the GM revealed the card, or when arcanaPlayersSeeBothSides is on and
-			// the card is unlocked. The toggle is an edit-mode, PER-USER preference — stored
-			// on the viewing user (not the actor), so the GM's spread choices are independent
-			// of the owning player's and each client renders its own. It persists so a spread
-			// stays open while reading in play mode, and can never expose a back the viewer
-			// isn't permitted to see. canReveal drives the GM-only reveal toggle, shown only
-			// when it would change what the player sees. isSpread marks a card that renders
-			// both sides, laid out full-width by the masonry. See settings.js and tab-arcana.hbs.
+			// cards read front-only until spread). Permission: the GM always may. The card's
+			// OWNER may once it's UNLOCKED — filling every unlock spot earns the back, no
+			// setting required. The world setting arcanaPlayersSeeBothSides is a separate
+			// "peek" switch: when on, players may open the back of a card they HAVEN'T unlocked
+			// yet (an open table that lets you read the whole card); when off, an un-earned
+			// back stays hidden until the GM reveals that specific card. The toggle is an
+			// edit-mode, PER-USER preference — stored on the viewing user (not the actor), so
+			// the GM's spread choices are independent of the owning player's and each client
+			// renders its own. It persists so a spread stays open while reading in play mode,
+			// and can never expose a back the viewer isn't permitted to see. canReveal drives
+			// the GM-only reveal toggle, meaningful only in secretive mode for a still-LOCKED
+			// card. isSpread marks a card that renders both sides, laid out full-width by the
+			// masonry. See settings.js and tab-arcana.hbs.
 			const playersSeeBothArcana = game.settings.get("stonetop_pwd", "arcanaPlayersSeeBothSides");
 			const viewerIsGM           = game.user.isGM;
+			// True when the viewing user owns this actor (GMs own everything, but they're
+			// already covered by viewerIsGM). An unlocked back is the owner's earned reward,
+			// so it's shown to the owner regardless of the world setting.
+			const viewerOwnsActor      = this.actor.isOwner;
 			const revealedArcana       = this._stonetopCharacter.revealedArcanaSlugs;
 			// Keyed by actor id since one user (esp. the GM) may view several character sheets.
 			const showBothArcana       = new Set(
@@ -1075,7 +1083,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					// is editable — via the global wrench or that section's own pencil.
 					item.sectionEditable   = sectionEditable;
 					const revealed         = revealedArcana.has(item.slug);
-					const permittedBack    = viewerIsGM || revealed || (playersSeeBothArcana && item.unlocked);
+					// Owner sees a back they've unlocked (earned, no setting needed). The world
+					// setting is the separate peek switch: on → any player may open the back
+					// without unlocking it. Otherwise a locked back waits on the GM's reveal.
+					const permittedBack    = viewerIsGM || revealed
+						|| (item.unlocked && viewerOwnsActor)
+						|| playersSeeBothArcana;
 					item.showBoth          = showBothArcana.has(item.slug);
 					item.showBack          = showBackArcana.has(item.slug);
 					const spread           = permittedBack && item.showBoth;
@@ -1086,7 +1099,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					item.backVisible       = spread || backOnly;
 					item.isSpread          = item.identified && spread;
 					item.revealedToPlayers = revealed;
-					item.canReveal         = viewerIsGM && !(playersSeeBothArcana && item.unlocked);
+					// The GM's reveal toggle only matters in secretive mode (setting off) for a
+					// still-LOCKED back: an unlocked back is already seen by its owner, and with
+					// the setting on every player can peek anyway.
+					item.canReveal         = viewerIsGM && !playersSeeBothArcana && !item.unlocked;
 					// The show-both toggle is only meaningful when the viewer may see the back.
 					item.canToggleBoth     = permittedBack;
 					// The flip button shows whenever the back is permitted and the card isn't
@@ -2208,14 +2224,42 @@ export function createStonetopCharacterSheetClass(Base) {
 				const cards = (grid._stonetopCards ??=
 					Array.from(grid.querySelectorAll(".stonetop-arcanum-card")));
 				const width = grid.clientWidth;
-				if (cards.length < 2 || !width || !cards[0].offsetHeight || grid._packedWidth === width) return;
+				if (!cards.length || !width || grid._packedWidth === width) return;
 
-				// Walk cards into ordered segments: a spread card stands alone (full width);
-				// consecutive narrow cards accumulate into a two-column array to balance.
+				// Reset to a flat grid (narrow cards fall back to one track) and clear any
+				// prior width-promotion, so every front-only card measures at its narrow,
+				// one-column width — the width the "too tall" test below judges it at.
+				for (const card of cards) card.classList.remove("stonetop-arcanum-card--wide");
+				grid.replaceChildren(...cards);
+				if (!cards[0].offsetHeight) return; // not measurable yet (tab still hidden)
+
+				// Measure every card at its narrow width in one pass (reads before any style
+				// write, so no per-card reflow), then promote any front-only card that renders
+				// more than twice as tall as it is wide to span the full grid width (capped at
+				// WIDE_MAX_PX): an over-long arcanum reads better as one short, wide card than a
+				// skinny sliver. Genuine both-sides spreads are already full-width and left alone.
+				// Skip the promotion when the narrow column is already at least WIDE_MAX_PX wide
+				// (a very wide sheet) — capping below the card's current width would only make it
+				// narrower and taller, the opposite of the goal.
+				const WIDE_MAX_PX = 460; // keep in sync with .stonetop-arcanum-card--wide max-width
+				const measured = cards.map(card => ({ card, h: card.offsetHeight, w: card.offsetWidth }));
+				const heights = new Map();
+				for (const { card, h, w } of measured) {
+					heights.set(card, h);
+					if (card.classList.contains("stonetop-arcanum-card--spread")) continue;
+					if (h > w * 2 && w < WIDE_MAX_PX) card.classList.add("stonetop-arcanum-card--wide");
+				}
+
+				// Walk cards into ordered segments: a full-width card (a spread, or one
+				// promoted wide above) stands alone; consecutive narrow cards accumulate into
+				// a two-column array to balance.
+				const isFullWidth = card =>
+					card.classList.contains("stonetop-arcanum-card--spread") ||
+					card.classList.contains("stonetop-arcanum-card--wide");
 				const segments = [];
 				let run = null;
 				for (const card of cards) {
-					if (card.classList.contains("stonetop-arcanum-card--spread")) {
+					if (isFullWidth(card)) {
 						run = null;
 						segments.push(card);
 					} else {
@@ -2225,7 +2269,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 
 				const nodes = segments.map(seg => {
-					if (!Array.isArray(seg)) return seg; // a full-width spread card
+					if (!Array.isArray(seg)) return seg; // a full-width card (spread or promoted)
 					const block = document.createElement("div");
 					block.className = "stonetop-arcana-masonry";
 					const cols = [0, 1].map(() => {
@@ -2233,10 +2277,10 @@ export function createStonetopCharacterSheetClass(Base) {
 						c.className = "stonetop-arcana-col";
 						return c;
 					});
-					const heights = [0, 0];
+					const colHeights = [0, 0];
 					for (const card of seg) {
-						const i = heights[0] <= heights[1] ? 0 : 1;
-						heights[i] += card.offsetHeight;
+						const i = colHeights[0] <= colHeights[1] ? 0 : 1;
+						colHeights[i] += heights.get(card) ?? card.offsetHeight;
 						cols[i].appendChild(card);
 					}
 					block.append(...cols);
@@ -2543,6 +2587,20 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			// Create a follower via the Book I walkthrough (NPCs & Followers, p.474).
 			html.find(".stonetop-create-follower-btn").on("click", () => this._onCreateFollowerOpen());
+			// Expand/collapse-all caret on a rules card header (Animal Companion Moves /
+			// Follower Special Moves): open every move's <details> when any is collapsed,
+			// otherwise close them all. Open state is ephemeral (resets on re-render), like
+			// the individual summaries, so nothing is persisted.
+			html.find(".stonetop-follower-rules-toggle").on("click", ev => {
+				ev.preventDefault();
+				const btn   = ev.currentTarget;
+				const rules = [...(btn.closest(".stonetop-follower-card--rules")?.querySelectorAll(".stonetop-follower-rule") ?? [])];
+				if (!rules.length) return;
+				const expand = rules.some(d => !d.open);
+				rules.forEach(d => { d.open = expand; });
+				btn.setAttribute("aria-expanded", String(expand));
+				btn.classList.toggle("is-expanded", expand);
+			});
 			// Remove a custom follower (built by the walkthrough or converted from a
 			// monster) entirely — drops its whole customFollowers.<id> object.
 			html.find(".stonetop-follower-remove").on("click", ev => {
@@ -3147,10 +3205,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._toggleArcanumShowBack(slug, show !== "true").then(() => this.render(false));
 			}, true);
 
-			// GM-only: toggle whether the owning player can see this card's back. Only
-			// meaningful when the world setting `arcanaPlayersSeeBothSides` is off (the
-			// button is otherwise hidden). Writing the actor flag propagates to the
-			// player's open sheet, which re-renders and reveals/hides the back.
+			// GM-only: in secretive mode (setting off), toggle whether the owning player can
+			// peek at a still-LOCKED card's back (the button is hidden once unlocked — the
+			// owner sees it then — and hidden entirely when the peek setting is on). Writing
+			// the actor flag propagates to the player's open sheet, which re-renders.
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-arcanum-reveal-btn");
 				if (!btn || !game.user.isGM) return;

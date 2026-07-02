@@ -6,7 +6,7 @@ import { slugify } from "../utils/strings.js";
 export { slugify };
 
 const ARCANUM_SHEET_CLASS = "stonetop.StonetopArcanumSheet";
-const ITEMS_PACK          = "stonetop_pwd.stonetop-items";
+const ARCANA_PACK         = "stonetop_pwd.stonetop-arcana";
 
 /**
  * A slug derived from `name` that doesn't collide with any in `takenSlugs` (Set or array).
@@ -78,7 +78,7 @@ export function buildArcanumItemData({ slug, name = "New Arcanum", major = false
  */
 export async function collectTakenArcanumSlugs({ excludeId = null } = {}) {
 	const taken = new Set();
-	const pack  = globalThis.game?.packs?.get(ITEMS_PACK);
+	const pack  = globalThis.game?.packs?.get(ARCANA_PACK);
 	if (pack) {
 		const index = await pack.getIndex({ fields: [`flags.${ITEM_FLAG_SCOPE}.slug`] });
 		for (const e of index) {

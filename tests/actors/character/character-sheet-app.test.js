@@ -30,6 +30,10 @@ function makeCharacterMock(actor) {
 		addMove: vi.fn(),
 		removeMove: vi.fn(),
 		addArcanum: vi.fn(async () => {}),
+		// _onDropItemCreate reads this to skip re-adding an already-owned arcanum; an
+		// empty Set means every dropped card counts as new (matches the real getter,
+		// which returns a Set of owned slugs).
+		ownedArcanaSlugs: new Set(),
 		onDropMove: vi.fn(async () => false),
 		moveResources: { add: vi.fn() },
 		buildSnapshot: vi.fn(async () => ({})),

@@ -75,12 +75,13 @@ export function registerSettings() {
 		default: true,
 	});
 
-	// Whether players may always see the BACK of their arcana. The back isn't truly
-	// secret in the rules, so this defaults on (and preserves prior behaviour, where an
-	// unlocked card's back was always viewable). Turn it off for a more secretive table:
-	// players then see a card's back only once the GM clicks "Reveal back to player" on
-	// that specific card. The GM always sees both sides regardless. See the per-card
-	// visibility model in StonetopCharacterSheet.getData / CharacterArcana.
+	// Whether players may PEEK at a card's BACK before unlocking it. A card's OWNER always
+	// sees its back once unlocked (every spot filled), regardless of this setting —
+	// unlocking is their own achievement. This switch is the separate peek: on (the
+	// default) lets players open the back of a not-yet-unlocked card; off keeps an
+	// un-unlocked back hidden until the GM clicks "Reveal back to player" on it. The GM
+	// always sees both sides. See the per-card visibility model in
+	// StonetopCharacterSheet.getData / CharacterArcana.
 	game.settings.register("stonetop_pwd", "arcanaPlayersSeeBothSides", {
 		name: "stonetop.settings.arcanaPlayersSeeBothSides.name",
 		hint: "stonetop.settings.arcanaPlayersSeeBothSides.hint",

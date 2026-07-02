@@ -290,8 +290,10 @@ export class CharacterArcana {
 		await this._flags.setFlag("flipped", [...s]);
 	}
 
-	// GM-only: expose / hide a card's back to the owning player. Only consulted when the
-	// world setting `arcanaPlayersSeeBothSides` is off; the GM always sees both sides.
+	// GM-only: in secretive mode, expose / hide a still-LOCKED card's back to the owning
+	// player (an unlocked back is always visible to its owner, and with the peek setting on
+	// players see backs anyway, so the reveal toggle only shows for a locked card while the
+	// setting is off). The GM always sees both sides regardless.
 	async revealArcanum(slug) {
 		const s = this.revealedSlugs;
 		s.add(slug);

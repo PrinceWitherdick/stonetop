@@ -51,6 +51,19 @@
                       "system":  "stonetop_pwd"
                   },
                   {
+                      "name":  "stonetop-arcana",
+                      "label":  "Arcana",
+                      "path":  "packs/stonetop-arcana",
+                      "type":  "Item",
+                      "system":  "stonetop_pwd",
+                      "ownership":  {
+                                        "PLAYER":  "NONE",
+                                        "TRUSTED":  "NONE",
+                                        "ASSISTANT":  "OWNER",
+                                        "GAMEMASTER":  "OWNER"
+                                    }
+                  },
+                  {
                       "name":  "stonetop-journal",
                       "label":  "Stonetop",
                       "path":  "packs/stonetop-journal",
