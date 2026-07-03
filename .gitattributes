@@ -1,0 +1,19 @@
+# This project is LF everywhere (see .editorconfig: end_of_line = lf).
+# `text=auto` lets git auto-detect binary vs text; `eol=lf` forces LF in the
+# working tree regardless of a contributor's core.autocrlf, ending the CRLF/LF
+# churn and phantom "modified" status Windows checkouts otherwise produce.
+* text=auto eol=lf
+
+# Binary assets — never EOL-convert. (text=auto already detects these by their
+# NUL bytes; pinned here so it can never guess wrong and mangle them.)
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+
+# Compiled LevelDB compendium packs: the SSTables and manifest are binary and
+# must stay byte-identical. Pin them explicitly so auto-detection can't slip.
+# The bookkeeping files (CURRENT / LOG) are plain LF text and normalize cleanly
+# with everything else — the source of truth is packs/src/ regardless.
+*.ldb                     binary
+packs/*/MANIFEST-*        binary
