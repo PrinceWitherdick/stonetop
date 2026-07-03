@@ -1469,7 +1469,9 @@ export class StonetopCharacter {
 	 */
 	async onOrderFollowersRoll({ bonus = 0, rollMode = "normal", moveName } = {}) {
 		const { rollStat } = await import("../../utils/roll-engine.js");
-		await rollStat("follower", this._actor, {
+		// Return the roll so the caller can react to the result — e.g. auto-holding
+		// Readiness when a follower is ordered to Defend and rolls 7+ (p.469).
+		return rollStat("follower", this._actor, {
 			statValue: Math.trunc(Number(bonus) || 0),
 			rollMode:  ["adv", "dis"].includes(rollMode) ? rollMode : "normal",
 			moveName:  moveName || "Order Followers",

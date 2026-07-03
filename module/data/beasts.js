@@ -102,3 +102,42 @@ export const BEAST_CATALOG = {
 export const BEAST_ORDER = ["dog-follower", "goat", "sheep", "pig", "donkey", "mule", "horse"];
 
 export const BEAST_SLUGS = new Set(BEAST_ORDER);
+
+// Keywords that mark a requisitionable steading asset as a follower-capable animal
+// (Book I: "a PC might Requisition one of the town's horses"). Only the beasts the
+// rules treat as proper followers (dog / mule / horse) are offered — livestock like
+// goats aren't followers. Matched on the asset's free-text name.
+const REQUISITION_MOUNT_KEYWORDS = [
+	{ re: /\b(draft\s+)?horses?\b|\bmares?\b|\bstallions?\b|\bsteeds?\b|\bponies?\b|\bpony\b/i, slug: "horse" },
+	{ re: /\bmules?\b/i, slug: "mule" },
+	{ re: /\bdogs?\b|\bhounds?\b|\bmastiffs?\b/i, slug: "dog-follower" },
+];
+
+/**
+ * If a requisitioned asset's name names a follower-capable animal, return the beast
+ * catalog entry to build a follower from (else null). Used by the Requisition flow
+ * to offer "add as a follower" when a PC requisitions the town's horses/mules/dogs.
+ */
+export function beastFollowerForAsset(name) {
+	const n = String(name ?? "");
+	const hit = REQUISITION_MOUNT_KEYWORDS.find(k => k.re.test(n));
+	if (!hit) return null;
+	const b = BEAST_CATALOG[hit.slug];
+	return b ? { slug: hit.slug, beast: b } : null;
+}
+
+/** buildCustomFollower input for a beast catalog entry (a requisitioned mount, etc.). */
+export function followerInputFromBeast(beast, { name } = {}) {
+	if (!beast) return null;
+	return {
+		name:         name || beast.name,
+		typeLabel:    beast.follower ? "beast follower" : "livestock",
+		portraitIcon: "fas fa-horse",
+		tags:         beast.traits ?? [],
+		hp:           beast.hp,
+		armor:        beast.armor,
+		damage:       beast.damage + (beast.damageForm ? ` (${beast.damageForm})` : ""),
+		instinct:     beast.instinct,
+		cost:         beast.cost,
+	};
+}

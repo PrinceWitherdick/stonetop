@@ -11,8 +11,8 @@ import { sign } from "../../../utils/roll-engine.js";
 // Since "which tags apply / get in the way" is a table judgment call, this modal
 // lists the follower's tags as tri-state chips (helps / hinders / neither) plus
 // an exceptional indicator and an optional advantage toggle, computes the bonus
-// live (orderFollowersBonus), then hands { bonus, rollMode, moveName } back to the
-// caller (which calls StonetopCharacter.onOrderFollowersRoll).
+// live (orderFollowersBonus), then hands { bonus, rollMode, moveName, moveKey,
+// followerName } back to the caller (which calls StonetopCharacter.onOrderFollowersRoll).
 
 // The basic moves a follower can be ordered to trigger (the rollable ones from
 // packs/src/stonetop-items/basic-moves/). "Custom" reveals a free-text header for
@@ -34,7 +34,7 @@ export class OrderFollowersDialog extends Application {
 	/**
 	 * @param {Actor}    actor
 	 * @param {object}   follower  - { name, tags: string[], exceptional: bool }
-	 * @param {Function} onRoll    - async ({ bonus, rollMode, moveName }) => void
+	 * @param {Function} onRoll    - async ({ bonus, rollMode, moveName, moveKey, followerName }) => void
 	 */
 	constructor(actor, follower, onRoll, options = {}) {
 		super(options);
@@ -43,7 +43,11 @@ export class OrderFollowersDialog extends Application {
 		this._onRoll    = onRoll;
 		this._frontOnOpen = new FrontOnOpen(this);
 
-		this._moveKey    = "defy-danger";
+		// Optionally start on a specific move (a group's Clash / Let Fly buttons),
+		// else the rulebook's default of Defy Danger.
+		this._moveKey    = _ORDER_MOVES.some(m => m.key === this._follower.moveKey)
+			? this._follower.moveKey
+			: "defy-danger";
 		this._customMove = "";
 		// Per-tag state: "help" | "hinder" | "" (neither). Keyed by tag string.
 		this._tagState   = {};
@@ -147,7 +151,10 @@ export class OrderFollowersDialog extends Application {
 
 		const { bonus, rollMode } = this._result();
 		const moveName = `${this._follower.name || "Follower"}: ${this._moveLabel()}`;
-		await this._onRoll?.({ bonus, rollMode, moveName });
+		// Also hand back the chosen move key and follower name structurally, so callers
+		// (e.g. the Defend → hold-Readiness reaction) don't have to re-parse them out of
+		// the flattened moveName string.
+		await this._onRoll?.({ bonus, rollMode, moveName, moveKey: this._moveKey, followerName: this._follower.name || "" });
 		this.close();
 	}
 }

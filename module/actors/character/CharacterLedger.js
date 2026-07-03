@@ -1,3 +1,5 @@
+import { BEAST_CATALOG } from "../../data/beasts.js";
+
 const LEDGER_SCOPE = "stonetop_pwd";
 const LEDGER_KEY = "ledger";
 const LEDGER_MAX_ENTRIES = 300;
@@ -67,8 +69,19 @@ const MOVE_RESOURCE_PREFIX = "flags.stonetop_pwd.moves.backgroundChoices.";
 const MOVE_MARKS_PREFIX = "flags.stonetop_pwd.moves.moveMarks.";
 const BACKGROUND_CHOICES_PREFIX = "flags.stonetop_pwd.background.choices.";
 const INITIATES_LOYALTY_PREFIX = "flags.stonetop_pwd.initiatesLoyalty.";
+const INITIATES_HP_PREFIX = "flags.stonetop_pwd.initiatesHp.";
+const INITIATES_READINESS_PREFIX = "flags.stonetop_pwd.initiatesReadiness.";
 const ANIMAL_COMPANION_PREFIX = "flags.stonetop_pwd.animalCompanion.";
 const CREW_PREFIX = "flags.stonetop_pwd.crew.";
+// Custom followers (walkthrough / monster conversion / arcana summon) keep their
+// Loyalty, current HP and Readiness inside one per-id record; beast/livestock
+// followers track theirs per catalog slug. Neither had ledger coverage, so a
+// Strengthen Your Bond or an HP change on them went unrecorded — these prefixes
+// (and the entry builders below) close that gap.
+const CUSTOM_FOLLOWERS_PREFIX = "flags.stonetop_pwd.customFollowers.";
+const BEAST_LOYALTY_PREFIX = "flags.stonetop_pwd.beastLoyalty.";
+const BEAST_HP_PREFIX = "flags.stonetop_pwd.beastHp.";
+const BEAST_READINESS_PREFIX = "flags.stonetop_pwd.beastReadiness.";
 const POSSESSION_USES_PREFIX = "flags.stonetop_pwd.possessions.uses.";
 const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.";
 const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
@@ -246,10 +259,12 @@ async function buildNameLookup(actor) {
 		crewIndividuals: new Map(),
 		followerFields: new Map([
 			["cost", "cost"],
+			["hpCurrent", "HP"],
 			["instinct", "instinct"],
 			["kind", "kind"],
 			["loyalty", "loyalty"],
 			["name", "name"],
+			["readiness", "Readiness"],
 			["supplies", "supplies"],
 			["tag", "tag"],
 			["tags", "tags"],
@@ -350,6 +365,16 @@ async function buildNameLookup(actor) {
 		for (const [index, individual] of Object.entries(getActorProperty(actor, `flags.${LEDGER_SCOPE}.crew.individuals`) ?? [])) {
 			if (individual?.name) names.crewIndividuals.set(String(index), individual.name);
 		}
+		// Custom followers (walkthrough / monster conversion / arcana summon): name from
+		// the stored record so a Loyalty/HP change reads "<Name> loyalty changed…".
+		for (const [id, data] of Object.entries(getActorProperty(actor, `flags.${LEDGER_SCOPE}.customFollowers`) ?? {})) {
+			addFollower(`custom:${id}`, data?.name || "A follower");
+		}
+		// Beast / livestock followers: name comes from the catalog by owned slug.
+		for (const slug of getActorProperty(actor, `flags.${LEDGER_SCOPE}.inventory.addedSpecial`) ?? []) {
+			const beastName = BEAST_CATALOG[slug]?.name;
+			if (beastName) names.followers.set(`beast:${slug}`, beastName);
+		}
 	} catch (err) {
 		console.warn("Stonetop | Could not build ledger name lookup", err);
 	}
@@ -430,12 +455,6 @@ function followerFieldEntry(followerName, field, oldValue, newValue) {
 	return { action: actionForField(label, oldValue, newValue) };
 }
 
-function initiateLoyaltyEntry(path, oldValue, newValue, names) {
-	const slug = path.slice(INITIATES_LOYALTY_PREFIX.length);
-	const followerName = names.followers.get(`initiate:${slug}`) ?? prettifySlug(slug);
-	return followerFieldEntry(followerName, "loyalty", oldValue, newValue);
-}
-
 function animalCompanionEntry(path, oldValue, newValue, names) {
 	const field = path.slice(ANIMAL_COMPANION_PREFIX.length).split(".")[0];
 	const followerName = names.followers.get("animalCompanion") ?? "Animal companion";
@@ -452,6 +471,28 @@ function crewEntry(path, oldValue, newValue, names) {
 	const field = key.split(".")[0];
 	const followerName = names.followers.get("crew") ?? "Crew";
 	return followerFieldEntry(followerName, names.followerFields.get(field), oldValue, newValue);
+}
+
+// Custom follower record (customFollowers.<id>.<field>). Only the play-relevant
+// scalar tracks (Loyalty / HP / Readiness) become ledger lines; creation, removal,
+// and detail edits stay quiet so the ledger isn't flooded with sheet-editing noise.
+function customFollowerEntry(path, oldValue, newValue, names) {
+	const key = path.slice(CUSTOM_FOLLOWERS_PREFIX.length);
+	const dot = key.indexOf(".");
+	const id = dot >= 0 ? key.slice(0, dot) : key;
+	const field = dot >= 0 ? key.slice(dot + 1) : "";
+	const label = names.followerFields.get(field);
+	if (!label) return null;
+	const followerName = names.followers.get(`custom:${id}`) ?? "A follower";
+	return followerFieldEntry(followerName, label, oldValue, newValue);
+}
+
+// Per-slug follower track (beast / initiate Loyalty, HP, Readiness): the flag key
+// after the prefix is the follower's slug; `keyPrefix` selects its name map.
+function perSlugFollowerEntry(path, prefix, keyPrefix, field, oldValue, newValue, names) {
+	const slug = path.slice(prefix.length);
+	const followerName = names.followers.get(`${keyPrefix}:${slug}`) ?? prettifySlug(slug);
+	return followerFieldEntry(followerName, field, oldValue, newValue);
 }
 
 function possessionSelectionEntries(oldValue, newValue, names) {
@@ -560,9 +601,15 @@ function granularEntriesForPath(path, oldValue, newValue, names) {
 	if (path.startsWith(MOVE_RESOURCE_PREFIX)) return [moveResourceEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(MOVE_MARKS_PREFIX)) return moveMarkEntries(path, oldValue, newValue, names);
 	if (path.startsWith(BACKGROUND_CHOICES_PREFIX)) return [backgroundChoiceEntry(path, oldValue, newValue, names)].filter(Boolean);
-	if (path.startsWith(INITIATES_LOYALTY_PREFIX)) return [initiateLoyaltyEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(INITIATES_LOYALTY_PREFIX)) return [perSlugFollowerEntry(path, INITIATES_LOYALTY_PREFIX, "initiate", "loyalty", oldValue, newValue, names)];
+	if (path.startsWith(INITIATES_HP_PREFIX)) return [perSlugFollowerEntry(path, INITIATES_HP_PREFIX, "initiate", "HP", oldValue, newValue, names)];
+	if (path.startsWith(INITIATES_READINESS_PREFIX)) return [perSlugFollowerEntry(path, INITIATES_READINESS_PREFIX, "initiate", "Readiness", oldValue, newValue, names)];
 	if (path.startsWith(ANIMAL_COMPANION_PREFIX)) return [animalCompanionEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(CREW_PREFIX)) return [crewEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(CUSTOM_FOLLOWERS_PREFIX)) return [customFollowerEntry(path, oldValue, newValue, names)].filter(Boolean);
+	if (path.startsWith(BEAST_LOYALTY_PREFIX)) return [perSlugFollowerEntry(path, BEAST_LOYALTY_PREFIX, "beast", "loyalty", oldValue, newValue, names)];
+	if (path.startsWith(BEAST_HP_PREFIX)) return [perSlugFollowerEntry(path, BEAST_HP_PREFIX, "beast", "HP", oldValue, newValue, names)];
+	if (path.startsWith(BEAST_READINESS_PREFIX)) return [perSlugFollowerEntry(path, BEAST_READINESS_PREFIX, "beast", "Readiness", oldValue, newValue, names)];
 	if (path === POSSESSION_SELECTED_PATH) return possessionSelectionEntries(oldValue, newValue, names);
 	if (path === POSSESSION_CUSTOM_PATH) return possessionCustomEntries(oldValue, newValue);
 	if (path.startsWith(POSSESSION_USES_PREFIX)) return [possessionUsesEntry(path, oldValue, newValue, names)];

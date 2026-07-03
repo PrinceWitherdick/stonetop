@@ -1,6 +1,10 @@
 import { FrontOnOpen } from "../../../utils/front-on-open.js";
 import { rollStat, sign } from "../../../utils/roll-engine.js";
 import { StonetopSteading } from "../../steading/StonetopSteading.js";
+import { beastFollowerForAsset, followerInputFromBeast } from "../../../data/beasts.js";
+import { buildCustomFollower, nextFollowerOrder } from "../../../data/follower-build.js";
+import { bringDialogToFront } from "../../../utils/front-on-open.js";
+import { escHtml } from "../../../utils/strings.js";
 
 /**
  * The player-facing Requisition move. Lists the linked steading's on-hand assets
@@ -86,6 +90,11 @@ export class RequisitionDialog extends Application {
 				// of the character, which the player always has.
 				await this._character.addCustomInventoryItem(name, 1);
 
+				// If the asset names a follower-capable animal (the town's horses, a mule,
+				// a dog), offer to also track it as a follower — the book's "Requisition
+				// one of the town's horses" (p.474), which otherwise only became gear.
+				this._maybeOfferAsFollower(name);
+
 				// Then mark it out on the steading. Requires permission to edit the
 				// steading actor; if missing, keep the item and warn.
 				try {
@@ -107,5 +116,41 @@ export class RequisitionDialog extends Application {
 		});
 
 		root.querySelector(".stonetop-requisition-close")?.addEventListener("click", () => this.close());
+	}
+
+	// If a just-requisitioned asset names a follower-capable animal, offer to add it
+	// to the character's Followers tab with the handout's stats (Book I p.474). A pure
+	// convenience — declining just leaves it as the plain inventory item already added.
+	_maybeOfferAsFollower(assetName) {
+		const match = beastFollowerForAsset(assetName);
+		if (!match) return;
+		const beast = match.beast;
+		new Dialog({
+			title:   "Add as a follower?",
+			content: `<p>You requisitioned <strong>${escHtml(assetName)}</strong>. Also add ${beast.follower ? "it" : "them"} to your <strong>Followers</strong> tab as a follower (<em>${escHtml(beast.name)}</em> — HP ${beast.hp}, Cost ${escHtml(beast.cost)})?</p>`,
+			buttons: {
+				yes: { icon: '<i class="fas fa-dog"></i>', label: "Add as follower",
+					callback: () => this._addRequisitionedFollower(match, assetName) },
+				no:  { label: "No, just the item" },
+			},
+			default: "yes",
+			render:  bringDialogToFront,
+			options: { classes: ["dialog", "stonetop"] },
+		}).render(true);
+	}
+
+	async _addRequisitionedFollower(match, assetName) {
+		const input = followerInputFromBeast(match.beast, { name: match.beast.name });
+		if (!input) return;
+		const existing = this._characterActor.getFlag("stonetop_pwd", "customFollowers") ?? {};
+		const id = foundry.utils.randomID(16);
+		await this._characterActor.update({
+			[`flags.stonetop_pwd.customFollowers.${id}`]: {
+				...buildCustomFollower({ ...input, notes: `Requisitioned from ${assetName}.` }),
+				order: nextFollowerOrder(existing),
+			},
+		});
+		ui.notifications?.info?.(`${input.name} added to your followers.`);
+		this._onChange?.();
 	}
 }

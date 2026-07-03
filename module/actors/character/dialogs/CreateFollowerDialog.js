@@ -89,6 +89,9 @@ export class CreateFollowerDialog extends StepperDialog {
 		super(options);
 		this._actor   = actor;
 		this._onApply = onApply;
+		// Steading resident/neighbor names offered as suggestions on the concept step,
+		// so "recruit a villager as a follower" is a guided flow (NPCs & Followers p.474).
+		this._residentNames = Array.isArray(options.residentNames) ? options.residentNames : [];
 		// Working selection. Stats are stored as picks and derived live so the
 		// totals stay honest as the player toggles options.
 		this._sel = {
@@ -99,6 +102,7 @@ export class CreateFollowerDialog extends StepperDialog {
 			damageKey: "defends", damageTags: [],
 			instinct: "", moves: "", cost: "",
 			gear: [],
+			isGroup: false, groupSize: 3,
 		};
 	}
 
@@ -140,6 +144,9 @@ export class CreateFollowerDialog extends StepperDialog {
 			sel,
 		};
 
+		if (step.key === "concept") {
+			ctx.residentNames = this._residentNames;
+		}
 		if (step.key === "tags") {
 			ctx.chosenTags = sel.tags;
 			ctx.tagGroups  = FOLLOWER_TAG_GROUPS.map(g => ({
@@ -151,6 +158,8 @@ export class CreateFollowerDialog extends StepperDialog {
 			ctx.hpBase  = FOLLOWER_HP_BASE.map(o => ({ ...o, selected: sel.hpBase === o.key, signed: _signed(o.hp) }));
 			ctx.hpMods  = FOLLOWER_HP_MODS.map(o => ({ ...o, checked: sel.hpMods.includes(o.key), signed: _signed(o.hp) }));
 			ctx.hpTotal = this._hp;
+			ctx.isGroup = sel.isGroup;
+			ctx.groupSize = sel.groupSize;
 		}
 		if (step.key === "armor") {
 			ctx.armorBase  = FOLLOWER_ARMOR_BASE.map(o => ({ ...o, selected: sel.armorBase === o.key }));
@@ -217,6 +226,10 @@ export class CreateFollowerDialog extends StepperDialog {
 		html.find(".stonetop-cf-armor-base").on("change", ev => { this._sel.armorBase = ev.currentTarget.value; this.render(false); });
 		html.find(".stonetop-cf-armor-mod").on("change", () => { this._sel.armorMods = this._checked(html, ".stonetop-cf-armor-mod"); this.render(false); });
 		html.find(".stonetop-cf-damage").on("change", ev => { this._sel.damageKey = ev.currentTarget.value; this.render(false); });
+
+		// Group toggle + size (HP step). Re-render on toggle so the size field appears.
+		html.find(".stonetop-cf-group-toggle").on("change", ev => { this._sel.isGroup = ev.currentTarget.checked; this.render(false); });
+		html.find(".stonetop-cf-group-size").on("change", ev => { this._sel.groupSize = Math.max(2, parseInt(ev.currentTarget.value) || 2); });
 
 		// Tag chips (toggle) + add free-text tag(s).
 		html.find(".stonetop-cf-tag").on("click", ev => this._toggleTag(ev.currentTarget.dataset.tag));
@@ -291,6 +304,8 @@ export class CreateFollowerDialog extends StepperDialog {
 			const i = Number(el.dataset.index);
 			if (this._sel.gear[i]) this._sel.gear[i].label = el.value;
 		});
+		const sizeEl = root.querySelector(".stonetop-cf-group-size");
+		if (sizeEl) this._sel.groupSize = Math.max(2, parseInt(sizeEl.value) || 2);
 	}
 
 	async _finish() {
@@ -309,6 +324,8 @@ export class CreateFollowerDialog extends StepperDialog {
 			cost:      sel.cost,
 			notes:     sel.notes,
 			gear:      sel.gear,
+			isGroup:   sel.isGroup,
+			size:      sel.isGroup ? sel.groupSize : 0,
 		});
 		await this._onApply?.(data);
 		ui.notifications?.info?.(`${data.name || "Follower"} added to your followers.`);

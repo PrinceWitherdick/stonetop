@@ -51,6 +51,18 @@
         <button type="button" class="stonetop-mf-tag-add stonetop-cf-mini-btn"><i class="fas fa-plus"></i> Add</button>
       </div>
 
+      {{!-- Group follower (p.470): a group- or horde-organization monster becomes a
+            warband — shared stats, but a roster with per-member HP and the group-fight
+            tools. Pre-checked for group/horde monsters. --}}
+      <label class="stonetop-cf-label stonetop-mf-group-label">
+        <span><input type="checkbox" class="stonetop-mf-group-toggle" {{#if isGroup}}checked{{/if}}> Treat as a group</span>
+        {{#if isGroup}}
+        <span class="stonetop-mf-group-size-row">of
+          <input type="number" class="stonetop-cf-input stonetop-cf-input--num stonetop-mf-group-size" value="{{groupSize}}" min="2" max="99"> members
+        </span>
+        {{/if}}
+      </label>
+
       {{!-- Pronoun --}}
       <label class="stonetop-cf-label stonetop-cf-label--narrow">Pronoun
         <input type="text" class="stonetop-cf-input stonetop-mf-pronoun" value="{{pronoun}}" placeholder="she/he/they…" maxlength="12">

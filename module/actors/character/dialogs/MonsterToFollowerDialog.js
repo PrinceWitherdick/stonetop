@@ -2,7 +2,7 @@ import { FrontOnOpen } from "../../../utils/front-on-open.js";
 import { creatureTypeFaIcon } from "../../../bestiary/creature-types.js";
 import {
 	FOLLOWER_COST_EXAMPLES,
-	monsterFollowerTags, normalizeTags, followerFromMonster,
+	monsterFollowerTags, normalizeTags, followerFromMonster, monsterGroupDefaults,
 } from "../../../data/follower-build.js";
 
 // ── MonsterToFollowerDialog ──────────────────────────────────────────────────
@@ -21,6 +21,10 @@ export class MonsterToFollowerDialog extends Application {
 		this._addedTags = [];
 		this._cost      = "";
 		this._pronoun   = "";
+		// A group- or horde-organization monster defaults to a group follower.
+		const gd        = monsterGroupDefaults(monster?.system ?? {});
+		this._isGroup   = gd.isGroup;
+		this._groupSize = gd.size || 3;
 		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
@@ -70,6 +74,8 @@ export class MonsterToFollowerDialog extends Application {
 			instinct:    String(attrs.instinct?.value ?? "").trim(),
 			moves:       this._monsterMoves(),
 			pronoun:     this._pronoun,
+			isGroup:     this._isGroup,
+			groupSize:   this._groupSize,
 			costOptions: FOLLOWER_COST_EXAMPLES.map(c => ({ value: c, selected: this._cost === c })),
 			cost:        this._cost,
 		};
@@ -94,6 +100,10 @@ export class MonsterToFollowerDialog extends Application {
 		html.find(".stonetop-mf-cost-input").on("change", ev => { this._cost = ev.currentTarget.value; });
 
 		html.find(".stonetop-mf-pronoun").on("change", ev => { this._pronoun = ev.currentTarget.value; });
+
+		// Group toggle + size (re-render so the size field shows/hides).
+		html.find(".stonetop-mf-group-toggle").on("change", ev => { this._isGroup = ev.currentTarget.checked; this.render(false); });
+		html.find(".stonetop-mf-group-size").on("change", ev => { this._groupSize = Math.max(2, parseInt(ev.currentTarget.value) || 2); });
 	}
 
 	_removeTag(tag) {
@@ -115,17 +125,22 @@ export class MonsterToFollowerDialog extends Application {
 	}
 
 	async _finish() {
-		// Capture an un-blurred custom cost / pronoun.
+		// Capture an un-blurred custom cost / pronoun / group size.
 		const root = this.element?.[0];
 		if (root) {
 			const costEl = root.querySelector(".stonetop-mf-cost-input");
 			if (costEl && costEl.value.trim()) this._cost = costEl.value.trim();
 			const pronEl = root.querySelector(".stonetop-mf-pronoun");
 			if (pronEl) this._pronoun = pronEl.value;
+			const sizeEl = root.querySelector(".stonetop-mf-group-size");
+			if (sizeEl) this._groupSize = Math.max(2, parseInt(sizeEl.value) || 2);
 		}
 		const data = followerFromMonster(
 			{ name: this._monster?.name, system: this._monster?.system, moves: this._monsterMoves(), uuid: this._monster?.uuid },
-			{ tags: this._addedTags, cost: this._cost, pronoun: this._pronoun },
+			{
+				tags: this._addedTags, cost: this._cost, pronoun: this._pronoun,
+				isGroup: this._isGroup, size: this._isGroup ? this._groupSize : 0,
+			},
 		);
 		await this._onApply?.(data);
 		ui.notifications?.info?.(`${data.name || "Monster"} converted to a follower.`);

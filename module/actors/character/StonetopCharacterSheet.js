@@ -39,8 +39,9 @@ import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
-import {parseFollowerArmor, buildCustomFollower, readinessCap} from "../../data/follower-build.js";
+import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
 import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
+import {availablePossessionFollowers} from "../../data/possession-followers.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
 
@@ -414,19 +415,19 @@ function _followerExtras(d = {}) {
 //                 so it can be cleared — an empty override would otherwise fall
 //                 back to the onboarding value (see withStatOverrides).
 const _FOLLOWER_FLAGS = {
-	"animal-companion": { detailBase: "animalCompanion.details", loyalty: "animalCompanion.loyalty", readiness: "animalCompanion.readiness",
+	"animal-companion": { detailBase: "animalCompanion.details", loyalty: "animalCompanion.loyalty", readiness: "animalCompanion.readiness", ammo: "animalCompanion.ammo",
 		structural: { name: "animalCompanion.name", pronoun: "animalCompanion.pronoun", instinct: "animalCompanion.instinct", cost: "animalCompanion.cost" } },
-	"crew":             { detailBase: "crew.details",            loyalty: "crew.loyalty",            readiness: "crew.readiness",
+	"crew":             { detailBase: "crew.details",            loyalty: "crew.loyalty",            readiness: "crew.readiness",            ammo: "crew.ammo",
 		structural: { name: "crew.name", instinct: "crew.instinct", cost: "crew.cost" } },
-	"initiate":         { detailBase: "initiateDetails.{slug}",  loyalty: "initiatesLoyalty.{slug}", readiness: "initiatesReadiness.{slug}", structural: {} },
-	"beast":            { detailBase: "beastDetails.{slug}",     loyalty: "beastLoyalty.{slug}",     readiness: "beastReadiness.{slug}",     structural: {} },
+	"initiate":         { detailBase: "initiateDetails.{slug}",  loyalty: "initiatesLoyalty.{slug}", readiness: "initiatesReadiness.{slug}", ammo: "initiatesAmmo.{slug}", structural: {} },
+	"beast":            { detailBase: "beastDetails.{slug}",     loyalty: "beastLoyalty.{slug}",     readiness: "beastReadiness.{slug}",     ammo: "beastAmmo.{slug}",     structural: {} },
 	// Custom followers (the walkthrough / monster conversion) store everything —
 	// structural stats, the hand-edited overrides, Loyalty and current HP — in one
 	// object keyed by the follower's id. detailBase points at that whole object, so
 	// the shared override (damage/instinct/cost) and extras (moves/notes/gear)
 	// handlers read and write it directly; name/pronoun fall through to it too
 	// (structural is empty, so the name-field change handler uses the detail path).
-	"custom":           { detailBase: "customFollowers.{slug}",  loyalty: "customFollowers.{slug}.loyalty", readiness: "customFollowers.{slug}.readiness", structural: {} },
+	"custom":           { detailBase: "customFollowers.{slug}",  loyalty: "customFollowers.{slug}.loyalty", readiness: "customFollowers.{slug}.readiness", ammo: "customFollowers.{slug}.ammo", structural: {} },
 };
 const _fillSlug = (tpl, slug) => tpl == null ? null : tpl.replaceAll("{slug}", slug ?? "");
 
@@ -459,6 +460,10 @@ function _followerLoyaltyPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ft
 // Crew uses its own group-fight Readiness control; the card-body stepper is for
 // the non-crew followers, which have no group-fight section.
 function _followerReadinessPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.readiness, slug); }
+
+// Flag path for a follower's ammo track (0 = full, 1 = low ammo, 2 = all out) — the
+// ◇ low ammo / ◇ all out marks a ranged follower carries (Moves & Gear).
+function _followerAmmoPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.ammo, slug); }
 
 // Current HP against a max, with the shared "unset → full" default: a missing or
 // non-numeric stored value means the follower is at full HP.
@@ -1351,12 +1356,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				};
 			}
 
+			// Owned move names, built once here for both the crew's Shield-Wall check
+			// (below) and the per-card "exceptional" gate (further down) — each of which
+			// otherwise scanned actor.items on its own.
+			const ownedMoveNames = new Set(this.actor.items.filter(i => i.type === "move").map(i => i.name));
+
 			// -- Crew (Marshal) -----------------------------------------
 			// Hardcoded fallback until LevelDB pack is rebuilt with the marshal.json inventory changes.
 			const CREW_INVENTORY_FALLBACK = [
 				{ slug: "hatchet",     label: "<strong>Hatchet</strong>, iron (<em>hand, thrown</em>, x <em>piercing</em>)",                       weight: 1 },
 				{ slug: "spear",       label: "<strong>Spear</strong>, iron (<em>close</em>, x <em>piercing</em>)",                                weight: 1 },
-				{ slug: "bow-arrows",  label: "<strong>Bow &amp; iron arrows</strong> (<em>near</em>, x <em>piercing</em>, ? low ammo, ? all out)", weight: 1 },
+				{ slug: "bow-arrows",  label: "<strong>Bow &amp; iron arrows</strong> (<em>near</em>, x <em>piercing</em>)", weight: 1 },
 				{ slug: "shield",      label: "<strong>Shield</strong> (+1 armor, +1 Readiness on 7+ to Defend)",                         weight: 2 },
 				{ slug: "thick-hides", label: "<strong>Thick hides</strong> (1 armor, <em>warm</em>)",                                    weight: 2 },
 				{ slug: "cloak",       label: "<strong>Cloak</strong> (<em>warm</em>)",                                                   weight: 1 },
@@ -1424,7 +1434,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				const crewHasShield  = !!crewShieldDef && (typeof gearFlags.shield === "number"
 					? gearFlags.shield >= crewShieldWeight
 					: !!gearFlags.shield);
-				const crewReadinessPips = _makeReadinessPips(crewReadiness, readinessCap(crewHasShield));
+				// "Shield Wall" (Marshal) upgrades the shield's Readiness bonus from +1 to
+				// +2, so a Shield-Wall crew with shields can hold up to 5.
+				const crewHasShieldWall = ownedMoveNames.has(SHIELD_WALL_MOVE);
+				const crewShieldBonus = crewHasShieldWall ? READINESS_SHIELD_WALL_BONUS : READINESS_SHIELD_BONUS;
+				const crewReadinessPips = _makeReadinessPips(crewReadiness, readinessCap(crewHasShield, crewShieldBonus));
 				// Crew shares the common card body but supplies its own gear (the
 				// inventory section below), so spread the shared extras then override
 				// `gear`. Details live under crew.details so they don't collide with the
@@ -1523,7 +1537,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					groupHpCurrent:    crewGroupHpCurrent,
 					groupHpMax:        crewGroupHpMax,
 					readinessPips:     crewReadinessPips,
+					readinessValue:    crewReadiness,
 					readinessHasShield: crewHasShield,
+					readinessShieldWall: crewHasShieldWall,
 					sectionsOpen:      {
 						inventory:  this._openCrewSections.has("inventory"),
 						roster:     this._openCrewSections.has("roster"),
@@ -1673,14 +1689,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				.map(([id, c]) => {
 					const hpMax  = Number(c?.hpMax) || 0;
 					const damage = String(c?.damage ?? "");
-					return {
+					const card = {
 						...FOLLOWER_FTYPE_DEFAULTS["custom"],
 						slug:         id,
 						hpSlug:       id,
 						portraitIcon: c?.portraitIcon || "fas fa-user",
 						name:         c?.name ?? "",
 						pronoun:      c?.pronoun ?? "",
-						typeLabel:    c?.typeLabel || "follower",
+						typeLabel:    c?.typeLabel || (c?.isGroup ? "group follower" : "follower"),
 						isFollower:   true,
 						removable:    true,
 						party:        !!c?.party,
@@ -1699,34 +1715,70 @@ export function createStonetopCharacterSheetClass(Base) {
 						loyaltySlug:  id,
 						..._followerExtras(c),
 					};
+					// Group follower (NPCs & Followers p.470): the same shared stats as a
+					// single follower, plus a roster where every member tracks their own
+					// current HP against the shared max, an abstracted "one combatant"
+					// group-HP pool (size × per-member HP), and the outnumber calculator.
+					// The crew is the built-in example; this brings the same tools to a
+					// hired warband, an arcana-summoned group, or a converted group monster.
+					if (c?.isGroup) {
+						const memberHpMax = hpMax || 1;
+						const size = Math.max(2, Math.trunc(Number(c?.size) || 0) || 2);
+						const memberHpRaw = Array.isArray(c?.memberHp) ? c.memberHp : [];
+						const anonMembers = Array.from({ length: size }, (_, i) => ({
+							index:     i,
+							label:     `Member ${i + 1}`,
+							hpMax:     memberHpMax,
+							hpCurrent: _clampHp(memberHpRaw[i], memberHpMax),
+						}));
+						const groupHpMax     = size * memberHpMax;
+						const groupHpCurrent = _clampHp(Number(c?.groupHp), groupHpMax);
+						card.isGroup        = true;
+						card.groupSize      = size;
+						card.groupMembers   = anonMembers;
+						card.groupHpCurrent = groupHpCurrent;
+						card.groupHpMax     = groupHpMax;
+						card.groupMemberHp  = memberHpMax;
+						card.memberCount    = anonMembers.filter(m => m.hpCurrent > 0).length;
+						card.groupSectionsOpen = {
+							roster:     this._openCrewSections.has(`roster:custom:${id}`),
+							groupFight: this._openCrewSections.has(`groupFight:custom:${id}`),
+						};
+					}
+					return card;
 				});
 
 			// "exceptional" is a gated tag (see FOLLOWER_EXCEPTIONAL): the chip only
 			// shows for follower types whose playbook grants it, and can be switched
 			// on only once that move is owned. Surfaced per-card so the tags-row chip
 			// and its click handler can warn when the requirement isn't met.
-			// Only the animal companion and crew can ever become exceptional (the only
-			// FOLLOWER_EXCEPTIONAL keys), so skip the whole-collection item scan unless
-			// one of them is present.
-			const ownedMoveNames = (animalCompanion || crew)
-				? new Set(this.actor.items.filter(i => i.type === "move").map(i => i.name))
-				: null;
+			// (ownedMoveNames is built once above, shared with the crew Shield-Wall check.)
 			const withExceptional = (card) => {
 				if (!card) return card;
 				const def = FOLLOWER_EXCEPTIONAL[card.ftype];
-				card.exceptionalAvailable = !!def;
 				if (def) {
+					card.exceptionalAvailable = true;
 					card.exceptionalMoveName = def.move;
 					card.exceptionalMet      = ownedMoveNames.has(def.move);
 					card.exceptionalHint     = `Your ${def.noun} can become exceptional only after you take the move “${def.move}.”`;
+					return card;
 				}
+				// Book I (p.462) lets the GM declare any truly outstanding follower
+				// exceptional. The crew and animal companion earn it through a move
+				// (above); every other true follower can simply be toggled — no gate.
+				// Livestock (a beast that isn't a follower) can't be ordered, so it never
+				// shows the chip.
+				const ungated = card.ftype === "custom" || card.ftype === "initiate"
+					|| (card.ftype === "beast" && card.isFollower);
+				card.exceptionalAvailable = ungated;
+				card.exceptionalMet        = ungated;   // no move requirement → always met
 				return card;
 			};
 			// Stash the data the Order button (and its dialog) needs as plain values:
 			// a clean tag list (pipe-joined — no follower tag contains a pipe), the
 			// exceptional flag, and a display name. Initiates carry their epithet in
 			// `label`, not `name`, so fall through to it. Also derives the Loyalty
-			// total + at-max flag for the Strengthen Your Bond "Pay cost" button.
+			// total for the Spend button.
 			const withOrderData = (card) => {
 				if (!card) return card;
 				const tags = (card.tags ?? [])
@@ -1736,11 +1788,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				card.orderName    = card.name || card.label || card.namePlaceholder || card.typeLabel || "Follower";
 				if (Array.isArray(card.loyalty) && card.loyalty.length) {
 					card.loyaltyValue = card.loyalty.filter(p => p.filled).length;
-					card.loyaltyAtMax = card.loyaltyValue >= card.loyalty.length;
 					// A Loyalty track marks a true follower (every orderable type has one;
 					// livestock doesn't), so it gates the Order button the same way it
 					// gates the readiness stepper below — no Order action on a butcher beast.
 					card.canOrder = true;
+					// A lone follower gets a "Recover" button (heal to full); the crew and
+					// custom groups Recover the whole roster from their roster section instead.
+					card.canRecoverSingle = card.ftype !== "crew" && !card.isGroup;
+					// "Have what they need" (p.472) adds an item to a follower's gear on the
+					// fly. Non-crew followers carry a free-text gear checklist to append to;
+					// the crew Outfits/restocks from its Supplies section instead.
+					card.canHaveNeed = card.ftype !== "crew";
 					// Readiness circles for non-crew followers (the crew has its own in
 					// the Group Fight section). Only true followers — which is exactly
 					// the set that has a Loyalty track — so livestock is excluded. A
@@ -1755,16 +1813,61 @@ export function createStonetopCharacterSheetClass(Base) {
 						card.readinessHasShield = _followerBearsShield(card.gear);
 						card.readinessPips      = _makeReadinessPips(card.readinessValue, readinessCap(card.readinessHasShield));
 					}
+					// Ammo track (◇ low ammo, ◇ all out) — opt-in per follower via the
+					// "uses ammo" toggle in the Damage section (a ranged weapon: bow,
+					// sling, thrown — Moves & Gear). canUseAmmo shows that toggle (every
+					// true follower, the crew included, may carry one — the crew bow tracks
+					// ammo too, p.144); usesAmmo gates the ◇ low ammo / ◇ all out circles.
+					// Two cumulative checks: 0 full → 1 low → 2 out.
+					const aSlug = card.loyaltySlug ?? "";
+					card.canUseAmmo = true;
+					card.usesAmmo   = !!detailFlagsFor(card.ftype, card.slug).usesAmmo;
+					if (card.usesAmmo) {
+						const ammoVal = Math.max(0, Math.min(2, Number(this.actor.getFlag("stonetop_pwd", _followerAmmoPath(card.ftype, aSlug))) || 0));
+						card.ammoFollower = card.ftype;
+						card.ammoSlug     = aSlug;
+						card.ammoValue    = ammoVal;
+						card.ammoChecks   = [
+							{ index: 0, label: "low ammo", checked: ammoVal >= 1 },
+							{ index: 1, label: "all out",  checked: ammoVal >= 2 },
+						];
+					}
+				}
+				// A named crew member can be directed on their own — their unique tag +
+				// traits apply on top of the group's shared tags (NPCs & Followers p.471).
+				// Build each member's Order data from the crew's tags plus their own.
+				if (card.ftype === "crew" && Array.isArray(card.individuals)) {
+					card.individuals = card.individuals.map(ind => {
+						const own = [ind.tag, ...(Array.isArray(ind.traits) ? ind.traits : [])].filter(Boolean);
+						return {
+							...ind,
+							orderName:    ind.name || `Crew member ${ind.index + 1}`,
+							orderTagsCsv: [...tags, ...own].join("|"),
+							exceptional:  !!card.exceptional,
+						};
+					});
 				}
 				return card;
 			};
 			const finalize = (card) => withOrderData(withExceptional(withSectionEdits(withStatOverrides(card))));
+			// Playbook possession-followers (the Would-be Hero's dog, the Ranger's Hounds,
+			// the Blessed's Mastiffs) ship as gear text; offer to materialize any the PC
+			// holds but hasn't added yet as a follower card (deduped by sourceUuid, like
+			// arcana summons). Selected = preselected free gear + the player's picks.
+			const ownedPossessions = [
+				...(playbookDoc?.specialPossessions?.preselected ?? []),
+				...(sf.possessions?.selected ?? []),
+			];
+			const presentSources = new Set(Object.values(customMap).map(f => f?.sourceUuid).filter(Boolean));
+			const possessionFollowerOffers = availablePossessionFollowers(ownedPossessions, presentSources)
+				.map(f => ({ slug: f.slug, name: f.name, isGroup: !!f.isGroup }));
 			return {
 				animalCompanion: finalize(animalCompanion),
 				crew:            finalize(crew),
 				initiates:       initiates?.map(finalize) ?? null,
 				beasts:          beasts.map(finalize),
 				custom:          customFollowers.map(finalize),
+				possessionFollowerOffers,
 			};
 		}
 
@@ -2594,6 +2697,9 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			// Create a follower via the Book I walkthrough (NPCs & Followers, p.474).
 			html.find(".stonetop-create-follower-btn").on("click", () => this._onCreateFollowerOpen());
+			// Materialize a playbook possession-follower (dog / Hounds / Mastiffs) as a card.
+			html.find(".stonetop-add-possession-follower").on("click", ev =>
+				this._onAddPossessionFollower(ev.currentTarget.dataset.slug));
 			// Expand/collapse-all caret on a rules card header (Animal Companion Moves /
 			// Follower Special Moves): open every move's <details> when any is collapsed,
 			// otherwise close them all. Open state is ephemeral (resets on re-render), like
@@ -2654,35 +2760,32 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop_pwd", path, current === idx + 1 ? idx : idx + 1);
 				this.render(false);
 			});
-			// Strengthen Your Bond (p.464): pay a follower's cost → +1 Loyalty (max 3).
-			// Caps at 3 (the move doesn't trigger above it); the "and you haven't done
-			// so recently / a scene on-camera" gate is a fiction call, so it's advised
-			// in the chat note, not hard-enforced. Attributed via stonetopMove so the
-			// ledger reads "via Strengthen Your Bond".
-			html.find("button.stonetop-pay-cost").on("click", async ev => {
-				const { ftype, slug } = ev.currentTarget.dataset;
-				const path = _followerLoyaltyPath(ftype, slug);
-				if (!path) return;
-				const current = Number(this.actor.getFlag("stonetop_pwd", path)) || 0;
-				if (current >= 3) return;
-				const next = current + 1;
-				await this.actor.update(
-					{ [`flags.stonetop_pwd.${path}`]: next },
-					{ stonetopMove: "Strengthen Your Bond" },
-				);
-				const name = ev.currentTarget.dataset.followerName || "Your follower";
-				const cost = (ev.currentTarget.dataset.cost || "").trim();
-				const costLine = cost
-					? `<p>You pay <strong>${escHtml(name)}</strong>'s cost (<em>${escHtml(cost)}</em>).</p>`
-					: `<p>You pay <strong>${escHtml(name)}</strong>'s cost.</p>`;
-				await ChatMessage.create({
-					content: _buildMoveChatContent("Strengthen Your Bond",
-						`${costLine}<p>They now hold <strong>${next}</strong> Loyalty${next >= 3 ? " (max)" : ""}.</p>`
-						+ `<p class="stonetop-pay-cost-note"><em>Pay the cost again only after a significant scene on-camera.</em></p>`),
-					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-				});
-				this.render(false);
+			// Spend Loyalty / Readiness (p.464 / p.469): open a small chooser for the
+			// rulebook's spend options, decrement the track, and post a chat note.
+			html.find(".stonetop-spend-loyalty").on("click", ev => {
+				const { ftype, slug, followerName } = ev.currentTarget.dataset;
+				this._onSpendLoyalty(ftype, slug ?? "", followerName);
 			});
+			html.find(".stonetop-spend-readiness").on("click", ev => {
+				const { ftype, slug, followerName } = ev.currentTarget.dataset;
+				this._onSpendReadiness(ftype, slug ?? "", followerName);
+			});
+			// Recover a follower / group to full HP (p.469/473).
+			html.find(".stonetop-follower-recover").on("click", ev => {
+				const { ftype, slug, followerName, max } = ev.currentTarget.dataset;
+				this._onFollowerRecover(ftype, slug ?? "", followerName, max);
+			});
+			html.find(".stonetop-group-recover").on("click", ev => {
+				const { ftype, slug, followerName } = ev.currentTarget.dataset;
+				this._onFollowerRecover(ftype, slug ?? "", followerName);
+			});
+			// Have What They Need (add gear to a follower) / Outfit the crew (restock).
+			html.find(".stonetop-follower-have-need").on("click", ev => {
+				const { ftype, slug, followerName } = ev.currentTarget.dataset;
+				this._onHaveWhatTheyNeed(ftype, slug ?? "", followerName);
+			});
+			html.find(".stonetop-crew-outfit").on("click", () => this._onOutfitCrew());
+
 			// Crew gear pip circles. An inventory item is carried as a unit — its
 			// pips just show its load weight — so a multi-pip ("double diamond")
 			// item like the Shield or Thick hides is either fully equipped or not
@@ -2814,12 +2917,72 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.update({ [`flags.stonetop_pwd.${path}`]: current === idx + 1 ? idx : idx + 1 });
 				this.render(false);
 			});
-
-			// Restore the abstracted group-fight pool to full (clears the override)
-			html.find(".stonetop-group-hp-reset").on("click", async () => {
-				await this.actor.unsetFlag("stonetop_pwd", "crew.groupHp");
+			// "Uses ammo" toggle (Damage section, edit mode): opts a ranged follower
+			// into the ◇ low ammo / ◇ all out track. Turning it off clears any marked
+			// ammo, so a later re-enable starts fresh at full.
+			html.find(".stonetop-follower-uses-ammo-input").on("change", async ev => {
+				const { ftype, slug } = ev.currentTarget.dataset;
+				const path = followerDetailPath(ftype, slug ?? "", "usesAmmo");
+				if (!path) return;
+				const on = ev.currentTarget.checked;
+				const update = { [`flags.stonetop_pwd.${path}`]: on };
+				if (!on) {
+					const ammoPath = _followerAmmoPath(ftype, slug ?? "");
+					if (ammoPath) update[`flags.stonetop_pwd.${ammoPath}`] = 0;
+				}
+				await this.actor.update(update);
 				this.render(false);
 			});
+			// Follower ammo checks (◇ low ammo, ◇ all out): a cumulative 0→1→2 track, so
+			// checking "all out" implies "low ammo" and clearing "low" resets to full.
+			html.find(".stonetop-follower-ammo-input").on("change", async ev => {
+				const { ftype, slug, index } = ev.currentTarget.dataset;
+				const path = _followerAmmoPath(ftype, slug ?? "");
+				if (!path) return;
+				const idx    = Number(index);
+				const newVal = ev.currentTarget.checked ? idx + 1 : idx;
+				await this.actor.update({ [`flags.stonetop_pwd.${path}`]: newVal });
+				this.render(false);
+			});
+
+			// Restore the abstracted group-fight pool to full (clears the override).
+			// A data-slug marks a custom group's pool; without one it's the crew's.
+			html.find(".stonetop-group-hp-reset").on("click", async ev => {
+				const slug = ev.currentTarget.dataset.slug;
+				if (slug) await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.groupHp`]: null });
+				else      await this.actor.unsetFlag("stonetop_pwd", "crew.groupHp");
+				this.render(false);
+			});
+
+			// Custom group roster size (mirrors the crew size stepper). Clamps the
+			// abstracted group-HP pool down when the group shrinks, and drops any
+			// per-member HP entries beyond the new size, so nothing stale is left.
+			const setCustomGroupSize = async (slug, next) => {
+				const c = this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}`);
+				if (!c) return;
+				const size = Math.max(2, Math.min(_CREW_SIZE_MAX, Math.trunc(Number(next) || 0) || 2));
+				const memberHpMax = Math.max(1, Math.trunc(Number(c.hpMax) || 0) || 1);
+				const update = { [`flags.stonetop_pwd.customFollowers.${slug}.size`]: size };
+				// Trim per-member HP to the new roster length.
+				if (Array.isArray(c.memberHp) && c.memberHp.length > size) {
+					update[`flags.stonetop_pwd.customFollowers.${slug}.memberHp`] = c.memberHp.slice(0, size);
+				}
+				// Clamp an explicitly-set group pool to the new max (unset tracks full).
+				const rawPool = Number(c.groupHp);
+				if (Number.isFinite(rawPool)) {
+					const max = size * memberHpMax;
+					if (rawPool > max) update[`flags.stonetop_pwd.customFollowers.${slug}.groupHp`] = max;
+				}
+				await this.actor.update(update);
+				this.render(false);
+			};
+			html.find(".stonetop-custom-group-size-step").on("click", ev => {
+				const { slug, delta } = ev.currentTarget.dataset;
+				const cur = Math.max(2, Math.trunc(Number(this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}.size`)) || 0) || 2);
+				setCustomGroupSize(slug, cur + Number(delta));
+			});
+			html.find(".stonetop-custom-group-size-input").on("change", ev =>
+				setCustomGroupSize(ev.currentTarget.dataset.slug, ev.currentTarget.value));
 
 			// Remember which collapsible crew sections are open across re-renders and,
 			// via the persisted per-actor setting, across sheet reopens. Native
@@ -3052,18 +3215,18 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!inp.classList.contains("stonetop-outnumber-yours") && !inp.classList.contains("stonetop-outnumber-theirs")) return;
 				const row    = inp.closest(".stonetop-group-fight-outnumber-row");
 				if (!row) return;
-				const yours  = Math.max(1, parseInt(row.querySelector(".stonetop-outnumber-yours")?.value)  || 1);
-				const theirs = Math.max(1, parseInt(row.querySelector(".stonetop-outnumber-theirs")?.value) || 1);
-				const bonus  = Math.max(0, Math.floor(yours / theirs) - 1);
+				const { label, rollFor } = outnumberBonus(
+					row.querySelector(".stonetop-outnumber-yours")?.value,
+					row.querySelector(".stonetop-outnumber-theirs")?.value,
+				);
 				const resultEl = row.querySelector(".stonetop-outnumber-result");
-				if (resultEl) resultEl.textContent = bonus > 0 ? `+${bonus} damage, +${bonus} armor` : "no bonus";
+				if (resultEl) resultEl.textContent = label;
 				const section  = row.closest(".stonetop-group-fight-section");
 				const dmgBtn   = section?.querySelector(".stonetop-group-fight-dmg-roll");
 				const dmgLabel = section?.querySelector(".stonetop-group-fight-dmg-label");
 				// Build on the crew's actual damage die (carried in data-base-roll,
 				// which honours any Damage override), not a hardcoded d6.
-				const baseDie  = dmgBtn?.dataset.baseRoll || "d6";
-				const roll     = bonus > 0 ? `${baseDie}+${bonus}` : baseDie;
+				const roll     = rollFor(dmgBtn?.dataset.baseRoll);
 				if (dmgBtn)   dmgBtn.dataset.roll     = roll;
 				if (dmgLabel) dmgLabel.textContent    = roll;
 			}, true);
@@ -3097,9 +3260,16 @@ export function createStonetopCharacterSheetClass(Base) {
 					name:        btn.dataset.followerName || "Follower",
 					tags,
 					exceptional: btn.dataset.exceptional === "true",
+					// A group-fight Clash/Let Fly button pre-selects that move; the plain
+					// Order button leaves it at the default (Defy Danger).
+					moveKey:     btn.dataset.moveKey || null,
 				};
+				const ftype = btn.dataset.ftype, slug = btn.dataset.slug ?? "";
 				new OrderFollowersDialog(this.actor, follower,
-					(result) => this._stonetopCharacter.onOrderFollowersRoll(result),
+					async (result) => {
+						const roll = await this._stonetopCharacter.onOrderFollowersRoll(result);
+						await this._maybeHoldReadinessOnDefend(ftype, slug, result, roll);
+					},
 				).render(true);
 			}, true);
 
@@ -3414,31 +3584,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				// counts as alive; only an explicit 0 means they were already down.
 				const wasAlive = fateEligible
 					&& Number(this.actor.getFlag("stonetop_pwd", fateHpPaths[follower])) !== 0;
-				// The per-slug / per-index HP stores are object-valued flags; write the
-				// single changed key with a dotted path (Foundry merges it in) instead
-				// of cloning and rewriting the whole map on every blur.
-				if (follower === "animal-companion") {
-					await this.actor.setFlag("stonetop_pwd", "animalCompanion.hpCurrent", val);
-				} else if (follower === "initiate") {
-					await this.actor.update({ [`flags.stonetop_pwd.initiatesHp.${slug}`]: val });
-				} else if (follower === "crew-individual") {
-					await this.actor.update({ [`flags.stonetop_pwd.crew.individualsHp.${Number(index)}`]: val });
-				} else if (follower === "crew-member") {
-					const arr = [...(this.actor.getFlag("stonetop_pwd", "crew.memberHp") ?? [])];
-					arr[Number(index)] = val;
-					await this.actor.setFlag("stonetop_pwd", "crew.memberHp", arr);
-				} else if (follower === "crew-group") {
-					await this.actor.setFlag("stonetop_pwd", "crew.groupHp", val);
-				} else if (follower === "beast") {
-					await this.actor.update({ [`flags.stonetop_pwd.beastHp.${slug}`]: val });
-				} else if (follower === "custom") {
-					await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.hpCurrent`]: val });
-				}
+				await this._setFollowerHp(follower, slug, index, val);
 				// Capture the follower's display name off the live card BEFORE the
 				// re-render detaches this input from the DOM.
 				const fateName = wasAlive
 					? (input.closest(".stonetop-follower-card")?.querySelector(".stonetop-follower-order")?.dataset.followerName
-						|| input.closest(".stonetop-follower-card")?.querySelector(".stonetop-pay-cost")?.dataset.followerName
+						|| input.closest(".stonetop-follower-card")?.querySelector(".stonetop-spend-loyalty")?.dataset.followerName
 						|| "Your follower")
 					: null;
 				this.render(false);
@@ -4134,7 +4285,24 @@ export function createStonetopCharacterSheetClass(Base) {
 			new CreateFollowerDialog(
 				this.actor,
 				(data) => this._applyCustomFollower(data),
+				// Recruit a villager: offer the linked steading's residents as name
+				// suggestions on the walkthrough's first step (NPCs & Followers p.474).
+				{ residentNames: this._steadingResidentNames() },
 			).render(true);
+		}
+
+		// Names of the linked steading's residents (+ neighbors), for the Create-a-Follower
+		// name datalist. Best-effort — a missing/unlinked steading just yields no hints.
+		_steadingResidentNames() {
+			try {
+				const steading = this._stonetopCharacter?.getSteadingActor?.();
+				if (!steading) return [];
+				const rows = [
+					...(steading.getFlag("stonetop_pwd", "residents") ?? []),
+					...(steading.getFlag("stonetop_pwd", "neighbors") ?? []),
+				];
+				return [...new Set(rows.map(r => String(r?.name ?? "").trim()).filter(Boolean))];
+			} catch { return []; }
 		}
 
 		// Offer to convert a dropped monster into a follower (keep its stats, add
@@ -4223,6 +4391,24 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
+		// Materialize a playbook possession-follower (the Would-be Hero's dog, the
+		// Ranger's Hounds, the Blessed's Mastiffs) as an editable follower card. Mirrors
+		// the arcana "Add as follower" flow: build from the catalog and dedupe by
+		// sourceUuid so it can't be added twice. Groups (Hounds/Mastiffs) land as a group.
+		async _onAddPossessionFollower(slug) {
+			if (!this.isEditable || !slug) return;
+			const { possessionFollower } = await import("../../data/possession-followers.js");
+			const input = possessionFollower(slug);
+			if (!input) return;
+			const existing = this.actor.getFlag("stonetop_pwd", "customFollowers") ?? {};
+			if (Object.values(existing).some(f => f?.sourceUuid === input.sourceUuid)) return;
+			const id = foundry.utils.randomID(16);
+			await this.actor.update({
+				[`flags.stonetop_pwd.customFollowers.${id}`]: { ...buildCustomFollower(input), order: this._nextFollowerOrder() },
+			});
+			this.render(false);
+		}
+
 		// Open a blank homebrew arcanum (minor or major) in the editor as a draft. It's added
 		// to this character only when the author clicks Save & Done (see _createAndAddArcanum).
 		async _onArcanaCreate(major = false) {
@@ -4272,9 +4458,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		// `order`, so two followers added in the same millisecond still sort by insertion
 		// (Date.now() alone can tie). Date.now() is the floor for the first follower.
 		_nextFollowerOrder() {
-			const existing = this.actor.getFlag("stonetop_pwd", "customFollowers") ?? {};
-			const max = Object.values(existing).reduce((m, f) => Math.max(m, Number(f?.order) || 0), 0);
-			return Math.max(max + 1, Date.now());
+			return nextFollowerOrder(this.actor.getFlag("stonetop_pwd", "customFollowers") ?? {});
 		}
 
 		// Apply the fate chosen for a follower that hit 0 HP (FollowerFateDialog).
@@ -4317,6 +4501,299 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
+		// Write a follower's current HP to `val`. The per-slug / per-index HP stores are
+		// object-valued flags; write the single changed key with a dotted path (Foundry
+		// merges it) instead of cloning the whole map. Shared by the HP-input change
+		// handler and the Recover flow so the two can't drift.
+		async _setFollowerHp(follower, slug, index, val) {
+			if (follower === "animal-companion") {
+				await this.actor.setFlag("stonetop_pwd", "animalCompanion.hpCurrent", val);
+			} else if (follower === "initiate") {
+				await this.actor.update({ [`flags.stonetop_pwd.initiatesHp.${slug}`]: val });
+			} else if (follower === "crew-individual") {
+				await this.actor.update({ [`flags.stonetop_pwd.crew.individualsHp.${Number(index)}`]: val });
+			} else if (follower === "crew-member") {
+				const arr = [...(this.actor.getFlag("stonetop_pwd", "crew.memberHp") ?? [])];
+				arr[Number(index)] = val;
+				await this.actor.setFlag("stonetop_pwd", "crew.memberHp", arr);
+			} else if (follower === "crew-group") {
+				await this.actor.setFlag("stonetop_pwd", "crew.groupHp", val);
+			} else if (follower === "beast") {
+				await this.actor.update({ [`flags.stonetop_pwd.beastHp.${slug}`]: val });
+			} else if (follower === "custom") {
+				await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.hpCurrent`]: val });
+			} else if (follower === "custom-group") {
+				await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.groupHp`]: val });
+			} else if (follower === "custom-member") {
+				const arr = [...(this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}.memberHp`) ?? [])];
+				arr[Number(index)] = val;
+				await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.memberHp`]: arr });
+			}
+		}
+
+		// Recover a follower (NPCs & Followers p.469: someone tends their wounds and they
+		// Recover). Heals to full HP; a group heals every member and its abstracted pool.
+		// For the crew — the one follower with tracked Supplies — each member who regains
+		// HP consumes 1 use of Supplies (p.473). The button carries the same data-follower
+		// / data-slug / data-max the HP inputs use.
+		async _onFollowerRecover(ftype, slug, name, max) {
+			if (ftype === "crew" || ftype === "custom-group") {
+				await this._recoverGroup(ftype, slug, name);
+				return;
+			}
+			// Single follower: heal straight to full (the button carries data-max, which
+			// already reflects any derived stats or Updating-followers override).
+			const hpMax = Math.max(0, Math.trunc(Number(max) || 0));
+			if (!["animal-companion", "initiate", "beast", "custom"].includes(ftype)) return;
+			await this._setFollowerHp(ftype, slug, null, hpMax);
+			await ChatMessage.create({
+				content: _buildMoveChatContent("Recover",
+					`<p><strong>${escHtml(name || "Your follower")}</strong> is tended to and recovers to full HP.</p>`),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+			this.render(false);
+		}
+
+		// Have What They Need (p.472): a follower produces a needed item. Prompt for it
+		// and append it (checked) to their free-text gear checklist.
+		_onHaveWhatTheyNeed(ftype, slug, name) {
+			const base = _followerDetailBase(ftype, slug);
+			const gearPath = base ? `${base}.gear` : null;
+			if (!gearPath) return;
+			new Dialog({
+				title:   `${name || "Follower"} — Have What They Need`,
+				content: `<form class="stonetop-spend-form"><p>What does <strong>${escHtml(name || "they")}</strong> produce?</p>`
+					+ `<input type="text" class="stonetop-hwtn-item stonetop-cf-input" placeholder="an item, some supplies…" style="width:100%"></form>`,
+				buttons: {
+					add: { icon: '<i class="fas fa-sack"></i>', label: "Add to their gear",
+						callback: async html => {
+							const item = String(html?.[0]?.querySelector(".stonetop-hwtn-item")?.value ?? "").trim();
+							if (!item) return;
+							const cur = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", gearPath) ?? []);
+							cur.push({ label: item, checked: true });
+							await this.actor.setFlag("stonetop_pwd", gearPath, cur);
+							await ChatMessage.create({
+								content: _buildMoveChatContent("Have What They Need",
+									`<p><strong>${escHtml(name || "Your follower")}</strong> produces <em>${escHtml(item)}</em> — added to their gear.</p>`),
+								speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+							});
+							this.render(false);
+						} },
+					cancel: { label: "Cancel" },
+				},
+				default: "add",
+				render:  bringDialogToFront,
+			}, { classes: ["dialog", "stonetop"] }).render(true);
+		}
+
+		// Outfit the crew (p.472): the group Outfits with the same gear — restock every
+		// member's Supplies to full (the crew's trackable loadout, spent by Recover).
+		async _onOutfitCrew() {
+			// The Supplies-per-set count is "4 + Prosperity" — a synchronous read; no need
+			// to build the whole sheet snapshot just to pull one scalar off it.
+			const pipsPerSet = this._stonetopCharacter.getSmallItemLimit() ?? 5;
+			await this.actor.setFlag("stonetop_pwd", "crew.supplies", Array(6).fill(pipsPerSet));
+			await ChatMessage.create({
+				content: _buildMoveChatContent("Outfit",
+					`<p>The crew Outfits — every member's Supplies restocked to full (${pipsPerSet} uses each).</p>`),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+			this.render(false);
+		}
+
+		// Heal a whole group to full. Crew: restore every named + anonymous member and the
+		// abstracted pool, spending 1 Supply use per member that regained HP. Custom group:
+		// restore every member + the pool (no Supplies track to spend).
+		async _recoverGroup(ftype, slug, name) {
+			if (ftype === "crew") {
+				const crew = this.actor.getFlag("stonetop_pwd", "crew") ?? {};
+				const memberHpMax = Math.max(1, Number(this._crewMemberHpMax) || Number(crew.details?.hpMax) || 6);
+				const individualsHp = { ...(crew.individualsHp ?? {}) };
+				const memberHp = Array.isArray(crew.memberHp) ? [...crew.memberHp] : [];
+				let healed = 0;
+				for (const k of Object.keys(individualsHp)) {
+					if (Number(individualsHp[k]) < memberHpMax && individualsHp[k] != null) { healed++; }
+					individualsHp[k] = memberHpMax;
+				}
+				for (let i = 0; i < memberHp.length; i++) {
+					if (memberHp[i] != null && Number(memberHp[i]) < memberHpMax) healed++;
+					memberHp[i] = memberHpMax;
+				}
+				const update = {
+					"flags.stonetop_pwd.crew.individualsHp": individualsHp,
+					"flags.stonetop_pwd.crew.memberHp": memberHp,
+				};
+				// Clear the abstracted pool override so it tracks full again.
+				update["flags.stonetop_pwd.crew.groupHp"] = null;
+				// Spend Supplies: 1 use per member who regained HP, drawn from the 6 sets.
+				const spent = this._spendCrewSupplies(crew.supplies, healed);
+				if (spent.supplies) update["flags.stonetop_pwd.crew.supplies"] = spent.supplies;
+				await this.actor.update(update);
+				await ChatMessage.create({
+					content: _buildMoveChatContent("Recover",
+						`<p><strong>${escHtml(name || "Your crew")}</strong> recovers to full HP.</p>`
+						+ (healed ? `<p>${healed} member${healed === 1 ? "" : "s"} regained HP, spending <strong>${spent.used}</strong> use${spent.used === 1 ? "" : "s"} of Supplies.</p>` : "")),
+					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+				});
+				this.render(false);
+				return;
+			}
+			// Custom group: restore every member and the pool.
+			const c = this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}`) ?? {};
+			const memberHpMax = Math.max(1, Number(c.hpMax) || 1);
+			const size = Math.max(2, Math.trunc(Number(c.size) || 0) || 2);
+			await this.actor.update({
+				[`flags.stonetop_pwd.customFollowers.${slug}.memberHp`]: Array.from({ length: size }, () => memberHpMax),
+				[`flags.stonetop_pwd.customFollowers.${slug}.groupHp`]: null,
+				[`flags.stonetop_pwd.customFollowers.${slug}.hpCurrent`]: memberHpMax,
+			});
+			await ChatMessage.create({
+				content: _buildMoveChatContent("Recover",
+					`<p><strong>${escHtml(name || "The group")}</strong> recovers to full HP. Spend 1 use of Supplies per member who regained HP (p.473).</p>`),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+			this.render(false);
+		}
+
+		// Spend `count` uses from the crew's 6 supply sets, draining each set in turn.
+		// Returns { supplies: <new array | null>, used: <uses actually spent> }.
+		_spendCrewSupplies(raw, count) {
+			if (count <= 0) return { supplies: null, used: 0 };
+			const arr = Array.isArray(raw) ? [...raw] : Array(6).fill(0);
+			while (arr.length < 6) arr.push(0);
+			let remaining = count, used = 0;
+			for (let i = 0; i < arr.length && remaining > 0; i++) {
+				const take = Math.min(Number(arr[i]) || 0, remaining);
+				arr[i] = (Number(arr[i]) || 0) - take;
+				remaining -= take;
+				used += take;
+			}
+			return { supplies: arr, used };
+		}
+
+		// When a follower is Ordered to Defend and rolls 7+, they hold Readiness (p.469):
+		// 1 on a 7–9, 3 on a 10+ (a shield adds +1 — the player can click one more). We
+		// set the base hold automatically off the Order Followers result and post a note.
+		async _maybeHoldReadinessOnDefend(ftype, slug, result, roll) {
+			const total = Number(roll?.total);
+			if (!Number.isFinite(total) || total < 7) return;
+			// The dialog reports the chosen move + follower name structurally, so we don't
+			// have to sniff "defend" out of (or split ":" from) the flattened moveName.
+			if (result?.moveKey !== "defend") return;
+			const path = _followerReadinessPath(ftype, slug ?? "");
+			if (!path) return;
+			const held = total >= 10 ? 3 : 1;
+			const shieldNote = held >= 3 ? " (4 with their shield)" : " (2 with their shield)";
+			await this.actor.update({ [`flags.stonetop_pwd.${path}`]: held }, { stonetopMove: "Defend" });
+			const who = result?.followerName || "Your follower";
+			await ChatMessage.create({
+				content: _buildMoveChatContent("Defend — Readiness held",
+					`<p><strong>${escHtml(who)}</strong> holds <strong>${held}</strong> Readiness${shieldNote}.</p>`
+					+ `<p>Spend it to suffer the damage/effects of an attack for a ward, or to draw all attention to themselves.</p>`),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+			this.render(false);
+		}
+
+		// Radio-option markup shared by the Spend Loyalty / Spend Readiness choosers:
+		// one <label> per reason, the first pre-checked, keyed by the given input name.
+		_spendRadioOptions(name, reasons) {
+			return reasons.map((r, i) =>
+				`<label class="stonetop-spend-choice"><input type="radio" name="${name}" value="${r.key}"${i === 0 ? " checked" : ""}> <span>${escHtml(r.label)}</span></label>`
+			).join("");
+		}
+
+		// Spend 1 Loyalty (Strengthen Your Bond, p.464): a follower overcomes fear,
+		// resists their instinct, or does something they'd rather not. Decrements the
+		// Loyalty track by one (attributed so the ledger reads "via Spend Loyalty") and
+		// posts a chat note naming what it bought.
+		_onSpendLoyalty(ftype, slug, name) {
+			const path = _followerLoyaltyPath(ftype, slug);
+			if (!path) return;
+			const current = Math.max(0, Number(this.actor.getFlag("stonetop_pwd", path)) || 0);
+			if (current <= 0) { ui.notifications?.warn?.(`${name || "This follower"} holds no Loyalty to spend.`); return; }
+			const reasons = [
+				{ key: "fear",      label: "Overcome their fear to do as you say" },
+				{ key: "instinct",  label: "Resist acting on their instinct / tags / traits" },
+				{ key: "unwilling", label: "Do something they don't want to do" },
+			];
+			const opts = this._spendRadioOptions("spend-loyalty", reasons);
+			new Dialog({
+				title:   `Spend ${name || "follower"}'s Loyalty`,
+				content: `<form class="stonetop-spend-form"><p>Spend <strong>1 Loyalty</strong> (${current} held) to have <strong>${escHtml(name || "them")}</strong>:</p>${opts}</form>`,
+				buttons: {
+					spend:  { icon: '<i class="fas fa-hand-holding-heart"></i>', label: "Spend 1 Loyalty",
+						callback: html => this._applySpendLoyalty(path, current, name, reasons, html) },
+					cancel: { label: "Cancel" },
+				},
+				default: "spend",
+				render:  bringDialogToFront,
+			}, { classes: ["dialog", "stonetop"] }).render(true);
+		}
+
+		async _applySpendLoyalty(path, current, name, reasons, html) {
+			const key    = html?.[0]?.querySelector('input[name="spend-loyalty"]:checked')?.value ?? reasons[0].key;
+			const reason = reasons.find(r => r.key === key)?.label ?? "";
+			await this.actor.update({ [`flags.stonetop_pwd.${path}`]: current - 1 }, { stonetopMove: "Spend Loyalty" });
+			await ChatMessage.create({
+				content: _buildMoveChatContent("Spend Loyalty",
+					`<p>You spend <strong>1 Loyalty</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
+					+ `<p>They now hold <strong>${current - 1}</strong> Loyalty.</p>`),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+			this.render(false);
+		}
+
+		// Spend 1 Readiness (Followers in Fights, p.469/473): a follower holding
+		// Readiness suffers an attack for a ward or draws all attention. If they wouldn't
+		// want to, the player must also spend 1 Loyalty (p.547) — surfaced as a checkbox.
+		_onSpendReadiness(ftype, slug, name) {
+			const rPath = _followerReadinessPath(ftype, slug);
+			if (!rPath) return;
+			const readiness = Math.max(0, Number(this.actor.getFlag("stonetop_pwd", rPath)) || 0);
+			if (readiness <= 0) { ui.notifications?.warn?.(`${name || "This follower"} holds no Readiness to spend.`); return; }
+			const lPath   = _followerLoyaltyPath(ftype, slug);
+			const loyalty = Math.max(0, Number(this.actor.getFlag("stonetop_pwd", lPath)) || 0);
+			const reasons = [
+				{ key: "suffer",    label: "Suffer the damage/effects of an attack for a ward" },
+				{ key: "attention", label: "Draw all attention from a ward to themselves" },
+			];
+			const opts = this._spendRadioOptions("spend-readiness", reasons);
+			const unwilling = loyalty > 0
+				? `<label class="stonetop-spend-choice stonetop-spend-choice--unwilling"><input type="checkbox" class="stonetop-spend-unwilling"> <span>…and they wouldn't want to (also spend <strong>1 Loyalty</strong>)</span></label>`
+				: `<p class="stonetop-spend-note"><em>If they wouldn't want to, you'd also spend 1 Loyalty — but they hold none.</em></p>`;
+			new Dialog({
+				title:   `Spend ${name || "follower"}'s Readiness`,
+				content: `<form class="stonetop-spend-form"><p>Spend <strong>1 Readiness</strong> (${readiness} held) to have <strong>${escHtml(name || "them")}</strong>:</p>${opts}${unwilling}</form>`,
+				buttons: {
+					spend:  { icon: '<i class="fas fa-shield"></i>', label: "Spend Readiness",
+						callback: html => this._applySpendReadiness({ rPath, readiness, lPath, loyalty, name, reasons, html }) },
+					cancel: { label: "Cancel" },
+				},
+				default: "spend",
+				render:  bringDialogToFront,
+			}, { classes: ["dialog", "stonetop"] }).render(true);
+		}
+
+		async _applySpendReadiness({ rPath, readiness, lPath, loyalty, name, reasons, html }) {
+			const key       = html?.[0]?.querySelector('input[name="spend-readiness"]:checked')?.value ?? reasons[0].key;
+			const reason    = reasons.find(r => r.key === key)?.label ?? "";
+			const unwilling = !!html?.[0]?.querySelector(".stonetop-spend-unwilling")?.checked && loyalty > 0;
+			const update = { [`flags.stonetop_pwd.${rPath}`]: readiness - 1 };
+			if (unwilling && lPath) update[`flags.stonetop_pwd.${lPath}`] = loyalty - 1;
+			await this.actor.update(update, { stonetopMove: "Spend Readiness" });
+			const costLine = unwilling
+				? `<p>They didn't want to, so you also spent <strong>1 Loyalty</strong> (${loyalty - 1} left).</p>`
+				: "";
+			await ChatMessage.create({
+				content: _buildMoveChatContent("Spend Readiness",
+					`<p>You spend <strong>1 Readiness</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
+					+ `<p>They now hold <strong>${readiness - 1}</strong> Readiness.</p>${costLine}`),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+			this.render(false);
+		}
+
 		// Hand a custom follower off to another PC (NPCs & Followers p.480: a follower
 		// can shift from one PC's lead to another's). Only custom followers transfer —
 		// the built-in ones are tied to a playbook / background / inventory item.
@@ -4339,7 +4816,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "handoff",
 				render:  bringDialogToFront,
-			}).render(true);
+			}, { classes: ["dialog", "stonetop"] }).render(true);
 		}
 
 		async _handOffFollower(slug, targetId) {

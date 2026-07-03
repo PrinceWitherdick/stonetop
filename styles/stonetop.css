@@ -2232,6 +2232,7 @@ input.stonetop-name-field {
 .stonetop-onboarding-check,
 .stonetop-bg-action-check,
 .stonetop-follower-party-check,
+.stonetop-follower-uses-ammo-input,
 .stonetop-of-adv,
 .steading-list-check {
 	appearance: none !important;
@@ -2279,6 +2280,7 @@ input.stonetop-name-field {
 .stonetop-onboarding-check:checked,
 .stonetop-bg-action-check:checked,
 .stonetop-follower-party-check:checked,
+.stonetop-follower-uses-ammo-input:checked,
 .stonetop-of-adv:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
@@ -3831,11 +3833,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* Matches .stonetop-follower-add-btn: a quiet dashed entry point rather than a
    filled CTA, shown in and out of edit mode. */
 .stonetop-add-custom-move {
-	flex: 0 0 auto;
-	display: inline-flex;
+	flex: 1 1 100%;
+	display: flex;
 	align-items: center;
+	justify-content: center;
 	gap: 6px;
-	width: auto;
+	width: 100%;
 	padding: 2px 8px;
 	cursor: pointer;
 	font-family: var(--font-stonetop);
@@ -4452,22 +4455,26 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    top margin as the first child; the side-label now precedes it, so keep that flush spacing. */
 .stonetop-arcanum-side-label + h3 { margin-top: 0; }
 
-/* GM-only "Reveal back to player" / "Hide back from player" toggle. Rendered only when
-   the world hides arcana backs from players (arcanaPlayersSeeBothSides off); is-revealed
-   marks a card the owning player can currently see. */
-.stonetop-arcanum-reveal-btn {
+/* The three arcana card-footer toggles share one base. `flex` is intentionally omitted here —
+   `.stonetop-arcanum-footer > button` above already sets flex:1 1 auto for all of them, so a
+   per-button `flex: 1` would be dead. Their individual behaviours:
+   • reveal   — GM-only "Reveal back to player" / "Hide back from player"; rendered only when the
+     world hides arcana backs (arcanaPlayersSeeBothSides off). is-revealed marks a card the owner
+     can currently see, and is styled red below since hiding takes that visibility away.
+   • showboth — "Show both sides" ⇄ "Show front only" spread toggle (GM always; a player once
+     permitted to see the back). Never exposes a back the viewer isn't permitted to see.
+   • flip     — "Show back" ⇄ "Show front" single-side view; stays neutral in both states. */
+.stonetop-arcanum-reveal-btn,
+.stonetop-arcanum-showboth-btn,
+.stonetop-arcanum-flip-btn {
 	font-size: var(--st-fs-xs);
 	padding: 2px 8px;
-	flex: 1;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	gap: 5px;
 }
 
-/* When a card is already revealed, this button's action is "Hide back from player" —
-   which takes away visibility the player had, so flag it red rather than the green
-   "active/on" treatment used by the show-both toggle. */
 .stonetop-arcanum-reveal-btn.is-revealed {
 	background: var(--st-red-bg);
 	border-color: var(--st-red-border);
@@ -4476,33 +4483,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-arcanum-reveal-btn.is-revealed:hover {
 	background: var(--st-red-bg-hover);
-}
-
-/* "Show both sides" ⇄ "Show front only" toggle (GM always; a player once permitted to see
-   the back). Rendered in and out of edit mode so a spread can be opened while reading in play.
-   Persists a per-card preference to lay the card out as a front|back spread; is-active marks a
-   card currently spread. Never exposes a back the viewer isn't permitted to see. */
-.stonetop-arcanum-showboth-btn {
-	font-size: var(--st-fs-xs);
-	padding: 2px 8px;
-	flex: 1;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 5px;
-}
-
-
-/* "Show back" ⇄ "Show front" single-side flip, left of the show-both toggle. Unlike show-both
-   it stays neutral in both states — flipping to the back is just a view, not an active mode. */
-.stonetop-arcanum-flip-btn {
-	font-size: var(--st-fs-xs);
-	padding: 2px 8px;
-	flex: 1;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 5px;
 }
 
 /* "Add as follower" button on a summoning arcanum's reverse (Blackwood Fetishes,
@@ -5169,22 +5149,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-left: auto;
 }
 
-/* Pin the "Starting move" label to the top-right of the row so it always sits
-   above the name — even when a long name wraps onto its own line below the
-   dice/+stat controls — with a little breathing room from the top and right. */
-.tab.moves .stonetop-move-group .stonetop-item {
-	position: relative;
-}
+/* The source label ("Starting move", "Granted by Worldly · The Blessed", …)
+   stays in normal flow and rides the right edge via margin-left:auto (inherited
+   from the rule above), just like every other move source. The header wraps
+   (flex-wrap), so when the row is too narrow to fit the label beside the
+   controls/name it drops onto its own line rather than overlapping the +stat
+   chip — which is what a formerly-absolute, right-pinned label did once it grew
+   wider than any fixed reserved gutter. max-width caps it to the row so a long
+   label wraps its own text instead of overflowing when it lands on its own line. */
 .tab.moves .stonetop-move-group .stonetop-item-source {
-	position: absolute;
-	top: 4px;
-	right: 6px;
-	margin: 0;
-}
-/* Reserve room on the right of labeled rows so the name (which can sit on the
-   first line) never slides under the pinned label. */
-.tab.moves .stonetop-move-group .stonetop-item:has(.stonetop-item-source) .stonetop-item-header {
-	padding-right: 5.5em;
+	max-width: 100%;
 }
 
 .tab.moves .stonetop-item-description,
@@ -5399,6 +5373,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-toggle-thumb i {
+	/* Anchored to the fixed-px --thumb-size thumb, so it ignores the font-size setting. */
 	font-size: 8px;
 	color: var(--st-text-faint);
 	transition: color 250ms ease;
@@ -5662,10 +5637,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* ── Special Moves tab ─────────────────────────────────────────── */
 
+/* Multi-column (masonry-style), matching the Moves tab's move list
+   (.stonetop-move-group .items-list): the cards flow into two columns that stay
+   two columns as the tab narrows — each column just gets thinner — instead of the
+   old flex-wrap, which dropped to a single stacked column the moment two rigid
+   ~320px cards no longer fit. break-inside:avoid keeps a card whole across the
+   column break; the vertical gap lives on the card's margin (multicol has no
+   row-gap), the horizontal gap on column-gap. */
 .stonetop-special-move-grid {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 12px;
+	columns: 2;
+	column-gap: 12px;
 	padding: 8px 0;
 }
 
@@ -5673,6 +5654,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
+	margin-bottom: 12px;
+	break-inside: avoid;
 	padding: 12px 14px;
 	border: 1px solid var(--color-border-light-2);
 	border-radius: var(--st-radius);
@@ -5824,9 +5807,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .asm-info:hover,
 .asm-randomize:hover {
-	background: slategrey;
-	border-color: #4f5b66;
-	color: #fff;
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
 }
 
 .stonetop-asm-home-info-dialog .dialog-content {
@@ -11248,10 +11231,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	min-width: 0; /* let the column shrink instead of overflowing on a narrow sheet */
 }
 /* Roster takes the greater share of the width; the rules column stays a touch
-   narrower. Below ~650px the two bases no longer fit on one line, so both wrap to
-   full width and stack — roster first, then the rules. */
-.stonetop-followers-roster { flex: 3 1 340px; }
-.stonetop-followers-rules  { flex: 2 1 300px; }
+   narrower. The bases set the wrap threshold (basis sum ~460px): kept deliberately
+   low so the two columns stay side by side within the sheet's 800px min-width even
+   though the always-present, non-shrinking moves sidebar (width:max-content) eats
+   ~250px of the row. flex-grow (3:2) still fills the real width on a wide sheet;
+   only a genuinely narrow tab body wraps them to a single full-width stack. Raising
+   these bases pushes the wrap point back past 800px, which is what made the follower
+   card jump to full width and shove the Follower Special Moves card to the bottom. */
+.stonetop-followers-roster { flex: 3 1 260px; }
+.stonetop-followers-rules  { flex: 2 1 200px; }
 
 .stonetop-follower-card {
 	position: relative; /* anchor for the card-level edit pencil */
@@ -11352,7 +11340,65 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-follower-order-row {
 	display: flex;
 	justify-content: flex-end;
+	gap: 6px;
+	flex-wrap: wrap;
 	margin-top: 6px;
+}
+/* A named crew member's own Order button (roster). */
+.stonetop-crew-individual-order {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 4px;
+}
+/* Recover-the-whole-group button, pinned to the end of a roster section. */
+.stonetop-crew-recover-row {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 8px;
+}
+/* Spend-Loyalty / Spend-Readiness chooser dialogs. */
+.stonetop-spend-form {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.stonetop-spend-choice {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 4px 6px;
+	border-radius: var(--st-radius-sm);
+	cursor: pointer;
+}
+.stonetop-spend-choice:hover { background: rgba(112, 128, 144, 0.12); }
+.stonetop-spend-choice--unwilling {
+	margin-top: 4px;
+	border-top: 1px dashed rgba(112, 128, 144, 0.4);
+	padding-top: 8px;
+}
+.stonetop-spend-note {
+	margin: 4px 0 0;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted, #6b5d4f);
+}
+/* Group toggle rows in the create / convert dialogs. */
+.stonetop-cf-group-label,
+.stonetop-mf-group-label {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.stonetop-cf-group-size-row,
+.stonetop-mf-group-size-row {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--st-fs-xs);
+}
+.stonetop-cf-input--num {
+	width: 3.5em;
+	text-align: center;
 }
 .stonetop-follower-order {
 	display: inline-flex;          /* V13 core sets button{display:flex}; keep it from stretching */
@@ -11445,26 +11491,36 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 .stonetop-order-followers-dialog .stonetop-of-readout i { margin-right: 4px; opacity: 0.8; }
 
-/* Strengthen Your Bond "Pay cost" button, sat after the Loyalty pips. Reuses the
-   .stonetop-inline-btn pill; just needs spacing + a muted disabled (at-max) look. */
-.stonetop-pay-cost { margin-left: 8px; }
-.stonetop-pay-cost:disabled { opacity: 0.45; cursor: default; }
-.stonetop-pay-cost:disabled:hover { background: transparent; }
-.stonetop-pay-cost-note { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
-
 /* Per-follower Readiness circles (non-crew). Compact inline row mirroring the
-   crew's group-fight Readiness. */
-.stonetop-follower-readiness-controls {
+   crew's group-fight Readiness. Loyalty (its own line under Cost) shares the same
+   pips + Spend layout. */
+.stonetop-follower-readiness-controls,
+.stonetop-follower-loyalty-controls {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 	flex-wrap: wrap;
 }
+/* Keep the label, the pip track, and the Spend button all on one vertically-
+   centered line: the field-row's default `align-items: baseline` would otherwise
+   sit the text label off the round pips and drop the button below them. */
+.stonetop-follower-field-row.stonetop-follower-loyalty-row,
+.stonetop-follower-field-row.stonetop-follower-readiness-row {
+	align-items: center;
+}
+/* Push the Spend button to the far right of its line, so the row reads
+   "Loyalty ◯◯◯        Spend" — label + pips on the left, Spend hard right. */
+.stonetop-follower-loyalty-controls .stonetop-spend-loyalty,
+.stonetop-follower-readiness-controls .stonetop-spend-readiness {
+	margin-left: auto;
+}
+/* Readiness carries an explanatory note; give it its own full-width line beneath
+   the pips + Spend so it never shares (and splits) that line. */
 .stonetop-follower-readiness-note {
 	font-size: var(--st-fs-xs);
 	font-style: italic;
 	color: var(--st-text-muted);
-	flex: 1 1 12em;
+	flex: 1 1 100%;
 	min-width: 0;
 }
 
@@ -12274,12 +12330,6 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	border-bottom: 1px dotted rgba(0, 0, 0, 0.18);
 }
 
-.stonetop-follower-loyalty-statline {
-	flex: 0 0 auto;
-	min-width: 0;
-	align-items: center;
-}
-
 /* Crew option pickers (edit mode): the playbook's tag list as toggle chips, and
    the instinct / cost lists as pick-one radio rows — the choices printed on the
    Crew sheet in the rulebook. */
@@ -13010,7 +13060,7 @@ li.question-bullet {
 	flex: none;
 }
 
-/* Keep Cancel left and Add right, styled like onboarding buttons */
+/* Add sits left, Cancel right (the global [data-button] order rules); styled like onboarding buttons */
 .stonetop-individual-dialog .dialog-buttons {
 	justify-content: space-between;
 	align-items: center;
@@ -13036,12 +13086,14 @@ li.question-bullet {
 }
 
 .stonetop-individual-dialog .dialog-buttons [data-button="add"] {
-	background: slategrey;
-	color: white;
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
 }
 
 .stonetop-individual-dialog .dialog-buttons [data-button="add"]:hover {
-	background: hsl(210 13% 47%);
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
 }
 
 .stonetop-individual-dialog .dialog-buttons [data-button="cancel"]:hover {
@@ -13134,6 +13186,94 @@ li.question-bullet {
 	font-style: italic;
 }
 
+/* Damage edit row: the damage input with the "uses ammo" opt-in beside it. The
+   opt-in reveals the ammo track (below) for a ranged follower. */
+.stonetop-follower-damage-edit {
+	display: flex;
+	flex: 1 1 auto;
+	min-width: 0;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+.stonetop-follower-uses-ammo {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 5px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	cursor: pointer;
+	white-space: nowrap;
+}
+.stonetop-follower-uses-ammo.is-checked {
+	color: var(--st-text-strong, #3a2f25);
+	font-weight: 600;
+}
+
+/* Follower ammo track (◇ low ammo / ◇ all out), opted into by the Damage
+   section's "uses ammo" toggle. Each label carries a fillable circle — the ○
+   ammo mark that ranged weapons use — matching the loyalty / readiness pips. */
+.stonetop-follower-ammo-controls {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+.stonetop-follower-ammo-check {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: var(--st-fs-xs);
+	cursor: pointer;
+}
+.stonetop-follower-ammo-check.is-checked {
+	color: var(--st-text-strong, #3a2f25);
+	font-weight: 600;
+}
+.vtt .window-app input[type=checkbox].stonetop-follower-ammo-input {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	flex: none !important;
+	width: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	border: 1.5px solid slategrey !important;
+	border-radius: 50% !important;
+	background: transparent !important;
+	margin: 0 !important;
+	padding: 0;
+	cursor: pointer;
+	transition: background 0.12s;
+}
+.vtt .window-app input[type=checkbox].stonetop-follower-ammo-input:checked {
+	background: slategrey !important;
+}
+.vtt .window-app input[type=checkbox].stonetop-follower-ammo-input:hover {
+	background: rgba(112, 128, 144, 0.45) !important;
+}
+
+/* Monster-sheet group-fight tools (No. appearing + outnumber calculator). */
+.stonetop-monster-group-fight-section {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.stonetop-monster-outnumber-row {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: var(--st-fs-sm);
+}
+.stonetop-monster-outnumber-yours,
+.stonetop-monster-outnumber-theirs {
+	width: 46px;
+	text-align: center;
+}
+.stonetop-monster-outnumber-result { color: slategrey; font-style: italic; white-space: nowrap; }
+.stonetop-monster-group-dmg-label { color: slategrey; }
+.stonetop-monster-count-input { width: 5em; }
+
 .stonetop-outnumber-result {
 	font-style: italic;
 	color: #5a7a3a;
@@ -13176,6 +13316,25 @@ li.question-bullet {
 .stonetop-stat-picker-dialog .dialog-buttons button {
 	width: 100%;
 	white-space: nowrap;
+}
+
+.stonetop-foreign-move-dialog .stonetop-foreign-move-select {
+	width: 100%;
+	margin: 6px 0;
+}
+
+/* Live preview of the highlighted foreign move's text; scrolls when long. */
+.stonetop-foreign-move-dialog .stonetop-foreign-move-desc {
+	max-height: 220px;
+	overflow-y: auto;
+	padding: 6px 10px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.02);
+}
+
+.stonetop-foreign-move-dialog .stonetop-foreign-move-desc:empty {
+	display: none;
 }
 
 .stonetop-individual-trait-chip {
@@ -13473,14 +13632,14 @@ li.question-bullet {
    breaks onto two lines. Foundry's setPosition() reads the app root's computed
    min-width when resizing, so the rule lives on the window element (.app.window-app
    + the `monster` class from the sheet's defaultOptions). */
-.window-app.monster {
+.window-app.stonetop.monster {
 	min-width: 700px;
 }
 
 /* The window auto-fits its content height (see StonetopMonsterSheet
    defaultOptions). Keep the body scrollable so an unusually tall stat block
    still stays contained if it exceeds the viewport. */
-.window-app.monster .window-content {
+.window-app.stonetop.monster .window-content {
 	overflow-y: auto;
 }
 
@@ -17804,4 +17963,44 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding: 4px 14px;
 	font-size: var(--st-fs-sm);
 	cursor: pointer;
+}
+
+/* ── Pin modal footers to the bottom ──────────────────────────────────────
+   Foundry makes each dialog template's outer wrapper fill the window
+   (core `.window-content > * { flex: 1 }`), so when a window is dragged
+   taller than its content the wrapper grows but the action-button footer was
+   left sitting directly under the content — floating mid-window instead of
+   staying at the bottom. Push these footers down with margin-top:auto (a few
+   wrappers need to become flex columns first). Scoped under each dialog root
+   so specificity beats the existing per-footer margin rules.
+   Already-pinned dialogs (level-up, welcome, end-of-session, outfit,
+   expedition, spring/guide family) have a flex:1 scroll region before the
+   footer and need nothing here. */
+
+/* Block wrappers → flex columns so margin-top:auto on the footer takes effect. */
+.stonetop-requisition .stonetop-requisition-picker,
+.stonetop-special-item-picker .stonetop-special-picker,
+.stonetop-charintro-dialog .stonetop-charintro {
+	display: flex;
+	flex-direction: column;
+}
+
+/* Share reuses the guide layout but isn't a .stonetop-spring-dialog, so its
+   scroll region never inherited flex:1 — give it that, matching the spring nav. */
+.stonetop-share-dialog .stonetop-share .stonetop-guide-main {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/* Pin each footer row to the bottom of its (filling) flex-column wrapper. */
+.stonetop-custom-move-dialog .stonetop-custom-move-actions,
+.stonetop-requisition .stonetop-requisition-actions,
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer,
+.stonetop-charintro-dialog .stonetop-charintro-actions,
+.stonetop-possession-choices-dialog .stonetop-pc-footer,
+.stonetop-special-item-picker .stonetop-special-picker-actions,
+.stonetop-add-member-dialog .asm-footer,
+.stonetop-weather-dialog .stonetop-weather-roll-wrap {
+	margin-top: auto;
 }

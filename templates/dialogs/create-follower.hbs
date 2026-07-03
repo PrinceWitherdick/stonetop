@@ -21,7 +21,11 @@
       {{#if is_concept}}
       <div class="stonetop-cf-field-grid">
         <label class="stonetop-cf-label">Name
-          <input type="text" class="stonetop-cf-input" data-field="name" value="{{sel.name}}" placeholder="their name…">
+          <input type="text" class="stonetop-cf-input" data-field="name" value="{{sel.name}}" placeholder="their name…"{{#if residentNames.length}} list="stonetop-cf-resident-names"{{/if}}>
+          {{#if residentNames.length}}
+          {{!-- Recruit a villager: suggest the linked steading's residents/neighbors. --}}
+          <datalist id="stonetop-cf-resident-names">{{#each residentNames}}<option value="{{this}}"></option>{{/each}}</datalist>
+          {{/if}}
         </label>
         <label class="stonetop-cf-label stonetop-cf-label--narrow">Pronoun
           <input type="text" class="stonetop-cf-input" data-field="pronoun" value="{{sel.pronoun}}" placeholder="she/he/they…" maxlength="12">
@@ -87,7 +91,17 @@
           {{/each}}
         </div>
       </div>
-      <div class="stonetop-cf-total"><i class="fas fa-heart"></i> <strong>{{hpTotal}} HP</strong></div>
+      <div class="stonetop-cf-total"><i class="fas fa-heart"></i> <strong>{{hpTotal}} HP</strong>{{#if isGroup}} <span class="stonetop-cf-pick-hint">each</span>{{/if}}</div>
+      {{!-- Group follower (p.470): a warband/posse shares these stats, but every
+            member tracks their own HP and the card gains the group-fight tools. --}}
+      <label class="stonetop-cf-label stonetop-cf-group-label">
+        <span><input type="checkbox" class="stonetop-cf-group-toggle" {{#if isGroup}}checked{{/if}}> This is a group of followers</span>
+        {{#if isGroup}}
+        <span class="stonetop-cf-group-size-row">of
+          <input type="number" class="stonetop-cf-input stonetop-cf-input--num stonetop-cf-group-size" value="{{groupSize}}" min="2" max="99"> members
+        </span>
+        {{/if}}
+      </label>
       {{/if}}
 
       {{#if is_armor}}
