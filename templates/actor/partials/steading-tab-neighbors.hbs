@@ -19,7 +19,6 @@
 				<div class="steading-residents-header">
 					<div class="steading-residents-header-cell steading-residents-col-name"><span class="steading-residents-header-label">Name</span></div>
 					<div class="steading-residents-header-cell steading-residents-col-occupation"><span class="steading-residents-header-label">Occupation</span></div>
-					<div class="steading-residents-header-cell steading-residents-col-traits"><span class="steading-residents-header-label">Traits</span></div>
 					<div class="steading-residents-header-cell steading-residents-col-relations"><span class="steading-residents-header-label">Relations</span></div>
 					<div class="steading-residents-header-cell steading-residents-col-notes"><span class="steading-residents-header-label">Notes</span></div>
 					<div class="steading-residents-header-cell steading-residents-col-actions"></div>
@@ -38,34 +37,26 @@
 								<i class="fas fa-user"></i>
 							</span>
 							{{/if}}
-							<span class="steading-player-name-text" title="{{name}}">{{name}}</span>
+							<span class="steading-player-name-text" data-tooltip="{{name}}">{{name}}</span>
 						</div>
-						<div class="steading-residents-col steading-residents-col-occupation">
+						<div class="steading-residents-col steading-residents-col-occupation" data-tooltip="{{#if @root.stonetop.edit.players}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="occupation" data-list="players" list="steading-occupation-suggestions"
 							       value="{{#if @root.stonetop.edit.players}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}"
-							       title="{{#if @root.stonetop.edit.players}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}"
 							       {{#if @root.stonetop.edit.players}}placeholder="Occupation or Playbook"{{/if}}
 							       {{#unless @root.stonetop.edit.players}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-traits">
-							<input type="text" class="steading-resident-input"
-							       data-index="{{@index}}" data-field="traits" data-list="players" list="steading-trait-suggestions"
-							       value="{{traits}}" title="{{traits}}"
-							       {{#if @root.stonetop.edit.players}}placeholder="Traits"{{/if}}
-							       {{#unless @root.stonetop.edit.players}}disabled{{/unless}}>
-						</div>
-						<div class="steading-residents-col steading-residents-col-relations">
+						<div class="steading-residents-col steading-residents-col-relations" data-tooltip="{{relations}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="relations" data-list="players"
-							       value="{{relations}}" title="{{relations}}"
+							       value="{{relations}}"
 							       {{#if @root.stonetop.edit.players}}placeholder="Relations"{{/if}}
 							       {{#unless @root.stonetop.edit.players}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-notes">
+						<div class="steading-residents-col steading-residents-col-notes" data-tooltip="{{notes}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="notes" data-list="players"
-							       value="{{notes}}" title="{{notes}}"
+							       value="{{notes}}"
 							       {{#if @root.stonetop.edit.players}}placeholder="Notes"{{/if}}
 							       {{#unless @root.stonetop.edit.players}}disabled{{/unless}}>
 						</div>
@@ -101,37 +92,37 @@
 					{{#each stonetop.residents}}
 					{{#if name}}
 					<li class="steading-residents-row">
-						<div class="steading-residents-col steading-residents-col-name">
+						<div class="steading-residents-col steading-residents-col-name steading-member-name-cell" data-tooltip="{{name}}">
+							<img class="steading-member-avatar" src="{{profileImg}}" data-name="{{name}}" alt="">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name"
-							       value="{{name}}" title="{{name}}" placeholder="Name" {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
+							       value="{{name}}" placeholder="Name" {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-occupation">
+						<div class="steading-residents-col steading-residents-col-occupation" data-tooltip="{{#if @root.stonetop.edit.residents}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="occupation" list="steading-occupation-suggestions"
 							       value="{{#if @root.stonetop.edit.residents}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}"
-							       title="{{#if @root.stonetop.edit.residents}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}"
 							       {{#if @root.stonetop.edit.residents}}placeholder="Occupation or Playbook"{{/if}}
 							       {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-traits">
+						<div class="steading-residents-col steading-residents-col-traits" data-tooltip="{{traits}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="traits" list="steading-trait-suggestions"
-							       value="{{traits}}" title="{{traits}}"
+							       value="{{traits}}"
 							       {{#if @root.stonetop.edit.residents}}placeholder="Traits"{{/if}}
 							       {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-relations">
+						<div class="steading-residents-col steading-residents-col-relations" data-tooltip="{{relations}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="relations"
-							       value="{{relations}}" title="{{relations}}"
+							       value="{{relations}}"
 							       {{#if @root.stonetop.edit.residents}}placeholder="Relations"{{/if}}
 							       {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-notes">
+						<div class="steading-residents-col steading-residents-col-notes" data-tooltip="{{notes}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="notes"
-							       value="{{notes}}" title="{{notes}}"
+							       value="{{notes}}"
 							       {{#if @root.stonetop.edit.residents}}placeholder="Notes"{{/if}}
 							       {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
 						</div>
@@ -208,43 +199,44 @@
 					{{#each stonetop.neighbors}}
 					{{#if name}}
 					<li class="steading-residents-row">
-						<div class="steading-residents-col steading-residents-col-name">
+						<div class="steading-residents-col steading-residents-col-name steading-member-name-cell" data-tooltip="{{name}}">
+							<img class="steading-member-avatar" src="{{profileImg}}" data-name="{{name}}" alt="">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name" data-list="neighbors"
-							       value="{{name}}" title="{{name}}" placeholder="Name" {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
+							       value="{{name}}" placeholder="Name" {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-home">
+						<div class="steading-residents-col steading-residents-col-home" data-tooltip="{{home}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="home" data-list="neighbors" list="steading-home-suggestions"
-							       value="{{home}}" title="{{home}}"
+							       value="{{home}}"
 							       {{#if @root.stonetop.edit.neighbors}}placeholder="Home"{{/if}}
 							       {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-occupation">
+						<div class="steading-residents-col steading-residents-col-occupation" data-tooltip="{{occupation}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="occupation" data-list="neighbors" list="steading-occupation-suggestions"
-							       value="{{occupation}}" title="{{occupation}}"
+							       value="{{occupation}}"
 							       {{#if @root.stonetop.edit.neighbors}}placeholder="Occupation or Playbook"{{/if}}
 							       {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-traits">
+						<div class="steading-residents-col steading-residents-col-traits" data-tooltip="{{traits}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="traits" data-list="neighbors" list="steading-trait-suggestions"
-							       value="{{traits}}" title="{{traits}}"
+							       value="{{traits}}"
 							       {{#if @root.stonetop.edit.neighbors}}placeholder="Traits"{{/if}}
 							       {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-relations">
+						<div class="steading-residents-col steading-residents-col-relations" data-tooltip="{{relations}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="relations" data-list="neighbors"
-							       value="{{relations}}" title="{{relations}}"
+							       value="{{relations}}"
 							       {{#if @root.stonetop.edit.neighbors}}placeholder="Relations"{{/if}}
 							       {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
 						</div>
-						<div class="steading-residents-col steading-residents-col-notes">
+						<div class="steading-residents-col steading-residents-col-notes" data-tooltip="{{notes}}">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="notes" data-list="neighbors"
-							       value="{{notes}}" title="{{notes}}"
+							       value="{{notes}}"
 							       {{#if @root.stonetop.edit.neighbors}}placeholder="Notes"{{/if}}
 							       {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
 						</div>

@@ -17,7 +17,7 @@
 
 				<div class="steading-improvement-header">
 					<label class="steading-improvement-complete-label{{#if completeLocked}} is-locked{{/if}}"
-					       data-tooltip="{{#if completeLocked}}Requirements not all met — tap to mark them complete and earn this improvement{{else}}Mark this improvement complete{{/if}}"
+					       data-tooltip="{{#if completeLocked}}Requirements not all met — tap to mark them complete, earn this improvement, and apply its effects{{else}}Mark complete — automatically applies its effects (Fortunes/Defenses, new resources, etc.){{/if}}"
 					       data-tooltip-direction="UP">
 						<input type="checkbox" class="steading-improvement-complete"
 						       data-slug="{{slug}}" {{#if completed}}checked{{/if}}>
@@ -55,6 +55,28 @@
 					{{/each}}
 
 					<div class="steading-improvement-effect">{{{effect}}}</div>
+
+					{{#if herd}}
+					<div class="steading-herd" data-slug="{{slug}}">
+						<div class="steading-herd-header">
+							<span class="steading-herd-title"><i class="fas fa-horse"></i> The Herd</span>
+							<span class="steading-herd-total">Total <strong>{{herd.total}}</strong></span>
+						</div>
+						<div class="steading-herd-tiers">
+							{{#each herd.tiers}}
+							<div class="steading-herd-tier">
+								<span class="steading-herd-tier-label">{{label}} <span class="steading-herd-tier-value">V{{value}}</span></span>
+								<div class="steading-herd-stepper">
+									<button type="button" class="steading-herd-step" data-slug="{{../slug}}" data-tier="{{key}}" data-delta="-1" {{#unless @root.stonetop.canEdit}}disabled{{/unless}} aria-label="Fewer {{label}}"><i class="fas fa-minus"></i></button>
+									<input type="number" class="steading-herd-input" data-slug="{{../slug}}" data-tier="{{key}}" value="{{count}}" min="0" {{#unless @root.stonetop.canEdit}}disabled{{/unless}}>
+									<button type="button" class="steading-herd-step" data-slug="{{../slug}}" data-tier="{{key}}" data-delta="1" {{#unless @root.stonetop.canEdit}}disabled{{/unless}} aria-label="More {{label}}"><i class="fas fa-plus"></i></button>
+								</div>
+							</div>
+							{{/each}}
+						</div>
+						<p class="steading-herd-hint">Summer promotes each tier and adds 1d4+Fortunes foals; winter feeds off grown + yearlings. Run it via <em>Seasons Change</em>.</p>
+					</div>
+					{{/if}}
 				</div>
 
 			</div>

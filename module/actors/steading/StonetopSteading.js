@@ -1,6 +1,8 @@
 import {resolvedFlagProperty, STONETOP_SCOPE} from "../character/StonetopFlags.js";
-import {slugify} from "../../utils/strings.js";
+import {isDefaultImg, slugify} from "../../utils/strings.js";
 import {OCCUPATIONS, TRAITS, HOMES} from "../../data/steading-members.js";
+
+const DEFAULT_MEMBER_AVATAR = "systems/stonetop_pwd/assets/icons/people/default_profile.svg";
 
 export const IMPROVEMENT_DEFINITIONS = [
 	// ── Page 2 ──────────────────────────────────────────────────
@@ -369,6 +371,71 @@ export const IMPROVEMENT_DEFINITIONS = [
 	},
 ];
 
+/**
+ * The immediate, mechanical, one-time effects applied automatically when a
+ * built-in improvement is marked complete (and reversed when it's un-completed),
+ * keyed by improvement slug. Only the parts of an improvement's `effect` prose
+ * that map cleanly to sheet state live here; the ongoing "Henceforth…" rules and
+ * map/asset bookkeeping stay as prose reminders on the card. Improvements whose
+ * only effect is conditional or narrative (heroicReputation, wellTrainedMilitia)
+ * are intentionally absent — nothing is auto-applied for them.
+ *
+ *   stats                — integer deltas to fortunes / defenses / prosperity / population
+ *   resources            — names appended to the Resources list (as active/checked)
+ *   fortifications       — names appended to the Fortifications list (as active/checked)
+ *   removeFortifications — names cleared from the Fortifications list, if present
+ *   setSize              — set the steading's Size
+ *   setPopulation        — set Population to an exact value
+ */
+export const IMPROVEMENT_GRANTS = {
+	additionalHousing: { stats: { fortunes: 1 } },
+	aurochsHunting:    { resources: ["Aurochs hunting (meat, hide, horn)"] },
+	expandedTrades:    { stats: { prosperity: 1 } },
+	greaterHarvest:    { stats: { fortunes: 1 } },
+	harnessingStream:  { stats: { fortunes: 1 }, resources: ["Harnessing the Stream"] },
+	herdOfHorses:      { stats: { fortunes: 1 } },
+	inn:               { stats: { fortunes: 1 }, resources: ["Inn"] },
+	market:            { stats: { prosperity: 1 } },
+	mill:              { stats: { fortunes: 1 }, resources: ["Mill"] },
+	palisade:          { stats: { fortunes: 1 }, fortifications: ["Palisade"] },
+	raincatching:      { stats: { fortunes: 1 }, resources: ["Raincatching"] },
+	standingWatch:     { fortifications: ["Standing Watch"] },
+	stoneWall:         { fortifications: ["Stone Wall"], removeFortifications: ["Palisade"] },
+	township:          { setSize: "town", setPopulation: 0 },
+	weaponsOfWar:      { stats: { defenses: 1 }, fortifications: ["Weapons of War"] },
+};
+
+/** System-data path (relative to `system.`) for each stat an improvement grant can bump. */
+const GRANT_STAT_PATHS = {
+	fortunes:   "stats.fortunes.value",
+	defenses:   "stats.defenses.value",
+	prosperity: "attributes.prosperity.value",
+	population: "attributes.population.value",
+};
+
+const GRANT_STAT_LABELS = {
+	fortunes: "Fortunes",
+	defenses: "Defenses",
+	prosperity: "Prosperity",
+	population: "Population",
+};
+
+/**
+ * The Herd of Horses improvement tracks its herd in three age tiers (Book I). When the
+ * Seasons Change to summer, yearlings become grown horses, foals become yearlings, and
+ * the herd gains 1d4+Fortunes new foals; in winter the herd eats 1 Surplus per 6 grown
+ * or yearling horses, losing 1d6 per Surplus it can't be fed.
+ */
+export const HERD_TIERS = [
+	{ key: "grown",     label: "Grown horses", value: 3 },
+	{ key: "yearlings", label: "Yearlings",    value: 2 },
+	{ key: "foals",     label: "Foals",        value: 1 },
+];
+/** Starting herd when the improvement is earned — "a small herd of horses, about a dozen". */
+export const HERD_START = { grown: 12, yearlings: 0, foals: 0 };
+/** Winter: the herd consumes 1 Surplus for every this-many grown-or-yearling horses. */
+export const HERD_SURPLUS_PER = 6;
+
 /** Lower-cased built-in improvement labels, used to reject custom dupes of a book improvement. */
 const BUILTIN_IMPROVEMENT_LABELS = new Set(IMPROVEMENT_DEFINITIONS.map(d => d.label.toLowerCase()));
 
@@ -610,6 +677,293 @@ export class StonetopSteading {
 		return true;
 	}
 
+	/**
+	 * Mark an improvement complete (or not) and, in the same actor update, auto-apply
+	 * (or reverse) its one-time mechanical grants — stat bumps, Resources/Fortifications
+	 * additions, size/population changes (see IMPROVEMENT_GRANTS). What was actually
+	 * applied is recorded on the improvement's own tracking entry (`applied`) so
+	 * un-completing reverses exactly that, and so re-completing never double-applies.
+	 * Bundling everything into one update keeps the ledger entries adjacent (e.g.
+	 * "Improvement completed: Raincatching", "Fortunes 1 → 2", "Resource added:
+	 * Raincatching") and makes the whole thing atomic and undoable.
+	 *
+	 * @param {string} slug
+	 * @param {boolean} checked  Completing (true) or un-completing (false).
+	 * @param {{forceR?: Array<boolean>}} [opts]  Overwrite the requirement-tracking array
+	 *   (used when the user force-completes an improvement whose steps aren't all met).
+	 * @returns {{label: string, summary: string[], reverted: boolean}}  A description of
+	 *   the auto-applied (or reversed) changes, for a user-facing notification.
+	 */
+	async setImprovementCompleted(slug, checked, { forceR } = {}) {
+		const def = this.improvementDef(slug);
+		const grants = IMPROVEMENT_GRANTS[slug] ?? null;
+		const improvements = foundry.utils.deepClone(this._flags.improvements ?? {});
+		const entry = improvements[slug] ?? { completed: false, r: [] };
+		if (Array.isArray(forceR)) entry.r = forceR;
+
+		// Back-fill for improvements completed under a version BEFORE this grants engine:
+		// such an entry is `completed:true` with no `applied` record, and its book effect
+		// was applied by hand. Record the presumed-applied effects (running the collector
+		// against a throwaway payload so nothing is re-written) so the first toggle
+		// reverses/re-applies symmetrically instead of double-counting the stat bump. A
+		// fresh completion — `entry.completed` still false here — skips this untouched.
+		if (grants && entry.completed && entry.applied === undefined) {
+			entry.applied = this._collectGrantEffects(grants, {});
+		}
+
+		const data = {};
+		let summary = [];
+		let reverted = false;
+
+		if (checked) {
+			entry.completed = true;
+			// Apply grants once, on the transition into completion. `applied` gates against
+			// re-applying if a completed improvement is toggled complete again somehow.
+			if (grants && !entry.applied) {
+				const applied = this._collectGrantEffects(grants, data);
+				entry.applied = Object.keys(applied).length ? applied : null;
+				summary = this._summarizeGrantChanges(entry.applied);
+			}
+		} else {
+			entry.completed = false;
+			if (entry.applied) {
+				this._revertGrantEffects(entry.applied, data);
+				summary = this._summarizeGrantChanges(entry.applied);
+				reverted = true;
+				// Null (not delete): a merged flag write can't drop a sub-key, so overwrite it.
+				entry.applied = null;
+			}
+		}
+
+		// Herd of Horses tracks a herd of horses ("make a note of its size"). Seed a
+		// starting herd once, when first earned; never auto-remove it on un-complete, so
+		// the counts the table has kept up across seasons aren't wiped by a mistaken
+		// toggle. It lives in its own flag (not the reversible grant record) for that reason.
+		if (slug === "herdOfHorses" && checked && !this._flags.herd) {
+			data[`flags.${STONETOP_SCOPE}.steading.herd`] = { ...HERD_START };
+		}
+
+		improvements[slug] = entry;
+		data[`flags.${STONETOP_SCOPE}.steading.improvements`] = improvements;
+		await this._actor.update(data);
+
+		return { label: def?.label ?? slug, summary, reverted };
+	}
+
+	/**
+	 * The steading's tracked Herd of Horses, normalized to non-negative integer tiers
+	 * with a computed total. Defaults to the starting herd when no counts are stored yet
+	 * (e.g. a herd earned before this tracker existed) so the tracker and season math
+	 * always have real numbers to work with.
+	 */
+	getHerd() {
+		const h = this._flags.herd;
+		const tier = (key) => Math.max(0, Math.trunc(Number(h ? h[key] : HERD_START[key]) || 0));
+		const grown = tier("grown"), yearlings = tier("yearlings"), foals = tier("foals");
+		return { grown, yearlings, foals, total: grown + yearlings + foals };
+	}
+
+	/**
+	 * Persist the herd tiers (each clamped ≥ 0). Pass `options.stonetopMove` to attribute
+	 * the change to a move (e.g. "Seasons Change") in the ledger.
+	 */
+	async setHerd(counts, options = {}) {
+		const clean = {
+			grown: Math.max(0, Math.trunc(Number(counts.grown) || 0)),
+			yearlings: Math.max(0, Math.trunc(Number(counts.yearlings) || 0)),
+			foals: Math.max(0, Math.trunc(Number(counts.foals) || 0)),
+		};
+		await this._actor.update({ [`flags.${STONETOP_SCOPE}.steading.herd`]: clean }, options);
+		return { ...clean, total: clean.grown + clean.yearlings + clean.foals };
+	}
+
+	/** Herd shaped for the improvement card: the three tiers (with labels/Values) plus total. */
+	_herdView() {
+		const herd = this.getHerd();
+		return { ...herd, tiers: HERD_TIERS.map((t) => ({ ...t, count: herd[t.key] })) };
+	}
+
+	/**
+	 * The summer herd advancement (pure): yearlings→grown, foals→yearlings, and
+	 * `newFoals` (already rolled = max(0, 1d4+Fortunes)) become the new foals. Returns
+	 * the next tiers so the caller can persist + report.
+	 */
+	static advanceHerdForSummer(herd, newFoals) {
+		return {
+			grown: (herd.grown || 0) + (herd.yearlings || 0),
+			yearlings: herd.foals || 0,
+			foals: Math.max(0, Math.trunc(Number(newFoals) || 0)),
+		};
+	}
+
+	/** Winter Surplus needed to feed the herd (pure): 1 per HERD_SURPLUS_PER grown-or-yearling
+	 *  horses. Shared by feedHerdForWinter and the sheet's pre-roll shortfall/dice-count check. */
+	static herdWinterCost(herd) {
+		return Math.floor(((herd?.grown || 0) + (herd?.yearlings || 0)) / HERD_SURPLUS_PER);
+	}
+
+	/**
+	 * The winter herd feeding (pure): the herd needs 1 Surplus per HERD_SURPLUS_PER
+	 * grown-or-yearling horses. `availableSurplus` is fed first; `losses` (already rolled
+	 * = sum of 1d6 per unfed Surplus) horses are then removed, taking from the oldest
+	 * tiers first (grown → yearlings → foals). Returns what to write and a breakdown.
+	 */
+	static feedHerdForWinter(herd, availableSurplus, losses = 0) {
+		const cost = StonetopSteading.herdWinterCost(herd);
+		const paid = Math.max(0, Math.min(cost, Math.max(0, availableSurplus)));
+		const shortfall = cost - paid;
+		let toRemove = Math.max(0, Math.trunc(Number(losses) || 0));
+		const next = { grown: herd.grown || 0, yearlings: herd.yearlings || 0, foals: herd.foals || 0 };
+		for (const key of ["grown", "yearlings", "foals"]) {
+			const take = Math.min(next[key], toRemove);
+			next[key] -= take;
+			toRemove -= take;
+		}
+		return { cost, paid, shortfall, herd: next, lost: (herd.grown + herd.yearlings + herd.foals) - (next.grown + next.yearlings + next.foals) };
+	}
+
+	/** True when `list` already holds an entry with this name (case-insensitive). */
+	_listHasName(list, name) {
+		const target = String(name).trim().toLowerCase();
+		return list.some(e => String(e?.name ?? "").trim().toLowerCase() === target);
+	}
+
+	/** Add a named entry to a steading list, filling the first empty slot or appending. */
+	_addNamedToList(list, name, checked = true) {
+		const emptyIdx = list.findIndex(e => !String(e?.name ?? "").trim());
+		if (emptyIdx >= 0) list[emptyIdx] = { ...list[emptyIdx], name, checked };
+		else list.push({ name, checked });
+	}
+
+	/** Clear the first entry matching `name` (case-insensitive) in place; return it, or null. */
+	_clearNamedInList(list, name) {
+		const target = String(name).trim().toLowerCase();
+		const idx = list.findIndex(e => String(e?.name ?? "").trim().toLowerCase() === target);
+		if (idx < 0) return null;
+		const removed = list[idx];
+		list[idx] = { ...list[idx], name: "", checked: false };
+		return removed;
+	}
+
+	/**
+	 * Build the `system.*`/flag updates for an improvement's grants into `data` and
+	 * return a compact record of exactly what changed, so it can be reversed later.
+	 */
+	_collectGrantEffects(grants, data) {
+		const applied = {};
+		const scope = STONETOP_SCOPE;
+
+		if (grants.stats) {
+			const stats = {};
+			for (const [key, delta] of Object.entries(grants.stats)) {
+				const path = GRANT_STAT_PATHS[key];
+				if (!path || !delta) continue;
+				const next = Number(this.getSystemValue(path, 0)) + delta;
+				data[`system.${path}`] = next;
+				data[`flags.${scope}.steading.system.${path}`] = next;
+				stats[key] = delta;
+			}
+			if (Object.keys(stats).length) applied.stats = stats;
+		}
+
+		// Resources and Fortifications: additions (Fortifications may also remove entries).
+		for (const listKey of ["resources", "fortifications"]) {
+			const additions = grants[listKey] ?? [];
+			const removals = listKey === "fortifications" ? (grants.removeFortifications ?? []) : [];
+			if (!additions.length && !removals.length) continue;
+
+			const list = foundry.utils.deepClone(this._flags[listKey] ?? STEADING_DEFAULTS[listKey]);
+			let touched = false;
+
+			const added = [];
+			for (const name of additions) {
+				if (this._listHasName(list, name)) continue; // idempotent — don't duplicate an existing entry
+				this._addNamedToList(list, name, true);
+				added.push(name);
+				touched = true;
+			}
+			if (added.length) applied[listKey] = added;
+
+			const removed = [];
+			for (const name of removals) {
+				const gone = this._clearNamedInList(list, name);
+				if (gone) { removed.push({ name: gone.name, checked: !!gone.checked }); touched = true; }
+			}
+			if (removed.length) applied.removedFortifications = removed;
+
+			if (touched) data[`flags.${scope}.steading.${listKey}`] = list;
+		}
+
+		if (grants.setSize) {
+			const from = this._flags.size ?? STEADING_DEFAULTS.size;
+			if (from !== grants.setSize) {
+				data[`flags.${scope}.steading.size`] = grants.setSize;
+				applied.setSize = { from, to: grants.setSize };
+			}
+		}
+
+		if (Number.isFinite(grants.setPopulation)) {
+			const from = Number(this.getSystemValue("attributes.population.value", 0));
+			if (from !== grants.setPopulation) {
+				data["system.attributes.population.value"] = grants.setPopulation;
+				data[`flags.${scope}.steading.system.attributes.population.value`] = grants.setPopulation;
+				applied.setPopulation = { from, to: grants.setPopulation };
+			}
+		}
+
+		return applied;
+	}
+
+	/** Reverse a previously-applied grant record into `data` (negate stats, remove added
+	 *  list entries, restore removed ones, roll size/population back). */
+	_revertGrantEffects(applied, data) {
+		const scope = STONETOP_SCOPE;
+
+		if (applied.stats) {
+			for (const [key, delta] of Object.entries(applied.stats)) {
+				const path = GRANT_STAT_PATHS[key];
+				if (!path) continue;
+				const next = Number(this.getSystemValue(path, 0)) - delta;
+				data[`system.${path}`] = next;
+				data[`flags.${scope}.steading.system.${path}`] = next;
+			}
+		}
+
+		for (const listKey of ["resources", "fortifications"]) {
+			const addedNames = applied[listKey] ?? [];
+			const restore = listKey === "fortifications" ? (applied.removedFortifications ?? []) : [];
+			if (!addedNames.length && !restore.length) continue;
+			const list = foundry.utils.deepClone(this._flags[listKey] ?? STEADING_DEFAULTS[listKey]);
+			for (const name of addedNames) this._clearNamedInList(list, name);
+			for (const item of restore) this._addNamedToList(list, item.name, item.checked);
+			data[`flags.${scope}.steading.${listKey}`] = list;
+		}
+
+		if (applied.setSize) data[`flags.${scope}.steading.size`] = applied.setSize.from;
+
+		if (applied.setPopulation) {
+			data["system.attributes.population.value"] = applied.setPopulation.from;
+			data[`flags.${scope}.steading.system.attributes.population.value`] = applied.setPopulation.from;
+		}
+	}
+
+	/** Human-readable one-liners describing an `applied` grant record, for a notification. */
+	_summarizeGrantChanges(applied) {
+		if (!applied) return [];
+		const parts = [];
+		if (applied.stats) {
+			for (const [key, delta] of Object.entries(applied.stats)) {
+				parts.push(`${GRANT_STAT_LABELS[key] ?? key} ${delta >= 0 ? "+" : "−"}${Math.abs(delta)}`);
+			}
+		}
+		if (applied.resources?.length) parts.push(`Resources +${applied.resources.join(", ")}`);
+		if (applied.fortifications?.length) parts.push(`Fortifications +${applied.fortifications.join(", ")}`);
+		if (applied.removedFortifications?.length) parts.push(`Fortifications −${applied.removedFortifications.map(e => e.name).join(", ")}`);
+		if (applied.setSize) parts.push(`Size → ${applied.setSize.to}`);
+		if (applied.setPopulation) parts.push(`Population → ${applied.setPopulation.to}`);
+		return parts;
+	}
+
 	/** Named assets that are currently on hand (have a name and are not out on requisition). */
 	getAvailableAssets() {
 		const assets = this._flags.assets ?? STEADING_DEFAULTS.assets;
@@ -648,26 +1002,41 @@ export class StonetopSteading {
 
 		const allActors = (typeof game !== "undefined" && game?.actors) ? game.actors : { filter: () => [], get: () => null };
 		const allCharacters = allActors.filter(a => a.type === "character");
+		// One lowercase-name index reused for every resident/neighbor/player lookup below,
+		// rather than a fresh linear scan (with per-name toLowerCase) per entry each render.
+		const characterByName = new Map();
+		for (const a of allCharacters) {
+			const key = a.name?.toLowerCase();
+			if (key && !characterByName.has(key)) characterByName.set(key, a);
+		}
+
+		const profileImgFor = (entry) => {
+			const storedImg = entry?.img ?? "";
+			if (!isDefaultImg(storedImg)) return storedImg;
+			const name = entry?.name?.trim().toLowerCase();
+			if (!name) return DEFAULT_MEMBER_AVATAR;
+			const actor = characterByName.get(name);
+			return actor && !isDefaultImg(actor.img) ? actor.img : DEFAULT_MEMBER_AVATAR;
+		};
 
 		const rawResidents = f.residents ?? STEADING_DEFAULTS.residents;
 		const residents = rawResidents.map(r => {
 			const resolvedOccupation = r.occupation
 				|| (r.name
-					? (allCharacters.find(a => a.name?.toLowerCase() === r.name.toLowerCase())
-						?.system?.playbook?.name ?? "")
+					? (characterByName.get(r.name.toLowerCase())?.system?.playbook?.name ?? "")
 					: "");
-			return { ...r, notes: r.notes ?? r.etc ?? "", resolvedOccupation };
+			return { ...r, notes: r.notes ?? r.etc ?? "", resolvedOccupation, profileImg: profileImgFor(r) };
 		});
 
 		const rawNeighbors = f.neighbors ?? STEADING_DEFAULTS.neighbors;
-		const neighbors = rawNeighbors.map(n => ({ home: "", ...n, notes: n.notes ?? n.etc ?? "" }));
+		const neighbors = rawNeighbors.map(n => ({ home: "", ...n, notes: n.notes ?? n.etc ?? "", profileImg: profileImgFor(n) }));
 
 		const rawPlayers = f.players ?? STEADING_DEFAULTS.players;
 		const players = rawPlayers.map(p => {
 			// Resolve the live character so we can surface their playbook — by stored
 			// id first, then name (drag-added players carry an id; older ones may not).
 			const actor = (p.id ? allActors.get(p.id) : null)
-				|| (p.name ? allCharacters.find(a => a.name?.toLowerCase() === p.name.toLowerCase()) : null)
+				|| (p.name ? characterByName.get(p.name.toLowerCase()) : null)
 				|| null;
 			// A playbook isn't an occupation — players may hold any job — so the
 			// Occupation column shows only an explicit occupation; the playbook name
@@ -704,6 +1073,8 @@ export class StonetopSteading {
 				sections,
 				effect: def.effect,
 				custom: !!custom,
+				// Herd of Horses carries an interactive herd tracker once earned.
+				herd: def.slug === "herdOfHorses" && completed ? this._herdView() : null,
 			};
 		};
 		// Built-in improvements first, then any journal-sourced custom ones (dropped

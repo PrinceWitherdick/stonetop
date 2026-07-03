@@ -8,6 +8,7 @@ function makeSheet({ players = [], improvements = {}, improvementDef, addResult,
 			typedActor._flags = { ...typedActor._flags, ...updates };
 		}),
 		improvementDef: vi.fn(() => improvementDef ?? null),
+		setImprovementCompleted: vi.fn(async () => ({ label: improvementDef?.label ?? "X", summary: [], reverted: false })),
 		addCustomImprovement: vi.fn(async () => addResult ?? { ok: true, slug: "custom-x", label: "X" }),
 		removeCustomImprovement: vi.fn(async () => removeResult ?? true),
 	};
@@ -127,9 +128,9 @@ describe("StonetopSteadingSheet", () => {
 			await sheet._onImprovementComplete("palisade", true);
 
 			expect(globalThis.Dialog.confirm).toHaveBeenCalledTimes(1);
-			expect(typedActor.setFlags).toHaveBeenCalledWith({
-				improvements: { palisade: { completed: true, r: [true, true, true] } },
-			});
+			// Force-completing passes the filled requirement array through to the model,
+			// which persists completion and auto-applies the improvement's grants.
+			expect(typedActor.setImprovementCompleted).toHaveBeenCalledWith("palisade", true, { forceR: [true, true, true] });
 		});
 
 		it("does nothing but revert the checkbox when declined", async () => {
@@ -139,7 +140,7 @@ describe("StonetopSteadingSheet", () => {
 
 			await sheet._onImprovementComplete("palisade", true);
 
-			expect(typedActor.setFlags).not.toHaveBeenCalled();
+			expect(typedActor.setImprovementCompleted).not.toHaveBeenCalled();
 			expect(sheet.render).toHaveBeenCalledWith(false); // re-render resets the tapped checkbox
 		});
 
@@ -154,9 +155,7 @@ describe("StonetopSteadingSheet", () => {
 			await sheet._onImprovementComplete("palisade", true);
 
 			expect(globalThis.Dialog.confirm).not.toHaveBeenCalled();
-			expect(typedActor.setFlags).toHaveBeenCalledWith({
-				improvements: { palisade: { completed: true, r: [true, true, true] } },
-			});
+			expect(typedActor.setImprovementCompleted).toHaveBeenCalledWith("palisade", true, { forceR: undefined });
 		});
 
 		it("always allows un-completing a finished improvement without prompting", async () => {
@@ -170,9 +169,23 @@ describe("StonetopSteadingSheet", () => {
 			await sheet._onImprovementComplete("palisade", false);
 
 			expect(globalThis.Dialog.confirm).not.toHaveBeenCalled();
-			expect(typedActor.setFlags).toHaveBeenCalledWith({
+			expect(typedActor.setImprovementCompleted).toHaveBeenCalledWith("palisade", false, { forceR: undefined });
+		});
+
+		it("surfaces a notification summarizing the auto-applied grants", async () => {
+			const { sheet, typedActor } = makeSheet({
+				improvementDef: lockedDef,
 				improvements: { palisade: { completed: false, r: [true, true, true] } },
 			});
+			typedActor.setImprovementCompleted.mockResolvedValueOnce({
+				label: "Palisade", summary: ["Fortunes +1", "Fortifications +Palisade"], reverted: false,
+			});
+			sheet.render = vi.fn();
+
+			await sheet._onImprovementComplete("palisade", true);
+
+			expect(globalThis.ui.notifications.info)
+				.toHaveBeenCalledWith("Applied Palisade: Fortunes +1; Fortifications +Palisade.");
 		});
 	});
 });

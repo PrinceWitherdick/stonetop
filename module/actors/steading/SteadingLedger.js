@@ -236,6 +236,12 @@ function improvementEntries(actor, oldImps, newImps) {
 const _currencyEntry = (label, o, n) =>
 	valuesEqual(o, n) ? [] : [{ action: actionForField(label, o, n) }];
 
+// Herd tiers write the whole {grown,yearlings,foals} object, so seeding a herd (or the
+// first write to a defaulted legacy herd) diffs each tier from blank → its number. Treat
+// a blank → 0 transition as no change so seeding only logs the tiers that are non-zero.
+const _herdTierEntry = (label, o, n) =>
+	(valuesEqual(o, n) || (isBlank(o) && Number(n) === 0)) ? [] : [{ action: actionForField(label, o, n) }];
+
 const PATH_HANDLERS = {
 	"flags.stonetop_pwd.steading.resources":            (o, n) => listEntries("Resource",      o, n),
 	"flags.stonetop_pwd.steading.fortifications":       (o, n) => listEntries("Fortification", o, n),
@@ -249,6 +255,9 @@ const PATH_HANDLERS = {
 	"flags.stonetop_pwd.steading.gold.purses":          (o, n) => _currencyEntry("Gold purses",      o, n),
 	"flags.stonetop_pwd.steading.gold.handfuls":        (o, n) => _currencyEntry("Gold handfuls",    o, n),
 	"flags.stonetop_pwd.steading.gold.coins":           (o, n) => _currencyEntry("Gold coins",       o, n),
+	"flags.stonetop_pwd.steading.herd.grown":           (o, n) => _herdTierEntry("Herd — grown horses", o, n),
+	"flags.stonetop_pwd.steading.herd.yearlings":       (o, n) => _herdTierEntry("Herd — yearlings",     o, n),
+	"flags.stonetop_pwd.steading.herd.foals":           (o, n) => _herdTierEntry("Herd — foals",         o, n),
 };
 
 function actorUpdateEntries(actor, changed) {

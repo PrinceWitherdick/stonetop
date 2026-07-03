@@ -217,6 +217,32 @@ describe("SteadingLedger", () => {
 		]);
 	});
 
+	it("records herd tier changes by age, ignoring unchanged tiers", () => {
+		const actor = makeActor({
+			stonetop: { steading: { herd: { grown: 12, yearlings: 0, foals: 0 } } },
+		});
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, steadingUpdate({
+			herd: { grown: 13, yearlings: 0, foals: 2 },
+		}));
+
+		expect(entries.map(e => e.action)).toEqual([
+			"Herd — grown horses changed from 12 to 13",
+			"Herd — foals changed from 0 to 2",
+		]);
+	});
+
+	it("suppresses blank→0 herd tiers when a herd is first seeded", () => {
+		const actor = makeActor({ stonetop: { steading: {} } }); // no herd yet
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, steadingUpdate({
+			herd: { grown: 12, yearlings: 0, foals: 0 },
+		}));
+
+		// Only the meaningful tier is logged — not "yearlings set to 0" / "foals set to 0".
+		expect(entries.map(e => e.action)).toEqual(["Herd — grown horses set to 12"]);
+	});
+
 	it("emits nothing when the improvements map is unchanged", () => {
 		const imps = { palisade: { completed: true, r: [true, true, true, true] } };
 		const actor = makeActor({ stonetop: { steading: { improvements: imps } } });

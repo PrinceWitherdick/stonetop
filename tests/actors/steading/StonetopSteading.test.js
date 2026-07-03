@@ -152,6 +152,29 @@ describe("StonetopSteading", () => {
 		expect(snapshot.players[0].resolvedOccupation).toBe("Hawker of Trinkets");
 	});
 
+	it("adds profile avatars to residents and neighbors, using character art when available", async () => {
+		const wren = {
+			id: "wren", type: "character", name: "Wren", img: "wren.webp",
+			system: { playbook: { name: "The Blessed" } },
+		};
+		const prevActors = game.actors;
+		game.actors = { get: () => null, filter: (fn) => [wren].filter(fn) };
+		try {
+			const actor = makeSteadingActor({
+				steadingFlags: {
+					residents: [{ name: "Wren", occupation: "", traits: "", relations: "", notes: "" }],
+					neighbors: [{ name: "Bala", home: "Marshedge", occupation: "", traits: "", relations: "", notes: "" }],
+				},
+			});
+			const snapshot = await new StonetopSteading(actor).buildSnapshot();
+
+			expect(snapshot.residents[0].profileImg).toBe("wren.webp");
+			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop_pwd/assets/icons/people/default_profile.svg");
+		} finally {
+			game.actors = prevActors;
+		}
+	});
+
 	describe("custom (journal-sourced) improvements", () => {
 		function makeMutableSteadingActor(steadingFlags = {}) {
 			const actor = {
@@ -225,6 +248,274 @@ describe("StonetopSteading", () => {
 			expect(actor.flags.stonetop.steading.improvements).toEqual({ palisade: { completed: true, r: [] } });
 			// Removing an unknown slug is a no-op.
 			expect(await steading.removeCustomImprovement("custom-nope")).toBe(false);
+		});
+	});
+
+	describe("improvement grants (auto-applied effects)", () => {
+		const lastUpdate = (actor) => actor.update.mock.calls.at(-1)[0];
+
+		it("applies Raincatching's fortunes bump and resource on completion, recording what changed", async () => {
+			const actor = makeSteadingActor({
+				steadingFlags: {
+					system: { stats: { fortunes: { value: 1 } } },
+					resources: [{ name: "Farming", checked: true }, { name: "", checked: false }],
+				},
+			});
+			const result = await new StonetopSteading(actor).setImprovementCompleted("raincatching", true);
+
+			const data = lastUpdate(actor);
+			expect(data["system.stats.fortunes.value"]).toBe(2);
+			expect(data["flags.stonetop_pwd.steading.system.stats.fortunes.value"]).toBe(2);
+			expect(data["flags.stonetop_pwd.steading.resources"]).toEqual([
+				{ name: "Farming", checked: true },
+				{ name: "Raincatching", checked: true },
+			]);
+			const imps = data["flags.stonetop_pwd.steading.improvements"];
+			expect(imps.raincatching.completed).toBe(true);
+			expect(imps.raincatching.applied).toEqual({ stats: { fortunes: 1 }, resources: ["Raincatching"] });
+			expect(result).toMatchObject({ label: "Raincatching", reverted: false });
+			expect(result.summary).toContain("Fortunes +1");
+			expect(result.summary).toContain("Resources +Raincatching");
+		});
+
+		it("reverses the recorded grant when un-completed: negates the stat and drops the resource", async () => {
+			const actor = makeSteadingActor({
+				steadingFlags: {
+					system: { stats: { fortunes: { value: 2 } } },
+					resources: [{ name: "Farming", checked: true }, { name: "Raincatching", checked: true }],
+					improvements: { raincatching: { completed: true, r: [true, true, true, true, true],
+						applied: { stats: { fortunes: 1 }, resources: ["Raincatching"] } } },
+				},
+			});
+			const result = await new StonetopSteading(actor).setImprovementCompleted("raincatching", false);
+
+			const data = lastUpdate(actor);
+			expect(data["system.stats.fortunes.value"]).toBe(1);
+			expect(data["flags.stonetop_pwd.steading.resources"]).toEqual([
+				{ name: "Farming", checked: true },
+				{ name: "", checked: false },
+			]);
+			const imps = data["flags.stonetop_pwd.steading.improvements"];
+			expect(imps.raincatching.completed).toBe(false);
+			expect(imps.raincatching.applied).toBeNull();
+			expect(result.reverted).toBe(true);
+		});
+
+		it("does not double-apply when an already-applied improvement is completed again", async () => {
+			const actor = makeSteadingActor({
+				steadingFlags: {
+					system: { stats: { fortunes: { value: 2 } } },
+					resources: [{ name: "Farming", checked: true }, { name: "Raincatching", checked: true }],
+					improvements: { raincatching: { completed: true, r: [],
+						applied: { stats: { fortunes: 1 }, resources: ["Raincatching"] } } },
+				},
+			});
+			await new StonetopSteading(actor).setImprovementCompleted("raincatching", true);
+
+			// Only the improvements map is rewritten — no fresh stat/list changes.
+			expect(Object.keys(lastUpdate(actor))).toEqual(["flags.stonetop_pwd.steading.improvements"]);
+		});
+
+		it("does not duplicate a resource that is already present, recording nothing to revert for it", async () => {
+			const actor = makeSteadingActor({
+				steadingFlags: {
+					system: { stats: { fortunes: { value: 1 } } },
+					resources: [{ name: "Raincatching", checked: true }, { name: "", checked: false }],
+				},
+			});
+			await new StonetopSteading(actor).setImprovementCompleted("raincatching", true);
+
+			const data = lastUpdate(actor);
+			expect(data["system.stats.fortunes.value"]).toBe(2);                                   // fortunes still bumps
+			expect(Object.keys(data)).not.toContain("flags.stonetop_pwd.steading.resources");       // list untouched
+			expect(data["flags.stonetop_pwd.steading.improvements"].raincatching.applied)
+				.toEqual({ stats: { fortunes: 1 } });                                              // no resource recorded
+		});
+
+		it("Township sets Size and Population, recording their prior values for reversal", async () => {
+			const actor = makeSteadingActor({
+				steadingFlags: { size: "village", system: { attributes: { population: { value: 3 } } } },
+			});
+			await new StonetopSteading(actor).setImprovementCompleted("township", true);
+
+			const data = lastUpdate(actor);
+			expect(data["flags.stonetop_pwd.steading.size"]).toBe("town");
+			expect(data["system.attributes.population.value"]).toBe(0);
+			expect(data["flags.stonetop_pwd.steading.improvements"].township.applied).toEqual({
+				setSize: { from: "village", to: "town" },
+				setPopulation: { from: 3, to: 0 },
+			});
+		});
+
+		it("Stone Wall adds its fortification and erases an existing Palisade, recording it for restoration", async () => {
+			const fortifications = [
+				{ name: "Village militia", checked: true },
+				{ name: "Palisade", checked: true },
+				{ name: "", checked: false },
+			];
+			const actor = makeSteadingActor({ steadingFlags: { fortifications } });
+			await new StonetopSteading(actor).setImprovementCompleted("stoneWall", true);
+
+			const data = lastUpdate(actor);
+			expect(data["flags.stonetop_pwd.steading.fortifications"]).toEqual([
+				{ name: "Village militia", checked: true },
+				{ name: "", checked: false },           // Palisade slot cleared
+				{ name: "Stone Wall", checked: true },  // filled the trailing empty slot
+			]);
+			const applied = data["flags.stonetop_pwd.steading.improvements"].stoneWall.applied;
+			expect(applied.fortifications).toEqual(["Stone Wall"]);
+			expect(applied.removedFortifications).toEqual([{ name: "Palisade", checked: true }]);
+		});
+
+		it("leaves an improvement with no defined grants as a plain completion toggle", async () => {
+			const actor = makeSteadingActor({});
+			const result = await new StonetopSteading(actor).setImprovementCompleted("heroicReputation", true);
+
+			const data = lastUpdate(actor);
+			expect(Object.keys(data)).toEqual(["flags.stonetop_pwd.steading.improvements"]);
+			expect(data["flags.stonetop_pwd.steading.improvements"].heroicReputation).toEqual({ completed: true, r: [] });
+			expect(result.summary).toEqual([]);
+		});
+
+		it("force-completes: fills every requirement step and still applies the grant", async () => {
+			const actor = makeSteadingActor({
+				steadingFlags: { system: { stats: { fortunes: { value: 1 } } }, resources: [{ name: "", checked: false }] },
+			});
+			await new StonetopSteading(actor)
+				.setImprovementCompleted("raincatching", true, { forceR: [true, true, true, true, true] });
+
+			const data = lastUpdate(actor);
+			const imp = data["flags.stonetop_pwd.steading.improvements"].raincatching;
+			expect(imp.completed).toBe(true);
+			expect(imp.r).toEqual([true, true, true, true, true]);
+			expect(data["system.stats.fortunes.value"]).toBe(2);
+		});
+	});
+
+	describe("legacy improvements completed before the grants engine", () => {
+		it("back-fills `applied` so an uncheck reverts exactly once instead of double-counting the stat", async () => {
+			// A world completed under the pre-grants version stores {completed:true, r:[…]} with
+			// no `applied`, and the book's +1 Fortunes was applied by hand (Fortunes sits at 2).
+			const actor = makeSteadingActor({ steadingFlags: {
+				system: { stats: { fortunes: { value: 2 } } },
+				resources: [{ name: "Raincatching", checked: true }, { name: "", checked: false }],
+				improvements: { raincatching: { completed: true, r: [] } },
+			} });
+
+			const result = await new StonetopSteading(actor).setImprovementCompleted("raincatching", false);
+
+			const data = actor.update.mock.calls.at(-1)[0];
+			expect(data["system.stats.fortunes.value"]).toBe(1);   // reverses once — not left at 2, not pushed to 3
+			expect(data["flags.stonetop_pwd.steading.improvements"].raincatching.applied).toBeNull();
+			expect(result.reverted).toBe(true);
+		});
+
+		it("does not disturb a fresh (never-completed) improvement", async () => {
+			const actor = makeSteadingActor({ steadingFlags: { system: { stats: { fortunes: { value: 1 } } } } });
+			await new StonetopSteading(actor).setImprovementCompleted("raincatching", true);
+			const data = actor.update.mock.calls.at(-1)[0];
+			// Normal fresh completion still applies the grant and records it.
+			expect(data["system.stats.fortunes.value"]).toBe(2);
+			expect(data["flags.stonetop_pwd.steading.improvements"].raincatching.applied).toEqual({ stats: { fortunes: 1 }, resources: ["Raincatching"] });
+		});
+	});
+
+	describe("Herd of Horses tracker", () => {
+		const lastUpdate = (actor) => actor.update.mock.calls.at(-1)[0];
+
+		it("defaults an un-tracked herd to the book's starting dozen", () => {
+			expect(new StonetopSteading(makeSteadingActor()).getHerd())
+				.toEqual({ grown: 12, yearlings: 0, foals: 0, total: 12 });
+		});
+
+		it("reads and normalizes stored herd tiers", () => {
+			const actor = makeSteadingActor({ steadingFlags: { herd: { grown: 8, yearlings: 3, foals: "2" } } });
+			expect(new StonetopSteading(actor).getHerd()).toEqual({ grown: 8, yearlings: 3, foals: 2, total: 13 });
+		});
+
+		it("setHerd clamps negatives/decimals and writes the herd flag", async () => {
+			const actor = makeSteadingActor();
+			const res = await new StonetopSteading(actor).setHerd({ grown: -4, yearlings: 2.9, foals: 1 });
+			expect(actor.update).toHaveBeenCalledWith(
+				{ "flags.stonetop_pwd.steading.herd": { grown: 0, yearlings: 2, foals: 1 } }, {});
+			expect(res).toEqual({ grown: 0, yearlings: 2, foals: 1, total: 3 });
+		});
+
+		it("seeds a starting herd when Herd of Horses is first completed, alongside its grant", async () => {
+			const actor = makeSteadingActor({ steadingFlags: { system: { stats: { fortunes: { value: 1 } } } } });
+			await new StonetopSteading(actor).setImprovementCompleted("herdOfHorses", true);
+			const data = lastUpdate(actor);
+			expect(data["flags.stonetop_pwd.steading.herd"]).toEqual({ grown: 12, yearlings: 0, foals: 0 });
+			expect(data["system.stats.fortunes.value"]).toBe(2);
+		});
+
+		it("does not reseed an existing herd on re-completion", async () => {
+			const actor = makeSteadingActor({ steadingFlags: {
+				herd: { grown: 5, yearlings: 0, foals: 0 },
+				system: { stats: { fortunes: { value: 1 } } },
+			} });
+			await new StonetopSteading(actor).setImprovementCompleted("herdOfHorses", true);
+			expect(Object.keys(lastUpdate(actor))).not.toContain("flags.stonetop_pwd.steading.herd");
+		});
+
+		it("never removes the herd when the improvement is un-completed", async () => {
+			const actor = makeSteadingActor({ steadingFlags: {
+				herd: { grown: 5, yearlings: 1, foals: 0 },
+				system: { stats: { fortunes: { value: 2 } } },
+				improvements: { herdOfHorses: { completed: true, r: [], applied: { stats: { fortunes: 1 } } } },
+			} });
+			await new StonetopSteading(actor).setImprovementCompleted("herdOfHorses", false);
+			expect(Object.keys(lastUpdate(actor))).not.toContain("flags.stonetop_pwd.steading.herd");
+		});
+
+		it("exposes the herd view on the Herd of Horses card only once completed", async () => {
+			const incomplete = await new StonetopSteading(makeSteadingActor()).buildSnapshot();
+			expect(incomplete.improvements.find(i => i.slug === "herdOfHorses").herd).toBeNull();
+
+			const actor = makeSteadingActor({ steadingFlags: {
+				improvements: { herdOfHorses: { completed: true, r: [] } },
+				herd: { grown: 6, yearlings: 2, foals: 1 },
+			} });
+			const snap = await new StonetopSteading(actor).buildSnapshot();
+			const view = snap.improvements.find(i => i.slug === "herdOfHorses").herd;
+			expect(view.total).toBe(9);
+			expect(view.tiers.map(t => [t.key, t.count])).toEqual([["grown", 6], ["yearlings", 2], ["foals", 1]]);
+		});
+
+		describe("season math (pure)", () => {
+			it("summer promotes each tier up and sets the rolled foals", () => {
+				expect(StonetopSteading.advanceHerdForSummer({ grown: 10, yearlings: 3, foals: 2 }, 4))
+					.toEqual({ grown: 13, yearlings: 2, foals: 4 });
+			});
+
+			it("summer floors a negative foal roll to zero", () => {
+				expect(StonetopSteading.advanceHerdForSummer({ grown: 0, yearlings: 0, foals: 0 }, -2))
+					.toEqual({ grown: 0, yearlings: 0, foals: 0 });
+			});
+
+			it("winter feeds off grown+yearlings at 1 Surplus per 6, no loss when Surplus covers it", () => {
+				const r = StonetopSteading.feedHerdForWinter({ grown: 12, yearlings: 6, foals: 3 }, 5, 0);
+				expect(r).toMatchObject({ cost: 3, paid: 3, shortfall: 0, lost: 0 });
+				expect(r.herd).toEqual({ grown: 12, yearlings: 6, foals: 3 });
+			});
+
+			it("winter shortfall removes rolled losses oldest-tier-first", () => {
+				// cost=2 ((4+8)/6), Surplus 1 → 1 short; losses (pre-rolled) = 5 removed from grown then yearlings.
+				const r = StonetopSteading.feedHerdForWinter({ grown: 4, yearlings: 8, foals: 2 }, 1, 5);
+				expect(r).toMatchObject({ cost: 2, paid: 1, shortfall: 1, lost: 5 });
+				expect(r.herd).toEqual({ grown: 0, yearlings: 7, foals: 2 });
+			});
+
+			it("winter costs nothing when there are fewer than 6 grown/yearlings", () => {
+				const r = StonetopSteading.feedHerdForWinter({ grown: 5, yearlings: 0, foals: 0 }, 0, 0);
+				expect(r).toMatchObject({ cost: 0, paid: 0, lost: 0 });
+			});
+
+			it("winter caps losses at the herd size", () => {
+				const r = StonetopSteading.feedHerdForWinter({ grown: 6, yearlings: 0, foals: 0 }, 0, 99);
+				expect(r.herd).toEqual({ grown: 0, yearlings: 0, foals: 0 });
+				expect(r.lost).toBe(6);
+			});
 		});
 	});
 
