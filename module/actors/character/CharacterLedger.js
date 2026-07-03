@@ -540,16 +540,18 @@ function arcanaBoxEntry(path, oldValue, newValue, names) {
 }
 
 // Front unlock requirements and back power options are count tracks keyed "<slug>:<option>".
-// A rising count is a fresh selection, a falling one a deselection; `optionField` picks which
-// label map (unlockOptions / backOptions) names the specific choice.
+// They can hold more than one mark, so describe each change as a mark added or removed — not
+// "selected/deselected", which would wrongly read as the whole option turning off when a
+// multi-mark option merely drops a mark (e.g. 3 → 2). `optionField` picks which label map
+// (unlockOptions / backOptions) names the specific choice.
 function arcanaOptionEntry(path, prefix, optionField, oldValue, newValue, names) {
 	const key = path.slice(prefix.length);
 	const colon = key.indexOf(":");
 	const slug = colon >= 0 ? key.slice(0, colon) : key;
 	const optionSlug = colon >= 0 ? key.slice(colon + 1) : "";
 	const label = names.arcana.get(slug)?.[optionField]?.get(optionSlug) ?? prettifySlug(optionSlug);
-	const selected = Number(newValue ?? 0) > Number(oldValue ?? 0);
-	return { action: `${arcanaSubject(names, slug)}: ${label} ${selected ? "selected" : "deselected"}` };
+	const marked = Number(newValue ?? 0) > Number(oldValue ?? 0);
+	return { action: `${arcanaSubject(names, slug)}: ${label} ${marked ? "marked" : "unmarked"}` };
 }
 
 function granularEntriesForPath(path, oldValue, newValue, names) {

@@ -14,9 +14,17 @@ import {FakeArcanaRepository} from "../../fakes/FakeArcanaRepository.js";
 
 function makeFlags(store = {}) {
 	return {
-		_store: { ...store },
+		_store: store,
 		getFlag: (key) => store[key] ?? null,
-		setFlag: vi.fn(async (key, val) => { store[key] = val; }),
+		// Model Foundry's setFlag (mergeObject): plain objects deep-merge, so keys missing from
+		// the written value SURVIVE; arrays and primitives replace wholesale. This faithfully
+		// reproduces why dropping keys from a flag object needs an unsetFlag first.
+		setFlag: vi.fn(async (key, val) => {
+			const cur = store[key];
+			const mergeable = v => v && typeof v === "object" && !Array.isArray(v);
+			store[key] = mergeable(cur) && mergeable(val) ? { ...cur, ...val } : val;
+		}),
+		unsetFlag: vi.fn(async (key) => { delete store[key]; }),
 	};
 }
 
@@ -434,6 +442,32 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			expect(flags.setFlag).toHaveBeenCalledWith("owned", ["other-slug"]);
 		});
 
+		it("removeArcanum clears the reveal flag and every per-card mark (no spoiler leak on re-add)", async () => {
+			// Removing a card must leave no trace keyed to its slug — otherwise re-acquiring it
+			// later restores a GM-revealed back or a fully-marked/unlocked state with no GM action.
+			// Assert the resulting STORE state (with the merge-modelling fake) so this catches the
+			// keyed-map case: setFlag merges, so dropping keys requires an unsetFlag first.
+			const store = {
+				owned:       ["some-slug", "other-slug"],
+				identified:  ["some-slug"],
+				revealed:    ["some-slug", "other-slug"],
+				flipped:     ["some-slug"],
+				unlock:      { "some-slug:a": 1, "other-slug:a": 2 },
+				boxes:       { "some-slug:back:0": true, "other-slug:back:0": true },
+				backOptions: { "some-slug:x": 3, "other-slug:x": 1 },
+			};
+			const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
+			await arcana.removeArcanum("some-slug");
+			// Only "other-slug"'s state survives; nothing keyed to "some-slug" remains.
+			expect(store.owned).toEqual(["other-slug"]);
+			expect(store.identified).toEqual([]);
+			expect(store.revealed).toEqual(["other-slug"]);
+			expect(store.flipped).toEqual([]);
+			expect(store.unlock).toEqual({ "other-slug:a": 2 });
+			expect(store.boxes).toEqual({ "other-slug:back:0": true });
+			expect(store.backOptions).toEqual({ "other-slug:x": 1 });
+		});
+
 		it("flipArcanum adds slug to flipped flag", async () => {
 			const flags = makeFlags();
 			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
@@ -583,12 +617,15 @@ describe("CharacterArcana.buildSnapshot() — inventoryResources param", () => {
 });
 
 describe("CharacterArcana.weightedInventoryItems() — carried side follows unlock state", () => {
-	// FFYRNIG_SPHERE has unmet option requirements by default, so it's locked → you carry
-	// the front item; once every requirement is met it unlocks → you carry the back item.
-	// (Previously this was driven by the manual flip flag; now it tracks unlock state.)
+	// FFYRNIG_SPHERE has unmet option requirements by default, so it's locked → you carry the
+	// front item; once every requirement is met AND the card is identified it unlocks → you carry
+	// the back item. (Previously this was driven by the manual flip flag; now it tracks unlock
+	// state. The identified gate keeps an unidentified, face-down card showing its front item even
+	// with unlock marks set, so a card's realised item can't leak before identification.)
 	const LOCKED = { owned: ["huge-wooden-sphere"] };
 	const UNLOCKED = {
 		owned: ["huge-wooden-sphere"],
+		identified: ["huge-wooden-sphere"],
 		unlock: {
 			"huge-wooden-sphere:dig-sphere": 1,
 			"huge-wooden-sphere:study-glyphs": 1,
@@ -608,6 +645,15 @@ describe("CharacterArcana.weightedInventoryItems() — carried side follows unlo
 		const items = await arcana.weightedInventoryItems();
 		expect(items).toHaveLength(1);
 		expect(items[0].name).toBe("Ffyrnig Tonic");
+	});
+
+	it("keeps the FRONT item when unlock marks are set but the card isn't identified", async () => {
+		// Unlock marks without identification (a face-down mystery) must never surface the back
+		// item — guards a homebrew card whose unlock is vacuously satisfied from leaking its back.
+		const { identified, ...unidentified } = UNLOCKED;
+		const arcana = new CharacterArcana(makeFlags(unidentified), new FakeArcanaRepository([FFYRNIG_SPHERE]));
+		const items = await arcana.weightedInventoryItems();
+		expect(items[0].name).toBe("A Huge Wooden Sphere");
 	});
 
 	it("ignores the legacy flipped flag entirely", async () => {

@@ -139,8 +139,14 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 				content: "<p>This arcanum hasn't been saved yet. Discard it? This can't be undone.</p>",
 				defaultYes: false,
 				render:  bringDialogToFront,
+				options: { classes: ["dialog", "stonetop"] },
 			});
 			if (!ok) return false;
+			// Re-check after the await: the confirm is non-modal, so while it was open the author
+			// could have clicked "Save & Done" (which commits the draft and clears _arcanumDraft) —
+			// don't then delete the now-owned card and orphan its slug. Also bail if the world Item
+			// was deleted out from under us in the meantime.
+			if (!this._arcanumDraft || this._discarded || !this.item || !game.items?.get(this.item.id)) return false;
 			// Suppress the discard prompt + editor flush on the delete-triggered re-entrant close.
 			this._discarded     = true;
 			this._arcanumOnSave = null;
@@ -149,10 +155,13 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 		}
 
 		async close(options) {
+			// If the draft's world Item was already deleted (an external delete triggers close),
+			// there's nothing left to discard or flush — just tear the sheet down without prompting.
+			const itemGone = !this.item || !game.items?.get(this.item.id);
 			// An unsaved draft (created from a character's Create button) offers to discard on
 			// close; keeping it aborts the close so the author can finish. Skipped once the card
 			// has been saved (no longer a draft) or discarded (torn down by item.delete()).
-			if (this._arcanumDraft && !this._discarded) {
+			if (this._arcanumDraft && !this._discarded && !itemGone) {
 				const discarded = await this._discardDraft();
 				if (!discarded) return this;   // "Keep editing" → don't close
 				return this;                   // discarded: item.delete() already closed the sheet
@@ -160,7 +169,7 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			// Flush any pending rich-editor content before teardown, then drop the per-session
 			// slug cache so a reopened sheet rebuilds it fresh. Skip the flush when the item was
 			// just deleted (nothing to flush, and the update would throw).
-			if (this._editMode && !this._discarded) await this._flushRichEditors();
+			if (this._editMode && !this._discarded && !itemGone) await this._flushRichEditors();
 			this._otherArcanumSlugs = null;
 			return super.close(options);
 		}

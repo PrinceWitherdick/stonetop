@@ -185,7 +185,7 @@ describe("CharacterLedger", () => {
 			"flags.stonetop_pwd.arcana.unlock.the-key:master-fear": 1,
 		});
 		expect(entries.map(e => e.action)).toEqual([
-			"Minor Arcana The Key: … master your fear and force yourself to touch it. selected",
+			"Minor Arcana The Key: … master your fear and force yourself to touch it. marked",
 		]);
 	});
 
@@ -209,7 +209,7 @@ describe("CharacterLedger", () => {
 			"flags.stonetop_pwd.arcana.unlock.sunken-tablet:calm": 0,
 		});
 		expect(entries.map(e => e.action)).toEqual([
-			"Minor Arcana Sunken Tablet: … calm your mind, gaze upon the sigil, and roll +WIS: on a 10+,… deselected",
+			"Minor Arcana Sunken Tablet: … calm your mind, gaze upon the sigil, and roll +WIS: on a 10+,… unmarked",
 		]);
 	});
 

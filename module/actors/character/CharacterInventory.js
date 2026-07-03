@@ -19,7 +19,21 @@ export class CharacterInventory {
 	}
 
 	async setResource(slug, count, options) {
-		await this._flags.setFlag("resources", { ...this.resources, [slug]: count }, options);
+		// Targeted sub-key write (not a spread of the whole resources object) so two near-
+		// simultaneous writes to different tracks can't clobber each other's value.
+		await this._flags.setSubKey("resources", slug, count, options);
+	}
+
+	// Drop a removed arcanum's resource tracks (the back-power track keyed by slug and the
+	// back-item ammo track keyed "<slug>:item"), so a later re-acquire doesn't inherit stale
+	// charges. No-op when the card had no tracks.
+	async clearArcanumResources(slug) {
+		const resources = this.resources;
+		const itemKey = `${slug}:item`;
+		const kept = Object.entries(resources).filter(([k]) => k !== slug && k !== itemKey);
+		if (kept.length !== Object.keys(resources).length) {
+			await this._flags.setFlag("resources", Object.fromEntries(kept));
+		}
 	}
 
 	async setRegularPool(count) {

@@ -30,6 +30,17 @@ export class StonetopFlags {
 		await this._actor.unsetFlag(_scope, this.buildKey(key));
 	}
 
+	// Write a single nested sub-key of a flag object without rewriting its sibling keys, so two
+	// writes to different sub-keys can't clobber each other via a stale `{ ...current }` spread
+	// (e.g. rapid clicks on a card's back-power track and its back-item ammo track). `subKey` is
+	// a literal object key used as one dot-path segment — a ':' (as in an arcanum's "<slug>:item"
+	// resource) is safe; it must not contain '.'. `options` (e.g. { render: false }) routes
+	// through actor.update.
+	async setSubKey(key, subKey, value, options) {
+		const path = `flags.${_scope}.${this.buildKey(key)}.${subKey}`;
+		await this._actor.update({ [path]: value }, options);
+	}
+
 	// Returns an `actor.update()` fragment that writes this flag, so callers can
 	// batch it into a single document update alongside other field changes.
 	updateData(key, value) {

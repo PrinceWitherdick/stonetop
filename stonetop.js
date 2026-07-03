@@ -309,6 +309,20 @@ Hooks.on("updateActor", (actor, changes) => {
 	if ("name" in (changes ?? {}) || changes?.system?.concept !== undefined) invalidateMonsterRefIndex();
 });
 
+// -- CROSS-CLIENT RENDER SYNC ----------------------------------
+// Arcana resource-track clicks persist with { render: false } so the masonry doesn't
+// repack and jump the tab's scroll (the click handler patches the track's checkboxes in
+// place). But Foundry broadcasts that option with the update, so it also suppresses the
+// automatic re-render on OTHER clients — leaving a second open sheet of the same actor
+// (e.g. the GM's) showing a stale track. Re-render those here: this fires on every client
+// after the update, so on the non-initiating clients (the initiator already patched its own
+// DOM) we repaint the actor's open sheets. Additive only — it never suppresses a render, so
+// it can't reintroduce the scroll jump.
+Hooks.on("updateActor", (actor, _changes, options, userId) => {
+	if (options?.render !== false || userId === game.user?.id) return;
+	for (const app of Object.values(actor.apps ?? {})) app?.render?.(false);
+});
+
 // -- RECOVER LOCK ----------------------------------------------
 // The Recover special move can't be used again until the character takes more
 // damage; clear its lock flag the moment HP drops.

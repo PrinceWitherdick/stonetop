@@ -720,7 +720,9 @@ export class CharacterOnboardingDialog extends Application {
 		if (this._arcanaCache) return this._arcanaCache;
 		if (this._arcanaCachePromise) return this._arcanaCachePromise;
 		this._arcanaCachePromise = (async () => {
-			const pack = game.packs.get("stonetop_pwd.stonetop-items");
+			// Arcana live in their own GM-hidden compendium (split out of stonetop-items);
+			// the pack is arcana-only, but keep the moveType filter below as a defensive guard.
+			const pack = game.packs.get("stonetop_pwd.stonetop-arcana");
 			if (!pack) return { major: [], minor: [] };
 			await pack.getIndex({ fields: ["system.moveType"] });
 			const entries = pack.index.filter(entry => entry.system?.moveType === "arcanum");

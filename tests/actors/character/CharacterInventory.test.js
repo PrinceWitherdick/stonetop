@@ -13,6 +13,11 @@ function makeFlags(store = {}) {
 		setFlag: vi.fn(async (key, val) => {
 			store[key] = val;
 		}),
+		// Models the real StonetopFlags.setSubKey (a targeted dot-path actor.update): sets one
+		// nested sub-key, preserving the flag object's other keys — no whole-object spread.
+		setSubKey: vi.fn(async (key, subKey, value) => {
+			store[key] = { ...(store[key] ?? {}), [subKey]: value };
+		}),
 	};
 }
 

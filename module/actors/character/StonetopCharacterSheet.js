@@ -620,6 +620,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			this._injectHeaderToggle();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
+			// Deferred one-shot: switch to the Arcana tab after a dropped card's re-render (set
+			// in _onDropItemCreate). Instance-scoped so a sibling sheet's render can't consume it.
+			if (this._activateArcanaTabOnRender) {
+				this._activateArcanaTabOnRender = false;
+				this._tabs?.[0]?.activate?.("arcana");
+			}
 		}
 
 		// All tabs share one scroll container, so a scroll position from a tall tab
@@ -1083,12 +1089,13 @@ export function createStonetopCharacterSheetClass(Base) {
 					// is editable — via the global wrench or that section's own pencil.
 					item.sectionEditable   = sectionEditable;
 					const revealed         = revealedArcana.has(item.slug);
-					// Owner sees a back they've unlocked (earned, no setting needed). The world
-					// setting is the separate peek switch: on → any player may open the back
+					// Owner sees a back they've unlocked (earned, no setting needed) or one the GM
+					// has revealed to them; both are owner-scoped, so a non-owning viewer (e.g. an
+					// Observer-permission player) never sees another character's hidden back. The
+					// world setting is the separate peek switch: on → any player may open the back
 					// without unlocking it. Otherwise a locked back waits on the GM's reveal.
-					const permittedBack    = viewerIsGM || revealed
-						|| (item.unlocked && viewerOwnsActor)
-						|| playersSeeBothArcana;
+					const permittedBack    = viewerIsGM || playersSeeBothArcana
+						|| (viewerOwnsActor && (revealed || item.unlocked));
 					item.showBoth          = showBothArcana.has(item.slug);
 					item.showBack          = showBackArcana.has(item.slug);
 					const spread           = permittedBack && item.showBoth;
@@ -3152,11 +3159,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { slug, flipped } = title.dataset;
 				this._stonetopCharacter.getArcanumChatContent(slug, flipped === "true").then(content => {
 					if (!content) return;
-					ChatMessage.create({
+					// applyRollMode sets whisper/blind from the configured roll mode; passing
+					// rollMode as a create-data key alone does nothing, so a "Private GM Roll"
+					// setting would still broadcast a referenced card back to every player.
+					const messageData = {
 						content,
 						speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-						rollMode: game.settings.get("core", "rollMode"),
-					});
+					};
+					ChatMessage.applyRollMode(messageData, game.settings.get("core", "rollMode"));
+					ChatMessage.create(messageData);
 				});
 			}, true);
 
@@ -3257,7 +3268,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				Dialog.confirm({
 					title:   "Remove arcanum",
 					content: `<p>Remove <strong>${escHtml(title)}</strong> from your arcana? This can't be undone.</p>`,
-					yes:     () => this._stonetopCharacter.removeArcanum(slug).then(() => this.render(true)),
+					yes:     () => this._pruneArcanumUserPrefs(slug)
+						.then(() => this._stonetopCharacter.removeArcanum(slug))
+						.then(() => this.render(true)),
 					render:  bringDialogToFront,
 					options: { classes: ["dialog", "stonetop", "stonetop-remove-arcanum-dialog"] },
 				});
@@ -3590,13 +3603,65 @@ export function createStonetopCharacterSheetClass(Base) {
 				// the re-render lands, as a cheap DOM toggle, not by presetting active before a
 				// render. The flag write above schedules its own auto-render, which races the
 				// explicit render(false) below; presetting active lost that race intermittently,
-				// leaving the card on a hidden tab until the sheet was reopened. A one-shot
-				// post-render hook makes the switch deterministic regardless of which render wins.
-				Hooks.once(`render${this.constructor.name}`, app => {
-					if (app === this) this._tabs?.[0]?.activate?.("arcana");
-				});
+				// leaving the card on a hidden tab until the sheet was reopened. An instance flag
+				// consumed by _render makes the switch deterministic regardless of which render
+				// wins — and, unlike a global Hooks.once(render…), can't be swallowed by another
+				// open character sheet that happens to re-render first.
+				this._activateArcanaTabOnRender = true;
 			}
 			if (anyAdded) this.render(false);
+		}
+
+		// Roll one of this character's owned moves by its embedded item id, running the
+		// exact same dispatch a click on the move's dice icon would — guided-move dialog,
+		// "ask"/alt-stat picker, and the optional pre-roll modifier prompt all included.
+		// This is the entry point used by the hotbar move-macros (drag a move onto the
+		// hotbar): it works whether or not the sheet is currently rendered, because it
+		// builds a detached stand-in for the row's rollable icon (see _makeSyntheticRollable)
+		// and feeds it to the same helpers the inline click handler uses. Keep the branch
+		// order here in sync with that handler in activateListeners.
+		async rollMoveById(itemId, { shiftKey = false } = {}) {
+			const item = this.actor?.items?.get(itemId);
+			if (!item) return void ui.notifications.warn("That move is no longer on this character.");
+			if (!this.isEditable) return;
+
+			const rollable = this._makeSyntheticRollable(item);
+			if (!rollable) return item.roll();   // description-only move → post to chat
+
+			const guided = this._guidedMoveForRollable(rollable);
+			if (guided) return this._openGuidedCharacterMove(guided, rollable);
+
+			const askItem = this._statChoiceMoveForRollable(rollable);
+			if (askItem) return this._promptStatChoice(askItem, rollable, undefined, { shiftKey });
+
+			const altChoice = this._altStatChoiceForRollable(rollable);
+			if (altChoice) return this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey });
+
+			const situational = await this._maybePromptRollModifier({ shiftKey, rollable });
+			if (situational === null) return;   // player cancelled the modifier prompt
+			await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { situational });
+		}
+
+		// Build a detached DOM element that stands in for a move row's rollable dice icon,
+		// carrying just the structure the rollable-dispatch helpers read: an ancestor
+		// `.item.stonetop-item` with the item id, a `.stonetop-item-name`, and the stat on
+		// the rollable's data-roll. Returns null for a move with no rollType (nothing to
+		// roll). Using a real (unattached) element means the helpers need no DOM-vs-object
+		// special-casing — they closest()/querySelector() over it exactly as on the sheet.
+		_makeSyntheticRollable(item) {
+			const stat = normalizeRollType(item.system?.rollType);
+			if (!stat) return null;
+			const li = document.createElement("li");
+			li.className = "item stonetop-item";
+			li.dataset.itemId = item.id;
+			const name = document.createElement("strong");
+			name.className = "stonetop-item-name";
+			name.textContent = item.name;
+			const rollable = document.createElement("span");
+			rollable.className = "rollable move-rollable";
+			rollable.dataset.roll = stat;
+			li.append(name, rollable);
+			return rollable;
 		}
 
 		_statChoiceMoveForRollable(rollable) {
@@ -4104,6 +4169,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			const set = new Set((game.user.getFlag("stonetop_pwd", "arcanaShowBack") ?? {})[this.actor.id] ?? []);
 			if (show) set.add(slug); else set.delete(slug);
 			await game.user.setFlag("stonetop_pwd", "arcanaShowBack", { [this.actor.id]: [...set] });
+		}
+
+		// Drop a removed arcanum's slug from this user's per-actor show-both / show-back view
+		// preferences, so a re-acquired card doesn't re-open as a spread the user never requested
+		// and the flag arrays don't accumulate dead slugs. Per-user by nature — only the acting
+		// user's prefs are reachable here (others prune their own on their next removal/toggle).
+		async _pruneArcanumUserPrefs(slug) {
+			// The two prefs are independent flags, so prune them concurrently.
+			await Promise.all(["arcanaShowBoth", "arcanaShowBack"].map(flag => {
+				const all = game.user.getFlag("stonetop_pwd", flag);
+				const forActor = all?.[this.actor.id];
+				if (!Array.isArray(forActor) || !forActor.includes(slug)) return null;
+				return game.user.setFlag("stonetop_pwd", flag, { ...all, [this.actor.id]: forActor.filter(s => s !== slug) });
+			}));
 		}
 
 		// Manifest an arcanum's bound creature(s) as followers (the arcana whose reverse
@@ -4837,6 +4916,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this._stonetopCharacter.addArcanum(slug);
 				await this._stonetopCharacter.identifyArcanum(slug);
 			}
+			// The Seeker's mastered minor begins play already realized: fully unlock it so it
+			// carries its back item and shows its back to the owner. The carried side and back
+			// visibility now follow the unlock state (the manual flip was retired), so identify
+			// alone would leave a mastered card reading as a locked, front-only curio.
+			if (masteredMinor) await this._stonetopCharacter.masterArcanum(masteredMinor);
 
 			if (Object.keys(flagUpd).length) await this.actor.update(flagUpd);
 			await this._applyBackgroundNeighbors(backgroundSetup, selections);

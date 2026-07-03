@@ -74,7 +74,7 @@
 		<p class="stonetop-arc-slug-warning" {{#unless edit.slugCollision}}hidden{{/unless}}><i class="fas fa-triangle-exclamation"></i> Another arcanum already uses this slug. A shipped card of the same slug wins, and cards that share a slug share saved marks — pick a unique one.</p>
 		<p class="stonetop-arc-hint">The slug identifies the card and keys saved marks — avoid changing it once players own it.</p>
 		{{/if}}
-		<label class="stonetop-arc-check"><input type="checkbox" data-arc-field="flags.stonetop.major" data-arc-type="boolean" {{#if edit.major}}checked{{/if}}>
+		<label class="stonetop-arc-check"><input type="checkbox" class="stonetop-check" data-arc-field="flags.stonetop.major" data-arc-type="boolean" {{#if edit.major}}checked{{/if}}>
 			<span>Major Arcanum <em>(gets card art + major semantics)</em></span></label>
 		{{#if edit.major}}
 		<div class="stonetop-arc-arttool">
@@ -93,7 +93,7 @@
 		<label class="stonetop-arc-label">Description</label>
 		<prose-mirror class="stonetop-arc-rich" data-arc-field="flags.stonetop.front.description" value="{{edit.front.description}}">{{{edit.front.descriptionEnriched}}}</prose-mirror>
 
-		<label class="stonetop-arc-check"><input type="checkbox" data-arc-toggle="front.item" {{#if edit.front.hasItem}}checked{{/if}}>
+		<label class="stonetop-arc-check"><input type="checkbox" class="stonetop-check" data-arc-toggle="front.item" {{#if edit.front.hasItem}}checked{{/if}}>
 			<span>Carried item (weighs the pack while face-up)</span></label>
 		{{#if edit.front.hasItem}}
 		{{> itemFields item=edit.front.item prefix="flags.stonetop.front.item"}}
@@ -158,24 +158,24 @@
 		</div>
 		{{/if}}
 
-		<label class="stonetop-arc-check"><input type="checkbox" data-arc-toggle="back.item" {{#if edit.back.hasItem}}checked{{/if}}>
+		<label class="stonetop-arc-check"><input type="checkbox" class="stonetop-check" data-arc-toggle="back.item" {{#if edit.back.hasItem}}checked{{/if}}>
 			<span>Revealed / transformed item</span></label>
 		{{#if edit.back.hasItem}}
 		{{> itemFields item=edit.back.item prefix="flags.stonetop.back.item"}}
-		<label class="stonetop-arc-check stonetop-arc-check--sub"><input type="checkbox" data-arc-toggle="back.item.resource" {{#if edit.back.hasItemResource}}checked{{/if}}>
+		<label class="stonetop-arc-check stonetop-arc-check--sub"><input type="checkbox" class="stonetop-check" data-arc-toggle="back.item.resource" {{#if edit.back.hasItemResource}}checked{{/if}}>
 			<span>Item has a resource track (ammo / uses)</span></label>
 		{{#if edit.back.hasItemResource}}
 		{{> resourceFields resource=edit.back.itemResource prefix="flags.stonetop.back.item.resource" statOptions=statOptions}}
 		{{/if}}
 		{{/if}}
 
-		<label class="stonetop-arc-check"><input type="checkbox" data-arc-toggle="back.resource" {{#if edit.back.hasResource}}checked{{/if}}>
+		<label class="stonetop-arc-check"><input type="checkbox" class="stonetop-check" data-arc-toggle="back.resource" {{#if edit.back.hasResource}}checked{{/if}}>
 			<span>Resource track (charges, sway, …)</span></label>
 		{{#if edit.back.hasResource}}
 		{{> resourceFields resource=edit.back.resource prefix="flags.stonetop.back.resource" statOptions=statOptions}}
 		{{/if}}
 
-		<label class="stonetop-arc-check"><input type="checkbox" data-arc-toggle="back.move" {{#if edit.back.hasMove}}checked{{/if}}>
+		<label class="stonetop-arc-check"><input type="checkbox" class="stonetop-check" data-arc-toggle="back.move" {{#if edit.back.hasMove}}checked{{/if}}>
 			<span>Condensed move (trigger + effect)</span></label>
 		{{#if edit.back.hasMove}}
 		<div class="stonetop-arc-subgrid">
@@ -220,7 +220,7 @@
 							<textarea class="stonetop-arc-input" data-foll-prop="moves" rows="2" placeholder="One move per line">{{moves}}</textarea></label>
 						<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Notes</span>
 							<textarea class="stonetop-arc-input" data-foll-prop="notes" rows="2">{{notes}}</textarea></label>
-						<label class="stonetop-arc-check stonetop-arc-check--sub"><input type="checkbox" data-foll-prop="repeatable" {{#if repeatable}}checked{{/if}}>
+						<label class="stonetop-arc-check stonetop-arc-check--sub"><input type="checkbox" class="stonetop-check" data-foll-prop="repeatable" {{#if repeatable}}checked{{/if}}>
 							<span>Repeatable (can be summoned again each time)</span></label>
 					</div>
 					<button type="button" class="stonetop-arc-foll-remove" title="Remove follower"><i class="fas fa-trash"></i></button>

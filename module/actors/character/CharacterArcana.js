@@ -262,20 +262,52 @@ export class CharacterArcana {
 	}
 
 	async removeArcanum(slug) {
-		const owned = this.ownedSlugs;
-		owned.delete(slug);
-		const identified = this.identifiedSlugs;
-		identified.delete(slug);
-		await Promise.all([
-			this._flags.setFlag("owned", [...owned]),
-			this._flags.setFlag("identified", [...identified]),
-		]);
+		// Clear every per-card trace of this slug, not just owned/identified. Leaving the reveal
+		// flag or the unlock/mark maps behind means re-acquiring the same arcanum later (a fresh
+		// drop or level-up pick) silently restores a GM-revealed back, or a fully-unlocked/marked
+		// state, with no GM action — a spoiler leak plus stale marks.
+		const prefix = `${slug}:`;
+		// Slug arrays: setFlag replaces them wholesale (mergeObject doesn't deep-merge arrays).
+		for (const key of ["owned", "identified", "revealed", "flipped"]) {
+			const cur = this._flags.getFlag(key) ?? [];
+			if (cur.includes(slug)) await this._flags.setFlag(key, cur.filter(s => s !== slug));
+		}
+		// Keyed maps ("<slug>:…" keys): setFlag MERGES, so writing a smaller object leaves the
+		// dropped keys in place. Unset the whole map, then re-set the survivors, so the removed
+		// card's entries are actually gone (see setArcanumBoxChecked's mergeObject note).
+		for (const key of ["unlock", "boxes", "backOptions"]) {
+			const cur = this._flags.getFlag(key) ?? {};
+			const kept = Object.entries(cur).filter(([k]) => k !== slug && !k.startsWith(prefix));
+			if (kept.length === Object.keys(cur).length) continue;
+			await this._flags.unsetFlag(key);
+			if (kept.length) await this._flags.setFlag(key, Object.fromEntries(kept));
+		}
 	}
 
 	async identifyArcanum(slug) {
 		const s = this.identifiedSlugs;
 		s.add(slug);
 		await this._flags.setFlag("identified", [...s]);
+	}
+
+	// Mark a card as fully realized ("mastered"): satisfy every option unlock requirement and
+	// fill its unlock circles so _isUnlocked() reports true. Used at onboarding for the Seeker's
+	// mastered minor, which begins play already realized — it carries its back item and its back
+	// is visible to the owner. No-op if the slug can't be resolved to a pack/world arcanum.
+	async masterArcanum(slug) {
+		const item = await this.getArcanum(slug);
+		if (!item) return;
+		const unlock = { ...this.unlockCounts };
+		for (const req of item.front?.unlock?.requirements ?? []) {
+			if (req?.type === "option" && req.slug) unlock[`${slug}:${req.slug}`] = req.max ?? 1;
+		}
+		const circleCount = (item.front?.unlock?.description?.match(_UNLOCK_CIRCLE_RE) || []).length;
+		const boxes = { ...(this._flags.getFlag("boxes") ?? {}) };
+		for (let i = 0; i < circleCount; i++) boxes[`${slug}:unlock:${i}`] = true;
+		await Promise.all([
+			this._flags.setFlag("unlock", unlock),
+			this._flags.setFlag("boxes", boxes),
+		]);
 	}
 
 	async flipArcanum(slug) {
@@ -351,15 +383,19 @@ export class CharacterArcana {
 
 	async weightedInventoryItems() {
 		const ownedSlugs   = this.ownedSlugs;
+		const identified   = this.identifiedSlugs;
 		const unlockCounts = this.unlockCounts;
 		const arcanaBoxes  = this._flags.getFlag("boxes") ?? {};
 		const items = await this._arcanaRepo.findBySlugs([...ownedSlugs]);
 		return items.flatMap(item => {
-			// Which side's item you carry follows the card's unlock state, not the old
-			// manual flip: a card realises its back-side item once unlocked, otherwise
-			// it's the front item. circleCount mirrors buildSnapshot's ○-marker count.
-			const circleCount = (item.front.unlock?.description?.match(/○/g) || []).length;
-			const unlocked = _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount);
+			// Which side's item you carry follows the card's unlock state, not the old manual
+			// flip: a card realises its back-side item once unlocked, otherwise it's the front
+			// item. Gate on identified too, so an unidentified face-down mystery always shows its
+			// front curio — a homebrew card whose unlock is vacuously satisfied (no options, no
+			// circles) can't leak its back item before it's even identified. circleCount reuses
+			// buildSnapshot's shared ○-marker regex so the two counts can't drift.
+			const circleCount = (item.front.unlock?.description?.match(_UNLOCK_CIRCLE_RE) || []).length;
+			const unlocked = identified.has(item.slug) && _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount);
 			const sideItem = (unlocked && item.back.item) ? item.back.item : item.front.item;
 			if (!sideItem?.name) return [];
 			return [new OutfitItemBuilder()
