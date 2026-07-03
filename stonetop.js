@@ -19,6 +19,7 @@ import { createStonetopLocationPageSheetClass } from "./module/journal/StonetopL
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
+import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
@@ -27,7 +28,7 @@ import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
-import { rollSeasonsCard, SPRING_SEASONS_RESULT } from "./module/utils/roll-engine.js";
+import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT } from "./module/utils/roll-engine.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
@@ -36,7 +37,8 @@ import { SETTING_OVERVIEW_JOURNAL } from "./module/utils/seeded-journals.js";
 import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
 import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
-import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
+import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
+import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
 
@@ -261,6 +263,11 @@ Hooks.on("renderActorSheet", onRenderActorSheet);
 // Turn a learned move dragged from a character sheet onto the macro hotbar into a
 // script macro that re-rolls it (game.stonetop.rollMoveMacro, wired in Ready.js).
 Hooks.on("hotbarDrop", onHotbarDrop);
+
+// -- PLACE OF INTEREST → SCENE NOTE ----------------------------
+// Drag a "Places of Interest" disc from the steading Overview tab onto the canvas to
+// drop a lettered map note whose label (the place name) shows on hover.
+Hooks.on("dropCanvasData", onDropPlaceOfInterest);
 
 // -- LOCATION CROSS-LINK TOOLTIPS ------------------------------
 // Give cross-links into the Locations pack a useful hover summary instead of the
@@ -525,25 +532,56 @@ function _chatWireBurnBrightly(message, html) {
 	});
 }
 
-// -- WOULD-BE HERO: BECOME A HERO ------------------------------
-// Wire the "Become a Hero" button on asterisk-move prompt cards.
-function _chatWireBecomeHero(message, html) {
-	const btn = html.querySelector(".stonetop-become-hero-btn");
+// -- REQUISITION: apply miss cost from the roll card ------------
+function _speakerActor(message) {
+	const { token: tokenId, actor: actorId } = message.speaker ?? {};
+	return (tokenId ? canvas.tokens?.get(tokenId)?.actor : null)
+		?? (actorId ? game.actors?.get(actorId) : null);
+}
+
+function _chatWireRequisitionMissCost(message, html) {
+	const btn = html.querySelector(".stonetop-requisition-miss-cost");
 	if (!btn) return;
 
-	const actor = game.actors?.get(btn.dataset.actorId);
-	if (!actor?.isOwner) { btn.style.display = "none"; return; }
-	if (actor.getFlag("stonetop_pwd", WBH_HERO_FLAG)) {
+	if (message.getFlag("stonetop_pwd", "requisitionMissCostApplied")) {
 		btn.disabled = true;
-		btn.innerHTML = `<i class="fas fa-star"></i> Already a Hero`;
+		btn.textContent = "Miss cost applied";
 		return;
 	}
 
 	btn.addEventListener("click", async () => {
 		btn.disabled = true;
-		await crossOffWouldBe(actor);
+		try {
+			const actor = _speakerActor(message);
+			if (!actor?.isOwner || actor.type !== "stonetop") {
+				ui.notifications.warn("You need permission to update the steading's Fortunes.");
+				btn.disabled = false;
+				return;
+			}
+
+			// Go through StonetopSteading so the write lands in BOTH system.* and the
+			// mirrored steading flag that getStatValue (and the sheet) actually read from —
+			// a raw actor.update of system.* alone leaves the mirror stale and the reduction
+			// invisible.
+			const steading = new StonetopSteading(actor);
+			const fortunes = steading.getStatValue("fortunes");
+			const newFortunes = Math.max(fortunes - 1, -1);
+			await steading.setSystemValue("stats.fortunes.value", newFortunes, { stonetopMove: "Requisition" });
+			await message.setFlag("stonetop_pwd", "requisitionMissCostApplied", true);
+			for (const sheet of Object.values(actor.apps ?? {})) sheet.render(false);
+			ui.notifications.info(`Fortunes reduced to ${sign(newFortunes)}.`);
+		} catch (err) {
+			console.error("Stonetop | Error applying Requisition miss cost:", err);
+			btn.disabled = false;
+		}
 	});
 }
+
+// -- WOULD-BE HERO: BECOME A HERO ------------------------------
+// The first time a Would-Be Hero gains a hero-making (asterisked) move, cross off
+// "Would-be" and announce it once. The playbook header already derives "The Hero"
+// from owning such a move, so this hook is purely the one-time announcement.
+Hooks.on("createItem", (item, options, userId) => maybeAnnounceBecameHero(item, userId, options));
 
 // One render hook drives all of the above, in this order: the blind-roll strip
 // MUST run first (it removes our card so the button-wiring helpers below no-op
@@ -558,7 +596,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);
 	_chatWireBurnBrightly(message, html);
-	_chatWireBecomeHero(message, html);
+	_chatWireRequisitionMissCost(message, html);
 	_chatWireSeasonsRoll(message, html);
 });
 
@@ -655,8 +693,9 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 
 	const resultEl = wrapper.querySelector(".stonetop-roll-card .stonetop-roll-result");
 	const resultLabel = resultEl?.querySelector(".stonetop-roll-result-label");
+	let result = null;
 	if (resultEl && resultLabel) {
-		const result = _classifyShiftedTotal(total);
+		result = _classifyShiftedTotal(total);
 		resultEl.classList.remove("success", "partial", "failure", "critical");
 		resultEl.classList.add(result.key);
 		resultLabel.textContent = result.label;
@@ -672,6 +711,15 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 				failure: resultEl.dataset.outcomeFailure,
 			}[tierKey];
 			if (outcome !== undefined) details.textContent = outcome;
+		}
+	}
+
+	const tierActions = wrapper.querySelector(".stonetop-roll-card .stonetop-roll-tier-actions");
+	if (tierActions && result) {
+		const activeTier = result.key === "critical" ? "success" : result.key;
+		tierActions.dataset.activeTier = activeTier;
+		for (const action of tierActions.querySelectorAll(".stonetop-roll-tier-action")) {
+			action.hidden = action.dataset.tier !== activeTier;
 		}
 	}
 
