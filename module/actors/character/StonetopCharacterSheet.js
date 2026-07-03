@@ -97,6 +97,10 @@ function _formatResultLine(text) {
 	return _esc(text).replace(/^(7\+|10\+|7-9|6-):/, "<strong>$1:</strong>");
 }
 
+function _guidedCharacterMoveHasAction(guide, rollable = null) {
+	return Boolean(rollable || guide?.roll || guide?.fields?.length);
+}
+
 const GUIDED_CHARACTER_MOVES = {
 	"Censure": {
 		trigger: "When you first denounce an individual in your presence as an agent of chaos or anathema to civilization, they pick 1.",
@@ -936,6 +940,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.system ??= this.actor.system;
 			context.isCharacter = this.actor.type === "character";
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
+			context.stonetop.movelist ??= {};
+			const overageKey = context.stonetop.movelist.levelMovesOverageKey ?? null;
+			const dismissedOverageKey = this.actor.getFlag(STONETOP_SCOPE, "moves.dismissedLevelOverage");
+			context.stonetop.movelist.showLevelMovesOverLimit =
+				!!context.stonetop.movelist.levelMovesOverLimit && overageKey !== dismissedOverageKey;
 			// Per-section edit flags: a section is editable when the global wrench is
 			// on OR its own pencil is toggled.
 			const sectionEdit = section => this.isSectionEditable(section);
@@ -1792,9 +1801,6 @@ export function createStonetopCharacterSheetClass(Base) {
 					// livestock doesn't), so it gates the Order button the same way it
 					// gates the readiness stepper below — no Order action on a butcher beast.
 					card.canOrder = true;
-					// A lone follower gets a "Recover" button (heal to full); the crew and
-					// custom groups Recover the whole roster from their roster section instead.
-					card.canRecoverSingle = card.ftype !== "crew" && !card.isGroup;
 					// "Have what they need" (p.472) adds an item to a follower's gear on the
 					// fly. Non-crew followers carry a free-text gear checklist to append to;
 					// the crew Outfits/restocks from its Supplies section instead.
@@ -1912,6 +1918,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-create-character-btn").on("click", () => this._onNewCharacter());
 			html.find("[data-onboarding-start]").on("click", ev => {
 				this._openEditCharacterOnboarding({ startAtStep: ev.currentTarget.dataset.onboardingStart });
+			});
+			html.find(".stonetop-moves-level-notice-dismiss").on("click", async ev => {
+				const key = ev.currentTarget.dataset.overageKey;
+				if (key) await this.actor.setFlag(STONETOP_SCOPE, "moves.dismissedLevelOverage", key);
+				this.render(false);
 			});
 
 			// Reveal the "Drop a playbook here" hint only while a drag is actually
@@ -2038,8 +2049,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				const li = nameEl.closest("li");
 				const name = nameEl.textContent.trim();
 				const guide = GUIDED_CHARACTER_MOVES[name];
-				if (guide) {
-					this._openGuidedCharacterMove({ name, guide }, li?.querySelector(".rollable"));
+				const rollable = li?.querySelector(".rollable");
+				if (guide && _guidedCharacterMoveHasAction(guide, rollable)) {
+					this._openGuidedCharacterMove({ name, guide }, rollable);
 					return;
 				}
 				// With "Hide Rollable Icon" on, the dice icon is gone, so the move name
@@ -2048,7 +2060,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				// only moves (no rollType, hence no icon) fall through and post to chat.
 				// Re-dispatch a click carrying the Shift state (a plain `.click()` would drop
 				// it) so "Shift to skip the modifier prompt" still works when rolling here.
-				const rollable = li?.querySelector(".rollable");
 				if (rollable && getHideRollableIconSetting()) {
 					rollable.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, shiftKey: ev.shiftKey }));
 					return;
@@ -2158,8 +2169,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					const handler = EXPEDITION_MOVE_HANDLERS[moveName];
 					if (handler) { handler(this); return; }
 					const guide = GUIDED_CHARACTER_MOVES[moveName];
-					if (guide) {
-						this._openGuidedCharacterMove({ name: moveName, guide }, li.querySelector(".rollable"));
+					const rollable = li.querySelector(".rollable");
+					if (guide && _guidedCharacterMoveHasAction(guide, rollable)) {
+						this._openGuidedCharacterMove({ name: moveName, guide }, rollable);
 						return;
 					}
 				}
@@ -2345,19 +2357,18 @@ export function createStonetopCharacterSheetClass(Base) {
 
 				// Measure every card at its narrow width in one pass (reads before any style
 				// write, so no per-card reflow), then promote any front-only card that renders
-				// more than twice as tall as it is wide to span the full grid width (capped at
-				// WIDE_MAX_PX): an over-long arcanum reads better as one short, wide card than a
-				// skinny sliver. Genuine both-sides spreads are already full-width and left alone.
-				// Skip the promotion when the narrow column is already at least WIDE_MAX_PX wide
-				// (a very wide sheet) — capping below the card's current width would only make it
-				// narrower and taller, the opposite of the goal.
-				const WIDE_MAX_PX = 460; // keep in sync with .stonetop-arcanum-card--wide max-width
+				// more than twice as tall as it is wide to span the full grid width: an
+				// over-long arcanum reads better as one short, wide card than a skinny
+				// sliver. Genuine both-sides spreads are already full-width and left alone.
+				// Skip the promotion when the normal masonry column is already comfortably
+				// wide; at that point the card should stay in the balanced column flow.
+				const WIDE_PROMOTION_MAX_COLUMN_PX = 460;
 				const measured = cards.map(card => ({ card, h: card.offsetHeight, w: card.offsetWidth }));
 				const heights = new Map();
 				for (const { card, h, w } of measured) {
 					heights.set(card, h);
 					if (card.classList.contains("stonetop-arcanum-card--spread")) continue;
-					if (h > w * 2 && w < WIDE_MAX_PX) card.classList.add("stonetop-arcanum-card--wide");
+					if (h > w * 2 && w < WIDE_PROMOTION_MAX_COLUMN_PX) card.classList.add("stonetop-arcanum-card--wide");
 				}
 
 				// Walk cards into ordered segments: a full-width card (a spread, or one
@@ -2770,15 +2781,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-spend-readiness").on("click", ev => {
 				const { ftype, slug, followerName } = ev.currentTarget.dataset;
 				this._onSpendReadiness(ftype, slug ?? "", followerName);
-			});
-			// Recover a follower / group to full HP (p.469/473).
-			html.find(".stonetop-follower-recover").on("click", ev => {
-				const { ftype, slug, followerName, max } = ev.currentTarget.dataset;
-				this._onFollowerRecover(ftype, slug ?? "", followerName, max);
-			});
-			html.find(".stonetop-group-recover").on("click", ev => {
-				const { ftype, slug, followerName } = ev.currentTarget.dataset;
-				this._onFollowerRecover(ftype, slug ?? "", followerName);
 			});
 			// Have What They Need (add gear to a follower) / Outfit the crew (restock).
 			html.find(".stonetop-follower-have-need").on("click", ev => {
@@ -4231,9 +4233,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// loot. Un-marking returns the marks. The derived load updates on re-render.
 			const el = ev.currentTarget;
 			if (!el.dataset.slug) return; // ignore the slug-less undefined-pool diamonds
+			// Small items in the columns sit inside `.stonetop-inventory-small`; the same
+			// items rendered inside a possession card carry `data-small` instead (they're
+			// outside that column but must still draw from the small pool).
 			const smallColumn = el.closest(".stonetop-inventory-small");
-			const small = !!smallColumn;
-			if (small && el.checked) this._warnIfOverSmallAllotment(smallColumn);
+			const small = el.dataset.small === "true" || !!smallColumn;
+			if (small && el.checked && smallColumn) this._warnIfOverSmallAllotment(smallColumn);
 			await this._stonetopCharacter.toggleCarriedItem(el.dataset.slug, el.checked, {
 				small,
 				weight: Number(el.dataset.weight ?? 1),
@@ -4625,8 +4630,7 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		// Write a follower's current HP to `val`. The per-slug / per-index HP stores are
 		// object-valued flags; write the single changed key with a dotted path (Foundry
-		// merges it) instead of cloning the whole map. Shared by the HP-input change
-		// handler and the Recover flow so the two can't drift.
+		// merges it) instead of cloning the whole map.
 		async _setFollowerHp(follower, slug, index, val) {
 			if (follower === "animal-companion") {
 				await this.actor.setFlag("stonetop_pwd", "animalCompanion.hpCurrent", val);
@@ -4651,29 +4655,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				arr[Number(index)] = val;
 				await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.memberHp`]: arr });
 			}
-		}
-
-		// Recover a follower (NPCs & Followers p.469: someone tends their wounds and they
-		// Recover). Heals to full HP; a group heals every member and its abstracted pool.
-		// For the crew — the one follower with tracked Supplies — each member who regains
-		// HP consumes 1 use of Supplies (p.473). The button carries the same data-follower
-		// / data-slug / data-max the HP inputs use.
-		async _onFollowerRecover(ftype, slug, name, max) {
-			if (ftype === "crew" || ftype === "custom-group") {
-				await this._recoverGroup(ftype, slug, name);
-				return;
-			}
-			// Single follower: heal straight to full (the button carries data-max, which
-			// already reflects any derived stats or Updating-followers override).
-			const hpMax = Math.max(0, Math.trunc(Number(max) || 0));
-			if (!["animal-companion", "initiate", "beast", "custom"].includes(ftype)) return;
-			await this._setFollowerHp(ftype, slug, null, hpMax);
-			await ChatMessage.create({
-				content: _buildMoveChatContent("Recover",
-					`<p><strong>${escHtml(name || "Your follower")}</strong> is tended to and recovers to full HP.</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
-			this.render(false);
 		}
 
 		// Have What They Need (p.472): a follower produces a needed item. Prompt for it
@@ -4708,8 +4689,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, { classes: ["dialog", "stonetop"] }).render(true);
 		}
 
-		// Outfit the crew (p.472): the group Outfits with the same gear — restock every
-		// member's Supplies to full (the crew's trackable loadout, spent by Recover).
+		// Outfit the crew (p.472): the group Outfits with the same gear, restocking
+		// every member's Supplies to full.
 		async _onOutfitCrew() {
 			// The Supplies-per-set count is "4 + Prosperity" — a synchronous read; no need
 			// to build the whole sheet snapshot just to pull one scalar off it.
@@ -4723,75 +4704,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
-		// Heal a whole group to full. Crew: restore every named + anonymous member and the
-		// abstracted pool, spending 1 Supply use per member that regained HP. Custom group:
-		// restore every member + the pool (no Supplies track to spend).
-		async _recoverGroup(ftype, slug, name) {
-			if (ftype === "crew") {
-				const crew = this.actor.getFlag("stonetop_pwd", "crew") ?? {};
-				const memberHpMax = Math.max(1, Number(this._crewMemberHpMax) || Number(crew.details?.hpMax) || 6);
-				const individualsHp = { ...(crew.individualsHp ?? {}) };
-				const memberHp = Array.isArray(crew.memberHp) ? [...crew.memberHp] : [];
-				let healed = 0;
-				for (const k of Object.keys(individualsHp)) {
-					if (Number(individualsHp[k]) < memberHpMax && individualsHp[k] != null) { healed++; }
-					individualsHp[k] = memberHpMax;
-				}
-				for (let i = 0; i < memberHp.length; i++) {
-					if (memberHp[i] != null && Number(memberHp[i]) < memberHpMax) healed++;
-					memberHp[i] = memberHpMax;
-				}
-				const update = {
-					"flags.stonetop_pwd.crew.individualsHp": individualsHp,
-					"flags.stonetop_pwd.crew.memberHp": memberHp,
-				};
-				// Clear the abstracted pool override so it tracks full again.
-				update["flags.stonetop_pwd.crew.groupHp"] = null;
-				// Spend Supplies: 1 use per member who regained HP, drawn from the 6 sets.
-				const spent = this._spendCrewSupplies(crew.supplies, healed);
-				if (spent.supplies) update["flags.stonetop_pwd.crew.supplies"] = spent.supplies;
-				await this.actor.update(update);
-				await ChatMessage.create({
-					content: _buildMoveChatContent("Recover",
-						`<p><strong>${escHtml(name || "Your crew")}</strong> recovers to full HP.</p>`
-						+ (healed ? `<p>${healed} member${healed === 1 ? "" : "s"} regained HP, spending <strong>${spent.used}</strong> use${spent.used === 1 ? "" : "s"} of Supplies.</p>` : "")),
-					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-				});
-				this.render(false);
-				return;
-			}
-			// Custom group: restore every member and the pool.
-			const c = this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}`) ?? {};
-			const memberHpMax = Math.max(1, Number(c.hpMax) || 1);
-			const size = Math.max(2, Math.trunc(Number(c.size) || 0) || 2);
-			await this.actor.update({
-				[`flags.stonetop_pwd.customFollowers.${slug}.memberHp`]: Array.from({ length: size }, () => memberHpMax),
-				[`flags.stonetop_pwd.customFollowers.${slug}.groupHp`]: null,
-				[`flags.stonetop_pwd.customFollowers.${slug}.hpCurrent`]: memberHpMax,
-			});
-			await ChatMessage.create({
-				content: _buildMoveChatContent("Recover",
-					`<p><strong>${escHtml(name || "The group")}</strong> recovers to full HP. Spend 1 use of Supplies per member who regained HP (p.473).</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
-			this.render(false);
-		}
-
-		// Spend `count` uses from the crew's 6 supply sets, draining each set in turn.
-		// Returns { supplies: <new array | null>, used: <uses actually spent> }.
-		_spendCrewSupplies(raw, count) {
-			if (count <= 0) return { supplies: null, used: 0 };
-			const arr = Array.isArray(raw) ? [...raw] : Array(6).fill(0);
-			while (arr.length < 6) arr.push(0);
-			let remaining = count, used = 0;
-			for (let i = 0; i < arr.length && remaining > 0; i++) {
-				const take = Math.min(Number(arr[i]) || 0, remaining);
-				arr[i] = (Number(arr[i]) || 0) - take;
-				remaining -= take;
-				used += take;
-			}
-			return { supplies: arr, used };
-		}
 
 		// When a follower is Ordered to Defend and rolls 7+, they hold Readiness (p.469):
 		// 1 on a 7–9, 3 on a 10+ (a shield adds +1 — the player can click one more). We

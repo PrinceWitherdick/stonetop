@@ -39,7 +39,7 @@ import {statRequirementLabel, statRequirementsUnmet} from "./stat-requirement.js
 import {MoveResources} from "./MoveResources.js";
 import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
-import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
+import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
@@ -330,7 +330,7 @@ export class StonetopCharacter {
 			: null;
 		return new CharacterSnapshotBuilder()
 			.withName(actor.name)
-			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, !!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG), actorLevel) : null)
+			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, (!!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG) || ownsAsteriskMove(this._actor)), actorLevel) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withStats(_buildStatsSection(actor))
 			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses))
@@ -623,9 +623,10 @@ export class StonetopCharacter {
 		const mapCustomItem = item => new InventoryItemSnapshotBuilder()
 			.withSlug(item._id)
 			.withName(item.name)
-			// Items bundled by a special possession (Apiary, Burglar's kit…) carry a
-			// "from <possession>" note; plain write-ins have none.
-			.withNote(item.system?.sourceLabel ? `from ${item.system.sourceLabel}` : null)
+			// Plain write-ins carry no source note. Possession gear now renders inside its
+			// possession's card (grouped under the possession label), so it needs no
+			// "from <possession>" note either.
+			.withNote(item.system?.sourcePossession ? null : (item.system?.sourceLabel ? `from ${item.system.sourceLabel}` : null))
 			.withWeight(item.system.weight ?? 1)
 			.withChecked(checked[item._id] ?? false)
 			.withResource(null)
@@ -634,6 +635,35 @@ export class StonetopCharacter {
 			.withTwoCol(false)
 			.withBreakBefore(false)
 			.build();
+
+		// Plain write-ins (Add Item / Add Small Item) stay in the Items / Small Items
+		// columns. Items bundled by a special possession are pulled out and rendered inside
+		// that possession's own card instead (see _buildPossessionsSnapshot), grouped ◇ gear
+		// then small — so multiple possessions' same-named gear (Carpenter's tools + Distillery
+		// both grant firkins) reads under its own heading rather than as a column duplicate.
+		// They stay real inventory items, so marking one still feeds load / the small allowance.
+		// Only count gear whose possession is actually active (selected or preselected). A tagged
+		// item left behind by a deselect that failed to delete it would otherwise add invisible
+		// load / eat the small allowance while its possession card is unchecked and shows nothing.
+		const activePossessionSlugs = new Set([
+			...this._possessions.selected,
+			...(playbookData?.specialPossessions?.preselected ?? []),
+		]);
+		const writeInItems    = customItems.filter(i => !i.system?.sourcePossession);
+		const possessionItems = customItems.filter(i =>
+			i.system?.sourcePossession && activePossessionSlugs.has(i.system.sourcePossession));
+		const grantedByPossession = new Map();
+		for (const i of possessionItems) {
+			const slug = i.system.sourcePossession;
+			if (!grantedByPossession.has(slug)) grantedByPossession.set(slug, { regular: [], small: [] });
+			const bucket = grantedByPossession.get(slug);
+			(i.system?.inventoryColumn === "regular" ? bucket.regular : bucket.small).push(mapCustomItem(i));
+		}
+		// Flattened views for the derived load (◇) and small-item accounting below, so
+		// possession gear still counts toward encumbrance / the 4+Prosperity allowance
+		// exactly as it did when it lived in the columns.
+		const grantedRegularAll = [...grantedByPossession.values()].flatMap(b => b.regular);
+		const grantedSmallAll   = [...grantedByPossession.values()].flatMap(b => b.small);
 
 		// Special (handout) items are kept off the default checklist; they appear only
 		// once the player adds them via the "Add Special Item" picker — OR when a
@@ -658,7 +688,7 @@ export class StonetopCharacter {
 			...standardItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...addedSpecial.filter(i => i.inventoryColumn === "regular").map(mapAddedSpecial),
 			...possessionSpecial.filter(i => i.inventoryColumn === "regular").map(mapItem),
-			...customItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
+			...writeInItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
 		];
 		const regularArcana = arcanaItems.filter(i => i.inventoryColumn === "regular").map(mapItem);
 		if (regularArcana.length > 0 && regularNonArcana.length > 0) regularArcana[0].breakBefore = true;
@@ -667,7 +697,7 @@ export class StonetopCharacter {
 		let possessions = null;
 		if (playbookData?.specialPossessions) {
 			const maxUsesMap = this.computePossessionMaxUses(playbookData.specialPossessions, ownedAllByName, actorLevel);
-			possessions = this._buildPossessionsSnapshot(playbookData.specialPossessions, maxUsesMap, prosperity);
+			possessions = this._buildPossessionsSnapshot(playbookData.specialPossessions, maxUsesMap, prosperity, grantedByPossession);
 		}
 
 		const moveResourceState = this._moveResources.getMoveResources();
@@ -696,7 +726,10 @@ export class StonetopCharacter {
 		// Load is derived from the ◇ actually marked — checked item weights plus the
 		// undefined regular pool — never stored. Marking loot or editing the pool
 		// directly just re-derives it, matching the book's "count what you've marked."
-		const allRegularForLoad    = [...flatRegular, ...arcanaSection];
+		// Possession ◇ gear (grantedRegularAll) renders inside the possession cards now, not
+		// the Items column, but still counts toward load — so fold it in here alongside the
+		// column items and arcana.
+		const allRegularForLoad    = [...flatRegular, ...arcanaSection, ...grantedRegularAll];
 		const checkedRegularWeight = allRegularForLoad
 			.filter(i => i.checked).reduce((sum, i) => sum + (i.weight ?? 0), 0);
 		// The undefined pool can hold whatever's left under the heavy cap; the stored
@@ -728,14 +761,15 @@ export class StonetopCharacter {
 			...allSmall.filter(i => !i.smallGrid).map(mapItem),
 			...addedSmall.filter(i => !i.smallGrid).map(mapAddedSpecial),
 			...possessionSmall.filter(i => !i.smallGrid).map(mapItem),
-			...customItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
+			...writeInItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
 			...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
 		];
 		const smallGridItems = allSmall.filter(i => i.smallGrid).map(mapItem);
 
 		// Small marks are likewise derived: the undefined □ pool fills the room left
-		// under the 4+Prosperity Outfit allotment after checked small items.
-		const checkedSmallCount = [...smallItems, ...smallGridItems].filter(i => i.checked).length;
+		// under the 4+Prosperity Outfit allotment after checked small items. Possession
+		// small gear (grantedSmallAll) lives in the possession cards but still counts here.
+		const checkedSmallCount = [...smallItems, ...smallGridItems, ...grantedSmallAll].filter(i => i.checked).length;
 		const smallPoolMax     = Math.max(0, (smallItemLimit ?? 9) - checkedSmallCount);
 		const smallPoolCurrent = Math.min(sPool, smallPoolMax);
 		// Like the ◇ track, the □ track always shows the full 4+Prosperity allotment, so
@@ -762,7 +796,7 @@ export class StonetopCharacter {
 		return new InventorySnapshot(outfit, possessions, other);
 	}
 
-	_buildPossessionsSnapshot(specialPossessions, maxUsesMap, prosperity = null) {
+	_buildPossessionsSnapshot(specialPossessions, maxUsesMap, prosperity = null, grantedByPossession = new Map()) {
 		const { pickNote, pickCount, preselected = [], options } = specialPossessions;
 		const selectedSlugs = this._possessions.selected;
 		const usesMap = this._possessions.uses;
@@ -820,6 +854,10 @@ export class StonetopCharacter {
 				.withChoiceSummary(isSelected ? this._buildPossessionChoiceSummary(opt, subChoicesMap[opt.slug] ?? []) : null)
 				// Has editable choiceGroups → gear tab shows an "edit" pencil (in edit mode).
 				.withHasChoiceGroups(isSelected && !!opt.choiceGroups?.length)
+				// Bundled gear materialized for this possession (Distillery → firkins, whisky,
+				// malt…), split ◇ / small, rendered inside the card. Only present when selected.
+				.withGrantedRegular(grantedByPossession.get(opt.slug)?.regular ?? [])
+				.withGrantedSmall(grantedByPossession.get(opt.slug)?.small ?? [])
 				.build();
 		});
 
@@ -1136,15 +1174,76 @@ export class StonetopCharacter {
 		const playbook = await this.playbook();
 		const opt = (playbook?.specialPossessions?.options ?? []).find(o => o.slug === slug);
 		if (!opt?.grantsItems?.length) return;
-		const existing    = new Set(this._grantedItemsFor(slug).map(i => i.system?.sourceKey ?? i.name));
+		// Dedupe against this possession's already-materialized grants AND any plain write-in
+		// gear of the same name — so a character who hand-added the bundled items before grants
+		// existed (untagged write-ins) isn't handed a duplicate by the ready-time back-fill.
+		const existing = new Set(this._grantedItemsFor(slug).map(i => i.system?.sourceKey ?? i.name));
+		for (const i of this._actor.items) {
+			if (i.type === "move" && i.system?.moveType === "inventory-custom" && !i.system?.sourcePossession) {
+				existing.add(i.name);
+			}
+		}
 		const sourceLabel = (opt.label ?? "").replace(/<[^>]*>/g, "").trim();
 		const toCreate    = grantsToCreate(opt.grantsItems, existing, { slug, sourceLabel });
 		if (toCreate.length) await this._actor.createEmbeddedDocuments("Item", toCreate);
+		// Record that this possession's gear has been materialized, so the ready-time
+		// back-fill (ensurePossessionGrants) never re-adds an item the player later deletes.
+		await this._markPossessionGrantsApplied(slug);
 	}
 
 	async _removePossessionGrants(slug) {
 		const ids = this._grantedItemsFor(slug).map(i => i._id);
 		if (ids.length) await this._actor.deleteEmbeddedDocuments("Item", ids);
+		// Clear the mark so re-selecting the possession re-grants its gear afresh.
+		await this._clearPossessionGrantsApplied(slug);
+	}
+
+	// Per-actor record of which possessions have had their bundled gear materialized
+	// (flags.stonetop_pwd.possessionGrantsApplied[slug] = true). Tracked separately from
+	// item presence so a grant the player deliberately deleted is never resurrected.
+	_possessionGrantsApplied() {
+		return this._actor.getFlag(STONETOP_SCOPE, "possessionGrantsApplied") ?? {};
+	}
+	async _markPossessionGrantsApplied(slug) {
+		const applied = this._possessionGrantsApplied();
+		if (applied[slug]) return;
+		// Read-merge-write rather than relying on setFlag's merge, so a batch that marks
+		// several slugs can't drop each other's keys.
+		await this._actor.setFlag(STONETOP_SCOPE, "possessionGrantsApplied", { ...applied, [slug]: true });
+	}
+	async _clearPossessionGrantsApplied(slug) {
+		if (!(slug in this._possessionGrantsApplied())) return;
+		// setFlag can't drop keys — delete just this slug's entry via `-=`.
+		await this._actor.update({ [`flags.${STONETOP_SCOPE}.possessionGrantsApplied.-=${slug}`]: null });
+	}
+
+	// Ready-time back-fill for characters whose grant-bearing possessions were selected
+	// before bundled-gear grants existed (or before this first ran): materialize the gear
+	// for each selected possession not yet marked applied, then mark it — so it happens
+	// once and never fights a later deletion. Idempotent (grantsToCreate skips items
+	// already present), so a character already carrying its gear just gains the mark.
+	async ensurePossessionGrants() {
+		// Bail before resolving the playbook (a pack lookup, run per character on world
+		// load) when there's nothing to back-fill: no selected possessions, or every one
+		// already marked applied — the steady state after the first run.
+		const selected = [...this._possessions.selected];
+		if (!selected.length) return;
+		const applied = this._possessionGrantsApplied();
+		if (selected.every(slug => applied[slug])) return;
+		const options = (await this.playbook())?.specialPossessions?.options ?? [];
+		if (!options.length) return;
+		for (const slug of selected) {
+			if (applied[slug]) continue;
+			const opt = options.find(o => o.slug === slug);
+			if (opt?.grantsItems?.length) {
+				await this._addPossessionGrants(slug); // creates any missing items + marks applied
+			} else {
+				// No bundled gear to materialize (an ability-only possession, or an unknown/
+				// foreign slug) — still record it so the pre-playbook bail above can short-circuit
+				// next load instead of re-resolving the playbook for this character every time.
+				await this._markPossessionGrantsApplied(slug);
+			}
+		}
 	}
 	async setCustomPossessions(labels) { await this._possessions.setCustom(labels); }
 	async removeCustomPossession(slug) { await this._possessions.removeCustom(slug); }
@@ -2145,7 +2244,6 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withStatChoices(statChoices)
 		.withMarkOptions(markOptions)
 		.withMarkBudget(markBudget)
-		.withAsterisk(!!entry.asterisk)
 		.build();
 }
 
@@ -2230,11 +2328,16 @@ function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1) {
 		.reduce((n, m) => n + (m.ownedIds?.length ?? 0), 0);
 	const expectedPicks = pickCount + Math.max(0, actorLevel - 1);
 	const levelMovesShortfall = Math.max(0, expectedPicks - chosenInstances);
+	const levelMovesOverage = Math.max(0, chosenInstances - expectedPicks);
 	// Hidden while the starting-moves onboarding prompt is still up, so the two cues
 	// never stack; it surfaces once starting picks are done but the character is still
 	// behind for their level (e.g. a GM-bumped or imported pre-made character). Gated on
 	// a chosen playbook so a playbook-less character past level 1 never false-positives.
 	const levelMovesIncomplete = !!playbookCat && !movesIncomplete && levelMovesShortfall > 0;
+	const levelMovesOverLimit = !!playbookCat && levelMovesOverage > 0;
+	const levelMovesOverageKey = levelMovesOverLimit
+		? `${actorLevel}:${expectedPicks}:${chosenInstances}`
+		: null;
 
 	return new MovelistBuilder()
 		.withPlaybookMoves(playbookCat?.moves ?? [])
@@ -2248,6 +2351,9 @@ function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1) {
 		.withMovesIncomplete(movesIncomplete)
 		.withLevelMovesIncomplete(levelMovesIncomplete)
 		.withLevelMovesShortfall(levelMovesShortfall)
+		.withLevelMovesOverLimit(levelMovesOverLimit)
+		.withLevelMovesOverage(levelMovesOverage)
+		.withLevelMovesOverageKey(levelMovesOverageKey)
 		.withCharacterLevel(actorLevel)
 		.build();
 }

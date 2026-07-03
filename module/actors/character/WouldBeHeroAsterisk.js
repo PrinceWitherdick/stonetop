@@ -5,17 +5,21 @@ import { stonetopChatCard } from "../../utils/chat.js";
 export const WBH_PLAYBOOK_NAME = "The Would-Be Hero";
 export const WBH_HERO_NAME     = "The Hero";
 export const WBH_HERO_FLAG     = "wbhBecameHero";
-const _PROMPT_FLAG = "wbhAsteriskPrompt";
 
 const POTENTIAL_FOR_GREATNESS = "Potential for Greatness";
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 
-// The Would-Be Hero's asterisked moves carry their trigger in the move data:
-// system.asterisk = { basicMove, minTotal, question }. "The first time you use
-// any move marked with an asterisk, cross off 'Would-be'." None of them roll
-// dice, so we watch the basic-move roll the trigger names; when a Would-Be Hero
-// who owns the move makes that roll (meeting the threshold), we ask in chat
-// whether the condition applied, with a button to cross off "Would-be".
+// The Would-Be Hero's "hero-making" moves are marked with system.asterisk (all of
+// them are level-6 replacement moves). "The first time you use any move marked with
+// an asterisk, cross off 'Would-be'." We treat simply OWNING such a move as the
+// trigger: the playbook header renders "The Hero" automatically (see ownsAsteriskMove
+// + heroDisplayName), and the first time a Would-Be Hero gains one we announce it in
+// chat once (maybeAnnounceBecameHero, wired to the createItem hook).
+
+/** True if the actor owns any Would-Be Hero "hero-making" (asterisked) move. */
+export function ownsAsteriskMove(actor) {
+	return !!actor?.items?.some(i => i.type === "move" && i.system?.asterisk);
+}
 
 /** Display name for the playbook header — "The Hero" once "Would-be" is crossed off. */
 export function heroDisplayName(playbookName, becameHero) {
@@ -23,25 +27,24 @@ export function heroDisplayName(playbookName, becameHero) {
 }
 
 /**
- * Called after a character move roll. If the roller is a Would-Be Hero who owns
- * an asterisked move whose trigger matches this roll, post a chat prompt asking
- * whether they just used it (and offering to cross off "Would-be").
+ * createItem hook handler. The first time a Would-Be Hero gains a hero-making
+ * (asterisked) move, cross off "Would-be" and announce it in chat. The one-time
+ * guard lives in crossOffWouldBe (keyed on WBH_HERO_FLAG); the header already
+ * derives "The Hero" from ownership regardless, so this is purely the announcement.
  */
-export async function maybePromptAsteriskMove(actor, moveName, total) {
-	if (actor?.type !== "character" || !moveName) return;
+export async function maybeAnnounceBecameHero(item, userId, options = {}) {
+	if (game.userId !== userId) return;               // only the responsible client writes/announces
+	// Don't fire on bulk / non-interactive item creation (world data import, a drop from a
+	// compendium, or duplicating a pre-built character) — the announcement marks an in-play
+	// gain, not materializing an actor that already carries the move. crossOffWouldBe's flag
+	// guard still catches an already-crossed-off hero; this covers the un-flagged template case.
+	if (options?.temporary || options?.fromCompendium || options?.keepId) return;
+	if (item?.type !== "move" || !item.system?.asterisk) return;
+	const actor = item.parent;
+	if (actor?.type !== "character") return;
 	if (actor.system?.playbook?.name !== WBH_PLAYBOOK_NAME) return;
-	if (actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG)) return; // already a Hero
-
-	const move = actor.items.find(i => i.type === "move"
-		&& i.system?.asterisk?.basicMove === moveName
-		&& total >= (i.system.asterisk.minTotal ?? 0));
-	if (!move) return;
-
-	await ChatMessage.create({
-		content: _promptContent(actor, move.name, move.system.asterisk.question),
-		speaker: ChatMessage.getSpeaker({ actor }),
-		flags: { [STONETOP_SCOPE]: { [_PROMPT_FLAG]: { actorId: actor.id } } },
-	});
+	if (actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG)) return; // already announced
+	await crossOffWouldBe(actor);
 }
 
 /**
@@ -90,15 +93,4 @@ export async function crossOffWouldBe(actor) {
 			</div>`),
 		speaker: ChatMessage.getSpeaker({ actor }),
 	});
-}
-
-function _promptContent(actor, moveName, question) {
-	return stonetopChatCard(`${moveName} *`,
-		`<div class="stonetop-roll-card-description">
-			<p>${escHtml(question)}</p>
-			<p>If so, you are a Would-be Hero no longer &mdash; cross off &ldquo;Would-be.&rdquo;</p>
-		</div>
-		<div class="card-buttons stonetop-card-buttons">
-			<button class="stonetop-become-hero-btn" data-actor-id="${actor.id}"><i class="fas fa-star"></i> Become a Hero</button>
-		</div>`);
 }

@@ -52,6 +52,9 @@ export class OtherItemSnapshotBuilder {
  * @property {boolean} movesIncomplete - starting "moves of your choice" not all picked yet
  * @property {boolean} levelMovesIncomplete - fewer move picks made than the current level entitles
  * @property {number} levelMovesShortfall - how many move picks the character still owes for their level
+ * @property {boolean} levelMovesOverLimit - more move picks made than the current level entitles
+ * @property {number} levelMovesOverage - how many extra move picks the character has for their level
+ * @property {string|null} levelMovesOverageKey - stable key for dismissing the current overage notice
  * @property {number} characterLevel
  */
 export class Movelist {
@@ -69,6 +72,9 @@ export class Movelist {
 		this.movesIncomplete   = b._movesIncomplete ?? false;
 		this.levelMovesIncomplete = b._levelMovesIncomplete ?? false;
 		this.levelMovesShortfall  = b._levelMovesShortfall ?? 0;
+		this.levelMovesOverLimit  = b._levelMovesOverLimit ?? false;
+		this.levelMovesOverage    = b._levelMovesOverage ?? 0;
+		this.levelMovesOverageKey = b._levelMovesOverageKey ?? null;
 		this.characterLevel       = b._characterLevel ?? 1;
 	}
 }
@@ -85,6 +91,9 @@ export class MovelistBuilder {
 	withMovesIncomplete(v)   { this._movesIncomplete   = v; return this; }
 	withLevelMovesIncomplete(v) { this._levelMovesIncomplete = v; return this; }
 	withLevelMovesShortfall(v)  { this._levelMovesShortfall  = v; return this; }
+	withLevelMovesOverLimit(v)  { this._levelMovesOverLimit  = v; return this; }
+	withLevelMovesOverage(v)    { this._levelMovesOverage    = v; return this; }
+	withLevelMovesOverageKey(v) { this._levelMovesOverageKey = v; return this; }
 	withCharacterLevel(v)       { this._characterLevel       = v; return this; }
 	build()                  { return new Movelist(this); }
 }

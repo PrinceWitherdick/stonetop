@@ -1977,6 +1977,21 @@ describe("buildSnapshot — movelist / level move budget", () => {
 		});
 		expect(ml.levelMovesIncomplete).toBe(false);
 		expect(ml.levelMovesShortfall).toBe(0);
+		expect(ml.levelMovesOverLimit).toBe(false);
+		expect(ml.levelMovesOverage).toBe(0);
+	});
+
+	it("flags a character that has too many move picks for its level", async () => {
+		const ml = await buildMovelist({
+			level: 2,
+			defs:  ["a", "b", "c", "d"].map((s, i) => pbMove(s, `Move ${i}`)),
+			items: ["a", "b", "c", "d"].map((s, i) => ownedMove(`${s}1`, `Move ${i}`)),
+		});
+		expect(ml.levelMovesIncomplete).toBe(false);
+		expect(ml.levelMovesShortfall).toBe(0);
+		expect(ml.levelMovesOverLimit).toBe(true);
+		expect(ml.levelMovesOverage).toBe(1);
+		expect(ml.levelMovesOverageKey).toBe("2:3:4");
 	});
 
 	it("stays hidden at level 1 while the starting-moves onboarding prompt is still up", async () => {
@@ -2000,6 +2015,16 @@ describe("buildSnapshot — movelist / level move budget", () => {
 		expect(ml.levelMovesShortfall).toBe(1);
 	});
 
+	it("counts repeatable move instances when checking over-budget moves", async () => {
+		const ml = await buildMovelist({
+			level: 2,
+			defs:  [pbMove("a", "Alpha"), pbMove("imp", "Improved Stat", { repeatMax: 3, cap: 2 })],
+			items: [ownedMove("a1", "Alpha"), ownedMove("imp1", "Improved Stat"), ownedMove("imp2", "Improved Stat"), ownedMove("imp3", "Improved Stat")],
+		});
+		expect(ml.levelMovesOverLimit).toBe(true);
+		expect(ml.levelMovesOverage).toBe(1);
+	});
+
 	it("never counts auto-granted starting moves toward the level budget", async () => {
 		// Level 2 ⇒ 3 picks expected. Owning a starting move plus 2 choice moves still
 		// leaves the character 1 advancement short — the starting move must not count.
@@ -2016,6 +2041,7 @@ describe("buildSnapshot — movelist / level move budget", () => {
 		const actor = new FakeActorBuilder().withLevel(4).build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
 		expect(snap.movelist.levelMovesIncomplete).toBe(false);
+		expect(snap.movelist.levelMovesOverLimit).toBe(false);
 	});
 });
 

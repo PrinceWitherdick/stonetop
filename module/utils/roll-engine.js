@@ -1,4 +1,4 @@
-import { maybePromptAsteriskMove, maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
+import { maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
 import { escHtml } from "./strings.js";
 import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber } from "./chat.js";
 
@@ -32,6 +32,25 @@ export const SPRING_SEASONS_RESULT = {
 	partial: { label: "7&ndash;9", line: "Pick <strong>one seasonal gain</strong>, but a threat to the steading makes itself known or gets worse." },
 	failure: { label: "6-",        line: "<strong>Threats abound</strong> &mdash; and don't mark XP." },
 };
+
+/** Wrap a list of pre-rendered `<li>` inner-HTML strings in the shared "Results" legend
+ *  block, so every result table (roll cards, homestead / season walkthroughs) renders the
+ *  same chrome from one place instead of each caller re-emitting the wrapper markup. */
+export function resultsLegendHtml(rows) {
+	return `<div class="stonetop-homestead-reference">
+		<strong>Results</strong>
+		<ul>${(rows ?? []).map(r => `<li>${r}</li>`).join("")}</ul>
+	</div>`;
+}
+
+function _resultTableLegend(resultTable) {
+	if (!resultTable) return "";
+	const rows = ["success", "partial", "failure"]
+		.map(key => resultTable[key])
+		.filter(Boolean)
+		.map(result => `<strong>${result.label}:</strong> ${result.line}`);
+	return resultsLegendHtml(rows);
+}
 
 /**
  * Pull the individual die faces out of an evaluated Roll, e.g. a 2d6 that came up
@@ -67,11 +86,19 @@ export function multiDieFaces(roll) {
  * clicked it. Pass `alias` instead to speak the card under a fixed name with no header
  * (the Expedition Requisition card).
  */
-export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable } = {}) {
+export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "" } = {}) {
 	const roll = await new Roll(formula).evaluate();
 	const tier = classifyResult(roll.total).key;
 	const result = resultTable[tier];
-	const body = springRollCardBody(roll.total, tier, result.label, result.line, roll.formula, multiDieFaces(roll));
+	const body = springRollCardBody(
+		roll.total,
+		tier,
+		result.label,
+		result.line,
+		roll.formula,
+		multiDieFaces(roll),
+		resultLegend || _resultTableLegend(resultTable),
+	);
 	await roll.toMessage({
 		speaker: alias ? { alias } : ChatMessage.getSpeaker(),
 		flavor:  title
@@ -105,7 +132,7 @@ export function postSeasonsRollPrompt({ alias = "Seasons Change — Spring", hop
 	});
 }
 
-function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, conditionsHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "" }) {
+function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, resultLegend = "", tierActions = null, conditionsHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "" }) {
 	// Stash every tier's outcome on the row so a GM Shift Up/Down can swap the
 	// detail line to match the new tier (see _shiftRollCardFlavor in stonetop.js).
 	const outcomeAttrs = resultOutcomes
@@ -136,6 +163,21 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 	const bodyHtml = (formulaHtml || resultBlockHtml)
 		? `<div class="card-content">${formulaHtml}${resultBlockHtml}</div>`
 		: "";
+	// Emit an action row for EVERY tier that defines one (not just the rolled tier), hiding
+	// all but the active tier, so a GM Shift Up/Down can reveal the matching action — e.g. the
+	// Requisition miss-cost button when a card is shifted down into a miss. _shiftRollCardFlavor
+	// toggles these rows by data-tier; if only the rolled tier's row exists it has nothing to show.
+	const tierActionEntries = Object.entries(tierActions ?? {}).filter(([, html]) => html);
+	const tierActionsHtml = tierActionEntries.length
+		? `<div class="card-buttons stonetop-roll-tier-actions" data-active-tier="${escHtml(resultClass)}">
+			${tierActionEntries.map(([tier, html]) =>
+				`<div class="stonetop-roll-tier-action" data-tier="${escHtml(tier)}"${tier === resultClass ? "" : " hidden"}>${html}</div>`
+			).join("")}
+		</div>`
+		: "";
+	const resultLegendHtml = resultLegend
+		? `<div class="stonetop-roll-card-results">${resultLegend}</div>`
+		: "";
 	const descriptionHtml = description
 		? `<div class="stonetop-roll-card-description">${description}</div>`
 		: "";
@@ -157,6 +199,8 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 			</div>
 			${descriptionHtml}
 			${bodyHtml}
+			${resultLegendHtml}
+			${tierActionsHtml}
 			${conditionsHtml}
 			${buttonsHtml}
 		</div>
@@ -187,6 +231,8 @@ function _conditionsHtml(conditions) {
  * @param {number} [options.ongoing]                   - Ongoing portion (shown separately in card)
  * @param {number} [options.statValue]                 - Explicit stat value, for nonstandard actor data
  * @param {string} [options.moveName]                  - Display name for the roll header
+ * @param {string} [options.resultLegend]              - Optional visible result legend HTML
+ * @param {object} [options.tierActions]               - Optional HTML actions keyed by result tier
  * @param {string}  [options.stonetopDebility]          - Debility name for annotation
  * @param {string}  [options.stonetopDebilityTooltip]
  * @param {boolean} [options.noXpOnMiss]               - Skip the automatic +1 XP on a miss (for moves that replace it)
@@ -255,6 +301,8 @@ export async function rollStat(statKey, actor, options = {}) {
 		resultClass: result.key,
 		resultDetail,
 		resultOutcomes,
+		resultLegend: options.resultLegend ?? "",
+		tierActions: options.tierActions ?? null,
 		conditionsHtml,
 		buttons: true,
 		total: roll.total,
@@ -299,7 +347,6 @@ export async function rollStat(statKey, actor, options = {}) {
 		});
 	}
 
-	await maybePromptAsteriskMove(actor, moveName, total);
 	await maybeRemindPotentialForGreatness(actor, statKey, total);
 
 	return roll;

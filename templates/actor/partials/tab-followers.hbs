@@ -254,24 +254,25 @@
 		      click-editable, even outside edit mode: a single click fills/clears up
 		      to the pip (handler keys off the data-loyalty ftype). --}}
 		{{#if loyalty}}
+		{{!-- Flat row (label, pips, Spend as siblings — like the crew Group-Fight
+		      Readiness row) so the pips stay glued to the label and only Spend peels
+		      off under extreme narrowness. --}}
 		<div class="stonetop-follower-field-row stonetop-follower-loyalty-row">
 			<span class="stonetop-follower-field-label">Loyalty</span>
-			<div class="stonetop-follower-field-value stonetop-follower-loyalty-controls">
-				<div class="stonetop-loyalty-pips">
-					{{#each loyalty}}
-					<button type="button" class="stonetop-loyalty-pip{{#if filled}} is-filled{{/if}}" data-loyalty="{{../ftype}}" data-slug="{{../loyaltySlug}}" data-index="{{index}}" title="Set Loyalty"></button>
-					{{/each}}
-				</div>
-				{{#unless edit.stats}}
-				{{!-- Spend Loyalty (p.464): overcome fear / resist instinct / do something
-				      they'd rather not. Disabled when they hold none. --}}
-				<button type="button" class="stonetop-spend-loyalty stonetop-inline-btn"
-				        data-ftype="{{ftype}}" data-slug="{{loyaltySlug}}" data-follower-name="{{orderName}}"
-				        {{#unless loyaltyValue}}disabled data-tooltip="No Loyalty to spend." data-tooltip-direction="UP"{{else}}data-tooltip="Spend 1 Loyalty (overcome fear / resist instinct / do something they'd rather not)." data-tooltip-direction="UP"{{/unless}}>
-					<i class="fas fa-hand-holding-hand"></i> Spend
-				</button>
-				{{/unless}}
+			<div class="stonetop-loyalty-pips">
+				{{#each loyalty}}
+				<button type="button" class="stonetop-loyalty-pip{{#if filled}} is-filled{{/if}}" data-loyalty="{{../ftype}}" data-slug="{{../loyaltySlug}}" data-index="{{index}}" title="Set Loyalty"></button>
+				{{/each}}
 			</div>
+			{{#unless edit.stats}}
+			{{!-- Spend Loyalty (p.464): overcome fear / resist instinct / do something
+			      they'd rather not. Disabled when they hold none. --}}
+			<button type="button" class="stonetop-spend-loyalty stonetop-inline-btn"
+			        data-ftype="{{ftype}}" data-slug="{{loyaltySlug}}" data-follower-name="{{orderName}}"
+			        {{#unless loyaltyValue}}disabled data-tooltip="No Loyalty to spend." data-tooltip-direction="UP"{{else}}data-tooltip="Spend 1 Loyalty (overcome fear / resist instinct / do something they'd rather not)." data-tooltip-direction="UP"{{/unless}}>
+				<i class="fas fa-hand-holding-hand"></i> Spend
+			</button>
+			{{/unless}}
 		</div>
 		{{/if}}
 		</div>{{!-- /stonetop-follower-stats-section --}}
@@ -282,20 +283,18 @@
 		{{#if showReadiness}}{{#unless edit.stats}}
 		<div class="stonetop-follower-field-row stonetop-follower-readiness-row">
 			<span class="stonetop-follower-field-label">Readiness</span>
-			<div class="stonetop-follower-field-value stonetop-follower-readiness-controls">
-				<div class="stonetop-readiness-pips" data-tooltip="Ordered to Defend, 7+ (p.469). 7–9: hold 1{{#if readinessHasShield}} (2 with their shield){{/if}}. 10+: hold 3{{#if readinessHasShield}} (4 with their shield){{/if}}. Click a circle to set how much they hold." data-tooltip-direction="UP">
-					{{#each readinessPips}}
-					<button type="button" class="stonetop-readiness-pip{{#if filled}} is-filled{{/if}}" data-ftype="{{../readinessFollower}}" data-slug="{{../readinessSlug}}" data-index="{{index}}" title="Set Readiness"></button>
-					{{/each}}
-				</div>
-				<button type="button" class="stonetop-spend-readiness stonetop-inline-btn"
-				        data-ftype="{{readinessFollower}}" data-slug="{{readinessSlug}}" data-follower-name="{{orderName}}"
-				        {{#unless readinessValue}}disabled data-tooltip="No Readiness to spend." data-tooltip-direction="UP"{{else}}data-tooltip="Spend 1 Readiness (suffer an attack for a ward or draw all attention)." data-tooltip-direction="UP"{{/unless}}>
-					<i class="fas fa-shield"></i> Spend
-				</button>
-				<span class="stonetop-follower-readiness-note">held when they Defend; spend to suffer an attack for a ward or draw all attention</span>
+			<div class="stonetop-readiness-pips" data-tooltip="Ordered to Defend, 7+ (p.469). 7–9: hold 1{{#if readinessHasShield}} (2 with their shield){{/if}}. 10+: hold 3{{#if readinessHasShield}} (4 with their shield){{/if}}. Click a circle to set how much they hold." data-tooltip-direction="UP">
+				{{#each readinessPips}}
+				<button type="button" class="stonetop-readiness-pip{{#if filled}} is-filled{{/if}}" data-ftype="{{../readinessFollower}}" data-slug="{{../readinessSlug}}" data-index="{{index}}" title="Set Readiness"></button>
+				{{/each}}
 			</div>
+			<button type="button" class="stonetop-spend-readiness stonetop-inline-btn"
+			        data-ftype="{{readinessFollower}}" data-slug="{{readinessSlug}}" data-follower-name="{{orderName}}"
+			        {{#unless readinessValue}}disabled data-tooltip="No Readiness to spend." data-tooltip-direction="UP"{{else}}data-tooltip="Spend 1 Readiness (suffer an attack for a ward or draw all attention)." data-tooltip-direction="UP"{{/unless}}>
+				<i class="fas fa-shield"></i> Spend
+			</button>
 		</div>
+		<div class="stonetop-follower-readiness-note">held when they Defend; spend to suffer an attack for a ward or draw all attention</div>
 		{{/unless}}{{/if}}
 
 		{{!-- Butcher (livestock) --}}
@@ -314,12 +313,15 @@
 				<div class="stonetop-follower-gear-list">
 					{{#each gear}}
 					<div class="stonetop-follower-gear-item{{#if checked}} is-checked{{/if}}">
-						<input type="checkbox" class="stonetop-follower-gear-check" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" {{#if checked}}checked{{/if}} {{#unless ../edit.gear}}disabled{{/unless}}>
 						{{#if ../edit.gear}}
+						<input type="checkbox" class="stonetop-follower-gear-check" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" {{#if checked}}checked{{/if}}>
 						<input type="text" class="stonetop-follower-gear-label" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" value="{{label}}" placeholder="gear…">
 						<button type="button" class="stonetop-follower-gear-remove stonetop-inline-btn stonetop-inline-btn--danger" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" title="Remove"><i class="fas fa-times"></i></button>
 						{{else}}
-						<span class="stonetop-follower-gear-name">{{label}}</span>
+						<label class="stonetop-follower-gear-toggle">
+							<input type="checkbox" class="stonetop-follower-gear-check" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" {{#if checked}}checked{{/if}}>
+							<span class="stonetop-follower-gear-name">{{label}}</span>
+						</label>
 						{{/if}}
 					</div>
 					{{/each}}
@@ -358,15 +360,6 @@
 			        data-tags="{{orderTagsCsv}}">
 				<i class="fas fa-hand-point-right"></i> Order
 			</button>
-			{{!-- Recover (p.469): tend their wounds, heal to full HP. Groups Recover
-			      the whole roster from the Roster section instead. --}}
-			{{#if canRecoverSingle}}
-			<button type="button" class="stonetop-follower-recover stonetop-inline-btn"
-			        data-ftype="{{ftype}}" data-slug="{{hpSlug}}" data-follower-name="{{orderName}}" data-max="{{hpMax}}"
-			        {{#unless hpMax}}disabled{{/unless}} data-tooltip="Recover — tend their wounds and heal to full HP." data-tooltip-direction="UP">
-				<i class="fas fa-kit-medical"></i> Recover
-			</button>
-			{{/if}}
 			{{#if canHaveNeed}}
 			<button type="button" class="stonetop-follower-have-need stonetop-inline-btn"
 			        data-ftype="{{ftype}}" data-slug="{{slug}}" data-follower-name="{{orderName}}"
@@ -545,16 +538,6 @@
 			</div>
 			{{/if}}
 
-			{{!-- Recover the whole crew (p.473): heal every member and spend 1 use of
-			      Supplies per member who regained HP. --}}
-			{{#unless edit.individuals}}
-			<div class="stonetop-crew-recover-row">
-				<button type="button" class="stonetop-group-recover stonetop-inline-btn" data-ftype="crew" data-slug="" data-follower-name="{{#if name}}{{name}}{{else}}Crew{{/if}}" data-tooltip="Recover the crew to full HP — spends 1 use of Supplies per member who regained HP (p.473)." data-tooltip-direction="UP">
-					<i class="fas fa-kit-medical"></i> Recover crew
-				</button>
-			</div>
-			{{/unless}}
-
 		</details>
 
 		{{!-- Group Fight --}}
@@ -679,13 +662,6 @@
 				</div>
 				{{/each}}
 			</div>
-			{{#unless edit.card}}
-			<div class="stonetop-crew-recover-row">
-				<button type="button" class="stonetop-group-recover stonetop-inline-btn" data-ftype="custom-group" data-slug="{{slug}}" data-follower-name="{{orderName}}" data-tooltip="Recover the group to full HP (p.473)." data-tooltip-direction="UP">
-					<i class="fas fa-kit-medical"></i> Recover group
-				</button>
-			</div>
-			{{/unless}}
 		</details>
 
 		<details class="stonetop-follower-section stonetop-group-fight-section stonetop-crew-collapsible" data-section="groupFight:custom:{{slug}}" {{#if groupSectionsOpen.groupFight}}open{{/if}}>

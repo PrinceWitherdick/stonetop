@@ -58,7 +58,6 @@ export class MoveSnapshot {
 		// { used, max, atBudget, over, needsChoice } for the move card's pick-budget badge
 		// + "needs your input" cue, or null when the move declares no markBudget.
 		this.markBudget    = b._markBudget ?? null;
-		this.asterisk      = b._asterisk ?? false;
 	}
 }
 
@@ -86,7 +85,6 @@ export class MoveSnapshotBuilder {
 	withStatChoices(v)   { this._statChoices      = v ?? null; return this; }
 	withMarkOptions(v)   { this._markOptions      = v ?? null; return this; }
 	withMarkBudget(v)    { this._markBudget       = v ?? null; return this; }
-	withAsterisk(v)      { this._asterisk         = !!v; return this; }
 	build()              { return new MoveSnapshot(this); }
 }
 

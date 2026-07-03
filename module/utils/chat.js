@@ -78,8 +78,9 @@ export function rollResultNumber(total, dieFaces = "") {
  * @param {string} line     Result line markup (raw HTML) shown below the label.
  * @param {string} formula  Roll formula text for the chip.
  * @param {string} [dieFaces] Individual die faces ("3 5") for the total/chip hover tooltip.
+ * @param {string} [resultLegend] Visible 10+/7-9/6- legend markup to show below the result.
  */
-export function springRollCardBody(total, tier, label, line, formula, dieFaces = "") {
+export function springRollCardBody(total, tier, label, line, formula, dieFaces = "", resultLegend = "") {
 	return `<div class="card-content">
 		${rollFormulaChip(formula, dieFaces)}
 		<div class="stonetop-roll-result ${tier}">
@@ -89,7 +90,7 @@ export function springRollCardBody(total, tier, label, line, formula, dieFaces =
 				<span class="stonetop-roll-result-details">${line}</span>
 			</div>
 		</div>
-	</div>`;
+	</div>${resultLegend ? `<div class="stonetop-roll-card-results">${resultLegend}</div>` : ""}`;
 }
 
 /**

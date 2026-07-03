@@ -47,8 +47,40 @@ function recoverSnapshot({ hpValue = 4, hpMax = 8, smallItemLimit = 5 } = {}) {
 
 function makeActor() {
 	const actor = new FakeActorBuilder().build();
+	actor.id = "actor-1";
+	actor.isOwner = true;
 	actor.typedActor = makeCharacterMock(actor);
 	return actor;
+}
+
+function installGetDataGlobals() {
+	global.foundry.utils.setProperty ??= (obj, path, value) => {
+		const parts = String(path).split(".");
+		let current = obj;
+		for (const key of parts.slice(0, -1)) {
+			current[key] ??= {};
+			current = current[key];
+		}
+		current[parts.at(-1)] = value;
+	};
+	global.game.settings ??= { get: () => false };
+	global.game.user ??= { isGM: true, getFlag: () => ({}) };
+}
+
+function minimalSheetSnapshot(movelist) {
+	return {
+		playbook: null,
+		movelist,
+		vitals: { armor: 0, xp: { value: 0, max: 8 }, hp: { value: 8, max: 8 }, damage: "d4" },
+		inventory: { smallItemLimit: null },
+		postDeathInsert: null,
+		crewBonuses: null,
+		companionBonuses: null,
+		arcana: {
+			major: { hasOwned: false, items: [] },
+			minor: { hasOwned: false, items: [] },
+		},
+	};
 }
 
 function makeSheet(actor) {
@@ -84,6 +116,29 @@ function makeNonMove() {
 // -- Tests --------------------------------------------------------------------
 
 describe("StonetopCharacterSheet event handlers", () => {
+	it("shows the over-level moves warning until the current overage key is dismissed", async () => {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({
+			levelMovesOverLimit: true,
+			levelMovesOverageKey: "2:3:4",
+		}));
+		const sheet = makeSheet(actor);
+
+		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(true);
+
+		await actor.setFlag("stonetop_pwd", "moves.dismissedLevelOverage", "2:3:4");
+		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(false);
+
+		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({
+			levelMovesOverLimit: true,
+			levelMovesOverageKey: "2:3:5",
+		}));
+		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(true);
+	});
+
 	it("_onBackgroundChange calls selectBackground with the slug", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
