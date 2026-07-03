@@ -427,7 +427,7 @@
         "custom": {
           "createTitle": "Create a Custom Move",
           "editTitle": "Edit Custom Move",
-          "addButton": "Create Move",
+          "addButton": "Create a move",
           "editMove": "Edit this move",
           "nameLabel": "Move name",
           "namePlaceholder": "e.g. Reckless Charge",

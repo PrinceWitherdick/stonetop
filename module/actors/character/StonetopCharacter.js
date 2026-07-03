@@ -1354,6 +1354,10 @@ export class StonetopCharacter {
 
 	async removeMove(ownedId) {
 		if (!ownedId) return;
+		// Snapshot the doc before it's deleted — an Improved/Superior Stat instance needs its
+		// recorded stat pick undone afterwards (see _revertStatIncreaseChoice), which reads
+		// the item's id + name.
+		const removed = this._actor.items.find(i => i._id === ownedId);
 		// Cascade: a cross-playbook move (Versatile/Worldly/…) tags each foreign move it
 		// granted with grantedBy.instanceId === its own item id. Removing the cross-playbook
 		// move must also remove those granted moves, or they'd linger in "Learned Moves" with
@@ -1362,6 +1366,7 @@ export class StonetopCharacter {
 			.filter(i => i.type === "move" && i.flags?.[STONETOP_SCOPE]?.grantedBy?.instanceId === ownedId)
 			.map(i => i._id);
 		await this._actor.deleteEmbeddedDocuments("Item", [ownedId, ...orphans]);
+		if (removed) await this._revertStatIncreaseChoice(removed);
 	}
 
 	// Apply the "either X OR Y" starting-move picks: grant the chosen move in each group
@@ -1674,6 +1679,25 @@ export class StonetopCharacter {
 		if (next > current) {
 			await this._actor.update({ [`system.stats.${statKey}.value`]: next }, { stonetopMove: moveItem.name });
 		}
+	}
+
+	// Inverse of _applyStatIncreaseChoice, run when an Improved/Superior Stat instance is
+	// dropped from the sheet: forget this instance's recorded pick and step the chosen stat
+	// back down by 1. The picker only ever offers stats below the cap, so every recorded
+	// pick applied exactly +1 — a plain −1 is its exact inverse (floored at the −1 stat
+	// minimum). No-ops when this move recorded no pick (any non-stat move, or one added
+	// before the pick was collected).
+	async _revertStatIncreaseChoice(moveItem) {
+		const statKey = (this._actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {})[moveItem.id];
+		if (!statKey) return;
+		// setFlag merges (it can't drop keys), so unset just this instance's entry via `-=`.
+		await this._actor.update({ [`flags.${STONETOP_SCOPE}.improvedStatChoices.-=${moveItem.id}`]: null });
+		if (!_STAT_DEFS[statKey]) return;
+		const current = this._actor.system?.stats?.[statKey]?.value ?? 0;
+		await this._actor.update(
+			{ [`system.stats.${statKey}.value`]: Math.max(current - 1, -1) },
+			{ stonetopMove: moveItem.name },
+		);
 	}
 
 	// Cross-playbook pick (Versatile/Worldly/…): add the chosen foreign move and tag it

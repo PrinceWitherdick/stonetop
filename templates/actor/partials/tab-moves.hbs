@@ -58,11 +58,10 @@
 					<h3 class="stonetop-move-group-title">{{label}}</h3>
 					<ol class="items-list">
 					{{#each moves}}
-						{{#if rollType}}
+						{{!-- These "other" moves are all real owned items, so every row is a
+						      draggable .item (drag onto the hotbar → roll or post-to-chat macro).
+						      The dice icon stays gated on rollType. --}}
 						<li class="item stonetop-item" data-item-id="{{ownedId}}">
-						{{else}}
-						<li class="stonetop-item">
-						{{/if}}
 							<div class="stonetop-item-header">
 								{{#if rollType}}
 								<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">

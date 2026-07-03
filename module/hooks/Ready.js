@@ -19,6 +19,7 @@ import { createArcanumItem } from "../item/createArcanum.js";
 import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { getStonetopSteadingActorOrWarn } from "../utils/world.js";
+import { rollMoveFromUuid } from "./HotbarDrop.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
@@ -110,6 +111,9 @@ export async function onReady() {
 		actor ? new CharacterCreationDialog(actor).render(true)
 		      : ui.notifications.warn("No character to start creation for.");
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
+	// Roll a learned move from its uuid — the entry point the move hotbar macros call
+	// (drag a move off a character sheet onto the hotbar; see hooks/HotbarDrop.js).
+	game.stonetop.rollMoveMacro     = rollMoveFromUuid;
 	// Create a blank homebrew arcanum world Item and open its editor. Minor by default;
 	// pass { major: true } for a major. Callable from a macro/console/hotbar:
 	//   game.stonetop.createArcanum({ name: "My Charm" })

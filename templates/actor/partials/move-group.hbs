@@ -15,10 +15,14 @@
 	{{/if}}
 	<ol class="items-list">
 	{{#each moves}}
-		{{#if (and owned rollType)}}
+		{{!-- Every OWNED move is a draggable .item (so it can be dragged onto the macro
+		      hotbar — rollable moves make a roll macro, description-only ones a post-to-chat
+		      macro). Un-owned rows (the unpicked side of an either/or choice) stay
+		      non-draggable. The dice icon itself is still gated on rollType below. --}}
+		{{#if owned}}
 		<li class="item stonetop-item is-checked{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if markBudget.needsChoice}} move-needs-choice{{/if}}{{#if isStarting}} move-starting{{/if}}" data-item-id="{{ownedId}}">
 		{{else}}
-		<li class="stonetop-item{{#if owned}} is-checked{{/if}}{{#if (and locked (not owned))}} move-locked{{/if}}{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if markBudget.needsChoice}} move-needs-choice{{/if}}{{#if isStarting}} move-starting{{/if}}">
+		<li class="stonetop-item{{#if (and locked (not owned))}} move-locked{{/if}}{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if markBudget.needsChoice}} move-needs-choice{{/if}}{{#if isStarting}} move-starting{{/if}}">
 		{{/if}}
 			<div class="stonetop-item-header">
 				{{#if repeatable}}

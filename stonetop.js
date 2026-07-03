@@ -18,6 +18,7 @@ import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopB
 import { createStonetopLocationPageSheetClass } from "./module/journal/StonetopLocationPageSheet.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
+import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
@@ -255,6 +256,11 @@ Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDesc
 
 // -- RENDER ACTOR SHEET ----------------------------------------
 Hooks.on("renderActorSheet", onRenderActorSheet);
+
+// -- HOTBAR DROP -----------------------------------------------
+// Turn a learned move dragged from a character sheet onto the macro hotbar into a
+// script macro that re-rolls it (game.stonetop.rollMoveMacro, wired in Ready.js).
+Hooks.on("hotbarDrop", onHotbarDrop);
 
 // -- LOCATION CROSS-LINK TOOLTIPS ------------------------------
 // Give cross-links into the Locations pack a useful hover summary instead of the

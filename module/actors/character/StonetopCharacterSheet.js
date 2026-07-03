@@ -2508,8 +2508,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					this._stonetopCharacter.origin.select(ev.currentTarget.value)
 				);
 				html.find(".stonetop-origin-name-check").on("change", this._onOriginNameClick.bind(this));
-				html.find(".stonetop-move-check").on("change", this._onMoveCheck.bind(this));
-				html.find(".stonetop-repeat-check").on("change", this._onRepeatCheck.bind(this));
+				// A regular move check and a repeatable-move check run the identical
+				// add/remove-plus-prompts flow, so both bind to the one handler.
+				html.find(".stonetop-move-check, .stonetop-repeat-check").on("change", this._onMoveCheck.bind(this));
 				html.find(".stonetop-bg-choice").on("change", this._onBgChoiceChange.bind(this));
 			}
 			html[0].addEventListener("click", ev => {
@@ -4017,21 +4018,142 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _onMoveCheck(ev) {
 			const el = ev.currentTarget;
 			if (el.checked) {
-				await this._stonetopCharacter.addMove(el.dataset.compendiumId);
+				const added = await this._stonetopCharacter.addMove(el.dataset.compendiumId);
+				await this._maybePromptStatIncrease(added);
+				await this._maybePromptForeignMove(added);
 				await this._maybeOpenPossessionChoicesForMove(el.dataset.moveName);
 			} else {
 				await this._stonetopCharacter.removeMove(el.dataset.ownedId);
 			}
 		}
 
-		async _onRepeatCheck(ev) {
-			const el = ev.currentTarget;
-			if (el.checked) {
-				await this._stonetopCharacter.addMove(el.dataset.compendiumId);
-				await this._maybeOpenPossessionChoicesForMove(el.dataset.moveName);
-			} else {
-				await this._stonetopCharacter.removeMove(el.dataset.ownedId);
+		// Ticking an Improved/Superior Stat box on the moves tab has to collect the same
+		// "+1 to which stat?" choice the level-up flow does — otherwise the box just reads as
+		// mysteriously checked with no stat bumped. Offer the stats still below the move's cap;
+		// picking one records + applies it (the "+1 STR" chip then renders). Closing without a
+		// pick un-ticks the box (removeMove), since a stat move with no choice does nothing.
+		async _maybePromptStatIncrease(addedItem) {
+			if (!addedItem) return;
+			const cap = addedItem.system?.cap ?? null;
+			if (cap == null) return; // not a stat-increase move
+			const stats    = this.actor.system?.stats ?? {};
+			const eligible = _STAT_CHOICES.filter(([key]) => (stats[key]?.value ?? 0) < cap);
+			if (!eligible.length) {
+				ui.notifications?.warn(`${addedItem.name}: every stat is already at the maximum (+${cap}).`);
+				await this._stonetopCharacter.removeMove(addedItem.id);
+				return;
 			}
+			const maxed = _STAT_CHOICES
+				.filter(([key]) => (stats[key]?.value ?? 0) >= cap)
+				.map(([, label]) => label);
+			const note = maxed.length
+				? `<p class="notes">Already at the max (+${cap}): ${maxed.join(", ")}.</p>`
+				: "";
+			let picked = false;
+			const buttons = {};
+			for (const [key, label] of eligible) {
+				const value = stats[key]?.value ?? 0;
+				buttons[key] = {
+					label: `${label} (${sign(value)} → ${sign(value + 1)})`,
+					callback: async () => {
+						picked = true;
+						await this._stonetopCharacter._applyStatIncreaseChoice(addedItem, key, cap);
+					},
+				};
+			}
+			new Dialog({
+				title:   `${addedItem.name} — Increase a Stat`,
+				content: `<p>Choose one stat to raise by +1 (max +${cap}).</p>${note}`,
+				buttons,
+				render:  bringDialogToFront,
+				// Closed without choosing (window ✕) → treat it like the box was never ticked.
+				close:   async () => { if (!picked) await this._stonetopCharacter.removeMove(addedItem.id); },
+			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-stat-picker-dialog"] }).render(true);
+		}
+
+		// Ticking a cross-playbook move (Versatile / Worldly / Dabbler / Wild Soul / Seasoned
+		// Warrior / Arts of War / Initiate of the Secret Arts) on the moves tab has to collect
+		// the same "which move from another playbook?" pick the level-up flow does — otherwise
+		// the box just reads as checked while granting nothing (and, for Initiate, without its
+		// Sacred Pouch). Offer the qualifying foreign moves; picking one grants it (tagged
+		// "Granted by …" under Learned Moves) plus any bundled possession. Closing without a
+		// pick un-ticks the box; dropping the move later cascades the grant away (removeMove).
+		async _maybePromptForeignMove(addedItem) {
+			if (!addedItem) return;
+			const crossPlaybook = addedItem.system?.crossPlaybook ?? null;
+			if (!crossPlaybook) return; // not a cross-playbook move
+			const grantsPossession = crossPlaybook.grantsPossession ?? null;
+			const level   = this.actor.system?.attributes?.level?.value ?? 1;
+			const foreign = await this._stonetopCharacter.getForeignMovesForLevelUp(crossPlaybook, level);
+			// Nothing new qualifies (e.g. a repeat take that already scooped every eligible move).
+			if (!foreign.length) {
+				if (grantsPossession) {
+					// Still worth taking for its bundled possession (Initiate's Sacred Pouch) —
+					// grant that (idempotent) and keep the move.
+					await this._stonetopCharacter._applyForeignMoveChoice(addedItem, null, grantsPossession);
+					ui.notifications?.info(`${addedItem.name}: no Blessed move qualifies right now, but its Sacred Pouch is granted.`);
+				} else {
+					// Pure foreign-move grant with nothing to grant → un-tick the box.
+					ui.notifications?.warn(`${addedItem.name}: no qualifying moves to learn right now.`);
+					await this._stonetopCharacter.removeMove(addedItem.id);
+				}
+				return;
+			}
+			// The list arrives sorted playbook-then-name; fold it into an <optgroup> per playbook.
+			let optionsHtml = "", lastPb = null;
+			for (const m of foreign) {
+				if (m.playbook !== lastPb) {
+					if (lastPb !== null) optionsHtml += "</optgroup>";
+					optionsHtml += `<optgroup label="${_esc(m.playbook)}">`;
+					lastPb = m.playbook;
+				}
+				optionsHtml += `<option value="${_esc(m.compendiumId)}">${_esc(m.name)}</option>`;
+			}
+			if (lastPb !== null) optionsHtml += "</optgroup>";
+			const descFor = id => {
+				const m = foreign.find(x => x.compendiumId === id);
+				if (!m) return "";
+				const req = m.requiresLabel ? `<p class="stonetop-move-note">Requires: ${_esc(m.requiresLabel)}</p>` : "";
+				return `${m.description ?? ""}${req}`;
+			};
+			const pouchNote = grantsPossession
+				? `<p class="notes">${_esc(addedItem.name)} also grants a Sacred Pouch.</p>`
+				: "";
+			const content = `
+				<form class="stonetop-foreign-move-picker">
+					<p>Choose a move to learn from another playbook.</p>
+					${pouchNote}
+					<select class="stonetop-foreign-move-select">${optionsHtml}</select>
+					<div class="stonetop-foreign-move-desc">${descFor(foreign[0].compendiumId)}</div>
+				</form>`;
+			let picked = false;
+			new Dialog({
+				title:   `${addedItem.name} — Learn a Move`,
+				content,
+				buttons: {
+					learn: {
+						icon:  "<i class='fas fa-book'></i>",
+						label: "Learn",
+						callback: async html => {
+							const id = html.find(".stonetop-foreign-move-select").val();
+							if (!id) return;
+							picked = true;
+							await this._stonetopCharacter._applyForeignMoveChoice(addedItem, id, grantsPossession);
+						},
+					},
+					cancel: { label: "Cancel" },
+				},
+				default: "learn",
+				render: html => {
+					bringDialogToFront(html);
+					// Live-preview the highlighted move's text as the selection changes.
+					const sel  = html.find(".stonetop-foreign-move-select");
+					const desc = html.find(".stonetop-foreign-move-desc");
+					sel.on("change", () => desc.html(descFor(sel.val())));
+				},
+				// Closed without learning anything (Cancel / window ✕) → un-tick the box.
+				close: async () => { if (!picked) await this._stonetopCharacter.removeMove(addedItem.id); },
+			}, { width: 520, classes: ["dialog", "stonetop", "stonetop-foreign-move-dialog"] }).render(true);
 		}
 
 		async _onMoveResourceChange(ev) {
