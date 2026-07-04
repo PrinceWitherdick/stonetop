@@ -1160,6 +1160,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.canLevelUp = xp.value >= xp.max;
 			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
 			context.stonetop.recover = this._buildRecoverData(context.stonetop);
+			context.stonetop.convalesce = this._buildConvalesceData(context.stonetop);
 			return context;
 		}
 
@@ -1186,6 +1187,25 @@ export function createStonetopCharacterSheetClass(Base) {
 				atFullHp,
 				hint,
 				canRecover: !locked && suppliesLeft > 0 && !atFullHp,
+			};
+		}
+
+		// Convalesce (homefront move): rest a few days in safety and comfort to
+		// recover ALL HP and clear ALL debilities. Unlike Recover there's no supply
+		// cost and no once-per-damage lock — it's a downtime move, available whenever
+		// there's something to restore (HP below max or any debility marked).
+		_buildConvalesceData(snapshot) {
+			const hp               = snapshot.vitals.hp;
+			const atFullHp         = hp.value >= hp.max;
+			const activeDebilities = (snapshot.debilities ?? []).filter(d => d.active);
+			const hasDebility      = activeDebilities.length > 0;
+			const canConvalesce    = !atFullHp || hasDebility;
+			return {
+				atFullHp,
+				hasDebility,
+				activeDebilities,
+				canConvalesce,
+				hint: canConvalesce ? null : { icon: "fa-heart", text: game.i18n.localize("stonetop.specialMoves.convalesce.nothingHint") },
 			};
 		}
 
@@ -2423,6 +2443,45 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._arcanaMasonryObserver.observe(grid);
 			});
 
+			// Special-moves masonry: distribute the few, variable-height special-move
+			// cards ROW-MAJOR into as many equal-width column tracks as the tab is wide
+			// enough to hold (card i → column i % N). Unlike CSS multi-column — which
+			// balances by height and, with only a handful of cards, can leave a right-hand
+			// column holding more rows than one to its left — this keeps the fill strictly
+			// left-weighted while each track stays a tight, natural-height stack. Driven by
+			// a ResizeObserver, exactly like the arcana grid above: it fires when the tab
+			// first gains width (0 → measurable) and on every sheet resize, and the
+			// per-width guard makes the re-pack idempotent (so re-packing, which shortens
+			// the grid, doesn't feed back into the observer).
+			const SPECIAL_MOVE_MIN_COL_PX = 280;
+			const SPECIAL_MOVE_COL_GAP_PX = 12;
+			const packSpecialMoves = grid => {
+				const cards = (grid._stonetopCards ??=
+					Array.from(grid.querySelectorAll(".stonetop-special-move-card")));
+				const width = grid.clientWidth;
+				if (!cards.length || !width || grid._packedWidth === width) return;
+
+				const colCount = Math.max(1, Math.min(cards.length,
+					Math.floor((width + SPECIAL_MOVE_COL_GAP_PX) /
+						(SPECIAL_MOVE_MIN_COL_PX + SPECIAL_MOVE_COL_GAP_PX))));
+				const cols = Array.from({ length: colCount }, () => {
+					const c = document.createElement("div");
+					c.className = "stonetop-special-move-col";
+					return c;
+				});
+				cards.forEach((card, i) => cols[i % colCount].appendChild(card));
+				grid.replaceChildren(...cols);
+				grid._packedWidth = width;
+			};
+			this._specialMoveMasonryObserver?.disconnect();
+			this._specialMoveMasonryObserver = new ResizeObserver(entries => {
+				for (const entry of entries) packSpecialMoves(entry.target);
+			});
+			html[0].querySelectorAll(".stonetop-special-move-grid").forEach(grid => {
+				packSpecialMoves(grid);
+				this._specialMoveMasonryObserver.observe(grid);
+			});
+
 			if (showMoveRefHover) {
 				let _moveRefHovered = null;
 				html.find(".stonetop-move-ref").on("mouseenter", async ev => {
@@ -2564,6 +2623,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-levelup-icon").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
+			html.find(".stonetop-convalesce-open-btn").on("click", this._onConvalesceOpen.bind(this));
 
 			// -- Followers tab: shared follower-card fields ----------------
 			// Common, hand-editable fields on every follower card (name,
@@ -3723,10 +3783,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onDropItemCreate(itemData) {
-			const items  = Array.isArray(itemData) ? itemData : [itemData];
-			const arcana = items.filter(i => i.type === "move" && i.system?.moveType === "arcanum");
-			const moves  = items.filter(i => i.type === "move" && i.system?.moveType !== "arcanum");
-			const others = items.filter(i => i.type !== "move");
+			const items     = Array.isArray(itemData) ? itemData : [itemData];
+			const arcana    = items.filter(i => i.type === "move" && i.system?.moveType === "arcanum");
+			const inventory = items.filter(i => i.type === "move" && i.system?.moveType === "inventory");
+			const moves     = items.filter(i => i.type === "move" && !["arcanum", "inventory"].includes(i.system?.moveType));
+			const others    = items.filter(i => i.type !== "move");
 			let anyAdded = false;
 			// A dropped arcanum is added UNIDENTIFIED — a face-down "mystery" card the player
 			// Identifies in play (drop is the only path that plants a mystery; onboarding,
@@ -3746,6 +3807,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			for (const item of moves) {
 				if (await this._stonetopCharacter.onDropMove(item)) anyAdded = true;
+			}
+			for (const item of inventory) {
+				await this._stonetopCharacter.addDroppedInventoryItem(item);
+				anyAdded = true;
 			}
 			if (others.length) await super._onDropItemCreate(others);
 			if (addedArcana.length) {
@@ -4898,17 +4963,13 @@ export function createStonetopCharacterSheetClass(Base) {
 							<li>Regain HP: <strong>${hp.value} &rarr; ${newHp}</strong> (4+Prosperity = ${healAmount}).</li>
 						</ul>
 					</div>
-					<label class="stonetop-homestead-field">
-						<span>What you're tending <em>(optional)</em></span>
-						<textarea name="ailment" rows="2" placeholder="Wound or debility…"></textarea>
-					</label>
 					<p class="stonetop-homestead-note">${_esc(guide.note)} You can't gain this benefit again until you take more damage.</p>
 				</form>`,
 				buttons: {
 					cancel:  { label: "Cancel" },
 					recover: {
 						label: `Recover (+${newHp - hp.value} HP)`,
-						callback: html => this._applyRecover(html, { supplySlug, currentUses: Number(resources[supplySlug]) || 0, oldHp: hp.value, newHp }),
+						callback: () => this._applyRecover({ supplySlug, currentUses: Number(resources[supplySlug]) || 0, oldHp: hp.value, newHp }),
 					},
 				},
 				default: "recover",
@@ -4916,20 +4977,66 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-recover-dialog"] }).render(true);
 		}
 
-		async _applyRecover(html, { supplySlug, currentUses, oldHp, newHp }) {
+		async _applyRecover({ supplySlug, currentUses, oldHp, newHp }) {
 			await this._stonetopCharacter.setInventoryResource(supplySlug, Math.max(0, currentUses - 1));
 			await this.actor.update({
 				"system.attributes.hp.value": newHp,
 				"flags.stonetop_pwd.recover.spent": true,
 			});
 
-			const ailment = String(html[0]?.querySelector('[name="ailment"]')?.value ?? "").trim();
 			const rows = [
 				{ label: "Supplies", value: "Expended 1 use" },
 				{ label: "HP", value: `${oldHp} → ${newHp} (+${newHp - oldHp})` },
 			];
-			if (ailment) rows.push({ label: "Tending", value: ailment });
 			postMoveToChat(this.actor, "Recover", rows);
+
+			this.render(false);
+		}
+
+		async _onConvalesceOpen() {
+			const snapshot = await this._stonetopCharacter.buildSnapshot();
+			const hp = snapshot.vitals.hp;
+			const activeDebilities = (snapshot.debilities ?? []).filter(d => d.active);
+			if (hp.value >= hp.max && activeDebilities.length === 0) return;
+
+			const hpRow = hp.value < hp.max
+				? `<li>Recover all HP: <strong>${hp.value} &rarr; ${hp.max}</strong>.</li>`
+				: `<li>HP already full.</li>`;
+			const debilityRow = activeDebilities.length
+				? `<li>Clear ${activeDebilities.length === 1 ? "debility" : "debilities"}: <strong>${_esc(activeDebilities.map(d => d.name).join(", "))}</strong>.</li>`
+				: `<li>No debilities marked.</li>`;
+
+			new Dialog({
+				title: "Convalesce",
+				content: `<form class="stonetop-homestead-dialog stonetop-convalesce-dialog">
+					<p class="stonetop-homestead-trigger"><em>When you rest for a few days, in safety and comfort…</em></p>
+					<div class="stonetop-homestead-reference">
+						<ul>${hpRow}${debilityRow}</ul>
+					</div>
+					<p class="stonetop-homestead-note"><em>When you rest for a few weeks under the care of a healer,</em> heal any problematic wounds that can heal. If you have suffered a permanent injury or impairment, either retire or Make a Plan to adapt to it.</p>
+				</form>`,
+				buttons: {
+					cancel:     { label: "Cancel" },
+					convalesce: {
+						label: "Convalesce",
+						callback: () => this._applyConvalesce({ oldHp: hp.value, newHp: hp.max, debilities: activeDebilities }),
+					},
+				},
+				default: "convalesce",
+				render: bringDialogToFront,
+			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-convalesce-dialog"] }).render(true);
+		}
+
+		async _applyConvalesce({ oldHp, newHp, debilities }) {
+			const update = { "system.attributes.hp.value": newHp };
+			for (const d of debilities) update[`system.attributes.debilities.options.${d.key}.value`] = false;
+			await this.actor.update(update, { stonetopMove: "Convalesce" });
+
+			const rows = [];
+			if (newHp > oldHp)       rows.push({ label: "HP", value: `${oldHp} → ${newHp} (+${newHp - oldHp})` });
+			if (debilities.length)   rows.push({ label: "Debilities cleared", value: debilities.map(d => d.name).join(", ") });
+			if (!rows.length)        rows.push({ label: "Convalesce", value: "Rested in safety and comfort." });
+			postMoveToChat(this.actor, "Convalesce", rows);
 
 			this.render(false);
 		}

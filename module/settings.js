@@ -48,6 +48,21 @@ export function registerSettings() {
 		default: true,
 	});
 
+	// Adds the "Shift Up" / "Shift Down" buttons to move roll cards in chat, letting the
+	// GM bump a roll's result to a higher or lower tier (see _chatWireRollShifting /
+	// _onRollShift in stonetop.js). Only the GM ever sees them. Off by default — it's a
+	// niche GM tool most tables never reach for, and the buttons add a row to every roll
+	// card. World-scoped: whether the table uses tier-shifting is a per-world call, and
+	// only the GM acts on it.
+	game.settings.register("stonetop_pwd", "chatShiftButtons", {
+		name: "stonetop.settings.chatShiftButtons.name",
+		hint: "stonetop.settings.chatShiftButtons.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: false,
+	});
+
 	// When on (the default), only the GM may author custom moves — players don't see
 	// the "+ Custom Move" button or the edit pencils, and the create/edit handlers are
 	// no-ops for them. Existing custom moves still display and roll for everyone; this

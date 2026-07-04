@@ -47,6 +47,9 @@ export class LoadSnapshotBuilder {
  * @property {number} weight
  * @property {boolean} checked
  * @property {Resource|null} resource
+ * @property {string|null} resourceSuffix - Text rendered inside the parenthetical, after the
+ *           ○ track, so an item reads "Skins of fine whisky (○○ uses, grants advantage to
+ *           Persuade)" — the book's own phrasing, with the uses track sitting mid-sentence.
  * @property {boolean} isCustom
  * @property {string|null} ownedId
  * @property {boolean} twoCol
@@ -61,6 +64,7 @@ export class InventoryItemSnapshot {
 		this.checked     = b._checked;
 		this.disabled    = b._disabled ?? false;
 		this.resource    = b._resource;
+		this.resourceSuffix = b._resourceSuffix ?? null;
 		this.isCustom    = b._isCustom;
 		this.ownedId     = b._ownedId;
 		this.twoCol      = b._twoCol;
@@ -76,6 +80,7 @@ export class InventoryItemSnapshotBuilder {
 	withWeight(v)      { this._weight      = v; return this; }
 	withChecked(v)     { this._checked     = v; return this; }
 	withResource(v)    { this._resource    = v; return this; }
+	withResourceSuffix(v) { this._resourceSuffix = v; return this; }
 	withIsCustom(v)    { this._isCustom    = v; return this; }
 	withOwnedId(v)     { this._ownedId     = v; return this; }
 	withTwoCol(v)      { this._twoCol      = v; return this; }

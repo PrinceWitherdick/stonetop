@@ -12,10 +12,31 @@ const PLAYBOOK = {
 			{
 				slug: "apiary",
 				label: "Apiary",
+				description: "beeswax, honey, ◇ bee smokers, etc.",
 				grantsItems: [
 					{ name: "Beeswax", column: "small" },
 					{ name: "Honey", column: "small" },
 					{ name: "Bee smokers", column: "regular", weight: 1 },
+				],
+			},
+			{
+				slug: "distillery",
+				label: "Distillery",
+				description: "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+				grantsItems: [
+					{
+						name: "Skins of fine whisky",
+						sourceKey: "Fine whisky (advantage to Persuade)",
+						// Deliberately keeps the sourceKey duplicated in aliases — this is the
+						// pathological shape that tripped the cross-possession collision guard.
+						// Retained so the grantNames de-dupe keeps being exercised by a test.
+						aliases: ["Fine whisky (advantage to Persuade)", "Fine whisky"],
+						column: "small",
+						resource: { max: 2, title: null, labels: [] },
+						resourceSuffix: "uses, grants advantage to Persuade",
+						legacyUsesFromPossession: true,
+					},
+					{ name: "Firkins", column: "regular", weight: 1 },
 				],
 			},
 			{ slug: "mastiffs", label: "Mastiffs" },
@@ -24,16 +45,18 @@ const PLAYBOOK = {
 };
 
 function grantedItem(overrides = {}) {
+	const system = {
+		moveType: "inventory-custom",
+		inventoryColumn: overrides.inventoryColumn ?? "small",
+		sourceKey: overrides.sourceKey ?? overrides.name ?? "Beeswax",
+	};
+	if (!overrides.untagged) system.sourcePossession = overrides.sourcePossession ?? "apiary";
+	if (overrides.resource) system.resource = overrides.resource;
 	return {
 		_id: overrides._id ?? "id-1",
 		type: "move",
 		name: overrides.name ?? "Beeswax",
-		system: {
-			moveType: "inventory-custom",
-			inventoryColumn: overrides.inventoryColumn ?? "small",
-			sourcePossession: overrides.sourcePossession ?? "apiary",
-			sourceKey: overrides.sourceKey ?? overrides.name ?? "Beeswax",
-		},
+		system,
 	};
 }
 
@@ -76,6 +99,16 @@ describe("StonetopCharacter — special possession item grants", () => {
 
 		const [, payload] = actor.createEmbeddedDocuments.mock.calls[0];
 		expect(payload.map(p => p.name)).toEqual(["Bee smokers"]);
+	});
+
+	it("uses a stable source key and carries resource data for renamed grant labels", async () => {
+		const { actor, character } = makeCharacter();
+		await character.selectPossession("distillery");
+
+		const [, payload] = actor.createEmbeddedDocuments.mock.calls[0];
+		const whisky = payload.find(p => p.system.sourceKey === "Fine whisky (advantage to Persuade)");
+		expect(whisky.name).toBe("Skins of fine whisky");
+		expect(whisky.system.resource).toEqual({ max: 2, title: null, labels: [] });
 	});
 
 	it("creates nothing for a possession with no grantsItems", async () => {
@@ -196,11 +229,89 @@ describe("StonetopCharacter — possession gear renders in the card, not the col
 	it("groups granted gear on the possession (◇ regular first, then small) and keeps it out of the columns", async () => {
 		const snap = await buildWithApiary().buildSnapshot();
 		const apiary = snap.inventory.possessions.items.find(p => p.slug === "apiary");
+		expect(apiary.description).toBe("");
 		expect(apiary.grantedRegular.map(i => i.name)).toEqual(["Bee smokers"]);
 		expect(apiary.grantedSmall.map(i => i.name)).toEqual(["Beeswax", "Honey"]);
 		// Not duplicated into the shared Items / Small Items columns.
 		expect(snap.inventory.outfit.regularItems.some(i => i.name === "Bee smokers")).toBe(false);
 		expect(snap.inventory.outfit.smallItems.some(i => i.name === "Beeswax")).toBe(false);
+	});
+
+	it("pulls older untagged grant-matching write-ins into their active possession card", async () => {
+		const items = [
+			grantedItem({ _id: "beeswax", name: "Beeswax", inventoryColumn: "small", untagged: true }),
+			grantedItem({ _id: "smoker", name: "Bee smokers", inventoryColumn: "regular", untagged: true }),
+			grantedItem({ _id: "chalk", name: "Chalk", inventoryColumn: "small", untagged: true }),
+		];
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-blessed", "The Blessed")
+			.withItems(items)
+			.withFlag("possessions.selected", ["apiary"])
+			.build();
+		const snap = await new TestCharacterBuilder(actor).addPlaybook(PLAYBOOK).build().buildSnapshot();
+		const apiary = snap.inventory.possessions.items.find(p => p.slug === "apiary");
+
+		expect(apiary.grantedRegular.map(i => i.name)).toEqual(["Bee smokers"]);
+		expect(apiary.grantedSmall.map(i => i.name)).toEqual(["Beeswax"]);
+		expect(snap.inventory.outfit.regularItems.some(i => i.name === "Bee smokers")).toBe(false);
+		expect(snap.inventory.outfit.smallItems.some(i => i.name === "Beeswax")).toBe(false);
+		expect(snap.inventory.outfit.smallItems.some(i => i.name === "Chalk")).toBe(true);
+	});
+
+	it("renders Distillery uses on the whisky grant, not the possession header", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-blessed", "The Blessed")
+			.withItems([
+				grantedItem({
+					_id: "whisky",
+					name: "Fine whisky",
+					untagged: true,
+				}),
+			])
+			.withFlag("possessions.selected", ["distillery"])
+			.withFlag("possessions.uses", { distillery: 1 })
+			.build();
+		const snap = await new TestCharacterBuilder(actor).addPlaybook(PLAYBOOK).build().buildSnapshot();
+		const distillery = snap.inventory.possessions.items.find(p => p.slug === "distillery");
+		const whisky = distillery.grantedSmall.find(i => i.slug === "whisky");
+
+		expect(distillery.resource).toBeNull();
+		expect(distillery.usesLabel).toBeNull();
+		// Reads "Skins of fine whisky (○○ uses, grants advantage to Persuade)" on the card:
+		// name, then the ○ track, then the suffix — matching the book's phrasing.
+		expect(whisky.name).toBe("Skins of fine whisky");
+		expect(whisky.resourceSuffix).toBe("uses, grants advantage to Persuade");
+		expect(whisky.resource.max).toBe(2);
+		expect(whisky.resource.current).toBe(1);
+		expect(snap.inventory.outfit.smallItems.some(i => i.name === "Fine whisky")).toBe(false);
+	});
+
+	it("adopts an untagged legacy item named with the grant's full sourceKey (redundant alias)", async () => {
+		// The Distillery whisky grant lists its sourceKey verbatim in `aliases` too, so the
+		// name "Fine whisky (advantage to Persuade)" appears twice in grantNames. It must not
+		// read as a cross-possession collision and get dropped into the Small Items column.
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-blessed", "The Blessed")
+			.withItems([
+				grantedItem({
+					_id: "whisky",
+					name: "Fine whisky (advantage to Persuade)",
+					untagged: true,
+				}),
+			])
+			.withFlag("possessions.selected", ["distillery"])
+			.withFlag("possessions.uses", { distillery: 2 })
+			.build();
+		const snap = await new TestCharacterBuilder(actor).addPlaybook(PLAYBOOK).build().buildSnapshot();
+		const distillery = snap.inventory.possessions.items.find(p => p.slug === "distillery");
+		const whisky = distillery.grantedSmall.find(i => i.slug === "whisky");
+
+		expect(whisky).toBeDefined();
+		expect(whisky.name).toBe("Skins of fine whisky");
+		expect(whisky.resourceSuffix).toBe("uses, grants advantage to Persuade");
+		expect(whisky.resource.max).toBe(2);
+		expect(whisky.resource.current).toBe(2);
+		expect(snap.inventory.outfit.smallItems.some(i => i.name === "Fine whisky (advantage to Persuade)")).toBe(false);
 	});
 
 	it("a checked ◇ gear item in the card still counts toward load", async () => {

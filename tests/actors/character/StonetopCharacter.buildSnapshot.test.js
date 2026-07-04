@@ -1,4 +1,4 @@
-import {describe, expect, it} from "vitest";
+import {afterEach, describe, expect, it} from "vitest";
 import {CharacterSnapshot} from "../../../module/model/CharacterSnapshot.js";
 import {OutfitItemBuilder} from "../../../module/model/OutfitItem.js";
 import {FakePlaybookRepository} from "../../fakes/FakePlaybookRepository.js";
@@ -24,6 +24,10 @@ function makeOutfitItem(overrides = {}) {
 		.withSpecialCategory(overrides.specialCategory ?? null)
 		.build();
 }
+
+afterEach(() => {
+	delete global.game.actors;
+});
 
 // -- Playbook fixture ---------------------------------------------------------
 
@@ -1043,6 +1047,29 @@ describe("buildSnapshot — inventory.outfit", () => {
 			.build().buildSnapshot();
 		expect(snap.inventory.outfit.regularItems[0].resource.current).toBe(1);
 	});
+
+	it("dropped inventory-custom items keep their note and delete metadata in the Items column", async () => {
+		const dropped = {
+			_id: "drop-1",
+			type: "move",
+			name: "Sword, iron",
+			system: {
+				moveType: "inventory-custom",
+				inventoryColumn: "regular",
+				weight: 1,
+				note: "<em>iron</em>, <em>hand</em>, <em>close</em>, +1 damage",
+			},
+		};
+		const snap = await new TestCharacterBuilder(new FakeActorBuilder().withItems([dropped]).build())
+			.build().buildSnapshot();
+		const item = snap.inventory.outfit.regularItems.find(i => i.slug === "drop-1");
+		expect(item).toMatchObject({
+			name: "Sword, iron",
+			note: "<em>iron</em>, <em>hand</em>, <em>close</em>, +1 damage",
+			isCustom: true,
+			ownedId: "drop-1",
+		});
+	});
 });
 
 // ── inventory: possession-derived special items ──────────────────────────────
@@ -1131,6 +1158,76 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			.withInventoryRepo(new FakeInventoryRepository([smallSpecial]))
 			.build().buildSnapshot();
 		expect(snap.inventory.outfit.smallItems.some(i => i.slug === "trinket-kit")).toBe(true);
+	});
+
+	it("surfaces Weapons of War special weapons as regular Outfit items when the linked steading earned the improvement", async () => {
+		const weapons = [
+			makeOutfitItem({ slug: "mace-or-flail", name: "Mace or flail, iron", weight: 1, special: true, specialCategory: "Weapons of War" }),
+			makeOutfitItem({ slug: "battleaxe", name: "Battleaxe, iron", weight: 1, special: true, specialCategory: "Weapons of War" }),
+			makeOutfitItem({ slug: "warhammer", name: "Warhammer, iron", weight: 1, special: true, specialCategory: "Weapons of War" }),
+			makeOutfitItem({ slug: "glass-vial", name: "Glass vial", weight: 0, special: true, specialCategory: "Exotic Stuff" }),
+		];
+		global.game.actors = {
+			get: () => null,
+			find: () => ({
+				type: "stonetop",
+				flags: { stonetop_pwd: { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
+			}),
+		};
+
+		const snap = await new TestCharacterBuilder(makeHeavyActor())
+			.withInventoryRepo(new FakeInventoryRepository(weapons))
+			.build().buildSnapshot();
+
+		const regular = snap.inventory.outfit.regularItems;
+		expect(regular.find(i => i.slug === "mace-or-flail")).toMatchObject({ name: "Mace or flail, iron", weight: 1 });
+		expect(regular.find(i => i.slug === "battleaxe")).toMatchObject({ name: "Battleaxe, iron", weight: 1 });
+		expect(regular.find(i => i.slug === "warhammer")).toMatchObject({ name: "Warhammer, iron", weight: 1 });
+		expect(regular.some(i => i.slug === "glass-vial")).toBe(false);
+	});
+
+	it("keeps Weapons of War hidden until the steading improvement is earned", async () => {
+		const axe = makeOutfitItem({
+			slug: "battleaxe", name: "Battleaxe, iron", weight: 1,
+			special: true, specialCategory: "Weapons of War",
+		});
+		global.game.actors = {
+			get: () => null,
+			find: () => ({
+				type: "stonetop",
+				flags: { stonetop_pwd: { steading: { improvements: { weaponsOfWar: { completed: false } } } } },
+			}),
+		};
+
+		const snap = await new TestCharacterBuilder(makeHeavyActor())
+			.withInventoryRepo(new FakeInventoryRepository([axe]))
+			.build().buildSnapshot();
+
+		expect(snap.inventory.outfit.regularItems.some(i => i.slug === "battleaxe")).toBe(false);
+	});
+
+	it("does not duplicate a Weapons of War item that was already added through the picker", async () => {
+		const actor = makeHeavyActor({ flags: { "inventory.addedSpecial": ["battleaxe"] } });
+		global.game.actors = {
+			get: () => null,
+			find: () => ({
+				type: "stonetop",
+				flags: { stonetop_pwd: { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
+			}),
+		};
+
+		const snap = await new TestCharacterBuilder(actor)
+			.withInventoryRepo(new FakeInventoryRepository([
+				makeOutfitItem({
+					slug: "battleaxe", name: "Battleaxe, iron", weight: 1,
+					special: true, specialCategory: "Weapons of War",
+				}),
+			]))
+			.build().buildSnapshot();
+
+		const axes = snap.inventory.outfit.regularItems.filter(i => i.slug === "battleaxe");
+		expect(axes).toHaveLength(1);
+		expect(axes[0].isAddedSpecial).toBe(true);
 	});
 });
 

@@ -38,7 +38,7 @@ import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {statRequirementLabel, statRequirementsUnmet} from "./stat-requirement.js";
 import {MoveResources} from "./MoveResources.js";
 import {moveMarkBudget} from "./move-mark-budget.js";
-import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
@@ -61,6 +61,14 @@ import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie} from "../../utils/damage-die.js";
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
+// Expedition moves that operate on the STEADING rather than the individual hero,
+// so they are not surfaced as player expedition moves: Requisition rolls +Fortunes
+// and Return Triumphant clears a steading debility (or raises Fortunes). Both live
+// on the steading sheet's Homefront moves instead (see StonetopSteadingSheet). They
+// stay `moveType: "expedition"` in the compendium so the rulebook reference journal
+// keeps listing them under Expedition Moves — this filter only governs the character
+// sheet (both the sidebar catalog and the auto-embed of universal moves).
+const NON_PLAYER_EXPEDITION_MOVES = new Set(["Requisition", "Return Triumphant"]);
 const ROLL_LABELS_BY_TYPE = {
 	str: "STR",
 	dex: "DEX",
@@ -122,6 +130,8 @@ function _buildOtherMoveResource(resource, current) {
 // flag in the JSON source; acts as the runtime fallback until the pack is
 // recompiled with that flag present in the LevelDB.
 const _PROSPERITY_RESOURCE_SLUGS = new Set(["supplies", "more-supplies", "even-more-supplies"]);
+const _WEAPONS_OF_WAR_CATEGORY = "Weapons of War";
+const _WEAPONS_OF_WAR_IMPROVEMENT = "weaponsOfWar";
 
 // Resolve "x piercing" against the steading's Prosperity for display. With Prosperity
 // 1+ it shows the actual value ("2 piercing"); at 0, no steading (null), or negative,
@@ -298,6 +308,14 @@ export class StonetopCharacter {
 		return this._playbookRepo.findBySlug(slug);
 	}
 
+	// The expedition moves shown to players on the character sheet: the full
+	// compendium list minus the steading-facing ones (see NON_PLAYER_EXPEDITION_MOVES).
+	// Used by both the sidebar catalog and the auto-embed so the two never drift.
+	async _playerExpeditionMoves() {
+		const entries = await this._moveRepo.getExpeditionMoves();
+		return entries.filter(e => !NON_PLAYER_EXPEDITION_MOVES.has(e.name));
+	}
+
 	async buildSnapshot() {
 		const actor = this._actor;
 		const actorLevel = actor.system?.attributes?.level?.value ?? 1;
@@ -316,8 +334,9 @@ export class StonetopCharacter {
 		// included alongside the picker-added ones.
 		const addedSet = new Set(this._inventory.addedSpecial);
 		const possessionSpecialSet = this._selectedPossessionSlugs(playbookData);
+		const commonSpecialSet = this._earnedCommonSpecialSlugs(this.getSteadingActor(), allOutfitItems);
 		const armorItems = allOutfitItems.filter(i =>
-			!i.special || addedSet.has(i.slug) || possessionSpecialSet.has(i.slug));
+			!i.special || addedSet.has(i.slug) || possessionSpecialSet.has(i.slug) || commonSpecialSet.has(i.slug));
 		// Possession-granted worn gear (the Tannery's boiled leather cuirass) also
 		// counts when checked. Custom items key their checked state by item id, so the
 		// armor calc sees them as `{ slug: id, armor }` alongside the outfit items.
@@ -483,7 +502,7 @@ export class StonetopCharacter {
 		const basicCategory = _buildCompendiumMoveCategory(basicEntries, { key: "basic", title: "Basic Moves" }, ownedAllByName);
 		if (basicCategory) categories.push(basicCategory);
 
-		const expeditionEntries = (await this._moveRepo.getExpeditionMoves()).sort((a, b) => a.name.localeCompare(b.name));
+		const expeditionEntries = (await this._playerExpeditionMoves()).sort((a, b) => a.name.localeCompare(b.name));
 		const expeditionCategory = _buildCompendiumMoveCategory(expeditionEntries, { key: "expedition", title: "Expedition Moves" }, ownedAllByName);
 		if (expeditionCategory) categories.push(expeditionCategory);
 
@@ -571,6 +590,7 @@ export class StonetopCharacter {
 	async _buildInventorySection(playbookData, ownedAllByName, actorLevel) {
 		const checked        = this._inventory.checked;
 		const resources      = this._inventory.resources;
+		const possessionUses = this._possessions.uses;
 		const rPool          = this._inventory.regularPool;
 		const sPool          = this._inventory.smallPool;
 		const allItems       = await this._inventoryRepo.getAll();
@@ -578,6 +598,7 @@ export class StonetopCharacter {
 		const smallItemLimit = this.getSmallItemLimit(steadingActor);
 		const steadingName   = steadingActor?.name ?? null;
 		const prosperity     = smallItemLimit !== null ? smallItemLimit - 4 : null;
+		const commonSpecialSet = this._earnedCommonSpecialSlugs(steadingActor, allItems);
 		// A move's `loadBonus` raises every load cap (the Ranger's Pack Horse → +1).
 		// The boosted limits flow into the regular ◇ pool here and into the Outfit
 		// dialog via the snapshot. hasPackHorse drives the boosted help text/note.
@@ -620,21 +641,38 @@ export class StonetopCharacter {
 		const customItems = this._actor.items.filter(i =>
 			i.type === "move" && i.system?.moveType === "inventory-custom"
 		);
-		const mapCustomItem = item => new InventoryItemSnapshotBuilder()
+		const mapCustomItem = (item, grant = null, possessionSlug = null) => {
+			const res = item.system?.resource ?? grant?.resource ?? null;
+			const legacyUsesSlug = grant?.legacyUsesFromPossession ? possessionSlug : null;
+			const currentUses = resources[item._id] ?? (legacyUsesSlug ? possessionUses[legacyUsesSlug] : 0);
+			const note = item.system?.sourcePossession
+				? null
+				: (item.system?.sourceLabel ? `from ${item.system.sourceLabel}` : item.system?.note ?? null);
+			return new InventoryItemSnapshotBuilder()
 			.withSlug(item._id)
-			.withName(item.name)
+			.withName(grant?.name ?? item.name)
 			// Plain write-ins carry no source note. Possession gear now renders inside its
 			// possession's card (grouped under the possession label), so it needs no
 			// "from <possession>" note either.
-			.withNote(item.system?.sourcePossession ? null : (item.system?.sourceLabel ? `from ${item.system.sourceLabel}` : null))
+			.withNote(note)
 			.withWeight(item.system.weight ?? 1)
 			.withChecked(checked[item._id] ?? false)
-			.withResource(null)
+			.withResource(res ? new ResourceBuilder()
+				.withCurrent(Math.min(currentUses ?? 0, res.max ?? 0))
+				.withMax(res.max)
+				.withTitle(res.title ?? null)
+				.withLabels(res.labels ?? [])
+				.build() : null)
+			// Trailing text the book prints after the ○ track ("uses, grants advantage to
+			// Persuade"), so the whisky reads as one phrase. Only grants carry it; write-ins
+			// pass no grant, so it stays null.
+			.withResourceSuffix(grant?.resourceSuffix ?? null)
 			.withIsCustom(true)
 			.withOwnedId(item._id)
 			.withTwoCol(false)
 			.withBreakBefore(false)
 			.build();
+		};
 
 		// Plain write-ins (Add Item / Add Small Item) stay in the Items / Small Items
 		// columns. Items bundled by a special possession are pulled out and rendered inside
@@ -649,15 +687,49 @@ export class StonetopCharacter {
 			...this._possessions.selected,
 			...(playbookData?.specialPossessions?.preselected ?? []),
 		]);
-		const writeInItems    = customItems.filter(i => !i.system?.sourcePossession);
+		const grantByPossessionAndKey = new Map();
+		const grantKeyFor = (slug, key) => `${slug}:${key}`;
+		// De-dupe within a grant: a grant that repeats a name (e.g. sourceKey === aliases[0])
+		// must not look like the same name coming from two possessions, or the collision guard
+		// below would null its inference and drop an untagged legacy item into the columns.
+		const grantNames = grant => [...new Set([grant.name, grant.sourceKey, ...(grant.aliases ?? [])].filter(Boolean))];
+		const inferredGrantSources = new Map();
+		for (const opt of (playbookData?.specialPossessions?.options ?? [])) {
+			if (!activePossessionSlugs.has(opt.slug)) continue;
+			for (const grant of (opt.grantsItems ?? [])) {
+				if (!grant?.name) continue;
+				for (const name of grantNames(grant)) {
+					grantByPossessionAndKey.set(grantKeyFor(opt.slug, name), grant);
+					const key = `${grant.column === "regular" ? "regular" : "small"}:${name}`;
+					// Exact duplicates across selected possessions are ambiguous unless the item is
+					// tagged, so leave those as normal write-ins instead of guessing the parent.
+					inferredGrantSources.set(key, inferredGrantSources.has(key) ? null : { slug: opt.slug, grant });
+				}
+			}
+		}
+		const grantForTaggedItem = item => {
+			const slug = item.system?.sourcePossession;
+			if (!slug) return null;
+			return grantByPossessionAndKey.get(grantKeyFor(slug, item.system?.sourceKey ?? item.name))
+				?? grantByPossessionAndKey.get(grantKeyFor(slug, item.name))
+				?? null;
+		};
+		const inferredGrantFor = item => {
+			const column = item.system?.inventoryColumn === "regular" ? "regular" : "small";
+			return inferredGrantSources.get(`${column}:${item.name}`) ?? null;
+		};
+		const writeInItems    = customItems.filter(i => !i.system?.sourcePossession && !inferredGrantFor(i));
 		const possessionItems = customItems.filter(i =>
-			i.system?.sourcePossession && activePossessionSlugs.has(i.system.sourcePossession));
+			(i.system?.sourcePossession && activePossessionSlugs.has(i.system.sourcePossession)) ||
+			(!i.system?.sourcePossession && !!inferredGrantFor(i)));
 		const grantedByPossession = new Map();
 		for (const i of possessionItems) {
-			const slug = i.system.sourcePossession;
+			const inferred = inferredGrantFor(i);
+			const slug = i.system.sourcePossession ?? inferred?.slug;
+			const grant = grantForTaggedItem(i) ?? inferred?.grant ?? null;
 			if (!grantedByPossession.has(slug)) grantedByPossession.set(slug, { regular: [], small: [] });
 			const bucket = grantedByPossession.get(slug);
-			(i.system?.inventoryColumn === "regular" ? bucket.regular : bucket.small).push(mapCustomItem(i));
+			(i.system?.inventoryColumn === "regular" ? bucket.regular : bucket.small).push(mapCustomItem(i, grant, slug));
 		}
 		// Flattened views for the derived load (◇) and small-item accounting below, so
 		// possession gear still counts toward encumbrance / the 4+Prosperity allowance
@@ -679,6 +751,8 @@ export class StonetopCharacter {
 		const addedSpecial         = allItems.filter(i => i.special && addedSpecialSet.has(i.slug));
 		const possessionSpecial    = allItems.filter(i =>
 			i.special && possessionSpecialSet.has(i.slug) && !addedSpecialSet.has(i.slug));
+		const commonSpecial        = allItems.filter(i =>
+			i.special && commonSpecialSet.has(i.slug) && !addedSpecialSet.has(i.slug) && !possessionSpecialSet.has(i.slug));
 		const standardItems        = allItems.filter(i => !i.special);
 
 		const arcanaItems = await this._arcana.weightedInventoryItems();
@@ -688,6 +762,7 @@ export class StonetopCharacter {
 			...standardItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...addedSpecial.filter(i => i.inventoryColumn === "regular").map(mapAddedSpecial),
 			...possessionSpecial.filter(i => i.inventoryColumn === "regular").map(mapItem),
+			...commonSpecial.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...writeInItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
 		];
 		const regularArcana = arcanaItems.filter(i => i.inventoryColumn === "regular").map(mapItem);
@@ -757,10 +832,12 @@ export class StonetopCharacter {
 
 		const addedSmall = addedSpecial.filter(i => i.inventoryColumn === "small");
 		const possessionSmall = possessionSpecial.filter(i => i.inventoryColumn === "small");
+		const commonSmall = commonSpecial.filter(i => i.inventoryColumn === "small");
 		const smallItems = [
 			...allSmall.filter(i => !i.smallGrid).map(mapItem),
 			...addedSmall.filter(i => !i.smallGrid).map(mapAddedSpecial),
 			...possessionSmall.filter(i => !i.smallGrid).map(mapItem),
+			...commonSmall.filter(i => !i.smallGrid).map(mapItem),
 			...writeInItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
 			...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
 		];
@@ -816,6 +893,8 @@ export class StonetopCharacter {
 			const maxUses = maxUsesMap[opt.slug] ?? opt.resource?.max ?? null;
 			const currentUses = isSelected ? (usesMap[opt.slug] ?? 0) : 0;
 			const resourceDef = opt.resource ?? null;
+			const grantedGear = grantedByPossession.get(opt.slug) ?? { regular: [], small: [] };
+			const hasGrantedGear = grantedGear.regular.length || grantedGear.small.length;
 			const resource = resourceDef ? new ResourceBuilder()
 				.withCurrent(currentUses)
 				.withMax(maxUses ?? resourceDef.max)
@@ -831,7 +910,7 @@ export class StonetopCharacter {
 				// "x piercing" weapons (e.g. the Ranger's composite bow) resolve to the
 				// steading's Prosperity for display here, just like outfit items — onboarding
 				// keeps the literal "x" since it renders the raw playbook description instead.
-				.withDescription(_transformPiercingNote(_stripPossessionUsesAnnotation(opt.description ?? "", resourceDef), prosperity))
+				.withDescription(hasGrantedGear ? "" : _transformPiercingNote(_stripPossessionUsesAnnotation(opt.description ?? "", resourceDef), prosperity))
 				.withSelected(isSelected)
 				.withChecked(isSelected)
 				// A granted grant-only possession (the Initiate Sacred Pouch) is locked like
@@ -856,8 +935,8 @@ export class StonetopCharacter {
 				.withHasChoiceGroups(isSelected && !!opt.choiceGroups?.length)
 				// Bundled gear materialized for this possession (Distillery → firkins, whisky,
 				// malt…), split ◇ / small, rendered inside the card. Only present when selected.
-				.withGrantedRegular(grantedByPossession.get(opt.slug)?.regular ?? [])
-				.withGrantedSmall(grantedByPossession.get(opt.slug)?.small ?? [])
+				.withGrantedRegular(grantedGear.regular)
+				.withGrantedSmall(grantedGear.small)
 				.build();
 		});
 
@@ -942,6 +1021,17 @@ export class StonetopCharacter {
 			?? getStonetopSteadingActor();
 	}
 
+	_earnedCommonSpecialSlugs(steading, allItems) {
+		if (!steading) return new Set();
+		const steadingFlags = resolvedFlagProperty(steading, "steading") ?? {};
+		const weaponsEarned = !!steadingFlags.improvements?.[_WEAPONS_OF_WAR_IMPROVEMENT]?.completed
+			|| (steadingFlags.fortifications ?? []).some(f => String(f?.name ?? f) === _WEAPONS_OF_WAR_CATEGORY);
+		if (!weaponsEarned) return new Set();
+		return new Set(allItems
+			.filter(i => i.special && i.specialCategory === _WEAPONS_OF_WAR_CATEGORY)
+			.map(i => i.slug));
+	}
+
 	getSmallItemLimit(steading = this.getSteadingActor()) {
 		const rawProsperity = (steading ? resolvedFlagProperty(steading, "steading.system.attributes.prosperity.value") : null)
 			?? steading?.system?.attributes?.prosperity?.value;
@@ -1015,6 +1105,32 @@ export class StonetopCharacter {
 			name,
 			type: "move",
 			system: { moveType: "inventory-custom", inventoryColumn: "small" },
+		}]);
+	}
+
+	async addDroppedInventoryItem(itemData) {
+		const st = itemData?.flags?.[ITEM_FLAG_SCOPE] ?? {};
+		const rawColumn = st.inventoryColumn ?? itemData?.system?.inventoryColumn ?? st.column ?? itemData?.system?.column;
+		const inventoryColumn = rawColumn === "regular" ? "regular" : "small";
+		const system = {
+			moveType: "inventory-custom",
+			inventoryColumn,
+		};
+		if (inventoryColumn === "regular") {
+			const weight = Number(st.weight ?? itemData?.system?.weight ?? 1);
+			system.weight = Math.max(1, Number.isFinite(weight) ? weight : 1);
+		}
+		const note = st.note ?? itemData?.system?.note;
+		if (note) system.note = note;
+		const resource = st.resource ?? itemData?.system?.resource;
+		if (resource) system.resource = globalThis.foundry?.utils?.deepClone?.(resource) ?? resource;
+		const armor = st.armor ?? itemData?.system?.armor;
+		if (armor) system.armor = globalThis.foundry?.utils?.deepClone?.(armor) ?? armor;
+
+		await this._actor.createEmbeddedDocuments("Item", [{
+			name: itemData?.name?.trim?.() || itemData?.name || "New Item",
+			type: "move",
+			system,
 		}]);
 	}
 
@@ -1422,7 +1538,7 @@ export class StonetopCharacter {
 
 		const [basicEntries, expeditionEntries] = await Promise.all([
 			this._moveRepo.getBasicMoves(),
-			this._moveRepo.getExpeditionMoves(),
+			this._playerExpeditionMoves(),
 		]);
 		const missingUniversal = [
 			...basicEntries.filter(e => !ownedNames.has(e.name)),

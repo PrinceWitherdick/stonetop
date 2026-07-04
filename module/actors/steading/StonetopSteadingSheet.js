@@ -132,6 +132,21 @@ const _STEADING_MOVES_RAW = [
 <p><strong>On a 6-:</strong> don't mark XP; you can take the asset with you if you want, but if you do, reduce Fortunes by 1.</p>`,
 	},
 	{
+		slug: "returnTriumphant",
+		label: "Return Triumphant",
+		// No dice: Return Triumphant clears a steading debility (or raises Fortunes
+		// if none are marked), so it's a non-rollable interactive walkthrough like
+		// Meet with Disaster. `stat`/`statLabel` stay null so no "+Fortunes" roll chip
+		// renders. A player makes this move, but its effects land on the steading —
+		// hence its home on the steading sheet, not the character sheet's expedition list.
+		stat: null,
+		statLabel: null,
+		rollable: false,
+		interactive: true,
+		description: `<p>When you <strong>return home in triumph</strong> — having saved your fellows, put down the threat, seized the opportunity, etc. — clear one of the steading's debilities (<em>diminished</em>, <em>lacking</em>, or <em>malcontent</em>).</p>
+<p>If the steading has no debilities marked, then increase Fortunes by 1.</p>`,
+	},
+	{
 		slug: "persuade",
 		label: "Persuade",
 		stat: "fortunes",
@@ -809,6 +824,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				const { moveSlug } = btn.dataset;
 				if (moveSlug === "meetWithDisaster") this._onMeetWithDisaster();
 				else if (moveSlug === "requisition") this._onRequisitionWalkthrough();
+				else if (moveSlug === "returnTriumphant") this._onReturnTriumphant();
 				else if (moveSlug === "seasonsChange") this._onSeasonsChange();
 				else if (HOMESTEAD_MOVE_FLOWS[moveSlug]) this._onHomesteadMove(moveSlug);
 			}, true);
@@ -1139,11 +1155,117 @@ export function createStonetopSteadingSheetClass(Base) {
 		_openMemberAvatarImage(anchor) {
 			this._removeMemberAvatarPreview();
 			if (!anchor?.src) return;
-			new ImagePopout(anchor.src, {
+			const popout = this._createEditableMemberImagePopout(anchor);
+			popout.render(true);
+			this._scheduleMemberImageHeaderControl(popout);
+		}
+
+		_createEditableMemberImagePopout(anchor) {
+			const list = anchor?.dataset?.list;
+			const index = Number.parseInt(anchor?.dataset?.index ?? "", 10);
+			const canEdit = this.isEditable && ["residents", "neighbors"].includes(list) && Number.isInteger(index);
+			const sheet = this;
+			const BaseImagePopout = globalThis.ImagePopout;
+			if (!canEdit || !BaseImagePopout) {
+				return new ImagePopout(anchor.src, {
+					title:  anchor.dataset.name ?? "",
+					width:  560,
+					height: 620,
+				});
+			}
+			const popout = new BaseImagePopout(anchor.src, {
 				title:  anchor.dataset.name ?? "",
 				width:  560,
 				height: 620,
+			});
+			popout._stonetopMemberImageEdit = { sheet, list, index, current: anchor.src };
+			return popout;
+		}
+
+		_scheduleMemberImageHeaderControl(popout) {
+			if (!popout?._stonetopMemberImageEdit) return;
+			const inject = () => this._injectMemberImageHeaderControl(popout);
+			if (typeof requestAnimationFrame === "function") requestAnimationFrame(inject);
+			setTimeout(inject, 0);
+			setTimeout(inject, 100);
+		}
+
+		_injectMemberImageHeaderControl(popout) {
+			const edit = popout?._stonetopMemberImageEdit;
+			const root = popout?.element?.jquery ? popout.element[0] : popout?.element;
+			const header = root?.querySelector?.(".window-header");
+			if (!edit || !header) return;
+			if (header.querySelector(".stonetop-edit-member-photo")) return;
+
+			const isAppV1 = !!header.querySelector("a.header-button");
+			const btn = document.createElement(isAppV1 ? "a" : "button");
+			if (!isAppV1) {
+				btn.type = "button";
+				btn.className = "header-control icon stonetop-edit-member-photo fa-solid fa-camera";
+			} else {
+				btn.className = "header-button control stonetop-edit-member-photo";
+				btn.innerHTML = `<i class="fas fa-camera"></i> Edit Photo`;
+			}
+			btn.setAttribute("data-tooltip", "Edit Photo");
+			btn.setAttribute("aria-label", "Edit Photo");
+			btn.addEventListener("click", ev => {
+				ev.preventDefault();
+				ev.stopPropagation();
+				this._onMemberAvatarPickImage({
+					list: edit.list,
+					index: edit.index,
+					current: popout.src ?? edit.current,
+					popout,
+				});
+			});
+
+			const firstControl = header.querySelector(isAppV1 ? "a.header-button" : "button.header-control");
+			if (firstControl) header.insertBefore(btn, firstControl);
+			else header.appendChild(btn);
+		}
+
+		_onMemberAvatarPickImage({ list, index, current, popout }) {
+			const FilePickerClass = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+			if (!FilePickerClass) return;
+			new FilePickerClass({
+				type: "image",
+				current,
+				callback: async path => {
+					await this._onMemberAvatarImageChange(list, index, path);
+					if (popout) {
+						this._refreshMemberImagePopout(popout, path);
+					}
+					this.render(false);
+				},
 			}).render(true);
+		}
+
+		_refreshMemberImagePopout(popout, path) {
+			if (!popout || !path) return;
+			popout.src = path;
+			if (popout.options) popout.options.src = path;
+			if (popout.object) popout.object.src = path;
+			if (popout._stonetopMemberImageEdit) popout._stonetopMemberImageEdit.current = path;
+
+			const root = popout.element?.jquery ? popout.element[0] : popout.element;
+			const img = root?.querySelector?.(".window-content img, img");
+			if (img) {
+				img.src = path;
+				img.setAttribute?.("src", path);
+				return;
+			}
+
+			popout.render?.(false);
+			this._scheduleMemberImageHeaderControl(popout);
+		}
+
+		async _onMemberAvatarImageChange(list, index, value) {
+			if (!["residents", "neighbors"].includes(list) || !Number.isInteger(index)) return;
+			const f = this._stonetopSteading._flags;
+			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
+			if (!arr[index]) return;
+			arr[index].img = value;
+			await this._stonetopSteading.setFlags({ [list]: arr });
 		}
 
 		_onHomesteadMove(moveSlug) {
@@ -1409,6 +1531,74 @@ export function createStonetopSteadingSheetClass(Base) {
 							const choice = choices.find(c => c.id === el.dataset.choice);
 							if (!choice) return;
 							await choice.action();
+							this.render(false);
+							dialog.close();
+						});
+					});
+				},
+			}, { classes: ["dialog", "stonetop", "stonetop-disaster-move-dialog"] });
+			dialog.render(true);
+		}
+
+		// Return Triumphant: clear one marked steading debility. If none are marked,
+		// increase Fortunes by 1 instead. Mirrors the Meet with Disaster walkthrough
+		// (its inverse — that one marks debilities / drops Fortunes). Writes are
+		// attributed to the move so the steading ledger reads "via Return Triumphant".
+		async _onReturnTriumphant() {
+			const DEBILITIES = [
+				{ id: "diminished", label: "Diminished", detail: "disadvantage to Deploy, Muster, Pull Together" },
+				{ id: "lacking",    label: "Lacking",    detail: "treat Prosperity as 1 lower" },
+				{ id: "malcontent", label: "Malcontent", detail: "Fortunes reset to +0 each season; folks need Persuading more often" },
+			];
+			const marked = DEBILITIES.filter(d =>
+				this._stonetopSteading.getSystemValue(`attributes.debilities.options.${d.id}.value`, false));
+
+			// No debilities marked → the move raises Fortunes by 1 instead.
+			if (marked.length === 0) {
+				const fortunes = this._stonetopSteading.getStatValue("fortunes");
+				const newFortunes = fortunes + 1;
+				new Dialog({
+					title: "Return Triumphant",
+					content: `<div class="stonetop-disaster-dialog">
+						<p><em>You return home in triumph, and the steading has no debilities marked.</em></p>
+						<p>Fortunes: <strong>${sign(fortunes)}</strong> → <strong>${sign(newFortunes)}</strong></p>
+					</div>`,
+					buttons: {
+						cancel: { label: "Cancel" },
+						apply: {
+							label: "Increase Fortunes",
+							callback: async () => {
+								await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes, { stonetopMove: "Return Triumphant" });
+								this.render(false);
+							},
+						},
+					},
+					default: "apply",
+				}, { classes: ["dialog", "stonetop", "stonetop-disaster-move-dialog"] }).render(true);
+				return;
+			}
+
+			// One or more debilities marked → the GM clears 1.
+			const choicesHtml = marked.map(d => `
+				<li class="stonetop-disaster-choice" data-choice="${d.id}">
+					<span class="stonetop-disaster-choice-label">${d.label}</span>
+					<span class="stonetop-disaster-choice-detail">${d.detail}</span>
+				</li>`).join("");
+
+			let dialog;
+			dialog = new Dialog({
+				title: "Return Triumphant",
+				content: `<div class="stonetop-disaster-dialog">
+					<p><em>You return home in triumph.</em> Clear 1 of the steading's debilities:</p>
+					<ol class="stonetop-disaster-choices">${choicesHtml}</ol>
+				</div>`,
+				buttons: { cancel: { label: "Cancel" } },
+				render: (html) => {
+					html[0].querySelectorAll(".stonetop-disaster-choice").forEach(el => {
+						el.addEventListener("click", async () => {
+							const choice = marked.find(d => d.id === el.dataset.choice);
+							if (!choice) return;
+							await this._stonetopSteading.setSystemValue(`attributes.debilities.options.${choice.id}.value`, false, { stonetopMove: "Return Triumphant" });
 							this.render(false);
 							dialog.close();
 						});

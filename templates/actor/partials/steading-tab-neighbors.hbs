@@ -93,7 +93,8 @@
 					{{#if name}}
 					<li class="steading-residents-row">
 						<div class="steading-residents-col steading-residents-col-name steading-member-name-cell" data-tooltip="{{name}}">
-							<img class="steading-member-avatar" src="{{profileImg}}" data-name="{{name}}" alt="">
+							<img class="steading-member-avatar" src="{{profileImg}}" data-name="{{name}}"
+							     data-list="residents" data-index="{{@index}}" alt="">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name"
 							       value="{{name}}" placeholder="Name" {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
@@ -200,7 +201,8 @@
 					{{#if name}}
 					<li class="steading-residents-row">
 						<div class="steading-residents-col steading-residents-col-name steading-member-name-cell" data-tooltip="{{name}}">
-							<img class="steading-member-avatar" src="{{profileImg}}" data-name="{{name}}" alt="">
+							<img class="steading-member-avatar" src="{{profileImg}}" data-name="{{name}}"
+							     data-list="neighbors" data-index="{{@index}}" alt="">
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name" data-list="neighbors"
 							       value="{{name}}" placeholder="Name" {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>

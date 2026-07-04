@@ -2162,12 +2162,13 @@ input.stonetop-name-field {
    column-width (not a fixed count) makes the list responsive: it packs as
    many ~240px columns as the tab is wide enough to hold — two once the
    main pane is only moderately wider than a single capped card, three at the
-   960px default, four+ when the window is widened —
+   960px default, up to four when the window is widened —
    while each card stays capped at 400px (see .stonetop-move-group
    .stonetop-item below). */
 .stonetop-move-group .items-list {
 	display: block;
 	column-width: 240px;
+	column-count: 4;
 	column-gap: 16px;
 	padding: 0;
 	margin: 4px 0 0;
@@ -3241,16 +3242,26 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 /* Bundled gear a special possession grants (Distillery → firkins, whisky, malt…),
-   rendered inside its card under the description: ◇ items first (they count toward
+   rendered inside its card: ◇ items first (they count toward
    load), then small items (they count toward the small-item allowance), split by a
-   hairline. Indented to sit under the possession label, set off from the prose above. */
+   hairline. Slightly indented so the gear reads as part of the possession without
+   drifting too far from the card's main text. */
 .stonetop-possession-gear {
-	padding-left: 20px;
+	padding-left: 10px;
 	margin-top: 5px;
 }
 
 .stonetop-possession-gear .stonetop-inv-item {
 	margin: 1px 0;
+}
+
+.stonetop-possession-gear .stonetop-inv-label {
+	flex: 0 1 auto;
+}
+
+.stonetop-possession-gear .stonetop-inv-note {
+	flex: 0 0 auto;
+	white-space: nowrap;
 }
 
 /* Small gear inside a card can wrap (the card is wider than the Small Items column). */
@@ -3603,6 +3614,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-inv-item:hover .stonetop-inv-delete,
 .stonetop-inv-item:hover .stonetop-inv-remove-special { display: inline; }
+
+.stonetop-edit-mode .stonetop-inv-delete {
+	display: inline;
+	color: var(--st-red-text);
+}
+
+.stonetop-edit-mode .stonetop-inv-delete:hover {
+	color: hsl(0 65% 22%);
+}
 
 /* Remove a write-in special possession (only rendered in possessions edit mode). */
 .stonetop-possession-custom-remove {
@@ -5711,26 +5731,42 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* ── Special Moves tab ─────────────────────────────────────────── */
 
-/* Multi-column (masonry-style), matching the Moves tab's move list
-   (.stonetop-move-group .items-list): column-width lets the tab add columns as
-   space allows instead of stretching fixed lanes with cards stranded at the left edge.
-   old flex-wrap, which dropped to a single stacked column the moment two rigid
-   cards no longer fit. break-inside:avoid keeps a card whole across the
-   column break; the vertical gap lives on the card's margin (multicol has no
-   row-gap), the horizontal gap on column-gap. */
+/* Left-weighted masonry. CSS masonry (multi-column, native `masonry`, packed
+   grid) all place cards into the *shortest* column, so with only a handful of
+   variable-height special-move cards a right-hand column can end up holding more
+   rows than one to its left. Instead, packSpecialMoves() (StonetopCharacterSheet)
+   fills the cards ROW-MAJOR into equal-width `.stonetop-special-move-col` tracks
+   — card i → column i % N — which keeps the fill strictly left-weighted (no
+   column ever out-rows the column left of it) while each track stays a tight,
+   natural-height stack like the Moves tab. Until it packs (or if the JS never
+   runs) the cards sit directly in this flex row; flex-wrap + a column basis on
+   them keeps that fallback a sensible multi-up layout rather than one squished
+   row. */
 .stonetop-special-move-grid {
-	display: block;
-	column-width: 280px;
-	column-gap: 12px;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 12px;
 	padding: 8px 0;
+}
+
+.stonetop-special-move-col {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+/* Pre-pack fallback only: cards still parented directly by the grid. */
+.stonetop-special-move-grid > .stonetop-special-move-card {
+	flex: 1 1 280px;
 }
 
 .stonetop-special-move-card {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	margin-bottom: 12px;
-	break-inside: avoid;
 	padding: 12px 14px;
 	border: 1px solid var(--color-border-light-2);
 	border-radius: var(--st-radius);
@@ -9445,12 +9481,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	flex-direction: column;
 	overflow: hidden; /* step area scrolls internally; footer/header stay pinned */
-	/* Bump the base text size for the whole onboarding flow — its content ran small
-	   (e.g. the Lightbearer background descriptions). Everything below sizes off
-	   em-relative --st-fs-* tokens, so raising this anchor scales them together.
-	   Overrides the 1em anchor on `.stonetop .window-content` (same specificity, this
-	   rule is later); keeps the sheetFontScale multiplier so the setting still tunes. */
-	font-size: calc(1.15em * var(--stonetop-font-scale, 1));
+	/* Anchor the onboarding flow at the same base as the character sheet so its
+	   em-relative --st-fs-* tokens (card titles, descriptions, hints) render at the
+	   identical size to the sheet's move cards. Matches the 1em anchor on
+	   `.stonetop .window-content` (same specificity, this rule is later); keeps the
+	   sheetFontScale multiplier so the setting still tunes both together. */
+	font-size: calc(1em * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-onboarding-body {
@@ -9797,7 +9833,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-name-group {
-	margin-top: 8px;
+	margin-top: 18px;
+}
+
+/* The first group sits right under the "Suggested names —" caption (a <p>), so it
+   doesn't need the full inter-group gap above it. It's the first div among the
+   caption paragraphs, hence :first-of-type rather than :first-child. */
+.stonetop-onboarding-name-group:first-of-type {
+	margin-top: 6px;
 }
 
 .stonetop-onboarding-name-group-label {
@@ -9815,6 +9858,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .onboard-name-chip {
+	/* Size to content and sit in the wrap grid like .stonetop-onboarding-move-chip
+	   and the origin pills; without this a <button> inherits Foundry core's
+	   full-width `button { display: flex }` and the chips stack vertically. */
+	display: inline-flex;
+	align-items: center;
+	width: auto;
 	padding: 3px 11px;
 	font-size: var(--st-fs-base);
 	background: white;

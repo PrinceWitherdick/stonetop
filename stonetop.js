@@ -428,7 +428,13 @@ function _chatWireRollShifting(message, html) {
 	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
 	if (!cardButtons) return;
 
-	if (!cardButtons.querySelector("[data-action='shiftUp']")) {
+	// Shift Up/Down is a GM-only tool for bumping a roll's tier, and off by default —
+	// most tables never touch it. When disabled, don't inject or reveal the buttons, and
+	// hide any the roll card pre-rendered; the shared .stonetop-card-buttons row is left
+	// for Burn Brightly (wired next) to claim if the owner qualifies.
+	const showShift = game.user.isGM && getSetting("chatShiftButtons");
+
+	if (showShift && !cardButtons.querySelector("[data-action='shiftUp']")) {
 		cardButtons.insertAdjacentHTML("afterbegin", `
 			<button data-action="shiftUp">Shift Up</button>
 			<button data-action="shiftDown">Shift Down</button>
@@ -436,10 +442,10 @@ function _chatWireRollShifting(message, html) {
 	}
 
 	for (const button of cardButtons.querySelectorAll("[data-action='shiftUp'], [data-action='shiftDown']")) {
-		button.style.display = game.user.isGM ? "" : "none";
-		button.addEventListener("click", ev => _onRollShift(ev, message));
+		button.style.display = showShift ? "" : "none";
+		if (showShift) button.addEventListener("click", ev => _onRollShift(ev, message));
 	}
-	cardButtons.style.display = game.user.isGM ? "flex" : "none";
+	cardButtons.style.display = showShift ? "flex" : "none";
 }
 
 // -- BURN BRIGHTLY ---------------------------------------------

@@ -14,14 +14,14 @@
 // never duplicates. Pure — unit-tested without Foundry.
 export function grantsToCreate(grantsItems = [], existingKeys = new Set(), { slug, sourceLabel } = {}) {
 	return (grantsItems ?? [])
-		.filter(g => g?.name && !existingKeys.has(g.name))
+		.filter(g => g?.name && !existingKeys.has(g.sourceKey ?? g.name))
 		.map(g => {
 			const regular = g.column === "regular";
 			const system = {
 				moveType:         "inventory-custom",
 				inventoryColumn:  regular ? "regular" : "small",
 				sourcePossession: slug,
-				sourceKey:        g.name,
+				sourceKey:        g.sourceKey ?? g.name,
 				sourceLabel:      sourceLabel ?? null,
 			};
 			// Small items have no ◇ load, so they carry no weight (mirrors a write-in
@@ -31,6 +31,7 @@ export function grantsToCreate(grantsItems = [], existingKeys = new Set(), { slu
 			// shape ({base}/{modifier}) that counts toward armor when its ◇ is checked
 			// — i.e. when the character is actually wearing it.
 			if (g.armor) system.armor = g.armor;
+			if (g.resource) system.resource = g.resource;
 			return { name: g.name, type: "move", system };
 		});
 }
