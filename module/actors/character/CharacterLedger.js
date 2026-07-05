@@ -473,18 +473,25 @@ function crewEntry(path, oldValue, newValue, names) {
 	return followerFieldEntry(followerName, names.followerFields.get(field), oldValue, newValue);
 }
 
-// Custom follower record (customFollowers.<id>.<field>). Only the play-relevant
-// scalar tracks (Loyalty / HP / Readiness) become ledger lines; creation, removal,
-// and detail edits stay quiet so the ledger isn't flooded with sheet-editing noise.
+// Custom follower record (customFollowers.<id>.<field>). Only the play-relevant scalar
+// tracks (Loyalty / HP / Readiness) of an ALREADY-EXISTING follower become ledger lines.
+// Creation, duplicate, transfer, removal, and detail edits (name/cost/instinct/tags/…) stay
+// quiet so the ledger isn't flooded: a whole-record create/duplicate/transfer flattens into
+// one write per field, and buildNameLookup runs against the pre-update state — so a brand-new
+// follower has no entry in names.followers, and its initial-value writes are suppressed here.
+const CUSTOM_FOLLOWER_LOGGED_FIELDS = new Set(["loyalty", "hpCurrent", "readiness"]);
+
 function customFollowerEntry(path, oldValue, newValue, names) {
 	const key = path.slice(CUSTOM_FOLLOWERS_PREFIX.length);
 	const dot = key.indexOf(".");
 	const id = dot >= 0 ? key.slice(0, dot) : key;
 	const field = dot >= 0 ? key.slice(dot + 1) : "";
-	const label = names.followerFields.get(field);
-	if (!label) return null;
-	const followerName = names.followers.get(`custom:${id}`) ?? "A follower";
-	return followerFieldEntry(followerName, label, oldValue, newValue);
+	if (!CUSTOM_FOLLOWER_LOGGED_FIELDS.has(field)) return null;
+	// A brand-new follower isn't in the pre-update name map; suppressing it here keeps a
+	// whole-record create/duplicate/transfer from emitting a line per field.
+	const followerName = names.followers.get(`custom:${id}`);
+	if (!followerName) return null;
+	return followerFieldEntry(followerName, names.followerFields.get(field), oldValue, newValue);
 }
 
 // Per-slug follower track (beast / initiate Loyalty, HP, Readiness): the flag key

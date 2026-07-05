@@ -94,7 +94,16 @@ export class RequisitionDialog extends Application {
 			}
 			takeButton.disabled = true;
 
-			await this._character.addCustomInventoryItem(choice.name, 1);
+			try {
+				await this._character.addCustomInventoryItem(choice.name, 1);
+			} catch (err) {
+				// Re-enable the button (there's no re-render on this path) so a transient
+				// document-write failure doesn't strand the dialog until it's reopened.
+				console.warn("Stonetop | Could not add requisitioned asset to items:", err);
+				ui.notifications.warn(`Could not add ${choice.name} to your items.`);
+				takeButton.disabled = false;
+				return;
+			}
 			this._maybeOfferAsFollower(choice.name);
 
 			if (Number.isInteger(choice.index)) {
@@ -130,7 +139,11 @@ export class RequisitionDialog extends Application {
 			};
 		}
 		const index = Number(select.value);
-		const name = this._steading._flags.assets?.[index]?.name?.trim() ?? "";
+		// Resolve the name from the same source the <option> list was built from
+		// (getAvailableAssets, which falls back to STEADING_DEFAULTS.assets), not raw
+		// _flags.assets — otherwise a default on-hand asset on an un-edited steading has
+		// no _flags.assets entry and resolves to "" (headline take path silently no-ops).
+		const name = this._steading.getAvailableAssets().find(a => a.index === index)?.name?.trim() ?? "";
 		return { index, name };
 	}
 

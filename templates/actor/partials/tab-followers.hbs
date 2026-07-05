@@ -377,9 +377,13 @@
 		{{> "stonetop.details-section-edit-toggle" section="followers" editing=stonetop.followersEdit}}
 	</div>
 
-	{{!-- Left column: the player's actual followers, stacked. The reference "rules"
-	      cards live in their own column (stonetop-followers-rules) so they always
-	      travel together and the roster / rules columns can each be wider. --}}
+	{{!-- The card grid: follower cards (roster) and the shared reference cards (rules)
+	      flow together as equal-width, capped columns. Wrapping them keeps the heading
+	      row and Create-a-follower bar OUT of the grid so those span the full tab width
+	      instead of only the (capped) column extent. --}}
+	<div class="stonetop-followers-grid">
+
+	{{!-- The player's actual followers, stacked. --}}
 	<div class="stonetop-followers-roster">
 
 	{{!-- ── Animal Companion (Ranger) ──────────────────────────── --}}
@@ -788,6 +792,8 @@
 	</div>
 
 	</div>{{!-- /stonetop-followers-rules --}}
+
+	</div>{{!-- /stonetop-followers-grid --}}
 
 	{{!-- Create / convert entry points. The walkthrough mirrors Book I's "Creating
 	      followers" steps; a dropped monster opens the conversion modal instead. Pinned

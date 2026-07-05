@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { RequisitionDialog } from "../../../module/actors/character/dialogs/RequisitionDialog.js";
+import { STEADING_DEFAULTS } from "../../../module/actors/steading/StonetopSteading.js";
 
 function makeDialog(assets) {
 	const steadingActor = {
@@ -44,5 +45,16 @@ describe("RequisitionDialog", () => {
 		});
 
 		expect(dialog._getChosenAsset(root)).toEqual({ name: "iron spikes" });
+	});
+
+	it("resolves a default on-hand asset on a steading whose assets flag was never written", () => {
+		// The dropdown is built from getAvailableAssets() (which falls back to STEADING_DEFAULTS),
+		// so selecting a default asset must resolve its name — not "" — even with no assets flag.
+		const dialog = makeDialog(undefined);
+		const root = makeRoot({
+			".stonetop-requisition-asset-select": { value: "0" },
+		});
+
+		expect(dialog._getChosenAsset(root)).toEqual({ index: 0, name: STEADING_DEFAULTS.assets[0].name });
 	});
 });

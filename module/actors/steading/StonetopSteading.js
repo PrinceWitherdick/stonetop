@@ -703,12 +703,15 @@ export class StonetopSteading {
 
 		// Back-fill for improvements completed under a version BEFORE this grants engine:
 		// such an entry is `completed:true` with no `applied` record, and its book effect
-		// was applied by hand. Record the presumed-applied effects (running the collector
-		// against a throwaway payload so nothing is re-written) so the first toggle
-		// reverses/re-applies symmetrically instead of double-counting the stat bump. A
-		// fresh completion — `entry.completed` still false here — skips this untouched.
+		// was applied by hand. Record the grant's full presumed footprint (NOT via
+		// _collectGrantEffects, which records only what it would change now and so silently
+		// drops resources/fortifications/size already present — orphaning them on revert) so
+		// the first toggle reverses/re-applies symmetrically. Normalize an empty reconstruction
+		// to null (matching the fresh-apply convention) so nothing is falsely reported reverted.
+		// A fresh completion — `entry.completed` still false here — skips this untouched.
 		if (grants && entry.completed && entry.applied === undefined) {
-			entry.applied = this._collectGrantEffects(grants, {});
+			const presumed = this._presumeAppliedGrants(grants);
+			entry.applied = Object.keys(presumed).length ? presumed : null;
 		}
 
 		const data = {};
@@ -777,6 +780,24 @@ export class StonetopSteading {
 		return { ...clean, total: clean.grown + clean.yearlings + clean.foals };
 	}
 
+	/**
+	 * Whether a once-per-season Seasons-Change step (e.g. "advanceHerd", "feedHerd",
+	 * "surplus", "consumption") has already been applied for this year+season. The dialog
+	 * persists this because it stays open while only the sheet behind it re-renders, so its
+	 * in-DOM `disabled` guard doesn't survive a close+reopen — without a persisted marker a
+	 * reopen re-enables the button and applies the step's state mutation a second time.
+	 * Keyed by step name; the stored value is the "<year>:<season>" it last ran for.
+	 */
+	seasonStepApplied(step, year, seasonId) {
+		return this._flags.seasonSteps?.[step] === `${year}:${seasonId}`;
+	}
+
+	/** Record that a once-per-season step ran for this year+season (see seasonStepApplied). */
+	async setSeasonStepApplied(step, year, seasonId) {
+		const seasonSteps = { ...(this._flags.seasonSteps ?? {}), [step]: `${year}:${seasonId}` };
+		await this.setFlags({ seasonSteps });
+	}
+
 	/** Herd shaped for the improvement card: the three tiers (with labels/Values) plus total. */
 	_herdView() {
 		const herd = this.getHerd();
@@ -843,6 +864,49 @@ export class StonetopSteading {
 		const removed = list[idx];
 		list[idx] = { ...list[idx], name: "", checked: false };
 		return removed;
+	}
+
+	/**
+	 * Best-effort reconstruction of the `applied` record for an improvement that was completed
+	 * under a version before this grants engine (its book effect was applied by hand). Unlike
+	 * _collectGrantEffects — which records only what it actually writes and so skips resources /
+	 * fortifications / size that are already present — this records the grant's FULL additive
+	 * footprint from the definition, so the first un-complete reverses it symmetrically instead
+	 * of leaving those entries orphaned. Writes nothing; only produces the record.
+	 *
+	 * Size/Population transitions are recorded only when the steading still holds a *different*
+	 * prior value: once it's already at the grant's target we can't know the original, so we
+	 * don't fabricate a reversal (leaving it intact is the honest choice).
+	 */
+	_presumeAppliedGrants(grants) {
+		const applied = {};
+
+		if (grants.stats) {
+			const stats = {};
+			for (const [key, delta] of Object.entries(grants.stats)) {
+				if (GRANT_STAT_PATHS[key] && delta) stats[key] = delta;
+			}
+			if (Object.keys(stats).length) applied.stats = stats;
+		}
+
+		if (grants.resources?.length) applied.resources = [...grants.resources];
+		if (grants.fortifications?.length) applied.fortifications = [...grants.fortifications];
+		if (grants.removeFortifications?.length) {
+			// Presume the cleared fortifications were active when the grant removed them, so
+			// reversing restores them as checked.
+			applied.removedFortifications = grants.removeFortifications.map(name => ({ name, checked: true }));
+		}
+
+		if (grants.setSize) {
+			const from = this._flags.size ?? STEADING_DEFAULTS.size;
+			if (from !== grants.setSize) applied.setSize = { from, to: grants.setSize };
+		}
+		if (Number.isFinite(grants.setPopulation)) {
+			const from = Number(this.getSystemValue("attributes.population.value", 0));
+			if (from !== grants.setPopulation) applied.setPopulation = { from, to: grants.setPopulation };
+		}
+
+		return applied;
 	}
 
 	/**

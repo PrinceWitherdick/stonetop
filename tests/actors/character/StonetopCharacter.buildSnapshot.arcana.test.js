@@ -133,14 +133,6 @@ describe("buildSnapshot() — arcana (integration)", () => {
 			const snap = await buildWithFlags({ owned: ["huge-wooden-sphere"] });
 			expect(snap.arcana.minor.items[0].owned).toBe(true);
 		});
-
-		it("flipped is true when in flipped flag", async () => {
-			const snap = await buildWithFlags({
-				owned:   ["huge-wooden-sphere"],
-				flipped: ["huge-wooden-sphere"],
-			});
-			expect(snap.arcana.minor.items[0].flipped).toBe(true);
-		});
 	});
 
 	describe("arcana resource reads from inventory flag", () => {

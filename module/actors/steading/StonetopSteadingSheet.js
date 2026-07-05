@@ -427,6 +427,10 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		async _render(force, options) {
+			// The hover preview is a document.body singleton, so a re-render while the cursor is
+			// over an avatar tears out the anchor without firing mouseleave — clear it up front so
+			// no orphaned floating preview is left stuck on screen.
+			this._removeMemberAvatarPreview();
 			await super._render(force, options);
 			// Strip any PBTA-injected playbook controls and FoundryVTT chrome from the window header
 			const header = this.element[0]?.querySelector(".window-header");
@@ -1114,6 +1118,10 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.stopPropagation();
 				this._onRemoveCustomImprovement(btn.dataset.slug);
 			}, true);
+
+			// Create a custom improvement from a small form (the button counterpart to
+			// dropping a journal card onto the tab).
+			html.find(".steading-improvement-add-btn").on("click", () => this._onCreateImprovementOpen());
 		}
 
 		_removeMemberAvatarPreview() {
@@ -2026,44 +2034,71 @@ export function createStonetopSteadingSheetClass(Base) {
 
 					// Herd of Horses seasonal steps (only present when the herd is earned):
 					// summer promotes the tiers + adds foals; winter feeds the herd off Surplus.
-					// Disable on click before the (async) apply runs: the Seasons Change dialog stays
-					// open and only the sheet behind it re-renders, so without this a second click would
-					// re-read the just-advanced herd / just-spent Surplus and apply the season again.
+					// Disable on click before the (async) apply runs (the Seasons Change dialog stays
+					// open and only the sheet behind it re-renders, so a second click would re-read the
+					// just-advanced herd / just-spent Surplus and apply the season again), AND persist a
+					// per-season marker so a close+reopen in the same season can't re-run it either.
 					const advanceHerdBtn = root.querySelector("[data-action='advance-herd']");
+					this._disableIfSeasonStepDone(advanceHerdBtn, "advanceHerd", year, seasonId);
 					advanceHerdBtn?.addEventListener("click", async () => {
+						if (advanceHerdBtn.disabled) return;
 						advanceHerdBtn.disabled = true;
-						try { await this._advanceHerdSummer(); }
-						catch (err) { advanceHerdBtn.disabled = false; throw err; }
+						try {
+							await this._advanceHerdSummer();
+							await this._stonetopSteading.setSeasonStepApplied("advanceHerd", year, seasonId);
+						} catch (err) { advanceHerdBtn.disabled = false; throw err; }
 					});
 					const feedHerdBtn = root.querySelector("[data-action='feed-herd']");
+					this._disableIfSeasonStepDone(feedHerdBtn, "feedHerd", year, seasonId);
 					feedHerdBtn?.addEventListener("click", async () => {
+						if (feedHerdBtn.disabled) return;
 						feedHerdBtn.disabled = true;
-						try { await this._feedHerdWinter(); }
-						catch (err) { feedHerdBtn.disabled = false; throw err; }
+						try {
+							await this._feedHerdWinter();
+							await this._stonetopSteading.setSeasonStepApplied("feedHerd", year, seasonId);
+						} catch (err) { feedHerdBtn.disabled = false; throw err; }
 					});
 
-					root.querySelector("[data-action='roll-surplus']")?.addEventListener("click", async () => {
-						const formula = seasonId === "summer" ? "1d4 - 1" : "1d4";
-						const roll = await new Roll(formula).evaluate();
-						const gain = Math.max(0, roll.total);
-						await roll.toMessage({ flavor: `Surplus Generation (${label})` });
-						await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus + gain, seasonsMove);
-						this.render(false);
-						ui.notifications.info(`Generated ${gain} Surplus. New total: ${surplus + gain}.`);
+					const rollSurplusBtn = root.querySelector("[data-action='roll-surplus']");
+					this._disableIfSeasonStepDone(rollSurplusBtn, "surplus", year, seasonId);
+					rollSurplusBtn?.addEventListener("click", async () => {
+						if (rollSurplusBtn.disabled) return;
+						rollSurplusBtn.disabled = true;
+						try {
+							const formula = seasonId === "summer" ? "1d4 - 1" : "1d4";
+							const roll = await new Roll(formula).evaluate();
+							const gain = Math.max(0, roll.total);
+							await roll.toMessage({ flavor: `Surplus Generation (${label})` });
+							await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus + gain, seasonsMove);
+							await this._stonetopSteading.setSeasonStepApplied("surplus", year, seasonId);
+							this.render(false);
+							ui.notifications.info(`Generated ${gain} Surplus. New total: ${surplus + gain}.`);
+						} catch (err) { rollSurplusBtn.disabled = false; throw err; }
 					});
 
 					// Winter — consumption roll
-					root.querySelector("[data-action='roll-consumption']")?.addEventListener("click", async () => {
-						const popAbs = Math.abs(population);
-						const formula = population >= 0 ? `1d4 + ${population}` : `1d4 - ${popAbs}`;
-						const roll = await new Roll(formula).evaluate();
-						const consumption = Math.max(0, roll.total);
-						await roll.toMessage({ flavor: "Winter Surplus Consumption" });
+					const rollConsumptionBtn = root.querySelector("[data-action='roll-consumption']");
+					this._disableIfSeasonStepDone(rollConsumptionBtn, "consumption", year, seasonId);
+					rollConsumptionBtn?.addEventListener("click", async () => {
+						if (rollConsumptionBtn.disabled) return;
+						// Close the double-click window synchronously (like the sibling steps): the
+						// button stays visible through the whole await below, so without this a second
+						// click posts a second roll and double-binds the apply listener, deducting
+						// consumption from Surplus twice. Restored on error so a failed roll can retry.
+						rollConsumptionBtn.disabled = true;
+						let consumption, surplusNow;
+						try {
+							const popAbs = Math.abs(population);
+							const formula = population >= 0 ? `1d4 + ${population}` : `1d4 - ${popAbs}`;
+							const roll = await new Roll(formula).evaluate();
+							consumption = Math.max(0, roll.total);
+							await roll.toMessage({ flavor: "Winter Surplus Consumption" });
 
-						// Read Surplus LIVE, not the value captured when the dialog opened: the
-						// herd "Feed the herd" step in this same dialog may have already spent some,
-						// and this.render() refreshes the sheet, not this Dialog's closure.
-						const surplusNow = this._stonetopSteading.getStatValue("surplus");
+							// Read Surplus LIVE, not the value captured when the dialog opened: the
+							// herd "Feed the herd" step in this same dialog may have already spent some,
+							// and this.render() refreshes the sheet, not this Dialog's closure.
+							surplusNow = this._stonetopSteading.getStatValue("surplus");
+						} catch (err) { rollConsumptionBtn.disabled = false; throw err; }
 
 						root.querySelector("#stonetop-winter-step1").hidden = true;
 						root.querySelector("#stonetop-winter-step2").hidden = false;
@@ -2077,6 +2112,7 @@ export function createStonetopSteadingSheetClass(Base) {
 								const live = this._stonetopSteading.getStatValue("surplus");
 								const remaining = Math.max(0, live - consumption);
 								await this._stonetopSteading.setSystemValue("attributes.surplus.value", remaining, seasonsMove);
+								await this._stonetopSteading.setSeasonStepApplied("consumption", year, seasonId);
 								this.render(false);
 								root.querySelector("#stonetop-winter-ok").hidden = true;
 								root.querySelector("#stonetop-winter-step3").hidden = false;
@@ -2089,6 +2125,7 @@ export function createStonetopSteadingSheetClass(Base) {
 									const newFortunes = Math.max(fortunes - 1, -1);
 									await this._stonetopSteading.setSystemValue("attributes.surplus.value", 0, seasonsMove);
 									await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes, seasonsMove);
+									await this._stonetopSteading.setSeasonStepApplied("consumption", year, seasonId);
 									if (el.dataset.consequence === "population") {
 										const newPop = Math.max(population - 1, -1);
 										await this._stonetopSteading.setSystemValue("attributes.population.value", newPop, seasonsMove);
@@ -2366,15 +2403,30 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		/**
+		 * Disable a once-per-season Seasons-Change button (and tooltip why) when its step has
+		 * already been applied for this year+season, so closing and reopening the dialog can't
+		 * re-run it. Returns true when it disabled the button.
+		 */
+		_disableIfSeasonStepDone(btn, step, year, seasonId) {
+			if (!btn || !this._stonetopSteading.seasonStepApplied(step, year, seasonId)) return false;
+			btn.disabled = true;
+			btn.title = "Already done this season — reopening won't repeat it.";
+			return true;
+		}
+
+		/**
 		 * Summer: yearlings become grown horses, foals become yearlings, and the herd gains
 		 * 1d4+Fortunes (min 0) new foals. Rolls the foals to chat, applies, and reports.
 		 */
 		async _advanceHerdSummer() {
 			const before = this._stonetopSteading.getHerd();
 			const fortunes = this._stonetopSteading.getStatValue("fortunes");
-			const roll = await new Roll("1d4").evaluate();
+			// Roll Fortunes INTO the die so the chat card's total is the actual foals added
+			// (1d4 + Fortunes), not a bare 1d4 that disagrees with the herd change / notification.
+			const formula = fortunes >= 0 ? `1d4 + ${fortunes}` : `1d4 - ${Math.abs(fortunes)}`;
+			const roll = await new Roll(formula).evaluate();
 			await roll.toMessage({ flavor: `Herd — new foals (1d4 + Fortunes ${sign(fortunes)})` });
-			const newFoals = Math.max(0, roll.total + fortunes);
+			const newFoals = Math.max(0, roll.total);
 			const next = StonetopSteading.advanceHerdForSummer(before, newFoals);
 			await this._stonetopSteading.setHerd(next, { stonetopMove: "Seasons Change" });
 			this.render(false);
@@ -2428,6 +2480,60 @@ export function createStonetopSteadingSheetClass(Base) {
 			} else if (result.reason === "duplicate") {
 				globalThis.ui?.notifications?.warn?.(`${result.label} is already a steading improvement.`);
 			}
+		}
+
+		// Prompt for a custom improvement (name + optional flavor/effect) and add it as a
+		// tracked custom improvement — the same path a dropped journal card takes.
+		async _onCreateImprovementOpen() {
+			let dialog;
+			dialog = new Dialog({
+				title: "Create Improvement",
+				content: `<form class="stonetop-homestead-dialog">
+					<p class="stonetop-homestead-trigger"><em>Add a custom improvement to track alongside the book's built-ins.</em></p>
+					<div class="stonetop-homestead-fields">
+						<label class="stonetop-homestead-field">
+							<span>Name</span>
+							<input type="text" name="name" placeholder="e.g. Roadbuilding" autofocus>
+						</label>
+						<label class="stonetop-homestead-field">
+							<span>Flavor</span>
+							<textarea name="flavor" rows="2" placeholder="A short description shown under the title (optional)."></textarea>
+						</label>
+						<label class="stonetop-homestead-field">
+							<span>Effect</span>
+							<textarea name="effect" rows="2" placeholder="What completing it does — new resources, defenses, etc. (optional)."></textarea>
+						</label>
+					</div>
+				</form>`,
+				buttons: {
+					cancel: { label: "Cancel" },
+					create: {
+						label: "Create",
+						callback: async (html) => {
+							const form = html[0].querySelector("form");
+							const val = n => form.querySelector(`[name="${n}"]`)?.value?.trim() ?? "";
+							const name = val("name");
+							if (!name) {
+								globalThis.ui?.notifications?.warn?.("Enter a name for the improvement.");
+								return;
+							}
+							const result = await this._stonetopSteading.addCustomImprovement({
+								name,
+								flavor: val("flavor"),
+								effect: val("effect"),
+							});
+							if (result.ok) {
+								globalThis.ui?.notifications?.info?.(`Added steading improvement: ${result.label}.`);
+								this.render(false);
+							} else if (result.reason === "duplicate") {
+								globalThis.ui?.notifications?.warn?.(`${result.label} is already a steading improvement.`);
+							}
+						},
+					},
+				},
+				default: "create",
+			}, { classes: ["dialog", "stonetop", "stonetop-create-improvement-dialog"] });
+			dialog.render(true);
 		}
 
 		async _onRemoveCustomImprovement(slug) {

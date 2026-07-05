@@ -22,6 +22,17 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether this world has had the system's new-world core setting defaults applied.
+	// Used to seed Foundry's Automatic Token Rotation world setting off only during a
+	// fresh world's first GM load, without surprising already-established worlds.
+	game.settings.register("stonetop_pwd", "coreSettingDefaultsApplied", {
+		name: "Core Setting Defaults Applied",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// The system version whose shipped journal content was last rolled into the
 	// world's seeded copies (see hooks/SeedCompendiums.js). When this trails the
 	// running version, the update pass refreshes pristine (un-edited) seeded
@@ -400,6 +411,17 @@ export function registerSettings() {
 		default: {},
 	});
 
+	// Remembers which individual arcanum CARDS each character left collapsed (clamped to
+	// just their title bar). Like the Major / Minor sections, cards default to EXPANDED, so
+	// a card id (its slug) present here means that card should reopen collapsed. Per-user
+	// (client) and per-actor: a map of actor id -> array of collapsed card slugs. Internal.
+	game.settings.register("stonetop_pwd", "arcanaCardsCollapsed", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
 	// Remembers whether each character left the whole moves sidebar (Roll Modifier
 	// + Basic / Expedition move lists) collapsed, so the sheet reopens the same way.
 	// The sidebar defaults to expanded. Per-user (client) and per-actor: a map of
@@ -637,6 +659,17 @@ export function getArcanaContentExpanded(actorId) {
 
 export function setArcanaContentExpanded(actorId, sections) {
 	return setSectionList("arcanaContentExpanded", actorId, sections);
+}
+
+// The individual arcanum cards a character left collapsed (clamped to their title
+// bar). They default to expanded, so a card slug present here means that card should
+// reopen collapsed.
+export function getArcanaCardsCollapsed(actorId) {
+	return getSectionList("arcanaCardsCollapsed", actorId);
+}
+
+export function setArcanaCardsCollapsed(actorId, slugs) {
+	return setSectionList("arcanaCardsCollapsed", actorId, slugs);
 }
 
 // Whether a character left the whole moves sidebar collapsed (defaults to false /

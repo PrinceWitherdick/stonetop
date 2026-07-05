@@ -83,5 +83,17 @@
 			{{/each}}
 		</div>
 
+		{{!-- Create a custom improvement to track alongside the book's built-ins.
+		      Mirrors the Followers/Moves tabs' quiet dashed "add" bar; shown in edit
+		      mode only, like the per-card remove control. Dropping a journal card is
+		      the other way in (see StonetopSteadingSheet._onDropSteadingImprovement). --}}
+		{{#if stonetop.edit.improvements}}
+		<div class="steading-improvement-add-bar">
+			<button type="button" class="steading-improvement-add-btn">
+				<i class="fas fa-plus"></i> Create improvement
+			</button>
+		</div>
+		{{/if}}
+
 	</section>
 </div>

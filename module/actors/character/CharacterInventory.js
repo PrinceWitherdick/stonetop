@@ -32,7 +32,11 @@ export class CharacterInventory {
 		const itemKey = `${slug}:item`;
 		const kept = Object.entries(resources).filter(([k]) => k !== slug && k !== itemKey);
 		if (kept.length !== Object.keys(resources).length) {
-			await this._flags.setFlag("resources", Object.fromEntries(kept));
+			// setFlag MERGES, so writing the smaller object leaves the removed slug/"<slug>:item"
+			// keys in place (see CharacterArcana.removeArcanum). Unset the whole map, then re-set
+			// the survivors, so a later re-acquire can't inherit stale charges.
+			await this._flags.unsetFlag("resources");
+			if (kept.length) await this._flags.setFlag("resources", Object.fromEntries(kept));
 		}
 	}
 

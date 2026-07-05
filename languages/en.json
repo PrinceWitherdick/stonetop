@@ -126,6 +126,7 @@
       "revealToPlayers": "Reveal back to player",
       "hideFromPlayers": "Hide back from player",
       "removeArcanum": "Remove",
+      "toggleCard": "Collapse / expand card",
       "identify": "Identify",
       "searchLabel": "Search arcana",
       "searchPlaceholder": "Filter arcana…",

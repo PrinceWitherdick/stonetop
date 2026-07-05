@@ -26,6 +26,7 @@ export const BEAST_CATALOG = {
 		instinct:   "get distracted",
 		cost:       "training",
 		follower:   true,
+		portraitIcon: "fas fa-dog",
 	},
 	"goat": {
 		name:       "Goat",
@@ -81,6 +82,7 @@ export const BEAST_CATALOG = {
 		instinct:   "avoid danger",
 		cost:       "care & grooming",
 		follower:   true,
+		portraitIcon: "fas fa-horse-head",
 	},
 	"horse": {
 		name:       "Horse",
@@ -94,6 +96,7 @@ export const BEAST_CATALOG = {
 		instinct:   "panic",
 		cost:       "care & grooming",
 		follower:   true,
+		portraitIcon: "fas fa-horse",
 	},
 };
 
@@ -132,7 +135,9 @@ export function followerInputFromBeast(beast, { name } = {}) {
 	return {
 		name:         name || beast.name,
 		typeLabel:    beast.follower ? "beast follower" : "livestock",
-		portraitIcon: "fas fa-horse",
+		// Per-beast icon (a dog looks like a dog, not a horse); fall back to the same
+		// follower/livestock split the sheet's beast cards use for any beast lacking one.
+		portraitIcon: beast.portraitIcon || (beast.follower ? "fas fa-dog" : "fas fa-wheat-awn"),
 		tags:         beast.traits ?? [],
 		hp:           beast.hp,
 		armor:        beast.armor,

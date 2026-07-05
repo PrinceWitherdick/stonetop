@@ -87,7 +87,6 @@ export class CharacterArcana {
 	}
 
 	get ownedSlugs()       { return new Set(this._flags.getFlag("owned") ?? []); }
-	get flippedSlugs()     { return new Set(this._flags.getFlag("flipped") ?? []); }
 	get revealedSlugs()    { return new Set(this._flags.getFlag("revealed") ?? []); }
 	get identifiedSlugs()  { return new Set(this._flags.getFlag("identified") ?? []); }
 	get unlockCounts()     { return this._flags.getFlag("unlock") ?? {}; }
@@ -124,7 +123,6 @@ export class CharacterArcana {
 
 	async buildSnapshot(stats = {}, checkedMap = {}, inventoryResources = {}) {
 		const ownedSlugs       = this.ownedSlugs;
-		const flippedSlugs     = this.flippedSlugs;
 		const identifiedSlugs  = this.identifiedSlugs;
 		const unlockCounts     = this.unlockCounts;
 		const backOptionCounts = this.backOptionCounts;
@@ -133,8 +131,6 @@ export class CharacterArcana {
 		const fetchedItems = await this._arcanaRepo.findBySlugs([...ownedSlugs]);
 
 		const allItems = fetchedItems.map(item => {
-			const flipped = flippedSlugs.has(item.slug);
-
 			const unlockItems = (item.front.unlock?.requirements ?? []).map(li => {
 				if (li.type === "text") return new ArcanaUnlockTextItem(li.content);
 				const count = unlockCounts[`${item.slug}:${li.slug}`] ?? 0;
@@ -233,7 +229,6 @@ export class CharacterArcana {
 				.withFront(front)
 				.withBack(back)
 				.withOwned(true)
-				.withFlipped(flipped)
 				.withChecked(checkedMap[item.slug] ?? false)
 				.withUnlocked(unlocked)
 				.withIdentified(identifiedSlugs.has(item.slug))
@@ -266,22 +261,25 @@ export class CharacterArcana {
 		// flag or the unlock/mark maps behind means re-acquiring the same arcanum later (a fresh
 		// drop or level-up pick) silently restores a GM-revealed back, or a fully-unlocked/marked
 		// state, with no GM action — a spoiler leak plus stale marks.
+		//
+		// Batched into ONE actor.update so removing a card is a single document write / sheet
+		// re-render, not ~10 sequential setFlag/unsetFlag calls each re-rendering the open sheet.
 		const prefix = `${slug}:`;
-		// Slug arrays: setFlag replaces them wholesale (mergeObject doesn't deep-merge arrays).
+		const sets = {}, deletes = {};
+		// Slug arrays: writing the filtered array replaces it wholesale (mergeObject doesn't
+		// deep-merge arrays), dropping the slug.
 		for (const key of ["owned", "identified", "revealed", "flipped"]) {
 			const cur = this._flags.getFlag(key) ?? [];
-			if (cur.includes(slug)) await this._flags.setFlag(key, cur.filter(s => s !== slug));
+			if (cur.includes(slug)) sets[key] = cur.filter(s => s !== slug);
 		}
-		// Keyed maps ("<slug>:…" keys): setFlag MERGES, so writing a smaller object leaves the
-		// dropped keys in place. Unset the whole map, then re-set the survivors, so the removed
-		// card's entries are actually gone (see setArcanumBoxChecked's mergeObject note).
+		// Keyed maps ("<slug>:…" keys): an update MERGES, so it can't drop a key — delete each
+		// removed sub-key with the "-=key" syntax (see setArcanumBoxChecked's mergeObject note).
 		for (const key of ["unlock", "boxes", "backOptions"]) {
 			const cur = this._flags.getFlag(key) ?? {};
-			const kept = Object.entries(cur).filter(([k]) => k !== slug && !k.startsWith(prefix));
-			if (kept.length === Object.keys(cur).length) continue;
-			await this._flags.unsetFlag(key);
-			if (kept.length) await this._flags.setFlag(key, Object.fromEntries(kept));
+			const drop = Object.keys(cur).filter(k => k === slug || k.startsWith(prefix));
+			if (drop.length) deletes[key] = drop;
 		}
+		await this._flags.batch({ sets, deletes });
 	}
 
 	async identifyArcanum(slug) {
@@ -308,18 +306,6 @@ export class CharacterArcana {
 			this._flags.setFlag("unlock", unlock),
 			this._flags.setFlag("boxes", boxes),
 		]);
-	}
-
-	async flipArcanum(slug) {
-		const s = this.flippedSlugs;
-		s.add(slug);
-		await this._flags.setFlag("flipped", [...s]);
-	}
-
-	async unflipArcanum(slug) {
-		const s = this.flippedSlugs;
-		s.delete(slug);
-		await this._flags.setFlag("flipped", [...s]);
 	}
 
 	// GM-only: in secretive mode, expose / hide a still-LOCKED card's back to the owning

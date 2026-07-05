@@ -1855,9 +1855,7 @@ export class StonetopCharacter {
 	async identifyArcanum(slug)                      { await this._arcana.identifyArcanum(slug); }
 	async masterArcanum(slug)                        { await this._arcana.masterArcanum(slug); }
 	async getArcanumChatContent(slug, flipped)       { return this._arcana.getArcanumChatContent(slug, flipped); }
-	async flipArcanum(slug)     { await this._arcana.flipArcanum(slug); }
 	async setMinorArcanumRole(role, slug) { await this._arcana.setMinorRole(role, slug); }
-	async unflipArcanum(slug)   { await this._arcana.unflipArcanum(slug); }
 	async revealArcanum(slug)   { await this._arcana.revealArcanum(slug); }
 	async hideArcanum(slug)     { await this._arcana.hideArcanum(slug); }
 	get revealedArcanaSlugs()   { return this._arcana.revealedSlugs; }

@@ -47,6 +47,23 @@ export class StonetopFlags {
 		return { [`flags.${_scope}.${this.buildKey(key)}`]: value };
 	}
 
+	// Apply several flag writes and/or sub-key deletions in ONE actor.update (a single
+	// document write / sheet re-render) instead of many sequential setFlag/unsetFlag calls.
+	// `sets` is { key: value } — each REPLACES that flag wholesale (an array/primitive
+	// replaces; note a plain-object value still deep-MERGES, so use `deletes` to drop keys).
+	// `deletes` is { key: [subKey, …] } — each subKey is removed from that flag object via
+	// Foundry's "-=key" syntax (a subKey may contain ':' but not '.').
+	async batch({ sets = {}, deletes = {} } = {}, options) {
+		const data = {};
+		for (const [key, value] of Object.entries(sets)) {
+			data[`flags.${_scope}.${this.buildKey(key)}`] = value;
+		}
+		for (const [key, subKeys] of Object.entries(deletes)) {
+			for (const sub of subKeys) data[`flags.${_scope}.${this.buildKey(key)}.-=${sub}`] = null;
+		}
+		if (Object.keys(data).length) await this._actor.update(data, options);
+	}
+
 	buildKey(key) {
 		return `${this._namespace}.${key}`;
 	}

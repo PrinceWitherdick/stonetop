@@ -321,6 +321,32 @@ describe("CharacterLedger", () => {
 		expect(CharacterLedger.entriesForCreatedItems([item]).map(e => e.action)).toEqual(["Ambush learned"]);
 		expect(CharacterLedger.entriesForDeletedItems([item]).map(e => e.action)).toEqual(["Ambush removed"]);
 	});
+
+	it("stays quiet when a custom follower is created (whole-record write, not per-field noise)", async () => {
+		// A creation writes every field of the record at once; the follower isn't yet in the
+		// pre-update name map, so none of those field writes should become ledger lines.
+		const actor = makeActor({}, {});
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.customFollowers.new1": {
+				name: "Bran", loyalty: 0, hpCurrent: 6, instinct: "flee", cost: "coin", tags: ["brave"],
+			},
+		});
+		expect(entries).toEqual([]);
+	});
+
+	it("records a play-track change to an existing custom follower, but not a detail edit", async () => {
+		const actor = makeActor({}, { stonetop_pwd: { customFollowers: { f1: { name: "Bran", loyalty: 2 } } } });
+		// Loyalty (a play track) logs, named by the follower…
+		const play = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.customFollowers.f1.loyalty": 1,
+		});
+		expect(play.map(e => e.action)).toEqual(["Bran loyalty changed from 2 to 1"]);
+		// …but a detail edit (name / cost / instinct / tags) stays quiet.
+		const detail = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.customFollowers.f1.name": "Brandon",
+		});
+		expect(detail).toEqual([]);
+	});
 });
 
 describe("ledgerNoun", () => {

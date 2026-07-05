@@ -20,7 +20,14 @@
 
 	{{#*inline "arcanumCard"}}
 	{{#if owned}}
-	<div class="stonetop-arcanum-card{{#if isSpread}} stonetop-arcanum-card--spread{{/if}}" data-slug="{{slug}}"{{#if greaterConduit}} data-greater-conduit="true"{{/if}}>
+	<div class="stonetop-arcanum-card{{#if isSpread}} stonetop-arcanum-card--spread{{/if}}{{#if collapsed}} is-collapsed{{/if}}" data-slug="{{slug}}" data-section="{{slug}}"{{#if greaterConduit}} data-greater-conduit="true"{{/if}}>
+
+		{{!-- Corner toggle: clamp the whole card to just its title bar. Persisted per
+		      actor; the chevron rotates like the section headers (see stonetop.css). --}}
+		<button type="button" class="stonetop-arcanum-collapse-btn"
+		        aria-expanded="{{#if collapsed}}false{{else}}true{{/if}}"
+		        title="{{localize 'stonetop.arcana.toggleCard'}}"
+		        aria-label="{{localize 'stonetop.arcana.toggleCard'}}"></button>
 
 		{{#if identified}}
 
@@ -141,6 +148,14 @@
 		</div>
 		{{/if}}
 		</div>
+
+		{{!-- Collapsed preview: when the card is clamped, the full body is hidden and this
+		      front-description lead shows beneath whichever header is visible (front, or the
+		      back header on a back-only flip). Present only in the DOM; CSS reveals it while
+		      the card carries .is-collapsed. --}}
+		{{#if frontLead}}
+		<div class="stonetop-arcanum-collapsed-preview">{{{frontLead}}}</div>
+		{{/if}}
 
 		{{#if (or sectionEditable canToggleBoth)}}
 		<div class="stonetop-arcanum-footer">

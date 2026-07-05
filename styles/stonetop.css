@@ -4468,6 +4468,86 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: none;
 }
 
+/* Per-card collapse toggle: a small chevron pinned to each arcanum card's top-right
+   corner. Collapsing clamps the card to just its header (title bar), hiding the body
+   and footer; the arrow rotates like the section headers. State persists per actor
+   (arcanaCardsCollapsed), default expanded. See StonetopCharacterSheet. */
+.stonetop-arcanum-collapse-btn {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	z-index: 2;
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	margin: 0;
+	appearance: none;
+	border: none;
+	background: none;
+	box-shadow: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	opacity: 0.4;
+	transition: opacity 0.12s;
+}
+.stonetop-arcanum-card:hover > .stonetop-arcanum-collapse-btn { opacity: 0.7; }
+.stonetop-arcanum-collapse-btn:hover { opacity: 1; }
+
+.stonetop-arcanum-collapse-btn::after {
+	content: "";
+	display: inline-block;
+	width: 0.7em;
+	height: 0.7em;
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+	transform: rotate(90deg); /* expanded: arrow points down */
+	transition: transform 0.15s;
+}
+.stonetop-arcanum-card.is-collapsed > .stonetop-arcanum-collapse-btn::after {
+	transform: rotate(0deg); /* collapsed: arrow points right */
+}
+
+/* Collapsed: clamp the card to a header + the front description's lead. Drop the tall
+   min-height and stop the sides grid stretching so its now-empty body row collapses to
+   zero, then hide the body/footer outright. The corner toggle stays (the way back open).
+   The sides fall to one column so the surviving header fills the card width; on a spread
+   the back panel is dropped entirely, leaving just the front header (the collapsed view
+   is always fronted by the front header — or the back header on a back-only flip). */
+.stonetop-arcanum-card.is-collapsed {
+	min-height: 0;
+	/* Clamped down to a title bar + lead, a collapsed card only needs one column —
+	   drop the full-width span a spread (or a wide-promoted card) otherwise carries so
+	   it packs like any narrow card. Outranks the --spread / --wide grid-column rules. */
+	grid-column: auto;
+}
+.stonetop-arcanum-card.is-collapsed .stonetop-arcanum-sides {
+	flex: none;
+	grid-template-columns: 1fr;
+}
+.stonetop-arcanum-card--spread.is-collapsed .stonetop-arcanum-side--back {
+	display: none;
+}
+.stonetop-arcanum-card.is-collapsed .stonetop-arcanum-body,
+.stonetop-arcanum-card.is-collapsed .stonetop-arcanum-footer {
+	display: none;
+}
+
+/* The front-description lead shown while collapsed (see tab-arcana.hbs). Hidden in the
+   normal expanded card; revealed beneath the visible header when clamped. Matches the
+   card body's type and padding so it reads as a natural continuation of the card. */
+.stonetop-arcanum-collapsed-preview {
+	display: none;
+	padding: 6px 8px;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+}
+.stonetop-arcanum-card.is-collapsed .stonetop-arcanum-collapsed-preview {
+	display: block;
+}
+.stonetop-arcanum-collapsed-preview p { margin: 0; }
+.stonetop-arcanum-collapsed-preview p + p { margin-top: 4px; }
+
 .stonetop-arcana-col {
 	display: flex;
 	flex-direction: column;
@@ -4499,7 +4579,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	min-height: 0;
 	object-fit: contain;
 	object-position: center;
-	cursor: pointer;
+	cursor: zoom-in;
 	opacity: 0.9;
 	transition: opacity 0.15s;
 	flex-shrink: 0;
@@ -4507,6 +4587,49 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-arcanum-thumb:hover {
 	opacity: 1;
+}
+
+/* Hover preview of a card's art — a larger copy of the header thumbnail. Built in
+   JS and appended to <body> as a fixed-position popup (see StonetopCharacterSheet
+   ._showArcanumThumbPreview) so it escapes the arcana tab's clipping: the thumb sits
+   at the far LEFT of each card, where a CSS ::after popup would be cut off by the
+   tab's overflow-x:hidden. Mirrors the steading avatar preview, tuned for the tall,
+   contained card art. Reuses the shared stonetop-arcana-pop-in keyframe. */
+.stonetop-arcanum-thumb-preview {
+	position: fixed;
+	display: grid;
+	gap: 6px;
+	justify-items: center;
+	width: max-content;
+	max-width: min(240px, 70vw);
+	padding: 8px;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius);
+	background: #fffdf7;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+	color: #111827;
+	font-family: var(--font-stonetop);
+	pointer-events: none;
+	transform-origin: center left;
+	animation: stonetop-arcana-pop-in 0.12s ease;
+}
+
+.stonetop-arcanum-thumb-preview img {
+	max-width: 224px;
+	max-height: min(60vh, 360px);
+	object-fit: contain;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255,255,255,0.55);
+}
+
+.stonetop-arcanum-thumb-preview strong {
+	max-width: 224px;
+	overflow: hidden;
+	text-align: center;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--st-fs-sm);
 }
 
 .stonetop-arcanum-img {
@@ -5496,6 +5619,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    label wraps its own text instead of overflowing when it lands on its own line. */
 .tab.moves .stonetop-move-group .stonetop-item-source {
 	max-width: 100%;
+}
+
+/* When a move has BOTH a resource track and a source label (e.g. the Chronicler's
+   "Diligence" hold track on a "Starting move"), the wide resource track sits
+   between the name and the short label in DOM order and drags the label down with
+   it — leaving the label stranded on the second row even when there's room for it
+   beside the name up top. Push the resource track onto its own full-width line
+   (order + flex-basis) so the short source label rides the top row next to the
+   name (still right-pinned via margin-left:auto, still wrapping to its own line if
+   the name is long enough to crowd it). margin-left:0 keeps the dropped resource
+   track left-aligned on its line rather than pushed right by the inherited auto. */
+.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) .stonetop-item-resources {
+	order: 1;
+	flex-basis: 100%;
+	margin-left: 0;
 }
 
 .tab.moves .stonetop-item-description,
@@ -8865,6 +9003,32 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: #fff;
 }
 
+/* Create-improvement entry bar at the foot of the Improvements tab. Mirrors the
+   Followers/Moves tabs' .stonetop-follower-add-bar / .stonetop-add-custom-move: a
+   quiet full-width dashed entry point rather than a filled CTA. */
+.steading-improvement-add-bar {
+	display: flex;
+	align-items: center;
+	padding: 4px 2px;
+	margin-top: 8px;
+}
+.steading-improvement-add-btn {
+	flex: 1 1 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: 100%;
+	padding: 2px 8px;
+	cursor: pointer;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	border: 1px dashed var(--color-border-light, #ccc);
+	background: transparent;
+	transition: background 0.15s;
+}
+.steading-improvement-add-btn:hover { background: hsl(210 10% 92%); }
+
 /* Drop target highlight while dragging a Steading Improvement card over the tab. */
 .tab.improvements.steading-improvement-drag-over {
 	outline: 2px dashed var(--stonetop-improvement-accent);
@@ -11886,35 +12050,35 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* ── Followers tab ─────────────────────────────────────────────────── */
 
 .stonetop-followers {
-	/* Two stacked columns: the player's followers (stonetop-followers-roster) on the
-	   left, the shared rules reference cards (stonetop-followers-rules) on the right,
-	   each a vertical stack so the two rules cards always travel together. Flex-wrap
-	   keeps it responsive without a container query — the columns sit side by side
-	   while the tab is wide enough for both flex-bases, then wrap to a single
-	   full-width stack when it isn't (so a narrow sheet never overflows). The heading
-	   row and the Create-a-follower bar force their own full-width lines. */
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-start;
-	gap: 12px;
-}
-.stonetop-followers-roster,
-.stonetop-followers-rules {
+	/* Vertical stack: heading row, the card grid, then the Create-a-follower bar.
+	   The heading and add-bar live here (not in the grid) so they always span the
+	   FULL tab width — the card grid's columns are capped (see below) and don't reach
+	   the container edge, so a heading placed inside the grid would stop short. */
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	min-width: 0; /* let the column shrink instead of overflowing on a narrow sheet */
 }
-/* Roster takes the greater share of the width; the rules column stays a touch
-   narrower. The bases set the wrap threshold (basis sum ~460px): kept deliberately
-   low so the two columns stay side by side within the sheet's 800px min-width even
-   though the always-present, non-shrinking moves sidebar (width:max-content) eats
-   ~250px of the row. flex-grow (3:2) still fills the real width on a wide sheet;
-   only a genuinely narrow tab body wraps them to a single full-width stack. Raising
-   these bases pushes the wrap point back past 800px, which is what made the follower
-   card jump to full width and shove the Follower Special Moves card to the bottom. */
-.stonetop-followers-roster { flex: 3 1 260px; }
-.stonetop-followers-rules  { flex: 2 1 200px; }
+.stonetop-followers-grid {
+	/* One shared card grid holds BOTH the player's follower cards and the shared
+	   reference cards ("Follower Special Moves", "Animal Companion Moves"). The rules
+	   cards are peers in the same grid — not a separate full-width row below — so a
+	   lone reference card flows into the next column beside the follower cards at the
+	   same width. Each column hugs the card at a 410px max, so cards sit next to each
+	   other with any leftover width pooled at the END of the row rather than as gaps
+	   between cards; min(360px,100%) lets a column shrink below 360 on a narrow sheet
+	   rather than overflowing. */
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 410px));
+	align-items: start; /* cards keep their natural height — no row-stretch */
+	gap: 12px;
+}
+/* Both wrappers are transparent: their follower / rules cards become direct grid
+   items of .stonetop-followers-grid so they share one set of column tracks and flow
+   together (followers first, then reference cards). */
+.stonetop-followers-roster,
+.stonetop-followers-rules {
+	display: contents;
+}
 
 .stonetop-follower-card {
 	position: relative; /* anchor for the card-level edit pencil */
@@ -11926,7 +12090,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	   collapses to one column when cramped. A fixed card min-width would overflow its
 	   own track on a narrow sheet and get clipped. */
 	min-width: 0;
-	max-width: 560px;
+	max-width: 410px; /* cap the card's width; the 1fr track still lets it grow/shrink up to here */
 	width: 100%; /* fill available but won't exceed max-width */
 }
 
@@ -11936,7 +12100,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-follower-card--rules {
-	max-width: 660px;
+	max-width: 410px;
 }
 
 /* Livestock & Beast cards (added via the inventory's special items). Follower
@@ -13988,6 +14152,9 @@ li.question-bullet {
 .stonetop-monster-outnumber-yours,
 .stonetop-monster-outnumber-theirs {
 	width: 46px;
+	height: 1.5em;
+	padding: 0 3px;
+	line-height: 1.4;
 	text-align: center;
 }
 .stonetop-monster-outnumber-result { color: slategrey; font-style: italic; white-space: nowrap; }
@@ -15379,14 +15546,10 @@ input.stonetop-monster-armor-source {
 .stonetop-details-heading-row + :not(.stonetop-item) {
 	margin-top: 4px;
 }
-/* The Followers tab is a flex-wrap 2-column layout (roster | rules). Its heading
-   row and the Create-a-follower bar each take a full-width line of their own —
-   above the columns and at the foot of the tab respectively — rather than sitting
-   in one of the columns. */
-.stonetop-followers > .stonetop-details-heading-row,
-.stonetop-followers > .stonetop-follower-add-bar {
-	flex: 1 1 100%;
-}
+/* The Followers tab stacks its heading row, the card grid, and the Create-a-follower
+   bar as full-width flex-column children (see .stonetop-followers) — so the heading
+   and add-bar span the full tab width regardless of the card grid's capped columns.
+   The flex column's gap spaces them, so no per-item margin is needed. */
 .stonetop-followers > .stonetop-details-heading-row + * {
 	margin-top: 0;
 }
@@ -16662,7 +16825,9 @@ th:has(> .stonetop-roll-table-btn) {
 	bottom: calc(100% + 6px);
 	width: 96px;
 	height: 96px;
-	background: #000 url('/systems/stonetop_pwd/assets/icons/macros/spring.svg') center / contain no-repeat;
+	/* The enlarged preview mirrors whichever hotbar icon this wraps — spring by
+	   default, overridden per-icon via --st-welcome-zoom-img (e.g. the signpost). */
+	background: #000 var(--st-welcome-zoom-img, url('/systems/stonetop_pwd/assets/icons/macros/spring.svg')) center / contain no-repeat;
 	border-radius: var(--st-radius);
 	border: 1px solid var(--color-border-dark, #7a7971);
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
@@ -16677,6 +16842,12 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-welcome-springicon-wrap:hover::after {
 	opacity: 1;
 	transform: translateX(-50%) scale(1);
+}
+
+/* The "signpost" (Welcome guide) hotbar icon reuses the same inline-icon + hover-zoom
+   wrapper, so point its enlarged preview at the direction-signs art instead of spring. */
+.stonetop-welcome-springicon-wrap--signpost {
+	--st-welcome-zoom-img: url('/systems/stonetop_pwd/assets/icons/macros/direction-signs.svg');
 }
 
 .stonetop-welcome-notice {

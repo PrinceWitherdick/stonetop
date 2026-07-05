@@ -25,6 +25,16 @@ function makeFlags(store = {}) {
 			store[key] = mergeable(cur) && mergeable(val) ? { ...cur, ...val } : val;
 		}),
 		unsetFlag: vi.fn(async (key) => { delete store[key]; }),
+		// Model StonetopFlags.batch: `sets` replace a flag wholesale (via actor.update, which
+		// treats arrays/primitives atomically); `deletes` remove sub-keys (the "-=key" syntax).
+		batch: vi.fn(async ({ sets = {}, deletes = {} } = {}) => {
+			for (const [key, value] of Object.entries(sets)) store[key] = value;
+			for (const [key, subKeys] of Object.entries(deletes)) {
+				if (store[key] && typeof store[key] === "object") {
+					for (const sub of subKeys) delete store[key][sub];
+				}
+			}
+		}),
 	};
 }
 
@@ -153,21 +163,6 @@ describe("CharacterArcana.buildSnapshot()", () => {
 		it("has correct slug", async () => {
 			const snap = await makeArcana({ owned: ["huge-wooden-sphere"] }).buildSnapshot();
 			expect(snap.minor.items[0].slug).toBe("huge-wooden-sphere");
-		});
-	});
-
-	describe("flipped state", () => {
-		it("flipped is false by default", async () => {
-			const snap = await makeArcana({ owned: ["huge-wooden-sphere"] }).buildSnapshot();
-			expect(snap.minor.items[0].flipped).toBe(false);
-		});
-
-		it("flipped is true when slug is in flipped flag", async () => {
-			const snap = await makeArcana({
-				owned:   ["huge-wooden-sphere"],
-				flipped: ["huge-wooden-sphere"],
-			}).buildSnapshot();
-			expect(snap.minor.items[0].flipped).toBe(true);
 		});
 	});
 
@@ -436,10 +431,12 @@ describe("CharacterArcana.buildSnapshot()", () => {
 		});
 
 		it("removeArcanum removes slug from owned flag", async () => {
-			const flags = makeFlags({ owned: ["some-slug", "other-slug"] });
-			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
+			const store = { owned: ["some-slug", "other-slug"] };
+			const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
 			await arcana.removeArcanum("some-slug");
-			expect(flags.setFlag).toHaveBeenCalledWith("owned", ["other-slug"]);
+			// removeArcanum batches every per-card write into one actor.update (flags.batch);
+			// assert the resulting store state rather than a specific setFlag call.
+			expect(store.owned).toEqual(["other-slug"]);
 		});
 
 		it("removeArcanum clears the reveal flag and every per-card mark (no spoiler leak on re-add)", async () => {
@@ -466,20 +463,6 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			expect(store.unlock).toEqual({ "other-slug:a": 2 });
 			expect(store.boxes).toEqual({ "other-slug:back:0": true });
 			expect(store.backOptions).toEqual({ "other-slug:x": 1 });
-		});
-
-		it("flipArcanum adds slug to flipped flag", async () => {
-			const flags = makeFlags();
-			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
-			await arcana.flipArcanum("some-slug");
-			expect(flags.setFlag).toHaveBeenCalledWith("flipped", ["some-slug"]);
-		});
-
-		it("unflipArcanum removes slug from flipped flag", async () => {
-			const flags = makeFlags({ flipped: ["some-slug"] });
-			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
-			await arcana.unflipArcanum("some-slug");
-			expect(flags.setFlag).toHaveBeenCalledWith("flipped", []);
 		});
 
 		it("revealArcanum adds slug to revealed flag", async () => {

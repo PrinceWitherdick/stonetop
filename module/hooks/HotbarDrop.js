@@ -33,9 +33,21 @@ export function onHotbarDrop(hotbar, data, slot) {
 	}
 	if (item?.type !== "move" || !item.parent) return;
 
-	// Fire-and-forget: Macro.create/assignHotbarMacro are async, but the hook must
-	// return synchronously to suppress core's default handling.
-	_createMoveHotbarMacro(item, slot);
+	// The macro is a script macro; a player without that permission can't create one.
+	// Warn and still claim the drop (returning false) so core's default doesn't drop a
+	// broken/confusing fallback into the slot.
+	if (!game.user.can("MACRO_SCRIPT")) {
+		ui.notifications.warn("You don't have permission to create script macros, so this move can't become a hotbar macro.");
+		return false;
+	}
+
+	// Fire-and-forget: Macro.create/assignHotbarMacro are async, but the hook must return
+	// synchronously to suppress core's default handling. Catch here so an async failure
+	// surfaces as a notification instead of an unhandled rejection with an empty slot.
+	_createMoveHotbarMacro(item, slot).catch(err => {
+		console.error("Stonetop | Couldn't create the move hotbar macro:", err);
+		ui.notifications.error(`Couldn't create a hotbar macro for ${item.name} (see the console for details).`);
+	});
 	return false;
 }
 

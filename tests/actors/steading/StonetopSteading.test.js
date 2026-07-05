@@ -332,6 +332,49 @@ describe("StonetopSteading", () => {
 				.toEqual({ stats: { fortunes: 1 } });                                              // no resource recorded
 		});
 
+		it("back-fills a pre-engine completion's full grant so un-completing drops an already-present resource", async () => {
+			// Legacy world: Raincatching was completed under a version before this engine, so its
+			// entry is {completed:true} with NO `applied`, and its book effect (Fortunes +1, the
+			// Raincatching resource) was applied by hand. Un-completing must reverse BOTH — not just
+			// the stat while orphaning the resource.
+			const actor = makeSteadingActor({
+				steadingFlags: {
+					system: { stats: { fortunes: { value: 2 } } },
+					resources: [{ name: "Raincatching", checked: true }, { name: "", checked: false }],
+					improvements: { raincatching: { completed: true, r: [] } },
+				},
+			});
+			const result = await new StonetopSteading(actor).setImprovementCompleted("raincatching", false);
+
+			const data = lastUpdate(actor);
+			expect(data["system.stats.fortunes.value"]).toBe(1);                       // stat reversed
+			expect(data["flags.stonetop_pwd.steading.resources"]).toEqual([
+				{ name: "", checked: false },                                          // Raincatching dropped
+				{ name: "", checked: false },
+			]);
+			expect(result.reverted).toBe(true);
+			expect(data["flags.stonetop_pwd.steading.improvements"].raincatching.applied).toBeNull();
+		});
+
+		it("back-fill claims no reversal for a legacy Township already at its target size", async () => {
+			// Size/Population are unknowable once the steading already sits at the grant's target
+			// (hand-applied under the old version), so the back-fill records nothing reversible and
+			// must not falsely report a reversal or fabricate a prior size.
+			const actor = makeSteadingActor({
+				steadingFlags: {
+					size: "town",
+					system: { attributes: { population: { value: 0 } } },
+					improvements: { township: { completed: true, r: [] } },
+				},
+			});
+			const result = await new StonetopSteading(actor).setImprovementCompleted("township", false);
+
+			const data = lastUpdate(actor);
+			expect(data["flags.stonetop_pwd.steading.size"]).toBeUndefined();          // size left intact
+			expect(result.reverted).toBe(false);
+			expect(data["flags.stonetop_pwd.steading.improvements"].township.applied).toBeNull();
+		});
+
 		it("Township sets Size and Population, recording their prior values for reversal", async () => {
 			const actor = makeSteadingActor({
 				steadingFlags: { size: "village", system: { attributes: { population: { value: 3 } } } },

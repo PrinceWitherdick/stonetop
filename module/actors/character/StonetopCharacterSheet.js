@@ -286,17 +286,6 @@ const EXPEDITION_MOVE_HANDLERS = {
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
 
-/**
- * Canonical HTML for a move chat card. `name` is escaped here because it can be a
- * player-authored custom-move name (untrusted) — never pre-escape it at the call site.
- * `description` is rendered raw: it is either trusted module HTML or a custom move's
- * description, which is already escaped at storage (formatCustomMoveDescription).
- */
-function _buildMoveChatContent(name, description) {
-	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${escHtml(name)}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
-}
-
-
 function _addToLeadingNumber(value, delta) {
 	const match = String(value ?? "").match(/^(-?\d+)(.*)$/);
 	if (!match) return value;
@@ -539,6 +528,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// arcana). Unlike the sections above these default to COLLAPSED, so we track
 			// the ones left EXPANDED (absence = collapsed).
 			this._expandedArcanaContent = new Set(getArcanaContentExpanded(this.actor?.id));
+
+			// And the individual arcanum cards (clamped to their title bar). Like the
+			// sections they default to expanded; we track the slugs left collapsed.
+			this._collapsedArcanaCards = new Set(getArcanaCardsCollapsed(this.actor?.id));
 		}
 
 		// Persist the current crew-section open state so it survives a sheet reopen.
@@ -561,13 +554,18 @@ export function createStonetopCharacterSheetClass(Base) {
 			setArcanaContentExpanded(this.actor?.id, [...(this._expandedArcanaContent ?? [])]);
 		}
 
+		// Persist which individual arcanum cards are collapsed so it survives a reopen.
+		_persistArcanaCards() {
+			setArcanaCardsCollapsed(this.actor?.id, [...(this._collapsedArcanaCards ?? [])]);
+		}
+
 		// Wire a custom collapse/expand toggle for a set of collapsible sections. Used
 		// by both the sidebar move groups and the Arcana sections — both use a custom
 		// toggle (not <details>) so the content keeps contributing layout, and both
 		// track COLLAPSED ids (default expanded). `getSet` returns the live Set to
 		// mutate; `persist` writes it back. (Crew sections use <details>.open instead,
 		// so they keep their own handler.)
-		_wireCollapsible(html, { summarySel, collapsibleSel, getSet, persist }) {
+		_wireCollapsible(html, { summarySel, collapsibleSel, getSet, persist, onToggle }) {
 			const toggle = el => {
 				const wrap = el.closest(collapsibleSel);
 				const id   = wrap?.dataset.section;
@@ -578,6 +576,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (collapsed) set.add(id);
 				else           set.delete(id);
 				persist();
+				onToggle?.(wrap, collapsed);
 			};
 			html.find(summarySel).on("click", ev => toggle(ev.currentTarget));
 			html.find(summarySel).on("keydown", ev => {
@@ -619,6 +618,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			const oldImg = this.element?.[0]?.querySelector("img.stonetop-portrait");
 			const oldSrc = oldImg?.getAttribute("src");
 			const oldEditable = oldImg?.hasAttribute("data-edit");
+			// The art hover preview is a document.body singleton, so a re-render while the
+			// cursor is over a card's art tears out the anchor without firing mouseleave —
+			// clear it up front so no orphaned floating preview is left stuck on screen.
+			this._removeArcanumThumbPreview();
 			await super._render(force, options);
 			const newImg = this.element?.[0]?.querySelector("img.stonetop-portrait");
 			if (oldImg && newImg
@@ -651,7 +654,52 @@ export function createStonetopCharacterSheetClass(Base) {
 			this._persistSheetWidth();
 			this._movePanel?.remove();
 			this._movePanel = null;
+			// The art hover preview lives on document.body, so it survives the sheet's DOM
+			// being torn down — clear it or it orphans if the sheet closes (e.g. Escape) while
+			// the cursor is still over a card's art and no mouseleave ever fires.
+			this._removeArcanumThumbPreview();
 			return super.close(options);
+		}
+
+		_removeArcanumThumbPreview() {
+			document.querySelector(".stonetop-arcanum-thumb-preview")?.remove();
+		}
+
+		// Hover preview for an arcanum's header art: a larger copy of the thumbnail in a
+		// fixed-position popup appended to <body>, so it escapes the arcana tab's overflow
+		// clipping. Placed to the right of the art (it sits at the card's left edge, so
+		// there's room), flipping left if it would run off the right of the viewport, and
+		// vertically centred on the thumb. Mirrors the steading avatar preview.
+		_showArcanumThumbPreview(anchor) {
+			this._removeArcanumThumbPreview();
+			if (!anchor?.src) return;
+			const popup = document.createElement("div");
+			popup.className = "stonetop-arcanum-thumb-preview";
+			const img = document.createElement("img");
+			img.src = anchor.src;
+			img.alt = "";
+			popup.appendChild(img);
+			const name = anchor.dataset.name?.trim();
+			if (name) {
+				const caption = document.createElement("strong");
+				caption.textContent = name;
+				popup.appendChild(caption);
+			}
+			document.body.appendChild(popup);
+
+			const ar = anchor.getBoundingClientRect();
+			const gap = 8;
+			const pw = popup.offsetWidth;
+			const ph = popup.offsetHeight;
+			let left = ar.right + gap;
+			if (left + pw > window.innerWidth - 8) left = ar.left - pw - gap;
+			left = Math.max(8, left);
+			let top = ar.top + ar.height / 2 - ph / 2;
+			top = Math.max(8, Math.min(top, window.innerHeight - ph - 8));
+			popup.style.top = `${top}px`;
+			popup.style.left = `${left}px`;
+			const z = parseInt(this.element?.[0]?.style?.zIndex || 0);
+			popup.style.setProperty("z-index", String(Math.max(10000, z + 2)), "important");
 		}
 
 		// Remember the width so the sheet reopens at the size the user left it.
@@ -1099,10 +1147,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				[context.stonetop.arcana?.major, context.stonetop.arcanaEdit.major],
 				[context.stonetop.arcana?.minor, context.stonetop.arcanaEdit.minor],
 			]) {
+				const collapsedCards = this._collapsedArcanaCards ?? new Set();
 				for (const item of (section?.items ?? [])) {
 					// Card footers (Remove / reveal / show-both) show when this card's section
 					// is editable — via the global wrench or that section's own pencil.
 					item.sectionEditable   = sectionEditable;
+					// Whether this user left this card clamped (persisted).
+					item.collapsed         = collapsedCards.has(item.slug);
+					// Collapsed preview: the front description's lead — its first paragraph
+					// (the flavor text before the mechanics). Shown in place of the full body
+					// when the card is collapsed, on every view including a back-only flip
+					// (where the front panel isn't otherwise rendered). Strip any injected
+					// track inputs so the preview stays a clean, read-only snippet.
+					const frontLead        = item.front?.description?.match(/<p\b[^>]*>[\s\S]*?<\/p>/i);
+					item.frontLead         = frontLead ? frontLead[0].replace(/<input\b[^>]*>/gi, "") : "";
 					const revealed         = revealedArcana.has(item.slug);
 					// Owner sees a back they've unlocked (earned, no setting needed) or one the GM
 					// has revealed to them; both are owner-scoped, so a non-owning viewer (e.g. an
@@ -2161,7 +2219,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const speaker = ChatMessage.getSpeaker({ actor: this.actor });
 				speaker.alias = playbookName ? `${this.actor.name} ${playbookName}` : this.actor.name;
 				ChatMessage.create({
-					content: _buildMoveChatContent(name, description),
+					content: moveChatCard(name, description),
 					speaker,
 				});
 			});
@@ -2483,9 +2541,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				// Walk cards into ordered segments: a full-width card (a spread, or one
 				// promoted wide above) stands alone; consecutive narrow cards accumulate into
 				// a two-column array to balance.
+				// A collapsed card is clamped to a header + lead, so it always packs as a
+				// narrow one-column card — even a spread, whose full-width span is dropped
+				// (both in CSS and here) while collapsed.
 				const isFullWidth = card =>
-					card.classList.contains("stonetop-arcanum-card--spread") ||
-					card.classList.contains("stonetop-arcanum-card--wide");
+					!card.classList.contains("is-collapsed") &&
+					(card.classList.contains("stonetop-arcanum-card--spread") ||
+					 card.classList.contains("stonetop-arcanum-card--wide"));
 				const segments = [];
 				let run = null;
 				for (const card of cards) {
@@ -2531,6 +2593,16 @@ export function createStonetopCharacterSheetClass(Base) {
 				packArcanaMasonry(grid);
 				this._arcanaMasonryObserver.observe(grid);
 			});
+
+			// Re-pack every arcana grid on demand. Collapsing / expanding a card changes its
+			// height but not the grid width, so the width-guarded observer won't re-balance
+			// the two columns on its own — invalidate the per-width guard and re-run the packer.
+			this._repackArcana = () => {
+				html[0].querySelectorAll(".stonetop-arcana-grid").forEach(grid => {
+					grid._packedWidth = null;
+					packArcanaMasonry(grid);
+				});
+			};
 
 			// Special-moves masonry: distribute the few, variable-height special-move
 			// cards ROW-MAJOR into as many equal-width column tracks as the tab is wide
@@ -2851,7 +2923,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const type = card?.querySelector(".stonetop-follower-type")?.textContent.trim();
 				const title = type ? `${name} (${type})` : name;
 				ChatMessage.create({
-					content: _buildMoveChatContent(title, `<p>${escHtml(moveText)}</p>`),
+					content: moveChatCard(title, `<p>${escHtml(moveText)}</p>`),
 					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 				});
 			});
@@ -3170,6 +3242,18 @@ export function createStonetopCharacterSheetClass(Base) {
 				persist:        () => this._persistArcanaSections(),
 			});
 
+			// Collapse / expand an individual arcanum card down to its title bar. The
+			// corner chevron is the summary; the card body/footer clamp away. Re-pack the
+			// masonry after each toggle so the two columns re-balance for the card's new
+			// height. Collapsed card slugs persist per actor (default expanded).
+			this._wireCollapsible(html, {
+				summarySel:     ".stonetop-arcanum-collapse-btn",
+				collapsibleSel: ".stonetop-arcanum-card",
+				getSet:         () => (this._collapsedArcanaCards ??= new Set()),
+				persist:        () => this._persistArcanaCards(),
+				onToggle:       () => this._repackArcana?.(),
+			});
+
 			// Collapse / expand the whole moves sidebar (Roll Modifier + move lists).
 			// Toggling a class (rather than re-rendering) lets the tab content reclaim
 			// the freed width without flicker; the state is persisted so the sidebar
@@ -3441,7 +3525,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const name = ev.currentTarget.textContent.trim();
 				const description = card.querySelector(".stonetop-invocation-desc")?.innerHTML ?? "";
 				ChatMessage.create({
-					content: _buildMoveChatContent(name, description),
+					content: moveChatCard(name, description),
 					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 				});
 			});
@@ -3512,6 +3596,21 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!thumb) return;
 				ev.stopPropagation();
 				new ImagePopout(thumb.src, { title: thumb.dataset.name }).render(true);
+			}, true);
+
+			// Hovering a card's art pops a larger preview beside it (click still opens the
+			// full ImagePopout, above). It's a fixed-position popup on <body> — not a CSS
+			// ::after — because the thumb sits at the far left of each card and the arcana
+			// tab is overflow-x:hidden, which would clip a pseudo-element. Delegated in the
+			// capture phase so it fires for the thumbs even though mouseenter/leave don't bubble.
+			html[0].addEventListener("mouseenter", ev => {
+				const thumb = ev.target.closest?.(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img");
+				if (!thumb) return;
+				this._showArcanumThumbPreview(thumb);
+			}, true);
+			html[0].addEventListener("mouseleave", ev => {
+				if (!ev.target.closest?.(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img")) return;
+				this._removeArcanumThumbPreview();
 			}, true);
 
 			// "Show both sides" ⇄ "show front only" toggle (available in and out of edit
@@ -4387,6 +4486,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			// loot. Un-marking returns the marks. The derived load updates on re-render.
 			const el = ev.currentTarget;
 			if (!el.dataset.slug) return; // ignore the slug-less undefined-pool diamonds
+			// A multi-weight item renders one diamond per point of weight, all bound to the
+			// single carried/not-carried state. The browser only toggles the clicked diamond,
+			// so mirror its state onto the sibling diamonds and the wrapper now — otherwise the
+			// rest of the track visibly lags until the async re-render below lands.
+			const group = el.closest(".stonetop-inv-diamonds");
+			if (group) for (const box of group.querySelectorAll(".stonetop-inv-diamond")) box.checked = el.checked;
+			el.closest(".stonetop-inv-item")?.classList.toggle("is-checked", el.checked);
 			// Small items in the columns sit inside `.stonetop-inventory-small`; the same
 			// items rendered inside a possession card carry `data-small` instead (they're
 			// outside that column but must still draw from the small pool).
@@ -4776,7 +4882,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				return;
 			}
 			await ChatMessage.create({
-				content: _buildMoveChatContent("Follower Down", body),
+				content: moveChatCard("Follower Down", body),
 				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 			});
 			this.render(false);
@@ -4830,7 +4936,7 @@ export function createStonetopCharacterSheetClass(Base) {
 							cur.push({ label: item, checked: true });
 							await this.actor.setFlag("stonetop_pwd", gearPath, cur);
 							await ChatMessage.create({
-								content: _buildMoveChatContent("Have What They Need",
+								content: moveChatCard("Have What They Need",
 									`<p><strong>${escHtml(name || "Your follower")}</strong> produces <em>${escHtml(item)}</em> — added to their gear.</p>`),
 								speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 							});
@@ -4851,7 +4957,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const pipsPerSet = this._stonetopCharacter.getSmallItemLimit() ?? 5;
 			await this.actor.setFlag("stonetop_pwd", "crew.supplies", Array(6).fill(pipsPerSet));
 			await ChatMessage.create({
-				content: _buildMoveChatContent("Outfit",
+				content: moveChatCard("Outfit",
 					`<p>The crew Outfits — every member's Supplies restocked to full (${pipsPerSet} uses each).</p>`),
 				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 			});
@@ -4938,7 +5044,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				content: `<form class="stonetop-spend-form"><p>Spend <strong>1 Loyalty</strong> (${current} held) to have <strong>${escHtml(name || "them")}</strong>:</p>${opts}</form>`,
 				buttons: {
 					spend:  { icon: '<i class="fas fa-hand-holding-heart"></i>', label: "Spend 1 Loyalty",
-						callback: html => this._applySpendLoyalty(path, current, name, reasons, html) },
+						callback: html => this._applySpendLoyalty(path, name, reasons, html) },
 					cancel: { label: "Cancel" },
 				},
 				default: "spend",
@@ -4946,14 +5052,18 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, { classes: ["dialog", "stonetop"] }).render(true);
 		}
 
-		async _applySpendLoyalty(path, current, name, reasons, html) {
+		async _applySpendLoyalty(path, name, reasons, html) {
 			const key    = html?.[0]?.querySelector('input[name="spend-loyalty"]:checked')?.value ?? reasons[0].key;
 			const reason = reasons.find(r => r.key === key)?.label ?? "";
-			await this.actor.update({ [`flags.stonetop_pwd.${path}`]: current - 1 }, { stonetopMove: "Spend Loyalty" });
+			// Decrement the LIVE value, not the count captured when this (non-modal) dialog
+			// opened — the track may have changed since, and writing captured−1 would clobber it.
+			const live = Math.max(0, Number(this.actor.getFlag("stonetop_pwd", path)) || 0);
+			if (live <= 0) { ui.notifications?.warn?.(`${name || "This follower"} no longer holds any Loyalty to spend.`); return; }
+			await this.actor.update({ [`flags.stonetop_pwd.${path}`]: live - 1 }, { stonetopMove: "Spend Loyalty" });
 			await ChatMessage.create({
-				content: _buildMoveChatContent("Spend Loyalty",
+				content: moveChatCard("Spend Loyalty",
 					`<p>You spend <strong>1 Loyalty</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
-					+ `<p>They now hold <strong>${current - 1}</strong> Loyalty.</p>`),
+					+ `<p>They now hold <strong>${live - 1}</strong> Loyalty.</p>`),
 				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 			});
 			this.render(false);
@@ -4990,20 +5100,29 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, { classes: ["dialog", "stonetop"] }).render(true);
 		}
 
-		async _applySpendReadiness({ rPath, readiness, lPath, loyalty, name, reasons, html }) {
+		async _applySpendReadiness({ rPath, lPath, name, reasons, html }) {
 			const key       = html?.[0]?.querySelector('input[name="spend-readiness"]:checked')?.value ?? reasons[0].key;
 			const reason    = reasons.find(r => r.key === key)?.label ?? "";
-			const unwilling = !!html?.[0]?.querySelector(".stonetop-spend-unwilling")?.checked && loyalty > 0;
-			const update = { [`flags.stonetop_pwd.${rPath}`]: readiness - 1 };
-			if (unwilling && lPath) update[`flags.stonetop_pwd.${lPath}`] = loyalty - 1;
+			// Decrement the LIVE tracks, not the counts captured when this (non-modal) dialog
+			// opened — either may have changed since, and writing captured−1 would clobber it.
+			const liveReadiness = Math.max(0, Number(this.actor.getFlag("stonetop_pwd", rPath)) || 0);
+			if (liveReadiness <= 0) { ui.notifications?.warn?.(`${name || "This follower"} no longer holds any Readiness to spend.`); return; }
+			const wantsUnwilling = !!html?.[0]?.querySelector(".stonetop-spend-unwilling")?.checked;
+			const liveLoyalty = lPath ? Math.max(0, Number(this.actor.getFlag("stonetop_pwd", lPath)) || 0) : 0;
+			// Only charge the "wouldn't want to" Loyalty if they still hold some to pay it.
+			const unwilling = wantsUnwilling && !!lPath && liveLoyalty > 0;
+			const update = { [`flags.stonetop_pwd.${rPath}`]: liveReadiness - 1 };
+			if (unwilling) update[`flags.stonetop_pwd.${lPath}`] = liveLoyalty - 1;
 			await this.actor.update(update, { stonetopMove: "Spend Readiness" });
 			const costLine = unwilling
-				? `<p>They didn't want to, so you also spent <strong>1 Loyalty</strong> (${loyalty - 1} left).</p>`
-				: "";
+				? `<p>They didn't want to, so you also spent <strong>1 Loyalty</strong> (${liveLoyalty - 1} left).</p>`
+				: wantsUnwilling
+					? `<p>They didn't want to, but hold no Loyalty left to spend.</p>`
+					: "";
 			await ChatMessage.create({
-				content: _buildMoveChatContent("Spend Readiness",
+				content: moveChatCard("Spend Readiness",
 					`<p>You spend <strong>1 Readiness</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
-					+ `<p>They now hold <strong>${readiness - 1}</strong> Readiness.</p>${costLine}`),
+					+ `<p>They now hold <strong>${liveReadiness - 1}</strong> Readiness.</p>${costLine}`),
 				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 			});
 			this.render(false);
@@ -5048,7 +5167,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.customFollowers.${slug}`);
 			await this.actor.update({ [updKey]: val });
 			await ChatMessage.create({
-				content: _buildMoveChatContent("Follower Handed Off",
+				content: moveChatCard("Follower Handed Off",
 					`<p><strong>${escHtml(data.name || "A follower")}</strong> now follows <strong>${escHtml(target.name)}</strong>.</p>`),
 				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 			});
