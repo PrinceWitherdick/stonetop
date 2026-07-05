@@ -12050,34 +12050,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* ── Followers tab ─────────────────────────────────────────────────── */
 
 .stonetop-followers {
-	/* Vertical stack: heading row, the card grid, then the Create-a-follower bar.
-	   The heading and add-bar live here (not in the grid) so they always span the
-	   FULL tab width — the card grid's columns are capped (see below) and don't reach
-	   the container edge, so a heading placed inside the grid would stop short. */
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-.stonetop-followers-grid {
-	/* One shared card grid holds BOTH the player's follower cards and the shared
-	   reference cards ("Follower Special Moves", "Animal Companion Moves"). The rules
-	   cards are peers in the same grid — not a separate full-width row below — so a
-	   lone reference card flows into the next column beside the follower cards at the
-	   same width. Each column hugs the card at a 410px max, so cards sit next to each
-	   other with any leftover width pooled at the END of the row rather than as gaps
-	   between cards; min(360px,100%) lets a column shrink below 360 on a narrow sheet
-	   rather than overflowing. */
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 410px));
-	align-items: start; /* cards keep their natural height — no row-stretch */
+	/* At most TWO columns. The track minimum is the LARGER of a 280px floor and half
+	   the row (minus the gap): two such tracks always fill the row, so auto-fit never
+	   has room for a third. Above ~572px the two 1fr columns simply stretch to fill the
+	   full width (the cards grow with them, since they carry no max-width); below ~572px
+	   two 280px tracks no longer fit, so it collapses to a single full-width column.
+	   min(280px, 100%) keeps the floor from overflowing an extremely narrow container. */
+	grid-template-columns: repeat(auto-fit, minmax(max(min(280px, 100%), (100% - 12px) / 2), 1fr));
+	align-items: start;
 	gap: 12px;
-}
-/* Both wrappers are transparent: their follower / rules cards become direct grid
-   items of .stonetop-followers-grid so they share one set of column tracks and flow
-   together (followers first, then reference cards). */
-.stonetop-followers-roster,
-.stonetop-followers-rules {
-	display: contents;
 }
 
 .stonetop-follower-card {
@@ -12086,21 +12068,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-radius: var(--st-radius-lg);
 	overflow: hidden;
 	background: #fff;
-	/* No min-width here: the grid track (minmax above) sets the comfortable width and
-	   collapses to one column when cramped. A fixed card min-width would overflow its
-	   own track on a narrow sheet and get clipped. */
+	/* The grid track sizes the card — no max-width, so the card fills its column and the
+	   two columns stretch to fill the tab on a wide sheet. min-width:0 lets it collapse
+	   cleanly to one column when cramped (a fixed min would overflow its track on a
+	   narrow sheet and clip). */
 	min-width: 0;
-	max-width: 410px; /* cap the card's width; the 1fr track still lets it grow/shrink up to here */
-	width: 100%; /* fill available but won't exceed max-width */
+	width: 100%; /* fill the grid track */
 }
 
-/* Crew card is wider due to inventory/individuals */
-.stonetop-follower-card--crew {
-	max-width: 660px;
-}
-
+/* Crew and shared-rules cards fill their column like every other card — no wider cap,
+   so both columns stay equal width and stretch together to fill a wide tab. */
+.stonetop-follower-card--crew,
 .stonetop-follower-card--rules {
-	max-width: 410px;
+	max-width: none;
 }
 
 /* Livestock & Beast cards (added via the inventory's special items). Follower
@@ -15546,10 +15526,14 @@ input.stonetop-monster-armor-source {
 .stonetop-details-heading-row + :not(.stonetop-item) {
 	margin-top: 4px;
 }
-/* The Followers tab stacks its heading row, the card grid, and the Create-a-follower
-   bar as full-width flex-column children (see .stonetop-followers) — so the heading
-   and add-bar span the full tab width regardless of the card grid's capped columns.
-   The flex column's gap spaces them, so no per-item margin is needed. */
+/* The Followers tab is a responsive grid (see .stonetop-followers). Its heading row
+   and the Create-a-follower bar each span every column so they sit on their own
+   full-width lines — above the card flow and at the foot of the tab — rather than in
+   a single card cell. The grid gap sets the spacing, so no sibling margin is needed. */
+.stonetop-followers > .stonetop-details-heading-row,
+.stonetop-followers > .stonetop-follower-add-bar {
+	grid-column: 1 / -1;
+}
 .stonetop-followers > .stonetop-details-heading-row + * {
 	margin-top: 0;
 }

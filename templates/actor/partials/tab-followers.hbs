@@ -377,14 +377,9 @@
 		{{> "stonetop.details-section-edit-toggle" section="followers" editing=stonetop.followersEdit}}
 	</div>
 
-	{{!-- The card grid: follower cards (roster) and the shared reference cards (rules)
-	      flow together as equal-width, capped columns. Wrapping them keeps the heading
-	      row and Create-a-follower bar OUT of the grid so those span the full tab width
-	      instead of only the (capped) column extent. --}}
-	<div class="stonetop-followers-grid">
-
-	{{!-- The player's actual followers, stacked. --}}
-	<div class="stonetop-followers-roster">
+	{{!-- Follower cards and the shared reference cards ("Animal Companion Moves",
+	      "Follower Special Moves") all flow together as direct items of the
+	      .stonetop-followers responsive grid, in document order. --}}
 
 	{{!-- ── Animal Companion (Ranger) ──────────────────────────── --}}
 	{{#if stonetop.followers.animalCompanion}}
@@ -744,10 +739,7 @@
 	</div>
 	{{/each}}
 
-	</div>{{!-- /stonetop-followers-roster --}}
-
-	{{!-- Right column: the shared reference cards, stacked together. --}}
-	<div class="stonetop-followers-rules">
+	{{!-- The shared reference cards, flowing after the follower cards. --}}
 
 	{{!-- Animal Companion special moves (Ranger insert, p.143) — only the beast-bonded
 	      Ranger gets these; rendered from the playbook's animalCompanion.moves. --}}
@@ -790,10 +782,6 @@
 			{{/each}}
 		</div>
 	</div>
-
-	</div>{{!-- /stonetop-followers-rules --}}
-
-	</div>{{!-- /stonetop-followers-grid --}}
 
 	{{!-- Create / convert entry points. The walkthrough mirrors Book I's "Creating
 	      followers" steps; a dropped monster opens the conversion modal instead. Pinned
