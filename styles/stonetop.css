@@ -4413,6 +4413,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	visibility: hidden;
 }
 
+/* While an Arcana search is active (the tab carries `.is-searching`), force-open any
+   manually-collapsed section so a matching card inside it is revealed. The persisted
+   collapsed state is untouched and resumes once the search is cleared. See wireTabSearch. */
+.tab.arcana.is-searching .stonetop-arcana-collapsible.is-collapsed > .stonetop-arcana-grid {
+	height: auto;
+	padding: 8px;
+	overflow: visible;
+	visibility: visible;
+}
+
 /* In-card collapsible content fold, built at render time around the long "Consequences"
    section on a major arcanum's reverse (see StonetopCharacterSheet activateListeners).
    The section heading becomes the clickable summary with a rotating arrow; the body
@@ -5419,7 +5429,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-top: 14px;
 }
 
-.tab.moves.hide-unselected .stonetop-item:not(.is-checked) {
+/* `:not(.is-searching)` so an active Moves search (which adds `.is-searching`)
+   suspends this rule — a matching move is surfaced whether or not it's learned. */
+.tab.moves.hide-unselected:not(.is-searching) .stonetop-item:not(.is-checked) {
 	display: none;
 }
 
@@ -11685,6 +11697,126 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .tab.stonetop-invocations .stonetop-hide-unselected-label {
 	margin: 0;
 	flex-shrink: 0;
+}
+
+/* ---- Collapsible tab search (Moves, Arcana) -----------------------------
+   A bare magnifying-glass icon sitting just to the right of a tab's header text that
+   expands into a filter box on click (tab-search-control.hbs + wireTabSearch).
+   Collapsed, only the icon shows; `.is-open` reveals the input. `.stonetop-search-hidden`
+   is the JS hide toggle — `!important` so it also beats an arcanum card's `display:flex`. */
+.stonetop-tab-search {
+	display: inline-flex;
+	align-items: center;
+	/* Collapsed: a compact height that fits WITHIN the heading's text line, so the resting
+	   header stays the same height as the others (separator aligned). Open, it grows to a
+	   usable search-box height (see .is-open). Fixed height + overflow:hidden makes this
+	   immune to however core / modules size the inner <button> and <input> per environment. */
+	height: calc(18px * var(--stonetop-font-scale, 1));
+	box-sizing: border-box;
+	border: 1px solid transparent;
+	border-radius: 999px;   /* pill: fully-rounded (half-circle) left/right ends */
+	background: transparent;
+	overflow: hidden;
+	vertical-align: middle;
+	transition: height 0.16s ease, margin-top 0.16s ease, background-color 0.15s, border-color 0.15s;
+}
+.stonetop-tab-search-toggle {
+	flex: 0 0 auto;
+	/* width:auto to override Foundry's `body.game .app button { width: 100% }` (v13),
+	   which would otherwise stretch this icon button across the whole control and
+	   squeeze the input to nothing — so you couldn't see what you typed. */
+	width: auto;
+	height: 100%;
+	min-height: 0;   /* override core `button { min-height: 2em }` so it can't inflate the pill */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 2px;
+	margin: 0;
+	border: none;
+	background: transparent;
+	color: var(--st-text-secondary, #555);
+	cursor: pointer;
+	font-size: calc(15px * var(--stonetop-font-scale, 1));
+	line-height: 1;
+}
+/* No hover/focus effect on the icon button. Foundry core gives every <button> a
+   hover background + border and a focus box-shadow/outline; those bleed past this
+   small control and get clipped by its overflow:hidden (looks cut off). Neutralize
+   every state so the icon just sits there, unchanged. */
+.stonetop-tab-search-toggle:hover,
+.stonetop-tab-search-toggle:focus,
+.stonetop-tab-search-toggle:focus-visible,
+.stonetop-tab-search-toggle:active {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	outline: none;
+	color: var(--st-text-secondary, #555);
+}
+.stonetop-tab-search-input {
+	width: 0;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	/* Fill the pill's fixed height (core forces inputs to 26px, which we override here) so
+	   the input never grows the control past the heading line. */
+	height: 100%;
+	min-height: 0;
+	background: transparent;
+	outline: none;
+	box-shadow: none;
+	opacity: 0;
+	pointer-events: none;
+	font-family: var(--font-stonetop);
+	font-size: calc(12px * var(--stonetop-font-scale, 1));
+	transition: width 0.18s ease, opacity 0.12s, padding 0.18s;
+}
+/* Kill the focus "aura": Foundry core adds `box-shadow: 0 0 5px var(--color-shadow-primary)`
+   (renders red) + an outline to focused form controls. Suppress it in every state so the
+   pill stays clean while you type. */
+.stonetop-tab-search-input:hover,
+.stonetop-tab-search-input:focus,
+.stonetop-tab-search-input:focus-visible,
+.stonetop-tab-search-input:active {
+	outline: none;
+	box-shadow: none;
+}
+.stonetop-tab-search.is-open {
+	/* Open = an actively-used field, so grow to a comfortable search-box height. The extra
+	   height over the collapsed pill (26 − 18 = 8px) is absorbed by a negative top margin,
+	   so the control's margin-box — and thus the heading's line height and its border-bottom
+	   separator — stay put. The box grows UPWARD into the empty space above the heading
+	   instead of pushing the separator down. */
+	height: calc(26px * var(--stonetop-font-scale, 1));
+	margin-top: calc(-8px * var(--stonetop-font-scale, 1));
+	background: #fff;
+	border-color: var(--color-border-dark, #7a7971);
+}
+.stonetop-tab-search.is-open .stonetop-tab-search-input {
+	width: 150px;
+	max-width: 100%;
+	opacity: 1;
+	pointer-events: auto;
+	padding: 0 6px 0 2px;
+}
+
+/* The control renders inline at the end of the section-heading <h3>, right after the
+   label text. Keeping it inside the heading (rather than as a flex sibling) leaves the
+   h3 a full-width block, so the pbta base border-bottom separator still spans edge to
+   edge — a flex row would shrink the h3 to its content and cut the line short. Nudge the
+   icon to sit centered on the heading text and give it a little breathing room. */
+.stonetop-move-group-title > .stonetop-tab-search {
+	margin-left: 3px;
+	vertical-align: middle;
+	font-weight: normal;
+}
+.stonetop-move-group-title > .stonetop-tab-search .stonetop-tab-search-input {
+	font-weight: normal;
+}
+
+.stonetop-search-hidden {
+	display: none !important;
 }
 
 /* Card box/header/name visuals are shared with the Moves tab (see .tab.moves .stonetop-item). */

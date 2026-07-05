@@ -2047,6 +2047,77 @@ export function createStonetopCharacterSheetClass(Base) {
 				});
 			});
 
+			// Live text filters for the Moves and Arcana tabs. The control is a round
+			// magnifying-glass button beside the tab's header text that expands into a
+			// filter box on click (tab-search-control.hbs). Client-side only: matching
+			// items stay, the rest get `.stonetop-search-hidden` — a class, not the
+			// `hidden` prop, because an arcanum card sets its own `display:flex` that
+			// would beat `[hidden]`. An active term also flags the tab `.is-searching`,
+			// which (via CSS) suspends the Moves "hide un-learned" rule and force-opens
+			// collapsed Arcana sections, so a match is never hidden by either. Group /
+			// section headers are left in place — the search box lives inside one, so
+			// hiding an "empty" header could hide the box itself.
+			const wireTabSearch = ({ tabSel, itemSel, textFor }) => {
+				const tab    = html[0].querySelector(tabSel);
+				const box    = tab?.querySelector(".stonetop-tab-search");
+				const input  = box?.querySelector(".stonetop-tab-search-input");
+				const toggle = box?.querySelector(".stonetop-tab-search-toggle");
+				if (!tab || !box || !input || !toggle) return;
+
+				const items = [...tab.querySelectorAll(itemSel)];
+				// The search index (per-item text, incl. the arcana card's nested DOM walk) is
+				// built lazily on first use, not on every render — the box is almost never open.
+				const apply = () => {
+					const term = input.value.trim().toLowerCase();
+					tab.classList.toggle("is-searching", !!term);
+					for (const item of items) {
+						if (term && item._stSearchText === undefined)
+							item._stSearchText = (textFor(item) ?? "").toLowerCase();
+						item.classList.toggle("stonetop-search-hidden", !!term && !item._stSearchText.includes(term));
+					}
+				};
+				input.addEventListener("input", apply);
+
+				// The Arcana control sits inside the section's click-to-collapse summary;
+				// keep its own clicks / keys from bubbling up and toggling that collapse.
+				box.addEventListener("click", ev => ev.stopPropagation());
+				box.addEventListener("keydown", ev => ev.stopPropagation());
+				// preventDefault on mousedown so clicking the button never pulls focus off
+				// the input — otherwise the blur-to-collapse below would fight the toggle.
+				toggle.addEventListener("mousedown", ev => ev.preventDefault());
+				toggle.addEventListener("click", () => {
+					if (box.classList.contains("is-open")) {
+						box.classList.remove("is-open");
+						if (input.value) { input.value = ""; apply(); }
+						input.blur();
+					} else {
+						box.classList.add("is-open");
+						input.focus();
+					}
+				});
+				input.addEventListener("keydown", ev => {
+					if (ev.key !== "Escape") return;
+					input.value = ""; apply();
+					box.classList.remove("is-open");
+					input.blur();
+				});
+				// Clicking away collapses an empty box; one holding a live term stays open.
+				input.addEventListener("blur", () => { if (!input.value.trim()) box.classList.remove("is-open"); });
+			};
+			wireTabSearch({
+				tabSel: ".tab.moves",
+				itemSel: ".stonetop-item",
+				textFor: li => li.textContent,
+			});
+			wireTabSearch({
+				tabSel: ".tab.arcana",
+				itemSel: ".stonetop-arcanum-card",
+				// Title(s) + front/back body only — skip the footer button labels
+				// (Remove / Reveal / Flip) so a term like "remove" doesn't match every card.
+				textFor: card => [...card.querySelectorAll(".stonetop-arcanum-title, .stonetop-arcanum-body")]
+					.map(el => el.textContent).join(" "),
+			});
+
 			html.find(".stonetop-roll-mode-input").on("change", async (ev) => {
 				await this._stonetopCharacter.setRollMode(ev.currentTarget.value);
 			});

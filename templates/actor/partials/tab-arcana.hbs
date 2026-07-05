@@ -212,7 +212,7 @@
 	<section class="stonetop-arcana-section stonetop-arcana-collapsible{{#unless stonetop.arcanaOpen.major}} is-collapsed{{/unless}}" data-section="arcanaMajor">
 		<div class="stonetop-arcana-summary" role="button" tabindex="0"
 		     aria-expanded="{{#if stonetop.arcanaOpen.major}}true{{else}}false{{/if}}">
-			{{> "stonetop.section-heading" title=stonetop.arcana.major.title}}
+			{{> "stonetop.section-heading" title=stonetop.arcana.major.title searchControl=true searchTitle=(localize "stonetop.arcana.searchLabel") searchPlaceholder=(localize "stonetop.arcana.searchPlaceholder")}}
 			{{> "stonetop.section-edit-toggle" toggleClass="stonetop-arcana-section-edit-toggle" section="arcanaMajor" editing=stonetop.arcanaEdit.major}}
 		</div>
 		<div class="stonetop-arcana-grid">
@@ -225,7 +225,7 @@
 	<section class="stonetop-arcana-section stonetop-arcana-collapsible{{#unless stonetop.arcanaOpen.minor}} is-collapsed{{/unless}}" data-section="arcanaMinor">
 		<div class="stonetop-arcana-summary" role="button" tabindex="0"
 		     aria-expanded="{{#if stonetop.arcanaOpen.minor}}true{{else}}false{{/if}}">
-			{{> "stonetop.section-heading" title=stonetop.arcana.minor.title}}
+			{{> "stonetop.section-heading" title=stonetop.arcana.minor.title searchControl=(not stonetop.arcana.major.hasOwned) searchTitle=(localize "stonetop.arcana.searchLabel") searchPlaceholder=(localize "stonetop.arcana.searchPlaceholder")}}
 			{{> "stonetop.section-edit-toggle" toggleClass="stonetop-arcana-section-edit-toggle" section="arcanaMinor" editing=stonetop.arcanaEdit.minor}}
 		</div>
 		<div class="stonetop-arcana-grid">

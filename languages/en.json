@@ -127,6 +127,8 @@
       "hideFromPlayers": "Hide back from player",
       "removeArcanum": "Remove",
       "identify": "Identify",
+      "searchLabel": "Search arcana",
+      "searchPlaceholder": "Filter arcana…",
       "identifyTitle": "Identify Arcanum",
       "identifyConfirm": "Are you sure you you've successfully identified this Arcanum? This action cannot be undone.",
       "unidentifiedText": "This arcanum has not yet been identified. Study it closely to reveal its nature."
@@ -413,6 +415,8 @@
         "pickTitle": "Choose Starting Moves",
         "pickInstruction": "Pick up to {count} moves to start with.",
         "playbookMoves": "Playbook Moves",
+        "searchLabel": "Search moves",
+        "searchPlaceholder": "Filter moves…",
         "learnedMoves": "Learned Moves",
         "basicMoves": "Basic Moves",
         "expeditionMoves": "Expedition Moves",

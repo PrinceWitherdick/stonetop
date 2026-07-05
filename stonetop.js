@@ -67,6 +67,7 @@ Hooks.once("init", () => {
 	Handlebars.registerHelper("eq", (a, b) => a === b);
 	Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
 	Handlebars.registerHelper("and", (...args) => args.slice(0, -1).every(Boolean));
+	Handlebars.registerHelper("not", value => !value);
 
 	const _STAT_LABEL_KEYS = {
 		str: "stonetop.character.stats.strength",
@@ -220,6 +221,7 @@ Hooks.once("init", () => {
 		"stonetop.tab-post-death":      "systems/stonetop_pwd/templates/actor/partials/tab-post-death.hbs",
 		"stonetop.tab-special-moves":   "systems/stonetop_pwd/templates/actor/partials/tab-special-moves.hbs",
 		"stonetop.move-group":           "systems/stonetop_pwd/templates/actor/partials/move-group.hbs",
+		"stonetop.tab-search-control":   "systems/stonetop_pwd/templates/actor/partials/tab-search-control.hbs",
 		"stonetop.move-mark-level":      "systems/stonetop_pwd/templates/actor/partials/move-mark-level.hbs",
 		"stonetop.sidebar-move-list":    "systems/stonetop_pwd/templates/actor/partials/sidebar-move-list.hbs",
 		"stonetop.lore-section":          "systems/stonetop_pwd/templates/actor/partials/lore-section.hbs",
