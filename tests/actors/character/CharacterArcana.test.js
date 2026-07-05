@@ -14,9 +14,27 @@ import {FakeArcanaRepository} from "../../fakes/FakeArcanaRepository.js";
 
 function makeFlags(store = {}) {
 	return {
-		_store: { ...store },
+		_store: store,
 		getFlag: (key) => store[key] ?? null,
-		setFlag: vi.fn(async (key, val) => { store[key] = val; }),
+		// Model Foundry's setFlag (mergeObject): plain objects deep-merge, so keys missing from
+		// the written value SURVIVE; arrays and primitives replace wholesale. This faithfully
+		// reproduces why dropping keys from a flag object needs an unsetFlag first.
+		setFlag: vi.fn(async (key, val) => {
+			const cur = store[key];
+			const mergeable = v => v && typeof v === "object" && !Array.isArray(v);
+			store[key] = mergeable(cur) && mergeable(val) ? { ...cur, ...val } : val;
+		}),
+		unsetFlag: vi.fn(async (key) => { delete store[key]; }),
+		// Model StonetopFlags.batch: `sets` replace a flag wholesale (via actor.update, which
+		// treats arrays/primitives atomically); `deletes` remove sub-keys (the "-=key" syntax).
+		batch: vi.fn(async ({ sets = {}, deletes = {} } = {}) => {
+			for (const [key, value] of Object.entries(sets)) store[key] = value;
+			for (const [key, subKeys] of Object.entries(deletes)) {
+				if (store[key] && typeof store[key] === "object") {
+					for (const sub of subKeys) delete store[key][sub];
+				}
+			}
+		}),
 	};
 }
 
@@ -145,21 +163,6 @@ describe("CharacterArcana.buildSnapshot()", () => {
 		it("has correct slug", async () => {
 			const snap = await makeArcana({ owned: ["huge-wooden-sphere"] }).buildSnapshot();
 			expect(snap.minor.items[0].slug).toBe("huge-wooden-sphere");
-		});
-	});
-
-	describe("flipped state", () => {
-		it("flipped is false by default", async () => {
-			const snap = await makeArcana({ owned: ["huge-wooden-sphere"] }).buildSnapshot();
-			expect(snap.minor.items[0].flipped).toBe(false);
-		});
-
-		it("flipped is true when slug is in flipped flag", async () => {
-			const snap = await makeArcana({
-				owned:   ["huge-wooden-sphere"],
-				flipped: ["huge-wooden-sphere"],
-			}).buildSnapshot();
-			expect(snap.minor.items[0].flipped).toBe(true);
 		});
 	});
 
@@ -428,24 +431,52 @@ describe("CharacterArcana.buildSnapshot()", () => {
 		});
 
 		it("removeArcanum removes slug from owned flag", async () => {
-			const flags = makeFlags({ owned: ["some-slug", "other-slug"] });
-			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
+			const store = { owned: ["some-slug", "other-slug"] };
+			const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
 			await arcana.removeArcanum("some-slug");
-			expect(flags.setFlag).toHaveBeenCalledWith("owned", ["other-slug"]);
+			// removeArcanum batches every per-card write into one actor.update (flags.batch);
+			// assert the resulting store state rather than a specific setFlag call.
+			expect(store.owned).toEqual(["other-slug"]);
 		});
 
-		it("flipArcanum adds slug to flipped flag", async () => {
+		it("removeArcanum clears the reveal flag and every per-card mark (no spoiler leak on re-add)", async () => {
+			// Removing a card must leave no trace keyed to its slug — otherwise re-acquiring it
+			// later restores a GM-revealed back or a fully-marked/unlocked state with no GM action.
+			// Assert the resulting STORE state (with the merge-modelling fake) so this catches the
+			// keyed-map case: setFlag merges, so dropping keys requires an unsetFlag first.
+			const store = {
+				owned:       ["some-slug", "other-slug"],
+				identified:  ["some-slug"],
+				revealed:    ["some-slug", "other-slug"],
+				flipped:     ["some-slug"],
+				unlock:      { "some-slug:a": 1, "other-slug:a": 2 },
+				boxes:       { "some-slug:back:0": true, "other-slug:back:0": true },
+				backOptions: { "some-slug:x": 3, "other-slug:x": 1 },
+			};
+			const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
+			await arcana.removeArcanum("some-slug");
+			// Only "other-slug"'s state survives; nothing keyed to "some-slug" remains.
+			expect(store.owned).toEqual(["other-slug"]);
+			expect(store.identified).toEqual([]);
+			expect(store.revealed).toEqual(["other-slug"]);
+			expect(store.flipped).toEqual([]);
+			expect(store.unlock).toEqual({ "other-slug:a": 2 });
+			expect(store.boxes).toEqual({ "other-slug:back:0": true });
+			expect(store.backOptions).toEqual({ "other-slug:x": 1 });
+		});
+
+		it("revealArcanum adds slug to revealed flag", async () => {
 			const flags = makeFlags();
 			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
-			await arcana.flipArcanum("some-slug");
-			expect(flags.setFlag).toHaveBeenCalledWith("flipped", ["some-slug"]);
+			await arcana.revealArcanum("some-slug");
+			expect(flags.setFlag).toHaveBeenCalledWith("revealed", ["some-slug"]);
 		});
 
-		it("unflipArcanum removes slug from flipped flag", async () => {
-			const flags = makeFlags({ flipped: ["some-slug"] });
+		it("hideArcanum removes slug from revealed flag", async () => {
+			const flags = makeFlags({ revealed: ["some-slug"] });
 			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
-			await arcana.unflipArcanum("some-slug");
-			expect(flags.setFlag).toHaveBeenCalledWith("flipped", []);
+			await arcana.hideArcanum("some-slug");
+			expect(flags.setFlag).toHaveBeenCalledWith("revealed", []);
 		});
 
 		it("setUnlockCount stores the count under arcanumSlug:optionSlug key", async () => {
@@ -565,6 +596,57 @@ describe("CharacterArcana.buildSnapshot() — inventoryResources param", () => {
 			new FakeArcanaRepository([noResource]),
 		);
 		expect((await arcana.buildSnapshot()).minor.items[0].back.resource).toBeNull();
+	});
+});
+
+describe("CharacterArcana.weightedInventoryItems() — carried side follows unlock state", () => {
+	// FFYRNIG_SPHERE has unmet option requirements by default, so it's locked → you carry the
+	// front item; once every requirement is met AND the card is identified it unlocks → you carry
+	// the back item. (Previously this was driven by the manual flip flag; now it tracks unlock
+	// state. The identified gate keeps an unidentified, face-down card showing its front item even
+	// with unlock marks set, so a card's realised item can't leak before identification.)
+	const LOCKED = { owned: ["huge-wooden-sphere"] };
+	const UNLOCKED = {
+		owned: ["huge-wooden-sphere"],
+		identified: ["huge-wooden-sphere"],
+		unlock: {
+			"huge-wooden-sphere:dig-sphere": 1,
+			"huge-wooden-sphere:study-glyphs": 1,
+			"huge-wooden-sphere:risk-recipe": 3,
+		},
+	};
+
+	it("carries the FRONT item while the card is still locked", async () => {
+		const arcana = new CharacterArcana(makeFlags(LOCKED), new FakeArcanaRepository([FFYRNIG_SPHERE]));
+		const items = await arcana.weightedInventoryItems();
+		expect(items).toHaveLength(1);
+		expect(items[0].name).toBe("A Huge Wooden Sphere");
+	});
+
+	it("carries the BACK item once the card is unlocked", async () => {
+		const arcana = new CharacterArcana(makeFlags(UNLOCKED), new FakeArcanaRepository([FFYRNIG_SPHERE]));
+		const items = await arcana.weightedInventoryItems();
+		expect(items).toHaveLength(1);
+		expect(items[0].name).toBe("Ffyrnig Tonic");
+	});
+
+	it("keeps the FRONT item when unlock marks are set but the card isn't identified", async () => {
+		// Unlock marks without identification (a face-down mystery) must never surface the back
+		// item — guards a homebrew card whose unlock is vacuously satisfied from leaking its back.
+		const { identified, ...unidentified } = UNLOCKED;
+		const arcana = new CharacterArcana(makeFlags(unidentified), new FakeArcanaRepository([FFYRNIG_SPHERE]));
+		const items = await arcana.weightedInventoryItems();
+		expect(items[0].name).toBe("A Huge Wooden Sphere");
+	});
+
+	it("ignores the legacy flipped flag entirely", async () => {
+		// A leftover flipped flag must not flip the carried side anymore.
+		const arcana = new CharacterArcana(
+			makeFlags({ ...LOCKED, flipped: ["huge-wooden-sphere"] }),
+			new FakeArcanaRepository([FFYRNIG_SPHERE]),
+		);
+		const items = await arcana.weightedInventoryItems();
+		expect(items[0].name).toBe("A Huge Wooden Sphere");
 	});
 });
 

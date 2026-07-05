@@ -21,7 +21,11 @@
       {{#if is_concept}}
       <div class="stonetop-cf-field-grid">
         <label class="stonetop-cf-label">Name
-          <input type="text" class="stonetop-cf-input" data-field="name" value="{{sel.name}}" placeholder="their name…">
+          <input type="text" class="stonetop-cf-input" data-field="name" value="{{sel.name}}" placeholder="their name…"{{#if residentNames.length}} list="stonetop-cf-resident-names"{{/if}}>
+          {{#if residentNames.length}}
+          {{!-- Recruit a villager: suggest the linked steading's residents/neighbors. --}}
+          <datalist id="stonetop-cf-resident-names">{{#each residentNames}}<option value="{{this}}"></option>{{/each}}</datalist>
+          {{/if}}
         </label>
         <label class="stonetop-cf-label stonetop-cf-label--narrow">Pronoun
           <input type="text" class="stonetop-cf-input" data-field="pronoun" value="{{sel.pronoun}}" placeholder="she/he/they…" maxlength="12">
@@ -87,7 +91,17 @@
           {{/each}}
         </div>
       </div>
-      <div class="stonetop-cf-total"><i class="fas fa-heart"></i> <strong>{{hpTotal}} HP</strong></div>
+      <div class="stonetop-cf-total"><i class="fas fa-heart"></i> <strong>{{hpTotal}} HP</strong>{{#if isGroup}} <span class="stonetop-cf-pick-hint">each</span>{{/if}}</div>
+      {{!-- Group follower (p.470): a warband/posse shares these stats, but every
+            member tracks their own HP and the card gains the group-fight tools. --}}
+      <label class="stonetop-cf-label stonetop-cf-group-label">
+        <span><input type="checkbox" class="stonetop-cf-group-toggle" {{#if isGroup}}checked{{/if}}> This is a group of followers</span>
+        {{#if isGroup}}
+        <span class="stonetop-cf-group-size-row">of
+          <input type="number" class="stonetop-cf-input stonetop-cf-input--num stonetop-cf-group-size" value="{{groupSize}}" min="2" max="99"> members
+        </span>
+        {{/if}}
+      </label>
       {{/if}}
 
       {{#if is_armor}}
@@ -131,9 +145,30 @@
           {{/each}}
         </div>
       </div>
-      <label class="stonetop-cf-label">Range &amp; gear tags (the parenthetical)
-        <input type="text" class="stonetop-cf-input" data-field="damageForm" value="{{sel.damageForm}}" placeholder="e.g. hand · near, low ammo, out · forceful">
-      </label>
+      <div class="stonetop-cf-chosen">
+        <span class="stonetop-cf-chosen-label">Range &amp; gear tags:</span>
+        {{#if chosenTags.length}}
+        <div class="stonetop-cf-chosen-tags">
+          {{#each chosenTags}}
+          <button type="button" class="stonetop-cf-chosen-tag" data-tag="{{this}}">{{this}} <i class="fas fa-times"></i></button>
+          {{/each}}
+        </div>
+        {{else}}<span class="stonetop-cf-chosen-empty">none yet</span>{{/if}}
+      </div>
+      <div class="stonetop-cf-tag-add-row">
+        <input type="text" class="stonetop-cf-input stonetop-cf-tag-input" placeholder="add your own (or comma-separated)…">
+        <button type="button" class="stonetop-cf-tag-add stonetop-cf-mini-btn"><i class="fas fa-plus"></i> Add</button>
+      </div>
+      {{#each tagGroups}}
+      <div class="stonetop-cf-tag-group">
+        <div class="stonetop-cf-tag-group-label">{{label}}</div>
+        <div class="stonetop-cf-tag-pool">
+          {{#each tags}}
+          <button type="button" class="stonetop-cf-tag{{#if selected}} is-selected{{/if}}" data-tag="{{value}}">{{value}}</button>
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
       <div class="stonetop-cf-total"><i class="fas fa-burst"></i> <strong>{{damagePreview}}</strong></div>
       {{/if}}
 

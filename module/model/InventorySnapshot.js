@@ -47,6 +47,9 @@ export class LoadSnapshotBuilder {
  * @property {number} weight
  * @property {boolean} checked
  * @property {Resource|null} resource
+ * @property {string|null} resourceSuffix - Text rendered inside the parenthetical, after the
+ *           ○ track, so an item reads "Skins of fine whisky (○○ uses, grants advantage to
+ *           Persuade)" — the book's own phrasing, with the uses track sitting mid-sentence.
  * @property {boolean} isCustom
  * @property {string|null} ownedId
  * @property {boolean} twoCol
@@ -61,6 +64,7 @@ export class InventoryItemSnapshot {
 		this.checked     = b._checked;
 		this.disabled    = b._disabled ?? false;
 		this.resource    = b._resource;
+		this.resourceSuffix = b._resourceSuffix ?? null;
 		this.isCustom    = b._isCustom;
 		this.ownedId     = b._ownedId;
 		this.twoCol      = b._twoCol;
@@ -76,6 +80,7 @@ export class InventoryItemSnapshotBuilder {
 	withWeight(v)      { this._weight      = v; return this; }
 	withChecked(v)     { this._checked     = v; return this; }
 	withResource(v)    { this._resource    = v; return this; }
+	withResourceSuffix(v) { this._resourceSuffix = v; return this; }
 	withIsCustom(v)    { this._isCustom    = v; return this; }
 	withOwnedId(v)     { this._ownedId     = v; return this; }
 	withTwoCol(v)      { this._twoCol      = v; return this; }
@@ -184,6 +189,12 @@ export class PossessionsSnapshot {
  *           trait), one line per group heading. Null when nothing is chosen.
  * @property {boolean} isCustom  Player-written "something else (discuss with GM)" possession,
  *                               removed via the × button rather than deselected from the list.
+ * @property {InventoryItemSnapshot[]} grantedRegular  This possession's bundled ◇ gear
+ *           (the Distillery's firkins), rendered inside the card above grantedSmall. Real
+ *           inventory items — marking one still counts toward load, like the Items column.
+ * @property {InventoryItemSnapshot[]} grantedSmall    This possession's bundled non-◇ gear
+ *           (whisky, malt, stills), rendered below grantedRegular; marking one still counts
+ *           toward the small-item allowance.
  */
 export class PossessionItemSnapshot {
 	constructor(b) {
@@ -204,6 +215,8 @@ export class PossessionItemSnapshot {
 		// gear tab can show an "edit" pencil that opens the standalone choices editor.
 		this.hasChoiceGroups   = b._hasChoiceGroups ?? false;
 		this.isCustom          = b._isCustom ?? false;
+		this.grantedRegular    = b._grantedRegular ?? [];
+		this.grantedSmall      = b._grantedSmall ?? [];
 	}
 }
 
@@ -223,6 +236,8 @@ export class PossessionItemSnapshotBuilder {
 	withChoiceSummary(v)     { this._choiceSummary     = v; return this; }
 	withHasChoiceGroups(v)   { this._hasChoiceGroups   = v; return this; }
 	withCustom(v)            { this._isCustom          = v; return this; }
+	withGrantedRegular(v)    { this._grantedRegular    = v; return this; }
+	withGrantedSmall(v)      { this._grantedSmall      = v; return this; }
 	build()                  { return new PossessionItemSnapshot(this); }
 }
 

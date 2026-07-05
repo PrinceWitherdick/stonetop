@@ -156,7 +156,7 @@ describe("restrictContentLinks", () => {
 
 	it("keeps a compendium link when the user can see the pack", () => {
 		packs.set("stonetop_pwd.stonetop-items", { visible: true });
-		const link = new FakeLink("Compendium.stonetop_pwd.stonetop-items.Item.arc1", "An Arcanum");
+		const link = new FakeLink("Compendium.stonetop_pwd.stonetop-items.Item.move1", "A Move");
 		restrictContentLinks(rootWith([link]));
 		expect(link.replacedWith).toBeUndefined();
 	});
@@ -166,6 +166,15 @@ describe("restrictContentLinks", () => {
 		const link = new FakeLink("Compendium.stonetop_pwd.stonetop-bestiary.Actor.mon1", "Cynddaraig");
 		restrictContentLinks(rootWith([link]));
 		expect(link.replacedWith?.text).toBe("Cynddaraig");
+	});
+
+	it("flattens an arcana link — the arcana pack is GM-only", () => {
+		// Arcana ship in their own hidden compendium so players can't browse them.
+		// A lore/location entry that cross-links an arcanum must not tease it.
+		packs.set("stonetop_pwd.stonetop-arcana", { visible: false });
+		const link = new FakeLink("Compendium.stonetop_pwd.stonetop-arcana.Item.mindgem", "Mindgem");
+		restrictContentLinks(rootWith([link]));
+		expect(link.replacedWith?.text).toBe("Mindgem");
 	});
 
 	it("flattens a compendium link whose pack isn't registered", () => {

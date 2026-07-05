@@ -3,12 +3,15 @@
     "id":  "stonetop_pwd",
     "title":  "Stonetop",
     "description":  "An unofficial system for playing Stonetop in Foundry VTT.",
-    "version":  "0.9.8",
+    "version":  "0.9.9",
     "compatibility":  {
                           "minimum":  "13",
                           "verified":  "14"
                       },
     "authors":  [
+                    {
+                        "name":  "PrinceWitherdick"
+                    },
                     {
                         "name":  "aMediocerDad"
                     },
@@ -17,14 +20,11 @@
                     },
                     {
                         "name":  "Dice-Goblin-Click-Clack"
-                    },
-                    {
-                        "name":  "PrinceWitherdick"
                     }
                 ],
     "url":  "https://github.com/PrinceWitherdick/stonetop",
     "manifest":  "https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json",
-    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/0.9.8/stonetop.zip",
+    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/0.9.9/stonetop.zip",
     "license":  "LICENSE",
     "readme":  "README.md",
     "bugs":  "https://github.com/PrinceWitherdick/stonetop/issues",
@@ -49,6 +49,19 @@
                       "path":  "packs/stonetop-items",
                       "type":  "Item",
                       "system":  "stonetop_pwd"
+                  },
+                  {
+                      "name":  "stonetop-arcana",
+                      "label":  "Arcana",
+                      "path":  "packs/stonetop-arcana",
+                      "type":  "Item",
+                      "system":  "stonetop_pwd",
+                      "ownership":  {
+                                        "PLAYER":  "NONE",
+                                        "TRUSTED":  "NONE",
+                                        "ASSISTANT":  "OWNER",
+                                        "GAMEMASTER":  "OWNER"
+                                    }
                   },
                   {
                       "name":  "stonetop-journal",

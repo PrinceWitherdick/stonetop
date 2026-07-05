@@ -62,8 +62,9 @@
 			<h3 class="steading-list-heading">Places of Interest</h3>
 			<div class="steading-places-grid">
 				{{#each stonetop.places}}
-				<div class="steading-place-item">
-					<span class="steading-place-letter">{{letter}}</span>
+				<div class="steading-place-item" data-letter="{{letter}}">
+					<span class="steading-place-letter{{#if name}} steading-place-drag{{/if}}"
+					      {{#if name}}draggable="true" title="Drag onto a scene to drop a map note"{{/if}}>{{letter}}</span>
 					<input type="text" class="steading-place-name"
 					       data-index="{{@index}}"
 					       value="{{name}}" placeholder="—" {{#unless @root.stonetop.edit.places}}disabled{{/unless}}>

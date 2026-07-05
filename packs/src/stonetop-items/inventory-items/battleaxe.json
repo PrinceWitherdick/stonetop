@@ -11,7 +11,7 @@
       "slug": "battleaxe",
       "inventoryColumn": "regular",
       "sortOrder": 29,
-      "note": "<em>iron</em>, <em>close</em>, +1 damage",
+      "note": "<em>iron</em>, <em>close</em>, <em>messy</em>",
       "weight": 1,
       "special": true,
       "specialCategory": "Weapons of War"

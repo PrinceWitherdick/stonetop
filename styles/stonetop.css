@@ -313,6 +313,15 @@ body {
 	color: var(--st-btn-primary-text);
 }
 
+/* Breathing room above the footer button row of our native Dialog popups — Foundry's
+   default gap between the message and the buttons reads cramped. At least 16px, scoped
+   to dialogs we tag with the bare `.stonetop` class (the generic confirm popups). The
+   bespoke-footer dialogs that manage their own spacing carry only a `stonetop-*` class,
+   not bare `.stonetop`, so this leaves them untouched. */
+.vtt .stonetop.dialog .dialog-buttons {
+	margin-top: 16px;
+}
+
 /* Strange Scene navigation bug fix */
 #navigation {
 	overflow: visible;
@@ -872,6 +881,22 @@ body {
 	box-sizing: border-box;
 }
 
+/* Vitals inputs (HP / Armor) hover & focus. These live inside the octagon
+   clip-path wrappers (.cell + .stonetop-vital-inner), which clip Foundry
+   core's default box-shadow hover glow — so the glow is invisible while
+   hovering and only leaks through as a flash during the fade-out repaint on
+   mouse-leave. Suppress the clipped glow and give a border-color affordance
+   instead (matching the Damage roll cell), since a border paints inside the
+   element and is never touched by the ancestor clip. */
+.sheet-attributes-top .cell--Resource .cell__resource input:hover,
+.sheet-attributes-top .cell--Resource .cell__resource input:focus,
+.sheet-attributes-top .cell--Number .stonetop-vital-inner > input:hover,
+.sheet-attributes-top .cell--Number .stonetop-vital-inner > input:focus {
+	box-shadow: none;
+	outline: none;
+	border-color: var(--color-text-hyperlink, slategrey);
+}
+
 /* 2:1 width ratio — HP & XP get twice the space of Damage, Armor & Level.
    Specificity must match pbta's 7-class rule that resets all cells to flex:1. */
 .pbta.sheet .sheet-wrapper .sheet-top .sheet-attributes-top .cell--attributes-top .cell--attr-hp,
@@ -930,7 +955,7 @@ input.stonetop-name-field {
 
 .stonetop-name-called-inner {
 	background: var(--stonetop-bg, #f0ece3);
-	padding: 3px 15px 5px;
+	padding: 4px 14px 7px;
 	clip-path: polygon(
 		6px 0%, calc(100% - 6px) 0%,
 		100% 6px, 100% calc(100% - 6px),
@@ -951,6 +976,8 @@ input.stonetop-name-field {
 }
 
 .stonetop-name-called-box .stonetop-name-field {
+	font-size: calc(40px * var(--stonetop-font-scale, 1)) !important;
+	line-height: 1.1;
 	padding: 0;
 	min-height: unset;
 }
@@ -960,7 +987,7 @@ input.stonetop-name-field {
 	background: transparent;
 	field-sizing: content;
 	min-width: 1ch;
-	height: 1.2em;
+	height: 1.1em;
 }
 
 .pbta.sheet .cell__counter>span {
@@ -2131,9 +2158,17 @@ input.stonetop-name-field {
 }
 
 /* Multi-column (masonry-style) so short move cards don't leave big gaps —
-   cards flow and the columns balance by height instead of aligning rows. */
+   cards flow and the columns balance by height instead of aligning rows.
+   column-width (not a fixed count) makes the list responsive: it packs as
+   many ~240px columns as the tab is wide enough to hold — two once the
+   main pane is only moderately wider than a single capped card, three at the
+   960px default, up to four when the window is widened —
+   while each card stays capped at 400px (see .stonetop-move-group
+   .stonetop-item below). */
 .stonetop-move-group .items-list {
-	columns: 2;
+	display: block;
+	column-width: 240px;
+	column-count: 4;
 	column-gap: 16px;
 	padding: 0;
 	margin: 4px 0 0;
@@ -2159,6 +2194,15 @@ input.stonetop-name-field {
 }
 .stonetop-move-group .stonetop-item-name {
 	flex-basis: auto;
+}
+
+/* Cap each move card at 400px so widening the sheet adds more columns rather
+   than stretching the cards ever wider. margin-inline:auto centres the capped
+   card in the rare case a very narrow sheet collapses to a single column that
+   is itself wider than 400px. */
+.stonetop-move-group .stonetop-item {
+	max-width: 400px;
+	margin-inline: auto;
 }
 
 /* -- Shared: item rows (moves + possessions + details) ----- */
@@ -2207,7 +2251,9 @@ input.stonetop-name-field {
 .stonetop-onboarding-check,
 .stonetop-bg-action-check,
 .stonetop-follower-party-check,
+.stonetop-follower-uses-ammo-input,
 .stonetop-of-adv,
+.stonetop-attack-pick-check,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
@@ -2254,9 +2300,21 @@ input.stonetop-name-field {
 .stonetop-onboarding-check:checked,
 .stonetop-bg-action-check:checked,
 .stonetop-follower-party-check:checked,
+.stonetop-follower-uses-ammo-input:checked,
 .stonetop-of-adv:checked,
+.stonetop-attack-pick-check:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
+}
+
+/* Foundry v13 paints checkbox/radio state via ::before/::after Font Awesome glyphs
+   and only removes them inside AppV1 windows (`body.game .app … { content: unset }`).
+   The Clash/Let Fly pick controls live in raw chat messages (outside `.app`), so those
+   core glyphs render on top of our SVG-skinned background as artifacts. Kill the pseudos
+   so only our background shows. Radios reuse the same class, so cover both here. */
+.stonetop-attack-pick-check::before,
+.stonetop-attack-pick-check::after {
+	content: none !important;
 }
 
 /* Select-all goes indeterminate when only some ledger rows are picked (the sheets
@@ -2375,13 +2433,6 @@ input.stonetop-name-field {
    <strong>. The <em> inside it keeps its italics via the rule above. */
 .stonetop-item-name .stonetop-item-qualifier {
 	font-weight: normal;
-}
-
-/* Would-Be Hero: asterisked moves whose first use crosses off "Would-be". */
-.stonetop-move-asterisk {
-	cursor: help;
-	color: var(--color-the-lightbearer);
-	font-weight: bold;
 }
 
 .stonetop-move-roll-chip {
@@ -2503,8 +2554,8 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 
 :is(#chat, #chat-notifications) .message .stonetop-chat-move-description {
-	font-size: var(--font-size-12);
-	line-height: 1.5;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
 	color: var(--st-text-body);
 	padding: 8px;
 }
@@ -2628,7 +2679,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 .stonetop-fate-legend {
 	list-style: none;
-	margin: 0;
+	margin: 0 0 8px;
 	padding: 0;
 	font-size: var(--st-fs-sm);
 }
@@ -2921,10 +2972,66 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 .stonetop-roll-result-details:empty { display: none; }
 .stonetop-roll-result-details { line-height: 1.35; }
+/* "pick 1:" outcomes: keep the lead-in as prose and drop each option onto its own
+   spiral-bulleted line (mirrors the death's-door outcome choices). */
+.stonetop-roll-result-lead { display: block; }
+.stonetop-roll-result-picks {
+	list-style: none;
+	margin: 3px 0 0;
+	padding: 0;
+}
+.stonetop-roll-result-picks li {
+	position: relative;
+	margin: 3px 0;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+.stonetop-roll-result-picks li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.25em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
 .stonetop-roll-result.failure { border-left-color: #8b1a1a; background: rgba(139, 26, 26, 0.08); }
 .stonetop-roll-result.partial { border-left-color: #9f7640; background: rgba(159, 118, 64, 0.10); }
 .stonetop-roll-result.success,
 .stonetop-roll-result.critical { border-left-color: #2d6a2d; background: rgba(45, 106, 45, 0.10); }
+
+/* Damage-roll cards flag themselves with a "Damage" title badge plus a red result
+   accent. A damage roll has no 2d6 hit tier, so without this cue it looks nearly
+   identical to a move roll (same formula chip + total); the badge names it and the
+   red edge/total set it apart from the amber/green move tiers. The badge floats to
+   the right edge of the title row (margin-left:auto), where descToggle would sit —
+   damage cards carry no description, so they never collide. */
+.stonetop-roll-card-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	/* margin-left:auto floats it to the title row's right edge; flex:0 0 auto stops
+	   Foundry's `.flexrow > *{flex:1}` from stretching the pill to fill the row. */
+	flex: 0 0 auto;
+	margin-left: auto;
+	padding: 2px 9px;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-2xs);
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	line-height: 1.5;
+	border-radius: 999px;
+	white-space: nowrap;
+}
+.stonetop-roll-card-badge i { font-size: 0.9em; }
+.stonetop-roll-card-badge--damage {
+	color: #fff;
+	background: var(--st-red-text);
+}
+.stonetop-damage-roll-card .stonetop-roll-result { border-left-color: var(--st-red-border); background: var(--st-red-bg); }
+.stonetop-damage-roll-card .stonetop-roll-result-number { color: var(--st-red-text); }
+:is(#chat, #chat-notifications) .message .stonetop-attack-damage-card .stonetop-damage-amount { color: var(--st-red-text); }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .chat-title {
 	align-items: center;
@@ -3093,6 +3200,169 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	cursor: default;
 }
 
+/* ── Attack moves: Clash / Let Fly ──────────────────────────────────────────── */
+
+/* Roll-damage / Apply / Suffer / Confirm actions stack full-width and centre their labels —
+   long labels ("Strike hard (+1d6…)") read better stacked than crammed in a row. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-attack-btn {
+	flex: 1 1 100%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-attack-btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+/* These are the tier's PRIMARY action (Confirm / Roll damage / Suffer), not a compact
+   Shift-style secondary button — give them CTA height and body-matched text. The generic
+   `.card-buttons button` rule (font-size-11, padding 4px 8px) is more specific than the
+   `.stonetop-attack-btn` class alone, so we match it (`.card-buttons button.stonetop-attack-btn`)
+   to win on size. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-attack-btn {
+	font-size: var(--font-size-13);
+	padding: 8px 12px;
+}
+
+/* Each tier's controls stack vertically: any pick / add-on rows, then the lone Confirm. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-roll-tier-action {
+	flex: 1 1 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+/* display:flex above out-specifies the UA [hidden]{display:none}; re-hide non-active tiers
+   (the render marks all but the rolled tier hidden; a GM Shift Up/Down swaps which shows). */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-roll-tier-action[hidden] {
+	display: none;
+}
+
+/* A pick-1 radio / optional-add-on checkbox row: the checkbox-SVG control + its label.
+   Sized to the card body (--font-size-13, matching the description/outcome text) so the
+   options read like the rest of the card rather than as fine print. */
+.stonetop-attack-pick-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	line-height: 1.3;
+	font-size: var(--font-size-13);
+}
+.stonetop-attack-pick-label {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Confirm reads as the primary action of the tier (slate CTA tokens), like Apply damage. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-attack-confirm {
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+	font-weight: bold;
+}
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-attack-confirm:hover:not(:disabled) {
+	background: var(--st-btn-primary-bg-hover, var(--st-btn-primary-bg));
+}
+
+/* GM "Apply damage" reads as the primary action (slate CTA tokens). */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-apply-damage {
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-apply-damage:hover:not(:disabled) {
+	background: var(--st-btn-primary-bg-hover, var(--st-btn-primary-bg));
+}
+
+/* Per-target damage list on the results card. */
+:is(#chat, #chat-notifications) .message .stonetop-damage-list {
+	list-style: none;
+	margin: 6px 0;
+	padding: 0;
+}
+:is(#chat, #chat-notifications) .message .stonetop-damage-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 4px;
+	border-bottom: 1px solid rgba(159, 146, 117, 0.25);
+}
+:is(#chat, #chat-notifications) .message .stonetop-damage-row:last-child { border-bottom: none; }
+:is(#chat, #chat-notifications) .message .stonetop-damage-amount {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	font-size: var(--font-size-14);
+}
+:is(#chat, #chat-notifications) .message .stonetop-damage-target.is-friendly { color: #6b4400; }
+:is(#chat, #chat-notifications) .message .stonetop-damage-mitigated { opacity: 0.7; font-size: 0.85em; }
+:is(#chat, #chat-notifications) .message .stonetop-attack-warn {
+	font-size: var(--font-size-11);
+	color: #6b4400;
+	margin: 4px 0;
+	display: flex;
+	gap: 6px;
+	align-items: baseline;
+}
+
+/* Weapon-tag reminder cards (messy / forceful): fiction the HP number can't carry. */
+:is(#chat, #chat-notifications) .message .stonetop-attack-tag-note {
+	display: flex;
+	gap: 6px;
+	align-items: baseline;
+	margin: 2px 0;
+	font-size: var(--font-size-12);
+}
+:is(#chat, #chat-notifications) .message .stonetop-attack-messy { color: #7a1f14; }
+:is(#chat, #chat-notifications) .message .stonetop-attack-messy .fa-burst { color: #a3341f; }
+:is(#chat, #chat-notifications) .message .stonetop-attack-forceful { color: #4a3a12; }
+:is(#chat, #chat-notifications) .message .stonetop-attack-forceful .fa-hand-fist { color: #7a5e1f; }
+/* Dotted underline signals the hover description for "problematic wound". */
+:is(#chat, #chat-notifications) .message .stonetop-problematic-wound {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+
+/* Weapon-choice + suffer-attack dialogs (both carry the .stonetop root class). */
+.stonetop-weapon-choice-dialog .stonetop-weapon-options {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.stonetop-weapon-choice-dialog .stonetop-weapon-option {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	padding: 4px 6px;
+	border: 1px solid rgba(159, 146, 117, 0.4);
+	border-radius: var(--st-radius-sm);
+	cursor: pointer;
+}
+.stonetop-weapon-choice-dialog .stonetop-weapon-option:hover { background: rgba(159, 146, 117, 0.15); }
+.stonetop-weapon-choice-dialog .stonetop-weapon-name { font-weight: bold; }
+.stonetop-weapon-choice-dialog .stonetop-weapon-traits { font-size: 0.85em; opacity: 0.75; }
+.stonetop-suffer-attack-dialog .stonetop-suffer-field { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.stonetop-suffer-attack-dialog .stonetop-suffer-detail { opacity: 0.8; font-size: 0.9em; }
+.stonetop-suffer-attack-dialog .stonetop-suffer-fiction { font-style: italic; opacity: 0.75; font-size: 0.9em; }
+
+/* Let Fly "easy shot vs under pressure" mode dialog. Its two mode buttons carry long
+   labels; Foundry's default side-by-side row wraps them raggedly (and their `easy`/`pressure`
+   keys miss the affirmative/cancel ordering rules above). Stack them full-width so each label
+   reads on one line, with the icon+label centred. */
+.stonetop-letfly-mode-dialog .stonetop-letfly-mode { margin: 0; }
+.stonetop-letfly-mode-dialog .stonetop-letfly-mode p { margin: 0; }
+.vtt .stonetop-letfly-mode-dialog .dialog-buttons {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+}
+.vtt .stonetop-letfly-mode-dialog .dialog-buttons button {
+	width: 100%;
+	justify-content: center;
+}
+
 /* Shared mask-icon recipe — size/repeat/position are constant; each class supplies its own url + background. */
 .stonetop-burn-brightly-icon,
 .stonetop-nav-arrow {
@@ -3200,6 +3470,40 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-possession-choice-summary-heading {
 	font-family: var(--font-stonetop);
 	font-weight: bold;
+}
+
+/* Bundled gear a special possession grants (Distillery → firkins, whisky, malt…),
+   rendered inside its card: ◇ items first (they count toward
+   load), then small items (they count toward the small-item allowance), split by a
+   hairline. Slightly indented so the gear reads as part of the possession without
+   drifting too far from the card's main text. */
+.stonetop-possession-gear {
+	padding-left: 10px;
+	margin-top: 5px;
+}
+
+.stonetop-possession-gear .stonetop-inv-item {
+	margin: 1px 0;
+}
+
+.stonetop-possession-gear .stonetop-inv-label {
+	flex: 0 1 auto;
+}
+
+.stonetop-possession-gear .stonetop-inv-note {
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+/* Small gear inside a card can wrap (the card is wider than the Small Items column). */
+.stonetop-possession-gear .stonetop-inv-item.stonetop-inv-small .stonetop-inv-label {
+	white-space: normal;
+}
+
+/* Divides the ◇ group from the small group inside the card. Border/margin come from
+   the shared .stonetop-inv-separator; soften it a touch so it reads as a sub-divider. */
+.stonetop-possession-gear-sep {
+	opacity: 0.6;
 }
 
 /* Background descriptions: give multi-paragraph text real separation so the
@@ -3316,8 +3620,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-item-resources {
 	display: flex;
 	align-items: center;
-	gap: 2px;
-	flex-shrink: 0;
+	/* A fully-upgraded blessed sacred pouch holds up to 20 Stock; without
+	   wrapping the circle row (each circle is flex-shrink:0) overflows the
+	   panel. Let the circles wrap onto additional lines instead. The row
+	   itself must be allowed to shrink (min-width:0) or it keeps its
+	   max-content width and the wrap never engages. */
+	flex-wrap: wrap;
+	gap: 3px 2px;
+	min-width: 0;
 }
 
 .stonetop-item-resource-check {
@@ -3536,6 +3846,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-inv-item:hover .stonetop-inv-delete,
 .stonetop-inv-item:hover .stonetop-inv-remove-special { display: inline; }
 
+.stonetop-edit-mode .stonetop-inv-delete {
+	display: inline;
+	color: var(--st-red-text);
+}
+
+.stonetop-edit-mode .stonetop-inv-delete:hover {
+	color: hsl(0 65% 22%);
+}
+
 /* Remove a write-in special possession (only rendered in possessions edit mode). */
 .stonetop-possession-custom-remove {
 	margin-left: auto;
@@ -3700,6 +4019,24 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding-bottom: 2px;
 }
 .stonetop-requisition-subheading { font-size: var(--st-fs-base); color: var(--color-text-dark-secondary); }
+.stonetop-requisition-choice {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 6px 8px;
+	align-items: center;
+}
+.stonetop-requisition-choice-label {
+	font-weight: bold;
+	color: var(--color-text-dark-primary);
+}
+.stonetop-requisition-asset-select,
+.stonetop-requisition-custom-input {
+	min-width: 0;
+	width: 100%;
+}
+.stonetop-requisition-custom-input {
+	grid-column: 2 / 3;
+}
 .stonetop-requisition-list { list-style: none; margin: 0; padding: 0; }
 .stonetop-requisition-item {
 	display: flex;
@@ -3788,21 +4125,33 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 .stonetop-item:hover .stonetop-custom-move-edit { display: inline; }
 .stonetop-custom-move-edit + .stonetop-other-move-delete { margin-left: 6px; }
-.stonetop-add-custom-move {
-	display: inline-flex;
+/* Create-a-move entry bar at the foot of the Moves tab. Mirrors the Followers
+   tab's .stonetop-follower-add-bar so both tabs share the same quiet "add"
+   affordance. */
+.stonetop-move-add-bar {
+	display: flex;
 	align-items: center;
-	gap: 6px;
-	width: auto;
+	padding: 4px 2px;
 	margin-top: 8px;
-	padding: 3px 12px;
-	cursor: pointer;
-	font-size: var(--st-fs-sm);
-	border-radius: var(--st-radius-sm);
-	background: var(--st-btn-primary-bg);
-	border: 1px solid var(--st-btn-primary-border);
-	color: var(--st-btn-primary-text);
 }
-.stonetop-add-custom-move:hover { background: var(--st-btn-primary-bg-hover); border-color: var(--st-btn-primary-border-hover); }
+/* Matches .stonetop-follower-add-btn: a quiet dashed entry point rather than a
+   filled CTA, shown in and out of edit mode. */
+.stonetop-add-custom-move {
+	flex: 1 1 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: 100%;
+	padding: 2px 8px;
+	cursor: pointer;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	border: 1px dashed var(--color-border-light, #ccc);
+	background: transparent;
+	transition: background 0.15s;
+}
+.stonetop-add-custom-move:hover { background: hsl(210 10% 92%); }
 
 /* Custom move dialog — Advanced (resource track, bonuses, no-XP) */
 .stonetop-custom-move-advanced { border-top: 1px solid rgba(0, 0, 0, 0.12); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
@@ -3967,16 +4316,43 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-top: 16px;
 }
 
-/* Two-column masonry. JS (see StonetopCharacterSheet) measures the cards and packs them
-   into two .stonetop-arcana-col stacks by height, so tall flipped cards stay whole (CSS
-   multi-column would split them) and short cards don't leave a big row-gap beside a tall
-   one. The grid just lays the two column stacks side by side; with a single card the JS
-   leaves it directly in the grid. */
+/* Arcana card layout. A both-sides "spread" card (front | back) spans the full width;
+   the narrower front-only cards pack two-up. JS (see StonetopCharacterSheet) walks the
+   cards into ordered segments — each spread full-width, each run of narrow cards into a
+   .stonetop-arcana-masonry block that balances them across two .stonetop-arcana-col
+   stacks by height — so tall cards stay whole (CSS multi-column would split them) and a
+   short card never leaves a big row-gap beside a tall one.
+
+   The grid keeps two tracks for the un-packed (and single-card) state: a spread spans
+   both via grid-column, a narrow card naturally takes one track. Once packed, every
+   direct child (a spread card, or a masonry block) spans both tracks, so they stack. */
 .stonetop-arcana-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 10px;
 	padding: 8px;
+	align-items: start;
+}
+
+/* A both-sides spread always occupies the full grid width, un-packed or packed. */
+.stonetop-arcanum-card--spread {
+	grid-column: 1 / -1;
+}
+
+/* A front-only card the packer measured as especially long (more than twice as tall
+   as it is wide at the narrow one-column width) is promoted to span the full grid
+   width, so an over-long arcanum reads as one short, wide card instead of a skinny
+   tall sliver. See packArcanaMasonry in StonetopCharacterSheet. */
+.stonetop-arcanum-card--wide {
+	grid-column: 1 / -1;
+}
+
+/* A packed run of narrow cards: full-width block, two balanced columns inside. */
+.stonetop-arcana-masonry {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
 	align-items: start;
 }
 
@@ -3995,6 +4371,23 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-arcana-summary > .stonetop-move-group-title {
 	margin: 0;
 	flex: 1 1 auto;
+}
+
+/* Per-section edit pencil in the Major/Minor arcana heading (like the Details
+   sections). It sits between the title and the collapse arrow, hidden until the
+   heading is hovered; the done-check stays visible while the section is being
+   edited so there's always a way to lock it back. */
+.stonetop-arcana-summary > .stonetop-section-edit {
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.stonetop-arcana-summary:hover > .stonetop-section-edit {
+	opacity: 0.5;
+	transition-delay: var(--st-edit-reveal-delay);
+}
+.stonetop-arcana-summary:hover > .stonetop-section-edit:hover {
+	opacity: 1;
+	transition-delay: 0s;
 }
 
 .stonetop-arcana-summary::after {
@@ -4019,6 +4412,141 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	overflow: hidden;
 	visibility: hidden;
 }
+
+/* While an Arcana search is active (the tab carries `.is-searching`), force-open any
+   manually-collapsed section so a matching card inside it is revealed. The persisted
+   collapsed state is untouched and resumes once the search is cleared. See wireTabSearch. */
+.tab.arcana.is-searching .stonetop-arcana-collapsible.is-collapsed > .stonetop-arcana-grid {
+	height: auto;
+	padding: 8px;
+	overflow: visible;
+	visibility: visible;
+}
+
+/* In-card collapsible content fold, built at render time around the long "Consequences"
+   section on a major arcanum's reverse (see StonetopCharacterSheet activateListeners).
+   The section heading becomes the clickable summary with a rotating arrow; the body
+   below folds away. Defaults collapsed; expanded state persists per actor. */
+.stonetop-arcanum-foldable-summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.stonetop-arcanum-foldable-summary > h3 {
+	margin: 0;
+	flex: 1 1 auto;
+}
+
+/* "Consequences" is the only foldable section on an arcanum card, so its heading always
+   lands in the fold summary — give it a red underline to set the cost/downside section
+   apart from the black-ruled "Moves" and spell-list headings. Needs the extra
+   `.stonetop-arcanum-body` class to outrank the general `.stonetop-arcanum-body h3`
+   border rule (equal specificity otherwise, and that rule comes later in the file). */
+.stonetop-arcanum-body .stonetop-arcanum-foldable-summary > h3 {
+	border-bottom-color: var(--st-red-border);
+}
+
+.stonetop-arcanum-foldable-summary::after {
+	content: "";
+	display: inline-block;
+	width: 0.6em;
+	height: 0.6em;
+	flex: none;
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+	transform: rotate(90deg); /* expanded: arrow points down */
+	transition: transform 0.15s;
+}
+
+.stonetop-arcanum-foldable.is-collapsed > .stonetop-arcanum-foldable-summary::after {
+	transform: rotate(0deg); /* collapsed: arrow points right */
+}
+
+.stonetop-arcanum-foldable.is-collapsed > .stonetop-arcanum-foldable-body {
+	display: none;
+}
+
+/* Per-card collapse toggle: a small chevron pinned to each arcanum card's top-right
+   corner. Collapsing clamps the card to just its header (title bar), hiding the body
+   and footer; the arrow rotates like the section headers. State persists per actor
+   (arcanaCardsCollapsed), default expanded. See StonetopCharacterSheet. */
+.stonetop-arcanum-collapse-btn {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	z-index: 2;
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	margin: 0;
+	appearance: none;
+	border: none;
+	background: none;
+	box-shadow: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	opacity: 0.4;
+	transition: opacity 0.12s;
+}
+.stonetop-arcanum-card:hover > .stonetop-arcanum-collapse-btn { opacity: 0.7; }
+.stonetop-arcanum-collapse-btn:hover { opacity: 1; }
+
+.stonetop-arcanum-collapse-btn::after {
+	content: "";
+	display: inline-block;
+	width: 0.7em;
+	height: 0.7em;
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+	transform: rotate(90deg); /* expanded: arrow points down */
+	transition: transform 0.15s;
+}
+.stonetop-arcanum-card.is-collapsed > .stonetop-arcanum-collapse-btn::after {
+	transform: rotate(0deg); /* collapsed: arrow points right */
+}
+
+/* Collapsed: clamp the card to a header + the front description's lead. Drop the tall
+   min-height and stop the sides grid stretching so its now-empty body row collapses to
+   zero, then hide the body/footer outright. The corner toggle stays (the way back open).
+   The sides fall to one column so the surviving header fills the card width; on a spread
+   the back panel is dropped entirely, leaving just the front header (the collapsed view
+   is always fronted by the front header — or the back header on a back-only flip). */
+.stonetop-arcanum-card.is-collapsed {
+	min-height: 0;
+	/* Clamped down to a title bar + lead, a collapsed card only needs one column —
+	   drop the full-width span a spread (or a wide-promoted card) otherwise carries so
+	   it packs like any narrow card. Outranks the --spread / --wide grid-column rules. */
+	grid-column: auto;
+}
+.stonetop-arcanum-card.is-collapsed .stonetop-arcanum-sides {
+	flex: none;
+	grid-template-columns: 1fr;
+}
+.stonetop-arcanum-card--spread.is-collapsed .stonetop-arcanum-side--back {
+	display: none;
+}
+.stonetop-arcanum-card.is-collapsed .stonetop-arcanum-body,
+.stonetop-arcanum-card.is-collapsed .stonetop-arcanum-footer {
+	display: none;
+}
+
+/* The front-description lead shown while collapsed (see tab-arcana.hbs). Hidden in the
+   normal expanded card; revealed beneath the visible header when clamped. Matches the
+   card body's type and padding so it reads as a natural continuation of the card. */
+.stonetop-arcanum-collapsed-preview {
+	display: none;
+	padding: 6px 8px;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+}
+.stonetop-arcanum-card.is-collapsed .stonetop-arcanum-collapsed-preview {
+	display: block;
+}
+.stonetop-arcanum-collapsed-preview p { margin: 0; }
+.stonetop-arcanum-collapsed-preview p + p { margin-top: 4px; }
 
 .stonetop-arcana-col {
 	display: flex;
@@ -4051,7 +4579,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	min-height: 0;
 	object-fit: contain;
 	object-position: center;
-	cursor: pointer;
+	cursor: zoom-in;
 	opacity: 0.9;
 	transition: opacity 0.15s;
 	flex-shrink: 0;
@@ -4059,6 +4587,49 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-arcanum-thumb:hover {
 	opacity: 1;
+}
+
+/* Hover preview of a card's art — a larger copy of the header thumbnail. Built in
+   JS and appended to <body> as a fixed-position popup (see StonetopCharacterSheet
+   ._showArcanumThumbPreview) so it escapes the arcana tab's clipping: the thumb sits
+   at the far LEFT of each card, where a CSS ::after popup would be cut off by the
+   tab's overflow-x:hidden. Mirrors the steading avatar preview, tuned for the tall,
+   contained card art. Reuses the shared stonetop-arcana-pop-in keyframe. */
+.stonetop-arcanum-thumb-preview {
+	position: fixed;
+	display: grid;
+	gap: 6px;
+	justify-items: center;
+	width: max-content;
+	max-width: min(240px, 70vw);
+	padding: 8px;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius);
+	background: #fffdf7;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+	color: #111827;
+	font-family: var(--font-stonetop);
+	pointer-events: none;
+	transform-origin: center left;
+	animation: stonetop-arcana-pop-in 0.12s ease;
+}
+
+.stonetop-arcanum-thumb-preview img {
+	max-width: 224px;
+	max-height: min(60vh, 360px);
+	object-fit: contain;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255,255,255,0.55);
+}
+
+.stonetop-arcanum-thumb-preview strong {
+	max-width: 224px;
+	overflow: hidden;
+	text-align: center;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--st-fs-sm);
 }
 
 .stonetop-arcanum-img {
@@ -4151,6 +4722,24 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: var(--color-text-dark-secondary, #666);
 }
 
+/* In a card header an item's resource track (e.g. the Thunderbolt Bow's Ammo) drops to
+   its own line beneath the weapon tags, so the header reads as three stacked lines —
+   title / tags / ammo — instead of crowding the track onto the tag line. */
+.stonetop-arcanum-header .stonetop-inv-item { flex-wrap: wrap; }
+.stonetop-arcanum-header .stonetop-inv-item .stonetop-inv-resources { flex-basis: 100%; }
+
+/* Likewise, a card's top-level resource track (e.g. Sublime Words' Voice debility) drops
+   below the title instead of sharing its line. This block appears only on the back side
+   and never beside the front's card art, so :has() lets that header wrap without
+   disturbing the art-beside-title layout; margin-left:0 undoes the right-pin above. */
+.stonetop-arcanum-header:has(.stonetop-arcanum-header-resource) { flex-wrap: wrap; }
+.stonetop-arcanum-header-resource { flex-basis: 100%; margin-left: 0; }
+
+/* Separate each labeled option (○ plenty left / ○ low ammo / ○ all out) from the next
+   option's checkbox. The track container's gap is only 2px, so a label otherwise hugs
+   the following box; a trailing margin groups each box with its own label instead. */
+.stonetop-arcanum-header .stonetop-resource-label { margin-right: 8px; }
+
 .stonetop-arcanum-body {
 	flex: 1;
 	padding: 6px 8px;
@@ -4216,15 +4805,120 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 4px 6px;
 	border-top: 1px solid var(--color-border-dark);
 	display: flex;
+	flex-wrap: wrap;
 	justify-content: center;
 	align-items: center;
 	gap: 6px;
 }
 
+/* Footer actions sit on one row when there's room and wrap by whole buttons when there
+   isn't. `nowrap` keeps each label on a single line, which makes the button's minimum size
+   its full label width; `flex: 1 1 auto` lets them grow to fill the row while flex-wrap
+   drops whole buttons to the next row as the card narrows — packing as many per row as fit
+   and collapsing to a single column at the tightest widths, rather than breaking labels onto
+   new lines. `width: auto` is required: V13 core forces buttons to full width, and with
+   `flex-basis: auto` that forced width would become each button's basis (→ 100% → one per
+   row); resetting it lets the basis fall back to the button's content size so they can share
+   a row. Overrides the per-button `flex: 1` set on the reveal / show-both / flip / delete
+   rules below. */
+.stonetop-arcanum-footer > button {
+	flex: 1 1 auto;
+	width: auto;
+	white-space: nowrap;
+}
+
+/* Front + back render as side-by-side panels (front | back) inside the card; with only
+   the front shown the single panel fills the card. Each panel is its own header/body
+   column, stretched to equal height so the card reads like an open book. The flip button
+   is retired. The full-width grid placement of a both-sides card lives with the masonry
+   rules (.stonetop-arcanum-card--spread / .stonetop-arcana-masonry) below. */
+.stonetop-arcanum-sides {
+	display: grid;
+	grid-template-columns: 1fr;   /* front-only: a single full-width panel */
+	grid-template-rows: auto 1fr; /* header row + body row, shared across both panels */
+	flex: 1;
+	min-height: 0;
+}
+
+/* A spread adds the second panel column. */
+.stonetop-arcanum-card--spread .stonetop-arcanum-sides {
+	grid-template-columns: 1fr 1fr;
+}
+
+/* Each panel is a subgrid sharing its parent's two rows, so the front and back headers
+   land in the same auto-sized row — making them equal height with their bottom borders
+   aligned — and the bodies share the 1fr row beneath. */
+.stonetop-arcanum-side {
+	display: grid;
+	grid-template-rows: subgrid;
+	grid-row: span 2;
+	min-width: 0;
+	min-height: 0;
+}
+
+/* Divider between the two panels; the back panel's header/body sit flush against it. Only in
+   a spread — in the back-only flip view the back stands alone and needs no divider. */
+.stonetop-arcanum-card--spread .stonetop-arcanum-side--back {
+	border-left: 1px solid var(--color-border-dark);
+}
+
+/* In a spread the header corners that meet the divider shouldn't round, so each side
+   keeps only its outer top corner rounded. */
+.stonetop-arcanum-card--spread .stonetop-arcanum-side--front .stonetop-arcanum-header {
+	border-radius: 3px 0 0 0;
+}
+.stonetop-arcanum-card--spread .stonetop-arcanum-side--back .stonetop-arcanum-header {
+	border-radius: 0 3px 0 0;
+}
+
+/* Centered "Front" / "Back" marker at the top of each panel's body, naming the face you're
+   reading. Replaces the old left-aligned "Back" eyebrow that used to sit in the header, so
+   both sides now carry a matching, symmetric label instead of only the back. */
+.stonetop-arcanum-side-label {
+	display: block;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--color-text-dark-secondary);
+	text-align: center;
+	margin: 0 0 6px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--color-border-light, #ccc);
+}
+
+/* A heading that leads a body (e.g. a major arcanum's "Consequences") normally zeroes its
+   top margin as the first child; the side-label now precedes it, so keep that flush spacing. */
+.stonetop-arcanum-side-label + h3 { margin-top: 0; }
+
+/* The three arcana card-footer toggles share one base. `flex` is intentionally omitted here —
+   `.stonetop-arcanum-footer > button` above already sets flex:1 1 auto for all of them, so a
+   per-button `flex: 1` would be dead. Their individual behaviours:
+   • reveal   — GM-only "Reveal back to player" / "Hide back from player"; rendered only when the
+     world hides arcana backs (arcanaPlayersSeeBothSides off). is-revealed marks a card the owner
+     can currently see, and is styled red below since hiding takes that visibility away.
+   • showboth — "Show both sides" ⇄ "Show front only" spread toggle (GM always; a player once
+     permitted to see the back). Never exposes a back the viewer isn't permitted to see.
+   • flip     — "Show back" ⇄ "Show front" single-side view; stays neutral in both states. */
+.stonetop-arcanum-reveal-btn,
+.stonetop-arcanum-showboth-btn,
 .stonetop-arcanum-flip-btn {
 	font-size: var(--st-fs-xs);
 	padding: 2px 8px;
-	flex: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+}
+
+.stonetop-arcanum-reveal-btn.is-revealed {
+	background: var(--st-red-bg);
+	border-color: var(--st-red-border);
+	color: var(--st-red-text);
+}
+
+.stonetop-arcanum-reveal-btn.is-revealed:hover {
+	background: var(--st-red-bg-hover);
 }
 
 /* "Add as follower" button on a summoning arcanum's reverse (Blackwood Fetishes,
@@ -4493,17 +5187,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 3px 0;
 }
 
-.stonetop-arcanum-chat-card {
-	font-size: var(--st-fs-base);
-}
-
-.stonetop-arcanum-chat-title {
-	margin: 0 0 6px;
-	font-size: var(--st-fs-lg);
-	border-bottom: 1px solid var(--color-border-dark);
-	padding-bottom: 4px;
-}
-
+/* The card goes through the shared stonetopChatCard shell (pbta-chat-card
+   stonetop-roll-card), so it inherits the parchment background, title banner,
+   and border every other Stonetop chat card gets — the title renders as the
+   shared .cell__title header, not a bespoke h3. */
 .stonetop-arcanum-chat-card p { margin: 0 0 4px; }
 .stonetop-arcanum-chat-card ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
 .stonetop-arcanum-chat-card li { margin: 2px 0; }
@@ -4567,6 +5254,28 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop .stonetop-moves-level-notice-body { flex: 1; min-width: 0; }
+
+.stonetop .stonetop-moves-level-notice-dismiss {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 24px;
+	height: 24px;
+	margin: -2px -6px 0 0;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: inherit;
+	line-height: 1;
+}
+
+.stonetop .stonetop-moves-level-notice-dismiss:hover,
+.stonetop .stonetop-moves-level-notice-dismiss:focus-visible {
+	background: rgba(200, 120, 20, 0.16);
+	box-shadow: none;
+}
 
 .stonetop .stonetop-moves-level-notice-hint {
 	margin: 0;
@@ -4835,7 +5544,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-style: normal;
 }
 
-.tab.moves.hide-unselected .stonetop-item:not(.is-checked) {
+/* Stack move groups with the same section rhythm the Details tab uses between its
+   sections (.tab.details > .details-section + .details-section) so a group's
+   heading — e.g. "Other Moves" — doesn't crowd the last card of the group above
+   it. The first group hugs the top; each subsequent one gets the gap. */
+.tab.moves .sheet-tab > .stonetop-move-group:not(:first-child) {
+	margin-top: 14px;
+}
+
+/* `:not(.is-searching)` so an active Moves search (which adds `.is-searching`)
+   suspends this rule — a matching move is surfaced whether or not it's learned. */
+.tab.moves.hide-unselected:not(.is-searching) .stonetop-item:not(.is-checked) {
 	display: none;
 }
 
@@ -4890,22 +5609,31 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-left: auto;
 }
 
-/* Pin the "Starting move" label to the top-right of the row so it always sits
-   above the name — even when a long name wraps onto its own line below the
-   dice/+stat controls — with a little breathing room from the top and right. */
-.tab.moves .stonetop-move-group .stonetop-item {
-	position: relative;
-}
+/* The source label ("Starting move", "Granted by Worldly · The Blessed", …)
+   stays in normal flow and rides the right edge via margin-left:auto (inherited
+   from the rule above), just like every other move source. The header wraps
+   (flex-wrap), so when the row is too narrow to fit the label beside the
+   controls/name it drops onto its own line rather than overlapping the +stat
+   chip — which is what a formerly-absolute, right-pinned label did once it grew
+   wider than any fixed reserved gutter. max-width caps it to the row so a long
+   label wraps its own text instead of overflowing when it lands on its own line. */
 .tab.moves .stonetop-move-group .stonetop-item-source {
-	position: absolute;
-	top: 4px;
-	right: 6px;
-	margin: 0;
+	max-width: 100%;
 }
-/* Reserve room on the right of labeled rows so the name (which can sit on the
-   first line) never slides under the pinned label. */
-.tab.moves .stonetop-move-group .stonetop-item:has(.stonetop-item-source) .stonetop-item-header {
-	padding-right: 5.5em;
+
+/* When a move has BOTH a resource track and a source label (e.g. the Chronicler's
+   "Diligence" hold track on a "Starting move"), the wide resource track sits
+   between the name and the short label in DOM order and drags the label down with
+   it — leaving the label stranded on the second row even when there's room for it
+   beside the name up top. Push the resource track onto its own full-width line
+   (order + flex-basis) so the short source label rides the top row next to the
+   name (still right-pinned via margin-left:auto, still wrapping to its own line if
+   the name is long enough to crowd it). margin-left:0 keeps the dropped resource
+   track left-aligned on its line rather than pushed right by the inherited auto. */
+.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) .stonetop-item-resources {
+	order: 1;
+	flex-basis: 100%;
+	margin-left: 0;
 }
 
 .tab.moves .stonetop-item-description,
@@ -5120,6 +5848,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-toggle-thumb i {
+	/* Anchored to the fixed-px --thumb-size thumb, so it ignores the font-size setting. */
 	font-size: 8px;
 	color: var(--st-text-faint);
 	transition: color 250ms ease;
@@ -5383,11 +6112,36 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* ── Special Moves tab ─────────────────────────────────────────── */
 
+/* Left-weighted masonry. CSS masonry (multi-column, native `masonry`, packed
+   grid) all place cards into the *shortest* column, so with only a handful of
+   variable-height special-move cards a right-hand column can end up holding more
+   rows than one to its left. Instead, packSpecialMoves() (StonetopCharacterSheet)
+   fills the cards ROW-MAJOR into equal-width `.stonetop-special-move-col` tracks
+   — card i → column i % N — which keeps the fill strictly left-weighted (no
+   column ever out-rows the column left of it) while each track stays a tight,
+   natural-height stack like the Moves tab. Until it packs (or if the JS never
+   runs) the cards sit directly in this flex row; flex-wrap + a column basis on
+   them keeps that fallback a sensible multi-up layout rather than one squished
+   row. */
 .stonetop-special-move-grid {
 	display: flex;
 	flex-wrap: wrap;
+	align-items: flex-start;
 	gap: 12px;
 	padding: 8px 0;
+}
+
+.stonetop-special-move-col {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+/* Pre-pack fallback only: cards still parented directly by the grid. */
+.stonetop-special-move-grid > .stonetop-special-move-card {
+	flex: 1 1 280px;
 }
 
 .stonetop-special-move-card {
@@ -5398,7 +6152,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border: 1px solid var(--color-border-light-2);
 	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
-	max-width: 320px;
 }
 
 .stonetop-special-move-name {
@@ -5545,9 +6298,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .asm-info:hover,
 .asm-randomize:hover {
-	background: slategrey;
-	border-color: #4f5b66;
-	color: #fff;
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
 }
 
 .stonetop-asm-home-info-dialog .dialog-content {
@@ -6770,9 +7523,26 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	text-transform: uppercase;
 	font-size: var(--font-size-16);
 	flex: 1;
+	/* Establish a size container so each tab's label can size its font to the
+	   tab's own width (see .stonetop-tab-label). A long label like "Special
+	   Moves" then shrinks to stay on one line at narrow widths instead of
+	   wrapping to two lines and inflating the whole tab strip's height. */
+	container-type: inline-size;
 	text-align: center;
 	cursor: pointer;
 	text-shadow: none;
+}
+
+/* Tab label: never wrap — instead shrink the font to fit the tab's width, so a
+   long label ("Special Moves") stays on one line down to the sheet's minimum
+   width. 12.5cqi resolves to the full --font-size-16 once the tab is wide enough
+   (the common case), and scales down with the tab below that, floored so it
+   stays legible. Only tabs whose label is wrapped in this span opt in; other
+   sheets keep the plain .item font-size above. */
+.pbta.sheet .sheet-tabs .item .stonetop-tab-label {
+	display: block;
+	white-space: nowrap;
+	font-size: clamp(0.72rem, 12.5cqi, var(--font-size-16));
 }
 
 .pbta.sheet .sheet-tabs .item:hover,
@@ -7220,7 +7990,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
-	margin-top: 6px;
 }
 
 .steading-stats-bar .steading-size-options {
@@ -7608,7 +8377,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-residents-header {
 	display: grid;
-	grid-template-columns: 1.2fr 1fr 1.2fr 1.2fr 1fr 32px;
+	grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 32px;
 	gap: 0;
 	background: rgba(0,0,0,0.08);
 	border-bottom: 2px solid rgba(0,0,0,0.12);
@@ -7620,7 +8389,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-residents-header-cell {
-	padding: 6px 8px;
+	padding: 6px 5px;
 	overflow: hidden;
 }
 
@@ -7678,7 +8447,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-residents-row {
 	display: grid;
-	grid-template-columns: 1.2fr 1fr 1.2fr 1.2fr 1fr 32px;
+	grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 32px;
 	gap: 0;
 	align-items: center;
 	padding: 0;
@@ -7693,20 +8462,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-residents-col {
-	padding: 4px 8px;
+	padding: 4px 5px;
 	overflow: hidden;
 	height: 100%;
 	display: flex;
 	align-items: center;
+	min-width: 0;
 }
 
 .steading-resident-input {
 	width: 100%;
+	min-width: 0;
 	height: 24px;
 	font-size: var(--st-fs-sm);
 	border: 1px solid transparent;
 	background: transparent;
-	padding: 2px 4px;
+	padding: 2px;
 	font-family: inherit;
 	line-height: 1.2;
 }
@@ -7717,6 +8488,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: inherit;
 	opacity: 1;
 	cursor: default;
+}
+
+/* Read-only cells render their input `disabled`, and disabled controls swallow
+   pointer events — so a hover tooltip set on the input would never fire. Let the
+   hover fall through to the wrapping cell instead, which carries the field's
+   `data-tooltip`, so hovering a truncated value reveals the full text. */
+.steading-resident-input:disabled {
+	pointer-events: none;
 }
 
 .steading-resident-input:not(:disabled):focus {
@@ -7734,7 +8513,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-neighbors-table .steading-residents-header,
 .steading-neighbors-table .steading-residents-row {
-	grid-template-columns: 1.2fr 0.9fr 1fr 1.2fr 1.2fr 1fr 32px;
+	grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 32px;
+}
+
+/* The Players table drops the Traits column (a PC's playbook fills that role):
+   Name / Occupation / Relations / Notes / actions. */
+.steading-players-section .steading-residents-header,
+.steading-players-section .steading-residents-row {
+	grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr) 32px;
 }
 
 .steading-residents-col-actions .steading-list-delete {
@@ -7758,6 +8544,61 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 6px;
 }
 
+.steading-member-name-cell {
+	gap: 5px;
+}
+
+.steading-member-avatar {
+	width: 20px;
+	height: 20px;
+	flex: 0 0 20px;
+	border: 1px solid rgba(0,0,0,0.22);
+	border-radius: var(--st-radius-sm);
+	object-fit: cover;
+	background: rgba(255,255,255,0.55);
+	cursor: zoom-in;
+}
+
+.steading-member-name-cell .steading-resident-input {
+	flex: 1 1 auto;
+	width: auto;
+}
+
+.steading-member-avatar-preview {
+	position: fixed;
+	display: grid;
+	gap: 6px;
+	width: max-content;
+	max-width: min(180px, 70vw);
+	padding: 8px;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius);
+	background: #fffdf7;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+	color: #111827;
+	font-family: var(--font-stonetop);
+	pointer-events: none;
+	transform-origin: center top;
+	animation: stonetop-arcana-pop-in 0.12s ease;
+}
+
+.steading-member-avatar-preview img {
+	width: 128px;
+	height: 128px;
+	object-fit: cover;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255,255,255,0.55);
+}
+
+.steading-member-avatar-preview strong {
+	max-width: 128px;
+	overflow: hidden;
+	text-align: center;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--st-fs-sm);
+}
 
 .steading-player-name-text {
 	flex: 1;
@@ -7957,6 +8798,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex-shrink: 0;
 }
 
+/* A named place's disc is a drag handle — drop it onto a scene to place a map note. */
+.steading-place-letter.steading-place-drag {
+	cursor: grab;
+}
+
+.steading-place-letter.steading-place-drag:hover {
+	box-shadow: 0 0 0 2px rgba(0,0,0,0.18);
+}
+
+.steading-place-letter.steading-place-drag:active {
+	cursor: grabbing;
+}
+
 .steading-place-name {
 	flex: 1 1 0 !important;
 	min-width: 0;
@@ -8149,6 +9003,32 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: #fff;
 }
 
+/* Create-improvement entry bar at the foot of the Improvements tab. Mirrors the
+   Followers/Moves tabs' .stonetop-follower-add-bar / .stonetop-add-custom-move: a
+   quiet full-width dashed entry point rather than a filled CTA. */
+.steading-improvement-add-bar {
+	display: flex;
+	align-items: center;
+	padding: 4px 2px;
+	margin-top: 8px;
+}
+.steading-improvement-add-btn {
+	flex: 1 1 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: 100%;
+	padding: 2px 8px;
+	cursor: pointer;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	border: 1px dashed var(--color-border-light, #ccc);
+	background: transparent;
+	transition: background 0.15s;
+}
+.steading-improvement-add-btn:hover { background: hsl(210 10% 92%); }
+
 /* Drop target highlight while dragging a Steading Improvement card over the tab. */
 .tab.improvements.steading-improvement-drag-over {
 	outline: 2px dashed var(--stonetop-improvement-accent);
@@ -8221,6 +9101,111 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: var(--st-fs-xs);
 	color: var(--st-text-body);
 	line-height: 1.45;
+	font-style: italic;
+}
+
+/* -- Herd of Horses tracker (on the improvement card) ---------- */
+
+.steading-herd {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px dashed rgba(0,0,0,0.15);
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.steading-herd-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.steading-herd-title {
+	font-size: var(--st-fs-sm);
+	font-weight: 600;
+	color: var(--st-text-body);
+}
+
+.steading-herd-title i {
+	margin-right: 4px;
+	color: var(--st-text-secondary);
+}
+
+.steading-herd-total {
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+}
+
+.steading-herd-tiers {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.steading-herd-tier {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.steading-herd-tier-label {
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-body);
+}
+
+.steading-herd-tier-value {
+	color: var(--st-text-secondary);
+	font-size: var(--st-fs-2xs);
+}
+
+.steading-herd-stepper {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.steading-herd-step {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 1px solid rgba(0,0,0,0.2);
+	border-radius: var(--st-radius-sm);
+	background: rgba(0,0,0,0.04);
+	color: var(--st-text-body);
+	cursor: pointer;
+	flex: 0 0 auto;
+}
+
+.steading-herd-step:hover:not(:disabled) {
+	background: rgba(0,0,0,0.1);
+}
+
+.steading-herd-step:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.steading-herd-input {
+	width: 40px;
+	text-align: center;
+	font-size: var(--st-fs-xs);
+	padding: 1px 2px;
+	border: 1px solid rgba(0,0,0,0.2);
+	border-radius: var(--st-radius-sm);
+	background: white;
+}
+
+.steading-herd-hint {
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-secondary);
+	line-height: 1.4;
+	margin: 2px 0 0 0;
 	font-style: italic;
 }
 
@@ -8903,12 +9888,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	flex-direction: column;
 	overflow: hidden; /* step area scrolls internally; footer/header stay pinned */
-	/* Bump the base text size for the whole onboarding flow — its content ran small
-	   (e.g. the Lightbearer background descriptions). Everything below sizes off
-	   em-relative --st-fs-* tokens, so raising this anchor scales them together.
-	   Overrides the 1em anchor on `.stonetop .window-content` (same specificity, this
-	   rule is later); keeps the sheetFontScale multiplier so the setting still tunes. */
-	font-size: calc(1.15em * var(--stonetop-font-scale, 1));
+	/* Anchor the onboarding flow at the same base as the character sheet so its
+	   em-relative --st-fs-* tokens (card titles, descriptions, hints) render at the
+	   identical size to the sheet's move cards. Matches the 1em anchor on
+	   `.stonetop .window-content` (same specificity, this rule is later); keeps the
+	   sheetFontScale multiplier so the setting still tunes both together. */
+	font-size: calc(1em * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-onboarding-body {
@@ -9255,7 +10240,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-name-group {
-	margin-top: 8px;
+	margin-top: 18px;
+}
+
+/* The first group sits right under the "Suggested names —" caption (a <p>), so it
+   doesn't need the full inter-group gap above it. It's the first div among the
+   caption paragraphs, hence :first-of-type rather than :first-child. */
+.stonetop-onboarding-name-group:first-of-type {
+	margin-top: 6px;
 }
 
 .stonetop-onboarding-name-group-label {
@@ -9273,6 +10265,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .onboard-name-chip {
+	/* Size to content and sit in the wrap grid like .stonetop-onboarding-move-chip
+	   and the origin pills; without this a <button> inherits Foundry core's
+	   full-width `button { display: flex }` and the chips stack vertically. */
+	display: inline-flex;
+	align-items: center;
+	width: auto;
 	padding: 3px 11px;
 	font-size: var(--st-fs-base);
 	background: white;
@@ -10865,6 +11863,126 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex-shrink: 0;
 }
 
+/* ---- Collapsible tab search (Moves, Arcana) -----------------------------
+   A bare magnifying-glass icon sitting just to the right of a tab's header text that
+   expands into a filter box on click (tab-search-control.hbs + wireTabSearch).
+   Collapsed, only the icon shows; `.is-open` reveals the input. `.stonetop-search-hidden`
+   is the JS hide toggle — `!important` so it also beats an arcanum card's `display:flex`. */
+.stonetop-tab-search {
+	display: inline-flex;
+	align-items: center;
+	/* Collapsed: a compact height that fits WITHIN the heading's text line, so the resting
+	   header stays the same height as the others (separator aligned). Open, it grows to a
+	   usable search-box height (see .is-open). Fixed height + overflow:hidden makes this
+	   immune to however core / modules size the inner <button> and <input> per environment. */
+	height: calc(18px * var(--stonetop-font-scale, 1));
+	box-sizing: border-box;
+	border: 1px solid transparent;
+	border-radius: 999px;   /* pill: fully-rounded (half-circle) left/right ends */
+	background: transparent;
+	overflow: hidden;
+	vertical-align: middle;
+	transition: height 0.16s ease, margin-top 0.16s ease, background-color 0.15s, border-color 0.15s;
+}
+.stonetop-tab-search-toggle {
+	flex: 0 0 auto;
+	/* width:auto to override Foundry's `body.game .app button { width: 100% }` (v13),
+	   which would otherwise stretch this icon button across the whole control and
+	   squeeze the input to nothing — so you couldn't see what you typed. */
+	width: auto;
+	height: 100%;
+	min-height: 0;   /* override core `button { min-height: 2em }` so it can't inflate the pill */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 2px;
+	margin: 0;
+	border: none;
+	background: transparent;
+	color: var(--st-text-secondary, #555);
+	cursor: pointer;
+	font-size: calc(15px * var(--stonetop-font-scale, 1));
+	line-height: 1;
+}
+/* No hover/focus effect on the icon button. Foundry core gives every <button> a
+   hover background + border and a focus box-shadow/outline; those bleed past this
+   small control and get clipped by its overflow:hidden (looks cut off). Neutralize
+   every state so the icon just sits there, unchanged. */
+.stonetop-tab-search-toggle:hover,
+.stonetop-tab-search-toggle:focus,
+.stonetop-tab-search-toggle:focus-visible,
+.stonetop-tab-search-toggle:active {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	outline: none;
+	color: var(--st-text-secondary, #555);
+}
+.stonetop-tab-search-input {
+	width: 0;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	/* Fill the pill's fixed height (core forces inputs to 26px, which we override here) so
+	   the input never grows the control past the heading line. */
+	height: 100%;
+	min-height: 0;
+	background: transparent;
+	outline: none;
+	box-shadow: none;
+	opacity: 0;
+	pointer-events: none;
+	font-family: var(--font-stonetop);
+	font-size: calc(12px * var(--stonetop-font-scale, 1));
+	transition: width 0.18s ease, opacity 0.12s, padding 0.18s;
+}
+/* Kill the focus "aura": Foundry core adds `box-shadow: 0 0 5px var(--color-shadow-primary)`
+   (renders red) + an outline to focused form controls. Suppress it in every state so the
+   pill stays clean while you type. */
+.stonetop-tab-search-input:hover,
+.stonetop-tab-search-input:focus,
+.stonetop-tab-search-input:focus-visible,
+.stonetop-tab-search-input:active {
+	outline: none;
+	box-shadow: none;
+}
+.stonetop-tab-search.is-open {
+	/* Open = an actively-used field, so grow to a comfortable search-box height. The extra
+	   height over the collapsed pill (26 − 18 = 8px) is absorbed by a negative top margin,
+	   so the control's margin-box — and thus the heading's line height and its border-bottom
+	   separator — stay put. The box grows UPWARD into the empty space above the heading
+	   instead of pushing the separator down. */
+	height: calc(26px * var(--stonetop-font-scale, 1));
+	margin-top: calc(-8px * var(--stonetop-font-scale, 1));
+	background: #fff;
+	border-color: var(--color-border-dark, #7a7971);
+}
+.stonetop-tab-search.is-open .stonetop-tab-search-input {
+	width: 150px;
+	max-width: 100%;
+	opacity: 1;
+	pointer-events: auto;
+	padding: 0 6px 0 2px;
+}
+
+/* The control renders inline at the end of the section-heading <h3>, right after the
+   label text. Keeping it inside the heading (rather than as a flex sibling) leaves the
+   h3 a full-width block, so the pbta base border-bottom separator still spans edge to
+   edge — a flex row would shrink the h3 to its content and cut the line short. Nudge the
+   icon to sit centered on the heading text and give it a little breathing room. */
+.stonetop-move-group-title > .stonetop-tab-search {
+	margin-left: 3px;
+	vertical-align: middle;
+	font-weight: normal;
+}
+.stonetop-move-group-title > .stonetop-tab-search .stonetop-tab-search-input {
+	font-weight: normal;
+}
+
+.stonetop-search-hidden {
+	display: none !important;
+}
+
 /* Card box/header/name visuals are shared with the Moves tab (see .tab.moves .stonetop-item). */
 .stonetop-invocation-header {
 	display: flex;
@@ -10933,12 +12051,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-followers {
 	display: grid;
-	/* Responsive columns: fit as many ~280px cards as the tab is wide enough for,
-	   then collapse to a single full-width column when it isn't — rather than a
-	   fixed 2-up grid that locks at ~572px and overflows (clipping the right card)
-	   on a narrow sheet. min(280px, 100%) lets the track shrink below 280px when the
-	   container itself is narrower, so it never overflows. */
-	grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+	/* At most TWO columns. The track minimum is the LARGER of a 280px floor and half
+	   the row (minus the gap): two such tracks always fill the row, so auto-fit never
+	   has room for a third. Above ~572px the two 1fr columns simply stretch to fill the
+	   full width (the cards grow with them, since they carry no max-width); below ~572px
+	   two 280px tracks no longer fit, so it collapses to a single full-width column.
+	   min(280px, 100%) keeps the floor from overflowing an extremely narrow container. */
+	grid-template-columns: repeat(auto-fit, minmax(max(min(280px, 100%), (100% - 12px) / 2), 1fr));
 	align-items: start;
 	gap: 12px;
 }
@@ -10949,21 +12068,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-radius: var(--st-radius-lg);
 	overflow: hidden;
 	background: #fff;
-	/* No min-width here: the grid track (minmax above) sets the comfortable width and
-	   collapses to one column when cramped. A fixed card min-width would overflow its
-	   own track on a narrow sheet and get clipped. */
+	/* The grid track sizes the card — no max-width, so the card fills its column and the
+	   two columns stretch to fill the tab on a wide sheet. min-width:0 lets it collapse
+	   cleanly to one column when cramped (a fixed min would overflow its track on a
+	   narrow sheet and clip). */
 	min-width: 0;
-	max-width: 560px;
-	width: 100%; /* fill available but won't exceed max-width */
+	width: 100%; /* fill the grid track */
 }
 
-/* Crew card is wider due to inventory/individuals */
-.stonetop-follower-card--crew {
-	max-width: 660px;
-}
-
+/* Crew and shared-rules cards fill their column like every other card — no wider cap,
+   so both columns stay equal width and stretch together to fill a wide tab. */
+.stonetop-follower-card--crew,
 .stonetop-follower-card--rules {
-	max-width: 660px;
+	max-width: none;
 }
 
 /* Livestock & Beast cards (added via the inventory's special items). Follower
@@ -11042,7 +12159,59 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-follower-order-row {
 	display: flex;
 	justify-content: flex-end;
+	gap: 6px;
+	flex-wrap: wrap;
 	margin-top: 6px;
+}
+/* A named crew member's own Order button (roster). */
+.stonetop-crew-individual-order {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 4px;
+}
+/* Spend-Loyalty / Spend-Readiness chooser dialogs. */
+.stonetop-spend-form {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.stonetop-spend-choice {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 4px 6px;
+	border-radius: var(--st-radius-sm);
+	cursor: pointer;
+}
+.stonetop-spend-choice:hover { background: rgba(112, 128, 144, 0.12); }
+.stonetop-spend-choice--unwilling {
+	margin-top: 4px;
+	border-top: 1px dashed rgba(112, 128, 144, 0.4);
+	padding-top: 8px;
+}
+.stonetop-spend-note {
+	margin: 4px 0 0;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted, #6b5d4f);
+}
+/* Group toggle rows in the create / convert dialogs. */
+.stonetop-cf-group-label,
+.stonetop-mf-group-label {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.stonetop-cf-group-size-row,
+.stonetop-mf-group-size-row {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--st-fs-xs);
+}
+.stonetop-cf-input--num {
+	width: 3.5em;
+	text-align: center;
 }
 .stonetop-follower-order {
 	display: inline-flex;          /* V13 core sets button{display:flex}; keep it from stretching */
@@ -11135,27 +12304,53 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 .stonetop-order-followers-dialog .stonetop-of-readout i { margin-right: 4px; opacity: 0.8; }
 
-/* Strengthen Your Bond "Pay cost" button, sat after the Loyalty pips. Reuses the
-   .stonetop-inline-btn pill; just needs spacing + a muted disabled (at-max) look. */
-.stonetop-pay-cost { margin-left: 8px; }
-.stonetop-pay-cost:disabled { opacity: 0.45; cursor: default; }
-.stonetop-pay-cost:disabled:hover { background: transparent; }
-.stonetop-pay-cost-note { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
-
-/* Per-follower Readiness circles (non-crew). Compact inline row mirroring the
-   crew's group-fight Readiness. */
-.stonetop-follower-readiness-controls {
-	display: flex;
+/* Per-follower Loyalty / Readiness rows (non-crew). Fixed columns keep the label,
+   pip track, and Spend button aligned across both rows; Readiness' note spans the
+   full row below. `align-items: center` sits the text label centred on the round
+   pips; the field-row default `baseline` would sit it off them. */
+.stonetop-follower-field-row.stonetop-follower-loyalty-row,
+.stonetop-follower-field-row.stonetop-follower-readiness-row {
+	display: grid;
+	grid-template-columns: 5.5em 92px max-content;
 	align-items: center;
-	gap: 6px;
-	flex-wrap: wrap;
+	column-gap: 6px;
+	row-gap: 2px;
+	min-width: 0;
+	max-width: 100%;
 }
+.stonetop-follower-loyalty-row > .stonetop-follower-field-label,
+.stonetop-follower-readiness-row > .stonetop-follower-field-label {
+	width: 5.5em;
+}
+/* Keep the Spend buttons next to the pip track, with a shared left edge across
+   Loyalty and Readiness. Pin them to content width: Foundry core's block-level
+   `button { display: flex }` otherwise lets a wrapped button fill its line. */
+.stonetop-follower-loyalty-row > .stonetop-loyalty-pips,
+.stonetop-follower-readiness-row > .stonetop-readiness-pips {
+	width: 92px;
+}
+.stonetop-follower-loyalty-row .stonetop-spend-loyalty,
+.stonetop-follower-readiness-row .stonetop-spend-readiness {
+	justify-self: start;
+	margin-left: 0;
+	flex: 0 0 auto;
+	width: max-content !important;
+	max-width: max-content;
+}
+/* Readiness carries an explanatory note in its own block beneath the controls,
+   outside the grid row, so the text wraps to the card width instead of the
+   label / pips / Spend columns. */
 .stonetop-follower-readiness-note {
+	display: block;
+	margin-top: 2px;
 	font-size: var(--st-fs-xs);
+	line-height: 1.35;
 	font-style: italic;
 	color: var(--st-text-muted);
-	flex: 1 1 12em;
-	min-width: 0;
+	width: 100%;
+	max-width: 100%;
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 
 /* Party-wide follower badge + edit toggle (custom followers). */
@@ -11405,6 +12600,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-readiness-pip {
 	width: 16px;
 	height: 16px;
+	/* Foundry core's `button { min-height: var(--button-size) }` would otherwise
+	   force these ~2rem tall while width stays 16px, rendering them as ovals. */
+	min-height: 0;
+	min-width: 0;
 	border-radius: 50%;
 	border: 1.5px solid slategrey;
 	background: transparent;
@@ -11419,6 +12618,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-loyalty-pip:hover,
 .stonetop-readiness-pip:hover { background: rgba(112, 128, 144, 0.45); }
+
+/* Defend's Readiness circles on the Moves sidebar (p.216). Sit snug against the move
+   name (no auto-margin push); slightly smaller and tighter than the follower pips so
+   three-to-five fit the narrow sidebar without widening it. */
+.stonetop-move-readiness {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	padding-left: 3px;
+	flex-shrink: 0;
+}
+
+.stonetop-move-readiness-pip {
+	width: 12px;
+	height: 12px;
+}
 
 /* Crew sections (inventory, individuals, rules) */
 .stonetop-follower-section {
@@ -11964,12 +13179,6 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	border-bottom: 1px dotted rgba(0, 0, 0, 0.18);
 }
 
-.stonetop-follower-loyalty-statline {
-	flex: 0 0 auto;
-	min-width: 0;
-	align-items: center;
-}
-
 /* Crew option pickers (edit mode): the playbook's tag list as toggle chips, and
    the instinct / cost lists as pick-one radio rows — the choices printed on the
    Crew sheet in the rulebook. */
@@ -12127,6 +13336,14 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 .vtt .window-app input[type=checkbox].stonetop-follower-gear-check:checked { background-image: var(--stonetop-diamond-selected-icon) !important; }
 .vtt .window-app input[type=checkbox].stonetop-follower-gear-check:disabled { opacity: 1; cursor: default; }
 
+.stonetop-follower-gear-toggle {
+	display: contents;
+}
+
+.stonetop-follower-gear-toggle .stonetop-follower-gear-name {
+	cursor: pointer;
+}
+
 .stonetop-follower-gear-name {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -12211,6 +13428,10 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 
 /* Follower rules (collapsible <details>) */
 .stonetop-follower-rules-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
 	padding: 10px 12px 8px;
 	background: hsl(210 12% 94%);
 	border-bottom: 1px solid #ddd;
@@ -12227,6 +13448,45 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 
 .stonetop-follower-rules-title::after {
 	display: none;
+}
+
+/* Expand/collapse-all caret in a rules card header. inline-flex + fixed size so
+   V13's core button{display:flex} doesn't stretch it full-width; the chevron
+   flips 180° when the moves are all expanded (JS toggles .is-expanded). */
+.stonetop-follower-rules-toggle {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.7em;
+	height: 1.7em;
+	padding: 0;
+	border: 1px solid #ccc;
+	border-radius: var(--st-radius);
+	background: #fff;
+	color: var(--st-text-body);
+	line-height: 1;
+	cursor: pointer;
+}
+
+.stonetop-follower-rules-toggle:hover {
+	background: hsl(210 12% 88%);
+	border-color: #bbb;
+}
+
+.stonetop-follower-rules-toggle i {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1em;
+	height: 1em;
+	margin: 0;
+	line-height: 1;
+	transition: transform 0.15s;
+}
+
+.stonetop-follower-rules-toggle.is-expanded i {
+	transform: rotate(180deg);
 }
 
 .stonetop-follower-rules {
@@ -12664,7 +13924,7 @@ li.question-bullet {
 	flex: none;
 }
 
-/* Keep Cancel left and Add right, styled like onboarding buttons */
+/* Add sits left, Cancel right (the global [data-button] order rules); styled like onboarding buttons */
 .stonetop-individual-dialog .dialog-buttons {
 	justify-content: space-between;
 	align-items: center;
@@ -12690,12 +13950,14 @@ li.question-bullet {
 }
 
 .stonetop-individual-dialog .dialog-buttons [data-button="add"] {
-	background: slategrey;
-	color: white;
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
 }
 
 .stonetop-individual-dialog .dialog-buttons [data-button="add"]:hover {
-	background: hsl(210 13% 47%);
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
 }
 
 .stonetop-individual-dialog .dialog-buttons [data-button="cancel"]:hover {
@@ -12788,6 +14050,97 @@ li.question-bullet {
 	font-style: italic;
 }
 
+/* Damage edit row: the damage input with the "uses ammo" opt-in beside it. The
+   opt-in reveals the ammo track (below) for a ranged follower. */
+.stonetop-follower-damage-edit {
+	display: flex;
+	flex: 1 1 auto;
+	min-width: 0;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+.stonetop-follower-uses-ammo {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 5px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	cursor: pointer;
+	white-space: nowrap;
+}
+.stonetop-follower-uses-ammo.is-checked {
+	color: var(--st-text-strong, #3a2f25);
+	font-weight: 600;
+}
+
+/* Follower ammo track (◇ low ammo / ◇ all out), opted into by the Damage
+   section's "uses ammo" toggle. Each label carries a fillable circle — the ○
+   ammo mark that ranged weapons use — matching the loyalty / readiness pips. */
+.stonetop-follower-ammo-controls {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+.stonetop-follower-ammo-check {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: var(--st-fs-xs);
+	cursor: pointer;
+}
+.stonetop-follower-ammo-check.is-checked {
+	color: var(--st-text-strong, #3a2f25);
+	font-weight: 600;
+}
+.vtt .window-app input[type=checkbox].stonetop-follower-ammo-input {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	flex: none !important;
+	width: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	border: 1.5px solid slategrey !important;
+	border-radius: 50% !important;
+	background: transparent !important;
+	margin: 0 !important;
+	padding: 0;
+	cursor: pointer;
+	transition: background 0.12s;
+}
+.vtt .window-app input[type=checkbox].stonetop-follower-ammo-input:checked {
+	background: slategrey !important;
+}
+.vtt .window-app input[type=checkbox].stonetop-follower-ammo-input:hover {
+	background: rgba(112, 128, 144, 0.45) !important;
+}
+
+/* Monster-sheet group-fight tools (No. appearing + outnumber calculator). */
+.stonetop-monster-group-fight-section {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.stonetop-monster-outnumber-row {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: var(--st-fs-sm);
+}
+.stonetop-monster-outnumber-yours,
+.stonetop-monster-outnumber-theirs {
+	width: 46px;
+	height: 1.5em;
+	padding: 0 3px;
+	line-height: 1.4;
+	text-align: center;
+}
+.stonetop-monster-outnumber-result { color: slategrey; font-style: italic; white-space: nowrap; }
+.stonetop-monster-group-dmg-label { color: slategrey; }
+.stonetop-monster-count-input { width: 5em; }
+
 .stonetop-outnumber-result {
 	font-style: italic;
 	color: #5a7a3a;
@@ -12830,6 +14183,25 @@ li.question-bullet {
 .stonetop-stat-picker-dialog .dialog-buttons button {
 	width: 100%;
 	white-space: nowrap;
+}
+
+.stonetop-foreign-move-dialog .stonetop-foreign-move-select {
+	width: 100%;
+	margin: 6px 0;
+}
+
+/* Live preview of the highlighted foreign move's text; scrolls when long. */
+.stonetop-foreign-move-dialog .stonetop-foreign-move-desc {
+	max-height: 220px;
+	overflow-y: auto;
+	padding: 6px 10px;
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.02);
+}
+
+.stonetop-foreign-move-dialog .stonetop-foreign-move-desc:empty {
+	display: none;
 }
 
 .stonetop-individual-trait-chip {
@@ -13127,14 +14499,14 @@ li.question-bullet {
    breaks onto two lines. Foundry's setPosition() reads the app root's computed
    min-width when resizing, so the rule lives on the window element (.app.window-app
    + the `monster` class from the sheet's defaultOptions). */
-.window-app.monster {
+.window-app.stonetop.monster {
 	min-width: 700px;
 }
 
 /* The window auto-fits its content height (see StonetopMonsterSheet
    defaultOptions). Keep the body scrollable so an unusually tall stat block
    still stays contained if it exceeds the viewport. */
-.window-app.monster .window-content {
+.window-app.stonetop.monster .window-content {
 	overflow-y: auto;
 }
 
@@ -14154,10 +15526,12 @@ input.stonetop-monster-armor-source {
 .stonetop-details-heading-row + :not(.stonetop-item) {
 	margin-top: 4px;
 }
-/* The Followers tab is a 2-column grid: its heading-row spans both columns and
-   the grid gap (not the sibling margin) sets the spacing, so the first card
-   stays aligned with the second. */
-.stonetop-followers > .stonetop-details-heading-row {
+/* The Followers tab is a responsive grid (see .stonetop-followers). Its heading row
+   and the Create-a-follower bar each span every column so they sit on their own
+   full-width lines — above the card flow and at the foot of the tab — rather than in
+   a single card cell. The grid gap sets the spacing, so no sibling margin is needed. */
+.stonetop-followers > .stonetop-details-heading-row,
+.stonetop-followers > .stonetop-follower-add-bar {
 	grid-column: 1 / -1;
 }
 .stonetop-followers > .stonetop-details-heading-row + * {
@@ -15435,7 +16809,9 @@ th:has(> .stonetop-roll-table-btn) {
 	bottom: calc(100% + 6px);
 	width: 96px;
 	height: 96px;
-	background: #000 url('/systems/stonetop_pwd/assets/icons/macros/spring.svg') center / contain no-repeat;
+	/* The enlarged preview mirrors whichever hotbar icon this wraps — spring by
+	   default, overridden per-icon via --st-welcome-zoom-img (e.g. the signpost). */
+	background: #000 var(--st-welcome-zoom-img, url('/systems/stonetop_pwd/assets/icons/macros/spring.svg')) center / contain no-repeat;
 	border-radius: var(--st-radius);
 	border: 1px solid var(--color-border-dark, #7a7971);
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
@@ -15450,6 +16826,12 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-welcome-springicon-wrap:hover::after {
 	opacity: 1;
 	transform: translateX(-50%) scale(1);
+}
+
+/* The "signpost" (Welcome guide) hotbar icon reuses the same inline-icon + hover-zoom
+   wrapper, so point its enlarged preview at the direction-signs art instead of spring. */
+.stonetop-welcome-springicon-wrap--signpost {
+	--st-welcome-zoom-img: url('/systems/stonetop_pwd/assets/icons/macros/direction-signs.svg');
 }
 
 .stonetop-welcome-notice {
@@ -16642,7 +18024,11 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-chosen-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 
 .stonetop-cf-chosen-tag {
+	/* shrink-to-fit + flow (see .stonetop-cf-tag): keep core's block button width
+	   out of the flex-basis so chosen chips pack several per row. */
 	display: inline-flex;
+	flex: 0 0 auto;
+	width: auto;
 	align-items: center;
 	gap: 5px;
 	padding: 1px 8px;
@@ -16674,9 +18060,13 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-cf-tag,
 .stonetop-cf-chip {
-	/* inline-flex so these <button> pills shrink to content + wrap; otherwise Foundry
-	   core's `button { display: flex }` makes them block-level and full-width. */
+	/* inline-flex + flex:0 0 auto/width:auto so these <button> pills shrink to content
+	   and flow several per row. Without the explicit flex/width, core's `button` rules
+	   (block-level `display:flex`, `width:100%`) leak into the flex-basis and each pill
+	   claims the whole row, stacking one-per-line. Mirrors .stonetop-cf-mini-btn. */
 	display: inline-flex;
+	flex: 0 0 auto;
+	width: auto;
 	align-items: center;
 	padding: 1px 9px;
 	border: 1px solid rgba(100, 116, 139, 0.3);
@@ -17153,17 +18543,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	cursor: pointer;
 }
 
-.stonetop-arcana-inspire-dialog .stonetop-inspire-roll-all {
-	align-self: flex-start;
-	width: auto;
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 3px 12px;
-	cursor: pointer;
-	font-style: italic;
-}
-
 .stonetop-arcana-inspire-dialog .stonetop-inspire-radio {
 	display: block;
 	font-size: var(--st-fs-xs);
@@ -17219,7 +18598,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 .stonetop-arcana-inspire-dialog .stonetop-inspire-footer {
 	display: flex;
-	justify-content: space-between;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
 	margin-top: 4px;
@@ -17227,19 +18606,65 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border-top: 1px solid var(--color-border-light, #c9c0ad);
 }
 
-.stonetop-arcana-inspire-dialog .stonetop-inspire-footer-right {
-	display: flex;
-	gap: 8px;
-	margin-left: auto;
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer-left {
+	flex: 0 0 auto;
 }
 
+/* The action group wraps to its own line (staying right-aligned) when it can't sit
+   beside Back; its own buttons wrap under each other if even that is too narrow. */
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer-right {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-left: auto;
+	flex: 0 0 auto;
+}
+
+/* Footer pills mirror the character-onboarding nav: neutral slate Back/Next,
+   red Cancel (the abandon action, like onboarding's Skip), primary Create. */
 .stonetop-arcana-inspire-dialog .stonetop-inspire-footer button {
 	width: auto;
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	padding: 3px 14px;
+	justify-content: center;
+	gap: 0.4em;
+	padding: 5px 24px;
+	font-size: var(--st-fs-base);
+	font-family: var(--font-stonetop);
+	border-radius: var(--st-radius);
+	border: 1.5px solid slategrey;
+	background: transparent;
+	color: slategrey;
+	transition: background 0.15s;
+	white-space: nowrap;
+	/* Never shrink below the label: the whole button wraps to a new line rather
+	   than breaking its text across lines. */
+	flex: 0 0 auto;
+	min-width: max-content;
 	cursor: pointer;
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-back:hover,
+.stonetop-arcana-inspire-dialog .stonetop-inspire-next:hover { background: hsl(210 10% 92%); }
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer .stonetop-inspire-cancel {
+	border-color: var(--st-red-border);
+	color: var(--st-red-text);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer .stonetop-inspire-cancel:hover {
+	background: var(--st-red-bg);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer .stonetop-inspire-create {
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	border-color: var(--st-btn-primary-border);
+}
+
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer .stonetop-inspire-create:hover {
+	background: var(--st-btn-primary-bg-hover);
 }
 
 /* Major-mode authoring tools (shown when the arcanum is a Major). */
@@ -17371,4 +18796,86 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding: 1px 7px;
 	color: var(--st-red-text);
 	cursor: pointer;
+}
+
+/* Save / Cancel footer. Affirmative on the LEFT (Foundry order); scoped under
+   .stonetop-arcanum-edit so it never bleeds onto other windows. */
+.stonetop-arcanum-edit .stonetop-arc-footer {
+	display: flex;
+	justify-content: flex-start;
+	gap: 8px;
+	margin-top: 2px;
+	padding-top: 10px;
+	border-top: 1px solid var(--color-border-light, #c9c0ad);
+}
+
+/* inline-flex, not the V13-core full-width button{display:flex}. */
+.stonetop-arcanum-edit .stonetop-arc-save {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 16px;
+	font-size: var(--st-fs-sm);
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+	cursor: pointer;
+}
+
+.stonetop-arcanum-edit .stonetop-arc-save:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+	color: var(--st-btn-primary-text);
+}
+
+.stonetop-arcanum-edit .stonetop-arc-cancel {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 14px;
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+}
+
+/* ── Pin modal footers to the bottom ──────────────────────────────────────
+   Foundry makes each dialog template's outer wrapper fill the window
+   (core `.window-content > * { flex: 1 }`), so when a window is dragged
+   taller than its content the wrapper grows but the action-button footer was
+   left sitting directly under the content — floating mid-window instead of
+   staying at the bottom. Push these footers down with margin-top:auto (a few
+   wrappers need to become flex columns first). Scoped under each dialog root
+   so specificity beats the existing per-footer margin rules.
+   Already-pinned dialogs (level-up, welcome, end-of-session, outfit,
+   expedition, spring/guide family) have a flex:1 scroll region before the
+   footer and need nothing here. */
+
+/* Block wrappers → flex columns so margin-top:auto on the footer takes effect. */
+.stonetop-requisition .stonetop-requisition-picker,
+.stonetop-special-item-picker .stonetop-special-picker,
+.stonetop-charintro-dialog .stonetop-charintro {
+	display: flex;
+	flex-direction: column;
+}
+
+/* Share reuses the guide layout but isn't a .stonetop-spring-dialog, so its
+   scroll region never inherited flex:1 — give it that, matching the spring nav. */
+.stonetop-share-dialog .stonetop-share .stonetop-guide-main {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/* Pin each footer row to the bottom of its (filling) flex-column wrapper. */
+.stonetop-custom-move-dialog .stonetop-custom-move-actions,
+.stonetop-requisition .stonetop-requisition-actions,
+.stonetop-arcana-inspire-dialog .stonetop-inspire-footer,
+.stonetop-charintro-dialog .stonetop-charintro-actions,
+.stonetop-possession-choices-dialog .stonetop-pc-footer,
+.stonetop-special-item-picker .stonetop-special-picker-actions,
+.stonetop-add-member-dialog .asm-footer,
+.stonetop-weather-dialog .stonetop-weather-roll-wrap {
+	margin-top: auto;
 }

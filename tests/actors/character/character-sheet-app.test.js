@@ -30,6 +30,11 @@ function makeCharacterMock(actor) {
 		addMove: vi.fn(),
 		removeMove: vi.fn(),
 		addArcanum: vi.fn(async () => {}),
+		addDroppedInventoryItem: vi.fn(async () => {}),
+		// _onDropItemCreate reads this to skip re-adding an already-owned arcanum; an
+		// empty Set means every dropped card counts as new (matches the real getter,
+		// which returns a Set of owned slugs).
+		ownedArcanaSlugs: new Set(),
 		onDropMove: vi.fn(async () => false),
 		moveResources: { add: vi.fn() },
 		buildSnapshot: vi.fn(async () => ({})),
@@ -43,8 +48,40 @@ function recoverSnapshot({ hpValue = 4, hpMax = 8, smallItemLimit = 5 } = {}) {
 
 function makeActor() {
 	const actor = new FakeActorBuilder().build();
+	actor.id = "actor-1";
+	actor.isOwner = true;
 	actor.typedActor = makeCharacterMock(actor);
 	return actor;
+}
+
+function installGetDataGlobals() {
+	global.foundry.utils.setProperty ??= (obj, path, value) => {
+		const parts = String(path).split(".");
+		let current = obj;
+		for (const key of parts.slice(0, -1)) {
+			current[key] ??= {};
+			current = current[key];
+		}
+		current[parts.at(-1)] = value;
+	};
+	global.game.settings ??= { get: () => false };
+	global.game.user ??= { isGM: true, getFlag: () => ({}) };
+}
+
+function minimalSheetSnapshot(movelist) {
+	return {
+		playbook: null,
+		movelist,
+		vitals: { armor: 0, xp: { value: 0, max: 8 }, hp: { value: 8, max: 8 }, damage: "d4" },
+		inventory: { smallItemLimit: null },
+		postDeathInsert: null,
+		crewBonuses: null,
+		companionBonuses: null,
+		arcana: {
+			major: { hasOwned: false, items: [] },
+			minor: { hasOwned: false, items: [] },
+		},
+	};
 }
 
 function makeSheet(actor) {
@@ -73,6 +110,10 @@ function makeMove() {
 	return { type: "move", system: { moveType: "basic" }, flags: {} };
 }
 
+function makeInventoryItem() {
+	return { type: "move", name: "Rope", system: { moveType: "inventory" }, flags: { stonetop: { inventoryColumn: "regular", weight: 1 } } };
+}
+
 function makeNonMove() {
 	return { type: "equipment", system: {}, flags: {} };
 }
@@ -80,6 +121,29 @@ function makeNonMove() {
 // -- Tests --------------------------------------------------------------------
 
 describe("StonetopCharacterSheet event handlers", () => {
+	it("shows the over-level moves warning until the current overage key is dismissed", async () => {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({
+			levelMovesOverLimit: true,
+			levelMovesOverageKey: "2:3:4",
+		}));
+		const sheet = makeSheet(actor);
+
+		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(true);
+
+		await actor.setFlag("stonetop_pwd", "moves.dismissedLevelOverage", "2:3:4");
+		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(false);
+
+		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({
+			levelMovesOverLimit: true,
+			levelMovesOverageKey: "2:3:5",
+		}));
+		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(true);
+	});
+
 	it("_onBackgroundChange calls selectBackground with the slug", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
@@ -164,19 +228,17 @@ describe("StonetopCharacterSheet._buildRecoverData", () => {
 });
 
 describe("StonetopCharacterSheet._applyRecover", () => {
-	const emptyHtml = [{ querySelector: () => ({ value: "" }) }];
-
 	it("decrements one use of the chosen supply slug", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
-		await sheet._applyRecover(emptyHtml, { supplySlug: "supplies", currentUses: 3, oldHp: 4, newHp: 8 });
+		await sheet._applyRecover({ supplySlug: "supplies", currentUses: 3, oldHp: 4, newHp: 8 });
 		expect(actor.typedActor.setInventoryResource).toHaveBeenCalledWith("supplies", 2);
 	});
 
 	it("heals to the new HP and locks the move", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
-		await sheet._applyRecover(emptyHtml, { supplySlug: "supplies", currentUses: 1, oldHp: 4, newHp: 9 });
+		await sheet._applyRecover({ supplySlug: "supplies", currentUses: 1, oldHp: 4, newHp: 9 });
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.hp.value": 9,
 			"flags.stonetop_pwd.recover.spent": true,
@@ -186,7 +248,66 @@ describe("StonetopCharacterSheet._applyRecover", () => {
 	it("re-renders after applying", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
-		await sheet._applyRecover(emptyHtml, { supplySlug: "supplies", currentUses: 2, oldHp: 4, newHp: 8 });
+		await sheet._applyRecover({ supplySlug: "supplies", currentUses: 2, oldHp: 4, newHp: 8 });
+		expect(sheet.render).toHaveBeenCalledWith(false);
+	});
+});
+
+function convalesceSnapshot({ hpValue = 4, hpMax = 8, debilities = [] } = {}) {
+	return { vitals: { hp: { value: hpValue, max: hpMax } }, debilities };
+}
+
+describe("StonetopCharacterSheet._buildConvalesceData", () => {
+	it("can convalesce when HP is below max", () => {
+		const sheet = makeSheet(makeActor());
+		const data = sheet._buildConvalesceData(convalesceSnapshot({ hpValue: 4, hpMax: 8 }));
+		expect(data.canConvalesce).toBe(true);
+		expect(data.hint).toBeNull();
+	});
+
+	it("can convalesce at full HP when a debility is marked", () => {
+		const sheet = makeSheet(makeActor());
+		const data = sheet._buildConvalesceData(convalesceSnapshot({
+			hpValue: 8, hpMax: 8,
+			debilities: [{ key: "dazed", name: "Dazed", active: true }],
+		}));
+		expect(data.canConvalesce).toBe(true);
+		expect(data.activeDebilities).toHaveLength(1);
+	});
+
+	it("cannot convalesce at full HP with no marked debilities (shows hint)", () => {
+		const sheet = makeSheet(makeActor());
+		const data = sheet._buildConvalesceData(convalesceSnapshot({
+			hpValue: 8, hpMax: 8,
+			debilities: [{ key: "dazed", name: "Dazed", active: false }],
+		}));
+		expect(data.canConvalesce).toBe(false);
+		expect(data.hint.icon).toBe("fa-heart");
+	});
+});
+
+describe("StonetopCharacterSheet._applyConvalesce", () => {
+	it("heals to max and clears every marked debility, attributed to the move", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._applyConvalesce({
+			oldHp: 3, newHp: 8,
+			debilities: [
+				{ key: "weakened",  name: "Weakened",  active: true },
+				{ key: "miserable", name: "Miserable", active: true },
+			],
+		});
+		expect(actor.update).toHaveBeenCalledWith({
+			"system.attributes.hp.value": 8,
+			"system.attributes.debilities.options.weakened.value": false,
+			"system.attributes.debilities.options.miserable.value": false,
+		}, { stonetopMove: "Convalesce" });
+	});
+
+	it("re-renders after applying", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._applyConvalesce({ oldHp: 4, newHp: 8, debilities: [] });
 		expect(sheet.render).toHaveBeenCalledWith(false);
 	});
 });
@@ -224,6 +345,15 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 		expect(actor.typedActor.addArcanum).not.toHaveBeenCalled();
 	});
 
+	it("routes inventory moves to addDroppedInventoryItem", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		const item = makeInventoryItem();
+		await sheet._onDropItemCreate(item);
+		expect(actor.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+		expect(actor.typedActor.onDropMove).not.toHaveBeenCalled();
+	});
+
 	it("does not route non-move items to addArcanum or onDropMove", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
@@ -236,6 +366,13 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
 		await sheet._onDropItemCreate(makeArcanum("humble-broom"));
+		expect(sheet.render).toHaveBeenCalledWith(false);
+	});
+
+	it("calls render after dropping an inventory item", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onDropItemCreate(makeInventoryItem());
 		expect(sheet.render).toHaveBeenCalledWith(false);
 	});
 

@@ -22,6 +22,17 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether this world has had the system's new-world core setting defaults applied.
+	// Used to seed Foundry's Automatic Token Rotation world setting off only during a
+	// fresh world's first GM load, without surprising already-established worlds.
+	game.settings.register("stonetop_pwd", "coreSettingDefaultsApplied", {
+		name: "Core Setting Defaults Applied",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// The system version whose shipped journal content was last rolled into the
 	// world's seeded copies (see hooks/SeedCompendiums.js). When this trails the
 	// running version, the update pass refreshes pristine (un-edited) seeded
@@ -48,6 +59,21 @@ export function registerSettings() {
 		default: true,
 	});
 
+	// Adds the "Shift Up" / "Shift Down" buttons to move roll cards in chat, letting the
+	// GM bump a roll's result to a higher or lower tier (see _chatWireRollShifting /
+	// _onRollShift in stonetop.js). Only the GM ever sees them. Off by default — it's a
+	// niche GM tool most tables never reach for, and the buttons add a row to every roll
+	// card. World-scoped: whether the table uses tier-shifting is a per-world call, and
+	// only the GM acts on it.
+	game.settings.register("stonetop_pwd", "chatShiftButtons", {
+		name: "stonetop.settings.chatShiftButtons.name",
+		hint: "stonetop.settings.chatShiftButtons.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: false,
+	});
+
 	// When on (the default), only the GM may author custom moves — players don't see
 	// the "+ Custom Move" button or the edit pencils, and the create/edit handlers are
 	// no-ops for them. Existing custom moves still display and roll for everyone; this
@@ -69,6 +95,22 @@ export function registerSettings() {
 	game.settings.register("stonetop_pwd", "arcanaCreationGmOnly", {
 		name: "stonetop.settings.arcanaCreationGmOnly.name",
 		hint: "stonetop.settings.arcanaCreationGmOnly.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
+	// Whether players may PEEK at a card's BACK before unlocking it. A card's OWNER always
+	// sees its back once unlocked (every spot filled), regardless of this setting —
+	// unlocking is their own achievement. This switch is the separate peek: on (the
+	// default) lets players open the back of a not-yet-unlocked card; off keeps an
+	// un-unlocked back hidden until the GM clicks "Reveal back to player" on it. The GM
+	// always sees both sides. See the per-card visibility model in
+	// StonetopCharacterSheet.getData / CharacterArcana.
+	game.settings.register("stonetop_pwd", "arcanaPlayersSeeBothSides", {
+		name: "stonetop.settings.arcanaPlayersSeeBothSides.name",
+		hint: "stonetop.settings.arcanaPlayersSeeBothSides.hint",
 		scope: "world",
 		config: true,
 		type: Boolean,
@@ -357,6 +399,29 @@ export function registerSettings() {
 		default: {},
 	});
 
+	// Remembers which reverse-side arcanum content sections (e.g. "Consequences") each
+	// character left EXPANDED. Unlike the Major / Minor sections above, these default to
+	// COLLAPSED — they're long, secondary reference — so we store the *expanded* ids
+	// (absence = collapsed). Per-user (client) and per-actor: a map of actor id -> array
+	// of expanded section ids. Internal (not shown in the settings menu).
+	game.settings.register("stonetop_pwd", "arcanaContentExpanded", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
+	// Remembers which individual arcanum CARDS each character left collapsed (clamped to
+	// just their title bar). Like the Major / Minor sections, cards default to EXPANDED, so
+	// a card id (its slug) present here means that card should reopen collapsed. Per-user
+	// (client) and per-actor: a map of actor id -> array of collapsed card slugs. Internal.
+	game.settings.register("stonetop_pwd", "arcanaCardsCollapsed", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
 	// Remembers whether each character left the whole moves sidebar (Roll Modifier
 	// + Basic / Expedition move lists) collapsed, so the sheet reopens the same way.
 	// The sidebar defaults to expanded. Per-user (client) and per-actor: a map of
@@ -583,6 +648,28 @@ export function getArcanaSectionsCollapsed(actorId) {
 
 export function setArcanaSectionsCollapsed(actorId, sections) {
 	return setSectionList("arcanaSectionsCollapsed", actorId, sections);
+}
+
+// The reverse-side arcanum content sections (e.g. Consequences) a character left
+// expanded. These default to collapsed, so an id present here means that section
+// should reopen expanded.
+export function getArcanaContentExpanded(actorId) {
+	return getSectionList("arcanaContentExpanded", actorId);
+}
+
+export function setArcanaContentExpanded(actorId, sections) {
+	return setSectionList("arcanaContentExpanded", actorId, sections);
+}
+
+// The individual arcanum cards a character left collapsed (clamped to their title
+// bar). They default to expanded, so a card slug present here means that card should
+// reopen collapsed.
+export function getArcanaCardsCollapsed(actorId) {
+	return getSectionList("arcanaCardsCollapsed", actorId);
+}
+
+export function setArcanaCardsCollapsed(actorId, slugs) {
+	return setSectionList("arcanaCardsCollapsed", actorId, slugs);
 }
 
 // Whether a character left the whole moves sidebar collapsed (defaults to false /

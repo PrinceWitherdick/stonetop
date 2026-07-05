@@ -72,6 +72,5 @@ export class PlaybookMoveEntry {
 		this.markBudget = entry.markBudget ?? null;
 		// Cross-playbook foreign-move config ({ playbooks, grantsPossession }); null otherwise.
 		this.crossPlaybook = entry.crossPlaybook ?? null;
-		this.asterisk = entry.asterisk ?? null;
 	}
 }

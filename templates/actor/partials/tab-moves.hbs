@@ -8,6 +8,9 @@
 		    moves=stonetop.movelist.playbookMoves
 		    hideToggle=true
 		    hideUnselected=stonetop.hideUnselected
+		    searchControl=true
+		    searchTitle=(localize "stonetop.character.moves.searchLabel")
+		    searchPlaceholder=(localize "stonetop.character.moves.searchPlaceholder")
 		    editSection="moves"
 		    editing=stonetop.movesEdit}}
 		{{#if stonetop.movelist.movesIncomplete}}
@@ -36,6 +39,28 @@
 		</div>
 		{{/if}}
 
+		{{#if stonetop.movelist.showLevelMovesOverLimit}}
+		<div class="stonetop-intros-notice stonetop-intros-notice--warn stonetop-moves-level-notice">
+			<i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+			<div class="stonetop-moves-level-notice-body">
+				<p>
+				{{#if (eq stonetop.movelist.levelMovesOverage 1)}}
+					{{localize "stonetop.character.moves.levelMovesOverLimitOne" level=stonetop.movelist.characterLevel}}
+				{{else}}
+					{{localize "stonetop.character.moves.levelMovesOverLimitMany" count=stonetop.movelist.levelMovesOverage level=stonetop.movelist.characterLevel}}
+				{{/if}}
+				</p>
+				<p class="stonetop-moves-level-notice-hint">{{localize "stonetop.character.moves.levelMovesOverLimitHint"}}</p>
+			</div>
+			<button type="button" class="stonetop-moves-level-notice-dismiss"
+			        data-overage-key="{{stonetop.movelist.levelMovesOverageKey}}"
+			        aria-label="{{localize 'stonetop.character.moves.dismissLevelMovesOverLimit'}}"
+			        title="{{localize 'stonetop.character.moves.dismissLevelMovesOverLimit'}}">
+				<i class="fas fa-times" aria-hidden="true"></i>
+			</button>
+		</div>
+		{{/if}}
+
 		{{#if stonetop.movelist.learnedMoves.length}}
 		{{> "stonetop.move-group"
 		    title=(localize "stonetop.character.moves.learnedMoves")
@@ -58,11 +83,10 @@
 					<h3 class="stonetop-move-group-title">{{label}}</h3>
 					<ol class="items-list">
 					{{#each moves}}
-						{{#if rollType}}
+						{{!-- These "other" moves are all real owned items, so every row is a
+						      draggable .item (drag onto the hotbar → roll or post-to-chat macro).
+						      The dice icon stays gated on rollType. --}}
 						<li class="item stonetop-item" data-item-id="{{ownedId}}">
-						{{else}}
-						<li class="stonetop-item">
-						{{/if}}
 							<div class="stonetop-item-header">
 								{{#if rollType}}
 								<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">
@@ -71,9 +95,11 @@
 								{{/if}}
 								<strong class="stonetop-item-name">{{name}}</strong>
 								{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
+								{{#if @root.stonetop.movesEdit}}
 								<a class="stonetop-other-move-delete" data-item-id="{{ownedId}}" title="{{localize 'stonetop.character.moves.removeMove'}}">
 									<i class="fas fa-trash"></i>
 								</a>
+								{{/if}}
 							</div>
 						</li>
 					{{/each}}
@@ -114,7 +140,7 @@
 								<i class="fas fa-pen"></i>
 							</a>
 							{{/if}}
-							{{#if (or (not custom) @root.stonetop.canAuthorCustomMoves)}}
+							{{#if (and @root.stonetop.movesEdit (or (not custom) @root.stonetop.canAuthorCustomMoves))}}
 							<a class="stonetop-other-move-delete" data-item-id="{{ownedId}}" title="{{localize 'stonetop.character.moves.removeMove'}}">
 								<i class="fas fa-trash"></i>
 							</a>
@@ -124,11 +150,17 @@
 					</li>
 				{{/each}}
 				</ol>
-				{{#if (and stonetop.movesEdit stonetop.canAuthorCustomMoves)}}
+			</div>
+			{{/if}}
+
+			{{!-- Create-a-move entry point. A quiet dashed button pinned to the foot of the
+			      Moves tab, mirroring the Followers tab's "Create a follower" bar. Visible in
+			      and out of edit mode so authoring never depends on the Edit toggle. --}}
+			{{#if stonetop.canAuthorCustomMoves}}
+			<div class="stonetop-move-add-bar">
 				<button type="button" class="stonetop-add-custom-move" title="{{localize 'stonetop.character.moves.addMove'}}">
 					<i class="fas fa-plus" aria-hidden="true"></i> {{localize "stonetop.character.moves.custom.addButton"}}
 				</button>
-				{{/if}}
 			</div>
 			{{/if}}
 

@@ -90,6 +90,36 @@ describe("pack source files", () => {
 		expect(bad.map(b => b.file)).toEqual([]);
 	});
 
+	it("arcana only expose regular or small inventory items with matching markers", () => {
+		const bySlug = new Map(
+			allDocs
+				.filter(({ doc }) => doc.system?.moveType === "arcanum")
+				.map(({ doc }) => [doc.flags.stonetop.slug, doc.flags.stonetop])
+		);
+		const bad = [];
+
+		for (const [slug, arcanum] of bySlug.entries()) {
+			for (const sideName of ["front", "back"]) {
+				const item = arcanum[sideName]?.item;
+				if (!item?.name) continue;
+				if (item.inventoryColumn === "regular" && !(item.weight > 0)) {
+					bad.push(`${slug}.${sideName}: regular item without diamonds`);
+				}
+				if (item.inventoryColumn === "small" && item.weight != null) {
+					bad.push(`${slug}.${sideName}: small item should not define diamond weight`);
+				}
+			}
+		}
+
+		expect(bySlug.get("ineffable-words").front.item).toBeNull();
+		expect(bySlug.get("whispering-rocks").front.item).toMatchObject({
+			name: "Whispering Rocks",
+			weight: 1,
+			inventoryColumn: "regular",
+		});
+		expect(bad).toEqual([]);
+	});
+
 	it("HTML descriptions have balanced tags", () => {
 		const issues = [];
 		for (const { file, doc } of allDocs) {

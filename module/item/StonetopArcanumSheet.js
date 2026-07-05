@@ -5,6 +5,7 @@ import { markValueTooltips } from "../utils/value-tooltips.js";
 import { markDebilityTooltips } from "../utils/debility-tooltips.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import { isInCompendium } from "../utils/compendium-edit-guard.js";
+import { bringDialogToFront } from "../utils/front-on-open.js";
 import { isDefaultImg } from "../utils/strings.js";
 import { STAT_KEYS } from "../utils/roll-types.js";
 import { hasText } from "../actors/bestiary/codex.js";
@@ -56,6 +57,13 @@ function _arcanumSlugInUse(slug) {
 export function createStonetopArcanumSheetClass(BaseItemSheet) {
 	return class StonetopArcanumSheet extends BaseItemSheet {
 		_editMode = false;
+		// Draft state: a card created from a character's Create button is a pending draft that
+		// isn't attached to that character until Save & Done. `_arcanumOnSave(item)` performs
+		// the attach (set by createArcanumItem); `_discarded` guards the delete-triggered close
+		// so it doesn't re-prompt or flush a just-deleted item.
+		_arcanumDraft  = false;
+		_arcanumOnSave = null;
+		_discarded     = false;
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
@@ -86,7 +94,9 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			const buttons = super._getHeaderButtons();
 			if (this._canEditArcanum()) {
 				buttons.unshift({
-					label: this._editMode ? "Done" : "Edit",
+					// A pending draft's "Done" both saves the card and attaches it to the
+					// character, so label it "Save" to make that commit obvious.
+					label: this._editMode ? (this._arcanumDraft ? "Save" : "Done") : "Edit",
 					class: "stonetop-arcanum-edit-toggle",
 					icon:  this._editMode ? "fas fa-eye" : "fas fa-pen-to-square",
 					onclick: () => this._toggleEditMode(),
@@ -98,6 +108,9 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 		async _toggleEditMode() {
 			if (this._editMode) {
 				await this._flushRichEditors();
+				// Leaving edit mode commits a pending draft: attach it to the originating
+				// character (once) so Save & Done / header Done both finish it in one click.
+				if (this._arcanumDraft) await this._commitArcanumDraft();
 				this._otherArcanumSlugs = null; // drop the per-session slug cache on exit
 			}
 			this._editMode = !this._editMode;
@@ -105,10 +118,58 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			this.setPosition({ width: this._editMode ? 560 : 460, height: "auto" });
 		}
 
+		// Attach the finished draft to the originating character exactly once, then clear the
+		// draft state so closing the (now-saved) card no longer offers to discard it.
+		async _commitArcanumDraft() {
+			this._arcanumDraft  = false;
+			const onSave = this._arcanumOnSave;
+			this._arcanumOnSave = null;
+			if (!onSave) return;
+			try { await onSave(this.item); }
+			catch (err) { console.error("Stonetop | Failed to add arcanum to character", err); }
+		}
+
+		// Discard an unsaved draft: confirm, then delete the world Item (which tears down this
+		// sheet). Returns true if discarded, false if the author chose to keep editing. A no-op
+		// for a non-draft (an existing card's edits are already persisted live).
+		async _discardDraft() {
+			if (!this._arcanumDraft || this._discarded) return false;
+			const ok = await Dialog.confirm({
+				title:   "Discard arcanum?",
+				content: "<p>This arcanum hasn't been saved yet. Discard it? This can't be undone.</p>",
+				defaultYes: false,
+				render:  bringDialogToFront,
+				options: { classes: ["dialog", "stonetop"] },
+			});
+			if (!ok) return false;
+			// Re-check after the await: the confirm is non-modal, so while it was open the author
+			// could have clicked "Save & Done" (which commits the draft and clears _arcanumDraft) —
+			// don't then delete the now-owned card and orphan its slug. Also bail if the world Item
+			// was deleted out from under us in the meantime.
+			if (!this._arcanumDraft || this._discarded || !this.item || !game.items?.get(this.item.id)) return false;
+			// Suppress the discard prompt + editor flush on the delete-triggered re-entrant close.
+			this._discarded     = true;
+			this._arcanumOnSave = null;
+			await this.item.delete();
+			return true;
+		}
+
 		async close(options) {
-			// Flush any pending rich-editor content before teardown, then drop the
-			// per-session slug cache so a reopened sheet rebuilds it fresh.
-			if (this._editMode) await this._flushRichEditors();
+			// If the draft's world Item was already deleted (an external delete triggers close),
+			// there's nothing left to discard or flush — just tear the sheet down without prompting.
+			const itemGone = !this.item || !game.items?.get(this.item.id);
+			// An unsaved draft (created from a character's Create button) offers to discard on
+			// close; keeping it aborts the close so the author can finish. Skipped once the card
+			// has been saved (no longer a draft) or discarded (torn down by item.delete()).
+			if (this._arcanumDraft && !this._discarded && !itemGone) {
+				const discarded = await this._discardDraft();
+				if (!discarded) return this;   // "Keep editing" → don't close
+				return this;                   // discarded: item.delete() already closed the sheet
+			}
+			// Flush any pending rich-editor content before teardown, then drop the per-session
+			// slug cache so a reopened sheet rebuilds it fresh. Skip the flush when the item was
+			// just deleted (nothing to flush, and the update would throw).
+			if (this._editMode && !this._discarded && !itemGone) await this._flushRichEditors();
 			this._otherArcanumSlugs = null;
 			return super.close(options);
 		}
@@ -148,6 +209,9 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 				// Lock the slug once a character holds the card — changing it would orphan
 				// their saved marks and break the owned-slug link (the card would vanish).
 				data.edit.slugLocked = _arcanumSlugInUse(flags.slug);
+				// A pending draft gets a Cancel (discard) button and a "Save & Done" primary;
+				// an existing card's re-edit only gets a plain "Done" (its edits persist live).
+				data.edit.isDraft    = !!this._arcanumDraft;
 				data.statOptions = STAT_OPTIONS;
 				data.glyphs     = GLYPH_INSERTS;
 				data.validation = validateArcanumFlags(flags);
@@ -354,6 +418,12 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 		}
 
 		_onEditClick(ev) {
+			// Footer actions: Save & Done finishes the card (flush + attach draft + preview);
+			// Cancel discards an unsaved draft.
+			const save = ev.target.closest(".stonetop-arc-save");
+			if (save) { ev.preventDefault(); return this._toggleEditMode(); }
+			const cancel = ev.target.closest(".stonetop-arc-cancel");
+			if (cancel) { ev.preventDefault(); return this._discardDraft(); }
 			const add = ev.target.closest(".stonetop-arc-req-add");
 			if (add) { ev.preventDefault(); return this._addRequirement(add.dataset.reqType || "option"); }
 			const rem = ev.target.closest(".stonetop-arc-req-remove");

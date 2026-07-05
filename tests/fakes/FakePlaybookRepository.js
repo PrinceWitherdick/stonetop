@@ -547,18 +547,21 @@ export const HEAVY_PLAYBOOK = {
 				"label": "Distillery",
 				"description": "○○ uses: skins of fine whisky (grants advantage to Persuade), copper tubes, malt, firkins, stills, barrels, etc.",
 				"grantsItems": [
-					{ "name": "Fine whisky (advantage to Persuade)", "column": "small" },
+					{
+						"name": "Skins of fine whisky",
+						"sourceKey": "Fine whisky (advantage to Persuade)",
+						"aliases": ["Fine whisky"],
+						"column": "small",
+						"resource": { "max": 2, "title": null, "labels": [] },
+						"resourceSuffix": "uses, grants advantage to Persuade",
+						"legacyUsesFromPossession": true
+					},
 					{ "name": "Copper tubes", "column": "small" },
 					{ "name": "Malt", "column": "small" },
 					{ "name": "Stills", "column": "small" },
 					{ "name": "Barrels", "column": "small" },
 					{ "name": "Firkins", "column": "regular", "weight": 1 }
 				],
-				"resource": {
-					"max": 2,
-					"title": null,
-					"labels": []
-				}
 			},
 			{
 				"slug": "chirurgeons-tools",

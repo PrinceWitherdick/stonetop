@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeActorBuilder } from "../fakes/FakeActorBuilder.js";
-import { rollDamage, rollFormula, rollStat, sign } from "../../module/utils/roll-engine.js";
+import { rollDamage, rollFormula, rollSeasonsCard, rollStat, sign, SPRING_SEASONS_RESULT } from "../../module/utils/roll-engine.js";
 
 let rollMessages;
 let rollTotal;
@@ -14,7 +14,7 @@ beforeEach(() => {
 	rollDice = [{ results: [{ result: 2, active: true }, { result: 4, active: true }] }];
 	global.game.settings = { get: vi.fn(() => "publicroll") };
 	global.ChatMessage = {
-		getSpeaker: vi.fn(({ actor }) => ({ alias: actor.name })),
+		getSpeaker: vi.fn(({ actor } = {}) => ({ alias: actor?.name ?? "Speaker" })),
 		create: vi.fn(),
 	};
 	global.Roll = class {
@@ -85,7 +85,7 @@ describe("rollStat", () => {
 
 		await rollStat("str", makeActor(), { noXpOnMiss: true });
 
-		expect(rollMessages[0].flavor).toContain('class="stonetop-roll-result-number" data-tooltip="3 5"');
+		expect(rollMessages[0].flavor).toContain('class="stonetop-roll-result-number" data-tooltip="3, 5"');
 	});
 
 	it("brackets the dropped die on an advantage/disadvantage roll", async () => {
@@ -98,7 +98,7 @@ describe("rollStat", () => {
 
 		await rollStat("str", makeActor(), { rollMode: "adv", noXpOnMiss: true });
 
-		expect(rollMessages[0].flavor).toContain('data-tooltip="(2) 4 5"');
+		expect(rollMessages[0].flavor).toContain('data-tooltip="(2), 4, 5"');
 	});
 
 	it.each([
@@ -206,6 +206,49 @@ describe("rollStat", () => {
 		expect(rollMessages[0].flavor).toContain("A &amp; B &lt; C");
 	});
 
+	it("renders tier actions for the matching result tier", async () => {
+		rollTotal = 6;
+
+		await rollStat("str", makeActor(), {
+			noXpOnMiss: true,
+			resultLegend: "<strong>Results</strong>",
+			tierActions: {
+				failure: '<button type="button" class="stonetop-requisition-miss-cost">Take it on a miss</button>',
+			},
+		});
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("stonetop-roll-card-results");
+		expect(flavor).toContain("<strong>Results</strong>");
+		expect(flavor).toContain("stonetop-roll-tier-actions");
+		expect(flavor).toContain('data-active-tier="failure"');
+		expect(flavor).toContain("stonetop-requisition-miss-cost");
+		expect(flavor).toContain(">Take it on a miss</button>");
+		expect(flavor).not.toContain('data-tier="failure" hidden');
+	});
+
+	it("renders non-matching tier actions hidden, so a GM shift can reveal them", async () => {
+		rollTotal = 10;
+
+		await rollStat("str", makeActor(), {
+			noXpOnMiss: true,
+			tierActions: {
+				failure: '<button type="button" class="stonetop-requisition-miss-cost">Take it on a miss</button>',
+			},
+		});
+
+		const flavor = rollMessages[0].flavor;
+		// The container is present with the rolled tier active, and the failure action sits in the
+		// DOM but hidden — ready for _shiftRollCardFlavor to unhide it if the card is shifted down.
+		// The hide is VALUED (hidden="hidden"), not a bare boolean: Foundry v14's flavor sanitizer
+		// (sanitize-html) strips valueless attributes, so a bare `hidden` would vanish and every
+		// tier would render visible in chat.
+		expect(flavor).toContain("stonetop-roll-tier-actions");
+		expect(flavor).toContain('data-active-tier="success"');
+		expect(flavor).toContain('data-tier="failure" hidden="hidden"');
+		expect(flavor).toContain("stonetop-requisition-miss-cost");
+	});
+
 	it("omits the outcome line when the move has no moveResults", async () => {
 		rollTotal = 10;
 
@@ -237,6 +280,24 @@ describe("rollStat", () => {
 		rollTotal = 6;
 		await rollStat("str", makeWouldBeHero(), { noXpOnMiss: true });
 		expect(pfgReminder()).toBeFalsy();
+	});
+});
+
+describe("rollSeasonsCard", () => {
+	it("posts the full result legend on seasonal roll cards", async () => {
+		rollTotal = 7;
+
+		await rollSeasonsCard({
+			formula: "2d6 + 1",
+			title: "Seasons Change — Spring",
+			resultTable: SPRING_SEASONS_RESULT,
+		});
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("stonetop-roll-card-results");
+		expect(flavor).toContain("<strong>Results</strong>");
+		expect(flavor).toContain("Pick <strong>one seasonal gain</strong>");
+		expect(flavor).toContain("<strong>Threats abound</strong>");
 	});
 });
 

@@ -1,6 +1,6 @@
-import { maybePromptAsteriskMove, maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
-import { escHtml } from "./strings.js";
-import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber } from "./chat.js";
+import { maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
+import { escHtml, formatOutcomeDetail } from "./strings.js";
+import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageBadge } from "./chat.js";
 
 const _STAT_LABELS = {
 	str: "Strength", dex: "Dexterity", int: "Intelligence",
@@ -33,9 +33,28 @@ export const SPRING_SEASONS_RESULT = {
 	failure: { label: "6-",        line: "<strong>Threats abound</strong> &mdash; and don't mark XP." },
 };
 
+/** Wrap a list of pre-rendered `<li>` inner-HTML strings in the shared "Results" legend
+ *  block, so every result table (roll cards, homestead / season walkthroughs) renders the
+ *  same chrome from one place instead of each caller re-emitting the wrapper markup. */
+export function resultsLegendHtml(rows) {
+	return `<div class="stonetop-homestead-reference">
+		<strong>Results</strong>
+		<ul>${(rows ?? []).map(r => `<li>${r}</li>`).join("")}</ul>
+	</div>`;
+}
+
+function _resultTableLegend(resultTable) {
+	if (!resultTable) return "";
+	const rows = ["success", "partial", "failure"]
+		.map(key => resultTable[key])
+		.filter(Boolean)
+		.map(result => `<strong>${result.label}:</strong> ${result.line}`);
+	return resultsLegendHtml(rows);
+}
+
 /**
  * Pull the individual die faces out of an evaluated Roll, e.g. a 2d6 that came up
- * 2 and 3 yields "2 3". Discarded dice (the dropped die on adv/dis) are flagged with
+ * 2 and 3 yields "2, 3". Discarded dice (the dropped die on adv/dis) are flagged with
  * a strike-through so the hover readout still shows what was rolled. Returns "" when
  * the roll has no dice terms.
  */
@@ -44,14 +63,14 @@ export function dieResultsText(roll) {
 	const faces = dice.flatMap(term =>
 		(term.results ?? []).map(r => (r.active === false || r.discarded ? `(${r.result})` : `${r.result}`))
 	);
-	return faces.join(" ");
+	return faces.join(", ");
 }
 
-/** Die faces for a *multi*-die roll ("2 4"), or "" for a single die — the readout
+/** Die faces for a *multi*-die roll ("2, 4"), or "" for a single die — the readout
  *  only helps when more than one die contributed (a 1d6 just echoes its total). */
 export function multiDieFaces(roll) {
 	const faces = dieResultsText(roll);
-	return faces.includes(" ") ? faces : "";
+	return faces.includes(",") ? faces : "";
 }
 
 /**
@@ -67,11 +86,19 @@ export function multiDieFaces(roll) {
  * clicked it. Pass `alias` instead to speak the card under a fixed name with no header
  * (the Expedition Requisition card).
  */
-export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable } = {}) {
+export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "" } = {}) {
 	const roll = await new Roll(formula).evaluate();
 	const tier = classifyResult(roll.total).key;
 	const result = resultTable[tier];
-	const body = springRollCardBody(roll.total, tier, result.label, result.line, roll.formula, multiDieFaces(roll));
+	const body = springRollCardBody(
+		roll.total,
+		tier,
+		result.label,
+		result.line,
+		roll.formula,
+		multiDieFaces(roll),
+		resultLegend || _resultTableLegend(resultTable),
+	);
 	await roll.toMessage({
 		speaker: alias ? { alias } : ChatMessage.getSpeaker(),
 		flavor:  title
@@ -105,7 +132,7 @@ export function postSeasonsRollPrompt({ alias = "Seasons Change — Spring", hop
 	});
 }
 
-function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, conditionsHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "" }) {
+function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, resultLegend = "", tierActions = null, conditionsHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "" }) {
 	// Stash every tier's outcome on the row so a GM Shift Up/Down can swap the
 	// detail line to match the new tier (see _shiftRollCardFlavor in stonetop.js).
 	const outcomeAttrs = resultOutcomes
@@ -116,7 +143,7 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 	// The die formula gets its own chip above the result, mirroring Foundry's vanilla
 	// dice-formula placement. We hide Foundry's auto-rendered dice block in CSS, so
 	// this is the only place the formula appears. The chip carries the individual die
-	// faces ("2 4") as a hover tooltip — hovering "2d6" to see what the d6s came up is
+	// faces ("2, 4") as a hover tooltip — hovering "2d6" to see what the d6s came up is
 	// the intuitive spot (the total below carries the same readout for discoverability).
 	const formulaHtml = formula ? rollFormulaChip(formula, dieResults) : "";
 
@@ -129,12 +156,30 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 			${total != null ? rollResultNumber(total, dieResults) : ""}
 			<div class="stonetop-roll-result-body">
 				${result ? `<span class="stonetop-roll-result-label">${result}</span>` : ""}
-				<span class="stonetop-roll-result-details">${escHtml(resultDetail)}</span>
+				<span class="stonetop-roll-result-details">${formatOutcomeDetail(resultDetail)}</span>
 			</div>
 		</div>`
 		: "";
 	const bodyHtml = (formulaHtml || resultBlockHtml)
 		? `<div class="card-content">${formulaHtml}${resultBlockHtml}</div>`
+		: "";
+	// Emit an action row for EVERY tier that defines one (not just the rolled tier), hiding
+	// all but the active tier, so a GM Shift Up/Down can reveal the matching action — e.g. the
+	// Requisition miss-cost button when a card is shifted down into a miss. _shiftRollCardFlavor
+	// toggles these rows by data-tier; if only the rolled tier's row exists it has nothing to show.
+	// The hide MUST use hidden="hidden" (valued), not a bare `hidden`: flavor is an HTMLField that
+	// Foundry v14 runs through sanitize-html, which strips valueless boolean attributes — a bare
+	// `hidden` vanishes server-side and every tier renders visible (see _shiftRollCardFlavor).
+	const tierActionEntries = Object.entries(tierActions ?? {}).filter(([, html]) => html);
+	const tierActionsHtml = tierActionEntries.length
+		? `<div class="card-buttons stonetop-roll-tier-actions" data-active-tier="${escHtml(resultClass)}">
+			${tierActionEntries.map(([tier, html]) =>
+				`<div class="stonetop-roll-tier-action" data-tier="${escHtml(tier)}"${tier === resultClass ? "" : ` hidden="hidden"`}>${html}</div>`
+			).join("")}
+		</div>`
+		: "";
+	const resultLegendHtml = resultLegend
+		? `<div class="stonetop-roll-card-results">${resultLegend}</div>`
 		: "";
 	const descriptionHtml = description
 		? `<div class="stonetop-roll-card-description">${description}</div>`
@@ -149,14 +194,17 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 		</div>`
 		: "";
 
-	return `<section class="pbta-chat-card stonetop-roll-card">
+	return `<section class="pbta-chat-card stonetop-roll-card${sectionClass ? ` ${sectionClass}` : ""}">
 		<div class="cell cell--chat">
 			<div class="chat-title row flexrow">
 				<h2 class="cell__title">${escHtml(header)}</h2>
+				${badge}
 				${descToggleHtml}
 			</div>
 			${descriptionHtml}
 			${bodyHtml}
+			${resultLegendHtml}
+			${tierActionsHtml}
 			${conditionsHtml}
 			${buttonsHtml}
 		</div>
@@ -187,6 +235,8 @@ function _conditionsHtml(conditions) {
  * @param {number} [options.ongoing]                   - Ongoing portion (shown separately in card)
  * @param {number} [options.statValue]                 - Explicit stat value, for nonstandard actor data
  * @param {string} [options.moveName]                  - Display name for the roll header
+ * @param {string} [options.resultLegend]              - Optional visible result legend HTML
+ * @param {object} [options.tierActions]               - Optional HTML actions keyed by result tier
  * @param {string}  [options.stonetopDebility]          - Debility name for annotation
  * @param {string}  [options.stonetopDebilityTooltip]
  * @param {boolean} [options.noXpOnMiss]               - Skip the automatic +1 XP on a miss (for moves that replace it)
@@ -255,6 +305,8 @@ export async function rollStat(statKey, actor, options = {}) {
 		resultClass: result.key,
 		resultDetail,
 		resultOutcomes,
+		resultLegend: options.resultLegend ?? "",
+		tierActions: options.tierActions ?? null,
 		conditionsHtml,
 		buttons: true,
 		total: roll.total,
@@ -266,6 +318,7 @@ export async function rollStat(statKey, actor, options = {}) {
 	const resultMessage = await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
 		flavor,
+		flags:    options.messageFlags ?? undefined,
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 
@@ -299,7 +352,6 @@ export async function rollStat(statKey, actor, options = {}) {
 		});
 	}
 
-	await maybePromptAsteriskMove(actor, moveName, total);
 	await maybeRemindPotentialForGreatness(actor, statKey, total);
 
 	return roll;
@@ -345,7 +397,7 @@ export async function rollDamage(formula, actor, options = {}) {
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, buttons: true, total: roll.total, formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: _conditionsHtml(conditions) }),
+		flavor:   _rollCard({ header: label, buttons: true, total: roll.total, formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: _conditionsHtml(conditions), badge: damageBadge(), sectionClass: "stonetop-damage-roll-card" }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 

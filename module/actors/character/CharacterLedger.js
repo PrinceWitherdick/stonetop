@@ -1,3 +1,5 @@
+import { BEAST_CATALOG } from "../../data/beasts.js";
+
 const LEDGER_SCOPE = "stonetop_pwd";
 const LEDGER_KEY = "ledger";
 const LEDGER_MAX_ENTRIES = 300;
@@ -67,13 +69,31 @@ const MOVE_RESOURCE_PREFIX = "flags.stonetop_pwd.moves.backgroundChoices.";
 const MOVE_MARKS_PREFIX = "flags.stonetop_pwd.moves.moveMarks.";
 const BACKGROUND_CHOICES_PREFIX = "flags.stonetop_pwd.background.choices.";
 const INITIATES_LOYALTY_PREFIX = "flags.stonetop_pwd.initiatesLoyalty.";
+const INITIATES_HP_PREFIX = "flags.stonetop_pwd.initiatesHp.";
+const INITIATES_READINESS_PREFIX = "flags.stonetop_pwd.initiatesReadiness.";
 const ANIMAL_COMPANION_PREFIX = "flags.stonetop_pwd.animalCompanion.";
 const CREW_PREFIX = "flags.stonetop_pwd.crew.";
+// Custom followers (walkthrough / monster conversion / arcana summon) keep their
+// Loyalty, current HP and Readiness inside one per-id record; beast/livestock
+// followers track theirs per catalog slug. Neither had ledger coverage, so a
+// Strengthen Your Bond or an HP change on them went unrecorded — these prefixes
+// (and the entry builders below) close that gap.
+const CUSTOM_FOLLOWERS_PREFIX = "flags.stonetop_pwd.customFollowers.";
+const BEAST_LOYALTY_PREFIX = "flags.stonetop_pwd.beastLoyalty.";
+const BEAST_HP_PREFIX = "flags.stonetop_pwd.beastHp.";
+const BEAST_READINESS_PREFIX = "flags.stonetop_pwd.beastReadiness.";
 const POSSESSION_USES_PREFIX = "flags.stonetop_pwd.possessions.uses.";
 const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.";
 const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
 const POSSESSION_SELECTED_PATH = `flags.${LEDGER_SCOPE}.possessions.selected`;
 const POSSESSION_CUSTOM_PATH = `flags.${LEDGER_SCOPE}.possessions.custom`;
+// Arcana marks all live under the arcana namespace keyed by arcanum slug: the ◇/○/□ track
+// boxes (booleans, "<slug>:<context>:<index>"), the front unlock requirements, and the back
+// power options (both counts, "<slug>:<optionSlug>"). Resolve the slug to the card's tier +
+// title so a tick reads "Minor Arcana The Key: … master your fear selected" not "Arcana …".
+const ARCANA_BOXES_PREFIX = `flags.${LEDGER_SCOPE}.arcana.boxes.`;
+const ARCANA_UNLOCK_PREFIX = `flags.${LEDGER_SCOPE}.arcana.unlock.`;
+const ARCANA_BACK_OPTIONS_PREFIX = `flags.${LEDGER_SCOPE}.arcana.backOptions.`;
 
 function normalizeFlagPath(path) {
 	return String(path ?? "").replace(/^flags\.stonetop\./, `flags.${LEDGER_SCOPE}.`);
@@ -195,6 +215,16 @@ function firstLabelPart(value) {
 	return (stripHtml(value) ?? "").split(",")[0]?.trim() || null;
 }
 
+// Cap a long detail phrase (e.g. an arcanum's unlock-requirement sentence, which can run
+// 250+ chars) to a readable ledger length, cutting on a word boundary when one is near.
+function truncateDetail(text, max = 64) {
+	const t = String(text ?? "").trim();
+	if (t.length <= max) return t;
+	const slice = t.slice(0, max);
+	const lastSpace = slice.lastIndexOf(" ");
+	return `${(lastSpace > max * 0.6 ? slice.slice(0, lastSpace) : slice).trimEnd()}…`;
+}
+
 function getPlaybookFlags(actor, snapshot) {
 	const snapshotPlaybook = snapshot?.playbook;
 	if (snapshotPlaybook?.backgrounds || snapshotPlaybook?.crew || snapshotPlaybook?.animalCompanion) return snapshotPlaybook;
@@ -218,6 +248,7 @@ async function buildNameLookup(actor) {
 	const names = {
 		inventory: new Map(),
 		inventoryResourceTitles: new Map(),
+		arcana: new Map(),
 		possessions: new Map(),
 		possessionChoices: new Map(),
 		backgroundChoices: new Map(),
@@ -228,10 +259,12 @@ async function buildNameLookup(actor) {
 		crewIndividuals: new Map(),
 		followerFields: new Map([
 			["cost", "cost"],
+			["hpCurrent", "HP"],
 			["instinct", "instinct"],
 			["kind", "kind"],
 			["loyalty", "loyalty"],
 			["name", "name"],
+			["readiness", "Readiness"],
 			["supplies", "supplies"],
 			["tag", "tag"],
 			["tags", "tags"],
@@ -278,6 +311,25 @@ async function buildNameLookup(actor) {
 		for (const item of snapshot?.inventory?.other ?? []) {
 			if (item?.ownedId) names.inventory.set(item.ownedId, stripHtml(item.name) ?? prettifySlug(item.ownedId));
 		}
+		// Owned arcana → tier-prefixed card name ("Minor Arcana The Key") plus its front
+		// unlock-requirement and back-power option labels, so a marked box or a selected
+		// requirement names the specific card and choice in the ledger.
+		for (const section of [snapshot?.arcana?.minor, snapshot?.arcana?.major]) {
+			for (const item of section?.items ?? []) {
+				if (!item?.slug) continue;
+				const tier = item.major ? "Major Arcana" : "Minor Arcana";
+				const title = stripHtml(item.front?.title) ?? prettifySlug(item.slug);
+				const unlockOptions = new Map();
+				for (const req of item.front?.unlock?.requirements ?? []) {
+					if (req?.type === "option" && req.slug) unlockOptions.set(req.slug, truncateDetail(stripHtml(req.description) ?? prettifySlug(req.slug)));
+				}
+				const backOptions = new Map();
+				for (const opt of item.back?.options ?? []) {
+					if (opt?.slug) backOptions.set(opt.slug, truncateDetail(stripHtml(opt.description) ?? prettifySlug(opt.slug)));
+				}
+				names.arcana.set(item.slug, { subject: `${tier} ${title}`, unlockOptions, backOptions });
+			}
+		}
 		for (const possession of snapshot?.inventory?.possessions?.items ?? []) {
 			if (!possession?.slug) continue;
 			names.possessions.set(possession.slug, stripHtml(possession.label) ?? prettifySlug(possession.slug));
@@ -312,6 +364,16 @@ async function buildNameLookup(actor) {
 		addFollower("crew", crewName || "Crew");
 		for (const [index, individual] of Object.entries(getActorProperty(actor, `flags.${LEDGER_SCOPE}.crew.individuals`) ?? [])) {
 			if (individual?.name) names.crewIndividuals.set(String(index), individual.name);
+		}
+		// Custom followers (walkthrough / monster conversion / arcana summon): name from
+		// the stored record so a Loyalty/HP change reads "<Name> loyalty changed…".
+		for (const [id, data] of Object.entries(getActorProperty(actor, `flags.${LEDGER_SCOPE}.customFollowers`) ?? {})) {
+			addFollower(`custom:${id}`, data?.name || "A follower");
+		}
+		// Beast / livestock followers: name comes from the catalog by owned slug.
+		for (const slug of getActorProperty(actor, `flags.${LEDGER_SCOPE}.inventory.addedSpecial`) ?? []) {
+			const beastName = BEAST_CATALOG[slug]?.name;
+			if (beastName) names.followers.set(`beast:${slug}`, beastName);
 		}
 	} catch (err) {
 		console.warn("Stonetop | Could not build ledger name lookup", err);
@@ -393,12 +455,6 @@ function followerFieldEntry(followerName, field, oldValue, newValue) {
 	return { action: actionForField(label, oldValue, newValue) };
 }
 
-function initiateLoyaltyEntry(path, oldValue, newValue, names) {
-	const slug = path.slice(INITIATES_LOYALTY_PREFIX.length);
-	const followerName = names.followers.get(`initiate:${slug}`) ?? prettifySlug(slug);
-	return followerFieldEntry(followerName, "loyalty", oldValue, newValue);
-}
-
 function animalCompanionEntry(path, oldValue, newValue, names) {
 	const field = path.slice(ANIMAL_COMPANION_PREFIX.length).split(".")[0];
 	const followerName = names.followers.get("animalCompanion") ?? "Animal companion";
@@ -415,6 +471,35 @@ function crewEntry(path, oldValue, newValue, names) {
 	const field = key.split(".")[0];
 	const followerName = names.followers.get("crew") ?? "Crew";
 	return followerFieldEntry(followerName, names.followerFields.get(field), oldValue, newValue);
+}
+
+// Custom follower record (customFollowers.<id>.<field>). Only the play-relevant scalar
+// tracks (Loyalty / HP / Readiness) of an ALREADY-EXISTING follower become ledger lines.
+// Creation, duplicate, transfer, removal, and detail edits (name/cost/instinct/tags/…) stay
+// quiet so the ledger isn't flooded: a whole-record create/duplicate/transfer flattens into
+// one write per field, and buildNameLookup runs against the pre-update state — so a brand-new
+// follower has no entry in names.followers, and its initial-value writes are suppressed here.
+const CUSTOM_FOLLOWER_LOGGED_FIELDS = new Set(["loyalty", "hpCurrent", "readiness"]);
+
+function customFollowerEntry(path, oldValue, newValue, names) {
+	const key = path.slice(CUSTOM_FOLLOWERS_PREFIX.length);
+	const dot = key.indexOf(".");
+	const id = dot >= 0 ? key.slice(0, dot) : key;
+	const field = dot >= 0 ? key.slice(dot + 1) : "";
+	if (!CUSTOM_FOLLOWER_LOGGED_FIELDS.has(field)) return null;
+	// A brand-new follower isn't in the pre-update name map; suppressing it here keeps a
+	// whole-record create/duplicate/transfer from emitting a line per field.
+	const followerName = names.followers.get(`custom:${id}`);
+	if (!followerName) return null;
+	return followerFieldEntry(followerName, names.followerFields.get(field), oldValue, newValue);
+}
+
+// Per-slug follower track (beast / initiate Loyalty, HP, Readiness): the flag key
+// after the prefix is the follower's slug; `keyPrefix` selects its name map.
+function perSlugFollowerEntry(path, prefix, keyPrefix, field, oldValue, newValue, names) {
+	const slug = path.slice(prefix.length);
+	const followerName = names.followers.get(`${keyPrefix}:${slug}`) ?? prettifySlug(slug);
+	return followerFieldEntry(followerName, field, oldValue, newValue);
 }
 
 function possessionSelectionEntries(oldValue, newValue, names) {
@@ -480,20 +565,66 @@ function possessionChoiceUsesEntry(path, oldValue, newValue, names) {
 	return { action: `${possessionName}: ${choiceName} uses changed from ${formatValue(oldValue)} to ${formatValue(newValue)}` };
 }
 
+// "Minor Arcana The Key" for a known card, else "Arcana <Slug>" when the snapshot
+// couldn't resolve it (e.g. a card removed in the same breath as its marks clearing).
+function arcanaSubject(names, slug) {
+	return names.arcana.get(slug)?.subject ?? `Arcana ${prettifySlug(slug)}`;
+}
+
+// Describe an arcana track glyph by side, kind, and 1-based position — the boxes carry no
+// authored label of their own, only their glyph (◇ diamond, ○ circle, □ box) and index.
+function arcanaBoxDetail(context, index) {
+	const n = Number(index) + 1;
+	if (context === "unlock") return `unlock ${n}`;
+	const side = context.startsWith("back") ? "back" : "front";
+	const kind = context.endsWith("Diamond") ? "diamond" : context.endsWith("Circle") ? "circle" : "box";
+	return `${side} ${kind} ${n}`;
+}
+
+function arcanaBoxEntry(path, oldValue, newValue, names) {
+	const [slug, context = "", index = ""] = path.slice(ARCANA_BOXES_PREFIX.length).split(":");
+	if (!!oldValue === !!newValue) return null;
+	return { action: `${arcanaSubject(names, slug)}: ${arcanaBoxDetail(context, index)} ${newValue ? "marked" : "unmarked"}` };
+}
+
+// Front unlock requirements and back power options are count tracks keyed "<slug>:<option>".
+// They can hold more than one mark, so describe each change as a mark added or removed — not
+// "selected/deselected", which would wrongly read as the whole option turning off when a
+// multi-mark option merely drops a mark (e.g. 3 → 2). `optionField` picks which label map
+// (unlockOptions / backOptions) names the specific choice.
+function arcanaOptionEntry(path, prefix, optionField, oldValue, newValue, names) {
+	const key = path.slice(prefix.length);
+	const colon = key.indexOf(":");
+	const slug = colon >= 0 ? key.slice(0, colon) : key;
+	const optionSlug = colon >= 0 ? key.slice(colon + 1) : "";
+	const label = names.arcana.get(slug)?.[optionField]?.get(optionSlug) ?? prettifySlug(optionSlug);
+	const marked = Number(newValue ?? 0) > Number(oldValue ?? 0);
+	return { action: `${arcanaSubject(names, slug)}: ${label} ${marked ? "marked" : "unmarked"}` };
+}
+
 function granularEntriesForPath(path, oldValue, newValue, names) {
 	if (path.startsWith(INVENTORY_CHECKED_PREFIX)) return [inventorySelectionEntry(path, oldValue, newValue, names)].filter(Boolean);
 	if (path.startsWith(INVENTORY_RESOURCE_PREFIX)) return [inventoryResourceEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(MOVE_RESOURCE_PREFIX)) return [moveResourceEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(MOVE_MARKS_PREFIX)) return moveMarkEntries(path, oldValue, newValue, names);
 	if (path.startsWith(BACKGROUND_CHOICES_PREFIX)) return [backgroundChoiceEntry(path, oldValue, newValue, names)].filter(Boolean);
-	if (path.startsWith(INITIATES_LOYALTY_PREFIX)) return [initiateLoyaltyEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(INITIATES_LOYALTY_PREFIX)) return [perSlugFollowerEntry(path, INITIATES_LOYALTY_PREFIX, "initiate", "loyalty", oldValue, newValue, names)];
+	if (path.startsWith(INITIATES_HP_PREFIX)) return [perSlugFollowerEntry(path, INITIATES_HP_PREFIX, "initiate", "HP", oldValue, newValue, names)];
+	if (path.startsWith(INITIATES_READINESS_PREFIX)) return [perSlugFollowerEntry(path, INITIATES_READINESS_PREFIX, "initiate", "Readiness", oldValue, newValue, names)];
 	if (path.startsWith(ANIMAL_COMPANION_PREFIX)) return [animalCompanionEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(CREW_PREFIX)) return [crewEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(CUSTOM_FOLLOWERS_PREFIX)) return [customFollowerEntry(path, oldValue, newValue, names)].filter(Boolean);
+	if (path.startsWith(BEAST_LOYALTY_PREFIX)) return [perSlugFollowerEntry(path, BEAST_LOYALTY_PREFIX, "beast", "loyalty", oldValue, newValue, names)];
+	if (path.startsWith(BEAST_HP_PREFIX)) return [perSlugFollowerEntry(path, BEAST_HP_PREFIX, "beast", "HP", oldValue, newValue, names)];
+	if (path.startsWith(BEAST_READINESS_PREFIX)) return [perSlugFollowerEntry(path, BEAST_READINESS_PREFIX, "beast", "Readiness", oldValue, newValue, names)];
 	if (path === POSSESSION_SELECTED_PATH) return possessionSelectionEntries(oldValue, newValue, names);
 	if (path === POSSESSION_CUSTOM_PATH) return possessionCustomEntries(oldValue, newValue);
 	if (path.startsWith(POSSESSION_USES_PREFIX)) return [possessionUsesEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(POSSESSION_SUBCHOICES_PREFIX)) return possessionSubchoiceEntries(path, oldValue, newValue, names);
 	if (path.startsWith(POSSESSION_CHOICE_USES_PREFIX)) return [possessionChoiceUsesEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(ARCANA_BOXES_PREFIX)) return [arcanaBoxEntry(path, oldValue, newValue, names)].filter(Boolean);
+	if (path.startsWith(ARCANA_UNLOCK_PREFIX)) return [arcanaOptionEntry(path, ARCANA_UNLOCK_PREFIX, "unlockOptions", oldValue, newValue, names)];
+	if (path.startsWith(ARCANA_BACK_OPTIONS_PREFIX)) return [arcanaOptionEntry(path, ARCANA_BACK_OPTIONS_PREFIX, "backOptions", oldValue, newValue, names)];
 	return null;
 }
 

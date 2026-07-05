@@ -30,6 +30,14 @@ global.Hooks = {
 	on: () => {},
 };
 
+// Foundry's always-present notifications global. Production code calls
+// `ui.notifications?.info?.(…)` with a bare `ui` reference, so `ui` itself must
+// exist or it ReferenceErrors under node. No-ops by default; tests that assert on
+// notifications reassign `global.ui` with their own spies.
+global.ui = {
+	notifications: { info: () => {}, warn: () => {}, error: () => {} },
+};
+
 global.CONFIG = {};
 
 global.foundry = {

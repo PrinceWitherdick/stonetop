@@ -7,10 +7,15 @@ import { escHtml } from "./strings.js";
  * search in one place so the two dialogs can't drift apart.
  */
 
-/** Build the `<option>` list for the ledger "filter by subject" dropdown. */
+/**
+ * Build the `<option>` list for the ledger "filter by subject" dropdown. Each
+ * subject appears once, labelled by noun alone — the per-noun entry count is
+ * omitted, since the trailing "(3)" reads as a distinct filter ("XP (1)" vs
+ * "XP (2)") rather than a tally of how many entries share the subject.
+ */
 export function ledgerNounOptionsHtml(entries) {
 	return ledgerNounCounts(entries)
-		.map(({ noun, count }) => `<option value="${escHtml(noun)}">${escHtml(noun)} (${count})</option>`)
+		.map(({ noun }) => `<option value="${escHtml(noun)}">${escHtml(noun)}</option>`)
 		.join("");
 }
 

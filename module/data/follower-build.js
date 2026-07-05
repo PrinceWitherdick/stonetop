@@ -35,12 +35,23 @@ export const FOLLOWER_ARMOR_MODS = [
 ];
 
 // ── Step 5: damage (p.477) ───────────────────────────────────────────────────
-// "How dangerous are they? (pick 1)". Range and other tags come from gear, so
-// the player appends a free-text form ("hand", "near, low ammo") themselves.
+// "How dangerous are they? (pick 1)". Range and other tags come from gear.
 export const FOLLOWER_DAMAGE_OPTIONS = [
 	{ key: "weak",    label: "Not very",                  die: "d4" },
 	{ key: "defends", label: "Can defend themselves",     die: "d6" },
 	{ key: "veteran", label: "Veteran fighter or predator", die: "d8" },
+];
+
+// "Range and other tags come from their gear." Offered as chips on the damage
+// step (grounded in the weapon ranges & tags used across Stonetop's gear); the
+// player can also type their own. Selected chips + custom entries become the
+// damage parenthetical, e.g. d6 (near, low ammo, forceful).
+export const FOLLOWER_DAMAGE_TAG_GROUPS = [
+	{ label: "Range", tags: ["hand", "close", "reach", "near", "far"] },
+	{ label: "Gear tags", tags: [
+		"forceful", "messy", "piercing", "thrown", "reload", "low ammo",
+		"precise", "slow", "stun", "dangerous", "awkward", "grabby",
+	] },
 ];
 
 // ── Step 2: tags (p.476) ─────────────────────────────────────────────────────
@@ -164,11 +175,17 @@ export function buildCustomFollower(input = {}) {
 			? { label: g.trim(), checked: false }
 			: { label: String(g?.label ?? "").trim(), checked: !!g?.checked }))
 		.filter(g => g.label);
+	// Group followers (NPCs & Followers p.470): a warband, posse, or converted
+	// group-organization monster. `isGroup` turns on the roster + group-fight tools
+	// (per-member HP against the shared `hpMax`, an abstracted group-HP pool, and the
+	// outnumber calculator); `size` is the headcount. A group is at least 2 strong.
+	const isGroup = !!input.isGroup;
+	const size = isGroup ? Math.max(2, Math.trunc(Number(input.size) || 0) || 2) : 0;
 	return {
 		name:         String(input.name ?? "").trim(),
 		pronoun:      String(input.pronoun ?? "").trim(),
-		typeLabel:    String(input.typeLabel ?? "").trim() || "follower",
-		portraitIcon: String(input.portraitIcon ?? "").trim() || "fas fa-user",
+		typeLabel:    String(input.typeLabel ?? "").trim() || (isGroup ? "group follower" : "follower"),
+		portraitIcon: String(input.portraitIcon ?? "").trim() || (isGroup ? "fas fa-users" : "fas fa-user"),
 		tags:         normalizeTags(input.tags),
 		hpMax,
 		hpCurrent,
@@ -181,6 +198,8 @@ export function buildCustomFollower(input = {}) {
 		gear,
 		butcher:      input.butcher ? String(input.butcher).trim() : null,
 		loyalty:      Math.max(0, Math.trunc(Number(input.loyalty) || 0)),
+		isGroup,
+		size,
 		sourceUuid:   input.sourceUuid ? String(input.sourceUuid) : null,
 	};
 }
@@ -213,8 +232,41 @@ export function orderFollowersBonus({ helps = 0, hinders = 0, exceptional = fals
 // builders and the on-sheet tooltips read the same numbers.
 export const READINESS_BASE_CAP = 3;
 export const READINESS_SHIELD_BONUS = 1;
-export function readinessCap(hasShield = false) {
-	return READINESS_BASE_CAP + (hasShield ? READINESS_SHIELD_BONUS : 0);
+// The Marshal's "Shield Wall" upgrades the shield bonus from +1 to +2 (they hold +2
+// Readiness on a 7+ "instead of the usual +1 for shields"), so a Shield-Wall crew
+// with shields can hold up to 5 — the cap has to allow it.
+export const READINESS_SHIELD_WALL_BONUS = 2;
+export function readinessCap(hasShield = false, shieldBonus = READINESS_SHIELD_BONUS) {
+	return READINESS_BASE_CAP + (hasShield ? shieldBonus : 0);
+}
+// The move whose presence grants a crew the Shield-Wall Readiness bonus. Kept as data
+// (like FOLLOWER_EXCEPTIONAL's move names) so the sheet doesn't hardcode the literal.
+export const SHIELD_WALL_MOVE = "Shield Wall";
+
+// ── Outnumber bonus (Followers in Fights / Dangers, Book I p.416) ─────────────
+// A group that outnumbers its foe gets +1 damage AND +1 armor for each whole
+// multiplier past 1:1 (3:1 → +2). The armor half is a fiction note (nothing auto-
+// applies it); only the damage rewrites the group's roll. Shared by the crew /
+// custom-group follower cards and the monster stat block's group-fight tools, so
+// the rule, the readout string, and the roll rebuild can't drift between them.
+export function outnumberBonus(yours, theirs) {
+	const y = Math.max(1, parseInt(yours)  || 1);
+	const t = Math.max(1, parseInt(theirs) || 1);
+	const bonus = Math.max(0, Math.floor(y / t) - 1);
+	return {
+		bonus,
+		label:   bonus > 0 ? `+${bonus} damage, +${bonus} armor` : "no bonus",
+		rollFor: (base) => bonus > 0 ? `${base || "d6"}+${bonus}` : String(base || "d6"),
+	};
+}
+
+// Next creation-order stamp for a custom follower: one past the largest existing
+// `order` in the map, floored at Date.now() so two followers added the same
+// millisecond still sort by insertion. Shared by the sheet and the dialogs that
+// materialize followers (Requisition / arcana / possession summons).
+export function nextFollowerOrder(existing = {}) {
+	const max = Object.values(existing).reduce((m, f) => Math.max(m, Number(f?.order) || 0), 0);
+	return Math.max(max + 1, Date.now());
 }
 
 // A monster's flavor tags are its tag string minus the organization and size,
@@ -259,6 +311,22 @@ export function followerFromMonster(monster = {}, opts = {}) {
 		instinct:     String(attrs.instinct?.value ?? "").trim(),
 		moves:        (Array.isArray(monster.moves) ? monster.moves : []).join("\n"),
 		cost:         opts.cost ?? "",
+		// A group- or horde-organization monster keeps its group identity as a
+		// follower (the roster + group-fight tools), instead of collapsing to one
+		// creature. The conversion dialog decides this from system.organization.
+		isGroup:      !!opts.isGroup,
+		size:         opts.size,
 		sourceUuid:   monster.uuid ?? null,
 	});
+}
+
+// Whether a monster's organization means it should become a GROUP follower, and a
+// sensible starting headcount for it (NPCs & Followers p.470; the exact number is
+// a table call, so these are just defaults the conversion dialog pre-fills).
+export function monsterGroupDefaults(system = {}) {
+	const org = String(system.organization ?? "").trim().toLowerCase();
+	const count = Math.trunc(Number(system.count) || 0);
+	if (org === "horde") return { isGroup: true, size: count > 1 ? count : 6 };
+	if (org === "group") return { isGroup: true, size: count > 1 ? count : 3 };
+	return { isGroup: false, size: 0 };
 }

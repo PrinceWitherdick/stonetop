@@ -10,6 +10,7 @@ import { OutfitItemBuilder } from "../../model/OutfitItem.js";
 import { majorArcanaImg, isMajorArcanumItem, arcanumCardImg } from "../../arcana-icons.js";
 import { arcanaSummonFollowers } from "../../data/arcana-summons.js";
 import { centerArcanumTracks } from "../../utils/glyphs.js";
+import { stonetopChatCard } from "../../utils/chat.js";
 
 function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
 	const reqs = item.front.unlock?.requirements ?? [];
@@ -86,7 +87,7 @@ export class CharacterArcana {
 	}
 
 	get ownedSlugs()       { return new Set(this._flags.getFlag("owned") ?? []); }
-	get flippedSlugs()     { return new Set(this._flags.getFlag("flipped") ?? []); }
+	get revealedSlugs()    { return new Set(this._flags.getFlag("revealed") ?? []); }
 	get identifiedSlugs()  { return new Set(this._flags.getFlag("identified") ?? []); }
 	get unlockCounts()     { return this._flags.getFlag("unlock") ?? {}; }
 	get backOptionCounts() { return this._flags.getFlag("backOptions") ?? {}; }
@@ -122,7 +123,6 @@ export class CharacterArcana {
 
 	async buildSnapshot(stats = {}, checkedMap = {}, inventoryResources = {}) {
 		const ownedSlugs       = this.ownedSlugs;
-		const flippedSlugs     = this.flippedSlugs;
 		const identifiedSlugs  = this.identifiedSlugs;
 		const unlockCounts     = this.unlockCounts;
 		const backOptionCounts = this.backOptionCounts;
@@ -131,8 +131,6 @@ export class CharacterArcana {
 		const fetchedItems = await this._arcanaRepo.findBySlugs([...ownedSlugs]);
 
 		const allItems = fetchedItems.map(item => {
-			const flipped = flippedSlugs.has(item.slug);
-
 			const unlockItems = (item.front.unlock?.requirements ?? []).map(li => {
 				if (li.type === "text") return new ArcanaUnlockTextItem(li.content);
 				const count = unlockCounts[`${item.slug}:${li.slug}`] ?? 0;
@@ -231,7 +229,6 @@ export class CharacterArcana {
 				.withFront(front)
 				.withBack(back)
 				.withOwned(true)
-				.withFlipped(flipped)
 				.withChecked(checkedMap[item.slug] ?? false)
 				.withUnlocked(unlocked)
 				.withIdentified(identifiedSlugs.has(item.slug))
@@ -260,14 +257,29 @@ export class CharacterArcana {
 	}
 
 	async removeArcanum(slug) {
-		const owned = this.ownedSlugs;
-		owned.delete(slug);
-		const identified = this.identifiedSlugs;
-		identified.delete(slug);
-		await Promise.all([
-			this._flags.setFlag("owned", [...owned]),
-			this._flags.setFlag("identified", [...identified]),
-		]);
+		// Clear every per-card trace of this slug, not just owned/identified. Leaving the reveal
+		// flag or the unlock/mark maps behind means re-acquiring the same arcanum later (a fresh
+		// drop or level-up pick) silently restores a GM-revealed back, or a fully-unlocked/marked
+		// state, with no GM action — a spoiler leak plus stale marks.
+		//
+		// Batched into ONE actor.update so removing a card is a single document write / sheet
+		// re-render, not ~10 sequential setFlag/unsetFlag calls each re-rendering the open sheet.
+		const prefix = `${slug}:`;
+		const sets = {}, deletes = {};
+		// Slug arrays: writing the filtered array replaces it wholesale (mergeObject doesn't
+		// deep-merge arrays), dropping the slug.
+		for (const key of ["owned", "identified", "revealed", "flipped"]) {
+			const cur = this._flags.getFlag(key) ?? [];
+			if (cur.includes(slug)) sets[key] = cur.filter(s => s !== slug);
+		}
+		// Keyed maps ("<slug>:…" keys): an update MERGES, so it can't drop a key — delete each
+		// removed sub-key with the "-=key" syntax (see setArcanumBoxChecked's mergeObject note).
+		for (const key of ["unlock", "boxes", "backOptions"]) {
+			const cur = this._flags.getFlag(key) ?? {};
+			const drop = Object.keys(cur).filter(k => k === slug || k.startsWith(prefix));
+			if (drop.length) deletes[key] = drop;
+		}
+		await this._flags.batch({ sets, deletes });
 	}
 
 	async identifyArcanum(slug) {
@@ -276,16 +288,40 @@ export class CharacterArcana {
 		await this._flags.setFlag("identified", [...s]);
 	}
 
-	async flipArcanum(slug) {
-		const s = this.flippedSlugs;
-		s.add(slug);
-		await this._flags.setFlag("flipped", [...s]);
+	// Mark a card as fully realized ("mastered"): satisfy every option unlock requirement and
+	// fill its unlock circles so _isUnlocked() reports true. Used at onboarding for the Seeker's
+	// mastered minor, which begins play already realized — it carries its back item and its back
+	// is visible to the owner. No-op if the slug can't be resolved to a pack/world arcanum.
+	async masterArcanum(slug) {
+		const item = await this.getArcanum(slug);
+		if (!item) return;
+		const unlock = { ...this.unlockCounts };
+		for (const req of item.front?.unlock?.requirements ?? []) {
+			if (req?.type === "option" && req.slug) unlock[`${slug}:${req.slug}`] = req.max ?? 1;
+		}
+		const circleCount = (item.front?.unlock?.description?.match(_UNLOCK_CIRCLE_RE) || []).length;
+		const boxes = { ...(this._flags.getFlag("boxes") ?? {}) };
+		for (let i = 0; i < circleCount; i++) boxes[`${slug}:unlock:${i}`] = true;
+		await Promise.all([
+			this._flags.setFlag("unlock", unlock),
+			this._flags.setFlag("boxes", boxes),
+		]);
 	}
 
-	async unflipArcanum(slug) {
-		const s = this.flippedSlugs;
+	// GM-only: in secretive mode, expose / hide a still-LOCKED card's back to the owning
+	// player (an unlocked back is always visible to its owner, and with the peek setting on
+	// players see backs anyway, so the reveal toggle only shows for a locked card while the
+	// setting is off). The GM always sees both sides regardless.
+	async revealArcanum(slug) {
+		const s = this.revealedSlugs;
+		s.add(slug);
+		await this._flags.setFlag("revealed", [...s]);
+	}
+
+	async hideArcanum(slug) {
+		const s = this.revealedSlugs;
 		s.delete(slug);
-		await this._flags.setFlag("flipped", [...s]);
+		await this._flags.setFlag("revealed", [...s]);
 	}
 
 	async setUnlockCount(arcanumSlug, optionSlug, count) {
@@ -313,31 +349,40 @@ export class CharacterArcana {
 
 		if (flipped) {
 			const { title, description, move } = item.back;
-			let html = `<div class="stonetop-arcanum-chat-card"><h3 class="stonetop-arcanum-chat-title">${title}</h3>${description ?? ""}`;
-			if (move) html += `<p class="stonetop-arcanum-move-trigger"><strong><em>${move.name}</em></strong></p>${move.description ?? ""}`;
-			return html + `</div>`;
+			let body = `<div class="card-content">${description ?? ""}`;
+			if (move) body += `<p class="stonetop-arcanum-move-trigger"><strong><em>${move.name}</em></strong></p>${move.description ?? ""}`;
+			return stonetopChatCard(title, body + `</div>`, "stonetop-arcanum-chat-card");
 		} else {
 			const { title, description, unlock } = item.front;
-			let html = `<div class="stonetop-arcanum-chat-card"><h3 class="stonetop-arcanum-chat-title">${title}</h3>${description ?? ""}`;
+			let body = `<div class="card-content">${description ?? ""}`;
 			if (unlock?.description) {
-				html += `<p class="stonetop-arcanum-unlock-lead">${unlock.description}</p>`;
+				body += `<p class="stonetop-arcanum-unlock-lead">${unlock.description}</p>`;
 				const reqs = unlock.requirements ?? [];
 				if (reqs.length) {
 					const items = reqs.map(r => `<li>${r.type === "text" ? r.content : r.description}</li>`).join("");
-					html += `<ul class="stonetop-arcanum-unlock-list">${items}</ul>`;
+					body += `<ul class="stonetop-arcanum-unlock-list">${items}</ul>`;
 				}
 			}
-			return html + `</div>`;
+			return stonetopChatCard(title, body + `</div>`, "stonetop-arcanum-chat-card");
 		}
 	}
 
 	async weightedInventoryItems() {
 		const ownedSlugs   = this.ownedSlugs;
-		const flippedSlugs = this.flippedSlugs;
+		const identified   = this.identifiedSlugs;
+		const unlockCounts = this.unlockCounts;
+		const arcanaBoxes  = this._flags.getFlag("boxes") ?? {};
 		const items = await this._arcanaRepo.findBySlugs([...ownedSlugs]);
 		return items.flatMap(item => {
-			const flipped  = flippedSlugs.has(item.slug);
-			const sideItem = flipped ? item.back.item : item.front.item;
+			// Which side's item you carry follows the card's unlock state, not the old manual
+			// flip: a card realises its back-side item once unlocked, otherwise it's the front
+			// item. Gate on identified too, so an unidentified face-down mystery always shows its
+			// front curio — a homebrew card whose unlock is vacuously satisfied (no options, no
+			// circles) can't leak its back item before it's even identified. circleCount reuses
+			// buildSnapshot's shared ○-marker regex so the two counts can't drift.
+			const circleCount = (item.front.unlock?.description?.match(_UNLOCK_CIRCLE_RE) || []).length;
+			const unlocked = identified.has(item.slug) && _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount);
+			const sideItem = (unlocked && item.back.item) ? item.back.item : item.front.item;
 			if (!sideItem?.name) return [];
 			return [new OutfitItemBuilder()
 				.withSlug(item.slug)

@@ -45,6 +45,62 @@ describe("StonetopCharacter.updateName", () => {
 	});
 });
 
+describe("StonetopCharacter.addDroppedInventoryItem", () => {
+	it("creates a rendered custom inventory item from a dropped inventory card", async () => {
+		const actor = new FakeActorBuilder().build();
+		const char = new TestCharacterBuilder(actor).build();
+
+		await char.addDroppedInventoryItem({
+			name: "Sword, iron",
+			type: "move",
+			system: { moveType: "inventory" },
+			flags: {
+				stonetop: {
+					inventoryColumn: "regular",
+					weight: 1,
+					note: "<em>iron</em>, <em>hand</em>, <em>close</em>, +1 damage",
+					armor: { modifier: 1 },
+					resource: { max: 3, title: "Uses", labels: ["some", "last", "out"] },
+				},
+			},
+		});
+
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [{
+			name: "Sword, iron",
+			type: "move",
+			system: {
+				moveType: "inventory-custom",
+				inventoryColumn: "regular",
+				weight: 1,
+				note: "<em>iron</em>, <em>hand</em>, <em>close</em>, +1 damage",
+				resource: { max: 3, title: "Uses", labels: ["some", "last", "out"] },
+				armor: { modifier: 1 },
+			},
+		}]);
+	});
+
+	it("creates small dropped inventory items in the small column without load weight", async () => {
+		const actor = new FakeActorBuilder().build();
+		const char = new TestCharacterBuilder(actor).build();
+
+		await char.addDroppedInventoryItem({
+			name: "Awl",
+			type: "move",
+			system: { moveType: "inventory" },
+			flags: { stonetop: { inventoryColumn: "small", weight: 1 } },
+		});
+
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [{
+			name: "Awl",
+			type: "move",
+			system: {
+				moveType: "inventory-custom",
+				inventoryColumn: "small",
+			},
+		}]);
+	});
+});
+
 // -- buildSnapshot (playbook display fields) ----------------------------------
 
 describe("StonetopCharacter.buildSnapshot — playbook display fields", () => {

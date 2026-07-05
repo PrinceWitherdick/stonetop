@@ -18,8 +18,26 @@ export class CharacterInventory {
 		await this._flags.setFlag("checked", { ...this.checked, [slug]: isChecked });
 	}
 
-	async setResource(slug, count) {
-		await this._flags.setFlag("resources", { ...this.resources, [slug]: count });
+	async setResource(slug, count, options) {
+		// Targeted sub-key write (not a spread of the whole resources object) so two near-
+		// simultaneous writes to different tracks can't clobber each other's value.
+		await this._flags.setSubKey("resources", slug, count, options);
+	}
+
+	// Drop a removed arcanum's resource tracks (the back-power track keyed by slug and the
+	// back-item ammo track keyed "<slug>:item"), so a later re-acquire doesn't inherit stale
+	// charges. No-op when the card had no tracks.
+	async clearArcanumResources(slug) {
+		const resources = this.resources;
+		const itemKey = `${slug}:item`;
+		const kept = Object.entries(resources).filter(([k]) => k !== slug && k !== itemKey);
+		if (kept.length !== Object.keys(resources).length) {
+			// setFlag MERGES, so writing the smaller object leaves the removed slug/"<slug>:item"
+			// keys in place (see CharacterArcana.removeArcanum). Unset the whole map, then re-set
+			// the survivors, so a later re-acquire can't inherit stale charges.
+			await this._flags.unsetFlag("resources");
+			if (kept.length) await this._flags.setFlag("resources", Object.fromEntries(kept));
+		}
 	}
 
 	async setRegularPool(count) {

@@ -13,8 +13,10 @@
 			<div class="steading-statsbar-pair steading-edit-section{{#unless stonetop.edit.surplusFortunes}} stonetop-readonly{{/unless}}">
 				{{> "stonetop.steading-section-toggle" section="surplusFortunes" editing=stonetop.edit.surplusFortunes}}
 				<div class="steading-surplus-block">
-					<label class="steading-stat-label" data-steading-stat="surplus">Surplus</label>
-					<span class="steading-stat-hint">Starts at 1</span>
+					<div class="steading-stat-label-row">
+						<label class="steading-stat-label" data-steading-stat="surplus">Surplus</label>
+						{{#if stonetop.edit.surplusFortunes}}<span class="steading-stat-hint">Starts at 1</span>{{/if}}
+					</div>
 					{{#if stonetop.edit.surplusFortunes}}
 					<input class="steading-surplus-input" type="number" name="system.attributes.surplus.value"
 					       value="{{stonetop.system.attributes.surplus.value}}" min="0" max="99">
@@ -25,7 +27,7 @@
 				<div class="steading-stat-block">
 					<div class="steading-stat-label-row">
 						<span class="steading-stat-label" data-steading-stat="fortunes">Fortunes</span>
-						<span class="steading-stat-hint">Starts at +1</span>
+						{{#if stonetop.edit.surplusFortunes}}<span class="steading-stat-hint">Starts at +1</span>{{/if}}
 					</div>
 					<div class="steading-track">
 						{{#each (steadingTrack stonetop.system.stats.fortunes.value 1)}}
@@ -44,7 +46,7 @@
 				<div class="steading-stat-block">
 					<div class="steading-stat-label-row">
 						<span class="steading-stat-label" data-steading-stat="size">Size</span>
-						<span class="steading-stat-hint">Starts at village</span>
+						{{#if stonetop.edit.sizePopulation}}<span class="steading-stat-hint">Starts at village</span>{{/if}}
 					</div>
 					<div class="steading-size-options">
 						<label class="steading-size-option">
@@ -72,7 +74,7 @@
 				<div class="steading-stat-block">
 					<div class="steading-stat-label-row">
 						<span class="steading-stat-label" data-steading-stat="population">Population</span>
-						<span class="steading-stat-hint">Starts at +0</span>
+						{{#if stonetop.edit.sizePopulation}}<span class="steading-stat-hint">Starts at +0</span>{{/if}}
 					</div>
 					<div class="steading-track">
 						{{#each (steadingTrack stonetop.system.attributes.population.value 0)}}
@@ -92,7 +94,7 @@
 						{{> "stonetop.steading-section-toggle" section="defenses" editing=stonetop.edit.defenses}}
 						<div class="steading-stat-label-row">
 							<span class="steading-stat-label" data-steading-stat="defenses">Defenses</span>
-							<span class="steading-stat-hint">Starts at +0</span>
+							{{#if stonetop.edit.defenses}}<span class="steading-stat-hint">Starts at +0</span>{{/if}}
 						</div>
 						<div class="steading-track">
 							{{#each (steadingDefenseTrack stonetop.system.stats.defenses.value 0)}}
@@ -137,7 +139,7 @@
 					{{> "stonetop.steading-section-toggle" section="prosperity" editing=stonetop.edit.prosperity}}
 					<div class="steading-stat-label-row">
 						<span class="steading-stat-label" data-steading-stat="prosperity">Prosperity</span>
-						<span class="steading-stat-hint">Starts at +0</span>
+						{{#if stonetop.edit.prosperity}}<span class="steading-stat-hint">Starts at +0</span>{{/if}}
 					</div>
 					<div class="steading-track">
 						{{#each (steadingTrack stonetop.system.attributes.prosperity.value 0)}}

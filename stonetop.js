@@ -18,6 +18,8 @@ import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopB
 import { createStonetopLocationPageSheetClass } from "./module/journal/StonetopLocationPageSheet.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
+import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
+import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
@@ -26,7 +28,9 @@ import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
-import { rollSeasonsCard, SPRING_SEASONS_RESULT } from "./module/utils/roll-engine.js";
+import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT } from "./module/utils/roll-engine.js";
+import { formatOutcomeDetail } from "./module/utils/strings.js";
+import { wireAttackConfirm, wireApplyDamage, wireSufferAttack } from "./module/combat/attack-flow.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
@@ -35,7 +39,8 @@ import { SETTING_OVERVIEW_JOURNAL } from "./module/utils/seeded-journals.js";
 import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
 import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
-import { crossOffWouldBe, WBH_HERO_FLAG } from "./module/actors/character/WouldBeHeroAsterisk.js";
+import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
+import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
 
@@ -62,6 +67,7 @@ Hooks.once("init", () => {
 	Handlebars.registerHelper("eq", (a, b) => a === b);
 	Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
 	Handlebars.registerHelper("and", (...args) => args.slice(0, -1).every(Boolean));
+	Handlebars.registerHelper("not", value => !value);
 
 	const _STAT_LABEL_KEYS = {
 		str: "stonetop.character.stats.strength",
@@ -215,6 +221,7 @@ Hooks.once("init", () => {
 		"stonetop.tab-post-death":      "systems/stonetop_pwd/templates/actor/partials/tab-post-death.hbs",
 		"stonetop.tab-special-moves":   "systems/stonetop_pwd/templates/actor/partials/tab-special-moves.hbs",
 		"stonetop.move-group":           "systems/stonetop_pwd/templates/actor/partials/move-group.hbs",
+		"stonetop.tab-search-control":   "systems/stonetop_pwd/templates/actor/partials/tab-search-control.hbs",
 		"stonetop.move-mark-level":      "systems/stonetop_pwd/templates/actor/partials/move-mark-level.hbs",
 		"stonetop.sidebar-move-list":    "systems/stonetop_pwd/templates/actor/partials/sidebar-move-list.hbs",
 		"stonetop.lore-section":          "systems/stonetop_pwd/templates/actor/partials/lore-section.hbs",
@@ -255,6 +262,16 @@ Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDesc
 
 // -- RENDER ACTOR SHEET ----------------------------------------
 Hooks.on("renderActorSheet", onRenderActorSheet);
+
+// -- HOTBAR DROP -----------------------------------------------
+// Turn a learned move dragged from a character sheet onto the macro hotbar into a
+// script macro that re-rolls it (game.stonetop.rollMoveMacro, wired in Ready.js).
+Hooks.on("hotbarDrop", onHotbarDrop);
+
+// -- PLACE OF INTEREST → SCENE NOTE ----------------------------
+// Drag a "Places of Interest" disc from the steading Overview tab onto the canvas to
+// drop a lettered map note whose label (the place name) shows on hover.
+Hooks.on("dropCanvasData", onDropPlaceOfInterest);
 
 // -- LOCATION CROSS-LINK TOOLTIPS ------------------------------
 // Give cross-links into the Locations pack a useful hover summary instead of the
@@ -307,6 +324,20 @@ Hooks.on("deleteActor", (actor) => { if (actor?.type === "monster") invalidateMo
 Hooks.on("updateActor", (actor, changes) => {
 	if (actor?.type !== "monster") return;
 	if ("name" in (changes ?? {}) || changes?.system?.concept !== undefined) invalidateMonsterRefIndex();
+});
+
+// -- CROSS-CLIENT RENDER SYNC ----------------------------------
+// Arcana resource-track clicks persist with { render: false } so the masonry doesn't
+// repack and jump the tab's scroll (the click handler patches the track's checkboxes in
+// place). But Foundry broadcasts that option with the update, so it also suppresses the
+// automatic re-render on OTHER clients — leaving a second open sheet of the same actor
+// (e.g. the GM's) showing a stale track. Re-render those here: this fires on every client
+// after the update, so on the non-initiating clients (the initiator already patched its own
+// DOM) we repaint the actor's open sheets. Additive only — it never suppresses a render, so
+// it can't reintroduce the scroll jump.
+Hooks.on("updateActor", (actor, _changes, options, userId) => {
+	if (options?.render !== false || userId === game.user?.id) return;
+	for (const app of Object.values(actor.apps ?? {})) app?.render?.(false);
 });
 
 // -- RECOVER LOCK ----------------------------------------------
@@ -401,7 +432,13 @@ function _chatWireRollShifting(message, html) {
 	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
 	if (!cardButtons) return;
 
-	if (!cardButtons.querySelector("[data-action='shiftUp']")) {
+	// Shift Up/Down is a GM-only tool for bumping a roll's tier, and off by default —
+	// most tables never touch it. When disabled, don't inject or reveal the buttons, and
+	// hide any the roll card pre-rendered; the shared .stonetop-card-buttons row is left
+	// for Burn Brightly (wired next) to claim if the owner qualifies.
+	const showShift = game.user.isGM && getSetting("chatShiftButtons");
+
+	if (showShift && !cardButtons.querySelector("[data-action='shiftUp']")) {
 		cardButtons.insertAdjacentHTML("afterbegin", `
 			<button data-action="shiftUp">Shift Up</button>
 			<button data-action="shiftDown">Shift Down</button>
@@ -409,10 +446,10 @@ function _chatWireRollShifting(message, html) {
 	}
 
 	for (const button of cardButtons.querySelectorAll("[data-action='shiftUp'], [data-action='shiftDown']")) {
-		button.style.display = game.user.isGM ? "" : "none";
-		button.addEventListener("click", ev => _onRollShift(ev, message));
+		button.style.display = showShift ? "" : "none";
+		if (showShift) button.addEventListener("click", ev => _onRollShift(ev, message));
 	}
-	cardButtons.style.display = game.user.isGM ? "flex" : "none";
+	cardButtons.style.display = showShift ? "flex" : "none";
 }
 
 // -- BURN BRIGHTLY ---------------------------------------------
@@ -505,25 +542,56 @@ function _chatWireBurnBrightly(message, html) {
 	});
 }
 
-// -- WOULD-BE HERO: BECOME A HERO ------------------------------
-// Wire the "Become a Hero" button on asterisk-move prompt cards.
-function _chatWireBecomeHero(message, html) {
-	const btn = html.querySelector(".stonetop-become-hero-btn");
+// -- REQUISITION: apply miss cost from the roll card ------------
+function _speakerActor(message) {
+	const { token: tokenId, actor: actorId } = message.speaker ?? {};
+	return (tokenId ? canvas.tokens?.get(tokenId)?.actor : null)
+		?? (actorId ? game.actors?.get(actorId) : null);
+}
+
+function _chatWireRequisitionMissCost(message, html) {
+	const btn = html.querySelector(".stonetop-requisition-miss-cost");
 	if (!btn) return;
 
-	const actor = game.actors?.get(btn.dataset.actorId);
-	if (!actor?.isOwner) { btn.style.display = "none"; return; }
-	if (actor.getFlag("stonetop_pwd", WBH_HERO_FLAG)) {
+	if (message.getFlag("stonetop_pwd", "requisitionMissCostApplied")) {
 		btn.disabled = true;
-		btn.innerHTML = `<i class="fas fa-star"></i> Already a Hero`;
+		btn.textContent = "Miss cost applied";
 		return;
 	}
 
 	btn.addEventListener("click", async () => {
 		btn.disabled = true;
-		await crossOffWouldBe(actor);
+		try {
+			const actor = _speakerActor(message);
+			if (!actor?.isOwner || actor.type !== "stonetop") {
+				ui.notifications.warn("You need permission to update the steading's Fortunes.");
+				btn.disabled = false;
+				return;
+			}
+
+			// Go through StonetopSteading so the write lands in BOTH system.* and the
+			// mirrored steading flag that getStatValue (and the sheet) actually read from —
+			// a raw actor.update of system.* alone leaves the mirror stale and the reduction
+			// invisible.
+			const steading = new StonetopSteading(actor);
+			const fortunes = steading.getStatValue("fortunes");
+			const newFortunes = Math.max(fortunes - 1, -1);
+			await steading.setSystemValue("stats.fortunes.value", newFortunes, { stonetopMove: "Requisition" });
+			await message.setFlag("stonetop_pwd", "requisitionMissCostApplied", true);
+			for (const sheet of Object.values(actor.apps ?? {})) sheet.render(false);
+			ui.notifications.info(`Fortunes reduced to ${sign(newFortunes)}.`);
+		} catch (err) {
+			console.error("Stonetop | Error applying Requisition miss cost:", err);
+			btn.disabled = false;
+		}
 	});
 }
+
+// -- WOULD-BE HERO: BECOME A HERO ------------------------------
+// The first time a Would-Be Hero gains a hero-making (asterisked) move, cross off
+// "Would-be" and announce it once. The playbook header already derives "The Hero"
+// from owning such a move, so this hook is purely the one-time announcement.
+Hooks.on("createItem", (item, options, userId) => maybeAnnounceBecameHero(item, userId, options));
 
 // One render hook drives all of the above, in this order: the blind-roll strip
 // MUST run first (it removes our card so the button-wiring helpers below no-op
@@ -538,8 +606,11 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);
 	_chatWireBurnBrightly(message, html);
-	_chatWireBecomeHero(message, html);
+	_chatWireRequisitionMissCost(message, html);
 	_chatWireSeasonsRoll(message, html);
+	wireAttackConfirm(message, html);
+	wireApplyDamage(message, html);
+	wireSufferAttack(message, html);
 });
 
 // -- SEASONS CHANGE: "ask the most hopeful to roll" -----------
@@ -635,8 +706,9 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 
 	const resultEl = wrapper.querySelector(".stonetop-roll-card .stonetop-roll-result");
 	const resultLabel = resultEl?.querySelector(".stonetop-roll-result-label");
+	let result = null;
 	if (resultEl && resultLabel) {
-		const result = _classifyShiftedTotal(total);
+		result = _classifyShiftedTotal(total);
 		resultEl.classList.remove("success", "partial", "failure", "critical");
 		resultEl.classList.add(result.key);
 		resultLabel.textContent = result.label;
@@ -651,7 +723,20 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 				partial: resultEl.dataset.outcomePartial,
 				failure: resultEl.dataset.outcomeFailure,
 			}[tierKey];
-			if (outcome !== undefined) details.textContent = outcome;
+			if (outcome !== undefined) details.innerHTML = formatOutcomeDetail(outcome);
+		}
+	}
+
+	const tierActions = wrapper.querySelector(".stonetop-roll-card .stonetop-roll-tier-actions");
+	if (tierActions && result) {
+		const activeTier = result.key === "critical" ? "success" : result.key;
+		tierActions.dataset.activeTier = activeTier;
+		for (const action of tierActions.querySelectorAll(".stonetop-roll-tier-action")) {
+			// Set the VALUED attribute, not the `.hidden` property: this innerHTML is written back
+			// to the message's flavor (an HTMLField), and Foundry v14's sanitize-html strips
+			// valueless boolean attributes — a bare/empty `hidden` would vanish and reveal every tier.
+			if (action.dataset.tier === activeTier) action.removeAttribute("hidden");
+			else action.setAttribute("hidden", "hidden");
 		}
 	}
 

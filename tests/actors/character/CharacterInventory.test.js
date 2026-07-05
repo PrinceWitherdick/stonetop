@@ -13,6 +13,11 @@ function makeFlags(store = {}) {
 		setFlag: vi.fn(async (key, val) => {
 			store[key] = val;
 		}),
+		// Models the real StonetopFlags.setSubKey (a targeted dot-path actor.update): sets one
+		// nested sub-key, preserving the flag object's other keys — no whole-object spread.
+		setSubKey: vi.fn(async (key, subKey, value) => {
+			store[key] = { ...(store[key] ?? {}), [subKey]: value };
+		}),
 	};
 }
 
@@ -63,6 +68,37 @@ describe("CharacterInventory", () => {
 		const ci = new CharacterInventory(makeFlags(store));
 		await ci.setResource("bow-arrows", 2);
 		expect(store.resources).toEqual({"bow-arrows": 2});
+	});
+
+	it("clearArcanumResources actually drops the removed arcanum's tracks (setFlag merges)", async () => {
+		// A merge-modelling fake: setFlag deep-merges objects (so a plain smaller-object write
+		// would NOT drop keys — the original bug), while unsetFlag clears the whole flag. The fix
+		// must unsetFlag then re-set the survivors so a later re-acquire can't inherit stale charges.
+		const store = { resources: { "the-key": 2, "the-key:item": 1, "other": 3 } };
+		const flags = {
+			getFlag: (key) => store[key] ?? null,
+			setFlag: async (key, val) => {
+				const cur = store[key];
+				const mergeable = v => v && typeof v === "object" && !Array.isArray(v);
+				store[key] = mergeable(cur) && mergeable(val) ? { ...cur, ...val } : val;
+			},
+			unsetFlag: async (key) => { delete store[key]; },
+		};
+		await new CharacterInventory(flags).clearArcanumResources("the-key");
+		expect(store.resources).toEqual({ other: 3 });
+	});
+
+	it("clearArcanumResources is a no-op when the arcanum had no tracks", async () => {
+		const store = { resources: { other: 3 } };
+		let unset = false;
+		const flags = {
+			getFlag: (key) => store[key] ?? null,
+			setFlag: async (key, val) => { store[key] = val; },
+			unsetFlag: async () => { unset = true; },
+		};
+		await new CharacterInventory(flags).clearArcanumResources("the-key");
+		expect(store.resources).toEqual({ other: 3 });
+		expect(unset).toBe(false);
 	});
 });
 

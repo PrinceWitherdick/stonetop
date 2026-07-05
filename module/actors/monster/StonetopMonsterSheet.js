@@ -7,6 +7,7 @@ import { escHtml, isDefaultImg } from "../../utils/strings.js";
 import { findMonsterTag } from "../../data/monster-tags.js";
 import { getHoverDescriptionSetting, getOpenSheetsInEditMode } from "../../settings.js";
 import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
+import { outnumberBonus } from "../../data/follower-build.js";
 import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
 import { deletionEntry, enrichHTML } from "../../utils/foundry-compat.js";
@@ -316,6 +317,15 @@ export function createStonetopMonsterSheetClass(Base) {
 			st.organizationLabel   = ORGANIZATION_CHOICES[org] ?? "";
 			st.organizationTooltip = showTagTips ? findMonsterTag(org) : null;
 
+			// Group-fight tools (Book I, Dangers pp.414-416): a horde/group can be run
+			// as ONE combatant — HP/armor/damage as a single member, with +1 damage &
+			// +1 armor per outnumber multiplier past 1:1, and damage read as casualties.
+			// Surfaces the otherwise-dead system.count ("No. appearing") and an outnumber
+			// calculator that rewrites the group damage roll.
+			st.isGroupOrg        = org === "horde" || org === "group";
+			st.count             = Math.max(0, Math.trunc(Number(system?.count) || 0));
+			st.baseDamageFormula = String(system?.attributes?.damage?.rollFormula || ORGANIZATION_DEFAULTS[org]?.die || "d6").trim();
+
 			// Armor-boost moves (e.g. "Withdraw into its shell (Armor 5)") act as
 			// toggles in play mode: clicking sets the stat block's Armor to that
 			// value, clicking again reverts. The live boost (if any) is remembered
@@ -367,6 +377,28 @@ export function createStonetopMonsterSheetClass(Base) {
 
 		activateListeners(html) {
 			super.activateListeners(html);
+
+			// Group-fight outnumber calculator: rewrite the group damage formula live as
+			// the "N vs M" inputs change (+1 damage per outnumber multiplier past 1:1,
+			// Book I p.416). The "+N armor" half is a fiction note — armor isn't auto-
+			// applied to incoming damage anywhere, on the monster or follower side.
+			html[0].addEventListener("input", ev => {
+				const inp = ev.target;
+				if (!inp.classList?.contains("stonetop-monster-outnumber-yours") && !inp.classList?.contains("stonetop-monster-outnumber-theirs")) return;
+				const section = inp.closest(".stonetop-monster-group-fight-section");
+				if (!section) return;
+				const { label, rollFor } = outnumberBonus(
+					section.querySelector(".stonetop-monster-outnumber-yours")?.value,
+					section.querySelector(".stonetop-monster-outnumber-theirs")?.value,
+				);
+				const resEl  = section.querySelector(".stonetop-monster-outnumber-result");
+				if (resEl) resEl.textContent = label;
+				const dmgBtn   = section.querySelector(".stonetop-monster-group-dmg-roll");
+				const dmgLabel = section.querySelector(".stonetop-monster-group-dmg-label");
+				const roll     = rollFor(dmgBtn?.dataset.baseFormula);
+				if (dmgBtn)   dmgBtn.dataset.rollFormula = roll;
+				if (dmgLabel) dmgLabel.textContent       = roll;
+			}, true);
 
 			// Rolling works even when the sheet is read-only (e.g. viewed from the
 			// compendium): roll a move or roll damage on click. Play actions, not edits.

@@ -148,6 +148,32 @@
 					</ul>
 					{{/if}}
 				</div>
+				{{!-- Group fight (horde/group): No. appearing + outnumber calculator that
+				      treats the whole group as one combatant (Book I, Dangers pp.414-416). --}}
+				{{#if stonetop.isGroupOrg}}
+				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--group">
+					<strong class="stonetop-monster-stat-key">No. appearing</strong>
+					{{#if stonetop.editMode}}
+					<input class="stonetop-monster-stat-input stonetop-monster-count-input" type="number"
+					       name="system.count" value="{{system.count}}" min="0" placeholder="e.g. 6">
+					{{else}}
+					<span class="stonetop-monster-group-fight-section">
+						<span class="stonetop-monster-prose">{{#if stonetop.count}}{{stonetop.count}}{{else}}—{{/if}} · fight as one combatant; damage is casualties</span>
+						<span class="stonetop-monster-outnumber-row">
+							Outnumber:
+							<input class="stonetop-monster-outnumber-yours" type="number" min="1" value="{{#if stonetop.count}}{{stonetop.count}}{{else}}1{{/if}}" title="How many of this group">
+							<span class="stonetop-outnumber-vs">vs</span>
+							<input class="stonetop-monster-outnumber-theirs" type="number" min="1" value="1" title="How many they face">
+							<span class="stonetop-monster-outnumber-result"></span>
+						</span>
+						<a class="stonetop-monster-damage-roll stonetop-monster-group-dmg-roll" data-roll-formula="{{stonetop.baseDamageFormula}}" data-base-formula="{{stonetop.baseDamageFormula}}" data-roll-label="{{name}} (group)" title="Roll group damage">
+							<i class="fas fa-dice-d6"></i>
+						</a>
+						<span class="stonetop-monster-group-dmg-label">{{stonetop.baseDamageFormula}}</span>
+					</span>
+					{{/if}}
+				</div>
+				{{/if}}
 				{{#if (or stonetop.editMode stonetop.hasQualities)}}
 				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--qualities">
 					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.qualities"}}</strong>

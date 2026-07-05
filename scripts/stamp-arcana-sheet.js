@@ -27,5 +27,5 @@ async function processDir(dir) {
 	}
 }
 
-await processDir("packs/src/arcana");
+await processDir("packs/src/stonetop-arcana");
 console.log(`Stamped ${updated} files with sheetClass: ${SHEET_CLASS}`);

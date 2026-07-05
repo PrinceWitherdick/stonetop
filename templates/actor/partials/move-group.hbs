@@ -1,7 +1,7 @@
 <div class="stonetop-move-group">
 	{{#if editSection}}
 	<div class="stonetop-details-heading-row">
-		{{> "stonetop.section-heading" title=title note=note}}
+		{{> "stonetop.section-heading" title=title note=note searchControl=searchControl searchTitle=searchTitle searchPlaceholder=searchPlaceholder}}
 		{{> "stonetop.details-section-edit-toggle" section=editSection editing=editing}}
 	</div>
 	{{else}}
@@ -15,10 +15,14 @@
 	{{/if}}
 	<ol class="items-list">
 	{{#each moves}}
-		{{#if (and owned rollType)}}
+		{{!-- Every OWNED move is a draggable .item (so it can be dragged onto the macro
+		      hotbar — rollable moves make a roll macro, description-only ones a post-to-chat
+		      macro). Un-owned rows (the unpicked side of an either/or choice) stay
+		      non-draggable. The dice icon itself is still gated on rollType below. --}}
+		{{#if owned}}
 		<li class="item stonetop-item is-checked{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if markBudget.needsChoice}} move-needs-choice{{/if}}{{#if isStarting}} move-starting{{/if}}" data-item-id="{{ownedId}}">
 		{{else}}
-		<li class="stonetop-item{{#if owned}} is-checked{{/if}}{{#if (and locked (not owned))}} move-locked{{/if}}{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if markBudget.needsChoice}} move-needs-choice{{/if}}{{#if isStarting}} move-starting{{/if}}">
+		<li class="stonetop-item{{#if (and locked (not owned))}} move-locked{{/if}}{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if markBudget.needsChoice}} move-needs-choice{{/if}}{{#if isStarting}} move-starting{{/if}}">
 		{{/if}}
 			<div class="stonetop-item-header">
 				{{#if repeatable}}
@@ -52,7 +56,7 @@
 				</span>
 				{{/if}}
 				{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
-				<strong class="stonetop-item-name">{{name}}{{#if asterisk}}<span class="stonetop-move-asterisk" data-tooltip="The first time you use this move, cross off &quot;Would-be&quot; — you become a Hero." data-tooltip-direction="UP"> *</span>{{/if}}</strong>
+				<strong class="stonetop-item-name">{{name}}</strong>
 				{{#if requirementsUnmet}}<i class="fas fa-triangle-exclamation stonetop-move-req-warning" data-tooltip="You own this move but do not meet its requirement{{#if requiresLabel}} ({{requiresLabel}}){{/if}}. Add the missing prerequisite, or drop this move." data-tooltip-direction="UP" aria-hidden="true"></i>{{/if}}
 				{{#if markBudget.needsChoice}}<i class="fas fa-hand-pointer stonetop-move-choice-needed" data-tooltip="This move has selections left to make ({{markBudget.used}} of {{markBudget.max}} chosen) — tap the hand to jump into the moves editor and choose the rest." data-tooltip-direction="UP" role="button" tabindex="0"></i>{{/if}}
 				{{#if (and owned resource)}}

@@ -27,8 +27,5 @@ export class MoveDefinition {
 		// Cross-playbook foreign-move config ({ playbooks, grantsPossession }) or null. A
 		// non-null value marks this as a move that grants a foreign-playbook move pick.
 		this.crossPlaybook = data.system?.crossPlaybook ?? null;
-		// Would-Be Hero asterisk trigger: { basicMove, minTotal, question }. Its
-		// presence marks the move with "*"; its data drives the become-a-Hero prompt.
-		this.asterisk    = data.system?.asterisk        ?? null;
 	}
 }

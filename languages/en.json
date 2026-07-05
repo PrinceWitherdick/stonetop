@@ -101,6 +101,12 @@
         "lockedHint": "You've already caught your breath — you can't gain this benefit again until you take more damage.",
         "noSuppliesHint": "You have no uses of supplies to expend.",
         "fullHpHint": "You're already at full HP."
+      },
+      "convalesce": {
+        "title": "Convalesce",
+        "button": "Convalesce",
+        "summary": "When you <em><strong>rest for a few days, in safety and comfort</strong></em>, recover all your HP and clear all your debilities.",
+        "nothingHint": "You're already at full HP with no debilities to clear."
       }
     },
     "postDeath": {
@@ -111,10 +117,19 @@
     },
     "arcana": {
       "empty": "Drag arcana here from the Arcana compendium.",
-      "showFront": "Show Front",
-      "showBack": "Reveal Back",
+      "showFront": "Show front",
+      "showBack": "Show back",
+      "showBothSides": "Show both sides",
+      "showFrontOnly": "Show front only",
+      "frontLabel": "Front",
+      "backLabel": "Back",
+      "revealToPlayers": "Reveal back to player",
+      "hideFromPlayers": "Hide back from player",
       "removeArcanum": "Remove",
+      "toggleCard": "Collapse / expand card",
       "identify": "Identify",
+      "searchLabel": "Search arcana",
+      "searchPlaceholder": "Filter arcana…",
       "identifyTitle": "Identify Arcanum",
       "identifyConfirm": "Are you sure you you've successfully identified this Arcanum? This action cannot be undone.",
       "unidentifiedText": "This arcanum has not yet been identified. Study it closely to reveal its nature."
@@ -164,16 +179,9 @@
         "name": "Arcana Creation: GM Only",
         "hint": "When on, only the GM can create homebrew arcana — players don't see the \"Create arcanum\" bar or the inspiration wizard on the arcana tab. Existing arcana still display, flip, and roll for everyone, and players can still edit cards they own. Turn off to let players author their own arcana."
       },
-      "expandMoveDescriptions": {
-        "name": "Expand Move Descriptions",
-        "hint": "Show move descriptions expanded by default on character sheets."
-      },
-      "defaultSheetTab": {
-        "name": "Default Sheet Tab",
-        "hint": "Which tab the character sheet opens to by default.",
-        "moves": "Moves",
-        "gear": "Gear",
-        "biography": "Biography"
+      "arcanaPlayersSeeBothSides": {
+        "name": "Arcana: Players See Both Sides",
+        "hint": "A player always sees the back of a card once they've unlocked it (filled every spot) — that's their own achievement, no setting needed. This switch is a separate peek: when on (the default), players may also open the back of a card they haven't unlocked yet, reading the whole card up front. Turn off for a more secretive table, and an un-unlocked back stays hidden until you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). You always see both sides as the GM."
       },
       "sheetFont": {
         "name": "Sheet Font",
@@ -213,7 +221,7 @@
       },
       "showRollStatChips": {
         "name": "Show Roll Stat Chips",
-        "hint": "Show labels like +STR and +ANY beside rollable move icons on character sheets."
+        "hint": "Show labels like +STR and +ANY beside rollable move icons on character and steading sheets."
       },
       "showMoveDescriptionsInChat": {
         "name": "Show Move Descriptions in Chat",
@@ -222,6 +230,10 @@
       "startOfSessionReminders": {
         "name": "Start-of-Session Reminders",
         "hint": "Post the automatic start-of-session chat reminders, such as the Destined \"roll +Omens\" nudge. These are public cards the whole table sees. Turn this off to stop them."
+      },
+      "chatShiftButtons": {
+        "name": "Shift Up/Down Buttons on Roll Cards",
+        "hint": "Add \"Shift Up\" and \"Shift Down\" buttons to move roll cards in chat, letting the GM bump a roll's result to a higher or lower tier. Only the GM sees them. Off by default."
       },
       "hoverDescriptionSettings": {
         "name": "On Hover Info",
@@ -404,6 +416,8 @@
         "pickTitle": "Choose Starting Moves",
         "pickInstruction": "Pick up to {count} moves to start with.",
         "playbookMoves": "Playbook Moves",
+        "searchLabel": "Search moves",
+        "searchPlaceholder": "Filter moves…",
         "learnedMoves": "Learned Moves",
         "basicMoves": "Basic Moves",
         "expeditionMoves": "Expedition Moves",
@@ -414,10 +428,14 @@
         "levelMovesIncompleteOne": "You still have 1 move to choose for level {level}.",
         "levelMovesIncompleteMany": "You still have {count} moves to choose for level {level}.",
         "levelMovesIncompleteHint": "Turn on Edit and tick the playbook moves you've earned.",
+        "levelMovesOverLimitOne": "This character has 1 more move than expected for level {level}.",
+        "levelMovesOverLimitMany": "This character has {count} more moves than expected for level {level}.",
+        "levelMovesOverLimitHint": "Turn on Edit and remove a playbook move, or leave it if this is intentional.",
+        "dismissLevelMovesOverLimit": "Dismiss move-count warning",
         "custom": {
           "createTitle": "Create a Custom Move",
           "editTitle": "Edit Custom Move",
-          "addButton": "Custom Move",
+          "addButton": "Create a move",
           "editMove": "Edit this move",
           "nameLabel": "Move name",
           "namePlaceholder": "e.g. Reckless Charge",

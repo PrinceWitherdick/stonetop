@@ -29,6 +29,43 @@ export function escHtml(v) {
 	return String(v ?? "").replace(/[&<>"']/g, (c) => _HTML_ESCAPES[c]);
 }
 
+// A move outcome's flattened value reads "<lead-in> pick 1: <option> / <option> / …"
+// (the source <ul><li> list is collapsed to slash-separated text by the move pipeline).
+// This marker finds the "pick N:" / "choose N:" / "select N:" hinge so we can split the
+// trailing options back onto their own bulleted lines. The {0,40} keeps the match from
+// running past the colon into unrelated prose.
+const _PICK_MARKER = /\b(?:pick|choose|select)\b[^:]{0,40}:/i;
+
+// Options after the hinge are separated by " / " (from a collapsed <ul>) or by a
+// deliberate capitalised "OR" / "; OR". "OR" is matched case-SENSITIVELY so an option's
+// own natural-language "or" (and lowercase comma lists) stay intact — those read as prose.
+const _PICK_SEPARATOR = /\s+\/\s+|\s*;?\s*\bOR\b\s+/;
+
+/**
+ * Render a move-result outcome string as HTML. When the text presents a "pick N:" list
+ * of slash-separated options, the lead-in stays as prose and the options become a
+ * spiral-bulleted <ul class="stonetop-roll-result-picks"> — otherwise the text is just
+ * HTML-escaped. Pure (no DOM), so both the server-side card builder (roll-engine) and the
+ * GM shift-tier reformatter (stonetop.js) can share it. Returns "" for empty input.
+ */
+export function formatOutcomeDetail(text) {
+	const raw = String(text ?? "").trim();
+	if (!raw) return "";
+	const m = raw.match(_PICK_MARKER);
+	if (m) {
+		const markerEnd = m.index + m[0].length;
+		const intro   = raw.slice(0, markerEnd).trim();
+		const rest    = raw.slice(markerEnd).trim().replace(/\.\s*$/, "");
+		const options = rest.split(_PICK_SEPARATOR).map((s) => s.trim()).filter(Boolean);
+		if (options.length >= 2) {
+			const items = options.map((o) => `<li>${escHtml(o)}</li>`).join("");
+			return `<span class="stonetop-roll-result-lead">${escHtml(intro)}</span>`
+				+ `<ul class="stonetop-roll-result-picks">${items}</ul>`;
+		}
+	}
+	return escHtml(raw);
+}
+
 /** Ensure miss result labels are visually emphasized in rendered move text. */
 export function boldMissText(html) {
 	return String(html ?? "").replace(/(<strong>\s*)?\b(on a 6(?:-|\u2212|\u00e2\u02c6\u2019))(\s*<\/strong>)?/gi, (match, open, label, close) => {

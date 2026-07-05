@@ -1,0 +1,10 @@
+{{!-- Collapsible tab search: a round magnifying-glass button that expands into a
+      filter box when clicked. Sits to the right of a tab's header text and filters
+      that whole tab client-side (see wireTabSearch in StonetopCharacterSheet).
+      Caller passes `title` (button tooltip / aria label) and `placeholder`. --}}
+<span class="stonetop-tab-search" role="search">
+	<button type="button" class="stonetop-tab-search-toggle" title="{{title}}" aria-label="{{title}}">
+		<i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+	</button>
+	<input type="search" class="stonetop-tab-search-input" placeholder="{{placeholder}}" aria-label="{{title}}">
+</span>

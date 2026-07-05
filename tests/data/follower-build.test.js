@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
 	deriveHp, deriveArmor, deriveDamageDie, formatDamage,
 	normalizeTags, parseFollowerArmor, buildCustomFollower, monsterFollowerTags, followerFromMonster,
-	orderFollowersBonus,
+	monsterGroupDefaults, orderFollowersBonus, readinessCap,
+	READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS,
 } from "../../module/data/follower-build.js";
 
 // The rules content + derivations behind the Create-a-Follower walkthrough and
@@ -170,6 +171,26 @@ describe("buildCustomFollower", () => {
 		expect(buildCustomFollower({ name: "X", loyalty: -2 }).loyalty).toBe(0);
 		expect(buildCustomFollower({ name: "X" }).loyalty).toBe(0);
 	});
+
+	it("defaults to a single (non-group) follower", () => {
+		const f = buildCustomFollower({ name: "Solo", hp: 6 });
+		expect(f.isGroup).toBe(false);
+		expect(f.size).toBe(0);
+	});
+
+	it("stores a group with its size, and defaults the group label + icon", () => {
+		const f = buildCustomFollower({ name: "The Posse", hp: 6, isGroup: true, size: 5 });
+		expect(f.isGroup).toBe(true);
+		expect(f.size).toBe(5);
+		expect(f.typeLabel).toBe("group follower");
+		expect(f.portraitIcon).toBe("fas fa-users");
+	});
+
+	it("floors a group at 2 members even if a smaller size is given", () => {
+		expect(buildCustomFollower({ name: "G", hp: 6, isGroup: true, size: 1 }).size).toBe(2);
+		expect(buildCustomFollower({ name: "G", hp: 6, isGroup: true, size: 0 }).size).toBe(2);
+		expect(buildCustomFollower({ name: "G", hp: 6, isGroup: true }).size).toBe(2);
+	});
 });
 
 describe("monsterFollowerTags", () => {
@@ -266,5 +287,62 @@ describe("followerFromMonster", () => {
 			{},
 		);
 		expect(f.moves).toBe("Follow prey for miles on end\nSurround, flank, and harry");
+	});
+
+	it("becomes a group follower when the dialog passes isGroup + size", () => {
+		const f = followerFromMonster(
+			{ name: wolf.name, system: wolf.system, moves: [] },
+			{ isGroup: true, size: 4 },
+		);
+		expect(f.isGroup).toBe(true);
+		expect(f.size).toBe(4);
+	});
+
+	it("stays a single follower when the dialog leaves isGroup off", () => {
+		const f = followerFromMonster(
+			{ name: wolf.name, system: wolf.system, moves: [] },
+			{},
+		);
+		expect(f.isGroup).toBe(false);
+		expect(f.size).toBe(0);
+	});
+});
+
+describe("readinessCap", () => {
+	it("is 3 without a shield", () => {
+		expect(readinessCap(false)).toBe(3);
+	});
+
+	it("adds the shield bonus (+1) with a shield", () => {
+		expect(readinessCap(true)).toBe(3 + READINESS_SHIELD_BONUS);
+		expect(readinessCap(true)).toBe(4);
+	});
+
+	it("uses Shield Wall's +2 shield bonus so 5 is recordable", () => {
+		expect(readinessCap(true, READINESS_SHIELD_WALL_BONUS)).toBe(5);
+	});
+
+	it("gives no bonus without a shield even under Shield Wall", () => {
+		expect(readinessCap(false, READINESS_SHIELD_WALL_BONUS)).toBe(3);
+	});
+});
+
+describe("monsterGroupDefaults", () => {
+	it("makes a horde a group, defaulting to 6 when no count is set", () => {
+		expect(monsterGroupDefaults({ organization: "horde" })).toEqual({ isGroup: true, size: 6 });
+	});
+
+	it("makes a group a group, defaulting to 3 when no count is set", () => {
+		expect(monsterGroupDefaults({ organization: "group" })).toEqual({ isGroup: true, size: 3 });
+	});
+
+	it("uses the monster's count when it names one", () => {
+		expect(monsterGroupDefaults({ organization: "horde", count: 12 })).toEqual({ isGroup: true, size: 12 });
+		expect(monsterGroupDefaults({ organization: "group", count: 5 })).toEqual({ isGroup: true, size: 5 });
+	});
+
+	it("leaves solitary / group-less monsters as single followers", () => {
+		expect(monsterGroupDefaults({ organization: "solitary" })).toEqual({ isGroup: false, size: 0 });
+		expect(monsterGroupDefaults({})).toEqual({ isGroup: false, size: 0 });
 	});
 });

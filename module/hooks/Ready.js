@@ -19,6 +19,7 @@ import { createArcanumItem } from "../item/createArcanum.js";
 import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { getStonetopSteadingActorOrWarn } from "../utils/world.js";
+import { rollMoveFromUuid } from "./HotbarDrop.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
@@ -110,6 +111,9 @@ export async function onReady() {
 		actor ? new CharacterCreationDialog(actor).render(true)
 		      : ui.notifications.warn("No character to start creation for.");
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
+	// Roll a learned move from its uuid — the entry point the move hotbar macros call
+	// (drag a move off a character sheet onto the hotbar; see hooks/HotbarDrop.js).
+	game.stonetop.rollMoveMacro     = rollMoveFromUuid;
 	// Create a blank homebrew arcanum world Item and open its editor. Minor by default;
 	// pass { major: true } for a major. Callable from a macro/console/hotbar:
 	//   game.stonetop.createArcanum({ name: "My Charm" })
@@ -123,8 +127,22 @@ export async function onReady() {
 
 	_registerCharacterAutoOpen();
 
-	if (game.user.isGM) await seedCompendiumJournalsOnce();
-	if (game.user.isGM) await updateSeededJournalsOnVersionChange();
+	if (game.user.isGM) await _applyCoreSettingDefaultsForNewWorld();
+
+	// Seeding the gazetteer into a brand-new world imports ~160 journal entries — a
+	// visible pause. On an established world the seed is a no-op that returns instantly,
+	// so await it inline as before. On a fresh world, kick it off in the BACKGROUND so it
+	// doesn't hold up the ready sequence (and, crucially, the Welcome guide): we pop the
+	// guide right away and surface the seeded orientation material once the import lands
+	// (see the `wasFreshWorld` handling further down).
+	const wasFreshWorld = game.user.isGM && !getSetting("seedingComplete");
+	let seeding = Promise.resolve();
+	if (wasFreshWorld) {
+		seeding = seedCompendiumJournalsOnce().then(() => updateSeededJournalsOnVersionChange());
+	} else if (game.user.isGM) {
+		await seedCompendiumJournalsOnce();
+		await updateSeededJournalsOnVersionChange();
+	}
 	if (game.user.isGM) {
 		await _retireIntroductionsMacro();
 		// Place any missing system macros at their default slots (existing placements
@@ -148,7 +166,11 @@ export async function onReady() {
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
 	if (game.user.isGM) await remindDestinedOmenRoll();
 
-	await _openSettingOverview();
+	// Established worlds have their journals already; open the orientation material now,
+	// before the Welcome guide, so a resumed walkthrough can still land on top. Fresh
+	// worlds defer this until the background seed finishes (below), since the Setting
+	// Overview journal doesn't exist yet.
+	if (!wasFreshWorld) await _openSettingOverview();
 
 	// Reopen any session-zero walkthrough (Introductions / Let Spring Burst Forth)
 	// that was open when this client last reloaded, at the page it was on. Per-client,
@@ -158,15 +180,82 @@ export async function onReady() {
 	// it renders a beat later and would bury a resumed walkthrough — so when it's
 	// opening, reopen only once it's up (with a timeout fallback so a failed/absent
 	// Welcome render can't strand the resume).
+	let welcomeDialog = null;
 	if (game.user.isGM && !getSetting("gmWelcomeShown") && !sessionZeroComplete()) {
 		let resumed = false;
 		const resume = () => { if (resumed) return; resumed = true; reopenOpenWalkthroughs(); };
 		Hooks.once("renderWelcomeDialog", resume);
 		setTimeout(resume, 2500);
-		_openGmWelcomeGuide();
+		welcomeDialog = _openGmWelcomeGuide();
 	} else {
 		reopenOpenWalkthroughs();
 	}
+
+	// Fresh world: the gazetteer is still importing in the background. Once it lands, pop
+	// the orientation Setting Overview and refresh the (already-open) Welcome guide so its
+	// premise upgrades from the built-in fallback to the seeded journal's prose, bringing
+	// the guide back above the Overview so it stays the GM's focus.
+	if (wasFreshWorld) {
+		seeding
+			.then(() => _showOrientationAfterSeed(welcomeDialog))
+			.catch(err => console.error("Stonetop | Deferred orientation after journal seed failed:", err));
+	}
+}
+
+async function _applyCoreSettingDefaultsForNewWorld() {
+	if (getSetting("coreSettingDefaultsApplied")) return;
+
+	// This system setting was added after some worlds already existed. If the
+	// Stonetop journals have already been seeded, treat the world as established
+	// and mark the migration complete without changing the GM's current preference.
+	if (getSetting("seedingComplete")) {
+		await setSetting("coreSettingDefaultsApplied", true);
+		return;
+	}
+
+	const settingKey = _findAutomaticTokenRotationSettingKey();
+	if (!settingKey) {
+		console.warn("Stonetop | Could not find Foundry's Automatic Token Rotation setting; leaving it unchanged.");
+		return;
+	}
+
+	try {
+		if (game.settings.get("core", settingKey) !== false) {
+			await game.settings.set("core", settingKey, false);
+		}
+		await setSetting("coreSettingDefaultsApplied", true);
+	} catch (err) {
+		console.warn("Stonetop | Could not disable Automatic Token Rotation for this new world.", err);
+	}
+}
+
+function _findAutomaticTokenRotationSettingKey() {
+	const registry = game.settings?.settings;
+	if (!registry) return null;
+
+	const candidates = [];
+	for (const [id, config] of registry.entries()) {
+		const namespace = config.namespace ?? id.split(".")[0];
+		if (namespace !== "core") continue;
+
+		const key = config.key ?? (id.startsWith("core.") ? id.slice("core.".length) : id);
+		if (!key) continue;
+
+		const name = _localizedSettingText(config.name);
+		const hint = _localizedSettingText(config.hint);
+		const haystack = `${key} ${config.name ?? ""} ${name} ${hint}`.toLowerCase();
+
+		if (haystack.includes("automatic token rotation")) return key;
+		if (haystack.includes("token") && haystack.includes("rotation") && haystack.includes("automatic")) candidates.push(key);
+	}
+
+	return candidates.length === 1 ? candidates[0] : null;
+}
+
+function _localizedSettingText(value) {
+	if (!value) return "";
+	const text = String(value);
+	return String(game.i18n?.localize?.(text) ?? text);
 }
 
 // Auto-open a freshly-minted character on its owner's screen. The GM stamps the
@@ -229,8 +318,26 @@ function _maybeOpenCharacterCreation(actor) {
 // walkthroughs — the guided Introductions and Let Spring Burst Forth (sessionZeroComplete).
 // Until one of those, the guide keeps greeting the GM across the first few loads.
 function _openGmWelcomeGuide() {
-	if (getSetting("gmWelcomeShown") || sessionZeroComplete()) return;
-	WelcomeDialog.open();
+	if (getSetting("gmWelcomeShown") || sessionZeroComplete()) return null;
+	return WelcomeDialog.open();
+}
+
+// After a fresh world's background journal seed finishes, surface the orientation
+// material the seed just created: pop the Setting Overview journal, then refresh the
+// open Welcome guide so its premise (read from that journal) upgrades from the fallback
+// and its cross-links resolve — and bring the guide back to the front so it sits above
+// the Overview. If the seed somehow beat the guide's first render, wait for that render
+// before refreshing. No-op if the GM already closed the guide.
+async function _showOrientationAfterSeed(welcomeDialog) {
+	await _openSettingOverview();
+	if (!welcomeDialog) return;
+	if (!welcomeDialog.rendered) {
+		await new Promise(resolve => Hooks.once("renderWelcomeDialog", resolve));
+	}
+	if (welcomeDialog.rendered) {
+		await welcomeDialog.render(false);
+		welcomeDialog.bringToTop();
+	}
 }
 
 // Pop the Setting Overview journal open so a fresh-start user lands on the

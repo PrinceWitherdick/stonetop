@@ -38,8 +38,8 @@ import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {statRequirementLabel, statRequirementsUnmet} from "./stat-requirement.js";
 import {MoveResources} from "./MoveResources.js";
 import {moveMarkBudget} from "./move-mark-budget.js";
-import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
-import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
+import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
@@ -47,20 +47,32 @@ import {CharacterOrigin} from "./CharacterOrigin.js";
 import {CharacterPossessions} from "./CharacterPossessions.js";
 import {grantsToCreate} from "./possession-grants.js";
 import {CharacterInventory} from "./CharacterInventory.js";
+import {maybeBeginAttack, attackMoveFor} from "../../combat/attack-flow.js";
+import {defendReadinessHold, defendReadinessCap} from "../../combat/defend-readiness.js";
+import {classifyResult} from "../../utils/roll-engine.js";
 import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
-import {capitalizeFirst, slugify, composeInstinct} from "../../utils/strings.js";
+import {capitalizeFirst, slugify, composeInstinct, escHtml} from "../../utils/strings.js";
 import {localize as _loc} from "../../utils/i18n.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
+import {moveChatCard} from "../../utils/chat.js";
 import {normalizeRollType, CUSTOM_MOVE_ROLL_TYPES} from "../../utils/roll-types.js";
 import {formatCustomMoveDescription} from "../../utils/custom-move-text.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie} from "../../utils/damage-die.js";
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
+// Expedition moves that operate on the STEADING rather than the individual hero,
+// so they are not surfaced as player expedition moves: Requisition rolls +Fortunes
+// and Return Triumphant clears a steading debility (or raises Fortunes). Both live
+// on the steading sheet's Homefront moves instead (see StonetopSteadingSheet). They
+// stay `moveType: "expedition"` in the compendium so the rulebook reference journal
+// keeps listing them under Expedition Moves — this filter only governs the character
+// sheet (both the sidebar catalog and the auto-embed of universal moves).
+const NON_PLAYER_EXPEDITION_MOVES = new Set(["Requisition", "Return Triumphant"]);
 const ROLL_LABELS_BY_TYPE = {
 	str: "STR",
 	dex: "DEX",
@@ -122,6 +134,8 @@ function _buildOtherMoveResource(resource, current) {
 // flag in the JSON source; acts as the runtime fallback until the pack is
 // recompiled with that flag present in the LevelDB.
 const _PROSPERITY_RESOURCE_SLUGS = new Set(["supplies", "more-supplies", "even-more-supplies"]);
+const _WEAPONS_OF_WAR_CATEGORY = "Weapons of War";
+const _WEAPONS_OF_WAR_IMPROVEMENT = "weaponsOfWar";
 
 // Resolve "x piercing" against the steading's Prosperity for display. With Prosperity
 // 1+ it shows the actual value ("2 piercing"); at 0, no steading (null), or negative,
@@ -167,6 +181,14 @@ function _ownedLoadBonus(actor) {
 // The standard Shield inventory item (Book I p.86). The Heavy/Judge/Marshal's Armored
 // move halves its ◇ load — see _ownedShieldLoadReduction.
 const _SHIELD_SLUG = "shield";
+
+// The Defend basic move holds Readiness (p.216) — the only move with the on-sheet
+// circle track; the Would-Be Hero's Guardian move sweetens each hold by +1.
+const _DEFEND_MOVE_NAME = "Defend";
+const _GUARDIAN_MOVE_NAME = "Guardian";
+// Where a character's held Defend Readiness lives (a flag on the actor, mirroring how
+// followers store theirs under readiness paths in _FOLLOWER_FLAGS).
+const _DEFEND_READINESS_FLAG = "readiness";
 
 // The Armored move ("carry a shield, mark only ◆ instead of ◆◆") drops a carried shield's
 // ◇ load by its `shieldLoadReduction`. Like loadBonus, the mechanic lives in the move's data
@@ -298,6 +320,14 @@ export class StonetopCharacter {
 		return this._playbookRepo.findBySlug(slug);
 	}
 
+	// The expedition moves shown to players on the character sheet: the full
+	// compendium list minus the steading-facing ones (see NON_PLAYER_EXPEDITION_MOVES).
+	// Used by both the sidebar catalog and the auto-embed so the two never drift.
+	async _playerExpeditionMoves() {
+		const entries = await this._moveRepo.getExpeditionMoves();
+		return entries.filter(e => !NON_PLAYER_EXPEDITION_MOVES.has(e.name));
+	}
+
 	async buildSnapshot() {
 		const actor = this._actor;
 		const actorLevel = actor.system?.attributes?.level?.value ?? 1;
@@ -316,8 +346,9 @@ export class StonetopCharacter {
 		// included alongside the picker-added ones.
 		const addedSet = new Set(this._inventory.addedSpecial);
 		const possessionSpecialSet = this._selectedPossessionSlugs(playbookData);
+		const commonSpecialSet = this._earnedCommonSpecialSlugs(this.getSteadingActor(), allOutfitItems);
 		const armorItems = allOutfitItems.filter(i =>
-			!i.special || addedSet.has(i.slug) || possessionSpecialSet.has(i.slug));
+			!i.special || addedSet.has(i.slug) || possessionSpecialSet.has(i.slug) || commonSpecialSet.has(i.slug));
 		// Possession-granted worn gear (the Tannery's boiled leather cuirass) also
 		// counts when checked. Custom items key their checked state by item id, so the
 		// armor calc sees them as `{ slug: id, armor }` alongside the outfit items.
@@ -330,7 +361,7 @@ export class StonetopCharacter {
 			: null;
 		return new CharacterSnapshotBuilder()
 			.withName(actor.name)
-			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, !!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG), actorLevel) : null)
+			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, (!!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG) || ownsAsteriskMove(this._actor)), actorLevel) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withStats(_buildStatsSection(actor))
 			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses))
@@ -481,9 +512,13 @@ export class StonetopCharacter {
 			return a.name.localeCompare(b.name);
 		});
 		const basicCategory = _buildCompendiumMoveCategory(basicEntries, { key: "basic", title: "Basic Moves" }, ownedAllByName);
-		if (basicCategory) categories.push(basicCategory);
+		if (basicCategory) {
+			const defend = basicCategory.moves.find(m => m.name === _DEFEND_MOVE_NAME);
+			if (defend) defend.readiness = this.defendReadinessContext();
+			categories.push(basicCategory);
+		}
 
-		const expeditionEntries = (await this._moveRepo.getExpeditionMoves()).sort((a, b) => a.name.localeCompare(b.name));
+		const expeditionEntries = (await this._playerExpeditionMoves()).sort((a, b) => a.name.localeCompare(b.name));
 		const expeditionCategory = _buildCompendiumMoveCategory(expeditionEntries, { key: "expedition", title: "Expedition Moves" }, ownedAllByName);
 		if (expeditionCategory) categories.push(expeditionCategory);
 
@@ -571,6 +606,7 @@ export class StonetopCharacter {
 	async _buildInventorySection(playbookData, ownedAllByName, actorLevel) {
 		const checked        = this._inventory.checked;
 		const resources      = this._inventory.resources;
+		const possessionUses = this._possessions.uses;
 		const rPool          = this._inventory.regularPool;
 		const sPool          = this._inventory.smallPool;
 		const allItems       = await this._inventoryRepo.getAll();
@@ -578,6 +614,7 @@ export class StonetopCharacter {
 		const smallItemLimit = this.getSmallItemLimit(steadingActor);
 		const steadingName   = steadingActor?.name ?? null;
 		const prosperity     = smallItemLimit !== null ? smallItemLimit - 4 : null;
+		const commonSpecialSet = this._earnedCommonSpecialSlugs(steadingActor, allItems);
 		// A move's `loadBonus` raises every load cap (the Ranger's Pack Horse → +1).
 		// The boosted limits flow into the regular ◇ pool here and into the Outfit
 		// dialog via the snapshot. hasPackHorse drives the boosted help text/note.
@@ -620,20 +657,101 @@ export class StonetopCharacter {
 		const customItems = this._actor.items.filter(i =>
 			i.type === "move" && i.system?.moveType === "inventory-custom"
 		);
-		const mapCustomItem = item => new InventoryItemSnapshotBuilder()
+		const mapCustomItem = (item, grant = null, possessionSlug = null) => {
+			const res = item.system?.resource ?? grant?.resource ?? null;
+			const legacyUsesSlug = grant?.legacyUsesFromPossession ? possessionSlug : null;
+			const currentUses = resources[item._id] ?? (legacyUsesSlug ? possessionUses[legacyUsesSlug] : 0);
+			const note = item.system?.sourcePossession
+				? null
+				: (item.system?.sourceLabel ? `from ${item.system.sourceLabel}` : item.system?.note ?? null);
+			return new InventoryItemSnapshotBuilder()
 			.withSlug(item._id)
-			.withName(item.name)
-			// Items bundled by a special possession (Apiary, Burglar's kit…) carry a
-			// "from <possession>" note; plain write-ins have none.
-			.withNote(item.system?.sourceLabel ? `from ${item.system.sourceLabel}` : null)
+			.withName(grant?.name ?? item.name)
+			// Plain write-ins carry no source note. Possession gear now renders inside its
+			// possession's card (grouped under the possession label), so it needs no
+			// "from <possession>" note either.
+			.withNote(note)
 			.withWeight(item.system.weight ?? 1)
 			.withChecked(checked[item._id] ?? false)
-			.withResource(null)
+			.withResource(res ? new ResourceBuilder()
+				.withCurrent(Math.min(currentUses ?? 0, res.max ?? 0))
+				.withMax(res.max)
+				.withTitle(res.title ?? null)
+				.withLabels(res.labels ?? [])
+				.build() : null)
+			// Trailing text the book prints after the ○ track ("uses, grants advantage to
+			// Persuade"), so the whisky reads as one phrase. Only grants carry it; write-ins
+			// pass no grant, so it stays null.
+			.withResourceSuffix(grant?.resourceSuffix ?? null)
 			.withIsCustom(true)
 			.withOwnedId(item._id)
 			.withTwoCol(false)
 			.withBreakBefore(false)
 			.build();
+		};
+
+		// Plain write-ins (Add Item / Add Small Item) stay in the Items / Small Items
+		// columns. Items bundled by a special possession are pulled out and rendered inside
+		// that possession's own card instead (see _buildPossessionsSnapshot), grouped ◇ gear
+		// then small — so multiple possessions' same-named gear (Carpenter's tools + Distillery
+		// both grant firkins) reads under its own heading rather than as a column duplicate.
+		// They stay real inventory items, so marking one still feeds load / the small allowance.
+		// Only count gear whose possession is actually active (selected or preselected). A tagged
+		// item left behind by a deselect that failed to delete it would otherwise add invisible
+		// load / eat the small allowance while its possession card is unchecked and shows nothing.
+		const activePossessionSlugs = new Set([
+			...this._possessions.selected,
+			...(playbookData?.specialPossessions?.preselected ?? []),
+		]);
+		const grantByPossessionAndKey = new Map();
+		const grantKeyFor = (slug, key) => `${slug}:${key}`;
+		// De-dupe within a grant: a grant that repeats a name (e.g. sourceKey === aliases[0])
+		// must not look like the same name coming from two possessions, or the collision guard
+		// below would null its inference and drop an untagged legacy item into the columns.
+		const grantNames = grant => [...new Set([grant.name, grant.sourceKey, ...(grant.aliases ?? [])].filter(Boolean))];
+		const inferredGrantSources = new Map();
+		for (const opt of (playbookData?.specialPossessions?.options ?? [])) {
+			if (!activePossessionSlugs.has(opt.slug)) continue;
+			for (const grant of (opt.grantsItems ?? [])) {
+				if (!grant?.name) continue;
+				for (const name of grantNames(grant)) {
+					grantByPossessionAndKey.set(grantKeyFor(opt.slug, name), grant);
+					const key = `${grant.column === "regular" ? "regular" : "small"}:${name}`;
+					// Exact duplicates across selected possessions are ambiguous unless the item is
+					// tagged, so leave those as normal write-ins instead of guessing the parent.
+					inferredGrantSources.set(key, inferredGrantSources.has(key) ? null : { slug: opt.slug, grant });
+				}
+			}
+		}
+		const grantForTaggedItem = item => {
+			const slug = item.system?.sourcePossession;
+			if (!slug) return null;
+			return grantByPossessionAndKey.get(grantKeyFor(slug, item.system?.sourceKey ?? item.name))
+				?? grantByPossessionAndKey.get(grantKeyFor(slug, item.name))
+				?? null;
+		};
+		const inferredGrantFor = item => {
+			const column = item.system?.inventoryColumn === "regular" ? "regular" : "small";
+			return inferredGrantSources.get(`${column}:${item.name}`) ?? null;
+		};
+		const writeInItems    = customItems.filter(i => !i.system?.sourcePossession && !inferredGrantFor(i));
+		const possessionItems = customItems.filter(i =>
+			(i.system?.sourcePossession && activePossessionSlugs.has(i.system.sourcePossession)) ||
+			(!i.system?.sourcePossession && !!inferredGrantFor(i)));
+		const grantedByPossession = new Map();
+		for (const i of possessionItems) {
+			const inferred = inferredGrantFor(i);
+			const slug = i.system.sourcePossession ?? inferred?.slug;
+			const grant = grantForTaggedItem(i) ?? inferred?.grant ?? null;
+			if (!grantedByPossession.has(slug)) grantedByPossession.set(slug, { regular: [], small: [] });
+			const bucket = grantedByPossession.get(slug);
+			(i.system?.inventoryColumn === "regular" ? bucket.regular : bucket.small).push(mapCustomItem(i, grant, slug));
+		}
+		// Flattened views for the derived load (◇) and small-item accounting below, so
+		// possession gear still counts toward encumbrance / the 4+Prosperity allowance
+		// exactly as it did when it lived in the columns.
+		const grantedRegularAll = [...grantedByPossession.values()].flatMap(b => b.regular);
+		const grantedSmallAll   = [...grantedByPossession.values()].flatMap(b => b.small);
 
 		// Special (handout) items are kept off the default checklist; they appear only
 		// once the player adds them via the "Add Special Item" picker — OR when a
@@ -649,6 +767,8 @@ export class StonetopCharacter {
 		const addedSpecial         = allItems.filter(i => i.special && addedSpecialSet.has(i.slug));
 		const possessionSpecial    = allItems.filter(i =>
 			i.special && possessionSpecialSet.has(i.slug) && !addedSpecialSet.has(i.slug));
+		const commonSpecial        = allItems.filter(i =>
+			i.special && commonSpecialSet.has(i.slug) && !addedSpecialSet.has(i.slug) && !possessionSpecialSet.has(i.slug));
 		const standardItems        = allItems.filter(i => !i.special);
 
 		const arcanaItems = await this._arcana.weightedInventoryItems();
@@ -658,7 +778,8 @@ export class StonetopCharacter {
 			...standardItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...addedSpecial.filter(i => i.inventoryColumn === "regular").map(mapAddedSpecial),
 			...possessionSpecial.filter(i => i.inventoryColumn === "regular").map(mapItem),
-			...customItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
+			...commonSpecial.filter(i => i.inventoryColumn === "regular").map(mapItem),
+			...writeInItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
 		];
 		const regularArcana = arcanaItems.filter(i => i.inventoryColumn === "regular").map(mapItem);
 		if (regularArcana.length > 0 && regularNonArcana.length > 0) regularArcana[0].breakBefore = true;
@@ -667,7 +788,7 @@ export class StonetopCharacter {
 		let possessions = null;
 		if (playbookData?.specialPossessions) {
 			const maxUsesMap = this.computePossessionMaxUses(playbookData.specialPossessions, ownedAllByName, actorLevel);
-			possessions = this._buildPossessionsSnapshot(playbookData.specialPossessions, maxUsesMap, prosperity);
+			possessions = this._buildPossessionsSnapshot(playbookData.specialPossessions, maxUsesMap, prosperity, grantedByPossession);
 		}
 
 		const moveResourceState = this._moveResources.getMoveResources();
@@ -696,7 +817,10 @@ export class StonetopCharacter {
 		// Load is derived from the ◇ actually marked — checked item weights plus the
 		// undefined regular pool — never stored. Marking loot or editing the pool
 		// directly just re-derives it, matching the book's "count what you've marked."
-		const allRegularForLoad    = [...flatRegular, ...arcanaSection];
+		// Possession ◇ gear (grantedRegularAll) renders inside the possession cards now, not
+		// the Items column, but still counts toward load — so fold it in here alongside the
+		// column items and arcana.
+		const allRegularForLoad    = [...flatRegular, ...arcanaSection, ...grantedRegularAll];
 		const checkedRegularWeight = allRegularForLoad
 			.filter(i => i.checked).reduce((sum, i) => sum + (i.weight ?? 0), 0);
 		// The undefined pool can hold whatever's left under the heavy cap; the stored
@@ -724,18 +848,21 @@ export class StonetopCharacter {
 
 		const addedSmall = addedSpecial.filter(i => i.inventoryColumn === "small");
 		const possessionSmall = possessionSpecial.filter(i => i.inventoryColumn === "small");
+		const commonSmall = commonSpecial.filter(i => i.inventoryColumn === "small");
 		const smallItems = [
 			...allSmall.filter(i => !i.smallGrid).map(mapItem),
 			...addedSmall.filter(i => !i.smallGrid).map(mapAddedSpecial),
 			...possessionSmall.filter(i => !i.smallGrid).map(mapItem),
-			...customItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
+			...commonSmall.filter(i => !i.smallGrid).map(mapItem),
+			...writeInItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
 			...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
 		];
 		const smallGridItems = allSmall.filter(i => i.smallGrid).map(mapItem);
 
 		// Small marks are likewise derived: the undefined □ pool fills the room left
-		// under the 4+Prosperity Outfit allotment after checked small items.
-		const checkedSmallCount = [...smallItems, ...smallGridItems].filter(i => i.checked).length;
+		// under the 4+Prosperity Outfit allotment after checked small items. Possession
+		// small gear (grantedSmallAll) lives in the possession cards but still counts here.
+		const checkedSmallCount = [...smallItems, ...smallGridItems, ...grantedSmallAll].filter(i => i.checked).length;
 		const smallPoolMax     = Math.max(0, (smallItemLimit ?? 9) - checkedSmallCount);
 		const smallPoolCurrent = Math.min(sPool, smallPoolMax);
 		// Like the ◇ track, the □ track always shows the full 4+Prosperity allotment, so
@@ -762,7 +889,7 @@ export class StonetopCharacter {
 		return new InventorySnapshot(outfit, possessions, other);
 	}
 
-	_buildPossessionsSnapshot(specialPossessions, maxUsesMap, prosperity = null) {
+	_buildPossessionsSnapshot(specialPossessions, maxUsesMap, prosperity = null, grantedByPossession = new Map()) {
 		const { pickNote, pickCount, preselected = [], options } = specialPossessions;
 		const selectedSlugs = this._possessions.selected;
 		const usesMap = this._possessions.uses;
@@ -782,6 +909,8 @@ export class StonetopCharacter {
 			const maxUses = maxUsesMap[opt.slug] ?? opt.resource?.max ?? null;
 			const currentUses = isSelected ? (usesMap[opt.slug] ?? 0) : 0;
 			const resourceDef = opt.resource ?? null;
+			const grantedGear = grantedByPossession.get(opt.slug) ?? { regular: [], small: [] };
+			const hasGrantedGear = grantedGear.regular.length || grantedGear.small.length;
 			const resource = resourceDef ? new ResourceBuilder()
 				.withCurrent(currentUses)
 				.withMax(maxUses ?? resourceDef.max)
@@ -797,7 +926,7 @@ export class StonetopCharacter {
 				// "x piercing" weapons (e.g. the Ranger's composite bow) resolve to the
 				// steading's Prosperity for display here, just like outfit items — onboarding
 				// keeps the literal "x" since it renders the raw playbook description instead.
-				.withDescription(_transformPiercingNote(_stripPossessionUsesAnnotation(opt.description ?? "", resourceDef), prosperity))
+				.withDescription(hasGrantedGear ? "" : _transformPiercingNote(_stripPossessionUsesAnnotation(opt.description ?? "", resourceDef), prosperity))
 				.withSelected(isSelected)
 				.withChecked(isSelected)
 				// A granted grant-only possession (the Initiate Sacred Pouch) is locked like
@@ -820,6 +949,10 @@ export class StonetopCharacter {
 				.withChoiceSummary(isSelected ? this._buildPossessionChoiceSummary(opt, subChoicesMap[opt.slug] ?? []) : null)
 				// Has editable choiceGroups → gear tab shows an "edit" pencil (in edit mode).
 				.withHasChoiceGroups(isSelected && !!opt.choiceGroups?.length)
+				// Bundled gear materialized for this possession (Distillery → firkins, whisky,
+				// malt…), split ◇ / small, rendered inside the card. Only present when selected.
+				.withGrantedRegular(grantedGear.regular)
+				.withGrantedSmall(grantedGear.small)
 				.build();
 		});
 
@@ -904,6 +1037,17 @@ export class StonetopCharacter {
 			?? getStonetopSteadingActor();
 	}
 
+	_earnedCommonSpecialSlugs(steading, allItems) {
+		if (!steading) return new Set();
+		const steadingFlags = resolvedFlagProperty(steading, "steading") ?? {};
+		const weaponsEarned = !!steadingFlags.improvements?.[_WEAPONS_OF_WAR_IMPROVEMENT]?.completed
+			|| (steadingFlags.fortifications ?? []).some(f => String(f?.name ?? f) === _WEAPONS_OF_WAR_CATEGORY);
+		if (!weaponsEarned) return new Set();
+		return new Set(allItems
+			.filter(i => i.special && i.specialCategory === _WEAPONS_OF_WAR_CATEGORY)
+			.map(i => i.slug));
+	}
+
 	getSmallItemLimit(steading = this.getSteadingActor()) {
 		const rawProsperity = (steading ? resolvedFlagProperty(steading, "steading.system.attributes.prosperity.value") : null)
 			?? steading?.system?.attributes?.prosperity?.value;
@@ -977,6 +1121,32 @@ export class StonetopCharacter {
 			name,
 			type: "move",
 			system: { moveType: "inventory-custom", inventoryColumn: "small" },
+		}]);
+	}
+
+	async addDroppedInventoryItem(itemData) {
+		const st = itemData?.flags?.[ITEM_FLAG_SCOPE] ?? {};
+		const rawColumn = st.inventoryColumn ?? itemData?.system?.inventoryColumn ?? st.column ?? itemData?.system?.column;
+		const inventoryColumn = rawColumn === "regular" ? "regular" : "small";
+		const system = {
+			moveType: "inventory-custom",
+			inventoryColumn,
+		};
+		if (inventoryColumn === "regular") {
+			const weight = Number(st.weight ?? itemData?.system?.weight ?? 1);
+			system.weight = Math.max(1, Number.isFinite(weight) ? weight : 1);
+		}
+		const note = st.note ?? itemData?.system?.note;
+		if (note) system.note = note;
+		const resource = st.resource ?? itemData?.system?.resource;
+		if (resource) system.resource = globalThis.foundry?.utils?.deepClone?.(resource) ?? resource;
+		const armor = st.armor ?? itemData?.system?.armor;
+		if (armor) system.armor = globalThis.foundry?.utils?.deepClone?.(armor) ?? armor;
+
+		await this._actor.createEmbeddedDocuments("Item", [{
+			name: itemData?.name?.trim?.() || itemData?.name || "New Item",
+			type: "move",
+			system,
 		}]);
 	}
 
@@ -1136,15 +1306,76 @@ export class StonetopCharacter {
 		const playbook = await this.playbook();
 		const opt = (playbook?.specialPossessions?.options ?? []).find(o => o.slug === slug);
 		if (!opt?.grantsItems?.length) return;
-		const existing    = new Set(this._grantedItemsFor(slug).map(i => i.system?.sourceKey ?? i.name));
+		// Dedupe against this possession's already-materialized grants AND any plain write-in
+		// gear of the same name — so a character who hand-added the bundled items before grants
+		// existed (untagged write-ins) isn't handed a duplicate by the ready-time back-fill.
+		const existing = new Set(this._grantedItemsFor(slug).map(i => i.system?.sourceKey ?? i.name));
+		for (const i of this._actor.items) {
+			if (i.type === "move" && i.system?.moveType === "inventory-custom" && !i.system?.sourcePossession) {
+				existing.add(i.name);
+			}
+		}
 		const sourceLabel = (opt.label ?? "").replace(/<[^>]*>/g, "").trim();
 		const toCreate    = grantsToCreate(opt.grantsItems, existing, { slug, sourceLabel });
 		if (toCreate.length) await this._actor.createEmbeddedDocuments("Item", toCreate);
+		// Record that this possession's gear has been materialized, so the ready-time
+		// back-fill (ensurePossessionGrants) never re-adds an item the player later deletes.
+		await this._markPossessionGrantsApplied(slug);
 	}
 
 	async _removePossessionGrants(slug) {
 		const ids = this._grantedItemsFor(slug).map(i => i._id);
 		if (ids.length) await this._actor.deleteEmbeddedDocuments("Item", ids);
+		// Clear the mark so re-selecting the possession re-grants its gear afresh.
+		await this._clearPossessionGrantsApplied(slug);
+	}
+
+	// Per-actor record of which possessions have had their bundled gear materialized
+	// (flags.stonetop_pwd.possessionGrantsApplied[slug] = true). Tracked separately from
+	// item presence so a grant the player deliberately deleted is never resurrected.
+	_possessionGrantsApplied() {
+		return this._actor.getFlag(STONETOP_SCOPE, "possessionGrantsApplied") ?? {};
+	}
+	async _markPossessionGrantsApplied(slug) {
+		const applied = this._possessionGrantsApplied();
+		if (applied[slug]) return;
+		// Read-merge-write rather than relying on setFlag's merge, so a batch that marks
+		// several slugs can't drop each other's keys.
+		await this._actor.setFlag(STONETOP_SCOPE, "possessionGrantsApplied", { ...applied, [slug]: true });
+	}
+	async _clearPossessionGrantsApplied(slug) {
+		if (!(slug in this._possessionGrantsApplied())) return;
+		// setFlag can't drop keys — delete just this slug's entry via `-=`.
+		await this._actor.update({ [`flags.${STONETOP_SCOPE}.possessionGrantsApplied.-=${slug}`]: null });
+	}
+
+	// Ready-time back-fill for characters whose grant-bearing possessions were selected
+	// before bundled-gear grants existed (or before this first ran): materialize the gear
+	// for each selected possession not yet marked applied, then mark it — so it happens
+	// once and never fights a later deletion. Idempotent (grantsToCreate skips items
+	// already present), so a character already carrying its gear just gains the mark.
+	async ensurePossessionGrants() {
+		// Bail before resolving the playbook (a pack lookup, run per character on world
+		// load) when there's nothing to back-fill: no selected possessions, or every one
+		// already marked applied — the steady state after the first run.
+		const selected = [...this._possessions.selected];
+		if (!selected.length) return;
+		const applied = this._possessionGrantsApplied();
+		if (selected.every(slug => applied[slug])) return;
+		const options = (await this.playbook())?.specialPossessions?.options ?? [];
+		if (!options.length) return;
+		for (const slug of selected) {
+			if (applied[slug]) continue;
+			const opt = options.find(o => o.slug === slug);
+			if (opt?.grantsItems?.length) {
+				await this._addPossessionGrants(slug); // creates any missing items + marks applied
+			} else {
+				// No bundled gear to materialize (an ability-only possession, or an unknown/
+				// foreign slug) — still record it so the pre-playbook bail above can short-circuit
+				// next load instead of re-resolving the playbook for this character every time.
+				await this._markPossessionGrantsApplied(slug);
+			}
+		}
 	}
 	async setCustomPossessions(labels) { await this._possessions.setCustom(labels); }
 	async removeCustomPossession(slug) { await this._possessions.removeCustom(slug); }
@@ -1323,7 +1554,7 @@ export class StonetopCharacter {
 
 		const [basicEntries, expeditionEntries] = await Promise.all([
 			this._moveRepo.getBasicMoves(),
-			this._moveRepo.getExpeditionMoves(),
+			this._playerExpeditionMoves(),
 		]);
 		const missingUniversal = [
 			...basicEntries.filter(e => !ownedNames.has(e.name)),
@@ -1354,6 +1585,10 @@ export class StonetopCharacter {
 
 	async removeMove(ownedId) {
 		if (!ownedId) return;
+		// Snapshot the doc before it's deleted — an Improved/Superior Stat instance needs its
+		// recorded stat pick undone afterwards (see _revertStatIncreaseChoice), which reads
+		// the item's id + name.
+		const removed = this._actor.items.find(i => i._id === ownedId);
 		// Cascade: a cross-playbook move (Versatile/Worldly/…) tags each foreign move it
 		// granted with grantedBy.instanceId === its own item id. Removing the cross-playbook
 		// move must also remove those granted moves, or they'd linger in "Learned Moves" with
@@ -1362,6 +1597,7 @@ export class StonetopCharacter {
 			.filter(i => i.type === "move" && i.flags?.[STONETOP_SCOPE]?.grantedBy?.instanceId === ownedId)
 			.map(i => i._id);
 		await this._actor.deleteEmbeddedDocuments("Item", [ownedId, ...orphans]);
+		if (removed) await this._revertStatIncreaseChoice(removed);
 	}
 
 	// Apply the "either X OR Y" starting-move picks: grant the chosen move in each group
@@ -1411,6 +1647,20 @@ export class StonetopCharacter {
 		const isDescription = event.currentTarget.getAttribute("data-show") === "description";
 		const descriptionOnly = isDescription || (item.type === "npcMove" && !item.system.rollFormula);
 
+		// Clash / Let Fly: capture the targeted foes + chosen weapon and, for a hit, attach
+		// the tier-gated Roll-damage action — or resolve a Let Fly "easy shot" with no roll.
+		// Returns null for non-attack moves. See module/combat/attack-flow.js.
+		let attackExtra = null;
+		if (!descriptionOnly) {
+			const begun = await maybeBeginAttack(this._actor, item);
+			if (begun === "cancel") return true;
+			// Going on the offense (Clash / Let Fly) sheds any held Defend Readiness (p.216) —
+			// but only once the attack is committed, not on a cancelled weapon/target prompt.
+			if (attackMoveFor(item)) await this._loseDefendReadinessToOffense(item.name);
+			if (begun === "handled") return true;
+			attackExtra = begun;
+		}
+
 		const rollMode = this.rollMode;
 		const forward  = descriptionOnly ? 0 : this._actor.system?.attributes?.forward?.value ?? 0;
 		const ongoing  = descriptionOnly ? 0 : this._actor.system?.attributes?.ongoing?.value ?? 0;
@@ -1419,14 +1669,96 @@ export class StonetopCharacter {
 		const situ     = descriptionOnly ? 0 : situational;
 
 		const modifier    = forward + ongoing + situ;
-		const rollOptions = { rollMode, modifier, forward, ongoing, statOverride: stat };
+		const rollOptions = { rollMode, modifier, forward, ongoing, statOverride: stat, ...(attackExtra ?? {}) };
 
-		await item.roll({ ...this.applyDebilityRollMode(stat, rollOptions), descriptionOnly });
+		const roll = await item.roll({ ...this.applyDebilityRollMode(stat, rollOptions), descriptionOnly });
+
+		// Defend: fill the character's Readiness circles from the tier they just rolled
+		// (p.216), never lowering a pool they already hold.
+		if (!descriptionOnly && item?.name === _DEFEND_MOVE_NAME && Number.isFinite(roll?.total)) {
+			await this._maybeHoldDefendReadiness(roll.total);
+		}
 
 		if (forward !== 0) {
 			await this._actor.update({ "system.attributes.forward.value": 0 }, { stonetopMove: item?.name });
 		}
 		return true;
+	}
+
+	// -- Defend Readiness (Book I, Combat & Boons p.216) ----------------------
+	// The Defend move holds Readiness in circles beside it on the Moves sidebar;
+	// spend it to weather an attack for a ward, halve it, draw all attention, or
+	// strike back. Stored as a scalar flag on the actor (see defend-readiness.js
+	// for the pure hold/cap arithmetic).
+
+	/** Whether the character currently bears a shield (its inventory slot is checked). */
+	get bearsShield() {
+		return !!(this._actor.getFlag(STONETOP_SCOPE, "inventory.checked")?.[_SHIELD_SLUG]);
+	}
+
+	/** The Would-Be Hero's Guardian move (+1 Readiness on every Defend, incl. a 6-). */
+	get hasGuardianMove() {
+		return this._actor.items.some(i => i.type === "move" && i.name === _GUARDIAN_MOVE_NAME);
+	}
+
+	get defendReadiness() {
+		return Math.max(0, Math.trunc(Number(this._actor.getFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG)) || 0));
+	}
+
+	/** The view model the sheet renders as circles beside the Defend move. */
+	defendReadinessContext() {
+		const opts  = { hasShield: this.bearsShield, hasGuardian: this.hasGuardianMove };
+		const value = this.defendReadiness;
+		const cap   = defendReadinessCap(opts);
+		// Never render fewer circles than are held, so an over-held pool (e.g. shield
+		// dropped mid-fight) stays visible and spendable.
+		const count = Math.max(cap, value);
+		return {
+			value,
+			cap,
+			hasShield: opts.hasShield,
+			hasGuardian: opts.hasGuardian,
+			pips: Array.from({ length: count }, (_, i) => ({ index: i, filled: i < value })),
+		};
+	}
+
+	async setDefendReadiness(n) {
+		const next = Math.max(0, Math.trunc(Number(n) || 0));
+		if (next === this.defendReadiness) return;
+		await this._actor.setFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG, next);
+	}
+
+	// Raise the held Readiness to the amount this Defend tier grants, never lowering an
+	// existing pool (a fresh 7-9 shouldn't shrink Readiness you're already holding). Posts
+	// a chat note when the pool actually grows.
+	async _maybeHoldDefendReadiness(total) {
+		const tier = classifyResult(total).key;
+		const hold = defendReadinessHold(tier, { hasShield: this.bearsShield, hasGuardian: this.hasGuardianMove });
+		const existing = this.defendReadiness;
+		const next = Math.max(existing, hold);
+		if (next === existing) return;
+		await this.setDefendReadiness(next);
+		// The shield's +1 rides a 7+ hit only, so don't credit it on a 6- miss (where the
+		// hold comes solely from Guardian) — that would falsely imply the shield applied.
+		const shieldNote = (this.bearsShield && tier !== "failure") ? " (shield)" : "";
+		await ChatMessage.create({
+			content: moveChatCard("Defend — Readiness held",
+				`<p><strong>${escHtml(this._actor.name)}</strong> holds <strong>${next}</strong> Readiness${escHtml(shieldNote)}.</p>`
+				+ `<p>Spend it to suffer an attack's damage/effects for a ward, halve it, draw all attention to yourself, or strike back.</p>`),
+			speaker: ChatMessage.getSpeaker({ actor: this._actor }),
+		});
+	}
+
+	// "When you go on the offense … lose any Readiness that you hold" (p.216). Called when
+	// the character rolls Clash / Let Fly. Clears the pool and posts a note if any was held.
+	async _loseDefendReadinessToOffense(moveName) {
+		if (this.defendReadiness <= 0) return;
+		await this.setDefendReadiness(0);
+		await ChatMessage.create({
+			content: moveChatCard("Readiness lost",
+				`<p><strong>${escHtml(this._actor.name)}</strong> goes on the offense${moveName ? ` (${escHtml(moveName)})` : ""} and loses all held Readiness.</p>`),
+			speaker: ChatMessage.getSpeaker({ actor: this._actor }),
+		});
 	}
 
 	async onDirectStatRoll(stat, extraOptions = {}) {
@@ -1469,7 +1801,9 @@ export class StonetopCharacter {
 	 */
 	async onOrderFollowersRoll({ bonus = 0, rollMode = "normal", moveName } = {}) {
 		const { rollStat } = await import("../../utils/roll-engine.js");
-		await rollStat("follower", this._actor, {
+		// Return the roll so the caller can react to the result — e.g. auto-holding
+		// Readiness when a follower is ordered to Defend and rolls 7+ (p.469).
+		return rollStat("follower", this._actor, {
 			statValue: Math.trunc(Number(bonus) || 0),
 			rollMode:  ["adv", "dis"].includes(rollMode) ? rollMode : "normal",
 			moveName:  moveName || "Order Followers",
@@ -1517,16 +1851,19 @@ export class StonetopCharacter {
 	}
 	async getArcanum(slug)                           { return this._arcana.getArcanum(slug); }
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
-	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); }
+	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); await this._inventory.clearArcanumResources(slug); }
 	async identifyArcanum(slug)                      { await this._arcana.identifyArcanum(slug); }
+	async masterArcanum(slug)                        { await this._arcana.masterArcanum(slug); }
 	async getArcanumChatContent(slug, flipped)       { return this._arcana.getArcanumChatContent(slug, flipped); }
-	async flipArcanum(slug)     { await this._arcana.flipArcanum(slug); }
 	async setMinorArcanumRole(role, slug) { await this._arcana.setMinorRole(role, slug); }
-	async unflipArcanum(slug)   { await this._arcana.unflipArcanum(slug); }
+	async revealArcanum(slug)   { await this._arcana.revealArcanum(slug); }
+	async hideArcanum(slug)     { await this._arcana.hideArcanum(slug); }
+	get revealedArcanaSlugs()   { return this._arcana.revealedSlugs; }
+	get ownedArcanaSlugs()      { return this._arcana.ownedSlugs; }
 	async setArcanumUnlockCount(arcanumSlug, optionSlug, count)          { await this._arcana.setUnlockCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBackOptionCount(arcanumSlug, optionSlug, count)      { await this._arcana.setBackOptionCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBoxChecked(slug, context, index, checked)            { await this._arcana.setArcanumBoxChecked(slug, context, index, checked); }
-	async setArcanumResource(slug, count)                                { await this._inventory.setResource(slug, count); }
+	async setArcanumResource(slug, count, options)                       { await this._inventory.setResource(slug, count, options); }
 	async setLoreOptionCount(loreSlug, optionSlug, count)           { await this._lore.setCount(loreSlug, optionSlug, count); }
 	async setLoreOptionText(loreSlug, optionSlug, value)            { await this._lore.setText(loreSlug, optionSlug, value); }
 
@@ -1667,6 +2004,25 @@ export class StonetopCharacter {
 		if (next > current) {
 			await this._actor.update({ [`system.stats.${statKey}.value`]: next }, { stonetopMove: moveItem.name });
 		}
+	}
+
+	// Inverse of _applyStatIncreaseChoice, run when an Improved/Superior Stat instance is
+	// dropped from the sheet: forget this instance's recorded pick and step the chosen stat
+	// back down by 1. The picker only ever offers stats below the cap, so every recorded
+	// pick applied exactly +1 — a plain −1 is its exact inverse (floored at the −1 stat
+	// minimum). No-ops when this move recorded no pick (any non-stat move, or one added
+	// before the pick was collected).
+	async _revertStatIncreaseChoice(moveItem) {
+		const statKey = (this._actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {})[moveItem.id];
+		if (!statKey) return;
+		// setFlag merges (it can't drop keys), so unset just this instance's entry via `-=`.
+		await this._actor.update({ [`flags.${STONETOP_SCOPE}.improvedStatChoices.-=${moveItem.id}`]: null });
+		if (!_STAT_DEFS[statKey]) return;
+		const current = this._actor.system?.stats?.[statKey]?.value ?? 0;
+		await this._actor.update(
+			{ [`system.stats.${statKey}.value`]: Math.max(current - 1, -1) },
+			{ stonetopMove: moveItem.name },
+		);
 	}
 
 	// Cross-playbook pick (Versatile/Worldly/…): add the chosen foreign move and tag it
@@ -2114,7 +2470,6 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withStatChoices(statChoices)
 		.withMarkOptions(markOptions)
 		.withMarkBudget(markBudget)
-		.withAsterisk(!!entry.asterisk)
 		.build();
 }
 
@@ -2199,11 +2554,16 @@ function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1) {
 		.reduce((n, m) => n + (m.ownedIds?.length ?? 0), 0);
 	const expectedPicks = pickCount + Math.max(0, actorLevel - 1);
 	const levelMovesShortfall = Math.max(0, expectedPicks - chosenInstances);
+	const levelMovesOverage = Math.max(0, chosenInstances - expectedPicks);
 	// Hidden while the starting-moves onboarding prompt is still up, so the two cues
 	// never stack; it surfaces once starting picks are done but the character is still
 	// behind for their level (e.g. a GM-bumped or imported pre-made character). Gated on
 	// a chosen playbook so a playbook-less character past level 1 never false-positives.
 	const levelMovesIncomplete = !!playbookCat && !movesIncomplete && levelMovesShortfall > 0;
+	const levelMovesOverLimit = !!playbookCat && levelMovesOverage > 0;
+	const levelMovesOverageKey = levelMovesOverLimit
+		? `${actorLevel}:${expectedPicks}:${chosenInstances}`
+		: null;
 
 	return new MovelistBuilder()
 		.withPlaybookMoves(playbookCat?.moves ?? [])
@@ -2217,6 +2577,9 @@ function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1) {
 		.withMovesIncomplete(movesIncomplete)
 		.withLevelMovesIncomplete(levelMovesIncomplete)
 		.withLevelMovesShortfall(levelMovesShortfall)
+		.withLevelMovesOverLimit(levelMovesOverLimit)
+		.withLevelMovesOverage(levelMovesOverage)
+		.withLevelMovesOverageKey(levelMovesOverageKey)
 		.withCharacterLevel(actorLevel)
 		.build();
 }

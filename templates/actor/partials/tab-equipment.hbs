@@ -82,7 +82,7 @@
 							{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
 						</span>
 					</label>
-					{{#if isCustom}}
+					{{#if (and isCustom @root.stonetop.editMode)}}
 					<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
 					{{/if}}
 				</div>
@@ -106,7 +106,7 @@
 						{{#if (or note resource)}}<span class="stonetop-inv-note">({{{note}}}{{#if resource}}{{#if note}} {{/if}}<span class="stonetop-inv-resources">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}</span>{{/if}})</span>{{/if}}
 					</span>
 				</label>
-				{{#if isCustom}}
+				{{#if (and isCustom @root.stonetop.editMode)}}
 				<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
 				{{/if}}
 				{{#if isAddedSpecial}}
@@ -178,7 +178,7 @@
 						{{#if (or note resource)}}<span class="stonetop-inv-note">({{{note}}}{{#if resource}}{{#if note}} {{/if}}<span class="stonetop-inv-resources">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}</span>{{/if}})</span>{{/if}}
 					</span>
 				</label>
-				{{#if isCustom}}
+				{{#if (and isCustom @root.stonetop.editMode)}}
 				<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
 				{{/if}}
 				{{#if isAddedSpecial}}
@@ -258,6 +258,48 @@
 					<p class="stonetop-possession-choice-summary-line">
 						<span class="stonetop-possession-choice-summary-heading">{{{heading}}}</span> {{{selections}}}
 					</p>
+					{{/each}}
+				</div>
+				{{/if}}
+				{{!-- Bundled gear this possession grants: ◇ items (count toward load) on top,
+				     small items (count toward the small-item allowance) below. Marking a box
+				     drives the same accounting as the Items / Small Items columns. --}}
+				{{#if (or grantedRegular.length grantedSmall.length)}}
+				<div class="stonetop-possession-gear">
+					{{#each grantedRegular}}
+					<div class="stonetop-inv-item stonetop-possession-gear-item{{#if checked}} is-checked{{/if}}">
+						<label class="stonetop-inv-item-toggle">
+							<span class="stonetop-inv-diamonds">
+								{{#each (times weight)}}
+								<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
+								       data-slug="{{../slug}}"
+								       data-weight="{{../weight}}"
+								       {{#if ../checked}}checked{{/if}}
+								       {{#if ../disabled}}disabled{{/if}}>
+								{{/each}}
+							</span>
+							<span class="stonetop-inv-label">{{name}}</span>
+						</label>
+						{{#if resource}}<span class="stonetop-inv-note">(<span class="stonetop-inv-resources">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}</span>{{#if resourceSuffix}} {{resourceSuffix}}{{/if}})</span>{{/if}}
+						{{!-- No delete control: bundled gear belongs to its possession and is
+						     added/removed with the possession, not individually. --}}
+					</div>
+					{{/each}}
+					{{#if (and grantedRegular.length grantedSmall.length)}}<hr class="stonetop-inv-separator stonetop-possession-gear-sep">{{/if}}
+					{{#each grantedSmall}}
+					<div class="stonetop-inv-item stonetop-inv-small stonetop-possession-gear-item{{#if checked}} is-checked{{/if}}">
+						<label class="stonetop-inv-item-toggle">
+							<input type="checkbox" class="stonetop-inventory-item-check"
+							       data-slug="{{slug}}"
+							       data-small="true"
+							       {{#if checked}}checked{{/if}}
+							       {{#if disabled}}disabled{{/if}}>
+							<span class="stonetop-inv-label">{{name}}</span>
+						</label>
+						{{#if resource}}<span class="stonetop-inv-note">(<span class="stonetop-inv-resources">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}</span>{{#if resourceSuffix}} {{resourceSuffix}}{{/if}})</span>{{/if}}
+						{{!-- No delete control: bundled gear belongs to its possession and is
+						     added/removed with the possession, not individually. --}}
+					</div>
 					{{/each}}
 				</div>
 				{{/if}}

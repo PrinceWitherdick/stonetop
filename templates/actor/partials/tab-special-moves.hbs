@@ -61,6 +61,22 @@
 			</button>
 		</div>
 
+		<div class="stonetop-special-move-card{{#unless stonetop.convalesce.canConvalesce}} is-locked{{/unless}}">
+			<h3 class="stonetop-special-move-name">{{localize "stonetop.specialMoves.convalesce.title"}}</h3>
+			<p class="stonetop-special-move-summary">{{{localize "stonetop.specialMoves.convalesce.summary"}}}</p>
+			{{#if stonetop.convalesce.hint}}
+			<p class="stonetop-special-move-locked-hint">
+				<i class="fas {{stonetop.convalesce.hint.icon}}"></i>
+				{{stonetop.convalesce.hint.text}}
+			</p>
+			{{/if}}
+			<button type="button" class="stonetop-convalesce-open-btn"
+				{{#unless stonetop.convalesce.canConvalesce}}disabled{{/unless}}>
+				<i class="fas fa-bed"></i>
+				{{localize "stonetop.specialMoves.convalesce.button"}}
+			</button>
+		</div>
+
 	</div>
 
 </div>

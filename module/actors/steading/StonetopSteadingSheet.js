@@ -1,8 +1,9 @@
-import { IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS, improvementRequirementsMet, improvementRequirementCount } from "./StonetopSteading.js";
-import {rollStat, sign, postSeasonsRollPrompt} from "../../utils/roll-engine.js";
+import { StonetopSteading, IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS, improvementRequirementsMet, improvementRequirementCount, HERD_SURPLUS_PER } from "./StonetopSteading.js";
+import {rollStat, sign, postSeasonsRollPrompt, resultsLegendHtml} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
 import {escHtml} from "../../utils/strings.js";
+import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
 import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
@@ -16,6 +17,7 @@ import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
+import {PLACE_OF_INTEREST_DRAG_TYPE} from "../../hooks/PlaceOfInterestDrop.js";
 import {getDragEventData} from "../../utils/foundry-compat.js";
 import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel, SEASON_IDS} from "../../seasons/seasons-change-reminders.js";
 import {recordSeasonsChange, ordinalWord} from "../../seasons/seasons-chronicle.js";
@@ -130,6 +132,21 @@ const _STEADING_MOVES_RAW = [
 <p><strong>On a 6-:</strong> don't mark XP; you can take the asset with you if you want, but if you do, reduce Fortunes by 1.</p>`,
 	},
 	{
+		slug: "returnTriumphant",
+		label: "Return Triumphant",
+		// No dice: Return Triumphant clears a steading debility (or raises Fortunes
+		// if none are marked), so it's a non-rollable interactive walkthrough like
+		// Meet with Disaster. `stat`/`statLabel` stay null so no "+Fortunes" roll chip
+		// renders. A player makes this move, but its effects land on the steading —
+		// hence its home on the steading sheet, not the character sheet's expedition list.
+		stat: null,
+		statLabel: null,
+		rollable: false,
+		interactive: true,
+		description: `<p>When you <strong>return home in triumph</strong> — having saved your fellows, put down the threat, seized the opportunity, etc. — clear one of the steading's debilities (<em>diminished</em>, <em>lacking</em>, or <em>malcontent</em>).</p>
+<p>If the steading has no debilities marked, then increase Fortunes by 1.</p>`,
+	},
+	{
 		slug: "persuade",
 		label: "Persuade",
 		stat: "fortunes",
@@ -164,9 +181,73 @@ const STEADING_STAT_TOOLTIPS = {
 };
 const _esc = escHtml;
 
-function _formatResultLine(text) {
-	// Bold the dice-range prefix and any qualifier up to the colon (e.g. "7-9 when buying:", "Miss:").
-	return _esc(text).replace(/^(7\+|10\+|7-9|6-|Miss)([^:]*):/, "<strong>$1$2:</strong>");
+// A steading move's result table is an ordered list of rows. Each row declares which PbtA
+// tier(s) its line feeds — success (10+), partial (7-9), both (a 7+ line), failure (6-/Miss),
+// or none (an informational row shown in the legend only) — plus a display label and line.
+// The legend renders every row; the roll card's per-tier text buckets each row's line into
+// its tiers. Data-driven, so the copy can be reworded freely without a regex silently
+// re-bucketing it or failing to bold its prefix (the old string round-trip's failure mode).
+const RESULT = {
+	strong: (line, label = "10+") => ({ tiers: ["success"],            label, line }),
+	weak:   (line, label = "7-9") => ({ tiers: ["partial"],            label, line }),
+	hit:    (line, label = "7+")  => ({ tiers: ["success", "partial"], label, line }),
+	miss:   (line, label = "6-")  => ({ tiers: ["failure"],            label, line }),
+	info:   (label, line)         => ({ tiers: [],                     label, line }),
+};
+
+function _resultsLegendHtml(rows) {
+	return resultsLegendHtml((rows ?? []).map(row =>
+		// Real result tiers get a bold label; informational rows (e.g. "Commonly available
+		// item") stay unbolded, matching the old prefix-only bolding.
+		row.tiers?.length
+			? `<strong>${_esc(row.label)}:</strong> ${_esc(row.line)}`
+			: `${_esc(row.label)}: ${_esc(row.line)}`
+	));
+}
+
+function _moveResultsFromRows(rows) {
+	const collect = tier => (rows ?? [])
+		.filter(row => row.tiers?.includes(tier))
+		.map(row => row.line)
+		.join(" ");
+	return {
+		success: { value: collect("success") },
+		partial: { value: collect("partial") },
+		failure: { value: collect("failure") },
+	};
+}
+
+function _seasonFortunesResultRows(seasonId) {
+	switch (seasonId) {
+		case "summer":
+			return [
+				RESULT.strong("pick 2 seasonal gains."),
+				RESULT.weak("pick 1 seasonal gain."),
+				RESULT.miss("a threat makes itself known or gets worse; don't mark XP."),
+			];
+		case "winter":
+			return [
+				RESULT.strong("winter is relatively mild; each player names a local NPC with whom their relationship improves."),
+				RESULT.weak("the steading must consume 1d4+Population more Surplus before winter ends, or suffer the consequences again."),
+				RESULT.miss("as 7-9, plus threats abound; don't mark XP."),
+			];
+		case "spring":
+		case "autumn":
+		default:
+			return [
+				RESULT.strong("pick 1 seasonal gain."),
+				RESULT.weak("pick 1 seasonal gain, but a threat makes itself known or gets worse."),
+				RESULT.miss("threats abound; don't mark XP."),
+			];
+	}
+}
+
+function _seasonRollOptions(seasonId) {
+	const results = _seasonFortunesResultRows(seasonId);
+	return {
+		moveResults: _moveResultsFromRows(results),
+		resultLegend: _resultsLegendHtml(results),
+	};
 }
 
 const HOMESTEAD_MOVE_FLOWS = {
@@ -188,9 +269,9 @@ const HOMESTEAD_MOVE_FLOWS = {
 			"There is an unforeseen cost, requirement, or challenge; address it and the job gets done.",
 		],
 		results: [
-			"10+: the job gets done.",
-			"7-9: the job gets done, but pick 1.",
-			"6-: the GM says what happens; do not mark XP.",
+			RESULT.strong("the job gets done."),
+			RESULT.weak("the job gets done, but pick 1."),
+			RESULT.miss("the GM says what happens; do not mark XP."),
 		],
 		note: "Diminished gives disadvantage on this roll.",
 	},
@@ -213,10 +294,10 @@ const HOMESTEAD_MOVE_FLOWS = {
 			"1 or 2 individuals show real potential; ask the GM who and how.",
 		],
 		results: [
-			"7+: the steading is alert and ready for action until the threat passes, the Seasons Change, or you cease to oversee the muster.",
-			"10+: also pick 2.",
-			"7-9: also pick 1.",
-			"6-: the GM says what happens; do not mark XP.",
+			RESULT.hit("the steading is alert and ready for action until the threat passes, the Seasons Change, or you cease to oversee the muster."),
+			RESULT.strong("also pick 2."),
+			RESULT.weak("also pick 1."),
+			RESULT.miss("the GM says what happens; do not mark XP."),
 		],
 		note: "Diminished gives disadvantage on this roll.",
 	},
@@ -244,10 +325,10 @@ const HOMESTEAD_MOVE_FLOWS = {
 			"The GM picks a named NPC involved in the action; they die.",
 		],
 		results: [
-			"7+: it gets done.",
-			"10+: choose 2.",
-			"7-9: choose 1.",
-			"6-: do not mark XP; the GM chooses 2 consequences.",
+			RESULT.hit("it gets done."),
+			RESULT.strong("choose 2."),
+			RESULT.weak("choose 1."),
+			RESULT.miss("do not mark XP; the GM chooses 2 consequences."),
 		],
 		note: "Diminished gives disadvantage on this roll.",
 	},
@@ -264,11 +345,11 @@ const HOMESTEAD_MOVE_FLOWS = {
 			{ name: "winter", label: "It is winter", type: "checkbox" },
 		],
 		results: [
-			"Commonly available item: you can acquire or sell it without rolling.",
-			"10+: you can get it or sell it for a fair price.",
-			"7-9 when buying: the GM picks 1 (below).",
-			"7-9 when selling: you can sell it now, but you won't get its full worth.",
-			"6- either way: don't mark XP. If you still want to acquire/sell it, you'll need to travel elsewhere or wait until next season.",
+			RESULT.info("Commonly available item", "you can acquire or sell it without rolling."),
+			RESULT.strong("you can get it or sell it for a fair price."),
+			RESULT.weak("the GM picks 1 (below).", "7-9 when buying"),
+			RESULT.weak("you can sell it now, but you won't get its full worth.", "7-9 when selling"),
+			RESULT.miss("don't mark XP. If you still want to acquire/sell it, you'll need to travel elsewhere or wait until next season.", "6- either way"),
 		],
 		picks: [
 			"You can get it, but it'll cost more than usual",
@@ -289,9 +370,9 @@ const HOMESTEAD_MOVE_FLOWS = {
 			{ name: "cost", label: "Why is it hard?", type: "textarea", placeholder: "What makes it costly, dangerous, or against their interests?" },
 		],
 		results: [
-			"10+: they go along with it, at least for now.",
-			"7-9: they need something in return, or they'll only go partway.",
-			"Miss: they refuse outright, and may resent being asked.",
+			RESULT.strong("they go along with it, at least for now."),
+			RESULT.weak("they need something in return, or they'll only go partway."),
+			RESULT.miss("they refuse outright, and may resent being asked.", "Miss"),
 		],
 		note: "Malcontent means folks need Persuading more often than usual.",
 	},
@@ -346,6 +427,10 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		async _render(force, options) {
+			// The hover preview is a document.body singleton, so a re-render while the cursor is
+			// over an avatar tears out the anchor without firing mouseleave — clear it up front so
+			// no orphaned floating preview is left stuck on screen.
+			this._removeMemberAvatarPreview();
 			await super._render(force, options);
 			// Strip any PBTA-injected playbook controls and FoundryVTT chrome from the window header
 			const header = this.element[0]?.querySelector(".window-header");
@@ -630,6 +715,10 @@ export function createStonetopSteadingSheetClass(Base) {
 
 		async close(options) {
 			this._clearAllSectionDoneTimers();
+			// The avatar hover preview lives on document.body, so it survives the sheet's own
+			// DOM being torn down — clear it here or it orphans if the sheet closes (e.g. Escape)
+			// while the cursor is still over an avatar and no mouseleave ever fires.
+			this._removeMemberAvatarPreview();
 			return super.close(options);
 		}
 
@@ -668,6 +757,25 @@ export function createStonetopSteadingSheetClass(Base) {
 		activateListeners(html) {
 			super.activateListeners(html);
 			wrapStonetopGlyphsInEl(html[0]);
+
+			// Drag a Place of Interest's lettered disc onto the canvas to drop a map
+			// note (handled by the dropCanvasData hook). Read-only viewers may drag too;
+			// note creation is separately gated by the core NOTE_CREATE permission. The
+			// name is read live from the sibling input so it's current even mid-edit.
+			html[0].addEventListener("dragstart", (ev) => {
+				const badge = ev.target.closest?.(".steading-place-letter[draggable='true']");
+				if (!badge) return;
+				const item = badge.closest(".steading-place-item");
+				const letter = item?.dataset.letter ?? badge.textContent.trim();
+				const name = item?.querySelector(".steading-place-name")?.value?.trim() ?? "";
+				if (!name) { ev.preventDefault(); return; }
+				ev.dataTransfer.setData("text/plain", JSON.stringify({
+					type: PLACE_OF_INTEREST_DRAG_TYPE,
+					letter,
+					name,
+				}));
+				ev.dataTransfer.effectAllowed = "copy";
+			});
 
 			// Swap the resident/neighbor fields' native <datalist> popups (occupation,
 			// traits, home) for our scrollable one — Chromium's native popup has no
@@ -720,6 +828,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				const { moveSlug } = btn.dataset;
 				if (moveSlug === "meetWithDisaster") this._onMeetWithDisaster();
 				else if (moveSlug === "requisition") this._onRequisitionWalkthrough();
+				else if (moveSlug === "returnTriumphant") this._onReturnTriumphant();
 				else if (moveSlug === "seasonsChange") this._onSeasonsChange();
 				else if (HOMESTEAD_MOVE_FLOWS[moveSlug]) this._onHomesteadMove(moveSlug);
 			}, true);
@@ -789,6 +898,22 @@ export function createStonetopSteadingSheetClass(Base) {
 			html[0].querySelectorAll(".steading-residents-table[data-resize-key]").forEach(table => {
 				makeColumnsResizable(table, table.dataset.resizeKey);
 			});
+
+			html[0].addEventListener("mouseenter", ev => {
+				const avatar = ev.target.closest?.(".steading-member-avatar");
+				if (!avatar) return;
+				this._showMemberAvatarPreview(avatar);
+			}, true);
+			html[0].addEventListener("mouseleave", ev => {
+				if (!ev.target.closest?.(".steading-member-avatar")) return;
+				this._removeMemberAvatarPreview();
+			}, true);
+			html[0].addEventListener("click", ev => {
+				const avatar = ev.target.closest(".steading-member-avatar");
+				if (!avatar) return;
+				ev.stopPropagation();
+				this._openMemberAvatarImage(avatar);
+			}, true);
 
 			if (!this.isEditable) return;
 
@@ -918,6 +1043,20 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onImprovementReq(slug, parseInt(index), cb.checked);
 			}, true);
 
+			// Herd of Horses tracker: +/- steppers and direct number entry per age tier.
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".steading-herd-step");
+				if (!btn) return;
+				ev.stopPropagation();
+				this._onHerdStep(btn.dataset.tier, parseInt(btn.dataset.delta) || 0);
+			}, true);
+			html[0].addEventListener("change", ev => {
+				const inp = ev.target.closest(".steading-herd-input");
+				if (!inp) return;
+				ev.stopPropagation();
+				this._onHerdInput(inp.dataset.tier, inp.value);
+			}, true);
+
 			// Drag-and-drop for adding player characters to the Neighbors tab.
 			const neighborsTab = html[0].querySelector(".steading-neighbors-tab");
 			const playersSection = html[0].querySelector(".steading-players-section");
@@ -979,6 +1118,162 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.stopPropagation();
 				this._onRemoveCustomImprovement(btn.dataset.slug);
 			}, true);
+
+			// Create a custom improvement from a small form (the button counterpart to
+			// dropping a journal card onto the tab).
+			html.find(".steading-improvement-add-btn").on("click", () => this._onCreateImprovementOpen());
+		}
+
+		_removeMemberAvatarPreview() {
+			document.querySelector(".steading-member-avatar-preview")?.remove();
+		}
+
+		_showMemberAvatarPreview(anchor) {
+			this._removeMemberAvatarPreview();
+			if (!anchor?.src) return;
+			const popup = document.createElement("div");
+			popup.className = "steading-member-avatar-preview";
+			const img = document.createElement("img");
+			img.src = anchor.src;
+			img.alt = "";
+			popup.appendChild(img);
+			const name = anchor.dataset.name?.trim();
+			if (name) {
+				const caption = document.createElement("strong");
+				caption.textContent = name;
+				popup.appendChild(caption);
+			}
+			document.body.appendChild(popup);
+
+			const ar = anchor.getBoundingClientRect();
+			const gap = 8;
+			const pw = popup.offsetWidth;
+			const ph = popup.offsetHeight;
+			let top = ar.bottom + gap;
+			if (top + ph > window.innerHeight - 8) top = ar.top - ph - gap;
+			let left = ar.left + ar.width / 2 - pw / 2;
+			top = Math.max(8, top);
+			left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+			popup.style.top = `${top}px`;
+			popup.style.left = `${left}px`;
+			const z = parseInt(this.element?.[0]?.style?.zIndex || 0);
+			popup.style.setProperty("z-index", String(Math.max(10000, z + 2)), "important");
+		}
+
+		_openMemberAvatarImage(anchor) {
+			this._removeMemberAvatarPreview();
+			if (!anchor?.src) return;
+			const popout = this._createEditableMemberImagePopout(anchor);
+			popout.render(true);
+			this._scheduleMemberImageHeaderControl(popout);
+		}
+
+		_createEditableMemberImagePopout(anchor) {
+			const list = anchor?.dataset?.list;
+			const index = Number.parseInt(anchor?.dataset?.index ?? "", 10);
+			const canEdit = this.isEditable && ["residents", "neighbors"].includes(list) && Number.isInteger(index);
+			const sheet = this;
+			const BaseImagePopout = globalThis.ImagePopout;
+			if (!canEdit || !BaseImagePopout) {
+				return new ImagePopout(anchor.src, {
+					title:  anchor.dataset.name ?? "",
+					width:  560,
+					height: 620,
+				});
+			}
+			const popout = new BaseImagePopout(anchor.src, {
+				title:  anchor.dataset.name ?? "",
+				width:  560,
+				height: 620,
+			});
+			popout._stonetopMemberImageEdit = { sheet, list, index, current: anchor.src };
+			return popout;
+		}
+
+		_scheduleMemberImageHeaderControl(popout) {
+			if (!popout?._stonetopMemberImageEdit) return;
+			const inject = () => this._injectMemberImageHeaderControl(popout);
+			if (typeof requestAnimationFrame === "function") requestAnimationFrame(inject);
+			setTimeout(inject, 0);
+			setTimeout(inject, 100);
+		}
+
+		_injectMemberImageHeaderControl(popout) {
+			const edit = popout?._stonetopMemberImageEdit;
+			const root = popout?.element?.jquery ? popout.element[0] : popout?.element;
+			const header = root?.querySelector?.(".window-header");
+			if (!edit || !header) return;
+			if (header.querySelector(".stonetop-edit-member-photo")) return;
+
+			const isAppV1 = !!header.querySelector("a.header-button");
+			const btn = document.createElement(isAppV1 ? "a" : "button");
+			if (!isAppV1) {
+				btn.type = "button";
+				btn.className = "header-control icon stonetop-edit-member-photo fa-solid fa-camera";
+			} else {
+				btn.className = "header-button control stonetop-edit-member-photo";
+				btn.innerHTML = `<i class="fas fa-camera"></i> Edit Photo`;
+			}
+			btn.setAttribute("data-tooltip", "Edit Photo");
+			btn.setAttribute("aria-label", "Edit Photo");
+			btn.addEventListener("click", ev => {
+				ev.preventDefault();
+				ev.stopPropagation();
+				this._onMemberAvatarPickImage({
+					list: edit.list,
+					index: edit.index,
+					current: popout.src ?? edit.current,
+					popout,
+				});
+			});
+
+			const firstControl = header.querySelector(isAppV1 ? "a.header-button" : "button.header-control");
+			if (firstControl) header.insertBefore(btn, firstControl);
+			else header.appendChild(btn);
+		}
+
+		_onMemberAvatarPickImage({ list, index, current, popout }) {
+			const FilePickerClass = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+			if (!FilePickerClass) return;
+			new FilePickerClass({
+				type: "image",
+				current,
+				callback: async path => {
+					await this._onMemberAvatarImageChange(list, index, path);
+					if (popout) {
+						this._refreshMemberImagePopout(popout, path);
+					}
+					this.render(false);
+				},
+			}).render(true);
+		}
+
+		_refreshMemberImagePopout(popout, path) {
+			if (!popout || !path) return;
+			popout.src = path;
+			if (popout.options) popout.options.src = path;
+			if (popout.object) popout.object.src = path;
+			if (popout._stonetopMemberImageEdit) popout._stonetopMemberImageEdit.current = path;
+
+			const root = popout.element?.jquery ? popout.element[0] : popout.element;
+			const img = root?.querySelector?.(".window-content img, img");
+			if (img) {
+				img.src = path;
+				img.setAttribute?.("src", path);
+				return;
+			}
+
+			popout.render?.(false);
+			this._scheduleMemberImageHeaderControl(popout);
+		}
+
+		async _onMemberAvatarImageChange(list, index, value) {
+			if (!["residents", "neighbors"].includes(list) || !Number.isInteger(index)) return;
+			const f = this._stonetopSteading._flags;
+			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
+			if (!arr[index]) return;
+			arr[index].img = value;
+			await this._stonetopSteading.setFlags({ [list]: arr });
 		}
 
 		_onHomesteadMove(moveSlug) {
@@ -1029,10 +1324,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				</div>`
 				: "";
 
-			const resultsHtml = `<div class="stonetop-homestead-reference">
-				<strong>Results</strong>
-				<ul>${flow.results.map(item => `<li>${_formatResultLine(item)}</li>`).join("")}</ul>
-			</div>`;
+			const resultsHtml = _resultsLegendHtml(flow.results);
 
 			// Trade & Barter is how special items are acquired — let the player pick one
 			// from the handout list (which fills the item + Value fields for the roll).
@@ -1134,10 +1426,15 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		_homesteadRollOptions(flow, html) {
-			if (flow.label !== "Trade & Barter") return {};
+			const options = {
+				moveResults: _moveResultsFromRows(flow.results),
+				resultLegend: _resultsLegendHtml(flow.results),
+			};
+			if (flow.label !== "Trade & Barter") return options;
 			const data = this._formDataFromDialog(html);
 			const value = Math.max(0, parseInt(data.value) || 0);
 			return {
+				...options,
 				modifier: value ? -value : 0,
 				rollMode: data.winter ? "dis" : undefined,
 			};
@@ -1251,9 +1548,81 @@ export function createStonetopSteadingSheetClass(Base) {
 			dialog.render(true);
 		}
 
+		// Return Triumphant: clear one marked steading debility. If none are marked,
+		// increase Fortunes by 1 instead. Mirrors the Meet with Disaster walkthrough
+		// (its inverse — that one marks debilities / drops Fortunes). Writes are
+		// attributed to the move so the steading ledger reads "via Return Triumphant".
+		async _onReturnTriumphant() {
+			const DEBILITIES = [
+				{ id: "diminished", label: "Diminished", detail: "disadvantage to Deploy, Muster, Pull Together" },
+				{ id: "lacking",    label: "Lacking",    detail: "treat Prosperity as 1 lower" },
+				{ id: "malcontent", label: "Malcontent", detail: "Fortunes reset to +0 each season; folks need Persuading more often" },
+			];
+			const marked = DEBILITIES.filter(d =>
+				this._stonetopSteading.getSystemValue(`attributes.debilities.options.${d.id}.value`, false));
+
+			// No debilities marked → the move raises Fortunes by 1 instead.
+			if (marked.length === 0) {
+				const fortunes = this._stonetopSteading.getStatValue("fortunes");
+				const newFortunes = fortunes + 1;
+				new Dialog({
+					title: "Return Triumphant",
+					content: `<div class="stonetop-disaster-dialog">
+						<p><em>You return home in triumph, and the steading has no debilities marked.</em></p>
+						<p>Fortunes: <strong>${sign(fortunes)}</strong> → <strong>${sign(newFortunes)}</strong></p>
+					</div>`,
+					buttons: {
+						cancel: { label: "Cancel" },
+						apply: {
+							label: "Increase Fortunes",
+							callback: async () => {
+								await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes, { stonetopMove: "Return Triumphant" });
+								this.render(false);
+							},
+						},
+					},
+					default: "apply",
+				}, { classes: ["dialog", "stonetop", "stonetop-disaster-move-dialog"] }).render(true);
+				return;
+			}
+
+			// One or more debilities marked → the GM clears 1.
+			const choicesHtml = marked.map(d => `
+				<li class="stonetop-disaster-choice" data-choice="${d.id}">
+					<span class="stonetop-disaster-choice-label">${d.label}</span>
+					<span class="stonetop-disaster-choice-detail">${d.detail}</span>
+				</li>`).join("");
+
+			let dialog;
+			dialog = new Dialog({
+				title: "Return Triumphant",
+				content: `<div class="stonetop-disaster-dialog">
+					<p><em>You return home in triumph.</em> Clear 1 of the steading's debilities:</p>
+					<ol class="stonetop-disaster-choices">${choicesHtml}</ol>
+				</div>`,
+				buttons: { cancel: { label: "Cancel" } },
+				render: (html) => {
+					html[0].querySelectorAll(".stonetop-disaster-choice").forEach(el => {
+						el.addEventListener("click", async () => {
+							const choice = marked.find(d => d.id === el.dataset.choice);
+							if (!choice) return;
+							await this._stonetopSteading.setSystemValue(`attributes.debilities.options.${choice.id}.value`, false, { stonetopMove: "Return Triumphant" });
+							this.render(false);
+							dialog.close();
+						});
+					});
+				},
+			}, { classes: ["dialog", "stonetop", "stonetop-disaster-move-dialog"] });
+			dialog.render(true);
+		}
+
 		async _onRequisitionWalkthrough() {
 			const fortunes = this._stonetopSteading.getStatValue("fortunes");
 			const newFortunes = Math.max(fortunes - 1, -1);
+			const availableAssets = this._stonetopSteading.getAvailableAssets();
+			const assetOptions = availableAssets
+				.map(asset => `<option value="${escHtml(asset.name)}">${escHtml(asset.name)}</option>`)
+				.join("");
 			const requisitionFlow = {
 				label: "Requisition",
 				fields: [
@@ -1262,6 +1631,13 @@ export function createStonetopSteadingSheetClass(Base) {
 					{ name: "convincing", label: "Who needs convincing?" },
 				],
 			};
+			// Single source for the three outcome lines; both the dialog reference block
+			// and the chat card's legend + per-tier text derive from it (see the season flows).
+			const requisitionResults = [
+				RESULT.strong("go ahead, but bring it back safely."),
+				RESULT.weak("you will need to do some convincing."),
+				RESULT.miss("do not mark XP; you can take the asset, but if you do, reduce Fortunes by 1."),
+			];
 
 			const dialog = new Dialog({
 				title: "Requisition",
@@ -1270,7 +1646,12 @@ export function createStonetopSteadingSheetClass(Base) {
 					<div class="stonetop-homestead-fields">
 						<label class="stonetop-homestead-field">
 							<span>Asset</span>
-							<input type="text" name="asset" placeholder="Horse team, wagon, plow, common asset...">
+							<select class="stonetop-requisition-asset-select" data-requisition-asset-select>
+								${assetOptions}
+								<option value="${CUSTOM_ASSET_VALUE}">Something else...</option>
+							</select>
+							<input type="text" class="stonetop-requisition-custom-input" data-requisition-custom-asset placeholder="Enter an asset or item" disabled hidden>
+							<input type="hidden" name="asset" data-requisition-asset-value value="${availableAssets[0]?.name ? escHtml(availableAssets[0].name) : ""}">
 						</label>
 						<label class="stonetop-homestead-field">
 							<span>Risk</span>
@@ -1281,19 +1662,7 @@ export function createStonetopSteadingSheetClass(Base) {
 							<input type="text" name="convincing" placeholder="Owner, family, council, militia, publican...">
 						</label>
 					</div>
-					<div class="stonetop-homestead-reference">
-						<strong>Results</strong>
-						<ul>
-							<li><strong>10+:</strong> go ahead, but bring it back safely.</li>
-							<li><strong>7-9:</strong> you will need to do some convincing.</li>
-							<li><strong>6-:</strong> do not mark XP; you can take the asset, but if you do, reduce Fortunes by 1.</li>
-						</ul>
-					</div>
-					<div class="stonetop-season-actions">
-						<button type="button" class="stonetop-season-btn" data-action="miss-cost">
-							<i class="fas fa-arrow-down"></i> Take it on a miss: Fortunes ${sign(fortunes)} -> ${sign(newFortunes)}
-						</button>
-					</div>
+					${_resultsLegendHtml(requisitionResults)}
 				</form>`,
 				buttons: {
 					cancel: { label: "Cancel" },
@@ -1301,16 +1670,25 @@ export function createStonetopSteadingSheetClass(Base) {
 						label: "Roll +Fortunes",
 						callback: async html => {
 							await this._postHomesteadMoveSummary(requisitionFlow, html);
-							await this._onSteadingRoll("Requisition", "fortunes");
+							await this._onSteadingRoll("Requisition", "fortunes", {
+								moveResults: _moveResultsFromRows(requisitionResults),
+								resultLegend: _resultsLegendHtml(requisitionResults),
+								tierActions: {
+									failure: `<button type="button" class="stonetop-requisition-miss-cost" data-action="requisition-miss-cost">
+										<i class="fas fa-arrow-down"></i> Take it on a miss: Fortunes ${sign(fortunes)} -> ${sign(newFortunes)}
+									</button>`,
+								},
+							});
 						},
 					},
 				},
 				default: "roll",
-				render: (html) => {
-					html[0].querySelector("[data-action='miss-cost']")?.addEventListener("click", async () => {
-						await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes);
-						this.render(false);
-						ui.notifications.info(`Fortunes reduced to ${sign(newFortunes)}.`);
+				render: html => {
+					const root = html[0];
+					wireCustomAssetSelect({
+						select: root.querySelector("[data-requisition-asset-select]"),
+						customInput: root.querySelector("[data-requisition-custom-asset]"),
+						valueInput: root.querySelector("[data-requisition-asset-value]"),
 					});
 				},
 			}, { width: 520, classes: ["dialog", "stonetop", "stonetop-homestead-move-dialog"] });
@@ -1520,6 +1898,11 @@ export function createStonetopSteadingSheetClass(Base) {
 							<i class="fas fa-dice-d4"></i> Roll 1d4−1 Surplus (add to steading)
 						</button>
 					</div>
+					${this._hasHerd() ? `<div class="stonetop-season-actions">
+						<button class="stonetop-season-btn" data-action="advance-herd">
+							<i class="fas fa-horse"></i> Advance the herd (promote tiers, add foals)
+						</button>
+					</div>` : ""}
 					${notesBlock}
 				</div>`;
 			} else if (seasonId === "autumn") {
@@ -1591,6 +1974,13 @@ export function createStonetopSteadingSheetClass(Base) {
 						<p class="stonetop-season-note">Whatever the result, reset Fortunes to +1.</p>
 						${fortunesBtns}
 					</div>
+					${this._hasHerd() ? `<hr class="stonetop-season-divider">
+					<p class="stonetop-season-note">The herd eats 1 Surplus per ${HERD_SURPLUS_PER} grown-or-yearling horses; each Surplus it goes short costs 1d6 horses.</p>
+					<div class="stonetop-season-actions">
+						<button class="stonetop-season-btn" data-action="feed-herd">
+							<i class="fas fa-horse"></i> Feed the herd (consume Surplus, roll any losses)
+						</button>
+					</div>` : ""}
 					${notesBlock}
 				</div>`;
 			}
@@ -1612,7 +2002,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					const seasonsMove = { stonetopMove: "Seasons Change" };
 
 					root.querySelector("[data-action='roll-fortunes']")?.addEventListener("click", () => {
-						this._onSteadingRoll("Seasons Change", "fortunes");
+						this._onSteadingRoll("Seasons Change", "fortunes", _seasonRollOptions(seasonId));
 					});
 
 					// Spring only: hand the roll to the table — post a chat card asking the
@@ -1642,37 +2032,91 @@ export function createStonetopSteadingSheetClass(Base) {
 						cb.addEventListener("change", refreshDoneLabel));
 					refreshDoneLabel();
 
-					root.querySelector("[data-action='roll-surplus']")?.addEventListener("click", async () => {
-						const formula = seasonId === "summer" ? "1d4 - 1" : "1d4";
-						const roll = await new Roll(formula).evaluate();
-						const gain = Math.max(0, roll.total);
-						await roll.toMessage({ flavor: `Surplus Generation (${label})` });
-						await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus + gain, seasonsMove);
-						this.render(false);
-						ui.notifications.info(`Generated ${gain} Surplus. New total: ${surplus + gain}.`);
+					// Herd of Horses seasonal steps (only present when the herd is earned):
+					// summer promotes the tiers + adds foals; winter feeds the herd off Surplus.
+					// Disable on click before the (async) apply runs (the Seasons Change dialog stays
+					// open and only the sheet behind it re-renders, so a second click would re-read the
+					// just-advanced herd / just-spent Surplus and apply the season again), AND persist a
+					// per-season marker so a close+reopen in the same season can't re-run it either.
+					const advanceHerdBtn = root.querySelector("[data-action='advance-herd']");
+					this._disableIfSeasonStepDone(advanceHerdBtn, "advanceHerd", year, seasonId);
+					advanceHerdBtn?.addEventListener("click", async () => {
+						if (advanceHerdBtn.disabled) return;
+						advanceHerdBtn.disabled = true;
+						try {
+							await this._advanceHerdSummer();
+							await this._stonetopSteading.setSeasonStepApplied("advanceHerd", year, seasonId);
+						} catch (err) { advanceHerdBtn.disabled = false; throw err; }
+					});
+					const feedHerdBtn = root.querySelector("[data-action='feed-herd']");
+					this._disableIfSeasonStepDone(feedHerdBtn, "feedHerd", year, seasonId);
+					feedHerdBtn?.addEventListener("click", async () => {
+						if (feedHerdBtn.disabled) return;
+						feedHerdBtn.disabled = true;
+						try {
+							await this._feedHerdWinter();
+							await this._stonetopSteading.setSeasonStepApplied("feedHerd", year, seasonId);
+						} catch (err) { feedHerdBtn.disabled = false; throw err; }
+					});
+
+					const rollSurplusBtn = root.querySelector("[data-action='roll-surplus']");
+					this._disableIfSeasonStepDone(rollSurplusBtn, "surplus", year, seasonId);
+					rollSurplusBtn?.addEventListener("click", async () => {
+						if (rollSurplusBtn.disabled) return;
+						rollSurplusBtn.disabled = true;
+						try {
+							const formula = seasonId === "summer" ? "1d4 - 1" : "1d4";
+							const roll = await new Roll(formula).evaluate();
+							const gain = Math.max(0, roll.total);
+							await roll.toMessage({ flavor: `Surplus Generation (${label})` });
+							await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus + gain, seasonsMove);
+							await this._stonetopSteading.setSeasonStepApplied("surplus", year, seasonId);
+							this.render(false);
+							ui.notifications.info(`Generated ${gain} Surplus. New total: ${surplus + gain}.`);
+						} catch (err) { rollSurplusBtn.disabled = false; throw err; }
 					});
 
 					// Winter — consumption roll
-					root.querySelector("[data-action='roll-consumption']")?.addEventListener("click", async () => {
-						const popAbs = Math.abs(population);
-						const formula = population >= 0 ? `1d4 + ${population}` : `1d4 - ${popAbs}`;
-						const roll = await new Roll(formula).evaluate();
-						const consumption = Math.max(0, roll.total);
-						await roll.toMessage({ flavor: "Winter Surplus Consumption" });
+					const rollConsumptionBtn = root.querySelector("[data-action='roll-consumption']");
+					this._disableIfSeasonStepDone(rollConsumptionBtn, "consumption", year, seasonId);
+					rollConsumptionBtn?.addEventListener("click", async () => {
+						if (rollConsumptionBtn.disabled) return;
+						// Close the double-click window synchronously (like the sibling steps): the
+						// button stays visible through the whole await below, so without this a second
+						// click posts a second roll and double-binds the apply listener, deducting
+						// consumption from Surplus twice. Restored on error so a failed roll can retry.
+						rollConsumptionBtn.disabled = true;
+						let consumption, surplusNow;
+						try {
+							const popAbs = Math.abs(population);
+							const formula = population >= 0 ? `1d4 + ${population}` : `1d4 - ${popAbs}`;
+							const roll = await new Roll(formula).evaluate();
+							consumption = Math.max(0, roll.total);
+							await roll.toMessage({ flavor: "Winter Surplus Consumption" });
+
+							// Read Surplus LIVE, not the value captured when the dialog opened: the
+							// herd "Feed the herd" step in this same dialog may have already spent some,
+							// and this.render() refreshes the sheet, not this Dialog's closure.
+							surplusNow = this._stonetopSteading.getStatValue("surplus");
+						} catch (err) { rollConsumptionBtn.disabled = false; throw err; }
 
 						root.querySelector("#stonetop-winter-step1").hidden = true;
 						root.querySelector("#stonetop-winter-step2").hidden = false;
 						root.querySelector("#stonetop-winter-result").textContent =
-							`Roll: ${consumption}. Surplus needed: ${consumption}, available: ${surplus}.`;
+							`Roll: ${consumption}. Surplus needed: ${consumption}, available: ${surplusNow}.`;
 
-						if (surplus >= consumption) {
+						if (surplusNow >= consumption) {
 							root.querySelector("#stonetop-winter-ok").hidden = false;
 							root.querySelector("[data-action='apply-consumption']").addEventListener("click", async () => {
-								await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus - consumption, seasonsMove);
+								// Re-read at apply time so a herd feed between roll and apply can't be refunded.
+								const live = this._stonetopSteading.getStatValue("surplus");
+								const remaining = Math.max(0, live - consumption);
+								await this._stonetopSteading.setSystemValue("attributes.surplus.value", remaining, seasonsMove);
+								await this._stonetopSteading.setSeasonStepApplied("consumption", year, seasonId);
 								this.render(false);
 								root.querySelector("#stonetop-winter-ok").hidden = true;
 								root.querySelector("#stonetop-winter-step3").hidden = false;
-								ui.notifications.info(`Consumed ${consumption} Surplus. Remaining: ${surplus - consumption}.`);
+								ui.notifications.info(`Consumed ${Math.min(consumption, live)} Surplus. Remaining: ${remaining}.`);
 							});
 						} else {
 							root.querySelector("#stonetop-winter-shortfall").hidden = false;
@@ -1681,6 +2125,7 @@ export function createStonetopSteadingSheetClass(Base) {
 									const newFortunes = Math.max(fortunes - 1, -1);
 									await this._stonetopSteading.setSystemValue("attributes.surplus.value", 0, seasonsMove);
 									await this._stonetopSteading.setSystemValue("stats.fortunes.value", newFortunes, seasonsMove);
+									await this._stonetopSteading.setSeasonStepApplied("consumption", year, seasonId);
 									if (el.dataset.consequence === "population") {
 										const newPop = Math.max(population - 1, -1);
 										await this._stonetopSteading.setSystemValue("attributes.population.value", newPop, seasonsMove);
@@ -1704,7 +2149,15 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!statKey) return;
 			const diminished = this._stonetopSteading.getSystemValue("attributes.debilities.options.diminished.value", false);
 			const lacking = this._stonetopSteading.getSystemValue("attributes.debilities.options.lacking.value", false);
+			const flow = Object.values(HOMESTEAD_MOVE_FLOWS).find(f => f.label === moveName);
+			const defaultRollOptions = flow
+				? {
+					moveResults: _moveResultsFromRows(flow.results),
+					resultLegend: _resultsLegendHtml(flow.results),
+				}
+				: {};
 			const options = {
+				...defaultRollOptions,
 				...rollOptions,
 				moveName,
 				rollMode: _normalizeSheetRollMode(rollOptions.rollMode ?? this._sheetRollMode()),
@@ -1884,25 +2337,30 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		async _onImprovementComplete(slug, checked) {
-			const f = this._stonetopSteading._flags;
-			const improvements = foundry.utils.deepClone(f.improvements ?? {});
-			if (!improvements[slug]) improvements[slug] = { completed: false, r: [] };
 			// Marking complete while the requirements aren't all met: rather than block
 			// it, offer to check off every required step at once and earn the improvement
 			// now. Unchecking is always allowed so a mistaken completion can be undone.
+			let forceR;
 			if (checked) {
 				const def = this._stonetopSteading.improvementDef(slug);
-				if (def && !improvementRequirementsMet(def, improvements[slug].r ?? [])) {
+				const stored = this._stonetopSteading._flags.improvements?.[slug] ?? {};
+				if (def && !improvementRequirementsMet(def, stored.r ?? [])) {
 					const confirmed = await this._confirmForceCompleteImprovement(def);
 					if (!confirmed) {
 						this.render(false); // revert the just-tapped checkbox
 						return;
 					}
-					improvements[slug].r = Array.from({ length: improvementRequirementCount(def) }, () => true);
+					forceR = Array.from({ length: improvementRequirementCount(def) }, () => true);
 				}
 			}
-			improvements[slug].completed = checked;
-			await this._stonetopSteading.setFlags({ improvements });
+			// Toggling completion also auto-applies (or reverses) the improvement's
+			// one-time mechanical grants — stat bumps, Resources/Fortifications entries,
+			// etc. — in the same actor update. See StonetopSteading.setImprovementCompleted.
+			const result = await this._stonetopSteading.setImprovementCompleted(slug, checked, { forceR });
+			if (result?.summary?.length) {
+				const verb = result.reverted ? "Reverted" : "Applied";
+				ui.notifications.info(`${verb} ${result.label}: ${result.summary.join("; ")}.`);
+			}
 		}
 
 		// Confirm marking every requirement of a not-yet-earned improvement complete so
@@ -1927,6 +2385,92 @@ export function createStonetopSteadingSheetClass(Base) {
 			await this._stonetopSteading.setFlags({ improvements });
 		}
 
+		/** Whether the Herd of Horses improvement is earned (so the herd tracker/season steps apply). */
+		_hasHerd() {
+			return !!this._stonetopSteading._flags.improvements?.herdOfHorses?.completed;
+		}
+
+		async _onHerdStep(tier, delta) {
+			if (!["grown", "yearlings", "foals"].includes(tier) || !delta) return;
+			const herd = this._stonetopSteading.getHerd();
+			await this._stonetopSteading.setHerd({ ...herd, [tier]: Math.max(0, herd[tier] + delta) });
+		}
+
+		async _onHerdInput(tier, value) {
+			if (!["grown", "yearlings", "foals"].includes(tier)) return;
+			const herd = this._stonetopSteading.getHerd();
+			await this._stonetopSteading.setHerd({ ...herd, [tier]: Math.max(0, Math.trunc(Number(value) || 0)) });
+		}
+
+		/**
+		 * Disable a once-per-season Seasons-Change button (and tooltip why) when its step has
+		 * already been applied for this year+season, so closing and reopening the dialog can't
+		 * re-run it. Returns true when it disabled the button.
+		 */
+		_disableIfSeasonStepDone(btn, step, year, seasonId) {
+			if (!btn || !this._stonetopSteading.seasonStepApplied(step, year, seasonId)) return false;
+			btn.disabled = true;
+			btn.title = "Already done this season — reopening won't repeat it.";
+			return true;
+		}
+
+		/**
+		 * Summer: yearlings become grown horses, foals become yearlings, and the herd gains
+		 * 1d4+Fortunes (min 0) new foals. Rolls the foals to chat, applies, and reports.
+		 */
+		async _advanceHerdSummer() {
+			const before = this._stonetopSteading.getHerd();
+			const fortunes = this._stonetopSteading.getStatValue("fortunes");
+			// Roll Fortunes INTO the die so the chat card's total is the actual foals added
+			// (1d4 + Fortunes), not a bare 1d4 that disagrees with the herd change / notification.
+			const formula = fortunes >= 0 ? `1d4 + ${fortunes}` : `1d4 - ${Math.abs(fortunes)}`;
+			const roll = await new Roll(formula).evaluate();
+			await roll.toMessage({ flavor: `Herd — new foals (1d4 + Fortunes ${sign(fortunes)})` });
+			const newFoals = Math.max(0, roll.total);
+			const next = StonetopSteading.advanceHerdForSummer(before, newFoals);
+			await this._stonetopSteading.setHerd(next, { stonetopMove: "Seasons Change" });
+			this.render(false);
+			const total = next.grown + next.yearlings + next.foals;
+			ui.notifications.info(`Herd advanced: grown ${before.grown}→${next.grown}, yearlings ${before.yearlings}→${next.yearlings}, foals ${before.foals}→${next.foals} (+${newFoals}). Total ${before.total}→${total}.`);
+		}
+
+		/**
+		 * Winter: the herd needs 1 Surplus per ${HERD_SURPLUS_PER} grown-or-yearling horses.
+		 * Feed what Surplus is available; for each Surplus it goes short, roll 1d6 horses lost
+		 * (taken from the oldest tiers first). Surplus and herd changes are attributed to
+		 * Seasons Change in the ledger.
+		 */
+		async _feedHerdWinter() {
+			const before = this._stonetopSteading.getHerd();
+			const surplus = this._stonetopSteading.getStatValue("surplus");
+			const cost = StonetopSteading.herdWinterCost(before);
+			if (cost <= 0) {
+				ui.notifications.info("The herd is small enough to forage — no Surplus needed this winter.");
+				return;
+			}
+			const shortfall = Math.max(0, cost - Math.max(0, surplus));
+			let losses = 0;
+			if (shortfall > 0) {
+				const roll = await new Roll(`${shortfall}d6`).evaluate();
+				await roll.toMessage({ flavor: `Herd losses (${shortfall}× 1d6 — ${shortfall} Surplus short)` });
+				losses = roll.total;
+			}
+			const result = StonetopSteading.feedHerdForWinter(before, surplus, losses);
+			if (result.paid > 0) {
+				await this._stonetopSteading.setSystemValue("attributes.surplus.value", surplus - result.paid, { stonetopMove: "Seasons Change" });
+			}
+			if (result.lost > 0) {
+				await this._stonetopSteading.setHerd(result.herd, { stonetopMove: "Seasons Change" });
+			}
+			this.render(false);
+			let msg = `Herd fed: needed ${result.cost} Surplus, paid ${result.paid} (Surplus ${surplus}→${surplus - result.paid}).`;
+			if (result.shortfall > 0) {
+				const newTotal = result.herd.grown + result.herd.yearlings + result.herd.foals;
+				msg += ` ${result.shortfall} short → lost ${result.lost} horse${result.lost === 1 ? "" : "s"} (herd ${before.total}→${newTotal}).`;
+			}
+			ui.notifications.info(msg);
+		}
+
 		async _onDropSteadingImprovement(improvement) {
 			if (!improvement?.name) return;
 			const result = await this._stonetopSteading.addCustomImprovement(improvement);
@@ -1936,6 +2480,60 @@ export function createStonetopSteadingSheetClass(Base) {
 			} else if (result.reason === "duplicate") {
 				globalThis.ui?.notifications?.warn?.(`${result.label} is already a steading improvement.`);
 			}
+		}
+
+		// Prompt for a custom improvement (name + optional flavor/effect) and add it as a
+		// tracked custom improvement — the same path a dropped journal card takes.
+		async _onCreateImprovementOpen() {
+			let dialog;
+			dialog = new Dialog({
+				title: "Create Improvement",
+				content: `<form class="stonetop-homestead-dialog">
+					<p class="stonetop-homestead-trigger"><em>Add a custom improvement to track alongside the book's built-ins.</em></p>
+					<div class="stonetop-homestead-fields">
+						<label class="stonetop-homestead-field">
+							<span>Name</span>
+							<input type="text" name="name" placeholder="e.g. Roadbuilding" autofocus>
+						</label>
+						<label class="stonetop-homestead-field">
+							<span>Flavor</span>
+							<textarea name="flavor" rows="2" placeholder="A short description shown under the title (optional)."></textarea>
+						</label>
+						<label class="stonetop-homestead-field">
+							<span>Effect</span>
+							<textarea name="effect" rows="2" placeholder="What completing it does — new resources, defenses, etc. (optional)."></textarea>
+						</label>
+					</div>
+				</form>`,
+				buttons: {
+					cancel: { label: "Cancel" },
+					create: {
+						label: "Create",
+						callback: async (html) => {
+							const form = html[0].querySelector("form");
+							const val = n => form.querySelector(`[name="${n}"]`)?.value?.trim() ?? "";
+							const name = val("name");
+							if (!name) {
+								globalThis.ui?.notifications?.warn?.("Enter a name for the improvement.");
+								return;
+							}
+							const result = await this._stonetopSteading.addCustomImprovement({
+								name,
+								flavor: val("flavor"),
+								effect: val("effect"),
+							});
+							if (result.ok) {
+								globalThis.ui?.notifications?.info?.(`Added steading improvement: ${result.label}.`);
+								this.render(false);
+							} else if (result.reason === "duplicate") {
+								globalThis.ui?.notifications?.warn?.(`${result.label} is already a steading improvement.`);
+							}
+						},
+					},
+				},
+				default: "create",
+			}, { classes: ["dialog", "stonetop", "stonetop-create-improvement-dialog"] });
+			dialog.render(true);
 		}
 
 		async _onRemoveCustomImprovement(slug) {
