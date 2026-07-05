@@ -94,15 +94,33 @@ export function springRollCardBody(total, tier, label, line, formula, dieFaces =
 }
 
 /**
+ * A pill for a roll card's title row that names the KIND of roll — e.g. a "Damage"
+ * badge so a damage-roll card (which has no 2d6 hit tier) reads distinctly from a
+ * move roll at a glance. `kind` becomes the colour modifier class. Shared by the
+ * generic roll card (roll-engine `_rollCard`) and the interactive attack results
+ * card so the two stay in lockstep.
+ * @param {string} label  Badge text (e.g. "Damage").
+ * @param {string} icon   Font Awesome class (e.g. "fa-heart-crack").
+ * @param {string} kind   Colour-modifier slug (e.g. "damage").
+ */
+export function rollKindBadge(label, icon, kind = "damage") {
+	return `<span class="stonetop-roll-card-badge stonetop-roll-card-badge--${escHtml(kind)}"><i class="fas ${escHtml(icon)}"></i> ${escHtml(label)}</span>`;
+}
+
+/** The "Damage" title badge — the one indicator shared by every damage-roll card. */
+export const damageBadge = () => rollKindBadge("Damage", "fa-heart-crack", "damage");
+
+/**
  * The card shell with a title row. Most cards want this; use {@link stonetopCardShell}
  * directly when the message's speaker alias already names the card.
  * @param {string} title       Card header text (escaped here).
  * @param {string} innerHtml   Body markup placed inside the cell, after the title.
  * @param {string} [sectionClass]  Extra class(es) for the <section>.
+ * @param {string} [titleBadge]    Raw badge markup (e.g. {@link damageBadge}) placed at the title row's right edge.
  */
-export function stonetopChatCard(title, innerHtml, sectionClass = "") {
+export function stonetopChatCard(title, innerHtml, sectionClass = "", titleBadge = "") {
 	return stonetopCardShell(
-		`<div class="chat-title row flexrow"><h2 class="cell__title">${escHtml(title)}</h2></div>${innerHtml}`,
+		`<div class="chat-title row flexrow"><h2 class="cell__title">${escHtml(title)}</h2>${titleBadge}</div>${innerHtml}`,
 		sectionClass,
 	);
 }
@@ -135,6 +153,17 @@ export function postMoveToChat(actor, title, rows) {
 	if (!rows.length) return;
 	postListCard(actor, title,
 		rows.map(r => `<li><strong>${escHtml(r.label)}:</strong> ${escHtml(r.value)}</li>`).join(""));
+}
+
+/**
+ * Canonical HTML for a move chat card. `name` is escaped here because it can be a
+ * player-authored custom-move name (untrusted) — never pre-escape it at the call site.
+ * `description` is rendered raw: it is either trusted module HTML or a custom move's
+ * description, which is already escaped at storage (formatCustomMoveDescription). Shared
+ * by the character model and the sheet so the two never desync the card markup/escaping.
+ */
+export function moveChatCard(name, description) {
+	return `<div class="stonetop-chat-move"><h3 class="stonetop-chat-move-name">${escHtml(name)}</h3><div class="stonetop-chat-move-description">${description}</div></div>`;
 }
 
 /**

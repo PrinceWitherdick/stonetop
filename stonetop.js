@@ -29,6 +29,8 @@ import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
 import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT } from "./module/utils/roll-engine.js";
+import { formatOutcomeDetail } from "./module/utils/strings.js";
+import { wireAttackConfirm, wireApplyDamage, wireSufferAttack } from "./module/combat/attack-flow.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
@@ -604,6 +606,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireBurnBrightly(message, html);
 	_chatWireRequisitionMissCost(message, html);
 	_chatWireSeasonsRoll(message, html);
+	wireAttackConfirm(message, html);
+	wireApplyDamage(message, html);
+	wireSufferAttack(message, html);
 });
 
 // -- SEASONS CHANGE: "ask the most hopeful to roll" -----------
@@ -716,7 +721,7 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 				partial: resultEl.dataset.outcomePartial,
 				failure: resultEl.dataset.outcomeFailure,
 			}[tierKey];
-			if (outcome !== undefined) details.textContent = outcome;
+			if (outcome !== undefined) details.innerHTML = formatOutcomeDetail(outcome);
 		}
 	}
 
@@ -725,7 +730,11 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 		const activeTier = result.key === "critical" ? "success" : result.key;
 		tierActions.dataset.activeTier = activeTier;
 		for (const action of tierActions.querySelectorAll(".stonetop-roll-tier-action")) {
-			action.hidden = action.dataset.tier !== activeTier;
+			// Set the VALUED attribute, not the `.hidden` property: this innerHTML is written back
+			// to the message's flavor (an HTMLField), and Foundry v14's sanitize-html strips
+			// valueless boolean attributes — a bare/empty `hidden` would vanish and reveal every tier.
+			if (action.dataset.tier === activeTier) action.removeAttribute("hidden");
+			else action.setAttribute("hidden", "hidden");
 		}
 	}
 

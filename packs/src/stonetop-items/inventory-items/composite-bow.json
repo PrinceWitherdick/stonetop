@@ -11,7 +11,7 @@
       "slug": "composite-bow",
       "inventoryColumn": "regular",
       "sortOrder": 34,
-      "note": "+1 damage, x piercing",
+      "note": "<em>far</em>, +1 damage, x piercing",
       "weight": 1,
       "resource": {
         "max": 2,

@@ -2253,6 +2253,7 @@ input.stonetop-name-field {
 .stonetop-follower-party-check,
 .stonetop-follower-uses-ammo-input,
 .stonetop-of-adv,
+.stonetop-attack-pick-check,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
@@ -2301,8 +2302,19 @@ input.stonetop-name-field {
 .stonetop-follower-party-check:checked,
 .stonetop-follower-uses-ammo-input:checked,
 .stonetop-of-adv:checked,
+.stonetop-attack-pick-check:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
+}
+
+/* Foundry v13 paints checkbox/radio state via ::before/::after Font Awesome glyphs
+   and only removes them inside AppV1 windows (`body.game .app … { content: unset }`).
+   The Clash/Let Fly pick controls live in raw chat messages (outside `.app`), so those
+   core glyphs render on top of our SVG-skinned background as artifacts. Kill the pseudos
+   so only our background shows. Radios reuse the same class, so cover both here. */
+.stonetop-attack-pick-check::before,
+.stonetop-attack-pick-check::after {
+	content: none !important;
 }
 
 /* Select-all goes indeterminate when only some ledger rows are picked (the sheets
@@ -2960,10 +2972,66 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 .stonetop-roll-result-details:empty { display: none; }
 .stonetop-roll-result-details { line-height: 1.35; }
+/* "pick 1:" outcomes: keep the lead-in as prose and drop each option onto its own
+   spiral-bulleted line (mirrors the death's-door outcome choices). */
+.stonetop-roll-result-lead { display: block; }
+.stonetop-roll-result-picks {
+	list-style: none;
+	margin: 3px 0 0;
+	padding: 0;
+}
+.stonetop-roll-result-picks li {
+	position: relative;
+	margin: 3px 0;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+.stonetop-roll-result-picks li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.25em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
 .stonetop-roll-result.failure { border-left-color: #8b1a1a; background: rgba(139, 26, 26, 0.08); }
 .stonetop-roll-result.partial { border-left-color: #9f7640; background: rgba(159, 118, 64, 0.10); }
 .stonetop-roll-result.success,
 .stonetop-roll-result.critical { border-left-color: #2d6a2d; background: rgba(45, 106, 45, 0.10); }
+
+/* Damage-roll cards flag themselves with a "Damage" title badge plus a red result
+   accent. A damage roll has no 2d6 hit tier, so without this cue it looks nearly
+   identical to a move roll (same formula chip + total); the badge names it and the
+   red edge/total set it apart from the amber/green move tiers. The badge floats to
+   the right edge of the title row (margin-left:auto), where descToggle would sit —
+   damage cards carry no description, so they never collide. */
+.stonetop-roll-card-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	/* margin-left:auto floats it to the title row's right edge; flex:0 0 auto stops
+	   Foundry's `.flexrow > *{flex:1}` from stretching the pill to fill the row. */
+	flex: 0 0 auto;
+	margin-left: auto;
+	padding: 2px 9px;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-2xs);
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	line-height: 1.5;
+	border-radius: 999px;
+	white-space: nowrap;
+}
+.stonetop-roll-card-badge i { font-size: 0.9em; }
+.stonetop-roll-card-badge--damage {
+	color: #fff;
+	background: var(--st-red-text);
+}
+.stonetop-damage-roll-card .stonetop-roll-result { border-left-color: var(--st-red-border); background: var(--st-red-bg); }
+.stonetop-damage-roll-card .stonetop-roll-result-number { color: var(--st-red-text); }
+:is(#chat, #chat-notifications) .message .stonetop-attack-damage-card .stonetop-damage-amount { color: var(--st-red-text); }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .chat-title {
 	align-items: center;
@@ -3130,6 +3198,169 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-burn-brightly-btn:disabled {
 	opacity: 0.5;
 	cursor: default;
+}
+
+/* ── Attack moves: Clash / Let Fly ──────────────────────────────────────────── */
+
+/* Roll-damage / Apply / Suffer / Confirm actions stack full-width and centre their labels —
+   long labels ("Strike hard (+1d6…)") read better stacked than crammed in a row. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-attack-btn {
+	flex: 1 1 100%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-attack-btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+/* These are the tier's PRIMARY action (Confirm / Roll damage / Suffer), not a compact
+   Shift-style secondary button — give them CTA height and body-matched text. The generic
+   `.card-buttons button` rule (font-size-11, padding 4px 8px) is more specific than the
+   `.stonetop-attack-btn` class alone, so we match it (`.card-buttons button.stonetop-attack-btn`)
+   to win on size. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-attack-btn {
+	font-size: var(--font-size-13);
+	padding: 8px 12px;
+}
+
+/* Each tier's controls stack vertically: any pick / add-on rows, then the lone Confirm. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-roll-tier-action {
+	flex: 1 1 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+/* display:flex above out-specifies the UA [hidden]{display:none}; re-hide non-active tiers
+   (the render marks all but the rolled tier hidden; a GM Shift Up/Down swaps which shows). */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-roll-tier-action[hidden] {
+	display: none;
+}
+
+/* A pick-1 radio / optional-add-on checkbox row: the checkbox-SVG control + its label.
+   Sized to the card body (--font-size-13, matching the description/outcome text) so the
+   options read like the rest of the card rather than as fine print. */
+.stonetop-attack-pick-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	line-height: 1.3;
+	font-size: var(--font-size-13);
+}
+.stonetop-attack-pick-label {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Confirm reads as the primary action of the tier (slate CTA tokens), like Apply damage. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-attack-confirm {
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+	font-weight: bold;
+}
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-attack-confirm:hover:not(:disabled) {
+	background: var(--st-btn-primary-bg-hover, var(--st-btn-primary-bg));
+}
+
+/* GM "Apply damage" reads as the primary action (slate CTA tokens). */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-apply-damage {
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-apply-damage:hover:not(:disabled) {
+	background: var(--st-btn-primary-bg-hover, var(--st-btn-primary-bg));
+}
+
+/* Per-target damage list on the results card. */
+:is(#chat, #chat-notifications) .message .stonetop-damage-list {
+	list-style: none;
+	margin: 6px 0;
+	padding: 0;
+}
+:is(#chat, #chat-notifications) .message .stonetop-damage-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 4px;
+	border-bottom: 1px solid rgba(159, 146, 117, 0.25);
+}
+:is(#chat, #chat-notifications) .message .stonetop-damage-row:last-child { border-bottom: none; }
+:is(#chat, #chat-notifications) .message .stonetop-damage-amount {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	font-size: var(--font-size-14);
+}
+:is(#chat, #chat-notifications) .message .stonetop-damage-target.is-friendly { color: #6b4400; }
+:is(#chat, #chat-notifications) .message .stonetop-damage-mitigated { opacity: 0.7; font-size: 0.85em; }
+:is(#chat, #chat-notifications) .message .stonetop-attack-warn {
+	font-size: var(--font-size-11);
+	color: #6b4400;
+	margin: 4px 0;
+	display: flex;
+	gap: 6px;
+	align-items: baseline;
+}
+
+/* Weapon-tag reminder cards (messy / forceful): fiction the HP number can't carry. */
+:is(#chat, #chat-notifications) .message .stonetop-attack-tag-note {
+	display: flex;
+	gap: 6px;
+	align-items: baseline;
+	margin: 2px 0;
+	font-size: var(--font-size-12);
+}
+:is(#chat, #chat-notifications) .message .stonetop-attack-messy { color: #7a1f14; }
+:is(#chat, #chat-notifications) .message .stonetop-attack-messy .fa-burst { color: #a3341f; }
+:is(#chat, #chat-notifications) .message .stonetop-attack-forceful { color: #4a3a12; }
+:is(#chat, #chat-notifications) .message .stonetop-attack-forceful .fa-hand-fist { color: #7a5e1f; }
+/* Dotted underline signals the hover description for "problematic wound". */
+:is(#chat, #chat-notifications) .message .stonetop-problematic-wound {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+
+/* Weapon-choice + suffer-attack dialogs (both carry the .stonetop root class). */
+.stonetop-weapon-choice-dialog .stonetop-weapon-options {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.stonetop-weapon-choice-dialog .stonetop-weapon-option {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	padding: 4px 6px;
+	border: 1px solid rgba(159, 146, 117, 0.4);
+	border-radius: var(--st-radius-sm);
+	cursor: pointer;
+}
+.stonetop-weapon-choice-dialog .stonetop-weapon-option:hover { background: rgba(159, 146, 117, 0.15); }
+.stonetop-weapon-choice-dialog .stonetop-weapon-name { font-weight: bold; }
+.stonetop-weapon-choice-dialog .stonetop-weapon-traits { font-size: 0.85em; opacity: 0.75; }
+.stonetop-suffer-attack-dialog .stonetop-suffer-field { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.stonetop-suffer-attack-dialog .stonetop-suffer-detail { opacity: 0.8; font-size: 0.9em; }
+.stonetop-suffer-attack-dialog .stonetop-suffer-fiction { font-style: italic; opacity: 0.75; font-size: 0.9em; }
+
+/* Let Fly "easy shot vs under pressure" mode dialog. Its two mode buttons carry long
+   labels; Foundry's default side-by-side row wraps them raggedly (and their `easy`/`pressure`
+   keys miss the affirmative/cancel ordering rules above). Stack them full-width so each label
+   reads on one line, with the icon+label centred. */
+.stonetop-letfly-mode-dialog .stonetop-letfly-mode { margin: 0; }
+.stonetop-letfly-mode-dialog .stonetop-letfly-mode p { margin: 0; }
+.vtt .stonetop-letfly-mode-dialog .dialog-buttons {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+}
+.vtt .stonetop-letfly-mode-dialog .dialog-buttons button {
+	width: 100%;
+	justify-content: center;
 }
 
 /* Shared mask-icon recipe — size/repeat/position are constant; each class supplies its own url + background. */
@@ -12111,6 +12342,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-loyalty-pip:hover,
 .stonetop-readiness-pip:hover { background: rgba(112, 128, 144, 0.45); }
+
+/* Defend's Readiness circles on the Moves sidebar (p.216). Sit snug against the move
+   name (no auto-margin push); slightly smaller and tighter than the follower pips so
+   three-to-five fit the narrow sidebar without widening it. */
+.stonetop-move-readiness {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	padding-left: 3px;
+	flex-shrink: 0;
+}
+
+.stonetop-move-readiness-pip {
+	width: 12px;
+	height: 12px;
+}
 
 /* Crew sections (inventory, individuals, rules) */
 .stonetop-follower-section {

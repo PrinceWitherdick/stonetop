@@ -85,7 +85,7 @@ describe("rollStat", () => {
 
 		await rollStat("str", makeActor(), { noXpOnMiss: true });
 
-		expect(rollMessages[0].flavor).toContain('class="stonetop-roll-result-number" data-tooltip="3 5"');
+		expect(rollMessages[0].flavor).toContain('class="stonetop-roll-result-number" data-tooltip="3, 5"');
 	});
 
 	it("brackets the dropped die on an advantage/disadvantage roll", async () => {
@@ -98,7 +98,7 @@ describe("rollStat", () => {
 
 		await rollStat("str", makeActor(), { rollMode: "adv", noXpOnMiss: true });
 
-		expect(rollMessages[0].flavor).toContain('data-tooltip="(2) 4 5"');
+		expect(rollMessages[0].flavor).toContain('data-tooltip="(2), 4, 5"');
 	});
 
 	it.each([
@@ -240,9 +240,12 @@ describe("rollStat", () => {
 		const flavor = rollMessages[0].flavor;
 		// The container is present with the rolled tier active, and the failure action sits in the
 		// DOM but hidden — ready for _shiftRollCardFlavor to unhide it if the card is shifted down.
+		// The hide is VALUED (hidden="hidden"), not a bare boolean: Foundry v14's flavor sanitizer
+		// (sanitize-html) strips valueless attributes, so a bare `hidden` would vanish and every
+		// tier would render visible in chat.
 		expect(flavor).toContain("stonetop-roll-tier-actions");
 		expect(flavor).toContain('data-active-tier="success"');
-		expect(flavor).toContain('data-tier="failure" hidden');
+		expect(flavor).toContain('data-tier="failure" hidden="hidden"');
 		expect(flavor).toContain("stonetop-requisition-miss-cost");
 	});
 

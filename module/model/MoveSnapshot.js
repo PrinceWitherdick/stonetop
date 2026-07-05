@@ -54,6 +54,9 @@ export class MoveSnapshot {
 		this.repeatable    = b._repeatable;
 		this.backgroundAnswer = b._backgroundAnswer;
 		this.statChoices   = b._statChoices ?? null;
+		// Defend's stored Readiness track: { value, cap, hasShield, hasGuardian, pips:[{index,filled}] }
+		// or null for every other move. Rendered as clickable circles beside the move.
+		this.readiness     = b._readiness ?? null;
 		this.markOptions   = b._markOptions ?? null;
 		// { used, max, atBudget, over, needsChoice } for the move card's pick-budget badge
 		// + "needs your input" cue, or null when the move declares no markBudget.

@@ -19,17 +19,18 @@ import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filte
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {StonetopArcanaInspireDialog} from "../../item/StonetopArcanaInspireDialog.js";
-import {rollDamage, rollStat, sign} from "../../utils/roll-engine.js";
+import {rollDamage, rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
+import {defendReadinessHold} from "../../combat/defend-readiness.js";
 import {dieFromDamage} from "../../utils/damage.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
 import {playbookIconPath} from "../../utils/playbook-actors.js";
-import {postMoveToChat} from "../../utils/chat.js";
+import {postMoveToChat, moveChatCard} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
 import {attachFrontOnOpen, bringDialogToFront} from "../../utils/front-on-open.js";
 import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
@@ -2177,6 +2178,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// on the move name or empty row space.
 			html.find(".stonetop-move-item").on("click", async ev => {
 				if (!this.isEditable) return;
+				// A tap on Defend's Readiness circles adjusts held Readiness — it must never
+				// fall through to rolling the move (its own handler adjusts the pool).
+				if (ev.target.closest(".stonetop-move-readiness")) return;
 				const li     = ev.currentTarget;
 				const nameEl = li.querySelector(".stonetop-move-name");
 				if (!nameEl) return;
@@ -2204,9 +2208,23 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!doc) return;
 				const speaker = ChatMessage.getSpeaker({ actor: this.actor });
 				ChatMessage.create({
-					content: _buildMoveChatContent(doc.name, doc.system?.description ?? ""),
+					content: moveChatCard(doc.name, doc.system?.description ?? ""),
 					speaker,
 				});
+			});
+
+			// Defend's Readiness circles (p.216). Clicking a circle sets held Readiness to
+			// its position; clicking the highest filled one clears back to it (matching the
+			// follower Loyalty/Readiness pips). stopPropagation so the tap doesn't bubble to
+			// the row handler above and fire a Defend roll.
+			html.find("button.stonetop-move-readiness-pip").on("click", async ev => {
+				ev.preventDefault();
+				ev.stopPropagation();
+				if (!this.isEditable) return;
+				const idx     = Number(ev.currentTarget.dataset.index);
+				const current = this._stonetopCharacter.defendReadiness;
+				await this._stonetopCharacter.setDefendReadiness(current === idx + 1 ? idx : idx + 1);
+				this.render(false);
 			});
 
 			// -- Basic move hover panel --------------------------------------------
@@ -4770,6 +4788,19 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 
+		// Whether a follower bears a shield (+1 Readiness on a 7+ Defend). Gear-based types
+		// match a "shield" gear label; the crew reads the shield pip of its structured kit.
+		_followerHasShield(ftype, slug) {
+			if (ftype === "crew") {
+				const gearFlags = this.actor.getFlag("stonetop_pwd", "crew.gear") ?? {};
+				// A number is filled load pips (equipped once ≥ its weight, default 1); a
+				// non-number flag is already the "fully equipped" boolean.
+				return typeof gearFlags.shield === "number" ? gearFlags.shield >= 1 : !!gearFlags.shield;
+			}
+			const detail = this.actor.getFlag("stonetop_pwd", _followerDetailBase(ftype, slug));
+			return _followerBearsShield(detail?.gear);
+		}
+
 		// When a follower is Ordered to Defend and rolls 7+, they hold Readiness (p.469):
 		// 1 on a 7–9, 3 on a 10+ (a shield adds +1 — the player can click one more). We
 		// set the base hold automatically off the Order Followers result and post a note.
@@ -4781,17 +4812,31 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (result?.moveKey !== "defend") return;
 			const path = _followerReadinessPath(ftype, slug ?? "");
 			if (!path) return;
-			const held = total >= 10 ? 3 : 1;
-			const shieldNote = held >= 3 ? " (4 with their shield)" : " (2 with their shield)";
-			await this.actor.update({ [`flags.stonetop_pwd.${path}`]: held }, { stonetopMove: "Defend" });
+			// Base hold via the shared, unit-tested tier→hold table (defend-readiness.js), so PC
+			// and follower Defend holds can't drift. The follower path leaves the shield's +1 as a
+			// manual pip (advertised in shieldNote below), so we don't pass hasShield; the total ≥ 7
+			// guard above guarantees a success/partial tier here.
+			const held = defendReadinessHold(classifyResult(total).key);
+			// Never REDUCE an already-held pool: a follower who held 3 (or clicked a 4th pip
+			// for their shield) and then Defends again at 7–9 keeps the higher pool rather
+			// than being silently knocked down to 1.
+			const existing = Math.max(0, Number(this.actor.getFlag("stonetop_pwd", path)) || 0);
+			const next = Math.max(existing, held);
+			// Only advertise the shield's +1 when the follower actually bears one, and only
+			// when this Defend set the (fresh) base hold — not when we kept a higher pool.
+			const bearsShield = this._followerHasShield(ftype, slug ?? "");
+			const shieldNote = (bearsShield && next === held) ? ` (${held + 1} with their shield)` : "";
+			if (next !== existing) {
+				await this.actor.update({ [`flags.stonetop_pwd.${path}`]: next }, { stonetopMove: "Defend" });
+			}
 			const who = result?.followerName || "Your follower";
 			await ChatMessage.create({
-				content: _buildMoveChatContent("Defend — Readiness held",
-					`<p><strong>${escHtml(who)}</strong> holds <strong>${held}</strong> Readiness${shieldNote}.</p>`
+				content: moveChatCard("Defend — Readiness held",
+					`<p><strong>${escHtml(who)}</strong> holds <strong>${next}</strong> Readiness${shieldNote}.</p>`
 					+ `<p>Spend it to suffer the damage/effects of an attack for a ward, or to draw all attention to themselves.</p>`),
 				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 			});
-			this.render(false);
+			if (next !== existing) this.render(false);
 		}
 
 		// Radio-option markup shared by the Spend Loyalty / Spend Readiness choosers:

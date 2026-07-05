@@ -47,14 +47,18 @@ import {CharacterOrigin} from "./CharacterOrigin.js";
 import {CharacterPossessions} from "./CharacterPossessions.js";
 import {grantsToCreate} from "./possession-grants.js";
 import {CharacterInventory} from "./CharacterInventory.js";
+import {maybeBeginAttack, attackMoveFor} from "../../combat/attack-flow.js";
+import {defendReadinessHold, defendReadinessCap} from "../../combat/defend-readiness.js";
+import {classifyResult} from "../../utils/roll-engine.js";
 import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
-import {capitalizeFirst, slugify, composeInstinct} from "../../utils/strings.js";
+import {capitalizeFirst, slugify, composeInstinct, escHtml} from "../../utils/strings.js";
 import {localize as _loc} from "../../utils/i18n.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
+import {moveChatCard} from "../../utils/chat.js";
 import {normalizeRollType, CUSTOM_MOVE_ROLL_TYPES} from "../../utils/roll-types.js";
 import {formatCustomMoveDescription} from "../../utils/custom-move-text.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
@@ -177,6 +181,14 @@ function _ownedLoadBonus(actor) {
 // The standard Shield inventory item (Book I p.86). The Heavy/Judge/Marshal's Armored
 // move halves its ◇ load — see _ownedShieldLoadReduction.
 const _SHIELD_SLUG = "shield";
+
+// The Defend basic move holds Readiness (p.216) — the only move with the on-sheet
+// circle track; the Would-Be Hero's Guardian move sweetens each hold by +1.
+const _DEFEND_MOVE_NAME = "Defend";
+const _GUARDIAN_MOVE_NAME = "Guardian";
+// Where a character's held Defend Readiness lives (a flag on the actor, mirroring how
+// followers store theirs under readiness paths in _FOLLOWER_FLAGS).
+const _DEFEND_READINESS_FLAG = "readiness";
 
 // The Armored move ("carry a shield, mark only ◆ instead of ◆◆") drops a carried shield's
 // ◇ load by its `shieldLoadReduction`. Like loadBonus, the mechanic lives in the move's data
@@ -500,7 +512,11 @@ export class StonetopCharacter {
 			return a.name.localeCompare(b.name);
 		});
 		const basicCategory = _buildCompendiumMoveCategory(basicEntries, { key: "basic", title: "Basic Moves" }, ownedAllByName);
-		if (basicCategory) categories.push(basicCategory);
+		if (basicCategory) {
+			const defend = basicCategory.moves.find(m => m.name === _DEFEND_MOVE_NAME);
+			if (defend) defend.readiness = this.defendReadinessContext();
+			categories.push(basicCategory);
+		}
 
 		const expeditionEntries = (await this._playerExpeditionMoves()).sort((a, b) => a.name.localeCompare(b.name));
 		const expeditionCategory = _buildCompendiumMoveCategory(expeditionEntries, { key: "expedition", title: "Expedition Moves" }, ownedAllByName);
@@ -1631,6 +1647,20 @@ export class StonetopCharacter {
 		const isDescription = event.currentTarget.getAttribute("data-show") === "description";
 		const descriptionOnly = isDescription || (item.type === "npcMove" && !item.system.rollFormula);
 
+		// Clash / Let Fly: capture the targeted foes + chosen weapon and, for a hit, attach
+		// the tier-gated Roll-damage action — or resolve a Let Fly "easy shot" with no roll.
+		// Returns null for non-attack moves. See module/combat/attack-flow.js.
+		let attackExtra = null;
+		if (!descriptionOnly) {
+			const begun = await maybeBeginAttack(this._actor, item);
+			if (begun === "cancel") return true;
+			// Going on the offense (Clash / Let Fly) sheds any held Defend Readiness (p.216) —
+			// but only once the attack is committed, not on a cancelled weapon/target prompt.
+			if (attackMoveFor(item)) await this._loseDefendReadinessToOffense(item.name);
+			if (begun === "handled") return true;
+			attackExtra = begun;
+		}
+
 		const rollMode = this.rollMode;
 		const forward  = descriptionOnly ? 0 : this._actor.system?.attributes?.forward?.value ?? 0;
 		const ongoing  = descriptionOnly ? 0 : this._actor.system?.attributes?.ongoing?.value ?? 0;
@@ -1639,14 +1669,96 @@ export class StonetopCharacter {
 		const situ     = descriptionOnly ? 0 : situational;
 
 		const modifier    = forward + ongoing + situ;
-		const rollOptions = { rollMode, modifier, forward, ongoing, statOverride: stat };
+		const rollOptions = { rollMode, modifier, forward, ongoing, statOverride: stat, ...(attackExtra ?? {}) };
 
-		await item.roll({ ...this.applyDebilityRollMode(stat, rollOptions), descriptionOnly });
+		const roll = await item.roll({ ...this.applyDebilityRollMode(stat, rollOptions), descriptionOnly });
+
+		// Defend: fill the character's Readiness circles from the tier they just rolled
+		// (p.216), never lowering a pool they already hold.
+		if (!descriptionOnly && item?.name === _DEFEND_MOVE_NAME && Number.isFinite(roll?.total)) {
+			await this._maybeHoldDefendReadiness(roll.total);
+		}
 
 		if (forward !== 0) {
 			await this._actor.update({ "system.attributes.forward.value": 0 }, { stonetopMove: item?.name });
 		}
 		return true;
+	}
+
+	// -- Defend Readiness (Book I, Combat & Boons p.216) ----------------------
+	// The Defend move holds Readiness in circles beside it on the Moves sidebar;
+	// spend it to weather an attack for a ward, halve it, draw all attention, or
+	// strike back. Stored as a scalar flag on the actor (see defend-readiness.js
+	// for the pure hold/cap arithmetic).
+
+	/** Whether the character currently bears a shield (its inventory slot is checked). */
+	get bearsShield() {
+		return !!(this._actor.getFlag(STONETOP_SCOPE, "inventory.checked")?.[_SHIELD_SLUG]);
+	}
+
+	/** The Would-Be Hero's Guardian move (+1 Readiness on every Defend, incl. a 6-). */
+	get hasGuardianMove() {
+		return this._actor.items.some(i => i.type === "move" && i.name === _GUARDIAN_MOVE_NAME);
+	}
+
+	get defendReadiness() {
+		return Math.max(0, Math.trunc(Number(this._actor.getFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG)) || 0));
+	}
+
+	/** The view model the sheet renders as circles beside the Defend move. */
+	defendReadinessContext() {
+		const opts  = { hasShield: this.bearsShield, hasGuardian: this.hasGuardianMove };
+		const value = this.defendReadiness;
+		const cap   = defendReadinessCap(opts);
+		// Never render fewer circles than are held, so an over-held pool (e.g. shield
+		// dropped mid-fight) stays visible and spendable.
+		const count = Math.max(cap, value);
+		return {
+			value,
+			cap,
+			hasShield: opts.hasShield,
+			hasGuardian: opts.hasGuardian,
+			pips: Array.from({ length: count }, (_, i) => ({ index: i, filled: i < value })),
+		};
+	}
+
+	async setDefendReadiness(n) {
+		const next = Math.max(0, Math.trunc(Number(n) || 0));
+		if (next === this.defendReadiness) return;
+		await this._actor.setFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG, next);
+	}
+
+	// Raise the held Readiness to the amount this Defend tier grants, never lowering an
+	// existing pool (a fresh 7-9 shouldn't shrink Readiness you're already holding). Posts
+	// a chat note when the pool actually grows.
+	async _maybeHoldDefendReadiness(total) {
+		const tier = classifyResult(total).key;
+		const hold = defendReadinessHold(tier, { hasShield: this.bearsShield, hasGuardian: this.hasGuardianMove });
+		const existing = this.defendReadiness;
+		const next = Math.max(existing, hold);
+		if (next === existing) return;
+		await this.setDefendReadiness(next);
+		// The shield's +1 rides a 7+ hit only, so don't credit it on a 6- miss (where the
+		// hold comes solely from Guardian) — that would falsely imply the shield applied.
+		const shieldNote = (this.bearsShield && tier !== "failure") ? " (shield)" : "";
+		await ChatMessage.create({
+			content: moveChatCard("Defend — Readiness held",
+				`<p><strong>${escHtml(this._actor.name)}</strong> holds <strong>${next}</strong> Readiness${escHtml(shieldNote)}.</p>`
+				+ `<p>Spend it to suffer an attack's damage/effects for a ward, halve it, draw all attention to yourself, or strike back.</p>`),
+			speaker: ChatMessage.getSpeaker({ actor: this._actor }),
+		});
+	}
+
+	// "When you go on the offense … lose any Readiness that you hold" (p.216). Called when
+	// the character rolls Clash / Let Fly. Clears the pool and posts a note if any was held.
+	async _loseDefendReadinessToOffense(moveName) {
+		if (this.defendReadiness <= 0) return;
+		await this.setDefendReadiness(0);
+		await ChatMessage.create({
+			content: moveChatCard("Readiness lost",
+				`<p><strong>${escHtml(this._actor.name)}</strong> goes on the offense${moveName ? ` (${escHtml(moveName)})` : ""} and loses all held Readiness.</p>`),
+			speaker: ChatMessage.getSpeaker({ actor: this._actor }),
+		});
 	}
 
 	async onDirectStatRoll(stat, extraOptions = {}) {
