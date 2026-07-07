@@ -16,10 +16,14 @@ import { NpcMoveModel } from "./module/data-models/NpcMoveModel.js";
 import { MonsterMoveModel } from "./module/data-models/MonsterMoveModel.js";
 import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopBestiaryPageSheet.js";
 import { createStonetopLocationPageSheetClass } from "./module/journal/StonetopLocationPageSheet.js";
+import { ThreatPageModel } from "./module/journal/ThreatPageModel.js";
+import { createStonetopThreatPageSheetClass } from "./module/journal/StonetopThreatPageSheet.js";
+import { ThreatBoard } from "./module/threats/threat-board.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
+import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
@@ -199,6 +203,17 @@ Hooks.once("init", () => {
 		label:       "Stonetop Chronicle Page",
 	});
 
+	// Threats: GM-prep pages (Book I "Threats"). Each threat is a `threat` page inside a
+	// GM-only per-steading Threats entry; the sheet is the book-styled interactive card
+	// (live doom track + reveal), dropped onto scenes as a linked Note. See module/threats/.
+	CONFIG.JournalEntryPage.dataModels["threat"] = ThreatPageModel;
+	const StonetopThreatPageSheet = createStonetopThreatPageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopThreatPageSheet, {
+		types:       ["threat"],
+		makeDefault: true,
+		label:       "Stonetop Threat Page",
+	});
+
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
 	Items.registerSheet("stonetop_pwd", StonetopArcanumSheet, {
 		types:       ["move"],
@@ -206,7 +221,13 @@ Hooks.once("init", () => {
 		label:       "Stonetop Arcanum",
 	});
 
-	loadTemplates({
+	// Kick off the sheet-partial preload now so the fetches run in parallel during init.
+	// Core does NOT await init-hook callbacks (Hooks.callAll discards the returned promise),
+	// so awaiting here would order nothing — instead we stash the promise and onReady awaits
+	// it before any auto-opening sheet/walkthrough render, which is where a "partial could
+	// not be found" race would actually bite.
+	game.stonetop ??= {};
+	game.stonetop.templatesReady = loadTemplates({
 		"stonetop.arcanum-sheet":      "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs",
 		"stonetop.arcanum-sheet-edit": "systems/stonetop_pwd/templates/item/arcanum-sheet-edit.hbs",
 		"stonetop.actor-header":     "systems/stonetop_pwd/templates/actor/partials/actor-header.hbs",
@@ -243,6 +264,9 @@ Hooks.once("init", () => {
 		"stonetop.bestiary-line-list":        "systems/stonetop_pwd/templates/actor/partials/bestiary-line-list.hbs",
 		"stonetop.bestiary-page":             "systems/stonetop_pwd/templates/journal/bestiary.hbs",
 		"stonetop.location-page":             "systems/stonetop_pwd/templates/journal/location.hbs",
+		"stonetop.threat-page":               "systems/stonetop_pwd/templates/journal/threat-page.hbs",
+		"stonetop.threat-card":               "systems/stonetop_pwd/templates/journal/partials/threat-card.hbs",
+		"stonetop.steading-tab-threats":      "systems/stonetop_pwd/templates/actor/partials/steading-tab-threats.hbs",
 		"stonetop.bestiary-section-head":     "systems/stonetop_pwd/templates/journal/partials/bestiary-section-head.hbs",
 		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
@@ -260,6 +284,14 @@ Hooks.on("pauseGame", (paused) => paused && onRenderPause());
 Hooks.once("ready", onReady);
 Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDescriptionsInChat")));
 
+// -- THREAT BOARD (opt-in on-canvas threat cards) --------------
+Hooks.once("ready", () => {
+	game.stonetop ??= {};
+	game.stonetop.threatBoard = new ThreatBoard();
+	game.stonetop.threatBoard.install();
+	if (globalThis.canvas?.ready) game.stonetop.threatBoard.refresh();
+});
+
 // -- RENDER ACTOR SHEET ----------------------------------------
 Hooks.on("renderActorSheet", onRenderActorSheet);
 
@@ -272,6 +304,11 @@ Hooks.on("hotbarDrop", onHotbarDrop);
 // Drag a "Places of Interest" disc from the steading Overview tab onto the canvas to
 // drop a lettered map note whose label (the place name) shows on hover.
 Hooks.on("dropCanvasData", onDropPlaceOfInterest);
+
+// -- THREAT SCENE PINS -----------------------------------------
+// A threat card dragged onto a scene drops a native page-linked Note; give that
+// pin the torn-note icon, the threat's name, and global (fog-ignoring) visibility.
+Hooks.on("preCreateNote", onPreCreateThreatNote);
 
 // -- LOCATION CROSS-LINK TOOLTIPS ------------------------------
 // Give cross-links into the Locations pack a useful hover summary instead of the

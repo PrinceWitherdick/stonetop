@@ -41,6 +41,9 @@ export function addJournalShareButton(app) {
 	if (!game.user?.isGM) return;
 	const journal = app?.document ?? app?.object;
 	if (!(journal instanceof JournalEntry)) return;
+	// A threat entry is revealed from its own card's eye toggle (which flips this same
+	// entry ownership); suppress the duplicate header eye so there's exactly one control.
+	if (journal.getFlag?.("stonetop_pwd", "threat")) return;
 
 	const root = app.element?.jquery ? app.element[0] : app.element;
 	const header = root?.querySelector?.(".window-header");

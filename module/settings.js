@@ -117,6 +117,20 @@ export function registerSettings() {
 		default: true,
 	});
 
+	// The flagship "threats on the map" option. When on, each threat pin also draws its
+	// full book card on the canvas, anchored to the pin and panning/zooming with the
+	// scene, with a live doom track the GM ticks right there. Off by default: the safe
+	// path is a pin that opens the card in a window (works everywhere, no canvas overlay).
+	game.settings.register("stonetop_pwd", "threatOnCanvasCards", {
+		name: "stonetop.settings.threatOnCanvasCards.name",
+		hint: "stonetop.settings.threatOnCanvasCards.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: false,
+		onChange: () => game.stonetop?.threatBoard?.refresh?.(),
+	});
+
 	game.settings.register("stonetop_pwd", "startupWelcomeShown", {
 		name: "Startup Welcome Shown",
 		scope: "world",

@@ -18,12 +18,13 @@ export function getDragEventData(ev) {
  * V13 moved TextEditor under `foundry.applications.ux`; on older cores (or before
  * it's ready) fall back to the raw value so callers always get a usable string.
  * @param {string} value
+ * @param {object} [options]  Passed through to TextEditor.enrichHTML (e.g. `{ secrets: false }`).
  * @returns {Promise<string>}
  */
-export async function enrichHTML(value) {
+export async function enrichHTML(value, options) {
 	const textEditor = foundry?.applications?.ux?.TextEditor;
 	if (!textEditor?.enrichHTML) return value ?? "";
-	return textEditor.enrichHTML(value ?? "");
+	return textEditor.enrichHTML(value ?? "", options);
 }
 
 /**

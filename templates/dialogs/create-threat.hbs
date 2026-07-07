@@ -1,0 +1,55 @@
+<form class="stonetop create-threat" autocomplete="off" style="--threat-accent:{{accent}};">
+
+	<div class="ct-section">
+		<span class="ct-label">Type</span>
+		<div class="ct-type-grid">
+			{{#each types}}
+			<label class="ct-type-tile{{#if selected}} is-selected{{/if}}" style="--c:{{accent}};">
+				<input type="radio" name="ct-type" value="{{id}}" data-type-option{{#if selected}} checked{{/if}}>
+				<span class="ct-type-name">{{label}}</span>
+				<span class="ct-type-blurb">{{blurb}}</span>
+			</label>
+			{{/each}}
+		</div>
+	</div>
+
+	<label class="ct-field">
+		<span class="ct-label">Name</span>
+		<input type="text" class="ct-name" value="{{name}}" placeholder="e.g. Sajra the Swyn">
+	</label>
+
+	<label class="ct-field">
+		<span class="ct-label">Instinct</span>
+		<input type="text" class="ct-instinct" value="{{instinct}}" placeholder="to indulge its ego">
+	</label>
+
+	<div class="ct-field">
+		<span class="ct-label">Proximity</span>
+		<div class="threat-proximity-picker">
+			{{#each proximities}}
+			<label class="threat-proximity-option{{#if selected}} is-selected{{/if}}" data-tooltip="{{hint}}" data-tooltip-direction="UP">
+				<input type="radio" name="ct-proximity" value="{{id}}"{{#if selected}} checked{{/if}}>
+				<span>{{label}}</span>
+			</label>
+			{{/each}}
+		</div>
+	</div>
+
+	<div class="ct-section ct-suggested">
+		<span class="ct-label">Suggested GM moves for {{typeLabel}}</span>
+		<p class="ct-suggested-hint">Tick the ones that fit. You can add more moves, a doom track, and stakes right after.</p>
+		<div class="ct-suggested-list">
+			{{#each suggestedMoves}}
+			<label class="ct-suggested-item">
+				<input type="checkbox" class="ct-suggested-check" value="{{text}}"{{#if checked}} checked{{/if}}>
+				<span>{{text}}</span>
+			</label>
+			{{/each}}
+		</div>
+	</div>
+
+	<footer class="ct-footer">
+		<button type="button" class="ct-create"><i class="fas fa-feather-pointed"></i> Create threat</button>
+		<button type="button" class="ct-cancel">Cancel</button>
+	</footer>
+</form>

@@ -19,6 +19,7 @@
         "overview": "Overview",
         "neighbors": "Residents",
         "improvements": "Improvements",
+        "threats": "Threats",
         "moves": "Homefront Moves",
         "notes": "Notes"
       }
@@ -182,6 +183,10 @@
       "arcanaPlayersSeeBothSides": {
         "name": "Arcana: Players See Both Sides",
         "hint": "A player always sees the back of a card once they've unlocked it (filled every spot) — that's their own achievement, no setting needed. This switch is a separate peek: when on (the default), players may also open the back of a card they haven't unlocked yet, reading the whole card up front. Turn off for a more secretive table, and an un-unlocked back stays hidden until you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). You always see both sides as the GM."
+      },
+      "threatOnCanvasCards": {
+        "name": "Threats: Show Cards on the Map",
+        "hint": "When on, a threat pinned to a scene also draws its full card on the map, anchored to the pin and moving with the scene, so you can read it and tick off its doom track right there on the canvas. Off by default: the pin opens the same card in a window instead. Only threats you've revealed appear on a player's map."
       },
       "sheetFont": {
         "name": "Sheet Font",

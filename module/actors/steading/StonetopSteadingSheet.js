@@ -23,6 +23,11 @@ import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel, SEASON_IDS} from 
 import {recordSeasonsChange, ordinalWord} from "../../seasons/seasons-chronicle.js";
 import {SEASONAL_GAINS} from "../../dialogs/spring-burst-data.js";
 import {addStonetopSteadingButton} from "../../utils/world.js";
+import {listThreatPages, createThreat, deleteThreat, isThreatRevealed} from "../../threats/threat-store.js";
+import {buildThreatCardVM, wireThreatDoomChange, handleThreatRevealClick, wireThreatCardDrag} from "../../threats/threat-view.js";
+import {THREAT_PROXIMITIES} from "../../threats/threat-types.js";
+import {CreateThreatDialog} from "../../threats/create-threat-dialog.js";
+import {ThreatEditorDialog} from "../../threats/threat-editor-dialog.js";
 
 
 function _normalizeSheetRollMode(rollMode) {
@@ -385,7 +390,7 @@ const STEADING_EDIT_SECTIONS = [
 	"surplusFortunes", "sizePopulation", "defenses", "fortifications",
 	"prosperity", "currency",
 	"resources", "assets", "places",
-	"players", "residents", "neighbors", "improvements",
+	"players", "residents", "neighbors", "improvements", "threats",
 ];
 
 export function createStonetopSteadingSheetClass(Base) {
@@ -404,6 +409,11 @@ export function createStonetopSteadingSheetClass(Base) {
 		// or completion checkbox triggers — it only collapses when its header/chevron
 		// is clicked.
 		_openImprovements = new Set();
+		// Page uuids of threat cards the user has collapsed (clamped to title + Instinct).
+		// Threats default EXPANDED, so a uuid present here means that card reopens collapsed.
+		// Kept on the instance like _openImprovements so the state survives the re-render a
+		// reveal / create / delete triggers; it resets when the sheet is closed.
+		_collapsedThreats = new Set();
 
 		constructor(...args) {
 			super(...args);
@@ -751,12 +761,117 @@ export function createStonetopSteadingSheetClass(Base) {
 			for (const imp of context.stonetop.improvements ?? []) {
 				imp.isOpen = this._openImprovements.has(imp.slug);
 			}
+			const threatsCtx = await this._buildThreatsContext();
+			context.stonetop.threatGroups = threatsCtx.threatGroups;
+			context.stonetop.canSeeThreats = threatsCtx.canSeeThreats;
+			context.stonetop.isGM = game.user?.isGM ?? false;
 			return context;
+		}
+
+		/** Resolve the steading's threat cards visible to this user (GM sees all; a player
+		 *  sees only revealed pages, which are the only ones on their client anyway). */
+		async _buildThreatsContext() {
+			const isGM = game.user?.isGM ?? false;
+			// A player's client only holds revealed threat entries, so listThreatPages already
+			// yields just those for them; the isThreatRevealed filter is belt-and-suspenders.
+			const pages = listThreatPages(this.actor).filter(p => isGM || isThreatRevealed(p));
+			// Enrich every card VM concurrently (each page is independent) rather than
+			// serializing the enrichHTML calls, then decorate with host collapse chrome.
+			const vms = await Promise.all(pages.map(page => buildThreatCardVM(page)));
+			const threats = vms.map((vm, i) => {
+				vm.canDrag = isGM && vm.isOwner;
+				// On this tab each card can clamp to its title + Instinct. Seed the current
+				// state from the per-instance set (default expanded).
+				vm.collapsible = true;
+				vm.collapsed = this._collapsedThreats.has(pages[i].uuid);
+				return vm;
+			});
+			// Group by proximity (Homefront / Nearby / Distant, Book I p. 288) in book order,
+			// mirroring the Residents tab's stacked Player/Residents/Neighbors sections. The GM
+			// always sees all three headers (prep view); a player only sees groups that have a
+			// revealed threat, so they never get a bare "Distant Threats" header with nothing under it.
+			const threatGroups = THREAT_PROXIMITIES
+				.map(p => ({
+					id: p.id,
+					label: p.label,
+					lowerLabel: p.label.toLowerCase(),
+					hint: p.hint,
+					threats: threats.filter(t => t.proximity.id === p.id),
+				}))
+				.filter(g => isGM || g.threats.length > 0);
+			return { threatGroups, canSeeThreats: isGM || threats.length > 0 };
+		}
+
+		/** Threats tab interactions: doom-track toggles, reveal, drag-to-scene, edit / remove /
+		 *  create. Self-gated per action (page ownership / GM), so it's independent of the
+		 *  section edit-mode gate; delegated on the sheet root. */
+		_activateThreatsListeners(root) {
+			if (!root) return;
+
+			wireThreatDoomChange(root, chk => fromUuid(chk.closest(".threat-card")?.dataset.pageUuid ?? ""));
+
+			root.addEventListener("click", async ev => {
+				// Toggling reveal updates the parent entry's ownership, which the actor sheet
+				// doesn't observe — re-render so the eye and revealed tint update.
+				if (await handleThreatRevealClick(ev, r => fromUuid(r.dataset.pageUuid))) { this.render(false); return; }
+				const edit = ev.target.closest?.(".steading-threats .threat-edit-open");
+				if (edit) { ev.preventDefault(); const page = await fromUuid(edit.dataset.pageUuid); if (page) this._openThreatEditor(page); return; }
+				const remove = ev.target.closest?.(".steading-threats .threat-remove");
+				if (remove) { ev.preventDefault(); const page = await fromUuid(remove.dataset.pageUuid); if (page) this._onDeleteThreat(page); return; }
+				const add = ev.target.closest?.(".steading-threats .threat-add-btn");
+				if (add) { ev.preventDefault(); this._onCreateThreat(add.dataset.proximity); return; }
+
+				// Collapse / expand a card down to its title + Instinct. Any header click toggles
+				// it (mirrors the Improvements tab); the reveal eye is excluded (handled and
+				// returned above). A drag suppresses the click, so grabbing the header to pin it
+				// doesn't also collapse it. State lives in _collapsedThreats so it survives
+				// re-renders; no re-render, just a class flip.
+				const head = ev.target.closest?.(".steading-threats .threat-card__head--collapsible");
+				if (head) {
+					const card = head.closest(".threat-card");
+					if (!card) return;
+					const collapsed = card.classList.toggle("is-collapsed");
+					card.querySelector(".threat-collapse-btn")?.setAttribute("aria-expanded", String(!collapsed));
+					const uuid = card.dataset.pageUuid;
+					if (uuid) collapsed ? this._collapsedThreats.add(uuid) : this._collapsedThreats.delete(uuid);
+				}
+			});
+
+			// The whole card is the drag handle (no separate grip): grab it anywhere to drop
+			// a pinned Note on a scene. A plain click still toggles collapse (a drag suppresses
+			// the click), and interactive children (doom checks, reveal eye, tools) keep working.
+			// Shares the one drag-wiring helper with the page sheet so the selector can't diverge.
+			wireThreatCardDrag(root, { selector: ".steading-threats .threat-card[draggable='true']" });
+		}
+
+		/** Open a threat's editor (a proper movable dialog, not the page sheet standalone). */
+		_openThreatEditor(page) {
+			if (page) new ThreatEditorDialog(page).render(true);
+		}
+
+		async _onDeleteThreat(page) {
+			const ok = await Dialog.confirm({
+				title: "Delete Threat",
+				content: `<p>Delete <strong>${escHtml(page.name)}</strong>? This removes its card and any pins placed on scenes.</p>`,
+				options: { classes: ["dialog", "stonetop", "stonetop-delete-threat-dialog"] },
+			});
+			if (!ok) return;
+			await deleteThreat(page);
+			this.render(false);
+		}
+
+		async _onCreateThreat(defaultProximity) {
+			const seed = await new CreateThreatDialog(this.actor, { defaultProximity }).promise();
+			if (!seed) return;
+			const page = await createThreat(this.actor, seed);
+			this.render(false);
+			if (page) this._openThreatEditor(page);
 		}
 
 		activateListeners(html) {
 			super.activateListeners(html);
 			wrapStonetopGlyphsInEl(html[0]);
+			this._activateThreatsListeners(html[0]);
 
 			// Drag a Place of Interest's lettered disc onto the canvas to drop a map
 			// note (handled by the dropCanvasData hook). Read-only viewers may drag too;

@@ -2254,6 +2254,8 @@ input.stonetop-name-field {
 .stonetop-follower-uses-ammo-input,
 .stonetop-of-adv,
 .stonetop-attack-pick-check,
+.ct-suggested-check,
+.threat-list-done,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
@@ -2303,6 +2305,8 @@ input.stonetop-name-field {
 .stonetop-follower-uses-ammo-input:checked,
 .stonetop-of-adv:checked,
 .stonetop-attack-pick-check:checked,
+.ct-suggested-check:checked,
+.threat-list-done:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
@@ -2476,6 +2480,15 @@ input.stonetop-name-field {
 .stonetop-readonly .steading-interactive-btn,
 .stonetop-readonly .stonetop-answer-character-questions-btn,
 .stonetop-readonly .steading-list-add,
+.stonetop-readonly .steading-improvement-add-btn,
+.stonetop-readonly .threat-add-btn,
+.stonetop-readonly .threat-edit-open,
+.stonetop-readonly .threat-remove,
+.stonetop-readonly .threat-reveal,
+/* Doom-track ticks stay live outside edit mode: they're a play-time tracker, not
+   structural editing, and the toggle handler is already ownership-gated. */
+.stonetop-readonly .threat-portent,
+.stonetop-readonly .threat-portent__check,
 .stonetop-readonly .stonetop-deathsdoor-open-btn,
 .stonetop-readonly .stonetop-levelup-open-btn,
 .stonetop-readonly .stonetop-recover-open-btn,
@@ -9012,7 +9025,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 4px 2px;
 	margin-top: 8px;
 }
-.steading-improvement-add-btn {
+/* The Threats tab's "Write up a threat" button shares this dashed-border look
+   (its own .threat-add-btn class keeps the JS handlers separate). */
+.steading-improvement-add-btn,
+.threat-add-btn {
 	flex: 1 1 100%;
 	display: flex;
 	align-items: center;
@@ -9027,7 +9043,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: transparent;
 	transition: background 0.15s;
 }
-.steading-improvement-add-btn:hover { background: hsl(210 10% 92%); }
+.steading-improvement-add-btn:hover,
+.threat-add-btn:hover { background: hsl(210 10% 92%); }
 
 /* Drop target highlight while dragging a Steading Improvement card over the tab. */
 .tab.improvements.steading-improvement-drag-over {
@@ -18879,3 +18896,604 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-weather-dialog .stonetop-weather-roll-wrap {
 	margin-top: auto;
 }
+
+/* ============================================================================
+   THREATS  (Book I, "Threats") — the steading Threats tab, the book-faithful
+   "GM note" threat card (shared by the tab, the page sheet, and the on-canvas
+   overlay), the page editor, and the guided create dialog. Everything is scoped
+   under .stonetop; the card carries its own paper/ink tokens so it reads the same
+   monochrome-ink-on-paper way in every context.
+   ========================================================================== */
+
+/* --- the shared card ------------------------------------------------------- */
+.stonetop .threat-card {
+	--tc-paper: #f6f1e6;
+	--tc-paper-hi: #fbf7ee;
+	--tc-paper-lo: #ece3d0;
+	--tc-ink: #1b1510;
+	--tc-ink-soft: #4a4034;
+	--tc-rule: #c7b59a;
+	--tc-rule-hard: #8f7f63;
+	--threat-accent: #6e3b3b;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	padding: 1.15rem 1.3rem 1.2rem;
+	color: var(--tc-ink);
+	background: linear-gradient(180deg, var(--tc-paper-hi), var(--tc-paper) 22%, var(--tc-paper) 78%, var(--tc-paper-lo));
+	border: 1px solid var(--tc-rule-hard);
+	border-radius: 3px;
+	box-shadow: 0 6px 16px rgba(20, 14, 6, 0.18), 0 1px 3px rgba(20, 14, 6, 0.14);
+	font-family: var(--font-stonetop);
+}
+.stonetop .threat-card__edge {
+	position: absolute;
+	left: 0;
+	top: 0.9rem;
+	bottom: 0.9rem;
+	width: 4px;
+	border-radius: 2px;
+	background: var(--threat-accent);
+	opacity: 0.72;
+}
+/* The whole card is the drag handle (no grip): grab-cursor anywhere signals it. The
+   header keeps its own pointer cursor (click to collapse) and interactive children keep
+   theirs; a drag suppresses the click so grabbing the card never toggles collapse. */
+.stonetop .threat-card.is-draggable { cursor: grab; }
+.stonetop .threat-card.is-draggable:active { cursor: grabbing; }
+
+.stonetop .threat-card__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-right: 1.2rem; /* small inset from the right edge */
+}
+/* Name + parenthetical type flow as inline content so they share a baseline and
+   the type sits on the name's line when there's room, dropping to its own line
+   (as a whole) only when there isn't. */
+.stonetop .threat-name {
+	display: inline;
+	margin: 0;
+	font-family: var(--font-avara);
+	font-weight: 700;
+	font-size: 1.35rem;
+	line-height: 1.05;
+	color: var(--tc-ink);
+	border: 0;
+}
+.stonetop .threat-type {
+	display: inline-block;
+	font-family: var(--font-stonetop);
+	font-style: italic;
+	font-size: 0.95rem;
+	color: var(--tc-ink-soft);
+}
+.stonetop .threat-type::before { content: "("; }
+.stonetop .threat-type::after { content: ")"; }
+
+.stonetop .threat-reveal {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0;
+	padding: 0;
+	width: 1.9rem;
+	height: 1.9rem;
+	line-height: 1;
+	font-size: 0.85rem;
+	color: var(--tc-ink-soft);
+	background: transparent;
+	border: 1px solid var(--tc-rule-hard);
+	border-radius: 999px;
+	cursor: pointer;
+}
+.stonetop .threat-reveal i { margin: 0; }
+.stonetop .threat-reveal.is-revealed {
+	color: #3f5347;
+	border-color: #6f8a78;
+	background: rgba(90, 122, 100, 0.12);
+}
+.stonetop .threat-reveal:hover { border-color: var(--threat-accent); }
+
+.stonetop .threat-label {
+	font-family: "IM Fell English", var(--font-stonetop);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	font-size: 0.74rem;
+	color: var(--tc-ink-soft);
+	margin-right: 0.4rem;
+}
+.stonetop .threat-instinct {
+	margin: 0.55rem 0 0.1rem;
+	font-size: 1.02rem;
+	color: var(--tc-ink);
+}
+.stonetop .threat-instinct em { font-style: normal; }
+.stonetop .threat-proximity {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	margin: 0.25rem 0 0.7rem;
+	font-family: "IM Fell English", var(--font-stonetop);
+	font-size: 0.82rem;
+	color: var(--tc-ink-soft);
+}
+.stonetop .threat-proximity__pip {
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	background: var(--threat-accent);
+	opacity: 0.75;
+}
+.stonetop .threat-desc {
+	margin: 0 0 0.9rem;
+	font-size: 0.98rem;
+	line-height: 1.5;
+}
+.stonetop .threat-desc p { margin: 0 0 0.5rem; }
+.stonetop .threat-desc p:last-child { margin-bottom: 0; }
+
+/* --- doom track ------------------------------------------------------------ */
+.stonetop .threat-doom {
+	margin: 0 0 0.9rem;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+}
+.stonetop .threat-portent-row { margin: 0; }
+.stonetop .threat-portent {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.6rem;
+	padding: 0.28rem 0.3rem;
+	border-radius: 5px;
+	cursor: pointer;
+	font-size: 0.98rem;
+	line-height: 1.35;
+	color: var(--tc-ink);
+}
+.stonetop .threat-portent:hover { background: color-mix(in srgb, var(--threat-accent) 8%, transparent); }
+/* The native checkbox is hidden; the ink circle + tick are drawn in CSS so they
+   render identically inside a sheet and out on the canvas overlay (no font glyphs,
+   no reliance on the core checkbox skin). */
+.stonetop .threat-portent__check {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	margin: 0;
+	pointer-events: none;
+}
+.stonetop .threat-portent__box {
+	flex: 0 0 auto;
+	position: relative;
+	margin-top: 0.08rem;
+	width: 1.05rem;
+	height: 1.05rem;
+	border-radius: 50%;
+	border: 2px solid var(--tc-ink);
+	background: transparent;
+}
+/* Checked state stamps the hand-drawn checked-circle glyph (assets/icons/checked-circle.svg)
+   in place of the plain outline, tinted through a CSS mask so normal portents read ink and
+   the doom row reads accent. */
+.stonetop .threat-portent__check:checked + .threat-portent__box {
+	border-color: transparent;
+	background: var(--tc-ink);
+	-webkit-mask: url("../assets/icons/checked-circle.svg") center / contain no-repeat;
+	        mask: url("../assets/icons/checked-circle.svg") center / contain no-repeat;
+}
+.stonetop .threat-portent__check:focus-visible + .threat-portent__box { outline: 2px solid var(--threat-accent); outline-offset: 2px; }
+.stonetop .threat-portent:has(.threat-portent__check:disabled) { cursor: default; }
+.stonetop .threat-portent:has(.threat-portent__check:disabled):hover { background: transparent; }
+.stonetop .threat-portent__check:checked ~ .threat-portent__txt {
+	text-decoration: line-through;
+	text-decoration-color: color-mix(in srgb, var(--tc-ink) 55%, transparent);
+	color: var(--tc-ink-soft);
+}
+.stonetop .threat-portent__txt em { font-style: italic; }
+.stonetop .threat-portent-row--doom { margin-top: 0.35rem; padding-top: 0.5rem; border-top: 1px dashed var(--tc-rule-hard); }
+.stonetop .threat-portent--doom .threat-portent__box { border-color: var(--threat-accent); }
+.stonetop .threat-portent--doom .threat-portent__check:checked + .threat-portent__box { background: var(--threat-accent); }
+.stonetop .threat-doom-label {
+	font-family: "IM Fell English", var(--font-stonetop);
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	font-size: 0.76rem;
+	color: var(--threat-accent);
+	margin-right: 0.4rem;
+}
+
+/* --- stakes / moves / nested / player moves -------------------------------- */
+.stonetop .threat-stakes {
+	margin: 0 0 0.85rem;
+	font-size: 0.96rem;
+	line-height: 1.5;
+}
+.stonetop .threat-stakes__q { font-style: italic; }
+.stonetop .threat-stakes__q + .threat-stakes__q::before { content: " "; }
+.stonetop .threat-moves { margin: 0 0 0.6rem; }
+.stonetop .threat-moves .threat-label { display: block; margin-bottom: 0.35rem; }
+.stonetop .threat-move-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	columns: 2;
+	column-gap: 1.4rem;
+}
+.stonetop .threat-move-list li {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.45rem;
+	break-inside: avoid;
+	padding: 0.1rem 0;
+	font-size: 0.94rem;
+	line-height: 1.3;
+	color: var(--tc-ink-soft);
+}
+/* ➤ (U+27A4) marker, matching the follower cards' Moves list glyph. */
+.stonetop .threat-move-caret { color: var(--threat-accent); font-size: 0.8em; line-height: 1.3; }
+.stonetop .threat-nested { margin: 0 0 0.6rem; font-size: 0.94rem; }
+.stonetop .threat-nested__item { margin-right: 0.5rem; }
+.stonetop .threat-nested__item em { font-style: italic; color: var(--tc-ink-soft); }
+.stonetop .threat-player-moves { margin: 0.2rem 0 0; }
+.stonetop .threat-player-moves .threat-label { display: block; margin-bottom: 0.35rem; }
+.stonetop .threat-player-move { margin: 0 0 0.5rem; font-size: 0.94rem; line-height: 1.4; }
+.stonetop .threat-player-move__name { display: block; font-family: var(--font-stonetop); font-weight: 700; }
+
+@media (max-width: 720px) {
+	.stonetop .threat-move-list { columns: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.stonetop .threat-portent__box, .stonetop .threat-portent__box::after { transition: none; }
+}
+
+/* --- the steading Threats tab --------------------------------------------- */
+
+/* The shared threat card is sized in root-relative rem (tuned for the standalone
+   journal page + canvas overlay), so on this tab it reads a notch larger than the
+   Improvements cards, which use the em-based --st-fs-* tokens off the sheet body.
+   Re-map the card's type to those same tokens here so the two tabs match; the
+   page sheet / overlay renderings keep the larger standalone scale. */
+.stonetop .steading-threats .threat-name         { font-size: var(--st-fs-lg); }
+.stonetop .steading-threats .threat-type         { font-size: var(--st-fs-xs); }
+.stonetop .steading-threats .threat-instinct     { font-size: var(--st-fs-base); margin-bottom: 0.6rem; }
+.stonetop .steading-threats .threat-desc         { font-size: var(--st-fs-xs); }
+.stonetop .steading-threats .threat-portent      { font-size: var(--st-fs-xs); }
+.stonetop .steading-threats .threat-stakes       { font-size: var(--st-fs-xs); }
+.stonetop .steading-threats .threat-move-list li { font-size: var(--st-fs-xs); }
+.stonetop .steading-threats .threat-nested       { font-size: var(--st-fs-xs); }
+.stonetop .steading-threats .threat-player-move  { font-size: var(--st-fs-xs); }
+
+/* The proximity line ("Homefront/Nearby/Distant threat") is redundant on this tab
+   since cards are already grouped under proximity section headers. Hidden here only;
+   the standalone journal page + canvas overlay (no section headers) keep it. */
+.stonetop .steading-threats .threat-proximity { display: none; }
+
+/* On this tab the reveal eye pairs with the collapse chevron in the card's top-right:
+   drop the pill border/background and anchor it just left of the chevron so the two icons
+   read as a set. (The chevron sits in the corner at top:0.4rem / right:0.5rem.) */
+.stonetop .steading-threats .threat-card__head { margin-right: 3.3rem; } /* clear eye + chevron */
+.stonetop .steading-threats .threat-reveal {
+	position: absolute;
+	top: 0.4rem;
+	right: 1.85rem;
+	width: auto;
+	height: auto;
+	padding: 0.25rem;
+	font-size: 0.9rem;
+	line-height: 1;
+	border: 0;
+	background: transparent;
+	color: var(--tc-ink-soft);
+	opacity: 0.6;
+	transition: opacity 0.15s ease, color 0.15s ease;
+}
+.stonetop .steading-threats .threat-reveal:hover {
+	opacity: 1;
+	color: var(--threat-accent);
+	background: transparent;
+	border: 0;
+}
+.stonetop .steading-threats .threat-reveal.is-revealed {
+	color: #3f5347;
+	opacity: 0.95;
+	background: transparent;
+	border: 0;
+}
+
+/* Collapse chrome (this tab only): the whole card header is a click target that clamps
+   the card down to its title + Instinct. The chevron sits in the top-right corner (where
+   the drag grip used to be), paired just outside the reveal eye, and reflects / announces
+   the state. The reveal eye keeps its own click (handled before this). */
+.stonetop .steading-threats .threat-card__head--collapsible { cursor: pointer; }
+.stonetop .steading-threats .threat-collapse-btn {
+	position: absolute;
+	top: 0.4rem;
+	right: 0.5rem;
+	left: auto;
+	z-index: 2;
+	width: auto;   /* override core button full-width so it shrink-wraps in the corner */
+	height: auto;
+	margin: 0;
+	padding: 0.25rem;
+	appearance: none;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	color: var(--tc-ink-soft);
+	font-size: 0.9rem;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0.6;
+	transition: opacity 0.15s ease, color 0.15s ease;
+}
+.stonetop .steading-threats .threat-collapse-btn:hover { opacity: 1; color: var(--threat-accent); }
+.stonetop .steading-threats .threat-collapse-btn i {
+	display: inline-block;
+	margin: 0;
+	transition: transform 0.15s ease;
+}
+.stonetop .steading-threats .threat-card.is-collapsed .threat-collapse-btn i { transform: rotate(-90deg); }
+
+/* Collapsed: keep only the header (title / type + chevron) and the Instinct line;
+   everything below is hidden. The proximity line is already hidden on this tab. */
+.stonetop .steading-threats .threat-card.is-collapsed .threat-desc,
+.stonetop .steading-threats .threat-card.is-collapsed .threat-doom,
+.stonetop .steading-threats .threat-card.is-collapsed .threat-stakes,
+.stonetop .steading-threats .threat-card.is-collapsed .threat-moves,
+.stonetop .steading-threats .threat-card.is-collapsed .threat-nested,
+.stonetop .steading-threats .threat-card.is-collapsed .threat-player-moves {
+	display: none;
+}
+/* Instinct becomes the last visible line when clamped — trim its trailing margin. */
+.stonetop .steading-threats .threat-card.is-collapsed .threat-instinct { margin-bottom: 0.15rem; }
+
+/* Match the Improvements-tab intro blurb: italic, secondary color, --st-fs-sm. */
+.stonetop .steading-threats-intro {
+	margin: 0 0 10px 0;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
+	font-style: italic;
+	line-height: 1.45;
+}
+.stonetop .steading-threats-empty {
+	margin: 1.5rem 0;
+	text-align: center;
+	font-style: italic;
+	opacity: 0.7;
+}
+/* Proximity sections (Homefront / Nearby / Distant), stacked like the Residents tab's
+   sections: an inner gap between heading / cards / add button, a larger gap between
+   sections. No dividers, matching the Residents tab. */
+.stonetop .steading-threats-section {
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
+}
+.stonetop .steading-threats-section + .steading-threats-section { margin-top: 1.4rem; }
+.stonetop .steading-threats-section .steading-improvement-add-bar { margin-top: 0; }
+.stonetop .steading-threats-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+	gap: 1rem;
+	align-items: start;
+}
+.stonetop .threat-card-wrap { position: relative; }
+.stonetop .threat-card-tools {
+	position: absolute;
+	bottom: 0.5rem;
+	right: 0.6rem;
+	display: flex;
+	gap: 0.3rem;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+.stonetop .threat-card-wrap:hover .threat-card-tools,
+.stonetop .threat-card-wrap:focus-within .threat-card-tools { opacity: 1; }
+.stonetop .threat-card-tools button {
+	width: 1.7rem;
+	height: 1.7rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	line-height: 1;
+	border-radius: 4px;
+	border: 1px solid var(--tc-rule-hard, #8f7f63);
+	background: rgba(246, 241, 230, 0.9);
+	color: #4a4034;
+	cursor: pointer;
+}
+.stonetop .threat-card-tools .threat-remove:hover { color: #b23; border-color: #b23; }
+
+/* --- the page sheet (view + editor) --------------------------------------- */
+.stonetop-threat-page { padding: 0.4rem; }
+.stonetop .threat-page__toolbar {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 0.5rem;
+}
+.stonetop .threat-edit-start,
+.stonetop .threat-edit-done {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	width: auto;
+	padding: 0.3rem 0.7rem;
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+.stonetop .threat-edit {
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+	font-family: var(--font-stonetop);
+}
+.stonetop .threat-edit__row { display: flex; gap: 0.75rem; align-items: flex-end; }
+.stonetop .threat-edit__field { display: flex; flex-direction: column; gap: 0.25rem; }
+.stonetop .threat-edit__field--grow { flex: 1 1 auto; }
+.stonetop .threat-edit__label {
+	font-family: var(--font-stonetop);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-size: 0.78rem;
+	opacity: 0.85;
+}
+.stonetop .threat-edit__hint { text-transform: none; letter-spacing: 0; font-style: italic; opacity: 0.7; }
+.stonetop .threat-edit input[type="text"],
+.stonetop .threat-edit select,
+.stonetop .threat-edit textarea { width: 100%; font-family: var(--font-stonetop); }
+
+.stonetop .threat-proximity-picker { display: inline-flex; border: 1px solid var(--st-btn-primary-border, #4f5b66); border-radius: 5px; overflow: hidden; }
+.stonetop .threat-proximity-option { position: relative; padding: 0.3rem 0.75rem; cursor: pointer; font-size: 0.9rem; border-right: 1px solid var(--st-btn-primary-border, #4f5b66); }
+.stonetop .threat-proximity-option:last-child { border-right: 0; }
+.stonetop .threat-proximity-option input { position: absolute; opacity: 0; pointer-events: none; }
+/* Highlight the picked option from the LIVE radio state, not the server-stamped
+   .is-selected class: nothing removes that class on click (no re-render), so relying
+   on it left the default (Nearby) stuck lit alongside the new pick. The label
+   activates its nested radio, so :has(input:checked) tracks clicks correctly. */
+.stonetop .threat-proximity-option:has(input:checked) { background: var(--st-btn-primary-bg, slategrey); color: #fff; }
+
+.stonetop .threat-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.stonetop .threat-list-row { display: flex; align-items: center; gap: 0.4rem; }
+.stonetop .threat-list-row--nested { flex-wrap: wrap; }
+.stonetop .threat-list-text { flex: 1 1 auto; }
+.stonetop .threat-list-textarea { flex: 1 1 100%; font-family: var(--font-stonetop); }
+.stonetop .threat-list-remove {
+	flex: 0 0 auto;
+	width: 1.6rem; height: 1.6rem;
+	display: inline-flex; align-items: center; justify-content: center;
+	padding: 0; border: 0; background: transparent; color: #9a8f7d; cursor: pointer;
+}
+.stonetop .threat-list-remove:hover { color: #b23; }
+.stonetop .threat-list-add {
+	align-self: flex-start;
+	display: inline-flex; align-items: center; gap: 0.35rem;
+	width: auto; margin-top: 0.15rem;
+	padding: 0.25rem 0.6rem;
+	font-size: 0.82rem; background: transparent;
+	border: 1px dashed var(--st-btn-primary-border, #4f5b66); border-radius: 5px; cursor: pointer;
+}
+.stonetop .threat-doom-edit { display: flex; align-items: center; gap: 0.5rem; }
+.stonetop .threat-doom-edit input[type="text"] { flex: 1 1 auto; }
+.stonetop .threat-suggested { margin-bottom: 0.5rem; }
+.stonetop .threat-suggested__hint { margin: 0 0 0.35rem; font-size: 0.82rem; font-style: italic; opacity: 0.75; }
+.stonetop .threat-suggested__chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.stonetop .threat-suggested__chip {
+	width: auto; padding: 0.22rem 0.55rem;
+	font-size: 0.8rem; cursor: pointer;
+	background: transparent; color: inherit;
+	border: 1px solid var(--st-btn-primary-border, #4f5b66); border-radius: 999px;
+}
+.stonetop .threat-suggested__chip.is-used { opacity: 0.4; text-decoration: line-through; }
+.stonetop .threat-suggested__chip:hover { background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 18%, transparent); }
+
+/* --- guided create dialog -------------------------------------------------- */
+.stonetop-create-threat-dialog .create-threat {
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+	padding: 0.4rem;
+	font-family: var(--font-stonetop);
+}
+.stonetop .create-threat .ct-label {
+	display: block;
+	margin-bottom: 0.3rem;
+	font-family: var(--font-stonetop);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-size: 0.78rem;
+	opacity: 0.85;
+}
+.stonetop .create-threat .ct-field { display: flex; flex-direction: column; }
+.stonetop .create-threat .ct-field input[type="text"] { width: 100%; }
+.stonetop .create-threat .ct-type-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+	gap: 0.4rem;
+}
+.stonetop .create-threat .ct-type-tile {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	padding: 0.5rem 0.6rem;
+	border: 1px solid var(--tc-rule-hard, #8f7f63);
+	border-radius: 6px;
+	cursor: pointer;
+	transition: border-color 0.15s ease, background 0.15s ease;
+}
+.stonetop .create-threat .ct-type-tile input { position: absolute; opacity: 0; pointer-events: none; }
+.stonetop .create-threat .ct-type-tile.is-selected { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); box-shadow: inset 0 0 0 1px var(--c); }
+.stonetop .create-threat .ct-type-name { font-family: var(--font-avara); font-weight: 700; font-size: 0.95rem; }
+.stonetop .create-threat .ct-type-name::before { content: ""; display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--c); margin-right: 0.4rem; vertical-align: middle; }
+.stonetop .create-threat .ct-type-blurb { font-size: 0.78rem; line-height: 1.25; opacity: 0.75; }
+.stonetop .create-threat .ct-suggested-list {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0.15rem 0.8rem;
+	max-height: 12rem;
+	overflow-y: auto;
+	padding-right: 0.3rem;
+}
+.stonetop .create-threat .ct-suggested-item { display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.88rem; line-height: 1.3; }
+.stonetop .create-threat .ct-suggested-hint { margin: 0 0 0.4rem; font-size: 0.82rem; font-style: italic; opacity: 0.75; }
+.stonetop .create-threat .ct-footer { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+.stonetop .create-threat .ct-create {
+	display: inline-flex; align-items: center; gap: 0.4rem;
+	width: auto; padding: 0.4rem 0.9rem;
+	background: var(--st-btn-primary-bg); border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text); border-radius: 5px; cursor: pointer;
+}
+.stonetop .create-threat .ct-create:hover { background: var(--st-btn-primary-bg-hover); border-color: var(--st-btn-primary-border-hover); }
+.stonetop .create-threat .ct-cancel { width: auto; padding: 0.4rem 0.9rem; background: transparent; cursor: pointer; }
+@media (max-width: 520px) {
+	.stonetop .create-threat .ct-suggested-list { grid-template-columns: 1fr; }
+}
+
+/* --- on-canvas threat overlay (opt-in world setting) ----------------------- */
+/* Screen-space layer (appended to <body>): sits above the canvas, below app windows,
+   and never blocks canvas interaction except on the cards themselves. */
+.stonetop-threat-overlay {
+	position: fixed;
+	inset: 0;
+	pointer-events: none;
+	overflow: hidden;
+	z-index: 70;
+}
+.stonetop-threat-overlay-card {
+	position: absolute;
+	width: 20rem;
+	pointer-events: auto;
+	transform-origin: top center;
+	filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.4));
+}
+
+/* --- threat editor dialog -------------------------------------------------- */
+.stonetop-threat-editor-dialog.window-app { max-height: 88vh; }
+.stonetop-threat-editor-dialog .window-content { overflow-y: auto; }
+.stonetop .threat-editor { gap: 0.75rem; padding: 0.2rem 0.15rem; }
+.stonetop .threat-editor-more { display: none; flex-direction: column; gap: 0.75rem; }
+.stonetop .threat-editor-more.is-open { display: flex; }
+.stonetop .threat-editor-more-toggle {
+	align-self: flex-start; width: auto; margin: 0.1rem 0;
+	display: inline-flex; align-items: center; gap: 0.4rem;
+	padding: 0.25rem 0.35rem; font-size: 0.85rem;
+	background: transparent; border: 0; cursor: pointer;
+	color: var(--st-text-secondary, #4a4034);
+}
+.stonetop .threat-editor-more-toggle i { transition: transform 0.15s ease; }
+.stonetop .threat-editor:has(.threat-editor-more.is-open) .threat-editor-more-toggle i { transform: rotate(90deg); }
+.stonetop .threat-editor__footer { display: flex; justify-content: flex-end; margin-top: 0.25rem; }
+.stonetop .threat-editor-done {
+	display: inline-flex; align-items: center; gap: 0.4rem; width: auto;
+	padding: 0.35rem 0.9rem; cursor: pointer; border-radius: 5px;
+	background: var(--st-btn-primary-bg); border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+.stonetop .threat-editor-done:hover { background: var(--st-btn-primary-bg-hover); border-color: var(--st-btn-primary-border-hover); }

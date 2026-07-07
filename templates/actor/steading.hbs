@@ -244,6 +244,7 @@
 			<a class="item" data-tab="overview">{{localize "stonetop.steading.tabs.overview"}}</a>
 			<a class="item" data-tab="neighbors">{{localize "stonetop.steading.tabs.neighbors"}}</a>
 			<a class="item" data-tab="improvements">{{localize "stonetop.steading.tabs.improvements"}}</a>
+			{{#if stonetop.canSeeThreats}}<a class="item" data-tab="threats">{{localize "stonetop.steading.tabs.threats"}}</a>{{/if}}
 			<a class="item" data-tab="notes">{{localize "stonetop.steading.tabs.notes"}}</a>
 		</nav>
 
@@ -252,6 +253,7 @@
 				{{> "stonetop.steading-tab-overview"}}
 				{{> "stonetop.steading-tab-neighbors"}}
 				{{> "stonetop.steading-tab-improvements"}}
+				{{#if stonetop.canSeeThreats}}{{> "stonetop.steading-tab-threats"}}{{/if}}
 				{{> "stonetop.steading-tab-notes"}}
 			</section>
 
