@@ -90,23 +90,28 @@ export function createStonetopActorClass(BaseActor) {
 		async _onUpdate(changed, options, userId) {
 			await super._onUpdate(changed, options, userId);
 			if (options?.stonetopLedger) return;
+			// _onUpdate fires on EVERY connected client. The follow-up writes below
+			// (ledger append) and the chat posts must run exactly once, on the client
+			// of the user who made the change — that user holds the permission to write
+			// back. Running on other clients duplicates the ledger entry and throws a
+			// "lacks permission to update Actor" error for anyone who doesn't own it.
+			if (userId !== globalThis.game?.user?.id) return;
 			if (this.type === "character") {
 				await CharacterLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
-				// Only the user who made the change posts, so the card isn't duplicated per client.
-				if (userId === globalThis.game?.user?.id) {
-					postStatChangesToChat(this, options.stonetopStatChanges ?? []);
-				}
 			} else if (this.type === "stonetop" || this.system?.customType === "stonetop") {
 				await SteadingLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
-				// Only the user who made the change posts, so the card isn't duplicated per client.
-				if (userId === globalThis.game?.user?.id) {
-					postStatChangesToChat(this, options.stonetopStatChanges ?? []);
-				}
+			} else {
+				return;
 			}
+			postStatChangesToChat(this, options.stonetopStatChanges ?? []);
 		}
 
 		async _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
 			await super._onCreateDescendantDocuments(parent, collection, documents, data, options, userId);
+			// Runs on every client; only the author writes back (ledger append + the
+			// playbook HP/damage/starting-moves init in the typed actor). Other clients
+			// would duplicate the ledger and hit a permission error on a foreign actor.
+			if (userId !== globalThis.game?.user?.id) return;
 			if (this.typedActor?.type === "character" && collection === "items") {
 				await Promise.all([
 					CharacterLedger.append(this, CharacterLedger.entriesForCreatedItems(documents), { userId }),
@@ -117,6 +122,9 @@ export function createStonetopActorClass(BaseActor) {
 
 		async _onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId) {
 			await super._onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId);
+			// Only the author appends to the ledger; other clients lack permission on a
+			// foreign actor and would duplicate the entry.
+			if (userId !== globalThis.game?.user?.id) return;
 			if (this.type === "character" && collection === "items") {
 				await CharacterLedger.append(this, CharacterLedger.entriesForDeletedItems(documents), { userId });
 			}

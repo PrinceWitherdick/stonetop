@@ -1,3 +1,4 @@
+{{#unless listOnly}}
 <div class="stonetop-move-group">
 	{{#if editSection}}
 	<div class="stonetop-details-heading-row">
@@ -13,7 +14,19 @@
 		Hide un-learned moves
 	</label>
 	{{/if}}
-	<ol class="items-list">
+	{{#if splitUnowned}}
+		{{#if ownedMoves.length}}
+		{{> "stonetop.move-group" listOnly=true moves=ownedMoves listClass="stonetop-move-list--owned"}}
+		{{/if}}
+		{{#if unownedMoves.length}}
+		{{> "stonetop.move-group" listOnly=true moves=unownedMoves listClass="stonetop-move-list--unowned"}}
+		{{/if}}
+	{{else}}
+		{{> "stonetop.move-group" listOnly=true moves=moves}}
+	{{/if}}
+</div>
+{{else}}
+	<ol class="items-list{{#if listClass}} {{listClass}}{{/if}}">
 	{{#each moves}}
 		{{!-- Every OWNED move is a draggable .item (so it can be dragged onto the macro
 		      hotbar — rollable moves make a roll macro, description-only ones a post-to-chat
@@ -145,4 +158,4 @@
 		</li>
 	{{/each}}
 	</ol>
-</div>
+{{/unless}}

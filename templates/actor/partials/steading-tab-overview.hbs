@@ -21,7 +21,7 @@
 					{{/if}}
 					{{/each}}
 				</ul>
-				{{#if stonetop.edit.resources}}
+				{{#if stonetop.canEdit}}
 				<button type="button" class="steading-list-add" data-list="resources">
 					<i class="fas fa-plus"></i> Add Resource
 				</button>
@@ -48,7 +48,7 @@
 					{{/if}}
 					{{/each}}
 				</ul>
-				{{#if stonetop.edit.assets}}
+				{{#if stonetop.canEdit}}
 				<button type="button" class="steading-list-add" data-list="assets">
 					<i class="fas fa-plus"></i> Add Asset
 				</button>

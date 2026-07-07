@@ -43,6 +43,8 @@ export class OtherItemSnapshotBuilder {
 
 /**
  * @property {MoveSnapshot[]} playbookMoves
+ * @property {MoveSnapshot[]} playbookMovesOwned
+ * @property {MoveSnapshot[]} playbookMovesUnowned
  * @property {MoveSnapshot[]} basicMoves
  * @property {MoveSnapshot[]} expeditionMoves
  * @property {MoveGroupSnapshot[]} otherGroups
@@ -60,6 +62,8 @@ export class OtherItemSnapshotBuilder {
 export class Movelist {
 	constructor(b) {
 		this.playbookMoves     = b._playbookMoves;
+		this.playbookMovesOwned = this.playbookMoves.filter(m => m.owned);
+		this.playbookMovesUnowned = this.playbookMoves.filter(m => !m.owned);
 		// Moves learned from OTHER playbooks via a cross-playbook pick (Versatile/…),
 		// rendered with their full card (description/roll/marks/resource) like playbook moves.
 		this.learnedMoves      = b._learnedMoves ?? [];

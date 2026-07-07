@@ -709,6 +709,23 @@ describe("buildSnapshot — moves", () => {
 		expect(names).toEqual(["Bravo", "Alpha", "Charlie"]);
 	});
 
+	it("movelist splits playbook moves into owned and unowned render groups", async () => {
+		const actor =  new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({_id: "o1", type: "move", name: "Bravo", system: {moveType: "playbook"}})
+			.build();
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(makeMove("pm1", "Alpha"))
+			.addPlaybookMove(makeMove("pm2", "Bravo"))
+			.addPlaybookMove(makeMove("pm3", "Charlie"))
+			.build().buildSnapshot();
+
+		expect(snap.movelist.playbookMoves.map(m => m.name)).toEqual(["Bravo", "Alpha", "Charlie"]);
+		expect(snap.movelist.playbookMovesOwned.map(m => m.name)).toEqual(["Bravo"]);
+		expect(snap.movelist.playbookMovesUnowned.map(m => m.name)).toEqual(["Alpha", "Charlie"]);
+	});
+
 	it("owned basic moves are listed before unowned basic moves", async () => {
 		const actor =  new FakeActorBuilder()
 			.addItem({_id: "o1", type: "move", name: "Defy Danger", system: {moveType: "basic"}})

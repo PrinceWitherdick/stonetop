@@ -176,7 +176,7 @@
 					{{/each}}
 				</ul>
 			</div>
-			{{#if stonetop.edit.residents}}
+			{{#if stonetop.canEdit}}
 			<button type="button" class="steading-list-add" data-list="residents">
 				<i class="fas fa-plus"></i> Add Resident
 			</button>
@@ -296,7 +296,7 @@
 					{{/each}}
 				</ul>
 			</div>
-			{{#if stonetop.edit.neighbors}}
+			{{#if stonetop.canEdit}}
 			<button type="button" class="steading-list-add" data-list="neighbors">
 				<i class="fas fa-plus"></i> Add Neighbor
 			</button>

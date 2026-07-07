@@ -2,7 +2,7 @@
     "$schema":  "https://json.schemastore.org/foundryvtt-system-manifest.json",
     "id":  "stonetop_pwd",
     "title":  "Stonetop",
-    "description":  "An unofficial system for playing Stonetop in Foundry VTT.",
+    "description":  "<p>An unofficial system for playing Stonetop, the pastoral fantasy Powered by the Apocalypse game by Jeremy Strandberg. It provides a character sheet for every playbook with rollable moves, a guided process for leveling up, and tracking for followers and for the steading of Stonetop itself, including its seasonal turns, herds, surplus, and community improvements. The goal is to take the bookkeeping off the table so the group can spend less time on record keeping and more time roleplaying.</p><p>It also adds an interactive flow for Clash and Let Fly, a searchable bestiary of the region's creatures, and compendium journals covering the world's people, places, and major arcana. For GMs there is a shared campaign chronicle, tools to create custom moves and arcana, and options to keep spoilers hidden from players.</p>",
     "version":  "0.9.9",
     "compatibility":  {
                           "minimum":  "13",

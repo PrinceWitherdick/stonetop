@@ -255,6 +255,27 @@ body {
 	font-family: var(--font-stonetop);
 }
 
+/* Focus / highlight GLOW → slate (repairs the `:root` overrides above for window
+   content). The `:root` block sets --color-shadow-primary/-highlight to slate,
+   but core re-declares them DIRECTLY on the window root in two places — `body {
+   --color-shadow-primary: var(--color-warm-2) }` and, for AppV1 windows, the V1-
+   compat `body.game .app { --color-shadow-primary: #ff0000; --color-shadow-
+   highlight: #ff6400; … }`. A value set on an element beats one inherited from an
+   ancestor (our `:root`), so every focus/hover glow inside a window stayed orange/
+   red — most visibly the AppV1 dialogs (Character Introductions: the option
+   buttons and the "Record for the Chronicle" textarea use `box-shadow: 0 0 Npx
+   var(--color-shadow-primary)`). Re-assert slate ON our own window roots so
+   descendants inherit it; unlayered, so it beats core's layered decls regardless
+   of specificity, and scoped so core / other-system windows keep their glow.
+   Covers AppV1 (`.app`/`.window-app`) and AppV2 (`.application`) roots. */
+:is(.app, .application, .window-app).stonetop,
+:is(.app, .application, .window-app).stonetop-themed {
+	--color-shadow-primary:       slategrey;
+	--color-shadow-highlight:     slategrey;
+	--color-border-highlight:     slategrey;
+	--color-border-highlight-alt: slategrey;
+}
+
 /* Our serif on our own window headers/buttons. Scoped to `.stonetop` (present on
    every Stonetop window root — see the `classes` arrays and RenderActorSheet) so
    we don't restyle other modules' or core windows. Foundry resets header/button
@@ -505,9 +526,15 @@ body {
 	font-family: var(--font-stonetop);
 }
 
-.vtt .window-app .stonetop input,
-.vtt .window-app .stonetop textarea,
-.vtt .window-app .stonetop select {
+/* Form controls (input/textarea/select) don't inherit font-family, so they need
+   this explicitly or they fall back to the UA default (monospace textareas, Arial
+   inputs) instead of our serif. Scope to `.stonetop` itself — NOT `.window-app
+   .stonetop` — because on our windows `.stonetop` is a root class ON the
+   `.window-app`/`.application` element, so a descendant combinator never matched
+   and every unstyled control rendered in the wrong font. */
+.vtt .stonetop input,
+.vtt .stonetop textarea,
+.vtt .stonetop select {
 	font-family: var(--font-stonetop);
 }
 
@@ -652,6 +679,32 @@ body {
 :is(.application, .window-app).stonetop-themed .window-content button:not([type=checkbox]):hover {
 	background: var(--st-btn-primary-bg-hover);
 	border-color: var(--st-btn-primary-border-hover);
+}
+
+/* ── Neutralize Foundry v14's orange hover / focus accent ──────────────────
+   v14 paints button hover, and button + input focus outlines, with its "warm"
+   palette (--color-warm-1 #ee9b3a / --color-warm-2 #c9593f) via the
+   --button-hover-* and --*-focus-outline-color tokens. Those tokens are set on
+   the button / input ELEMENTS themselves, so the container-level knobs on
+   `.stonetop-themed` above — and the legacy `:root` --color-shadow-* overrides
+   near the top — can't reach them: an element's own cascaded value beats an
+   inherited one. Re-point the tokens, on the elements, to our slate primary
+   accent so hover / focus reads like the rest of the interactive UI (primary
+   buttons, links, selected states) instead of orange-on-parchment. Unlayered,
+   so it wins over core's `@layer variables.themes` rules regardless of
+   specificity; scoped to our windows so nothing leaks onto core / other systems.
+   Covers our own sheets (.stonetop / .pbta) — where most buttons fall through to
+   core's orange hover — as well as the opt-in themed core windows. Buttons that
+   set their own :hover `background` (e.g. .stonetop-add-custom-move) are untouched;
+   only controls relying on core's token get the slate. */
+:is(.application, .window-app):is(.stonetop, .stonetop-themed) .window-content
+	:is(a.button, button, kbd,
+	    input:not([type=checkbox], [type=radio], [type=range], [type=color]),
+	    select, textarea, file-picker, label.icon) {
+	--button-hover-background-color: var(--st-btn-primary-bg-hover);
+	--button-hover-border-color:     var(--st-btn-primary-border-hover);
+	--button-focus-outline-color:    var(--st-btn-primary-bg);
+	--input-focus-outline-color:     var(--st-btn-primary-border);
 }
 
 .pbta.sheet .sheet-tab {
@@ -2173,6 +2226,14 @@ input.stonetop-name-field {
 	padding: 0;
 	margin: 4px 0 0;
 	list-style: none;
+}
+
+.stonetop-move-list--unowned {
+	margin-top: 12px;
+}
+
+.tab.moves.hide-unselected:not(.is-searching) .stonetop-move-list--unowned {
+	display: none;
 }
 
 .stonetop-moves-sidebar .items-list {
@@ -8186,15 +8247,20 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding-bottom: 4px;
 }
 
+.steading-sheet .sheet-tab .steading-list-heading {
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xl);
+}
+
 .steading-list-heading-note {
 	display: block;
 	margin-top: 2px;
+	font-size: calc(0.92rem * var(--stonetop-font-scale, 1));
 	font-weight: normal;
 	font-style: italic;
 	text-transform: none;
 	letter-spacing: 0;
 	color: var(--st-text-muted);
-	font-size: var(--st-fs-xs);
 	line-height: 1.35;
 }
 
@@ -8332,8 +8398,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-residents-heading {
 	margin: 0;
-	font-size: var(--st-fs-md);
+	font-size: var(--st-fs-xl);
 	font-weight: 700;
+	font-style: normal;
 	font-family: var(--font-stonetop);
 }
 
@@ -13799,7 +13866,7 @@ li.question-bullet {
 	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
 }
 .stonetop-journal-check:focus-visible {
-	outline: 2px solid var(--color-shadow-primary, #ff6400);
+	outline: 2px solid var(--color-shadow-primary, slategrey);
 	outline-offset: 2px;
 	border-radius: var(--st-radius-sm);
 }
