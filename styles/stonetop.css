@@ -2546,6 +2546,11 @@ input.stonetop-name-field {
 .stonetop-readonly .threat-edit-open,
 .stonetop-readonly .threat-remove,
 .stonetop-readonly .threat-reveal,
+/* Collapse chevron stays live outside edit mode: clamping a card to its title +
+   Instinct is a view convenience, not structural editing. Without this the button's
+   pointer-events:none makes a chevron click fall through to the card (the header sits
+   left of the corner chevron via its margin) so the toggle never fires. */
+.stonetop-readonly .threat-collapse-btn,
 /* Doom-track ticks stay live outside edit mode: they're a play-time tracker, not
    structural editing, and the toggle handler is already ownership-gated. */
 .stonetop-readonly .threat-portent,
@@ -8220,10 +8225,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	min-height: 0;
 }
 
-.steading-notes prose-mirror.steading-notes-editor .editor-content {
-	padding-top: 8px;
-}
-
 .steading-list-section {
 	background: rgba(0,0,0,0.04);
 	border: 1px solid rgba(0,0,0,0.12);
@@ -8250,12 +8251,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-sheet .sheet-tab .steading-list-heading {
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-xl);
+	/* Match the title-case look of .steading-residents-heading ("Player
+	   Characters") rather than the louder all-caps label style. */
+	text-transform: none;
+	letter-spacing: normal;
 }
 
 .steading-list-heading-note {
 	display: block;
 	margin-top: 2px;
-	font-size: calc(0.92rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.82rem * var(--stonetop-font-scale, 1));
 	font-weight: normal;
 	font-style: italic;
 	text-transform: none;
@@ -8397,7 +8402,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-residents-heading {
-	margin: 0;
+	margin: 0 0 4px 0;
 	font-size: var(--st-fs-xl);
 	font-weight: 700;
 	font-style: normal;
