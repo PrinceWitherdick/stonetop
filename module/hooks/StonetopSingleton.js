@@ -1,6 +1,7 @@
 import {isDefaultImg, escHtml} from "../utils/strings.js";
 import {stonetopChatCard} from "../utils/chat.js";
 import {STONETOP_SCOPE, resolvedFlagProperty} from "../actors/character/StonetopFlags.js";
+import {isPrimaryGM as _isPrimaryGM} from "../utils/primary-gm.js";
 
 const _OMEN_REMINDER_FLAG = "lastOmenReminder";
 
@@ -128,12 +129,4 @@ async function _ensureStartingValues(actor) {
 
 function _shouldReplaceSteadingImg(img) {
 	return isDefaultImg(img) || _LEGACY_STEADING_ACTOR_IMAGES.has(img);
-}
-
-function _isPrimaryGM() {
-	const activeGM = game.users?.activeGM;
-	if (activeGM) return activeGM.id === game.user.id;
-
-	const firstActiveGM = game.users?.find(user => user.active && user.isGM);
-	return !firstActiveGM || firstActiveGM.id === game.user.id;
 }

@@ -27,6 +27,7 @@ import {stonetopChatCard, rollFormulaChip, damageBadge} from "../utils/chat.js";
 import {rollDamage, multiDieFaces, sign} from "../utils/roll-engine.js";
 import {mitigateDamage, resolvePiercing, applyDamageToActor, dieFromDamage} from "../utils/damage.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
+import {isPrimaryGM} from "../utils/primary-gm.js";
 
 const SCOPE = STONETOP_SCOPE;
 
@@ -535,7 +536,7 @@ export function wireApplyDamage(message, html) {
 	if (!game.user.isGM) { btn.style.display = "none"; return; }
 	// With several GMs connected, only the primary GM's click enacts, so two GMs can't
 	// both subtract HP before the applied-flag propagates.
-	if (game.users?.activeGM && game.user.id !== game.users.activeGM.id) {
+	if (!isPrimaryGM()) {
 		btn.disabled = true;
 		btn.title = "Another GM will apply this damage";
 		return;

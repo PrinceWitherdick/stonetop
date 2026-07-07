@@ -189,18 +189,46 @@ export function registerSettings() {
 		default: {}
 	});
 
-	// Answers the GM records in the guided Character Introductions (see
-	// dialogs/IntroductionsDialog.js) — what each PC established about themselves
-	// and Stonetop, round by round. Compiled into the shared "Chronicle" journal
-	// (utils/chronicle.js). Shape, keyed by actor id:
-	//   { <actorId>: { r1, r2, r3: "<text>", r4..r7: { q: <questionIndex>, a: "<text>" } } }
-	// where r1–r3 are the narration rounds and r4–r7 the answer/ask rounds.
+	// Answers recorded in the guided Character Introductions (see
+	// dialogs/IntroductionsDialog.js) — what each PC established about themselves and
+	// Stonetop. GM-written (only a GM can write a world setting): the GM types the
+	// narration rounds and HARVESTS each player's own `flags.stonetop_pwd.intro` flag
+	// (the player-driven answer/ask steps) into here for the Chronicle. Compiled into the
+	// shared "Chronicle" journal (utils/chronicle.js). Shape, keyed by actor id:
+	//   { <actorId>: {
+	//       r1, r2, r3: "<text>",                    // narration rounds (GM-typed)
+	//       step4: { answers: [ { q: <questionIndex>, a: "<text>" }, … ], passed: <bool> },
+	//       step6: { answers: [ { q, a }, … ], passed: <bool> },   // ask step
+	//       r4..r7: { q, a }                          // LEGACY single-answer rounds, read-only
+	//   } }
+	// step4 folds the old r4/r5 "answer" rounds into one looping step (up to 4 answers,
+	// one per playbook question); step6 folds r6/r7. The compiler reads both the step
+	// lists and the legacy r4–r7 keys, so already-run worlds keep compiling unchanged.
 	game.settings.register("stonetop_pwd", "introductionsAnswers", {
 		name: "Character Introductions Answers",
 		scope: "world",
 		config: false,
 		type: Object,
 		default: {}
+	});
+
+	// GM-driven session cursor for the guided Character Introductions — whose turn it is
+	// and which step (see dialogs/IntroductionsDialog.js). Only the PRIMARY GM writes it;
+	// every client reacts through this registered onChange (which fires on all clients, GM
+	// and player, on the first write too — unlike Hooks.on("updateSetting")) to open/focus/
+	// close the dialog on the active player's screen. `nonce` bumps on every write so a
+	// Back-to-the-same-step still fires onChange (Foundry suppresses equal-value writes).
+	// `pcOrder` is the GM-authored turn order (actor ids) so players seed their roster from
+	// the cursor rather than their own scene-scoped game.combat. Shape:
+	//   { active: <bool>, phase: <0-6>, activeActorId: "<id>",
+	//     activeUserId: "<owning player's user id>", pcOrder: [ "<id>", … ], nonce: <int> }.
+	game.settings.register("stonetop_pwd", "introCursor", {
+		name: "Character Introductions Cursor",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: { active: false, phase: 0, activeActorId: "", activeUserId: "", pcOrder: [], nonce: 0 },
+		onChange: value => game.stonetop?.onIntroCursor?.(value),
 	});
 
 	// Notes the GM records in the Expedition walkthrough (see dialogs/ExpeditionDialog.js).

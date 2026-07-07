@@ -83,9 +83,22 @@ export async function onReady() {
 	await runStartupMigrations();
 	await ensureStonetopSingleton();
 
+	// The sheet-partial preload was kicked off in the init hook (core doesn't await init
+	// hooks, so awaiting it there orders nothing). Await it here — before the auto-opening
+	// sheet / walkthrough renders below — so every partial is registered first, closing the
+	// "partial could not be found" race. Guarded: a single bad partial path must not abort
+	// the rest of onReady (API wiring, dialogs, gazetteer) — a missing partial is at worst
+	// a cosmetic "could not be found" later, not a dead ready flow.
+	try { await game.stonetop?.templatesReady; }
+	catch (err) { console.error("Stonetop | sheet partial preload failed", err); }
+
 	game.stonetop ??= {};
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
 	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
+	// Cursor onChange dispatcher (registered on the introCursor world setting): opens/
+	// focuses/closes the Introductions dialog on the active player's client as the GM
+	// drives the round-robin. See dialogs/IntroductionsDialog.js.
+	game.stonetop.onIntroCursor     = cursor => IntroductionsDialog.handleIntroCursor(cursor);
 	game.stonetop.openSpringBurst   = () => SpringBurstDialog.open();
 	// Run the steading's Seasons Change homefront move from the hotbar: launch the
 	// season-picker → roll flow (the same one the sheet's Seasons Change move uses)
@@ -190,6 +203,12 @@ export async function onReady() {
 	} else {
 		reopenOpenWalkthroughs();
 	}
+
+	// A player logging in / reloading mid-introductions: rejoin the running session by
+	// opening the dialog whenever the GM has it open (following read-only until it's their
+	// turn). The onChange handler covers live changes; this covers the no-event initial
+	// load. No-op for the GM.
+	IntroductionsDialog.openForActiveSession();
 
 	// Fresh world: the gazetteer is still importing in the background. Once it lands, pop
 	// the orientation Setting Overview and refresh the (already-open) Welcome guide so its

@@ -10367,8 +10367,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-onboarding-back:hover,
-.stonetop-onboarding-back-to-picker:hover,
-.stonetop-onboarding-next:hover  { background: hsl(210 10% 92%); }
+.stonetop-onboarding-back-to-picker:hover { background: hsl(210 10% 92%); }
 
 /* Foundry core sizes buttons to display:flex / width:100% (block, full-width). These
    footer pills must be content-sized inline-flex or they stack full-width and the
@@ -10383,13 +10382,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex: 0 0 auto;
 }
 
+/* Forward/positive action → filled slate primary (Next on each step, Create
+   Character on the last), matching the app-wide --st-btn-primary-* CTA. Back / Skip
+   stay outline. */
+.stonetop-onboarding-next,
 .stonetop-onboarding-confirm {
 	background: var(--st-btn-primary-bg);
 	color: var(--st-btn-primary-text);
 	border-color: var(--st-btn-primary-border);
 }
 
-.stonetop-onboarding-confirm:hover { background: var(--st-btn-primary-bg-hover); }
+.stonetop-onboarding-next:hover:not(:disabled),
+.stonetop-onboarding-confirm:hover:not(:disabled) {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+}
 
 .stonetop-onboarding-skip {
 	padding: 5px 24px;
@@ -16273,6 +16280,15 @@ th:has(> .stonetop-roll-table-btn) {
 	font-style: italic;
 }
 
+/* The owning player's real (user) name beside the active PC's character name —
+   muted and regular-weight so the character name still reads as primary, while
+   players who don't yet know the character names can see whose turn it is. */
+.stonetop-guide-banner-player {
+	font-weight: 400;
+	font-size: var(--st-fs-xs);
+	color: var(--color-text-dark-secondary);
+}
+
 .stonetop-guide-count {
 	flex-shrink: 0;
 	font-size: var(--st-fs-xs);
@@ -16527,7 +16543,10 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-intros-questions {
 	margin: 0;
-	padding: 0 0 0 1.3em;
+	/* Slight left indent so the options sit just inside the box, left-aligned under the
+	   "Choose a question…" label rather than flush against the border. */
+	padding: 0 0 0 8px;
+	list-style: none;
 	display: flex;
 	flex-direction: column;
 	gap: 5px;
@@ -16538,15 +16557,26 @@ th:has(> .stonetop-roll-table-btn) {
 	line-height: 1.45;
 }
 
+/* Read-only row (players): the checkbox marker sits beside the wrapped prompt. */
+.stonetop-intros-question-static {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+
 /* Read-only highlight (players) for the question the GM marked as chosen. */
 .stonetop-intros-questions li.is-selected { font-weight: 600; }
 
 /* Selectable question (GM): the whole authored prompt becomes a click target that
-   marks which one the PC answered/asked. Full-width block so the list number stays
-   in the gutter; core's `button { display: flex }` is overridden to keep the text
-   flowing on one wrapped run. */
+   marks which one the PC answered/asked. Flex so the checkbox-SVG marker keeps its
+   gutter while the prompt text flows and wraps beside it. */
 .stonetop-intros-question-pick {
-	display: block;
+	display: flex;
+	align-items: flex-start;
+	/* Left-align the checkbox + prompt. Without this, Foundry core's button rule
+	   (justify-content: center) centres the row, so the marker drifts inward. */
+	justify-content: flex-start;
+	gap: 8px;
 	width: 100%;
 	margin: 0;
 	padding: 3px 6px;
@@ -16562,6 +16592,26 @@ th:has(> .stonetop-roll-table-btn) {
 	transition: background 0.15s, border-color 0.15s;
 }
 
+/* Checkbox-SVG marker shared by the interactive button (GM) and the read-only row
+   (players): an empty box that fills in when this prompt is the chosen / already-
+   answered one — the same SVGs the sheet's interactive checkbox lists use. */
+.stonetop-intros-question-pick::before,
+.stonetop-intros-question-static::before {
+	content: "";
+	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1));
+	width: calc(15px * var(--stonetop-font-scale, 1));
+	height: calc(15px * var(--stonetop-font-scale, 1));
+	margin-top: 0.15em;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain;
+}
+
+.stonetop-intros-question-pick.is-selected::before,
+.stonetop-intros-question-pick.is-used::before,
+.stonetop-intros-question-static.is-selected::before,
+.stonetop-intros-question-static.is-used::before {
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
+}
+
 .stonetop-intros-question-pick:hover { background: rgba(0, 0, 0, 0.05); }
 
 .stonetop-intros-question-pick.is-selected {
@@ -16570,8 +16620,8 @@ th:has(> .stonetop-roll-table-btn) {
 	border-color: var(--st-green-border, rgba(40, 140, 70, 0.4));
 }
 
-/* A prompt already used in the paired round — grayed out so it can't be answered
-   or asked twice (read-only players see the same muted, struck-through cue). */
+/* A prompt this PC already answered/asked this step — grayed out so it can't be
+   chosen twice (read-only players see the same muted, struck-through cue). */
 .stonetop-intros-question-pick.is-used,
 .stonetop-intros-questions li.is-used {
 	opacity: 0.45;
@@ -16603,7 +16653,8 @@ th:has(> .stonetop-roll-table-btn) {
 	color: var(--color-text-dark-secondary);
 }
 
-.stonetop-intros-answer {
+.stonetop-intros-answer,
+.stonetop-intros-draft {
 	width: 100%;
 	min-height: 60px;
 	resize: vertical;
@@ -16641,6 +16692,113 @@ th:has(> .stonetop-roll-table-btn) {
 	line-height: 1.5;
 }
 
+/* "Recorded so far" — the answers this PC has already given this step, listed above
+   the compose field so the table sees progress toward passing/exhausting the step. */
+.stonetop-intros-recorded-list {
+	background: rgba(0, 0, 0, 0.03);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: var(--st-radius);
+	padding: 8px 14px;
+}
+
+.stonetop-intros-recorded-list-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 6px;
+	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-intros-recorded-list ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.stonetop-intros-recorded-list li {
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+}
+
+.stonetop-intros-recorded-q {
+	display: block;
+	font-weight: 600;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-intros-recorded-a {
+	display: block;
+	white-space: pre-wrap;
+}
+
+/* "Passed" badge for a PC who has opted out of the rest of a step. */
+.stonetop-intros-passed {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-radius: var(--st-radius);
+	background: var(--st-green-bg, rgba(40, 140, 70, 0.1));
+	border: 1px solid var(--st-green-border, rgba(40, 140, 70, 0.4));
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-intros-passed i { color: var(--st-green-border, rgba(40, 140, 70, 0.7)); }
+
+/* GM-only "N of M done" tally on a step; turns green once everyone's ready. */
+.stonetop-intros-ready-tally {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-intros-ready-tally.is-all {
+	font-weight: 600;
+	color: var(--st-green-border, rgba(40, 140, 70, 0.9));
+}
+
+/* Player-side "where you are in the turn order" strip, shown while it isn't the
+   viewer's own turn to write (whose turn it is is spelled out by the banner above).
+   Neutral info tone; the "now"/"done" variants pick up the green pass/ready accent. */
+.stonetop-intros-place {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.04);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-intros-place i {
+	flex-shrink: 0;
+	color: var(--color-text-dark-secondary);
+}
+
+/* The "you're playing <PC>" reminder — muted, so the main line stays the headline. */
+.stonetop-intros-place-pc {
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+.stonetop-intros-place--now {
+	background: var(--st-green-bg, rgba(40, 140, 70, 0.1));
+	border-color: var(--st-green-border, rgba(40, 140, 70, 0.4));
+}
+
+.stonetop-intros-place--now i,
+.stonetop-intros-place--done i { color: var(--st-green-border, rgba(40, 140, 70, 0.7)); }
+
 /* Final-step right-side button cluster (the "Let spring break forth!" finish, which
    also saves the Chronicle). */
 .stonetop-intros-done-actions {
@@ -16650,12 +16808,58 @@ th:has(> .stonetop-roll-table-btn) {
 	flex-shrink: 0;
 }
 
+/* Right-side button cluster on answer/ask steps: Pass (+ the player's Done) sits beside
+   Next (the buttons themselves use the shared .stonetop-guide-nav button style). */
+.stonetop-intros-nav-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	flex-shrink: 0;
+}
+
+/* Pass reads as an "opt out" — styled red like the onboarding Skip button. Scoped under
+   .stonetop-guide-nav to override the shared parchment button border/background/colour. */
+.stonetop-guide-nav .stonetop-intros-pass {
+	border-color: var(--st-red-border);
+	background: transparent;
+	color: var(--st-red-text);
+}
+
+.stonetop-guide-nav .stonetop-intros-pass:hover:not(:disabled) { background: var(--st-red-bg); }
+
 /* Navigation (the nav bar + buttons are shared — see .stonetop-guide-nav) */
 
 .stonetop-intros-step-label {
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
+}
+
+/* Player-side turn hint that replaces the GM-only Back button in the nav bar. */
+.stonetop-intros-turn-hint {
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+/* Truly centre the step label in the footer. With space-between the label drifts
+   toward whichever flank is narrower ("Your turn" vs. the wider Pass/Done cluster);
+   a 1fr / auto / 1fr grid gives equal flanks so the label sits at the real midpoint.
+   Only when a step-label is present, so the two-item pre-check nav keeps space-between. */
+.stonetop-introductions .stonetop-guide-nav:has(.stonetop-intros-step-label) {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+}
+.stonetop-introductions .stonetop-guide-nav:has(.stonetop-intros-step-label) > :first-child {
+	justify-self: start;
+}
+.stonetop-introductions .stonetop-guide-nav:has(.stonetop-intros-step-label) .stonetop-intros-step-label {
+	justify-self: center;
+	text-align: center;
+}
+.stonetop-introductions .stonetop-guide-nav:has(.stonetop-intros-step-label) > :last-child {
+	justify-self: end;
 }
 
 /* ── Welcome / first-session guide ─────────────────────────────────────────── */

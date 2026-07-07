@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../utils/front-on-open.js";
+import { FrontOnOpen, bringDialogToFront } from "../utils/front-on-open.js";
 import { shuffle } from "../utils/arrays.js";
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
 import { playbookSlug, getPlayerCharacters, playbookIconPath, orderByCombatTurns } from "../utils/playbook-actors.js";
@@ -9,23 +9,32 @@ import { INTRO_PLAYBOOK_DATA as _PLAYBOOK_DATA } from "./introductions-data.js";
 import { saveChronicleFromButton } from "../utils/chronicle.js";
 import { getSetting, setSetting } from "../settings.js";
 import { getWalkthroughResume, patchWalkthroughResume, markWalkthroughDone } from "./walkthrough-resume.js";
+// Pure round-robin/done logic for the looping answer/ask steps (unit-tested).
+import { stepPcDone, nextActiveIndex, firstActiveIndex, turnsUntilActive } from "./introductions-flow.js";
+import { isPrimaryGM } from "../utils/primary-gm.js";
+import { escHtml } from "../utils/strings.js";
+
+// The player-authored answer/ask step data lives on the PC actor flag
+// flags.stonetop_pwd.intro. Scope MUST be the system id "stonetop_pwd" (not "stonetop",
+// which points at read-only pack-baked flags and throws).
+const _FLAG_SCOPE = "stonetop_pwd";
+const _INTRO_FLAG = "intro";
 
 // The world setting holding the answers recorded during the introductions, keyed
-// by actor id → { r1, r2, r3 (strings); r4–r7 ({ q, a }) }. Compiled into the
-// Chronicle journal by utils/chronicle.js. See settings.js for the full shape.
+// by actor id → { r1, r2, r3 (strings); step4/step6 ({ answers, passed }); legacy
+// r4–r7 }. Compiled into the Chronicle journal by utils/chronicle.js. See settings.js.
 const _ANSWERS_SETTING = "introductionsAnswers";
+
+// The GM-driven session cursor (whose turn / which step). GM writes it; every client
+// reacts via its onChange to open/focus/close the dialog. See settings.js.
+const _CURSOR_SETTING = "introCursor";
 
 // Key for this dialog's reload-resume record (round + turn + open flag) in the
 // shared walkthroughResume setting. See walkthrough-resume.js.
 const _RESUME_KEY = "introductions";
 
-// Rounds that draw from the same question list ("go around again"): 4 & 5 share
-// the step-4 prompts, 6 & 7 share step-6. Used to gray out a prompt a PC already
-// answered/asked in the paired round.
-const _SIBLING_ROUND = { 4: 5, 5: 4, 6: 7, 7: 6 };
-
-// Placeholder copy for the narration rounds (1–3); rounds 4–7 set their own from
-// whether the PC is answering or asking.
+// Placeholder copy for the narration rounds (1–3); the answer/ask steps set their
+// own from whether the PC is answering or asking.
 const _NARRATE_PLACEHOLDER = {
 	1: "Name, pronouns, background, origin, appearance…",
 	2: "Their special possessions, and how they help the village…",
@@ -33,22 +42,28 @@ const _NARRATE_PLACEHOLDER = {
 };
 
 // ── Phase definitions ─────────────────────────────────────────────────────────
-// Index matches round number (1-8). Index 0 unused (phase 0 = pre-check).
+// Index = phase number (1-6); index 0 unused (phase 0 = pre-check). The two "go
+// around again" laps of the old flow are collapsed into single LOOPING steps: the
+// answer step (kind "answer", stepKey "step4") and the ask step (kind "ask",
+// stepKey "step6") each cycle the table until every PC has passed or answered all
+// four of their playbook's questions. Narration phases (kind "narrate") are a single
+// linear pass storing a string under roundKey. The final phase (kind "final") is not
+// round-robin. `title` labels the step in the nav.
 
 const _PHASES = [
 	null,
 	{
-		roundRobin: true,
+		kind: "narrate", title: "Introduce yourself", roundKey: "r1",
 		getInstruction: () => `On your <strong>first turn</strong>, <strong>introduce yourself</strong>: your name, pronouns, background, origin, and appearance.`,
 		getQuestions:   () => null,
 	},
 	{
-		roundRobin: true,
+		kind: "narrate", title: "Possessions & contribution", roundKey: "r2",
 		getInstruction: () => `On your <strong>second turn</strong>, <strong>describe your special possessions</strong> and how you contribute to the village (beyond working the fields).`,
 		getQuestions:   () => null,
 	},
 	{
-		roundRobin: true,
+		kind: "narrate", title: "Your place in Stonetop", roundKey: "r3",
 		getInstruction: (pc) => {
 			const d = _PLAYBOOK_DATA[playbookSlug(pc)];
 			return d
@@ -58,31 +73,29 @@ const _PHASES = [
 		getQuestions: () => null,
 	},
 	{
-		roundRobin: true,
-		getInstruction: () => `On your <strong>next turn</strong>, <strong>answer one of the following</strong>, naming one or more NPCs who live in Stonetop.`,
+		kind: "answer", title: "Bonds & ties", stepKey: "step4",
+		getInstruction: () => `<strong>Answer a question</strong> from your playbook, naming one or more NPCs who live in Stonetop. Each turn, answer another — or pass. When everyone has passed, go on.`,
 		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step4 ?? null,
 	},
 	{
-		roundRobin: true,
-		getInstruction: () => `<strong>Go around again.</strong> Answer another question from round 4, or pass. When everyone has passed, go on.`,
-		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step4 ?? null,
-	},
-	{
-		roundRobin: true,
-		getInstruction: () => `On your <strong>next turn</strong>, <strong>ask your fellow PCs one of these</strong>. When others ask you, answer as you like.`,
+		kind: "ask", title: "Asking the others", stepKey: "step6",
+		getInstruction: () => `<strong>Ask your fellow PCs one of these.</strong> When others ask you, answer as you like. Each turn, ask another — or pass. When everyone has passed, go on.`,
 		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step6 ?? null,
 	},
 	{
-		roundRobin: true,
-		getInstruction: () => `<strong>Go around again.</strong> Ask another question from round 6, or pass. When everyone has passed, go on.`,
-		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step6 ?? null,
-	},
-	{
-		roundRobin: false,
+		kind: "final", title: "Let spring break forth",
 		getInstruction: () => `<strong>Add each player's home</strong> to Stonetop's Places of Interest. When everyone is done, <strong>let spring break forth!</strong><span class="stonetop-intros-instruction-note">Players can reach the Stonetop playbook by hitting the <strong>Stonetop</strong> button in the navbar of their character sheet.</span>`,
 		getQuestions:   () => null,
 	},
 ];
+
+// The last real phase (the final "let spring break forth" screen).
+const _LAST_PHASE = _PHASES.length - 1;
+
+// A round-robin phase goes around the table (narration + the two steps); only the
+// final phase does not. A "step" phase is a looping answer/ask step.
+const _isRoundRobin = (phase) => !!phase && phase.kind !== "final";
+const _isStep       = (phase) => !!phase && (phase.kind === "answer" || phase.kind === "ask");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -92,6 +105,9 @@ const _PHASES = [
 function _getCombatPcs() {
 	return orderByCombatTurns(getPlayerCharacters());
 }
+
+// A chosen-question index normalized to an int, or null (no/blank prompt).
+const _normQ = (v) => (Number.isInteger(v) ? v : null);
 
 // ── IntroductionsDialog ───────────────────────────────────────────────────────
 
@@ -103,21 +119,122 @@ export class IntroductionsDialog extends Application {
 		this._pcs         = [];
 		this._frontOnOpen   = new FrontOnOpen(this);
 		this._combatHooks = null;
+		this._introHook   = null;
+		this._liveDraftTimer = null;
 	}
 
-	// Entry point used by the macro: auto-populate the Combat Tracker with every
-	// playbook-bearing character, then show the dialog.
+	// Entry point used by the Welcome guide / macro: auto-populate the Combat Tracker
+	// with every playbook-bearing character (GM only), then show the dialog. The GM
+	// resumes its own saved position; a player seeds their phase/turn from the shared
+	// cursor (the GM drives; players follow).
 	static async open() {
+		const existing = IntroductionsDialog._current();
+		if (existing) { existing.bringToTop(); return existing; }
+		// Guard against two near-simultaneous open() calls racing before the first instance
+		// registers in ui.windows — on a player reload the ready hook fires both
+		// reopenOpenWalkthroughs and openForActiveSession, and without this both would see
+		// _current() null and stack two dialogs. Coalesce them onto one in-flight open.
+		if (IntroductionsDialog._opening) return IntroductionsDialog._opening;
+		IntroductionsDialog._opening = IntroductionsDialog._doOpen();
+		try { return await IntroductionsDialog._opening; }
+		finally { IntroductionsDialog._opening = null; }
+	}
+
+	static async _doOpen() {
 		const dialog = new IntroductionsDialog();
 		try {
 			await dialog.ensureCombatRoster();
 		} catch (err) {
 			console.error("Stonetop | Introductions: failed to set up the combat tracker", err);
 		}
-		// Resume where this user left off before a reload (combat is set up first so
-		// the resumed round-robin has its PC list).
-		dialog._restorePosition();
+		// Combat is set up first so the resumed/seeded round-robin has its PC list.
+		if (game.user?.isGM) {
+			// A GM with no saved local position (a fresh browser/tab) but a live session must
+			// follow the running cursor, NOT reset to the pre-check — landing on phase 0 and
+			// re-rendering would otherwise tear the session down for everyone.
+			if (!dialog._restorePosition() && dialog._cursor().active) dialog._syncFromCursor();
+		} else {
+			dialog._syncFromCursor();
+		}
 		return dialog.render(true);
+	}
+
+	// The currently open dialog instance, if any.
+	static _current() {
+		return Object.values(ui.windows ?? {}).find(w => w instanceof IntroductionsDialog) ?? null;
+	}
+
+	// onChange handler for the world cursor (wired in Ready.js). Runs on every client.
+	// The PRIMARY GM authors the cursor, so it ignores its own writes; everyone else —
+	// players AND any secondary/assistant GM — follows it (so a second GM can't drive a
+	// conflicting turn). A player opens/focuses the dialog when it becomes their turn on any
+	// round-robin round they author (narration or answer/ask step), follows read-only
+	// otherwise, and closes when the session ends.
+	static handleIntroCursor(cursor = {}) {
+		if (game.user?.isGM && isPrimaryGM()) return; // the author ignores its own writes
+		const dialog  = IntroductionsDialog._current();
+		const myTurn  = !!cursor.active && cursor.activeUserId === game.user?.id && _isRoundRobin(_PHASES[cursor.phase]);
+		// The GM's "Show players" button bumps showNonce to force-summon the dialog onto
+		// every client at the current spot — even a player who closed it, and even when it
+		// isn't their turn. Only a NEW nonce forces (so a normal turn write doesn't).
+		const forceShow = !!cursor.active && Number.isInteger(cursor.showNonce)
+			&& cursor.showNonce > (IntroductionsDialog._lastShowNonce ?? -1);
+		if (forceShow) IntroductionsDialog._lastShowNonce = cursor.showNonce;
+
+		if (!cursor.active) { IntroductionsDialog._lastTurnKey = null; dialog?.close(); return; }
+
+		// Toast the player the moment the turn lands on them, so they notice even when the
+		// dialog is already open behind another window or off-screen.
+		IntroductionsDialog._notifyMyTurn(cursor, myTurn);
+
+		if (dialog) {
+			dialog._syncFromCursor();
+			dialog.render(false);
+			if (myTurn || forceShow) dialog.bringToTop();
+			return;
+		}
+		// No dialog open yet: pop it on this player's turn, or when the GM force-shows it.
+		if (myTurn || forceShow) IntroductionsDialog.open();
+	}
+
+	// Show a one-shot "your turn" toast when the cursor newly hands the turn to this
+	// player. Keyed on phase+actor so the repeated cursor writes for a single turn (nonce
+	// bumps while the GM watches typing, a roster reshuffle) don't re-toast; cleared
+	// whenever it isn't this player's turn so the next hand-off notifies again — including
+	// a later turn on the SAME PC within a looping step (the turn passes through others
+	// first, resetting the key). Phrased to match the phase: narrate / answer / ask.
+	static _notifyMyTurn(cursor, myTurn) {
+		if (!myTurn) { IntroductionsDialog._lastTurnKey = null; return; }
+		const key = `${cursor.phase}:${cursor.activeActorId}`;
+		if (IntroductionsDialog._lastTurnKey === key) return;
+		IntroductionsDialog._lastTurnKey = key;
+		const kind = _PHASES[cursor.phase]?.kind;
+		const what = kind === "ask" ? "ask the others a question"
+			: kind === "answer" ? "answer a question"
+			: "share your introduction";
+		ui.notifications?.info(`Character Introductions — it's your turn to ${what}.`);
+	}
+
+	// Ready-time seed for a player who logs in / reloads mid-introductions: open the
+	// dialog whenever a session is running (the GM has it open on phase 1+), so the reload
+	// drops them back into it — read-only until it's their turn. onChange
+	// (handleIntroCursor) covers live changes; this covers the no-event initial load.
+	// Unlike onChange, opening here is NOT gated on its being the player's turn — a reload
+	// should always rejoin the running session — but the "open only on your turn / GM
+	// force-show" rule still governs live cursor writes, so a player who deliberately closes
+	// their window mid-session isn't re-summoned on every keystroke nonce bump.
+	static openForActiveSession() {
+		if (game.user?.isGM) return;
+		const cursor = getSetting(_CURSOR_SETTING) ?? {};
+		// Baseline the show-nonce so a "Show players" click from BEFORE this load doesn't
+		// re-summon the dialog on every reload — only a live click after now force-opens it.
+		IntroductionsDialog._lastShowNonce = Number.isInteger(cursor.showNonce) ? cursor.showNonce : -1;
+		// Let handleIntroCursor run its turn toast / focus bookkeeping first (it opens on the
+		// player's turn); then, if a session is active but it isn't their turn, open the
+		// dialog anyway so the reload rejoins them. open()'s _current/_opening guards coalesce
+		// this with the reopen from the walkthrough resume, so it never stacks two dialogs.
+		IntroductionsDialog.handleIntroCursor(cursor);
+		if (cursor.active && !IntroductionsDialog._current()) IntroductionsDialog.open();
 	}
 
 	// Ensure an active combat exists and every player character (any actor with a
@@ -166,6 +283,9 @@ export class IntroductionsDialog extends Application {
 		// Record where we are + that we're open, so a reload can reopen here. Every
 		// render reflects the current round/turn (navigation always re-renders).
 		this._saveResume();
+		// GM: mirror the current phase/turn into the world cursor so players' dialogs
+		// open/follow. Skips a no-op write; players never write world settings.
+		this._syncCursorFromLocal();
 	}
 
 	// GM-only "Stonetop" shortcut in the window header — mirrors the steading button
@@ -174,8 +294,32 @@ export class IntroductionsDialog extends Application {
 	// Players are pointed to their own sheet's button by the final-round note.
 	_getHeaderButtons() {
 		const buttons = super._getHeaderButtons();
-		if (game.user?.isGM) buttons.unshift(stonetopSteadingHeaderButton());
+		if (game.user?.isGM) {
+			// Force-open the dialog on every player's screen at the GM's current spot — for
+			// when a player closed it (the cursor otherwise only re-opens on a turn change).
+			buttons.unshift({
+				label: "Show players",
+				class: "stonetop-intros-show-players",
+				icon:  "fas fa-eye",
+				onclick: () => this._showPlayers(),
+			});
+			buttons.unshift(stonetopSteadingHeaderButton());
+		}
 		return buttons;
+	}
+
+	// GM: bump the cursor's showNonce so every player's dialog force-opens at the current
+	// phase/turn (which the cursor already carries, written on each render). No-op when no
+	// session is running.
+	_showPlayers() {
+		if (!game.user?.isGM) return;
+		const cur = this._cursor();
+		if (!cur.active) {
+			ui.notifications?.info("Begin the introductions first, then you can show them to your players.");
+			return;
+		}
+		this._writeCursor({ showNonce: (Number(cur.showNonce) || 0) + 1 });
+		ui.notifications?.info("Opened the introductions on your players' screens.");
 	}
 
 	activateListeners(html) {
@@ -188,29 +332,58 @@ export class IntroductionsDialog extends Application {
 		html.find(".stonetop-intros-shuffle").on("click", () => this._shuffleOrder());
 		html.find(".stonetop-intros-begin").on("click", () => this._begin());
 		html.find(".stonetop-intros-next").on("click",  () => this._advance());
+		html.find(".stonetop-intros-pass").on("click",  () => this._confirmPass());
+		html.find(".stonetop-intros-done").on("click",  () => this._recordCurrentDraft());
 		html.find(".stonetop-intros-back").on("click",  () => this._retreat());
 		html.find(".stonetop-intros-close").on("click", ev => this._finish(ev.currentTarget));
 
-		// Record the active PC's answer. The narration rounds (1–3) store a plain
-		// string; the question rounds (4–7) store the answer under `a`. Save on
-		// change (blur) so the textarea keeps focus while typing — clicking any nav
-		// or question button blurs first, firing this before the click handler.
-		html.find(".stonetop-intros-answer").on("change", ev => {
-			const el    = ev.currentTarget;
-			const value = el.dataset.answerField ? { [el.dataset.answerField]: el.value } : el.value;
-			this._saveAnswer(el.dataset.actorId, el.dataset.roundKey, value);
+		// Narration rounds (1–3): the single plain-string answer, written near-live on input
+		// (debounced) so the GM watches the player type, and again on blur (change). Same
+		// actor-flag path as the step draft, so a player authors their own introduction.
+		html.find(".stonetop-intros-answer").on("input", ev => {
+			const el = ev.currentTarget;
+			this._scheduleNarration(el.dataset.actorId, el.dataset.roundKey, el.value);
 		});
-		// Pick (or toggle off) which question the PC answered/asked, then re-render
-		// to move the highlight.
+		html.find(".stonetop-intros-answer").on("change", ev => {
+			const el = ev.currentTarget;
+			this._cancelLiveDraft();
+			this._saveNarration(el.dataset.actorId, el.dataset.roundKey, el.value);
+		});
+		// Answer/ask steps: the in-progress draft answer. Written near-live on input
+		// (debounced ~300ms) so the GM watches it appear as it's typed, and again on blur
+		// (change) so a Next right after typing captures the last characters. The local
+		// updateActor re-render is suppressed while this field is focused, so the writer's
+		// own textarea is never reset mid-word; the watching client (not focused) refreshes.
+		// The selected question is snapshotted at input time (not re-read when the debounced
+		// write fires) and the timer is cancellable, so a keystroke that lands after the turn
+		// has moved on can't resurrect a just-cleared draft with the next PC's question.
+		const domSelectedQ = () => {
+			const sel = this.element?.[0]?.querySelector(".stonetop-intros-question-pick.is-selected");
+			return sel ? Number(sel.dataset.qIndex) : null;
+		};
+		html.find(".stonetop-intros-draft").on("input", ev => {
+			const el = ev.currentTarget;
+			this._scheduleLiveDraft(el.dataset.actorId, el.dataset.stepKey, domSelectedQ(), el.value);
+		});
+		html.find(".stonetop-intros-draft").on("change", ev => {
+			const el = ev.currentTarget;
+			this._cancelLiveDraft();
+			this._saveDraft(el.dataset.actorId, el.dataset.stepKey, { q: domSelectedQ(), a: el.value });
+		});
+		// Pick (or toggle off) which question the draft answers/asks, preserving any typed
+		// text, then re-render to move the highlight and update the answered gray-out.
 		html.find(".stonetop-intros-question-pick").on("click", async ev => {
 			const el      = ev.currentTarget;
 			const idx     = Number(el.dataset.qIndex);
-			const current = this._answers()[el.dataset.actorId]?.[el.dataset.roundKey]?.q;
-			await this._saveAnswer(el.dataset.actorId, el.dataset.roundKey, { q: current === idx ? null : idx });
+			const current = this._stepDraft(el.dataset.actorId, el.dataset.stepKey).q;
+			const domA    = this.element?.[0]?.querySelector(".stonetop-intros-draft")?.value ?? "";
+			this._cancelLiveDraft();
+			await this._saveDraft(el.dataset.actorId, el.dataset.stepKey, { q: current === idx ? null : idx, a: domA });
 			this.render(false);
 		});
 
 		this._registerCombatHooks();
+		this._registerIntroHooks();
 	}
 
 	// The recorded answers blob. The GM (the only writer) edits through an in-memory
@@ -222,30 +395,356 @@ export class IntroductionsDialog extends Application {
 		return getSetting(_ANSWERS_SETTING) ?? {};
 	}
 
-	// Persist one answer without re-rendering (so a focused textarea keeps focus).
-	// `value` is a string for the narration rounds, or a `{ q }` / `{ a }` partial
-	// for the question rounds (merged into that round's record). Mutates the draft
-	// in place first so the next handler sees it, then flushes to the setting.
-	async _saveAnswer(actorId, roundKey, value) {
-		if (!actorId || !roundKey) return;
+	// ── Answer/ask step data: the player's own actor flag ──────────────────────
+	// The looping answer/ask steps are authored on each PC's own actor flag
+	// flags.stonetop_pwd.intro (a write the owning player is always allowed to make —
+	// see Phase 3), so it survives reload and a momentarily-absent GM. The GM harvests
+	// it into the world-scoped introductionsAnswers (the Chronicle source) below. Shape:
+	//   intro = { step4:{answers:[{q,a}],passed}, step6:{…}, live:{stepKey,q,a}|null }
+	// where `live` is the single in-progress draft buffer (one step is active at a time).
+
+	_actor(actorId) {
+		return game.actors?.get(actorId) ?? null;
+	}
+
+	// The actor for a PC only when this client may write its flag (owns it), else null —
+	// the shared guard for every player-authored step write below.
+	_ownedActor(actorId) {
+		const actor = this._actor(actorId);
+		return actor?.isOwner ? actor : null;
+	}
+
+	_intro(actorId) {
+		return this._actor(actorId)?.getFlag(_FLAG_SCOPE, _INTRO_FLAG) ?? {};
+	}
+
+	// This PC's committed record for a step: { answers:[{q,a}], passed }.
+	_stepRecord(actorId, stepKey) {
+		const s = this._intro(actorId)[stepKey];
+		return { answers: Array.isArray(s?.answers) ? s.answers : [], passed: !!s?.passed };
+	}
+
+	// The in-progress draft ({ q, a }) for a step — the shared `live` buffer, but only
+	// when it currently belongs to this step.
+	_stepDraft(actorId, stepKey) {
+		const live = this._intro(actorId).live;
+		return (live && live.stepKey === stepKey)
+			? { q: _normQ(live.q), a: typeof live.a === "string" ? live.a : "" }
+			: { q: null, a: "" };
+	}
+
+	// Update the live draft for a step. Writes the whole live buffer (all three keys)
+	// so a step switch or a cleared field can't leave a stale sub-key behind (setFlag
+	// deep-merges). No-op without write permission (a non-owning player off-turn), and a
+	// no-op when nothing actually changed — so per-keystroke drafting (and the blur `change`
+	// that repeats the last input) doesn't spam a document write + broadcast to every client.
+	async _saveDraft(actorId, stepKey, { q, a } = {}) {
+		const actor = this._ownedActor(actorId);
+		if (!actor) return;
+		const nq  = _normQ(q);
+		const na  = typeof a === "string" ? a : "";
+		const cur = this._stepDraft(actorId, stepKey);
+		if (cur.q === nq && cur.a === na) return;
+		await actor.setFlag(_FLAG_SCOPE, `${_INTRO_FLAG}.live`, { stepKey, q: nq, a: na });
+	}
+
+	// Shared 300ms debounce behind the near-live draft/narration writes. Cancellable via the
+	// single _liveDraftTimer slot (stored on the instance so it survives re-renders) so a
+	// commit / pass / navigation can drop a pending keystroke before it lands — otherwise a
+	// write that fires after the turn moved on would resurrect a just-cleared draft on an
+	// already-recorded PC. `matchesPhase(phase)` re-checks this is still the same editable
+	// turn; the field values are captured at input time by the caller, not re-read from the
+	// (possibly re-rendered) DOM here.
+	_scheduleLiveWrite(actorId, matchesPhase, write) {
+		this._cancelLiveDraft();
+		this._liveDraftTimer = setTimeout(() => {
+			this._liveDraftTimer = null;
+			const shown = this._pcs?.[this._pcIndex];
+			if (!shown || shown.id !== actorId || !matchesPhase(_PHASES[this._phase])) return;
+			if (!this._canEditActor(shown)) return;
+			write();
+		}, 300);
+	}
+
+	// Schedule a debounced live-draft write for an answer/ask step.
+	_scheduleLiveDraft(actorId, stepKey, q, a) {
+		this._scheduleLiveWrite(actorId,
+			phase => _isStep(phase) && phase.stepKey === stepKey,
+			() => this._saveDraft(actorId, stepKey, { q, a }));
+	}
+
+	_cancelLiveDraft() {
+		if (this._liveDraftTimer) { clearTimeout(this._liveDraftTimer); this._liveDraftTimer = null; }
+	}
+
+	// Commit the current draft as a recorded answer: append { q, a } to the step's
+	// answers list (written whole, since arrays replace wholesale) and clear the live
+	// buffer (the -= unset key, since setFlag/update merges). Returns false when the
+	// draft has no answer text. A null q is allowed (blank prompt), matching the
+	// Chronicle's "answer with no marked question" handling.
+	async _recordDraft(actorId, stepKey) {
+		const actor = this._ownedActor(actorId);
+		if (!actor) return false;
+		const draft = this._stepDraft(actorId, stepKey);
+		const a     = String(draft.a ?? "").trim();
+		if (!a) return false;
+		const answers = [...this._stepRecord(actorId, stepKey).answers, { q: _normQ(draft.q), a }];
+		await this._commitStep(actor, stepKey, "answers", answers);
+		return true;
+	}
+
+	// Mark a PC passed (or un-passed) for a step, clearing any half-typed draft.
+	async _setPassed(actorId, stepKey, passed) {
+		const actor = this._ownedActor(actorId);
+		if (!actor) return;
+		await this._commitStep(actor, stepKey, "passed", passed);
+	}
+
+	// Write one committed step field (answers / passed) and clear the live draft in the
+	// same update — the two always go together (recording or passing ends the draft), so
+	// centralizing means neither path can forget the `-=live` unset.
+	async _commitStep(actor, stepKey, field, value) {
+		await actor.update({
+			[`flags.${_FLAG_SCOPE}.${_INTRO_FLAG}.${stepKey}.${field}`]: value,
+			[`flags.${_FLAG_SCOPE}.${_INTRO_FLAG}.-=live`]: null,
+		});
+	}
+
+	// ── Narration rounds (1–3): a single plain-string answer, on the PC's own flag ──────
+	// Like the answer/ask steps, narration is authored on flags.stonetop_pwd.intro.narration
+	// so the active player writes their OWN introduction; the primary GM harvests it into the
+	// world setting for the Chronicle. Unlike a step there's no separate draft/commit — the
+	// value IS the answer, written near-live. Reads fall back to the legacy world-setting
+	// value so a world that recorded narration the old (GM-typed) way still shows it.
+	_narration(actorId, roundKey) {
+		const val = this._intro(actorId).narration?.[roundKey];
+		if (typeof val === "string") return val;
+		const legacy = this._answers()[actorId]?.[roundKey];
+		return typeof legacy === "string" ? legacy : "";
+	}
+
+	async _saveNarration(actorId, roundKey, value) {
+		const actor = this._ownedActor(actorId);
+		if (!actor) return;
+		const na  = typeof value === "string" ? value : "";
+		if (this._intro(actorId).narration?.[roundKey] === na) return; // no-op if unchanged
+		await actor.setFlag(_FLAG_SCOPE, `${_INTRO_FLAG}.narration.${roundKey}`, na);
+	}
+
+	// Debounced near-live narration write (shares the single pending-write slot with the step
+	// draft) so a keystroke that lands after navigation can't write the wrong round.
+	_scheduleNarration(actorId, roundKey, value) {
+		this._scheduleLiveWrite(actorId,
+			phase => !_isStep(phase) && _isRoundRobin(phase) && phase.roundKey === roundKey,
+			() => this._saveNarration(actorId, roundKey, value));
+	}
+
+	// Whether this client may WRITE the given PC's live draft this turn. The active player
+	// edits their OWN PC on their turn during an answer/ask step. The GM edits narration,
+	// GM-only PCs, and turns whose owning player is offline — but on a step where an ONLINE
+	// player owns the turn the GM only WATCHES (read-only), so the GM's mirror textarea and
+	// the player's live typing never clobber the single shared live-draft buffer; the GM
+	// still commits the player's draft with Next (which reads the flag, not the DOM).
+	_canEditActor(actor) {
+		if (game.user?.isGM) {
+			// Only the PRIMARY GM edits — for a GM-only/offline PC, or CO-EDITING the shared
+			// draft alongside a present player on a round-robin turn. A secondary/assistant GM
+			// only WATCHES: it authors neither the cursor nor the harvest, and a second GM writer
+			// would clobber the single shared draft and double-record answers into the step list.
+			return isPrimaryGM();
+		}
+		if (!actor?.isOwner) return false;
+		const cur = this._cursor();
+		return !!cur.active && _isRoundRobin(_PHASES[cur.phase])
+			&& cur.activeActorId === actor.id && cur.activeUserId === game.user?.id;
+	}
+
+	// The owning player's user id for a PC — the non-GM user who owns it, preferring an
+	// ONLINE owner (the assigned player first) so a turn is never pinned to an offline user
+	// while a present co-owner is locked out; falls back to any owner. "" when no player owns
+	// it (a GM-only PC, which then never auto-opens on a player and is driven by the GM).
+	_primaryOwnerId(actor) {
+		const owners = game.users?.filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER")) ?? [];
+		const online = owners.filter(u => u.active);
+		const pick   = online.find(u => u.character?.id === actor.id) ?? online[0]
+			?? owners.find(u => u.character?.id === actor.id) ?? owners[0];
+		return pick?.id ?? "";
+	}
+
+	// Whether a present (online) player — someone other than this GM — owns the PC. When true
+	// on a round-robin turn the GM is CO-EDITING the shared draft alongside that player, not
+	// standing in for an absent one; drives the "writing together" capture label. See
+	// _canEditActor.
+	_hasOnlinePlayerOwner(actor) {
+		const ownerId = this._primaryOwnerId(actor);
+		return !!ownerId && ownerId !== game.user?.id && !!game.users?.get(ownerId)?.active;
+	}
+
+	// The current session cursor blob (never null).
+	_cursor() {
+		return getSetting(_CURSOR_SETTING) ?? {};
+	}
+
+	// GM-only cursor write. Always bumps `nonce` so an otherwise-equal cursor still fires
+	// onChange on players (Foundry suppresses equal-value setSetting) — centralizing this
+	// means no write path can forget the bump and silently desync a player's dialog.
+	_writeCursor(patch) {
+		const cur = this._cursor();
+		setSetting(_CURSOR_SETTING, { ...cur, ...patch, nonce: (Number(cur.nonce) || 0) + 1 });
+	}
+
+	// Primary GM only: mirror this dialog's local phase/turn into the world cursor so every
+	// client can follow along. Skips a no-op write; _writeCursor bumps the nonce. Phase 0 is
+	// the GM's local pre-check/roster screen, NOT a session end — leaving the cursor untouched
+	// there means stepping Back to re-check the roster doesn't close every player's dialog;
+	// only close() (a deliberate finish) deactivates the session. Carries the GM-authored PC
+	// order so players seed their roster from the cursor, not their own scene-scoped game.combat.
+	_syncCursorFromLocal() {
+		if (!game.user?.isGM || !isPrimaryGM()) return; // only the primary GM authors the cursor
+		const phase = this._phase;
+		if (phase < 1 || phase > _LAST_PHASE) return;
+		const actor   = _isRoundRobin(_PHASES[phase]) ? (this._pcs[this._pcIndex] ?? null) : null;
+		const activeActorId = actor?.id ?? "";
+		const activeUserId  = actor ? this._primaryOwnerId(actor) : "";
+		const pcOrder = this._pcs.map(a => a.id);
+		const cur = this._cursor();
+		if (cur.active === true && cur.phase === phase
+			&& cur.activeActorId === activeActorId && cur.activeUserId === activeUserId
+			&& Array.isArray(cur.pcOrder) && cur.pcOrder.join() === pcOrder.join()) return;
+		this._writeCursor({ active: true, phase, activeActorId, activeUserId, pcOrder });
+	}
+
+	// Players (and a GM without local nav state) seed their phase/turn from the cursor.
+	// Returns false when the cursor isn't running (leaves the dialog on the pre-check). The
+	// roster comes from the GM-authored `pcOrder` carried in the cursor — resolved against
+	// game.actors (which every client has in full) — so a player whose scene-scoped
+	// game.combat is empty or different still gets the right PCs and turn index; falls back
+	// to the local combat roster before the GM has written an order.
+	_syncFromCursor() {
+		const cur = this._cursor();
+		const fromCursor = Array.isArray(cur.pcOrder)
+			? cur.pcOrder.map(id => this._actor(id)).filter(a => a && playbookSlug(a))
+			: [];
+		this._pcs = fromCursor.length ? fromCursor : _getCombatPcs();
+		if (!cur.active || !Number.isInteger(cur.phase) || cur.phase < 1 || cur.phase > _LAST_PHASE) {
+			this._phase   = 0;
+			this._pcIndex = 0;
+			return false;
+		}
+		this._phase   = cur.phase;
+		const idx     = this._pcs.findIndex(a => a.id === cur.activeActorId);
+		this._pcIndex = idx >= 0 ? idx : 0;
+		return true;
+	}
+
+	// Total questions this PC's playbook offers for a step (4), used for exhaustion.
+	_totalQuestions(actor, phase) {
+		return (phase.getQuestions(actor) ?? []).length;
+	}
+
+	// Has a PC finished a step (passed or answered all their questions)?
+	_isPcDone(actor, phase) {
+		return stepPcDone(this._stepRecord(actor.id, phase.stepKey), this._totalQuestions(actor, phase));
+	}
+
+	// How many turns until the PC at `myIdx` is up: 0 = it's their turn now, N = N turns
+	// away, -1 = they're past/finished (nothing more this round). Narration rounds are a
+	// single linear pass (0..N-1); looping steps cycle only the still-active PCs, so a PC
+	// that has passed/answered-all is skipped and any finished PC reports -1.
+	_turnsUntil(myIdx, phase) {
+		const count = this._pcs.length;
+		if (!(myIdx >= 0) || count <= 0) return -1;
+		if (_isStep(phase)) {
+			return turnsUntilActive(this._pcIndex, myIdx, count, i => this._isPcDone(this._pcs[i], phase));
+		}
+		if (myIdx < this._pcIndex) return -1;   // narration: already had their turn
+		return myIdx - this._pcIndex;           // 0 = now, else turns away
+	}
+
+	// For a non-GM viewer: a small "place in line" descriptor for their own PC (the
+	// soonest-upcoming, if they own more than one) — the copy the template shows while
+	// they wait. Null when they own none of the PCs in the run (a pure spectator).
+	_myPlaceInLine(phase) {
+		const pcs = this._pcs;
+		if (!pcs?.length) return null;
+		// Whether the cursor handed THIS user the active turn. A PC can have two owners; the
+		// cursor picks one as the editor (see _primaryOwnerId), so a co-owner can be looking at
+		// "their" active PC without being the one who may act on it.
+		const cur = this._cursor();
+		const iAmActiveUser = !!cur.active && cur.activeActorId === (pcs[this._pcIndex]?.id ?? "")
+			&& cur.activeUserId === game.user?.id;
+		let best = null;
+		pcs.forEach((a, i) => {
+			if (!a?.isOwner) return;
+			const turns = this._turnsUntil(i, phase);
+			const better = best == null
+				|| (best.turns < 0 && turns >= 0)                              // an upcoming turn beats a finished one
+				|| (turns >= 0 && best.turns >= 0 && turns < best.turns);      // sooner wins
+			if (better) best = { name: a.name, turns };
+		});
+		if (best == null) return null;
+		const pcNote = best.name ? `(you're playing ${best.name})` : "";
+		if (best.turns < 0)   return { state: "done", icon: "fa-circle-check",   text: "You're all set here — sit back and enjoy the rest of the table.", pcNote: "" };
+		// The current turn is only actionable if the cursor made THIS user its editor; a
+		// co-owner whose partner holds the turn is waiting, not up.
+		if (best.turns === 0) return iAmActiveUser
+			? { state: "now",  icon: "fa-feather",        text: "It's your turn now.", pcNote: "" }
+			: { state: "soon", icon: "fa-hourglass-half", text: `${best.name} is up now — you share this character.`, pcNote: "" };
+		if (best.turns === 1) return { state: "next", icon: "fa-hourglass-half", text: "You're up next.",           pcNote };
+		return                       { state: "soon", icon: "fa-hourglass-half", text: `You're ${best.turns} turns away.`, pcNote };
+	}
+
+	// ── GM harvest: mirror player flags into the world setting for the Chronicle ────
+	// The GM is the only client that can write the world-scoped introductionsAnswers, so
+	// the primary GM copies each PC's intro flag into it: the narration rounds (r1–r3, from
+	// intro.narration) and the answer/ask steps (step4/step6), merged so a value the GM
+	// typed directly (or an untouched field) is preserved.
+
+	_mergeActorIntoDraft(actor) {
+		if (!actor || actor.type !== "character") return false;
+		const intro = actor.getFlag(_FLAG_SCOPE, _INTRO_FLAG);
+		if (!intro) return false;
 		const all = this._answers();
-		all[actorId] = {
-			...(all[actorId] ?? {}),
-			[roundKey]: (value && typeof value === "object")
-				? { ...(all[actorId]?.[roundKey] ?? {}), ...value }
-				: value,
-		};
-		await setSetting(_ANSWERS_SETTING, all);
+		const rec = { ...(all[actor.id] ?? {}) };
+		let touched = false;
+		const nar = intro.narration;
+		if (nar) for (const roundKey of ["r1", "r2", "r3"]) {
+			if (typeof nar[roundKey] === "string") { rec[roundKey] = nar[roundKey]; touched = true; }
+		}
+		for (const stepKey of ["step4", "step6"]) {
+			const s = intro[stepKey];
+			if (s) {
+				rec[stepKey] = { answers: Array.isArray(s.answers) ? s.answers : [], passed: !!s.passed };
+				touched = true;
+			}
+		}
+		if (touched) all[actor.id] = rec;
+		return touched;
+	}
+
+	// Harvest one PC's flag into the world setting (primary GM only).
+	async _harvestActor(actor) {
+		if (!isPrimaryGM()) return;
+		if (this._mergeActorIntoDraft(actor)) await setSetting(_ANSWERS_SETTING, this._answers());
+	}
+
+	// Harvest every PC's flag into the world setting in one write — run before compiling
+	// the Chronicle so an un-harvested edit (or one made while this GM wasn't primary)
+	// still lands.
+	async _harvestAll() {
+		let touched = false;
+		for (const actor of getPlayerCharacters()) touched = this._mergeActorIntoDraft(actor) || touched;
+		if (touched || this._draft) await setSetting(_ANSWERS_SETTING, this._answers());
 	}
 
 	// Compile everything recorded so far (plus the Spring Burst notes) into the
 	// shared "Chronicle" journal and open it. GM-only — the button is hidden for
-	// players, who read the journal once it's shared. Flush the draft first so the
-	// compiler (which reads the persisted setting) sees the latest edits.
+	// players, who read the journal once it's shared. Harvest every PC's flag into the
+	// setting first so the compiler (which reads the persisted setting) sees the latest.
 	async _saveChronicle(button) {
 		return saveChronicleFromButton(button, {
 			context:    "Introductions",
-			beforeSave: () => (this._draft ? setSetting(_ANSWERS_SETTING, this._draft) : undefined),
+			beforeSave: () => this._harvestAll(),
 		});
 	}
 
@@ -279,23 +778,75 @@ export class IntroductionsDialog extends Application {
 		this._combatHooks = null;
 	}
 
+	// Live-sync listener for the answer/ask steps: when a PC's intro flag changes (a
+	// player — or the GM — recording/passing/typing), the primary GM mirrors it into the
+	// world setting, and any client showing that PC re-renders so the GM sees the player
+	// type and the player sees the GM type for them (and their commit land). Mirrors
+	// WelcomeDialog._registerHooks: filtered to character actors and the `intro` flag key
+	// (stripping the "-=" unset prefix), debounced so a burst coalesces. Skips the
+	// re-render while a field here is focused so it never yanks the textarea mid-edit.
+	_registerIntroHooks() {
+		if (this._introHook) return;
+		// Re-render (debounced) when a shown PC's intro flag changes, unless a field here
+		// is focused (never yank a textarea mid-edit). The harvest is done immediately,
+		// not in this debounce, so a coalesced burst can't drop a step change.
+		const scheduleRender = foundry.utils.debounce(actor => {
+			const shown = this._pcs?.[this._pcIndex];
+			if (shown && actor.id === shown.id && this.rendered && this._phase > 0
+				&& !this.element?.[0]?.contains(document.activeElement)) this.render(false);
+		}, 150);
+		this._introHook = Hooks.on("updateActor", (actor, changes) => {
+			if (actor?.type !== "character") return;
+			const stFlags = changes?.flags?.[_FLAG_SCOPE];
+			if (!stFlags) return;
+			if (!Object.keys(stFlags).some(k => k.replace(/^-=/, "") === _INTRO_FLAG)) return;
+			// Only a step4/step6 change (a recorded answer or a pass) is worth mirroring
+			// into the world setting — not a live-typing keystroke, so per-keystroke draft
+			// writes don't churn the world setting. Harvest immediately (primary GM only).
+			const introDelta   = stFlags[_INTRO_FLAG];
+			const stepChanged  = !!introDelta && ("step4" in introDelta || "step6" in introDelta);
+			if (game.user?.isGM && stepChanged) this._harvestActor(actor);
+			scheduleRender(actor);
+		});
+	}
+
+	_unregisterIntroHooks() {
+		if (this._introHook == null) return;
+		Hooks.off("updateActor", this._introHook);
+		this._introHook = null;
+	}
+
 	async close(options = {}) {
+		this._cancelLiveDraft();
+		// Harvest every PC's answers — narration INCLUDED — into the world setting before we
+		// go. The live updateActor harvest only fires on step (step4/step6) changes, so without
+		// this, narration typed then closed with the X (rather than the Save-to-Chronicle
+		// button) would never reach the setting the Chronicle compiler reads. Primary GM only
+		// (only a GM can write a world setting, and only the primary should).
+		if (game.user?.isGM && isPrimaryGM()) { try { await this._harvestAll(); } catch (_e) { /* non-fatal */ } }
 		this._unregisterCombatHooks();
+		this._unregisterIntroHooks();
 		this._frontOnOpen.stop();
 		// Closing on purpose (the X or "Let spring break forth!") clears the open flag
 		// so we don't auto-reopen on the next load; a browser reload skips close() and
 		// leaves it set. The saved round/turn stays, so a manual reopen still resumes.
 		patchWalkthroughResume(_RESUME_KEY, { open: false });
+		// The primary GM closing on purpose ends the shared session, so players' dialogs
+		// close too. (A secondary GM or a player closing their own window doesn't end it; a
+		// GM browser reload skips close(), leaving the cursor active for reopen.)
+		if (game.user?.isGM && isPrimaryGM() && this._cursor().active) this._writeCursor({ active: false });
 		return super.close(options);
 	}
 
 	getData() {
-		const allPcs    = getPlayerCharacters();
-		const combatPcs = _getCombatPcs();
-		const combatIds = new Set(combatPcs.map(a => a.id));
-		const missing   = allPcs.filter(a => !combatIds.has(a.id));
-
 		if (this._phase === 0) {
+			// The pre-check roster is only needed on this screen; the round-robin below
+			// reads this._pcs instead. Building it here keeps the per-keystroke re-render
+			// off two full actor scans it would only throw away.
+			const allPcs    = getPlayerCharacters();
+			const combatPcs = orderByCombatTurns(allPcs);
+			const combatIds = new Set(combatPcs.map(a => a.id));
+			const missing   = allPcs.filter(a => !combatIds.has(a.id));
 			const isGM = game.user?.isGM ?? false;
 			return {
 				isPreCheck:   true,
@@ -314,61 +865,91 @@ export class IntroductionsDialog extends Application {
 		const isGM  = game.user?.isGM ?? false;
 		const pcs   = this._pcs;
 		const phase = _PHASES[this._phase];
-		const actor = phase.roundRobin ? (pcs[this._pcIndex] ?? null) : null;
+		const actor = _isRoundRobin(phase) ? (pcs[this._pcIndex] ?? null) : null;
 
 		let currentPc = null;
 		let capture   = null;
 		let questions = null;
-		if (phase.roundRobin && actor) {
+		if (_isRoundRobin(phase) && actor) {
 			const slug = playbookSlug(actor);
+			// The owning player's real (user) name, shown in the banner beside the
+			// character name — players new to the table may not yet map a PC name to a
+			// person, so the banner spells out whose turn it is.
+			const ownerId = this._primaryOwnerId(actor);
 			currentPc = {
 				name:         actor.name,
+				playerName:   ownerId ? (game.users?.get(ownerId)?.name ?? "") : "",
 				playbookName: actor.system?.playbook?.name ?? "",
 				icon:         playbookIconPath(slug),
 				index:        this._pcIndex + 1,
 				total:        pcs.length,
 			};
 
-			// Recorded answer for this PC's turn. Rounds 1–3 store a plain string;
-			// rounds 4–7 store { q, a } — the chosen question index and the answer.
-			const roundKey = `r${this._phase}`;
-			const stored   = this._answers()[actor.id]?.[roundKey];
-			const isAsk    = this._phase >= 6;          // rounds 6–7 ask fellow PCs
-			const isAnswer = this._phase === 4 || this._phase === 5;
+			// Editability is the same rule for narration and the steps, so compute it once:
+			// whether this client may write the draft (canEdit), whether it's the primary GM
+			// co-editing alongside a present player — a shared-box label, not GM-only (coEdit),
+			// and whether a GM only watches a present player's live typing read-only (canPreview).
+			const canEdit    = this._canEditActor(actor);
+			const coEdit     = isGM && canEdit && this._hasOnlinePlayerOwner(actor);
+			const canPreview = isGM && !canEdit;
 
-			if (isAnswer || isAsk) {
-				const selectedQ = Number.isInteger(stored?.q) ? stored.q : null;
-				// Gray out the prompt this PC already used in the paired round (4&5
-				// share the step-4 list; 6&7 share step-6) so they can't answer/ask
-				// the same one twice — except the one selected this turn, which stays
-				// pickable so the GM can toggle it back off.
-				const siblingKey = _SIBLING_ROUND[this._phase];
-				const siblingQ   = siblingKey ? this._answers()[actor.id]?.[`r${siblingKey}`]?.q : null;
-				// Mark the chosen prompt so the GM (and read-only players) see which
-				// question this answer responded to. (A non-integer/absent siblingQ can
-				// never equal a real prompt index, so no extra guard is needed.)
-				questions = (phase.getQuestions(actor) ?? []).map((html, index) => ({
+			if (_isStep(phase)) {
+				const stepKey = phase.stepKey;
+				const record  = this._stepRecord(actor.id, stepKey);
+				const answers = record.answers;
+				const passed  = record.passed;
+				const draft   = this._stepDraft(actor.id, stepKey);
+				const qList   = phase.getQuestions(actor) ?? [];
+				// Gray out any question this PC has already answered this step — except
+				// the one drafted right now, which stays pickable so it can be toggled off.
+				const usedQ     = new Set(answers.map(x => x.q).filter(Number.isInteger));
+				const selectedQ = _normQ(draft.q);
+				questions = qList.map((html, index) => ({
 					index,
 					html:       wrapLoreTerms(html),
 					isSelected: index === selectedQ,
-					isUsed:     index === siblingQ && index !== selectedQ,
+					isUsed:     usedQ.has(index) && index !== selectedQ,
 				}));
+				const recorded = answers.map(x => ({
+					question: Number.isInteger(x.q) ? wrapLoreTerms(qList[x.q] ?? "") : "",
+					answer:   x.a,
+				}));
+				const total   = qList.length;
 				capture = {
-					isQuestion:  true,
-					actorId:     actor.id,
-					key:         roundKey,
-					answer:      typeof stored?.a === "string" ? stored.a : "",
-					placeholder: isAsk ? "Who you asked, and what they answered…" : "Their answer…",
-					canEdit:     isGM,
+					isStep:       true,
+					isAsk:        phase.kind === "ask",
+					actorId:      actor.id,
+					stepKey,
+					coEdit,
+					draftAnswer:  typeof draft.a === "string" ? draft.a : "",
+					placeholder:  phase.kind === "ask" ? "Who you asked, and what they answered…" : "Their answer…",
+					canEdit,
+					// The GM watches a present player's live typing read-only (it can't write the
+					// shared draft), so it still sees the answer appear but never clobbers it.
+					canPreview,
+					recorded,
+					hasRecorded:  recorded.length > 0,
+					passed,
+					// Pass is offered on any un-passed turn (a PC may pass without answering).
+					canPass:      !passed,
+					answeredCount: answers.length,
+					total,
 				};
 			} else {
+				// Narration round (1–3): a single plain-string answer, authored on the PC's
+				// own flag so the active player writes their own intro (GM watches / types for
+				// an offline PC), harvested to the world setting for the Chronicle.
+				const roundKey = phase.roundKey;
 				capture = {
-					isQuestion:  false,
-					actorId:     actor.id,
-					key:         roundKey,
-					answer:      typeof stored === "string" ? stored : "",
-					placeholder: _NARRATE_PLACEHOLDER[this._phase] ?? "Their answer…",
-					canEdit:     isGM,
+					isStep:       false,
+					actorId:      actor.id,
+					key:          roundKey,
+					answer:       this._narration(actor.id, roundKey),
+					placeholder:  _NARRATE_PLACEHOLDER[this._phase] ?? "Their answer…",
+					canEdit,
+					coEdit,
+					// A secondary GM (canEdit false) still watches the player type read-only.
+					canPreview,
 				};
 			}
 		}
@@ -376,20 +957,38 @@ export class IntroductionsDialog extends Application {
 		// Add hover summaries to bare god names (Danu / Aratis / Helior) in the
 		// authored prompts; move names are intentionally left alone.
 		const instruction = wrapLoreTerms(phase.getInstruction(actor));
-		const isLastPc    = !phase.roundRobin || this._pcIndex >= pcs.length - 1;
-		const isDone      = this._phase === 8 && isLastPc;
+		const isLastPc    = !_isRoundRobin(phase) || this._pcIndex >= pcs.length - 1;
+		const isDone      = this._phase === _LAST_PHASE && isLastPc;
+
+		// GM-only "N of M done" tally for a step (passed or answered all their
+		// questions). When all are done the GM's Next lights up as "continue" — the GM
+		// still clicks it (GM-paced; no auto-advance). Reads durable per-actor state, so
+		// an offline PC the GM answered/passed for counts too.
+		let stepReady = null;
+		if (isGM && _isStep(phase) && pcs.length) {
+			const count = pcs.reduce((n, pc) => n + (this._isPcDone(pc, phase) ? 1 : 0), 0);
+			stepReady = { count, total: pcs.length, all: count >= pcs.length };
+		}
+
+		// Player-side "where you are in the turn order" strip, shown while it isn't the
+		// viewer's own turn to write. Absent for the GM (who paces the table and sees the
+		// ready tally) and for a spectator who owns none of the PCs in the run.
+		let placeInLine = null;
+		if (!isGM && _isRoundRobin(phase) && !capture?.canEdit) placeInLine = this._myPlaceInLine(phase);
 
 		return {
-			isPreCheck:    false,
+			isPreCheck:     false,
 			isGM,
-			phase:         this._phase,
+			phase:          this._phase,
 			currentPc,
 			instruction,
 			questions,
-			hasQuestions:  !!(questions?.length),
+			hasQuestions:   !!(questions?.length),
 			capture,
-			stepLabel:     `Round ${this._phase} of 8`,
+			stepReady,
+			stepLabel:      phase.title ?? `Step ${this._phase} of ${_LAST_PHASE}`,
 			isPrevDisabled: this._phase === 1 && this._pcIndex === 0,
+			placeInLine,
 			isDone,
 		};
 	}
@@ -420,73 +1019,194 @@ export class IntroductionsDialog extends Application {
 	}
 
 	_begin() {
+		// Only the PRIMARY GM starts the session — it authors the cursor every other client
+		// follows; a secondary GM beginning locally would move only its own view and desync.
+		if (!game.user?.isGM || !isPrimaryGM()) return;
 		this._pcs     = _getCombatPcs();
 		this._phase   = 1;
 		this._pcIndex = 0;
 		this.render(false);
 	}
 
-	// In the question rounds (4–7) a recorded answer has to name the prompt it
-	// responds to, so the Chronicle knows what was answered/asked. Passing (no
-	// answer recorded) is still fine. GM-only — players just follow along read-only.
-	_requireQuestionForAnswer() {
-		if (!game.user?.isGM) return true;
-		if (!(this._phase >= 4 && this._phase <= 7)) return true;
-		const actor = this._pcs[this._pcIndex];
-		if (!actor) return true;
-		const stored      = this._answers()[actor.id]?.[`r${this._phase}`];
-		const hasAnswer   = typeof stored?.a === "string" && stored.a.trim() !== "";
-		const hasQuestion = Number.isInteger(stored?.q);
-		if (hasAnswer && !hasQuestion) {
-			ui.notifications?.warn("Tap the question they chose before moving on, so it's recorded with their answer.");
-			return false;
-		}
-		return true;
-	}
-
-	_advance() {
-		if (!this._requireQuestionForAnswer()) return;
+	// "Next". On an answer/ask step this records the active PC's drafted answer (if
+	// any) and hands the turn to the next still-active PC, cycling until everyone has
+	// passed/answered-all and then advancing to the next phase. On a narration round
+	// it's the old linear round-robin. Async: recording flushes to the setting before
+	// the re-render (though the GM's in-memory draft updates synchronously).
+	async _advance() {
+		// GM-paced: only the primary GM drives the shared cursor. A secondary GM's Next would
+		// move its local view without propagating, then snap back on the next primary write.
+		if (game.user?.isGM && !isPrimaryGM()) return;
 		const phase = _PHASES[this._phase];
-		if (phase?.roundRobin && this._pcIndex < this._pcs.length - 1) {
+		if (_isStep(phase)) { await this._advanceStep(phase); return; }
+		if (_isRoundRobin(phase) && this._pcIndex < this._pcs.length - 1) {
 			this._pcIndex++;
-		} else if (this._phase < 8) {
-			this._phase++;
-			this._pcIndex = 0;
+		} else if (this._phase < _LAST_PHASE) {
+			this._enterPhase(this._phase + 1);
 		}
 		this.render(false);
 	}
 
+	// Flush the compose UI's current state (selected question + textarea text) to the
+	// draft flag and await it, so a fast type-then-Next records the latest text rather
+	// than racing the debounced/blur writes. The DOM is authoritative at click time —
+	// the selected pick reflects the last render, the textarea holds the live value.
+	async _flushDraftFromDom(actor, phase) {
+		const root = this.element?.[0];
+		const el   = root?.querySelector(".stonetop-intros-draft");
+		if (!el || el.dataset.actorId !== actor.id) return;
+		const sel = root.querySelector(".stonetop-intros-question-pick.is-selected");
+		const q   = sel ? Number(sel.dataset.qIndex) : this._stepDraft(actor.id, phase.stepKey).q;
+		await this._saveDraft(actor.id, phase.stepKey, { q, a: el.value });
+	}
+
+	// Record the active PC's draft, then move the cursor on within the step. Only the GM has
+	// Next, so this runs on the GM. When the GM is the authoritative editor (a GM-only PC, an
+	// offline player's turn, and — implicitly — the field it typed into) it flushes its own
+	// textarea into the draft first, so a fast type-then-Next captures the last text. When a
+	// present player is the editor, their `live` flag is the source of truth: DON'T flush the
+	// GM's lagging mirror over it — record the flag as-is.
+	async _advanceStep(phase) {
+		this._cancelLiveDraft();
+		const actor = this._pcs[this._pcIndex];
+		// Record the shown PC's draft first; a draft with text but no chosen question is
+		// rejected (below) and holds the turn. No actor (empty roster) still advances.
+		if (actor && !(await this._commitComposedDraft(actor, phase, "Tap the question they chose before recording it."))) return;
+		this._advanceStepCursor(phase);
+		this.render(false);
+	}
+
+	// Flush the shown PC's typed text into the draft (when this client is its editor), then
+	// record it as an answer. A draft with answer text but no chosen question is rejected —
+	// warn and return false so the caller holds the turn; anything else returns true. Shared
+	// by the GM's Next (_advanceStep) and the player's Done (_recordCurrentDraft).
+	async _commitComposedDraft(actor, phase, warnMsg) {
+		// Flush our own textarea into the draft ONLY when we're the SOLE editor. In a co-edit
+		// (primary GM writing alongside a present player) the player's `live` flag is the
+		// source of truth — flushing the GM's lagging mirror could re-create a just-cleared
+		// draft and record the same answer twice, inflating the exhaustion count. The active
+		// player editing their own PC is its sole editor, so they still flush normally.
+		if (this._canEditActor(actor) && !this._hasOnlinePlayerOwner(actor)) await this._flushDraftFromDom(actor, phase);
+		const draft   = this._stepDraft(actor.id, phase.stepKey);
+		const hasText = String(draft.a ?? "").trim() !== "";
+		const hasQ    = Number.isInteger(draft.q);
+		if (hasText && !hasQ) { ui.notifications?.warn(warnMsg); return false; }
+		if (hasText && hasQ) await this._recordDraft(actor.id, phase.stepKey);
+		return true;
+	}
+
+	// The player's "Done" — record the current draft as an answer WITHOUT advancing the
+	// turn (players don't drive the GM-paced cursor; the GM's Next hands off). Mirrors the
+	// record half of the GM's Next: flush the latest typed text, require a chosen question,
+	// append it to the recorded list, and clear the compose box for another.
+	async _recordCurrentDraft() {
+		const phase = _PHASES[this._phase];
+		if (!_isStep(phase)) return;
+		const actor = this._pcs[this._pcIndex];
+		if (!actor || !this._canEditActor(actor)) return;
+		this._cancelLiveDraft();
+		if (!(await this._commitComposedDraft(actor, phase, "Tap the question you're answering before recording it."))) return;
+		this.render(false);
+	}
+
+	// Pass, with a confirmation for the player explaining what passing means. The GM — who
+	// paces the table and may pass on behalf of an offline PC — passes without the prompt.
+	async _confirmPass() {
+		const phase = _PHASES[this._phase];
+		if (!_isStep(phase)) return;
+		if (game.user?.isGM) return this._pass();
+		const isAsk = phase.kind === "ask";
+		const confirmed = await Dialog.confirm({
+			title:   "Pass this part?",
+			content: `<p>Passing means you're <strong>done ${isAsk ? "asking" : "answering"}</strong> for this part of the introductions — you won't be asked to ${isAsk ? "ask" : "answer"} another question about <em>${escHtml(phase.title)}</em>.</p>`
+			       + `<p>Anything you've already recorded is kept, and the group carries on. If you change your mind, just ask your GM.</p>`,
+			yes:        () => true,
+			no:         () => false,
+			defaultYes: false,
+			render:     bringDialogToFront,
+		});
+		if (confirmed) await this._pass();
+	}
+
+	// Pass: the active PC opts out of the rest of this step. The GM moves the turn to the
+	// next still-active PC — but a pass never auto-leaves the step (GM-paced: when all are
+	// done the GM's lit-up Next is what advances the phase). A player just marks their own
+	// flag and waits for the GM, whose Next skips passed PCs.
+	async _pass() {
+		const phase = _PHASES[this._phase];
+		if (!_isStep(phase)) return;
+		const actor = this._pcs[this._pcIndex];
+		if (!actor || !this._canEditActor(actor)) return;
+		this._cancelLiveDraft();
+		await this._setPassed(actor.id, phase.stepKey, true);
+		if (game.user?.isGM) {
+			const nextIdx = nextActiveIndex(this._pcIndex, this._pcs.length, i => this._isPcDone(this._pcs[i], phase));
+			if (nextIdx >= 0) this._pcIndex = nextIdx; // else stay put; everyone's done → GM clicks Next
+		}
+		this.render(false);
+	}
+
+	// Advance the round-robin cursor within a looping step: to the next still-active
+	// PC (cycling), or — when everyone is passed/exhausted — on to the next phase.
+	_advanceStepCursor(phase) {
+		const nextIdx = nextActiveIndex(this._pcIndex, this._pcs.length, i => this._isPcDone(this._pcs[i], phase));
+		if (nextIdx >= 0) { this._pcIndex = nextIdx; return; }
+		if (this._phase < _LAST_PHASE) this._enterPhase(this._phase + 1);
+	}
+
+	// Enter a phase, parking the cursor: on a looping step, on the first still-active
+	// PC (so a re-entered step skips PCs already done); otherwise on the first PC.
+	_enterPhase(phase) {
+		this._phase = phase;
+		const def = _PHASES[phase];
+		if (_isStep(def)) {
+			const first = firstActiveIndex(this._pcs.length, i => this._isPcDone(this._pcs[i], def));
+			this._pcIndex = first >= 0 ? first : 0;
+		} else {
+			this._pcIndex = 0;
+		}
+	}
+
 	_retreat() {
+		// Back is GM-paced too: only the primary GM moves the shared cursor (see _advance).
+		if (game.user?.isGM && !isPrimaryGM()) return;
 		if (this._phase === 0) return;
 		const phase = _PHASES[this._phase];
-		if (phase?.roundRobin && this._pcIndex > 0) {
+		if (_isRoundRobin(phase) && this._pcIndex > 0) {
 			this._pcIndex--;
 		} else if (this._phase > 1) {
 			this._phase--;
 			const prev = _PHASES[this._phase];
-			this._pcIndex = prev.roundRobin ? this._pcs.length - 1 : 0;
+			this._pcIndex = _isRoundRobin(prev) ? this._pcs.length - 1 : 0;
 		} else {
-			// Back to pre-check from round 1, first PC
+			// Back to pre-check from phase 1, first PC
 			this._phase   = 0;
 			this._pcIndex = 0;
 		}
 		this.render(false);
 	}
 
-	// Resume the round/turn saved before a reload (the dialog doesn't survive a
-	// refresh). No-op when nothing's saved or no PCs are on the tracker — both leave
-	// the dialog on the pre-check screen.
+	// Resume the phase/turn saved before a reload (the dialog doesn't survive a refresh).
+	// Returns true when it restored a live position; false (leaving the dialog on the
+	// pre-check) when nothing's saved or no PCs are on the tracker — the caller then falls
+	// back to the shared cursor so a fresh GM tab joins a running session instead of resetting.
 	_restorePosition() {
 		const saved = getWalkthroughResume(_RESUME_KEY);
-		const phase = Number(saved?.phase);
-		if (!Number.isInteger(phase) || phase < 1 || phase > 8) return;
+		let phase = Number(saved?.phase);
+		if (!Number.isInteger(phase) || phase < 1) return false;
+		// A world upgraded from the old 8-round flow may have a resume saved at round 7 or 8;
+		// clamp it into the new 1.._LAST_PHASE range so the GM resumes near the end rather than
+		// being bounced to the pre-check (which, with no pre-existing cursor to fall back on,
+		// would silently drop the whole in-progress session).
+		if (phase > _LAST_PHASE) phase = _LAST_PHASE;
 		const pcs = _getCombatPcs();
-		if (!pcs.length) return;
+		if (!pcs.length) return false;
 		this._pcs     = pcs;
 		this._phase   = phase;
-		const maxIdx  = _PHASES[phase].roundRobin ? pcs.length - 1 : 0;
+		const maxIdx  = _isRoundRobin(_PHASES[phase]) ? pcs.length - 1 : 0;
 		const idx     = Number(saved?.pcIndex);
 		this._pcIndex = Number.isInteger(idx) ? Math.min(Math.max(idx, 0), maxIdx) : 0;
+		return true;
 	}
 
 	// Persist the current round/turn (and that we're open) so a reload can reopen
