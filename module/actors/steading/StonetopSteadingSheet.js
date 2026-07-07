@@ -15,6 +15,7 @@ import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
+import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
 import {PLACE_OF_INTEREST_DRAG_TYPE} from "../../hooks/PlaceOfInterestDrop.js";
@@ -450,6 +451,14 @@ export function createStonetopSteadingSheetClass(Base) {
 				header.querySelectorAll(".document-id-link").forEach(el => el.remove());
 			}
 			this._injectHeaderToggle();
+		}
+
+		// The whole sheet scrolls as one inside .window-content. Keep the reader's scroll
+		// position across tab switches instead of letting the browser clamp it up to the
+		// top when the incoming tab is shorter (which reads as a jump/bounce). See
+		// keepScrollAcrossTab.
+		_onChangeTab(event, tabs, active) {
+			keepScrollAcrossTab(this.element, () => super._onChangeTab(event, tabs, active));
 		}
 
 		_injectHeaderToggle() {

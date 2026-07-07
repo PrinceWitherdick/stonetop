@@ -39,6 +39,7 @@ import {annotateInvocationEffects} from "./invocation-effects.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
+import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
 import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
@@ -594,11 +595,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				dragDrop: [{ dragSelector: ".items-list .item" }],
-				// Each tab body and the moves sidebar own their own scroll. Register them
-				// so Foundry saves/restores scrollTop across re-renders — otherwise adding
-				// an item / arcanum / follower (which re-renders the sheet) snaps the user
-				// back to the top of whatever tab they were on.
-				scrollY: [".sheet-body > .tab.active", ".stonetop-sidebar-body"],
+				// The sheet scrolls as one inside .window-content; the moves sidebar has its
+				// own scroll. Register both so Foundry saves/restores scrollTop across
+				// re-renders — otherwise adding an item / arcanum / follower (which re-renders
+				// the sheet) snaps the user back to the top of the sheet.
+				scrollY: [".window-content", ".stonetop-sidebar-body"],
 			});
 		}
 
@@ -641,12 +642,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
-		// All tabs share one scroll container, so a scroll position from a tall tab
-		// carries over to the next. Reset to the top on every switch so the new tab
-		// always starts at the top instead of mid-content.
+		// The whole sheet scrolls as one inside .window-content. Keep the reader's scroll
+		// position across tab switches instead of letting the browser clamp it up to the
+		// top when the incoming tab is shorter (which reads as a jump/bounce). See
+		// keepScrollAcrossTab.
 		_onChangeTab(event, tabs, active) {
-			super._onChangeTab(event, tabs, active);
-			this.element?.[0]?.querySelector(".sheet-body")?.scrollTo({ top: 0 });
+			keepScrollAcrossTab(this.element, () => super._onChangeTab(event, tabs, active));
 		}
 
 		async close(options) {

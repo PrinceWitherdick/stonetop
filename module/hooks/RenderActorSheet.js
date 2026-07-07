@@ -5,6 +5,7 @@ import { getHoverDescriptionSetting } from "../settings.js";
 import { markQuestionBullets } from "../utils/question-bullets.js";
 import { markValueTooltips } from "../utils/value-tooltips.js";
 import { markDebilityTooltips } from "../utils/debility-tooltips.js";
+import { installDragSmoothing } from "../utils/drag-smoothing.js";
 
 // Apply gear-term tooltips only to the containers we know hold gear-tag <em>
 // elements. Applying to html[0] wholesale reaches into PBTA system partials
@@ -24,6 +25,10 @@ const BESTIARY_PROSE_SELECTORS = [
 export function onRenderActorSheet(sheet, html) {
 	const root = html[0];
 	root?.closest(".app")?.classList.add("stonetop");
+	// Promote the window to its own compositor layer while its header is being
+	// dragged, so Foundry's left/top drag re-composites a cached texture instead
+	// of repainting the whole (large, parchment-backed) sheet each frame.
+	installDragSmoothing(sheet);
 	markQuestionBullets(root);
 	// Hover tooltips on "Value N" trade-tier mentions in item/move/loot prose — across
 	// every actor type (character inventory & moves, the steading, the monster's loot).
