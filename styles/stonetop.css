@@ -7558,7 +7558,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	padding: 8px 12px 6px;
+	padding: 6px 12px;
 	border-bottom: 2px solid slategrey;
 	background: rgba(0,0,0,0.04);
 	flex-shrink: 0;
@@ -7666,10 +7666,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* -- Tabs — steading sheet ------------------------------------- */
 
-.steading-sheet .sheet-tabs {
+/* .sheet-tabs.tabs (three classes) so this outranks the character sheet's
+   `.pbta.sheet .sheet-tabs` above — the steading window carries pbta+sheet
+   classes too, and that rule's 8px margin + 16px padding is what we're
+   tightening here. */
+.steading-sheet .sheet-tabs.tabs {
 	display: flex;
 	flex-direction: row;
-	padding: 16px 10px 0;
+	margin-top: 0;
+	padding: 8px 10px 0;
 	border-bottom: 2px solid slategrey;
 	flex-shrink: 0;
 }
@@ -7691,6 +7696,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	overflow-x: hidden;
 	scrollbar-width: thin;
 	scrollbar-gutter: stable;
+}
+
+/* The Overview grids size to the tab's real width (sheet body minus the moves
+   sidebar), so their reflow breakpoints are container-based, not viewport. */
+.steading-sheet .sheet-body > .tab.overview {
+	container-type: inline-size;
+	container-name: steading-body;
 }
 
 .steading-sheet-layout {
@@ -7749,8 +7761,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: block;
 }
 
-/* Stat labels that carry a hover description (Surplus/Fortunes/etc.). */
-.steading-stat-label[data-tooltip] { cursor: help; }
+/* Stat labels that carry a hover description (Surplus/Fortunes/etc.), plus the
+   Debilities section heading, which is wired through the same tooltip path. */
+.steading-stat-label[data-tooltip],
+.steading-section-label[data-tooltip] { cursor: help; }
 
 .steading-stat-hint {
 	font-size: var(--st-fs-2xs);
@@ -7770,12 +7784,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-bottom: 1px solid rgba(0,0,0,0.12);
 }
 
-.steading-stats-bar > .steading-statsbar-pair,
-.steading-stats-bar > .steading-statsbar-col,
-.steading-stats-bar > .steading-defense-debility-group {
+/* Six slim columns (Surplus, Fortunes, Population, Defenses, Prosperity,
+   Debilities). Zero flex-basis + max-content floor: leftover width is shared
+   equally, but no column ever squeezes below its own content — narrow sheets
+   wrap instead. */
+.steading-stats-bar > .steading-statsbar-pair {
 	flex: 1 1 0;
-	min-width: 180px;
-	max-width: none;
+	min-width: max-content;
 }
 
 .steading-statsbar-pair {
@@ -7788,15 +7803,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 0;
 }
 
-.steading-statsbar-pair > *,
-.steading-statsbar-col > * {
+.steading-statsbar-pair > * {
 	flex: 1 1 0;
 }
 
-.steading-statsbar-pair > .steading-stat-block,
-.steading-statsbar-pair > .steading-surplus-block,
-.steading-statsbar-pair > .steading-debilities-section,
-.steading-statsbar-pair > .steading-currency-section {
+.steading-statsbar-pair .steading-stat-block,
+.steading-statsbar-pair .steading-surplus-block {
 	background: none;
 	border: none;
 	border-radius: 0;
@@ -7804,34 +7816,48 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	min-width: unset;
 }
 
-.steading-statsbar-col {
+/* Two stats sharing one stats-bar card (Surplus+Fortunes, Population+Size): a
+   slim divider splits the card into halves; each half stays its own edit section
+   with its own hover pencil. */
+.steading-statsbar-combo {
+	flex-direction: row;
+	align-items: stretch;
+	gap: 0;
+	padding: 8px 4px;
+}
+
+.steading-statsbar-combo > .steading-combo-cell {
+	position: relative;
+	flex: 1 1 0;
+	min-width: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
-	align-self: stretch;
-	min-width: 320px;
-	max-width: 520px;
-	flex: 1 1 360px;
+	justify-content: center;
+	padding: 0 10px;
 }
 
-.steading-statsbar-col > :last-child {
-	flex: 1;
+.steading-statsbar-combo > .steading-combo-cell + .steading-combo-cell {
+	border-left: 1px solid rgba(0,0,0,0.12);
 }
 
-.steading-prosperity-col {
-	min-width: 180px;
+/* Left half's pencil moves to the card's outer (left) corner so the two halves'
+   pencils never collide at the divider. */
+.steading-combo-cell--left > .steading-section-edit-toggle {
+	right: auto;
+	left: 4px;
 }
 
-.steading-defense-debility-group {
-	display: flex;
-	align-self: stretch;
-	flex-wrap: wrap;
-	gap: 6px;
+/* Size in the bar: centre the tier list as a block (like the stat tracks do) and
+   keep it compact. */
+.steading-stats-bar .steading-size-options {
+	width: max-content;
+	max-width: 100%;
+	margin: 3px auto 0;
+	gap: 2px;
 }
 
-.steading-defense-fortification-col {
-	flex: 1 1 100%;
-	min-width: 0;
+.steading-stats-bar .steading-size-option {
+	font-size: var(--st-fs-xs);
 }
 
 .steading-fortifications-block .steading-list-name {
@@ -7839,43 +7865,51 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	word-break: normal;
 }
 
-.steading-stats-bar .steading-fortifications-block .steading-list {
-	margin-left: 0;
-}
-
-.steading-debilities-section--full-row {
-	flex: 1 1 100%;
-	width: 100%;
-	max-width: none;
-	margin: 0;
-	align-self: stretch;
-}
-
-.steading-statsbar-pair > :not(:last-child) {
-	padding-bottom: 8px;
-	margin-bottom: 8px;
-	border-bottom: 1px solid rgba(0,0,0,0.15);
-}
-
 /* -- Overview tab ---------------------------------------------- */
 
 .steading-overview {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
-}
-
-.steading-main-row {
-	display: flex;
-	align-items: flex-start;
-	flex-wrap: wrap;
 	gap: 12px;
 }
 
-.steading-main-row > .steading-stat-block,
-.steading-main-row > .steading-assets-section {
-	flex: 1 1 0;
-	min-width: 260px;
+/* Shared card chrome for every Overview block so the tab reads as one family:
+   the three inventory lists, the treasury, Size, and Places all sit in the
+   same surface, border, radius, and padding. */
+.steading-card {
+	background: rgba(0,0,0,0.035);
+	border: 1px solid rgba(0,0,0,0.1);
+	border-radius: var(--st-radius-lg);
+	padding: 10px 14px 12px;
+}
+
+/* Resources, Fortifications, and Assets sit side by side in equal-width columns
+   and stretch to a shared height, so the shorter cards fill down to the same
+   baseline as the tall Assets/treasury card instead of leaving ragged gaps above
+   Places of Interest. The column count follows the tab's own width (3 → 2 → 1 as
+   it narrows). Places is kept out of this container so it stays full width at the
+   bottom. */
+.steading-overview-cards {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	align-items: stretch;
+}
+
+@container steading-body (max-width: 760px) {
+	.steading-overview-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container steading-body (max-width: 500px) {
+	.steading-overview-cards { grid-template-columns: minmax(0, 1fr); }
+}
+
+.steading-overview-cards > .steading-card {
+	/* Flex column so the card surface stretches to the shared row height, filling
+	   the space down to Places of Interest instead of leaving a gap. */
+	display: flex;
+	flex-direction: column;
+	margin: 0;
 }
 
 .steading-stat-block {
@@ -7886,23 +7920,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .steading-stats-bar .steading-stat-block,
-.steading-stats-bar .steading-surplus-block,
-.steading-stats-bar .steading-currency-section,
-.steading-stats-bar .steading-debilities-section {
+.steading-stats-bar .steading-surplus-block {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-}
-
-.steading-stats-bar .steading-stat-block,
-.steading-stats-bar .steading-surplus-block,
-.steading-stats-bar .steading-currency-section {
 	align-items: center;
-}
-
-.steading-stats-bar .steading-fortifications-block,
-.steading-stats-bar .steading-debilities-section {
-	align-items: stretch;
 }
 
 .steading-stat-block--with-list {
@@ -7931,11 +7953,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .steading-stats-bar .steading-stat-label-row {
 	justify-content: center;
-	text-align: center;
-}
-
-.steading-stats-bar .steading-section-label,
-.steading-stats-bar .steading-list-heading {
 	text-align: center;
 }
 
@@ -8069,14 +8086,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
-}
-
-.steading-stats-bar .steading-size-options {
-	align-items: stretch;
-	width: max-content;
-	max-width: 100%;
-	margin-left: auto;
-	margin-right: auto;
+	margin-top: 2px;
 }
 
 .steading-size-option {
@@ -8112,74 +8122,105 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: radial-gradient(circle, slategrey 0 44%, transparent 48%);
 }
 
-/* Debilities */
-
-.steading-debilities-section {
-	background: rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: var(--st-radius-lg);
-	padding: 8px 12px;
+/* Debilities — a vertical stack while it's a narrow column in the full bar. But
+   when the bar wraps and this card lands on a wide row of its own, height above
+   the tabs is precious, so the three items reflow side by side to reclaim it.
+   Driven by the card's own width (container query): the card is a query container
+   with a fixed one-column min-width — we can't keep the bar's shared
+   `min-width: max-content` here because inline-size containment would zero the
+   intrinsic width that floor depends on, so we pin an explicit floor instead. */
+.steading-stats-bar > .steading-statsbar-pair.steading-statsbar-pair--debilities {
+	container-type: inline-size;
+	container-name: steading-debilities;
+	min-width: 190px;
 }
 
 .steading-debilities {
 	display: flex;
-	gap: 20px;
-	margin-top: 6px;
-	flex-wrap: wrap;
-	justify-content: center;
-	width: 100%;
-}
-
-.steading-debility {
-	display: flex;
 	flex-direction: column;
-	gap: 2px;
-	flex: 1;
-	min-width: 160px;
+	gap: 6px;
+	margin-top: 6px;
 }
 
-.steading-debilities-section--full-row .steading-debility {
-	align-items: center;
-	text-align: center;
+@container steading-debilities (min-width: 430px) {
+	.steading-debilities {
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: center;
+		align-items: flex-start;
+		gap: 6px 18px;
+	}
+	.steading-debilities .steading-debility {
+		/* Small basis so all three share one row whenever the card is wide enough;
+		   they grow to fill and only wrap (to 2+1) on a genuinely tight row. */
+		flex: 1 1 150px;
+	}
 }
 
-.steading-debilities-section--full-row .steading-debility-desc {
-	margin-left: 0;
-}
-
+/* Each item: circle on the left, vertically centred against the name+desc
+   stack beside it (the whole row is the toggle label). */
 .steading-debility-control {
-	display: grid;
-	grid-template-columns: 20px auto;
+	display: flex;
 	align-items: center;
-	gap: 12px;
+	gap: 8px;
 	cursor: pointer;
 }
 
+.steading-debility-text {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	min-width: 0;
+}
+
+/* Circles, but otherwise dressed exactly like the .steading-track-option
+   squares (border, unchecked wash, hover, checked fill) so the whole stats bar
+   reads as one control family. !important throughout to beat the shared SVG
+   checkbox skin. */
 .steading-debility-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
-	width: calc(20px * var(--stonetop-font-scale, 1)) !important;
-	height: calc(20px * var(--stonetop-font-scale, 1)) !important;
-	flex: 0 0 calc(20px * var(--stonetop-font-scale, 1)) !important;
+	width: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(14px * var(--stonetop-font-scale, 1)) !important;
+	flex: 0 0 calc(14px * var(--stonetop-font-scale, 1)) !important;
 	border-radius: 100% !important;
-	border: 1.5px solid #555 !important;
-	background: transparent !important;
+	border: 2px solid slategrey !important;
+	background: rgba(106, 120, 128, 0.15) !important;
 	cursor: pointer;
+	transition: background 0.1s;
+}
+
+.steading-debility-check:hover {
+	background: rgba(106, 120, 128, 0.35) !important;
 }
 
 .steading-debility-check:checked {
-	background-color: #555 !important;
+	background: slategrey !important;
+}
+
+/* Read-only (non-owner): calmer wash, default cursor, full opacity — same
+   treatment as the read-only stat tracks. input[type=checkbox] in the selector
+   so it out-ranks the shared .stonetop-readonly checkbox dimming (0,2,1). */
+.stonetop-readonly input[type="checkbox"].steading-debility-check {
+	cursor: default;
+	opacity: 1;
+	background: rgba(106, 120, 128, 0.08) !important;
+}
+
+.stonetop-readonly input[type="checkbox"].steading-debility-check:checked {
+	background: slategrey !important;
 }
 
 .steading-debility-name {
 	font-weight: bold;
-	font-size: var(--st-fs-base);
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
 }
 
 .steading-debility-desc {
 	font-size: var(--st-fs-2xs);
-	color: var(--st-text-muted);
-	margin-left: 22px;
+	color: var(--st-text-faint);
+	font-style: italic;
 }
 
 /* Notes */
@@ -8363,13 +8404,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-list-add:hover {
 	background: rgba(0,0,0,0.05);
 	color: var(--st-text-body);
-}
-
-.steading-assets-section {
-	background: rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: var(--st-radius-lg);
-	padding: 8px 10px;
 }
 
 .steading-asset-name { font-size: var(--st-fs-xs); }
@@ -8780,45 +8814,67 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	}
 }
 
-/* Currency */
+/* Treasury (Silver & Gold) */
 
+/* Silver & Gold share the Assets card (as in the book); a hairline rule sets
+   the treasury off from the assets list above it. */
 .steading-currency-section {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
-	background: rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: var(--st-radius-lg);
-	padding: 8px 10px;
+	gap: 0px;
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px solid rgba(0,0,0,0.1);
 }
 
-.steading-currency-group { display: flex; flex-direction: column; gap: 4px; }
+/* The treasury is nested inside the Assets card, which carries its own
+   `stonetop-readonly` whenever Assets isn't being edited. That ancestor class
+   would otherwise freeze the currency fields (via the shared
+   `.stonetop-readonly input/label { pointer-events: none }`) even while the
+   currency pencil is open, so re-enable them whenever the currency section
+   itself is unlocked. */
+.steading-currency-section:not(.stonetop-readonly) input,
+.steading-currency-section:not(.stonetop-readonly) label {
+	pointer-events: auto;
+}
+
+/* Silver stacks above Gold, mirroring the book's treasury block. */
+.steading-currency-groups {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	margin-top: 6px;
+}
+
+.steading-currency-group {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	flex: 0 0 auto;
+}
+
+.steading-currency-metal {
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-md);
+	color: var(--st-text-secondary);
+	line-height: 1;
+}
 
 .steading-currency-row {
 	display: flex;
 	gap: 8px;
 }
 
-.steading-stats-bar .steading-currency-row {
-	justify-content: center;
-}
-
-.steading-currency-group .steading-list-heading {
-	font-family: var(--font-avara);
-	font-size: 1em;
-	text-transform: none;
-	letter-spacing: 0;
-}
-
 .steading-currency-field {
 	position: relative;
-	border: 2px solid var(--color-text-dark-primary, #333);
+	border: 2px solid var(--st-text-faint);
 	border-radius: var(--st-radius-lg);
 	padding: 5px 8px 4px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	min-width: 52px;
+	min-width: 66px;
 	cursor: text;
 }
 
@@ -8847,20 +8903,30 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	box-shadow: none !important;
 }
 
-/* Places of interest */
-
-.steading-places-section {
-	background: rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.12);
-	border-radius: var(--st-radius-lg);
-	padding: 8px 10px;
+/* Bottom row: Places of Interest sits to the left, the treasury to its right,
+   wrapping to a stack only when the sheet gets narrow. */
+.steading-overview-bottom {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: flex-start;
 }
+
+.steading-overview-bottom > .steading-places-section {
+	flex: 1 1 300px;
+}
+
+/* Places of interest */
 
 .steading-places-grid {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
-	gap: 4px 10px;
+	gap: 4px 18px;
 	margin-top: 6px;
+}
+
+@container steading-body (max-width: 520px) {
+	.steading-places-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 .steading-place-item {

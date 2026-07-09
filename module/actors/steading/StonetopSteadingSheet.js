@@ -180,10 +180,11 @@ const STEADING_STAT_CHIP_LABELS = {
 const STEADING_STAT_TOOLTIPS = {
 	surplus:    "Stores of food and trade goods. A resource you accumulate, spend, and consume — not rolled. Generated in summer and autumn, eaten through in winter.",
 	fortunes:   "The steading's morale, social cohesion, and the favor of the gods — “how things are going.” Roll +Fortunes to Requisition and when the Seasons Change; resets to +1 each season.",
-	size:       "How big the steading is (hamlet, village, town, city). Mostly descriptive, but it affects winter Surplus consumption and the Muster, Pull Together, and Trade & Barter moves.",
+	size:       "How big the steading is: hamlet (under 50 people), village (150–350), town (500–1500), city (2500+). Mostly descriptive, but it affects winter Surplus consumption and the Muster, Pull Together, and Trade & Barter moves.",
 	population: "The number of able bodies living here, relative to its Size. Roll +Population to Muster or Pull Together; higher Population also eats more Surplus each winter.",
 	prosperity: "The goods in circulation, the variety of tradesfolk, and merchant traffic. Roll +Prosperity to Trade & Barter; it also sets the value of “x piercing” and what gear is available.",
 	defenses:   "The steading's martial readiness — trained, armed residents and veteran warriors. Roll +Defenses to Deploy its people against a threat.",
+	debilities: "Ongoing afflictions that drag the steading down: diminished (injury, sickness, or doubt), lacking (shortages, hoarding, or distrust), and malcontent (fear, anger, or despair). Check any that apply; each imposes its own penalty until it's cleared.",
 };
 const _esc = escHtml;
 
@@ -388,8 +389,8 @@ const HOMESTEAD_MOVE_FLOWS = {
 // until its pencil (or the global header wrench) turns it on. Keys match the
 // `data-section` attributes in the templates.
 const STEADING_EDIT_SECTIONS = [
-	"surplusFortunes", "sizePopulation", "defenses", "fortifications",
-	"prosperity", "currency",
+	"surplus", "fortunes", "population", "defenses", "prosperity",
+	"size", "fortifications", "currency",
 	"resources", "assets", "places",
 	"players", "residents", "neighbors", "improvements", "threats",
 ];
@@ -907,7 +908,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			StonetopAutocomplete.upgradeAll(html);
 
 			applyLabelTooltips(html, {
-				selector: ".steading-stat-label[data-steading-stat]", datasetKey: "steadingStat",
+				selector: ".steading-stat-label[data-steading-stat], .steading-section-label[data-steading-stat]", datasetKey: "steadingStat",
 				table: STEADING_STAT_TOOLTIPS, settingKey: "hoverDescriptionsSteadingStats", direction: "UP",
 			});
 
