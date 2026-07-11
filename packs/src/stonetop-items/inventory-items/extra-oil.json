@@ -12,6 +12,7 @@
       "inventoryColumn": "regular",
       "sortOrder": 14,
       "note": "for lamp/lantern, useless as a weapon",
+      "resourceFirst": true,
       "weight": 1,
       "resource": {
         "max": 4,

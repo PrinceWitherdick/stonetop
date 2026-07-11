@@ -54,11 +54,16 @@ export function createStonetopItemClass(BaseItem) {
 			const rawFormula  = this.system?.rollFormula ?? null;
 			const descriptionOnly = options.descriptionOnly ?? (!stat && !rawFormula);
 
+			// Optional closing sign-off (love letters end with one, e.g. "XOXO - your GM").
+			// Appended to the description in both the read-aloud and rolled paths.
+			const signed  = String(this.system?.signed ?? "").trim();
+			const signoff = signed ? `<p class="stonetop-move-signoff">${escHtml(signed)}</p>` : "";
+
 			if (descriptionOnly) {
 				return ChatMessage.create({
 					content: `<div class="stonetop-chat-move">
 						<h3 class="stonetop-chat-move-name">${escHtml(this.name)}</h3>
-						<div class="stonetop-chat-move-description">${this.system?.description ?? ""}</div>
+						<div class="stonetop-chat-move-description">${this.system?.description ?? ""}${signoff}</div>
 					</div>`,
 					speaker: ChatMessage.getSpeaker({ actor }),
 				});
@@ -70,9 +75,9 @@ export function createStonetopItemClass(BaseItem) {
 			// with DEX) isn't an "ask" move but should still label the chosen stat.
 			const usingAltStat = !!options.statOverride && options.statOverride !== rollType;
 			const description = this.system?.description ?? "";
-			const moveDescription = isStatChoice
+			const moveDescription = (isStatChoice
 				? filterStatOptionLines(description, options.statOverride)
-				: description;
+				: description) + signoff;
 			const moveName = (isStatChoice || usingAltStat)
 				? `${this.name} with ${options.statOverride.toUpperCase()}`
 				: this.name;
@@ -82,6 +87,9 @@ export function createStonetopItemClass(BaseItem) {
 				moveName,
 				moveDescription,
 				moveResults: this.system?.moveResults ?? null,
+				// Shared "choose from this list" pool (love letters) — rendered as a checklist,
+				// with the rolled tier's moveResults.<tier>.pick saying how many to take.
+				pickOptions: this.system?.pickOptions ?? [],
 				// Moves that explicitly override the standard "+1 XP on a miss" (e.g. Danger
 				// Sense, Hard to Kill / Death's Door rolls) set system.noXpOnMiss.
 				noXpOnMiss:  this.system?.noXpOnMiss ?? false,

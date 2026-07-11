@@ -3,7 +3,10 @@ import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {RequisitionDialog} from "./dialogs/RequisitionDialog.js";
-import {CustomMoveDialog} from "./dialogs/CustomMoveDialog.js";
+import {CustomMoveDialog, characterMoveSaver} from "./dialogs/CustomMoveDialog.js";
+import {AddInventoryItemDialog, characterInventoryItemSaver} from "./dialogs/AddInventoryItemDialog.js";
+import {LoveLetterDialog} from "../../dialogs/LoveLetterDialog.js";
+import {LoveLetterReadDialog} from "../../dialogs/LoveLetterReadDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
@@ -16,6 +19,7 @@ import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
+import {wireTabSearch} from "../../utils/tab-search.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {StonetopArcanaInspireDialog} from "../../item/StonetopArcanaInspireDialog.js";
@@ -92,6 +96,21 @@ const VITAL_TOOLTIPS = {
 	xp:     "Experience. Mark 1 XP on a miss (roll 6-) and from some moves; when the track fills, spend it to level up.",
 	level:  "Your character level. Higher levels let you learn advanced moves and raise the XP needed to advance.",
 };
+
+// Suggested "where their armor comes from" values for the follower armor row.
+// Free-type: these are autocomplete hints only — a player can pick one, combine
+// them, type their own, or leave it blank (no source is a perfectly valid state).
+const FOLLOWER_ARMOR_SOURCES = [
+	"Leather armor",
+	"Padded armor",
+	"Thick hides",
+	"Scale armor",
+	"Chainmail",
+	"Brigandine",
+	"Shield",
+	"Helm",
+	"Natural (tough hide)",
+];
 
 const _esc = escHtml;
 
@@ -1212,6 +1231,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// restricted, players still see/roll existing custom moves but get no "+"
 			// button or edit pencils. Existing moves always render regardless.
 			context.stonetop.canAuthorCustomMoves = canAuthorCustomMoves();
+			// Love letters are GM prep (Book I p.568): only the GM gets the edit/delete
+			// affordances on a letter's card. Players read and resolve their own letters.
+			context.stonetop.canAuthorLoveLetters = game.user.isGM;
 			// Creating homebrew arcana can be restricted to the GM independently of
 			// custom moves (arcanaCreationGmOnly). When restricted, players don't see
 			// the create bar / inspiration wizard, but still edit cards they own.
@@ -1376,6 +1398,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				// value span, but it must never reach the <input type="number">. Give the
 				// number input its own always-numeric value.
 				card.armorInput = parseFollowerArmor(card.armor);
+				// Optional free-text "where their armor comes from" note (leather, shield,
+				// hides…). Purely descriptive — never feeds the numeric armor value.
+				card.armorSource = has(d.armorSource) ? String(d.armorSource).trim() : "";
 				return card;
 			};
 
@@ -2106,75 +2131,51 @@ export function createStonetopCharacterSheetClass(Base) {
 				});
 			});
 
-			// Live text filters for the Moves and Arcana tabs. The control is a round
-			// magnifying-glass button beside the tab's header text that expands into a
-			// filter box on click (tab-search-control.hbs). Client-side only: matching
-			// items stay, the rest get `.stonetop-search-hidden` — a class, not the
-			// `hidden` prop, because an arcanum card sets its own `display:flex` that
-			// would beat `[hidden]`. An active term also flags the tab `.is-searching`,
-			// which (via CSS) suspends the Moves "hide un-learned" rule and force-opens
-			// collapsed Arcana sections, so a match is never hidden by either. Group /
-			// section headers are left in place — the search box lives inside one, so
-			// hiding an "empty" header could hide the box itself.
-			const wireTabSearch = ({ tabSel, itemSel, textFor }) => {
-				const tab    = html[0].querySelector(tabSel);
-				const box    = tab?.querySelector(".stonetop-tab-search");
-				const input  = box?.querySelector(".stonetop-tab-search-input");
-				const toggle = box?.querySelector(".stonetop-tab-search-toggle");
-				if (!tab || !box || !input || !toggle) return;
-
-				const items = [...tab.querySelectorAll(itemSel)];
-				// The search index (per-item text, incl. the arcana card's nested DOM walk) is
-				// built lazily on first use, not on every render — the box is almost never open.
-				const apply = () => {
-					const term = input.value.trim().toLowerCase();
-					tab.classList.toggle("is-searching", !!term);
-					for (const item of items) {
-						if (term && item._stSearchText === undefined)
-							item._stSearchText = (textFor(item) ?? "").toLowerCase();
-						item.classList.toggle("stonetop-search-hidden", !!term && !item._stSearchText.includes(term));
-					}
-				};
-				input.addEventListener("input", apply);
-
-				// The Arcana control sits inside the section's click-to-collapse summary;
-				// keep its own clicks / keys from bubbling up and toggling that collapse.
-				box.addEventListener("click", ev => ev.stopPropagation());
-				box.addEventListener("keydown", ev => ev.stopPropagation());
-				// preventDefault on mousedown so clicking the button never pulls focus off
-				// the input — otherwise the blur-to-collapse below would fight the toggle.
-				toggle.addEventListener("mousedown", ev => ev.preventDefault());
-				toggle.addEventListener("click", () => {
-					if (box.classList.contains("is-open")) {
-						box.classList.remove("is-open");
-						if (input.value) { input.value = ""; apply(); }
-						input.blur();
-					} else {
-						box.classList.add("is-open");
-						input.focus();
-					}
-				});
-				input.addEventListener("keydown", ev => {
-					if (ev.key !== "Escape") return;
-					input.value = ""; apply();
-					box.classList.remove("is-open");
-					input.blur();
-				});
-				// Clicking away collapses an empty box; one holding a live term stays open.
-				input.addEventListener("blur", () => { if (!input.value.trim()) box.classList.remove("is-open"); });
-			};
-			wireTabSearch({
-				tabSel: ".tab.moves",
+			// Live text filters (shared wireTabSearch): a round magnifying-glass button beside a
+			// header that expands into a filter box (tab-search-control.hbs). Each call is scoped
+			// to the container that holds both the box and the items it hides, so scoping to a
+			// whole tab filters the tab and scoping to one column filters just that column.
+			wireTabSearch(html[0].querySelector(".tab.moves"), {
 				itemSel: ".stonetop-item",
 				textFor: li => li.textContent,
 			});
-			wireTabSearch({
-				tabSel: ".tab.arcana",
-				itemSel: ".stonetop-arcanum-card",
-				// Title(s) + front/back body only — skip the footer button labels
-				// (Remove / Reveal / Flip) so a term like "remove" doesn't match every card.
-				textFor: card => [...card.querySelectorAll(".stonetop-arcanum-title, .stonetop-arcanum-body")]
-					.map(el => el.textContent).join(" "),
+			// Arcana tab: the Major and Minor sections each get their own filter, scoped to that
+			// section, so each search only hides its own cards. An active term flags the section
+			// `.is-searching`, which force-opens it if collapsed (see stonetop.css) so a match is
+			// never hidden. Match on title(s) + front/back body only, skipping the footer button
+			// labels (Remove / Reveal / Flip) so a term like "remove" doesn't match every card.
+			const arcanaCardText = card => [...card.querySelectorAll(".stonetop-arcanum-title, .stonetop-arcanum-body")]
+				.map(el => el.textContent).join(" ");
+			for (const section of ["arcanaMajor", "arcanaMinor"]) {
+				wireTabSearch(html[0].querySelector(`.stonetop-arcana-section[data-section="${section}"]`), {
+					itemSel: ".stonetop-arcanum-card",
+					textFor: arcanaCardText,
+				});
+			}
+			// Inventory tab: each gear column gets its OWN filter, scoped to that column, so the
+			// Items search never touches Small Items and vice-versa. Match on the row's name AND
+			// its note/tags (the tags live in a sibling `.stonetop-inv-note`, so matching the label
+			// span alone would miss a search for a visible gear tag like "near" or "piercing").
+			const invLabelText = el => [".stonetop-inv-label", ".stonetop-inv-note"]
+				.map(sel => el.querySelector(sel)?.textContent ?? "")
+				.join(" ").trim() || el.textContent;
+			for (const col of [".stonetop-inventory-regular", ".stonetop-inventory-small"]) {
+				wireTabSearch(html[0].querySelector(col), {
+					itemSel: ".stonetop-inv-item",
+					textFor: invLabelText,
+				});
+			}
+			// Followers tab: one filter over the follower cards, matched by name / type / tags.
+			// The shared reference cards ("… Moves") are excluded so they always stay visible.
+			wireTabSearch(html[0].querySelector(".tab.followers"), {
+				itemSel: ".stonetop-follower-card:not(.stonetop-follower-card--rules)",
+				textFor: card => {
+					const text = [...card.querySelectorAll(
+						".stonetop-follower-name, .stonetop-follower-name-line, .stonetop-follower-type, .stonetop-follower-tag"
+					)].map(el => el.textContent).join(" ");
+					const inputs = [...card.querySelectorAll(".stonetop-follower-name-field")].map(el => el.value).join(" ");
+					return `${text} ${inputs}`;
+				},
 			});
 
 			html.find(".stonetop-roll-mode-input").on("change", async (ev) => {
@@ -2196,6 +2197,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				// (equipment, details) keep the edit-mode guard so a stray click there doesn't
 				// fire a chat post while you're editing the sheet.
 				if (this._editMode && !nameEl.closest(".stonetop-move-group")) return;
+				// A love letter is single-use: it resolves (and self-consumes) only via its own
+				// Read & Resolve / Roll button, never a name-click that would post it to chat
+				// without removing it. Its edit/delete pencils have their own handlers.
+				if (nameEl.closest(".stonetop-love-letter")) return;
+				// An un-learned custom move is inactive (no dice icon, bonuses off); a name-click
+				// must not post its card to chat either — treat it as non-interactive.
+				if (nameEl.closest("li")?.classList.contains("move-unlearned")) return;
 				ev.preventDefault();
 				const li = nameEl.closest("li");
 				const name = nameEl.textContent.trim();
@@ -2808,6 +2816,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop_pwd", path, el.value.trim());
 				this.render(false);
 			});
+			// Armor-source field: a free-type input with a suggestion dropdown (leather,
+			// shield, hides…). Picking a suggestion fires `change`, saved by the handler
+			// above; the field stays free-type, so "type your own" and "leave blank" both
+			// just work. Uses our custom popup (native <datalist> has no scrollbar).
+			html.find(".stonetop-follower-armor-source-input").each((_, input) =>
+				StonetopAutocomplete.attach(input, FOLLOWER_ARMOR_SOURCES));
 			// Exceptional tag chip (edit mode). A gated tag: only follower types whose
 			// playbook grants it show the chip (see FOLLOWER_EXCEPTIONAL), and it can
 			// be switched on only once that move is owned. Turning it off is always
@@ -3548,15 +3562,55 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			const openCustomMove = (item = null) => {
 				if (!this.isEditable || !canAuthorCustomMoves()) return;
-				new CustomMoveDialog(this._stonetopCharacter, {
+				new CustomMoveDialog(characterMoveSaver(this._stonetopCharacter), {
 					item,
 					onSaved: () => this.render(false),
 				}).render(true);
 			};
+			// Learned toggle on a custom move: un-checking keeps it on the sheet but inactive
+			// (not rollable, bonuses off); re-checking re-learns it. Gated the same way as
+			// authoring, so a player can't toggle a GM-authored one when authoring is GM-only.
+			html.find(".stonetop-custom-move-learned").on("change", async ev => {
+				if (!this.isEditable || !canAuthorCustomMoves()) return;
+				await this._stonetopCharacter.setCustomMoveLearned(ev.currentTarget.dataset.itemId, ev.currentTarget.checked);
+				this.render(false);
+			});
 			html.find(".stonetop-add-custom-move").on("click", () => openCustomMove());
 			html.find(".stonetop-custom-move-edit").on("click", ev => {
 				const item = this.actor.items.get(ev.currentTarget.dataset.itemId);
 				if (item) openCustomMove(item);
+			});
+
+			// Love letters (Book I p.568). "Read letter" opens the letter in a reader modal;
+			// resolving from there rolls/posts it like any move, then consumes it (single-use)
+			// — the last one takes its section with it. Edit and delete are GM-only affordances
+			// (canAuthorLoveLetters gates the markup too).
+			html.find(".stonetop-love-letter-read").on("click", ev => {
+				const itemId = ev.currentTarget.dataset.itemId;
+				const item = this.actor.items.get(itemId);
+				if (!item) return void ui.notifications.warn("That love letter is no longer on this character.");
+				new LoveLetterReadDialog({
+					item,
+					actor: this.actor,
+					onResolve: () => this._onResolveLoveLetter(itemId),
+				}).render(true);
+			});
+			html.find(".stonetop-love-letter-edit").on("click", ev => {
+				if (!game.user.isGM) return;
+				const item = this.actor.items.get(ev.currentTarget.dataset.itemId);
+				if (item) new LoveLetterDialog({ item, actor: this.actor, onSaved: () => this.render(false) }).render(true);
+			});
+			html.find(".stonetop-love-letter-delete").on("click", ev => {
+				if (!game.user.isGM) return;
+				const item = this.actor.items.get(ev.currentTarget.dataset.itemId);
+				if (!item) return;
+				Dialog.confirm({
+					title:   game.i18n.localize("stonetop.character.moves.loveLetter.deleteMove"),
+					content: `<p>${game.i18n.format("stonetop.character.moves.loveLetter.deleteConfirm", { name: escHtml(item.name) })}</p>`,
+					yes:     () => item.delete(),
+					render:  bringDialogToFront,
+					options: { classes: ["dialog", "stonetop"] },
+				});
 			});
 
 			html[0].addEventListener("click", ev => {
@@ -4050,6 +4104,31 @@ export function createStonetopCharacterSheetClass(Base) {
 			await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { situational });
 		}
 
+		// Resolve a love letter (Book I p.568): post it like any move, then consume it.
+		// A fixed-stat letter rolls through the standard engine (same chat card, XP-on-miss);
+		// a no-roll letter posts its body as a description card. We call onRoll directly (not
+		// rollMoveById) so there's no situational-modifier prompt whose cancel could leave a
+		// single-use letter half-spent — the letter is only deleted once its card has posted.
+		async _onResolveLoveLetter(itemId) {
+			const item = this.actor?.items?.get(itemId);
+			if (!item) return void ui.notifications.warn("That love letter is no longer on this character.");
+			if (!this.isEditable) return;
+
+			try {
+				const rollable = this._makeSyntheticRollable(item);   // null when there's no roll
+				if (rollable) await this._stonetopCharacter.onRoll({ currentTarget: rollable }, {});
+				else await item.roll({ descriptionOnly: true });
+			} catch (err) {
+				console.error("Stonetop | Error resolving love letter:", err);
+				ui.notifications.error("Could not resolve that love letter — see the console for details.");
+				// Rethrow so the reader dialog keeps itself open and re-enables its button; the
+				// letter is left in place (delete below is skipped) so it isn't silently consumed.
+				throw err;
+			}
+
+			await item.delete();   // single-use — the section vanishes with the last letter
+		}
+
 		// Build a detached DOM element that stands in for a move row's rollable dice icon,
 		// carrying just the structure the rollable-dispatch helpers read: an ancestor
 		// `.item.stonetop-item` with the item id, a `.stonetop-item-name`, and the stat on
@@ -4533,38 +4612,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onAddInventoryItem(ev) {
-			const column = ev.currentTarget.dataset.column;
-			const isRegular = column === "regular";
-			const content = isRegular
-				? `<div style="display:grid;gap:6px;padding:6px">
-					<label>${game.i18n.localize("stonetop.inventory.addItemName")} <input name="name" type="text" style="width:100%"></label>
-					<label>${game.i18n.localize("stonetop.inventory.addItemWeight")} <input name="weight" type="number" min="1" value="1" style="width:60px"></label>
-				   </div>`
-				: `<div style="padding:6px"><label>${game.i18n.localize("stonetop.inventory.addItemName")} <input name="name" type="text" style="width:100%"></label></div>`;
-			new Dialog({
-				title: isRegular ? game.i18n.localize("stonetop.inventory.addItem") : game.i18n.localize("stonetop.inventory.addSmallItem"),
-				content,
-				buttons: {
-					cancel: { label: game.i18n.localize("Cancel") },
-					add: {
-						label: game.i18n.localize("stonetop.inventory.addItemConfirm"),
-						callback: html => {
-							const name = html.find("[name=name]").val().trim();
-							if (!name) return;
-							if (isRegular) {
-								const weight = Math.max(1, parseInt(html.find("[name=weight]").val()) || 1);
-								this._stonetopCharacter.addCustomInventoryItem(name, weight)
-									.then(() => this.render(false));
-							} else {
-								this._stonetopCharacter.addCustomSmallItem(name)
-									.then(() => this.render(false));
-							}
-						},
-					},
-				},
-				default: "add",
-				render: bringDialogToFront,
-			}, { classes: ["dialog", "stonetop", "stonetop-add-item-dialog"] }).render(true);
+			const column = ev.currentTarget.dataset.column === "small" ? "small" : "regular";
+			new AddInventoryItemDialog(characterInventoryItemSaver(this._stonetopCharacter), {
+				column,
+				onSaved: () => this.render(false),
+			}).render(true);
 		}
 
 

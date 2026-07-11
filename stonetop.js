@@ -89,6 +89,21 @@ Hooks.once("init", () => {
 		return Array.from({ length: max }, (_, i) => ({ checked: i < current, label: labels[i] || null }));
 	});
 
+	// Same circles as resourceChecks, but chunked into fixed-size groups (default 5)
+	// so a long track (e.g. a fully-upgraded sacred pouch's Stock) reads in fives.
+	// Each item keeps its absolute index; groups stay atomic so they never split
+	// across a wrapped row and every wrapped row aligns under the first circle.
+	Handlebars.registerHelper("resourceGroups", (resource, size) => {
+		if (!resource) return [];
+		const { current, max } = resource;
+		const labels = resource.labels || [];
+		const n = Number(size) > 0 ? Number(size) : 5;
+		const items = Array.from({ length: max }, (_, i) => ({ checked: i < current, label: labels[i] || null, index: i }));
+		const groups = [];
+		for (let i = 0; i < items.length; i += n) groups.push(items.slice(i, i + n));
+		return groups;
+	});
+
 	const _flatPoolItems = pool => {
 		if (!pool) return [];
 		const total = pool.max ?? 9;
@@ -254,6 +269,7 @@ Hooks.once("init", () => {
 		"stonetop.details-section-edit-toggle": "systems/stonetop_pwd/templates/actor/partials/details-section-edit-toggle.hbs",
 		"stonetop.follower-section-edit": "systems/stonetop_pwd/templates/actor/partials/follower-section-edit.hbs",
 		"stonetop.resource-track":   "systems/stonetop_pwd/templates/actor/partials/resource-track.hbs",
+		"stonetop.inv-note":         "systems/stonetop_pwd/templates/actor/partials/inv-note.hbs",
 		"stonetop.steading-section-toggle":   "systems/stonetop_pwd/templates/actor/partials/steading-section-toggle.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop_pwd/templates/actor/partials/steading-tab-overview.hbs",
 		"stonetop.steading-tab-neighbors":    "systems/stonetop_pwd/templates/actor/partials/steading-tab-neighbors.hbs",
@@ -624,6 +640,39 @@ function _chatWireRequisitionMissCost(message, html) {
 	});
 }
 
+// -- LOVE LETTER PICK LIST -------------------------------------
+// A love letter with a shared "choose from this list" pool renders its options as a
+// checklist on the roll card (see rollStat's pickListHtml). Restore any saved ticks and
+// wire the boxes so a click persists to the message flag (author/GM) and always toggles
+// locally. The letter item itself is consumed on resolve, so the message is the only home
+// the checked state has.
+function _chatWireLoveLetterPicks(message, html) {
+	const boxes = html.querySelectorAll(".stonetop-picklist-check");
+	if (!boxes.length) return;
+
+	const saved   = message.getFlag("stonetop_pwd", "pickChecked") ?? [];
+	const canSave = message.canUserModify?.(game.user, "update") ?? game.user.isGM;
+
+	for (const box of boxes) {
+		const idx  = Number(box.dataset.index);
+		const item = box.closest(".stonetop-picklist-item");
+		const on   = !!saved[idx];
+		box.checked = on;
+		item?.classList.toggle("is-picked", on);
+
+		box.addEventListener("change", async () => {
+			item?.classList.toggle("is-picked", box.checked);
+			if (!canSave) return;
+			const arr = Array.from(boxes).map((b) => !!b.checked);
+			try {
+				await message.setFlag("stonetop_pwd", "pickChecked", arr);
+			} catch (err) {
+				console.error("Stonetop | Error saving love-letter picks:", err);
+			}
+		});
+	}
+}
+
 // -- WOULD-BE HERO: BECOME A HERO ------------------------------
 // The first time a Would-Be Hero gains a hero-making (asterisked) move, cross off
 // "Would-be" and announce it once. The playbook header already derives "The Hero"
@@ -645,6 +694,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireBurnBrightly(message, html);
 	_chatWireRequisitionMissCost(message, html);
 	_chatWireSeasonsRoll(message, html);
+	_chatWireLoveLetterPicks(message, html);
 	wireAttackConfirm(message, html);
 	wireApplyDamage(message, html);
 	wireSufferAttack(message, html);

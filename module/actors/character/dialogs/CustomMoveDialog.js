@@ -1,31 +1,61 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { normalizeRollType, STAT_KEYS } from "../../../utils/roll-types.js";
 import { customMoveDescriptionToPlainText } from "../../../utils/custom-move-text.js";
+import { buildCustomMoveData } from "../../../utils/custom-move-data.js";
+import { createWorldItem } from "../../../utils/world-item.js";
 
 /**
- * Player-facing authoring dialog for a custom "Other" move on the character's
- * Moves tab. Creates or edits an actor-embedded `move` item (moveType "other",
- * flagged stonetop_pwd.custom). The shaping of the document — forced moveType,
- * the flag, and the moveResults sub-object — lives in StonetopCharacter so this
- * dialog only gathers raw input.
+ * A "saver" for a custom move backed by an actor-embedded item (the on-sheet
+ * Moves-tab flow). Delegates the document shaping + write to StonetopCharacter.
+ * @param {object} character - StonetopCharacter wrapper
+ */
+export function characterMoveSaver(character) {
+	return {
+		create: (input) => character.addCustomMove(input),
+		update: (item, input) => character.updateCustomMove(item.id ?? item._id, input),
+	};
+}
+
+/**
+ * A "saver" for a reusable custom move backed by a WORLD `move` Item (the
+ * sidebar "Create Item → Move" flow). The created item can then be dragged onto
+ * any number of character sheets (drop embeds it via onDropMove). Uses the same
+ * shared shaping as the embedded path, so both flows author identical moves.
+ */
+export function worldMoveSaver() {
+	return {
+		create: (input) => createWorldItem(
+			{ ...buildCustomMoveData(input), type: "move" },
+			"stonetop.character.moves.custom.worldCreated",
+		),
+		update: (item, input) => item.update(buildCustomMoveData(input)),
+	};
+}
+
+/**
+ * Authoring dialog for a custom "Other" move. Creates or edits a `move` item
+ * (moveType "other", flagged stonetop_pwd.custom) through a caller-supplied
+ * `saver`, so the same UI drives both the actor-embedded on-sheet flow and the
+ * reusable world-item "Create Item → Move" flow. The document shaping lives in
+ * the shared builder; this dialog only gathers raw input.
  *
- * v1 scope (Tier 0): name + description + optional stat roll with 10+/7-9/6-
- * result text. A roll move then rolls through the same engine as a shipped move
+ * Scope (Tier 0): name + description + optional stat roll with 10+/7-9/6- result
+ * text (plus an Advanced section: resource track, no-XP-on-miss, self bonuses).
+ * A roll move then rolls through the same engine as a shipped move
  * (StonetopItem.roll → rollStat), with no pack involvement.
  */
-export class CustomMoveDialog extends Application {
+export class CustomMoveDialog extends StonetopDialog {
 	/**
-	 * @param {object}   stonetopCharacter - StonetopCharacter wrapper (for the item write)
+	 * @param {object}   saver          - { create(input), update(item, input) } write target
 	 * @param {object}   [opts]
-	 * @param {Item}     [opts.item]       - existing custom move to edit; null = create
-	 * @param {Function} [opts.onSaved]    - called after a successful save (to refresh the sheet)
+	 * @param {Item}     [opts.item]    - existing custom move to edit; null = create
+	 * @param {Function} [opts.onSaved] - called after a successful save (to refresh the sheet)
 	 */
-	constructor(stonetopCharacter, { item = null, onSaved = null } = {}, options = {}) {
+	constructor(saver, { item = null, onSaved = null } = {}, options = {}) {
 		super(options);
-		this._character = stonetopCharacter;
+		this._saver = saver;
 		this._item = item;
 		this._onSaved = onSaved;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -44,16 +74,6 @@ export class CustomMoveDialog extends Application {
 		return game.i18n.localize(this._item
 			? "stonetop.character.moves.custom.editTitle"
 			: "stonetop.character.moves.custom.createTitle");
-	}
-
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
 	}
 
 	getData() {
@@ -93,7 +113,6 @@ export class CustomMoveDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 		const root = html[0];
 
 		// Show the 10+/7-9/6- result fields only when the move actually rolls.
@@ -108,7 +127,7 @@ export class CustomMoveDialog extends Application {
 	}
 
 	async _save(root) {
-		const val = (sel) => root.querySelector(sel)?.value ?? "";
+		const val = (sel) => StonetopDialog.readValue(root, sel);
 		const name = val("[name=name]").trim();
 		if (!name) {
 			ui.notifications.warn(game.i18n.localize("stonetop.character.moves.custom.nameRequired"));
@@ -134,8 +153,8 @@ export class CustomMoveDialog extends Application {
 			armorBonus: val("[name=armorBonus]"),
 			loadBonus: val("[name=loadBonus]"),
 		};
-		if (this._item) await this._character.updateCustomMove(this._item._id, input);
-		else await this._character.addCustomMove(input);
+		if (this._item) await this._saver.update(this._item, input);
+		else await this._saver.create(input);
 		this._onSaved?.();
 		this.close();
 	}

@@ -12,6 +12,7 @@
       "inventoryColumn": "regular",
       "sortOrder": 38,
       "note": "<em>near</em>",
+      "resourceFirst": true,
       "weight": 1,
       "resource": {
         "max": 5,

@@ -12,6 +12,7 @@
       "inventoryColumn": "regular",
       "sortOrder": 13,
       "note": "<em>close</em>, <em>area</em>, <em>crude</em>",
+      "resourceFirst": true,
       "weight": 1,
       "resource": {
         "max": 3,

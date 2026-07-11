@@ -17,6 +17,11 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 		return {
 			description:     new fields.HTMLField({ required: true, blank: true }),
 			moveType:        new fields.StringField({ required: true, blank: true }),
+			// Freeform tags/notes for a player-authored "inventory-custom" item, rendered
+			// raw in the item's parenthetical (the same slot shipped catalog items fill
+			// from flags.stonetop.note). Blank on every non-inventory move. Declared here
+			// because a TypeDataModel strips keys it doesn't know — see the header note.
+			note:            new fields.StringField({ required: false, blank: true, initial: "" }),
 			// String or null in real data; normalizeRollType() also tolerates objects.
 			rollType:        new fields.StringField({ required: false, blank: true, nullable: true, initial: "" }),
 			rollFormula:     new fields.StringField({ required: true, blank: true }),
@@ -39,6 +44,13 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			// Suppresses the engine's automatic +1 XP on a miss for moves whose text
 			// overrides it (e.g. Danger Sense; Death's Door rolls like Hard to Kill).
 			noXpOnMiss:      new fields.BooleanField({ required: false, initial: false }),
+			// A signature line rendered at the foot of the move's chat card (love letters
+			// close with a sign-off, e.g. "XOXO - your GM"). Blank on every normal move.
+			signed:          new fields.StringField({ required: false, blank: true, initial: "" }),
+			// A shared "choose from this list" pool (love letters use it — the roll decides
+			// how many to pick via moveResults.<tier>.pick). Each tier's pick count lives on
+			// moveResults; this is just the option strings. Empty on every normal move.
+			pickOptions:     new fields.ArrayField(new fields.StringField(), { required: false, initial: [] }),
 			slug:            new fields.StringField({ required: true, blank: true }),
 			playbook:        new fields.StringField({ required: true, blank: true }),
 			replaces:        new fields.StringField({ required: true, blank: true }),
@@ -46,6 +58,10 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			asterisk:        looseObject(),
 			requirement:     looseObject(),
 			resource:        looseObject(),
+			// Worn-armor contribution for a custom item — { base?, modifier? }, read by
+			// CharacterInventory.calculateArmor (base = max-wins, modifier = additive).
+			// Default null (falsy) so a non-armor item is skipped by that filter.
+			armor:           looseObject(),
 			moveResults:     looseObject(),
 			markOptions:     new fields.ArrayField(new fields.ObjectField(), { required: false, initial: [] }),
 			// Repeat-scaling selection budget for `markOptions` moves: { base, perExtra }.

@@ -1,6 +1,40 @@
 <div class="tab moves{{#if stonetop.hideUnselected}} hide-unselected{{/if}}" data-group="primary" data-tab="moves">
 	<section class="sheet-tab">
 
+		{{!-- Love letters (Book I p.568): single-use, GM-authored moves addressed to this
+		      PC. The section exists only while at least one letter is on the sheet — the
+		      last one vanishes with its section when the player resolves it. Players read
+		      and resolve; only the GM sees the edit/delete affordances. --}}
+		{{#if stonetop.movelist.loveLetters.length}}
+		<div class="stonetop-move-group stonetop-love-letters-section">
+			{{> "stonetop.section-heading" title=(localize "stonetop.character.moves.loveLetter.sectionTitle")}}
+			<ol class="items-list">
+			{{#each stonetop.movelist.loveLetters}}
+				<li class="item stonetop-item stonetop-love-letter" data-item-id="{{ownedId}}">
+					<div class="stonetop-item-header">
+						<strong class="stonetop-item-name">{{name}}</strong>
+						{{#if (and @root.stonetop.canAuthorLoveLetters rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
+						{{#if @root.stonetop.canAuthorLoveLetters}}
+						<a class="stonetop-love-letter-edit" data-item-id="{{ownedId}}" title="{{localize 'stonetop.character.moves.loveLetter.editMove'}}">
+							<i class="fas fa-pen"></i>
+						</a>
+						<a class="stonetop-love-letter-delete" data-item-id="{{ownedId}}" title="{{localize 'stonetop.character.moves.loveLetter.deleteMove'}}">
+							<i class="fas fa-trash"></i>
+						</a>
+						{{/if}}
+					</div>
+					{{#if description}}<div class="stonetop-item-description">{{{boldMissText description}}}</div>{{/if}}
+					<div class="stonetop-love-letter-actions">
+						<button type="button" class="stonetop-love-letter-read" data-item-id="{{ownedId}}">
+							<i class="fas fa-envelope-open-text" aria-hidden="true"></i> {{localize "stonetop.character.moves.loveLetter.readButton"}}
+						</button>
+					</div>
+				</li>
+			{{/each}}
+			</ol>
+		</div>
+		{{/if}}
+
 		{{#if stonetop.movelist.playbookMoves.length}}
 		{{> "stonetop.move-group"
 		    title=(localize "stonetop.character.moves.playbookMoves")
@@ -116,16 +150,27 @@
 				{{> "stonetop.section-heading" title=(localize "stonetop.character.moves.otherMoves")}}
 				<ol class="items-list">
 				{{#each stonetop.movelist.otherMoves}}
-					<li class="item stonetop-item" data-item-id="{{ownedId}}">
+					<li class="item stonetop-item{{#unless learned}} move-unlearned{{/unless}}" data-item-id="{{ownedId}}">
 						<div class="stonetop-item-header">
-							{{#if rollType}}
+							{{!-- Custom moves carry a "learned" checkbox (checked by default). Un-checking
+							      it in edit mode keeps the move on the sheet but inactive — not rollable,
+							      and its HP/armor/load bonuses stop applying. Foreign playbook moves that
+							      also land in "other" are always learned, so they show no toggle. --}}
+							{{#if custom}}
+							<input type="checkbox" class="stonetop-item-check stonetop-custom-move-learned"
+							       data-item-id="{{ownedId}}"
+							       title="{{localize 'stonetop.character.moves.custom.learnedTitle'}}"
+							       {{#if learned}}checked{{/if}}
+							       {{#unless @root.stonetop.movesEdit}}disabled{{/unless}}>
+							{{/if}}
+							{{#if (and rollType learned)}}
 							<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">
 								<i class="fas fa-dice-d6"></i>
 							</span>
 							{{/if}}
 							<strong class="stonetop-item-name">{{name}}</strong>
 							{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
-							{{#if resource}}
+							{{#if (and resource learned)}}
 							<span class="stonetop-item-resources">
 								{{#if resource.title}}<span class="stonetop-item-resource-title">{{resource.title}}</span>{{/if}}
 								{{#each (resourceChecks resource)}}

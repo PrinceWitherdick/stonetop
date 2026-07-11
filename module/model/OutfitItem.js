@@ -6,6 +6,7 @@ export class OutfitItem {
 		this.note               = b._note;
 		this.inventoryColumn    = b._inventoryColumn;
 		this.resource           = b._resource;
+		this.resourceFirst      = b._resourceFirst ?? false;
 		this.prosperityResource = b._prosperityResource ?? false;
 		this.twoCol             = b._twoCol;
 		this.smallGrid          = b._smallGrid;
@@ -23,6 +24,7 @@ export class OutfitItemBuilder {
 	withNote(v)               { this._note               = v; return this; }
 	withInventoryColumn(v)    { this._inventoryColumn    = v; return this; }
 	withResource(v)           { this._resource           = v; return this; }
+	withResourceFirst(v)      { this._resourceFirst      = v; return this; }
 	withProsperityResource(v) { this._prosperityResource = v; return this; }
 	withTwoCol(v)             { this._twoCol             = v; return this; }
 	withSmallGrid(v)          { this._smallGrid          = v; return this; }

@@ -43,7 +43,10 @@
 
 		{{!-- Regular items (left column) --}}
 		<div class="stonetop-inventory-regular">
-			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.regularItems")}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.regularItems")
+			    searchControl=true
+			    searchTitle=(localize "stonetop.inventory.searchLabel")
+			    searchPlaceholder=(localize "stonetop.inventory.searchPlaceholder")}}
 			<hr class="stonetop-inv-separator">
 			{{!-- Regular pool --}}
 			<div class="stonetop-supplies-pool">
@@ -78,10 +81,9 @@
 							       {{#if ../disabled}}disabled{{/if}}>
 							{{/each}}
 						</span>
-						<span class="stonetop-inv-label">{{name}}
-							{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
-						</span>
+						<span class="stonetop-inv-label">{{name}}</span>
 					</label>
+					{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
 					{{#if (and isCustom @root.stonetop.editMode)}}
 					<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
 					{{/if}}
@@ -102,10 +104,9 @@
 						       {{#if ../disabled}}disabled{{/if}}>
 						{{/each}}
 					</span>
-					<span class="stonetop-inv-label">{{name}}
-						{{#if (or note resource)}}<span class="stonetop-inv-note">({{{note}}}{{#if resource}}{{#if note}} {{/if}}<span class="stonetop-inv-resources">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}</span>{{/if}})</span>{{/if}}
-					</span>
+					<span class="stonetop-inv-label">{{name}}</span>
 				</label>
+				{{> "stonetop.inv-note" note=note resource=resource resourceFirst=resourceFirst slug=slug}}
 				{{#if (and isCustom @root.stonetop.editMode)}}
 				<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
 				{{/if}}
@@ -145,7 +146,10 @@
 
 		{{!-- Small items (right column) --}}
 		<div class="stonetop-inventory-small" data-small-allotment="{{stonetop.inventory.outfit.smallItemLimit}}">
-			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.smallItems")}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.smallItems")
+			    searchControl=true
+			    searchTitle=(localize "stonetop.inventory.searchSmallLabel")
+			    searchPlaceholder=(localize "stonetop.inventory.searchSmallPlaceholder")}}
 			{{#if stonetop.inventory.outfit.smallItemLimit}}
 			<p class="stonetop-inv-section-note">{{{format "stonetop.inventory.smallItemsNoteWithLimit" limit=stonetop.inventory.outfit.smallItemLimit}}}</p>
 			{{else}}
@@ -174,10 +178,9 @@
 					       data-slug="{{slug}}"
 					       {{#if checked}}checked{{/if}}
 					       {{#if disabled}}disabled{{/if}}>
-					<span class="stonetop-inv-label">{{name}}
-						{{#if (or note resource)}}<span class="stonetop-inv-note">({{{note}}}{{#if resource}}{{#if note}} {{/if}}<span class="stonetop-inv-resources">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-inv-resource-btn stonetop-inventory-resource-btn" slug=slug}}</span>{{/if}})</span>{{/if}}
-					</span>
+					<span class="stonetop-inv-label">{{name}}</span>
 				</label>
+				{{> "stonetop.inv-note" note=note resource=resource resourceFirst=resourceFirst slug=slug}}
 				{{#if (and isCustom @root.stonetop.editMode)}}
 				<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
 				{{/if}}
@@ -236,7 +239,7 @@
 					{{#if (and checked resource)}}
 					<span class="stonetop-item-resources">
 						{{#if usesLabel}}<span class="stonetop-uses-label">{{usesLabel}}</span>{{/if}}
-						{{> "stonetop.resource-track" resource=resource btnClass="stonetop-item-resource-check" possessionSlug=slug}}
+						{{> "stonetop.resource-track" resource=resource btnClass="stonetop-item-resource-check" possessionSlug=slug groupBy=5}}
 					</span>
 					{{/if}}
 					{{#if (and isCustom @root.stonetop.possessionsEdit)}}

@@ -600,11 +600,20 @@ describe("CharacterArcana.buildSnapshot() — inventoryResources param", () => {
 });
 
 describe("CharacterArcana.weightedInventoryItems() — carried side follows unlock state", () => {
-	// FFYRNIG_SPHERE has unmet option requirements by default, so it's locked → you carry the
-	// front item; once every requirement is met AND the card is identified it unlocks → you carry
-	// the back item. (Previously this was driven by the manual flip flag; now it tracks unlock
-	// state. The identified gate keeps an unidentified, face-down card showing its front item even
-	// with unlock marks set, so a card's realised item can't leak before identification.)
+	// Which side's item you carry follows unlock state, not the old manual flip: a locked card
+	// carries its FRONT item; once every requirement is met AND the card is identified it unlocks
+	// and carries the BACK item. The identified gate keeps an unidentified, face-down card showing
+	// its front item even with unlock marks set, so a card's realised item can't leak before it's
+	// identified. FFYRNIG_SPHERE's own front is a weightless, immobile place (filtered off the
+	// inventory — see the last test), so the side-selection cases use a weighted-front variant to
+	// observe the front item directly.
+	const WEIGHTED_FRONT_SPHERE = {
+		...FFYRNIG_SPHERE,
+		front: {
+			...FFYRNIG_SPHERE.front,
+			item: { name: "A Carved Charm", weight: 1, note: null, inventoryColumn: "regular" },
+		},
+	};
 	const LOCKED = { owned: ["huge-wooden-sphere"] };
 	const UNLOCKED = {
 		owned: ["huge-wooden-sphere"],
@@ -617,10 +626,10 @@ describe("CharacterArcana.weightedInventoryItems() — carried side follows unlo
 	};
 
 	it("carries the FRONT item while the card is still locked", async () => {
-		const arcana = new CharacterArcana(makeFlags(LOCKED), new FakeArcanaRepository([FFYRNIG_SPHERE]));
+		const arcana = new CharacterArcana(makeFlags(LOCKED), new FakeArcanaRepository([WEIGHTED_FRONT_SPHERE]));
 		const items = await arcana.weightedInventoryItems();
 		expect(items).toHaveLength(1);
-		expect(items[0].name).toBe("A Huge Wooden Sphere");
+		expect(items[0].name).toBe("A Carved Charm");
 	});
 
 	it("carries the BACK item once the card is unlocked", async () => {
@@ -634,19 +643,48 @@ describe("CharacterArcana.weightedInventoryItems() — carried side follows unlo
 		// Unlock marks without identification (a face-down mystery) must never surface the back
 		// item — guards a homebrew card whose unlock is vacuously satisfied from leaking its back.
 		const { identified, ...unidentified } = UNLOCKED;
-		const arcana = new CharacterArcana(makeFlags(unidentified), new FakeArcanaRepository([FFYRNIG_SPHERE]));
+		const arcana = new CharacterArcana(makeFlags(unidentified), new FakeArcanaRepository([WEIGHTED_FRONT_SPHERE]));
 		const items = await arcana.weightedInventoryItems();
-		expect(items[0].name).toBe("A Huge Wooden Sphere");
+		expect(items[0].name).toBe("A Carved Charm");
 	});
 
 	it("ignores the legacy flipped flag entirely", async () => {
 		// A leftover flipped flag must not flip the carried side anymore.
 		const arcana = new CharacterArcana(
 			makeFlags({ ...LOCKED, flipped: ["huge-wooden-sphere"] }),
-			new FakeArcanaRepository([FFYRNIG_SPHERE]),
+			new FakeArcanaRepository([WEIGHTED_FRONT_SPHERE]),
 		);
 		const items = await arcana.weightedInventoryItems();
-		expect(items[0].name).toBe("A Huge Wooden Sphere");
+		expect(items[0].name).toBe("A Carved Charm");
+	});
+
+	it("omits the weightless side of a concept/place arcanum from the inventory", async () => {
+		// huge-wooden-sphere is a non-carriable place (CONCEPT_ARCANA_SLUGS); its weightless
+		// front is a huge, immobile, half-buried sphere and contributes nothing to inventory.
+		const arcana = new CharacterArcana(makeFlags(LOCKED), new FakeArcanaRepository([FFYRNIG_SPHERE]));
+		const items = await arcana.weightedInventoryItems();
+		expect(items).toHaveLength(0);
+	});
+
+	it("still renders a weightless CURIO (a non-concept card) at ◇0", async () => {
+		// Most arcana curios ship with no explicit weight; a null weight alone must NOT hide
+		// them — only cards in the concept list are held back. "A gold ring" is carried gear.
+		const RING = {
+			...FFYRNIG_SPHERE,
+			slug: "gold-ring",
+			front: {
+				...FFYRNIG_SPHERE.front,
+				item: { name: "A gold ring", weight: null, note: "<em>magical</em>", inventoryColumn: null },
+			},
+		};
+		const arcana = new CharacterArcana(
+			makeFlags({ owned: ["gold-ring"] }),
+			new FakeArcanaRepository([RING]),
+		);
+		const items = await arcana.weightedInventoryItems();
+		expect(items).toHaveLength(1);
+		expect(items[0].name).toBe("A gold ring");
+		expect(items[0].weight).toBe(0);
 	});
 });
 

@@ -12,6 +12,28 @@ import { arcanaSummonFollowers } from "../../data/arcana-summons.js";
 import { centerArcanumTracks } from "../../utils/glyphs.js";
 import { stonetopChatCard } from "../../utils/chat.js";
 
+// Some arcana "items" are a place, structure, or phenomenon rather than carried gear
+// (a sealed cave, a giant's dormitory, a word floating in the air). The shipped data
+// can't distinguish these from portable curios by shape alone — both carry a null
+// weight — so the non-carriable ones are listed explicitly here and kept off the
+// Inventory tab. This gates only the WEIGHTLESS side (see weightedInventoryItems): a
+// card whose front is such a place but whose unlocked BACK item is real, weighted gear
+// (e.g. vein-of-milky-crystal, huge-wooden-sphere) still surfaces that gear once realised.
+const CONCEPT_ARCANA_SLUGS = new Set([
+	"crumbling-arch",
+	"giants-dormitory",
+	"huge-wooden-sphere",
+	"metal-man",
+	"odd-conveyance",
+	"patch-of-rainbow-moss",
+	"runes-around-a-ruined-hall",
+	"sealed-cave",
+	"sunken-tablet",
+	"timeless-vault",
+	"vein-of-milky-crystal",
+	"whispering-word",
+]);
+
 function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
 	const reqs = item.front.unlock?.requirements ?? [];
 	const reqsMet = reqs.every(r =>
@@ -383,7 +405,12 @@ export class CharacterArcana {
 			const circleCount = (item.front.unlock?.description?.match(_UNLOCK_CIRCLE_RE) || []).length;
 			const unlocked = identified.has(item.slug) && _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount);
 			const sideItem = (unlocked && item.back.item) ? item.back.item : item.front.item;
+			// Skip unnamed sides, and skip a card's weightless side when the card is a
+			// non-carriable concept/place/phenomenon (CONCEPT_ARCANA_SLUGS). A weightless
+			// curio ("A gold ring", "A wolf pelt") still renders — at ◇0 — since most arcana
+			// curios ship with no explicit weight; only true places are held back.
 			if (!sideItem?.name) return [];
+			if (sideItem.weight == null && CONCEPT_ARCANA_SLUGS.has(item.slug)) return [];
 			return [new OutfitItemBuilder()
 				.withSlug(item.slug)
 				.withName(sideItem.name)

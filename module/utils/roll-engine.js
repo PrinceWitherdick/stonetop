@@ -1,5 +1,6 @@
 import { maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
 import { escHtml, formatOutcomeDetail } from "./strings.js";
+import { pickLeadText } from "./move-results.js";
 import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageBadge } from "./chat.js";
 
 const _STAT_LABELS = {
@@ -132,7 +133,7 @@ export function postSeasonsRollPrompt({ alias = "Seasons Change — Spring", hop
 	});
 }
 
-function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, resultLegend = "", tierActions = null, conditionsHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "" }) {
+function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, resultLegend = "", pickList = "", tierActions = null, conditionsHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "" }) {
 	// Stash every tier's outcome on the row so a GM Shift Up/Down can swap the
 	// detail line to match the new tier (see _shiftRollCardFlavor in stonetop.js).
 	const outcomeAttrs = resultOutcomes
@@ -181,6 +182,11 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 	const resultLegendHtml = resultLegend
 		? `<div class="stonetop-roll-card-results">${resultLegend}</div>`
 		: "";
+	// A shared "choose from this list" checklist (love letters) — the rolled tier's detail
+	// says how many to pick; the boxes are wired up client-side (see _chatWireLoveLetterPicks).
+	const pickListHtml = pickList
+		? `<div class="stonetop-roll-card-picklist">${pickList}</div>`
+		: "";
 	const descriptionHtml = description
 		? `<div class="stonetop-roll-card-description">${description}</div>`
 		: "";
@@ -204,6 +210,7 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 			${descriptionHtml}
 			${bodyHtml}
 			${resultLegendHtml}
+			${pickListHtml}
 			${tierActionsHtml}
 			${conditionsHtml}
 			${buttonsHtml}
@@ -240,6 +247,7 @@ function _conditionsHtml(conditions) {
  * @param {string}  [options.stonetopDebility]          - Debility name for annotation
  * @param {string}  [options.stonetopDebilityTooltip]
  * @param {boolean} [options.noXpOnMiss]               - Skip the automatic +1 XP on a miss (for moves that replace it)
+ * @param {string[]} [options.pickOptions]             - Shared "choose from this list" pool (love letters); rendered as a checklist
  * @returns {Promise<Roll>}
  */
 export async function rollStat(statKey, actor, options = {}) {
@@ -268,14 +276,36 @@ export async function rollStat(statKey, actor, options = {}) {
 	// only in moveResults and omit them from the description, so this is the only place
 	// a player would otherwise see them.
 	const moveResults    = options.moveResults ?? null;
+	// A shared "choose from this list" pool (love letters). When present, each tier's outcome
+	// leads with "Pick N from the list below" so the rolled tier tells the player how many of
+	// the checklist items to take. Kept in the outcome string (not a separate element) so the
+	// GM Shift Up/Down flow surfaces the right count for whatever tier it lands on.
+	const pickOptions = Array.isArray(options.pickOptions) ? options.pickOptions.filter(Boolean) : [];
+	// English literals on purpose: this string is persisted in the chat card (shared across
+	// clients) and parsed by the GM Shift Up/Down flow, so it must not vary by locale.
+	const pickLead = (n) => pickLeadText(n, pickOptions.length > 0, { pick: "Pick", fromList: "from the list below" });
+	const composeOutcome = (tier) => {
+		const prose = String(moveResults?.[tier]?.value ?? "").trim();
+		const lead  = pickLead(moveResults?.[tier]?.pick);
+		if (lead && prose) return `${lead}. ${prose}`;
+		return lead || prose;
+	};
 	const resultOutcomes = moveResults
 		? {
-			success: moveResults.success?.value ?? "",
-			partial: moveResults.partial?.value ?? "",
-			failure: moveResults.failure?.value ?? "",
+			success: composeOutcome("success"),
+			partial: composeOutcome("partial"),
+			failure: composeOutcome("failure"),
 		}
 		: null;
 	const resultDetail = resultOutcomes?.[result.key] ?? "";
+
+	// The checklist itself renders once (shared across tiers); each item gets a checkbox
+	// wired up on the client. data-index lets the persisted checked-state array line up.
+	const pickListHtml = pickOptions.length
+		? `<ul class="stonetop-picklist">${pickOptions.map((o, i) =>
+			`<li class="stonetop-picklist-item"><label><input type="checkbox" class="stonetop-check stonetop-picklist-check" data-index="${i}"><span>${escHtml(o)}</span></label></li>`
+		).join("")}</ul>`
+		: "";
 
 	const header = moveName ?? statLabel;
 
@@ -306,6 +336,7 @@ export async function rollStat(statKey, actor, options = {}) {
 		resultDetail,
 		resultOutcomes,
 		resultLegend: options.resultLegend ?? "",
+		pickList: pickListHtml,
 		tierActions: options.tierActions ?? null,
 		conditionsHtml,
 		buttons: true,
