@@ -6,10 +6,13 @@
 			Known, available improvements you can make to Stonetop. The GM may present others in the course of play.
 		</p>
 
-		<label class="steading-hide-unearned-improvements-label">
-			<input type="checkbox" class="stonetop-hide-unselected-check steading-hide-unearned-improvements-check"{{#if stonetop.hideUnearnedImprovements}} checked{{/if}}>
-			Hide un-earned improvements
-		</label>
+		<div class="steading-improvements-controls">
+			<label class="steading-hide-unearned-improvements-label">
+				<input type="checkbox" class="stonetop-hide-unselected-check steading-hide-unearned-improvements-check"{{#if stonetop.hideUnearnedImprovements}} checked{{/if}}>
+				Hide un-earned improvements
+			</label>
+			{{> "stonetop.tab-search-control" title="Search improvements" placeholder="Filter improvements…"}}
+		</div>
 
 		<div class="steading-improvements-grid">
 			{{#each stonetop.improvements}}

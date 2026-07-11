@@ -75,6 +75,18 @@ export class InstinctSection {
 	get isCustom()           { return !!this.selected && !this.options.some(o => o.value === this.selected); }
 	get customWord()         { return this.isCustom ? parseInstinct(this.selected).word : ""; }
 	get customDescription()  { return this.isCustom ? parseInstinct(this.selected).description : ""; }
+	// The instinct to show as the header badge: a matched suggestion, or a
+	// synthesized option from a custom "Word — Description" value. Null when unset.
+	get badge() {
+		if (this.selectedOption) return this.selectedOption;
+		if (this.isCustom) {
+			return new InstinctOptionSnapshotBuilder()
+				.withWord(this.customWord)
+				.withDescription(this.customDescription)
+				.build();
+		}
+		return null;
+	}
 }
 
 // ── Origin ────────────────────────────────────────────────────────────────────

@@ -48,6 +48,7 @@ import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAs
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
+import { installWindowRestore } from "./module/utils/window-restore.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -66,6 +67,11 @@ Hooks.once("init", () => {
 	// Skin a curated allowlist of core Foundry windows (e.g. User Configuration)
 	// to match our sheets/modals; scoped to a marker class so nothing else moves.
 	registerStonetopWindowTheme();
+
+	// Track open document sheets + their geometry and reopen them at the same spot on
+	// the next reload (per-client; toggled by the "Restore Open Windows on Reload"
+	// setting). Registers its own render/close tracking hooks and a ready-time restore.
+	installWindowRestore();
 
 	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
 	Handlebars.registerHelper("boldMissText", value => boldMissText(value));

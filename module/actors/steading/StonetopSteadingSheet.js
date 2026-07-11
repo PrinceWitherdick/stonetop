@@ -2,6 +2,7 @@ import { StonetopSteading, IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS, improveme
 import {rollStat, sign, postSeasonsRollPrompt, resultsLegendHtml} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
+import {wireTabSearch} from "../../utils/tab-search.js";
 import {escHtml} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat} from "../../utils/chat.js";
@@ -15,9 +16,11 @@ import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
+import {makeColumnsSortable} from "../../utils/sortable-columns.js";
 import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
+import {STONETOP_THREAT_SEED_DRAG_TYPE} from "../../threats/threat-seed-cards.js";
 import {PLACE_OF_INTEREST_DRAG_TYPE} from "../../hooks/PlaceOfInterestDrop.js";
 import {getDragEventData} from "../../utils/foundry-compat.js";
 import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel, SEASON_IDS} from "../../seasons/seasons-change-reminders.js";
@@ -878,10 +881,43 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (page) this._openThreatEditor(page);
 		}
 
+		// Create this steading's own threat from a dropped homebrew threat card's seed
+		// (the reusable "Create Item -> Threat" path). Same result as the guided creator,
+		// minus the dialog — the fuller doom track / stakes / prose are still authored in
+		// the editor that opens right after.
+		async _onDropThreatSeed(seed) {
+			if (!seed?.name) return;
+			const page = await createThreat(this.actor, seed);
+			if (!page) return;
+			globalThis.ui?.notifications?.info?.(`Added threat: ${page.name}.`);
+			this.render(false);
+			this._openThreatEditor(page);
+		}
+
 		activateListeners(html) {
 			super.activateListeners(html);
 			wrapStonetopGlyphsInEl(html[0]);
 			this._activateThreatsListeners(html[0]);
+
+			// Residents / Neighbors filters (see utils/tab-search.js). Each is scoped to its own
+			// section so it only hides that section's rows; a row matches on the text of every
+			// cell input (name, occupation, traits, relations, notes, home).
+			const residentRowText = row => [...row.querySelectorAll(".steading-resident-input")].map(i => i.value).join(" ");
+			for (const sec of [".steading-residents-section--residents", ".steading-residents-section--neighbors"]) {
+				wireTabSearch(html[0].querySelector(sec), {
+					itemSel: ".steading-residents-row",
+					textFor: residentRowText,
+				});
+			}
+
+			// Improvements filter. Scoped to the whole `.tab.improvements` so the `.is-searching`
+			// class lands on the same element that carries `.hide-unearned-improvements`, letting the
+			// CSS reveal matched-but-un-earned cards while a term is active. A card matches on all of
+			// its text (title, flavor, requirements, effect), so the collapsed body is searchable too.
+			wireTabSearch(html[0].querySelector(".tab.improvements"), {
+				itemSel: ".steading-improvement",
+				textFor: card => card.textContent,
+			});
 
 			// Drag a Place of Interest's lettered disc onto the canvas to drop a map
 			// note (handled by the dropCanvasData hook). Read-only viewers may drag too;
@@ -1022,6 +1058,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Drag-resizable columns on the player/resident/neighbor tables — useful in both edit and read-only modes.
 			html[0].querySelectorAll(".steading-residents-table[data-resize-key]").forEach(table => {
 				makeColumnsResizable(table, table.dataset.resizeKey);
+				makeColumnsSortable(table, table.dataset.resizeKey);
 			});
 
 			html[0].addEventListener("mouseenter", ev => {
@@ -1101,6 +1138,19 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.stopPropagation();
 				const { list, index } = btn.dataset;
 				this._onListItemDelete(btn.dataset.list, parseInt(index));
+			}, true);
+
+			// Open a linked player character's sheet from the Player Characters table.
+			html[0].addEventListener("click", async ev => {
+				const link = ev.target.closest(".steading-player-open");
+				if (!link) return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				const { actorUuid, actorId } = link.dataset;
+				const actor = (actorUuid ? await fromUuid(actorUuid) : null)
+					|| (actorId ? game.actors?.get(actorId) : null);
+				if (actor?.sheet) actor.sheet.render(true);
+				else ui.notifications?.warn?.("That character no longer exists.");
 			}, true);
 
 			// Places of interest names
@@ -1213,28 +1263,38 @@ export function createStonetopSteadingSheetClass(Base) {
 				}, true);
 			}
 
-			// Drop a "Steading Improvement" card (dragged from a journal) onto the
-			// Improvements tab to add it as a tracked custom improvement.
-			const improvementsTab = html[0].querySelector(".tab.improvements");
-			if (improvementsTab) {
-				const setDrag = on => improvementsTab.classList.toggle("steading-improvement-drag-over", on);
-				improvementsTab.addEventListener("dragover", (ev) => {
+			// Wire a tab as a drop zone for journal-dragged cards of one drag type,
+			// showing the shared drag-over highlight and routing the payload to onDrop.
+			const wireCardDropZone = (tabEl, dragType, onDrop) => {
+				if (!tabEl) return;
+				const setDrag = on => tabEl.classList.toggle("steading-improvement-drag-over", on);
+				tabEl.addEventListener("dragover", (ev) => {
 					ev.preventDefault();
 					ev.dataTransfer.dropEffect = "copy";
 					setDrag(true);
 				});
-				improvementsTab.addEventListener("dragleave", (ev) => {
-					if (!improvementsTab.contains(ev.relatedTarget)) setDrag(false);
+				tabEl.addEventListener("dragleave", (ev) => {
+					if (!tabEl.contains(ev.relatedTarget)) setDrag(false);
 				});
-				improvementsTab.addEventListener("drop", async (ev) => {
+				tabEl.addEventListener("drop", async (ev) => {
 					const data = getDragEventData(ev);
-					if (data?.type !== STEADING_IMPROVEMENT_DRAG_TYPE) return;
+					if (data?.type !== dragType) return;
 					ev.preventDefault();
 					ev.stopPropagation();
 					setDrag(false);
-					await this._onDropSteadingImprovement(data.improvement);
+					await onDrop(data);
 				});
-			}
+			};
+
+			// Drop a "Steading Improvement" card (dragged from a journal) onto the
+			// Improvements tab to add it as a tracked custom improvement.
+			wireCardDropZone(html[0].querySelector(".tab.improvements"),
+				STEADING_IMPROVEMENT_DRAG_TYPE, (data) => this._onDropSteadingImprovement(data.improvement));
+
+			// Drop a "Threat" card (dragged from a journal) onto the Threats tab to
+			// create this steading's own threat entry from the card's seed.
+			wireCardDropZone(html[0].querySelector(".tab.threats"),
+				STONETOP_THREAT_SEED_DRAG_TYPE, (data) => this._onDropThreatSeed(data.seed));
 
 			// Remove a custom (journal-sourced) improvement.
 			html[0].addEventListener("click", (ev) => {

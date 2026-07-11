@@ -400,6 +400,30 @@ export function registerSettings() {
 	// Strip the decorative animations, transitions, and hover-zoom image popups
 	// from Stonetop UI for users who find them distracting or are motion-sensitive.
 	// Drives the `stonetop-reduce-motion` root class.
+	// Reopen the document sheets (characters, steadings, monsters, items, journals)
+	// this user had open when they reload, at the same position and size. Per-client
+	// because window layout is personal, not shared world state. Defaults on. The
+	// live tracking + restore lives in utils/window-restore.js.
+	game.settings.register("stonetop_pwd", "restoreWindowsOnReload", {
+		name: "stonetop.settings.restoreWindowsOnReload.name",
+		hint: "stonetop.settings.restoreWindowsOnReload.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
+	// Snapshot of the sheets this user had open at last reload, keyed by document
+	// uuid -> { left, top, width, height, minimized } (see utils/window-restore.js).
+	// Internal (not shown in the settings menu); rewritten continuously as windows
+	// open, close, and move.
+	game.settings.register("stonetop_pwd", "openWindowsState", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
 	game.settings.register("stonetop_pwd", "reduceMotion", {
 		name: "stonetop.settings.reduceMotion.name",
 		hint: "stonetop.settings.reduceMotion.hint",
