@@ -82,6 +82,33 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			return (this._editMode && this._canEditArcanum()) ? EDIT_TEMPLATE : VIEW_TEMPLATE;
 		}
 
+		// A player-authored custom move (moveType "other", flagged custom) has no read-only
+		// card worth showing — hand off to the same rich authoring dialog the "Create Item →
+		// Move" / Moves-tab flows use, so opening it from the sidebar reopens the editor
+		// pre-filled. Arcana and legacy non-custom stubs fall through to the normal readout.
+		// Editing writes back to this world Item via item.update.
+		_isCustomMoveHandoff() {
+			return this.item?.type === "move"
+				&& this.item?.system?.moveType !== "arcanum"
+				&& !!this.item?.flags?.stonetop_pwd?.custom
+				&& !isInCompendium(this.item);
+		}
+
+		async _render(force, options) {
+			if (this._isCustomMoveHandoff()) {
+				if (this._customMoveDialog?.rendered) {
+					this._customMoveDialog.bringToTop();
+					return;
+				}
+				const { CustomMoveDialog, worldMoveSaver } =
+					await import("../actors/character/dialogs/CustomMoveDialog.js");
+				this._customMoveDialog = new CustomMoveDialog(worldMoveSaver(), { item: this.item });
+				await this._customMoveDialog.render(true);
+				return;
+			}
+			return super._render(force, options);
+		}
+
 		// Only homebrew (world, owned, editable) arcana can be edited in place; shipped
 		// compendium cards are immutable reference content.
 		_canEditArcanum() {

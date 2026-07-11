@@ -3,30 +3,27 @@ import {rollFormula, rollStat} from "../utils/roll-engine.js";
 import {normalizeRollType} from "../utils/roll-types.js";
 import {filterStatOptionLines, escHtml} from "../utils/strings.js";
 
-// Item sub-types that only ever exist as packaged content or embedded documents:
-// playbooks ship in the compendium, npcMove/monsterMove are added through the
-// follower/monster sheets. None of them has a registered sheet, so hand-creating
-// one from the sidebar "Create Item" dialog only produces a broken item — hide
-// them from the type picker, leaving just the generic "move" (arcana) creatable.
-const NON_CREATABLE_ITEM_TYPES = ["playbook", "npcMove", "monsterMove"];
-
 export function createStonetopItemClass(BaseItem) {
 	return class StonetopItem extends BaseItem {
 
 		/**
-		 * Restrict the "Create Item" dialog's type menu to the sub-types a user can
-		 * actually author. Callers that pass an explicit `types` restriction (e.g.
-		 * internal tooling) are left untouched.
+		 * Sidebar "Create Item". None of Stonetop's hand-authorable content is a plain Item
+		 * sub-type — a custom move saves as a reusable world Move, and steading improvements
+		 * and threats aren't Items at all — so instead of Foundry's Item type picker (which
+		 * would only offer pack-managed types like playbook/npcMove/monsterMove) we open our
+		 * own chooser: Move, Steading Improvement, or Threat, each producing a reusable,
+		 * draggable artifact. Callers passing an explicit `types` restriction (internal
+		 * tooling) fall through to the stock dialog unchanged.
 		 * @override
 		 */
 		static async createDialog(data = {}, createOptions = {}, options = {}, renderOptions = {}) {
-			if (!options.types) {
-				options = {
-					...options,
-					types: this.TYPES.filter(type => !NON_CREATABLE_ITEM_TYPES.includes(type)),
-				};
+			if (options.types) {
+				return super.createDialog(data, createOptions, options, renderOptions);
 			}
-			return super.createDialog(data, createOptions, options, renderOptions);
+			const { openCreateStonetopContent } =
+				await import("../dialogs/create-stonetop-content-dialog.js");
+			await openCreateStonetopContent();
+			return null;
 		}
 
 		asPlaybook() {

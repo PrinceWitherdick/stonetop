@@ -43,6 +43,7 @@ import { SETTING_OVERVIEW_JOURNAL } from "./module/utils/seeded-journals.js";
 import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
 import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
+import { bindThreatSeedDrag } from "./module/threats/threat-seed-cards.js";
 import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
@@ -356,6 +357,8 @@ const _onJournalRender = (app, html) => {
 	applyJournalRollTables(app, html);
 	// Make baked steading-improvement cards draggable onto the Stonetop sheet.
 	bindSteadingImprovementDrag(html);
+	// Make homebrew threat cards draggable onto the steading Threats tab.
+	bindThreatSeedDrag(html);
 };
 for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJournalPageSheet", "renderJournalEntryPageSheet"]) {
 	Hooks.on(hook, _onJournalRender);
