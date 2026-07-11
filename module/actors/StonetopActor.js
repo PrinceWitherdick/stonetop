@@ -8,6 +8,33 @@ export function createStonetopActorClass(BaseActor) {
 	return class StonetopActor extends BaseActor {
 		_typedActor;
 
+		/**
+		 * Reskin Foundry's Create Actor dialog and drop the steading type from its picker.
+		 *
+		 * - Title/button: core reads "Create Actor"; we reword both to "Create an Actor".
+		 * - Skin: tag the window with `.stonetop-themed` so the scoped core-window CSS
+		 *   (see window-theme.js / stonetop.css) applies. `classes` is concatenated with
+		 *   DialogV2's defaults, so this adds the class without dropping "dialog".
+		 * - Types: the steading ("stonetop") is a world singleton — auto-created on ready
+		 *   and blocked from a second instance in preCreateActor (StonetopSingleton.js) —
+		 *   so offering it in the dropdown is a dead end that only ever warns. Callers
+		 *   passing an explicit `types` restriction (internal tooling) keep their list.
+		 * @override
+		 */
+		static async createDialog(data = {}, createOptions = {}, options = {}, renderOptions = {}) {
+			const title = game.i18n.localize("stonetop.actorCreate.title");
+			options = {
+				...options,
+				classes: [...(options.classes ?? []), "stonetop-themed"],
+				window: { ...(options.window ?? {}), title },
+				ok: { ...(options.ok ?? {}), label: title },
+			};
+			if (!options.types) {
+				options.types = this.TYPES.filter(t => t !== "stonetop" && t !== CONST.BASE_DOCUMENT_TYPE);
+			}
+			return super.createDialog(data, createOptions, options, renderOptions);
+		}
+
 		get typedActor() {
 			if (this._typedActor) return this._typedActor;
 

@@ -101,6 +101,19 @@ export function registerSettings() {
 		default: true,
 	});
 
+	// When on (the default), creating a blank Monster from "Create Actor" opens the
+	// guided worksheet (Book I "Dangers") that computes HP/armor/damage from tag
+	// picks. Off drops straight to a blank stat block. Imports, compendium drops,
+	// and duplicates are never intercepted, only manual blank creates.
+	game.settings.register("stonetop_pwd", "monsterBuilderEnabled", {
+		name: "stonetop.settings.monsterBuilderEnabled.name",
+		hint: "stonetop.settings.monsterBuilderEnabled.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	// Whether players may PEEK at a card's BACK before unlocking it. A card's OWNER always
 	// sees its back once unlocked (every spot filled), regardless of this setting —
 	// unlocking is their own achievement. This switch is the separate peek: on (the

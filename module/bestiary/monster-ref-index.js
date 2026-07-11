@@ -9,6 +9,8 @@
 // monster actors, then cached for the session. Call
 // invalidateMonsterRefIndex() when bestiary actors are created/updated/deleted.
 
+import { CREATURE_LINK_DENYLIST } from "./creature-link-denylist.js";
+
 const PACK_ID = "stonetop_pwd.stonetop-bestiary";
 const ENTRY_SUFFIX = /\s*\(Bestiary\)\s*$/i;
 
@@ -16,6 +18,14 @@ let _index = null; // Map<normalizedName, { uuid, name, concept, priority }>
 let _regex = null; // compiled matcher, or null when the index is empty
 
 const _norm = s => String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+// Creature names too generic to auto-link, or that collide with a lore/location
+// entry of the same name. A whole creature is excluded by full name (mirroring
+// the build-time linkifier), so its stripped variants never register either —
+// e.g. "The Guard" would otherwise register the bare word "guard" and link every
+// incidental "guard" in prose. Drawn from the shared canonical list (Title-case,
+// case-sensitive for the linkifier) and normalized here for case-insensitive lookup.
+const _DENYLIST = new Set(CREATURE_LINK_DENYLIST.map(_norm));
 
 /** The creature name without the " (Bestiary)" entry suffix. */
 export function creatureDisplayName(name) {
@@ -41,6 +51,7 @@ function _addActorLike({ name, type, uuid, concept }, map, basePriority) {
 	if (type !== "monster") return;
 	const display = String(name ?? "").trim();
 	if (!display || !uuid) return;
+	if (_DENYLIST.has(_norm(display))) return; // generic / colliding name — never auto-link
 	_register(map, display, {
 		uuid,
 		name: display,

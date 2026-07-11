@@ -44,12 +44,20 @@ export async function ensureStonetopSingleton() {
 }
 
 export function registerStonetopSingletonHooks() {
-	Hooks.on("preCreateActor", (actor, data) => {
-		if (!_isStonetopActorData(data ?? actor)) return;
-		if (!_getStonetopActors().length) return;
+	Hooks.on("preCreateActor", (actor, data, options) => {
+		if (_isStonetopActorData(data ?? actor)) {
+			if (!_getStonetopActors().length) return;
+			ui.notifications?.warn("This world already has a Stonetop sheet.");
+			return false;
+		}
 
-		ui.notifications?.warn("This world already has a Stonetop sheet.");
-		return false;
+		// A GM creating a blank Monster from "Create Actor" goes through the guided
+		// worksheet instead: veto the empty create and open the builder, which then
+		// creates the fully-populated stat block itself.
+		if (_shouldGuideMonster(actor, data, options)) {
+			_openMonsterBuilder(data);
+			return false;
+		}
 	});
 
 	Hooks.on("preDeleteActor", actor => {
@@ -103,6 +111,49 @@ function _buildOmenReminderContent(destined) {
 				<li><strong>6-:</strong> don't mark XP, hold +1 Omen, and tell us of your recent nightmares or a troubling vision.</li>
 			</ul>
 		</div>`);
+}
+
+// True when this creation is a GM manually making a *blank* Monster and the guided
+// builder is enabled — the one path we redirect. Everything else (the worksheet's
+// own populated create, compendium imports, drag-drops, duplicates) passes through:
+// each of those carries content (items, stats, tags) or an import marker we detect.
+function _shouldGuideMonster(actor, data, options) {
+	if ((actor?.type ?? data?.type) !== "monster") return false;
+	if (!game.user?.isGM) return false;
+	if (options?.stonetopMonsterBuilt) return false; // our own finished create
+	if (game.settings?.get?.("stonetop_pwd", "monsterBuilderEnabled") === false) return false;
+	if (options?.fromCompendium || options?.keepId) return false; // compendium import / drop
+	// Duplicates carry no keepId, but their toObject() data reads as content (see
+	// _hasMonsterContent: _stats.duplicateSource + populated stats), so they pass through.
+	return !_hasMonsterContent(data);
+}
+
+// Whether the creation data already carries a built-out monster — populated stats,
+// tags, embedded moves, or an import/duplicate provenance marker. A bare "Create Actor"
+// click submits only { name, type } (no `system`), so it reads as blank; a Duplicate or
+// import submits the source document's full toObject(), which always carries these.
+// hp.max is compared to null (not truthy-tested) so a real max of 0 still counts as
+// present — an existing stat block that a GM duplicates must not read as "blank".
+function _hasMonsterContent(data) {
+	const get = path => foundry.utils.getProperty(data ?? {}, path);
+	return !!(
+		data?.items?.length
+		|| get("system.attributes.hp.max") != null
+		|| get("system.tags")
+		|| get("system.concept")
+		|| get("_stats.compendiumSource")
+		|| get("_stats.duplicateSource")
+		|| get("flags.core.sourceId")
+	);
+}
+
+async function _openMonsterBuilder(data) {
+	try {
+		const { CreateMonsterDialog } = await import("../dialogs/CreateMonsterDialog.js");
+		await new CreateMonsterDialog({ name: data?.name ?? "", folder: data?.folder ?? null }).promise();
+	} catch (err) {
+		console.error("Stonetop | failed to open the monster builder", err);
+	}
 }
 
 function _getStonetopActors() {
