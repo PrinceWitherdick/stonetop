@@ -8,45 +8,85 @@ An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop
 
 ## Features
 
-### Guided Character Creation
+Everything below is built into the system. No extra modules required.
+
+### For Players
+
+#### Guided Character Creation
 
 A multi-step onboarding wizard handles everything from playbook selection to the final starting move. Each playbook's unique setup is fully supported: backgrounds with conditional forms, appearance builders, stat allocation, starting moves and invocations, crew and animal companion configuration, lore questions, and Seeker arcana. Progress is saved so players can pause and return without losing their work.
 
-### Guided First Session
+#### Automated Move Rolls
 
-The GM gets a **Welcome** guide and a **Let Spring Burst Forth** walkthrough that frames the village's opening scene step by step, with one-click sharing of the right journals to the table. Players see a guided creation intro and a **resumable** onboarding flow, while the GM watches a live roster fill in as each character is finished — and a **New to Foundry?** primer helps first-time Foundry users find their feet.
+Every move roll goes through a pre-roll dialog that shows active **Forward** and **Ongoing** modifiers (Forward clears automatically after use), then lets the player choose Normal, Advantage, or Disadvantage, plus an alternate stat for moves that allow one. Results are classified automatically as Strong Hit (10+), Weak Hit (7-9), or Miss (6 and under), the roll card spells out what happens at each tier, and a miss instantly awards +1 XP. Debilities apply disadvantage to the correct stat and annotate the card so the table always knows why.
 
-### Automated Move Rolls
+#### Level-Up Wizard
 
-Every move roll goes through a pre-roll dialog that shows active **Forward** and **Ongoing** modifiers (Forward clears automatically after use), then lets the player choose Normal, Advantage, or Disadvantage — and offers an alternate stat for moves that allow one. Results are classified as Strong Hit (10+), Weak Hit (7–9), or Miss (6−) automatically, the roll card spells out what happens at each tier, and a miss instantly awards +1 XP. Debilities apply disadvantage to the correct stat and annotate the card so the table always knows why.
+Clicking Level Up opens a step-by-step wizard. It shows the XP cost, presents every move the character is eligible for (locking moves whose prerequisites aren't met), and, on even levels, surfaces available Invocations. Picking a move that grants a choice (a stat increase, a move borrowed from another playbook, an extra Sacred Pouch trait) opens the matching chooser inline, and the wizard flags when you still have picks left to spend. Confirming applies the new level, deducts XP, and adds the chosen move to the sheet in one click.
 
-### Level-Up Wizard
+#### Interactive Combat
 
-Clicking Level Up opens a step-by-step wizard: it shows the XP cost, presents every move the character is eligible for (locking moves whose prerequisites aren't met), and — on even levels — surfaces available Invocations. Confirming the wizard applies the new level, deducts XP, and adds the chosen move to the sheet in one click.
+Clash and Let Fly run as a guided flow: choose a target, roll, then resolve damage per target while the GM applies it straight from the chat card. Weapon tags and ranges are baked in, enemies counter-attack when the fiction calls for it, and the whole exchange stays on the card so nobody loses track of who hit whom.
 
-### <img src="assets/icons/macros/truce.svg" alt="End of Session macro icon" width="24" height="24" align="absmiddle"> End of Session Macro
+#### Outfit & Inventory Management
 
-A **End of Session** macro is automatically slotted into hotbar slot 10. The GM checks off which of the four group XP criteria were met and the system awards XP to every player-owned character simultaneously, then posts a summary to chat.
+The Outfit Move dialog lets players check off items and see their load level update in real time. The system calculates armor automatically from equipped items (base plus modifiers) and tracks pool slots, small-item limits (tied to steading prosperity), and per-item resources like rations and ammo.
 
-### Death's Door Dialog
+#### Followers
 
-When a character hits 0 HP, a three-step walkthrough explains the Death's Door rules — what it means, how the roll works, and what the possible outcomes are — so no one has to look it up mid-session.
+Build a follower from scratch with a guided builder, or turn any bestiary monster into a follower in one step. Each follower lives on a single card with per-section editing for instinct, moves, cost, and tags. During play the card handles the follower moves for you: Order rolls, Strengthen Bond, ammo and supply tracks, and a follower's fate at 0 HP. Group warbands, hirelings, and companions to keep the tab tidy.
 
-### Outfit & Inventory Management
+#### Seeker Arcana
 
-The Outfit Move dialog lets players check off items and see their load level update in real time. The system calculates armor automatically from equipped items (base + modifiers) and tracks pool slots, small item limits (tied to steading prosperity), and per-item resources like rations and ammo.
+The Seeker's arcana ship as a browsable deck. Cards track their marks, unlocks, and resource tracks interactively, the GM can reveal a whole card (or just its front) to a player once it's discovered, and a per-card ledger records every change so the table can see an arcanum's history at a glance.
 
-### Followers
+#### Death's Door Dialog
 
-Build a follower from scratch with a guided builder, or turn any bestiary monster into a follower in one step. Each follower lives on a single card with per-section editing for instinct, moves, cost, and tags, keeping warbands, hirelings, and animal companions tidy on the character sheet.
+When a character hits 0 HP, a three-step walkthrough explains the Death's Door rules: what it means, how the roll works, and what the possible outcomes are, so no one has to look it up mid-session.
 
-### Steading Sheet & Seasonal Automation
+#### Per-Tab Search
 
-The Stonetop steading sheet tracks Fortunes, Prosperity, Population, and Defense alongside the debility system (Diminished, Lacking, Malcontent). Steading moves are wired up: **Meet with Disaster** auto-applies the Fortunes penalty and picks a consequence; **Seasons Change** steps through the full seasonal checklist with automatic resource updates and nudges each player with a personal upkeep reminder; **Muster** deducts Fortunes before the roll. A seasonal **Weather** oracle and an **Expedition** GM walkthrough round out the homefront tools, and improvements gate their completion behind the requirements you've checked off.
+Each character-sheet tab has a collapsible search box that filters the list in front of you (moves, gear, followers), so long sheets stay navigable.
 
-### GM Result Controls
+### For Game Masters
 
-After any roll, the GM can shift the result up or down by one tier directly from the chat card — Strong Hit → Weak Hit → Miss (and back) — without re-rolling. Characters with the Burn Brightly feature can spend 2 XP from the chat card to bump a recent roll by +1.
+#### Guided First Session
+
+The GM gets a **Welcome** guide and a **Let Spring Burst Forth** walkthrough that frames the village's opening scene step by step, with one-click sharing of the right journals to the table. Players see a guided creation intro and a **resumable** onboarding flow, while the GM watches a live roster fill in as each character is finished. A **New to Foundry?** primer helps first-time Foundry users find their feet.
+
+#### GM Result Controls
+
+After any roll, the GM can shift the result up or down by one tier directly from the chat card (Strong Hit to Weak Hit to Miss, and back) without re-rolling. Characters with the Burn Brightly feature can spend 2 XP from the chat card to bump a recent roll by +1.
+
+#### Steading Sheet & Seasonal Automation
+
+The Stonetop steading sheet tracks Fortunes, Prosperity, Population, and Defense alongside the debility system (Diminished, Lacking, Malcontent). Steading moves are wired up: **Meet with Disaster** auto-applies the Fortunes penalty and picks a consequence; **Seasons Change** steps through the full seasonal checklist with automatic resource updates and nudges each player with a personal upkeep reminder; **Muster** deducts Fortunes before the roll. Completing an improvement automatically applies its one-time effect (reversible if you undo it), Places of Interest can be dragged onto a scene to drop a lettered map note, and a seasonal **Weather** oracle plus an **Expedition** GM walkthrough round out the homefront tools.
+
+#### Threats
+
+A dedicated **Threats** tab collects the GM's threats as book-faithful cards. Reveal a threat to players through ownership, drag it onto a scene to drop a pin, and optionally show live threat cards as a canvas overlay.
+
+#### <img src="assets/icons/macros/love-letter.svg" alt="Love Letter icon" width="24" height="24" align="absmiddle"> Love Letters
+
+Love Letters hand a single character a personal, one-time GM move in the spirit of Book I's love letters. Each one sits at the top of that character's Moves tab until it's used; one click rolls it, posts the outcome to chat, and consumes it. A Love Letter macro is slotted to the hotbar for quick access.
+
+#### Character Introductions & The Chronicle
+
+The Introductions flow walks the table through the get-acquainted questions during the first session. Answer and ask steps open on the active player's own client while the GM follows along live (no extra setup or sockets), and once everyone has answered, the system compiles **The Chronicle**: a world journal with a page per character plus the Spring Burst opening, ready for the GM to narrate and players to read back.
+
+#### <img src="assets/icons/macros/truce.svg" alt="End of Session macro icon" width="24" height="24" align="absmiddle"> End of Session Macro
+
+An **End of Session** macro is automatically slotted into hotbar slot 10. The GM checks off which of the four group XP criteria were met and the system awards XP to every player-owned character simultaneously, then posts a summary to chat.
+
+### Bundled Content
+
+#### Bestiary
+
+The system ships with the full bestiary of Books I and II: around 180 creatures, each with an illustrated codex entry and a ready-to-drop stat block, sorted into 38 regions and tagged by creature type. Monster and codex content stays hidden from players until you reveal it, so it doubles as a spoiler-safe GM reference.
+
+#### Locations & Lore
+
+A bundled **Stonetop** journal compendium covers the wider world: all 30 Book II locations plus the setting's gods and factions, cross-linked to one another and to the bestiary so a click carries you from a region to the creatures that haunt it. Hover any link for a one-line summary. Seeded entries refresh automatically when the system updates, unless you've edited them, in which case your version is left untouched.
 
 ## Screenshots
 
@@ -68,7 +108,7 @@ https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.jso
 
 ## Recommended Modules
 
-- **[Dice So Nice!](https://foundryvtt.com/packages/dice-so-nice)** — renders 3D dice rolls on the tabletop. Every move, damage, and steading roll in this system uses Foundry's dice, so Dice So Nice adds a tactile sense of immersion to the table without any extra setup.
+- **[Dice So Nice!](https://foundryvtt.com/packages/dice-so-nice)** renders 3D dice rolls on the tabletop. Every move, damage, and steading roll in this system uses Foundry's dice, so Dice So Nice adds a tactile sense of immersion to the table without any extra setup.
 
 ## Development
 
