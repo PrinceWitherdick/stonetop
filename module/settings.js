@@ -87,11 +87,13 @@ export function registerSettings() {
 		default: true,
 	});
 
-	// As customMovesGmOnly, but for homebrew arcana (minor & major) and the
-	// inspiration wizard. When on (the default), only the GM sees the "Create
-	// arcanum" bar and the inspiration wizard on the arcana tab; existing arcana
-	// still render and the editor still opens for whoever owns the card. Kept
-	// independent of customMovesGmOnly so a GM can permit one and not the other.
+	// As customMovesGmOnly, but for homebrew arcana (minor & major). When on (the
+	// default), only the GM sees the per-tier "Create arcanum" buttons at the foot
+	// of the arcana tab's Major / Minor sections; existing arcana still render and
+	// the editor still opens for whoever owns the card. (The Artifact Creation
+	// inspiration wizard now lives in the sidebar "Create Item → Arcanum" chooser,
+	// which is GM-side.) Kept independent of customMovesGmOnly so a GM can permit
+	// one and not the other.
 	game.settings.register("stonetop_pwd", "arcanaCreationGmOnly", {
 		name: "stonetop.settings.arcanaCreationGmOnly.name",
 		hint: "stonetop.settings.arcanaCreationGmOnly.hint",
@@ -116,8 +118,8 @@ export function registerSettings() {
 
 	// Whether players may PEEK at a card's BACK before unlocking it. A card's OWNER always
 	// sees its back once unlocked (every spot filled), regardless of this setting —
-	// unlocking is their own achievement. This switch is the separate peek: on (the
-	// default) lets players open the back of a not-yet-unlocked card; off keeps an
+	// unlocking is their own achievement. This switch is the separate peek: on lets
+	// players open the back of a not-yet-unlocked card; off (the default) keeps an
 	// un-unlocked back hidden until the GM clicks "Reveal back to player" on it. The GM
 	// always sees both sides. See the per-card visibility model in
 	// StonetopCharacterSheet.getData / CharacterArcana.
@@ -127,7 +129,7 @@ export function registerSettings() {
 		scope: "world",
 		config: true,
 		type: Boolean,
-		default: true,
+		default: false,
 	});
 
 	// The flagship "threats on the map" option. When on, each threat pin also draws its

@@ -73,16 +73,36 @@ export class AddInventoryItemDialog extends StonetopDialog {
 		const root = html[0];
 
 		const noteInput = root.querySelector("[name=note]");
-		// Each chip appends its tag to the note field, comma-separated, then returns
-		// focus so the player can keep typing.
-		root.querySelectorAll(".stonetop-add-item-chip").forEach(chip => {
+		const chips = Array.from(root.querySelectorAll(".stonetop-add-item-chip"));
+		// The note is a freeform, comma-separated list. Each chip toggles its term in
+		// or out of that list: clicking adds it (never duplicated), clicking again
+		// removes it, and a chip stays highlighted while its term is present. Typing in
+		// the field re-syncs the chips so manual edits stay reflected either way.
+		const tokens = () => noteInput.value.split(",").map(t => t.trim()).filter(Boolean);
+		const termOf = (chip) => (chip.dataset.insert ?? "").trim();
+		const syncChips = () => {
+			const present = new Set(tokens().map(t => t.toLowerCase()));
+			chips.forEach(chip => {
+				const on = present.has(termOf(chip).toLowerCase());
+				chip.classList.toggle("is-selected", on);
+				chip.setAttribute("aria-pressed", on ? "true" : "false");
+			});
+		};
+		chips.forEach(chip => {
 			chip.addEventListener("click", () => {
-				const insert = chip.dataset.insert ?? "";
-				const cur = noteInput.value.trim();
-				noteInput.value = cur ? `${cur}, ${insert}` : insert;
+				const term = termOf(chip);
+				if (!term) return;
+				const list = tokens();
+				const idx = list.findIndex(t => t.toLowerCase() === term.toLowerCase());
+				if (idx >= 0) list.splice(idx, 1); // already present: toggle off
+				else list.push(term);              // absent: toggle on
+				noteInput.value = list.join(", ");
+				syncChips();
 				noteInput.focus();
 			});
 		});
+		noteInput.addEventListener("input", syncChips);
+		syncChips();
 
 		// When the column is selectable (world flow), weight/armor only apply to the
 		// regular Items column, so show the block only while "regular" is picked.

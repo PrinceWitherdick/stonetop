@@ -469,6 +469,18 @@ body {
 	margin-right: 0;
 }
 
+/* Book II art embedded in bestiary / location journal prose carries
+   `class="stonetop-journal-art"` on the inline <img> (added by the bring-your-own-book
+   art import); the markup only supplies the class, so tweak the frame here in one place. */
+img.stonetop-journal-art {
+	display: block;
+	margin: 0.25em auto 0.6em;
+	max-width: 100%;
+	border: 2px solid hsl(40 30% 82%);
+	border-radius: 3px;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
 .stonetop-glyph--arrow {
 	background-image: url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 }
@@ -4341,10 +4353,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	transition: background 0.12s, border-color 0.12s;
 }
 .stonetop-add-item-chip:hover { background: rgba(0, 0, 0, 0.1); border-color: rgba(0, 0, 0, 0.35); }
+/* Selected chip = its term is in the note field; reads as a pressed toggle so the
+   player can see (and click to remove) what's already been added. */
+.stonetop-add-item-chip.is-selected {
+	background: var(--st-btn-primary-bg, #3b4252);
+	border-color: var(--st-btn-primary-bg, #3b4252);
+	color: var(--st-btn-primary-text, #f5f5f5);
+	font-weight: bold;
+}
+.stonetop-add-item-chip.is-selected:hover { background: var(--st-btn-primary-bg-hover, #434c5e); border-color: var(--st-btn-primary-bg-hover, #434c5e); }
 .stonetop-add-item-chip--range { font-style: italic; }
 .stonetop-add-item-chip--bonus { font-variant-numeric: tabular-nums; }
 /* Ammo toggle only surfaces once there's a use count to label. */
 .stonetop-add-item-ammo.is-hidden { display: none; }
+/* Weight/armor apply to the regular Items column only; hidden for Small Items. */
+.stonetop-add-item-weight-block.is-hidden { display: none; }
 
 /* Love letters (Book I p.568): a single-use, GM-authored move at the top of the Moves
    tab, given the steading Threat cards' warm "tan paper" treatment (shared --tc-* palette:
@@ -16814,6 +16837,13 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	flex-shrink: 0;
 }
 
+/* Pin the checked radio to slate; unstyled it falls back to Foundry v14's core
+   orange accent-color, the odd one out versus the rest of the system's radios. */
+.stonetop-content-picker-option input[type="radio"] {
+	accent-color: slategrey;
+	flex-shrink: 0;
+}
+
 .stonetop-content-picker-text {
 	display: flex;
 	flex-direction: column;
@@ -20291,13 +20321,14 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .create-threat .ct-type-name::before { content: ""; display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--c); margin-right: 0.4rem; vertical-align: middle; }
 .stonetop .create-threat .ct-type-blurb { font-size: 0.78rem; line-height: 1.25; opacity: 0.75; }
 .stonetop .create-threat .ct-suggested-list {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 0.15rem 0.8rem;
+	display: flex;
+	align-items: flex-start;
+	gap: 0.8rem;
 	max-height: 12rem;
 	overflow-y: auto;
 	padding-right: 0.3rem;
 }
+.stonetop .create-threat .ct-suggested-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
 .stonetop .create-threat .ct-suggested-item { display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.88rem; line-height: 1.3; }
 .stonetop .create-threat .ct-suggested-hint { margin: 0 0 0.4rem; font-size: 0.82rem; font-style: italic; opacity: 0.75; }
 .stonetop .create-threat .ct-footer { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
@@ -20310,7 +20341,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .create-threat .ct-create:hover { background: var(--st-btn-primary-bg-hover); border-color: var(--st-btn-primary-border-hover); }
 .stonetop .create-threat .ct-cancel { width: auto; padding: 0.4rem 0.9rem; background: transparent; cursor: pointer; }
 @media (max-width: 520px) {
-	.stonetop .create-threat .ct-suggested-list { grid-template-columns: 1fr; }
+	.stonetop .create-threat .ct-suggested-list { flex-direction: column; }
 }
 
 /* --- guided "make a monster" worksheet ------------------------------------- */

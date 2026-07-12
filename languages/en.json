@@ -120,6 +120,7 @@
       "moves": "Granted Moves"
     },
     "arcana": {
+      "createGmOnly": "Only the GM can create homebrew arcana in this world.",
       "empty": "Drag arcana here from the Arcana compendium.",
       "showFront": "Show front",
       "showBack": "Show back",
@@ -201,7 +202,7 @@
       },
       "arcanaCreationGmOnly": {
         "name": "Arcana Creation: GM Only",
-        "hint": "When on, only the GM can create homebrew arcana — players don't see the \"Create arcanum\" bar or the inspiration wizard on the arcana tab. Existing arcana still display, flip, and roll for everyone, and players can still edit cards they own. Turn off to let players author their own arcana."
+        "hint": "When on, only the GM can create homebrew arcana — players don't see the \"Create major/minor arcanum\" buttons on the arcana tab. Existing arcana still display, flip, and roll for everyone, and players can still edit cards they own. Turn off to let players author their own arcana."
       },
       "monsterBuilderEnabled": {
         "name": "Guided Monster Builder",
@@ -209,7 +210,7 @@
       },
       "arcanaPlayersSeeBothSides": {
         "name": "Arcana: Players See Both Sides",
-        "hint": "A player always sees the back of a card once they've unlocked it (filled every spot) — that's their own achievement, no setting needed. This switch is a separate peek: when on (the default), players may also open the back of a card they haven't unlocked yet, reading the whole card up front. Turn off for a more secretive table, and an un-unlocked back stays hidden until you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). You always see both sides as the GM."
+        "hint": "A player always sees the back of a card once they've unlocked it (filled every spot) — that's their own achievement, no setting needed. This switch is a separate peek: when on, players may also open the back of a card they haven't unlocked yet, reading the whole card up front. Off by default for a more secretive table: an un-unlocked back stays hidden until you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). Turn on to let players read cards up front. You always see both sides as the GM."
       },
       "threatOnCanvasCards": {
         "name": "Threats: Show Cards on the Map",
