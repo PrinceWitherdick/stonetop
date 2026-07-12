@@ -51,8 +51,20 @@ export class CreateThreatDialog extends Application {
 			instinct: this._instinct,
 			types: THREAT_TYPES.map(t => ({ id: t.id, label: t.label, blurb: t.blurb, accent: t.accent, selected: t.id === this._type })),
 			proximities: THREAT_PROXIMITIES.map(p => ({ id: p.id, label: p.label, hint: p.hint, selected: p.id === this._proximity })),
-			suggestedMoves: type.suggestedMoves.map(text => ({ text, checked: this._selectedMoves.has(text) })),
+			// Two independent vertical columns rather than a row-filled grid: with a grid,
+			// a right-column item that wraps to two lines stretches its whole row, leaving a
+			// gap under its left neighbour. Splitting the list into standalone columns lets a
+			// wrapping item grow only its own column. First column takes the larger half.
+			suggestedMoveColumns: this._splitColumns(
+				type.suggestedMoves.map(text => ({ text, checked: this._selectedMoves.has(text) }))
+			),
 		};
+	}
+
+	/** Split the moves into two column stacks, filling the left column first. */
+	_splitColumns(moves) {
+		const half = Math.ceil(moves.length / 2);
+		return [moves.slice(0, half), moves.slice(half)];
 	}
 
 	/** Snapshot the free-text/radio fields so they survive the re-render on type change. */

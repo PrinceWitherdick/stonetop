@@ -39,11 +39,15 @@
 		<span class="ct-label">Suggested GM moves for {{typeLabel}}</span>
 		<p class="ct-suggested-hint">Tick the ones that fit. You can add more moves, a doom track, and stakes right after.</p>
 		<div class="ct-suggested-list">
-			{{#each suggestedMoves}}
-			<label class="ct-suggested-item">
-				<input type="checkbox" class="ct-suggested-check" value="{{text}}"{{#if checked}} checked{{/if}}>
-				<span>{{text}}</span>
-			</label>
+			{{#each suggestedMoveColumns}}
+			<div class="ct-suggested-col">
+				{{#each this}}
+				<label class="ct-suggested-item">
+					<input type="checkbox" class="ct-suggested-check" value="{{text}}"{{#if checked}} checked{{/if}}>
+					<span>{{text}}</span>
+				</label>
+				{{/each}}
+			</div>
 			{{/each}}
 		</div>
 	</div>

@@ -18,6 +18,11 @@ export class MoveDefinition {
 		this.hpBonus     = data.system?.hpBonus         ?? 0;
 		this.armorBonus  = data.system?.armorBonus      ?? 0;
 		this.loadBonus   = data.system?.loadBonus       ?? 0;
+		// Load-gate metadata surfaced to the expedition Outfit readout: the heaviest load
+		// tier the move's fiction tolerates ("light"/"normal"/"heavy"; blank = no gate), and
+		// whether it also needs the carrier unarmored (Uncanny Reflexes).
+		this.maxLoad          = data.system?.maxLoad          ?? "";
+		this.requiresUnarmored = data.system?.requiresUnarmored ?? false;
 		// Per-option marks (e.g. WBH "Potential for Greatness"): each option carries a
 		// checkbox count and optional hp/armor/crewHp effect applied per checked box.
 		this.markOptions = data.system?.markOptions     ?? null;

@@ -114,6 +114,10 @@ export class MinorArcanumSnapshot {
 		this.checked    = b._checked;
 		this.unlocked   = b._unlocked;
 		this.identified = b._identified;
+		// A "lead": the owner knows this arcanum's whereabouts but hasn't recovered it yet
+		// (the Seeker's Lead role). Shows a placeholder card with a "discovered" action that
+		// promotes it to the normal, identified form. A card is never lead AND identified.
+		this.lead       = b._lead ?? false;
 		this.img        = b._img ?? null;
 		// Resolved tier (stored `major` flag OR shipped allowlist) — drives the
 		// Major/Minor section partition on the arcana tab.
@@ -124,6 +128,11 @@ export class MinorArcanumSnapshot {
 		// Redwood Effigy: true once the Greater Conduit mystery is checked on the back,
 		// which unlocks the two "potential" Conduit slots on the front.
 		this.greaterConduit = b._greaterConduit ?? false;
+		// The back's "Consequences" section HTML, surfaced onto the front for cards whose front
+		// references it ("mark a consequence (see reverse)"). null for every other card. The
+		// sheet folds it behind a collapsible and shows it only when the front is the sole
+		// visible side (see showFrontConsequences).
+		this.consequences = b._consequences ?? null;
 	}
 }
 
@@ -135,10 +144,12 @@ export class MinorArcanumSnapshotBuilder {
 	withChecked(v)     { this._checked    = v; return this; }
 	withUnlocked(v)    { this._unlocked   = v; return this; }
 	withIdentified(v)  { this._identified = v; return this; }
+	withLead(v)        { this._lead       = v; return this; }
 	withImg(v)         { this._img        = v; return this; }
 	withMajor(v)       { this._major      = v; return this; }
 	withSummonFollowers(v) { this._summonFollowers = v; return this; }
 	withGreaterConduit(v) { this._greaterConduit = v; return this; }
+	withConsequences(v) { this._consequences = v; return this; }
 	build()            { return new MinorArcanumSnapshot(this); }
 }
 

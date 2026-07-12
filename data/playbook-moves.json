@@ -938,6 +938,7 @@
       "name": "Stalker",
       "description": "<p>When you <strong><em>carry a normal or light load and move with care</em></strong>, you make no noise and leave no sign of your passing. When you <strong><em>hide yourself in a natural environment</em></strong>, you remain unseen until you draw attention to yourself, move positions, or attack.</p>",
       "rollType": null,
+      "maxLoad": "normal",
       "playbook": "The Ranger"
     },
     {
@@ -1070,6 +1071,7 @@
       "name": "Catlike",
       "description": "<p>When you <strong><em>carry a light load and act with care</em></strong>, you move silently. When you <strong><em>hide in shadows or darkness</em></strong>, you remain unseen until you draw attention to yourself, move positions, or attack.</p>",
       "rollType": null,
+      "maxLoad": "light",
       "playbook": "The Fox"
     },
     {
@@ -1141,6 +1143,7 @@
       "name": "Free Running",
       "description": "<p>When you <strong><em>carry a light load and move with speed and grace</em></strong>, gain advantage on any move to surmount or bypass a physical obstacle.</p>",
       "rollType": null,
+      "maxLoad": "light",
       "playbook": "The Fox"
     },
     {
@@ -2077,6 +2080,8 @@
       "description": "<p>When you <strong><em>are unarmored and carrying a normal or light load</em></strong>, you impose disadvantage on any damage you take that you could dodge or roll with.</p>",
       "rollType": null,
       "isStartingMove": true,
+      "maxLoad": "normal",
+      "requiresUnarmored": true,
       "playbook": "The Heavy"
     },
     {

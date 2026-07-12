@@ -365,7 +365,13 @@ export class StonetopCharacter {
 		const customArmorItems = this._actor.items
 			.filter(i => i.type === "move" && i.system?.moveType === "inventory-custom" && i.system?.armor)
 			.map(i => ({ slug: i._id, armor: i.system.armor }));
-		const armor = this._inventory.calculateArmor([...armorItems, ...customArmorItems]) + moveBonuses.armor;
+		// The worn-armor base (leather/mail/etc., excluding shields and move bonuses) gates
+		// moves that require being unarmored (Uncanny Reflexes); 0 means unarmored. Same base
+		// selection as calculateArmor — CharacterInventory owns the rule. Computed once and
+		// handed to calculateArmor so the base filter doesn't run twice per render.
+		const allArmorItems = [...armorItems, ...customArmorItems];
+		const wornArmorBase = this._inventory.wornArmorBase(allArmorItems);
+		const armor = this._inventory.calculateArmor(allArmorItems, wornArmorBase) + moveBonuses.armor;
 		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
 			? await this._arcana.buildLoreDisplay()
 			: null;
@@ -374,7 +380,7 @@ export class StonetopCharacter {
 			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, (!!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG) || ownsAsteriskMove(this._actor)), actorLevel) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withStats(_buildStatsSection(actor))
-			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses))
+			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase))
 			.withMoves(moves)
 			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel, inventory.loveLetters))
 			.withInventory(inventory)
@@ -458,12 +464,13 @@ export class StonetopCharacter {
 				const moveMarksMap     = this._moveResources.getMarks();
 				const moveBackgroundAnswers = resolvedFlags(this._actor).moves?.backgroundAnswers ?? {};
 				const improvedStatChoices   = resolvedFlags(this._actor).improvedStatChoices ?? {};
+				const actorStats            = _statValueMap(this._actor.system?.stats);
 				const source = { type: "playbook", slug: playbookData.slug };
 				categories.push(new MoveCategorySnapshotBuilder()
 					.withKey("playbook")
 					.withTitle(`${playbookData.name} Moves`)
 					.withNote(playbookData.startingMovesNote ?? null)
-					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap))))
+					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap, actorStats))))
 					.build()
 				);
 			}
@@ -509,6 +516,8 @@ export class StonetopCharacter {
 						.withLocked(false).withRequirement(null).withRequiresLabel(null)
 						.withResource(resource)
 						.withMarkOptions(markOptions).withMarkBudget(markBudget)
+						.withMaxLoad(i.system?.maxLoad)
+						.withRequiresUnarmored(i.system?.requiresUnarmored)
 						.withRepeat(null).withRepeatable(false)
 						.build();
 				}))
@@ -1872,6 +1881,9 @@ export class StonetopCharacter {
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
 	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); await this._inventory.clearArcanumResources(slug); }
 	async identifyArcanum(slug)                      { await this._arcana.identifyArcanum(slug); }
+	async addLead(slug)                              { await this._arcana.addLead(slug); }
+	async discoverArcanum(slug)                      { await this._arcana.discoverArcanum(slug); }
+	async ensureSeekerLeadCard()                     { await this._arcana.ensureLeadBackfill(); }
 	async masterArcanum(slug)                        { await this._arcana.masterArcanum(slug); }
 	async getArcanumChatContent(slug, flipped)       { return this._arcana.getArcanumChatContent(slug, flipped); }
 	async setMinorArcanumRole(role, slug) { await this._arcana.setMinorRole(role, slug); }
@@ -2025,6 +2037,20 @@ export class StonetopCharacter {
 		}
 	}
 
+	// Apply (or re-apply) the "+1 to which stat?" pick for a stat-increase move taken at
+	// creation, resolving the OWNED instance rather than relying on addMove's return. On an
+	// onboarding re-run the move is already owned (addMove returns null) and the base-stat
+	// write has just reset the stat, so without this the +1 is silently dropped. Idempotent:
+	// base was reset first and the +1 is capped, so it lands exactly once per finalize.
+	async applyCreationStatChoice(compendiumId, statKey) {
+		if (!statKey) return;
+		const doc = await this._moveRepo.getPlaybookMoveDocument(compendiumId);
+		if (!doc) return;
+		const owned = this._actor.items.find(i => i.type === "move" && i.name === doc.name);
+		if (!owned || owned.system?.cap == null) return;
+		await this._applyStatIncreaseChoice(owned, statKey, owned.system.cap);
+	}
+
 	// Inverse of _applyStatIncreaseChoice, run when an Improved/Superior Stat instance is
 	// dropped from the sheet: forget this instance's recorded pick and step the chosen stat
 	// back down by 1. The picker only ever offers stats below the cap, so every recorded
@@ -2170,7 +2196,7 @@ function _buildDebilitiesSection(actor) {
 }
 
 
-function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}) {
+function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0) {
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
 	const hpBonus = moveBonuses.hp ?? 0;
@@ -2181,6 +2207,7 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}) 
 		.withHp(playbookData ? new ValueMax(attrs.hp?.value ?? 0, (playbookData.hp ?? 0) + hpBonus) : new ValueMax(0, 0))
 		.withDamage(damage)
 		.withArmor(armorValue)
+		.withWornArmor(wornArmorBase)
 		.withLevel(level)
 		.withXp(new ValueMax(attrs.xp?.value ?? 0, 6 + level * 2))
 		.build();
@@ -2437,7 +2464,7 @@ function _buildMarkOptions(entry, markCounts) {
 	return { options, budget };
 }
 
-function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}) {
+function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}, actorStats = {}) {
 	const resourceDef = entry.resource;
 	const resource = resourceDef ? new ResourceBuilder()
 		.withCurrent(moveResourcesMap[entry.name] ?? 0)
@@ -2465,6 +2492,19 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 			.filter(Boolean)
 		: null;
 
+	// Owned Improved/Superior Stat instances that were taken but never had a stat chosen
+	// (e.g. a character created before onboarding collected it) silently raise nothing.
+	// Flag them so the card shows the same "needs your input" cue budgeted moves get — but
+	// only when a pick is actually possible (at least one stat still below the cap).
+	const unfilledStatChoices = entry.cap != null
+		? entry.ownedIds.filter(ownedId => !improvedStatChoices[ownedId]).length
+		: 0;
+	// Only cue when a pick is actually possible. `unfilled > 0` already implies cap != null,
+	// and short-circuits the stat scan when there's nothing to fill.
+	const statChoiceNeeded = unfilledStatChoices > 0 && Object.values(actorStats).some(v => v < entry.cap)
+		? { count: unfilledStatChoices, cap: entry.cap }
+		: null;
+
 	return new MoveSnapshotBuilder()
 		.withId(entry.compendiumId)
 		.withCompendiumId(entry.compendiumId)
@@ -2487,8 +2527,11 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withRepeatable(repeat !== null)
 		.withBackgroundAnswer(moveBackgroundAnswers[entry.name] ?? null)
 		.withStatChoices(statChoices)
+		.withStatChoiceNeeded(statChoiceNeeded)
 		.withMarkOptions(markOptions)
 		.withMarkBudget(markBudget)
+		.withMaxLoad(entry.maxLoad)
+		.withRequiresUnarmored(entry.requiresUnarmored)
 		.build();
 }
 

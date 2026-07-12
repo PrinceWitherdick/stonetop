@@ -478,7 +478,7 @@
 		{{/if}}
 		<div class="stonetop-onboarding-cards">
 			{{#each moveOptions}}
-			<label class="stonetop-onboarding-card stonetop-onboarding-card--move{{#if selected}} is-selected{{/if}}"
+			<label class="stonetop-onboarding-card stonetop-onboarding-card--move{{#if selected}} is-selected{{/if}}{{#if statChoice}} stonetop-onboarding-card--stat-move{{/if}}"
 			       data-move-groups="{{#each groups}}{{this}} {{/each}}">
 				<div class="stonetop-onboarding-card-header">
 					<input type="checkbox" class="stonetop-onboarding-check" name="onboard-move" value="{{id}}"
@@ -488,6 +488,24 @@
 				</div>
 				{{#if description}}
 				<div class="stonetop-onboarding-card-desc">{{{description}}}</div>
+				{{/if}}
+				{{#if statChoice}}
+				{{!-- Inline "+1 to which stat?" picker (Improved Stat). stopPropagation keeps a
+				      radio click from also toggling the parent card's checkbox. --}}
+				<div class="stonetop-onboarding-move-stat-picker" onclick="event.stopPropagation()">
+					<span class="stonetop-onboarding-move-stat-label">Increase which stat? <em>(max +{{statChoice.cap}})</em></span>
+					<div class="stonetop-onboarding-appearance-options stonetop-onboarding-move-stat-options">
+						{{#each statChoice.options}}
+						<label class="stonetop-onboarding-appearance-option stonetop-onboarding-move-stat-option{{#if selected}} is-selected{{/if}}{{#if disabled}} is-disabled{{/if}}">
+							<input type="radio" class="onboard-move-stat" name="onboard-move-stat-{{moveId}}"
+							       value="{{key}}" data-move-id="{{moveId}}"
+							       {{#if selected}}checked{{/if}} {{#if disabled}}disabled{{/if}}>
+							{{label}}
+							<span class="stonetop-onboarding-move-stat-delta">{{#if atCap}}{{currentDisplay}} (max){{else}}{{currentDisplay}} &rarr; {{nextDisplay}}{{/if}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
 				{{/if}}
 			</label>
 			{{/each}}
@@ -773,7 +791,24 @@
 				{{#if isTextSection}}
 				<div class="stonetop-onboarding-lore-texts">
 					{{#each options}}
-					<div class="stonetop-onboarding-lore-text-row">
+					<div class="stonetop-onboarding-lore-text-row{{#if isUnlockMark}} stonetop-onboarding-arcana-unlock-row{{/if}}">
+						{{#if isUnlockMark}}{{#if unlockHasTrack}}
+						<div class="stonetop-onboarding-arcana-unlock">
+							<p class="stonetop-onboarding-arcana-unlock-hint">You’ve begun to unlock the mysteries of {{#if majorName}}the {{majorName}}{{else}}your major arcanum{{/if}}. This is the front of its insert — mark 1 below:</p>
+							<div class="stonetop-onboarding-arcana-front-card">
+								<div class="stonetop-onboarding-arcana-front-header">
+									{{#if frontCard.img}}<img class="stonetop-onboarding-arcana-front-thumb" src="{{frontCard.img}}" alt="">{{/if}}
+									<span class="stonetop-onboarding-arcana-front-title">{{frontCard.title}}</span>
+								</div>
+								<div class="stonetop-arcanum-body stonetop-onboarding-arcana-front-body">
+									{{{frontCard.descriptionHtml}}}
+									{{#if frontCard.unlockHtml}}
+									<p class="stonetop-arcanum-unlock-lead">{{{frontCard.unlockHtml}}}</p>
+									{{/if}}
+								</div>
+							</div>
+						</div>
+						{{/if}}{{/if}}
 						<label class="stonetop-onboarding-lore-text-label">{{{description}}}</label>
 						<textarea class="onboard-lore-text"
 						          data-section="{{sectionSlug}}"
@@ -796,6 +831,7 @@
 		<div class="stonetop-onboarding-arcana-picker">
 			<section class="stonetop-onboarding-arcana-section">
 				<h4 class="stonetop-onboarding-lore-section-title">Minor Arcana</h4>
+				<p class="stonetop-onboarding-step-hint">Three minor arcana have been drawn at random below. Hover each to review it, then assign a role: one you've Mastered, one you've Found, and one you have a Lead on.</p>
 				<p class="stonetop-onboarding-lore-counter">
 					<span class="stonetop-onboarding-seeker-minor-count">{{seekerArcanaChoices.minorAssignedCount}}</span>
 					/ {{seekerArcanaChoices.minorPickCount}} assigned
@@ -833,10 +869,7 @@
 		<div class="stonetop-onboarding-combined-lore">
 			{{#each seekerArcanaData.sections}}
 			<section class="stonetop-onboarding-lore-section">
-				<h4 class="stonetop-onboarding-lore-section-title">{{title}}</h4>
-				{{#if description}}
-				<div class="stonetop-onboarding-lore-desc">{{{description}}}</div>
-				{{/if}}
+				{{!-- Header + intro moved up under the picker's "Minor Arcana" heading. --}}
 				{{#if isTextSection}}
 				<div class="stonetop-onboarding-lore-texts">
 					{{#each options}}

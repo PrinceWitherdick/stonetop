@@ -72,5 +72,9 @@ export class PlaybookMoveEntry {
 		this.markBudget = entry.markBudget ?? null;
 		// Cross-playbook foreign-move config ({ playbooks, grantsPossession }); null otherwise.
 		this.crossPlaybook = entry.crossPlaybook ?? null;
+		// Load-gate metadata (see MoveDefinition): heaviest tolerated load tier + unarmored
+		// requirement, surfaced onto the move snapshot for the expedition load readout.
+		this.maxLoad           = entry.maxLoad           ?? "";
+		this.requiresUnarmored = entry.requiresUnarmored ?? false;
 	}
 }

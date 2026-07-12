@@ -233,14 +233,48 @@ export async function onReady() {
 async function _applyCoreSettingDefaultsForNewWorld() {
 	if (getSetting("coreSettingDefaultsApplied")) return;
 
-	// This system setting was added after some worlds already existed. If the
+	// These core defaults were added after some worlds already existed. If the
 	// Stonetop journals have already been seeded, treat the world as established
-	// and mark the migration complete without changing the GM's current preference.
+	// and mark the migration complete without changing the GM's current preferences.
 	if (getSetting("seedingComplete")) {
 		await setSetting("coreSettingDefaultsApplied", true);
 		return;
 	}
 
+	// Best-effort and independent: a failure in one default must not skip the other,
+	// and neither should strand the flag (which would re-run both every load). Each
+	// logs and moves on, then we record that this world's defaults have been applied.
+	await _defaultAllowPlayerActorCreation();
+	await _defaultDisableAutomaticTokenRotation();
+
+	await setSetting("coreSettingDefaultsApplied", true);
+}
+
+// Let players create their own characters from Foundry's "Create Actor" dialog by
+// default. Core ships the ACTOR_CREATE permission as Assistant-GM-and-up only, so
+// without this a player never even sees the sidebar's "Create Actor" button. We add
+// the Player and Trusted Player roles once, on a fresh world, so the GM keeps full
+// control afterward: revoking it under Configure Permissions sticks, because this
+// never runs again. ACTOR_CREATE isn't per-type, so this also lets players create
+// other actor types — the steading singleton and monster-builder preCreateActor
+// hooks (StonetopSingleton.js) already guard those paths.
+async function _defaultAllowPlayerActorCreation() {
+	try {
+		const R = CONST.USER_ROLES;
+		const permissions = foundry.utils.deepClone(game.settings.get("core", "permissions") ?? {});
+		// A missing key means core's computed default applies (every role at or above
+		// the permission's defaultRole); mirror that so we EXTEND the real default
+		// rather than clobber the other roles. See PermissionConfig#preparePermissions.
+		const current = permissions.ACTOR_CREATE
+			?? Array.fromRange(R.GAMEMASTER + 1).slice(CONST.USER_PERMISSIONS.ACTOR_CREATE.defaultRole);
+		permissions.ACTOR_CREATE = Array.from(new Set([...current, R.PLAYER, R.TRUSTED])).sort((a, b) => a - b);
+		await game.settings.set("core", "permissions", permissions);
+	} catch (err) {
+		console.warn("Stonetop | Could not grant players actor-creation permission for this new world.", err);
+	}
+}
+
+async function _defaultDisableAutomaticTokenRotation() {
 	const settingKey = _findAutomaticTokenRotationSettingKey();
 	if (!settingKey) {
 		console.warn("Stonetop | Could not find Foundry's Automatic Token Rotation setting; leaving it unchanged.");
@@ -251,7 +285,6 @@ async function _applyCoreSettingDefaultsForNewWorld() {
 		if (game.settings.get("core", settingKey) !== false) {
 			await game.settings.set("core", settingKey, false);
 		}
-		await setSetting("coreSettingDefaultsApplied", true);
 	} catch (err) {
 		console.warn("Stonetop | Could not disable Automatic Token Rotation for this new world.", err);
 	}
