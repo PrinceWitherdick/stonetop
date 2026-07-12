@@ -22,7 +22,6 @@ import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filte
 import {wireTabSearch} from "../../utils/tab-search.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
-import {StonetopArcanaInspireDialog} from "../../item/StonetopArcanaInspireDialog.js";
 import {rollDamage, rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
 import {defendReadinessHold} from "../../combat/defend-readiness.js";
 import {dieFromDamage} from "../../utils/damage.js";
@@ -42,6 +41,7 @@ import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {annotateInvocationEffects} from "./invocation-effects.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
+import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
@@ -53,17 +53,6 @@ import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} fro
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
-
-// A GM may always author; a non-GM may only when the world hasn't flipped the given
-// "GM-only" setting. Shared by the custom-move and homebrew-arcana authoring gates.
-function gmOnlyGate(gmOnlySettingKey) {
-	if (game.user?.isGM) return true;
-	return !game.settings.get("stonetop_pwd", gmOnlySettingKey);
-}
-
-// Whether the current user may author custom moves / homebrew arcana.
-function canAuthorCustomMoves() { return gmOnlyGate("customMovesGmOnly"); }
-function canCreateArcana()      { return gmOnlyGate("arcanaCreationGmOnly"); }
 
 // Playbook moves that let a character roll a different stat for a basic move. When
 // the actor owns `ownsMove`, the basic move named `whenMove` (or, for blanket
@@ -1051,13 +1040,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.possessionsEdit = sectionEdit("possessions");
 			context.stonetop.invocationsEdit = sectionEdit("invocations");
 			// The two Arcana sections (Major / Minor) each get their own pencil, like every
-			// other section. `arcanaAnyEdit` drives the shared "Create arcanum" bar at the top
-			// of the tab, so pencilling either section surfaces the creation controls.
+			// other section. The per-tier "Create arcanum" buttons live at the foot of their
+			// own section (gated on canCreateArcana, in and out of edit mode) — see tab-arcana.hbs.
 			context.stonetop.arcanaEdit = {
 				major: sectionEdit("arcanaMajor"),
 				minor: sectionEdit("arcanaMinor"),
 			};
-			context.stonetop.arcanaAnyEdit = context.stonetop.arcanaEdit.major || context.stonetop.arcanaEdit.minor;
 			context.stonetop.followersEdit   = sectionEdit("followers");
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
@@ -1198,6 +1186,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					item.frontVisible      = !backOnly;
 					item.backVisible       = spread || backOnly;
 					item.isSpread          = item.identified && spread;
+					// Surface the back's Consequences onto the front (Hec'tumel / Redwood) only
+					// when the front is the sole visible side — in a spread or a back-only flip the
+					// back panel already carries the section, so we don't want a second copy. The
+					// snapshot only sets item.consequences for the front-referencing cards.
+					item.showFrontConsequences = !!item.consequences && item.frontVisible && !item.backVisible;
 					item.revealedToPlayers = revealed;
 					// The GM's reveal toggle only matters in secretive mode (setting off) for a
 					// still-LOCKED back: an unlocked back is already seen by its owner, and with
@@ -1236,7 +1229,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.canAuthorLoveLetters = game.user.isGM;
 			// Creating homebrew arcana can be restricted to the GM independently of
 			// custom moves (arcanaCreationGmOnly). When restricted, players don't see
-			// the create bar / inspiration wizard, but still edit cards they own.
+			// the per-tier "Create arcanum" buttons, but still edit cards they own.
 			context.stonetop.canCreateArcana = canCreateArcana();
 			const { xp } = context.stonetop.vitals;
 			context.stonetop.canLevelUp = xp.value >= xp.max;
@@ -2428,17 +2421,21 @@ export function createStonetopCharacterSheetClass(Base) {
 				wrapStonetopGlyphsInEl(el);
 			});
 
-			// Fold the long, secondary "Consequences" section on each major arcanum's
-			// reverse behind a collapsible heading (like the basic-moves sidebar groups),
-			// defaulting to collapsed. The section lives inside the card's authored back
-			// HTML, so we wrap it at render time: the <h3>Consequences</h3> becomes a
-			// clickable summary and everything after it (until the next heading) folds
-			// into the body. Expanded state is per-user/per-actor and persisted, so
-			// marking a consequence — which re-renders the sheet — doesn't refold it.
-			// Runs before the masonry below so cards are measured at their folded height.
-			html[0].querySelectorAll(".stonetop-arcanum-side--back .stonetop-arcanum-body").forEach(body => {
+			// Fold the long, secondary "Consequences" section behind a collapsible heading
+			// (like the basic-moves sidebar groups), defaulting to collapsed. It lives inside
+			// the card's authored back HTML, so we wrap it at render time: the
+			// <h3>Consequences</h3> becomes a clickable summary and everything after it (until
+			// the next heading) folds into the body. Expanded state is per-user/per-actor and
+			// persisted, so marking a consequence — which re-renders the sheet — doesn't refold
+			// it. This runs on the BACK body, and also on the FRONT body of the cards that
+			// surface their Consequences there (Hec'tumel / Redwood — see showFrontConsequences);
+			// the front-only view and the spread's back panel are mutually exclusive, so the same
+			// `${slug}:consequences` fold id is never in the DOM twice at once. Runs before the
+			// masonry below so cards are measured at their folded height.
+			html[0].querySelectorAll(".stonetop-arcanum-side--back .stonetop-arcanum-body, .stonetop-arcanum-side--front .stonetop-arcanum-body").forEach(body => {
 				const slug = body.closest(".stonetop-arcanum-card")?.dataset.slug;
 				if (!slug) return;
+				const isFront = !!body.closest(".stonetop-arcanum-side--front");
 				// Fold stops at the next heading or at template-appended siblings (the back
 				// move trigger / "Add as follower" button that follow the authored HTML),
 				// so folding the last section never swallows them.
@@ -2447,6 +2444,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					n.classList.contains("stonetop-arcanum-move-trigger") ||
 					n.classList.contains("stonetop-arcanum-summon")
 				);
+				let foldedConsequences = false;
 				for (const heading of [...body.children].filter(n => n.tagName === "H3")) {
 					if (heading.textContent.trim().toLowerCase() !== "consequences") continue;
 
@@ -2475,6 +2473,22 @@ export function createStonetopCharacterSheetClass(Base) {
 					summary.appendChild(heading);      // move the heading into the summary
 					bodyNodes.forEach(n => foldBody.appendChild(n));
 					fold.append(summary, foldBody);
+					foldedConsequences = true;
+				}
+
+				// With the section now surfaced below the front text, the front's own pointer
+				// "mark a consequence (see reverse)" should read "(see below)". Only rewrite when
+				// the fold is actually present (front-only view); in a spread the front keeps
+				// "(see reverse)" pointing at the visible back panel. Scoped to the description
+				// prose so the unlock's "(see reverse)" pointers (to spells / named moves) are
+				// left alone.
+				if (isFront && foldedConsequences) {
+					const walker = body.ownerDocument.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+					for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+						if (!node.nodeValue.includes("(see reverse)")) continue;
+						if (node.parentElement?.closest(".stonetop-arcanum-unlock-lead, .stonetop-arcanum-unlock-list, .stonetop-arcanum-foldable")) continue;
+						node.nodeValue = node.nodeValue.replace(/\(see reverse\)/g, "(see below)");
+					}
 				}
 			});
 
@@ -2709,6 +2723,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 			html[0].addEventListener("click", openMovesEditFromHand, true);
 			html[0].addEventListener("keydown", openMovesEditFromHand, true);
+
+			// The stat-choice hand on an Improved/Superior Stat card whose stat was never
+			// chosen: open the +1 picker straight away for the first unfilled owned instance
+			// (a repeatable move can have several). Distinct from the budgeted-move hand above
+			// because there's no on-card control to pick a stat — it needs the dialog.
+			const fillStatChoiceFromHand = async ev => {
+				const hand = ev.target.closest(".stonetop-move-stat-choice-needed");
+				if (!hand) return;
+				if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				const itemId = hand.closest("[data-item-id]")?.dataset.itemId;
+				const item = itemId ? this.actor.items.get(itemId) : null;
+				if (!item) return;
+				const choices = this.actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {};
+				const unfilled = this.actor.items.find(i =>
+					i.type === "move" && i.name === item.name && i.system?.cap != null && !choices[i.id]);
+				if (unfilled) await this._promptFillStatIncrease(unfilled);
+			};
+			html[0].addEventListener("click", fillStatChoiceFromHand, true);
+			html[0].addEventListener("keydown", fillStatChoiceFromHand, true);
 
 			// Followers tab: per-card, per-section edit pencils. Same per-section toggle
 			// mechanism, keyed on `follower-<section>:<ftype>:<slug>`; opening a text
@@ -3647,6 +3682,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, true);
 
 			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-discover-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				const { slug } = btn.dataset;
+				Dialog.confirm({
+					title: game.i18n.localize("stonetop.arcana.discoverTitle"),
+					content: `<p>${game.i18n.localize("stonetop.arcana.discoverConfirm")}</p>`,
+					yes: () => this._stonetopCharacter.discoverArcanum(slug).then(() => this.render(false)),
+					render: bringDialogToFront,
+					options: { classes: ["dialog", "stonetop"] },
+				});
+			}, true);
+
+			html[0].addEventListener("click", ev => {
 				const thumb = ev.target.closest(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img");
 				if (!thumb) return;
 				ev.stopPropagation();
@@ -3757,12 +3806,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!btn) return;
 				ev.stopPropagation();
 				this._onArcanaCreate(btn.dataset.major === "true");
-			}, true);
-
-			html[0].addEventListener("click", ev => {
-				if (!ev.target.closest(".stonetop-arcana-inspire")) return;
-				ev.stopPropagation();
-				this._onArcanaInspire();
 			}, true);
 
 			html[0].addEventListener("change", ev => {
@@ -4367,7 +4410,15 @@ export function createStonetopCharacterSheetClass(Base) {
 		// mysteriously checked with no stat bumped. Offer the stats still below the move's cap;
 		// picking one records + applies it (the "+1 STR" chip then renders). Closing without a
 		// pick un-ticks the box (removeMove), since a stat move with no choice does nothing.
-		async _maybePromptStatIncrease(addedItem) {
+		// Fill in the stat for an ALREADY-OWNED Improved/Superior Stat instance that never
+		// had one chosen (a character imported/created before onboarding collected it — the
+		// move-card "needs your input" hand routes here). Reuses the picker but must NOT
+		// delete the move on cancel: the player already owns it, they're just completing it.
+		async _promptFillStatIncrease(item) {
+			return this._maybePromptStatIncrease(item, { removeOnCancel: false });
+		}
+
+		async _maybePromptStatIncrease(addedItem, { removeOnCancel = true } = {}) {
 			if (!addedItem) return;
 			const cap = addedItem.system?.cap ?? null;
 			if (cap == null) return; // not a stat-increase move
@@ -4375,7 +4426,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const eligible = _STAT_CHOICES.filter(([key]) => (stats[key]?.value ?? 0) < cap);
 			if (!eligible.length) {
 				ui.notifications?.warn(`${addedItem.name}: every stat is already at the maximum (+${cap}).`);
-				await this._stonetopCharacter.removeMove(addedItem.id);
+				if (removeOnCancel) await this._stonetopCharacter.removeMove(addedItem.id);
 				return;
 			}
 			const maxed = _STAT_CHOICES
@@ -4401,8 +4452,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				content: `<p>Choose one stat to raise by +1 (max +${cap}).</p>${note}`,
 				buttons,
 				render:  bringDialogToFront,
-				// Closed without choosing (window ✕) → treat it like the box was never ticked.
-				close:   async () => { if (!picked) await this._stonetopCharacter.removeMove(addedItem.id); },
+				// Closed without choosing (window ✕): for a freshly-ticked box, treat it as never
+				// ticked (remove); for an existing owned move being filled in, just leave it be.
+				close:   async () => { if (!picked && removeOnCancel) await this._stonetopCharacter.removeMove(addedItem.id); },
 			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-stat-picker-dialog"] }).render(true);
 		}
 
@@ -4854,15 +4906,6 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _onArcanaCreate(major = false) {
 			if (!this.isEditable || !canCreateArcana()) return;
 			await this._createAndAddArcanum({ name: major ? "New Major Arcanum" : "New Minor Arcanum", major });
-		}
-
-		// Open the Artifact Creation inspiration wizard; on finish it opens a card pre-filled
-		// with the rolled results in the editor as a draft, added on Save & Done.
-		_onArcanaInspire() {
-			if (!this.isEditable || !canCreateArcana()) return;
-			new StonetopArcanaInspireDialog({
-				onCreate: ({ name, major, front }) => this._createAndAddArcanum({ name, major, front }),
-			}).render(true);
 		}
 
 		// Create a homebrew arcanum world Item (optionally pre-filled) and open its editor as a
@@ -5652,6 +5695,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					minorRoles: foundry.utils.deepClone(
 						f.arcana?.minorRoles ?? { mastered: "", found: "", lead: "" }
 					),
+					// Stamp majorMarksFor to the restored major so getData keeps these marks
+					// instead of re-defaulting them (it only resets when the major changes).
+					majorMarks:    [...(f.arcana?.majorMarks ?? [])],
+					majorMarksFor: majorArcanum,
 				},
 			};
 		}
@@ -5775,6 +5822,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			for (const compendiumId of (selections.moves ?? [])) {
 				await this._stonetopCharacter.addMove(compendiumId, { skipIfOwned: true });
+				// A stat-increase move picked at creation (the Would-Be Hero's Improved Stat)
+				// carries a "+1 to which stat?" choice made in onboarding — apply it against the
+				// owned instance (freshly added or already present), bumping the chosen stat and
+				// recording the pick exactly as the level-up path does. This must NOT gate on
+				// addMove's return: on a re-run the move is already owned (addMove returns null)
+				// and the base-stat write above just reset the stat, so gating there would drop
+				// the +1. applyCreationStatChoice is idempotent (base reset first, +1 capped).
+				await this._stonetopCharacter.applyCreationStatChoice(
+					compendiumId, selections.moveStatChoices?.[compendiumId],
+				);
 			}
 			// "Either X OR Y" starting-move choices (e.g. the Heavy's Armored OR
 			// Uncanny Reflexes) — ensureStartingMoves skips these, so add the picks and
@@ -5818,15 +5875,31 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Seeker arcana
 			const masteredMinor = selections.arcana?.minorRoles?.mastered ?? null;
 			const foundMinor    = selections.arcana?.minorRoles?.found    ?? null;
+			const leadMinor     = selections.arcana?.minorRoles?.lead     ?? null;
 			for (const slug of [selections.arcana?.major, masteredMinor, foundMinor].filter(Boolean)) {
 				await this._stonetopCharacter.addArcanum(slug);
 				await this._stonetopCharacter.identifyArcanum(slug);
+			}
+			// "You've begun to unlock the mysteries of your major arcanum" — mark the ○
+			// circles / □ tasks the player ticked in onboarding onto the actual card
+			// (majorMarks holds "<context>:<index>" keys matching the sheet's boxes).
+			if (selections.arcana?.major) {
+				for (const key of (selections.arcana.majorMarks ?? [])) {
+					const [context, indexStr] = String(key).split(":");
+					const index = Number(indexStr);
+					if (context && Number.isInteger(index)) {
+						await this._stonetopCharacter.setArcanumBoxChecked(selections.arcana.major, context, index, true);
+					}
+				}
 			}
 			// The Seeker's mastered minor begins play already realized: fully unlock it so it
 			// carries its back item and shows its back to the owner. The carried side and back
 			// visibility now follow the unlock state (the manual flip was retired), so identify
 			// alone would leave a mastered card reading as a locked, front-only curio.
 			if (masteredMinor) await this._stonetopCharacter.masterArcanum(masteredMinor);
+			// The Lead minor isn't in hand yet: add it as a lead card (owned but un-identified)
+			// so it shows on the arcana tab as a placeholder the player can later mark discovered.
+			if (leadMinor) await this._stonetopCharacter.addLead(leadMinor);
 
 			if (Object.keys(flagUpd).length) await this.actor.update(flagUpd);
 			await this._applyBackgroundNeighbors(backgroundSetup, selections);
@@ -5940,6 +6013,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (selections.arcana?.major)            flagUpd[f("arcana.major")]      = selections.arcana.major;
 			if (selections.arcana?.minorDraw?.length) flagUpd[f("arcana.minorDraw")] = selections.arcana.minorDraw;
 			if (selections.arcana?.minorRoles)        flagUpd[f("arcana.minorRoles")] = selections.arcana.minorRoles;
+			if (selections.arcana?.majorMarks?.length) flagUpd[f("arcana.majorMarks")] = selections.arcana.majorMarks;
 
 			return { flagUpd, selectedBackground, backgroundSetup };
 		}

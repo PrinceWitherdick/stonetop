@@ -6,6 +6,7 @@ export async function runStartupMigrations() {
 	if (!game.user.isGM) return;
 	await _ensureAllCharacterMoves().catch(error);
 	await _ensureAllPossessionGrants().catch(error);
+	await _ensureAllSeekerLeadCards().catch(error);
 }
 
 async function _ensureAllCharacterMoves() {
@@ -23,5 +24,15 @@ async function _ensureAllPossessionGrants() {
 	for (const actor of game.actors) {
 		if (actor.type !== "character") continue;
 		await actor.typedActor?.ensurePossessionGrants?.();
+	}
+}
+
+// Back-fill the lead card for Seekers created before that feature: their onboarding "Lead"
+// arcana pick was stored only as a role and never rendered. Runs once per character (guarded
+// by a per-actor flag), so a lead the player later discovers or removes is never resurrected.
+async function _ensureAllSeekerLeadCards() {
+	for (const actor of game.actors) {
+		if (actor.type !== "character") continue;
+		await actor.typedActor?.ensureSeekerLeadCard?.();
 	}
 }

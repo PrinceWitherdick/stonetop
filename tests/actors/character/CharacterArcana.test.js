@@ -166,6 +166,26 @@ describe("CharacterArcana.buildSnapshot()", () => {
 		});
 	});
 
+	describe("lead state", () => {
+		it("lead is false for an owned card not in the leads flag", async () => {
+			const snap = await makeArcana({ owned: ["huge-wooden-sphere"] }).buildSnapshot();
+			expect(snap.minor.items[0].lead).toBe(false);
+		});
+
+		it("lead is true for an owned slug in the leads flag", async () => {
+			const snap = await makeArcana({ owned: ["huge-wooden-sphere"], leads: ["huge-wooden-sphere"] }).buildSnapshot();
+			expect(snap.minor.items[0].lead).toBe(true);
+		});
+
+		it("identified wins: a slug that is both a lead and identified is not a lead", async () => {
+			const snap = await makeArcana({
+				owned: ["huge-wooden-sphere"], leads: ["huge-wooden-sphere"], identified: ["huge-wooden-sphere"],
+			}).buildSnapshot();
+			expect(snap.minor.items[0].lead).toBe(false);
+			expect(snap.minor.items[0].identified).toBe(true);
+		});
+	});
+
 	describe("unlocked state", () => {
 		it("unlocked is true when there are no trackable requirements", async () => {
 			const arcanum = { ...FFYRNIG_SPHERE, front: { ...FFYRNIG_SPHERE.front, unlock: { description: "Unlock by…", requirements: [] } } };
@@ -386,6 +406,79 @@ describe("CharacterArcana.buildSnapshot()", () => {
 		});
 	});
 
+	// The back's "Consequences" section is surfaced onto the front for cards whose front text
+	// points at it ("mark a consequence (see reverse)") — Hec'tumel Codex, Redwood Effigy — so a
+	// player can read/mark it without unlocking the reverse.
+	describe("surfaced front consequences", () => {
+		// Front references consequences; the back has a "Moves" section (with its own □) BEFORE
+		// the "Consequences" section, plus a nested consequence, so we can verify the slice both
+		// starts at the heading and keeps the back's own checkbox indices.
+		const CONSEQUENCE_CARD = {
+			slug: "consequence-card",
+			front: {
+				title: "Consequence Card",
+				item: null,
+				description: "<p><strong>on a 6-</strong>, mark a consequence (see reverse) in addition to whatever the GM says.</p>",
+				unlock: { description: "○○○ Gain the Big Move (see reverse).", requirements: [] },
+			},
+			back: {
+				title: "Mysteries",
+				item: null,
+				description: "<h3>Moves</h3><p>□ THE BIG MOVE. Does a thing.</p><h3>Consequences</h3><ul><li>□ Your skin turns blue.</li><li>□ You grow a tail.<ul><li>□ The tail is prehensile.</li></ul></li></ul>",
+				resource: null, move: null, options: [],
+			},
+		};
+
+		const buildItem = (card, flagStore = {}) =>
+			new CharacterArcana(makeFlags({ owned: [card.slug], ...flagStore }), new FakeArcanaRepository([card]))
+				.buildSnapshot().then(s => s.minor.items[0]);
+
+		it("consequences is the sliced Consequences section, not the preceding Moves section", async () => {
+			const { consequences } = await buildItem(CONSEQUENCE_CARD);
+			expect(consequences).toContain("<h3>Consequences</h3>");
+			expect(consequences).toContain("Your skin turns blue");
+			expect(consequences).toContain("The tail is prehensile");   // nested <li> kept
+			expect(consequences).not.toContain("THE BIG MOVE");
+			expect(consequences).not.toContain("<h3>Moves</h3>");
+		});
+
+		it("consequence boxes carry the back's own (context, index) so state is shared", async () => {
+			const { consequences, back } = await buildItem(CONSEQUENCE_CARD);
+			// The Moves □ is back index 0; the three consequence □ follow as 1, 2, 3.
+			expect(back.description).toContain('data-context="back" data-index="0"');   // Moves box
+			expect(consequences).toContain('data-context="back" data-index="1"');       // first consequence
+			expect(consequences).toContain('data-context="back" data-index="3"');       // nested consequence
+			expect(consequences).not.toContain('data-index="0"');                       // Moves box excluded
+			expect((consequences.match(/type="checkbox"/g) ?? []).length).toBe(3);
+		});
+
+		it("checked consequence state reflects the shared back boxes flag", async () => {
+			const { consequences } = await buildItem(CONSEQUENCE_CARD, { boxes: { "consequence-card:back:1": true } });
+			expect(consequences).toContain('data-index="1" checked');
+			expect(consequences).toContain('data-index="2">');   // untouched box stays unchecked
+		});
+
+		it("does not rewrite the front description in the snapshot (the '(see below)' swap is render-time)", async () => {
+			const { front } = await buildItem(CONSEQUENCE_CARD);
+			expect(front.description).toContain("(see reverse)");
+		});
+
+		it("consequences is null when the front does not reference consequences", async () => {
+			const noRef = { ...CONSEQUENCE_CARD, slug: "no-ref", front: { ...CONSEQUENCE_CARD.front, description: "<p>Just flavor. On a 6-, mark 1:</p>" } };
+			expect((await buildItem(noRef)).consequences).toBeNull();
+		});
+
+		it("consequences is null when the back Consequences section is a pointer stub (no list)", async () => {
+			const stub = { ...CONSEQUENCE_CARD, slug: "stub", back: { ...CONSEQUENCE_CARD.back, description: "<h3>Moves</h3><p>stuff</p><h3>Consequences</h3>See above." } };
+			expect((await buildItem(stub)).consequences).toBeNull();
+		});
+
+		it("consequences is null when the back has no Consequences section", async () => {
+			const noSection = { ...CONSEQUENCE_CARD, slug: "no-section", back: { ...CONSEQUENCE_CARD.back, description: "<h3>Moves</h3><p>□ THE BIG MOVE.</p>" } };
+			expect((await buildItem(noSection)).consequences).toBeNull();
+		});
+	});
+
 	describe("back options", () => {
 		function makeWithOpts(flagStore = {}) {
 			return new CharacterArcana(
@@ -463,6 +556,93 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			expect(store.unlock).toEqual({ "other-slug:a": 2 });
 			expect(store.boxes).toEqual({ "other-slug:back:0": true });
 			expect(store.backOptions).toEqual({ "other-slug:x": 1 });
+		});
+
+		it("addLead adds the slug to both owned and leads", async () => {
+			const flags = makeFlags();
+			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
+			await arcana.addLead("some-slug");
+			expect(flags.setFlag).toHaveBeenCalledWith("owned", ["some-slug"]);
+			expect(flags.setFlag).toHaveBeenCalledWith("leads", ["some-slug"]);
+		});
+
+		it("addLead preserves already-owned slugs", async () => {
+			const store = { owned: ["other-slug"] };
+			const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
+			await arcana.addLead("some-slug");
+			expect(store.owned).toEqual(["other-slug", "some-slug"]);
+			expect(store.leads).toEqual(["some-slug"]);
+		});
+
+		it("addLead arms the backfill guard so a later-removed lead isn't resurrected", async () => {
+			// Onboarding materializes the lead card via addLead; setting leadBackfilled here means
+			// a subsequent removeArcanum + world reload won't have ensureLeadBackfill re-add it.
+			const store = {};
+			const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
+			await arcana.addLead("some-slug");
+			expect(store.leadBackfilled).toBe(true);
+		});
+
+		it("discoverArcanum drops the lead marker and identifies the slug", async () => {
+			const store = { owned: ["some-slug"], leads: ["some-slug"] };
+			const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
+			await arcana.discoverArcanum("some-slug");
+			expect(store.leads).toEqual([]);
+			expect(store.identified).toEqual(["some-slug"]);
+			expect(store.owned).toEqual(["some-slug"]);
+		});
+
+		it("discoverArcanum is a no-op for a slug that isn't a lead", async () => {
+			const flags = makeFlags({ owned: ["some-slug"], identified: ["some-slug"] });
+			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
+			await arcana.discoverArcanum("some-slug");
+			expect(flags.setFlag).not.toHaveBeenCalled();
+		});
+
+		it("removeArcanum clears the leads flag", async () => {
+			const store = { owned: ["some-slug", "other-slug"], leads: ["some-slug", "other-slug"] };
+			const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
+			await arcana.removeArcanum("some-slug");
+			expect(store.leads).toEqual(["other-slug"]);
+		});
+
+		describe("ensureLeadBackfill (one-time Seeker backfill)", () => {
+			it("adds the Lead-role slug as a lead card and marks the backfill applied", async () => {
+				const store = { minorRoles: { mastered: "m", found: "f", lead: "some-slug" } };
+				const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
+				await arcana.ensureLeadBackfill();
+				expect(store.owned).toEqual(["some-slug"]);
+				expect(store.leads).toEqual(["some-slug"]);
+				expect(store.leadBackfilled).toBe(true);
+			});
+
+			it("is a no-op once the backfill flag is set (never resurrects a removed card)", async () => {
+				// Player already discovered then removed the lead: not owned, flag already set.
+				const store = { minorRoles: { lead: "some-slug" }, leadBackfilled: true };
+				const flags = makeFlags(store);
+				const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
+				await arcana.ensureLeadBackfill();
+				expect(store.owned).toBeUndefined();
+				expect(store.leads).toBeUndefined();
+				expect(flags.setFlag).not.toHaveBeenCalled();
+			});
+
+			it("does nothing for a character with no Lead pick (non-Seeker)", async () => {
+				const flags = makeFlags({});
+				const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
+				await arcana.ensureLeadBackfill();
+				expect(flags.setFlag).not.toHaveBeenCalled();
+			});
+
+			it("marks applied without re-adding when the Lead slug is already owned", async () => {
+				// e.g. the player already discovered it (owned + identified) before the backfill runs.
+				const store = { minorRoles: { lead: "some-slug" }, owned: ["some-slug"], identified: ["some-slug"] };
+				const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
+				await arcana.ensureLeadBackfill();
+				expect(store.owned).toEqual(["some-slug"]);
+				expect(store.leads).toBeUndefined();
+				expect(store.leadBackfilled).toBe(true);
+			});
 		});
 
 		it("revealArcanum adds slug to revealed flag", async () => {
@@ -662,6 +842,18 @@ describe("CharacterArcana.weightedInventoryItems() — carried side follows unlo
 		// huge-wooden-sphere is a non-carriable place (CONCEPT_ARCANA_SLUGS); its weightless
 		// front is a huge, immobile, half-buried sphere and contributes nothing to inventory.
 		const arcana = new CharacterArcana(makeFlags(LOCKED), new FakeArcanaRepository([FFYRNIG_SPHERE]));
+		const items = await arcana.weightedInventoryItems();
+		expect(items).toHaveLength(0);
+	});
+
+	it("excludes an un-recovered lead card's curio from the inventory", async () => {
+		// A lead is owned (so it renders on the arcana tab) but not yet recovered, so its curio
+		// isn't in the party's packs — it must not leak into the Inventory/Outfit list or count
+		// toward load. Once discovered (dropped from leads) it flows through normally.
+		const arcana = new CharacterArcana(
+			makeFlags({ owned: ["huge-wooden-sphere"], leads: ["huge-wooden-sphere"] }),
+			new FakeArcanaRepository([WEIGHTED_FRONT_SPHERE]),
+		);
 		const items = await arcana.weightedInventoryItems();
 		expect(items).toHaveLength(0);
 	});

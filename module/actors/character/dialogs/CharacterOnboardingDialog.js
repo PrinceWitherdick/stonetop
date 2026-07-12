@@ -5,7 +5,9 @@ import { markQuestionBullets } from "../../../utils/question-bullets.js";
 import { FrontOnOpen, openJournalSheetAsChild } from "../../../utils/front-on-open.js";
 import { shuffle } from "../../../utils/arrays.js";
 import { normalizePlaybookGlyphs, composeInstinct, parseInstinct } from "../../../utils/strings.js";
-import { wrapStonetopGlyphsInEl } from "../../../utils/glyphs.js";
+import { STAT_KEYS } from "../../../utils/roll-types.js";
+import { sign } from "../../../utils/roll-engine.js";
+import { wrapStonetopGlyphsInEl, centerArcanumTracks } from "../../../utils/glyphs.js";
 import { enrichMoveRefsInEl } from "../../../utils/move-refs.js";
 import { faqForStep, faqPage } from "../../../utils/onboarding-faq.js";
 import { markFaqItems } from "../../../utils/faq-bullets.js";
@@ -184,13 +186,24 @@ export class CharacterOnboardingDialog extends Application {
 			// "Either X OR Y" starting-move picks, keyed by choice-group index → the
 			// chosen move's compendium id (e.g. the Heavy's Armored OR Uncanny Reflexes).
 			moveChoices:     {},
+			// Which stat a chosen stat-increase move (cap != null) will raise, keyed by the
+			// move's compendium id. Only the Would-Be Hero meets one at creation — Improved
+			// Stat is among its "2 other moves of your choice" — so without this the pick
+			// would grant the move but silently bump nothing. Keyed by compendium id (the
+			// owned item id doesn't exist yet); applied via _applyStatIncreaseChoice.
+			moveStatChoices: {},
 			invocations:     [],
 			initiates:       [],
 			initiateDetails: {},
 			crew:            { name: "", tags: [], instinct: "", cost: "" },
 			animalCompanion: { type: "", kind: "", traits: [], name: "", instinct: "", cost: "" },
 			lore:            { picks: {}, texts: {} },
-			arcana:          { major: "", minorDraw: [], minorRoles: { mastered: "", found: "", lead: "" } },
+			// majorMarks: which "mysteries" markers on the front of the chosen major
+			// arcanum's insert the Seeker has begun to unlock — an array of
+			// "<context>:<index>" keys (the same box-flag suffix the live sheet uses).
+			// majorMarksFor tracks the slug those marks belong to, so switching the major
+			// resets to the rule default (1 ○ circle marked, or none for □-task arcana).
+			arcana:          { major: "", minorDraw: [], minorRoles: { mastered: "", found: "", lead: "" }, majorMarks: [], majorMarksFor: "" },
 			backgroundChoices: {},
 			backgroundSetup: { choices: {}, texts: {}, neighborTraits: {}, neighborPicks: {} },
 			// Slugs of the background's level-gated markable actions marked during
@@ -735,6 +748,11 @@ export class CharacterOnboardingDialog extends Application {
 					slug,
 					name:        this._normalizeOnboardingText(doc.name ?? flags.front?.title ?? slug),
 					description: this._firstParagraph(flags.front?.description ?? ""),
+					// Raw front + unlock HTML kept so the Seeker's "begin to unlock the
+					// mysteries" step can surface the chosen major's markable ○ circles / □
+					// tasks (see _seekerMajorMysteryTrack).
+					frontDescription:  flags.front?.description ?? "",
+					unlockDescription: flags.front?.unlock?.description ?? "",
 					img:         doc.img && doc.img !== "icons/svg/item-bag.svg" ? doc.img : null,
 					isMajor:     isMajorArcana(slug),
 				}];
@@ -771,6 +789,101 @@ export class CharacterOnboardingDialog extends Application {
 		};
 	}
 
+	// The "mysteries" progression on the front of a major arcanum's insert that the Seeker
+	// has "begun to unlock" at creation. Most majors track this with a run of ○ unlock
+	// circles; a couple (the Mindgem, the Twisted Spear) have no circles and instead gate
+	// their mysteries behind □ tasks in the front description. Returns { kind, markers },
+	// each marker carrying the box-flag { context, index } it persists under (and, for □
+	// tasks, its label) so the same key round-trips to the live sheet's arcana boxes.
+	_seekerMajorMysteryTrack(option) {
+		if (!option) return { kind: null, markers: [] };
+		const circleCount = (String(option.unlockDescription ?? "").match(/○/g) || []).length;
+		if (circleCount > 0) {
+			return {
+				kind: "circle",
+				markers: Array.from({ length: circleCount }, (_, index) => ({ context: "unlock", index })),
+			};
+		}
+		const boxes = this._frontTaskBoxes(option.frontDescription);
+		if (boxes.length) {
+			return { kind: "box", markers: boxes.map(box => ({ context: "front", index: box.index, label: box.label })) };
+		}
+		return { kind: null, markers: [] };
+	}
+
+	// Each □ in a front description, in document order, paired with its task text — indices
+	// match CharacterArcana._injectMarkers' "front" context (which replaces every □ in the
+	// full front HTML in order), so a mark set here lands on the right box on the sheet.
+	_frontTaskBoxes(html) {
+		const div = document.createElement("div");
+		div.innerHTML = String(html ?? "");
+		const boxes = [];
+		let index = 0;
+		const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
+		let node;
+		while ((node = walker.nextNode())) {
+			const count = (node.textContent.match(/□/g) || []).length;
+			if (!count) continue;
+			const li    = node.parentElement?.closest("li");
+			const label = this._normalizeOnboardingText((li?.textContent ?? node.textContent).replace(/□/g, "").trim());
+			for (let i = 0; i < count; i++) boxes.push({ index: index++, label });
+		}
+		return boxes;
+	}
+
+	// Keep _selections.arcana.majorMarks consistent with the chosen major's track. Same
+	// arcanum → preserve the player's marks (dropping any key the track no longer has);
+	// changed arcanum (or first visit) → reset to the rule default: 1 circle marked for
+	// an unlock-circle track, none for a □-task arcanum ("mark 1 ○" needs a ○ to mark).
+	_reconcileSeekerMajorMarks(track) {
+		const arcana    = this._selections.arcana;
+		const validKeys = new Set(track.markers.map(marker => `${marker.context}:${marker.index}`));
+		if (arcana.majorMarksFor === arcana.major) {
+			arcana.majorMarks = arcana.majorMarks.filter(key => validKeys.has(key));
+			return;
+		}
+		arcana.majorMarksFor = arcana.major;
+		arcana.majorMarks = track.kind === "circle" && track.markers.length
+			? [`${track.markers[0].context}:${track.markers[0].index}`]
+			: [];
+	}
+
+	// Render data for the chosen major arcanum's actual card front, so the Seeker sees
+	// what they're marking rather than a bare row of circles. Mirrors the live sheet's
+	// front pipeline: the front prose (□ tasks made markable, context "front") and the
+	// unlock "mysteries" lead (○ circles made markable, context "unlock"). The injected
+	// checkboxes carry the same slug:context:index identity the sheet uses, so a mark made
+	// here round-trips to that arcanum's arcana.boxes on the finished character.
+	_seekerMajorFrontCard(option, marked) {
+		if (!option) return null;
+		const slug = this._selections.arcana.major;
+		return {
+			img:   option.img ?? null,
+			title: option.name,
+			descriptionHtml: this._injectSeekerMarks(
+				centerArcanumTracks(option.frontDescription), slug, "front", "stonetop-arcanum-box", /□/g, marked),
+			unlockHtml: this._injectSeekerMarks(
+				centerArcanumTracks(option.unlockDescription), slug, "unlock", "stonetop-arcanum-circle", /○/g, marked),
+		};
+	}
+
+	// Rewrite each glyph matched by `re` into an interactive onboarding mark checkbox,
+	// indexed in document order to match CharacterArcana._injectMarkers (and _frontTaskBoxes)
+	// so the persisted key lands on the right box on the sheet. `marked` is the set of
+	// currently-checked "context:index" keys. Also tags each input with the shared
+	// stonetop-onboarding-arcana-mark class the change handler listens on.
+	_injectSeekerMarks(html, slug, context, cssClass, re, marked) {
+		let index = 0;
+		// `re` matches a single glyph at a time (/□/g, /○/g), so each replacement is one box.
+		return String(html ?? "").replace(re, () => {
+			const i = index++;
+			const checked = marked.has(`${context}:${i}`);
+			return `<input type="checkbox" class="${cssClass} stonetop-onboarding-arcana-mark"`
+				+ ` data-arcanum-slug="${slug}" data-context="${context}" data-index="${i}"`
+				+ `${checked ? " checked" : ""}>`;
+		});
+	}
+
 	async _loadPlaybookMoves() {
 		const pack = game.packs.get("stonetop_pwd.stonetop-items");
 		if (!pack) return [];
@@ -791,6 +904,59 @@ export class CharacterOnboardingDialog extends Application {
 		for (const [groupIndex, value] of Object.entries(this._selections.moveChoices)) {
 			if (idByName.has(value)) this._selections.moveChoices[groupIndex] = idByName.get(value);
 		}
+	}
+
+	// The cap (max stat value) of a selected free-pick move, or null when it isn't a
+	// stat-increase move. Needs the move list, so it resolves once the moves step has
+	// loaded it. Improved Stat is cap 2; only the Would-Be Hero can pick one at creation.
+	_moveCapById(compendiumId) {
+		return (this._movesCache ?? []).find(doc => doc.id === compendiumId)?.system?.cap ?? null;
+	}
+
+	// Compendium ids of the currently-selected free-pick moves that are stat-increase
+	// moves (cap != null) — the ones that need a "+1 to which stat?" choice collected.
+	_selectedStatMoveIds() {
+		return this._selections.moves.filter(id => this._moveCapById(id) != null);
+	}
+
+	// Drop stat-choice picks that no longer apply: the move was unselected, or the chosen
+	// stat has since been assigned a value already at the move's cap (e.g. the player went
+	// back and reshuffled the stat array). Keeps completion honest after a stats edit.
+	_reconcileMoveStatChoices() {
+		if (!this._movesCache) return;
+		const selected = new Set(this._selections.moves);
+		for (const [id, statKey] of Object.entries(this._selections.moveStatChoices)) {
+			const cap = this._moveCapById(id);
+			const value = Number(this._selections.stats[statKey] ?? 0);
+			if (!selected.has(id) || cap == null || value >= cap) {
+				delete this._selections.moveStatChoices[id];
+			}
+		}
+	}
+
+	// Render data for a stat-increase move's inline "+1 to which stat?" picker: one pill
+	// per stat, showing its current onboarding value stepping up by 1, with stats already
+	// at the cap disabled. `chosen` is the player's pick (compendium id → stat key).
+	_moveStatChoiceData(compendiumId, cap) {
+		const chosen = this._selections.moveStatChoices[compendiumId] ?? "";
+		return {
+			moveId: compendiumId,
+			cap,
+			options: STAT_KEYS.map(key => {
+				const value = Number(this._selections.stats[key] ?? 0);
+				const atCap = value >= cap;
+				return {
+					moveId:         compendiumId,
+					key,
+					label:          key.toUpperCase(),
+					currentDisplay: sign(value),
+					nextDisplay:    sign(Math.min(value + 1, cap)),
+					atCap,
+					disabled:       atCap,
+					selected:       chosen === key,
+				};
+			}),
+		};
 	}
 
 	// ── Stat helpers ──────────────────────────────────────────────────
@@ -1039,7 +1205,10 @@ export class CharacterOnboardingDialog extends Application {
 			                              this._possessionSubChoicesComplete();
 			case "moves": {
 				const choicesComplete = this._rawMoveChoices.every((_, i) => !!this._selections.moveChoices[i]);
-				return choicesComplete && this._selections.moves.length === this._movePickCount;
+				// A picked stat-increase move (Improved Stat) isn't done until its stat is chosen.
+				const statChoicesComplete = this._selectedStatMoveIds().every(id => !!this._selections.moveStatChoices[id]);
+				return choicesComplete && statChoicesComplete &&
+					this._selections.moves.length === this._movePickCount;
 			}
 			case "invocations":    return this._selections.invocations.length === (this._rawInvocations?.startingCount ?? 0);
 			case "initiates": {
@@ -1576,6 +1745,9 @@ export class CharacterOnboardingDialog extends Application {
 				this._movesCache = await this._loadPlaybookMoves();
 				this._reconcileMoveChoices();
 			}
+			// Now that the move list (with each move's cap) is loaded, drop any stat pick
+			// whose move was unselected or whose stat sits at the cap after a stats edit.
+			this._reconcileMoveStatChoices();
 			const selectedBg  = this._backgrounds.find(b => b.slug === this._selections.backgroundSlug);
 			const bgMoveNames = new Set(selectedBg?.moves ?? []);
 			const chosenIds   = new Set(this._selections.moves);
@@ -1618,14 +1790,20 @@ export class CharacterOnboardingDialog extends Application {
 					if (reqMoves.length && !reqMoves.every(r => grantedNames.has(r))) return false;
 					return true;
 				})
-				.map(doc => ({
-					id:          doc.id,
-					name:        this._normalizeOnboardingText(doc.name),
-					description: this._normalizeOnboardingText(doc.system?.description),
-					selected:    chosenIds.has(doc.id),
-					disabled:    !chosenIds.has(doc.id) && atLimit,
-					groups:      moveGroupKeys(this._playbookDoc.name, doc.name),
-				}));
+				.map(doc => {
+					const cap = doc.system?.cap ?? null;
+					return {
+						id:          doc.id,
+						name:        this._normalizeOnboardingText(doc.name),
+						description: this._normalizeOnboardingText(doc.system?.description),
+						selected:    chosenIds.has(doc.id),
+						disabled:    !chosenIds.has(doc.id) && atLimit,
+						groups:      moveGroupKeys(this._playbookDoc.name, doc.name),
+						// Stat-increase moves (Improved Stat) carry an inline "+1 to which stat?"
+						// picker, shown once the card is selected.
+						statChoice:  cap == null ? null : this._moveStatChoiceData(doc.id, cap),
+					};
+				});
 		}
 
 		// ── Possession ────────────────────────────────────────────────
@@ -1790,6 +1968,29 @@ export class CharacterOnboardingDialog extends Application {
 					.filter(Boolean)
 					.map(section => this._loreSectionData(section)),
 			};
+
+			// On the major step, surface the chosen arcanum's ACTUAL card front so the player
+			// sees what they're marking — its front prose and "mysteries" unlock lead, with
+			// the ○ circles / □ tasks made into real, clickable marks. They mark 1 right here
+			// instead of being told to mark it on the physical insert. Attached to the
+			// "when-unlocked" question, which asks how that unlocking began.
+			if (stepType === "seekerArcana") {
+				const arcana      = await this._loadArcanaOptions();
+				const majorOption = arcana.major.find(option => option.slug === this._selections.arcana.major);
+				const track       = this._seekerMajorMysteryTrack(majorOption);
+				this._reconcileSeekerMajorMarks(track);
+				const marked      = new Set(this._selections.arcana.majorMarks);
+				const frontCard   = this._seekerMajorFrontCard(majorOption, marked);
+				for (const section of seekerArcanaData.sections) {
+					for (const opt of section.options ?? []) {
+						if (opt.slug !== "when-unlocked") continue;
+						opt.isUnlockMark   = true;
+						opt.unlockHasTrack = track.markers.length > 0;
+						opt.majorName      = majorOption?.name ?? "";
+						opt.frontCard      = frontCard;
+					}
+				}
+			}
 		}
 
 		// ── Animal Companion ─────────────────────────────────────────
@@ -1910,7 +2111,7 @@ export class CharacterOnboardingDialog extends Application {
 		// treatment the FAQ popup and the live character sheet get. Scoped to display-only
 		// containers; the editable answer <textarea>s (onboard-lore-text / -setup-text)
 		// are never matched, so a typed glyph in an answer is left untouched.
-		html.find(".stonetop-onboarding-card-desc, .stonetop-onboarding-card-inline-desc, .stonetop-onboarding-lore-desc, .stonetop-onboarding-lore-pick-text, .stonetop-onboarding-lore-text-label, .stonetop-onboarding-suboption-label")
+		html.find(".stonetop-onboarding-card-desc, .stonetop-onboarding-card-inline-desc, .stonetop-onboarding-lore-desc, .stonetop-onboarding-lore-pick-text, .stonetop-onboarding-lore-text-label, .stonetop-onboarding-suboption-label, .stonetop-onboarding-arcana-front-body")
 			.each((_, el) => wrapStonetopGlyphsInEl(el));
 		this._frontOnOpen.start();
 
@@ -2418,6 +2619,14 @@ export class CharacterOnboardingDialog extends Application {
 				} else { ev.currentTarget.checked = false; return; }
 			} else {
 				this._selections.moves = this._selections.moves.filter(m => m !== id);
+				// Dropping a stat-increase move discards its pending "+1 to which stat?" pick,
+				// and clears its radios so re-picking the move starts from an unchosen state.
+				delete this._selections.moveStatChoices[id];
+				const card = ev.currentTarget.closest(".stonetop-onboarding-card--move");
+				card?.querySelectorAll(".onboard-move-stat").forEach(radio => {
+					radio.checked = false;
+					radio.closest(".stonetop-onboarding-move-stat-option")?.classList.remove("is-selected");
+				});
 			}
 			ev.currentTarget.closest(".stonetop-onboarding-card--move")
 				?.classList.toggle("is-selected", ev.currentTarget.checked);
@@ -2428,6 +2637,20 @@ export class CharacterOnboardingDialog extends Application {
 			// step — only a companion playbook (the Ranger) has that step, so elsewhere
 			// the step list can't change and we skip the rebuild.
 			if (this._rawAnimalCompanion?.types?.length) this._rebuildDynamicSteps();
+			_refreshNextButton();
+		});
+
+		// A stat-increase move's inline "+1 to which stat?" pick (Improved Stat). Records
+		// the chosen stat for that move and lights its pill; applied at finish via
+		// _applyStatIncreaseChoice. The stopPropagation wrapper in the template keeps this
+		// click from also toggling the move's own checkbox.
+		html.find(".onboard-move-stat").on("change", ev => {
+			const moveId = ev.currentTarget.dataset.moveId;
+			this._selections.moveStatChoices[moveId] = ev.currentTarget.value;
+			html.find(`[name='${ev.currentTarget.name}']`).each((_, radio) => {
+				radio.closest(".stonetop-onboarding-move-stat-option")
+					?.classList.toggle("is-selected", radio.checked);
+			});
 			_refreshNextButton();
 		});
 
@@ -2671,13 +2894,31 @@ export class CharacterOnboardingDialog extends Application {
 		});
 
 		// ── Name chips ────────────────────────────────────────────────
-		html.find("[name='onboard-seeker-major-arcanum']").on("change", ev => {
+		html.find("[name='onboard-seeker-major-arcanum']").on("change", async ev => {
 			this._selections.arcana.major = ev.currentTarget.value;
 			html.find("[name='onboard-seeker-major-arcanum']").each((_, el) => {
 				el.closest(".stonetop-onboarding-arcana-option")
 					?.classList.toggle("is-selected", el.checked);
 			});
-			_refreshNextButton();
+			// Re-render so the "begin to unlock the mysteries" marks reflect the newly
+			// chosen arcanum (a different insert with its own ○ circles / □ tasks).
+			// getData reconciles the marks to the new major's default. Preserve scroll
+			// like the "Draw again" handler so the page doesn't jump to the top.
+			const stepEl    = html.find(".stonetop-onboarding-step")[0];
+			const scrollTop = stepEl?.scrollTop ?? 0;
+			await this.render(false);
+			const newStepEl = this.element?.[0]?.querySelector(".stonetop-onboarding-step");
+			if (newStepEl) newStepEl.scrollTop = scrollTop;
+		});
+
+		// Marking a ○ circle / □ task inline on the chosen major's card front, right in
+		// onboarding. The checkbox's own :checked state shows the mark; we just persist it.
+		html.find(".stonetop-onboarding-arcana-mark").on("change", ev => {
+			const { context, index } = ev.currentTarget.dataset;
+			const key   = `${context}:${index}`;
+			const marks = new Set(this._selections.arcana.majorMarks);
+			if (ev.currentTarget.checked) marks.add(key); else marks.delete(key);
+			this._selections.arcana.majorMarks = [...marks];
 		});
 
 		html.find("[name^='onboard-seeker-minor-role-']").on("change", ev => {

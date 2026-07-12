@@ -137,7 +137,11 @@
       "searchPlaceholder": "Filter arcana…",
       "identifyTitle": "Identify Arcanum",
       "identifyConfirm": "Are you sure you you've successfully identified this Arcanum? This action cannot be undone.",
-      "unidentifiedText": "This arcanum has not yet been identified. Study it closely to reveal its nature."
+      "unidentifiedText": "This arcanum has not yet been identified. Study it closely to reveal its nature.",
+      "discover": "Arcana Discovered",
+      "discoverTitle": "Arcanum Discovered",
+      "discoverConfirm": "Have you tracked down and recovered this arcanum? Its full details will be revealed.",
+      "leadText": "You have a lead on this arcanum's whereabouts, but haven't recovered it yet."
     },
     "inventory": {
       "regularItems": "Items",

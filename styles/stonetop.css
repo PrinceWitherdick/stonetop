@@ -3682,13 +3682,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	box-shadow: inset 3px 0 0 var(--st-blue-border);
 	opacity: 1;
 }
-.stonetop-move-choice-needed {
+.stonetop-move-choice-needed,
+.stonetop-move-stat-choice-needed {
 	margin-left: 5px;
 	color: var(--st-blue-text);
 	cursor: pointer;
 }
 .stonetop-move-choice-needed:hover,
-.stonetop-move-choice-needed:focus-visible {
+.stonetop-move-choice-needed:focus-visible,
+.stonetop-move-stat-choice-needed:hover,
+.stonetop-move-stat-choice-needed:focus-visible {
 	color: var(--st-blue-border);
 }
 
@@ -4782,6 +4785,33 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-top: 16px;
 }
 
+/* Per-tier "Create arcanum" entry point, pinned to the foot of the Major / Minor
+   section. Mirrors the Moves / Followers tabs' dashed "add" affordance
+   (.stonetop-add-custom-move / .stonetop-follower-add-btn): a quiet dashed entry
+   point rather than a filled CTA, shown in and out of edit mode. It folds away with
+   the card grid when the section is collapsed (see the collapse rule below). */
+.stonetop-arcana-add-bar {
+	display: flex;
+	align-items: center;
+	padding: 4px 2px 2px;
+}
+.stonetop-arcana-add-btn {
+	flex: 1 1 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: 100%;
+	padding: 2px 8px;
+	cursor: pointer;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	border: 1px dashed var(--color-border-light, #ccc);
+	background: transparent;
+	transition: background 0.15s;
+}
+.stonetop-arcana-add-btn:hover { background: hsl(210 10% 92%); }
+
 /* Arcana card layout. A both-sides "spread" card (front | back) spans the full width;
    the narrower front-only cards pack two-up. JS (see StonetopCharacterSheet) walks the
    cards into ordered segments — each spread full-width, each run of narrow cards into a
@@ -4879,6 +4909,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	visibility: hidden;
 }
 
+/* The foot "Create arcanum" button folds away with the grid when the section is
+   collapsed, so a clamped section shows only its heading. */
+.stonetop-arcana-collapsible.is-collapsed > .stonetop-arcana-add-bar {
+	display: none;
+}
+
 /* While a section's own Arcana search is active it carries `.is-searching`; force-open that
    section if it's manually collapsed so a matching card inside it is revealed. The persisted
    collapsed state is untouched and resumes once the search is cleared. See wireTabSearch. */
@@ -4932,6 +4968,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-arcanum-foldable.is-collapsed > .stonetop-arcanum-foldable-body {
 	display: none;
+}
+
+/* When the "Consequences" fold is surfaced onto the FRONT (Hec'tumel / Redwood), it follows
+   the front text and unlock list, so give it some breathing room to read as its own section
+   rather than a continuation of the unlock list above it. */
+.stonetop-arcanum-side--front .stonetop-arcanum-foldable {
+	margin-top: 10px;
 }
 
 /* Per-card collapse toggle: a small chevron pinned to each arcanum card's top-right
@@ -5422,7 +5465,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: #7f1616;
 }
 
-.stonetop-arcanum-unidentified-body {
+.stonetop-arcanum-unidentified-body,
+.stonetop-arcanum-lead-body {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -5435,9 +5479,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	overflow: hidden;
 }
 
-.stonetop-arcanum-unidentified-body p { margin: 0; }
+.stonetop-arcanum-unidentified-body p,
+.stonetop-arcanum-lead-body p { margin: 0; }
 
-.stonetop-arcanum-identify-btn {
+.stonetop-arcanum-lead-icon {
+	font-size: 1.5em;
+	opacity: 0.55;
+}
+
+.stonetop-arcanum-identify-btn,
+.stonetop-arcanum-discover-btn {
 	font-size: var(--st-fs-sm);
 	padding: 4px 14px;
 	cursor: pointer;
@@ -6075,37 +6126,56 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* The name uses flex:initial here (so it sits at content width next to the
    dice/roll-chip controls), which means it no longer grows to push the
-   resource ("hold & use") track to the right. Pin that track — and the source
-   label — to the right edge of the header instead. */
-.tab.moves .stonetop-item-resources,
-.tab.moves .stonetop-item-source {
+   resource ("hold & use") track to the right. Pin that track to the right edge
+   of the header. */
+.tab.moves .stonetop-item-resources {
 	margin-left: auto;
 }
 
-/* The source label ("Starting move", "Granted by Worldly · The Blessed", …)
-   stays in normal flow and rides the right edge via margin-left:auto (inherited
-   from the rule above), just like every other move source. The header wraps
-   (flex-wrap), so when the row is too narrow to fit the label beside the
-   controls/name it drops onto its own line rather than overlapping the +stat
-   chip — which is what a formerly-absolute, right-pinned label did once it grew
-   wider than any fixed reserved gutter. max-width caps it to the row so a long
-   label wraps its own text instead of overflowing when it lands on its own line. */
-.tab.moves .stonetop-move-group .stonetop-item-source {
-	max-width: 100%;
+/* A move that carries a source label ("Starting move", "Background",
+   "Granted by …") floats that label into the top-right corner like a badge. The
+   checkbox / dice / +stat chip / title then flow inline BESIDE it while the row
+   is wide enough, and wrap onto their own line BENEATH it when it's tight, so the
+   label stays pinned to the corner and never drops below the title. `flow-root`
+   turns the header into a float context that also contains the (possibly
+   wrapped) label, so the card still encloses it and the border-bottom sits below
+   everything. Plain flexbox can't do this: `float` is ignored on flex items, and
+   the label (last in flow) would itself be the thing that wraps down. Scoped
+   with :has() so headers WITHOUT a source label (love letters, custom/other
+   moves, player-chosen moves) keep the untouched flex layout. */
+.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) {
+	display: flow-root;
 }
 
-/* When a move has BOTH a resource track and a source label (e.g. the Chronicler's
-   "Diligence" hold track on a "Starting move"), the wide resource track sits
-   between the name and the short label in DOM order and drags the label down with
-   it — leaving the label stranded on the second row even when there's room for it
-   beside the name up top. Push the resource track onto its own full-width line
-   (order + flex-basis) so the short source label rides the top row next to the
-   name (still right-pinned via margin-left:auto, still wrapping to its own line if
-   the name is long enough to crowd it). margin-left:0 keeps the dropped resource
-   track left-aligned on its line rather than pushed right by the inherited auto. */
-.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) .stonetop-item-resources {
-	order: 1;
-	flex-basis: 100%;
+/* Block flow drops the flex `align-items:center`, so re-centre the now-inline
+   controls vertically. Their horizontal spacing comes from the normal
+   whitespace between the inline elements. */
+.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > * {
+	vertical-align: middle;
+}
+
+.tab.moves .stonetop-move-group .stonetop-item-source {
+	float: right;
+	max-width: 100%;
+	margin-left: 8px;
+	text-align: right;
+}
+
+/* The repeatable-mark checkbox row is `display:flex`, which blockifies onto its
+   own line in this block-flow header and would shove the title down a row (as on
+   the Chronicler's "Well Versed"). Keep it inline beside the title with
+   inline-flex. (The resource track below is the one child we DO want on its own
+   line.) */
+.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > .stonetop-repeat-checks {
+	display: inline-flex;
+}
+
+/* Keep a resource ("hold & use") track on its own line under the controls
+   (clear:both drops it below the floated label) rather than letting it ride up
+   into the badge's corner. margin-left:0 cancels the right-pin auto inherited
+   from the flex rule above, which is meaningless in this block-flow header. */
+.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > .stonetop-item-resources {
+	clear: both;
 	margin-left: 0;
 }
 
@@ -11250,6 +11320,41 @@ a.steading-player-open:hover {
 .stonetop-onboarding-card--move.is-filtered-out,
 .stonetop-levelup-move-option.is-filtered-out { display: none; }
 
+/* Inline "+1 to which stat?" picker on a stat-increase move (the Would-Be Hero's
+   Improved Stat). Hidden until the move card is selected, mirroring the initiate
+   inline-choice pattern. */
+.stonetop-onboarding-card--stat-move .stonetop-onboarding-move-stat-picker {
+	display: none;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid #eee;
+}
+
+.stonetop-onboarding-card--stat-move.is-selected .stonetop-onboarding-move-stat-picker {
+	display: block;
+}
+
+.stonetop-onboarding-move-stat-label {
+	display: block;
+	margin-bottom: 6px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
+}
+
+.stonetop-onboarding-move-stat-delta {
+	font-variant-numeric: tabular-nums;
+	color: var(--st-text-muted);
+}
+
+.stonetop-onboarding-move-stat-option.is-selected .stonetop-onboarding-move-stat-delta {
+	color: inherit;
+}
+
+.stonetop-onboarding-move-stat-option.is-disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
 /* "Either X OR Y" starting-move choice (e.g. the Heavy's Armored OR Uncanny
    Reflexes): a radio group of move cards, spaced off from the free-pick list.
    `--move-choice` is also the JS hook the change handler uses to toggle is-selected;
@@ -11436,6 +11541,14 @@ a.steading-player-open:hover {
 /* Native radios (sub-choice lines, either/or move cards) take the slate accent the
    rest of the wizard uses, instead of the browser default. */
 .stonetop-onboarding-radio { flex-shrink: 0; accent-color: slategrey; }
+
+/* Sub-choice lines center the radio against the label; Chromium renders a radio ~2px
+   below its flex center (phantom line-box leading), so pull it back up — same quirk and
+   fix as .stonetop-onboarding-bg-option. Scoped to the suboption row so the baseline-
+   aligned move-choice cards (which reuse .stonetop-onboarding-radio) are untouched. */
+.stonetop-onboarding-suboption input[type="radio"] {
+	transform: translateY(-2px);
+}
 
 /* ── Standalone possession-choices editor (sacred-pouch modal) ──────────────── */
 /* Reuses the shared .stonetop-choice-group / -subgroup / -option-label styling;
@@ -11871,6 +11984,10 @@ a.steading-player-open:hover {
 
 .stonetop-onboarding-bg-option input[type="radio"] {
 	border-radius: 50%;
+	/* Chromium sits a radio ~2px below its flex box's true center (phantom line-box
+	   leading above the glyph), so align-items:center leaves it low next to the label.
+	   The offset is a constant 2px regardless of font size; nudge it back up. */
+	transform: translateY(-2px);
 }
 
 .stonetop-onboarding-bg-option input[type="radio"]:checked {
@@ -12050,6 +12167,9 @@ a.steading-player-open:hover {
 	flex-shrink: 0;
 	margin: 0;
 	accent-color: slategrey;
+	/* Same Chromium radio-in-flex quirk as .stonetop-onboarding-bg-option: the radio
+	   renders ~2px below its flex center. Pull it up to line up with the icon and name. */
+	transform: translateY(-2px);
 }
 
 .stonetop-onboarding-arcana-option--minor-role {
@@ -12125,26 +12245,30 @@ a.steading-player-open:hover {
 }
 
 .stonetop-onboarding-minor-roles {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
+	display: flex;
+	flex-direction: column;
 	gap: 4px;
 }
 
 .stonetop-onboarding-minor-roles label {
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	gap: 4px;
-	padding: 3px 4px;
+	justify-content: flex-start;
+	gap: 6px;
+	padding: 4px 6px;
 	border: 1px solid rgba(100,116,139,0.25);
 	border-radius: var(--st-radius);
 	background: rgba(100,116,139,0.06);
 	font-size: var(--st-fs-sm);
+	line-height: 1;
 }
 
 .stonetop-onboarding-minor-roles label input[type="radio"] {
 	margin: 0;
 	flex-shrink: 0;
+	/* Same Chromium radio-in-flex quirk: the native radio renders ~2px below the row's
+	   center. Nudge it up to line up with the role label. */
+	transform: translateY(-2px);
 }
 
 .stonetop-onboarding-redraw-minor {
@@ -12239,6 +12363,84 @@ a.steading-player-open:hover {
 	outline: none;
 	border-color: slategrey;
 	background: #fff;
+}
+
+/* ── Seeker: "begin to unlock the mysteries" marks ──────────────────────────────
+   On the major-arcanum step the chosen arcanum's actual card front is rendered — its
+   prose plus the mysteries progression (○ unlock circles, or the □ tasks of a
+   circle-less arcanum like the Mindgem or the Twisted Spear) — with those glyphs made
+   into real, clickable marks so the player marks 1 in context, right where it sits,
+   instead of being told to mark it on the physical insert. Sits above that arcanum's
+   "when and how did you begin to unlock its mysteries?" answer. */
+.stonetop-onboarding-arcana-unlock-row {
+	gap: 8px;
+}
+
+.stonetop-onboarding-arcana-unlock {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 10px 12px;
+	border: 1.5px solid #ddd;
+	border-left: 3px solid slategrey;
+	border-radius: var(--st-radius);
+	background: #fafafa;
+}
+
+.stonetop-onboarding-arcana-unlock-hint {
+	margin: 0;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
+	line-height: 1.4;
+}
+
+/* A miniature of the arcanum's insert front, so the player sees the prose and the
+   mysteries track in context and marks the ○ circle / □ task right where it sits. */
+.stonetop-onboarding-arcana-front-card {
+	border: 1.5px solid var(--color-border-dark, #b7b2a8);
+	border-radius: var(--st-radius);
+	background: #fff;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+	overflow: hidden;
+}
+
+.stonetop-onboarding-arcana-front-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--color-border-dark, #b7b2a8);
+	background: #f4f1ea;
+}
+
+.stonetop-onboarding-arcana-front-thumb {
+	width: 34px;
+	height: 34px;
+	object-fit: contain;
+	flex-shrink: 0;
+}
+
+.stonetop-onboarding-arcana-front-title {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+	font-size: var(--st-fs-md);
+	color: var(--st-text-body);
+}
+
+/* Reuse the sheet's card-front typography (.stonetop-arcanum-body), but drop the
+   flex:1 / full-panel scroll it uses inside a fixed-height card and cap the height so a
+   long front stays scrollable within the wizard step. */
+.stonetop-arcanum-body.stonetop-onboarding-arcana-front-body {
+	flex: none;
+	max-height: 320px;
+	color: var(--st-text-body);
+}
+
+/* A touch larger than the sheet's 15px so the marks are easy to click in the wizard. */
+.stonetop-onboarding-arcana-front-body .stonetop-arcanum-circle {
+	width: 18px;
+	height: 18px;
+	top: -1px;
 }
 
 .stonetop-onboarding-lookup {
@@ -19363,31 +19565,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-arcanum-edit .stonetop-arc-slug-warning[hidden] { display: none; }
 .stonetop-arcanum-edit .stonetop-arc-slug-warning > i { color: #c07820; }
-
-/* Arcana-tab "create homebrew arcanum" bar (character sheet, edit mode) */
-.stonetop-arcana-create-bar {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-bottom: 10px;
-}
-
-.stonetop-arcana-create-bar .stonetop-arcana-create,
-.stonetop-arcana-create-bar .stonetop-arcana-inspire {
-	flex: 0 0 auto;
-	width: auto;
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 3px 12px;
-	cursor: pointer;
-}
-
-/* The inspiration wizard launcher sits apart from the two "blank card" buttons. */
-.stonetop-arcana-create-bar .stonetop-arcana-inspire {
-	margin-left: auto;
-	font-style: italic;
-}
 
 /* ── Artifact Creation inspiration wizard (StonetopArcanaInspireDialog) ───────── */
 .stonetop-arcana-inspire-dialog .stonetop-inspire {
