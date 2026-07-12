@@ -20538,3 +20538,166 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-btn-primary-text);
 }
 .stonetop .threat-editor-done:hover { background: var(--st-btn-primary-bg-hover); border-color: var(--st-btn-primary-border-hover); }
+
+/* ── Run an Expedition · Outfit step · live party-load readout ─────────────────
+   One row per party member: a diamond ◇ load track (grouped in the light/normal/heavy
+   bands), a band pill, the ◇ count, and any load-gated move the load switched off.
+   Encumbrance keeps the system's gold accent (#c9a227); scoped to the dialog so none
+   of it leaks onto core/other sheets. Diamonds are discrete pips, not a fill bar,
+   matching the house idiom. */
+.stonetop-expedition-dialog .stonetop-exp-load {
+	margin-top: 12px;
+	border: 1px solid rgba(0,0,0,0.14);
+	border-radius: var(--st-radius-lg);
+	background: rgba(0,0,0,0.03);
+	overflow: hidden;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-head {
+	display: flex; align-items: center; gap: 8px;
+	padding: 8px 12px;
+	background: rgba(201,162,39,0.10);
+	border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.stonetop-expedition-dialog .stonetop-exp-load-title {
+	font-family: var(--font-stonetop);
+	text-transform: uppercase; letter-spacing: 0.08em;
+	font-size: var(--st-fs-2xs); font-weight: 700; color: #8a6d12;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-live {
+	margin-left: auto; font-size: var(--st-fs-2xs); color: var(--st-text-muted);
+	display: inline-flex; align-items: center; gap: 5px; font-style: italic;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-live::before {
+	content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--st-green-border);
+}
+
+/* "who's coming" chips */
+.stonetop-expedition-dialog .stonetop-exp-load-pick {
+	display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+	padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.stonetop-expedition-dialog .stonetop-exp-load-picklab {
+	font-size: var(--st-fs-2xs); color: var(--st-text-muted); font-style: italic;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-chip {
+	display: inline-flex; align-items: center; gap: 5px; min-height: 0; min-width: 0;
+	width: auto; flex: 0 0 auto;
+	font-family: var(--font-stonetop); font-size: var(--st-fs-xs);
+	padding: 2px 9px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.2);
+	background: rgba(255,255,255,0.5); color: var(--st-text-body); cursor: pointer;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-chip .tick {
+	color: var(--st-green-border); font-weight: 700; font-size: var(--st-fs-2xs);
+}
+.stonetop-expedition-dialog .stonetop-exp-load-chip:hover { background: rgba(0,0,0,0.06); }
+.stonetop-expedition-dialog .stonetop-exp-load-chip.is-out {
+	color: var(--st-text-faint); border-style: dashed; text-decoration: line-through; opacity: 0.75;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-chip.is-out .tick { color: var(--st-text-faint); }
+
+/* at-a-glance summary */
+.stonetop-expedition-dialog .stonetop-exp-load-glance {
+	display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+	padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.stonetop-expedition-dialog .stonetop-exp-load-glance .g-head {
+	font-family: var(--font-stonetop);
+	text-transform: uppercase; letter-spacing: 0.08em;
+	font-size: var(--st-fs-2xs); font-weight: 700; color: var(--st-text-muted);
+}
+.stonetop-expedition-dialog .stonetop-exp-load-glance .g-tally {
+	font-size: var(--st-fs-xs); color: var(--st-text-secondary);
+}
+.stonetop-expedition-dialog .stonetop-exp-load-glance .g-tally b { font-size: var(--st-fs-md); font-weight: 700; }
+.stonetop-expedition-dialog .stonetop-exp-load-glance .g-warn b { color: var(--st-red-text); }
+.stonetop-expedition-dialog .stonetop-exp-load-glance .g-caut b { color: #8a6d12; }
+.stonetop-expedition-dialog .stonetop-exp-load-glance .g-ok { color: var(--st-green-text); font-style: italic; }
+
+/* rows */
+.stonetop-expedition-dialog .stonetop-exp-load-row {
+	display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+	padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.06);
+	border-left: 3px solid slategrey;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-row:last-child { border-bottom: none; }
+.stonetop-expedition-dialog .stonetop-exp-load-row.lvl-light { border-left-color: var(--st-green-border); }
+.stonetop-expedition-dialog .stonetop-exp-load-row.lvl-heavy { border-left-color: #c9a227; }
+.stonetop-expedition-dialog .stonetop-exp-load-row.lvl-over  { border-left-color: var(--st-red-border); background: rgba(200,60,60,0.06); }
+
+.stonetop-expedition-dialog .stonetop-exp-load-ava {
+	width: 26px; height: 26px; flex: 0 0 auto; border-radius: 50%;
+	display: grid; place-items: center;
+	font-family: var(--font-stonetop); font-weight: 700; font-size: var(--st-fs-xs);
+	color: #fff; background: slategrey;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-row.lvl-light .stonetop-exp-load-ava { background: var(--st-green-border); }
+.stonetop-expedition-dialog .stonetop-exp-load-row.lvl-heavy .stonetop-exp-load-ava { background: #c29a1f; }
+.stonetop-expedition-dialog .stonetop-exp-load-row.lvl-over  .stonetop-exp-load-ava { background: var(--st-red-text); }
+.stonetop-expedition-dialog .stonetop-exp-load-row.is-follower .stonetop-exp-load-ava { width: 22px; height: 22px; font-size: var(--st-fs-2xs); }
+
+.stonetop-expedition-dialog .stonetop-exp-load-name {
+	font-family: var(--font-stonetop); font-weight: 700; font-size: var(--st-fs-sm); white-space: nowrap;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-name em {
+	font-weight: 400; font-style: normal; color: var(--st-text-muted); font-size: var(--st-fs-2xs);
+}
+.stonetop-expedition-dialog .stonetop-exp-load-fol {
+	font-family: ui-monospace, monospace; font-size: 0.6rem;
+	text-transform: uppercase; letter-spacing: 0.04em; color: var(--st-text-faint);
+	border: 1px solid rgba(0,0,0,0.2); border-radius: 3px; padding: 0 4px;
+}
+
+/* diamond track */
+.stonetop-expedition-dialog .stonetop-exp-load-track { display: flex; align-items: center; gap: 7px; margin-left: auto; }
+.stonetop-expedition-dialog .stonetop-exp-load-band { display: flex; gap: 5px; }
+.stonetop-expedition-dialog .stonetop-exp-load-pip {
+	width: 11px; height: 11px; transform: rotate(45deg); border-radius: 2px;
+	border: 1.5px solid rgba(0,0,0,0.3); background: transparent;
+}
+.stonetop-expedition-dialog .lvl-light .stonetop-exp-load-pip.on { background: var(--st-green-border); border-color: var(--st-green-border); }
+.stonetop-expedition-dialog .lvl-normal .stonetop-exp-load-pip.on { background: slategrey; border-color: slategrey; }
+.stonetop-expedition-dialog .lvl-heavy .stonetop-exp-load-pip.on { background: #c29a1f; border-color: #c29a1f; }
+.stonetop-expedition-dialog .lvl-over .stonetop-exp-load-pip.on { background: var(--st-red-text); border-color: var(--st-red-text); }
+.stonetop-expedition-dialog .stonetop-exp-load-over {
+	font-family: ui-monospace, monospace; font-weight: 700; font-size: 0.66rem;
+	color: var(--st-red-text); background: var(--st-red-bg);
+	border: 1px solid var(--st-red-border); border-radius: 999px; padding: 0 6px;
+}
+
+/* band pill + ◇ count */
+.stonetop-expedition-dialog .stonetop-exp-load-pill {
+	font-family: var(--font-stonetop); text-transform: uppercase; letter-spacing: 0.06em;
+	font-size: 0.62rem; font-weight: 700; padding: 2px 9px;
+	border-radius: 999px; border: 1px solid transparent; white-space: nowrap;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-pill.light  { color: var(--st-green-text); background: var(--st-green-bg); border-color: var(--st-green-border); }
+.stonetop-expedition-dialog .stonetop-exp-load-pill.normal { color: var(--st-text-body); border-color: rgba(0,0,0,0.2); }
+.stonetop-expedition-dialog .stonetop-exp-load-pill.heavy  { color: #8a6d12; background: rgba(201,162,39,0.15); border-color: #c9a227; }
+.stonetop-expedition-dialog .stonetop-exp-load-pill.over   { color: var(--st-red-text); background: var(--st-red-bg); border-color: var(--st-red-border); }
+.stonetop-expedition-dialog .stonetop-exp-load-count {
+	font-family: ui-monospace, monospace; font-size: var(--st-fs-2xs);
+	color: var(--st-text-muted); min-width: 34px; text-align: right;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-count b { color: var(--st-text); }
+
+/* gated moves + notes wrap to their own line under the row */
+.stonetop-expedition-dialog .stonetop-exp-load-gated { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 5px; padding-left: 34px; }
+.stonetop-expedition-dialog .stonetop-exp-load-move {
+	display: inline-flex; align-items: center; gap: 5px;
+	font-family: var(--font-stonetop); font-size: var(--st-fs-2xs);
+	padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.18);
+}
+.stonetop-expedition-dialog .stonetop-exp-load-move .ic { font-family: ui-monospace, monospace; font-weight: 700; font-size: 0.66rem; }
+.stonetop-expedition-dialog .stonetop-exp-load-move .rq { color: var(--st-text-faint); font-size: 0.66rem; }
+.stonetop-expedition-dialog .stonetop-exp-load-move.off { color: var(--st-red-text); background: rgba(200,60,60,0.10); border-color: var(--st-red-border); }
+.stonetop-expedition-dialog .stonetop-exp-load-move.off .nm { text-decoration: line-through; }
+.stonetop-expedition-dialog .stonetop-exp-load-move.on { color: var(--st-green-text); background: var(--st-green-bg); border-color: var(--st-green-border); }
+.stonetop-expedition-dialog .stonetop-exp-load-note {
+	flex-basis: 100%; padding-left: 34px;
+	font-size: var(--st-fs-2xs); color: var(--st-text-muted); font-style: italic;
+}
+.stonetop-expedition-dialog .stonetop-exp-load-note.danger { color: var(--st-red-text); font-weight: 600; font-style: normal; }
+.stonetop-expedition-dialog .stonetop-exp-load-note .mod { color: #8a6d12; font-weight: 700; font-style: normal; }
+.stonetop-expedition-dialog .stonetop-exp-load-empty {
+	padding: 12px; font-size: var(--st-fs-sm); color: var(--st-text-muted); font-style: italic; text-align: center;
+}
