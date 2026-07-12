@@ -142,6 +142,29 @@ describe("playbook advancement data", () => {
 		}
 	});
 
+	it("load-gated moves carry the expected maxLoad / requiresUnarmored, and nothing else does", () => {
+		// The complete set of moves whose fiction needs a lighter load (Book I). The
+		// expedition Outfit readout reads these fields straight off each move's data.
+		const EXPECTED = {
+			"Catlike":          { maxLoad: "light",  requiresUnarmored: false },
+			"Free Running":     { maxLoad: "light",  requiresUnarmored: false },
+			"Stalker":          { maxLoad: "normal", requiresUnarmored: false },
+			"Uncanny Reflexes": { maxLoad: "normal", requiresUnarmored: true  },
+		};
+		const gated = {};
+		for (const d of DOCS) {
+			const maxLoad = d.system?.maxLoad;
+			if (!maxLoad) {
+				// A stray requiresUnarmored with no maxLoad gate would never fire.
+				expect(d.system?.requiresUnarmored, `${d.name} requiresUnarmored without maxLoad`).toBeFalsy();
+				continue;
+			}
+			expect(["light", "normal", "heavy"], `${d.name} maxLoad`).toContain(maxLoad);
+			gated[d.name] = { maxLoad, requiresUnarmored: !!d.system?.requiresUnarmored };
+		}
+		expect(gated).toEqual(EXPECTED);
+	});
+
 	it("only the Lightbearer carries invocations, with enough options for its starting count", () => {
 		for (const { name } of PLAYBOOKS) {
 			const inv = PB_DEFS.get(name)?.invocations;

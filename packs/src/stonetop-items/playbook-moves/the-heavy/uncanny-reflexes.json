@@ -7,7 +7,9 @@
     "playbook": "The Heavy",
     "moveType": "playbook",
     "isStartingMove": true,
-    "description": "<p>When you <strong><em>are unarmored and carrying a normal or light load</em></strong>, you impose disadvantage on any damage you take that you could dodge or roll with.</p>"
+    "description": "<p>When you <strong><em>are unarmored and carrying a normal or light load</em></strong>, you impose disadvantage on any damage you take that you could dodge or roll with.</p>",
+    "maxLoad": "normal",
+    "requiresUnarmored": true
   },
   "folder": "EGBb1iIndbhAI7zU"
 }

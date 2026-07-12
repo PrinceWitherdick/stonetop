@@ -35,6 +35,15 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			// Drops a carried shield's ◇ load by this many while owned (the Heavy/Judge/Marshal's
 			// Armored move → 1, so a shield reads ◆ instead of ◆◆). Floored at 1 ◇ in buildSnapshot.
 			shieldLoadReduction: new fields.NumberField({ required: true, integer: true, initial: 0 }),
+			// The heaviest load tier at which this move's fiction still works ("light" /
+			// "normal" / "heavy"); blank on moves with no load gate. Read by the expedition
+			// Outfit party-load readout to flag a move the current load has switched off
+			// (Catlike, Free Running, Stalker, Uncanny Reflexes). Pack Horse instead raises
+			// the caps, via loadBonus.
+			maxLoad:         new fields.StringField({ required: false, blank: true, initial: "" }),
+			// Whether the move also requires the carrier to be UNARMORED (worn-armor base 0),
+			// on top of its maxLoad gate (Uncanny Reflexes). False on every other move.
+			requiresUnarmored: new fields.BooleanField({ required: false, initial: false }),
 			repeatMax:       new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			// Per-stat ceiling for stat-increase moves (Improved Stat = 2, Superior Stat
 			// = 3); null on every other move. Drives the level-up stat picker's cap

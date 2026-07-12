@@ -30,6 +30,7 @@ export class RequirementSnapshot {
  * @property {boolean} repeatable
  * @property {{ label: string, value: string }|null} backgroundAnswer
  * @property {Array<{ownedId:string, statKey:string, statAbbr:string}>|null} statChoices
+ * @property {{ count:number, cap:number }|null} statChoiceNeeded owned stat-increase instances with no stat picked yet
  */
 export class MoveSnapshot {
 	constructor(b) {
@@ -54,6 +55,10 @@ export class MoveSnapshot {
 		this.repeatable    = b._repeatable;
 		this.backgroundAnswer = b._backgroundAnswer;
 		this.statChoices   = b._statChoices ?? null;
+		// Owned Improved/Superior Stat instances that were taken but never had a stat
+		// chosen (so they silently raise nothing) — { count, cap }, or null when every
+		// instance has a pick (or none is possible). Drives the "needs your input" cue.
+		this.statChoiceNeeded = b._statChoiceNeeded ?? null;
 		// Defend's stored Readiness track: { value, cap, hasShield, hasGuardian, pips:[{index,filled}] }
 		// or null for every other move. Rendered as clickable circles beside the move.
 		this.readiness     = b._readiness ?? null;
@@ -61,6 +66,12 @@ export class MoveSnapshot {
 		// { used, max, atBudget, over, needsChoice } for the move card's pick-budget badge
 		// + "needs your input" cue, or null when the move declares no markBudget.
 		this.markBudget    = b._markBudget ?? null;
+		// Load-gate metadata (see MoveDefinition): the heaviest load tier this move tolerates
+		// ("light"/"normal"/"heavy"; blank = no gate) and whether it also needs the carrier
+		// unarmored. Drives the expedition Outfit party-load readout's "load switched this
+		// move off" flags. Blank/false on every move without a load gate.
+		this.maxLoad           = b._maxLoad ?? "";
+		this.requiresUnarmored = b._requiresUnarmored ?? false;
 	}
 }
 
@@ -86,8 +97,11 @@ export class MoveSnapshotBuilder {
 	withRepeatable(v)    { this._repeatable    = v; return this; }
 	withBackgroundAnswer(v) { this._backgroundAnswer = v ?? null; return this; }
 	withStatChoices(v)   { this._statChoices      = v ?? null; return this; }
+	withStatChoiceNeeded(v) { this._statChoiceNeeded = v ?? null; return this; }
 	withMarkOptions(v)   { this._markOptions      = v ?? null; return this; }
 	withMarkBudget(v)    { this._markBudget       = v ?? null; return this; }
+	withMaxLoad(v)          { this._maxLoad           = v ?? ""; return this; }
+	withRequiresUnarmored(v) { this._requiresUnarmored = !!v; return this; }
 	build()              { return new MoveSnapshot(this); }
 }
 
