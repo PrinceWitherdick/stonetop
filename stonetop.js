@@ -293,6 +293,7 @@ Hooks.once("init", () => {
 		"stonetop.bestiary-section-head":     "systems/stonetop_pwd/templates/journal/partials/bestiary-section-head.hbs",
 		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
+		"stonetop.guide-toc":                 "systems/stonetop_pwd/templates/dialogs/partials/guide-toc.hbs",
 	});
 });
 

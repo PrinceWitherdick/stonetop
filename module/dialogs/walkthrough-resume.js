@@ -15,17 +15,31 @@ const SETTING = "walkthroughResume";
 // world opened in the same browser the way the client-scoped resume above does.
 const DONE_SETTING = "sessionZeroDone";
 
-// One walkthrough's record ({ open, … }), or null if nothing's stored yet.
-export function getWalkthroughResume(key) {
-	return getSetting(SETTING)?.[key] ?? null;
+// The walkthrough keys stored per world (used by the flat-shape migration below).
+const WALKTHROUGH_KEYS = ["introductions", "springBurst"];
+
+// Every record is stored under the current world's id. The setting is client-scoped, so
+// it survives per-browser across every world opened here; nesting by world means a record
+// left `open: true` in one world can never reopen its dialog in an unrelated (even brand-
+// new) world that never started session zero. A world with no entry simply starts fresh.
+function worldKey() {
+	return game.world?.id ?? "";
 }
 
-// Merge `patch` into one walkthrough's record (creating it if absent), or drop the
-// record entirely with `patch === null`. Returns the settings-write promise.
+// One walkthrough's record ({ open, … }) for THIS world, or null if nothing's stored yet.
+export function getWalkthroughResume(key) {
+	return getSetting(SETTING)?.[worldKey()]?.[key] ?? null;
+}
+
+// Merge `patch` into one walkthrough's record for THIS world (creating it if absent), or
+// drop the record entirely with `patch === null`. Returns the settings-write promise.
 export function patchWalkthroughResume(key, patch) {
-	const all = { ...(getSetting(SETTING) ?? {}) };
-	if (patch === null) delete all[key];
-	else all[key] = { ...(all[key] ?? {}), ...patch };
+	const wk    = worldKey();
+	const all   = { ...(getSetting(SETTING) ?? {}) };
+	const world = { ...(all[wk] ?? {}) };
+	if (patch === null) delete world[key];
+	else world[key] = { ...(world[key] ?? {}), ...patch };
+	all[wk] = world;
 	return setSetting(SETTING, all);
 }
 
@@ -76,17 +90,47 @@ function openThenRendered(open, renderHook) {
 	});
 }
 
+// One-time migration of the pre-world-keying flat shape. Records used to live at the top
+// level ({ introductions:{…}, springBurst:{…} }); after world-keying those keys can't be
+// read by the world-scoped getters and would linger forever. Fold any flat record under
+// THIS world (the one this browser most likely had it open in — the flat shape carried no
+// world attribution) and drop the stale top-level keys. Idempotent: after it runs the flat
+// keys are gone; a value that already looks like a world bucket (holds intro/springBurst
+// sub-records) is left alone, so it can't swallow a world whose id happens to be
+// "introductions"/"springBurst"; and an existing world record is never clobbered.
+export function migrateFlatWalkthroughResume() {
+	const all = getSetting(SETTING);
+	if (!all || typeof all !== "object") return;
+	const looksFlat = v => v && typeof v === "object"
+		&& !("introductions" in v) && !("springBurst" in v);
+	const flatKeys = WALKTHROUGH_KEYS.filter(k => looksFlat(all[k]));
+	if (!flatKeys.length) return;
+	const next  = { ...all };
+	const wk    = worldKey();
+	const world = { ...(next[wk] ?? {}) };
+	for (const k of flatKeys) {
+		if (world[k] === undefined) world[k] = next[k]; // keep a newer world record if present
+		delete next[k];
+	}
+	next[wk] = world;
+	return setSetting(SETTING, next);
+}
+
 // Reopen any walkthrough that was open when the page last unloaded, each at the page
 // it was on (the dialogs restore their own position on open). We let one fully render
 // before opening the next so the last — Spring Burst, if it was open on top of
 // Introductions — lands frontmost instead of being buried by a slower-rendering
 // sibling. Called from ready (after the Welcome guide renders; see hooks/Ready.js).
 export async function reopenOpenWalkthroughs() {
-	const resume = getSetting(SETTING) ?? {};
-	if (resume.introductions?.open) {
+	// Fold any pre-world-keying flat record under this world first, so an upgrade mid-session
+	// still finds its `open: true` (see migrateFlatWalkthroughResume).
+	await migrateFlatWalkthroughResume();
+	// getWalkthroughResume reads only THIS world's records (see worldKey), so a stray
+	// `open: true` left behind in another world can never reopen its dialog here.
+	if (getWalkthroughResume("introductions")?.open === true) {
 		await openThenRendered(() => game.stonetop?.openIntroductions?.(), "renderIntroductionsDialog");
 	}
-	if (resume.springBurst?.open) {
+	if (getWalkthroughResume("springBurst")?.open === true) {
 		await openThenRendered(() => game.stonetop?.openSpringBurst?.(), "renderSpringBurstDialog");
 	}
 }

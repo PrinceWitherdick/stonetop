@@ -5,7 +5,7 @@
   <div class="stonetop-intros-precheck">
 
     <p class="stonetop-intros-preamble">
-      Every player character (any actor with a playbook) has been added to the Combat Tracker automatically. Set the order you want to go around the table — randomize it below, or roll/set initiative in the Combat Tracker — then begin.
+      Introductions go around the table in turn order. Set the order you want by randomizing it below, or by rolling or setting initiative in the Combat Tracker. Then begin.
     </p>
 
     {{#if hasNone}}
@@ -16,7 +16,7 @@
     {{else if noneInCombat}}
     <div class="stonetop-intros-notice stonetop-intros-notice--warn">
       <i class="fas fa-exclamation-triangle"></i>
-      <span>No player characters are in the Combat Tracker yet.{{#if isGM}} Use <strong>Add Player Characters</strong> below.{{else}} Ask your GM to open this.{{/if}}</span>
+      <span>No player characters are in the Combat Tracker yet.{{#if isGM}} Add them to the Combat Tracker and they'll appear here.{{else}} Ask your GM to open this.{{/if}}</span>
     </div>
     {{else}}
     <div class="stonetop-intros-notice stonetop-intros-notice--ok">
@@ -51,7 +51,16 @@
 
   {{!-- ── Main intro content ─────────────────────────────────────────────────── --}}
   {{else}}
-  <div class="stonetop-guide-main">
+  <div class="stonetop-guide-split">
+
+    {{!-- GM-only jump-to-step rail (shared guide-toc partial). Players have no rail
+          (they follow the GM's cursor), so the split holds a lone column that fills
+          the width. --}}
+    {{#if steps}}
+    {{> "stonetop.guide-toc" ariaLabel="Introduction steps"}}
+    {{/if}}
+
+    <div class="stonetop-guide-main">
 
     {{#if currentPc}}
     <div class="stonetop-guide-banner">
@@ -171,6 +180,7 @@
     {{/if}}
     {{/if}}
 
+    </div>
   </div>
   {{/if}}
 
@@ -179,7 +189,6 @@
     {{#if isPreCheck}}
 
     {{#if isGM}}
-    <button class="stonetop-intros-add">Add Player Characters</button>
     <button class="stonetop-intros-begin stonetop-guide-btn--primary" {{#unless canBegin}}disabled{{/unless}}>
       Begin Introductions<span class="stonetop-nav-arrow"></span>
     </button>

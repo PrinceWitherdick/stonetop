@@ -13433,21 +13433,38 @@ a.steading-player-open:hover {
 .stonetop-loyalty-pip:hover,
 .stonetop-readiness-pip:hover { background: rgba(112, 128, 144, 0.45); }
 
-/* Defend's Readiness circles on the Moves sidebar (p.216). Sit snug against the move
-   name (no auto-margin push); slightly smaller and tighter than the follower pips so
-   three-to-five fit the narrow sidebar without widening it. */
+/* Defend's Readiness circles on the Moves sidebar (p.216). They sit snug against the
+   move name (no auto-margin push), slightly smaller and tighter than the follower pips
+   so three-to-five fit the narrow sidebar without widening it.
+
+   The pips are only 12px tall inside a ~21px row, and the row itself is tappable to roll
+   the move, so the strip of row directly above and below each 12px circle used to fire a
+   Defend roll on a near-miss (the sheet's row-click guard only bails on this wrapper).
+   Stretching the wrapper to the row's full height (the -2px margins swallow the row's
+   2px vertical padding) hands the whole vertical band around the circles to it, so the
+   guard catches every tap near them. */
 .stonetop-move-readiness {
 	display: inline-flex;
+	align-self: stretch;
 	align-items: center;
+	margin-top: -2px;
+	margin-bottom: -2px;
 	gap: 2px;
-	padding-left: 3px;
+	padding: 2px 3px 2px 5px;
 	flex-shrink: 0;
 }
 
 .stonetop-move-readiness-pip {
 	width: 12px;
 	height: 12px;
+	/* Track the move text colour (black) so these read like the move-mark circles,
+	   rather than the slate the follower loyalty/readiness pips use on the Crew tab. */
+	border-color: currentColor;
 }
+
+.stonetop-move-readiness-pip.is-filled { background: currentColor; }
+
+.stonetop-move-readiness-pip:hover { background: rgba(0, 0, 0, 0.35); }
 
 /* Crew sections (inventory, individuals, rules) */
 .stonetop-follower-section {
@@ -17276,6 +17293,10 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-introductions .stonetop-guide-main { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .stonetop-introductions .stonetop-guide-nav { flex: 0 0 auto; }
 
+/* The GM-only jump-to-step rail reuses the shared .stonetop-guide-split / .stonetop-guide-toc
+   chrome (see the "Jump-to-step table of contents" block). Players get no rail, so the split
+   holds a lone column that fills the width. */
+
 /* Pre-check screen */
 
 .stonetop-intros-precheck {
@@ -17725,10 +17746,20 @@ th:has(> .stonetop-roll-table-btn) {
 	white-space: nowrap;
 }
 
+/* "Begin Introductions" is the lone action in the GM pre-check footer (the old
+   Add-Player-Characters button was removed — the roster auto-populates on open),
+   so it fills the footer width and centres its label like every other lone modal
+   action. Two-class selector beats the shared `.stonetop-guide-nav button` width:auto. */
+.stonetop-guide-nav .stonetop-intros-begin {
+	width: 100%;
+	justify-content: center;
+}
+
 /* Truly centre the step label in the footer. With space-between the label drifts
    toward whichever flank is narrower ("Your turn" vs. the wider Pass/Done cluster);
    a 1fr / auto / 1fr grid gives equal flanks so the label sits at the real midpoint.
-   Only when a step-label is present, so the two-item pre-check nav keeps space-between. */
+   Only when a step-label is present, so the pre-check nav (lone Begin button) is
+   untouched. */
 .stonetop-introductions .stonetop-guide-nav:has(.stonetop-intros-step-label) {
 	display: grid;
 	grid-template-columns: 1fr auto 1fr;
@@ -18490,19 +18521,22 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-spring-dialog .stonetop-guide-main { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .stonetop-spring-dialog .stonetop-guide-nav { flex: 0 0 auto; }
 
-/* ── Expedition jump-to-step table of contents ────────────────────────────────
-   Only the Expedition dialog renders a TOC rail (a journal-style page list). It
-   sits left of the scrolling step content; both scroll independently between the
-   top of the dialog and the pinned nav footer. Scoped to the expedition dialog so
-   the other steppers (Spring Burst, Create Follower) keep their single column. */
-.stonetop-expedition-dialog .stonetop-guide-split {
+/* ── Jump-to-step table of contents ───────────────────────────────────────────
+   The Expedition dialog and the GM's Introductions dialog both render a TOC rail
+   (a journal-style page list) left of the scrolling step content; both columns
+   scroll independently between the top of the dialog and the pinned nav footer.
+   Scoped to those two so the other steppers (Spring Burst, Create Follower) and a
+   player's rail-less Introductions keep their single column. */
+.stonetop-expedition-dialog .stonetop-guide-split,
+.stonetop-introductions .stonetop-guide-split {
 	display: flex;
 	flex: 1 1 auto;
 	min-height: 0;
 }
 /* min-width:0 lets the content column shrink beside the fixed-width rail instead
    of forcing the dialog wider. */
-.stonetop-expedition-dialog .stonetop-guide-main { min-width: 0; }
+.stonetop-expedition-dialog .stonetop-guide-main,
+.stonetop-introductions .stonetop-guide-split .stonetop-guide-main { min-width: 0; }
 
 .stonetop-guide-toc {
 	flex: 0 0 auto;

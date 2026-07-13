@@ -58,17 +58,17 @@ const _NARRATE_PLACEHOLDER = {
 const _PHASES = [
 	null,
 	{
-		kind: "narrate", title: "Introduce yourself", roundKey: "r1",
+		kind: "narrate", title: "Introduce yourself", icon: "fa-user", roundKey: "r1",
 		getInstruction: () => `On your <strong>first turn</strong>, <strong>introduce yourself</strong>: your name, pronouns, background, origin, and appearance.`,
 		getQuestions:   () => null,
 	},
 	{
-		kind: "narrate", title: "Possessions & contribution", roundKey: "r2",
+		kind: "narrate", title: "Possessions & contribution", icon: "fa-hand-holding-heart", roundKey: "r2",
 		getInstruction: () => `On your <strong>second turn</strong>, <strong>describe your special possessions</strong> and how you contribute to the village (beyond working the fields).`,
 		getQuestions:   () => null,
 	},
 	{
-		kind: "narrate", title: "Your place in Stonetop", roundKey: "r3",
+		kind: "narrate", title: "Your place in Stonetop", icon: "fa-location-dot", roundKey: "r3",
 		getInstruction: (pc) => {
 			const d = _PLAYBOOK_DATA[playbookSlug(pc)];
 			return d
@@ -78,17 +78,17 @@ const _PHASES = [
 		getQuestions: () => null,
 	},
 	{
-		kind: "answer", title: "Bonds & ties", stepKey: "step4",
+		kind: "answer", title: "Bonds & ties", icon: "fa-link", stepKey: "step4",
 		getInstruction: () => `<strong>Answer a question</strong> from your playbook, naming one or more NPCs who live in Stonetop. Each turn, answer another — or pass. When everyone has passed, go on.`,
 		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step4 ?? null,
 	},
 	{
-		kind: "ask", title: "Asking the others", stepKey: "step6",
+		kind: "ask", title: "Asking the others", icon: "fa-comments", stepKey: "step6",
 		getInstruction: () => `<strong>Ask your fellow PCs one of these.</strong> When others ask you, answer as you like. Each turn, ask another — or pass. When everyone has passed, go on.`,
 		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step6 ?? null,
 	},
 	{
-		kind: "final", title: "Let spring break forth",
+		kind: "final", title: "Let spring break forth", icon: "fa-seedling",
 		getInstruction: () => `<strong>Add each player's home</strong> to Stonetop's Places of Interest. When everyone is done, <strong>let spring break forth!</strong><span class="stonetop-intros-instruction-note">Players can reach the Stonetop playbook by hitting the <strong>Stonetop</strong> button in the navbar of their character sheet.</span>`,
 		getQuestions:   () => null,
 	},
@@ -275,7 +275,10 @@ export class IntroductionsDialog extends Application {
 			id:        "stonetop-introductions",
 			title:     "Character Introductions",
 			template:  "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
-			width:     520,
+			// The PRIMARY GM gets a jump-to-step rail (see getData's `steps`), so seat it a
+			// little wider — matching the Expedition dialog's 640. Players and secondary GMs
+			// have no rail and keep the narrower single column.
+			width:     (game.user?.isGM && isPrimaryGM() ? 640 : 520),
 			height:    "auto",
 			resizable: true,
 			classes:   ["stonetop", "stonetop-introductions"],
@@ -330,10 +333,6 @@ export class IntroductionsDialog extends Application {
 	activateListeners(html) {
 		super.activateListeners(html);
 		this._frontOnOpen.start();
-		html.find(".stonetop-intros-add").on("click", async () => {
-			await this.ensureCombatRoster();
-			this.render(false);
-		});
 		html.find(".stonetop-intros-shuffle").on("click", () => this._shuffleOrder());
 		html.find(".stonetop-intros-begin").on("click", () => this._begin());
 		html.find(".stonetop-intros-next").on("click",  () => this._advance());
@@ -341,6 +340,8 @@ export class IntroductionsDialog extends Application {
 		html.find(".stonetop-intros-done").on("click",  () => this._recordCurrentDraft());
 		html.find(".stonetop-intros-back").on("click",  () => this._retreat());
 		html.find(".stonetop-intros-close").on("click", ev => this._finish(ev.currentTarget));
+		// GM sidebar: jump straight to a step (the shared TOC-rail chrome).
+		html.find(".stonetop-guide-toc-btn").on("click", ev => this._jumpToPhase(Number(ev.currentTarget.dataset.stepIndex)));
 
 		// Narration rounds (1–3): the single plain-string answer, written near-live on input
 		// (debounced) so the GM watches the player type, and again on blur (change). Same
@@ -775,6 +776,13 @@ export class IntroductionsDialog extends Application {
 			["deleteCombat",    Hooks.on("deleteCombat",    refresh)],
 			["createCombatant", Hooks.on("createCombatant", refresh)],
 			["deleteCombatant", Hooks.on("deleteCombatant", refresh)],
+			// A PC created/deleted while the pre-check is up changes the roster too, but fires
+			// no combatant hook — refresh so the "ready / not yet in the tracker" lists stay
+			// live rather than going stale until some unrelated event (the removed "Add Player
+			// Characters" button used to be the only nudge for a late-added PC). getData filters
+			// to playbook-bearing actors, so a non-PC create/delete is a harmless no-op re-render.
+			["createActor",     Hooks.on("createActor",     refresh)],
+			["deleteActor",     Hooks.on("deleteActor",     refresh)],
 		];
 	}
 
@@ -801,7 +809,7 @@ export class IntroductionsDialog extends Application {
 			if (shown && actor.id === shown.id && this.rendered && this._phase > 0
 				&& !this.element?.[0]?.contains(document.activeElement)) this.render(false);
 		}, 150);
-		this._introHook = Hooks.on("updateActor", (actor, changes) => {
+		this._introHook = Hooks.on("updateActor", (actor, changes, _options, userId) => {
 			if (actor?.type !== "character") return;
 			const stFlags = changes?.flags?.[_FLAG_SCOPE];
 			if (!stFlags) return;
@@ -812,6 +820,13 @@ export class IntroductionsDialog extends Application {
 			const introDelta   = stFlags[_INTRO_FLAG];
 			const stepChanged  = !!introDelta && ("step4" in introDelta || "step6" in introDelta);
 			if (game.user?.isGM && stepChanged) this._harvestActor(actor);
+			// A player recording their one answer (or passing) on their own turn hands the
+			// turn along: the primary GM (the cursor author) advances to the next still-active
+			// PC, so the table goes around one answer per turn. Gated to step records made by
+			// ANOTHER user — the GM's own Next/Pass already advances, so reacting to that
+			// self-write here would double-hop. When it advances it re-renders itself, so skip
+			// the debounced render below.
+			if (stepChanged && userId !== game.user?.id && this._autoAdvanceOnRemoteStep(actor)) return;
 			scheduleRender(actor);
 		});
 	}
@@ -982,9 +997,21 @@ export class IntroductionsDialog extends Application {
 		let placeInLine = null;
 		if (!isGM && _isRoundRobin(phase) && !capture?.canEdit) placeInLine = this._myPlaceInLine(phase);
 
+		// Primary-GM-only jump-to-step rail (the shared TOC chrome): one entry per real
+		// phase (1..last), the current one flagged active. Only the primary GM drives the
+		// cursor (see _jumpToPhase), so players AND secondary GMs follow it and get no rail
+		// (a rendered-but-inert rail would click into _jumpToPhase's isPrimaryGM guard).
+		const steps = (isGM && isPrimaryGM()) ? _PHASES.slice(1).map((p, i) => ({
+			index:    i + 1,
+			title:    p.title,
+			icon:     p.icon,
+			isActive: i + 1 === this._phase,
+		})) : null;
+
 		return {
 			isPreCheck:     false,
 			isGM,
+			steps,
 			phase:          this._phase,
 			currentPc,
 			instruction,
@@ -1101,10 +1128,10 @@ export class IntroductionsDialog extends Application {
 		return true;
 	}
 
-	// The player's "Done" — record the current draft as an answer WITHOUT advancing the
-	// turn (players don't drive the GM-paced cursor; the GM's Next hands off). Mirrors the
-	// record half of the GM's Next: flush the latest typed text, require a chosen question,
-	// append it to the recorded list, and clear the compose box for another.
+	// The player's "Done" — record the current draft as their ONE answer for this turn; the
+	// turn then hands off on its own (the record writes their actor flag, which the primary
+	// GM's updateActor hook picks up via _autoAdvanceOnRemoteStep). Mirrors the record half of
+	// the GM's Next: flush the latest typed text, require a chosen question, append it.
 	async _recordCurrentDraft() {
 		const phase = _PHASES[this._phase];
 		if (!_isStep(phase)) return;
@@ -1134,10 +1161,11 @@ export class IntroductionsDialog extends Application {
 		if (confirmed) await this._pass();
 	}
 
-	// Pass: the active PC opts out of the rest of this step. The GM moves the turn to the
-	// next still-active PC — but a pass never auto-leaves the step (GM-paced: when all are
-	// done the GM's lit-up Next is what advances the phase). A player just marks their own
-	// flag and waits for the GM, whose Next skips passed PCs.
+	// Pass: the active PC opts out of the rest of this step. The turn then moves to the next
+	// still-active PC — the GM advances its own view right here; a player's pass writes their
+	// flag and the primary GM's updateActor hook (_autoAdvanceOnRemoteStep) advances for them.
+	// A pass never auto-leaves the step (GM-paced: when all are done the GM's lit-up Next is
+	// what advances the phase), and the GM's Next always skips already-passed PCs.
 	async _pass() {
 		const phase = _PHASES[this._phase];
 		if (!_isStep(phase)) return;
@@ -1145,19 +1173,47 @@ export class IntroductionsDialog extends Application {
 		if (!actor || !this._canEditActor(actor)) return;
 		this._cancelLiveDraft();
 		await this._setPassed(actor.id, phase.stepKey, true);
-		if (game.user?.isGM) {
-			const nextIdx = nextActiveIndex(this._pcIndex, this._pcs.length, i => this._isPcDone(this._pcs[i], phase));
-			if (nextIdx >= 0) this._pcIndex = nextIdx; // else stay put; everyone's done → GM clicks Next
-		}
+		if (game.user?.isGM) this._stepToNextActivePc(phase); // else stay put; everyone's done → GM clicks Next
 		this.render(false);
+	}
+
+	// Move the round-robin cursor to the next still-active PC in this looping step,
+	// cycling with wrap-around (staying put when only the current PC is left). Returns
+	// true when a next PC exists, false when everyone's done — the caller decides whether
+	// that means crossing the phase boundary (Next) or parking for the GM.
+	_stepToNextActivePc(phase) {
+		const nextIdx = nextActiveIndex(this._pcIndex, this._pcs.length, i => this._isPcDone(this._pcs[i], phase));
+		if (nextIdx < 0) return false;
+		this._pcIndex = nextIdx;
+		return true;
 	}
 
 	// Advance the round-robin cursor within a looping step: to the next still-active
 	// PC (cycling), or — when everyone is passed/exhausted — on to the next phase.
 	_advanceStepCursor(phase) {
-		const nextIdx = nextActiveIndex(this._pcIndex, this._pcs.length, i => this._isPcDone(this._pcs[i], phase));
-		if (nextIdx >= 0) { this._pcIndex = nextIdx; return; }
+		if (this._stepToNextActivePc(phase)) return;
 		if (this._phase < _LAST_PHASE) this._enterPhase(this._phase + 1);
+	}
+
+	// Primary-GM auto-advance for a looping answer/ask step: when the ACTIVE PC's own player
+	// records an answer (their Done) or passes, hand the turn to the next still-active PC so
+	// the table cycles one answer per turn. Only the primary GM (the cursor author) advances,
+	// and only for a step change on the PC whose turn it currently is. Unlike the GM's Next,
+	// this never crosses the phase boundary — when everyone is done it parks on the current PC
+	// so the GM deliberately continues with the (now lit) "Everyone's done, continue" button.
+	// Returns true when handled (advanced / stayed on a lone active PC / parked, then
+	// re-rendered), false to fall through to the ordinary debounced re-render.
+	_autoAdvanceOnRemoteStep(actor) {
+		if (!game.user?.isGM || !isPrimaryGM()) return false;
+		const phase = _PHASES[this._phase];
+		if (!_isStep(phase)) return false;
+		if (this._pcs?.[this._pcIndex]?.id !== actor.id) return false; // only the active PC's own turn
+		this._cancelLiveDraft();
+		// Step to the next active PC; when everyone is done this stays put so the GM crosses
+		// the phase deliberately with the (now lit) "Everyone's done, continue" button.
+		this._stepToNextActivePc(phase);
+		this.render(false);
+		return true;
 	}
 
 	// Enter a phase, parking the cursor: on a looping step, on the first still-active
@@ -1189,6 +1245,20 @@ export class IntroductionsDialog extends Application {
 			this._phase   = 0;
 			this._pcIndex = 0;
 		}
+		this.render(false);
+	}
+
+	// GM sidebar jump: fast-forward or rewind the shared cursor to another step,
+	// parking on its first still-active PC (via _enterPhase) exactly as Next/Back do
+	// when they cross a phase boundary — the render then mirrors it out to every
+	// player's dialog. GM-paced like _advance/_retreat: only the primary GM drives the
+	// cursor (a secondary GM/player has no rail, and this guard backstops that). A
+	// click on the current step is a no-op so it can't reset the per-PC turn.
+	_jumpToPhase(index) {
+		if (!game.user?.isGM || !isPrimaryGM()) return;
+		if (!Number.isInteger(index) || index < 1 || index > _LAST_PHASE || index === this._phase) return;
+		this._cancelLiveDraft();
+		this._enterPhase(index);
 		this.render(false);
 	}
 

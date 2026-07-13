@@ -292,9 +292,12 @@ export function registerSettings() {
 	// hooks/Ready.js reopens any that were still open at the page they were on. Client-
 	// scoped because this is per-user, local UI state (which browser had a dialog open).
 	// Completion lives in the world-scoped `sessionZeroDone` setting above instead, so it
-	// doesn't leak across worlds. Shape:
-	//   { introductions: { open: <bool>, phase: <0-8>, pcIndex: <int> },
-	//     springBurst:   { open: <bool>, step: <int>, delegated: <bool> } }
+	// doesn't leak across worlds. Records are keyed by world id (this client blob would
+	// otherwise reopen an open dialog in every world opened in this browser; see
+	// walkthrough-resume.js). Shape:
+	//   { "<worldId>": {
+	//       introductions: { open: <bool>, phase: <0-8>, pcIndex: <int> },
+	//       springBurst:   { open: <bool>, step: <int>, delegated: <bool> } } }
 	game.settings.register("stonetop_pwd", "walkthroughResume", {
 		name: "Walkthrough Resume State",
 		scope: "client",
