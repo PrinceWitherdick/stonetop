@@ -67,7 +67,10 @@ export function wrapGearNoteTerms(note) {
 		const lead  = part.match(/^\s*/)[0];
 		const trail = part.match(/\s*$/)[0];
 		const pierce = trimmed.match(/^([x\d]+)\s+piercing$/i);
-		if (pierce) return `${lead}${escHtml(pierce[1])} <em>piercing</em>${trail}`;
+		// "x piercing" is the Prosperity-scaled variable form; store the marker as a
+		// canonical lowercase "x" (whatever case was typed) so _transformPiercingNote,
+		// which matches it, always resolves it. Fixed values ("2 piercing") pass through.
+		if (pierce) return `${lead}${escHtml(/^x$/i.test(pierce[1]) ? "x" : pierce[1])} <em>piercing</em>${trail}`;
 		if (findGearTerm(trimmed)) return `${lead}<em>${escHtml(trimmed)}</em>${trail}`;
 		return escHtml(part);
 	}).join(",");

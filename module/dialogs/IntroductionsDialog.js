@@ -32,6 +32,11 @@ const _CURSOR_SETTING = "introCursor";
 // Key for this dialog's reload-resume record (round + turn + open flag) in the
 // shared walkthroughResume setting. See walkthrough-resume.js.
 const _RESUME_KEY = "introductions";
+// Resume-blob schema version. A save without `v` predates the collapse of the old 8-round
+// flow (rounds 4/5 = the two "answer" laps, 6/7 = the two "ask" laps, 8 = the finale) into
+// today's looping steps (4 = answer, 5 = ask, 6 = final); _restorePosition remaps those.
+const _RESUME_VERSION = 2;
+const _LEGACY_RESUME_PHASE_MAP = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6 };
 
 // Placeholder copy for the narration rounds (1–3); the answer/ask steps set their
 // own from whether the PC is answering or asking.
@@ -540,11 +545,12 @@ export class IntroductionsDialog extends Application {
 	}
 
 	// Whether this client may WRITE the given PC's live draft this turn. The active player
-	// edits their OWN PC on their turn during an answer/ask step. The GM edits narration,
-	// GM-only PCs, and turns whose owning player is offline — but on a step where an ONLINE
-	// player owns the turn the GM only WATCHES (read-only), so the GM's mirror textarea and
-	// the player's live typing never clobber the single shared live-draft buffer; the GM
-	// still commits the player's draft with Next (which reads the flag, not the DOM).
+	// edits their OWN PC on their turn during an answer/ask step. The PRIMARY GM may also
+	// write: it edits narration, GM-only PCs, and turns whose owning player is offline, and on
+	// a round-robin turn owned by a present player it CO-EDITS the one shared live-draft buffer
+	// alongside them (last-writer-wins; see _hasOnlinePlayerOwner, which drives the "writing
+	// together" label). A secondary GM only watches. The GM commits the draft with Next (which
+	// reads the flag, not the DOM).
 	_canEditActor(actor) {
 		if (game.user?.isGM) {
 			// Only the PRIMARY GM edits — for a GM-only/offline PC, or CO-EDITING the shared
@@ -1194,11 +1200,15 @@ export class IntroductionsDialog extends Application {
 		const saved = getWalkthroughResume(_RESUME_KEY);
 		let phase = Number(saved?.phase);
 		if (!Number.isInteger(phase) || phase < 1) return false;
-		// A world upgraded from the old 8-round flow may have a resume saved at round 7 or 8;
-		// clamp it into the new 1.._LAST_PHASE range so the GM resumes near the end rather than
-		// being bounced to the pre-check (which, with no pre-existing cursor to fall back on,
-		// would silently drop the whole in-progress session).
-		if (phase > _LAST_PHASE) phase = _LAST_PHASE;
+		// A resume written before the round-robin collapse (no _RESUME_VERSION marker) used the
+		// old 8-round numbering, so remap each legacy round to the step it was actually on;
+		// otherwise old round 5 (the second answer lap) would resume on the ASK step, skipping
+		// the remaining answers. Current-format saves pass through, clamped only if past the end.
+		if (Number(saved?.v) >= _RESUME_VERSION) {
+			if (phase > _LAST_PHASE) phase = _LAST_PHASE;
+		} else {
+			phase = _LEGACY_RESUME_PHASE_MAP[phase] ?? _LAST_PHASE;
+		}
 		const pcs = _getCombatPcs();
 		if (!pcs.length) return false;
 		this._pcs     = pcs;
@@ -1215,6 +1225,6 @@ export class IntroductionsDialog extends Application {
 	_saveResume() {
 		const cur = getWalkthroughResume(_RESUME_KEY);
 		if (cur?.open === true && cur.phase === this._phase && cur.pcIndex === this._pcIndex) return;
-		patchWalkthroughResume(_RESUME_KEY, { open: true, phase: this._phase, pcIndex: this._pcIndex });
+		patchWalkthroughResume(_RESUME_KEY, { open: true, v: _RESUME_VERSION, phase: this._phase, pcIndex: this._pcIndex });
 	}
 }

@@ -155,10 +155,14 @@ const _WEAPONS_OF_WAR_IMPROVEMENT = "weaponsOfWar";
 // 1+ it shows the actual value ("2 piercing"); at 0, no steading (null), or negative,
 // the literal "x piercing" trait is left in place so it always shows on the sheet.
 function _transformPiercingNote(note, prosperity) {
-	if (!note || !note.includes('x <em>piercing</em>')) return note;
+	// Match the variable "x piercing" marker case-insensitively: a free-typed note may
+	// capitalize the x (the chip inserts lowercase, and wrapGearNoteTerms normalizes new
+	// notes, but this also catches any already-saved capital form).
+	const marker = /x <em>piercing<\/em>/i;
+	if (!note || !marker.test(note)) return note;
 	if (prosperity === null) return note; // no steading → leave literal "x piercing"
-	if (prosperity <= -1) return note.replace('x <em>piercing</em>', '<em>crude</em>');
-	return note.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
+	if (prosperity <= -1) return note.replace(marker, '<em>crude</em>');
+	return note.replace(marker, `${Math.min(prosperity, 2)} <em>piercing</em>`);
 }
 
 // On the gear tab a possession's circle track renders in the component's top-right,
