@@ -30,7 +30,12 @@ export function createStonetopActorClass(BaseActor) {
 				ok: { ...(options.ok ?? {}), label: title },
 			};
 			if (!options.types) {
-				options.types = this.TYPES.filter(t => t !== "stonetop" && t !== CONST.BASE_DOCUMENT_TYPE);
+				// Monsters are GM content: players (who get Create-Actor on fresh worlds) only ever
+				// make their own character, so keep Monster out of a non-GM's picker too.
+				options.types = this.TYPES.filter(t =>
+					t !== "stonetop"
+					&& t !== CONST.BASE_DOCUMENT_TYPE
+					&& (game.user?.isGM || t !== "monster"));
 			}
 			return super.createDialog(data, createOptions, options, renderOptions);
 		}

@@ -51,6 +51,14 @@ export function registerStonetopSingletonHooks() {
 			return false;
 		}
 
+		// Players can only ever create their own character. Even if a `monster` type slips
+		// past the Create-Actor picker (e.g. a macro), a non-GM must never create a monster
+		// stat block (that is GM content), so veto it outright.
+		if ((actor?.type ?? data?.type) === "monster" && !game.user?.isGM) {
+			ui.notifications?.warn("Only the GM can create monsters.");
+			return false;
+		}
+
 		// A GM creating a blank Monster from "Create Actor" goes through the guided
 		// worksheet instead: veto the empty create and open the builder, which then
 		// creates the fully-populated stat block itself.
