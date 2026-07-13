@@ -1,0 +1,136 @@
+<form class="stonetop threat-edit threat-editor" autocomplete="off" data-page-uuid="{{uuid}}">
+
+	<div class="threat-edit__row">
+		<label class="threat-edit__field threat-edit__field--grow">
+			<span class="threat-edit__label">Name</span>
+			<input type="text" data-doc-field="name" value="{{name}}" placeholder="Threat name">
+		</label>
+		<label class="threat-edit__field">
+			<span class="threat-edit__label">Type</span>
+			<select data-doc-field="system.type">
+				{{#each typeOptions}}<option value="{{id}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+			</select>
+		</label>
+	</div>
+
+	<label class="threat-edit__field">
+		<span class="threat-edit__label">Instinct</span>
+		<input type="text" data-doc-field="system.instinct" value="{{system.instinct}}" placeholder="to indulge its ego">
+	</label>
+
+	<div class="threat-edit__field">
+		<span class="threat-edit__label">Proximity</span>
+		<div class="threat-proximity-picker">
+			{{#each proximityOptions}}
+			<label class="threat-proximity-option{{#if selected}} is-selected{{/if}}">
+				<input type="radio" name="threat-proximity-{{@root.id}}" data-doc-field="system.proximity" value="{{id}}"{{#if selected}} checked{{/if}}>
+				<span>{{label}}</span>
+			</label>
+			{{/each}}
+		</div>
+	</div>
+
+	<label class="threat-edit__field">
+		<span class="threat-edit__label">Description</span>
+		<textarea data-doc-field="system.description" rows="3" placeholder="Who or what it is, how it became a problem, its ties to NPCs or other threats.">{{system.description}}</textarea>
+	</label>
+
+	<div class="threat-edit__field">
+		<span class="threat-edit__label">Grim portents <em class="threat-edit__hint">the doom track</em></span>
+		<div class="threat-list" data-list="grimPortents">
+			{{#each grimPortents}}
+			<div class="threat-list-row threat-list-row--portent" data-index="{{index}}">
+				<input type="checkbox" class="threat-list-done" data-field="done"{{#if done}} checked{{/if}} data-tooltip="Come to pass">
+				<input type="text" class="threat-list-text" data-field="text" value="{{text}}" placeholder="A concrete, observable milestone">
+				<button type="button" class="threat-list-remove" data-list="grimPortents" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
+			</div>
+			{{/each}}
+			<button type="button" class="threat-list-add" data-list="grimPortents"><i class="fas fa-plus"></i> Add portent</button>
+		</div>
+	</div>
+
+	<div class="threat-edit__field">
+		<span class="threat-edit__label">Impending doom</span>
+		<div class="threat-doom-edit">
+			<input type="checkbox" class="threat-list-done" data-doc-field="system.impendingDoom.done"{{#if system.impendingDoom.done}} checked{{/if}} data-tooltip="Come to pass">
+			<input type="text" data-doc-field="system.impendingDoom.text" value="{{system.impendingDoom.text}}" placeholder="The irreversible outcome, if the PCs never intervene">
+		</div>
+	</div>
+
+	<button type="button" class="threat-editor-more-toggle{{#if moreOpen}} is-open{{/if}}"><i class="fas fa-chevron-right"></i> Stakes, GM moves &amp; more</button>
+	<div class="threat-editor-more{{#if moreOpen}} is-open{{/if}}">
+
+		<div class="threat-edit__field">
+			<span class="threat-edit__label">Stakes questions</span>
+			<div class="threat-list" data-list="stakes" data-kind="string">
+				{{#each stakes}}
+				<div class="threat-list-row" data-index="{{index}}">
+					<input type="text" class="threat-list-text" data-field="value" value="{{value}}" placeholder="A future-facing question you're curious about">
+					<button type="button" class="threat-list-remove" data-list="stakes" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
+				</div>
+				{{/each}}
+				<button type="button" class="threat-list-add" data-list="stakes"><i class="fas fa-plus"></i> Add question</button>
+			</div>
+		</div>
+
+		<div class="threat-edit__field">
+			<span class="threat-edit__label">GM moves</span>
+			{{#if suggestedMoves.length}}
+			<div class="threat-suggested">
+				<p class="threat-suggested__hint">Suggested for {{typeLabel}}. Click to add:</p>
+				<div class="threat-suggested__chips">
+					{{#each suggestedMoves}}
+					<button type="button" class="threat-suggested__chip{{#if used}} is-used{{/if}}" data-suggested-move="{{text}}">{{text}}</button>
+					{{/each}}
+				</div>
+			</div>
+			{{/if}}
+			<div class="threat-list" data-list="gmMoves" data-kind="string">
+				{{#each gmMoves}}
+				<div class="threat-list-row" data-index="{{index}}">
+					<input type="text" class="threat-list-text" data-field="value" value="{{value}}" placeholder="A GM move for this threat">
+					<button type="button" class="threat-list-remove" data-list="gmMoves" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
+				</div>
+				{{/each}}
+				<button type="button" class="threat-list-add" data-list="gmMoves"><i class="fas fa-plus"></i> Add GM move</button>
+			</div>
+		</div>
+
+		<div class="threat-edit__field">
+			<span class="threat-edit__label">Lesser threats</span>
+			<div class="threat-list" data-list="nested">
+				{{#each nested}}
+				<div class="threat-list-row threat-list-row--nested" data-index="{{index}}">
+					<input type="text" class="threat-list-text" data-field="name" value="{{name}}" placeholder="Name">
+					<select class="threat-list-select" data-field="type">
+						<option value="">type</option>
+						{{#each @root.typeOptions}}<option value="{{id}}"{{#if (eq id ../type)}} selected{{/if}}>{{label}}</option>{{/each}}
+					</select>
+					<input type="text" class="threat-list-text" data-field="instinct" value="{{instinct}}" placeholder="instinct">
+					<button type="button" class="threat-list-remove" data-list="nested" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
+				</div>
+				{{/each}}
+				<button type="button" class="threat-list-add" data-list="nested"><i class="fas fa-plus"></i> Add lesser threat</button>
+			</div>
+		</div>
+
+		<div class="threat-edit__field">
+			<span class="threat-edit__label">Custom player moves</span>
+			<div class="threat-list" data-list="customPlayerMoves">
+				{{#each customPlayerMoves}}
+				<div class="threat-list-row threat-list-row--pmove" data-index="{{index}}">
+					<input type="text" class="threat-list-text" data-field="label" value="{{label}}" placeholder="Move name or trigger">
+					<textarea class="threat-list-textarea" data-field="text" rows="2" placeholder="The move text">{{text}}</textarea>
+					<button type="button" class="threat-list-remove" data-list="customPlayerMoves" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
+				</div>
+				{{/each}}
+				<button type="button" class="threat-list-add" data-list="customPlayerMoves"><i class="fas fa-plus"></i> Add player move</button>
+			</div>
+		</div>
+
+	</div>
+
+	<footer class="threat-editor__footer">
+		<button type="button" class="threat-editor-done"><i class="fas fa-check"></i> Done</button>
+	</footer>
+</form>

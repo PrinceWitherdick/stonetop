@@ -1,22 +1,13 @@
 <div class="tab arcana" data-group="primary" data-tab="arcana">
 
-	{{#if stonetop.arcanaAnyEdit}}{{#if stonetop.canCreateArcana}}
-	<div class="stonetop-arcana-create-bar">
-		<button type="button" class="stonetop-arcana-create" data-major="false">
-			<i class="fas fa-plus"></i> Create minor arcanum
-		</button>
-		<button type="button" class="stonetop-arcana-create" data-major="true">
-			<i class="fas fa-plus"></i> Create major arcanum
-		</button>
-		<button type="button" class="stonetop-arcana-inspire" title="Roll the Artifact Creation tables for inspiration, then build a card from the results">
-			<i class="fas fa-dice-d20"></i> Inspire me…
-		</button>
-	</div>
-	{{/if}}{{/if}}
-
+	{{!-- The per-tier "Create arcanum" buttons live at the foot of their own Major /
+	      Minor sections (see below). The empty-state line only shows when there's
+	      nothing to create with either — i.e. the sections themselves won't render. --}}
+	{{#unless stonetop.canCreateArcana}}
 	{{#unless stonetop.arcana.major.hasOwned}}{{#unless stonetop.arcana.minor.hasOwned}}
 	<p class="stonetop-arcana-empty">{{localize "stonetop.arcana.empty"}}</p>
 	{{/unless}}{{/unless}}
+	{{/unless}}
 
 	{{#*inline "arcanumCard"}}
 	{{#if owned}}
@@ -86,6 +77,13 @@
 				{{/if}}
 				{{/each}}
 			</ul>
+			{{!-- Consequences surfaced from the back for cards whose front references them
+			      ("mark a consequence (see reverse)"). Rendered only in the front-only view; the
+			      leading <h3>Consequences</h3> is folded behind a collapsible at render time
+			      (activateListeners), and the front text's "(see reverse)" becomes "(see below)". --}}
+			{{#if showFrontConsequences}}
+			{{{consequences}}}
+			{{/if}}
 		</div>
 		</div>
 		{{/if}}
@@ -195,6 +193,31 @@
 		</div>
 		{{/if}}
 
+		{{else if lead}}
+		{{!-- Lead state: the owner knows this arcanum's whereabouts but hasn't recovered it
+		      yet. Shows the card's name over a placeholder; "discovered" promotes it to the
+		      normal, identified minor-arcanum form. --}}
+		<div class="stonetop-arcanum-header">
+			<div class="stonetop-arcanum-header-left">
+				<span class="stonetop-arcanum-title">{{front.title}}</span>
+			</div>
+		</div>
+		<div class="stonetop-arcanum-body stonetop-arcanum-lead-body">
+			<i class="fas fa-map-location-dot stonetop-arcanum-lead-icon"></i>
+			<p>{{localize "stonetop.arcana.leadText"}}</p>
+			<button type="button" class="stonetop-arcanum-discover-btn" data-slug="{{slug}}">
+				{{localize "stonetop.arcana.discover"}}
+			</button>
+		</div>
+		{{#if sectionEditable}}
+		<div class="stonetop-arcanum-footer">
+			<button type="button" class="stonetop-arcanum-delete" data-slug="{{slug}}"
+			        title="{{localize 'stonetop.arcana.removeArcanum'}}">
+				<i class="fas fa-trash"></i> Remove
+			</button>
+		</div>
+		{{/if}}
+
 		{{else}}
 		{{!-- Unidentified state --}}
 		<div class="stonetop-arcanum-header">
@@ -223,29 +246,52 @@
 	{{/if}}
 	{{/inline}}
 
-	{{#if stonetop.arcana.major.hasOwned}}
+	{{!-- A section renders when the character holds arcana of that tier OR the viewer may
+	      author them — so a would-be author always has the "Create …" button, even before
+	      the first card exists. The search control and edit pencil only show once there are
+	      cards to search / edit; the dashed "Create …" button is pinned at the section foot
+	      (mirrors the Moves / Followers "add" bars) and folds away with the section. --}}
+	{{#if (or stonetop.arcana.major.hasOwned stonetop.canCreateArcana)}}
 	<section class="stonetop-arcana-section stonetop-arcana-collapsible{{#unless stonetop.arcanaOpen.major}} is-collapsed{{/unless}}" data-section="arcanaMajor">
 		<div class="stonetop-arcana-summary" role="button" tabindex="0"
 		     aria-expanded="{{#if stonetop.arcanaOpen.major}}true{{else}}false{{/if}}">
-			{{> "stonetop.section-heading" title=stonetop.arcana.major.title searchControl=true searchTitle=(localize "stonetop.arcana.searchLabel") searchPlaceholder=(localize "stonetop.arcana.searchPlaceholder")}}
+			{{> "stonetop.section-heading" title=stonetop.arcana.major.title searchControl=stonetop.arcana.major.hasOwned searchTitle=(localize "stonetop.arcana.searchLabel") searchPlaceholder=(localize "stonetop.arcana.searchPlaceholder")}}
+			{{#if stonetop.arcana.major.hasOwned}}
 			{{> "stonetop.section-edit-toggle" toggleClass="stonetop-arcana-section-edit-toggle" section="arcanaMajor" editing=stonetop.arcanaEdit.major}}
+			{{/if}}
 		</div>
 		<div class="stonetop-arcana-grid">
 		{{#each stonetop.arcana.major.items}}{{> arcanumCard}}{{/each}}
 		</div>
+		{{#if stonetop.canCreateArcana}}
+		<div class="stonetop-arcana-add-bar">
+			<button type="button" class="stonetop-arcana-create stonetop-arcana-add-btn" data-major="true">
+				<i class="fas fa-plus" aria-hidden="true"></i> Create major arcanum
+			</button>
+		</div>
+		{{/if}}
 	</section>
 	{{/if}}
 
-	{{#if stonetop.arcana.minor.hasOwned}}
+	{{#if (or stonetop.arcana.minor.hasOwned stonetop.canCreateArcana)}}
 	<section class="stonetop-arcana-section stonetop-arcana-collapsible{{#unless stonetop.arcanaOpen.minor}} is-collapsed{{/unless}}" data-section="arcanaMinor">
 		<div class="stonetop-arcana-summary" role="button" tabindex="0"
 		     aria-expanded="{{#if stonetop.arcanaOpen.minor}}true{{else}}false{{/if}}">
-			{{> "stonetop.section-heading" title=stonetop.arcana.minor.title searchControl=(not stonetop.arcana.major.hasOwned) searchTitle=(localize "stonetop.arcana.searchLabel") searchPlaceholder=(localize "stonetop.arcana.searchPlaceholder")}}
+			{{> "stonetop.section-heading" title=stonetop.arcana.minor.title searchControl=stonetop.arcana.minor.hasOwned searchTitle=(localize "stonetop.arcana.searchLabel") searchPlaceholder=(localize "stonetop.arcana.searchPlaceholder")}}
+			{{#if stonetop.arcana.minor.hasOwned}}
 			{{> "stonetop.section-edit-toggle" toggleClass="stonetop-arcana-section-edit-toggle" section="arcanaMinor" editing=stonetop.arcanaEdit.minor}}
+			{{/if}}
 		</div>
 		<div class="stonetop-arcana-grid">
 		{{#each stonetop.arcana.minor.items}}{{> arcanumCard}}{{/each}}
 		</div>
+		{{#if stonetop.canCreateArcana}}
+		<div class="stonetop-arcana-add-bar">
+			<button type="button" class="stonetop-arcana-create stonetop-arcana-add-btn" data-major="false">
+				<i class="fas fa-plus" aria-hidden="true"></i> Create minor arcanum
+			</button>
+		</div>
+		{{/if}}
 	</section>
 	{{/if}}
 

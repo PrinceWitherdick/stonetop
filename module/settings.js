@@ -87,11 +87,13 @@ export function registerSettings() {
 		default: true,
 	});
 
-	// As customMovesGmOnly, but for homebrew arcana (minor & major) and the
-	// inspiration wizard. When on (the default), only the GM sees the "Create
-	// arcanum" bar and the inspiration wizard on the arcana tab; existing arcana
-	// still render and the editor still opens for whoever owns the card. Kept
-	// independent of customMovesGmOnly so a GM can permit one and not the other.
+	// As customMovesGmOnly, but for homebrew arcana (minor & major). When on (the
+	// default), only the GM sees the per-tier "Create arcanum" buttons at the foot
+	// of the arcana tab's Major / Minor sections; existing arcana still render and
+	// the editor still opens for whoever owns the card. (The Artifact Creation
+	// inspiration wizard now lives in the sidebar "Create Item → Arcanum" chooser,
+	// which is GM-side.) Kept independent of customMovesGmOnly so a GM can permit
+	// one and not the other.
 	game.settings.register("stonetop_pwd", "arcanaCreationGmOnly", {
 		name: "stonetop.settings.arcanaCreationGmOnly.name",
 		hint: "stonetop.settings.arcanaCreationGmOnly.hint",
@@ -101,10 +103,23 @@ export function registerSettings() {
 		default: true,
 	});
 
+	// When on (the default), creating a blank Monster from "Create Actor" opens the
+	// guided worksheet (Book I "Dangers") that computes HP/armor/damage from tag
+	// picks. Off drops straight to a blank stat block. Imports, compendium drops,
+	// and duplicates are never intercepted, only manual blank creates.
+	game.settings.register("stonetop_pwd", "monsterBuilderEnabled", {
+		name: "stonetop.settings.monsterBuilderEnabled.name",
+		hint: "stonetop.settings.monsterBuilderEnabled.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	// Whether players may PEEK at a card's BACK before unlocking it. A card's OWNER always
 	// sees its back once unlocked (every spot filled), regardless of this setting —
-	// unlocking is their own achievement. This switch is the separate peek: on (the
-	// default) lets players open the back of a not-yet-unlocked card; off keeps an
+	// unlocking is their own achievement. This switch is the separate peek: on lets
+	// players open the back of a not-yet-unlocked card; off (the default) keeps an
 	// un-unlocked back hidden until the GM clicks "Reveal back to player" on it. The GM
 	// always sees both sides. See the per-card visibility model in
 	// StonetopCharacterSheet.getData / CharacterArcana.
@@ -114,7 +129,21 @@ export function registerSettings() {
 		scope: "world",
 		config: true,
 		type: Boolean,
-		default: true,
+		default: false,
+	});
+
+	// The flagship "threats on the map" option. When on, each threat pin also draws its
+	// full book card on the canvas, anchored to the pin and panning/zooming with the
+	// scene, with a live doom track the GM ticks right there. Off by default: the safe
+	// path is a pin that opens the card in a window (works everywhere, no canvas overlay).
+	game.settings.register("stonetop_pwd", "threatOnCanvasCards", {
+		name: "stonetop.settings.threatOnCanvasCards.name",
+		hint: "stonetop.settings.threatOnCanvasCards.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: false,
+		onChange: () => game.stonetop?.threatBoard?.refresh?.(),
 	});
 
 	game.settings.register("stonetop_pwd", "startupWelcomeShown", {
@@ -175,18 +204,46 @@ export function registerSettings() {
 		default: {}
 	});
 
-	// Answers the GM records in the guided Character Introductions (see
-	// dialogs/IntroductionsDialog.js) — what each PC established about themselves
-	// and Stonetop, round by round. Compiled into the shared "Chronicle" journal
-	// (utils/chronicle.js). Shape, keyed by actor id:
-	//   { <actorId>: { r1, r2, r3: "<text>", r4..r7: { q: <questionIndex>, a: "<text>" } } }
-	// where r1–r3 are the narration rounds and r4–r7 the answer/ask rounds.
+	// Answers recorded in the guided Character Introductions (see
+	// dialogs/IntroductionsDialog.js) — what each PC established about themselves and
+	// Stonetop. GM-written (only a GM can write a world setting): the GM types the
+	// narration rounds and HARVESTS each player's own `flags.stonetop_pwd.intro` flag
+	// (the player-driven answer/ask steps) into here for the Chronicle. Compiled into the
+	// shared "Chronicle" journal (utils/chronicle.js). Shape, keyed by actor id:
+	//   { <actorId>: {
+	//       r1, r2, r3: "<text>",                    // narration rounds (GM-typed)
+	//       step4: { answers: [ { q: <questionIndex>, a: "<text>" }, … ], passed: <bool> },
+	//       step6: { answers: [ { q, a }, … ], passed: <bool> },   // ask step
+	//       r4..r7: { q, a }                          // LEGACY single-answer rounds, read-only
+	//   } }
+	// step4 folds the old r4/r5 "answer" rounds into one looping step (up to 4 answers,
+	// one per playbook question); step6 folds r6/r7. The compiler reads both the step
+	// lists and the legacy r4–r7 keys, so already-run worlds keep compiling unchanged.
 	game.settings.register("stonetop_pwd", "introductionsAnswers", {
 		name: "Character Introductions Answers",
 		scope: "world",
 		config: false,
 		type: Object,
 		default: {}
+	});
+
+	// GM-driven session cursor for the guided Character Introductions — whose turn it is
+	// and which step (see dialogs/IntroductionsDialog.js). Only the PRIMARY GM writes it;
+	// every client reacts through this registered onChange (which fires on all clients, GM
+	// and player, on the first write too — unlike Hooks.on("updateSetting")) to open/focus/
+	// close the dialog on the active player's screen. `nonce` bumps on every write so a
+	// Back-to-the-same-step still fires onChange (Foundry suppresses equal-value writes).
+	// `pcOrder` is the GM-authored turn order (actor ids) so players seed their roster from
+	// the cursor rather than their own scene-scoped game.combat. Shape:
+	//   { active: <bool>, phase: <0-6>, activeActorId: "<id>",
+	//     activeUserId: "<owning player's user id>", pcOrder: [ "<id>", … ], nonce: <int> }.
+	game.settings.register("stonetop_pwd", "introCursor", {
+		name: "Character Introductions Cursor",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: { active: false, phase: 0, activeActorId: "", activeUserId: "", pcOrder: [], nonce: 0 },
+		onChange: value => game.stonetop?.onIntroCursor?.(value),
 	});
 
 	// Notes the GM records in the Expedition walkthrough (see dialogs/ExpeditionDialog.js).
@@ -235,9 +292,12 @@ export function registerSettings() {
 	// hooks/Ready.js reopens any that were still open at the page they were on. Client-
 	// scoped because this is per-user, local UI state (which browser had a dialog open).
 	// Completion lives in the world-scoped `sessionZeroDone` setting above instead, so it
-	// doesn't leak across worlds. Shape:
-	//   { introductions: { open: <bool>, phase: <0-8>, pcIndex: <int> },
-	//     springBurst:   { open: <bool>, step: <int>, delegated: <bool> } }
+	// doesn't leak across worlds. Records are keyed by world id (this client blob would
+	// otherwise reopen an open dialog in every world opened in this browser; see
+	// walkthrough-resume.js). Shape:
+	//   { "<worldId>": {
+	//       introductions: { open: <bool>, phase: <0-8>, pcIndex: <int> },
+	//       springBurst:   { open: <bool>, step: <int>, delegated: <bool> } } }
 	game.settings.register("stonetop_pwd", "walkthroughResume", {
 		name: "Walkthrough Resume State",
 		scope: "client",
@@ -345,6 +405,30 @@ export function registerSettings() {
 	// Strip the decorative animations, transitions, and hover-zoom image popups
 	// from Stonetop UI for users who find them distracting or are motion-sensitive.
 	// Drives the `stonetop-reduce-motion` root class.
+	// Reopen the document sheets (characters, steadings, monsters, items, journals)
+	// this user had open when they reload, at the same position and size. Per-client
+	// because window layout is personal, not shared world state. Defaults on. The
+	// live tracking + restore lives in utils/window-restore.js.
+	game.settings.register("stonetop_pwd", "restoreWindowsOnReload", {
+		name: "stonetop.settings.restoreWindowsOnReload.name",
+		hint: "stonetop.settings.restoreWindowsOnReload.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
+	// Snapshot of the sheets this user had open at last reload, keyed by document
+	// uuid -> { left, top, width, height, minimized } (see utils/window-restore.js).
+	// Internal (not shown in the settings menu); rewritten continuously as windows
+	// open, close, and move.
+	game.settings.register("stonetop_pwd", "openWindowsState", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
 	game.settings.register("stonetop_pwd", "reduceMotion", {
 		name: "stonetop.settings.reduceMotion.name",
 		hint: "stonetop.settings.reduceMotion.hint",

@@ -130,6 +130,54 @@ describe("buildChroniclePages", () => {
 		expect(pairsOf(page, "Bonds & ties")).toEqual([{ prompt: "", answer: "A bond with no chosen prompt." }]);
 	});
 
+	it("compiles the player-driven step4/step6 answer lists (multiple per step)", () => {
+		const page = buildChroniclePages({
+			pcs: [blessed],
+			introAnswers: { pc1: {
+				step4: { answers: [
+					{ q: 0, a: "Old Bemis is my closest kin." },
+					{ q: 2, a: "Mother Aldercrone taught me the secret ways." },
+				], passed: true },
+				step6: { answers: [
+					{ q: 3, a: "Bram doubts Danu." },
+				], passed: false },
+			} },
+			springAnswers: {},
+		})[0];
+		expect(pairsOf(page, "Bonds & ties")).toEqual([
+			{ prompt: "Who is your closest kin?",        answer: "Old Bemis is my closest kin." },
+			{ prompt: "Who taught you the secret ways?", answer: "Mother Aldercrone taught me the secret ways." },
+		]);
+		expect(pairsOf(page, "Asked of the others")).toEqual([
+			{ prompt: "Which one of you doubts the power of Danu?", answer: "Bram doubts Danu." },
+		]);
+	});
+
+	it("folds legacy r4/r5 behind the step list and dedupes an overlap", () => {
+		const page = buildChroniclePages({
+			pcs: [blessed],
+			introAnswers: { pc1: {
+				step4: { answers: [{ q: 0, a: "Old Bemis is my closest kin." }], passed: false },
+				r4: { q: 0, a: "Old Bemis is my closest kin." }, // same as the step entry → deduped
+				r5: { q: 1, a: "My twin, Cerys." },              // legacy-only → folded in behind
+			} },
+			springAnswers: {},
+		})[0];
+		expect(pairsOf(page, "Bonds & ties")).toEqual([
+			{ prompt: "Who is your closest kin?",                 answer: "Old Bemis is my closest kin." },
+			{ prompt: "Whose heart & soul is entwined with yours?", answer: "My twin, Cerys." },
+		]);
+	});
+
+	it("omits the Q&A section for a step that was passed with no answers", () => {
+		const page = buildChroniclePages({
+			pcs: [blessed],
+			introAnswers: { pc1: { r1: "Just an intro.", step4: { answers: [], passed: true } } },
+			springAnswers: {},
+		})[0];
+		expect(sec(page, "Bonds & ties")).toBeUndefined();
+	});
+
 	it("escapes user-entered answer text in prose bodies", () => {
 		const page = buildChroniclePages({
 			pcs: [blessed],

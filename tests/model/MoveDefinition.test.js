@@ -69,6 +69,15 @@ describe("MoveDefinition", () => {
 		expect(new MoveDefinition(BASIC_ENTRY).resource).toBeNull();
 	});
 
+	it("stores load-gate metadata (maxLoad, requiresUnarmored)", () => {
+		const def = new MoveDefinition({
+			_id: "x", name: "Uncanny Reflexes",
+			system: { maxLoad: "normal", requiresUnarmored: true },
+		});
+		expect(def.maxLoad).toBe("normal");
+		expect(def.requiresUnarmored).toBe(true);
+	});
+
 	describe("defaults for absent system fields", () => {
 		it("playbook defaults to null", () => {
 			expect(new MoveDefinition(BASIC_ENTRY).playbook).toBeNull();
@@ -92,6 +101,12 @@ describe("MoveDefinition", () => {
 
 		it("repeatMax defaults to null", () => {
 			expect(new MoveDefinition(BASIC_ENTRY).repeatMax).toBeNull();
+		});
+
+		it("maxLoad defaults to \"\" and requiresUnarmored to false", () => {
+			const def = new MoveDefinition(BASIC_ENTRY);
+			expect(def.maxLoad).toBe("");
+			expect(def.requiresUnarmored).toBe(false);
 		});
 	});
 });

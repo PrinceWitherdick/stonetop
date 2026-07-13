@@ -83,11 +83,23 @@ export class CharacterInventory {
 		]);
 	}
 
-	calculateArmor(allItems) {
+	// `base` defaults to the worn-armor base of `allItems`; callers that already need the
+	// base separately (the sheet snapshot gates unarmored moves on it) can pass it in so it
+	// isn't recomputed.
+	calculateArmor(allItems, base = this.wornArmorBase(allItems)) {
 		const equipped  = allItems.filter(item => this.checked[item.slug] && item.armor);
-		const bases     = equipped.filter(i => i.armor.base     != null).map(i => i.armor.base);
 		const modifiers = equipped.filter(i => i.armor.modifier != null).map(i => i.armor.modifier);
-		const base = bases.length > 0 ? Math.max(...bases) : 0;
 		return base + modifiers.reduce((s, m) => s + m, 0);
+	}
+
+	// The highest worn-armor BASE among equipped items (leather/mail/etc.); shields — a
+	// `modifier` — and move bonuses are excluded, so 0 means "unarmored." This is the base
+	// half of calculateArmor, exposed on its own to gate moves that require being unarmored
+	// (e.g. Uncanny Reflexes) so the "what counts as worn armor" rule lives in one place.
+	wornArmorBase(allItems) {
+		const bases = allItems
+			.filter(i => this.checked[i.slug] && i.armor?.base != null)
+			.map(i => i.armor.base);
+		return bases.length > 0 ? Math.max(...bases) : 0;
 	}
 }

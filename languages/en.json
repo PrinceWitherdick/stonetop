@@ -13,12 +13,16 @@
     }
   },
   "stonetop": {
+    "actorCreate": {
+      "title": "Create an Actor"
+    },
     "steading": {
       "notLinked": "No Stonetop steading linked. Drag a Stonetop actor onto this sheet to link it.",
       "tabs": {
         "overview": "Overview",
         "neighbors": "Residents",
         "improvements": "Improvements",
+        "threats": "Threats",
         "moves": "Homefront Moves",
         "notes": "Notes"
       }
@@ -116,6 +120,7 @@
       "moves": "Granted Moves"
     },
     "arcana": {
+      "createGmOnly": "Only the GM can create homebrew arcana in this world.",
       "empty": "Drag arcana here from the Arcana compendium.",
       "showFront": "Show front",
       "showBack": "Show back",
@@ -132,20 +137,44 @@
       "searchPlaceholder": "Filter arcana…",
       "identifyTitle": "Identify Arcanum",
       "identifyConfirm": "Are you sure you you've successfully identified this Arcanum? This action cannot be undone.",
-      "unidentifiedText": "This arcanum has not yet been identified. Study it closely to reveal its nature."
+      "unidentifiedText": "This arcanum has not yet been identified. Study it closely to reveal its nature.",
+      "discover": "Arcana Discovered",
+      "discoverTitle": "Arcanum Discovered",
+      "discoverConfirm": "Have you tracked down and recovered this arcanum? Its full details will be revealed.",
+      "leadText": "You have a lead on this arcanum's whereabouts, but haven't recovered it yet."
     },
     "inventory": {
       "regularItems": "Items",
       "arcanaItems": "Arcana",
+      "searchLabel": "Search items",
+      "searchPlaceholder": "Filter items…",
+      "searchSmallLabel": "Search small items",
+      "searchSmallPlaceholder": "Filter small items…",
       "regularItemsNote": "Use supplies to Recover, Make Camp, or have extra <em>small</em> items.",
       "smallItems": "Small Items",
       "smallItemsNote": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark <span class=\"stonetop-glyph stonetop-glyph--checkbox\">□</span> below equal to 4+Prosperity.",
       "smallItemsNoteWithLimit": "Fit in a pocket, pouch, or boot.<br>When you Outfit, mark <span class=\"stonetop-glyph stonetop-glyph--checkbox\">□</span> below equal to <strong>{limit}</strong> (4+Prosperity).",
       "addItem": "Add item",
       "addSmallItem": "Add small item",
+      "createWorldItem": "Create Inventory Item",
+      "worldCreated": "Created inventory item \"{name}\" — drag it onto a character's Inventory tab to add it.",
+      "addItemColumn": "Column",
+      "addItemColumnRegular": "Items (◇, counts toward load)",
+      "addItemColumnSmall": "Small items (pocket, pouch, or boot)",
+      "addItemColumnHint": "Which inventory column this item lands in when dropped.",
       "addItemName": "Name",
-      "addItemWeight": "Weight",
-      "addItemConfirm": "Add",
+      "addItemNamePlaceholder": "e.g. Bow & iron arrows",
+      "addItemNameRequired": "Give the item a name.",
+      "addItemWeight": "Weight (◇)",
+      "addItemWeightHint": "◇ counts toward your load. Armor subtracts from damage you take (worn items only).",
+      "addItemArmor": "Armor",
+      "addItemTags": "Tags / notes",
+      "addItemTagsPlaceholder": "e.g. near, +1 damage, reload",
+      "addItemTagsHint": "Shown in parentheses after the name. Click a tag to add it, or type your own.",
+      "addItemUses": "Uses (○)",
+      "addItemUsesHint": "How many ○ circles to track. Tick \"Ammunition\" for a bow/crossbow's low-ammo / all-out track.",
+      "addItemAmmo": "Ammunition",
+      "addItemConfirm": "Add item",
       "removeItem": "Remove",
       "resetLabel": "Reset Inventory",
       "resetTitle": "Reset Inventory",
@@ -177,11 +206,19 @@
       },
       "arcanaCreationGmOnly": {
         "name": "Arcana Creation: GM Only",
-        "hint": "When on, only the GM can create homebrew arcana — players don't see the \"Create arcanum\" bar or the inspiration wizard on the arcana tab. Existing arcana still display, flip, and roll for everyone, and players can still edit cards they own. Turn off to let players author their own arcana."
+        "hint": "When on, only the GM can create homebrew arcana — players don't see the \"Create major/minor arcanum\" buttons on the arcana tab. Existing arcana still display, flip, and roll for everyone, and players can still edit cards they own. Turn off to let players author their own arcana."
+      },
+      "monsterBuilderEnabled": {
+        "name": "Guided Monster Builder",
+        "hint": "When on (the default), creating a blank Monster from \"Create Actor\" opens a guided worksheet (Book I, \"Dangers\") that walks you through the book's steps and computes HP, Armor, and Damage from your tag picks. Turn off to create a blank stat block instead. Compendium imports, drag-drops, and duplicates are never intercepted."
       },
       "arcanaPlayersSeeBothSides": {
         "name": "Arcana: Players See Both Sides",
-        "hint": "A player always sees the back of a card once they've unlocked it (filled every spot) — that's their own achievement, no setting needed. This switch is a separate peek: when on (the default), players may also open the back of a card they haven't unlocked yet, reading the whole card up front. Turn off for a more secretive table, and an un-unlocked back stays hidden until you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). You always see both sides as the GM."
+        "hint": "A player always sees the back of a card once they've unlocked it (filled every spot) — that's their own achievement, no setting needed. This switch is a separate peek: when on, players may also open the back of a card they haven't unlocked yet, reading the whole card up front. Off by default for a more secretive table: an un-unlocked back stays hidden until you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). Turn on to let players read cards up front. You always see both sides as the GM."
+      },
+      "threatOnCanvasCards": {
+        "name": "Threats: Show Cards on the Map",
+        "hint": "When on, a threat pinned to a scene also draws its full card on the map, anchored to the pin and moving with the scene, so you can read it and tick off its doom track right there on the canvas. Off by default: the pin opens the same card in a window instead. Only threats you've revealed appear on a player's map."
       },
       "sheetFont": {
         "name": "Sheet Font",
@@ -218,6 +255,10 @@
       "reduceMotion": {
         "name": "Reduce Motion",
         "hint": "Turn off the decorative animations, transitions, and hover-zoom image popups on Stonetop sheets and dialogs."
+      },
+      "restoreWindowsOnReload": {
+        "name": "Restore Open Windows on Reload",
+        "hint": "Reopen the character, steading, monster, item, and journal sheets you had open, at the same position and size, when you reload Foundry. Personal to this browser."
       },
       "showRollStatChips": {
         "name": "Show Roll Stat Chips",
@@ -409,6 +450,10 @@
         "specialPossessions": "Special Possessions",
         "removePossession": "Remove this write-in possession"
       },
+      "followers": {
+        "searchLabel": "Search followers",
+        "searchPlaceholder": "Filter followers…"
+      },
       "moveTypes": {
         "background": "Background"
       },
@@ -437,9 +482,11 @@
           "editTitle": "Edit Custom Move",
           "addButton": "Create a move",
           "editMove": "Edit this move",
+          "learnedTitle": "Learned — un-check to keep this move on the sheet but inactive (not rollable, bonuses off)",
           "nameLabel": "Move name",
           "namePlaceholder": "e.g. Reckless Charge",
           "nameRequired": "Your move needs a name.",
+          "worldCreated": "Created move \"{name}\" — drag it onto a character sheet to add it.",
           "descriptionLabel": "What happens? (the trigger and effect)",
           "descriptionPlaceholder": "When you…",
           "rollLabel": "Dice roll",
@@ -464,6 +511,41 @@
           "hpBonus": "+Max HP",
           "armorBonus": "+Armor",
           "loadBonus": "+Load"
+        },
+        "loveLetter": {
+          "sectionTitle": "Love Letters",
+          "createTitle": "Write a Love Letter",
+          "editTitle": "Edit Love Letter",
+          "gmOnly": "Only the GM can write love letters.",
+          "noRecipients": "There are no characters to address a love letter to yet.",
+          "recipientLabel": "For which character?",
+          "recipientRequired": "Choose who this love letter is for.",
+          "nameLabel": "Title",
+          "namePlaceholder": "e.g. A Quiet Winter",
+          "nameRequired": "Give the love letter a title.",
+          "descriptionLabel": "The letter (start with \"Dear …\")",
+          "descriptionPlaceholder": "Dear …",
+          "rollLabel": "Dice roll",
+          "rollNone": "No roll — read aloud only",
+          "rollHint": "Pick a stat to make this a 2d6+stat move. Leave on \"No roll\" for a read-aloud letter.",
+          "resultsTitle": "Roll results (optional)",
+          "pickLabel": "Pick",
+          "optionsLabel": "Options to choose from (one per line)",
+          "optionsPlaceholder": "Owain's been calling for folks to \"do something\"…\nWini has been acting out, badly…\nCrinwin jumped one of your crew…",
+          "optionsHint": "A shared list the player picks from. Use \"Pick\" above each result to say how many to choose on a 10+, 7-9, and 6- (0 = none).",
+          "markXp": "Mark XP on a miss",
+          "signedLabel": "Signed",
+          "signedPlaceholder": "XOXO - your GM",
+          "save": "Send the Letter",
+          "created": "Love letter added to {name}'s Moves tab.",
+          "editMove": "Edit this love letter",
+          "deleteMove": "Delete this love letter",
+          "deleteConfirm": "Delete the love letter <strong>{name}</strong>? This can't be undone.",
+          "readButton": "Read letter",
+          "readAloudButton": "Read aloud",
+          "pickFromList": "from the list below",
+          "rollButton": "Roll",
+          "resolveButton": "Read & Resolve"
         }
       },
       "selection": {

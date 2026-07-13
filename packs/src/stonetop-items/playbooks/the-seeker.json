@@ -487,7 +487,7 @@
             },
             {
               "slug": "when-unlocked",
-              "description": "You’ve begun to unlock the mysteries of your major arcanum; mark 1 ○ on the front of its insert. When and how did that happen?",
+              "description": "When and how did you begin to unlock its mysteries?",
               "type": "text"
             }
           ]

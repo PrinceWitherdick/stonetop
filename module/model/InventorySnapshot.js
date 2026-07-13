@@ -47,6 +47,10 @@ export class LoadSnapshotBuilder {
  * @property {number} weight
  * @property {boolean} checked
  * @property {Resource|null} resource
+ * @property {boolean} resourceFirst - Render the ○ track BEFORE the note inside the
+ *           parenthetical, so light items read the book's way: "Oil lamp (○○○ hours, close,
+ *           area, crude)". Default false keeps the note-first order (weapons trail their
+ *           "low ammo / all out" ammo track).
  * @property {string|null} resourceSuffix - Text rendered inside the parenthetical, after the
  *           ○ track, so an item reads "Skins of fine whisky (○○ uses, grants advantage to
  *           Persuade)" — the book's own phrasing, with the uses track sitting mid-sentence.
@@ -64,6 +68,7 @@ export class InventoryItemSnapshot {
 		this.checked     = b._checked;
 		this.disabled    = b._disabled ?? false;
 		this.resource    = b._resource;
+		this.resourceFirst = b._resourceFirst ?? false;
 		this.resourceSuffix = b._resourceSuffix ?? null;
 		this.isCustom    = b._isCustom;
 		this.ownedId     = b._ownedId;
@@ -80,6 +85,7 @@ export class InventoryItemSnapshotBuilder {
 	withWeight(v)      { this._weight      = v; return this; }
 	withChecked(v)     { this._checked     = v; return this; }
 	withResource(v)    { this._resource    = v; return this; }
+	withResourceFirst(v) { this._resourceFirst = v; return this; }
 	withResourceSuffix(v) { this._resourceSuffix = v; return this; }
 	withIsCustom(v)    { this._isCustom    = v; return this; }
 	withOwnedId(v)     { this._ownedId     = v; return this; }
@@ -249,9 +255,13 @@ export class PossessionItemSnapshotBuilder {
  * @property {OtherItemSnapshot[]} other
  */
 export class InventorySnapshot {
-	constructor(outfit, possessions, other) {
+	constructor(outfit, possessions, other, loveLetters = []) {
 		this.outfit      = outfit;
 		this.possessions = possessions;
 		this.other       = other;
+		// Single-use, GM-authored love letters (moveType "other", flagged loveLetter). Held
+		// apart from `other` so they render in their own top-of-Moves section, never the
+		// "Other Moves" list. See actors/character/love-letters.js.
+		this.loveLetters = loveLetters;
 	}
 }

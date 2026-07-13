@@ -6,19 +6,8 @@
 
   <div class="stonetop-guide-split">
 
-    {{!-- Jump-to-step table of contents (journal-style). --}}
-    <nav class="stonetop-guide-toc" aria-label="Expedition steps">
-      <ol class="stonetop-guide-toc-list">
-        {{#each steps}}
-        <li class="stonetop-guide-toc-item{{#if isActive}} is-active{{/if}}">
-          <button type="button" class="stonetop-guide-toc-btn" data-step-index="{{index}}"{{#if isActive}} aria-current="step"{{/if}}>
-            <i class="fas {{icon}} stonetop-guide-toc-icon"></i>
-            <span class="stonetop-guide-toc-text">{{title}}</span>
-          </button>
-        </li>
-        {{/each}}
-      </ol>
-    </nav>
+    {{!-- Jump-to-step table of contents (journal-style; shared guide-toc partial). --}}
+    {{> "stonetop.guide-toc" ariaLabel="Expedition steps"}}
 
     <div class="stonetop-guide-main">
 
@@ -57,6 +46,60 @@
     </div>
 
     <div class="stonetop-spring-body">{{{step.body}}}</div>
+
+    {{!-- Outfit step: live party-load readout (GM-only; built in ExpeditionDialog
+          getData). One row per party member, scoped to the current expedition. --}}
+    {{#if loadReadout}}
+    <div class="stonetop-exp-load">
+      <div class="stonetop-exp-load-head">
+        <span class="stonetop-exp-load-title">◇ Party load</span>
+        <span class="stonetop-exp-load-live">live from sheets</span>
+      </div>
+
+      {{#if loadReadout.chips.length}}
+      <div class="stonetop-exp-load-pick">
+        <span class="stonetop-exp-load-picklab">On this trip:</span>
+        {{#each loadReadout.chips}}
+        <button type="button" class="stonetop-exp-load-chip{{#unless on}} is-out{{/unless}}" data-actor-id="{{id}}">
+          <span class="tick">✓</span> {{name}}
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
+
+      {{#if loadReadout.hasRows}}
+      <div class="stonetop-exp-load-glance">
+        <span class="g-head">Setting out</span>
+        {{#if loadReadout.summary.anyOver}}<span class="g-tally g-warn"><b>{{loadReadout.summary.overloaded}}</b> overloaded</span>{{/if}}
+        {{#if loadReadout.summary.anyHeavy}}<span class="g-tally g-caut"><b>{{loadReadout.summary.heavy}}</b> heavy</span>{{/if}}
+        {{#if loadReadout.summary.anySneak}}<span class="g-tally"><b>{{loadReadout.summary.cantSneak}}</b> can't move quiet</span>{{/if}}
+        {{#unless loadReadout.summary.anySneak}}<span class="g-tally g-ok">all set to move</span>{{/unless}}
+      </div>
+
+      {{#each loadReadout.rows}}
+      <div class="stonetop-exp-load-row {{levelClass}}{{#if isFollower}} is-follower{{/if}}">
+        <span class="stonetop-exp-load-ava">{{initial}}</span>
+        <span class="stonetop-exp-load-name">{{name}}{{#if sub}} <em>{{sub}}</em>{{/if}}{{#if folTag}} <span class="stonetop-exp-load-fol">{{folTag}}</span>{{/if}}</span>
+        <span class="stonetop-exp-load-track">
+          {{#each bands}}<span class="stonetop-exp-load-band">{{#each pips}}<i class="stonetop-exp-load-pip{{#if on}} on{{/if}}"></i>{{/each}}</span>{{/each}}
+          {{#if overflow}}<span class="stonetop-exp-load-over">+{{overflow}}</span>{{/if}}
+        </span>
+        <span class="stonetop-exp-load-pill {{pillClass}}">{{levelLabel}}</span>
+        <span class="stonetop-exp-load-count"><b>{{marks}}</b>/{{cap}}</span>
+        {{#if gated.length}}
+        <span class="stonetop-exp-load-gated">
+          {{#each gated}}<span class="stonetop-exp-load-move {{#if active}}on{{else}}off{{/if}}"><span class="ic">{{#if active}}✓{{else}}✕{{/if}}</span> <span class="nm">{{name}}</span> <span class="rq">{{req}}</span></span>{{/each}}
+        </span>
+        {{/if}}
+        {{#if packHorse}}<span class="stonetop-exp-load-note"><span class="mod">▲ Pack Horse</span> {{packHorse}}</span>{{/if}}
+        {{#if note}}<span class="stonetop-exp-load-note{{#if noteDanger}} danger{{/if}}">{{#if noteDanger}}⚠ {{/if}}{{note}}</span>{{/if}}
+      </div>
+      {{/each}}
+      {{else}}
+      <p class="stonetop-exp-load-empty">No one's on this trip yet &mdash; pick who's coming above.</p>
+      {{/if}}
+    </div>
+    {{/if}}
 
     {{#if showRoll}}
     <div class="stonetop-spring-roll-wrap">

@@ -12,6 +12,28 @@ import { arcanaSummonFollowers } from "../../data/arcana-summons.js";
 import { centerArcanumTracks } from "../../utils/glyphs.js";
 import { stonetopChatCard } from "../../utils/chat.js";
 
+// Some arcana "items" are a place, structure, or phenomenon rather than carried gear
+// (a sealed cave, a giant's dormitory, a word floating in the air). The shipped data
+// can't distinguish these from portable curios by shape alone — both carry a null
+// weight — so the non-carriable ones are listed explicitly here and kept off the
+// Inventory tab. This gates only the WEIGHTLESS side (see weightedInventoryItems): a
+// card whose front is such a place but whose unlocked BACK item is real, weighted gear
+// (e.g. vein-of-milky-crystal, huge-wooden-sphere) still surfaces that gear once realised.
+const CONCEPT_ARCANA_SLUGS = new Set([
+	"crumbling-arch",
+	"giants-dormitory",
+	"huge-wooden-sphere",
+	"metal-man",
+	"odd-conveyance",
+	"patch-of-rainbow-moss",
+	"runes-around-a-ruined-hall",
+	"sealed-cave",
+	"sunken-tablet",
+	"timeless-vault",
+	"vein-of-milky-crystal",
+	"whispering-word",
+]);
+
 function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
 	const reqs = item.front.unlock?.requirements ?? [];
 	const reqsMet = reqs.every(r =>
@@ -55,6 +77,39 @@ const _CIRCLE_TRACK_RE  = /○{2,}/g;
 const _BOX_RE           = /□/g;
 const _UNLOCK_CIRCLE_RE = /○/g;
 
+// A few cards' FRONT text tells you to "mark a consequence (see reverse)" (Hec'tumel Codex,
+// Redwood Effigy). The consequences themselves live in a "Consequences" section on the BACK,
+// which a player may not have unlocked. For those cards we surface that section onto the front
+// (see buildSnapshot / the sheet's fold pass), so the pointer reads "(see below)".
+//
+// Detect such a front by the parenthetical "(see reverse)" attached to a "consequence" clause;
+// the "consequence" word rules out the other "(see reverse)" pointers (to spells / named moves)
+// that live in the unlock text of most cards.
+const _FRONT_CONSEQUENCE_REF_RE = /consequences?\b[^.<]*?\(see reverse\)/i;
+// Match the "Consequences" heading on its tag (any heading level) rather than the bare word,
+// which also appears in body prose ("mark a consequence…", "marked 3 Consequences") before the
+// real heading.
+const _CONSEQUENCES_HEADING_RE = /<h([1-6])\b[^>]*>\s*Consequences\s*<\/h\1>/i;
+
+// Slice the "Consequences" section out of an already-processed BACK description so it can be
+// shown on the front. Runs from the heading to the next heading (or the end — the section is
+// authored last on every shipped card), which keeps its nested lists and any trailing prose
+// intact and sidesteps balanced-tag matching. Because the input is the PROCESSED back HTML,
+// the □/○ inside already carry the back's own (slug, "back"/"backCircle", index) checkboxes, so
+// marking a consequence from the front writes the exact same state as marking it from the back.
+// Returns null when there's no section or only a pointer stub (e.g. Whispering Rocks' "See
+// above."), so a contentless fold never renders.
+function _extractConsequencesSection(processedBackHtml) {
+	if (!processedBackHtml) return null;
+	const m = _CONSEQUENCES_HEADING_RE.exec(processedBackHtml);
+	if (!m) return null;
+	const after = processedBackHtml.slice(m.index + m[0].length);
+	const nextHeading = after.search(/<h[1-6]\b/i);
+	const body = nextHeading >= 0 ? after.slice(0, nextHeading) : after;
+	if (!/<li\b/i.test(body)) return null;
+	return m[0] + body;
+}
+
 // Run a side description through the full marker pipeline: center standalone tracks, then
 // make ◇ / ○ tracks and □ boxes selectable. `side` ("front"/"back") keeps each side's
 // marker indices in their own context so they never collide. Returns the processed HTML.
@@ -89,6 +144,7 @@ export class CharacterArcana {
 	get ownedSlugs()       { return new Set(this._flags.getFlag("owned") ?? []); }
 	get revealedSlugs()    { return new Set(this._flags.getFlag("revealed") ?? []); }
 	get identifiedSlugs()  { return new Set(this._flags.getFlag("identified") ?? []); }
+	get leadSlugs()        { return new Set(this._flags.getFlag("leads") ?? []); }
 	get unlockCounts()     { return this._flags.getFlag("unlock") ?? {}; }
 	get backOptionCounts() { return this._flags.getFlag("backOptions") ?? {}; }
 	get majorSlug()        { return this._flags.getFlag("major") ?? null; }
@@ -124,6 +180,7 @@ export class CharacterArcana {
 	async buildSnapshot(stats = {}, checkedMap = {}, inventoryResources = {}) {
 		const ownedSlugs       = this.ownedSlugs;
 		const identifiedSlugs  = this.identifiedSlugs;
+		const leadSlugs        = this.leadSlugs;
 		const unlockCounts     = this.unlockCounts;
 		const backOptionCounts = this.backOptionCounts;
 		const arcanaBoxes      = this._flags.getFlag("boxes") ?? {};
@@ -203,6 +260,15 @@ export class CharacterArcana {
 
 			const backDesc = _processSideDescription(item.back.description, item.slug, "back", arcanaBoxes);
 
+			// Surface the back's "Consequences" section onto the front, but ONLY for cards whose
+			// front text points at it ("mark a consequence (see reverse)"). Those cards trigger
+			// consequences from a front-side move, so the owner needs the list even with a locked
+			// back — and because the front already names consequences, surfacing them leaks nothing.
+			// (For every other card, consequences are a back-move payoff and stay hidden with the back.)
+			const consequences = _FRONT_CONSEQUENCE_REF_RE.test(item.front.description ?? "")
+				? _extractConsequencesSection(backDesc)
+				: null;
+
 			// Redwood Effigy: the two "potential" Conduit slots on the front stay locked
 			// until the Greater Conduit mystery (a □ on the back) is checked. Find that
 			// box's own □ — the last one at/before the label, since the text reads
@@ -232,10 +298,12 @@ export class CharacterArcana {
 				.withChecked(checkedMap[item.slug] ?? false)
 				.withUnlocked(unlocked)
 				.withIdentified(identifiedSlugs.has(item.slug))
+				.withLead(leadSlugs.has(item.slug) && !identifiedSlugs.has(item.slug))
 				.withImg(arcanumCardImg(item))
 				.withMajor(isMajorArcanumItem(item))
 				.withSummonFollowers(arcanaSummonFollowers(item))
 				.withGreaterConduit(greaterConduit)
+				.withConsequences(consequences)
 				.build();
 		});
 
@@ -268,7 +336,7 @@ export class CharacterArcana {
 		const sets = {}, deletes = {};
 		// Slug arrays: writing the filtered array replaces it wholesale (mergeObject doesn't
 		// deep-merge arrays), dropping the slug.
-		for (const key of ["owned", "identified", "revealed", "flipped"]) {
+		for (const key of ["owned", "identified", "leads", "revealed", "flipped"]) {
 			const cur = this._flags.getFlag(key) ?? [];
 			if (cur.includes(slug)) sets[key] = cur.filter(s => s !== slug);
 		}
@@ -286,6 +354,54 @@ export class CharacterArcana {
 		const s = this.identifiedSlugs;
 		s.add(slug);
 		await this._flags.setFlag("identified", [...s]);
+	}
+
+	// Record a "lead": the owner knows this arcanum exists and roughly where it is, but
+	// hasn't recovered it yet (the Seeker's Lead role). It shows on the arcana tab as a
+	// placeholder card. A lead is owned so it renders, but weightedInventoryItems skips
+	// leadSlugs so its curio never leaks to the Inventory tab or the expedition load.
+	async addLead(slug) {
+		const owned = this.ownedSlugs;
+		const leads = this.leadSlugs;
+		owned.add(slug);
+		leads.add(slug);
+		await Promise.all([
+			this._flags.setFlag("owned", [...owned]),
+			this._flags.setFlag("leads", [...leads]),
+			// Materializing the lead card (here or via onboarding) also arms the one-time
+			// backfill guard, so a card the player later removes isn't resurrected on the next
+			// world load. Without this the onboarding path leaves the flag unset and
+			// ensureLeadBackfill can't tell "never had a card" from "had one and deleted it".
+			this._flags.setFlag("leadBackfilled", true),
+		]);
+	}
+
+	// Discover a lead: the owner has recovered the arcanum, so drop the lead marker and
+	// identify it — it now renders as a normal (found) minor arcanum, exactly like a card
+	// acquired through the Found role.
+	async discoverArcanum(slug) {
+		const leads = this.leadSlugs;
+		if (!leads.has(slug)) return;
+		leads.delete(slug);
+		const identified = this.identifiedSlugs;
+		identified.add(slug);
+		await Promise.all([
+			this._flags.setFlag("leads", [...leads]),
+			this._flags.setFlag("identified", [...identified]),
+		]);
+	}
+
+	// One-time backfill for Seekers created before the lead-card feature. Their onboarding
+	// "Lead" pick was stored only as a role (minorRoles.lead) and never shown as a card;
+	// surface it as a lead card. Guarded by a per-actor flag so a card the player later
+	// discovers (identifies) or removes is never resurrected on the next world load. No-op
+	// for non-Seekers, for Seekers with no Lead pick, and once the flag is set.
+	async ensureLeadBackfill() {
+		const leadSlug = this.minorRoles?.lead;
+		if (!leadSlug) return;
+		if (this._flags.getFlag("leadBackfilled")) return;
+		if (!this.ownedSlugs.has(leadSlug)) await this.addLead(leadSlug);
+		await this._flags.setFlag("leadBackfilled", true);
 	}
 
 	// Mark a card as fully realized ("mastered"): satisfy every option unlock requirement and
@@ -370,10 +486,16 @@ export class CharacterArcana {
 	async weightedInventoryItems() {
 		const ownedSlugs   = this.ownedSlugs;
 		const identified   = this.identifiedSlugs;
+		const leads        = this.leadSlugs;
 		const unlockCounts = this.unlockCounts;
 		const arcanaBoxes  = this._flags.getFlag("boxes") ?? {};
 		const items = await this._arcanaRepo.findBySlugs([...ownedSlugs]);
 		return items.flatMap(item => {
+			// A "lead" is owned (so it renders on the arcana tab as a placeholder) but not yet
+			// recovered, so its curio isn't in the party's packs — skip it entirely, or the
+			// not-yet-found item leaks into the Inventory/Outfit list and its ◇ counts toward
+			// load. Discovering the lead clears it from leadSlugs, at which point it flows through.
+			if (leads.has(item.slug)) return [];
 			// Which side's item you carry follows the card's unlock state, not the old manual
 			// flip: a card realises its back-side item once unlocked, otherwise it's the front
 			// item. Gate on identified too, so an unidentified face-down mystery always shows its
@@ -383,7 +505,12 @@ export class CharacterArcana {
 			const circleCount = (item.front.unlock?.description?.match(_UNLOCK_CIRCLE_RE) || []).length;
 			const unlocked = identified.has(item.slug) && _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount);
 			const sideItem = (unlocked && item.back.item) ? item.back.item : item.front.item;
+			// Skip unnamed sides, and skip a card's weightless side when the card is a
+			// non-carriable concept/place/phenomenon (CONCEPT_ARCANA_SLUGS). A weightless
+			// curio ("A gold ring", "A wolf pelt") still renders — at ◇0 — since most arcana
+			// curios ship with no explicit weight; only true places are held back.
 			if (!sideItem?.name) return [];
+			if (sideItem.weight == null && CONCEPT_ARCANA_SLUGS.has(item.slug)) return [];
 			return [new OutfitItemBuilder()
 				.withSlug(item.slug)
 				.withName(sideItem.name)

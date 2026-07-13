@@ -37,7 +37,11 @@
 								<i class="fas fa-user"></i>
 							</span>
 							{{/if}}
+							{{#if uuid}}
+							<a class="steading-player-name-text steading-player-open" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}" data-tooltip="Open {{name}}'s sheet">{{name}}</a>
+							{{else}}
 							<span class="steading-player-name-text" data-tooltip="{{name}}">{{name}}</span>
+							{{/if}}
 						</div>
 						<div class="steading-residents-col steading-residents-col-occupation" data-tooltip="{{#if @root.stonetop.edit.players}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}">
 							<input type="text" class="steading-resident-input"
@@ -76,9 +80,9 @@
 			<p class="steading-player-empty">Drag player characters here to keep them with Stonetop.</p>
 			{{/if}}
 		</div>
-		<div class="steading-residents-section steading-edit-section{{#unless stonetop.edit.residents}} stonetop-readonly{{/unless}}">
+		<div class="steading-residents-section steading-residents-section--residents steading-edit-section{{#unless stonetop.edit.residents}} stonetop-readonly{{/unless}}">
 			{{> "stonetop.steading-section-toggle" section="residents" editing=stonetop.edit.residents}}
-			<h3 class="steading-residents-heading">Residents of Stonetop</h3>
+			<h3 class="steading-residents-heading">Residents of Stonetop {{> "stonetop.tab-search-control" title="Search residents" placeholder="Filter residents…"}}</h3>
 			<div class="steading-residents-table" data-resize-key="residents">
 				<div class="steading-residents-header">
 					<div class="steading-residents-header-cell steading-residents-col-name"><span class="steading-residents-header-label">Name</span></div>
@@ -176,16 +180,16 @@
 					{{/each}}
 				</ul>
 			</div>
-			{{#if stonetop.edit.residents}}
+			{{#if stonetop.canEdit}}
 			<button type="button" class="steading-list-add" data-list="residents">
 				<i class="fas fa-plus"></i> Add Resident
 			</button>
 			{{/if}}
 		</div>
 
-		<div class="steading-residents-section steading-edit-section{{#unless stonetop.edit.neighbors}} stonetop-readonly{{/unless}}">
+		<div class="steading-residents-section steading-residents-section--neighbors steading-edit-section{{#unless stonetop.edit.neighbors}} stonetop-readonly{{/unless}}">
 			{{> "stonetop.steading-section-toggle" section="neighbors" editing=stonetop.edit.neighbors}}
-			<h3 class="steading-residents-heading">Neighbors of Stonetop</h3>
+			<h3 class="steading-residents-heading">Neighbors of Stonetop {{> "stonetop.tab-search-control" title="Search neighbors" placeholder="Filter neighbors…"}}</h3>
 			<div class="steading-residents-table steading-neighbors-table" data-resize-key="neighbors">
 				<div class="steading-residents-header">
 					<div class="steading-residents-header-cell steading-residents-col-name"><span class="steading-residents-header-label">Name</span></div>
@@ -296,7 +300,7 @@
 					{{/each}}
 				</ul>
 			</div>
-			{{#if stonetop.edit.neighbors}}
+			{{#if stonetop.canEdit}}
 			<button type="button" class="steading-list-add" data-list="neighbors">
 				<i class="fas fa-plus"></i> Add Neighbor
 			</button>

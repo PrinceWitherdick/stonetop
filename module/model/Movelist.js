@@ -7,6 +7,10 @@
  * @property {string|null} rollType - normalized stat/"ask" so the row renders a dice control
  * @property {string|null} rollLabel - stat-chip label for the roll
  * @property {boolean} custom - player-authored (shows the edit affordance)
+ * @property {boolean} learned - custom move is currently learned (active: rollable, bonuses
+ *   apply). Un-learned custom moves stay on the sheet but inactive. Always true for
+ *   non-custom "other" moves. Absent flag defaults to true, so freshly authored moves and
+ *   any pre-feature ones read as learned.
  * @property {string} resourceKey - stable key the resource track persists under (item id for
  *   custom moves, name otherwise); written to the box's data-move-name so renames/duplicate
  *   names never collide or orphan the saved count
@@ -22,6 +26,7 @@ export class OtherItemSnapshot {
 		this.rollType    = b._rollType ?? null;
 		this.rollLabel   = b._rollLabel ?? null;
 		this.custom      = b._custom ?? false;
+		this.learned     = b._learned ?? true;
 		this.resourceKey = b._resourceKey ?? b._name;
 		this.resource    = b._resource ?? null;
 	}
@@ -36,6 +41,7 @@ export class OtherItemSnapshotBuilder {
 	withRollType(v)    { this._rollType    = v; return this; }
 	withRollLabel(v)   { this._rollLabel   = v; return this; }
 	withCustom(v)      { this._custom      = v; return this; }
+	withLearned(v)     { this._learned     = v; return this; }
 	withResourceKey(v) { this._resourceKey = v; return this; }
 	withResource(v)    { this._resource    = v; return this; }
 	build()            { return new OtherItemSnapshot(this); }
@@ -43,6 +49,8 @@ export class OtherItemSnapshotBuilder {
 
 /**
  * @property {MoveSnapshot[]} playbookMoves
+ * @property {MoveSnapshot[]} playbookMovesOwned
+ * @property {MoveSnapshot[]} playbookMovesUnowned
  * @property {MoveSnapshot[]} basicMoves
  * @property {MoveSnapshot[]} expeditionMoves
  * @property {MoveGroupSnapshot[]} otherGroups
@@ -60,6 +68,8 @@ export class OtherItemSnapshotBuilder {
 export class Movelist {
 	constructor(b) {
 		this.playbookMoves     = b._playbookMoves;
+		this.playbookMovesOwned = this.playbookMoves.filter(m => m.owned);
+		this.playbookMovesUnowned = this.playbookMoves.filter(m => !m.owned);
 		// Moves learned from OTHER playbooks via a cross-playbook pick (Versatile/…),
 		// rendered with their full card (description/roll/marks/resource) like playbook moves.
 		this.learnedMoves      = b._learnedMoves ?? [];
@@ -67,6 +77,8 @@ export class Movelist {
 		this.expeditionMoves   = b._expeditionMoves;
 		this.otherGroups       = b._otherGroups;
 		this.otherMoves        = b._otherMoves;
+		// Single-use love letters (Book I p.568), rendered in their own top-of-tab section.
+		this.loveLetters       = b._loveLetters ?? [];
 		this.startingMovesNote = b._startingMovesNote;
 		this.postDeathGroup    = b._postDeathGroup ?? null;
 		this.movesIncomplete   = b._movesIncomplete ?? false;
@@ -86,6 +98,7 @@ export class MovelistBuilder {
 	withExpeditionMoves(v)   { this._expeditionMoves   = v; return this; }
 	withOtherGroups(v)       { this._otherGroups       = v; return this; }
 	withOtherMoves(v)        { this._otherMoves        = v; return this; }
+	withLoveLetters(v)       { this._loveLetters       = v; return this; }
 	withStartingMovesNote(v) { this._startingMovesNote = v; return this; }
 	withPostDeathGroup(v)    { this._postDeathGroup    = v; return this; }
 	withMovesIncomplete(v)   { this._movesIncomplete   = v; return this; }

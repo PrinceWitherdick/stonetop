@@ -3,7 +3,10 @@ import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
 import {RequisitionDialog} from "./dialogs/RequisitionDialog.js";
-import {CustomMoveDialog} from "./dialogs/CustomMoveDialog.js";
+import {CustomMoveDialog, characterMoveSaver} from "./dialogs/CustomMoveDialog.js";
+import {AddInventoryItemDialog, characterInventoryItemSaver} from "./dialogs/AddInventoryItemDialog.js";
+import {LoveLetterDialog} from "../../dialogs/LoveLetterDialog.js";
+import {LoveLetterReadDialog} from "../../dialogs/LoveLetterReadDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
@@ -16,9 +19,9 @@ import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
+import {wireTabSearch} from "../../utils/tab-search.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
-import {StonetopArcanaInspireDialog} from "../../item/StonetopArcanaInspireDialog.js";
 import {rollDamage, rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
 import {defendReadinessHold} from "../../combat/defend-readiness.js";
 import {dieFromDamage} from "../../utils/damage.js";
@@ -38,7 +41,9 @@ import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {annotateInvocationEffects} from "./invocation-effects.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
+import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
+import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
 import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
@@ -48,17 +53,6 @@ import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} fro
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
-
-// A GM may always author; a non-GM may only when the world hasn't flipped the given
-// "GM-only" setting. Shared by the custom-move and homebrew-arcana authoring gates.
-function gmOnlyGate(gmOnlySettingKey) {
-	if (game.user?.isGM) return true;
-	return !game.settings.get("stonetop_pwd", gmOnlySettingKey);
-}
-
-// Whether the current user may author custom moves / homebrew arcana.
-function canAuthorCustomMoves() { return gmOnlyGate("customMovesGmOnly"); }
-function canCreateArcana()      { return gmOnlyGate("arcanaCreationGmOnly"); }
 
 // Playbook moves that let a character roll a different stat for a basic move. When
 // the actor owns `ownsMove`, the basic move named `whenMove` (or, for blanket
@@ -91,6 +85,21 @@ const VITAL_TOOLTIPS = {
 	xp:     "Experience. Mark 1 XP on a miss (roll 6-) and from some moves; when the track fills, spend it to level up.",
 	level:  "Your character level. Higher levels let you learn advanced moves and raise the XP needed to advance.",
 };
+
+// Suggested "where their armor comes from" values for the follower armor row.
+// Free-type: these are autocomplete hints only — a player can pick one, combine
+// them, type their own, or leave it blank (no source is a perfectly valid state).
+const FOLLOWER_ARMOR_SOURCES = [
+	"Leather armor",
+	"Padded armor",
+	"Thick hides",
+	"Scale armor",
+	"Chainmail",
+	"Brigandine",
+	"Shield",
+	"Helm",
+	"Natural (tough hide)",
+];
 
 const _esc = escHtml;
 
@@ -594,11 +603,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				dragDrop: [{ dragSelector: ".items-list .item" }],
-				// Each tab body and the moves sidebar own their own scroll. Register them
-				// so Foundry saves/restores scrollTop across re-renders — otherwise adding
-				// an item / arcanum / follower (which re-renders the sheet) snaps the user
-				// back to the top of whatever tab they were on.
-				scrollY: [".sheet-body > .tab.active", ".stonetop-sidebar-body"],
+				// The sheet scrolls as one inside .window-content; the moves sidebar has its
+				// own scroll. Register both so Foundry saves/restores scrollTop across
+				// re-renders — otherwise adding an item / arcanum / follower (which re-renders
+				// the sheet) snaps the user back to the top of the sheet.
+				scrollY: [".window-content", ".stonetop-sidebar-body"],
 			});
 		}
 
@@ -641,12 +650,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
-		// All tabs share one scroll container, so a scroll position from a tall tab
-		// carries over to the next. Reset to the top on every switch so the new tab
-		// always starts at the top instead of mid-content.
+		// The whole sheet scrolls as one inside .window-content. Keep the reader's scroll
+		// position across tab switches instead of letting the browser clamp it up to the
+		// top when the incoming tab is shorter (which reads as a jump/bounce). See
+		// keepScrollAcrossTab.
 		_onChangeTab(event, tabs, active) {
-			super._onChangeTab(event, tabs, active);
-			this.element?.[0]?.querySelector(".sheet-body")?.scrollTo({ top: 0 });
+			keepScrollAcrossTab(this.element, () => super._onChangeTab(event, tabs, active));
 		}
 
 		async close(options) {
@@ -1031,13 +1040,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.possessionsEdit = sectionEdit("possessions");
 			context.stonetop.invocationsEdit = sectionEdit("invocations");
 			// The two Arcana sections (Major / Minor) each get their own pencil, like every
-			// other section. `arcanaAnyEdit` drives the shared "Create arcanum" bar at the top
-			// of the tab, so pencilling either section surfaces the creation controls.
+			// other section. The per-tier "Create arcanum" buttons live at the foot of their
+			// own section (gated on canCreateArcana, in and out of edit mode) — see tab-arcana.hbs.
 			context.stonetop.arcanaEdit = {
 				major: sectionEdit("arcanaMajor"),
 				minor: sectionEdit("arcanaMinor"),
 			};
-			context.stonetop.arcanaAnyEdit = context.stonetop.arcanaEdit.major || context.stonetop.arcanaEdit.minor;
 			context.stonetop.followersEdit   = sectionEdit("followers");
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
@@ -1178,6 +1186,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					item.frontVisible      = !backOnly;
 					item.backVisible       = spread || backOnly;
 					item.isSpread          = item.identified && spread;
+					// Surface the back's Consequences onto the front (Hec'tumel / Redwood) only
+					// when the front is the sole visible side — in a spread or a back-only flip the
+					// back panel already carries the section, so we don't want a second copy. The
+					// snapshot only sets item.consequences for the front-referencing cards.
+					item.showFrontConsequences = !!item.consequences && item.frontVisible && !item.backVisible;
 					item.revealedToPlayers = revealed;
 					// The GM's reveal toggle only matters in secretive mode (setting off) for a
 					// still-LOCKED back: an unlocked back is already seen by its owner, and with
@@ -1211,9 +1224,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// restricted, players still see/roll existing custom moves but get no "+"
 			// button or edit pencils. Existing moves always render regardless.
 			context.stonetop.canAuthorCustomMoves = canAuthorCustomMoves();
+			// Love letters are GM prep (Book I p.568): only the GM gets the edit/delete
+			// affordances on a letter's card. Players read and resolve their own letters.
+			context.stonetop.canAuthorLoveLetters = game.user.isGM;
 			// Creating homebrew arcana can be restricted to the GM independently of
 			// custom moves (arcanaCreationGmOnly). When restricted, players don't see
-			// the create bar / inspiration wizard, but still edit cards they own.
+			// the per-tier "Create arcanum" buttons, but still edit cards they own.
 			context.stonetop.canCreateArcana = canCreateArcana();
 			const { xp } = context.stonetop.vitals;
 			context.stonetop.canLevelUp = xp.value >= xp.max;
@@ -1375,6 +1391,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				// value span, but it must never reach the <input type="number">. Give the
 				// number input its own always-numeric value.
 				card.armorInput = parseFollowerArmor(card.armor);
+				// Optional free-text "where their armor comes from" note (leather, shield,
+				// hides…). Purely descriptive — never feeds the numeric armor value.
+				card.armorSource = has(d.armorSource) ? String(d.armorSource).trim() : "";
 				return card;
 			};
 
@@ -2105,75 +2124,51 @@ export function createStonetopCharacterSheetClass(Base) {
 				});
 			});
 
-			// Live text filters for the Moves and Arcana tabs. The control is a round
-			// magnifying-glass button beside the tab's header text that expands into a
-			// filter box on click (tab-search-control.hbs). Client-side only: matching
-			// items stay, the rest get `.stonetop-search-hidden` — a class, not the
-			// `hidden` prop, because an arcanum card sets its own `display:flex` that
-			// would beat `[hidden]`. An active term also flags the tab `.is-searching`,
-			// which (via CSS) suspends the Moves "hide un-learned" rule and force-opens
-			// collapsed Arcana sections, so a match is never hidden by either. Group /
-			// section headers are left in place — the search box lives inside one, so
-			// hiding an "empty" header could hide the box itself.
-			const wireTabSearch = ({ tabSel, itemSel, textFor }) => {
-				const tab    = html[0].querySelector(tabSel);
-				const box    = tab?.querySelector(".stonetop-tab-search");
-				const input  = box?.querySelector(".stonetop-tab-search-input");
-				const toggle = box?.querySelector(".stonetop-tab-search-toggle");
-				if (!tab || !box || !input || !toggle) return;
-
-				const items = [...tab.querySelectorAll(itemSel)];
-				// The search index (per-item text, incl. the arcana card's nested DOM walk) is
-				// built lazily on first use, not on every render — the box is almost never open.
-				const apply = () => {
-					const term = input.value.trim().toLowerCase();
-					tab.classList.toggle("is-searching", !!term);
-					for (const item of items) {
-						if (term && item._stSearchText === undefined)
-							item._stSearchText = (textFor(item) ?? "").toLowerCase();
-						item.classList.toggle("stonetop-search-hidden", !!term && !item._stSearchText.includes(term));
-					}
-				};
-				input.addEventListener("input", apply);
-
-				// The Arcana control sits inside the section's click-to-collapse summary;
-				// keep its own clicks / keys from bubbling up and toggling that collapse.
-				box.addEventListener("click", ev => ev.stopPropagation());
-				box.addEventListener("keydown", ev => ev.stopPropagation());
-				// preventDefault on mousedown so clicking the button never pulls focus off
-				// the input — otherwise the blur-to-collapse below would fight the toggle.
-				toggle.addEventListener("mousedown", ev => ev.preventDefault());
-				toggle.addEventListener("click", () => {
-					if (box.classList.contains("is-open")) {
-						box.classList.remove("is-open");
-						if (input.value) { input.value = ""; apply(); }
-						input.blur();
-					} else {
-						box.classList.add("is-open");
-						input.focus();
-					}
-				});
-				input.addEventListener("keydown", ev => {
-					if (ev.key !== "Escape") return;
-					input.value = ""; apply();
-					box.classList.remove("is-open");
-					input.blur();
-				});
-				// Clicking away collapses an empty box; one holding a live term stays open.
-				input.addEventListener("blur", () => { if (!input.value.trim()) box.classList.remove("is-open"); });
-			};
-			wireTabSearch({
-				tabSel: ".tab.moves",
+			// Live text filters (shared wireTabSearch): a round magnifying-glass button beside a
+			// header that expands into a filter box (tab-search-control.hbs). Each call is scoped
+			// to the container that holds both the box and the items it hides, so scoping to a
+			// whole tab filters the tab and scoping to one column filters just that column.
+			wireTabSearch(html[0].querySelector(".tab.moves"), {
 				itemSel: ".stonetop-item",
 				textFor: li => li.textContent,
 			});
-			wireTabSearch({
-				tabSel: ".tab.arcana",
-				itemSel: ".stonetop-arcanum-card",
-				// Title(s) + front/back body only — skip the footer button labels
-				// (Remove / Reveal / Flip) so a term like "remove" doesn't match every card.
-				textFor: card => [...card.querySelectorAll(".stonetop-arcanum-title, .stonetop-arcanum-body")]
-					.map(el => el.textContent).join(" "),
+			// Arcana tab: the Major and Minor sections each get their own filter, scoped to that
+			// section, so each search only hides its own cards. An active term flags the section
+			// `.is-searching`, which force-opens it if collapsed (see stonetop.css) so a match is
+			// never hidden. Match on title(s) + front/back body only, skipping the footer button
+			// labels (Remove / Reveal / Flip) so a term like "remove" doesn't match every card.
+			const arcanaCardText = card => [...card.querySelectorAll(".stonetop-arcanum-title, .stonetop-arcanum-body")]
+				.map(el => el.textContent).join(" ");
+			for (const section of ["arcanaMajor", "arcanaMinor"]) {
+				wireTabSearch(html[0].querySelector(`.stonetop-arcana-section[data-section="${section}"]`), {
+					itemSel: ".stonetop-arcanum-card",
+					textFor: arcanaCardText,
+				});
+			}
+			// Inventory tab: each gear column gets its OWN filter, scoped to that column, so the
+			// Items search never touches Small Items and vice-versa. Match on the row's name AND
+			// its note/tags (the tags live in a sibling `.stonetop-inv-note`, so matching the label
+			// span alone would miss a search for a visible gear tag like "near" or "piercing").
+			const invLabelText = el => [".stonetop-inv-label", ".stonetop-inv-note"]
+				.map(sel => el.querySelector(sel)?.textContent ?? "")
+				.join(" ").trim() || el.textContent;
+			for (const col of [".stonetop-inventory-regular", ".stonetop-inventory-small"]) {
+				wireTabSearch(html[0].querySelector(col), {
+					itemSel: ".stonetop-inv-item",
+					textFor: invLabelText,
+				});
+			}
+			// Followers tab: one filter over the follower cards, matched by name / type / tags.
+			// The shared reference cards ("… Moves") are excluded so they always stay visible.
+			wireTabSearch(html[0].querySelector(".tab.followers"), {
+				itemSel: ".stonetop-follower-card:not(.stonetop-follower-card--rules)",
+				textFor: card => {
+					const text = [...card.querySelectorAll(
+						".stonetop-follower-name, .stonetop-follower-name-line, .stonetop-follower-type, .stonetop-follower-tag"
+					)].map(el => el.textContent).join(" ");
+					const inputs = [...card.querySelectorAll(".stonetop-follower-name-field")].map(el => el.value).join(" ");
+					return `${text} ${inputs}`;
+				},
 			});
 
 			html.find(".stonetop-roll-mode-input").on("change", async (ev) => {
@@ -2195,6 +2190,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				// (equipment, details) keep the edit-mode guard so a stray click there doesn't
 				// fire a chat post while you're editing the sheet.
 				if (this._editMode && !nameEl.closest(".stonetop-move-group")) return;
+				// A love letter is single-use: it resolves (and self-consumes) only via its own
+				// Read & Resolve / Roll button, never a name-click that would post it to chat
+				// without removing it. Its edit/delete pencils have their own handlers.
+				if (nameEl.closest(".stonetop-love-letter")) return;
+				// An un-learned custom move is inactive (no dice icon, bonuses off); a name-click
+				// must not post its card to chat either — treat it as non-interactive.
+				if (nameEl.closest("li")?.classList.contains("move-unlearned")) return;
 				ev.preventDefault();
 				const li = nameEl.closest("li");
 				const name = nameEl.textContent.trim();
@@ -2419,17 +2421,21 @@ export function createStonetopCharacterSheetClass(Base) {
 				wrapStonetopGlyphsInEl(el);
 			});
 
-			// Fold the long, secondary "Consequences" section on each major arcanum's
-			// reverse behind a collapsible heading (like the basic-moves sidebar groups),
-			// defaulting to collapsed. The section lives inside the card's authored back
-			// HTML, so we wrap it at render time: the <h3>Consequences</h3> becomes a
-			// clickable summary and everything after it (until the next heading) folds
-			// into the body. Expanded state is per-user/per-actor and persisted, so
-			// marking a consequence — which re-renders the sheet — doesn't refold it.
-			// Runs before the masonry below so cards are measured at their folded height.
-			html[0].querySelectorAll(".stonetop-arcanum-side--back .stonetop-arcanum-body").forEach(body => {
+			// Fold the long, secondary "Consequences" section behind a collapsible heading
+			// (like the basic-moves sidebar groups), defaulting to collapsed. It lives inside
+			// the card's authored back HTML, so we wrap it at render time: the
+			// <h3>Consequences</h3> becomes a clickable summary and everything after it (until
+			// the next heading) folds into the body. Expanded state is per-user/per-actor and
+			// persisted, so marking a consequence — which re-renders the sheet — doesn't refold
+			// it. This runs on the BACK body, and also on the FRONT body of the cards that
+			// surface their Consequences there (Hec'tumel / Redwood — see showFrontConsequences);
+			// the front-only view and the spread's back panel are mutually exclusive, so the same
+			// `${slug}:consequences` fold id is never in the DOM twice at once. Runs before the
+			// masonry below so cards are measured at their folded height.
+			html[0].querySelectorAll(".stonetop-arcanum-side--back .stonetop-arcanum-body, .stonetop-arcanum-side--front .stonetop-arcanum-body").forEach(body => {
 				const slug = body.closest(".stonetop-arcanum-card")?.dataset.slug;
 				if (!slug) return;
+				const isFront = !!body.closest(".stonetop-arcanum-side--front");
 				// Fold stops at the next heading or at template-appended siblings (the back
 				// move trigger / "Add as follower" button that follow the authored HTML),
 				// so folding the last section never swallows them.
@@ -2438,6 +2444,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					n.classList.contains("stonetop-arcanum-move-trigger") ||
 					n.classList.contains("stonetop-arcanum-summon")
 				);
+				let foldedConsequences = false;
 				for (const heading of [...body.children].filter(n => n.tagName === "H3")) {
 					if (heading.textContent.trim().toLowerCase() !== "consequences") continue;
 
@@ -2466,6 +2473,22 @@ export function createStonetopCharacterSheetClass(Base) {
 					summary.appendChild(heading);      // move the heading into the summary
 					bodyNodes.forEach(n => foldBody.appendChild(n));
 					fold.append(summary, foldBody);
+					foldedConsequences = true;
+				}
+
+				// With the section now surfaced below the front text, the front's own pointer
+				// "mark a consequence (see reverse)" should read "(see below)". Only rewrite when
+				// the fold is actually present (front-only view); in a spread the front keeps
+				// "(see reverse)" pointing at the visible back panel. Scoped to the description
+				// prose so the unlock's "(see reverse)" pointers (to spells / named moves) are
+				// left alone.
+				if (isFront && foldedConsequences) {
+					const walker = body.ownerDocument.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+					for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+						if (!node.nodeValue.includes("(see reverse)")) continue;
+						if (node.parentElement?.closest(".stonetop-arcanum-unlock-lead, .stonetop-arcanum-unlock-list, .stonetop-arcanum-foldable")) continue;
+						node.nodeValue = node.nodeValue.replace(/\(see reverse\)/g, "(see below)");
+					}
 				}
 			});
 
@@ -2701,6 +2724,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			html[0].addEventListener("click", openMovesEditFromHand, true);
 			html[0].addEventListener("keydown", openMovesEditFromHand, true);
 
+			// The stat-choice hand on an Improved/Superior Stat card whose stat was never
+			// chosen: open the +1 picker straight away for the first unfilled owned instance
+			// (a repeatable move can have several). Distinct from the budgeted-move hand above
+			// because there's no on-card control to pick a stat — it needs the dialog.
+			const fillStatChoiceFromHand = async ev => {
+				const hand = ev.target.closest(".stonetop-move-stat-choice-needed");
+				if (!hand) return;
+				if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				const itemId = hand.closest("[data-item-id]")?.dataset.itemId;
+				const item = itemId ? this.actor.items.get(itemId) : null;
+				if (!item) return;
+				const choices = this.actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {};
+				const unfilled = this.actor.items.find(i =>
+					i.type === "move" && i.name === item.name && i.system?.cap != null && !choices[i.id]);
+				if (unfilled) await this._promptFillStatIncrease(unfilled);
+			};
+			html[0].addEventListener("click", fillStatChoiceFromHand, true);
+			html[0].addEventListener("keydown", fillStatChoiceFromHand, true);
+
 			// Followers tab: per-card, per-section edit pencils. Same per-section toggle
 			// mechanism, keyed on `follower-<section>:<ftype>:<slug>`; opening a text
 			// section (name/moves/notes) focuses its input.
@@ -2807,6 +2851,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop_pwd", path, el.value.trim());
 				this.render(false);
 			});
+			// Armor-source field: a free-type input with a suggestion dropdown (leather,
+			// shield, hides…). Picking a suggestion fires `change`, saved by the handler
+			// above; the field stays free-type, so "type your own" and "leave blank" both
+			// just work. Uses our custom popup (native <datalist> has no scrollbar).
+			html.find(".stonetop-follower-armor-source-input").each((_, input) =>
+				StonetopAutocomplete.attach(input, FOLLOWER_ARMOR_SOURCES));
 			// Exceptional tag chip (edit mode). A gated tag: only follower types whose
 			// playbook grants it show the chip (see FOLLOWER_EXCEPTIONAL), and it can
 			// be switched on only once that move is owned. Turning it off is always
@@ -3547,15 +3597,55 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			const openCustomMove = (item = null) => {
 				if (!this.isEditable || !canAuthorCustomMoves()) return;
-				new CustomMoveDialog(this._stonetopCharacter, {
+				new CustomMoveDialog(characterMoveSaver(this._stonetopCharacter), {
 					item,
 					onSaved: () => this.render(false),
 				}).render(true);
 			};
+			// Learned toggle on a custom move: un-checking keeps it on the sheet but inactive
+			// (not rollable, bonuses off); re-checking re-learns it. Gated the same way as
+			// authoring, so a player can't toggle a GM-authored one when authoring is GM-only.
+			html.find(".stonetop-custom-move-learned").on("change", async ev => {
+				if (!this.isEditable || !canAuthorCustomMoves()) return;
+				await this._stonetopCharacter.setCustomMoveLearned(ev.currentTarget.dataset.itemId, ev.currentTarget.checked);
+				this.render(false);
+			});
 			html.find(".stonetop-add-custom-move").on("click", () => openCustomMove());
 			html.find(".stonetop-custom-move-edit").on("click", ev => {
 				const item = this.actor.items.get(ev.currentTarget.dataset.itemId);
 				if (item) openCustomMove(item);
+			});
+
+			// Love letters (Book I p.568). "Read letter" opens the letter in a reader modal;
+			// resolving from there rolls/posts it like any move, then consumes it (single-use)
+			// — the last one takes its section with it. Edit and delete are GM-only affordances
+			// (canAuthorLoveLetters gates the markup too).
+			html.find(".stonetop-love-letter-read").on("click", ev => {
+				const itemId = ev.currentTarget.dataset.itemId;
+				const item = this.actor.items.get(itemId);
+				if (!item) return void ui.notifications.warn("That love letter is no longer on this character.");
+				new LoveLetterReadDialog({
+					item,
+					actor: this.actor,
+					onResolve: () => this._onResolveLoveLetter(itemId),
+				}).render(true);
+			});
+			html.find(".stonetop-love-letter-edit").on("click", ev => {
+				if (!game.user.isGM) return;
+				const item = this.actor.items.get(ev.currentTarget.dataset.itemId);
+				if (item) new LoveLetterDialog({ item, actor: this.actor, onSaved: () => this.render(false) }).render(true);
+			});
+			html.find(".stonetop-love-letter-delete").on("click", ev => {
+				if (!game.user.isGM) return;
+				const item = this.actor.items.get(ev.currentTarget.dataset.itemId);
+				if (!item) return;
+				Dialog.confirm({
+					title:   game.i18n.localize("stonetop.character.moves.loveLetter.deleteMove"),
+					content: `<p>${game.i18n.format("stonetop.character.moves.loveLetter.deleteConfirm", { name: escHtml(item.name) })}</p>`,
+					yes:     () => item.delete(),
+					render:  bringDialogToFront,
+					options: { classes: ["dialog", "stonetop"] },
+				});
 			});
 
 			html[0].addEventListener("click", ev => {
@@ -3586,6 +3676,20 @@ export function createStonetopCharacterSheetClass(Base) {
 					title: game.i18n.localize("stonetop.arcana.identifyTitle"),
 					content: `<p>${game.i18n.localize("stonetop.arcana.identifyConfirm")}</p>`,
 					yes: () => this._stonetopCharacter.identifyArcanum(slug).then(() => this.render(false)),
+					render: bringDialogToFront,
+					options: { classes: ["dialog", "stonetop"] },
+				});
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-discover-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				const { slug } = btn.dataset;
+				Dialog.confirm({
+					title: game.i18n.localize("stonetop.arcana.discoverTitle"),
+					content: `<p>${game.i18n.localize("stonetop.arcana.discoverConfirm")}</p>`,
+					yes: () => this._stonetopCharacter.discoverArcanum(slug).then(() => this.render(false)),
 					render: bringDialogToFront,
 					options: { classes: ["dialog", "stonetop"] },
 				});
@@ -3702,12 +3806,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!btn) return;
 				ev.stopPropagation();
 				this._onArcanaCreate(btn.dataset.major === "true");
-			}, true);
-
-			html[0].addEventListener("click", ev => {
-				if (!ev.target.closest(".stonetop-arcana-inspire")) return;
-				ev.stopPropagation();
-				this._onArcanaInspire();
 			}, true);
 
 			html[0].addEventListener("change", ev => {
@@ -4049,6 +4147,31 @@ export function createStonetopCharacterSheetClass(Base) {
 			await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { situational });
 		}
 
+		// Resolve a love letter (Book I p.568): post it like any move, then consume it.
+		// A fixed-stat letter rolls through the standard engine (same chat card, XP-on-miss);
+		// a no-roll letter posts its body as a description card. We call onRoll directly (not
+		// rollMoveById) so there's no situational-modifier prompt whose cancel could leave a
+		// single-use letter half-spent — the letter is only deleted once its card has posted.
+		async _onResolveLoveLetter(itemId) {
+			const item = this.actor?.items?.get(itemId);
+			if (!item) return void ui.notifications.warn("That love letter is no longer on this character.");
+			if (!this.isEditable) return;
+
+			try {
+				const rollable = this._makeSyntheticRollable(item);   // null when there's no roll
+				if (rollable) await this._stonetopCharacter.onRoll({ currentTarget: rollable }, {});
+				else await item.roll({ descriptionOnly: true });
+			} catch (err) {
+				console.error("Stonetop | Error resolving love letter:", err);
+				ui.notifications.error("Could not resolve that love letter — see the console for details.");
+				// Rethrow so the reader dialog keeps itself open and re-enables its button; the
+				// letter is left in place (delete below is skipped) so it isn't silently consumed.
+				throw err;
+			}
+
+			await item.delete();   // single-use — the section vanishes with the last letter
+		}
+
 		// Build a detached DOM element that stands in for a move row's rollable dice icon,
 		// carrying just the structure the rollable-dispatch helpers read: an ancestor
 		// `.item.stonetop-item` with the item id, a `.stonetop-item-name`, and the stat on
@@ -4287,7 +4410,15 @@ export function createStonetopCharacterSheetClass(Base) {
 		// mysteriously checked with no stat bumped. Offer the stats still below the move's cap;
 		// picking one records + applies it (the "+1 STR" chip then renders). Closing without a
 		// pick un-ticks the box (removeMove), since a stat move with no choice does nothing.
-		async _maybePromptStatIncrease(addedItem) {
+		// Fill in the stat for an ALREADY-OWNED Improved/Superior Stat instance that never
+		// had one chosen (a character imported/created before onboarding collected it — the
+		// move-card "needs your input" hand routes here). Reuses the picker but must NOT
+		// delete the move on cancel: the player already owns it, they're just completing it.
+		async _promptFillStatIncrease(item) {
+			return this._maybePromptStatIncrease(item, { removeOnCancel: false });
+		}
+
+		async _maybePromptStatIncrease(addedItem, { removeOnCancel = true } = {}) {
 			if (!addedItem) return;
 			const cap = addedItem.system?.cap ?? null;
 			if (cap == null) return; // not a stat-increase move
@@ -4295,7 +4426,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const eligible = _STAT_CHOICES.filter(([key]) => (stats[key]?.value ?? 0) < cap);
 			if (!eligible.length) {
 				ui.notifications?.warn(`${addedItem.name}: every stat is already at the maximum (+${cap}).`);
-				await this._stonetopCharacter.removeMove(addedItem.id);
+				if (removeOnCancel) await this._stonetopCharacter.removeMove(addedItem.id);
 				return;
 			}
 			const maxed = _STAT_CHOICES
@@ -4321,8 +4452,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				content: `<p>Choose one stat to raise by +1 (max +${cap}).</p>${note}`,
 				buttons,
 				render:  bringDialogToFront,
-				// Closed without choosing (window ✕) → treat it like the box was never ticked.
-				close:   async () => { if (!picked) await this._stonetopCharacter.removeMove(addedItem.id); },
+				// Closed without choosing (window ✕): for a freshly-ticked box, treat it as never
+				// ticked (remove); for an existing owned move being filled in, just leave it be.
+				close:   async () => { if (!picked && removeOnCancel) await this._stonetopCharacter.removeMove(addedItem.id); },
 			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-stat-picker-dialog"] }).render(true);
 		}
 
@@ -4532,38 +4664,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onAddInventoryItem(ev) {
-			const column = ev.currentTarget.dataset.column;
-			const isRegular = column === "regular";
-			const content = isRegular
-				? `<div style="display:grid;gap:6px;padding:6px">
-					<label>${game.i18n.localize("stonetop.inventory.addItemName")} <input name="name" type="text" style="width:100%"></label>
-					<label>${game.i18n.localize("stonetop.inventory.addItemWeight")} <input name="weight" type="number" min="1" value="1" style="width:60px"></label>
-				   </div>`
-				: `<div style="padding:6px"><label>${game.i18n.localize("stonetop.inventory.addItemName")} <input name="name" type="text" style="width:100%"></label></div>`;
-			new Dialog({
-				title: isRegular ? game.i18n.localize("stonetop.inventory.addItem") : game.i18n.localize("stonetop.inventory.addSmallItem"),
-				content,
-				buttons: {
-					cancel: { label: game.i18n.localize("Cancel") },
-					add: {
-						label: game.i18n.localize("stonetop.inventory.addItemConfirm"),
-						callback: html => {
-							const name = html.find("[name=name]").val().trim();
-							if (!name) return;
-							if (isRegular) {
-								const weight = Math.max(1, parseInt(html.find("[name=weight]").val()) || 1);
-								this._stonetopCharacter.addCustomInventoryItem(name, weight)
-									.then(() => this.render(false));
-							} else {
-								this._stonetopCharacter.addCustomSmallItem(name)
-									.then(() => this.render(false));
-							}
-						},
-					},
-				},
-				default: "add",
-				render: bringDialogToFront,
-			}, { classes: ["dialog", "stonetop", "stonetop-add-item-dialog"] }).render(true);
+			const column = ev.currentTarget.dataset.column === "small" ? "small" : "regular";
+			new AddInventoryItemDialog(characterInventoryItemSaver(this._stonetopCharacter), {
+				column,
+				onSaved: () => this.render(false),
+			}).render(true);
 		}
 
 
@@ -4801,15 +4906,6 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _onArcanaCreate(major = false) {
 			if (!this.isEditable || !canCreateArcana()) return;
 			await this._createAndAddArcanum({ name: major ? "New Major Arcanum" : "New Minor Arcanum", major });
-		}
-
-		// Open the Artifact Creation inspiration wizard; on finish it opens a card pre-filled
-		// with the rolled results in the editor as a draft, added on Save & Done.
-		_onArcanaInspire() {
-			if (!this.isEditable || !canCreateArcana()) return;
-			new StonetopArcanaInspireDialog({
-				onCreate: ({ name, major, front }) => this._createAndAddArcanum({ name, major, front }),
-			}).render(true);
 		}
 
 		// Create a homebrew arcanum world Item (optionally pre-filled) and open its editor as a
@@ -5599,6 +5695,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					minorRoles: foundry.utils.deepClone(
 						f.arcana?.minorRoles ?? { mastered: "", found: "", lead: "" }
 					),
+					// Stamp majorMarksFor to the restored major so getData keeps these marks
+					// instead of re-defaulting them (it only resets when the major changes).
+					majorMarks:    [...(f.arcana?.majorMarks ?? [])],
+					majorMarksFor: majorArcanum,
 				},
 			};
 		}
@@ -5722,6 +5822,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			for (const compendiumId of (selections.moves ?? [])) {
 				await this._stonetopCharacter.addMove(compendiumId, { skipIfOwned: true });
+				// A stat-increase move picked at creation (the Would-Be Hero's Improved Stat)
+				// carries a "+1 to which stat?" choice made in onboarding — apply it against the
+				// owned instance (freshly added or already present), bumping the chosen stat and
+				// recording the pick exactly as the level-up path does. This must NOT gate on
+				// addMove's return: on a re-run the move is already owned (addMove returns null)
+				// and the base-stat write above just reset the stat, so gating there would drop
+				// the +1. applyCreationStatChoice is idempotent (base reset first, +1 capped).
+				await this._stonetopCharacter.applyCreationStatChoice(
+					compendiumId, selections.moveStatChoices?.[compendiumId],
+				);
 			}
 			// "Either X OR Y" starting-move choices (e.g. the Heavy's Armored OR
 			// Uncanny Reflexes) — ensureStartingMoves skips these, so add the picks and
@@ -5765,15 +5875,31 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Seeker arcana
 			const masteredMinor = selections.arcana?.minorRoles?.mastered ?? null;
 			const foundMinor    = selections.arcana?.minorRoles?.found    ?? null;
+			const leadMinor     = selections.arcana?.minorRoles?.lead     ?? null;
 			for (const slug of [selections.arcana?.major, masteredMinor, foundMinor].filter(Boolean)) {
 				await this._stonetopCharacter.addArcanum(slug);
 				await this._stonetopCharacter.identifyArcanum(slug);
+			}
+			// "You've begun to unlock the mysteries of your major arcanum" — mark the ○
+			// circles / □ tasks the player ticked in onboarding onto the actual card
+			// (majorMarks holds "<context>:<index>" keys matching the sheet's boxes).
+			if (selections.arcana?.major) {
+				for (const key of (selections.arcana.majorMarks ?? [])) {
+					const [context, indexStr] = String(key).split(":");
+					const index = Number(indexStr);
+					if (context && Number.isInteger(index)) {
+						await this._stonetopCharacter.setArcanumBoxChecked(selections.arcana.major, context, index, true);
+					}
+				}
 			}
 			// The Seeker's mastered minor begins play already realized: fully unlock it so it
 			// carries its back item and shows its back to the owner. The carried side and back
 			// visibility now follow the unlock state (the manual flip was retired), so identify
 			// alone would leave a mastered card reading as a locked, front-only curio.
 			if (masteredMinor) await this._stonetopCharacter.masterArcanum(masteredMinor);
+			// The Lead minor isn't in hand yet: add it as a lead card (owned but un-identified)
+			// so it shows on the arcana tab as a placeholder the player can later mark discovered.
+			if (leadMinor) await this._stonetopCharacter.addLead(leadMinor);
 
 			if (Object.keys(flagUpd).length) await this.actor.update(flagUpd);
 			await this._applyBackgroundNeighbors(backgroundSetup, selections);
@@ -5887,6 +6013,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (selections.arcana?.major)            flagUpd[f("arcana.major")]      = selections.arcana.major;
 			if (selections.arcana?.minorDraw?.length) flagUpd[f("arcana.minorDraw")] = selections.arcana.minorDraw;
 			if (selections.arcana?.minorRoles)        flagUpd[f("arcana.minorRoles")] = selections.arcana.minorRoles;
+			if (selections.arcana?.majorMarks?.length) flagUpd[f("arcana.majorMarks")] = selections.arcana.majorMarks;
 
 			return { flagUpd, selectedBackground, backgroundSetup };
 		}

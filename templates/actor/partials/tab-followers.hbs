@@ -144,9 +144,12 @@
 			<div class="stonetop-follower-statline">
 				<span class="stonetop-follower-field-label">Armor</span>
 				{{#if edit.stats}}
-				<input class="stonetop-follower-stat-input stonetop-follower-stat-input--num" type="number" min="0" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="armor" value="{{armorInput}}">
+				<div class="stonetop-follower-armor-edit">
+					<input class="stonetop-follower-stat-input stonetop-follower-stat-input--num" type="number" min="0" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="armor" value="{{armorInput}}">
+					<input class="stonetop-follower-text stonetop-follower-armor-source-input" type="text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="armorSource" value="{{armorSource}}" placeholder="from… (leather, shield…)" data-tooltip="Where their armor comes from — leather, a shield, thick hides. Optional, and it never changes the number." data-tooltip-direction="UP">
+				</div>
 				{{else}}
-				<span class="stonetop-follower-field-value">{{armor}}</span>
+				<span class="stonetop-follower-field-value">{{armor}}{{#if armorSource}} <span class="stonetop-follower-armor-source">({{armorSource}})</span>{{/if}}</span>
 				{{/if}}
 			</div>
 		</div>
@@ -373,7 +376,10 @@
 	{{/inline}}
 
 	<div class="stonetop-details-heading-row">
-		{{> "stonetop.section-heading" title=(localize "stonetop.sheet.tabs.followers")}}
+		{{> "stonetop.section-heading" title=(localize "stonetop.sheet.tabs.followers")
+		    searchControl=true
+		    searchTitle=(localize "stonetop.character.followers.searchLabel")
+		    searchPlaceholder=(localize "stonetop.character.followers.searchPlaceholder")}}
 		{{> "stonetop.details-section-edit-toggle" section="followers" editing=stonetop.followersEdit}}
 	</div>
 

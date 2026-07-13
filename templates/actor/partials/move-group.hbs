@@ -1,3 +1,4 @@
+{{#unless listOnly}}
 <div class="stonetop-move-group">
 	{{#if editSection}}
 	<div class="stonetop-details-heading-row">
@@ -13,18 +14,36 @@
 		Hide un-learned moves
 	</label>
 	{{/if}}
-	<ol class="items-list">
+	{{#if splitUnowned}}
+		{{#if ownedMoves.length}}
+		{{> "stonetop.move-group" listOnly=true moves=ownedMoves listClass="stonetop-move-list--owned"}}
+		{{/if}}
+		{{#if unownedMoves.length}}
+		{{> "stonetop.move-group" listOnly=true moves=unownedMoves listClass="stonetop-move-list--unowned"}}
+		{{/if}}
+	{{else}}
+		{{> "stonetop.move-group" listOnly=true moves=moves}}
+	{{/if}}
+</div>
+{{else}}
+	<ol class="items-list{{#if listClass}} {{listClass}}{{/if}}">
 	{{#each moves}}
 		{{!-- Every OWNED move is a draggable .item (so it can be dragged onto the macro
 		      hotbar — rollable moves make a roll macro, description-only ones a post-to-chat
 		      macro). Un-owned rows (the unpicked side of an either/or choice) stay
 		      non-draggable. The dice icon itself is still gated on rollType below. --}}
 		{{#if owned}}
-		<li class="item stonetop-item is-checked{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if markBudget.needsChoice}} move-needs-choice{{/if}}{{#if isStarting}} move-starting{{/if}}" data-item-id="{{ownedId}}">
+		<li class="item stonetop-item is-checked{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if (or markBudget.needsChoice statChoiceNeeded)}} move-needs-choice{{/if}}{{#if isStarting}} move-starting{{/if}}" data-item-id="{{ownedId}}">
 		{{else}}
-		<li class="stonetop-item{{#if (and locked (not owned))}} move-locked{{/if}}{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if markBudget.needsChoice}} move-needs-choice{{/if}}{{#if isStarting}} move-starting{{/if}}">
+		<li class="stonetop-item{{#if (and locked (not owned))}} move-locked{{/if}}{{#if requirementsUnmet}} move-requirements-unmet{{/if}}{{#if (or markBudget.needsChoice statChoiceNeeded)}} move-needs-choice{{/if}}{{#if isStarting}} move-starting{{/if}}">
 		{{/if}}
 			<div class="stonetop-item-header">
+				{{!-- The source badge ("Starting move", "Background", "Granted by …") comes
+				      FIRST so it can float into the top-right corner while the checkbox /
+				      dice / +stat chip / title flow around it (see the .stonetop-item-source
+				      float rules). A right float only reserves its corner on line 1 if it
+				      precedes the inline content in the DOM. --}}
+				{{#if sourceLabel}}<span class="stonetop-item-source">{{sourceLabel}}</span>{{/if}}
 				{{#if repeatable}}
 				<span class="stonetop-repeat-checks">
 					{{#each (repeatChecks this)}}
@@ -59,6 +78,7 @@
 				<strong class="stonetop-item-name">{{name}}</strong>
 				{{#if requirementsUnmet}}<i class="fas fa-triangle-exclamation stonetop-move-req-warning" data-tooltip="You own this move but do not meet its requirement{{#if requiresLabel}} ({{requiresLabel}}){{/if}}. Add the missing prerequisite, or drop this move." data-tooltip-direction="UP" aria-hidden="true"></i>{{/if}}
 				{{#if markBudget.needsChoice}}<i class="fas fa-hand-pointer stonetop-move-choice-needed" data-tooltip="This move has selections left to make ({{markBudget.used}} of {{markBudget.max}} chosen) — tap the hand to jump into the moves editor and choose the rest." data-tooltip-direction="UP" role="button" tabindex="0"></i>{{/if}}
+				{{#if statChoiceNeeded}}<i class="fas fa-hand-pointer stonetop-move-stat-choice-needed" data-tooltip="You took this move but haven't chosen which stat to raise, so it isn't boosting anything yet. Tap the hand to pick a stat (+1, max +{{statChoiceNeeded.cap}})." data-tooltip-direction="UP" role="button" tabindex="0"></i>{{/if}}
 				{{#if (and owned resource)}}
 				<span class="stonetop-item-resources">
 					{{#if resource.title}}<span class="stonetop-item-resource-title"{{#if resource.spendTooltip}} data-tooltip="{{resource.spendTooltip}}" data-tooltip-direction="UP"{{/if}}>{{resource.title}}</span>{{/if}}
@@ -72,7 +92,6 @@
 					{{/each}}
 				</span>
 				{{/if}}
-				{{#if sourceLabel}}<span class="stonetop-item-source">{{sourceLabel}}</span>{{/if}}
 				{{#if (and @root.stonetop.movesEdit owned (lookup @root.stonetop.possessionTriggerMoves name))}}
 				<a class="stonetop-move-possession-edit" data-possession-choices="{{lookup @root.stonetop.possessionTriggerMoves name}}"
 				   data-tooltip="Choose your sacred pouch's remarkable trait(s)" data-tooltip-direction="UP">
@@ -145,4 +164,4 @@
 		</li>
 	{{/each}}
 	</ol>
-</div>
+{{/unless}}

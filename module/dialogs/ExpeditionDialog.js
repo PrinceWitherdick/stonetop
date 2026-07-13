@@ -14,6 +14,8 @@ import {
 	selectExpedition,
 	deleteExpedition,
 } from "../utils/expedition-log-core.js";
+import { getPlayerCharacters } from "../utils/playbook-actors.js";
+import { deriveLoadLevel, LOAD_LEVEL_LIMITS } from "../utils/load.js";
 
 const ANSWERS_SETTING = "expeditionAnswers";
 
@@ -48,6 +50,52 @@ const _REQ_TIERS = [
 	{ key: "partial", text: _REQ_RESULT.partial.line },
 	{ key: "failure", text: _REQ_RESULT.failure.line },
 ];
+
+// ── Load-gated moves ─────────────────────────────────────────────────────────
+// A move whose fictional trigger needs a lighter load carries `maxLoad` (the heaviest
+// tier it tolerates) and optionally `requiresUnarmored` in its own data (MoveModel), so
+// the Outfit readout reads those off each PC's move snapshot and flags one the current
+// load has switched off. Pack Horse isn't gated — it raises the caps (loadBonus), which
+// each PC's snapshot already reflects. Uncanny Reflexes also needs the PC unarmored
+// (worn-armor base 0), checked via the snapshot's wornArmor.
+
+// The one-line "requirement" caption shown beside a gated move, derived from its data.
+function _gatedReqLabel(maxLoad, requiresUnarmored) {
+	const load = maxLoad === "light" ? "needs light" : `needs ≤ ${maxLoad}`;
+	return requiresUnarmored ? `${load}, unarmored` : load;
+}
+
+// Load tiers lightest→heaviest, so a gated move is active when the current tier is at
+// or below its cap. `null` (nothing carried) ranks as light. Only these three tiers are
+// ever looked up: _gatedMovesFor receives an overloaded PC's tier already collapsed to
+// "heavy", and a move's maxLoad is only ever light/normal/heavy.
+const _LOAD_RANK = { light: 0, normal: 1, heavy: 2 };
+
+// The display label for each tier bucket. The pill's CSS class is the bucket key itself
+// (light/normal/heavy/over), so it needs no separate field.
+const _LOAD_PILL = {
+	light:  { label: "Light" },
+	normal: { label: "Normal" },
+	heavy:  { label: "Heavy" },
+	over:   { label: "Overloaded" },
+};
+
+// Build the diamond track: pips grouped into the light / normal / heavy bands (the
+// group sizes follow the given caps, so Pack Horse's 4/7/10 renders correctly), with
+// any marks past the heavy cap reported as overflow.
+function _pipBands(totalMarks, limits) {
+	const bounds = [
+		[0, limits.light],
+		[limits.light, limits.normal],
+		[limits.normal, limits.heavy],
+	];
+	const bands = bounds.map(([a, b]) => {
+		const pips = [];
+		for (let i = a; i < b; i++) pips.push({ on: i < totalMarks });
+		return { pips };
+	});
+	return { bands, overflow: Math.max(0, totalMarks - limits.heavy) };
+}
 
 // The Chart a Course requirements/challenges (Book I p.302–303) and arriving-home
 // questions (p.338) live in expedition-data.js so the Chronicle compiler can resolve
@@ -263,6 +311,12 @@ export class ExpeditionDialog extends StepperDialog {
 		html.find(".stonetop-exp-switch").on("change", ev => this._switchExpedition(ev.currentTarget.value));
 		html.find(".stonetop-exp-delete").on("click", () => this._deleteCurrentExpedition());
 		html.find(".stonetop-exp-new").on("click", () => this._startNewExpedition());
+		// Outfit step: toggle a PC in/out of this trip's party (a chip showing "out" is
+		// being turned back on).
+		html.find(".stonetop-exp-load-chip").on("click", ev => this._togglePartyMember(
+			ev.currentTarget.dataset.actorId,
+			ev.currentTarget.classList.contains("is-out"),
+		));
 		html.find(".stonetop-exp-chronicle").on("click", ev => this._saveChronicle(ev.currentTarget));
 		// Save on change so fields keep focus while typing.
 		html.find(".stonetop-exp-field").on("change", ev => {
@@ -275,12 +329,12 @@ export class ExpeditionDialog extends StepperDialog {
 		});
 	}
 
-	getData() {
+	async getData() {
 		const nav  = this._stepNav();
 		const step = nav.step;
 		const roll = step.roll ? this._rolls[step.key] ?? null : null;
 		const { currentId, list } = this._log();
-		return {
+		const data = {
 			...nav,
 			isGM:       game.user?.isGM ?? false,
 			// The expedition-log bar atop the walkthrough: the current trip's name, a
@@ -306,6 +360,12 @@ export class ExpeditionDialog extends StepperDialog {
 			showWeather: !!step.weather,
 			qa:        this._qaContext(step.qa),
 		};
+		// The Outfit step gains a live party-load readout — GM-only, since it reads
+		// every PC's inventory. Built only on this step so the others stay cheap.
+		if (step.key === "outfit" && game.user?.isGM) {
+			data.loadReadout = await this._buildLoadReadout();
+		}
+		return data;
 	}
 
 	// The steading's current Fortunes, for the Requisition roll. Falls back to +0
@@ -464,6 +524,171 @@ export class ExpeditionDialog extends StepperDialog {
 			alias:       "Requisition",
 			resultTable: _REQ_RESULT,
 		});
+		this.render(false);
+	}
+
+	// ── Party-load readout (Outfit step) ─────────────────────────────────────────
+	// One row per party member: PCs (their derived load band, plus any load-gated move
+	// the current load switches off) and each PC's in-party custom followers (band from
+	// their ✓ gear marks). The per-trip roster — who's been toggled out — lives on the
+	// current expedition entry, so switching trips shows that trip's party.
+	async _buildLoadReadout() {
+		const out = this._currentExpedition()?.partyOut ?? {};
+		const pcs = getPlayerCharacters();
+		if (!pcs.length) return { chips: [], hasRows: false, rows: [], summary: null };
+
+		const chips = pcs.map(actor => ({ id: actor.id, name: actor.name, on: !out[actor.id] }));
+
+		// Only on-trip PCs need a snapshot, and each is a full character build — run them
+		// concurrently rather than awaiting one heavy build per PC in series (this re-runs
+		// on every Outfit render, including each party-toggle click).
+		const onTrip = pcs.filter(actor => !out[actor.id]);
+		const snaps  = await Promise.all(onTrip.map(actor =>
+			Promise.resolve(actor.typedActor?.buildSnapshot?.()).catch(() => null)));
+
+		const rows = [];
+		onTrip.forEach((actor, i) => {
+			const snap   = snaps[i];
+			const outfit = snap?.inventory?.outfit ?? {};
+			const load   = outfit.load ?? snap?.inventory?.load ?? null;
+			const limits = outfit.loadLimits ?? snap?.inventory?.loadLimits ?? LOAD_LEVEL_LIMITS;
+			const tier   = load?.selected ?? null;
+			const over   = !!load?.loadLevelOverloaded;
+
+			rows.push(this._pcRow(actor, snap, tier, over, Number(load?.totalMarks) || 0, limits));
+			for (const fol of this._partyFollowersOf(actor)) rows.push(fol);
+		});
+
+		// Summary counts every laden member (PCs + followers): heavy and overloaded are
+		// the bands the fiction cares about, and both read as "can't move quiet."
+		const overloaded = rows.filter(r => r.levelClass === "lvl-over").length;
+		const heavy      = rows.filter(r => r.levelClass === "lvl-heavy").length;
+		const cantSneak  = overloaded + heavy;
+
+		return {
+			chips,
+			hasRows: rows.length > 0,
+			rows,
+			summary: {
+				overloaded, heavy, cantSneak,
+				anyOver:  overloaded > 0,
+				anyHeavy: heavy > 0,
+				anySneak: cantSneak > 0,
+			},
+		};
+	}
+
+	// A PC row: avatar, name/playbook, the diamond track, band pill, ◇ count, any
+	// load-gated moves, and (when overloaded or Pack-Horse'd) a note.
+	_pcRow(actor, snap, tier, over, marks, limits) {
+		const band = tier || "light";           // the empty-load default, shared by both branches below
+		const key = over ? "over" : band;
+		const hasPackHorse = !!snap?.inventory?.outfit?.hasPackHorse;
+		const wornArmor    = Number(snap?.vitals?.wornArmor) || 0;
+		return this._loadRow(key, actor.name, marks, limits, {
+			isFollower: false,
+			sub:        actor.system?.playbook?.name || "",
+			gated:      this._gatedMovesFor(snap, over ? "heavy" : band, wornArmor),
+			packHorse:  hasPackHorse ? `caps ${limits.light}/${limits.normal}/${limits.heavy}` : null,
+			note:       over ? "risks exhaustion, accident, injury" : null,
+			noteDanger: over,
+		});
+	}
+
+	// The PC's OWNED load-gated moves and whether the current state keeps each active.
+	// The gate data (maxLoad, requiresUnarmored) rides on each move via its data model, so
+	// we read it straight off the snapshot's owned moves — no per-move table here. Load is
+	// the common gate; Uncanny Reflexes also needs the PC unarmored (worn-armor base 0),
+	// checked via the snapshot's wornArmor.
+	_gatedMovesFor(snap, tier, wornArmor = 0) {
+		const cur = _LOAD_RANK[tier] ?? 0;
+		return (snap?.moves ?? [])
+			.flatMap(cat => cat.moves ?? [])
+			.filter(m => m.owned && m.maxLoad)
+			.map(m => {
+				const loadOk = cur <= (_LOAD_RANK[m.maxLoad] ?? 0);
+				const active = m.requiresUnarmored ? (loadOk && wornArmor === 0) : loadOk;
+				return { name: m.name, active, req: _gatedReqLabel(m.maxLoad, m.requiresUnarmored) };
+			});
+	}
+
+	// A PC's followers, each as a load row: the Marshal's crew (whose gear pips carry
+	// weights) plus any custom followers marked "in the party" (the Followers-tab
+	// toggle). A follower's load is its ✓ gear marks (Book I p.472), bucketed by the
+	// standard caps — followers don't get Pack Horse.
+	_partyFollowersOf(actor) {
+		const rows = [];
+		const crew = this._crewRow(actor);
+		if (crew) rows.push(crew);
+		const map = actor.getFlag?.("stonetop_pwd", "customFollowers") ?? {};
+		for (const f of Object.values(map)
+			.filter(f => f?.party)
+			.sort((a, b) => (Number(a?.order) || 0) - (Number(b?.order) || 0))) {
+			rows.push(this._followerRow(f));
+		}
+		return rows;
+	}
+
+	// The Marshal's crew, if this PC has one. Its ◇ load is the sum of filled gear pips
+	// (stored at flags.stonetop_pwd.crew.gear as { slug: filledCount }); Supplies are a
+	// separate track and don't count. Returns null for a PC with no crew.
+	_crewRow(actor) {
+		const crew = actor.getFlag?.("stonetop_pwd", "crew");
+		const exists = crew && (crew.name || crew.tags?.length || crew.instinct || crew.cost || crew.individuals?.length);
+		if (!exists) return null;
+		const gear  = crew.gear ?? {};
+		const marks = Object.values(gear).reduce((sum, v) => sum + (typeof v === "number" ? v : (v ? 1 : 0)), 0);
+		return this._makeFollowerRow(crew.name || "The Crew", marks, "crew");
+	}
+
+	// A custom follower's load row (gear is a ✓ checklist).
+	_followerRow(f) {
+		const marks  = (Array.isArray(f?.gear) ? f.gear : []).filter(g => g?.checked).length;
+		const folTag = f?.isGroup ? `×${Math.max(2, Number(f?.size) || 2)} group` : "follower";
+		return this._makeFollowerRow(f?.name, marks, folTag);
+	}
+
+	// Shared builder for a follower load row from a name + ◇ mark count.
+	_makeFollowerRow(name, marks, folTag) {
+		const tier = deriveLoadLevel(marks, LOAD_LEVEL_LIMITS);
+		const key  = tier === "overloaded" ? "over" : (tier || "light");
+		return this._loadRow(key, name, marks, LOAD_LEVEL_LIMITS, { isFollower: true, folTag });
+	}
+
+	// Assemble one load row from a resolved band `key` (light/normal/heavy/over) and a ◇
+	// mark count, plus the caller's per-row `extras`. Owns the pill / diamond-band / CSS
+	// derivation so PC and follower rows share one shape and can't drift; `extras` supplies
+	// (and overrides) the per-kind fields (playbook sub, gated moves, notes, folTag, …).
+	_loadRow(key, name, marks, limits, extras = {}) {
+		const pill = _LOAD_PILL[key];
+		const { bands, overflow } = _pipBands(marks, limits);
+		return {
+			isFollower: false,
+			initial:    (name || "?").charAt(0).toUpperCase(),
+			name:       name || (extras.isFollower ? "Follower" : "Character"),
+			sub:        "",
+			folTag:     null,
+			levelClass: `lvl-${key}`,
+			pillClass:  key,
+			levelLabel: pill.label,
+			marks, cap: limits.heavy, bands, overflow,
+			gated:      [],
+			packHorse:  null,
+			note:       null,
+			noteDanger: false,
+			...extras,
+		};
+	}
+
+	// Toggle a PC in/out of the current trip's party (stored on the trip entry, so it's
+	// per-expedition). `include` = the chip was showing "out" and is being turned on.
+	async _togglePartyMember(actorId, include) {
+		if (!actorId) return;
+		const { log, entry } = ensureCurrent(this._log(), () => this._newExpedition());
+		const partyOut = entry.partyOut ?? (entry.partyOut = {});
+		if (include) delete partyOut[actorId];
+		else partyOut[actorId] = true;
+		await this._persistLog(log);
 		this.render(false);
 	}
 }

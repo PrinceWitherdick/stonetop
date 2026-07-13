@@ -1,3 +1,5 @@
+import { resolveResidentsGrid, readStoredColumnState, writeStoredColumnState } from "./steading-column-util.js";
+
 const MIN_COL_WIDTH = 50;
 const STORAGE_PREFIX = "stonetop_pwd.columnWidths.";
 
@@ -15,9 +17,9 @@ const STORAGE_PREFIX = "stonetop_pwd.columnWidths.";
  * @param {string}      storageKey  - unique key (e.g. "players", "neighbors")
  */
 export function makeColumnsResizable(table, storageKey) {
-	const header = table.querySelector(":scope > .steading-residents-header");
-	const list = table.querySelector(":scope > .steading-residents-list");
-	if (!header || !list) return;
+	const grid = resolveResidentsGrid(table);
+	if (!grid) return;
+	const { header, list } = grid;
 
 	const headerCells = Array.from(header.children)
 		.filter(cell => !cell.classList.contains("steading-residents-col-actions"));
@@ -25,10 +27,8 @@ export function makeColumnsResizable(table, storageKey) {
 
 	const storageId = `${STORAGE_PREFIX}${storageKey}`;
 	let widths = null;
-	try {
-		const saved = JSON.parse(localStorage.getItem(storageId) ?? "null");
-		if (Array.isArray(saved) && saved.length === headerCells.length && saved.every(Number.isFinite)) widths = saved;
-	} catch (_err) { widths = null; }
+	const saved = readStoredColumnState(storageId);
+	if (Array.isArray(saved) && saved.length === headerCells.length && saved.every(Number.isFinite)) widths = saved;
 
 	const applyTemplate = () => {
 		if (!widths) return;
@@ -41,9 +41,7 @@ export function makeColumnsResizable(table, storageKey) {
 		});
 	};
 
-	const persist = () => {
-		try { localStorage.setItem(storageId, JSON.stringify(widths)); } catch (_err) { /* ignore quota/availability errors */ }
-	};
+	const persist = () => writeStoredColumnState(storageId, widths);
 
 	// The table may be on a hidden tab when this runs, so rendered widths read
 	// as 0 — only measure them lazily, at drag start, once it's actually visible.

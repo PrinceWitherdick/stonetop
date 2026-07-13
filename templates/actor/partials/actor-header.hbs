@@ -6,7 +6,7 @@
 			<div class="stonetop-playbook-row">
 				<span class="stonetop-playbook-drop-zone {{#unless stonetop.playbook.name}}empty{{/unless}}">
 					{{#if stonetop.playbook.name}}
-					{{stonetop.playbook.name}}{{#if stonetop.playbook.instinct.selectedOption}} <span class="stonetop-instinct-badge" data-tooltip="{{stonetop.playbook.instinct.selectedOption.tooltip}}" data-tooltip-direction="DOWN">({{stonetop.playbook.instinct.selectedOption.word}})</span>{{/if}}
+					{{stonetop.playbook.name}}{{#if stonetop.playbook.instinct.badge}} <span class="stonetop-instinct-badge" data-tooltip="{{stonetop.playbook.instinct.badge.tooltip}}" data-tooltip-direction="DOWN">({{stonetop.playbook.instinct.badge.word}})</span>{{/if}}
 					{{else}}Drop a playbook here{{/if}}
 				</span>
 			</div>

@@ -59,8 +59,10 @@ import {capitalizeFirst, slugify, composeInstinct, escHtml} from "../../utils/st
 import {localize as _loc} from "../../utils/i18n.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {moveChatCard} from "../../utils/chat.js";
-import {normalizeRollType, CUSTOM_MOVE_ROLL_TYPES} from "../../utils/roll-types.js";
-import {formatCustomMoveDescription} from "../../utils/custom-move-text.js";
+import {normalizeRollType} from "../../utils/roll-types.js";
+import {buildCustomMoveData, clampInt} from "../../utils/custom-move-data.js";
+import {buildInventoryItemData} from "../../utils/inventory-item-data.js";
+import {isLoveLetter} from "./love-letters.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie} from "../../utils/damage-die.js";
 
@@ -103,15 +105,27 @@ function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
 }
 
-// True for player-authored custom moves (flagged at creation in _buildCustomMoveData).
+// True for player-authored custom moves (flagged at creation by buildCustomMoveData).
 // The flag distinguishes them from foreign playbook moves that also land in "other".
 function _isCustomMove(item) {
 	return !!item?.flags?.[STONETOP_SCOPE]?.custom;
 }
 
-// Coerce a value to an integer clamped to [lo, hi]; non-numeric / out-of-range → nearest bound.
-function _clampInt(value, lo, hi) {
-	return Math.max(lo, Math.min(hi, Math.trunc(Number(value) || 0)));
+// A custom move can be "un-learned" — kept on the sheet but inactive (not rollable, its
+// hp/armor/load bonuses stop applying). An absent flag means learned, so every freshly
+// authored move and any authored before this feature reads as learned. Non-custom moves
+// are always active, so this returns true for them too.
+function _isMoveLearned(item) {
+	return item?.flags?.[STONETOP_SCOPE]?.learned !== false;
+}
+
+// Sum a numeric `system.<field>` across every LEARNED move the actor owns. The shared
+// spine of _ownedLoadBonus / _ownedShieldLoadReduction (and any future per-move bonus),
+// so the "skip un-learned moves" rule lives in exactly one place and can't be forgotten.
+function _sumLearnedMoveField(actor, field) {
+	return actor.items
+		.filter(i => i.type === "move" && _isMoveLearned(i))
+		.reduce((sum, i) => sum + (Number(i.system?.[field]) || 0), 0);
 }
 
 // Resource-track snapshot for an "other" move, in the shape the resourceChecks helper
@@ -120,7 +134,7 @@ function _clampInt(value, lo, hi) {
 // resourceKey (item id for custom moves, name otherwise — see buildMovelist), so the
 // existing .stonetop-item-resource-check handler works for custom moves unchanged.
 function _buildOtherMoveResource(resource, current) {
-	const max = _clampInt(resource?.max, 0, 20);
+	const max = clampInt(resource?.max, 0, 20);
 	if (!(max > 0)) return null;
 	return {
 		title: resource?.title ?? null,
@@ -141,10 +155,14 @@ const _WEAPONS_OF_WAR_IMPROVEMENT = "weaponsOfWar";
 // 1+ it shows the actual value ("2 piercing"); at 0, no steading (null), or negative,
 // the literal "x piercing" trait is left in place so it always shows on the sheet.
 function _transformPiercingNote(note, prosperity) {
-	if (!note || !note.includes('x <em>piercing</em>')) return note;
+	// Match the variable "x piercing" marker case-insensitively: a free-typed note may
+	// capitalize the x (the chip inserts lowercase, and wrapGearNoteTerms normalizes new
+	// notes, but this also catches any already-saved capital form).
+	const marker = /x <em>piercing<\/em>/i;
+	if (!note || !marker.test(note)) return note;
 	if (prosperity === null) return note; // no steading → leave literal "x piercing"
-	if (prosperity <= -1) return note.replace('x <em>piercing</em>', '<em>crude</em>');
-	return note.replace('x <em>piercing</em>', `${Math.min(prosperity, 2)} <em>piercing</em>`);
+	if (prosperity <= -1) return note.replace(marker, '<em>crude</em>');
+	return note.replace(marker, `${Math.min(prosperity, 2)} <em>piercing</em>`);
 }
 
 // On the gear tab a possession's circle track renders in the component's top-right,
@@ -173,9 +191,7 @@ function _stripPossessionUsesAnnotation(desc, resourceDef) {
 // Horse sets it to 1). The caps and the count→tier bucketing live in utils/load.js
 // so the sheet, snapshot defaults, and dialog can't drift.
 function _ownedLoadBonus(actor) {
-	return actor.items
-		.filter(i => i.type === "move")
-		.reduce((sum, i) => sum + (Number(i.system?.loadBonus) || 0), 0);
+	return _sumLearnedMoveField(actor, "loadBonus");
 }
 
 // The standard Shield inventory item (Book I p.86). The Heavy/Judge/Marshal's Armored
@@ -194,9 +210,7 @@ const _DEFEND_READINESS_FLAG = "readiness";
 // ◇ load by its `shieldLoadReduction`. Like loadBonus, the mechanic lives in the move's data
 // so buildSnapshot never hard-codes a move name.
 function _ownedShieldLoadReduction(actor) {
-	return actor.items
-		.filter(i => i.type === "move")
-		.reduce((sum, i) => sum + (Number(i.system?.shieldLoadReduction) || 0), 0);
+	return _sumLearnedMoveField(actor, "shieldLoadReduction");
 }
 
 export class StonetopCharacter {
@@ -355,7 +369,13 @@ export class StonetopCharacter {
 		const customArmorItems = this._actor.items
 			.filter(i => i.type === "move" && i.system?.moveType === "inventory-custom" && i.system?.armor)
 			.map(i => ({ slug: i._id, armor: i.system.armor }));
-		const armor = this._inventory.calculateArmor([...armorItems, ...customArmorItems]) + moveBonuses.armor;
+		// The worn-armor base (leather/mail/etc., excluding shields and move bonuses) gates
+		// moves that require being unarmored (Uncanny Reflexes); 0 means unarmored. Same base
+		// selection as calculateArmor — CharacterInventory owns the rule. Computed once and
+		// handed to calculateArmor so the base filter doesn't run twice per render.
+		const allArmorItems = [...armorItems, ...customArmorItems];
+		const wornArmorBase = this._inventory.wornArmorBase(allArmorItems);
+		const armor = this._inventory.calculateArmor(allArmorItems, wornArmorBase) + moveBonuses.armor;
 		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
 			? await this._arcana.buildLoreDisplay()
 			: null;
@@ -364,9 +384,9 @@ export class StonetopCharacter {
 			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, (!!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG) || ownsAsteriskMove(this._actor)), actorLevel) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withStats(_buildStatsSection(actor))
-			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses))
+			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase))
 			.withMoves(moves)
-			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel))
+			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel, inventory.loveLetters))
 			.withInventory(inventory)
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
@@ -387,7 +407,7 @@ export class StonetopCharacter {
 		// move that happens to be stored as moveType "other" doesn't get its bonus counted
 		// here. (loadBonus/shieldLoadReduction are summed across all owned moves elsewhere.)
 		for (const i of this._actor.items) {
-			if (!_isCustomMove(i)) continue;
+			if (!_isCustomMove(i) || !_isMoveLearned(i)) continue;
 			totals.hp    += Number(i.system?.hpBonus)    || 0;
 			totals.armor += Number(i.system?.armorBonus) || 0;
 		}
@@ -448,12 +468,13 @@ export class StonetopCharacter {
 				const moveMarksMap     = this._moveResources.getMarks();
 				const moveBackgroundAnswers = resolvedFlags(this._actor).moves?.backgroundAnswers ?? {};
 				const improvedStatChoices   = resolvedFlags(this._actor).improvedStatChoices ?? {};
+				const actorStats            = _statValueMap(this._actor.system?.stats);
 				const source = { type: "playbook", slug: playbookData.slug };
 				categories.push(new MoveCategorySnapshotBuilder()
 					.withKey("playbook")
 					.withTitle(`${playbookData.name} Moves`)
 					.withNote(playbookData.startingMovesNote ?? null)
-					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap))))
+					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap, actorStats))))
 					.build()
 				);
 			}
@@ -499,6 +520,8 @@ export class StonetopCharacter {
 						.withLocked(false).withRequirement(null).withRequiresLabel(null)
 						.withResource(resource)
 						.withMarkOptions(markOptions).withMarkBudget(markBudget)
+						.withMaxLoad(i.system?.maxLoad)
+						.withRequiresUnarmored(i.system?.requiresUnarmored)
 						.withRepeat(null).withRepeatable(false)
 						.build();
 				}))
@@ -647,6 +670,7 @@ export class StonetopCharacter {
 					.withTitle(res.title ?? null)
 					.withLabels(res.labels ?? [])
 					.build() : null)
+				.withResourceFirst(outfitItem.resourceFirst ?? false)
 				.withIsCustom(false)
 				.withOwnedId(null)
 				.withTwoCol(outfitItem.twoCol)
@@ -663,7 +687,11 @@ export class StonetopCharacter {
 			const currentUses = resources[item._id] ?? (legacyUsesSlug ? possessionUses[legacyUsesSlug] : 0);
 			const note = item.system?.sourcePossession
 				? null
-				: (item.system?.sourceLabel ? `from ${item.system.sourceLabel}` : item.system?.note ?? null);
+				: (item.system?.sourceLabel
+					? `from ${item.system.sourceLabel}`
+					// A write-in's "x piercing" tag scales with the steading's Prosperity, same
+					// as the shipped catalog gear above (line ~642).
+					: _transformPiercingNote(item.system?.note ?? null, prosperity));
 			return new InventoryItemSnapshotBuilder()
 			.withSlug(item._id)
 			.withName(grant?.name ?? item.name)
@@ -792,8 +820,28 @@ export class StonetopCharacter {
 		}
 
 		const moveResourceState = this._moveResources.getMoveResources();
-		const other = this._actor.items
-			.filter(i => i.type === "move" && i.system?.moveType === "other")
+		const otherItems = this._actor.items
+			.filter(i => i.type === "move" && i.system?.moveType === "other");
+
+		// Love letters are single-use, GM-authored moves (Book I p.568). They share the
+		// "other" moveType but render in their own top-of-Moves section and get consumed on
+		// resolve — so split them off here in one pass and keep them off the "Other Moves" list.
+		const loveLetterItems = [];
+		const otherMoveItems = [];
+		for (const i of otherItems) (isLoveLetter(i) ? loveLetterItems : otherMoveItems).push(i);
+
+		const loveLetters = loveLetterItems
+			.map(i => new OtherItemSnapshotBuilder()
+				.withId(i._id)
+				.withName(i.name)
+				.withDescription(i.system?.description ?? null)
+				.withMoveType(i.system?.moveType ?? null)
+				.withOwnedId(i._id)
+				.withRollType(normalizeRollType(i.system?.rollType))
+				.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
+				.build());
+
+		const other = otherMoveItems
 			.map(i => {
 				// Custom moves persist their resource track by stable item id, not by name:
 				// player-chosen names aren't unique and can be renamed, which would collide
@@ -809,6 +857,7 @@ export class StonetopCharacter {
 					.withRollType(normalizeRollType(i.system?.rollType))
 					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
 					.withCustom(_isCustomMove(i))
+					.withLearned(_isMoveLearned(i))
 					.withResourceKey(resourceKey)
 					.withResource(_buildOtherMoveResource(i.system?.resource, moveResourceState[resourceKey]))
 					.build();
@@ -886,7 +935,7 @@ export class StonetopCharacter {
 			.withLoadLimits(loadLimits)
 			.build();
 
-		return new InventorySnapshot(outfit, possessions, other);
+		return new InventorySnapshot(outfit, possessions, other, loveLetters);
 	}
 
 	_buildPossessionsSnapshot(specialPossessions, maxUsesMap, prosperity = null, grantedByPossession = new Map()) {
@@ -1124,6 +1173,25 @@ export class StonetopCharacter {
 		}]);
 	}
 
+	/**
+	 * Create a fully-specified custom inventory item — the write path behind the
+	 * Add-Item dialog. Unlike addCustomInventoryItem/addCustomSmallItem (name +
+	 * weight only), this carries the note (tags), a uses/ammo resource track, and
+	 * a worn-armor value, matching the shape shipped catalog items can have.
+	 *
+	 * @param {object}  data
+	 * @param {string}  data.name
+	 * @param {string} [data.column="regular"]   "regular" | "small"
+	 * @param {number} [data.weight=1]           ◇ load (regular column only)
+	 * @param {string} [data.note=""]            freeform tags/notes (already <em>-wrapped)
+	 * @param {object|null} [data.resource=null] { max, title, labels } uses/ammo track
+	 * @param {object|null} [data.armor=null]    { modifier } worn armor
+	 */
+	async createCustomInventoryItem(input) {
+		const data = buildInventoryItemData({ ...input, moveType: "inventory-custom" });
+		await this._actor.createEmbeddedDocuments("Item", [data]);
+	}
+
 	async addDroppedInventoryItem(itemData) {
 		const st = itemData?.flags?.[ITEM_FLAG_SCOPE] ?? {};
 		const rawColumn = st.inventoryColumn ?? itemData?.system?.inventoryColumn ?? st.column ?? itemData?.system?.column;
@@ -1162,7 +1230,7 @@ export class StonetopCharacter {
 	// engine as any move (StonetopItem.roll), no pack involvement, no rebuild.
 
 	async addCustomMove(input) {
-		const data = this._buildCustomMoveData(input);
+		const data = buildCustomMoveData(input);
 		data.type = "move";
 		const created = await this._actor.createEmbeddedDocuments("Item", [data]);
 		return created?.[0] ?? null;
@@ -1171,53 +1239,17 @@ export class StonetopCharacter {
 	async updateCustomMove(itemId, input) {
 		const item = this._actor.items.get(itemId);
 		if (!item) return;
-		await item.update(this._buildCustomMoveData(input));
+		await item.update(buildCustomMoveData(input));
 	}
 
-	// Shape raw dialog input into the embedded-item document data (used by both
-	// create and update). moveResults follows the shape rollStat consumes:
-	// { success|partial|failure: { label, value } }, or null for a no-roll move.
-	_buildCustomMoveData(input) {
-		const rt = String(input?.rollType ?? "").trim().toLowerCase();
-		const rollType = CUSTOM_MOVE_ROLL_TYPES.includes(rt) ? rt : "";
-		const r = input?.results ?? {};
-		const success = String(r.success ?? "").trim();
-		const partial = String(r.partial ?? "").trim();
-		const failure = String(r.failure ?? "").trim();
-		const moveResults = (rollType && (success || partial || failure))
-			? {
-				success: { label: "10+", value: success },
-				partial: { label: "7-9", value: partial },
-				failure: { label: "6-",  value: failure },
-			}
-			: null;
-
-		// Optional resource track ({ max, title, labels }); null unless a positive max.
-		const res = input?.resource ?? {};
-		const resMax = _clampInt(res.max, 0, 20);
-		const resLabels = Array.isArray(res.labels)
-			? res.labels.map(l => String(l).trim()).filter(Boolean)
-			: String(res.labels ?? "").split(",").map(l => l.trim()).filter(Boolean);
-		const resource = resMax > 0
-			? { max: resMax, title: String(res.title ?? "").trim() || null, labels: resLabels }
-			: null;
-
-		const intIn = (v) => _clampInt(v, 0, 99);
-		return {
-			name: String(input?.name ?? "").trim() || "New Move",
-			system: {
-				moveType: "other",
-				description: formatCustomMoveDescription(input?.description ?? ""),
-				rollType,
-				moveResults,
-				resource,
-				noXpOnMiss: !!input?.noXpOnMiss,
-				hpBonus:   intIn(input?.hpBonus),
-				armorBonus: intIn(input?.armorBonus),
-				loadBonus:  intIn(input?.loadBonus),
-			},
-			flags: { [STONETOP_SCOPE]: { custom: true } },
-		};
+	// Toggle a custom move between learned (active — rollable, bonuses apply) and un-learned
+	// (kept on the sheet but inactive). Persisted as an item flag; an absent flag means
+	// learned, so a fresh move never needs the flag written to default to learned. No-op for
+	// non-custom moves, which are always active.
+	async setCustomMoveLearned(itemId, learned) {
+		const item = this._actor.items.get(itemId);
+		if (!item || !_isCustomMove(item)) return;
+		await item.setFlag(STONETOP_SCOPE, "learned", !!learned);
 	}
 
 	computePossessionMaxUses(specialPossessions, ownedAllByName, level) {
@@ -1853,6 +1885,9 @@ export class StonetopCharacter {
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
 	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); await this._inventory.clearArcanumResources(slug); }
 	async identifyArcanum(slug)                      { await this._arcana.identifyArcanum(slug); }
+	async addLead(slug)                              { await this._arcana.addLead(slug); }
+	async discoverArcanum(slug)                      { await this._arcana.discoverArcanum(slug); }
+	async ensureSeekerLeadCard()                     { await this._arcana.ensureLeadBackfill(); }
 	async masterArcanum(slug)                        { await this._arcana.masterArcanum(slug); }
 	async getArcanumChatContent(slug, flipped)       { return this._arcana.getArcanumChatContent(slug, flipped); }
 	async setMinorArcanumRole(role, slug) { await this._arcana.setMinorRole(role, slug); }
@@ -2006,6 +2041,20 @@ export class StonetopCharacter {
 		}
 	}
 
+	// Apply (or re-apply) the "+1 to which stat?" pick for a stat-increase move taken at
+	// creation, resolving the OWNED instance rather than relying on addMove's return. On an
+	// onboarding re-run the move is already owned (addMove returns null) and the base-stat
+	// write has just reset the stat, so without this the +1 is silently dropped. Idempotent:
+	// base was reset first and the +1 is capped, so it lands exactly once per finalize.
+	async applyCreationStatChoice(compendiumId, statKey) {
+		if (!statKey) return;
+		const doc = await this._moveRepo.getPlaybookMoveDocument(compendiumId);
+		if (!doc) return;
+		const owned = this._actor.items.find(i => i.type === "move" && i.name === doc.name);
+		if (!owned || owned.system?.cap == null) return;
+		await this._applyStatIncreaseChoice(owned, statKey, owned.system.cap);
+	}
+
 	// Inverse of _applyStatIncreaseChoice, run when an Improved/Superior Stat instance is
 	// dropped from the sheet: forget this instance's recorded pick and step the chosen stat
 	// back down by 1. The picker only ever offers stats below the cap, so every recorded
@@ -2151,7 +2200,7 @@ function _buildDebilitiesSection(actor) {
 }
 
 
-function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}) {
+function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0) {
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
 	const hpBonus = moveBonuses.hp ?? 0;
@@ -2162,6 +2211,7 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}) 
 		.withHp(playbookData ? new ValueMax(attrs.hp?.value ?? 0, (playbookData.hp ?? 0) + hpBonus) : new ValueMax(0, 0))
 		.withDamage(damage)
 		.withArmor(armorValue)
+		.withWornArmor(wornArmorBase)
 		.withLevel(level)
 		.withXp(new ValueMax(attrs.xp?.value ?? 0, 6 + level * 2))
 		.build();
@@ -2418,7 +2468,7 @@ function _buildMarkOptions(entry, markCounts) {
 	return { options, budget };
 }
 
-function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}) {
+function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}, actorStats = {}) {
 	const resourceDef = entry.resource;
 	const resource = resourceDef ? new ResourceBuilder()
 		.withCurrent(moveResourcesMap[entry.name] ?? 0)
@@ -2446,6 +2496,19 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 			.filter(Boolean)
 		: null;
 
+	// Owned Improved/Superior Stat instances that were taken but never had a stat chosen
+	// (e.g. a character created before onboarding collected it) silently raise nothing.
+	// Flag them so the card shows the same "needs your input" cue budgeted moves get — but
+	// only when a pick is actually possible (at least one stat still below the cap).
+	const unfilledStatChoices = entry.cap != null
+		? entry.ownedIds.filter(ownedId => !improvedStatChoices[ownedId]).length
+		: 0;
+	// Only cue when a pick is actually possible. `unfilled > 0` already implies cap != null,
+	// and short-circuits the stat scan when there's nothing to fill.
+	const statChoiceNeeded = unfilledStatChoices > 0 && Object.values(actorStats).some(v => v < entry.cap)
+		? { count: unfilledStatChoices, cap: entry.cap }
+		: null;
+
 	return new MoveSnapshotBuilder()
 		.withId(entry.compendiumId)
 		.withCompendiumId(entry.compendiumId)
@@ -2468,8 +2531,11 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withRepeatable(repeat !== null)
 		.withBackgroundAnswer(moveBackgroundAnswers[entry.name] ?? null)
 		.withStatChoices(statChoices)
+		.withStatChoiceNeeded(statChoiceNeeded)
 		.withMarkOptions(markOptions)
 		.withMarkBudget(markBudget)
+		.withMaxLoad(entry.maxLoad)
+		.withRequiresUnarmored(entry.requiresUnarmored)
 		.build();
 }
 
@@ -2528,7 +2594,7 @@ function _rollLabelForMove(name, rollType, data = {}) {
 	return ROLL_LABELS_BY_TYPE[normalizedRollType] ?? null;
 }
 
-function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1) {
+function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1, loveLetters = []) {
 	const playbookCat   = categories.find(c => c.key === "playbook");
 	const basicCat      = categories.find(c => c.key === "basic");
 	const expeditionCat = categories.find(c => c.key === "expedition");
@@ -2572,6 +2638,7 @@ function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1) {
 		.withExpeditionMoves(expeditionCat?.moves ?? [])
 		.withOtherGroups(otherCats.map(cat => new MoveGroupSnapshot(cat.key, cat.title, cat.moves)))
 		.withOtherMoves(other)
+		.withLoveLetters(loveLetters)
 		.withStartingMovesNote(startingNote)
 		.withPostDeathGroup(postDeathGroup)
 		.withMovesIncomplete(movesIncomplete)

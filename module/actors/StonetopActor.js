@@ -8,6 +8,38 @@ export function createStonetopActorClass(BaseActor) {
 	return class StonetopActor extends BaseActor {
 		_typedActor;
 
+		/**
+		 * Reskin Foundry's Create Actor dialog and drop the steading type from its picker.
+		 *
+		 * - Title/button: core reads "Create Actor"; we reword both to "Create an Actor".
+		 * - Skin: tag the window with `.stonetop-themed` so the scoped core-window CSS
+		 *   (see window-theme.js / stonetop.css) applies. `classes` is concatenated with
+		 *   DialogV2's defaults, so this adds the class without dropping "dialog".
+		 * - Types: the steading ("stonetop") is a world singleton — auto-created on ready
+		 *   and blocked from a second instance in preCreateActor (StonetopSingleton.js) —
+		 *   so offering it in the dropdown is a dead end that only ever warns. Callers
+		 *   passing an explicit `types` restriction (internal tooling) keep their list.
+		 * @override
+		 */
+		static async createDialog(data = {}, createOptions = {}, options = {}, renderOptions = {}) {
+			const title = game.i18n.localize("stonetop.actorCreate.title");
+			options = {
+				...options,
+				classes: [...(options.classes ?? []), "stonetop-themed"],
+				window: { ...(options.window ?? {}), title },
+				ok: { ...(options.ok ?? {}), label: title },
+			};
+			if (!options.types) {
+				// Monsters are GM content: players (who get Create-Actor on fresh worlds) only ever
+				// make their own character, so keep Monster out of a non-GM's picker too.
+				options.types = this.TYPES.filter(t =>
+					t !== "stonetop"
+					&& t !== CONST.BASE_DOCUMENT_TYPE
+					&& (game.user?.isGM || t !== "monster"));
+			}
+			return super.createDialog(data, createOptions, options, renderOptions);
+		}
+
 		get typedActor() {
 			if (this._typedActor) return this._typedActor;
 
@@ -90,23 +122,28 @@ export function createStonetopActorClass(BaseActor) {
 		async _onUpdate(changed, options, userId) {
 			await super._onUpdate(changed, options, userId);
 			if (options?.stonetopLedger) return;
+			// _onUpdate fires on EVERY connected client. The follow-up writes below
+			// (ledger append) and the chat posts must run exactly once, on the client
+			// of the user who made the change — that user holds the permission to write
+			// back. Running on other clients duplicates the ledger entry and throws a
+			// "lacks permission to update Actor" error for anyone who doesn't own it.
+			if (userId !== globalThis.game?.user?.id) return;
 			if (this.type === "character") {
 				await CharacterLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
-				// Only the user who made the change posts, so the card isn't duplicated per client.
-				if (userId === globalThis.game?.user?.id) {
-					postStatChangesToChat(this, options.stonetopStatChanges ?? []);
-				}
 			} else if (this.type === "stonetop" || this.system?.customType === "stonetop") {
 				await SteadingLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
-				// Only the user who made the change posts, so the card isn't duplicated per client.
-				if (userId === globalThis.game?.user?.id) {
-					postStatChangesToChat(this, options.stonetopStatChanges ?? []);
-				}
+			} else {
+				return;
 			}
+			postStatChangesToChat(this, options.stonetopStatChanges ?? []);
 		}
 
 		async _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
 			await super._onCreateDescendantDocuments(parent, collection, documents, data, options, userId);
+			// Runs on every client; only the author writes back (ledger append + the
+			// playbook HP/damage/starting-moves init in the typed actor). Other clients
+			// would duplicate the ledger and hit a permission error on a foreign actor.
+			if (userId !== globalThis.game?.user?.id) return;
 			if (this.typedActor?.type === "character" && collection === "items") {
 				await Promise.all([
 					CharacterLedger.append(this, CharacterLedger.entriesForCreatedItems(documents), { userId }),
@@ -117,6 +154,9 @@ export function createStonetopActorClass(BaseActor) {
 
 		async _onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId) {
 			await super._onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId);
+			// Only the author appends to the ledger; other clients lack permission on a
+			// foreign actor and would duplicate the entry.
+			if (userId !== globalThis.game?.user?.id) return;
 			if (this.type === "character" && collection === "items") {
 				await CharacterLedger.append(this, CharacterLedger.entriesForDeletedItems(documents), { userId });
 			}

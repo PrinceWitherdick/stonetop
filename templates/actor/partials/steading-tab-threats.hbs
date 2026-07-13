@@ -1,0 +1,42 @@
+<div class="tab threats steading-edit-section{{#unless stonetop.edit.threats}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="threats">
+	{{#if stonetop.isGM}}{{> "stonetop.steading-section-toggle" section="threats" editing=stonetop.edit.threats}}{{/if}}
+	<section class="sheet-tab steading-threats">
+
+		{{#if stonetop.isGM}}
+		<p class="steading-threats-intro">
+			Ongoing problems that will trouble Stonetop if left unchecked (Book I, <em>Threats</em>). Written up here for your eyes only. Reveal one to your players with the eye, or drag its card onto a scene to pin it to the map.
+		</p>
+		{{/if}}
+
+		{{!-- One section per proximity tracker (Homefront / Nearby / Distant), mirroring the
+		      Residents tab's stacked Player/Residents/Neighbors sections. The GM sees all three
+		      (each with its own "write up" button that pre-seeds that proximity); a player only
+		      gets groups that hold a revealed threat. --}}
+		{{#each stonetop.threatGroups}}
+		<div class="steading-threats-section">
+			<h3 class="steading-residents-heading">{{label}} Threats</h3>
+			{{#if threats.length}}
+			<div class="steading-threats-grid">
+				{{#each threats}}
+				<div class="threat-card-wrap" data-page-uuid="{{uuid}}">
+					{{> "stonetop.threat-card" this}}
+					{{#if @root.stonetop.isGM}}
+					<div class="threat-card-tools">
+						<button type="button" class="threat-edit-open" data-page-uuid="{{uuid}}" data-tooltip="Edit threat" data-tooltip-direction="UP"><i class="fas fa-pen"></i></button>
+						<button type="button" class="threat-remove" data-page-uuid="{{uuid}}" data-tooltip="Delete threat" data-tooltip-direction="UP"><i class="fas fa-trash"></i></button>
+					</div>
+					{{/if}}
+				</div>
+				{{/each}}
+			</div>
+			{{/if}}
+			{{#if @root.stonetop.isGM}}
+			<div class="steading-improvement-add-bar">
+				<button type="button" class="threat-add-btn" data-proximity="{{id}}"><i class="fas fa-plus"></i> Write up a {{lowerLabel}} threat</button>
+			</div>
+			{{/if}}
+		</div>
+		{{/each}}
+
+	</section>
+</div>

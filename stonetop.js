@@ -16,10 +16,14 @@ import { NpcMoveModel } from "./module/data-models/NpcMoveModel.js";
 import { MonsterMoveModel } from "./module/data-models/MonsterMoveModel.js";
 import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopBestiaryPageSheet.js";
 import { createStonetopLocationPageSheetClass } from "./module/journal/StonetopLocationPageSheet.js";
+import { ThreatPageModel } from "./module/journal/ThreatPageModel.js";
+import { createStonetopThreatPageSheetClass } from "./module/journal/StonetopThreatPageSheet.js";
+import { ThreatBoard } from "./module/threats/threat-board.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
+import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
@@ -39,10 +43,12 @@ import { SETTING_OVERVIEW_JOURNAL } from "./module/utils/seeded-journals.js";
 import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
 import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
+import { bindThreatSeedDrag } from "./module/threats/threat-seed-cards.js";
 import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
+import { installWindowRestore } from "./module/utils/window-restore.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -61,6 +67,11 @@ Hooks.once("init", () => {
 	// Skin a curated allowlist of core Foundry windows (e.g. User Configuration)
 	// to match our sheets/modals; scoped to a marker class so nothing else moves.
 	registerStonetopWindowTheme();
+
+	// Track open document sheets + their geometry and reopen them at the same spot on
+	// the next reload (per-client; toggled by the "Restore Open Windows on Reload"
+	// setting). Registers its own render/close tracking hooks and a ready-time restore.
+	installWindowRestore();
 
 	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
 	Handlebars.registerHelper("boldMissText", value => boldMissText(value));
@@ -83,6 +94,21 @@ Hooks.once("init", () => {
 		if (!resource) return [];
 		const { current, max, labels } = resource;
 		return Array.from({ length: max }, (_, i) => ({ checked: i < current, label: labels[i] || null }));
+	});
+
+	// Same circles as resourceChecks, but chunked into fixed-size groups (default 5)
+	// so a long track (e.g. a fully-upgraded sacred pouch's Stock) reads in fives.
+	// Each item keeps its absolute index; groups stay atomic so they never split
+	// across a wrapped row and every wrapped row aligns under the first circle.
+	Handlebars.registerHelper("resourceGroups", (resource, size) => {
+		if (!resource) return [];
+		const { current, max } = resource;
+		const labels = resource.labels || [];
+		const n = Number(size) > 0 ? Number(size) : 5;
+		const items = Array.from({ length: max }, (_, i) => ({ checked: i < current, label: labels[i] || null, index: i }));
+		const groups = [];
+		for (let i = 0; i < items.length; i += n) groups.push(items.slice(i, i + n));
+		return groups;
 	});
 
 	const _flatPoolItems = pool => {
@@ -199,6 +225,17 @@ Hooks.once("init", () => {
 		label:       "Stonetop Chronicle Page",
 	});
 
+	// Threats: GM-prep pages (Book I "Threats"). Each threat is a `threat` page inside a
+	// GM-only per-steading Threats entry; the sheet is the book-styled interactive card
+	// (live doom track + reveal), dropped onto scenes as a linked Note. See module/threats/.
+	CONFIG.JournalEntryPage.dataModels["threat"] = ThreatPageModel;
+	const StonetopThreatPageSheet = createStonetopThreatPageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopThreatPageSheet, {
+		types:       ["threat"],
+		makeDefault: true,
+		label:       "Stonetop Threat Page",
+	});
+
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
 	Items.registerSheet("stonetop_pwd", StonetopArcanumSheet, {
 		types:       ["move"],
@@ -206,7 +243,13 @@ Hooks.once("init", () => {
 		label:       "Stonetop Arcanum",
 	});
 
-	loadTemplates({
+	// Kick off the sheet-partial preload now so the fetches run in parallel during init.
+	// Core does NOT await init-hook callbacks (Hooks.callAll discards the returned promise),
+	// so awaiting here would order nothing — instead we stash the promise and onReady awaits
+	// it before any auto-opening sheet/walkthrough render, which is where a "partial could
+	// not be found" race would actually bite.
+	game.stonetop ??= {};
+	game.stonetop.templatesReady = loadTemplates({
 		"stonetop.arcanum-sheet":      "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs",
 		"stonetop.arcanum-sheet-edit": "systems/stonetop_pwd/templates/item/arcanum-sheet-edit.hbs",
 		"stonetop.actor-header":     "systems/stonetop_pwd/templates/actor/partials/actor-header.hbs",
@@ -233,6 +276,7 @@ Hooks.once("init", () => {
 		"stonetop.details-section-edit-toggle": "systems/stonetop_pwd/templates/actor/partials/details-section-edit-toggle.hbs",
 		"stonetop.follower-section-edit": "systems/stonetop_pwd/templates/actor/partials/follower-section-edit.hbs",
 		"stonetop.resource-track":   "systems/stonetop_pwd/templates/actor/partials/resource-track.hbs",
+		"stonetop.inv-note":         "systems/stonetop_pwd/templates/actor/partials/inv-note.hbs",
 		"stonetop.steading-section-toggle":   "systems/stonetop_pwd/templates/actor/partials/steading-section-toggle.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop_pwd/templates/actor/partials/steading-tab-overview.hbs",
 		"stonetop.steading-tab-neighbors":    "systems/stonetop_pwd/templates/actor/partials/steading-tab-neighbors.hbs",
@@ -243,9 +287,13 @@ Hooks.once("init", () => {
 		"stonetop.bestiary-line-list":        "systems/stonetop_pwd/templates/actor/partials/bestiary-line-list.hbs",
 		"stonetop.bestiary-page":             "systems/stonetop_pwd/templates/journal/bestiary.hbs",
 		"stonetop.location-page":             "systems/stonetop_pwd/templates/journal/location.hbs",
+		"stonetop.threat-page":               "systems/stonetop_pwd/templates/journal/threat-page.hbs",
+		"stonetop.threat-card":               "systems/stonetop_pwd/templates/journal/partials/threat-card.hbs",
+		"stonetop.steading-tab-threats":      "systems/stonetop_pwd/templates/actor/partials/steading-tab-threats.hbs",
 		"stonetop.bestiary-section-head":     "systems/stonetop_pwd/templates/journal/partials/bestiary-section-head.hbs",
 		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
+		"stonetop.guide-toc":                 "systems/stonetop_pwd/templates/dialogs/partials/guide-toc.hbs",
 	});
 });
 
@@ -260,6 +308,14 @@ Hooks.on("pauseGame", (paused) => paused && onRenderPause());
 Hooks.once("ready", onReady);
 Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDescriptionsInChat")));
 
+// -- THREAT BOARD (opt-in on-canvas threat cards) --------------
+Hooks.once("ready", () => {
+	game.stonetop ??= {};
+	game.stonetop.threatBoard = new ThreatBoard();
+	game.stonetop.threatBoard.install();
+	if (globalThis.canvas?.ready) game.stonetop.threatBoard.refresh();
+});
+
 // -- RENDER ACTOR SHEET ----------------------------------------
 Hooks.on("renderActorSheet", onRenderActorSheet);
 
@@ -272,6 +328,11 @@ Hooks.on("hotbarDrop", onHotbarDrop);
 // Drag a "Places of Interest" disc from the steading Overview tab onto the canvas to
 // drop a lettered map note whose label (the place name) shows on hover.
 Hooks.on("dropCanvasData", onDropPlaceOfInterest);
+
+// -- THREAT SCENE PINS -----------------------------------------
+// A threat card dragged onto a scene drops a native page-linked Note; give that
+// pin the torn-note icon, the threat's name, and global (fog-ignoring) visibility.
+Hooks.on("preCreateNote", onPreCreateThreatNote);
 
 // -- LOCATION CROSS-LINK TOOLTIPS ------------------------------
 // Give cross-links into the Locations pack a useful hover summary instead of the
@@ -303,6 +364,8 @@ const _onJournalRender = (app, html) => {
 	applyJournalRollTables(app, html);
 	// Make baked steading-improvement cards draggable onto the Stonetop sheet.
 	bindSteadingImprovementDrag(html);
+	// Make homebrew threat cards draggable onto the steading Threats tab.
+	bindThreatSeedDrag(html);
 };
 for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJournalPageSheet", "renderJournalEntryPageSheet"]) {
 	Hooks.on(hook, _onJournalRender);
@@ -587,6 +650,39 @@ function _chatWireRequisitionMissCost(message, html) {
 	});
 }
 
+// -- LOVE LETTER PICK LIST -------------------------------------
+// A love letter with a shared "choose from this list" pool renders its options as a
+// checklist on the roll card (see rollStat's pickListHtml). Restore any saved ticks and
+// wire the boxes so a click persists to the message flag (author/GM) and always toggles
+// locally. The letter item itself is consumed on resolve, so the message is the only home
+// the checked state has.
+function _chatWireLoveLetterPicks(message, html) {
+	const boxes = html.querySelectorAll(".stonetop-picklist-check");
+	if (!boxes.length) return;
+
+	const saved   = message.getFlag("stonetop_pwd", "pickChecked") ?? [];
+	const canSave = message.canUserModify?.(game.user, "update") ?? game.user.isGM;
+
+	for (const box of boxes) {
+		const idx  = Number(box.dataset.index);
+		const item = box.closest(".stonetop-picklist-item");
+		const on   = !!saved[idx];
+		box.checked = on;
+		item?.classList.toggle("is-picked", on);
+
+		box.addEventListener("change", async () => {
+			item?.classList.toggle("is-picked", box.checked);
+			if (!canSave) return;
+			const arr = Array.from(boxes).map((b) => !!b.checked);
+			try {
+				await message.setFlag("stonetop_pwd", "pickChecked", arr);
+			} catch (err) {
+				console.error("Stonetop | Error saving love-letter picks:", err);
+			}
+		});
+	}
+}
+
 // -- WOULD-BE HERO: BECOME A HERO ------------------------------
 // The first time a Would-Be Hero gains a hero-making (asterisked) move, cross off
 // "Would-be" and announce it once. The playbook header already derives "The Hero"
@@ -608,6 +704,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireBurnBrightly(message, html);
 	_chatWireRequisitionMissCost(message, html);
 	_chatWireSeasonsRoll(message, html);
+	_chatWireLoveLetterPicks(message, html);
 	wireAttackConfirm(message, html);
 	wireApplyDamage(message, html);
 	wireSufferAttack(message, html);

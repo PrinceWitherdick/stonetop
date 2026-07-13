@@ -16,6 +16,7 @@ import { readOnboardingResume, clearOnboardingResume } from "../actors/character
 import { playbookSlug } from "../utils/playbook-actors.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
 import { createArcanumItem } from "../item/createArcanum.js";
+import { LoveLetterDialog } from "../dialogs/LoveLetterDialog.js";
 import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { getStonetopSteadingActorOrWarn } from "../utils/world.js";
@@ -55,23 +56,27 @@ const w = Object.values(ui.windows).find(w => w.id === "stonetop-introductions")
 if (w?.rendered) { w.bringToTop(); return; }
 game.stonetop?.openIntroductions?.();`;
 
-// The ordered system hotbar macros (slots 1–5), in their canonical order. The
+// The ordered system hotbar macros (slots 1–6), in their canonical order. The
 // single source of truth for both _ensureHotbarMacro (places any that are missing)
-// and _reorderSystemMacros (snaps them into this order). End of Session (slot 10) is
-// handled separately below because it also keys on its command. Seasons Change took
-// the spring icon that Welcome used to carry; Welcome now uses the direction-signs.
+// and _reorderSystemMacros (snaps them into this order). Chronicle (9) / End of Session
+// (10) are handled separately below because they also key on their command. Seasons
+// Change took the spring icon that Welcome used to carry; Welcome now uses the
+// direction-signs. "Write a Love Letter" (slot 5) is GM prep (Book I p.568) — a GM-only
+// block places these, so it never reaches a player's hotbar.
 const _SYSTEM_MACROS = [
 	{ name: "Welcome to Stonetop", img: "systems/stonetop_pwd/assets/icons/macros/direction-signs.svg", command: "game.stonetop?.openWelcome?.()",        slot: 1 },
 	{ name: "Seasons Change",      img: "systems/stonetop_pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 2 },
 	{ name: "Run an Expedition",   img: "systems/stonetop_pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 3 },
 	{ name: "Weather",             img: "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 4 },
-	{ name: "Die of Fate",         img: "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 5 },
+	{ name: "Write a Love Letter", img: "systems/stonetop_pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 5 },
+	{ name: "Die of Fate",         img: "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 6 },
 ];
 
 // Bump to re-snap the system macros into their canonical slots once, on every client
 // (the per-client `systemHotbarLayoutVersion` setting trails this until then). Bumped
-// to 2 when Seasons Change was inserted at slot 2 and the rest shifted right.
-const _HOTBAR_LAYOUT_VERSION = 2;
+// to 2 when Seasons Change was inserted at slot 2 and the rest shifted right; to 3 when
+// Write a Love Letter took slot 5 and Die of Fate moved to slot 6.
+const _HOTBAR_LAYOUT_VERSION = 3;
 
 export async function onReady() {
 	applySheetFont(getSetting("sheetFont"));
@@ -83,9 +88,22 @@ export async function onReady() {
 	await runStartupMigrations();
 	await ensureStonetopSingleton();
 
+	// The sheet-partial preload was kicked off in the init hook (core doesn't await init
+	// hooks, so awaiting it there orders nothing). Await it here — before the auto-opening
+	// sheet / walkthrough renders below — so every partial is registered first, closing the
+	// "partial could not be found" race. Guarded: a single bad partial path must not abort
+	// the rest of onReady (API wiring, dialogs, gazetteer) — a missing partial is at worst
+	// a cosmetic "could not be found" later, not a dead ready flow.
+	try { await game.stonetop?.templatesReady; }
+	catch (err) { console.error("Stonetop | sheet partial preload failed", err); }
+
 	game.stonetop ??= {};
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
 	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
+	// Cursor onChange dispatcher (registered on the introCursor world setting): opens/
+	// focuses/closes the Introductions dialog on the active player's client as the GM
+	// drives the round-robin. See dialogs/IntroductionsDialog.js.
+	game.stonetop.onIntroCursor     = cursor => IntroductionsDialog.handleIntroCursor(cursor);
 	game.stonetop.openSpringBurst   = () => SpringBurstDialog.open();
 	// Run the steading's Seasons Change homefront move from the hotbar: launch the
 	// season-picker → roll flow (the same one the sheet's Seasons Change move uses)
@@ -111,6 +129,9 @@ export async function onReady() {
 		actor ? new CharacterCreationDialog(actor).render(true)
 		      : ui.notifications.warn("No character to start creation for.");
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
+	// Open the love-letter authoring dialog (GM-only; Book I p.568). Wired to the
+	// "Write a Love Letter" hotbar macro and callable from the console.
+	game.stonetop.openLoveLetter    = () => LoveLetterDialog.open();
 	// Roll a learned move from its uuid — the entry point the move hotbar macros call
 	// (drag a move off a character sheet onto the hotbar; see hooks/HotbarDrop.js).
 	game.stonetop.rollMoveMacro     = rollMoveFromUuid;
@@ -147,10 +168,11 @@ export async function onReady() {
 		await _retireIntroductionsMacro();
 		// Place any missing system macros at their default slots (existing placements
 		// are left alone, so a manual rearrangement sticks). Their fixed starting order
-		// — 1 Welcome · 2 Seasons Change · 3 Run an Expedition · 4 Weather · 5 Die of
-		// Fate · 9 The Chronicle · 10 End of Session — is applied for the slots-1–5 set
-		// per layout version by _reorderSystemMacros, below; Chronicle and End of Session
-		// are placed (but not reordered) by their own _ensureHotbarMacro calls.
+		// — 1 Welcome · 2 Seasons Change · 3 Run an Expedition · 4 Weather · 5 Write a
+		// Love Letter · 6 Die of Fate · 9 The Chronicle · 10 End of Session — is applied
+		// for the slots-1–6 set per layout version by _reorderSystemMacros, below;
+		// Chronicle and End of Session are placed (but not reordered) by their own
+		// _ensureHotbarMacro calls.
 		for (const macro of _SYSTEM_MACROS) await _ensureHotbarMacro(macro);
 		await _ensureHotbarMacro({
 			name: _CHRONICLE_MACRO_NAME, img: _CHRONICLE_MACRO_IMG, command: _CHRONICLE_MACRO_SCRIPT, slot: _CHRONICLE_HOTBAR_SLOT,
@@ -191,6 +213,12 @@ export async function onReady() {
 		reopenOpenWalkthroughs();
 	}
 
+	// A player logging in / reloading mid-introductions: rejoin the running session by
+	// opening the dialog whenever the GM has it open (following read-only until it's their
+	// turn). The onChange handler covers live changes; this covers the no-event initial
+	// load. No-op for the GM.
+	IntroductionsDialog.openForActiveSession();
+
 	// Fresh world: the gazetteer is still importing in the background. Once it lands, pop
 	// the orientation Setting Overview and refresh the (already-open) Welcome guide so its
 	// premise upgrades from the built-in fallback to the seeded journal's prose, bringing
@@ -205,14 +233,48 @@ export async function onReady() {
 async function _applyCoreSettingDefaultsForNewWorld() {
 	if (getSetting("coreSettingDefaultsApplied")) return;
 
-	// This system setting was added after some worlds already existed. If the
+	// These core defaults were added after some worlds already existed. If the
 	// Stonetop journals have already been seeded, treat the world as established
-	// and mark the migration complete without changing the GM's current preference.
+	// and mark the migration complete without changing the GM's current preferences.
 	if (getSetting("seedingComplete")) {
 		await setSetting("coreSettingDefaultsApplied", true);
 		return;
 	}
 
+	// Best-effort and independent: a failure in one default must not skip the other,
+	// and neither should strand the flag (which would re-run both every load). Each
+	// logs and moves on, then we record that this world's defaults have been applied.
+	await _defaultAllowPlayerActorCreation();
+	await _defaultDisableAutomaticTokenRotation();
+
+	await setSetting("coreSettingDefaultsApplied", true);
+}
+
+// Let players create their own characters from Foundry's "Create Actor" dialog by
+// default. Core ships the ACTOR_CREATE permission as Assistant-GM-and-up only, so
+// without this a player never even sees the sidebar's "Create Actor" button. We add
+// the Player and Trusted Player roles once, on a fresh world, so the GM keeps full
+// control afterward: revoking it under Configure Permissions sticks, because this
+// never runs again. ACTOR_CREATE isn't per-type, so this also lets players create
+// other actor types — the steading singleton and monster-builder preCreateActor
+// hooks (StonetopSingleton.js) already guard those paths.
+async function _defaultAllowPlayerActorCreation() {
+	try {
+		const R = CONST.USER_ROLES;
+		const permissions = foundry.utils.deepClone(game.settings.get("core", "permissions") ?? {});
+		// A missing key means core's computed default applies (every role at or above
+		// the permission's defaultRole); mirror that so we EXTEND the real default
+		// rather than clobber the other roles. See PermissionConfig#preparePermissions.
+		const current = permissions.ACTOR_CREATE
+			?? Array.fromRange(R.GAMEMASTER + 1).slice(CONST.USER_PERMISSIONS.ACTOR_CREATE.defaultRole);
+		permissions.ACTOR_CREATE = Array.from(new Set([...current, R.PLAYER, R.TRUSTED])).sort((a, b) => a - b);
+		await game.settings.set("core", "permissions", permissions);
+	} catch (err) {
+		console.warn("Stonetop | Could not grant players actor-creation permission for this new world.", err);
+	}
+}
+
+async function _defaultDisableAutomaticTokenRotation() {
 	const settingKey = _findAutomaticTokenRotationSettingKey();
 	if (!settingKey) {
 		console.warn("Stonetop | Could not find Foundry's Automatic Token Rotation setting; leaving it unchanged.");
@@ -223,7 +285,6 @@ async function _applyCoreSettingDefaultsForNewWorld() {
 		if (game.settings.get("core", settingKey) !== false) {
 			await game.settings.set("core", settingKey, false);
 		}
-		await setSetting("coreSettingDefaultsApplied", true);
 	} catch (err) {
 		console.warn("Stonetop | Could not disable Automatic Token Rotation for this new world.", err);
 	}
@@ -401,7 +462,7 @@ async function _ensureHotbarMacro({ name, img, command, slot, match }) {
 }
 
 // Snap the system macros into their canonical order (1 Welcome · 2 Seasons Change ·
-// 3 Run an Expedition · 4 Weather · 5 Die of Fate), then leave the arrangement alone
+// 3 Run an Expedition · 4 Weather · 5 Write a Love Letter · 6 Die of Fate), then leave the arrangement alone
 // so the GM is free to rearrange the hotbar. Guarded by a per-client layout version
 // (the hotbar is per-user): it runs once per layout, so bumping _HOTBAR_LAYOUT_VERSION
 // re-snaps everyone once (e.g. when Seasons Change was inserted) but later manual moves
@@ -512,13 +573,34 @@ function _buildStartupWelcomeContent() {
 			</div>
 			<div class="card-content stonetop-startup-card__content">
 				<div class="row stonetop-startup-card__section">
-					<h3 class="cell__subtitle">Sheet Features</h3>
+					<h3 class="cell__subtitle">For Players</h3>
 					<ul>
-						<li>Guided character creation from the playbook picker.</li>
-						<li>Edit mode for sheet setup, tab ordering, and character details.</li>
-						<li>Clickable stat boxes, move dice, Basic Move chips, and Stonetop roll cards.</li>
-						<li>Stonetop steading sheet with residents, player characters, seasons, resources, and improvements.</li>
-						<li>End of Session macro added to the GM hotbar when available.</li>
+						<li>Guided, resumable character creation from the playbook picker.</li>
+						<li>Automated move rolls with modifiers, advantage or disadvantage, and auto hit tiers.</li>
+						<li>A step-by-step level-up wizard with inline stat, move, and trait choosers.</li>
+						<li>Interactive Clash and Let Fly, resolved from the chat card.</li>
+						<li>Armor and load tracked automatically from your equipped gear.</li>
+						<li>Followers and the Seeker's arcana on tidy, trackable cards.</li>
+					</ul>
+				</div>
+				<div class="row stonetop-startup-card__section">
+					<h3 class="cell__subtitle">For Game Masters</h3>
+					<ul>
+						<li>A first-session Welcome guide and a Let Spring Burst Forth walkthrough.</li>
+						<li>Shift any roll up or down a tier from the chat card, no re-roll needed.</li>
+						<li>A steading sheet with seasonal automation, improvements, and disasters.</li>
+						<li>A Threats tab of book-faithful cards you can reveal and pin to a scene.</li>
+						<li>Love Letters: personal, one-time moves you hand to a single character.</li>
+						<li>Character Introductions that compile into "The Chronicle" world journal.</li>
+						<li>An End of Session macro that awards XP to the whole table at once.</li>
+					</ul>
+				</div>
+				<div class="row stonetop-startup-card__section">
+					<h3 class="cell__subtitle">Bundled Content</h3>
+					<ul>
+						<li>The full Book I and II bestiary, around 180 creatures, hidden from players until you reveal it.</li>
+						<li>A cross-linked Locations and Lore journal covering the wider world.</li>
+						<li>The complete deck of major and minor arcana.</li>
 					</ul>
 				</div>
 				<div class="row stonetop-startup-card__section">
@@ -531,7 +613,7 @@ function _buildStartupWelcomeContent() {
 				<div class="row stonetop-startup-card__section">
 					<h3 class="cell__subtitle">Recommended Add-on</h3>
 					<ul>
-						<li><span>Install <strong><a href="https://foundryvtt.com/packages/dice-so-nice">Dice So Nice!</a></strong> for 3D dice on the tabletop &mdash; every move, damage, and steading roll uses Foundry's dice, so it adds a little immersion to your rolls.</span></li>
+						<li><span>Install <strong><a href="https://foundryvtt.com/packages/dice-so-nice">Dice So Nice!</a></strong> for 3D dice on the tabletop. Every move, damage, and steading roll uses Foundry's dice, so it adds a little immersion to your rolls.</span></li>
 					</ul>
 				</div>
 			</div>

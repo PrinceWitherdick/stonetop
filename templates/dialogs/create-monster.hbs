@@ -1,0 +1,219 @@
+<form class="stonetop create-monster" autocomplete="off">
+
+	<div class="cm-body">
+		<div class="cm-main">
+
+			{{!-- Steps 1-2 & type: concept, name, creature type --}}
+			<section class="cm-section">
+				<span class="cm-step">1 &middot; Conceptualize &amp; name it</span>
+				<label class="cm-field">
+					<span class="cm-label">Concept</span>
+					<input type="text" name="concept" placeholder="e.g. a corpse-eating carrion bird the size of a hound">
+				</label>
+				<div class="cm-row">
+					<label class="cm-field cm-grow">
+						<span class="cm-label">Name</span>
+						<input type="text" name="name" value="{{name}}" placeholder="e.g. butcherbird">
+					</label>
+					<label class="cm-field">
+						<span class="cm-label">Type</span>
+						<select name="creatureType">
+							<option value="">&mdash;</option>
+							{{#each creatureTypes}}
+							<option value="{{slug}}">{{label}}</option>
+							{{/each}}
+						</select>
+					</label>
+				</div>
+			</section>
+
+			{{!-- Step 3: tags --}}
+			<section class="cm-section">
+				<span class="cm-step">3 &middot; Give it tags</span>
+
+				<div class="cm-field">
+					<span class="cm-label">How does it hunt or fight?</span>
+					<div class="cm-tile-grid">
+						{{#each organizations}}
+						<label class="cm-tile" data-tooltip="{{hint}}" data-tooltip-direction="UP">
+							<input type="radio" name="organization" value="{{id}}"{{#if selected}} checked{{/if}}>
+							<span class="cm-tile-name">{{label}}</span>
+							<span class="cm-tile-hint">{{hint}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+
+				<div class="cm-field">
+					<span class="cm-label">How big is it?</span>
+					<div class="cm-tile-grid cm-tile-grid--size">
+						{{#each sizes}}
+						<label class="cm-tile" data-tooltip="{{hint}}" data-tooltip-direction="UP">
+							<input type="radio" name="size" value="{{id}}"{{#if selected}} checked{{/if}}>
+							<span class="cm-tile-name">{{label}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+
+				<div class="cm-field">
+					<span class="cm-label">What is its nature? <em>(all that apply)</em></span>
+					<div class="cm-chip-grid">
+						{{#each natureTags}}
+						<label class="cm-chip" data-tooltip="{{hint}}" data-tooltip-direction="UP">
+							<input type="checkbox" name="nature" value="{{id}}">
+							<span>{{label}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+
+				<div class="cm-field">
+					<span class="cm-label">What is it notable for? <em>(all that apply)</em></span>
+					<div class="cm-chip-grid">
+						{{#each notableTags}}
+						<label class="cm-chip" data-tooltip="{{hint}}" data-tooltip-direction="UP">
+							<input type="checkbox" name="notable" value="{{id}}">
+							<span>{{label}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+
+				<label class="cm-field">
+					<span class="cm-label">Other tags <em>(comma-separated)</em></span>
+					<input type="text" name="customTags" placeholder="e.g. amphibious, drunkard">
+				</label>
+			</section>
+
+			{{!-- Step 4: HP modifiers (base HP comes from org + size, shown in summary) --}}
+			<section class="cm-section">
+				<span class="cm-step">4 &middot; Hit points</span>
+				<p class="cm-note">Base HP comes from its organization and size. Add any of these:</p>
+				<div class="cm-check-list">
+					{{#each hpModifiers}}
+					<label class="cm-check">
+						<input type="checkbox" name="hpMod" value="{{id}}">
+						<span>{{label}} <span class="cm-mod">+{{hp}}</span></span>
+					</label>
+					{{/each}}
+				</div>
+			</section>
+
+			{{!-- Step 5: armor --}}
+			<section class="cm-section">
+				<span class="cm-step">5 &middot; Armor</span>
+				<div class="cm-field">
+					<span class="cm-label">What is it protected by?</span>
+					<div class="cm-radio-list">
+						{{#each armorBases}}
+						<label class="cm-radio">
+							<input type="radio" name="armorBase" value="{{id}}"{{#if selected}} checked{{/if}}>
+							<span>{{label}} <span class="cm-mod">{{id}}</span></span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+				<div class="cm-field">
+					<span class="cm-label">What else applies? <em>(tiny adds +1 automatically)</em></span>
+					<div class="cm-check-list">
+						{{#each armorModifiers}}
+						<label class="cm-check">
+							<input type="checkbox" name="armorMod" value="{{id}}">
+							<span>{{label}} <span class="cm-mod">+{{armor}}</span></span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+				<label class="cm-field">
+					<span class="cm-label">Armor source <em>(optional override)</em></span>
+					<input type="text" name="armorSource" placeholder="e.g. hide, skill">
+				</label>
+			</section>
+
+			{{!-- Step 6: damage --}}
+			<section class="cm-section">
+				<span class="cm-step">6 &middot; Damage</span>
+				<p class="cm-note">The base die comes from its organization. Choose the nature of its attack:</p>
+				<div class="cm-field">
+					<span class="cm-label">Range <em>(all that apply)</em></span>
+					<div class="cm-chip-grid">
+						{{#each damageRangeTags}}
+						<label class="cm-chip" data-tooltip="{{hint}}" data-tooltip-direction="UP">
+							<input type="checkbox" name="damageTag" value="{{id}}">
+							<span>{{label}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+				<div class="cm-field">
+					<span class="cm-label">Attack tags <em>(all that apply)</em></span>
+					<div class="cm-chip-grid">
+						{{#each damageEffectTags}}
+						<label class="cm-chip" data-tooltip="{{hint}}" data-tooltip-direction="UP">
+							<input type="checkbox" name="damageTag" value="{{id}}">
+							<span>{{label}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+				<div class="cm-field">
+					<span class="cm-label">What else applies?</span>
+					<div class="cm-check-list cm-check-list--two">
+						{{#each damageModifiers}}
+						<label class="cm-check">
+							<input type="checkbox" name="damageMod" value="{{id}}">
+							<span>{{label}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+			</section>
+
+			{{!-- Step 8: instinct --}}
+			<section class="cm-section">
+				<span class="cm-step">8 &middot; Instinct</span>
+				<label class="cm-field">
+					<span class="cm-label">What does it do that brings it into conflict?</span>
+					<input type="text" name="instinct" placeholder="e.g. to gorge itself on the fallen">
+				</label>
+			</section>
+
+			{{!-- Step 9: moves --}}
+			<section class="cm-section">
+				<span class="cm-step">9 &middot; Moves</span>
+				<p class="cm-note">Tick the ones that fit — each becomes an editable monster move. Most monsters have about three.</p>
+				<div class="cm-check-list">
+					{{#each moveSuggestions}}
+					<label class="cm-check" data-tooltip="{{description}}" data-tooltip-direction="UP">
+						<input type="checkbox" name="move" value="{{id}}">
+						<span><strong>{{name}}</strong> <span class="cm-move-hint">{{hint}}</span></span>
+					</label>
+					{{/each}}
+				</div>
+			</section>
+
+		</div>
+
+		{{!-- Live stat summary --}}
+		<aside class="cm-summary">
+			<span class="cm-summary-title">Stat block</span>
+			<dl class="cm-summary-stats">
+				<dt>HP</dt><dd class="cm-summary-hp">{{summary.hp}}</dd>
+				<dt>Armor</dt><dd class="cm-summary-armor">{{summary.armor}}</dd>
+				<dt>Damage</dt><dd class="cm-summary-damage">{{summary.damage}}</dd>
+			</dl>
+			<div class="cm-summary-tagsblock">
+				<span class="cm-label">Tags</span>
+				<span class="cm-summary-tags">{{summary.tags}}</span>
+			</div>
+			<p class="cm-summary-range" {{#unless summary.rangeAdvice}}hidden{{/unless}}>{{summary.rangeAdvice}}</p>
+			<p class="cm-summary-foot">Description and lore are written on the stat block after you create it.</p>
+		</aside>
+	</div>
+
+	<footer class="cm-footer">
+		<button type="button" class="cm-create"><i class="fas fa-dragon"></i> Create monster</button>
+		<button type="button" class="cm-cancel">Cancel</button>
+	</footer>
+</form>

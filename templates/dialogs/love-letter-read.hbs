@@ -1,0 +1,39 @@
+<div class="stonetop-love-letter-reader">
+	<div class="stonetop-love-letter-read-body">{{{boldMissText description}}}</div>
+
+	{{#if hasResults}}
+	<div class="stonetop-love-letter-read-tiers">
+		{{#if isRolled}}
+		<p class="stonetop-love-letter-read-roll">
+			<i class="fas fa-dice-d6" aria-hidden="true"></i>
+			{{localize "stonetop.character.moves.loveLetter.rollButton"}} +{{rollLabel}}
+		</p>
+		{{/if}}
+		<ul>
+			{{#each tiers}}
+			<li>
+				<span class="stonetop-love-letter-read-tier-label">{{label}}</span>
+				<span class="stonetop-love-letter-read-tier-body">{{#if lead}}<strong>{{lead}}</strong>{{#if value}}. {{/if}}{{/if}}{{value}}</span>
+			</li>
+			{{/each}}
+		</ul>
+	</div>
+	{{/if}}
+
+	{{#if hasOptions}}
+	<ul class="stonetop-love-letter-read-options">
+		{{#each options}}
+		<li>{{this}}</li>
+		{{/each}}
+	</ul>
+	{{/if}}
+
+	{{#if signed}}<p class="stonetop-move-signoff">{{signed}}</p>{{/if}}
+
+	<div class="stonetop-custom-move-actions">
+		<button type="button" class="stonetop-custom-move-save stonetop-love-letter-resolve">
+			{{#if isRolled}}<i class="fas fa-dice-d6" aria-hidden="true"></i>{{else}}<i class="fas fa-feather" aria-hidden="true"></i>{{/if}}
+			{{resolveLabel}}
+		</button>
+	</div>
+</div>

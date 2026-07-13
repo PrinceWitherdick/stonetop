@@ -103,6 +103,9 @@ function cleanMove(doc) {
     if (s.repeatMax) out.repeatMax = s.repeatMax;
     // Stat-increase ceiling (Improved Stat = 2, Superior Stat = 3).
     if (s.cap != null) out.cap = s.cap;
+    // Load-gate metadata for the expedition Outfit readout (Catlike/Stalker/Uncanny Reflexes/…).
+    if (s.maxLoad) out.maxLoad = s.maxLoad;
+    if (s.requiresUnarmored) out.requiresUnarmored = true;
     if (s.replaces) out.replaces = s.replaces;
     return out;
 }

@@ -6,10 +6,13 @@
 			Known, available improvements you can make to Stonetop. The GM may present others in the course of play.
 		</p>
 
-		<label class="steading-hide-unearned-improvements-label">
-			<input type="checkbox" class="stonetop-hide-unselected-check steading-hide-unearned-improvements-check"{{#if stonetop.hideUnearnedImprovements}} checked{{/if}}>
-			Hide un-earned improvements
-		</label>
+		<div class="steading-improvements-controls">
+			<label class="steading-hide-unearned-improvements-label">
+				<input type="checkbox" class="stonetop-hide-unselected-check steading-hide-unearned-improvements-check"{{#if stonetop.hideUnearnedImprovements}} checked{{/if}}>
+				Hide un-earned improvements
+			</label>
+			{{> "stonetop.tab-search-control" title="Search improvements" placeholder="Filter improvements…"}}
+		</div>
 
 		<div class="steading-improvements-grid">
 			{{#each stonetop.improvements}}
@@ -84,10 +87,12 @@
 		</div>
 
 		{{!-- Create a custom improvement to track alongside the book's built-ins.
-		      Mirrors the Followers/Moves tabs' quiet dashed "add" bar; shown in edit
-		      mode only, like the per-card remove control. Dropping a journal card is
-		      the other way in (see StonetopSteadingSheet._onDropSteadingImprovement). --}}
-		{{#if stonetop.edit.improvements}}
+		      Mirrors the Followers/Moves tabs' quiet dashed "add" bar; shown to any
+		      owner (like Add Resident), so you can jot one down without first
+		      unlocking the tab. The per-card remove control stays edit-mode only.
+		      Dropping a journal card is the other way in
+		      (see StonetopSteadingSheet._onDropSteadingImprovement). --}}
+		{{#if stonetop.canEdit}}
 		<div class="steading-improvement-add-bar">
 			<button type="button" class="steading-improvement-add-btn">
 				<i class="fas fa-plus"></i> Create improvement

@@ -1,0 +1,151 @@
+// The flagship "threats on the map" overlay (world setting threatOnCanvasCards).
+// Draws each threat pin's full book card as an HTML element anchored to the pin,
+// projected from scene coords to screen coords on every pan/zoom so it rides the
+// map. The doom-track checkboxes are live for the GM. This is the ONE piece of
+// bespoke canvas code in the system, so it is opt-in and the pin-opens-a-window
+// path (Phase 4) remains the safe default.
+//
+// Per-user visibility rides the pin: the overlay only builds a card for a Note whose
+// `n.visible` is true (a player never sees a hidden threat's pin) and, belt-and-braces,
+// skips any page a non-GM can't see as revealed. This is UI-level, matching the rest of
+// the feature — a determined player with console access can still read the underlying
+// world JournalEntry (see reference_foundry-world-docs-broadcast); it just never draws.
+import { getSetting } from "../settings.js";
+import { buildThreatCardVM, wireThreatDoomChange, handleThreatRevealClick } from "./threat-view.js";
+import { isThreatRevealed, threatPageById } from "./threat-store.js";
+import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
+
+const CARD_TEMPLATE = "systems/stonetop_pwd/templates/journal/partials/threat-card.hbs";
+const _renderTemplate = (path, data) =>
+	(foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate)(path, data);
+
+export class ThreatBoard {
+	constructor() {
+		this.layer = null;
+		this.cards = new Map();      // noteId -> { el: card element, note: placeable }
+		this._bound = false;
+		this._refreshQueued = false;
+	}
+
+	get enabled() { return !!getSetting("threatOnCanvasCards"); }
+
+	/** Wire the canvas/document hooks once. */
+	install() {
+		if (this._bound) return;
+		this._bound = true;
+		Hooks.on("canvasReady", () => this.refresh());
+		Hooks.on("canvasTearDown", () => this._teardown());
+		Hooks.on("canvasPan", () => this.reposition());
+		for (const h of ["createNote", "updateNote", "deleteNote"]) Hooks.on(h, () => this._schedule());
+		Hooks.on("updateJournalEntryPage", (page) => { if (page?.type === "threat") this._schedule(); });
+		Hooks.on("deleteJournalEntryPage", () => this._schedule());
+		// Reveal/hide is an ENTRY ownership flip (updateJournalEntry), and a player gains or
+		// loses a threat entry as create/delete — none of which touch the page hooks above, so
+		// the card would otherwise linger (or fail to appear) until an unrelated event. Refresh
+		// on any threat-entry change so a reveal shows the card and a hide clears it promptly.
+		for (const h of ["createJournalEntry", "updateJournalEntry", "deleteJournalEntry"])
+			Hooks.on(h, (entry) => { if (entry?.getFlag?.(STONETOP_SCOPE, "threat")) this._schedule(); });
+	}
+
+	/** Coalesce bursts (multi-note ops, a page edit) into one rebuild next microtask. */
+	_schedule() {
+		if (this._refreshQueued) return;
+		this._refreshQueued = true;
+		Promise.resolve().then(() => { this._refreshQueued = false; this.refresh(); });
+	}
+
+	_threatNotes() {
+		const placeables = canvas?.notes?.placeables ?? [];
+		// `n.visible` is the pin's per-user visibility: a player never sees a hidden
+		// threat's pin, so its card is never built for them either.
+		return placeables.filter(n => n?.visible && n?.document?.getFlag?.(STONETOP_SCOPE, "threat"));
+	}
+
+	_pageFor(note) {
+		return threatPageById(note.document.entryId, note.document.pageId);
+	}
+
+	_ensureLayer() {
+		if (this.layer?.isConnected) return this.layer;
+		// Append to document.body (screen space). NOT #hud — core stage-transforms #hud to
+		// scene coordinates, which would double-transform our worldTransform.apply() below.
+		const parent = document.body;
+		const el = document.createElement("div");
+		el.className = "stonetop stonetop-threat-overlay";
+		parent.appendChild(el);
+		wireThreatDoomChange(el, chk => fromUuid(chk.closest(".threat-card")?.dataset.pageUuid ?? ""));
+		el.addEventListener("click", ev => handleThreatRevealClick(ev, reveal => fromUuid(reveal.dataset.pageUuid)));
+		this.layer = el;
+		return el;
+	}
+
+	// A cheap fingerprint of everything that affects a card's rendered HTML (its content's
+	// last-modified stamp + its revealed state). Lets refresh() re-enrich/re-render only the
+	// cards that actually changed instead of rebuilding every visible card on any single event.
+	_cardSig(page) {
+		return `${page._stats?.modifiedTime ?? 0}:${isThreatRevealed(page) ? 1 : 0}`;
+	}
+
+	async refresh() {
+		if (!this.enabled || !canvas?.ready) return this._teardown();
+		const layer = this._ensureLayer();
+		// Resolve visible cards and skip the ones whose fingerprint is unchanged, so a single
+		// doom tick only re-enriches its own card. Enrich/render the changed ones concurrently
+		// (each page is independent) rather than serializing the enrichHTML calls.
+		const built = await Promise.all(this._threatNotes().map(async note => {
+			const page = this._pageFor(note);
+			if (!page) return null;
+			// Belt-and-suspenders: never draw an unrevealed threat's card for a player.
+			if (!game.user.isGM && !isThreatRevealed(page)) return null;
+			const sig = this._cardSig(page);
+			const existing = this.cards.get(note.id);
+			if (existing && existing.sig === sig) return { note, sig, html: null }; // unchanged
+			return { note, sig, html: await _renderTemplate(CARD_TEMPLATE, await buildThreatCardVM(page)) };
+		}));
+		const seen = new Set();
+		for (const item of built) {
+			if (!item) continue;
+			const { note, html, sig } = item;
+			seen.add(note.id);
+			let entry = this.cards.get(note.id);
+			if (!entry) {
+				const el = document.createElement("div");
+				el.className = "stonetop-threat-overlay-card";
+				layer.appendChild(el);
+				entry = { el, note };
+				this.cards.set(note.id, entry);
+			} else {
+				entry.note = note; // a re-render may have replaced the placeable object
+			}
+			if (html !== null) entry.el.innerHTML = html; // only touch the DOM for changed cards
+			entry.sig = sig;
+		}
+		for (const [id, entry] of [...this.cards]) {
+			if (!seen.has(id)) { entry.el.remove(); this.cards.delete(id); }
+		}
+		this.reposition();
+	}
+
+	reposition() {
+		if (!this.layer || !canvas?.ready) return;
+		const transform = canvas.stage.worldTransform;
+		const scale = Math.max(0.55, Math.min(1, canvas.stage.scale?.x ?? 1));
+		// Runs on every canvasPan frame — read the note reference cached at refresh time
+		// rather than scanning canvas.notes.placeables per card.
+		for (const { el, note } of this.cards.values()) {
+			const center = note?.center;
+			if (!center) { el.style.display = "none"; continue; }
+			el.style.display = "";
+			const p = transform.apply(center);
+			el.style.left = `${p.x}px`;
+			el.style.top = `${p.y}px`;
+			el.style.transform = `translate(-50%, 14px) scale(${scale})`;
+		}
+	}
+
+	_teardown() {
+		for (const { el } of this.cards.values()) el.remove();
+		this.cards.clear();
+		if (this.layer) { this.layer.remove(); this.layer = null; }
+	}
+}

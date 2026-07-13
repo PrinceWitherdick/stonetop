@@ -79,21 +79,32 @@ function qaSection(heading, pairs) {
 	return pairs.length ? { kind: "qa", heading, group: SECTION_GROUP, pairs } : null;
 }
 
-// Build the prompt/answer pairs for the answer/ask rounds (r4/r5 or r6/r7),
-// resolving each record's stored question index back to its authored text. Records
-// with no answer are dropped; a record with an answer but no chosen question keeps a
-// blank prompt. The question strings are trusted authored text (entities decoded);
-// answers are user text (the page sheet escapes them on display).
+// Build the prompt/answer pairs for the answer/ask step, from a flat list of { q, a }
+// records — the PC's new step4/step6 answer list (the player-driven flow can record up
+// to four) plus the two legacy single-answer rounds (r4/r5 or r6/r7) folded in for
+// back-compat. Each record's stored question index is resolved back to its authored
+// text. Records with no answer are dropped; a record with an answer but no chosen
+// question keeps a blank prompt. Callers dedupe on (prompt, answer) via
+// mergeChronicleSections, so a legacy round later normalized into the step list never
+// doubles. The question strings are trusted authored text (entities decoded); answers
+// are user text (the page sheet escapes them on display).
 function qaPairsFrom(records, questions) {
-	return (records ?? [])
-		.map(rec => {
-			const answer = String(rec?.a ?? "").trim();
-			if (!answer) return null;
-			const qIdx   = Number.isInteger(rec?.q) ? rec.q : null;
-			const prompt = qIdx != null ? decodeEntities(questions?.[qIdx] ?? "") : "";
-			return { prompt, answer };
-		})
-		.filter(Boolean);
+	const seen  = new Set();
+	const pairs = [];
+	for (const rec of records ?? []) {
+		const answer = String(rec?.a ?? "").trim();
+		if (!answer) continue;
+		const qIdx   = Number.isInteger(rec?.q) ? rec.q : null;
+		const prompt = qIdx != null ? decodeEntities(questions?.[qIdx] ?? "") : "";
+		// Dedupe on the (prompt, answer) tuple — JSON-encoded like mergeChronicleSections
+		// so neither field bleeds across the boundary — so a legacy round that overlaps a
+		// step-list entry (or a doubly-recorded answer) folds to one pair on first compile.
+		const key = JSON.stringify([prompt, answer]);
+		if (seen.has(key)) continue;
+		seen.add(key);
+		pairs.push({ prompt, answer });
+	}
+	return pairs;
 }
 
 // Render the ticked items of an expedition checklist (Chart a Course's requirements
@@ -182,6 +193,9 @@ export function mergeChronicleSections(existing = [], computed = []) {
  * @param {object}  opts
  * @param {Array<{id,name,playbookName,slug}>} opts.pcs  Player characters, in display order.
  * @param {object}  opts.introAnswers   `introductionsAnswers` blob, keyed by actor id.
+ *   Per PC: r1–r3 narration strings; the player-driven answer/ask steps as
+ *   step4/step6 `{ answers: [{q,a}], passed }`; and legacy single-answer r4–r7 `{q,a}`
+ *   (folded into the step lists on compile for back-compat).
  * @param {object}  opts.springAnswers  `springBurstAnswers` blob ({ gains, hook, excites }).
  * @param {Array<object>} opts.expeditions  The expedition log (`expeditionAnswers.list`),
  *   oldest first; each trip with content becomes its own page.
@@ -202,8 +216,11 @@ export function buildChroniclePages({ pcs = [], introAnswers = {}, springAnswers
 			proseSection("Introduction", paragraphs(a.r1)),
 			proseSection("Possessions & contribution", paragraphs(a.r2)),
 			proseSection("Their place in Stonetop", paragraphs(a.r3)),
-			qaSection("Bonds & ties", qaPairsFrom([a.r4, a.r5], step4)),
-			qaSection("Asked of the others", qaPairsFrom([a.r6, a.r7], step6)),
+			// The player-driven flow records a LIST per step (a.step4/a.step6.answers);
+			// the legacy single-answer rounds (r4/r5, r6/r7) fold in behind them so
+			// already-run worlds compile unchanged and mixed worlds dedupe on merge.
+			qaSection("Bonds & ties", qaPairsFrom([...(a.step4?.answers ?? []), a.r4, a.r5], step4)),
+			qaSection("Asked of the others", qaPairsFrom([...(a.step6?.answers ?? []), a.r6, a.r7], step6)),
 			proseSection("What excites their player", paragraphs(excites[pc.id])),
 		].filter(Boolean);
 

@@ -5,7 +5,7 @@
   <div class="stonetop-intros-precheck">
 
     <p class="stonetop-intros-preamble">
-      Every player character (any actor with a playbook) has been added to the Combat Tracker automatically. Set the order you want to go around the table — randomize it below, or roll/set initiative in the Combat Tracker — then begin.
+      Introductions go around the table in turn order. Set the order you want by randomizing it below, or by rolling or setting initiative in the Combat Tracker. Then begin.
     </p>
 
     {{#if hasNone}}
@@ -16,7 +16,7 @@
     {{else if noneInCombat}}
     <div class="stonetop-intros-notice stonetop-intros-notice--warn">
       <i class="fas fa-exclamation-triangle"></i>
-      <span>No player characters are in the Combat Tracker yet.{{#if isGM}} Use <strong>Add Player Characters</strong> below.{{else}} Ask your GM to open this.{{/if}}</span>
+      <span>No player characters are in the Combat Tracker yet.{{#if isGM}} Add them to the Combat Tracker and they'll appear here.{{else}} Ask your GM to open this.{{/if}}</span>
     </div>
     {{else}}
     <div class="stonetop-intros-notice stonetop-intros-notice--ok">
@@ -51,51 +51,125 @@
 
   {{!-- ── Main intro content ─────────────────────────────────────────────────── --}}
   {{else}}
-  <div class="stonetop-guide-main">
+  <div class="stonetop-guide-split">
+
+    {{!-- GM-only jump-to-step rail (shared guide-toc partial). Players have no rail
+          (they follow the GM's cursor), so the split holds a lone column that fills
+          the width. --}}
+    {{#if steps}}
+    {{> "stonetop.guide-toc" ariaLabel="Introduction steps"}}
+    {{/if}}
+
+    <div class="stonetop-guide-main">
 
     {{#if currentPc}}
     <div class="stonetop-guide-banner">
       {{#if currentPc.icon}}<img class="stonetop-intros-pc-icon" src="{{currentPc.icon}}" alt="">{{/if}}
       <div class="stonetop-guide-banner-info">
-        <div class="stonetop-guide-banner-title stonetop-guide-truncate">{{currentPc.name}}</div>
+        <div class="stonetop-guide-banner-title stonetop-guide-truncate">{{currentPc.name}}{{#if currentPc.playerName}} <span class="stonetop-guide-banner-player">({{currentPc.playerName}})</span>{{/if}}</div>
         {{#if currentPc.playbookName}}<div class="stonetop-guide-banner-sub">{{currentPc.playbookName}}</div>{{/if}}
       </div>
       <div class="stonetop-guide-count">{{currentPc.index}} / {{currentPc.total}}</div>
     </div>
     {{/if}}
 
+    {{#if placeInLine}}
+    <div class="stonetop-intros-place stonetop-intros-place--{{placeInLine.state}}">
+      <i class="fas {{placeInLine.icon}}"></i>
+      <span class="stonetop-intros-place-text">{{placeInLine.text}}{{#if placeInLine.pcNote}} <span class="stonetop-intros-place-pc">{{placeInLine.pcNote}}</span>{{/if}}</span>
+    </div>
+    {{/if}}
+
     <div class="stonetop-intros-instruction">{{{instruction}}}</div>
+
+    {{#if capture.isStep}}
+    {{!-- ── Looping answer/ask step ─────────────────────────────────────────── --}}
+
+    {{#if capture.hasRecorded}}
+    <div class="stonetop-intros-recorded-list">
+      <p class="stonetop-intros-recorded-list-label">
+        <i class="fas fa-feather"></i>
+        {{#if capture.isAsk}}Asked so far{{else}}Recorded so far{{/if}} ({{capture.answeredCount}}{{#if capture.total}} / {{capture.total}}{{/if}})
+      </p>
+      <ul>
+        {{#each capture.recorded}}
+        <li>
+          {{#if this.question}}<span class="stonetop-intros-recorded-q">{{{this.question}}}</span>{{/if}}
+          <span class="stonetop-intros-recorded-a">{{this.answer}}</span>
+        </li>
+        {{/each}}
+      </ul>
+    </div>
+    {{/if}}
+
+    {{#if capture.passed}}
+    <div class="stonetop-intros-passed">
+      <i class="fas fa-check-circle"></i> <span>Passed — no more questions this step.</span>
+    </div>
+    {{else}}
 
     {{#if hasQuestions}}
     <div class="stonetop-intros-questions-wrap">
       <p class="stonetop-intros-questions-label">
-        {{#if capture.canEdit}}Tap the one they chose:{{else}}Choose one, or pass:{{/if}}
+        {{#if capture.canEdit}}{{#if capture.isAsk}}Choose a question to ask{{else}}Choose a question to answer{{/if}}{{else}}{{#if capture.isAsk}}They can ask:{{else}}They can answer:{{/if}}{{/if}}
       </p>
-      <ol class="stonetop-intros-questions">
+      <ul class="stonetop-intros-questions">
         {{#each questions}}
         {{#if ../capture.canEdit}}
         <li>
           <button type="button" class="stonetop-intros-question-pick{{#if isSelected}} is-selected{{/if}}{{#if isUsed}} is-used{{/if}}"
-                  {{#if isUsed}}disabled data-tooltip="Already chosen earlier — pick a different one"{{/if}}
-                  data-actor-id="{{../capture.actorId}}" data-round-key="{{../capture.key}}" data-q-index="{{index}}">
+                  {{#if isUsed}}disabled data-tooltip="Already answered — pick a different one"{{/if}}
+                  data-actor-id="{{../capture.actorId}}" data-step-key="{{../capture.stepKey}}" data-q-index="{{index}}">
             {{{html}}}
           </button>
         </li>
         {{else}}
-        <li class="{{#if isSelected}}is-selected{{/if}}{{#if isUsed}} is-used{{/if}}">{{{html}}}</li>
+        <li class="stonetop-intros-question-static{{#if isSelected}} is-selected{{/if}}{{#if isUsed}} is-used{{/if}}">{{{html}}}</li>
         {{/if}}
         {{/each}}
-      </ol>
+      </ul>
     </div>
     {{/if}}
 
-    {{#if capture}}
     {{#if capture.canEdit}}
     <div class="stonetop-intros-capture">
-      <label class="stonetop-intros-capture-label"><i class="fas fa-feather"></i> Record for the Chronicle</label>
+      <label class="stonetop-intros-capture-label"><i class="fas fa-feather"></i> {{#if capture.coEdit}}Writing with {{currentPc.name}}{{else}}Record for the Chronicle{{/if}}</label>
+      <textarea class="stonetop-intros-draft" rows="3"
+                data-actor-id="{{capture.actorId}}" data-step-key="{{capture.stepKey}}"
+                placeholder="{{capture.placeholder}}">{{capture.draftAnswer}}</textarea>
+    </div>
+    {{else if capture.canPreview}}
+    {{!-- GM watching the active player type: read-only mirror, no data-* so no stray write. --}}
+    <div class="stonetop-intros-capture">
+      <label class="stonetop-intros-capture-label"><i class="fas fa-feather"></i> {{#if currentPc.name}}{{currentPc.name}} is writing…{{else}}Their answer, as they write it…{{/if}}</label>
+      <textarea class="stonetop-intros-draft" rows="3" readonly
+                placeholder="{{capture.placeholder}}">{{capture.draftAnswer}}</textarea>
+    </div>
+    {{/if}}
+
+    {{/if}}{{!-- /capture.passed --}}
+
+    {{#if stepReady}}
+    <div class="stonetop-intros-ready-tally{{#if stepReady.all}} is-all{{/if}}">
+      <i class="fas fa-users"></i>
+      {{stepReady.count}} / {{stepReady.total}} done{{#if stepReady.all}} — everyone's passed or answered all{{/if}}
+    </div>
+    {{/if}}
+
+    {{else if capture}}
+    {{!-- ── Narration round (1–3): one plain-string answer ──────────────────── --}}
+    {{#if capture.canEdit}}
+    <div class="stonetop-intros-capture">
+      <label class="stonetop-intros-capture-label"><i class="fas fa-feather"></i> {{#if capture.coEdit}}Writing with {{currentPc.name}}{{else}}Record for the Chronicle{{/if}}</label>
       <textarea class="stonetop-intros-answer" rows="3"
                 data-actor-id="{{capture.actorId}}" data-round-key="{{capture.key}}"
-                {{#if capture.isQuestion}}data-answer-field="a"{{/if}}
+                placeholder="{{capture.placeholder}}">{{capture.answer}}</textarea>
+    </div>
+    {{else if capture.canPreview}}
+    {{!-- GM watching the active player type their narration: read-only mirror, no data-* so no stray write. --}}
+    <div class="stonetop-intros-capture">
+      <label class="stonetop-intros-capture-label"><i class="fas fa-feather"></i> {{#if currentPc.name}}{{currentPc.name}} is writing…{{else}}Their answer, as they write it…{{/if}}</label>
+      <textarea class="stonetop-intros-answer" rows="3" readonly
                 placeholder="{{capture.placeholder}}">{{capture.answer}}</textarea>
     </div>
     {{else if capture.answer}}
@@ -106,6 +180,7 @@
     {{/if}}
     {{/if}}
 
+    </div>
   </div>
   {{/if}}
 
@@ -113,14 +188,17 @@
   <div class="stonetop-guide-nav">
     {{#if isPreCheck}}
 
-    {{#if isGM}}<button class="stonetop-intros-add">Add Player Characters</button>{{else}}<span></span>{{/if}}
+    {{#if isGM}}
     <button class="stonetop-intros-begin stonetop-guide-btn--primary" {{#unless canBegin}}disabled{{/unless}}>
       Begin Introductions<span class="stonetop-nav-arrow"></span>
     </button>
+    {{else}}
+    <span class="stonetop-intros-turn-hint">Waiting for the GM to begin…</span>
+    {{/if}}
 
     {{else if isDone}}
 
-    <button class="stonetop-intros-back"><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
+    {{#if isGM}}<button class="stonetop-intros-back"><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>{{else}}<span class="stonetop-intros-turn-hint"></span>{{/if}}
     <span class="stonetop-intros-step-label">{{stepLabel}}</span>
     <span class="stonetop-intros-done-actions">
       <button class="stonetop-intros-close stonetop-guide-btn--primary"{{#if isGM}} data-tooltip="Saves everyone's recorded answers to the Chronicle journal, then closes." data-tooltip-direction="UP"{{/if}}>{{#if isGM}}Save to Chronicle{{else}}Let spring break forth!{{/if}}</button>
@@ -128,9 +206,20 @@
 
     {{else}}
 
+    {{#if isGM}}
     <button class="stonetop-intros-back" {{#if isPrevDisabled}}disabled{{/if}}><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
+    {{else}}
+    {{!-- Empty left-flank spacer: keeps the nav's 1fr/auto/1fr grid centring the step
+          label now that players have no turn-hint here (the banner + place-in-line strip
+          above carry whose turn it is and where the viewer sits in line). --}}
+    <span class="stonetop-intros-turn-hint"></span>
+    {{/if}}
     <span class="stonetop-intros-step-label">{{stepLabel}}</span>
-    <button class="stonetop-intros-next">Next<span class="stonetop-nav-arrow"></span></button>
+    <span class="stonetop-intros-nav-actions">
+      {{#if capture.canEdit}}{{#if capture.canPass}}<button class="stonetop-intros-pass">Pass</button>{{/if}}{{/if}}
+      {{#unless isGM}}{{#if capture.canEdit}}{{#if capture.isStep}}<button class="stonetop-intros-done stonetop-guide-btn--primary">Done</button>{{/if}}{{/if}}{{/unless}}
+      {{#if isGM}}<button class="stonetop-intros-next stonetop-guide-btn--primary">{{#if stepReady.all}}Everyone's done, continue{{else}}Next{{/if}}<span class="stonetop-nav-arrow"></span></button>{{/if}}
+    </span>
 
     {{/if}}
   </div>

@@ -1,0 +1,65 @@
+<form class="stonetop-custom-move-form stonetop-add-item-form" autocomplete="off">
+	<div class="stonetop-custom-move-field">
+		<label for="stonetop-add-item-name">{{localize "stonetop.inventory.addItemName"}}</label>
+		<input type="text" id="stonetop-add-item-name" name="name"
+		       placeholder="{{localize 'stonetop.inventory.addItemNamePlaceholder'}}" required>
+	</div>
+
+	{{#if allowColumnChoice}}
+	<div class="stonetop-custom-move-field">
+		<label for="stonetop-add-item-column">{{localize "stonetop.inventory.addItemColumn"}}</label>
+		<select id="stonetop-add-item-column" name="column">
+			<option value="regular"{{#unless columnIsSmall}} selected{{/unless}}>{{localize "stonetop.inventory.addItemColumnRegular"}}</option>
+			<option value="small"{{#if columnIsSmall}} selected{{/if}}>{{localize "stonetop.inventory.addItemColumnSmall"}}</option>
+		</select>
+		<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemColumnHint"}}</p>
+	</div>
+	{{/if}}
+
+	{{#if showWeightBlock}}
+	<div class="stonetop-add-item-weight-block{{#if columnIsSmall}} is-hidden{{/if}}">
+		<div class="stonetop-custom-move-row">
+			<div class="stonetop-custom-move-field stonetop-custom-move-field--num">
+				<label for="stonetop-add-item-weight">{{localize "stonetop.inventory.addItemWeight"}}</label>
+				<input type="number" id="stonetop-add-item-weight" name="weight" min="1" max="9" value="1">
+			</div>
+			<div class="stonetop-custom-move-field stonetop-custom-move-field--num">
+				<label for="stonetop-add-item-armor">{{localize "stonetop.inventory.addItemArmor"}}</label>
+				<input type="number" id="stonetop-add-item-armor" name="armor" min="0" max="9" value="0">
+			</div>
+		</div>
+		<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemWeightHint"}}</p>
+	</div>
+	{{/if}}
+
+	<div class="stonetop-custom-move-field">
+		<label for="stonetop-add-item-note">{{localize "stonetop.inventory.addItemTags"}}</label>
+		<input type="text" id="stonetop-add-item-note" name="note"
+		       placeholder="{{localize 'stonetop.inventory.addItemTagsPlaceholder'}}">
+		<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemTagsHint"}}</p>
+		<div class="stonetop-add-item-chips">
+			{{#each chips}}
+			<button type="button" class="stonetop-add-item-chip stonetop-add-item-chip--{{group}}"
+			        data-insert="{{insert}}" data-tooltip="{{tooltip}}">{{insert}}</button>
+			{{/each}}
+		</div>
+	</div>
+
+	<div class="stonetop-custom-move-row">
+		<div class="stonetop-custom-move-field stonetop-custom-move-field--num">
+			<label for="stonetop-add-item-uses">{{localize "stonetop.inventory.addItemUses"}}</label>
+			<input type="number" id="stonetop-add-item-uses" name="uses" min="0" max="20" value="0">
+		</div>
+		<div class="stonetop-custom-move-field stonetop-custom-move-check stonetop-add-item-ammo is-hidden">
+			<label><input type="checkbox" class="stonetop-check" name="ammo"> {{localize "stonetop.inventory.addItemAmmo"}}</label>
+		</div>
+	</div>
+	<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemUsesHint"}}</p>
+
+	<div class="stonetop-custom-move-actions">
+		<button type="button" class="stonetop-custom-move-save stonetop-add-item-save">
+			<i class="fas fa-check" aria-hidden="true"></i> {{localize "stonetop.inventory.addItemConfirm"}}
+		</button>
+		<button type="button" class="stonetop-custom-move-cancel stonetop-add-item-cancel">{{localize "Cancel"}}</button>
+	</div>
+</form>
