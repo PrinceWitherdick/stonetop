@@ -14,6 +14,24 @@ export function buildMoveTierResults({ success = "", partial = "", failure = "" 
 }
 
 /**
+ * Read the roll-type + tier text out of raw move-authoring dialog input, shared by every
+ * move builder (custom moves, love letters). `allowedTypes` is the builder's whitelist of
+ * roll types (the six stats for love letters, the wider custom set otherwise); an input
+ * outside it collapses to "" (a no-roll move). Returns `{ rollType, success, partial,
+ * failure }` with the tier strings trimmed.
+ */
+export function parseTierInput(input, allowedTypes) {
+	const rt = String(input?.rollType ?? "").trim().toLowerCase();
+	const r = input?.results ?? {};
+	return {
+		rollType: allowedTypes.includes(rt) ? rt : "",
+		success: String(r.success ?? "").trim(),
+		partial: String(r.partial ?? "").trim(),
+		failure: String(r.failure ?? "").trim(),
+	};
+}
+
+/**
  * The lead-in for a love-letter pick tier: "<pick> N", plus a "<fromList>" tail when the
  * letter carries a shared choose-from pool. Returns "" for a non-positive count. Callers
  * pass their own wording — the chat card ships English literals so the persisted outcome

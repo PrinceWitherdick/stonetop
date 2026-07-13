@@ -58,7 +58,6 @@ export class AddInventoryItemDialog extends StonetopDialog {
 	getData() {
 		const isRegular = this._column === "regular";
 		return {
-			isRegular,
 			allowColumnChoice: this._allowColumnChoice,
 			columnIsSmall: this._column === "small",
 			// The weight/armor block is regular-only, but when the column can change at

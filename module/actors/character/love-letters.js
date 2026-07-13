@@ -11,7 +11,7 @@
 import { STONETOP_SCOPE } from "./StonetopFlags.js";
 import { normalizeRollType, STAT_KEYS } from "../../utils/roll-types.js";
 import { formatCustomMoveDescription } from "../../utils/custom-move-text.js";
-import { buildMoveTierResults } from "../../utils/move-results.js";
+import { buildMoveTierResults, parseTierInput } from "../../utils/move-results.js";
 import { clampInt } from "../../utils/custom-move-data.js";
 
 export const LOVE_LETTER_FLAG = "loveLetter";
@@ -37,13 +37,7 @@ export function isLoveLetter(item) {
 // authored for one specific scene, so "ask a stat each time" isn't offered. `noXpOnMiss`
 // mirrors the "Mark XP on a miss" checkbox (inverted), and `signed` is the closing sign-off.
 export function buildLoveLetterData(input) {
-	const rt = String(input?.rollType ?? "").trim().toLowerCase();
-	const rollType = STAT_KEYS.includes(rt) ? rt : "";
-
-	const r = input?.results ?? {};
-	const success = String(r.success ?? "").trim();
-	const partial = String(r.partial ?? "").trim();
-	const failure = String(r.failure ?? "").trim();
+	const { rollType, success, partial, failure } = parseTierInput(input, STAT_KEYS);
 
 	// A shared "choose from this list" pool (one option per line) plus a per-tier count of
 	// how many to pick — the book's "on a 10+, pick 1; on a 7-9, pick 2; …" love letters.

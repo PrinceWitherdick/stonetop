@@ -496,10 +496,10 @@
 					<span class="stonetop-onboarding-move-stat-label">Increase which stat? <em>(max +{{statChoice.cap}})</em></span>
 					<div class="stonetop-onboarding-appearance-options stonetop-onboarding-move-stat-options">
 						{{#each statChoice.options}}
-						<label class="stonetop-onboarding-appearance-option stonetop-onboarding-move-stat-option{{#if selected}} is-selected{{/if}}{{#if disabled}} is-disabled{{/if}}">
+						<label class="stonetop-onboarding-appearance-option stonetop-onboarding-move-stat-option{{#if selected}} is-selected{{/if}}{{#if atCap}} is-disabled{{/if}}">
 							<input type="radio" class="onboard-move-stat" name="onboard-move-stat-{{moveId}}"
 							       value="{{key}}" data-move-id="{{moveId}}"
-							       {{#if selected}}checked{{/if}} {{#if disabled}}disabled{{/if}}>
+							       {{#if selected}}checked{{/if}} {{#if atCap}}disabled{{/if}}>
 							{{label}}
 							<span class="stonetop-onboarding-move-stat-delta">{{#if atCap}}{{currentDisplay}} (max){{else}}{{currentDisplay}} &rarr; {{nextDisplay}}{{/if}}</span>
 						</label>

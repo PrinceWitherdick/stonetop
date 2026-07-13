@@ -1,6 +1,6 @@
 import { CUSTOM_MOVE_ROLL_TYPES } from "./roll-types.js";
 import { formatCustomMoveDescription } from "./custom-move-text.js";
-import { buildMoveTierResults } from "./move-results.js";
+import { buildMoveTierResults, parseTierInput } from "./move-results.js";
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
 
 // Coerce a value to an integer clamped to [lo, hi]; non-numeric / out-of-range → nearest bound.
@@ -19,12 +19,7 @@ export function clampInt(value, lo, hi) {
  * then rolls through the same engine as any shipped move (StonetopItem.roll → rollStat).
  */
 export function buildCustomMoveData(input) {
-	const rt = String(input?.rollType ?? "").trim().toLowerCase();
-	const rollType = CUSTOM_MOVE_ROLL_TYPES.includes(rt) ? rt : "";
-	const r = input?.results ?? {};
-	const success = String(r.success ?? "").trim();
-	const partial = String(r.partial ?? "").trim();
-	const failure = String(r.failure ?? "").trim();
+	const { rollType, success, partial, failure } = parseTierInput(input, CUSTOM_MOVE_ROLL_TYPES);
 	const moveResults = (rollType && (success || partial || failure))
 		? buildMoveTierResults({ success, partial, failure })
 		: null;

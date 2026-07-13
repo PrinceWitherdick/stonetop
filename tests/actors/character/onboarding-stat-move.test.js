@@ -60,7 +60,8 @@ describe("onboarding stat-increase move choice", () => {
 	it("disables a stat already at the cap", () => {
 		const d = makeDialog({ stats: { str: 2, dex: 0, con: 0, int: 0, wis: 0, cha: -1 } });
 		const str = d._moveStatChoiceData("imp1", 2).options.find(o => o.key === "str");
-		expect(str.disabled).toBe(true);
+		// atCap is the single flag the template drives both the disabled attribute and
+		// the "(max)" delta from.
 		expect(str.atCap).toBe(true);
 		expect(str.currentDisplay).toBe("+2");
 	});

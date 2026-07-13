@@ -84,7 +84,7 @@
         {{#if loadReadout.summary.anyOver}}<span class="g-tally g-warn"><b>{{loadReadout.summary.overloaded}}</b> overloaded</span>{{/if}}
         {{#if loadReadout.summary.anyHeavy}}<span class="g-tally g-caut"><b>{{loadReadout.summary.heavy}}</b> heavy</span>{{/if}}
         {{#if loadReadout.summary.anySneak}}<span class="g-tally"><b>{{loadReadout.summary.cantSneak}}</b> can't move quiet</span>{{/if}}
-        {{#if loadReadout.summary.allClear}}<span class="g-tally g-ok">all set to move</span>{{/if}}
+        {{#unless loadReadout.summary.anySneak}}<span class="g-tally g-ok">all set to move</span>{{/unless}}
       </div>
 
       {{#each loadReadout.rows}}

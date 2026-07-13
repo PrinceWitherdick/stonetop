@@ -952,7 +952,6 @@ export class CharacterOnboardingDialog extends Application {
 					currentDisplay: sign(value),
 					nextDisplay:    sign(Math.min(value + 1, cap)),
 					atCap,
-					disabled:       atCap,
 					selected:       chosen === key,
 				};
 			}),

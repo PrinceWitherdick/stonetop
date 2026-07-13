@@ -4381,7 +4381,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    The .stonetop-item.stonetop-love-letter chain (0,4,0) outranks the generic
    `.tab.moves .stonetop-item` card rule so the paper background wins. */
 .stonetop-love-letters-section .items-list { gap: 8px; }
-.tab.moves .stonetop-item.stonetop-love-letter {
+/* Warm-paper palette shared by the Moves-tab letter card and the reader modal so the letter
+   reads the same wherever it appears. A comma list (not :is()) keeps each selector at its own
+   specificity, so the .stonetop-item.stonetop-love-letter chain still outranks the generic
+   `.tab.moves .stonetop-item` card rule. */
+.tab.moves .stonetop-item.stonetop-love-letter,
+.stonetop-love-letter-read-dialog {
 	--tc-paper: #f6f1e6;
 	--tc-paper-hi: #fbf7ee;
 	--tc-paper-lo: #ece3d0;
@@ -4390,6 +4395,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	--tc-rule: #c7b59a;
 	--tc-rule-hard: #8f7f63;
 	--ll-accent: #7a3f44;
+}
+.tab.moves .stonetop-item.stonetop-love-letter {
 	position: relative;
 	padding: 0.8rem 1rem 0.85rem 1.15rem;
 	color: var(--tc-ink);
@@ -4446,19 +4453,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-love-letter-read:hover { background: #8f4a50; }
 
 /* Reader modal (LoveLetterReadDialog): the letter's full contents, then a lone Resolve
-   action. Given the same "handed-over paper letter" treatment as the Moves-tab card and
-   the steading Threat cards (shared --tc-* palette: cream gradient, aged rules, maroon
-   accent edge, wax-seal button) so the letter reads the same wherever it appears. */
-.stonetop-love-letter-read-dialog {
-	--tc-paper: #f6f1e6;
-	--tc-paper-hi: #fbf7ee;
-	--tc-paper-lo: #ece3d0;
-	--tc-ink: #1b1510;
-	--tc-ink-soft: #4a4034;
-	--tc-rule: #c7b59a;
-	--tc-rule-hard: #8f7f63;
-	--ll-accent: #7a3f44;
-}
+   action. Given the same "handed-over paper letter" treatment as the Moves-tab card and the
+   steading Threat cards (cream gradient, aged rules, maroon accent edge, wax-seal button);
+   its --tc-* palette is declared with the card's, above. */
 /* Sealed-letter header: maroon band with a cream, letterpress-style title to match the
    card's Read button. Scoped to the dialog root so it never bleeds onto core windows.
    The `.stonetop.window-app` chain (plus `.vtt`) lifts these to specificity (0,5,0) so

@@ -6,7 +6,7 @@
 //
 // Editing writes straight to the page via data-doc-field / data-list handlers (no
 // FormApplication submit), and the dialog re-renders when the page changes.
-import { FrontOnOpen } from "../utils/front-on-open.js";
+import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { THREAT_TYPES, THREAT_PROXIMITIES, threatType, DEFAULT_PROXIMITY } from "./threat-types.js";
 import { setThreatName } from "./threat-store.js";
 
@@ -16,11 +16,10 @@ const EMPTY_ROW = {
 	customPlayerMoves: () => ({ label: "", text: "" }),
 };
 
-export class ThreatEditorDialog extends Application {
+export class ThreatEditorDialog extends StonetopDialog {
 	constructor(page, options = {}) {
 		super(foundry.utils.mergeObject({ id: `stonetop-threat-editor-${page?.id}` }, options));
 		this.page = page;
-		this._frontOnOpen = new FrontOnOpen(this);
 		// The advanced ("Stakes, GM moves & more") section's open state, persisted on the
 		// instance so it survives the re-render every page.update triggers below — otherwise
 		// adding/editing a row inside it would snap it shut and hide the row just added.
@@ -42,14 +41,9 @@ export class ThreatEditorDialog extends Application {
 
 	get title() { return `Threat — ${this.page?.name ?? ""}`; }
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-	}
-
 	async close(options = {}) {
 		Hooks.off("updateJournalEntryPage", this._onUpdate);
-		this._frontOnOpen.stop();
+		// super.close (StonetopDialog) stops the FrontOnOpen lifecycle.
 		return super.close(options);
 	}
 
@@ -78,7 +72,6 @@ export class ThreatEditorDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 		const root = html?.[0] ?? html;
 		if (!root) return;
 

@@ -2,10 +2,10 @@
 // eight types and its canned GM moves appear as a checklist; name it, give it an
 // instinct and a proximity. Returns a seed via promise(); the fuller doom track /
 // stakes / description are authored in the page editor that opens right after.
-import { FrontOnOpen } from "../utils/front-on-open.js";
+import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { THREAT_TYPES, THREAT_PROXIMITIES, threatType, THREAT_PROXIMITY_IDS, DEFAULT_THREAT_TYPE, DEFAULT_PROXIMITY } from "./threat-types.js";
 
-export class CreateThreatDialog extends Application {
+export class CreateThreatDialog extends StonetopDialog {
 	constructor(steadingActor, { defaultProximity, ...options } = {}) {
 		super(options);
 		this.steadingActor = steadingActor;
@@ -17,7 +17,6 @@ export class CreateThreatDialog extends Application {
 		this._instinct = "";
 		this._selectedMoves = new Set();
 		this._resolve = null;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -35,11 +34,6 @@ export class CreateThreatDialog extends Application {
 	/** Open the dialog and resolve to a threat seed (or null if cancelled). */
 	promise() {
 		return new Promise(resolve => { this._resolve = resolve; this.render(true); });
-	}
-
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
 	}
 
 	getData() {
@@ -77,7 +71,6 @@ export class CreateThreatDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 
 		html.find("input[data-type-option]").on("change", ev => {
 			this._capture(html);
@@ -117,8 +110,8 @@ export class CreateThreatDialog extends Application {
 	}
 
 	async close(options = {}) {
-		this._frontOnOpen.stop();
 		// A close without submitting (Cancel, Escape, X) resolves the promise to null.
+		// super.close (StonetopDialog) stops the FrontOnOpen lifecycle.
 		if (this._resolve) { const resolve = this._resolve; this._resolve = null; resolve(null); }
 		return super.close(options);
 	}

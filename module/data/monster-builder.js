@@ -128,12 +128,10 @@ export function stepDie(die, steps) {
 	return stepLadder(DIE_ORDER.includes(die) ? die : "d6", steps);
 }
 
-// Normalize a free-text tag blob into trimmed, lowercased, de-blanked parts.
+// Split a free-text tag blob on commas. Trimming, lowercasing and de-duping are left to
+// _joinTags, which every caller pipes the result through.
 function _splitCustom(text) {
-	return String(text ?? "")
-		.split(",")
-		.map(t => t.trim().toLowerCase())
-		.filter(Boolean);
+	return String(text ?? "").split(",");
 }
 
 // Join tags in first-seen order, dropping blanks and case-insensitive dupes.

@@ -71,12 +71,13 @@ function _gatedReqLabel(maxLoad, requiresUnarmored) {
 // "heavy", and a move's maxLoad is only ever light/normal/heavy.
 const _LOAD_RANK = { light: 0, normal: 1, heavy: 2 };
 
-// The pill class + label for each tier bucket.
+// The display label for each tier bucket. The pill's CSS class is the bucket key itself
+// (light/normal/heavy/over), so it needs no separate field.
 const _LOAD_PILL = {
-	light:  { cls: "light",  label: "Light" },
-	normal: { cls: "normal", label: "Normal" },
-	heavy:  { cls: "heavy",  label: "Heavy" },
-	over:   { cls: "over",   label: "Overloaded" },
+	light:  { label: "Light" },
+	normal: { label: "Normal" },
+	heavy:  { label: "Heavy" },
+	over:   { label: "Overloaded" },
 };
 
 // Build the diamond track: pips grouped into the light / normal / heavy bands (the
@@ -573,7 +574,6 @@ export class ExpeditionDialog extends StepperDialog {
 				anyOver:  overloaded > 0,
 				anyHeavy: heavy > 0,
 				anySneak: cantSneak > 0,
-				allClear: overloaded === 0 && heavy === 0,
 			},
 		};
 	}
@@ -581,13 +581,14 @@ export class ExpeditionDialog extends StepperDialog {
 	// A PC row: avatar, name/playbook, the diamond track, band pill, ◇ count, any
 	// load-gated moves, and (when overloaded or Pack-Horse'd) a note.
 	_pcRow(actor, snap, tier, over, marks, limits) {
-		const key = over ? "over" : (tier || "light");
+		const band = tier || "light";           // the empty-load default, shared by both branches below
+		const key = over ? "over" : band;
 		const hasPackHorse = !!snap?.inventory?.outfit?.hasPackHorse;
 		const wornArmor    = Number(snap?.vitals?.wornArmor) || 0;
 		return this._loadRow(key, actor.name, marks, limits, {
 			isFollower: false,
 			sub:        actor.system?.playbook?.name || "",
-			gated:      this._gatedMovesFor(snap, over ? "heavy" : (tier || "light"), wornArmor),
+			gated:      this._gatedMovesFor(snap, over ? "heavy" : band, wornArmor),
 			packHorse:  hasPackHorse ? `caps ${limits.light}/${limits.normal}/${limits.heavy}` : null,
 			note:       over ? "risks exhaustion, accident, injury" : null,
 			noteDanger: over,
@@ -668,7 +669,7 @@ export class ExpeditionDialog extends StepperDialog {
 			sub:        "",
 			folTag:     null,
 			levelClass: `lvl-${key}`,
-			pillClass:  pill.cls,
+			pillClass:  key,
 			levelLabel: pill.label,
 			marks, cap: limits.heavy, bands, overflow,
 			gated:      [],
