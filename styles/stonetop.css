@@ -369,6 +369,13 @@ body {
 	object-fit: contain;
 }
 
+/* ...except the wide Book II bestiary illustrations, which would otherwise
+   letterbox to a thin strip in the square cell. Crop them to fill like the
+   square portraits. Scoped by asset path so PC/steading art keeps "no crop". */
+#actors .directory-item img[src*="/assets/bestiary/"] {
+	object-fit: cover;
+}
+
 .vtt .sidebar-tab,
 .pbta.sheet .cell__title,
 .pbta {
@@ -6217,6 +6224,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-self: flex-start;
 	cursor: pointer;
 	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* Wide Book II bestiary illustrations fill the square portrait frame rather than
+   letterboxing. Scoped by asset path so other actors keep the default "contain". */
+.stonetop-portrait[src*="/assets/bestiary/"] {
+	object-fit: cover;
 }
 
 .stonetop-portrait:hover,

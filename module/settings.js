@@ -166,6 +166,40 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the "Import Book II Art" macro has been seeded into the world's Macro
+	// Directory (see hooks/Ready.js _ensureBook2ArtMacro). Set true after the first
+	// GM load so it's added exactly once — a GM who later deletes it keeps it gone.
+	game.settings.register("stonetop_pwd", "book2ArtMacroSeeded", {
+		name: "Book II Art Macro Seeded",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// The durable folder (a top-level data path, OUTSIDE the system folder) the "Import
+	// Book Art" macro writes extracted illustrations to. Living outside systems/stonetop_pwd
+	// is what keeps the art across a system update or reinstall; the runtime re-apply
+	// (hooks/Ready.js -> book2-art/reapply.js) re-points documents at it after an update.
+	game.settings.register("stonetop_pwd", "book2ArtRoot", {
+		name: "Book II Art Folder",
+		scope: "world",
+		config: false,
+		type: String,
+		default: "stonetop-book-art"
+	});
+
+	// The system version whose Book II art was last re-applied to the compendia. When
+	// this trails the running version, the re-apply pass re-points documents at the
+	// durable art on disk and records the new version here (see book2-art/reapply.js).
+	game.settings.register("stonetop_pwd", "book2ArtSyncVersion", {
+		name: "Book II Art Sync Version",
+		scope: "world",
+		config: false,
+		type: String,
+		default: ""
+	});
+
 	// Whether the GM has dismissed the "first session" Welcome guide's automatic
 	// pop-up (see dialogs/WelcomeDialog.js). While false, the guide opens for the
 	// GM on every world load; ticking "Don't show this automatically" sets it true.

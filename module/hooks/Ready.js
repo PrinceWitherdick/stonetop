@@ -1,6 +1,7 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { seedCompendiumJournalsOnce, updateSeededJournalsOnVersionChange } from "./SeedCompendiums.js";
+import { reapplyBook2ArtOnVersionChange } from "../book2-art/reapply.js";
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -46,6 +47,17 @@ const _TEST_MACRO_NAME   = "(TEST ONLY) Populate World";
 const _TEST_MACRO_SRC    = "systems/stonetop_pwd/scripts/local/create-test-characters.js";
 const _TEST_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/hazard-sign.svg";
 const _TEST_MACRO_FOLDER = "For Testing Purposes";
+
+// The "Import Book Art" bring-your-own-book macro, added to the Macro Directory
+// but never the hotbar (it's a one-time setup tool, not a play aid). The shipped
+// compendium copy is the single source of truth: while the world copy exists its
+// command/img are re-synced from the pack, so system updates propagate. Seeded
+// once — a GM who deletes it keeps it gone (see _ensureBook2ArtMacro).
+const _BOOK2_MACRO_PACK = "stonetop_pwd.stonetop-macros";
+const _BOOK2_MACRO_ID   = "stMacroBook2Art1";
+const _BOOK2_MACRO_NAME = "Import Book Art";
+// Worlds seeded before the rename carry the old name; the seeder renames them in place.
+const _BOOK2_MACRO_LEGACY_NAMES = ["Import Book II Art"];
 
 // Retired hotbar macro — the Introductions walkthrough now launches from the
 // Welcome guide, so the standalone macro is deleted rather than slotted (see
@@ -159,8 +171,20 @@ export async function onReady() {
 	const wasFreshWorld = game.user.isGM && !getSetting("seedingComplete");
 	let seeding = Promise.resolve();
 	if (wasFreshWorld) {
-		seeding = seedCompendiumJournalsOnce().then(() => updateSeededJournalsOnVersionChange());
+		// Re-apply Book II art (only if its durable folder is already populated, e.g. a
+		// GM who ran the import in another world) BEFORE the seed, so a brand-new world
+		// imports art-bearing journals; then seed, then the journal version sync.
+		seeding = reapplyBook2ArtOnVersionChange()
+			.catch((err) => console.error("Stonetop | Book II art re-apply failed:", err))
+			.then(() => seedCompendiumJournalsOnce())
+			.then(() => updateSeededJournalsOnVersionChange());
 	} else if (game.user.isGM) {
+		// Re-apply Book II art BEFORE the journal sync so freshly re-applied compendium
+		// art propagates into pristine (un-edited) world journal copies for free
+		// (updateSeededJournalsOnVersionChange reads the live compendium). See
+		// book2-art/reapply.js.
+		try { await reapplyBook2ArtOnVersionChange(); }
+		catch (err) { console.error("Stonetop | Book II art re-apply failed:", err); }
 		await seedCompendiumJournalsOnce();
 		await updateSeededJournalsOnVersionChange();
 	}
@@ -184,6 +208,7 @@ export async function onReady() {
 		});
 		await _reorderSystemMacros();
 		await _ensureTestPopulateMacro();
+		await _ensureBook2ArtMacro();
 	}
 	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
 	if (game.user.isGM) await remindDestinedOmenRoll();
@@ -531,6 +556,32 @@ async function _ensureTestPopulateMacro() {
 	await setSetting("testPopulateMacroSeeded", true);
 }
 
+// Add the "Import Book Art" macro to the world's Macro Directory — but never
+// the hotbar. The shipped compendium doc is the single source of truth: its
+// command/img are copied on first seed and re-synced while the world copy exists,
+// so a system update refreshes it. Seeded once — a GM who deletes it keeps it
+// gone. GM-only (called from the isGM block in onReady).
+async function _ensureBook2ArtMacro() {
+	let src;
+	try { src = await game.packs.get(_BOOK2_MACRO_PACK)?.getDocument(_BOOK2_MACRO_ID); } catch { return; }
+	if (!src?.command) return;
+
+	const existing = game.macros.find(m => m.name === _BOOK2_MACRO_NAME)
+		?? game.macros.find(m => _BOOK2_MACRO_LEGACY_NAMES.includes(m.name));
+	if (existing) {
+		const update = {};
+		if (existing.name !== _BOOK2_MACRO_NAME) update.name = _BOOK2_MACRO_NAME;
+		if (existing.command !== src.command) update.command = src.command;
+		if (existing.img !== src.img) update.img = src.img;
+		if (Object.keys(update).length) await existing.update(update);
+		return;
+	}
+	if (getSetting("book2ArtMacroSeeded")) return; // deleted on purpose — leave it gone
+
+	await Macro.create({ name: _BOOK2_MACRO_NAME, type: "script", img: src.img, command: src.command, scope: "global" });
+	await setSetting("book2ArtMacroSeeded", true);
+}
+
 // Retire the standalone "Character Introductions" hotbar macro: its walkthrough
 // now launches from the Welcome guide, so delete the system-created macro (which
 // also clears its hotbar slot). No-op once done, so it's safe to run every load.
@@ -587,7 +638,6 @@ function _buildStartupWelcomeContent() {
 					<h3 class="cell__subtitle">For Game Masters</h3>
 					<ul>
 						<li>A first-session Welcome guide and a Let Spring Burst Forth walkthrough.</li>
-						<li>Shift any roll up or down a tier from the chat card, no re-roll needed.</li>
 						<li>A steading sheet with seasonal automation, improvements, and disasters.</li>
 						<li>A Threats tab of book-faithful cards you can reveal and pin to a scene.</li>
 						<li>Love Letters: personal, one-time moves you hand to a single character.</li>
@@ -608,6 +658,7 @@ function _buildStartupWelcomeContent() {
 					<ul>
 						<li><span><strong>Sheet Font &amp; Size</strong>: choose the typeface and scale the text on Stonetop sheets.</span></li>
 						<li><span><strong>On Hover Info</strong>: turn all hover info on/off, or tune Stats, Basic Moves, Playbook Moves, Traits, and Gear Tags individually.</span></li>
+						<li><span><strong>Shift Up/Down Buttons on Roll Cards</strong>: turn this on to add GM-only buttons that bump a roll's result up or down a tier from the chat card, no re-roll needed.</span></li>
 					</ul>
 				</div>
 				<div class="row stonetop-startup-card__section">
