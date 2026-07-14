@@ -40,6 +40,12 @@ Build a follower from scratch with a guided builder, or turn any bestiary monste
 
 ![Followers tab with a warband and a companion follower](.github/screenshots/followers_example.webp)
 
+#### Seeker Arcana
+
+The Seeker's arcana ship as a browsable deck. Cards track their marks, unlocks, and resource tracks interactively, the GM can reveal a whole card (or just its front) to a player once it's discovered, and a per-card ledger records every change so the table can see an arcanum's history at a glance.
+
+![The Seeker arcana deck](.github/screenshots/arcana_example.webp)
+
 #### Per-Tab Search
 
 Each character-sheet tab has a collapsible search box that filters the list in front of you (moves, gear, followers), so long sheets stay navigable.
