@@ -27,12 +27,27 @@ import {
 
 const DEFAULTS = { organization: "group", size: "medium", armorBase: 0 };
 
+// The worksheet's sections, in book order, driving the left rail (like Run an
+// Expedition). Each `key` matches a `<section data-tab>` in the template and the
+// rail button's `data-tab`; `icon` is a Font Awesome 6 glyph for the rail/banner.
+// Steps 10-11 (description, lore) aren't here — they're authored on the stat block.
+const SECTIONS = [
+	{ key: "concept",  title: "Concept & name", icon: "fa-feather-pointed" },
+	{ key: "tags",     title: "Tags",           icon: "fa-tags" },
+	{ key: "hp",       title: "Hit points",     icon: "fa-heart" },
+	{ key: "armor",    title: "Armor",          icon: "fa-shield-halved" },
+	{ key: "damage",   title: "Damage",         icon: "fa-burst" },
+	{ key: "instinct", title: "Instinct",       icon: "fa-brain" },
+	{ key: "moves",    title: "Moves",          icon: "fa-bolt" },
+];
+
 export class CreateMonsterDialog extends StonetopDialog {
 	constructor({ name = "", folder = null } = {}, options = {}) {
 		super(options);
 		this._name = name;
 		this._folder = folder;
 		this._resolve = null;
+		this._activeTab = SECTIONS[0].key;
 	}
 
 	static get defaultOptions() {
@@ -42,7 +57,9 @@ export class CreateMonsterDialog extends StonetopDialog {
 			template: "systems/stonetop_pwd/templates/dialogs/create-monster.hbs",
 			classes: ["stonetop", "stonetop-create-monster-dialog"],
 			width: 760,
-			height: 700,
+			// Fixed height so switching tabs doesn't resize the window; the section
+			// column scrolls when a tab (Tags, Moves) runs long.
+			height: 620,
 			resizable: true,
 			scrollY: [".cm-main"],
 		});
@@ -56,8 +73,15 @@ export class CreateMonsterDialog extends StonetopDialog {
 	getData() {
 		const opt = (list, selectedId) => list.map(o => ({ ...o, selected: String(o.id) === String(selectedId) }));
 		const derived = computeMonster(DEFAULTS);
+		const activeIndex = Math.max(0, SECTIONS.findIndex(s => s.key === this._activeTab));
 		return {
 			name: this._name,
+			// Left rail + banner. Only the first-render active state comes from here;
+			// switching tabs afterwards is client-side (see _selectTab), so the form
+			// keeps its values without a re-render.
+			sections:      SECTIONS.map((s, i) => ({ ...s, index: i + 1, selected: i === activeIndex })),
+			sectionCount:  SECTIONS.length,
+			active:        { ...SECTIONS[activeIndex], index: activeIndex + 1 },
 			organizations:    opt(ORGANIZATIONS, DEFAULTS.organization),
 			sizes:            opt(SIZES, DEFAULTS.size),
 			natureTags:       NATURE_TAGS,
@@ -87,7 +111,14 @@ export class CreateMonsterDialog extends StonetopDialog {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		const form = html[0].querySelector(".create-monster");
+		// In an AppV1 Application, `html[0]` IS the template's root — here the
+		// `<form class="create-monster">` itself, not an ancestor. `querySelector`
+		// only searches descendants, so the old `html[0].querySelector(".create-monster")`
+		// returned null (the form matches itself, never a child) and crashed on the
+		// first addEventListener. Take the root directly, tolerating either shape.
+		const root = html[0];
+		const form = root?.matches?.(".create-monster") ? root : root?.querySelector(".create-monster");
+		if (!form) return;
 
 		// The stat summary recomputes live from the form on every edit — no re-render,
 		// so text fields keep focus and the worksheet keeps its scroll position. A short
@@ -100,8 +131,42 @@ export class CreateMonsterDialog extends StonetopDialog {
 		form.addEventListener("input", recompute);
 		form.addEventListener("change", recompute);
 
-		html.find(".cm-cancel").on("click", () => this.close());
-		html.find(".cm-create").on("click", () => this._submit(form));
+		// Left-rail tabs: switch which worksheet section is shown, client-side. No
+		// re-render, so every field keeps its value/focus and the live stat readout.
+		form.querySelectorAll(".cm-tab").forEach(btn =>
+			btn.addEventListener("click", () => this._selectTab(form, btn.dataset.tab)));
+
+		form.querySelector(".cm-cancel")?.addEventListener("click", () => this.close());
+		form.querySelector(".cm-create")?.addEventListener("click", () => this._submit(form));
+	}
+
+	// Show one worksheet section and light its rail entry, updating the banner (icon,
+	// title, count) to match. Purely DOM — the form is never re-rendered, so switching
+	// tabs preserves everything the GM has already filled in.
+	_selectTab(form, key) {
+		const index = SECTIONS.findIndex(s => s.key === key);
+		if (index < 0) return;
+		this._activeTab = key;
+		const active = SECTIONS[index];
+
+		form.querySelectorAll(".cm-tab").forEach(btn => {
+			const on = btn.dataset.tab === key;
+			btn.closest(".stonetop-guide-toc-item")?.classList.toggle("is-active", on);
+			if (on) btn.setAttribute("aria-current", "true"); else btn.removeAttribute("aria-current");
+		});
+		form.querySelectorAll(".cm-section").forEach(sec => { sec.hidden = sec.dataset.tab !== key; });
+
+		const icon = form.querySelector(".cm-banner-icon");
+		if (icon) icon.className = `fas ${active.icon} stonetop-guide-banner-icon cm-banner-icon`;
+		const title = form.querySelector(".cm-banner-title");
+		if (title) title.textContent = active.title;
+		const count = form.querySelector(".cm-banner-count");
+		if (count) count.textContent = `${index + 1} / ${SECTIONS.length}`;
+
+		// A tall previous tab can leave the section column scrolled down; reset so each
+		// section opens at its top.
+		const main = form.querySelector(".cm-main");
+		if (main) main.scrollTop = 0;
 	}
 
 	_recompute(form) {
@@ -145,6 +210,14 @@ export class CreateMonsterDialog extends StonetopDialog {
 	}
 
 	async _submit(form) {
+		// Guard the async gap: Actor.create yields, and the button stays live until the
+		// dialog closes, so a fast double-click would otherwise issue two creates (two
+		// monsters, two stat-block sheets). One submit wins; disable the button for feedback.
+		if (this._submitting) return;
+		this._submitting = true;
+		const createBtn = form.querySelector(".cm-create");
+		if (createBtn) createBtn.disabled = true;
+
 		const sel = this._readSelections(form);
 		const derived = computeMonster(sel);
 		const actorData = this._buildActorData(sel, derived);
@@ -157,6 +230,9 @@ export class CreateMonsterDialog extends StonetopDialog {
 		} catch (err) {
 			console.error("Stonetop | failed to create monster from worksheet", err);
 			ui.notifications?.error("Could not create the monster. See the console for details.");
+			// Let the GM retry (the create failed, so nothing was made).
+			this._submitting = false;
+			if (createBtn) createBtn.disabled = false;
 			return;
 		}
 

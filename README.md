@@ -16,6 +16,8 @@ Everything below is built into the system. No extra modules required.
 
 A multi-step onboarding wizard handles everything from playbook selection to the final starting move. Each playbook's unique setup is fully supported: backgrounds with conditional forms, appearance builders, stat allocation, starting moves and invocations, crew and animal companion configuration, lore questions, and Seeker arcana. Progress is saved so players can pause and return without losing their work.
 
+![Guided character creation, choosing a playbook](.github/screenshots/character_creation.webp)
+
 #### Automated Move Rolls
 
 Every move roll goes through a pre-roll dialog that shows active **Forward** and **Ongoing** modifiers (Forward clears automatically after use), then lets the player choose Normal, Advantage, or Disadvantage, plus an alternate stat for moves that allow one. Results are classified automatically as Strong Hit (10+), Weak Hit (7-9), or Miss (6 and under), the roll card spells out what happens at each tier, and a miss instantly awards +1 XP. Debilities apply disadvantage to the correct stat and annotate the card so the table always knows why.
@@ -36,13 +38,7 @@ The Outfit Move dialog lets players check off items and see their load level upd
 
 Build a follower from scratch with a guided builder, or turn any bestiary monster into a follower in one step. Each follower lives on a single card with per-section editing for instinct, moves, cost, and tags. During play the card handles the follower moves for you: Order rolls, Strengthen Bond, ammo and supply tracks, and a follower's fate at 0 HP. Group warbands, hirelings, and companions to keep the tab tidy.
 
-#### Seeker Arcana
-
-The Seeker's arcana ship as a browsable deck. Cards track their marks, unlocks, and resource tracks interactively, the GM can reveal a whole card (or just its front) to a player once it's discovered, and a per-card ledger records every change so the table can see an arcanum's history at a glance.
-
-#### Death's Door Dialog
-
-When a character hits 0 HP, a three-step walkthrough explains the Death's Door rules: what it means, how the roll works, and what the possible outcomes are, so no one has to look it up mid-session.
+![Followers tab with a warband and a companion follower](.github/screenshots/followers_example.webp)
 
 #### Per-Tab Search
 
@@ -78,11 +74,19 @@ The Introductions flow walks the table through the get-acquainted questions duri
 
 An **End of Session** macro is automatically slotted into hotbar slot 10. The GM checks off which of the four group XP criteria were met and the system awards XP to every player-owned character simultaneously, then posts a summary to chat.
 
+#### Homebrew Content Creation
+
+A **Create Content** picker mints your own material as reusable world items: homebrew Arcana, custom Moves players can roll, Inventory Items, Steading Improvements, and Threats. Each one is saved once and then dragged onto the sheet or tab where it belongs, so a table can grow its own deck of moves, gear, and dangers alongside the bundled content.
+
+![The Create Stonetop Content picker](.github/screenshots/homebrew_content_creation.webp)
+
 ### Bundled Content
 
 #### Bestiary
 
 The system ships with the full bestiary of Books I and II: around 180 creatures, each with an illustrated codex entry and a ready-to-drop stat block, sorted into 38 regions and tagged by creature type. Monster and codex content stays hidden from players until you reveal it, so it doubles as a spoiler-safe GM reference.
+
+![A bestiary stat block](.github/screenshots/monster_example.webp)
 
 #### Locations & Lore
 

@@ -280,10 +280,18 @@ body {
    every Stonetop window root — see the `classes` arrays and RenderActorSheet) so
    we don't restyle other modules' or core windows. Foundry resets header/button
    font, so these explicit rules are still needed even though `.stonetop` already
-   sets the font on the root. */
+   sets the font on the root.
+
+   The `:not([class*="fa-"])` guard skips buttons that ARE a Font Awesome icon
+   (the icon class on the button element itself, not a child `<i>`). v14's AppV2
+   header controls render that way — `<button class="header-control fa-solid
+   fa-xmark">` — so serifing the button overrode FA's own icon font-family and
+   drew the glyph as an empty box (same trap as the header/content-button rules
+   below). Text buttons with a child `<i class="fas">` don't carry `fa-` on the
+   button, so they keep the serif while the `<i>` keeps its icon font. */
 .vtt .stonetop .window-header,
-.vtt .stonetop button,
-.vtt .stonetop .button {
+.vtt .stonetop button:not([class*="fa-"]),
+.vtt .stonetop .button:not([class*="fa-"]) {
 	font-family: var(--font-stonetop);
 }
 
@@ -19272,7 +19280,7 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-gear-row .stonetop-cf-input { flex: 1 1 0; min-width: 0; width: auto; }
 .stonetop-cf-gear-add { align-self: flex-start; }
 
-/* â”€â”€ Make-a-Hazard walkthrough (create-hazard.hbs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ── Make-a-Hazard walkthrough (create-hazard.hbs) ───────────────────────────
    Rides the shared .stonetop-cf-* control styles; only hazard-specific bits here. */
 .stonetop-create-hazard-dialog .stonetop-ch-advice {
 	margin: 2px 0 0;
@@ -20392,7 +20400,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Instinct becomes the last visible line when clamped — trim its trailing margin. */
 .stonetop .steading-threats .threat-card.is-collapsed .threat-instinct { margin-bottom: 0.15rem; }
 
-/* â”€â”€ Hazard cards (Book I "Dangers") ride the threat-card chrome â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ── Hazard cards (Book I "Dangers") ride the threat-card chrome ─────────────
    The wrapper IS a .threat-card (shared edge/head/portents/reveal/tools CSS);
    only the hazard's own rows need rules. Collapsed hazards keep their damage
    line visible: it's the hazard's essence the way Instinct is a threat's. */
@@ -20616,45 +20624,84 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	.stonetop .create-threat .ct-suggested-list { flex-direction: column; }
 }
 
-/* --- guided "make a monster" worksheet ------------------------------------- */
+/* --- guided "make a monster" worksheet (left-rail tabbed sheet) -------------- */
 .stonetop-create-monster-dialog.window-app { max-height: 92vh; }
-.stonetop-create-monster-dialog .window-content { overflow: hidden; }
+/* Full-bleed flex column: the rail + section split fills the space above a pinned
+   footer, mirroring the Expedition / Introductions steppers. */
+.stonetop-create-monster-dialog .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
 .stonetop .create-monster {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
-	gap: 0.6rem;
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
 	font-family: var(--font-stonetop);
 }
-.stonetop .create-monster .cm-body {
+/* Rail (shared .stonetop-guide-toc) beside the scrolling section column (.cm-main,
+   a shared .stonetop-guide-main which supplies its padding + gap). */
+.stonetop .create-monster .cm-split {
 	display: flex;
-	gap: 1rem;
-	flex: 1;
+	flex: 1 1 auto;
 	min-height: 0;
 }
 .stonetop .create-monster .cm-main {
-	flex: 1;
+	flex: 1 1 auto;
 	min-width: 0;
+	min-height: 0;
 	overflow-y: auto;
-	padding: 0.15rem 0.5rem 0.15rem 0.15rem;
-	display: flex;
-	flex-direction: column;
-	gap: 1rem;
 }
+
+/* Live stat line under the banner title (HP / Armor / Damage), updated as boxes
+   are ticked. */
+.stonetop .create-monster .cm-statline {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.1rem 0.85rem;
+	margin-top: 0.15rem;
+}
+.stonetop .create-monster .cm-stat {
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-size: 0.66rem;
+	/* Always-dark ink (these dialogs render on the forced parchment regardless of the
+	   user's Foundry theme, so theme-following tokens would vanish in dark mode). */
+	color: var(--st-text-muted);
+}
+.stonetop .create-monster .cm-stat b {
+	margin-left: 0.2rem;
+	font-family: var(--font-avara);
+	font-size: 0.92rem;
+	letter-spacing: 0;
+	text-transform: none;
+	color: var(--st-text);
+}
+
+/* Tags + range-advice glance row beneath the banner (tags can wrap). */
+.stonetop .create-monster .cm-glance { display: flex; flex-direction: column; gap: 0.15rem; }
+.stonetop .create-monster .cm-glance-tags { font-size: 0.85rem; line-height: 1.35; }
+.stonetop .create-monster .cm-glance-label {
+	margin-right: 0.3rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-size: 0.66rem;
+	opacity: 0.8;
+}
+.stonetop .create-monster .cm-summary-tags { font-family: var(--font-avara); font-size: 0.85rem; }
+.stonetop .create-monster .cm-summary-range { margin: 0; font-size: 0.78rem; font-style: italic; opacity: 0.8; }
+
+/* Sections are tab panels; only the active one shows (JS toggles `hidden`). */
 .stonetop .create-monster .cm-section {
 	display: flex;
 	flex-direction: column;
-	gap: 0.55rem;
-	padding-bottom: 0.85rem;
-	border-bottom: 1px solid color-mix(in srgb, var(--tc-rule-hard, #8f7f63) 45%, transparent);
+	gap: 0.6rem;
 }
-.stonetop .create-monster .cm-section:last-child { border-bottom: 0; padding-bottom: 0; }
-.stonetop .create-monster .cm-step {
-	font-family: var(--font-avara);
-	font-weight: 700;
-	font-size: 0.95rem;
-	letter-spacing: 0.01em;
-}
+.stonetop .create-monster .cm-section[hidden] { display: none; }
+.stonetop .create-monster .cm-section-hint { margin: 0; font-size: 0.82rem; font-style: italic; opacity: 0.72; }
 .stonetop .create-monster .cm-label {
 	display: block;
 	font-family: var(--font-stonetop);
@@ -20665,7 +20712,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	margin-bottom: 0.3rem;
 }
 .stonetop .create-monster .cm-label em { text-transform: none; letter-spacing: 0; opacity: 0.8; font-size: 0.9em; }
-.stonetop .create-monster .cm-note { margin: 0; font-size: 0.82rem; font-style: italic; opacity: 0.75; }
 .stonetop .create-monster .cm-field { display: flex; flex-direction: column; }
 .stonetop .create-monster .cm-row { display: flex; gap: 0.6rem; }
 .stonetop .create-monster .cm-grow { flex: 1; }
@@ -20744,59 +20790,24 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop .create-monster .cm-move-hint { font-size: 0.82rem; opacity: 0.68; }
 
-/* live stat summary */
-.stonetop .create-monster .cm-summary {
-	flex: 0 0 12.5rem;
-	align-self: flex-start;
-	display: flex;
-	flex-direction: column;
-	gap: 0.55rem;
-	padding: 0.7rem 0.75rem;
-	border: 1px solid var(--tc-rule-hard, #8f7f63);
-	border-radius: 8px;
-	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 6%, transparent);
-}
-.stonetop .create-monster .cm-summary-title {
-	font-family: var(--font-avara);
-	font-weight: 700;
-	font-size: 0.95rem;
+/* Pinned footer: the section split grows, this stays put at natural height. */
+.stonetop .create-monster .cm-footer { flex: 0 0 auto; }
+/* footer note (centre of the shared .stonetop-guide-nav footer, between Create and
+   Cancel — mirrors the Expedition nav's centred step label). The Create / Cancel
+   buttons themselves are styled by the shared .stonetop-guide-nav button rules;
+   Create carries .stonetop-guide-btn--primary for the slate fill. */
+.stonetop .create-monster .cm-footer-note {
+	flex: 1 1 auto;
+	min-width: 0;
 	text-align: center;
-}
-.stonetop .create-monster .cm-summary-stats { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.6rem; margin: 0; }
-.stonetop .create-monster .cm-summary-stats dt {
-	font-family: var(--font-stonetop);
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	font-size: 0.72rem;
-	opacity: 0.8;
-	align-self: center;
-}
-.stonetop .create-monster .cm-summary-stats dd { margin: 0; font-family: var(--font-avara); font-size: 0.95rem; }
-.stonetop .create-monster .cm-summary-tagsblock { display: flex; flex-direction: column; gap: 0.15rem; }
-.stonetop .create-monster .cm-summary-tags { font-size: 0.85rem; line-height: 1.35; }
-.stonetop .create-monster .cm-summary-range { margin: 0; font-size: 0.78rem; font-style: italic; opacity: 0.8; }
-.stonetop .create-monster .cm-summary-foot {
-	margin: auto 0 0;
-	font-size: 0.74rem;
-	line-height: 1.3;
+	font-size: 0.78rem;
+	font-style: italic;
 	opacity: 0.7;
-	border-top: 1px solid color-mix(in srgb, var(--tc-rule-hard, #8f7f63) 40%, transparent);
-	padding-top: 0.5rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
-
-/* footer */
-.stonetop .create-monster .cm-footer { display: flex; gap: 0.5rem; padding-top: 0.4rem; border-top: 1px solid color-mix(in srgb, var(--tc-rule-hard, #8f7f63) 45%, transparent); }
-.stonetop .create-monster .cm-create {
-	display: inline-flex; align-items: center; gap: 0.4rem;
-	width: auto; padding: 0.4rem 0.95rem;
-	background: var(--st-btn-primary-bg); border: 1px solid var(--st-btn-primary-border);
-	color: var(--st-btn-primary-text); border-radius: 5px; cursor: pointer;
-}
-.stonetop .create-monster .cm-create:hover { background: var(--st-btn-primary-bg-hover); border-color: var(--st-btn-primary-border-hover); }
-.stonetop .create-monster .cm-cancel { width: auto; padding: 0.4rem 0.95rem; background: transparent; cursor: pointer; }
 @media (max-width: 620px) {
-	.stonetop .create-monster .cm-body { flex-direction: column; }
-	.stonetop .create-monster .cm-summary { flex-basis: auto; align-self: stretch; }
 	.stonetop .create-monster .cm-check-list--two { grid-template-columns: 1fr; }
 }
 

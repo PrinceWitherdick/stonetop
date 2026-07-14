@@ -1,11 +1,51 @@
+{{!-- Guided "make a monster" worksheet (Book I "Dangers", pp.392-398), laid out as a
+      left-rail tabbed sheet like Run an Expedition: the rail (shared .stonetop-guide-toc)
+      switches which worksheet section is shown, client-side, so the single <form> keeps
+      every field's value and the banner's live stat readout as you move around. See
+      dialogs/CreateMonsterDialog.js. --}}
 <form class="stonetop create-monster" autocomplete="off">
 
-	<div class="cm-body">
-		<div class="cm-main">
+	<div class="stonetop-guide-split cm-split">
+
+		{{!-- Section rail (jump between worksheet steps; shared journal-style page list). --}}
+		<nav class="stonetop-guide-toc" aria-label="Monster worksheet sections">
+			<ol class="stonetop-guide-toc-list">
+				{{#each sections}}
+				<li class="stonetop-guide-toc-item{{#if selected}} is-active{{/if}}">
+					<button type="button" class="stonetop-guide-toc-btn cm-tab" data-tab="{{key}}"{{#if selected}} aria-current="true"{{/if}}>
+						<i class="fas {{icon}} stonetop-guide-toc-icon"></i>
+						<span class="stonetop-guide-toc-text">{{title}}</span>
+					</button>
+				</li>
+				{{/each}}
+			</ol>
+		</nav>
+
+		<div class="stonetop-guide-main cm-main">
+
+			{{!-- Banner: active section + a live stat line that recomputes as boxes are
+			      ticked (updated in JS; no re-render, so fields keep focus). --}}
+			<div class="stonetop-guide-banner cm-banner">
+				<i class="fas {{active.icon}} stonetop-guide-banner-icon cm-banner-icon"></i>
+				<div class="stonetop-guide-banner-info">
+					<div class="stonetop-guide-banner-title cm-banner-title">{{active.title}}</div>
+					<div class="cm-statline">
+						<span class="cm-stat">HP <b class="cm-summary-hp">{{summary.hp}}</b></span>
+						<span class="cm-stat">Armor <b class="cm-summary-armor">{{summary.armor}}</b></span>
+						<span class="cm-stat">Damage <b class="cm-summary-damage">{{summary.damage}}</b></span>
+					</div>
+				</div>
+				<div class="stonetop-guide-count cm-banner-count">{{active.index}} / {{sectionCount}}</div>
+			</div>
+
+			<div class="cm-glance">
+				<span class="cm-glance-tags"><span class="cm-glance-label">Tags</span> <span class="cm-summary-tags">{{summary.tags}}</span></span>
+				<span class="cm-summary-range"{{#unless summary.rangeAdvice}} hidden{{/unless}}>{{summary.rangeAdvice}}</span>
+			</div>
 
 			{{!-- Steps 1-2 & type: concept, name, creature type --}}
-			<section class="cm-section">
-				<span class="cm-step">1 &middot; Conceptualize &amp; name it</span>
+			<section class="cm-section" data-tab="concept">
+				<p class="cm-section-hint">Steps 1&ndash;2 &middot; Picture the creature, then name it and pick a type.</p>
 				<label class="cm-field">
 					<span class="cm-label">Concept</span>
 					<input type="text" name="concept" placeholder="e.g. a corpse-eating carrion bird the size of a hound">
@@ -28,8 +68,8 @@
 			</section>
 
 			{{!-- Step 3: tags --}}
-			<section class="cm-section">
-				<span class="cm-step">3 &middot; Give it tags</span>
+			<section class="cm-section" data-tab="tags" hidden>
+				<p class="cm-section-hint">Step 3 &middot; How it hunts, how big it is, and what it's like.</p>
 
 				<div class="cm-field">
 					<span class="cm-label">How does it hunt or fight?</span>
@@ -86,10 +126,9 @@
 				</label>
 			</section>
 
-			{{!-- Step 4: HP modifiers (base HP comes from org + size, shown in summary) --}}
-			<section class="cm-section">
-				<span class="cm-step">4 &middot; Hit points</span>
-				<p class="cm-note">Base HP comes from its organization and size. Add any of these:</p>
+			{{!-- Step 4: HP modifiers (base HP comes from org + size, shown in the banner) --}}
+			<section class="cm-section" data-tab="hp" hidden>
+				<p class="cm-section-hint">Step 4 &middot; Base HP comes from its organization and size. Add any of these:</p>
 				<div class="cm-check-list">
 					{{#each hpModifiers}}
 					<label class="cm-check">
@@ -101,8 +140,8 @@
 			</section>
 
 			{{!-- Step 5: armor --}}
-			<section class="cm-section">
-				<span class="cm-step">5 &middot; Armor</span>
+			<section class="cm-section" data-tab="armor" hidden>
+				<p class="cm-section-hint">Step 5 &middot; What protects it, and anything that adds to that.</p>
 				<div class="cm-field">
 					<span class="cm-label">What is it protected by?</span>
 					<div class="cm-radio-list">
@@ -132,9 +171,8 @@
 			</section>
 
 			{{!-- Step 6: damage --}}
-			<section class="cm-section">
-				<span class="cm-step">6 &middot; Damage</span>
-				<p class="cm-note">The base die comes from its organization. Choose the nature of its attack:</p>
+			<section class="cm-section" data-tab="damage" hidden>
+				<p class="cm-section-hint">Step 6 &middot; The base die comes from its organization; shape the attack.</p>
 				<div class="cm-field">
 					<span class="cm-label">Range <em>(all that apply)</em></span>
 					<div class="cm-chip-grid">
@@ -171,18 +209,17 @@
 			</section>
 
 			{{!-- Step 8: instinct --}}
-			<section class="cm-section">
-				<span class="cm-step">8 &middot; Instinct</span>
+			<section class="cm-section" data-tab="instinct" hidden>
+				<p class="cm-section-hint">Step 8 &middot; What it does that brings it into conflict.</p>
 				<label class="cm-field">
-					<span class="cm-label">What does it do that brings it into conflict?</span>
+					<span class="cm-label">Instinct</span>
 					<input type="text" name="instinct" placeholder="e.g. to gorge itself on the fallen">
 				</label>
 			</section>
 
 			{{!-- Step 9: moves --}}
-			<section class="cm-section">
-				<span class="cm-step">9 &middot; Moves</span>
-				<p class="cm-note">Tick the ones that fit — each becomes an editable monster move. Most monsters have about three.</p>
+			<section class="cm-section" data-tab="moves" hidden>
+				<p class="cm-section-hint">Step 9 &middot; Tick the ones that fit &mdash; each becomes an editable move. Most monsters have about three.</p>
 				<div class="cm-check-list">
 					{{#each moveSuggestions}}
 					<label class="cm-check" data-tooltip="{{description}}" data-tooltip-direction="UP">
@@ -195,25 +232,12 @@
 
 		</div>
 
-		{{!-- Live stat summary --}}
-		<aside class="cm-summary">
-			<span class="cm-summary-title">Stat block</span>
-			<dl class="cm-summary-stats">
-				<dt>HP</dt><dd class="cm-summary-hp">{{summary.hp}}</dd>
-				<dt>Armor</dt><dd class="cm-summary-armor">{{summary.armor}}</dd>
-				<dt>Damage</dt><dd class="cm-summary-damage">{{summary.damage}}</dd>
-			</dl>
-			<div class="cm-summary-tagsblock">
-				<span class="cm-label">Tags</span>
-				<span class="cm-summary-tags">{{summary.tags}}</span>
-			</div>
-			<p class="cm-summary-range" {{#unless summary.rangeAdvice}}hidden{{/unless}}>{{summary.rangeAdvice}}</p>
-			<p class="cm-summary-foot">Description and lore are written on the stat block after you create it.</p>
-		</aside>
 	</div>
 
-	<footer class="cm-footer">
-		<button type="button" class="cm-create"><i class="fas fa-dragon"></i> Create monster</button>
+	<div class="stonetop-guide-nav cm-footer">
+		<button type="button" class="cm-create stonetop-guide-btn--primary"><i class="fas fa-dragon"></i> Create monster</button>
+		<span class="cm-footer-note">Description &amp; lore are added on the stat block.</span>
 		<button type="button" class="cm-cancel">Cancel</button>
-	</footer>
+	</div>
+
 </form>
