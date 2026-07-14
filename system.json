@@ -111,7 +111,8 @@
                                                    "bestiary":  {},
                                                    "location":  {},
                                                    "chronicle":  {},
-                                                   "threat":  {}
+                                                   "threat":  {},
+                                                   "hazard":  {}
                                                }
                       },
     "primaryTokenAttribute":  "attributes.hp",

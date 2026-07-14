@@ -13,9 +13,17 @@
 import { getSetting } from "../settings.js";
 import { buildThreatCardVM, wireThreatDoomChange, handleThreatRevealClick } from "./threat-view.js";
 import { isThreatRevealed, threatPageById } from "./threat-store.js";
+import { buildHazardCardVM } from "../hazards/hazard-view.js";
+import { hazardPageById } from "../hazards/hazard-store.js";
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
 
-const CARD_TEMPLATE = "systems/stonetop_pwd/templates/journal/partials/threat-card.hbs";
+// Hazard pins ride the same board: the hazard card shares the threat card's markup
+// conventions (doom checkboxes, reveal button), so only the template + VM differ.
+const CARD_TEMPLATES = {
+	threat: "systems/stonetop_pwd/templates/journal/partials/threat-card.hbs",
+	hazard: "systems/stonetop_pwd/templates/journal/partials/hazard-card.hbs",
+};
+const CARD_VMS = { threat: buildThreatCardVM, hazard: buildHazardCardVM };
 const _renderTemplate = (path, data) =>
 	(foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate)(path, data);
 
@@ -37,14 +45,16 @@ export class ThreatBoard {
 		Hooks.on("canvasTearDown", () => this._teardown());
 		Hooks.on("canvasPan", () => this.reposition());
 		for (const h of ["createNote", "updateNote", "deleteNote"]) Hooks.on(h, () => this._schedule());
-		Hooks.on("updateJournalEntryPage", (page) => { if (page?.type === "threat") this._schedule(); });
+		Hooks.on("updateJournalEntryPage", (page) => { if (CARD_TEMPLATES[page?.type]) this._schedule(); });
 		Hooks.on("deleteJournalEntryPage", () => this._schedule());
 		// Reveal/hide is an ENTRY ownership flip (updateJournalEntry), and a player gains or
 		// loses a threat entry as create/delete — none of which touch the page hooks above, so
 		// the card would otherwise linger (or fail to appear) until an unrelated event. Refresh
 		// on any threat-entry change so a reveal shows the card and a hide clears it promptly.
 		for (const h of ["createJournalEntry", "updateJournalEntry", "deleteJournalEntry"])
-			Hooks.on(h, (entry) => { if (entry?.getFlag?.(STONETOP_SCOPE, "threat")) this._schedule(); });
+			Hooks.on(h, (entry) => {
+				if (entry?.getFlag?.(STONETOP_SCOPE, "threat") || entry?.getFlag?.(STONETOP_SCOPE, "hazard")) this._schedule();
+			});
 	}
 
 	/** Coalesce bursts (multi-note ops, a page edit) into one rebuild next microtask. */
@@ -58,11 +68,13 @@ export class ThreatBoard {
 		const placeables = canvas?.notes?.placeables ?? [];
 		// `n.visible` is the pin's per-user visibility: a player never sees a hidden
 		// threat's pin, so its card is never built for them either.
-		return placeables.filter(n => n?.visible && n?.document?.getFlag?.(STONETOP_SCOPE, "threat"));
+		return placeables.filter(n => n?.visible
+			&& (n?.document?.getFlag?.(STONETOP_SCOPE, "threat") || n?.document?.getFlag?.(STONETOP_SCOPE, "hazard")));
 	}
 
 	_pageFor(note) {
-		return threatPageById(note.document.entryId, note.document.pageId);
+		const { entryId, pageId } = note.document;
+		return threatPageById(entryId, pageId) ?? hazardPageById(entryId, pageId);
 	}
 
 	_ensureLayer() {
@@ -100,7 +112,7 @@ export class ThreatBoard {
 			const sig = this._cardSig(page);
 			const existing = this.cards.get(note.id);
 			if (existing && existing.sig === sig) return { note, sig, html: null }; // unchanged
-			return { note, sig, html: await _renderTemplate(CARD_TEMPLATE, await buildThreatCardVM(page)) };
+			return { note, sig, html: await _renderTemplate(CARD_TEMPLATES[page.type], await CARD_VMS[page.type](page)) };
 		}));
 		const seen = new Set();
 		for (const item of built) {

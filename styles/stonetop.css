@@ -2559,6 +2559,11 @@ input.stonetop-name-field {
 .stonetop-readonly .threat-add-btn,
 .stonetop-readonly .threat-edit-open,
 .stonetop-readonly .threat-remove,
+/* Hazard cards share the threat cards' self-gated interactions (GM/ownership
+   checks in the handlers), so their controls stay live outside edit mode too. */
+.stonetop-readonly .hazard-add-btn,
+.stonetop-readonly .hazard-edit-open,
+.stonetop-readonly .hazard-remove,
 .stonetop-readonly .threat-reveal,
 /* Collapse chevron stays live outside edit mode: clamping a card to its title +
    Instinct is a view convenience, not structural editing. Without this the button's
@@ -19254,6 +19259,32 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-gear-row .stonetop-cf-input { flex: 1 1 0; min-width: 0; width: auto; }
 .stonetop-cf-gear-add { align-self: flex-start; }
 
+/* â”€â”€ Make-a-Hazard walkthrough (create-hazard.hbs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Rides the shared .stonetop-cf-* control styles; only hazard-specific bits here. */
+.stonetop-create-hazard-dialog .stonetop-ch-advice {
+	margin: 2px 0 0;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	font-style: italic;
+}
+/* Certain death switches the damage worksheet off; dim it so the live line reads. */
+.stonetop-create-hazard-dialog .stonetop-ch-damage--off { opacity: 0.45; }
+.stonetop-create-hazard-dialog .stonetop-ch-portent-glyph { flex: 0 0 auto; }
+.stonetop-create-hazard-dialog .stonetop-ch-pm-row {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-bottom: 6px;
+}
+/* Keep a long description from swallowing the review card. */
+.stonetop-create-hazard-dialog .stonetop-ch-preview-desc {
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
 /* Review card (final step) + the conversion's kept-stats line */
 .stonetop-cf-preview,
 .stonetop-mf-stats {
@@ -20348,6 +20379,25 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Instinct becomes the last visible line when clamped — trim its trailing margin. */
 .stonetop .steading-threats .threat-card.is-collapsed .threat-instinct { margin-bottom: 0.15rem; }
 
+/* â”€â”€ Hazard cards (Book I "Dangers") ride the threat-card chrome â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   The wrapper IS a .threat-card (shared edge/head/portents/reveal/tools CSS);
+   only the hazard's own rows need rules. Collapsed hazards keep their damage
+   line visible: it's the hazard's essence the way Instinct is a threat's. */
+.stonetop .hazard-damage {
+	margin: 0.35rem 0 0.1rem;
+	font-size: 1.02rem;
+	color: var(--tc-ink);
+}
+.stonetop .hazard-damage--certain strong { color: #6e3b3b; }
+.stonetop .hazard-advance {
+	margin: 0.45rem 0 0.15rem;
+	font-family: "IM Fell English", var(--font-stonetop);
+	font-size: 0.85rem;
+	color: var(--tc-ink-soft);
+}
+.stonetop .steading-threats .threat-card.is-collapsed .hazard-advance { display: none; }
+.stonetop .steading-threats .threat-card.is-collapsed .hazard-damage { margin-bottom: 0.15rem; }
+
 /* Match the Improvements-tab intro blurb: italic, secondary color, --st-fs-sm. */
 .stonetop .steading-threats-intro {
 	margin: 0 0 10px 0;
@@ -20404,7 +20454,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: #4a4034;
 	cursor: pointer;
 }
-.stonetop .threat-card-tools .threat-remove:hover { color: #b23; border-color: #b23; }
+.stonetop .threat-card-tools .threat-remove:hover,
+.stonetop .threat-card-tools .hazard-remove:hover { color: #b23; border-color: #b23; }
 
 /* --- the page sheet (view + editor) --------------------------------------- */
 .stonetop-threat-page { padding: 0.4rem; }

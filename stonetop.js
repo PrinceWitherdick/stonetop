@@ -18,12 +18,15 @@ import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopB
 import { createStonetopLocationPageSheetClass } from "./module/journal/StonetopLocationPageSheet.js";
 import { ThreatPageModel } from "./module/journal/ThreatPageModel.js";
 import { createStonetopThreatPageSheetClass } from "./module/journal/StonetopThreatPageSheet.js";
+import { HazardPageModel } from "./module/journal/HazardPageModel.js";
+import { createStonetopHazardPageSheetClass } from "./module/journal/StonetopHazardPageSheet.js";
 import { ThreatBoard } from "./module/threats/threat-board.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
+import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
@@ -236,6 +239,17 @@ Hooks.once("init", () => {
 		label:       "Stonetop Threat Page",
 	});
 
+	// Hazards: the environmental half of Book I "Dangers" (pp. 381-389), threats'
+	// sibling GM-prep page type. Same one-entry-per-page storage/visibility
+	// architecture; authored via the Make-a-Hazard walkthrough. See module/hazards/.
+	CONFIG.JournalEntryPage.dataModels["hazard"] = HazardPageModel;
+	const StonetopHazardPageSheet = createStonetopHazardPageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopHazardPageSheet, {
+		types:       ["hazard"],
+		makeDefault: true,
+		label:       "Stonetop Hazard Page",
+	});
+
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
 	Items.registerSheet("stonetop_pwd", StonetopArcanumSheet, {
 		types:       ["move"],
@@ -289,6 +303,8 @@ Hooks.once("init", () => {
 		"stonetop.location-page":             "systems/stonetop_pwd/templates/journal/location.hbs",
 		"stonetop.threat-page":               "systems/stonetop_pwd/templates/journal/threat-page.hbs",
 		"stonetop.threat-card":               "systems/stonetop_pwd/templates/journal/partials/threat-card.hbs",
+		"stonetop.hazard-page":               "systems/stonetop_pwd/templates/journal/hazard-page.hbs",
+		"stonetop.hazard-card":               "systems/stonetop_pwd/templates/journal/partials/hazard-card.hbs",
 		"stonetop.steading-tab-threats":      "systems/stonetop_pwd/templates/actor/partials/steading-tab-threats.hbs",
 		"stonetop.bestiary-section-head":     "systems/stonetop_pwd/templates/journal/partials/bestiary-section-head.hbs",
 		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
@@ -333,6 +349,10 @@ Hooks.on("dropCanvasData", onDropPlaceOfInterest);
 // A threat card dragged onto a scene drops a native page-linked Note; give that
 // pin the torn-note icon, the threat's name, and global (fog-ignoring) visibility.
 Hooks.on("preCreateNote", onPreCreateThreatNote);
+
+// Give our lettered Place-of-Interest discs and threat/hazard pins a thick paper text
+// halo so their labels stay legible over the illustrated Stonetop maps.
+Hooks.on("drawNote", onDrawStonetopNote);
 
 // -- LOCATION CROSS-LINK TOOLTIPS ------------------------------
 // Give cross-links into the Locations pack a useful hover summary instead of the

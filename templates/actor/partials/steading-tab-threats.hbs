@@ -38,5 +38,40 @@
 		</div>
 		{{/each}}
 
+		{{!-- Hazards: the environmental half of Book I "Dangers", one flat section after
+		      the proximity groups (hazards have no proximity; they belong to places and
+		      expeditions). Same card affordances as threats: reveal eye, drag-to-pin,
+		      collapse; the pen reopens the Make-a-Hazard walkthrough pre-filled. --}}
+		{{#if stonetop.showHazards}}
+		<div class="steading-threats-section steading-hazards-section">
+			<h3 class="steading-residents-heading">Hazards</h3>
+			{{#if stonetop.isGM}}
+			<p class="steading-threats-intro">
+				Environmental dangers: traps, treacherous terrain, weather (Book I, <em>Dangers</em>). They can't be fought, only avoided, endured, thwarted, or overcome.
+			</p>
+			{{/if}}
+			{{#if stonetop.hazards.length}}
+			<div class="steading-threats-grid">
+				{{#each stonetop.hazards}}
+				<div class="threat-card-wrap" data-page-uuid="{{uuid}}">
+					{{> "stonetop.hazard-card" this}}
+					{{#if @root.stonetop.isGM}}
+					<div class="threat-card-tools">
+						<button type="button" class="hazard-edit-open" data-page-uuid="{{uuid}}" data-tooltip="Edit hazard" data-tooltip-direction="UP"><i class="fas fa-pen"></i></button>
+						<button type="button" class="hazard-remove" data-page-uuid="{{uuid}}" data-tooltip="Delete hazard" data-tooltip-direction="UP"><i class="fas fa-trash"></i></button>
+					</div>
+					{{/if}}
+				</div>
+				{{/each}}
+			</div>
+			{{/if}}
+			{{#if stonetop.isGM}}
+			<div class="steading-improvement-add-bar">
+				<button type="button" class="hazard-add-btn"><i class="fas fa-plus"></i> Make a hazard</button>
+			</div>
+			{{/if}}
+		</div>
+		{{/if}}
+
 	</section>
 </div>
