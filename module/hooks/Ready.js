@@ -1,7 +1,8 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
-import { seedCompendiumJournalsOnce, updateSeededJournalsOnVersionChange } from "./SeedCompendiums.js";
+import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJournalsOnVersionChange, syncSeededFolderColors } from "./SeedCompendiums.js";
 import { reapplyBook2ArtOnVersionChange } from "../book2-art/reapply.js";
+import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource } from "../book2-art/macro.js";
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -47,17 +48,6 @@ const _TEST_MACRO_NAME   = "(TEST ONLY) Populate World";
 const _TEST_MACRO_SRC    = "systems/stonetop_pwd/scripts/local/create-test-characters.js";
 const _TEST_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/hazard-sign.svg";
 const _TEST_MACRO_FOLDER = "For Testing Purposes";
-
-// The "Import Book Art" bring-your-own-book macro, added to the Macro Directory
-// but never the hotbar (it's a one-time setup tool, not a play aid). The shipped
-// compendium copy is the single source of truth: while the world copy exists its
-// command/img are re-synced from the pack, so system updates propagate. Seeded
-// once — a GM who deletes it keeps it gone (see _ensureBook2ArtMacro).
-const _BOOK2_MACRO_PACK = "stonetop_pwd.stonetop-macros";
-const _BOOK2_MACRO_ID   = "stMacroBook2Art1";
-const _BOOK2_MACRO_NAME = "Import Book Art";
-// Worlds seeded before the rename carry the old name; the seeder renames them in place.
-const _BOOK2_MACRO_LEGACY_NAMES = ["Import Book II Art"];
 
 // Retired hotbar macro — the Introductions walkthrough now launches from the
 // Welcome guide, so the standalone macro is deleted rather than slotted (see
@@ -177,7 +167,9 @@ export async function onReady() {
 		seeding = reapplyBook2ArtOnVersionChange()
 			.catch((err) => console.error("Stonetop | Book II art re-apply failed:", err))
 			.then(() => seedCompendiumJournalsOnce())
-			.then(() => updateSeededJournalsOnVersionChange());
+			.then(() => restampSeededJournalSources())
+			.then(() => updateSeededJournalsOnVersionChange())
+			.then(() => syncSeededFolderColors());
 	} else if (game.user.isGM) {
 		// Re-apply Book II art BEFORE the journal sync so freshly re-applied compendium
 		// art propagates into pristine (un-edited) world journal copies for free
@@ -186,7 +178,9 @@ export async function onReady() {
 		try { await reapplyBook2ArtOnVersionChange(); }
 		catch (err) { console.error("Stonetop | Book II art re-apply failed:", err); }
 		await seedCompendiumJournalsOnce();
+		await restampSeededJournalSources();
 		await updateSeededJournalsOnVersionChange();
+		await syncSeededFolderColors();
 	}
 	if (game.user.isGM) {
 		await _retireIntroductionsMacro();
@@ -562,15 +556,13 @@ async function _ensureTestPopulateMacro() {
 // so a system update refreshes it. Seeded once — a GM who deletes it keeps it
 // gone. GM-only (called from the isGM block in onReady).
 async function _ensureBook2ArtMacro() {
-	let src;
-	try { src = await game.packs.get(_BOOK2_MACRO_PACK)?.getDocument(_BOOK2_MACRO_ID); } catch { return; }
+	const src = await loadBook2ArtMacroSource();
 	if (!src?.command) return;
 
-	const existing = game.macros.find(m => m.name === _BOOK2_MACRO_NAME)
-		?? game.macros.find(m => _BOOK2_MACRO_LEGACY_NAMES.includes(m.name));
+	const existing = findBook2ArtWorldMacro();
 	if (existing) {
 		const update = {};
-		if (existing.name !== _BOOK2_MACRO_NAME) update.name = _BOOK2_MACRO_NAME;
+		if (existing.name !== BOOK2_ART_MACRO_NAME) update.name = BOOK2_ART_MACRO_NAME;
 		if (existing.command !== src.command) update.command = src.command;
 		if (existing.img !== src.img) update.img = src.img;
 		if (Object.keys(update).length) await existing.update(update);
@@ -578,7 +570,7 @@ async function _ensureBook2ArtMacro() {
 	}
 	if (getSetting("book2ArtMacroSeeded")) return; // deleted on purpose — leave it gone
 
-	await Macro.create({ name: _BOOK2_MACRO_NAME, type: "script", img: src.img, command: src.command, scope: "global" });
+	await Macro.create({ name: BOOK2_ART_MACRO_NAME, type: "script", img: src.img, command: src.command, scope: "global" });
 	await setSetting("book2ArtMacroSeeded", true);
 }
 

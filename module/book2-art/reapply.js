@@ -1,7 +1,7 @@
 import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "./manifest.js";
-import { bestiaryDescriptionWithArt, locationSectionsWithArt, matchWorldPage } from "./world-journal-art.js";
+import { bestiaryDescriptionWithArt, locationSectionsWithArt, textPageWithMap, matchWorldPage } from "./world-journal-art.js";
 import { managedHash } from "../hooks/journal-sync-core.js";
 
 // Re-apply the Book II illustrations to the compendia, the world journals, and the
@@ -39,7 +39,7 @@ const jrnSource = (entryId) => `Compendium.stonetop_pwd.stonetop-journal.Journal
 async function browseDurableArt(root) {
 	const FP = foundry?.applications?.apps?.FilePicker ?? FilePicker;
 	const present = new Set();
-	for (const dir of ["assets/bestiary", "assets/locations"]) {
+	for (const dir of ["assets/bestiary", "assets/locations", "assets/maps"]) {
 		try {
 			const res = await FP.browse("data", `${root}/${dir}`);
 			for (const f of res.files) present.add(decodeURIComponent(f));
@@ -73,6 +73,24 @@ function worldActorUpdate(actor, src, tail) {
 	return Object.keys(upd).length ? upd : null;
 }
 
+// Re-render the OPEN world-journal sheets among `entries` so freshly-embedded art appears
+// without an F5. Targeted (only entries we touched) so an unrelated journal a GM is editing
+// is never disturbed, and best-effort (a failed render must not fail the pass). Covers both
+// the AppV2 sheet registry (v13+ journals) and the legacy AppV1 windows. Mirrored inline by
+// the bring-your-own-book macro (scripts/local/book2-art/import-book2-art.js, section 7c).
+function rerenderOpenJournals(entries) {
+	const ids = new Set();
+	for (const e of entries) if (e?.id) ids.add(e.id);
+	if (!ids.size) return;
+	const apps = [...(foundry.applications?.instances?.values?.() ?? []), ...Object.values(ui.windows ?? {})];
+	for (const app of apps) {
+		const doc = app?.document ?? app?.object;
+		if (doc?.documentName === "JournalEntry" && ids.has(doc.id) && app.rendered) {
+			try { app.render(); } catch (_) { /* best-effort refresh */ }
+		}
+	}
+}
+
 export async function reapplyBook2ArtOnVersionChange() {
 	if (!game.user?.isGM) return;
 	const version = game.system.version;
@@ -88,13 +106,14 @@ export async function reapplyBook2ArtOnVersionChange() {
 	if (!present.size) return;
 
 	const srcOf = (out) => `${root}/${out}`;
-	const { monsters, locations } = BOOK2_ART_APPLY_MANIFEST;
+	const { monsters, locations, settingOverviewMaps = [] } = BOOK2_ART_APPLY_MANIFEST;
 
 	// Only wire art that is actually on disk (a partial import must not point a
 	// document at a file that isn't there).
 	const available = new Set();
 	for (const m of monsters) if (present.has(srcOf(m.out))) available.add(m.out);
 	for (const l of locations) for (const im of l.images) if (present.has(srcOf(im.out))) available.add(im.out);
+	for (const s of settingOverviewMaps) if (present.has(srcOf(s.out))) available.add(s.out);
 	if (!available.size) return; // durable folder exists but holds none of our art
 
 	const besPack = game.packs.get(monsters[0]?.actorPack ?? BES_PACK);
@@ -124,7 +143,7 @@ export async function reapplyBook2ArtOnVersionChange() {
 	};
 
 	const relock = [];
-	let actors = 0, besPages = 0, locPages = 0, worldActors = 0, worldJournalPages = 0, errors = 0;
+	let actors = 0, besPages = 0, locPages = 0, soPages = 0, worldActors = 0, worldJournalPages = 0, errors = 0;
 	try {
 		// Unlock inside the try so the finally relocks whatever we opened even if the
 		// second unlock (or any later step) throws.
@@ -176,6 +195,28 @@ export async function reapplyBook2ArtOnVersionChange() {
 			} catch (e) { errors++; error(`Book II art re-apply: location "${l.slug}"`, e); }
 		}
 
+		// 2.5 Setting Overview regional maps embedded into the setting journal's plain
+		//    text pages (+ their world copies). The map is a user-supplied file the macro's
+		//    map step wrote to assets/maps and turned into a Scene; this re-embeds it into
+		//    the journal page after an update wiped the compendium edit. Idempotent, and a
+		//    no-op on any page that already shows a map (never stacks a second one).
+		for (const s of settingOverviewMaps) {
+			if (!available.has(s.out)) continue;
+			const src = srcOf(s.out);
+			try {
+				const page = (await jrnPack.getDocument(s.journalEntryId))?.pages?.get(s.journalPageId);
+				if (!page) continue;
+				const nd = textPageWithMap(page.text?.content, src, s.name);
+				if (nd != null) { await page.update({ "text.content": nd }); soPages++; }
+				for (const entry of worldBySource.get(jrnSource(s.journalEntryId)) ?? []) {
+					const wp = matchWorldPage(entry.pages, page.id, page.name, page.type);
+					if (!wp) continue;
+					const wnd = textPageWithMap(wp.text?.content, src, s.name);
+					if (wnd != null) { noteEntry(entry); await wp.update({ "text.content": wnd }); worldJournalPages++; }
+				}
+			} catch (e) { errors++; error(`Book II art re-apply: setting-overview map "${s.slug}"`, e); }
+		}
+
 		// 3. World actors imported from the bestiary. Unlike the compendium docs these
 		//    SURVIVE an update, so this pass is conservative (worldActorUpdate): re-point a
 		//    portrait/token only when it is already one of ours (a stale path the root
@@ -209,14 +250,20 @@ export async function reapplyBook2ArtOnVersionChange() {
 		for (const p of relock) { try { await p.configure({ locked: true }); } catch (_) { /* best-effort relock */ } }
 	}
 
+	// Re-render any world journals we embedded art into that are OPEN right now, so the art
+	// shows without a reload. page.update() only live-refreshes a journal that was already
+	// open at the instant of the write; the sidebar is interactive before this pass finishes,
+	// so a GM who opens a journal mid-pass would otherwise see its pre-art render until an F5.
+	rerenderOpenJournals(touchedEntries.keys());
+
 	// Stamp the version only on a clean pass, so a transient failure retries on the next
 	// load (every write is idempotent) instead of poisoning the version with a partial apply.
 	if (errors) error(`Book II art re-apply: ${errors} item(s) failed; leaving the version unstamped to retry next load.`);
 	else await setSetting("book2ArtSyncVersion", version);
 
-	const total = actors + besPages + locPages + worldActors + worldJournalPages;
+	const total = actors + besPages + locPages + soPages + worldActors + worldJournalPages;
 	if (total) {
-		info(`Book II art re-applied after update: ${actors} actors, ${besPages + locPages} compendium journal pages, ${worldJournalPages} world journal pages, ${worldActors} world actors.`);
+		info(`Book II art re-applied after update: ${actors} actors, ${besPages + locPages + soPages} compendium journal pages, ${worldJournalPages} world journal pages, ${worldActors} world actors.`);
 		ui.notifications?.info(`Stonetop: re-applied Book II art to ${total} entries after the update.`);
 	}
 }

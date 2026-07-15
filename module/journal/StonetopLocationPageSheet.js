@@ -130,6 +130,13 @@ export function createStonetopLocationPageSheetClass(Base) {
 				s.groupLabel = GROUP_LABELS[s.group] ?? "";
 			}
 
+			// Book-art illustrations render INLINE under their own section heading, in
+			// both read and edit mode - including the opening Overview image. There is no
+			// hero banner above the title: art placed via the book-art picker's section
+			// moves must appear under the exact section the GM chose, so nothing is lifted
+			// to the top. (The template only renders a banner when leadArt is non-empty.)
+			st.leadArt = "";
+
 			return context;
 		}
 

@@ -490,10 +490,54 @@ body {
 img.stonetop-journal-art {
 	display: block;
 	margin: 0.25em auto 0.6em;
-	max-width: 100%;
+	/* Cap the illustration at 800px, but never wider than its column (narrow popouts). */
+	max-width: min(100%, 800px);
+	height: auto;
 	border: 2px solid hsl(40 30% 82%);
 	border-radius: 3px;
 	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Book art lifted ABOVE the page title by the bestiary/location page sheets
+   (module/journal/lead-art.js): a banner flush at the very top of the page, over
+   the name header. Multiple illustrations stack, centered. */
+.stonetop-journal-art-banner {
+	margin: 0 0 0.4em;
+	text-align: center;
+}
+.stonetop-journal-art-banner p {
+	margin: 0 0 0.35em;
+}
+.stonetop-journal-art-banner p:last-child {
+	margin-bottom: 0;
+}
+.stonetop-journal-art-banner img.stonetop-journal-art {
+	margin-top: 0;
+	max-height: 360px;
+	width: auto;
+}
+
+/* Setting Overview regional maps: the wide poster maps embedded at the top of the
+   setting journal's "The Village" / "The Vicinity" / "The World's End" pages by the
+   art import macro (a user-supplied map file the same run turns into a Scene). A
+   captioned, column-bounded figure rather than the framed inline illustration above. */
+figure.stonetop-map {
+	margin: 0.25em auto 1em;
+	text-align: center;
+}
+figure.stonetop-map img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	margin: 0 auto;
+	border: 1px solid rgba(0, 0, 0, 0.3);
+	border-radius: 3px;
+}
+figure.stonetop-map figcaption {
+	margin-top: 0.35em;
+	font-size: 0.85em;
+	font-style: italic;
+	opacity: 0.8;
 }
 
 .stonetop-glyph--arrow {
@@ -17903,6 +17947,15 @@ th:has(> .stonetop-roll-table-btn) {
 	font-size: var(--st-fs-lg);
 	font-weight: 700;
 	line-height: 1.2;
+}
+
+/* Secondary "(optional)" tag in a step heading (e.g. step 1's book-art import),
+   so it reads as an aside next to the bold title rather than part of it. */
+.stonetop-welcome-optional {
+	font-weight: 400;
+	font-size: 0.8em;
+	font-style: italic;
+	opacity: 0.65;
 }
 
 .stonetop-welcome-step-body p {

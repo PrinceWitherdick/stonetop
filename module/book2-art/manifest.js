@@ -16,6 +16,15 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "journalPageId": "FUyYoLbaxcMQ2XTA"
   },
   {
+   "slug": "swyn",
+   "name": "Swyn",
+   "out": "assets/bestiary/swyn.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "gI80yymFTixu1alc",
+   "journalEntryId": "k9Buk0QDWg2PIIqj",
+   "journalPageId": "yzXUzONTGla9ZzfM"
+  },
+  {
    "slug": "myghal",
    "name": "Myghal, Deathless Sorcerer",
    "out": "assets/bestiary/myghal.webp",
@@ -554,6 +563,105 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "actorId": "Iyc7KUONkBO5Ibyz",
    "journalEntryId": "pOtdFLTTywDCKXPM",
    "journalPageId": "aLuITGoixs7zCyQb"
+  },
+  {
+   "slug": "kleztigr",
+   "name": "Kleztigr",
+   "out": "assets/bestiary/kleztigr.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "8nNyWAoSsT3VXRx5",
+   "journalEntryId": "3e1HimZxPWvqLyu1",
+   "journalPageId": "YjdBd1dbn0ZqMdb9"
+  },
+  {
+   "slug": "pack-drake",
+   "name": "Pack Drake",
+   "out": "assets/bestiary/pack-drake.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "W7YFeowcF0yptQC3",
+   "journalEntryId": "Gxjvid2IYJmTU41M",
+   "journalPageId": "N96qyRiHh4FbeFhq"
+  },
+  {
+   "slug": "crinwin-broodfather",
+   "name": "Crinwin Broodfather",
+   "out": "assets/bestiary/crinwin-broodfather.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "hZq0cfLjfytNVrWs",
+   "journalEntryId": "Ttz6Fnr2M0HNfIre",
+   "journalPageId": "FUyYoLbaxcMQ2XTA"
+  },
+  {
+   "slug": "caralandrao",
+   "name": "Caralandrao",
+   "out": "assets/bestiary/caralandrao.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "PFHwDgBNwVbZHEIO",
+   "journalEntryId": "eAcyCUGDDeqkLrKJ",
+   "journalPageId": "cEcM0p8CnQAgBvnd"
+  },
+  {
+   "slug": "wee-folk",
+   "name": "Wee Folk",
+   "out": "assets/bestiary/wee-folk.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "rL761LrHFjJcfArG",
+   "journalEntryId": "aThMYefGFmE0mG73",
+   "journalPageId": "wH59rdbyOwJFG5GM"
+  },
+  {
+   "slug": "wild-horse",
+   "name": "Wild Horse",
+   "out": "assets/bestiary/wild-horse.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "uMjVv3GGJowiNCka",
+   "journalEntryId": "nXxqWnbt932F98UJ",
+   "journalPageId": "lkhQJa9UPTjB06Dn"
+  },
+  {
+   "slug": "voidblight",
+   "name": "Voidblight",
+   "out": "assets/bestiary/voidblight.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "P4UPY5CmKLihfSQO",
+   "journalEntryId": "smqjMCaaxstHY5nZ",
+   "journalPageId": "4ajv8XIGGNNdJZVz"
+  },
+  {
+   "slug": "shaksa",
+   "name": "Shaksa",
+   "out": "assets/bestiary/shaksa.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "h9IhOM9HBNmdrzUh",
+   "journalEntryId": "JK9EeLUOBHfNoHCw",
+   "journalPageId": "1JLAhM8J2PwfXZpJ"
+  },
+  {
+   "slug": "hollow-fae",
+   "name": "Hollow Fae",
+   "out": "assets/bestiary/hollow-fae.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "0ZKo6trYa54afrSZ",
+   "journalEntryId": "KgJ8NTJSYfoMhX0Y",
+   "journalPageId": "LN7fbBXLMvmCRquV"
+  },
+  {
+   "slug": "frythanc-fledgling",
+   "name": "Frythanc Fledgling",
+   "out": "assets/bestiary/frythanc-fledgling.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "RGU7Qtp9xioMxQ3k",
+   "journalEntryId": "XiAOrP04c2oqpkDg",
+   "journalPageId": "e4br5gsUdpBfugGl"
+  },
+  {
+   "slug": "assassin",
+   "name": "Assassin",
+   "out": "assets/bestiary/assassin.webp",
+   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorId": "x6X63ArQe1zZ3tBE",
+   "journalEntryId": "ew3px3xfQiIpxEtg",
+   "journalPageId": "CdxgzGw6aBI3GYEw"
   }
  ],
  "locations": [
@@ -566,9 +674,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/the-makers-roads-1.webp"
-    },
-    {
-     "out": "assets/locations/the-makers-roads-2.webp"
     }
    ]
   },
@@ -605,15 +710,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/blackwater-lake-1.webp"
-    },
-    {
-     "out": "assets/locations/blackwater-lake-2.webp"
-    },
-    {
-     "out": "assets/locations/blackwater-lake-3.webp"
-    },
-    {
-     "out": "assets/locations/blackwater-lake-4.webp"
     }
    ]
   },
@@ -626,9 +722,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/ferriers-fen-1.webp"
-    },
-    {
-     "out": "assets/locations/ferriers-fen-2.webp"
     }
    ]
   },
@@ -641,9 +734,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/huffel-peaks-1.webp"
-    },
-    {
-     "out": "assets/locations/huffel-peaks-2.webp"
     }
    ]
   },
@@ -656,18 +746,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/lygos-and-the-south-1.webp"
-    },
-    {
-     "out": "assets/locations/lygos-and-the-south-2.webp"
-    },
-    {
-     "out": "assets/locations/lygos-and-the-south-3.webp"
-    },
-    {
-     "out": "assets/locations/lygos-and-the-south-4.webp"
-    },
-    {
-     "out": "assets/locations/lygos-and-the-south-5.webp"
     }
    ]
   },
@@ -680,15 +758,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/north-manmarch-1.webp"
-    },
-    {
-     "out": "assets/locations/north-manmarch-2.webp"
-    },
-    {
-     "out": "assets/locations/north-manmarch-3.webp"
-    },
-    {
-     "out": "assets/locations/north-manmarch-4.webp"
     }
    ]
   },
@@ -713,12 +782,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/the-dread-river-1.webp"
-    },
-    {
-     "out": "assets/locations/the-dread-river-2.webp"
-    },
-    {
-     "out": "assets/locations/the-dread-river-3.webp"
     }
    ]
   },
@@ -731,15 +794,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/the-flats-1.webp"
-    },
-    {
-     "out": "assets/locations/the-flats-2.webp"
-    },
-    {
-     "out": "assets/locations/the-flats-3.webp"
-    },
-    {
-     "out": "assets/locations/the-flats-4.webp"
     }
    ]
   },
@@ -752,12 +806,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/the-foothills-1.webp"
-    },
-    {
-     "out": "assets/locations/the-foothills-2.webp"
-    },
-    {
-     "out": "assets/locations/the-foothills-3.webp"
     }
    ]
   },
@@ -782,9 +830,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/the-great-wood-1.webp"
-    },
-    {
-     "out": "assets/locations/the-great-wood-2.webp"
     }
    ]
   },
@@ -797,12 +842,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/the-labyrinth-1.webp"
-    },
-    {
-     "out": "assets/locations/the-labyrinth-2.webp"
-    },
-    {
-     "out": "assets/locations/the-labyrinth-3.webp"
     }
    ]
   },
@@ -815,9 +854,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/the-steplands-1.webp"
-    },
-    {
-     "out": "assets/locations/the-steplands-2.webp"
     }
    ]
   },
@@ -830,9 +866,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/the-whitefang-mountains-1.webp"
-    },
-    {
-     "out": "assets/locations/the-whitefang-mountains-2.webp"
     }
    ]
   },
@@ -845,9 +878,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/three-coven-lake-1.webp"
-    },
-    {
-     "out": "assets/locations/three-coven-lake-2.webp"
     }
    ]
   },
@@ -860,12 +890,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/barrier-pass-1.webp"
-    },
-    {
-     "out": "assets/locations/barrier-pass-2.webp"
-    },
-    {
-     "out": "assets/locations/barrier-pass-3.webp"
     }
    ]
   },
@@ -878,18 +902,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/gordins-delve-1.webp"
-    },
-    {
-     "out": "assets/locations/gordins-delve-2.webp"
-    },
-    {
-     "out": "assets/locations/gordins-delve-3.webp"
-    },
-    {
-     "out": "assets/locations/gordins-delve-4.webp"
-    },
-    {
-     "out": "assets/locations/gordins-delve-5.webp"
     }
    ]
   },
@@ -902,9 +914,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/marshedge-1.webp"
-    },
-    {
-     "out": "assets/locations/marshedge-2.webp"
     }
    ]
   },
@@ -965,15 +974,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/the-ruined-tower-1.webp"
-    },
-    {
-     "out": "assets/locations/the-ruined-tower-2.webp"
-    },
-    {
-     "out": "assets/locations/the-ruined-tower-3.webp"
-    },
-    {
-     "out": "assets/locations/the-ruined-tower-4.webp"
     }
    ]
   },
@@ -986,21 +986,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/the-village-of-stonetop-1.webp"
-    },
-    {
-     "out": "assets/locations/the-village-of-stonetop-2.webp"
-    },
-    {
-     "out": "assets/locations/the-village-of-stonetop-3.webp"
-    },
-    {
-     "out": "assets/locations/the-village-of-stonetop-4.webp"
-    },
-    {
-     "out": "assets/locations/the-village-of-stonetop-5.webp"
-    },
-    {
-     "out": "assets/locations/the-village-of-stonetop-6.webp"
     }
    ]
   },
@@ -1037,15 +1022,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/vor-svetelik-1.webp"
-    },
-    {
-     "out": "assets/locations/vor-svetelik-2.webp"
-    },
-    {
-     "out": "assets/locations/vor-svetelik-3.webp"
-    },
-    {
-     "out": "assets/locations/vor-svetelik-4.webp"
     }
    ]
   },
@@ -1060,6 +1036,992 @@ export const BOOK2_ART_APPLY_MANIFEST = {
      "out": "assets/locations/the-things-below.webp"
     }
    ]
+  },
+  {
+   "slug": "the-fae",
+   "name": "The Fae",
+   "journalEntryId": "Ej5WiMs30baKNXW3",
+   "journalPageId": "sgMNDguHzC567bBH",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/the-fae-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "forest-folk",
+   "name": "Forest Folk",
+   "journalEntryId": "wxslMExj4dQkTPfw",
+   "journalPageId": "J79GdwZ5BWnwGW8q",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/forest-folk-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "gods-and-religion",
+   "name": "Gods & Religion",
+   "journalEntryId": "s57tP3Iz6WXkfuJT",
+   "journalPageId": "gkcwebWwgIxkEem3",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/gods-and-religion-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "green-lords",
+   "name": "Green Lords",
+   "journalEntryId": "VosjScKksp5B3hsc",
+   "journalPageId": "4JhUEFVSapG8Buvc",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/green-lords-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "stone-lords",
+   "name": "Stone Lords",
+   "journalEntryId": "rJiU3RhbILojTC2u",
+   "journalPageId": "7b4BpBkwhSdZ8xEN",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/stone-lords-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "tempest-lords",
+   "name": "Tempest Lords",
+   "journalEntryId": "wsIFXTjnJFgO6vnI",
+   "journalPageId": "8TvecIdm66GT2hOv",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/tempest-lords-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "death-and-the-undying",
+   "name": "Death & the Undying",
+   "journalEntryId": "CYaQI7gy7RjF0rPH",
+   "journalPageId": "EDLSG22jAIZpdwqk",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/death-and-the-undying-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "forge-lords",
+   "name": "Forge Lords",
+   "journalEntryId": "raJkZVRsiVDqsgbj",
+   "journalPageId": "08m2XNYH2Ox7Cwaw",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/forge-lords-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "spirits-of-the-wild",
+   "name": "Spirits of the Wild",
+   "journalEntryId": "6v0jqH7HrNvALpjS",
+   "journalPageId": "FD49F8IkSOQWgdQd",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/spirits-of-the-wild-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "danu-the-earth-mother",
+   "name": "Danu, the Earth Mother",
+   "journalEntryId": "i0WjzHh0Ugynv2Tl",
+   "journalPageId": "ScpAGZvgbKC5U8MR",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/danu-the-earth-mother-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "artifact-creation",
+   "name": "Artifact Creation",
+   "journalEntryId": "mydDNbH6JBlfucco",
+   "journalPageId": "D12wCjGr59wFJDZy",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/artifact-creation-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "death-and-the-undying",
+   "name": "Death & the Undying",
+   "journalEntryId": "CYaQI7gy7RjF0rPH",
+   "journalPageId": "EDLSG22jAIZpdwqk",
+   "sectionIndex": 6,
+   "images": [
+    {
+     "out": "assets/locations/death-and-the-undying-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "death-and-the-undying",
+   "name": "Death & the Undying",
+   "journalEntryId": "CYaQI7gy7RjF0rPH",
+   "journalPageId": "EDLSG22jAIZpdwqk",
+   "sectionIndex": 5,
+   "images": [
+    {
+     "out": "assets/locations/death-and-the-undying-5.webp"
+    }
+   ]
+  },
+  {
+   "slug": "death-and-the-undying",
+   "name": "Death & the Undying",
+   "journalEntryId": "CYaQI7gy7RjF0rPH",
+   "journalPageId": "EDLSG22jAIZpdwqk",
+   "sectionIndex": 12,
+   "images": [
+    {
+     "out": "assets/locations/death-and-the-undying-6.webp"
+    }
+   ]
+  },
+  {
+   "slug": "forge-lords",
+   "name": "Forge Lords",
+   "journalEntryId": "raJkZVRsiVDqsgbj",
+   "journalPageId": "08m2XNYH2Ox7Cwaw",
+   "sectionIndex": 4,
+   "images": [
+    {
+     "out": "assets/locations/forge-lords-4.webp"
+    },
+    {
+     "out": "assets/locations/forge-lords-6.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-golden-oak",
+   "name": "The Golden Oak",
+   "journalEntryId": "2NsZu7ZKzdrEHfjk",
+   "journalPageId": "zK6zVWbEucrqHQs0",
+   "sectionIndex": 4,
+   "images": [
+    {
+     "out": "assets/locations/the-golden-oak-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "death-and-the-undying",
+   "name": "Death & the Undying",
+   "journalEntryId": "CYaQI7gy7RjF0rPH",
+   "journalPageId": "EDLSG22jAIZpdwqk",
+   "sectionIndex": 1,
+   "images": [
+    {
+     "out": "assets/locations/death-and-the-undying-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-village-of-stonetop",
+   "name": "The Village of Stonetop",
+   "journalEntryId": "6yScslDfqrcCQ6CJ",
+   "journalPageId": "x2BcdS6EFxG0Ic3F",
+   "sectionIndex": 11,
+   "images": [
+    {
+     "out": "assets/locations/the-village-of-stonetop-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-village-of-stonetop",
+   "name": "The Village of Stonetop",
+   "journalEntryId": "6yScslDfqrcCQ6CJ",
+   "journalPageId": "x2BcdS6EFxG0Ic3F",
+   "sectionIndex": 4,
+   "images": [
+    {
+     "out": "assets/locations/the-village-of-stonetop-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-village-of-stonetop",
+   "name": "The Village of Stonetop",
+   "journalEntryId": "6yScslDfqrcCQ6CJ",
+   "journalPageId": "x2BcdS6EFxG0Ic3F",
+   "sectionIndex": 6,
+   "images": [
+    {
+     "out": "assets/locations/the-village-of-stonetop-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-village-of-stonetop",
+   "name": "The Village of Stonetop",
+   "journalEntryId": "6yScslDfqrcCQ6CJ",
+   "journalPageId": "x2BcdS6EFxG0Ic3F",
+   "sectionIndex": 7,
+   "images": [
+    {
+     "out": "assets/locations/the-village-of-stonetop-5.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-village-of-stonetop",
+   "name": "The Village of Stonetop",
+   "journalEntryId": "6yScslDfqrcCQ6CJ",
+   "journalPageId": "x2BcdS6EFxG0Ic3F",
+   "sectionIndex": 13,
+   "images": [
+    {
+     "out": "assets/locations/the-village-of-stonetop-6.webp"
+    }
+   ]
+  },
+  {
+   "slug": "barrier-pass",
+   "name": "Barrier Pass",
+   "journalEntryId": "VZ3YkXn70E1C7TEO",
+   "journalPageId": "DPRYimNgfDixBLBO",
+   "sectionIndex": 3,
+   "images": [
+    {
+     "out": "assets/locations/barrier-pass-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "barrier-pass",
+   "name": "Barrier Pass",
+   "journalEntryId": "VZ3YkXn70E1C7TEO",
+   "journalPageId": "DPRYimNgfDixBLBO",
+   "sectionIndex": 7,
+   "images": [
+    {
+     "out": "assets/locations/barrier-pass-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "blackwater-lake",
+   "name": "Blackwater Lake",
+   "journalEntryId": "25HD51CKompWLFvB",
+   "journalPageId": "fQLW7MZEdD2lPsML",
+   "sectionIndex": 3,
+   "images": [
+    {
+     "out": "assets/locations/blackwater-lake-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "blackwater-lake",
+   "name": "Blackwater Lake",
+   "journalEntryId": "25HD51CKompWLFvB",
+   "journalPageId": "fQLW7MZEdD2lPsML",
+   "sectionIndex": 8,
+   "images": [
+    {
+     "out": "assets/locations/blackwater-lake-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "blackwater-lake",
+   "name": "Blackwater Lake",
+   "journalEntryId": "25HD51CKompWLFvB",
+   "journalPageId": "fQLW7MZEdD2lPsML",
+   "sectionIndex": 5,
+   "images": [
+    {
+     "out": "assets/locations/blackwater-lake-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "death-and-the-undying",
+   "name": "Death & the Undying",
+   "journalEntryId": "CYaQI7gy7RjF0rPH",
+   "journalPageId": "EDLSG22jAIZpdwqk",
+   "sectionIndex": 4,
+   "images": [
+    {
+     "out": "assets/locations/death-and-the-undying-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-dread-river",
+   "name": "The Dread River",
+   "journalEntryId": "lGNIQWIn8CPHuM7E",
+   "journalPageId": "rqFWDXswIplr4L8s",
+   "sectionIndex": 3,
+   "images": [
+    {
+     "out": "assets/locations/the-dread-river-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-dread-river",
+   "name": "The Dread River",
+   "journalEntryId": "lGNIQWIn8CPHuM7E",
+   "journalPageId": "rqFWDXswIplr4L8s",
+   "sectionIndex": 9,
+   "images": [
+    {
+     "out": "assets/locations/the-dread-river-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "ferriers-fen",
+   "name": "Ferrier's Fen",
+   "journalEntryId": "UstvXnD6EA9IBBO3",
+   "journalPageId": "MjRt3VmyHvOLKjkx",
+   "sectionIndex": 8,
+   "images": [
+    {
+     "out": "assets/locations/ferriers-fen-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-flats",
+   "name": "The Flats",
+   "journalEntryId": "nBvsH19B1bG2d4Di",
+   "journalPageId": "hnfjCiDIWr2QPUuR",
+   "sectionIndex": 8,
+   "images": [
+    {
+     "out": "assets/locations/the-flats-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-flats",
+   "name": "The Flats",
+   "journalEntryId": "nBvsH19B1bG2d4Di",
+   "journalPageId": "hnfjCiDIWr2QPUuR",
+   "sectionIndex": 9,
+   "images": [
+    {
+     "out": "assets/locations/the-flats-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-flats",
+   "name": "The Flats",
+   "journalEntryId": "nBvsH19B1bG2d4Di",
+   "journalPageId": "hnfjCiDIWr2QPUuR",
+   "sectionIndex": 5,
+   "images": [
+    {
+     "out": "assets/locations/the-flats-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-foothills",
+   "name": "The Foothills",
+   "journalEntryId": "61j2hjMjANZcniEQ",
+   "journalPageId": "HIqfyyRDZUeRduJu",
+   "sectionIndex": 2,
+   "images": [
+    {
+     "out": "assets/locations/the-foothills-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-foothills",
+   "name": "The Foothills",
+   "journalEntryId": "61j2hjMjANZcniEQ",
+   "journalPageId": "HIqfyyRDZUeRduJu",
+   "sectionIndex": 6,
+   "images": [
+    {
+     "out": "assets/locations/the-foothills-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "forge-lords",
+   "name": "Forge Lords",
+   "journalEntryId": "raJkZVRsiVDqsgbj",
+   "journalPageId": "08m2XNYH2Ox7Cwaw",
+   "sectionIndex": 3,
+   "images": [
+    {
+     "out": "assets/locations/forge-lords-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "gordins-delve",
+   "name": "Gordin's Delve",
+   "journalEntryId": "HesP5wBhjA0l9Ffk",
+   "journalPageId": "rlqWn9hRa5shvUlY",
+   "sectionIndex": 8,
+   "images": [
+    {
+     "out": "assets/locations/gordins-delve-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "gordins-delve",
+   "name": "Gordin's Delve",
+   "journalEntryId": "HesP5wBhjA0l9Ffk",
+   "journalPageId": "rlqWn9hRa5shvUlY",
+   "sectionIndex": 10,
+   "images": [
+    {
+     "out": "assets/locations/gordins-delve-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "gordins-delve",
+   "name": "Gordin's Delve",
+   "journalEntryId": "HesP5wBhjA0l9Ffk",
+   "journalPageId": "rlqWn9hRa5shvUlY",
+   "sectionIndex": 11,
+   "images": [
+    {
+     "out": "assets/locations/gordins-delve-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "gordins-delve",
+   "name": "Gordin's Delve",
+   "journalEntryId": "HesP5wBhjA0l9Ffk",
+   "journalPageId": "rlqWn9hRa5shvUlY",
+   "sectionIndex": 5,
+   "images": [
+    {
+     "out": "assets/locations/gordins-delve-5.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-great-wood",
+   "name": "The Great Wood",
+   "journalEntryId": "6kt1b8ozEREDCi4k",
+   "journalPageId": "OwbdRU0YCyF9qvEC",
+   "sectionIndex": 4,
+   "images": [
+    {
+     "out": "assets/locations/the-great-wood-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "huffel-peaks",
+   "name": "Huffel Peaks",
+   "journalEntryId": "RxUdCkI2lL6gE5IH",
+   "journalPageId": "g4LGaNLHpQnCjw6E",
+   "sectionIndex": 4,
+   "images": [
+    {
+     "out": "assets/locations/huffel-peaks-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-labyrinth",
+   "name": "The Labyrinth",
+   "journalEntryId": "v4slCO5mFJLcZO1q",
+   "journalPageId": "0xOQrhcQ8wJFsgjT",
+   "sectionIndex": 4,
+   "images": [
+    {
+     "out": "assets/locations/the-labyrinth-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-labyrinth",
+   "name": "The Labyrinth",
+   "journalEntryId": "v4slCO5mFJLcZO1q",
+   "journalPageId": "0xOQrhcQ8wJFsgjT",
+   "sectionIndex": 6,
+   "images": [
+    {
+     "out": "assets/locations/the-labyrinth-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "lygos-and-the-south",
+   "name": "Lygos & the South",
+   "journalEntryId": "DPUvs6Ss8UHXEsCJ",
+   "journalPageId": "ZrWwwzUrqugxjDU8",
+   "sectionIndex": 3,
+   "images": [
+    {
+     "out": "assets/locations/lygos-and-the-south-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "lygos-and-the-south",
+   "name": "Lygos & the South",
+   "journalEntryId": "DPUvs6Ss8UHXEsCJ",
+   "journalPageId": "ZrWwwzUrqugxjDU8",
+   "sectionIndex": 5,
+   "images": [
+    {
+     "out": "assets/locations/lygos-and-the-south-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "lygos-and-the-south",
+   "name": "Lygos & the South",
+   "journalEntryId": "DPUvs6Ss8UHXEsCJ",
+   "journalPageId": "ZrWwwzUrqugxjDU8",
+   "sectionIndex": 8,
+   "images": [
+    {
+     "out": "assets/locations/lygos-and-the-south-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "lygos-and-the-south",
+   "name": "Lygos & the South",
+   "journalEntryId": "DPUvs6Ss8UHXEsCJ",
+   "journalPageId": "ZrWwwzUrqugxjDU8",
+   "sectionIndex": 2,
+   "images": [
+    {
+     "out": "assets/locations/lygos-and-the-south-5.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-makers-roads",
+   "name": "The Makers' Roads",
+   "journalEntryId": "ezquwGFbne6uxzJK",
+   "journalPageId": "0J5rrvhCV7xBuIej",
+   "sectionIndex": 7,
+   "images": [
+    {
+     "out": "assets/locations/the-makers-roads-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "marshedge",
+   "name": "Marshedge",
+   "journalEntryId": "uXlyry9CpXUz4ooR",
+   "journalPageId": "TJgCT9BQixIEAHly",
+   "sectionIndex": 9,
+   "images": [
+    {
+     "out": "assets/locations/marshedge-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "north-manmarch",
+   "name": "North Manmarch",
+   "journalEntryId": "NERZ6p7FNc1pxNWL",
+   "journalPageId": "5FyaezhZEfD7MSAR",
+   "sectionIndex": 8,
+   "images": [
+    {
+     "out": "assets/locations/north-manmarch-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "north-manmarch",
+   "name": "North Manmarch",
+   "journalEntryId": "NERZ6p7FNc1pxNWL",
+   "journalPageId": "5FyaezhZEfD7MSAR",
+   "sectionIndex": 9,
+   "images": [
+    {
+     "out": "assets/locations/north-manmarch-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "north-manmarch",
+   "name": "North Manmarch",
+   "journalEntryId": "NERZ6p7FNc1pxNWL",
+   "journalPageId": "5FyaezhZEfD7MSAR",
+   "sectionIndex": 13,
+   "images": [
+    {
+     "out": "assets/locations/north-manmarch-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-ruined-tower",
+   "name": "The Ruined Tower",
+   "journalEntryId": "iYSktNtms4NQat8F",
+   "journalPageId": "3MC797saOr3wnXwd",
+   "sectionIndex": 4,
+   "images": [
+    {
+     "out": "assets/locations/the-ruined-tower-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-ruined-tower",
+   "name": "The Ruined Tower",
+   "journalEntryId": "iYSktNtms4NQat8F",
+   "journalPageId": "3MC797saOr3wnXwd",
+   "sectionIndex": 6,
+   "images": [
+    {
+     "out": "assets/locations/the-ruined-tower-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-ruined-tower",
+   "name": "The Ruined Tower",
+   "journalEntryId": "iYSktNtms4NQat8F",
+   "journalPageId": "3MC797saOr3wnXwd",
+   "sectionIndex": 7,
+   "images": [
+    {
+     "out": "assets/locations/the-ruined-tower-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-steplands",
+   "name": "The Steplands",
+   "journalEntryId": "No8UN1MJEb2mrLXo",
+   "journalPageId": "L9aafiUeKDne11Hj",
+   "sectionIndex": 5,
+   "images": [
+    {
+     "out": "assets/locations/the-steplands-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "three-coven-lake",
+   "name": "Three Coven Lake",
+   "journalEntryId": "zUeBMA1XS4Lq3KdK",
+   "journalPageId": "Ol7oAcADxdClvGZw",
+   "sectionIndex": 8,
+   "images": [
+    {
+     "out": "assets/locations/three-coven-lake-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "vor-svetelik",
+   "name": "Vor Svetelik",
+   "journalEntryId": "76FKkdtTFxWEGIKQ",
+   "journalPageId": "lWEakMs4PwHgcfiW",
+   "sectionIndex": 4,
+   "images": [
+    {
+     "out": "assets/locations/vor-svetelik-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "vor-svetelik",
+   "name": "Vor Svetelik",
+   "journalEntryId": "76FKkdtTFxWEGIKQ",
+   "journalPageId": "lWEakMs4PwHgcfiW",
+   "sectionIndex": 8,
+   "images": [
+    {
+     "out": "assets/locations/vor-svetelik-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "vor-svetelik",
+   "name": "Vor Svetelik",
+   "journalEntryId": "76FKkdtTFxWEGIKQ",
+   "journalPageId": "lWEakMs4PwHgcfiW",
+   "sectionIndex": 6,
+   "images": [
+    {
+     "out": "assets/locations/vor-svetelik-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-whitefang-mountains",
+   "name": "The Whitefang Mountains",
+   "journalEntryId": "5vFbBIn18TKtCF91",
+   "journalPageId": "9ok9WOFH6pB5E4YF",
+   "sectionIndex": 14,
+   "images": [
+    {
+     "out": "assets/locations/the-whitefang-mountains-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "rime-lords",
+   "name": "Rime Lords",
+   "journalEntryId": "oi5Mg2wPABRjvHri",
+   "journalPageId": "qq5OueNmkBJjeEKX",
+   "sectionIndex": 0,
+   "images": [
+    {
+     "out": "assets/locations/rime-lords-1.webp"
+    }
+   ]
+  },
+  {
+   "slug": "forest-folk",
+   "name": "Forest Folk",
+   "journalEntryId": "wxslMExj4dQkTPfw",
+   "journalPageId": "J79GdwZ5BWnwGW8q",
+   "sectionIndex": 4,
+   "images": [
+    {
+     "out": "assets/locations/forest-folk-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "forge-lords",
+   "name": "Forge Lords",
+   "journalEntryId": "raJkZVRsiVDqsgbj",
+   "journalPageId": "08m2XNYH2Ox7Cwaw",
+   "sectionIndex": 1,
+   "images": [
+    {
+     "out": "assets/locations/forge-lords-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "forge-lords",
+   "name": "Forge Lords",
+   "journalEntryId": "raJkZVRsiVDqsgbj",
+   "journalPageId": "08m2XNYH2Ox7Cwaw",
+   "sectionIndex": 7,
+   "images": [
+    {
+     "out": "assets/locations/forge-lords-5.webp"
+    }
+   ]
+  },
+  {
+   "slug": "rime-lords",
+   "name": "Rime Lords",
+   "journalEntryId": "oi5Mg2wPABRjvHri",
+   "journalPageId": "qq5OueNmkBJjeEKX",
+   "sectionIndex": 3,
+   "images": [
+    {
+     "out": "assets/locations/rime-lords-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "rime-lords",
+   "name": "Rime Lords",
+   "journalEntryId": "oi5Mg2wPABRjvHri",
+   "journalPageId": "qq5OueNmkBJjeEKX",
+   "sectionIndex": 8,
+   "images": [
+    {
+     "out": "assets/locations/rime-lords-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "stone-lords",
+   "name": "Stone Lords",
+   "journalEntryId": "rJiU3RhbILojTC2u",
+   "journalPageId": "7b4BpBkwhSdZ8xEN",
+   "sectionIndex": 3,
+   "images": [
+    {
+     "out": "assets/locations/stone-lords-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "stone-lords",
+   "name": "Stone Lords",
+   "journalEntryId": "rJiU3RhbILojTC2u",
+   "journalPageId": "7b4BpBkwhSdZ8xEN",
+   "sectionIndex": 7,
+   "images": [
+    {
+     "out": "assets/locations/stone-lords-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "tempest-lords",
+   "name": "Tempest Lords",
+   "journalEntryId": "wsIFXTjnJFgO6vnI",
+   "journalPageId": "8TvecIdm66GT2hOv",
+   "sectionIndex": 3,
+   "images": [
+    {
+     "out": "assets/locations/tempest-lords-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "tempest-lords",
+   "name": "Tempest Lords",
+   "journalEntryId": "wsIFXTjnJFgO6vnI",
+   "journalPageId": "8TvecIdm66GT2hOv",
+   "sectionIndex": 1,
+   "images": [
+    {
+     "out": "assets/locations/tempest-lords-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "tempest-lords",
+   "name": "Tempest Lords",
+   "journalEntryId": "wsIFXTjnJFgO6vnI",
+   "journalPageId": "8TvecIdm66GT2hOv",
+   "sectionIndex": 6,
+   "images": [
+    {
+     "out": "assets/locations/tempest-lords-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-things-below",
+   "name": "The Things Below",
+   "journalEntryId": "5Kym1qDHTmM8XUQ6",
+   "journalPageId": "roHUFm71o2upL6Yt",
+   "sectionIndex": 12,
+   "images": [
+    {
+     "out": "assets/locations/the-things-below-2.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-things-below",
+   "name": "The Things Below",
+   "journalEntryId": "5Kym1qDHTmM8XUQ6",
+   "journalPageId": "roHUFm71o2upL6Yt",
+   "sectionIndex": 6,
+   "images": [
+    {
+     "out": "assets/locations/the-things-below-3.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-things-below",
+   "name": "The Things Below",
+   "journalEntryId": "5Kym1qDHTmM8XUQ6",
+   "journalPageId": "roHUFm71o2upL6Yt",
+   "sectionIndex": 8,
+   "images": [
+    {
+     "out": "assets/locations/the-things-below-4.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-things-below",
+   "name": "The Things Below",
+   "journalEntryId": "5Kym1qDHTmM8XUQ6",
+   "journalPageId": "roHUFm71o2upL6Yt",
+   "sectionIndex": 9,
+   "images": [
+    {
+     "out": "assets/locations/the-things-below-5.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-things-below",
+   "name": "The Things Below",
+   "journalEntryId": "5Kym1qDHTmM8XUQ6",
+   "journalPageId": "roHUFm71o2upL6Yt",
+   "sectionIndex": 15,
+   "images": [
+    {
+     "out": "assets/locations/the-things-below-6.webp"
+    }
+   ]
+  },
+  {
+   "slug": "the-things-below",
+   "name": "The Things Below",
+   "journalEntryId": "5Kym1qDHTmM8XUQ6",
+   "journalPageId": "roHUFm71o2upL6Yt",
+   "sectionIndex": 10,
+   "images": [
+    {
+     "out": "assets/locations/the-things-below-7.webp"
+    }
+   ]
+  }
+ ],
+ "settingOverviewMaps": [
+  {
+   "slug": "stonetop-village",
+   "name": "Stonetop — The Village",
+   "out": "assets/maps/map-stonetop-village.webp",
+   "journalEntryId": "stonetopSO000001",
+   "journalPageId": "stonetopSOp00004"
+  },
+  {
+   "slug": "vicinity",
+   "name": "The Vicinity",
+   "out": "assets/maps/map-vicinity.webp",
+   "journalEntryId": "stonetopSO000001",
+   "journalPageId": "stonetopSOp00005"
+  },
+  {
+   "slug": "worlds-end",
+   "name": "The World's End",
+   "out": "assets/maps/map-worlds-end.webp",
+   "journalEntryId": "stonetopSO000001",
+   "journalPageId": "stonetopSOp00010"
   }
  ]
 };

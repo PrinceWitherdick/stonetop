@@ -12,7 +12,7 @@ const JRN_SOURCE = (entryId) => `Compendium.stonetop_pwd.stonetop-journal.Journa
 
 const VERSION = "9.9.9";
 const ROOT = "stonetop-book-art";
-const { monsters, locations } = BOOK2_ART_APPLY_MANIFEST;
+const { monsters, locations, settingOverviewMaps = [] } = BOOK2_ART_APPLY_MANIFEST;
 const DEFAULT_ICON = "icons/svg/mystery-man.svg";
 
 function setDotted(obj, path, value) {
@@ -58,7 +58,7 @@ function makeWorldJournal({ source, name = "World Entry", pages, stamp = false, 
 		_flagWrites: 0,
 		getFlag: (scope, key) => flags?.[scope]?.[key],
 		setFlag: async (scope, key, val) => { (flags[scope] ??= {})[key] = val; entry._flagWrites++; },
-		toObject: () => ({ pages: pages.map((p) => ({ _id: p.id, name: p.name, type: p.type, system: p.system })) }),
+		toObject: () => ({ pages: pages.map((p) => ({ _id: p.id, name: p.name, type: p.type, system: p.system, text: p.text })) }),
 	};
 	entry._flags = flags;
 	if (stamp) flags.stonetop_pwd = { journalSync: { hash: managedHash(entry.toObject()), version } };
@@ -118,10 +118,13 @@ function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActo
 		: monsters.filter((m) => !wanted || wanted.has(m.out)).map((m) => durableOf(m.out));
 	const locationFiles = present === "none" ? []
 		: locations.flatMap((l) => l.images).filter((im) => !wanted || wanted.has(im.out)).map((im) => durableOf(im.out));
+	const mapFiles = present === "none" ? []
+		: settingOverviewMaps.filter((s) => !wanted || wanted.has(s.out)).map((s) => durableOf(s.out));
 
 	const browse = vi.fn(async (source, path) => {
 		if (path.endsWith("/assets/bestiary")) return { files: bestiaryFiles };
 		if (path.endsWith("/assets/locations")) return { files: locationFiles };
+		if (path.endsWith("/assets/maps")) return { files: mapFiles };
 		return { files: [] };
 	});
 
@@ -218,6 +221,40 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(h.infoSpy).toHaveBeenCalled();
 	});
 
+	it("gives every image of a multi-section page its own section (no row clobbers another)", async () => {
+		// Regression guard for the Forge Lords bug: a journal page assigned art in several
+		// sections is processed as one manifest row PER section, each doing its own
+		// getDocument -> update on the same page. If a later row rebuilt from a stale read
+		// it would drop an earlier row's placement. Assert every image lands in its assigned
+		// section and appears nowhere else on the page.
+		const byPage = new Map();
+		for (const l of locations) {
+			const key = `${l.journalEntryId}::${l.journalPageId}`;
+			if (!byPage.has(key)) byPage.set(key, []);
+			byPage.get(key).push(l);
+		}
+		const multi = [...byPage.entries()].find(([, rows]) => {
+			const secs = new Set(rows.map((r) => r.sectionIndex ?? 0));
+			return secs.size > 1 && rows.every((r) => r.images?.length) && Math.max(...secs) < 64;
+		});
+		expect(multi).toBeTruthy(); // the manifest must still carry a multi-section location page
+
+		const [key, rows] = multi;
+		const h = makeHarness();
+		await reapplyBook2ArtOnVersionChange();
+
+		const sections = h.pageDocs.get(key).system.sections;
+		for (const r of rows) {
+			const idx = r.sectionIndex ?? 0;
+			for (const im of r.images) {
+				const ref = `src="${durableOf(im.out)}"`;
+				expect(sections[idx].body).toContain(ref);                                              // in its assigned section
+				const strays = sections.filter((_, i) => i !== idx).filter((s) => (s?.body ?? "").includes(ref));
+				expect(strays).toHaveLength(0);                                                          // and nowhere else
+			}
+		}
+	});
+
 	it("is idempotent: a second pass at the same version makes no further writes", async () => {
 		const worldActors = [makeWorldActor({ source: uuidOf(monsters[0]), img: `systems/stonetop_pwd/${monsters[0].out}` })];
 		const h = makeHarness({ worldActors });
@@ -285,6 +322,74 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(foreignPage._writes).toBe(0);
 		expect(foreign._flagWrites).toBe(0);
 		expect(h.store.book2ArtSyncVersion).toBe(VERSION);
+	});
+
+	it("drops art at the top when the GM deleted the target section (never silently skips)", async () => {
+		const loc0 = locations[0];
+		// A world copy whose sections the GM has cleared out entirely, so the manifest's
+		// target section no longer exists.
+		const locPage = makeWorldPage({ id: loc0.journalPageId, name: `cmp:${loc0.journalPageId}`, type: "location", system: { sections: [] } });
+		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [locPage], stamp: true });
+
+		const h = makeHarness({ worldJournals: [worldLoc] });
+		await reapplyBook2ArtOnVersionChange();
+
+		// A prose section is synthesised at the top of the page to hold the art, rather
+		// than the image being dropped.
+		expect(locPage.system.sections).toHaveLength(1);
+		expect(locPage.system.sections[0]).toMatchObject({ kind: "prose", heading: "", group: "glance", danger: false });
+		expect(locPage.system.sections[0].body).toContain(`src="${durableOf(loc0.images[0].out)}"`);
+		// pristine entry re-stamped to the new (art-bearing) fingerprint
+		expect(worldLoc._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(worldLoc.toObject()));
+
+		// idempotent: a second pass (as a version bump would trigger) adds no second copy
+		const writesAfterFirst = locPage._writes;
+		h.store.book2ArtSyncVersion = "";
+		await reapplyBook2ArtOnVersionChange();
+		expect(locPage._writes).toBe(writesAfterFirst);
+		expect(locPage.system.sections).toHaveLength(1);
+	});
+
+	it("re-embeds Setting Overview regional maps into the setting journal's text pages", async () => {
+		const so0 = settingOverviewMaps[0];
+		expect(so0).toBeTruthy(); // guard: the apply manifest ships the SO maps
+
+		// A world "Setting Overview" journal seeded from the compendium, with the plain
+		// text page the map belongs on.
+		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
+		soPage.text = { content: "<p>world setting prose</p>" };
+		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
+		const preHash = worldSO._flags.stonetop_pwd.journalSync.hash;
+
+		const h = makeHarness({ worldJournals: [worldSO] });
+		await reapplyBook2ArtOnVersionChange();
+
+		const durable = durableOf(so0.out);
+		// compendium page: map figure prepended to text.content
+		const cmpPage = h.pageDocs.get(`${so0.journalEntryId}::${so0.journalPageId}`);
+		expect(cmpPage.text.content).toContain(`<figure class="stonetop-map"><img src="${durable}"`);
+		// world copy: same figure, original prose preserved beneath it
+		expect(soPage.text.content).toContain(`<figure class="stonetop-map"><img src="${durable}"`);
+		expect(soPage.text.content).toContain("world setting prose");
+		// pristine entry re-stamped to the new (map-bearing) fingerprint
+		expect(worldSO._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(worldSO.toObject()));
+		expect(worldSO._flags.stonetop_pwd.journalSync.hash).not.toBe(preHash);
+		expect(h.store.book2ArtSyncVersion).toBe(VERSION);
+	});
+
+	it("does not stack a second map when the setting page already carries one", async () => {
+		const so0 = settingOverviewMaps[0];
+		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
+		// a GM's own map figure already on the page -> left entirely alone
+		soPage.text = { content: `<figure class="stonetop-map"><img src="worlds/mine/my-map.png" alt="mine"></figure><p>prose</p>` };
+		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
+
+		makeHarness({ worldJournals: [worldSO] });
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(soPage.text.content).toContain("worlds/mine/my-map.png");
+		expect(soPage.text.content).not.toContain(durableOf(so0.out));
+		expect(soPage._writes).toBe(0);
 	});
 
 	it("adds art to an EDITED world journal but leaves its edited baseline intact", async () => {

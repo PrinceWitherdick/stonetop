@@ -7,6 +7,7 @@ import { bringDialogToFront } from "../utils/front-on-open.js";
 import { FoundryBasicsDialog } from "./FoundryBasicsDialog.js";
 import { charactersOwnedBy } from "../utils/playbook-actors.js";
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
+import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource } from "../book2-art/macro.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -155,6 +156,7 @@ export class WelcomeDialog extends Application {
 		html.find('[data-action="introductions"]').on("click", () => this._openIntroductions());
 		html.find('[data-action="spring-burst"]').on("click", () => this._openSpringBurst());
 		html.find('[data-action="configure-players"]').on("click", () => this._openPlayerConfig());
+		html.find('[data-action="import-book-art"]').on("click", () => this._runImportBookArt());
 		html.find(".stonetop-welcome-create").on("click", ev =>
 			this._onCreateCharacter(ev.currentTarget.dataset.userId));
 		html.find(".stonetop-welcome-player-char").on("click", ev => {
@@ -190,6 +192,20 @@ export class WelcomeDialog extends Application {
 	// its own focus-singleton (it brings an already-open copy forward), so just open it.
 	_openSpringBurst() {
 		game.stonetop?.openSpringBurst?.();
+	}
+
+	// Launch the seeded "Import Book Art" macro (step 1). Prefer the world copy the
+	// system seeds into the Macro Directory; if a GM deleted it, fall back to running
+	// the shipped compendium copy directly. This is a GM-only dialog, so execution
+	// is allowed. Leaves this guide open — the macro drives its own dialogs.
+	async _runImportBookArt() {
+		let macro = findBook2ArtWorldMacro();
+		if (!macro) {
+			const src = await loadBook2ArtMacroSource();
+			if (src?.command) macro = new Macro({ name: BOOK2_ART_MACRO_NAME, type: "script", img: src.img, command: src.command, scope: "global" });
+		}
+		if (!macro) { ui.notifications.warn("The Import Book Art macro isn't set up in this world yet."); return; }
+		macro.execute();
 	}
 
 	// Jump to Foundry's core "Configure Players" screen — the same full-page route

@@ -45,6 +45,21 @@ export function registerSettings() {
 		default: ""
 	});
 
+	// Fingerprint of the seeded gazetteer folder colour scheme last applied in this
+	// world (see hooks/SeedCompendiums.syncSeededFolderColors). When it trails the
+	// current scheme — a fresh install, or a system update that added/retinted a
+	// category — the sync recolours any still-default folders and records the new
+	// signature. A content signature rather than a one-shot flag so later colour
+	// changes propagate; the sync only touches default folders, so re-running can't
+	// fight a GM's own tint.
+	game.settings.register("stonetop_pwd", "seededFolderColorsSignature", {
+		name: "Seeded Folder Colours Signature",
+		scope: "world",
+		config: false,
+		type: String,
+		default: ""
+	});
+
 	// Whether the GM wants the automatic start-of-session chat reminders (currently
 	// the Destined "+Omens" roll, see hooks/StonetopSingleton.js remindDestinedOmenRoll).
 	// World-scoped: showing the table its session-start upkeep is a per-world decision,

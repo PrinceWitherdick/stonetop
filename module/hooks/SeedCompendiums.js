@@ -1,7 +1,8 @@
 import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.js";
-import { makeRewriter, remapPageData, managedHash, carryOverPageState } from "./journal-sync-core.js";
+import { makeRewriter, remapPageData, managedHash, carryOverPageState, planSourceRestamp } from "./journal-sync-core.js";
+import { SEEDED_FOLDER_COLORS, WORLD_ROOT_FOLDER_COLOR, rawFolderColor, planSeededFolderColorUpdates, seededFolderColorSignature } from "./seeded-folder-colors.js";
 
 // On a fresh world, copy the system's "Stonetop" JournalEntry compendium (the
 // gazetteer — Locations, Lore, the bundled Journals, and the bestiary codex) into
@@ -101,7 +102,7 @@ async function ensureWorldRootFolder() {
 	);
 	if (existing) return existing.id;
 	try {
-		const created = await Folder.create({ name: WORLD_FOLDER_NAME, type: "JournalEntry" });
+		const created = await Folder.create({ name: WORLD_FOLDER_NAME, type: "JournalEntry", color: WORLD_ROOT_FOLDER_COLOR });
 		return created?.id ?? null;
 	} catch (err) {
 		error(`Failed to create the "${WORLD_FOLDER_NAME}" folder:`, err);
@@ -139,7 +140,7 @@ async function importJournalPack(pack, rootParentId = null) {
 		);
 		const wf = existing ?? await Folder.create({
 			name: folder.name, type: "JournalEntry", folder: parentId,
-			sort: folder.sort ?? 0, color: folder.color ?? null,
+			sort: folder.sort ?? 0, color: rawFolderColor(folder),
 		});
 		worldFolderId.set(id, wf.id);
 		return wf.id;
@@ -219,6 +220,69 @@ async function stampJournalBaselines(entries) {
 	for (const entry of entries) {
 		try { await entry.setFlag("stonetop_pwd", "journalSync", { hash: managedHash(entry.toObject()), version }); }
 		catch (err) { error(`Failed to fingerprint seeded journal "${entry.name}":`, err); }
+	}
+}
+
+// Tint the seeded gazetteer's four category trees (Bestiary, Lore, Places, Reference)
+// so they read apart at a glance in the Journal sidebar, and give the "The World" root
+// its own neutral tint (root only — its category children keep their colours). Only
+// folders still at the default (uncoloured) are touched, so a GM who has recoloured one
+// keeps their choice — the "unless the user changed it from the default" guard. Fresh
+// worlds don't need this: the seed copies the compendium folder colours as it imports
+// (resolveFolder) and colours the root on creation (ensureWorldRootFolder), so those
+// already match. This path is for worlds seeded before the colours shipped.
+//
+// GM-only; a no-op until the world has been seeded. Re-runs whenever the shipped colour
+// scheme changes (guarded by the `seededFolderColorsSignature` world setting) so newly
+// added or re-tinted categories reach already-seeded worlds — safe to repeat because it
+// only ever colours still-default folders.
+export async function syncSeededFolderColors() {
+	if (!game.user?.isGM) return;
+	if (!getSetting("seedingComplete")) return;
+	const signature = seededFolderColorSignature();
+	if (getSetting("seededFolderColorsSignature") === signature) return;
+
+	const updates = planSeededFolderColorUpdates(game.folders, SEEDED_FOLDER_COLORS, WORLD_FOLDER_NAME, WORLD_ROOT_FOLDER_COLOR);
+	if (updates.length) {
+		try {
+			await Folder.updateDocuments(updates);
+			info(`Coloured ${updates.length} seeded gazetteer folder${updates.length === 1 ? "" : "s"}.`);
+		} catch (err) {
+			error("Failed to colour seeded gazetteer folders:", err);
+			return; // leave the signature unstamped so the next load retries
+		}
+	}
+	await setSetting("seededFolderColorsSignature", signature);
+}
+
+// The merged journal compendium every seeded/imported world entry originates from.
+const JOURNAL_PACK_ID = "stonetop_pwd.stonetop-journal";
+
+// Restore the `_stats.compendiumSource` stamp on world journals imported from our pack
+// without it — a GM who deleted the world journals and re-imported the compendium another
+// way (dropping the compiled pack's documents straight in) ends up with un-stamped copies.
+// The render-time enhancers already recognise these by their baked `flags.stonetop` (see
+// isStonetopJournalEntry), but the managed update channel + cross-link remap still key on
+// the source stamp, so put it back. `compendiumSource` is a writable (non-server-managed)
+// `_stats` field, so a plain update sticks. GM-only; idempotent — a no-op once every entry
+// is stamped, so it's safe to run every load ahead of updateSeededJournalsOnVersionChange.
+export async function restampSeededJournalSources() {
+	if (!game.user?.isGM) return;
+	const pack = game.packs.get(JOURNAL_PACK_ID);
+	if (!pack) return;
+	let updates;
+	try {
+		updates = planSourceRestamp(game.journal ?? [], await pack.getIndex(), pack.collection);
+	} catch (err) {
+		error("Failed to index the journal pack for re-stamping:", err);
+		return;
+	}
+	if (!updates.length) return;
+	try {
+		await JournalEntry.updateDocuments(updates);
+		info(`Restored the compendium-source stamp on ${updates.length} imported journal${updates.length === 1 ? "" : "s"}.`);
+	} catch (err) {
+		error("Failed to restamp imported journal sources:", err);
 	}
 }
 

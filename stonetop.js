@@ -31,6 +31,7 @@ import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.j
 import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
 import { addJournalShareButton } from "./module/journal/share-journal.js";
+import { patchJournalImagePopoutTitles } from "./module/journal/journal-image-titles.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
@@ -66,6 +67,11 @@ Hooks.once("init", () => {
 	// which core otherwise blocks by refitting auto-height windows to their content.
 	makeDialogsResizable();
 	enableAutoHeightVerticalResize();
+
+	// Title the click-to-enlarge image popout with the JournalEntry's name (e.g.
+	// "Huffel Peaks") instead of the blank fallback core uses for art embedded in
+	// page content. See module/journal/journal-image-titles.js.
+	patchJournalImagePopoutTitles();
 
 	// Skin a curated allowlist of core Foundry windows (e.g. User Configuration)
 	// to match our sheets/modals; scoped to a marker class so nothing else moves.
