@@ -2386,6 +2386,7 @@ input.stonetop-name-field {
 .stonetop-follower-uses-ammo-input,
 .stonetop-of-adv,
 .stonetop-attack-pick-check,
+.stonetop-cm-check,
 .ct-suggested-check,
 .threat-list-done,
 .steading-list-check {
@@ -2437,6 +2438,7 @@ input.stonetop-name-field {
 .stonetop-follower-uses-ammo-input:checked,
 .stonetop-of-adv:checked,
 .stonetop-attack-pick-check:checked,
+.stonetop-cm-check:checked,
 .ct-suggested-check:checked,
 .threat-list-done:checked,
 .steading-list-check:checked {
@@ -4631,7 +4633,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-weight: bold;
 }
 
-/* "Mark XP on a miss" sits under the 6- field as a compact inline checkbox row. */
+/* "Mark XP on a miss" applies to either result style, so it sits at the foot of the
+   results section as a compact inline checkbox row. */
 .stonetop-love-letter-markxp {
 	display: flex;
 	align-items: center;
@@ -4651,21 +4654,63 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	opacity: 0.85;
 }
 
-/* Dialog: each 10+/7-9/6- tier gets a compact "Pick [n]" input beside its label. */
-.stonetop-love-letter-tier-head {
+/* Segmented single-select toggle: a bordered inline-flex strip of radio "pills", the
+   checked one filled from LIVE :checked state (not a server-stamped .is-selected class,
+   which nothing clears on click without a re-render). Shared by the threat proximity
+   picker and the love-letter result-style toggle; each element also carries its feature
+   class (below) for padding/font. */
+.stonetop-segmented-picker {
+	display: inline-flex;
+	align-self: flex-start;
+	border: 1px solid var(--st-btn-primary-border, #4f5b66);
+	border-radius: 5px;
+	overflow: hidden;
+}
+.stonetop-segmented-picker-option {
+	position: relative;
+	cursor: pointer;
+	border-right: 1px solid var(--st-btn-primary-border, #4f5b66);
+}
+.stonetop-segmented-picker-option:last-child { border-right: 0; }
+.stonetop-segmented-picker-option input { position: absolute; opacity: 0; pointer-events: none; }
+.stonetop-segmented-picker-option:has(input:checked) {
+	background: var(--st-btn-primary-bg, slategrey);
+	color: #fff;
+}
+
+/* Dialog: a rolled love letter is authored in ONE of two result styles, chosen by the
+   segmented toggle in the results header. `data-result-style` on the results container
+   governs which panel shows; only the visible style is saved. */
+.stonetop-love-letter-results-head {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
+	flex-wrap: wrap;
 }
-.stonetop-love-letter-pick {
+.stonetop-love-letter-style-option {
+	padding: 0.25rem 0.7rem;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	font-weight: normal;
+	white-space: nowrap;
+}
+
+/* Show only the panel matching the toggled style. */
+.stonetop-love-letter-panel { display: none; flex-direction: column; gap: 8px; }
+.stonetop-love-letter-results[data-result-style="prose"] .stonetop-love-letter-panel--prose { display: flex; }
+.stonetop-love-letter-results[data-result-style="list"] .stonetop-love-letter-panel--list { display: flex; }
+
+/* List style: the per-tier "how many to pick" counts share one compact row. */
+.stonetop-love-letter-picks-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.stonetop-love-letter-picks-row > label {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
 	font-weight: normal;
 	white-space: nowrap;
 }
-.stonetop-love-letter-pick input[type="number"] {
+.stonetop-love-letter-picks-row input[type="number"] {
 	width: 3.2em;
 	text-align: center;
 }
@@ -16269,6 +16314,51 @@ input.stonetop-monster-armor-source {
 	margin: 0;
 }
 
+/* Edit mode: a move is edited inline on the stat block — a name field, a small
+   dice-formula field, and a compact rich-text description editor, matching the
+   inline editing used for the rest of the sheet (concept, qualities, notes). */
+.stonetop-monster-move-item--edit .stonetop-monster-move-head {
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 4px;
+}
+
+.stonetop-monster-move-name-input,
+.stonetop-monster-move-formula-input {
+	height: 1.6em;
+	padding: 0 3px;
+	border: none;
+	border-bottom: 1px solid rgba(0,0,0,0.25);
+	border-radius: 0;
+	background: transparent;
+	font-family: var(--font-stonetop);
+	font-size: inherit;
+	color: var(--color-text-dark-primary);
+}
+
+.stonetop-monster-move-name-input {
+	flex: 1;
+	min-width: 60px;
+	font-weight: bold;
+}
+
+.stonetop-monster-move-formula-input {
+	flex: none;
+	width: 4.5em;
+	min-width: 4.5em;
+	text-align: center;
+}
+
+/* Compact per-move description editor: the shared rich-editor box is 160px+ (for
+   Qualities/Notes), too tall stacked once per move, so shrink it here. */
+.stonetop-monster-move-editor {
+	min-height: 0;
+}
+
+.stonetop-monster-move-editor .editor-content {
+	min-height: 2.6em;
+}
+
 .stonetop-monster-add-controls {
 	margin-top: 10px;
 }
@@ -19193,14 +19283,17 @@ th:has(> .stonetop-roll-table-btn) {
 }
 .stonetop-cf-option.is-selected .stonetop-cf-option-val { color: var(--st-green-text); }
 
-/* The three "pick 1" choices (HP base, armor base, damage die) are radios sitting
-   beside the pick-all checkbox options. Skin all three as round radios (filled dot
-   when chosen) so they read as single-select, distinct from the SVG checkboxes.
-   currentColor lets the dot pick up the green selected-state text colour like the
-   rest of the option row. */
+/* Shared round-radio skin for worksheet "pick 1" controls: the create-follower
+   HP base / armor base / damage die radios, and the create-monster armor-base radio
+   (.stonetop-cm-radio). Filled dot when chosen so they read as single-select, distinct
+   from the SVG checkboxes; currentColor lets the dot pick up the selected-state text
+   colour like the rest of the row. Margin is left to each caller (below): the
+   create-follower radios pin margin:0, while .stonetop-cm-radio inherits core's
+   checkbox/radio margin so it seats level with its sibling .stonetop-cm-check boxes. */
 .stonetop-cf-hp-base,
 .stonetop-cf-armor-base,
-.stonetop-cf-damage {
+.stonetop-cf-damage,
+.stonetop-cm-radio {
 	appearance: none !important;
 	-webkit-appearance: none !important;
 	width: calc(15px * var(--stonetop-font-scale, 1)) !important;
@@ -19210,11 +19303,16 @@ th:has(> .stonetop-roll-table-btn) {
 	border-radius: 50% !important;
 	background: transparent !important;
 	cursor: pointer;
+}
+.stonetop-cf-hp-base,
+.stonetop-cf-armor-base,
+.stonetop-cf-damage {
 	margin: 0 !important;
 }
 .stonetop-cf-hp-base:checked,
 .stonetop-cf-armor-base:checked,
-.stonetop-cf-damage:checked {
+.stonetop-cf-damage:checked,
+.stonetop-cm-radio:checked {
 	background: radial-gradient(circle, currentColor 0 45%, transparent 50%) !important;
 }
 
@@ -20569,15 +20667,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .threat-edit select,
 .stonetop .threat-edit textarea { width: 100%; font-family: var(--font-stonetop); }
 
-.stonetop .threat-proximity-picker { display: inline-flex; align-self: flex-start; border: 1px solid var(--st-btn-primary-border, #4f5b66); border-radius: 5px; overflow: hidden; }
-.stonetop .threat-proximity-option { position: relative; padding: 0.3rem 0.75rem; cursor: pointer; font-size: 0.9rem; border-right: 1px solid var(--st-btn-primary-border, #4f5b66); }
-.stonetop .threat-proximity-option:last-child { border-right: 0; }
-.stonetop .threat-proximity-option input { position: absolute; opacity: 0; pointer-events: none; }
-/* Highlight the picked option from the LIVE radio state, not the server-stamped
-   .is-selected class: nothing removes that class on click (no re-render), so relying
-   on it left the default (Nearby) stuck lit alongside the new pick. The label
-   activates its nested radio, so :has(input:checked) tracks clicks correctly. */
-.stonetop .threat-proximity-option:has(input:checked) { background: var(--st-btn-primary-bg, slategrey); color: #fff; }
+/* Proximity picker uses the shared .stonetop-segmented-picker skin; only its own
+   padding/font sit here. */
+.stonetop .threat-proximity-option { padding: 0.3rem 0.75rem; font-size: 0.9rem; }
 
 .stonetop .threat-list { display: flex; flex-direction: column; gap: 0.35rem; }
 .stonetop .threat-list-row { display: flex; align-items: center; gap: 0.4rem; }
@@ -20727,7 +20819,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop .create-monster .cm-stat b {
 	margin-left: 0.2rem;
-	font-family: var(--font-avara);
 	font-size: 0.92rem;
 	letter-spacing: 0;
 	text-transform: none;
@@ -20744,7 +20835,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-size: 0.66rem;
 	opacity: 0.8;
 }
-.stonetop .create-monster .cm-summary-tags { font-family: var(--font-avara); font-size: 0.85rem; }
+.stonetop .create-monster .cm-summary-tags { font-size: 0.85rem; }
 .stonetop .create-monster .cm-summary-range { margin: 0; font-size: 0.78rem; font-style: italic; opacity: 0.8; }
 
 /* Sections are tab panels; only the active one shows (JS toggles `hidden`). */
@@ -20794,7 +20885,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 14%, transparent);
 	box-shadow: inset 0 0 0 1px var(--st-btn-primary-border, #4f5b66);
 }
-.stonetop .create-monster .cm-tile-name { font-family: var(--font-avara); font-weight: 700; font-size: 0.9rem; }
+.stonetop .create-monster .cm-tile-name { font-weight: 700; font-size: 0.9rem; }
 .stonetop .create-monster .cm-tile-hint { font-size: 0.75rem; line-height: 1.2; opacity: 0.72; }
 
 /* chips (nature, notable, damage tags) */
@@ -20835,18 +20926,128 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop .create-monster .cm-check input,
 .stonetop .create-monster .cm-radio input { margin-top: 0.15rem; flex: 0 0 auto; }
+/* Armor-base is the modal's one "pick 1" control, skinned as a round radio via the
+   shared .stonetop-cm-radio rule alongside the create-follower "pick 1" radios. */
 .stonetop .create-monster .cm-mod {
-	font-family: var(--font-avara);
 	font-size: 0.78rem;
 	opacity: 0.7;
 	margin-left: 0.15rem;
 }
-.stonetop .create-monster .cm-move-hint { font-size: 0.82rem; opacity: 0.68; }
+/* Moves builder (step 9): book-prompt quick-adds seed editable move cards. */
+.stonetop .create-monster .cm-section--moves { gap: 0.75rem; }
+
+/* Book prompts: dashed pills that fill in on hover to read as "add me". */
+.stonetop .create-monster .cm-move-suggestions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.stonetop .create-monster .cm-move-suggestion {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	width: auto; /* core forces width:100% on .app buttons; let these pills size to content and wrap */
+	padding: 0.2rem 0.6rem;
+	border: 1px dashed var(--tc-rule-hard, #8f7f63);
+	border-radius: 999px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font-size: 0.82rem;
+	line-height: 1.2;
+	box-shadow: none;
+	transition: border-color 0.15s ease, background 0.15s ease;
+}
+.stonetop .create-monster .cm-move-suggestion i { font-size: 0.72em; opacity: 0.7; }
+.stonetop .create-monster .cm-move-suggestion:hover {
+	border-style: solid;
+	border-color: var(--st-btn-primary-border, #4f5b66);
+	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 16%, transparent);
+}
+
+/* Authored move cards + empty state. */
+.stonetop .create-monster .cm-move-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.stonetop .create-monster .cm-move-list.is-empty::before {
+	content: attr(data-empty);
+	display: block;
+	padding: 0.6rem 0.7rem;
+	border: 1px dashed var(--tc-rule-hard, #8f7f63);
+	border-radius: 6px;
+	font-size: 0.82rem;
+	font-style: italic;
+	opacity: 0.62;
+}
+.stonetop .create-monster .cm-move-card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	padding: 0.5rem 0.55rem;
+	border: 1px solid var(--tc-rule-hard, #8f7f63);
+	border-radius: 6px;
+	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 5%, transparent);
+}
+.stonetop .create-monster .cm-move-card-head { display: flex; align-items: center; gap: 0.4rem; }
+.stonetop .create-monster .cm-move-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-weight: 700;
+}
+.stonetop .create-monster .cm-move-remove {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.7rem;
+	height: 1.7rem;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 5px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	opacity: 0.6;
+	box-shadow: none;
+	transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.stonetop .create-monster .cm-move-remove:hover {
+	opacity: 1;
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+	box-shadow: none;
+}
+.stonetop .create-monster .cm-move-desc {
+	width: 100%;
+	min-height: 2.6rem;
+	resize: vertical;
+	font-size: 0.86rem;
+	line-height: 1.35;
+}
+.stonetop .create-monster .cm-move-add {
+	align-self: flex-start;
+	margin-top: 0.5rem; /* separate from the move list / cards above it */
+	width: fit-content; /* core forces width:100% on buttons; keep this add-button compact */
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.25rem 0.7rem;
+	border: 1px solid var(--tc-rule-hard, #8f7f63);
+	border-radius: 6px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font-size: 0.82rem;
+	box-shadow: none;
+}
+.stonetop .create-monster .cm-move-add:hover {
+	border-color: var(--st-btn-primary-border, #4f5b66);
+	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 12%, transparent);
+	box-shadow: none;
+}
 
 /* Pinned footer: the section split grows, this stays put at natural height. */
 .stonetop .create-monster .cm-footer { flex: 0 0 auto; }
+/* "Next" vanishes on the last section. The shared .stonetop-guide-nav button rule sets
+   display:inline-flex, which out-specifies the UA [hidden]{display:none}; re-hide here. */
+.stonetop .create-monster .cm-next[hidden] { display: none; }
 /* footer note (centre of the shared .stonetop-guide-nav footer, between Create and
-   Cancel — mirrors the Expedition nav's centred step label). The Create / Cancel
+   Next — mirrors the Expedition nav's centred step label). The Create / Next
    buttons themselves are styled by the shared .stonetop-guide-nav button rules;
    Create carries .stonetop-guide-btn--primary for the slate fill. */
 .stonetop .create-monster .cm-footer-note {

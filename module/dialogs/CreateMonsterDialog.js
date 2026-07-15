@@ -24,6 +24,7 @@ import {
 	DAMAGE_MODIFIERS,
 	MOVE_SUGGESTIONS,
 } from "../data/monster-builder.js";
+import { formatCustomMoveDescription } from "../utils/custom-move-text.js";
 
 const DEFAULTS = { organization: "group", size: "medium", armorBase: 0 };
 
@@ -73,7 +74,7 @@ export class CreateMonsterDialog extends StonetopDialog {
 	getData() {
 		const opt = (list, selectedId) => list.map(o => ({ ...o, selected: String(o.id) === String(selectedId) }));
 		const derived = computeMonster(DEFAULTS);
-		const activeIndex = Math.max(0, SECTIONS.findIndex(s => s.key === this._activeTab));
+		const activeIndex = Math.max(0, this._activeSectionIndex());
 		return {
 			name: this._name,
 			// Left rail + banner. Only the first-render active state comes from here;
@@ -136,8 +137,76 @@ export class CreateMonsterDialog extends StonetopDialog {
 		form.querySelectorAll(".cm-tab").forEach(btn =>
 			btn.addEventListener("click", () => this._selectTab(form, btn.dataset.tab)));
 
-		form.querySelector(".cm-cancel")?.addEventListener("click", () => this.close());
+		// "Next" walks the section rail one step at a time (same client-side switch as
+		// clicking a rail entry); it disables itself on the final section.
+		form.querySelector(".cm-next")?.addEventListener("click", () => this._selectNext(form));
 		form.querySelector(".cm-create")?.addEventListener("click", () => this._submit(form));
+		this._wireMoves(form);
+		this._syncNext(form);
+	}
+
+	// Moves section: the book prompts are quick-add buttons and every move is an
+	// editable card (name + description). Cards are the authoritative move list read
+	// at submit — the prompts just seed a card the GM can then rewrite in place.
+	_wireMoves(form) {
+		form.querySelectorAll(".cm-move-suggestion").forEach(btn =>
+			btn.addEventListener("click", () => {
+				const sug = MOVE_SUGGESTIONS.find(m => m.id === btn.dataset.suggestion);
+				this._addMoveCard(form, { name: sug?.name ?? "", description: sug?.description ?? "", focus: true });
+			}));
+		form.querySelector(".cm-move-add")?.addEventListener("click", () =>
+			this._addMoveCard(form, { focus: true }));
+		this._syncMovesEmpty(form);
+	}
+
+	// Append one editable move card (cloned from the template in the .hbs), optionally
+	// pre-filled from a book prompt and focused for immediate editing.
+	_addMoveCard(form, { name = "", description = "", focus = false } = {}) {
+		const list = form.querySelector(".cm-move-list");
+		const tpl  = form.querySelector(".cm-move-tpl");
+		const card = tpl?.content?.firstElementChild?.cloneNode(true);
+		if (!list || !card) return null;
+		card.querySelector(".cm-move-name").value = name;
+		card.querySelector(".cm-move-desc").value = description;
+		card.querySelector(".cm-move-remove")?.addEventListener("click", () => {
+			card.remove();
+			this._syncMovesEmpty(form);
+		});
+		list.appendChild(card);
+		this._syncMovesEmpty(form);
+		if (focus) card.querySelector(".cm-move-name")?.focus();
+		return card;
+	}
+
+	// Show the "no moves yet" placeholder only while the list is empty.
+	_syncMovesEmpty(form) {
+		const list = form.querySelector(".cm-move-list");
+		if (list) list.classList.toggle("is-empty", list.querySelectorAll(".cm-move-card").length === 0);
+	}
+
+	// Read the authored move cards, dropping any left entirely blank.
+	_readMoves(form) {
+		return Array.from(form.querySelectorAll(".cm-move-card")).map(card => ({
+			name:        (card.querySelector(".cm-move-name")?.value ?? "").trim(),
+			description: (card.querySelector(".cm-move-desc")?.value ?? "").trim(),
+		})).filter(m => m.name || m.description);
+	}
+
+	// Index of the currently-shown section in the book-ordered SECTIONS rail.
+	_activeSectionIndex() {
+		return SECTIONS.findIndex(s => s.key === this._activeTab);
+	}
+
+	// Advance to the next worksheet section, if any.
+	_selectNext(form) {
+		const next = SECTIONS[this._activeSectionIndex() + 1];
+		if (next) this._selectTab(form, next.key);
+	}
+
+	// Hide "Next" once there's nowhere left to advance (last section active).
+	_syncNext(form) {
+		const btn = form.querySelector(".cm-next");
+		if (btn) btn.hidden = this._activeSectionIndex() >= SECTIONS.length - 1;
 	}
 
 	// Show one worksheet section and light its rail entry, updating the banner (icon,
@@ -167,6 +236,8 @@ export class CreateMonsterDialog extends StonetopDialog {
 		// section opens at its top.
 		const main = form.querySelector(".cm-main");
 		if (main) main.scrollTop = 0;
+
+		this._syncNext(form);
 	}
 
 	_recompute(form) {
@@ -205,7 +276,7 @@ export class CreateMonsterDialog extends StonetopDialog {
 			armorMods:    checks("armorMod"),
 			damageTags:   checks("damageTag"),
 			damageMods:   checks("damageMod"),
-			moves:        checks("move"),
+			moves:        this._readMoves(form),
 		};
 	}
 
@@ -246,14 +317,11 @@ export class CreateMonsterDialog extends StonetopDialog {
 		const img = creatureTypeIcon(sel.creatureType) ?? undefined;
 		const sizeTag = SIZES.find(s => s.id === sel.size)?.tag ?? "";
 
-		const items = sel.moves
-			.map(id => MOVE_SUGGESTIONS.find(m => m.id === id))
-			.filter(Boolean)
-			.map(m => ({
-				name: m.name,
-				type: "monsterMove",
-				system: { description: `<p>${m.description}</p>`, rollFormula: "" },
-			}));
+		const items = sel.moves.map(m => ({
+			name: m.name || "New move",
+			type: "monsterMove",
+			system: { description: formatCustomMoveDescription(m.description), rollFormula: "" },
+		}));
 
 		return {
 			name,

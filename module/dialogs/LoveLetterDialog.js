@@ -58,6 +58,19 @@ export class LoveLetterDialog extends StonetopDialog {
 		const sys = this._item?.system ?? {};
 		const rollType = normalizeRollType(sys.rollType) ?? "";
 		const mr = sys.moveResults ?? {};
+		const options = Array.isArray(sys.pickOptions) ? sys.pickOptions.filter(Boolean) : [];
+		// A letter is authored in ONE of two mutually-exclusive result styles, and reopens
+		// in whichever it was saved with. Classify by the shared pick-list POOL (pickOptions)
+		// — the defining feature of list style — NOT by the per-tier pick counts alone: the
+		// pre-rename dialog showed a "Pick N" box beside every prose tier, so a legacy prose
+		// letter can carry a non-zero pick alongside real prose. Keying on those counts would
+		// force such a letter into list mode and blank its prose on the next save. So prefer
+		// prose whenever the letter has prose text; only treat bare pick counts (no pool, no
+		// prose) as list. The template picks the checked radio / visible panel off resultStyle
+		// via the `eq` helper.
+		const hasProse = !!(mr.success?.value || mr.partial?.value || mr.failure?.value);
+		const hasPicks = !!(mr.success?.pick || mr.partial?.pick || mr.failure?.pick);
+		const resultStyle = (options.length > 0 || (hasPicks && !hasProse)) ? "list" : "prose";
 		return {
 			isEdit: !!this._item,
 			recipients: this._item ? [] : loveLetterRecipientOptions(),
@@ -66,6 +79,7 @@ export class LoveLetterDialog extends StonetopDialog {
 			description: customMoveDescriptionToPlainText(sys.description),
 			rollOptions: loveLetterRollOptions(rollType),
 			hasRoll: rollType !== "",
+			resultStyle,
 			results: {
 				success: mr.success?.value ?? "",
 				partial: mr.partial?.value ?? "",
@@ -75,7 +89,7 @@ export class LoveLetterDialog extends StonetopDialog {
 				pickFailure: mr.failure?.pick || "",
 			},
 			// The shared "choose from this list" pool, one option per line for the textarea.
-			options: (sys.pickOptions ?? []).join("\n"),
+			options: options.join("\n"),
 			// A miss marks XP by default (checkbox checked); an existing letter reflects
 			// whatever the GM last saved.
 			markXp: this._item ? !sys.noXpOnMiss : true,
@@ -94,8 +108,21 @@ export class LoveLetterDialog extends StonetopDialog {
 		rollSelect?.addEventListener("change", syncResults);
 		syncResults();
 
+		// Swap between the freeform-prose panel and the pick-from-list panel; only the
+		// active style is shown (via data-result-style) and, on save, only it is persisted.
+		const syncStyle = () => {
+			if (results) results.dataset.resultStyle = this._selectedStyle(root);
+		};
+		root.querySelectorAll("[name=resultStyle]").forEach(r => r.addEventListener("change", syncStyle));
+		syncStyle();
+
 		root.querySelector(".stonetop-love-letter-save")?.addEventListener("click", () => this._save(root));
 		root.querySelector(".stonetop-love-letter-cancel")?.addEventListener("click", () => this.close());
+	}
+
+	// Which result style the GM has toggled on ("prose" | "list"); defaults to prose.
+	_selectedStyle(root) {
+		return root.querySelector("[name=resultStyle]:checked")?.value === "list" ? "list" : "prose";
 	}
 
 	async _save(root) {
@@ -120,6 +147,9 @@ export class LoveLetterDialog extends StonetopDialog {
 			return;
 		}
 
+		// Persist ONLY the fields for the chosen result style, so a saved letter never
+		// carries both a pick-list and freeform prose (which the reader would show together).
+		const isList = this._selectedStyle(root) === "list";
 		const input = {
 			name,
 			description: val("[name=description]"),
@@ -127,14 +157,15 @@ export class LoveLetterDialog extends StonetopDialog {
 			signed: val("[name=signed]"),
 			// "Mark XP on a miss" checked ⇒ mark XP (noXpOnMiss false), and vice versa.
 			noXpOnMiss: !root.querySelector("[name=markXp]")?.checked,
-			// Shared pick-from pool (one option per line) + how many to pick per tier.
-			options: val("[name=options]"),
-			picks: {
+			// List style: shared pool (one option per line) + how many to pick per tier.
+			options: isList ? val("[name=options]") : "",
+			picks: isList ? {
 				success: val("[name=pickSuccess]"),
 				partial: val("[name=pickPartial]"),
 				failure: val("[name=pickFailure]"),
-			},
-			results: {
+			} : { success: 0, partial: 0, failure: 0 },
+			// Prose style: freeform 10+/7-9/6- outcome text.
+			results: isList ? { success: "", partial: "", failure: "" } : {
 				success: val("[name=success]"),
 				partial: val("[name=partial]"),
 				failure: val("[name=failure]"),

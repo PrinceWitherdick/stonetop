@@ -20,9 +20,9 @@
 
 	<div class="threat-edit__field">
 		<span class="threat-edit__label">Proximity</span>
-		<div class="threat-proximity-picker">
+		<div class="stonetop-segmented-picker threat-proximity-picker">
 			{{#each proximityOptions}}
-			<label class="threat-proximity-option{{#if selected}} is-selected{{/if}}">
+			<label class="stonetop-segmented-picker-option threat-proximity-option{{#if selected}} is-selected{{/if}}">
 				<input type="radio" name="threat-proximity-{{@root.id}}" data-doc-field="system.proximity" value="{{id}}"{{#if selected}} checked{{/if}}>
 				<span>{{label}}</span>
 			</label>

@@ -132,7 +132,7 @@
 				<div class="cm-check-list">
 					{{#each hpModifiers}}
 					<label class="cm-check">
-						<input type="checkbox" name="hpMod" value="{{id}}">
+						<input type="checkbox" class="stonetop-cm-check" name="hpMod" value="{{id}}">
 						<span>{{label}} <span class="cm-mod">+{{hp}}</span></span>
 					</label>
 					{{/each}}
@@ -147,7 +147,7 @@
 					<div class="cm-radio-list">
 						{{#each armorBases}}
 						<label class="cm-radio">
-							<input type="radio" name="armorBase" value="{{id}}"{{#if selected}} checked{{/if}}>
+							<input type="radio" class="stonetop-cm-radio" name="armorBase" value="{{id}}"{{#if selected}} checked{{/if}}>
 							<span>{{label}} <span class="cm-mod">{{id}}</span></span>
 						</label>
 						{{/each}}
@@ -158,7 +158,7 @@
 					<div class="cm-check-list">
 						{{#each armorModifiers}}
 						<label class="cm-check">
-							<input type="checkbox" name="armorMod" value="{{id}}">
+							<input type="checkbox" class="stonetop-cm-check" name="armorMod" value="{{id}}">
 							<span>{{label}} <span class="cm-mod">+{{armor}}</span></span>
 						</label>
 						{{/each}}
@@ -200,7 +200,7 @@
 					<div class="cm-check-list cm-check-list--two">
 						{{#each damageModifiers}}
 						<label class="cm-check">
-							<input type="checkbox" name="damageMod" value="{{id}}">
+							<input type="checkbox" class="stonetop-cm-check" name="damageMod" value="{{id}}">
 							<span>{{label}}</span>
 						</label>
 						{{/each}}
@@ -217,17 +217,40 @@
 				</label>
 			</section>
 
-			{{!-- Step 9: moves --}}
-			<section class="cm-section" data-tab="moves" hidden>
-				<p class="cm-section-hint">Step 9 &middot; Tick the ones that fit &mdash; each becomes an editable move. Most monsters have about three.</p>
-				<div class="cm-check-list">
-					{{#each moveSuggestions}}
-					<label class="cm-check" data-tooltip="{{description}}" data-tooltip-direction="UP">
-						<input type="checkbox" name="move" value="{{id}}">
-						<span><strong>{{name}}</strong> <span class="cm-move-hint">{{hint}}</span></span>
-					</label>
-					{{/each}}
+			{{!-- Step 9: moves. A little move builder — the book's prompts are tap-to-add
+			      quick starts, and every move is written and edited right here. Cards are
+			      injected/removed client-side (see CreateMonsterDialog.js), so they survive
+			      tab switches like the rest of the form. --}}
+			<section class="cm-section cm-section--moves" data-tab="moves" hidden>
+				<p class="cm-section-hint">Step 9 &middot; Give it a few moves &mdash; things it does that you narrate, no roll needed. Tap a prompt to start from the book, or write your own. Most monsters have about three.</p>
+
+				<div class="cm-field">
+					<span class="cm-label">Book prompts <em>(tap to add &amp; edit)</em></span>
+					<div class="cm-move-suggestions">
+						{{#each moveSuggestions}}
+						<button type="button" class="cm-move-suggestion" data-suggestion="{{id}}" data-tooltip="{{description}}" data-tooltip-direction="UP">
+							<i class="fas fa-plus"></i><span>{{name}}</span>
+						</button>
+						{{/each}}
+					</div>
 				</div>
+
+				<div class="cm-field">
+					<span class="cm-label">This monster's moves</span>
+					<div class="cm-move-list" data-empty="No moves yet. Tap a prompt above, or add one below."></div>
+					<button type="button" class="cm-move-add"><i class="fas fa-plus"></i> Add a move</button>
+				</div>
+
+				{{!-- Cloned per card by the dialog; kept here so the markup lives with the rest. --}}
+				<template class="cm-move-tpl">
+					<div class="cm-move-card">
+						<div class="cm-move-card-head">
+							<input type="text" class="cm-move-name" placeholder="Move name (e.g. Snatch and drag off)">
+							<button type="button" class="cm-move-remove" data-tooltip="Remove this move" aria-label="Remove this move"><i class="fas fa-xmark"></i></button>
+						</div>
+						<textarea class="cm-move-desc" rows="2" placeholder="What does it do? Narrate it; no roll needed."></textarea>
+					</div>
+				</template>
 			</section>
 
 		</div>
@@ -237,7 +260,7 @@
 	<div class="stonetop-guide-nav cm-footer">
 		<button type="button" class="cm-create stonetop-guide-btn--primary"><i class="fas fa-dragon"></i> Create monster</button>
 		<span class="cm-footer-note">Description &amp; lore are added on the stat block.</span>
-		<button type="button" class="cm-cancel">Cancel</button>
+		<button type="button" class="cm-next">Next<span class="stonetop-nav-arrow"></span></button>
 	</div>
 
 </form>

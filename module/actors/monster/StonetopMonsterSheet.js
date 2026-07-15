@@ -30,6 +30,10 @@ const MONSTER_RICH_TEXT_FIELDS = [
 	{ key: "notes",     enrichedKey: "enrichedNotes" },
 ];
 
+// The only fields an inline stat-block edit may write to a monsterMove item (its
+// name and its two schema fields), so a stray data-field can't write anywhere else.
+const MONSTER_MOVE_EDITABLE_FIELDS = new Set(["name", "system.description", "system.rollFormula"]);
+
 function _normalizeTag(value) {
 	return String(value ?? "").trim().toLocaleLowerCase();
 }
@@ -341,7 +345,7 @@ export function createStonetopMonsterSheetClass(Base) {
 			const boost = activeMove && editable ? boostFlag : null;
 
 			// Preserve the book's move order — don't sort.
-			context.monsterMoves = monsterMoves.map(i => {
+			context.monsterMoves = await Promise.all(monsterMoves.map(async i => {
 				const armorBoost  = parseArmorBoost(i.name);
 				const boostActive = boost?.moveId === i.id;
 				// The shield marks a togglable move: any move whose name grants Armor,
@@ -358,8 +362,12 @@ export function createStonetopMonsterSheetClass(Base) {
 						: boostActive
 							? localize("stonetop.monster.armorBoostRevert")
 							: format("stonetop.monster.armorBoostApply", { value: armorBoost }),
+					// The move description is edited inline in edit mode; the prose-mirror
+					// shows this enriched HTML until the user toggles it open to edit. Only
+					// enriched in edit mode, where the editor is actually rendered.
+					enrichedDescription: this._editMode ? await enrichHTML(i.system?.description) : undefined,
 				};
-			});
+			}));
 
 			// Read the label from the move's current name (so a rename shows through
 			// instead of the value frozen on the flag). Escape it: Foundry renders
@@ -442,6 +450,19 @@ export function createStonetopMonsterSheetClass(Base) {
 				}
 			});
 
+			// Clicking the portrait in play mode enlarges it in a popout for easy
+			// viewing (in edit mode the same <img> carries data-edit="img", so Foundry's
+			// own handler opens the file picker instead; hence the edit-mode guard).
+			// Registered before the isEditable bail so it works from read-only views too
+			// (e.g. a monster opened out of a compendium). Skipped when there's no real
+			// portrait, so the decorative creature-type fallback icon isn't blown up.
+			html[0].querySelector(".stonetop-portrait")?.addEventListener("click", ev => {
+				if (this._editMode || isDefaultImg(this.actor.img)) return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				new ImagePopout(this.actor.img, { title: this.actor.name }).render(true);
+			});
+
 			if (!this.isEditable) return;
 
 			html[0].addEventListener("click", async ev => {
@@ -469,12 +490,6 @@ export function createStonetopMonsterSheetClass(Base) {
 					}
 					await item.delete();
 
-				} else if (ev.target.closest(".stonetop-monster-move-name")) {
-					if (!this._editMode) return;
-					const li   = ev.target.closest("[data-item-id]");
-					const item = this.actor.items.get(li?.dataset?.itemId);
-					item?.sheet?.render(true);
-
 				} else if (ev.target.closest(".stonetop-monster-reset-defaults")) {
 					if (!this._editMode) return;
 					await this._resetOrganizationDefaults();
@@ -482,6 +497,18 @@ export function createStonetopMonsterSheetClass(Base) {
 			});
 
 			html[0].addEventListener("change", async ev => {
+				// Inline move edits (embedded monsterMove items): the name, roll formula,
+				// and description each carry data-field and persist straight to the item.
+				// Checked before the rich-text branch since the description editor also
+				// carries the shared .stonetop-monster-rich-editor class.
+				const moveField = ev.target.closest(".stonetop-monster-move-field");
+				if (moveField) {
+					if (!this._editMode) return;
+					const li = ev.target.closest("[data-item-id]");
+					await this._updateMoveField(li?.dataset?.itemId, moveField.dataset?.field, moveField.value);
+					return;
+				}
+
 				const editor = ev.target.closest(".stonetop-monster-rich-editor");
 				if (!editor) return;
 				// Notes stays editable in play mode; the other rich fields only in edit mode.
@@ -562,6 +589,22 @@ export function createStonetopMonsterSheetClass(Base) {
 		async _updateRichTextField(field, value) {
 			if (!MONSTER_RICH_TEXT_FIELDS.some(entry => entry.key === field)) return;
 			await this.actor.update({ [`system.${field}`]: value ?? "" });
+		}
+
+		/**
+		 * Persist an inline edit to one of a move's fields. Whitelisted to the three
+		 * fields the stat block edits inline (the move's name and its two schema
+		 * fields), so a stray data-field can't write anywhere else on the item.
+		 *
+		 * @param {string} itemId  the monsterMove being edited
+		 * @param {string} field   "name", "system.description", or "system.rollFormula"
+		 * @param {string} value   the new value
+		 */
+		async _updateMoveField(itemId, field, value) {
+			if (!MONSTER_MOVE_EDITABLE_FIELDS.has(field)) return;
+			const item = this.actor.items.get(itemId);
+			if (!item) return;
+			await item.update({ [field]: value ?? "" });
 		}
 	};
 }

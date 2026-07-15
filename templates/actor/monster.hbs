@@ -203,31 +203,40 @@
 			     balanced columns. --}}
 			<section class="stonetop-monster-field stonetop-monster-field--full stonetop-monster-moves">
 				{{> "stonetop.section-heading" title=(localize "stonetop.monster.moves")}}
-				<ul class="stonetop-monster-moves-list stonetop-monster-moves-list--cols">
+				<ul class="stonetop-monster-moves-list{{#unless stonetop.editMode}} stonetop-monster-moves-list--cols{{/unless}}">
 					{{#each monsterMoves}}
-					<li class="stonetop-monster-move-item{{#if boostActive}} is-boost-active{{/if}}" data-item-id="{{id}}">
+					<li class="stonetop-monster-move-item{{#if boostActive}} is-boost-active{{/if}}{{#if ../stonetop.editMode}} stonetop-monster-move-item--edit{{/if}}" data-item-id="{{id}}">
 						<div class="stonetop-monster-move-body">
+							{{#if ../stonetop.editMode}}
+							{{!-- Edit mode: name, roll formula, and description are all edited
+							      inline on the stat block (like the rest of the sheet). --}}
+							<div class="stonetop-monster-move-head">
+								<input class="stonetop-monster-move-name-input stonetop-monster-move-field" type="text"
+								       data-field="name" value="{{name}}"
+								       placeholder='{{localize "stonetop.monster.moveNamePlaceholder"}}'>
+								<input class="stonetop-monster-move-formula-input stonetop-monster-move-field" type="text"
+								       data-field="system.rollFormula" value="{{system.rollFormula}}"
+								       title='{{localize "stonetop.monster.moveFormulaHint"}}' placeholder="d6">
+								<span class="stonetop-monster-move-controls">
+									<a class="stonetop-monster-delete-move" title='{{localize "stonetop.monster.deleteMove"}}'>
+										<i class="fas fa-trash"></i>
+									</a>
+								</span>
+							</div>
+							<prose-mirror class="stonetop-monster-rich-editor stonetop-monster-move-editor stonetop-monster-move-field"
+							              data-field="system.description" toggled value="{{system.description}}">{{{enrichedDescription}}}</prose-mirror>
+							{{else}}
 							<div class="stonetop-monster-move-head">
 								{{#if system.rollFormula}}
 								<a class="stonetop-monster-move-roll" title="Roll {{system.rollFormula}}">
 									<i class="fas fa-dice-d6"></i>
 								</a>
 								{{/if}}
-								{{#if ../stonetop.editMode}}
-								<a class="stonetop-monster-move-name">{{name}}</a>
-								{{else}}
 								<span class="stonetop-monster-move-name"{{#if boostTooltip}} data-tooltip="{{boostTooltip}}" data-tooltip-direction="UP"{{/if}}>{{#if showBoostIcon}}<i class="fas fa-shield-halved stonetop-monster-move-boost-icon"></i> {{/if}}{{name}}</span>
-								{{/if}}
-								<span class="stonetop-monster-move-controls">
-									{{#if ../stonetop.editMode}}
-									<a class="stonetop-monster-delete-move" title='{{localize "stonetop.monster.deleteMove"}}'>
-										<i class="fas fa-trash"></i>
-									</a>
-									{{/if}}
-								</span>
 							</div>
 							{{#if system.description}}
 							<div class="stonetop-monster-move-description">{{{boldMissText system.description}}}</div>
+							{{/if}}
 							{{/if}}
 						</div>
 					</li>

@@ -307,6 +307,64 @@ describe("StonetopMonsterSheet", () => {
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 	});
 
+	// Portrait click in play mode → enlarge in an ImagePopout (edit mode leaves the
+	// click to Foundry's data-edit="img" file picker). A helper stands up the sheet
+	// with a portrait element the click handler can bind to, plus a mock ImagePopout.
+	function wirePortrait(actor, { editMode }) {
+		const sheet = makeSheet(actor);
+		sheet._editMode = editMode;
+		let portraitClick;
+		const portrait = {
+			addEventListener: (eventName, handler) => {
+				if (eventName === "click") portraitClick = handler;
+			},
+		};
+		const root = {
+			addEventListener: () => {},
+			querySelector: selector => selector === ".stonetop-portrait" ? portrait : null,
+		};
+		const rendered = [];
+		globalThis.ImagePopout = class {
+			constructor(src, opts) { this.src = src; this.opts = opts; }
+			render(force) { rendered.push({ src: this.src, opts: this.opts, force }); }
+		};
+		sheet.activateListeners([root]);
+		return { rendered, click: () => portraitClick({ preventDefault: vi.fn(), stopPropagation: vi.fn() }) };
+	}
+
+	it("enlarges a real portrait in a popout when clicked in play mode", async () => {
+		const actor = { name: "Grulk", img: "worlds/test/grulk.webp", system: {}, items: makeItems([]) };
+		try {
+			const { rendered, click } = wirePortrait(actor, { editMode: false });
+			click();
+			expect(rendered).toEqual([{ src: "worlds/test/grulk.webp", opts: { title: "Grulk" }, force: true }]);
+		} finally {
+			delete globalThis.ImagePopout;
+		}
+	});
+
+	it("does not enlarge the portrait in edit mode (leaves it to the file picker)", async () => {
+		const actor = { name: "Grulk", img: "worlds/test/grulk.webp", system: {}, items: makeItems([]) };
+		try {
+			const { rendered, click } = wirePortrait(actor, { editMode: true });
+			click();
+			expect(rendered).toEqual([]);
+		} finally {
+			delete globalThis.ImagePopout;
+		}
+	});
+
+	it("does not enlarge the fallback creature-type icon (no real portrait art)", async () => {
+		const actor = { name: "Grulk", img: "icons/svg/mystery-man.svg", system: {}, items: makeItems([]) };
+		try {
+			const { rendered, click } = wirePortrait(actor, { editMode: false });
+			click();
+			expect(rendered).toEqual([]);
+		} finally {
+			delete globalThis.ImagePopout;
+		}
+	});
+
 	it("resets HP and damage die to the organization defaults", async () => {
 		const actor = {
 			system: { organization: "solitary", attributes: {} },
@@ -378,6 +436,115 @@ describe("StonetopMonsterSheet", () => {
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.notes": "<p>Spotted near the river.</p>",
 		});
+	});
+
+	// --- Inline move editing (edit mode) -----------------------------------
+
+	it("enriches each move description for inline editing in edit mode", async () => {
+		const actor = {
+			system: {},
+			items: makeItems([
+				{ id: "m1", type: "monsterMove", name: "Snatch", system: { description: "<p>Grabs and bolts</p>", rollFormula: "" } },
+			]),
+		};
+		const sheet = makeSheet(actor);
+		sheet._editMode = true;
+
+		const data = await sheet.getData();
+
+		// enrichHTML is a passthrough in the test env (no TextEditor), so the enriched
+		// description is the raw HTML — the point is that the key is populated.
+		expect(data.monsterMoves[0].enrichedDescription).toBe("<p>Grabs and bolts</p>");
+	});
+
+	it("does not enrich move descriptions outside edit mode", async () => {
+		const actor = {
+			system: {},
+			items: makeItems([
+				{ id: "m1", type: "monsterMove", name: "Snatch", system: { description: "<p>x</p>" } },
+			]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.monsterMoves[0].enrichedDescription).toBeUndefined();
+	});
+
+	it("persists an inline move edit to the embedded item (allowed field)", async () => {
+		const item = { id: "m1", update: vi.fn() };
+		const actor = { system: {}, items: makeItems([item]) };
+		const sheet = makeSheet(actor);
+
+		await sheet._updateMoveField("m1", "system.rollFormula", "1d8+2");
+
+		expect(item.update).toHaveBeenCalledWith({ "system.rollFormula": "1d8+2" });
+	});
+
+	it("refuses to write a move field outside the whitelist", async () => {
+		const item = { id: "m1", update: vi.fn() };
+		const actor = { system: {}, items: makeItems([item]) };
+		const sheet = makeSheet(actor);
+
+		await sheet._updateMoveField("m1", "img", "hack.png");
+		await sheet._updateMoveField("m1", "flags.core.sourceId", "spoof");
+
+		expect(item.update).not.toHaveBeenCalled();
+	});
+
+	it("no-ops an inline move edit when the item is gone", async () => {
+		const actor = { system: {}, items: makeItems([]) };
+		const sheet = makeSheet(actor);
+
+		// Resolves without throwing even though the id matches no item.
+		await expect(sheet._updateMoveField("missing", "name", "X")).resolves.toBeUndefined();
+	});
+
+	it("routes a move-field change to the item in edit mode", async () => {
+		const item = { id: "m1", update: vi.fn() };
+		const actor = { system: {}, items: makeItems([item]) };
+		const sheet = makeSheet(actor);
+		sheet._editMode = true;
+
+		let changeHandler;
+		const root = {
+			addEventListener: (name, handler) => { if (name === "change") changeHandler = handler; },
+			querySelector: () => null,
+		};
+		sheet.activateListeners([root]);
+
+		const field = {
+			dataset: { field: "name" },
+			value: "Gnash",
+			closest: selector => selector === ".stonetop-monster-move-field" ? field
+				: selector === "[data-item-id]" ? { dataset: { itemId: "m1" } } : null,
+		};
+		await changeHandler({ target: field });
+
+		expect(item.update).toHaveBeenCalledWith({ name: "Gnash" });
+	});
+
+	it("ignores move-field changes when not in edit mode", async () => {
+		const item = { id: "m1", update: vi.fn() };
+		const actor = { system: {}, items: makeItems([item]) };
+		const sheet = makeSheet(actor);
+		sheet._editMode = false;
+
+		let changeHandler;
+		const root = {
+			addEventListener: (name, handler) => { if (name === "change") changeHandler = handler; },
+			querySelector: () => null,
+		};
+		sheet.activateListeners([root]);
+
+		const field = {
+			dataset: { field: "name" },
+			value: "Gnash",
+			closest: selector => selector === ".stonetop-monster-move-field" ? field
+				: selector === "[data-item-id]" ? { dataset: { itemId: "m1" } } : null,
+		};
+		await changeHandler({ target: field });
+
+		expect(item.update).not.toHaveBeenCalled();
 	});
 
 	it("keeps the window title element as a header spacer", () => {
