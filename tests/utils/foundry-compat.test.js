@@ -3,15 +3,21 @@ import { deletionEntry, getDragEventData } from "../../module/utils/foundry-comp
 
 describe("deletionEntry", () => {
 	afterEach(() => {
-		// Restore the v13 sentinel that tests/setup.js installs.
-		globalThis.foundry = { ...(globalThis.foundry ?? {}), data: { operators: { ForcedDeletion: Symbol.for("ForcedDeletion") } } };
+		// Restore the v13+ operator class that tests/setup.js installs.
+		globalThis.foundry = { ...(globalThis.foundry ?? {}), data: { operators: { ForcedDeletion: class ForcedDeletion {} } } };
 	});
 
-	it("uses the ForcedDeletion sentinel on v13+ (key path unchanged)", () => {
-		const sentinel = foundry.data.operators.ForcedDeletion;
-		expect(deletionEntry("flags.stonetop.checks.c1")).toEqual(["flags.stonetop.checks.c1", sentinel]);
-		// A nested key path is left intact for the sentinel form.
-		expect(deletionEntry("flags.stonetop.arcana.minorDraw")).toEqual(["flags.stonetop.arcana.minorDraw", sentinel]);
+	it("uses a fresh ForcedDeletion INSTANCE on v13+ (key path unchanged)", () => {
+		const ForcedDeletion = foundry.data.operators.ForcedDeletion;
+		const [key, val] = deletionEntry("flags.stonetop.checks.c1");
+		expect(key).toBe("flags.stonetop.checks.c1");
+		// Core removes a key only when the value is `instanceof ForcedDeletion` — the
+		// class itself would NOT match, so we must hand back a `new` instance.
+		expect(val).toBeInstanceOf(ForcedDeletion);
+		// A nested key path is left intact for the instance form.
+		const [key2, val2] = deletionEntry("flags.stonetop.arcana.minorDraw");
+		expect(key2).toBe("flags.stonetop.arcana.minorDraw");
+		expect(val2).toBeInstanceOf(ForcedDeletion);
 	});
 
 	it("falls back to the legacy `-=leaf`/null form on v12 (no sentinel)", () => {
@@ -24,7 +30,7 @@ describe("deletionEntry", () => {
 describe("getDragEventData", () => {
 	afterEach(() => {
 		delete globalThis.TextEditor;
-		globalThis.foundry = { ...(globalThis.foundry ?? {}), data: { operators: { ForcedDeletion: Symbol.for("ForcedDeletion") } } };
+		globalThis.foundry = { ...(globalThis.foundry ?? {}), data: { operators: { ForcedDeletion: class ForcedDeletion {} } } };
 	});
 
 	it("prefers the V13 namespaced TextEditor implementation", () => {

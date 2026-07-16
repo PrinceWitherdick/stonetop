@@ -13305,6 +13305,145 @@ a.steading-player-open:hover {
 .stonetop-follower-party-hint { color: var(--st-text-muted); font-style: italic; }
 .stonetop-follower-card-actions-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* ── Ring of Daagon follower actions (Call Up the Deep Ones / Send Them Back) ──
+   A "watery" blue variant of the follower Order button, plus the shared-Loyalty and
+   broke-free notes on a Servant batch card. */
+.stonetop-daagon-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.stonetop-daagon-btn {
+	display: inline-flex;          /* V13 core sets button{display:flex}; keep it from stretching */
+	align-items: center;
+	gap: 6px;
+	padding: 3px 12px;
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-blue-bg);
+	color: var(--st-blue-text);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+}
+.stonetop-daagon-btn:hover { background: var(--st-blue-bg-hover); border-color: var(--st-blue-border); color: var(--st-blue-text); }
+.stonetop-daagon-shared-note {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
+	font-style: italic;
+}
+.stonetop-daagon-shared-note i { color: var(--st-blue-border); }
+.stonetop-daagon-broke-free {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	padding: 4px 8px;
+	border: 1px solid var(--st-red-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+	font-size: var(--st-fs-xs);
+}
+
+/* ── Call Up the Deep Ones dialog ──────────────────────────────────────────── */
+.stonetop-call-up-dialog .stonetop-cu-input {
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	padding: 2px 6px;
+}
+.stonetop-call-up-dialog .stonetop-cu-dice-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 10px;
+}
+.stonetop-call-up-dialog .stonetop-cu-die {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	min-width: 44px;
+	padding: 4px 8px;
+	border: 1px solid var(--color-border-light, #ccc);
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+}
+.stonetop-call-up-dialog .stonetop-cu-die.is-assigned {
+	border-color: var(--st-blue-border);
+	background: var(--st-blue-bg);
+	color: var(--st-blue-text);
+}
+.stonetop-call-up-dialog .stonetop-cu-die-value { font-size: var(--st-fs-md); font-weight: 700; }
+.stonetop-call-up-dialog .stonetop-cu-die-label { font-size: 0.7em; color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-aspects { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.stonetop-call-up-dialog .stonetop-cu-aspect {
+	padding: 6px 8px;
+	border: 1px solid var(--color-border-light, #ccc);
+	border-radius: var(--st-radius-sm);
+}
+.stonetop-call-up-dialog .stonetop-cu-aspect-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.stonetop-call-up-dialog .stonetop-cu-aspect-label { font-family: var(--font-stonetop); font-weight: 700; }
+.stonetop-call-up-dialog .stonetop-cu-aspect-outcome {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+	font-size: var(--st-fs-xs);
+}
+.stonetop-call-up-dialog .stonetop-cu-aspect-hint { color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-aspect-result { font-weight: 700; color: var(--st-blue-text); }
+.stonetop-call-up-dialog .stonetop-cu-count-control { display: inline-flex; align-items: center; gap: 4px; }
+.stonetop-call-up-dialog .stonetop-cu-count { width: 46px; }
+.stonetop-call-up-dialog .stonetop-cu-picker { margin-bottom: 10px; }
+.stonetop-call-up-dialog .stonetop-cu-picker-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.stonetop-call-up-dialog .stonetop-cu-picker-label { font-family: var(--font-stonetop); font-weight: 700; }
+.stonetop-call-up-dialog .stonetop-cu-picker-count { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-picker-count.is-met { color: var(--st-green-text); }
+.stonetop-call-up-dialog .stonetop-cu-picker-options { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-top: 4px; }
+.stonetop-call-up-dialog .stonetop-cu-option {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	padding: 2px 4px;
+	border-radius: var(--st-radius-sm);
+	cursor: pointer;
+}
+.stonetop-call-up-dialog .stonetop-cu-option.is-checked { background: var(--st-blue-bg); color: var(--st-blue-text); }
+.stonetop-call-up-dialog .stonetop-cu-option.is-disabled { opacity: 0.45; cursor: default; }
+.stonetop-call-up-dialog .stonetop-cu-option-detail { font-size: 0.85em; color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-name-label { display: block; margin-bottom: 10px; }
+.stonetop-call-up-dialog .stonetop-cu-preview {
+	padding: 8px 10px;
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-blue-bg);
+	color: var(--st-blue-text);
+	margin-bottom: 10px;
+}
+.stonetop-call-up-dialog .stonetop-cu-preview-head { display: flex; align-items: baseline; gap: 8px; }
+.stonetop-call-up-dialog .stonetop-cu-preview-name { font-family: var(--font-stonetop); font-weight: 700; font-size: var(--st-fs-md); }
+.stonetop-call-up-dialog .stonetop-cu-preview-type { font-size: var(--st-fs-xs); font-style: italic; }
+.stonetop-call-up-dialog .stonetop-cu-preview-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.stonetop-call-up-dialog .stonetop-cu-preview-tag {
+	padding: 1px 7px;
+	border: 1px solid var(--st-blue-border);
+	border-radius: 999px;
+	font-size: var(--st-fs-xs);
+	background: rgba(255, 255, 255, 0.35);
+}
+.stonetop-call-up-dialog .stonetop-cu-preview-tag.is-exceptional { border-color: goldenrod; }
+.stonetop-call-up-dialog .stonetop-cu-preview-stats { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--st-fs-sm); }
+.stonetop-call-up-dialog .stonetop-cu-preview-moves { margin-top: 4px; font-size: var(--st-fs-xs); }
+.stonetop-call-up-dialog .stonetop-cu-preview-moves span:not(:last-child)::after { content: " · "; color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-cost { display: flex; flex-direction: column; gap: 4px; }
+.stonetop-call-up-dialog .stonetop-cu-cost-label { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-cost-choice { display: flex; align-items: center; gap: 6px; font-size: var(--st-fs-sm); cursor: pointer; }
+.stonetop-call-up-dialog .stonetop-cu-cost-choice.is-disabled { opacity: 0.5; cursor: default; }
+.stonetop-call-up-dialog .stonetop-cu-cost-note { color: var(--st-text-muted); }
+
 /* Follower-fate dialog (a follower at 0 HP): vertical option buttons. */
 .stonetop-follower-fate-dialog .stonetop-ff-options {
 	display: flex;
@@ -15414,6 +15553,73 @@ li.question-bullet {
 .stonetop-value-term[data-tooltip] {
 	font-weight: bold;
 	cursor: help;
+}
+
+/* --- Book II treasure drops -------------------------------------------------
+   Treasures in the Artifacts / Curiosities / flora journal sections are made
+   draggable inventory items by treasure-drops.js, and get a small badge showing
+   the ◇ load-weight and ○ uses the rulebook prints beside each one. */
+.st-treasure-line {
+	cursor: grab;
+	border-radius: var(--st-radius-sm, 4px);
+	transition: background-color .1s ease, box-shadow .1s ease;
+}
+.st-treasure-line:hover {
+	background: var(--st-blue-bg, rgba(80, 110, 140, .08));
+	box-shadow: -5px 0 0 var(--st-blue-border, #7c93a6);
+}
+.st-treasure-line:active {
+	cursor: grabbing;
+}
+.st-treasure-badge {
+	display: inline-flex;
+	align-items: baseline;
+	gap: .4em;
+	margin-left: .45em;
+	font-size: var(--st-fs-xs, .82em);
+	white-space: nowrap;
+	user-select: none;
+}
+.st-treasure-grip {
+	color: var(--st-text-faint, #9a8f7a);
+	cursor: grab;
+}
+.st-treasure-weight {
+	color: var(--st-blue-text, #3f5560);
+	letter-spacing: .08em;
+}
+.st-treasure-weight.st-small,
+.st-treasure-weight.st-immobile {
+	color: var(--st-text-muted, #6f6553);
+}
+.st-treasure-uses {
+	color: var(--st-green-text, #4d6b3f);
+	letter-spacing: .08em;
+}
+.st-treasure-uses em {
+	font-style: italic;
+	color: var(--st-text-muted, #6f6553);
+	letter-spacing: 0;
+}
+/* Compound treasures (e.g. the two mirrors): one draggable chip per real item. */
+.st-treasure-compound {
+	gap: .5em;
+}
+.st-treasure-chip {
+	display: inline-flex;
+	align-items: baseline;
+	gap: .32em;
+	padding: .05em .55em;
+	border: 1px solid var(--st-border, #cfc7b6);
+	border-radius: var(--st-radius-pill, 20px);
+	cursor: grab;
+}
+.st-treasure-chip:hover {
+	background: var(--st-blue-bg, rgba(80, 110, 140, .1));
+}
+.st-chip-label {
+	font-style: italic;
+	color: var(--st-text-secondary, #5c5140);
 }
 
 /* God / lore proper nouns in the character-creation prompts (Introductions dialog),
@@ -19255,6 +19461,14 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-cf-option-list { display: flex; flex-direction: column; gap: 3px; }
+/* Row layout for short "pick 1" rails (Things Below proximity / intent). */
+.stonetop-cf-option-list--row { flex-direction: row; flex-wrap: wrap; }
+.stonetop-cf-option-list--row .stonetop-cf-option { flex: 0 1 auto; }
+/* Two-column packing for the long theme/aspect checklists in the corruption dialog. */
+.stonetop-cf-option-list--compact { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+@media (max-width: 560px) { .stonetop-cf-option-list--compact { grid-template-columns: 1fr; } }
+/* The theme's imagery / a severity's detail, as muted subtext under the option label. */
+.stonetop-tb-note { display: block; font-size: 0.82em; color: var(--st-text-secondary); line-height: 1.3; }
 
 .stonetop-cf-option {
 	display: flex;
@@ -19555,16 +19769,45 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* ── Arcanum editor (StonetopArcanumSheet edit mode) ───────────────────────────
    Scoped under .stonetop-arcanum-edit (only ever inside the arcanum item sheet),
-   so nothing here bleeds onto other windows. */
+   so nothing here bleeds onto other windows. Edit mode is a left-rail tabbed sheet
+   (shared .stonetop-guide-* chrome), like Make a Monster. */
+
+/* Reset the window chrome so the rail + content fill the window and the content
+   column scrolls while the footer stays pinned. Scoped with :has() so only the edit
+   template — not the read-only card view — resets its window. */
+.stonetop-arcanum-sheet .window-content:has(.stonetop-arcanum-edit) {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	max-height: calc(100vh - 80px);
+	overflow: hidden;
+}
+
 .stonetop-arcanum-edit {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
-	max-height: 78vh;
-	overflow-y: auto;
-	padding: 4px 2px 10px;
+	/* Fill .window-content: min-height:0 lets the content column scroll while the
+	   footer stays pinned; min-width:0 keeps the footer from forcing the sheet wider. */
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
 	font-family: var(--font-stonetop);
 	color: var(--st-text-body);
+}
+
+/* Rail beside the scrolling section column (the global .stonetop-guide-split flex is
+   scoped to the stepper dialogs, so switch it on here too). */
+.stonetop-arcanum-edit .stonetop-guide-split {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+.stonetop-arcanum-edit .stonetop-guide-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	overflow-y: auto;
 }
 
 .stonetop-arcanum-edit .stonetop-arc-section {
@@ -19573,22 +19816,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding: 8px 10px 10px;
 	background: rgba(255, 255, 255, 0.35);
 }
-
-.stonetop-arcanum-edit .stonetop-arc-h {
-	margin: 0 0 6px;
-	font-size: var(--st-fs-lg);
-	font-family: var(--font-stonetop);
-	border-bottom: 1px solid var(--color-border-light, #c9c0ad);
-	padding-bottom: 3px;
-}
-
-.stonetop-arcanum-edit .stonetop-arc-h-sub {
-	font-size: var(--st-fs-xs);
-	font-weight: normal;
-	font-style: italic;
-	color: var(--st-text-muted);
-	margin-left: 6px;
-}
+/* Only the active section shows; the rail toggles `hidden` on the others (an explicit
+   display:none survives V13's cascade layers). */
+.stonetop-arcanum-edit .stonetop-arc-section[hidden] { display: none; }
 
 .stonetop-arcanum-edit .stonetop-arc-row {
 	display: flex;
@@ -19800,21 +20030,45 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-arcanum-edit .stonetop-arc-slug-warning[hidden] { display: none; }
 .stonetop-arcanum-edit .stonetop-arc-slug-warning > i { color: #c07820; }
 
-/* ── Artifact Creation inspiration wizard (StonetopArcanaInspireDialog) ───────── */
+/* ── Artifact Creation inspiration wizard (StonetopArcanaInspireDialog) ─────────
+   A left-rail stepper: reuses the shared .stonetop-guide-* chrome (banner + rail +
+   scrolling main) like Run an Expedition, with the wizard's own .stonetop-inspire-*
+   field/review/footer styling inside it. */
+
+/* Drop Foundry's window padding, make the content a flex column, and cap to the
+   viewport so a tall step scrolls the main column instead of pushing the footer
+   off-screen (mirrors the spring/expedition steppers). */
+.stonetop-arcana-inspire-dialog .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	max-height: calc(100vh - 80px);
+	overflow: hidden;
+}
+
 .stonetop-arcana-inspire-dialog .stonetop-inspire {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	/* Fill .window-content: min-height:0 lets the rail/content scroll while the footer
+	   stays pinned; min-width:0 keeps the footer from forcing the dialog wider. */
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
 	font-family: var(--font-stonetop);
 }
 
-.stonetop-arcana-inspire-dialog .stonetop-inspire-step {
-	margin: 0;
-	font-size: var(--st-fs-xs);
-	font-weight: 600;
-	color: var(--st-blue-text);
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
+/* Rail beside the scrolling content column (the global .stonetop-guide-split flex is
+   scoped to the other steppers, so switch it on here too). */
+.stonetop-arcana-inspire-dialog .stonetop-guide-split {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+.stonetop-arcana-inspire-dialog .stonetop-guide-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	overflow-y: auto;
 }
 
 .stonetop-arcana-inspire-dialog .stonetop-inspire-intro {
@@ -19912,12 +20166,13 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 .stonetop-arcana-inspire-dialog .stonetop-inspire-footer {
+	/* Pinned footer beneath the scrolling content column. */
+	flex: 0 0 auto;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
-	margin-top: 4px;
-	padding-top: 8px;
+	padding: 10px 20px 14px;
 	border-top: 1px solid var(--color-border-light, #c9c0ad);
 }
 
@@ -20113,16 +20368,38 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	cursor: pointer;
 }
 
-/* Save / Cancel footer. Affirmative on the LEFT (Foundry order); scoped under
-   .stonetop-arcanum-edit so it never bleeds onto other windows. */
+/* Pinned footer beneath the scrolling content column: Save/Cancel on the LEFT (Foundry
+   order), the rail's "Next" walk on the right. Scoped under .stonetop-arcanum-edit so it
+   never bleeds onto other windows. */
 .stonetop-arcanum-edit .stonetop-arc-footer {
+	flex: 0 0 auto;
 	display: flex;
-	justify-content: flex-start;
+	align-items: center;
+	justify-content: space-between;
 	gap: 8px;
-	margin-top: 2px;
-	padding-top: 10px;
+	padding: 10px 20px 12px;
 	border-top: 1px solid var(--color-border-light, #c9c0ad);
+	background: rgba(0, 0, 0, 0.02);
 }
+
+.stonetop-arcanum-edit .stonetop-arc-footer-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* inline-flex, not the V13-core full-width button{display:flex}. */
+.stonetop-arcanum-edit .stonetop-arc-next {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 14px;
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+}
+.stonetop-arcanum-edit .stonetop-arc-next[hidden] { display: none; }
 
 /* inline-flex, not the V13-core full-width button{display:flex}. */
 .stonetop-arcanum-edit .stonetop-arc-save {
@@ -20414,6 +20691,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop .threat-stakes__q { font-style: italic; }
 .stonetop .threat-stakes__q + .threat-stakes__q::before { content: " "; }
+/* Things Below (Book II): theme/aspect chips on a Thing/site card. */
+.stonetop .threat-themes { margin: 0 0 0.4rem; }
+.stonetop .threat-themes__item {
+	display: inline-block;
+	margin: 0.1rem 0.3rem 0.1rem 0;
+	padding: 0.05rem 0.4rem;
+	border: 1px solid color-mix(in srgb, var(--threat-accent, var(--tc-ink-soft)) 45%, transparent);
+	border-radius: 0.5rem;
+	font-size: 0.86rem;
+	line-height: 1.35;
+}
 .stonetop .threat-moves { margin: 0 0 0.6rem; }
 .stonetop .threat-moves .threat-label { display: block; margin-bottom: 0.35rem; }
 .stonetop .threat-move-list {

@@ -655,10 +655,10 @@ describe("StonetopMonsterSheet", () => {
 		await sheet._toggleArmorBoost({ id: "m1", name: "Withdraw into its shell (Armor 5)" }, 5);
 
 		// The flag delete goes through deletionEntry; on v13+ (ForcedDeletion present
-		// in the test env) that's the sentinel on the unchanged key path.
+		// in the test env) that's a fresh instance on the unchanged key path.
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.armor.value": 3,
-			"flags.stonetop_pwd.armorBoost": Symbol.for("ForcedDeletion"),
+			"flags.stonetop_pwd.armorBoost": expect.any(foundry.data.operators.ForcedDeletion),
 		});
 	});
 
@@ -803,7 +803,7 @@ describe("StonetopMonsterSheet", () => {
 
 			expect(actor.update).toHaveBeenCalledWith({
 				"system.attributes.armor.value": 3,
-				"flags.stonetop_pwd.armorBoost": Symbol.for("ForcedDeletion"),
+				"flags.stonetop_pwd.armorBoost": expect.any(foundry.data.operators.ForcedDeletion),
 			});
 			expect(boostItem.delete).toHaveBeenCalled();
 		} finally {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseRange, planTableRoll, outcomeFor } from "../../module/utils/journal-roll-tables.js";
+import { parseRange, planTableRoll, outcomeFor, composeTableLabelParts } from "../../module/utils/journal-roll-tables.js";
 
 // The module's DOM wiring (icon injection, click → chat) is thin; the logic worth
 // guarding is the pure trio: how a Roll-cell parses, how the die/label are picked
@@ -35,6 +35,39 @@ describe("planTableRoll", () => {
 
 	it("falls back to a generic label when there's no caption or heading", () => {
 		expect(planTableRoll({ rows }).label).toBe("Random table");
+	});
+});
+
+describe("composeTableLabelParts", () => {
+	it("puts the page name on line 1 and the title-cased table label on line 2", () => {
+		// A dedicated single-table section ("Themes") collapses, leaving a plain line 2.
+		expect(composeTableLabelParts({ pageName: "The Things Below", subheadings: ["Themes"], label: "theme" }))
+			.toEqual(["The Things Below", "Theme"]);
+	});
+
+	it("prefixes line 2 with a distinct section name", () => {
+		expect(composeTableLabelParts({ pageName: "The Things Below", subheadings: ["Artifacts"], label: "minor arcanum" }))
+			.toEqual(["The Things Below", "Artifacts: Minor Arcanum"]);
+	});
+
+	it("comma-joins nested sections on line 2, outermost→innermost", () => {
+		expect(composeTableLabelParts({ pageName: "The Things Below", subheadings: ["Dangers", "Corruption"], label: "gift" }))
+			.toEqual(["The Things Below", "Dangers, Corruption: Gift"]);
+	});
+
+	it("only drops the innermost section when it restates the label", () => {
+		expect(composeTableLabelParts({ pageName: "The Fae", subheadings: ["Sites & structures", "Signs"], label: "sign" }))
+			.toEqual(["The Fae", "Sites & structures: Sign"]);
+	});
+
+	it("preserves acronyms and contractions in the shown label", () => {
+		expect(composeTableLabelParts({ pageName: "Ustrina", subheadings: [], label: "what they’re offering" }))
+			.toEqual(["Ustrina", "What They’re Offering"]);
+	});
+
+	it("falls back to a single line when there's no page or section context", () => {
+		expect(composeTableLabelParts({ label: "encounter" })).toEqual(["Encounter"]);
+		expect(composeTableLabelParts({})).toEqual(["Random table"]);
 	});
 });
 

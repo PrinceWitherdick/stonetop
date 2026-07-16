@@ -72,8 +72,10 @@ function makePage({ checks = {}, editable = true, inCompendium = false, pack } =
 			for (const [path, val] of Object.entries(data)) {
 				const m = path.match(/^flags\.stonetop\.checks\.(-=)?(.+)$/);
 				if (!m) continue;
-				// Accept either delete form: v12's `-=key`/null or v13+'s ForcedDeletion sentinel.
-				if (m[1] || val === foundry.data?.operators?.ForcedDeletion) delete flags.stonetop.checks[m[2]];
+				// Accept either delete form: v12's `-=key`/null or a v13+ ForcedDeletion
+				// INSTANCE (core removes the key only when the value is `instanceof` it).
+				const ForcedDeletion = foundry.data?.operators?.ForcedDeletion;
+				if (m[1] || (ForcedDeletion && val instanceof ForcedDeletion)) delete flags.stonetop.checks[m[2]];
 				else flags.stonetop.checks[m[2]] = val;
 			}
 			return Promise.resolve();
@@ -120,7 +122,7 @@ describe("applyJournalCheckboxes", () => {
 		expect(a.classList.contains("checked")).toBe(true);
 
 		b.control.fire("click");
-		expect(page.update).toHaveBeenCalledWith({ "flags.stonetop.checks.c1": foundry.data.operators.ForcedDeletion });
+		expect(page.update).toHaveBeenCalledWith({ "flags.stonetop.checks.c1": expect.any(foundry.data.operators.ForcedDeletion) });
 		expect(b.control.getAttribute("aria-checked")).toBe("false");
 	});
 

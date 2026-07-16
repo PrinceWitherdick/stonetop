@@ -1,0 +1,47 @@
+{
+  "name": "Cold Spirit",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 19,
+        "max": 19
+      },
+      "armor": {
+        "value": 1,
+        "source": "no vital organs"
+      },
+      "damage": {
+        "value": "none",
+        "rollFormula": ""
+      },
+      "instinct": {
+        "value": "to slow things down, to preserve"
+      }
+    },
+    "concept": "Minor spirits of wild places, more often NPCs than monsters; these stats are for the rare times one manifests to fight.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, spirit, quiet, patient, bitter",
+    "qualities": "",
+    "count": 1,
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m88jHcxMlzd0u0N3",
+    "notes": "<p>Whispery voice; finds warmth and exuberance distasteful.</p>",
+    "creatureType": "spirit"
+  },
+  "prototypeToken": {
+    "name": "Cold Spirit",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+    }
+  },
+  "items": [],
+  "effects": [],
+  "flags": {},
+  "folder": "uljyQOAwEs9dDngH",
+  "_id": "5wCAS42Is2wLxAJH",
+  "_key": "!actors!5wCAS42Is2wLxAJH"
+}

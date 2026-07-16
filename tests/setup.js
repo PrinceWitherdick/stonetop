@@ -41,8 +41,10 @@ global.ui = {
 global.CONFIG = {};
 
 global.foundry = {
-	// V13 sentinel that, when set as an update value, forces deletion of that key.
-	data: { operators: { ForcedDeletion: Symbol.for("ForcedDeletion") } },
+	// V13+ operator class: an INSTANCE (`new ForcedDeletion()`) set as an update
+	// value forces deletion of that key. Core detects it via `instanceof`, so the
+	// fake must be a class, not a sentinel value, to model that faithfully.
+	data: { operators: { ForcedDeletion: class ForcedDeletion {} } },
 	utils: {
 		mergeObject: (a, b) => ({ ...a, ...b }),
 		deepClone: (value) => structuredClone(value),

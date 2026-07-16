@@ -28,16 +28,18 @@ export async function enrichHTML(value, options) {
 }
 
 /**
- * Build the `document.update()` entry that deletes `keyPath`. v13+ wants the
- * ForcedDeletion sentinel (and warns on the legacy `-=` syntax); v12 has no such
- * sentinel and only understands `-=`. Returns `[updateKey, value]` for whichever
- * form this core exposes, so callers stay correct across v12–v14.
+ * Build the `document.update()` entry that deletes `keyPath`. v13+ wants a fresh
+ * `new ForcedDeletion()` INSTANCE as the value at the key (the core removes a key
+ * only when its value is `instanceof ForcedDeletion`); it warns on the legacy `-=`
+ * syntax. v12 has no such operator and only understands `-=`. Returns
+ * `[updateKey, value]` for whichever form this core exposes, so callers stay
+ * correct across v12–v14.
  * @param {string} keyPath  Dotted path to the key to delete (e.g. "flags.stonetop.checks.c1").
  * @returns {[string, *]}
  */
 export function deletionEntry(keyPath) {
-	const forcedDeletion = foundry.data?.operators?.ForcedDeletion;
-	if (forcedDeletion) return [keyPath, forcedDeletion];
+	const ForcedDeletion = foundry.data?.operators?.ForcedDeletion;
+	if (ForcedDeletion) return [keyPath, new ForcedDeletion()];
 	const i = keyPath.lastIndexOf(".");
 	return [`${keyPath.slice(0, i + 1)}-=${keyPath.slice(i + 1)}`, null];
 }

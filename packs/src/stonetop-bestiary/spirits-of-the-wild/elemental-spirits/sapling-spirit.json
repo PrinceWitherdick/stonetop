@@ -1,0 +1,47 @@
+{
+  "name": "Sapling Spirit",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 13,
+        "max": 13
+      },
+      "armor": {
+        "value": 1,
+        "source": "no vital organs"
+      },
+      "damage": {
+        "value": "none",
+        "rollFormula": ""
+      },
+      "instinct": {
+        "value": "to seek what it needs to grow"
+      }
+    },
+    "concept": "Minor spirits of wild places, more often NPCs than monsters; these stats are for the rare times one manifests to fight.",
+    "organization": "group",
+    "size": "",
+    "tags": "group, spirit, earnest, chipper",
+    "qualities": "",
+    "count": 3,
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m88jHcxMlzd0u0N3",
+    "notes": "<p>Wants attention, makes big promises.</p>",
+    "creatureType": "spirit"
+  },
+  "prototypeToken": {
+    "name": "Sapling Spirit",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+    }
+  },
+  "items": [],
+  "effects": [],
+  "flags": {},
+  "folder": "uljyQOAwEs9dDngH",
+  "_id": "7N8fP6LjUroJDeEZ",
+  "_key": "!actors!7N8fP6LjUroJDeEZ"
+}
