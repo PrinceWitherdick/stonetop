@@ -145,16 +145,15 @@ export function applyTreasureDrops(root, entryName) {
 	if (!el?.querySelectorAll) return;
 	const groups = groupsFor(entryName);
 	if (!groups.length) return;
-	const seen = new Set();
+	// querySelectorAll yields each node once, and the dataset marker makes re-scans of an
+	// already-decorated journal idempotent, so no in-loop "seen" set is needed.
 	for (const line of el.querySelectorAll("li, p")) {
-		if (line.dataset.stTreasureBound || seen.has(line)) continue;
-		// Skip a line that merely contains an already-decorated line (nested lists).
+		if (line.dataset.stTreasureBound) continue;
 		const text = norm(line.textContent);
 		if (text.length < 3) continue;
 		const group = matchGroup(text, groups);
 		if (!group) continue;
 		line.dataset.stTreasureBound = "1";
-		seen.add(line);
 		decorate(line, group);
 	}
 }

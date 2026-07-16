@@ -10,7 +10,7 @@ import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boos
 import { outnumberBonus } from "../../data/follower-build.js";
 import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
-import { deletionEntry, enrichHTML } from "../../utils/foundry-compat.js";
+import { deletionEntry, enrichHTML, compendiumSourceOf } from "../../utils/foundry-compat.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
 const ORGANIZATION_DEFAULTS = {
@@ -36,12 +36,6 @@ const MONSTER_MOVE_EDITABLE_FIELDS = new Set(["name", "system.description", "sys
 
 function _normalizeTag(value) {
 	return String(value ?? "").trim().toLocaleLowerCase();
-}
-
-// The compendium UUID a world document was imported from (stamped by
-// fromCompendium), or null — mirrors SeedCompendiums' idempotency check.
-function _compendiumSource(doc) {
-	return doc?._stats?.compendiumSource ?? doc?.flags?.core?.sourceId ?? null;
 }
 
 
@@ -269,11 +263,11 @@ export function createStonetopMonsterSheetClass(Base) {
 			const entry  = isPage ? doc.parent : doc;
 			if (!entry) return doc;
 
-			const worldEntry = (game.journal ?? []).find(j => _compendiumSource(j) === entry.uuid);
+			const worldEntry = (game.journal ?? []).find(j => compendiumSourceOf(j) === entry.uuid);
 			if (!worldEntry) return doc;
 			if (!isPage) return worldEntry;
 
-			return worldEntry.pages.find(p => _compendiumSource(p) === doc.uuid)
+			return worldEntry.pages.find(p => compendiumSourceOf(p) === doc.uuid)
 				?? worldEntry.pages.find(p => p.name === doc.name)
 				?? worldEntry.pages.contents[0]
 				?? worldEntry;

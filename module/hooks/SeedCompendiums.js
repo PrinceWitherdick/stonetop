@@ -2,6 +2,7 @@ import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.js";
 import { makeRewriter, remapPageData, managedHash, carryOverPageState, planSourceRestamp } from "./journal-sync-core.js";
+import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { SEEDED_FOLDER_COLORS, WORLD_ROOT_FOLDER_COLOR, rawFolderColor, planSeededFolderColorUpdates, seededFolderColorSignature } from "./seeded-folder-colors.js";
 
 // On a fresh world, copy the system's "Stonetop" JournalEntry compendium (the
@@ -152,7 +153,7 @@ async function importJournalPack(pack, rootParentId = null) {
 	// the missing ones rather than duplicating what's already there.
 	const alreadySeeded = new Set(
 		(game.journal ?? [])
-			.map(j => j._stats?.compendiumSource ?? j.flags?.core?.sourceId)
+			.map(compendiumSourceOf)
 			.filter(Boolean)
 	);
 
@@ -240,9 +241,16 @@ export async function syncSeededFolderColors() {
 	if (!game.user?.isGM) return;
 	if (!getSetting("seedingComplete")) return;
 	const signature = seededFolderColorSignature();
-	if (getSetting("seededFolderColorsSignature") === signature) return;
+	const previous = getSetting("seededFolderColorsSignature");
+	if (previous === signature) return;
 
-	const updates = planSeededFolderColorUpdates(game.folders, SEEDED_FOLDER_COLORS, WORLD_FOLDER_NAME, WORLD_ROOT_FOLDER_COLOR);
+	// Colours we applied under the previous scheme (parsed from the stored "Name=#hex|…"
+	// signature): a folder still holding one of these is ours to re-tint; any other
+	// non-default colour is the GM's own and left alone.
+	const ownedColors = new Set(
+		String(previous ?? "").split("|").map(part => part.split("=")[1]).filter(Boolean)
+	);
+	const updates = planSeededFolderColorUpdates(game.folders, SEEDED_FOLDER_COLORS, WORLD_FOLDER_NAME, WORLD_ROOT_FOLDER_COLOR, ownedColors);
 	if (updates.length) {
 		try {
 			await Folder.updateDocuments(updates);
@@ -292,7 +300,7 @@ export async function restampSeededJournalSources() {
 function buildWorldLinkMap() {
 	const map = new Map();
 	for (const j of game.journal ?? []) {
-		const src = j._stats?.compendiumSource ?? j.flags?.core?.sourceId;
+		const src = compendiumSourceOf(j);
 		if (src && src.startsWith("Compendium.stonetop_pwd.")) map.set(src, j.uuid);
 	}
 	return map;
@@ -317,7 +325,7 @@ export async function updateSeededJournalsOnVersionChange() {
 	const updated = [], skipped = [];
 
 	for (const entry of game.journal ?? []) {
-		const src = entry._stats?.compendiumSource ?? entry.flags?.core?.sourceId;
+		const src = compendiumSourceOf(entry);
 		if (!src || !src.startsWith("Compendium.stonetop_pwd.")) continue;
 		const source = await fromUuid(src);
 		if (!source) continue; // entry dropped from the pack this version — leave the world copy

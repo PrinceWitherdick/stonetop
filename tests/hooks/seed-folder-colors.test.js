@@ -115,6 +115,21 @@ describe("planSeededFolderColorUpdates", () => {
 		expect(colourOf(updates, "x")).toBeUndefined();
 		expect(updates).toHaveLength(8);
 	});
+
+	it("re-tints folders still holding a previous scheme's colour, but leaves the GM's own tint", () => {
+		// A later release changes a category colour: folders still carrying the OLD seeded
+		// colour are ours to re-tint (they propagate), but a folder the GM has since recoloured
+		// carries an unrecognised colour and must be left alone.
+		const OLD_BESTIARY = "#101010";
+		const world = folder("w", WORLD);
+		const bestiary = folder("b", "Bestiary", world, OLD_BESTIARY); // our prior auto-tint
+		const regions = folder("r", "Regions", bestiary, "#abcdef");   // GM's own tint since
+		const newSpecs = [{ name: "Bestiary", color: "#6a9165" }];
+		const owned = new Set([OLD_BESTIARY]);
+		const updates = planSeededFolderColorUpdates([world, bestiary, regions], newSpecs, WORLD, null, owned);
+		expect(colourOf(updates, "b")).toBe("#6a9165");  // ours → re-tinted to the new colour
+		expect(colourOf(updates, "r")).toBeUndefined();  // GM's tint → left alone
+	});
 });
 
 describe("seededFolderColorSignature", () => {

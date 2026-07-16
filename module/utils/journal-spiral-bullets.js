@@ -2,6 +2,7 @@ import { markQuestionBullets } from "./question-bullets.js";
 import { markCheckBullets } from "./check-bullets.js";
 import { markFaqItems } from "./faq-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./glyphs.js";
+import { compendiumSourceOf } from "./foundry-compat.js";
 import { markValueTooltips } from "./value-tooltips.js";
 import { markDebilityTooltips } from "./debility-tooltips.js";
 
@@ -48,10 +49,7 @@ export function resolveEntry(app) {
  */
 export function isStonetopJournalEntry(entry) {
 	if (!entry) return false;
-	const source = entry.pack
-		|| entry._stats?.compendiumSource
-		|| entry.flags?.core?.sourceId
-		|| "";
+	const source = entry.pack || compendiumSourceOf(entry) || "";
 	if (PROSE_PACK.test(source)) return true;
 	// Baked marker: present on our content regardless of how it reached the world.
 	return !!entry.flags?.stonetop;

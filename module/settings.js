@@ -50,8 +50,8 @@ export function registerSettings() {
 	// current scheme — a fresh install, or a system update that added/retinted a
 	// category — the sync recolours any still-default folders and records the new
 	// signature. A content signature rather than a one-shot flag so later colour
-	// changes propagate; the sync only touches default folders, so re-running can't
-	// fight a GM's own tint.
+	// changes propagate; the sync recolours folders at the default or still holding a colour
+	// from the previous scheme, so re-running can't fight a GM's own tint.
 	game.settings.register("stonetop_pwd", "seededFolderColorsSignature", {
 		name: "Seeded Folder Colours Signature",
 		scope: "world",

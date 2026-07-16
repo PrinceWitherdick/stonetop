@@ -1,4 +1,5 @@
 import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { sign } from "../../../utils/roll-engine.js";
 import {
 	SERVANT_ASPECTS, SERVANT_TAG_OPTIONS, SERVANT_NUMBER_OPTIONS, SERVANT_SIZE_OPTIONS,
 	SERVANT_TRAIT_OPTIONS, SERVANT_MOVE_OPTIONS, resolveServantBatch,
@@ -157,18 +158,9 @@ export class CallUpDeepOnesDialog extends Application {
 		});
 
 		const p = this._resolve();
-		const preview = {
-			name:       p.name,
-			typeLabel:  p.typeLabel,
-			tags:       p.tags,
-			hp:         p.hp,
-			armor:      p.armor,
-			damage:     p.damage,
-			exceptional: p.exceptional,
-			isGroup:    p.isGroup,
-			size:       p.size,
-			moves:      (p.moves ? p.moves.split("\n") : []),
-		};
+		// The template reads a subset of the resolved batch; only `moves` needs reshaping
+		// (newline string -> lines). Spreading keeps this in sync as resolveServantBatch grows.
+		const preview = { ...p, moves: (p.moves ? p.moves.split("\n") : []) };
 
 		const ringLoyalty = Math.max(0, Number(this._ring.loyalty) || 0);
 		return {
@@ -209,8 +201,8 @@ export class CallUpDeepOnesDialog extends Application {
 		if (key === "size") {
 			const o = SERVANT_SIZE_OPTIONS[die];
 			const parts = [];
-			if (o.hpMod)  parts.push(`${o.hpMod > 0 ? "+" : ""}${o.hpMod} HP`);
-			if (o.dmgMod) parts.push(`${o.dmgMod > 0 ? "+" : ""}${o.dmgMod} dmg`);
+			if (o.hpMod)  parts.push(`${sign(o.hpMod)} HP`);
+			if (o.dmgMod) parts.push(`${sign(o.dmgMod)} dmg`);
 			parts.push(o.ranges.join(", "));
 			return `${o.label} (${parts.join(", ")})`;
 		}
@@ -244,7 +236,7 @@ export class CallUpDeepOnesDialog extends Application {
 		html.find(".stonetop-cu-move").on("change", ev => this._toggle(this._moves, ev.currentTarget.value, this._moveLimit()));
 
 		html.find(".stonetop-cu-name").on("change", ev => { this._name = ev.currentTarget.value; this.render(false); });
-		html.find(".stonetop-cu-cost").on("change", ev => { this._costKind = ev.currentTarget.value; this.render(false); });
+		html.find(".stonetop-cu-cost-input").on("change", ev => { this._costKind = ev.currentTarget.value; this.render(false); });
 
 		html.find(".stonetop-cu-manifest").on("click", () => this._finish());
 		html.find(".stonetop-cu-cancel").on("click", () => this.close());

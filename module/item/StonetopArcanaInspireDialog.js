@@ -26,6 +26,13 @@ const STEP_ICONS = {
 	review:  "fa-clipboard-check",
 };
 
+// Origin and nature must be picked before advancing (nature branches the detail step). The
+// same warning shows whether you click Next or jump ahead on the rail, so it lives once here.
+const PICK_WARN = {
+	origin: "Pick or roll an origin first.",
+	nature: "Pick or roll a nature first.",
+};
+
 /**
  * The Artifact Creation inspiration wizard. Walks the Book II pick-or-roll tables
  * (origin → nature → detail → form), then builds a homebrew arcanum pre-filled with the
@@ -204,11 +211,11 @@ export class StonetopArcanaInspireDialog extends Application {
 		if (index === current) return;
 		if (index > current) {
 			if (index >= STEPS.indexOf("nature")     && !Number.isInteger(this._picks.origin)) {
-				ui.notifications?.warn("Pick or roll an origin first.");
+				ui.notifications?.warn(PICK_WARN.origin);
 				return;
 			}
 			if (index >= STEPS.indexOf("detail")     && !Number.isInteger(this._picks.nature)) {
-				ui.notifications?.warn("Pick or roll a nature first.");
+				ui.notifications?.warn(PICK_WARN.nature);
 				return;
 			}
 		}
@@ -227,7 +234,7 @@ export class StonetopArcanaInspireDialog extends Application {
 	// Origin and nature must be chosen before moving on (nature branches the detail step).
 	_requirePickToAdvance() {
 		if ((this._step === "origin" || this._step === "nature") && !Number.isInteger(this._picks[this._step])) {
-			ui.notifications?.warn(this._step === "origin" ? "Pick or roll an origin first." : "Pick or roll a nature first.");
+			ui.notifications?.warn(PICK_WARN[this._step]);
 			return false;
 		}
 		return true;

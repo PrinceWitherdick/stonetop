@@ -31,8 +31,9 @@ export const WORLD_ROOT_FOLDER_COLOR = "#6b6f76";
 // A stable fingerprint of the whole colour scheme above. syncSeededFolderColors stamps
 // this into a world setting after it runs and re-runs whenever it changes — so adding a
 // category, or re-tinting one, propagates to already-seeded worlds on their next load
-// instead of being locked out by a one-shot "done" flag. (Still idempotent and still
-// only touches default folders, so re-running never clobbers a GM's own tint.)
+// instead of being locked out by a one-shot "done" flag. (Still idempotent; it recolours
+// only folders still at the default or still holding a colour from the previous scheme, so
+// re-running never clobbers a GM's own tint.)
 export function seededFolderColorSignature() {
 	return [
 		...SEEDED_FOLDER_COLORS.map(s => `${s.name}=${s.color}`),
@@ -66,7 +67,7 @@ export function rawFolderColor(folder) {
 // folder itself is coloured too — root ONLY, never its category children (those keep
 // their own cascading colours). Pure over a folder list so it can be unit-tested
 // without a live Foundry. Returns an array of `{ _id, color }` update objects.
-export function planSeededFolderColorUpdates(folders, specs, worldFolderName, worldRootColor = null) {
+export function planSeededFolderColorUpdates(folders, specs, worldFolderName, worldRootColor = null, ownedColors = null) {
 	const journal = Array.from(folders ?? []).filter(f => f.type === "JournalEntry");
 
 	// parent id → child folders, so we can walk each category's subtree.
@@ -79,10 +80,21 @@ export function planSeededFolderColorUpdates(folders, specs, worldFolderName, wo
 
 	const world = journal.find(f => f.name === worldFolderName && !parentFolderId(f)) ?? null;
 
+	// A folder is ours to (re)colour when it is still at the default OR still carries a colour
+	// we applied under a previous scheme (in `ownedColors`) — so re-tinting a category
+	// propagates to already-seeded worlds — but never when it already IS the target colour
+	// (no-op) or the GM has since chosen their own tint (an unrecognised non-default colour).
+	const owned = ownedColors instanceof Set ? ownedColors : null;
+	const recolourTo = (folder, color) => {
+		const cur = rawFolderColor(folder);
+		if (cur === color) return false;
+		return !cur || (owned?.has(cur) ?? false);
+	};
+
 	const updates = [];
 
-	// The "The World" root — coloured alone (no descendant walk), if still default.
-	if (worldRootColor && world && !rawFolderColor(world)) {
+	// The "The World" root — coloured alone (no descendant walk).
+	if (worldRootColor && world && recolourTo(world, worldRootColor)) {
 		updates.push({ _id: world.id, color: worldRootColor });
 	}
 
@@ -94,7 +106,7 @@ export function planSeededFolderColorUpdates(folders, specs, worldFolderName, wo
 		const stack = [root];
 		while (stack.length) {
 			const folder = stack.pop();
-			if (!rawFolderColor(folder)) updates.push({ _id: folder.id, color });
+			if (recolourTo(folder, color)) updates.push({ _id: folder.id, color });
 			for (const child of childrenOf.get(folder.id) ?? []) stack.push(child);
 		}
 	}

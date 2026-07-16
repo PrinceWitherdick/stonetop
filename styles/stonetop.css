@@ -13142,7 +13142,10 @@ a.steading-player-open:hover {
 	width: 3.5em;
 	text-align: center;
 }
-.stonetop-follower-order {
+/* The Ring of Daagon buttons (.stonetop-daagon-btn, below) are a blue variant of this,
+   so the shared chrome lives here and they override only the three colour declarations. */
+.stonetop-follower-order,
+.stonetop-daagon-btn {
 	display: inline-flex;          /* V13 core sets button{display:flex}; keep it from stretching */
 	align-items: center;
 	gap: 6px;
@@ -13309,19 +13312,11 @@ a.steading-player-open:hover {
    A "watery" blue variant of the follower Order button, plus the shared-Loyalty and
    broke-free notes on a Servant batch card. */
 .stonetop-daagon-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+/* Blue overrides only; the rest of the chrome is shared with .stonetop-follower-order. */
 .stonetop-daagon-btn {
-	display: inline-flex;          /* V13 core sets button{display:flex}; keep it from stretching */
-	align-items: center;
-	gap: 6px;
-	padding: 3px 12px;
-	border: 1px solid var(--st-blue-border);
-	border-radius: var(--st-radius-sm);
+	border-color: var(--st-blue-border);
 	background: var(--st-blue-bg);
 	color: var(--st-blue-text);
-	font-family: var(--font-stonetop);
-	font-size: var(--st-fs-xs);
-	cursor: pointer;
-	transition: background 0.15s, border-color 0.15s;
 }
 .stonetop-daagon-btn:hover { background: var(--st-blue-bg-hover); border-color: var(--st-blue-border); color: var(--st-blue-text); }
 .stonetop-daagon-shared-note {
@@ -18197,10 +18192,10 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-welcome-banner-optional {
 	flex: 0 0 auto;
 	padding: 0 6px;
-	border: 1px solid var(--st-red-border);
+	border: 1px solid var(--st-text-muted);
 	border-radius: var(--st-radius-sm);
-	background: var(--st-red-bg);
-	color: var(--st-red-text);
+	background: transparent;
+	color: var(--st-text-muted);
 	font-size: 0.68em;
 	font-weight: 700;
 	text-transform: uppercase;
@@ -18898,7 +18893,9 @@ th:has(> .stonetop-roll-table-btn) {
    Scoped to those two so the other steppers (Spring Burst, Create Follower) and a
    player's rail-less Introductions keep their single column. */
 .stonetop-expedition-dialog .stonetop-guide-split,
-.stonetop-introductions .stonetop-guide-split {
+.stonetop-introductions .stonetop-guide-split,
+.stonetop-arcanum-edit .stonetop-guide-split,
+.stonetop-arcana-inspire-dialog .stonetop-guide-split {
 	display: flex;
 	flex: 1 1 auto;
 	min-height: 0;
@@ -19791,13 +19788,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-text-body);
 }
 
-/* Rail beside the scrolling section column (the global .stonetop-guide-split flex is
-   scoped to the stepper dialogs, so switch it on here too). */
-.stonetop-arcanum-edit .stonetop-guide-split {
-	display: flex;
-	flex: 1 1 auto;
-	min-height: 0;
-}
+/* Rail beside the scrolling section column; the shared .stonetop-guide-split flex (grouped
+   with the other stepper dialogs above) supplies the split layout. */
 .stonetop-arcanum-edit .stonetop-guide-main {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -20052,13 +20044,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-family: var(--font-stonetop);
 }
 
-/* Rail beside the scrolling content column (the global .stonetop-guide-split flex is
-   scoped to the other steppers, so switch it on here too). */
-.stonetop-arcana-inspire-dialog .stonetop-guide-split {
-	display: flex;
-	flex: 1 1 auto;
-	min-height: 0;
-}
+/* Rail beside the scrolling content column; the shared .stonetop-guide-split flex (grouped
+   with the other stepper dialogs) supplies the split layout. */
 .stonetop-arcana-inspire-dialog .stonetop-guide-main {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -20824,6 +20811,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Collapsed: keep only the header (title / type + chevron) and the Instinct line;
    everything below is hidden. The proximity line is already hidden on this tab. */
 .stonetop .steading-threats .threat-card.is-collapsed .threat-desc,
+.stonetop .steading-threats .threat-card.is-collapsed .threat-themes,
+.stonetop .steading-threats .threat-card.is-collapsed .threat-aspects,
 .stonetop .steading-threats .threat-card.is-collapsed .threat-doom,
 .stonetop .steading-threats .threat-card.is-collapsed .threat-stakes,
 .stonetop .steading-threats .threat-card.is-collapsed .threat-moves,

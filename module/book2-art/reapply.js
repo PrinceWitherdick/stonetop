@@ -3,6 +3,7 @@ import { info, error } from "../utils/logger.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "./manifest.js";
 import { bestiaryDescriptionWithArt, locationSectionsWithArt, textPageWithMap, matchWorldPage } from "./world-journal-art.js";
 import { managedHash } from "../hooks/journal-sync-core.js";
+import { compendiumSourceOf } from "../utils/foundry-compat.js";
 
 // Re-apply the Book II illustrations to the compendia, the world journals, and the
 // world actors, WITHOUT the source PDF.
@@ -46,22 +47,41 @@ const JRN_SOURCE_PREFIX = "Compendium.stonetop_pwd.stonetop-journal.";
 
 const jrnSource = (entryId) => `Compendium.stonetop_pwd.stonetop-journal.JournalEntry.${entryId}`;
 
-// The compendium-source uuid core stamps on a world journal at import time (or the
-// legacy core.sourceId flag). Null for a journal that isn't from a compendium.
-const journalSourceOf = (j) => j?._stats?.compendiumSource ?? j?.getFlag?.("core", "sourceId") ?? null;
-
 // Fully-qualified paths of the durable art currently on disk. A missing directory
 // just means nothing to apply from there (the GM hasn't imported yet).
 async function browseDurableArt(root) {
 	const FP = foundry?.applications?.apps?.FilePicker ?? FilePicker;
 	const present = new Set();
-	for (const dir of ["assets/bestiary", "assets/locations", "assets/maps"]) {
-		try {
-			const res = await FP.browse("data", `${root}/${dir}`);
-			for (const f of res.files) present.add(decodeURIComponent(f));
-		} catch (_) { /* directory doesn't exist yet -> nothing on disk */ }
+	// The three dirs are independent; browse them in parallel. A rejected browse means the
+	// directory doesn't exist yet (the GM hasn't imported) -> nothing on disk from there.
+	const results = await Promise.all(["assets/bestiary", "assets/locations", "assets/maps"]
+		.map(dir => FP.browse("data", `${root}/${dir}`).catch(() => null)));
+	for (const res of results) {
+		if (!res) continue;
+		// A malformed %-escape in a stray filename must not reject the whole art pass — keep
+		// the raw name on decode failure so the version still gets stamped this load.
+		for (const f of res.files) {
+			try { present.add(decodeURIComponent(f)); }
+			catch { present.add(f); }
+		}
 	}
 	return present;
+}
+
+// Embed missing art into every world copy of a compendium journal page. `buildNext(wp)`
+// returns the page's new field value, or null when the page already has the art (skip).
+// `noteEntry` marks a touched world entry so pristine tracking stays honest. Returns how
+// many world pages were updated. Shared by the bestiary / location / setting-map passes,
+// which differ only in the build function and the field key.
+async function applyWorldPages(worldEntries, page, updateKey, buildNext, noteEntry) {
+	let count = 0;
+	for (const entry of worldEntries) {
+		const wp = matchWorldPage(entry.pages, page.id, page.name, page.type);
+		if (!wp) continue;
+		const next = buildNext(wp);
+		if (next != null) { noteEntry(entry); await wp.update({ [updateKey]: next }); count++; }
+	}
+	return count;
 }
 
 // Minimal portrait + prototype-token update pointing `doc` at `src`, forcing the token
@@ -164,7 +184,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// otherwise every world journal (empty until the gazetteer / bestiary codex is seeded).
 	const worldBySource = new Map();
 	for (const j of entries ?? game.journal ?? []) {
-		const s = journalSourceOf(j);
+		const s = compendiumSourceOf(j);
 		if (!s || !s.startsWith("Compendium.stonetop_pwd.")) continue;
 		if (!worldBySource.has(s)) worldBySource.set(s, []);
 		worldBySource.get(s).push(j);
@@ -219,12 +239,8 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 							const nd = bestiaryDescriptionWithArt(page.system?.description, src, m.name);
 							if (nd != null) { await page.update({ "system.description": nd }); besPages++; }
 						}
-						for (const entry of worldEntries) {
-							const wp = matchWorldPage(entry.pages, page.id, page.name, page.type);
-							if (!wp) continue;
-							const wnd = bestiaryDescriptionWithArt(wp.system?.description, src, m.name);
-							if (wnd != null) { noteEntry(entry); await wp.update({ "system.description": wnd }); worldJournalPages++; }
-						}
+						worldJournalPages += await applyWorldPages(worldEntries, page, "system.description",
+							(wp) => bestiaryDescriptionWithArt(wp.system?.description, src, m.name), noteEntry);
 					}
 				} catch (e) { errors++; error(`Book II art re-apply: bestiary journal "${m.slug}"`, e); }
 			}
@@ -245,12 +261,8 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 					const cns = locationSectionsWithArt(page.system?.sections, l.sectionIndex, srcs, l.name);
 					if (cns) { await page.update({ "system.sections": cns }); locPages++; }
 				}
-				for (const entry of worldEntries) {
-					const wp = matchWorldPage(entry.pages, page.id, page.name, page.type);
-					if (!wp) continue;
-					const wns = locationSectionsWithArt(wp.system?.sections, l.sectionIndex, srcs, l.name);
-					if (wns) { noteEntry(entry); await wp.update({ "system.sections": wns }); worldJournalPages++; }
-				}
+				worldJournalPages += await applyWorldPages(worldEntries, page, "system.sections",
+					(wp) => locationSectionsWithArt(wp.system?.sections, l.sectionIndex, srcs, l.name), noteEntry);
 			} catch (e) { errors++; error(`Book II art re-apply: location "${l.slug}"`, e); }
 		}
 
@@ -272,12 +284,8 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 					const nd = textPageWithMap(page.text?.content, src, s.name);
 					if (nd != null) { await page.update({ "text.content": nd }); soPages++; }
 				}
-				for (const entry of worldEntries) {
-					const wp = matchWorldPage(entry.pages, page.id, page.name, page.type);
-					if (!wp) continue;
-					const wnd = textPageWithMap(wp.text?.content, src, s.name);
-					if (wnd != null) { noteEntry(entry); await wp.update({ "text.content": wnd }); worldJournalPages++; }
-				}
+				worldJournalPages += await applyWorldPages(worldEntries, page, "text.content",
+					(wp) => textPageWithMap(wp.text?.content, src, s.name), noteEntry);
 			} catch (e) { errors++; error(`Book II art re-apply: setting-overview map "${s.slug}"`, e); }
 		}
 
@@ -374,7 +382,7 @@ function _scheduleImportFlush() {
 // copy of one of our journal-pack entries.
 export function handleImportedJournalArt(entry, _options, userId) {
 	if (!game.user?.isGM || game.user.id !== userId) return;
-	const src = journalSourceOf(entry);
+	const src = compendiumSourceOf(entry);
 	if (typeof src !== "string" || !src.startsWith(JRN_SOURCE_PREFIX)) return;
 	if (!entry?.id) return;
 	_pendingImportIds.add(entry.id);

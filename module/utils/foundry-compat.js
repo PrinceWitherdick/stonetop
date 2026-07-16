@@ -43,3 +43,15 @@ export function deletionEntry(keyPath) {
 	const i = keyPath.lastIndexOf(".");
 	return [`${keyPath.slice(0, i + 1)}-=${keyPath.slice(i + 1)}`, null];
 }
+
+/**
+ * The compendium-source uuid a world document was imported from: v14 stamps
+ * `_stats.compendiumSource` at import time; older cores used the legacy `flags.core.sourceId`
+ * flag. Returns null for a hand-made world document that never came from a compendium.
+ * Works on real Documents and on plain index rows (reads properties, never calls the doc).
+ * @param {object} doc
+ * @returns {string|null}
+ */
+export function compendiumSourceOf(doc) {
+	return doc?._stats?.compendiumSource ?? doc?.flags?.core?.sourceId ?? null;
+}

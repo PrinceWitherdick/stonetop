@@ -114,11 +114,11 @@
     <div class="stonetop-cu-cost">
       <span class="stonetop-cu-cost-label">To call them up you must</span>
       <label class="stonetop-cu-cost-choice{{#if loyaltyDisabled}} is-disabled{{/if}}">
-        <input type="radio" name="callup-cost" class="stonetop-cu-cost" value="loyalty" {{#if costLoyalty}}checked{{/if}} {{#if loyaltyDisabled}}disabled{{/if}}>
+        <input type="radio" name="callup-cost" class="stonetop-cu-cost-input" value="loyalty" {{#if costLoyalty}}checked{{/if}} {{#if loyaltyDisabled}}disabled{{/if}}>
         <span>Spend <strong>1 Loyalty</strong> from {{ringName}} <span class="stonetop-cu-cost-note">({{ringLoyalty}} held)</span></span>
       </label>
       <label class="stonetop-cu-cost-choice">
-        <input type="radio" name="callup-cost" class="stonetop-cu-cost" value="consequence" {{#if costConsequence}}checked{{/if}}>
+        <input type="radio" name="callup-cost" class="stonetop-cu-cost-input" value="consequence" {{#if costConsequence}}checked{{/if}}>
         <span>Mark a <strong>consequence</strong></span>
       </label>
     </div>

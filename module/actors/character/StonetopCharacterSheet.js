@@ -2380,11 +2380,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!compendiumId) return;
 				const doc = await this._stonetopCharacter._moveRepo.getBasicMoveDocument(compendiumId);
 				if (!doc) return;
-				const speaker = ChatMessage.getSpeaker({ actor: this.actor });
-				ChatMessage.create({
-					content: moveChatCard(doc.name, doc.system?.description ?? ""),
-					speaker,
-				});
+				this._postMoveCard(doc.name, doc.system?.description ?? "");
 			});
 
 			// Defend's Readiness circles (p.216). Clicking a circle sets held Readiness to
@@ -3015,10 +3011,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const name = (nameEl?.textContent.trim().replace(/\s+/g, " ")) || "Follower";
 				const type = card?.querySelector(".stonetop-follower-type")?.textContent.trim();
 				const title = type ? `${name} (${type})` : name;
-				ChatMessage.create({
-					content: moveChatCard(title, `<p>${escHtml(moveText)}</p>`),
-					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-				});
+				this._postMoveCard(title, `<p>${escHtml(moveText)}</p>`);
 			});
 
 			// Create a follower via the Book I walkthrough (NPCs & Followers, p.474).
@@ -3049,10 +3042,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				Dialog.confirm({
 					title:   "Remove follower",
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from your followers? This can't be undone.</p>`,
-					yes:     () => {
-						const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.customFollowers.${slug}`);
-						return this.actor.update({ [updKey]: val }).then(() => this.render(false));
-					},
+					yes:     () => this._removeCustomFollower(slug),
 					render:  bringDialogToFront,
 					options: { classes: ["dialog", "stonetop"] },
 				});
@@ -3625,10 +3615,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!card) return;
 				const name = ev.currentTarget.textContent.trim();
 				const description = card.querySelector(".stonetop-invocation-desc")?.innerHTML ?? "";
-				ChatMessage.create({
-					content: moveChatCard(name, description),
-					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-				});
+				this._postMoveCard(name, description);
 			});
 			html.find(".stonetop-other-move-delete").on("click", ev => {
 				const { itemId } = ev.currentTarget.dataset;
@@ -4988,10 +4975,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				+ `<p>HP ${input.hp}${input.isGroup ? ` each &middot; ${input.size} strong` : ""}, Armor ${input.armor}, damage ${escHtml(input.damage)}.</p>`
 				+ (input.moves ? `<p><strong>Moves:</strong> ${escHtml(input.moves.replace(/\n/g, "; "))}</p>` : "")
 				+ costLine;
-			await ChatMessage.create({
-				content: moveChatCard("Call Up the Deep Ones", body),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Call Up the Deep Ones", body);
 			this.render(false);
 		}
 
@@ -5035,6 +5019,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			return this.actor.update({ [key]: val }).then(() => this.render(false));
 		}
 
+		/** Post a move-result card to chat, spoken by this actor. Returns the create promise. */
+		_postMoveCard(title, body) {
+			return ChatMessage.create({
+				content: moveChatCard(title, body),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+		}
+
 		// The 6- branch: pay to make them leave (spend the Ring's shared Loyalty, or mark a
 		// consequence) or let them break free of your control.
 		_onServantsResist(slug, who) {
@@ -5074,10 +5066,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else {
 				line = `<p>You <strong>mark a consequence</strong>. <strong>${escHtml(who)}</strong> will eventually go.</p>`;
 			}
-			await ChatMessage.create({
-				content: moveChatCard("Send Them Back", line),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Send Them Back", line);
 			this._confirmServantDeparture(slug, who, "They'll eventually go.");
 		}
 
@@ -5085,11 +5074,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// No longer yours to command. Flag the batch (the card shows a "broke free" badge)
 			// and note it; it stays on the tab until removed.
 			await this.actor.setFlag("stonetop_pwd", `customFollowers.${slug}.brokenFree`, true);
-			await ChatMessage.create({
-				content: moveChatCard("Send Them Back",
-					`<p><strong>${escHtml(who)}</strong> break free of your control. They are no longer yours to command.</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Send Them Back",
+				`<p><strong>${escHtml(who)}</strong> break free of your control. They are no longer yours to command.</p>`);
 			this.render(false);
 		}
 
@@ -5187,10 +5173,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else {
 				return;
 			}
-			await ChatMessage.create({
-				content: moveChatCard("Follower Down", body),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Follower Down", body);
 			this.render(false);
 		}
 
@@ -5241,11 +5224,8 @@ export function createStonetopCharacterSheetClass(Base) {
 							const cur = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", gearPath) ?? []);
 							cur.push({ label: item, checked: true });
 							await this.actor.setFlag("stonetop_pwd", gearPath, cur);
-							await ChatMessage.create({
-								content: moveChatCard("Have What They Need",
-									`<p><strong>${escHtml(name || "Your follower")}</strong> produces <em>${escHtml(item)}</em> — added to their gear.</p>`),
-								speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-							});
+							await this._postMoveCard("Have What They Need",
+								`<p><strong>${escHtml(name || "Your follower")}</strong> produces <em>${escHtml(item)}</em> — added to their gear.</p>`);
 							this.render(false);
 						} },
 					cancel: { label: "Cancel" },
@@ -5262,11 +5242,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// to build the whole sheet snapshot just to pull one scalar off it.
 			const pipsPerSet = this._stonetopCharacter.getSmallItemLimit() ?? 5;
 			await this.actor.setFlag("stonetop_pwd", "crew.supplies", Array(6).fill(pipsPerSet));
-			await ChatMessage.create({
-				content: moveChatCard("Outfit",
-					`<p>The crew Outfits — every member's Supplies restocked to full (${pipsPerSet} uses each).</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Outfit",
+				`<p>The crew Outfits — every member's Supplies restocked to full (${pipsPerSet} uses each).</p>`);
 			this.render(false);
 		}
 
@@ -5313,12 +5290,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.update({ [`flags.stonetop_pwd.${path}`]: next }, { stonetopMove: "Defend" });
 			}
 			const who = result?.followerName || "Your follower";
-			await ChatMessage.create({
-				content: moveChatCard("Defend — Readiness held",
-					`<p><strong>${escHtml(who)}</strong> holds <strong>${next}</strong> Readiness${shieldNote}.</p>`
-					+ `<p>Spend it to suffer the damage/effects of an attack for a ward, or to draw all attention to themselves.</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Defend — Readiness held",
+				`<p><strong>${escHtml(who)}</strong> holds <strong>${next}</strong> Readiness${shieldNote}.</p>`
+				+ `<p>Spend it to suffer the damage/effects of an attack for a ward, or to draw all attention to themselves.</p>`);
 			if (next !== existing) this.render(false);
 		}
 
@@ -5366,12 +5340,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			const live = Math.max(0, Number(this.actor.getFlag("stonetop_pwd", path)) || 0);
 			if (live <= 0) { ui.notifications?.warn?.(`${name || "This follower"} no longer holds any Loyalty to spend.`); return; }
 			await this.actor.update({ [`flags.stonetop_pwd.${path}`]: live - 1 }, { stonetopMove: "Spend Loyalty" });
-			await ChatMessage.create({
-				content: moveChatCard("Spend Loyalty",
-					`<p>You spend <strong>1 Loyalty</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
-					+ `<p>They now hold <strong>${live - 1}</strong> Loyalty.</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Spend Loyalty",
+				`<p>You spend <strong>1 Loyalty</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
+				+ `<p>They now hold <strong>${live - 1}</strong> Loyalty.</p>`);
 			this.render(false);
 		}
 
@@ -5425,12 +5396,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				: wantsUnwilling
 					? `<p>They didn't want to, but hold no Loyalty left to spend.</p>`
 					: "";
-			await ChatMessage.create({
-				content: moveChatCard("Spend Readiness",
-					`<p>You spend <strong>1 Readiness</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
-					+ `<p>They now hold <strong>${liveReadiness - 1}</strong> Readiness.</p>${costLine}`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Spend Readiness",
+				`<p>You spend <strong>1 Readiness</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
+				+ `<p>They now hold <strong>${liveReadiness - 1}</strong> Readiness.</p>${costLine}`);
 			this.render(false);
 		}
 
@@ -5470,14 +5438,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			await target.update({
 				[`flags.stonetop_pwd.customFollowers.${newId}`]: { ...data, order: Math.max(maxOrder + 1, Date.now()) },
 			});
-			const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.customFollowers.${slug}`);
-			await this.actor.update({ [updKey]: val });
-			await ChatMessage.create({
-				content: moveChatCard("Follower Handed Off",
-					`<p><strong>${escHtml(data.name || "A follower")}</strong> now follows <strong>${escHtml(target.name)}</strong>.</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
-			this.render(false);
+			await this._removeCustomFollower(slug);
+			await this._postMoveCard("Follower Handed Off",
+				`<p><strong>${escHtml(data.name || "A follower")}</strong> now follows <strong>${escHtml(target.name)}</strong>.</p>`);
 		}
 
 		async _onRecoverOpen() {

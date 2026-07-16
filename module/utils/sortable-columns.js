@@ -57,10 +57,9 @@ export function makeColumnsSortable(table, storageKey) {
 	const nameClass = "steading-residents-col-name";
 
 	const applySort = () => {
-		// No active sort (the default): the template already renders real rows before the
-		// blank "add" placeholders, so there is nothing to reorder; skip the per-row DOM
-		// decoration that would otherwise run on every steading re-render.
-		if (!state) return;
+		// Runs on every steading re-render, sorted or not: even with no active sort the blank
+		// "add" / cleared-name rows must be pinned to the bottom. The DOM is only touched when
+		// the order actually changes (see below), so an already-ordered render costs nothing.
 		const rows = Array.from(list.querySelectorAll(":scope > .steading-residents-row"));
 		// Decorate each row ONCE with its name and its active-column value, so the comparator
 		// and the placeholder split read cached primitives instead of re-querying the DOM on
