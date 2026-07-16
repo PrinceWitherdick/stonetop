@@ -22,6 +22,7 @@ import { HazardPageModel } from "./module/journal/HazardPageModel.js";
 import { createStonetopHazardPageSheetClass } from "./module/journal/StonetopHazardPageSheet.js";
 import { ThreatBoard } from "./module/threats/threat-board.js";
 import { onReady } from "./module/hooks/Ready.js";
+import { handleImportedJournalArt } from "./module/book2-art/reapply.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
@@ -351,6 +352,13 @@ Hooks.on("hotbarDrop", onHotbarDrop);
 // Drag a "Places of Interest" disc from the steading Overview tab onto the canvas to
 // drop a lettered map note whose label (the place name) shows on hover.
 Hooks.on("dropCanvasData", onDropPlaceOfInterest);
+
+// -- BOOK II ART ON JOURNAL IMPORT -----------------------------
+// A GM dragging one of our journals in from the compendium mid-version would get an
+// art-less world copy (the once-per-version re-apply won't fire again). Embed its Book II
+// art right away from the durable folder. Debounced + idempotent (see book2-art/reapply.js),
+// so a folder-import burst — and the fresh-world seed's own create storm — collapse to one pass.
+Hooks.on("createJournalEntry", handleImportedJournalArt);
 
 // -- THREAT SCENE PINS -----------------------------------------
 // A threat card dragged onto a scene drops a native page-linked Note; give that

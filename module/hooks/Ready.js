@@ -1,7 +1,7 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJournalsOnVersionChange, syncSeededFolderColors } from "./SeedCompendiums.js";
-import { reapplyBook2ArtOnVersionChange } from "../book2-art/reapply.js";
+import { reapplyBook2ArtOnVersionChange, reapplyBook2Art } from "../book2-art/reapply.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource } from "../book2-art/macro.js";
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
@@ -147,6 +147,13 @@ export async function onReady() {
 	game.stonetop.inspireArcanum    = () => new StonetopArcanaInspireDialog({
 		onCreate: ({ name, major, front }) => createArcanumItem({ name, major, front }),
 	}).render(true);
+	// Manually re-apply the durable Book II art to the compendium + world journals + world
+	// actors, bypassing the once-per-version gate. The dev-loop entry point after
+	// re-assigning art in the picker + regenerating the manifest (a world reload picks up
+	// the new manifest.js; this then re-flows it without waiting for a version bump). Pass
+	// { worldOnly: true } to only touch world journals. Returns the pass's stats.
+	//   game.stonetop.reapplyBook2Art()
+	game.stonetop.reapplyBook2Art   = (opts = {}) => reapplyBook2Art(opts);
 
 	_registerCharacterAutoOpen();
 
@@ -181,6 +188,13 @@ export async function onReady() {
 		await restampSeededJournalSources();
 		await updateSeededJournalsOnVersionChange();
 		await syncSeededFolderColors();
+		// Every-load self-heal: add any durable Book II art still MISSING from world
+		// journals (e.g. art that only landed on disk after a journal was imported, or a
+		// journal imported before the durable folder existed). Cheap — it reads a world
+		// entry's own pages first and only touches the compendium for a row whose art is
+		// actually absent, so it does no compendium reads once everything is applied.
+		try { await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true }); }
+		catch (err) { console.error("Stonetop | Book II art self-heal failed:", err); }
 	}
 	if (game.user.isGM) {
 		await _retireIntroductionsMacro();

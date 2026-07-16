@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { reapplyBook2ArtOnVersionChange } from "../../module/book2-art/reapply.js";
+import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, handleImportedJournalArt } from "../../module/book2-art/reapply.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../module/book2-art/manifest.js";
 import { managedHash } from "../../module/hooks/journal-sync-core.js";
 
@@ -488,5 +488,122 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(h.besDocs.get(mon0.actorId).img).toBe(durableOf(mon0.out));
 		// but the version is left unstamped so the next load retries
 		expect(h.store.book2ArtSyncVersion).toBe("");
+	});
+});
+
+// The reusable worker behind the manual-import + self-heal triggers. These exercise the
+// scoped / world-only / cheap-skip modes that the once-per-version pass above does not.
+describe("reapplyBook2Art (scoped + self-heal modes)", () => {
+	beforeEach(() => { vi.restoreAllMocks(); });
+
+	it("scoped to `entries`: applies art to only those world journals, never the compendium/actors, never stamps the version", async () => {
+		const mon0 = monsters[0];
+		const loc0 = locations[0];
+		const besPage = makeWorldPage({ id: mon0.journalPageId, name: `cmp:${mon0.journalPageId}`, type: "bestiary", system: { description: "<p>world bestiary prose</p>" } });
+		const worldBes = makeWorldJournal({ source: JRN_SOURCE(mon0.journalEntryId), name: mon0.name, pages: [besPage], stamp: true });
+		// Another journal that IS one of ours but is NOT in the scoped list -> left alone.
+		const otherPage = makeWorldPage({ id: loc0.journalPageId, name: `cmp:${loc0.journalPageId}`, type: "location", system: { sections: Array.from({ length: 64 }, () => ({ kind: "prose", body: "<p>loc prose</p>" })) } });
+		const otherLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [otherPage], stamp: true });
+
+		const h = makeHarness({ worldJournals: [worldBes, otherLoc] });
+		const preHash = worldBes._flags.stonetop_pwd.journalSync.hash;
+
+		const result = await reapplyBook2Art({ entries: [worldBes] });
+
+		// the scoped entry got its art and a fresh baseline
+		expect(besPage.system.description).toContain(`src="${durableOf(mon0.out)}"`);
+		expect(worldBes._flags.stonetop_pwd.journalSync.hash).not.toBe(preHash);
+		// the unscoped-but-ours journal is untouched
+		expect(otherPage._writes).toBe(0);
+		expect(otherLoc._flagWrites).toBe(0);
+		// no compendium actor re-point, no world-actor pass, no version stamp
+		expect(h.besPack.getDocument).not.toHaveBeenCalled();
+		expect(h.store.book2ArtSyncVersion).toBe("");
+		expect(result.total).toBeGreaterThan(0);
+	});
+
+	it("world-only self-heal adds MISSING art to a world journal without writing the compendium page", async () => {
+		const loc0 = locations[0];
+		const secIdx = loc0.sectionIndex ?? 0;
+		const locPage = makeWorldPage({ id: loc0.journalPageId, name: `cmp:${loc0.journalPageId}`, type: "location", system: { sections: Array.from({ length: 64 }, () => ({ kind: "prose", body: "<p>loc prose</p>" })) } });
+		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [locPage], stamp: true });
+
+		const h = makeHarness({ worldJournals: [worldLoc] });
+		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
+
+		// world copy got the art...
+		expect(locPage.system.sections[secIdx].body).toContain(`src="${durableOf(loc0.images[0].out)}"`);
+		expect(locPage._writes).toBeGreaterThan(0);
+		// ...but neither the compendium page nor any actor was written, and no version stamp
+		expect(h.updates.filter((u) => u.kind === "page")).toHaveLength(0);
+		expect(h.updates.filter((u) => u.kind === "actor")).toHaveLength(0);
+		expect(h.store.book2ArtSyncVersion).toBe("");
+	});
+
+	it("cheapWorldSkip does not even read the compendium when the world journal already has its art", async () => {
+		const loc0 = locations[0];
+		const secIdx = loc0.sectionIndex ?? 0;
+		// A single location journal ENTRY can be the target of several manifest rows (its
+		// pages / sections). The cheap-skip check is per-entry, so to avoid ANY read every
+		// durable src of every row that shares this entry id must already be embedded.
+		const allSrcs = locations
+			.filter((l) => l.journalEntryId === loc0.journalEntryId)
+			.flatMap((l) => l.images.map((im) => durableOf(im.out)));
+		const sections = Array.from({ length: 64 }, () => ({ kind: "prose", body: "<p>loc prose</p>" }));
+		sections[secIdx] = { kind: "prose", body: allSrcs.map((src) => `<p><img class="stonetop-journal-art" src="${src}"></p>`).join("") + "<p>loc prose</p>" };
+		const locPage = makeWorldPage({ id: loc0.journalPageId, name: `cmp:${loc0.journalPageId}`, type: "location", system: { sections } });
+		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [locPage], stamp: true });
+
+		const h = makeHarness({ worldJournals: [worldLoc] });
+		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
+
+		expect(h.jrnPack.getDocument).not.toHaveBeenCalled(); // no compendium read
+		expect(locPage._writes).toBe(0);
+	});
+});
+
+describe("handleImportedJournalArt (createJournalEntry hook)", () => {
+	beforeEach(() => { vi.restoreAllMocks(); });
+
+	it("embeds art into a journal imported from our pack (after the debounce)", async () => {
+		vi.useFakeTimers();
+		const loc0 = locations[0];
+		const secIdx = loc0.sectionIndex ?? 0;
+		const locPage = makeWorldPage({ id: loc0.journalPageId, name: `cmp:${loc0.journalPageId}`, type: "location", system: { sections: Array.from({ length: 64 }, () => ({ kind: "prose", body: "<p>imported prose</p>" })) } });
+		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [locPage] });
+		worldLoc.id = "imported-1";
+
+		const h = makeHarness({ worldJournals: [worldLoc] });
+		global.game.user.id = "gm-1";
+		global.game.journal.get = (id) => (id === "imported-1" ? worldLoc : null);
+
+		handleImportedJournalArt(worldLoc, {}, "gm-1");
+		await vi.runAllTimersAsync();
+		vi.useRealTimers();
+
+		expect(locPage.system.sections[secIdx].body).toContain(`src="${durableOf(loc0.images[0].out)}"`);
+		// scoped: no compendium re-point, no version stamp
+		expect(h.besPack.getDocument).not.toHaveBeenCalled();
+		expect(h.store.book2ArtSyncVersion).toBe("");
+	});
+
+	it("ignores a non-GM caller, a foreign-pack journal, and another user's import", async () => {
+		vi.useFakeTimers();
+		const h = makeHarness({ worldJournals: [] });
+		global.game.user.id = "gm-1";
+		global.game.journal.get = () => null;
+
+		const ours = { id: "a", _stats: { compendiumSource: JRN_SOURCE("abc") } };
+		global.game.user.isGM = false;
+		handleImportedJournalArt(ours, {}, "gm-1");            // not a GM
+		global.game.user.isGM = true;
+		handleImportedJournalArt({ id: "b", _stats: { compendiumSource: "Compendium.other.pack.JournalEntry.z" } }, {}, "gm-1"); // foreign pack
+		handleImportedJournalArt(ours, {}, "someone-else");    // a different user's create
+
+		await vi.runAllTimersAsync();
+		vi.useRealTimers();
+
+		// none of the three scheduled real work: the durable folder was never even browsed
+		expect(h.browse).not.toHaveBeenCalled();
 	});
 });
