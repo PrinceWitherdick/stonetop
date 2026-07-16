@@ -721,6 +721,35 @@
 		</details>
 		{{/if}}
 
+		{{!-- ── Ring of Daagon actions (Book II, "Mysteries of the Ring of Daagon") ──
+		      The Ring hosts Call Up the Deep Ones (roll & shape a fresh Servant batch);
+		      each Servant batch hosts Send Them Back (+CHA). A Servant's Loyalty is the
+		      Ring's shared pool — noted on the card so the pips read as shared. ── --}}
+		{{#unless edit.card}}
+		{{#if isRing}}
+		<div class="stonetop-daagon-actions">
+			<button type="button" class="stonetop-callup-deep-ones stonetop-daagon-btn" data-slug="{{slug}}"
+			        data-tooltip="Stand in heavy fog or before deep water and call the servants of Daagon to serve you (spend 1 Loyalty or mark a consequence)." data-tooltip-direction="UP">
+				<i class="fas fa-water"></i> Call Up the Deep Ones
+			</button>
+		</div>
+		{{/if}}
+		{{#if isServant}}
+		{{#if sharedLoyalty}}
+		<div class="stonetop-daagon-shared-note"><i class="fas fa-ring"></i> Loyalty is the Ring's shared pool.</div>
+		{{/if}}
+		{{#if brokenFree}}
+		<div class="stonetop-daagon-broke-free"><i class="fas fa-skull-crossbones"></i> Broke free of your control &mdash; no longer yours to command.</div>
+		{{/if}}
+		<div class="stonetop-daagon-actions">
+			<button type="button" class="stonetop-send-back stonetop-daagon-btn" data-slug="{{slug}}" data-follower-name="{{orderName}}"
+			        data-tooltip="Send them back whence they came — roll +CHA to dismiss this batch." data-tooltip-direction="UP">
+				<i class="fas fa-hand-sparkles"></i> Send Them Back
+			</button>
+		</div>
+		{{/if}}
+		{{/unless}}
+
 		{{!-- Party-wide follower badge (advisory): any PC may pay its cost or spend
 		      its Loyalty (p.464). --}}
 		{{#if party}}{{#unless edit.card}}

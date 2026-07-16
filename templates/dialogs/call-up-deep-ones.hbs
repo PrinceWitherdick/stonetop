@@ -1,0 +1,136 @@
+{{!-- Call Up the Deep Ones (Book II, "Mysteries of the Ring of Daagon"). Reactive
+      single-page modal; reuses the spring/guide dialog chrome. See
+      dialogs/CallUpDeepOnesDialog.js. --}}
+<div class="stonetop-spring">
+
+  <div class="stonetop-guide-main">
+
+    <div class="stonetop-guide-banner">
+      <i class="fas fa-fish stonetop-guide-banner-icon"></i>
+      <div class="stonetop-guide-banner-info">
+        <div class="stonetop-guide-banner-title">Call Up the Deep Ones</div>
+        <div class="stonetop-guide-banner-sub">Roll five d4s and assign each to a different aspect</div>
+      </div>
+    </div>
+
+    {{!-- Rolled dice --}}
+    <div class="stonetop-cu-dice-row">
+      {{#each dice}}
+      <span class="stonetop-cu-die{{#if assignedTo}} is-assigned{{/if}}" data-tooltip="{{label}}{{#if assignedTo}} → {{assignedTo}}{{/if}}" data-tooltip-direction="UP">
+        <span class="stonetop-cu-die-value">{{value}}</span>
+        <span class="stonetop-cu-die-label">{{label}}</span>
+      </span>
+      {{/each}}
+      <button type="button" class="stonetop-cu-reroll stonetop-inline-btn" data-tooltip="Re-roll all five d4s" data-tooltip-direction="UP">
+        <i class="fas fa-dice"></i> Re-roll
+      </button>
+    </div>
+
+    {{!-- Assign each die to an aspect --}}
+    <div class="stonetop-cu-aspects">
+      {{#each aspects}}
+      <div class="stonetop-cu-aspect">
+        <div class="stonetop-cu-aspect-head">
+          <span class="stonetop-cu-aspect-label">{{label}}</span>
+          <select class="stonetop-cu-input stonetop-cu-assign" data-aspect="{{key}}">
+            {{#each options}}<option value="{{index}}" {{#if selected}}selected{{/if}} {{#if disabled}}class="is-used"{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </div>
+        <div class="stonetop-cu-aspect-outcome">
+          <span class="stonetop-cu-aspect-hint">{{hint}}</span>
+          <span class="stonetop-cu-aspect-result">{{outcome}}</span>
+          {{#if (eq key "number")}}
+          <span class="stonetop-cu-count-control">
+            <label>× <input type="number" class="stonetop-cu-input stonetop-cu-count" min="1" max="99" value="{{../count}}"></label>
+            <button type="button" class="stonetop-cu-reroll-count stonetop-inline-btn" data-tooltip="Re-roll their number ({{../numberFormula}})" data-tooltip-direction="UP"><i class="fas fa-dice-d6"></i></button>
+          </span>
+          {{/if}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+
+    {{!-- Traits: choose exactly as many as the Traits die --}}
+    <div class="stonetop-cu-picker">
+      <div class="stonetop-cu-picker-head">
+        <span class="stonetop-cu-picker-label">Traits</span>
+        <span class="stonetop-cu-picker-count{{#if traitsMet}} is-met{{/if}}">choose {{traitLimit}} · {{traitCount}} picked</span>
+      </div>
+      <div class="stonetop-cu-picker-options">
+        {{#each traitOptions}}
+        <label class="stonetop-cu-option{{#if checked}} is-checked{{/if}}{{#if disabled}} is-disabled{{/if}}">
+          <input type="checkbox" class="stonetop-cu-trait" value="{{key}}" {{#if checked}}checked{{/if}} {{#if disabled}}disabled{{/if}}>
+          <span class="stonetop-cu-option-label">{{label}}</span>
+          <span class="stonetop-cu-option-detail">{{detail}}</span>
+        </label>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Moves: choose exactly as many as the Moves die --}}
+    <div class="stonetop-cu-picker">
+      <div class="stonetop-cu-picker-head">
+        <span class="stonetop-cu-picker-label">Moves</span>
+        <span class="stonetop-cu-picker-count{{#if movesMet}} is-met{{/if}}">choose {{moveLimit}} · {{moveCount}} picked</span>
+      </div>
+      <div class="stonetop-cu-picker-options">
+        {{#each moveOptions}}
+        <label class="stonetop-cu-option{{#if checked}} is-checked{{/if}}{{#if disabled}} is-disabled{{/if}}">
+          <input type="checkbox" class="stonetop-cu-move" value="{{label}}" {{#if checked}}checked{{/if}} {{#if disabled}}disabled{{/if}}>
+          <span class="stonetop-cu-option-label">{{label}}</span>
+        </label>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Name --}}
+    <label class="stonetop-cf-label stonetop-cu-name-label">Name this batch
+      <input type="text" class="stonetop-cf-input stonetop-cu-name" value="{{name}}" placeholder="{{namePlaceholder}}">
+    </label>
+
+    {{!-- Live preview of the batch that will manifest --}}
+    <div class="stonetop-cu-preview">
+      <div class="stonetop-cu-preview-head">
+        <i class="fas fa-fish"></i>
+        <span class="stonetop-cu-preview-name">{{preview.name}}</span>
+        <span class="stonetop-cu-preview-type">{{preview.typeLabel}}{{#if preview.isGroup}} · {{preview.size}} strong{{/if}}</span>
+      </div>
+      <div class="stonetop-cu-preview-tags">
+        {{#each preview.tags}}<span class="stonetop-cu-preview-tag">{{this}}</span>{{/each}}
+        {{#if preview.exceptional}}<span class="stonetop-cu-preview-tag is-exceptional">exceptional</span>{{/if}}
+      </div>
+      <div class="stonetop-cu-preview-stats">
+        <span><strong>HP</strong> {{preview.hp}}{{#if preview.isGroup}} each{{/if}}</span>
+        <span><strong>Armor</strong> {{preview.armor}}</span>
+        <span><strong>Damage</strong> {{preview.damage}}</span>
+      </div>
+      {{#if preview.moves.length}}
+      <div class="stonetop-cu-preview-moves"><strong>Moves</strong> {{#each preview.moves}}<span>{{this}}</span>{{/each}}</div>
+      {{/if}}
+    </div>
+
+    {{!-- Cost: spend 1 Loyalty from the Ring, or mark a consequence --}}
+    {{#if hasRing}}
+    <div class="stonetop-cu-cost">
+      <span class="stonetop-cu-cost-label">To call them up you must</span>
+      <label class="stonetop-cu-cost-choice{{#if loyaltyDisabled}} is-disabled{{/if}}">
+        <input type="radio" name="callup-cost" class="stonetop-cu-cost" value="loyalty" {{#if costLoyalty}}checked{{/if}} {{#if loyaltyDisabled}}disabled{{/if}}>
+        <span>Spend <strong>1 Loyalty</strong> from {{ringName}} <span class="stonetop-cu-cost-note">({{ringLoyalty}} held)</span></span>
+      </label>
+      <label class="stonetop-cu-cost-choice">
+        <input type="radio" name="callup-cost" class="stonetop-cu-cost" value="consequence" {{#if costConsequence}}checked{{/if}}>
+        <span>Mark a <strong>consequence</strong></span>
+      </label>
+    </div>
+    {{/if}}
+
+  </div>
+
+  <div class="stonetop-guide-nav">
+    <button class="stonetop-cu-manifest stonetop-guide-btn--primary" {{#unless complete}}disabled{{/unless}}>
+      <i class="fas fa-fish"></i> Call them up
+    </button>
+    <button class="stonetop-cu-cancel">Cancel</button>
+  </div>
+
+</div>

@@ -16,6 +16,8 @@ import {CreateFollowerDialog} from "./dialogs/CreateFollowerDialog.js";
 import {MonsterToFollowerDialog} from "./dialogs/MonsterToFollowerDialog.js";
 import {OrderFollowersDialog} from "./dialogs/OrderFollowersDialog.js";
 import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
+import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
+import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
@@ -340,6 +342,19 @@ function _animalCompanionTraitTooltip(trait) {
 
 function _makeLoyaltyPips(val, max = 3) {
 	return Array.from({ length: max }, (_, i) => ({ index: i, filled: i < val }));
+}
+
+// The Ring of Daagon and its Servants share one Loyalty pool (Book II). Find the Ring
+// follower in a customFollowers map so a Servant batch's pips + Spend button act on the
+// Ring's track. Callers pass an in-hand map (getData) or a freshly-read flag.
+function findRingFollower(map = {}) {
+	const entry = Object.entries(map).find(([, f]) => f?.sourceUuid === RING_SOURCE_UUID);
+	return {
+		id:      entry?.[0] ?? null,
+		name:    entry?.[1]?.name || "the Ring of Daagon",
+		loyalty: Math.max(0, Number(entry?.[1]?.loyalty) || 0),
+		hasRing: !!entry,
+	};
 }
 
 // Readiness circles (Defend, p.216 / followers p.469). The Defend move holds up
@@ -1202,8 +1217,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					// already a spread (nothing to flip when both sides are open).
 					item.canFlip           = permittedBack && !spread;
 
-					const followers = item.summonFollowers;
-					if (!followers?.length) continue;
+					// The plain "Add as follower" button manifests only the directly-summoned
+					// followers. `viaCallUp` followers (the Ring of Daagon's Servants) are rolled
+					// and shaped through the Call Up the Deep Ones dialog on the Ring's follower
+					// card instead, so they're excluded here — the Ring's button adds just the Ring.
+					const followers = (item.summonFollowers ?? []).filter(f => !f.viaCallUp);
+					if (!followers.length) continue;
 					const names   = joinNames(followers.map(f => f.name));
 					const plural  = followers.length > 1;
 					// A repeatable follower (the Ring's Servants) can always be summoned
@@ -1791,6 +1810,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// override / loyalty / HP handlers resolve through _FOLLOWER_FLAGS["custom"].
 			// Ordered by their stored `order` (creation time) so the list is stable.
 			const customMap = sf.customFollowers ?? {};
+			// The Ring of Daagon and its Servants share one Loyalty pool (Book II: "sharing a
+			// pool of Loyalty with the Ring itself"), so a Servant batch's Loyalty pips + Spend
+			// button act on the Ring's track, not its own.
+			const { id: ringId, loyalty: ringLoyaltyVal } = findRingFollower(customMap);
 			const customFollowers = Object.entries(customMap)
 				.sort((a, b) => (Number(a[1]?.order) || 0) - (Number(b[1]?.order) || 0))
 				.map(([id, c]) => {
@@ -1822,6 +1845,22 @@ export function createStonetopCharacterSheetClass(Base) {
 						loyaltySlug:  id,
 						..._followerExtras(c),
 					};
+					// Ring of Daagon identity — drives the card's Call Up / Send Them Back actions
+					// (templates/actor/partials/tab-followers.hbs) and the shared-Loyalty link.
+					card.sourceUuid = c?.sourceUuid ?? null;
+					card.isRing     = card.sourceUuid === RING_SOURCE_UUID;
+					card.isServant  = card.sourceUuid === SERVANT_SOURCE_UUID;
+					card.brokenFree = !!c?.brokenFree;   // a Servant batch that broke free (Send Them Back 6-)
+					// A Servant batch holds no Loyalty of its own — it draws on the Ring's pool
+					// (Book II: "sharing a pool of Loyalty with the Ring itself"). Point its pips +
+					// Spend button at the Ring's track so spending a Servant's Loyalty decrements the
+					// Ring, and Call Up pays from the same pool. Readiness/ammo stay on the batch's own
+					// id (they key off card.slug), so only Loyalty is shared.
+					if (card.isServant && ringId) {
+						card.sharedLoyalty = true;
+						card.loyalty       = _makeLoyaltyPips(ringLoyaltyVal);
+						card.loyaltySlug   = ringId;
+					}
 					// Group follower (NPCs & Followers p.470): the same shared stats as a
 					// single follower, plus a roster where every member tracks their own
 					// current HP against the shared max, an abstracted "one combatant"
@@ -1909,7 +1948,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					// borne shield raises the cap from 3 to 4 (+1 Readiness on a 7+
 					// Defend, p.216).
 					if (card.ftype && card.ftype !== "crew") {
-						const rSlug = card.loyaltySlug ?? "";
+						// Readiness lives on the follower's OWN id (card.slug), never the (possibly
+						// shared) loyaltySlug — a Servant of Daagon shares the Ring's Loyalty but
+						// holds its own Readiness. For every other type card.slug === loyaltySlug, so
+						// this is behaviour-preserving; the singular types ignore {slug} entirely.
+						const rSlug = card.slug ?? "";
 						card.showReadiness     = true;
 						card.readinessFollower = card.ftype;
 						card.readinessSlug     = rSlug;
@@ -1923,7 +1966,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					// true follower, the crew included, may carry one — the crew bow tracks
 					// ammo too, p.144); usesAmmo gates the ◇ low ammo / ◇ all out circles.
 					// Two cumulative checks: 0 full → 1 low → 2 out.
-					const aSlug = card.loyaltySlug ?? "";
+					const aSlug = card.slug ?? "";   // ammo keys off the follower's own id, not the shared loyaltySlug
 					card.canUseAmmo = true;
 					card.usesAmmo   = !!detailFlagsFor(card.ftype, card.slug).usesAmmo;
 					if (card.usesAmmo) {
@@ -3052,6 +3095,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-spend-readiness").on("click", ev => {
 				const { ftype, slug, followerName } = ev.currentTarget.dataset;
 				this._onSpendReadiness(ftype, slug ?? "", followerName);
+			});
+			// Ring of Daagon — Call Up the Deep Ones (roll & shape a fresh Servant batch)
+			// and Send Them Back (+CHA to dismiss a batch). See the Daagon actions in
+			// tab-followers.hbs; both live on the Ring's / Servant's custom-follower card.
+			html.find(".stonetop-callup-deep-ones").on("click", () => this._onCallUpDeepOnes());
+			html.find(".stonetop-send-back").on("click", ev => {
+				const { slug, followerName } = ev.currentTarget.dataset;
+				this._onSendServantsBack(slug, followerName);
 			});
 			// Have What They Need (add gear to a follower) / Outfit the crew (restock).
 			html.find(".stonetop-follower-have-need").on("click", ev => {
@@ -4853,7 +4904,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _onArcanaSummon(slug) {
 			if (!this.isEditable) return;
 			const arcanum = await this._stonetopCharacter.getArcanum(slug);
-			const followers = arcanaSummonFollowers(arcanum);
+			// `viaCallUp` followers (the Ring of Daagon's Servants) aren't manifested by this
+			// button — they're rolled through the Call Up the Deep Ones dialog. The Ring's
+			// button adds just the Ring itself.
+			const followers = arcanaSummonFollowers(arcanum)?.filter(f => !f.viaCallUp);
 			if (!followers?.length) return;
 			const names = joinNames(followers.map(f => f.name));
 			const plural = followers.length > 1;
@@ -4880,6 +4934,162 @@ export function createStonetopCharacterSheetClass(Base) {
 				update[`flags.stonetop_pwd.customFollowers.${id}`] = { ...buildCustomFollower(input), order: order++ };
 			}
 			if (Object.keys(update).length) await this.actor.update(update);
+			this.render(false);
+		}
+
+		// ── Ring of Daagon: Call Up the Deep Ones / Send Them Back ───────────────────
+		// The Ring's Servants aren't a fixed summon — each Call Up rolls five d4s and
+		// shapes a fresh batch (see servant-of-daagon.js / CallUpDeepOnesDialog). The
+		// batch shares the Ring's Loyalty pool, so both live as linked custom followers.
+
+		// The Ring-of-Daagon follower on this sheet (or a null-ish stub), for the shared
+		// Loyalty pool that Call Up spends and a Servant's Spend button draws on.
+		_ringFollowerEntry() {
+			return findRingFollower(this.actor.getFlag("stonetop_pwd", "customFollowers") ?? {});
+		}
+
+		// Open the Call Up the Deep Ones roller. Requires the Ring itself to be a follower
+		// (its mysteries unlocked) — the Servants share its Loyalty pool.
+		async _onCallUpDeepOnes() {
+			if (!this.isEditable) return;
+			const ring = this._ringFollowerEntry();
+			if (!ring.hasRing) {
+				ui.notifications?.warn?.("Add the Ring of Daagon as a follower first, then Call Up the Deep Ones.");
+				return;
+			}
+			new CallUpDeepOnesDialog(this.actor, ring, ({ input, cost }) => this._applyCallUp(input, cost)).render(true);
+		}
+
+		// Manifest a rolled Servant batch as a fresh custom follower and pay Call Up's cost
+		// (spend 1 of the Ring's Loyalty, or mark a consequence). Re-reads the Ring live —
+		// the roller is non-modal, so its Loyalty may have moved since it opened.
+		async _applyCallUp(input, cost) {
+			const ring   = this._ringFollowerEntry();
+			const id     = foundry.utils.randomID(16);
+			const update = {
+				[`flags.stonetop_pwd.customFollowers.${id}`]: { ...buildServantFollower(input), order: this._nextFollowerOrder() },
+			};
+			let costLine;
+			if (cost?.kind === "loyalty" && ring.id && ring.loyalty > 0) {
+				update[`flags.stonetop_pwd.customFollowers.${ring.id}.loyalty`] = ring.loyalty - 1;
+				costLine = `<p>You spend <strong>1 Loyalty</strong> from ${escHtml(ring.name)} (now ${ring.loyalty - 1}).</p>`;
+			} else if (cost?.kind === "loyalty") {
+				costLine = `<p>${escHtml(ring.name)} holds no Loyalty, so you <strong>mark a consequence</strong> to call them up.</p>`;
+			} else {
+				costLine = `<p>You <strong>mark a consequence</strong> to call them up.</p>`;
+			}
+			await this.actor.update(update, { stonetopMove: "Call Up the Deep Ones" });
+
+			const diceStr = Array.isArray(cost?.dice) && cost.dice.length
+				? ` <span class="stonetop-callup-dice">(5d4: ${cost.dice.join(", ")})</span>` : "";
+			const tagLine = [...input.tags, ...(input.exceptional ? ["exceptional"] : [])].join(", ");
+			const body =
+				`<p>From heavy fog and deep water you call up <strong>${escHtml(input.name)}</strong>${diceStr} &mdash; <em>${escHtml(tagLine)}</em>.</p>`
+				+ `<p>HP ${input.hp}${input.isGroup ? ` each &middot; ${input.size} strong` : ""}, Armor ${input.armor}, damage ${escHtml(input.damage)}.</p>`
+				+ (input.moves ? `<p><strong>Moves:</strong> ${escHtml(input.moves.replace(/\n/g, "; "))}</p>` : "")
+				+ costLine;
+			await ChatMessage.create({
+				content: moveChatCard("Call Up the Deep Ones", body),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+			this.render(false);
+		}
+
+		// Send Them Back (roll +CHA): 10+ they go now; 7-9 they go but do some harm; 6-
+		// they resist — spend their (shared) Loyalty / mark a consequence, or they break free.
+		async _onSendServantsBack(slug, name) {
+			if (!this.isEditable || !slug) return;
+			const who = name
+				|| this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}.name`)
+				|| "the servants of Daagon";
+			const roll = await rollStat("cha", this.actor, {
+				moveName:        "Send Them Back",
+				moveDescription: `<p>When you <strong><em>send them back whence they came</em></strong>, roll +CHA.</p>`,
+				moveResults: {
+					success: { value: "They go, now." },
+					partial: { value: "They go, but take their time and likely do some harm on the way out." },
+					failure: { value: "Spend their Loyalty or mark a consequence and they'll eventually go &mdash; otherwise, this batch breaks free of your control." },
+				},
+			});
+			const total = Number(roll?.total) || 0;
+			if (total >= 10) return this._confirmServantDeparture(slug, who, "They return to the deep at once.");
+			if (total >= 7)  return this._confirmServantDeparture(slug, who, "They go, but take their time and likely do some harm on the way out.");
+			return this._onServantsResist(slug, who);
+		}
+
+		// Offer to clear a departing batch from the Followers tab.
+		_confirmServantDeparture(slug, who, note) {
+			Dialog.confirm({
+				title:      "Send them back",
+				content:    `<p>${note}</p><p>Remove <strong>${escHtml(who)}</strong> from your Followers?</p>`,
+				yes:        () => this._removeCustomFollower(slug),
+				no:         () => {},
+				defaultYes: true,
+				render:     bringDialogToFront,
+				options:    { classes: ["dialog", "stonetop"] },
+			});
+		}
+
+		_removeCustomFollower(slug) {
+			const [key, val] = deletionEntry(`flags.${STONETOP_SCOPE}.customFollowers.${slug}`);
+			return this.actor.update({ [key]: val }).then(() => this.render(false));
+		}
+
+		// The 6- branch: pay to make them leave (spend the Ring's shared Loyalty, or mark a
+		// consequence) or let them break free of your control.
+		_onServantsResist(slug, who) {
+			const ring       = this._ringFollowerEntry();
+			const canLoyalty = ring.hasRing && ring.loyalty > 0;
+			const buttons    = {};
+			if (canLoyalty) buttons.loyalty = {
+				icon:     '<i class="fas fa-hand-holding-heart"></i>',
+				label:    `Spend 1 Loyalty (${ring.loyalty})`,
+				callback: () => this._payServantExit(slug, who, "loyalty"),
+			};
+			buttons.consequence = {
+				icon:     '<i class="fas fa-triangle-exclamation"></i>',
+				label:    "Mark a consequence",
+				callback: () => this._payServantExit(slug, who, "consequence"),
+			};
+			buttons.free = {
+				icon:     '<i class="fas fa-skull-crossbones"></i>',
+				label:    "Let them break free",
+				callback: () => this._servantsBreakLoose(slug, who),
+			};
+			new Dialog({
+				title:   "They won't go quietly",
+				content: `<p><strong>${escHtml(who)}</strong> resist. Spend their Loyalty or mark a consequence and they'll eventually go &mdash; otherwise they break free of your control.</p>`,
+				buttons,
+				default: canLoyalty ? "loyalty" : "consequence",
+				render:  bringDialogToFront,
+			}, { classes: ["dialog", "stonetop"] }).render(true);
+		}
+
+		async _payServantExit(slug, who, kind) {
+			const ring = this._ringFollowerEntry();
+			let line;
+			if (kind === "loyalty" && ring.id && ring.loyalty > 0) {
+				await this.actor.setFlag("stonetop_pwd", `customFollowers.${ring.id}.loyalty`, ring.loyalty - 1);
+				line = `<p>You spend <strong>1 Loyalty</strong> from ${escHtml(ring.name)} (now ${ring.loyalty - 1}). <strong>${escHtml(who)}</strong> will eventually go.</p>`;
+			} else {
+				line = `<p>You <strong>mark a consequence</strong>. <strong>${escHtml(who)}</strong> will eventually go.</p>`;
+			}
+			await ChatMessage.create({
+				content: moveChatCard("Send Them Back", line),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+			this._confirmServantDeparture(slug, who, "They'll eventually go.");
+		}
+
+		async _servantsBreakLoose(slug, who) {
+			// No longer yours to command. Flag the batch (the card shows a "broke free" badge)
+			// and note it; it stays on the tab until removed.
+			await this.actor.setFlag("stonetop_pwd", `customFollowers.${slug}.brokenFree`, true);
+			await ChatMessage.create({
+				content: moveChatCard("Send Them Back",
+					`<p><strong>${escHtml(who)}</strong> break free of your control. They are no longer yours to command.</p>`),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
 			this.render(false);
 		}
 

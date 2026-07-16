@@ -42,6 +42,7 @@ import { wireAttackConfirm, wireApplyDamage, wireSufferAttack } from "./module/c
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
+import { applyTreasureDrops } from "./module/utils/treasure-drops.js";
 import { applyGearTermTooltips } from "./module/utils/gear-term-tooltips.js";
 import { SETTING_OVERVIEW_JOURNAL } from "./module/utils/seeded-journals.js";
 import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
@@ -392,6 +393,10 @@ const _onJournalRender = (app, html) => {
 	bindSteadingImprovementDrag(html);
 	// Make homebrew threat cards draggable onto the steading Threats tab.
 	bindThreatSeedDrag(html);
+	// Make Book II treasures draggable inventory items (and restore their ◇/○ badges),
+	// for any treasure journal that renders through the generic page sheet rather than
+	// the custom location page sheet.
+	applyTreasureDrops(html, resolveEntry(app)?.name);
 };
 for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJournalPageSheet", "renderJournalEntryPageSheet"]) {
 	Hooks.on(hook, _onJournalRender);
