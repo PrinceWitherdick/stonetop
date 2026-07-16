@@ -72,10 +72,30 @@ function progressLabel(p, playbook) {
 	return { playbook: name, ...label };
 }
 
+// The guide's panels, in order, driving the left rail (like Run an Expedition /
+// Make a Monster). `key` matches a `<section data-tab>` in the template and the
+// rail button's `data-tab`; `title` labels the rail entry and the banner; `icon`
+// is a Font Awesome 6 glyph. The overview is the landing panel; the six numbered
+// entries are Book I's "Getting Started" steps, and `step` drives the banner's
+// "Step N of 6" count (the overview has none).
+const SECTIONS = [
+	{ key: "overview",     title: "Getting started",       icon: "fa-signs-post" },
+	{ key: "book-art",     title: "Bring in book art",     icon: "fa-images",         step: 1, optional: true },
+	{ key: "setting",      title: "Review the setting",    icon: "fa-book-open",      step: 2 },
+	{ key: "expectations", title: "Set expectations",      icon: "fa-scale-balanced", step: 3 },
+	{ key: "characters",   title: "Create characters",     icon: "fa-user-plus",      step: 4 },
+	{ key: "introduce",    title: "Introduce the PCs",     icon: "fa-users",          step: 5 },
+	{ key: "spring",       title: "Let spring burst forth", icon: "fa-seedling",      step: 6 },
+];
+const STEP_COUNT = SECTIONS.filter(s => s.step).length;
+
 export class WelcomeDialog extends Application {
 	constructor(options = {}) {
 		super(options);
 		this._hooks = null;
+		// Which rail panel is showing; preserved across the roster's live re-renders
+		// (see _registerHooks) so refreshing the player list doesn't snap back to the top.
+		this._activeTab = SECTIONS[0].key;
 	}
 
 	static open() {
@@ -87,13 +107,16 @@ export class WelcomeDialog extends Application {
 			id:        "stonetop-welcome",
 			title:     "Welcome to Stonetop",
 			template:  "systems/stonetop_pwd/templates/dialogs/welcome.hbs",
-			width:     580,
-			height:    680,
+			// Left-rail tabbed sheet (like Run an Expedition / Make a Monster): the rail
+			// keeps the window short by showing one step at a time, so it needs less height
+			// than the old single-scroll guide and a touch more width for the rail.
+			width:     660,
+			height:    580,
 			resizable: true,
 			classes:   ["stonetop", "stonetop-welcome-dialog"],
-			// Preserve the reader's place when the roster re-renders (e.g. after
-			// minting a character), instead of snapping back to the top.
-			scrollY:   [".stonetop-welcome-scroll"],
+			// Preserve the reader's place within the active panel when the roster
+			// re-renders (e.g. after minting a character), instead of snapping to the top.
+			scrollY:   [".stonetop-welcome-main"],
 		});
 	}
 
@@ -134,12 +157,29 @@ export class WelcomeDialog extends Application {
 					})),
 			}));
 
+		const activeIndex = Math.max(0, SECTIONS.findIndex(s => s.key === this._activeTab));
+		const active = SECTIONS[activeIndex];
+
 		return {
 			players,
 			noPlayers:     players.length === 0,
 			dontShowAgain: !!getSetting("gmWelcomeShown"),
 			premiseHtml:   await enrichHTML(premiseSource()),
+			// Left rail + banner. Only the first-render active state comes from here;
+			// switching panels afterwards is client-side (see _selectTab), so the roster
+			// and any partly-filled fields survive without a re-render.
+			activeTab:     this._activeTab,
+			sections:      SECTIONS.map((s, i) => ({ key: s.key, title: s.title, icon: s.icon, selected: i === activeIndex })),
+			active:        { icon: active.icon, title: active.title, optional: !!active.optional, count: this._countLabel(activeIndex) },
+			atFirst:       activeIndex === 0,
+			atLast:        activeIndex === SECTIONS.length - 1,
 		};
+	}
+
+	// Banner "Step N of 6" for the numbered steps; blank for the overview landing.
+	_countLabel(index) {
+		const step = SECTIONS[index]?.step;
+		return step ? `Step ${step} of ${STEP_COUNT}` : "";
 	}
 
 	activateListeners(html) {
@@ -149,6 +189,12 @@ export class WelcomeDialog extends Application {
 		// hover summary, the same as journal sheets get — this dialog isn't a journal
 		// render, so it isn't covered by the journal render hooks in stonetop.js.
 		applyLocationTooltips(html);
+
+		// Left-rail tabs + Back/Next: switch which step panel is shown, client-side. No
+		// re-render, so the roster and any typed-in fields keep their state.
+		html.find(".stonetop-welcome-tab").on("click", ev => this._selectTab(ev.currentTarget.dataset.tab));
+		html.find(".stonetop-welcome-back").on("click", () => this._step(-1));
+		html.find(".stonetop-welcome-next").on("click", () => this._step(1));
 
 		html.find('[data-action="setting-overview"]').on("click", () => this._openSettingOverview());
 		html.find('[data-action="agenda-principles"]').on("click", () => this._openSettingOverview("Agenda & Principles"));
@@ -167,6 +213,54 @@ export class WelcomeDialog extends Application {
 			setSetting("gmWelcomeShown", ev.currentTarget.checked));
 
 		this._registerHooks();
+	}
+
+	// Walk the rail one panel at a time (Back/Next), stopping at the ends.
+	_step(delta) {
+		const index = SECTIONS.findIndex(s => s.key === this._activeTab);
+		const next = SECTIONS[index + delta];
+		if (next) this._selectTab(next.key);
+	}
+
+	// Show one step panel and light its rail entry, updating the banner (icon, title,
+	// optional tag, count) and the Back/Next disabled state to match. Purely DOM — the
+	// guide is never re-rendered, so switching panels preserves the roster and anything
+	// the GM has already done. Mirrors CreateMonsterDialog._selectTab.
+	_selectTab(key) {
+		const index = SECTIONS.findIndex(s => s.key === key);
+		if (index < 0) return;
+		this._activeTab = key;
+		const active = SECTIONS[index];
+		const root = this.element;
+		if (!root?.length) return;
+
+		root.find(".stonetop-welcome-tab").each((_, btn) => {
+			const on = btn.dataset.tab === key;
+			btn.closest(".stonetop-guide-toc-item")?.classList.toggle("is-active", on);
+			if (on) btn.setAttribute("aria-current", "true"); else btn.removeAttribute("aria-current");
+		});
+		root.find(".stonetop-welcome-section").each((_, sec) => { sec.hidden = sec.dataset.tab !== key; });
+
+		const icon = root.find(".stonetop-welcome-banner-icon")[0];
+		if (icon) icon.className = `fas ${active.icon} stonetop-guide-banner-icon stonetop-welcome-banner-icon`;
+		root.find(".stonetop-welcome-banner-title").text(active.title);
+		const optional = root.find(".stonetop-welcome-banner-optional")[0];
+		if (optional) optional.hidden = !active.optional;
+		const count = root.find(".stonetop-welcome-banner-count")[0];
+		if (count) {
+			const label = this._countLabel(index);
+			count.textContent = label;
+			count.hidden = !label;
+		}
+
+		const back = root.find(".stonetop-welcome-back")[0];
+		if (back) back.disabled = index === 0;
+		const next = root.find(".stonetop-welcome-next")[0];
+		if (next) next.disabled = index === SECTIONS.length - 1;
+
+		// A tall previous panel can leave the column scrolled down; reset to the top.
+		const main = root.find(".stonetop-welcome-main")[0];
+		if (main) main.scrollTop = 0;
 	}
 
 	// Open the shareable "Setting Overview" journal — the same one that auto-opens

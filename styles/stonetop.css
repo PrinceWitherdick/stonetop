@@ -18143,23 +18143,75 @@ th:has(> .stonetop-roll-table-btn) {
 
 /* ── Welcome / first-session guide ─────────────────────────────────────────── */
 
+/* Full-bleed flex column: the rail + panel split fills the space above a pinned
+   footer, mirroring the Expedition / Make-a-Monster steppers. */
 .stonetop-welcome-dialog .window-content {
 	padding: 0;
+	display: flex;
+	flex-direction: column;
 	overflow: hidden;
 }
 
 .stonetop-welcome {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
+	flex: 1 1 auto;
+	min-height: 0;
 	font-family: var(--font-stonetop);
 }
 
-.stonetop-welcome-scroll {
-	flex: 1;
+/* Rail (shared .stonetop-guide-toc) beside the scrolling panel column. The split
+   flex isn't global — each guide dialog scopes its own (see the Expedition/Intros
+   block) — so scope it here too. */
+.stonetop-welcome-split {
+	display: flex;
+	flex: 1 1 auto;
 	min-height: 0;
-	padding: 16px 20px 4px;
+}
+
+/* min-width:0 lets the panel column shrink beside the fixed-width rail instead of
+   forcing the dialog wider; it supplies its own scroll (shared .stonetop-guide-main
+   gives the padding + gap). */
+.stonetop-welcome-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
 	overflow-y: auto;
+}
+
+.stonetop-welcome-nav { flex: 0 0 auto; }
+
+/* One step per panel; only the active one shows (JS toggles `hidden`). Plain block
+   flow inside, so the panels' paragraph/button/notice margins below still apply. */
+.stonetop-welcome-section[hidden] { display: none; }
+
+/* Banner title + its optional "optional" tag, kept side by side (the tag toggles as
+   panels switch, so it sits beside the title span rather than inside it). */
+.stonetop-welcome-banner-titlewrap {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+}
+
+.stonetop-welcome-banner-optional {
+	flex: 0 0 auto;
+	padding: 0 6px;
+	border: 1px solid var(--st-red-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+	font-size: 0.68em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+/* Back/Next pair pinned to the right of the footer, opposite the "Don't show again"
+   checkbox (the buttons themselves use the shared .stonetop-guide-nav button style). */
+.stonetop-welcome-nav-btns {
+	display: flex;
+	gap: 10px;
 }
 
 .stonetop-welcome-hero {
@@ -18202,68 +18254,19 @@ th:has(> .stonetop-roll-table-btn) {
 	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 }
 
-.stonetop-welcome-steps {
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 14px;
-}
-
-.stonetop-welcome-step {
-	display: flex;
-	gap: 12px;
-	align-items: flex-start;
-}
-
-.stonetop-welcome-step-num {
-	flex: 0 0 auto;
-	width: 26px;
-	height: 26px;
-	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-weight: 700;
-	font-size: var(--st-fs-sm);
-	color: var(--st-blue-text);
-	background: var(--st-blue-bg);
-	border: 1px solid var(--st-blue-border);
-}
-
-.stonetop-welcome-step-body {
-	flex: 1;
-	min-width: 0;
-}
-
-.stonetop-welcome-step-body h3 {
-	margin: 2px 0 4px;
-	border: none;
-	font-size: var(--st-fs-lg);
-	font-weight: 700;
-	line-height: 1.2;
-}
-
-/* Secondary "(optional)" tag in a step heading (e.g. step 1's book-art import),
-   so it reads as an aside next to the bold title rather than part of it. */
-.stonetop-welcome-optional {
-	font-weight: 400;
-	font-size: 0.8em;
-	font-style: italic;
-	opacity: 0.65;
-}
-
-.stonetop-welcome-step-body p {
+/* Step panels: a panel's own prose (plain, unclassed paragraphs) gets the guide's
+   body size + tight margins. `:not([class])` leaves the overview's centred
+   .stonetop-welcome-lead / -intro to their own styling. */
+.stonetop-welcome-section p:not([class]) {
 	margin: 0;
 	line-height: 1.5;
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 }
 
-/* A paragraph that follows an action button (e.g. step 4's "Resist the urge…"
-   after Start Introductions) needs its own top gap — the button has no bottom
-   margin, so the step-body's margin:0 would otherwise leave them touching. */
-.stonetop-welcome-step-body .stonetop-welcome-action + p {
+/* A paragraph that follows an action button (e.g. step 6's "Resist the urge…"
+   after Walk Through Let Spring Burst Forth) needs its own top gap — the button has
+   no bottom margin, so the paragraph's margin:0 would otherwise leave them touching. */
+.stonetop-welcome-section .stonetop-welcome-action + p {
 	margin-top: 10px;
 }
 
@@ -18532,16 +18535,8 @@ th:has(> .stonetop-roll-table-btn) {
 	margin: 0;
 }
 
-/* Footer */
-
-.stonetop-welcome-footer {
-	display: flex;
-	align-items: center;
-	justify-content: flex-start;
-	gap: 12px;
-	padding: 10px 20px 14px;
-	border-top: 1px solid rgba(0, 0, 0, 0.08);
-}
+/* Footer — the row/border/padding come from the shared .stonetop-guide-nav; the
+   "Don't show again" checkbox sits at the left, opposite the Back/Next pair. */
 
 .stonetop-welcome-dontshow {
 	display: flex;
