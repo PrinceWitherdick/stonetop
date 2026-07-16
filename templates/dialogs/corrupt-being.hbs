@@ -1,0 +1,153 @@
+{{!-- Corrupt-a-Being / Emanation walkthrough (Book II, The Things Below, pp. 432, 436).
+      Reuses the spring/guide dialog chrome + follower control styles; Things-Below hooks
+      are .stonetop-tb-*. See things-below/corrupt-being-dialog.js. --}}
+<div class="stonetop-spring">
+
+  <div class="stonetop-guide-main">
+
+    <div class="stonetop-guide-banner">
+      <i class="fas {{step.icon}} stonetop-guide-banner-icon"></i>
+      <div class="stonetop-guide-banner-info">
+        <div class="stonetop-guide-banner-title">{{step.title}}</div>
+        <div class="stonetop-guide-banner-sub">{{#if isEmanation}}Create an emanation{{else}}Corrupt a being{{/if}}</div>
+      </div>
+      <div class="stonetop-guide-count">{{stepIndex}} / {{stepCount}}</div>
+    </div>
+
+    <div class="stonetop-spring-body">{{{step.body}}}</div>
+
+    <div class="stonetop-cf-controls">
+
+      {{#if is_source}}
+      <div class="stonetop-spring-body">
+        {{#if needsSource}}
+        <p>Start with an existing monster's stats. Its HP, armor, damage, tags, and moves carry over; the corruption layers on top.</p>
+        {{else}}
+        <p>Start from an existing monster, or from a blank solitary emanation (Armor 4, resilience, a d10 attack that ignores armor).</p>
+        {{/if}}
+      </div>
+      <label class="stonetop-cf-label">Source monster
+        <select class="stonetop-cf-input stonetop-tb-source">
+          {{#each sources}}<option value="{{id}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label class="stonetop-cf-label">Name <span class="stonetop-cf-pick-hint">(optional)</span>
+        <input type="text" class="stonetop-cf-input" data-field="name" value="{{name}}" placeholder="{{#if isEmanation}}Hand of Daagon, Voice of the Eternal Maw…{{else}}leave blank for &ldquo;Corrupted &lt;source&gt;&rdquo;{{/if}}">
+      </label>
+      {{/if}}
+
+      {{#if is_origin}}
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">Origin <span class="stonetop-cf-pick-hint">(pick or roll)</span></div>
+        <div class="stonetop-cf-option-list">
+          {{#each origins}}
+          <label class="stonetop-cf-option{{#if selected}} is-selected{{/if}}">
+            <input type="radio" name="tb-origin" class="stonetop-tb-origin" value="{{text}}"{{#if selected}} checked{{/if}}>
+            <span class="stonetop-cf-option-text">{{text}}</span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
+      <button type="button" class="stonetop-tb-roll-origin stonetop-cf-mini-btn"><i class="fas fa-dice-d20"></i> Roll</button>
+      {{/if}}
+
+      {{#if is_essence}}
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">Themes</div>
+        <div class="stonetop-cf-option-list stonetop-cf-option-list--compact">
+          {{#each themes}}
+          <label class="stonetop-cf-option{{#if checked}} is-selected{{/if}}">
+            <input type="checkbox" class="stonetop-tb-theme" value="{{id}}"{{#if checked}} checked{{/if}}>
+            <span class="stonetop-cf-option-text">{{label}}</span>
+          </label>
+          {{/each}}
+        </div>
+        <button type="button" class="stonetop-tb-roll-themes stonetop-cf-mini-btn"><i class="fas fa-dice-d20"></i> Roll 2</button>
+      </div>
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">Aspects</div>
+        <div class="stonetop-cf-option-list stonetop-cf-option-list--compact">
+          {{#each aspects}}
+          <label class="stonetop-cf-option{{#if checked}} is-selected{{/if}}">
+            <input type="checkbox" class="stonetop-tb-aspect" value="{{id}}"{{#if checked}} checked{{/if}}>
+            <span class="stonetop-cf-option-text">{{label}}</span>
+          </label>
+          {{/each}}
+        </div>
+        <button type="button" class="stonetop-tb-roll-aspects stonetop-cf-mini-btn"><i class="fas fa-dice-d20"></i> Roll 2</button>
+      </div>
+      <label class="stonetop-cf-label">Instinct <span class="stonetop-cf-pick-hint">(rewrite it to suit)</span>
+        <input type="text" class="stonetop-cf-input" data-field="instinct" value="{{instinct}}" placeholder="to spread cruelty, pain, fire…">
+      </label>
+      {{/if}}
+
+      {{#if is_gifts}}
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">Gifts <span class="stonetop-cf-pick-hint">(up to 3 &mdash; {{pickCount}} chosen{{#if atMax}}, max reached{{/if}})</span></div>
+        <div class="stonetop-cf-option-list">
+          {{#each gifts}}
+          <label class="stonetop-cf-option{{#if checked}} is-selected{{/if}}">
+            <input type="checkbox" class="stonetop-tb-gift" value="{{id}}"{{#if checked}} checked{{/if}}>
+            <span class="stonetop-cf-option-text">{{label}}</span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
+      <button type="button" class="stonetop-tb-roll-gifts stonetop-cf-mini-btn"><i class="fas fa-dice-d20"></i> Roll</button>
+      {{/if}}
+
+      {{#if is_marks}}
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">Marks <span class="stonetop-cf-pick-hint">(up to 3 &mdash; {{pickCount}} chosen{{#if atMax}}, max reached{{/if}})</span></div>
+        <div class="stonetop-cf-option-list">
+          {{#each marks}}
+          <label class="stonetop-cf-option{{#if checked}} is-selected{{/if}}">
+            <input type="checkbox" class="stonetop-tb-mark" value="{{id}}"{{#if checked}} checked{{/if}}>
+            <span class="stonetop-cf-option-text">{{label}}</span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
+      <button type="button" class="stonetop-tb-roll-marks stonetop-cf-mini-btn"><i class="fas fa-dice-d20"></i> Roll</button>
+      {{/if}}
+
+      {{#if is_review}}
+      {{#with preview}}
+      {{#if missing}}
+      <p class="stonetop-ch-advice">Go back and pick a monster to corrupt first.</p>
+      {{else}}
+      <div class="stonetop-cf-preview">
+        <div class="stonetop-cf-preview-head">
+          <span class="stonetop-cf-preview-name">{{name}}</span>
+          <span class="stonetop-cf-preview-type">{{#if @root.isEmanation}}Emanation{{else}}Corrupted{{/if}}</span>
+        </div>
+        <div class="stonetop-cf-preview-stats">
+          <span><strong>HP</strong> {{hp}}</span>
+          <span><strong>Armor</strong> {{armor}}</span>
+          <span><strong>Damage</strong> {{damage}}</span>
+        </div>
+        {{#if tags}}<div class="stonetop-cf-preview-line"><strong>Tags</strong> {{tags}}</div>{{/if}}
+        {{#if instinct}}<div class="stonetop-cf-preview-line"><strong>Instinct</strong> {{instinct}}</div>{{/if}}
+        {{#if qualities.length}}<div class="stonetop-cf-preview-line"><strong>Qualities</strong> {{#each qualities}}{{this}}{{#unless @last}}; {{/unless}}{{/each}}</div>{{/if}}
+        {{#if moves.length}}<div class="stonetop-cf-preview-line"><strong>Moves</strong> {{#each moves}}{{this}}{{#unless @last}}; {{/unless}}{{/each}}</div>{{/if}}
+        {{#if notes.length}}<div class="stonetop-cf-preview-line stonetop-ch-preview-desc">{{#each notes}}{{this}} {{/each}}</div>{{/if}}
+      </div>
+      {{/if}}
+      {{/with}}
+      {{/if}}
+
+    </div>
+
+  </div>
+
+  <div class="stonetop-guide-nav">
+    <button class="stonetop-spring-back" {{#if isFirst}}disabled{{/if}}><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
+    <span class="stonetop-spring-step-label">{{stepLabel}}</span>
+    {{#if isLast}}
+    <button class="stonetop-tb-create stonetop-guide-btn--primary"><i class="fas fa-skull"></i> {{#if isEmanation}}Create the emanation{{else}}Create the being{{/if}}</button>
+    {{else}}
+    <button class="stonetop-spring-next">Next<span class="stonetop-nav-arrow"></span></button>
+    {{/if}}
+  </div>
+
+</div>

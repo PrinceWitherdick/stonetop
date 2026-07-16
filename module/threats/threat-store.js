@@ -17,7 +17,7 @@
 // ownership flip, the standard Foundry "share journal" mechanism.
 import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
 import { shareLevelFor } from "../journal/share-journal.js";
-import { DEFAULT_THREAT_TYPE, DEFAULT_PROXIMITY } from "./threat-types.js";
+import { DEFAULT_THREAT_TYPE, DEFAULT_PROXIMITY, normalizeThreatSeedExtras } from "./threat-types.js";
 
 // Looked up lazily (not at module load) so the file imports cleanly outside Foundry.
 const OWN = () => CONST.DOCUMENT_OWNERSHIP_LEVELS;
@@ -80,15 +80,18 @@ export async function ensureThreatsFolder(steadingActor) {
 	return folder;
 }
 
-/** Normalize a creation seed into the threat page's system data. The guided creator
- *  only supplies type / instinct / proximity / gmMoves; every other field (doom track,
- *  stakes, prose, nested) is left to the model's own defaults and authored in the editor. */
+/** Normalize a creation seed into the threat page's system data. The plain threat creator
+ *  only supplies type / instinct / proximity / gmMoves; every other field is left to the
+ *  model's own defaults and authored in the editor. The Things-Below wizards (Book II) seed
+ *  richer fields — themes / aspects / cleansing / a pre-built doom track / prose — which are
+ *  copied through only when present, so an ordinary threat seed is unaffected. */
 function _shapeSeed(seed) {
 	return {
 		type: seed.type ?? DEFAULT_THREAT_TYPE,
 		instinct: String(seed.instinct ?? ""),
 		proximity: seed.proximity ?? DEFAULT_PROXIMITY,
 		gmMoves: (seed.gmMoves ?? []).map(String),
+		...normalizeThreatSeedExtras(seed),
 	};
 }
 

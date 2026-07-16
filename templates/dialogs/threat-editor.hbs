@@ -61,6 +61,45 @@
 	<div class="threat-editor-more{{#if moreOpen}} is-open{{/if}}">
 
 		<div class="threat-edit__field">
+			<span class="threat-edit__label">Themes <em class="threat-edit__hint">Things Below</em></span>
+			<div class="threat-list" data-list="themes" data-kind="string">
+				{{#each themes}}
+				<div class="threat-list-row" data-index="{{index}}">
+					<input type="text" class="threat-list-text" data-field="value" value="{{value}}" placeholder="Darkness / cold / despair (obsidian, hoarfrost)">
+					<button type="button" class="threat-list-remove" data-list="themes" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
+				</div>
+				{{/each}}
+				<button type="button" class="threat-list-add" data-list="themes"><i class="fas fa-plus"></i> Add theme</button>
+			</div>
+		</div>
+
+		<div class="threat-edit__field">
+			<span class="threat-edit__label">Aspects <em class="threat-edit__hint">impossible, weird</em></span>
+			<div class="threat-list" data-list="aspects" data-kind="string">
+				{{#each aspects}}
+				<div class="threat-list-row" data-index="{{index}}">
+					<input type="text" class="threat-list-text" data-field="value" value="{{value}}" placeholder="Many-limbed / many-eyed / many-bodied">
+					<button type="button" class="threat-list-remove" data-list="aspects" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
+				</div>
+				{{/each}}
+				<button type="button" class="threat-list-add" data-list="aspects"><i class="fas fa-plus"></i> Add aspect</button>
+			</div>
+		</div>
+
+		<div class="threat-edit__field">
+			<span class="threat-edit__label">Cleansing <em class="threat-edit__hint">corrupted site plan</em></span>
+			<div class="threat-list" data-list="cleansing" data-kind="string">
+				{{#each cleansing}}
+				<div class="threat-list-row" data-index="{{index}}">
+					<input type="text" class="threat-list-text" data-field="value" value="{{value}}" placeholder="Learn the name of the Thing that taints this place">
+					<button type="button" class="threat-list-remove" data-list="cleansing" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
+				</div>
+				{{/each}}
+				<button type="button" class="threat-list-add" data-list="cleansing"><i class="fas fa-plus"></i> Add requirement</button>
+			</div>
+		</div>
+
+		<div class="threat-edit__field">
 			<span class="threat-edit__label">Stakes questions</span>
 			<div class="threat-list" data-list="stakes" data-kind="string">
 				{{#each stakes}}

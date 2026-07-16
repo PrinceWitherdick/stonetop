@@ -38,6 +38,12 @@
 	{{#if hasInstinct}}
 	<p class="threat-instinct"><span class="threat-label">Instinct</span><em>{{instinct}}</em></p>
 	{{/if}}
+	{{#if hasThemes}}
+	<p class="threat-themes"><span class="threat-label">Themes</span>{{#each themes}}<span class="threat-themes__item">{{this}}</span>{{/each}}</p>
+	{{/if}}
+	{{#if hasAspects}}
+	<p class="threat-themes threat-aspects"><span class="threat-label">Aspects</span>{{#each aspects}}<span class="threat-themes__item">{{this}}</span>{{/each}}</p>
+	{{/if}}
 	<p class="threat-proximity"><span class="threat-proximity__pip" aria-hidden="true"></span>{{proximity.label}} threat</p>
 
 	{{#if hasDescription}}
@@ -78,6 +84,15 @@
 		<span class="threat-label">GM moves</span>
 		<ul class="threat-move-list">
 			{{#each gmMoves}}<li><span class="threat-move-caret" aria-hidden="true">&#x27a4;</span>{{this}}</li>{{/each}}
+		</ul>
+	</div>
+	{{/if}}
+
+	{{#if hasCleansing}}
+	<div class="threat-moves threat-cleansing">
+		<span class="threat-label">Cleansing</span>
+		<ul class="threat-move-list">
+			{{#each cleansing}}<li><span class="threat-move-caret" aria-hidden="true">&#x27a4;</span>{{this}}</li>{{/each}}
 		</ul>
 	</div>
 	{{/if}}

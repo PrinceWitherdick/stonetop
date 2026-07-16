@@ -33,6 +33,7 @@ export const NATURE_TAGS = [
 	{ id: "fae",        label: "Fae",        hint: "Between physical and spiritual" },
 	{ id: "construct",  label: "Construct",  hint: "Made by someone" },
 	{ id: "corrupted",  label: "Corrupted",  hint: "Changed by the Things Below" },
+	{ id: "emanation",  label: "Emanation",  hint: "A manifestation of a greater power, not a body of its own" },
 	{ id: "primordial", label: "Primordial", hint: "From the first age of creation" },
 	{ id: "undead",     label: "Undead",     hint: "Dead, but in denial" },
 ];

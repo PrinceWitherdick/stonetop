@@ -36,6 +36,12 @@ export class ThreatPageModel extends foundry.abstract.TypeDataModel {
 			}),
 			// Freeform prose: who/what it is, how it became a problem, its relationships.
 			description: new fields.HTMLField({ required: true, blank: true, initial: "" }),
+			// "Things Below" write-ups (Book II, pp. 416-423) add themes + aspects that flavor a
+			// Thing (magicalEntity) and a corrupted site's cleansing requirements (macguffin). All
+			// three are optional and empty on an ordinary threat, so no migration is needed.
+			themes: new fields.ArrayField(new fields.StringField({ required: true, blank: true })),
+			aspects: new fields.ArrayField(new fields.StringField({ required: true, blank: true })),
+			cleansing: new fields.ArrayField(new fields.StringField({ required: true, blank: true })),
 			// The ordered doom track (2-4 grim portents + one impending doom); shared with
 			// the hazard page so the common doom-track wiring reads the same fields on both.
 			...doomTrackFields(),

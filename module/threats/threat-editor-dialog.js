@@ -63,6 +63,13 @@ export class ThreatEditorDialog extends StonetopDialog {
 			proximityOptions: THREAT_PROXIMITIES.map(p => ({ id: p.id, label: p.label, selected: p.id === proximity })),
 			suggestedMoves: threatType(sys.type).suggestedMoves.map(text => ({ text, used: used.has(text) })),
 			grimPortents: (sys.grimPortents ?? []).map((p, index) => ({ index, text: p?.text ?? "", done: !!p?.done })),
+			// "Things Below" fields (Book II): themes/aspects flavor a Thing; cleansing lists a
+			// corrupted site's Make-a-Plan requirements. Shown only when non-empty (below).
+			themes: (sys.themes ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
+			aspects: (sys.aspects ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
+			cleansing: (sys.cleansing ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
+			hasThemesOrAspects: (sys.themes?.length || sys.aspects?.length) > 0,
+			hasCleansing: (sys.cleansing?.length ?? 0) > 0,
 			stakes: (sys.stakes ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
 			gmMoves: (sys.gmMoves ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
 			nested: (sys.nested ?? []).map((n, index) => ({ index, name: n?.name ?? "", type: n?.type ?? "", instinct: n?.instinct ?? "" })),

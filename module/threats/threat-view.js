@@ -33,6 +33,11 @@ export async function buildThreatCardVM(page, { forOwner } = {}) {
 
 	const stakes = (Array.isArray(sys.stakes) ? sys.stakes : []).map(String).filter(hasText);
 	const gmMoves = (Array.isArray(sys.gmMoves) ? sys.gmMoves : []).map(String).filter(hasText);
+	// "Things Below" write-ups (Book II): themes/aspects flavor a Thing; cleansing lists a
+	// corrupted site's Make-a-Plan requirements. Empty on an ordinary threat.
+	const themes = (Array.isArray(sys.themes) ? sys.themes : []).map(String).filter(hasText);
+	const aspects = (Array.isArray(sys.aspects) ? sys.aspects : []).map(String).filter(hasText);
+	const cleansing = (Array.isArray(sys.cleansing) ? sys.cleansing : []).map(String).filter(hasText);
 	const nested = (Array.isArray(sys.nested) ? sys.nested : [])
 		.filter(n => hasText(n?.name))
 		.map(n => ({ name: String(n.name), type: threatType(n.type).label, instinct: String(n.instinct ?? "") }));
@@ -52,6 +57,12 @@ export async function buildThreatCardVM(page, { forOwner } = {}) {
 		accent: type.accent,
 		instinct: String(sys.instinct ?? ""),
 		hasInstinct: hasText(sys.instinct),
+		themes,
+		hasThemes: themes.length > 0,
+		aspects,
+		hasAspects: aspects.length > 0,
+		cleansing,
+		hasCleansing: cleansing.length > 0,
 		proximity,
 		description: await enrich(sys.description),
 		hasDescription: hasText(sys.description),
