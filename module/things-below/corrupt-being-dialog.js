@@ -2,7 +2,8 @@ import { StepperDialog } from "../dialogs/StepperDialog.js";
 import { creatureTypeIcon } from "../bestiary/creature-types.js";
 import { invalidateMonsterRefIndex } from "../bestiary/monster-ref-index.js";
 import { formatCustomMoveDescription } from "../utils/custom-move-text.js";
-import { THEMES, ASPECTS, INSTINCTS, EMANATION_ORIGINS, rollOnTable, rollDistinct, themeLabel } from "../data/things-below-tables.js";
+import { buildMonsterActorData } from "../data/monster-builder.js";
+import { THEMES, ASPECTS, INSTINCTS, EMANATION_ORIGINS, rollOnTable, rollDistinct, themeLabels, aspectTexts, themeCheckboxes, aspectCheckboxes } from "../data/things-below-tables.js";
 import { GIFTS, MARKS, EMANATION_BASE, applyCorruption } from "../data/corruption-tables.js";
 
 // ── CorruptBeingDialog ───────────────────────────────────────────────────────
@@ -69,7 +70,6 @@ export class CorruptBeingDialog extends StepperDialog {
 		this._originText = "";
 		this._giftIds = new Set();
 		this._markIds = new Set();
-		this._resolve = null;
 		this._submitting = false;
 	}
 
@@ -92,16 +92,7 @@ export class CorruptBeingDialog extends StepperDialog {
 			: ["source", "essence", "gifts", "marks", "review"];
 		return order.map(k => _STEP_DEFS[k]);
 	}
-
-	/** Open the dialog; resolves to the created monster Actor, or null if cancelled. */
-	promise() {
-		return new Promise(resolve => { this._resolve = resolve; this.render(true); });
-	}
-
-	async _render(force, options) {
-		await super._render(force, options);
-		this.setPosition({ height: "auto" });
-	}
+	get _autoHeight() { return true; }
 
 	// The monster actors a GM can corrupt (world actors of type "monster").
 	_sourceMonsters() {
@@ -137,7 +128,7 @@ export class CorruptBeingDialog extends StepperDialog {
 	getData() {
 		const nav  = this._stepNav();
 		const step = nav.step;
-		const ctx  = { ...nav, [`is_${step.key}`]: true, mode: this._mode, isEmanation: this._mode === "emanation" };
+		const ctx  = { ...nav, mode: this._mode, isEmanation: this._mode === "emanation" };
 
 		if (step.key === "source") {
 			ctx.sources = [
@@ -152,8 +143,8 @@ export class CorruptBeingDialog extends StepperDialog {
 			ctx.originText = this._originText;
 		}
 		if (step.key === "essence") {
-			ctx.themes = THEMES.map(t => ({ id: t.id, label: themeLabel(t), checked: this._themeIds.has(t.id) }));
-			ctx.aspects = ASPECTS.map(a => ({ id: a.id, label: a.text, checked: this._aspectIds.has(a.id) }));
+			ctx.themes = themeCheckboxes(this._themeIds);
+			ctx.aspects = aspectCheckboxes(this._aspectIds);
 			ctx.instinct = this._instinct;
 		}
 		if (step.key === "gifts") {
@@ -213,10 +204,10 @@ export class CorruptBeingDialog extends StepperDialog {
 		html.find(".stonetop-tb-origin").on("change", ev => { this._originText = ev.currentTarget.value; });
 		html.find(".stonetop-tb-roll-origin").on("click", () => { this._originText = rollOnTable(EMANATION_ORIGINS)?.text ?? ""; this.render(false); });
 
-		html.find(".stonetop-tb-theme").on("change", ev => this._toggle(this._themeIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
-		html.find(".stonetop-tb-roll-themes").on("click", () => { this._onBeforeStepChange(); rollDistinct(THEMES, 2).forEach(t => this._themeIds.add(t.id)); this.render(false); });
-		html.find(".stonetop-tb-aspect").on("change", ev => this._toggle(this._aspectIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
-		html.find(".stonetop-tb-roll-aspects").on("click", () => { this._onBeforeStepChange(); rollDistinct(ASPECTS, 2).forEach(a => this._aspectIds.add(a.id)); this.render(false); });
+		html.find(".stonetop-tb-theme").on("change", ev => this._toggleInSet(this._themeIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
+		html.find(".stonetop-tb-roll-themes").on("click", () => { this._onBeforeStepChange(); this._addIds(this._themeIds, rollDistinct(THEMES, 2)); this.render(false); });
+		html.find(".stonetop-tb-aspect").on("change", ev => this._toggleInSet(this._aspectIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
+		html.find(".stonetop-tb-roll-aspects").on("click", () => { this._onBeforeStepChange(); this._addIds(this._aspectIds, rollDistinct(ASPECTS, 2)); this.render(false); });
 		html.find("[data-field='instinct']").on("change", ev => { this._instinct = ev.currentTarget.value; });
 
 		html.find(".stonetop-tb-gift").on("change", ev => this._toggleCapped(this._giftIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
@@ -224,8 +215,6 @@ export class CorruptBeingDialog extends StepperDialog {
 		html.find(".stonetop-tb-mark").on("change", ev => this._toggleCapped(this._markIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
 		html.find(".stonetop-tb-roll-marks").on("click", () => { this._rollPicks(this._markIds, MARKS); this.render(false); });
 	}
-
-	_toggle(set, id, on) { if (on) set.add(id); else set.delete(id); }
 
 	// Cap a pick set at 3: silently ignore a check past the cap (re-render un-ticks it).
 	_toggleCapped(set, id, on) {
@@ -265,8 +254,8 @@ export class CorruptBeingDialog extends StepperDialog {
 		const name = this._effectiveName(base);
 		const instinct = this._effectiveInstinct(base);
 
-		const themes  = [...this._themeIds].map(id => themeLabel(THEMES.find(t => t.id === id))).filter(Boolean);
-		const aspects = [...this._aspectIds].map(id => (ASPECTS.find(a => a.id === id) || {}).text).filter(Boolean);
+		const themes  = themeLabels(this._themeIds);
+		const aspects = aspectTexts(this._aspectIds);
 		const noteLines = [];
 		if (themes.length)  noteLines.push(`Themes: ${themes.join("; ")}.`);
 		if (aspects.length) noteLines.push(`Aspects: ${aspects.join("; ")}.`);
@@ -283,35 +272,25 @@ export class CorruptBeingDialog extends StepperDialog {
 			system: { description: formatCustomMoveDescription(m.description), rollFormula: "" },
 		}));
 
-		return {
+		return buildMonsterActorData({
 			name,
-			type: "monster",
 			img,
-			system: {
-				attributes: {
-					hp:       { value: r.hp, max: r.hp },
-					armor:    { value: r.armorValue, source: r.armorSource },
-					damage:   { value: r.damageValue, rollFormula: r.rollFormula },
-					instinct: { value: instinct },
-				},
-				concept:      base.concept ?? "",
-				organization: base.organization || "solitary",
-				creatureType,
-				size:         base.size ?? "",
-				tags:         r.tags.join(", "),
-				qualities:    r.qualities.join("; "),
-				notes:        noteLines.join(" "),
-				count:        base.count || 1,
-				entry:        "",
-			},
-			prototypeToken: {
-				name,
-				actorLink: false,
-				disposition: CONST.TOKEN_DISPOSITIONS.HOSTILE,
-				texture: img ? { src: img } : undefined,
-			},
-			items: [...srcMoves, ...giftMoves],
-		};
+			creatureType,
+			hp:           r.hp,
+			armorValue:   r.armorValue,
+			armorSource:  r.armorSource,
+			damageValue:  r.damageValue,
+			rollFormula:  r.rollFormula,
+			instinct,
+			concept:      base.concept ?? "",
+			organization: base.organization || "solitary",
+			size:         base.size ?? "",
+			tags:         r.tags.join(", "),
+			qualities:    r.qualities.join("; "),
+			notes:        noteLines.join(" "),
+			count:        base.count || 1,
+			items:        [...srcMoves, ...giftMoves],
+		});
 	}
 
 	async _finish() {
@@ -334,14 +313,6 @@ export class CorruptBeingDialog extends StepperDialog {
 		}
 		invalidateMonsterRefIndex();
 		created?.sheet?.render(true);
-		const resolve = this._resolve;
-		this._resolve = null;
-		this.close();
-		resolve?.(created ?? null);
-	}
-
-	async close(options = {}) {
-		if (this._resolve) { const resolve = this._resolve; this._resolve = null; resolve(null); }
-		return super.close(options);
+		this._resolveWith(created ?? null);
 	}
 }

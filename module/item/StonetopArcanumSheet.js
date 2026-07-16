@@ -6,6 +6,7 @@ import { markDebilityTooltips } from "../utils/debility-tooltips.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import { isInCompendium } from "../utils/compendium-edit-guard.js";
 import { bringDialogToFront } from "../utils/front-on-open.js";
+import { applyGuideRail } from "../utils/guide-rail.js";
 import { isDefaultImg } from "../utils/strings.js";
 import { STAT_KEYS } from "../utils/roll-types.js";
 import { hasText } from "../actors/bestiary/codex.js";
@@ -537,25 +538,22 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			if (!root) return;
 			const active = ARC_SECTIONS[index];
 
-			root.querySelectorAll(".stonetop-arc-tab").forEach(btn => {
-				const on = btn.dataset.arcTab === key;
-				btn.closest(".stonetop-guide-toc-item")?.classList.toggle("is-active", on);
-				if (on) btn.setAttribute("aria-current", "true"); else btn.removeAttribute("aria-current");
+			applyGuideRail(root, {
+				key, dataKey: "arcTab",
+				tabSelector: ".stonetop-arc-tab",
+				sectionSelector: ".stonetop-arc-section",
+				iconSelector: ".stonetop-arc-banner-icon",
+				icon: active.icon,
+				iconExtraClass: "stonetop-arc-banner-icon",
+				mainSelector: ".stonetop-arc-main",
 			});
-			root.querySelectorAll(".stonetop-arc-section").forEach(sec => { sec.hidden = sec.dataset.arcTab !== key; });
 
-			const icon = root.querySelector(".stonetop-arc-banner-icon");
-			if (icon) icon.className = `fas ${active.icon} stonetop-guide-banner-icon stonetop-arc-banner-icon`;
 			const title = root.querySelector(".stonetop-arc-banner-title");
 			if (title) title.textContent = active.title;
 			const sub = root.querySelector(".stonetop-arc-banner-sub");
 			if (sub) sub.textContent = active.sub;
 			const count = root.querySelector(".stonetop-arc-banner-count");
 			if (count) count.textContent = `${index + 1} / ${ARC_SECTIONS.length}`;
-
-			// A tall previous section can leave the column scrolled down; reset to the top.
-			const main = root.querySelector(".stonetop-arc-main");
-			if (main) main.scrollTop = 0;
 
 			this._syncArcNext(root);
 		}

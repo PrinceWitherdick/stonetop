@@ -9,6 +9,7 @@
 // unit-testable in isolation, like computeMonster() in monster-builder.js.
 
 import { stepDie } from "../utils/damage-die.js";
+import { normalizeTags } from "./follower-build.js";
 
 // ── Gifts (1d12) — p. 432 ─────────────────────────────────────────────────────
 // Pick or roll up to 3. Mechanical deltas: hpDelta / armorSet / dieSteps / damageBonus /
@@ -117,14 +118,18 @@ export function bumpDamage(damageValue = "", rollFormula = "", { dieSteps = 0, d
 	const dv = String(damageValue ?? "").trim();
 	const dieToken = /d(12|10|8|6|4)/i;
 
-	const dieMatch = rf.match(dieToken);
+	// The mechanical die normally lives in the clean rollFormula, but some stat blocks carry
+	// the die only in the prose damage line (rollFormula blank). Fall back to the prose die so
+	// a gift's die-step / bonus still lands instead of being silently dropped.
+	const dieSource = rf.match(dieToken) ? rf : dv;
+	const dieMatch = dieSource.match(dieToken);
 	if (!dieMatch) {
-		// No recognizable die to step — keep the formula, only annotate tags on the prose.
+		// No recognizable die anywhere — nothing to step; only annotate tags on the prose.
 		return { damageValue: _appendTags(dv, addTags), rollFormula: rf };
 	}
 
 	const oldDie = "d" + dieMatch[1];
-	const bonusMatch = rf.match(/([+-]\d+)/);
+	const bonusMatch = dieSource.match(/([+-]\d+)/);
 	const oldBonus = bonusMatch ? parseInt(bonusMatch[1], 10) : 0;
 	const newDie = stepDie(oldDie, dieSteps);
 	const newBonus = oldBonus + damageBonus;
@@ -136,31 +141,19 @@ export function bumpDamage(damageValue = "", rollFormula = "", { dieSteps = 0, d
 	if (dv.includes(oldFormula)) {
 		prose = dv.replace(oldFormula, newFormula);
 	} else if (dieToken.test(dv)) {
-		// Swap the die token in place, folding any adjacent bonus into the new bonus.
-		prose = dv.replace(/d(12|10|8|6|4)([+-]\d+)?/i, (_whole, d, b) => {
-			const ob = b ? parseInt(b, 10) : 0;
-			const nb = ob + damageBonus;
-			return `${stepDie("d" + d, dieSteps)}${signedBonus(nb)}`;
-		});
+		// Prose die differs from the formula's: rewrite the prose die token (and any stray
+		// adjacent bonus) to the stepped result so the shown die always matches the rolled die.
+		prose = dv.replace(/d(12|10|8|6|4)([+-]\d+)?/i, newFormula);
 	} else {
 		prose = dv ? `${dv} ${newFormula}` : newFormula;
 	}
 	return { damageValue: _appendTags(prose, addTags), rollFormula: newFormula };
 }
 
-/** Split a tag line (array or comma string) into a clean, lowercased, de-duped list. */
-function _normTags(tags) {
-	const parts = Array.isArray(tags) ? tags : String(tags ?? "").split(",");
-	const out = [];
-	const seen = new Set();
-	for (const raw of parts) {
-		const t = String(raw ?? "").trim().toLowerCase();
-		if (!t || seen.has(t)) continue;
-		seen.add(t);
-		out.push(t);
-	}
-	return out;
-}
+/** Split a tag line (array or comma string) into a clean, lowercased, de-duped list.
+ *  Reuses the shared normalizeTags (trim + case-insensitive de-dup) and lowercases the
+ *  result, since corrupted-being tags are matched and stored lowercase. */
+const _normTags = (tags) => normalizeTags(tags).map(t => t.toLowerCase());
 
 /**
  * Fold corruption picks onto a base stat block, producing the corrupted being's stats.

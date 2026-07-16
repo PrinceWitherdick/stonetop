@@ -3,7 +3,7 @@ import { escHtml } from "../utils/strings.js";
 import {
 	THEMES, SITE_FEATURES, SITE_CAUSES, SITE_SEVERITIES,
 	CLEANSING_REQUIREMENTS, CLEANSING_BINDINGS,
-	seedSiteDoomTrack, siteDangerMoves, rollOnTable, rollDistinct, themeLabel,
+	seedSiteDoomTrack, siteDangerMoves, rollOnTable, rollDistinct, themeLabels, themeCheckboxes,
 } from "../data/things-below-tables.js";
 import { THREAT_PROXIMITIES } from "../threats/threat-types.js";
 
@@ -70,7 +70,6 @@ export class CreateCorruptedSiteDialog extends StepperDialog {
 		this._severityKey = "";
 		this._cleansingReqs = new Set();
 		this._cleansingBinds = new Set();
-		this._resolve = null;
 	}
 
 	static get defaultOptions() {
@@ -86,22 +85,14 @@ export class CreateCorruptedSiteDialog extends StepperDialog {
 
 	get title() { return "Create a Corrupted Site"; }
 	get _steps() { return _STEPS; }
-
-	promise() {
-		return new Promise(resolve => { this._resolve = resolve; this.render(true); });
-	}
-
-	async _render(force, options) {
-		await super._render(force, options);
-		this.setPosition({ height: "auto" });
-	}
+	get _autoHeight() { return true; }
 
 	_severity() { return SITE_SEVERITIES.find(s => s.key === this._severityKey) ?? null; }
 
 	getData() {
 		const nav  = this._stepNav();
 		const step = nav.step;
-		const ctx  = { ...nav, [`is_${step.key}`]: true };
+		const ctx  = { ...nav };
 
 		if (step.key === "feature") {
 			ctx.name = this._name;
@@ -111,7 +102,7 @@ export class CreateCorruptedSiteDialog extends StepperDialog {
 			ctx.proximities = THREAT_PROXIMITIES.map(p => ({ id: p.id, label: p.label, selected: p.id === this._proximity }));
 		}
 		if (step.key === "themes") {
-			ctx.themes = THEMES.map(t => ({ id: t.id, label: themeLabel(t), note: t.note, checked: this._themeIds.has(t.id) }));
+			ctx.themes = themeCheckboxes(this._themeIds);
 			ctx.themeCount = this._themeIds.size;
 		}
 		if (step.key === "cause") {
@@ -149,7 +140,7 @@ export class CreateCorruptedSiteDialog extends StepperDialog {
 		const doom = sev ? seedSiteDoomTrack(sev.key) : { grimPortents: [], impendingDoom: { text: "" } };
 		return {
 			name:      this._name.trim() || "Unnamed site",
-			themes:    [...this._themeIds].map(id => themeLabel(THEMES.find(t => t.id === id))).filter(Boolean),
+			themes:    themeLabels(this._themeIds),
 			feature:   this._featureText,
 			cause:     this._causeText,
 			severity:  sev?.text ?? "",
@@ -173,8 +164,8 @@ export class CreateCorruptedSiteDialog extends StepperDialog {
 		html.find(".stonetop-tb-feature").on("change", ev => { this._featureText = ev.currentTarget.value; });
 		html.find(".stonetop-tb-roll-feature").on("click", () => { this._featureText = rollOnTable(SITE_FEATURES)?.text ?? ""; this.render(false); });
 
-		html.find(".stonetop-tb-theme").on("change", ev => this._toggle(this._themeIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
-		html.find(".stonetop-tb-roll-themes").on("click", () => { rollDistinct(THEMES, 2).forEach(t => this._themeIds.add(t.id)); this.render(false); });
+		html.find(".stonetop-tb-theme").on("change", ev => this._toggleInSet(this._themeIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
+		html.find(".stonetop-tb-roll-themes").on("click", () => { this._addIds(this._themeIds, rollDistinct(THEMES, 2)); this.render(false); });
 
 		html.find(".stonetop-tb-cause").on("change", ev => { this._causeText = ev.currentTarget.value; this.render(false); });
 		html.find(".stonetop-tb-roll-cause").on("click", () => { this._causeText = rollOnTable(SITE_CAUSES)?.text ?? ""; this.render(false); });
@@ -183,12 +174,9 @@ export class CreateCorruptedSiteDialog extends StepperDialog {
 		html.find(".stonetop-tb-severity").on("change", ev => { this._severityKey = ev.currentTarget.value; this.render(false); });
 		html.find(".stonetop-tb-roll-severity").on("click", () => { this._severityKey = rollOnTable(SITE_SEVERITIES)?.key ?? ""; this.render(false); });
 
-		html.find(".stonetop-tb-req").on("change", ev => this._toggleStr(this._cleansingReqs, ev.currentTarget.value, ev.currentTarget.checked));
-		html.find(".stonetop-tb-bind").on("change", ev => this._toggleStr(this._cleansingBinds, ev.currentTarget.value, ev.currentTarget.checked));
+		html.find(".stonetop-tb-req").on("change", ev => this._toggleInSet(this._cleansingReqs, ev.currentTarget.value, ev.currentTarget.checked));
+		html.find(".stonetop-tb-bind").on("change", ev => this._toggleInSet(this._cleansingBinds, ev.currentTarget.value, ev.currentTarget.checked));
 	}
-
-	_toggle(set, id, on) { if (on) set.add(id); else set.delete(id); }
-	_toggleStr(set, val, on) { if (on) set.add(val); else set.delete(val); }
 
 	_onBeforeStepChange() {
 		const root = this.element?.[0];
@@ -229,7 +217,7 @@ export class CreateCorruptedSiteDialog extends StepperDialog {
 			type: SITE_TYPE,
 			proximity: this._proximity,
 			instinct: "",
-			themes: [...this._themeIds].map(id => themeLabel(THEMES.find(t => t.id === id))).filter(Boolean),
+			themes: themeLabels(this._themeIds),
 			gmMoves: sev ? siteDangerMoves(sev.level) : [],
 			cleansing,
 			grimPortents: doom.grimPortents,
@@ -240,15 +228,6 @@ export class CreateCorruptedSiteDialog extends StepperDialog {
 
 	_finish() {
 		this._onBeforeStepChange();
-		const seed = this._seed();
-		const resolve = this._resolve;
-		this._resolve = null;
-		this.close();
-		resolve?.(seed);
-	}
-
-	async close(options = {}) {
-		if (this._resolve) { const resolve = this._resolve; this._resolve = null; resolve(null); }
-		return super.close(options);
+		this._resolveWith(this._seed());
 	}
 }

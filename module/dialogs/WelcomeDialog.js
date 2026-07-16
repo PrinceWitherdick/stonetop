@@ -2,6 +2,7 @@ import { getSetting, setSetting } from "../settings.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import { findVisibleJournal, settingOverviewPages, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
+import { applyGuideRail } from "../utils/guide-rail.js";
 import { applyLocationTooltips } from "../locations/location-tooltips.js";
 import { bringDialogToFront } from "../utils/front-on-open.js";
 import { FoundryBasicsDialog } from "./FoundryBasicsDialog.js";
@@ -234,15 +235,16 @@ export class WelcomeDialog extends Application {
 		const root = this.element;
 		if (!root?.length) return;
 
-		root.find(".stonetop-welcome-tab").each((_, btn) => {
-			const on = btn.dataset.tab === key;
-			btn.closest(".stonetop-guide-toc-item")?.classList.toggle("is-active", on);
-			if (on) btn.setAttribute("aria-current", "true"); else btn.removeAttribute("aria-current");
+		applyGuideRail(root[0], {
+			key, dataKey: "tab",
+			tabSelector: ".stonetop-welcome-tab",
+			sectionSelector: ".stonetop-welcome-section",
+			iconSelector: ".stonetop-welcome-banner-icon",
+			icon: active.icon,
+			iconExtraClass: "stonetop-welcome-banner-icon",
+			mainSelector: ".stonetop-welcome-main",
 		});
-		root.find(".stonetop-welcome-section").each((_, sec) => { sec.hidden = sec.dataset.tab !== key; });
 
-		const icon = root.find(".stonetop-welcome-banner-icon")[0];
-		if (icon) icon.className = `fas ${active.icon} stonetop-guide-banner-icon stonetop-welcome-banner-icon`;
 		root.find(".stonetop-welcome-banner-title").text(active.title);
 		const optional = root.find(".stonetop-welcome-banner-optional")[0];
 		if (optional) optional.hidden = !active.optional;
@@ -257,10 +259,6 @@ export class WelcomeDialog extends Application {
 		if (back) back.disabled = index === 0;
 		const next = root.find(".stonetop-welcome-next")[0];
 		if (next) next.disabled = index === SECTIONS.length - 1;
-
-		// A tall previous panel can leave the column scrolled down; reset to the top.
-		const main = root.find(".stonetop-welcome-main")[0];
-		if (main) main.scrollTop = 0;
 	}
 
 	// Open the shareable "Setting Overview" journal — the same one that auto-opens

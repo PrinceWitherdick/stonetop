@@ -74,7 +74,6 @@ export class CreateHazardDialog extends StepperDialog {
 		// creation keeps the fixed id (one "Make a Hazard" at a time).
 		super(page ? foundry.utils.mergeObject({ id: `stonetop-create-hazard-${page.id}` }, options) : options);
 		this._page = page;
-		this._resolve = null;
 		this._sel = page ? this._seedFromPage(page) : {
 			name: "", description: "",
 			damageDie: "", damageEffects: [], damageExtra: "", certainDeath: false,
@@ -98,11 +97,7 @@ export class CreateHazardDialog extends StepperDialog {
 	get title() { return this._page ? `Hazard: ${this._page.name}` : "Make a Hazard"; }
 
 	get _steps() { return _STEPS; }
-
-	/** Open the dialog; resolves to the seed (create), the page (edit), or null (cancelled). */
-	promise() {
-		return new Promise(resolve => { this._resolve = resolve; this.render(true); });
-	}
+	get _autoHeight() { return true; }
 
 	// Working state seeded from an existing page (edit mode). Doom-track `done` states
 	// ride along invisibly so saving an edit never un-ticks a portent that came to pass.
@@ -125,11 +120,6 @@ export class CreateHazardDialog extends StepperDialog {
 		};
 	}
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this.setPosition({ height: "auto" });
-	}
-
 	// The damage line as it will read on the card, kept live as picks are toggled.
 	get _damagePreview() {
 		const sel = this._sel;
@@ -148,7 +138,6 @@ export class CreateHazardDialog extends StepperDialog {
 		const sel  = this._sel;
 		const ctx  = {
 			...nav,
-			[`is_${step.key}`]: true,
 			sel,
 			isEdit: !!this._page,
 		};
@@ -258,10 +247,7 @@ export class CreateHazardDialog extends StepperDialog {
 		root.querySelectorAll("[data-field]").forEach(el => {
 			if (_TEXT_FIELDS.has(el.dataset.field)) this._sel[el.dataset.field] = el.value;
 		});
-		root.querySelectorAll(".stonetop-ch-move-input").forEach(el => {
-			const i = Number(el.dataset.index);
-			if (i in this._sel.gmMoves) this._sel.gmMoves[i] = el.value;
-		});
+		this._captureRowInputs(root, ".stonetop-ch-move-input", this._sel.gmMoves);
 		root.querySelectorAll(".stonetop-ch-portent-input").forEach(el => {
 			const i = Number(el.dataset.index);
 			if (this._sel.grimPortents[i]) this._sel.grimPortents[i].text = el.value;
@@ -308,16 +294,4 @@ export class CreateHazardDialog extends StepperDialog {
 		}
 	}
 
-	_resolveWith(result) {
-		const resolve = this._resolve;
-		this._resolve = null;
-		this.close();
-		resolve?.(result);
-	}
-
-	async close(options = {}) {
-		// A close without finishing (Cancel, Escape, X) resolves the promise to null.
-		if (this._resolve) { const resolve = this._resolve; this._resolve = null; resolve(null); }
-		return super.close(options);
-	}
 }

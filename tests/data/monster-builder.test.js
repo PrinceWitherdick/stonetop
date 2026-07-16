@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
 	computeMonster,
+	buildMonsterActorData,
 	stepDie,
 	ORGANIZATIONS,
 	SIZES,
@@ -158,5 +159,50 @@ describe("data tables sanity", () => {
 	it("has three organizations and five sizes", () => {
 		expect(ORGANIZATIONS).toHaveLength(3);
 		expect(SIZES).toHaveLength(5);
+	});
+});
+
+describe("buildMonsterActorData", () => {
+	it("shapes the full monster creation payload from flat options", () => {
+		const data = buildMonsterActorData({
+			name: "Gnarl", img: "icons/gnarl.webp", folder: "folder1", creatureType: "beast",
+			hp: 12, armorValue: 2, armorSource: "hide", damageValue: "claws d8", rollFormula: "d8",
+			instinct: "hunt", concept: "a beast", organization: "group", size: "large",
+			tags: "solitary, beast", qualities: "keen senses", notes: "lurks", count: 1,
+			items: [{ name: "Pounce", type: "monsterMove", system: { description: "leaps", rollFormula: "" } }],
+		});
+		expect(data.name).toBe("Gnarl");
+		expect(data.type).toBe("monster");
+		expect(data.folder).toBe("folder1");
+		expect(data.img).toBe("icons/gnarl.webp");
+		expect(data.system.attributes).toEqual({
+			hp:       { value: 12, max: 12 },
+			armor:    { value: 2, source: "hide" },
+			damage:   { value: "claws d8", rollFormula: "d8" },
+			instinct: { value: "hunt" },
+		});
+		expect(data.system.concept).toBe("a beast");
+		expect(data.system.organization).toBe("group");
+		expect(data.system.creatureType).toBe("beast");
+		expect(data.system.size).toBe("large");
+		expect(data.system.tags).toBe("solitary, beast");
+		expect(data.system.qualities).toBe("keen senses");
+		expect(data.system.notes).toBe("lurks");
+		expect(data.system.count).toBe(1);
+		expect(data.system.entry).toBe("");
+		expect(data.prototypeToken).toMatchObject({ name: "Gnarl", actorLink: false, texture: { src: "icons/gnarl.webp" } });
+		expect(data.prototypeToken.disposition).toBe(-1); // HOSTILE
+		expect(data.items).toHaveLength(1);
+	});
+
+	it("omits the token texture and leaves folder undefined when neither is given", () => {
+		const data = buildMonsterActorData({ name: "Blob" });
+		expect(data.folder).toBeUndefined();
+		expect(data.img).toBeUndefined();
+		expect(data.prototypeToken.texture).toBeUndefined();
+		// Sensible empty defaults so a bare call still yields a valid stat block.
+		expect(data.system.attributes.hp).toEqual({ value: 0, max: 0 });
+		expect(data.system.count).toBe(1);
+		expect(data.items).toEqual([]);
 	});
 });

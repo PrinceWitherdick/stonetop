@@ -2,7 +2,8 @@ import { StepperDialog } from "../dialogs/StepperDialog.js";
 import { escHtml } from "../utils/strings.js";
 import {
 	THEMES, ASPECTS, INSTINCTS,
-	rollDistinct, rollOnTable, rollThingName, themeLabel,
+	rollDistinct, rollOnTable, rollThingName, themeLabels, aspectTexts,
+	themeCheckboxes, aspectCheckboxes,
 } from "../data/things-below-tables.js";
 import { THINGS_BELOW, thingBelowPreset, presetFullName } from "../data/things-below-presets.js";
 import { threatType, THREAT_PROXIMITIES } from "../threats/threat-types.js";
@@ -71,7 +72,6 @@ export class CreateThingDialog extends StepperDialog {
 		this._instinctCustom = "";
 		this._selectedMoves = new Set();
 		this._customMoves = [""];
-		this._resolve = null;
 	}
 
 	static get defaultOptions() {
@@ -87,16 +87,7 @@ export class CreateThingDialog extends StepperDialog {
 
 	get title() { return "Create a Thing Below"; }
 	get _steps() { return _STEPS; }
-
-	/** Open the dialog; resolves to the threat seed, or null if cancelled. */
-	promise() {
-		return new Promise(resolve => { this._resolve = resolve; this.render(true); });
-	}
-
-	async _render(force, options) {
-		await super._render(force, options);
-		this.setPosition({ height: "auto" });
-	}
+	get _autoHeight() { return true; }
 
 	// The union of moves offered as a checklist: the magical-entity type's suggested moves,
 	// the chosen preset's moves, and any already-selected move (so a switch never drops a pick).
@@ -129,7 +120,7 @@ export class CreateThingDialog extends StepperDialog {
 	getData() {
 		const nav  = this._stepNav();
 		const step = nav.step;
-		const ctx  = { ...nav, [`is_${step.key}`]: true };
+		const ctx  = { ...nav };
 
 		if (step.key === "concept") {
 			ctx.presets = [
@@ -141,11 +132,11 @@ export class CreateThingDialog extends StepperDialog {
 			ctx.proximities = THREAT_PROXIMITIES.map(p => ({ id: p.id, label: p.label, selected: p.id === this._proximity }));
 		}
 		if (step.key === "themes") {
-			ctx.themes = THEMES.map(t => ({ id: t.id, label: themeLabel(t), note: t.note, checked: this._themeIds.has(t.id) }));
+			ctx.themes = themeCheckboxes(this._themeIds);
 			ctx.themeCount = this._themeIds.size;
 		}
 		if (step.key === "aspects") {
-			ctx.aspects = ASPECTS.map(a => ({ id: a.id, label: a.text, checked: this._aspectIds.has(a.id) }));
+			ctx.aspects = aspectCheckboxes(this._aspectIds);
 			ctx.aspectCount = this._aspectIds.size;
 		}
 		if (step.key === "instinct") {
@@ -164,8 +155,8 @@ export class CreateThingDialog extends StepperDialog {
 		return {
 			name:     this._name.trim() || "Unnamed Thing",
 			titles:   this._titles(),
-			themes:   [...this._themeIds].map(id => themeLabel(THEMES.find(t => t.id === id))).filter(Boolean),
-			aspects:  [...this._aspectIds].map(id => (ASPECTS.find(a => a.id === id) || {}).text).filter(Boolean),
+			themes:   themeLabels(this._themeIds),
+			aspects:  aspectTexts(this._aspectIds),
 			instinct: this._effectiveInstinct(),
 			gmMoves:  this._effectiveMoves(),
 		};
@@ -201,10 +192,10 @@ export class CreateThingDialog extends StepperDialog {
 		});
 
 		// Theme / aspect checkboxes + their roll buttons.
-		html.find(".stonetop-tb-theme").on("change", ev => this._toggle(this._themeIds, ev.currentTarget));
-		html.find(".stonetop-tb-roll-themes").on("click", () => { rollDistinct(THEMES, 2).forEach(t => this._themeIds.add(t.id)); this.render(false); });
-		html.find(".stonetop-tb-aspect").on("change", ev => this._toggle(this._aspectIds, ev.currentTarget));
-		html.find(".stonetop-tb-roll-aspects").on("click", () => { rollDistinct(ASPECTS, 2).forEach(a => this._aspectIds.add(a.id)); this.render(false); });
+		html.find(".stonetop-tb-theme").on("change", ev => this._toggleInSet(this._themeIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
+		html.find(".stonetop-tb-roll-themes").on("click", () => { this._addIds(this._themeIds, rollDistinct(THEMES, 2)); this.render(false); });
+		html.find(".stonetop-tb-aspect").on("change", ev => this._toggleInSet(this._aspectIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
+		html.find(".stonetop-tb-roll-aspects").on("click", () => { this._addIds(this._aspectIds, rollDistinct(ASPECTS, 2)); this.render(false); });
 
 		// Instinct radio + custom text + roll.
 		html.find(".stonetop-tb-instinct").on("change", ev => { this._instinctId = Number(ev.currentTarget.value); this._instinctCustom = ""; });
@@ -224,11 +215,6 @@ export class CreateThingDialog extends StepperDialog {
 		});
 	}
 
-	_toggle(set, el) {
-		const id = Number(el.value);
-		if (el.checked) set.add(id); else set.delete(id);
-	}
-
 	// Overwrite name/titles/themes/instinct/moves from a preset (empty slug = from scratch,
 	// which leaves the GM's own edits untouched).
 	_applyPreset(slug) {
@@ -240,7 +226,7 @@ export class CreateThingDialog extends StepperDialog {
 		this._themeIds = new Set(preset.themeIds ?? []);
 		this._instinctCustom = preset.instinct ?? "";
 		this._instinctId = null;
-		for (const m of preset.moves ?? []) this._selectedMoves.add(m);
+		this._selectedMoves = new Set(preset.moves ?? []);
 	}
 
 	_onBeforeStepChange() { this._capture(this.element); this._captureCustomMoves(); }
@@ -260,12 +246,7 @@ export class CreateThingDialog extends StepperDialog {
 	}
 
 	_captureCustomMoves() {
-		const root = this.element?.[0];
-		if (!root) return;
-		root.querySelectorAll(".stonetop-tb-move-input").forEach(el => {
-			const i = Number(el.dataset.index);
-			if (i in this._customMoves) this._customMoves[i] = el.value;
-		});
+		this._captureRowInputs(this.element, ".stonetop-tb-move-input", this._customMoves);
 	}
 
 	// Build the threat seed the store shapes into a magical-entity threat page.
@@ -283,8 +264,8 @@ export class CreateThingDialog extends StepperDialog {
 			type: THING_TYPE,
 			proximity: this._proximity,
 			instinct: this._effectiveInstinct(),
-			themes:  [...this._themeIds].map(id => themeLabel(THEMES.find(t => t.id === id))).filter(Boolean),
-			aspects: [...this._aspectIds].map(id => (ASPECTS.find(a => a.id === id) || {}).text).filter(Boolean),
+			themes:  themeLabels(this._themeIds),
+			aspects: aspectTexts(this._aspectIds),
 			gmMoves: this._effectiveMoves(),
 			description: descParts.join(""),
 		};
@@ -293,15 +274,6 @@ export class CreateThingDialog extends StepperDialog {
 	_finish() {
 		this._capture(this.element);
 		this._captureCustomMoves();
-		const seed = this._seed();
-		const resolve = this._resolve;
-		this._resolve = null;
-		this.close();
-		resolve?.(seed);
-	}
-
-	async close(options = {}) {
-		if (this._resolve) { const resolve = this._resolve; this._resolve = null; resolve(null); }
-		return super.close(options);
+		this._resolveWith(this._seed());
 	}
 }

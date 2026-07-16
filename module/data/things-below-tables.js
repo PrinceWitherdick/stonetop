@@ -45,6 +45,27 @@ export function themeLabel(entry) {
 	return entry?.materials ? `${entry.text} (${entry.materials})` : String(entry?.text ?? "");
 }
 
+/** Resolve a Set/iterable of theme ids to their card/label strings (unknown ids dropped). */
+export function themeLabels(ids) {
+	return [...ids].map(id => themeLabel(THEMES.find(t => t.id === id))).filter(Boolean);
+}
+
+/** The theme checklist view-model for a wizard step: one row per theme, ticked if its id is
+ *  in `idSet`. Shared by all three Things-Below wizards (a `note` some templates ignore). */
+export function themeCheckboxes(idSet) {
+	return THEMES.map(t => ({ id: t.id, label: themeLabel(t), note: t.note, checked: idSet.has(t.id) }));
+}
+
+/** Resolve a Set/iterable of aspect ids to their text strings (unknown ids dropped). */
+export function aspectTexts(ids) {
+	return [...ids].map(id => ASPECTS.find(a => a.id === id)?.text).filter(Boolean);
+}
+
+/** The aspect checklist view-model for a wizard step: one row per aspect, ticked if in `idSet`. */
+export function aspectCheckboxes(idSet) {
+	return ASPECTS.map(a => ({ id: a.id, label: a.text, checked: idSet.has(a.id) }));
+}
+
 // ── Aspects (1d12) — p. 417 ───────────────────────────────────────────────────
 // Choose or roll 2+. "Make their aspects impossible and weird, things of
 // fever-dream and drug-fueled vision" — they are not bound by biology or physics.

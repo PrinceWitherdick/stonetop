@@ -12,6 +12,7 @@ import { CREATURE_TYPE_CHOICES, creatureTypeIcon } from "../bestiary/creature-ty
 import { invalidateMonsterRefIndex } from "../bestiary/monster-ref-index.js";
 import {
 	computeMonster,
+	buildMonsterActorData,
 	ORGANIZATIONS,
 	SIZES,
 	NATURE_TAGS,
@@ -25,6 +26,7 @@ import {
 	MOVE_SUGGESTIONS,
 } from "../data/monster-builder.js";
 import { formatCustomMoveDescription } from "../utils/custom-move-text.js";
+import { applyGuideRail } from "../utils/guide-rail.js";
 
 const DEFAULTS = { organization: "group", size: "medium", armorBase: 0 };
 
@@ -218,30 +220,27 @@ export class CreateMonsterDialog extends StonetopDialog {
 		this._activeTab = key;
 		const active = SECTIONS[index];
 
-		form.querySelectorAll(".cm-tab").forEach(btn => {
-			const on = btn.dataset.tab === key;
-			btn.closest(".stonetop-guide-toc-item")?.classList.toggle("is-active", on);
-			if (on) btn.setAttribute("aria-current", "true"); else btn.removeAttribute("aria-current");
+		applyGuideRail(form, {
+			key, dataKey: "tab",
+			tabSelector: ".cm-tab",
+			sectionSelector: ".cm-section",
+			iconSelector: ".cm-banner-icon",
+			icon: active.icon,
+			iconExtraClass: "cm-banner-icon",
+			mainSelector: ".cm-main",
 		});
-		form.querySelectorAll(".cm-section").forEach(sec => { sec.hidden = sec.dataset.tab !== key; });
 
-		const icon = form.querySelector(".cm-banner-icon");
-		if (icon) icon.className = `fas ${active.icon} stonetop-guide-banner-icon cm-banner-icon`;
 		const title = form.querySelector(".cm-banner-title");
 		if (title) title.textContent = active.title;
 		const count = form.querySelector(".cm-banner-count");
 		if (count) count.textContent = `${index + 1} / ${SECTIONS.length}`;
 
-		// A tall previous tab can leave the section column scrolled down; reset so each
-		// section opens at its top.
-		const main = form.querySelector(".cm-main");
-		if (main) main.scrollTop = 0;
-
 		this._syncNext(form);
 	}
 
 	_recompute(form) {
-		const derived = computeMonster(this._readSelections(form));
+		// The live summary never reads moves, so skip the move-card DOM walk on every keystroke.
+		const derived = computeMonster(this._readSelections(form, { withMoves: false }));
 		const s = this._summary(derived);
 		const set = (sel, text) => { const el = form.querySelector(sel); if (el) el.textContent = text; };
 		set(".cm-summary-hp", s.hp);
@@ -256,7 +255,7 @@ export class CreateMonsterDialog extends StonetopDialog {
 	}
 
 	/** Read the worksheet into the shape computeMonster() and _buildActorData() expect. */
-	_readSelections(form) {
+	_readSelections(form, { withMoves = true } = {}) {
 		const text   = name => (form.querySelector(`[name="${name}"]`)?.value ?? "").trim();
 		const radio  = name => form.querySelector(`input[name="${name}"]:checked`)?.value ?? "";
 		const checks = name => Array.from(form.querySelectorAll(`input[name="${name}"]:checked`)).map(i => i.value);
@@ -276,7 +275,7 @@ export class CreateMonsterDialog extends StonetopDialog {
 			armorMods:    checks("armorMod"),
 			damageTags:   checks("damageTag"),
 			damageMods:   checks("damageMod"),
-			moves:        this._readMoves(form),
+			moves:        withMoves ? this._readMoves(form) : [],
 		};
 	}
 
@@ -314,45 +313,30 @@ export class CreateMonsterDialog extends StonetopDialog {
 
 	_buildActorData(sel, derived) {
 		const name = sel.name || this._name || "New Monster";
-		const img = creatureTypeIcon(sel.creatureType) ?? undefined;
-		const sizeTag = SIZES.find(s => s.id === sel.size)?.tag ?? "";
-
 		const items = sel.moves.map(m => ({
 			name: m.name || "New move",
 			type: "monsterMove",
 			system: { description: formatCustomMoveDescription(m.description), rollFormula: "" },
 		}));
 
-		return {
+		return buildMonsterActorData({
 			name,
-			type: "monster",
-			folder: this._folder ?? undefined,
-			img,
-			system: {
-				attributes: {
-					hp:       { value: derived.hp, max: derived.hp },
-					armor:    { value: derived.armorValue, source: derived.armorSource },
-					damage:   { value: derived.damageValue, rollFormula: derived.rollFormula },
-					instinct: { value: sel.instinct },
-				},
-				concept:      sel.concept,
-				organization: sel.organization,
-				creatureType: sel.creatureType,
-				size:         sizeTag,
-				tags:         derived.tags,
-				qualities:    "",
-				notes:        "",
-				count:        derived.count,
-				entry:        "",
-			},
-			prototypeToken: {
-				name,
-				actorLink: false,
-				disposition: CONST.TOKEN_DISPOSITIONS.HOSTILE,
-				texture: img ? { src: img } : undefined,
-			},
+			img:          creatureTypeIcon(sel.creatureType) ?? undefined,
+			folder:       this._folder,
+			creatureType: sel.creatureType,
+			hp:           derived.hp,
+			armorValue:   derived.armorValue,
+			armorSource:  derived.armorSource,
+			damageValue:  derived.damageValue,
+			rollFormula:  derived.rollFormula,
+			instinct:     sel.instinct,
+			concept:      sel.concept,
+			organization: sel.organization,
+			size:         SIZES.find(s => s.id === sel.size)?.tag ?? "",
+			tags:         derived.tags,
+			count:        derived.count,
 			items,
-		};
+		});
 	}
 
 	_finish(result) {
