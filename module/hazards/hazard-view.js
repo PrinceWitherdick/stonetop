@@ -6,11 +6,7 @@
 // hazard cards without a parallel set of handlers.
 import { HAZARD_ACCENT, resolveDamageEffects, formatHazardDamage } from "./hazard-data.js";
 import { isThreatRevealed } from "../threats/threat-store.js";
-import { enrichHTML } from "../utils/foundry-compat.js";
-
-function hasText(s) {
-	return !!String(s ?? "").trim();
-}
+import { hasText, stringList, buildDoomRows, buildImpending, buildCustomPlayerMoves, cardEnricher } from "../journal/card-vm.js";
 
 /** The hazard's book-style damage line ("1d10+2 (ignores armor, forceful)"), derived
  *  from the stored worksheet picks plus any free-form extras. */
@@ -32,26 +28,12 @@ export function hazardDamageLine(sys = {}) {
 export async function buildHazardCardVM(page, { forOwner } = {}) {
 	const sys = page.system ?? {};
 	// Enrich prose (resolve @UUID links, inline rolls) without revealing GM secret blocks.
-	const enrich = (html) => enrichHTML(String(html ?? ""), { secrets: false });
+	const enrich = cardEnricher();
 
-	const grim = Array.isArray(sys.grimPortents) ? sys.grimPortents : [];
-	const doomRows = grim
-		.map((p, index) => ({ index, text: String(p?.text ?? ""), done: !!p?.done }))
-		.filter(r => hasText(r.text) || r.done);
-	const impending = {
-		text: String(sys.impendingDoom?.text ?? ""),
-		done: !!sys.impendingDoom?.done,
-		hasText: hasText(sys.impendingDoom?.text),
-	};
-
-	const gmMoves = (Array.isArray(sys.gmMoves) ? sys.gmMoves : []).map(String).filter(hasText);
-
-	const rawCustom = Array.isArray(sys.customPlayerMoves) ? sys.customPlayerMoves : [];
-	const customPlayerMoves = [];
-	for (const m of rawCustom) {
-		if (!hasText(m?.label) && !hasText(m?.text)) continue;
-		customPlayerMoves.push({ label: String(m?.label ?? ""), text: await enrich(m?.text) });
-	}
+	const doomRows = buildDoomRows(sys);
+	const impending = buildImpending(sys);
+	const gmMoves = stringList(sys.gmMoves);
+	const customPlayerMoves = await buildCustomPlayerMoves(sys, enrich);
 
 	const damage = hazardDamageLine(sys);
 

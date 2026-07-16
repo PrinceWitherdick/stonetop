@@ -1,0 +1,10 @@
+{{!-- The "Player moves" block shared by the threat and hazard cards. Invoked with the
+      card view-model as context; renders nothing when there are no custom player moves. --}}
+{{#if hasCustomMoves}}
+<div class="threat-player-moves">
+	<span class="threat-label">Player moves</span>
+	{{#each customPlayerMoves}}
+	<div class="threat-player-move">{{#if label}}<strong class="threat-player-move__name">{{label}}</strong>{{/if}}<div class="threat-player-move__text">{{{text}}}</div></div>
+	{{/each}}
+</div>
+{{/if}}

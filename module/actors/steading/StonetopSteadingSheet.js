@@ -929,14 +929,7 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		async _onDeleteHazard(page) {
-			const ok = await Dialog.confirm({
-				title: "Delete Hazard",
-				content: `<p>Delete <strong>${escHtml(page.name)}</strong>? This removes its card and any pins placed on scenes.</p>`,
-				options: { classes: ["dialog", "stonetop", "stonetop-delete-threat-dialog"] },
-			});
-			if (!ok) return;
-			await deleteHazard(page);
-			this.render(false);
+			return this._confirmDeletePrepPage(page, "Delete Hazard", deleteHazard);
 		}
 
 		// Create this steading's own threat from a dropped homebrew threat card's seed

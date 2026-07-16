@@ -12,10 +12,9 @@
 // world JournalEntry (see reference_foundry-world-docs-broadcast); it just never draws.
 import { getSetting } from "../settings.js";
 import { buildThreatCardVM, wireThreatDoomChange, handleThreatRevealClick } from "./threat-view.js";
-import { isThreatRevealed, threatPageById } from "./threat-store.js";
+import { isThreatRevealed } from "./threat-store.js";
 import { buildHazardCardVM } from "../hazards/hazard-view.js";
-import { hazardPageById } from "../hazards/hazard-store.js";
-import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
+import { gmPrepPageById, isGmPrepDoc } from "../journal/gm-prep-page.js";
 
 // Hazard pins ride the same board: the hazard card shares the threat card's markup
 // conventions (doom checkboxes, reveal button), so only the template + VM differ.
@@ -53,7 +52,7 @@ export class ThreatBoard {
 		// on any threat-entry change so a reveal shows the card and a hide clears it promptly.
 		for (const h of ["createJournalEntry", "updateJournalEntry", "deleteJournalEntry"])
 			Hooks.on(h, (entry) => {
-				if (entry?.getFlag?.(STONETOP_SCOPE, "threat") || entry?.getFlag?.(STONETOP_SCOPE, "hazard")) this._schedule();
+				if (isGmPrepDoc(entry)) this._schedule();
 			});
 	}
 
@@ -68,13 +67,12 @@ export class ThreatBoard {
 		const placeables = canvas?.notes?.placeables ?? [];
 		// `n.visible` is the pin's per-user visibility: a player never sees a hidden
 		// threat's pin, so its card is never built for them either.
-		return placeables.filter(n => n?.visible
-			&& (n?.document?.getFlag?.(STONETOP_SCOPE, "threat") || n?.document?.getFlag?.(STONETOP_SCOPE, "hazard")));
+		return placeables.filter(n => n?.visible && isGmPrepDoc(n?.document));
 	}
 
 	_pageFor(note) {
 		const { entryId, pageId } = note.document;
-		return threatPageById(entryId, pageId) ?? hazardPageById(entryId, pageId);
+		return gmPrepPageById(entryId, pageId);
 	}
 
 	_ensureLayer() {

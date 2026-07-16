@@ -15,70 +15,16 @@
 // threat. True server-side hiding would require a compendium pack with pack ownership.
 // For GM prep at the table this trust model is acceptable; reveal remains an entry-level
 // ownership flip, the standard Foundry "share journal" mechanism.
-import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
+//
+// The folder/list/create/rename CRUD is shared with hazards through makeGmPrepPageStore;
+// the reveal / doom-tick / delete helpers below are entry-level and page-shape generic,
+// so hazards reuse them directly rather than duplicating.
 import { shareLevelFor } from "../journal/share-journal.js";
+import { makeGmPrepPageStore } from "../journal/gm-prep-page-store.js";
 import { DEFAULT_THREAT_TYPE, DEFAULT_PROXIMITY, normalizeThreatSeedExtras } from "./threat-types.js";
 
 // Looked up lazily (not at module load) so the file imports cleanly outside Foundry.
 const OWN = () => CONST.DOCUMENT_OWNERSHIP_LEVELS;
-
-/** The id of the steading's Threats folder, if one has been created. */
-export function threatsFolderId(steadingActor) {
-	return resolvedFlagProperty(steadingActor, "steading")?.threatsFolderId ?? null;
-}
-
-/** Resolve the steading's Threats folder, or null. Never creates. */
-export function getThreatsFolder(steadingActor) {
-	const id = threatsFolderId(steadingActor);
-	return id ? (game.folders?.get(id) ?? null) : null;
-}
-
-/** The steading's threat JournalEntries (each holds one threat page), in sort order.
- *  For a player this only yields revealed entries — hidden ones aren't on their client. */
-export function listThreatEntries(steadingActor) {
-	const folder = getThreatsFolder(steadingActor);
-	if (!folder) return [];
-	return folder.contents
-		.filter(e => e.getFlag?.(STONETOP_SCOPE, "threat"))
-		.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
-}
-
-/** The single threat page inside a threat entry. */
-export function threatPageOf(entry) {
-	return entry?.pages?.find(p => p.type === "threat") ?? null;
-}
-
-/** Resolve a `threat` page from an entry/page id pair (as a scene Note links it), or null. */
-export function threatPageById(entryId, pageId) {
-	if (!entryId || !pageId) return null;
-	const page = game.journal?.get(entryId)?.pages?.get(pageId);
-	return page?.type === "threat" ? page : null;
-}
-
-/** The steading's threat pages, in order. */
-export function listThreatPages(steadingActor) {
-	return listThreatEntries(steadingActor).map(threatPageOf).filter(Boolean);
-}
-
-/** Whether a threat is revealed to players — driven by its ENTRY's baseline ownership. */
-export function isThreatRevealed(page) {
-	return (page?.parent?.ownership?.default ?? OWN().NONE) >= OWN().OBSERVER;
-}
-
-/** Resolve the steading's Threats folder, creating it (GM-only) on first use. */
-export async function ensureThreatsFolder(steadingActor) {
-	const existing = getThreatsFolder(steadingActor);
-	if (existing) return existing;
-	if (!game.user?.isGM) return null;
-
-	const folder = await Folder.create({
-		name: `${steadingActor.name} Threats`,
-		type: "JournalEntry",
-		flags: { [STONETOP_SCOPE]: { threatsFor: steadingActor.id } },
-	});
-	await steadingActor.typedActor.setFlags({ threatsFolderId: folder.id });
-	return folder;
-}
 
 /** Normalize a creation seed into the threat page's system data. The plain threat creator
  *  only supplies type / instinct / proximity / gmMoves; every other field is left to the
@@ -95,24 +41,38 @@ function _shapeSeed(seed) {
 	};
 }
 
-/**
- * Create a new threat as its own hidden (GM-only) JournalEntry holding one threat
- * page. Returns the page. The page's ownership stays INHERIT, so revealing the entry
- * reveals the page.
- */
-export async function createThreat(steadingActor, seed = {}) {
-	const folder = await ensureThreatsFolder(steadingActor);
-	if (!folder) return null;
+const _store = makeGmPrepPageStore({
+	pageType: "threat",
+	entryFlag: "threat",
+	folderFlagId: "threatsFolderId",
+	folderForFlag: "threatsFor",
+	folderSuffix: "Threats",
+	defaultName: "New Threat",
+	shapeSystem: _shapeSeed,
+});
 
-	const name = String(seed.name ?? "").trim() || "New Threat";
-	const entry = await JournalEntry.create({
-		name,
-		folder: folder.id,
-		ownership: { default: OWN().NONE },
-		flags: { [STONETOP_SCOPE]: { threat: true } },
-		pages: [{ type: "threat", name, system: _shapeSeed(seed) }],
-	});
-	return threatPageOf(entry);
+/** The id of the steading's Threats folder, if one has been created. */
+export const threatsFolderId = _store.folderId;
+/** Resolve the steading's Threats folder, or null. Never creates. */
+export const getThreatsFolder = _store.getFolder;
+/** The steading's threat JournalEntries (each holds one threat page), in sort order. */
+export const listThreatEntries = _store.listEntries;
+/** The single threat page inside a threat entry. */
+export const threatPageOf = _store.pageOf;
+/** Resolve a `threat` page from an entry/page id pair (as a scene Note links it), or null. */
+export const threatPageById = _store.pageById;
+/** The steading's threat pages, in order. */
+export const listThreatPages = _store.listPages;
+/** Resolve the steading's Threats folder, creating it (GM-only) on first use. */
+export const ensureThreatsFolder = _store.ensureFolder;
+/** Create a new threat as its own hidden (GM-only) JournalEntry holding one threat page. */
+export const createThreat = _store.create;
+/** Rename a threat everywhere its name is its identity: the page, the parent entry, and pins. */
+export const setThreatName = _store.setName;
+
+/** Whether a threat is revealed to players — driven by its ENTRY's baseline ownership. */
+export function isThreatRevealed(page) {
+	return (page?.parent?.ownership?.default ?? OWN().NONE) >= OWN().OBSERVER;
 }
 
 /** Tick / untick a grim portent's "come to pass" checkbox (full-array replace, since
@@ -128,28 +88,6 @@ export async function setPortentDone(page, index, done) {
 /** Tick / untick the impending-doom checkbox. */
 export async function setDoomDone(page, done) {
 	if (page) await page.update({ "system.impendingDoom.done": !!done });
-}
-
-/**
- * Rename a threat everywhere its name is its identity: the page, the parent ENTRY (the
- * sidebar / share / delete key off it), and any placed scene Note pins (their label is
- * stamped at drop time). Keeps a rename from being half-applied to the page alone.
- */
-export async function setThreatName(page, name) {
-	const clean = String(name ?? "").trim() || "New Threat";
-	if (!page) return;
-	if (page.name !== clean) await page.update({ name: clean });
-	const entry = page.parent;
-	if (entry && entry.name !== clean) await entry.update({ name: clean });
-	// Update any pins linked to this threat (GM-only; players can't edit scene notes).
-	if (game.user?.isGM && game.scenes && entry) {
-		for (const scene of game.scenes) {
-			const updates = scene.notes
-				.filter(n => n.entryId === entry.id && n.text !== clean)
-				.map(n => ({ _id: n.id, text: clean }));
-			if (updates.length) await scene.updateEmbeddedDocuments("Note", updates).catch(() => {});
-		}
-	}
 }
 
 /**

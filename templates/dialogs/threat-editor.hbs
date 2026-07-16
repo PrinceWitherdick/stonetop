@@ -62,54 +62,22 @@
 
 		<div class="threat-edit__field">
 			<span class="threat-edit__label">Themes <em class="threat-edit__hint">Things Below</em></span>
-			<div class="threat-list" data-list="themes" data-kind="string">
-				{{#each themes}}
-				<div class="threat-list-row" data-index="{{index}}">
-					<input type="text" class="threat-list-text" data-field="value" value="{{value}}" placeholder="Darkness / cold / despair (obsidian, hoarfrost)">
-					<button type="button" class="threat-list-remove" data-list="themes" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
-				</div>
-				{{/each}}
-				<button type="button" class="threat-list-add" data-list="themes"><i class="fas fa-plus"></i> Add theme</button>
-			</div>
+			{{> "stonetop.threat-string-list" key="themes" rows=themes placeholder="Darkness / cold / despair (obsidian, hoarfrost)" addLabel="Add theme"}}
 		</div>
 
 		<div class="threat-edit__field">
 			<span class="threat-edit__label">Aspects <em class="threat-edit__hint">impossible, weird</em></span>
-			<div class="threat-list" data-list="aspects" data-kind="string">
-				{{#each aspects}}
-				<div class="threat-list-row" data-index="{{index}}">
-					<input type="text" class="threat-list-text" data-field="value" value="{{value}}" placeholder="Many-limbed / many-eyed / many-bodied">
-					<button type="button" class="threat-list-remove" data-list="aspects" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
-				</div>
-				{{/each}}
-				<button type="button" class="threat-list-add" data-list="aspects"><i class="fas fa-plus"></i> Add aspect</button>
-			</div>
+			{{> "stonetop.threat-string-list" key="aspects" rows=aspects placeholder="Many-limbed / many-eyed / many-bodied" addLabel="Add aspect"}}
 		</div>
 
 		<div class="threat-edit__field">
 			<span class="threat-edit__label">Cleansing <em class="threat-edit__hint">corrupted site plan</em></span>
-			<div class="threat-list" data-list="cleansing" data-kind="string">
-				{{#each cleansing}}
-				<div class="threat-list-row" data-index="{{index}}">
-					<input type="text" class="threat-list-text" data-field="value" value="{{value}}" placeholder="Learn the name of the Thing that taints this place">
-					<button type="button" class="threat-list-remove" data-list="cleansing" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
-				</div>
-				{{/each}}
-				<button type="button" class="threat-list-add" data-list="cleansing"><i class="fas fa-plus"></i> Add requirement</button>
-			</div>
+			{{> "stonetop.threat-string-list" key="cleansing" rows=cleansing placeholder="Learn the name of the Thing that taints this place" addLabel="Add requirement"}}
 		</div>
 
 		<div class="threat-edit__field">
 			<span class="threat-edit__label">Stakes questions</span>
-			<div class="threat-list" data-list="stakes" data-kind="string">
-				{{#each stakes}}
-				<div class="threat-list-row" data-index="{{index}}">
-					<input type="text" class="threat-list-text" data-field="value" value="{{value}}" placeholder="A future-facing question you're curious about">
-					<button type="button" class="threat-list-remove" data-list="stakes" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
-				</div>
-				{{/each}}
-				<button type="button" class="threat-list-add" data-list="stakes"><i class="fas fa-plus"></i> Add question</button>
-			</div>
+			{{> "stonetop.threat-string-list" key="stakes" rows=stakes placeholder="A future-facing question you're curious about" addLabel="Add question"}}
 		</div>
 
 		<div class="threat-edit__field">
@@ -124,15 +92,7 @@
 				</div>
 			</div>
 			{{/if}}
-			<div class="threat-list" data-list="gmMoves" data-kind="string">
-				{{#each gmMoves}}
-				<div class="threat-list-row" data-index="{{index}}">
-					<input type="text" class="threat-list-text" data-field="value" value="{{value}}" placeholder="A GM move for this threat">
-					<button type="button" class="threat-list-remove" data-list="gmMoves" data-index="{{index}}" data-tooltip="Remove"><i class="fas fa-times"></i></button>
-				</div>
-				{{/each}}
-				<button type="button" class="threat-list-add" data-list="gmMoves"><i class="fas fa-plus"></i> Add GM move</button>
-			</div>
+			{{> "stonetop.threat-string-list" key="gmMoves" rows=gmMoves placeholder="A GM move for this threat" addLabel="Add GM move"}}
 		</div>
 
 		<div class="threat-edit__field">

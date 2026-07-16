@@ -4,8 +4,7 @@
 // a revealed pin ignores fog-of-war. This is the ONE seam over core's page-drop
 // behaviour; everything else (linking pageId, placement, click-to-open) is core.
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
-import { threatPageById } from "../threats/threat-store.js";
-import { hazardPageById } from "../hazards/hazard-store.js";
+import { gmPrepPageById } from "../journal/gm-prep-page.js";
 
 const THREAT_PIN_ICON = "systems/stonetop_pwd/assets/icons/threat-note.svg";
 const PIN_TEXT_COLOR = "#1b1009";
@@ -14,7 +13,7 @@ const PIN_TEXT_COLOR = "#1b1009";
 function _linkedGmPrepPage(data, noteDoc) {
 	const entryId = data?.entryId ?? noteDoc?.entryId;
 	const pageId = data?.pageId ?? noteDoc?.pageId;
-	return threatPageById(entryId, pageId) ?? hazardPageById(entryId, pageId);
+	return gmPrepPageById(entryId, pageId);
 }
 
 /** preCreateNote hook: give threat/hazard-linked pins the book-note look + global visibility. */

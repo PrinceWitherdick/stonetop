@@ -51,42 +51,14 @@
 	{{/if}}
 
 	{{#if hasDoomTrack}}
-	<ol class="threat-doom">
-		{{#each doomRows}}
-		<li class="threat-portent-row">
-			<label class="threat-portent">
-				<input type="checkbox" class="threat-portent__check" data-portent-index="{{index}}"
-				       {{#if done}}checked{{/if}}{{#unless ../isOwner}} disabled{{/unless}}>
-				<span class="threat-portent__box" aria-hidden="true"></span>
-				<span class="threat-portent__txt">{{text}}</span>
-			</label>
-		</li>
-		{{/each}}
-		{{#if impendingDoom.hasText}}
-		<li class="threat-portent-row threat-portent-row--doom">
-			<label class="threat-portent threat-portent--doom">
-				<input type="checkbox" class="threat-portent__check" data-doom="true"
-				       {{#if impendingDoom.done}}checked{{/if}}{{#unless isOwner}} disabled{{/unless}}>
-				<span class="threat-portent__box" aria-hidden="true"></span>
-				<span class="threat-portent__txt"><span class="threat-doom-label">Impending doom</span>{{impendingDoom.text}}</span>
-			</label>
-		</li>
-		{{/if}}
-	</ol>
+	{{> "stonetop.card-doom-track"}}
 	{{/if}}
 
 	{{#if hasStakes}}
 	<p class="threat-stakes"><span class="threat-label">Stakes</span>{{#each stakes}}<span class="threat-stakes__q">{{this}}</span>{{/each}}</p>
 	{{/if}}
 
-	{{#if hasGmMoves}}
-	<div class="threat-moves">
-		<span class="threat-label">GM moves</span>
-		<ul class="threat-move-list">
-			{{#each gmMoves}}<li><span class="threat-move-caret" aria-hidden="true">&#x27a4;</span>{{this}}</li>{{/each}}
-		</ul>
-	</div>
-	{{/if}}
+	{{> "stonetop.card-gm-moves"}}
 
 	{{#if hasCleansing}}
 	<div class="threat-moves threat-cleansing">
@@ -101,12 +73,5 @@
 	<p class="threat-nested"><span class="threat-label">Also</span>{{#each nested}}<span class="threat-nested__item">{{name}} <em>({{type}}{{#if instinct}}; {{instinct}}{{/if}})</em></span>{{/each}}</p>
 	{{/if}}
 
-	{{#if hasCustomMoves}}
-	<div class="threat-player-moves">
-		<span class="threat-label">Player moves</span>
-		{{#each customPlayerMoves}}
-		<div class="threat-player-move">{{#if label}}<strong class="threat-player-move__name">{{label}}</strong>{{/if}}<div class="threat-player-move__text">{{{text}}}</div></div>
-		{{/each}}
-	</div>
-	{{/if}}
+	{{> "stonetop.card-player-moves"}}
 </article>

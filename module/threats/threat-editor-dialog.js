@@ -52,6 +52,8 @@ export class ThreatEditorDialog extends StonetopDialog {
 		const sys = page.system ?? {};
 		const proximity = sys.proximity || DEFAULT_PROXIMITY;
 		const used = new Set((sys.gmMoves ?? []).map(m => String(m).trim()));
+		// Index a string-list field into editable {index, value} rows.
+		const rows = (arr) => (arr ?? []).map((v, index) => ({ index, value: String(v ?? "") }));
 		return {
 			id: page.id,
 			uuid: page.uuid,
@@ -64,14 +66,12 @@ export class ThreatEditorDialog extends StonetopDialog {
 			suggestedMoves: threatType(sys.type).suggestedMoves.map(text => ({ text, used: used.has(text) })),
 			grimPortents: (sys.grimPortents ?? []).map((p, index) => ({ index, text: p?.text ?? "", done: !!p?.done })),
 			// "Things Below" fields (Book II): themes/aspects flavor a Thing; cleansing lists a
-			// corrupted site's Make-a-Plan requirements. Shown only when non-empty (below).
-			themes: (sys.themes ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
-			aspects: (sys.aspects ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
-			cleansing: (sys.cleansing ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
-			hasThemesOrAspects: (sys.themes?.length || sys.aspects?.length) > 0,
-			hasCleansing: (sys.cleansing?.length ?? 0) > 0,
-			stakes: (sys.stakes ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
-			gmMoves: (sys.gmMoves ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
+			// corrupted site's Make-a-Plan requirements.
+			themes: rows(sys.themes),
+			aspects: rows(sys.aspects),
+			cleansing: rows(sys.cleansing),
+			stakes: rows(sys.stakes),
+			gmMoves: rows(sys.gmMoves),
 			nested: (sys.nested ?? []).map((n, index) => ({ index, name: n?.name ?? "", type: n?.type ?? "", instinct: n?.instinct ?? "" })),
 			customPlayerMoves: (sys.customPlayerMoves ?? []).map((m, index) => ({ index, label: m?.label ?? "", text: m?.text ?? "" })),
 		};

@@ -318,6 +318,10 @@ Hooks.once("init", () => {
 		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
 		"stonetop.guide-toc":                 "systems/stonetop_pwd/templates/dialogs/partials/guide-toc.hbs",
+		"stonetop.threat-string-list":        "systems/stonetop_pwd/templates/dialogs/partials/threat-string-list.hbs",
+		"stonetop.card-doom-track":           "systems/stonetop_pwd/templates/journal/partials/card-doom-track.hbs",
+		"stonetop.card-gm-moves":             "systems/stonetop_pwd/templates/journal/partials/card-gm-moves.hbs",
+		"stonetop.card-player-moves":         "systems/stonetop_pwd/templates/journal/partials/card-player-moves.hbs",
 	});
 });
 

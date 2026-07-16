@@ -43,49 +43,15 @@
 	<div class="threat-desc">{{{description}}}</div>
 	{{/if}}
 
-	{{#if hasDoomTrack}}
 	{{#if hasAdvanceTrigger}}
 	<p class="hazard-advance"><span class="threat-label">Advance</span>{{advanceTrigger}}</p>
 	{{/if}}
-	<ol class="threat-doom">
-		{{#each doomRows}}
-		<li class="threat-portent-row">
-			<label class="threat-portent">
-				<input type="checkbox" class="threat-portent__check" data-portent-index="{{index}}"
-				       {{#if done}}checked{{/if}}{{#unless ../isOwner}} disabled{{/unless}}>
-				<span class="threat-portent__box" aria-hidden="true"></span>
-				<span class="threat-portent__txt">{{text}}</span>
-			</label>
-		</li>
-		{{/each}}
-		{{#if impendingDoom.hasText}}
-		<li class="threat-portent-row threat-portent-row--doom">
-			<label class="threat-portent threat-portent--doom">
-				<input type="checkbox" class="threat-portent__check" data-doom="true"
-				       {{#if impendingDoom.done}}checked{{/if}}{{#unless isOwner}} disabled{{/unless}}>
-				<span class="threat-portent__box" aria-hidden="true"></span>
-				<span class="threat-portent__txt"><span class="threat-doom-label">Impending doom</span>{{impendingDoom.text}}</span>
-			</label>
-		</li>
-		{{/if}}
-	</ol>
+
+	{{#if hasDoomTrack}}
+	{{> "stonetop.card-doom-track"}}
 	{{/if}}
 
-	{{#if hasGmMoves}}
-	<div class="threat-moves">
-		<span class="threat-label">GM moves</span>
-		<ul class="threat-move-list">
-			{{#each gmMoves}}<li><span class="threat-move-caret" aria-hidden="true">&#x27a4;</span>{{this}}</li>{{/each}}
-		</ul>
-	</div>
-	{{/if}}
+	{{> "stonetop.card-gm-moves"}}
 
-	{{#if hasCustomMoves}}
-	<div class="threat-player-moves">
-		<span class="threat-label">Player moves</span>
-		{{#each customPlayerMoves}}
-		<div class="threat-player-move">{{#if label}}<strong class="threat-player-move__name">{{label}}</strong>{{/if}}<div class="threat-player-move__text">{{{text}}}</div></div>
-		{{/each}}
-	</div>
-	{{/if}}
+	{{> "stonetop.card-player-moves"}}
 </article>
