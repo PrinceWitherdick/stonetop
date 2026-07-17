@@ -1,3 +1,5 @@
+import { DEFAULT_ROOT as DEFAULT_BOOK2_ART_ROOT } from "./book2-art/art-root.js";
+
 export function registerSettings() {
 	// -- WORLD SETTINGS ------------------------------------------
 
@@ -201,7 +203,26 @@ export function registerSettings() {
 		scope: "world",
 		config: false,
 		type: String,
-		default: "stonetop-book-art"
+		// Shared with book2ArtRoot()'s fallback, so a world that never set this and a world
+		// whose setting can't be read resolve art to the same folder.
+		default: DEFAULT_BOOK2_ART_ROOT
+	});
+
+	// Which Book II treasures have their illustration on disk under `book2ArtRoot`, as a
+	// { catalog slug -> path within the art folder } map (module/data/treasure-catalog.js).
+	// Unlike every other kind of book art, a treasure is not a document: its Item is built
+	// the moment a player drags the line off a journal, so there is nothing to write art
+	// onto ahead of time. This index is the answer to "does this world have art for that
+	// treasure, and where?" — the GM-side passes (the Import Book Art macro and
+	// book2-art/reapply.js) browse the folder and publish it here, and treasure-drops.js
+	// reads it synchronously when building the drop. World-scoped so players (who cannot
+	// browse files) get it broadcast like any setting.
+	game.settings.register("stonetop_pwd", "treasureArt", {
+		name: "Treasure Art On Disk",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {}
 	});
 
 	// The system version whose Book II art was last re-applied to the compendia. When

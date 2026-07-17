@@ -140,6 +140,53 @@ export function locationSectionsWithArt(sections, sectionIndex, srcs, name) {
 	return next;
 }
 
+// New content for ONE field of a curated bestiary codex page — AUTHORITATIVELY — or null
+// if the field already matches. This is what makes "don't show this one" actually remove a
+// picture instead of merely failing to add it, which the additive bestiaryDescriptionWithArt
+// above can never do (it only ever prepends, and only when the src is absent).
+//
+// `curation` is one manifest `codex` entry, with its art paths already resolved to page
+// srcs by the caller:
+//   • `managed` — EVERY src this entry owns (every peer monster row's art), whether or not
+//     it is currently placed. This is the strip set: art the user de-selected is only in
+//     here, which is exactly how it leaves the page.
+//   • `slots`   — [{ slot, images: [{ src, name }] }], the art the user chose to show, in
+//     manifest row order. The caller filters these to what exists on disk, so a GM with a
+//     partial import never gets a broken <img>; `managed` stays complete regardless, so a
+//     missing file can still be stripped.
+//
+// `field` is the page field being rebuilt, and only two ever host art: bestiary.hbs enriches
+// system.description and system.nests (triple-stache), while every other codex field is
+// escaped — system.notes is an HTMLField but renders double-stache, and the rest go through
+// inlineMarkup, which escapes everything but a **bold** run. An <img> anywhere else would
+// render as literal text, so those fields are not slots and this returns null for them.
+//
+// Placement within a field: `banner` goes to position 0 of system.description, which is
+// precisely what journal/lead-art.js hoists into the page banner (its match is ^-anchored),
+// so today's look is expressible rather than special-cased. `description` appends after the
+// prose, and `nests` appends after the Lair & Habitat prose.
+//
+// Strip-then-insert with no `includes(src)` fast path: an already-correct field falls out as
+// a no-op because the rebuilt string equals the original, and that same rebuild is what
+// relocates an image whose slot changed.
+export function codexFieldWithArt(body, field, curation) {
+	const original = String(body ?? "");
+	const imagesFor = (slot) => (curation?.slots ?? []).find((s) => s.slot === slot)?.images ?? [];
+	const embeds = (list) => list.map((i) => artEmbed(i.src, i.name)).join("");
+
+	// Strip every src this entry owns, so what goes back is only what the user chose and a
+	// de-selected image has no way to survive.
+	let stripped = original;
+	for (const src of curation?.managed ?? []) if (src) stripped = stripSrcEmbed(stripped, src);
+
+	let next;
+	if (field === "description") next = embeds(imagesFor("banner")) + stripped + embeds(imagesFor("description"));
+	else if (field === "nests") next = stripped + embeds(imagesFor("nests"));
+	else return null;
+
+	return next === original ? null : next;
+}
+
 // The <figure> embed for a Setting Overview regional map. Distinct markup from the
 // bestiary/location illustrations (a captioned, column-bounded figure rather than a
 // framed inline <img>), matching the private project's setting-journal map pages.
@@ -147,13 +194,55 @@ export function mapFigureEmbed(src, name) {
 	return `<figure class="${MAP_FIGURE_CLASS}"><img src="${src}" alt="${esc(name)}"></figure>`;
 }
 
-// New text-page content with a map figure prepended at the top, or null when nothing
-// should change. Idempotent on the src path, AND a no-op if the page already carries
-// ANY map figure: a world that already shows a map here (e.g. a GM's own labelled
-// variant) is never given a second, stacked one.
-export function textPageWithMap(content, src, name) {
-	const html = content ?? "";
-	if (html.includes(src) || html.includes(`class="${MAP_FIGURE_CLASS}"`)) return null;
+// `html` with a map figure for exactly this src removed. Matches ANY <figure> wrapping an
+// <img> for the src — the class and attribute order are deliberately not part of the match,
+// because a GM who opens and saves the page re-writes it through ProseMirror, which
+// normalizes attributes and can drop our class. Non-greedy to the first </figure>, so a
+// second figure further down the page is never swallowed.
+function stripMapFigure(html, src) {
+	const s = escapeRegExp(src);
+	return String(html ?? "").replace(
+		new RegExp(`<figure\\b[^>]*>(?:(?!</figure>)[\\s\\S])*?<img\\b[^>]*\\ssrc="${s}"[^>]*>(?:(?!</figure>)[\\s\\S])*?</figure>`, "gi"),
+		"");
+}
+
+// Every managed shape this system might have left behind for `src`: the map <figure>, and
+// (if ProseMirror unwrapped it) a bare <img> or its sole-content <p>. Keyed on the src path
+// only, so it survives markup churn.
+function stripManagedMap(html, src) {
+	return stripSrcEmbed(stripMapFigure(html, src), src);
+}
+
+// New text-page content for a Setting Overview map page: this map figure at the top,
+// replacing a map WE previously wrote (any src in `replaceSrcs`) if one is there. Returns
+// null when nothing should change. With an empty `replaceSrcs` this is the plain
+// "prepend, but never stack a second map" primitive.
+//
+// `replaceSrcs` exists because the Book II page crop and the user-supplied poster map it
+// supersedes live at DIFFERENT paths (the poster map still backs its Scene, so it must not
+// be overwritten in place). Without it, a page already showing the poster map would trip the
+// any-map rule below and skip the new map FOREVER, on exactly the worlds that had already
+// imported.
+//
+// Ordering is load-bearing: strip ours BEFORE the any-map check, so our own superseded map
+// cannot block its replacement, while a `stonetop-map` figure we don't recognise (a GM's own
+// labelled variant) still does. The "never stack, never clobber the GM's map" contract is
+// unchanged for every file except the exact ones this system put there.
+//
+// The superseded maps are stripped BEFORE the "already ours" check too, and the no-op is
+// decided by comparing the rebuilt string to the original (the same way codexFieldWithArt
+// does). An `includes(src)` fast path ahead of the strip would return null on a page that
+// carries BOTH this map and a superseded one — which is exactly the page that still needs
+// work — leaving the two stacked, permanently, since the fast path would fire on every
+// future pass as well.
+export function textPageWithManagedMap(content, src, name, replaceSrcs = []) {
+	const original = String(content ?? "");
+	let html = original;
+	for (const old of replaceSrcs ?? []) if (old && old !== src) html = stripManagedMap(html, old);
+	// Already carrying this map: whatever the strip left is the final content, so this is a
+	// no-op only when nothing was superseded.
+	if (html.includes(src)) return html === original ? null : html;
+	if (html.includes(`class="${MAP_FIGURE_CLASS}"`)) return html === original ? null : html; // a map we don't own: preserve it
 	return mapFigureEmbed(src, name) + html;
 }
 

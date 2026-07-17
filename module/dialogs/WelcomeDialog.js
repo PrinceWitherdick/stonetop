@@ -81,7 +81,7 @@ function progressLabel(p, playbook) {
 // "Step N of 6" count (the overview has none).
 const SECTIONS = [
 	{ key: "overview",     title: "Getting started",       icon: "fa-signs-post" },
-	{ key: "book-art",     title: "Bring in book art",     icon: "fa-images",         step: 1, optional: true },
+	{ key: "book-art",     title: "Import the book art",     icon: "fa-images",         step: 1, optional: true },
 	{ key: "setting",      title: "Review the setting",    icon: "fa-book-open",      step: 2 },
 	{ key: "expectations", title: "Set expectations",      icon: "fa-scale-balanced", step: 3 },
 	{ key: "characters",   title: "Create characters",     icon: "fa-user-plus",      step: 4 },

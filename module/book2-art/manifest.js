@@ -2003,25 +2003,62 @@ export const BOOK2_ART_APPLY_MANIFEST = {
  ],
  "settingOverviewMaps": [
   {
-   "slug": "stonetop-village",
-   "name": "Stonetop — The Village",
-   "out": "assets/maps/map-stonetop-village.webp",
-   "journalEntryId": "stonetopSO000001",
-   "journalPageId": "stonetopSOp00004"
-  },
-  {
-   "slug": "vicinity",
+   "slug": "book2-vicinity",
    "name": "The Vicinity",
-   "out": "assets/maps/map-vicinity.webp",
+   "out": "assets/maps/book2-vicinity.webp",
    "journalEntryId": "stonetopSO000001",
-   "journalPageId": "stonetopSOp00005"
+   "journalPageId": "stonetopSOp00005",
+   "replaces": [
+    "assets/maps/map-vicinity.webp"
+   ]
   },
   {
-   "slug": "worlds-end",
+   "slug": "book2-worlds-end",
    "name": "The World's End",
-   "out": "assets/maps/map-worlds-end.webp",
+   "out": "assets/maps/book2-worlds-end.webp",
    "journalEntryId": "stonetopSO000001",
-   "journalPageId": "stonetopSOp00010"
+   "journalPageId": "stonetopSOp00010",
+   "replaces": [
+    "assets/maps/map-worlds-end.webp"
+   ]
+  },
+  {
+   "slug": "book2-village-vista",
+   "name": "The Village of Stonetop",
+   "out": "assets/locations/the-village-of-stonetop-1.webp",
+   "journalEntryId": "stonetopSO000001",
+   "journalPageId": "stonetopSOp00004",
+   "replaces": [
+    "assets/maps/map-stonetop-village.webp"
+   ]
   }
- ]
+ ],
+ "treasures": [
+  {
+   "slug": "the-fae-a-pot-of-gold",
+   "name": "A pot of “gold”",
+   "out": "assets/treasures/the-fae-a-pot-of-gold.webp"
+  },
+  {
+   "slug": "the-fae-the-red-pennant",
+   "name": "The Red Pennant",
+   "out": "assets/treasures/the-fae-the-red-pennant.webp"
+  },
+  {
+   "slug": "forge-lords-2d4-lumps-of-anthracite",
+   "name": "2d4 lumps of anthracite",
+   "out": "assets/treasures/forge-lords-2d4-lumps-of-anthracite.webp"
+  },
+  {
+   "slug": "primordial-powers-a-sealed-amphora",
+   "name": "A sealed amphora",
+   "out": "assets/treasures/primordial-powers-a-sealed-amphora.webp"
+  },
+  {
+   "slug": "the-things-below-a-chunk-of-red-crystal-shaped-to-look-like-a-lee",
+   "name": "A chunk of red crystal, shaped to look like a leering skull",
+   "out": "assets/treasures/the-things-below-a-chunk-of-red-crystal-shaped-to-look-like-a-lee.webp"
+  }
+ ],
+ "codex": []
 };

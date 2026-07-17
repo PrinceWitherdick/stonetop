@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, handleImportedJournalArt } from "../../module/book2-art/reapply.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../module/book2-art/manifest.js";
 import { managedHash } from "../../module/hooks/journal-sync-core.js";
@@ -12,7 +12,7 @@ const JRN_SOURCE = (entryId) => `Compendium.stonetop_pwd.stonetop-journal.Journa
 
 const VERSION = "9.9.9";
 const ROOT = "stonetop-book-art";
-const { monsters, locations, settingOverviewMaps = [] } = BOOK2_ART_APPLY_MANIFEST;
+const { monsters, locations, settingOverviewMaps = [], treasures = [] } = BOOK2_ART_APPLY_MANIFEST;
 const DEFAULT_ICON = "icons/svg/mystery-man.svg";
 
 function setDotted(obj, path, value) {
@@ -113,18 +113,23 @@ function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActo
 		})),
 	};
 
+	// Every out-path the manifest can put on disk, routed to the directory it lives in — so a
+	// test can name ANY of them in `present`, including a Setting Overview row's `replaces`
+	// fallback (the poster map), which is not any row's `out`.
 	const wanted = Array.isArray(present) ? new Set(present) : null;
-	const bestiaryFiles = present === "none" ? []
-		: monsters.filter((m) => !wanted || wanted.has(m.out)).map((m) => durableOf(m.out));
-	const locationFiles = present === "none" ? []
-		: locations.flatMap((l) => l.images).filter((im) => !wanted || wanted.has(im.out)).map((im) => durableOf(im.out));
-	const mapFiles = present === "none" ? []
-		: settingOverviewMaps.filter((s) => !wanted || wanted.has(s.out)).map((s) => durableOf(s.out));
+	const allOuts = [
+		...monsters.map((m) => m.out),
+		...locations.flatMap((l) => l.images).map((im) => im.out),
+		...settingOverviewMaps.flatMap((s) => [s.out, ...(s.replaces ?? [])]),
+		...treasures.map((t) => t.out),
+	];
+	const onDisk = present === "none" ? [] : [...new Set(allOuts.filter((o) => !wanted || wanted.has(o)))];
+	const filesIn = (dir) => onDisk.filter((o) => o.startsWith(`${dir}/`)).map(durableOf);
 
 	const browse = vi.fn(async (source, path) => {
-		if (path.endsWith("/assets/bestiary")) return { files: bestiaryFiles };
-		if (path.endsWith("/assets/locations")) return { files: locationFiles };
-		if (path.endsWith("/assets/maps")) return { files: mapFiles };
+		for (const dir of ["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures"]) {
+			if (path.endsWith(`/${dir}`)) return { files: filesIn(dir) };
+		}
 		return { files: [] };
 	});
 
@@ -172,6 +177,56 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(h.besPack.getDocument).not.toHaveBeenCalled();
 		expect(h.updates).toHaveLength(0);
 		expect(h.store.book2ArtSyncVersion).toBe(""); // unstamped -> retries
+	});
+
+	// A treasure is not a document: its Item is built the instant a player drags the line off
+	// the journal, so instead of writing art onto something we publish which treasure images
+	// are on disk (slug -> manifest `out`) to the world-scoped `treasureArt` index, which
+	// treasure-drops.js reads synchronously when building the drop.
+	describe("the treasure art index", () => {
+		it("publishes each on-disk treasure as slug -> the manifest's own out path", async () => {
+			const h = makeHarness({});
+			await reapplyBook2ArtOnVersionChange();
+			expect(h.store.treasureArt).toEqual(Object.fromEntries(treasures.map((t) => [t.slug, t.out])));
+		});
+
+		it("indexes only the treasures whose file is actually on disk", async () => {
+			const h = makeHarness({ present: [treasures[0].out] });
+			await reapplyBook2ArtOnVersionChange();
+			expect(h.store.treasureArt).toEqual({ [treasures[0].slug]: treasures[0].out });
+		});
+
+		// The index is AUTHORITATIVE, so this is the case that most needs to run rather than the
+		// one to skip: an early return on "nothing on disk" leaves a stale index behind, and every
+		// subsequent drag bakes `img` to a file that is gone.
+		it("clears the index when the art folder is empty or gone", async () => {
+			const h = makeHarness({ present: "none" });
+			h.store.treasureArt = { "the-fae-the-red-pennant": "assets/treasures/the-fae-the-red-pennant.webp" };
+			await reapplyBook2Art();
+			expect(h.store.treasureArt).toEqual({});
+		});
+
+		it("drops just the treasures whose art was removed, keeping the rest", async () => {
+			const h = makeHarness({ present: [treasures[0].out] });
+			h.store.treasureArt = Object.fromEntries(treasures.map((t) => [t.slug, t.out]));
+			await reapplyBook2Art();
+			expect(h.store.treasureArt).toEqual({ [treasures[0].slug]: treasures[0].out });
+		});
+
+		it("does not rewrite an index that already matches (runs on every GM load)", async () => {
+			const h = makeHarness({});
+			h.store.treasureArt = Object.fromEntries(treasures.map((t) => [t.slug, t.out]));
+			const set = vi.spyOn(global.game.settings, "set");
+			await reapplyBook2Art();
+			expect(set.mock.calls.filter(([, key]) => key === "treasureArt")).toHaveLength(0);
+		});
+
+		it("stays a non-GM no-op", async () => {
+			const h = makeHarness({ isGM: false });
+			h.store.treasureArt = { stale: "assets/treasures/stale.webp" };
+			await reapplyBook2Art();
+			expect(h.store.treasureArt).toEqual({ stale: "assets/treasures/stale.webp" });
+		});
 	});
 
 	it("re-points every compendium actor + journal page and stamps the version", async () => {
@@ -375,6 +430,75 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(worldSO._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(worldSO.toObject()));
 		expect(worldSO._flags.stonetop_pwd.journalSync.hash).not.toBe(preHash);
 		expect(h.store.book2ArtSyncVersion).toBe(VERSION);
+	});
+
+	// The upgrade path, end to end: a world that imported an earlier release still shows the
+	// user-supplied poster map on this page. Because the labelled Book II crop lives at a
+	// DIFFERENT path (the poster map still backs its Scene, so it can't be overwritten in
+	// place), the old "never stack any map" rule would have skipped the new map forever on
+	// exactly the worlds that had already imported. `replaces` is what makes it swap.
+	it("replaces a superseded poster map on the setting page with the Book II crop", async () => {
+		const so0 = settingOverviewMaps.find((s) => s.replaces?.length);
+		expect(so0).toBeTruthy(); // guard: at least one SO map supersedes a poster map
+		const oldSrc = durableOf(so0.replaces[0]);
+
+		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
+		soPage.text = { content: `<figure class="stonetop-map"><img src="${oldSrc}" alt="${so0.name}"></figure><p>world setting prose</p>` };
+		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
+		const preHash = worldSO._flags.stonetop_pwd.journalSync.hash;
+
+		const h = makeHarness({ worldJournals: [worldSO] });
+		await reapplyBook2ArtOnVersionChange();
+
+		const durable = durableOf(so0.out);
+		expect(soPage.text.content).toContain(`<figure class="stonetop-map"><img src="${durable}"`);
+		expect(soPage.text.content).not.toContain(oldSrc);          // the poster map figure is gone
+		expect(soPage.text.content).toContain("world setting prose"); // the prose is not
+		expect(soPage.text.content.match(/class="stonetop-map"/g)).toHaveLength(1);
+		// pristine entry re-stamped, so the managed channel keeps delivering prose updates
+		expect(worldSO._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(worldSO.toObject()));
+		expect(worldSO._flags.stonetop_pwd.journalSync.hash).not.toBe(preHash);
+
+		// the compendium copy upgrades the same way
+		const cmpPage = h.pageDocs.get(`${so0.journalEntryId}::${so0.journalPageId}`);
+		expect(cmpPage.text.content).toContain(durable);
+	});
+
+	// The regression this guards: an update resets the compendium SO page to the shipped,
+	// art-less version and re-seeds pristine world copies from it, so pass 2.5 is the only
+	// thing that puts a map back. A GM who supplied poster maps but has not re-run the macro
+	// (or has no Book II PDF at all) has ONLY the poster map on disk — skipping the row for
+	// want of the Book II crop would leave them staring at a blank page where their map was.
+	it("falls back to the superseded poster map when the Book II crop is not on disk", async () => {
+		const so0 = settingOverviewMaps.find((s) => s.replaces?.length);
+		const fallback = so0.replaces[0];
+
+		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
+		soPage.text = { content: "<p>world setting prose</p>" };
+		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
+
+		// on disk: the poster map only, NOT the Book II crop
+		makeHarness({ worldJournals: [worldSO], present: [fallback] });
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(soPage.text.content).toContain(`<figure class="stonetop-map"><img src="${durableOf(fallback)}"`);
+		expect(soPage.text.content).not.toContain(durableOf(so0.out));
+		expect(soPage.text.content).toContain("world setting prose");
+	});
+
+	it("prefers the Book II crop over the poster map when both are on disk", async () => {
+		const so0 = settingOverviewMaps.find((s) => s.replaces?.length);
+		const fallback = so0.replaces[0];
+
+		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
+		soPage.text = { content: "<p>prose</p>" };
+		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
+
+		makeHarness({ worldJournals: [worldSO], present: [so0.out, fallback] });
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(soPage.text.content).toContain(durableOf(so0.out));
+		expect(soPage.text.content).not.toContain(durableOf(fallback));
 	});
 
 	it("does not stack a second map when the setting page already carries one", async () => {
@@ -605,5 +729,133 @@ describe("handleImportedJournalArt (createJournalEntry hook)", () => {
 
 		// none of the three scheduled real work: the durable folder was never even browsed
 		expect(h.browse).not.toHaveBeenCalled();
+	});
+});
+
+describe("curated codex pages", () => {
+	// Two creatures share the Crinwin codex page (one journal entry, two ACTORS), so the
+	// additive per-monster pass stacks both portraits on it. A `codex` entry makes the
+	// manifest authoritative for that page instead: it names every illustration the page
+	// owns and exactly which of them show, and where.
+	const CRIN = monsters.find((m) => m.slug === "crinwin");
+	const BROOD = monsters.find((m) => m.slug === "crinwin-broodfather");
+	const ENTRY = CRIN.journalEntryId;
+	const PROSE = "<p>Trust not thine ears</p>";
+	const NEST_PROSE = "<p>They nest in the high branches.</p>";
+	const embed = (m) => `<p><img class="stonetop-journal-art" src="${durableOf(m.out)}" alt="${m.name}"></p>`;
+	const img = (m, slot) => ({ slot, images: [{ out: m.out, name: m.name }] });
+
+	const curate = (slots) => {
+		BOOK2_ART_APPLY_MANIFEST.codex = [{
+			journalEntryId: ENTRY, journalPageId: CRIN.journalPageId, name: "Crinwin",
+			managed: [CRIN.out, BROOD.out], slots,
+		}];
+	};
+	// The page as it looks TODAY: both portraits prepended, so in reverse manifest order.
+	const stackedPage = () => makeWorldPage({
+		id: CRIN.journalPageId, name: "Crinwin", type: "bestiary",
+		system: { description: embed(BROOD) + embed(CRIN) + PROSE, nests: NEST_PROSE },
+	});
+
+	afterEach(() => { delete BOOK2_ART_APPLY_MANIFEST.codex; });
+
+	it("places each illustration in its chosen slot and normalises the stacked order", async () => {
+		curate([img(CRIN, "banner"), img(BROOD, "nests")]);
+		const page = stackedPage();
+		const world = makeWorldJournal({ source: JRN_SOURCE(ENTRY), pages: [page], stamp: true });
+		makeHarness({ worldJournals: [world] });
+
+		await reapplyBook2Art();
+
+		// The banner alone leads the description (lead-art lifts it); the broodfather moved
+		// under Lair & Habitat and no longer stacks above the title.
+		expect(page.system.description).toBe(embed(CRIN) + PROSE);
+		expect(page.system.nests).toBe(NEST_PROSE + embed(BROOD));
+	});
+
+	it("strips an illustration the user hid, rather than merely not re-adding it", async () => {
+		curate([img(CRIN, "banner")]);
+		const page = stackedPage();
+		const world = makeWorldJournal({ source: JRN_SOURCE(ENTRY), pages: [page], stamp: true });
+		makeHarness({ worldJournals: [world] });
+
+		await reapplyBook2Art();
+
+		expect(page.system.description).toBe(embed(CRIN) + PROSE);
+		expect(page.system.description).not.toContain(BROOD.out);
+	});
+
+	it("keeps a pristine entry pristine after a removal-only write (the prose channel stays open)", async () => {
+		// The sharp edge: hiding art is a REMOVAL. If that write bypassed noteEntry, the
+		// entry's hash would stop matching its baseline and the managed-journal channel
+		// would treat it as GM-edited FOREVER, silently opting it out of prose updates.
+		curate([img(CRIN, "banner")]);
+		const page = stackedPage();
+		const world = makeWorldJournal({ source: JRN_SOURCE(ENTRY), pages: [page], stamp: true });
+		const preHash = world._flags.stonetop_pwd.journalSync.hash;
+		makeHarness({ worldJournals: [world] });
+
+		await reapplyBook2Art();
+
+		expect(world._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(world.toObject()));
+		expect(world._flags.stonetop_pwd.journalSync.hash).not.toBe(preHash);
+		expect(world._flags.stonetop_pwd.journalSync.version).toBe(VERSION);
+	});
+
+	it("leaves a GM-edited entry's edited baseline alone", async () => {
+		curate([img(CRIN, "banner")]);
+		const page = stackedPage();
+		const world = makeWorldJournal({ source: JRN_SOURCE(ENTRY), pages: [page], syncHash: "EDITED-HASH" });
+		makeHarness({ worldJournals: [world] });
+
+		await reapplyBook2Art();
+
+		expect(page.system.description).toBe(embed(CRIN) + PROSE);              // art still curated
+		expect(world._flags.stonetop_pwd.journalSync.hash).toBe("EDITED-HASH"); // but hands off
+	});
+
+	it("is a no-op on a page that already matches", async () => {
+		curate([img(CRIN, "banner"), img(BROOD, "nests")]);
+		const page = makeWorldPage({
+			id: CRIN.journalPageId, name: "Crinwin", type: "bestiary",
+			system: { description: embed(CRIN) + PROSE, nests: NEST_PROSE + embed(BROOD) },
+		});
+		const world = makeWorldJournal({ source: JRN_SOURCE(ENTRY), pages: [page], stamp: true });
+		makeHarness({ worldJournals: [world] });
+
+		await reapplyBook2Art();
+
+		expect(page._writes).toBe(0);
+		expect(world._flagWrites).toBe(0);
+	});
+
+	it("leaves the page alone when none of its art is on disk", async () => {
+		// A GM who never imported these crops must not have art stripped off their page.
+		curate([img(CRIN, "banner")]);
+		const page = stackedPage();
+		const before = page.system.description;
+		const world = makeWorldJournal({ source: JRN_SOURCE(ENTRY), pages: [page], stamp: true });
+		makeHarness({ worldJournals: [world], present: locations.flatMap((l) => l.images).map((im) => im.out) });
+
+		await reapplyBook2Art();
+
+		expect(page.system.description).toBe(before);
+	});
+
+	it("does not curate an entry the manifest says nothing about", async () => {
+		// codex: [] is the shipped default — every other codex page keeps the additive path.
+		BOOK2_ART_APPLY_MANIFEST.codex = [];
+		const page = makeWorldPage({
+			id: CRIN.journalPageId, name: "Crinwin", type: "bestiary",
+			system: { description: PROSE, nests: NEST_PROSE },
+		});
+		const world = makeWorldJournal({ source: JRN_SOURCE(ENTRY), pages: [page], stamp: true });
+		makeHarness({ worldJournals: [world] });
+
+		await reapplyBook2Art();
+
+		// both portraits still stack, exactly as before this feature existed
+		expect(page.system.description).toContain(CRIN.out);
+		expect(page.system.description).toContain(BROOD.out);
 	});
 });

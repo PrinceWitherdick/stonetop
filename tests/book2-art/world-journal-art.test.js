@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
 	artEmbed,
 	bestiaryDescriptionWithArt,
+	codexFieldWithArt,
 	locationSectionsWithArt,
 	mapFigureEmbed,
-	textPageWithMap,
+	textPageWithManagedMap,
 	matchWorldPage,
 } from "../../module/book2-art/world-journal-art.js";
 
@@ -43,6 +44,87 @@ describe("bestiaryDescriptionWithArt", () => {
 			`<p><img class="stonetop-journal-art" src="${SRC}" alt="Crinwin"></p>`
 		);
 		expect(bestiaryDescriptionWithArt(undefined, SRC, "Crinwin")).toContain(SRC);
+	});
+});
+
+describe("codexFieldWithArt", () => {
+	// The two illustrations that share the Crinwin codex page (entry Ttz6Fnr2M0HNfIre):
+	// two separate ACTORS, one page, which is why its art stacks today.
+	const CRIN = "stonetop-book-art/assets/bestiary/crinwin.webp";
+	const BROOD = "stonetop-book-art/assets/bestiary/crinwin-broodfather.webp";
+	const PROSE = "<p>Trust not thine ears</p>";
+	const NESTS = "<p>They nest in the high branches.</p>";
+	const curation = (slots) => ({ managed: [CRIN, BROOD], slots });
+	const img = (src, name) => `<p><img class="stonetop-journal-art" src="${src}" alt="${name}"></p>`;
+
+	it("puts a banner slot at position 0 of description, where lead-art lifts it", () => {
+		const out = codexFieldWithArt(PROSE, "description",
+			curation([{ slot: "banner", images: [{ src: CRIN, name: "Crinwin" }] }]));
+		expect(out).toBe(img(CRIN, "Crinwin") + PROSE);
+		expect(out.startsWith("<p><img")).toBe(true);
+	});
+
+	it("appends a description slot after the prose, and a nests slot after the nests prose", () => {
+		expect(codexFieldWithArt(PROSE, "description",
+			curation([{ slot: "description", images: [{ src: CRIN, name: "Crinwin" }] }])))
+			.toBe(PROSE + img(CRIN, "Crinwin"));
+		expect(codexFieldWithArt(NESTS, "nests",
+			curation([{ slot: "nests", images: [{ src: BROOD, name: "Crinwin Broodfather" }] }])))
+			.toBe(NESTS + img(BROOD, "Crinwin Broodfather"));
+	});
+
+	it("strips a managed src that no slot claims — this is what 'hide' means", () => {
+		const stacked = img(BROOD, "Crinwin Broodfather") + img(CRIN, "Crinwin") + PROSE;
+		const out = codexFieldWithArt(stacked, "description",
+			curation([{ slot: "banner", images: [{ src: CRIN, name: "Crinwin" }] }]));
+		expect(out).toBe(img(CRIN, "Crinwin") + PROSE);
+		expect(out).not.toContain(BROOD);
+	});
+
+	it("returns null when the field already matches (no-op contract)", () => {
+		const slots = [{ slot: "banner", images: [{ src: CRIN, name: "Crinwin" }] }];
+		const once = codexFieldWithArt(PROSE, "description", curation(slots));
+		expect(codexFieldWithArt(once, "description", curation(slots))).toBeNull();
+	});
+
+	it("recognises and strips a ProseMirror-normalised <img> (attrs reordered, class dropped)", () => {
+		// What a GM's re-save leaves behind: no class, attributes in another order. A
+		// wrapper-shaped regex stops seeing this and duplicates the art; we key on src.
+		const normalised = `<p><img alt="Crinwin Broodfather" src="${BROOD}" width="400"></p>${PROSE}`;
+		const out = codexFieldWithArt(normalised, "description",
+			curation([{ slot: "banner", images: [{ src: CRIN, name: "Crinwin" }] }]));
+		expect(out).toBe(img(CRIN, "Crinwin") + PROSE);
+		expect(out).not.toContain(BROOD);
+	});
+
+	it("strips everything when slots is empty", () => {
+		const stacked = img(CRIN, "Crinwin") + PROSE;
+		expect(codexFieldWithArt(stacked, "description", curation([]))).toBe(PROSE);
+	});
+
+	it("relocates one image between fields and normalises the legacy reversed order", () => {
+		// Today the monster loop prepends per row, so the page carries the broodfather
+		// FIRST — the reverse of manifest order. Curating re-lands both in row order.
+		const legacy = img(BROOD, "Crinwin Broodfather") + img(CRIN, "Crinwin") + PROSE;
+		const slots = [
+			{ slot: "banner", images: [{ src: CRIN, name: "Crinwin" }] },
+			{ slot: "nests", images: [{ src: BROOD, name: "Crinwin Broodfather" }] },
+		];
+		expect(codexFieldWithArt(legacy, "description", curation(slots))).toBe(img(CRIN, "Crinwin") + PROSE);
+		expect(codexFieldWithArt(NESTS, "nests", curation(slots))).toBe(NESTS + img(BROOD, "Crinwin Broodfather"));
+	});
+
+	it("only inserts the images the caller passed, so an absent file is never embedded", () => {
+		// reapply filters slots to what is on disk; managed stays complete so a missing
+		// file can still be stripped from a page that already carries it.
+		const out = codexFieldWithArt(img(BROOD, "Crinwin Broodfather") + PROSE, "description",
+			{ managed: [CRIN, BROOD], slots: [{ slot: "banner", images: [] }] });
+		expect(out).toBe(PROSE);
+	});
+
+	it("ignores a field it does not host art for", () => {
+		expect(codexFieldWithArt("<p>notes</p>", "notes",
+			curation([{ slot: "banner", images: [{ src: CRIN, name: "Crinwin" }] }]))).toBeNull();
 	});
 });
 
@@ -215,30 +297,113 @@ describe("mapFigureEmbed", () => {
 	});
 });
 
-describe("textPageWithMap", () => {
-	const MAP = "stonetop-book-art/assets/maps/map-vicinity.webp";
+describe("textPageWithManagedMap", () => {
+	const ROOT = "stonetop-book-art";
+	const NEW = `${ROOT}/assets/maps/book2-vicinity.webp`;   // the printed Book II page crop
+	const OLD = `${ROOT}/assets/maps/map-vicinity.webp`;     // the poster map it supersedes
+	const figure = (src, alt) => `<figure class="stonetop-map"><img src="${src}" alt="${alt}"></figure>`;
 
+	// With no replaceSrcs this is the plain "prepend, never stack" primitive.
 	it("prepends the map figure to the top of the page content", () => {
-		const out = textPageWithMap("<p>setting prose</p>", MAP, "The Vicinity");
-		expect(out).toBe(`<figure class="stonetop-map"><img src="${MAP}" alt="The Vicinity"></figure><p>setting prose</p>`);
+		expect(textPageWithManagedMap("<p>setting prose</p>", NEW, "The Vicinity", [])).toBe(
+			`${figure(NEW, "The Vicinity")}<p>setting prose</p>`
+		);
 	});
 
 	it("treats a null/undefined content as empty", () => {
-		expect(textPageWithMap(null, MAP, "The Vicinity")).toBe(
-			`<figure class="stonetop-map"><img src="${MAP}" alt="The Vicinity"></figure>`
+		expect(textPageWithManagedMap(null, NEW, "The Vicinity", [])).toBe(figure(NEW, "The Vicinity"));
+		expect(textPageWithManagedMap(undefined, NEW, "The Vicinity", [])).toContain(NEW);
+	});
+
+	it("defaults replaceSrcs to empty", () => {
+		expect(textPageWithManagedMap("<p>prose</p>", NEW, "The Vicinity")).toBe(
+			`${figure(NEW, "The Vicinity")}<p>prose</p>`
 		);
-		expect(textPageWithMap(undefined, MAP, "The Vicinity")).toContain(MAP);
 	});
 
 	it("returns null when this exact map src is already embedded (idempotent)", () => {
-		const once = textPageWithMap("<p>prose</p>", MAP, "The Vicinity");
-		expect(textPageWithMap(once, MAP, "The Vicinity")).toBeNull();
+		const once = textPageWithManagedMap("<p>prose</p>", NEW, "The Vicinity", [OLD]);
+		expect(textPageWithManagedMap(once, NEW, "The Vicinity", [OLD])).toBeNull();
 	});
 
-	it("returns null when the page already carries ANY map figure (never stacks a second)", () => {
-		// e.g. a GM's own labelled variant already on the page -> we leave it alone
-		const withLabelled = `<figure class="stonetop-map"><img src="worlds/mine/map-vicinity-labelled.png" alt="mine"></figure><p>prose</p>`;
-		expect(textPageWithMap(withLabelled, MAP, "The Vicinity")).toBeNull();
+	// The whole point of replaceSrcs: a world that imported the poster map under an earlier
+	// release must still receive the labelled Book II map. Without it the old figure trips the
+	// "never stack a second map" rule below and the upgrade is skipped forever.
+	it("replaces a map we previously wrote, in place, keeping the prose", () => {
+		const out = textPageWithManagedMap(`${figure(OLD, "The Vicinity")}<p>prose</p>`, NEW, "The Vicinity", [OLD]);
+		expect(out).toContain(NEW);
+		expect(out).not.toContain(OLD);
+		expect(out).toContain("<p>prose</p>");
+		expect(out.match(/class="stonetop-map"/g)).toHaveLength(1); // exactly one map, not stacked
+	});
+
+	it("still replaces ours after ProseMirror has rewritten the markup", () => {
+		// A GM who opens + saves the page gets the figure normalised: attributes reordered,
+		// our class dropped, sometimes unwrapped to a bare paragraph. Keyed on src, so it holds.
+		for (const mangled of [
+			`<figure><img alt="The Vicinity" src="${OLD}" width="900"></figure><p>prose</p>`,
+			`<p><img src="${OLD}"></p><p>prose</p>`,
+			`<img src="${OLD}"><p>prose</p>`,
+		]) {
+			const out = textPageWithManagedMap(mangled, NEW, "The Vicinity", [OLD]);
+			expect(out).toContain(NEW);
+			expect(out).not.toContain(OLD);
+			expect(out).toContain("<p>prose</p>");
+		}
+	});
+
+	it("preserves a map figure we do NOT own, and does not embed over it", () => {
+		// the GM contract is unchanged for everything except the exact files we put there
+		const mine = `${figure("worlds/mine/my-map.png", "mine")}<p>prose</p>`;
+		expect(textPageWithManagedMap(mine, NEW, "The Vicinity", [OLD])).toBeNull();
+	});
+
+	it("leaves a second, unrelated map figure alone while replacing ours", () => {
+		const both = `${figure(OLD, "The Vicinity")}<p>prose</p>`;
+		const out = textPageWithManagedMap(both, NEW, "The Vicinity", [OLD, `${ROOT}/assets/maps/map-worlds-end.webp`]);
+		expect(out).toContain(NEW);
+		expect(out).toContain("<p>prose</p>");
+	});
+
+	it("embeds normally when a replaces entry matches nothing", () => {
+		const out = textPageWithManagedMap("<p>prose</p>", NEW, "The Vicinity", [OLD]);
+		expect(out).toBe(`${figure(NEW, "The Vicinity")}<p>prose</p>`);
+	});
+
+	// A page can end up holding BOTH: a pass that threw between the compendium write and the
+	// world write, a GM who pasted the old map back, a world re-seeded from a page that already
+	// had the crop. An "already ours" fast path ahead of the strip returns null here — on the one
+	// page that most needs work — and because it fires on every future pass too, the two stay
+	// stacked forever. The no-op has to be decided by the rebuild, not by a substring check.
+	it("strips the superseded map from a page that carries BOTH it and ours", () => {
+		const both = `${figure(NEW, "The Vicinity")}${figure(OLD, "The Vicinity")}<p>prose</p>`;
+		const out = textPageWithManagedMap(both, NEW, "The Vicinity", [OLD]);
+		expect(out).not.toBeNull();
+		expect(out).toContain(NEW);
+		expect(out).not.toContain(OLD);
+		expect(out).toContain("<p>prose</p>");
+		expect(out.match(/class="stonetop-map"/g)).toHaveLength(1);
+	});
+
+	it("settles: the both-maps repair is itself idempotent", () => {
+		const both = `${figure(NEW, "The Vicinity")}${figure(OLD, "The Vicinity")}<p>prose</p>`;
+		const once = textPageWithManagedMap(both, NEW, "The Vicinity", [OLD]);
+		expect(textPageWithManagedMap(once, NEW, "The Vicinity", [OLD])).toBeNull();
+	});
+
+	// The GM's own map still wins, but ours must not be left stacked underneath it.
+	it("strips our superseded map even when a map we don't own is present", () => {
+		const mixed = `${figure("worlds/mine/my-map.png", "mine")}${figure(OLD, "The Vicinity")}<p>prose</p>`;
+		const out = textPageWithManagedMap(mixed, NEW, "The Vicinity", [OLD]);
+		expect(out).not.toBeNull();
+		expect(out).not.toContain(OLD);
+		expect(out).not.toContain(NEW);          // theirs is there: we don't embed over it
+		expect(out).toContain("my-map.png");
+	});
+
+	it("never strips itself when its own out path is listed in replaces", () => {
+		const out = textPageWithManagedMap("<p>prose</p>", NEW, "The Vicinity", [NEW, OLD]);
+		expect(out).toContain(NEW);
 	});
 });
 

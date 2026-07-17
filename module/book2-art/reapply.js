@@ -1,9 +1,10 @@
 import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "./manifest.js";
-import { bestiaryDescriptionWithArt, locationSectionsWithArt, textPageWithMap, matchWorldPage } from "./world-journal-art.js";
+import { bestiaryDescriptionWithArt, codexFieldWithArt, locationSectionsWithArt, textPageWithManagedMap, matchWorldPage } from "./world-journal-art.js";
 import { managedHash } from "../hooks/journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
+import { book2ArtRoot } from "./art-root.js";
 
 // Re-apply the Book II illustrations to the compendia, the world journals, and the
 // world actors, WITHOUT the source PDF.
@@ -39,7 +40,6 @@ import { compendiumSourceOf } from "../utils/foundry-compat.js";
 //   4. `game.stonetop.reapplyBook2Art()` (Ready.js API) — a manual, un-gated re-run for
 //      the dev loop after re-assigning art in the picker + regenerating the manifest.
 
-const DEFAULT_ROOT = "stonetop-book-art";
 const BES_PACK = "stonetop_pwd.stonetop-bestiary";
 const JRN_PACK = "stonetop_pwd.stonetop-journal";
 const TOKEN_FIT = "cover"; // matches the macro's CONFIG.TOKEN_FIT
@@ -52,9 +52,9 @@ const jrnSource = (entryId) => `Compendium.stonetop_pwd.stonetop-journal.Journal
 async function browseDurableArt(root) {
 	const FP = foundry?.applications?.apps?.FilePicker ?? FilePicker;
 	const present = new Set();
-	// The three dirs are independent; browse them in parallel. A rejected browse means the
+	// The dirs are independent; browse them in parallel. A rejected browse means the
 	// directory doesn't exist yet (the GM hasn't imported) -> nothing on disk from there.
-	const results = await Promise.all(["assets/bestiary", "assets/locations", "assets/maps"]
+	const results = await Promise.all(["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures"]
 		.map(dir => FP.browse("data", `${root}/${dir}`).catch(() => null)));
 	for (const res of results) {
 		if (!res) continue;
@@ -66,6 +66,33 @@ async function browseDurableArt(root) {
 		}
 	}
 	return present;
+}
+
+// Publish which Book II treasures have their illustration on disk into the world-scoped
+// `treasureArt` setting, as a { catalog slug -> manifest `out` path } map. A treasure's Item
+// is built at drag time, so there is no document to point at the file ahead of time; this
+// index is what treasure-drops.js consults instead. It carries the MANIFEST's own path
+// rather than the slug so the consumer resolves the file we actually checked for, instead
+// of re-deriving it from the naming convention and drifting when a row's `out` changes.
+// Authoritative (not additive): a treasure whose file is gone is dropped, so an item never
+// points at a missing image. Only writes when the index actually changed, since this runs
+// on every GM load.
+async function refreshTreasureArtIndex(treasures, present, srcOf) {
+	// No `!treasures.length` fast path: an empty manifest list is a real state that must
+	// still clear a previously-published index, and the changed-only check below already
+	// makes the steady-state call a single setting read.
+	try {
+		const have = {};
+		for (const t of treasures.filter((t) => present.has(srcOf(t.out)))) have[t.slug] = t.out;
+		const prev = getSetting("treasureArt");
+		// Key order is the manifest's on both sides, so a plain stringify compares faithfully.
+		if (JSON.stringify(prev ?? {}) === JSON.stringify(have)) return;
+		await setSetting("treasureArt", have);
+		const count = Object.keys(have).length;
+		info(`Book II art: treasure art index updated (${count} of ${treasures.length} on disk)`);
+	} catch (e) {
+		error("Book II art: could not update the treasure art index", e);
+	}
 }
 
 // Embed missing art into every world copy of a compendium journal page. `buildNext(wp)`
@@ -116,8 +143,23 @@ function worldActorUpdate(actor, src, tail) {
 function entryHasSrc(entry, src) {
 	for (const p of entry?.pages ?? []) {
 		if (String(p.system?.description ?? "").includes(src)) return true;
+		if (String(p.system?.nests ?? "").includes(src)) return true;
 		for (const s of p.system?.sections ?? []) if (String(s?.body ?? "").includes(src)) return true;
 		if (String(p.text?.content ?? "").includes(src)) return true;
+	}
+	return false;
+}
+
+// True if any bestiary page of this world entry would change under `curation` — the cheap,
+// compendium-free precheck for the curated-codex pass below, and the reason that pass stays
+// as free as the others on a steady-state load. entryHasSrc cannot answer this: it only asks
+// "is this src anywhere on the entry?", which can see neither art sitting in the WRONG slot
+// nor art the manifest no longer names (both of which need a write).
+function codexEntryNeedsWork(entry, curation) {
+	for (const p of entry?.pages ?? []) {
+		if (p.type !== "bestiary") continue;
+		if (codexFieldWithArt(p.system?.description, "description", curation) != null) return true;
+		if (codexFieldWithArt(p.system?.nests, "nests", curation) != null) return true;
 	}
 	return false;
 }
@@ -157,23 +199,59 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	const version = game.system.version;
 	const onlyWorld = worldOnly || Array.isArray(entries);
 
-	// Normalize away trailing slashes so `${root}/${out}` never yields a double slash
-	// that wouldn't match the paths FilePicker.browse returns (which would silently
-	// leave `available` empty and no-op the whole pass).
-	const root = (getSetting("book2ArtRoot") || DEFAULT_ROOT).replace(/\/+$/, "");
+	const root = book2ArtRoot();
 	const present = await browseDurableArt(root);
-	if (!present.size) return null; // nothing imported yet -> nothing to apply
 
+	// book2ArtSrc with the root hoisted: this runs once per manifest row per pass, and the
+	// root cannot change mid-pass, so there's no reason to re-read the setting each time.
 	const srcOf = (out) => `${root}/${out}`;
-	const { monsters, locations, settingOverviewMaps = [] } = BOOK2_ART_APPLY_MANIFEST;
+	const { monsters, locations, settingOverviewMaps = [], treasures = [], codex = [] } = BOOK2_ART_APPLY_MANIFEST;
+
+	// Treasures first, and BEFORE the nothing-on-disk return below. They are not documents,
+	// so publishing which of them have a file on disk, and where, is their whole apply step —
+	// treasure-drops.js reads the index when a player drags the item off the journal. The
+	// index is AUTHORITATIVE, which makes the empty-folder case the one that most needs to
+	// run, not the one to skip: a GM who deleted or renamed the art folder must have the
+	// index cleared, or every drag keeps baking `img` to a file that is gone. Clearing is
+	// also the safe failure mode if a browse fails transiently — a dropped item falls back
+	// to its load-class icon, and the next load restores the index.
+	await refreshTreasureArtIndex(treasures, present, srcOf);
+
+	if (!present.size) return null; // nothing imported yet -> no document art to wire
+
+	// Codex pages the user has CURATED in the picker: they choose which of the page's
+	// illustrations show and under which heading, so the additive per-monster embed below
+	// must keep its hands off them (it would re-add art they hid, and could never relocate
+	// anything). Pass 1.5 owns these pages instead, authoritatively. Every other codex page
+	// is untouched by this and keeps the additive behaviour, so `codex: []` — the shipped
+	// default — is a literal no-op.
+	const curated = new Set(codex.map((c) => c.journalEntryId));
 
 	// Only wire art that is actually on disk (a partial import must not point a
 	// document at a file that isn't there).
 	const available = new Set();
 	for (const m of monsters) if (present.has(srcOf(m.out))) available.add(m.out);
 	for (const l of locations) for (const im of l.images) if (present.has(srcOf(im.out))) available.add(im.out);
-	for (const s of settingOverviewMaps) if (present.has(srcOf(s.out))) available.add(s.out);
-	if (!available.size) return null; // durable folder exists but holds none of our art
+
+	// Setting Overview maps resolve their preference chain HERE rather than in pass 2.5, so
+	// the rule is stated once and the early return below can see their work. Each row is an
+	// ORDERED preference: the Book II page crop (`out`) first, then `replaces` — the
+	// user-supplied poster map an earlier release embedded here. Show the best one on disk
+	// and supersede the rest. Preferring `out` is the upgrade (a world still showing the
+	// poster map gets the labelled Book II map instead); falling back matters just as much,
+	// because a GM who has not re-run the macro — or who has no Book II PDF at all — still
+	// has only the poster map on disk, and skipping the row outright would leave them
+	// staring at a blank page where their map used to be. The poster map file is never
+	// touched: it still backs its Scene.
+	const mapPicks = settingOverviewMaps.flatMap((s) => {
+		const chain = [s.out, ...(s.replaces ?? [])];
+		const pick = chain.find((o) => present.has(srcOf(o)));
+		return pick ? [{ s, src: srcOf(pick), replaces: chain.filter((o) => o !== pick).map(srcOf) }] : [];
+	});
+	// Nothing of ours on disk at all — not a document image, not a map. (Maps count even
+	// though they never enter `available`: a GM who only ever supplied poster maps still
+	// has work for us to do, and must not be turned away here.)
+	if (!available.size && !mapPicks.length) return null;
 
 	const besPack = game.packs.get(monsters[0]?.actorPack ?? BES_PACK);
 	const jrnPack = game.packs.get(JRN_PACK);
@@ -206,7 +284,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	};
 
 	const relock = [];
-	let actors = 0, besPages = 0, locPages = 0, soPages = 0, worldActors = 0, worldJournalPages = 0, errors = 0;
+	let actors = 0, besPages = 0, codexPages = 0, locPages = 0, soPages = 0, worldActors = 0, worldJournalPages = 0, errors = 0;
 	try {
 		// Unlock inside the try so the finally relocks whatever we opened even if the
 		// second unlock (or any later step) throws. Only the compendium-writing passes
@@ -226,7 +304,10 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 					if (upd) { await actor.update(upd); actors++; }
 				} catch (e) { errors++; error(`Book II art re-apply: actor "${m.slug}"`, e); }
 			}
-			if (m.journalEntryId && m.journalPageId) {
+			// The journal half only — the portrait/token above is per-actor and always applies.
+			// A curated page is owned by pass 1.5; several actors can share one codex page, so
+			// this is what stops their portraits stacking on it.
+			if (m.journalEntryId && m.journalPageId && !curated.has(m.journalEntryId)) {
 				const worldEntries = worldBySource.get(jrnSource(m.journalEntryId)) ?? [];
 				// Skip the compendium read when this is a world-only pass with no world work:
 				// no matching world entries, or (in cheap mode) every one already has the art.
@@ -244,6 +325,56 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 					}
 				} catch (e) { errors++; error(`Book II art re-apply: bestiary journal "${m.slug}"`, e); }
 			}
+		}
+
+		// 1.5 CURATED codex pages (+ their world copies). Where several creatures share one
+		//    codex page, the additive pass above would stack every portrait on it. Here the
+		//    manifest is authoritative instead: it names every illustration the page owns
+		//    (`managed`) and exactly which of them show, and where (`slots`). Art the user
+		//    hid is in `managed` but in no slot, which is how it gets stripped rather than
+		//    merely not re-added.
+		for (const c of codex) {
+			// Nothing of this entry's art on disk: this GM never imported it, so leave the
+			// page alone rather than stripping art they do have (mirrors the locations pass).
+			if (!(c.managed ?? []).some((out) => available.has(out))) continue;
+			try {
+				// Resolve to page srcs. `slots` is filtered to what is on disk, so a partial
+				// import never embeds a broken <img>; `managed` stays COMPLETE so a missing
+				// file can still be stripped off a page that already carries it.
+				const curation = {
+					managed: (c.managed ?? []).map(srcOf),
+					slots: (c.slots ?? []).map((s) => ({
+						slot: s.slot,
+						images: (s.images ?? []).filter((i) => available.has(i.out))
+							.map((i) => ({ src: srcOf(i.out), name: i.name })),
+					})),
+				};
+				const worldEntries = worldBySource.get(jrnSource(c.journalEntryId)) ?? [];
+				const worldNeedsArt = worldEntries.length
+					&& (!cheapWorldSkip || worldEntries.some((e) => codexEntryNeedsWork(e, curation)));
+				if (onlyWorld && !worldNeedsArt) continue;
+				const page = (await jrnPack.getDocument(c.journalEntryId))?.pages?.get(c.journalPageId);
+				if (!page) continue;
+				if (!onlyWorld) {
+					// Both fields in ONE update: they are two keys of the same page.
+					const upd = {};
+					const nd = codexFieldWithArt(page.system?.description, "description", curation);
+					if (nd != null) upd["system.description"] = nd;
+					const nn = codexFieldWithArt(page.system?.nests, "nests", curation);
+					if (nn != null) upd["system.nests"] = nn;
+					if (Object.keys(upd).length) { await page.update(upd); codexPages++; }
+				}
+				// Two applyWorldPages calls rather than one merged write: it takes a single
+				// updateKey, and widening its signature would drag the location + map passes
+				// into the blast radius for nothing. noteEntry is deduped by touchedEntries, so
+				// the pristine baseline is still captured exactly once and BEFORE the first
+				// write — which is what keeps a removal-only touch from marking a seeded entry
+				// GM-edited and silently opting it out of every future prose update.
+				worldJournalPages += await applyWorldPages(worldEntries, page, "system.description",
+					(wp) => codexFieldWithArt(wp.system?.description, "description", curation), noteEntry);
+				worldJournalPages += await applyWorldPages(worldEntries, page, "system.nests",
+					(wp) => codexFieldWithArt(wp.system?.nests, "nests", curation), noteEntry);
+			} catch (e) { errors++; error(`Book II art re-apply: curated codex page "${c.name ?? c.journalEntryId}"`, e); }
 		}
 
 		// 2. Compendium location journal pages (+ their world copies). Append missing art
@@ -266,26 +397,29 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 			} catch (e) { errors++; error(`Book II art re-apply: location "${l.slug}"`, e); }
 		}
 
-		// 2.5 Setting Overview regional maps embedded into the setting journal's plain
-		//    text pages (+ their world copies). The map is a user-supplied file the macro's
-		//    map step wrote to assets/maps and turned into a Scene; this re-embeds it into
-		//    the journal page after an update wiped the compendium edit. Idempotent, and a
-		//    no-op on any page that already shows a map (never stacks a second one).
-		for (const s of settingOverviewMaps) {
-			if (!available.has(s.out)) continue;
-			const src = srcOf(s.out);
+		// 2.5 Setting Overview maps embedded into the setting journal's plain text pages
+		//    (+ their world copies). An update resets the compendium to the shipped (art-less)
+		//    page and re-seeds pristine world copies from it, so this pass is the ONLY thing
+		//    putting the map back. Idempotent, and a no-op on any page showing a map we don't
+		//    own (a GM's own labelled variant). Which file each row shows, and which it
+		//    supersedes, was resolved once up front (see `mapPicks`).
+		for (const { s, src, replaces } of mapPicks) {
 			try {
 				const worldEntries = worldBySource.get(jrnSource(s.journalEntryId)) ?? [];
-				const worldNeedsArt = worldEntries.length && (!cheapWorldSkip || worldEntries.some((e) => !entryHasSrc(e, src)));
+				// "Has the map" is not enough to call an entry done: a page carrying this map AND
+				// a superseded one still needs the old one stripped, so ask about both. Missing
+				// this would re-shadow exactly what textPageWithManagedMap's strip-first order fixes.
+				const worldNeedsArt = worldEntries.length && (!cheapWorldSkip || worldEntries.some(
+					(e) => !entryHasSrc(e, src) || replaces.some((old) => entryHasSrc(e, old))));
 				if (onlyWorld && !worldNeedsArt) continue;
 				const page = (await jrnPack.getDocument(s.journalEntryId))?.pages?.get(s.journalPageId);
 				if (!page) continue;
 				if (!onlyWorld) {
-					const nd = textPageWithMap(page.text?.content, src, s.name);
+					const nd = textPageWithManagedMap(page.text?.content, src, s.name, replaces);
 					if (nd != null) { await page.update({ "text.content": nd }); soPages++; }
 				}
 				worldJournalPages += await applyWorldPages(worldEntries, page, "text.content",
-					(wp) => textPageWithMap(wp.text?.content, src, s.name), noteEntry);
+					(wp) => textPageWithManagedMap(wp.text?.content, src, s.name, replaces), noteEntry);
 			} catch (e) { errors++; error(`Book II art re-apply: setting-overview map "${s.slug}"`, e); }
 		}
 
@@ -329,12 +463,12 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// so a GM who opens a journal mid-pass would otherwise see its pre-art render until an F5.
 	rerenderOpenJournals(touchedEntries.keys());
 
-	const total = actors + besPages + locPages + soPages + worldActors + worldJournalPages;
+	const total = actors + besPages + codexPages + locPages + soPages + worldActors + worldJournalPages;
 	if (total) {
-		info(`Book II art applied: ${actors} actors, ${besPages + locPages + soPages} compendium journal pages, ${worldJournalPages} world journal pages, ${worldActors} world actors.`);
+		info(`Book II art applied: ${actors} actors, ${besPages + codexPages + locPages + soPages} compendium journal pages, ${worldJournalPages} world journal pages, ${worldActors} world actors.`);
 		ui.notifications?.info(`Stonetop: added Book II art to ${total} ${total === 1 ? "entry" : "entries"}.`);
 	}
-	return { errors, total, actors, besPages, locPages, soPages, worldActors, worldJournalPages };
+	return { errors, total, actors, besPages, codexPages, locPages, soPages, worldActors, worldJournalPages };
 }
 
 // The version-change trigger: run the full re-apply ONCE per system version, then stamp
