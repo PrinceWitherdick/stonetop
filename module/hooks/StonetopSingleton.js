@@ -1,4 +1,4 @@
-import {isDefaultImg, escHtml} from "../utils/strings.js";
+import {escHtml} from "../utils/strings.js";
 import {stonetopChatCard} from "../utils/chat.js";
 import {STONETOP_SCOPE, resolvedFlagProperty} from "../actors/character/StonetopFlags.js";
 import {isPrimaryGM as _isPrimaryGM} from "../utils/primary-gm.js";
@@ -7,15 +7,14 @@ const _OMEN_REMINDER_FLAG = "lastOmenReminder";
 
 const _STEADING_ACTOR_TYPE = "stonetop";
 const _STEADING_ACTOR_NAME = "Stonetop";
-const _STEADING_ACTOR_IMG = "systems/stonetop_pwd/assets/stonetop_image.webp";
-const _LEGACY_STEADING_ACTOR_IMAGES = new Set([
-	"systems/stonetop/assets/stonetop_image.webp",
-	"/systems/stonetop/assets/stonetop_image.webp",
-	"systems/stonetop/assets/stonetop_image.png",
-	"/systems/stonetop/assets/stonetop_image.png",
-	"systems/stonetop_pwd/assets/stonetop_image.png",
-	"/systems/stonetop_pwd/assets/stonetop_image.png",
-]);
+const _STEADING_ACTOR_IMG = "systems/stonetop_pwd/assets/stonetop_image.svg";
+// New worlds get the "S" emblem above as the steading portrait. We deliberately do
+// NOT rewrite the image on existing worlds when they upgrade: a group's steading may
+// point at their own art, or at the book illustration we used to ship (now removed),
+// and silently mutating world data on upgrade is the wrong default. Instead, when the
+// stored image is MISSING we swap in the emblem at display time only (see the
+// renderActorDirectory hook below): a purely visual fallback that never touches the
+// saved actor. An image that still resolves is shown exactly as-is.
 
 export async function ensureStonetopSingleton() {
 	if (!game.user.isGM || !_isPrimaryGM()) return;
@@ -74,6 +73,22 @@ export function registerStonetopSingletonHooks() {
 
 		ui.notifications?.warn("The Stonetop sheet is required and cannot be deleted.");
 		return false;
+	});
+
+	// Display-only steading portrait fallback for the Actors sidebar. We no longer ship
+	// the book illustration older worlds' steading actors point at, and we don't rewrite
+	// that world data on upgrade (see the note by _STEADING_ACTOR_IMG). So if a steading's
+	// stored image can't load, show the "S" emblem in its directory row instead of a
+	// broken thumbnail. Runs for every user (the steading is owned by all).
+	Hooks.on("renderActorDirectory", (app, html) => {
+		const root = html instanceof HTMLElement
+			? html
+			: (html?.[0] ?? (app?.element instanceof HTMLElement ? app.element : app?.element?.[0]) ?? null);
+		if (!root?.querySelector) return;
+		for (const actor of _getStonetopActors()) {
+			const row = root.querySelector(`[data-entry-id="${actor.id}"], [data-document-id="${actor.id}"]`);
+			_fallBackSteadingImg(row?.querySelector("img"));
+		}
 	});
 }
 
@@ -177,8 +192,9 @@ async function _ensureStartingValues(actor) {
 	if (actor.system?.attributes?.surplus?.value === undefined || actor.system.attributes.surplus.value === null) {
 		updates["system.attributes.surplus.value"] = 1;
 	}
-	if (_shouldReplaceSteadingImg(actor.img)) updates.img = _STEADING_ACTOR_IMG;
-	if (_shouldReplaceSteadingImg(actor.prototypeToken?.texture?.src)) updates["prototypeToken.texture.src"] = _STEADING_ACTOR_IMG;
+	// NB: the steading image is intentionally left alone here; upgrading worlds keep
+	// whatever portrait they have; a missing one falls back to the emblem at display
+	// time (renderActorDirectory), not by rewriting the actor.
 	// Keep the shared steading owned by all players (preserves any per-user overrides).
 	if (actor.ownership?.default !== CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) {
 		updates["ownership.default"] = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
@@ -186,6 +202,15 @@ async function _ensureStartingValues(actor) {
 	if (Object.keys(updates).length) await actor.update(updates);
 }
 
-function _shouldReplaceSteadingImg(img) {
-	return isDefaultImg(img) || _LEGACY_STEADING_ACTOR_IMAGES.has(img);
+// Swap a MISSING steading portrait for the "S" emblem in the sidebar, at display time
+// only. The `error` event fires just when the file actually fails to load, so a still-
+// resolving image (a custom portrait, or the old book file still on disk) is left
+// showing untouched. Idempotent per <img> via a data flag so repeated directory
+// re-renders don't re-bind. Never writes to the actor.
+function _fallBackSteadingImg(img) {
+	if (!img || img.dataset.stSteadingFallback) return;
+	img.dataset.stSteadingFallback = "1";
+	const swap = () => { if (img.getAttribute("src") !== _STEADING_ACTOR_IMG) img.src = _STEADING_ACTOR_IMG; };
+	if (img.getAttribute("src") && img.complete && img.naturalWidth === 0) swap();
+	else img.addEventListener("error", swap, { once: true });
 }
