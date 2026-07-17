@@ -9,12 +9,26 @@ export class OutfitMoveDialog extends Application {
 		super(options);
 		this._frontOnOpen = new FrontOnOpen(this);
 		this._character      = character;
-		this._regularItems   = outfitSnapshot.regularSegments.flatMap(seg => seg.items);
+		// Journal treasures render under their own heading on the sheet, but for Outfit
+		// they're just carried gear: fold them back into the column they weigh against, so
+		// they can be marked here and still count toward load / the small allowance.
+		this._regularItems   = [
+			...outfitSnapshot.regularSegments.flatMap(seg => seg.items),
+			...(outfitSnapshot.treasureRegular ?? []),
+		];
 		this._smallItems     = [
 			...outfitSnapshot.smallItems,
 			...(outfitSnapshot.smallGridItems ?? []),
+			...(outfitSnapshot.treasureSmall ?? []),
 		];
-		this._arcanaItems    = outfitSnapshot.arcanaItems ?? [];
+		// The sheet now groups every arcanum under Arcana, split across the columns by
+		// weight; this dialog has always had its own Arcana section, so feed it both halves
+		// rather than letting the ◇ ones drift back into the regular list and disagree with
+		// the sheet. They're excluded from _regularItems above, so load isn't double-counted.
+		this._arcanaItems    = [
+			...(outfitSnapshot.arcanaRegular ?? []),
+			...(outfitSnapshot.arcanaSmall ?? []),
+		];
 		this._smallItemLimit = outfitSnapshot.smallItemLimit ?? null;
 		// Pack Horse raises each load cap by one; the snapshot carries the limits in
 		// effect so the thresholds and the regular ◇ ceiling here match the sheet.
@@ -74,6 +88,11 @@ export class OutfitMoveDialog extends Application {
 			name:    item.name,
 			note:    item.note,
 			weight:  item.weight,
+			// A ◇0 arcanum has never been markable: the gear tab renders it as a static row,
+			// and it is deliberately exempt from both load and the 4+Prosperity allowance. So
+			// it gets no checkbox here either — one would tick, persist, and change no number
+			// on either screen, which reads as a mark the player can't account for.
+			inert:   !((item.weight ?? 0) > 0),
 			checked: this._checked[item.slug] ?? false,
 		}));
 

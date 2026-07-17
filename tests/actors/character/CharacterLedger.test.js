@@ -111,7 +111,7 @@ describe("CharacterLedger", () => {
 		actor.typedActor = {
 			buildSnapshot: async () => ({
 				inventory: {
-					outfit: { arcanaItems: [{ slug: "shell-game-of-souls", name: "Shell Game of Souls", resource: { title: "Souls" } }] },
+					outfit: { arcanaRegular: [{ slug: "shell-game-of-souls", name: "Shell Game of Souls", resource: { title: "Souls" } }] },
 				},
 			}),
 		};

@@ -13,8 +13,12 @@
  * @param {object|null} [input.resource=null] { max, title, labels } uses/ammo track
  * @param {object|null} [input.armor=null]    { modifier } worn armor
  * @param {string} [input.moveType="inventory"] item's moveType
+ * @param {boolean} [input.isTreasure=false]  a Book II journal treasure — groups the
+ *        item under the gear tab's "Treasures" heading rather than the write-in columns
+ * @param {string|null} [input.img=null]      document art. Omitted when falsy so Foundry
+ *        applies its own default rather than being pinned to an empty path.
  */
-export function buildInventoryItemData({ name, column = "regular", weight = 1, note = "", resource = null, armor = null, moveType = "inventory" }) {
+export function buildInventoryItemData({ name, column = "regular", weight = 1, note = "", resource = null, armor = null, moveType = "inventory", isTreasure = false, img = null }) {
 	const isRegular = column !== "small";
 	const system = {
 		moveType,
@@ -27,5 +31,8 @@ export function buildInventoryItemData({ name, column = "regular", weight = 1, n
 	if (note) system.note = note;
 	if (resource) system.resource = resource;
 	if (armor) system.armor = armor;
-	return { name: String(name ?? "").trim() || "New Item", type: "move", system };
+	if (isTreasure) system.isTreasure = true;
+	const data = { name: String(name ?? "").trim() || "New Item", type: "move", system };
+	if (img) data.img = img;
+	return data;
 }

@@ -114,6 +114,18 @@ export class InventorySegmentSnapshot {
  * @property {InventoryItemSnapshot[]} smallItems
  * @property {InventoryItemSnapshot[]} smallGridItems
  * @property {Resource} smallPool
+ * @property {InventoryItemSnapshot[]} arcanaRegular - Owned arcana whose curio carries ◇ load,
+ *           under the Arcana heading in the regular column. Markable; counts toward load.
+ * @property {InventoryItemSnapshot[]} arcanaSmall   - Owned arcana whose curio is weightless
+ *           (◇0), under the matching Arcana heading in the small column. INERT — no checkbox
+ *           (`times 0` renders none) and deliberately exempt from the 4+Prosperity allowance,
+ *           since these have never cost a player anything.
+ * @property {InventoryItemSnapshot[]} treasureRegular - Book II treasures dragged in from a
+ *           journal that carry ◇ load, rendered under a "Treasures" heading at the foot of the
+ *           regular column rather than among the write-ins. Still real inventory items: marking
+ *           one counts toward load like any other ◇ gear.
+ * @property {InventoryItemSnapshot[]} treasureSmall   - Pocket-sized journal treasures, under the
+ *           same heading in the small column; marking one eats the 4+Prosperity allowance.
  * @property {number|null} smallItemLimit - 4+Prosperity from the linked steading actor, or null if unavailable
  * @property {string|null} steadingName   - Name of the linked steading actor, or null if unavailable
  * @property {boolean} hasPackHorse       - Ranger owns the Pack Horse move (boosted load caps)
@@ -134,7 +146,10 @@ export class OutfitSnapshot {
 		this.smallGridItems   = b._smallGridItems;
 		this.smallPool        = b._smallPool;
 		this.smallPoolCap     = b._smallPoolCap ?? 0;
-		this.arcanaItems     = b._arcanaItems ?? [];
+		this.arcanaRegular   = b._arcanaRegular ?? [];
+		this.arcanaSmall     = b._arcanaSmall ?? [];
+		this.treasureRegular = b._treasureRegular ?? [];
+		this.treasureSmall   = b._treasureSmall ?? [];
 		this.smallItemLimit  = b._smallItemLimit ?? null;
 		this.steadingName    = b._steadingName ?? null;
 		this.hasPackHorse    = b._hasPackHorse ?? false;
@@ -152,7 +167,10 @@ export class OutfitSnapshotBuilder {
 	withSmallGridItems(v)  { this._smallGridItems  = v; return this; }
 	withSmallPool(v)       { this._smallPool       = v; return this; }
 	withSmallPoolCap(v)    { this._smallPoolCap    = v; return this; }
-	withArcanaItems(v)     { this._arcanaItems     = v; return this; }
+	withArcanaRegular(v)   { this._arcanaRegular   = v; return this; }
+	withArcanaSmall(v)     { this._arcanaSmall     = v; return this; }
+	withTreasureRegular(v) { this._treasureRegular = v; return this; }
+	withTreasureSmall(v)   { this._treasureSmall   = v; return this; }
 	withSmallItemLimit(v)  { this._smallItemLimit  = v; return this; }
 	withSteadingName(v)    { this._steadingName    = v; return this; }
 	withHasPackHorse(v)    { this._hasPackHorse    = v; return this; }

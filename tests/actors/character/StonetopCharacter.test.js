@@ -4,6 +4,8 @@ import {TestCharacterBuilder} from "../../fakes/TestCharacterBuilder.js";
 import {BLESSED_PLAYBOOK, HEAVY_PLAYBOOK, FakePlaybookRepository} from "../../fakes/FakePlaybookRepository.js";
 import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
 import {MoveDefinition} from "../../../module/model/MoveDefinition.js";
+import {treasureItemData} from "../../../module/utils/treasure-drops.js";
+import {buildInventoryItemData} from "../../../module/utils/inventory-item-data.js";
 
 // -- actor updates ------------------------------------------------------------
 
@@ -77,6 +79,60 @@ describe("StonetopCharacter.addDroppedInventoryItem", () => {
 				armor: { modifier: 1 },
 			},
 		}]);
+	});
+
+	it("carries a journal treasure's marker through the re-plant", async () => {
+		// This rebuild copies only the fields it names, so the isTreasure marker has to be
+		// carried explicitly — without it a dropped treasure is indistinguishable from a
+		// hand-written item and can't be grouped under "Treasures" on the gear tab.
+		const actor = new FakeActorBuilder().build();
+		const char = new TestCharacterBuilder(actor).build();
+
+		await char.addDroppedInventoryItem(treasureItemData({
+			name: "Brass sphere", section: "Ustrina", origin: "Brass sphere",
+			column: "regular", weight: 1, note: "magical", value: "2", uses: 3, usesLabel: "hours",
+		}));
+
+		const [, [created]] = actor.createEmbeddedDocuments.mock.calls[0];
+		expect(created.name).toBe("Brass sphere");
+		expect(created.system).toMatchObject({ moveType: "inventory-custom", isTreasure: true });
+	});
+
+	it("carries a journal treasure's art through the re-plant", async () => {
+		// A treasure resolves its illustration at DRAG time (there is no document to point at
+		// ahead of time), so the drop payload is the only thing carrying it. Rebuilding the
+		// item without img drops the picture for the sheet copy — the drop target that
+		// actually matters — leaving the whole art pipeline visible only in the Items sidebar.
+		const actor = new FakeActorBuilder().build();
+		const char = new TestCharacterBuilder(actor).build();
+
+		const dropped = treasureItemData({
+			name: "Brass sphere", section: "Ustrina", origin: "Brass sphere",
+			column: "regular", weight: 1, note: "magical", value: "2", uses: 3, usesLabel: "hours",
+		});
+		expect(dropped.img).toBeTruthy();       // the drag payload has art...
+		await char.addDroppedInventoryItem(dropped);
+
+		const [, [created]] = actor.createEmbeddedDocuments.mock.calls[0];
+		expect(created.img).toBe(dropped.img);  // ...and the embedded copy keeps it
+	});
+
+	it("leaves img off a drop that has none, so Foundry's default still applies", () => {
+		// Pinning img to null/"" would override the document default with an empty path.
+		expect(buildInventoryItemData({ name: "Rope" })).not.toHaveProperty("img");
+	});
+
+	it("does not mark an ordinary dropped item as a treasure", async () => {
+		const actor = new FakeActorBuilder().build();
+		const char = new TestCharacterBuilder(actor).build();
+
+		await char.addDroppedInventoryItem({
+			name: "Rope", type: "move", system: { moveType: "inventory" },
+			flags: { stonetop: { inventoryColumn: "regular", weight: 1 } },
+		});
+
+		const [, [created]] = actor.createEmbeddedDocuments.mock.calls[0];
+		expect(created.system.isTreasure).toBeUndefined();
 	});
 
 	it("creates small dropped inventory items in the small column without load weight", async () => {

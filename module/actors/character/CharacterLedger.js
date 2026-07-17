@@ -300,7 +300,10 @@ async function buildNameLookup(actor) {
 			...(outfit?.regularItems ?? []),
 			...(outfit?.smallItems ?? []),
 			...(outfit?.smallGridItems ?? []),
-			...(outfit?.arcanaItems ?? []),
+			...(outfit?.arcanaRegular ?? []),
+			...(outfit?.arcanaSmall ?? []),
+			...(outfit?.treasureRegular ?? []),
+			...(outfit?.treasureSmall ?? []),
 		]) {
 			if (!item?.slug) continue;
 			names.inventory.set(item.slug, stripHtml(item.name) ?? prettifySlug(item.slug));

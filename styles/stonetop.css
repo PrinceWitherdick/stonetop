@@ -3957,6 +3957,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    Name size matches the regular Items column (inherits --st-fs-base). */
 .stonetop-inv-item.stonetop-inv-small .stonetop-inv-label { white-space: nowrap; }
 
+/* A weightless (◇0) arcanum has nothing to mark, so it renders no checkbox at all
+   (see OutfitSnapshot.arcanaSmall) — which would hang its name a marker's width left
+   of every other row in the column and read as a broken list. Reserve that width:
+   the shared checkbox above is 15px on the font scale, plus the item row's 4px gap. */
+.stonetop-inv-item.stonetop-inv-static {
+	padding-left: calc(15px * var(--stonetop-font-scale, 1) + 4px);
+}
+
 .stonetop-inv-diamonds {
 	display: inline-flex;
 	align-items: center;
@@ -7213,6 +7221,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-outfit-item:hover { background: rgba(0,0,0,0.04); }
+
+/* A ◇0 arcanum has no checkbox (it costs nothing, so there is nothing to mark). Pad by the
+   checkbox's width + the row gap so its name still lines up with the markable rows above,
+   the same way .stonetop-inv-static does it on the gear tab. Not a pointer: nothing to click. */
+.stonetop-outfit-item.stonetop-outfit-item-static {
+	padding-left: calc(15px * var(--stonetop-font-scale, 1) + 4px + 2px);
+	cursor: default;
+}
+
+.stonetop-outfit-item.stonetop-outfit-item-static:hover { background: none; }
 
 .stonetop-outfit-item input[type="checkbox"] {
 	display: none;
@@ -15553,31 +15571,17 @@ li.question-bullet {
 /* --- Book II treasure drops -------------------------------------------------
    Treasures in the Artifacts / Curiosities / flora journal sections are made
    draggable inventory items by treasure-drops.js, and get a small badge showing
-   the ◇ load-weight and ○ uses the rulebook prints beside each one. */
-.st-treasure-line {
-	cursor: grab;
-	border-radius: var(--st-radius-sm, 4px);
-	transition: background-color .1s ease, box-shadow .1s ease;
-}
-.st-treasure-line:hover {
-	background: var(--st-blue-bg, rgba(80, 110, 140, .08));
-	box-shadow: -5px 0 0 var(--st-blue-border, #7c93a6);
-}
-.st-treasure-line:active {
-	cursor: grabbing;
-}
+   the ◇ load-weight and ○ uses the rulebook prints beside each one. The cell
+   surface these sit on is shared with the other journal draggables — see the
+   "Journal drag-cell idiom" block, which has to come later in the file to beat
+   the list rules that would otherwise re-indent the treasure <li>s. */
 .st-treasure-badge {
 	display: inline-flex;
 	align-items: baseline;
 	gap: .4em;
-	margin-left: .45em;
 	font-size: var(--st-fs-xs, .82em);
 	white-space: nowrap;
 	user-select: none;
-}
-.st-treasure-grip {
-	color: var(--st-text-faint, #9a8f7a);
-	cursor: grab;
 }
 .st-treasure-weight {
 	color: var(--st-blue-text, #3f5560);
@@ -15605,16 +15609,36 @@ li.question-bullet {
 	align-items: baseline;
 	gap: .32em;
 	padding: .05em .55em;
-	border: 1px solid var(--st-border, #cfc7b6);
+	border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
 	border-radius: var(--st-radius-pill, 20px);
 	cursor: grab;
 }
 .st-treasure-chip:hover {
-	background: var(--st-blue-bg, rgba(80, 110, 140, .1));
+	background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.st-treasure-chip:active {
+	cursor: grabbing;
 }
 .st-chip-label {
 	font-style: italic;
 	color: var(--st-text-secondary, #5c5140);
+}
+
+/* The badge hues are printed-page ink — a dark blue ◇ track, a darker green ○
+   track, grey labels — and all but vanish on a dark journal page, where the cell
+   around them now adapts. Lift them here rather than on the global --st-*-text
+   tokens, which plenty of light-only surfaces read and would drag with them. */
+.theme-dark .st-treasure-weight {
+	color: #9db8cc;
+}
+.theme-dark .st-treasure-uses {
+	color: #9ec98b;
+}
+.theme-dark .st-treasure-weight.st-small,
+.theme-dark .st-treasure-weight.st-immobile,
+.theme-dark .st-treasure-uses em,
+.theme-dark .st-chip-label {
+	color: color-mix(in srgb, currentColor 70%, transparent);
 }
 
 /* God / lore proper nouns in the character-creation prompts (Introductions dialog),
@@ -17213,7 +17237,133 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	color: #a33;
 }
 
-/* Stat-block list */
+/* === Journal drag-cell idiom ================================================
+   Everything you can drag out of a journal reads as the same cell: a tinted,
+   bordered surface with an accent stripe down its left edge, a leading icon or
+   thumbnail, a name row, and a body. Four kinds share it:
+
+     .st-treasure-line             Book II treasures      (utils/treasure-drops.js)
+     .stonetop-entry-statblock     bestiary stat blocks   (journal/StonetopBestiaryPageSheet.js)
+     .stonetop-journal-improvement steading improvements  (journal/steading-improvement-cards.js)
+     .stonetop-journal-threat      threat seeds           (threats/threat-seed-cards.js)
+
+   The improvement and threat cards' markup is BAKED INTO THE SHIPPED PACKS by
+   scripts/local/shared/gazetteer.mjs, so the idiom is expressed purely through
+   classes those cards already carry — no markup change, no pack rebuild, and no
+   drift between baked cards and ones authored in-app.
+
+   Surface and border derive from the journal's own text colour via color-mix, so
+   a cell reads on light and dark pages alike without hardcoding white/black;
+   only the accent hue needs a dark-mode lift. Each kind sets --st-cell-accent.
+
+   This block sits late in the file on purpose: `.stonetop-journal-body li` and
+   `.stonetop-monster-rich-text li` are the same specificity as `li.st-treasure-line`,
+   so only source order stops them re-indenting a treasure cell for a bullet it
+   no longer draws. */
+.st-treasure-line,
+.stonetop-entry-statblock,
+.stonetop-journal-improvement {
+	--st-cell-accent: color-mix(in srgb, currentColor 45%, transparent);
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 8px 12px;
+	border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+	border-left: 4px solid var(--st-cell-accent);
+	border-radius: var(--st-radius);
+	background: color-mix(in srgb, currentColor 6%, transparent);
+	transition: background-color .1s ease, border-color .1s ease;
+}
+
+/* Only a cell that actually carries the drag advertises the grab affordance —
+   a compound treasure's cell doesn't, its chips do. */
+.st-treasure-line[draggable="true"],
+.stonetop-entry-statblock[draggable="true"],
+.stonetop-journal-improvement[draggable="true"] {
+	cursor: grab;
+}
+
+.st-treasure-line[draggable="true"]:active,
+.stonetop-entry-statblock[draggable="true"]:active,
+.stonetop-journal-improvement[draggable="true"]:active {
+	cursor: grabbing;
+}
+
+.st-treasure-line[draggable="true"]:hover,
+.stonetop-entry-statblock[draggable="true"]:hover,
+.stonetop-journal-improvement[draggable="true"]:hover {
+	background: color-mix(in srgb, currentColor 11%, transparent);
+	border-color: color-mix(in srgb, currentColor 34%, transparent);
+	border-left-color: var(--st-cell-accent);
+}
+
+/* The name row is common to all four kinds. */
+.st-treasure-name,
+.stonetop-entry-statblock-name,
+.stonetop-journal-improvement-name {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+}
+
+/* --- Treasure cells --------------------------------------------------------
+   Unlike the other kinds, a treasure cell is built out of the book's own prose
+   line at render time, so the <li>/<p> the book printed IS the cell. */
+.st-treasure-line {
+	--st-cell-accent: var(--st-blue-border, #7c93a6);
+	margin: 0.5em 0;
+}
+
+/* The cell supplies its own leading grip, so drop the list spiral and reclaim
+   the indent the journal-body / rich-text list rules reserve for it. */
+li.st-treasure-line {
+	padding-left: 12px;
+}
+
+li.st-treasure-line::before {
+	content: none;
+}
+
+/* Ustrina prints each treasure as its own single-item <ul>; without this the
+   list padding insets every cell in that section relative to the others. */
+ul:has(> li.st-treasure-line:only-child) {
+	padding-left: 0;
+}
+
+.st-treasure-grip {
+	flex-shrink: 0;
+	margin-top: 0.25em;
+	color: var(--st-cell-accent);
+	cursor: inherit;
+}
+
+/* The cell's parts are <span>s (they live inside the book's own <li>/<p>, and a <div> in a
+   <p> is invalid), so each states its own display rather than inheriting a <div>'s. */
+.st-treasure-cell-body {
+	display: block;
+	flex: 1;
+	min-width: 0;
+}
+
+.st-treasure-cell-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.st-treasure-desc {
+	display: block;
+	margin-top: 4px;
+	font-size: var(--st-fs-sm);
+	color: color-mix(in srgb, currentColor 80%, transparent);
+}
+
+.theme-dark .st-treasure-line {
+	--st-cell-accent: #9db8cc;
+}
+
+/* --- Bestiary stat-block cells --------------------------------------------- */
 .stonetop-entry-statblock-list {
 	list-style: none;
 	margin: 0;
@@ -17224,28 +17374,18 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 .stonetop-entry-statblock {
-	display: flex;
 	align-items: center;
-	gap: 10px;
-	padding: 6px 8px;
-	border: 1px solid rgba(0,0,0,0.15);
-	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.25);
 }
 
-.stonetop-entry-statblock[draggable="true"] {
-	cursor: grab;
-}
-
-.stonetop-entry-statblock[draggable="true"]:active {
-	cursor: grabbing;
+.theme-dark .stonetop-entry-statblock {
+	--st-cell-accent: color-mix(in srgb, currentColor 55%, transparent);
 }
 
 .stonetop-entry-statblock-img {
 	width: 40px;
 	height: 40px;
 	object-fit: cover;
-	border: 1px solid var(--color-border-dark, #888);
+	border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
 	border-radius: var(--st-radius-sm);
 	flex-shrink: 0;
 }
@@ -17257,15 +17397,15 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	flex: 1;
 }
 
+/* Font/weight come from the shared cell name rule; the pointer is this kind's
+   own, since the name is an enriched @UUID link that opens the actor sheet. */
 .stonetop-entry-statblock-name {
-	font-family: var(--font-stonetop);
-	font-weight: bold;
 	cursor: pointer;
 }
 
 .stonetop-entry-statblock-meta {
 	font-size: var(--st-fs-sm);
-	color: var(--color-text-dark-secondary);
+	color: color-mix(in srgb, currentColor 70%, transparent);
 }
 
 .stonetop-entry-statblock-controls {
@@ -17284,26 +17424,24 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 /* Draggable "Steading Improvement" cards baked into journal prose by the gazetteer
-   generator (scripts/local/shared/gazetteer.mjs). Styled like the bestiary stat-block
-   cards; dragging one onto the Stonetop steading sheet adds it as a tracked custom
-   improvement (module/journal/steading-improvement-cards.js). */
+   generator (scripts/local/shared/gazetteer.mjs); dragging one onto the Stonetop
+   steading sheet adds it as a tracked custom improvement (module/journal/
+   steading-improvement-cards.js).
+
+   Surface, border, stripe and padding come from the shared cell idiom above, so a
+   card only needs its own accent hue and vertical rhythm here. It stacks
+   head-over-body rather than sitting in the cells' icon+body row, because its icon
+   is baked inside the head — hence `block`, overriding the idiom's `flex`. */
 .stonetop-journal-improvement {
-	/* Theme-agnostic surface: tint and border are derived from the journal's own
-	   text colour, so the card reads on both light and dark pages without hardcoded
-	   white/black. The accent is a local var so dark mode can lighten just the hue. */
-	--st-improvement-accent: var(--stonetop-improvement-accent);
-	border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
-	border-left: 4px solid var(--st-improvement-accent);
-	border-radius: var(--st-radius);
-	background: color-mix(in srgb, currentColor 6%, transparent);
-	padding: 8px 12px;
+	--st-cell-accent: var(--stonetop-improvement-accent);
+	display: block;
 	margin: 0.9em 0;
 }
 
 /* The book accent (#7a5c2e) is too dark to read on a dark journal page; lighten
    the stripe + icon to a warm tan. Surface/border already adapt via currentColor. */
 .theme-dark .stonetop-journal-improvement {
-	--st-improvement-accent: #c9a063;
+	--st-cell-accent: #c9a063;
 }
 
 /* On a dark page the requirement headings' #444 is nearly invisible; match the
@@ -17328,7 +17466,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 .stonetop-journal-improvement-head > i {
-	color: var(--st-improvement-accent);
+	color: var(--st-cell-accent);
 	flex-shrink: 0;
 }
 
@@ -17344,11 +17482,10 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	color: color-mix(in srgb, currentColor 60%, transparent);
 }
 
+/* Font/weight come from the shared cell name rule. */
 .stonetop-journal-improvement-name {
 	order: 1;
 	flex: 1 1 auto;
-	font-family: var(--font-stonetop);
-	font-weight: bold;
 	font-size: var(--st-fs-lg);
 }
 
@@ -17370,11 +17507,11 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
    Threats tab. Overriding the accent var re-tints the stripe, icon, and dark-mode
    hue that the base rules already read from it. */
 .stonetop-journal-threat {
-	--st-improvement-accent: #6e3b3b;
+	--st-cell-accent: #6e3b3b;
 }
 
 .theme-dark .stonetop-journal-threat {
-	--st-improvement-accent: #c98b8b;
+	--st-cell-accent: #c98b8b;
 }
 
 .stonetop-journal-threat-meta {
@@ -17450,7 +17587,7 @@ th:has(> .stonetop-roll-table-btn) {
 	display: inline-flex;
 	align-items: center;
 	margin-right: 0.4em;
-	color: var(--st-improvement-accent, var(--stonetop-improvement-accent));
+	color: var(--st-cell-accent, var(--stonetop-improvement-accent));
 	cursor: pointer;
 	text-decoration: none;
 	vertical-align: baseline;

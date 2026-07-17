@@ -93,6 +93,7 @@
         "loadHeavy": "<strong>Heavy load</strong> — noisy, slow, quick to tire",
         "packHorseNote": "Your <em><strong>Pack Horse</strong></em> raises each load by 1: up to 4 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> light, 7 normal, 10 heavy.",
         "arcanaItems": "Arcana",
+        "treasureItems": "Treasures",
         "smallItemLimit": "Mark up to <strong>{limit}</strong> small items (4+Prosperity)",
         "confirm": "Confirm Outfit",
         "totalWeight": "<span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> marked",
@@ -146,6 +147,7 @@
     "inventory": {
       "regularItems": "Items",
       "arcanaItems": "Arcana",
+      "treasureItems": "Treasures",
       "searchLabel": "Search items",
       "searchPlaceholder": "Filter items…",
       "searchSmallLabel": "Search small items",

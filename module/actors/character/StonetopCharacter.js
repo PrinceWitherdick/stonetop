@@ -762,7 +762,12 @@ export class StonetopCharacter {
 			const column = item.system?.inventoryColumn === "regular" ? "regular" : "small";
 			return inferredGrantSources.get(`${column}:${item.name}`) ?? null;
 		};
-		const writeInItems    = customItems.filter(i => !i.system?.sourcePossession && !inferredGrantFor(i));
+		// Book II treasures dragged in from a journal are write-ins too, but they get their
+		// own "Treasures" heading in each column rather than sitting among the hand-written
+		// items — so subtract them from the catch-all here, or they'd render in both places.
+		const isWriteIn       = i => !i.system?.sourcePossession && !inferredGrantFor(i);
+		const writeInItems    = customItems.filter(i => isWriteIn(i) && !i.system?.isTreasure);
+		const treasureItems   = customItems.filter(i => isWriteIn(i) && !!i.system?.isTreasure);
 		const possessionItems = customItems.filter(i =>
 			(i.system?.sourcePossession && activePossessionSlugs.has(i.system.sourcePossession)) ||
 			(!i.system?.sourcePossession && !!inferredGrantFor(i)));
@@ -799,19 +804,39 @@ export class StonetopCharacter {
 			i.special && commonSpecialSet.has(i.slug) && !addedSpecialSet.has(i.slug) && !possessionSpecialSet.has(i.slug));
 		const standardItems        = allItems.filter(i => !i.special);
 
-		const arcanaItems = await this._arcana.weightedInventoryItems();
-		const arcanaSection = arcanaItems.filter(i => i.inventoryColumn === "arcana").map(mapItem);
 		const allSmall = standardItems.filter(i => i.inventoryColumn === "small");
-		const regularNonArcana = [
+		const flatRegular = [
 			...standardItems.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...addedSpecial.filter(i => i.inventoryColumn === "regular").map(mapAddedSpecial),
 			...possessionSpecial.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...commonSpecial.filter(i => i.inventoryColumn === "regular").map(mapItem),
 			...writeInItems.filter(i => i.system.inventoryColumn === "regular").map(mapCustomItem),
 		];
-		const regularArcana = arcanaItems.filter(i => i.inventoryColumn === "regular").map(mapItem);
-		if (regularArcana.length > 0 && regularNonArcana.length > 0) regularArcana[0].breakBefore = true;
-		const flatRegular = [...regularNonArcana, ...regularArcana];
+
+		// Every arcanum a character owns renders in the Arcana section, split across the
+		// columns by WEIGHT rather than by its authored `inventoryColumn`. That field only
+		// looks like a placement decision: "arcana" is never authored, it's just the
+		// fallback for "the author didn't say" (CharacterArcana.weightedInventoryItems),
+		// which today coincides exactly with weight 0. Reading the weight states the rule
+		// directly and keeps a homebrew card that pairs a weight with the default column
+		// out of the weightless half.
+		//   ◇ ones  → left, markable, counted toward load like any carried gear.
+		//   ◇0 ones → right, alongside the small items, but INERT: they were never
+		//             markable (`times 0` renders no checkbox), so they cost nothing and
+		//             must not start eating the 4+Prosperity small allowance.
+		const arcanaAll     = await this._arcana.weightedInventoryItems();
+		const arcanaRegular = arcanaAll.filter(i => (i.weight ?? 0) > 0).map(mapItem);
+		const arcanaSmall   = arcanaAll.filter(i => (i.weight ?? 0) <= 0).map(mapItem);
+
+		// Treasures render under their own heading in whichever column their weight puts
+		// them — ◇ ones on the left, pocket-sized ones on the right — so the group reads as
+		// one thing while each item stays in its weight-correct column. Kept out of
+		// flatRegular / smallItems above; folded back into the load and small-allowance
+		// accounting below, exactly like possession gear.
+		const treasureRegular = treasureItems
+			.filter(i => i.system.inventoryColumn === "regular").map(i => mapCustomItem(i));
+		const treasureSmall   = treasureItems
+			.filter(i => i.system.inventoryColumn !== "regular").map(i => mapCustomItem(i));
 
 		let possessions = null;
 		if (playbookData?.specialPossessions) {
@@ -868,8 +893,9 @@ export class StonetopCharacter {
 		// directly just re-derives it, matching the book's "count what you've marked."
 		// Possession ◇ gear (grantedRegularAll) renders inside the possession cards now, not
 		// the Items column, but still counts toward load — so fold it in here alongside the
-		// column items and arcana.
-		const allRegularForLoad    = [...flatRegular, ...arcanaSection, ...grantedRegularAll];
+		// column items and arcana. Treasures (treasureRegular) sit under their own heading
+		// for the same reason and count the same way: a marked treasure is still carried.
+		const allRegularForLoad    = [...flatRegular, ...arcanaRegular, ...grantedRegularAll, ...treasureRegular];
 		const checkedRegularWeight = allRegularForLoad
 			.filter(i => i.checked).reduce((sum, i) => sum + (i.weight ?? 0), 0);
 		// The undefined pool can hold whatever's left under the heavy cap; the stored
@@ -904,14 +930,17 @@ export class StonetopCharacter {
 			...possessionSmall.filter(i => !i.smallGrid).map(mapItem),
 			...commonSmall.filter(i => !i.smallGrid).map(mapItem),
 			...writeInItems.filter(i => i.system.inventoryColumn === "small").map(mapCustomItem),
-			...arcanaItems.filter(i => i.inventoryColumn === "small").map(mapItem),
 		];
 		const smallGridItems = allSmall.filter(i => i.smallGrid).map(mapItem);
 
 		// Small marks are likewise derived: the undefined □ pool fills the room left
 		// under the 4+Prosperity Outfit allotment after checked small items. Possession
-		// small gear (grantedSmallAll) lives in the possession cards but still counts here.
-		const checkedSmallCount = [...smallItems, ...smallGridItems, ...grantedSmallAll].filter(i => i.checked).length;
+		// small gear (grantedSmallAll) and pocket-sized treasures (treasureSmall) live
+		// outside the list but still eat the allowance. Weightless arcana (arcanaSmall)
+		// deliberately do NOT: they merely sit in this column, and have never cost a
+		// player anything — counting them now would silently shrink the allowance for
+		// every card owned.
+		const checkedSmallCount = [...smallItems, ...smallGridItems, ...grantedSmallAll, ...treasureSmall].filter(i => i.checked).length;
 		const smallPoolMax     = Math.max(0, (smallItemLimit ?? 9) - checkedSmallCount);
 		const smallPoolCurrent = Math.min(sPool, smallPoolMax);
 		// Like the ◇ track, the □ track always shows the full 4+Prosperity allotment, so
@@ -928,7 +957,10 @@ export class StonetopCharacter {
 			.withSmallGridItems(smallGridItems)
 			.withSmallPool(new ResourceBuilder().withCurrent(smallPoolCurrent).withMax(smallPoolSlots).withTitle(null).withLabels([]).build())
 			.withSmallPoolCap(smallPoolMax)
-			.withArcanaItems(arcanaSection)
+			.withArcanaRegular(arcanaRegular)
+			.withArcanaSmall(arcanaSmall)
+			.withTreasureRegular(treasureRegular)
+			.withTreasureSmall(treasureSmall)
 			.withSmallItemLimit(smallItemLimit)
 			.withSteadingName(steadingName)
 			.withHasPackHorse(hasPackHorse)
@@ -1192,30 +1224,40 @@ export class StonetopCharacter {
 		await this._actor.createEmbeddedDocuments("Item", [data]);
 	}
 
+	/**
+	 * Re-plant a dragged inventory Item (from the sidebar, or a Book II journal treasure)
+	 * as an actor-embedded "inventory-custom" copy. A drop carries its gear metadata in
+	 * `flags.stonetop` or `system` depending on where it came from, so resolve each field
+	 * from whichever source has it and hand the result to the one shared builder — that
+	 * way a new inventory field only has to be taught to buildInventoryItemData.
+	 */
 	async addDroppedInventoryItem(itemData) {
 		const st = itemData?.flags?.[ITEM_FLAG_SCOPE] ?? {};
-		const rawColumn = st.inventoryColumn ?? itemData?.system?.inventoryColumn ?? st.column ?? itemData?.system?.column;
-		const inventoryColumn = rawColumn === "regular" ? "regular" : "small";
-		const system = {
+		const sys = itemData?.system ?? {};
+		const clone = v => globalThis.foundry?.utils?.deepClone?.(v) ?? v;
+		const rawColumn = st.inventoryColumn ?? sys.inventoryColumn ?? st.column ?? sys.column;
+		const resource = st.resource ?? sys.resource;
+		const armor = st.armor ?? sys.armor;
+		const data = buildInventoryItemData({
+			name: itemData?.name,
+			// A drop's column is untrusted; anything but an explicit "regular" reads as small.
+			column: rawColumn === "regular" ? "regular" : "small",
+			weight: st.weight ?? sys.weight ?? 1,
+			note: st.note ?? sys.note ?? "",
+			resource: resource ? clone(resource) : null,
+			armor: armor ? clone(armor) : null,
 			moveType: "inventory-custom",
-			inventoryColumn,
-		};
-		if (inventoryColumn === "regular") {
-			const weight = Number(st.weight ?? itemData?.system?.weight ?? 1);
-			system.weight = Math.max(1, Number.isFinite(weight) ? weight : 1);
-		}
-		const note = st.note ?? itemData?.system?.note;
-		if (note) system.note = note;
-		const resource = st.resource ?? itemData?.system?.resource;
-		if (resource) system.resource = globalThis.foundry?.utils?.deepClone?.(resource) ?? resource;
-		const armor = st.armor ?? itemData?.system?.armor;
-		if (armor) system.armor = globalThis.foundry?.utils?.deepClone?.(armor) ?? armor;
-
-		await this._actor.createEmbeddedDocuments("Item", [{
-			name: itemData?.name?.trim?.() || itemData?.name || "New Item",
-			type: "move",
-			system,
-		}]);
+			// A Book II treasure keeps its marker through the re-plant, so the gear tab can
+			// group it under "Treasures" rather than among the write-ins.
+			isTreasure: !!(st.isTreasure ?? sys.isTreasure),
+			// And its art: a treasure resolves its illustration at drag time (there is no
+			// document to point at ahead of time), so the drop payload is the only place
+			// that carries it. Rebuilding the item without this drops the picture on the
+			// floor for the sheet copy — the drop target that actually matters — and leaves
+			// the whole art pipeline visible only in the Items sidebar.
+			img: itemData?.img ?? null,
+		});
+		await this._actor.createEmbeddedDocuments("Item", [data]);
 	}
 
 	async removeCustomInventoryItem(itemId) {
