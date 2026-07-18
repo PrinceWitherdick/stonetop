@@ -49,7 +49,9 @@ class FakeEl {
 
 beforeAll(() => {
 	global.document = { createElement: (tag) => new FakeEl(tag) };
-	global.game = { ...(global.game ?? {}), user: { id: "u1" } };
+	// generation 14: deletionEntry uses a ForcedDeletion instance to unset a check (the
+	// v14 path this suite's toggle-off assertion exercises); below it, the `-=` leaf form.
+	global.game = { ...(global.game ?? {}), user: { id: "u1" }, release: { generation: 14 } };
 });
 
 function makePage({ checks = {}, editable = true, inCompendium = false, pack } = {}) {

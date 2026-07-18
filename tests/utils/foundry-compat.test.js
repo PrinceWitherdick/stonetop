@@ -3,11 +3,13 @@ import { deletionEntry, getDragEventData } from "../../module/utils/foundry-comp
 
 describe("deletionEntry", () => {
 	afterEach(() => {
-		// Restore the v13+ operator class that tests/setup.js installs.
+		// Restore the operator class that tests/setup.js installs, and clear the version stub.
 		globalThis.foundry = { ...(globalThis.foundry ?? {}), data: { operators: { ForcedDeletion: class ForcedDeletion {} } } };
+		delete globalThis.game;
 	});
 
-	it("uses a fresh ForcedDeletion INSTANCE on v13+ (key path unchanged)", () => {
+	it("uses a fresh ForcedDeletion INSTANCE on v14+ (key path unchanged)", () => {
+		globalThis.game = { release: { generation: 14 } };
 		const ForcedDeletion = foundry.data.operators.ForcedDeletion;
 		const [key, val] = deletionEntry("flags.stonetop.checks.c1");
 		expect(key).toBe("flags.stonetop.checks.c1");
@@ -20,7 +22,17 @@ describe("deletionEntry", () => {
 		expect(val2).toBeInstanceOf(ForcedDeletion);
 	});
 
+	it("uses the `-=leaf`/null form on v13 even though the operator class exists", () => {
+		// v13 exposes ForcedDeletion but doesn't apply a nested one via update() — the key
+		// would silently survive. Gate on the running generation, not the class's presence.
+		globalThis.game = { release: { generation: 13 } };
+		expect(foundry.data.operators.ForcedDeletion).toBeTypeOf("function");
+		expect(deletionEntry("flags.stonetop.checks.c1")).toEqual(["flags.stonetop.checks.-=c1", null]);
+		expect(deletionEntry("flags.stonetop.customFollowers.abc123")).toEqual(["flags.stonetop.customFollowers.-=abc123", null]);
+	});
+
 	it("falls back to the legacy `-=leaf`/null form on v12 (no sentinel)", () => {
+		globalThis.game = { release: { generation: 12 } };
 		foundry.data.operators = undefined;
 		expect(deletionEntry("flags.stonetop.checks.c1")).toEqual(["flags.stonetop.checks.-=c1", null]);
 		expect(deletionEntry("flags.stonetop.arcana.minorDraw")).toEqual(["flags.stonetop.arcana.-=minorDraw", null]);

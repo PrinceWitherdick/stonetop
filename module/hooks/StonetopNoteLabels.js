@@ -1,32 +1,35 @@
 // Make Stonetop map-note labels legible over busy hand-drawn maps.
 //
-// Our lettered Place-of-Interest discs and threat/hazard pins label themselves in dark
-// ink (#1b1009) to match the parchment aesthetic. Core Foundry (Note#_getTextStyle) only
-// gives such dark text a thin, fixed 4px white outline, so on the illustrated Stonetop
-// maps the name (e.g. "The Granary") sinks into the surrounding line art and is hard to
-// read on hover.
+// Our lettered Place-of-Interest discs and threat/hazard pins label themselves on hover.
+// Core Foundry (Note#_getTextStyle) only gives the name a thin 4px outline, so on the
+// illustrated Stonetop maps a name like "The Granary" sinks into the surrounding line art
+// and is hard to read.
 //
-// The cartographer's fix is a text halo: a thick, warm paper-coloured knockout that lifts
-// the letters off whatever they sit on, plus a soft shadow for definition on the lightest
-// parchment. Core recomputes the tooltip style on every refresh (Note#_refreshTooltip
-// re-assigns tooltip.style = this._getTextStyle()), so a one-off post-draw tweak would be
-// wiped on the next hover/refresh. Instead we shadow the instance's _getTextStyle with a
-// wrapper that layers the halo onto core's style, so it survives every refresh.
+// The fix is the classic map/subtitle treatment: a translucent black "pill" behind the
+// label with light (cream) text on top, so the name reads no matter what it sits over.
+// Two seams over core, both scoped to our notes and surviving every refresh:
+//   1. Shadow the instance's _getTextStyle so the label paints in cream (dark ink would
+//      vanish on the pill). Core recomputes the style on every refresh, so we wrap the
+//      instance method rather than mutating the drawn style once.
+//   2. Add a PIXI.Graphics pill behind the tooltip, redrawn to the tooltip's bounds in a
+//      wrapped _refreshTooltip and shown/hidden with it in a wrapped _refreshState.
 //
-// We claim a note by its icon path rather than a flag so notes already placed in a world
+// We claim a note by its icon path rather than a flag, so notes already placed in a world
 // (like the user's existing Granary pin) are restyled immediately, with no data migration.
 
-// Icon families we own; any note textured from one of these gets the halo treatment.
+// Icon families we own; any note textured from one of these gets the pill treatment.
 const _OUR_NOTE_ICONS = [
 	"systems/stonetop_pwd/assets/icons/landmarks/", // Place-of-Interest lettered discs
 	"systems/stonetop_pwd/assets/icons/threat-note.svg", // threat + hazard pins
 ];
 
-// Warm off-white knockout, a touch brighter than the parchment so the halo reads as paper
-// rather than the pure-white core default (which looks stark on a hand-drawn map).
-const _LABEL_HALO_COLOR = "#f8f1df";
-// Faint ink-brown glow (distance 0 = symmetric) to define the label on the lightest paper.
-const _LABEL_SHADOW_COLOR = "#2a1a0d";
+const _LABEL_TEXT_COLOR = "#f7efdc"; // warm cream, reads on the dark pill
+const _LABEL_STROKE_COLOR = 0x1b1009; // faint ink edge keeps letters crisp on light patches
+const _PILL_COLOR = 0x000000;
+const _PILL_ALPHA = 0.55; // see-through: darkens the clutter without hiding the map
+const _PILL_RADIUS = 10;
+const _PILL_PAD_X = 16;
+const _PILL_PAD_Y = 6;
 
 /** True when this note is one of ours, judged by its icon texture. */
 function _isStonetopMapNote(noteDoc) {
@@ -35,37 +38,84 @@ function _isStonetopMapNote(noteDoc) {
 	return _OUR_NOTE_ICONS.some((prefix) => src.includes(prefix));
 }
 
-/** Layer a thick paper halo + soft shadow onto core's tooltip style, in place. */
-function _applyLabelHalo(style, fontSize) {
-	const size = Number(fontSize) || 44;
-	style.stroke = _LABEL_HALO_COLOR;
-	// Scale the halo to the label so big Place-of-Interest names and smaller pin labels
-	// both get a comparable paper cushion; round joins keep thick strokes from spiking.
-	style.strokeThickness = Math.max(8, Math.round(size / 6));
+/** Cream fill + thin ink edge; layered onto core's computed tooltip style, in place. */
+function _labelTextStyle(style) {
+	style.fill = _LABEL_TEXT_COLOR;
+	style.stroke = _LABEL_STROKE_COLOR;
+	style.strokeThickness = 2;
 	style.lineJoin = "round";
-	style.dropShadow = true;
-	style.dropShadowColor = _LABEL_SHADOW_COLOR;
-	style.dropShadowAlpha = 0.35;
-	style.dropShadowBlur = 4;
-	style.dropShadowAngle = 0;
-	style.dropShadowDistance = 0;
 	return style;
 }
 
-/** drawNote hook: give our map labels a readable paper halo that survives refreshes. */
+/** Get (re)the pill Graphics for a note, recreating it after a redraw destroys children. */
+function _ensurePill(note) {
+	let bg = note._stonetopLabelBg;
+	if (bg && !bg.destroyed && bg.parent === note) return bg;
+	bg = new PIXI.Graphics();
+	bg.eventMode = "none";
+	note._stonetopLabelBg = bg;
+	// Insert right behind the tooltip so the pill sits under the text but over the map.
+	const tip = note.tooltip;
+	const idx = tip ? note.getChildIndex(tip) : note.children.length;
+	note.addChildAt(bg, Math.max(0, idx));
+	return bg;
+}
+
+/** Redraw the pill to the tooltip's current bounds/position and match its visibility. */
+function _redrawPill(note) {
+	const tip = note.tooltip;
+	if (!tip) return;
+	const bg = _ensurePill(note);
+	bg.clear();
+	// tooltip.width/height include the stroke; anchor shifts where the glyphs land
+	// relative to tooltip.position, so back it out to find the text's top-left.
+	const tw = tip.width;
+	const th = tip.height;
+	if (!tw || !th) {
+		bg.visible = false;
+		return;
+	}
+	const left = tip.position.x - tip.anchor.x * tw;
+	const top = tip.position.y - tip.anchor.y * th;
+	bg.beginFill(_PILL_COLOR, _PILL_ALPHA);
+	bg.drawRoundedRect(left - _PILL_PAD_X, top - _PILL_PAD_Y, tw + 2 * _PILL_PAD_X, th + 2 * _PILL_PAD_Y, _PILL_RADIUS);
+	bg.endFill();
+	bg.visible = tip.visible;
+}
+
+/** drawNote hook: cream label on a translucent pill, glued to the tooltip across refreshes. */
 export function onDrawStonetopNote(note) {
-	if (!note || note._stonetopLabelStyled) return;
+	if (!note) return;
 	if (typeof note._getTextStyle !== "function") return;
 	if (!_isStonetopMapNote(note.document)) return;
 
-	const baseGetTextStyle = note._getTextStyle.bind(note);
-	note._getTextStyle = function () {
-		const style = baseGetTextStyle();
-		return _applyLabelHalo(style, this.document?.fontSize);
-	};
-	note._stonetopLabelStyled = true;
+	// Wrap the instance methods once; the pill graphic itself is (re)built below so it
+	// survives a redraw (which destroys children but keeps these instance overrides).
+	if (!note._stonetopLabelStyled) {
+		const baseGetTextStyle = note._getTextStyle.bind(note);
+		note._getTextStyle = function () {
+			return _labelTextStyle(baseGetTextStyle());
+		};
 
-	// The first draw already built the tooltip with core's style (drawNote fires after
-	// _draw); re-style it now so the halo shows without waiting for a refresh.
+		const baseRefreshTooltip = note._refreshTooltip.bind(note);
+		note._refreshTooltip = function () {
+			baseRefreshTooltip();
+			_redrawPill(this);
+		};
+
+		const baseRefreshState = note._refreshState.bind(note);
+		note._refreshState = function () {
+			baseRefreshState();
+			const bg = this._stonetopLabelBg;
+			if (bg && !bg.destroyed) bg.visible = this.tooltip?.visible ?? false;
+		};
+
+		note._stonetopLabelStyled = true;
+	}
+
+	// Apply now and on every redraw: the first draw built the tooltip with core's style. Guard
+	// against a note that has no tooltip (core normally builds one in _draw, but a null here
+	// would throw and break the whole drawNote hook); _redrawPill no-ops on a missing tooltip.
 	if (note.tooltip) note.tooltip.style = note._getTextStyle();
+	_redrawPill(note);
 }

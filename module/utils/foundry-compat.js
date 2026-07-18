@@ -28,18 +28,23 @@ export async function enrichHTML(value, options) {
 }
 
 /**
- * Build the `document.update()` entry that deletes `keyPath`. v13+ wants a fresh
- * `new ForcedDeletion()` INSTANCE as the value at the key (the core removes a key
- * only when its value is `instanceof ForcedDeletion`); it warns on the legacy `-=`
- * syntax. v12 has no such operator and only understands `-=`. Returns
- * `[updateKey, value]` for whichever form this core exposes, so callers stay
- * correct across v12–v14.
+ * Build the `document.update()` entry that deletes `keyPath`. Only **v14+** removes a
+ * key when the update value is a fresh `new ForcedDeletion()` INSTANCE (the core deletes
+ * a key only when its value is `instanceof ForcedDeletion`), and only v14+ warns on the
+ * legacy `-=` syntax. v13 exposes the same operator class, but a nested ForcedDeletion
+ * value passed to `Document#update` for an object-typed flag is NOT applied there — the
+ * key silently survives with no error (this is why followers wouldn't delete/hand off on
+ * v13). v13 and earlier delete reliably via the `-=` leaf-key prefix, which the codebase
+ * already uses directly elsewhere. So reach for the operator only on v14+ (gated on the
+ * running generation, not merely the class's existence) and use `-=` below it. Returns
+ * `[updateKey, value]` for whichever form this core actually applies.
  * @param {string} keyPath  Dotted path to the key to delete (e.g. "flags.stonetop.checks.c1").
  * @returns {[string, *]}
  */
 export function deletionEntry(keyPath) {
 	const ForcedDeletion = foundry.data?.operators?.ForcedDeletion;
-	if (ForcedDeletion) return [keyPath, new ForcedDeletion()];
+	const generation = Number(globalThis.game?.release?.generation) || 0;
+	if (ForcedDeletion && generation >= 14) return [keyPath, new ForcedDeletion()];
 	const i = keyPath.lastIndexOf(".");
 	return [`${keyPath.slice(0, i + 1)}-=${keyPath.slice(i + 1)}`, null];
 }

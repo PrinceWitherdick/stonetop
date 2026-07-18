@@ -531,7 +531,7 @@ export function createStonetopMonsterSheetClass(Base) {
 		 * the original base — the base is never one boosted value layered on another.
 		 * Armor change and flag are written in a single update so the sheet repaints
 		 * once. The flag delete goes through `deletionEntry` so it uses whichever
-		 * delete form the running core wants (ForcedDeletion on v13+, `-=` otherwise).
+		 * delete form the running core actually applies (ForcedDeletion on v14+, `-=` below).
 		 *
 		 * @param {Item}   item   the monsterMove being toggled
 		 * @param {number} value  the Armor value its name grants

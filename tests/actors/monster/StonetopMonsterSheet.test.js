@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createStonetopMonsterSheetClass } from "../../../module/actors/monster/StonetopMonsterSheet.js";
 
 function makeItems(items) {
@@ -21,6 +21,13 @@ function makeSheet(actor, { editable = true } = {}) {
 }
 
 describe("StonetopMonsterSheet", () => {
+	// deletionEntry only reaches for a ForcedDeletion INSTANCE on v14+ (below that it uses
+	// the "-=leaf" key form), so stub the running generation to the target version — the
+	// armor-boost delete tests assert the v14 ForcedDeletion form.
+	let _savedGame;
+	beforeEach(() => { _savedGame = globalThis.game; globalThis.game = { ...(globalThis.game ?? {}), release: { generation: 14 } }; });
+	afterEach(() => { globalThis.game = _savedGame; });
+
 	it("returns only monster moves in sheet data", async () => {
 		const actor = {
 			system: { concept: "tree-dwelling menace" },
@@ -654,8 +661,8 @@ describe("StonetopMonsterSheet", () => {
 
 		await sheet._toggleArmorBoost({ id: "m1", name: "Withdraw into its shell (Armor 5)" }, 5);
 
-		// The flag delete goes through deletionEntry; on v13+ (ForcedDeletion present
-		// in the test env) that's a fresh instance on the unchanged key path.
+		// The flag delete goes through deletionEntry; on v14+ (ForcedDeletion applied
+		// via update()) that's a fresh instance on the unchanged key path.
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.armor.value": 3,
 			"flags.stonetop_pwd.armorBoost": expect.any(foundry.data.operators.ForcedDeletion),

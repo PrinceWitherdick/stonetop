@@ -114,14 +114,17 @@ export const damageBadge = () => rollKindBadge("Damage", "fa-heart-crack", "dama
  * The card shell with a title row. Most cards want this; use {@link stonetopCardShell}
  * directly when the message's speaker alias already names the card.
  * @param {string|string[]} title  Card header text (escaped here). An array renders its
- *                                  parts on separate lines — e.g. a journal roll table's
- *                                  page / section / table breadcrumb.
+ *                                  parts on separate lines — the first bold, the rest in
+ *                                  normal weight — e.g. a journal roll table's page /
+ *                                  section / table breadcrumb.
  * @param {string} innerHtml   Body markup placed inside the cell, after the title.
  * @param {string} [sectionClass]  Extra class(es) for the <section>.
  * @param {string} [titleBadge]    Raw badge markup (e.g. {@link damageBadge}) placed at the title row's right edge.
  */
 export function stonetopChatCard(title, innerHtml, sectionClass = "", titleBadge = "") {
-	const titleHtml = Array.isArray(title) ? title.map(escHtml).join("<br>") : escHtml(title);
+	const titleHtml = Array.isArray(title)
+		? title.map((t, i) => i === 0 ? escHtml(t) : `<span class="stonetop-chat-title-sub">${escHtml(t)}</span>`).join("<br>")
+		: escHtml(title);
 	return stonetopCardShell(
 		`<div class="chat-title row flexrow"><h2 class="cell__title">${titleHtml}</h2>${titleBadge}</div>${innerHtml}`,
 		sectionClass,

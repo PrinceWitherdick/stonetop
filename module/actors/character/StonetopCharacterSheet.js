@@ -1830,6 +1830,10 @@ export function createStonetopCharacterSheetClass(Base) {
 						isFollower:   true,
 						removable:    true,
 						party:        !!c?.party,
+						// A follower marked "Dead" from the 0-HP fate dialog keeps its card as a
+						// record (greyed out, with a Remove button), until the player clears it or
+						// revives them. See _resolveFollowerFate / the HP-change revival clear.
+						dead:         !!c?.dead,
 						hpMax,
 						hpCurrent:    _clampHp(c?.hpCurrent, hpMax),
 						armor:        parseFollowerArmor(c?.armor),
@@ -3972,6 +3976,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				const wasAlive = fateEligible
 					&& Number(this.actor.getFlag("stonetop_pwd", fateHpPaths[follower])) !== 0;
 				await this._setFollowerHp(follower, slug, index, val);
+				// Reviving a fallen custom follower (HP back above 0) clears its "dead" mark so
+				// the card returns to normal — a mirror of the fate dialog's "Dead" outcome.
+				if (follower === "custom" && slug && val > 0
+					&& this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}.dead`)) {
+					await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.dead`]: false });
+				}
 				// Capture the follower's display name off the live card BEFORE the
 				// re-render detaches this input from the DOM.
 				const fateName = wasAlive
@@ -3988,7 +3998,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Loyal to the End is the Ranger's animal-companion move (p.469 → p.143):
 					// it replaces the standard fate choice, and only the companion gets it.
 					new FollowerFateDialog(this.actor, { name: fateName, loyalty, isAnimalCompanion: follower === "animal-companion" },
-						(action) => this._resolveFollowerFate(action, { name: fateName, loyalty }),
+						(action) => this._resolveFollowerFate(action, { name: fateName, loyalty, follower, slug }),
 					).render(true);
 				}
 			}, true);
@@ -5145,7 +5155,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		// (advantage if it holds Loyalty) and the result card carries the 10+/7-9/6-
 		// outcome. Every other follower's "action" just posts a note recording the GM's
 		// call.
-		async _resolveFollowerFate(action, { name, loyalty } = {}) {
+		async _resolveFollowerFate(action, { name, loyalty, follower, slug } = {}) {
 			const who = escHtml(name || "Your follower");
 			if (action === "roll") {
 				await rollStat("", this.actor, {
@@ -5170,6 +5180,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				body = `<p><strong>${who}</strong> is dying &mdash; out of the action; they'll die or hit Death's Door soon if no one intervenes.</p>`;
 			} else if (action === "dead") {
 				body = `<p><strong>${who}</strong> is dead.</p>`;
+				// Mark a custom follower fallen so its card stays on the sheet as a record —
+				// greyed out with a Remove button — rather than either vanishing or lingering
+				// as if nothing happened. Reviving them (HP back above 0) clears the mark. The
+				// built-in followers (animal companion / initiate / beast) aren't removable and
+				// have no per-record store, so they keep the chat-card record only.
+				if (follower === "custom" && slug) {
+					await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.dead`]: true });
+				}
 			} else {
 				return;
 			}

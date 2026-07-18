@@ -2625,7 +2625,6 @@ input.stonetop-name-field {
 .stonetop-readonly .hazard-add-btn,
 .stonetop-readonly .hazard-edit-open,
 .stonetop-readonly .hazard-remove,
-.stonetop-readonly .threat-reveal,
 /* Collapse chevron stays live outside edit mode: clamping a card to its title +
    Instinct is a view convenience, not structural editing. Without this the button's
    pointer-events:none makes a chevron click fall through to the card (the header sits
@@ -2776,6 +2775,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: var(--st-text-body);
 	padding: 6px 8px;
 	border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+/* On the journal roll-table card the description IS the result body and the last
+   element in the card, so the move-card divider reads as a stray line — drop it. */
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description.stonetop-roll-result-body {
+	border-bottom: none;
 }
 
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description p { margin: 0 0 4px; }
@@ -3039,13 +3044,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: var(--font-size-12);
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__actions {
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__actions,
+:is(#chat, #chat-notifications) .message .stonetop-art-reminder__actions {
 	display: flex;
 	justify-content: center;
 	padding-top: 6px;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome {
+:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome,
+:is(#chat, #chat-notifications) .message .stonetop-import-art-open {
 	width: auto;
 	padding: 5px 14px;
 	font-family: var(--font-stonetop);
@@ -3058,8 +3065,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	transition: background 0.15s;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome:hover { background: var(--st-btn-primary-bg-hover); }
-:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome > i { margin-right: 4px; }
+:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome:hover,
+:is(#chat, #chat-notifications) .message .stonetop-import-art-open:hover { background: var(--st-btn-primary-bg-hover); }
+:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome > i,
+:is(#chat, #chat-notifications) .message .stonetop-import-art-open > i { margin-right: 4px; }
 
 
 :is(#chat, #chat-notifications) .message:has(.stonetop-roll-card),
@@ -3211,6 +3220,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	line-height: 1.2;
 	margin: 0;
 	border: 0;
+}
+
+/* Secondary title lines (the section/table breadcrumb below a roll-table card's
+   name) read in normal weight, so only the first line carries the bold. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .cell__title .stonetop-chat-title-sub {
+	font-weight: normal;
 }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .cell__subtitle {
@@ -13325,6 +13340,54 @@ a.steading-player-open:hover {
 }
 .stonetop-follower-party-hint { color: var(--st-text-muted); font-style: italic; }
 .stonetop-follower-card-actions-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Fallen follower (custom follower marked "Dead" from the 0-HP fate dialog) ──
+   The card stays as a record: red-edged, portrait greyed, name struck through, plus a
+   "Fallen" badge and an out-of-edit-mode Remove button. Reviving them (HP > 0) or
+   removing the card clears it. The "Fallen" badge and the actions row stay full-strength
+   so the state and the Remove control read clearly against the muted card. */
+.stonetop-follower-card.is-dead {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+}
+.stonetop-follower-card.is-dead .stonetop-follower-portrait {
+	filter: grayscale(0.7);
+	opacity: 0.75;
+}
+.stonetop-follower-card.is-dead .stonetop-follower-name { text-decoration: line-through; }
+.stonetop-follower-dead-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	width: fit-content;
+	margin-top: 2px;
+	padding: 1px 7px;
+	border: 1px solid var(--st-red-border);
+	border-radius: 999px;
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+}
+.stonetop-follower-dead-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 6px;
+	padding: 4px 8px;
+	border: 1px solid var(--st-red-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-red-bg);
+}
+.stonetop-follower-dead-note {
+	flex: 1 1 12ch;
+	min-width: 0;
+	color: var(--st-red-text);
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	line-height: 1.35;
+}
 
 /* ── Ring of Daagon follower actions (Call Up the Deep Ones / Send Them Back) ──
    A "watery" blue variant of the follower Order button, plus the shared-Loyalty and

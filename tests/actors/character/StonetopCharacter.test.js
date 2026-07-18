@@ -106,15 +106,29 @@ describe("StonetopCharacter.addDroppedInventoryItem", () => {
 		const actor = new FakeActorBuilder().build();
 		const char = new TestCharacterBuilder(actor).build();
 
-		const dropped = treasureItemData({
-			name: "Brass sphere", section: "Ustrina", origin: "Brass sphere",
-			column: "regular", weight: 1, note: "magical", value: "2", uses: 3, usesLabel: "hours",
-		});
-		expect(dropped.img).toBeTruthy();       // the drag payload has art...
+		// Only a treasure this world has imported carries an img at all, so stub the
+		// world-scoped treasureArt index (slug -> path) the drag-time lookup reads.
+		const src = "stonetop-book-art/assets/treasures/ustrina-brass-sphere.webp";
+		const prevGame = globalThis.game;
+		globalThis.game = { settings: {
+			settings: new Map([["stonetop_pwd.treasureArt", {}], ["stonetop_pwd.book2ArtRoot", {}]]),
+			get: (_ns, key) => ({
+				treasureArt: { "ustrina-brass-sphere": "assets/treasures/ustrina-brass-sphere.webp" },
+				book2ArtRoot: "stonetop-book-art",
+			}[key]),
+		} };
+		let dropped;
+		try {
+			dropped = treasureItemData({
+				name: "Brass sphere", section: "Ustrina", origin: "Brass sphere", slug: "ustrina-brass-sphere",
+				column: "regular", weight: 1, note: "magical", value: "2", uses: 3, usesLabel: "hours",
+			});
+		} finally { globalThis.game = prevGame; }
+		expect(dropped.img).toBe(src);          // the drag payload has art...
 		await char.addDroppedInventoryItem(dropped);
 
 		const [, [created]] = actor.createEmbeddedDocuments.mock.calls[0];
-		expect(created.img).toBe(dropped.img);  // ...and the embedded copy keeps it
+		expect(created.img).toBe(src);          // ...and the embedded copy keeps it
 	});
 
 	it("leaves img off a drop that has none, so Foundry's default still applies", () => {
