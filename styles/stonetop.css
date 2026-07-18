@@ -18112,6 +18112,32 @@ th:has(> .stonetop-roll-table-btn) {
 	color: var(--color-text-dark-secondary);
 }
 
+/* Autosave status pip beside the capture label. Reassures the table that what they type
+   is saved to the character near-live (see IntroductionsDialog _setSaveStatus). The three
+   states are pre-rendered and JS flips data-state, so a re-render keeps the right one. */
+.stonetop-intros-capture-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.stonetop-intros-save-status {
+	flex: 0 0 auto;
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	white-space: nowrap;
+}
+
+.stonetop-intros-save-status > span { display: none; align-items: center; gap: 4px; }
+.stonetop-intros-save-status > span > i { font-size: 0.92em; }
+
+.stonetop-intros-save-status[data-state="idle"] .stonetop-intros-save-idle { display: inline-flex; color: var(--color-text-dark-secondary); opacity: 0.85; }
+.stonetop-intros-save-status[data-state="saving"] .stonetop-intros-save-saving { display: inline-flex; color: var(--color-text-dark-secondary); }
+.stonetop-intros-save-status[data-state="saved"] .stonetop-intros-save-saved { display: inline-flex; color: var(--st-green-text); }
+
 .stonetop-intros-answer,
 .stonetop-intros-draft {
 	width: 100%;

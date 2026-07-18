@@ -184,11 +184,12 @@ async function seedChroniclePages(entry, pages) {
  * time). Existing pages are left untouched — the journals are the source of truth, so
  * inline edits survive re-saves (see file header). Returns the Player Introductions
  * journal (so the API can open it). GM-only; returns null when there's nothing recorded
- * yet, or on a non-GM call.
+ * yet, or on a non-GM call. `opts.silent` suppresses the info/warn toasts, for the
+ * background "live" saves the Introductions dialog fires as answers are recorded.
  */
-export async function writeChronicle() {
+export async function writeChronicle({ silent = false } = {}) {
 	if (!game.user?.isGM) {
-		ui.notifications?.warn?.("Only the GM can save the Chronicle.");
+		if (!silent) ui.notifications?.warn?.("Only the GM can save the Chronicle.");
 		return null;
 	}
 
@@ -200,7 +201,7 @@ export async function writeChronicle() {
 		expeditions:   Array.isArray(expeditionLog.list) ? expeditionLog.list : [],
 	});
 	if (!pages.length) {
-		ui.notifications?.info?.("Nothing has been recorded for the Chronicle yet.");
+		if (!silent) ui.notifications?.info?.("Nothing has been recorded for the Chronicle yet.");
 		return null;
 	}
 
@@ -231,7 +232,7 @@ export async function writeChronicle() {
 	const parts = [];
 	if (created) parts.push(`added ${created} ${created === 1 ? "page" : "pages"}`);
 	if (updated) parts.push(`updated ${updated} ${updated === 1 ? "page" : "pages"}`);
-	ui.notifications?.info?.(parts.length
+	if (!silent) ui.notifications?.info?.(parts.length
 		? `Chronicle: ${parts.join(", ")}.`
 		: "The Chronicle is already up to date — edit its pages there directly.");
 	return intro;

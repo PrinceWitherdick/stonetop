@@ -6,7 +6,7 @@ import { wrapLoreTerms } from "../utils/lore-terms.js";
 // Authored prompts/questions live in introductions-data.js so the Chronicle
 // compiler can resolve a recorded answer's question index back to its text.
 import { INTRO_PLAYBOOK_DATA as _PLAYBOOK_DATA } from "./introductions-data.js";
-import { saveChronicleFromButton } from "../utils/chronicle.js";
+import { saveChronicleFromButton, writeChronicle } from "../utils/chronicle.js";
 import { getSetting, setSetting } from "../settings.js";
 import { getWalkthroughResume, patchWalkthroughResume, markWalkthroughDone } from "./walkthrough-resume.js";
 // Pure round-robin/done logic for the looping answer/ask steps (unit-tested).
@@ -348,12 +348,14 @@ export class IntroductionsDialog extends Application {
 		// actor-flag path as the step draft, so a player authors their own introduction.
 		html.find(".stonetop-intros-answer").on("input", ev => {
 			const el = ev.currentTarget;
+			this._setSaveStatus("saving");
 			this._scheduleNarration(el.dataset.actorId, el.dataset.roundKey, el.value);
 		});
-		html.find(".stonetop-intros-answer").on("change", ev => {
+		html.find(".stonetop-intros-answer").on("change", async ev => {
 			const el = ev.currentTarget;
 			this._cancelLiveDraft();
-			this._saveNarration(el.dataset.actorId, el.dataset.roundKey, el.value);
+			await this._saveNarration(el.dataset.actorId, el.dataset.roundKey, el.value);
+			this._setSaveStatus("saved");
 		});
 		// Answer/ask steps: the in-progress draft answer. Written near-live on input
 		// (debounced ~300ms) so the GM watches it appear as it's typed, and again on blur
@@ -369,12 +371,14 @@ export class IntroductionsDialog extends Application {
 		};
 		html.find(".stonetop-intros-draft").on("input", ev => {
 			const el = ev.currentTarget;
+			this._setSaveStatus("saving");
 			this._scheduleLiveDraft(el.dataset.actorId, el.dataset.stepKey, domSelectedQ(), el.value);
 		});
-		html.find(".stonetop-intros-draft").on("change", ev => {
+		html.find(".stonetop-intros-draft").on("change", async ev => {
 			const el = ev.currentTarget;
 			this._cancelLiveDraft();
-			this._saveDraft(el.dataset.actorId, el.dataset.stepKey, { q: domSelectedQ(), a: el.value });
+			await this._saveDraft(el.dataset.actorId, el.dataset.stepKey, { q: domSelectedQ(), a: el.value });
+			this._setSaveStatus("saved");
 		});
 		// Pick (or toggle off) which question the draft answers/asks, preserving any typed
 		// text, then re-render to move the highlight and update the answered gray-out.
@@ -463,12 +467,13 @@ export class IntroductionsDialog extends Application {
 	// (possibly re-rendered) DOM here.
 	_scheduleLiveWrite(actorId, matchesPhase, write) {
 		this._cancelLiveDraft();
-		this._liveDraftTimer = setTimeout(() => {
+		this._liveDraftTimer = setTimeout(async () => {
 			this._liveDraftTimer = null;
 			const shown = this._pcs?.[this._pcIndex];
 			if (!shown || shown.id !== actorId || !matchesPhase(_PHASES[this._phase])) return;
 			if (!this._canEditActor(shown)) return;
-			write();
+			await write();
+			this._setSaveStatus("saved");
 		}, 300);
 	}
 
@@ -481,6 +486,16 @@ export class IntroductionsDialog extends Application {
 
 	_cancelLiveDraft() {
 		if (this._liveDraftTimer) { clearTimeout(this._liveDraftTimer); this._liveDraftTimer = null; }
+	}
+
+	// Reflect the near-live autosave on the active capture field's status pip: "saving" the
+	// instant a keystroke lands, "saved" once the debounced/blur write to the actor flag
+	// resolves. There's only ever one editable capture on screen, so this targets the single
+	// .stonetop-intros-save-status; a no-op when the field isn't editable (readonly preview)
+	// or has already gone (the turn moved on mid-write).
+	_setSaveStatus(state) {
+		const el = this.element?.[0]?.querySelector(".stonetop-intros-save-status");
+		if (el) el.dataset.state = state;
 	}
 
 	// Commit the current draft as a recorded answer: append { q, a } to the step's
@@ -715,14 +730,23 @@ export class IntroductionsDialog extends Application {
 		const rec = { ...(all[actor.id] ?? {}) };
 		let touched = false;
 		const nar = intro.narration;
+		// Only report a change when a value actually differs, so the live Chronicle sync
+		// (which harvests on a debounce as people type) doesn't rewrite the world setting on
+		// every tick. The close/finish harvest forces a final write regardless (see _harvestAll).
 		if (nar) for (const roundKey of ["r1", "r2", "r3"]) {
-			if (typeof nar[roundKey] === "string") { rec[roundKey] = nar[roundKey]; touched = true; }
+			if (typeof nar[roundKey] === "string" && rec[roundKey] !== nar[roundKey]) {
+				rec[roundKey] = nar[roundKey];
+				touched = true;
+			}
 		}
 		for (const stepKey of ["step4", "step6"]) {
 			const s = intro[stepKey];
 			if (s) {
-				rec[stepKey] = { answers: Array.isArray(s.answers) ? s.answers : [], passed: !!s.passed };
-				touched = true;
+				const next = { answers: Array.isArray(s.answers) ? s.answers : [], passed: !!s.passed };
+				if (JSON.stringify(rec[stepKey]) !== JSON.stringify(next)) {
+					rec[stepKey] = next;
+					touched = true;
+				}
 			}
 		}
 		if (touched) all[actor.id] = rec;
@@ -738,10 +762,51 @@ export class IntroductionsDialog extends Application {
 	// Harvest every PC's flag into the world setting in one write — run before compiling
 	// the Chronicle so an un-harvested edit (or one made while this GM wasn't primary)
 	// still lands.
-	async _harvestAll() {
+	async _harvestAll({ skipActorId = null, force = true } = {}) {
 		let touched = false;
-		for (const actor of getPlayerCharacters()) touched = this._mergeActorIntoDraft(actor) || touched;
-		if (touched || this._draft) await setSetting(_ANSWERS_SETTING, this._answers());
+		for (const actor of getPlayerCharacters()) {
+			if (actor.id === skipActorId) continue;
+			touched = this._mergeActorIntoDraft(actor) || touched;
+		}
+		if (touched || (force && this._draft)) await setSetting(_ANSWERS_SETTING, this._answers());
+		return touched;
+	}
+
+	// The PC whose still-in-progress narration must be withheld from a LIVE (background)
+	// Chronicle compile: the actively-typing PC on a narration round. Its half-typed prose
+	// would otherwise be frozen into the seed-once journal (prose is never regenerated once a
+	// page has it, see mergeChronicleSections). Answer/ask steps are safe (only COMMITTED
+	// answers compile, never the live draft), so nothing is skipped there; a full harvest at
+	// close/finish passes no skip, so the final text always lands.
+	_liveSkipActorId() {
+		const phase = _PHASES[this._phase];
+		if (_isRoundRobin(phase) && !_isStep(phase)) return this._pcs?.[this._pcIndex]?.id ?? null;
+		return null;
+	}
+
+	// Primary GM: fill the shared Chronicle in during the session as answers are recorded (and
+	// as completed narration lands), debounced so a burst of writes coalesces into one compile.
+	// Every client's hook calls this, but only the primary GM (the sole world-doc writer)
+	// proceeds; players and secondary GMs no-op.
+	_scheduleChronicleSync() {
+		if (!game.user?.isGM || !isPrimaryGM()) return;
+		this._chronicleSync ??= foundry.utils.debounce(() => this._syncChronicle(), 1500);
+		this._chronicleSync();
+	}
+
+	// Harvest the latest answers (skipping the actively-typing narrator, see _liveSkipActorId)
+	// and quietly re-compile the Chronicle. Seed-once + additive merge makes it idempotent: it
+	// appends new answers / completed narration and writes nothing when there's nothing new, so
+	// a no-op tick is cheap. Silent: no toast, and it never opens the journal (unlike the finish
+	// button or the macro).
+	async _syncChronicle() {
+		if (!game.user?.isGM || !isPrimaryGM()) return;
+		try {
+			await this._harvestAll({ skipActorId: this._liveSkipActorId(), force: false });
+			await writeChronicle({ silent: true });
+		} catch (err) {
+			console.warn("Stonetop | Introductions: live Chronicle sync failed", err);
+		}
 	}
 
 	// Compile everything recorded so far (plus the Spring Burst notes) into the
@@ -820,6 +885,11 @@ export class IntroductionsDialog extends Application {
 			const introDelta   = stFlags[_INTRO_FLAG];
 			const stepChanged  = !!introDelta && ("step4" in introDelta || "step6" in introDelta);
 			if (game.user?.isGM && stepChanged) this._harvestActor(actor);
+			// Fill the shared Chronicle in as answers are recorded (and completed narration lands).
+			// Fires on any intro change including narration keystrokes; _syncChronicle debounces and
+			// skips the actively-typing PC, so a half-typed round is never frozen into the seed-once
+			// journal. Primary-GM-guarded inside.
+			this._scheduleChronicleSync();
 			// A player recording their one answer (or passing) on their own turn hands the
 			// turn along: the primary GM (the cursor author) advances to the next still-active
 			// PC, so the table goes around one answer per turn. Gated to step records made by
@@ -943,6 +1013,7 @@ export class IntroductionsDialog extends Application {
 					stepKey,
 					coEdit,
 					draftAnswer:  typeof draft.a === "string" ? draft.a : "",
+					saveState:    String(draft.a ?? "").trim() ? "saved" : "idle",
 					placeholder:  phase.kind === "ask" ? "Who you asked, and what they answered…" : "Their answer…",
 					canEdit,
 					// The GM watches a present player's live typing read-only (it can't write the
@@ -966,6 +1037,7 @@ export class IntroductionsDialog extends Application {
 					actorId:      actor.id,
 					key:          roundKey,
 					answer:       this._narration(actor.id, roundKey),
+					saveState:    String(this._narration(actor.id, roundKey) ?? "").trim() ? "saved" : "idle",
 					placeholder:  _NARRATE_PLACEHOLDER[this._phase] ?? "Their answer…",
 					canEdit,
 					coEdit,
@@ -1077,6 +1149,9 @@ export class IntroductionsDialog extends Application {
 		} else if (this._phase < _LAST_PHASE) {
 			this._enterPhase(this._phase + 1);
 		}
+		// Advancing a narration turn writes no actor flag, so nudge the live Chronicle sync
+		// here too — the PC just left is now finished with this round and safe to compile.
+		this._scheduleChronicleSync();
 		this.render(false);
 	}
 
@@ -1259,6 +1334,7 @@ export class IntroductionsDialog extends Application {
 		if (!Number.isInteger(index) || index < 1 || index > _LAST_PHASE || index === this._phase) return;
 		this._cancelLiveDraft();
 		this._enterPhase(index);
+		this._scheduleChronicleSync();
 		this.render(false);
 	}
 
