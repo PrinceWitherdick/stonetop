@@ -54,7 +54,7 @@ async function browseDurableArt(root) {
 	const present = new Set();
 	// The dirs are independent; browse them in parallel. A rejected browse means the
 	// directory doesn't exist yet (the GM hasn't imported) -> nothing on disk from there.
-	const results = await Promise.all(["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures"]
+	const results = await Promise.all(["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures", "assets/people"]
 		.map(dir => FP.browse("data", `${root}/${dir}`).catch(() => null)));
 	for (const res of results) {
 		if (!res) continue;
@@ -68,30 +68,46 @@ async function browseDurableArt(root) {
 	return present;
 }
 
-// Publish which Book II treasures have their illustration on disk into the world-scoped
-// `treasureArt` setting, as a { catalog slug -> manifest `out` path } map. A treasure's Item
-// is built at drag time, so there is no document to point at the file ahead of time; this
-// index is what treasure-drops.js consults instead. It carries the MANIFEST's own path
-// rather than the slug so the consumer resolves the file we actually checked for, instead
-// of re-deriving it from the naming convention and drifting when a row's `out` changes.
-// Authoritative (not additive): a treasure whose file is gone is dropped, so an item never
-// points at a missing image. Only writes when the index actually changed, since this runs
-// on every GM load.
-async function refreshTreasureArtIndex(treasures, present, srcOf) {
-	// No `!treasures.length` fast path: an empty manifest list is a real state that must
-	// still clear a previously-published index, and the changed-only check below already
-	// makes the steady-state call a single setting read.
+// Whether the GM has already imported book art: any durable illustration present on disk
+// in the art folder. This is the very signal reapplyBook2Art uses to decide there is
+// document art to wire (`present.size` below). Exported so the ready flow can nudge a GM
+// who is past the first-session Welcome guide but never imported (hooks/Ready.js). Cheap
+// (a few FilePicker.browse calls against the durable folder) and best-effort — a failed
+// browse reads as "nothing on disk", the safe default for the nudge. GM-only, since only
+// a GM can browse the data files.
+export async function hasImportedBook2Art() {
+	const present = await browseDurableArt(book2ArtRoot());
+	return present.size > 0;
+}
+
+// Publish which document-less art rows have their illustration on disk into a world-scoped
+// index `setting`. Treasures and "People of Stonetop" portraits are not documents: a treasure's
+// Item is built at drag time (treasure-drops.js reads this index instead), and the steading
+// sheet's portrait gallery reads it rather than browsing files (so even players get it broadcast).
+// `entryOf(row)` returns the `[key, value]` pair to record, keyed the way each consumer looks it
+// up: treasures map catalog slug -> manifest `out` path; portraits map `out` -> display name.
+// Recording the manifest's own path means the consumer resolves the file we actually checked for,
+// instead of re-deriving it from the naming convention and drifting when a row's `out` changes.
+// Authoritative (not additive): a row whose file is gone is dropped, so nothing ever points at a
+// missing image. Only writes when the index actually changed, since this runs on every GM load.
+// No `!rows.length` fast path: an empty manifest list is a real state that must still clear a
+// previously-published index, and the changed-only check already makes the steady-state call a
+// single setting read.
+async function refreshArtIndex(setting, rows, present, srcOf, entryOf, label) {
 	try {
 		const have = {};
-		for (const t of treasures.filter((t) => present.has(srcOf(t.out)))) have[t.slug] = t.out;
-		const prev = getSetting("treasureArt");
+		for (const row of rows.filter((r) => present.has(srcOf(r.out)))) {
+			const [key, value] = entryOf(row);
+			have[key] = value;
+		}
+		const prev = getSetting(setting);
 		// Key order is the manifest's on both sides, so a plain stringify compares faithfully.
 		if (JSON.stringify(prev ?? {}) === JSON.stringify(have)) return;
-		await setSetting("treasureArt", have);
+		await setSetting(setting, have);
 		const count = Object.keys(have).length;
-		info(`Book II art: treasure art index updated (${count} of ${treasures.length} on disk)`);
+		info(`Book II art: ${label} art index updated (${count} of ${rows.length} on disk)`);
 	} catch (e) {
-		error("Book II art: could not update the treasure art index", e);
+		error(`Book II art: could not update the ${label} art index`, e);
 	}
 }
 
@@ -205,7 +221,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// book2ArtSrc with the root hoisted: this runs once per manifest row per pass, and the
 	// root cannot change mid-pass, so there's no reason to re-read the setting each time.
 	const srcOf = (out) => `${root}/${out}`;
-	const { monsters, locations, settingOverviewMaps = [], treasures = [], codex = [] } = BOOK2_ART_APPLY_MANIFEST;
+	const { monsters, locations, settingOverviewMaps = [], treasures = [], people = [], codex = [] } = BOOK2_ART_APPLY_MANIFEST;
 
 	// Treasures first, and BEFORE the nothing-on-disk return below. They are not documents,
 	// so publishing which of them have a file on disk, and where, is their whole apply step —
@@ -215,7 +231,16 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// index cleared, or every drag keeps baking `img` to a file that is gone. Clearing is
 	// also the safe failure mode if a browse fails transiently — a dropped item falls back
 	// to its load-class icon, and the next load restores the index.
-	await refreshTreasureArtIndex(treasures, present, srcOf);
+	await refreshArtIndex("treasureArt", treasures, present, srcOf, (t) => [t.slug, t.out], "treasure");
+	// People-of-Stonetop portraits are document-less too. But UNLIKE treasures, this reapply is
+	// NOT their publisher: a portrait's display name lives only in the Import Book Art macro's
+	// manifest (`kind:"person"` rows), so the macro publishes `peopleArt` itself, additively, from
+	// the files it just wrote. This system's own `people` manifest is populated in lockstep only
+	// when portrait art is authored. So guard on it: while it's empty we have no names to index and
+	// must NOT run the authoritative refresh (it would compute `{}` and wipe the macro's index on
+	// every load, emptying the steading gallery). Once `people` is populated it matches the macro,
+	// and the refresh becomes authoritative again — dropping a portrait whose file is gone.
+	if (people.length) await refreshArtIndex("peopleArt", people, present, srcOf, (p) => [p.out, p.name], "people");
 
 	if (!present.size) return null; // nothing imported yet -> no document art to wire
 

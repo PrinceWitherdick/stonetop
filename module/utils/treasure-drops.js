@@ -56,20 +56,6 @@ function matchGroup(text, groups) {
 	return null;
 }
 
-// Fallback art for a treasure with no imported illustration, keyed by the load class the
-// book gives it — the same distinction the ◇/▫/dolly badge on the line already draws, so
-// the icon reinforces it rather than inventing a second taxonomy. (The book's own headings
-// can't do this job: 160 of the 176 treasures are filed under "Artifacts", so heading-based
-// icons would give nearly every item the same picture.) Shipped SVGs, always on disk.
-const TREASURE_ICON_DIR = "systems/stonetop_pwd/assets/icons/treasures";
-const TREASURE_COLUMNS = new Set(["regular", "small", "immobile"]);
-
-/** The type icon for a treasure's load class. Unknown/missing class reads as regular. */
-export function treasureColumnIcon(column) {
-	const name = TREASURE_COLUMNS.has(column) ? column : "regular";
-	return `${TREASURE_ICON_DIR}/${name}.svg`;
-}
-
 /**
  * The Book II illustration for a treasure, or null when this world hasn't got it.
  *
@@ -97,14 +83,20 @@ function treasureArtSrc(slug) {
 	}
 }
 
+// The generic marker that heads a cell with no imported illustration: the book's own
+// vase-in-octagon "treasure" map symbol, shipped as an SVG. It's a category marker (the role
+// the old drag-grip glyph played), not a fabricated picture of any one item, so it can stand in
+// for every un-illustrated treasure without inventing what that particular treasure looks like.
+const TREASURE_GRIP_ICON = "systems/stonetop_pwd/assets/icons/treasures/vase.svg";
+
 /**
  * Build the native Foundry drop data for one catalog entry: a `move`/`inventory` Item
  * whose system + flags carry the recovered column, weight, note (tags + Value) and uses
- * track, plus art: the book's illustration when this world has imported it, else the icon
- * for the item's load class (see treasureColumnIcon). Immobile treasures
- * (no ◇, can't be carried) are recorded in the small column with their "immobile" tag
- * intact. The character sheet's `_onDropItemCreate` re-plants it as an `inventory-custom`
- * item; the Items sidebar stores it as a world item.
+ * track, plus the book's illustration when this world has imported it. Treasures the book
+ * doesn't draw carry no img, so Foundry gives the item its default icon (we never invent
+ * one). Immobile treasures (no ◇, can't be carried) are recorded in the small column with
+ * their "immobile" tag intact. The character sheet's `_onDropItemCreate` re-plants it as an
+ * `inventory-custom` item; the Items sidebar stores it as a world item.
  */
 export function treasureItemData(entry) {
 	const column = entry.column === "regular" ? "regular" : "small";
@@ -117,9 +109,9 @@ export function treasureItemData(entry) {
 	}
 	const data = buildInventoryItemData({
 		name: entry.name, column, weight: entry.weight, note, resource, moveType: "inventory", isTreasure: true,
-		// The book's own illustration when this world has imported it; otherwise the icon for
-		// the item's load class, so a treasure is never a generic Foundry document icon.
-		img: treasureArtSrc(entry.slug) ?? treasureColumnIcon(entry.column),
+		// The book's own illustration when this world has imported it; otherwise null, so
+		// buildInventoryItemData omits it and the item takes Foundry's default icon.
+		img: treasureArtSrc(entry.slug),
 	});
 	// Mirror the gear metadata into flags.stonetop as well, so addDroppedInventoryItem
 	// resolves it whichever source it reads first, and a sidebar copy keeps a slug.
@@ -139,17 +131,35 @@ function writeDrag(ev, entry) {
 }
 
 // The ◇/○ glyph badge the book prints beside a treasure. Weight = ◇×N (small = one small
-// □, immobile = a lock), uses = ○×N with any label ("hours").
+// ▫, immobile = a dolly), uses = ○×N with any label ("hours"). The diamonds and circles
+// are drawn as this system's SVG/mask glyphs (`stonetop-glyph--diamond`/`--circle`), the
+// same ones journal prose uses, rather than the raw ◇/○ font characters — those read far
+// too small. The badge CSS sizes them up and paints each in the badge's own colour.
 function badgeHtml(entry) {
 	const parts = [];
 	if (entry.column === "immobile") parts.push(`<span class="st-treasure-weight st-immobile" data-tooltip="Immobile — needs a cart or beast to move, not a personal-load item"><i class="fas fa-dolly"></i></span>`);
-	else if (entry.weight > 0) parts.push(`<span class="st-treasure-weight" data-tooltip="Load ${entry.weight}">${"◇".repeat(Math.min(entry.weight, 6))}</span>`);
+	else if (entry.weight > 0) parts.push(`<span class="st-treasure-weight" data-tooltip="Load ${entry.weight}">${diamondGlyphs(Math.min(entry.weight, 6))}</span>`);
 	else parts.push(`<span class="st-treasure-weight st-small" data-tooltip="Small item (no load)">▫</span>`);
 	if (entry.uses > 0) {
 		const label = entry.usesLabel ? ` <em>${entry.usesLabel}</em>` : "";
-		parts.push(`<span class="st-treasure-uses" data-tooltip="${entry.uses} use${entry.uses === 1 ? "" : "s"}${entry.usesLabel ? " (" + entry.usesLabel + ")" : ""}">${"○".repeat(Math.min(entry.uses, 8))}${label}</span>`);
+		parts.push(`<span class="st-treasure-uses" data-tooltip="${entry.uses} use${entry.uses === 1 ? "" : "s"}${entry.usesLabel ? " (" + entry.usesLabel + ")" : ""}">${circleGlyphs(Math.min(entry.uses, 8))}${label}</span>`);
 	}
 	return parts.join("");
+}
+
+// A run of N load-diamonds as this system's masked-SVG glyph. All but the last carry
+// `--joined` so consecutive diamonds sit tight, matching the journal-prose load tracks.
+function diamondGlyphs(n) {
+	let out = "";
+	for (let i = 0; i < n; i++) out += `<span class="stonetop-glyph stonetop-glyph--diamond${i < n - 1 ? " stonetop-glyph--joined" : ""}">◇</span>`;
+	return out;
+}
+
+// A run of N use-circles as this system's CSS-drawn ring glyph — crisp at any size,
+// unlike the thin ○ font character. (Unlike diamonds, circles carry no `--joined`, so
+// they're just the one glyph repeated.)
+function circleGlyphs(n) {
+	return `<span class="stonetop-glyph stonetop-glyph--circle">○</span>`.repeat(n);
 }
 
 // Short label for a compound sub-item's chip: the parenthetical in its name, else name.
@@ -361,8 +371,23 @@ function decorate(line, group, groups) {
 			badge.appendChild(chip);
 		}
 	}
-	const grip = document.createElement("i");
-	grip.className = "fas fa-hand-pointer st-treasure-grip";
+	// The cell's leading slot: the treasure's book illustration when this world has imported
+	// it (the same thumbnail the bestiary's stat-block cells use, and the same image the
+	// dragged Item carries), else the shared vase marker — a category symbol, never an invented
+	// picture of the item. Both occupy the same 40px slot so every row's text lines up whether
+	// or not it has art. A compound cell heads with its first item's picture as the representative.
+	// A real illustration (`st-treasure-icon`) is cover-cropped behind a photo border like a
+	// stat-block portrait; the fallback marker (`st-treasure-grip`) is the shared vase symbol.
+	const iconSrc = treasureArtSrc(items[0].slug);
+	const grip = document.createElement("img");
+	grip.className = iconSrc ? "st-treasure-icon" : "st-treasure-grip";
+	grip.src = iconSrc ?? TREASURE_GRIP_ICON;
+	grip.alt = "";
+	// An <img> is draggable by default; leave it so and grabbing the thumbnail starts a native
+	// image-file drag that carries no Item payload. On a single-item cell the whole line handles
+	// dragstart (so it still works), but a compound cell drags only via its chips — there the
+	// thumbnail would begin a dead image drag. Turn native dragging off so the cell/chip drag wins.
+	grip.draggable = false;
 	grip.dataset.tooltip = items.length === 1
 		? "Drag to a character sheet or the Items sidebar"
 		: "Drag one of the items to a character sheet or the Items sidebar";

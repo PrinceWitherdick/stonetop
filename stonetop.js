@@ -238,7 +238,7 @@ Hooks.once("init", () => {
 
 	// Threats: GM-prep pages (Book I "Threats"). Each threat is a `threat` page inside a
 	// GM-only per-steading Threats entry; the sheet is the book-styled interactive card
-	// (live doom track + reveal), dropped onto scenes as a linked Note. See module/threats/.
+	// (live doom track), dropped onto scenes as a linked Note. See module/threats/.
 	CONFIG.JournalEntryPage.dataModels["threat"] = ThreatPageModel;
 	const StonetopThreatPageSheet = createStonetopThreatPageSheetClass(JournalPageSheetV1);
 	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopThreatPageSheet, {
@@ -505,6 +505,17 @@ function _chatWireStartupWelcome(message, html) {
 	btn.addEventListener("click", () => game.stonetop?.openWelcome?.());
 }
 
+// -- ART-IMPORT REMINDER CARD: LAUNCH IMPORT MACRO -------------
+// The one-time "Import Your Book Art" reminder (whispered to GMs; see hooks/Ready.js
+// _postBook2ArtReminderOnce) carries a button that kicks off the Import Book Art macro.
+// GM-only card, but hide/guard the button for players defensively like the startup card.
+function _chatWireBook2ArtReminder(message, html) {
+	const btn = html.querySelector(".stonetop-import-art-open");
+	if (!btn) return;
+	if (!game.user.isGM) { btn.style.display = "none"; return; }
+	btn.addEventListener("click", () => game.stonetop?.importBookArt?.());
+}
+
 // -- MOVE DESCRIPTION TOGGLE -----------------------------------
 function _chatWireDescToggle(message, html) {
 	const toggle = html.querySelector(".stonetop-roll-card-desc-toggle");
@@ -743,6 +754,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatStripBlindRoll(message, html);
 	_chatProseTreatment(message, html);
 	_chatWireStartupWelcome(message, html);
+	_chatWireBook2ArtReminder(message, html);
 	_chatWireDescToggle(message, html);
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);

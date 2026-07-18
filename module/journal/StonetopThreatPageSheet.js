@@ -1,6 +1,6 @@
 // Sheet for the "threat" JournalEntryPage subtype (see gm-prep-page-sheet.js for the
 // shared behaviour). It renders ONLY the book-faithful card (view), with live doom-track
-// checkboxes, a reveal toggle, and an owner Edit button that opens the ThreatEditorDialog.
+// checkboxes and an owner Edit button that opens the ThreatEditorDialog.
 //
 // Editing is a separate movable dialog, NOT this sheet rendered standalone — standalone
 // JournalEntryPage sheets are malformed in v13/14 (window frame vs. content positions

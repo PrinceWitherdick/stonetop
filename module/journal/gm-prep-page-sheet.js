@@ -1,11 +1,11 @@
 // Factory for a "GM-prep page" sheet (threat / hazard). These sheets render ONLY the
-// book-faithful card (view) with live doom-track checkboxes the owner can tick, a reveal
-// toggle, and an owner Edit button. They are only ever rendered EMBEDDED in the journal
-// (a scene pin opens one), so "tick the doom track from the map" is: click the pin, tick a
-// portent right here. The card markup is shared, so threat-view's wiring (doom toggles,
-// reveal, drag-to-pin) applies to both. Threat and hazard sheets differ only in the four
-// config values below.
-import { wireThreatDoomChange, handleThreatRevealClick, wireThreatCardDrag } from "../threats/threat-view.js";
+// book-faithful card (view) with live doom-track checkboxes the owner can tick and an
+// owner Edit button. They are only ever rendered EMBEDDED in the journal (a scene pin
+// opens one), so "tick the doom track from the map" is: click the pin, tick a portent
+// right here. The card markup is shared, so threat-view's wiring (doom toggles,
+// drag-to-pin) applies to both. Threat and hazard sheets differ only in the four config
+// values below.
+import { wireThreatDoomChange, wireThreatCardDrag } from "../threats/threat-view.js";
 
 /**
  * @param {Function} Base  The core JournalPageSheet base for this render mode.
@@ -47,7 +47,6 @@ export function createStonetopGmPrepPageSheetClass(Base, { template, buildCardVM
 			wireThreatDoomChange(root, () => this.document);
 
 			root.addEventListener("click", async ev => {
-				if (await handleThreatRevealClick(ev, () => this.document)) return;
 				if (!this.document.isOwner) return;
 				if (ev.target.closest(editSelector)) {
 					ev.preventDefault();

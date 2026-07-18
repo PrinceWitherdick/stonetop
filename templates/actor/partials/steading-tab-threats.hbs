@@ -4,14 +4,13 @@
 
 		{{#if stonetop.isGM}}
 		<p class="steading-threats-intro">
-			Ongoing problems that will trouble Stonetop if left unchecked (Book I, <em>Threats</em>). Written up here for your eyes only. Reveal one to your players with the eye, or drag its card onto a scene to pin it to the map.
+			Ongoing problems that will trouble Stonetop if left unchecked (Book I, <em>Threats</em>). Written up here for your eyes only. Drag a card onto a scene to pin it to the map.
 		</p>
 		{{/if}}
 
 		{{!-- One section per proximity tracker (Homefront / Nearby / Distant), mirroring the
-		      Residents tab's stacked Player/Residents/Neighbors sections. The GM sees all three
-		      (each with its own "write up" button that pre-seeds that proximity); a player only
-		      gets groups that hold a revealed threat. --}}
+		      Residents tab's stacked Player/Residents/Neighbors sections, each with its own
+		      "write up" button that pre-seeds that proximity. This whole tab is GM-only. --}}
 		{{#each stonetop.threatGroups}}
 		<div class="steading-threats-section">
 			<h3 class="steading-residents-heading">{{label}} Threats</h3>
@@ -40,8 +39,8 @@
 
 		{{!-- Hazards: the environmental half of Book I "Dangers", one flat section after
 		      the proximity groups (hazards have no proximity; they belong to places and
-		      expeditions). Same card affordances as threats: reveal eye, drag-to-pin,
-		      collapse; the pen reopens the Make-a-Hazard walkthrough pre-filled. --}}
+		      expeditions). Same card affordances as threats: drag-to-pin, collapse; the pen
+		      reopens the Make-a-Hazard walkthrough pre-filled. --}}
 		{{#if stonetop.showHazards}}
 		<div class="steading-threats-section steading-hazards-section">
 			<h3 class="steading-residents-heading">Hazards</h3>

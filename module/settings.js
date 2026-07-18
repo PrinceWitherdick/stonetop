@@ -194,6 +194,20 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the one-time "you can import your book art" chat reminder has been posted
+	// (see hooks/Ready.js _postBook2ArtReminderOnce). Resolved exactly once for a GM who
+	// is past the first-session Welcome guide (finished session zero or ticked "Don't show
+	// this again"): the card is whispered if no art is on disk yet, otherwise it's simply
+	// marked done. World-scoped — "has this world been nudged" is world state, and only the
+	// GM posts/acts on it.
+	game.settings.register("stonetop_pwd", "book2ArtReminderShown", {
+		name: "Book Art Import Reminder Shown",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// The durable folder (a top-level data path, OUTSIDE the system folder) the "Import
 	// Book Art" macro writes extracted illustrations to. Living outside systems/stonetop_pwd
 	// is what keeps the art across a system update or reinstall; the runtime re-apply
@@ -219,6 +233,20 @@ export function registerSettings() {
 	// browse files) get it broadcast like any setting.
 	game.settings.register("stonetop_pwd", "treasureArt", {
 		name: "Treasure Art On Disk",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {}
+	});
+
+	// Which "People of Stonetop" portraits have their illustration on disk under `book2ArtRoot`,
+	// as a { manifest out path -> display name } map. Like a treasure, a resident/neighbor
+	// portrait points at no document: the steading sheet's image gallery reads this broadcast
+	// index so even players (who cannot browse files) can pick from it. The GM-side passes (the
+	// Import Book Art macro and book2-art/reapply.js) browse the folder and publish it here.
+	// World-scoped so it reaches every client like any setting.
+	game.settings.register("stonetop_pwd", "peopleArt", {
+		name: "People Art On Disk",
 		scope: "world",
 		config: false,
 		type: Object,
@@ -383,6 +411,19 @@ export function registerSettings() {
 	// the first time they connect, GM included, without re-popping every load.
 	game.settings.register("stonetop_pwd", "settingOverviewShown", {
 		name: "Setting Overview Shown",
+		scope: "client",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether this GM client has auto-assigned the shared steading as its default
+	// character once (see hooks/Ready.js _assignSteadingToUnassignedGm). Per-client so it
+	// tracks the per-user `character` assignment: set the first time we assign it (or find
+	// the GM already has a character), then never again — so a GM who later clears the
+	// assignment isn't re-assigned on the next load.
+	game.settings.register("stonetop_pwd", "gmSteadingAssigned", {
+		name: "GM Steading Assigned",
 		scope: "client",
 		config: false,
 		type: Boolean,

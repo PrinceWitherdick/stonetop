@@ -220,7 +220,7 @@
       },
       "threatOnCanvasCards": {
         "name": "Threats: Show Cards on the Map",
-        "hint": "When on, a threat pinned to a scene also draws its full card on the map, anchored to the pin and moving with the scene, so you can read it and tick off its doom track right there on the canvas. Off by default: the pin opens the same card in a window instead. Only threats you've revealed appear on a player's map."
+        "hint": "When on, a threat pinned to a scene also draws its full card on the map, anchored to the pin and moving with the scene, so you can read it and tick off its doom track right there on the canvas. Off by default: the pin opens the same card in a window instead. Threats are GM-only prep, so these pins and cards are only ever shown to you."
       },
       "sheetFont": {
         "name": "Sheet Font",

@@ -6,7 +6,7 @@
 {{!-- When the host marks the card draggable the WHOLE card is the drag handle (no grip):
       grab it anywhere to drop a pinned Note on a scene. The dragstart is wired on the tab
       root in StonetopSteadingSheet._activateThreatsListeners. --}}
-<article class="threat-card threat-card--{{type.id}}{{#if revealed}} is-revealed{{/if}}{{#if collapsed}} is-collapsed{{/if}}{{#if canDrag}} is-draggable{{/if}}"
+<article class="threat-card threat-card--{{type.id}}{{#if collapsed}} is-collapsed{{/if}}{{#if canDrag}} is-draggable{{/if}}"
          data-threat-id="{{id}}" data-page-uuid="{{uuid}}" style="--threat-accent:{{accent}};"{{#if canDrag}} draggable="true"{{/if}}>
 	<span class="threat-card__edge" aria-hidden="true"></span>
 
@@ -25,14 +25,6 @@
 			<h3 class="threat-name">{{name}}</h3>
 			<span class="threat-type">{{type.label}}</span>
 		</div>
-		{{#if isOwner}}
-		<button type="button" class="threat-reveal{{#if revealed}} is-revealed{{/if}}"
-		        data-threat-reveal data-page-uuid="{{uuid}}"
-		        data-tooltip="{{#if revealed}}Players can see this threat &mdash; click to hide{{else}}Hidden from players &mdash; click to reveal{{/if}}"
-		        aria-label="{{#if revealed}}Visible to players &mdash; click to hide{{else}}Hidden from players &mdash; click to reveal{{/if}}">
-			<i class="fas {{#if revealed}}fa-eye{{else}}fa-eye-slash{{/if}}"></i>
-		</button>
-		{{/if}}
 	</header>
 
 	{{#if hasInstinct}}

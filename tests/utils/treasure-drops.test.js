@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { existsSync } from "node:fs";
-import { headName, liftLength, rawEndOfNorm, treasureItemData, treasureColumnIcon } from "../../module/utils/treasure-drops.js";
+import { headName, liftLength, rawEndOfNorm, treasureItemData } from "../../module/utils/treasure-drops.js";
 import { TREASURE_CATALOG } from "../../module/data/treasure-catalog.js";
 
 // The journal enhancer rebuilds each treasure line as a drag-cell: the name is lifted
@@ -179,68 +178,36 @@ describe("treasure art", () => {
 		expect(data.img).toBe("my art/assets/treasures/the-fae-the-red-pennant.webp");
 	});
 
-	it("falls back to the load-class icon when this world hasn't imported that art", () => {
-		// Never point at a file that isn't there. The shipped type icon always exists, so an
-		// un-imported treasure still gets real art rather than a generic document icon.
+	it("carries no img when this world hasn't imported that treasure's art", () => {
+		// Never point at a file that isn't there, and never invent one: an un-illustrated
+		// treasure drags in with no img, so Foundry gives it its default document icon.
 		const data = withSettings({ treasureArt: { "ustrina-brass-sphere": "assets/treasures/ustrina-brass-sphere.webp" }, book2ArtRoot: "stonetop-book-art" },
 			() => treasureItemData(RED));
-		expect(data.img).toBe("systems/stonetop_pwd/assets/icons/treasures/regular.svg");
+		expect(data.img).toBeUndefined();
 	});
 
 	it("works outside Foundry entirely (no game global)", () => {
-		expect(withSettings(null, () => treasureItemData(RED)).img)
-			.toBe("systems/stonetop_pwd/assets/icons/treasures/regular.svg");
+		expect(withSettings(null, () => treasureItemData(RED)).img).toBeUndefined();
 	});
 
 	it("survives a world whose system never registered the index", () => {
 		const prev = globalThis.game;
 		globalThis.game = { settings: { settings: new Map(), get: () => { throw new Error("not registered"); } } };
 		try {
-			expect(treasureItemData(RED).img).toBe("systems/stonetop_pwd/assets/icons/treasures/regular.svg");
+			expect(treasureItemData(RED).img).toBeUndefined();
 		} finally { globalThis.game = prev; }
 	});
 });
 
-// Every treasure without a picked illustration still gets art, keyed on the load class the
-// book prints beside it (◇ carried / ▫ small / immobile). Chosen over the book's headings,
-// which are far too lopsided to distinguish anything (160 of 176 are "Artifacts").
-describe("treasure type icons", () => {
-	const iconOf = (col) => `systems/stonetop_pwd/assets/icons/treasures/${col}.svg`;
-
-	it("maps each load class to its own icon", () => {
-		expect(treasureColumnIcon("regular")).toBe(iconOf("regular"));
-		expect(treasureColumnIcon("small")).toBe(iconOf("small"));
-		expect(treasureColumnIcon("immobile")).toBe(iconOf("immobile"));
-	});
-
-	it("reads an unknown or missing class as regular", () => {
-		expect(treasureColumnIcon("wat")).toBe(iconOf("regular"));
-		expect(treasureColumnIcon(undefined)).toBe(iconOf("regular"));
-	});
-
-	it("gives every one of the 176 treasures an image", () => {
-		// The whole point of the fallback: no treasure drags in with a blank/default icon.
+// Only the handful of Book II treasures the book actually illustrates carry art; the rest
+// are text-only table rows and MUST drag in with no img at all, so Foundry gives them its
+// default icon. We never fabricate a picture (that was the old load-class-icon fallback).
+describe("treasure item art", () => {
+	it("carries no img outside a world that has imported the illustration", () => {
+		// treasureArtSrc reads a world-scoped setting absent in the unit-test environment, so
+		// every entry resolves to no art here — and none may fall back to an invented icon.
 		for (const entry of TREASURE_CATALOG) {
-			expect(treasureItemData(entry).img).toBeTruthy();
+			expect(treasureItemData(entry).img).toBeUndefined();
 		}
-	});
-
-	it("only ever names an icon that actually ships", () => {
-		// A typo'd path is invisible in unit tests but a broken image in the game.
-		const used = new Set(TREASURE_CATALOG.map(e => treasureItemData(e).img));
-		expect(used.size).toBe(3);   // exactly the three load classes are in play
-		for (const src of used) {
-			const rel = src.replace("systems/stonetop_pwd/", "");
-			expect(existsSync(new URL(`../../${rel}`, import.meta.url))).toBe(true);
-		}
-	});
-
-	it("gives an immobile treasure the immobile icon, not the small one", () => {
-		// treasureItemData files immobile items in the SMALL inventory column (they have no
-		// ◇ load), so the icon must key off the catalog's class, not that column.
-		const imm = TREASURE_CATALOG.find(e => e.column === "immobile");
-		const data = treasureItemData(imm);
-		expect(data.system.inventoryColumn).toBe("small");
-		expect(data.img).toBe(iconOf("immobile"));
 	});
 });

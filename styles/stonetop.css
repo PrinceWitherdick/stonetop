@@ -15585,20 +15585,55 @@ li.question-bullet {
 }
 .st-treasure-weight {
 	color: var(--st-blue-text, #3f5560);
-	letter-spacing: .08em;
 }
-.st-treasure-weight.st-small,
 .st-treasure-weight.st-immobile {
 	color: var(--st-text-muted, #6f6553);
+	font-size: 1.1em;
+}
+/* Small item (no load): a small hollow square, drawn like the use-circle so it joins the
+   same crisp glyph family as the load-diamonds instead of the tiny ▫ font character. A hair
+   smaller than a load-diamond, so it reads as "less than one load" at a glance. */
+.st-treasure-weight.st-small {
+	color: var(--st-text-muted, #6f6553);
+	display: inline-block;
+	box-sizing: border-box;
+	width: .62em;
+	height: .62em;
+	border: .11em solid currentColor;
+	overflow: hidden;
+	text-indent: 2em;
+	white-space: nowrap;
+	vertical-align: .02em;
+	font-size: 1.3em;
 }
 .st-treasure-uses {
 	color: var(--st-green-text, #4d6b3f);
-	letter-spacing: .08em;
 }
 .st-treasure-uses em {
 	font-style: italic;
 	color: var(--st-text-muted, #6f6553);
-	letter-spacing: 0;
+}
+/* The load-diamonds and use-circles are drawn as this system's SVG/mask glyphs (see
+   badgeHtml), not the raw ◇/○ font characters, which read far too small. Size them up
+   to sit comfortably beside the item text. The diamond takes the badge's colour via a
+   currentColor mask so it stays legible on both light and dark journal backgrounds
+   regardless of which body wrapper the render path carries; the circle is a currentColor
+   ring already, and gets a hair of spacing so a "○○○" use track reads as separate uses. */
+.st-treasure-badge .stonetop-glyph {
+	font-size: 1.3em;
+}
+.st-treasure-badge .stonetop-glyph--diamond {
+	color: inherit;
+	background: none;
+	background-color: currentColor;
+	-webkit-mask: var(--stonetop-diamond-icon) center / contain no-repeat;
+	mask: var(--stonetop-diamond-icon) center / contain no-repeat;
+	overflow: hidden;
+	text-indent: 2em;
+	white-space: nowrap;
+}
+.st-treasure-uses .stonetop-glyph--circle {
+	margin-right: .16em;
 }
 /* Compound treasures (e.g. the two mirrors): one draggable chip per real item. */
 .st-treasure-compound {
@@ -17313,7 +17348,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	margin: 0.5em 0;
 }
 
-/* The cell supplies its own leading grip, so drop the list spiral and reclaim
+/* The cell supplies its own leading thumbnail, so drop the list spiral and reclaim
    the indent the journal-body / rich-text list rules reserve for it. */
 li.st-treasure-line {
 	padding-left: 12px;
@@ -17329,10 +17364,33 @@ ul:has(> li.st-treasure-line:only-child) {
 	padding-left: 0;
 }
 
-.st-treasure-grip {
+/* The cell heads with the treasure's own book illustration when the world has imported it —
+   the same left-hand thumbnail the bestiary stat-block cells carry. A real illustration reads
+   as a photo: cover-cropped behind a border, like a stat-block portrait. The cell is
+   flex-start (its prose can run long), so a small top nudge lines the thumbnail up with the
+   name row rather than the very top of the box. */
+.st-treasure-icon {
+	width: 40px;
+	height: 40px;
+	object-fit: cover;
+	border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+	border-radius: var(--st-radius-sm);
 	flex-shrink: 0;
-	margin-top: 0.25em;
-	color: var(--st-cell-accent);
+	margin-top: 0.1em;
+	cursor: inherit;
+}
+
+/* Most Book II treasures aren't illustrated (they're text-only table rows), so their cells
+   head with the shared vase marker in the same 40px slot the illustration would occupy — every
+   row's text lines up whether or not it has a picture. Unlike a real illustration this is a
+   self-framed icon (its own dark octagon), so it's contained rather than cover-cropped and
+   carries no photo border. */
+.st-treasure-grip {
+	width: 40px;
+	height: 40px;
+	object-fit: contain;
+	flex-shrink: 0;
+	margin-top: 0.1em;
 	cursor: inherit;
 }
 
@@ -20666,31 +20724,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .threat-type::before { content: "("; }
 .stonetop .threat-type::after { content: ")"; }
 
-.stonetop .threat-reveal {
-	flex: 0 0 auto;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	margin: 0;
-	padding: 0;
-	width: 1.9rem;
-	height: 1.9rem;
-	line-height: 1;
-	font-size: 0.85rem;
-	color: var(--tc-ink-soft);
-	background: transparent;
-	border: 1px solid var(--tc-rule-hard);
-	border-radius: 999px;
-	cursor: pointer;
-}
-.stonetop .threat-reveal i { margin: 0; }
-.stonetop .threat-reveal.is-revealed {
-	color: #3f5347;
-	border-color: #6f8a78;
-	background: rgba(90, 122, 100, 0.12);
-}
-.stonetop .threat-reveal:hover { border-color: var(--threat-accent); }
-
 .stonetop .threat-label {
 	font-family: "IM Fell English", var(--font-stonetop);
 	text-transform: uppercase;
@@ -20879,42 +20912,13 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    the standalone journal page + canvas overlay (no section headers) keep it. */
 .stonetop .steading-threats .threat-proximity { display: none; }
 
-/* On this tab the reveal eye pairs with the collapse chevron in the card's top-right:
-   drop the pill border/background and anchor it just left of the chevron so the two icons
-   read as a set. (The chevron sits in the corner at top:0.4rem / right:0.5rem.) */
-.stonetop .steading-threats .threat-card__head { margin-right: 3.3rem; } /* clear eye + chevron */
-.stonetop .steading-threats .threat-reveal {
-	position: absolute;
-	top: 0.4rem;
-	right: 1.85rem;
-	width: auto;
-	height: auto;
-	padding: 0.25rem;
-	font-size: 0.9rem;
-	line-height: 1;
-	border: 0;
-	background: transparent;
-	color: var(--tc-ink-soft);
-	opacity: 0.6;
-	transition: opacity 0.15s ease, color 0.15s ease;
-}
-.stonetop .steading-threats .threat-reveal:hover {
-	opacity: 1;
-	color: var(--threat-accent);
-	background: transparent;
-	border: 0;
-}
-.stonetop .steading-threats .threat-reveal.is-revealed {
-	color: #3f5347;
-	opacity: 0.95;
-	background: transparent;
-	border: 0;
-}
+/* On this tab the card's top-right corner holds only the collapse chevron; reserve room
+   for it so the title never runs under it. (The chevron sits at top:0.4rem / right:0.5rem.) */
+.stonetop .steading-threats .threat-card__head { margin-right: 2rem; } /* clear the corner chevron */
 
 /* Collapse chrome (this tab only): the whole card header is a click target that clamps
    the card down to its title + Instinct. The chevron sits in the top-right corner (where
-   the drag grip used to be), paired just outside the reveal eye, and reflects / announces
-   the state. The reveal eye keeps its own click (handled before this). */
+   the drag grip used to be) and reflects / announces the state. */
 .stonetop .steading-threats .threat-card__head--collapsible { cursor: pointer; }
 .stonetop .steading-threats .threat-collapse-btn {
 	position: absolute;
@@ -20961,9 +20965,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .steading-threats .threat-card.is-collapsed .threat-instinct { margin-bottom: 0.15rem; }
 
 /* ── Hazard cards (Book I "Dangers") ride the threat-card chrome ─────────────
-   The wrapper IS a .threat-card (shared edge/head/portents/reveal/tools CSS);
-   only the hazard's own rows need rules. Collapsed hazards keep their damage
-   line visible: it's the hazard's essence the way Instinct is a threat's. */
+   The wrapper IS a .threat-card (shared edge/head/portents/tools CSS); only the
+   hazard's own rows need rules. Collapsed hazards keep their damage line visible:
+   it's the hazard's essence the way Instinct is a threat's. */
 .stonetop .hazard-damage {
 	margin: 0.35rem 0 0.1rem;
 	font-size: 1.02rem;
@@ -21677,4 +21681,83 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-expedition-dialog .stonetop-exp-load-note .mod { color: #8a6d12; font-weight: 700; font-style: normal; }
 .stonetop-expedition-dialog .stonetop-exp-load-empty {
 	padding: 12px; font-size: var(--st-fs-sm); color: var(--st-text-muted); font-style: italic; text-align: center;
+}
+
+/* ============================================================================
+   PEOPLE OF STONETOP gallery — the portrait picker for a resident/neighbor image
+   on the steading sheet (module/actors/steading/PeopleGalleryDialog.js). A grid of
+   imported book illustrations tagged as people; scoped under the dialog root.
+   ========================================================================== */
+.stonetop-people-gallery .window-content {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.stonetop-people-gallery .stonetop-people-gallery-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+.stonetop-people-gallery .stonetop-people-hint {
+	margin: 0 0 8px; font-size: var(--st-fs-xs); color: var(--st-text-muted);
+}
+.stonetop-people-gallery .stonetop-people-empty {
+	padding: 16px; font-size: var(--st-fs-sm); color: var(--st-text-muted); text-align: center; line-height: 1.5;
+}
+.stonetop-people-gallery .stonetop-people-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+	gap: 8px;
+}
+.stonetop-people-gallery .stonetop-people-pick {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 4px;
+	width: 100%;
+	height: auto;
+	line-height: 1.2;
+	background: var(--st-surface, rgba(0, 0, 0, 0.06));
+	border: 1px solid var(--st-border, rgba(0, 0, 0, 0.2));
+	border-radius: 6px;
+	cursor: pointer;
+}
+.stonetop-people-gallery .stonetop-people-pick:hover {
+	border-color: var(--st-slate, #55606b);
+	box-shadow: 0 0 0 1px var(--st-slate, #55606b) inset;
+}
+.stonetop-people-gallery .stonetop-people-pick.is-selected {
+	border-color: var(--st-green, #4a7a3a);
+	box-shadow: 0 0 0 2px var(--st-green, #4a7a3a) inset;
+}
+.stonetop-people-gallery .stonetop-people-pick img {
+	width: 100%;
+	aspect-ratio: 3 / 4;
+	object-fit: cover;
+	border-radius: 4px;
+	background: #fff;
+}
+.stonetop-people-gallery .stonetop-people-label {
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-muted);
+	text-align: center;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 100%;
+}
+.stonetop-people-gallery .stonetop-people-footer {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+	padding-top: 6px;
+	border-top: 1px solid var(--st-border, rgba(0, 0, 0, 0.15));
+}
+.stonetop-people-gallery .stonetop-people-footer button {
+	width: auto;
+	flex: 0 0 auto;
+}
+.stonetop-people-gallery .stonetop-people-browse {
+	margin-right: auto;
 }

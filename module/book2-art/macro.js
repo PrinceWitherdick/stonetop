@@ -27,3 +27,20 @@ export async function loadBook2ArtMacroSource() {
 	try { return await game.packs.get(BOOK2_ART_MACRO_PACK)?.getDocument(BOOK2_ART_MACRO_ID); }
 	catch { return undefined; }
 }
+
+/**
+ * Launch the bring-your-own-book "Import Book Art" macro: prefer the world's seeded
+ * copy in the Macro Directory, else run the shipped compendium copy directly. GM-only
+ * (the macro browses and writes files), so callers must gate on isGM. Warns and no-ops
+ * if neither copy is available. Shared by the Welcome guide's "Import Book Art" button
+ * and the post-startup art-import chat reminder so the launch path lives in one place.
+ */
+export async function runImportBookArtMacro() {
+	let macro = findBook2ArtWorldMacro();
+	if (!macro) {
+		const src = await loadBook2ArtMacroSource();
+		if (src?.command) macro = new Macro({ name: BOOK2_ART_MACRO_NAME, type: "script", img: src.img, command: src.command, scope: "global" });
+	}
+	if (!macro) { ui.notifications.warn("The Import Book Art macro isn't set up in this world yet."); return; }
+	return macro.execute();
+}

@@ -2060,5 +2060,337 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "out": "assets/treasures/the-things-below-a-chunk-of-red-crystal-shaped-to-look-like-a-lee.webp"
   }
  ],
+ "people": [
+  {
+   "slug": "b1-p135-x526",
+   "name": "Book I p.268",
+   "out": "assets/people/b1-p135-x526.webp"
+  },
+  {
+   "slug": "b1-p161-x611",
+   "name": "Book I p.320",
+   "out": "assets/people/b1-p161-x611.webp"
+  },
+  {
+   "slug": "b1-p156-x594",
+   "name": "Book I p.311",
+   "out": "assets/people/b1-p156-x594.webp"
+  },
+  {
+   "slug": "b1-p166-x630",
+   "name": "Book I p.331",
+   "out": "assets/people/b1-p166-x630.webp"
+  },
+  {
+   "slug": "b1-p134-x521",
+   "name": "Book I p.267",
+   "out": "assets/people/b1-p134-x521.webp"
+  },
+  {
+   "slug": "b1-p124-x490",
+   "name": "Book I p.247",
+   "out": "assets/people/b1-p124-x490.webp"
+  },
+  {
+   "slug": "b1-p268-x990",
+   "name": "Book I p.535",
+   "out": "assets/people/b1-p268-x990.webp"
+  },
+  {
+   "slug": "b1-p267-x987",
+   "name": "Book I p.533",
+   "out": "assets/people/b1-p267-x987.webp"
+  },
+  {
+   "slug": "b1-p239-x892",
+   "name": "Book I p.477",
+   "out": "assets/people/b1-p239-x892.webp"
+  },
+  {
+   "slug": "b1-p270-x998",
+   "name": "Book I p.539",
+   "out": "assets/people/b1-p270-x998.webp"
+  },
+  {
+   "slug": "b2-p031-x121",
+   "name": "Book II p.61",
+   "out": "assets/people/b2-p031-x121.webp"
+  },
+  {
+   "slug": "b1-p123-x486",
+   "name": "Book I p.244",
+   "out": "assets/people/b1-p123-x486.webp"
+  },
+  {
+   "slug": "b1-p032-x134",
+   "name": "Book I p.63",
+   "out": "assets/people/b1-p032-x134.webp"
+  },
+  {
+   "slug": "b1-p209-x792",
+   "name": "Book I p.416",
+   "out": "assets/people/b1-p209-x792.webp"
+  },
+  {
+   "slug": "b1-p119-x472",
+   "name": "Book I p.237",
+   "out": "assets/people/b1-p119-x472.webp"
+  },
+  {
+   "slug": "b1-p275-x1013",
+   "name": "Book I p.549",
+   "out": "assets/people/b1-p275-x1013.webp"
+  },
+  {
+   "slug": "b1-p192-x723",
+   "name": "Book I p.383",
+   "out": "assets/people/b1-p192-x723.webp"
+  },
+  {
+   "slug": "b1-p211-x800",
+   "name": "Book I p.421",
+   "out": "assets/people/b1-p211-x800.webp"
+  },
+  {
+   "slug": "b1-p230-x864",
+   "name": "Book I p.459",
+   "out": "assets/people/b1-p230-x864.webp"
+  },
+  {
+   "slug": "b1-p120-x475",
+   "name": "Book I p.238",
+   "out": "assets/people/b1-p120-x475.webp"
+  },
+  {
+   "slug": "b2-p020-x76",
+   "name": "Book II p.38",
+   "out": "assets/people/b2-p020-x76.webp"
+  },
+  {
+   "slug": "b1-p103-x420",
+   "name": "Book I p.204",
+   "out": "assets/people/b1-p103-x420.webp"
+  },
+  {
+   "slug": "b1-p039-x161",
+   "name": "Book I p.76",
+   "out": "assets/people/b1-p039-x161.webp"
+  },
+  {
+   "slug": "b1-p154-x587",
+   "name": "Book I p.307",
+   "out": "assets/people/b1-p154-x587.webp"
+  },
+  {
+   "slug": "b1-p225-x847",
+   "name": "Book I p.449",
+   "out": "assets/people/b1-p225-x847.webp"
+  },
+  {
+   "slug": "b1-p088-x364",
+   "name": "Book I p.174",
+   "out": "assets/people/b1-p088-x364.webp"
+  },
+  {
+   "slug": "b1-p294-x1074",
+   "name": "Book I p.586",
+   "out": "assets/people/b1-p294-x1074.webp"
+  },
+  {
+   "slug": "b1-p297-x1085",
+   "name": "Book I p.593",
+   "out": "assets/people/b1-p297-x1085.webp"
+  },
+  {
+   "slug": "b1-p090-x372",
+   "name": "Book I p.178",
+   "out": "assets/people/b1-p090-x372.webp"
+  },
+  {
+   "slug": "b1-p029-x124",
+   "name": "Book I p.57",
+   "out": "assets/people/b1-p029-x124.webp"
+  },
+  {
+   "slug": "b1-p212-x803",
+   "name": "Book I p.422",
+   "out": "assets/people/b1-p212-x803.webp"
+  },
+  {
+   "slug": "b1-p095-x391",
+   "name": "Book I p.188",
+   "out": "assets/people/b1-p095-x391.webp"
+  },
+  {
+   "slug": "b1-p114-x454",
+   "name": "Book I p.227",
+   "out": "assets/people/b1-p114-x454.webp"
+  },
+  {
+   "slug": "b1-p261-x969",
+   "name": "Book I p.520",
+   "out": "assets/people/b1-p261-x969.webp"
+  },
+  {
+   "slug": "b1-p100-x411",
+   "name": "Book I p.199",
+   "out": "assets/people/b1-p100-x411.webp"
+  },
+  {
+   "slug": "b1-p270-x996",
+   "name": "Book I p.538",
+   "out": "assets/people/b1-p270-x996.webp"
+  },
+  {
+   "slug": "b1-p041-x169",
+   "name": "Book I p.80",
+   "out": "assets/people/b1-p041-x169.webp"
+  },
+  {
+   "slug": "b1-p019-x88",
+   "name": "Book I p.36",
+   "out": "assets/people/b1-p019-x88.webp"
+  },
+  {
+   "slug": "b2-p135-x539",
+   "name": "Book II p.269",
+   "out": "assets/people/b2-p135-x539.webp"
+  },
+  {
+   "slug": "b1-p107-x435",
+   "name": "Book I p.212",
+   "out": "assets/people/b1-p107-x435.webp"
+  },
+  {
+   "slug": "b1-p007-x32",
+   "name": "Book I p.12",
+   "out": "assets/people/b1-p007-x32.webp"
+  },
+  {
+   "slug": "b1-p150-x573",
+   "name": "Book I p.299",
+   "out": "assets/people/b1-p150-x573.webp"
+  },
+  {
+   "slug": "b1-p137-x533",
+   "name": "Book I p.272",
+   "out": "assets/people/b1-p137-x533.webp"
+  },
+  {
+   "slug": "b1-p092-x380",
+   "name": "Book I p.183",
+   "out": "assets/people/b1-p092-x380.webp"
+  },
+  {
+   "slug": "b1-p047-x193",
+   "name": "Book I p.92",
+   "out": "assets/people/b1-p047-x193.webp"
+  },
+  {
+   "slug": "b1-p043-x179",
+   "name": "Book I p.85",
+   "out": "assets/people/b1-p043-x179.webp"
+  },
+  {
+   "slug": "b1-p040-x165",
+   "name": "Book I p.79",
+   "out": "assets/people/b1-p040-x165.webp"
+  },
+  {
+   "slug": "b1-p036-x150",
+   "name": "Book I p.71",
+   "out": "assets/people/b1-p036-x150.webp"
+  },
+  {
+   "slug": "b1-p035-x145",
+   "name": "Book I p.68",
+   "out": "assets/people/b1-p035-x145.webp"
+  },
+  {
+   "slug": "b1-p195-x731",
+   "name": "Book I p.389",
+   "out": "assets/people/b1-p195-x731.webp"
+  },
+  {
+   "slug": "b1-p174-x658",
+   "name": "Book I p.347",
+   "out": "assets/people/b1-p174-x658.webp"
+  },
+  {
+   "slug": "b1-p169-x640",
+   "name": "Book I p.336",
+   "out": "assets/people/b1-p169-x640.webp"
+  },
+  {
+   "slug": "b1-p216-x816",
+   "name": "Book I p.431",
+   "out": "assets/people/b1-p216-x816.webp"
+  },
+  {
+   "slug": "b1-p208-x784",
+   "name": "Book I p.415",
+   "out": "assets/people/b1-p208-x784.webp"
+  },
+  {
+   "slug": "b1-p217-x820",
+   "name": "Book I p.432",
+   "out": "assets/people/b1-p217-x820.webp"
+  },
+  {
+   "slug": "b1-p241-x899",
+   "name": "Book I p.481",
+   "out": "assets/people/b1-p241-x899.webp"
+  },
+  {
+   "slug": "b1-p279-x1026",
+   "name": "Book I p.557",
+   "out": "assets/people/b1-p279-x1026.webp"
+  },
+  {
+   "slug": "b1-p042-x173",
+   "name": "Book I p.82",
+   "out": "assets/people/b1-p042-x173.webp"
+  },
+  {
+   "slug": "b1-p204-x772",
+   "name": "Book I p.407",
+   "out": "assets/people/b1-p204-x772.webp"
+  },
+  {
+   "slug": "b1-p089-x368",
+   "name": "Book I p.177",
+   "out": "assets/people/b1-p089-x368.webp"
+  },
+  {
+   "slug": "b1-p246-x915",
+   "name": "Book I p.490",
+   "out": "assets/people/b1-p246-x915.webp"
+  },
+  {
+   "slug": "b2-p154-x619",
+   "name": "Book II p.306",
+   "out": "assets/people/b2-p154-x619.webp"
+  },
+  {
+   "slug": "b2-p092-x361",
+   "name": "Book II p.183",
+   "out": "assets/people/b2-p092-x361.webp"
+  },
+  {
+   "slug": "b1-p257-x953",
+   "name": "Book I p.512",
+   "out": "assets/people/b1-p257-x953.webp"
+  },
+  {
+   "slug": "b1-p287-x1051",
+   "name": "Book I p.573",
+   "out": "assets/people/b1-p287-x1051.webp"
+  },
+  {
+   "slug": "b1-p131-x511",
+   "name": "Book I p.261",
+   "out": "assets/people/b1-p131-x511.webp"
+  }
+ ],
  "codex": []
 };

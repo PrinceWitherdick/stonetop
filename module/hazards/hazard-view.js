@@ -1,11 +1,10 @@
 // Builds the shared view-model for a hazard card, used by all three renderers: the
 // page sheet (view mode), the steading tab's Hazards section, and the on-canvas
 // overlay. The hazard card deliberately reuses the threat card's markup conventions
-// (.threat-card wrapper, .threat-portent__check doom boxes, [data-threat-reveal]),
-// so threat-view's shared wiring (doom toggles, reveal clicks, drag-to-pin) works on
-// hazard cards without a parallel set of handlers.
+// (.threat-card wrapper, .threat-portent__check doom boxes), so threat-view's shared
+// wiring (doom toggles, drag-to-pin) works on hazard cards without a parallel set of
+// handlers.
 import { HAZARD_ACCENT, resolveDamageEffects, formatHazardDamage } from "./hazard-data.js";
-import { isThreatRevealed } from "../threats/threat-store.js";
 import { hasText, stringList, buildDoomRows, buildImpending, buildCustomPlayerMoves, cardEnricher } from "../journal/card-vm.js";
 
 /** The hazard's book-style damage line ("1d10+2 (ignores armor, forceful)"), derived
@@ -58,7 +57,6 @@ export async function buildHazardCardVM(page, { forOwner } = {}) {
 		hasGmMoves: gmMoves.length > 0,
 		customPlayerMoves,
 		hasCustomMoves: customPlayerMoves.length > 0,
-		revealed: isThreatRevealed(page),
 		isOwner: forOwner ?? page.isOwner,
 	};
 }

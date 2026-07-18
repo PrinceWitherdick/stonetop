@@ -6,18 +6,15 @@
 // path (Phase 4) remains the safe default.
 //
 // Per-user visibility rides the pin: the overlay only builds a card for a Note whose
-// `n.visible` is true (a player never sees a hidden threat's pin) and, belt-and-braces,
-// skips any page a non-GM can't see as revealed. This is UI-level, matching the rest of
-// the feature — a determined player with console access can still read the underlying
-// world JournalEntry (see reference_foundry-world-docs-broadcast); it just never draws.
+// `n.visible` is true. Threats/hazards are GM-only prep (the entry stays NONE-owned), so
+// a player never sees these pins and never gets a card; the overlay is effectively GM-only.
 import { getSetting } from "../settings.js";
-import { buildThreatCardVM, wireThreatDoomChange, handleThreatRevealClick } from "./threat-view.js";
-import { isThreatRevealed } from "./threat-store.js";
+import { buildThreatCardVM, wireThreatDoomChange } from "./threat-view.js";
 import { buildHazardCardVM } from "../hazards/hazard-view.js";
 import { gmPrepPageById, isGmPrepDoc } from "../journal/gm-prep-page.js";
 
 // Hazard pins ride the same board: the hazard card shares the threat card's markup
-// conventions (doom checkboxes, reveal button), so only the template + VM differ.
+// conventions (doom checkboxes), so only the template + VM differ.
 const CARD_TEMPLATES = {
 	threat: "systems/stonetop_pwd/templates/journal/partials/threat-card.hbs",
 	hazard: "systems/stonetop_pwd/templates/journal/partials/hazard-card.hbs",
@@ -46,10 +43,9 @@ export class ThreatBoard {
 		for (const h of ["createNote", "updateNote", "deleteNote"]) Hooks.on(h, () => this._schedule());
 		Hooks.on("updateJournalEntryPage", (page) => { if (CARD_TEMPLATES[page?.type]) this._schedule(); });
 		Hooks.on("deleteJournalEntryPage", () => this._schedule());
-		// Reveal/hide is an ENTRY ownership flip (updateJournalEntry), and a player gains or
-		// loses a threat entry as create/delete — none of which touch the page hooks above, so
-		// the card would otherwise linger (or fail to appear) until an unrelated event. Refresh
-		// on any threat-entry change so a reveal shows the card and a hide clears it promptly.
+		// A threat/hazard journal being created or deleted (e.g. the first item minting it, or
+		// the last delete tidying it away) doesn't touch the page hooks above, so refresh on any
+		// change to one of our entries too, keeping the drawn cards in step with the pins.
 		for (const h of ["createJournalEntry", "updateJournalEntry", "deleteJournalEntry"])
 			Hooks.on(h, (entry) => {
 				if (isGmPrepDoc(entry)) this._schedule();
@@ -65,8 +61,8 @@ export class ThreatBoard {
 
 	_threatNotes() {
 		const placeables = canvas?.notes?.placeables ?? [];
-		// `n.visible` is the pin's per-user visibility: a player never sees a hidden
-		// threat's pin, so its card is never built for them either.
+		// `n.visible` is the pin's per-user visibility: threats/hazards are GM-only, so a
+		// player never sees the pin and its card is never built for them either.
 		return placeables.filter(n => n?.visible && isGmPrepDoc(n?.document));
 	}
 
@@ -84,16 +80,15 @@ export class ThreatBoard {
 		el.className = "stonetop stonetop-threat-overlay";
 		parent.appendChild(el);
 		wireThreatDoomChange(el, chk => fromUuid(chk.closest(".threat-card")?.dataset.pageUuid ?? ""));
-		el.addEventListener("click", ev => handleThreatRevealClick(ev, reveal => fromUuid(reveal.dataset.pageUuid)));
 		this.layer = el;
 		return el;
 	}
 
-	// A cheap fingerprint of everything that affects a card's rendered HTML (its content's
-	// last-modified stamp + its revealed state). Lets refresh() re-enrich/re-render only the
-	// cards that actually changed instead of rebuilding every visible card on any single event.
+	// A cheap fingerprint of a card's rendered HTML (its content's last-modified stamp).
+	// Lets refresh() re-enrich/re-render only the cards that actually changed instead of
+	// rebuilding every visible card on any single event.
 	_cardSig(page) {
-		return `${page._stats?.modifiedTime ?? 0}:${isThreatRevealed(page) ? 1 : 0}`;
+		return `${page._stats?.modifiedTime ?? 0}`;
 	}
 
 	async refresh() {
@@ -105,8 +100,6 @@ export class ThreatBoard {
 		const built = await Promise.all(this._threatNotes().map(async note => {
 			const page = this._pageFor(note);
 			if (!page) return null;
-			// Belt-and-suspenders: never draw an unrevealed threat's card for a player.
-			if (!game.user.isGM && !isThreatRevealed(page)) return null;
 			const sig = this._cardSig(page);
 			const existing = this.cards.get(note.id);
 			if (existing && existing.sig === sig) return { note, sig, html: null }; // unchanged

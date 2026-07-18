@@ -3,7 +3,7 @@
 // Centralizing it keeps the book-faithful card identical everywhere and gives every
 // host the same data-* hooks (data-portent-index / data-doom) to wire interactivity.
 import { threatType, threatProximity } from "./threat-types.js";
-import { isThreatRevealed, setPortentDone, setDoomDone, setThreatRevealed } from "./threat-store.js";
+import { setPortentDone, setDoomDone } from "./threat-store.js";
 import { hasText, stringList, buildDoomRows, buildImpending, buildCustomPlayerMoves, cardEnricher } from "../journal/card-vm.js";
 
 /**
@@ -61,16 +61,15 @@ export async function buildThreatCardVM(page, { forOwner } = {}) {
 		hasCustomMoves: customPlayerMoves.length > 0,
 		nested,
 		hasNested: nested.length > 0,
-		revealed: isThreatRevealed(page),
 		isOwner: forOwner ?? page.isOwner,
 	};
 }
 
 // ── Shared card interactivity ───────────────────────────────────────────────────
 // The card view is identical across the page sheet, the steading Threats tab, and the
-// on-canvas overlay, so the two interactions its data-* hooks expose (ticking the doom
-// track, toggling reveal) are wired once here. Hosts differ only in how a card element
-// maps back to its page — passed in as `resolvePage` — and in what they do afterward.
+// on-canvas overlay, so the interactions its data-* hooks expose (ticking the doom track,
+// dragging the card to a scene) are wired once here. Hosts differ only in how a card
+// element maps back to its page — passed in as `resolvePage` — and in what they do after.
 
 /**
  * Wire the doom-track checkboxes onto a delegated `root`: ticking a grim portent or the
@@ -107,20 +106,4 @@ export function wireThreatCardDrag(root, { selector = ".threat-card[draggable='t
 		ev.dataTransfer.setData("text/plain", JSON.stringify({ type: "JournalEntryPage", uuid }));
 		ev.dataTransfer.effectAllowed = "copy";
 	});
-}
-
-/**
- * Handle a click on a card's reveal eye, if that's what was clicked. Call from a host's
- * own click handler and honor the returned boolean (true = handled, stop). Kept as a
- * call rather than its own listener so a host can run its post-reveal work (e.g. a
- * re-render the ownership flip doesn't trigger) and interleave with its other branches.
- * @returns {Promise<boolean>} whether a reveal toggle was handled.
- */
-export async function handleThreatRevealClick(ev, resolvePage) {
-	const reveal = ev.target.closest?.("[data-threat-reveal]");
-	if (!reveal) return false;
-	ev.preventDefault(); ev.stopPropagation();
-	const page = await resolvePage(reveal);
-	if (page) await setThreatRevealed(page, !isThreatRevealed(page));
-	return true;
 }

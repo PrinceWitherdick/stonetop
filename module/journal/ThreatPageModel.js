@@ -7,14 +7,14 @@
 // Threats are canonically JournalEntryPages (not steading-actor flags) for ONE
 // decisive reason: players co-own the steading actor to make Homefront moves, so
 // anything in its flags is replicated to their client and only soft-hidden at
-// render. Storing each threat as its own JournalEntry at least contains the blast
-// radius (a revealed threat's siblings aren't sent with it). Reveal flips the parent
-// ENTRY's `ownership.default` (see threat-store.setThreatRevealed / isThreatRevealed),
-// NOT the page's — the page stays INHERIT so it rides the entry's grant.
+// render. Every threat is a page of the steading's single "<Steading> Threats" journal,
+// which stays `ownership.default: NONE` — threats are pure GM prep and are never shared
+// with players (there is no per-threat "reveal"), so the tab, its pins, and the overlay
+// are all GM-only.
 //
 // This is UI-level hiding: v14 still broadcasts world JournalEntries in full to every
 // client regardless of ownership (see reference_foundry-world-docs-broadcast), so a
-// player with console access can read an un-revealed threat. Acceptable for GM prep;
+// player with console access could read the underlying entry. Acceptable for GM prep;
 // a compendium pack would be needed for a hard secret.
 import { THREAT_TYPE_IDS, THREAT_PROXIMITY_IDS, DEFAULT_THREAT_TYPE, DEFAULT_PROXIMITY } from "../threats/threat-types.js";
 import { doomTrackFields, customPlayerMovesField } from "./shared-page-fields.js";

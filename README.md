@@ -66,7 +66,7 @@ The Stonetop steading sheet tracks Fortunes, Prosperity, Population, and Defense
 
 #### Threats
 
-A dedicated **Threats** tab collects the GM's threats as book-faithful cards. Reveal a threat to players through ownership, drag it onto a scene to drop a pin, and optionally show live threat cards as a canvas overlay.
+A dedicated **Threats** tab collects the GM's threats as book-faithful cards. Threats (and hazards) are pure GM prep, gathered into a single "Stonetop Threats" / "Stonetop Hazards" journal: drag a card onto a scene to drop a pin, and optionally show live threat cards as a canvas overlay.
 
 #### <img src="assets/icons/macros/love-letter.svg" alt="Love Letter icon" width="24" height="24" align="absmiddle"> Love Letters
 

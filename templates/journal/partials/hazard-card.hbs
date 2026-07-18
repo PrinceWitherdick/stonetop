@@ -1,9 +1,9 @@
 {{!-- Shared, book-faithful "GM note" hazard card. Rendered from buildHazardCardVM
       by the page sheet (view), the steading tab's Hazards section, and the canvas
       overlay. It reuses the threat card's classes (.threat-card wrapper, portent
-      checkboxes, reveal button) so the shared threat-view wiring and the card CSS
-      apply unchanged; hazard-specific rows carry .hazard-* classes on top. --}}
-<article class="threat-card threat-card--hazard hazard-card{{#if revealed}} is-revealed{{/if}}{{#if collapsed}} is-collapsed{{/if}}{{#if canDrag}} is-draggable{{/if}}"
+      checkboxes) so the shared threat-view wiring and the card CSS apply unchanged;
+      hazard-specific rows carry .hazard-* classes on top. --}}
+<article class="threat-card threat-card--hazard hazard-card{{#if collapsed}} is-collapsed{{/if}}{{#if canDrag}} is-draggable{{/if}}"
          data-hazard-id="{{id}}" data-page-uuid="{{uuid}}" style="--threat-accent:{{accent}};"{{#if canDrag}} draggable="true"{{/if}}>
 	<span class="threat-card__edge" aria-hidden="true"></span>
 
@@ -19,14 +19,6 @@
 			<h3 class="threat-name">{{name}}</h3>
 			<span class="threat-type">Hazard</span>
 		</div>
-		{{#if isOwner}}
-		<button type="button" class="threat-reveal{{#if revealed}} is-revealed{{/if}}"
-		        data-threat-reveal data-page-uuid="{{uuid}}"
-		        data-tooltip="{{#if revealed}}Players can see this hazard &mdash; click to hide{{else}}Hidden from players &mdash; click to reveal{{/if}}"
-		        aria-label="{{#if revealed}}Visible to players &mdash; click to hide{{else}}Hidden from players &mdash; click to reveal{{/if}}">
-			<i class="fas {{#if revealed}}fa-eye{{else}}fa-eye-slash{{/if}}"></i>
-		</button>
-		{{/if}}
 	</header>
 
 	{{#if hasInstinct}}

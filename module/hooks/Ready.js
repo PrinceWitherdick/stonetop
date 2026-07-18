@@ -1,8 +1,9 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJournalsOnVersionChange, syncSeededFolderColors } from "./SeedCompendiums.js";
-import { reapplyBook2ArtOnVersionChange, reapplyBook2Art } from "../book2-art/reapply.js";
-import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource } from "../book2-art/macro.js";
+import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
+import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, runImportBookArtMacro } from "../book2-art/macro.js";
+import { stonetopChatCard } from "../utils/chat.js";
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -21,8 +22,12 @@ import { createArcanumItem } from "../item/createArcanum.js";
 import { LoveLetterDialog } from "../dialogs/LoveLetterDialog.js";
 import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
-import { getStonetopSteadingActorOrWarn } from "../utils/world.js";
+import { getStonetopSteadingActor, getStonetopSteadingActorOrWarn } from "../utils/world.js";
 import { rollMoveFromUuid } from "./HotbarDrop.js";
+import { ensureThreatsEntry } from "../threats/threat-store.js";
+import { ensureHazardsEntry } from "../hazards/hazard-store.js";
+import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
+import { deletionEntry } from "../utils/foundry-compat.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
@@ -87,6 +92,7 @@ export async function onReady() {
 	applyHideRollableIcon(getSetting("hideRollableIcon"));
 	applyReduceMotion(getSetting("reduceMotion"));
 	await _migrateArmourToArmor();
+	await _migrateGmPrepPagesToSingleJournal();
 	await runStartupMigrations();
 	await ensureStonetopSingleton();
 
@@ -154,10 +160,16 @@ export async function onReady() {
 	// { worldOnly: true } to only touch world journals. Returns the pass's stats.
 	//   game.stonetop.reapplyBook2Art()
 	game.stonetop.reapplyBook2Art   = (opts = {}) => reapplyBook2Art(opts);
+	// Launch the interactive bring-your-own-book "Import Book Art" extractor macro (NOT the
+	// silent re-point pass above). The entry point the post-startup art-reminder chat button
+	// and the Welcome guide's "Import Book Art" button both call. Callable from the console:
+	//   game.stonetop.importBookArt()
+	game.stonetop.importBookArt     = () => runImportBookArtMacro();
 
 	_registerCharacterAutoOpen();
 
 	if (game.user.isGM) await _applyCoreSettingDefaultsForNewWorld();
+	if (game.user.isGM) await _assignSteadingToUnassignedGm();
 
 	// Seeding the gazetteer into a brand-new world imports ~160 journal entries — a
 	// visible pause. On an established world the seed is a no-op that returns instantly,
@@ -218,8 +230,11 @@ export async function onReady() {
 		await _ensureTestPopulateMacro();
 		await _ensureBook2ArtMacro();
 	}
-	if (game.user.isGM) await _postStartupWelcomeMessageOnce();
-	if (game.user.isGM) await remindDestinedOmenRoll();
+	if (game.user.isGM) {
+		await _postStartupWelcomeMessageOnce();
+		await _postBook2ArtReminderOnce();
+		await remindDestinedOmenRoll();
+	}
 
 	// Established worlds have their journals already; open the orientation material now,
 	// before the Welcome guide, so a resumed walkthrough can still land on top. Fresh
@@ -281,6 +296,38 @@ async function _applyCoreSettingDefaultsForNewWorld() {
 	await _defaultDisableAutomaticTokenRotation();
 
 	await setSetting("coreSettingDefaultsApplied", true);
+}
+
+// Give a GM who has no assigned character the shared steading as their default character,
+// once. Foundry's `User#character` only references an actor id (it needn't be a
+// `character`-type actor), so the "Stonetop" steading rides in the GM's player-list entry
+// and their "toggle character sheet" hotkey opens it in a click. Client-scoped and gated
+// on a once-flag so it mirrors the per-user assignment:
+//   • a GM who already runs their own PC (or previously accepted the steading) is left
+//     untouched — we record the flag and never re-check; and
+//   • a GM who later clears the assignment stays cleared — we never re-assign.
+// If no steading exists yet (e.g. a secondary GM logging in before the primary GM minted
+// it), we return WITHOUT setting the flag so the next load tries again. GM-only caller.
+async function _assignSteadingToUnassignedGm() {
+	if (getSetting("gmSteadingAssigned")) return;
+
+	// Already has a character (their own PC, or the steading from a prior run): respect it
+	// and stop checking.
+	if (game.user.character) {
+		await setSetting("gmSteadingAssigned", true);
+		return;
+	}
+
+	const steading = getStonetopSteadingActor();
+	if (!steading) return; // not minted yet — retry next load, flag left unset
+
+	try {
+		await game.user.update({ character: steading.id });
+	} catch (err) {
+		console.warn("Stonetop | Could not assign the steading as the GM's character.", err);
+		return; // leave the flag unset so a transient failure retries next load
+	}
+	await setSetting("gmSteadingAssigned", true);
 }
 
 // Let players create their own characters from Foundry's "Create Actor" dialog by
@@ -608,6 +655,134 @@ async function _migrateArmourToArmor() {
 	}
 }
 
+// The GM-prep page families (threats / hazards) used to store one JournalEntry per item in
+// a per-steading "<Steading> Threats" / "<Steading> Hazards" Folder; they now store all of
+// a family's items as pages of ONE such JournalEntry. See _consolidateGmPrepFamily.
+const _GM_PREP_FAMILIES = [
+	{ folderFlagId: "threatsFolderId", pageType: "threat", ensureEntry: ensureThreatsEntry },
+	{ folderFlagId: "hazardsFolderId", pageType: "hazard", ensureEntry: ensureHazardsEntry },
+];
+
+// Fold each steading's old folder-of-single-page-entries into the new single journal
+// (GM-only). Runs every load but is a cheap no-op once the old folder flag is gone, so it
+// needs no version setting. Robust to a partial run: an old entry is tagged the moment its
+// page is copied, so a retry never duplicates pages and never deletes un-copied content.
+async function _migrateGmPrepPagesToSingleJournal() {
+	if (!game.user?.isGM) return;
+	const steadings = game.actors?.filter(a => a.type === "stonetop") ?? [];
+	for (const steading of steadings) {
+		for (const family of _GM_PREP_FAMILIES) {
+			try {
+				await _consolidateGmPrepFamily(steading, family);
+			} catch (err) {
+				console.error(`Stonetop | Could not consolidate ${family.pageType}s for "${steading.name}" into a single journal.`, err);
+			}
+		}
+	}
+}
+
+async function _consolidateGmPrepFamily(steading, { folderFlagId, pageType, ensureEntry }) {
+	const oldFolderId = (resolvedFlagProperty(steading, "steading") ?? {})[folderFlagId];
+	if (!oldFolderId) return; // already migrated (or this steading never had any) — nothing to do
+	const folder = game.folders?.get(oldFolderId) ?? null;
+
+	const oldEntries = folder
+		? folder.contents
+			.filter(e => e.getFlag?.(STONETOP_SCOPE, pageType))
+			.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+		: [];
+
+	if (oldEntries.length) {
+		const entry = await ensureEntry(steading); // mints the "<Steading> <Suffix>" journal + sets its flag
+		if (!entry) return;
+
+		// Copy each old single-page's content into the new entry as a fresh page, remembering
+		// old -> new ids so placed scene pins can be re-linked. An entry already consumed by a
+		// prior (interrupted) run carries the id of the page it became, so we reuse that.
+		const remap = [];
+		let sort = entry.pages.reduce((m, p) => Math.max(m, p.sort ?? 0), 0);
+		for (const old of oldEntries) {
+			const oldPage = old.pages.find(p => p.type === pageType);
+			if (!oldPage) continue;
+			let newPageId = old.getFlag(STONETOP_SCOPE, "consolidatedInto");
+			if (!newPageId) {
+				sort += 100000;
+				const [newPage] = await entry.createEmbeddedDocuments("JournalEntryPage", [{
+					type: pageType,
+					name: oldPage.name,
+					sort,
+					system: foundry.utils.deepClone(oldPage.system ?? {}),
+				}]);
+				if (!newPage) continue;
+				newPageId = newPage.id;
+				await old.setFlag(STONETOP_SCOPE, "consolidatedInto", newPageId);
+			}
+			remap.push({ oldEntryId: old.id, oldPageId: oldPage.id, newPageId });
+		}
+
+		// Re-point any scene Note pins from the old (entryId, pageId) to the new page.
+		if (game.scenes) {
+			for (const scene of game.scenes) {
+				const updates = [];
+				for (const n of scene.notes) {
+					const hit = remap.find(r => r.oldEntryId === n.entryId && r.oldPageId === n.pageId);
+					if (hit) updates.push({ _id: n.id, entryId: entry.id, pageId: hit.newPageId });
+				}
+				if (updates.length) await scene.updateEmbeddedDocuments("Note", updates).catch(() => {});
+			}
+		}
+
+		// Content + pins have moved: drop the old single-page entries.
+		for (const old of oldEntries) await old.delete().catch(() => {});
+	}
+
+	// Remove the now-empty folder and clear the stale folder flag so this won't run again.
+	if (folder) await folder.delete().catch(() => {});
+	const [key, val] = deletionEntry(`flags.${STONETOP_SCOPE}.steading.${folderFlagId}`);
+	await steading.update({ [key]: val });
+}
+
+// Nudge a GM who is past the first-session Welcome guide but has never imported the book
+// art: whisper the "you can import your images" card once, with a button that launches the
+// Import Book Art macro. Gated so it never interrupts a fresh world — while the guide still
+// auto-opens, its own "Import the book art" step is where this belongs — and never nags a GM
+// who already imported: art lives OUTSIDE the world, so a GM who imported in another world
+// already has it here (reapply re-points it) and skips straight to marking this resolved.
+// Resolves exactly once, then the flag stops it re-checking.
+async function _postBook2ArtReminderOnce() {
+	if (getSetting("book2ArtReminderShown")) return;
+	// Hold off until the Welcome guide has stopped auto-opening — the GM finished session
+	// zero or ticked "Don't show this again". Mirrors _openGmWelcomeGuide's gate. Not flagged
+	// here: a fresh world legitimately reaches this state later, so keep checking until it does.
+	if (!getSetting("gmWelcomeShown") && !sessionZeroComplete()) return;
+
+	// Past the guide, and nothing imported yet: whisper the one-time nudge to the GMs.
+	if (!(await hasImportedBook2Art())) {
+		if (!globalThis.ChatMessage?.create) return; // retry next load if chat isn't ready
+		await ChatMessage.create({
+			content: _buildBook2ArtReminderContent(),
+			whisper:  ChatMessage.getWhisperRecipients("GM").map(u => u.id),
+			speaker: { alias: "Stonetop" },
+		});
+	}
+	await setSetting("book2ArtReminderShown", true);
+}
+
+function _buildBook2ArtReminderContent() {
+	return stonetopChatCard(
+		"Import Your Book Art",
+		`<div class="stonetop-roll-card-description">
+			<p>Own the Stonetop PDFs? You can rebuild the monster and location illustrations right here in your world &mdash; portraits, tokens, treasure and journal art, all filled in from your own books. Nothing is uploaded anywhere; the pictures are reconstructed locally on your machine.</p>
+			<p>It's best to run this <strong>before your players join</strong>, and to <strong>close any journal you're editing</strong> first. You can re-run it any time from the <strong>Import Book Art</strong> macro in your Macro Directory.</p>
+		</div>
+		<div class="row stonetop-art-reminder__actions">
+			<button type="button" class="stonetop-import-art-open">
+				<i class="fas fa-images"></i> Import Book Art
+			</button>
+		</div>`,
+		"stonetop-art-reminder-card");
+}
+
 async function _postStartupWelcomeMessageOnce() {
 	if (getSetting("startupWelcomeShown")) return;
 	if (!globalThis.ChatMessage?.create) return;
@@ -645,7 +820,7 @@ function _buildStartupWelcomeContent() {
 					<ul>
 						<li>A first-session Welcome guide and a Let Spring Burst Forth walkthrough.</li>
 						<li>A steading sheet with seasonal automation, improvements, and disasters.</li>
-						<li>A Threats tab of book-faithful cards you can reveal and pin to a scene.</li>
+						<li>A Threats tab of book-faithful cards you can pin to a scene.</li>
 						<li>Love Letters: personal, one-time moves you hand to a single character.</li>
 						<li>Character Introductions that compile into "The Chronicle" world journal.</li>
 						<li>An End of Session macro that awards XP to the whole table at once.</li>
