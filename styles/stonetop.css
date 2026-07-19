@@ -1349,9 +1349,14 @@ input.stonetop-name-field {
 
 .stonetop-wound-add {
 	flex: 0 0 auto;
+	/* inline-flex + centering so the glyph sits dead-center; core's V13
+	   `button { display: flex }` otherwise leaves it top-left. */
+	display: inline-flex !important;
+	align-items: center;
+	justify-content: center;
 	width: 18px !important;
 	height: 18px;
-	padding: 0;
+	padding: 0 !important;
 	line-height: 1;
 	border: 1.5px solid #555 !important;
 	border-radius: 100% !important;
@@ -1359,6 +1364,11 @@ input.stonetop-name-field {
 	color: var(--color-text-dark-secondary);
 	font-size: 0.7rem;
 	cursor: pointer;
+}
+
+.stonetop-wound-add i {
+	margin: 0;
+	line-height: 1;
 }
 
 .stonetop-wound-add:hover {
@@ -1445,6 +1455,9 @@ input.stonetop-name-field {
 
 .stonetop-wound-actions button {
 	flex: 0 0 auto;
+	display: inline-flex !important;
+	align-items: center;
+	justify-content: center;
 	width: auto !important;
 	padding: 0 2px !important;
 	border: none !important;
@@ -1471,6 +1484,56 @@ input.stonetop-name-field {
 .stonetop-wound-list--scars {
 	margin-top: 2px;
 	opacity: 0.85;
+}
+
+/* Recover / Convalesce dialog wound sections */
+.stonetop-wound-tend-target {
+	margin: 4px 0 8px;
+}
+
+.stonetop-wound-tend-target .fa-droplet {
+	color: #a8544c;
+}
+
+.stonetop-convalesce-wounds,
+.stonetop-convalesce-permanent {
+	margin-top: 10px;
+}
+
+.stonetop-homestead-subhead {
+	margin: 4px 0 4px;
+	font-size: 0.9rem;
+	font-weight: 600;
+}
+
+.stonetop-convalesce-wound-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.stonetop-convalesce-wound {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+}
+
+.stonetop-convalesce-permanent-row {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.stonetop-convalesce-permanent-text {
+	font-weight: 600;
+}
+
+.stonetop-convalesce-permanent-text .fa-lock {
+	color: #6a4a3a;
 }
 
 /* Hide actor name from window title bar (name is shown in the sheet header instead) */
@@ -2963,6 +3026,25 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: var(--stonetop-bullet-size, 10px);
 	background: var(--stonetop-spiral-icon) no-repeat center / contain;
 	opacity: 0.55;
+}
+
+/* Lasting-injury reminder on a move's roll card (echoed from a wound's tag). A
+   reminder only — it doesn't change the roll — so it reads as a warm caution note. */
+:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice {
+	border-left: 3px solid #a8544c;
+	padding-left: 8px;
+}
+:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice .cell__subtitle {
+	color: #a8544c;
+}
+:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice .fa-triangle-exclamation {
+	margin-right: 4px;
+}
+:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice ul {
+	list-style: none;
+	margin: 3px 0 0;
+	padding-left: 2px;
+	font-style: italic;
 }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .cell--chat {
@@ -8001,6 +8083,72 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: var(--st-fs-base);
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
+}
+
+/* 10+ "marked in mind, body, or soul" — seed the mark straight onto the sheet. */
+.deaths-door-mark {
+	margin-top: 10px;
+	padding-top: 8px;
+	border-top: 1px dashed var(--color-border-light-tertiary, #999);
+}
+
+.deaths-door-mark-label {
+	margin: 0 0 6px;
+	font-size: var(--st-fs-base);
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-mark-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	margin-bottom: 7px;
+}
+
+.deaths-door-mark-chip {
+	width: auto !important;
+	flex: 0 0 auto;
+	padding: 2px 9px !important;
+	border: 1px solid #888 !important;
+	border-radius: 11px !important;
+	background: transparent !important;
+	font-size: 0.8rem;
+	line-height: 1.3;
+	cursor: pointer;
+}
+
+.deaths-door-mark-chip:hover {
+	background: rgba(168, 84, 76, 0.12) !important;
+	border-color: #a8544c !important;
+	color: #a8544c;
+}
+
+.deaths-door-mark-row {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.deaths-door-mark-row .deaths-door-mark-input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.deaths-door-mark-add {
+	width: auto !important;
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+.deaths-door-mark-done {
+	margin: 0;
+	font-size: var(--st-fs-base);
+	color: #4a7a4a;
+}
+
+.deaths-door-mark-done .fa-check {
+	margin-right: 4px;
 }
 
 .deaths-door-outcome-choices {

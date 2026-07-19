@@ -78,6 +78,7 @@
 						{{#if ../stonetop.woundsView.canEdit}}
 						<span class="stonetop-wound-actions">
 							{{#if this.gmOnly}}<i class="fas fa-user-secret stonetop-wound-gm" data-tooltip="Hidden from players"></i>{{/if}}
+							{{#if (eq this.status "problematic")}}<button type="button" class="stonetop-wound-tend" data-tooltip="Tend (Recover)"><i class="fas fa-hand-holding-heart"></i></button>{{/if}}
 							<button type="button" class="stonetop-wound-edit" data-tooltip="Edit"><i class="fas fa-pen"></i></button>
 							<button type="button" class="stonetop-wound-remove" data-tooltip="Remove"><i class="fas fa-trash"></i></button>
 						</span>

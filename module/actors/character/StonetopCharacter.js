@@ -1975,6 +1975,22 @@ export class StonetopCharacter {
 	async removeWound(id, { moveName } = {}) {
 		await this._writeWounds(this._woundList().filter(w => w.id !== id), moveName);
 	}
+
+	// Convalesce, applied to wounds in a single write: heal the given ids (→ scars) and
+	// stamp Make-a-Plan notes onto permanent injuries. One update so the sheet
+	// re-renders once instead of once per wound. Attributed to Convalesce in the ledger.
+	async convalesceWounds({ healIds = [], planNotes = {} } = {}) {
+		const healSet = new Set(healIds);
+		const wounds = this._woundList().map(w => {
+			let next = w;
+			if (healSet.has(w.id)) next = { ...next, healed: true };
+			if (Object.prototype.hasOwnProperty.call(planNotes, w.id)) {
+				next = { ...next, planNote: String(planNotes[w.id] ?? "").trim() };
+			}
+			return next;
+		});
+		await this._writeWounds(wounds, "Convalesce");
+	}
 	async getArcanum(slug)                           { return this._arcana.getArcanum(slug); }
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
 	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); await this._inventory.clearArcanumResources(slug); }

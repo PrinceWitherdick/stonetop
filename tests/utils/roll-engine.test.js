@@ -348,3 +348,61 @@ describe("rollFormula", () => {
 		expect(rollMessages[0].flavor).toContain("stonetop-card-buttons");
 	});
 });
+
+describe("rollStat lasting-injury reminder", () => {
+	function actorWithWounds(wounds) {
+		const actor = makeActor();
+		actor.system.attributes.wounds = wounds;
+		return actor;
+	}
+
+	it("echoes a wound's lasting tag onto its reminder move's card", async () => {
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Bad arm", status: "permanent", origin: "deaths-door", healed: false,
+			  mechanicalTag: "Volley at disadvantage until practiced", reminderMove: "Volley" },
+		]);
+		await rollStat("dex", actor, { moveName: "Volley" });
+		expect(rollMessages[0].flavor).toContain("Lasting injury");
+		expect(rollMessages[0].flavor).toContain("Volley at disadvantage until practiced");
+	});
+
+	it("echoes a '*' reminder onto any move", async () => {
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Migraines", status: "permanent", healed: false,
+			  mechanicalTag: "Splitting headache", reminderMove: "*" },
+		]);
+		await rollStat("wis", actor, { moveName: "Discern Realities" });
+		expect(rollMessages[0].flavor).toContain("Splitting headache");
+	});
+
+	it("does not echo when the reminder move doesn't match", async () => {
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Bad arm", status: "permanent", healed: false,
+			  mechanicalTag: "Volley at disadvantage", reminderMove: "Volley" },
+		]);
+		await rollStat("str", actor, { moveName: "Hack and Slash" });
+		expect(rollMessages[0].flavor).not.toContain("Lasting injury");
+	});
+
+	it("does not echo a healed wound", async () => {
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Old break", status: "permanent", healed: true,
+			  mechanicalTag: "Aches", reminderMove: "*" },
+		]);
+		await rollStat("con", actor, { moveName: "Anything" });
+		expect(rollMessages[0].flavor).not.toContain("Lasting injury");
+	});
+
+	it("does not echo a wound with a reminder move but no tag text", async () => {
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Sore", status: "problematic", healed: false, mechanicalTag: "", reminderMove: "*" },
+		]);
+		await rollStat("int", actor, { moveName: "Anything" });
+		expect(rollMessages[0].flavor).not.toContain("Lasting injury");
+	});
+});

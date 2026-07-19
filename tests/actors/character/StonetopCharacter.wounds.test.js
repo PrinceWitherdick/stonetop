@@ -94,6 +94,36 @@ describe("StonetopCharacter wounds", () => {
 		expect(await wounds(char)).toEqual([]);
 	});
 
+	it("convalesceWounds heals the checked ids into scars, leaves the rest", async () => {
+		const { char } = build();
+		const a = await char.addWound({ text: "Gash" });
+		const b = await char.addWound({ text: "Sprain" });
+		await char.convalesceWounds({ healIds: [a] });
+		const list = await wounds(char);
+		expect(list.find(w => w.id === a).healed).toBe(true);
+		expect(list.find(w => w.id === b).healed).toBe(false);
+	});
+
+	it("convalesceWounds stamps Make-a-Plan notes on permanent injuries", async () => {
+		const { char } = build();
+		const id = await char.addWound({ text: "Lost arm", status: "permanent" });
+		await char.convalesceWounds({ planNotes: { [id]: "  Mouth-bit bowstring  " } });
+		const w = (await wounds(char)).find(x => x.id === id);
+		expect(w.planNote).toBe("Mouth-bit bowstring");   // trimmed
+		expect(w.healed).toBe(false);                      // permanent isn't healed
+		expect(w.status).toBe("permanent");
+	});
+
+	it("tend fork: stabilizing clears the stored requirement", async () => {
+		const { char } = build();
+		const id = await char.addWound({ text: "Deep cut", requirementNote: "find willow bark" });
+		// The "it's taken care of" path.
+		await char.updateWound(id, { status: "stabilized", requirementNote: "" }, { moveName: "Recover" });
+		const w = (await wounds(char)).find(x => x.id === id);
+		expect(w.status).toBe("stabilized");
+		expect(w.requirementNote).toBe("");
+	});
+
 	it("carries origin, mechanicalTag and reminderMove through a round-trip", async () => {
 		const { char } = build();
 		const id = await char.addWound({

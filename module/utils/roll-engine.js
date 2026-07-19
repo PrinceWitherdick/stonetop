@@ -133,7 +133,7 @@ export function postSeasonsRollPrompt({ alias = "Seasons Change — Spring", hop
 	});
 }
 
-function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, resultLegend = "", pickList = "", tierActions = null, conditionsHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "" }) {
+function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, resultLegend = "", pickList = "", tierActions = null, conditionsHtml = "", noticesHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "" }) {
 	// Stash every tier's outcome on the row so a GM Shift Up/Down can swap the
 	// detail line to match the new tier (see _shiftRollCardFlavor in stonetop.js).
 	const outcomeAttrs = resultOutcomes
@@ -209,6 +209,7 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 			</div>
 			${descriptionHtml}
 			${bodyHtml}
+			${noticesHtml}
 			${resultLegendHtml}
 			${pickListHtml}
 			${tierActionsHtml}
@@ -216,6 +217,24 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 			${buttonsHtml}
 		</div>
 	</section>`;
+}
+
+// A lasting-injury reminder for the move being rolled: any non-healed wound that
+// carries a mechanicalTag and is set to remind on this move (or on "*", all rolls).
+// A reminder only — it never changes the roll; the GM/player applies it in the fiction.
+function _woundReminderHtml(actor, moveName) {
+	const wounds = actor?.system?.attributes?.wounds;
+	if (!Array.isArray(wounds) || !wounds.length) return "";
+	const matches = wounds.filter(w =>
+		w && !w.healed && w.mechanicalTag &&
+		(w.reminderMove === "*" || (moveName && w.reminderMove === moveName)),
+	);
+	if (!matches.length) return "";
+	const items = matches.map(w => `<li>${escHtml(w.mechanicalTag)}</li>`).join("");
+	return `<div class="row row--border stonetop-roll-wound-notice">
+		<h3 class="cell__subtitle"><i class="fas fa-triangle-exclamation"></i> Lasting injury</h3>
+		<ul>${items}</ul>
+	</div>`;
 }
 
 function _conditionsHtml(conditions) {
@@ -339,6 +358,7 @@ export async function rollStat(statKey, actor, options = {}) {
 		pickList: pickListHtml,
 		tierActions: options.tierActions ?? null,
 		conditionsHtml,
+		noticesHtml: _woundReminderHtml(actor, moveName),
 		buttons: true,
 		total: roll.total,
 		formula: roll.formula,
