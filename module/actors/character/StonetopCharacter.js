@@ -2326,6 +2326,11 @@ function _normalizeWound(w = {}, { keepId = true } = {}) {
 		origin:          _WOUND_ORIGINS.includes(w.origin) ? w.origin : "wound",
 		requirementNote: typeof w.requirementNote === "string" ? w.requirementNote : "",
 		planNote:        typeof w.planNote === "string" ? w.planNote : "",
+		planRequirements: Array.isArray(w.planRequirements)
+			? w.planRequirements
+				.map(r => ({ text: typeof r?.text === "string" ? r.text : "", done: !!r?.done }))
+				.filter(r => r.text)
+			: [],
 		mechanicalTag:   typeof w.mechanicalTag === "string" ? w.mechanicalTag : "",
 		reminderMove:    typeof w.reminderMove === "string" ? w.reminderMove : "",
 		gmOnly:          !!w.gmOnly,
@@ -2345,6 +2350,7 @@ function _buildWoundsSection(actor) {
 			.withOrigin(n.origin)
 			.withRequirementNote(n.requirementNote)
 			.withPlanNote(n.planNote)
+			.withPlanRequirements(n.planRequirements)
 			.withMechanicalTag(n.mechanicalTag)
 			.withReminderMove(n.reminderMove)
 			.withGmOnly(n.gmOnly)

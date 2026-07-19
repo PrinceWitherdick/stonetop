@@ -43,9 +43,11 @@ export const looseObject = () => new fields.ObjectField({ required: false, nulla
 //   status          "problematic" | "stabilized" | "permanent"
 //   origin          "wound" | "deaths-door"
 //   requirementNote GM-named requirement stored on the Recover "names a requirement" fork
-//   planNote        Make-a-Plan / adaptation note (permanent injuries)
+//   planNote        Make-a-Plan / adaptation goal (permanent injuries)
+//   planRequirements Make-a-Plan tick-box requirements [{text, done}] (Book I p.530)
 //   mechanicalTag   lasting reminder text, e.g. "Let Fly at disadvantage until practiced"
-//   reminderMove    move name the tag echoes onto at roll time ("" = none, "*" = all rolls)
+//   reminderMove    move name the tag echoes onto at roll time ("" = none, "*" = all move rolls;
+//                   the echo rides 2d6+stat move rolls only, not damage/formula/Death's-Door rolls)
 //   gmOnly          soft UI hide from the owning player (see StonetopCharacterSheet)
 //   healed          true → moved to the collapsed "Scars" disclosure rather than deleted
 export const woundsField = () => new fields.ArrayField(new fields.SchemaField({
@@ -55,6 +57,10 @@ export const woundsField = () => new fields.ArrayField(new fields.SchemaField({
 	origin:          new fields.StringField({ required: true, blank: true, initial: "wound" }),
 	requirementNote: new fields.StringField({ required: true, blank: true }),
 	planNote:        new fields.StringField({ required: true, blank: true }),
+	planRequirements: new fields.ArrayField(new fields.SchemaField({
+		text: new fields.StringField({ required: true, blank: true }),
+		done: new fields.BooleanField({ required: true, initial: false }),
+	}), { required: false, initial: [] }),
 	mechanicalTag:   new fields.StringField({ required: true, blank: true }),
 	reminderMove:    new fields.StringField({ required: true, blank: true }),
 	gmOnly:          new fields.BooleanField({ required: true, initial: false }),

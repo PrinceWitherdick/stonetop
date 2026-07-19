@@ -1314,8 +1314,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			const hasDebility      = activeDebilities.length > 0;
 			// Convalesce also heals wounds that can heal, and is where permanent injuries
 			// get a Make-a-Plan note — so it's available when either is outstanding, even
-			// at full HP with no debilities.
-			const openWounds       = (snapshot.wounds ?? []).filter(w => !w.healed);
+			// at full HP with no debilities. gmOnly wounds are hidden from the owning player,
+			// so they don't drive availability for a non-GM (mirrors the dialog's own filter).
+			const openWounds       = (snapshot.wounds ?? []).filter(w => !w.healed && (game.user.isGM || !w.gmOnly));
 			const healableWounds   = openWounds.filter(w => w.status !== "permanent");
 			const permanentWounds  = openWounds.filter(w => w.status === "permanent");
 			const canConvalesce    = !atFullHp || hasDebility || openWounds.length > 0;
@@ -1337,20 +1338,33 @@ export function createStonetopCharacterSheetClass(Base) {
 		// the whole block out of the DOM when there's nothing to show and no way to add.
 		_buildWoundsView(wounds = [], editable = false) {
 			const isGM = game.user.isGM;
-			const decorate = (w) => ({
-				id: w.id,
-				text: w.text,
-				status: w.status,
-				origin: w.origin,
-				isDeathsDoor: w.origin === "deaths-door",
-				requirementNote: w.requirementNote,
-				planNote: w.planNote,
-				mechanicalTag: w.mechanicalTag,
-				reminderMove: w.reminderMove,
-				gmOnly: w.gmOnly,
-				statusLabel: _WOUND_STATUS_LABEL[w.status] ?? _WOUND_STATUS_LABEL.problematic,
-				glyph: _WOUND_STATUS_GLYPH[w.status] ?? _WOUND_STATUS_GLYPH.problematic,
-			});
+			const decorate = (w) => {
+				// The inline chip shows only the wound text; fold its detail
+				// (requirement / plan / lasting tag) into one hover tooltip so
+				// nothing is lost in the compact presentation. The template reads
+				// only the fields returned below — the folded-in detail lives solely
+				// in `tooltip`, so it isn't duplicated onto the view model.
+				const planProgress = w.planProgress ?? { done: 0, total: 0 };
+				const tip = [];
+				if (w.text)            tip.push(w.text);
+				if (w.requirementNote) tip.push(`Needs: ${w.requirementNote}`);
+				if (w.planNote || planProgress.total) {
+					let s = w.planNote ? `Plan: ${w.planNote}` : "Plan";
+					if (planProgress.total) s += ` (${planProgress.done}/${planProgress.total} done)`;
+					tip.push(s);
+				}
+				if (w.mechanicalTag)   tip.push(w.mechanicalTag);
+				return {
+					id: w.id,
+					text: w.text,
+					status: w.status,
+					isDeathsDoor: w.origin === "deaths-door",
+					gmOnly: w.gmOnly,
+					statusLabel: _WOUND_STATUS_LABEL[w.status] ?? _WOUND_STATUS_LABEL.problematic,
+					glyph: _WOUND_STATUS_GLYPH[w.status] ?? _WOUND_STATUS_GLYPH.problematic,
+					tooltip: tip.join(" • ") || w.text || "",
+				};
+			};
 			const visible = (wounds ?? []).filter(w => isGM || !w.gmOnly);
 			const active = visible.filter(w => !w.healed).map(decorate);
 			const scars  = visible.filter(w =>  w.healed).map(decorate);
@@ -1360,7 +1374,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				active,
 				scars,
 				scarCount: scars.length,
-				show: editable || active.length > 0 || scars.length > 0,
+				// The wounds block only renders when there's a wound to show; the
+				// "add wound" affordance lives by the HP label (gated by canEdit),
+				// so an editable-but-woundless sheet shows no block under the vitals.
+				show: active.length > 0 || scars.length > 0,
 			};
 		}
 
@@ -5597,7 +5614,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			const snapshot = await this._stonetopCharacter.buildSnapshot();
 			const hp = snapshot.vitals.hp;
 			const activeDebilities = (snapshot.debilities ?? []).filter(d => d.active);
-			const openWounds = (snapshot.wounds ?? []).filter(w => !w.healed);
+			// A gmOnly wound is hidden from the owning player on the sheet; keep it out of
+			// their Convalesce lists too (the GM manages those), so the dialog never surfaces
+			// the concealed text — and the resulting card never broadcasts it.
+			const isGM = game.user.isGM;
+			const openWounds = (snapshot.wounds ?? []).filter(w => !w.healed && (isGM || !w.gmOnly));
 			const healable   = openWounds.filter(w => w.status !== "permanent");
 			const permanent  = openWounds.filter(w => w.status === "permanent");
 			if (hp.value >= hp.max && activeDebilities.length === 0 && openWounds.length === 0) return;
@@ -5609,30 +5630,41 @@ export function createStonetopCharacterSheetClass(Base) {
 				? `<li>Clear ${activeDebilities.length === 1 ? "debility" : "debilities"}: <strong>${_esc(activeDebilities.map(d => d.name).join(", "))}</strong>.</li>`
 				: `<li>No debilities marked.</li>`;
 
-			// Wounds that can heal → a checklist (all checked by default); healing keeps
-			// them as scars, not deletion. Permanent injuries can't heal: list them with a
-			// Make-a-Plan note field. "Retire" only makes sense for a real impairment, so a
-			// purely narrative Death's-Door mark (origin "deaths-door") never prompts it.
+			// Wounds that can heal → an OPT-IN checklist (unchecked by default): healing them
+			// is Convalesce's stricter "few weeks under a healer" tier, distinct from the "few
+			// days" HP/debility reset above, so the player asserts it deliberately rather than
+			// having it ride along on every reset. Healing keeps a wound as a scar, not deletion.
 			const healSection = healable.length
 				? `<div class="stonetop-convalesce-wounds">
-						<p class="stonetop-homestead-subhead">Heal wounds that can heal:</p>
+						<p class="stonetop-homestead-subhead">Heal wounds that can heal (weeks under a healer):</p>
 						<ul class="stonetop-convalesce-wound-list">
-							${healable.map(w => `<li><label class="stonetop-convalesce-wound"><input type="checkbox" name="heal" value="${_esc(w.id)}" checked> <span>${_esc(w.text || "(unnamed wound)")}</span></label></li>`).join("")}
+							${healable.map(w => `<li><label class="stonetop-convalesce-wound"><input type="checkbox" name="heal" value="${_esc(w.id)}"> <span>${_esc(w.text || "(unnamed wound)")}</span></label></li>`).join("")}
 						</ul>
 					</div>`
 				: "";
-			const hasImpairment = permanent.some(w => w.origin !== "deaths-door");
-			const permSection = permanent.length
+			// Permanent injuries can't heal. Split them by origin so each gets the right framing:
+			// a real impairment (lost limb, shattered knee) prompts "retire or Make a Plan"; a
+			// purely narrative Death's-Door mark is just carried and never gets the retire framing.
+			const permRow = (w) => `<li class="stonetop-convalesce-permanent-row">
+					<span class="stonetop-convalesce-permanent-text"><i class="fas fa-lock"></i> ${_esc(w.text || "(unnamed injury)")}</span>
+					<input type="text" name="plan-${_esc(w.id)}" value="${_esc(w.planNote ?? "")}" placeholder="Make a Plan to adapt (a prosthetic, learn to compensate…)">
+				</li>`;
+			const permBlock = (title, list) => list.length
 				? `<div class="stonetop-convalesce-permanent">
-						<p class="stonetop-homestead-subhead">${hasImpairment ? "Permanent injury — retire or Make a Plan to adapt:" : "A lasting mark — Make a Plan to carry it, or just bring it up in play:"}</p>
-						<ul class="stonetop-convalesce-wound-list">
-							${permanent.map(w => `<li class="stonetop-convalesce-permanent-row">
-								<span class="stonetop-convalesce-permanent-text"><i class="fas fa-lock"></i> ${_esc(w.text || "(unnamed injury)")}</span>
-								<input type="text" name="plan-${_esc(w.id)}" value="${_esc(w.planNote ?? "")}" placeholder="Make a Plan to adapt (a prosthetic, learn to compensate…)">
-							</li>`).join("")}
-						</ul>
+						<p class="stonetop-homestead-subhead">${title}</p>
+						<ul class="stonetop-convalesce-wound-list">${list.map(permRow).join("")}</ul>
 					</div>`
 				: "";
+			// The goal input here is a quick capture; the full plan (tick-box requirements +
+			// any interim penalty like "Let Fly at disadvantage until practiced") lives on the
+			// wound's own edit form, so point there rather than duplicating that editor.
+			const permHint = permanent.length
+				? `<p class="stonetop-homestead-note">Add tick-box requirements and any interim penalty via the wound's <i class="fas fa-pen"></i> edit on the sheet.</p>`
+				: "";
+			const permSection =
+				permBlock("Permanent injury — retire or Make a Plan to adapt:", permanent.filter(w => w.origin !== "deaths-door")) +
+				permBlock("A lasting mark — Make a Plan to carry it, or just bring it up in play:", permanent.filter(w => w.origin === "deaths-door")) +
+				permHint;
 
 			new Dialog({
 				title: "Convalesce",
@@ -5679,8 +5711,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (healIds.length || hasPlanNotes) {
 				await this._stonetopCharacter.convalesceWounds({ healIds, planNotes });
 			}
-			const healedNames = healIds
-				.map(id => healable.find(w => w.id === id)?.text || "a wound");
+			// Don't broadcast a gmOnly wound's concealed text into the public heal card.
+			const healedNames = healIds.map(id => {
+				const w = healable.find(x => x.id === id);
+				return w?.gmOnly ? "a hidden wound" : (w?.text || "a wound");
+			});
 
 			const rows = [];
 			if (newHp > oldHp)       rows.push({ label: "HP", value: `${oldHp} → ${newHp} (+${newHp - oldHp})` });
@@ -5723,13 +5758,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			return [...names].sort((a, b) => a.localeCompare(b));
 		}
 
-		// Options for the "remind on" picker: none, all rolls, then the moves by name.
+		// Options for the "remind on" picker: none, all move rolls, then the moves by name.
+		// ("All move rolls" not "All rolls" — the echo only rides 2d6+stat move rolls, not
+		// damage/formula/Death's-Door rolls, so the label shouldn't overpromise.)
 		_woundReminderMoveOptions(selected = "", moveNames = []) {
 			const opts = [
 				{ value: "",  label: "— no reminder —" },
-				{ value: "*", label: "All rolls" },
+				{ value: "*", label: "All move rolls" },
 				...moveNames.map(name => ({ value: name, label: name })),
 			];
+			// If the stored reminder targets a move that's since been renamed or unlearned,
+			// keep it as an explicit option so re-saving the wound doesn't silently drop the
+			// (drifted) binding — the dropdown would otherwise have no matching value.
+			if (selected && selected !== "*" && !moveNames.includes(selected)) {
+				opts.push({ value: selected, label: `${selected} (not a current move)` });
+			}
 			return opts.map(o =>
 				`<option value="${_esc(o.value)}"${o.value === selected ? " selected" : ""}>${_esc(o.label)}</option>`,
 			).join("");
@@ -5746,44 +5789,31 @@ export function createStonetopCharacterSheetClass(Base) {
 			this._openWoundDialog({ isNew: false, wound: this._woundRecord(id), moveNames: this._woundReminderMoveNames(snapshot) });
 		}
 
-		// Recover, applied to one wound: "say how you tend to it," then the GM's fork —
-		// "taken care of" stabilizes it (and clears any stored requirement), or "name a
-		// requirement" leaves it problematic but records what's still needed so it
-		// resurfaces next session. Recover only ever *stabilizes*; healing is Convalesce.
+		// Recover, applied to one wound: "say how you tend to it," then stabilize it —
+		// Recover only ever *stabilizes* (clearing any stored requirement); healing is
+		// Convalesce. If the GM says it isn't handled yet, cancel and note what's still
+		// required on the wound via Edit.
 		_onWoundTend(id) {
 			if (!id) return;
 			const wound = this._woundRecord(id);
 			if (!wound) return;
 			const label = wound.text || "(unnamed wound)";
+			// A gmOnly wound's tend chip is only visible to the GM (the sheet hides it from
+			// the owning player), so the dialog can name it — but the resulting chat card is
+			// public, so never broadcast the concealed text or the treatment specifics.
+			const chatLabel = wound.gmOnly ? "a hidden wound" : label;
+			// No inputs: "say how" is table narration (said out loud; the trigger line
+			// prompts it), and nothing here would persist a typed value. The action is a
+			// single confirm — the GM says it's handled, and the wound stabilizes.
 			const content = `<form class="stonetop-homestead-dialog stonetop-wound-tend-form">
 				<p class="stonetop-homestead-trigger"><em>When you tend to a problematic wound, say how.</em></p>
 				<p class="stonetop-wound-tend-target"><i class="fas fa-droplet"></i> <strong>${_esc(label)}</strong></p>
-				<div class="form-group">
-					<label>Say how you tend to it</label>
-					<input type="text" name="how" placeholder="Splint it, willow bark, stitch it up…">
-				</div>
-				<div class="form-group">
-					<label>…or what the GM says is still required</label>
-					<input type="text" name="requirement" value="${_esc(wound.requirementNote ?? "")}" placeholder="Find willow bark, Defy Danger, cauterize…">
-				</div>
 				<p class="stonetop-homestead-note">The GM will say it's taken care of, or tell you what's still required. Stabilizing isn't healing — that takes Convalesce.</p>
 			</form>`;
 
-			const stabilize = async (html) => {
-				const how = (html.find('[name="how"]').val() ?? "").trim();
+			const stabilize = async () => {
 				await this._stonetopCharacter.updateWound(id, { status: "stabilized", requirementNote: "" }, { moveName: "Recover" });
-				const rows = [{ label: "Wound stabilized", value: label }];
-				if (how) rows.push({ label: "How", value: how });
-				postMoveToChat(this.actor, "Recover", rows);
-				this.render(false);
-			};
-			const requirement = async (html) => {
-				const req = (html.find('[name="requirement"]').val() ?? "").trim();
-				await this._stonetopCharacter.updateWound(id, { requirementNote: req }, { moveName: "Recover" });
-				const rows = [{ label: "Wound", value: label }];
-				if (req) rows.push({ label: "Still required", value: req });
-				else     rows.push({ label: "Status", value: "Still problematic" });
-				postMoveToChat(this.actor, "Recover", rows);
+				postMoveToChat(this.actor, "Recover", [{ label: "Wound stabilized", value: chatLabel }]);
 				this.render(false);
 			};
 
@@ -5791,9 +5821,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				title: "Recover — tend to a wound",
 				content,
 				buttons: {
-					stabilize:   { label: "It's taken care of", callback: stabilize },
-					requirement: { label: "Note requirement",   callback: requirement },
-					cancel:      { label: "Cancel" },
+					stabilize: { label: "It's taken care of", callback: stabilize },
+					cancel:    { label: "Cancel" },
 				},
 				default: "stabilize",
 				render: bringDialogToFront,
@@ -5806,17 +5835,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			const label = wound?.text ? `“${wound.text}”` : "this wound";
 			const ok = await Dialog.confirm({
 				title: "Remove Wound",
-				content: `<p>Remove ${_esc(label)} from the sheet? This deletes it entirely — to keep it as a healed scar instead, edit its status.</p>`,
+				content: `<p>Remove ${_esc(label)} from the sheet? This deletes it entirely — to keep its fiction as a healed scar instead, edit it and tick “Healed — move to Scars.”</p>`,
+				render:  bringDialogToFront,
+				options: { classes: ["dialog", "stonetop", "stonetop-remove-wound-dialog"] },
 			});
 			if (!ok) return;
 			await this._stonetopCharacter.removeWound(id);
 			this.render(false);
 		}
 
-		// Shared add/edit form. Status is settable here as a manual override; the normal
-		// path is move-gated (Recover stabilizes, Convalesce heals). Only the GM sees the
-		// "hidden from players" toggle. Fields the dialog doesn't manage (e.g. planNote,
-		// set by Convalesce's Make-a-Plan) are preserved by updateWound's merge.
+		// Shared add/edit form. Status/healed are settable here as a manual override; the
+		// normal path is move-gated (Recover stabilizes, Convalesce heals → scar). The
+		// "Healed — move to Scars" toggle is the manual heal path (the Remove dialog points
+		// here to keep a wound's fiction as a scar). Only the GM sees the "hidden from
+		// players" toggle. planNote is editable here too, so a permanent injury's adaptation
+		// plan and its interim lasting tag/reminder can be captured in one place.
 		_openWoundDialog({ isNew, wound = null, moveNames = [] }) {
 			const w    = wound ?? {};
 			const isGM = game.user.isGM;
@@ -5826,7 +5859,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			const originOptions = _WOUND_ORIGIN_OPTIONS.map(o =>
 				`<option value="${o.value}"${(w.origin ?? "wound") === o.value ? " selected" : ""}>${_esc(o.label)}</option>`,
 			).join("");
+			// One Make-a-Plan tick-box row (Book I p.530: "write the requirements down with
+			// tick boxes… tick the boxes off"): a done checkbox + the requirement text + remove.
+			const reqRow = (text = "", done = false) => `<li class="stonetop-wound-req">
+				<label class="checkbox"><input type="checkbox" class="req-done"${done ? " checked" : ""}></label>
+				<input type="text" class="req-text" value="${_esc(text)}" placeholder="e.g. months of practice">
+				<button type="button" class="req-remove" data-tooltip="Remove"><i class="fas fa-xmark"></i></button>
+			</li>`;
 			const content = `<form class="stonetop-wound-dialog-form">
+				${isNew ? `<p class="stonetop-homestead-note">A problematic wound always involves taking damage, and often a marked debility — apply those on the sheet as the fiction warrants.</p>` : ""}
 				<div class="form-group">
 					<label>Wound</label>
 					<input type="text" name="text" value="${_esc(w.text ?? "")}" placeholder="e.g. Twisted ankle — can't bear weight">
@@ -5851,6 +5892,18 @@ export function createStonetopCharacterSheetClass(Base) {
 					<label>Remind on</label>
 					<select name="reminderMove">${this._woundReminderMoveOptions(w.reminderMove ?? "", moveNames)}</select>
 				</div>
+				<div class="form-group">
+					<label>Make-a-Plan goal</label>
+					<input type="text" name="planNote" value="${_esc(w.planNote ?? "")}" placeholder="Adaptation goal for a permanent injury (optional)">
+				</div>
+				<div class="form-group stonetop-wound-plan-reqs">
+					<label>Plan requirements <span class="stonetop-wound-plan-hint">— tick off as you adapt</span></label>
+					<ul class="stonetop-wound-req-list">${(w.planRequirements ?? []).map(r => reqRow(r.text, r.done)).join("")}</ul>
+					<button type="button" class="stonetop-wound-req-add"><i class="fas fa-plus"></i> Add requirement</button>
+				</div>
+				<div class="form-group">
+					<label class="checkbox"><input type="checkbox" name="healed"${w.healed ? " checked" : ""}> Healed — move to Scars</label>
+				</div>
 				${isGM ? `<div class="form-group">
 					<label class="checkbox"><input type="checkbox" name="gmOnly"${w.gmOnly ? " checked" : ""}> Hidden from players</label>
 				</div>` : ""}
@@ -5865,6 +5918,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					requirementNote: (val("requirementNote") ?? "").trim(),
 					mechanicalTag:   (val("mechanicalTag") ?? "").trim(),
 					reminderMove:    val("reminderMove") ?? "",
+					planNote:        (val("planNote") ?? "").trim(),
+					planRequirements: html.find(".stonetop-wound-req").toArray().map(li => ({
+						text: (li.querySelector(".req-text")?.value ?? "").trim(),
+						done: !!li.querySelector(".req-done")?.checked,
+					})).filter(r => r.text),
+					healed:          html.find('[name="healed"]').is(":checked"),
 				};
 				if (isGM) data.gmOnly = html.find('[name="gmOnly"]').is(":checked");
 				if (isNew) await this._stonetopCharacter.addWound(data);
@@ -5880,7 +5939,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					cancel: { label: "Cancel" },
 				},
 				default: "save",
-				render: bringDialogToFront,
+				render: (html) => {
+					bringDialogToFront(html);
+					// Dynamic add/remove of plan-requirement rows; collected from the live DOM on save.
+					html.find(".stonetop-wound-req-add").on("click", () => html.find(".stonetop-wound-req-list").append(reqRow()));
+					html.on("click", ".req-remove", (ev) => ev.currentTarget.closest(".stonetop-wound-req")?.remove());
+				},
 			}, { width: 460, classes: ["dialog", "stonetop", "stonetop-wound-dialog"] }).render(true);
 		}
 

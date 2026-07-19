@@ -8,7 +8,8 @@
  * @property {string} status          - "problematic" | "stabilized" | "permanent"
  * @property {string} origin          - "wound" | "deaths-door"
  * @property {string} requirementNote - GM-named requirement (the Recover fork)
- * @property {string} planNote        - Make-a-Plan / adaptation note (permanent only)
+ * @property {string} planNote        - Make-a-Plan / adaptation goal (permanent only)
+ * @property {{text:string, done:boolean}[]} planRequirements - Make-a-Plan tick-boxes
  * @property {string} mechanicalTag   - lasting reminder text echoed at roll time
  * @property {string} reminderMove    - move name the tag reminds on ("" none, "*" all)
  * @property {boolean} gmOnly         - soft UI hide from the owning player
@@ -22,6 +23,7 @@ export class WoundSnapshot {
 		this.origin          = b._origin;
 		this.requirementNote = b._requirementNote;
 		this.planNote        = b._planNote;
+		this.planRequirements = b._planRequirements ?? [];
 		this.mechanicalTag   = b._mechanicalTag;
 		this.reminderMove    = b._reminderMove;
 		this.gmOnly          = b._gmOnly;
@@ -32,6 +34,12 @@ export class WoundSnapshot {
 	get isStabilized()  { return this.status === "stabilized"; }
 	get isPermanent()   { return this.status === "permanent"; }
 	get isDeathsDoor()  { return this.origin === "deaths-door"; }
+
+	// Make-a-Plan progress, e.g. {done: 1, total: 3}. total 0 = no structured plan.
+	get planProgress() {
+		const reqs = this.planRequirements ?? [];
+		return { done: reqs.filter(r => r.done).length, total: reqs.length };
+	}
 }
 
 export class WoundSnapshotBuilder {
@@ -41,6 +49,7 @@ export class WoundSnapshotBuilder {
 	withOrigin(v)          { this._origin          = v; return this; }
 	withRequirementNote(v) { this._requirementNote = v; return this; }
 	withPlanNote(v)        { this._planNote        = v; return this; }
+	withPlanRequirements(v) { this._planRequirements = v; return this; }
 	withMechanicalTag(v)   { this._mechanicalTag   = v; return this; }
 	withReminderMove(v)    { this._reminderMove    = v; return this; }
 	withGmOnly(v)          { this._gmOnly          = v; return this; }

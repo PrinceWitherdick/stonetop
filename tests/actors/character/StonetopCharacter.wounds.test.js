@@ -124,6 +124,43 @@ describe("StonetopCharacter wounds", () => {
 		expect(w.requirementNote).toBe("");
 	});
 
+	it("round-trips Make-a-Plan tick-box requirements (text + done)", async () => {
+		const { char } = build();
+		const id = await char.addWound({
+			text: "Lost right arm",
+			status: "permanent",
+			planRequirements: [
+				{ text: "Make a mouth-bit prosthetic", done: true },
+				{ text: "Months of practice", done: false },
+			],
+		});
+		const w = (await wounds(char)).find(x => x.id === id);
+		expect(w.planRequirements).toEqual([
+			{ text: "Make a mouth-bit prosthetic", done: true },
+			{ text: "Months of practice", done: false },
+		]);
+		expect(w.planProgress).toEqual({ done: 1, total: 2 });
+	});
+
+	it("drops blank requirement rows and coerces malformed ones", async () => {
+		const { char, actor } = build();
+		actor.system.attributes.wounds = [
+			{ id: "r1", text: "Bad knee", status: "permanent",
+			  planRequirements: [{ text: "Brace it", done: "yes" }, { text: "", done: false }, { nope: 1 }] },
+		];
+		const w = (await wounds(char))[0];
+		expect(w.planRequirements).toEqual([{ text: "Brace it", done: true }]);
+		expect(w.planProgress).toEqual({ done: 1, total: 1 });
+	});
+
+	it("defaults planRequirements to an empty array", async () => {
+		const { char } = build();
+		const id = await char.addWound({ text: "Scrape" });
+		const w = (await wounds(char)).find(x => x.id === id);
+		expect(w.planRequirements).toEqual([]);
+		expect(w.planProgress).toEqual({ done: 0, total: 0 });
+	});
+
 	it("carries origin, mechanicalTag and reminderMove through a round-trip", async () => {
 		const { char } = build();
 		const id = await char.addWound({

@@ -225,9 +225,19 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 function _woundReminderHtml(actor, moveName) {
 	const wounds = actor?.system?.attributes?.wounds;
 	if (!Array.isArray(wounds) || !wounds.length) return "";
+	// "Ask" moves (Defy Danger/Interfere) and fixed moves rolled with an alternate stat
+	// arrive here as "<Name> with <STAT>" (see StonetopItem.roll), but the reminder picker
+	// stores the bare move name — so compare against the base so a reminder on "Defy Danger"
+	// still fires whether it's rolled +WIS or +CON, and "Clash" fires for +STR or +DEX.
+	const baseName = typeof moveName === "string"
+		? moveName.replace(/ with (?:STR|DEX|CON|INT|WIS|CHA)$/, "")
+		: moveName;
+	// gmOnly wounds are hidden from the owning player; this notice rides a public roll
+	// card, so echoing one would broadcast the concealed tag to the player and the table.
+	// Skip them entirely (the sheet/dialogs already conceal gmOnly wound content).
 	const matches = wounds.filter(w =>
-		w && !w.healed && w.mechanicalTag &&
-		(w.reminderMove === "*" || (moveName && w.reminderMove === moveName)),
+		w && !w.healed && !w.gmOnly && w.mechanicalTag &&
+		(w.reminderMove === "*" || (baseName && w.reminderMove === baseName)),
 	);
 	if (!matches.length) return "";
 	const items = matches.map(w => `<li>${escHtml(w.mechanicalTag)}</li>`).join("");

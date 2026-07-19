@@ -961,7 +961,8 @@ figure.stonetop-map figcaption {
    The row owns the title→input gap so the label and icon share a single line and
    stay vertically centred with each other (the label's own margin-bottom is zeroed
    here, otherwise it would nudge the text up a pixel relative to the icon). */
-.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row {
+.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row,
+.sheet-attributes-top .cell--attr-hp .stonetop-vital-title-row {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -969,7 +970,8 @@ figure.stonetop-map figcaption {
 	margin-bottom: 2px;
 }
 
-.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row .cell__title {
+.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row .cell__title,
+.sheet-attributes-top .cell--attr-hp .stonetop-vital-title-row .cell__title {
 	margin-bottom: 0;
 }
 
@@ -1328,52 +1330,32 @@ input.stonetop-name-field {
 /* ── Wounds: the 4th harm track, directly under the debilities ──────────────── */
 .stonetop-wounds {
 	width: 100%;
-	margin-top: 6px;
-	padding-top: 5px;
-	border-top: 1.5px solid #888;
+	margin-top: 5px;
 }
 
-.stonetop-wounds-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 6px;
-}
-
-.stonetop-wounds-title {
-	font-size: 0.8rem;
-	font-style: italic;
-	letter-spacing: 0.03em;
-	color: var(--color-text-dark-secondary);
-}
-
+/* "Add wound" control — a small broken-heart glyph beside the HP label
+   (game-icons.net "Broken Heart" by Lorc, CC BY 3.0). The SVG is used as a
+   mask so it's painted a flat black via the background colour, mirroring the
+   level-up cue. Empty button (no glyph child); the box stays fully clickable
+   even though only the heart shape is painted. */
 .stonetop-wound-add {
 	flex: 0 0 auto;
-	/* inline-flex + centering so the glyph sits dead-center; core's V13
-	   `button { display: flex }` otherwise leaves it top-left. */
-	display: inline-flex !important;
-	align-items: center;
-	justify-content: center;
-	width: 18px !important;
-	height: 18px;
+	width: 15px !important;
+	height: 15px;
 	padding: 0 !important;
-	line-height: 1;
-	border: 1.5px solid #555 !important;
-	border-radius: 100% !important;
-	background: transparent !important;
-	color: var(--color-text-dark-secondary);
-	font-size: 0.7rem;
+	border: none !important;
+	box-shadow: none !important;
+	background: #000 !important;
 	cursor: pointer;
-}
-
-.stonetop-wound-add i {
-	margin: 0;
-	line-height: 1;
+	opacity: 0.6;
+	transition: opacity 0.12s, transform 0.12s;
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/broken-heart.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop_pwd/assets/icons/broken-heart.svg') center / contain no-repeat;
 }
 
 .stonetop-wound-add:hover {
-	background: rgba(168, 84, 76, 0.12) !important;
-	color: #a8544c;
+	opacity: 1;
+	transform: scale(1.12);
 }
 
 .stonetop-wound-list {
@@ -1403,14 +1385,6 @@ input.stonetop-name-field {
 .stonetop-wound--problematic .stonetop-wound-glyph { color: #a8544c; }
 .stonetop-wound--permanent .stonetop-wound-glyph  { color: #6a4a3a; }
 
-.stonetop-wound-body {
-	flex: 1 1 auto;
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 1px;
-}
-
 .stonetop-wound-text {
 	white-space: nowrap;
 	overflow: hidden;
@@ -1424,20 +1398,6 @@ input.stonetop-name-field {
 
 .stonetop-wound-dd { color: #6b6b6b; }
 .stonetop-wound-empty { color: var(--color-text-dark-secondary); }
-
-.stonetop-wound-note,
-.stonetop-wound-tag {
-	font-size: 0.72rem;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	color: var(--color-text-dark-secondary);
-}
-
-.stonetop-wound-tag {
-	color: #a8544c;
-	font-style: italic;
-}
 
 .stonetop-wound-actions {
 	flex: 0 0 auto;
@@ -1484,6 +1444,70 @@ input.stonetop-name-field {
 .stonetop-wound-list--scars {
 	margin-top: 2px;
 	opacity: 0.85;
+}
+
+/* Inline (comma-separated) wound presentation under the vitals row. Each wound
+   is a chip of glyph + text; a comma is generated between adjacent wounds, and
+   the per-wound actions (tend / edit / remove) stay hidden until hover so the
+   default read is just "Problematic wounds: ⚠ Twisted ankle, Broken rib". */
+.stonetop-wounds-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 6px;
+}
+
+.stonetop-wounds-label {
+	flex: 0 0 auto;
+	font-size: 0.8rem;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.stonetop-wounds-line .stonetop-wound-list--inline {
+	margin-top: 0;
+}
+
+.stonetop-wound-list--inline {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 5px;
+	margin-top: 4px;
+}
+
+.stonetop-wound-list--inline .stonetop-wound {
+	align-items: baseline;
+	gap: 3px;
+	font-size: 0.8rem;
+}
+
+.stonetop-wound-list--inline .stonetop-wound-glyph {
+	width: auto;
+	padding-top: 0;
+	font-size: 0.72rem;
+}
+
+.stonetop-wound-list--inline .stonetop-wound-text {
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
+}
+
+.stonetop-wound-list--inline .stonetop-wound:not(:last-child) > .stonetop-wound-text::after {
+	content: ",";
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-wound-list--inline .stonetop-wound-actions {
+	display: none;
+	opacity: 1;
+}
+
+.stonetop-wound-list--inline .stonetop-wound:hover .stonetop-wound-actions,
+.stonetop-wound-list--inline .stonetop-wound-actions:focus-within {
+	display: inline-flex;
 }
 
 /* Recover / Convalesce dialog wound sections */
@@ -1534,6 +1558,60 @@ input.stonetop-name-field {
 
 .stonetop-convalesce-permanent-text .fa-lock {
 	color: #6a4a3a;
+}
+
+/* Make-a-Plan tick-box requirements editor (wound edit dialog) */
+.stonetop-wound-plan-hint {
+	font-weight: normal;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-wound-plan-reqs .stonetop-wound-req-list {
+	list-style: none;
+	margin: 3px 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-wound-req {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.stonetop-wound-req > .checkbox {
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+.stonetop-wound-req .req-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.stonetop-wound-req .req-remove {
+	flex: 0 0 auto;
+	width: auto !important;
+	padding: 0 4px !important;
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	line-height: 1;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+
+.stonetop-wound-req .req-remove:hover { color: #a8544c; }
+
+.stonetop-wound-req-add {
+	width: auto !important;
+	padding: 2px 8px !important;
+	font-size: 0.8rem;
+	line-height: 1;
+	cursor: pointer;
 }
 
 /* Hide actor name from window title bar (name is shown in the sheet header instead) */
