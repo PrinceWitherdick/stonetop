@@ -5534,12 +5534,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	min-height: 0;
 }
 
-/* Arcana-tab card art: sits at the left of the header and fills its height. */
+/* Arcana-tab card art: a compact square thumbnail at the left of the header. The
+   source icons are square, so it sizes to its natural 44×44 (height:auto) and centres
+   against the title/subtitle block — rather than stretching to fill the full header
+   height, which letterboxed the square art inside a tall, empty bordered frame. */
 .stonetop-arcanum-thumb {
-	align-self: stretch;
+	align-self: center;
 	width: 44px;
 	height: auto;
-	min-height: 0;
 	object-fit: contain;
 	object-position: center;
 	cursor: zoom-in;

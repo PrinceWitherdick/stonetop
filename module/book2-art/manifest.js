@@ -2392,7 +2392,48 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "out": "assets/people/b1-p131-x511.webp"
   }
  ],
- "codex": [],
+ "codex": [
+  {
+   "journalEntryId": "5tvhzovmN18QlxGa",
+   "journalPageId": "TGra87VIxIOJstZX",
+   "name": "Yaarowslow, the Many",
+   "managed": [
+    "assets/bestiary/yaarowslow-the-many.webp",
+    "assets/bestiary/swarm-of-silvery-vermin.webp"
+   ],
+   "slots": [
+    {
+     "slot": "banner",
+     "images": [
+      {
+       "out": "assets/bestiary/yaarowslow-the-many.webp",
+       "name": "Yaarowslow, the Many"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "journalEntryId": "VJDP2ETcmA8GeHdT",
+   "journalPageId": "5mYNP79ZxnvKJ8pB",
+   "name": "Horned Drake",
+   "managed": [
+    "assets/bestiary/horned-drake.webp",
+    "assets/bestiary/horned-drake-young.webp"
+   ],
+   "slots": [
+    {
+     "slot": "banner",
+     "images": [
+      {
+       "out": "assets/bestiary/horned-drake.webp",
+       "name": "Horned Drake"
+      }
+     ]
+    }
+   ]
+  }
+ ],
  "steadings": [
   {
    "slug": "stonetop-steading",

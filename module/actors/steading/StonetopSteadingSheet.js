@@ -8,6 +8,7 @@ import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
 import {PeopleGalleryDialog} from "./PeopleGalleryDialog.js";
+import {BOOK_ART_IMPORT_ENABLED} from "../../book2-art/release-gate.js";
 import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
 import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDialog.js";
 import {CharacterInventory} from "../character/CharacterInventory.js";
@@ -1466,14 +1467,22 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (popout) this._refreshMemberImagePopout(popout, path);
 				this.render(false);
 			};
-			// Only a user who can browse the data files gets the raw FilePicker fallback; players
-			// pick from the broadcast gallery, which needs no file access.
-			const canBrowse = !!(game.user?.isGM || game.user?.can?.("FILES_BROWSE"));
 			const openFilePicker = () => {
 				const FilePickerClass = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
 				if (!FilePickerClass) return;
 				new FilePickerClass({ type: "image", current, callback: applyPath }).render(true);
 			};
+			// The "People of Stonetop" gallery of imported book portraits is an affordance of the
+			// held-back Book Art / PDF-import feature (see book2-art/release-gate.js). While that is
+			// disabled, Edit Photo falls straight through to the plain FilePicker it used before the
+			// gallery existed, so setting a resident/neighbor portrait still works.
+			if (!BOOK_ART_IMPORT_ENABLED) {
+				openFilePicker();
+				return;
+			}
+			// Only a user who can browse the data files gets the raw FilePicker fallback; players
+			// pick from the broadcast gallery, which needs no file access.
+			const canBrowse = !!(game.user?.isGM || game.user?.can?.("FILES_BROWSE"));
 			// "Use default" removes the custom photo; the member falls back to the default avatar.
 			// Close the (now-stale) photo popout rather than refreshing it: there is no image to
 			// show, and _refreshMemberImagePopout no-ops on an empty path, so leaving it open would
