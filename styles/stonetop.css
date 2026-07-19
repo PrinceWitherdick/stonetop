@@ -16578,8 +16578,13 @@ input.stonetop-monster-armor-source {
 	min-height: 160px;
 }
 
+/* A generous editing box for the full-width section editors (location/lore/bestiary
+   prose + the whole-page Description). Core lays the editor out as a fixed-height box
+   with the toolbar pinned as its own row and the content scrolling below, so this
+   min-height IS the editing viewport — 185px showed only ~2-3 table rows at a time,
+   which made editing the long random-tables painful. ~10 rows is far more workable. */
 .stonetop-monster-rich-editor--full {
-	min-height: 185px;
+	min-height: 400px;
 }
 
 .stonetop-monster-rich-editor .editor-content {
@@ -17581,7 +17586,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 .stonetop-entry-group-body {
 	grid-column: 1 / 2;
-	min-height: 110px;
+	min-height: 200px;
 }
 .stonetop-entry-group-body .editor-content {
 	min-height: inherit;
@@ -17798,9 +17803,17 @@ ul:has(> li.st-treasure-line:only-child) {
 .st-treasure-cell-head {
 	display: flex;
 	align-items: baseline;
-	justify-content: space-between;
+	justify-content: flex-start;
 	gap: 8px;
 	flex-wrap: wrap;
+}
+
+/* The ◇ load / ○ uses / immobile badge leads the header row, sitting to the left of the
+   treasure's name (just after the vase thumbnail) so the load marker reads like a stat
+   prefix rather than trailing off the far edge. The DOM keeps the name first — natural
+   reading order for screen readers — and `order` handles the visual swap. */
+.st-treasure-cell-head .st-treasure-badge {
+	order: -1;
 }
 
 .st-treasure-desc {
@@ -17916,9 +17929,18 @@ ul:has(> li.st-treasure-line:only-child) {
 	flex-wrap: wrap;
 }
 
-.stonetop-journal-improvement-head > i {
+.stonetop-journal-improvement-head i {
 	color: var(--st-cell-accent);
 	flex-shrink: 0;
+}
+
+/* Editing a section that holds an improvement card runs it through ProseMirror, whose
+   generic `div` node has a block-only content model, so it wraps the head's inline
+   children (icon + eyebrow + name) in a paragraph on save: `.head > p > (i, span, span)`.
+   `display: contents` dissolves that interposed <p> so its children are flex items of the
+   head again — the header lays out identically whether or not it has been edited. */
+.stonetop-journal-improvement-head > p {
+	display: contents;
 }
 
 /* The eyebrow sits at the far-right edge of the header (like the Incantations

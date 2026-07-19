@@ -8,7 +8,13 @@
 // Returns { lead, rest }: `lead` is the concatenated art paragraph(s) (or ""), `rest` is
 // the body with them removed. Attribute-order tolerant (survives enrichHTML), idempotent,
 // and a no-op on bodies that carry no such art.
-const ART_P = `<p\\b[^>]*>\\s*<img\\b[^>]*\\bclass="stonetop-journal-art"[^>]*>\\s*<\\/p>`;
+const ART_IMG = `<img\\b[^>]*\\bclass="stonetop-journal-art"[^>]*>`;
+// The importer prepends `<p><img class="stonetop-journal-art"></p>`, but editing the page
+// runs the body through ProseMirror, whose image node is block-level (Foundry
+// common/prosemirror/schema/image-node.mjs, group "block"): it LIFTS the image out of the
+// wrapping paragraph, so a once-edited body carries a BARE leading <img>. Match either
+// shape so the banner still lifts (and self-heals) after an edit.
+const ART_P = `(?:<p\\b[^>]*>\\s*${ART_IMG}\\s*<\\/p>|${ART_IMG})`;
 const LEAD_ART_RE = new RegExp(`^\\s*((?:${ART_P}\\s*)+)`, "i");
 
 export function liftLeadArt(html) {

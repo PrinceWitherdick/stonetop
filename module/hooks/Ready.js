@@ -320,20 +320,27 @@ async function _applyCoreSettingDefaultsForNewWorld() {
 // Give a GM who has no assigned character the shared steading as their default character,
 // once. Foundry's `User#character` only references an actor id (it needn't be a
 // `character`-type actor), so the "Stonetop" steading rides in the GM's player-list entry
-// and their "toggle character sheet" hotkey opens it in a click. Client-scoped and gated
-// on a once-flag so it mirrors the per-user assignment:
+// and their "toggle character sheet" hotkey (core binds C → game.toggleCharacterSheet,
+// which opens game.user.character when no token is controlled) opens it in a click.
+//
+// The once-gate is a per-USER WORLD flag on the GM's own User document — NOT a client
+// setting. A client-scoped setting lives in the browser's localStorage keyed only by
+// namespace.key, so it leaks across every world on this browser+server and a "fresh world"
+// reads it already-set — which silently skipped this assignment (the steading never became
+// the GM's character, so C did nothing). A User flag resets per world (new world = new
+// User docs) and is still per-user, so it gates correctly:
 //   • a GM who already runs their own PC (or previously accepted the steading) is left
 //     untouched — we record the flag and never re-check; and
 //   • a GM who later clears the assignment stays cleared — we never re-assign.
 // If no steading exists yet (e.g. a secondary GM logging in before the primary GM minted
 // it), we return WITHOUT setting the flag so the next load tries again. GM-only caller.
 async function _assignSteadingToUnassignedGm() {
-	if (getSetting("gmSteadingAssigned")) return;
+	if (game.user.getFlag(STONETOP_SCOPE, "gmSteadingAssigned")) return;
 
 	// Already has a character (their own PC, or the steading from a prior run): respect it
 	// and stop checking.
 	if (game.user.character) {
-		await setSetting("gmSteadingAssigned", true);
+		await game.user.setFlag(STONETOP_SCOPE, "gmSteadingAssigned", true);
 		return;
 	}
 
@@ -346,7 +353,7 @@ async function _assignSteadingToUnassignedGm() {
 		console.warn("Stonetop | Could not assign the steading as the GM's character.", err);
 		return; // leave the flag unset so a transient failure retries next load
 	}
-	await setSetting("gmSteadingAssigned", true);
+	await game.user.setFlag(STONETOP_SCOPE, "gmSteadingAssigned", true);
 }
 
 // Let players create their own characters from Foundry's "Create Actor" dialog by

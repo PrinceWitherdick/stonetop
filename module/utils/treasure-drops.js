@@ -325,6 +325,15 @@ function decorate(line, group, groups) {
 	const desc = document.createElement("span");
 	desc.className = "st-treasure-desc";
 
+	// A treasure line can also be a tickable check-bullet (the book lists some finds as a
+	// checklist). The checkbox enhancer runs first and injects its tick control as the
+	// line's leading child; lift it out before boxing the prose so it stays at the cell's
+	// edge. Swept into `.st-treasure-desc` it is both misplaced and hidden from that
+	// enhancer's `:scope > .stonetop-journal-check` idempotency check, which would then add
+	// a second control on the next render pass. Re-attached as the line's lead below.
+	const check = line.querySelector(":scope > .stonetop-journal-check");
+	check?.remove();
+
 	// Nodes are MOVED into the description, never re-serialized from text, so any
 	// enrichment already applied to the prose survives being boxed.
 	while (line.firstChild) desc.appendChild(line.firstChild);
@@ -339,6 +348,12 @@ function decorate(line, group, groups) {
 		if (!desc.textContent.trim()) {
 			const sibling = absorbableSibling(line, groups);
 			if (sibling) {
+				// If the absorbed line carried its own tick control, drop it before merging —
+				// the sibling is being dissolved into this cell, so its box is orphaned, and
+				// sweeping it into `.st-treasure-desc` would both misplace it and hide it from
+				// the checkbox enhancer's idempotency check (as the guard above does for this
+				// line's own control).
+				sibling.querySelector(":scope > .stonetop-journal-check")?.remove();
 				while (sibling.firstChild) desc.appendChild(sibling.firstChild);
 				sibling.remove();
 			}
@@ -395,20 +410,27 @@ function decorate(line, group, groups) {
 
 	line.classList.add("st-treasure-line");
 	if (head.firstChild) {
-		// Named cell: the badge balances the header opposite the name.
+		// Named cell: the badge leads the header row, sitting to the LEFT of the name
+		// (CSS gives it order:-1). It's appended after the name in the DOM so the reading
+		// order stays name-first for screen readers; only the visual order swaps.
 		head.appendChild(badge);
 		body.appendChild(head);
 		if (desc.textContent.trim()) body.appendChild(desc);
 	} else {
-		// Header-less cell: with no name to sit opposite, a badge on its own row reads
-		// as a stray glyph floating above the text. Run it inline off the end of the
-		// prose instead — which is where the book prints it anyway.
+		// Header-less cell: no name to lead with, so the badge leads the prose itself —
+		// inserted inline at the very start of the description's first line so it reads
+		// left-of-text, matching the left-of-name placement a named cell uses. Slotted
+		// INSIDE the leading <p> (not before it) so it flows with the first words rather
+		// than sitting as a stray glyph on its own row above the text.
 		body.appendChild(desc);
-		desc.appendChild(document.createTextNode(" "));
-		desc.appendChild(badge);
+		const lead = desc.querySelector(":scope > p") ?? desc;
+		lead.insertBefore(document.createTextNode(" "), lead.firstChild);
+		lead.insertBefore(badge, lead.firstChild);
 	}
 	line.appendChild(grip);
 	line.appendChild(body);
+	// Put the tick control (if any) back at the very front of the cell, ahead of the grip.
+	if (check) line.prepend(check);
 }
 
 /**
@@ -428,6 +450,15 @@ export function applyTreasureDrops(root, entryName) {
 	// `isConnected` because a sheet may still be rendering detached from the document.)
 	for (const line of el.querySelectorAll("li, p")) {
 		if (!line.parentNode || line.dataset.stTreasureBound) continue;
+		// Skip prose we've already absorbed into a cell earlier in this same pass.
+		// `decorate` MOVES the matched line's children into `.st-treasure-desc` rather
+		// than removing them, so they stay in this static NodeList. That matters for
+		// header-less cells: once a treasure has been edited, ProseMirror wraps the
+		// list item's loose text in a `<p>` (`<li>text</li>` → `<li><p>text</p></li>`),
+		// and since a header-less cell doesn't lift its name out, that inner `<p>` still
+		// begins with the full origin. Without this guard the loop would reach it and
+		// decorate it a second time, nesting a treasure-cell inside a treasure-cell.
+		if (line.closest(".st-treasure-cell-body")) continue;
 		// Never decorate a line inside a live editor: rebuilding it there bakes the
 		// drag-cell into the saved source and ProseMirror mangles it (see
 		// journal-editor-guard.js). The read view is decorated as before.

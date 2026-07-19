@@ -22,12 +22,14 @@ class FakeClassList {
 class FakeEl {
 	constructor(tag = "div") {
 		this.tagName = tag.toUpperCase();
+		this.nodeType = 1; // so isInJournalEditor() treats us as the element, not a text node
 		this.classList = new FakeClassList();
 		this.dataset = {};
 		this.attrs = {};
 		this.children = [];
 		this.listeners = {};
 		this.parentLi = null;
+		this._inEditor = false; // set true to simulate a bullet inside a live ProseMirror editor
 	}
 	set className(v) { String(v).split(/\s+/).forEach((c) => c && this.classList.add(c)); }
 	setAttribute(k, v) { this.attrs[k] = String(v); }
@@ -43,7 +45,12 @@ class FakeEl {
 			? this.children.find((c) => c.classList.contains("stonetop-journal-check")) ?? null
 			: null;
 	}
-	closest(sel) { return sel === "li" ? (this.tagName === "LI" ? this : this.parentLi) : null; }
+	closest(sel) {
+		if (sel === "li") return this.tagName === "LI" ? this : this.parentLi;
+		// Any other selector here is the journal-editor guard (JOURNAL_EDITOR_SELECTOR):
+		// report a match only for a bullet flagged as living inside a live editor.
+		return this._inEditor ? this : null;
+	}
 	get control() { return this.querySelector(".stonetop-journal-check"); }
 }
 
@@ -175,6 +182,24 @@ describe("applyJournalCheckboxes", () => {
 		expect(a.classList.contains("checked")).toBe(true);
 		expect(b.classList.contains("checked")).toBe(false);
 		expect(page.update).not.toHaveBeenCalled();
+	});
+
+	it("counts a check-bullet inside an open editor so later sections' keys don't shift", () => {
+		// A location page mid-edit: bullet B belongs to a section open for inline edit, so
+		// it renders inside a <prose-mirror> (isInJournalEditor === true) rather than the
+		// read-view div. It must still be COUNTED (keeping bullet C at c2) but get no
+		// control. Regression for the "opening one section renumbers another" corruption.
+		const page = makePage({ checks: { c2: true } });
+		const a = new FakeEl("li"); a.classList.add("check-bullet");
+		const b = new FakeEl("li"); b.classList.add("check-bullet"); b._inEditor = true;
+		const c = new FakeEl("li"); c.classList.add("check-bullet");
+		applyJournalCheckboxes({ document: page }, { querySelectorAll: () => [a, b, c] });
+
+		expect(a.control.dataset.checkKey).toBe("c0");
+		expect(b.control).toBeNull();                    // in a live editor: never given a control
+		expect(c.control.dataset.checkKey).toBe("c2");   // NOT renumbered down to c1...
+		expect(c.control.getAttribute("aria-checked")).toBe("true"); // ...so its tick still shows
+		expect(c.classList.contains("checked")).toBe(true);
 	});
 
 	it("ignores journals outside the Stonetop pack", () => {

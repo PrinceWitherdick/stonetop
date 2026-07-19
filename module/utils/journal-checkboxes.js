@@ -21,13 +21,22 @@ import { isInJournalEditor } from "./journal-editor-guard.js";
 //
 // Each box is keyed by its position among its page's check-bullet items (document
 // order). That's stable while the page's content isn't re-authored — fine for the
-// shipped reference journals; re-authoring a checklist may shift later ticks.
+// shipped reference journals; genuinely re-authoring a checklist (adding or removing an
+// item) may still shift later ticks. Merely opening a section for inline edit does NOT:
+// its bullets keep their slot in the count (see the editor clause in SELECTOR below).
 
 const SELECTOR = [
 	".stonetop-journal-body li.check-bullet",
 	".stonetop-location-body li.check-bullet",
 	".stonetop-monster-rich-text li.check-bullet",
 	".stonetop-monster-move-description li.check-bullet",
+	// A location/bestiary section open for inline edit renders its body inside a
+	// `<prose-mirror class="stonetop-entry-rich-editor">` instead of the read-view
+	// `.stonetop-monster-rich-text` div. Match those check-bullets too so they still COUNT
+	// toward the per-page key (they're skipped for control injection below). Without this,
+	// opening one section for edit drops its bullets from the count and renumbers the
+	// still-clickable checkboxes of every LATER section, so a click lands on the wrong key.
+	".stonetop-entry-rich-editor li.check-bullet",
 ].join(", ");
 const FLAG_SCOPE = "stonetop";
 const FLAG_KEY = "checks";
@@ -94,14 +103,17 @@ export function applyJournalCheckboxes(app, html) {
 	const counters = new Map();
 
 	for (const li of items) {
-		// A check-bullet inside a live editor must stay untouched — injecting the toggle
-		// control there bakes it into the saved source (see journal-editor-guard.js).
-		if (isInJournalEditor(li)) continue;
 		const page = resolvePage(app, li);
 		if (!page) continue;
 		const n = counters.get(page.id) ?? 0;
 		counters.set(page.id, n + 1);
 		const key = `c${n}`;
+
+		// A check-bullet inside a live editor is COUNTED above — so the keys of the
+		// read-view bullets stay put while a sibling section is being edited — but it must
+		// stay otherwise untouched: injecting a control there bakes it into the saved
+		// source (see journal-editor-guard.js), and its stored state isn't shown mid-edit.
+		if (isInJournalEditor(li)) continue;
 
 		// Read straight off the data, not getFlag(): "stonetop" isn't a registered
 			// package id, so getFlag() rejects it as an invalid flag scope under V13. The

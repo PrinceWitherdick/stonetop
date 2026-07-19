@@ -456,18 +456,11 @@ export function registerSettings() {
 		default: false
 	});
 
-	// Whether this GM client has auto-assigned the shared steading as its default
-	// character once (see hooks/Ready.js _assignSteadingToUnassignedGm). Per-client so it
-	// tracks the per-user `character` assignment: set the first time we assign it (or find
-	// the GM already has a character), then never again — so a GM who later clears the
-	// assignment isn't re-assigned on the next load.
-	game.settings.register("stonetop_pwd", "gmSteadingAssigned", {
-		name: "GM Steading Assigned",
-		scope: "client",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	// NB: the GM-steading auto-assignment once-gate is NOT a setting — it's a per-user
+	// WORLD flag on the GM's own User document (see hooks/Ready.js
+	// _assignSteadingToUnassignedGm). It used to be a client-scoped setting here, but those
+	// live in browser localStorage keyed only by namespace.key, so the flag leaked across
+	// worlds and a fresh world read it already-set — silently skipping the assignment.
 
 	game.settings.register("stonetop_pwd", "sheetFont", {
 		name: "stonetop.settings.sheetFont.name",
