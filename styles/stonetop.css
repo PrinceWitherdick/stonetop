@@ -1325,6 +1325,154 @@ input.stonetop-name-field {
 	background-color: #555 !important;
 }
 
+/* ── Wounds: the 4th harm track, directly under the debilities ──────────────── */
+.stonetop-wounds {
+	width: 100%;
+	margin-top: 6px;
+	padding-top: 5px;
+	border-top: 1.5px solid #888;
+}
+
+.stonetop-wounds-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+}
+
+.stonetop-wounds-title {
+	font-size: 0.8rem;
+	font-style: italic;
+	letter-spacing: 0.03em;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-wound-add {
+	flex: 0 0 auto;
+	width: 18px !important;
+	height: 18px;
+	padding: 0;
+	line-height: 1;
+	border: 1.5px solid #555 !important;
+	border-radius: 100% !important;
+	background: transparent !important;
+	color: var(--color-text-dark-secondary);
+	font-size: 0.7rem;
+	cursor: pointer;
+}
+
+.stonetop-wound-add:hover {
+	background: rgba(168, 84, 76, 0.12) !important;
+	color: #a8544c;
+}
+
+.stonetop-wound-list {
+	list-style: none;
+	margin: 4px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-wound {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	font-size: 0.82rem;
+}
+
+.stonetop-wound-glyph {
+	flex: 0 0 auto;
+	width: 14px;
+	padding-top: 1px;
+	text-align: center;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-wound--problematic .stonetop-wound-glyph { color: #a8544c; }
+.stonetop-wound--permanent .stonetop-wound-glyph  { color: #6a4a3a; }
+
+.stonetop-wound-body {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.stonetop-wound-text {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.stonetop-wound--stabilized .stonetop-wound-text,
+.stonetop-wound--scar .stonetop-wound-text {
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-wound-dd { color: #6b6b6b; }
+.stonetop-wound-empty { color: var(--color-text-dark-secondary); }
+
+.stonetop-wound-note,
+.stonetop-wound-tag {
+	font-size: 0.72rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-wound-tag {
+	color: #a8544c;
+	font-style: italic;
+}
+
+.stonetop-wound-actions {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	opacity: 0;
+	transition: opacity 0.1s ease;
+}
+
+.stonetop-wound:hover .stonetop-wound-actions,
+.stonetop-wound-actions:focus-within {
+	opacity: 1;
+}
+
+.stonetop-wound-actions button {
+	flex: 0 0 auto;
+	width: auto !important;
+	padding: 0 2px !important;
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	line-height: 1;
+	font-size: 0.72rem;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+
+.stonetop-wound-actions button:hover { color: #a8544c; }
+.stonetop-wound-gm { color: #6f8f6a; }
+
+.stonetop-wound-scars { margin-top: 5px; }
+
+.stonetop-wound-scars > summary {
+	font-size: 0.72rem;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+
+.stonetop-wound-list--scars {
+	margin-top: 2px;
+	opacity: 0.85;
+}
+
 /* Hide actor name from window title bar (name is shown in the sheet header instead) */
 .pbta.sheet.actor:not(.minimized) .window-header .window-title {
 	visibility: hidden;

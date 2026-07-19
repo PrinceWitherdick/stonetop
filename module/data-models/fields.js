@@ -32,6 +32,35 @@ export const debility = (label, stat) => {
 // rather than {} so truthiness checks (e.g. `system.resource`) behave correctly.
 export const looseObject = () => new fields.ObjectField({ required: false, nullable: true, initial: null });
 
+// The character's problematic/permanent wounds — the 3rd/4th harm types from Book I
+// (Harm & Healing) that aren't HP or debilities. An additive ArrayField, so existing
+// worlds load with an empty list and need no migration. `status`/`origin` are plain
+// StringFields (NOT `choices`-constrained) so a value written by a newer build can't
+// wedge an older one on read; the snapshot layer coerces unknown values back to a
+// safe default. Each element:
+//   id              stable key (foundry.utils.randomID)
+//   text            the fictional consequence ("Twisted ankle, can't bear weight")
+//   status          "problematic" | "stabilized" | "permanent"
+//   origin          "wound" | "deaths-door"
+//   requirementNote GM-named requirement stored on the Recover "names a requirement" fork
+//   planNote        Make-a-Plan / adaptation note (permanent injuries)
+//   mechanicalTag   lasting reminder text, e.g. "Let Fly at disadvantage until practiced"
+//   reminderMove    move name the tag echoes onto at roll time ("" = none, "*" = all rolls)
+//   gmOnly          soft UI hide from the owning player (see StonetopCharacterSheet)
+//   healed          true → moved to the collapsed "Scars" disclosure rather than deleted
+export const woundsField = () => new fields.ArrayField(new fields.SchemaField({
+	id:              new fields.StringField({ required: true, blank: true }),
+	text:            new fields.StringField({ required: true, blank: true }),
+	status:          new fields.StringField({ required: true, blank: true, initial: "problematic" }),
+	origin:          new fields.StringField({ required: true, blank: true, initial: "wound" }),
+	requirementNote: new fields.StringField({ required: true, blank: true }),
+	planNote:        new fields.StringField({ required: true, blank: true }),
+	mechanicalTag:   new fields.StringField({ required: true, blank: true }),
+	reminderMove:    new fields.StringField({ required: true, blank: true }),
+	gmOnly:          new fields.BooleanField({ required: true, initial: false }),
+	healed:          new fields.BooleanField({ required: true, initial: false }),
+}), { required: false, initial: [] });
+
 // Schema for the two minimal move subtypes (npcMove / monsterMove): just a
 // rich-text description and an optional roll formula.
 export const simpleMoveSchema = () => ({

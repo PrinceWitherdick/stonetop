@@ -2,6 +2,7 @@ export { ResourceDef, Resource, ResourceBuilder } from "./Resource.js";
 export { StatSnapshot } from "./StatSnapshot.js";
 export { ValueMax, VitalsSnapshot, VitalsSnapshotBuilder } from "./VitalsSnapshot.js";
 export { DebilitySnapshot, DebilitySnapshotBuilder } from "./DebilitySnapshot.js";
+export { WoundSnapshot, WoundSnapshotBuilder } from "./WoundSnapshot.js";
 export {
 	LoreOptionSnapshot, LoreOptionSnapshotBuilder,
 	LoreEntrySnapshot, LoreEntrySnapshotBuilder,
@@ -57,6 +58,7 @@ export {
  * @property {string} name
  * @property {PlaybookSnapshot|null} playbook
  * @property {DebilitySnapshot[]} debilities - always 3: weakened, dazed, miserable
+ * @property {WoundSnapshot[]} wounds - problematic/permanent wounds (may be empty)
  * @property {Object.<string, StatSnapshot>} stats - keys: str dex con int wis cha
  * @property {VitalsSnapshot} vitals
  * @property {MoveCategorySnapshot[]} moves - only categories with ≥1 move included
@@ -71,6 +73,7 @@ export class CharacterSnapshot {
 		this.name            = b._name;
 		this.playbook        = b._playbook;
 		this.debilities      = b._debilities;
+		this.wounds          = b._wounds ?? [];
 		this.stats           = b._stats;
 		this.vitals          = b._vitals;
 		this.moves           = b._moves;
@@ -90,6 +93,7 @@ export class CharacterSnapshotBuilder {
 	withName(v)            { this._name            = v; return this; }
 	withPlaybook(v)        { this._playbook        = v; return this; }
 	withDebilities(v)      { this._debilities      = v; return this; }
+	withWounds(v)          { this._wounds          = v; return this; }
 	withStats(v)           { this._stats           = v; return this; }
 	withVitals(v)          { this._vitals          = v; return this; }
 	withMoves(v)           { this._moves           = v; return this; }

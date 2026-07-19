@@ -297,6 +297,20 @@ const EXPEDITION_MOVE_HANDLERS = {
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
 
+// Wound status → sheet presentation. Untreated wounds glow the bestiary red, treated
+// ones fade to a bandage, permanent ones lock. Labels feed the row tooltip.
+const _WOUND_STATUS_GLYPH = { problematic: "fa-droplet", stabilized: "fa-bandage", permanent: "fa-lock" };
+const _WOUND_STATUS_LABEL = {
+	problematic: "Problematic — untreated, still hindering",
+	stabilized:  "Stabilized — treated, but not yet healed",
+	permanent:   "Permanent — this one can't heal",
+};
+const _WOUND_STATUS_OPTIONS = [
+	{ value: "problematic", label: "Problematic (untreated)" },
+	{ value: "stabilized",  label: "Stabilized (treated, not healed)" },
+	{ value: "permanent",   label: "Permanent (can't heal)" },
+];
+
 function _addToLeadingNumber(value, delta) {
 	const match = String(value ?? "").match(/^(-?\d+)(.*)$/);
 	if (!match) return value;
@@ -1255,6 +1269,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
 			context.stonetop.recover = this._buildRecoverData(context.stonetop);
 			context.stonetop.convalesce = this._buildConvalesceData(context.stonetop);
+			context.stonetop.woundsView = this._buildWoundsView(context.stonetop.wounds, context.editable);
 			return context;
 		}
 
@@ -1300,6 +1315,40 @@ export function createStonetopCharacterSheetClass(Base) {
 				activeDebilities,
 				canConvalesce,
 				hint: canConvalesce ? null : { icon: "fa-heart", text: game.i18n.localize("stonetop.specialMoves.convalesce.nothingHint") },
+			};
+		}
+
+		// Shape the wound snapshot for the sheet block: hide gmOnly wounds from a
+		// non-GM viewer (a soft screen — the record still lives on the player-owned
+		// actor, so this is UI courtesy, not a security boundary), split the active
+		// list from healed "scars", and precompute each row's glyph/label. `show` keeps
+		// the whole block out of the DOM when there's nothing to show and no way to add.
+		_buildWoundsView(wounds = [], editable = false) {
+			const isGM = game.user.isGM;
+			const decorate = (w) => ({
+				id: w.id,
+				text: w.text,
+				status: w.status,
+				origin: w.origin,
+				isDeathsDoor: w.origin === "deaths-door",
+				requirementNote: w.requirementNote,
+				planNote: w.planNote,
+				mechanicalTag: w.mechanicalTag,
+				reminderMove: w.reminderMove,
+				gmOnly: w.gmOnly,
+				statusLabel: _WOUND_STATUS_LABEL[w.status] ?? _WOUND_STATUS_LABEL.problematic,
+				glyph: _WOUND_STATUS_GLYPH[w.status] ?? _WOUND_STATUS_GLYPH.problematic,
+			});
+			const visible = (wounds ?? []).filter(w => isGM || !w.gmOnly);
+			const active = visible.filter(w => !w.healed).map(decorate);
+			const scars  = visible.filter(w =>  w.healed).map(decorate);
+			return {
+				canEdit: editable,
+				isGM,
+				active,
+				scars,
+				scarCount: scars.length,
+				show: editable || active.length > 0 || scars.length > 0,
 			};
 		}
 
@@ -2881,6 +2930,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 			html.find(".stonetop-convalesce-open-btn").on("click", this._onConvalesceOpen.bind(this));
+
+			// Wounds (4th harm track): add / edit / remove. Status transitions are otherwise
+			// move-gated (Recover stabilizes, Convalesce heals); the edit dialog is the manual
+			// override. The row's data-wound-id resolves which record an action targets.
+			html.find(".stonetop-wound-add").on("click", this._onWoundAdd.bind(this));
+			html.find(".stonetop-wound-edit").on("click", ev => this._onWoundEdit(this._woundIdFromEvent(ev)));
+			html.find(".stonetop-wound-remove").on("click", ev => this._onWoundRemove(this._woundIdFromEvent(ev)));
 
 			// -- Followers tab: shared follower-card fields ----------------
 			// Common, hand-editable fields on every follower card (name,
@@ -5570,6 +5626,117 @@ export function createStonetopCharacterSheetClass(Base) {
 			postMoveToChat(this.actor, "Convalesce", rows);
 
 			this.render(false);
+		}
+
+		// ── Wounds (4th harm track) ────────────────────────────────────────────────
+		_woundIdFromEvent(ev) {
+			return ev.currentTarget.closest("[data-wound-id]")?.dataset.woundId ?? null;
+		}
+
+		// The current raw wound record (freshest source) for prefilling the edit dialog.
+		_woundRecord(id) {
+			return (this.actor.system?.attributes?.wounds ?? []).find(w => w.id === id) ?? null;
+		}
+
+		// Options for the "remind on" picker: none, all rolls, then the character's moves
+		// by name (Slice 3 echoes the lasting tag onto the matching move's roll card).
+		_woundReminderMoveOptions(selected = "") {
+			const opts = [
+				{ value: "",  label: "— no reminder —" },
+				{ value: "*", label: "All rolls" },
+			];
+			const moveNames = [...new Set(
+				this.actor.items.filter(i => i.type === "move").map(i => i.name).filter(Boolean),
+			)].sort((a, b) => a.localeCompare(b));
+			for (const name of moveNames) opts.push({ value: name, label: name });
+			return opts.map(o =>
+				`<option value="${_esc(o.value)}"${o.value === selected ? " selected" : ""}>${_esc(o.label)}</option>`,
+			).join("");
+		}
+
+		_onWoundAdd() {
+			this._openWoundDialog({ isNew: true });
+		}
+
+		_onWoundEdit(id) {
+			if (!id) return;
+			this._openWoundDialog({ isNew: false, wound: this._woundRecord(id) });
+		}
+
+		async _onWoundRemove(id) {
+			if (!id) return;
+			const wound = this._woundRecord(id);
+			const label = wound?.text ? `“${wound.text}”` : "this wound";
+			const ok = await Dialog.confirm({
+				title: "Remove Wound",
+				content: `<p>Remove ${_esc(label)} from the sheet? This deletes it entirely — to keep it as a healed scar instead, edit its status.</p>`,
+			});
+			if (!ok) return;
+			await this._stonetopCharacter.removeWound(id);
+			this.render(false);
+		}
+
+		// Shared add/edit form. Status is settable here as a manual override; the normal
+		// path is move-gated (Recover stabilizes, Convalesce heals). Only the GM sees the
+		// "hidden from players" toggle. Fields the dialog doesn't manage (e.g. planNote,
+		// set by Convalesce's Make-a-Plan) are preserved by updateWound's merge.
+		_openWoundDialog({ isNew, wound = null }) {
+			const w    = wound ?? {};
+			const isGM = game.user.isGM;
+			const statusOptions = _WOUND_STATUS_OPTIONS.map(o =>
+				`<option value="${o.value}"${(w.status ?? "problematic") === o.value ? " selected" : ""}>${_esc(o.label)}</option>`,
+			).join("");
+			const content = `<form class="stonetop-wound-dialog-form">
+				<div class="form-group">
+					<label>Wound</label>
+					<input type="text" name="text" value="${_esc(w.text ?? "")}" placeholder="e.g. Twisted ankle — can't bear weight">
+				</div>
+				<div class="form-group">
+					<label>Status</label>
+					<select name="status">${statusOptions}</select>
+				</div>
+				<div class="form-group">
+					<label>Note / requirement</label>
+					<input type="text" name="requirementNote" value="${_esc(w.requirementNote ?? "")}" placeholder="What's needed to treat it (optional)">
+				</div>
+				<div class="form-group">
+					<label>Lasting tag</label>
+					<input type="text" name="mechanicalTag" value="${_esc(w.mechanicalTag ?? "")}" placeholder="e.g. Let Fly at disadvantage until practiced">
+				</div>
+				<div class="form-group">
+					<label>Remind on</label>
+					<select name="reminderMove">${this._woundReminderMoveOptions(w.reminderMove ?? "")}</select>
+				</div>
+				${isGM ? `<div class="form-group">
+					<label class="checkbox"><input type="checkbox" name="gmOnly"${w.gmOnly ? " checked" : ""}> Hidden from players</label>
+				</div>` : ""}
+			</form>`;
+
+			const apply = async (html) => {
+				const val = (name) => html.find(`[name="${name}"]`).val();
+				const data = {
+					text:            (val("text") ?? "").trim(),
+					status:          val("status"),
+					requirementNote: (val("requirementNote") ?? "").trim(),
+					mechanicalTag:   (val("mechanicalTag") ?? "").trim(),
+					reminderMove:    val("reminderMove") ?? "",
+				};
+				if (isGM) data.gmOnly = html.find('[name="gmOnly"]').is(":checked");
+				if (isNew) await this._stonetopCharacter.addWound(data);
+				else if (w.id) await this._stonetopCharacter.updateWound(w.id, data);
+				this.render(false);
+			};
+
+			new Dialog({
+				title: isNew ? "Add Wound" : "Edit Wound",
+				content,
+				buttons: {
+					save:   { label: isNew ? "Add" : "Save", callback: apply },
+					cancel: { label: "Cancel" },
+				},
+				default: "save",
+				render: bringDialogToFront,
+			}, { width: 460, classes: ["dialog", "stonetop", "stonetop-wound-dialog"] }).render(true);
 		}
 
 		// Stamp the character with where the player is in creation, so the GM's

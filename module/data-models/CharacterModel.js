@@ -1,7 +1,7 @@
 // System data model for the "character" Actor subtype. Replaces the character
 // block of the former template.json. The bulk of a character lives in embedded
 // Items (moves, playbook) and flags; this schema is just the core sheet data.
-import { valueField, valueMaxField, debility } from "./fields.js";
+import { valueField, valueMaxField, debility, woundsField } from "./fields.js";
 
 const fields = foundry.data.fields;
 
@@ -33,6 +33,8 @@ export class CharacterModel extends foundry.abstract.TypeDataModel {
 						miserable: debility("Miserable", ["con", "cha"]),
 					}),
 				}),
+				// Problematic / permanent wounds — the fictional-harm track (see fields.js).
+				wounds: woundsField(),
 			}),
 			playbook: new fields.SchemaField({
 				name: new fields.StringField({ required: true, blank: true }),

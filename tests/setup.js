@@ -52,6 +52,12 @@ global.foundry = {
 			.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 			.replace(/"/g, "&quot;").replace(/'/g, "&#39;"),
 		getProperty: (obj, path) => path.split(".").reduce((value, key) => value?.[key], obj),
+		randomID: (length = 16) => {
+			const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+			let id = "";
+			for (let i = 0; i < length; i++) id += chars[Math.floor(Math.random() * chars.length)];
+			return id;
+		},
 		flattenObject: (obj, prefix = "") => Object.entries(obj ?? {}).reduce((acc, [key, value]) => {
 			const path = prefix ? `${prefix}.${key}` : key;
 			if (value && typeof value === "object" && !Array.isArray(value)) {

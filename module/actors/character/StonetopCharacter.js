@@ -11,6 +11,7 @@ import {
 	BackgroundSection,
 	CharacterSnapshotBuilder,
 	DebilitySnapshotBuilder,
+	WoundSnapshotBuilder,
 	InstinctOptionSnapshotBuilder,
 	InstinctSection,
 	InventoryItemSnapshotBuilder,
@@ -383,6 +384,7 @@ export class StonetopCharacter {
 			.withName(actor.name)
 			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, (!!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG) || ownsAsteriskMove(this._actor)), actorLevel) : null)
 			.withDebilities(_buildDebilitiesSection(actor))
+			.withWounds(_buildWoundsSection(actor))
 			.withStats(_buildStatsSection(actor))
 			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase))
 			.withMoves(moves)
@@ -1923,6 +1925,56 @@ export class StonetopCharacter {
 	async setRollMode(rollMode) {
 		await this._actor.setFlag(STONETOP_SCOPE, "rollMode", _normalizeSheetRollMode(rollMode));
 	}
+
+	// ── Problematic / permanent wounds (Book I, Harm & Healing) ────────────────
+	// Stored as an array on system.attributes.wounds. Arrays are replaced wholesale
+	// on update (unlike object flags, which merge), so every mutation reads the
+	// current list, recomputes it, and writes the whole thing back. `moveName`, when
+	// given, tags the write so the ledger attributes it ("via Recover", etc.).
+
+	// A defensive, normalized copy of the current wound list.
+	_woundList() {
+		const arr = this._actor.system?.attributes?.wounds;
+		return Array.isArray(arr) ? arr.map(w => _normalizeWound(w)) : [];
+	}
+
+	async _writeWounds(wounds, moveName) {
+		await this._actor.update(
+			{ "system.attributes.wounds": wounds },
+			moveName ? { stonetopMove: moveName } : {},
+		);
+	}
+
+	// Add a wound. Returns its generated id so callers can immediately open it for editing.
+	async addWound(data = {}, { moveName } = {}) {
+		const wound  = _normalizeWound(data, { keepId: false });
+		await this._writeWounds([...this._woundList(), wound], moveName);
+		return wound.id;
+	}
+
+	// Patch an existing wound in place (status, text, notes, tag, gmOnly, …).
+	async updateWound(id, patch = {}, { moveName } = {}) {
+		const wounds = this._woundList();
+		const i = wounds.findIndex(w => w.id === id);
+		if (i < 0) return;
+		wounds[i] = _normalizeWound({ ...wounds[i], ...patch, id }, { keepId: true });
+		await this._writeWounds(wounds, moveName);
+	}
+
+	async setWoundStatus(id, status, { moveName } = {}) {
+		await this.updateWound(id, { status }, { moveName });
+	}
+
+	// "Heal" keeps the record as a scar (healed:true) rather than deleting it, so the
+	// "it's now true" fiction stays referenceable in the collapsed Scars list.
+	async healWound(id, { moveName } = {}) {
+		await this.updateWound(id, { healed: true }, { moveName });
+	}
+
+	// Hard-remove a wound (the explicit trash affordance, distinct from healing).
+	async removeWound(id, { moveName } = {}) {
+		await this._writeWounds(this._woundList().filter(w => w.id !== id), moveName);
+	}
 	async getArcanum(slug)                           { return this._arcana.getArcanum(slug); }
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
 	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); await this._inventory.clearArcanumResources(slug); }
@@ -2239,6 +2291,50 @@ function _buildDebilitiesSection(actor) {
 			.withStats(stats)
 			.build()
 	);
+}
+
+// Valid wound enum values. Kept here (not as StringField `choices`) so the read path
+// can coerce anything unexpected — a wound record written by a newer build, or a
+// hand-edited world — back to a safe default instead of wedging the sheet.
+const _WOUND_STATUSES = ["problematic", "stabilized", "permanent"];
+const _WOUND_ORIGINS  = ["wound", "deaths-door"];
+
+// Coerce a stored/partial wound record into the canonical shape the schema and sheet
+// expect, filling defaults and normalizing the two enum fields. `keepId` false mints a
+// fresh id (used when adding); true preserves whatever id came in (used when editing).
+function _normalizeWound(w = {}, { keepId = true } = {}) {
+	return {
+		id:              (keepId && w.id) ? w.id : foundry.utils.randomID(),
+		text:            typeof w.text === "string" ? w.text : "",
+		status:          _WOUND_STATUSES.includes(w.status) ? w.status : "problematic",
+		origin:          _WOUND_ORIGINS.includes(w.origin) ? w.origin : "wound",
+		requirementNote: typeof w.requirementNote === "string" ? w.requirementNote : "",
+		planNote:        typeof w.planNote === "string" ? w.planNote : "",
+		mechanicalTag:   typeof w.mechanicalTag === "string" ? w.mechanicalTag : "",
+		reminderMove:    typeof w.reminderMove === "string" ? w.reminderMove : "",
+		gmOnly:          !!w.gmOnly,
+		healed:          !!w.healed,
+	};
+}
+
+function _buildWoundsSection(actor) {
+	const arr = actor.system?.attributes?.wounds;
+	if (!Array.isArray(arr)) return [];
+	return arr.map(w => {
+		const n = _normalizeWound(w);
+		return new WoundSnapshotBuilder()
+			.withId(n.id)
+			.withText(n.text)
+			.withStatus(n.status)
+			.withOrigin(n.origin)
+			.withRequirementNote(n.requirementNote)
+			.withPlanNote(n.planNote)
+			.withMechanicalTag(n.mechanicalTag)
+			.withReminderMove(n.reminderMove)
+			.withGmOnly(n.gmOnly)
+			.withHealed(n.healed)
+			.build();
+	});
 }
 
 

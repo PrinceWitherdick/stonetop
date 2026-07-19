@@ -53,6 +53,64 @@
 				</div>
 			</div>
 
+			{{#if stonetop.woundsView.show}}
+			<div class="stonetop-wounds">
+				<div class="stonetop-wounds-header">
+					<span class="stonetop-wounds-title">wounds</span>
+					{{#if stonetop.woundsView.canEdit}}
+					<button type="button" class="stonetop-wound-add" data-tooltip="Add a problematic or permanent wound">
+						<i class="fas fa-plus"></i>
+					</button>
+					{{/if}}
+				</div>
+
+				{{#if stonetop.woundsView.active.length}}
+				<ul class="stonetop-wound-list">
+					{{#each stonetop.woundsView.active}}
+					<li class="stonetop-wound stonetop-wound--{{this.status}}{{#if this.isDeathsDoor}} is-deaths-door{{/if}}" data-wound-id="{{this.id}}">
+						<span class="stonetop-wound-glyph" data-tooltip="{{this.statusLabel}}"><i class="fas {{this.glyph}}"></i></span>
+						<span class="stonetop-wound-body">
+							<span class="stonetop-wound-text" data-tooltip="{{this.text}}">{{#if this.isDeathsDoor}}<i class="fas fa-skull stonetop-wound-dd" data-tooltip="Death's Door mark"></i> {{/if}}{{#if this.text}}{{this.text}}{{else}}<em class="stonetop-wound-empty">(describe the wound)</em>{{/if}}</span>
+							{{#if this.requirementNote}}<span class="stonetop-wound-note"><i class="fas fa-clipboard-list"></i> {{this.requirementNote}}</span>{{/if}}
+							{{#if this.planNote}}<span class="stonetop-wound-note"><i class="fas fa-scroll"></i> {{this.planNote}}</span>{{/if}}
+							{{#if this.mechanicalTag}}<span class="stonetop-wound-tag" data-tooltip="{{this.mechanicalTag}}"><i class="fas fa-triangle-exclamation"></i> {{this.mechanicalTag}}</span>{{/if}}
+						</span>
+						{{#if ../stonetop.woundsView.canEdit}}
+						<span class="stonetop-wound-actions">
+							{{#if this.gmOnly}}<i class="fas fa-user-secret stonetop-wound-gm" data-tooltip="Hidden from players"></i>{{/if}}
+							<button type="button" class="stonetop-wound-edit" data-tooltip="Edit"><i class="fas fa-pen"></i></button>
+							<button type="button" class="stonetop-wound-remove" data-tooltip="Remove"><i class="fas fa-trash"></i></button>
+						</span>
+						{{/if}}
+					</li>
+					{{/each}}
+				</ul>
+				{{/if}}
+
+				{{#if stonetop.woundsView.scarCount}}
+				<details class="stonetop-wound-scars">
+					<summary>Scars ({{stonetop.woundsView.scarCount}})</summary>
+					<ul class="stonetop-wound-list stonetop-wound-list--scars">
+						{{#each stonetop.woundsView.scars}}
+						<li class="stonetop-wound stonetop-wound--scar{{#if this.isDeathsDoor}} is-deaths-door{{/if}}" data-wound-id="{{this.id}}">
+							<span class="stonetop-wound-glyph"><i class="fas fa-heart-crack"></i></span>
+							<span class="stonetop-wound-body">
+								<span class="stonetop-wound-text" data-tooltip="{{this.text}}">{{#if this.isDeathsDoor}}<i class="fas fa-skull stonetop-wound-dd"></i> {{/if}}{{this.text}}</span>
+							</span>
+							{{#if ../stonetop.woundsView.canEdit}}
+							<span class="stonetop-wound-actions">
+								<button type="button" class="stonetop-wound-edit" data-tooltip="Edit"><i class="fas fa-pen"></i></button>
+								<button type="button" class="stonetop-wound-remove" data-tooltip="Remove"><i class="fas fa-trash"></i></button>
+							</span>
+							{{/if}}
+						</li>
+						{{/each}}
+					</ul>
+				</details>
+				{{/if}}
+			</div>
+			{{/if}}
+
 			<section class="sheet-attributes-top">
 				{{> "stonetop.actor-vitals"}}
 			</section>
