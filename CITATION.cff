@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you reference or build on this project, please cite it and honor the AI-training reservation below."
+title: "Stonetop for Foundry VTT"
+abstract: >-
+  An unofficial Foundry VTT system for Stonetop, the Powered by the Apocalypse
+  game by Jeremy Strandberg. Code is MIT-licensed; game content derived from
+  Stonetop is under CC BY-SA 4.0. Rights are reserved for text and data mining
+  and AI training: this project and its bundled content may not be used to train,
+  fine-tune, or evaluate AI models, or be included in datasets built for those
+  purposes. See AI-TRAINING-NOTICE.md.
+type: software
+authors:
+  - name: "PrinceWitherdick"
+  - name: "aMediocerDad"
+  - name: "taylor-nightingale"
+  - name: "Dice-Goblin-Click-Clack"
+repository-code: "https://github.com/PrinceWitherdick/stonetop"
+url: "https://github.com/PrinceWitherdick/stonetop"
+license: MIT
+license-url: "https://github.com/PrinceWitherdick/stonetop/blob/main/LICENSE"
+keywords:
+  - foundry-vtt
+  - stonetop
+  - powered-by-the-apocalypse
+  - ttrpg

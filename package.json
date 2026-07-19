@@ -6,6 +6,7 @@
     "test:watch": "vitest",
     "pack": "node scripts/pack.js",
     "unpack": "node scripts/unpack.js",
+    "gen:ai-signals": "node scripts/gen-ai-signals.js",
     "reorganize-packs": "node scripts/reorganize-playbook-moves.js"
   },
   "devDependencies": {

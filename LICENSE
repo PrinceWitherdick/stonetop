@@ -1,3 +1,12 @@
+AI TRAINING / TEXT-AND-DATA-MINING: Rights are reserved. The maintainers do not
+consent to the use of this project or its bundled content to train, fine-tune, or
+evaluate machine-learning or AI models, or to its inclusion in datasets built for
+those purposes. This is a reservation of rights, not an added license restriction:
+it does not modify the MIT or CC BY-SA 4.0 grants below, and nothing here restricts
+any use those licenses permit. See AI-TRAINING-NOTICE.md and ai.txt for details.
+
+-------------------------------------------------------------------------------
+
 This project uses two licenses depending on the type of content:
 
   - Code (JavaScript, CSS, HTML templates): MIT License (see below)
