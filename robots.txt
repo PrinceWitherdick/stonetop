@@ -1,0 +1,77 @@
+# robots.txt for the Stonetop for Foundry VTT project.
+#
+# NOTE: A robots.txt only takes effect when served from the ROOT of a host you
+# control (e.g. a GitHub Pages site or your own domain). It has no effect on
+# github.com itself, which serves GitHub's own robots.txt. This file is included
+# as a documented signal and becomes active automatically if this project is
+# ever published via GitHub Pages or another host.
+#
+# Rights reserved for AI training / text-and-data-mining. See AI-TRAINING-NOTICE.md.
+
+# Block known AI-training and dataset crawlers.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: OAI-SearchBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Perplexity-User
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+User-agent: Timpibot
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+# All other crawlers are also disallowed.
+User-agent: *
+Disallow: /

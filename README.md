@@ -4,7 +4,7 @@ An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop
 
 > This system is under active development and may be unstable.
 
-## 🤖 Proudly made with farm-raised AI
+## 🤖 Created in collaboration with AI to facilitate rapid development. Absolutely no image generation was or will be used.
 
 ## Features
 
@@ -15,6 +15,8 @@ Everything below is built into the system. No extra modules required.
 #### Guided Character Creation
 
 A multi-step onboarding wizard handles everything from playbook selection to the final starting move. Each playbook's unique setup is fully supported: backgrounds with conditional forms, appearance builders, stat allocation, starting moves and invocations, crew and animal companion configuration, lore questions, and Seeker arcana. Progress is saved so players can pause and return without losing their work.
+
+![Guided character creation, choosing a playbook](.github/screenshots/character_creation.webp)
 
 #### Automated Move Rolls
 
@@ -36,9 +38,13 @@ The Outfit Move dialog lets players check off items and see their load level upd
 
 Build a follower from scratch with a guided builder, or turn any bestiary monster into a follower in one step. Each follower lives on a single card with per-section editing for instinct, moves, cost, and tags. During play the card handles the follower moves for you: Order rolls, Strengthen Bond, ammo and supply tracks, and a follower's fate at 0 HP. Group warbands, hirelings, and companions to keep the tab tidy.
 
+![Followers tab with a warband and a companion follower](.github/screenshots/followers_example.webp)
+
 #### Seeker Arcana
 
 The Seeker's arcana ship as a browsable deck. Cards track their marks, unlocks, and resource tracks interactively, the GM can reveal a whole card (or just its front) to a player once it's discovered, and a per-card ledger records every change so the table can see an arcanum's history at a glance.
+
+![The Seeker arcana deck](.github/screenshots/arcana_example.webp)
 
 #### Death's Door Dialog
 
@@ -78,11 +84,19 @@ The Introductions flow walks the table through the get-acquainted questions duri
 
 An **End of Session** macro is automatically slotted into hotbar slot 10. The GM checks off which of the four group XP criteria were met and the system awards XP to every player-owned character simultaneously, then posts a summary to chat.
 
+#### Homebrew Content Creation
+
+A **Create Content** picker mints your own material as reusable world items: homebrew Arcana, custom Moves players can roll, Inventory Items, Steading Improvements, and Threats. Each one is saved once and then dragged onto the sheet or tab where it belongs, so a table can grow its own deck of moves, gear, and dangers alongside the bundled content.
+
+![The Create Stonetop Content picker](.github/screenshots/homebrew_content_creation.webp)
+
 ### Bundled Content
 
 #### Bestiary
 
 The system ships with the full bestiary of Books I and II: around 180 creatures, each with an illustrated codex entry and a ready-to-drop stat block, sorted into 38 regions and tagged by creature type. Monster and codex content stays hidden from players until you reveal it, so it doubles as a spoiler-safe GM reference.
+
+![A bestiary stat block](.github/screenshots/monster_example.webp)
 
 #### Locations & Lore
 
@@ -119,10 +133,31 @@ npm run unpack     # extract packs back to JSON source
 npm test           # run tests
 ```
 
+## Credits & Attribution
+
+Stonetop is the work of many hands. Per the credits page in the rulebooks, this system builds on:
+
+- **Written by** Jeremy Strandberg
+- **Illustrated by** Lucie Arnoux
+- **Arranged (design & layout) by** Jason Lutes
+- **Proofread by** Angel Green, Rob Rendell, Matt Wetherbee, John Pham, Steven Quillen, and Dennis Taylor
+- **and a legion of volunteers** from the Stonetop community
+- **Published by** [Lampblack & Brimstone](https://lampblackandbrimstone.com)
+
+Some concepts and procedures are derived from *Dungeon World* by Sage LaTorra & Adam Koebel, used under a Creative Commons Attribution (CC BY) license.
+
+All of the game's artwork is © Lucie Arnoux. That artwork is **not** open-licensed and is **not** redistributed by this system: the illustrations from Stonetop's books do not ship here. Any art bundled with this system is either our own work or separately licensed (see below).
+
 ## License
 
-Code is licensed under the [MIT License](LICENSE).
+This system reuses the CC BY-SA 4.0 text and evokes the visual presentation (trade dress) of Stonetop. In keeping with the ShareAlike terms, the game-content portions of this project are released under the same license, with attribution to the creators above.
 
-Game content is derived from [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg and used under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- **Code** (JavaScript, templates, styles, build tooling) is licensed under the [MIT License](LICENSE).
+- **Game content** derived from [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg, together with any part of this system that reproduces the game's text or evokes its trade dress, is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- **Icon assets** sourced from [game-icons.net](https://github.com/game-icons/icons) are used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), with per-icon artist credits in the [playbook](assets/playbooks/ATTRIBUTION.md) and [macro](assets/icons/macros/ATTRIBUTION.md) attribution files.
 
-[Some assets](assets/playbooks/ATTRIBUTION.md) sourced from [game-icons.net](https://github.com/game-icons/icons) are used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+This is an unofficial, fan-made system, not affiliated with or endorsed by Jeremy Strandberg or Lampblack & Brimstone. Stonetop, its artwork, and its trade dress remain the property of their respective owners.
+
+## AI Training and Data Mining
+
+Rights are reserved for text and data mining, machine learning, and AI training. This project and its release artifacts may not be used to train, fine-tune, or evaluate AI models, or be included in datasets built for those purposes. See the [AI Training and Data-Mining Notice](AI-TRAINING-NOTICE.md), with machine-readable signals in [`ai.txt`](ai.txt), [`.well-known/tdmrep.json`](.well-known/tdmrep.json), and [`robots.txt`](robots.txt).

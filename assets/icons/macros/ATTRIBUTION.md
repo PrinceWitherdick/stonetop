@@ -1,0 +1,21 @@
+# Macro Icon Attribution
+
+Icons sourced from [game-icons.net](https://github.com/game-icons/icons),
+licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+
+Where our filename differs from the original, the game-icons.net source name is listed too.
+
+| Icon | game-icons.net source | Artist | Artist page |
+|------|-----------------------|--------|-------------|
+| bookmarklet.svg | bookmarklet | Lorc | https://lorcblog.blogspot.com |
+| die-of-fate.svg | perspective-dice-six-faces-random | Delapouite | https://delapouite.com |
+| direction-signs.svg | direction-signs | Delapouite | https://delapouite.com |
+| hazard-sign.svg | hazard-sign | Lorc | https://lorcblog.blogspot.com |
+| introductions.svg | conversation | Lorc | https://lorcblog.blogspot.com |
+| love-letter.svg | love-letter | Delapouite | https://delapouite.com |
+| spell-book.svg | spell-book | Delapouite | https://delapouite.com |
+| sun-cloud.svg | sun-cloud | Delapouite | https://delapouite.com |
+| treasure-map.svg | treasure-map | Lorc | https://lorcblog.blogspot.com |
+| truce.svg | truce | Delapouite | https://delapouite.com |
+
+`spring.svg` (used by the Seasons Change macro) is the project's own seasonal flower icon, not a game-icons.net asset, so it is not listed above.
