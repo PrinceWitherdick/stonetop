@@ -21,16 +21,19 @@ Publish a new release of this Stonetop FoundryVTT system to GitHub. Releases are
 
 6. Merge develop into main via PR: `gh pr create -R PrinceWitherdick/stonetop --base main --head develop`, then merge it (merge commit, not squash). The release tag will go on the resulting main merge commit.
 
-7. Build the zip from the working tree. Contents sit at the ZIP ROOT (no wrapper folder) and `packs/src` must be excluded (only the compiled LevelDB pack dirs ship):
+7. Build the zip from the working tree. Contents sit at the ZIP ROOT (no wrapper folder) and `packs/src` must be excluded (only the compiled LevelDB pack dirs ship). The AI/TDM opt-out signals ship WITH the artifact so they travel to any mirror. The private book-art dirs (`assets/maps`, `assets/bestiary`, `assets/locations`) are gitignored but present in the working tree, so they MUST be stripped from the stage or they leak into the public zip:
 
    ```powershell
    $stage = Join-Path $env:TEMP "stonetop-release-stage"
    Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
    New-Item -ItemType Directory $stage | Out-Null
-   Copy-Item assets,languages,module,packs,styles,templates,stonetop.js,system.json,LICENSE $stage -Recurse
+   Copy-Item assets,languages,module,packs,styles,templates,stonetop.js,system.json,LICENSE,README.md,AI-TRAINING-NOTICE.md,ai.txt,robots.txt,CITATION.cff,.well-known $stage -Recurse
    Remove-Item "$stage\packs\src" -Recurse -Force
+   Remove-Item "$stage\assets\maps","$stage\assets\bestiary","$stage\assets\locations" -Recurse -Force -ErrorAction SilentlyContinue
    Compress-Archive "$stage\*" "$stage\..\stonetop.zip" -Force
    ```
+
+   Before uploading, verify the strip and the bundle: `Get-ChildItem $stage\assets` shows no `maps`/`bestiary`/`locations`, and `AI-TRAINING-NOTICE.md`, `ai.txt`, `robots.txt`, `.well-known\tdmrep.json`, `CITATION.cff` are present at the stage root.
 
 8. Create the release on main and upload both assets (`stonetop.zip` and `system.json`):
 
