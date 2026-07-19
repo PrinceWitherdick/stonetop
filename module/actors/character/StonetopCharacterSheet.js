@@ -1422,6 +1422,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (acSlug) {
 				const typeData = (playbookDoc?.animalCompanion?.types ?? []).find(t => t.slug === acSlug);
 				const traits = sf.animalCompanion?.traits ?? [];
+				// The type's mandatory trait (Bird/Critter "tiny", etc.) is auto-included
+				// and free; it's stat-neutral, so it doesn't affect derived stats, but it
+				// must still show as a locked chip and never count toward the pick budget.
+				const mandatoryTrait = typeData?.mandatoryTrait ?? null;
+				const displayTraits  = (mandatoryTrait && !traits.includes(mandatoryTrait))
+					? [mandatoryTrait, ...traits] : traits;
 				const stats = _applyAnimalCompanionTraits(typeData, traits);
 				const kind = sf.animalCompanion?.kind ?? "";
 				const typeLabel = typeData?.label ?? acSlug;
@@ -1447,12 +1453,15 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Base trait allowance + Magnificent Specimen's "+2 options" per owned copy.
 					const pickCount    = (Number(typeData?.pickCount) || 0) + (companionBonuses.traitPicks ?? 0);
 					const selectedSet  = new Set(traits);
-					const atLimit      = pickCount > 0 && selectedSet.size >= pickCount;
+					// The mandatory trait is locked on and free, so exclude it from the count.
+					const extraCount   = [...selectedSet].filter(t => t !== mandatoryTrait).length;
+					const atLimit      = pickCount > 0 && extraCount >= pickCount;
 					if (acTypeTraits.length) acTraitChoices = {
 						limit:   pickCount,
 						options: acTypeTraits.map(value => {
-							const selected = selectedSet.has(value);
-							return { value, selected, disabled: !selected && atLimit };
+							const isMandatory = value === mandatoryTrait;
+							const selected    = isMandatory || selectedSet.has(value);
+							return { value, selected, mandatory: isMandatory, disabled: isMandatory || (!selected && atLimit) };
 						}),
 					};
 				}
@@ -1463,7 +1472,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					pronoun:      acPronoun,
 					pronounEditable: true,
 					typeLabel:    kind ? `${_titleCase(kind)} (${String(typeLabel).toLowerCase()})` : String(typeLabel),
-					tags:         traits.map(label => ({ label, tooltip: showTraitHover ? _animalCompanionTraitTooltip(label) : null })),
+					tags:         displayTraits.map(label => ({ label, tooltip: showTraitHover ? _animalCompanionTraitTooltip(label) : null })),
 					traitChoices: acTraitChoices,
 					hpSlug:       "",
 					hpMax,
@@ -5835,6 +5844,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				majorArcanum = ownedSlugs.find(s => allowedMajors.has(s)) ?? "";
 			}
 
+			// Ranger animal companion: the type's mandatory trait (Bird/Critter "tiny",
+			// Brute "tough", Predator "fierce", Steed "large") is auto-included and never
+			// counts toward "pick N more", so keep it out of the editable selection — it's
+			// re-added for display and is stat-neutral. Stripping here also self-heals any
+			// legacy character that stored it as one of its picks.
+			const acType      = f.animalCompanion?.type ?? "";
+			const acTypes     = playbookDoc?.flags?.stonetop?.animalCompanion?.types ?? [];
+			const acMandatory = acTypes.find(t => t.slug === acType)?.mandatoryTrait ?? null;
+			const acTraits    = [...(f.animalCompanion?.traits ?? [])]
+				.filter(t => !acMandatory || t !== acMandatory);
+
 			return {
 				backgroundSlug:  f.background?.selected ?? "",
 				instinctValue:   f.instinct?.selected ?? "",
@@ -5861,9 +5881,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					cost:     f.crew?.cost ?? "",
 				},
 				animalCompanion: {
-					type:     f.animalCompanion?.type ?? "",
+					type:     acType,
 					kind:     f.animalCompanion?.kind ?? "",
-					traits:   [...(f.animalCompanion?.traits ?? [])],
+					traits:   acTraits,
 					name:     f.animalCompanion?.name ?? "",
 					instinct: f.animalCompanion?.instinct ?? "",
 					cost:     f.animalCompanion?.cost ?? "",

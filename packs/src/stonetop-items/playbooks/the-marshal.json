@@ -192,7 +192,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
             "grantsItems": [
               {
                 "name": "Skins of fine whisky",
@@ -228,7 +228,7 @@
               {
                 "name": "Firkins",
                 "column": "regular",
-                "weight": 1
+                "weight": 2
               }
             ]
           },
@@ -321,7 +321,7 @@
                 },
                 {
                   "slug": "long-spear",
-                  "label": "◇ Long spear, fine steel (<em>reach</em>, 2 piercing)"
+                  "label": "◇◇ Long spear, fine steel (<em>reach</em>, 2 piercing)"
                 },
                 {
                   "slug": "battleaxe",
@@ -329,7 +329,7 @@
                 },
                 {
                   "slug": "composite-bow",
-                  "label": "◇ Composite bow (<em>far</em>, +1 damage, x <em>piercing</em>)",
+                  "label": "◇ Composite bow (<em>far</em>, +1 damage, x <em>piercing</em>, ○ low ammo, ○ all out)",
                   "resource": {
                     "max": 2,
                     "title": null,
@@ -389,7 +389,7 @@
           },
           {
             "slug": "spear",
-            "label": "<strong>Spear</strong>, iron (<em>close</em>, x <em>piercing</em>)",
+            "label": "<strong>Spear</strong>, iron (<em>close, thrown</em>, x <em>piercing</em>)",
             "weight": 1
           },
           {
@@ -411,12 +411,17 @@
             "slug": "cloak",
             "label": "<strong>Cloak</strong> (<em>warm</em>)",
             "weight": 1
+          },
+          {
+            "slug": "supplies",
+            "label": "<strong>Supplies</strong> (4+Prosperity uses per crew member)",
+            "weight": 1
           }
         ],
         "individualOptions": {
           "names": [
             "Aled",
-            "Culhwch",
+            "Culhwich",
             "Eira",
             "Gerat",
             "Glaw",
@@ -436,9 +441,10 @@
             "greedy",
             "grumpy",
             "gullible",
-            "hearthrob",
+            "heartthrob",
             "honest",
             "kind",
+            "lewd",
             "little",
             "naive",
             "old",
@@ -457,7 +463,7 @@
             "grudge against __",
             "hates __",
             "idolizes __",
-            "jokes a lot",
+            "jokes",
             "messy",
             "missing eye/finger/hand/__",
             "misses their kids",
@@ -471,7 +477,8 @@
             "snores",
             "tells tall tales",
             "too serious",
-            "whistler",
+            "troubles at home",
+            "whistles",
             "whittler"
           ]
         }

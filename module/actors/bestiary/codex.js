@@ -204,6 +204,17 @@ export async function codexUpdateLine(actor, root, field) {
 	await actor.update({ [`system.${field}`]: lines.join("\n") });
 }
 
+// Drop one line from a prep field. Reads the live inputs (so any unsaved edits in the
+// other rows ride along) and splices out the clicked index before re-joining.
+export async function codexRemoveLine(actor, root, field, index) {
+	if (!CODEX_PREP_FIELDS.some(f => f.key === field) || Number.isNaN(index)) return;
+	const section = root.querySelector(`[data-line-field="${field}"]`);
+	if (!section) return;
+	const lines = Array.from(section.querySelectorAll(".stonetop-entry-line-input")).map(i => i.value);
+	lines.splice(index, 1);
+	await actor.update({ [`system.${field}`]: lines.join("\n") });
+}
+
 export async function codexAddQa(actor, field) {
 	if (!CODEX_QA_FIELDS.some(f => f.key === field)) return;
 	const current = Array.isArray(actor.system?.[field]) ? actor.system[field] : [];
@@ -266,6 +277,14 @@ export async function onCodexClick(sheet, ev) {
 
 	if (t.closest(".stonetop-entry-add-line")) {
 		if (sheet._editMode) await codexAddLine(sheet.actor, t.closest(".stonetop-entry-add-line").dataset?.field);
+		return true;
+	}
+	if (t.closest(".stonetop-entry-remove-line")) {
+		if (sheet._editMode) {
+			const row = t.closest("[data-line-index]");
+			const field = row?.closest("[data-line-field]")?.dataset?.lineField;
+			await codexRemoveLine(sheet.actor, root, field, Number(row?.dataset?.lineIndex));
+		}
 		return true;
 	}
 	if (t.closest(".stonetop-entry-add-qa")) {

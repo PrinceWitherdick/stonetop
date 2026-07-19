@@ -407,6 +407,7 @@
       "questionPlaceholder": "Question prompt",
       "answerPlaceholder": "Answer (filled in at the table)",
       "addLine": "Add Line",
+      "removeLine": "Remove line",
       "noLines": "No entries yet.",
       "introPlaceholder": "Intro text shown above the list (optional). Use **text** for bold.",
       "addDiscovery": "Add Discovery",

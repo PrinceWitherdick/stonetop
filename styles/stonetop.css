@@ -11907,6 +11907,19 @@ a.steading-player-open:hover {
 	cursor: not-allowed;
 }
 
+/* Mandatory animal-companion trait (Bird/Critter "tiny", etc.): locked ON and free,
+   so it reads as selected rather than dimmed like the at-limit disabled options. */
+.stonetop-onboarding-tag-option.is-mandatory:has(input:disabled) {
+	opacity: 1;
+	cursor: default;
+}
+.stonetop-onboarding-ac-included,
+.stonetop-ac-trait-included {
+	font-size: 0.85em;
+	font-style: italic;
+	opacity: 0.7;
+}
+
 /* Animal Companion type cards — slightly larger than tags */
 .stonetop-onboarding-tag-grid--types { gap: 8px; }
 
@@ -16420,6 +16433,27 @@ input.stonetop-monster-armor-source {
 
 .stonetop-monster-line .stonetop-entry-line-input {
 	flex: 1 1 auto;
+}
+
+/* Per-line delete (×). Explicit width so core's `.app button{width:100%}` doesn't
+   stretch it in the popout editor. */
+.stonetop-monster-line .stonetop-entry-remove-line {
+	flex: 0 0 auto;
+	align-self: center;
+	justify-content: center;
+	align-items: center;
+	width: auto;
+	min-width: 1.4em;
+	padding: 0 2px;
+	background: none;
+	border: none;
+	line-height: 1;
+	color: slategrey;
+	cursor: pointer;
+}
+
+.stonetop-monster-line .stonetop-entry-remove-line:hover {
+	color: #a33;
 }
 
 .stonetop-monster-line-input {

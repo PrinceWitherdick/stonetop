@@ -257,7 +257,7 @@
           "moves": [
             "Danu's Grasp"
           ],
-          "description": "<p>A seed of Danu's power has taken root in your soul. Perhaps it has always been there and only recently sprouted. Or maybe it was planted in you during some portentous event.</p><p>Take the <strong>Danu's Grasp</strong> move. When you <strong><em>would spend 1 Stock from your sacred pouch</em></strong>, you may choose to lose 2d4 HP instead.</p>"
+          "description": "<p>A seed of Danu's power has taken root in your soul. Perhaps it has always been there and only recently sprouted. Or maybe it was planted in you during some portentous event.</p><p>Regardless, your dreams have been haunted by strange markings and symbols. You feel the mystic power in plants, stones, and soil. And you've felt the growing wrath of the Earth Mother as foul things begin to move about.</p><p>Take the <strong>Danu's Grasp</strong> move (go mark it now).</p><p>Danu's power flows through you, but at great cost. When you <strong><em>would spend 1 Stock from your sacred pouch</em></strong>, you may choose to lose 2d4 HP instead.</p>"
         }
       ],
       "instincts": [
@@ -334,7 +334,7 @@
           ]
         },
         {
-          "region": "The Steplands",
+          "region": "The Steplands (Hillfolk)",
           "names": [
             "Bejn",
             "Decla",
@@ -373,6 +373,7 @@
             "Owl",
             "Pale",
             "Pup",
+            "Quick",
             "Quiet",
             "Rain",
             "Red",
@@ -423,7 +424,11 @@
                     "options": [
                       {
                         "slug": "origin-heirloom",
-                        "label": "an heirloom made just for you"
+                        "label": "an heirloom"
+                      },
+                      {
+                        "slug": "origin-made-for-you",
+                        "label": "made just for you"
                       },
                       {
                         "slug": "origin-own-work",

@@ -243,7 +243,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
             "grantsItems": [
               {
                 "name": "Skins of fine whisky",
@@ -279,7 +279,7 @@
               {
                 "name": "Firkins",
                 "column": "regular",
-                "weight": 1
+                "weight": 2
               }
             ]
           },
@@ -376,6 +376,7 @@
             "armor": "1 (size)",
             "damage": "d4 (hand)",
             "pickCount": 4,
+            "mandatoryTrait": "tiny",
             "traits": [
               "+4 HP",
               "+1 armor (agility)",
@@ -396,9 +397,10 @@
             "label": "Critter",
             "examples": "cat, fox, possum, raccoon, weasel…",
             "hp": 5,
-            "armor": "1",
+            "armor": "1 (size)",
             "damage": "d4 (hand)",
             "pickCount": 5,
+            "mandatoryTrait": "tiny",
             "traits": [
               "+4 HP",
               "+1 armor (agility)",
@@ -428,6 +430,7 @@
             "armor": "0",
             "damage": "d6 (hand)",
             "pickCount": 3,
+            "mandatoryTrait": "tough",
             "traits": [
               "+1 armor (hide, scales, etc.)",
               "Damage +2, forceful",
@@ -451,6 +454,7 @@
             "armor": "0",
             "damage": "d8 (hand, grabby)",
             "pickCount": 3,
+            "mandatoryTrait": "fierce",
             "traits": [
               "+4 HP",
               "+1 armor (hide)",
@@ -479,6 +483,7 @@
             "armor": "0",
             "damage": "d6+1 (hand, close)",
             "pickCount": 4,
+            "mandatoryTrait": "large",
             "traits": [
               "+4 HP",
               "+1 armor (hide)",

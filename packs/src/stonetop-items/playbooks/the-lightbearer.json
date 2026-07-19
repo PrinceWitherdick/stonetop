@@ -77,7 +77,7 @@
           "old & merry"
         ],
         [
-          "a lifting voice",
+          "a lilting voice",
           "a melodious voice",
           "a soft voice"
         ],
@@ -180,7 +180,7 @@
                 "weight": 1
               },
               {
-                "name": "Hat & veils",
+                "name": "hats & veils",
                 "column": "regular",
                 "weight": 1
               }
@@ -234,7 +234,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
             "grantsItems": [
               {
                 "name": "Skins of fine whisky",
@@ -270,7 +270,7 @@
               {
                 "name": "Firkins",
                 "column": "regular",
-                "weight": 1
+                "weight": 2
               }
             ]
           },

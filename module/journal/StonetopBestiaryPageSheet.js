@@ -9,7 +9,7 @@ import { liftLeadArt } from "./lead-art.js";
 
 // Edit affordances on the bestiary page (section pencils + codex add/remove controls);
 // clicking any of these in a compendium gets the immutable-journal dialog.
-const BESTIARY_EDIT_SELECTOR = ".stonetop-section-edit, .stonetop-section-done, .stonetop-entry-add-line, .stonetop-entry-add-qa, .stonetop-entry-remove-qa, .stonetop-discovery-add-group, .stonetop-discovery-remove-group";
+const BESTIARY_EDIT_SELECTOR = ".stonetop-section-edit, .stonetop-section-done, .stonetop-entry-add-line, .stonetop-entry-remove-line, .stonetop-entry-add-qa, .stonetop-entry-remove-qa, .stonetop-discovery-add-group, .stonetop-discovery-remove-group";
 
 // Dangers is a structured group field on the page (unlike the actor sheet, where
 // it's rich text), so it's pulled out of the rich-field path and added as a group.

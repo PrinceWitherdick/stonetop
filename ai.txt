@@ -1,0 +1,37 @@
+# ai.txt - AI training / text-and-data-mining preferences for this project.
+# Rights reserved for TDM and AI training. See AI-TRAINING-NOTICE.md.
+# Machine-readable companion to robots.txt and /.well-known/tdmrep.json.
+#
+# This project (source, compiled artifacts, docs, and bundled content) may NOT be
+# used to train, fine-tune, or evaluate machine-learning or generative-AI models,
+# nor be included in datasets assembled for those purposes.
+
+# Disallow all automated agents from AI-training use of this content.
+User-Agent: *
+Disallow: /
+
+# Named AI crawlers and dataset agents are explicitly disallowed.
+User-Agent: GPTBot
+User-Agent: OAI-SearchBot
+User-Agent: ChatGPT-User
+User-Agent: ClaudeBot
+User-Agent: anthropic-ai
+User-Agent: Claude-Web
+User-Agent: Google-Extended
+User-Agent: CCBot
+User-Agent: PerplexityBot
+User-Agent: Perplexity-User
+User-Agent: Bytespider
+User-Agent: Amazonbot
+User-Agent: Applebot-Extended
+User-Agent: Meta-ExternalAgent
+User-Agent: FacebookBot
+User-Agent: Diffbot
+User-Agent: cohere-ai
+User-Agent: YouBot
+User-Agent: Timpibot
+User-Agent: Omgilibot
+User-Agent: ImagesiftBot
+Disallow: /
+
+# Contact: https://github.com/PrinceWitherdick/stonetop/issues

@@ -4,7 +4,7 @@ An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop
 
 > This system is under active development and may be unstable.
 
-## 🤖 Proudly made with farm-raised AI
+## 🤖 Created in collaboration with AI to facilitate rapid development. Absolutely no image generation was or will be used.
 
 ## Features
 
@@ -129,10 +129,31 @@ npm run unpack     # extract packs back to JSON source
 npm test           # run tests
 ```
 
+## Credits & Attribution
+
+Stonetop is the work of many hands. Per the credits page in the rulebooks, this system builds on:
+
+- **Written by** Jeremy Strandberg
+- **Illustrated by** Lucie Arnoux
+- **Arranged (design & layout) by** Jason Lutes
+- **Proofread by** Angel Green, Rob Rendell, Matt Wetherbee, John Pham, Steven Quillen, and Dennis Taylor
+- **and a legion of volunteers** from the Stonetop community
+- **Published by** [Lampblack & Brimstone](https://lampblackandbrimstone.com)
+
+Some concepts and procedures are derived from *Dungeon World* by Sage LaTorra & Adam Koebel, used under a Creative Commons Attribution (CC BY) license.
+
+All of the game's artwork is © Lucie Arnoux. That artwork is **not** open-licensed and is **not** redistributed by this system: the illustrations from Stonetop's books do not ship here. Any art bundled with this system is either our own work or separately licensed (see below).
+
 ## License
 
-Code is licensed under the [MIT License](LICENSE).
+This system reuses the CC BY-SA 4.0 text and evokes the visual presentation (trade dress) of Stonetop. In keeping with the ShareAlike terms, the game-content portions of this project are released under the same license, with attribution to the creators above.
 
-Game content is derived from [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg and used under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- **Code** (JavaScript, templates, styles, build tooling) is licensed under the [MIT License](LICENSE).
+- **Game content** derived from [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg, together with any part of this system that reproduces the game's text or evokes its trade dress, is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- **Icon assets** sourced from [game-icons.net](https://github.com/game-icons/icons) are used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), with per-icon artist credits in the [playbook](assets/playbooks/ATTRIBUTION.md) and [macro](assets/icons/macros/ATTRIBUTION.md) attribution files.
 
-[Some assets](assets/playbooks/ATTRIBUTION.md) sourced from [game-icons.net](https://github.com/game-icons/icons) are used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+This is an unofficial, fan-made system, not affiliated with or endorsed by Jeremy Strandberg or Lampblack & Brimstone. Stonetop, its artwork, and its trade dress remain the property of their respective owners.
+
+## AI Training and Data Mining
+
+Rights are reserved for text and data mining, machine learning, and AI training. This project and its release artifacts may not be used to train, fine-tune, or evaluate AI models, or be included in datasets built for those purposes. See the [AI Training and Data-Mining Notice](AI-TRAINING-NOTICE.md), with machine-readable signals in [`ai.txt`](ai.txt), [`.well-known/tdmrep.json`](.well-known/tdmrep.json), and [`robots.txt`](robots.txt).

@@ -24,9 +24,12 @@ export class BestiaryPageModel extends foundry.abstract.TypeDataModel {
 			// Plain-text-with-**bold** codex fields — filled via labeled inputs.
 			questions:    qaArray(),
 			lore:         qaArray(),
-			hooks:        new fields.StringField({ required: true, blank: true }),
+			// trim:false so a trailing blank line (added via the codex "Add Line" button,
+			// which appends a "\n") survives cleaning. A default StringField trims trailing
+			// whitespace, silently discarding the new line so "Add Line" appears to do nothing.
+			hooks:        new fields.StringField({ required: true, blank: true, trim: false }),
 			hooksIntro:   new fields.StringField({ required: true, blank: true }),
-			origins:      new fields.StringField({ required: true, blank: true }),
+			origins:      new fields.StringField({ required: true, blank: true, trim: false }),
 			originsIntro: new fields.StringField({ required: true, blank: true }),
 			// Grouped sections: a heading + body + bullet items per entry.
 			discoveries:  groupArray(),
