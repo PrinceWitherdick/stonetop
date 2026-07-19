@@ -1,6 +1,6 @@
 <div class="stonetop-people-gallery-body">
 	{{#if people}}
-	<p class="stonetop-people-hint">Pick a portrait imported from your book. These are the illustrations tagged as people in the art picker.</p>
+	<p class="stonetop-people-hint">Pick a portrait for this person.</p>
 	<div class="stonetop-people-grid">
 		{{#each people}}
 		<button type="button" class="stonetop-people-pick{{#if selected}} is-selected{{/if}}" data-src="{{src}}" title="{{name}}">
@@ -11,9 +11,8 @@
 	</div>
 	{{else}}
 	<p class="stonetop-people-empty">
-		No <strong>People of Stonetop</strong> portraits are available yet. A GM can add them by tagging
-		illustrations as people in the art picker and running the <strong>Import Book Art</strong> macro.
-		{{#if canBrowse}}<br>You can still choose any image with <strong>Browse files&hellip;</strong> below.{{/if}}
+		No <strong>People of Stonetop</strong> portraits are available yet.
+		{{#if canBrowse}}You can choose any image with <strong>Browse files&hellip;</strong> below.{{/if}}
 	</p>
 	{{/if}}
 </div>

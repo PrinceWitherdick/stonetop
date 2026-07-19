@@ -4,6 +4,7 @@ import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJo
 import { seedBestiaryActorsOnce, collapseBestiaryActorSubfoldersOnce } from "./SeedActors.js";
 import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, runImportBookArtMacro } from "../book2-art/macro.js";
+import { BOOK_ART_IMPORT_ENABLED } from "../book2-art/release-gate.js";
 import { stonetopChatCard } from "../utils/chat.js";
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
@@ -245,11 +246,12 @@ export async function onReady() {
 		});
 		await _reorderSystemMacros();
 		await _ensureTestPopulateMacro();
-		await _ensureBook2ArtMacro();
+		// Book Art / PDF-import macro held back until distribution is approved (release-gate.js).
+		if (BOOK_ART_IMPORT_ENABLED) await _ensureBook2ArtMacro();
 	}
 	if (game.user.isGM) {
 		await _postStartupWelcomeMessageOnce();
-		await _postBook2ArtReminderOnce();
+		if (BOOK_ART_IMPORT_ENABLED) await _postBook2ArtReminderOnce();
 		await remindDestinedOmenRoll();
 	}
 
