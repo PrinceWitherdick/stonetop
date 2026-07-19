@@ -5,7 +5,7 @@
       one place. Context: an inventory item snapshot, plus `deletable` — whether this row
       may be removed individually in edit mode (write-ins and treasures may; catalog gear
       may not). `isAddedSpecial` is absent on rows that can't be one, so its ✕ falls out. --}}
-<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
+<div class="stonetop-inv-item{{#if treasure}} stonetop-inv-treasure{{/if}}{{#if checked}} is-checked{{/if}}">
 	<label class="stonetop-inv-item-toggle">
 		<span class="stonetop-inv-diamonds">
 			{{#each (times weight)}}

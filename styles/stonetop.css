@@ -4280,6 +4280,23 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    Name size matches the regular Items column (inherits --st-fs-base). */
 .stonetop-inv-item.stonetop-inv-small .stonetop-inv-label { white-space: nowrap; }
 
+/* A dragged-in Book II treasure carries a long descriptive name and a tag/value
+   parenthetical ("A single makerglass arrowhead" + "(indestructible, 2 piercing,
+   Value 1)"). Stack them instead of colliding on one crowded row: the bold name keeps
+   its own line, and the note drops beneath it. `order:1` sends the note past the ◇ load
+   markers, the name, and the edit-mode ✕ (all order 0) so it lands alone on the next
+   line — the ✕ stays up on the name's row. */
+.stonetop-inv-item.stonetop-inv-treasure { flex-wrap: wrap; }
+.stonetop-inv-item.stonetop-inv-treasure .stonetop-inv-note {
+	order: 1;
+	flex-basis: 100%;
+	/* Hang under the name, clear of the leading marker (one ◇ / check + the row's gap). */
+	padding-left: calc(14px * var(--stonetop-font-scale, 1) + 4px);
+}
+/* Its own line has room now, so a long treasure name may wrap in the narrow small column
+   rather than being clipped to one line like ordinary small gear. */
+.stonetop-inv-item.stonetop-inv-treasure.stonetop-inv-small .stonetop-inv-label { white-space: normal; }
+
 /* A weightless (◇0) arcanum has nothing to mark, so it renders no checkbox at all
    (see OutfitSnapshot.arcanaSmall) — which would hang its name a marker's width left
    of every other row in the column and read as a broken list. Reserve that width:

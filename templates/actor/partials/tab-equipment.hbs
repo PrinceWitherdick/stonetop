@@ -134,7 +134,7 @@
 			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.treasureItems")}}
 			<hr class="stonetop-inv-separator">
 			{{#each stonetop.inventory.outfit.treasureRegular}}
-			{{> "stonetop.inv-item-regular" deletable=true}}
+			{{> "stonetop.inv-item-regular" deletable=true treasure=true}}
 			{{/each}}
 			{{/if}}
 		</div>
@@ -212,7 +212,7 @@
 			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.treasureItems")}}
 			<hr class="stonetop-inv-separator">
 			{{#each stonetop.inventory.outfit.treasureSmall}}
-			{{> "stonetop.inv-item-small" deletable=true}}
+			{{> "stonetop.inv-item-small" deletable=true treasure=true}}
 			{{/each}}
 			{{/if}}
 		</div>

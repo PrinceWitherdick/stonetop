@@ -4,8 +4,10 @@
 	<path d="M158 20 L354 20 L492 158 L492 354 L354 492 L158 492 L20 354 L20 158 Z" fill="#141210"/>
 	<!-- Two-handled amphora, proportioned squat-and-wide (~216 x 254, was ~188 x 330) so the
 	     marker reads as a balanced square at 40px rather than a tall stripe. Handles are cream
-	     strokes, so the dark octagon shows through the "eye" between each handle and the neck. -->
-	<g fill="#f0ece3">
+	     strokes, so the dark octagon shows through the "eye" between each handle and the neck.
+	     The path coordinates put the amphora's bounding-box centre at y=292, but the octagon is
+	     centred at y=256 — so the group is lifted 36 units to sit dead-centre in the token. -->
+	<g fill="#f0ece3" transform="translate(0 -36)">
 		<path d="M208 168
 			L304 168
 			Q300 190 289 212

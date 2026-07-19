@@ -3,7 +3,7 @@
       inv-item-regular.hbs; see it for why these are partials. Context: an inventory item
       snapshot, plus `deletable` — whether this row may be removed individually in edit
       mode (write-ins and treasures may; catalog gear may not). --}}
-<div class="stonetop-inv-item stonetop-inv-small{{#if checked}} is-checked{{/if}}">
+<div class="stonetop-inv-item stonetop-inv-small{{#if treasure}} stonetop-inv-treasure{{/if}}{{#if checked}} is-checked{{/if}}">
 	<label class="stonetop-inv-item-toggle">
 		<input type="checkbox" class="stonetop-inventory-item-check"
 		       data-slug="{{slug}}"
