@@ -14,19 +14,11 @@
 // in place by syncSeededFolderColors) end up with identical folders.
 // tests/pack/folder-colors.test.js guards that the pack docs stay in sync with this.
 export const SEEDED_FOLDER_COLORS = [
-	{ name: "Bestiary",  color: "#6a9165" }, // sage green — the bestiary codex
+	{ name: "Bestiary",  color: "#a8544c" }, // brick red — the bestiary codex (mostly enemies)
 	{ name: "Lore",      color: "#8b74ad" }, // heather violet — gods, factions, world lore
 	{ name: "Places",    color: "#5f86a8" }, // dusty blue — regions, settlements, byways
 	{ name: "Reference", color: "#b08a4f" }, // muted ochre — rules & world reference
 ];
-
-// The "The World" root folder groups the four category trees in the world sidebar. It
-// exists ONLY in the world (the seeder creates it — see SeedCompendiums), never in the
-// compendium, so it isn't a pack folder doc. A neutral stone-slate that reads as the
-// structural trunk and stands apart from the four coloured children. Applied to the
-// root folder ALONE — deliberately not in SEEDED_FOLDER_COLORS, whose colours cascade
-// to descendants; the world root must not tint its category children.
-export const WORLD_ROOT_FOLDER_COLOR = "#6b6f76";
 
 // A stable fingerprint of the whole colour scheme above. syncSeededFolderColors stamps
 // this into a world setting after it runs and re-runs whenever it changes — so adding a
@@ -35,10 +27,7 @@ export const WORLD_ROOT_FOLDER_COLOR = "#6b6f76";
 // only folders still at the default or still holding a colour from the previous scheme, so
 // re-running never clobbers a GM's own tint.)
 export function seededFolderColorSignature() {
-	return [
-		...SEEDED_FOLDER_COLORS.map(s => `${s.name}=${s.color}`),
-		`The World=${WORLD_ROOT_FOLDER_COLOR}`,
-	].join("|");
+	return SEEDED_FOLDER_COLORS.map(s => `${s.name}=${s.color}`).join("|");
 }
 
 // Parent folder id of a Folder, whether `.folder` is a Folder document (Foundry
@@ -59,15 +48,12 @@ export function rawFolderColor(folder) {
 	return typeof colour === "string" ? colour : (colour.css ?? null);
 }
 
-// Plan the folder-colour updates for the seeded gazetteer. For each category
-// (Bestiary, Lore) find its seeded folder — preferring the one nested under the
-// "The World" root, else a loose root-level folder of that name — and recolour it
-// plus every descendant that is STILL at the default colour, leaving any folder the
-// GM has already tinted alone. When `worldRootColor` is given, the "The World" root
-// folder itself is coloured too — root ONLY, never its category children (those keep
-// their own cascading colours). Pure over a folder list so it can be unit-tested
-// without a live Foundry. Returns an array of `{ _id, color }` update objects.
-export function planSeededFolderColorUpdates(folders, specs, worldFolderName, worldRootColor = null, ownedColors = null) {
+// Plan the folder-colour updates for the seeded gazetteer. Each category (Bestiary, Lore,
+// Places, Reference) is a top-level Journal folder; find it by name and recolour it plus
+// every descendant that is STILL at the default colour, leaving any folder the GM has
+// already tinted alone. Pure over a folder list so it can be unit-tested without a live
+// Foundry. Returns an array of `{ _id, color }` update objects.
+export function planSeededFolderColorUpdates(folders, specs, ownedColors = null) {
 	const journal = Array.from(folders ?? []).filter(f => f.type === "JournalEntry");
 
 	// parent id → child folders, so we can walk each category's subtree.
@@ -77,8 +63,6 @@ export function planSeededFolderColorUpdates(folders, specs, worldFolderName, wo
 		if (!childrenOf.has(pid)) childrenOf.set(pid, []);
 		childrenOf.get(pid).push(folder);
 	}
-
-	const world = journal.find(f => f.name === worldFolderName && !parentFolderId(f)) ?? null;
 
 	// A folder is ours to (re)colour when it is still at the default OR still carries a colour
 	// we applied under a previous scheme (in `ownedColors`) — so re-tinting a category
@@ -92,15 +76,8 @@ export function planSeededFolderColorUpdates(folders, specs, worldFolderName, wo
 	};
 
 	const updates = [];
-
-	// The "The World" root — coloured alone (no descendant walk).
-	if (worldRootColor && world && recolourTo(world, worldRootColor)) {
-		updates.push({ _id: world.id, color: worldRootColor });
-	}
-
 	for (const { name, color } of specs) {
-		let root = world ? (childrenOf.get(world.id) ?? []).find(f => f.name === name) : null;
-		root ??= journal.find(f => f.name === name && !parentFolderId(f)) ?? null;
+		const root = journal.find(f => f.name === name && !parentFolderId(f)) ?? null;
 		if (!root) continue;
 
 		const stack = [root];

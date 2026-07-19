@@ -1,0 +1,47 @@
+{
+  "name": "Storm Spirit",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 19,
+        "max": 19
+      },
+      "armor": {
+        "value": 1,
+        "source": "no vital organs"
+      },
+      "damage": {
+        "value": "none",
+        "rollFormula": ""
+      },
+      "instinct": {
+        "value": "to test any who stand before it"
+      }
+    },
+    "concept": "Minor spirits of wild places, more often NPCs than monsters; these stats are for the rare times one manifests to fight.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, spirit, brash, arrogant, potent",
+    "qualities": "",
+    "count": 1,
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m88jHcxMlzd0u0N3",
+    "notes": "<p>Big, rumbling voice; intense but distracted, has places to be.</p>",
+    "creatureType": "spirit"
+  },
+  "prototypeToken": {
+    "name": "Storm Spirit",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+    }
+  },
+  "items": [],
+  "effects": [],
+  "flags": {},
+  "folder": "Ewhy71l313P5C1Jd",
+  "_id": "WkvJgBl2JC3Ejluj",
+  "_key": "!actors!WkvJgBl2JC3Ejluj"
+}

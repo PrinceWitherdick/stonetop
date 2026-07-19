@@ -1,0 +1,47 @@
+{
+  "name": "Cave Spirit",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 19,
+        "max": 19
+      },
+      "armor": {
+        "value": 1,
+        "source": "no vital organs"
+      },
+      "damage": {
+        "value": "none",
+        "rollFormula": ""
+      },
+      "instinct": {
+        "value": "to hold its secrets tightly"
+      }
+    },
+    "concept": "Minor spirits of wild places, more often NPCs than monsters; these stats are for the rare times one manifests to fight.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, spirit, mysterious, possessive, coy",
+    "qualities": "",
+    "count": 1,
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m88jHcxMlzd0u0N3",
+    "notes": "<p>Drops hints about what's inside; hates the light.</p>",
+    "creatureType": "spirit"
+  },
+  "prototypeToken": {
+    "name": "Cave Spirit",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+    }
+  },
+  "items": [],
+  "effects": [],
+  "flags": {},
+  "folder": "Ewhy71l313P5C1Jd",
+  "_id": "uLiEafU3h12PMYsv",
+  "_key": "!actors!uLiEafU3h12PMYsv"
+}

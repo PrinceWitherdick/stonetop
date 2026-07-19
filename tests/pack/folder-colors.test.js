@@ -47,4 +47,22 @@ describe("seeded gazetteer folder colours", () => {
 		expect(colours.every(Boolean)).toBe(true);
 		expect(new Set(colours).size).toBe(colours.length);
 	});
+
+	it("each category tree is a top-level folder (no shared wrapper)", async () => {
+		// The four trees seed at the sidebar root — there is no longer a "The World" wrapper
+		// (its extra depth pushed the Bestiary codex past Foundry's folder-render limit). The
+		// named top folder of each tree must sit at the root (folder: null).
+		for (const [category, relDir] of Object.entries(CATEGORY_DIRS)) {
+			const docs = await readFolderDocs(relDir);
+			const top = docs.find(({ doc }) => doc.name === category);
+			expect(top, `missing top-level "${category}" folder`).toBeTruthy();
+			expect(top.doc.folder, `"${category}" should be top-level`).toBeNull();
+		}
+		// And the retired wrapper is gone from every source dir.
+		for (const relDir of Object.values(CATEGORY_DIRS)) {
+			for (const { doc, file } of await readFolderDocs(relDir)) {
+				expect(doc.name, `stale "The World" wrapper in ${file}`).not.toBe("The World");
+			}
+		}
+	});
 });

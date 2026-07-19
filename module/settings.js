@@ -24,6 +24,45 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the one-time import of the Monsters (stonetop-bestiary) actor compendium
+	// into the world's Actors sidebar has run (see hooks/SeedActors.js). Independent of
+	// `seedingComplete` (which covers the JournalEntry packs) so an established world whose
+	// journals were seeded long ago still imports the monster sheets on the first load
+	// after this shipped. Set true after the first GM load so the bestiary is seeded once.
+	game.settings.register("stonetop_pwd", "bestiaryActorsSeeded", {
+		name: "Bestiary Actors Seeded",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether this world has had the retired "The World" wrapper folder un-nested (see
+	// hooks/SeedCompendiums.unnestSeededWorldRootOnce). Older seeds grouped the four
+	// gazetteer trees under a single "The World" folder, which pushed the deep Bestiary
+	// codex past Foundry's folder-render depth; the migration lifts the trees to the
+	// sidebar root and deletes the wrapper. Set true once it has run (no-op on fresh worlds).
+	game.settings.register("stonetop_pwd", "worldRootUnnested", {
+		name: "World Root Un-nested",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether the seeded world Bestiary's actor subfolders have been collapsed (see
+	// hooks/SeedActors.collapseBestiaryActorSubfoldersOnce). The tree was seeded
+	// Bestiary > section > region > creature > actor; that depth hid the deepest monsters
+	// past Foundry's folder-render limit, so the migration flattens it to Bestiary > section
+	// > actor. Set true once it has run (no-op on worlds seeded from the collapsed compendium).
+	game.settings.register("stonetop_pwd", "bestiaryActorFoldersCollapsed", {
+		name: "Bestiary Actor Folders Collapsed",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// Whether this world has had the system's new-world core setting defaults applied.
 	// Used to seed Foundry's Automatic Token Rotation world setting off only during a
 	// fresh world's first GM load, without surprising already-established worlds.

@@ -1,6 +1,7 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
-import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJournalsOnVersionChange, syncSeededFolderColors } from "./SeedCompendiums.js";
+import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJournalsOnVersionChange, syncSeededFolderColors, unnestSeededWorldRootOnce } from "./SeedCompendiums.js";
+import { seedBestiaryActorsOnce, collapseBestiaryActorSubfoldersOnce } from "./SeedActors.js";
 import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, runImportBookArtMacro } from "../book2-art/macro.js";
 import { stonetopChatCard } from "../utils/chat.js";
@@ -188,6 +189,7 @@ export async function onReady() {
 			.then(() => seedCompendiumJournalsOnce())
 			.then(() => restampSeededJournalSources())
 			.then(() => updateSeededJournalsOnVersionChange())
+			.then(() => unnestSeededWorldRootOnce())
 			.then(() => syncSeededFolderColors());
 	} else if (game.user.isGM) {
 		// Re-apply Book II art BEFORE the journal sync so freshly re-applied compendium
@@ -199,6 +201,7 @@ export async function onReady() {
 		await seedCompendiumJournalsOnce();
 		await restampSeededJournalSources();
 		await updateSeededJournalsOnVersionChange();
+		await unnestSeededWorldRootOnce();
 		await syncSeededFolderColors();
 		// Every-load self-heal: add any durable Book II art still MISSING from world
 		// journals (e.g. art that only landed on disk after a journal was imported, or a
@@ -208,7 +211,21 @@ export async function onReady() {
 		try { await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true }); }
 		catch (err) { console.error("Stonetop | Book II art self-heal failed:", err); }
 	}
+
+	// Import the monster sheets into the world's Actors sidebar under a red "Bestiary"
+	// folder tree mirroring the Monsters compendium. GM-only, once per world, and run in
+	// the BACKGROUND — it creates ~200 actors, so it must not hold up the ready sequence or
+	// the Welcome guide. Guarded + idempotent (skips already-imported, reuses folders), so a
+	// reload while it's still running just resumes. Players never see these (ownership NONE).
+	// Independent of the journal seed above, so an established world still gets the monsters.
 	if (game.user.isGM) {
+		// Seed the monsters, then collapse the world Bestiary's actor subfolders (a fresh
+		// world seeds an already-flat tree, so the collapse is a no-op there; an established
+		// world flattens its deep seeded tree). Both are background + guarded.
+		seedBestiaryActorsOnce()
+			.then(() => collapseBestiaryActorSubfoldersOnce())
+			.catch(err => console.error("Stonetop | Bestiary actor seed/collapse failed:", err));
+
 		await _retireIntroductionsMacro();
 		// Place any missing system macros at their default slots (existing placements
 		// are left alone, so a manual rearrangement sticks). Their fixed starting order

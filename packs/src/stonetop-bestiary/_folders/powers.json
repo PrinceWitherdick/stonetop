@@ -2,10 +2,10 @@
   "name": "Primordial & Mythic Powers",
   "type": "Actor",
   "description": "",
-  "folder": null,
+  "folder": "BestiaryRootFldr",
   "sorting": "a",
   "sort": 0,
-  "color": null,
+  "color": "#a8544c",
   "flags": {},
   "_id": "Ewhy71l313P5C1Jd",
   "_key": "!folders!Ewhy71l313P5C1Jd"

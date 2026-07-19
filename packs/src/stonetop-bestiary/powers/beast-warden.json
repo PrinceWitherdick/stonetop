@@ -1,0 +1,47 @@
+{
+  "name": "Beast Warden",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 19,
+        "max": 19
+      },
+      "armor": {
+        "value": 1,
+        "source": "no vital organs"
+      },
+      "damage": {
+        "value": "none",
+        "rollFormula": ""
+      },
+      "instinct": {
+        "value": "to see its wards thrive, prosper"
+      }
+    },
+    "concept": "Minor spirits of wild places, more often NPCs than monsters; these stats are for the rare times one manifests to fight.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, spirit, beast-like, protective",
+    "qualities": "",
+    "count": 1,
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m88jHcxMlzd0u0N3",
+    "notes": "<p>A different spirit watching over each type of beast.</p>",
+    "creatureType": "spirit"
+  },
+  "prototypeToken": {
+    "name": "Beast Warden",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+    }
+  },
+  "items": [],
+  "effects": [],
+  "flags": {},
+  "folder": "Ewhy71l313P5C1Jd",
+  "_id": "eaLI3NjKZn4gA4WL",
+  "_key": "!actors!eaLI3NjKZn4gA4WL"
+}
