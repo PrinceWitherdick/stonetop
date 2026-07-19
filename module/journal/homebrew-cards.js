@@ -6,6 +6,7 @@
 // steading-improvement-cards.js / threats/threat-seed-cards.js); the generic journal
 // render hook makes the cards draggable wherever the entry is opened.
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
+import { isInJournalEditor } from "../utils/journal-editor-guard.js";
 
 const OWN = () => CONST.DOCUMENT_OWNERSHIP_LEVELS;
 
@@ -91,6 +92,9 @@ export function bindHomebrewCardDrag(root, { selector, datasetKey, boundFlag, dr
 
 	for (const card of el.querySelectorAll(selector)) {
 		if (card.dataset[boundFlag]) continue;
+		// A card inside a live editor stays untouched — stamping the bound flag / drag
+		// wiring there bakes the attribute into the saved source (journal-editor-guard.js).
+		if (isInJournalEditor(card)) continue;
 		card.dataset[boundFlag] = "1";
 		card.addEventListener("dragstart", ev => {
 			const data = readHomebrewCardPayload(card, datasetKey);

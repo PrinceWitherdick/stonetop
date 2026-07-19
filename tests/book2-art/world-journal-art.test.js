@@ -281,6 +281,48 @@ describe("locationSectionsWithArt", () => {
 		const out = locationSectionsWithArt(baseSections(), undefined, [SRC], "x");
 		expect(out[0].body).toContain(SRC);
 	});
+
+	// `retired`: art a prior manifest embedded that we no longer name (the Forge Lords
+	// duplicate-extraction case). It must be stripped from already-imported worlds and never
+	// re-placed, while the still-wanted image is kept.
+	it("strips a retired src from the target section and keeps the wanted one", () => {
+		// The world page carries BOTH the wanted image and the retired duplicate in section 1.
+		const dup = [
+			{ kind: "prose", heading: "At a Glance", body: "<p>glance</p>" },
+			{ kind: "prose", heading: "The Place", body: `${artEmbed(SRC, "x")}${artEmbed(SRC2, "x")}<p>place</p>` },
+		];
+		const out = locationSectionsWithArt(dup, 1, [SRC], "x", [SRC2]);
+		expect(out).not.toBeNull();
+		expect(out[1].body).toContain(SRC);       // wanted image kept
+		expect(out[1].body).not.toContain(SRC2);  // retired duplicate gone
+	});
+
+	it("strips a retired src no matter which section it lingers in", () => {
+		const dup = [
+			{ kind: "prose", heading: "At a Glance", body: `<p>glance</p>${artEmbed(SRC2, "x")}` },
+			{ kind: "prose", heading: "The Place", body: `${artEmbed(SRC, "x")}<p>place</p>` },
+		];
+		const out = locationSectionsWithArt(dup, 1, [SRC], "x", [SRC2]);
+		expect(out).not.toBeNull();
+		expect(out[0].body).not.toContain(SRC2); // retired stripped from section 0 too
+		expect(out[1].body).toContain(SRC);
+	});
+
+	it("is a no-op once the retired src is already gone", () => {
+		const clean = [
+			{ kind: "prose", heading: "At a Glance", body: "<p>glance</p>" },
+			{ kind: "prose", heading: "The Place", body: `${artEmbed(SRC, "x")}<p>place</p>` },
+		];
+		expect(locationSectionsWithArt(clean, 1, [SRC], "x", [SRC2])).toBeNull();
+	});
+
+	it("never re-inserts a retired src, and a still-wanted path is not treated as retired", () => {
+		// A retired src passed that is ALSO wanted stays (a path reused for a kept image is safe).
+		const sections = baseSections();
+		const out = locationSectionsWithArt(sections, 1, [SRC], "x", [SRC]);
+		expect(out).not.toBeNull();
+		expect(out[1].body).toContain(SRC); // kept because it is wanted, not stripped as retired
+	});
 });
 
 describe("mapFigureEmbed", () => {

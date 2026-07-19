@@ -1,6 +1,7 @@
 import { resolveEntry, isStonetopJournalEntry } from "./journal-spiral-bullets.js";
 import { isInCompendium } from "./compendium-edit-guard.js";
 import { deletionEntry } from "./foundry-compat.js";
+import { isInJournalEditor } from "./journal-editor-guard.js";
 
 // Make the requirement/option "check-bullet" list items in this system's journals
 // tickable straight from the reading view — no edit mode, no pack rebuild. The
@@ -93,6 +94,9 @@ export function applyJournalCheckboxes(app, html) {
 	const counters = new Map();
 
 	for (const li of items) {
+		// A check-bullet inside a live editor must stay untouched — injecting the toggle
+		// control there bakes it into the saved source (see journal-editor-guard.js).
+		if (isInJournalEditor(li)) continue;
 		const page = resolvePage(app, li);
 		if (!page) continue;
 		const n = counters.get(page.id) ?? 0;

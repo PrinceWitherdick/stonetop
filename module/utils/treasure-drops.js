@@ -15,6 +15,7 @@ import { buildInventoryItemData } from "./inventory-item-data.js";
 import { wrapGearNoteTerms, buildUsesResource } from "./gear-note.js";
 import { slugify } from "./strings.js";
 import { book2ArtSrc } from "../book2-art/art-root.js";
+import { isInJournalEditor } from "./journal-editor-guard.js";
 
 const norm = s => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -427,6 +428,10 @@ export function applyTreasureDrops(root, entryName) {
 	// `isConnected` because a sheet may still be rendering detached from the document.)
 	for (const line of el.querySelectorAll("li, p")) {
 		if (!line.parentNode || line.dataset.stTreasureBound) continue;
+		// Never decorate a line inside a live editor: rebuilding it there bakes the
+		// drag-cell into the saved source and ProseMirror mangles it (see
+		// journal-editor-guard.js). The read view is decorated as before.
+		if (isInJournalEditor(line)) continue;
 		const text = norm(line.textContent);
 		if (text.length < 3) continue;
 		const group = matchGroup(text, groups);

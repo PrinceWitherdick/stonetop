@@ -2,12 +2,15 @@ import {escHtml} from "../utils/strings.js";
 import {stonetopChatCard} from "../utils/chat.js";
 import {STONETOP_SCOPE, resolvedFlagProperty} from "../actors/character/StonetopFlags.js";
 import {isPrimaryGM as _isPrimaryGM} from "../utils/primary-gm.js";
+import {STEADING_ACTOR_TYPE, STEADING_DEFAULT_IMG} from "../actors/steading/steading-portrait.js";
 
 const _OMEN_REMINDER_FLAG = "lastOmenReminder";
 
-const _STEADING_ACTOR_TYPE = "stonetop";
+// Sourced from the shared steading-portrait helper so this bootstrap and the Book art
+// re-apply (module/book2-art/reapply.js) can never disagree on the actor type / default img.
+const _STEADING_ACTOR_TYPE = STEADING_ACTOR_TYPE;
 const _STEADING_ACTOR_NAME = "Stonetop";
-const _STEADING_ACTOR_IMG = "systems/stonetop_pwd/assets/stonetop_image.svg";
+const _STEADING_ACTOR_IMG = STEADING_DEFAULT_IMG;
 // New worlds get the "S" emblem above as the steading portrait. We deliberately do
 // NOT rewrite the image on existing worlds when they upgrade: a group's steading may
 // point at their own art, or at the book illustration we used to ship (now removed),

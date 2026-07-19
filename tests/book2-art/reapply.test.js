@@ -12,7 +12,7 @@ const JRN_SOURCE = (entryId) => `Compendium.stonetop_pwd.stonetop-journal.Journa
 
 const VERSION = "9.9.9";
 const ROOT = "stonetop-book-art";
-const { monsters, locations, settingOverviewMaps = [], treasures = [] } = BOOK2_ART_APPLY_MANIFEST;
+const { monsters, locations, settingOverviewMaps = [], treasures = [], steadings = [] } = BOOK2_ART_APPLY_MANIFEST;
 const DEFAULT_ICON = "icons/svg/mystery-man.svg";
 
 function setDotted(obj, path, value) {
@@ -122,12 +122,13 @@ function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActo
 		...locations.flatMap((l) => l.images).map((im) => im.out),
 		...settingOverviewMaps.flatMap((s) => [s.out, ...(s.replaces ?? [])]),
 		...treasures.map((t) => t.out),
+		...steadings.map((s) => s.out),
 	];
 	const onDisk = present === "none" ? [] : [...new Set(allOuts.filter((o) => !wanted || wanted.has(o)))];
 	const filesIn = (dir) => onDisk.filter((o) => o.startsWith(`${dir}/`)).map(durableOf);
 
 	const browse = vi.fn(async (source, path) => {
-		for (const dir of ["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures"]) {
+		for (const dir of ["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures", "assets/steading"]) {
 			if (path.endsWith(`/${dir}`)) return { files: filesIn(dir) };
 		}
 		return { files: [] };
@@ -377,6 +378,31 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(foreignPage._writes).toBe(0);
 		expect(foreign._flagWrites).toBe(0);
 		expect(h.store.book2ArtSyncVersion).toBe(VERSION);
+	});
+
+	it("self-heals a retired (de-duplicated) src out of an already-imported world location page", async () => {
+		// A location that had a duplicate extraction removed from the manifest (Forge Lords).
+		const locR = locations.find((l) => l.retired?.length);
+		expect(locR).toBeTruthy(); // the manifest must still carry a location with retired art
+		const secIdx = locR.sectionIndex ?? 0;
+		const wantedSrc = durableOf(locR.images[0].out);
+		const retiredSrc = durableOf(locR.retired[0]);
+		const emb = (src) => `<p><img class="stonetop-journal-art" src="${src}" alt="${locR.name}"></p>`;
+
+		// A world copy imported under the OLD manifest: the target section carries BOTH the
+		// kept image and the retired duplicate (as the import used to embed them).
+		const sections = Array.from({ length: secIdx + 1 }, () => ({ kind: "prose", body: "<p>world loc prose</p>" }));
+		sections[secIdx] = { kind: "prose", body: `${emb(wantedSrc)}${emb(retiredSrc)}<p>prose</p>` };
+		const locPage = makeWorldPage({ id: locR.journalPageId, name: `cmp:${locR.journalPageId}`, type: "location", system: { sections } });
+		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(locR.journalEntryId), name: locR.name, pages: [locPage], stamp: true });
+
+		makeHarness({ worldJournals: [worldLoc] });
+		// The every-load self-heal path (no version bump), which is what clears existing worlds.
+		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
+
+		const body = locPage.system.sections[secIdx].body;
+		expect(body).toContain(`src="${wantedSrc}"`);      // the kept illustration stays
+		expect(body).not.toContain(`src="${retiredSrc}"`); // the duplicate is gone
 	});
 
 	it("drops art at the top when the GM deleted the target section (never silently skips)", async () => {
@@ -683,6 +709,83 @@ describe("reapplyBook2Art (scoped + self-heal modes)", () => {
 
 		expect(h.jrnPack.getDocument).not.toHaveBeenCalled(); // no compendium read
 		expect(locPage._writes).toBe(0);
+	});
+});
+
+// The steading portrait (the world "Stonetop" sheet) is a durable WORLD actor with no
+// compendium id, found by type. It ships the "S" emblem and, before this, was wired ONLY by
+// the Import Book Art macro's one-shot pass — no re-apply safety net — so a single miss left it
+// "S" forever. reapply now re-points it over a shipped placeholder, the same conservative rule
+// the macro uses, on the full/manual passes and the every-load self-heal (never a scoped import).
+describe("the steading portrait (world Stonetop sheet)", () => {
+	beforeEach(() => { vi.restoreAllMocks(); });
+
+	const S = steadings[0];
+	const PLACEHOLDER = "systems/stonetop_pwd/assets/stonetop_image.svg";
+	const makeSteadingActor = (img = PLACEHOLDER) => {
+		const a = { type: "stonetop", img, prototypeToken: { texture: { src: img, fit: "cover" } }, _writes: 0 };
+		a.update = async (upd) => { applyUpdate(a, upd); a._writes++; };
+		return a;
+	};
+
+	it("adopts the book art over the shipped 'S' placeholder (portrait + token)", async () => {
+		expect(S).toBeTruthy(); // the apply manifest ships the steading row
+		const steading = makeSteadingActor();
+		makeHarness({ worldActors: [steading] });
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(steading.img).toBe(durableOf(S.out));
+		expect(steading.prototypeToken.texture.src).toBe(durableOf(S.out));
+		expect(steading.prototypeToken.texture.fit).toBe("cover");
+	});
+
+	it("leaves a portrait the group chose themselves untouched", async () => {
+		const steading = makeSteadingActor("worlds/mine/our-steading.png");
+		makeHarness({ worldActors: [steading] });
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(steading.img).toBe("worlds/mine/our-steading.png");
+		expect(steading._writes).toBe(0);
+	});
+
+	it("does nothing when the steading art is not on disk", async () => {
+		const steading = makeSteadingActor();
+		makeHarness({ worldActors: [steading], present: "none" });
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(steading.img).toBe(PLACEHOLDER);
+		expect(steading._writes).toBe(0);
+	});
+
+	it("self-heals on the every-load world-only pass (a seeded world, no version bump)", async () => {
+		// The self-heal reaches the actor pass only once the world has seeded journals of ours,
+		// which every real world does; give it one so the pass runs to the steading block.
+		const loc0 = locations[0];
+		const page = makeWorldPage({ id: loc0.journalPageId, name: `cmp:${loc0.journalPageId}`, type: "location", system: { sections: Array.from({ length: 64 }, () => ({ kind: "prose", body: "<p>loc prose</p>" })) } });
+		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [page], stamp: true });
+		const steading = makeSteadingActor();
+		makeHarness({ worldActors: [steading], worldJournals: [worldLoc] });
+
+		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
+
+		expect(steading.img).toBe(durableOf(S.out));
+	});
+
+	it("does not touch the steading on a scoped journal import (never touches actors)", async () => {
+		const loc0 = locations[0];
+		const page = makeWorldPage({ id: loc0.journalPageId, name: `cmp:${loc0.journalPageId}`, type: "location", system: { sections: Array.from({ length: 64 }, () => ({ kind: "prose", body: "<p>loc prose</p>" })) } });
+		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [page] });
+		worldLoc.id = "imported-loc";
+		const steading = makeSteadingActor();
+		makeHarness({ worldActors: [steading], worldJournals: [worldLoc] });
+
+		await reapplyBook2Art({ entries: [worldLoc] });
+
+		expect(steading.img).toBe(PLACEHOLDER);
+		expect(steading._writes).toBe(0);
 	});
 });
 

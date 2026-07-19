@@ -1,5 +1,6 @@
 import { valueTooltip } from "../data/value-tiers.js";
 import { getHoverDescriptionSetting } from "../settings.js";
+import { JOURNAL_EDITOR_SELECTOR } from "./journal-editor-guard.js";
 
 // Capital-V "Value" immediately followed by a tier number (optionally a range,
 // "Value 0-2"). Capital V and the trailing digit are both required so the common
@@ -11,8 +12,9 @@ const _VALUE_RE = /\bValue\s+(\d+)(?:\s*[-–—]\s*(\d+))?\b/;
 const _VALUE_RE_G = new RegExp(_VALUE_RE, "g");
 
 // Never wrap inside editable controls, content links (which carry their own
-// tooltip), or an already-wrapped term (idempotency).
-const _SKIP = ".stonetop-value-term, a, input, textarea, select, code, pre, .editor, prose-mirror, .ProseMirror";
+// tooltip), or an already-wrapped term (idempotency). The live-editor fragment is
+// sourced from the shared JOURNAL_EDITOR_SELECTOR so it can't drift from the guard.
+const _SKIP = `.stonetop-value-term, a, input, textarea, select, code, pre, ${JOURNAL_EDITOR_SELECTOR}`;
 
 /**
  * Give every "Value N" (and "Value N-M" range) in `container`'s prose a hover

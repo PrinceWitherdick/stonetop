@@ -6,6 +6,8 @@
 // documents are loaded. The index is built lazily and cached; render hooks
 // (registered in stonetop.js) call applyLocationTooltips() on the rendered HTML.
 
+import { isInJournalEditor } from "../utils/journal-editor-guard.js";
+
 // Packs that carry hover summaries. The locations, lore, and bestiary-codex
 // generators all stamp `flags.stonetop.summary`; they now ship in one merged pack.
 const SUMMARY_PACKS = ["stonetop_pwd.stonetop-journal"];
@@ -64,6 +66,9 @@ export async function applyLocationTooltips(root) {
 
 	const map = await ensureLocationSummaryIndex();
 	for (const a of links) {
+		// Skip links inside a live editor so the stamped tooltip can't ride into the
+		// saved source on the next save (see journal-editor-guard.js).
+		if (isInJournalEditor(a)) continue;
 		const summary = map.get(a.dataset.uuid);
 		if (summary) a.dataset.tooltip = summary;
 	}

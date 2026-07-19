@@ -1,6 +1,7 @@
 import { resolveEntry, isStonetopJournalEntry } from "./journal-spiral-bullets.js";
 import { stonetopChatCard, rollFormulaChip, rollResultNumber } from "./chat.js";
 import { multiDieFaces } from "./roll-engine.js";
+import { isInJournalEditor } from "./journal-editor-guard.js";
 
 // Add a rollable die control to the left of the "Roll" header of the random
 // tables baked into this system's journals (the gazetteer generator's
@@ -188,6 +189,9 @@ export function applyJournalRollTables(app, html) {
 
 	for (const table of root.querySelectorAll("table")) {
 		if (table.dataset.stRollable) continue;
+		// A table inside a live editor stays plain — adding the roll control there bakes
+		// it into the saved source (see journal-editor-guard.js).
+		if (isInJournalEditor(table)) continue;
 		const th = table.querySelector("thead th");
 		if (!th || th.textContent.trim().toLowerCase() !== "roll") continue;
 		const rows = tableRows(table);

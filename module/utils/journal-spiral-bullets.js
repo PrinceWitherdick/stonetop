@@ -5,6 +5,7 @@ import { wrapStonetopGlyphsInEl } from "./glyphs.js";
 import { compendiumSourceOf } from "./foundry-compat.js";
 import { markValueTooltips } from "./value-tooltips.js";
 import { markDebilityTooltips } from "./debility-tooltips.js";
+import { isInJournalEditor, JOURNAL_EDITOR_SELECTOR } from "./journal-editor-guard.js";
 
 // Give this system's journal prose the same spiral bullets (and question-spiral
 // on list items that pose a question) as the actor sheets, applied live at render
@@ -112,6 +113,10 @@ export function applyJournalSpiralBullets(app, html) {
 		// The bestiary's custom page sheet also uses `.journal-page-content`; never
 		// restyle it (it has its own, differently-classed lists).
 		if (section.closest(".stonetop-bestiary-page")) continue;
+		// Skip a section that is (or wraps) a live editor: marking bullets / wrapping
+		// glyphs on the ProseMirror surface bakes them into the saved source and mangles
+		// it (see journal-editor-guard.js). The read view is marked as before.
+		if (isInJournalEditor(section) || section.querySelector(JOURNAL_EDITOR_SELECTOR)) continue;
 		markProseSpiralBullets(section);
 	}
 }

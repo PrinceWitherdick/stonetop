@@ -91,42 +91,57 @@ function stripSrcEmbed(body, src) {
 // once. An already-correct page (every src in the target section, none lingering
 // elsewhere) is a no-op → null, so re-applies don't churn documents.
 //
+// `retired` is art a PRIOR manifest placed that this system no longer names (e.g. a
+// duplicate extraction removed from the manifest). Each retired src is stripped from every
+// section and NEVER re-inserted, so removing an image from the manifest actually clears it
+// from already-imported worlds on the next pass instead of stranding an orphan the strip
+// set no longer covers. A src that is still `wanted` is never treated as retired.
+//
 // Placement is resilient to a GM reshaping the page:
 //   • if the target section was deleted (index out of range, or a falsy hole) the art
 //     falls back to the FIRST real section — the top — so it is never silently dropped; and
 //   • if every section has been deleted, a minimal prose section is synthesised at the top
 //     to hold it (the page sheet lifts a leading embed into a banner; see journal/lead-art.js).
-export function locationSectionsWithArt(sections, sectionIndex, srcs, name) {
+export function locationSectionsWithArt(sections, sectionIndex, srcs, name, retired = []) {
 	const list = Array.isArray(sections) ? sections : [];
 	const wanted = [];
 	for (const s of srcs ?? []) if (s && !wanted.includes(s)) wanted.push(s);
-	if (!wanted.length) return null;
+	// Retired srcs to strip-but-never-place; a still-wanted src is never counted retired.
+	const dead = [];
+	for (const s of retired ?? []) if (s && !wanted.includes(s) && !dead.includes(s)) dead.push(s);
+	if (!wanted.length && !dead.length) return null;
 
 	// Target the manifest's section; if it's gone (out of range or a falsy hole) fall back
 	// to the first real section. findIndex returns -1 for an empty or all-empty list.
 	const requested = sectionIndex ?? 0;
 	const targetIdx = list[requested] ? requested : list.findIndex((s) => s);
 
-	// No-op fast path: every wanted src already sits in the target section and nowhere else.
+	// No-op fast path: every wanted src already sits in the target section and nowhere else,
+	// and no retired src lingers in any section.
 	const targetBody = targetIdx >= 0 ? (list[targetIdx].body ?? "") : "";
 	let needsWork = wanted.some((src) => !bodyHasSrc(targetBody, src));
 	for (let i = 0; i < list.length && !needsWork; i++) {
-		if (i === targetIdx || !list[i]) continue;
-		needsWork = wanted.some((src) => bodyHasSrc(list[i].body ?? "", src));
+		if (!list[i]) continue;
+		const body = list[i].body ?? "";
+		needsWork = (i !== targetIdx && wanted.some((src) => bodyHasSrc(body, src)))
+			|| dead.some((src) => bodyHasSrc(body, src));
 	}
 	if (!needsWork) return null;
 
-	// Strip every wanted src out of every section (new objects only where the body changed)
-	// so the re-insert below gives each a single, authoritative home.
+	// Strip every wanted AND retired src out of every section (new objects only where the
+	// body changed) so the re-insert below gives each wanted src a single, authoritative
+	// home while every retired src is gone for good.
 	const next = list.slice();
 	for (let i = 0; i < next.length; i++) {
 		const sec = next[i];
 		if (!sec) continue;
 		let body = sec.body ?? "";
 		for (const src of wanted) body = stripSrcEmbed(body, src);
+		for (const src of dead) body = stripSrcEmbed(body, src);
 		if (body !== (sec.body ?? "")) next[i] = { ...sec, body };
 	}
 
+	if (!wanted.length) return next; // retired-only cleanup: nothing to re-insert
 	const add = wanted.map((src) => artEmbed(src, name)).join("");
 	if (targetIdx < 0) return [leadArtSection(add)]; // page had no sections at all
 

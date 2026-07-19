@@ -1214,10 +1214,10 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "images": [
     {
      "out": "assets/locations/forge-lords-4.webp"
-    },
-    {
-     "out": "assets/locations/forge-lords-6.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/forge-lords-6.webp"
    ]
   },
   {
@@ -2392,5 +2392,12 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "out": "assets/people/b1-p131-x511.webp"
   }
  ],
- "codex": []
+ "codex": [],
+ "steadings": [
+  {
+   "slug": "stonetop-steading",
+   "name": "Stonetop",
+   "out": "assets/steading/stonetop.webp"
+  }
+ ]
 };

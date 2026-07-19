@@ -31,6 +31,7 @@ import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
+import { hideBrokenJournalArt } from "./module/journal/hide-broken-art.js";
 import { addJournalShareButton } from "./module/journal/share-journal.js";
 import { patchJournalImagePopoutTitles } from "./module/journal/journal-image-titles.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
@@ -389,6 +390,9 @@ const _onJournalRender = (app, html) => {
 	// to plain text with no tooltip. No-op for GMs (they keep every link). The
 	// tooltip index is async, so chain the restriction after it resolves.
 	applyLocationTooltips(html).then(() => restrictContentLinks(html));
+	// Drop any book-art image whose file fails to load, so no reader — player or GM —
+	// is ever shown an empty frame where a durable illustration went missing.
+	hideBrokenJournalArt(html);
 	// Spiral bullets / question-spirals for this system's prose journals.
 	applyJournalSpiralBullets(app, html);
 	// Gear/weapon-tag hover tooltips for the curated Setting Overview prose (the

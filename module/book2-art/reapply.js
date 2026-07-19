@@ -5,6 +5,7 @@ import { bestiaryDescriptionWithArt, codexFieldWithArt, locationSectionsWithArt,
 import { managedHash } from "../hooks/journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { book2ArtRoot } from "./art-root.js";
+import { STEADING_ACTOR_TYPE, isSteadingPlaceholderImg } from "../actors/steading/steading-portrait.js";
 
 // Re-apply the Book II illustrations to the compendia, the world journals, and the
 // world actors, WITHOUT the source PDF.
@@ -54,7 +55,7 @@ async function browseDurableArt(root) {
 	const present = new Set();
 	// The dirs are independent; browse them in parallel. A rejected browse means the
 	// directory doesn't exist yet (the GM hasn't imported) -> nothing on disk from there.
-	const results = await Promise.all(["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures", "assets/people"]
+	const results = await Promise.all(["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures", "assets/people", "assets/steading"]
 		.map(dir => FP.browse("data", `${root}/${dir}`).catch(() => null)));
 	for (const res of results) {
 		if (!res) continue;
@@ -221,7 +222,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// book2ArtSrc with the root hoisted: this runs once per manifest row per pass, and the
 	// root cannot change mid-pass, so there's no reason to re-read the setting each time.
 	const srcOf = (out) => `${root}/${out}`;
-	const { monsters, locations, settingOverviewMaps = [], treasures = [], people = [], codex = [] } = BOOK2_ART_APPLY_MANIFEST;
+	const { monsters, locations, settingOverviewMaps = [], treasures = [], people = [], codex = [], steadings = [] } = BOOK2_ART_APPLY_MANIFEST;
 
 	// Treasures first, and BEFORE the nothing-on-disk return below. They are not documents,
 	// so publishing which of them have a file on disk, and where, is their whole apply step —
@@ -273,10 +274,15 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 		const pick = chain.find((o) => present.has(srcOf(o)));
 		return pick ? [{ s, src: srcOf(pick), replaces: chain.filter((o) => o !== pick).map(srcOf) }] : [];
 	});
-	// Nothing of ours on disk at all — not a document image, not a map. (Maps count even
-	// though they never enter `available`: a GM who only ever supplied poster maps still
-	// has work for us to do, and must not be turned away here.)
-	if (!available.size && !mapPicks.length) return null;
+	// Nothing of ours on disk at all — not a document image, not a map, not the steading
+	// portrait. (Maps count even though they never enter `available`: a GM who only ever
+	// supplied poster maps still has work for us to do, and must not be turned away here.
+	// The steading portrait is document-less too and lives in its own folder, so check it
+	// directly — otherwise a world with only the steading art on disk would be turned away
+	// before the safety-net pass below could adopt it. Skipped on a scoped import, which
+	// never touches actors.)
+	const steadingOnDisk = !Array.isArray(entries) && steadings.some((s) => present.has(srcOf(s.out)));
+	if (!available.size && !mapPicks.length && !steadingOnDisk) return null;
 
 	const besPack = game.packs.get(monsters[0]?.actorPack ?? BES_PACK);
 	const jrnPack = game.packs.get(JRN_PACK);
@@ -293,8 +299,11 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 		worldBySource.get(s).push(j);
 	}
 	// A scoped import over journals that aren't ours (or aren't from our packs) has no
-	// world targets and no compendium work to do: bail before touching packs.
-	if (onlyWorld && !worldBySource.size) return null;
+	// world targets and no compendium work to do: bail before touching packs. But a world
+	// with the steading portrait on disk still has actor work in pass 3.5 even with no world
+	// journals, so let it through here too (mirrors the steadingOnDisk guard at the disk check
+	// above) — otherwise the every-load worldOnly self-heal would turn such a world away.
+	if (onlyWorld && !worldBySource.size && !steadingOnDisk) return null;
 
 	// Per-entry pre-injection pristine state, captured the FIRST time we touch an entry
 	// (before the embed changes its fingerprint). A pristine entry is re-stamped after;
@@ -309,7 +318,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	};
 
 	const relock = [];
-	let actors = 0, besPages = 0, codexPages = 0, locPages = 0, soPages = 0, worldActors = 0, worldJournalPages = 0, errors = 0;
+	let actors = 0, besPages = 0, codexPages = 0, locPages = 0, soPages = 0, worldActors = 0, worldJournalPages = 0, steadingActors = 0, errors = 0;
 	try {
 		// Unlock inside the try so the finally relocks whatever we opened even if the
 		// second unlock (or any later step) throws. Only the compendium-writing passes
@@ -407,18 +416,25 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 		for (const l of locations) {
 			try {
 				const srcs = l.images.filter((im) => available.has(im.out)).map((im) => srcOf(im.out));
-				if (!srcs.length) continue; // none of this location's art is on disk
+				// Retired art: a src a PRIOR manifest embedded that this system no longer names
+				// (e.g. a duplicate extraction we removed). Resolved regardless of disk presence
+				// — it keys on the embed, not a file — so it clears even after the file is gone,
+				// which is why the skip below also lets a retired-only row through: a location
+				// whose kept image is off disk still needs its stranded duplicate stripped.
+				const retired = (l.retired ?? []).map(srcOf);
+				if (!srcs.length && !retired.length) continue; // nothing to place and nothing to retire
 				const worldEntries = worldBySource.get(jrnSource(l.journalEntryId)) ?? [];
-				const worldNeedsArt = worldEntries.length && (!cheapWorldSkip || worldEntries.some((e) => srcs.some((src) => !entryHasSrc(e, src))));
+				const worldNeedsArt = worldEntries.length && (!cheapWorldSkip || worldEntries.some(
+					(e) => srcs.some((src) => !entryHasSrc(e, src)) || retired.some((r) => entryHasSrc(e, r))));
 				if (onlyWorld && !worldNeedsArt) continue;
 				const page = (await jrnPack.getDocument(l.journalEntryId))?.pages?.get(l.journalPageId);
 				if (!page) continue;
 				if (!onlyWorld) {
-					const cns = locationSectionsWithArt(page.system?.sections, l.sectionIndex, srcs, l.name);
+					const cns = locationSectionsWithArt(page.system?.sections, l.sectionIndex, srcs, l.name, retired);
 					if (cns) { await page.update({ "system.sections": cns }); locPages++; }
 				}
 				worldJournalPages += await applyWorldPages(worldEntries, page, "system.sections",
-					(wp) => locationSectionsWithArt(wp.system?.sections, l.sectionIndex, srcs, l.name), noteEntry);
+					(wp) => locationSectionsWithArt(wp.system?.sections, l.sectionIndex, srcs, l.name, retired), noteEntry);
 			} catch (e) { errors++; error(`Book II art re-apply: location "${l.slug}"`, e); }
 		}
 
@@ -468,6 +484,29 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 			}
 		}
 
+		// 3.5 The steading portrait — the world "Stonetop" sheet. A durable WORLD actor created
+		//    at runtime with no compendium id (found by type), and until now the ONE piece of
+		//    book art with no re-apply safety net: the Import Book Art macro's one-shot pass was
+		//    the only thing that ever wired it, so if that single swap didn't land the portrait
+		//    stayed the shipped "S" emblem forever. This is that safety net. Unlike the monster
+		//    world actors above — which start out already pointing at our art, so worldActorUpdate's
+		//    "is this still one of ours?" tail check fits them — the steading ships a placeholder and
+		//    must be ADOPTED over it, so the guard is placeholder-based (isSteadingPlaceholderImg):
+		//    take the book art over a shipped placeholder only, never a portrait the group chose.
+		//    Idempotent. Runs on the full pass AND the every-load self-heal, but not on a scoped
+		//    journal import (Array.isArray(entries)) — that must not touch actors. artUpdate forces
+		//    the token fit like the macro does; safe here because we only ever touch a placeholder.
+		if (!Array.isArray(entries)) for (const s of steadings) {
+			const src = srcOf(s.out);
+			if (!present.has(src)) continue;
+			try {
+				const actor = game.actors?.find((a) => a.type === STEADING_ACTOR_TYPE);
+				if (!actor || !isSteadingPlaceholderImg(actor.img)) continue;
+				const upd = artUpdate(actor, src);
+				if (upd) { await actor.update(upd); steadingActors++; }
+			} catch (e) { errors++; error(`Book II art re-apply: steading "${s.slug}"`, e); }
+		}
+
 		// 4. Keep the managed-journal baseline in sync for the pristine world journals we
 		//    added art to, so the journal channel keeps treating them as pristine and
 		//    keeps delivering future prose updates. Edited entries keep their edited hash.
@@ -488,12 +527,12 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// so a GM who opens a journal mid-pass would otherwise see its pre-art render until an F5.
 	rerenderOpenJournals(touchedEntries.keys());
 
-	const total = actors + besPages + codexPages + locPages + soPages + worldActors + worldJournalPages;
+	const total = actors + besPages + codexPages + locPages + soPages + worldActors + worldJournalPages + steadingActors;
 	if (total) {
-		info(`Book II art applied: ${actors} actors, ${besPages + codexPages + locPages + soPages} compendium journal pages, ${worldJournalPages} world journal pages, ${worldActors} world actors.`);
+		info(`Book II art applied: ${actors} actors, ${besPages + codexPages + locPages + soPages} compendium journal pages, ${worldJournalPages} world journal pages, ${worldActors} world actors${steadingActors ? ", steading portrait" : ""}.`);
 		ui.notifications?.info(`Stonetop: added Book II art to ${total} ${total === 1 ? "entry" : "entries"}.`);
 	}
-	return { errors, total, actors, besPages, codexPages, locPages, soPages, worldActors, worldJournalPages };
+	return { errors, total, actors, besPages, codexPages, locPages, soPages, worldActors, worldJournalPages, steadingActors };
 }
 
 // The version-change trigger: run the full re-apply ONCE per system version, then stamp
