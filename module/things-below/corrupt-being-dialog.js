@@ -205,9 +205,9 @@ export class CorruptBeingDialog extends StepperDialog {
 		html.find(".stonetop-tb-roll-origin").on("click", () => { this._originText = rollOnTable(EMANATION_ORIGINS)?.text ?? ""; this.render(false); });
 
 		html.find(".stonetop-tb-theme").on("change", ev => this._toggleInSet(this._themeIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
-		html.find(".stonetop-tb-roll-themes").on("click", () => { this._onBeforeStepChange(); this._addIds(this._themeIds, rollDistinct(THEMES, 2)); this.render(false); });
+		html.find(".stonetop-tb-roll-themes").on("click", () => { this._onBeforeStepChange(); this._addIds(this._themeIds, rollDistinct(THEMES, 2, Math.random, this._themeIds)); this.render(false); });
 		html.find(".stonetop-tb-aspect").on("change", ev => this._toggleInSet(this._aspectIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
-		html.find(".stonetop-tb-roll-aspects").on("click", () => { this._onBeforeStepChange(); this._addIds(this._aspectIds, rollDistinct(ASPECTS, 2)); this.render(false); });
+		html.find(".stonetop-tb-roll-aspects").on("click", () => { this._onBeforeStepChange(); this._addIds(this._aspectIds, rollDistinct(ASPECTS, 2, Math.random, this._aspectIds)); this.render(false); });
 		html.find("[data-field='instinct']").on("change", ev => { this._instinct = ev.currentTarget.value; });
 
 		html.find(".stonetop-tb-gift").on("change", ev => this._toggleCapped(this._giftIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
@@ -228,7 +228,7 @@ export class CorruptBeingDialog extends StepperDialog {
 	_rollPicks(set, table) {
 		const room = _MAX_PICKS - set.size;
 		if (room <= 0) return;
-		for (const e of rollDistinct(table, room)) {
+		for (const e of rollDistinct(table, room, Math.random, set)) {
 			if (set.size >= _MAX_PICKS) break;
 			set.add(e.id);
 		}

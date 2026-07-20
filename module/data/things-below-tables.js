@@ -372,9 +372,13 @@ export { rollOnTable };
 
 /** Roll N distinct results off a table (for "roll 2+" themes/aspects). Falls back to
  *  fewer than N if the table is smaller. `rng` returns a float in [0, 1). */
-export function rollDistinct(table, count = 2, rng = Math.random) {
+export function rollDistinct(table, count = 2, rng = Math.random, exclude = null) {
 	const out = [];
 	const seen = new Set();
+	// Seed the seen-set with ids already chosen, so a "roll to fill the rest" never hands
+	// back a pick the caller already has (Set.add would silently no-op it, leaving a slot
+	// unfilled). `exclude` is any iterable of ids matching the table's `id` field.
+	if (exclude) for (const id of exclude) seen.add(id);
 	for (let i = 0; i < count * 6 && out.length < count && out.length < table.length; i++) {
 		const entry = rollOnTable(table, rng);
 		if (!entry) break;

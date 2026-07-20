@@ -2,6 +2,7 @@ import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { BESTIARY_ROOT_NAME, BESTIARY_FOLDER_COLOR, planBestiaryFolderTree } from "./bestiary-seed-core.js";
+import { isPrimaryGM } from "../utils/primary-gm.js";
 
 // On load, import the system's "Monsters" (stonetop-bestiary) actor compendium into the
 // world's Actors sidebar under a single red "Bestiary" folder tree that mirrors the
@@ -18,7 +19,11 @@ import { BESTIARY_ROOT_NAME, BESTIARY_FOLDER_COLOR, planBestiaryFolderTree } fro
 const BESTIARY_PACK_ID = "stonetop_pwd.stonetop-bestiary";
 
 export async function seedBestiaryActorsOnce() {
-	if (!game.user?.isGM) return;
+	// Primary GM only: the ~200-actor import is not atomic with the `bestiaryActorsSeeded`
+	// flag (set only after it finishes), and idempotency rests on an alreadySeeded set read
+	// before createDocuments — so two GMs both entering ready on a fresh world would each
+	// seed the full bestiary and double it. Matches ensureStonetopSingleton's guard.
+	if (!game.user?.isGM || !isPrimaryGM()) return;
 	if (getSetting("bestiaryActorsSeeded")) return;
 
 	const pack = game.packs.get(BESTIARY_PACK_ID);

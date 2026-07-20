@@ -165,7 +165,7 @@ export class CreateCorruptedSiteDialog extends StepperDialog {
 		html.find(".stonetop-tb-roll-feature").on("click", () => { this._featureText = rollOnTable(SITE_FEATURES)?.text ?? ""; this.render(false); });
 
 		html.find(".stonetop-tb-theme").on("change", ev => this._toggleInSet(this._themeIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
-		html.find(".stonetop-tb-roll-themes").on("click", () => { this._addIds(this._themeIds, rollDistinct(THEMES, 2)); this.render(false); });
+		html.find(".stonetop-tb-roll-themes").on("click", () => { this._addIds(this._themeIds, rollDistinct(THEMES, 2, Math.random, this._themeIds)); this.render(false); });
 
 		html.find(".stonetop-tb-cause").on("change", ev => { this._causeText = ev.currentTarget.value; this.render(false); });
 		html.find(".stonetop-tb-roll-cause").on("click", () => { this._causeText = rollOnTable(SITE_CAUSES)?.text ?? ""; this.render(false); });

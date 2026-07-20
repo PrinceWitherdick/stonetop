@@ -93,13 +93,21 @@ export class DeathsDoorDialog extends Application {
 
 	async _onSeedMark() {
 		if (this._markSeeded || !this._character?.addWound) return;
-		const text = (this.element.find(".deaths-door-mark-input").val() ?? "").trim();
-		await this._character.addWound({
-			text: text || "Marked in mind, body, or soul — describe the mark",
-			status: "permanent",
-			origin: "deaths-door",
-		});
+		// Latch synchronously, before the await, so a rapid double-click on the still-live
+		// button can't slip a second identical wound in during the write. Released on failure
+		// so a genuinely failed write can still be retried.
 		this._markSeeded = true;
+		const text = (this.element.find(".deaths-door-mark-input").val() ?? "").trim();
+		try {
+			await this._character.addWound({
+				text: text || "Marked in mind, body, or soul — describe the mark",
+				status: "permanent",
+				origin: "deaths-door",
+			});
+		} catch (err) {
+			this._markSeeded = false;
+			throw err;
+		}
 		ui.notifications?.info?.("Death's-Door mark recorded on your sheet. Bring it up often.");
 		this.render(true);
 	}

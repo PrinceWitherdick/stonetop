@@ -30,6 +30,7 @@ import { ensureThreatsEntry } from "../threats/threat-store.js";
 import { ensureHazardsEntry } from "../hazards/hazard-store.js";
 import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
+import { isPrimaryGM } from "../utils/primary-gm.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
@@ -689,12 +690,14 @@ const _GM_PREP_FAMILIES = [
 	{ folderFlagId: "hazardsFolderId", pageType: "hazard", ensureEntry: ensureHazardsEntry },
 ];
 
-// Fold each steading's old folder-of-single-page-entries into the new single journal
-// (GM-only). Runs every load but is a cheap no-op once the old folder flag is gone, so it
-// needs no version setting. Robust to a partial run: an old entry is tagged the moment its
-// page is copied, so a retry never duplicates pages and never deletes un-copied content.
+// Fold each steading's old folder-of-single-page-entries into the new single journal.
+// Runs on the primary GM only, so two connected GMs can't both copy the same entries;
+// every load, but a cheap no-op once the old folder flag is gone, so it needs no version
+// setting. Robust to a partial run: each new page is stamped with its source entry id and
+// the old entry is tagged once its page exists, so a retry never duplicates pages and
+// never deletes un-copied content.
 async function _migrateGmPrepPagesToSingleJournal() {
-	if (!game.user?.isGM) return;
+	if (!game.user?.isGM || !isPrimaryGM()) return;
 	const steadings = game.actors?.filter(a => a.type === "stonetop") ?? [];
 	for (const steading of steadings) {
 		for (const family of _GM_PREP_FAMILIES) {
@@ -732,15 +735,23 @@ async function _consolidateGmPrepFamily(steading, { folderFlagId, pageType, ensu
 			if (!oldPage) continue;
 			let newPageId = old.getFlag(STONETOP_SCOPE, "consolidatedInto");
 			if (!newPageId) {
-				sort += 100000;
-				const [newPage] = await entry.createEmbeddedDocuments("JournalEntryPage", [{
-					type: pageType,
-					name: oldPage.name,
-					sort,
-					system: foundry.utils.deepClone(oldPage.system ?? {}),
-				}]);
-				if (!newPage) continue;
-				newPageId = newPage.id;
+				// If a prior run created the page but died before tagging its source entry,
+				// the page still carries `migratedFrom`, so reuse it rather than copy twice.
+				const existing = entry.pages.find(p => p.getFlag?.(STONETOP_SCOPE, "migratedFrom") === old.id);
+				if (existing) {
+					newPageId = existing.id;
+				} else {
+					sort += 100000;
+					const [newPage] = await entry.createEmbeddedDocuments("JournalEntryPage", [{
+						type: pageType,
+						name: oldPage.name,
+						sort,
+						system: foundry.utils.deepClone(oldPage.system ?? {}),
+						flags: { [STONETOP_SCOPE]: { migratedFrom: old.id } },
+					}]);
+					if (!newPage) continue;
+					newPageId = newPage.id;
+				}
 				await old.setFlag(STONETOP_SCOPE, "consolidatedInto", newPageId);
 			}
 			remap.push({ oldEntryId: old.id, oldPageId: oldPage.id, newPageId });

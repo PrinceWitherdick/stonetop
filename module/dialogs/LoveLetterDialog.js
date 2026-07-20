@@ -70,7 +70,7 @@ export class LoveLetterDialog extends StonetopDialog {
 		// via the `eq` helper.
 		const hasProse = !!(mr.success?.value || mr.partial?.value || mr.failure?.value);
 		const hasPicks = !!(mr.success?.pick || mr.partial?.pick || mr.failure?.pick);
-		const resultStyle = (options.length > 0 || (hasPicks && !hasProse)) ? "list" : "prose";
+		const resultStyle = hasProse ? "prose" : ((options.length > 0 || hasPicks) ? "list" : "prose");
 		return {
 			isEdit: !!this._item,
 			recipients: this._item ? [] : loveLetterRecipientOptions(),

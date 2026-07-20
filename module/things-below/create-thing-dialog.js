@@ -193,9 +193,9 @@ export class CreateThingDialog extends StepperDialog {
 
 		// Theme / aspect checkboxes + their roll buttons.
 		html.find(".stonetop-tb-theme").on("change", ev => this._toggleInSet(this._themeIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
-		html.find(".stonetop-tb-roll-themes").on("click", () => { this._addIds(this._themeIds, rollDistinct(THEMES, 2)); this.render(false); });
+		html.find(".stonetop-tb-roll-themes").on("click", () => { this._addIds(this._themeIds, rollDistinct(THEMES, 2, Math.random, this._themeIds)); this.render(false); });
 		html.find(".stonetop-tb-aspect").on("change", ev => this._toggleInSet(this._aspectIds, Number(ev.currentTarget.value), ev.currentTarget.checked));
-		html.find(".stonetop-tb-roll-aspects").on("click", () => { this._addIds(this._aspectIds, rollDistinct(ASPECTS, 2)); this.render(false); });
+		html.find(".stonetop-tb-roll-aspects").on("click", () => { this._addIds(this._aspectIds, rollDistinct(ASPECTS, 2, Math.random, this._aspectIds)); this.render(false); });
 
 		// Instinct radio + custom text + roll.
 		html.find(".stonetop-tb-instinct").on("change", ev => { this._instinctId = Number(ev.currentTarget.value); this._instinctCustom = ""; });
