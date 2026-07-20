@@ -51,7 +51,7 @@ export const looseObject = () => new fields.ObjectField({ required: false, nulla
 //   gmOnly          soft UI hide from the owning player (see StonetopCharacterSheet)
 //   healed          true → moved to the collapsed "Scars" disclosure rather than deleted
 export const woundsField = () => new fields.ArrayField(new fields.SchemaField({
-	id:              new fields.StringField({ required: true, blank: true }),
+	id:              new fields.StringField({ required: true, blank: true, initial: () => foundry.utils.randomID() }),
 	text:            new fields.StringField({ required: true, blank: true }),
 	status:          new fields.StringField({ required: true, blank: true, initial: "problematic" }),
 	origin:          new fields.StringField({ required: true, blank: true, initial: "wound" }),

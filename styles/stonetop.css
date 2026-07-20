@@ -961,13 +961,35 @@ figure.stonetop-map figcaption {
    The row owns the title→input gap so the label and icon share a single line and
    stay vertically centred with each other (the label's own margin-bottom is zeroed
    here, otherwise it would nudge the text up a pixel relative to the icon). */
-.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row,
+.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	margin-bottom: 2px;
+}
+
+/* HP cell: keep "HP" truly centred in the container (i.e. over the "/" below it)
+   while the wound-add heart sits immediately to its right. The row is flex-centred
+   with an empty spacer to the LEFT of the label that matches the heart's width, so
+   the spacer and heart balance out and the label lands dead-centre. */
 .sheet-attributes-top .cell--attr-hp .stonetop-vital-title-row {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	gap: 4px;
 	margin-bottom: 2px;
+}
+
+.sheet-attributes-top .cell--attr-hp .stonetop-vital-title-row .stonetop-wound-spacer {
+	flex: 0 0 auto;
+	width: 15px;
+	height: 15px;
+}
+
+/* Nudge the label a smidge right to compensate for the flex gap on either side. */
+.sheet-attributes-top .cell--attr-hp .stonetop-vital-title-row .cell__title {
+	margin-left: 2px;
 }
 
 .sheet-attributes-top .cell--attr-level .stonetop-vital-title-row .cell__title,
@@ -1560,7 +1582,16 @@ input.stonetop-name-field {
 	color: #6a4a3a;
 }
 
-/* Make-a-Plan tick-box requirements editor (wound edit dialog) */
+/* Wound edit dialog reuses the love-letter modal's field styling
+   (.stonetop-custom-move-form / -field / -check): stacked label-over-control,
+   full-width inputs, serif bold labels. Only the Make-a-Plan block below is bespoke. */
+
+/* Make-a-Plan tick-box requirements editor. Extra breathing room above the block,
+   then label / tick-box rows / "Add requirement" stacked in order. */
+.stonetop-wound-plan-reqs {
+	padding-top: 10px;
+}
+
 .stonetop-wound-plan-hint {
 	font-weight: normal;
 	font-style: italic;
@@ -1600,17 +1631,28 @@ input.stonetop-name-field {
 	background: transparent !important;
 	box-shadow: none !important;
 	line-height: 1;
-	color: var(--color-text-dark-secondary);
+	color: #a8544c;
 	cursor: pointer;
 }
 
-.stonetop-wound-req .req-remove:hover { color: #a8544c; }
+.stonetop-wound-req .req-remove:hover { color: #7f342c; }
 
+/* Matches the dashed-slate "Add" affordance used by the threat editor's list
+   rows (.threat-list-add) so add-a-row buttons read as one style across dialogs. */
 .stonetop-wound-req-add {
+	align-self: flex-start;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
 	width: auto !important;
-	padding: 2px 8px !important;
-	font-size: 0.8rem;
+	margin-top: 0;
+	margin-bottom: 10px;
+	padding: 0.25rem 0.6rem !important;
+	font-size: 0.82rem;
 	line-height: 1;
+	background: transparent;
+	border: 1px dashed var(--st-btn-primary-border, #4f5b66);
+	border-radius: 5px;
 	cursor: pointer;
 }
 

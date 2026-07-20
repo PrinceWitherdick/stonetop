@@ -1317,15 +1317,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			// at full HP with no debilities. gmOnly wounds are hidden from the owning player,
 			// so they don't drive availability for a non-GM (mirrors the dialog's own filter).
 			const openWounds       = (snapshot.wounds ?? []).filter(w => !w.healed && (game.user.isGM || !w.gmOnly));
-			const healableWounds   = openWounds.filter(w => w.status !== "permanent");
-			const permanentWounds  = openWounds.filter(w => w.status === "permanent");
 			const canConvalesce    = !atFullHp || hasDebility || openWounds.length > 0;
 			return {
 				atFullHp,
 				hasDebility,
 				activeDebilities,
-				healableWounds,
-				permanentWounds,
 				canConvalesce,
 				hint: canConvalesce ? null : { icon: "fa-heart", text: game.i18n.localize("stonetop.specialMoves.convalesce.nothingHint") },
 			};
@@ -5812,7 +5808,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			</form>`;
 
 			const stabilize = async () => {
-				await this._stonetopCharacter.updateWound(id, { status: "stabilized", requirementNote: "" }, { moveName: "Recover" });
+				await this._stonetopCharacter.updateWound(id, { status: "stabilized", requirementNote: "" });
 				postMoveToChat(this.actor, "Recover", [{ label: "Wound stabilized", value: chatLabel }]);
 				this.render(false);
 			};
@@ -5835,7 +5831,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const label = wound?.text ? `“${wound.text}”` : "this wound";
 			const ok = await Dialog.confirm({
 				title: "Remove Wound",
-				content: `<p>Remove ${_esc(label)} from the sheet? This deletes it entirely — to keep its fiction as a healed scar instead, edit it and tick “Healed — move to Scars.”</p>`,
+				content: `<p>Remove ${_esc(label)} from the sheet? This deletes it entirely — to keep its fiction as a healed scar instead, edit it and tick “Healed, move to Scars.”</p>`,
 				render:  bringDialogToFront,
 				options: { classes: ["dialog", "stonetop", "stonetop-remove-wound-dialog"] },
 			});
@@ -5862,50 +5858,50 @@ export function createStonetopCharacterSheetClass(Base) {
 			// One Make-a-Plan tick-box row (Book I p.530: "write the requirements down with
 			// tick boxes… tick the boxes off"): a done checkbox + the requirement text + remove.
 			const reqRow = (text = "", done = false) => `<li class="stonetop-wound-req">
-				<label class="checkbox"><input type="checkbox" class="req-done"${done ? " checked" : ""}></label>
+				<label class="checkbox"><input type="checkbox" class="stonetop-check req-done"${done ? " checked" : ""}></label>
 				<input type="text" class="req-text" value="${_esc(text)}" placeholder="e.g. months of practice">
 				<button type="button" class="req-remove" data-tooltip="Remove"><i class="fas fa-xmark"></i></button>
 			</li>`;
-			const content = `<form class="stonetop-wound-dialog-form">
+			const content = `<form class="stonetop-custom-move-form stonetop-wound-dialog-form" autocomplete="off">
 				${isNew ? `<p class="stonetop-homestead-note">A problematic wound always involves taking damage, and often a marked debility — apply those on the sheet as the fiction warrants.</p>` : ""}
-				<div class="form-group">
+				<div class="stonetop-custom-move-field">
 					<label>Wound</label>
 					<input type="text" name="text" value="${_esc(w.text ?? "")}" placeholder="e.g. Twisted ankle — can't bear weight">
 				</div>
-				<div class="form-group">
+				<div class="stonetop-custom-move-field">
 					<label>Status</label>
 					<select name="status">${statusOptions}</select>
 				</div>
-				<div class="form-group">
+				<div class="stonetop-custom-move-field">
 					<label>Origin</label>
 					<select name="origin">${originOptions}</select>
 				</div>
-				<div class="form-group">
+				<div class="stonetop-custom-move-field">
 					<label>Note / requirement</label>
 					<input type="text" name="requirementNote" value="${_esc(w.requirementNote ?? "")}" placeholder="What's needed to treat it (optional)">
 				</div>
-				<div class="form-group">
+				<div class="stonetop-custom-move-field">
 					<label>Lasting tag</label>
 					<input type="text" name="mechanicalTag" value="${_esc(w.mechanicalTag ?? "")}" placeholder="e.g. Let Fly at disadvantage until practiced">
 				</div>
-				<div class="form-group">
+				<div class="stonetop-custom-move-field">
 					<label>Remind on</label>
 					<select name="reminderMove">${this._woundReminderMoveOptions(w.reminderMove ?? "", moveNames)}</select>
 				</div>
-				<div class="form-group">
+				<div class="stonetop-custom-move-field">
 					<label>Make-a-Plan goal</label>
 					<input type="text" name="planNote" value="${_esc(w.planNote ?? "")}" placeholder="Adaptation goal for a permanent injury (optional)">
 				</div>
-				<div class="form-group stonetop-wound-plan-reqs">
-					<label>Plan requirements <span class="stonetop-wound-plan-hint">— tick off as you adapt</span></label>
+				<div class="stonetop-custom-move-field stonetop-wound-plan-reqs">
+					<label>Plan requirements <span class="stonetop-wound-plan-hint">tick off as you adapt</span></label>
 					<ul class="stonetop-wound-req-list">${(w.planRequirements ?? []).map(r => reqRow(r.text, r.done)).join("")}</ul>
 					<button type="button" class="stonetop-wound-req-add"><i class="fas fa-plus"></i> Add requirement</button>
 				</div>
-				<div class="form-group">
-					<label class="checkbox"><input type="checkbox" name="healed"${w.healed ? " checked" : ""}> Healed — move to Scars</label>
+				<div class="stonetop-custom-move-check">
+					<label><input type="checkbox" class="stonetop-check" name="healed"${w.healed ? " checked" : ""}> Healed, move to Scars</label>
 				</div>
-				${isGM ? `<div class="form-group">
-					<label class="checkbox"><input type="checkbox" name="gmOnly"${w.gmOnly ? " checked" : ""}> Hidden from players</label>
+				${isGM ? `<div class="stonetop-custom-move-check">
+					<label><input type="checkbox" class="stonetop-check" name="gmOnly"${w.gmOnly ? " checked" : ""}> Hidden from players</label>
 				</div>` : ""}
 			</form>`;
 

@@ -1929,8 +1929,7 @@ export class StonetopCharacter {
 	// ── Problematic / permanent wounds (Book I, Harm & Healing) ────────────────
 	// Stored as an array on system.attributes.wounds. Arrays are replaced wholesale
 	// on update (unlike object flags, which merge), so every mutation reads the
-	// current list, recomputes it, and writes the whole thing back. `moveName`, when
-	// given, tags the write so the ledger attributes it ("via Recover", etc.).
+	// current list, recomputes it, and writes the whole thing back.
 
 	// A defensive, normalized copy of the current wound list.
 	_woundList() {
@@ -1938,47 +1937,44 @@ export class StonetopCharacter {
 		return Array.isArray(arr) ? arr.map(w => _normalizeWound(w)) : [];
 	}
 
-	async _writeWounds(wounds, moveName) {
-		await this._actor.update(
-			{ "system.attributes.wounds": wounds },
-			moveName ? { stonetopMove: moveName } : {},
-		);
+	async _writeWounds(wounds) {
+		await this._actor.update({ "system.attributes.wounds": wounds });
 	}
 
 	// Add a wound. Returns its generated id so callers can immediately open it for editing.
-	async addWound(data = {}, { moveName } = {}) {
+	async addWound(data = {}) {
 		const wound  = _normalizeWound(data, { keepId: false });
-		await this._writeWounds([...this._woundList(), wound], moveName);
+		await this._writeWounds([...this._woundList(), wound]);
 		return wound.id;
 	}
 
 	// Patch an existing wound in place (status, text, notes, tag, gmOnly, …).
-	async updateWound(id, patch = {}, { moveName } = {}) {
+	async updateWound(id, patch = {}) {
 		const wounds = this._woundList();
 		const i = wounds.findIndex(w => w.id === id);
 		if (i < 0) return;
 		wounds[i] = _normalizeWound({ ...wounds[i], ...patch, id }, { keepId: true });
-		await this._writeWounds(wounds, moveName);
+		await this._writeWounds(wounds);
 	}
 
-	async setWoundStatus(id, status, { moveName } = {}) {
-		await this.updateWound(id, { status }, { moveName });
+	async setWoundStatus(id, status) {
+		await this.updateWound(id, { status });
 	}
 
 	// "Heal" keeps the record as a scar (healed:true) rather than deleting it, so the
 	// "it's now true" fiction stays referenceable in the collapsed Scars list.
-	async healWound(id, { moveName } = {}) {
-		await this.updateWound(id, { healed: true }, { moveName });
+	async healWound(id) {
+		await this.updateWound(id, { healed: true });
 	}
 
 	// Hard-remove a wound (the explicit trash affordance, distinct from healing).
-	async removeWound(id, { moveName } = {}) {
-		await this._writeWounds(this._woundList().filter(w => w.id !== id), moveName);
+	async removeWound(id) {
+		await this._writeWounds(this._woundList().filter(w => w.id !== id));
 	}
 
 	// Convalesce, applied to wounds in a single write: heal the given ids (→ scars) and
 	// stamp Make-a-Plan notes onto permanent injuries. One update so the sheet
-	// re-renders once instead of once per wound. Attributed to Convalesce in the ledger.
+	// re-renders once instead of once per wound.
 	async convalesceWounds({ healIds = [], planNotes = {} } = {}) {
 		const healSet = new Set(healIds);
 		const wounds = this._woundList().map(w => {
@@ -1989,7 +1985,7 @@ export class StonetopCharacter {
 			}
 			return next;
 		});
-		await this._writeWounds(wounds, "Convalesce");
+		await this._writeWounds(wounds);
 	}
 	async getArcanum(slug)                           { return this._arcana.getArcanum(slug); }
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }

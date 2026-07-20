@@ -20,7 +20,7 @@
 	<div class="cell cell--Resource cell--attr-hp">
 		<div class="stonetop-vital-inner">
 			<div class="stonetop-vital-title-row">
-				<label class="cell__title" data-vital="hp">HP</label>
+				{{#if stonetop.woundsView.canEdit}}<span class="stonetop-wound-spacer" aria-hidden="true"></span>{{/if}}<label class="cell__title" data-vital="hp">HP</label>
 				{{#if stonetop.woundsView.canEdit}}
 				<button type="button" class="stonetop-wound-add" data-tooltip="Add a problematic or permanent wound" aria-label="Add a problematic or permanent wound"></button>
 				{{/if}}
