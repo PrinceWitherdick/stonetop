@@ -2,8 +2,6 @@
 
 An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg.
 
-> This system is under active development and may be unstable.
-
 ## 🤖 Created in collaboration with AI to facilitate rapid development. Absolutely no image generation was or will be used.
 
 ## Features
@@ -45,6 +43,10 @@ Build a follower from scratch with a guided builder, or turn any bestiary monste
 The Seeker's arcana ship as a browsable deck. Cards track their marks, unlocks, and resource tracks interactively, the GM can reveal a whole card (or just its front) to a player once it's discovered, and a per-card ledger records every change so the table can see an arcanum's history at a glance.
 
 ![The Seeker arcana deck](.github/screenshots/arcana_example.webp)
+
+#### Death's Door Dialog
+
+When a character hits 0 HP, a three-step walkthrough explains the Death's Door rules: what it means, how the roll works, and what the possible outcomes are, so no one has to look it up mid-session.
 
 #### Per-Tab Search
 
