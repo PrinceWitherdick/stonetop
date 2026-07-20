@@ -700,18 +700,18 @@
 
 		<div class="stonetop-onboarding-insert-section">
 			<p class="stonetop-onboarding-insert-section-label">
-				Traits — pick {{acData.selectedType.pickCount}} &nbsp;
+				Traits — pick {{acData.selectedType.pickCount}} more &nbsp;
 				<span class="stonetop-onboarding-insert-counter">
 					<span class="stonetop-onboarding-ac-trait-count">{{acData.selectedType.selectedCount}}</span> / {{acData.selectedType.pickCount}}
 				</span>
 			</p>
 			<div class="stonetop-onboarding-tag-grid">
 				{{#each acData.selectedType.traits}}
-				<label class="stonetop-onboarding-tag-option{{#if isSelected}} is-selected{{/if}}">
+				<label class="stonetop-onboarding-tag-option{{#if isSelected}} is-selected{{/if}}{{#if isMandatory}} is-mandatory{{/if}}"{{#if isMandatory}} title="Always included; doesn't count toward your picks"{{/if}}>
 					<input type="checkbox" name="onboard-ac-trait" value="{{slug}}"
 					       {{#if isSelected}}checked{{/if}}
 					       {{#if disabled}}disabled{{/if}}>
-					{{#if hasTooltip}}<span class="stonetop-onboarding-lookup">{{label}}</span>{{else}}{{label}}{{/if}}
+					{{#if hasTooltip}}<span class="stonetop-onboarding-lookup">{{label}}</span>{{else}}{{label}}{{/if}}{{#if isMandatory}} <em class="stonetop-onboarding-ac-included">(included)</em>{{/if}}
 				</label>
 				{{/each}}
 			</div>

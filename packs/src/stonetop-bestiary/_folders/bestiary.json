@@ -1,0 +1,12 @@
+{
+  "name": "Bestiary",
+  "type": "Actor",
+  "description": "",
+  "folder": null,
+  "sorting": "a",
+  "sort": 0,
+  "color": "#a8544c",
+  "flags": {},
+  "_id": "BestiaryRootFldr",
+  "_key": "!folders!BestiaryRootFldr"
+}

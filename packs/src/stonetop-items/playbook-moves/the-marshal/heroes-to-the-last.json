@@ -7,7 +7,7 @@
     "playbook": "The Marshal",
     "moveType": "playbook",
     "description": "<p>Each time you take this move, pick 1:</p>",
-    "repeatMax": 4,
+    "repeatMax": 2,
     "markBudget": { "base": 1, "perExtra": 1 },
     "markOptions": [
       { "slug": "exceptional", "label": "They are exceptional (and roll +2 instead of +1)", "marks": 1, "crewRoll": 1 },

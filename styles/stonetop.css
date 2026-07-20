@@ -280,10 +280,18 @@ body {
    every Stonetop window root — see the `classes` arrays and RenderActorSheet) so
    we don't restyle other modules' or core windows. Foundry resets header/button
    font, so these explicit rules are still needed even though `.stonetop` already
-   sets the font on the root. */
+   sets the font on the root.
+
+   The `:not([class*="fa-"])` guard skips buttons that ARE a Font Awesome icon
+   (the icon class on the button element itself, not a child `<i>`). v14's AppV2
+   header controls render that way — `<button class="header-control fa-solid
+   fa-xmark">` — so serifing the button overrode FA's own icon font-family and
+   drew the glyph as an empty box (same trap as the header/content-button rules
+   below). Text buttons with a child `<i class="fas">` don't carry `fa-` on the
+   button, so they keep the serif while the `<i>` keeps its icon font. */
 .vtt .stonetop .window-header,
-.vtt .stonetop button,
-.vtt .stonetop .button {
+.vtt .stonetop button:not([class*="fa-"]),
+.vtt .stonetop .button:not([class*="fa-"]) {
 	font-family: var(--font-stonetop);
 }
 
@@ -367,6 +375,13 @@ body {
 /* Actor sidebar thumbnails — show full portrait instead of cropping */
 #actors .directory-item img {
 	object-fit: contain;
+}
+
+/* ...except the wide Book II bestiary illustrations, which would otherwise
+   letterbox to a thin strip in the square cell. Crop them to fill like the
+   square portraits. Scoped by asset path so PC/steading art keeps "no crop". */
+#actors .directory-item img[src*="/assets/bestiary/"] {
+	object-fit: cover;
 }
 
 .vtt .sidebar-tab,
@@ -475,10 +490,54 @@ body {
 img.stonetop-journal-art {
 	display: block;
 	margin: 0.25em auto 0.6em;
-	max-width: 100%;
+	/* Cap the illustration at 800px, but never wider than its column (narrow popouts). */
+	max-width: min(100%, 800px);
+	height: auto;
 	border: 2px solid hsl(40 30% 82%);
 	border-radius: 3px;
 	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Book art lifted ABOVE the page title by the bestiary/location page sheets
+   (module/journal/lead-art.js): a banner flush at the very top of the page, over
+   the name header. Multiple illustrations stack, centered. */
+.stonetop-journal-art-banner {
+	margin: 0 0 0.4em;
+	text-align: center;
+}
+.stonetop-journal-art-banner p {
+	margin: 0 0 0.35em;
+}
+.stonetop-journal-art-banner p:last-child {
+	margin-bottom: 0;
+}
+.stonetop-journal-art-banner img.stonetop-journal-art {
+	margin-top: 0;
+	max-height: 360px;
+	width: auto;
+}
+
+/* Setting Overview regional maps: the wide poster maps embedded at the top of the
+   setting journal's "The Village" / "The Vicinity" / "The World's End" pages by the
+   art import macro (a user-supplied map file the same run turns into a Scene). A
+   captioned, column-bounded figure rather than the framed inline illustration above. */
+figure.stonetop-map {
+	margin: 0.25em auto 1em;
+	text-align: center;
+}
+figure.stonetop-map img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	margin: 0 auto;
+	border: 1px solid rgba(0, 0, 0, 0.3);
+	border-radius: 3px;
+}
+figure.stonetop-map figcaption {
+	margin-top: 0.35em;
+	font-size: 0.85em;
+	font-style: italic;
+	opacity: 0.8;
 }
 
 .stonetop-glyph--arrow {
@@ -910,7 +969,31 @@ img.stonetop-journal-art {
 	margin-bottom: 2px;
 }
 
-.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row .cell__title {
+/* HP cell: keep "HP" truly centred in the container (i.e. over the "/" below it)
+   while the wound-add heart sits immediately to its right. The row is flex-centred
+   with an empty spacer to the LEFT of the label that matches the heart's width, so
+   the spacer and heart balance out and the label lands dead-centre. */
+.sheet-attributes-top .cell--attr-hp .stonetop-vital-title-row {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	margin-bottom: 2px;
+}
+
+.sheet-attributes-top .cell--attr-hp .stonetop-vital-title-row .stonetop-wound-spacer {
+	flex: 0 0 auto;
+	width: 15px;
+	height: 15px;
+}
+
+/* Nudge the label a smidge right to compensate for the flex gap on either side. */
+.sheet-attributes-top .cell--attr-hp .stonetop-vital-title-row .cell__title {
+	margin-left: 2px;
+}
+
+.sheet-attributes-top .cell--attr-level .stonetop-vital-title-row .cell__title,
+.sheet-attributes-top .cell--attr-hp .stonetop-vital-title-row .cell__title {
 	margin-bottom: 0;
 }
 
@@ -1264,6 +1347,312 @@ input.stonetop-name-field {
 
 .stonetop-debility input[type="checkbox"]:checked {
 	background-color: #555 !important;
+}
+
+/* ── Wounds: the 4th harm track, directly under the debilities ──────────────── */
+.stonetop-wounds {
+	width: 100%;
+	margin-top: 5px;
+}
+
+/* "Add wound" control — a small broken-heart glyph beside the HP label
+   (game-icons.net "Broken Heart" by Lorc, CC BY 3.0). The SVG is used as a
+   mask so it's painted a flat black via the background colour, mirroring the
+   level-up cue. Empty button (no glyph child); the box stays fully clickable
+   even though only the heart shape is painted. */
+.stonetop-wound-add {
+	flex: 0 0 auto;
+	width: 15px !important;
+	height: 15px;
+	padding: 0 !important;
+	border: none !important;
+	box-shadow: none !important;
+	background: #000 !important;
+	cursor: pointer;
+	opacity: 0.6;
+	transition: opacity 0.12s, transform 0.12s;
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/broken-heart.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop_pwd/assets/icons/broken-heart.svg') center / contain no-repeat;
+}
+
+.stonetop-wound-add:hover {
+	opacity: 1;
+	transform: scale(1.12);
+}
+
+.stonetop-wound-list {
+	list-style: none;
+	margin: 4px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-wound {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	font-size: 0.82rem;
+}
+
+.stonetop-wound-glyph {
+	flex: 0 0 auto;
+	width: 14px;
+	padding-top: 1px;
+	text-align: center;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-wound--problematic .stonetop-wound-glyph { color: #a8544c; }
+.stonetop-wound--permanent .stonetop-wound-glyph  { color: #6a4a3a; }
+
+.stonetop-wound-text {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.stonetop-wound--stabilized .stonetop-wound-text,
+.stonetop-wound--scar .stonetop-wound-text {
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-wound-dd { color: #6b6b6b; }
+.stonetop-wound-empty { color: var(--color-text-dark-secondary); }
+
+.stonetop-wound-actions {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	opacity: 0;
+	transition: opacity 0.1s ease;
+}
+
+.stonetop-wound:hover .stonetop-wound-actions,
+.stonetop-wound-actions:focus-within {
+	opacity: 1;
+}
+
+.stonetop-wound-actions button {
+	flex: 0 0 auto;
+	display: inline-flex !important;
+	align-items: center;
+	justify-content: center;
+	width: auto !important;
+	padding: 0 2px !important;
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	line-height: 1;
+	font-size: 0.72rem;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+
+.stonetop-wound-actions button:hover { color: #a8544c; }
+
+.stonetop-wound-scars { margin-top: 5px; }
+
+.stonetop-wound-scars > summary {
+	font-size: 0.72rem;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+
+.stonetop-wound-list--scars {
+	margin-top: 2px;
+	opacity: 0.85;
+}
+
+/* Inline (comma-separated) wound presentation under the vitals row. Each wound
+   is a chip of glyph + text; a comma is generated between adjacent wounds, and
+   the per-wound actions (tend / edit / remove) stay hidden until hover so the
+   default read is just "Problematic wounds: ⚠ Twisted ankle, Broken rib". */
+.stonetop-wounds-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 6px;
+}
+
+.stonetop-wounds-label {
+	flex: 0 0 auto;
+	font-size: 0.8rem;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	white-space: nowrap;
+}
+
+.stonetop-wounds-line .stonetop-wound-list--inline {
+	margin-top: 0;
+}
+
+.stonetop-wound-list--inline {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 5px;
+	margin-top: 4px;
+}
+
+.stonetop-wound-list--inline .stonetop-wound {
+	align-items: baseline;
+	gap: 3px;
+	font-size: 0.8rem;
+}
+
+.stonetop-wound-list--inline .stonetop-wound-glyph {
+	width: auto;
+	padding-top: 0;
+	font-size: 0.72rem;
+}
+
+.stonetop-wound-list--inline .stonetop-wound-text {
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
+}
+
+.stonetop-wound-list--inline .stonetop-wound:not(:last-child) > .stonetop-wound-text::after {
+	content: ",";
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-wound-list--inline .stonetop-wound-actions {
+	display: none;
+	opacity: 1;
+}
+
+.stonetop-wound-list--inline .stonetop-wound:hover .stonetop-wound-actions,
+.stonetop-wound-list--inline .stonetop-wound-actions:focus-within {
+	display: inline-flex;
+}
+
+/* Recover / Convalesce dialog wound sections */
+.stonetop-wound-tend-target {
+	margin: 4px 0 8px;
+}
+
+.stonetop-wound-tend-target .fa-droplet {
+	color: #a8544c;
+}
+
+.stonetop-convalesce-wounds,
+.stonetop-convalesce-permanent {
+	margin-top: 10px;
+}
+
+.stonetop-homestead-subhead {
+	margin: 4px 0 4px;
+	font-size: 0.9rem;
+	font-weight: 600;
+}
+
+.stonetop-convalesce-wound-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.stonetop-convalesce-wound {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+}
+
+.stonetop-convalesce-permanent-row {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.stonetop-convalesce-permanent-text {
+	font-weight: 600;
+}
+
+.stonetop-convalesce-permanent-text .fa-lock {
+	color: #6a4a3a;
+}
+
+/* Wound edit dialog reuses the love-letter modal's field styling
+   (.stonetop-custom-move-form / -field / -check): stacked label-over-control,
+   full-width inputs, serif bold labels. Only the Make-a-Plan block below is bespoke. */
+
+/* Make-a-Plan tick-box requirements editor. Extra breathing room above the block,
+   then label / tick-box rows / "Add requirement" stacked in order. */
+.stonetop-wound-plan-reqs {
+	padding-top: 10px;
+}
+
+.stonetop-wound-plan-hint {
+	font-weight: normal;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-wound-plan-reqs .stonetop-wound-req-list {
+	list-style: none;
+	margin: 3px 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-wound-req {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.stonetop-wound-req > .checkbox {
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+.stonetop-wound-req .req-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.stonetop-wound-req .req-remove {
+	flex: 0 0 auto;
+	width: auto !important;
+	padding: 0 4px !important;
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	line-height: 1;
+	color: #a8544c;
+	cursor: pointer;
+}
+
+.stonetop-wound-req .req-remove:hover { color: #7f342c; }
+
+/* Matches the dashed-slate "Add" affordance used by the threat editor's list
+   rows (.threat-list-add) so add-a-row buttons read as one style across dialogs. */
+.stonetop-wound-req-add {
+	align-self: flex-start;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	width: auto !important;
+	margin-top: 0;
+	margin-bottom: 10px;
+	padding: 0.25rem 0.6rem !important;
+	font-size: 0.82rem;
+	line-height: 1;
+	background: transparent;
+	border: 1px dashed var(--st-btn-primary-border, #4f5b66);
+	border-radius: 5px;
+	cursor: pointer;
 }
 
 /* Hide actor name from window title bar (name is shown in the sheet header instead) */
@@ -2327,6 +2716,7 @@ input.stonetop-name-field {
 .stonetop-follower-uses-ammo-input,
 .stonetop-of-adv,
 .stonetop-attack-pick-check,
+.stonetop-cm-check,
 .ct-suggested-check,
 .threat-list-done,
 .steading-list-check {
@@ -2378,6 +2768,7 @@ input.stonetop-name-field {
 .stonetop-follower-uses-ammo-input:checked,
 .stonetop-of-adv:checked,
 .stonetop-attack-pick-check:checked,
+.stonetop-cm-check:checked,
 .ct-suggested-check:checked,
 .threat-list-done:checked,
 .steading-list-check:checked {
@@ -2559,7 +2950,11 @@ input.stonetop-name-field {
 .stonetop-readonly .threat-add-btn,
 .stonetop-readonly .threat-edit-open,
 .stonetop-readonly .threat-remove,
-.stonetop-readonly .threat-reveal,
+/* Hazard cards share the threat cards' self-gated interactions (GM/ownership
+   checks in the handlers), so their controls stay live outside edit mode too. */
+.stonetop-readonly .hazard-add-btn,
+.stonetop-readonly .hazard-edit-open,
+.stonetop-readonly .hazard-remove,
 /* Collapse chevron stays live outside edit mode: clamping a card to its title +
    Instinct is a view convenience, not structural editing. Without this the button's
    pointer-events:none makes a chevron click fall through to the card (the header sits
@@ -2712,6 +3107,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-bottom: 1px solid rgba(0,0,0,0.08);
 }
 
+/* On the journal roll-table card the description IS the result body and the last
+   element in the card, so the move-card divider reads as a stray line — drop it. */
+:is(#chat, #chat-notifications) .message .stonetop-roll-card-description.stonetop-roll-result-body {
+	border-bottom: none;
+}
+
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description p { margin: 0 0 4px; }
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description p:last-child { margin-bottom: 0; }
 :is(#chat, #chat-notifications) .message .stonetop-roll-card-description ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
@@ -2744,6 +3145,25 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	height: var(--stonetop-bullet-size, 10px);
 	background: var(--stonetop-spiral-icon) no-repeat center / contain;
 	opacity: 0.55;
+}
+
+/* Lasting-injury reminder on a move's roll card (echoed from a wound's tag). A
+   reminder only — it doesn't change the roll — so it reads as a warm caution note. */
+:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice {
+	border-left: 3px solid #a8544c;
+	padding-left: 8px;
+}
+:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice .cell__subtitle {
+	color: #a8544c;
+}
+:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice .fa-triangle-exclamation {
+	margin-right: 4px;
+}
+:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice ul {
+	list-style: none;
+	margin: 3px 0 0;
+	padding-left: 2px;
+	font-style: italic;
 }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .cell--chat {
@@ -2973,13 +3393,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: var(--font-size-12);
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__actions {
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__actions,
+:is(#chat, #chat-notifications) .message .stonetop-art-reminder__actions {
 	display: flex;
 	justify-content: center;
 	padding-top: 6px;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome {
+:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome,
+:is(#chat, #chat-notifications) .message .stonetop-import-art-open {
 	width: auto;
 	padding: 5px 14px;
 	font-family: var(--font-stonetop);
@@ -2992,8 +3414,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	transition: background 0.15s;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome:hover { background: var(--st-btn-primary-bg-hover); }
-:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome > i { margin-right: 4px; }
+:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome:hover,
+:is(#chat, #chat-notifications) .message .stonetop-import-art-open:hover { background: var(--st-btn-primary-bg-hover); }
+:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome > i,
+:is(#chat, #chat-notifications) .message .stonetop-import-art-open > i { margin-right: 4px; }
 
 
 :is(#chat, #chat-notifications) .message:has(.stonetop-roll-card),
@@ -3145,6 +3569,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	line-height: 1.2;
 	margin: 0;
 	border: 0;
+}
+
+/* Secondary title lines (the section/table breadcrumb below a roll-table card's
+   name) read in normal weight, so only the first line carries the bold. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .cell__title .stonetop-chat-title-sub {
+	font-weight: normal;
 }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .cell__subtitle {
@@ -3891,6 +4321,31 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    Name size matches the regular Items column (inherits --st-fs-base). */
 .stonetop-inv-item.stonetop-inv-small .stonetop-inv-label { white-space: nowrap; }
 
+/* A dragged-in Book II treasure carries a long descriptive name and a tag/value
+   parenthetical ("A single makerglass arrowhead" + "(indestructible, 2 piercing,
+   Value 1)"). Stack them instead of colliding on one crowded row: the bold name keeps
+   its own line, and the note drops beneath it. `order:1` sends the note past the ◇ load
+   markers, the name, and the edit-mode ✕ (all order 0) so it lands alone on the next
+   line — the ✕ stays up on the name's row. */
+.stonetop-inv-item.stonetop-inv-treasure { flex-wrap: wrap; }
+.stonetop-inv-item.stonetop-inv-treasure .stonetop-inv-note {
+	order: 1;
+	flex-basis: 100%;
+	/* Hang under the name, clear of the leading marker (one ◇ / check + the row's gap). */
+	padding-left: calc(14px * var(--stonetop-font-scale, 1) + 4px);
+}
+/* Its own line has room now, so a long treasure name may wrap in the narrow small column
+   rather than being clipped to one line like ordinary small gear. */
+.stonetop-inv-item.stonetop-inv-treasure.stonetop-inv-small .stonetop-inv-label { white-space: normal; }
+
+/* A weightless (◇0) arcanum has nothing to mark, so it renders no checkbox at all
+   (see OutfitSnapshot.arcanaSmall) — which would hang its name a marker's width left
+   of every other row in the column and read as a broken list. Reserve that width:
+   the shared checkbox above is 15px on the font scale, plus the item row's 4px gap. */
+.stonetop-inv-item.stonetop-inv-static {
+	padding-left: calc(15px * var(--stonetop-font-scale, 1) + 4px);
+}
+
 .stonetop-inv-diamonds {
 	display: inline-flex;
 	align-items: center;
@@ -4567,7 +5022,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-weight: bold;
 }
 
-/* "Mark XP on a miss" sits under the 6- field as a compact inline checkbox row. */
+/* "Mark XP on a miss" applies to either result style, so it sits at the foot of the
+   results section as a compact inline checkbox row. */
 .stonetop-love-letter-markxp {
 	display: flex;
 	align-items: center;
@@ -4587,21 +5043,63 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	opacity: 0.85;
 }
 
-/* Dialog: each 10+/7-9/6- tier gets a compact "Pick [n]" input beside its label. */
-.stonetop-love-letter-tier-head {
+/* Segmented single-select toggle: a bordered inline-flex strip of radio "pills", the
+   checked one filled from LIVE :checked state (not a server-stamped .is-selected class,
+   which nothing clears on click without a re-render). Shared by the threat proximity
+   picker and the love-letter result-style toggle; each element also carries its feature
+   class (below) for padding/font. */
+.stonetop-segmented-picker {
+	display: inline-flex;
+	align-self: flex-start;
+	border: 1px solid var(--st-btn-primary-border, #4f5b66);
+	border-radius: 5px;
+	overflow: hidden;
+}
+.stonetop-segmented-picker-option {
+	position: relative;
+	cursor: pointer;
+	border-right: 1px solid var(--st-btn-primary-border, #4f5b66);
+}
+.stonetop-segmented-picker-option:last-child { border-right: 0; }
+.stonetop-segmented-picker-option input { position: absolute; opacity: 0; pointer-events: none; }
+.stonetop-segmented-picker-option:has(input:checked) {
+	background: var(--st-btn-primary-bg, slategrey);
+	color: #fff;
+}
+
+/* Dialog: a rolled love letter is authored in ONE of two result styles, chosen by the
+   segmented toggle in the results header. `data-result-style` on the results container
+   governs which panel shows; only the visible style is saved. */
+.stonetop-love-letter-results-head {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
+	flex-wrap: wrap;
 }
-.stonetop-love-letter-pick {
+.stonetop-love-letter-style-option {
+	padding: 0.25rem 0.7rem;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	font-weight: normal;
+	white-space: nowrap;
+}
+
+/* Show only the panel matching the toggled style. */
+.stonetop-love-letter-panel { display: none; flex-direction: column; gap: 8px; }
+.stonetop-love-letter-results[data-result-style="prose"] .stonetop-love-letter-panel--prose { display: flex; }
+.stonetop-love-letter-results[data-result-style="list"] .stonetop-love-letter-panel--list { display: flex; }
+
+/* List style: the per-tier "how many to pick" counts share one compact row. */
+.stonetop-love-letter-picks-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.stonetop-love-letter-picks-row > label {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
 	font-weight: normal;
 	white-space: nowrap;
 }
-.stonetop-love-letter-pick input[type="number"] {
+.stonetop-love-letter-picks-row input[type="number"] {
 	width: 3.2em;
 	text-align: center;
 }
@@ -5077,12 +5575,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	min-height: 0;
 }
 
-/* Arcana-tab card art: sits at the left of the header and fills its height. */
+/* Arcana-tab card art: a compact square thumbnail at the left of the header. The
+   source icons are square, so it sizes to its natural 44×44 (height:auto) and centres
+   against the title/subtitle block — rather than stretching to fill the full header
+   height, which letterboxed the square art inside a tall, empty bordered frame. */
 .stonetop-arcanum-thumb {
-	align-self: stretch;
+	align-self: center;
 	width: 44px;
 	height: auto;
-	min-height: 0;
 	object-fit: contain;
 	object-position: center;
 	cursor: zoom-in;
@@ -6214,6 +6714,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+/* Wide Book II bestiary illustrations fill the square portrait frame rather than
+   letterboxing. Scoped by asset path so other actors keep the default "contain". */
+.stonetop-portrait[src*="/assets/bestiary/"] {
+	object-fit: cover;
+}
+
 .stonetop-portrait:hover,
 .stonetop-lore-arcana-img:hover {
 	border-color: var(--color-text-dark-primary);
@@ -7099,6 +7605,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 .stonetop-outfit-item:hover { background: rgba(0,0,0,0.04); }
 
+/* A ◇0 arcanum has no checkbox (it costs nothing, so there is nothing to mark). Pad by the
+   checkbox's width + the row gap so its name still lines up with the markable rows above,
+   the same way .stonetop-inv-static does it on the gear tab. Not a pointer: nothing to click. */
+.stonetop-outfit-item.stonetop-outfit-item-static {
+	padding-left: calc(15px * var(--stonetop-font-scale, 1) + 4px + 2px);
+	cursor: default;
+}
+
+.stonetop-outfit-item.stonetop-outfit-item-static:hover { background: none; }
+
 .stonetop-outfit-item input[type="checkbox"] {
 	display: none;
 }
@@ -7705,6 +8221,72 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: var(--st-fs-base);
 	line-height: 1.4;
 	color: var(--color-text-dark-secondary);
+}
+
+/* 10+ "marked in mind, body, or soul" — seed the mark straight onto the sheet. */
+.deaths-door-mark {
+	margin-top: 10px;
+	padding-top: 8px;
+	border-top: 1px dashed var(--color-border-light-tertiary, #999);
+}
+
+.deaths-door-mark-label {
+	margin: 0 0 6px;
+	font-size: var(--st-fs-base);
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-mark-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	margin-bottom: 7px;
+}
+
+.deaths-door-mark-chip {
+	width: auto !important;
+	flex: 0 0 auto;
+	padding: 2px 9px !important;
+	border: 1px solid #888 !important;
+	border-radius: 11px !important;
+	background: transparent !important;
+	font-size: 0.8rem;
+	line-height: 1.3;
+	cursor: pointer;
+}
+
+.deaths-door-mark-chip:hover {
+	background: rgba(168, 84, 76, 0.12) !important;
+	border-color: #a8544c !important;
+	color: #a8544c;
+}
+
+.deaths-door-mark-row {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.deaths-door-mark-row .deaths-door-mark-input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.deaths-door-mark-add {
+	width: auto !important;
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+.deaths-door-mark-done {
+	margin: 0;
+	font-size: var(--st-fs-base);
+	color: #4a7a4a;
+}
+
+.deaths-door-mark-done .fa-check {
+	margin-right: 4px;
 }
 
 .deaths-door-outcome-choices {
@@ -11759,6 +12341,19 @@ a.steading-player-open:hover {
 	cursor: not-allowed;
 }
 
+/* Mandatory animal-companion trait (Bird/Critter "tiny", etc.): locked ON and free,
+   so it reads as selected rather than dimmed like the at-limit disabled options. */
+.stonetop-onboarding-tag-option.is-mandatory:has(input:disabled) {
+	opacity: 1;
+	cursor: default;
+}
+.stonetop-onboarding-ac-included,
+.stonetop-ac-trait-included {
+	font-size: 0.85em;
+	font-style: italic;
+	opacity: 0.7;
+}
+
 /* Animal Companion type cards — slightly larger than tags */
 .stonetop-onboarding-tag-grid--types { gap: 8px; }
 
@@ -13027,7 +13622,10 @@ a.steading-player-open:hover {
 	width: 3.5em;
 	text-align: center;
 }
-.stonetop-follower-order {
+/* The Ring of Daagon buttons (.stonetop-daagon-btn, below) are a blue variant of this,
+   so the shared chrome lives here and they override only the three colour declarations. */
+.stonetop-follower-order,
+.stonetop-daagon-btn {
 	display: inline-flex;          /* V13 core sets button{display:flex}; keep it from stretching */
 	align-items: center;
 	gap: 6px;
@@ -13189,6 +13787,185 @@ a.steading-player-open:hover {
 }
 .stonetop-follower-party-hint { color: var(--st-text-muted); font-style: italic; }
 .stonetop-follower-card-actions-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Fallen follower (custom follower marked "Dead" from the 0-HP fate dialog) ──
+   The card stays as a record: red-edged, portrait greyed, name struck through, plus a
+   "Fallen" badge and an out-of-edit-mode Remove button. Reviving them (HP > 0) or
+   removing the card clears it. The "Fallen" badge and the actions row stay full-strength
+   so the state and the Remove control read clearly against the muted card. */
+.stonetop-follower-card.is-dead {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+}
+.stonetop-follower-card.is-dead .stonetop-follower-portrait {
+	filter: grayscale(0.7);
+	opacity: 0.75;
+}
+.stonetop-follower-card.is-dead .stonetop-follower-name { text-decoration: line-through; }
+.stonetop-follower-dead-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	width: fit-content;
+	margin-top: 2px;
+	padding: 1px 7px;
+	border: 1px solid var(--st-red-border);
+	border-radius: 999px;
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+}
+.stonetop-follower-dead-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 6px;
+	padding: 4px 8px;
+	border: 1px solid var(--st-red-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-red-bg);
+}
+.stonetop-follower-dead-note {
+	flex: 1 1 12ch;
+	min-width: 0;
+	color: var(--st-red-text);
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	line-height: 1.35;
+}
+
+/* ── Ring of Daagon follower actions (Call Up the Deep Ones / Send Them Back) ──
+   A "watery" blue variant of the follower Order button, plus the shared-Loyalty and
+   broke-free notes on a Servant batch card. */
+.stonetop-daagon-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+/* Blue overrides only; the rest of the chrome is shared with .stonetop-follower-order. */
+.stonetop-daagon-btn {
+	border-color: var(--st-blue-border);
+	background: var(--st-blue-bg);
+	color: var(--st-blue-text);
+}
+.stonetop-daagon-btn:hover { background: var(--st-blue-bg-hover); border-color: var(--st-blue-border); color: var(--st-blue-text); }
+.stonetop-daagon-shared-note {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
+	font-style: italic;
+}
+.stonetop-daagon-shared-note i { color: var(--st-blue-border); }
+.stonetop-daagon-broke-free {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	padding: 4px 8px;
+	border: 1px solid var(--st-red-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+	font-size: var(--st-fs-xs);
+}
+
+/* ── Call Up the Deep Ones dialog ──────────────────────────────────────────── */
+.stonetop-call-up-dialog .stonetop-cu-input {
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	padding: 2px 6px;
+}
+.stonetop-call-up-dialog .stonetop-cu-dice-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 10px;
+}
+.stonetop-call-up-dialog .stonetop-cu-die {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	min-width: 44px;
+	padding: 4px 8px;
+	border: 1px solid var(--color-border-light, #ccc);
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+}
+.stonetop-call-up-dialog .stonetop-cu-die.is-assigned {
+	border-color: var(--st-blue-border);
+	background: var(--st-blue-bg);
+	color: var(--st-blue-text);
+}
+.stonetop-call-up-dialog .stonetop-cu-die-value { font-size: var(--st-fs-md); font-weight: 700; }
+.stonetop-call-up-dialog .stonetop-cu-die-label { font-size: 0.7em; color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-aspects { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.stonetop-call-up-dialog .stonetop-cu-aspect {
+	padding: 6px 8px;
+	border: 1px solid var(--color-border-light, #ccc);
+	border-radius: var(--st-radius-sm);
+}
+.stonetop-call-up-dialog .stonetop-cu-aspect-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.stonetop-call-up-dialog .stonetop-cu-aspect-label { font-family: var(--font-stonetop); font-weight: 700; }
+.stonetop-call-up-dialog .stonetop-cu-aspect-outcome {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+	font-size: var(--st-fs-xs);
+}
+.stonetop-call-up-dialog .stonetop-cu-aspect-hint { color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-aspect-result { font-weight: 700; color: var(--st-blue-text); }
+.stonetop-call-up-dialog .stonetop-cu-count-control { display: inline-flex; align-items: center; gap: 4px; }
+.stonetop-call-up-dialog .stonetop-cu-count { width: 46px; }
+.stonetop-call-up-dialog .stonetop-cu-picker { margin-bottom: 10px; }
+.stonetop-call-up-dialog .stonetop-cu-picker-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.stonetop-call-up-dialog .stonetop-cu-picker-label { font-family: var(--font-stonetop); font-weight: 700; }
+.stonetop-call-up-dialog .stonetop-cu-picker-count { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-picker-count.is-met { color: var(--st-green-text); }
+.stonetop-call-up-dialog .stonetop-cu-picker-options { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-top: 4px; }
+.stonetop-call-up-dialog .stonetop-cu-option {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	padding: 2px 4px;
+	border-radius: var(--st-radius-sm);
+	cursor: pointer;
+}
+.stonetop-call-up-dialog .stonetop-cu-option.is-checked { background: var(--st-blue-bg); color: var(--st-blue-text); }
+.stonetop-call-up-dialog .stonetop-cu-option.is-disabled { opacity: 0.45; cursor: default; }
+.stonetop-call-up-dialog .stonetop-cu-option-detail { font-size: 0.85em; color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-name-label { display: block; margin-bottom: 10px; }
+.stonetop-call-up-dialog .stonetop-cu-preview {
+	padding: 8px 10px;
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-blue-bg);
+	color: var(--st-blue-text);
+	margin-bottom: 10px;
+}
+.stonetop-call-up-dialog .stonetop-cu-preview-head { display: flex; align-items: baseline; gap: 8px; }
+.stonetop-call-up-dialog .stonetop-cu-preview-name { font-family: var(--font-stonetop); font-weight: 700; font-size: var(--st-fs-md); }
+.stonetop-call-up-dialog .stonetop-cu-preview-type { font-size: var(--st-fs-xs); font-style: italic; }
+.stonetop-call-up-dialog .stonetop-cu-preview-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.stonetop-call-up-dialog .stonetop-cu-preview-tag {
+	padding: 1px 7px;
+	border: 1px solid var(--st-blue-border);
+	border-radius: 999px;
+	font-size: var(--st-fs-xs);
+	background: rgba(255, 255, 255, 0.35);
+}
+.stonetop-call-up-dialog .stonetop-cu-preview-tag.is-exceptional { border-color: goldenrod; }
+.stonetop-call-up-dialog .stonetop-cu-preview-stats { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--st-fs-sm); }
+.stonetop-call-up-dialog .stonetop-cu-preview-moves { margin-top: 4px; font-size: var(--st-fs-xs); }
+.stonetop-call-up-dialog .stonetop-cu-preview-moves span:not(:last-child)::after { content: " · "; color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-cost { display: flex; flex-direction: column; gap: 4px; }
+.stonetop-call-up-dialog .stonetop-cu-cost-label { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-cost-choice { display: flex; align-items: center; gap: 6px; font-size: var(--st-fs-sm); cursor: pointer; }
+.stonetop-call-up-dialog .stonetop-cu-cost-choice.is-disabled { opacity: 0.5; cursor: default; }
+.stonetop-call-up-dialog .stonetop-cu-cost-note { color: var(--st-text-muted); }
 
 /* Follower-fate dialog (a follower at 0 HP): vertical option buttons. */
 .stonetop-follower-fate-dialog .stonetop-ff-options {
@@ -15301,6 +16078,114 @@ li.question-bullet {
 	cursor: help;
 }
 
+/* --- Book II treasure drops -------------------------------------------------
+   Treasures in the Artifacts / Curiosities / flora journal sections are made
+   draggable inventory items by treasure-drops.js, and get a small badge showing
+   the ◇ load-weight and ○ uses the rulebook prints beside each one. The cell
+   surface these sit on is shared with the other journal draggables — see the
+   "Journal drag-cell idiom" block, which has to come later in the file to beat
+   the list rules that would otherwise re-indent the treasure <li>s. */
+.st-treasure-badge {
+	display: inline-flex;
+	align-items: baseline;
+	gap: .4em;
+	font-size: var(--st-fs-xs, .82em);
+	white-space: nowrap;
+	user-select: none;
+}
+.st-treasure-weight {
+	color: var(--st-blue-text, #3f5560);
+}
+.st-treasure-weight.st-immobile {
+	color: var(--st-text-muted, #6f6553);
+	font-size: 1.1em;
+}
+/* Small item (no load): a small hollow square, drawn like the use-circle so it joins the
+   same crisp glyph family as the load-diamonds instead of the tiny ▫ font character. A hair
+   smaller than a load-diamond, so it reads as "less than one load" at a glance. */
+.st-treasure-weight.st-small {
+	color: var(--st-text-muted, #6f6553);
+	display: inline-block;
+	box-sizing: border-box;
+	width: .62em;
+	height: .62em;
+	border: .11em solid currentColor;
+	overflow: hidden;
+	text-indent: 2em;
+	white-space: nowrap;
+	vertical-align: .02em;
+	font-size: 1.3em;
+}
+.st-treasure-uses {
+	color: var(--st-green-text, #4d6b3f);
+}
+.st-treasure-uses em {
+	font-style: italic;
+	color: var(--st-text-muted, #6f6553);
+}
+/* The load-diamonds and use-circles are drawn as this system's SVG/mask glyphs (see
+   badgeHtml), not the raw ◇/○ font characters, which read far too small. Size them up
+   to sit comfortably beside the item text. The diamond takes the badge's colour via a
+   currentColor mask so it stays legible on both light and dark journal backgrounds
+   regardless of which body wrapper the render path carries; the circle is a currentColor
+   ring already, and gets a hair of spacing so a "○○○" use track reads as separate uses. */
+.st-treasure-badge .stonetop-glyph {
+	font-size: 1.3em;
+}
+.st-treasure-badge .stonetop-glyph--diamond {
+	color: inherit;
+	background: none;
+	background-color: currentColor;
+	-webkit-mask: var(--stonetop-diamond-icon) center / contain no-repeat;
+	mask: var(--stonetop-diamond-icon) center / contain no-repeat;
+	overflow: hidden;
+	text-indent: 2em;
+	white-space: nowrap;
+}
+.st-treasure-uses .stonetop-glyph--circle {
+	margin-right: .16em;
+}
+/* Compound treasures (e.g. the two mirrors): one draggable chip per real item. */
+.st-treasure-compound {
+	gap: .5em;
+}
+.st-treasure-chip {
+	display: inline-flex;
+	align-items: baseline;
+	gap: .32em;
+	padding: .05em .55em;
+	border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+	border-radius: var(--st-radius-pill, 20px);
+	cursor: grab;
+}
+.st-treasure-chip:hover {
+	background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.st-treasure-chip:active {
+	cursor: grabbing;
+}
+.st-chip-label {
+	font-style: italic;
+	color: var(--st-text-secondary, #5c5140);
+}
+
+/* The badge hues are printed-page ink — a dark blue ◇ track, a darker green ○
+   track, grey labels — and all but vanish on a dark journal page, where the cell
+   around them now adapts. Lift them here rather than on the global --st-*-text
+   tokens, which plenty of light-only surfaces read and would drag with them. */
+.theme-dark .st-treasure-weight {
+	color: #9db8cc;
+}
+.theme-dark .st-treasure-uses {
+	color: #9ec98b;
+}
+.theme-dark .st-treasure-weight.st-small,
+.theme-dark .st-treasure-weight.st-immobile,
+.theme-dark .st-treasure-uses em,
+.theme-dark .st-chip-label {
+	color: color-mix(in srgb, currentColor 70%, transparent);
+}
+
 /* God / lore proper nouns in the character-creation prompts (Introductions dialog),
    wrapped by wrapLoreTerms(). A dotted underline signals the hover summary without
    forcing weight, since some sit inside an authored <strong> and some don't. */
@@ -15831,8 +16716,13 @@ input.stonetop-monster-armor-source {
 	min-height: 160px;
 }
 
+/* A generous editing box for the full-width section editors (location/lore/bestiary
+   prose + the whole-page Description). Core lays the editor out as a fixed-height box
+   with the toolbar pinned as its own row and the content scrolling below, so this
+   min-height IS the editing viewport — 185px showed only ~2-3 table rows at a time,
+   which made editing the long random-tables painful. ~10 rows is far more workable. */
 .stonetop-monster-rich-editor--full {
-	min-height: 185px;
+	min-height: 400px;
 }
 
 .stonetop-monster-rich-editor .editor-content {
@@ -15982,6 +16872,27 @@ input.stonetop-monster-armor-source {
 
 .stonetop-monster-line .stonetop-entry-line-input {
 	flex: 1 1 auto;
+}
+
+/* Per-line delete (×). Explicit width so core's `.app button{width:100%}` doesn't
+   stretch it in the popout editor. */
+.stonetop-monster-line .stonetop-entry-remove-line {
+	flex: 0 0 auto;
+	align-self: center;
+	justify-content: center;
+	align-items: center;
+	width: auto;
+	min-width: 1.4em;
+	padding: 0 2px;
+	background: none;
+	border: none;
+	line-height: 1;
+	color: slategrey;
+	cursor: pointer;
+}
+
+.stonetop-monster-line .stonetop-entry-remove-line:hover {
+	color: #a33;
 }
 
 .stonetop-monster-line-input {
@@ -16197,6 +17108,51 @@ input.stonetop-monster-armor-source {
 .stonetop-monster-rich-text li > ul,
 .stonetop-monster-move-description li > ul {
 	margin: 0;
+}
+
+/* Edit mode: a move is edited inline on the stat block — a name field, a small
+   dice-formula field, and a compact rich-text description editor, matching the
+   inline editing used for the rest of the sheet (concept, qualities, notes). */
+.stonetop-monster-move-item--edit .stonetop-monster-move-head {
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 4px;
+}
+
+.stonetop-monster-move-name-input,
+.stonetop-monster-move-formula-input {
+	height: 1.6em;
+	padding: 0 3px;
+	border: none;
+	border-bottom: 1px solid rgba(0,0,0,0.25);
+	border-radius: 0;
+	background: transparent;
+	font-family: var(--font-stonetop);
+	font-size: inherit;
+	color: var(--color-text-dark-primary);
+}
+
+.stonetop-monster-move-name-input {
+	flex: 1;
+	min-width: 60px;
+	font-weight: bold;
+}
+
+.stonetop-monster-move-formula-input {
+	flex: none;
+	width: 4.5em;
+	min-width: 4.5em;
+	text-align: center;
+}
+
+/* Compact per-move description editor: the shared rich-editor box is 160px+ (for
+   Qualities/Notes), too tall stacked once per move, so shrink it here. */
+.stonetop-monster-move-editor {
+	min-height: 0;
+}
+
+.stonetop-monster-move-editor .editor-content {
+	min-height: 2.6em;
 }
 
 .stonetop-monster-add-controls {
@@ -16768,7 +17724,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 .stonetop-entry-group-body {
 	grid-column: 1 / 2;
-	min-height: 110px;
+	min-height: 200px;
 }
 .stonetop-entry-group-body .editor-content {
 	min-height: inherit;
@@ -16852,7 +17808,164 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	color: #a33;
 }
 
-/* Stat-block list */
+/* === Journal drag-cell idiom ================================================
+   Everything you can drag out of a journal reads as the same cell: a tinted,
+   bordered surface with an accent stripe down its left edge, a leading icon or
+   thumbnail, a name row, and a body. Four kinds share it:
+
+     .st-treasure-line             Book II treasures      (utils/treasure-drops.js)
+     .stonetop-entry-statblock     bestiary stat blocks   (journal/StonetopBestiaryPageSheet.js)
+     .stonetop-journal-improvement steading improvements  (journal/steading-improvement-cards.js)
+     .stonetop-journal-threat      threat seeds           (threats/threat-seed-cards.js)
+
+   The improvement and threat cards' markup is BAKED INTO THE SHIPPED PACKS by
+   scripts/local/shared/gazetteer.mjs, so the idiom is expressed purely through
+   classes those cards already carry — no markup change, no pack rebuild, and no
+   drift between baked cards and ones authored in-app.
+
+   Surface and border derive from the journal's own text colour via color-mix, so
+   a cell reads on light and dark pages alike without hardcoding white/black;
+   only the accent hue needs a dark-mode lift. Each kind sets --st-cell-accent.
+
+   This block sits late in the file on purpose: `.stonetop-journal-body li` and
+   `.stonetop-monster-rich-text li` are the same specificity as `li.st-treasure-line`,
+   so only source order stops them re-indenting a treasure cell for a bullet it
+   no longer draws. */
+.st-treasure-line,
+.stonetop-entry-statblock,
+.stonetop-journal-improvement {
+	--st-cell-accent: color-mix(in srgb, currentColor 45%, transparent);
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 8px 12px;
+	border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+	border-left: 4px solid var(--st-cell-accent);
+	border-radius: var(--st-radius);
+	background: color-mix(in srgb, currentColor 6%, transparent);
+	transition: background-color .1s ease, border-color .1s ease;
+}
+
+/* Only a cell that actually carries the drag advertises the grab affordance —
+   a compound treasure's cell doesn't, its chips do. */
+.st-treasure-line[draggable="true"],
+.stonetop-entry-statblock[draggable="true"],
+.stonetop-journal-improvement[draggable="true"] {
+	cursor: grab;
+}
+
+.st-treasure-line[draggable="true"]:active,
+.stonetop-entry-statblock[draggable="true"]:active,
+.stonetop-journal-improvement[draggable="true"]:active {
+	cursor: grabbing;
+}
+
+.st-treasure-line[draggable="true"]:hover,
+.stonetop-entry-statblock[draggable="true"]:hover,
+.stonetop-journal-improvement[draggable="true"]:hover {
+	background: color-mix(in srgb, currentColor 11%, transparent);
+	border-color: color-mix(in srgb, currentColor 34%, transparent);
+	border-left-color: var(--st-cell-accent);
+}
+
+/* The name row is common to all four kinds. */
+.st-treasure-name,
+.stonetop-entry-statblock-name,
+.stonetop-journal-improvement-name {
+	font-family: var(--font-stonetop);
+	font-weight: bold;
+}
+
+/* --- Treasure cells --------------------------------------------------------
+   Unlike the other kinds, a treasure cell is built out of the book's own prose
+   line at render time, so the <li>/<p> the book printed IS the cell. */
+.st-treasure-line {
+	--st-cell-accent: var(--st-blue-border, #7c93a6);
+	margin: 0.5em 0;
+}
+
+/* The cell supplies its own leading thumbnail, so drop the list spiral and reclaim
+   the indent the journal-body / rich-text list rules reserve for it. */
+li.st-treasure-line {
+	padding-left: 12px;
+}
+
+li.st-treasure-line::before {
+	content: none;
+}
+
+/* Ustrina prints each treasure as its own single-item <ul>; without this the
+   list padding insets every cell in that section relative to the others. */
+ul:has(> li.st-treasure-line:only-child) {
+	padding-left: 0;
+}
+
+/* The cell heads with the treasure's own book illustration when the world has imported it —
+   the same left-hand thumbnail the bestiary stat-block cells carry. A real illustration reads
+   as a photo: cover-cropped behind a border, like a stat-block portrait. The cell is
+   flex-start (its prose can run long), so a small top nudge lines the thumbnail up with the
+   name row rather than the very top of the box. */
+.st-treasure-icon {
+	width: 40px;
+	height: 40px;
+	object-fit: cover;
+	border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+	border-radius: var(--st-radius-sm);
+	flex-shrink: 0;
+	margin-top: 0.1em;
+	cursor: inherit;
+}
+
+/* Most Book II treasures aren't illustrated (they're text-only table rows), so their cells
+   head with the shared vase marker in the same 40px slot the illustration would occupy — every
+   row's text lines up whether or not it has a picture. Unlike a real illustration this is a
+   self-framed icon (its own dark octagon), so it's contained rather than cover-cropped and
+   carries no photo border. */
+.st-treasure-grip {
+	width: 40px;
+	height: 40px;
+	object-fit: contain;
+	flex-shrink: 0;
+	margin-top: 0.1em;
+	cursor: inherit;
+}
+
+/* The cell's parts are <span>s (they live inside the book's own <li>/<p>, and a <div> in a
+   <p> is invalid), so each states its own display rather than inheriting a <div>'s. */
+.st-treasure-cell-body {
+	display: block;
+	flex: 1;
+	min-width: 0;
+}
+
+.st-treasure-cell-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: flex-start;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* The ◇ load / ○ uses / immobile badge leads the header row, sitting to the left of the
+   treasure's name (just after the vase thumbnail) so the load marker reads like a stat
+   prefix rather than trailing off the far edge. The DOM keeps the name first — natural
+   reading order for screen readers — and `order` handles the visual swap. */
+.st-treasure-cell-head .st-treasure-badge {
+	order: -1;
+}
+
+.st-treasure-desc {
+	display: block;
+	margin-top: 4px;
+	font-size: var(--st-fs-sm);
+	color: color-mix(in srgb, currentColor 80%, transparent);
+}
+
+.theme-dark .st-treasure-line {
+	--st-cell-accent: #9db8cc;
+}
+
+/* --- Bestiary stat-block cells --------------------------------------------- */
 .stonetop-entry-statblock-list {
 	list-style: none;
 	margin: 0;
@@ -16863,28 +17976,18 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 .stonetop-entry-statblock {
-	display: flex;
 	align-items: center;
-	gap: 10px;
-	padding: 6px 8px;
-	border: 1px solid rgba(0,0,0,0.15);
-	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.25);
 }
 
-.stonetop-entry-statblock[draggable="true"] {
-	cursor: grab;
-}
-
-.stonetop-entry-statblock[draggable="true"]:active {
-	cursor: grabbing;
+.theme-dark .stonetop-entry-statblock {
+	--st-cell-accent: color-mix(in srgb, currentColor 55%, transparent);
 }
 
 .stonetop-entry-statblock-img {
 	width: 40px;
 	height: 40px;
 	object-fit: cover;
-	border: 1px solid var(--color-border-dark, #888);
+	border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
 	border-radius: var(--st-radius-sm);
 	flex-shrink: 0;
 }
@@ -16896,15 +17999,15 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	flex: 1;
 }
 
+/* Font/weight come from the shared cell name rule; the pointer is this kind's
+   own, since the name is an enriched @UUID link that opens the actor sheet. */
 .stonetop-entry-statblock-name {
-	font-family: var(--font-stonetop);
-	font-weight: bold;
 	cursor: pointer;
 }
 
 .stonetop-entry-statblock-meta {
 	font-size: var(--st-fs-sm);
-	color: var(--color-text-dark-secondary);
+	color: color-mix(in srgb, currentColor 70%, transparent);
 }
 
 .stonetop-entry-statblock-controls {
@@ -16923,26 +18026,24 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 /* Draggable "Steading Improvement" cards baked into journal prose by the gazetteer
-   generator (scripts/local/shared/gazetteer.mjs). Styled like the bestiary stat-block
-   cards; dragging one onto the Stonetop steading sheet adds it as a tracked custom
-   improvement (module/journal/steading-improvement-cards.js). */
+   generator (scripts/local/shared/gazetteer.mjs); dragging one onto the Stonetop
+   steading sheet adds it as a tracked custom improvement (module/journal/
+   steading-improvement-cards.js).
+
+   Surface, border, stripe and padding come from the shared cell idiom above, so a
+   card only needs its own accent hue and vertical rhythm here. It stacks
+   head-over-body rather than sitting in the cells' icon+body row, because its icon
+   is baked inside the head — hence `block`, overriding the idiom's `flex`. */
 .stonetop-journal-improvement {
-	/* Theme-agnostic surface: tint and border are derived from the journal's own
-	   text colour, so the card reads on both light and dark pages without hardcoded
-	   white/black. The accent is a local var so dark mode can lighten just the hue. */
-	--st-improvement-accent: var(--stonetop-improvement-accent);
-	border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
-	border-left: 4px solid var(--st-improvement-accent);
-	border-radius: var(--st-radius);
-	background: color-mix(in srgb, currentColor 6%, transparent);
-	padding: 8px 12px;
+	--st-cell-accent: var(--stonetop-improvement-accent);
+	display: block;
 	margin: 0.9em 0;
 }
 
 /* The book accent (#7a5c2e) is too dark to read on a dark journal page; lighten
    the stripe + icon to a warm tan. Surface/border already adapt via currentColor. */
 .theme-dark .stonetop-journal-improvement {
-	--st-improvement-accent: #c9a063;
+	--st-cell-accent: #c9a063;
 }
 
 /* On a dark page the requirement headings' #444 is nearly invisible; match the
@@ -16966,9 +18067,18 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	flex-wrap: wrap;
 }
 
-.stonetop-journal-improvement-head > i {
-	color: var(--st-improvement-accent);
+.stonetop-journal-improvement-head i {
+	color: var(--st-cell-accent);
 	flex-shrink: 0;
+}
+
+/* Editing a section that holds an improvement card runs it through ProseMirror, whose
+   generic `div` node has a block-only content model, so it wraps the head's inline
+   children (icon + eyebrow + name) in a paragraph on save: `.head > p > (i, span, span)`.
+   `display: contents` dissolves that interposed <p> so its children are flex items of the
+   head again — the header lays out identically whether or not it has been edited. */
+.stonetop-journal-improvement-head > p {
+	display: contents;
 }
 
 /* The eyebrow sits at the far-right edge of the header (like the Incantations
@@ -16983,11 +18093,10 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	color: color-mix(in srgb, currentColor 60%, transparent);
 }
 
+/* Font/weight come from the shared cell name rule. */
 .stonetop-journal-improvement-name {
 	order: 1;
 	flex: 1 1 auto;
-	font-family: var(--font-stonetop);
-	font-weight: bold;
 	font-size: var(--st-fs-lg);
 }
 
@@ -17009,11 +18118,11 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
    Threats tab. Overriding the accent var re-tints the stripe, icon, and dark-mode
    hue that the base rules already read from it. */
 .stonetop-journal-threat {
-	--st-improvement-accent: #6e3b3b;
+	--st-cell-accent: #6e3b3b;
 }
 
 .theme-dark .stonetop-journal-threat {
-	--st-improvement-accent: #c98b8b;
+	--st-cell-accent: #c98b8b;
 }
 
 .stonetop-journal-threat-meta {
@@ -17089,7 +18198,7 @@ th:has(> .stonetop-roll-table-btn) {
 	display: inline-flex;
 	align-items: center;
 	margin-right: 0.4em;
-	color: var(--st-improvement-accent, var(--stonetop-improvement-accent));
+	color: var(--st-cell-accent, var(--stonetop-improvement-accent));
 	cursor: pointer;
 	text-decoration: none;
 	vertical-align: baseline;
@@ -17556,6 +18665,32 @@ th:has(> .stonetop-roll-table-btn) {
 	color: var(--color-text-dark-secondary);
 }
 
+/* Autosave status pip beside the capture label. Reassures the table that what they type
+   is saved to the character near-live (see IntroductionsDialog _setSaveStatus). The three
+   states are pre-rendered and JS flips data-state, so a re-render keeps the right one. */
+.stonetop-intros-capture-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.stonetop-intros-save-status {
+	flex: 0 0 auto;
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	white-space: nowrap;
+}
+
+.stonetop-intros-save-status > span { display: none; align-items: center; gap: 4px; }
+.stonetop-intros-save-status > span > i { font-size: 0.92em; }
+
+.stonetop-intros-save-status[data-state="idle"] .stonetop-intros-save-idle { display: inline-flex; color: var(--color-text-dark-secondary); opacity: 0.85; }
+.stonetop-intros-save-status[data-state="saving"] .stonetop-intros-save-saving { display: inline-flex; color: var(--color-text-dark-secondary); }
+.stonetop-intros-save-status[data-state="saved"] .stonetop-intros-save-saved { display: inline-flex; color: var(--st-green-text); }
+
 .stonetop-intros-answer,
 .stonetop-intros-draft {
 	width: 100%;
@@ -17777,23 +18912,75 @@ th:has(> .stonetop-roll-table-btn) {
 
 /* ── Welcome / first-session guide ─────────────────────────────────────────── */
 
+/* Full-bleed flex column: the rail + panel split fills the space above a pinned
+   footer, mirroring the Expedition / Make-a-Monster steppers. */
 .stonetop-welcome-dialog .window-content {
 	padding: 0;
+	display: flex;
+	flex-direction: column;
 	overflow: hidden;
 }
 
 .stonetop-welcome {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
+	flex: 1 1 auto;
+	min-height: 0;
 	font-family: var(--font-stonetop);
 }
 
-.stonetop-welcome-scroll {
-	flex: 1;
+/* Rail (shared .stonetop-guide-toc) beside the scrolling panel column. The split
+   flex isn't global — each guide dialog scopes its own (see the Expedition/Intros
+   block) — so scope it here too. */
+.stonetop-welcome-split {
+	display: flex;
+	flex: 1 1 auto;
 	min-height: 0;
-	padding: 16px 20px 4px;
+}
+
+/* min-width:0 lets the panel column shrink beside the fixed-width rail instead of
+   forcing the dialog wider; it supplies its own scroll (shared .stonetop-guide-main
+   gives the padding + gap). */
+.stonetop-welcome-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
 	overflow-y: auto;
+}
+
+.stonetop-welcome-nav { flex: 0 0 auto; }
+
+/* One step per panel; only the active one shows (JS toggles `hidden`). Plain block
+   flow inside, so the panels' paragraph/button/notice margins below still apply. */
+.stonetop-welcome-section[hidden] { display: none; }
+
+/* Banner title + its optional "optional" tag, kept side by side (the tag toggles as
+   panels switch, so it sits beside the title span rather than inside it). */
+.stonetop-welcome-banner-titlewrap {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+}
+
+.stonetop-welcome-banner-optional {
+	flex: 0 0 auto;
+	padding: 0 6px;
+	border: 1px solid var(--st-text-muted);
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	color: var(--st-text-muted);
+	font-size: 0.68em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+/* Back/Next pair pinned to the right of the footer, opposite the "Don't show again"
+   checkbox (the buttons themselves use the shared .stonetop-guide-nav button style). */
+.stonetop-welcome-nav-btns {
+	display: flex;
+	gap: 10px;
 }
 
 .stonetop-welcome-hero {
@@ -17836,59 +19023,19 @@ th:has(> .stonetop-roll-table-btn) {
 	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 }
 
-.stonetop-welcome-steps {
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 14px;
-}
-
-.stonetop-welcome-step {
-	display: flex;
-	gap: 12px;
-	align-items: flex-start;
-}
-
-.stonetop-welcome-step-num {
-	flex: 0 0 auto;
-	width: 26px;
-	height: 26px;
-	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-weight: 700;
-	font-size: var(--st-fs-sm);
-	color: var(--st-blue-text);
-	background: var(--st-blue-bg);
-	border: 1px solid var(--st-blue-border);
-}
-
-.stonetop-welcome-step-body {
-	flex: 1;
-	min-width: 0;
-}
-
-.stonetop-welcome-step-body h3 {
-	margin: 2px 0 4px;
-	border: none;
-	font-size: var(--st-fs-lg);
-	font-weight: 700;
-	line-height: 1.2;
-}
-
-.stonetop-welcome-step-body p {
+/* Step panels: a panel's own prose (plain, unclassed paragraphs) gets the guide's
+   body size + tight margins. `:not([class])` leaves the overview's centred
+   .stonetop-welcome-lead / -intro to their own styling. */
+.stonetop-welcome-section p:not([class]) {
 	margin: 0;
 	line-height: 1.5;
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 }
 
-/* A paragraph that follows an action button (e.g. step 4's "Resist the urge…"
-   after Start Introductions) needs its own top gap — the button has no bottom
-   margin, so the step-body's margin:0 would otherwise leave them touching. */
-.stonetop-welcome-step-body .stonetop-welcome-action + p {
+/* A paragraph that follows an action button (e.g. step 6's "Resist the urge…"
+   after Walk Through Let Spring Burst Forth) needs its own top gap — the button has
+   no bottom margin, so the paragraph's margin:0 would otherwise leave them touching. */
+.stonetop-welcome-section .stonetop-welcome-action + p {
 	margin-top: 10px;
 }
 
@@ -18157,16 +19304,8 @@ th:has(> .stonetop-roll-table-btn) {
 	margin: 0;
 }
 
-/* Footer */
-
-.stonetop-welcome-footer {
-	display: flex;
-	align-items: center;
-	justify-content: flex-start;
-	gap: 12px;
-	padding: 10px 20px 14px;
-	border-top: 1px solid rgba(0, 0, 0, 0.08);
-}
+/* Footer — the row/border/padding come from the shared .stonetop-guide-nav; the
+   "Don't show again" checkbox sits at the left, opposite the Back/Next pair. */
 
 .stonetop-welcome-dontshow {
 	display: flex;
@@ -18528,7 +19667,9 @@ th:has(> .stonetop-roll-table-btn) {
    Scoped to those two so the other steppers (Spring Burst, Create Follower) and a
    player's rail-less Introductions keep their single column. */
 .stonetop-expedition-dialog .stonetop-guide-split,
-.stonetop-introductions .stonetop-guide-split {
+.stonetop-introductions .stonetop-guide-split,
+.stonetop-arcanum-edit .stonetop-guide-split,
+.stonetop-arcana-inspire-dialog .stonetop-guide-split {
 	display: flex;
 	flex: 1 1 auto;
 	min-height: 0;
@@ -19086,6 +20227,14 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-cf-option-list { display: flex; flex-direction: column; gap: 3px; }
+/* Row layout for short "pick 1" rails (Things Below proximity / intent). */
+.stonetop-cf-option-list--row { flex-direction: row; flex-wrap: wrap; }
+.stonetop-cf-option-list--row .stonetop-cf-option { flex: 0 1 auto; }
+/* Two-column packing for the long theme/aspect checklists in the corruption dialog. */
+.stonetop-cf-option-list--compact { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+@media (max-width: 560px) { .stonetop-cf-option-list--compact { grid-template-columns: 1fr; } }
+/* The theme's imagery / a severity's detail, as muted subtext under the option label. */
+.stonetop-tb-note { display: block; font-size: 0.82em; color: var(--st-text-secondary); line-height: 1.3; }
 
 .stonetop-cf-option {
 	display: flex;
@@ -19114,14 +20263,17 @@ th:has(> .stonetop-roll-table-btn) {
 }
 .stonetop-cf-option.is-selected .stonetop-cf-option-val { color: var(--st-green-text); }
 
-/* The three "pick 1" choices (HP base, armor base, damage die) are radios sitting
-   beside the pick-all checkbox options. Skin all three as round radios (filled dot
-   when chosen) so they read as single-select, distinct from the SVG checkboxes.
-   currentColor lets the dot pick up the green selected-state text colour like the
-   rest of the option row. */
+/* Shared round-radio skin for worksheet "pick 1" controls: the create-follower
+   HP base / armor base / damage die radios, and the create-monster armor-base radio
+   (.stonetop-cm-radio). Filled dot when chosen so they read as single-select, distinct
+   from the SVG checkboxes; currentColor lets the dot pick up the selected-state text
+   colour like the rest of the row. Margin is left to each caller (below): the
+   create-follower radios pin margin:0, while .stonetop-cm-radio inherits core's
+   checkbox/radio margin so it seats level with its sibling .stonetop-cm-check boxes. */
 .stonetop-cf-hp-base,
 .stonetop-cf-armor-base,
-.stonetop-cf-damage {
+.stonetop-cf-damage,
+.stonetop-cm-radio {
 	appearance: none !important;
 	-webkit-appearance: none !important;
 	width: calc(15px * var(--stonetop-font-scale, 1)) !important;
@@ -19131,11 +20283,16 @@ th:has(> .stonetop-roll-table-btn) {
 	border-radius: 50% !important;
 	background: transparent !important;
 	cursor: pointer;
+}
+.stonetop-cf-hp-base,
+.stonetop-cf-armor-base,
+.stonetop-cf-damage {
 	margin: 0 !important;
 }
 .stonetop-cf-hp-base:checked,
 .stonetop-cf-armor-base:checked,
-.stonetop-cf-damage:checked {
+.stonetop-cf-damage:checked,
+.stonetop-cm-radio:checked {
 	background: radial-gradient(circle, currentColor 0 45%, transparent 50%) !important;
 }
 
@@ -19254,6 +20411,32 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-gear-row .stonetop-cf-input { flex: 1 1 0; min-width: 0; width: auto; }
 .stonetop-cf-gear-add { align-self: flex-start; }
 
+/* ── Make-a-Hazard walkthrough (create-hazard.hbs) ───────────────────────────
+   Rides the shared .stonetop-cf-* control styles; only hazard-specific bits here. */
+.stonetop-create-hazard-dialog .stonetop-ch-advice {
+	margin: 2px 0 0;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	font-style: italic;
+}
+/* Certain death switches the damage worksheet off; dim it so the live line reads. */
+.stonetop-create-hazard-dialog .stonetop-ch-damage--off { opacity: 0.45; }
+.stonetop-create-hazard-dialog .stonetop-ch-portent-glyph { flex: 0 0 auto; }
+.stonetop-create-hazard-dialog .stonetop-ch-pm-row {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-bottom: 6px;
+}
+/* Keep a long description from swallowing the review card. */
+.stonetop-create-hazard-dialog .stonetop-ch-preview-desc {
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
 /* Review card (final step) + the conversion's kept-stats line */
 .stonetop-cf-preview,
 .stonetop-mf-stats {
@@ -19352,16 +20535,40 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* ── Arcanum editor (StonetopArcanumSheet edit mode) ───────────────────────────
    Scoped under .stonetop-arcanum-edit (only ever inside the arcanum item sheet),
-   so nothing here bleeds onto other windows. */
+   so nothing here bleeds onto other windows. Edit mode is a left-rail tabbed sheet
+   (shared .stonetop-guide-* chrome), like Make a Monster. */
+
+/* Reset the window chrome so the rail + content fill the window and the content
+   column scrolls while the footer stays pinned. Scoped with :has() so only the edit
+   template — not the read-only card view — resets its window. */
+.stonetop-arcanum-sheet .window-content:has(.stonetop-arcanum-edit) {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	max-height: calc(100vh - 80px);
+	overflow: hidden;
+}
+
 .stonetop-arcanum-edit {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
-	max-height: 78vh;
-	overflow-y: auto;
-	padding: 4px 2px 10px;
+	/* Fill .window-content: min-height:0 lets the content column scroll while the
+	   footer stays pinned; min-width:0 keeps the footer from forcing the sheet wider. */
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
 	font-family: var(--font-stonetop);
 	color: var(--st-text-body);
+}
+
+/* Rail beside the scrolling section column; the shared .stonetop-guide-split flex (grouped
+   with the other stepper dialogs above) supplies the split layout. */
+.stonetop-arcanum-edit .stonetop-guide-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	overflow-y: auto;
 }
 
 .stonetop-arcanum-edit .stonetop-arc-section {
@@ -19370,22 +20577,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding: 8px 10px 10px;
 	background: rgba(255, 255, 255, 0.35);
 }
-
-.stonetop-arcanum-edit .stonetop-arc-h {
-	margin: 0 0 6px;
-	font-size: var(--st-fs-lg);
-	font-family: var(--font-stonetop);
-	border-bottom: 1px solid var(--color-border-light, #c9c0ad);
-	padding-bottom: 3px;
-}
-
-.stonetop-arcanum-edit .stonetop-arc-h-sub {
-	font-size: var(--st-fs-xs);
-	font-weight: normal;
-	font-style: italic;
-	color: var(--st-text-muted);
-	margin-left: 6px;
-}
+/* Only the active section shows; the rail toggles `hidden` on the others (an explicit
+   display:none survives V13's cascade layers). */
+.stonetop-arcanum-edit .stonetop-arc-section[hidden] { display: none; }
 
 .stonetop-arcanum-edit .stonetop-arc-row {
 	display: flex;
@@ -19597,21 +20791,40 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-arcanum-edit .stonetop-arc-slug-warning[hidden] { display: none; }
 .stonetop-arcanum-edit .stonetop-arc-slug-warning > i { color: #c07820; }
 
-/* ── Artifact Creation inspiration wizard (StonetopArcanaInspireDialog) ───────── */
+/* ── Artifact Creation inspiration wizard (StonetopArcanaInspireDialog) ─────────
+   A left-rail stepper: reuses the shared .stonetop-guide-* chrome (banner + rail +
+   scrolling main) like Run an Expedition, with the wizard's own .stonetop-inspire-*
+   field/review/footer styling inside it. */
+
+/* Drop Foundry's window padding, make the content a flex column, and cap to the
+   viewport so a tall step scrolls the main column instead of pushing the footer
+   off-screen (mirrors the spring/expedition steppers). */
+.stonetop-arcana-inspire-dialog .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	max-height: calc(100vh - 80px);
+	overflow: hidden;
+}
+
 .stonetop-arcana-inspire-dialog .stonetop-inspire {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	/* Fill .window-content: min-height:0 lets the rail/content scroll while the footer
+	   stays pinned; min-width:0 keeps the footer from forcing the dialog wider. */
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
 	font-family: var(--font-stonetop);
 }
 
-.stonetop-arcana-inspire-dialog .stonetop-inspire-step {
-	margin: 0;
-	font-size: var(--st-fs-xs);
-	font-weight: 600;
-	color: var(--st-blue-text);
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
+/* Rail beside the scrolling content column; the shared .stonetop-guide-split flex (grouped
+   with the other stepper dialogs) supplies the split layout. */
+.stonetop-arcana-inspire-dialog .stonetop-guide-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	overflow-y: auto;
 }
 
 .stonetop-arcana-inspire-dialog .stonetop-inspire-intro {
@@ -19709,12 +20922,13 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 .stonetop-arcana-inspire-dialog .stonetop-inspire-footer {
+	/* Pinned footer beneath the scrolling content column. */
+	flex: 0 0 auto;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
-	margin-top: 4px;
-	padding-top: 8px;
+	padding: 10px 20px 14px;
 	border-top: 1px solid var(--color-border-light, #c9c0ad);
 }
 
@@ -19910,16 +21124,38 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	cursor: pointer;
 }
 
-/* Save / Cancel footer. Affirmative on the LEFT (Foundry order); scoped under
-   .stonetop-arcanum-edit so it never bleeds onto other windows. */
+/* Pinned footer beneath the scrolling content column: Save/Cancel on the LEFT (Foundry
+   order), the rail's "Next" walk on the right. Scoped under .stonetop-arcanum-edit so it
+   never bleeds onto other windows. */
 .stonetop-arcanum-edit .stonetop-arc-footer {
+	flex: 0 0 auto;
 	display: flex;
-	justify-content: flex-start;
+	align-items: center;
+	justify-content: space-between;
 	gap: 8px;
-	margin-top: 2px;
-	padding-top: 10px;
+	padding: 10px 20px 12px;
 	border-top: 1px solid var(--color-border-light, #c9c0ad);
+	background: rgba(0, 0, 0, 0.02);
 }
+
+.stonetop-arcanum-edit .stonetop-arc-footer-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* inline-flex, not the V13-core full-width button{display:flex}. */
+.stonetop-arcanum-edit .stonetop-arc-next {
+	flex: 0 0 auto;
+	width: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 14px;
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+}
+.stonetop-arcanum-edit .stonetop-arc-next[hidden] { display: none; }
 
 /* inline-flex, not the V13-core full-width button{display:flex}. */
 .stonetop-arcanum-edit .stonetop-arc-save {
@@ -20067,31 +21303,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .threat-type::before { content: "("; }
 .stonetop .threat-type::after { content: ")"; }
 
-.stonetop .threat-reveal {
-	flex: 0 0 auto;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	margin: 0;
-	padding: 0;
-	width: 1.9rem;
-	height: 1.9rem;
-	line-height: 1;
-	font-size: 0.85rem;
-	color: var(--tc-ink-soft);
-	background: transparent;
-	border: 1px solid var(--tc-rule-hard);
-	border-radius: 999px;
-	cursor: pointer;
-}
-.stonetop .threat-reveal i { margin: 0; }
-.stonetop .threat-reveal.is-revealed {
-	color: #3f5347;
-	border-color: #6f8a78;
-	background: rgba(90, 122, 100, 0.12);
-}
-.stonetop .threat-reveal:hover { border-color: var(--threat-accent); }
-
 .stonetop .threat-label {
 	font-family: "IM Fell English", var(--font-stonetop);
 	text-transform: uppercase;
@@ -20211,6 +21422,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop .threat-stakes__q { font-style: italic; }
 .stonetop .threat-stakes__q + .threat-stakes__q::before { content: " "; }
+/* Things Below (Book II): theme/aspect chips on a Thing/site card. */
+.stonetop .threat-themes { margin: 0 0 0.4rem; }
+.stonetop .threat-themes__item {
+	display: inline-block;
+	margin: 0.1rem 0.3rem 0.1rem 0;
+	padding: 0.05rem 0.4rem;
+	border: 1px solid color-mix(in srgb, var(--threat-accent, var(--tc-ink-soft)) 45%, transparent);
+	border-radius: 0.5rem;
+	font-size: 0.86rem;
+	line-height: 1.35;
+}
 .stonetop .threat-moves { margin: 0 0 0.6rem; }
 .stonetop .threat-moves .threat-label { display: block; margin-bottom: 0.35rem; }
 .stonetop .threat-move-list {
@@ -20269,42 +21491,13 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    the standalone journal page + canvas overlay (no section headers) keep it. */
 .stonetop .steading-threats .threat-proximity { display: none; }
 
-/* On this tab the reveal eye pairs with the collapse chevron in the card's top-right:
-   drop the pill border/background and anchor it just left of the chevron so the two icons
-   read as a set. (The chevron sits in the corner at top:0.4rem / right:0.5rem.) */
-.stonetop .steading-threats .threat-card__head { margin-right: 3.3rem; } /* clear eye + chevron */
-.stonetop .steading-threats .threat-reveal {
-	position: absolute;
-	top: 0.4rem;
-	right: 1.85rem;
-	width: auto;
-	height: auto;
-	padding: 0.25rem;
-	font-size: 0.9rem;
-	line-height: 1;
-	border: 0;
-	background: transparent;
-	color: var(--tc-ink-soft);
-	opacity: 0.6;
-	transition: opacity 0.15s ease, color 0.15s ease;
-}
-.stonetop .steading-threats .threat-reveal:hover {
-	opacity: 1;
-	color: var(--threat-accent);
-	background: transparent;
-	border: 0;
-}
-.stonetop .steading-threats .threat-reveal.is-revealed {
-	color: #3f5347;
-	opacity: 0.95;
-	background: transparent;
-	border: 0;
-}
+/* On this tab the card's top-right corner holds only the collapse chevron; reserve room
+   for it so the title never runs under it. (The chevron sits at top:0.4rem / right:0.5rem.) */
+.stonetop .steading-threats .threat-card__head { margin-right: 2rem; } /* clear the corner chevron */
 
 /* Collapse chrome (this tab only): the whole card header is a click target that clamps
    the card down to its title + Instinct. The chevron sits in the top-right corner (where
-   the drag grip used to be), paired just outside the reveal eye, and reflects / announces
-   the state. The reveal eye keeps its own click (handled before this). */
+   the drag grip used to be) and reflects / announces the state. */
 .stonetop .steading-threats .threat-card__head--collapsible { cursor: pointer; }
 .stonetop .steading-threats .threat-collapse-btn {
 	position: absolute;
@@ -20338,6 +21531,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Collapsed: keep only the header (title / type + chevron) and the Instinct line;
    everything below is hidden. The proximity line is already hidden on this tab. */
 .stonetop .steading-threats .threat-card.is-collapsed .threat-desc,
+.stonetop .steading-threats .threat-card.is-collapsed .threat-themes,
+.stonetop .steading-threats .threat-card.is-collapsed .threat-aspects,
 .stonetop .steading-threats .threat-card.is-collapsed .threat-doom,
 .stonetop .steading-threats .threat-card.is-collapsed .threat-stakes,
 .stonetop .steading-threats .threat-card.is-collapsed .threat-moves,
@@ -20347,6 +21542,25 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 /* Instinct becomes the last visible line when clamped — trim its trailing margin. */
 .stonetop .steading-threats .threat-card.is-collapsed .threat-instinct { margin-bottom: 0.15rem; }
+
+/* ── Hazard cards (Book I "Dangers") ride the threat-card chrome ─────────────
+   The wrapper IS a .threat-card (shared edge/head/portents/tools CSS); only the
+   hazard's own rows need rules. Collapsed hazards keep their damage line visible:
+   it's the hazard's essence the way Instinct is a threat's. */
+.stonetop .hazard-damage {
+	margin: 0.35rem 0 0.1rem;
+	font-size: 1.02rem;
+	color: var(--tc-ink);
+}
+.stonetop .hazard-damage--certain strong { color: #6e3b3b; }
+.stonetop .hazard-advance {
+	margin: 0.45rem 0 0.15rem;
+	font-family: "IM Fell English", var(--font-stonetop);
+	font-size: 0.85rem;
+	color: var(--tc-ink-soft);
+}
+.stonetop .steading-threats .threat-card.is-collapsed .hazard-advance { display: none; }
+.stonetop .steading-threats .threat-card.is-collapsed .hazard-damage { margin-bottom: 0.15rem; }
 
 /* Match the Improvements-tab intro blurb: italic, secondary color, --st-fs-sm. */
 .stonetop .steading-threats-intro {
@@ -20404,7 +21618,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: #4a4034;
 	cursor: pointer;
 }
-.stonetop .threat-card-tools .threat-remove:hover { color: #b23; border-color: #b23; }
+.stonetop .threat-card-tools .threat-remove:hover,
+.stonetop .threat-card-tools .hazard-remove:hover { color: #b23; border-color: #b23; }
 
 /* --- the page sheet (view + editor) --------------------------------------- */
 .stonetop-threat-page { padding: 0.4rem; }
@@ -20444,15 +21659,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .threat-edit select,
 .stonetop .threat-edit textarea { width: 100%; font-family: var(--font-stonetop); }
 
-.stonetop .threat-proximity-picker { display: inline-flex; align-self: flex-start; border: 1px solid var(--st-btn-primary-border, #4f5b66); border-radius: 5px; overflow: hidden; }
-.stonetop .threat-proximity-option { position: relative; padding: 0.3rem 0.75rem; cursor: pointer; font-size: 0.9rem; border-right: 1px solid var(--st-btn-primary-border, #4f5b66); }
-.stonetop .threat-proximity-option:last-child { border-right: 0; }
-.stonetop .threat-proximity-option input { position: absolute; opacity: 0; pointer-events: none; }
-/* Highlight the picked option from the LIVE radio state, not the server-stamped
-   .is-selected class: nothing removes that class on click (no re-render), so relying
-   on it left the default (Nearby) stuck lit alongside the new pick. The label
-   activates its nested radio, so :has(input:checked) tracks clicks correctly. */
-.stonetop .threat-proximity-option:has(input:checked) { background: var(--st-btn-primary-bg, slategrey); color: #fff; }
+/* Proximity picker uses the shared .stonetop-segmented-picker skin; only its own
+   padding/font sit here. */
+.stonetop .threat-proximity-option { padding: 0.3rem 0.75rem; font-size: 0.9rem; }
 
 .stonetop .threat-list { display: flex; flex-direction: column; gap: 0.35rem; }
 .stonetop .threat-list-row { display: flex; align-items: center; gap: 0.4rem; }
@@ -20552,45 +21761,83 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	.stonetop .create-threat .ct-suggested-list { flex-direction: column; }
 }
 
-/* --- guided "make a monster" worksheet ------------------------------------- */
+/* --- guided "make a monster" worksheet (left-rail tabbed sheet) -------------- */
 .stonetop-create-monster-dialog.window-app { max-height: 92vh; }
-.stonetop-create-monster-dialog .window-content { overflow: hidden; }
+/* Full-bleed flex column: the rail + section split fills the space above a pinned
+   footer, mirroring the Expedition / Introductions steppers. */
+.stonetop-create-monster-dialog .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
 .stonetop .create-monster {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
-	gap: 0.6rem;
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
 	font-family: var(--font-stonetop);
 }
-.stonetop .create-monster .cm-body {
+/* Rail (shared .stonetop-guide-toc) beside the scrolling section column (.cm-main,
+   a shared .stonetop-guide-main which supplies its padding + gap). */
+.stonetop .create-monster .cm-split {
 	display: flex;
-	gap: 1rem;
-	flex: 1;
+	flex: 1 1 auto;
 	min-height: 0;
 }
 .stonetop .create-monster .cm-main {
-	flex: 1;
+	flex: 1 1 auto;
 	min-width: 0;
+	min-height: 0;
 	overflow-y: auto;
-	padding: 0.15rem 0.5rem 0.15rem 0.15rem;
-	display: flex;
-	flex-direction: column;
-	gap: 1rem;
 }
+
+/* Live stat line under the banner title (HP / Armor / Damage), updated as boxes
+   are ticked. */
+.stonetop .create-monster .cm-statline {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.1rem 0.85rem;
+	margin-top: 0.15rem;
+}
+.stonetop .create-monster .cm-stat {
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-size: 0.66rem;
+	/* Always-dark ink (these dialogs render on the forced parchment regardless of the
+	   user's Foundry theme, so theme-following tokens would vanish in dark mode). */
+	color: var(--st-text-muted);
+}
+.stonetop .create-monster .cm-stat b {
+	margin-left: 0.2rem;
+	font-size: 0.92rem;
+	letter-spacing: 0;
+	text-transform: none;
+	color: var(--st-text);
+}
+
+/* Tags + range-advice glance row beneath the banner (tags can wrap). */
+.stonetop .create-monster .cm-glance { display: flex; flex-direction: column; gap: 0.15rem; }
+.stonetop .create-monster .cm-glance-tags { font-size: 0.85rem; line-height: 1.35; }
+.stonetop .create-monster .cm-glance-label {
+	margin-right: 0.3rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-size: 0.66rem;
+	opacity: 0.8;
+}
+.stonetop .create-monster .cm-summary-tags { font-size: 0.85rem; }
+.stonetop .create-monster .cm-summary-range { margin: 0; font-size: 0.78rem; font-style: italic; opacity: 0.8; }
+
+/* Sections are tab panels; only the active one shows (JS toggles `hidden`). */
 .stonetop .create-monster .cm-section {
 	display: flex;
 	flex-direction: column;
-	gap: 0.55rem;
-	padding-bottom: 0.85rem;
-	border-bottom: 1px solid color-mix(in srgb, var(--tc-rule-hard, #8f7f63) 45%, transparent);
+	gap: 0.6rem;
 }
-.stonetop .create-monster .cm-section:last-child { border-bottom: 0; padding-bottom: 0; }
-.stonetop .create-monster .cm-step {
-	font-family: var(--font-avara);
-	font-weight: 700;
-	font-size: 0.95rem;
-	letter-spacing: 0.01em;
-}
+.stonetop .create-monster .cm-section[hidden] { display: none; }
+.stonetop .create-monster .cm-section-hint { margin: 0; font-size: 0.82rem; font-style: italic; opacity: 0.72; }
 .stonetop .create-monster .cm-label {
 	display: block;
 	font-family: var(--font-stonetop);
@@ -20601,7 +21848,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	margin-bottom: 0.3rem;
 }
 .stonetop .create-monster .cm-label em { text-transform: none; letter-spacing: 0; opacity: 0.8; font-size: 0.9em; }
-.stonetop .create-monster .cm-note { margin: 0; font-size: 0.82rem; font-style: italic; opacity: 0.75; }
 .stonetop .create-monster .cm-field { display: flex; flex-direction: column; }
 .stonetop .create-monster .cm-row { display: flex; gap: 0.6rem; }
 .stonetop .create-monster .cm-grow { flex: 1; }
@@ -20631,7 +21877,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 14%, transparent);
 	box-shadow: inset 0 0 0 1px var(--st-btn-primary-border, #4f5b66);
 }
-.stonetop .create-monster .cm-tile-name { font-family: var(--font-avara); font-weight: 700; font-size: 0.9rem; }
+.stonetop .create-monster .cm-tile-name { font-weight: 700; font-size: 0.9rem; }
 .stonetop .create-monster .cm-tile-hint { font-size: 0.75rem; line-height: 1.2; opacity: 0.72; }
 
 /* chips (nature, notable, damage tags) */
@@ -20672,67 +21918,142 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop .create-monster .cm-check input,
 .stonetop .create-monster .cm-radio input { margin-top: 0.15rem; flex: 0 0 auto; }
+/* Armor-base is the modal's one "pick 1" control, skinned as a round radio via the
+   shared .stonetop-cm-radio rule alongside the create-follower "pick 1" radios. */
 .stonetop .create-monster .cm-mod {
-	font-family: var(--font-avara);
 	font-size: 0.78rem;
 	opacity: 0.7;
 	margin-left: 0.15rem;
 }
-.stonetop .create-monster .cm-move-hint { font-size: 0.82rem; opacity: 0.68; }
+/* Moves builder (step 9): book-prompt quick-adds seed editable move cards. */
+.stonetop .create-monster .cm-section--moves { gap: 0.75rem; }
 
-/* live stat summary */
-.stonetop .create-monster .cm-summary {
-	flex: 0 0 12.5rem;
-	align-self: flex-start;
+/* Book prompts: dashed pills that fill in on hover to read as "add me". */
+.stonetop .create-monster .cm-move-suggestions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.stonetop .create-monster .cm-move-suggestion {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	width: auto; /* core forces width:100% on .app buttons; let these pills size to content and wrap */
+	padding: 0.2rem 0.6rem;
+	border: 1px dashed var(--tc-rule-hard, #8f7f63);
+	border-radius: 999px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font-size: 0.82rem;
+	line-height: 1.2;
+	box-shadow: none;
+	transition: border-color 0.15s ease, background 0.15s ease;
+}
+.stonetop .create-monster .cm-move-suggestion i { font-size: 0.72em; opacity: 0.7; }
+.stonetop .create-monster .cm-move-suggestion:hover {
+	border-style: solid;
+	border-color: var(--st-btn-primary-border, #4f5b66);
+	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 16%, transparent);
+}
+
+/* Authored move cards + empty state. */
+.stonetop .create-monster .cm-move-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.stonetop .create-monster .cm-move-list.is-empty::before {
+	content: attr(data-empty);
+	display: block;
+	padding: 0.6rem 0.7rem;
+	border: 1px dashed var(--tc-rule-hard, #8f7f63);
+	border-radius: 6px;
+	font-size: 0.82rem;
+	font-style: italic;
+	opacity: 0.62;
+}
+.stonetop .create-monster .cm-move-card {
 	display: flex;
 	flex-direction: column;
-	gap: 0.55rem;
-	padding: 0.7rem 0.75rem;
+	gap: 0.35rem;
+	padding: 0.5rem 0.55rem;
 	border: 1px solid var(--tc-rule-hard, #8f7f63);
-	border-radius: 8px;
-	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 6%, transparent);
+	border-radius: 6px;
+	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 5%, transparent);
 }
-.stonetop .create-monster .cm-summary-title {
-	font-family: var(--font-avara);
+.stonetop .create-monster .cm-move-card-head { display: flex; align-items: center; gap: 0.4rem; }
+.stonetop .create-monster .cm-move-name {
+	flex: 1 1 auto;
+	min-width: 0;
 	font-weight: 700;
-	font-size: 0.95rem;
-	text-align: center;
 }
-.stonetop .create-monster .cm-summary-stats { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.6rem; margin: 0; }
-.stonetop .create-monster .cm-summary-stats dt {
-	font-family: var(--font-stonetop);
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	font-size: 0.72rem;
-	opacity: 0.8;
-	align-self: center;
+.stonetop .create-monster .cm-move-remove {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.7rem;
+	height: 1.7rem;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 5px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	opacity: 0.6;
+	box-shadow: none;
+	transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
-.stonetop .create-monster .cm-summary-stats dd { margin: 0; font-family: var(--font-avara); font-size: 0.95rem; }
-.stonetop .create-monster .cm-summary-tagsblock { display: flex; flex-direction: column; gap: 0.15rem; }
-.stonetop .create-monster .cm-summary-tags { font-size: 0.85rem; line-height: 1.35; }
-.stonetop .create-monster .cm-summary-range { margin: 0; font-size: 0.78rem; font-style: italic; opacity: 0.8; }
-.stonetop .create-monster .cm-summary-foot {
-	margin: auto 0 0;
-	font-size: 0.74rem;
-	line-height: 1.3;
-	opacity: 0.7;
-	border-top: 1px solid color-mix(in srgb, var(--tc-rule-hard, #8f7f63) 40%, transparent);
-	padding-top: 0.5rem;
+.stonetop .create-monster .cm-move-remove:hover {
+	opacity: 1;
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+	box-shadow: none;
+}
+.stonetop .create-monster .cm-move-desc {
+	width: 100%;
+	min-height: 2.6rem;
+	resize: vertical;
+	font-size: 0.86rem;
+	line-height: 1.35;
+}
+.stonetop .create-monster .cm-move-add {
+	align-self: flex-start;
+	margin-top: 0.5rem; /* separate from the move list / cards above it */
+	width: fit-content; /* core forces width:100% on buttons; keep this add-button compact */
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.25rem 0.7rem;
+	border: 1px solid var(--tc-rule-hard, #8f7f63);
+	border-radius: 6px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font-size: 0.82rem;
+	box-shadow: none;
+}
+.stonetop .create-monster .cm-move-add:hover {
+	border-color: var(--st-btn-primary-border, #4f5b66);
+	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 12%, transparent);
+	box-shadow: none;
 }
 
-/* footer */
-.stonetop .create-monster .cm-footer { display: flex; gap: 0.5rem; padding-top: 0.4rem; border-top: 1px solid color-mix(in srgb, var(--tc-rule-hard, #8f7f63) 45%, transparent); }
-.stonetop .create-monster .cm-create {
-	display: inline-flex; align-items: center; gap: 0.4rem;
-	width: auto; padding: 0.4rem 0.95rem;
-	background: var(--st-btn-primary-bg); border: 1px solid var(--st-btn-primary-border);
-	color: var(--st-btn-primary-text); border-radius: 5px; cursor: pointer;
+/* Pinned footer: the section split grows, this stays put at natural height. */
+.stonetop .create-monster .cm-footer { flex: 0 0 auto; }
+/* "Next" vanishes on the last section. The shared .stonetop-guide-nav button rule sets
+   display:inline-flex, which out-specifies the UA [hidden]{display:none}; re-hide here. */
+.stonetop .create-monster .cm-next[hidden] { display: none; }
+/* footer note (centre of the shared .stonetop-guide-nav footer, between Create and
+   Next — mirrors the Expedition nav's centred step label). The Create / Next
+   buttons themselves are styled by the shared .stonetop-guide-nav button rules;
+   Create carries .stonetop-guide-btn--primary for the slate fill. */
+.stonetop .create-monster .cm-footer-note {
+	flex: 1 1 auto;
+	min-width: 0;
+	text-align: center;
+	font-size: 0.78rem;
+	font-style: italic;
+	opacity: 0.7;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
-.stonetop .create-monster .cm-create:hover { background: var(--st-btn-primary-bg-hover); border-color: var(--st-btn-primary-border-hover); }
-.stonetop .create-monster .cm-cancel { width: auto; padding: 0.4rem 0.95rem; background: transparent; cursor: pointer; }
 @media (max-width: 620px) {
-	.stonetop .create-monster .cm-body { flex-direction: column; }
-	.stonetop .create-monster .cm-summary { flex-basis: auto; align-self: stretch; }
 	.stonetop .create-monster .cm-check-list--two { grid-template-columns: 1fr; }
 }
 
@@ -20939,4 +22260,83 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-expedition-dialog .stonetop-exp-load-note .mod { color: #8a6d12; font-weight: 700; font-style: normal; }
 .stonetop-expedition-dialog .stonetop-exp-load-empty {
 	padding: 12px; font-size: var(--st-fs-sm); color: var(--st-text-muted); font-style: italic; text-align: center;
+}
+
+/* ============================================================================
+   PEOPLE OF STONETOP gallery — the portrait picker for a resident/neighbor image
+   on the steading sheet (module/actors/steading/PeopleGalleryDialog.js). A grid of
+   imported book illustrations tagged as people; scoped under the dialog root.
+   ========================================================================== */
+.stonetop-people-gallery .window-content {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.stonetop-people-gallery .stonetop-people-gallery-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+.stonetop-people-gallery .stonetop-people-hint {
+	margin: 0 0 8px; font-size: var(--st-fs-xs); color: var(--st-text-muted);
+}
+.stonetop-people-gallery .stonetop-people-empty {
+	padding: 16px; font-size: var(--st-fs-sm); color: var(--st-text-muted); text-align: center; line-height: 1.5;
+}
+.stonetop-people-gallery .stonetop-people-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+	gap: 8px;
+}
+.stonetop-people-gallery .stonetop-people-pick {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 4px;
+	width: 100%;
+	height: auto;
+	line-height: 1.2;
+	background: var(--st-surface, rgba(0, 0, 0, 0.06));
+	border: 1px solid var(--st-border, rgba(0, 0, 0, 0.2));
+	border-radius: 6px;
+	cursor: pointer;
+}
+.stonetop-people-gallery .stonetop-people-pick:hover {
+	border-color: var(--st-slate, #55606b);
+	box-shadow: 0 0 0 1px var(--st-slate, #55606b) inset;
+}
+.stonetop-people-gallery .stonetop-people-pick.is-selected {
+	border-color: var(--st-green, #4a7a3a);
+	box-shadow: 0 0 0 2px var(--st-green, #4a7a3a) inset;
+}
+.stonetop-people-gallery .stonetop-people-pick img {
+	width: 100%;
+	aspect-ratio: 3 / 4;
+	object-fit: cover;
+	border-radius: 4px;
+	background: #fff;
+}
+.stonetop-people-gallery .stonetop-people-label {
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-muted);
+	text-align: center;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 100%;
+}
+.stonetop-people-gallery .stonetop-people-footer {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+	padding-top: 6px;
+	border-top: 1px solid var(--st-border, rgba(0, 0, 0, 0.15));
+}
+.stonetop-people-gallery .stonetop-people-footer button {
+	width: auto;
+	flex: 0 0 auto;
+}
+.stonetop-people-gallery .stonetop-people-browse {
+	margin-right: auto;
 }

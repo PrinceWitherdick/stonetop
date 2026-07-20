@@ -5,10 +5,11 @@ import { markValueTooltips } from "../utils/value-tooltips.js";
 import { markDebilityTooltips } from "../utils/debility-tooltips.js";
 import { buildCodexContext, onCodexClick, onCodexChange, codexUpdateRichField, hasText, CODEX_RICH_FIELDS, CODEX_GROUP_FIELDS } from "../actors/bestiary/codex.js";
 import { isInCompendium, blockCompendiumEdit } from "../utils/compendium-edit-guard.js";
+import { liftLeadArt } from "./lead-art.js";
 
 // Edit affordances on the bestiary page (section pencils + codex add/remove controls);
 // clicking any of these in a compendium gets the immutable-journal dialog.
-const BESTIARY_EDIT_SELECTOR = ".stonetop-section-edit, .stonetop-section-done, .stonetop-entry-add-line, .stonetop-entry-add-qa, .stonetop-entry-remove-qa, .stonetop-discovery-add-group, .stonetop-discovery-remove-group";
+const BESTIARY_EDIT_SELECTOR = ".stonetop-section-edit, .stonetop-section-done, .stonetop-entry-add-line, .stonetop-entry-remove-line, .stonetop-entry-add-qa, .stonetop-entry-remove-qa, .stonetop-discovery-add-group, .stonetop-discovery-remove-group";
 
 // Dangers is a structured group field on the page (unlike the actor sheet, where
 // it's rich text), so it's pulled out of the rich-field path and added as a group.
@@ -117,6 +118,15 @@ export function createStonetopBestiaryPageSheetClass(Base) {
 			// as "At a Glance" does on location pages. Suppress the banner when none of
 			// its sections render, so a non-owner never sees it orphaned over nothing.
 			st.showInPlayBanner = IN_PLAY_KEYS.some(key => visible[key] || editing[key]);
+
+			// Book-art illustration: render the leading image as a full-width banner ABOVE
+			// the page title (read mode). In edit mode it stays inline in the description
+			// editor so it can be managed there.
+			st.leadArt = "";
+			if (!editing.description) {
+				const { lead, rest } = liftLeadArt(st.enrichedDescription);
+				if (lead) { st.leadArt = lead; st.enrichedDescription = rest; }
+			}
 
 			return context;
 		}

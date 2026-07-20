@@ -1,0 +1,23 @@
+<div class="stonetop-people-gallery-body">
+	{{#if people}}
+	<p class="stonetop-people-hint">Pick a portrait for this person.</p>
+	<div class="stonetop-people-grid">
+		{{#each people}}
+		<button type="button" class="stonetop-people-pick{{#if selected}} is-selected{{/if}}" data-src="{{src}}" title="{{name}}">
+			<img src="{{src}}" alt="{{name}}" loading="lazy">
+			<span class="stonetop-people-label">{{name}}</span>
+		</button>
+		{{/each}}
+	</div>
+	{{else}}
+	<p class="stonetop-people-empty">
+		No <strong>People of Stonetop</strong> portraits are available yet.
+		{{#if canBrowse}}You can choose any image with <strong>Browse files&hellip;</strong> below.{{/if}}
+	</p>
+	{{/if}}
+</div>
+<footer class="stonetop-people-footer">
+	{{#if canBrowse}}<button type="button" class="stonetop-people-browse"><i class="fas fa-folder-open"></i> Browse files&hellip;</button>{{/if}}
+	<button type="button" class="stonetop-people-clear"><i class="fas fa-rotate-left"></i> Use default</button>
+	<button type="button" class="stonetop-people-cancel">Cancel</button>
+</footer>

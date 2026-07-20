@@ -3,12 +3,8 @@
 // Centralizing it keeps the book-faithful card identical everywhere and gives every
 // host the same data-* hooks (data-portent-index / data-doom) to wire interactivity.
 import { threatType, threatProximity } from "./threat-types.js";
-import { isThreatRevealed, setPortentDone, setDoomDone, setThreatRevealed } from "./threat-store.js";
-import { enrichHTML } from "../utils/foundry-compat.js";
-
-function hasText(s) {
-	return !!String(s ?? "").trim();
-}
+import { setPortentDone, setDoomDone } from "./threat-store.js";
+import { hasText, stringList, buildDoomRows, buildImpending, buildCustomPlayerMoves, cardEnricher } from "../journal/card-vm.js";
 
 /**
  * View-model for one threat page. Async because prose fields are enriched. Pass
@@ -19,30 +15,23 @@ export async function buildThreatCardVM(page, { forOwner } = {}) {
 	const type = threatType(sys.type);
 	const proximity = threatProximity(sys.proximity);
 	// Enrich prose (resolve @UUID links, inline rolls) without revealing GM secret blocks.
-	const enrich = (html) => enrichHTML(String(html ?? ""), { secrets: false });
+	const enrich = cardEnricher();
 
-	const grim = Array.isArray(sys.grimPortents) ? sys.grimPortents : [];
-	const doomRows = grim
-		.map((p, index) => ({ index, text: String(p?.text ?? ""), done: !!p?.done }))
-		.filter(r => hasText(r.text) || r.done);
-	const impending = {
-		text: String(sys.impendingDoom?.text ?? ""),
-		done: !!sys.impendingDoom?.done,
-		hasText: hasText(sys.impendingDoom?.text),
-	};
+	const doomRows = buildDoomRows(sys);
+	const impending = buildImpending(sys);
 
-	const stakes = (Array.isArray(sys.stakes) ? sys.stakes : []).map(String).filter(hasText);
-	const gmMoves = (Array.isArray(sys.gmMoves) ? sys.gmMoves : []).map(String).filter(hasText);
+	const stakes = stringList(sys.stakes);
+	const gmMoves = stringList(sys.gmMoves);
+	// "Things Below" write-ups (Book II): themes/aspects flavor a Thing; cleansing lists a
+	// corrupted site's Make-a-Plan requirements. Empty on an ordinary threat.
+	const themes = stringList(sys.themes);
+	const aspects = stringList(sys.aspects);
+	const cleansing = stringList(sys.cleansing);
 	const nested = (Array.isArray(sys.nested) ? sys.nested : [])
 		.filter(n => hasText(n?.name))
 		.map(n => ({ name: String(n.name), type: threatType(n.type).label, instinct: String(n.instinct ?? "") }));
 
-	const rawCustom = Array.isArray(sys.customPlayerMoves) ? sys.customPlayerMoves : [];
-	const customPlayerMoves = [];
-	for (const m of rawCustom) {
-		if (!hasText(m?.label) && !hasText(m?.text)) continue;
-		customPlayerMoves.push({ label: String(m?.label ?? ""), text: await enrich(m?.text) });
-	}
+	const customPlayerMoves = await buildCustomPlayerMoves(sys, enrich);
 
 	return {
 		id: page.id,
@@ -52,6 +41,12 @@ export async function buildThreatCardVM(page, { forOwner } = {}) {
 		accent: type.accent,
 		instinct: String(sys.instinct ?? ""),
 		hasInstinct: hasText(sys.instinct),
+		themes,
+		hasThemes: themes.length > 0,
+		aspects,
+		hasAspects: aspects.length > 0,
+		cleansing,
+		hasCleansing: cleansing.length > 0,
 		proximity,
 		description: await enrich(sys.description),
 		hasDescription: hasText(sys.description),
@@ -66,16 +61,15 @@ export async function buildThreatCardVM(page, { forOwner } = {}) {
 		hasCustomMoves: customPlayerMoves.length > 0,
 		nested,
 		hasNested: nested.length > 0,
-		revealed: isThreatRevealed(page),
 		isOwner: forOwner ?? page.isOwner,
 	};
 }
 
 // ── Shared card interactivity ───────────────────────────────────────────────────
 // The card view is identical across the page sheet, the steading Threats tab, and the
-// on-canvas overlay, so the two interactions its data-* hooks expose (ticking the doom
-// track, toggling reveal) are wired once here. Hosts differ only in how a card element
-// maps back to its page — passed in as `resolvePage` — and in what they do afterward.
+// on-canvas overlay, so the interactions its data-* hooks expose (ticking the doom track,
+// dragging the card to a scene) are wired once here. Hosts differ only in how a card
+// element maps back to its page — passed in as `resolvePage` — and in what they do after.
 
 /**
  * Wire the doom-track checkboxes onto a delegated `root`: ticking a grim portent or the
@@ -112,20 +106,4 @@ export function wireThreatCardDrag(root, { selector = ".threat-card[draggable='t
 		ev.dataTransfer.setData("text/plain", JSON.stringify({ type: "JournalEntryPage", uuid }));
 		ev.dataTransfer.effectAllowed = "copy";
 	});
-}
-
-/**
- * Handle a click on a card's reveal eye, if that's what was clicked. Call from a host's
- * own click handler and honor the returned boolean (true = handled, stop). Kept as a
- * call rather than its own listener so a host can run its post-reveal work (e.g. a
- * re-render the ownership flip doesn't trigger) and interleave with its other branches.
- * @returns {Promise<boolean>} whether a reveal toggle was handled.
- */
-export async function handleThreatRevealClick(ev, resolvePage) {
-	const reveal = ev.target.closest?.("[data-threat-reveal]");
-	if (!reveal) return false;
-	ev.preventDefault(); ev.stopPropagation();
-	const page = await resolvePage(reveal);
-	if (page) await setThreatRevealed(page, !isThreatRevealed(page));
-	return true;
 }

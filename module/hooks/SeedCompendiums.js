@@ -1,7 +1,9 @@
 import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.js";
-import { makeRewriter, remapPageData, managedHash, carryOverPageState } from "./journal-sync-core.js";
+import { makeRewriter, remapPageData, managedHash, carryOverPageState, planSourceRestamp } from "./journal-sync-core.js";
+import { compendiumSourceOf } from "../utils/foundry-compat.js";
+import { SEEDED_FOLDER_COLORS, rawFolderColor, planSeededFolderColorUpdates, seededFolderColorSignature } from "./seeded-folder-colors.js";
 
 // On a fresh world, copy the system's "Stonetop" JournalEntry compendium (the
 // gazetteer — Locations, Lore, the bundled Journals, and the bestiary codex) into
@@ -11,9 +13,11 @@ import { makeRewriter, remapPageData, managedHash, carryOverPageState } from "./
 // GM can edit their questions in place.
 //
 // Runs once per world, guarded by the `seedingComplete` world setting, GM-only.
-// `importJournalPack` recreates the compendium's folder tree (Lore, Places,
-// Bestiary, Reference) under a single top-level "The World" folder, so the seeded
-// entries keep their organisation while staying grouped together in the sidebar.
+// `importJournalPack` recreates the compendium's folder tree — the four gazetteer
+// trees (Lore, Places, Bestiary, Reference) at the sidebar root, keeping their
+// organisation. They sit at the top level (not under a wrapper folder) so the deepest
+// tree, the Bestiary codex, stays within Foundry's folder-render depth. An older scheme
+// grouped them under a "The World" folder; unnestSeededWorldRootOnce migrates those.
 //
 // Cross-links between the imported journals are then rewritten from their
 // `@UUID[Compendium…]` form to point at the freshly-created world copies, so a GM
@@ -27,9 +31,9 @@ import { makeRewriter, remapPageData, managedHash, carryOverPageState } from "./
 // hooks/Ready.js) pops it open for each user the first time they connect.
 const SETTING_OVERVIEW_NAME = "Setting Overview";
 
-// Top-level world folder the seeded gazetteer (Places, Lore, Bestiary, Reference)
-// is grouped under, so a fresh install gets one tidy "The World" folder in the
-// Journal sidebar rather than four loose category folders at the root.
+// The name of the retired top-level wrapper folder that older seeds grouped the four
+// gazetteer trees under. Kept only so unnestSeededWorldRootOnce can find and remove it in
+// worlds seeded under that scheme; new seeds place the trees at the sidebar root.
 const WORLD_FOLDER_NAME = "The World";
 
 export async function seedCompendiumJournalsOnce() {
@@ -48,12 +52,9 @@ export async function seedCompendiumJournalsOnce() {
 	const linkMap = new Map();
 	const created = [];
 
-	// Group everything we seed under one top-level "The World" folder.
-	const worldRootId = await ensureWorldRootFolder();
-
 	for (const pack of packs) {
 		try {
-			const docs = await importJournalPack(pack, worldRootId);
+			const docs = await importJournalPack(pack, null);
 			if (!Array.isArray(docs)) continue;
 			await pack.getIndex();
 			const worldUuidByName = new Map(docs.map(d => [d.name, d.uuid]));
@@ -91,29 +92,48 @@ export async function seedCompendiumJournalsOnce() {
 	}
 }
 
-// Find (or create) the top-level "The World" JournalEntry folder the seed groups
-// everything under. Reuses an existing root folder of that name (e.g. from an
-// earlier partial seed) so re-running doesn't duplicate it. Returns its id, or
-// null if creation fails — in which case the seed falls back to the world root.
-async function ensureWorldRootFolder() {
-	const existing = (game.folders ?? []).find(f =>
+// One-time un-nest of the seeded "The World" wrapper. Earlier versions grouped the four
+// gazetteer trees (Bestiary, Lore, Places, Reference) under a single top-level "The World"
+// JournalEntry folder. That extra level pushed the deepest tree — the Bestiary codex, nested
+// The World > Bestiary > section > region > entry — past Foundry's folder-render depth, so
+// its region folders and their entries silently stopped showing (in the sidebar AND the
+// compendium). We now seed the four trees at the sidebar root instead, one level shallower.
+// For worlds seeded under the old scheme, lift each of "The World"'s children up to the root
+// and delete the now-empty wrapper. GM-only; guarded by `worldRootUnnested` so it runs once
+// and never fights a GM who later makes their own "The World" folder. A fresh world seeded
+// under the new scheme has no such folder, so this is a no-op that just records the flag.
+export async function unnestSeededWorldRootOnce() {
+	if (!game.user?.isGM) return;
+	if (getSetting("worldRootUnnested")) return;
+
+	const world = (game.folders ?? []).find(f =>
 		f.type === "JournalEntry" && f.name === WORLD_FOLDER_NAME && !f.folder
 	);
-	if (existing) return existing.id;
-	try {
-		const created = await Folder.create({ name: WORLD_FOLDER_NAME, type: "JournalEntry" });
-		return created?.id ?? null;
-	} catch (err) {
-		error(`Failed to create the "${WORLD_FOLDER_NAME}" folder:`, err);
-		return null;
+	if (world) {
+		try {
+			// Reparent every direct child to the root FIRST, so the wrapper is empty when we
+			// delete it — never relying on Foundry's folder-delete content handling.
+			const children = (game.folders ?? []).filter(
+				f => f.type === "JournalEntry" && (f.folder?.id ?? null) === world.id
+			);
+			if (children.length) {
+				await Folder.updateDocuments(children.map(f => ({ _id: f.id, folder: null })));
+			}
+			await world.delete();
+			info(`Un-nested ${children.length} gazetteer tree${children.length === 1 ? "" : "s"} from the "${WORLD_FOLDER_NAME}" folder.`);
+		} catch (err) {
+			error(`Failed to un-nest the seeded "${WORLD_FOLDER_NAME}" folder:`, err);
+			return; // leave the flag unset so the next load retries
+		}
 	}
+	await setSetting("worldRootUnnested", true);
 }
 
 // Import every entry in a journal pack into the world, recreating the folder
-// subtree the entries use so the world mirrors the compendium's layout — but
-// nested under `rootParentId` ("The World") rather than loose at the world root.
-// Folder resolution is best-effort — anything it can't place falls back to that
-// root parent rather than failing the whole seed. Returns the created entries.
+// subtree the entries use so the world mirrors the compendium's layout. The trees
+// seed at the sidebar root (`rootParentId` is null). Folder resolution is best-effort
+// — anything it can't place falls back to that root rather than failing the whole
+// seed. Returns the created entries.
 async function importJournalPack(pack, rootParentId = null) {
 	const seed = await pack.getDocuments();
 	if (!seed.length) return [];
@@ -123,7 +143,7 @@ async function importJournalPack(pack, rootParentId = null) {
 
 	// Recreate a compendium folder (and its ancestors) in the world, memoised.
 	// A null parent (compendium top-level folder, or an entry filed loose) maps
-	// to `rootParentId`, so the compendium's top level nests under "The World".
+	// to `rootParentId` (the sidebar root), so the trees land at the top level.
 	const worldFolderId = new Map();
 	async function resolveFolder(cf) {
 		const id = cf?.id ?? null; // `cf` is a Folder doc (or null)
@@ -139,7 +159,7 @@ async function importJournalPack(pack, rootParentId = null) {
 		);
 		const wf = existing ?? await Folder.create({
 			name: folder.name, type: "JournalEntry", folder: parentId,
-			sort: folder.sort ?? 0, color: folder.color ?? null,
+			sort: folder.sort ?? 0, color: rawFolderColor(folder),
 		});
 		worldFolderId.set(id, wf.id);
 		return wf.id;
@@ -151,7 +171,7 @@ async function importJournalPack(pack, rootParentId = null) {
 	// the missing ones rather than duplicating what's already there.
 	const alreadySeeded = new Set(
 		(game.journal ?? [])
-			.map(j => j._stats?.compendiumSource ?? j.flags?.core?.sourceId)
+			.map(compendiumSourceOf)
 			.filter(Boolean)
 	);
 
@@ -222,13 +242,89 @@ async function stampJournalBaselines(entries) {
 	}
 }
 
+// Tint the seeded gazetteer's four top-level trees (Bestiary, Lore, Places, Reference)
+// so they read apart at a glance in the Journal sidebar. Only folders still at the default
+// (uncoloured) are touched, so a GM who has recoloured one keeps their choice — the "unless
+// the user changed it from the default" guard. Fresh worlds don't need this: the seed copies
+// the compendium folder colours as it imports (resolveFolder), so those already match. This
+// path is for worlds seeded before the colours shipped.
+//
+// GM-only; a no-op until the world has been seeded. Re-runs whenever the shipped colour
+// scheme changes (guarded by the `seededFolderColorsSignature` world setting) so newly
+// added or re-tinted categories reach already-seeded worlds — safe to repeat because it
+// only ever colours still-default folders.
+export async function syncSeededFolderColors() {
+	if (!game.user?.isGM) return;
+	if (!getSetting("seedingComplete")) return;
+	// The recolour below matches each category by its TOP-LEVEL name, so it can only find the
+	// gazetteer trees once unnestSeededWorldRootOnce has lifted them out of the retired "The
+	// World" wrapper. That migration runs just before this in the ready chain but swallows its
+	// own failures, so on a load where it did not complete the trees are still nested: a run
+	// here would match nothing yet stamp the signature below, freezing the old colours in for
+	// good (the next load's un-nest succeeds, but this early-returns on the matching signature).
+	// Wait for the un-nest to record success; it retries next load on failure, and this follows.
+	if (!getSetting("worldRootUnnested")) return;
+	const signature = seededFolderColorSignature();
+	const previous = getSetting("seededFolderColorsSignature");
+	if (previous === signature) return;
+
+	// Colours we applied under the previous scheme (parsed from the stored "Name=#hex|…"
+	// signature): a folder still holding one of these is ours to re-tint; any other
+	// non-default colour is the GM's own and left alone.
+	const ownedColors = new Set(
+		String(previous ?? "").split("|").map(part => part.split("=")[1]).filter(Boolean)
+	);
+	const updates = planSeededFolderColorUpdates(game.folders, SEEDED_FOLDER_COLORS, ownedColors);
+	if (updates.length) {
+		try {
+			await Folder.updateDocuments(updates);
+			info(`Coloured ${updates.length} seeded gazetteer folder${updates.length === 1 ? "" : "s"}.`);
+		} catch (err) {
+			error("Failed to colour seeded gazetteer folders:", err);
+			return; // leave the signature unstamped so the next load retries
+		}
+	}
+	await setSetting("seededFolderColorsSignature", signature);
+}
+
+// The merged journal compendium every seeded/imported world entry originates from.
+const JOURNAL_PACK_ID = "stonetop_pwd.stonetop-journal";
+
+// Restore the `_stats.compendiumSource` stamp on world journals imported from our pack
+// without it — a GM who deleted the world journals and re-imported the compendium another
+// way (dropping the compiled pack's documents straight in) ends up with un-stamped copies.
+// The render-time enhancers already recognise these by their baked `flags.stonetop` (see
+// isStonetopJournalEntry), but the managed update channel + cross-link remap still key on
+// the source stamp, so put it back. `compendiumSource` is a writable (non-server-managed)
+// `_stats` field, so a plain update sticks. GM-only; idempotent — a no-op once every entry
+// is stamped, so it's safe to run every load ahead of updateSeededJournalsOnVersionChange.
+export async function restampSeededJournalSources() {
+	if (!game.user?.isGM) return;
+	const pack = game.packs.get(JOURNAL_PACK_ID);
+	if (!pack) return;
+	let updates;
+	try {
+		updates = planSourceRestamp(game.journal ?? [], await pack.getIndex(), pack.collection);
+	} catch (err) {
+		error("Failed to index the journal pack for re-stamping:", err);
+		return;
+	}
+	if (!updates.length) return;
+	try {
+		await JournalEntry.updateDocuments(updates);
+		info(`Restored the compendium-source stamp on ${updates.length} imported journal${updates.length === 1 ? "" : "s"}.`);
+	} catch (err) {
+		error("Failed to restamp imported journal sources:", err);
+	}
+}
+
 // compendium-entry uuid → world-entry uuid, drawn from journals already seeded into
 // the world (each stamped with its `compendiumSource`). Mirrors the map the seed
 // builds during import, so the update path rewrites new content's links the same way.
 function buildWorldLinkMap() {
 	const map = new Map();
 	for (const j of game.journal ?? []) {
-		const src = j._stats?.compendiumSource ?? j.flags?.core?.sourceId;
+		const src = compendiumSourceOf(j);
 		if (src && src.startsWith("Compendium.stonetop_pwd.")) map.set(src, j.uuid);
 	}
 	return map;
@@ -253,7 +349,7 @@ export async function updateSeededJournalsOnVersionChange() {
 	const updated = [], skipped = [];
 
 	for (const entry of game.journal ?? []) {
-		const src = entry._stats?.compendiumSource ?? entry.flags?.core?.sourceId;
+		const src = compendiumSourceOf(entry);
 		if (!src || !src.startsWith("Compendium.stonetop_pwd.")) continue;
 		const source = await fromUuid(src);
 		if (!source) continue; // entry dropped from the pack this version — leave the world copy

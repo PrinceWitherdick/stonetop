@@ -3,6 +3,14 @@ import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
 import { PACKS, DOC_KEY_PREFIX } from "./packs.js";
+import { BOOK_ART_IMPORT_ENABLED } from "../module/book2-art/release-gate.js";
+
+// Source docs kept OUT of the compiled packs (their source-of-truth stays in git).
+// The Book Art / PDF-import macro is held back until distribution is approved; with the
+// flag off it is normalised like any doc but never compiled into the shipped pack.
+const EXCLUDED_SOURCES = BOOK_ART_IMPORT_ENABLED ? {} : {
+	"stonetop-macros": new Set(["import-book2-art.json"]),
+};
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 function randomId() {
@@ -197,14 +205,21 @@ async function main() {
 		// several sources. For a multi-source pack, stage every (already-normalised)
 		// source tree into one temp dir — folder/entry ids are globally unique, so
 		// they coexist — then compile that once. A single-source pack compiles direct.
+		const excluded = EXCLUDED_SOURCES[pack];
 		let compileSrc = present[0];
 		let staging = null;
-		if (present.length > 1) {
+		// Stage into a temp dir when combining multiple sources, or when some source
+		// docs are held out of the release — either way compilePack sees one clean tree.
+		if (present.length > 1 || excluded?.size) {
 			staging = await fs.mkdtemp(path.join(os.tmpdir(), `${pack}-`));
 			for (const src of present) {
-				await fs.cp(src, path.join(staging, path.basename(src)), { recursive: true });
+				await fs.cp(src, path.join(staging, path.basename(src)), {
+					recursive: true,
+					filter: s => !(excluded && excluded.has(path.basename(s))),
+				});
 			}
 			compileSrc = staging;
+			if (excluded?.size) console.log(`  Excluding from ${pack}: ${[...excluded].join(", ")}`);
 		}
 
 		try {

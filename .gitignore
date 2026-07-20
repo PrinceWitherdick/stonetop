@@ -17,5 +17,7 @@ extracted_text.txt
 sample-data.md
 TODO.md
 
-# Copyrighted map images
+# Copyrighted / PDF-derived images — must never be committed (live in the private mirror repo)
 assets/maps/
+assets/bestiary/
+assets/locations/

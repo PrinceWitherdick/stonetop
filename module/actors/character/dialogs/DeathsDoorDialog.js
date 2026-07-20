@@ -9,6 +9,15 @@ const _DEATHS_DOOR_LABELS = {
 	failure: "6- &mdash; Your time has come.",
 };
 
+// One-tap suggestions for the 10+ mark (the book's own examples), filled into the
+// input so recording a mark mid-session is a single click.
+const _DEATHS_DOOR_MARK_CHIPS = [
+	"a nasty scar",
+	"a lost eye",
+	"visions of the Last Door",
+	"a murder of crows, always nearby",
+];
+
 export class DeathsDoorDialog extends Application {
 	constructor(character, onDone, options = {}) {
 		super(options);
@@ -58,6 +67,10 @@ export class DeathsDoorDialog extends Application {
 			isStrong:    key === "success",
 			isWeak:      key === "partial",
 			isMiss:      key === "failure",
+			// On a 10+ the character is "marked in mind, body, or soul" — offer to record
+			// that mark straight onto the sheet as a permanent, Death's-Door wound.
+			markChips:   _DEATHS_DOOR_MARK_CHIPS,
+			markSeeded:  !!this._markSeeded,
 		};
 	}
 
@@ -70,6 +83,33 @@ export class DeathsDoorDialog extends Application {
 		html.find(".deaths-door-roll-btn").on("click", () => this._onRoll());
 		html.find(".deaths-door-confirm-btn").on("click", () => this._onConfirm());
 		html.find(".deaths-door-cancel-btn").on("click", () => this.close());
+
+		// 10+ mark: a chip fills the input; "Record mark" seeds the permanent wound.
+		html.find(".deaths-door-mark-chip").on("click", (ev) => {
+			this.element.find(".deaths-door-mark-input").val(ev.currentTarget.dataset.mark ?? "");
+		});
+		html.find(".deaths-door-mark-add").on("click", () => this._onSeedMark());
+	}
+
+	async _onSeedMark() {
+		if (this._markSeeded || !this._character?.addWound) return;
+		// Latch synchronously, before the await, so a rapid double-click on the still-live
+		// button can't slip a second identical wound in during the write. Released on failure
+		// so a genuinely failed write can still be retried.
+		this._markSeeded = true;
+		const text = (this.element.find(".deaths-door-mark-input").val() ?? "").trim();
+		try {
+			await this._character.addWound({
+				text: text || "Marked in mind, body, or soul — describe the mark",
+				status: "permanent",
+				origin: "deaths-door",
+			});
+		} catch (err) {
+			this._markSeeded = false;
+			throw err;
+		}
+		ui.notifications?.info?.("Death's-Door mark recorded on your sheet. Bring it up often.");
+		this.render(true);
 	}
 
 	async _onRoll() {
@@ -100,6 +140,9 @@ export class DeathsDoorDialog extends Application {
 		// The tier is re-derived from this total in getData(), so only the total is stored.
 		this._rolledTotal = total;
 		this._step        = key === "failure" ? "results" : "mechanics";
+		// A fresh roll is a fresh brush with death: re-arm the 10+ mark seeder so a
+		// re-roll that lands on another 10+ can record its own mark.
+		this._markSeeded  = false;
 		this.render(true);
 	}
 

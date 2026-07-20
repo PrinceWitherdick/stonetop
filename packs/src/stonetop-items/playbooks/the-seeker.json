@@ -129,7 +129,7 @@
             "Alis",
             "Dylan",
             "Eilwen",
-            "Gelt",
+            "Gerlt",
             "Gwenda",
             "Macsen",
             "Mirgan",
@@ -258,7 +258,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
             "grantsItems": [
               {
                 "name": "Skins of fine whisky",
@@ -294,7 +294,7 @@
               {
                 "name": "Firkins",
                 "column": "regular",
-                "weight": 1
+                "weight": 2
               }
             ]
           },
@@ -371,7 +371,7 @@
           {
             "slug": "paraphernalia",
             "label": "Paraphernalia",
-            "description": "crystals, incense, talismans, blood, bone, horn, eye of newt, ◇ braziers, ◇ a cauldron, etc.",
+            "description": "crystals, incense, talismans, blood, bone, horn, eye of newt, ◇ braziers, ◇◇ a cauldron, etc.",
             "grantsItems": [
               {
                 "name": "Crystals",
@@ -409,7 +409,7 @@
               {
                 "name": "Cauldron",
                 "column": "regular",
-                "weight": 1
+                "weight": 2
               }
             ]
           },

@@ -107,3 +107,40 @@ export function carryOverPageState(newPages, oldPages) {
 		};
 	});
 }
+
+// Plan the `_stats.compendiumSource` re-stamp for world journals that arrived without
+// Foundry's import stamp (see SeedCompendiums.restampSeededJournalSources). Given the
+// world's journals, the source pack's index rows, and the pack collection id, return the
+// `updateDocuments` payloads that point each un-stamped copy of our content back at its
+// pack source.
+//
+// An entry qualifies when it (a) has no source stamp yet, and (b) carries our baked
+// `flags.stonetop` marker — i.e. it's our content that lost the stamp, not a GM's own
+// journal. It's matched to its pack source by preserved id (what a raw pack-documents-
+// into-world copy produces) and, failing that, by entry name — but ONLY when that name is
+// unique in the pack. The merged journal pack has duplicate entry names ("Fomoraij" and
+// "The Crombil" each live in two trees), so a duplicated name can't identify a single
+// source; stamping by it could point the entry at the wrong tree, which the managed update
+// channel would then overwrite with the wrong content. Such names are left unstamped (the
+// id match still covers the preserved-id copies these entries normally arrive as).
+export function planSourceRestamp(journals, packIndex, collection) {
+	const uuidById = new Map();
+	const uuidByName = new Map();
+	const ambiguousNames = new Set();
+	for (const row of packIndex ?? []) {
+		const uuid = `Compendium.${collection}.JournalEntry.${row._id}`;
+		uuidById.set(row._id, uuid);
+		if (uuidByName.has(row.name)) ambiguousNames.add(row.name); // seen twice -> not a unique key
+		else uuidByName.set(row.name, uuid);
+	}
+	const updates = [];
+	for (const entry of journals ?? []) {
+		if (entry._stats?.compendiumSource || entry.flags?.core?.sourceId) continue; // already stamped
+		if (!entry.flags?.stonetop) continue;                                        // not our content
+		const id = entry.id ?? entry._id;
+		const byName = ambiguousNames.has(entry.name) ? undefined : uuidByName.get(entry.name);
+		const uuid = uuidById.get(id) ?? byName;
+		if (uuid) updates.push({ _id: id, "_stats.compendiumSource": uuid });
+	}
+	return updates;
+}

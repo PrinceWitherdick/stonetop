@@ -1089,6 +1089,92 @@ describe("buildSnapshot — inventory.outfit", () => {
 	});
 });
 
+// ── inventory: Book II journal treasures ─────────────────────────────────────
+
+// A treasure dragged out of a journal lands as an ordinary "inventory-custom" item,
+// marked system.isTreasure so it groups under its own "Treasures" heading in whichever
+// column its weight puts it, instead of mixing in with hand-written items. It stays a
+// real inventory item throughout: still deletable, still counted against load / the
+// small allowance. These guard the routing (each treasure in exactly ONE place) and
+// that separating them out didn't quietly drop them from the accounting.
+
+describe("buildSnapshot — inventory: journal treasures", () => {
+	const treasure = (over = {}) => ({
+		_id: over._id ?? "t-1",
+		type: "move",
+		name: over.name ?? "Brass sphere",
+		system: {
+			moveType: "inventory-custom",
+			inventoryColumn: over.column ?? "regular",
+			weight: over.weight ?? 1,
+			isTreasure: true,
+			...(over.note ? { note: over.note } : {}),
+		},
+	});
+	const snapWith = (items, flags = {}) => {
+		let b = new FakeActorBuilder().withItems(items);
+		for (const [k, v] of Object.entries(flags)) b = b.withFlag(k, v);
+		return new TestCharacterBuilder(b.build()).build().buildSnapshot();
+	};
+
+	it("routes a ◇ treasure to treasureRegular, out of the Items column", async () => {
+		const snap = await snapWith([treasure({ weight: 2 })]);
+		expect(snap.inventory.outfit.treasureRegular.map(i => i.name)).toEqual(["Brass sphere"]);
+		expect(snap.inventory.outfit.regularItems.some(i => i.slug === "t-1")).toBe(false);
+	});
+
+	it("routes a pocket-sized treasure to treasureSmall, out of the Small Items column", async () => {
+		const snap = await snapWith([treasure({ column: "small", name: "A map" })]);
+		expect(snap.inventory.outfit.treasureSmall.map(i => i.name)).toEqual(["A map"]);
+		expect(snap.inventory.outfit.smallItems.some(i => i.slug === "t-1")).toBe(false);
+	});
+
+	it("renders each treasure exactly once across every outfit array", async () => {
+		const snap = await snapWith([treasure({ _id: "t-1" }), treasure({ _id: "t-2", column: "small" })]);
+		const o = snap.inventory.outfit;
+		const everywhere = [
+			...o.regularItems, ...o.smallItems, ...o.smallGridItems,
+			...o.arcanaRegular, ...o.arcanaSmall, ...o.treasureRegular, ...o.treasureSmall,
+		].map(i => i.slug);
+		expect(everywhere.filter(s => s === "t-1")).toHaveLength(1);
+		expect(everywhere.filter(s => s === "t-2")).toHaveLength(1);
+	});
+
+	it("leaves an ordinary write-in in the Items column", async () => {
+		// The treasure filter is subtracted from the write-in catch-all, so guard that it
+		// only takes treasures with it.
+		const writeIn = { _id: "w-1", type: "move", name: "Rope", system: { moveType: "inventory-custom", inventoryColumn: "regular", weight: 1 } };
+		const snap = await snapWith([writeIn, treasure()]);
+		expect(snap.inventory.outfit.regularItems.some(i => i.slug === "w-1")).toBe(true);
+		expect(snap.inventory.outfit.treasureRegular.some(i => i.slug === "w-1")).toBe(false);
+	});
+
+	it("keeps a treasure deletable, like the write-in it is underneath", async () => {
+		const snap = await snapWith([treasure({ note: "<em>magical</em>" })]);
+		expect(snap.inventory.outfit.treasureRegular[0]).toMatchObject({
+			name: "Brass sphere", note: "<em>magical</em>", isCustom: true, ownedId: "t-1",
+		});
+	});
+
+	it("still counts a marked ◇ treasure toward load", async () => {
+		// Grouping treasures out of the column must not exempt them from encumbrance.
+		const snap = await snapWith([treasure({ weight: 3 })], { "inventory.checked": { "t-1": true } });
+		expect(snap.inventory.outfit.treasureRegular[0].checked).toBe(true);
+		expect(snap.inventory.outfit.load.totalMarks).toBe(3);
+	});
+
+	it("still counts a marked small treasure against the small allowance", async () => {
+		const snap = await snapWith(
+			[treasure({ column: "small" })],
+			{ "inventory.checked": { "t-1": true }, "inventory.smallPool": 99 },
+		);
+		// The □ pool is clamped to the room left after checked small items, so a treasure
+		// eating one slot shows up as one fewer reservable box.
+		const limit = snap.inventory.outfit.smallItemLimit ?? 9;
+		expect(snap.inventory.outfit.smallPoolCap).toBe(limit - 1);
+	});
+});
+
 // ── inventory: possession-derived special items ──────────────────────────────
 
 describe("buildSnapshot — inventory: possession-derived special items", () => {

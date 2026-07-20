@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="200" height="200" role="img" aria-label="Treasure">
+	<title>Treasure</title>
+	<!-- Dark octagon token, matching this system's treasure-marker palette (#141210 / #f0ece3). -->
+	<path d="M158 20 L354 20 L492 158 L492 354 L354 492 L158 492 L20 354 L20 158 Z" fill="#141210"/>
+	<!-- Two-handled amphora, proportioned squat-and-wide (~216 x 254, was ~188 x 330) so the
+	     marker reads as a balanced square at 40px rather than a tall stripe. Handles are cream
+	     strokes, so the dark octagon shows through the "eye" between each handle and the neck.
+	     The path coordinates put the amphora's bounding-box centre at y=292, but the octagon is
+	     centred at y=256 — so the group is lifted 36 units to sit dead-centre in the token. -->
+	<g fill="#f0ece3" transform="translate(0 -36)">
+		<path d="M208 168
+			L304 168
+			Q300 190 289 212
+			Q356 238 364 292
+			Q360 356 298 398
+			L310 416
+			L202 416
+			L214 398
+			Q152 356 148 292
+			Q156 238 223 212
+			Q212 190 208 168 Z"/>
+		<path fill="none" stroke="#f0ece3" stroke-width="22" stroke-linecap="round"
+			d="M296 202 C344 200 366 228 356 258"/>
+		<path fill="none" stroke="#f0ece3" stroke-width="22" stroke-linecap="round"
+			d="M216 202 C168 200 146 228 156 258"/>
+	</g>
+</svg>

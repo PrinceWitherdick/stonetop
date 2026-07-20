@@ -1,0 +1,25 @@
+{{!-- The doom track (grim portents + impending doom) shared by the threat and hazard
+      cards. Checkboxes carry data-portent-index / data-doom so every host wires the same
+      toggle; they're disabled for non-owners. Invoked with the card view-model as context. --}}
+<ol class="threat-doom">
+	{{#each doomRows}}
+	<li class="threat-portent-row">
+		<label class="threat-portent">
+			<input type="checkbox" class="threat-portent__check" data-portent-index="{{index}}"
+			       {{#if done}}checked{{/if}}{{#unless ../isOwner}} disabled{{/unless}}>
+			<span class="threat-portent__box" aria-hidden="true"></span>
+			<span class="threat-portent__txt">{{text}}</span>
+		</label>
+	</li>
+	{{/each}}
+	{{#if impendingDoom.hasText}}
+	<li class="threat-portent-row threat-portent-row--doom">
+		<label class="threat-portent threat-portent--doom">
+			<input type="checkbox" class="threat-portent__check" data-doom="true"
+			       {{#if impendingDoom.done}}checked{{/if}}{{#unless isOwner}} disabled{{/unless}}>
+			<span class="threat-portent__box" aria-hidden="true"></span>
+			<span class="threat-portent__txt"><span class="threat-doom-label">Impending doom</span>{{impendingDoom.text}}</span>
+		</label>
+	</li>
+	{{/if}}
+</ol>

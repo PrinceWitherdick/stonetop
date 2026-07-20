@@ -37,6 +37,42 @@ const CONTENT_OPTIONS = [
 		icon: "fa-skull",
 		hint: "A homebrew threat card you drag onto Stonetop's Threats tab.",
 	},
+	{
+		id: "thingBelow",
+		label: "Thing Below",
+		icon: "fa-eye",
+		hint: "Create a Thing Below, a corrupted site, a corrupted being, or an emanation (Book II).",
+	},
+];
+
+// The Thing Below sub-chooser (shown after picking "Thing Below"): the four Book II
+// creation flows. Thing + Corrupted Site become draggable threat cards; Corrupted Being +
+// Emanation create monster stat-block actors directly.
+const THING_BELOW_KIND_OPTIONS = [
+	{
+		id: "thing",
+		label: "A Thing Below",
+		icon: "fa-eye",
+		hint: "A primordial entity of darkness and corruption. Combine themes + aspects + an instinct; written up as a magical-entity threat.",
+	},
+	{
+		id: "site",
+		label: "A corrupted site",
+		icon: "fa-mountain-sun",
+		hint: "A place the Things Below have tainted. Feature + cause + severity; written up as a MacGuffin threat with an impending doom.",
+	},
+	{
+		id: "being",
+		label: "A corrupted being",
+		icon: "fa-skull",
+		hint: "Twist an existing monster: add gifts, marks, and the corrupted tag. Creates a monster stat block.",
+	},
+	{
+		id: "emanation",
+		label: "An emanation",
+		icon: "fa-hurricane",
+		hint: "A Thing's discharge, given form. Creates a monster stat block from a source or a blank emanation template.",
+	},
 ];
 
 // The Arcanum sub-chooser (shown after picking "Arcanum"): a blank card of either tier,
@@ -104,8 +140,15 @@ function pickContentType() {
 	// Homebrew arcana obey arcanaCreationGmOnly (default GM-only); drop the Arcanum option
 	// for a player who isn't allowed to author it, so the sidebar can't bypass the same gate
 	// the arcana-tab "Create arcanum" buttons enforce.
-	const options = canCreateArcana() ? CONTENT_OPTIONS : CONTENT_OPTIONS.filter(o => o.id !== "arcanum");
+	let options = canCreateArcana() ? CONTENT_OPTIONS : CONTENT_OPTIONS.filter(o => o.id !== "arcanum");
+	// Things Below are GM prep (they end in world threats/monsters and the stores are GM-only).
+	if (!game.user?.isGM) options = options.filter(o => o.id !== "thingBelow");
 	return pickContentOption({ title: "Create Stonetop Content", options });
+}
+
+/** Thing Below kind chooser. Resolves to "thing" | "site" | "being" | "emanation" or null. */
+function pickThingBelowKind() {
+	return pickContentOption({ title: "Create a Thing Below", options: THING_BELOW_KIND_OPTIONS });
 }
 
 /** Arcanum tier chooser. Resolves to "minor" | "major" | "inspire" or null. */
@@ -142,7 +185,42 @@ export async function openCreateStonetopContent() {
 		}).render(true);
 	} else if (choice === "arcanum") {
 		await openCreateArcanum();
+	} else if (choice === "thingBelow") {
+		await openCreateThingBelow();
 	}
+}
+
+/**
+ * Second-step Thing Below flow (Book II, The Things Below): pick which of the four creation
+ * wizards to run. Thing + Corrupted Site resolve a threat SEED that becomes a draggable card
+ * (dropped onto a steading's Threats tab, like the plain Threat flow); Corrupted Being +
+ * Emanation open the lighter corruption dialog, which creates a `monster` stat-block actor.
+ */
+async function openCreateThingBelow() {
+	if (!game.user?.isGM) {
+		ui.notifications?.warn("Only the GM can create Things Below.");
+		return;
+	}
+	const kind = await pickThingBelowKind();
+	if (!kind) return;
+
+	if (kind === "thing" || kind === "site") {
+		const { createThreatSeedCard } = await import("../threats/threat-seed-cards.js");
+		let seed;
+		if (kind === "thing") {
+			const { CreateThingDialog } = await import("../things-below/create-thing-dialog.js");
+			seed = await new CreateThingDialog().promise();
+		} else {
+			const { CreateCorruptedSiteDialog } = await import("../things-below/create-corrupted-site-dialog.js");
+			seed = await new CreateCorruptedSiteDialog().promise();
+		}
+		if (seed) await createThreatSeedCard(seed);
+		return;
+	}
+
+	// being / emanation → a monster stat block, created directly by the dialog.
+	const { CorruptBeingDialog } = await import("../things-below/corrupt-being-dialog.js");
+	await new CorruptBeingDialog({ mode: kind === "emanation" ? "emanation" : "being" }).promise();
 }
 
 /**

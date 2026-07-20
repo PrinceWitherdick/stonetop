@@ -133,7 +133,7 @@
 
     {{#if capture.canEdit}}
     <div class="stonetop-intros-capture">
-      <label class="stonetop-intros-capture-label"><i class="fas fa-feather"></i> {{#if capture.coEdit}}Writing with {{currentPc.name}}{{else}}Record for the Chronicle{{/if}}</label>
+      {{> "stonetop.intros-capture-head"}}
       <textarea class="stonetop-intros-draft" rows="3"
                 data-actor-id="{{capture.actorId}}" data-step-key="{{capture.stepKey}}"
                 placeholder="{{capture.placeholder}}">{{capture.draftAnswer}}</textarea>
@@ -160,7 +160,7 @@
     {{!-- ── Narration round (1–3): one plain-string answer ──────────────────── --}}
     {{#if capture.canEdit}}
     <div class="stonetop-intros-capture">
-      <label class="stonetop-intros-capture-label"><i class="fas fa-feather"></i> {{#if capture.coEdit}}Writing with {{currentPc.name}}{{else}}Record for the Chronicle{{/if}}</label>
+      {{> "stonetop.intros-capture-head"}}
       <textarea class="stonetop-intros-answer" rows="3"
                 data-actor-id="{{capture.actorId}}" data-round-key="{{capture.key}}"
                 placeholder="{{capture.placeholder}}">{{capture.answer}}</textarea>

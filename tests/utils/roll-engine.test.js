@@ -348,3 +348,89 @@ describe("rollFormula", () => {
 		expect(rollMessages[0].flavor).toContain("stonetop-card-buttons");
 	});
 });
+
+describe("rollStat lasting-injury reminder", () => {
+	function actorWithWounds(wounds) {
+		const actor = makeActor();
+		actor.system.attributes.wounds = wounds;
+		return actor;
+	}
+
+	it("echoes a wound's lasting tag onto its reminder move's card", async () => {
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Bad arm", status: "permanent", origin: "deaths-door", healed: false,
+			  mechanicalTag: "Volley at disadvantage until practiced", reminderMove: "Volley" },
+		]);
+		await rollStat("dex", actor, { moveName: "Volley" });
+		expect(rollMessages[0].flavor).toContain("Lasting injury");
+		expect(rollMessages[0].flavor).toContain("Volley at disadvantage until practiced");
+	});
+
+	it("echoes a '*' reminder onto any move", async () => {
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Migraines", status: "permanent", healed: false,
+			  mechanicalTag: "Splitting headache", reminderMove: "*" },
+		]);
+		await rollStat("wis", actor, { moveName: "Discern Realities" });
+		expect(rollMessages[0].flavor).toContain("Splitting headache");
+	});
+
+	it("echoes on an 'ask'/alt-stat roll that arrives as '<Name> with <STAT>'", async () => {
+		// Defy Danger (and any move rolled with a chosen/alternate stat) reaches rollStat as
+		// "Defy Danger with WIS"; a reminder keyed to the bare "Defy Danger" must still fire.
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Bum knee", status: "permanent", healed: false,
+			  mechanicalTag: "Knee buckles under strain", reminderMove: "Defy Danger" },
+		]);
+		await rollStat("wis", actor, { moveName: "Defy Danger with WIS" });
+		expect(rollMessages[0].flavor).toContain("Lasting injury");
+		expect(rollMessages[0].flavor).toContain("Knee buckles under strain");
+	});
+
+	it("only strips a trailing ' with <STAT>', not a 'with' inside the move's real name", async () => {
+		// The strip is anchored to the exact " with <STAT>" suffix rollStat appends for
+		// ask/alt-stat rolls — a stat abbreviation right at the end. A move whose real name
+		// merely contains "with" (and ends in a non-stat word) must not be mangled, so a
+		// reminder keyed to that full name still matches.
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Bad arm", status: "permanent", healed: false,
+			  mechanicalTag: "Reload only", reminderMove: "Parley with the Elder" },
+		]);
+		await rollStat("cha", actor, { moveName: "Parley with the Elder" });
+		expect(rollMessages[0].flavor).toContain("Reload only");
+	});
+
+	it("does not echo when the reminder move doesn't match", async () => {
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Bad arm", status: "permanent", healed: false,
+			  mechanicalTag: "Volley at disadvantage", reminderMove: "Volley" },
+		]);
+		await rollStat("str", actor, { moveName: "Hack and Slash" });
+		expect(rollMessages[0].flavor).not.toContain("Lasting injury");
+	});
+
+	it("does not echo a healed wound", async () => {
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Old break", status: "permanent", healed: true,
+			  mechanicalTag: "Aches", reminderMove: "*" },
+		]);
+		await rollStat("con", actor, { moveName: "Anything" });
+		expect(rollMessages[0].flavor).not.toContain("Lasting injury");
+	});
+
+
+	it("does not echo a wound with a reminder move but no tag text", async () => {
+		rollTotal = 10;
+		const actor = actorWithWounds([
+			{ id: "w1", text: "Sore", status: "problematic", healed: false, mechanicalTag: "", reminderMove: "*" },
+		]);
+		await rollStat("int", actor, { moveName: "Anything" });
+		expect(rollMessages[0].flavor).not.toContain("Lasting injury");
+	});
+});

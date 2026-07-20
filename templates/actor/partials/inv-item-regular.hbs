@@ -1,0 +1,28 @@
+{{!-- One row of the Items (◇) column: the load diamonds, the name, the note/uses
+      parenthetical, and the edit-mode affordances. Shared by the write-in list and the
+      Treasures section so the checkbox contract the sheet binds against (the
+      `stonetop-inventory-item-check` class, `data-slug`, `data-weight`) lives in exactly
+      one place. Context: an inventory item snapshot, plus `deletable` — whether this row
+      may be removed individually in edit mode (write-ins and treasures may; catalog gear
+      may not). `isAddedSpecial` is absent on rows that can't be one, so its ✕ falls out. --}}
+<div class="stonetop-inv-item{{#if treasure}} stonetop-inv-treasure{{/if}}{{#if checked}} is-checked{{/if}}">
+	<label class="stonetop-inv-item-toggle">
+		<span class="stonetop-inv-diamonds">
+			{{#each (times weight)}}
+			<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
+			       data-slug="{{../slug}}"
+			       data-weight="{{../weight}}"
+			       {{#if ../checked}}checked{{/if}}
+			       {{#if ../disabled}}disabled{{/if}}>
+			{{/each}}
+		</span>
+		<span class="stonetop-inv-label">{{name}}</span>
+	</label>
+	{{> "stonetop.inv-note" note=note resource=resource resourceFirst=resourceFirst slug=slug}}
+	{{#if (and deletable @root.stonetop.editMode)}}
+	<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
+	{{/if}}
+	{{#if isAddedSpecial}}
+	<a class="stonetop-inv-remove-special" data-slug="{{slug}}" title="Remove special item"><i class="fas fa-times"></i></a>
+	{{/if}}
+</div>

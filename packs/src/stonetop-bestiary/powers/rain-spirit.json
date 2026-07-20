@@ -1,0 +1,47 @@
+{
+  "name": "Rain Spirit",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 19,
+        "max": 19
+      },
+      "armor": {
+        "value": 1,
+        "source": "no vital organs"
+      },
+      "damage": {
+        "value": "none",
+        "rollFormula": ""
+      },
+      "instinct": {
+        "value": "to give, but to be easily offended"
+      }
+    },
+    "concept": "Minor spirits of wild places, more often NPCs than monsters; these stats are for the rare times one manifests to fight.",
+    "organization": "solitary",
+    "size": "",
+    "tags": "solitary, spirit, moody, overbearing",
+    "qualities": "",
+    "count": 1,
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m88jHcxMlzd0u0N3",
+    "notes": "<p>Tut-tuts; wants to be needed, appreciated; passive-aggressive.</p>",
+    "creatureType": "spirit"
+  },
+  "prototypeToken": {
+    "name": "Rain Spirit",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+    }
+  },
+  "items": [],
+  "effects": [],
+  "flags": {},
+  "folder": "Ewhy71l313P5C1Jd",
+  "_id": "wGv1A4P76nKagusT",
+  "_key": "!actors!wGv1A4P76nKagusT"
+}

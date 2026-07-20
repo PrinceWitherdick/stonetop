@@ -184,7 +184,15 @@ const _STEPS = [
 					<li>Ask <strong>&ldquo;What do you do?&rdquo;</strong></li>
 					<li><strong>Resolve it</strong> &mdash; trigger player moves; on a 6- or an ignored threat, make a hard move.</li>
 					<li><strong>Repeat</strong>, then transition to the next leg or point of interest.</li>
-				</ol>`,
+				</ol>
+				<p>On a <strong>perilous</strong> leg &mdash; or whenever you&rsquo;re unsure how hard to come down &mdash; you can let the Die of Fate set the danger:</p>
+				<ul class="stonetop-exp-fatetable">
+					<li><strong>1</strong> &mdash; A danger springs on them, unavoidable.</li>
+					<li><strong>2&ndash;3</strong> &mdash; Introduce a danger, right in front of them.</li>
+					<li><strong>4&ndash;5</strong> &mdash; Point to a looming danger.</li>
+					<li><strong>6</strong> &mdash; Point to a looming danger, but also present a discovery.</li>
+				</ul>`,
+		fate:  true,
 		qa:    {
 			kind:        "single",
 			key:         "running",

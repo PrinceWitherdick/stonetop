@@ -28,16 +28,35 @@ export async function enrichHTML(value, options) {
 }
 
 /**
- * Build the `document.update()` entry that deletes `keyPath`. v13+ wants the
- * ForcedDeletion sentinel (and warns on the legacy `-=` syntax); v12 has no such
- * sentinel and only understands `-=`. Returns `[updateKey, value]` for whichever
- * form this core exposes, so callers stay correct across v12–v14.
+ * Build the `document.update()` entry that deletes `keyPath`. Only **v14+** removes a
+ * key when the update value is a fresh `new ForcedDeletion()` INSTANCE (the core deletes
+ * a key only when its value is `instanceof ForcedDeletion`), and only v14+ warns on the
+ * legacy `-=` syntax. v13 exposes the same operator class, but a nested ForcedDeletion
+ * value passed to `Document#update` for an object-typed flag is NOT applied there — the
+ * key silently survives with no error (this is why followers wouldn't delete/hand off on
+ * v13). v13 and earlier delete reliably via the `-=` leaf-key prefix, which the codebase
+ * already uses directly elsewhere. So reach for the operator only on v14+ (gated on the
+ * running generation, not merely the class's existence) and use `-=` below it. Returns
+ * `[updateKey, value]` for whichever form this core actually applies.
  * @param {string} keyPath  Dotted path to the key to delete (e.g. "flags.stonetop.checks.c1").
  * @returns {[string, *]}
  */
 export function deletionEntry(keyPath) {
-	const forcedDeletion = foundry.data?.operators?.ForcedDeletion;
-	if (forcedDeletion) return [keyPath, forcedDeletion];
+	const ForcedDeletion = foundry.data?.operators?.ForcedDeletion;
+	const generation = Number(globalThis.game?.release?.generation) || 0;
+	if (ForcedDeletion && generation >= 14) return [keyPath, new ForcedDeletion()];
 	const i = keyPath.lastIndexOf(".");
 	return [`${keyPath.slice(0, i + 1)}-=${keyPath.slice(i + 1)}`, null];
+}
+
+/**
+ * The compendium-source uuid a world document was imported from: v14 stamps
+ * `_stats.compendiumSource` at import time; older cores used the legacy `flags.core.sourceId`
+ * flag. Returns null for a hand-made world document that never came from a compendium.
+ * Works on real Documents and on plain index rows (reads properties, never calls the doc).
+ * @param {object} doc
+ * @returns {string|null}
+ */
+export function compendiumSourceOf(doc) {
+	return doc?._stats?.compendiumSource ?? doc?.flags?.core?.sourceId ?? null;
 }

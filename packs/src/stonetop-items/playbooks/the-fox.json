@@ -165,7 +165,7 @@
             "Greagir",
             "Maired",
             "Nainsi",
-            "Naíclas",
+            "Naiclas",
             "Saraid"
           ]
         },
@@ -234,7 +234,7 @@
           {
             "slug": "carpenters-tools",
             "label": "Carpenter's tools",
-            "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc.",
+            "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ◇◇ firkins, barrels, etc.",
             "grantsItems": [
               {
                 "name": "Chisels",
@@ -254,7 +254,8 @@
               },
               {
                 "name": "Firkins",
-                "column": "small"
+                "column": "regular",
+                "weight": 2
               },
               {
                 "name": "Barrels",
@@ -275,7 +276,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
             "grantsItems": [
               {
                 "name": "Skins of fine whisky",
@@ -311,7 +312,7 @@
               {
                 "name": "Firkins",
                 "column": "regular",
-                "weight": 1
+                "weight": 2
               }
             ]
           },

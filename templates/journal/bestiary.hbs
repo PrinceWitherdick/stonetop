@@ -1,5 +1,8 @@
 <form class="{{cssClass}} stonetop stonetop-bestiary-page stonetop-bestiary-sheet flexcol{{#if stonetop.isEditable}} stonetop-edit-mode{{/if}}" autocomplete="off">
 
+	{{!-- Book-art banner: the illustration sits above the page title (read mode only). --}}
+	{{#if stonetop.leadArt}}<div class="stonetop-journal-art-banner">{{{stonetop.leadArt}}}</div>{{/if}}
+
 	{{#if stonetop.isEditable}}
 	{{> journalEntryPageHeader}}
 	{{else}}{{#if data.title.show}}

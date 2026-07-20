@@ -2,8 +2,10 @@ import { markQuestionBullets } from "./question-bullets.js";
 import { markCheckBullets } from "./check-bullets.js";
 import { markFaqItems } from "./faq-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./glyphs.js";
+import { compendiumSourceOf } from "./foundry-compat.js";
 import { markValueTooltips } from "./value-tooltips.js";
 import { markDebilityTooltips } from "./debility-tooltips.js";
+import { isInJournalEditor, JOURNAL_EDITOR_SELECTOR } from "./journal-editor-guard.js";
 
 // Give this system's journal prose the same spiral bullets (and question-spiral
 // on list items that pose a question) as the actor sheets, applied live at render
@@ -32,26 +34,35 @@ export function resolveEntry(app) {
 /**
  * True when `entry` is one of this system's shipped journals (the merged Stonetop
  * pack), regardless of page type. Open from the compendium → `pack`; a world copy
- * (e.g. seeded by SeedCompendiums) keeps Foundry's import stamp pointing back at
- * the source pack — this is what survives the bundled journals' empty `flags`
- * scope being dropped at compile time.
+ * normally keeps Foundry's import stamp (`_stats.compendiumSource`, or the legacy
+ * `flags.core.sourceId`) pointing back at the source pack.
+ *
+ * But that stamp is only set when the copy goes through Foundry's import flow
+ * (`fromCompendium`, which the seed uses). A GM who deletes the world journals and
+ * re-imports the pack another way — dropping the compiled pack's documents straight
+ * in, an older seed — ends up with world copies that have NO source stamp, and the
+ * render-time enhancers (roll tables, requirement checkboxes) would silently skip
+ * them. So we ALSO recognise our own `flags.stonetop` namespace: the gazetteer
+ * generator bakes it into every shipped entry, and — unlike the import stamp — it
+ * travels with the entry's data through any copy path. (`restampSeededJournalSources`
+ * separately restores the missing source stamp so the managed update channel, which
+ * still keys on it, keeps working too.)
  */
 export function isStonetopJournalEntry(entry) {
 	if (!entry) return false;
-	const source = entry.pack
-		|| entry._stats?.compendiumSource
-		|| entry.flags?.core?.sourceId
-		|| "";
-	return PROSE_PACK.test(source);
+	const source = entry.pack || compendiumSourceOf(entry) || "";
+	if (PROSE_PACK.test(source)) return true;
+	// Baked marker: present on our content regardless of how it reached the world.
+	return !!entry.flags?.stonetop;
 }
 
 /** True for journals this system ships as plain prose (i.e. not the bestiary). */
 function isStonetopProseJournal(entry, page) {
 	// Bestiary and location pages render through their own custom page sheets with
-	// their own list styling — never apply the runtime prose spiral-bullet pass.
+	// their own list styling — never apply the runtime prose spiral-bullet pass. This
+	// page-type gate is what excludes the bestiary (whose entries otherwise match
+	// isStonetopJournalEntry, via source stamp or baked `flags.stonetop` alike).
 	if (page?.type === "bestiary" || page?.type === "location") return false;
-	// Matching on the source pack (rather than a `flags.stonetop` namespace, which
-	// the bestiary pages also carry) keeps the bestiary cleanly excluded.
 	return isStonetopJournalEntry(entry);
 }
 
@@ -102,6 +113,10 @@ export function applyJournalSpiralBullets(app, html) {
 		// The bestiary's custom page sheet also uses `.journal-page-content`; never
 		// restyle it (it has its own, differently-classed lists).
 		if (section.closest(".stonetop-bestiary-page")) continue;
+		// Skip a section that is (or wraps) a live editor: marking bullets / wrapping
+		// glyphs on the ProseMirror surface bakes them into the saved source and mangles
+		// it (see journal-editor-guard.js). The read view is marked as before.
+		if (isInJournalEditor(section) || section.querySelector(JOURNAL_EDITOR_SELECTOR)) continue;
 		markProseSpiralBullets(section);
 	}
 }

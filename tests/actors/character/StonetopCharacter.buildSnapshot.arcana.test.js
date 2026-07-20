@@ -85,6 +85,27 @@ const FFYRNIG_SPHERE = {
 	},
 };
 
+// A weightless curio on a card that is NOT a concept/place — CONCEPT_ARCANA_SLUGS drops
+// the weightless side of true places (huge-wooden-sphere among them), so a portable ◇0
+// curio like this is the only kind that reaches the small column.
+const GOLD_RING = {
+	slug: "a-gold-ring",
+	front: {
+		title: "A Gold Ring",
+		item: { name: "A gold ring", weight: null, note: null, inventoryColumn: null },
+		description: "<p>A plain band, warm to the touch.</p>",
+		unlock: { description: "Unlock by…", requirements: [] },
+	},
+	back: {
+		title: "Unread",
+		item: null,
+		description: "<p>Not yet unlocked.</p>",
+		resource: null,
+		move: null,
+		options: [],
+	},
+};
+
 // -- Tests --------------------------------------------------------------------
 
 describe("buildSnapshot() — arcana (integration)", () => {
@@ -195,5 +216,81 @@ describe("buildSnapshot() — arcana (integration)", () => {
 			const snap = await new TestCharacterBuilder(actor).addArcanum(FFYRNIG_SPHERE).build().buildSnapshot();
 			expect(snap.arcana.minor.items[0].checked).toBe(true);
 		});
+	});
+});
+
+// ── inventory: the Arcana section's column split ──────────────────────────────
+
+// Every owned arcanum renders under the Arcana heading, split across the two inventory
+// columns by the curio's WEIGHT — the ◇ ones left, the weightless ones right beside the
+// small items. The split reads the weight rather than the authored `inventoryColumn`,
+// because that field's "arcana" value is never authored: it is only the fallback for "the
+// author didn't say", which merely happens to coincide with weight 0 in the shipped data.
+describe("buildSnapshot — inventory: the Arcana section's column split", () => {
+	const build = (arcana, flags = {}) => {
+		const actor = new FakeActorBuilder().withFlags(flags).build();
+		let b = new TestCharacterBuilder(actor);
+		for (const a of arcana) b = b.addArcanum(a);
+		return b.build().buildSnapshot();
+	};
+
+	it("puts a weighted arcanum in arcanaRegular, out of the Items list", async () => {
+		// These used to render inside the Items column behind a separator rule.
+		const snap = await build([BOW_WITH_NO_STRING], { "arcana.owned": ["bow-with-no-string"] });
+		expect(snap.inventory.outfit.arcanaRegular.map(i => i.name)).toEqual(["A Bow with No String"]);
+		expect(snap.inventory.outfit.regularItems.some(i => i.slug === "bow-with-no-string")).toBe(false);
+	});
+
+	it("puts a weightless arcanum in arcanaSmall, out of the Small Items list", async () => {
+		const snap = await build([GOLD_RING], { "arcana.owned": ["a-gold-ring"] });
+		expect(snap.inventory.outfit.arcanaSmall.map(i => i.name)).toEqual(["A gold ring"]);
+		expect(snap.inventory.outfit.smallItems.some(i => i.slug === "a-gold-ring")).toBe(false);
+	});
+
+	it("splits on weight even when the card leaves inventoryColumn unauthored", async () => {
+		// GOLD_RING authors inventoryColumn: null — the case that becomes "arcana" by
+		// fallback. It must reach the weightless half on its weight alone.
+		const snap = await build([GOLD_RING], { "arcana.owned": ["a-gold-ring"] });
+		expect(snap.inventory.outfit.arcanaSmall[0].weight).toBe(0);
+	});
+
+	it("renders each arcanum exactly once across every outfit array", async () => {
+		const snap = await build([BOW_WITH_NO_STRING, GOLD_RING], {
+			"arcana.owned": ["bow-with-no-string", "a-gold-ring"],
+		});
+		const o = snap.inventory.outfit;
+		const everywhere = [
+			...o.regularItems, ...o.smallItems, ...o.smallGridItems,
+			...o.arcanaRegular, ...o.arcanaSmall, ...o.treasureRegular, ...o.treasureSmall,
+		].map(i => i.slug);
+		expect(everywhere.filter(s => s === "bow-with-no-string")).toHaveLength(1);
+		expect(everywhere.filter(s => s === "a-gold-ring")).toHaveLength(1);
+	});
+
+	it("still counts a marked weighted arcanum toward load", async () => {
+		const snap = await build([BOW_WITH_NO_STRING], {
+			"arcana.owned":      ["bow-with-no-string"],
+			"inventory.checked": { "bow-with-no-string": true },
+		});
+		expect(snap.inventory.outfit.load.totalMarks).toBe(1);
+	});
+
+	it("never lets a weightless arcanum eat the small-item allowance", async () => {
+		// These have always been inert labels that cost nothing; moving them beside the
+		// small items must not quietly start charging a player for every card they own.
+		const snap = await build([GOLD_RING], {
+			"arcana.owned":      ["a-gold-ring"],
+			"inventory.checked": { "a-gold-ring": true },
+		});
+		const limit = snap.inventory.outfit.smallItemLimit ?? 9;
+		expect(snap.inventory.outfit.smallPoolCap).toBe(limit);
+	});
+
+	it("keeps a weightless arcanum off the load total too", async () => {
+		const snap = await build([GOLD_RING], {
+			"arcana.owned":      ["a-gold-ring"],
+			"inventory.checked": { "a-gold-ring": true },
+		});
+		expect(snap.inventory.outfit.load.totalMarks).toBe(0);
 	});
 });

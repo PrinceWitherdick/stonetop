@@ -93,27 +93,7 @@
 			{{else}}
 			{{#each items}}
 			{{#if breakBefore}}<hr class="stonetop-inv-separator">{{/if}}
-			<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
-				<label class="stonetop-inv-item-toggle">
-					<span class="stonetop-inv-diamonds">
-						{{#each (times weight)}}
-						<input type="checkbox" class="stonetop-inventory-item-check stonetop-inv-diamond"
-						       data-slug="{{../slug}}"
-						       data-weight="{{../weight}}"
-						       {{#if ../checked}}checked{{/if}}
-						       {{#if ../disabled}}disabled{{/if}}>
-						{{/each}}
-					</span>
-					<span class="stonetop-inv-label">{{name}}</span>
-				</label>
-				{{> "stonetop.inv-note" note=note resource=resource resourceFirst=resourceFirst slug=slug}}
-				{{#if (and isCustom @root.stonetop.editMode)}}
-				<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
-				{{/if}}
-				{{#if isAddedSpecial}}
-				<a class="stonetop-inv-remove-special" data-slug="{{slug}}" title="Remove special item"><i class="fas fa-times"></i></a>
-				{{/if}}
-			</div>
+			{{> "stonetop.inv-item-regular" deletable=isCustom}}
 			{{#if (eq slug "even-more-supplies")}}<p class="stonetop-inv-section-note">{{{localize "stonetop.inventory.regularItemsNote"}}}</p>{{/if}}
 			{{/each}}
 			{{/if}}
@@ -121,11 +101,14 @@
 			<button type="button" class="stonetop-inv-add-btn" data-column="regular">
 				<i class="fas fa-plus"></i> {{localize "stonetop.inventory.addItem"}}
 			</button>
-			{{#if stonetop.inventory.outfit.arcanaItems.length}}
+			{{!-- The ◇ half of the Arcana section: owned arcana whose curio has weight.
+			      Their weightless siblings sit under the matching heading in the small
+			      column. Marking one counts toward load. --}}
+			{{#if stonetop.inventory.outfit.arcanaRegular.length}}
 			<hr class="stonetop-inv-separator">
 			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.arcanaItems")}}
 			<hr class="stonetop-inv-separator">
-			{{#each stonetop.inventory.outfit.arcanaItems}}
+			{{#each stonetop.inventory.outfit.arcanaRegular}}
 			<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
 				<span class="stonetop-inv-diamonds">
 					{{#each (times weight)}}
@@ -140,6 +123,18 @@
 					{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
 				</span>
 			</div>
+			{{/each}}
+			{{/if}}
+			{{!-- Treasures dragged out of a Book II journal (utils/treasure-drops.js), in
+			      their own section below Arcana rather than mixed into the write-ins above.
+			      The ◇ ones sit here; their pocket-sized siblings are under the matching
+			      heading in the small column. Marking one still counts toward load. --}}
+			{{#if stonetop.inventory.outfit.treasureRegular.length}}
+			<hr class="stonetop-inv-separator">
+			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.treasureItems")}}
+			<hr class="stonetop-inv-separator">
+			{{#each stonetop.inventory.outfit.treasureRegular}}
+			{{> "stonetop.inv-item-regular" deletable=true treasure=true}}
 			{{/each}}
 			{{/if}}
 		</div>
@@ -172,22 +167,7 @@
 			<hr class="stonetop-inv-separator">
 			{{#each stonetop.inventory.outfit.smallItems}}
 			{{#if breakBefore}}<hr class="stonetop-inv-separator">{{/if}}
-			<div class="stonetop-inv-item stonetop-inv-small{{#if checked}} is-checked{{/if}}">
-				<label class="stonetop-inv-item-toggle">
-					<input type="checkbox" class="stonetop-inventory-item-check"
-					       data-slug="{{slug}}"
-					       {{#if checked}}checked{{/if}}
-					       {{#if disabled}}disabled{{/if}}>
-					<span class="stonetop-inv-label">{{name}}</span>
-				</label>
-				{{> "stonetop.inv-note" note=note resource=resource resourceFirst=resourceFirst slug=slug}}
-				{{#if (and isCustom @root.stonetop.editMode)}}
-				<a class="stonetop-inv-delete" data-owned-id="{{ownedId}}" title="{{localize 'stonetop.inventory.removeItem'}}"><i class="fas fa-times"></i></a>
-				{{/if}}
-				{{#if isAddedSpecial}}
-				<a class="stonetop-inv-remove-special" data-slug="{{slug}}" title="Remove special item"><i class="fas fa-times"></i></a>
-				{{/if}}
-			</div>
+			{{> "stonetop.inv-item-small" deletable=isCustom}}
 			{{/each}}
 			{{#if stonetop.inventory.outfit.smallGridItems.length}}
 			<hr class="stonetop-inv-separator">
@@ -208,6 +188,33 @@
 			<button type="button" class="stonetop-inv-add-btn" data-column="small">
 				<i class="fas fa-plus"></i> {{localize "stonetop.inventory.addSmallItem"}}
 			</button>
+			{{!-- The weightless half of the Arcana section, level with the ◇ half in the
+			      regular column. Rendered INERT on purpose — no checkbox, matching what a
+			      ◇0 arcanum has always been — so owning cards never eats the small-item
+			      allowance. --}}
+			{{#if stonetop.inventory.outfit.arcanaSmall.length}}
+			<hr class="stonetop-inv-separator">
+			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.arcanaItems")}}
+			<hr class="stonetop-inv-separator">
+			{{#each stonetop.inventory.outfit.arcanaSmall}}
+			<div class="stonetop-inv-item stonetop-inv-small stonetop-inv-static{{#if checked}} is-checked{{/if}}">
+				<span class="stonetop-inv-label">{{name}}
+					{{#if note}}<span class="stonetop-inv-note">({{{note}}})</span>{{/if}}
+				</span>
+			</div>
+			{{/each}}
+			{{/if}}
+			{{!-- The pocket-sized half of the Treasures section, sitting level with the ◇
+			      half under Arcana in the regular column. Marking one still eats the small
+			      allowance. --}}
+			{{#if stonetop.inventory.outfit.treasureSmall.length}}
+			<hr class="stonetop-inv-separator">
+			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.treasureItems")}}
+			<hr class="stonetop-inv-separator">
+			{{#each stonetop.inventory.outfit.treasureSmall}}
+			{{> "stonetop.inv-item-small" deletable=true treasure=true}}
+			{{/each}}
+			{{/if}}
 		</div>
 
 	</section>

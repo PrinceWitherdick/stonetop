@@ -193,3 +193,31 @@ export function threatType(id) {
 export function threatProximity(id) {
 	return _PROXIMITY_BY_ID.get(id) ?? _PROXIMITY_BY_ID.get(DEFAULT_PROXIMITY);
 }
+
+/** Clean a seed list field into trimmed, non-empty strings (or [] for a non-array). */
+const cleanSeedList = v => (Array.isArray(v) ? v.map(String).map(s => s.trim()).filter(Boolean) : []);
+
+/**
+ * Normalize the optional "richer" fields a Things-Below threat seed can carry (Book II) into
+ * a plain object holding only the fields actually present: themes / aspects / cleansing /
+ * stakes lists, a description, grim portents, and an impending doom. Shared by the seed card
+ * (its drag payload + display) and the store's page-data shaper so the two can't drift.
+ */
+export function normalizeThreatSeedExtras(seed = {}) {
+	const out = {};
+	for (const key of ["themes", "aspects", "cleansing", "stakes"]) {
+		const list = cleanSeedList(seed[key]);
+		if (list.length) out[key] = list;
+	}
+	if (typeof seed.description === "string" && seed.description.trim()) out.description = seed.description;
+	if (Array.isArray(seed.grimPortents)) {
+		const portents = seed.grimPortents
+			.map(p => ({ text: String(p?.text ?? ""), done: !!p?.done }))
+			.filter(p => p.text.trim());
+		if (portents.length) out.grimPortents = portents;
+	}
+	if (seed.impendingDoom?.text && String(seed.impendingDoom.text).trim()) {
+		out.impendingDoom = { text: String(seed.impendingDoom.text), done: !!seed.impendingDoom.done };
+	}
+	return out;
+}

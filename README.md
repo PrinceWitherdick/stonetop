@@ -2,8 +2,6 @@
 
 An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg.
 
-> This system is under active development and may be unstable.
-
 ## 🤖 Created in collaboration with AI to facilitate rapid development. Absolutely no image generation was or will be used.
 
 ## Features
@@ -70,7 +68,7 @@ The Stonetop steading sheet tracks Fortunes, Prosperity, Population, and Defense
 
 #### Threats
 
-A dedicated **Threats** tab collects the GM's threats as book-faithful cards. Reveal a threat to players through ownership, drag it onto a scene to drop a pin, and optionally show live threat cards as a canvas overlay.
+A dedicated **Threats** tab collects the GM's threats as book-faithful cards. Threats (and hazards) are pure GM prep, gathered into a single "Stonetop Threats" / "Stonetop Hazards" journal: drag a card onto a scene to drop a pin, and optionally show live threat cards as a canvas overlay.
 
 #### <img src="assets/icons/macros/love-letter.svg" alt="Love Letter icon" width="24" height="24" align="absmiddle"> Love Letters
 
@@ -154,7 +152,7 @@ This system reuses the CC BY-SA 4.0 text and evokes the visual presentation (tra
 
 - **Code** (JavaScript, templates, styles, build tooling) is licensed under the [MIT License](LICENSE).
 - **Game content** derived from [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg, together with any part of this system that reproduces the game's text or evokes its trade dress, is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
-- **Icon assets** sourced from [game-icons.net](https://github.com/game-icons/icons) are used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), with per-icon artist credits in the [playbook](assets/playbooks/ATTRIBUTION.md) and [macro](assets/icons/macros/ATTRIBUTION.md) attribution files.
+- **Icon assets** sourced from [game-icons.net](https://github.com/game-icons/icons) are used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), with per-icon artist credits in the [playbook](assets/playbooks/ATTRIBUTION.md), [macro](assets/icons/macros/ATTRIBUTION.md), and [interface](assets/icons/ATTRIBUTION.md) attribution files.
 
 This is an unofficial, fan-made system, not affiliated with or endorsed by Jeremy Strandberg or Lampblack & Brimstone. Stonetop, its artwork, and its trade dress remain the property of their respective owners.
 

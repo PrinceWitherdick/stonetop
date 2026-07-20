@@ -25,9 +25,9 @@
 
 	<div class="ct-field">
 		<span class="ct-label">Proximity</span>
-		<div class="threat-proximity-picker">
+		<div class="stonetop-segmented-picker threat-proximity-picker">
 			{{#each proximities}}
-			<label class="threat-proximity-option{{#if selected}} is-selected{{/if}}" data-tooltip="{{hint}}" data-tooltip-direction="UP">
+			<label class="stonetop-segmented-picker-option threat-proximity-option{{#if selected}} is-selected{{/if}}" data-tooltip="{{hint}}" data-tooltip-direction="UP">
 				<input type="radio" name="ct-proximity" value="{{id}}"{{#if selected}} checked{{/if}}>
 				<span>{{label}}</span>
 			</label>

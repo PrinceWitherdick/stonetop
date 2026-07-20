@@ -16,6 +16,23 @@ const STEP_TITLES = {
 	review:  "Review & create",
 };
 
+// Font Awesome glyph for each step, shown in the left-rail table of contents and the
+// banner (mirrors Run an Expedition / Make a Monster).
+const STEP_ICONS = {
+	origin:  "fa-compass",
+	nature:  "fa-hand-sparkles",
+	detail:  "fa-magnifying-glass",
+	form:    "fa-gem",
+	review:  "fa-clipboard-check",
+};
+
+// Origin and nature must be picked before advancing (nature branches the detail step). The
+// same warning shows whether you click Next or jump ahead on the rail, so it lives once here.
+const PICK_WARN = {
+	origin: "Pick or roll an origin first.",
+	nature: "Pick or roll a nature first.",
+};
+
 /**
  * The Artifact Creation inspiration wizard. Walks the Book II pick-or-roll tables
  * (origin → nature → detail → form), then builds a homebrew arcanum pre-filled with the
@@ -44,7 +61,8 @@ export class StonetopArcanaInspireDialog extends Application {
 			id:        "stonetop-arcana-inspire-dialog",
 			template:  "systems/stonetop_pwd/templates/dialogs/arcana-inspire.hbs",
 			title:     "Arcana — Inspire me",
-			width:     560,
+			// Wider than a plain stepper to seat the jump-to-step rail beside the content.
+			width:     620,
 			height:    "auto",
 			resizable: true,
 			classes:   ["stonetop", "stonetop-arcana-inspire-dialog"],
@@ -115,8 +133,17 @@ export class StonetopArcanaInspireDialog extends Application {
 		const data = {
 			step:      this._step,
 			stepTitle: STEP_TITLES[this._step],
+			stepIcon:  STEP_ICONS[this._step],
 			stepNum:   stepIdx + 1,
 			stepTotal: STEPS.length,
+			// Left-rail table of contents (shared guide-toc partial): one entry per step,
+			// with the active one highlighted. `index` is 0-based (read back by _goToStep).
+			steps: STEPS.map((key, i) => ({
+				index:    i,
+				title:    STEP_TITLES[key],
+				icon:     STEP_ICONS[key],
+				isActive: key === this._step,
+			})),
 			isReview,
 			isFirst:   stepIdx === 0,
 			isLast:    isReview,
@@ -168,6 +195,32 @@ export class StonetopArcanaInspireDialog extends Application {
 		root.querySelector(".stonetop-inspire-next")?.addEventListener("click", () => this._goNext());
 		root.querySelector(".stonetop-inspire-create")?.addEventListener("click", () => this._create());
 		root.querySelector(".stonetop-inspire-cancel")?.addEventListener("click", () => this.close());
+
+		// Left-rail table of contents: jump straight to a step (gated like Next so origin
+		// and nature stay required before the branches that depend on them).
+		root.querySelectorAll(".stonetop-guide-toc-btn").forEach(btn =>
+			btn.addEventListener("click", () => this._goToStep(Number(btn.dataset.stepIndex))));
+	}
+
+	// Jump to a step from the rail. Going back is always allowed; jumping forward past
+	// origin/nature still requires those picks (the detail step branches on nature), so
+	// clicking ahead without them warns instead, mirroring the Next button's gate.
+	_goToStep(index) {
+		if (!Number.isInteger(index) || index < 0 || index >= STEPS.length) return;
+		const current = STEPS.indexOf(this._step);
+		if (index === current) return;
+		if (index > current) {
+			if (index >= STEPS.indexOf("nature")     && !Number.isInteger(this._picks.origin)) {
+				ui.notifications?.warn(PICK_WARN.origin);
+				return;
+			}
+			if (index >= STEPS.indexOf("detail")     && !Number.isInteger(this._picks.nature)) {
+				ui.notifications?.warn(PICK_WARN.nature);
+				return;
+			}
+		}
+		this._step = STEPS[index];
+		this.render(false);
 	}
 
 	_rollField(key) {
@@ -181,7 +234,7 @@ export class StonetopArcanaInspireDialog extends Application {
 	// Origin and nature must be chosen before moving on (nature branches the detail step).
 	_requirePickToAdvance() {
 		if ((this._step === "origin" || this._step === "nature") && !Number.isInteger(this._picks[this._step])) {
-			ui.notifications?.warn(this._step === "origin" ? "Pick or roll an origin first." : "Pick or roll a nature first.");
+			ui.notifications?.warn(PICK_WARN[this._step]);
 			return false;
 		}
 		return true;

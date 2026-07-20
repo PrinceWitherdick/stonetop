@@ -33,6 +33,7 @@ export const NATURE_TAGS = [
 	{ id: "fae",        label: "Fae",        hint: "Between physical and spiritual" },
 	{ id: "construct",  label: "Construct",  hint: "Made by someone" },
 	{ id: "corrupted",  label: "Corrupted",  hint: "Changed by the Things Below" },
+	{ id: "emanation",  label: "Emanation",  hint: "A manifestation of a greater power, not a body of its own" },
 	{ id: "primordial", label: "Primordial", hint: "From the first age of creation" },
 	{ id: "undead",     label: "Undead",     hint: "Dead, but in denial" },
 ];
@@ -239,5 +240,48 @@ export function computeMonster(sel = {}) {
 		tags,
 		count: org.count,
 		rangeAdvice: size.range,
+	};
+}
+
+// Shape a `monster` Actor creation payload from an already-derived, flat options object.
+// Shared by the Make-a-Monster worksheet (CreateMonsterDialog) and the corruption wizards
+// (CorruptBeingDialog) so the two paths can never drift on the actor schema (the attributes
+// block, the hostile prototype token, the empty `entry`). Foundry-free: returns a plain
+// object; the HOSTILE disposition falls back to its constant (-1) when CONST is absent.
+export function buildMonsterActorData({
+	name, img, folder, creatureType,
+	hp = 0, armorValue = 0, armorSource = "", damageValue = "", rollFormula = "", instinct = "",
+	concept = "", organization = "", size = "", tags = "", qualities = "", notes = "", count = 1,
+	items = [],
+} = {}) {
+	return {
+		name,
+		type: "monster",
+		folder: folder ?? undefined,
+		img,
+		system: {
+			attributes: {
+				hp:       { value: hp, max: hp },
+				armor:    { value: armorValue, source: armorSource },
+				damage:   { value: damageValue, rollFormula },
+				instinct: { value: instinct },
+			},
+			concept,
+			organization,
+			creatureType,
+			size,
+			tags,
+			qualities,
+			notes,
+			count,
+			entry: "",
+		},
+		prototypeToken: {
+			name,
+			actorLink: false,
+			disposition: globalThis.CONST?.TOKEN_DISPOSITIONS?.HOSTILE ?? -1,
+			texture: img ? { src: img } : undefined,
+		},
+		items,
 	};
 }

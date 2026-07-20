@@ -2,10 +2,10 @@
   "name": "Peoples & Folk",
   "type": "Actor",
   "description": "",
-  "folder": null,
+  "folder": "BestiaryRootFldr",
   "sorting": "a",
   "sort": 0,
-  "color": null,
+  "color": "#a8544c",
   "flags": {},
   "_id": "fIZNnlnThiDJnrj1",
   "_key": "!folders!fIZNnlnThiDJnrj1"

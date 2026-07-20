@@ -99,7 +99,7 @@
         ],
         [
           "distinctive scars",
-          "off-broken nose",
+          "oft-broken nose",
           "missing bits"
         ]
       ],
@@ -138,7 +138,7 @@
           "region": "The Steplands (Hillfolk)",
           "names": [
             "Andr",
-            "Gabel",
+            "Gabrl",
             "Kaetl",
             "Mael",
             "Maela",
@@ -182,7 +182,7 @@
           {
             "slug": "distillery",
             "label": "Distillery",
-            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+            "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
             "grantsItems": [
               {
                 "name": "Skins of fine whisky",
@@ -218,7 +218,7 @@
               {
                 "name": "Firkins",
                 "column": "regular",
-                "weight": 1
+                "weight": 2
               }
             ]
           },
@@ -385,7 +385,7 @@
                 },
                 {
                   "slug": "crossbow",
-                  "label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>, x <em>piercing</em>)",
+                  "label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>, x <em>piercing</em>, ○ low ammo, ○ all out)",
                   "resource": {
                     "max": 2,
                     "title": null,

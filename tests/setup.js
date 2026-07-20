@@ -41,8 +41,10 @@ global.ui = {
 global.CONFIG = {};
 
 global.foundry = {
-	// V13 sentinel that, when set as an update value, forces deletion of that key.
-	data: { operators: { ForcedDeletion: Symbol.for("ForcedDeletion") } },
+	// V13+ operator class: an INSTANCE (`new ForcedDeletion()`) set as an update
+	// value forces deletion of that key. Core detects it via `instanceof`, so the
+	// fake must be a class, not a sentinel value, to model that faithfully.
+	data: { operators: { ForcedDeletion: class ForcedDeletion {} } },
 	utils: {
 		mergeObject: (a, b) => ({ ...a, ...b }),
 		deepClone: (value) => structuredClone(value),
@@ -50,6 +52,12 @@ global.foundry = {
 			.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 			.replace(/"/g, "&quot;").replace(/'/g, "&#39;"),
 		getProperty: (obj, path) => path.split(".").reduce((value, key) => value?.[key], obj),
+		randomID: (length = 16) => {
+			const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+			let id = "";
+			for (let i = 0; i < length; i++) id += chars[Math.floor(Math.random() * chars.length)];
+			return id;
+		},
 		flattenObject: (obj, prefix = "") => Object.entries(obj ?? {}).reduce((acc, [key, value]) => {
 			const path = prefix ? `${prefix}.${key}` : key;
 			if (value && typeof value === "object" && !Array.isArray(value)) {

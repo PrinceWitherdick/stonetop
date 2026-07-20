@@ -22,7 +22,7 @@
         "overview": "Overview",
         "neighbors": "Residents",
         "improvements": "Improvements",
-        "threats": "Threats",
+        "threats": "Threats & Dangers",
         "moves": "Homefront Moves",
         "notes": "Notes"
       }
@@ -93,6 +93,7 @@
         "loadHeavy": "<strong>Heavy load</strong> — noisy, slow, quick to tire",
         "packHorseNote": "Your <em><strong>Pack Horse</strong></em> raises each load by 1: up to 4 <span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> light, 7 normal, 10 heavy.",
         "arcanaItems": "Arcana",
+        "treasureItems": "Treasures",
         "smallItemLimit": "Mark up to <strong>{limit}</strong> small items (4+Prosperity)",
         "confirm": "Confirm Outfit",
         "totalWeight": "<span class=\"stonetop-glyph stonetop-glyph--diamond-selected\">◆</span> marked",
@@ -101,7 +102,7 @@
       "recover": {
         "title": "Recover",
         "button": "Recover",
-        "summary": "When you <em><strong>take time to catch your breath and tend to what ails you</strong></em>, expend 1 use of supplies and regain HP equal to 4+Prosperity.",
+        "summary": "When you <em><strong>take time to catch your breath and tend to what ails you</strong></em>, expend 1 use of supplies and regain HP equal to 4+Prosperity. The same move also tends a debility or a problematic wound (use the wound's Tend button); the GM says it's handled or names what's still required.",
         "lockedHint": "You've already caught your breath — you can't gain this benefit again until you take more damage.",
         "noSuppliesHint": "You have no uses of supplies to expend.",
         "fullHpHint": "You're already at full HP."
@@ -146,6 +147,7 @@
     "inventory": {
       "regularItems": "Items",
       "arcanaItems": "Arcana",
+      "treasureItems": "Treasures",
       "searchLabel": "Search items",
       "searchPlaceholder": "Filter items…",
       "searchSmallLabel": "Search small items",
@@ -218,7 +220,7 @@
       },
       "threatOnCanvasCards": {
         "name": "Threats: Show Cards on the Map",
-        "hint": "When on, a threat pinned to a scene also draws its full card on the map, anchored to the pin and moving with the scene, so you can read it and tick off its doom track right there on the canvas. Off by default: the pin opens the same card in a window instead. Only threats you've revealed appear on a player's map."
+        "hint": "When on, a threat pinned to a scene also draws its full card on the map, anchored to the pin and moving with the scene, so you can read it and tick off its doom track right there on the canvas. Off by default: the pin opens the same card in a window instead. Threats are GM-only prep, so these pins and cards are only ever shown to you."
       },
       "sheetFont": {
         "name": "Sheet Font",
@@ -380,6 +382,8 @@
       "addMove": "Add Move",
       "deleteMove": "Delete Move",
       "noMoves": "No moves yet.",
+      "moveNamePlaceholder": "Move name",
+      "moveFormulaHint": "Rollable dice formula (e.g. d6, 1d8+2)",
       "armorBoostApply": "Click to set Armor to {value}",
       "armorBoostRevert": "Click to revert Armor to normal",
       "armorBoostReverted": "reverted",
@@ -403,6 +407,7 @@
       "questionPlaceholder": "Question prompt",
       "answerPlaceholder": "Answer (filled in at the table)",
       "addLine": "Add Line",
+      "removeLine": "Remove line",
       "noLines": "No entries yet.",
       "introPlaceholder": "Intro text shown above the list (optional). Use **text** for bold.",
       "addDiscovery": "Add Discovery",
@@ -529,10 +534,15 @@
           "rollNone": "No roll — read aloud only",
           "rollHint": "Pick a stat to make this a 2d6+stat move. Leave on \"No roll\" for a read-aloud letter.",
           "resultsTitle": "Roll results (optional)",
+          "stylePickerLabel": "Result style",
+          "styleProse": "Describe outcomes",
+          "styleList": "Pick from a list",
           "pickLabel": "Pick",
+          "pickCountLabel": "How many to pick",
+          "pickCountHint": "How many the player chooses on a 10+, 7-9, and 6- (0 = none).",
           "optionsLabel": "Options to choose from (one per line)",
           "optionsPlaceholder": "Owain's been calling for folks to \"do something\"…\nWini has been acting out, badly…\nCrinwin jumped one of your crew…",
-          "optionsHint": "A shared list the player picks from. Use \"Pick\" above each result to say how many to choose on a 10+, 7-9, and 6- (0 = none).",
+          "optionsHint": "A shared list the player chooses from, one option per line.",
           "markXp": "Mark XP on a miss",
           "signedLabel": "Signed",
           "signedPlaceholder": "XOXO - your GM",

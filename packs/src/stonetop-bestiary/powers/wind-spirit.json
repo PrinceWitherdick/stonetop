@@ -1,0 +1,47 @@
+{
+  "name": "Wind Spirit",
+  "type": "monster",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "system": {
+    "attributes": {
+      "hp": {
+        "value": 10,
+        "max": 10
+      },
+      "armor": {
+        "value": 1,
+        "source": "no vital organs"
+      },
+      "damage": {
+        "value": "none",
+        "rollFormula": ""
+      },
+      "instinct": {
+        "value": "to get distracted"
+      }
+    },
+    "concept": "Minor spirits of wild places, more often NPCs than monsters; these stats are for the rare times one manifests to fight.",
+    "organization": "horde",
+    "size": "",
+    "tags": "horde, spirit, restless, temperamental",
+    "qualities": "",
+    "count": 6,
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m88jHcxMlzd0u0N3",
+    "notes": "<p>Howls, moans, whispers; hates all limits, confinement.</p>",
+    "creatureType": "spirit"
+  },
+  "prototypeToken": {
+    "name": "Wind Spirit",
+    "actorLink": false,
+    "disposition": -1,
+    "texture": {
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+    }
+  },
+  "items": [],
+  "effects": [],
+  "flags": {},
+  "folder": "Ewhy71l313P5C1Jd",
+  "_id": "SzMAMcfBFf4TBbeP",
+  "_key": "!actors!SzMAMcfBFf4TBbeP"
+}

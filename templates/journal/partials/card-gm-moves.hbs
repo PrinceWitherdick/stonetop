@@ -1,0 +1,10 @@
+{{!-- The "GM moves" block shared by the threat and hazard cards. Invoked with the card
+      view-model as context; renders nothing when there are no moves. --}}
+{{#if hasGmMoves}}
+<div class="threat-moves">
+	<span class="threat-label">GM moves</span>
+	<ul class="threat-move-list">
+		{{#each gmMoves}}<li><span class="threat-move-caret" aria-hidden="true">&#x27a4;</span>{{this}}</li>{{/each}}
+	</ul>
+</div>
+{{/if}}

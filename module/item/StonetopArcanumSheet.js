@@ -6,6 +6,7 @@ import { markDebilityTooltips } from "../utils/debility-tooltips.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import { isInCompendium } from "../utils/compendium-edit-guard.js";
 import { bringDialogToFront } from "../utils/front-on-open.js";
+import { applyGuideRail } from "../utils/guide-rail.js";
 import { isDefaultImg } from "../utils/strings.js";
 import { STAT_KEYS } from "../utils/roll-types.js";
 import { hasText } from "../actors/bestiary/codex.js";
@@ -33,6 +34,21 @@ const GLYPH_INSERTS = [
 	{ ins: "▶ ", label: "▶", hint: "Move / list arrow (decorative)" },
 ];
 
+// The editor's sections, driving the left rail (like Make a Monster / Run an Expedition).
+// Each `key` matches a `<section data-arc-tab>` in the edit template and its rail button;
+// `sub` is the banner subtitle, `icon` a Font Awesome 6 glyph. Switching sections is
+// client-side (no re-render), so the prose-mirror editors and unsaved field values survive.
+const ARC_SECTIONS = [
+	{ key: "identity",  title: "Identity",  sub: "name, slug & tier",   icon: "fa-fingerprint" },
+	{ key: "front",     title: "Front",     sub: "the curio, face-up",  icon: "fa-scroll" },
+	{ key: "back",      title: "Back",      sub: "the revealed power",  icon: "fa-wand-sparkles" },
+	{ key: "followers", title: "Followers", sub: "manifested summons",  icon: "fa-users" },
+];
+
+// Window widths per mode: the edit view seats the section rail; the read-only card is narrow.
+const ARC_VIEW_WIDTH = 460;
+const ARC_EDIT_WIDTH = 680;
+
 // True when any character already holds this arcanum slug — in their owned/identified
 // list, or via saved marks/unlock counts keyed by it. The slug is the identity key for
 // per-character marks AND the owned list, so changing it once in use orphans both; the
@@ -57,6 +73,12 @@ function _arcanumSlugInUse(slug) {
 export function createStonetopArcanumSheetClass(BaseItemSheet) {
 	return class StonetopArcanumSheet extends BaseItemSheet {
 		_editMode = false;
+		// Which edit-mode section the rail is showing. Preserved across the structural
+		// re-renders (toggles, requirement/follower add-remove) so the author stays put.
+		_activeArcSection = "identity";
+		// One-shot guard: widen to seat the rail on the first edit render of a session, then
+		// leave the width alone so structural re-renders don't undo a manual resize.
+		_editSizeApplied = false;
 		// Draft state: a card created from a character's Create button is a pending draft that
 		// isn't attached to that character until Save & Done. `_arcanumOnSave(item)` performs
 		// the attach (set by createArcanumItem); `_discarded` guards the delete-triggered close
@@ -141,8 +163,12 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 				this._otherArcanumSlugs = null; // drop the per-session slug cache on exit
 			}
 			this._editMode = !this._editMode;
+			// Leaving edit re-arms the one-shot edit-width sizing so re-entering re-seats the
+			// rail width; entering edit is sized by activateListeners (it runs post-render, so
+			// setPosition has an element even on a freshly-created draft opened straight to edit).
+			if (!this._editMode) this._editSizeApplied = false;
 			await this.render(false);
-			this.setPosition({ width: this._editMode ? 560 : 460, height: "auto" });
+			if (!this._editMode) this.setPosition({ width: ARC_VIEW_WIDTH, height: "auto" });
 		}
 
 		// Attach the finished draft to the originating character exactly once, then clear the
@@ -232,6 +258,13 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 					this._otherArcanumSlugs = await collectTakenArcanumSlugs({ excludeId: this.item.id });
 				}
 				data.editMode   = true;
+				// Left-rail sections. The active one is preserved on `this._activeArcSection`
+				// so a structural re-render re-opens the same section (the template hides the
+				// others via `active.key`).
+				const activeIdx = Math.max(0, ARC_SECTIONS.findIndex(s => s.key === this._activeArcSection));
+				data.sections     = ARC_SECTIONS.map((s, i) => ({ ...s, index: i + 1, selected: i === activeIdx }));
+				data.sectionCount = ARC_SECTIONS.length;
+				data.active       = { ...ARC_SECTIONS[activeIdx], index: activeIdx + 1 };
 				data.edit       = await this._buildEditContext(flags);
 				// Lock the slug once a character holds the card — changing it would orphan
 				// their saved marks and break the owned-slug link (the card would vanish).
@@ -363,6 +396,15 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 				// Insert glyph runs on mousedown so the focused editor keeps focus.
 				root.querySelectorAll(".stonetop-arc-glyph").forEach(btn =>
 					btn.addEventListener("mousedown", ev => { ev.preventDefault(); this._insertGlyph(btn.dataset.glyph); }));
+				// Hide "Next" if the rail opens on the last section.
+				this._syncArcNext(root);
+				// Seat the rail width once per edit session (covers a freshly-created draft that
+				// opens straight into edit mode, where _toggleEditMode never ran). setPosition is
+				// safe here — activateListeners runs after the element exists.
+				if (!this._editSizeApplied) {
+					this._editSizeApplied = true;
+					this.setPosition({ width: ARC_EDIT_WIDTH, height: "auto" });
+				}
 				return;
 			}
 
@@ -445,6 +487,13 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 		}
 
 		_onEditClick(ev) {
+			// Left-rail section switch + "Next" walk — purely client-side (no re-render), so
+			// the prose-mirror editors and any unsaved field values are preserved.
+			const tab = ev.target.closest(".stonetop-arc-tab");
+			if (tab) { ev.preventDefault(); return this._selectArcSection(tab.dataset.arcTab); }
+			const next = ev.target.closest(".stonetop-arc-next");
+			if (next) { ev.preventDefault(); return this._selectNextArcSection(); }
+
 			// Footer actions: Save & Done finishes the card (flush + attach draft + preview);
 			// Cancel discards an unsaved draft.
 			const save = ev.target.closest(".stonetop-arc-save");
@@ -475,6 +524,50 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 				ev.preventDefault();
 				return this._removeFollower(Number(frem.closest(".stonetop-arc-foll-row")?.dataset?.follIndex));
 			}
+		}
+
+		// ── Section rail ────────────────────────────────────────────────────────────
+
+		// Show one editor section and light its rail entry, updating the banner — all DOM,
+		// no re-render, so prose-mirror editors and unsaved field edits survive the switch.
+		_selectArcSection(key) {
+			const index = ARC_SECTIONS.findIndex(s => s.key === key);
+			if (index < 0) return;
+			this._activeArcSection = key;
+			const root = this.element?.[0];
+			if (!root) return;
+			const active = ARC_SECTIONS[index];
+
+			applyGuideRail(root, {
+				key, dataKey: "arcTab",
+				tabSelector: ".stonetop-arc-tab",
+				sectionSelector: ".stonetop-arc-section",
+				iconSelector: ".stonetop-arc-banner-icon",
+				icon: active.icon,
+				iconExtraClass: "stonetop-arc-banner-icon",
+				mainSelector: ".stonetop-arc-main",
+			});
+
+			const title = root.querySelector(".stonetop-arc-banner-title");
+			if (title) title.textContent = active.title;
+			const sub = root.querySelector(".stonetop-arc-banner-sub");
+			if (sub) sub.textContent = active.sub;
+			const count = root.querySelector(".stonetop-arc-banner-count");
+			if (count) count.textContent = `${index + 1} / ${ARC_SECTIONS.length}`;
+
+			this._syncArcNext(root);
+		}
+
+		// "Next" walks the rail one section at a time (same client-side switch).
+		_selectNextArcSection() {
+			const next = ARC_SECTIONS[ARC_SECTIONS.findIndex(s => s.key === this._activeArcSection) + 1];
+			if (next) this._selectArcSection(next.key);
+		}
+
+		// Hide "Next" once the last section is active (nothing left to advance to).
+		_syncArcNext(root) {
+			const btn = root?.querySelector(".stonetop-arc-next");
+			if (btn) btn.hidden = ARC_SECTIONS.findIndex(s => s.key === this._activeArcSection) >= ARC_SECTIONS.length - 1;
 		}
 
 		// Append a guided HTML snippet to a rich field, then re-render to show it. Does it in a

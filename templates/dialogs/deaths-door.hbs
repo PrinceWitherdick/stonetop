@@ -33,6 +33,24 @@
 				<p class="deaths-door-outcome-text">
 					You wrest yourself back to the realm of the living&mdash;return to 1 HP but say how your brush with death has marked you.
 				</p>
+				{{#if isStrong}}
+				<div class="deaths-door-mark">
+					{{#if markSeeded}}
+					<p class="deaths-door-mark-done"><i class="fas fa-check"></i> Mark recorded on your sheet. Bring it up often.</p>
+					{{else}}
+					<p class="deaths-door-mark-label">Record how it marked you (mind, body, or soul):</p>
+					<div class="deaths-door-mark-chips">
+						{{#each markChips}}
+						<button type="button" class="deaths-door-mark-chip" data-mark="{{this}}">{{this}}</button>
+						{{/each}}
+					</div>
+					<div class="deaths-door-mark-row">
+						<input type="text" class="deaths-door-mark-input" placeholder="…or describe your own mark">
+						<button type="button" class="deaths-door-mark-add"><i class="fas fa-plus"></i> Record mark</button>
+					</div>
+					{{/if}}
+				</div>
+				{{/if}}
 			</div>
 
 			<div class="deaths-door-outcome{{#if isWeak}} is-result{{/if}}">

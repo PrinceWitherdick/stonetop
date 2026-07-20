@@ -2,11 +2,14 @@ import { getSetting, setSetting } from "../settings.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import { findVisibleJournal, settingOverviewPages, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
+import { applyGuideRail } from "../utils/guide-rail.js";
 import { applyLocationTooltips } from "../locations/location-tooltips.js";
 import { bringDialogToFront } from "../utils/front-on-open.js";
 import { FoundryBasicsDialog } from "./FoundryBasicsDialog.js";
 import { charactersOwnedBy } from "../utils/playbook-actors.js";
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
+import { runImportBookArtMacro } from "../book2-art/macro.js";
+import { BOOK_ART_IMPORT_ENABLED } from "../book2-art/release-gate.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -71,10 +74,35 @@ function progressLabel(p, playbook) {
 	return { playbook: name, ...label };
 }
 
+// The guide's panels, in order, driving the left rail (like Run an Expedition /
+// Make a Monster). `key` matches a `<section data-tab>` in the template and the
+// rail button's `data-tab`; `title` labels the rail entry and the banner; `icon`
+// is a Font Awesome 6 glyph. The overview is the landing panel; the six numbered
+// entries are Book I's "Getting Started" steps, and `step` drives the banner's
+// "Step N of 6" count (the overview has none).
+const ALL_SECTIONS = [
+	{ key: "overview",     title: "Getting started",       icon: "fa-signs-post" },
+	{ key: "book-art",     title: "Import the book art",     icon: "fa-images",         step: 1, optional: true },
+	{ key: "setting",      title: "Review the setting",    icon: "fa-book-open",      step: 2 },
+	{ key: "expectations", title: "Set expectations",      icon: "fa-scale-balanced", step: 3 },
+	{ key: "characters",   title: "Create characters",     icon: "fa-user-plus",      step: 4 },
+	{ key: "introduce",    title: "Introduce the PCs",     icon: "fa-users",          step: 5 },
+	{ key: "spring",       title: "Let spring burst forth", icon: "fa-seedling",      step: 6 },
+];
+// The optional Book Art / PDF-import step (key "book-art") is held back until
+// distribution is approved; omit it entirely while disabled (see release-gate.js).
+const SECTIONS = BOOK_ART_IMPORT_ENABLED
+	? ALL_SECTIONS
+	: ALL_SECTIONS.filter(s => s.key !== "book-art");
+const STEP_COUNT = SECTIONS.filter(s => s.step).length;
+
 export class WelcomeDialog extends Application {
 	constructor(options = {}) {
 		super(options);
 		this._hooks = null;
+		// Which rail panel is showing; preserved across the roster's live re-renders
+		// (see _registerHooks) so refreshing the player list doesn't snap back to the top.
+		this._activeTab = SECTIONS[0].key;
 	}
 
 	static open() {
@@ -86,13 +114,16 @@ export class WelcomeDialog extends Application {
 			id:        "stonetop-welcome",
 			title:     "Welcome to Stonetop",
 			template:  "systems/stonetop_pwd/templates/dialogs/welcome.hbs",
-			width:     580,
-			height:    680,
+			// Left-rail tabbed sheet (like Run an Expedition / Make a Monster): the rail
+			// keeps the window short by showing one step at a time, so it needs less height
+			// than the old single-scroll guide and a touch more width for the rail.
+			width:     660,
+			height:    580,
 			resizable: true,
 			classes:   ["stonetop", "stonetop-welcome-dialog"],
-			// Preserve the reader's place when the roster re-renders (e.g. after
-			// minting a character), instead of snapping back to the top.
-			scrollY:   [".stonetop-welcome-scroll"],
+			// Preserve the reader's place within the active panel when the roster
+			// re-renders (e.g. after minting a character), instead of snapping to the top.
+			scrollY:   [".stonetop-welcome-main"],
 		});
 	}
 
@@ -133,12 +164,32 @@ export class WelcomeDialog extends Application {
 					})),
 			}));
 
+		const activeIndex = Math.max(0, SECTIONS.findIndex(s => s.key === this._activeTab));
+		const active = SECTIONS[activeIndex];
+
 		return {
 			players,
 			noPlayers:     players.length === 0,
 			dontShowAgain: !!getSetting("gmWelcomeShown"),
 			premiseHtml:   await enrichHTML(premiseSource()),
+			// Left rail + banner. Only the first-render active state comes from here;
+			// switching panels afterwards is client-side (see _selectTab), so the roster
+			// and any partly-filled fields survive without a re-render.
+			activeTab:     this._activeTab,
+			sections:      SECTIONS.map((s, i) => ({ key: s.key, title: s.title, icon: s.icon, selected: i === activeIndex })),
+			active:        { icon: active.icon, title: active.title, optional: !!active.optional, count: this._countLabel(activeIndex) },
+			atFirst:       activeIndex === 0,
+			atLast:        activeIndex === SECTIONS.length - 1,
 		};
+	}
+
+	// Banner "Step N of M" for the numbered steps; blank for the overview landing.
+	// N is the step's ordinal by position (not a stored number) so omitting the
+	// optional Book Art step doesn't leave a gap in the count.
+	_countLabel(index) {
+		if (!SECTIONS[index]?.step) return "";
+		const ordinal = SECTIONS.slice(0, index + 1).filter(s => s.step).length;
+		return `Step ${ordinal} of ${STEP_COUNT}`;
 	}
 
 	activateListeners(html) {
@@ -149,12 +200,19 @@ export class WelcomeDialog extends Application {
 		// render, so it isn't covered by the journal render hooks in stonetop.js.
 		applyLocationTooltips(html);
 
+		// Left-rail tabs + Back/Next: switch which step panel is shown, client-side. No
+		// re-render, so the roster and any typed-in fields keep their state.
+		html.find(".stonetop-welcome-tab").on("click", ev => this._selectTab(ev.currentTarget.dataset.tab));
+		html.find(".stonetop-welcome-back").on("click", () => this._step(-1));
+		html.find(".stonetop-welcome-next").on("click", () => this._step(1));
+
 		html.find('[data-action="setting-overview"]').on("click", () => this._openSettingOverview());
 		html.find('[data-action="agenda-principles"]').on("click", () => this._openSettingOverview("Agenda & Principles"));
 		html.find('[data-action="foundry-basics"]').on("click", () => FoundryBasicsDialog.open());
 		html.find('[data-action="introductions"]').on("click", () => this._openIntroductions());
 		html.find('[data-action="spring-burst"]').on("click", () => this._openSpringBurst());
 		html.find('[data-action="configure-players"]').on("click", () => this._openPlayerConfig());
+		html.find('[data-action="import-book-art"]').on("click", () => this._runImportBookArt());
 		html.find(".stonetop-welcome-create").on("click", ev =>
 			this._onCreateCharacter(ev.currentTarget.dataset.userId));
 		html.find(".stonetop-welcome-player-char").on("click", ev => {
@@ -165,6 +223,51 @@ export class WelcomeDialog extends Application {
 			setSetting("gmWelcomeShown", ev.currentTarget.checked));
 
 		this._registerHooks();
+	}
+
+	// Walk the rail one panel at a time (Back/Next), stopping at the ends.
+	_step(delta) {
+		const index = SECTIONS.findIndex(s => s.key === this._activeTab);
+		const next = SECTIONS[index + delta];
+		if (next) this._selectTab(next.key);
+	}
+
+	// Show one step panel and light its rail entry, updating the banner (icon, title,
+	// optional tag, count) and the Back/Next disabled state to match. Purely DOM — the
+	// guide is never re-rendered, so switching panels preserves the roster and anything
+	// the GM has already done. Mirrors CreateMonsterDialog._selectTab.
+	_selectTab(key) {
+		const index = SECTIONS.findIndex(s => s.key === key);
+		if (index < 0) return;
+		this._activeTab = key;
+		const active = SECTIONS[index];
+		const root = this.element;
+		if (!root?.length) return;
+
+		applyGuideRail(root[0], {
+			key, dataKey: "tab",
+			tabSelector: ".stonetop-welcome-tab",
+			sectionSelector: ".stonetop-welcome-section",
+			iconSelector: ".stonetop-welcome-banner-icon",
+			icon: active.icon,
+			iconExtraClass: "stonetop-welcome-banner-icon",
+			mainSelector: ".stonetop-welcome-main",
+		});
+
+		root.find(".stonetop-welcome-banner-title").text(active.title);
+		const optional = root.find(".stonetop-welcome-banner-optional")[0];
+		if (optional) optional.hidden = !active.optional;
+		const count = root.find(".stonetop-welcome-banner-count")[0];
+		if (count) {
+			const label = this._countLabel(index);
+			count.textContent = label;
+			count.hidden = !label;
+		}
+
+		const back = root.find(".stonetop-welcome-back")[0];
+		if (back) back.disabled = index === 0;
+		const next = root.find(".stonetop-welcome-next")[0];
+		if (next) next.disabled = index === SECTIONS.length - 1;
 	}
 
 	// Open the shareable "Setting Overview" journal — the same one that auto-opens
@@ -190,6 +293,14 @@ export class WelcomeDialog extends Application {
 	// its own focus-singleton (it brings an already-open copy forward), so just open it.
 	_openSpringBurst() {
 		game.stonetop?.openSpringBurst?.();
+	}
+
+	// Launch the seeded "Import Book Art" macro (step 1). This is a GM-only dialog, so
+	// execution is allowed. Leaves this guide open — the macro drives its own dialogs.
+	// The launch path (world copy, else the shipped compendium copy) is shared with the
+	// post-startup art reminder; see runImportBookArtMacro.
+	async _runImportBookArt() {
+		return runImportBookArtMacro();
 	}
 
 	// Jump to Foundry's core "Configure Players" screen — the same full-page route

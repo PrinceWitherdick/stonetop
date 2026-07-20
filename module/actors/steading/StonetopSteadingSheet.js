@@ -7,6 +7,8 @@ import {escHtml} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
+import {PeopleGalleryDialog} from "./PeopleGalleryDialog.js";
+import {BOOK_ART_IMPORT_ENABLED} from "../../book2-art/release-gate.js";
 import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
 import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDialog.js";
 import {CharacterInventory} from "../character/CharacterInventory.js";
@@ -27,11 +29,14 @@ import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel, SEASON_IDS} from 
 import {recordSeasonsChange, ordinalWord} from "../../seasons/seasons-chronicle.js";
 import {SEASONAL_GAINS} from "../../dialogs/spring-burst-data.js";
 import {addStonetopSteadingButton} from "../../utils/world.js";
-import {listThreatPages, createThreat, deleteThreat, isThreatRevealed} from "../../threats/threat-store.js";
-import {buildThreatCardVM, wireThreatDoomChange, handleThreatRevealClick, wireThreatCardDrag} from "../../threats/threat-view.js";
+import {listThreatPages, createThreat, deleteThreat} from "../../threats/threat-store.js";
+import {buildThreatCardVM, wireThreatDoomChange, wireThreatCardDrag} from "../../threats/threat-view.js";
 import {THREAT_PROXIMITIES} from "../../threats/threat-types.js";
 import {CreateThreatDialog} from "../../threats/create-threat-dialog.js";
 import {ThreatEditorDialog} from "../../threats/threat-editor-dialog.js";
+import {listHazardPages, createHazard, deleteHazard} from "../../hazards/hazard-store.js";
+import {buildHazardCardVM} from "../../hazards/hazard-view.js";
+import {CreateHazardDialog} from "../../hazards/create-hazard-dialog.js";
 
 
 function _normalizeSheetRollMode(rollMode) {
@@ -776,46 +781,55 @@ export function createStonetopSteadingSheetClass(Base) {
 			}
 			const threatsCtx = await this._buildThreatsContext();
 			context.stonetop.threatGroups = threatsCtx.threatGroups;
+			context.stonetop.hazards = threatsCtx.hazards;
+			context.stonetop.showHazards = threatsCtx.showHazards;
 			context.stonetop.canSeeThreats = threatsCtx.canSeeThreats;
 			context.stonetop.isGM = game.user?.isGM ?? false;
 			return context;
 		}
 
-		/** Resolve the steading's threat cards visible to this user (GM sees all; a player
-		 *  sees only revealed pages, which are the only ones on their client anyway). */
+		/** Resolve the steading's threat + hazard cards. Threats and hazards are pure GM prep
+		 *  (never shared with players), so the whole "Threats & Dangers" tab is GM-only: a
+		 *  non-GM gets nothing, which hides the tab (it's gated on `canSeeThreats`). */
 		async _buildThreatsContext() {
 			const isGM = game.user?.isGM ?? false;
-			// A player's client only holds revealed threat entries, so listThreatPages already
-			// yields just those for them; the isThreatRevealed filter is belt-and-suspenders.
-			const pages = listThreatPages(this.actor).filter(p => isGM || isThreatRevealed(p));
-			// Enrich every card VM concurrently (each page is independent) rather than
-			// serializing the enrichHTML calls, then decorate with host collapse chrome.
-			const vms = await Promise.all(pages.map(page => buildThreatCardVM(page)));
-			const threats = vms.map((vm, i) => {
-				vm.canDrag = isGM && vm.isOwner;
-				// On this tab each card can clamp to its title + Instinct. Seed the current
-				// state from the per-instance set (default expanded).
+			if (!isGM) return { threatGroups: [], hazards: [], showHazards: false, canSeeThreats: false };
+			const pages = listThreatPages(this.actor);
+			// Hazards render as one flat section after the proximity groups (they have no
+			// proximity; they belong to places and expeditions, Book I "Dangers").
+			const hazardPages = listHazardPages(this.actor);
+			// Enrich every card VM concurrently (each page is independent, and the threat
+			// and hazard batches don't depend on each other) rather than serializing the
+			// enrichHTML calls, then decorate with host collapse chrome.
+			const [vms, hazardVMs] = await Promise.all([
+				Promise.all(pages.map(page => buildThreatCardVM(page))),
+				Promise.all(hazardPages.map(page => buildHazardCardVM(page))),
+			]);
+			// On this tab each card can clamp to its title + Instinct. Seed the current
+			// state from the per-instance set (default expanded); hazards share the set,
+			// which is keyed by page uuid so the kinds can't collide.
+			const decorate = (vm, page) => {
+				vm.canDrag = vm.isOwner;
 				vm.collapsible = true;
-				vm.collapsed = this._collapsedThreats.has(pages[i].uuid);
+				vm.collapsed = this._collapsedThreats.has(page.uuid);
 				return vm;
-			});
+			};
+			const threats = vms.map((vm, i) => decorate(vm, pages[i]));
 			// Group by proximity (Homefront / Nearby / Distant, Book I p. 288) in book order,
 			// mirroring the Residents tab's stacked Player/Residents/Neighbors sections. The GM
-			// always sees all three headers (prep view); a player only sees groups that have a
-			// revealed threat, so they never get a bare "Distant Threats" header with nothing under it.
-			const threatGroups = THREAT_PROXIMITIES
-				.map(p => ({
-					id: p.id,
-					label: p.label,
-					lowerLabel: p.label.toLowerCase(),
-					hint: p.hint,
-					threats: threats.filter(t => t.proximity.id === p.id),
-				}))
-				.filter(g => isGM || g.threats.length > 0);
-			return { threatGroups, canSeeThreats: isGM || threats.length > 0 };
+			// always sees all three headers (prep view), each with its own "write up" button.
+			const threatGroups = THREAT_PROXIMITIES.map(p => ({
+				id: p.id,
+				label: p.label,
+				lowerLabel: p.label.toLowerCase(),
+				hint: p.hint,
+				threats: threats.filter(t => t.proximity.id === p.id),
+			}));
+			const hazards = hazardVMs.map((vm, i) => decorate(vm, hazardPages[i]));
+			return { threatGroups, hazards, showHazards: true, canSeeThreats: true };
 		}
 
-		/** Threats tab interactions: doom-track toggles, reveal, drag-to-scene, edit / remove /
+		/** Threats tab interactions: doom-track toggles, drag-to-scene, edit / remove /
 		 *  create. Self-gated per action (page ownership / GM), so it's independent of the
 		 *  section edit-mode gate; delegated on the sheet root. */
 		_activateThreatsListeners(root) {
@@ -824,19 +838,22 @@ export function createStonetopSteadingSheetClass(Base) {
 			wireThreatDoomChange(root, chk => fromUuid(chk.closest(".threat-card")?.dataset.pageUuid ?? ""));
 
 			root.addEventListener("click", async ev => {
-				// Toggling reveal updates the parent entry's ownership, which the actor sheet
-				// doesn't observe — re-render so the eye and revealed tint update.
-				if (await handleThreatRevealClick(ev, r => fromUuid(r.dataset.pageUuid))) { this.render(false); return; }
 				const edit = ev.target.closest?.(".steading-threats .threat-edit-open");
 				if (edit) { ev.preventDefault(); const page = await fromUuid(edit.dataset.pageUuid); if (page) this._openThreatEditor(page); return; }
 				const remove = ev.target.closest?.(".steading-threats .threat-remove");
 				if (remove) { ev.preventDefault(); const page = await fromUuid(remove.dataset.pageUuid); if (page) this._onDeleteThreat(page); return; }
 				const add = ev.target.closest?.(".steading-threats .threat-add-btn");
 				if (add) { ev.preventDefault(); this._onCreateThreat(add.dataset.proximity); return; }
+				const hazardEdit = ev.target.closest?.(".steading-threats .hazard-edit-open");
+				if (hazardEdit) { ev.preventDefault(); const page = await fromUuid(hazardEdit.dataset.pageUuid); if (page) this._onEditHazard(page); return; }
+				const hazardRemove = ev.target.closest?.(".steading-threats .hazard-remove");
+				if (hazardRemove) { ev.preventDefault(); const page = await fromUuid(hazardRemove.dataset.pageUuid); if (page) this._onDeleteHazard(page); return; }
+				const hazardAdd = ev.target.closest?.(".steading-threats .hazard-add-btn");
+				if (hazardAdd) { ev.preventDefault(); this._onCreateHazard(); return; }
 
 				// Collapse / expand a card down to its title + Instinct. Any header click toggles
-				// it (mirrors the Improvements tab); the reveal eye is excluded (handled and
-				// returned above). A drag suppresses the click, so grabbing the header to pin it
+				// it (mirrors the Improvements tab); the edit / remove tools are handled and
+				// returned above. A drag suppresses the click, so grabbing the header to pin it
 				// doesn't also collapse it. State lives in _collapsedThreats so it survives
 				// re-renders; no re-render, just a class flip.
 				const head = ev.target.closest?.(".steading-threats .threat-card__head--collapsible");
@@ -852,7 +869,7 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			// The whole card is the drag handle (no separate grip): grab it anywhere to drop
 			// a pinned Note on a scene. A plain click still toggles collapse (a drag suppresses
-			// the click), and interactive children (doom checks, reveal eye, tools) keep working.
+			// the click), and interactive children (doom checks, tools) keep working.
 			// Shares the one drag-wiring helper with the page sheet so the selector can't diverge.
 			wireThreatCardDrag(root, { selector: ".steading-threats .threat-card[draggable='true']" });
 		}
@@ -862,15 +879,21 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (page) new ThreatEditorDialog(page).render(true);
 		}
 
-		async _onDeleteThreat(page) {
+		// Confirm-and-delete a GM-prep page (threat or hazard): identical card + scene-pin
+		// cleanup, only the noun and the delete fn differ.
+		async _confirmDeletePrepPage(page, title, remove) {
 			const ok = await Dialog.confirm({
-				title: "Delete Threat",
+				title,
 				content: `<p>Delete <strong>${escHtml(page.name)}</strong>? This removes its card and any pins placed on scenes.</p>`,
 				options: { classes: ["dialog", "stonetop", "stonetop-delete-threat-dialog"] },
 			});
 			if (!ok) return;
-			await deleteThreat(page);
+			await remove(page);
 			this.render(false);
+		}
+
+		async _onDeleteThreat(page) {
+			return this._confirmDeletePrepPage(page, "Delete Threat", deleteThreat);
 		}
 
 		async _onCreateThreat(defaultProximity) {
@@ -879,6 +902,25 @@ export function createStonetopSteadingSheetClass(Base) {
 			const page = await createThreat(this.actor, seed);
 			this.render(false);
 			if (page) this._openThreatEditor(page);
+		}
+
+		// The Make-a-Hazard walkthrough collects the whole write-up, so unlike threats
+		// nothing needs an editor to open afterwards; edits reopen the wizard pre-filled.
+		async _onCreateHazard() {
+			const seed = await new CreateHazardDialog().promise();
+			if (!seed) return;
+			await createHazard(this.actor, seed);
+			this.render(false);
+		}
+
+		async _onEditHazard(page) {
+			const saved = await new CreateHazardDialog({ page }).promise();
+			// The sheet doesn't observe journal-page updates, so re-render after a save.
+			if (saved) this.render(false);
+		}
+
+		async _onDeleteHazard(page) {
+			return this._confirmDeletePrepPage(page, "Delete Hazard", deleteHazard);
 		}
 
 		// Create this steading's own threat from a dropped homebrew threat card's seed
@@ -1418,18 +1460,47 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		_onMemberAvatarPickImage({ list, index, current, popout }) {
-			const FilePickerClass = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
-			if (!FilePickerClass) return;
-			new FilePickerClass({
-				type: "image",
+			// Apply a chosen path (a gallery pick, a browsed file, or "" for the default), keep the
+			// open photo popout in sync, and re-render the sheet. Shared by all three routes.
+			const applyPath = async path => {
+				await this._onMemberAvatarImageChange(list, index, path);
+				if (popout) this._refreshMemberImagePopout(popout, path);
+				this.render(false);
+			};
+			const openFilePicker = () => {
+				const FilePickerClass = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+				if (!FilePickerClass) return;
+				new FilePickerClass({ type: "image", current, callback: applyPath }).render(true);
+			};
+			// The "People of Stonetop" gallery of imported book portraits is an affordance of the
+			// held-back Book Art / PDF-import feature (see book2-art/release-gate.js). While that is
+			// disabled, Edit Photo falls straight through to the plain FilePicker it used before the
+			// gallery existed, so setting a resident/neighbor portrait still works.
+			if (!BOOK_ART_IMPORT_ENABLED) {
+				openFilePicker();
+				return;
+			}
+			// Only a user who can browse the data files gets the raw FilePicker fallback; players
+			// pick from the broadcast gallery, which needs no file access.
+			const canBrowse = !!(game.user?.isGM || game.user?.can?.("FILES_BROWSE"));
+			// "Use default" removes the custom photo; the member falls back to the default avatar.
+			// Close the (now-stale) photo popout rather than refreshing it: there is no image to
+			// show, and _refreshMemberImagePopout no-ops on an empty path, so leaving it open would
+			// keep displaying the removed portrait AND feed its stale src back as `current` on the
+			// next Edit Photo (wrongly highlighting a portrait the member no longer uses).
+			const clearToDefault = async () => {
+				await this._onMemberAvatarImageChange(list, index, "");
+				if (popout) await popout.close?.();
+				this.render(false);
+			};
+			// Primary path: the "People of Stonetop" gallery of imported book portraits. "Browse
+			// files…" falls back to the FilePicker for a custom image; "Use default" clears it.
+			new PeopleGalleryDialog({
 				current,
-				callback: async path => {
-					await this._onMemberAvatarImageChange(list, index, path);
-					if (popout) {
-						this._refreshMemberImagePopout(popout, path);
-					}
-					this.render(false);
-				},
+				canBrowse,
+				onPick: applyPath,
+				onBrowse: openFilePicker,
+				onClear: clearToDefault,
 			}).render(true);
 		}
 

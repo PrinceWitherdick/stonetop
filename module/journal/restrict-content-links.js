@@ -23,6 +23,8 @@
 // GMs keep every link intact. Runs after applyLocationTooltips (which stamps the
 // `data-tooltip` summary we carry across) — see the journal render hook.
 
+import { isInJournalEditor } from "../utils/journal-editor-guard.js";
+
 /**
  * De-link every content-link in `root` the current user can't view. Location /
  * Lore links keep their hover summary as a plain <span>; bestiary links (and any
@@ -47,6 +49,9 @@ export function restrictContentLinks(root) {
 		return doc;
 	};
 	for (const a of el.querySelectorAll("a.content-link[data-uuid]")) {
+		// Leave links inside a live editor alone — flattening one there would drop the
+		// @UUID from the saved source on the next save (see journal-editor-guard.js).
+		if (isInJournalEditor(a)) continue;
 		if (currentUserCanView(a.dataset.uuid, resolve)) continue;
 		// Most cross-links are authored as `<strong>@UUID…</strong>`, so replacing
 		// only the anchor leaves the wrapping <strong> in place and the word stays

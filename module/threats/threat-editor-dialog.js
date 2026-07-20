@@ -52,6 +52,8 @@ export class ThreatEditorDialog extends StonetopDialog {
 		const sys = page.system ?? {};
 		const proximity = sys.proximity || DEFAULT_PROXIMITY;
 		const used = new Set((sys.gmMoves ?? []).map(m => String(m).trim()));
+		// Index a string-list field into editable {index, value} rows.
+		const rows = (arr) => (arr ?? []).map((v, index) => ({ index, value: String(v ?? "") }));
 		return {
 			id: page.id,
 			uuid: page.uuid,
@@ -63,8 +65,13 @@ export class ThreatEditorDialog extends StonetopDialog {
 			proximityOptions: THREAT_PROXIMITIES.map(p => ({ id: p.id, label: p.label, selected: p.id === proximity })),
 			suggestedMoves: threatType(sys.type).suggestedMoves.map(text => ({ text, used: used.has(text) })),
 			grimPortents: (sys.grimPortents ?? []).map((p, index) => ({ index, text: p?.text ?? "", done: !!p?.done })),
-			stakes: (sys.stakes ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
-			gmMoves: (sys.gmMoves ?? []).map((v, index) => ({ index, value: String(v ?? "") })),
+			// "Things Below" fields (Book II): themes/aspects flavor a Thing; cleansing lists a
+			// corrupted site's Make-a-Plan requirements.
+			themes: rows(sys.themes),
+			aspects: rows(sys.aspects),
+			cleansing: rows(sys.cleansing),
+			stakes: rows(sys.stakes),
+			gmMoves: rows(sys.gmMoves),
 			nested: (sys.nested ?? []).map((n, index) => ({ index, name: n?.name ?? "", type: n?.type ?? "", instinct: n?.instinct ?? "" })),
 			customPlayerMoves: (sys.customPlayerMoves ?? []).map((m, index) => ({ index, label: m?.label ?? "", text: m?.text ?? "" })),
 		};

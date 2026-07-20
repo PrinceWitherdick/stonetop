@@ -1,4 +1,5 @@
 import { GEAR_TERMS, PIERCING_STEADING_NOTE } from "../data/gear-terms.js";
+import { isInJournalEditor } from "./journal-editor-guard.js";
 
 /**
  * Given a single raw tag string (e.g. "+1 damage", "x piercing", "○ low ammo", "forceful"),
@@ -92,6 +93,9 @@ function processEm(em) {
 export function applyGearTermTooltips(rootElement) {
 	rootElement.querySelectorAll("em").forEach(em => {
 		if (em.dataset.gearProcessed) return;
+		// Leave <em>s inside a live editor untouched — wrapping the term there bakes the
+		// tooltip span into the saved source (see journal-editor-guard.js).
+		if (isInJournalEditor(em)) return;
 		em.dataset.gearProcessed = "1";
 		processEm(em);
 	});

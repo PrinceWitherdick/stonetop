@@ -8,8 +8,11 @@ import { slugify } from "../utils/strings.js";
 // (`slug:creature`) so re-summoning never duplicates a card. Stat blocks are
 // transcribed verbatim from each arcanum's reverse; OCR "(band)" damage tags are
 // corrected to "(hand)". Variable summons (the beautiful scroll's tulpa, the rusty
-// cauldron's chimera, the Ring's Servants of Daagon) ship a base card whose `notes`
-// spell out the per-summon picks the player resolves on the card afterward.
+// cauldron's chimera) ship a base card whose `notes` spell out the per-summon picks the
+// player resolves on the card afterward. The Ring of Daagon's Servants go further: they're
+// rolled and shaped through the Call Up the Deep Ones dialog (see servant-of-daagon.js), so
+// the Servant entry here is a `viaCallUp` marker the summon button skips (it adds only the
+// Ring) rather than a card the button manifests directly.
 
 export const ARCANA_SUMMONS = {
 	"blackwood-fetishes": {
@@ -298,6 +301,11 @@ export const ARCANA_SUMMONS = {
 				// You Call Up a fresh batch of Servants each time, so this card can be
 				// added again and again — never deduped by sourceUuid (see _onArcanaSummon).
 				repeatable:   true,
+				// Not manifested by the plain "Add as follower" button (that adds only the
+				// Ring). A Servant batch is rolled and shaped through the Call Up the Deep
+				// Ones dialog on the Ring's follower card — the sheet filters this entry out
+				// of the summon button and drives it via CallUpDeepOnesDialog instead.
+				viaCallUp:    true,
 				notes:        "Base 'group' build — adjust this card to your roll. Each Call Up, roll five d4s and assign each to one aspect:\n• Tags: 1 +craven; 2 +ravenous; 3 +cunning; 4 +exceptional (roll +2 for moves).\n• No. Appearing: 1 horde (2d6, HP 3, d6); 2-3 group (1d6+1, HP 6, d8); 4 solitary (HP 12, d10).\n• Size: 1 small (-2 HP, -2 damage, hand); 2-3 medium (close); 4 large (+4 HP, +1 damage, close, reach).\n• Traits (choose N = assigned die): blubbery/scaly hide (2 armor) / +stealthy & +cautious / powerful (+2 damage, forceful) / tentacles, pincers (reach, grabby) / big claws, fangs (1 piercing, messy) / projectiles (+near).\n• Moves (choose N = assigned die): Wriggle free / Heal at a prodigious rate / Smother, constrict, engulf / Dissolve organic material / Mesmerize the weak-willed / Paralyze with venom.",
 				sourceUuid:   "ring-of-daagon:servant-of-daagon",
 			},

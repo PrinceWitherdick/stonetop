@@ -134,13 +134,13 @@
             },
             {
               "slug": "ravenous",
-              "description": "<p><strong>RAVENOUS</strong> &mdash; You are filled with unending hunger. Gain an extra impulse: &quot;Wantonly devour flesh.&quot;</p><p>When you <strong><em>Make Camp</em></strong>, consume an extra 1d4 provisions or uses of supplies.</p><p>You can spend 1 Favor to:</p><ul><li>Touch something. For as long as you hold it, everyone who sees it desires it.</li><li>Gain a horrid, iron-rending maw (<em>band</em>, 3 piercing, <em>messy</em>) for as long as you wish, and with it the ability to eat and digest anything.</li></ul>",
+              "description": "<p><strong>RAVENOUS</strong> &mdash; You are filled with unending hunger. Gain an extra impulse: &quot;Wantonly devour flesh.&quot;</p><p>When you <strong><em>Make Camp</em></strong>, consume an extra 1d4 provisions or uses of supplies.</p><p>You can spend 1 Favor to:</p><ul><li>Touch something. For as long as you hold it, everyone who sees it desires it.</li><li>Gain a horrid, iron-rending maw (<em>hand</em>, 3 piercing, <em>messy</em>) for as long as you wish, and with it the ability to eat and digest anything.</li></ul>",
               "max": 1,
               "requires": null
             },
             {
               "slug": "red-wrath",
-              "description": "<p><strong>RED WRATH</strong> &mdash; Reduce your max HP by 2.</p><p>When <strong><em>the GM compels you to violence</em></strong>, you have disadvantage to resist.</p><p>When you <strong><em>let your fury fly and lash out at someone</em></strong> (<em>band, close</em>), spend 1&ndash;3 Favor and roll +Favor spent: <strong>on a 10+</strong>, deal 2d8 damage (<em>messy, forceful</em>) and shock, terrify, or impress any onlookers; <strong>on a 7&ndash;9</strong>, as a 10+ but you keep attacking your victim (or their corpse) in an unthinking rage, heedless of other danger.</p>",
+              "description": "<p><strong>RED WRATH</strong> &mdash; Reduce your max HP by 2.</p><p>When <strong><em>the GM compels you to violence</em></strong>, you have disadvantage to resist.</p><p>When you <strong><em>let your fury fly and lash out at someone</em></strong> (<em>hand, close</em>), spend 1&ndash;3 Favor and roll +Favor spent: <strong>on a 10+</strong>, deal 2d8 damage (<em>messy, forceful</em>) and shock, terrify, or impress any onlookers; <strong>on a 7&ndash;9</strong>, as a 10+ but you keep attacking your victim (or their corpse) in an unthinking rage, heedless of other danger.</p>",
               "max": 1,
               "requires": null
             },

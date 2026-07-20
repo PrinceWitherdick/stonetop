@@ -37,42 +37,66 @@
 		<p class="stonetop-custom-move-hint">{{localize "stonetop.character.moves.loveLetter.rollHint"}}</p>
 	</div>
 
-	<div class="stonetop-custom-move-results stonetop-love-letter-results{{#unless hasRoll}} is-hidden{{/unless}}">
-		<h4 class="stonetop-custom-move-results-title">{{localize "stonetop.character.moves.loveLetter.resultsTitle"}}</h4>
-		<div class="stonetop-custom-move-field stonetop-love-letter-tier">
-			<div class="stonetop-love-letter-tier-head">
+	<div class="stonetop-custom-move-results stonetop-love-letter-results{{#unless hasRoll}} is-hidden{{/unless}}"
+	     data-result-style="{{resultStyle}}">
+		<div class="stonetop-love-letter-results-head">
+			<h4 class="stonetop-custom-move-results-title">{{localize "stonetop.character.moves.loveLetter.resultsTitle"}}</h4>
+			<div class="stonetop-segmented-picker stonetop-love-letter-style-picker" role="radiogroup"
+			     aria-label="{{localize 'stonetop.character.moves.loveLetter.stylePickerLabel'}}">
+				<label class="stonetop-segmented-picker-option stonetop-love-letter-style-option">
+					<input type="radio" name="resultStyle" value="prose" {{#if (eq resultStyle "prose")}}checked{{/if}}>
+					<span>{{localize "stonetop.character.moves.loveLetter.styleProse"}}</span>
+				</label>
+				<label class="stonetop-segmented-picker-option stonetop-love-letter-style-option">
+					<input type="radio" name="resultStyle" value="list" {{#if (eq resultStyle "list")}}checked{{/if}}>
+					<span>{{localize "stonetop.character.moves.loveLetter.styleList"}}</span>
+				</label>
+			</div>
+		</div>
+
+		{{! Style A: freeform prose for each of the 10+/7-9/6- tiers. }}
+		<div class="stonetop-love-letter-panel stonetop-love-letter-panel--prose">
+			<div class="stonetop-custom-move-field">
 				<label for="stonetop-love-letter-success">{{localize "stonetop.character.moves.custom.success"}}</label>
-				<label class="stonetop-love-letter-pick">{{localize "stonetop.character.moves.loveLetter.pickLabel"}}
-					<input type="number" name="pickSuccess" min="0" max="20" value="{{results.pickSuccess}}"></label>
+				<textarea id="stonetop-love-letter-success" name="success" rows="2">{{results.success}}</textarea>
 			</div>
-			<textarea id="stonetop-love-letter-success" name="success" rows="2">{{results.success}}</textarea>
-		</div>
-		<div class="stonetop-custom-move-field stonetop-love-letter-tier">
-			<div class="stonetop-love-letter-tier-head">
+			<div class="stonetop-custom-move-field">
 				<label for="stonetop-love-letter-partial">{{localize "stonetop.character.moves.custom.partial"}}</label>
-				<label class="stonetop-love-letter-pick">{{localize "stonetop.character.moves.loveLetter.pickLabel"}}
-					<input type="number" name="pickPartial" min="0" max="20" value="{{results.pickPartial}}"></label>
+				<textarea id="stonetop-love-letter-partial" name="partial" rows="2">{{results.partial}}</textarea>
 			</div>
-			<textarea id="stonetop-love-letter-partial" name="partial" rows="2">{{results.partial}}</textarea>
-		</div>
-		<div class="stonetop-custom-move-field stonetop-love-letter-tier">
-			<div class="stonetop-love-letter-tier-head">
+			<div class="stonetop-custom-move-field">
 				<label for="stonetop-love-letter-failure">{{localize "stonetop.character.moves.custom.failure"}}</label>
-				<label class="stonetop-love-letter-pick">{{localize "stonetop.character.moves.loveLetter.pickLabel"}}
-					<input type="number" name="pickFailure" min="0" max="20" value="{{results.pickFailure}}"></label>
+				<textarea id="stonetop-love-letter-failure" name="failure" rows="2">{{results.failure}}</textarea>
 			</div>
-			<textarea id="stonetop-love-letter-failure" name="failure" rows="2">{{results.failure}}</textarea>
-			<label class="stonetop-love-letter-markxp">
-				<input type="checkbox" class="stonetop-check" name="markXp" {{#if markXp}}checked{{/if}}>
-				{{localize "stonetop.character.moves.loveLetter.markXp"}}
-			</label>
 		</div>
-		<div class="stonetop-custom-move-field">
-			<label for="stonetop-love-letter-options">{{localize "stonetop.character.moves.loveLetter.optionsLabel"}}</label>
-			<textarea id="stonetop-love-letter-options" name="options" rows="3"
-			          placeholder="{{localize 'stonetop.character.moves.loveLetter.optionsPlaceholder'}}">{{options}}</textarea>
-			<p class="stonetop-custom-move-hint">{{localize "stonetop.character.moves.loveLetter.optionsHint"}}</p>
+
+		{{! Style B: one shared list plus how many the player picks on each result. }}
+		<div class="stonetop-love-letter-panel stonetop-love-letter-panel--list">
+			<div class="stonetop-custom-move-field">
+				<label for="stonetop-love-letter-options">{{localize "stonetop.character.moves.loveLetter.optionsLabel"}}</label>
+				<textarea id="stonetop-love-letter-options" name="options" rows="4"
+				          placeholder="{{localize 'stonetop.character.moves.loveLetter.optionsPlaceholder'}}">{{options}}</textarea>
+				<p class="stonetop-custom-move-hint">{{localize "stonetop.character.moves.loveLetter.optionsHint"}}</p>
+			</div>
+			<div class="stonetop-custom-move-field stonetop-love-letter-picks">
+				<label>{{localize "stonetop.character.moves.loveLetter.pickCountLabel"}}</label>
+				<div class="stonetop-love-letter-picks-row">
+					<label>{{localize "stonetop.character.moves.custom.success"}}
+						<input type="number" name="pickSuccess" min="0" max="20" value="{{results.pickSuccess}}"></label>
+					<label>{{localize "stonetop.character.moves.custom.partial"}}
+						<input type="number" name="pickPartial" min="0" max="20" value="{{results.pickPartial}}"></label>
+					<label>{{localize "stonetop.character.moves.custom.failure"}}
+						<input type="number" name="pickFailure" min="0" max="20" value="{{results.pickFailure}}"></label>
+				</div>
+				<p class="stonetop-custom-move-hint">{{localize "stonetop.character.moves.loveLetter.pickCountHint"}}</p>
+			</div>
 		</div>
+
+		{{! A miss marks XP regardless of which style the letter uses. }}
+		<label class="stonetop-love-letter-markxp">
+			<input type="checkbox" class="stonetop-check" name="markXp" {{#if markXp}}checked{{/if}}>
+			{{localize "stonetop.character.moves.loveLetter.markXp"}}
+		</label>
 	</div>
 
 	<div class="stonetop-custom-move-field">

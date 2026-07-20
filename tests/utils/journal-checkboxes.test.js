@@ -22,12 +22,14 @@ class FakeClassList {
 class FakeEl {
 	constructor(tag = "div") {
 		this.tagName = tag.toUpperCase();
+		this.nodeType = 1; // so isInJournalEditor() treats us as the element, not a text node
 		this.classList = new FakeClassList();
 		this.dataset = {};
 		this.attrs = {};
 		this.children = [];
 		this.listeners = {};
 		this.parentLi = null;
+		this._inEditor = false; // set true to simulate a bullet inside a live ProseMirror editor
 	}
 	set className(v) { String(v).split(/\s+/).forEach((c) => c && this.classList.add(c)); }
 	setAttribute(k, v) { this.attrs[k] = String(v); }
@@ -43,13 +45,20 @@ class FakeEl {
 			? this.children.find((c) => c.classList.contains("stonetop-journal-check")) ?? null
 			: null;
 	}
-	closest(sel) { return sel === "li" ? (this.tagName === "LI" ? this : this.parentLi) : null; }
+	closest(sel) {
+		if (sel === "li") return this.tagName === "LI" ? this : this.parentLi;
+		// Any other selector here is the journal-editor guard (JOURNAL_EDITOR_SELECTOR):
+		// report a match only for a bullet flagged as living inside a live editor.
+		return this._inEditor ? this : null;
+	}
 	get control() { return this.querySelector(".stonetop-journal-check"); }
 }
 
 beforeAll(() => {
 	global.document = { createElement: (tag) => new FakeEl(tag) };
-	global.game = { ...(global.game ?? {}), user: { id: "u1" } };
+	// generation 14: deletionEntry uses a ForcedDeletion instance to unset a check (the
+	// v14 path this suite's toggle-off assertion exercises); below it, the `-=` leaf form.
+	global.game = { ...(global.game ?? {}), user: { id: "u1" }, release: { generation: 14 } };
 });
 
 function makePage({ checks = {}, editable = true, inCompendium = false, pack } = {}) {
@@ -72,8 +81,10 @@ function makePage({ checks = {}, editable = true, inCompendium = false, pack } =
 			for (const [path, val] of Object.entries(data)) {
 				const m = path.match(/^flags\.stonetop\.checks\.(-=)?(.+)$/);
 				if (!m) continue;
-				// Accept either delete form: v12's `-=key`/null or v13+'s ForcedDeletion sentinel.
-				if (m[1] || val === foundry.data?.operators?.ForcedDeletion) delete flags.stonetop.checks[m[2]];
+				// Accept either delete form: v12's `-=key`/null or a v13+ ForcedDeletion
+				// INSTANCE (core removes the key only when the value is `instanceof` it).
+				const ForcedDeletion = foundry.data?.operators?.ForcedDeletion;
+				if (m[1] || (ForcedDeletion && val instanceof ForcedDeletion)) delete flags.stonetop.checks[m[2]];
 				else flags.stonetop.checks[m[2]] = val;
 			}
 			return Promise.resolve();
@@ -120,7 +131,7 @@ describe("applyJournalCheckboxes", () => {
 		expect(a.classList.contains("checked")).toBe(true);
 
 		b.control.fire("click");
-		expect(page.update).toHaveBeenCalledWith({ "flags.stonetop.checks.c1": foundry.data.operators.ForcedDeletion });
+		expect(page.update).toHaveBeenCalledWith({ "flags.stonetop.checks.c1": expect.any(foundry.data.operators.ForcedDeletion) });
 		expect(b.control.getAttribute("aria-checked")).toBe("false");
 	});
 
@@ -171,6 +182,24 @@ describe("applyJournalCheckboxes", () => {
 		expect(a.classList.contains("checked")).toBe(true);
 		expect(b.classList.contains("checked")).toBe(false);
 		expect(page.update).not.toHaveBeenCalled();
+	});
+
+	it("counts a check-bullet inside an open editor so later sections' keys don't shift", () => {
+		// A location page mid-edit: bullet B belongs to a section open for inline edit, so
+		// it renders inside a <prose-mirror> (isInJournalEditor === true) rather than the
+		// read-view div. It must still be COUNTED (keeping bullet C at c2) but get no
+		// control. Regression for the "opening one section renumbers another" corruption.
+		const page = makePage({ checks: { c2: true } });
+		const a = new FakeEl("li"); a.classList.add("check-bullet");
+		const b = new FakeEl("li"); b.classList.add("check-bullet"); b._inEditor = true;
+		const c = new FakeEl("li"); c.classList.add("check-bullet");
+		applyJournalCheckboxes({ document: page }, { querySelectorAll: () => [a, b, c] });
+
+		expect(a.control.dataset.checkKey).toBe("c0");
+		expect(b.control).toBeNull();                    // in a live editor: never given a control
+		expect(c.control.dataset.checkKey).toBe("c2");   // NOT renumbered down to c1...
+		expect(c.control.getAttribute("aria-checked")).toBe("true"); // ...so its tick still shows
+		expect(c.classList.contains("checked")).toBe(true);
 	});
 
 	it("ignores journals outside the Stonetop pack", () => {

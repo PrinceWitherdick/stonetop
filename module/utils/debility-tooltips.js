@@ -1,4 +1,5 @@
 import { getHoverDescriptionSetting } from "../settings.js";
+import { JOURNAL_EDITOR_SELECTOR } from "./journal-editor-guard.js";
 
 // The three character debilities and what each one does. This is the canonical
 // rules text mirrored from `_DEBILITY_DEFS` in
@@ -28,8 +29,10 @@ const _STEADING_QUALIFIED = /steading(?:['’]?s)?(?:\s+\w+){0,3}\s*$/i;
 // Never wrap inside editable controls, content links (which carry their own
 // tooltip), or an already-wrapped term (idempotency). Also skip the debility
 // *tracker* UI and its section title on the character/steading sheets — those
-// already explain themselves; this feature is only for inline prose mentions.
-const _SKIP = ".stonetop-debility-term, .stonetop-debilities, .steading-debilities-section, a, input, textarea, select, code, pre, .editor, prose-mirror, .ProseMirror";
+// already explain themselves; this feature is only for inline prose mentions. The
+// live-editor fragment is sourced from the shared JOURNAL_EDITOR_SELECTOR so it
+// can't drift from the guard.
+const _SKIP = `.stonetop-debility-term, .stonetop-debilities, .steading-debilities-section, a, input, textarea, select, code, pre, ${JOURNAL_EDITOR_SELECTOR}`;
 
 /**
  * Give every bare "debility" / "debilities" in `container`'s prose a hover

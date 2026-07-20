@@ -1,3 +1,5 @@
+import { DEFAULT_ROOT as DEFAULT_BOOK2_ART_ROOT } from "./book2-art/art-root.js";
+
 export function registerSettings() {
 	// -- WORLD SETTINGS ------------------------------------------
 
@@ -22,6 +24,45 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the one-time import of the Monsters (stonetop-bestiary) actor compendium
+	// into the world's Actors sidebar has run (see hooks/SeedActors.js). Independent of
+	// `seedingComplete` (which covers the JournalEntry packs) so an established world whose
+	// journals were seeded long ago still imports the monster sheets on the first load
+	// after this shipped. Set true after the first GM load so the bestiary is seeded once.
+	game.settings.register("stonetop_pwd", "bestiaryActorsSeeded", {
+		name: "Bestiary Actors Seeded",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether this world has had the retired "The World" wrapper folder un-nested (see
+	// hooks/SeedCompendiums.unnestSeededWorldRootOnce). Older seeds grouped the four
+	// gazetteer trees under a single "The World" folder, which pushed the deep Bestiary
+	// codex past Foundry's folder-render depth; the migration lifts the trees to the
+	// sidebar root and deletes the wrapper. Set true once it has run (no-op on fresh worlds).
+	game.settings.register("stonetop_pwd", "worldRootUnnested", {
+		name: "World Root Un-nested",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether the seeded world Bestiary's actor subfolders have been collapsed (see
+	// hooks/SeedActors.collapseBestiaryActorSubfoldersOnce). The tree was seeded
+	// Bestiary > section > region > creature > actor; that depth hid the deepest monsters
+	// past Foundry's folder-render limit, so the migration flattens it to Bestiary > section
+	// > actor. Set true once it has run (no-op on worlds seeded from the collapsed compendium).
+	game.settings.register("stonetop_pwd", "bestiaryActorFoldersCollapsed", {
+		name: "Bestiary Actor Folders Collapsed",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// Whether this world has had the system's new-world core setting defaults applied.
 	// Used to seed Foundry's Automatic Token Rotation world setting off only during a
 	// fresh world's first GM load, without surprising already-established worlds.
@@ -39,6 +80,21 @@ export function registerSettings() {
 	// journals and records the new version here.
 	game.settings.register("stonetop_pwd", "journalSyncVersion", {
 		name: "Journal Sync Version",
+		scope: "world",
+		config: false,
+		type: String,
+		default: ""
+	});
+
+	// Fingerprint of the seeded gazetteer folder colour scheme last applied in this
+	// world (see hooks/SeedCompendiums.syncSeededFolderColors). When it trails the
+	// current scheme — a fresh install, or a system update that added/retinted a
+	// category — the sync recolours any still-default folders and records the new
+	// signature. A content signature rather than a one-shot flag so later colour
+	// changes propagate; the sync recolours folders at the default or still holding a colour
+	// from the previous scheme, so re-running can't fight a GM's own tint.
+	game.settings.register("stonetop_pwd", "seededFolderColorsSignature", {
+		name: "Seeded Folder Colours Signature",
 		scope: "world",
 		config: false,
 		type: String,
@@ -164,6 +220,87 @@ export function registerSettings() {
 		config: false,
 		type: Boolean,
 		default: false
+	});
+
+	// Whether the "Import Book II Art" macro has been seeded into the world's Macro
+	// Directory (see hooks/Ready.js _ensureBook2ArtMacro). Set true after the first
+	// GM load so it's added exactly once — a GM who later deletes it keeps it gone.
+	game.settings.register("stonetop_pwd", "book2ArtMacroSeeded", {
+		name: "Book II Art Macro Seeded",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether the one-time "you can import your book art" chat reminder has been posted
+	// (see hooks/Ready.js _postBook2ArtReminderOnce). Resolved exactly once for a GM who
+	// is past the first-session Welcome guide (finished session zero or ticked "Don't show
+	// this again"): the card is whispered if no art is on disk yet, otherwise it's simply
+	// marked done. World-scoped — "has this world been nudged" is world state, and only the
+	// GM posts/acts on it.
+	game.settings.register("stonetop_pwd", "book2ArtReminderShown", {
+		name: "Book Art Import Reminder Shown",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// The durable folder (a top-level data path, OUTSIDE the system folder) the "Import
+	// Book Art" macro writes extracted illustrations to. Living outside systems/stonetop_pwd
+	// is what keeps the art across a system update or reinstall; the runtime re-apply
+	// (hooks/Ready.js -> book2-art/reapply.js) re-points documents at it after an update.
+	game.settings.register("stonetop_pwd", "book2ArtRoot", {
+		name: "Book II Art Folder",
+		scope: "world",
+		config: false,
+		type: String,
+		// Shared with book2ArtRoot()'s fallback, so a world that never set this and a world
+		// whose setting can't be read resolve art to the same folder.
+		default: DEFAULT_BOOK2_ART_ROOT
+	});
+
+	// Which Book II treasures have their illustration on disk under `book2ArtRoot`, as a
+	// { catalog slug -> path within the art folder } map (module/data/treasure-catalog.js).
+	// Unlike every other kind of book art, a treasure is not a document: its Item is built
+	// the moment a player drags the line off a journal, so there is nothing to write art
+	// onto ahead of time. This index is the answer to "does this world have art for that
+	// treasure, and where?" — the GM-side passes (the Import Book Art macro and
+	// book2-art/reapply.js) browse the folder and publish it here, and treasure-drops.js
+	// reads it synchronously when building the drop. World-scoped so players (who cannot
+	// browse files) get it broadcast like any setting.
+	game.settings.register("stonetop_pwd", "treasureArt", {
+		name: "Treasure Art On Disk",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {}
+	});
+
+	// Which "People of Stonetop" portraits have their illustration on disk under `book2ArtRoot`,
+	// as a { manifest out path -> display name } map. Like a treasure, a resident/neighbor
+	// portrait points at no document: the steading sheet's image gallery reads this broadcast
+	// index so even players (who cannot browse files) can pick from it. The GM-side passes (the
+	// Import Book Art macro and book2-art/reapply.js) browse the folder and publish it here.
+	// World-scoped so it reaches every client like any setting.
+	game.settings.register("stonetop_pwd", "peopleArt", {
+		name: "People Art On Disk",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {}
+	});
+
+	// The system version whose Book II art was last re-applied to the compendia. When
+	// this trails the running version, the re-apply pass re-points documents at the
+	// durable art on disk and records the new version here (see book2-art/reapply.js).
+	game.settings.register("stonetop_pwd", "book2ArtSyncVersion", {
+		name: "Book II Art Sync Version",
+		scope: "world",
+		config: false,
+		type: String,
+		default: ""
 	});
 
 	// Whether the GM has dismissed the "first session" Welcome guide's automatic
@@ -318,6 +455,12 @@ export function registerSettings() {
 		type: Boolean,
 		default: false
 	});
+
+	// NB: the GM-steading auto-assignment once-gate is NOT a setting — it's a per-user
+	// WORLD flag on the GM's own User document (see hooks/Ready.js
+	// _assignSteadingToUnassignedGm). It used to be a client-scoped setting here, but those
+	// live in browser localStorage keyed only by namespace.key, so the flag leaked across
+	// worlds and a fresh world read it already-set — silently skipping the assignment.
 
 	game.settings.register("stonetop_pwd", "sheetFont", {
 		name: "stonetop.settings.sheetFont.name",

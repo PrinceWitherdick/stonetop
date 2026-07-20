@@ -93,9 +93,14 @@
 			{{#if hasArcana}}
 			<h3 class="stonetop-outfit-section-heading stonetop-outfit-section-heading--arcana">{{{localize "stonetop.specialMoves.outfit.arcanaItems"}}}</h3>
 			<hr class="stonetop-inv-separator">
+			{{!-- Weightless arcana render INERT, matching the gear tab's static rows: they
+			      cost nothing against load or the small allowance, so a checkbox here would
+			      be a mark that changes no number anywhere. --}}
 			{{#each arcanaItems}}
-			<label class="stonetop-outfit-item{{#if checked}} is-checked{{/if}}">
+			<label class="stonetop-outfit-item{{#if inert}} stonetop-outfit-item-static{{/if}}{{#if checked}} is-checked{{/if}}">
+				{{#unless inert}}
 				<input type="checkbox" class="stonetop-outfit-item-check" data-slug="{{slug}}" {{#if checked}}checked{{/if}}>
+				{{/unless}}
 				<span class="stonetop-outfit-item-diamonds">
 					{{#each (times weight)}}<span class="stonetop-outfit-diamond"></span>{{/each}}
 				</span>

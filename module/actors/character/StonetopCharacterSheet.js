@@ -16,6 +16,8 @@ import {CreateFollowerDialog} from "./dialogs/CreateFollowerDialog.js";
 import {MonsterToFollowerDialog} from "./dialogs/MonsterToFollowerDialog.js";
 import {OrderFollowersDialog} from "./dialogs/OrderFollowersDialog.js";
 import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
+import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
+import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
@@ -261,7 +263,7 @@ const GUIDED_CHARACTER_MOVES = {
 			"Regain HP equal to ½ your max (round up)",
 			"Clear a debility",
 		],
-		note: "A mess kit (fire & water) lets 1 use provide for up to four people. If your rest was particularly peaceful, also gain advantage on your next roll.",
+		note: "A mess kit (fire & water) lets 1 use provide for up to four people. If your rest was particularly peaceful, also gain advantage on your next roll. Regaining HP or clearing a debility does NOT heal problematic wounds — those need Recover to stabilize and Convalesce to heal.",
 	},
 	"Recover": {
 		trigger: "When you take time to catch your breath and tend to what ails you, expend 1 use of supplies and regain HP equal to 4 + Prosperity.",
@@ -294,6 +296,24 @@ const EXPEDITION_MOVE_HANDLERS = {
 // Inventory slugs that hold "uses of supplies", in the order Recover depletes
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
+
+// Wound status → sheet presentation. Untreated wounds glow the bestiary red, treated
+// ones fade to a bandage, permanent ones lock. Labels feed the row tooltip.
+const _WOUND_STATUS_GLYPH = { problematic: "fa-droplet", stabilized: "fa-bandage", permanent: "fa-lock" };
+const _WOUND_STATUS_LABEL = {
+	problematic: "Problematic — untreated, still hindering",
+	stabilized:  "Stabilized — treated, but not yet healed",
+	permanent:   "Permanent — this one can't heal",
+};
+const _WOUND_STATUS_OPTIONS = [
+	{ value: "problematic", label: "Problematic (untreated)" },
+	{ value: "stabilized",  label: "Stabilized (treated, not healed)" },
+	{ value: "permanent",   label: "Permanent (can't heal)" },
+];
+const _WOUND_ORIGIN_OPTIONS = [
+	{ value: "wound",       label: "Wound" },
+	{ value: "deaths-door", label: "Death's-Door mark" },
+];
 
 function _addToLeadingNumber(value, delta) {
 	const match = String(value ?? "").match(/^(-?\d+)(.*)$/);
@@ -340,6 +360,19 @@ function _animalCompanionTraitTooltip(trait) {
 
 function _makeLoyaltyPips(val, max = 3) {
 	return Array.from({ length: max }, (_, i) => ({ index: i, filled: i < val }));
+}
+
+// The Ring of Daagon and its Servants share one Loyalty pool (Book II). Find the Ring
+// follower in a customFollowers map so a Servant batch's pips + Spend button act on the
+// Ring's track. Callers pass an in-hand map (getData) or a freshly-read flag.
+function findRingFollower(map = {}) {
+	const entry = Object.entries(map).find(([, f]) => f?.sourceUuid === RING_SOURCE_UUID);
+	return {
+		id:      entry?.[0] ?? null,
+		name:    entry?.[1]?.name || "the Ring of Daagon",
+		loyalty: Math.max(0, Number(entry?.[1]?.loyalty) || 0),
+		hasRing: !!entry,
+	};
 }
 
 // Readiness circles (Defend, p.216 / followers p.469). The Defend move holds up
@@ -1202,8 +1235,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					// already a spread (nothing to flip when both sides are open).
 					item.canFlip           = permittedBack && !spread;
 
-					const followers = item.summonFollowers;
-					if (!followers?.length) continue;
+					// The plain "Add as follower" button manifests only the directly-summoned
+					// followers. `viaCallUp` followers (the Ring of Daagon's Servants) are rolled
+					// and shaped through the Call Up the Deep Ones dialog on the Ring's follower
+					// card instead, so they're excluded here — the Ring's button adds just the Ring.
+					const followers = (item.summonFollowers ?? []).filter(f => !f.viaCallUp);
+					if (!followers.length) continue;
 					const names   = joinNames(followers.map(f => f.name));
 					const plural  = followers.length > 1;
 					// A repeatable follower (the Ring's Servants) can always be summoned
@@ -1236,6 +1273,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
 			context.stonetop.recover = this._buildRecoverData(context.stonetop);
 			context.stonetop.convalesce = this._buildConvalesceData(context.stonetop);
+			context.stonetop.woundsView = this._buildWoundsView(context.stonetop.wounds, context.editable);
 			return context;
 		}
 
@@ -1274,13 +1312,64 @@ export function createStonetopCharacterSheetClass(Base) {
 			const atFullHp         = hp.value >= hp.max;
 			const activeDebilities = (snapshot.debilities ?? []).filter(d => d.active);
 			const hasDebility      = activeDebilities.length > 0;
-			const canConvalesce    = !atFullHp || hasDebility;
+			// Convalesce also heals wounds that can heal, and is where permanent injuries
+			// get a Make-a-Plan note — so it's available when either is outstanding, even
+			// at full HP with no debilities.
+			const openWounds       = (snapshot.wounds ?? []).filter(w => !w.healed);
+			const canConvalesce    = !atFullHp || hasDebility || openWounds.length > 0;
 			return {
 				atFullHp,
 				hasDebility,
 				activeDebilities,
 				canConvalesce,
 				hint: canConvalesce ? null : { icon: "fa-heart", text: game.i18n.localize("stonetop.specialMoves.convalesce.nothingHint") },
+			};
+		}
+
+		// Shape the wound snapshot for the sheet block: split the active list from healed
+		// "scars", and precompute each row's glyph/label. `show` keeps the whole block out
+		// of the DOM when there's nothing to show and no way to add.
+		_buildWoundsView(wounds = [], editable = false) {
+			const isGM = game.user.isGM;
+			const decorate = (w) => {
+				// The inline chip shows only the wound text; fold its detail
+				// (requirement / plan / lasting tag) into one hover tooltip so
+				// nothing is lost in the compact presentation. The template reads
+				// only the fields returned below — the folded-in detail lives solely
+				// in `tooltip`, so it isn't duplicated onto the view model.
+				const planProgress = w.planProgress ?? { done: 0, total: 0 };
+				const tip = [];
+				if (w.text)            tip.push(w.text);
+				if (w.requirementNote) tip.push(`Needs: ${w.requirementNote}`);
+				if (w.planNote || planProgress.total) {
+					let s = w.planNote ? `Plan: ${w.planNote}` : "Plan";
+					if (planProgress.total) s += ` (${planProgress.done}/${planProgress.total} done)`;
+					tip.push(s);
+				}
+				if (w.mechanicalTag)   tip.push(w.mechanicalTag);
+				return {
+					id: w.id,
+					text: w.text,
+					status: w.status,
+					isDeathsDoor: w.origin === "deaths-door",
+					statusLabel: _WOUND_STATUS_LABEL[w.status] ?? _WOUND_STATUS_LABEL.problematic,
+					glyph: _WOUND_STATUS_GLYPH[w.status] ?? _WOUND_STATUS_GLYPH.problematic,
+					tooltip: tip.join(" • ") || w.text || "",
+				};
+			};
+			const visible = wounds ?? [];
+			const active = visible.filter(w => !w.healed).map(decorate);
+			const scars  = visible.filter(w =>  w.healed).map(decorate);
+			return {
+				canEdit: editable,
+				isGM,
+				active,
+				scars,
+				scarCount: scars.length,
+				// The wounds block only renders when there's a wound to show; the
+				// "add wound" affordance lives by the HP label (gated by canEdit),
+				// so an editable-but-woundless sheet shows no block under the vitals.
+				show: active.length > 0 || scars.length > 0,
 			};
 		}
 
@@ -1403,6 +1492,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (acSlug) {
 				const typeData = (playbookDoc?.animalCompanion?.types ?? []).find(t => t.slug === acSlug);
 				const traits = sf.animalCompanion?.traits ?? [];
+				// The type's mandatory trait (Bird/Critter "tiny", etc.) is auto-included
+				// and free; it's stat-neutral, so it doesn't affect derived stats, but it
+				// must still show as a locked chip and never count toward the pick budget.
+				const mandatoryTrait = typeData?.mandatoryTrait ?? null;
+				const displayTraits  = (mandatoryTrait && !traits.includes(mandatoryTrait))
+					? [mandatoryTrait, ...traits] : traits;
 				const stats = _applyAnimalCompanionTraits(typeData, traits);
 				const kind = sf.animalCompanion?.kind ?? "";
 				const typeLabel = typeData?.label ?? acSlug;
@@ -1428,12 +1523,15 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Base trait allowance + Magnificent Specimen's "+2 options" per owned copy.
 					const pickCount    = (Number(typeData?.pickCount) || 0) + (companionBonuses.traitPicks ?? 0);
 					const selectedSet  = new Set(traits);
-					const atLimit      = pickCount > 0 && selectedSet.size >= pickCount;
+					// The mandatory trait is locked on and free, so exclude it from the count.
+					const extraCount   = [...selectedSet].filter(t => t !== mandatoryTrait).length;
+					const atLimit      = pickCount > 0 && extraCount >= pickCount;
 					if (acTypeTraits.length) acTraitChoices = {
 						limit:   pickCount,
 						options: acTypeTraits.map(value => {
-							const selected = selectedSet.has(value);
-							return { value, selected, disabled: !selected && atLimit };
+							const isMandatory = value === mandatoryTrait;
+							const selected    = isMandatory || selectedSet.has(value);
+							return { value, selected, mandatory: isMandatory, disabled: isMandatory || (!selected && atLimit) };
 						}),
 					};
 				}
@@ -1444,7 +1542,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					pronoun:      acPronoun,
 					pronounEditable: true,
 					typeLabel:    kind ? `${_titleCase(kind)} (${String(typeLabel).toLowerCase()})` : String(typeLabel),
-					tags:         traits.map(label => ({ label, tooltip: showTraitHover ? _animalCompanionTraitTooltip(label) : null })),
+					tags:         displayTraits.map(label => ({ label, tooltip: showTraitHover ? _animalCompanionTraitTooltip(label) : null })),
 					traitChoices: acTraitChoices,
 					hpSlug:       "",
 					hpMax,
@@ -1791,6 +1889,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// override / loyalty / HP handlers resolve through _FOLLOWER_FLAGS["custom"].
 			// Ordered by their stored `order` (creation time) so the list is stable.
 			const customMap = sf.customFollowers ?? {};
+			// The Ring of Daagon and its Servants share one Loyalty pool (Book II: "sharing a
+			// pool of Loyalty with the Ring itself"), so a Servant batch's Loyalty pips + Spend
+			// button act on the Ring's track, not its own.
+			const { id: ringId, loyalty: ringLoyaltyVal } = findRingFollower(customMap);
 			const customFollowers = Object.entries(customMap)
 				.sort((a, b) => (Number(a[1]?.order) || 0) - (Number(b[1]?.order) || 0))
 				.map(([id, c]) => {
@@ -1807,6 +1909,10 @@ export function createStonetopCharacterSheetClass(Base) {
 						isFollower:   true,
 						removable:    true,
 						party:        !!c?.party,
+						// A follower marked "Dead" from the 0-HP fate dialog keeps its card as a
+						// record (greyed out, with a Remove button), until the player clears it or
+						// revives them. See _resolveFollowerFate / the HP-change revival clear.
+						dead:         !!c?.dead,
 						hpMax,
 						hpCurrent:    _clampHp(c?.hpCurrent, hpMax),
 						armor:        parseFollowerArmor(c?.armor),
@@ -1822,6 +1928,22 @@ export function createStonetopCharacterSheetClass(Base) {
 						loyaltySlug:  id,
 						..._followerExtras(c),
 					};
+					// Ring of Daagon identity — drives the card's Call Up / Send Them Back actions
+					// (templates/actor/partials/tab-followers.hbs) and the shared-Loyalty link.
+					card.sourceUuid = c?.sourceUuid ?? null;
+					card.isRing     = card.sourceUuid === RING_SOURCE_UUID;
+					card.isServant  = card.sourceUuid === SERVANT_SOURCE_UUID;
+					card.brokenFree = !!c?.brokenFree;   // a Servant batch that broke free (Send Them Back 6-)
+					// A Servant batch holds no Loyalty of its own — it draws on the Ring's pool
+					// (Book II: "sharing a pool of Loyalty with the Ring itself"). Point its pips +
+					// Spend button at the Ring's track so spending a Servant's Loyalty decrements the
+					// Ring, and Call Up pays from the same pool. Readiness/ammo stay on the batch's own
+					// id (they key off card.slug), so only Loyalty is shared.
+					if (card.isServant && ringId) {
+						card.sharedLoyalty = true;
+						card.loyalty       = _makeLoyaltyPips(ringLoyaltyVal);
+						card.loyaltySlug   = ringId;
+					}
 					// Group follower (NPCs & Followers p.470): the same shared stats as a
 					// single follower, plus a roster where every member tracks their own
 					// current HP against the shared max, an abstracted "one combatant"
@@ -1909,7 +2031,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					// borne shield raises the cap from 3 to 4 (+1 Readiness on a 7+
 					// Defend, p.216).
 					if (card.ftype && card.ftype !== "crew") {
-						const rSlug = card.loyaltySlug ?? "";
+						// Readiness lives on the follower's OWN id (card.slug), never the (possibly
+						// shared) loyaltySlug — a Servant of Daagon shares the Ring's Loyalty but
+						// holds its own Readiness. For every other type card.slug === loyaltySlug, so
+						// this is behaviour-preserving; the singular types ignore {slug} entirely.
+						const rSlug = card.slug ?? "";
 						card.showReadiness     = true;
 						card.readinessFollower = card.ftype;
 						card.readinessSlug     = rSlug;
@@ -1923,7 +2049,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					// true follower, the crew included, may carry one — the crew bow tracks
 					// ammo too, p.144); usesAmmo gates the ◇ low ammo / ◇ all out circles.
 					// Two cumulative checks: 0 full → 1 low → 2 out.
-					const aSlug = card.loyaltySlug ?? "";
+					const aSlug = card.slug ?? "";   // ammo keys off the follower's own id, not the shared loyaltySlug
 					card.canUseAmmo = true;
 					card.usesAmmo   = !!detailFlagsFor(card.ftype, card.slug).usesAmmo;
 					if (card.usesAmmo) {
@@ -2337,11 +2463,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!compendiumId) return;
 				const doc = await this._stonetopCharacter._moveRepo.getBasicMoveDocument(compendiumId);
 				if (!doc) return;
-				const speaker = ChatMessage.getSpeaker({ actor: this.actor });
-				ChatMessage.create({
-					content: moveChatCard(doc.name, doc.system?.description ?? ""),
-					speaker,
-				});
+				this._postMoveCard(doc.name, doc.system?.description ?? "");
 			});
 
 			// Defend's Readiness circles (p.216). Clicking a circle sets held Readiness to
@@ -2830,6 +2952,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 			html.find(".stonetop-convalesce-open-btn").on("click", this._onConvalesceOpen.bind(this));
 
+			// Wounds (4th harm track): add / edit / remove. Status transitions are otherwise
+			// move-gated (Recover stabilizes, Convalesce heals); the edit dialog is the manual
+			// override. The row's data-wound-id resolves which record an action targets.
+			html.find(".stonetop-wound-add").on("click", this._onWoundAdd.bind(this));
+			html.find(".stonetop-wound-tend").on("click", ev => this._onWoundTend(this._woundIdFromEvent(ev)));
+			html.find(".stonetop-wound-edit").on("click", ev => this._onWoundEdit(this._woundIdFromEvent(ev)));
+			html.find(".stonetop-wound-remove").on("click", ev => this._onWoundRemove(this._woundIdFromEvent(ev)));
+
 			// -- Followers tab: shared follower-card fields ----------------
 			// Common, hand-editable fields on every follower card (name,
 			// exceptional/group toggles, free-text Moves/Notes, diamond Gear
@@ -2972,10 +3102,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const name = (nameEl?.textContent.trim().replace(/\s+/g, " ")) || "Follower";
 				const type = card?.querySelector(".stonetop-follower-type")?.textContent.trim();
 				const title = type ? `${name} (${type})` : name;
-				ChatMessage.create({
-					content: moveChatCard(title, `<p>${escHtml(moveText)}</p>`),
-					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-				});
+				this._postMoveCard(title, `<p>${escHtml(moveText)}</p>`);
 			});
 
 			// Create a follower via the Book I walkthrough (NPCs & Followers, p.474).
@@ -3006,10 +3133,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				Dialog.confirm({
 					title:   "Remove follower",
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from your followers? This can't be undone.</p>`,
-					yes:     () => {
-						const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.customFollowers.${slug}`);
-						return this.actor.update({ [updKey]: val }).then(() => this.render(false));
-					},
+					yes:     () => this._removeCustomFollower(slug),
 					render:  bringDialogToFront,
 					options: { classes: ["dialog", "stonetop"] },
 				});
@@ -3052,6 +3176,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-spend-readiness").on("click", ev => {
 				const { ftype, slug, followerName } = ev.currentTarget.dataset;
 				this._onSpendReadiness(ftype, slug ?? "", followerName);
+			});
+			// Ring of Daagon — Call Up the Deep Ones (roll & shape a fresh Servant batch)
+			// and Send Them Back (+CHA to dismiss a batch). See the Daagon actions in
+			// tab-followers.hbs; both live on the Ring's / Servant's custom-follower card.
+			html.find(".stonetop-callup-deep-ones").on("click", () => this._onCallUpDeepOnes());
+			html.find(".stonetop-send-back").on("click", ev => {
+				const { slug, followerName } = ev.currentTarget.dataset;
+				this._onSendServantsBack(slug, followerName);
 			});
 			// Have What They Need (add gear to a follower) / Outfit the crew (restock).
 			html.find(".stonetop-follower-have-need").on("click", ev => {
@@ -3574,10 +3706,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!card) return;
 				const name = ev.currentTarget.textContent.trim();
 				const description = card.querySelector(".stonetop-invocation-desc")?.innerHTML ?? "";
-				ChatMessage.create({
-					content: moveChatCard(name, description),
-					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-				});
+				this._postMoveCard(name, description);
 			});
 			html.find(".stonetop-other-move-delete").on("click", ev => {
 				const { itemId } = ev.currentTarget.dataset;
@@ -3934,6 +4063,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				const wasAlive = fateEligible
 					&& Number(this.actor.getFlag("stonetop_pwd", fateHpPaths[follower])) !== 0;
 				await this._setFollowerHp(follower, slug, index, val);
+				// Reviving a fallen custom follower (HP back above 0) clears its "dead" mark so
+				// the card returns to normal — a mirror of the fate dialog's "Dead" outcome.
+				if (follower === "custom" && slug && val > 0
+					&& this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}.dead`)) {
+					await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.dead`]: false });
+				}
 				// Capture the follower's display name off the live card BEFORE the
 				// re-render detaches this input from the DOM.
 				const fateName = wasAlive
@@ -3950,7 +4085,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Loyal to the End is the Ranger's animal-companion move (p.469 → p.143):
 					// it replaces the standard fate choice, and only the companion gets it.
 					new FollowerFateDialog(this.actor, { name: fateName, loyalty, isAnimalCompanion: follower === "animal-companion" },
-						(action) => this._resolveFollowerFate(action, { name: fateName, loyalty }),
+						(action) => this._resolveFollowerFate(action, { name: fateName, loyalty, follower, slug }),
 					).render(true);
 				}
 			}, true);
@@ -4853,7 +4988,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _onArcanaSummon(slug) {
 			if (!this.isEditable) return;
 			const arcanum = await this._stonetopCharacter.getArcanum(slug);
-			const followers = arcanaSummonFollowers(arcanum);
+			// `viaCallUp` followers (the Ring of Daagon's Servants) aren't manifested by this
+			// button — they're rolled through the Call Up the Deep Ones dialog. The Ring's
+			// button adds just the Ring itself.
+			const followers = arcanaSummonFollowers(arcanum)?.filter(f => !f.viaCallUp);
 			if (!followers?.length) return;
 			const names = joinNames(followers.map(f => f.name));
 			const plural = followers.length > 1;
@@ -4880,6 +5018,161 @@ export function createStonetopCharacterSheetClass(Base) {
 				update[`flags.stonetop_pwd.customFollowers.${id}`] = { ...buildCustomFollower(input), order: order++ };
 			}
 			if (Object.keys(update).length) await this.actor.update(update);
+			this.render(false);
+		}
+
+		// ── Ring of Daagon: Call Up the Deep Ones / Send Them Back ───────────────────
+		// The Ring's Servants aren't a fixed summon — each Call Up rolls five d4s and
+		// shapes a fresh batch (see servant-of-daagon.js / CallUpDeepOnesDialog). The
+		// batch shares the Ring's Loyalty pool, so both live as linked custom followers.
+
+		// The Ring-of-Daagon follower on this sheet (or a null-ish stub), for the shared
+		// Loyalty pool that Call Up spends and a Servant's Spend button draws on.
+		_ringFollowerEntry() {
+			return findRingFollower(this.actor.getFlag("stonetop_pwd", "customFollowers") ?? {});
+		}
+
+		// Open the Call Up the Deep Ones roller. Requires the Ring itself to be a follower
+		// (its mysteries unlocked) — the Servants share its Loyalty pool.
+		async _onCallUpDeepOnes() {
+			if (!this.isEditable) return;
+			const ring = this._ringFollowerEntry();
+			if (!ring.hasRing) {
+				ui.notifications?.warn?.("Add the Ring of Daagon as a follower first, then Call Up the Deep Ones.");
+				return;
+			}
+			new CallUpDeepOnesDialog(this.actor, ring, ({ input, cost }) => this._applyCallUp(input, cost)).render(true);
+		}
+
+		// Manifest a rolled Servant batch as a fresh custom follower and pay Call Up's cost
+		// (spend 1 of the Ring's Loyalty, or mark a consequence). Re-reads the Ring live —
+		// the roller is non-modal, so its Loyalty may have moved since it opened.
+		async _applyCallUp(input, cost) {
+			const ring   = this._ringFollowerEntry();
+			const id     = foundry.utils.randomID(16);
+			const update = {
+				[`flags.stonetop_pwd.customFollowers.${id}`]: { ...buildServantFollower(input), order: this._nextFollowerOrder() },
+			};
+			let costLine;
+			if (cost?.kind === "loyalty" && ring.id && ring.loyalty > 0) {
+				update[`flags.stonetop_pwd.customFollowers.${ring.id}.loyalty`] = ring.loyalty - 1;
+				costLine = `<p>You spend <strong>1 Loyalty</strong> from ${escHtml(ring.name)} (now ${ring.loyalty - 1}).</p>`;
+			} else if (cost?.kind === "loyalty") {
+				costLine = `<p>${escHtml(ring.name)} holds no Loyalty, so you <strong>mark a consequence</strong> to call them up.</p>`;
+			} else {
+				costLine = `<p>You <strong>mark a consequence</strong> to call them up.</p>`;
+			}
+			await this.actor.update(update, { stonetopMove: "Call Up the Deep Ones" });
+
+			const diceStr = Array.isArray(cost?.dice) && cost.dice.length
+				? ` <span class="stonetop-callup-dice">(5d4: ${cost.dice.join(", ")})</span>` : "";
+			const tagLine = [...input.tags, ...(input.exceptional ? ["exceptional"] : [])].join(", ");
+			const body =
+				`<p>From heavy fog and deep water you call up <strong>${escHtml(input.name)}</strong>${diceStr} &mdash; <em>${escHtml(tagLine)}</em>.</p>`
+				+ `<p>HP ${input.hp}${input.isGroup ? ` each &middot; ${input.size} strong` : ""}, Armor ${input.armor}, damage ${escHtml(input.damage)}.</p>`
+				+ (input.moves ? `<p><strong>Moves:</strong> ${escHtml(input.moves.replace(/\n/g, "; "))}</p>` : "")
+				+ costLine;
+			await this._postMoveCard("Call Up the Deep Ones", body);
+			this.render(false);
+		}
+
+		// Send Them Back (roll +CHA): 10+ they go now; 7-9 they go but do some harm; 6-
+		// they resist — spend their (shared) Loyalty / mark a consequence, or they break free.
+		async _onSendServantsBack(slug, name) {
+			if (!this.isEditable || !slug) return;
+			const who = name
+				|| this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}.name`)
+				|| "the servants of Daagon";
+			const roll = await rollStat("cha", this.actor, {
+				moveName:        "Send Them Back",
+				moveDescription: `<p>When you <strong><em>send them back whence they came</em></strong>, roll +CHA.</p>`,
+				moveResults: {
+					success: { value: "They go, now." },
+					partial: { value: "They go, but take their time and likely do some harm on the way out." },
+					failure: { value: "Spend their Loyalty or mark a consequence and they'll eventually go &mdash; otherwise, this batch breaks free of your control." },
+				},
+			});
+			const total = Number(roll?.total) || 0;
+			if (total >= 10) return this._confirmServantDeparture(slug, who, "They return to the deep at once.");
+			if (total >= 7)  return this._confirmServantDeparture(slug, who, "They go, but take their time and likely do some harm on the way out.");
+			return this._onServantsResist(slug, who);
+		}
+
+		// Offer to clear a departing batch from the Followers tab.
+		_confirmServantDeparture(slug, who, note) {
+			Dialog.confirm({
+				title:      "Send them back",
+				content:    `<p>${note}</p><p>Remove <strong>${escHtml(who)}</strong> from your Followers?</p>`,
+				yes:        () => this._removeCustomFollower(slug),
+				no:         () => {},
+				defaultYes: true,
+				render:     bringDialogToFront,
+				options:    { classes: ["dialog", "stonetop"] },
+			});
+		}
+
+		_removeCustomFollower(slug) {
+			const [key, val] = deletionEntry(`flags.${STONETOP_SCOPE}.customFollowers.${slug}`);
+			return this.actor.update({ [key]: val }).then(() => this.render(false));
+		}
+
+		/** Post a move-result card to chat, spoken by this actor. Returns the create promise. */
+		_postMoveCard(title, body) {
+			return ChatMessage.create({
+				content: moveChatCard(title, body),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+		}
+
+		// The 6- branch: pay to make them leave (spend the Ring's shared Loyalty, or mark a
+		// consequence) or let them break free of your control.
+		_onServantsResist(slug, who) {
+			const ring       = this._ringFollowerEntry();
+			const canLoyalty = ring.hasRing && ring.loyalty > 0;
+			const buttons    = {};
+			if (canLoyalty) buttons.loyalty = {
+				icon:     '<i class="fas fa-hand-holding-heart"></i>',
+				label:    `Spend 1 Loyalty (${ring.loyalty})`,
+				callback: () => this._payServantExit(slug, who, "loyalty"),
+			};
+			buttons.consequence = {
+				icon:     '<i class="fas fa-triangle-exclamation"></i>',
+				label:    "Mark a consequence",
+				callback: () => this._payServantExit(slug, who, "consequence"),
+			};
+			buttons.free = {
+				icon:     '<i class="fas fa-skull-crossbones"></i>',
+				label:    "Let them break free",
+				callback: () => this._servantsBreakLoose(slug, who),
+			};
+			new Dialog({
+				title:   "They won't go quietly",
+				content: `<p><strong>${escHtml(who)}</strong> resist. Spend their Loyalty or mark a consequence and they'll eventually go &mdash; otherwise they break free of your control.</p>`,
+				buttons,
+				default: canLoyalty ? "loyalty" : "consequence",
+				render:  bringDialogToFront,
+			}, { classes: ["dialog", "stonetop"] }).render(true);
+		}
+
+		async _payServantExit(slug, who, kind) {
+			const ring = this._ringFollowerEntry();
+			let line;
+			if (kind === "loyalty" && ring.id && ring.loyalty > 0) {
+				await this.actor.setFlag("stonetop_pwd", `customFollowers.${ring.id}.loyalty`, ring.loyalty - 1);
+				line = `<p>You spend <strong>1 Loyalty</strong> from ${escHtml(ring.name)} (now ${ring.loyalty - 1}). <strong>${escHtml(who)}</strong> will eventually go.</p>`;
+			} else {
+				line = `<p>You <strong>mark a consequence</strong>. <strong>${escHtml(who)}</strong> will eventually go.</p>`;
+			}
+			await this._postMoveCard("Send Them Back", line);
+			this._confirmServantDeparture(slug, who, "They'll eventually go.");
+		}
+
+		async _servantsBreakLoose(slug, who) {
+			// No longer yours to command. Flag the batch (the card shows a "broke free" badge)
+			// and note it; it stays on the tab until removed.
+			await this.actor.setFlag("stonetop_pwd", `customFollowers.${slug}.brokenFree`, true);
+			await this._postMoveCard("Send Them Back",
+				`<p><strong>${escHtml(who)}</strong> break free of your control. They are no longer yours to command.</p>`);
 			this.render(false);
 		}
 
@@ -4949,7 +5242,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		// (advantage if it holds Loyalty) and the result card carries the 10+/7-9/6-
 		// outcome. Every other follower's "action" just posts a note recording the GM's
 		// call.
-		async _resolveFollowerFate(action, { name, loyalty } = {}) {
+		async _resolveFollowerFate(action, { name, loyalty, follower, slug } = {}) {
 			const who = escHtml(name || "Your follower");
 			if (action === "roll") {
 				await rollStat("", this.actor, {
@@ -4974,13 +5267,18 @@ export function createStonetopCharacterSheetClass(Base) {
 				body = `<p><strong>${who}</strong> is dying &mdash; out of the action; they'll die or hit Death's Door soon if no one intervenes.</p>`;
 			} else if (action === "dead") {
 				body = `<p><strong>${who}</strong> is dead.</p>`;
+				// Mark a custom follower fallen so its card stays on the sheet as a record —
+				// greyed out with a Remove button — rather than either vanishing or lingering
+				// as if nothing happened. Reviving them (HP back above 0) clears the mark. The
+				// built-in followers (animal companion / initiate / beast) aren't removable and
+				// have no per-record store, so they keep the chat-card record only.
+				if (follower === "custom" && slug) {
+					await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.dead`]: true });
+				}
 			} else {
 				return;
 			}
-			await ChatMessage.create({
-				content: moveChatCard("Follower Down", body),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Follower Down", body);
 			this.render(false);
 		}
 
@@ -5031,11 +5329,8 @@ export function createStonetopCharacterSheetClass(Base) {
 							const cur = foundry.utils.deepClone(this.actor.getFlag("stonetop_pwd", gearPath) ?? []);
 							cur.push({ label: item, checked: true });
 							await this.actor.setFlag("stonetop_pwd", gearPath, cur);
-							await ChatMessage.create({
-								content: moveChatCard("Have What They Need",
-									`<p><strong>${escHtml(name || "Your follower")}</strong> produces <em>${escHtml(item)}</em> — added to their gear.</p>`),
-								speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-							});
+							await this._postMoveCard("Have What They Need",
+								`<p><strong>${escHtml(name || "Your follower")}</strong> produces <em>${escHtml(item)}</em> — added to their gear.</p>`);
 							this.render(false);
 						} },
 					cancel: { label: "Cancel" },
@@ -5052,11 +5347,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// to build the whole sheet snapshot just to pull one scalar off it.
 			const pipsPerSet = this._stonetopCharacter.getSmallItemLimit() ?? 5;
 			await this.actor.setFlag("stonetop_pwd", "crew.supplies", Array(6).fill(pipsPerSet));
-			await ChatMessage.create({
-				content: moveChatCard("Outfit",
-					`<p>The crew Outfits — every member's Supplies restocked to full (${pipsPerSet} uses each).</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Outfit",
+				`<p>The crew Outfits — every member's Supplies restocked to full (${pipsPerSet} uses each).</p>`);
 			this.render(false);
 		}
 
@@ -5103,12 +5395,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.update({ [`flags.stonetop_pwd.${path}`]: next }, { stonetopMove: "Defend" });
 			}
 			const who = result?.followerName || "Your follower";
-			await ChatMessage.create({
-				content: moveChatCard("Defend — Readiness held",
-					`<p><strong>${escHtml(who)}</strong> holds <strong>${next}</strong> Readiness${shieldNote}.</p>`
-					+ `<p>Spend it to suffer the damage/effects of an attack for a ward, or to draw all attention to themselves.</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Defend — Readiness held",
+				`<p><strong>${escHtml(who)}</strong> holds <strong>${next}</strong> Readiness${shieldNote}.</p>`
+				+ `<p>Spend it to suffer the damage/effects of an attack for a ward, or to draw all attention to themselves.</p>`);
 			if (next !== existing) this.render(false);
 		}
 
@@ -5156,12 +5445,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			const live = Math.max(0, Number(this.actor.getFlag("stonetop_pwd", path)) || 0);
 			if (live <= 0) { ui.notifications?.warn?.(`${name || "This follower"} no longer holds any Loyalty to spend.`); return; }
 			await this.actor.update({ [`flags.stonetop_pwd.${path}`]: live - 1 }, { stonetopMove: "Spend Loyalty" });
-			await ChatMessage.create({
-				content: moveChatCard("Spend Loyalty",
-					`<p>You spend <strong>1 Loyalty</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
-					+ `<p>They now hold <strong>${live - 1}</strong> Loyalty.</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Spend Loyalty",
+				`<p>You spend <strong>1 Loyalty</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
+				+ `<p>They now hold <strong>${live - 1}</strong> Loyalty.</p>`);
 			this.render(false);
 		}
 
@@ -5215,12 +5501,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				: wantsUnwilling
 					? `<p>They didn't want to, but hold no Loyalty left to spend.</p>`
 					: "";
-			await ChatMessage.create({
-				content: moveChatCard("Spend Readiness",
-					`<p>You spend <strong>1 Readiness</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
-					+ `<p>They now hold <strong>${liveReadiness - 1}</strong> Readiness.</p>${costLine}`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
+			await this._postMoveCard("Spend Readiness",
+				`<p>You spend <strong>1 Readiness</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
+				+ `<p>They now hold <strong>${liveReadiness - 1}</strong> Readiness.</p>${costLine}`);
 			this.render(false);
 		}
 
@@ -5260,14 +5543,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			await target.update({
 				[`flags.stonetop_pwd.customFollowers.${newId}`]: { ...data, order: Math.max(maxOrder + 1, Date.now()) },
 			});
-			const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.customFollowers.${slug}`);
-			await this.actor.update({ [updKey]: val });
-			await ChatMessage.create({
-				content: moveChatCard("Follower Handed Off",
-					`<p><strong>${escHtml(data.name || "A follower")}</strong> now follows <strong>${escHtml(target.name)}</strong>.</p>`),
-				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-			});
-			this.render(false);
+			await this._removeCustomFollower(slug);
+			await this._postMoveCard("Follower Handed Off",
+				`<p><strong>${escHtml(data.name || "A follower")}</strong> now follows <strong>${escHtml(target.name)}</strong>.</p>`);
 		}
 
 		async _onRecoverOpen() {
@@ -5328,7 +5606,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			const snapshot = await this._stonetopCharacter.buildSnapshot();
 			const hp = snapshot.vitals.hp;
 			const activeDebilities = (snapshot.debilities ?? []).filter(d => d.active);
-			if (hp.value >= hp.max && activeDebilities.length === 0) return;
+			const openWounds = (snapshot.wounds ?? []).filter(w => !w.healed);
+			const healable   = openWounds.filter(w => w.status !== "permanent");
+			const permanent  = openWounds.filter(w => w.status === "permanent");
+			if (hp.value >= hp.max && activeDebilities.length === 0 && openWounds.length === 0) return;
 
 			const hpRow = hp.value < hp.max
 				? `<li>Recover all HP: <strong>${hp.value} &rarr; ${hp.max}</strong>.</li>`
@@ -5336,6 +5617,42 @@ export function createStonetopCharacterSheetClass(Base) {
 			const debilityRow = activeDebilities.length
 				? `<li>Clear ${activeDebilities.length === 1 ? "debility" : "debilities"}: <strong>${_esc(activeDebilities.map(d => d.name).join(", "))}</strong>.</li>`
 				: `<li>No debilities marked.</li>`;
+
+			// Wounds that can heal → an OPT-IN checklist (unchecked by default): healing them
+			// is Convalesce's stricter "few weeks under a healer" tier, distinct from the "few
+			// days" HP/debility reset above, so the player asserts it deliberately rather than
+			// having it ride along on every reset. Healing keeps a wound as a scar, not deletion.
+			const healSection = healable.length
+				? `<div class="stonetop-convalesce-wounds">
+						<p class="stonetop-homestead-subhead">Heal wounds that can heal (weeks under a healer):</p>
+						<ul class="stonetop-convalesce-wound-list">
+							${healable.map(w => `<li><label class="stonetop-convalesce-wound"><input type="checkbox" name="heal" value="${_esc(w.id)}"> <span>${_esc(w.text || "(unnamed wound)")}</span></label></li>`).join("")}
+						</ul>
+					</div>`
+				: "";
+			// Permanent injuries can't heal. Split them by origin so each gets the right framing:
+			// a real impairment (lost limb, shattered knee) prompts "retire or Make a Plan"; a
+			// purely narrative Death's-Door mark is just carried and never gets the retire framing.
+			const permRow = (w) => `<li class="stonetop-convalesce-permanent-row">
+					<span class="stonetop-convalesce-permanent-text"><i class="fas fa-lock"></i> ${_esc(w.text || "(unnamed injury)")}</span>
+					<input type="text" name="plan-${_esc(w.id)}" value="${_esc(w.planNote ?? "")}" placeholder="Make a Plan to adapt (a prosthetic, learn to compensate…)">
+				</li>`;
+			const permBlock = (title, list) => list.length
+				? `<div class="stonetop-convalesce-permanent">
+						<p class="stonetop-homestead-subhead">${title}</p>
+						<ul class="stonetop-convalesce-wound-list">${list.map(permRow).join("")}</ul>
+					</div>`
+				: "";
+			// The goal input here is a quick capture; the full plan (tick-box requirements +
+			// any interim penalty like "Let Fly at disadvantage until practiced") lives on the
+			// wound's own edit form, so point there rather than duplicating that editor.
+			const permHint = permanent.length
+				? `<p class="stonetop-homestead-note">Add tick-box requirements and any interim penalty via the wound's <i class="fas fa-pen"></i> edit on the sheet.</p>`
+				: "";
+			const permSection =
+				permBlock("Permanent injury — retire or Make a Plan to adapt:", permanent.filter(w => w.origin !== "deaths-door")) +
+				permBlock("A lasting mark — Make a Plan to carry it, or just bring it up in play:", permanent.filter(w => w.origin === "deaths-door")) +
+				permHint;
 
 			new Dialog({
 				title: "Convalesce",
@@ -5345,31 +5662,269 @@ export function createStonetopCharacterSheetClass(Base) {
 						<ul>${hpRow}${debilityRow}</ul>
 					</div>
 					<p class="stonetop-homestead-note"><em>When you rest for a few weeks under the care of a healer,</em> heal any problematic wounds that can heal. If you have suffered a permanent injury or impairment, either retire or Make a Plan to adapt to it.</p>
+					${healSection}
+					${permSection}
 				</form>`,
 				buttons: {
-					cancel:     { label: "Cancel" },
 					convalesce: {
 						label: "Convalesce",
-						callback: () => this._applyConvalesce({ oldHp: hp.value, newHp: hp.max, debilities: activeDebilities }),
+						callback: (html) => {
+							const healIds = html.find('input[name="heal"]:checked').map((_i, el) => el.value).get();
+							// Only carry a plan note when it actually changed — the inputs are
+							// pre-filled with the stored note, so an untouched permanent wound would
+							// otherwise trigger a redundant wound write (and a spurious "via
+							// Convalesce" ledger entry) every time HP/debilities are the real point.
+							const planNotes = {};
+							for (const w of permanent) {
+								const next = (html.find(`[name="plan-${w.id}"]`).val() ?? "").trim();
+								if (next !== (w.planNote ?? "")) planNotes[w.id] = next;
+							}
+							this._applyConvalesce({ oldHp: hp.value, newHp: hp.max, debilities: activeDebilities, healable, healIds, planNotes });
+						},
 					},
+					cancel: { label: "Cancel" },
 				},
 				default: "convalesce",
 				render: bringDialogToFront,
 			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-convalesce-dialog"] }).render(true);
 		}
 
-		async _applyConvalesce({ oldHp, newHp, debilities }) {
+		async _applyConvalesce({ oldHp, newHp, debilities, healable = [], healIds = [], planNotes = {} }) {
 			const update = { "system.attributes.hp.value": newHp };
 			for (const d of debilities) update[`system.attributes.debilities.options.${d.key}.value`] = false;
 			await this.actor.update(update, { stonetopMove: "Convalesce" });
 
+			// Heal checked wounds (→ scars) and stamp any Make-a-Plan notes, in one write.
+			const hasPlanNotes = Object.keys(planNotes).length > 0;
+			if (healIds.length || hasPlanNotes) {
+				await this._stonetopCharacter.convalesceWounds({ healIds, planNotes });
+			}
+			const healedNames = healIds.map(id => {
+				const w = healable.find(x => x.id === id);
+				return w?.text || "a wound";
+			});
+
 			const rows = [];
 			if (newHp > oldHp)       rows.push({ label: "HP", value: `${oldHp} → ${newHp} (+${newHp - oldHp})` });
 			if (debilities.length)   rows.push({ label: "Debilities cleared", value: debilities.map(d => d.name).join(", ") });
+			if (healedNames.length)  rows.push({ label: healedNames.length === 1 ? "Wound healed" : "Wounds healed", value: healedNames.join(", ") });
 			if (!rows.length)        rows.push({ label: "Convalesce", value: "Rested in safety and comfort." });
 			postMoveToChat(this.actor, "Convalesce", rows);
 
 			this.render(false);
+		}
+
+		// ── Wounds (4th harm track) ────────────────────────────────────────────────
+		_woundIdFromEvent(ev) {
+			return ev.currentTarget.closest("[data-wound-id]")?.dataset.woundId ?? null;
+		}
+
+		// The current raw wound record (freshest source) for prefilling the edit dialog.
+		_woundRecord(id) {
+			return (this.actor.system?.attributes?.wounds ?? []).find(w => w.id === id) ?? null;
+		}
+
+		// Every move name the character can roll — basic, expedition, playbook,
+		// cross-playbook, "other" (both the flat list and any custom category groups),
+		// love letters, post-death. A superset of actor.items, since basic/expedition
+		// moves aren't embedded documents. Sourced from the same snapshot the sheet
+		// renders, so a stored reminderMove matches the moveName that rollStat passes when
+		// that move is rolled (that's what the echo keys on).
+		_woundReminderMoveNames(snapshot) {
+			const ml = snapshot?.movelist;
+			const names = new Set();
+			const push = (arr) => { for (const m of (arr ?? [])) if (m?.name) names.add(m.name); };
+			push(ml?.basicMoves);
+			push(ml?.expeditionMoves);
+			push(ml?.playbookMoves);
+			push(ml?.learnedMoves);
+			push(ml?.otherMoves);
+			for (const group of (ml?.otherGroups ?? [])) push(group?.moves);
+			push(ml?.postDeathGroup?.moves);
+			push(ml?.loveLetters);
+			return [...names].sort((a, b) => a.localeCompare(b));
+		}
+
+		// Options for the "remind on" picker: none, all move rolls, then the moves by name.
+		// ("All move rolls" not "All rolls" — the echo only rides 2d6+stat move rolls, not
+		// damage/formula/Death's-Door rolls, so the label shouldn't overpromise.)
+		_woundReminderMoveOptions(selected = "", moveNames = []) {
+			const opts = [
+				{ value: "",  label: "— no reminder —" },
+				{ value: "*", label: "All move rolls" },
+				...moveNames.map(name => ({ value: name, label: name })),
+			];
+			// If the stored reminder targets a move that's since been renamed or unlearned,
+			// keep it as an explicit option so re-saving the wound doesn't silently drop the
+			// (drifted) binding — the dropdown would otherwise have no matching value.
+			if (selected && selected !== "*" && !moveNames.includes(selected)) {
+				opts.push({ value: selected, label: `${selected} (not a current move)` });
+			}
+			return opts.map(o =>
+				`<option value="${_esc(o.value)}"${o.value === selected ? " selected" : ""}>${_esc(o.label)}</option>`,
+			).join("");
+		}
+
+		async _onWoundAdd() {
+			const snapshot = await this._stonetopCharacter.buildSnapshot();
+			this._openWoundDialog({ isNew: true, moveNames: this._woundReminderMoveNames(snapshot) });
+		}
+
+		async _onWoundEdit(id) {
+			if (!id) return;
+			const snapshot = await this._stonetopCharacter.buildSnapshot();
+			this._openWoundDialog({ isNew: false, wound: this._woundRecord(id), moveNames: this._woundReminderMoveNames(snapshot) });
+		}
+
+		// Recover, applied to one wound: "say how you tend to it," then stabilize it —
+		// Recover only ever *stabilizes* (clearing any stored requirement); healing is
+		// Convalesce. If the GM says it isn't handled yet, cancel and note what's still
+		// required on the wound via Edit.
+		_onWoundTend(id) {
+			if (!id) return;
+			const wound = this._woundRecord(id);
+			if (!wound) return;
+			const label = wound.text || "(unnamed wound)";
+			const chatLabel = label;
+			// No inputs: "say how" is table narration (said out loud; the trigger line
+			// prompts it), and nothing here would persist a typed value. The action is a
+			// single confirm — the GM says it's handled, and the wound stabilizes.
+			const content = `<form class="stonetop-homestead-dialog stonetop-wound-tend-form">
+				<p class="stonetop-homestead-trigger"><em>When you tend to a problematic wound, say how.</em></p>
+				<p class="stonetop-wound-tend-target"><i class="fas fa-droplet"></i> <strong>${_esc(label)}</strong></p>
+				<p class="stonetop-homestead-note">The GM will say it's taken care of, or tell you what's still required. Stabilizing isn't healing — that takes Convalesce.</p>
+			</form>`;
+
+			const stabilize = async () => {
+				await this._stonetopCharacter.updateWound(id, { status: "stabilized", requirementNote: "" }, { moveName: "Recover" });
+				postMoveToChat(this.actor, "Recover", [{ label: "Wound stabilized", value: chatLabel }]);
+				this.render(false);
+			};
+
+			new Dialog({
+				title: "Recover — tend to a wound",
+				content,
+				buttons: {
+					stabilize: { label: "It's taken care of", callback: stabilize },
+					cancel:    { label: "Cancel" },
+				},
+				default: "stabilize",
+				render: bringDialogToFront,
+			}, { width: 460, classes: ["dialog", "stonetop", "stonetop-wound-tend-dialog"] }).render(true);
+		}
+
+		async _onWoundRemove(id) {
+			if (!id) return;
+			const wound = this._woundRecord(id);
+			const label = wound?.text ? `“${wound.text}”` : "this wound";
+			const ok = await Dialog.confirm({
+				title: "Remove Wound",
+				content: `<p>Remove ${_esc(label)} from the sheet? This deletes it entirely — to keep its fiction as a healed scar instead, edit it and tick “Healed, move to Scars.”</p>`,
+				render:  bringDialogToFront,
+				options: { classes: ["dialog", "stonetop", "stonetop-remove-wound-dialog"] },
+			});
+			if (!ok) return;
+			await this._stonetopCharacter.removeWound(id);
+			this.render(false);
+		}
+
+		// Shared add/edit form. Status/healed are settable here as a manual override; the
+		// normal path is move-gated (Recover stabilizes, Convalesce heals → scar). The
+		// "Healed — move to Scars" toggle is the manual heal path (the Remove dialog points
+		// here to keep a wound's fiction as a scar). planNote is editable here too, so a
+		// permanent injury's adaptation plan and its interim lasting tag/reminder can be
+		// captured in one place.
+		_openWoundDialog({ isNew, wound = null, moveNames = [] }) {
+			const w    = wound ?? {};
+			const statusOptions = _WOUND_STATUS_OPTIONS.map(o =>
+				`<option value="${o.value}"${(w.status ?? "problematic") === o.value ? " selected" : ""}>${_esc(o.label)}</option>`,
+			).join("");
+			const originOptions = _WOUND_ORIGIN_OPTIONS.map(o =>
+				`<option value="${o.value}"${(w.origin ?? "wound") === o.value ? " selected" : ""}>${_esc(o.label)}</option>`,
+			).join("");
+			// One Make-a-Plan tick-box row (Book I p.530: "write the requirements down with
+			// tick boxes… tick the boxes off"): a done checkbox + the requirement text + remove.
+			const reqRow = (text = "", done = false) => `<li class="stonetop-wound-req">
+				<label class="checkbox"><input type="checkbox" class="stonetop-check req-done"${done ? " checked" : ""}></label>
+				<input type="text" class="req-text" value="${_esc(text)}" placeholder="e.g. months of practice">
+				<button type="button" class="req-remove" data-tooltip="Remove"><i class="fas fa-xmark"></i></button>
+			</li>`;
+			const content = `<form class="stonetop-custom-move-form stonetop-wound-dialog-form" autocomplete="off">
+				${isNew ? `<p class="stonetop-homestead-note">A problematic wound always involves taking damage, and often a marked debility — apply those on the sheet as the fiction warrants.</p>` : ""}
+				<div class="stonetop-custom-move-field">
+					<label>Wound</label>
+					<input type="text" name="text" value="${_esc(w.text ?? "")}" placeholder="e.g. Twisted ankle — can't bear weight">
+				</div>
+				<div class="stonetop-custom-move-field">
+					<label>Status</label>
+					<select name="status">${statusOptions}</select>
+				</div>
+				<div class="stonetop-custom-move-field">
+					<label>Origin</label>
+					<select name="origin">${originOptions}</select>
+				</div>
+				<div class="stonetop-custom-move-field">
+					<label>Note / requirement</label>
+					<input type="text" name="requirementNote" value="${_esc(w.requirementNote ?? "")}" placeholder="What's needed to treat it (optional)">
+				</div>
+				<div class="stonetop-custom-move-field">
+					<label>Lasting tag</label>
+					<input type="text" name="mechanicalTag" value="${_esc(w.mechanicalTag ?? "")}" placeholder="e.g. Let Fly at disadvantage until practiced">
+				</div>
+				<div class="stonetop-custom-move-field">
+					<label>Remind on</label>
+					<select name="reminderMove">${this._woundReminderMoveOptions(w.reminderMove ?? "", moveNames)}</select>
+				</div>
+				<div class="stonetop-custom-move-field">
+					<label>Make-a-Plan goal</label>
+					<input type="text" name="planNote" value="${_esc(w.planNote ?? "")}" placeholder="Adaptation goal for a permanent injury (optional)">
+				</div>
+				<div class="stonetop-custom-move-field stonetop-wound-plan-reqs">
+					<label>Plan requirements <span class="stonetop-wound-plan-hint">tick off as you adapt</span></label>
+					<ul class="stonetop-wound-req-list">${(w.planRequirements ?? []).map(r => reqRow(r.text, r.done)).join("")}</ul>
+					<button type="button" class="stonetop-wound-req-add"><i class="fas fa-plus"></i> Add requirement</button>
+				</div>
+				<div class="stonetop-custom-move-check">
+					<label><input type="checkbox" class="stonetop-check" name="healed"${w.healed ? " checked" : ""}> Healed, move to Scars</label>
+				</div>
+			</form>`;
+
+			const apply = async (html) => {
+				const val = (name) => html.find(`[name="${name}"]`).val();
+				const data = {
+					text:            (val("text") ?? "").trim(),
+					status:          val("status"),
+					origin:          val("origin"),
+					requirementNote: (val("requirementNote") ?? "").trim(),
+					mechanicalTag:   (val("mechanicalTag") ?? "").trim(),
+					reminderMove:    val("reminderMove") ?? "",
+					planNote:        (val("planNote") ?? "").trim(),
+					planRequirements: html.find(".stonetop-wound-req").toArray().map(li => ({
+						text: (li.querySelector(".req-text")?.value ?? "").trim(),
+						done: !!li.querySelector(".req-done")?.checked,
+					})).filter(r => r.text),
+					healed:          html.find('[name="healed"]').is(":checked"),
+				};
+				if (isNew) await this._stonetopCharacter.addWound(data);
+				else if (w.id) await this._stonetopCharacter.updateWound(w.id, data);
+				this.render(false);
+			};
+
+			new Dialog({
+				title: isNew ? "Add Wound" : "Edit Wound",
+				content,
+				buttons: {
+					save:   { label: isNew ? "Add" : "Save", callback: apply },
+					cancel: { label: "Cancel" },
+				},
+				default: "save",
+				render: (html) => {
+					bringDialogToFront(html);
+					// Dynamic add/remove of plan-requirement rows; collected from the live DOM on save.
+					html.find(".stonetop-wound-req-add").on("click", () => html.find(".stonetop-wound-req-list").append(reqRow()));
+					html.on("click", ".req-remove", (ev) => ev.currentTarget.closest(".stonetop-wound-req")?.remove());
+				},
+			}, { width: 460, classes: ["dialog", "stonetop", "stonetop-wound-dialog"] }).render(true);
 		}
 
 		// Stamp the character with where the player is in creation, so the GM's
@@ -5644,6 +6199,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				majorArcanum = ownedSlugs.find(s => allowedMajors.has(s)) ?? "";
 			}
 
+			// Ranger animal companion: the type's mandatory trait (Bird/Critter "tiny",
+			// Brute "tough", Predator "fierce", Steed "large") is auto-included and never
+			// counts toward "pick N more", so keep it out of the editable selection — it's
+			// re-added for display and is stat-neutral. Stripping here also self-heals any
+			// legacy character that stored it as one of its picks.
+			const acType      = f.animalCompanion?.type ?? "";
+			const acTypes     = playbookDoc?.flags?.stonetop?.animalCompanion?.types ?? [];
+			const acMandatory = acTypes.find(t => t.slug === acType)?.mandatoryTrait ?? null;
+			const acTraits    = [...(f.animalCompanion?.traits ?? [])]
+				.filter(t => !acMandatory || t !== acMandatory);
+
 			return {
 				backgroundSlug:  f.background?.selected ?? "",
 				instinctValue:   f.instinct?.selected ?? "",
@@ -5670,9 +6236,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					cost:     f.crew?.cost ?? "",
 				},
 				animalCompanion: {
-					type:     f.animalCompanion?.type ?? "",
+					type:     acType,
 					kind:     f.animalCompanion?.kind ?? "",
-					traits:   [...(f.animalCompanion?.traits ?? [])],
+					traits:   acTraits,
 					name:     f.animalCompanion?.name ?? "",
 					instinct: f.animalCompanion?.instinct ?? "",
 					cost:     f.animalCompanion?.cost ?? "",

@@ -192,11 +192,11 @@
               "options": [
                 {
                   "slug": "black-iron-maul",
-                  "label": "◇ Black iron maul, utterly immune to all magic (<em>close, forceful, awkward</em>, +1 damage)"
+                  "label": "◇◇ Black iron maul, utterly immune to all magic (<em>close, forceful, awkward</em>, +1 damage)"
                 },
                 {
                   "slug": "makerglass-shield",
-                  "label": "◇ Makerglass shield, etched with Aratis's symbol (<em>indestructible</em>, +1 armor, +1 Readiness on a Defend 7+)"
+                  "label": "◇◇ Makerglass shield, etched with Aratis's symbol (<em>indestructible</em>, +1 armor, +1 Readiness on a Defend 7+)"
                 },
                 {
                   "slug": "helm",
@@ -207,7 +207,7 @@
           },
           {
             "slug": "scribes-kit",
-            "label": "Scribe's kit",
+            "label": "Scribe's tools",
             "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc.",
             "grantsItems": [
               {
@@ -273,7 +273,7 @@
           {
             "slug": "carpenters-tools",
             "label": "Carpenter's tools",
-            "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc.",
+            "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ◇◇ firkins, barrels, etc.",
             "grantsItems": [
               {
                 "name": "Chisels",
@@ -293,7 +293,8 @@
               },
               {
                 "name": "Firkins",
-                "column": "small"
+                "column": "regular",
+                "weight": 2
               },
               {
                 "name": "Barrels",

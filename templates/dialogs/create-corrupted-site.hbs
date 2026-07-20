@@ -1,0 +1,164 @@
+{{!-- Corrupted-site walkthrough (Book II, The Things Below, pp. 422-423). Reuses the
+      spring/guide dialog chrome + follower control styles; Things-Below hooks are
+      .stonetop-tb-*. See things-below/create-corrupted-site-dialog.js. --}}
+<div class="stonetop-spring">
+
+  <div class="stonetop-guide-main">
+
+    <div class="stonetop-guide-banner">
+      <i class="fas {{step.icon}} stonetop-guide-banner-icon"></i>
+      <div class="stonetop-guide-banner-info">
+        <div class="stonetop-guide-banner-title">{{step.title}}</div>
+        <div class="stonetop-guide-banner-sub">Create a corrupted site</div>
+      </div>
+      <div class="stonetop-guide-count">{{stepIndex}} / {{stepCount}}</div>
+    </div>
+
+    <div class="stonetop-spring-body">{{{step.body}}}</div>
+
+    <div class="stonetop-cf-controls">
+
+      {{#if is_feature}}
+      <label class="stonetop-cf-label">Name
+        <input type="text" class="stonetop-cf-input" data-field="name" value="{{name}}" placeholder="the Blighted Cairn, Sruthside Hollow…">
+      </label>
+      <label class="stonetop-cf-label">Terrain <span class="stonetop-cf-pick-hint">(where it sits)</span>
+        <input type="text" class="stonetop-cf-input" data-field="terrain" value="{{terrain}}" placeholder="a low hill overlooking the river…">
+      </label>
+      <label class="stonetop-cf-label">Feature
+        <select class="stonetop-cf-input stonetop-tb-feature">
+          <option value="">(choose or roll a feature)</option>
+          {{#each features}}<option value="{{text}}"{{#if selected}} selected{{/if}}>{{text}}</option>{{/each}}
+        </select>
+      </label>
+      <button type="button" class="stonetop-tb-roll-feature stonetop-cf-mini-btn"><i class="fas fa-dice-d20"></i> Roll a feature</button>
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">Proximity</div>
+        <div class="stonetop-cf-option-list stonetop-cf-option-list--row">
+          {{#each proximities}}
+          <label class="stonetop-cf-option{{#if selected}} is-selected{{/if}}">
+            <input type="radio" name="tb-proximity" class="stonetop-tb-proximity" value="{{id}}"{{#if selected}} checked{{/if}}>
+            <span class="stonetop-cf-option-text">{{label}}</span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      {{#if is_themes}}
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">Themes <span class="stonetop-cf-pick-hint">(pick or roll &mdash; {{themeCount}} chosen)</span></div>
+        <div class="stonetop-cf-option-list">
+          {{#each themes}}
+          <label class="stonetop-cf-option{{#if checked}} is-selected{{/if}}">
+            <input type="checkbox" class="stonetop-tb-theme" value="{{id}}"{{#if checked}} checked{{/if}}>
+            <span class="stonetop-cf-option-text">{{label}}<span class="stonetop-tb-note">{{note}}</span></span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
+      <button type="button" class="stonetop-tb-roll-themes stonetop-cf-mini-btn"><i class="fas fa-dice-d20"></i> Roll 2</button>
+      {{/if}}
+
+      {{#if is_cause}}
+      <label class="stonetop-cf-label">Cause
+        <select class="stonetop-cf-input stonetop-tb-cause">
+          <option value="">(choose or roll a cause)</option>
+          {{#each causes}}<option value="{{text}}"{{#if selected}} selected{{/if}}>{{text}}</option>{{/each}}
+        </select>
+      </label>
+      <button type="button" class="stonetop-tb-roll-cause stonetop-cf-mini-btn"><i class="fas fa-dice-d20"></i> Roll a cause</button>
+      {{#if isFateful}}
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">Was it&hellip; <span class="stonetop-cf-pick-hint">(roll the Die of Fate, or decide)</span></div>
+        <div class="stonetop-cf-option-list stonetop-cf-option-list--row">
+          {{#each intents}}
+          <label class="stonetop-cf-option{{#if selected}} is-selected{{/if}}">
+            <input type="radio" name="tb-intent" class="stonetop-tb-intent" value="{{id}}"{{#if selected}} checked{{/if}}>
+            <span class="stonetop-cf-option-text">{{label}}</span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+      {{/if}}
+
+      {{#if is_severity}}
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">Severity <span class="stonetop-cf-pick-hint">(pick 1)</span></div>
+        <div class="stonetop-cf-option-list">
+          {{#each severities}}
+          <label class="stonetop-cf-option{{#if selected}} is-selected{{/if}}">
+            <input type="radio" name="tb-severity" class="stonetop-tb-severity" value="{{key}}"{{#if selected}} checked{{/if}}>
+            <span class="stonetop-cf-option-text"><strong>{{text}}</strong><span class="stonetop-tb-note">{{detail}}</span></span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
+      <button type="button" class="stonetop-tb-roll-severity stonetop-cf-mini-btn"><i class="fas fa-dice-d20"></i> Roll</button>
+      {{#if doomPreview}}
+      <div class="stonetop-cf-total"><i class="fas fa-hourglass-half"></i> This seeds an <strong>impending doom</strong>: {{doomPreview.impending}}</div>
+      {{#if doomPreview.portents.length}}
+      <p class="stonetop-ch-advice">Grim portents (it getting worse): {{#each doomPreview.portents}}{{this}}{{#unless @last}}; {{/unless}}{{/each}}</p>
+      {{/if}}
+      {{/if}}
+      {{/if}}
+
+      {{#if is_cleansing}}
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">The plan requires&hellip; <span class="stonetop-cf-pick-hint">(pick any)</span></div>
+        <div class="stonetop-cf-option-list">
+          {{#each requirements}}
+          <label class="stonetop-cf-option{{#if checked}} is-selected{{/if}}">
+            <input type="checkbox" class="stonetop-tb-req" value="{{text}}"{{#if checked}} checked{{/if}}>
+            <span class="stonetop-cf-option-text">{{text}}</span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
+      <div class="stonetop-cf-pick">
+        <div class="stonetop-cf-pick-label">To bind the corruption, use&hellip; <span class="stonetop-cf-pick-hint">(pick any)</span></div>
+        <div class="stonetop-cf-option-list">
+          {{#each bindings}}
+          <label class="stonetop-cf-option{{#if checked}} is-selected{{/if}}">
+            <input type="checkbox" class="stonetop-tb-bind" value="{{text}}"{{#if checked}} checked{{/if}}>
+            <span class="stonetop-cf-option-text">{{text}}</span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      {{#if is_review}}
+      {{#with preview}}
+      <div class="stonetop-cf-preview">
+        <div class="stonetop-cf-preview-head">
+          <span class="stonetop-cf-preview-name">{{name}}</span>
+          <span class="stonetop-cf-preview-type">MacGuffin</span>
+        </div>
+        {{#if themes.length}}<div class="stonetop-cf-preview-line"><strong>Themes</strong> {{#each themes}}{{this}}{{#unless @last}}; {{/unless}}{{/each}}</div>{{/if}}
+        {{#if feature}}<div class="stonetop-cf-preview-line"><strong>Feature</strong> {{feature}}</div>{{/if}}
+        {{#if cause}}<div class="stonetop-cf-preview-line"><strong>Cause</strong> {{cause}}</div>{{/if}}
+        {{#if severity}}<div class="stonetop-cf-preview-line"><strong>Severity</strong> {{severity}}</div>{{/if}}
+        {{#if impending}}<div class="stonetop-cf-preview-line"><strong>Impending doom</strong> {{impending}}</div>{{/if}}
+        {{#if gmMoves.length}}<div class="stonetop-cf-preview-line"><strong>GM moves</strong> {{#each gmMoves}}{{this}}{{#unless @last}}; {{/unless}}{{/each}}</div>{{/if}}
+        {{#if cleansing.length}}<div class="stonetop-cf-preview-line"><strong>Cleansing</strong> {{#each cleansing}}{{this}}{{#unless @last}}; {{/unless}}{{/each}}</div>{{/if}}
+      </div>
+      {{/with}}
+      {{/if}}
+
+    </div>
+
+  </div>
+
+  <div class="stonetop-guide-nav">
+    <button class="stonetop-spring-back" {{#if isFirst}}disabled{{/if}}><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
+    <span class="stonetop-spring-step-label">{{stepLabel}}</span>
+    {{#if isLast}}
+    <button class="stonetop-tb-create stonetop-guide-btn--primary"><i class="fas fa-hand-sparkles"></i> Create the site</button>
+    {{else}}
+    <button class="stonetop-spring-next">Next<span class="stonetop-nav-arrow"></span></button>
+    {{/if}}
+  </div>
+
+</div>

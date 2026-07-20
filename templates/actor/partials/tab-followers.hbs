@@ -42,6 +42,7 @@
 				</div>
 				{{/if}}{{/if}}
 				<span class="stonetop-follower-type">{{typeLabel}}</span>
+				{{#if dead}}<span class="stonetop-follower-dead-badge"><i class="fas fa-skull-crossbones"></i> Fallen</span>{{/if}}
 			</div>
 			<div class="stonetop-follower-hp-octagon">
 				<span class="stonetop-follower-hp-octagon-label">HP</span>
@@ -86,12 +87,12 @@
 			      pickCount the rulebook allows. Traits drive HP / armor / damage, so
 			      the card's stats re-derive as they're toggled. --}}
 			<div class="stonetop-crew-tag-picker">
-				<span class="stonetop-crew-tag-hint">Pick {{traitChoices.limit}} trait{{#unless (eq traitChoices.limit 1)}}s{{/unless}} for your animal companion:</span>
+				<span class="stonetop-crew-tag-hint">Pick {{traitChoices.limit}} more trait{{#unless (eq traitChoices.limit 1)}}s{{/unless}} for your animal companion:</span>
 				<div class="stonetop-follower-tags">
 					{{> stonetopExceptionalChip}}
 					{{#each traitChoices.options}}
-					<label class="stonetop-follower-tag stonetop-crew-tag-choice{{#if selected}} is-selected{{/if}}{{#if disabled}} is-disabled{{/if}}">
-						<input type="checkbox" class="stonetop-ac-trait-option" value="{{value}}" {{#if selected}}checked{{/if}} {{#if disabled}}disabled{{/if}}>{{value}}
+					<label class="stonetop-follower-tag stonetop-crew-tag-choice{{#if selected}} is-selected{{/if}}{{#if disabled}} is-disabled{{/if}}{{#if mandatory}} is-mandatory{{/if}}"{{#if mandatory}} title="Always included; doesn't count toward your picks"{{/if}}>
+						<input type="checkbox" class="stonetop-ac-trait-option" value="{{value}}" {{#if selected}}checked{{/if}} {{#if disabled}}disabled{{/if}}>{{value}}{{#if mandatory}} <em class="stonetop-ac-trait-included">(included)</em>{{/if}}
 					</label>
 					{{/each}}
 				</div>
@@ -632,7 +633,7 @@
 	      monster). Same card body as the others; a Remove button appears with the
 	      card's edit pencil since these are wholly player-made. ── --}}
 	{{#each stonetop.followers.custom}}
-	<div class="stonetop-follower-card stonetop-follower-card--custom{{#if isGroup}} stonetop-follower-card--crew{{/if}}">
+	<div class="stonetop-follower-card stonetop-follower-card--custom{{#if isGroup}} stonetop-follower-card--crew{{/if}}{{#if dead}} is-dead{{/if}}">
 		{{> stonetopFollowerCardBody}}
 
 		{{!-- ── Group follower: roster + group-fight tools (p.470). Only rendered
@@ -721,10 +722,50 @@
 		</details>
 		{{/if}}
 
+		{{!-- ── Ring of Daagon actions (Book II, "Mysteries of the Ring of Daagon") ──
+		      The Ring hosts Call Up the Deep Ones (roll & shape a fresh Servant batch);
+		      each Servant batch hosts Send Them Back (+CHA). A Servant's Loyalty is the
+		      Ring's shared pool — noted on the card so the pips read as shared. ── --}}
+		{{#unless edit.card}}
+		{{#if isRing}}
+		<div class="stonetop-daagon-actions">
+			<button type="button" class="stonetop-callup-deep-ones stonetop-daagon-btn" data-slug="{{slug}}"
+			        data-tooltip="Stand in heavy fog or before deep water and call the servants of Daagon to serve you (spend 1 Loyalty or mark a consequence)." data-tooltip-direction="UP">
+				<i class="fas fa-water"></i> Call Up the Deep Ones
+			</button>
+		</div>
+		{{/if}}
+		{{#if isServant}}
+		{{#if sharedLoyalty}}
+		<div class="stonetop-daagon-shared-note"><i class="fas fa-ring"></i> Loyalty is the Ring's shared pool.</div>
+		{{/if}}
+		{{#if brokenFree}}
+		<div class="stonetop-daagon-broke-free"><i class="fas fa-skull-crossbones"></i> Broke free of your control &mdash; no longer yours to command.</div>
+		{{/if}}
+		<div class="stonetop-daagon-actions">
+			<button type="button" class="stonetop-send-back stonetop-daagon-btn" data-slug="{{slug}}" data-follower-name="{{orderName}}"
+			        data-tooltip="Send them back whence they came — roll +CHA to dismiss this batch." data-tooltip-direction="UP">
+				<i class="fas fa-hand-sparkles"></i> Send Them Back
+			</button>
+		</div>
+		{{/if}}
+		{{/unless}}
+
 		{{!-- Party-wide follower badge (advisory): any PC may pay its cost or spend
 		      its Loyalty (p.464). --}}
 		{{#if party}}{{#unless edit.card}}
 		<div class="stonetop-follower-party-badge"><i class="fas fa-people-group"></i> Party follower — any PC may pay its cost or spend its Loyalty.</div>
+		{{/unless}}{{/if}}
+		{{!-- Fallen follower (marked Dead from the 0-HP fate): keep the card as a record but
+		      surface a Remove button here so the player needn't open the edit pencil to clear
+		      it. Reuses the same .stonetop-follower-remove handler as the edit-mode button. --}}
+		{{#if dead}}{{#unless edit.card}}
+		<div class="stonetop-follower-dead-actions">
+			<span class="stonetop-follower-dead-note"><i class="fas fa-skull-crossbones"></i> {{#if name}}{{name}}{{else}}This follower{{/if}} has fallen — set their HP above 0 to revive them, or remove the card.</span>
+			<button type="button" class="stonetop-follower-remove stonetop-inline-btn stonetop-inline-btn--danger" data-slug="{{slug}}">
+				<i class="fas fa-trash"></i> Remove
+			</button>
+		</div>
 		{{/unless}}{{/if}}
 		{{#if edit.card}}
 		<div class="stonetop-follower-card-actions">

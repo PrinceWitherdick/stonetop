@@ -25,7 +25,7 @@
         {
           "slug": "destined",
           "label": "Destined",
-          "description": "<p>Fate has laid her hand upon you. Choose 3-4 items to describe your destiny.</p><p>At the <em>start of a session</em>, roll +Omens: <strong>on a 7+</strong>, lose all Omens and the GM will share a vision or portent that points toward your fate; also, <strong>on a 10+</strong>, ask the GM a follow-up question and get a clear, helpful answer; <strong>on a 6-</strong>, don't mark XP, hold +1 Omen, and tell us of your recent nightmares or a troubling vision.</p><p><em>Until your destiny is fulfilled</em>, treat a 6- on Death's Door as a 7-9, and a 7-9 as a 10+.</p>"
+          "description": "<p>Fate has laid her hand upon you. Choose 3-4 of the following to describe your destiny: anointed, marked at birth, your coming foretold, destroy, discover, free, protect, restore, unify, blood, civilization, darkness, earth &amp; stone, fire, ice, light, life, storms, war, water, the Fae, the gods, the Makers, the Stone, or the Things Below.</p><p>At the <em>start of a session</em>, roll +Omens: <strong>on a 7+</strong>, lose all Omens and the GM will share a vision or portent that points toward your fate; also, <strong>on a 10+</strong>, ask the GM a follow-up question and get a clear, helpful answer; <strong>on a 6-</strong>, don't mark XP, hold +1 Omen, and tell us of your recent nightmares or a troubling vision.</p><p><em>Until your destiny is fulfilled</em>, treat a 6- on Death's Door as a 7-9, and a 7-9 as a 10+.</p>"
         }
       ],
       "instincts": [
@@ -57,9 +57,9 @@
           "all grown up"
         ],
         [
-          "quiet voice",
+          "confident voice",
           "earnest voice",
-          "soft voice"
+          "quiet voice"
         ],
         [
           "big",
@@ -104,7 +104,7 @@
         {
           "region": "The Steplands (Hillfolk)",
           "names": [
-            "Annie",
+            "Annic",
             "Cosette",
             "Denl",
             "Hugenne",

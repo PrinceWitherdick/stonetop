@@ -1997,6 +1997,11 @@ export class CharacterOnboardingDialog extends Application {
 			const raw         = this._rawAnimalCompanion;
 			const selType     = this._selections.animalCompanion.type;
 			const typeData    = raw.types?.find(t => t.slug === selType) ?? null;
+			// The type's mandatory trait (Bird/Critter "tiny", Brute "tough", Predator
+			// "fierce", Steed "large") is pre-checked in the book and doesn't count toward
+			// the "pick N more" budget — it's rendered locked and kept out of the editable
+			// selection, so chosenTraits holds only the player's additional picks.
+			const mandatoryTrait = typeData?.mandatoryTrait ?? null;
 			const chosenTraits = new Set(this._selections.animalCompanion.traits);
 			const kind = this._selections.animalCompanion.kind;
 			const kindOptionValues = this._animalCompanionKindOptions(typeData);
@@ -2020,13 +2025,17 @@ export class CharacterOnboardingDialog extends Application {
 						.map(value => ({ value, selected: kind === value })),
 					pickCount:     typeData.pickCount,
 					selectedCount: chosenTraits.size,
-					traits: (typeData.traits ?? []).map(trait => ({
-						slug:       trait,
-						label:      this._normalizeOnboardingText(trait),
-						hasTooltip: !!this._wordCache.get(trait.toLowerCase()),
-						isSelected: chosenTraits.has(trait),
-						disabled:   !chosenTraits.has(trait) && traitAtLimit,
-					})),
+					traits: (typeData.traits ?? []).map(trait => {
+						const isMandatory = trait === mandatoryTrait;
+						return {
+							slug:        trait,
+							label:       this._normalizeOnboardingText(trait),
+							hasTooltip:  !!this._wordCache.get(trait.toLowerCase()),
+							isMandatory,
+							isSelected:  isMandatory || chosenTraits.has(trait),
+							disabled:    isMandatory || (!chosenTraits.has(trait) && traitAtLimit),
+						};
+					}),
 				} : null,
 				instincts: (raw.instincts ?? []).map(v => {
 					const value = this._normalizeOnboardingText(v);

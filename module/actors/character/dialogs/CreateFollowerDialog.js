@@ -119,11 +119,7 @@ export class CreateFollowerDialog extends StepperDialog {
 	}
 
 	get _steps() { return _STEPS; }
-
-	async _render(force, options) {
-		await super._render(force, options);
-		this.setPosition({ height: "auto" });
-	}
+	get _autoHeight() { return true; }
 
 	// ── Derived stats ──────────────────────────────────────────────────────────
 	get _hp()        { return deriveHp({ base: this._sel.hpBase, mods: this._sel.hpMods }); }
@@ -140,7 +136,6 @@ export class CreateFollowerDialog extends StepperDialog {
 		const sel  = this._sel;
 		const ctx  = {
 			...nav,
-			[`is_${step.key}`]: true,
 			sel,
 		};
 

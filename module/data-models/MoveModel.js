@@ -28,6 +28,12 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			moveEffect:      new fields.StringField({ required: true, blank: true }),
 			weight:          new fields.NumberField({ required: true, integer: true, initial: 1 }),
 			inventoryColumn: new fields.StringField({ required: true, blank: true, initial: "regular" }),
+			// Marks an inventory item as a Book II treasure dragged out of a journal
+			// (module/utils/treasure-drops.js), so the gear tab can group it under its own
+			// "Treasures" heading instead of mixing it in with hand-written items. Set on
+			// the dragged item and carried through the drop's re-plant; false on everything
+			// else. Declared here because a TypeDataModel strips keys it doesn't know.
+			isTreasure:      new fields.BooleanField({ required: false, initial: false }),
 			armorBonus:      new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			hpBonus:         new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			// Raises every load cap by this many ◇ while owned (the Ranger's Pack Horse → 1).

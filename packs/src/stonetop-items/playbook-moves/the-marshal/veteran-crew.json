@@ -7,7 +7,7 @@
     "playbook": "The Marshal",
     "moveType": "playbook",
     "description": "<p>Each time you take this move, pick 1. You can also choose to reselect their Instinct and Cost.</p>",
-    "repeatMax": 4,
+    "repeatMax": 2,
     "markBudget": { "base": 1, "perExtra": 1 },
     "markOptions": [
       { "slug": "tags", "label": "Select 2 new tags for your Crew", "marks": 4, "crewTags": 2 },

@@ -18,16 +18,22 @@ import { createStonetopBestiaryPageSheetClass } from "./module/journal/StonetopB
 import { createStonetopLocationPageSheetClass } from "./module/journal/StonetopLocationPageSheet.js";
 import { ThreatPageModel } from "./module/journal/ThreatPageModel.js";
 import { createStonetopThreatPageSheetClass } from "./module/journal/StonetopThreatPageSheet.js";
+import { HazardPageModel } from "./module/journal/HazardPageModel.js";
+import { createStonetopHazardPageSheetClass } from "./module/journal/StonetopHazardPageSheet.js";
 import { ThreatBoard } from "./module/threats/threat-board.js";
 import { onReady } from "./module/hooks/Ready.js";
+import { handleImportedJournalArt } from "./module/book2-art/reapply.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
+import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
 import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
+import { hideBrokenJournalArt } from "./module/journal/hide-broken-art.js";
 import { addJournalShareButton } from "./module/journal/share-journal.js";
+import { patchJournalImagePopoutTitles } from "./module/journal/journal-image-titles.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
@@ -38,6 +44,7 @@ import { wireAttackConfirm, wireApplyDamage, wireSufferAttack } from "./module/c
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapStonetopGlyphsInEl } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
+import { applyTreasureDrops } from "./module/utils/treasure-drops.js";
 import { applyGearTermTooltips } from "./module/utils/gear-term-tooltips.js";
 import { SETTING_OVERVIEW_JOURNAL } from "./module/utils/seeded-journals.js";
 import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
@@ -63,6 +70,11 @@ Hooks.once("init", () => {
 	// which core otherwise blocks by refitting auto-height windows to their content.
 	makeDialogsResizable();
 	enableAutoHeightVerticalResize();
+
+	// Title the click-to-enlarge image popout with the JournalEntry's name (e.g.
+	// "Huffel Peaks") instead of the blank fallback core uses for art embedded in
+	// page content. See module/journal/journal-image-titles.js.
+	patchJournalImagePopoutTitles();
 
 	// Skin a curated allowlist of core Foundry windows (e.g. User Configuration)
 	// to match our sheets/modals; scoped to a marker class so nothing else moves.
@@ -227,13 +239,24 @@ Hooks.once("init", () => {
 
 	// Threats: GM-prep pages (Book I "Threats"). Each threat is a `threat` page inside a
 	// GM-only per-steading Threats entry; the sheet is the book-styled interactive card
-	// (live doom track + reveal), dropped onto scenes as a linked Note. See module/threats/.
+	// (live doom track), dropped onto scenes as a linked Note. See module/threats/.
 	CONFIG.JournalEntryPage.dataModels["threat"] = ThreatPageModel;
 	const StonetopThreatPageSheet = createStonetopThreatPageSheetClass(JournalPageSheetV1);
 	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopThreatPageSheet, {
 		types:       ["threat"],
 		makeDefault: true,
 		label:       "Stonetop Threat Page",
+	});
+
+	// Hazards: the environmental half of Book I "Dangers" (pp. 381-389), threats'
+	// sibling GM-prep page type. Same one-entry-per-page storage/visibility
+	// architecture; authored via the Make-a-Hazard walkthrough. See module/hazards/.
+	CONFIG.JournalEntryPage.dataModels["hazard"] = HazardPageModel;
+	const StonetopHazardPageSheet = createStonetopHazardPageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopHazardPageSheet, {
+		types:       ["hazard"],
+		makeDefault: true,
+		label:       "Stonetop Hazard Page",
 	});
 
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
@@ -277,6 +300,8 @@ Hooks.once("init", () => {
 		"stonetop.follower-section-edit": "systems/stonetop_pwd/templates/actor/partials/follower-section-edit.hbs",
 		"stonetop.resource-track":   "systems/stonetop_pwd/templates/actor/partials/resource-track.hbs",
 		"stonetop.inv-note":         "systems/stonetop_pwd/templates/actor/partials/inv-note.hbs",
+		"stonetop.inv-item-regular": "systems/stonetop_pwd/templates/actor/partials/inv-item-regular.hbs",
+		"stonetop.inv-item-small":   "systems/stonetop_pwd/templates/actor/partials/inv-item-small.hbs",
 		"stonetop.steading-section-toggle":   "systems/stonetop_pwd/templates/actor/partials/steading-section-toggle.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop_pwd/templates/actor/partials/steading-tab-overview.hbs",
 		"stonetop.steading-tab-neighbors":    "systems/stonetop_pwd/templates/actor/partials/steading-tab-neighbors.hbs",
@@ -289,11 +314,18 @@ Hooks.once("init", () => {
 		"stonetop.location-page":             "systems/stonetop_pwd/templates/journal/location.hbs",
 		"stonetop.threat-page":               "systems/stonetop_pwd/templates/journal/threat-page.hbs",
 		"stonetop.threat-card":               "systems/stonetop_pwd/templates/journal/partials/threat-card.hbs",
+		"stonetop.hazard-page":               "systems/stonetop_pwd/templates/journal/hazard-page.hbs",
+		"stonetop.hazard-card":               "systems/stonetop_pwd/templates/journal/partials/hazard-card.hbs",
 		"stonetop.steading-tab-threats":      "systems/stonetop_pwd/templates/actor/partials/steading-tab-threats.hbs",
 		"stonetop.bestiary-section-head":     "systems/stonetop_pwd/templates/journal/partials/bestiary-section-head.hbs",
 		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
 		"stonetop.guide-toc":                 "systems/stonetop_pwd/templates/dialogs/partials/guide-toc.hbs",
+		"stonetop.intros-capture-head":       "systems/stonetop_pwd/templates/dialogs/partials/intros-capture-head.hbs",
+		"stonetop.threat-string-list":        "systems/stonetop_pwd/templates/dialogs/partials/threat-string-list.hbs",
+		"stonetop.card-doom-track":           "systems/stonetop_pwd/templates/journal/partials/card-doom-track.hbs",
+		"stonetop.card-gm-moves":             "systems/stonetop_pwd/templates/journal/partials/card-gm-moves.hbs",
+		"stonetop.card-player-moves":         "systems/stonetop_pwd/templates/journal/partials/card-player-moves.hbs",
 	});
 });
 
@@ -329,10 +361,21 @@ Hooks.on("hotbarDrop", onHotbarDrop);
 // drop a lettered map note whose label (the place name) shows on hover.
 Hooks.on("dropCanvasData", onDropPlaceOfInterest);
 
+// -- BOOK II ART ON JOURNAL IMPORT -----------------------------
+// A GM dragging one of our journals in from the compendium mid-version would get an
+// art-less world copy (the once-per-version re-apply won't fire again). Embed its Book II
+// art right away from the durable folder. Debounced + idempotent (see book2-art/reapply.js),
+// so a folder-import burst — and the fresh-world seed's own create storm — collapse to one pass.
+Hooks.on("createJournalEntry", handleImportedJournalArt);
+
 // -- THREAT SCENE PINS -----------------------------------------
 // A threat card dragged onto a scene drops a native page-linked Note; give that
 // pin the torn-note icon, the threat's name, and global (fog-ignoring) visibility.
 Hooks.on("preCreateNote", onPreCreateThreatNote);
+
+// Give our lettered Place-of-Interest discs and threat/hazard pins a thick paper text
+// halo so their labels stay legible over the illustrated Stonetop maps.
+Hooks.on("drawNote", onDrawStonetopNote);
 
 // -- LOCATION CROSS-LINK TOOLTIPS ------------------------------
 // Give cross-links into the Locations pack a useful hover summary instead of the
@@ -347,6 +390,9 @@ const _onJournalRender = (app, html) => {
 	// to plain text with no tooltip. No-op for GMs (they keep every link). The
 	// tooltip index is async, so chain the restriction after it resolves.
 	applyLocationTooltips(html).then(() => restrictContentLinks(html));
+	// Drop any book-art image whose file fails to load, so no reader — player or GM —
+	// is ever shown an empty frame where a durable illustration went missing.
+	hideBrokenJournalArt(html);
 	// Spiral bullets / question-spirals for this system's prose journals.
 	applyJournalSpiralBullets(app, html);
 	// Gear/weapon-tag hover tooltips for the curated Setting Overview prose (the
@@ -366,6 +412,10 @@ const _onJournalRender = (app, html) => {
 	bindSteadingImprovementDrag(html);
 	// Make homebrew threat cards draggable onto the steading Threats tab.
 	bindThreatSeedDrag(html);
+	// Make Book II treasures draggable inventory items (and restore their ◇/○ badges),
+	// for any treasure journal that renders through the generic page sheet rather than
+	// the custom location page sheet.
+	applyTreasureDrops(html, resolveEntry(app)?.name);
 };
 for (const hook of ["renderJournalSheet", "renderJournalEntrySheet", "renderJournalPageSheet", "renderJournalEntryPageSheet"]) {
 	Hooks.on(hook, _onJournalRender);
@@ -458,6 +508,17 @@ function _chatWireStartupWelcome(message, html) {
 	if (!btn) return;
 	if (!game.user.isGM) { btn.style.display = "none"; return; }
 	btn.addEventListener("click", () => game.stonetop?.openWelcome?.());
+}
+
+// -- ART-IMPORT REMINDER CARD: LAUNCH IMPORT MACRO -------------
+// The one-time "Import Your Book Art" reminder (whispered to GMs; see hooks/Ready.js
+// _postBook2ArtReminderOnce) carries a button that kicks off the Import Book Art macro.
+// GM-only card, but hide/guard the button for players defensively like the startup card.
+function _chatWireBook2ArtReminder(message, html) {
+	const btn = html.querySelector(".stonetop-import-art-open");
+	if (!btn) return;
+	if (!game.user.isGM) { btn.style.display = "none"; return; }
+	btn.addEventListener("click", () => game.stonetop?.importBookArt?.());
 }
 
 // -- MOVE DESCRIPTION TOGGLE -----------------------------------
@@ -698,6 +759,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatStripBlindRoll(message, html);
 	_chatProseTreatment(message, html);
 	_chatWireStartupWelcome(message, html);
+	_chatWireBook2ArtReminder(message, html);
 	_chatWireDescToggle(message, html);
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);
