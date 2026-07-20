@@ -424,16 +424,6 @@ describe("rollStat lasting-injury reminder", () => {
 		expect(rollMessages[0].flavor).not.toContain("Lasting injury");
 	});
 
-	it("does not echo a gmOnly wound (the notice rides a public roll card)", async () => {
-		rollTotal = 10;
-		const actor = actorWithWounds([
-			{ id: "w1", text: "Cursed brand", status: "problematic", healed: false,
-			  mechanicalTag: "Nightmares before rest", reminderMove: "*", gmOnly: true },
-		]);
-		await rollStat("wis", actor, { moveName: "Anything" });
-		expect(rollMessages[0].flavor).not.toContain("Lasting injury");
-		expect(rollMessages[0].flavor).not.toContain("Nightmares before rest");
-	});
 
 	it("does not echo a wound with a reminder move but no tag text", async () => {
 		rollTotal = 10;

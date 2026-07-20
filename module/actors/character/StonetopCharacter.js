@@ -1929,7 +1929,8 @@ export class StonetopCharacter {
 	// ── Problematic / permanent wounds (Book I, Harm & Healing) ────────────────
 	// Stored as an array on system.attributes.wounds. Arrays are replaced wholesale
 	// on update (unlike object flags, which merge), so every mutation reads the
-	// current list, recomputes it, and writes the whole thing back.
+	// current list, recomputes it, and writes the whole thing back. `moveName`, when
+	// given, tags the write so the character ledger attributes it ("via Recover", etc.).
 
 	// A defensive, normalized copy of the current wound list.
 	_woundList() {
@@ -1937,8 +1938,11 @@ export class StonetopCharacter {
 		return Array.isArray(arr) ? arr.map(w => _normalizeWound(w)) : [];
 	}
 
-	async _writeWounds(wounds) {
-		await this._actor.update({ "system.attributes.wounds": wounds });
+	async _writeWounds(wounds, moveName) {
+		await this._actor.update(
+			{ "system.attributes.wounds": wounds },
+			moveName ? { stonetopMove: moveName } : {},
+		);
 	}
 
 	// Add a wound. Returns its generated id so callers can immediately open it for editing.
@@ -1948,13 +1952,13 @@ export class StonetopCharacter {
 		return wound.id;
 	}
 
-	// Patch an existing wound in place (status, text, notes, tag, gmOnly, …).
-	async updateWound(id, patch = {}) {
+	// Patch an existing wound in place (status, text, notes, tag, …).
+	async updateWound(id, patch = {}, { moveName } = {}) {
 		const wounds = this._woundList();
 		const i = wounds.findIndex(w => w.id === id);
 		if (i < 0) return;
 		wounds[i] = _normalizeWound({ ...wounds[i], ...patch, id }, { keepId: true });
-		await this._writeWounds(wounds);
+		await this._writeWounds(wounds, moveName);
 	}
 
 	async setWoundStatus(id, status) {
@@ -1985,7 +1989,7 @@ export class StonetopCharacter {
 			}
 			return next;
 		});
-		await this._writeWounds(wounds);
+		await this._writeWounds(wounds, "Convalesce");
 	}
 	async getArcanum(slug)                           { return this._arcana.getArcanum(slug); }
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
@@ -2329,7 +2333,6 @@ function _normalizeWound(w = {}, { keepId = true } = {}) {
 			: [],
 		mechanicalTag:   typeof w.mechanicalTag === "string" ? w.mechanicalTag : "",
 		reminderMove:    typeof w.reminderMove === "string" ? w.reminderMove : "",
-		gmOnly:          !!w.gmOnly,
 		healed:          !!w.healed,
 	};
 }
@@ -2349,7 +2352,6 @@ function _buildWoundsSection(actor) {
 			.withPlanRequirements(n.planRequirements)
 			.withMechanicalTag(n.mechanicalTag)
 			.withReminderMove(n.reminderMove)
-			.withGmOnly(n.gmOnly)
 			.withHealed(n.healed)
 			.build();
 	});

@@ -48,7 +48,6 @@ export const looseObject = () => new fields.ObjectField({ required: false, nulla
 //   mechanicalTag   lasting reminder text, e.g. "Let Fly at disadvantage until practiced"
 //   reminderMove    move name the tag echoes onto at roll time ("" = none, "*" = all move rolls;
 //                   the echo rides 2d6+stat move rolls only, not damage/formula/Death's-Door rolls)
-//   gmOnly          soft UI hide from the owning player (see StonetopCharacterSheet)
 //   healed          true → moved to the collapsed "Scars" disclosure rather than deleted
 export const woundsField = () => new fields.ArrayField(new fields.SchemaField({
 	id:              new fields.StringField({ required: true, blank: true, initial: () => foundry.utils.randomID() }),
@@ -63,7 +62,6 @@ export const woundsField = () => new fields.ArrayField(new fields.SchemaField({
 	}), { required: false, initial: [] }),
 	mechanicalTag:   new fields.StringField({ required: true, blank: true }),
 	reminderMove:    new fields.StringField({ required: true, blank: true }),
-	gmOnly:          new fields.BooleanField({ required: true, initial: false }),
 	healed:          new fields.BooleanField({ required: true, initial: false }),
 }), { required: false, initial: [] });
 

@@ -33,7 +33,6 @@ describe("StonetopCharacter wounds", () => {
 			status: "problematic",
 			origin: "wound",
 			healed: false,
-			gmOnly: false,
 		});
 	});
 

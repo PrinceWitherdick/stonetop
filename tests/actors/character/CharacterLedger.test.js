@@ -26,6 +26,36 @@ describe("CharacterLedger", () => {
 		expect(entries.map(e => e.action)).toEqual(["Damage value changed from d4 to d6"]);
 	});
 
+	it("records wound additions, status changes, and removals", async () => {
+		const actor = makeActor({ attributes: { wounds: [
+			{ id: "w1", text: "Twisted ankle", status: "problematic", healed: false },
+			{ id: "w2", text: "Cracked rib", status: "problematic", healed: false },
+		] } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"system.attributes.wounds": [
+				{ id: "w1", text: "Twisted ankle", status: "stabilized", healed: false },
+				{ id: "w3", text: "Burn", status: "problematic", healed: false },
+			],
+		});
+		expect(entries.map(e => e.action)).toEqual([
+			'Wound stabilized: "Twisted ankle"',
+			'Wound recorded: "Burn"',
+			'Wound removed: "Cracked rib"',
+		]);
+	});
+
+	it("records a wound healed to a scar", async () => {
+		const actor = makeActor({ attributes: { wounds: [
+			{ id: "w1", text: "Gash", status: "stabilized", healed: false },
+		] } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"system.attributes.wounds": [
+				{ id: "w1", text: "Gash", status: "stabilized", healed: true },
+			],
+		});
+		expect(entries.map(e => e.action)).toEqual(['Wound healed to a scar: "Gash"']);
+	});
+
 	it("records inventory selections by item name", async () => {
 		const actor = makeActor({}, { stonetop: { inventory: { checked: { "bow-arrows": false } } } });
 		actor.typedActor = {

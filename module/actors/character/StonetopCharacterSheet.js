@@ -1314,9 +1314,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			const hasDebility      = activeDebilities.length > 0;
 			// Convalesce also heals wounds that can heal, and is where permanent injuries
 			// get a Make-a-Plan note — so it's available when either is outstanding, even
-			// at full HP with no debilities. gmOnly wounds are hidden from the owning player,
-			// so they don't drive availability for a non-GM (mirrors the dialog's own filter).
-			const openWounds       = (snapshot.wounds ?? []).filter(w => !w.healed && (game.user.isGM || !w.gmOnly));
+			// at full HP with no debilities.
+			const openWounds       = (snapshot.wounds ?? []).filter(w => !w.healed);
 			const canConvalesce    = !atFullHp || hasDebility || openWounds.length > 0;
 			return {
 				atFullHp,
@@ -1327,11 +1326,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 		}
 
-		// Shape the wound snapshot for the sheet block: hide gmOnly wounds from a
-		// non-GM viewer (a soft screen — the record still lives on the player-owned
-		// actor, so this is UI courtesy, not a security boundary), split the active
-		// list from healed "scars", and precompute each row's glyph/label. `show` keeps
-		// the whole block out of the DOM when there's nothing to show and no way to add.
+		// Shape the wound snapshot for the sheet block: split the active list from healed
+		// "scars", and precompute each row's glyph/label. `show` keeps the whole block out
+		// of the DOM when there's nothing to show and no way to add.
 		_buildWoundsView(wounds = [], editable = false) {
 			const isGM = game.user.isGM;
 			const decorate = (w) => {
@@ -1355,13 +1352,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					text: w.text,
 					status: w.status,
 					isDeathsDoor: w.origin === "deaths-door",
-					gmOnly: w.gmOnly,
 					statusLabel: _WOUND_STATUS_LABEL[w.status] ?? _WOUND_STATUS_LABEL.problematic,
 					glyph: _WOUND_STATUS_GLYPH[w.status] ?? _WOUND_STATUS_GLYPH.problematic,
 					tooltip: tip.join(" • ") || w.text || "",
 				};
 			};
-			const visible = (wounds ?? []).filter(w => isGM || !w.gmOnly);
+			const visible = wounds ?? [];
 			const active = visible.filter(w => !w.healed).map(decorate);
 			const scars  = visible.filter(w =>  w.healed).map(decorate);
 			return {
@@ -5610,11 +5606,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const snapshot = await this._stonetopCharacter.buildSnapshot();
 			const hp = snapshot.vitals.hp;
 			const activeDebilities = (snapshot.debilities ?? []).filter(d => d.active);
-			// A gmOnly wound is hidden from the owning player on the sheet; keep it out of
-			// their Convalesce lists too (the GM manages those), so the dialog never surfaces
-			// the concealed text — and the resulting card never broadcasts it.
-			const isGM = game.user.isGM;
-			const openWounds = (snapshot.wounds ?? []).filter(w => !w.healed && (isGM || !w.gmOnly));
+			const openWounds = (snapshot.wounds ?? []).filter(w => !w.healed);
 			const healable   = openWounds.filter(w => w.status !== "permanent");
 			const permanent  = openWounds.filter(w => w.status === "permanent");
 			if (hp.value >= hp.max && activeDebilities.length === 0 && openWounds.length === 0) return;
@@ -5707,10 +5699,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (healIds.length || hasPlanNotes) {
 				await this._stonetopCharacter.convalesceWounds({ healIds, planNotes });
 			}
-			// Don't broadcast a gmOnly wound's concealed text into the public heal card.
 			const healedNames = healIds.map(id => {
 				const w = healable.find(x => x.id === id);
-				return w?.gmOnly ? "a hidden wound" : (w?.text || "a wound");
+				return w?.text || "a wound";
 			});
 
 			const rows = [];
@@ -5794,10 +5785,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const wound = this._woundRecord(id);
 			if (!wound) return;
 			const label = wound.text || "(unnamed wound)";
-			// A gmOnly wound's tend chip is only visible to the GM (the sheet hides it from
-			// the owning player), so the dialog can name it — but the resulting chat card is
-			// public, so never broadcast the concealed text or the treatment specifics.
-			const chatLabel = wound.gmOnly ? "a hidden wound" : label;
+			const chatLabel = label;
 			// No inputs: "say how" is table narration (said out loud; the trigger line
 			// prompts it), and nothing here would persist a typed value. The action is a
 			// single confirm — the GM says it's handled, and the wound stabilizes.
@@ -5808,7 +5796,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			</form>`;
 
 			const stabilize = async () => {
-				await this._stonetopCharacter.updateWound(id, { status: "stabilized", requirementNote: "" });
+				await this._stonetopCharacter.updateWound(id, { status: "stabilized", requirementNote: "" }, { moveName: "Recover" });
 				postMoveToChat(this.actor, "Recover", [{ label: "Wound stabilized", value: chatLabel }]);
 				this.render(false);
 			};
@@ -5843,12 +5831,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		// Shared add/edit form. Status/healed are settable here as a manual override; the
 		// normal path is move-gated (Recover stabilizes, Convalesce heals → scar). The
 		// "Healed — move to Scars" toggle is the manual heal path (the Remove dialog points
-		// here to keep a wound's fiction as a scar). Only the GM sees the "hidden from
-		// players" toggle. planNote is editable here too, so a permanent injury's adaptation
-		// plan and its interim lasting tag/reminder can be captured in one place.
+		// here to keep a wound's fiction as a scar). planNote is editable here too, so a
+		// permanent injury's adaptation plan and its interim lasting tag/reminder can be
+		// captured in one place.
 		_openWoundDialog({ isNew, wound = null, moveNames = [] }) {
 			const w    = wound ?? {};
-			const isGM = game.user.isGM;
 			const statusOptions = _WOUND_STATUS_OPTIONS.map(o =>
 				`<option value="${o.value}"${(w.status ?? "problematic") === o.value ? " selected" : ""}>${_esc(o.label)}</option>`,
 			).join("");
@@ -5900,9 +5887,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				<div class="stonetop-custom-move-check">
 					<label><input type="checkbox" class="stonetop-check" name="healed"${w.healed ? " checked" : ""}> Healed, move to Scars</label>
 				</div>
-				${isGM ? `<div class="stonetop-custom-move-check">
-					<label><input type="checkbox" class="stonetop-check" name="gmOnly"${w.gmOnly ? " checked" : ""}> Hidden from players</label>
-				</div>` : ""}
 			</form>`;
 
 			const apply = async (html) => {
@@ -5921,7 +5905,6 @@ export function createStonetopCharacterSheetClass(Base) {
 					})).filter(r => r.text),
 					healed:          html.find('[name="healed"]').is(":checked"),
 				};
-				if (isGM) data.gmOnly = html.find('[name="gmOnly"]').is(":checked");
 				if (isNew) await this._stonetopCharacter.addWound(data);
 				else if (w.id) await this._stonetopCharacter.updateWound(w.id, data);
 				this.render(false);

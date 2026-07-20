@@ -232,11 +232,8 @@ function _woundReminderHtml(actor, moveName) {
 	const baseName = typeof moveName === "string"
 		? moveName.replace(/ with (?:STR|DEX|CON|INT|WIS|CHA)$/, "")
 		: moveName;
-	// gmOnly wounds are hidden from the owning player; this notice rides a public roll
-	// card, so echoing one would broadcast the concealed tag to the player and the table.
-	// Skip them entirely (the sheet/dialogs already conceal gmOnly wound content).
 	const matches = wounds.filter(w =>
-		w && !w.healed && !w.gmOnly && w.mechanicalTag &&
+		w && !w.healed && w.mechanicalTag &&
 		(w.reminderMove === "*" || (baseName && w.reminderMove === baseName)),
 	);
 	if (!matches.length) return "";

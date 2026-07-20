@@ -87,6 +87,10 @@ const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.
 const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
 const POSSESSION_SELECTED_PATH = `flags.${LEDGER_SCOPE}.possessions.selected`;
 const POSSESSION_CUSTOM_PATH = `flags.${LEDGER_SCOPE}.possessions.custom`;
+
+// Wounds (the 4th harm track) live as an array on this path; flattenObject leaves an array
+// as a single leaf, so the whole list arrives at the granular handler as one old/new pair.
+const WOUNDS_PATH = "system.attributes.wounds";
 // Arcana marks all live under the arcana namespace keyed by arcanum slug: the ◇/○/□ track
 // boxes (booleans, "<slug>:<context>:<index>"), the front unlock requirements, and the back
 // power options (both counts, "<slug>:<optionSlug>"). Resolve the slug to the card's tier +
@@ -533,6 +537,29 @@ function possessionCustomEntries(oldValue, newValue) {
 	return entries;
 }
 
+// Ledger the wound lifecycle: additions, removals, heals (→ scars), reopens, and status
+// changes. Move-driven writes (Recover, Convalesce) tag these "via <move>" through the
+// update's stonetopMove option. Wound text is included — wounds are no longer hidden.
+const WOUND_STATUS_VERB = { problematic: "became problematic", stabilized: "stabilized", permanent: "became permanent" };
+
+function woundLedgerEntries(oldValue, newValue) {
+	const oldById = new Map((Array.isArray(oldValue) ? oldValue : []).map(w => [w.id, w]));
+	const newById = new Map((Array.isArray(newValue) ? newValue : []).map(w => [w.id, w]));
+	const label = (w) => (w?.text ? `"${stripHtml(w.text)}"` : "a wound");
+	const entries = [];
+	for (const [id, w] of newById) {
+		const prev = oldById.get(id);
+		if (!prev) { entries.push({ action: `Wound recorded: ${label(w)}` }); continue; }
+		if (!prev.healed && w.healed)      entries.push({ action: `Wound healed to a scar: ${label(w)}` });
+		else if (prev.healed && !w.healed) entries.push({ action: `Wound reopened: ${label(w)}` });
+		else if (prev.status !== w.status) entries.push({ action: `Wound ${WOUND_STATUS_VERB[w.status] ?? "updated"}: ${label(w)}` });
+	}
+	for (const [id, w] of oldById) {
+		if (!newById.has(id)) entries.push({ action: `Wound removed: ${label(w)}` });
+	}
+	return entries;
+}
+
 function possessionUsesEntry(path, oldValue, newValue, names) {
 	const slug = path.slice(POSSESSION_USES_PREFIX.length);
 	const itemName = nameFrom(names.possessions, slug);
@@ -622,6 +649,7 @@ function granularEntriesForPath(path, oldValue, newValue, names) {
 	if (path.startsWith(BEAST_READINESS_PREFIX)) return [perSlugFollowerEntry(path, BEAST_READINESS_PREFIX, "beast", "Readiness", oldValue, newValue, names)];
 	if (path === POSSESSION_SELECTED_PATH) return possessionSelectionEntries(oldValue, newValue, names);
 	if (path === POSSESSION_CUSTOM_PATH) return possessionCustomEntries(oldValue, newValue);
+	if (path === WOUNDS_PATH) return woundLedgerEntries(oldValue, newValue);
 	if (path.startsWith(POSSESSION_USES_PREFIX)) return [possessionUsesEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(POSSESSION_SUBCHOICES_PREFIX)) return possessionSubchoiceEntries(path, oldValue, newValue, names);
 	if (path.startsWith(POSSESSION_CHOICE_USES_PREFIX)) return [possessionChoiceUsesEntry(path, oldValue, newValue, names)];

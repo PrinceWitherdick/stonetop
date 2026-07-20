@@ -12,7 +12,6 @@
  * @property {{text:string, done:boolean}[]} planRequirements - Make-a-Plan tick-boxes
  * @property {string} mechanicalTag   - lasting reminder text echoed at roll time
  * @property {string} reminderMove    - move name the tag reminds on ("" none, "*" all)
- * @property {boolean} gmOnly         - soft UI hide from the owning player
  * @property {boolean} healed         - true → shown under the collapsed "Scars" list
  */
 export class WoundSnapshot {
@@ -26,7 +25,6 @@ export class WoundSnapshot {
 		this.planRequirements = b._planRequirements ?? [];
 		this.mechanicalTag   = b._mechanicalTag;
 		this.reminderMove    = b._reminderMove;
-		this.gmOnly          = b._gmOnly;
 		this.healed          = b._healed;
 	}
 
@@ -52,7 +50,6 @@ export class WoundSnapshotBuilder {
 	withPlanRequirements(v) { this._planRequirements = v; return this; }
 	withMechanicalTag(v)   { this._mechanicalTag   = v; return this; }
 	withReminderMove(v)    { this._reminderMove    = v; return this; }
-	withGmOnly(v)          { this._gmOnly          = v; return this; }
 	withHealed(v)          { this._healed          = v; return this; }
 	build()                { return new WoundSnapshot(this); }
 }
