@@ -1,0 +1,24 @@
+{
+  "_id": "QkbEOpk1UQFbCLsx",
+  "_key": "!items!QkbEOpk1UQFbCLsx",
+  "name": "A wooden idol of the Lady of Crows",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>crude</em>, Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-wooden-idol-of-the-lady-of-crows",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>crude</em>, Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fIeKpBB4BWdk7FGb"
+}

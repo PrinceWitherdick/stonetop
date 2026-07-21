@@ -1,0 +1,22 @@
+{
+  "_id": "eijjQ5rkPVBwjE1T",
+  "_key": "!items!eijjQ5rkPVBwjE1T",
+  "name": "A few tarnished silver coins from the Tempest Lords’ empire",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 1 to most, Value 3 to the right collector, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-few-tarnished-silver-coins-from-the-tempest-lords-empire",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 1 to most, Value 3 to the right collector, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "sAuLDLodHGOaYxFS"
+}

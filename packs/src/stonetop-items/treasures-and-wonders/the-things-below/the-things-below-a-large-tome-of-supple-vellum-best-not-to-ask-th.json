@@ -1,0 +1,24 @@
+{
+  "_id": "wXmFNril21hwX1At",
+  "_key": "!items!wXmFNril21hwX1At",
+  "name": "A large tome of supple vellum (best not to ask the source) full of ramblings in an archaic dialect, unsettling images, and arcane diagrams",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-large-tome-of-supple-vellum-best-not-to-ask-the-source-full-of-ramblings-in-an-archaic-dialect-unsettling-images-and-arcane-diagrams",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

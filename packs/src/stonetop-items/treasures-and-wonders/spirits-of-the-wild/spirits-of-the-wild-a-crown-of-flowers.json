@@ -1,0 +1,22 @@
+{
+  "_id": "qsTKKwn5DEshIkvS",
+  "_key": "!items!qsTKKwn5DEshIkvS",
+  "name": "A crown of flowers",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>fragile</em>, magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-crown-of-flowers",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>fragile</em>, magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "6oY165cW5WxrxHjL"
+}

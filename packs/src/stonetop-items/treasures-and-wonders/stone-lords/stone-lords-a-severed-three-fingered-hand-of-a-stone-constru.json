@@ -1,0 +1,24 @@
+{
+  "_id": "Jjj9sY0abWg5nBgj",
+  "_key": "!items!Jjj9sY0abWg5nBgj",
+  "name": "A severed, three-fingered hand of a stone construct",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-severed-three-fingered-hand-of-a-stone-construct",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "zue1tQV0kunn8Q8x"
+}

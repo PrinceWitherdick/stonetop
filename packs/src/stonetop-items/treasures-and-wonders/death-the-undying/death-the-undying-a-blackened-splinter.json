@@ -1,0 +1,22 @@
+{
+  "_id": "hrckTmjSZ8Rna3w7",
+  "_key": "!items!hrckTmjSZ8Rna3w7",
+  "name": "A blackened splinter",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>crude</em>, magical, fireproof",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-blackened-splinter",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>crude</em>, magical, fireproof"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fIeKpBB4BWdk7FGb"
+}

@@ -1,0 +1,22 @@
+{
+  "_id": "b8YWFRTDHTJQba1K",
+  "_key": "!items!b8YWFRTDHTJQba1K",
+  "name": "A dark ice knife",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>hand</em>, magical, <em>crude</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-dark-ice-knife",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>hand</em>, magical, <em>crude</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "hiv6TC9KlUAggFHe"
+}

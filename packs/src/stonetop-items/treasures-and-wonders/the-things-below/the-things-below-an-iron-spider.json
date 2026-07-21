@@ -1,0 +1,22 @@
+{
+  "_id": "dqU1dFXy8VwidQqW",
+  "_key": "!items!dqU1dFXy8VwidQqW",
+  "name": "An iron spider",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, indestructible",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "an-iron-spider",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, indestructible"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

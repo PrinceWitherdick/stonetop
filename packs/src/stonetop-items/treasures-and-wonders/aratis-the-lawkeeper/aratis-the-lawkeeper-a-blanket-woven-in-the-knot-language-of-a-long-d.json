@@ -1,0 +1,22 @@
+{
+  "_id": "YpenadC2rTi5AIFi",
+  "_key": "!items!YpenadC2rTi5AIFi",
+  "name": "A blanket woven in the knot-language of a long-dead sect of Aratis’s",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>fragile</em>, or 2 to the right buyer, Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-blanket-woven-in-the-knot-language-of-a-long-dead-sect-of-aratis-s",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>fragile</em>, or 2 to the right buyer, Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "HAhTe9aUVSNgGqEu"
+}

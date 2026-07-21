@@ -1,0 +1,24 @@
+{
+  "_id": "IZJe06QLrZ4asbVT",
+  "_key": "!items!IZJe06QLrZ4asbVT",
+  "name": "A maul of black iron, utterly immune to magic",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "<em>close</em>, <em>forceful</em>, <em>awkward</em>, <em>+1 damage</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-maul-of-black-iron-utterly-immune-to-magic",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "<em>close</em>, <em>forceful</em>, <em>awkward</em>, <em>+1 damage</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "HAhTe9aUVSNgGqEu"
+}

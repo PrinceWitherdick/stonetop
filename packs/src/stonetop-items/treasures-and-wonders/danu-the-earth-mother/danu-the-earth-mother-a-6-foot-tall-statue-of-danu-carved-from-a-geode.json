@@ -1,0 +1,22 @@
+{
+  "_id": "5Heo1OknU1vT5psv",
+  "_key": "!items!5Heo1OknU1vT5psv",
+  "name": "A 6-foot tall statue of Danu, carved from a geode, the torso open and filled with amethyst crystals",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-6-foot-tall-statue-of-danu-carved-from-a-geode-the-torso-open-and-filled-with-amethyst-crystals",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "kdeYvwEuUMeNdWWf"
+}

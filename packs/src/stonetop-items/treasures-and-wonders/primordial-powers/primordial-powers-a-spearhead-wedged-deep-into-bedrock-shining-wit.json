@@ -1,0 +1,22 @@
+{
+  "_id": "EPoCAJqEoXuV5vYz",
+  "_key": "!items!EPoCAJqEoXuV5vYz",
+  "name": "A… spearhead (?), wedged deep into bedrock, shining with eternal starlight",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>hand</em>, magical, beautiful, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-spearhead-wedged-deep-into-bedrock-shining-with-eternal-starlight",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>hand</em>, magical, beautiful, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

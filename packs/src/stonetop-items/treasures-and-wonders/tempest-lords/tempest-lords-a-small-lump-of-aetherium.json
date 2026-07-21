@@ -1,0 +1,22 @@
+{
+  "_id": "KmKo3wiIY5dst3fs",
+  "_key": "!items!KmKo3wiIY5dst3fs",
+  "name": "A small lump of aetherium",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 0 to most, Value 1 to those-who-know, Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-small-lump-of-aetherium",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 0 to most, Value 1 to those-who-know, Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "sAuLDLodHGOaYxFS"
+}

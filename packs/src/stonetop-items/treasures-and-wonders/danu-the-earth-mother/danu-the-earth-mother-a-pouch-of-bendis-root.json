@@ -1,0 +1,24 @@
+{
+  "_id": "HSX80FbieOMeq7e8",
+  "_key": "!items!HSX80FbieOMeq7e8",
+  "name": "A pouch of bendis root",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "burnt fumes repel perversions of nature; each use lasts ~1 hour, <em>reach</em>, <em>area</em>, ~10 uses, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pouch-of-bendis-root",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "burnt fumes repel perversions of nature; each use lasts ~1 hour, <em>reach</em>, <em>area</em>, ~10 uses, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "kdeYvwEuUMeNdWWf"
+}

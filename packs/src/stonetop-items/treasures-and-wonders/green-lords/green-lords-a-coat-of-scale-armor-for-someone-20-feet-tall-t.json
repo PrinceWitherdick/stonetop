@@ -1,0 +1,22 @@
+{
+  "_id": "rO4McC8zqolO3VoN",
+  "_key": "!items!rO4McC8zqolO3VoN",
+  "name": "A coat of scale armor for someone 20 feet tall. The scales are strange, organic, semi-translucent and iridescent around the edges. Thick, twisting vines grow from the armor where a body should be; nothing else grows nearby. The armor is impractical and creepy, but if extracted intact, it could fetch a decent price",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-coat-of-scale-armor-for-someone-20-feet-tall-the-scales-are-strange-organic-semi-translucent-and-iridescent-around-the-edges-thick-twisting-vines-grow-from-the-armor-where-a-body-should-be-nothing-else-grows-nearby-the-armor-is-impractical-and-creepy-but-if-extracted-intact-it-could-fetch-a-decent-price",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "dFWNdqogoXy6Y8IM"
+}

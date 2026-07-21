@@ -1,0 +1,22 @@
+{
+  "_id": "GwnHmrCgOhMIj2HT",
+  "_key": "!items!GwnHmrCgOhMIj2HT",
+  "name": "A pair of what seem to be rubies",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pair-of-what-seem-to-be-rubies",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "rZpagwJLbbDUSCfs"
+}

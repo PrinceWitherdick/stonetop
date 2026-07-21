@@ -1,0 +1,22 @@
+{
+  "_id": "K6isqsLs6AOOGziv",
+  "_key": "!items!K6isqsLs6AOOGziv",
+  "name": "A wooden mask",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>fragile</em>, magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-wooden-mask",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>fragile</em>, magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fUFiQE5tYietY8HN"
+}

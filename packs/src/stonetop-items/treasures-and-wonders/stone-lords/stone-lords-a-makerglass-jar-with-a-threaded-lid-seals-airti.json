@@ -1,0 +1,24 @@
+{
+  "_id": "LERW7CYftD1ESbtP",
+  "_key": "!items!LERW7CYftD1ESbtP",
+  "name": "A makerglass jar with a threaded lid, seals airtight",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "indestructible, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-makerglass-jar-with-a-threaded-lid-seals-airtight",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "indestructible, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "zue1tQV0kunn8Q8x"
+}

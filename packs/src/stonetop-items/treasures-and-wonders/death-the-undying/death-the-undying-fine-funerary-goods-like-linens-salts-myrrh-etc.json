@@ -1,0 +1,24 @@
+{
+  "_id": "On9lgMyDW0xTrzCN",
+  "_key": "!items!On9lgMyDW0xTrzCN",
+  "name": "Fine funerary goods, like linens, salts, myrrh, etc",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "fine-funerary-goods-like-linens-salts-myrrh-etc",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fIeKpBB4BWdk7FGb"
+}

@@ -1,0 +1,22 @@
+{
+  "_id": "rTiXmSsshKDN5Ngp",
+  "_key": "!items!rTiXmSsshKDN5Ngp",
+  "name": "A small black sphere",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, indestructible, <em>immobile</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-small-black-sphere",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, indestructible, <em>immobile</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "hiv6TC9KlUAggFHe"
+}

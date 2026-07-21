@@ -1,0 +1,24 @@
+{
+  "_id": "jpfvxg3PYwfO8Zlu",
+  "_key": "!items!jpfvxg3PYwfO8Zlu",
+  "name": "An oversized aetherium spear-head, dull and soft",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>awkward</em>, <em>crude</em>, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "an-oversized-aetherium-spear-head-dull-and-soft",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>awkward</em>, <em>crude</em>, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "sAuLDLodHGOaYxFS"
+}

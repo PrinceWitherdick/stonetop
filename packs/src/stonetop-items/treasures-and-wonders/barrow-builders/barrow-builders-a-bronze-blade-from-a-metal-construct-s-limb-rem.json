@@ -1,0 +1,22 @@
+{
+  "_id": "bdBjGSgyv6Z0NhoX",
+  "_key": "!items!bdBjGSgyv6Z0NhoX",
+  "name": "A bronze blade from a metal construct’s limb, remade into a brutal axe",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>close</em>, <em>messy</em>, <em>awkward</em>, <em>+1 damage</em>, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-bronze-blade-from-a-metal-construct-s-limb-remade-into-a-brutal-axe",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>close</em>, <em>messy</em>, <em>awkward</em>, <em>+1 damage</em>, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cqytTI64lyGXgj8r"
+}

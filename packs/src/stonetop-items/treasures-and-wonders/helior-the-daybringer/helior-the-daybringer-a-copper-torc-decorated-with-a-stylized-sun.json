@@ -1,0 +1,22 @@
+{
+  "_id": "m24ItNztNpqyFkWd",
+  "_key": "!items!m24ItNztNpqyFkWd",
+  "name": "A copper torc decorated with a stylized sun",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-copper-torc-decorated-with-a-stylized-sun",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "VN1YK8D24LBzm69j"
+}

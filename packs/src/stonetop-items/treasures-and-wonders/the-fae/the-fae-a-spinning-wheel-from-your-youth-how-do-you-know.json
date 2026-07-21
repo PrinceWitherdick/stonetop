@@ -1,0 +1,24 @@
+{
+  "_id": "aoMKzkCOxvFUZF8O",
+  "_key": "!items!aoMKzkCOxvFUZF8O",
+  "name": "A spinning wheel from your youth (how do you know?) that was lost in a fire",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "<em>cumbersome</em>, Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-spinning-wheel-from-your-youth-how-do-you-know-that-was-lost-in-a-fire",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "<em>cumbersome</em>, Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

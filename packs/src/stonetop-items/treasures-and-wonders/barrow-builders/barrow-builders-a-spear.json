@@ -1,0 +1,24 @@
+{
+  "_id": "fdNbGcf6wOK1RTCA",
+  "_key": "!items!fdNbGcf6wOK1RTCA",
+  "name": "A spear",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>close</em>, <em>thrown</em>, beautiful, indestructible, 2 <em>piercing</em>, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-spear",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>close</em>, <em>thrown</em>, beautiful, indestructible, 2 <em>piercing</em>, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cqytTI64lyGXgj8r"
+}

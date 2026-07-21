@@ -1,0 +1,22 @@
+{
+  "_id": "yxbz9Rz5PYlgZbTy",
+  "_key": "!items!yxbz9Rz5PYlgZbTy",
+  "name": "2d4 lumps of anthracite",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "2d4-lumps-of-anthracite",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "WS6RZyur2lQBRqsu"
+}

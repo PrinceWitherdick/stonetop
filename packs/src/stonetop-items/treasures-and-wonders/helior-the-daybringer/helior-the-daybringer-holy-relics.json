@@ -1,0 +1,22 @@
+{
+  "_id": "3XFZfjT5yxuZm93A",
+  "_key": "!items!3XFZfjT5yxuZm93A",
+  "name": "Holy relics",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>uses</em>, Value 3 to a collector, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "holy-relics",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>uses</em>, Value 3 to a collector, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "VN1YK8D24LBzm69j"
+}

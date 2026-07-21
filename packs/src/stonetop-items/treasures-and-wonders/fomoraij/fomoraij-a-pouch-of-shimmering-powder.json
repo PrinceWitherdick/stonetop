@@ -1,0 +1,46 @@
+{
+  "_id": "6lSofasXWuvRjkas",
+  "_key": "!items!6lSofasXWuvRjkas",
+  "name": "A pouch of shimmering powder",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "doses, Value 2 to the right buyer, Value 2",
+    "resource": {
+      "max": 5,
+      "title": null,
+      "labels": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pouch-of-shimmering-powder",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "doses, Value 2 to the right buyer, Value 2",
+      "resource": {
+        "max": 5,
+        "title": null,
+        "labels": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "rZpagwJLbbDUSCfs"
+}

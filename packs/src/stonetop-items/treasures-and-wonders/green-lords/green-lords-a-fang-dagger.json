@@ -1,0 +1,22 @@
+{
+  "_id": "TmZSufEIWe4jCbJc",
+  "_key": "!items!TmZSufEIWe4jCbJc",
+  "name": "A fang-dagger",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>hand</em>, magical, <em>+1 damage</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-fang-dagger",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>hand</em>, magical, <em>+1 damage</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "dFWNdqogoXy6Y8IM"
+}

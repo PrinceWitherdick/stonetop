@@ -1,0 +1,22 @@
+{
+  "_id": "TFEZOP6vJhVW4NPE",
+  "_key": "!items!TFEZOP6vJhVW4NPE",
+  "name": "Moonlight raiment",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, beautiful, <em>fragile</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "moonlight-raiment",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, beautiful, <em>fragile</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

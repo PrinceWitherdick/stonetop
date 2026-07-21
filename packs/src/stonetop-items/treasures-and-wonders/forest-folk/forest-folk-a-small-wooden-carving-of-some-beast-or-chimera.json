@@ -1,0 +1,22 @@
+{
+  "_id": "6URYhO9W6qZX1Clf",
+  "_key": "!items!6URYhO9W6qZX1Clf",
+  "name": "A small wooden carving of some beast or chimera",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-small-wooden-carving-of-some-beast-or-chimera",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fUFiQE5tYietY8HN"
+}

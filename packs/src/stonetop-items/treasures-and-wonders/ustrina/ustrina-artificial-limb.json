@@ -1,0 +1,22 @@
+{
+  "_id": "bACMaC9vnJ7Y7bg8",
+  "_key": "!items!bACMaC9vnJ7Y7bg8",
+  "name": "Artificial limb",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>crude</em>, magical (?), Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "artificial-limb",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>crude</em>, magical (?), Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "CNyKx0ja8oDmcOIz"
+}

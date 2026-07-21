@@ -1,0 +1,24 @@
+{
+  "_id": "b9D5nBAGoe3lpsMZ",
+  "_key": "!items!b9D5nBAGoe3lpsMZ",
+  "name": "Pale metal gauntlets",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "fireproof, magical, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "pale-metal-gauntlets",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "fireproof, magical, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "CNyKx0ja8oDmcOIz"
+}

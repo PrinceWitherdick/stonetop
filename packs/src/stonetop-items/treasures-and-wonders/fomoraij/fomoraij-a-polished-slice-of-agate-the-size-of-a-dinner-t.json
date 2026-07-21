@@ -1,0 +1,22 @@
+{
+  "_id": "vupm7wkY3lSS0mQ2",
+  "_key": "!items!vupm7wkY3lSS0mQ2",
+  "name": "A polished slice of agate the size of a dinner table, bringing nightmares and dark thoughts to those who linger in its presence",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-polished-slice-of-agate-the-size-of-a-dinner-table-bringing-nightmares-and-dark-thoughts-to-those-who-linger-in-its-presence",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "rZpagwJLbbDUSCfs"
+}

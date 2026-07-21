@@ -1,0 +1,22 @@
+{
+  "_id": "Yutsf31Vwirg7q86",
+  "_key": "!items!Yutsf31Vwirg7q86",
+  "name": "A vial of lethal poison",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>1 use</em>, ingested, <em>dangerous</em>, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-vial-of-lethal-poison",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>1 use</em>, ingested, <em>dangerous</em>, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fIeKpBB4BWdk7FGb"
+}

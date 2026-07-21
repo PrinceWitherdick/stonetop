@@ -1,0 +1,24 @@
+{
+  "_id": "ohXoTH35Fz2IeEZL",
+  "_key": "!items!ohXoTH35Fz2IeEZL",
+  "name": "A deep, round brass bowl, strangely resonant, the outer edges adorned with sapphires",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-deep-round-brass-bowl-strangely-resonant-the-outer-edges-adorned-with-sapphires",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "hiv6TC9KlUAggFHe"
+}

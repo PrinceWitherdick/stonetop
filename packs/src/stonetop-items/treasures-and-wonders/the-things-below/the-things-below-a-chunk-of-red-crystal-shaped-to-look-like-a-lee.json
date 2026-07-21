@@ -1,0 +1,22 @@
+{
+  "_id": "PysepsFvW8qJGPHy",
+  "_key": "!items!PysepsFvW8qJGPHy",
+  "name": "A chunk of red crystal, shaped to look like a leering skull",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 1 to the right person, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-chunk-of-red-crystal-shaped-to-look-like-a-leering-skull",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 1 to the right person, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

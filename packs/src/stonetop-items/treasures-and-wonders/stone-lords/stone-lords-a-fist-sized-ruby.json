@@ -1,0 +1,24 @@
+{
+  "_id": "77x03kD1l7x9q6J4",
+  "_key": "!items!77x03kD1l7x9q6J4",
+  "name": "A fist-sized ruby",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "beautiful, Value 4",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-fist-sized-ruby",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "beautiful, Value 4"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "zue1tQV0kunn8Q8x"
+}

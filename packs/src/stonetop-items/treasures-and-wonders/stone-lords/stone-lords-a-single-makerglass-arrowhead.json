@@ -1,0 +1,22 @@
+{
+  "_id": "cZwMCrElrqNuap8B",
+  "_key": "!items!cZwMCrElrqNuap8B",
+  "name": "A single makerglass arrowhead",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "indestructible, 2 <em>piercing</em>, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-single-makerglass-arrowhead",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "indestructible, 2 <em>piercing</em>, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "zue1tQV0kunn8Q8x"
+}

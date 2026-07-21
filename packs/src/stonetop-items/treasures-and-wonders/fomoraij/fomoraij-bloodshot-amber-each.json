@@ -1,0 +1,24 @@
+{
+  "_id": "uS7XpW0fGPrVfklW",
+  "_key": "!items!uS7XpW0fGPrVfklW",
+  "name": "Bloodshot amber each",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical 1d4",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "bloodshot-amber-each",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical 1d4"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "rZpagwJLbbDUSCfs"
+}

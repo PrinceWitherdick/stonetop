@@ -1,0 +1,22 @@
+{
+  "_id": "KpZojY1cQCj96etf",
+  "_key": "!items!KpZojY1cQCj96etf",
+  "name": "A black menhir",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, <em>immobile</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-black-menhir",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, <em>immobile</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

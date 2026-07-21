@@ -1,0 +1,24 @@
+{
+  "_id": "5jNCHQrD2uKAwlOd",
+  "_key": "!items!5jNCHQrD2uKAwlOd",
+  "name": "A makerglass sword",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>close</em>, <em>messy</em>, indestructible, beautiful, <em>+1 damage</em>, 2 <em>piercing</em>, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-makerglass-sword",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>close</em>, <em>messy</em>, indestructible, beautiful, <em>+1 damage</em>, 2 <em>piercing</em>, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "zue1tQV0kunn8Q8x"
+}

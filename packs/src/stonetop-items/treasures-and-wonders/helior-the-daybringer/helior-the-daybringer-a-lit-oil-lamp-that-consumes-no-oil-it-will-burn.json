@@ -1,0 +1,24 @@
+{
+  "_id": "wjylT4EalkXAout7",
+  "_key": "!items!wjylT4EalkXAout7",
+  "name": "A lit oil lamp that consumes no oil; it will burn forever unless snuffed, blown out, or spilled",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical, <em>fragile</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-lit-oil-lamp-that-consumes-no-oil-it-will-burn-forever-unless-snuffed-blown-out-or-spilled",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical, <em>fragile</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "VN1YK8D24LBzm69j"
+}

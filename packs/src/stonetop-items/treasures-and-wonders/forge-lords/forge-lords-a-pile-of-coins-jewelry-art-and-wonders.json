@@ -1,0 +1,22 @@
+{
+  "_id": "skbSQydkqZXwhWuo",
+  "_key": "!items!skbSQydkqZXwhWuo",
+  "name": "A pile of coins, jewelry, art, and wonders",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, Value 5",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pile-of-coins-jewelry-art-and-wonders",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, Value 5"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "WS6RZyur2lQBRqsu"
+}

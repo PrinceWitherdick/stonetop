@@ -1,0 +1,22 @@
+{
+  "_id": "kfXwdOzhnvm3MPuk",
+  "_key": "!items!kfXwdOzhnvm3MPuk",
+  "name": "A silver-alloy dagger",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-silver-alloy-dagger",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fIeKpBB4BWdk7FGb"
+}

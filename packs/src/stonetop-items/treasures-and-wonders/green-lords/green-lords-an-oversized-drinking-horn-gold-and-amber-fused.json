@@ -1,0 +1,24 @@
+{
+  "_id": "BmilQ2fXyyvk9gFR",
+  "_key": "!items!BmilQ2fXyyvk9gFR",
+  "name": "An oversized drinking horn, gold and amber fused into the horn in impossible ways",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "an-oversized-drinking-horn-gold-and-amber-fused-into-the-horn-in-impossible-ways",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "dFWNdqogoXy6Y8IM"
+}

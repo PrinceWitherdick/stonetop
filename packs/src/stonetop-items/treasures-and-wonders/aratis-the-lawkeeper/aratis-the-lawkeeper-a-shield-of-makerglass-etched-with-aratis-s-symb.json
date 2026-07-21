@@ -1,0 +1,24 @@
+{
+  "_id": "3blrD92ZNMvCx5DE",
+  "_key": "!items!3blrD92ZNMvCx5DE",
+  "name": "A shield of makerglass, etched with Aratis’s symbol",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "indestructible, <em>+1 armor</em>, +1 Readiness of a Defend 7+, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-shield-of-makerglass-etched-with-aratis-s-symbol",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "indestructible, <em>+1 armor</em>, +1 Readiness of a Defend 7+, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "HAhTe9aUVSNgGqEu"
+}

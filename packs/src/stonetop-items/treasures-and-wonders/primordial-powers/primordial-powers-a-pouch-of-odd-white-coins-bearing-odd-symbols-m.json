@@ -1,0 +1,24 @@
+{
+  "_id": "SaiiuRnFRbXyLG9Z",
+  "_key": "!items!SaiiuRnFRbXyLG9Z",
+  "name": "A pouch of odd, white coins bearing odd symbols, much lighter and harder than you’d expect",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "maybe?, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pouch-of-odd-white-coins-bearing-odd-symbols-much-lighter-and-harder-than-you-d-expect",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "maybe?, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

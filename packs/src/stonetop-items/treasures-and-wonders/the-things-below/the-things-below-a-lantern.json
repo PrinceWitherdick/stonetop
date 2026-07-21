@@ -1,0 +1,24 @@
+{
+  "_id": "i7yl1CCpsPHL3doM",
+  "_key": "!items!i7yl1CCpsPHL3doM",
+  "name": "A lantern",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>5 hours</em>, <em>reach</em>, <em>area</em>, magical, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-lantern",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>5 hours</em>, <em>reach</em>, <em>area</em>, magical, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

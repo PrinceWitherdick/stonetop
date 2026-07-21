@@ -1,0 +1,22 @@
+{
+  "_id": "QVPaTksadQS0KERp",
+  "_key": "!items!QVPaTksadQS0KERp",
+  "name": "Crystal knife",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>hand</em>, <em>crude</em>, magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "crystal-knife",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>hand</em>, <em>crude</em>, magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fUFiQE5tYietY8HN"
+}

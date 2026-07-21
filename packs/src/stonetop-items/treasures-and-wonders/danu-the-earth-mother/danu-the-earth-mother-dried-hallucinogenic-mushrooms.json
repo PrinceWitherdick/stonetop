@@ -1,0 +1,22 @@
+{
+  "_id": "IAFNBSfrKL5WEFt7",
+  "_key": "!items!IAFNBSfrKL5WEFt7",
+  "name": "Dried, hallucinogenic mushrooms",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "2d4 uses, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "dried-hallucinogenic-mushrooms",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "2d4 uses, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "kdeYvwEuUMeNdWWf"
+}

@@ -1,0 +1,22 @@
+{
+  "_id": "LhrRuxBi2RGI2MDd",
+  "_key": "!items!LhrRuxBi2RGI2MDd",
+  "name": "A bezoar",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "swallow to cure any poison, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-bezoar",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "swallow to cure any poison, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "kdeYvwEuUMeNdWWf"
+}

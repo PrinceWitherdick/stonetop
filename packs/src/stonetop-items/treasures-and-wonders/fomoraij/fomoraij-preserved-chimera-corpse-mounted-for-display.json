@@ -1,0 +1,22 @@
+{
+  "_id": "vOth1pBAgwMc6REI",
+  "_key": "!items!vOth1pBAgwMc6REI",
+  "name": "Preserved chimera corpse, mounted for display",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "preserved-chimera-corpse-mounted-for-display",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "rZpagwJLbbDUSCfs"
+}

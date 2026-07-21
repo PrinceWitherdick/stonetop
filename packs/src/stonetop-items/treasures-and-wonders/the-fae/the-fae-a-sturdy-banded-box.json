@@ -1,0 +1,24 @@
+{
+  "_id": "9dBbIzB3KED00xMw",
+  "_key": "!items!9dBbIzB3KED00xMw",
+  "name": "A sturdy, banded box",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical 6”",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-sturdy-banded-box",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical 6”"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

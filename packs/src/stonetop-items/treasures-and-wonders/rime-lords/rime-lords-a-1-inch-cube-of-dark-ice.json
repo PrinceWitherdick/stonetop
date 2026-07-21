@@ -1,0 +1,22 @@
+{
+  "_id": "1vuFnusfStLGlzF2",
+  "_key": "!items!1vuFnusfStLGlzF2",
+  "name": "A 1-inch cube of dark ice",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-1-inch-cube-of-dark-ice",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "hiv6TC9KlUAggFHe"
+}

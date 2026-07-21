@@ -1,0 +1,22 @@
+{
+  "_id": "Sn7AAvoSh3IKrqy5",
+  "_key": "!items!Sn7AAvoSh3IKrqy5",
+  "name": "Mostly-buried skeleton of an elephant-sized beast, bones carved with glyphs and pictograms that tell an important story",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "mostly-buried-skeleton-of-an-elephant-sized-beast-bones-carved-with-glyphs-and-pictograms-that-tell-an-important-story",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fUFiQE5tYietY8HN"
+}

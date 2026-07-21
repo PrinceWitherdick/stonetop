@@ -1,0 +1,22 @@
+{
+  "_id": "2dgHPEoaU4k2x9DF",
+  "_key": "!items!2dgHPEoaU4k2x9DF",
+  "name": "A pouch of runes, the kind used for divination",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pouch-of-runes-the-kind-used-for-divination",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "Dlo1923hxCXjufqy"
+}

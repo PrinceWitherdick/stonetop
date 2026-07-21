@@ -1,0 +1,24 @@
+{
+  "_id": "5cDAPbuVDpXBwFo3",
+  "_key": "!items!5cDAPbuVDpXBwFo3",
+  "name": "A felled dool tree, its wood valuable to the right person",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "for a bundle for a cartload, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-felled-dool-tree-its-wood-valuable-to-the-right-person",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "for a bundle for a cartload, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fIeKpBB4BWdk7FGb"
+}

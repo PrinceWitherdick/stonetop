@@ -1,0 +1,22 @@
+{
+  "_id": "uDPisWIHZoHzYIdU",
+  "_key": "!items!uDPisWIHZoHzYIdU",
+  "name": "A spindle of fine thread",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-spindle-of-fine-thread",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fIeKpBB4BWdk7FGb"
+}

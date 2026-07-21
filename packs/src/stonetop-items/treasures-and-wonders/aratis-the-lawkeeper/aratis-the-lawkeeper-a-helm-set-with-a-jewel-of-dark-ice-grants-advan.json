@@ -1,0 +1,24 @@
+{
+  "_id": "cLkZ0ueiXY6tFHrr",
+  "_key": "!items!cLkZ0ueiXY6tFHrr",
+  "name": "A helm set with a “jewel” of dark ice, grants advantage to resist mind-affecting magic",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-helm-set-with-a-jewel-of-dark-ice-grants-advantage-to-resist-mind-affecting-magic",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "HAhTe9aUVSNgGqEu"
+}

@@ -1,0 +1,24 @@
+{
+  "_id": "z2dtNncFyiz0rKqV",
+  "_key": "!items!z2dtNncFyiz0rKqV",
+  "name": "Oversized, exquisitely knapped flint spear head",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>crude</em>, <em>awkward</em>, Value 1 to a collector, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "oversized-exquisitely-knapped-flint-spear-head",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>crude</em>, <em>awkward</em>, Value 1 to a collector, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fUFiQE5tYietY8HN"
+}

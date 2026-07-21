@@ -1,0 +1,24 @@
+{
+  "_id": "Jy6a2IqhCk11C5tw",
+  "_key": "!items!Jy6a2IqhCk11C5tw",
+  "name": "A glass orb, full of swirling mists and infinite depth; fills the heart with cathartic, yearning sorrow",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>fragile</em>, beautiful, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-glass-orb-full-of-swirling-mists-and-infinite-depth-fills-the-heart-with-cathartic-yearning-sorrow",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>fragile</em>, beautiful, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

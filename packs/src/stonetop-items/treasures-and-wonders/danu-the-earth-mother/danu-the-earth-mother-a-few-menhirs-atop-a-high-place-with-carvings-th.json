@@ -1,0 +1,22 @@
+{
+  "_id": "0mS2QMfhI6iWNUwm",
+  "_key": "!items!0mS2QMfhI6iWNUwm",
+  "name": "A few menhirs atop a high place, with carvings that map the movements of certain auspicious stars",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-few-menhirs-atop-a-high-place-with-carvings-that-map-the-movements-of-certain-auspicious-stars",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "kdeYvwEuUMeNdWWf"
+}

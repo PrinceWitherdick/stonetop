@@ -1,0 +1,22 @@
+{
+  "_id": "D1WYv6GzbSbiXjTF",
+  "_key": "!items!D1WYv6GzbSbiXjTF",
+  "name": "A column of ice",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, <em>immobile</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-column-of-ice",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, <em>immobile</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "hiv6TC9KlUAggFHe"
+}

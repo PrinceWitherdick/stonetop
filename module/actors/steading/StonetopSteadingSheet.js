@@ -10,7 +10,6 @@ import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js"
 import {createPersonNpc, personFieldPath, isActorRow} from "./steading-people.js";
 import {openNpcNotesDialog} from "./npc-notes-dialog.js";
 import {PeopleGalleryDialog} from "./PeopleGalleryDialog.js";
-import {BOOK_ART_IMPORT_ENABLED} from "../../book2-art/release-gate.js";
 import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
 import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDialog.js";
 import {CharacterInventory} from "../character/CharacterInventory.js";
@@ -39,6 +38,13 @@ import {ThreatEditorDialog} from "../../threats/threat-editor-dialog.js";
 import {listHazardPages, createHazard, deleteHazard} from "../../hazards/hazard-store.js";
 import {buildHazardCardVM} from "../../hazards/hazard-view.js";
 import {CreateHazardDialog} from "../../hazards/create-hazard-dialog.js";
+
+// The "People of Stonetop" portrait gallery (PeopleGalleryDialog) is not ready to ship yet,
+// even though the rest of the book-art importer is now released. While this is false, Edit
+// Photo on a steading member falls straight through to the plain FilePicker it used before
+// the gallery existed, so setting a resident/neighbor portrait still works. Flip to true to
+// re-enable the gallery once it's ready.
+const PEOPLE_GALLERY_ENABLED = false;
 
 
 function _normalizeSheetRollMode(rollMode) {
@@ -1372,11 +1378,10 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (!FilePickerClass) return;
 				new FilePickerClass({ type: "image", current, callback: applyPath }).render(true);
 			};
-			// The "People of Stonetop" gallery of imported book portraits is an affordance of the
-			// held-back Book Art / PDF-import feature (see book2-art/release-gate.js). While that is
-			// disabled, Edit Photo falls straight through to the plain FilePicker it used before the
-			// gallery existed, so setting a resident/neighbor portrait still works.
-			if (!BOOK_ART_IMPORT_ENABLED) {
+			// The "People of Stonetop" gallery isn't ready to ship yet (PEOPLE_GALLERY_ENABLED):
+			// until it is, Edit Photo falls straight through to the plain FilePicker, exactly as
+			// it did before the gallery existed, so setting a portrait still works.
+			if (!PEOPLE_GALLERY_ENABLED) {
 				openFilePicker();
 				return;
 			}

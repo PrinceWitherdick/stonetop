@@ -1,0 +1,24 @@
+{
+  "_id": "j1r2vdgzBCa2IbJa",
+  "_key": "!items!j1r2vdgzBCa2IbJa",
+  "name": "A 2-foot length of chain, the links made of stone-hard dark ice, bronze clasps at either end",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-2-foot-length-of-chain-the-links-made-of-stone-hard-dark-ice-bronze-clasps-at-either-end",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "hiv6TC9KlUAggFHe"
+}

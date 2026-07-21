@@ -1,0 +1,22 @@
+{
+  "_id": "66zgtyhE16hnAR1i",
+  "_key": "!items!66zgtyhE16hnAR1i",
+  "name": "A gold mobius strip on a chain",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-gold-mobius-strip-on-a-chain",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "WS6RZyur2lQBRqsu"
+}
