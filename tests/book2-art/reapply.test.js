@@ -28,10 +28,10 @@ function applyUpdate(doc, upd) {
 const uuidOf = (m) => `Compendium.${m.actorPack}.Actor.${m.actorId}`;
 const durableOf = (out) => `${ROOT}/${out}`;
 
-function makeWorldActor({ source, img, legacy = false, fit = "cover" }) {
+function makeWorldActor({ source, img, tokenSrc = img, legacy = false, fit = "cover" }) {
 	const actor = {
 		img,
-		prototypeToken: { texture: { src: img, fit } },
+		prototypeToken: { texture: { src: tokenSrc, fit } },
 		_stats: legacy ? {} : { compendiumSource: source },
 		getFlag: (scope, key) => (legacy && scope === "core" && key === "sourceId" ? source : undefined),
 		_writes: 0,
@@ -786,6 +786,195 @@ describe("the steading portrait (world Stonetop sheet)", () => {
 
 		expect(steading.img).toBe(PLACEHOLDER);
 		expect(steading._writes).toBe(0);
+	});
+});
+
+// A seeded world bestiary actor (SeedActors.js) ships with the compendium's creature-type
+// placeholder icon. The conservative self-heal used to refuse to touch it, so a monster WITH
+// book art stayed on its type icon forever — the mirror of the old steading-portrait bug.
+// reapply now ADOPTS the durable art over that placeholder, the same rule the steading uses,
+// on the full pass AND the every-load world-only self-heal, but never a portrait the group set.
+describe("world bestiary actor portraits (adopt over the creature-type placeholder)", () => {
+	beforeEach(() => { vi.restoreAllMocks(); });
+
+	const PLACEHOLDER = "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg";
+
+	it("adopts the book art over the shipped creature-type icon (portrait + token + forced fit)", async () => {
+		const mon0 = monsters[0];
+		const actor = makeWorldActor({ source: uuidOf(mon0), img: PLACEHOLDER, fit: "contain" });
+		makeHarness({ worldActors: [actor] });
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(actor.img).toBe(durableOf(mon0.out));
+		expect(actor.prototypeToken.texture.src).toBe(durableOf(mon0.out));
+		expect(actor.prototypeToken.texture.fit).toBe("cover"); // forced when adopting over a placeholder token
+	});
+
+	it("adopts over the legacy core.sourceId flag too", async () => {
+		const mon0 = monsters[0];
+		const actor = makeWorldActor({ source: uuidOf(mon0), img: PLACEHOLDER, legacy: true });
+		makeHarness({ worldActors: [actor] });
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(actor.img).toBe(durableOf(mon0.out));
+	});
+
+	it("leaves a portrait the group chose themselves untouched", async () => {
+		const mon0 = monsters[0];
+		const actor = makeWorldActor({ source: uuidOf(mon0), img: "worlds/mine/my-crinwin.png" });
+		makeHarness({ worldActors: [actor] });
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(actor.img).toBe("worlds/mine/my-crinwin.png");
+		expect(actor._writes).toBe(0);
+	});
+
+	it("adopts onto the token only, keeping a custom portrait, when just the token is a placeholder", async () => {
+		// The group set a portrait of their own but left the prototype token on the shipped
+		// creature-type icon. The guard is per-FIELD: keep the custom img, adopt the book art
+		// onto the placeholder token (and force its fit).
+		const mon0 = monsters[0];
+		const actor = makeWorldActor({ source: uuidOf(mon0), img: "worlds/mine/my-crinwin.png", tokenSrc: PLACEHOLDER, fit: "contain" });
+		makeHarness({ worldActors: [actor] });
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(actor.img).toBe("worlds/mine/my-crinwin.png"); // custom portrait untouched
+		expect(actor.prototypeToken.texture.src).toBe(durableOf(mon0.out)); // placeholder token adopts
+		expect(actor.prototypeToken.texture.fit).toBe("cover");
+	});
+
+	it("does nothing when the monster's art is not on disk", async () => {
+		const mon0 = monsters[0];
+		const actor = makeWorldActor({ source: uuidOf(mon0), img: PLACEHOLDER });
+		makeHarness({ worldActors: [actor], present: "none" });
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(actor.img).toBe(PLACEHOLDER);
+		expect(actor._writes).toBe(0);
+	});
+
+	it("self-heals on the every-load world-only pass (version already stamped, actors seeded later)", async () => {
+		// The exact stuck world: the version was stamped on a prior load, so the once-per-version
+		// full pass never runs again; the bestiary actors were seeded afterwards with placeholder
+		// icons. The world-only self-heal must still adopt their art, here alongside a seeded
+		// journal of ours (the common case).
+		const mon0 = monsters[0];
+		const loc0 = locations[0];
+		const page = makeWorldPage({ id: loc0.journalPageId, name: `cmp:${loc0.journalPageId}`, type: "location", system: { sections: Array.from({ length: 64 }, () => ({ kind: "prose", body: "<p>loc prose</p>" })) } });
+		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [page], stamp: true });
+		const actor = makeWorldActor({ source: uuidOf(mon0), img: PLACEHOLDER });
+		makeHarness({ worldActors: [actor], worldJournals: [worldLoc] });
+
+		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
+
+		expect(actor.img).toBe(durableOf(mon0.out));
+	});
+
+	it("self-heals on the world-only pass even with no seeded journals of ours (monster art on disk is enough)", async () => {
+		// A world whose only work is a bestiary actor to adopt onto: no seeded gazetteer/codex
+		// journals (deleted, or never seeded). The worldOnly early-return must NOT turn it away
+		// on `!worldBySource.size` alone — monster art on disk is standalone actor work.
+		const mon0 = monsters[0];
+		const actor = makeWorldActor({ source: uuidOf(mon0), img: PLACEHOLDER });
+		makeHarness({ worldActors: [actor], present: [mon0.out] }); // only this monster's art on disk, no world journals
+
+		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
+
+		expect(actor.img).toBe(durableOf(mon0.out));
+	});
+
+	it("does not touch actors on a scoped journal import", async () => {
+		const mon0 = monsters[0];
+		const loc0 = locations[0];
+		const page = makeWorldPage({ id: loc0.journalPageId, name: `cmp:${loc0.journalPageId}`, type: "location", system: { sections: Array.from({ length: 64 }, () => ({ kind: "prose", body: "<p>loc prose</p>" })) } });
+		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [page] });
+		worldLoc.id = "imported-loc";
+		const actor = makeWorldActor({ source: uuidOf(mon0), img: PLACEHOLDER });
+		makeHarness({ worldActors: [actor], worldJournals: [worldLoc] });
+
+		await reapplyBook2Art({ entries: [worldLoc] });
+
+		expect(actor.img).toBe(PLACEHOLDER);
+		expect(actor._writes).toBe(0);
+	});
+
+	it("adopts only the monster whose art is on disk, leaving the rest on their icons (partial import)", async () => {
+		const mon0 = monsters[0];
+		const mon1 = monsters[1];
+		const a0 = makeWorldActor({ source: uuidOf(mon0), img: PLACEHOLDER });
+		const a1 = makeWorldActor({ source: uuidOf(mon1), img: PLACEHOLDER });
+		makeHarness({ worldActors: [a0, a1], present: [mon0.out] });
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(a0.img).toBe(durableOf(mon0.out));
+		expect(a1.img).toBe(PLACEHOLDER);
+		expect(a1._writes).toBe(0);
+	});
+
+	it("is idempotent: a second pass over an adopted actor makes no further writes", async () => {
+		const mon0 = monsters[0];
+		const actor = makeWorldActor({ source: uuidOf(mon0), img: PLACEHOLDER });
+		const h = makeHarness({ worldActors: [actor] });
+
+		await reapplyBook2ArtOnVersionChange();
+		const writesAfterFirst = actor._writes;
+		expect(writesAfterFirst).toBeGreaterThan(0);
+
+		h.store.book2ArtSyncVersion = ""; // force another run as a version bump would
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(actor._writes).toBe(writesAfterFirst); // already our art -> no new write
+	});
+});
+
+// A compendium document update does not live-refresh an open pack browser or a sheet opened
+// from it (Foundry caches the pack), so a GM who re-points the compendium with it open used to
+// need an F5. reapply now re-renders those open views itself, so it "just works" for a GM who
+// never touches the console.
+describe("compendium live-refresh after re-pointing (no F5 needed)", () => {
+	beforeEach(() => { vi.restoreAllMocks(); });
+	afterEach(() => { delete global.foundry.applications; });
+
+	it("re-renders an open pack browser and a sheet opened from the compendium", async () => {
+		const h = makeHarness({});
+		const browser = { render: vi.fn() };            // an open Monsters compendium window
+		h.besPack.apps = [browser];
+		h.besPack.collection = "stonetop_pwd.stonetop-bestiary";
+		const sheet = { rendered: true, document: { pack: "stonetop_pwd.stonetop-bestiary" }, render: vi.fn() }; // a monster sheet opened from it
+		global.foundry.applications = { instances: new Map([["a", sheet]]) };
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(browser.render).toHaveBeenCalled();
+		expect(sheet.render).toHaveBeenCalled();
+	});
+
+	it("leaves an unrelated open sheet (not from our compendium) alone", async () => {
+		const h = makeHarness({});
+		h.besPack.collection = "stonetop_pwd.stonetop-bestiary";
+		const foreign = { rendered: true, document: { pack: "some.other.pack" }, render: vi.fn() };
+		global.foundry.applications = { instances: new Map([["a", foreign]]) };
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(foreign.render).not.toHaveBeenCalled();
+	});
+
+	it("does not touch any compendium view when nothing was written (no art on disk)", async () => {
+		const h = makeHarness({ present: "none" });
+		const browser = { render: vi.fn() };
+		h.besPack.apps = [browser];
+		h.besPack.collection = "stonetop_pwd.stonetop-bestiary";
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(browser.render).not.toHaveBeenCalled();
 	});
 });
 
