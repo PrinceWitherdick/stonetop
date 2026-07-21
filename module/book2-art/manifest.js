@@ -1957,18 +1957,6 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "name": "The Things Below",
    "journalEntryId": "5Kym1qDHTmM8XUQ6",
    "journalPageId": "roHUFm71o2upL6Yt",
-   "sectionIndex": 8,
-   "images": [
-    {
-     "out": "assets/locations/the-things-below-4.webp"
-    }
-   ]
-  },
-  {
-   "slug": "the-things-below",
-   "name": "The Things Below",
-   "journalEntryId": "5Kym1qDHTmM8XUQ6",
-   "journalPageId": "roHUFm71o2upL6Yt",
    "sectionIndex": 9,
    "images": [
     {
