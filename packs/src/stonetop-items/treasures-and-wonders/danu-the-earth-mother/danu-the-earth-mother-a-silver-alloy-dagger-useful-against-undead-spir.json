@@ -1,0 +1,22 @@
+{
+  "_id": "2r67wKbvELzQJn21",
+  "_key": "!items!2r67wKbvELzQJn21",
+  "name": "A silver-alloy dagger, useful against undead spirits",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>hand</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-silver-alloy-dagger-useful-against-undead-spirits",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>hand</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "kdeYvwEuUMeNdWWf"
+}

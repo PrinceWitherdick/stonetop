@@ -1,0 +1,24 @@
+{
+  "_id": "eSjpyoVvJFzTfO8T",
+  "_key": "!items!eSjpyoVvJFzTfO8T",
+  "name": "Ever-burning ember",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>fragile</em>, magical, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "ever-burning-ember",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>fragile</em>, magical, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "CNyKx0ja8oDmcOIz"
+}

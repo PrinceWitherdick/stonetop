@@ -1,0 +1,22 @@
+{
+  "_id": "lvjpuQKOS9e1Sg2X",
+  "_key": "!items!lvjpuQKOS9e1Sg2X",
+  "name": "An ingot of pure aetherium, left as an offering",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "an-ingot-of-pure-aetherium-left-as-an-offering",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "Dlo1923hxCXjufqy"
+}

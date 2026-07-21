@@ -1660,7 +1660,8 @@ input.stonetop-name-field {
 	visibility: hidden;
 }
 
-.stonetop.sheet.actor.monster:not(.minimized) .window-header .window-title {
+.stonetop.sheet.actor.monster:not(.minimized) .window-header .window-title,
+.stonetop.sheet.actor.npc:not(.minimized) .window-header .window-title {
 	visibility: hidden;
 }
 
@@ -4280,9 +4281,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-other-move-delete {
 	display: none;
 	margin-left: auto;
-	color: var(--color-text-dark-secondary);
+	color: var(--st-red-text);
 	cursor: pointer;
 	font-size: var(--st-fs-xs);
+}
+
+.stonetop-other-move-delete:hover {
+	color: hsl(0 65% 22%);
 }
 
 .stonetop-item:hover .stonetop-other-move-delete {
@@ -4465,6 +4470,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-edit-mode .stonetop-inv-delete:hover {
+	color: hsl(0 65% 22%);
+}
+
+/* Removing a write-in special possession is a delete "x" too — keep it red to
+   match .stonetop-inv-delete rather than the muted default. */
+.stonetop-inv-remove-special {
+	color: var(--st-red-text);
+}
+
+.stonetop-inv-remove-special:hover {
 	color: hsl(0 65% 22%);
 }
 
@@ -4886,6 +4901,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: var(--st-fs-xs);
 }
 .stonetop-love-letter-edit { margin-left: auto; }
+/* The delete trash is a destructive action — red, unlike the neutral edit pen. */
+.stonetop-love-letter-delete { color: var(--st-red-text); }
+.stonetop-love-letter-delete:hover { color: hsl(0 65% 22%); }
 .stonetop-love-letter-edit + .stonetop-love-letter-delete { margin-left: 6px; }
 .stonetop-love-letter:hover .stonetop-love-letter-edit,
 .stonetop-love-letter:hover .stonetop-love-letter-delete { display: inline; }
@@ -9402,7 +9420,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 1px 4px;
 	line-height: 1.3;
 	overflow-wrap: anywhere;
-	cursor: pointer;
+	/* No pointer here: plain names aren't clickable. Only .steading-asset-taken
+	   (click to return a requisitioned asset) opts back into cursor: pointer below. */
 }
 
 .steading-list-delete {
@@ -9717,11 +9736,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 4px;
 	font-size: var(--st-fs-base);
 	opacity: 0.6;
+	color: #c00;
 	transition: opacity 0.1s;
 }
 
 .steading-residents-col-actions .steading-list-delete:hover {
 	opacity: 1;
+	color: #900;
 }
 
 .steading-players-section {
@@ -9747,6 +9768,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	object-fit: cover;
 	background: rgba(255,255,255,0.55);
 	cursor: zoom-in;
+}
+
+/* Actor-backed avatars double as a drag handle (drop onto a scene to place a
+   token, into combat, etc.), so signal grab; a plain click still opens the image. */
+.steading-member-avatar[draggable="true"] {
+	cursor: grab;
+}
+.steading-member-avatar[draggable="true"]:active {
+	cursor: grabbing;
 }
 
 .steading-member-name-cell .steading-resident-input {
@@ -22339,4 +22369,546 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-people-gallery .stonetop-people-browse {
 	margin-right: auto;
+}
+
+/* ==========================================================================
+   NPC sheet (Actor subtype "npc") — a person the PCs interact with (Book I
+   ch.14). Interaction-first: identity + drives always show; the game-stat
+   block is an optional overlay. Reuses the monster/bestiary header chrome and
+   the same design tokens so it reads as one system.
+   ========================================================================== */
+
+.window-app.stonetop.npc {
+	min-width: 520px;
+}
+.window-app.stonetop.npc .window-content {
+	overflow-y: auto;
+}
+
+.stonetop-npc-sheet {
+	min-height: 100%;
+}
+.stonetop-npc-container {
+	display: flex;
+	flex-direction: column;
+}
+
+/* — Header — */
+.stonetop-npc-header {
+	margin-bottom: 12px;
+}
+.stonetop-npc-header .stonetop-portrait {
+	width: 120px;
+	height: 120px;
+}
+/* Person-icon placeholder when the NPC has no portrait art (no fabricated art). */
+.stonetop-npc-portrait-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--stonetop-bg, #f0ece3);
+	border: 1px solid rgba(0, 0, 0, 0.2);
+	color: var(--color-text-dark-secondary, #4b4a44);
+}
+.stonetop-npc-portrait-placeholder i {
+	font-size: 52px;
+	opacity: 0.5;
+}
+.stonetop-npc-header--no-portrait .stonetop-name-field {
+	padding-left: 0;
+}
+
+.stonetop-npc-header .sheet-header__fields {
+	display: grid;
+	grid-template-columns: minmax(200px, 1fr) auto;
+	grid-template-areas:
+		"name    stats"
+		"details details";
+	align-items: start;
+	gap: 8px 10px;
+}
+.stonetop-npc-namewrap {
+	grid-area: name;
+	min-width: 0;
+	overflow: hidden;
+}
+.stonetop-npc-header-details {
+	grid-area: details;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.stonetop-npc-statbar {
+	grid-area: stats;
+}
+
+.stonetop-npc-header .stonetop-name-field {
+	font-family: var(--font-avara);
+	font-weight: bold;
+	min-height: 0;
+	padding-top: 0;
+	align-items: flex-start;
+}
+.stonetop-npc-header input.stonetop-name-field {
+	height: auto;
+	line-height: 1.2;
+	padding: 0 6px 2px;
+}
+.stonetop-npc-pronouns-display {
+	font-family: var(--font-stonetop);
+	font-size: calc(0.7rem * var(--stonetop-font-scale, 1));
+	font-weight: normal;
+	color: var(--color-text-dark-secondary);
+}
+.stonetop-npc-pronouns,
+.stonetop-npc-occupation,
+.stonetop-npc-traits {
+	width: 100%;
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+	border-radius: 0;
+	background: transparent;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+}
+.stonetop-npc-pronouns {
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
+	margin-top: 2px;
+}
+.stonetop-npc-occupation-display,
+.stonetop-npc-traits-display {
+	margin: 0;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+	color: var(--color-text-dark-secondary);
+}
+.stonetop-npc-traits-display {
+	font-style: italic;
+}
+
+/* — Body — */
+.stonetop-npc-main {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+.stonetop-npc-field {
+	margin: 0;
+}
+.stonetop-npc-prose {
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+	white-space: pre-wrap;
+}
+.stonetop-npc-empty {
+	color: var(--color-text-dark-secondary);
+	opacity: 0.8;
+}
+
+/* Stat lines (label: value), copying the monster idiom. */
+.stonetop-npc-stat-line,
+.stonetop-npc-instinct,
+.stonetop-npc-embodiment {
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 4px;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+}
+.stonetop-npc-stat-key {
+	font-weight: bold;
+	flex-shrink: 0;
+}
+.stonetop-npc-stat-key::after {
+	content: ":";
+}
+.stonetop-npc-stat-input {
+	flex: 1;
+	min-width: 60px;
+	height: 1.5em;
+	padding: 0 3px;
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 0;
+	background: transparent;
+	font-size: inherit;
+	line-height: 1.4;
+}
+.stonetop-npc-damage-formula-input {
+	flex: none;
+	width: 4.5em;
+	min-width: 4.5em;
+	text-align: center;
+}
+
+/* Instinct — the anchor field, visually emphasized. */
+.stonetop-npc-instinct {
+	padding: 6px 8px;
+	background: var(--stonetop-bg, #f0ece3);
+	border-left: 3px solid var(--st-accent, #6b8f71);
+	border-radius: var(--st-radius-sm, 3px);
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
+}
+.stonetop-npc-instinct .stonetop-npc-prose {
+	font-style: italic;
+}
+
+/* Impressions. */
+.stonetop-npc-impressions-edit,
+.stonetop-npc-impressions-list {
+	list-style: none;
+	margin: 4px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.stonetop-npc-impressions-list li {
+	position: relative;
+	padding-left: 16px;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+}
+.stonetop-npc-impressions-list li::before {
+	content: "\276F";
+	position: absolute;
+	left: 2px;
+	color: var(--color-text-dark-secondary);
+	opacity: 0.6;
+}
+.stonetop-npc-impression-input {
+	width: 100%;
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+	border-radius: 0;
+	background: transparent;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+}
+
+/* Damage roll die icon. */
+.stonetop-npc-damage-roll,
+.stonetop-npc-move-roll {
+	cursor: pointer;
+	color: var(--color-text-hyperlink, slategrey);
+	flex-shrink: 0;
+}
+
+/* GM moves. */
+.stonetop-npc-moves {
+	margin-top: 8px;
+}
+.stonetop-npc-moves-list {
+	list-style: none;
+	margin: 4px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.stonetop-npc-move-item {
+	padding-bottom: 6px;
+	border-bottom: 1px dashed rgba(0, 0, 0, 0.12);
+}
+.stonetop-npc-move-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.stonetop-npc-move-name {
+	font-weight: bold;
+	cursor: pointer;
+}
+.stonetop-npc-move-name:hover {
+	color: var(--color-text-hyperlink, slategrey);
+}
+.stonetop-npc-move-name-input {
+	flex: 1;
+	min-width: 60px;
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 0;
+	background: transparent;
+	font-weight: bold;
+}
+.stonetop-npc-move-formula-input {
+	flex: none;
+	width: 4.5em;
+	min-width: 4.5em;
+	text-align: center;
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 0;
+	background: transparent;
+}
+.stonetop-npc-move-description {
+	margin-top: 2px;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+}
+.stonetop-npc-delete-move {
+	cursor: pointer;
+	color: var(--color-text-dark-secondary);
+	flex-shrink: 0;
+}
+.stonetop-npc-delete-move:hover {
+	color: var(--st-danger, #a8544c);
+}
+.stonetop-npc-moves-empty {
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+}
+.stonetop-npc-add-controls {
+	margin-top: 6px;
+}
+.stonetop-npc-add-move {
+	cursor: pointer;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-hyperlink, slategrey);
+}
+
+/* "Give them game stats" toggle. */
+.stonetop-npc-hasstats {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+.stonetop-npc-hasstats input {
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+/* Relationships — a labeled table that reuses the steading Residents table classes
+   (.steading-residents-*) so it inherits that styling plus drag-resize + click-to-sort.
+   Only the column layout differs: Player | Feelings (hearts) | Notes, no actions column.
+   Hearts are a single silhouette SVG (game-icons.net "hearts" by Skoll, CC BY 3.0) used
+   as a mask, so one asset paints both filled (accent) and empty (muted) states. */
+/* Collapsible Relationships section: the section heading doubles as the <details>
+   summary, with a rotating arrow marking open/closed. The arrow floats over the
+   right end of the heading (rather than sitting as a flex sibling) so the h3 stays a
+   full-width block and its pbta border-bottom separator spans edge to edge — a flex
+   row would shrink the h3 to its text and cut the underline short. Mirrors
+   .stonetop-details-heading-row. */
+.stonetop-npc-collapsible-summary {
+	position: relative;
+	cursor: pointer;
+	user-select: none;
+	list-style: none;
+}
+.stonetop-npc-collapsible-summary::-webkit-details-marker { display: none; }
+.stonetop-npc-collapsible-summary > .stonetop-move-group-title {
+	margin: 0;
+	padding-right: 1.5em; /* keep a long title clear of the floated arrow */
+}
+.stonetop-npc-collapsible-summary::after {
+	content: "";
+	position: absolute;
+	top: 0.3em;
+	right: 2px;
+	width: 0.6em;
+	height: 0.6em;
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+	transform: rotate(90deg); /* expanded: arrow points down */
+	transition: transform 0.15s;
+}
+details.stonetop-npc-collapsible:not([open]) > .stonetop-npc-collapsible-summary::after {
+	transform: rotate(0deg); /* collapsed: arrow points right */
+}
+
+.stonetop-npc-rel-empty {
+	margin: 4px 0 0;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	font-style: italic;
+	color: var(--color-text-dark-secondary, #4b4a44);
+}
+.stonetop-npc-rel-table {
+	margin-top: 4px;
+}
+/* Override the residents' 6-column grid for this 3-column table. The resize util sets
+   an inline grid-template-columns once dragged, which then wins over this default. */
+.stonetop-npc-rel-table .steading-residents-header,
+.stonetop-npc-rel-table .steading-residents-row {
+	grid-template-columns: minmax(0, 1.1fr) 122px minmax(0, 1.4fr);
+}
+.stonetop-npc-rel-namecell {
+	gap: 8px;
+}
+.stonetop-npc-rel-heartscell {
+	justify-content: center;
+}
+/* Hidden numeric value the sort util reads via textContent (not shown to the user). */
+.stonetop-npc-hearts-sortkey {
+	display: none;
+}
+.stonetop-npc-rel-note-input {
+	width: 100%;
+	min-width: 0;
+	height: 24px;
+	font-size: var(--st-fs-sm, 0.75rem);
+	font-family: inherit;
+	line-height: 1.2;
+	border: 1px solid transparent;
+	border-radius: var(--st-radius-sm, 3px);
+	background: transparent;
+	padding: 2px 4px;
+}
+.stonetop-npc-rel-note-input:hover:not(:disabled),
+.stonetop-npc-rel-note-input:focus {
+	border-color: rgba(0, 0, 0, 0.2);
+	background: rgba(255, 255, 255, 0.6);
+}
+.stonetop-npc-rel-note-input:disabled {
+	pointer-events: none;
+}
+.stonetop-npc-rel-portrait {
+	width: 26px;
+	height: 26px;
+	flex: 0 0 auto;
+	border-radius: 50%;
+	object-fit: cover;
+	background: var(--stonetop-bg, #f0ece3);
+	border: 1px solid rgba(0, 0, 0, 0.15);
+}
+.stonetop-npc-rel-portrait--empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--color-text-dark-secondary, #4b4a44);
+}
+.stonetop-npc-rel-portrait--empty i {
+	opacity: 0.5;
+	font-size: 14px;
+}
+.stonetop-npc-rel-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.stonetop-npc-hearts {
+	display: inline-flex;
+	gap: 3px;
+	flex: 0 0 auto;
+	cursor: pointer;
+}
+.stonetop-npc-hearts--readonly {
+	cursor: default;
+}
+.stonetop-npc-heart {
+	width: 18px;
+	height: 18px;
+	-webkit-mask: url("../assets/icons/hearts.svg") center / contain no-repeat;
+	mask: url("../assets/icons/hearts.svg") center / contain no-repeat;
+	background-color: color-mix(in srgb, var(--color-text-dark-secondary, #4b4a44) 28%, transparent);
+	transition: background-color 0.1s ease;
+}
+.stonetop-npc-heart.is-filled {
+	background-color: var(--st-heart, #c0473b);
+}
+.stonetop-npc-hearts:not(.stonetop-npc-hearts--readonly) .stonetop-npc-heart:hover {
+	background-color: color-mix(in srgb, var(--st-heart, #c0473b) 65%, transparent);
+}
+
+/* Residents/Neighbors rows link to NPC actors: in read mode the name itself is the
+   clickable link that opens the NPC sheet; a muted marker flags a deleted-NPC row. */
+.steading-member-name-cell .steading-member-name-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+	color: inherit;
+}
+.steading-member-name-cell .steading-member-name-text:hover {
+	color: var(--color-text-hyperlink, slategrey);
+	text-decoration: underline;
+}
+.steading-member-unresolved input {
+	font-style: italic;
+	opacity: 0.6;
+}
+
+/* Actor-backed Residents/Neighbors "Notes" cell: a rendered rich preview plus a pencil
+   that opens the shared pop-up editor (npc-notes-dialog.js). Kept to one line like the
+   other cells; the pencil only shows on row hover. */
+.steading-residents-row .steading-residents-col-notes {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.steading-member-notes-preview {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+/* Rendered rich text wraps content in <p>; flatten it onto the single cell line. */
+.steading-member-notes-preview p {
+	margin: 0;
+	display: inline;
+}
+.steading-member-notes-edit {
+	flex: 0 0 auto;
+	width: auto !important;
+	background: none !important;
+	border: none !important;
+	cursor: pointer;
+	padding: 0 2px;
+	color: var(--st-text-faint);
+	font-size: var(--st-fs-xs);
+	line-height: 1;
+	opacity: 0;
+}
+.steading-residents-row:hover .steading-member-notes-edit,
+.steading-member-notes-edit:focus-visible {
+	opacity: 0.85;
+}
+.steading-member-notes-edit:hover {
+	opacity: 1;
+	color: var(--color-text-hyperlink, slategrey);
+}
+
+/* Pop-up rich-notes editor launched from a roster row. Lay the dialog out as a flex
+   column so the ProseMirror editor fills the body and the footer button row pins to the
+   bottom instead of floating below a short editor. The `> form` rule covers the case
+   where Foundry wraps the content + buttons in a form; the direct-child rules cover when
+   it doesn't. */
+.stonetop-npc-notes-window .window-content {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+.stonetop-npc-notes-window .window-content > form {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+.stonetop-npc-notes-window .dialog-content {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+.stonetop-npc-notes-window .dialog-buttons {
+	flex: 0 0 auto;
+}
+.stonetop-npc-notes-window .stonetop-npc-notes-dialog-body {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 260px;
+}
+.stonetop-npc-notes-window .stonetop-npc-notes-dialog-editor {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
 }

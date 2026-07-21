@@ -1,0 +1,22 @@
+{
+  "_id": "DErgbl1qOvFqa8pP",
+  "_key": "!items!DErgbl1qOvFqa8pP",
+  "name": "An old bronze dagger",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>hand</em>, magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "an-old-bronze-dagger",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>hand</em>, magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cqytTI64lyGXgj8r"
+}

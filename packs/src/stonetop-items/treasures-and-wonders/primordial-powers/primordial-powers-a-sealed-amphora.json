@@ -1,0 +1,40 @@
+{
+  "_id": "FTLvRodHcrBLF0Xv",
+  "_key": "!items!FTLvRodHcrBLF0Xv",
+  "name": "A sealed amphora",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>fragile</em>, magical",
+    "resource": {
+      "max": 3,
+      "title": null,
+      "labels": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-sealed-amphora",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>fragile</em>, magical",
+      "resource": {
+        "max": 3,
+        "title": null,
+        "labels": [
+          "",
+          "",
+          ""
+        ]
+      }
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

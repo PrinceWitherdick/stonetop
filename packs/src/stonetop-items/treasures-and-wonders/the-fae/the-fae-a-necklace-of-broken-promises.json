@@ -1,0 +1,22 @@
+{
+  "_id": "QNGhdONwepef4tEJ",
+  "_key": "!items!QNGhdONwepef4tEJ",
+  "name": "A necklace of broken promises",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>fragile</em>, Value 2 to the right buyer, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-necklace-of-broken-promises",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>fragile</em>, Value 2 to the right buyer, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

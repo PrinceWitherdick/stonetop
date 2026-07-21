@@ -1,0 +1,22 @@
+{
+  "_id": "DxZGj9rzrlLQkuYo",
+  "_key": "!items!DxZGj9rzrlLQkuYo",
+  "name": "A beautiful silk shirt, embroidered with vine-like patterns",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-beautiful-silk-shirt-embroidered-with-vine-like-patterns",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "dFWNdqogoXy6Y8IM"
+}

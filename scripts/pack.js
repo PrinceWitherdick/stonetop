@@ -3,14 +3,9 @@ import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
 import { PACKS, DOC_KEY_PREFIX } from "./packs.js";
-import { BOOK_ART_IMPORT_ENABLED } from "../module/book2-art/release-gate.js";
 
 // Source docs kept OUT of the compiled packs (their source-of-truth stays in git).
-// The Book Art / PDF-import macro is held back until distribution is approved; with the
-// flag off it is normalised like any doc but never compiled into the shipped pack.
-const EXCLUDED_SOURCES = BOOK_ART_IMPORT_ENABLED ? {} : {
-	"stonetop-macros": new Set(["import-book2-art.json"]),
-};
+const EXCLUDED_SOURCES = {};
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 function randomId() {

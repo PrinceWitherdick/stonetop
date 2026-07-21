@@ -1,0 +1,22 @@
+{
+  "_id": "Fx27b50t4ryZYn9J",
+  "_key": "!items!Fx27b50t4ryZYn9J",
+  "name": "A map",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>fragile</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-map",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>fragile</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cqytTI64lyGXgj8r"
+}

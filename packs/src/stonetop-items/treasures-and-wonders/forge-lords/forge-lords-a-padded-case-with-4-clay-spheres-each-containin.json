@@ -1,0 +1,24 @@
+{
+  "_id": "Cz5Ipt1WXrinAc1B",
+  "_key": "!items!Cz5Ipt1WXrinAc1B",
+  "name": "A padded case with 4 clay spheres, each containing potent naphtha that burns hot & sticky when exposed to the air",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "damage d10, <em>thrown</em>, <em>area</em>, <em>dangerous</em>, <em>ignores armor</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-padded-case-with-4-clay-spheres-each-containing-potent-naphtha-that-burns-hot-sticky-when-exposed-to-the-air",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "damage d10, <em>thrown</em>, <em>area</em>, <em>dangerous</em>, <em>ignores armor</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "WS6RZyur2lQBRqsu"
+}

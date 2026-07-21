@@ -1,0 +1,42 @@
+{
+  "_id": "zcdoSnbv2jqpy1kb",
+  "_key": "!items!zcdoSnbv2jqpy1kb",
+  "name": "The Red Pennant",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "magical",
+    "resource": {
+      "max": 3,
+      "title": null,
+      "labels": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "the-red-pennant",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "magical",
+      "resource": {
+        "max": 3,
+        "title": null,
+        "labels": [
+          "",
+          "",
+          ""
+        ]
+      }
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

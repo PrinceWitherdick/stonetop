@@ -1,0 +1,24 @@
+{
+  "_id": "S3fldzk1NfCl6UMZ",
+  "_key": "!items!S3fldzk1NfCl6UMZ",
+  "name": "A fulgurite, sand or soil vitrified by lightning, sacred to Tor",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>fragile</em>, Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-fulgurite-sand-or-soil-vitrified-by-lightning-sacred-to-tor",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>fragile</em>, Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "Dlo1923hxCXjufqy"
+}

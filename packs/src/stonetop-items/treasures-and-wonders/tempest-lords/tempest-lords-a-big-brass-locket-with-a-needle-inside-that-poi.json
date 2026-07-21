@@ -1,0 +1,22 @@
+{
+  "_id": "m8zr4fY0kCw69ZhJ",
+  "_key": "!items!m8zr4fY0kCw69ZhJ",
+  "name": "A big brass locket, with a needle inside that points towards a specific Tempest Lord site",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-big-brass-locket-with-a-needle-inside-that-points-towards-a-specific-tempest-lord-site",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "sAuLDLodHGOaYxFS"
+}

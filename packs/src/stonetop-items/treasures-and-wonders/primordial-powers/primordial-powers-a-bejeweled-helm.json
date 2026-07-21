@@ -1,0 +1,24 @@
+{
+  "_id": "Pa96NbtVWydsPPxA",
+  "_key": "!items!Pa96NbtVWydsPPxA",
+  "name": "A bejeweled helm",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 3,
+    "note": "magical, loud, <em>dangerous</em>, 1d4+1 uses",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-bejeweled-helm",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 3,
+      "note": "magical, loud, <em>dangerous</em>, 1d4+1 uses"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

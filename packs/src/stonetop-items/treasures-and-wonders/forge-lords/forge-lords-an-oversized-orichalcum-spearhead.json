@@ -1,0 +1,24 @@
+{
+  "_id": "dfHr8JFgI5cWohso",
+  "_key": "!items!dfHr8JFgI5cWohso",
+  "name": "An oversized orichalcum spearhead",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "an-oversized-orichalcum-spearhead",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "WS6RZyur2lQBRqsu"
+}

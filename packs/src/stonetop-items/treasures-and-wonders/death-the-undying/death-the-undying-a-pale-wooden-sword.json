@@ -1,0 +1,24 @@
+{
+  "_id": "t2bcpuOgjybWnIWB",
+  "_key": "!items!t2bcpuOgjybWnIWB",
+  "name": "A pale wooden sword",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>close</em>, <em>crude</em>, magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pale-wooden-sword",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>close</em>, <em>crude</em>, magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fIeKpBB4BWdk7FGb"
+}

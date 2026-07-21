@@ -1,0 +1,22 @@
+{
+  "_id": "6uaMwe0Ak8xS02Qo",
+  "_key": "!items!6uaMwe0Ak8xS02Qo",
+  "name": "The claw/fang/tusk/horn of a great beast, carved with prayers to Tor",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "the-claw-fang-tusk-horn-of-a-great-beast-carved-with-prayers-to-tor",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "Dlo1923hxCXjufqy"
+}

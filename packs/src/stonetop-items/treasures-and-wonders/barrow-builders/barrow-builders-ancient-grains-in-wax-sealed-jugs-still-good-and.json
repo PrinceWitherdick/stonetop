@@ -1,0 +1,22 @@
+{
+  "_id": "yANjMiO5QktoOuRA",
+  "_key": "!items!yANjMiO5QktoOuRA",
+  "name": "Ancient grains in wax-sealed jugs, still good and worth 1 Surplus",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "ancient-grains-in-wax-sealed-jugs-still-good-and-worth-1-surplus",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cqytTI64lyGXgj8r"
+}

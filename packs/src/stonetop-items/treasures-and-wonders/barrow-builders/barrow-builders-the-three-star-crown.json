@@ -1,0 +1,24 @@
+{
+  "_id": "VMmX9HLx1M7lkAj4",
+  "_key": "!items!VMmX9HLx1M7lkAj4",
+  "name": "The Three-star Crown",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical, beautiful, Value 4",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "the-three-star-crown",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical, beautiful, Value 4"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cqytTI64lyGXgj8r"
+}

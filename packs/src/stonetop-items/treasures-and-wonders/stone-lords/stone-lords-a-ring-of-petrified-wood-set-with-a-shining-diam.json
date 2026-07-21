@@ -1,0 +1,22 @@
+{
+  "_id": "6y6FfOuJikDekdSp",
+  "_key": "!items!6y6FfOuJikDekdSp",
+  "name": "A ring of petrified wood, set with a shining diamond (?)",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "beautiful, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-ring-of-petrified-wood-set-with-a-shining-diamond",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "beautiful, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "zue1tQV0kunn8Q8x"
+}

@@ -1,0 +1,24 @@
+{
+  "_id": "zE79HRCdkVP0Gkup",
+  "_key": "!items!zE79HRCdkVP0Gkup",
+  "name": "A number of corroded bronze hatchets of ancient make, with beautifully preserved wooden grips",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "crude and as-is; hand and if restored, Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-number-of-corroded-bronze-hatchets-of-ancient-make-with-beautifully-preserved-wooden-grips",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "crude and as-is; hand and if restored, Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "dFWNdqogoXy6Y8IM"
+}

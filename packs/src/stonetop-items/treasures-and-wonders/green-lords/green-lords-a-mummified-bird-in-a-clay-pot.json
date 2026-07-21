@@ -1,0 +1,24 @@
+{
+  "_id": "Rs5pjcVkJQzKTY4H",
+  "_key": "!items!Rs5pjcVkJQzKTY4H",
+  "name": "A mummified bird in a clay pot",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>fragile</em>, Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-mummified-bird-in-a-clay-pot",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>fragile</em>, Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "dFWNdqogoXy6Y8IM"
+}

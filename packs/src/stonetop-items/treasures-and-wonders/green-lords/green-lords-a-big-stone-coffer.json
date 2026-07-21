@@ -1,0 +1,22 @@
+{
+  "_id": "TMCC3v4X3buuneRA",
+  "_key": "!items!TMCC3v4X3buuneRA",
+  "name": "A big stone coffer",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-big-stone-coffer",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "dFWNdqogoXy6Y8IM"
+}

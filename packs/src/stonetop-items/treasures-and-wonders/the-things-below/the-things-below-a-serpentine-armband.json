@@ -1,0 +1,22 @@
+{
+  "_id": "CBfeTcDb9Qngxln8",
+  "_key": "!items!CBfeTcDb9Qngxln8",
+  "name": "A serpentine armband",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, beautiful, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-serpentine-armband",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, beautiful, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

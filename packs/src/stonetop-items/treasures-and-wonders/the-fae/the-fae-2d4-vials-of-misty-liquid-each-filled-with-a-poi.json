@@ -1,0 +1,24 @@
+{
+  "_id": "pHNwzHxEoWdg6vhj",
+  "_key": "!items!pHNwzHxEoWdg6vhj",
+  "name": "2d4 vials of misty liquid, each filled with a poignant memory",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>fragile</em>, Value 1 to the right buyer, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "2d4-vials-of-misty-liquid-each-filled-with-a-poignant-memory",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>fragile</em>, Value 1 to the right buyer, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

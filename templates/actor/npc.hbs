@@ -1,0 +1,367 @@
+<form class="{{cssClass}} stonetop-npc-sheet" autocomplete="off">
+	<div class="sheet-wrapper stonetop-npc-container">
+
+		<header class="sheet-header stonetop-sheet-header stonetop-npc-header{{#unless stonetop.editMode}}{{#unless stonetop.hasPortrait}} stonetop-npc-header--no-portrait{{/unless}}{{/unless}}">
+			{{#if stonetop.editMode}}
+			<img class="stonetop-portrait" src="{{actor.img}}" data-edit="img"
+			     title="{{actor.name}}" alt="{{actor.name}}">
+			{{else}}
+			{{#if stonetop.hasPortrait}}
+			<img class="stonetop-portrait" src="{{stonetop.displayImg}}"
+			     title="{{actor.name}}" alt="{{actor.name}}">
+			{{else}}
+			<span class="stonetop-portrait stonetop-npc-portrait-placeholder" title="{{actor.name}}">
+				<i class="fas fa-user"></i>
+			</span>
+			{{/if}}
+			{{/if}}
+
+			<div class="sheet-header__fields">
+				<div class="stonetop-npc-namewrap">
+					{{#if stonetop.editMode}}
+					<input class="input--title stonetop-name-field" name="name" type="text"
+					       value="{{actor.name}}" placeholder='{{localize "stonetop.npc.namePlaceholder"}}'>
+					<input class="stonetop-npc-pronouns" name="system.pronouns" type="text"
+					       value="{{system.pronouns}}" placeholder='{{localize "stonetop.npc.pronounsPlaceholder"}}'>
+					{{else}}
+					<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}{{#if system.pronouns}} <span class="stonetop-npc-pronouns-display">({{system.pronouns}})</span>{{/if}}</span>
+					{{/if}}
+				</div>
+
+				<div class="stonetop-npc-header-details">
+					{{#if stonetop.editMode}}
+					<input class="stonetop-npc-occupation" name="system.occupation" type="text"
+					       value="{{system.occupation}}" placeholder='{{localize "stonetop.npc.occupationPlaceholder"}}'>
+					<input class="stonetop-npc-traits" name="system.traits" type="text"
+					       value="{{system.traits}}" placeholder='{{localize "stonetop.npc.traitsPlaceholder"}}'>
+					{{else}}
+					{{#if system.occupation}}<p class="stonetop-npc-prose stonetop-npc-occupation-display">{{system.occupation}}</p>{{/if}}
+					{{#if system.traits}}<p class="stonetop-npc-prose stonetop-npc-traits-display">{{system.traits}}</p>{{/if}}
+					{{/if}}
+				</div>
+
+				{{!-- HP & Armor only when this NPC has been given game stats. --}}
+				{{#if (or stonetop.editMode system.hasStats)}}
+				{{#if system.hasStats}}
+				<div class="sheet-attributes-top stonetop-npc-statbar">
+					<div class="cell--attributes-top flexrow">
+						<div class="cell cell--Resource cell--attr-hp">
+							<div class="stonetop-vital-inner">
+								<label class="cell__title">{{localize "stonetop.npc.hitPoints"}}</label>
+								<div class="cell__resource">
+									<span class="cell__value">
+										<input class="attr-value" type="number" name="system.attributes.hp.value"
+										       value="{{system.attributes.hp.value}}" min="0">
+									</span>
+									<span class="cell__separator">/</span>
+									<span class="cell__max">
+										{{#if stonetop.editMode}}
+										<input class="attr-max" type="number" name="system.attributes.hp.max"
+										       value="{{system.attributes.hp.max}}" min="0">
+										{{else}}
+										<span class="attr-max">{{system.attributes.hp.max}}</span>
+										{{/if}}
+									</span>
+								</div>
+							</div>
+						</div>
+						<div class="cell cell--Number cell--attr-armor">
+							<div class="stonetop-vital-inner">
+								<label class="cell__title">{{localize "stonetop.npc.armor"}}</label>
+								<input class="attr-value" type="number" name="system.attributes.armor.value"
+								       value="{{system.attributes.armor.value}}" min="0">
+								{{#if stonetop.editMode}}
+								<input class="stonetop-npc-armor-source" type="text" name="system.attributes.armor.source"
+								       value="{{system.attributes.armor.source}}" placeholder="reflexes">
+								{{else}}{{#if system.attributes.armor.source}}
+								<span class="stonetop-npc-armor-source">({{system.attributes.armor.source}})</span>
+								{{/if}}{{/if}}
+							</div>
+						</div>
+					</div>
+				</div>
+				{{/if}}
+				{{/if}}
+			</div>
+		</header>
+
+		<section class="sheet-main flexcol stonetop-npc-main">
+
+			{{!-- Instinct — the anchor field, given prominence. --}}
+			<section class="stonetop-npc-field stonetop-npc-instinct">
+				<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.instinct"}}</strong>
+				{{#if stonetop.editMode}}
+				<input class="stonetop-npc-stat-input" type="text" name="system.instinct"
+				       value="{{system.instinct}}" placeholder='{{localize "stonetop.npc.instinctPlaceholder"}}'>
+				{{else}}
+				<span class="stonetop-npc-prose">{{#if system.instinct}}{{system.instinct}}{{else}}<em class="stonetop-npc-empty">{{localize "stonetop.npc.instinctEmpty"}}</em>{{/if}}</span>
+				{{/if}}
+			</section>
+
+			{{!-- Home & Relations — quick one-line facts that also back the Steading
+			     Residents/Neighbors table columns. Home is blank for residents of Stonetop. --}}
+			{{#if (or stonetop.editMode system.home)}}
+			<section class="stonetop-npc-field stonetop-npc-home">
+				<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.home"}}</strong>
+				{{#if stonetop.editMode}}
+				<input class="stonetop-npc-stat-input" type="text" name="system.home"
+				       value="{{system.home}}" placeholder='{{localize "stonetop.npc.homePlaceholder"}}'>
+				{{else}}
+				<span class="stonetop-npc-prose">{{system.home}}</span>
+				{{/if}}
+			</section>
+			{{/if}}
+
+			{{#if (or stonetop.editMode system.relations)}}
+			<section class="stonetop-npc-field stonetop-npc-relations-quick">
+				<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.relations"}}</strong>
+				{{#if stonetop.editMode}}
+				<input class="stonetop-npc-stat-input" type="text" name="system.relations"
+				       value="{{system.relations}}" placeholder='{{localize "stonetop.npc.relationsPlaceholder"}}'>
+				{{else}}
+				<span class="stonetop-npc-prose">{{system.relations}}</span>
+				{{/if}}
+			</section>
+			{{/if}}
+
+			{{!-- Impressions — up to 3 sensory hooks. --}}
+			{{#if (or stonetop.editMode stonetop.impressionsShown.length)}}
+			<section class="stonetop-npc-field stonetop-npc-impressions">
+				{{> "stonetop.section-heading" title=(localize "stonetop.npc.impressions")}}
+				{{#if stonetop.editMode}}
+				<ul class="stonetop-npc-impressions-edit">
+					{{#each stonetop.impressionSlots as |slot idx|}}
+					<li>
+						<input class="stonetop-npc-impression-input" type="text"
+						       name="system.impressions.{{idx}}" value="{{slot}}"
+						       placeholder='{{localize "stonetop.npc.impressionPlaceholder"}}'>
+					</li>
+					{{/each}}
+				</ul>
+				{{else}}
+				<ul class="stonetop-npc-impressions-list stonetop-spiral-list">
+					{{#each stonetop.impressionsShown}}
+					<li>{{this}}</li>
+					{{/each}}
+				</ul>
+				{{/if}}
+			</section>
+			{{/if}}
+
+			{{!-- Connections — relationships; rich text so @UUID links resolve. --}}
+			{{#if (or stonetop.editMode stonetop.hasConnections)}}
+			<section class="stonetop-npc-field stonetop-npc-connections">
+				{{> "stonetop.section-heading" title=(localize "stonetop.npc.connections")}}
+				{{#if stonetop.editMode}}
+				<prose-mirror class="stonetop-npc-rich-editor" data-field="connections" toggled
+				              value="{{system.connections}}">{{{stonetop.enrichedConnections}}}</prose-mirror>
+				{{else}}
+				<div class="stonetop-npc-prose stonetop-npc-rich-text">{{{stonetop.enrichedConnections}}}</div>
+				{{/if}}
+			</section>
+			{{/if}}
+
+			{{!-- Motivations — deeper drives. --}}
+			{{#if (or stonetop.editMode stonetop.hasMotivations)}}
+			<section class="stonetop-npc-field stonetop-npc-motivations">
+				{{> "stonetop.section-heading" title=(localize "stonetop.npc.motivations")}}
+				{{#if stonetop.editMode}}
+				<prose-mirror class="stonetop-npc-rich-editor" data-field="motivations" toggled
+				              value="{{system.motivations}}">{{{stonetop.enrichedMotivations}}}</prose-mirror>
+				{{else}}
+				<div class="stonetop-npc-prose stonetop-npc-rich-text">{{{stonetop.enrichedMotivations}}}</div>
+				{{/if}}
+			</section>
+			{{/if}}
+
+			{{!-- Embodiment — GM-only acting note. --}}
+			{{#if (or stonetop.editMode system.embodiment)}}
+			<section class="stonetop-npc-field stonetop-npc-embodiment">
+				<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.embodiment"}}</strong>
+				{{#if stonetop.editMode}}
+				<input class="stonetop-npc-stat-input" type="text" name="system.embodiment"
+				       value="{{system.embodiment}}" placeholder='{{localize "stonetop.npc.embodimentPlaceholder"}}'>
+				{{else}}
+				<span class="stonetop-npc-prose">{{system.embodiment}}</span>
+				{{/if}}
+			</section>
+			{{/if}}
+
+			{{!-- Relationships — how much this NPC likes each player character (0-5 hearts,
+			     default 3). Click a heart to set the rating (click the last filled one to
+			     drop it). --}}
+			{{#if stonetop.showRelationships}}
+			<details class="stonetop-npc-field stonetop-npc-field--full stonetop-npc-relationships stonetop-npc-collapsible" {{#unless stonetop.relationshipsCollapsed}}open{{/unless}}>
+				<summary class="stonetop-npc-collapsible-summary">
+					{{> "stonetop.section-heading" title=(localize "stonetop.npc.relationships")}}
+				</summary>
+				{{#if stonetop.hasRelationships}}
+				{{!-- Uses the steading Residents table classes so it inherits the same
+				     styling plus drag-resize + click-to-sort (wired in the sheet via
+				     makeColumnsResizable/makeColumnsSortable). No trailing actions column. --}}
+				<div class="steading-residents-table stonetop-npc-rel-table" data-resize-key="npcRelationships">
+					<div class="steading-residents-header">
+						<div class="steading-residents-header-cell steading-residents-col-name"><span class="steading-residents-header-label">{{localize "stonetop.npc.relPlayer"}}</span></div>
+						<div class="steading-residents-header-cell steading-residents-col-feelings"><span class="steading-residents-header-label">{{localize "stonetop.npc.relRegard"}}</span></div>
+						<div class="steading-residents-header-cell steading-residents-col-notes"><span class="steading-residents-header-label">{{localize "stonetop.npc.notes"}}</span></div>
+					</div>
+					<ul class="steading-residents-list">
+						{{#each stonetop.relationships}}
+						<li class="steading-residents-row stonetop-npc-rel-row" data-pc-id="{{id}}">
+							<div class="steading-residents-col steading-residents-col-name stonetop-npc-rel-namecell" data-tooltip="{{name}}">
+								{{#if img}}
+								<img class="stonetop-npc-rel-portrait" src="{{img}}" alt="">
+								{{else}}
+								<span class="stonetop-npc-rel-portrait stonetop-npc-rel-portrait--empty"><i class="fas fa-user"></i></span>
+								{{/if}}
+								<span class="stonetop-npc-rel-name">{{name}}</span>
+							</div>
+							<div class="steading-residents-col steading-residents-col-feelings stonetop-npc-rel-heartscell">
+								{{!-- Hidden numeric value the sort util reads (via textContent) to order by rating. --}}
+								<span class="stonetop-npc-hearts-sortkey" aria-hidden="true">{{hearts}}</span>
+								<span class="stonetop-npc-hearts{{#unless ../stonetop.canRate}} stonetop-npc-hearts--readonly{{/unless}}"
+								      role="img" aria-label="{{feeling}}" data-tooltip="{{feeling}}">
+									{{#each heartSlots}}
+									<span class="stonetop-npc-heart{{#if filled}} is-filled{{/if}}" data-position="{{position}}"></span>
+									{{/each}}
+								</span>
+							</div>
+							<div class="steading-residents-col steading-residents-col-notes">
+								<input type="text" class="steading-resident-input stonetop-npc-rel-note-input" data-pc-id="{{id}}"
+								       value="{{notes}}" placeholder='{{localize "stonetop.npc.relNotePlaceholder"}}'
+								       {{#unless ../stonetop.canRate}}disabled{{/unless}}>
+							</div>
+						</li>
+						{{/each}}
+					</ul>
+				</div>
+				{{else}}
+				<p class="stonetop-npc-rel-empty">{{localize "stonetop.npc.relationshipsEmpty"}}</p>
+				{{/if}}
+			</details>
+			{{/if}}
+
+			{{!-- Game stats — optional overlay. In edit mode a toggle reveals the block. --}}
+			{{#if stonetop.editMode}}
+			<section class="stonetop-npc-field stonetop-npc-stats-toggle">
+				<label class="stonetop-npc-hasstats">
+					<input type="checkbox" name="system.hasStats" {{checked system.hasStats}}>
+					<span>{{localize "stonetop.npc.giveStats"}}</span>
+				</label>
+			</section>
+			{{/if}}
+
+			{{#if system.hasStats}}
+			<section class="stonetop-npc-field stonetop-npc-field--full stonetop-npc-stats">
+				{{> "stonetop.section-heading" title=(localize "stonetop.npc.stats")}}
+
+				<div class="stonetop-npc-stat-line stonetop-npc-stat-line--damage">
+					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.damage"}}</strong>
+					{{#if stonetop.editMode}}
+					<input class="stonetop-npc-stat-input" type="text" name="system.attributes.damage.value"
+					       value="{{system.attributes.damage.value}}" placeholder="knife 1d6 (hand)">
+					<input class="stonetop-npc-stat-input stonetop-npc-damage-formula-input" type="text"
+					       name="system.attributes.damage.rollFormula" value="{{system.attributes.damage.rollFormula}}"
+					       title='{{localize "stonetop.npc.moveFormulaHint"}}' placeholder="d6">
+					{{else}}
+					{{#if system.attributes.damage.rollFormula}}
+					<a class="stonetop-npc-damage-roll" title="Roll damage ({{system.attributes.damage.rollFormula}})">
+						<i class="fas fa-dice-d6"></i>
+					</a>
+					{{/if}}
+					<span class="stonetop-npc-prose">{{system.attributes.damage.value}}</span>
+					{{/if}}
+				</div>
+
+				<div class="stonetop-npc-stat-line">
+					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.tags"}}</strong>
+					{{#if stonetop.editMode}}
+					<input class="stonetop-npc-stat-input" type="text" name="system.tags"
+					       value="{{system.tags}}" placeholder="loyal, skilled, hot-tempered...">
+					{{else}}
+					<span class="stonetop-npc-prose">{{system.tags}}</span>
+					{{/if}}
+				</div>
+
+				{{!-- Cross-links: if this NPC is also a monster / threat, point at that
+				      write-up instead of duplicating its numbers. --}}
+				{{#if (or stonetop.editMode system.statBlock)}}
+				<div class="stonetop-npc-stat-line">
+					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.statBlock"}}</strong>
+					{{#if stonetop.editMode}}
+					<input class="stonetop-npc-stat-input" type="text" name="system.statBlock"
+					       value="{{system.statBlock}}" placeholder='{{localize "stonetop.npc.statBlockPlaceholder"}}'>
+					{{else}}
+					<span class="stonetop-npc-prose stonetop-npc-rich-text">{{{stonetop.statBlockLink}}}</span>
+					{{/if}}
+				</div>
+				{{/if}}
+				{{#if (or stonetop.editMode system.threat)}}
+				<div class="stonetop-npc-stat-line">
+					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.threat"}}</strong>
+					{{#if stonetop.editMode}}
+					<input class="stonetop-npc-stat-input" type="text" name="system.threat"
+					       value="{{system.threat}}" placeholder='{{localize "stonetop.npc.threatPlaceholder"}}'>
+					{{else}}
+					<span class="stonetop-npc-prose stonetop-npc-rich-text">{{{stonetop.threatLink}}}</span>
+					{{/if}}
+				</div>
+				{{/if}}
+
+				{{!-- GM moves — embedded npcMove items. --}}
+				<div class="stonetop-npc-moves">
+					{{> "stonetop.section-heading" title=(localize "stonetop.npc.moves")}}
+					<ul class="stonetop-npc-moves-list">
+						{{#each npcMoves}}
+						<li class="stonetop-npc-move-item{{#if ../stonetop.editMode}} stonetop-npc-move-item--edit{{/if}}" data-item-id="{{id}}">
+							{{#if ../stonetop.editMode}}
+							<div class="stonetop-npc-move-head">
+								<input class="stonetop-npc-move-name-input stonetop-npc-move-field" type="text"
+								       data-field="name" value="{{name}}"
+								       placeholder='{{localize "stonetop.npc.moveNamePlaceholder"}}'>
+								<input class="stonetop-npc-move-formula-input stonetop-npc-move-field" type="text"
+								       data-field="system.rollFormula" value="{{system.rollFormula}}"
+								       title='{{localize "stonetop.npc.moveFormulaHint"}}' placeholder="d6">
+								<a class="stonetop-npc-delete-move" title='{{localize "stonetop.npc.deleteMove"}}'>
+									<i class="fas fa-trash"></i>
+								</a>
+							</div>
+							<prose-mirror class="stonetop-npc-rich-editor stonetop-npc-move-editor stonetop-npc-move-field"
+							              data-field="system.description" toggled value="{{system.description}}">{{{enrichedDescription}}}</prose-mirror>
+							{{else}}
+							<div class="stonetop-npc-move-head">
+								{{#if system.rollFormula}}
+								<a class="stonetop-npc-move-roll" title="Roll {{system.rollFormula}}">
+									<i class="fas fa-dice-d6"></i>
+								</a>
+								{{/if}}
+								<span class="stonetop-npc-move-name">{{name}}</span>
+							</div>
+							{{#if system.description}}
+							<div class="stonetop-npc-move-description">{{{boldMissText system.description}}}</div>
+							{{/if}}
+							{{/if}}
+						</li>
+						{{else}}
+						<li class="stonetop-npc-moves-empty">{{localize "stonetop.npc.noMoves"}}</li>
+						{{/each}}
+					</ul>
+					{{#if stonetop.editMode}}
+					<div class="stonetop-npc-add-controls">
+						<a class="stonetop-npc-add-move"><i class="fas fa-plus"></i> {{localize "stonetop.npc.addMove"}}</a>
+					</div>
+					{{/if}}
+				</div>
+			</section>
+			{{/if}}
+
+			{{!-- Notes — free-form GM notes; editable in play mode too. --}}
+			<section class="stonetop-npc-field stonetop-npc-field--full stonetop-npc-notes">
+				{{> "stonetop.section-heading" title=(localize "stonetop.npc.notes")}}
+				<prose-mirror class="stonetop-npc-rich-editor stonetop-npc-notes-editor"
+				              data-field="notes" toggled value="{{system.notes}}">{{{stonetop.enrichedNotes}}}</prose-mirror>
+			</section>
+
+		</section>
+	</div>
+</form>

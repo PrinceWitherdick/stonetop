@@ -1,0 +1,24 @@
+{
+  "_id": "RHi5fWUQBGMHYipw",
+  "_key": "!items!RHi5fWUQBGMHYipw",
+  "name": "Giant-sized robes of strange silk that’s almost impossible to cut/tear; quickly frays and unravels with even minor damage",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "<em>warm</em>, clumsy, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "giant-sized-robes-of-strange-silk-that-s-almost-impossible-to-cut-tear-quickly-frays-and-unravels-with-even-minor-damage",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "<em>warm</em>, clumsy, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "hiv6TC9KlUAggFHe"
+}

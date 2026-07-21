@@ -1,0 +1,24 @@
+{
+  "_id": "DLQa6cE6hTOKelO4",
+  "_key": "!items!DLQa6cE6hTOKelO4",
+  "name": "A box holding a clockwork diorama; wind its key and it plays music, the masked figures dance and twirl",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>fragile</em>, magical?, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-box-holding-a-clockwork-diorama-wind-its-key-and-it-plays-music-the-masked-figures-dance-and-twirl",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>fragile</em>, magical?, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "WS6RZyur2lQBRqsu"
+}

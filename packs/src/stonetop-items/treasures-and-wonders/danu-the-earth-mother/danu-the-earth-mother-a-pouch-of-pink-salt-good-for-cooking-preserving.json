@@ -1,0 +1,24 @@
+{
+  "_id": "qx5yJjCzMCRTaDGo",
+  "_key": "!items!qx5yJjCzMCRTaDGo",
+  "name": "A pouch of pink salt, good for cooking/preserving and bane to corrupted creatures",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pouch-of-pink-salt-good-for-cooking-preserving-and-bane-to-corrupted-creatures",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "kdeYvwEuUMeNdWWf"
+}

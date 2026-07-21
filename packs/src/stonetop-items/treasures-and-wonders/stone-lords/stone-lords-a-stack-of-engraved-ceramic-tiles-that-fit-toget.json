@@ -1,0 +1,24 @@
+{
+  "_id": "1Y5W7YdjhQLc0Eky",
+  "_key": "!items!1Y5W7YdjhQLc0Eky",
+  "name": "A stack of engraved ceramic tiles that fit together like a jigsaw puzzle; properly assembled, the engravings form a potent ring of runes for binding demons",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "or Value 3 to the right person, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-stack-of-engraved-ceramic-tiles-that-fit-together-like-a-jigsaw-puzzle-properly-assembled-the-engravings-form-a-potent-ring-of-runes-for-binding-demons",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "or Value 3 to the right person, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "zue1tQV0kunn8Q8x"
+}

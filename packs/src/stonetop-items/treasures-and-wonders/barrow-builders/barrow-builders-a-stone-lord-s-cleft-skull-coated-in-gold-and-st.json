@@ -1,0 +1,24 @@
+{
+  "_id": "2TztqcASVr0a8aBC",
+  "_key": "!items!2TztqcASVr0a8aBC",
+  "name": "A Stone Lord’s cleft skull, coated in gold and studded with gems",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "<em>cumbersome</em>, Value 4",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-stone-lord-s-cleft-skull-coated-in-gold-and-studded-with-gems",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "<em>cumbersome</em>, Value 4"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cqytTI64lyGXgj8r"
+}

@@ -1,0 +1,24 @@
+{
+  "_id": "J6d3hF9dyP7Ijr4V",
+  "_key": "!items!J6d3hF9dyP7Ijr4V",
+  "name": "Power-crystal",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical, <em>dangerous</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "power-crystal",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical, <em>dangerous</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "zue1tQV0kunn8Q8x"
+}

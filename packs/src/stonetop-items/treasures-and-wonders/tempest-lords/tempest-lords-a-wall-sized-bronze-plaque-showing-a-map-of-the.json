@@ -1,0 +1,22 @@
+{
+  "_id": "Am77tbqDxPaIrwuk",
+  "_key": "!items!Am77tbqDxPaIrwuk",
+  "name": "A wall-sized bronze plaque, showing a map of the entire Tempest Lord empire",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, Value 4",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-wall-sized-bronze-plaque-showing-a-map-of-the-entire-tempest-lord-empire",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, Value 4"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "sAuLDLodHGOaYxFS"
+}

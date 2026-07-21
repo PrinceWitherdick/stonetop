@@ -1,0 +1,22 @@
+{
+  "_id": "8Os95px6ZVwbmsW7",
+  "_key": "!items!8Os95px6ZVwbmsW7",
+  "name": "An obsidian pendant",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "an-obsidian-pendant",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

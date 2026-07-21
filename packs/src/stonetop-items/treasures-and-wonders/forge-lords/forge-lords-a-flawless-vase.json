@@ -1,0 +1,24 @@
+{
+  "_id": "sDrBfbwodHRYgU6x",
+  "_key": "!items!sDrBfbwodHRYgU6x",
+  "name": "A flawless vase",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>fragile</em>, beautiful, Value 4",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-flawless-vase",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>fragile</em>, beautiful, Value 4"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "WS6RZyur2lQBRqsu"
+}

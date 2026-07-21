@@ -1,0 +1,24 @@
+{
+  "_id": "N3UcKa29JzFmOTZj",
+  "_key": "!items!N3UcKa29JzFmOTZj",
+  "name": "A sacred pouch of rune-stitched drakeskin; when sealed, nothing within can be detected or found by magic, nor can anything within escape or affect the outside world",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-sacred-pouch-of-rune-stitched-drakeskin-when-sealed-nothing-within-can-be-detected-or-found-by-magic-nor-can-anything-within-escape-or-affect-the-outside-world",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "kdeYvwEuUMeNdWWf"
+}

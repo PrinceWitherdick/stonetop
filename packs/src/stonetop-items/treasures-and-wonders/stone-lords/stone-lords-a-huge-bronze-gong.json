@@ -1,0 +1,22 @@
+{
+  "_id": "wPm1IkZ34RpERvWK",
+  "_key": "!items!wPm1IkZ34RpERvWK",
+  "name": "A huge bronze gong",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-huge-bronze-gong",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "zue1tQV0kunn8Q8x"
+}

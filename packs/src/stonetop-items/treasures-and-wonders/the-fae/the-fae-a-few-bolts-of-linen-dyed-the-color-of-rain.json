@@ -1,0 +1,22 @@
+{
+  "_id": "LZDdB5JJFPUPkcF4",
+  "_key": "!items!LZDdB5JJFPUPkcF4",
+  "name": "A few bolts of linen, dyed the color of rain",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, beautiful, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-few-bolts-of-linen-dyed-the-color-of-rain",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, beautiful, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

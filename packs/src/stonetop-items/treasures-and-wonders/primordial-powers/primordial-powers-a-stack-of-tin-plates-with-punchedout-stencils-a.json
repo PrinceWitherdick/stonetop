@@ -1,0 +1,24 @@
+{
+  "_id": "sRGkJfIYaoivsn0H",
+  "_key": "!items!sRGkJfIYaoivsn0H",
+  "name": "A stack of tin plates, with punchedout stencils; arranged correctly, they lay out the sigils of a specific portal",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "or 3 to the right buyer, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-stack-of-tin-plates-with-punchedout-stencils-arranged-correctly-they-lay-out-the-sigils-of-a-specific-portal",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "or 3 to the right buyer, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

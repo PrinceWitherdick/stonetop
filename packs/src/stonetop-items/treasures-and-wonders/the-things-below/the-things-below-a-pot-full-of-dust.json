@@ -1,0 +1,42 @@
+{
+  "_id": "Ksu11EkTtXjzYGdx",
+  "_key": "!items!Ksu11EkTtXjzYGdx",
+  "name": "A pot full of dust",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>fragile</em>, Value 1 to the right person, Value 1",
+    "resource": {
+      "max": 3,
+      "title": null,
+      "labels": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pot-full-of-dust",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>fragile</em>, Value 1 to the right person, Value 1",
+      "resource": {
+        "max": 3,
+        "title": null,
+        "labels": [
+          "",
+          "",
+          ""
+        ]
+      }
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

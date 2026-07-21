@@ -37,6 +37,11 @@ const HOOK_PAIRS = [
 const _openApps = new Map();
 let _saveTimer = null;
 
+// uuid → saved active-tab array, staged by restoreOpenWindows just before it re-renders a
+// sheet. Consumed once by _onRender (the render hook fires after `_tabs` is bound to the
+// DOM at its initial tab), which then activates the saved tab over the default.
+const _pendingTabs = new Map();
+
 // Whether an app is a document sheet we can persist and later reopen: it must expose a
 // world document (not a compendium entry — those aren't re-openable from a stored uuid
 // the same way) with a stable uuid. This naturally excludes our FormApplication dialogs,
@@ -48,9 +53,22 @@ function _trackedDoc(app) {
 	return doc;
 }
 
+// The active tab name(s) of an AppV1 sheet, in `_tabs` order, or null if it has no tab
+// groups. Order is stable within a sheet class (tab groups are declared once in
+// defaultOptions), so an index-keyed array restores reliably without depending on nav
+// selectors. Tab switches don't re-render the sheet, so the live read at persist time
+// (via the beforeunload flush) is what actually captures the tab the user ended on.
+function _snapshotTabs(app) {
+	const tabs = app?._tabs;
+	if (!Array.isArray(tabs) || !tabs.length) return null;
+	const active = tabs.map((t) => t?.active ?? null);
+	return active.some(Boolean) ? active : null;
+}
+
 // A {left, top, width, height} snapshot of an app's current window geometry, plus its
-// minimized state, or null if it isn't positioned yet. Only finite numbers are kept, so
-// an auto-height window (height: "auto") stores no height and reopens auto-sized.
+// minimized state and active tab(s), or null if it isn't positioned yet. Only finite
+// numbers are kept, so an auto-height window (height: "auto") stores no height and
+// reopens auto-sized.
 function _snapshotPosition(app) {
 	const p = app?.position ?? {};
 	const out = {};
@@ -60,6 +78,8 @@ function _snapshotPosition(app) {
 	if (out.left === undefined && out.top === undefined) return null;
 	// ApplicationV2 exposes a public `minimized`; AppV1 uses the private `_minimized`.
 	if (app.minimized ?? app._minimized) out.minimized = true;
+	const tabs = _snapshotTabs(app);
+	if (tabs) out.tabs = tabs;
 	return out;
 }
 
@@ -101,10 +121,28 @@ function _flushNow() {
 	} catch (_err) { /* nothing we can do mid-unload */ }
 }
 
+// Activate the saved active tab(s) on an AppV1 sheet, matched to `_tabs` by index. No-op
+// for a tab already on the saved name (skips a redundant DOM shuffle), and safe when the
+// sheet has fewer tab groups than were saved.
+function _applyTabs(app, tabs) {
+	if (!Array.isArray(tabs)) return;
+	const groups = app?._tabs;
+	if (!Array.isArray(groups)) return;
+	tabs.forEach((name, idx) => {
+		const group = groups[idx];
+		if (name && group && group.active !== name) group.activate?.(name);
+	});
+}
+
 function _onRender(app) {
 	const doc = _trackedDoc(app);
 	if (!doc) return;
 	_openApps.set(doc.uuid, app);
+	const pending = _pendingTabs.get(doc.uuid);
+	if (pending) {
+		_pendingTabs.delete(doc.uuid);
+		_applyTabs(app, pending);
+	}
 	_schedulePersist();
 }
 
@@ -157,6 +195,10 @@ export async function restoreOpenWindows() {
 		const delay = i++ * 120;
 		setTimeout(() => {
 			try {
+				// Stage the saved tab so the render hook (fired once _tabs is bound) switches
+				// off the sheet's default tab. Set right before render so it's live when the
+				// hook lands, and consumed once so a later data re-render can't re-force it.
+				if (Array.isArray(saved.tabs)) _pendingTabs.set(uuid, saved.tabs);
 				const geom = { left: pos.left, top: pos.top, width: pos.width, height: pos.height };
 				if (_isAppV2(sheet)) sheet.render({ force: true, position: geom });
 				else sheet.render(true, geom);

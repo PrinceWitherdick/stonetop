@@ -53,6 +53,13 @@ export function onRenderActorSheet(sheet, html) {
 		return;
 	}
 
+	if (type === "npc") {
+		// The NPC sheet's Connections/Stat Block/Threat fields hold @UUID cross-links
+		// (to other actors, threats, lore); give them the same entry-summary hover.
+		applyLocationTooltips(root);
+		return;
+	}
+
 	if (!getHoverDescriptionSetting("hoverDescriptionsGearTags")) return;
 	root.querySelectorAll(GEAR_TAG_SELECTORS).forEach(el => applyGearTermTooltips(el));
 }

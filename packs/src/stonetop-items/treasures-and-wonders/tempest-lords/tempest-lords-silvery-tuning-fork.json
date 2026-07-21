@@ -1,0 +1,22 @@
+{
+  "_id": "Y5V7OqjL0VlltjvK",
+  "_key": "!items!Y5V7OqjL0VlltjvK",
+  "name": "Silvery tuning fork",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, loud",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "silvery-tuning-fork",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, loud"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "sAuLDLodHGOaYxFS"
+}

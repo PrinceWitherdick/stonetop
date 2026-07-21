@@ -1,0 +1,24 @@
+{
+  "_id": "be8pnM4IOaOty4fg",
+  "_key": "!items!be8pnM4IOaOty4fg",
+  "name": "An old book",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>fragile</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "an-old-book",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>fragile</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "HAhTe9aUVSNgGqEu"
+}

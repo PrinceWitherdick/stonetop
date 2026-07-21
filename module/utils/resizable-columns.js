@@ -30,10 +30,15 @@ export function makeColumnsResizable(table, storageKey) {
 	const saved = readStoredColumnState(storageId);
 	if (Array.isArray(saved) && saved.length === headerCells.length && saved.every(Number.isFinite)) widths = saved;
 
+	// Tables with a trailing fixed actions column (the steading's Players/Residents/
+	// Neighbors) reserve a final 32px track for it; tables without one (the NPC sheet's
+	// Relationships table) don't, so the last resizable column absorbs all the slack.
+	const hasActions = !!header.querySelector(":scope > .steading-residents-col-actions");
+
 	const applyTemplate = () => {
 		if (!widths) return;
 		const columns = widths.map((w, i) => i === widths.length - 1 ? "minmax(0, 1fr)" : `${Math.round(w)}px`);
-		columns.push("32px");
+		if (hasActions) columns.push("32px");
 		const template = columns.join(" ");
 		header.style.gridTemplateColumns = template;
 		list.querySelectorAll(":scope > .steading-residents-row").forEach(row => {

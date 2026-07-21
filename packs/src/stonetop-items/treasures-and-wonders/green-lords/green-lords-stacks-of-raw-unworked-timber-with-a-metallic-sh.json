@@ -1,0 +1,22 @@
+{
+  "_id": "Z6uHOJWW0idhFJjo",
+  "_key": "!items!Z6uHOJWW0idhFJjo",
+  "name": "Stacks of raw, unworked timber with a metallic sheen to the grain; incredibly strong but incredibly difficult to work",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "stacks-of-raw-unworked-timber-with-a-metallic-sheen-to-the-grain-incredibly-strong-but-incredibly-difficult-to-work",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "dFWNdqogoXy6Y8IM"
+}

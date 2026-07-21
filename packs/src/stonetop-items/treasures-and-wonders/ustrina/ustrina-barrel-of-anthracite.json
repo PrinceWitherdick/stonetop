@@ -1,0 +1,22 @@
+{
+  "_id": "XuhN99cgZK0x7uRf",
+  "_key": "!items!XuhN99cgZK0x7uRf",
+  "name": "Barrel of anthracite",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, <em>dangerous</em>, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "barrel-of-anthracite",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, <em>dangerous</em>, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "CNyKx0ja8oDmcOIz"
+}

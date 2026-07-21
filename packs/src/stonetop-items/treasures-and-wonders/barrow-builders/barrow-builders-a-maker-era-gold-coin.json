@@ -1,0 +1,22 @@
+{
+  "_id": "rkvsXJuf2j5LwYZY",
+  "_key": "!items!rkvsXJuf2j5LwYZY",
+  "name": "A Maker-era gold coin",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-maker-era-gold-coin",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cqytTI64lyGXgj8r"
+}

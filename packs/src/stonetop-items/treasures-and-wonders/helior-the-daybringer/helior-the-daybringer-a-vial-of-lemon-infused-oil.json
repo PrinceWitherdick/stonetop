@@ -1,0 +1,22 @@
+{
+  "_id": "LFRRyMHGdDmiYEDQ",
+  "_key": "!items!LFRRyMHGdDmiYEDQ",
+  "name": "A vial of lemon-infused oil",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-vial-of-lemon-infused-oil",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "VN1YK8D24LBzm69j"
+}

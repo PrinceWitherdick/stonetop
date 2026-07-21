@@ -1,0 +1,22 @@
+{
+  "_id": "8PiJj6DTihBa8IlP",
+  "_key": "!items!8PiJj6DTihBa8IlP",
+  "name": "A very large sapphire, perfectly cut and polished, a symbol of Aratis floating in its depths",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 4",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-very-large-sapphire-perfectly-cut-and-polished-a-symbol-of-aratis-floating-in-its-depths",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 4"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "HAhTe9aUVSNgGqEu"
+}

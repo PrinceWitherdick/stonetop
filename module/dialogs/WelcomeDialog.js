@@ -9,7 +9,6 @@ import { FoundryBasicsDialog } from "./FoundryBasicsDialog.js";
 import { charactersOwnedBy } from "../utils/playbook-actors.js";
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
 import { runImportBookArtMacro } from "../book2-art/macro.js";
-import { BOOK_ART_IMPORT_ENABLED } from "../book2-art/release-gate.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -80,7 +79,7 @@ function progressLabel(p, playbook) {
 // is a Font Awesome 6 glyph. The overview is the landing panel; the six numbered
 // entries are Book I's "Getting Started" steps, and `step` drives the banner's
 // "Step N of 6" count (the overview has none).
-const ALL_SECTIONS = [
+const SECTIONS = [
 	{ key: "overview",     title: "Getting started",       icon: "fa-signs-post" },
 	{ key: "book-art",     title: "Import the book art",     icon: "fa-images",         step: 1, optional: true },
 	{ key: "setting",      title: "Review the setting",    icon: "fa-book-open",      step: 2 },
@@ -89,11 +88,6 @@ const ALL_SECTIONS = [
 	{ key: "introduce",    title: "Introduce the PCs",     icon: "fa-users",          step: 5 },
 	{ key: "spring",       title: "Let spring burst forth", icon: "fa-seedling",      step: 6 },
 ];
-// The optional Book Art / PDF-import step (key "book-art") is held back until
-// distribution is approved; omit it entirely while disabled (see release-gate.js).
-const SECTIONS = BOOK_ART_IMPORT_ENABLED
-	? ALL_SECTIONS
-	: ALL_SECTIONS.filter(s => s.key !== "book-art");
 const STEP_COUNT = SECTIONS.filter(s => s.step).length;
 
 export class WelcomeDialog extends Application {

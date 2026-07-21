@@ -1,0 +1,22 @@
+{
+  "_id": "b8NUZU6lWyHBhvmP",
+  "_key": "!items!b8NUZU6lWyHBhvmP",
+  "name": "A rusty Y-shaped pendant",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-rusty-y-shaped-pendant",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cqytTI64lyGXgj8r"
+}

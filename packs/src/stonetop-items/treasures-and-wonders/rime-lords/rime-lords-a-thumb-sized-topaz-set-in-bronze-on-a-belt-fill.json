@@ -1,0 +1,22 @@
+{
+  "_id": "AJCGVWcg5Z6REi6r",
+  "_key": "!items!AJCGVWcg5Z6REi6r",
+  "name": "A thumb-sized topaz, set in bronze on a… belt (?); fills you with dread to look at it",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, terrifying, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-thumb-sized-topaz-set-in-bronze-on-a-belt-fills-you-with-dread-to-look-at-it",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, terrifying, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "hiv6TC9KlUAggFHe"
+}

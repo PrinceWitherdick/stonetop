@@ -1,0 +1,24 @@
+{
+  "_id": "yilM0h9xW30o6Uk2",
+  "_key": "!items!yilM0h9xW30o6Uk2",
+  "name": "A pot of “gold”",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 3,
+    "note": "magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pot-of-gold",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 3,
+      "note": "magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

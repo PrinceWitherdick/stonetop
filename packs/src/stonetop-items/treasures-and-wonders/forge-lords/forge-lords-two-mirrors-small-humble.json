@@ -1,0 +1,24 @@
+{
+  "_id": "FdTsBAZZ3oiIVqI7",
+  "_key": "!items!FdTsBAZZ3oiIVqI7",
+  "name": "Two mirrors (Small, humble)",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical, <em>fragile</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "two-mirrors-small-humble",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical, <em>fragile</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "WS6RZyur2lQBRqsu"
+}

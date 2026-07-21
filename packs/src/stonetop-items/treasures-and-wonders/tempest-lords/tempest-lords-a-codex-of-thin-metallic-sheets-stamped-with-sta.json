@@ -1,0 +1,24 @@
+{
+  "_id": "fzaXA1kmS0UyFfmF",
+  "_key": "!items!fzaXA1kmS0UyFfmF",
+  "name": "A codex of thin, metallic sheets, stamped with star charts and Tempest Lord ideographs",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-codex-of-thin-metallic-sheets-stamped-with-star-charts-and-tempest-lord-ideographs",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "sAuLDLodHGOaYxFS"
+}

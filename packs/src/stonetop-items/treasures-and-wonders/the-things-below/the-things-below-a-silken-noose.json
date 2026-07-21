@@ -1,0 +1,22 @@
+{
+  "_id": "FbUvm1xB9h37bDSu",
+  "_key": "!items!FbUvm1xB9h37bDSu",
+  "name": "A silken noose",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-silken-noose",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

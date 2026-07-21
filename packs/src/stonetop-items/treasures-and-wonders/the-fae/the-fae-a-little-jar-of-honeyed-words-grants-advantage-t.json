@@ -1,0 +1,22 @@
+{
+  "_id": "UGT10stU8MfkduhV",
+  "_key": "!items!UGT10stU8MfkduhV",
+  "name": "A little jar of honeyed words; grants advantage to your next roll that relies on eloquence",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>fragile</em>, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-little-jar-of-honeyed-words-grants-advantage-to-your-next-roll-that-relies-on-eloquence",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>fragile</em>, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

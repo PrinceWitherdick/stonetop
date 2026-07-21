@@ -1,0 +1,42 @@
+{
+  "_id": "ln2rXVGKgLIQkMsB",
+  "_key": "!items!ln2rXVGKgLIQkMsB",
+  "name": "A tall, thick, gnarled tree bearing large, delicious fruits in early autumn. Provides as many provisions",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "resource": {
+      "max": 4,
+      "title": null,
+      "labels": [
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-tall-thick-gnarled-tree-bearing-large-delicious-fruits-in-early-autumn-provides-as-many-provisions",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "resource": {
+        "max": 4,
+        "title": null,
+        "labels": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "dFWNdqogoXy6Y8IM"
+}

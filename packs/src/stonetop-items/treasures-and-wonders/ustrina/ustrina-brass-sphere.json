@@ -1,0 +1,42 @@
+{
+  "_id": "vzdm7katNuvtlsFo",
+  "_key": "!items!vzdm7katNuvtlsFo",
+  "name": "Brass sphere",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical, Value 2",
+    "resource": {
+      "max": 3,
+      "title": "hours",
+      "labels": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "brass-sphere",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical, Value 2",
+      "resource": {
+        "max": 3,
+        "title": "hours",
+        "labels": [
+          "",
+          "",
+          ""
+        ]
+      }
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "CNyKx0ja8oDmcOIz"
+}

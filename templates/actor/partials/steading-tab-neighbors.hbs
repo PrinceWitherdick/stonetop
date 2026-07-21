@@ -96,12 +96,22 @@
 					{{#each stonetop.residents}}
 					{{#if name}}
 					<li class="steading-residents-row">
-						<div class="steading-residents-col steading-residents-col-name steading-member-name-cell" data-tooltip="{{name}}">
+						<div class="steading-residents-col steading-residents-col-name steading-member-name-cell{{#if unresolved}} steading-member-unresolved{{/if}}" data-tooltip="{{name}}">
 							<img class="steading-member-avatar" src="{{profileImg}}" data-name="{{name}}"
-							     data-list="residents" data-index="{{@index}}" alt="">
+							     data-list="residents" data-index="{{@index}}" alt=""
+							     {{#if uuid}}draggable="true" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"{{/if}}>
+							{{#if @root.stonetop.edit.residents}}
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name"
-							       value="{{name}}" placeholder="Name" {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
+							       value="{{name}}" placeholder="Name">
+							{{else}}{{#if uuid}}
+							<a class="steading-member-open steading-member-name-text" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
+							   draggable="true" data-tooltip="Open {{name}}'s NPC sheet">{{name}}</a>
+							{{else}}
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="name"
+							       value="{{name}}" placeholder="Name" disabled>
+							{{/if}}{{/if}}
 						</div>
 						<div class="steading-residents-col steading-residents-col-occupation" data-tooltip="{{#if @root.stonetop.edit.residents}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}">
 							<input type="text" class="steading-resident-input"
@@ -125,11 +135,22 @@
 							       {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
 						</div>
 						<div class="steading-residents-col steading-residents-col-notes" data-tooltip="{{notes}}">
+							{{#if uuid}}
+							{{!-- Actor-backed row: the rich notes live on the NPC. Show a rendered
+							      preview; in edit mode a pencil opens the shared pop-up editor. --}}
+							<div class="steading-member-notes-preview stonetop-npc-rich-text">{{{notesHtml}}}</div>
+							{{#if @root.stonetop.edit.residents}}
+							<button type="button" class="steading-member-notes-edit" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
+							        title="Edit notes" tabindex="-1"><i class="fas fa-pen"></i></button>
+							{{/if}}
+							{{else}}
+							{{!-- Legacy plain-text row (pre-migration): keep the inline input. --}}
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="notes"
 							       value="{{notes}}"
 							       {{#if @root.stonetop.edit.residents}}placeholder="Notes"{{/if}}
 							       {{#unless @root.stonetop.edit.residents}}disabled{{/unless}}>
+							{{/if}}
 						</div>
 						<div class="steading-residents-col steading-residents-col-actions">
 							<button type="button" class="steading-list-delete"
@@ -204,12 +225,22 @@
 					{{#each stonetop.neighbors}}
 					{{#if name}}
 					<li class="steading-residents-row">
-						<div class="steading-residents-col steading-residents-col-name steading-member-name-cell" data-tooltip="{{name}}">
+						<div class="steading-residents-col steading-residents-col-name steading-member-name-cell{{#if unresolved}} steading-member-unresolved{{/if}}" data-tooltip="{{name}}">
 							<img class="steading-member-avatar" src="{{profileImg}}" data-name="{{name}}"
-							     data-list="neighbors" data-index="{{@index}}" alt="">
+							     data-list="neighbors" data-index="{{@index}}" alt=""
+							     {{#if uuid}}draggable="true" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"{{/if}}>
+							{{#if @root.stonetop.edit.neighbors}}
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name" data-list="neighbors"
-							       value="{{name}}" placeholder="Name" {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
+							       value="{{name}}" placeholder="Name">
+							{{else}}{{#if uuid}}
+							<a class="steading-member-open steading-member-name-text" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
+							   draggable="true" data-tooltip="Open {{name}}'s NPC sheet">{{name}}</a>
+							{{else}}
+							<input type="text" class="steading-resident-input"
+							       data-index="{{@index}}" data-field="name" data-list="neighbors"
+							       value="{{name}}" placeholder="Name" disabled>
+							{{/if}}{{/if}}
 						</div>
 						<div class="steading-residents-col steading-residents-col-home" data-tooltip="{{home}}">
 							<input type="text" class="steading-resident-input"
@@ -240,11 +271,22 @@
 							       {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
 						</div>
 						<div class="steading-residents-col steading-residents-col-notes" data-tooltip="{{notes}}">
+							{{#if uuid}}
+							{{!-- Actor-backed row: the rich notes live on the NPC. Show a rendered
+							      preview; in edit mode a pencil opens the shared pop-up editor. --}}
+							<div class="steading-member-notes-preview stonetop-npc-rich-text">{{{notesHtml}}}</div>
+							{{#if @root.stonetop.edit.neighbors}}
+							<button type="button" class="steading-member-notes-edit" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
+							        title="Edit notes" tabindex="-1"><i class="fas fa-pen"></i></button>
+							{{/if}}
+							{{else}}
+							{{!-- Legacy plain-text row (pre-migration): keep the inline input. --}}
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="notes" data-list="neighbors"
 							       value="{{notes}}"
 							       {{#if @root.stonetop.edit.neighbors}}placeholder="Notes"{{/if}}
 							       {{#unless @root.stonetop.edit.neighbors}}disabled{{/unless}}>
+							{{/if}}
 						</div>
 						<div class="steading-residents-col steading-residents-col-actions">
 							<button type="button" class="steading-list-delete"

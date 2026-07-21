@@ -1,0 +1,22 @@
+{
+  "_id": "3CEHNJIitJZFNi2G",
+  "_key": "!items!3CEHNJIitJZFNi2G",
+  "name": "A crude stone figurine of some beast, the claws and fangs exaggerated and seemingly stained with blood",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-crude-stone-figurine-of-some-beast-the-claws-and-fangs-exaggerated-and-seemingly-stained-with-blood",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

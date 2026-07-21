@@ -1,0 +1,24 @@
+{
+  "_id": "CPSzjD3lvoGNRjx8",
+  "_key": "!items!CPSzjD3lvoGNRjx8",
+  "name": "Orichalcum spear",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>close</em>, <em>thrown</em>, magical, beautiful, 1 <em>piercing</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "orichalcum-spear",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>close</em>, <em>thrown</em>, magical, beautiful, 1 <em>piercing</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "WS6RZyur2lQBRqsu"
+}

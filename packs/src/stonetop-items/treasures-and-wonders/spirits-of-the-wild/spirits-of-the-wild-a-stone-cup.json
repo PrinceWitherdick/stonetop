@@ -1,0 +1,22 @@
+{
+  "_id": "uaci0Y9LpPjxDkVV",
+  "_key": "!items!uaci0Y9LpPjxDkVV",
+  "name": "A stone cup",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-stone-cup",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "6oY165cW5WxrxHjL"
+}

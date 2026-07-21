@@ -6,7 +6,7 @@ const FIELDS = [
 	"system.moveType",
 	...["slug", "inventoryColumn", "sortOrder", "weight", "note", "resource",
 	    "resourceFirst", "prosperityResource", "breakBefore", "smallGrid", "twoCol", "armor",
-	    "special", "specialCategory"]
+	    "special", "specialCategory", "isTreasure"]
 		.map(f => `flags.${ITEM_FLAG_SCOPE}.${f}`),
 ];
 
@@ -18,7 +18,11 @@ export class FoundryOutfitItemRepository {
 
 	async getAll() {
 		if (this._cache) return this._cache;
-		const entries = await this._store.filterEntries(e => e.system?.moveType === "inventory");
+		// Book II treasures share the "inventory" moveType but are NOT part of the
+		// buyable gear catalog — they live in the "Treasures & Wonders" folder and are
+		// found/dragged in play. Keep them out of the outfit picker's shopping list.
+		const entries = await this._store.filterEntries(e =>
+			e.system?.moveType === "inventory" && !e.flags?.[ITEM_FLAG_SCOPE]?.isTreasure);
 		this._cache = entries
 			.sort((a, b) => (a.flags?.[ITEM_FLAG_SCOPE]?.sortOrder ?? 0) - (b.flags?.[ITEM_FLAG_SCOPE]?.sortOrder ?? 0))
 			.map(item => {

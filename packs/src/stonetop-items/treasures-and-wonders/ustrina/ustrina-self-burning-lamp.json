@@ -1,0 +1,46 @@
+{
+  "_id": "bs6OBMVJuPq78W7V",
+  "_key": "!items!bs6OBMVJuPq78W7V",
+  "name": "Self-burning lamp",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>reach</em>, <em>area</em>, <em>hours</em>, Value 2",
+    "resource": {
+      "max": 5,
+      "title": "hours",
+      "labels": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "self-burning-lamp",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>reach</em>, <em>area</em>, <em>hours</em>, Value 2",
+      "resource": {
+        "max": 5,
+        "title": "hours",
+        "labels": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "CNyKx0ja8oDmcOIz"
+}

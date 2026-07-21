@@ -1,0 +1,24 @@
+{
+  "_id": "TlhM7L0sBcoGojAj",
+  "_key": "!items!TlhM7L0sBcoGojAj",
+  "name": "Big wooden bowl and lid, sealed with beeswax, filled with dried medicinal herb",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "big-wooden-bowl-and-lid-sealed-with-beeswax-filled-with-dried-medicinal-herb",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "fUFiQE5tYietY8HN"
+}

@@ -1,0 +1,24 @@
+{
+  "_id": "mhcOqzmNknUsR8t6",
+  "_key": "!items!mhcOqzmNknUsR8t6",
+  "name": "A drum, wood and stretched skin, impossibly preserved",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "loud, <em>fragile</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-drum-wood-and-stretched-skin-impossibly-preserved",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "loud, <em>fragile</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "hiv6TC9KlUAggFHe"
+}

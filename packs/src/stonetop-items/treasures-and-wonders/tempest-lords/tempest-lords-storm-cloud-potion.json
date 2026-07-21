@@ -1,0 +1,22 @@
+{
+  "_id": "tr43tf4n1Uw4rwQn",
+  "_key": "!items!tr43tf4n1Uw4rwQn",
+  "name": "Storm-cloud potion",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, <em>fragile</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "storm-cloud-potion",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, <em>fragile</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "sAuLDLodHGOaYxFS"
+}

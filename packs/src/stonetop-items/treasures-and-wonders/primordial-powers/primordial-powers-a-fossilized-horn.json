@@ -1,0 +1,24 @@
+{
+  "_id": "4bSRQeIK5J6R4tni",
+  "_key": "!items!4bSRQeIK5J6R4tni",
+  "name": "A fossilized horn",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-fossilized-horn",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

@@ -1,0 +1,22 @@
+{
+  "_id": "oBWE6BKGw664x2SW",
+  "_key": "!items!oBWE6BKGw664x2SW",
+  "name": "A circle of bronze sigils two paces wide, inlaid into a stone floor; blessed by Helior, a ward against spirits of darkness",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, <em>immobile</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-circle-of-bronze-sigils-two-paces-wide-inlaid-into-a-stone-floor-blessed-by-helior-a-ward-against-spirits-of-darkness",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, <em>immobile</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "VN1YK8D24LBzm69j"
+}

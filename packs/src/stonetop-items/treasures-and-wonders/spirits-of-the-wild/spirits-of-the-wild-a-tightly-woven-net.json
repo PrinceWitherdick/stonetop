@@ -1,0 +1,22 @@
+{
+  "_id": "kXF8rkngqh16VAsd",
+  "_key": "!items!kXF8rkngqh16VAsd",
+  "name": "A tightly-woven net",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>close</em>, <em>thrown</em>, magical, <em>crude</em>",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-tightly-woven-net",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>close</em>, <em>thrown</em>, magical, <em>crude</em>"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "6oY165cW5WxrxHjL"
+}

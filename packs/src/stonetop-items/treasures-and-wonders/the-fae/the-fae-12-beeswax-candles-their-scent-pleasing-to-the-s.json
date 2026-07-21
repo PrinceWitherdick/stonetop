@@ -1,0 +1,24 @@
+{
+  "_id": "YGQYMJEIYMRjw9Y0",
+  "_key": "!items!YGQYMJEIYMRjw9Y0",
+  "name": "12 beeswax candles, their scent pleasing to the spirits of plants, trees, and bugs",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "~1 hour, <em>close</em>, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "12-beeswax-candles-their-scent-pleasing-to-the-spirits-of-plants-trees-and-bugs",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "~1 hour, <em>close</em>, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "giU3S9aF2vTRJU8y"
+}

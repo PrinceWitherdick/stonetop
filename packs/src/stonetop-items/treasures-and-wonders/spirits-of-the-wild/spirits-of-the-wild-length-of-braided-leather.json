@@ -1,0 +1,22 @@
+{
+  "_id": "JwwUTcaL6pLqY7om",
+  "_key": "!items!JwwUTcaL6pLqY7om",
+  "name": "Length of braided leather",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "length-of-braided-leather",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "6oY165cW5WxrxHjL"
+}

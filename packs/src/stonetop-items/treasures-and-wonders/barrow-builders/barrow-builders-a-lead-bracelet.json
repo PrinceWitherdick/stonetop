@@ -1,0 +1,22 @@
+{
+  "_id": "YBV9lSLWLpy2Ggyq",
+  "_key": "!items!YBV9lSLWLpy2Ggyq",
+  "name": "A lead bracelet",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical, Value 1",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-lead-bracelet",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical, Value 1"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cqytTI64lyGXgj8r"
+}

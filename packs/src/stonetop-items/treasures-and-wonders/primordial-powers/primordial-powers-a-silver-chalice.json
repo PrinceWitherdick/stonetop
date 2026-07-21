@@ -1,0 +1,24 @@
+{
+  "_id": "V1Tu6v3njniLagvY",
+  "_key": "!items!V1Tu6v3njniLagvY",
+  "name": "A silver chalice",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-silver-chalice",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

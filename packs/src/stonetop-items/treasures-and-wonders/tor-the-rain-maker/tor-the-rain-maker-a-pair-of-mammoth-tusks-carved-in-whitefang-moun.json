@@ -1,0 +1,22 @@
+{
+  "_id": "V5pTwtPawmvd8w8a",
+  "_key": "!items!V5pTwtPawmvd8w8a",
+  "name": "A pair of mammoth tusks, carved in Whitefang Mountain style, depicting a storm god bearing gifts and slaying beasts",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-pair-of-mammoth-tusks-carved-in-whitefang-mountain-style-depicting-a-storm-god-bearing-gifts-and-slaying-beasts",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "Dlo1923hxCXjufqy"
+}

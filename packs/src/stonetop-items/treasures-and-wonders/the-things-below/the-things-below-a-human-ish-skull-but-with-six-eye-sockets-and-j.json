@@ -1,0 +1,24 @@
+{
+  "_id": "K2AGlqAXk8olzTQf",
+  "_key": "!items!K2AGlqAXk8olzTQf",
+  "name": "A human(ish) skull but with six eye sockets and jutting lower tusks, carved with disturbing patterns and inlaid with silver",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "Value 3 to the right buyer, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-human-ish-skull-but-with-six-eye-sockets-and-jutting-lower-tusks-carved-with-disturbing-patterns-and-inlaid-with-silver",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "Value 3 to the right buyer, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "MAqv1hLGoxqeKK8G"
+}

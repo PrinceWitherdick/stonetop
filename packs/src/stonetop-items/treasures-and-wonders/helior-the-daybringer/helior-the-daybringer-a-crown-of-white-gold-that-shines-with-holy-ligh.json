@@ -1,0 +1,24 @@
+{
+  "_id": "7JO0LmvZBnEs2RY8",
+  "_key": "!items!7JO0LmvZBnEs2RY8",
+  "name": "A crown of white gold, that shines with holy light",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "<em>reach</em>, <em>area</em>, Value 4",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-crown-of-white-gold-that-shines-with-holy-light",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "<em>reach</em>, <em>area</em>, Value 4"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "VN1YK8D24LBzm69j"
+}

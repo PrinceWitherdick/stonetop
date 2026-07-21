@@ -1,0 +1,24 @@
+{
+  "_id": "HYv5QfuN7wa6uEo3",
+  "_key": "!items!HYv5QfuN7wa6uEo3",
+  "name": "A cracked femur",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-cracked-femur",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "6oY165cW5WxrxHjL"
+}

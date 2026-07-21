@@ -1,0 +1,24 @@
+{
+  "_id": "dmuZr5xk198orfJb",
+  "_key": "!items!dmuZr5xk198orfJb",
+  "name": "Rocks with fossilized sea shells",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "Value 0",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "rocks-with-fossilized-sea-shells",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "Value 0"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

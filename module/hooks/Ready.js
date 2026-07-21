@@ -2,9 +2,9 @@ import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJournalsOnVersionChange, syncSeededFolderColors, unnestSeededWorldRootOnce } from "./SeedCompendiums.js";
 import { seedBestiaryActorsOnce, collapseBestiaryActorSubfoldersOnce } from "./SeedActors.js";
+import { seedTreasureItemsOnce } from "./SeedItems.js";
 import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, runImportBookArtMacro } from "../book2-art/macro.js";
-import { BOOK_ART_IMPORT_ENABLED } from "../book2-art/release-gate.js";
 import { stonetopChatCard } from "../utils/chat.js";
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
@@ -31,6 +31,7 @@ import { ensureHazardsEntry } from "../hazards/hazard-store.js";
 import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
+import { migrateAllSteadingPeople } from "../actors/steading/steading-people.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
@@ -96,6 +97,14 @@ export async function onReady() {
 	applyReduceMotion(getSetting("reduceMotion"));
 	await _migrateArmourToArmor();
 	await _migrateGmPrepPagesToSingleJournal();
+	// Convert each steading's legacy plain-text Residents/Neighbors rows into linked
+	// NPC actors (idempotent; primary-GM only so two connected GMs can't double-create).
+	if (isPrimaryGM()) {
+		try { await migrateAllSteadingPeople(); }
+		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC migration failed", err); }
+		try { await _migrateNpcTokenNameplates(); }
+		catch (err) { console.error("Stonetop | NPC token-nameplate migration failed", err); }
+	}
 	await runStartupMigrations();
 	await ensureStonetopSingleton();
 
@@ -228,6 +237,15 @@ export async function onReady() {
 			.then(() => collapseBestiaryActorSubfoldersOnce())
 			.catch(err => console.error("Stonetop | Bestiary actor seed/collapse failed:", err));
 
+		// Import the Book II "Treasures & Wonders" items into the world's Items sidebar,
+		// recreating the compendium's tree (a root folder with one subfolder per Book II
+		// section). GM-only, once per world, background (168 items), guarded +
+		// idempotent (skips already-imported, reuses folders). Independent of the seeds
+		// above, so an established world still gets the treasure library. Players never see
+		// these (ownership NONE) — they get a treasure when the GM drags one onto their sheet.
+		seedTreasureItemsOnce()
+			.catch(err => console.error("Stonetop | Treasure item seed failed:", err));
+
 		await _retireIntroductionsMacro();
 		// Place any missing system macros at their default slots (existing placements
 		// are left alone, so a manual rearrangement sticks). Their fixed starting order
@@ -247,12 +265,11 @@ export async function onReady() {
 		});
 		await _reorderSystemMacros();
 		await _ensureTestPopulateMacro();
-		// Book Art / PDF-import macro held back until distribution is approved (release-gate.js).
-		if (BOOK_ART_IMPORT_ENABLED) await _ensureBook2ArtMacro();
+		await _ensureBook2ArtMacro();
 	}
 	if (game.user.isGM) {
 		await _postStartupWelcomeMessageOnce();
-		if (BOOK_ART_IMPORT_ENABLED) await _postBook2ArtReminderOnce();
+		await _postBook2ArtReminderOnce();
 		await remindDestinedOmenRoll();
 	}
 
@@ -670,6 +687,23 @@ async function _ensureBook2ArtMacro() {
 async function _retireIntroductionsMacro() {
 	const intro = game.macros.find(m => m.name === _INTRO_MACRO_NAME && m.command === _INTRO_MACRO_SCRIPT);
 	if (intro) await intro.delete();
+}
+
+// Bring existing NPC actors up to the "name shows on hover to anyone" token default that
+// new NPCs now get at creation (StonetopActor#_preCreate). Only touches NPCs still at the
+// untouched core default (displayName NONE), so a GM who deliberately set a different mode
+// (hidden, always-on, owner-only) keeps it. Idempotent: once bumped, the actor no longer
+// matches, so re-running every load is a cheap no-op needing no version flag. Primary-GM
+// only (the caller gates it) so two connected GMs can't both write the same actors.
+async function _migrateNpcTokenNameplates() {
+	const NONE = CONST.TOKEN_DISPLAY_MODES.NONE;
+	const HOVER = CONST.TOKEN_DISPLAY_MODES.HOVER;
+	const stale = game.actors?.filter(
+		a => a.type === "npc" && (a.prototypeToken?.displayName ?? NONE) === NONE
+	) ?? [];
+	for (const actor of stale) {
+		await actor.update({ "prototypeToken.displayName": HOVER });
+	}
 }
 
 async function _migrateArmourToArmor() {

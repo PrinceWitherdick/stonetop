@@ -1,0 +1,42 @@
+{
+  "_id": "hdcwAAB2rz7Nf5Yg",
+  "_key": "!items!hdcwAAB2rz7Nf5Yg",
+  "name": "Bronze ring",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 1,
+    "note": "magical, fireproof, <em>hours</em>",
+    "resource": {
+      "max": 3,
+      "title": "hours",
+      "labels": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "bronze-ring",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 1,
+      "note": "magical, fireproof, <em>hours</em>",
+      "resource": {
+        "max": 3,
+        "title": "hours",
+        "labels": [
+          "",
+          "",
+          ""
+        ]
+      }
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "sAuLDLodHGOaYxFS"
+}

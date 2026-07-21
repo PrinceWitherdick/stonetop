@@ -1,0 +1,22 @@
+{
+  "_id": "Z04Z8UmctmpmTIaC",
+  "_key": "!items!Z04Z8UmctmpmTIaC",
+  "name": "A gem of blue, crystallized flame; cool to the touch but melts metal and starts fires given time",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>dangerous</em>, Value 3",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-gem-of-blue-crystallized-flame-cool-to-the-touch-but-melts-metal-and-starts-fires-given-time",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>dangerous</em>, Value 3"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

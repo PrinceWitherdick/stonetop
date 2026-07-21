@@ -63,6 +63,19 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the one-time import of the Book II "Treasures & Wonders" items from the
+	// stonetop-items compendium into the world's Items sidebar has run (see
+	// hooks/SeedItems.js). Independent of the journal/bestiary seeds so an established
+	// world still gets the treasure library on the first load after this shipped. Set
+	// true after the first GM load so the treasures are seeded once and never duplicated.
+	game.settings.register("stonetop_pwd", "treasureItemsSeeded", {
+		name: "Treasure Items Seeded",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// Whether this world has had the system's new-world core setting defaults applied.
 	// Used to seed Foundry's Automatic Token Rotation world setting off only during a
 	// fresh world's first GM load, without surprising already-established worlds.

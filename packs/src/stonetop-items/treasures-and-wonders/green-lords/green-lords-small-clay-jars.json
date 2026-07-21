@@ -1,0 +1,22 @@
+{
+  "_id": "ZmhfrQdO9zqZDdWh",
+  "_key": "!items!ZmhfrQdO9zqZDdWh",
+  "name": "Small clay jars",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>fragile</em>, magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "small-clay-jars",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>fragile</em>, magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "dFWNdqogoXy6Y8IM"
+}

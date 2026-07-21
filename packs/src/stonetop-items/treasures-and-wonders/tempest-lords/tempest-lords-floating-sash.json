@@ -1,0 +1,22 @@
+{
+  "_id": "q4BINPFQRpY3I3lU",
+  "_key": "!items!q4BINPFQRpY3I3lU",
+  "name": "Floating sash",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "magical",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "floating-sash",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "magical"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "sAuLDLodHGOaYxFS"
+}

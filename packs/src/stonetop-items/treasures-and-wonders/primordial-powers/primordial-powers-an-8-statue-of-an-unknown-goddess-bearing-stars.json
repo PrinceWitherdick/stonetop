@@ -1,0 +1,22 @@
+{
+  "_id": "VoKENFFKBTABEMJV",
+  "_key": "!items!VoKENFFKBTABEMJV",
+  "name": "An 8’ statue of an unknown goddess bearing stars and moons in her many hands",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "small",
+    "note": "<em>immobile</em>, <em>fragile</em>, Value 2",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "an-8-statue-of-an-unknown-goddess-bearing-stars-and-moons-in-her-many-hands",
+      "inventoryColumn": "small",
+      "isTreasure": true,
+      "note": "<em>immobile</em>, <em>fragile</em>, Value 2"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

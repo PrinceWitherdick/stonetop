@@ -1,0 +1,24 @@
+{
+  "_id": "Woz8jXTOeG1I9Xqw",
+  "_key": "!items!Woz8jXTOeG1I9Xqw",
+  "name": "A black iron hauberk",
+  "type": "move",
+  "system": {
+    "moveType": "inventory",
+    "inventoryColumn": "regular",
+    "weight": 2,
+    "note": "<em>2 armor</em>, <em>warm</em>, <em>cumbersome</em>, Value 4",
+    "isTreasure": true
+  },
+  "flags": {
+    "stonetop": {
+      "slug": "a-black-iron-hauberk",
+      "inventoryColumn": "regular",
+      "isTreasure": true,
+      "weight": 2,
+      "note": "<em>2 armor</em>, <em>warm</em>, <em>cumbersome</em>, Value 4"
+    }
+  },
+  "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
+  "folder": "cL3NEjGoElEIOZfb"
+}

@@ -6,6 +6,7 @@ import { managedHash } from "../hooks/journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { book2ArtRoot } from "./art-root.js";
 import { STEADING_ACTOR_TYPE, isSteadingPlaceholderImg } from "../actors/steading/steading-portrait.js";
+import { isBestiaryPlaceholderImg } from "../bestiary/monster-portrait.js";
 
 // Re-apply the Book II illustrations to the compendia, the world journals, and the
 // world actors, WITHOUT the source PDF.
@@ -140,16 +141,28 @@ function artUpdate(doc, src) {
 	return Object.keys(upd).length ? upd : null;
 }
 
-// Conservative update for a WORLD actor, which survives the update (so a GM's choices
-// must be preserved). Re-points the portrait and/or token src ONLY when that field is
-// already one of ours (ends with this monster's art path, i.e. a stale pointer the root
-// change broke) - never a custom portrait/token. Never touches the token `fit`, so a
-// GM's "contain" is not reverted to "cover" on every update. Null when nothing to fix.
-function worldActorUpdate(actor, src, tail) {
+// Update for a WORLD bestiary actor, which survives a system update (so a GM's choices must
+// be preserved). Two safe cases, per field:
+//   • re-point a stale pointer that is ALREADY one of ours (ends with this monster's art path,
+//     i.e. a path the root change broke) — never a custom portrait/token; OR
+//   • ADOPT the durable art over a shipped creature-type placeholder the seeded actor still
+//     carries. SeedActors copies the compendium's placeholder icon into the world, and nothing
+//     ELSE ever replaces it — the runtime self-heal is otherwise conservative — so a monster
+//     with book art would stay on its type icon forever. This is the mirror of the steading
+//     portrait's adopt-over-placeholder net (§3.5), keyed on isBestiaryPlaceholderImg.
+// A portrait/token the group chose is left untouched. The token `fit` is forced ONLY when
+// adopting over a placeholder token, so a GM's "contain" on art that was already ours is never
+// reverted to "cover" on every load. Null when nothing to change.
+function worldMonsterArtUpdate(actor, src, tail) {
 	const upd = {};
-	if (String(actor.img ?? "").endsWith(tail) && actor.img !== src) upd.img = src;
+	const imgPlaceholder = isBestiaryPlaceholderImg(actor.img);
+	if ((String(actor.img ?? "").endsWith(tail) || imgPlaceholder) && actor.img !== src) upd.img = src;
 	const tex = actor.prototypeToken?.texture;
-	if (tex && String(tex.src ?? "").endsWith(tail) && tex.src !== src) upd["prototypeToken.texture.src"] = src;
+	if (tex) {
+		const tokPlaceholder = isBestiaryPlaceholderImg(tex.src);
+		if ((String(tex.src ?? "").endsWith(tail) || tokPlaceholder) && tex.src !== src) upd["prototypeToken.texture.src"] = src;
+		if (tokPlaceholder && tex.fit !== TOKEN_FIT) upd["prototypeToken.texture.fit"] = TOKEN_FIT;
+	}
 	return Object.keys(upd).length ? upd : null;
 }
 
@@ -195,6 +208,30 @@ function rerenderOpenJournals(entries) {
 		const doc = app?.document ?? app?.object;
 		if (doc?.documentName === "JournalEntry" && ids.has(doc.id) && app.rendered) {
 			try { app.render(); } catch (_) { /* best-effort refresh */ }
+		}
+	}
+}
+
+// Re-render any OPEN views of the compendia we just wrote to, so the new art shows without an
+// F5. UNLIKE a world document, a compendium document update does NOT live-refresh the pack
+// browser window or a sheet opened from it (Foundry keeps the pack in memory), so a GM who
+// runs the import — or the once-per-version re-point — with the Monsters/journal compendium
+// open would otherwise see the old art until a reload. This closes that gap for non-technical
+// GMs. Best-effort: a failed render must never fail the pass. `packs` are the CompendiumCollection
+// objects we edited. Mirrored inline by the bring-your-own-book macro.
+function rerenderOpenCompendia(packs) {
+	const set = new Set((packs ?? []).filter(Boolean));
+	if (!set.size) return;
+	// The pack browser window(s): a collection re-renders its bound applications.
+	for (const pack of set) for (const app of pack.apps ?? []) { try { app.render(false); } catch (_) { /* best-effort */ } }
+	// Sheets opened FROM these compendia — a compendium doc's sheet shows its own img/token,
+	// which the doc update above does not refresh. Matched by the doc's `pack` id.
+	const ids = new Set([...set].map((p) => p.collection ?? p.metadata?.id).filter(Boolean));
+	const apps = [...(foundry.applications?.instances?.values?.() ?? []), ...Object.values(ui.windows ?? {})];
+	for (const app of apps) {
+		const doc = app?.document ?? app?.object;
+		if (doc?.pack && ids.has(doc.pack) && app.rendered) {
+			try { app.render(); } catch (_) { /* best-effort */ }
 		}
 	}
 }
@@ -282,6 +319,11 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// before the safety-net pass below could adopt it. Skipped on a scoped import, which
 	// never touches actors.)
 	const steadingOnDisk = !Array.isArray(entries) && steadings.some((s) => present.has(srcOf(s.out)));
+	// Monster art on disk is actor work for pass 3 (adopt over the creature-type placeholder),
+	// independent of whether this world has any seeded journals. Disk-only, like steadingOnDisk:
+	// it may let a world through that turns out to have no bestiary actors of ours, which pass 3
+	// then no-ops over — the cheap, correct failure mode. Skipped on a scoped import (no actors).
+	const monstersOnDisk = !Array.isArray(entries) && monsters.some((m) => present.has(srcOf(m.out)));
 	if (!available.size && !mapPicks.length && !steadingOnDisk) return null;
 
 	const besPack = game.packs.get(monsters[0]?.actorPack ?? BES_PACK);
@@ -300,10 +342,11 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	}
 	// A scoped import over journals that aren't ours (or aren't from our packs) has no
 	// world targets and no compendium work to do: bail before touching packs. But a world
-	// with the steading portrait on disk still has actor work in pass 3.5 even with no world
-	// journals, so let it through here too (mirrors the steadingOnDisk guard at the disk check
-	// above) — otherwise the every-load worldOnly self-heal would turn such a world away.
-	if (onlyWorld && !worldBySource.size && !steadingOnDisk) return null;
+	// with the steading portrait OR a bestiary monster's book art on disk still has actor work
+	// (pass 3.5 steading / pass 3 monsters) even with no world journals, so let it through here
+	// too — otherwise the every-load worldOnly self-heal would turn such a world away before it
+	// could adopt art onto actors that were seeded after the version was stamped.
+	if (onlyWorld && !worldBySource.size && !steadingOnDisk && !monstersOnDisk) return null;
 
 	// Per-entry pre-injection pristine state, captured the FIRST time we touch an entry
 	// (before the embed changes its fingerprint). A pristine entry is re-stamped after;
@@ -464,23 +507,41 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 			} catch (e) { errors++; error(`Book II art re-apply: setting-overview map "${s.slug}"`, e); }
 		}
 
-		// 3. World actors imported from the bestiary. Unlike the compendium docs these
-		//    SURVIVE an update, so this pass is conservative (worldActorUpdate): re-point a
-		//    portrait/token only when it is already one of ours (a stale path the root
-		//    change broke), never a custom one, and never force the token `fit`. Skipped on
-		//    a world-only / scoped-import pass (a journal import doesn't touch actors).
-		if (!onlyWorld) for (const m of monsters) {
-			if (!available.has(m.out)) continue;
-			const src = srcOf(m.out);
-			const uuid = `Compendium.${m.actorPack ?? BES_PACK}.Actor.${m.actorId}`;
-			const tail = `/${m.out}`;
+		// 3. World actors imported from the bestiary. Unlike the compendium docs these SURVIVE
+		//    an update, so this pass is conservative (worldMonsterArtUpdate): re-point a stale
+		//    "already ours" pointer the root change broke, OR adopt the art over a shipped
+		//    creature-type placeholder the seeded actor still carries — never a custom portrait.
+		//    Runs on the full pass AND the every-load world-only self-heal (like the steading
+		//    §3.5, and for the same reason: an established world whose bestiary actors were
+		//    seeded AFTER the version was stamped never sees the full pass again, so the
+		//    self-heal is the only thing that adopts their art). Skipped only on a scoped
+		//    journal import (Array.isArray(entries)), which must not touch actors.
+		if (!Array.isArray(entries)) {
+			// Index the world actors by their compendium source ONCE, so the per-monster loop is a
+			// map lookup instead of a full game.actors rescan per monster. This pass runs on every GM
+			// load via the world-only self-heal, so an O(monsters × actors) rescan is real per-load
+			// work; the index makes it O(actors + monsters). An actor is filed under BOTH its
+			// `_stats.compendiumSource` and its legacy `core.sourceId` (deduped) to match the old
+			// OR check exactly, since either can be the pointer at our compendium actor.
+			const actorsBySource = new Map();
 			for (const a of game.actors) {
-				const fromUs = a._stats?.compendiumSource === uuid || a.getFlag?.("core", "sourceId") === uuid;
-				if (!fromUs) continue;
-				try {
-					const upd = worldActorUpdate(a, src, tail);
-					if (upd) { await a.update(upd); worldActors++; }
-				} catch (e) { errors++; error(`Book II art re-apply: world actor "${a.name ?? a.id}"`, e); }
+				for (const s of new Set([a._stats?.compendiumSource, a.getFlag?.("core", "sourceId")])) {
+					if (!s) continue;
+					if (!actorsBySource.has(s)) actorsBySource.set(s, []);
+					actorsBySource.get(s).push(a);
+				}
+			}
+			for (const m of monsters) {
+				if (!available.has(m.out)) continue;
+				const src = srcOf(m.out);
+				const uuid = `Compendium.${m.actorPack ?? BES_PACK}.Actor.${m.actorId}`;
+				const tail = `/${m.out}`;
+				for (const a of actorsBySource.get(uuid) ?? []) {
+					try {
+						const upd = worldMonsterArtUpdate(a, src, tail);
+						if (upd) { await a.update(upd); worldActors++; }
+					} catch (e) { errors++; error(`Book II art re-apply: world actor "${a.name ?? a.id}"`, e); }
+				}
 			}
 		}
 
@@ -488,11 +549,12 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 		//    at runtime with no compendium id (found by type), and until now the ONE piece of
 		//    book art with no re-apply safety net: the Import Book Art macro's one-shot pass was
 		//    the only thing that ever wired it, so if that single swap didn't land the portrait
-		//    stayed the shipped "S" emblem forever. This is that safety net. Unlike the monster
-		//    world actors above — which start out already pointing at our art, so worldActorUpdate's
-		//    "is this still one of ours?" tail check fits them — the steading ships a placeholder and
-		//    must be ADOPTED over it, so the guard is placeholder-based (isSteadingPlaceholderImg):
-		//    take the book art over a shipped placeholder only, never a portrait the group chose.
+		//    stayed the shipped "S" emblem forever. This is that safety net. The monster world
+		//    actors above adopt over their creature-type placeholder the same way (worldMonsterArtUpdate),
+		//    but they carry a stable compendium id, so this pass differs by finding its target: the
+		//    steading is a document-less singleton with no compendium id, matched by type. The guard is
+		//    placeholder-based (isSteadingPlaceholderImg): take the book art over a shipped placeholder
+		//    only, never a portrait the group chose.
 		//    Idempotent. Runs on the full pass AND the every-load self-heal, but not on a scoped
 		//    journal import (Array.isArray(entries)) — that must not touch actors. artUpdate forces
 		//    the token fit like the macro does; safe here because we only ever touch a placeholder.
@@ -526,6 +588,9 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// open at the instant of the write; the sidebar is interactive before this pass finishes,
 	// so a GM who opens a journal mid-pass would otherwise see its pre-art render until an F5.
 	rerenderOpenJournals(touchedEntries.keys());
+	// Same for the compendia: if we re-pointed any compendium actor or journal page, refresh
+	// its open browser/sheet so the art appears live (the compendium does not auto-refresh).
+	if (actors + besPages + codexPages + locPages + soPages > 0) rerenderOpenCompendia([besPack, jrnPack]);
 
 	const total = actors + besPages + codexPages + locPages + soPages + worldActors + worldJournalPages + steadingActors;
 	if (total) {
