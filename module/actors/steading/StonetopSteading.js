@@ -1,8 +1,7 @@
 import {resolvedFlagProperty, STONETOP_SCOPE} from "../character/StonetopFlags.js";
-import {isDefaultImg, slugify} from "../../utils/strings.js";
+import {slugify} from "../../utils/strings.js";
 import {OCCUPATIONS, TRAITS, HOMES} from "../../data/steading-members.js";
-
-const DEFAULT_MEMBER_AVATAR = "systems/stonetop_pwd/assets/icons/people/default_profile.svg";
+import {resolvePersonRow} from "./steading-people.js";
 
 export const IMPROVEMENT_DEFINITIONS = [
 	// ── Page 2 ──────────────────────────────────────────────────
@@ -1074,26 +1073,15 @@ export class StonetopSteading {
 			if (key && !characterByName.has(key)) characterByName.set(key, a);
 		}
 
-		const profileImgFor = (entry) => {
-			const storedImg = entry?.img ?? "";
-			if (!isDefaultImg(storedImg)) return storedImg;
-			const name = entry?.name?.trim().toLowerCase();
-			if (!name) return DEFAULT_MEMBER_AVATAR;
-			const actor = characterByName.get(name);
-			return actor && !isDefaultImg(actor.img) ? actor.img : DEFAULT_MEMBER_AVATAR;
-		};
-
-		const rawResidents = f.residents ?? STEADING_DEFAULTS.residents;
-		const residents = rawResidents.map(r => {
-			const resolvedOccupation = r.occupation
-				|| (r.name
-					? (characterByName.get(r.name.toLowerCase())?.system?.playbook?.name ?? "")
-					: "");
-			return { ...r, notes: r.notes ?? r.etc ?? "", resolvedOccupation, profileImg: profileImgFor(r) };
-		});
-
-		const rawNeighbors = f.neighbors ?? STEADING_DEFAULTS.neighbors;
-		const neighbors = rawNeighbors.map(n => ({ home: "", ...n, notes: n.notes ?? n.etc ?? "", profileImg: profileImgFor(n) }));
+		// Residents & Neighbors are backed by "npc" actors (see steading-people.js):
+		// each row is a {uuid, id} pointer resolved live to its NPC. resolvePersonRow
+		// preserves array position (index-aligned with the stored flags, which the
+		// template's @index targets for edits/deletes) and falls back to any legacy
+		// plain-text fields for a row not yet migrated (e.g. on a non-GM client).
+		// resolvePersonRow is async (it enriches each NPC's rich notes for the cell
+		// preview), so resolve the rows in parallel while preserving array order.
+		const residents = await Promise.all((f.residents ?? STEADING_DEFAULTS.residents).map(r => resolvePersonRow(r)));
+		const neighbors = await Promise.all((f.neighbors ?? STEADING_DEFAULTS.neighbors).map(n => resolvePersonRow(n)));
 
 		const rawPlayers = f.players ?? STEADING_DEFAULTS.players;
 		const players = rawPlayers.map(p => {

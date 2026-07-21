@@ -8,3 +8,4 @@ Where our filename differs from the original, the game-icons.net source name is 
 | Icon | game-icons.net source | Artist | Artist page |
 |------|-----------------------|--------|-------------|
 | broken-heart.svg | broken-heart | Lorc | https://lorcblog.blogspot.com |
+| hearts.svg | hearts | Skoll | https://game-icons.net |

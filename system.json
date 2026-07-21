@@ -99,7 +99,8 @@
                           "Actor":  {
                                         "character":  {},
                                         "stonetop":  {},
-                                        "monster":  {}
+                                        "monster":  {},
+                                        "npc":  {}
                                     },
                           "Item":  {
                                        "move":  {},

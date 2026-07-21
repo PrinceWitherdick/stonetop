@@ -2,6 +2,7 @@ import {StonetopCharacter} from "./character/StonetopCharacter.js";
 import {StonetopSteading} from "./steading/StonetopSteading.js";
 import {CharacterLedger} from "./character/CharacterLedger.js";
 import {SteadingLedger} from "./steading/SteadingLedger.js";
+import {NpcLedger} from "./npc/NpcLedger.js";
 import {STAT_CHAT_LABELS, STEADING_STAT_CHAT_LABELS, postStatChangesToChat} from "../utils/chat.js";
 
 export function createStonetopActorClass(BaseActor) {
@@ -30,14 +31,32 @@ export function createStonetopActorClass(BaseActor) {
 				ok: { ...(options.ok ?? {}), label: title },
 			};
 			if (!options.types) {
-				// Monsters are GM content: players (who get Create-Actor on fresh worlds) only ever
-				// make their own character, so keep Monster out of a non-GM's picker too.
+				// Monsters and NPCs are GM content: players (who get Create-Actor on fresh
+				// worlds) only ever make their own character, so keep both out of a non-GM's picker.
 				options.types = this.TYPES.filter(t =>
 					t !== "stonetop"
 					&& t !== CONST.BASE_DOCUMENT_TYPE
-					&& (game.user?.isGM || t !== "monster"));
+					&& (game.user?.isGM || (t !== "monster" && t !== "npc")));
 			}
 			return super.createDialog(data, createOptions, options, renderOptions);
+		}
+
+		/**
+		 * Default a new NPC's token to reveal its name on hover to anyone. NPCs are the
+		 * townsfolk and neighbors the PCs talk to (not hidden threats), so their name
+		 * should be legible to every player on hover — matching how the Residents/Neighbors
+		 * rows already name them openly. Only applied when the creation data didn't specify
+		 * a display mode, so a deliberate choice, a duplicate, or a compendium import that
+		 * carries its own `prototypeToken.displayName` is preserved.
+		 * @override
+		 */
+		async _preCreate(data, options, user) {
+			const allowed = await super._preCreate(data, options, user);
+			if (allowed === false) return false;
+			if (this.type === "npc"
+				&& foundry.utils.getProperty(data, "prototypeToken.displayName") === undefined) {
+				this.updateSource({ "prototypeToken.displayName": CONST.TOKEN_DISPLAY_MODES.HOVER });
+			}
 		}
 
 		get typedActor() {
@@ -77,6 +96,8 @@ export function createStonetopActorClass(BaseActor) {
 				} else if (this.type === "stonetop" || this.system?.customType === "stonetop") {
 					options.stonetopLedgerEntries = this._tagLedgerMove(SteadingLedger.entriesForActorUpdate(this, changed), options);
 					options.stonetopStatChanges = this._collectStatChanges(changed, STEADING_STAT_CHAT_LABELS);
+				} else if (this.type === "npc") {
+					options.stonetopLedgerEntries = this._tagLedgerMove(NpcLedger.entriesForActorUpdate(this, changed), options);
 				}
 			}
 			return result;
@@ -132,6 +153,10 @@ export function createStonetopActorClass(BaseActor) {
 				await CharacterLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
 			} else if (this.type === "stonetop" || this.system?.customType === "stonetop") {
 				await SteadingLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
+			} else if (this.type === "npc") {
+				// NPCs have no watched stats to echo to chat, so append and stop here.
+				await NpcLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
+				return;
 			} else {
 				return;
 			}
@@ -149,6 +174,8 @@ export function createStonetopActorClass(BaseActor) {
 					CharacterLedger.append(this, CharacterLedger.entriesForCreatedItems(documents), { userId }),
 					this.typedActor._onCreateDescendantDocuments(documents),
 				]);
+			} else if (this.type === "npc" && collection === "items") {
+				await NpcLedger.append(this, NpcLedger.entriesForCreatedItems(documents), { userId });
 			}
 		}
 
@@ -159,6 +186,8 @@ export function createStonetopActorClass(BaseActor) {
 			if (userId !== globalThis.game?.user?.id) return;
 			if (this.type === "character" && collection === "items") {
 				await CharacterLedger.append(this, CharacterLedger.entriesForDeletedItems(documents), { userId });
+			} else if (this.type === "npc" && collection === "items") {
+				await NpcLedger.append(this, NpcLedger.entriesForDeletedItems(documents), { userId });
 			}
 		}
 	};

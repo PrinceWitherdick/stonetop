@@ -5,11 +5,13 @@ import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSh
 import { createStonetopCharacterSheetClass } from "./module/actors/character/StonetopCharacterSheet.js";
 import { createStonetopSteadingSheetClass } from "./module/actors/steading/StonetopSteadingSheet.js";
 import { createStonetopMonsterSheetClass } from "./module/actors/monster/StonetopMonsterSheet.js";
+import { createStonetopNpcSheetClass } from "./module/actors/npc/StonetopNpcSheet.js";
 import { BestiaryPageModel } from "./module/journal/BestiaryPageModel.js";
 import { LocationPageModel } from "./module/journal/LocationPageModel.js";
 import { CharacterModel } from "./module/data-models/CharacterModel.js";
 import { SteadingModel } from "./module/data-models/SteadingModel.js";
 import { MonsterModel } from "./module/data-models/MonsterModel.js";
+import { NpcModel } from "./module/data-models/NpcModel.js";
 import { MoveModel } from "./module/data-models/MoveModel.js";
 import { PlaybookModel } from "./module/data-models/PlaybookModel.js";
 import { NpcMoveModel } from "./module/data-models/NpcMoveModel.js";
@@ -179,6 +181,7 @@ Hooks.once("init", () => {
 	CONFIG.Actor.dataModels.character = CharacterModel;
 	CONFIG.Actor.dataModels.stonetop  = SteadingModel;
 	CONFIG.Actor.dataModels.monster   = MonsterModel;
+	CONFIG.Actor.dataModels.npc       = NpcModel;
 	CONFIG.Item.dataModels.move        = MoveModel;
 	CONFIG.Item.dataModels.playbook    = PlaybookModel;
 	CONFIG.Item.dataModels.npcMove     = NpcMoveModel;
@@ -203,6 +206,13 @@ Hooks.once("init", () => {
 		types:       ["monster"],
 		makeDefault: true,
 		label:       "Stonetop Monster Sheet",
+	});
+
+	const StonetopNpcSheet = createStonetopNpcSheetClass(ActorSheet);
+	Actors.registerSheet("stonetop_pwd", StonetopNpcSheet, {
+		types:       ["npc"],
+		makeDefault: true,
+		label:       "Stonetop NPC Sheet",
 	});
 
 	// Bestiary entry as a custom JournalEntryPage subtype.
@@ -309,6 +319,7 @@ Hooks.once("init", () => {
 		"stonetop.steading-tab-moves":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-moves.hbs",
 		"stonetop.steading-tab-notes":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-notes.hbs",
 		"stonetop.monster-sheet":             "systems/stonetop_pwd/templates/actor/monster.hbs",
+		"stonetop.npc-sheet":                 "systems/stonetop_pwd/templates/actor/npc.hbs",
 		"stonetop.bestiary-line-list":        "systems/stonetop_pwd/templates/actor/partials/bestiary-line-list.hbs",
 		"stonetop.bestiary-page":             "systems/stonetop_pwd/templates/journal/bestiary.hbs",
 		"stonetop.location-page":             "systems/stonetop_pwd/templates/journal/location.hbs",
@@ -451,6 +462,25 @@ Hooks.on("updateActor", (actor, changes) => {
 Hooks.on("updateActor", (actor, _changes, options, userId) => {
 	if (options?.render !== false || userId === game.user?.id) return;
 	for (const app of Object.values(actor.apps ?? {})) app?.render?.(false);
+});
+
+// -- STEADING PEOPLE LIVE-LINK ---------------------------------
+// A steading's Residents/Neighbors rows render live off their linked "npc" actors (name,
+// occupation, traits, relations, and the rich-notes preview). Foundry only auto-re-renders
+// a sheet when ITS OWN document changes, so editing a linked NPC — on the NPC sheet or via
+// the roster's notes pop-up — would leave an open steading sheet's roster stale. Repaint any
+// open steading that actually lists this NPC so the two surfaces stay in sync both ways.
+Hooks.on("updateActor", (actor) => {
+	if (actor?.type !== "npc") return;
+	const { uuid, id } = actor;
+	for (const steading of game.actors?.filter(a => a.type === "stonetop") ?? []) {
+		const openApps = Object.values(steading.apps ?? {});
+		if (!openApps.length) continue;
+		const people = steading.flags?.stonetop_pwd?.steading ?? {};
+		const rows = [...(people.residents ?? []), ...(people.neighbors ?? [])];
+		if (!rows.some(r => (r?.uuid && r.uuid === uuid) || (r?.id && r.id === id))) continue;
+		for (const app of openApps) app?.render?.(false);
+	}
 });
 
 // -- RECOVER LOCK ----------------------------------------------

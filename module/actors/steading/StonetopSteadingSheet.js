@@ -1,12 +1,14 @@
 import { StonetopSteading, IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS, improvementRequirementsMet, improvementRequirementCount, HERD_SURPLUS_PER } from "./StonetopSteading.js";
 import {rollStat, sign, postSeasonsRollPrompt, resultsLegendHtml} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
-import {ledgerNounOptionsHtml, wireLedgerFilters} from "../../utils/ledger-filter.js";
+import {openLedgerDialog} from "../../utils/ledger-dialog.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
 import {escHtml} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
+import {createPersonNpc, personFieldPath, isActorRow} from "./steading-people.js";
+import {openNpcNotesDialog} from "./npc-notes-dialog.js";
 import {PeopleGalleryDialog} from "./PeopleGalleryDialog.js";
 import {BOOK_ART_IMPORT_ENABLED} from "../../book2-art/release-gate.js";
 import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
@@ -524,188 +526,7 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		_openLedgerDialog() {
-			const entries = SteadingLedger.getEntries(this.actor);
-			const ledgerDate = (timestamp) => {
-				const date = timestamp ? new Date(timestamp) : null;
-				if (!date || Number.isNaN(date.getTime())) return { key: "unknown", label: "Unknown date" };
-				const key = [
-					date.getFullYear(),
-					String(date.getMonth() + 1).padStart(2, "0"),
-					String(date.getDate()).padStart(2, "0"),
-				].join("-");
-				return {
-					key,
-					label: date.toLocaleDateString(undefined, {
-						weekday: "long",
-						year:    "numeric",
-						month:   "long",
-						day:     "numeric",
-					}),
-				};
-			};
-			const buildRows = (items) => items.length
-				? items.map((entry, index, list) => {
-					const date = ledgerDate(entry.timestamp);
-					const previous = index > 0 ? ledgerDate(list[index - 1].timestamp).key : null;
-					const header = date.key !== previous
-						? `<li class="stonetop-ledger-date-header" data-date-key="${_esc(date.key)}">${_esc(date.label)}</li>`
-						: "";
-					return `${header}<li class="stonetop-ledger-entry" data-id="${_esc(entry.id)}" data-timestamp="${entry.timestamp ?? 0}" data-date-key="${_esc(date.key)}" data-date-label="${_esc(date.label)}">
-						<input type="checkbox" class="stonetop-ledger-row-check">
-						<div class="stonetop-ledger-entry-content">
-							<div class="stonetop-ledger-entry-main">${_esc(entry.action)}${entry.move ? ` <span class="stonetop-ledger-entry-move">via ${_esc(entry.move)}</span>` : ""}</div>
-							<div class="stonetop-ledger-entry-user">Changed by ${_esc(entry.userName)}</div>
-							<div class="stonetop-ledger-entry-meta">
-								<span>${_esc(entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "")}</span>
-							</div>
-						</div>
-					</li>`;
-				}).join("")
-				: `<li class="stonetop-ledger-empty">No ledger entries yet.</li>`;
-
-			const nounOptions = ledgerNounOptionsHtml(entries);
-
-			const content = `<div class="stonetop-ledger-container">
-				<div class="stonetop-ledger-toolbar">
-					<label class="stonetop-edit-toggle stonetop-ledger-edit-toggle" title="Edit entries">
-						<input type="checkbox" class="stonetop-ledger-edit-check">
-						<span class="stonetop-toggle-track">
-							<span class="stonetop-toggle-thumb"><i class="fas fa-pen"></i></span>
-						</span>
-					</label>
-					<label class="stonetop-ledger-select-all-label" title="Select all">
-						<input type="checkbox" class="stonetop-ledger-select-all">
-					</label>
-					<button type="button" class="stonetop-ledger-delete-selected">
-						<i class="fas fa-trash"></i> Delete
-					</button>
-					<input type="search" class="stonetop-ledger-search" placeholder="Filter entries…">
-					<select class="stonetop-ledger-noun" title="Filter by subject">
-						<option value="">All changes</option>
-						${nounOptions}
-					</select>
-					<select class="stonetop-ledger-sort">
-						<option value="desc">Newest first</option>
-						<option value="asc">Oldest first</option>
-					</select>
-				</div>
-				<section class="stonetop-ledger-dialog">
-					<ol class="stonetop-ledger-list">${buildRows(entries)}</ol>
-				</section>
-			</div>`;
-
-			new Dialog({
-				title: `${this.actor.name}: Ledger`,
-				content,
-				buttons: {},
-				render: (html) => {
-					const container   = html.find(".stonetop-ledger-container")[0];
-					const list = html.find(".stonetop-ledger-list")[0];
-					const selectAllEl = html.find(".stonetop-ledger-select-all")[0];
-
-					const createDateHeader = (dateKey, dateLabel) => {
-						const header = document.createElement("li");
-						header.className = "stonetop-ledger-date-header";
-						header.dataset.dateKey = dateKey;
-						header.textContent = dateLabel;
-						return header;
-					};
-
-					const refreshDateHeaders = () => {
-						list.querySelectorAll(".stonetop-ledger-date-header").forEach(el => el.remove());
-						let previous = null;
-						for (const entry of [...list.querySelectorAll(".stonetop-ledger-entry")]) {
-							const dateKey = entry.dataset.dateKey ?? "unknown";
-							if (dateKey === previous) continue;
-							list.insertBefore(createDateHeader(dateKey, entry.dataset.dateLabel ?? "Unknown date"), entry);
-							previous = dateKey;
-						}
-					};
-
-					const syncDateHeaders = () => {
-						for (const header of list.querySelectorAll(".stonetop-ledger-date-header")) {
-							let sibling = header.nextElementSibling;
-							let hasVisibleEntry = false;
-							while (sibling && !sibling.classList.contains("stonetop-ledger-date-header")) {
-								if (sibling.classList.contains("stonetop-ledger-entry") && !sibling.hidden) {
-									hasVisibleEntry = true;
-									break;
-								}
-								sibling = sibling.nextElementSibling;
-							}
-							header.hidden = !hasVisibleEntry;
-						}
-					};
-
-					const syncSelectAll = () => {
-						const visibleRows = html.find(".stonetop-ledger-entry:not([hidden]) .stonetop-ledger-row-check");
-						const total   = visibleRows.length;
-						const checked = visibleRows.filter(":checked").length;
-						selectAllEl.checked       = checked === total && total > 0;
-						selectAllEl.indeterminate = checked > 0 && checked < total;
-					};
-
-					html.find(".stonetop-ledger-edit-check").on("change", ev => {
-						container.classList.toggle("stonetop-ledger-edit-mode", ev.currentTarget.checked);
-						if (!ev.currentTarget.checked) {
-							html.find(".stonetop-ledger-row-check").prop("checked", false);
-							syncSelectAll();
-						}
-					});
-
-					html.find(".stonetop-ledger-select-all").on("change", ev => {
-						html.find(".stonetop-ledger-entry:not([hidden]) .stonetop-ledger-row-check")
-							.prop("checked", ev.currentTarget.checked);
-					});
-
-					html[0].addEventListener("change", ev => {
-						if (ev.target.closest(".stonetop-ledger-row-check")) syncSelectAll();
-					});
-
-					wireLedgerFilters(html, () => { syncDateHeaders(); syncSelectAll(); });
-
-					html.find(".stonetop-ledger-sort").on("change", ev => {
-						const asc  = ev.currentTarget.value === "asc";
-						const tagged = [...list.querySelectorAll(".stonetop-ledger-entry")]
-							.map(el => [el, Number(el.dataset.timestamp)]);
-						tagged.sort(([, ta], [, tb]) => asc ? ta - tb : tb - ta);
-						tagged.forEach(([el]) => list.appendChild(el));
-						refreshDateHeaders();
-						syncDateHeaders();
-					});
-
-					html.find(".stonetop-ledger-delete-selected").on("click", async () => {
-						const checked = [...html.find(".stonetop-ledger-row-check:checked")];
-						if (!checked.length) return;
-
-						const doDelete = async () => {
-							const ids = new Set(
-								checked.map(el => el.closest(".stonetop-ledger-entry").dataset.id)
-							);
-							checked.forEach(el => el.closest(".stonetop-ledger-entry")?.remove());
-							refreshDateHeaders();
-							syncDateHeaders();
-							syncSelectAll();
-							await SteadingLedger.deleteEntries(this.actor, ids);
-						};
-
-						if (checked.length === 1) {
-							await doDelete();
-							return;
-						}
-
-						Dialog.confirm({
-							title: "Delete Ledger Entries",
-							content: `<p>You're about to delete ${checked.length} entries. Are you sure?</p>`,
-							yes: doDelete,
-						});
-					});
-				},
-			}, {
-				width: 560,
-				height: 640,
-				classes: ["dialog", "stonetop-ledger-window"],
-			}).render(true);
+			openLedgerDialog(this.actor, SteadingLedger);
 		}
 
 		// Section-editing hooks: entering edit cancels any lingering "done" check;
@@ -980,6 +801,24 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.dataTransfer.effectAllowed = "copy";
 			});
 
+			// Drag a Resident/Neighbor avatar out of the sheet as a standard Actor drop:
+			// the rows are backed by NPC actors, so emitting the core {type:"Actor",uuid}
+			// payload lets them drop onto a scene (place a token), into the combat tracker,
+			// onto another sheet, etc. — exactly like dragging the NPC from the sidebar.
+			// Read-only viewers may drag too; what a drop is allowed to do is gated by the
+			// core permissions on the target (token/combatant creation), not by us.
+			html[0].addEventListener("dragstart", (ev) => {
+				// Both the portrait and the name link carry the actor pointer, so an NPC
+				// row can be dragged by grabbing either one.
+				const handle = ev.target.closest?.(".steading-member-avatar[draggable='true'], .steading-member-name-text[draggable='true']");
+				if (!handle) return;
+				const uuid = handle.dataset.actorUuid;
+				if (!uuid) { ev.preventDefault(); return; }
+				ev.stopPropagation();
+				ev.dataTransfer.setData("text/plain", JSON.stringify({ type: "Actor", uuid }));
+				ev.dataTransfer.effectAllowed = "copy";
+			});
+
 			// Swap the resident/neighbor fields' native <datalist> popups (occupation,
 			// traits, home) for our scrollable one — Chromium's native popup has no
 			// scrollbar for long lists. See utils/autocomplete.js.
@@ -1195,6 +1034,34 @@ export function createStonetopSteadingSheetClass(Base) {
 				else ui.notifications?.warn?.("That character no longer exists.");
 			}, true);
 
+			// Open a linked Resident/Neighbor NPC actor's sheet from its row.
+			html[0].addEventListener("click", async ev => {
+				const link = ev.target.closest(".steading-member-open");
+				if (!link) return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				const { actorUuid, actorId } = link.dataset;
+				const actor = (actorUuid ? await fromUuid(actorUuid) : null)
+					|| (actorId ? game.actors?.get(actorId) : null);
+				if (actor?.sheet) actor.sheet.render(true);
+				else ui.notifications?.warn?.("That NPC no longer exists.");
+			}, true);
+
+			// Edit a Resident/Neighbor NPC's notes in a pop-up rich editor. The pop-up and
+			// the NPC sheet share system.notes, so a change here shows on the sheet and
+			// vice versa (two-way), both keeping full rich text + @UUID links.
+			html[0].addEventListener("click", async ev => {
+				const btn = ev.target.closest(".steading-member-notes-edit");
+				if (!btn) return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				const { actorUuid, actorId } = btn.dataset;
+				const actor = (actorUuid ? await fromUuid(actorUuid) : null)
+					|| (actorId ? game.actors?.get(actorId) : null);
+				if (actor) openNpcNotesDialog(actor);
+				else ui.notifications?.warn?.("That NPC no longer exists.");
+			}, true);
+
 			// Places of interest names
 			html[0].addEventListener("change", ev => {
 				const inp = ev.target.closest(".steading-place-name");
@@ -1208,13 +1075,16 @@ export function createStonetopSteadingSheetClass(Base) {
 			const inp = ev.target.closest(".steading-resident-input");
 			if (!inp) return;
 			ev.stopPropagation();
-			const { index, field, list } = inp.dataset;
+			const { index, field } = inp.dataset;
+			// Players and neighbors tag their inputs with data-list; residents omit it and
+			// are the default, so a missing data-list means "residents" (never undefined,
+			// which would make personFieldPath bail and silently drop the edit).
+			const list = inp.dataset.list || "residents";
 			if (list === "players") {
 				this._onPlayerFieldChange(parseInt(index), field, inp.value);
-			} else if (list === "neighbors") {
-				this._onNeighborChange(parseInt(index), field, inp.value);
 			} else {
-				this._onResidentChange(parseInt(index), field, inp.value);
+				// list is "residents" or "neighbors" — both go through the shared handler.
+				this._onPersonFieldChange(list, parseInt(index), field, inp.value);
 			}
 			}, true);
 
@@ -1296,11 +1166,16 @@ export function createStonetopSteadingSheetClass(Base) {
 					ev.stopPropagation();
 					playersSection?.classList.remove("drag-over");
 					const data = getDragEventData(ev);
-					if (data?.type === "Actor" && data.uuid) {
-						const actor = await fromUuid(data.uuid);
-						if (actor && actor.type === "character") {
-							await this._onDropPlayerCharacter(actor);
-						}
+					if (data?.type !== "Actor" || !data.uuid) return;
+					const actor = await fromUuid(data.uuid);
+					if (!actor) return;
+					if (actor.type === "character") {
+						await this._onDropPlayerCharacter(actor);
+					} else if (actor.type === "npc") {
+						// Route an NPC to whichever people section it was dropped over
+						// (Residents vs Neighbors); default to Residents.
+						const list = ev.target.closest(".steading-residents-section--neighbors") ? "neighbors" : "residents";
+						await this._onDropPersonNpc(list, actor);
 					}
 				}, true);
 			}
@@ -1414,7 +1289,32 @@ export function createStonetopSteadingSheetClass(Base) {
 				height: 620,
 			});
 			popout._stonetopMemberImageEdit = { sheet, list, index, current: anchor.src };
+			this._bindMemberImagePopoutToActor(popout, list, index);
 			return popout;
+		}
+
+		// Keep an open member-image window in sync with its backing NPC. The Edit Photo
+		// button patches the popout's `<img>` directly, but that only covers changes made
+		// through the popout itself. Watching the actor's `img` instead means the window
+		// re-syncs no matter how the portrait changed — the popout's Edit Photo, the
+		// People gallery, or the GM editing the portrait on the NPC's own sheet while this
+		// window is open. The hook is torn down when the popout closes so it doesn't leak.
+		_bindMemberImagePopoutToActor(popout, list, index) {
+			const f = this._stonetopSteading._flags;
+			const row = (f[list] ?? STEADING_DEFAULTS[list])?.[index];
+			if (!row || !isActorRow(row)) return;
+			const actorId = row.id ?? (row.uuid ? game.actors?.find(a => a.uuid === row.uuid)?.id : null);
+			if (!actorId) return;
+
+			const hookId = Hooks.on("updateActor", (actor, changes) => {
+				if (actor?.id !== actorId || !foundry.utils.hasProperty(changes, "img")) return;
+				this._refreshMemberImagePopout(popout, actor.img);
+			});
+			const originalClose = popout.close.bind(popout);
+			popout.close = (...args) => {
+				Hooks.off("updateActor", hookId);
+				return originalClose(...args);
+			};
 		}
 
 		_scheduleMemberImageHeaderControl(popout) {
@@ -1526,7 +1426,16 @@ export function createStonetopSteadingSheetClass(Base) {
 		async _onMemberAvatarImageChange(list, index, value) {
 			if (!["residents", "neighbors"].includes(list) || !Number.isInteger(index)) return;
 			const f = this._stonetopSteading._flags;
-			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
+			const rows = f[list] ?? STEADING_DEFAULTS[list];
+			const row = rows[index];
+			// Actor-backed row: the portrait is the NPC actor's own image.
+			if (row && isActorRow(row)) {
+				const actor = (row.id ? game.actors?.get(row.id) : null)
+					|| (row.uuid ? await fromUuid(row.uuid).catch(() => null) : null);
+				if (actor) await actor.update({ img: value || "icons/svg/mystery-man.svg" });
+				return;
+			}
+			const arr = foundry.utils.deepClone(rows);
 			if (!arr[index]) return;
 			arr[index].img = value;
 			await this._stonetopSteading.setFlags({ [list]: arr });
@@ -2459,22 +2368,10 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		async _onListItemAdd(list) {
-			if (list === "residents") {
-				new AddSteadingMemberDialog("resident", async (data) => {
-					const f = this._stonetopSteading._flags;
-					const arr = foundry.utils.deepClone(f.residents ?? STEADING_DEFAULTS.residents);
-					arr.push({ ...data, checked: false });
-					await this._stonetopSteading.setFlags({ residents: arr });
-					this.render(false);
-				}).render(true);
-				return;
-			}
-			if (list === "neighbors") {
-				new AddSteadingMemberDialog("neighbor", async (data) => {
-					const f = this._stonetopSteading._flags;
-					const arr = foundry.utils.deepClone(f.neighbors ?? STEADING_DEFAULTS.neighbors);
-					arr.push({ ...data, checked: false });
-					await this._stonetopSteading.setFlags({ neighbors: arr });
+			if (list === "residents" || list === "neighbors") {
+				const kind = list === "neighbors" ? "neighbor" : "resident";
+				new AddSteadingMemberDialog(kind, async (data) => {
+					await this._addPersonRow(list, data);
 					this.render(false);
 				}).render(true);
 				return;
@@ -2520,13 +2417,41 @@ export function createStonetopSteadingSheetClass(Base) {
 			await this._stonetopSteading.setFlags({ places });
 		}
 
-		async _onNeighborChange(index, field, value) {
-			if (!["name", "home", "occupation", "traits", "relations", "notes"].includes(field)) return;
+		/**
+		 * Persist an inline Residents/Neighbors cell edit. An actor-backed row (post-
+		 * migration) writes straight to its linked NPC actor's field — the actor is the
+		 * source of truth; a legacy plain-text row keeps writing to the steading flag
+		 * array (until migration converts it). `name` renames the NPC document; the rest
+		 * map to NPC system fields via personFieldPath.
+		 */
+		async _onPersonFieldChange(list, index, field, value) {
+			const path = personFieldPath(list, field);
+			if (!path) return;
 			const f = this._stonetopSteading._flags;
-			const neighbors = foundry.utils.deepClone(f.neighbors ?? STEADING_DEFAULTS.neighbors);
-			if (!neighbors[index]) neighbors[index] = { name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false };
-			neighbors[index][field] = value;
-			await this._stonetopSteading.setFlags({ neighbors });
+			const rows = f[list] ?? STEADING_DEFAULTS[list];
+			const row = rows[index];
+			if (row && isActorRow(row)) {
+				// The rich `notes` field is edited via the pop-up ProseMirror editor, never
+				// as an inline plain-text cell — so a stray inline write can't flatten its
+				// HTML. (Actor rows render no notes input; this is belt-and-suspenders.)
+				if (field === "notes") return;
+				const actor = (row.id ? game.actors?.get(row.id) : null)
+					|| (row.uuid ? await fromUuid(row.uuid).catch(() => null) : null);
+				if (!actor) return;
+				await actor.update({ [path]: value ?? "" });
+				// Keep the row's cached name in sync so a deleted-actor fallback stays useful.
+				if (field === "name") {
+					const arr = foundry.utils.deepClone(rows);
+					arr[index] = { ...arr[index], name: value ?? "" };
+					await this._stonetopSteading.setFlags({ [list]: arr });
+				}
+				return;
+			}
+			// Legacy plain-text row.
+			const arr = foundry.utils.deepClone(rows);
+			if (!arr[index]) arr[index] = { name: "", home: "", occupation: "", traits: "", relations: "", notes: "", checked: false };
+			arr[index][field] = value;
+			await this._stonetopSteading.setFlags({ [list]: arr });
 		}
 
 		async _onPlayerFieldChange(index, field, value) {
@@ -2538,13 +2463,39 @@ export function createStonetopSteadingSheetClass(Base) {
 			await this._stonetopSteading.setFlags({ players });
 		}
 
-		async _onResidentChange(index, field, value) {
-			if (!["name", "occupation", "traits", "relations", "notes"].includes(field)) return;
+		/**
+		 * Create a new NPC actor for a Residents/Neighbors entry (from the Add Member
+		 * dialog's field data) and append a {uuid, id, name} pointer row. The NPC is the
+		 * row's source of truth from here on.
+		 */
+		async _addPersonRow(list, data) {
+			const actor = await createPersonNpc(list, data);
+			if (!actor) return;
 			const f = this._stonetopSteading._flags;
-			const residents = foundry.utils.deepClone(f.residents ?? STEADING_DEFAULTS.residents);
-			if (!residents[index]) residents[index] = { name: "", occupation: "", traits: "", relations: "", notes: "", checked: false };
-			residents[index][field] = value;
-			await this._stonetopSteading.setFlags({ residents });
+			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
+			arr.push({ uuid: actor.uuid, id: actor.id, name: actor.name, checked: false });
+			await this._stonetopSteading.setFlags({ [list]: arr });
+		}
+
+		/**
+		 * Link an existing NPC actor (dragged onto the Residents/Neighbors section) as a
+		 * row, if it isn't already listed. Only "npc" actors link here — characters go to
+		 * the Player Characters list via _onDropPlayerCharacter.
+		 */
+		async _onDropPersonNpc(list, actor) {
+			if (actor?.type !== "npc") return;
+			const f = this._stonetopSteading._flags;
+			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
+			const uuid = actor.uuid ?? "";
+			const id   = actor.id ?? "";
+			if (arr.some(r => (uuid && r.uuid === uuid) || (id && r.id === id))) {
+				ui.notifications?.info?.(`${actor.name} is already listed.`);
+				return;
+			}
+			arr.push({ uuid, id, name: actor.name, checked: false });
+			await this._stonetopSteading.setFlags({ [list]: arr });
+			this.render(false);
+			ui.notifications?.info?.(`Linked ${actor.name}.`);
 		}
 
 		async _onDropPlayerCharacter(actor) {

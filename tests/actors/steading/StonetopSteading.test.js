@@ -152,23 +152,55 @@ describe("StonetopSteading", () => {
 		expect(snapshot.players[0].resolvedOccupation).toBe("Hawker of Trinkets");
 	});
 
-	it("adds profile avatars to residents and neighbors, using character art when available", async () => {
+	it("resolves resident avatars from the linked NPC's art; legacy/text rows fall back to the default", async () => {
+		// Residents & neighbors are now backed by "npc" actors: an actor-backed row
+		// ({uuid, id}) pulls its avatar live from the linked NPC's img, while a legacy
+		// plain-text row (pre-migration, no linked actor) shows the default avatar.
 		const wren = {
-			id: "wren", type: "character", name: "Wren", img: "wren.webp",
-			system: { playbook: { name: "The Blessed" } },
+			id: "wren", uuid: "Actor.wren", type: "npc", name: "Wren", img: "wren.webp",
+			system: {},
 		};
 		const prevActors = game.actors;
-		game.actors = { get: () => null, filter: (fn) => [wren].filter(fn) };
+		game.actors = {
+			get: (id) => (id === "wren" ? wren : null),
+			find: (fn) => [wren].find(fn) ?? null,
+			filter: (fn) => [wren].filter(fn),
+		};
 		try {
 			const actor = makeSteadingActor({
 				steadingFlags: {
-					residents: [{ name: "Wren", occupation: "", traits: "", relations: "", notes: "" }],
+					residents: [{ uuid: "Actor.wren", id: "wren", name: "Wren" }],
 					neighbors: [{ name: "Bala", home: "Marshedge", occupation: "", traits: "", relations: "", notes: "" }],
 				},
 			});
 			const snapshot = await new StonetopSteading(actor).buildSnapshot();
 
+			// Actor-backed row → the linked NPC's real art.
 			expect(snapshot.residents[0].profileImg).toBe("wren.webp");
+			// Legacy text row with no linked actor → the shared default avatar.
+			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop_pwd/assets/icons/people/default_profile.svg");
+		} finally {
+			game.actors = prevActors;
+		}
+	});
+
+	it("falls back to the default avatar when the linked NPC has only a placeholder image", async () => {
+		const bala = {
+			id: "bala", uuid: "Actor.bala", type: "npc", name: "Bala", img: "icons/svg/mystery-man.svg",
+			system: { home: "Marshedge" },
+		};
+		const prevActors = game.actors;
+		game.actors = {
+			get: (id) => (id === "bala" ? bala : null),
+			find: (fn) => [bala].find(fn) ?? null,
+			filter: (fn) => [bala].filter(fn),
+		};
+		try {
+			const actor = makeSteadingActor({
+				steadingFlags: { neighbors: [{ uuid: "Actor.bala", id: "bala", name: "Bala" }] },
+			});
+			const snapshot = await new StonetopSteading(actor).buildSnapshot();
+
 			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop_pwd/assets/icons/people/default_profile.svg");
 		} finally {
 			game.actors = prevActors;
