@@ -2,6 +2,7 @@ import {
 	PostDeathInsertSnapshotBuilder,
 	PostDeathSectionSnapshotBuilder,
 } from "../../model/PostDeathInsertSnapshot.js";
+import { hasFillBlank } from "../../utils/fill-blanks.js";
 import {
 	LoreOptionSnapshotBuilder,
 	LoreEntrySnapshotBuilder,
@@ -62,13 +63,17 @@ export function buildLoreSection(loreData, loreState, arcanaDisplay = null) {
 	const entries = loreData.map(entry => {
 		const options = (entry.options ?? []).map(opt => {
 			const isText = (opt.type ?? "checkbox") === "text";
+			// A pick option may carry an inline fill-in blank (e.g. "… running for your
+			// life from ___"). Its written value shares the lore.texts store, so load it as
+			// the option's textValue even though the option is a checkbox, not a text field.
+			const hasBlank = !isText && hasFillBlank(opt.description);
 			const builder = new LoreOptionSnapshotBuilder()
 				.withSlug(opt.slug)
 				.withDescription(opt.description)
 				.withType(opt.type ?? "checkbox")
 				.withMax(isText ? 0 : (opt.max ?? 1))
 				.withCount(isText ? 0 : loreState.getCount(entry.slug, opt.slug))
-				.withTextValue(isText ? loreState.getText(entry.slug, opt.slug) : null);
+				.withTextValue((isText || hasBlank) ? loreState.getText(entry.slug, opt.slug) : null);
 			if (arcanaDisplay && opt.arcanaRole) {
 				const selectedSlug = arcanaDisplay.roles?.[opt.arcanaRole] ?? "";
 				builder.withArcanaPicker({

@@ -57,6 +57,7 @@ import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
 import {capitalizeFirst, slugify, composeInstinct, escHtml} from "../../utils/strings.js";
+import {splitFillBlank, fillBlank} from "../../utils/fill-blanks.js";
 import {localize as _loc} from "../../utils/i18n.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {moveChatCard} from "../../utils/chat.js";
@@ -994,6 +995,30 @@ export class StonetopCharacter {
 			const resourceDef = opt.resource ?? null;
 			const grantedGear = grantedByPossession.get(opt.slug) ?? { regular: [], small: [] };
 			const hasGrantedGear = grantedGear.regular.length || grantedGear.small.length;
+			// `choices` bundle (Judge's symbol of authority, Heavy's weapons of war, the
+			// Would-Be Hero's personal token): the picked sub-options, shown as an editable
+			// checklist on the gear card in edit mode. Each may carry an inline fill-in blank
+			// whose written value comes from the choiceTexts store.
+			const choiceOpts    = opt.choices?.options ?? [];
+			const choicePicked  = subChoicesMap[opt.slug] ?? [];
+			const choiceAtLimit = choicePicked.length >= (opt.choices?.pickCount ?? 0);
+			const choicesView   = choiceOpts.length ? {
+				pickCount: opt.choices.pickCount ?? 0,
+				options: choiceOpts.map(c => {
+					const isPicked = choicePicked.includes(c.slug);
+					const blank    = splitFillBlank(c.label ?? "");
+					return {
+						slug:       c.slug,
+						label:      c.label ?? "",
+						checked:    isPicked,
+						disabled:   !isPicked && choiceAtLimit,
+						hasBlank:   blank.hasBlank,
+						fillBefore: blank.before,
+						fillAfter:  blank.after,
+						fillValue:  this._possessions.getChoiceText(opt.slug, c.slug),
+					};
+				}),
+			} : null;
 			const resource = resourceDef ? new ResourceBuilder()
 				.withCurrent(currentUses)
 				.withMax(maxUses ?? resourceDef.max)
@@ -1025,7 +1050,7 @@ export class StonetopCharacter {
 				// Untitled circle tracks default to a "Uses" label (mirrors the Blessed's
 				// "Stock"), so the top-right circles always read with a heading.
 				.withUsesLabel(resourceDef ? (resourceDef.title ?? "Uses") : null)
-				.withChoices(null)
+				.withChoices(isSelected ? choicesView : null)
 				.withChoiceGroups(null)
 				// Read-only prose of the player's flavor/trait picks (the Blessed's
 				// sacred pouch), woven under the description on the gear tab.
@@ -1072,19 +1097,37 @@ export class StonetopCharacter {
 	// remarkable-trait group is multi-select, so this naturally lists every trait a
 	// Blessed has taken via Big Magic. Returns null when nothing in any group is picked.
 	_buildPossessionChoiceSummary(opt, pickedSlugs) {
-		if (!opt?.choiceGroups?.length || !pickedSlugs?.length) return null;
-		const pickedSet = new Set(pickedSlugs);
-		const summary = [];
-		for (const cg of opt.choiceGroups) {
-			const labels = [];
-			for (const sg of (cg.subgroups ?? [])) {
-				for (const o of (sg.options ?? [])) {
-					if (pickedSet.has(o.slug)) labels.push(o.label);
+		const pickedSet = new Set(pickedSlugs ?? []);
+		if (!pickedSet.size) return null;
+		// choiceGroups (the Blessed's sacred pouch): group heading + the picked labels.
+		if (opt?.choiceGroups?.length) {
+			const summary = [];
+			for (const cg of opt.choiceGroups) {
+				const labels = [];
+				for (const sg of (cg.subgroups ?? [])) {
+					for (const o of (sg.options ?? [])) {
+						if (pickedSet.has(o.slug)) labels.push(o.label);
+					}
 				}
+				if (labels.length) summary.push({ heading: cg.heading ?? "", selections: labels.join(", ") });
 			}
-			if (labels.length) summary.push({ heading: cg.heading ?? "", selections: labels.join(", ") });
+			return summary.length ? summary : null;
 		}
-		return summary.length ? summary : null;
+		// choices bundle (Judge's symbol, Heavy's weapons, the Would-Be Hero's token): the
+		// picked options, with any fill-in blank resolved and the leading ◇ load markers
+		// dropped so it reads as plain prose in the read-only summary.
+		if (opt?.choices?.options?.length) {
+			const labels = opt.choices.options
+				.filter(o => pickedSet.has(o.slug))
+				.map(o => {
+					const fill  = this._possessions.getChoiceText(opt.slug, o.slug);
+					const label = fillBlank(o.label, fill);
+					return label.replace(/^[◇◆\s]+/, "").trim();
+				})
+				.filter(Boolean);
+			return labels.length ? [{ heading: "", selections: labels.join(", ") }] : null;
+		}
+		return null;
 	}
 
 	async setPostDeathInsert(slug) {
@@ -1488,6 +1531,7 @@ export class StonetopCharacter {
 	async deselectSubChoice(possessionSlug, choiceSlug) { await this._possessions.removeSubChoice(possessionSlug, choiceSlug); }
 	async selectSubChoiceExclusive(possessionSlug, choiceSlug, exclusiveSlugs) { await this._possessions.selectExclusive(possessionSlug, choiceSlug, exclusiveSlugs); }
 	async setSubChoiceUses(possessionSlug, choiceSlug, count) { await this._possessions.setChoiceUses(possessionSlug, choiceSlug, count); }
+	async setPossessionChoiceText(possessionSlug, choiceSlug, value) { await this._possessions.setChoiceText(possessionSlug, choiceSlug, value); }
 
 	// How many of the selected background's markable actions the character may mark at its
 	// current level (Beast-Bonded: 1 at 1st, +1 at 3rd/5th/7th/9th). Lets the sheet enforce

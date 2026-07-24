@@ -376,7 +376,7 @@
 						       name="onboard-possession-sub" value="{{slug}}" data-possession="{{possessionSlug}}"
 						       {{#if isSelected}}checked{{/if}}
 						       {{#if disabled}}disabled{{/if}}>
-						<span class="stonetop-onboarding-suboption-label">{{{label}}}</span>
+						<span class="stonetop-onboarding-suboption-label">{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="onboard-possession-sub-fill" data-possession="{{possessionSlug}}" data-choice="{{slug}}" value="{{fillValue}}" placeholder="…" aria-label="Fill in the blank">{{{fillAfter}}}{{else}}{{{label}}}{{/if}}</span>
 					</label>
 					{{/each}}
 				</div>
@@ -627,6 +627,14 @@
 				</label>
 				{{/each}}
 			</div>
+			<label class="stonetop-onboarding-custom-label">
+				<span>Custom tag</span>
+				<input type="text" class="onboard-crew-tag-custom"
+				       value="{{crewData.customTag}}"
+				       aria-label="Custom tag"
+				       placeholder="Write your own…"
+				       {{#if crewData.customTagDisabled}}disabled{{/if}}>
+			</label>
 		</div>
 
 		<div class="stonetop-onboarding-insert-section">
@@ -642,6 +650,13 @@
 				</label>
 				{{/each}}
 			</div>
+			<label class="stonetop-onboarding-custom-label">
+				<span>Custom instinct</span>
+				<input type="text" class="onboard-crew-instinct-custom"
+				       value="{{crewData.customInstinct}}"
+				       aria-label="Custom instinct"
+				       placeholder="Write your own…">
+			</label>
 		</div>
 
 		<div class="stonetop-onboarding-insert-section">
@@ -657,6 +672,13 @@
 				</label>
 				{{/each}}
 			</div>
+			<label class="stonetop-onboarding-custom-label">
+				<span>Custom cost</span>
+				<input type="text" class="onboard-crew-cost-custom"
+				       value="{{crewData.customCost}}"
+				       aria-label="Custom cost"
+				       placeholder="Write your own…">
+			</label>
 		</div>
 		{{/if}}
 
@@ -715,6 +737,14 @@
 				</label>
 				{{/each}}
 			</div>
+			<label class="stonetop-onboarding-custom-label">
+				<span>Custom trait</span>
+				<input type="text" class="onboard-ac-trait-custom"
+				       value="{{acData.selectedType.customTrait}}"
+				       aria-label="Custom trait"
+				       placeholder="Write your own…"
+				       {{#if acData.selectedType.customTraitDisabled}}disabled{{/if}}>
+			</label>
 		</div>
 		{{/if}}
 
@@ -731,6 +761,13 @@
 				</label>
 				{{/each}}
 			</div>
+			<label class="stonetop-onboarding-custom-label">
+				<span>Custom instinct</span>
+				<input type="text" class="onboard-ac-instinct-custom"
+				       value="{{acData.customInstinct}}"
+				       aria-label="Custom instinct"
+				       placeholder="Write your own…">
+			</label>
 		</div>
 
 		<div class="stonetop-onboarding-insert-section">
@@ -746,6 +783,13 @@
 				</label>
 				{{/each}}
 			</div>
+			<label class="stonetop-onboarding-custom-label">
+				<span>Custom cost</span>
+				<input type="text" class="onboard-ac-cost-custom"
+				       value="{{acData.customCost}}"
+				       aria-label="Custom cost"
+				       placeholder="Write your own…">
+			</label>
 		</div>
 
 		<div class="stonetop-onboarding-name-row">
@@ -831,7 +875,7 @@
 		<div class="stonetop-onboarding-arcana-picker">
 			<section class="stonetop-onboarding-arcana-section">
 				<h4 class="stonetop-onboarding-lore-section-title">Minor Arcana</h4>
-				<p class="stonetop-onboarding-step-hint">Three minor arcana have been drawn at random below. Hover each to review it, then assign a role: one you've Mastered, one you've Found, and one you have a Lead on.</p>
+				<p class="stonetop-onboarding-step-hint">Three minor arcana have been drawn at random below. Hover each to review it, then assign a role: one you've Mastered, one you've Found, and one you have a Lead on. Not the draw you wanted? Use <em>Draw again</em> to re-roll all three, or swap any single card for a specific one.</p>
 				<p class="stonetop-onboarding-lore-counter">
 					<span class="stonetop-onboarding-seeker-minor-count">{{seekerArcanaChoices.minorAssignedCount}}</span>
 					/ {{seekerArcanaChoices.minorPickCount}} assigned
@@ -860,6 +904,17 @@
 								Lead
 							</label>
 						</div>
+						{{#if swapOptions.length}}
+						<label class="stonetop-onboarding-minor-swap">
+							<span class="stonetop-onboarding-minor-swap-label">Swap this card</span>
+							<select class="stonetop-onboarding-minor-swap-select" data-slug="{{slug}}">
+								<option value="" selected>Swap for…</option>
+								{{#each swapOptions}}
+								<option value="{{slug}}">{{name}}</option>
+								{{/each}}
+							</select>
+						</label>
+						{{/if}}
 					</div>
 					{{/each}}
 				</div>
@@ -928,7 +983,7 @@
 				       data-option="{{slug}}"
 				       {{#if isSelected}}checked{{/if}}
 				       {{#if disabled}}disabled{{/if}}>
-				<span class="stonetop-onboarding-lore-pick-text">{{{description}}}</span>
+				<span class="stonetop-onboarding-lore-pick-text">{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="onboard-lore-text stonetop-onboarding-lore-fill" data-section="{{sectionSlug}}" data-option="{{slug}}" value="{{fillValue}}" placeholder="…" aria-label="Fill in the blank">{{{fillAfter}}}{{else}}{{{description}}}{{/if}}</span>
 			</label>
 			{{/each}}
 		</div>

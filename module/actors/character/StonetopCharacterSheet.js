@@ -1341,8 +1341,14 @@ export function createStonetopCharacterSheetClass(Base) {
 					// The mandatory trait is locked on and free, so exclude it from the count.
 					const extraCount   = [...selectedSet].filter(t => t !== mandatoryTrait).length;
 					const atLimit      = pickCount > 0 && extraCount >= pickCount;
+					// The insert's blank write-in trait: a selected trait that isn't one of
+					// the type's listed options (nor the mandatory one). Surfaced as an
+					// editable field so it survives — and stays editable — after creation.
+					const customTrait  = [...selectedSet].find(t => t !== mandatoryTrait && !acTypeTraits.includes(t)) ?? "";
 					if (acTypeTraits.length) acTraitChoices = {
 						limit:   pickCount,
+						customTrait,
+						customTraitDisabled: !customTrait && atLimit,
 						options: acTypeTraits.map(value => {
 							const isMandatory = value === mandatoryTrait;
 							const selected    = isMandatory || selectedSet.has(value);
@@ -1478,6 +1484,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				const crewChosenTags = (sf.crew.tags ?? []).filter(t => t !== crewBgTag);
 				let crewTagOptions = null, crewInstinctOptions = null, crewCostOptions = null;
 				let crewTagLimit = 2;
+				// Write-in values (the Crew insert's blank rows): a tag / instinct / cost the
+				// player typed rather than picked from the list. Surfaced as editable fields.
+				let crewTagCustom = "", crewTagCustomDisabled = false, crewInstinctCustom = "", crewCostCustom = "";
 				if (cardEditing("crew", "")) {
 					const crewOpts     = playbookDoc?.crew ?? {};
 					// Base allowance (playbook data) + extra tags unlocked by Veteran Crew's
@@ -1498,6 +1507,11 @@ export function createStonetopCharacterSheetClass(Base) {
 						const value = normalizePlaybookGlyphs(v);
 						return { value, selected: (sf.crew.cost ?? "") === value };
 					});
+					const knownTags = new Set(crewOpts.availableTags ?? []);
+					crewTagCustom = [...crewTagSet].find(t => t !== crewBgTag && !knownTags.has(t)) ?? "";
+					crewTagCustomDisabled = !crewTagCustom && crewTagsAtLimit;
+					crewInstinctCustom = crewInstinctOptions.some(o => o.selected) ? "" : (sf.crew.instinct ?? "");
+					crewCostCustom     = crewCostOptions.some(o => o.selected)     ? "" : (sf.crew.cost ?? "");
 				}
 				crew = {
 					...FOLLOWER_FTYPE_DEFAULTS["crew"],
@@ -1508,10 +1522,14 @@ export function createStonetopCharacterSheetClass(Base) {
 					tagOptions: crewTagOptions?.length ? crewTagOptions : null,
 					tagLimit:   crewTagLimit,
 					tagAutoLabel: crewBgTag ? normalizePlaybookGlyphs(crewBgTag) : null,
+					tagCustom:  crewTagCustom,
+					tagCustomDisabled: crewTagCustomDisabled,
 					instinct:  sf.crew.instinct ?? "",
 					instinctOptions: crewInstinctOptions?.length ? crewInstinctOptions : null,
+					instinctCustom: crewInstinctCustom,
 					cost:      sf.crew.cost     ?? "",
 					costOptions: crewCostOptions?.length ? crewCostOptions : null,
+					costCustom: crewCostCustom,
 					loyalty:   _makeLoyaltyPips(loyaltyVal),
 					loyaltySlug: "",
 					hpStaticValue: crewMaxHp,
@@ -2754,6 +2772,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-custom-remove").on("click", this._onRemoveCustomPossession.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
+			// Fill-in blank inside a bundle sub-option (the Would-Be Hero's personal token):
+			// saved on blur, keyed possession:choice, mirroring the onboarding write-in.
+			html.find(".stonetop-possession-sub-fill").on("change", ev => {
+				const { possessionSlug, choiceSlug } = ev.currentTarget.dataset;
+				this._stonetopCharacter.setPossessionChoiceText(possessionSlug, choiceSlug, ev.currentTarget.value.trim());
+			});
 			// "Edit sacred pouch" affordances (Big Magic move card + gear-tab pencil):
 			// open the standalone choiceGroups editor for the named possession.
 			html.find("[data-possession-choices]").on("click", ev => {
@@ -2818,22 +2842,28 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop_pwd", path, turnOn);
 				this.render(false);
 			});
-			// Crew tag picker: store only the player's chosen tags. The background-auto
-			// tag is the disabled option, so `:not(:disabled)` excludes it — it's
-			// re-derived from the active background at render, never persisted, so a
-			// later background change can't strand a stale auto tag in crew.tags. The
-			// pick limit is enforced on render by disabling the unchecked options once full.
-			html.find(".stonetop-crew-tag-option").on("change", async () => {
+			// Crew tag picker + its custom write-in row: store only the player's chosen tags
+			// plus the write-in. The background-auto tag is the disabled option, so
+			// `:not(:disabled)` excludes it — it's re-derived from the active background at
+			// render, never persisted, so a later background change can't strand a stale auto
+			// tag in crew.tags. The pick limit is enforced on render by disabling the unchecked
+			// options once full. Rebuilding from all checked boxes plus the write-in means
+			// editing either never drops the other.
+			html.find(".stonetop-crew-tag-option, .stonetop-crew-tag-custom").on("change", async () => {
 				const tags = html.find(".stonetop-crew-tag-option:checked:not(:disabled)").toArray().map(el => el.value);
+				const custom = html.find(".stonetop-crew-tag-custom").val()?.trim();
+				if (custom) tags.push(custom);
 				await this.actor.setFlag("stonetop_pwd", "crew.tags", tags);
 				this.render(false);
 			});
-			// Animal-companion trait picker: pick up to the type's pickCount. Same
-			// "checked, not disabled" gather as the crew tags; the limit is enforced on
-			// render by disabling unchecked options once full. Traits drive the
+			// Animal-companion trait picker + its custom write-in row: pick up to the type's
+			// pickCount. Same "checked, not disabled" gather as the crew tags; the limit is
+			// enforced on render by disabling unchecked options once full. Traits drive the
 			// companion's HP / armor / damage, so a re-render re-derives those stats.
-			html.find(".stonetop-ac-trait-option").on("change", async () => {
+			html.find(".stonetop-ac-trait-option, .stonetop-ac-trait-custom").on("change", async () => {
 				const traits = html.find(".stonetop-ac-trait-option:checked:not(:disabled)").toArray().map(el => el.value);
+				const custom = html.find(".stonetop-ac-trait-custom").val()?.trim();
+				if (custom) traits.push(custom);
 				await this.actor.setFlag("stonetop_pwd", "animalCompanion.traits", traits);
 				this.render(false);
 			});
@@ -2859,6 +2889,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			html.find(".stonetop-crew-cost-option").on("change", async ev => {
 				await this.actor.setFlag("stonetop_pwd", "crew.cost", ev.currentTarget.value);
+				this.render(false);
+			});
+			// Crew instinct / cost write-ins (the insert's blank rows): save the typed value
+			// verbatim; picking a radio above overwrites it, matching onboarding.
+			html.find(".stonetop-crew-instinct-custom").on("change", async ev => {
+				await this.actor.setFlag("stonetop_pwd", "crew.instinct", ev.currentTarget.value.trim());
+				this.render(false);
+			});
+			html.find(".stonetop-crew-cost-custom").on("change", async ev => {
+				await this.actor.setFlag("stonetop_pwd", "crew.cost", ev.currentTarget.value.trim());
 				this.render(false);
 			});
 			// Gear checklist: toggle carried, rename, add, remove
@@ -6036,6 +6076,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				))(f.onboardingStats ?? {}),
 				possessions:     [...(f.possessions?.selected ?? [])],
 				possessionChoices: foundry.utils.deepClone(f.possessions?.subChoices ?? {}),
+				possessionChoiceTexts: foundry.utils.deepClone(f.possessions?.choiceTexts ?? {}),
 				customPossession: f.possessions?.custom?.[0]?.label ?? "",
 				moves:           [], // compendium IDs are hard to recover; player re-picks
 				moveChoices:     this._restoreOwnedMoveChoices(playbookDoc),
@@ -6194,6 +6235,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				for (const [possessionSlug, choiceSlugs] of Object.entries(selections.possessionChoices ?? {})) {
 					if (!selectedSet.has(possessionSlug)) continue;
 					await this._stonetopCharacter.setPossessionSubChoices(possessionSlug, choiceSlugs);
+				}
+				// Fill-in blanks written into a sub-option (the Would-Be Hero's personal token),
+				// persisted for the selected possessions the same way as their picks above.
+				for (const [key, value] of Object.entries(selections.possessionChoiceTexts ?? {})) {
+					const [possessionSlug, choiceSlug] = key.split(":");
+					if (!selectedSet.has(possessionSlug)) continue;
+					if (value?.trim()) await this._stonetopCharacter.setPossessionChoiceText(possessionSlug, choiceSlug, value.trim());
 				}
 				// Write-in "something else (discuss with GM)" possession. Replace rather
 				// than append so re-running onboarding doesn't duplicate it.

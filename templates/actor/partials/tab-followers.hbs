@@ -81,6 +81,7 @@
 					</label>
 					{{/each}}
 				</div>
+				<input type="text" class="stonetop-follower-text stonetop-crew-tag-custom" value="{{tagCustom}}" placeholder="custom tag…" {{#if tagCustomDisabled}}disabled{{/if}}>
 			</div>
 			{{else if (and edit.stats traitChoices)}}
 			{{!-- Edit mode (animal companion): pick the type's traits, up to the
@@ -96,6 +97,7 @@
 					</label>
 					{{/each}}
 				</div>
+				<input type="text" class="stonetop-follower-text stonetop-ac-trait-custom" value="{{traitChoices.customTrait}}" placeholder="custom trait…" {{#if traitChoices.customTraitDisabled}}disabled{{/if}}>
 			</div>
 			{{else if (and edit.stats traitRows)}}
 			{{!-- Edit mode (initiate of Danu): the rulebook's "pick 1 on each line".
@@ -205,6 +207,7 @@
 					<span>{{value}}</span>
 				</label>
 				{{/each}}
+				<input type="text" class="stonetop-follower-text stonetop-crew-instinct-custom" value="{{instinctCustom}}" placeholder="or write your own…">
 			</div>
 			{{else}}
 			<input class="stonetop-follower-stat-input" type="text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="instinct" value="{{instinct}}" placeholder="instinct…">
@@ -244,6 +247,7 @@
 						<span>{{value}}</span>
 					</label>
 					{{/each}}
+					<input type="text" class="stonetop-follower-text stonetop-crew-cost-custom" value="{{costCustom}}" placeholder="or write your own…">
 				</div>
 				{{else}}
 				<input class="stonetop-follower-stat-input" type="text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="cost" value="{{cost}}" placeholder="cost…">

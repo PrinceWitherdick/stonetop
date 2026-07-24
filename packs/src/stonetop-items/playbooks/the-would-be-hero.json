@@ -153,7 +153,14 @@
           {
             "slug": "a-good-dog",
             "label": "A good dog",
-            "description": "follower (◇ <em>retriever</em> or ◇ <em>herder, keen-nosed, clever</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct to play; Cost: affection."
+            "description": "follower (<em>keen-nosed, clever</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct to play; Cost: affection.",
+            "choices": {
+              "pickCount": 1,
+              "options": [
+                { "slug": "retriever", "label": "<em>retriever</em>" },
+                { "slug": "herder", "label": "<em>herder</em>" }
+              ]
+            }
           },
           {
             "slug": "heap-of-expectations",

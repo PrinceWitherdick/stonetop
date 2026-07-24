@@ -25,7 +25,7 @@
 				       {{#if this}}checked{{/if}}>
 				{{/each}}
 			</span>
-			<span class="stonetop-lore-option-desc">{{{description}}}</span>
+			<span class="stonetop-lore-option-desc">{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="stonetop-lore-option-text stonetop-lore-fill" data-lore-slug="{{../slug}}" data-option-slug="{{slug}}" value="{{fillValue}}" placeholder="…">{{{fillAfter}}}{{else}}{{{description}}}{{/if}}</span>
 			{{/if}}
 		</div>
 {{/each}}

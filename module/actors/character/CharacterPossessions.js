@@ -60,6 +60,19 @@ export class CharacterPossessions {
 		await this._flags.setFlag("choiceUses", { ...this.choiceUses, [key]: count });
 	}
 
+	// Free text the player wrote into a sub-option's fill-in blank (the Would-Be Hero's
+	// "A shield, bearing ___'s crest"), keyed possessionSlug:choiceSlug like choiceUses.
+	get choiceTexts()  { return this._flags.getFlag("choiceTexts") ?? {}; }
+
+	getChoiceText(possessionSlug, choiceSlug) {
+		return this.choiceTexts[`${possessionSlug}:${choiceSlug}`] ?? "";
+	}
+
+	async setChoiceText(possessionSlug, choiceSlug, value) {
+		const key = `${possessionSlug}:${choiceSlug}`;
+		await this._flags.setFlag("choiceTexts", { ...this.choiceTexts, [key]: value });
+	}
+
 	// Replace the whole write-in list from a set of labels, assigning each a `custom-N`
 	// slug. Blank labels are dropped. Replacing (rather than appending) keeps re-running
 	// onboarding idempotent: the same write-in maps back to the same single entry.

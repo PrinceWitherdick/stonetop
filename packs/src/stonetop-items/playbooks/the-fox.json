@@ -546,7 +546,7 @@
           "options": [
             {
               "slug": "running",
-              "description": "… running for your life from something.",
+              "description": "… running for your life from ___.",
               "max": 2
             },
             {
@@ -571,7 +571,7 @@
             },
             {
               "slug": "someone-fight",
-              "description": "… getting someone to fight them for you.",
+              "description": "… getting ___ to fight them for you.",
               "max": 2
             },
             {
@@ -620,6 +620,19 @@
               "slug": "mystery-key",
               "description": "… this key that opens who-knows-what.",
               "max": 1
+            }
+          ]
+        },
+        {
+          "slug": "tall-tales-write",
+          "title": "Tell Your Tale",
+          "description": "<p>Now weave the pieces you chose into a couple of your more memorable adventures.</p>",
+          "contextFromGroup": true,
+          "options": [
+            {
+              "slug": "tale",
+              "type": "text",
+              "description": ""
             }
           ]
         }

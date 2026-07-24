@@ -313,7 +313,7 @@
 					{{/each}}
 				</div>
 				{{/if}}
-				{{#if (and checked choices)}}
+				{{#if (and checked choices @root.stonetop.possessionsEdit)}}
 				<ol class="stonetop-sub-choice-list">
 				{{#each choices.options}}
 					<li class="stonetop-sub-choice{{#if checked}} is-checked{{/if}}">
@@ -322,8 +322,8 @@
 							       data-possession-slug="{{../slug}}"
 							       data-choice-slug="{{slug}}"
 							       {{#if checked}}checked{{/if}}
-							       {{#if (or disabled (not @root.stonetop.possessionsEdit))}}disabled{{/if}}>
-							{{{label}}}
+							       {{#if disabled}}disabled{{/if}}>
+							{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="stonetop-possession-sub-fill" data-possession-slug="{{../slug}}" data-choice-slug="{{slug}}" value="{{fillValue}}" placeholder="…">{{{fillAfter}}}{{else}}{{{label}}}{{/if}}
 						</label>
 						{{#if (and checked resource)}}
 						<span class="stonetop-item-resources">
