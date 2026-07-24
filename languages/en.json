@@ -37,7 +37,8 @@
         "inventory": "Inventory",
         "arcana": "Arcana",
         "postDeath": "Post-Death",
-        "specialMoves": "Special Moves"
+        "specialMoves": "Special Moves",
+        "notes": "Notes"
       }
     },
     "specialMoves": {

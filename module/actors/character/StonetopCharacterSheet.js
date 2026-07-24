@@ -848,6 +848,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.system ??= this.actor.system;
 			context.isCharacter = this.actor.type === "character";
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
+			// Notes tab: raw source (for the editor to serialize) + enriched HTML (for
+			// the read-only preview, resolving @UUID links, inline rolls, etc.).
+			context.stonetop.notes = this.actor.system?.notes ?? "";
+			context.stonetop.enrichedNotes = context.stonetop.notes
+				? await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes)
+				: "";
 			context.stonetop.movelist ??= {};
 			const overageKey = context.stonetop.movelist.levelMovesOverageKey ?? null;
 			const dismissedOverageKey = this.actor.getFlag(STONETOP_SCOPE, "moves.dismissedLevelOverage");
@@ -1973,6 +1979,19 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		activateListeners(html) {
 			super.activateListeners(html);
+
+			// Notes tab: the core <prose-mirror> element fires a bubbling `change` on
+			// save/blur carrying the serialized HTML on ev.target.value. Persist it to
+			// the character's system.notes field. Stop propagation so the sheet's own
+			// form-submit change handling doesn't double-process it.
+			html[0].addEventListener("change", ev => {
+				const pm = ev.target.closest("prose-mirror.character-notes-editor");
+				if (!pm) return;
+				ev.stopPropagation();
+				const value = pm.value ?? "";
+				if (value === (this.actor.system?.notes ?? "")) return;
+				this.actor.update({ "system.notes": value });
+			}, true);
 
 			html.find(".stonetop-create-character-btn").on("click", () => this._onNewCharacter());
 			html.find("[data-onboarding-start]").on("click", ev => {

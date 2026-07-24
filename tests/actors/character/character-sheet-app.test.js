@@ -66,6 +66,10 @@ function installGetDataGlobals() {
 	};
 	global.game.settings ??= { get: () => false };
 	global.game.user ??= { isGM: true, getFlag: () => ({}) };
+	// getData enriches the Notes-tab HTML; passthrough in the test env (no real editor).
+	global.foundry.applications ??= {};
+	global.foundry.applications.ux ??= {};
+	global.foundry.applications.ux.TextEditor ??= { enrichHTML: async value => value };
 }
 
 function minimalSheetSnapshot(movelist) {

@@ -41,6 +41,9 @@ export class CharacterModel extends foundry.abstract.TypeDataModel {
 				slug: new fields.StringField({ required: true, blank: true }),
 				uuid: new fields.StringField({ required: true, blank: true }),
 			}),
+			// Free-form player notes (rich text), edited on the sheet's Notes tab.
+			// Additive/blank-default field, so it needs no world migration.
+			notes: new fields.HTMLField({ required: true, blank: true }),
 		};
 	}
 }

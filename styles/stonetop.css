@@ -2219,12 +2219,41 @@ input.stonetop-name-field {
 	overflow: hidden;
 }
 
-.pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body > .tab.active {
+.pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body > .tab.active:not(.notes) {
 	height: 100%;
 	overflow-y: auto;
 	overflow-x: hidden;
 	scrollbar-width: thin;
 	scrollbar-gutter: stable;
+}
+
+/* Notes tab: the <prose-mirror> editor manages its own internal scroll, so this
+   tab is excluded from the generic auto-scroll above and instead fills the body
+   as a flex column so the editor can take the full height. */
+/* Paired unlayered hide — the `.active` rule below sets `display` unlayered, which beats
+   Foundry's *layered* core `.tab{display:none}`, so pair it with an unlayered hide or the
+   panel leaks onto other tabs when inactive (see `.tab.stonetop-invocations`). */
+.pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body > .tab.notes {
+	display: none;
+}
+
+.pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body > .tab.notes.active {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+.pbta.sheet.actor.character .tab.notes .character-notes {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	padding-bottom: 14px;
+}
+
+.pbta.sheet.actor.character .character-notes prose-mirror.character-notes-editor {
+	flex: 1;
+	min-height: 0;
 }
 
 .stonetop-moves-sidebar {

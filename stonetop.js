@@ -296,6 +296,7 @@ Hooks.once("init", () => {
 		"stonetop.tab-arcana":       "systems/stonetop_pwd/templates/actor/partials/tab-arcana.hbs",
 		"stonetop.tab-post-death":      "systems/stonetop_pwd/templates/actor/partials/tab-post-death.hbs",
 		"stonetop.tab-special-moves":   "systems/stonetop_pwd/templates/actor/partials/tab-special-moves.hbs",
+		"stonetop.tab-notes":           "systems/stonetop_pwd/templates/actor/partials/tab-notes.hbs",
 		"stonetop.move-group":           "systems/stonetop_pwd/templates/actor/partials/move-group.hbs",
 		"stonetop.tab-search-control":   "systems/stonetop_pwd/templates/actor/partials/tab-search-control.hbs",
 		"stonetop.move-mark-level":      "systems/stonetop_pwd/templates/actor/partials/move-mark-level.hbs",

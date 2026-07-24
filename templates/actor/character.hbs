@@ -117,6 +117,7 @@
 				<a class="item" data-tab="details"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.details"}}</span></a>
 				{{#if stonetop.showPostDeath}}<a class="item" data-tab="post-death"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.postDeath"}}</span></a>{{/if}}
 				<a class="item" data-tab="special-moves"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.specialMoves"}}</span></a>
+				<a class="item" data-tab="notes"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.notes"}}</span></a>
 			</nav>
 
 			<div class="stonetop-sheet-layout">
@@ -129,6 +130,7 @@
 					{{> "stonetop.tab-details"}}
 					{{#if stonetop.showPostDeath}}{{> "stonetop.tab-post-death"}}{{/if}}
 					{{> "stonetop.tab-special-moves"}}
+					{{> "stonetop.tab-notes"}}
 				</section>
 
 				<div class="stonetop-moves-sidebar{{#if stonetop.sidebarCollapsed}} is-collapsed{{/if}}">
