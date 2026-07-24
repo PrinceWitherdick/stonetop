@@ -404,6 +404,8 @@
       "instinct": "Instinct",
       "instinctPlaceholder": "to... (e.g. to complain but get the job done)",
       "instinctEmpty": "No instinct yet — write one as “to [do something].”",
+      "status": "Status",
+      "following": "Following",
       "connections": "Connections",
       "motivations": "Motivations",
       "embodiment": "Embodiment",

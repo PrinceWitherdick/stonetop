@@ -15,6 +15,7 @@ import { makeColumnsResizable } from "../../utils/resizable-columns.js";
 import { makeColumnsSortable } from "../../utils/sortable-columns.js";
 import { openLedgerDialog } from "../../utils/ledger-dialog.js";
 import { NpcLedger } from "./NpcLedger.js";
+import { npcStatusMeta, NPC_STATUSES } from "../../data-models/npc-status.js";
 
 // Rich-text (HTMLField) fields edited inline via prose-mirror on the sheet.
 const NPC_RICH_TEXT_FIELDS = [
@@ -181,6 +182,24 @@ export function createStonetopNpcSheetClass(Base) {
 				enrichedDescription: this._editMode ? await enrichHTML(i.system?.description) : undefined,
 			})));
 
+			// Lifecycle status — an at-a-glance badge (dead / retired / away / …); blank
+			// is the active default. `isInactive` dims + strikes the name for "gone" states.
+			const statusMeta = npcStatusMeta(system?.status);
+			st.status        = statusMeta;
+			st.statusOptions = NPC_STATUSES.map(s => ({ ...s, selected: s.value === statusMeta.value }));
+			st.isInactive    = statusMeta.inactive;
+
+			// "Following" — the player character(s) who have recruited this NPC as a
+			// follower: any custom-follower card whose sourceUuid points back at this actor
+			// (the link the conversion sets). Lets the sheet show "Following: <PC>" and jump
+			// to that PC's sheet, so a recruited NPC is no longer an orphan on either side.
+			const npcUuid = this.actor.uuid;
+			st.following = characters
+				.filter(pc => Object.values(pc.getFlag?.("stonetop_pwd", "customFollowers") ?? {})
+					.some(f => f?.sourceUuid === npcUuid))
+				.map(pc => ({ id: pc.id, name: pc.name }));
+			st.isFollowing = st.following.length > 0;
+
 			return context;
 		}
 
@@ -229,6 +248,14 @@ export function createStonetopNpcSheetClass(Base) {
 						await item?.roll();
 					}
 				}
+			});
+
+			// "Following" chips: open the leading PC's sheet (a view action; both modes).
+			root.querySelectorAll(".stonetop-npc-following-pc").forEach(el => {
+				el.addEventListener("click", ev => {
+					ev.preventDefault();
+					game.actors?.get(el.dataset.pcId)?.sheet?.render(true);
+				});
 			});
 
 			// Enlarge a real portrait in play mode (edit mode leaves the file picker).

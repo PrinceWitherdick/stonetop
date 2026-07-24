@@ -6,6 +6,7 @@
 // that converts legacy plain-text rows into NPC actors.
 import { isDefaultImg } from "../../utils/strings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
+import { npcStatusMeta } from "../../data-models/npc-status.js";
 
 const DEFAULT_MEMBER_AVATAR = "systems/stonetop_pwd/assets/icons/people/default_profile.svg";
 
@@ -13,7 +14,7 @@ const DEFAULT_MEMBER_AVATAR = "systems/stonetop_pwd/assets/icons/people/default_
 // pull from — spread into the no-row and deleted-actor fallbacks so the blank
 // template shape lives in one place. `notes` is the plain (stripped) preview text and
 // `notesHtml` the enriched rich version the roster cell renders.
-const BLANK_PERSON_FIELDS = { occupation: "", traits: "", relations: "", home: "", notes: "", notesHtml: "", resolvedOccupation: "", profileImg: DEFAULT_MEMBER_AVATAR };
+const BLANK_PERSON_FIELDS = { occupation: "", traits: "", relations: "", home: "", notes: "", notesHtml: "", resolvedOccupation: "", profileImg: DEFAULT_MEMBER_AVATAR, status: "", statusLabel: "", statusInactive: false };
 
 // The two Actor folders the people live in. Colours echo the warm parchment palette.
 const PEOPLE_FOLDERS = {
@@ -50,6 +51,20 @@ export function personFieldPath(list, field) {
 /** True when a row points at an NPC actor (post-migration shape) rather than legacy text. */
 export function isActorRow(row) {
 	return !!(row && (row.uuid || row.id));
+}
+
+/**
+ * Distinct, non-empty names of a steading's Residents + Neighbors, for name-suggestion
+ * datalists (e.g. Create-a-Follower). Reads the nested `stonetop_pwd.steading` flag where
+ * the people rows actually live — the flat `getFlag(…, "residents")` path is never written.
+ * Best-effort: a missing/unlinked steading (or any read error) just yields [].
+ */
+export function peopleNames(steading) {
+	try {
+		const flags = steading?.getFlag?.("stonetop_pwd", "steading") ?? {};
+		const rows = Object.keys(PEOPLE_FOLDERS).flatMap(list => Array.isArray(flags[list]) ? flags[list] : []);
+		return [...new Set(rows.map(r => String(r?.name ?? "").trim()).filter(Boolean))];
+	} catch { return []; }
 }
 
 /** Strip tags/entities so rich notes collapse to one line for a tooltip / plain preview. */
@@ -95,6 +110,8 @@ export async function resolvePersonRow(row) {
 		}
 		const s = actor.system ?? {};
 		const occupation = s.occupation ?? "";
+		// Lifecycle status → an at-a-glance badge + dim/strike in the roster name cell.
+		const status = npcStatusMeta(s.status);
 		return {
 			uuid:       actor.uuid,
 			id:         actor.id,
@@ -109,6 +126,9 @@ export async function resolvePersonRow(row) {
 			profileImg: isDefaultImg(actor.img) ? DEFAULT_MEMBER_AVATAR : actor.img,
 			checked:    !!row.checked,
 			unresolved: false,
+			status:         status.value,
+			statusLabel:    status.label,
+			statusInactive: status.inactive,
 		};
 	}
 	// Legacy plain-text row: pass through, filling the shape the template reads.
@@ -124,16 +144,39 @@ export async function resolvePersonRow(row) {
 		resolvedOccupation: row.occupation ?? "",
 		profileImg: !isDefaultImg(row.img ?? "") ? row.img : DEFAULT_MEMBER_AVATAR,
 		legacy:     true,
+		status:     "", statusLabel: "", statusInactive: false,
 	};
 }
 
-/** Find or create the Actor folder for a people list. GM-only (folder creation writes). */
+/**
+ * Find (or, for a GM, create) the Actor folder for a people list. Folder creation is a
+ * GM/assistant privilege players lack, so a player who adds the first-ever resident when
+ * the folder doesn't exist yet must not throw: return null and let the NPC land at the
+ * sidebar root instead. The GM proactively creates both folders on load (see
+ * ensurePeopleFolders), so this fallback is rare — the folder is normally already there.
+ */
 export async function ensurePeopleFolder(list) {
 	const spec = PEOPLE_FOLDERS[list];
 	if (!spec) return null;
 	const existing = game.folders?.find(f => f.type === "Actor" && f.name === spec.name);
 	if (existing) return existing;
-	return Folder.create({ name: spec.name, type: "Actor", color: spec.color });
+	if (!Folder.canUserCreate(game.user)) return null; // player: no folder-create right
+	try {
+		return await Folder.create({ name: spec.name, type: "Actor", color: spec.color });
+	} catch (err) {
+		console.warn(`Stonetop | Could not create the "${spec.name}" folder; NPC will land at root.`, err);
+		return null;
+	}
+}
+
+/** Ensure both Residents/Neighbors Actor folders exist. GM-only; run once on load so a
+ *  player adding the first member never has to create the folder (which they can't). */
+export async function ensurePeopleFolders() {
+	if (!game.user?.isGM) return;
+	for (const list of Object.keys(PEOPLE_FOLDERS)) {
+		try { await ensurePeopleFolder(list); }
+		catch (err) { console.error("Stonetop | ensurePeopleFolders failed for", list, err); }
+	}
 }
 
 /**

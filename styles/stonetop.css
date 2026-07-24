@@ -22496,6 +22496,69 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-weight: normal;
 	color: var(--color-text-dark-secondary);
 }
+
+/* ── NPC lifecycle status + "Following" ──────────────────────────────────────
+   Status badge on the NPC header + the steading roster name cell; a "gone" state
+   (retired / dead) dims + strikes the name. Class names are already npc/steading-
+   specific, so they stay unscoped like the surrounding .stonetop-npc-* rules. */
+.stonetop-npc-status-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 1px 8px;
+	border-radius: 999px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.62rem * var(--stonetop-font-scale, 1));
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	line-height: 1.5;
+	white-space: nowrap;
+	vertical-align: middle;
+	background: rgba(80, 90, 100, 0.14);
+	border: 1px solid rgba(80, 90, 100, 0.35);
+	color: var(--st-text-secondary, var(--color-text-dark-secondary));
+}
+.stonetop-npc-status-badge[data-status="dead"] {
+	background: var(--st-red-bg);
+	border-color: var(--st-red-border);
+	color: var(--st-red-text);
+}
+.stonetop-npc-status-badge--sm {
+	padding: 0 6px;
+	margin-left: 6px;
+	font-size: calc(0.55rem * var(--stonetop-font-scale, 1));
+}
+
+/* Status select in the header (edit mode) — matches the pronouns underline field. */
+.stonetop-npc-status-select {
+	margin-top: 3px;
+	max-width: 170px;
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+	border-radius: 0;
+	background: transparent;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-npc-header--inactive .stonetop-name-field {
+	opacity: 0.7;
+	text-decoration: line-through;
+	text-decoration-thickness: 1px;
+}
+.steading-member-name-text.is-inactive {
+	opacity: 0.65;
+	text-decoration: line-through;
+}
+
+/* "Following: <PC>" chips on the NPC sheet — the follower cards that link back here. */
+.stonetop-npc-following-list { display: inline-flex; flex-wrap: wrap; gap: 4px 8px; }
+.stonetop-npc-following-pc {
+	cursor: pointer;
+	color: var(--st-blue-text, var(--color-text-hyperlink));
+}
+.stonetop-npc-following-pc:hover { text-decoration: underline; }
+.stonetop-npc-following-pc i { font-size: 0.85em; opacity: 0.75; margin-right: 2px; }
 .stonetop-npc-pronouns,
 .stonetop-npc-occupation,
 .stonetop-npc-traits {

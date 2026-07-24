@@ -22,6 +22,7 @@ const SYSTEM_PATH_LABELS = {
 	"system.occupation":                    "Occupation",
 	"system.traits":                        "Traits",
 	"system.instinct":                      "Instinct",
+	"system.status":                        "Status",
 	"system.home":                          "Home",
 	"system.relations":                     "Relations",
 	"system.embodiment":                    "Embodiment",

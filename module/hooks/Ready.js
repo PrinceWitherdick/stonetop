@@ -31,7 +31,7 @@ import { ensureHazardsEntry } from "../hazards/hazard-store.js";
 import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
-import { migrateAllSteadingPeople } from "../actors/steading/steading-people.js";
+import { migrateAllSteadingPeople, ensurePeopleFolders } from "../actors/steading/steading-people.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
@@ -102,6 +102,10 @@ export async function onReady() {
 	if (isPrimaryGM()) {
 		try { await migrateAllSteadingPeople(); }
 		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC migration failed", err); }
+		// Pre-create both people folders so a player adding the first member never has to
+		// (folder creation is a GM-only right; ensurePeopleFolder returns null for them).
+		try { await ensurePeopleFolders(); }
+		catch (err) { console.error("Stonetop | ensurePeopleFolders failed", err); }
 		try { await _migrateNpcTokenNameplates(); }
 		catch (err) { console.error("Stonetop | NPC token-nameplate migration failed", err); }
 	}
@@ -181,6 +185,7 @@ export async function onReady() {
 	_registerCharacterAutoOpen();
 
 	if (game.user.isGM) await _applyCoreSettingDefaultsForNewWorld();
+	if (game.user.isGM) await _ensurePlayerActorCreationGrant();
 	if (game.user.isGM) await _assignSteadingToUnassignedGm();
 
 	// Seeding the gazetteer into a brand-new world imports ~160 journal entries — a
@@ -326,13 +331,28 @@ async function _applyCoreSettingDefaultsForNewWorld() {
 		return;
 	}
 
-	// Best-effort and independent: a failure in one default must not skip the other,
-	// and neither should strand the flag (which would re-run both every load). Each
-	// logs and moves on, then we record that this world's defaults have been applied.
-	await _defaultAllowPlayerActorCreation();
+	// Best-effort: a failure here must not strand the flag (which would re-run every
+	// load). Logs and moves on, then we record that this world's defaults have been
+	// applied. NOTE: the player actor-creation grant is deliberately NOT here — it
+	// runs from its own gate (_ensurePlayerActorCreationGrant) so ESTABLISHED worlds,
+	// which return early above, still get it. The actor-backed steading roster needs
+	// players to be able to create the NPC actors it links.
 	await _defaultDisableAutomaticTokenRotation();
 
 	await setSetting("coreSettingDefaultsApplied", true);
+}
+
+// Grant players the ACTOR_CREATE permission once per world, independent of world age.
+// The new-world defaults above short-circuit on established worlds (seedingComplete),
+// which meant a world that predates the actor-backed steading roster never got this
+// grant — so players hit "you don't have permission" when adding a Resident/Neighbor,
+// which creates an NPC actor. This gate has its own world flag so it runs exactly once
+// on ANY world (fresh or established) that hasn't been granted yet; a GM who later
+// revokes the permission under Configure Permissions keeps it revoked (never re-runs).
+async function _ensurePlayerActorCreationGrant() {
+	if (getSetting("playerActorCreationGranted")) return;
+	await _defaultAllowPlayerActorCreation();
+	await setSetting("playerActorCreationGranted", true);
 }
 
 // Give a GM who has no assigned character the shared steading as their default character,
@@ -374,14 +394,16 @@ async function _assignSteadingToUnassignedGm() {
 	await game.user.setFlag(STONETOP_SCOPE, "gmSteadingAssigned", true);
 }
 
-// Let players create their own characters from Foundry's "Create Actor" dialog by
-// default. Core ships the ACTOR_CREATE permission as Assistant-GM-and-up only, so
-// without this a player never even sees the sidebar's "Create Actor" button. We add
-// the Player and Trusted Player roles once, on a fresh world, so the GM keeps full
-// control afterward: revoking it under Configure Permissions sticks, because this
-// never runs again. ACTOR_CREATE isn't per-type, so this also lets players create
-// other actor types — the steading singleton and monster-builder preCreateActor
-// hooks (StonetopSingleton.js) already guard those paths.
+// Let players create actors: their own characters from Foundry's "Create Actor"
+// dialog, and the NPC actors the steading Residents/Neighbors roster links. Core ships
+// the ACTOR_CREATE permission as Assistant-GM-and-up only, so without this a player
+// hits "you don't have permission" adding a resident (and never sees the sidebar's
+// "Create Actor" button). Its caller (_ensurePlayerActorCreationGrant) adds the Player
+// and Trusted Player roles exactly once per world, so the GM keeps full control
+// afterward: revoking it under Configure Permissions sticks, because this never runs
+// again. ACTOR_CREATE isn't per-type, so this also lets players create other actor
+// types — the steading singleton and monster-builder preCreateActor hooks
+// (StonetopSingleton.js) already guard those paths.
 async function _defaultAllowPlayerActorCreation() {
 	try {
 		const R = CONST.USER_ROLES;

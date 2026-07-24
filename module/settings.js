@@ -87,6 +87,19 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether this world has had players granted Foundry's ACTOR_CREATE permission
+	// (see hooks/Ready.js _ensurePlayerActorCreationGrant). Independent of the fresh-
+	// world gate above so ESTABLISHED worlds — which skip the new-world defaults —
+	// still get the grant the actor-backed steading roster depends on. One-time: once
+	// set, a GM who later revokes the permission keeps it revoked.
+	game.settings.register("stonetop_pwd", "playerActorCreationGranted", {
+		name: "Player Actor Creation Granted",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// The system version whose shipped journal content was last rolled into the
 	// world's seeded copies (see hooks/SeedCompendiums.js). When this trails the
 	// running version, the update pass refreshes pristine (un-edited) seeded

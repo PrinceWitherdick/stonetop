@@ -1,7 +1,7 @@
 <form class="{{cssClass}} stonetop-npc-sheet" autocomplete="off">
 	<div class="sheet-wrapper stonetop-npc-container">
 
-		<header class="sheet-header stonetop-sheet-header stonetop-npc-header{{#unless stonetop.editMode}}{{#unless stonetop.hasPortrait}} stonetop-npc-header--no-portrait{{/unless}}{{/unless}}">
+		<header class="sheet-header stonetop-sheet-header stonetop-npc-header{{#unless stonetop.editMode}}{{#unless stonetop.hasPortrait}} stonetop-npc-header--no-portrait{{/unless}}{{/unless}}{{#if stonetop.isInactive}} stonetop-npc-header--inactive{{/if}}">
 			{{#if stonetop.editMode}}
 			<img class="stonetop-portrait" src="{{actor.img}}" data-edit="img"
 			     title="{{actor.name}}" alt="{{actor.name}}">
@@ -23,8 +23,15 @@
 					       value="{{actor.name}}" placeholder='{{localize "stonetop.npc.namePlaceholder"}}'>
 					<input class="stonetop-npc-pronouns" name="system.pronouns" type="text"
 					       value="{{system.pronouns}}" placeholder='{{localize "stonetop.npc.pronounsPlaceholder"}}'>
+					<select class="stonetop-npc-status-select" name="system.status"
+					        title='{{localize "stonetop.npc.status"}}' aria-label='{{localize "stonetop.npc.status"}}'>
+						{{#each stonetop.statusOptions}}
+						<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+						{{/each}}
+					</select>
 					{{else}}
 					<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}{{#if system.pronouns}} <span class="stonetop-npc-pronouns-display">({{system.pronouns}})</span>{{/if}}</span>
+					{{#if stonetop.status.value}}<span class="stonetop-npc-status-badge" data-status="{{stonetop.status.value}}">{{stonetop.status.label}}</span>{{/if}}
 					{{/if}}
 				</div>
 
@@ -86,6 +93,17 @@
 		</header>
 
 		<section class="sheet-main flexcol stonetop-npc-main">
+
+			{{!-- Following — the PC(s) who've recruited this NPC as a follower (derived
+			     from the follower cards that link back here). Click to open their sheet. --}}
+			{{#if stonetop.isFollowing}}
+			<section class="stonetop-npc-field stonetop-npc-following">
+				<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.following"}}</strong>
+				<span class="stonetop-npc-prose stonetop-npc-following-list">
+					{{#each stonetop.following}}<a class="stonetop-npc-following-pc" data-pc-id="{{id}}" data-tooltip="Open {{name}}'s sheet"><i class="fas fa-user"></i> {{name}}</a>{{#unless @last}}, {{/unless}}{{/each}}
+				</span>
+			</section>
+			{{/if}}
 
 			{{!-- Instinct — the anchor field, given prominence. --}}
 			<section class="stonetop-npc-field stonetop-npc-instinct">

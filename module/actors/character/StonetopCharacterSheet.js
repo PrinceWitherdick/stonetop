@@ -14,6 +14,7 @@ import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CreateFollowerDialog} from "./dialogs/CreateFollowerDialog.js";
 import {MonsterToFollowerDialog} from "./dialogs/MonsterToFollowerDialog.js";
+import {NpcToFollowerDialog} from "./dialogs/NpcToFollowerDialog.js";
 import {OrderFollowersDialog} from "./dialogs/OrderFollowersDialog.js";
 import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
@@ -34,6 +35,7 @@ import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
+import {peopleNames} from "../steading/steading-people.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
@@ -2011,6 +2013,11 @@ export function createStonetopCharacterSheetClass(Base) {
 						// Dropping a monster offers to convert it to a follower (NPCs &
 						// Followers, p.475): keep its stats, add tags, choose a cost.
 						this._onMonsterDropConvert(doc);
+					} else if (doc?.type === "npc") {
+						// Dropping an NPC offers to make it this PC's follower (p.475: a
+						// follower "is first an NPC") — carrying its identity over and
+						// linking the card back to the actor via sourceUuid.
+						this._onNpcDropConvert(doc);
 					}
 					return;
 				}
@@ -4775,16 +4782,9 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		// Names of the linked steading's residents (+ neighbors), for the Create-a-Follower
 		// name datalist. Best-effort — a missing/unlinked steading just yields no hints.
+		// steading-people.js owns where the people rows live, so the storage path stays there.
 		_steadingResidentNames() {
-			try {
-				const steading = this._stonetopCharacter?.getSteadingActor?.();
-				if (!steading) return [];
-				const rows = [
-					...(steading.getFlag("stonetop_pwd", "residents") ?? []),
-					...(steading.getFlag("stonetop_pwd", "neighbors") ?? []),
-				];
-				return [...new Set(rows.map(r => String(r?.name ?? "").trim()).filter(Boolean))];
-			} catch { return []; }
+			return peopleNames(this._stonetopCharacter?.getSteadingActor?.());
 		}
 
 		// Offer to convert a dropped monster into a follower (keep its stats, add
@@ -4794,6 +4794,18 @@ export function createStonetopCharacterSheetClass(Base) {
 			new MonsterToFollowerDialog(
 				this.actor,
 				monsterDoc,
+				(data) => this._applyCustomFollower(data),
+			).render(true);
+		}
+
+		// Offer to make a dropped NPC this PC's follower (carry its identity + stats,
+		// add tags, choose a cost — p.475). The built card links back to the NPC actor
+		// via sourceUuid. Cancelling the modal does nothing.
+		_onNpcDropConvert(npcDoc) {
+			if (!this.isEditable || !npcDoc) return;
+			new NpcToFollowerDialog(
+				this.actor,
+				npcDoc,
 				(data) => this._applyCustomFollower(data),
 			).render(true);
 		}
