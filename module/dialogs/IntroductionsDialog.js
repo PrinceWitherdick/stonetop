@@ -286,6 +286,13 @@ export class IntroductionsDialog extends Application {
 	}
 
 	async _render(force, options) {
+		// Persist whatever's typed in the editable capture field to its flag BEFORE the DOM is
+		// rebuilt. The narration rounds have no player commit button (only autosave), so a turn
+		// advance — the GM's Next writes the cursor, which re-renders this dialog with no focus
+		// guard — would otherwise drop the last, not-yet-debounced characters (a removed focused
+		// textarea doesn't reliably fire its blur `change`). Flushing here catches every
+		// re-render path, so a player's introduction survives the hand-off.
+		await this._flushCaptureFromDom();
 		await super._render(force, options);
 		this._frontOnOpen.apply();
 		// Record where we are + that we're open, so a reload can reopen here. Every
@@ -772,20 +779,8 @@ export class IntroductionsDialog extends Application {
 		return touched;
 	}
 
-	// The PC whose still-in-progress narration must be withheld from a LIVE (background)
-	// Chronicle compile: the actively-typing PC on a narration round. Its half-typed prose
-	// would otherwise be frozen into the seed-once journal (prose is never regenerated once a
-	// page has it, see mergeChronicleSections). Answer/ask steps are safe (only COMMITTED
-	// answers compile, never the live draft), so nothing is skipped there; a full harvest at
-	// close/finish passes no skip, so the final text always lands.
-	_liveSkipActorId() {
-		const phase = _PHASES[this._phase];
-		if (_isRoundRobin(phase) && !_isStep(phase)) return this._pcs?.[this._pcIndex]?.id ?? null;
-		return null;
-	}
-
-	// Primary GM: fill the shared Chronicle in during the session as answers are recorded (and
-	// as completed narration lands), debounced so a burst of writes coalesces into one compile.
+	// Primary GM: fill the shared Chronicle in during the session as answers are recorded and
+	// as narration is typed, debounced so a burst of writes coalesces into one compile.
 	// Every client's hook calls this, but only the primary GM (the sole world-doc writer)
 	// proceeds; players and secondary GMs no-op.
 	_scheduleChronicleSync() {
@@ -794,16 +789,36 @@ export class IntroductionsDialog extends Application {
 		this._chronicleSync();
 	}
 
-	// Harvest the latest answers (skipping the actively-typing narrator, see _liveSkipActorId)
-	// and quietly re-compile the Chronicle. Seed-once + additive merge makes it idempotent: it
-	// appends new answers / completed narration and writes nothing when there's nothing new, so
-	// a no-op tick is cheap. Silent: no toast, and it never opens the journal (unlike the finish
-	// button or the macro).
+	// The PC whose UNTRACKED (pre-fix) Chronicle page a live sync may adopt and refresh from
+	// the text being typed this instant: the actively-authored narrator on a narration round.
+	// A page seeded before per-section hash tracking existed has no way to prove it wasn't
+	// hand-edited, so it's frozen by default — which means re-running the introductions for a
+	// REUSED character would never update its page. But the PC being narrated right now IS
+	// being (re-)authored, so its page should yield to the live text; once adopted it gains a
+	// hash and tracks normally (later journal edits win again). Scoped to this one PC so no
+	// other PC's legacy page is ever touched, and null off a narration round (Q&A is additive,
+	// nothing to adopt).
+	_liveAdoptActorId() {
+		const phase = _PHASES[this._phase];
+		if (_isRoundRobin(phase) && !_isStep(phase)) return this._pcs?.[this._pcIndex]?.id ?? null;
+		return null;
+	}
+
+	// Harvest the latest answers — the actively-typing narrator INCLUDED — and quietly
+	// re-compile the Chronicle. Prose sections track the source while un-edited (see
+	// mergeChronicleSections), so a player's in-progress introduction is refreshed on each
+	// tick instead of being frozen half-typed; a hand edit in the journal still wins (its
+	// hash stops matching), so nothing written there is clobbered. The actively-authored PC's
+	// page is passed as an adopt-legacy key so a REUSED character's pre-fix (untracked) page
+	// starts updating too. Additive Q&A merge + pristine-prose refresh keeps it idempotent: it
+	// writes nothing when there's nothing new, so a no-op tick is cheap. Silent: no toast, and
+	// it never opens the journal (unlike the finish button or the macro).
 	async _syncChronicle() {
 		if (!game.user?.isGM || !isPrimaryGM()) return;
 		try {
-			await this._harvestAll({ skipActorId: this._liveSkipActorId(), force: false });
-			await writeChronicle({ silent: true });
+			await this._harvestAll({ force: false });
+			const adoptId = this._liveAdoptActorId();
+			await writeChronicle({ silent: true, adoptLegacyKeys: adoptId ? new Set([adoptId]) : null });
 		} catch (err) {
 			console.warn("Stonetop | Introductions: live Chronicle sync failed", err);
 		}
@@ -1153,6 +1168,39 @@ export class IntroductionsDialog extends Application {
 		// here too — the PC just left is now finished with this round and safe to compile.
 		this._scheduleChronicleSync();
 		this.render(false);
+	}
+
+	// Persist the currently-typed capture field (narration textarea or step draft) to its
+	// flag before a re-render replaces the DOM. Run at the top of _render so no re-render
+	// path — a turn advance, a cursor nonce bump, a jump-to-step — can drop the last,
+	// not-yet-debounced characters. Gated to the SOLE editor: the owning player (writing
+	// their own PC) or the GM standing in for an offline / GM-only PC. A GM watching a
+	// present player sees a readonly mirror (excluded by :not([readonly])) and, on the shared
+	// live draft it co-edits, is excluded by _hasOnlinePlayerOwner — so its lagging DOM value
+	// never reverts the player's newer flag. The DOM's own data-* is authoritative (not
+	// this._pcIndex), so the flush still fires the instant AFTER the cursor moved the turn on.
+	async _flushCaptureFromDom() {
+		const root = this.element?.[0];
+		if (!root) return;
+		this._cancelLiveDraft();
+		// This runs at the top of _render, so a throw here would abort the whole render.
+		// A flag write failing must not do that — log and let the render proceed (the same
+		// defensive stance as _syncChronicle).
+		try {
+			const soleEditor = (actorId) => !!this._ownedActor(actorId) && !this._hasOnlinePlayerOwner(this._actor(actorId));
+			const nar = root.querySelector("textarea.stonetop-intros-answer:not([readonly])");
+			if (nar?.dataset.actorId && nar.dataset.roundKey && soleEditor(nar.dataset.actorId)) {
+				await this._saveNarration(nar.dataset.actorId, nar.dataset.roundKey, nar.value);
+			}
+			const draft = root.querySelector("textarea.stonetop-intros-draft:not([readonly])");
+			if (draft?.dataset.actorId && draft.dataset.stepKey && soleEditor(draft.dataset.actorId)) {
+				const sel = root.querySelector(".stonetop-intros-question-pick.is-selected");
+				const q   = sel ? Number(sel.dataset.qIndex) : this._stepDraft(draft.dataset.actorId, draft.dataset.stepKey).q;
+				await this._saveDraft(draft.dataset.actorId, draft.dataset.stepKey, { q, a: draft.value });
+			}
+		} catch (err) {
+			console.warn("Stonetop | Introductions: capture flush before re-render failed", err);
+		}
 	}
 
 	// Flush the compose UI's current state (selected question + textarea text) to the
