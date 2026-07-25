@@ -366,6 +366,7 @@
               "pickNote": "Choose up to 3 (now or later)",
               "pickCount": 3,
               "optional": true,
+              "gear": true,
               "options": [
                 {
                   "slug": "sword",

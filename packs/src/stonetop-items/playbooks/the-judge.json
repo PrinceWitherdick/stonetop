@@ -189,6 +189,7 @@
             "description": "",
             "choices": {
               "pickCount": 1,
+              "gear": true,
               "options": [
                 {
                   "slug": "black-iron-maul",

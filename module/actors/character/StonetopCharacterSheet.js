@@ -22,6 +22,7 @@ import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../..
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
+import { crewExists } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollDamage, rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
@@ -1406,7 +1407,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				{ slug: "cloak",       label: "<strong>Cloak</strong> (<em>warm</em>)",                                                   weight: 1 },
 			];
 			let crew = null;
-			if (sf.crew?.tags?.length || sf.crew?.instinct || sf.crew?.cost || sf.crew?.name || sf.crew?.individuals?.length) {
+			if (crewExists(sf.crew)) {
 				const loyaltyVal      = sf.crew?.loyalty ?? 0;
 				const gearFlags       = sf.crew?.gear ?? {};
 				const inventoryDef    = playbookDoc?.crew?.inventory?.length ? playbookDoc.crew.inventory : CREW_INVENTORY_FALLBACK;
@@ -2798,6 +2799,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-custom-remove").on("click", this._onRemoveCustomPossession.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
+			// Weapons-of-war ◇/□ rows: ticking a diamond picks the weapon (a sub-choice) and
+			// marks it carried in one move — the pick IS the load mark.
+			html.find(".stonetop-possession-choice-gear-check").on("change", this._onPossessionChoiceGearCheck.bind(this));
 			// Fill-in blank inside a bundle sub-option (the Would-Be Hero's personal token):
 			// saved on blur, keyed possession:choice, mirroring the onboarding write-in.
 			html.find(".stonetop-possession-sub-fill").on("change", ev => {
@@ -4626,6 +4630,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else {
 				await this._stonetopCharacter.deselectSubChoice(possessionSlug, choiceSlug);
 			}
+		}
+
+		// Weapons-of-war style gear (see tab-equipment.hbs): a possession's `choices` options
+		// rendered as ◇/□ rows. Ticking a diamond selects that weapon as a sub-choice — which
+		// is the pick and the load mark both — so this routes to the same sub-choice store as
+		// the edit-mode checklist, then re-derives load on re-render.
+		async _onPossessionChoiceGearCheck(ev) {
+			const el = ev.currentTarget;
+			const { possessionSlug, choiceSlug } = el.dataset;
+			// A ◇◇ weapon renders one diamond per point of weight, all bound to one picked/not
+			// state; the browser only flips the clicked box, so mirror it onto its siblings and
+			// the wrapper now — otherwise the rest visibly lags until the async re-render lands.
+			const group = el.closest(".stonetop-inv-diamonds");
+			if (group) for (const box of group.querySelectorAll(".stonetop-inv-diamond")) box.checked = el.checked;
+			el.closest(".stonetop-inv-item")?.classList.toggle("is-checked", el.checked);
+			if (el.checked) {
+				await this._stonetopCharacter.selectSubChoice(possessionSlug, choiceSlug);
+			} else {
+				await this._stonetopCharacter.deselectSubChoice(possessionSlug, choiceSlug);
+			}
+			this.render(false);
 		}
 
 		async _onInventoryItemCheck(ev) {

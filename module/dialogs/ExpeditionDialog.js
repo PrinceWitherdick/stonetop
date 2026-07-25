@@ -1,5 +1,6 @@
 import { StepperDialog } from "./StepperDialog.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
+import { crewExists } from "../utils/crew.js";
 import { sign, rollSeasonsCard } from "../utils/roll-engine.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
 import { getSetting, setSetting } from "../settings.js";
@@ -642,7 +643,7 @@ export class ExpeditionDialog extends StepperDialog {
 	// separate track and don't count. Returns null for a PC with no crew.
 	_crewRow(actor) {
 		const crew = actor.getFlag?.("stonetop_pwd", "crew");
-		const exists = crew && (crew.name || crew.tags?.length || crew.instinct || crew.cost || crew.individuals?.length);
+		const exists = crewExists(crew);
 		if (!exists) return null;
 		const gear  = crew.gear ?? {};
 		const marks = Object.values(gear).reduce((sum, v) => sum + (typeof v === "number" ? v : (v ? 1 : 0)), 0);

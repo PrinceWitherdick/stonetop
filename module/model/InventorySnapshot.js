@@ -219,6 +219,12 @@ export class PossessionsSnapshot {
  * @property {InventoryItemSnapshot[]} grantedSmall    This possession's bundled non-◇ gear
  *           (whisky, malt, stills), rendered below grantedRegular; marking one still counts
  *           toward the small-item allowance.
+ * @property {{regular: Object[], small: Object[], pickNote: string|null}|null} choiceGear
+ *           A gear-bearing `choices` bundle (the Heavy's / Marshal's Weapons of War) rendered
+ *           as ◇/□ item-rows instead of the plain sub-choice checklist: ticking a diamond is
+ *           the pick AND the load mark. Each row carries its possession/choice slugs, weight,
+ *           checked/disabled state, and (for the picked crossbow) an ammo resource. Null unless
+ *           the possession is selected and its `choices` object is flagged `gear`.
  */
 export class PossessionItemSnapshot {
 	constructor(b) {
@@ -241,6 +247,7 @@ export class PossessionItemSnapshot {
 		this.isCustom          = b._isCustom ?? false;
 		this.grantedRegular    = b._grantedRegular ?? [];
 		this.grantedSmall      = b._grantedSmall ?? [];
+		this.choiceGear        = b._choiceGear ?? null;
 	}
 }
 
@@ -262,6 +269,7 @@ export class PossessionItemSnapshotBuilder {
 	withCustom(v)            { this._isCustom          = v; return this; }
 	withGrantedRegular(v)    { this._grantedRegular    = v; return this; }
 	withGrantedSmall(v)      { this._grantedSmall      = v; return this; }
+	withChoiceGear(v)        { this._choiceGear        = v; return this; }
 	build()                  { return new PossessionItemSnapshot(this); }
 }
 
