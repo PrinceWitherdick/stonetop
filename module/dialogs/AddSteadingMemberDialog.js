@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../utils/front-on-open.js";
+import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { OCCUPATIONS, TRAITS, HOMES } from "../data/steading-members.js";
 import { StonetopAutocomplete } from "../utils/autocomplete.js";
 
@@ -66,14 +66,13 @@ const HOME_INFO = {
 	"The Manmarch": "Sparsely settled southern plains, and the feuding, warlike longhouse-dwellers of the north — who'd be a terror to all the world, should they ever unite.",
 };
 
-export class AddSteadingMemberDialog extends Application {
+export class AddSteadingMemberDialog extends StonetopDialog {
 	constructor(type, onConfirm, options = {}) {
 		super(options);
 		this._type = type;
 		this._onConfirm = onConfirm;
 		this._formData = { name: "", occupation: "", traits: "", relations: "", notes: "" };
 		if (type === "neighbor") this._formData.home = "";
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -84,16 +83,6 @@ export class AddSteadingMemberDialog extends Application {
 			resizable: true,
 			classes: ["stonetop", "stonetop-add-member-dialog"],
 		});
-	}
-
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
 	}
 
 	get title() {
@@ -154,7 +143,6 @@ export class AddSteadingMemberDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 		const root = html[0];
 
 		// Replace the combo fields' native <datalist> popups with our scrollable one —

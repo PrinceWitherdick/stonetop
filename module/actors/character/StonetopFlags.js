@@ -1,5 +1,10 @@
 export const STONETOP_SCOPE = "stonetop_pwd";
 export const LEGACY_STONETOP_SCOPE = "stonetop";
+
+// Compendium pack ids, derived from the system scope so the roadmapped stonetop_pwd → stonetop
+// rename touches only STONETOP_SCOPE. Import these; do not retype the literal pack path.
+export const ITEMS_PACK  = `${STONETOP_SCOPE}.stonetop-items`;
+export const ARCANA_PACK = `${STONETOP_SCOPE}.stonetop-arcana`;
 // Compendium item documents store their custom flags under the original system ID.
 // This intentionally differs from STONETOP_SCOPE (actor flags).
 export const ITEM_FLAG_SCOPE = "stonetop";

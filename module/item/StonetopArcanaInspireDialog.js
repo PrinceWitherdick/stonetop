@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../utils/front-on-open.js";
+import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import {
 	ORIGINS, NATURES, FORM_FIELDS, detailFieldsForNature,
 	rollOnTable, seedDescriptionHtml,
@@ -39,7 +39,7 @@ const PICK_WARN = {
  * rolled results. The dialog is data-driven from artifact-creation-tables.js and stays
  * agnostic of how the card is created: it hands the choices to an `onCreate` callback.
  */
-export class StonetopArcanaInspireDialog extends Application {
+export class StonetopArcanaInspireDialog extends StonetopDialog {
 	/**
 	 * @param {object}   [opts]
 	 * @param {Function} opts.onCreate - async ({ name, major, front }) → Item. Creates the
@@ -53,7 +53,6 @@ export class StonetopArcanaInspireDialog extends Application {
 		this._picks = {};
 		this._name  = "";
 		this._major = false;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -71,25 +70,20 @@ export class StonetopArcanaInspireDialog extends Application {
 
 	// Re-center on the previous step's center when a step change resizes the window, so
 	// the modal grows/shrinks in place rather than jumping (mirrors LevelUpDialog).
+	get _autoHeight() { return true; }
+
 	async _render(force, options) {
 		const p = this.position;
 		const prevCenter = [p?.left, p?.top, p?.width, p?.height].every(Number.isFinite)
 			? { x: p.left + p.width / 2, y: p.top + p.height / 2 }
 			: null;
 		await super._render(force, options);
-		this._frontOnOpen.apply();
-		this.setPosition({ height: "auto" });
 		if (prevCenter) {
 			this.setPosition({
 				left: prevCenter.x - this.position.width / 2,
 				top:  prevCenter.y - this.position.height / 2,
 			});
 		}
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
 	}
 
 	_natureKey() {
@@ -171,7 +165,6 @@ export class StonetopArcanaInspireDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 		const root = html[0];
 
 		// Field selects → remember the pick (no re-render; the value is already shown).

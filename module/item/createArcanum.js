@@ -1,4 +1,4 @@
-import { ITEM_FLAG_SCOPE } from "../actors/character/StonetopFlags.js";
+import { ITEM_FLAG_SCOPE, ARCANA_PACK } from "../actors/character/StonetopFlags.js";
 import { slugify } from "../utils/strings.js";
 
 // Re-exported for the arcana creator's callers (kept here for back-compat); the
@@ -6,7 +6,6 @@ import { slugify } from "../utils/strings.js";
 export { slugify };
 
 const ARCANUM_SHEET_CLASS = "stonetop.StonetopArcanumSheet";
-const ARCANA_PACK         = "stonetop_pwd.stonetop-arcana";
 
 /**
  * A slug derived from `name` that doesn't collide with any in `takenSlugs` (Set or array).

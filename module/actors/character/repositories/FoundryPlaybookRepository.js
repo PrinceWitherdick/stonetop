@@ -1,8 +1,9 @@
 import { FoundryPackStore } from "./FoundryPackStore.js";
+import { ITEMS_PACK } from "../StonetopFlags.js";
 
 export class FoundryPlaybookRepository {
 	constructor() {
-		this._store = new FoundryPackStore("stonetop_pwd.stonetop-items", ["system.slug"]);
+		this._store = new FoundryPackStore(ITEMS_PACK, ["system.slug"]);
 		this._cache = new Map();
 	}
 

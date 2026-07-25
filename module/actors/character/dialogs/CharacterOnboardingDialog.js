@@ -1,8 +1,10 @@
 // Descriptions for animal companion trait tags — checked before compendium lookup.
 import { isMajorArcana } from "../../../arcana-icons.js";
 import { parseMovePickCount, allowedMarkableActions } from "../StonetopCharacter.js";
+import { ITEMS_PACK, ARCANA_PACK } from "../StonetopFlags.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
-import { FrontOnOpen, openJournalSheetAsChild } from "../../../utils/front-on-open.js";
+import { openJournalSheetAsChild } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { shuffle } from "../../../utils/arrays.js";
 import { normalizePlaybookGlyphs, composeInstinct, parseInstinct } from "../../../utils/strings.js";
 import { splitFillBlank, fillBlank } from "../../../utils/fill-blanks.js";
@@ -91,7 +93,7 @@ export const ANIMAL_COMPANION_TRAIT_GLOSSARY = {
 	"tough":           "Resilient and hard to hurt; shrugs off blows that would fell lesser creatures.",
 };
 
-export class CharacterOnboardingDialog extends Application {
+export class CharacterOnboardingDialog extends StonetopDialog {
 	static hasIncompleteQuestions(playbookDoc, initialSelections = null) {
 		const d = Object.create(CharacterOnboardingDialog.prototype);
 		d._initializeState(playbookDoc, initialSelections, null);
@@ -138,7 +140,6 @@ export class CharacterOnboardingDialog extends Application {
 			...Object.entries(LORE_TERM_TOOLTIPS),
 		]);
 		this._hoveredAnchor = null;
-		this._frontOnOpen = new FrontOnOpen(this);
 
 		this._initializeState(playbookDoc, initialSelections, startAtStep);
 	}
@@ -785,7 +786,7 @@ export class CharacterOnboardingDialog extends Application {
 		this._arcanaCachePromise = (async () => {
 			// Arcana live in their own GM-hidden compendium (split out of stonetop-items);
 			// the pack is arcana-only, but keep the moveType filter below as a defensive guard.
-			const pack = game.packs.get("stonetop_pwd.stonetop-arcana");
+			const pack = game.packs.get(ARCANA_PACK);
 			if (!pack) return { major: [], minor: [] };
 			await pack.getIndex({ fields: ["system.moveType"] });
 			const entries = pack.index.filter(entry => entry.system?.moveType === "arcanum");
@@ -944,7 +945,7 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	async _loadPlaybookMoves() {
-		const pack = game.packs.get("stonetop_pwd.stonetop-items");
+		const pack = game.packs.get(ITEMS_PACK);
 		if (!pack) return [];
 		await pack.getIndex({ fields: ["system.playbook", "system.isStartingMove", "system.requirement"] });
 		const relevant = pack.index.filter(e => e.system?.playbook === this._playbookDoc.name);
@@ -1609,7 +1610,6 @@ export class CharacterOnboardingDialog extends Application {
 			this._rebuildDynamicSteps();
 		}
 		await super._render(force, options);
-		this._frontOnOpen.apply();
 		this._reportProgress();
 	}
 
@@ -2212,7 +2212,6 @@ export class CharacterOnboardingDialog extends Application {
 		// are never matched, so a typed glyph in an answer is left untouched.
 		html.find(".stonetop-onboarding-card-desc, .stonetop-onboarding-card-inline-desc, .stonetop-onboarding-lore-desc, .stonetop-onboarding-lore-pick-text, .stonetop-onboarding-lore-text-label, .stonetop-onboarding-suboption-label, .stonetop-onboarding-arcana-front-body")
 			.each((_, el) => wrapStonetopGlyphsInEl(el));
-		this._frontOnOpen.start();
 
 		html.find(".stonetop-onboarding-back-to-picker").on("click", () => this._goBack());
 		html.find(".stonetop-onboarding-back").on("click", () => this._navigate(-1));
@@ -3272,7 +3271,6 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	async close(options) {
-		this._frontOnOpen.stop();
 		this._clearPopups();
 		// Cancel any debounced live-save; the current answers are captured below
 		// (onExit) or were already committed (onComplete), and a late timer could

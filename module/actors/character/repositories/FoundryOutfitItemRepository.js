@@ -1,6 +1,6 @@
 import { OutfitItemBuilder } from "../../../model/OutfitItem.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
-import { ITEM_FLAG_SCOPE } from "../StonetopFlags.js";
+import { ITEM_FLAG_SCOPE, ITEMS_PACK } from "../StonetopFlags.js";
 
 const FIELDS = [
 	"system.moveType",
@@ -12,7 +12,7 @@ const FIELDS = [
 
 export class FoundryOutfitItemRepository {
 	constructor() {
-		this._store = new FoundryPackStore("stonetop_pwd.stonetop-items", FIELDS);
+		this._store = new FoundryPackStore(ITEMS_PACK, FIELDS);
 		this._cache = null;
 	}
 

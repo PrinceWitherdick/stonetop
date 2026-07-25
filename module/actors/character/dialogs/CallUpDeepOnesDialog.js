@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { sign } from "../../../utils/roll-engine.js";
 import {
 	SERVANT_ASPECTS, SERVANT_TAG_OPTIONS, SERVANT_NUMBER_OPTIONS, SERVANT_SIZE_OPTIONS,
@@ -18,7 +18,7 @@ import {
 
 const _ASPECT_KEYS = SERVANT_ASPECTS.map(a => a.key);
 
-export class CallUpDeepOnesDialog extends Application {
+export class CallUpDeepOnesDialog extends StonetopDialog {
 	/**
 	 * @param {Actor}    actor
 	 * @param {object}   ring    - { id, name, loyalty, hasRing } for the shared-Loyalty pool
@@ -29,7 +29,6 @@ export class CallUpDeepOnesDialog extends Application {
 		this._actor       = actor;
 		this._ring        = ring ?? {};
 		this._onApply     = onApply;
-		this._frontOnOpen = new FrontOnOpen(this);
 
 		this._dice   = null;                 // [v0..v4], each 1-4 — null until first roll
 		this._assign = {};                   // aspectKey → die index (0-4)
@@ -53,18 +52,13 @@ export class CallUpDeepOnesDialog extends Application {
 		});
 	}
 
+	get _autoHeight() { return true; }
+
 	async _render(force, options) {
 		// Roll the five d4s once, on first open, and seed a valid default assignment
 		// (die i → aspect i) so the page renders resolved rather than blank.
 		if (this._dice === null) await this._rollDice();
 		await super._render(force, options);
-		this._frontOnOpen.apply();
-		this.setPosition({ height: "auto" });
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
 	}
 
 	// ── Dice ─────────────────────────────────────────────────────────────────
@@ -213,7 +207,6 @@ export class CallUpDeepOnesDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 
 		html.find(".stonetop-cu-reroll").on("click", async () => { await this._rollDice(); this.render(false); });
 

@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 
 // ── FollowerFateDialog ───────────────────────────────────────────────────────
 // A follower has dropped to 0 HP. Two distinct cases:
@@ -16,7 +16,7 @@ import { FrontOnOpen } from "../../../utils/front-on-open.js";
 // set of options to show. Emits the chosen outcome key; the sheet applies the effect
 // (loyalty spend / XP / chat note) — see StonetopCharacterSheet._resolveFollowerFate.
 
-export class FollowerFateDialog extends Application {
+export class FollowerFateDialog extends StonetopDialog {
 	/**
 	 * @param {Actor}    actor
 	 * @param {object}   ctx      - { name, loyalty, isAnimalCompanion }
@@ -27,7 +27,6 @@ export class FollowerFateDialog extends Application {
 		this._actor       = actor;
 		this._ctx         = ctx ?? {};
 		this._onChoose    = onChoose;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -42,16 +41,7 @@ export class FollowerFateDialog extends Application {
 		});
 	}
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-		this.setPosition({ height: "auto" });
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
-	}
+	get _autoHeight() { return true; }
 
 	getData() {
 		const loyalty = Math.max(0, Number(this._ctx.loyalty) || 0);
@@ -69,7 +59,6 @@ export class FollowerFateDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 		html.find(".stonetop-ff-option").on("click", ev => {
 			const action = ev.currentTarget.dataset.action;
 			this._onChoose?.(action);

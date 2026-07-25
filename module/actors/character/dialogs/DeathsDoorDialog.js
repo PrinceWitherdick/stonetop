@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { stonetopChatCard, rollFormulaChip, rollResultNumber } from "../../../utils/chat.js";
 import { classifyResult, multiDieFaces } from "../../../utils/roll-engine.js";
 
@@ -18,13 +18,14 @@ const _DEATHS_DOOR_MARK_CHIPS = [
 	"a murder of crows, always nearby",
 ];
 
-export class DeathsDoorDialog extends Application {
+const _DEATHS_DOOR_STEPS = ["overview", "mechanics", "results"];
+
+export class DeathsDoorDialog extends StonetopDialog {
 	constructor(character, onDone, options = {}) {
 		super(options);
 		this._character = character;
 		this._step = "overview"; // "overview" | "mechanics" | "results"
 		this._onDone = onDone;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -39,17 +40,8 @@ export class DeathsDoorDialog extends Application {
 		});
 	}
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-		// Re-measure so the window always shrinks to fit the current step's content.
-		this.setPosition({ height: "auto" });
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
-	}
+	/** Content-hugging: re-fit the window height to the current step each render. */
+	get _autoHeight() { return true; }
 
 	getData() {
 		const isOverview = this._step === "overview";
@@ -76,7 +68,6 @@ export class DeathsDoorDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 
 		html.find(".deaths-door-next-btn").on("click", () => this._onNext());
 		html.find(".deaths-door-back-btn").on("click", () => this._onBack());
@@ -147,7 +138,7 @@ export class DeathsDoorDialog extends Application {
 	}
 
 	_onNext() {
-		const steps = ["overview", "mechanics", "results"];
+		const steps = _DEATHS_DOOR_STEPS;
 		const currentIndex = steps.indexOf(this._step);
 		if (currentIndex < steps.length - 1) {
 			this._step = steps[currentIndex + 1];
@@ -156,7 +147,7 @@ export class DeathsDoorDialog extends Application {
 	}
 
 	_onBack() {
-		const steps = ["overview", "mechanics", "results"];
+		const steps = _DEATHS_DOOR_STEPS;
 		const currentIndex = steps.indexOf(this._step);
 		if (currentIndex > 0) {
 			this._step = steps[currentIndex - 1];

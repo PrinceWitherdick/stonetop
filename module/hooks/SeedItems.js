@@ -2,6 +2,7 @@ import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
+import { ITEMS_PACK } from "../actors/character/StonetopFlags.js";
 
 // On load, import the Book II treasures — the "Treasures & Wonders" folder of the
 // stonetop-items Item compendium — into the world's Items sidebar under a folder of the
@@ -18,7 +19,7 @@ import { isPrimaryGM } from "../utils/primary-gm.js";
 // their sidebar — they get a treasure only when the GM drags one onto their sheet (which
 // re-plants it as an inventory-custom copy). Matches the bestiary's spoiler protection.
 
-const ITEMS_PACK_ID = "stonetop_pwd.stonetop-items";
+const ITEMS_PACK_ID = ITEMS_PACK;
 const TREASURE_FOLDER_NAME = "Treasures & Wonders";
 // Folder tints, kept in sync with scripts/local/treasures/gen-treasure-items.mjs (the pack
 // source) so a freshly-seeded world matches the compendium. The whole tree (root + section

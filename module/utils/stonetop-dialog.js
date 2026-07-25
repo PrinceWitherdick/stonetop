@@ -18,9 +18,15 @@ export class StonetopDialog extends Application {
 		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
+	/** Override to true for a content-hugging window that re-fits its height each render. */
+	get _autoHeight() { return false; }
+
 	async _render(force, options) {
 		await super._render(force, options);
 		this._frontOnOpen.apply();
+		// Auto-height dialogs re-fit their height after each render so the window hugs the
+		// current content (AppV1 caps the result via CSS max-height).
+		if (this._autoHeight) this.setPosition({ height: "auto" });
 	}
 
 	activateListeners(html) {

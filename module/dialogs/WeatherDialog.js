@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../utils/front-on-open.js";
+import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { getSetting, setSetting } from "../settings.js";
 import { WEATHER_SEASONS, getWeatherSeason, rollWeather, rowRange } from "../utils/weather.js";
@@ -11,13 +11,12 @@ const SEASON_SETTING = "weatherSeason";
 // live in utils/weather.js; this is just the picker. Opened from the sun-cloud
 // hotbar macro (see hooks/Ready.js). Remembers the last season per client.
 
-export class WeatherDialog extends Application {
+export class WeatherDialog extends StonetopDialog {
 	constructor(options = {}) {
 		super(options);
 		// Restore the last-used season, defaulting to the first table.
 		const saved = getSetting(SEASON_SETTING);
 		this._season    = getWeatherSeason(saved) ? saved : WEATHER_SEASONS[0].key;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static open() {
@@ -36,21 +35,10 @@ export class WeatherDialog extends Application {
 		});
 	}
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-	}
-
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 		html.find(".stonetop-weather-season").on("click", ev => this._pickSeason(ev.currentTarget.dataset.season));
-		html.find(".stonetop-weather-roll-btn").on("click", () => this._roll2());
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
+		html.find(".stonetop-weather-roll-btn").on("click", () => this._roll());
 	}
 
 	getData() {
@@ -76,7 +64,7 @@ export class WeatherDialog extends Application {
 
 	// Roll 1d6 on the current season's table; the result posts to chat, so just
 	// close the picker rather than echoing the roll back into the dialog.
-	async _roll2() {
+	async _roll() {
 		await rollWeather(this._season);
 		this.close();
 	}

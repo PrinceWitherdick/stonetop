@@ -1,4 +1,5 @@
-import { FrontOnOpen, bringDialogToFront } from "../utils/front-on-open.js";
+import { bringDialogToFront } from "../utils/front-on-open.js";
+import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { shuffle } from "../utils/arrays.js";
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
 import { playbookSlug, getPlayerCharacters, playbookIconPath, orderByCombatTurns } from "../utils/playbook-actors.js";
@@ -116,13 +117,12 @@ const _normQ = (v) => (Number.isInteger(v) ? v : null);
 
 // ── IntroductionsDialog ───────────────────────────────────────────────────────
 
-export class IntroductionsDialog extends Application {
+export class IntroductionsDialog extends StonetopDialog {
 	constructor(options = {}) {
 		super(options);
 		this._phase       = 0;
 		this._pcIndex     = 0;
 		this._pcs         = [];
-		this._frontOnOpen   = new FrontOnOpen(this);
 		this._combatHooks = null;
 		this._introHook   = null;
 		this._liveDraftTimer = null;
@@ -294,7 +294,6 @@ export class IntroductionsDialog extends Application {
 		// re-render path, so a player's introduction survives the hand-off.
 		await this._flushCaptureFromDom();
 		await super._render(force, options);
-		this._frontOnOpen.apply();
 		// Record where we are + that we're open, so a reload can reopen here. Every
 		// render reflects the current round/turn (navigation always re-renders).
 		this._saveResume();
@@ -339,7 +338,6 @@ export class IntroductionsDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 		html.find(".stonetop-intros-shuffle").on("click", () => this._shuffleOrder());
 		html.find(".stonetop-intros-begin").on("click", () => this._begin());
 		html.find(".stonetop-intros-next").on("click",  () => this._advance());
@@ -932,7 +930,6 @@ export class IntroductionsDialog extends Application {
 		if (game.user?.isGM && isPrimaryGM()) { try { await this._harvestAll(); } catch (_e) { /* non-fatal */ } }
 		this._unregisterCombatHooks();
 		this._unregisterIntroHooks();
-		this._frontOnOpen.stop();
 		// Closing on purpose (the X or "Let spring break forth!") clears the open flag
 		// so we don't auto-reopen on the next load; a browser reload skips close() and
 		// leaves it set. The saved round/turn stays, so a manual reopen still resumes.

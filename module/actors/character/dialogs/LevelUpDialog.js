@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { markProseSpiralBullets } from "../../../utils/journal-spiral-bullets.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
 import { moveMarkBudget } from "../move-mark-budget.js";
@@ -25,7 +25,7 @@ const LEVELUP_WIDE_STEPS = ["move", "foreignMove", "invocation"];
 // keep this the one source of truth for step order + skip logic.
 const LEVELUP_STEPS = ["overview", "move", "foreignMove", "stat", "marks", "invocation"];
 
-export class LevelUpDialog extends Application {
+export class LevelUpDialog extends StonetopDialog {
 	constructor(character, levelUpData, onDone, options = {}) {
 		super(options);
 		this._character  = character;
@@ -49,7 +49,6 @@ export class LevelUpDialog extends Application {
 		this._foreignMovesForId      = null; // the move id _foreignMoves was loaded for (avoid re-fetch on Back/Next)
 		this._foreignSearch          = "";
 		this._onDone = onDone;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -79,7 +78,6 @@ export class LevelUpDialog extends Application {
 			? { x: p.left + p.width / 2, y: p.top + p.height / 2 }
 			: null;
 		await super._render(force, options);
-		this._frontOnOpen.apply();
 		this._applyStepSize(prevCenter);
 	}
 
@@ -104,11 +102,6 @@ export class LevelUpDialog extends Application {
 				top:  prevCenter.y - this.position.height / 2,
 			});
 		}
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
 	}
 
 	getData() {
@@ -346,7 +339,6 @@ export class LevelUpDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 
 		// Move / invocation descriptions are enriched move HTML that can contain
 		// bulleted option lists; give them the same spiral bullets as the sheet.

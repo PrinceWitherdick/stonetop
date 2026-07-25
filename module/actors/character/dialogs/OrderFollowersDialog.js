@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { orderFollowersBonus } from "../../../data/follower-build.js";
 import { sign } from "../../../utils/roll-engine.js";
 
@@ -30,7 +30,7 @@ const _ORDER_MOVES = [
 	{ key: "custom",        label: "Custom / other…" },
 ];
 
-export class OrderFollowersDialog extends Application {
+export class OrderFollowersDialog extends StonetopDialog {
 	/**
 	 * @param {Actor}    actor
 	 * @param {object}   follower  - { name, tags: string[], exceptional: bool }
@@ -41,7 +41,6 @@ export class OrderFollowersDialog extends Application {
 		this._actor     = actor;
 		this._follower  = follower ?? {};
 		this._onRoll    = onRoll;
-		this._frontOnOpen = new FrontOnOpen(this);
 
 		// Optionally start on a specific move (a group's Clash / Let Fly buttons),
 		// else the rulebook's default of Defy Danger.
@@ -66,16 +65,7 @@ export class OrderFollowersDialog extends Application {
 		});
 	}
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-		this.setPosition({ height: "auto" });
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
-	}
+	get _autoHeight() { return true; }
 
 	// Live tallies the player's tri-state picks into the Order Followers result.
 	_result() {
@@ -121,7 +111,6 @@ export class OrderFollowersDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 
 		html.find(".stonetop-of-move").on("change", ev => {
 			this._moveKey = ev.currentTarget.value;

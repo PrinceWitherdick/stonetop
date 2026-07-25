@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { buildChoiceGroupsView } from "./possession-choice-cap.js";
 
 // Standalone editor for a possession's `choiceGroups` — the Blessed's sacred pouch:
@@ -13,7 +13,7 @@ import { buildChoiceGroupsView } from "./possession-choice-cap.js";
 // trait slot, it shows ONLY the capped remarkable-trait line with prior picks locked,
 // so the player adds the newly-earned trait without re-flavoring the pouch or swapping
 // an existing trait. The gear-tab pencil leaves addOnly false (full editor).
-export class PossessionChoicesDialog extends Application {
+export class PossessionChoicesDialog extends StonetopDialog {
 	constructor(character, possessionSlug, { onDone, addOnly = false } = {}, options = {}) {
 		super(options);
 		this._character      = character;
@@ -21,7 +21,6 @@ export class PossessionChoicesDialog extends Application {
 		this._onDone         = onDone ?? null;
 		this._addOnly        = addOnly;
 		this._title          = "Special Possession";
-		this._frontOnOpen    = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -39,16 +38,7 @@ export class PossessionChoicesDialog extends Application {
 	// because defaultOptions can't see the instance's possession label.
 	get title() { return this._title; }
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-		this.setPosition({ height: "auto" });
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
-	}
+	get _autoHeight() { return true; }
 
 	async getData() {
 		const playbook = await this._character.playbook();
@@ -80,7 +70,6 @@ export class PossessionChoicesDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 
 		// Flavor lines (pick 1 each): select this option and drop its siblings.
 		html.find(".stonetop-pc-sub-radio").on("change", async ev => {
