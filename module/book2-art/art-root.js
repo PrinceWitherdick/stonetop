@@ -25,7 +25,16 @@ export function book2ArtRoot() {
 	return String(configured || DEFAULT_ROOT).replace(/\/+$/, "");
 }
 
+/**
+ * Fully-qualified path of one manifest `out` path inside an already-resolved root. The one
+ * definition of the `${root}/${out}` join — callers that hoist the root for a batch (reapply's
+ * per-pass loop) pass it in here rather than re-inlining the join, so both sides resolve alike.
+ */
+export function book2ArtSrcWith(root, out) {
+	return `${root}/${out}`;
+}
+
 /** Fully-qualified path of one manifest `out` path inside the durable folder. */
 export function book2ArtSrc(out) {
-	return `${book2ArtRoot()}/${out}`;
+	return book2ArtSrcWith(book2ArtRoot(), out);
 }

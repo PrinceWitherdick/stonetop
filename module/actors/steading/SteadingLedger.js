@@ -1,5 +1,6 @@
 import { isBlank, formatValue, valuesEqual, actionForField, coalesceEntries, prettifySlug } from "../character/CharacterLedger.js";
 import { IMPROVEMENT_DEFINITIONS } from "./StonetopSteading.js";
+import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
 
 const LEDGER_SCOPE = "stonetop_pwd";
 const LEDGER_KEY = "ledger";
@@ -89,12 +90,8 @@ function listEntries(label, oldValue, newValue) {
 		}
 
 		if (oldName || newName) {
-			const name = newName || oldName;
-			const oldChecked = !!oldItem.checked;
-			const newChecked = !!newItem.checked;
-			if (oldChecked !== newChecked) {
-				entries.push({ action: `${name} ${newChecked ? "selected" : "deselected"}` });
-			}
+			const toggle = checkedToggleEntry(newName || oldName, oldItem, newItem);
+			if (toggle) entries.push(toggle);
 		}
 	}
 
@@ -119,6 +116,15 @@ function placeEntries(oldValue, newValue) {
 	}
 
 	return entries;
+}
+
+// The shared "this row's checkbox flipped" ledger line, used by every {name, checked} people
+// list so the selected/deselected wording lives in one place.
+function checkedToggleEntry(name, oldItem, newItem) {
+	const oldChecked = !!oldItem.checked;
+	const newChecked = !!newItem.checked;
+	if (oldChecked === newChecked) return null;
+	return { action: `${name} ${newChecked ? "selected" : "deselected"}` };
 }
 
 function neighborEntries(oldValue, newValue) {
@@ -152,19 +158,12 @@ function neighborEntries(oldValue, newValue) {
 				else entries.push({ action: `${name} trait changed from ${oldTrait} to ${newTrait}` });
 			}
 
-			const oldChecked = !!oldItem.checked;
-			const newChecked = !!newItem.checked;
-			if (oldChecked !== newChecked) {
-				entries.push({ action: `${name} ${newChecked ? "selected" : "deselected"}` });
-			}
+			const toggle = checkedToggleEntry(name, oldItem, newItem);
+			if (toggle) entries.push(toggle);
 		}
 	}
 
 	return entries;
-}
-
-function stripHtml(value) {
-	return String(value ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
 
 /**

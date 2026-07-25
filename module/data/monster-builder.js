@@ -8,6 +8,7 @@
 // numbers, so the two never drift and the math is verifiable in isolation.
 
 import { DIE_ORDER, stepDie as stepLadder } from "../utils/damage-die.js";
+import { byId as _byId, signedBonus } from "./table-utils.js";
 
 // ── Step 3/4/6: organization (every monster has exactly one) ──────────────────
 // Organization drives the base HP and base damage die in one pick.
@@ -121,7 +122,6 @@ export const MOVE_SUGGESTIONS = [
 	{ id: "notable",  name: "Do what it's notable for", hint: "Fill out a thin move list",               description: "Another move describing what the monster is notable for doing." },
 ];
 
-const _byId = (list, id) => list.find(o => String(o.id) === String(id)) ?? null;
 
 /** Step one die up (+n) or down (-n) the ladder, clamped to d4..d12.
  *  Off-ladder input defaults to d6, then reuses the shared ladder stepper. */
@@ -212,7 +212,7 @@ export function computeMonster(sel = {}) {
 	const chosenEffect = (sel.damageTags ?? []).filter(t => DAMAGE_EFFECT_TAGS.some(o => o.id === t));
 	const damageTags = _joinTags([...chosenRange, ...chosenEffect, ...modTags]);
 
-	const bonusStr = damageBonus > 0 ? `+${damageBonus}` : damageBonus < 0 ? `${damageBonus}` : "";
+	const bonusStr = signedBonus(damageBonus);
 	const rollFormula = `${damageDie}${bonusStr}`;
 	const advStr = rollMode === "adv" ? " w/advantage" : rollMode === "dis" ? " w/disadvantage" : "";
 	const tagStr = damageTags.length ? ` (${damageTags.join(", ")})` : "";

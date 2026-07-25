@@ -4,7 +4,7 @@ import { BOOK2_ART_APPLY_MANIFEST } from "./manifest.js";
 import { bestiaryDescriptionWithArt, codexFieldWithArt, locationSectionsWithArt, textPageWithManagedMap, matchWorldPage } from "./world-journal-art.js";
 import { managedHash } from "../hooks/journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
-import { book2ArtRoot } from "./art-root.js";
+import { book2ArtRoot, book2ArtSrcWith } from "./art-root.js";
 import { STEADING_ACTOR_TYPE, isSteadingPlaceholderImg } from "../actors/steading/steading-portrait.js";
 import { isBestiaryPlaceholderImg } from "../bestiary/monster-portrait.js";
 
@@ -45,9 +45,9 @@ import { isBestiaryPlaceholderImg } from "../bestiary/monster-portrait.js";
 const BES_PACK = "stonetop_pwd.stonetop-bestiary";
 const JRN_PACK = "stonetop_pwd.stonetop-journal";
 const TOKEN_FIT = "cover"; // matches the macro's CONFIG.TOKEN_FIT
-const JRN_SOURCE_PREFIX = "Compendium.stonetop_pwd.stonetop-journal.";
+const JRN_SOURCE_PREFIX = `Compendium.${JRN_PACK}.`;
 
-const jrnSource = (entryId) => `Compendium.stonetop_pwd.stonetop-journal.JournalEntry.${entryId}`;
+const jrnSource = (entryId) => `${JRN_SOURCE_PREFIX}JournalEntry.${entryId}`;
 
 // Fully-qualified paths of the durable art currently on disk. A missing directory
 // just means nothing to apply from there (the GM hasn't imported yet).
@@ -199,17 +199,23 @@ function codexEntryNeedsWork(entry, curation) {
 // is never disturbed, and best-effort (a failed render must not fail the pass). Covers both
 // the AppV2 sheet registry (v13+ journals) and the legacy AppV1 windows. Mirrored inline by
 // the bring-your-own-book macro (scripts/local/book2-art/import-book2-art.js, section 7c).
+// Best-effort re-render every OPEN app (AppV2 sheet registry + legacy AppV1 windows) whose
+// bound document matches `pred`. A failed render must never fail the pass.
+function rerenderOpenAppsWhere(pred) {
+	const apps = [...(foundry.applications?.instances?.values?.() ?? []), ...Object.values(ui.windows ?? {})];
+	for (const app of apps) {
+		const doc = app?.document ?? app?.object;
+		if (doc && app.rendered && pred(doc)) {
+			try { app.render(); } catch (_) { /* best-effort refresh */ }
+		}
+	}
+}
+
 function rerenderOpenJournals(entries) {
 	const ids = new Set();
 	for (const e of entries) if (e?.id) ids.add(e.id);
 	if (!ids.size) return;
-	const apps = [...(foundry.applications?.instances?.values?.() ?? []), ...Object.values(ui.windows ?? {})];
-	for (const app of apps) {
-		const doc = app?.document ?? app?.object;
-		if (doc?.documentName === "JournalEntry" && ids.has(doc.id) && app.rendered) {
-			try { app.render(); } catch (_) { /* best-effort refresh */ }
-		}
-	}
+	rerenderOpenAppsWhere(doc => doc.documentName === "JournalEntry" && ids.has(doc.id));
 }
 
 // Re-render any OPEN views of the compendia we just wrote to, so the new art shows without an
@@ -227,13 +233,7 @@ function rerenderOpenCompendia(packs) {
 	// Sheets opened FROM these compendia — a compendium doc's sheet shows its own img/token,
 	// which the doc update above does not refresh. Matched by the doc's `pack` id.
 	const ids = new Set([...set].map((p) => p.collection ?? p.metadata?.id).filter(Boolean));
-	const apps = [...(foundry.applications?.instances?.values?.() ?? []), ...Object.values(ui.windows ?? {})];
-	for (const app of apps) {
-		const doc = app?.document ?? app?.object;
-		if (doc?.pack && ids.has(doc.pack) && app.rendered) {
-			try { app.render(); } catch (_) { /* best-effort */ }
-		}
-	}
+	rerenderOpenAppsWhere(doc => doc.pack && ids.has(doc.pack));
 }
 
 // The re-apply worker. Idempotent (every write is a no-op when the target already
@@ -258,7 +258,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 
 	// book2ArtSrc with the root hoisted: this runs once per manifest row per pass, and the
 	// root cannot change mid-pass, so there's no reason to re-read the setting each time.
-	const srcOf = (out) => `${root}/${out}`;
+	const srcOf = (out) => book2ArtSrcWith(root, out);
 	const { monsters, locations, settingOverviewMaps = [], treasures = [], people = [], codex = [], steadings = [] } = BOOK2_ART_APPLY_MANIFEST;
 
 	// Treasures first, and BEFORE the nothing-on-disk return below. They are not documents,

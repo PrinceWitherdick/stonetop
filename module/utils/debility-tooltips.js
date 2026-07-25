@@ -1,5 +1,6 @@
 import { getHoverDescriptionSetting } from "../settings.js";
 import { JOURNAL_EDITOR_SELECTOR } from "./journal-editor-guard.js";
+import { replaceTextMatches } from "./text-nodes.js";
 
 // The three character debilities and what each one does. This is the canonical
 // rules text mirrored from `_DEBILITY_DEFS` in
@@ -55,35 +56,17 @@ export function markDebilityTooltips(container) {
 	// lets us skip building the TreeWalker and running `.closest(_SKIP)` per node.
 	if (!_DEBILITY_RE.test(container.textContent ?? "")) return;
 
-	const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-		acceptNode: node =>
-			node.parentElement?.closest(_SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+	replaceTextMatches(container, {
+		skip:  _SKIP,
+		regex: _DEBILITY_RE_G,
+		render: (match, text) => {
+			// A steading debility (diminished/lacking/malcontent) — leave the word as plain text.
+			if (_STEADING_QUALIFIED.test(text.slice(0, match.index))) return null;
+			const span = document.createElement("span");
+			span.className = "stonetop-debility-term";
+			span.dataset.tooltip = DEBILITY_TOOLTIP;
+			span.textContent = match[0];
+			return span;
+		},
 	});
-	const toReplace = [];
-	let node;
-	while ((node = walker.nextNode())) {
-		if (_DEBILITY_RE.test(node.textContent)) toReplace.push(node);
-	}
-
-	for (const textNode of toReplace) {
-		const text = textNode.textContent;
-		const frag = document.createDocumentFragment();
-		let lastIdx = 0;
-		for (const match of text.matchAll(_DEBILITY_RE_G)) {
-			if (match.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, match.index)));
-			if (_STEADING_QUALIFIED.test(text.slice(0, match.index))) {
-				// Steading debility — leave the word as plain text.
-				frag.appendChild(document.createTextNode(match[0]));
-			} else {
-				const span = document.createElement("span");
-				span.className = "stonetop-debility-term";
-				span.dataset.tooltip = DEBILITY_TOOLTIP;
-				span.textContent = match[0];
-				frag.appendChild(span);
-			}
-			lastIdx = match.index + match[0].length;
-		}
-		if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
-		textNode.parentNode?.replaceChild(frag, textNode);
-	}
 }

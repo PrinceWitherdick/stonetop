@@ -40,7 +40,7 @@ import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
-import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT } from "./module/utils/roll-engine.js";
+import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT, xpToLevelUp } from "./module/utils/roll-engine.js";
 import { formatOutcomeDetail } from "./module/utils/strings.js";
 import { wireAttackConfirm, wireApplyDamage, wireSufferAttack } from "./module/combat/attack-flow.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
@@ -499,9 +499,7 @@ Hooks.on("preUpdateActor", (actor, changes) => {
 
 // -- CHAT SPEAKER ALIAS ----------------------------------------
 Hooks.on("preCreateChatMessage", (message) => {
-	const { token: tokenId, actor: actorId } = message.speaker ?? {};
-	const actor = (tokenId ? canvas.tokens?.get(tokenId)?.actor : null)
-		?? (actorId ? game.actors?.get(actorId) : null);
+	const actor = _speakerActor(message);
 	if (!actor || actor.type !== "character") return;
 	const playbookName = actor.system?.playbook?.name ?? "";
 	if (!playbookName) return;
@@ -616,16 +614,14 @@ function _chatWireBurnBrightly(message, html) {
 	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
 	if (!cardButtons) return;
 
-	const { token: tokenId, actor: actorId } = message.speaker ?? {};
-	const actor = (tokenId ? canvas.tokens?.get(tokenId)?.actor : null)
-		?? (actorId ? game.actors?.get(actorId) : null);
+	const actor = _speakerActor(message);
 
 	if (!actor || actor.type !== "character" || !actor.isOwner) return;
 
 	const alreadyBurned = message.getFlag("stonetop_pwd", "burnBrightly") ?? false;
 	const xp    = actor.system?.attributes?.xp?.value    ?? 0;
 	const level = actor.system?.attributes?.level?.value ?? 1;
-	const canAfford = xp >= 6 + 2 * level;
+	const canAfford = xp >= xpToLevelUp(level);
 
 	if (!canAfford && !alreadyBurned) return;
 
@@ -645,7 +641,7 @@ function _chatWireBurnBrightly(message, html) {
 		btn.disabled = true;
 		const currentXp    = actor.system?.attributes?.xp?.value    ?? 0;
 		const currentLevel = actor.system?.attributes?.level?.value ?? 1;
-		if (currentXp < 6 + 2 * currentLevel) {
+		if (currentXp < xpToLevelUp(currentLevel)) {
 			ui.notifications.warn("You don't have enough XP to Burn Brightly.");
 			btn.disabled = false;
 			return;
@@ -654,7 +650,7 @@ function _chatWireBurnBrightly(message, html) {
 			const playbookName = actor.system?.playbook?.name ?? "";
 			await actor.update({ "system.attributes.xp.value": currentXp - 2 });
 			const newXp = currentXp - 2;
-			const maxXp = 6 + 2 * currentLevel;
+			const maxXp = xpToLevelUp(currentLevel);
 			ChatMessage.create({
 				content: `-2 XP for Burning Brightly.<br>New XP: ${newXp} / ${maxXp}`,
 				speaker: ChatMessage.getSpeaker({ actor }),
@@ -662,25 +658,9 @@ function _chatWireBurnBrightly(message, html) {
 
 			const rolls = message.rolls;
 			const roll  = rolls.at(0);
-			let opTerm  = roll.terms.find(t => t instanceof foundry.dice.terms.OperatorTerm && t.options.rollShifting);
-			let numTerm = roll.terms.find(t => t instanceof foundry.dice.terms.NumericTerm  && t.options.rollShifting);
-			const originalValue = opTerm && numTerm
-				? Roll.safeEval(`${opTerm.operator}${numTerm.number}`)
-				: 0;
-
-			if (!numTerm) {
-				roll.terms.push(
-					opTerm  = new foundry.dice.terms.OperatorTerm({ operator: "+", options: { rollShifting: true } }),
-					numTerm = new foundry.dice.terms.NumericTerm({ number: 1, options: { rollShifting: true } })
-				);
-			} else {
-				numTerm.number = Math.abs(Roll.safeEval(`${opTerm.operator}${numTerm.number} + 1`));
-			}
-			if (numTerm.number === 1 && originalValue === 0 && opTerm.operator !== "+") opTerm.operator = "+";
-			else if (numTerm.number === 0) opTerm.operator = "+";
-
-			roll.resetFormula();
-			await roll._evaluate();
+			// Add +1 to the roll's rollShifting modifier term (creating it if absent) — the
+			// same dice-term math the ± roll-shift buttons use, so the two never drift.
+			await _shiftRoll(roll, 1);
 
 			const speakerUpdate = playbookName ? { alias: `${actor.name} ${playbookName}` } : {};
 			await message.update({

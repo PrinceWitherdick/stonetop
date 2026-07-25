@@ -1,4 +1,5 @@
 import { BEAST_CATALOG } from "../../data/beasts.js";
+import { stripHtmlToText } from "../../utils/strings.js";
 
 const LEDGER_SCOPE = "stonetop_pwd";
 const LEDGER_KEY = "ledger";
@@ -210,9 +211,10 @@ export function prettifySlug(slug) {
 		.join(" ") || "Unknown";
 }
 
+// The ledger wants null (not "") for an empty value so a rich-text clear reads as a removal;
+// otherwise it's the shared strip-HTML helper.
 function stripHtml(value) {
-	const text = String(value ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-	return text || null;
+	return stripHtmlToText(value) || null;
 }
 
 function firstLabelPart(value) {

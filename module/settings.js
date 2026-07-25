@@ -571,9 +571,6 @@ export function registerSettings() {
 		default: false,
 	});
 
-	// Strip the decorative animations, transitions, and hover-zoom image popups
-	// from Stonetop UI for users who find them distracting or are motion-sensitive.
-	// Drives the `stonetop-reduce-motion` root class.
 	// Reopen the document sheets (characters, steadings, monsters, items, journals)
 	// this user had open when they reload, at the same position and size. Per-client
 	// because window layout is personal, not shared world state. Defaults on. The
@@ -598,6 +595,9 @@ export function registerSettings() {
 		default: {},
 	});
 
+	// Strip the decorative animations, transitions, and hover-zoom image popups
+	// from Stonetop UI for users who find them distracting or are motion-sensitive.
+	// Drives the `stonetop-reduce-motion` root class.
 	game.settings.register("stonetop_pwd", "reduceMotion", {
 		name: "stonetop.settings.reduceMotion.name",
 		hint: "stonetop.settings.reduceMotion.hint",
