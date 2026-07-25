@@ -21,8 +21,6 @@
 					{{#if stonetop.editMode}}
 					<input class="input--title stonetop-name-field" name="name" type="text"
 					       value="{{actor.name}}" placeholder='{{localize "stonetop.npc.namePlaceholder"}}'>
-					<input class="stonetop-npc-pronouns" name="system.pronouns" type="text"
-					       value="{{system.pronouns}}" placeholder='{{localize "stonetop.npc.pronounsPlaceholder"}}'>
 					<select class="stonetop-npc-status-select" name="system.status"
 					        title='{{localize "stonetop.npc.status"}}' aria-label='{{localize "stonetop.npc.status"}}'>
 						{{#each stonetop.statusOptions}}
@@ -30,19 +28,19 @@
 						{{/each}}
 					</select>
 					{{else}}
-					<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}{{#if system.pronouns}} <span class="stonetop-npc-pronouns-display">({{system.pronouns}})</span>{{/if}}</span>
+					<span class="input--title stonetop-header-locked stonetop-name-field"><span class="stonetop-npc-name-text">{{actor.name}}</span></span>
 					{{#if stonetop.status.value}}<span class="stonetop-npc-status-badge" data-status="{{stonetop.status.value}}">{{stonetop.status.label}}</span>{{/if}}
 					{{/if}}
 				</div>
 
 				<div class="stonetop-npc-header-details">
 					{{#if stonetop.editMode}}
-					<input class="stonetop-npc-occupation" name="system.occupation" type="text"
-					       value="{{system.occupation}}" placeholder='{{localize "stonetop.npc.occupationPlaceholder"}}'>
+					<input class="stonetop-npc-pronouns" name="system.pronouns" type="text"
+					       value="{{system.pronouns}}" placeholder='{{localize "stonetop.npc.pronounsPlaceholder"}}'>
 					<input class="stonetop-npc-traits" name="system.traits" type="text"
 					       value="{{system.traits}}" placeholder='{{localize "stonetop.npc.traitsPlaceholder"}}'>
 					{{else}}
-					{{#if system.occupation}}<p class="stonetop-npc-prose stonetop-npc-occupation-display">{{system.occupation}}</p>{{/if}}
+					{{#if system.pronouns}}<span class="stonetop-npc-pronouns-display">{{system.pronouns}}</span>{{/if}}
 					{{#if system.traits}}<p class="stonetop-npc-prose stonetop-npc-traits-display">{{system.traits}}</p>{{/if}}
 					{{/if}}
 				</div>
@@ -66,7 +64,7 @@
 										<input class="attr-max" type="number" name="system.attributes.hp.max"
 										       value="{{system.attributes.hp.max}}" min="0">
 										{{else}}
-										<span class="attr-max">{{system.attributes.hp.max}}</span>
+										<span class="attr-max stonetop-hp-max-readonly">{{system.attributes.hp.max}}</span>
 										{{/if}}
 									</span>
 								</div>
@@ -94,53 +92,75 @@
 
 		<section class="sheet-main flexcol stonetop-npc-main">
 
-			{{!-- Following — the PC(s) who've recruited this NPC as a follower (derived
-			     from the follower cards that link back here). Click to open their sheet. --}}
-			{{#if stonetop.isFollowing}}
-			<section class="stonetop-npc-field stonetop-npc-following">
-				<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.following"}}</strong>
-				<span class="stonetop-npc-prose stonetop-npc-following-list">
-					{{#each stonetop.following}}<a class="stonetop-npc-following-pc" data-pc-id="{{id}}" data-tooltip="Open {{name}}'s sheet"><i class="fas fa-user"></i> {{name}}</a>{{#unless @last}}, {{/unless}}{{/each}}
-				</span>
-			</section>
-			{{/if}}
+			{{!-- Quick facts — a tight stat block (home, instinct, occupation, relations),
+			     spaced like the monster stat block rather than the roomy body. --}}
+			<div class="stonetop-npc-stat-block">
 
-			{{!-- Instinct — the anchor field, given prominence. --}}
-			<section class="stonetop-npc-field stonetop-npc-instinct">
-				<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.instinct"}}</strong>
-				{{#if stonetop.editMode}}
-				<input class="stonetop-npc-stat-input" type="text" name="system.instinct"
-				       value="{{system.instinct}}" placeholder='{{localize "stonetop.npc.instinctPlaceholder"}}'>
-				{{else}}
-				<span class="stonetop-npc-prose">{{#if system.instinct}}{{system.instinct}}{{else}}<em class="stonetop-npc-empty">{{localize "stonetop.npc.instinctEmpty"}}</em>{{/if}}</span>
+				{{!-- Following — the PC(s) who've recruited this NPC as a follower (derived
+				     from the follower cards that link back here). Click to open their sheet. --}}
+				{{#if stonetop.isFollowing}}
+				<section class="stonetop-npc-field stonetop-npc-following">
+					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.following"}}</strong>
+					<span class="stonetop-npc-prose stonetop-npc-following-list">
+						{{#each stonetop.following}}<a class="stonetop-npc-following-pc" data-pc-id="{{id}}" data-tooltip="Open {{name}}'s sheet"><i class="fas fa-user"></i> {{name}}</a>{{#unless @last}}, {{/unless}}{{/each}}
+					</span>
+				</section>
 				{{/if}}
-			</section>
 
-			{{!-- Home & Relations — quick one-line facts that also back the Steading
-			     Residents/Neighbors table columns. Home is blank for residents of Stonetop. --}}
-			{{#if (or stonetop.editMode system.home)}}
-			<section class="stonetop-npc-field stonetop-npc-home">
-				<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.home"}}</strong>
-				{{#if stonetop.editMode}}
-				<input class="stonetop-npc-stat-input" type="text" name="system.home"
-				       value="{{system.home}}" placeholder='{{localize "stonetop.npc.homePlaceholder"}}'>
-				{{else}}
-				<span class="stonetop-npc-prose">{{system.home}}</span>
+				{{!-- Home — where they live, sitting just above Instinct. Residents of
+				     Stonetop default to "Stonetop" (auto-filled when they're added to the
+				     steading's Residents list). --}}
+				{{#if (or stonetop.editMode system.home)}}
+				<section class="stonetop-npc-field stonetop-npc-stat-line stonetop-npc-home">
+					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.home"}}</strong>
+					{{#if stonetop.editMode}}
+					<input class="stonetop-npc-stat-input" type="text" name="system.home"
+					       value="{{system.home}}" placeholder='{{localize "stonetop.npc.homePlaceholder"}}'>
+					{{else}}
+					<span class="stonetop-npc-prose">{{system.home}}</span>
+					{{/if}}
+				</section>
 				{{/if}}
-			</section>
-			{{/if}}
 
-			{{#if (or stonetop.editMode system.relations)}}
-			<section class="stonetop-npc-field stonetop-npc-relations-quick">
-				<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.relations"}}</strong>
-				{{#if stonetop.editMode}}
-				<input class="stonetop-npc-stat-input" type="text" name="system.relations"
-				       value="{{system.relations}}" placeholder='{{localize "stonetop.npc.relationsPlaceholder"}}'>
-				{{else}}
-				<span class="stonetop-npc-prose">{{system.relations}}</span>
+				{{!-- Instinct — the anchor field. Plain stat line, matching the monster sheet. --}}
+				<section class="stonetop-npc-field stonetop-npc-instinct">
+					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.instinct"}}</strong>
+					{{#if stonetop.editMode}}
+					<input class="stonetop-npc-stat-input" type="text" name="system.instinct"
+					       value="{{system.instinct}}" placeholder='{{localize "stonetop.npc.instinctPlaceholder"}}'>
+					{{else}}
+					<span class="stonetop-npc-prose">{{#if system.instinct}}{{system.instinct}}{{else}}<em class="stonetop-npc-empty">{{localize "stonetop.npc.instinctEmpty"}}</em>{{/if}}</span>
+					{{/if}}
+				</section>
+
+				{{!-- Occupation — sits just below Instinct. --}}
+				{{#if (or stonetop.editMode system.occupation)}}
+				<section class="stonetop-npc-field stonetop-npc-stat-line stonetop-npc-occupation-field">
+					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.occupation"}}</strong>
+					{{#if stonetop.editMode}}
+					<input class="stonetop-npc-stat-input" type="text" name="system.occupation"
+					       value="{{system.occupation}}" placeholder='{{localize "stonetop.npc.occupationPlaceholder"}}'>
+					{{else}}
+					<span class="stonetop-npc-prose">{{system.occupation}}</span>
+					{{/if}}
+				</section>
 				{{/if}}
-			</section>
-			{{/if}}
+
+				{{!-- Relations — kin, allies, rivals in a quick line; also backs the Steading
+				     Residents/Neighbors table columns. --}}
+				{{#if (or stonetop.editMode system.relations)}}
+				<section class="stonetop-npc-field stonetop-npc-stat-line stonetop-npc-relations-quick">
+					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.relations"}}</strong>
+					{{#if stonetop.editMode}}
+					<input class="stonetop-npc-stat-input" type="text" name="system.relations"
+					       value="{{system.relations}}" placeholder='{{localize "stonetop.npc.relationsPlaceholder"}}'>
+					{{else}}
+					<span class="stonetop-npc-prose">{{system.relations}}</span>
+					{{/if}}
+				</section>
+				{{/if}}
+
+			</div>{{!-- /stat-block --}}
 
 			{{!-- Impressions — up to 3 sensory hooks. --}}
 			{{#if (or stonetop.editMode stonetop.impressionsShown.length)}}
@@ -156,6 +176,11 @@
 					</li>
 					{{/each}}
 				</ul>
+				{{#if stonetop.canAddImpression}}
+				<div class="stonetop-npc-add-controls">
+					<a class="stonetop-npc-add-impression"><i class="fas fa-plus"></i> {{localize "stonetop.npc.addImpression"}}</a>
+				</div>
+				{{/if}}
 				{{else}}
 				<ul class="stonetop-npc-impressions-list stonetop-spiral-list">
 					{{#each stonetop.impressionsShown}}
@@ -203,60 +228,6 @@
 				<span class="stonetop-npc-prose">{{system.embodiment}}</span>
 				{{/if}}
 			</section>
-			{{/if}}
-
-			{{!-- Relationships — how much this NPC likes each player character (0-5 hearts,
-			     default 3). Click a heart to set the rating (click the last filled one to
-			     drop it). --}}
-			{{#if stonetop.showRelationships}}
-			<details class="stonetop-npc-field stonetop-npc-field--full stonetop-npc-relationships stonetop-npc-collapsible" {{#unless stonetop.relationshipsCollapsed}}open{{/unless}}>
-				<summary class="stonetop-npc-collapsible-summary">
-					{{> "stonetop.section-heading" title=(localize "stonetop.npc.relationships")}}
-				</summary>
-				{{#if stonetop.hasRelationships}}
-				{{!-- Uses the steading Residents table classes so it inherits the same
-				     styling plus drag-resize + click-to-sort (wired in the sheet via
-				     makeColumnsResizable/makeColumnsSortable). No trailing actions column. --}}
-				<div class="steading-residents-table stonetop-npc-rel-table" data-resize-key="npcRelationships">
-					<div class="steading-residents-header">
-						<div class="steading-residents-header-cell steading-residents-col-name"><span class="steading-residents-header-label">{{localize "stonetop.npc.relPlayer"}}</span></div>
-						<div class="steading-residents-header-cell steading-residents-col-feelings"><span class="steading-residents-header-label">{{localize "stonetop.npc.relRegard"}}</span></div>
-						<div class="steading-residents-header-cell steading-residents-col-notes"><span class="steading-residents-header-label">{{localize "stonetop.npc.notes"}}</span></div>
-					</div>
-					<ul class="steading-residents-list">
-						{{#each stonetop.relationships}}
-						<li class="steading-residents-row stonetop-npc-rel-row" data-pc-id="{{id}}">
-							<div class="steading-residents-col steading-residents-col-name stonetop-npc-rel-namecell" data-tooltip="{{name}}">
-								{{#if img}}
-								<img class="stonetop-npc-rel-portrait" src="{{img}}" alt="">
-								{{else}}
-								<span class="stonetop-npc-rel-portrait stonetop-npc-rel-portrait--empty"><i class="fas fa-user"></i></span>
-								{{/if}}
-								<span class="stonetop-npc-rel-name">{{name}}</span>
-							</div>
-							<div class="steading-residents-col steading-residents-col-feelings stonetop-npc-rel-heartscell">
-								{{!-- Hidden numeric value the sort util reads (via textContent) to order by rating. --}}
-								<span class="stonetop-npc-hearts-sortkey" aria-hidden="true">{{hearts}}</span>
-								<span class="stonetop-npc-hearts{{#unless ../stonetop.canRate}} stonetop-npc-hearts--readonly{{/unless}}"
-								      role="img" aria-label="{{feeling}}" data-tooltip="{{feeling}}">
-									{{#each heartSlots}}
-									<span class="stonetop-npc-heart{{#if filled}} is-filled{{/if}}" data-position="{{position}}"></span>
-									{{/each}}
-								</span>
-							</div>
-							<div class="steading-residents-col steading-residents-col-notes">
-								<input type="text" class="steading-resident-input stonetop-npc-rel-note-input" data-pc-id="{{id}}"
-								       value="{{notes}}" placeholder='{{localize "stonetop.npc.relNotePlaceholder"}}'
-								       {{#unless ../stonetop.canRate}}disabled{{/unless}}>
-							</div>
-						</li>
-						{{/each}}
-					</ul>
-				</div>
-				{{else}}
-				<p class="stonetop-npc-rel-empty">{{localize "stonetop.npc.relationshipsEmpty"}}</p>
-				{{/if}}
-			</details>
 			{{/if}}
 
 			{{!-- Game stats — optional overlay. In edit mode a toggle reveals the block. --}}
@@ -371,6 +342,60 @@
 					{{/if}}
 				</div>
 			</section>
+			{{/if}}
+
+			{{!-- Relationships — how much this NPC likes each player character (0-5 hearts,
+			     default 3). Click a heart to set the rating (click the last filled one to
+			     drop it). --}}
+			{{#if stonetop.showRelationships}}
+			<details class="stonetop-npc-field stonetop-npc-field--full stonetop-npc-relationships stonetop-npc-collapsible" {{#unless stonetop.relationshipsCollapsed}}open{{/unless}}>
+				<summary class="stonetop-npc-collapsible-summary">
+					{{> "stonetop.section-heading" title=(localize "stonetop.npc.relationships")}}
+				</summary>
+				{{#if stonetop.hasRelationships}}
+				{{!-- Uses the steading Residents table classes so it inherits the same
+				     styling plus drag-resize + click-to-sort (wired in the sheet via
+				     makeColumnsResizable/makeColumnsSortable). No trailing actions column. --}}
+				<div class="steading-residents-table stonetop-npc-rel-table" data-resize-key="npcRelationships">
+					<div class="steading-residents-header">
+						<div class="steading-residents-header-cell steading-residents-col-name"><span class="steading-residents-header-label">{{localize "stonetop.npc.relPlayer"}}</span></div>
+						<div class="steading-residents-header-cell steading-residents-col-feelings"><span class="steading-residents-header-label">{{localize "stonetop.npc.relRegard"}}</span></div>
+						<div class="steading-residents-header-cell steading-residents-col-notes"><span class="steading-residents-header-label">{{localize "stonetop.npc.notes"}}</span></div>
+					</div>
+					<ul class="steading-residents-list">
+						{{#each stonetop.relationships}}
+						<li class="steading-residents-row stonetop-npc-rel-row" data-pc-id="{{id}}">
+							<div class="steading-residents-col steading-residents-col-name stonetop-npc-rel-namecell" data-tooltip="{{name}}">
+								{{#if img}}
+								<img class="stonetop-npc-rel-portrait" src="{{img}}" alt="">
+								{{else}}
+								<span class="stonetop-npc-rel-portrait stonetop-npc-rel-portrait--empty"><i class="fas fa-user"></i></span>
+								{{/if}}
+								<span class="stonetop-npc-rel-name">{{name}}</span>
+							</div>
+							<div class="steading-residents-col steading-residents-col-feelings stonetop-npc-rel-heartscell">
+								{{!-- Hidden numeric value the sort util reads (via textContent) to order by rating. --}}
+								<span class="stonetop-npc-hearts-sortkey" aria-hidden="true">{{hearts}}</span>
+								<span class="stonetop-npc-hearts{{#unless ../stonetop.canRate}} stonetop-npc-hearts--readonly{{/unless}}"
+								      role="img" aria-label="{{feeling}}" data-tooltip="{{feeling}}">
+									{{#each heartSlots}}
+									<span class="stonetop-npc-heart{{#if filled}} is-filled{{/if}}" data-position="{{position}}"></span>
+									{{/each}}
+								</span>
+							</div>
+							<div class="steading-residents-col steading-residents-col-notes">
+								<input type="text" class="steading-resident-input stonetop-npc-rel-note-input" data-pc-id="{{id}}"
+								       value="{{notes}}" placeholder='{{localize "stonetop.npc.relNotePlaceholder"}}'
+								       {{#unless ../stonetop.canRate}}disabled{{/unless}}>
+							</div>
+						</li>
+						{{/each}}
+					</ul>
+				</div>
+				{{else}}
+				<p class="stonetop-npc-rel-empty">{{localize "stonetop.npc.relationshipsEmpty"}}</p>
+				{{/if}}
+			</details>
 			{{/if}}
 
 			{{!-- Notes — free-form GM notes; editable in play mode too. --}}

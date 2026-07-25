@@ -31,7 +31,7 @@ import { ensureHazardsEntry } from "../hazards/hazard-store.js";
 import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
-import { migrateAllSteadingPeople, ensurePeopleFolders } from "../actors/steading/steading-people.js";
+import { migrateAllSteadingPeople, ensurePeopleFolders, backfillAllResidentHomes } from "../actors/steading/steading-people.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
@@ -102,6 +102,10 @@ export async function onReady() {
 	if (isPrimaryGM()) {
 		try { await migrateAllSteadingPeople(); }
 		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC migration failed", err); }
+		// Give already-linked Residents of Stonetop a "Stonetop" Home if theirs is blank
+		// (new residents get this at creation). One-time, idempotent, GM-only.
+		try { await backfillAllResidentHomes(); }
+		catch (err) { console.error("Stonetop | Resident Home backfill failed", err); }
 		// Pre-create both people folders so a player adding the first member never has to
 		// (folder creation is a GM-only right; ensurePeopleFolder returns null for them).
 		try { await ensurePeopleFolders(); }
@@ -489,17 +493,17 @@ function _registerCharacterAutoOpen() {
 // only a brand-new mint pops its sheet; a reload leaves a finished character alone.
 function _maybeOpenCharacterCreation(actor) {
 	if (actor?.type !== "character") return;
-	const mintedForMe  = actor.getFlag?.("stonetop_pwd", "autoOpenFor") === game.user.id;
+	const mintedForMe  = actor.getFlag?.(STONETOP_SCOPE, "autoOpenFor") === game.user.id;
 	const isMyAssigned = !game.user.isGM && game.user.character?.id === actor.id;
 	if (!mintedForMe && !isMyAssigned) return;
 	// Owner-only flag; drop it first so the mint greeting only ever fires once.
-	if (mintedForMe) actor.unsetFlag("stonetop_pwd", "autoOpenFor").catch(() => {});
+	if (mintedForMe) actor.unsetFlag(STONETOP_SCOPE, "autoOpenFor").catch(() => {});
 
 	if (playbookSlug(actor)) {
 		// Finished — never re-enter creation. Clear any progress flag / resume
 		// snapshot a mid-creation "Save & close" (or an edit pass) left behind, so the
 		// GM roster reads "Finished" rather than a stale "exited"/page note.
-		actor.unsetFlag?.("stonetop_pwd", "onboardingProgress").catch(() => {});
+		actor.unsetFlag?.(STONETOP_SCOPE, "onboardingProgress").catch(() => {});
 		clearOnboardingResume(actor);
 		if (mintedForMe) actor.sheet.render(true);
 		return;

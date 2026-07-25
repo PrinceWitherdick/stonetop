@@ -9,6 +9,7 @@
 import { rollDamage } from "../../utils/roll-engine.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
+import { wirePortraitPopout, updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { getOpenSheetsInEditMode } from "../../settings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
 import { makeColumnsResizable } from "../../utils/resizable-columns.js";
@@ -126,11 +127,20 @@ export function createStonetopNpcSheetClass(Base) {
 			st.displayImg  = realImg;
 			st.hasPortrait = !!realImg;
 
-			// Up to 3 impression slots, always three rows so edit mode shows a stable
-			// grid; blanks are dropped in play mode.
+			// Up to 3 impression slots (p.454). Edit mode shows the filled slots plus a
+			// single empty row to type into (min 1), trimming trailing blanks so a fresh
+			// NPC isn't three empty lines; "Add Impression" reveals the next slot, capped
+			// at 3. Blanks are dropped entirely in play mode.
 			const impressions = Array.isArray(system?.impressions) ? system.impressions : [];
-			st.impressionSlots  = [0, 1, 2].map(i => impressions[i] ?? "");
-			st.impressionsShown = st.impressionSlots.filter(t => String(t).trim());
+			const IMPRESSION_CAP = 3;
+			let filled = 0;
+			for (let i = 0; i < impressions.length && i < IMPRESSION_CAP; i++) {
+				if (String(impressions[i] ?? "").trim()) filled = i + 1;
+			}
+			const rows = Math.max(1, Math.min(IMPRESSION_CAP, filled));
+			st.impressionSlots     = Array.from({ length: rows }, (_, i) => impressions[i] ?? "");
+			st.impressionsShown    = st.impressionSlots.filter(t => String(t).trim());
+			st.canAddImpression    = rows < IMPRESSION_CAP;
 
 			// Rich-text fields + optional stat-block/threat cross-links are independent
 			// async @UUID resolutions — enrich them in parallel rather than serially.
@@ -259,12 +269,7 @@ export function createStonetopNpcSheetClass(Base) {
 			});
 
 			// Enlarge a real portrait in play mode (edit mode leaves the file picker).
-			root.querySelector(".stonetop-portrait")?.addEventListener("click", ev => {
-				if (this._editMode || isDefaultImg(this.actor.img)) return;
-				ev.preventDefault();
-				ev.stopPropagation();
-				new ImagePopout(this.actor.img, { title: this.actor.name }).render(true);
-			});
+			wirePortraitPopout(this, root);
 
 			if (!this.isEditable) return;
 
@@ -286,7 +291,11 @@ export function createStonetopNpcSheetClass(Base) {
 					await this.actor.update({ [`system.relationships.${pcId}`]: { hearts: clampHearts(next), notes } });
 					return;
 				}
-				if (ev.target.closest(".stonetop-npc-add-move")) {
+				if (ev.target.closest(".stonetop-npc-add-impression")) {
+					if (!this._editMode) return;
+					this._addImpressionRow(root);
+
+				} else if (ev.target.closest(".stonetop-npc-add-move")) {
 					if (!this._editMode) return;
 					await this.actor.createEmbeddedDocuments("Item", [{ name: "New Move", type: "npcMove" }]);
 
@@ -331,15 +340,32 @@ export function createStonetopNpcSheetClass(Base) {
 		}
 
 		async _updateRichTextField(field, value) {
-			if (!NPC_RICH_TEXT_FIELDS.some(entry => entry.key === field)) return;
-			await this.actor.update({ [`system.${field}`]: value ?? "" });
+			return updateRichTextField(this, NPC_RICH_TEXT_FIELDS, field, value);
 		}
 
 		async _updateMoveField(itemId, field, value) {
-			if (!NPC_MOVE_EDITABLE_FIELDS.has(field)) return;
-			const item = this.actor.items.get(itemId);
-			if (!item) return;
-			await item.update({ [field]: value ?? "" });
+			return updateMoveField(this, NPC_MOVE_EDITABLE_FIELDS, itemId, field, value);
+		}
+
+		// Reveal the next impression slot (up to 3) by injecting an input row into the
+		// DOM rather than re-rendering — the standard form submit persists it once the
+		// GM types, and leaving it blank costs nothing (trailing blanks are trimmed on
+		// the next render). Hides the "Add Impression" control once all three show.
+		_addImpressionRow(root) {
+			const list = root.querySelector(".stonetop-npc-impressions-edit");
+			if (!list) return;
+			const rows = list.querySelectorAll("li").length;
+			if (rows >= 3) return;
+			const li = document.createElement("li");
+			const input = document.createElement("input");
+			input.type = "text";
+			input.className = "stonetop-npc-impression-input";
+			input.name = `system.impressions.${rows}`;
+			input.placeholder = game.i18n.localize("stonetop.npc.impressionPlaceholder");
+			li.appendChild(input);
+			list.appendChild(li);
+			input.focus();
+			if (rows + 1 >= 3) root.querySelector(".stonetop-npc-add-impression")?.closest(".stonetop-npc-add-controls")?.remove();
 		}
 	};
 }

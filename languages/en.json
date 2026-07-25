@@ -393,7 +393,9 @@
     },
     "npc": {
       "namePlaceholder": "NPC Name",
+      "pronouns": "Pronouns",
       "pronounsPlaceholder": "they/them",
+      "occupation": "Occupation",
       "occupationPlaceholder": "farmer, ex-mercenary, Blodwen's uncle...",
       "traitsPlaceholder": "humorless, newly married, Eeyore voice...",
       "home": "Home",
@@ -402,6 +404,7 @@
       "relationsPlaceholder": "Kin, allies, rivals (a quick line)",
       "impressions": "Impressions",
       "impressionPlaceholder": "A sensory hook (face, voice, scent...)",
+      "addImpression": "Add Impression",
       "instinct": "Instinct",
       "instinctPlaceholder": "to... (e.g. to complain but get the job done)",
       "instinctEmpty": "No instinct yet — write one as “to [do something].”",

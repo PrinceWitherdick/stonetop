@@ -1,8 +1,8 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { ConvertToFollowerDialog } from "./ConvertToFollowerDialog.js";
 import { creatureTypeFaIcon } from "../../../bestiary/creature-types.js";
 import {
 	FOLLOWER_COST_EXAMPLES,
-	monsterFollowerTags, normalizeTags, followerFromMonster, monsterGroupDefaults,
+	monsterFollowerTags, followerFromMonster, monsterGroupDefaults,
 } from "../../../data/follower-build.js";
 
 // ── MonsterToFollowerDialog ──────────────────────────────────────────────────
@@ -11,8 +11,9 @@ import {
 // see fit, choose a cost, and add a Loyalty track. This compact modal shows the
 // monster's stats, lets the player add tags + pick a cost + set a pronoun, then
 // hands the built follower back to the sheet to store (see _applyCustomFollower).
+// The tag/cost/pronoun/group controls + finish-capture live in ConvertToFollowerDialog.
 
-export class MonsterToFollowerDialog extends Application {
+export class MonsterToFollowerDialog extends ConvertToFollowerDialog {
 	constructor(actor, monster, onApply, options = {}) {
 		super(options);
 		this._actor     = actor;
@@ -25,7 +26,6 @@ export class MonsterToFollowerDialog extends Application {
 		const gd        = monsterGroupDefaults(monster?.system ?? {});
 		this._isGroup   = gd.isGroup;
 		this._groupSize = gd.size || 3;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -40,16 +40,8 @@ export class MonsterToFollowerDialog extends Application {
 		});
 	}
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-		this.setPosition({ height: "auto" });
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
-	}
+	get _sel() { return "mf"; }
+	_keptTags() { return monsterFollowerTags(this._monster?.system ?? {}); }
 
 	// Monster move names (the monsterMove items), carried onto the follower.
 	_monsterMoves() {
@@ -81,65 +73,13 @@ export class MonsterToFollowerDialog extends Application {
 		};
 	}
 
-	activateListeners(html) {
-		super.activateListeners(html);
-		this._frontOnOpen.start();
-
-		html.find(".stonetop-mf-cancel").on("click", () => this.close());
-		html.find(".stonetop-mf-create").on("click", () => this._finish());
-
-		// Added tags: chips toggle off, free input adds.
-		html.find(".stonetop-mf-added-tag").on("click", ev => this._removeTag(ev.currentTarget.dataset.tag));
-		html.find(".stonetop-mf-tag-add").on("click", () => this._addTagFromInput(html));
-		html.find(".stonetop-mf-tag-input").on("keydown", ev => {
-			if (ev.key === "Enter") { ev.preventDefault(); this._addTagFromInput(html); }
-		});
-
-		// Cost: example chip sets it; free input overrides.
-		html.find(".stonetop-mf-cost-ex").on("click", ev => { this._cost = ev.currentTarget.dataset.value; this.render(false); });
-		html.find(".stonetop-mf-cost-input").on("change", ev => { this._cost = ev.currentTarget.value; });
-
-		html.find(".stonetop-mf-pronoun").on("change", ev => { this._pronoun = ev.currentTarget.value; });
-
-		// Group toggle + size (re-render so the size field shows/hides).
-		html.find(".stonetop-mf-group-toggle").on("change", ev => { this._isGroup = ev.currentTarget.checked; this.render(false); });
-		html.find(".stonetop-mf-group-size").on("change", ev => { this._groupSize = Math.max(2, parseInt(ev.currentTarget.value) || 2); });
-	}
-
-	_removeTag(tag) {
-		const t = String(tag ?? "").toLowerCase();
-		this._addedTags = this._addedTags.filter(x => x.toLowerCase() !== t);
-		this.render(false);
-	}
-
-	_addTagFromInput(html) {
-		const input = html.find(".stonetop-mf-tag-input")[0];
-		if (!input) return;
-		// De-dupe against the monster's kept tags too, so an added tag can't double.
-		const kept = monsterFollowerTags(this._monster?.system ?? {});
-		const merged = normalizeTags([...this._addedTags, ...normalizeTags(input.value)])
-			.filter(t => !kept.some(k => k.toLowerCase() === t.toLowerCase()));
-		this._addedTags = merged;
-		input.value = "";
-		this.render(false);
-	}
-
 	async _finish() {
-		// Capture an un-blurred custom cost / pronoun / group size.
-		const root = this.element?.[0];
-		if (root) {
-			const costEl = root.querySelector(".stonetop-mf-cost-input");
-			if (costEl && costEl.value.trim()) this._cost = costEl.value.trim();
-			const pronEl = root.querySelector(".stonetop-mf-pronoun");
-			if (pronEl) this._pronoun = pronEl.value;
-			const sizeEl = root.querySelector(".stonetop-mf-group-size");
-			if (sizeEl) this._groupSize = Math.max(2, parseInt(sizeEl.value) || 2);
-		}
+		this._captureCommonFields(this.element?.[0]);
 		const data = followerFromMonster(
 			{ name: this._monster?.name, system: this._monster?.system, moves: this._monsterMoves(), uuid: this._monster?.uuid },
 			{
 				tags: this._addedTags, cost: this._cost, pronoun: this._pronoun,
-				isGroup: this._isGroup, size: this._isGroup ? this._groupSize : 0,
+				isGroup: this._isGroup, size: this._buildGroupSize(),
 			},
 		);
 		await this._onApply?.(data);

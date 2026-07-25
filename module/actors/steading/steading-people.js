@@ -4,7 +4,7 @@
 // read and write that actor's fields live. This module owns the folders the actors
 // live in, the create + resolve helpers the sheet uses, and the one-time migration
 // that converts legacy plain-text rows into NPC actors.
-import { isDefaultImg } from "../../utils/strings.js";
+import { isDefaultImg, stripHtmlToText } from "../../utils/strings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
 import { npcStatusMeta } from "../../data-models/npc-status.js";
 
@@ -65,20 +65,6 @@ export function peopleNames(steading) {
 		const rows = Object.keys(PEOPLE_FOLDERS).flatMap(list => Array.isArray(flags[list]) ? flags[list] : []);
 		return [...new Set(rows.map(r => String(r?.name ?? "").trim()).filter(Boolean))];
 	} catch { return []; }
-}
-
-/** Strip tags/entities so rich notes collapse to one line for a tooltip / plain preview. */
-export function stripHtmlToText(value) {
-	if (value == null) return "";
-	return String(value)
-		.replace(/<\s*br\s*\/?>/gi, " ")
-		.replace(/<[^>]*>/g, " ")
-		.replace(/&nbsp;/gi, " ")
-		.replace(/&amp;/gi, "&")
-		.replace(/&lt;/gi, "<")
-		.replace(/&gt;/gi, ">")
-		.replace(/\s+/g, " ")
-		.trim();
 }
 
 /**
@@ -198,6 +184,10 @@ export async function createPersonNpc(list, data = {}) {
 		notes:      data.notes ?? data.etc ?? "",
 	};
 	if (list === "neighbors") system.home = data.home ?? "";
+	// Residents live in Stonetop by definition, so seed their Home with "Stonetop"
+	// (the NPC sheet shows it; a specific home can still be typed to override). A
+	// non-blank home carried in by migration is respected.
+	else if (list === "residents") system.home = (data.home ?? "").trim() || "Stonetop";
 	const createData = {
 		name: data.name?.trim() || "New " + (list === "neighbors" ? "Neighbor" : "Resident"),
 		type: "npc",
@@ -269,5 +259,44 @@ export async function migrateAllSteadingPeople() {
 	for (const s of steadings) {
 		try { await migrateSteadingPeople(s); }
 		catch (err) { console.error("Stonetop | migrateSteadingPeople failed for", s?.name, err); }
+	}
+}
+
+/**
+ * One-time, idempotent backfill: give every already-linked Resident-of-Stonetop NPC
+ * whose Home is blank the value "Stonetop" (residents live there by definition). New
+ * residents get this at creation via createPersonNpc; this catches those linked before
+ * that default existed. Residents with a specific Home already typed are left alone.
+ * GM-only; guarded by its own steading flag so it runs once even on already-migrated
+ * worlds. Uses setFlag, which merges — the flag write keeps the residents list intact.
+ *
+ * @param {Actor} steading  an Actor of type "stonetop"
+ * @returns {Promise<number>} how many resident NPCs were updated
+ */
+export async function backfillResidentHomes(steading) {
+	if (!game.user?.isGM || steading?.type !== "stonetop") return 0;
+	if (steading.flags?.stonetop_pwd?.steading?.residentHomesBackfilled) return 0;
+	const rows = steading.flags?.stonetop_pwd?.steading?.residents;
+	let updated = 0;
+	for (const row of (Array.isArray(rows) ? rows : [])) {
+		if (!isActorRow(row)) continue;
+		const actor = (row.id ? game.actors?.get(row.id) : null)
+			|| (row.uuid ? game.actors?.find(a => a.uuid === row.uuid) : null);
+		if (!actor || actor.type !== "npc") continue;
+		if (String(actor.system?.home ?? "").trim()) continue;
+		try { await actor.update({ "system.home": "Stonetop" }); updated++; }
+		catch (err) { console.warn("Stonetop | Could not backfill Home for", actor?.name, err); }
+	}
+	await steading.setFlag("stonetop_pwd", "steading", { residentHomesBackfilled: true });
+	return updated;
+}
+
+/** Backfill resident Homes across every steading in the world (GM ready hook). */
+export async function backfillAllResidentHomes() {
+	if (!game.user?.isGM) return;
+	const steadings = (game.actors?.contents ?? []).filter(a => a.type === "stonetop");
+	for (const s of steadings) {
+		try { await backfillResidentHomes(s); }
+		catch (err) { console.error("Stonetop | backfillResidentHomes failed for", s?.name, err); }
 	}
 }

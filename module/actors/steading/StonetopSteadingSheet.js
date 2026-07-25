@@ -2499,6 +2499,12 @@ export function createStonetopSteadingSheetClass(Base) {
 			}
 			arr.push({ uuid, id, name: actor.name, checked: false });
 			await this._stonetopSteading.setFlags({ [list]: arr });
+			// Residents live in Stonetop — seed a blank Home so the NPC sheet reflects it
+			// (a specific home already on the NPC is left untouched).
+			if (list === "residents" && !String(actor.system?.home ?? "").trim()) {
+				try { await actor.update({ "system.home": "Stonetop" }); }
+				catch (err) { console.warn("Stonetop | Could not set resident Home for", actor?.name, err); }
+			}
 			this.render(false);
 			ui.notifications?.info?.(`Linked ${actor.name}.`);
 		}
