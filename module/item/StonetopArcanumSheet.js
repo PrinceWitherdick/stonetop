@@ -1,6 +1,6 @@
 import { arcanumCardImg } from "../arcana-icons.js";
 import { ITEM_FLAG_SCOPE } from "../actors/character/StonetopFlags.js";
-import { centerArcanumTracks, wrapStonetopGlyphsInEl } from "../utils/glyphs.js";
+import { centerArcanumTracks, wrapGlyphTextContainers } from "../utils/glyphs.js";
 import { markValueTooltips } from "../utils/value-tooltips.js";
 import { markDebilityTooltips } from "../utils/debility-tooltips.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
@@ -413,7 +413,7 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 			// character sheet's arcana cards. Self-gated by setting.
 			markValueTooltips(root);
 			markDebilityTooltips(root);
-			root.querySelectorAll(".stonetop-arcanum-body").forEach(el => wrapStonetopGlyphsInEl(el));
+			wrapGlyphTextContainers(root);
 		}
 
 		// ── Edit dispatch ─────────────────────────────────────────────────────────

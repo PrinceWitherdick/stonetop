@@ -44,7 +44,7 @@ import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {annotateInvocationEffects} from "./invocation-effects.js";
-import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {wrapGlyphTextContainers} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
@@ -2390,18 +2390,18 @@ export function createStonetopCharacterSheetClass(Base) {
 				document.body.appendChild(moveRefPanel);
 			}
 
-			// Render inline glyphs (◇ Conduit tracks, ○ marks, □ boxes, ▶ arrows) as SVG
-			// across every read-only description container. Move-ref enrichment is limited
-			// to move descriptions; the other containers only need glyph wrapping. The lore
-			// option/description containers are display-only — their editable answers live
-			// in a sibling <textarea>, which this selector never matches (wrapping a
-			// textarea's value would corrupt the saved text).
-			html.find(".stonetop-item-description, .stonetop-arcanum-body, .stonetop-invocation-desc, .stonetop-lore-description, .stonetop-lore-option-desc").each((_, el) => {
-				if (el.dataset.glyphsWrapped) return;
-				el.dataset.glyphsWrapped = "1";
-				if (el.matches(".stonetop-item-description")) enrichMoveRefsInEl(el);
-				wrapStonetopGlyphsInEl(el);
+			// Link move names inside move prose. Sheet-only, and it runs before the glyph pass
+			// below so a wrapped glyph can never land inside a freshly-made move-ref link.
+			html.find(".stonetop-item-description").each((_, el) => {
+				if (el.dataset.moveRefsEnriched) return;
+				el.dataset.moveRefsEnriched = "1";
+				enrichMoveRefsInEl(el);
 			});
+			// Render inline glyphs (◇ Conduit tracks, ○ marks, □ boxes, ▶ arrows) as SVG across
+			// every read-only container. The list is shared with onboarding, chat and the item
+			// sheets — see GLYPH_TEXT_CONTAINERS, which is also where the display-only rule that
+			// keeps a <textarea>'s value safe is written down.
+			wrapGlyphTextContainers(html[0]);
 
 			// Fold the long, secondary "Consequences" section behind a collapsible heading
 			// (like the basic-moves sidebar groups), defaulting to collapsed. It lives inside

@@ -21,6 +21,66 @@ export function centerArcanumTracks(html) {
 		.replace(/^(\s*)([◇○]{2,})\s+/, '$1<span class="stonetop-arcanum-track">$2</span> ');
 }
 
+/**
+ * Every container that renders *authored* text which may carry literal ◇/○/□/▶ — playbook
+ * possession descriptions and `choices` labels, arcana card bodies, lore, the handful of
+ * moves written with marks, follower/crew gear lines, catalog traits. One list rather than
+ * a per-surface copy: these classes drift into new templates, and a container missing from
+ * a list renders the raw fallback-font character instead of the styled glyph.
+ *
+ * Everything here must be **display-only**. A `<textarea>`'s value is a text node, so
+ * wrapping one would corrupt the saved text — that is why this is a selector list and not
+ * a blanket pass over the sheet. (Editable answers always live in a sibling <textarea> or
+ * <input>; an <input>'s value is an attribute, so listing its wrapper stays safe.)
+ *
+ * Surfaces with no editable prose at all — the Outfit dialog, the steading sheet, the
+ * onboarding FAQ popup, journal pages — skip this and call wrapStonetopGlyphsInEl on their
+ * whole root instead, which covers strictly more.
+ */
+export const GLYPH_TEXT_CONTAINERS = [
+	// Character sheet
+	".stonetop-item-description",                            // moves, possessions, bundled gear
+	".stonetop-arcanum-body",                                // front/back/unlock/requirements (read view; the editor is a separate template)
+	".stonetop-invocation-desc",
+	".stonetop-lore-description",
+	".stonetop-lore-option-desc",
+	".stonetop-sub-choice-text",                             // possession `choices` checklist (edit mode)
+	".stonetop-possession-choice-gear .stonetop-inv-label",  // the chosen weapons' rows (play mode)
+	".stonetop-crew-gear-label",                             // the Marshal's authored crew inventory
+	".stonetop-follower-gear-name",                          // write-in follower gear — display span, never the edit <input>
+	// Character onboarding
+	".stonetop-onboarding-card-desc",
+	".stonetop-onboarding-card-inline-desc",
+	".stonetop-onboarding-lore-desc",
+	".stonetop-onboarding-lore-pick-text",
+	".stonetop-onboarding-lore-text-label",
+	".stonetop-onboarding-suboption-label",
+	".stonetop-onboarding-arcana-front-body",
+	// Dialogs
+	".stonetop-special-pick-traits",                         // Add Special Item catalog traits
+	// Chat cards
+	".stonetop-chat-move-description",
+	".stonetop-roll-card-description",
+	".stonetop-arcanum-chat-card",
+].join(", ");
+
+/**
+ * Redraw literal glyphs as styled ones across every known display-only container under
+ * `root`. Each element is wrapped once — re-running on an already-processed tree is a
+ * no-op, so this is safe to call from an activateListeners that may fire more than once.
+ *
+ * @param {HTMLElement} root  Sheet/dialog/message root. `root` itself is never matched,
+ *                            only its descendants (same as the querySelectorAll it replaced).
+ */
+export function wrapGlyphTextContainers(root) {
+	if (!root) return;
+	for (const el of root.querySelectorAll(GLYPH_TEXT_CONTAINERS)) {
+		if (el.dataset.glyphsWrapped) continue;
+		el.dataset.glyphsWrapped = "1";
+		wrapStonetopGlyphsInEl(el);
+	}
+}
+
 export function wrapStonetopGlyphsInEl(container) {
 	replaceTextMatches(container, {
 		skip:  ".stonetop-glyph, .stonetop-move-ref",

@@ -1,5 +1,6 @@
 import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { SPECIAL_ITEM_FOOTNOTE, relativeValueTooltip } from "../../../data/special-items.js";
+import { wrapGlyphTextContainers } from "../../../utils/glyphs.js";
 
 /**
  * Lets the player add a handout "Special Item" (Weapons of War, Bronze Weapons,
@@ -44,6 +45,11 @@ export class SpecialItemPickerDialog extends StonetopDialog {
 	activateListeners(html) {
 		super.activateListeners(html);
 		const root = html[0];
+
+		// The catalog's trait strings are written with literal marks ("○ low ammo, ○ all
+		// out", "○○○○○ hours", "○○○ uses"), so redraw them as the system's styled glyphs —
+		// the same treatment the gear tab and the Outfit dialog give the same items.
+		wrapGlyphTextContainers(root);
 
 		root.querySelectorAll(".stonetop-special-pick").forEach(btn => {
 			btn.addEventListener("click", async () => {

@@ -10,7 +10,7 @@ import { normalizePlaybookGlyphs, composeInstinct, parseInstinct } from "../../.
 import { splitFillBlank, fillBlank } from "../../../utils/fill-blanks.js";
 import { STAT_KEYS } from "../../../utils/roll-types.js";
 import { sign } from "../../../utils/roll-engine.js";
-import { wrapStonetopGlyphsInEl, centerArcanumTracks } from "../../../utils/glyphs.js";
+import { wrapStonetopGlyphsInEl, wrapGlyphTextContainers, centerArcanumTracks } from "../../../utils/glyphs.js";
 import { enrichMoveRefsInEl } from "../../../utils/move-refs.js";
 import { faqForStep, faqPage } from "../../../utils/onboarding-faq.js";
 import { markFaqItems } from "../../../utils/faq-bullets.js";
@@ -2207,11 +2207,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// Redraw inline ◇/○/□/▶ glyphs in the read-only prose (background & possession
 		// descriptions, lore section text, lore pick options like the Seeker's "mark 1 ○
 		// on the front of its insert") as the system's styled SVG glyphs — the same
-		// treatment the FAQ popup and the live character sheet get. Scoped to display-only
-		// containers; the editable answer <textarea>s (onboard-lore-text / -setup-text)
-		// are never matched, so a typed glyph in an answer is left untouched.
-		html.find(".stonetop-onboarding-card-desc, .stonetop-onboarding-card-inline-desc, .stonetop-onboarding-lore-desc, .stonetop-onboarding-lore-pick-text, .stonetop-onboarding-lore-text-label, .stonetop-onboarding-suboption-label, .stonetop-onboarding-arcana-front-body")
-			.each((_, el) => wrapStonetopGlyphsInEl(el));
+		// treatment the FAQ popup and the live character sheet get. The shared container
+		// list is display-only, so the editable answer <textarea>s (onboard-lore-text /
+		// -setup-text) are never matched and a typed glyph in an answer is left untouched.
+		wrapGlyphTextContainers(html[0]);
 
 		html.find(".stonetop-onboarding-back-to-picker").on("click", () => this._goBack());
 		html.find(".stonetop-onboarding-back").on("click", () => this._navigate(-1));

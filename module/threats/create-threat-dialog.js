@@ -16,7 +16,6 @@ export class CreateThreatDialog extends StonetopDialog {
 		this._name = "";
 		this._instinct = "";
 		this._selectedMoves = new Set();
-		this._resolve = null;
 	}
 
 	static get defaultOptions() {
@@ -31,10 +30,8 @@ export class CreateThreatDialog extends StonetopDialog {
 		});
 	}
 
-	/** Open the dialog and resolve to a threat seed (or null if cancelled). */
-	promise() {
-		return new Promise(resolve => { this._resolve = resolve; this.render(true); });
-	}
+	// promise() resolves to a threat seed, or null if cancelled — see StonetopDialog's
+	// result-dialog protocol.
 
 	getData() {
 		const type = threatType(this._type);
@@ -93,26 +90,12 @@ export class CreateThreatDialog extends StonetopDialog {
 	_submit(html) {
 		this._capture(html);
 		const name = String(this._name ?? "").trim() || "New Threat";
-		this._finish({
+		this._resolveWith({
 			name,
 			type: this._type,
 			instinct: String(this._instinct ?? "").trim(),
 			proximity: this._proximity,
 			gmMoves: [...this._selectedMoves],
 		});
-	}
-
-	_finish(result) {
-		const resolve = this._resolve;
-		this._resolve = null;
-		this.close();
-		resolve?.(result);
-	}
-
-	async close(options = {}) {
-		// A close without submitting (Cancel, Escape, X) resolves the promise to null.
-		// super.close (StonetopDialog) stops the FrontOnOpen lifecycle.
-		if (this._resolve) { const resolve = this._resolve; this._resolve = null; resolve(null); }
-		return super.close(options);
 	}
 }

@@ -49,7 +49,6 @@ export class CreateMonsterDialog extends StonetopDialog {
 		super(options);
 		this._name = name;
 		this._folder = folder;
-		this._resolve = null;
 		this._activeTab = SECTIONS[0].key;
 	}
 
@@ -68,10 +67,8 @@ export class CreateMonsterDialog extends StonetopDialog {
 		});
 	}
 
-	/** Open the dialog and resolve to the created monster Actor (or null if cancelled). */
-	promise() {
-		return new Promise(resolve => { this._resolve = resolve; this.render(true); });
-	}
+	// promise() resolves to the created monster Actor, or null if cancelled — see
+	// StonetopDialog's result-dialog protocol.
 
 	getData() {
 		const opt = (list, selectedId) => list.map(o => ({ ...o, selected: String(o.id) === String(selectedId) }));
@@ -308,7 +305,7 @@ export class CreateMonsterDialog extends StonetopDialog {
 
 		invalidateMonsterRefIndex();
 		created?.sheet?.render(true);
-		this._finish(created ?? null);
+		this._resolveWith(created ?? null);
 	}
 
 	_buildActorData(sel, derived) {
@@ -339,18 +336,10 @@ export class CreateMonsterDialog extends StonetopDialog {
 		});
 	}
 
-	_finish(result) {
-		const resolve = this._resolve;
-		this._resolve = null;
-		this.close();
-		resolve?.(result);
-	}
-
 	async close(options = {}) {
 		clearTimeout(this._recomputeTimer);
-		// Closing without submitting (Cancel, Escape, X) resolves the promise to null.
-		if (this._resolve) { const resolve = this._resolve; this._resolve = null; resolve(null); }
-		// super.close() stops the FrontOnOpen lifecycle, then closes the app.
+		// super.close() resolves an open promise() to null, then stops the FrontOnOpen
+		// lifecycle and closes the app.
 		return super.close(options);
 	}
 }

@@ -44,7 +44,7 @@ import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT, xpToLevelUp } from "./mod
 import { formatOutcomeDetail } from "./module/utils/strings.js";
 import { wireAttackConfirm, wireApplyDamage, wireSufferAttack } from "./module/combat/attack-flow.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
-import { wrapStonetopGlyphsInEl } from "./module/utils/glyphs.js";
+import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
 import { applyTreasureDrops } from "./module/utils/treasure-drops.js";
 import { applyGearTermTooltips } from "./module/utils/gear-term-tooltips.js";
@@ -522,10 +522,9 @@ function _chatStripBlindRoll(message, html) {
 function _chatProseTreatment(message, html) {
 	markQuestionBullets(html);
 	// Swap inline ◇/◆/○/●/□ ASCII for this system's styled glyphs in our chat-card
-	// prose — matching the sheets and journals. Scoped to the card description
-	// containers so a literal glyph someone types in chat is left alone.
-	html.querySelectorAll(".stonetop-chat-move-description, .stonetop-roll-card-description, .stonetop-arcanum-chat-card")
-		.forEach(el => wrapStonetopGlyphsInEl(el));
+	// prose — matching the sheets and journals. The shared container list only names
+	// our own cards, so a literal glyph someone types in chat is left alone.
+	wrapGlyphTextContainers(html);
 }
 
 // -- STARTUP CARD: OPEN WELCOME GUIDE --------------------------
