@@ -314,6 +314,7 @@ Hooks.once("init", () => {
 		"stonetop.inv-note":         "systems/stonetop_pwd/templates/actor/partials/inv-note.hbs",
 		"stonetop.inv-item-regular": "systems/stonetop_pwd/templates/actor/partials/inv-item-regular.hbs",
 		"stonetop.inv-item-small":   "systems/stonetop_pwd/templates/actor/partials/inv-item-small.hbs",
+		"stonetop.choice-gear-row":  "systems/stonetop_pwd/templates/actor/partials/choice-gear-row.hbs",
 		"stonetop.steading-section-toggle":   "systems/stonetop_pwd/templates/actor/partials/steading-section-toggle.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop_pwd/templates/actor/partials/steading-tab-overview.hbs",
 		"stonetop.steading-tab-neighbors":    "systems/stonetop_pwd/templates/actor/partials/steading-tab-neighbors.hbs",

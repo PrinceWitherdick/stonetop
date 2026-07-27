@@ -210,27 +210,27 @@
               "options": [
                 {
                   "slug": "shield",
-                  "label": "◇◇ A shield, bearing ___'s crest"
+                  "label": "◇◇ <strong>A shield</strong>, bearing ___'s crest"
                 },
                 {
                   "slug": "wool-cloak",
-                  "label": "◇ A wool cloak, woven just for you by ___"
+                  "label": "◇ <strong>A wool cloak</strong>, woven just for you by ___"
                 },
                 {
                   "slug": "letter",
-                  "label": "A letter, spattered with tears &amp; blood"
+                  "label": "<strong>A letter</strong>, spattered with tears &amp; blood"
                 },
                 {
                   "slug": "flute",
-                  "label": "A flute, a gift from someone you loved"
+                  "label": "<strong>A flute</strong>, a gift from someone you loved"
                 },
                 {
                   "slug": "fine-locket",
-                  "label": "A fine locket, holding a strand of hair"
+                  "label": "<strong>A fine locket</strong>, holding a strand of hair"
                 },
                 {
                   "slug": "tinderbox",
-                  "label": "A tinderbox, lovingly engraved"
+                  "label": "<strong>A tinderbox</strong>, lovingly engraved"
                 }
               ]
             }

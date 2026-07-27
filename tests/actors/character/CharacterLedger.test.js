@@ -92,6 +92,36 @@ describe("CharacterLedger", () => {
 		expect(entries.map(e => e.action)).toEqual(["Sacred pouch deselected"]);
 	});
 
+	// A gear bundle's ◇ is the carry mark, not the pick — so it needs its own reading.
+	// Without it the change falls through to the generic "Possessions" namespace label and
+	// every diamond click writes an unreadable "Possessions changed from … to …" line.
+	it("records a chosen weapon being picked up and set down by its label", async () => {
+		const weaponsActor = choiceCarried => {
+			const actor = makeActor({}, { stonetop: { possessions: { choiceCarried } } });
+			actor.typedActor = {
+				buildSnapshot: async () => ({
+					inventory: {
+						possessions: {
+							items: [{
+								slug: "weapons-of-war", label: "Weapons of war",
+								choices: { options: [{ slug: "sword", label: "◇ Sword, iron" }] },
+							}],
+						},
+					},
+				}),
+			};
+			return actor;
+		};
+		const path = "flags.stonetop_pwd.possessions.choiceCarried.weapons-of-war:sword";
+
+		const carried = await CharacterLedger.entriesForActorUpdate(weaponsActor({}), { [path]: true });
+		expect(carried.map(e => e.action)).toEqual(["Weapons of war: ◇ Sword, iron carried"]);
+
+		const setDown = await CharacterLedger.entriesForActorUpdate(
+			weaponsActor({ "weapons-of-war:sword": true }), { [path]: false });
+		expect(setDown.map(e => e.action)).toEqual(["Weapons of war: ◇ Sword, iron set down"]);
+	});
+
 	it("records a write-in possession being added by its label", async () => {
 		const actor = makeActor({}, { stonetop: { possessions: { custom: [] } } });
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {

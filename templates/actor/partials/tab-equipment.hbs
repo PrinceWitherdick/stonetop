@@ -233,7 +233,10 @@
 			{{> "stonetop.details-section-edit-toggle" section="possessions" editing=stonetop.possessionsEdit}}
 		</div>
 		<ol class="stonetop-possession-list">
+		{{!-- In play mode the list is what you own; the full playbook menu lives behind the
+		     edit pencil, the same way Appearance / Origin / Instinct collapse to your picks. --}}
 		{{#each stonetop.inventory.possessions.items}}
+			{{#if (or checked @root.stonetop.possessionsEdit)}}
 			<li class="stonetop-item{{#if checked}} is-checked{{/if}}">
 				<div class="stonetop-item-header">
 					<input type="checkbox" class="stonetop-item-check stonetop-possession-check"
@@ -313,57 +316,29 @@
 					{{/each}}
 				</div>
 				{{/if}}
-				{{!-- Weapons of war (the Heavy / Marshal): the pickable weapons render as ◇/□
-				     rows exactly like a possession's bundled gear — ticking a diamond both picks
-				     the weapon and marks it as carried (counts toward load). Always visible when
-				     the possession is owned, not gated behind the edit pencil. --}}
-				{{#if choiceGear}}
+				{{!-- Weapons of war (the Heavy / Marshal): the weapons the player has *chosen*
+				     render as ◇/□ rows exactly like a possession's bundled gear, and the diamond
+				     is the load mark — tick it for the ones you're actually hauling. Choosing
+				     which weapons you own happens on the edit-mode checklist below, so the
+				     unchosen options stay off the card in play.
+				     A weapon's uses track renders *inline* when `resourceInline` — the circles
+				     stand in for the "○ low ammo, ○ all out" the label spells out, where the book
+				     prints them, with the closing paren (`labelAfter`) re-attached after them. --}}
+				{{#if (and choiceGear.hasPicked (not @root.stonetop.possessionsEdit))}}
 				<div class="stonetop-possession-gear stonetop-possession-choice-gear">
-					{{#if choiceGear.pickNote}}<p class="stonetop-possession-choice-gear-note">{{{choiceGear.pickNote}}}</p>{{/if}}
 					{{#each choiceGear.regular}}
-					<div class="stonetop-inv-item stonetop-possession-gear-item{{#if checked}} is-checked{{/if}}{{#if disabled}} is-disabled{{/if}}">
-						<label class="stonetop-inv-item-toggle">
-							<span class="stonetop-inv-diamonds">
-								{{#each (times weight)}}
-								<input type="checkbox" class="stonetop-possession-choice-gear-check stonetop-inv-diamond"
-								       data-possession-slug="{{../possessionSlug}}"
-								       data-choice-slug="{{../choiceSlug}}"
-								       data-weight="{{../weight}}"
-								       {{#if ../checked}}checked{{/if}}
-								       {{#if ../disabled}}disabled{{/if}}>
-								{{/each}}
-							</span>
-							<span class="stonetop-inv-label">{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="stonetop-possession-sub-fill" data-possession-slug="{{possessionSlug}}" data-choice-slug="{{choiceSlug}}" value="{{fillValue}}" placeholder="…">{{{fillAfter}}}{{else}}{{{label}}}{{/if}}</span>
-						</label>
-						{{#if resource}}
-						<span class="stonetop-item-resources">
-							{{> "stonetop.resource-track" resource=resource btnClass="stonetop-item-resource-check" possessionSlug=possessionSlug choiceSlug=choiceSlug}}
-						</span>
-						{{/if}}
-					</div>
+					{{> "stonetop.choice-gear-row"}}
 					{{/each}}
 					{{#if (and choiceGear.regular.length choiceGear.small.length)}}<hr class="stonetop-inv-separator stonetop-possession-gear-sep">{{/if}}
 					{{#each choiceGear.small}}
-					<div class="stonetop-inv-item stonetop-inv-small stonetop-possession-gear-item{{#if checked}} is-checked{{/if}}{{#if disabled}} is-disabled{{/if}}">
-						<label class="stonetop-inv-item-toggle">
-							<input type="checkbox" class="stonetop-possession-choice-gear-check"
-							       data-possession-slug="{{possessionSlug}}"
-							       data-choice-slug="{{choiceSlug}}"
-							       data-small="true"
-							       {{#if checked}}checked{{/if}}
-							       {{#if disabled}}disabled{{/if}}>
-							<span class="stonetop-inv-label">{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="stonetop-possession-sub-fill" data-possession-slug="{{possessionSlug}}" data-choice-slug="{{choiceSlug}}" value="{{fillValue}}" placeholder="…">{{{fillAfter}}}{{else}}{{{label}}}{{/if}}</span>
-						</label>
-						{{#if resource}}
-						<span class="stonetop-item-resources">
-							{{> "stonetop.resource-track" resource=resource btnClass="stonetop-item-resource-check" possessionSlug=possessionSlug choiceSlug=choiceSlug}}
-						</span>
-						{{/if}}
-					</div>
+					{{> "stonetop.choice-gear-row" small=true}}
 					{{/each}}
 				</div>
 				{{/if}}
 				{{#if (and checked choices @root.stonetop.possessionsEdit)}}
+				{{!-- A gear bundle's "Choose up to 3 (now or later)" heads its checklist: this is
+				     the one place the choosing happens, so it's the one place the note belongs. --}}
+				{{#if choiceGear.pickNote}}<p class="stonetop-possession-choice-gear-note">{{{choiceGear.pickNote}}}</p>{{/if}}
 				<ol class="stonetop-sub-choice-list">
 				{{#each choices.options}}
 					<li class="stonetop-sub-choice{{#if checked}} is-checked{{/if}}">
@@ -373,7 +348,10 @@
 							       data-choice-slug="{{slug}}"
 							       {{#if checked}}checked{{/if}}
 							       {{#if disabled}}disabled{{/if}}>
-							{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="stonetop-possession-sub-fill" data-possession-slug="{{../slug}}" data-choice-slug="{{slug}}" value="{{fillValue}}" placeholder="…">{{{fillAfter}}}{{else}}{{{label}}}{{/if}}
+							{{!-- One element for the whole label: bare text beside the <em> tags would
+							     each become their own flex item, gapped apart and wrapping between
+							     words instead of inside them (see .stonetop-sub-choice-text). --}}
+							<span class="stonetop-sub-choice-text">{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="stonetop-possession-sub-fill" data-possession-slug="{{../slug}}" data-choice-slug="{{slug}}" value="{{fillValue}}" placeholder="…">{{{fillAfter}}}{{else}}{{{label}}}{{/if}}</span>
 						</label>
 						{{#if (and checked resource)}}
 						<span class="stonetop-item-resources">
@@ -385,6 +363,7 @@
 				</ol>
 				{{/if}}
 			</li>
+			{{/if}}
 		{{/each}}
 		</ol>
 		{{#if stonetop.inventory.possessions.isIncomplete}}

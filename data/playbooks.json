@@ -1693,23 +1693,23 @@
             "options": [
               {
                 "slug": "sword",
-                "label": "◇ Sword, iron (<em>close</em>, +1 damage)"
+                "label": "◇ <strong>Sword</strong>, iron (<em>close</em>, +1 damage)"
               },
               {
                 "slug": "battleaxe",
-                "label": "◇ Battleaxe, iron (<em>close, messy</em>)"
+                "label": "◇ <strong>Battleaxe</strong>, iron (<em>close, messy</em>)"
               },
               {
                 "slug": "warhammer",
-                "label": "◇ Warhammer, iron (<em>close</em>, 2 piercing)"
+                "label": "◇ <strong>Warhammer</strong>, iron (<em>close</em>, 2 piercing)"
               },
               {
                 "slug": "mace-or-flail",
-                "label": "◇ Mace or flail, iron (<em>close, forceful</em>)"
+                "label": "◇ <strong>Mace</strong> or <strong>flail</strong>, iron (<em>close, forceful</em>)"
               },
               {
                 "slug": "crossbow",
-                "label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>, x <em>piercing</em>)",
+                "label": "◇ <strong>Crossbow</strong> (<em>far</em>, +1 damage, <em>reload</em>, x <em>piercing</em>)",
                 "resource": {
                   "max": 2,
                   "title": null,
@@ -2052,15 +2052,15 @@
             "options": [
               {
                 "slug": "black-iron-maul",
-                "label": "◇ Black iron maul, utterly immune to all magic (<em>close, forceful, awkward</em>, +1 damage)"
+                "label": "◇ <strong>Black iron maul</strong>, utterly immune to all magic (<em>close, forceful, awkward</em>, +1 damage)"
               },
               {
                 "slug": "makerglass-shield",
-                "label": "◇ Makerglass shield, etched with Aratis's symbol (<em>indestructible</em>, +1 armor, +1 Readiness on a Defend 7+)"
+                "label": "◇ <strong>Makerglass shield</strong>, etched with Aratis's symbol (<em>indestructible</em>, +1 armor, +1 Readiness on a Defend 7+)"
               },
               {
                 "slug": "helm",
-                "label": "◇ Helm set with a dark ice \"jewel.\" Grants advantage to resist mind-affecting magic."
+                "label": "◇ <strong>Helm</strong> set with a dark ice \"jewel.\" Grants advantage to resist mind-affecting magic."
               }
             ]
           }
@@ -3320,19 +3320,19 @@
             "options": [
               {
                 "slug": "sword",
-                "label": "◇ Sword, iron (<em>close</em>, +1 damage)"
+                "label": "◇ <strong>Sword</strong>, iron (<em>close</em>, +1 damage)"
               },
               {
                 "slug": "long-spear",
-                "label": "◇ Long spear, fine steel (<em>reach</em>, 2 piercing)"
+                "label": "◇ <strong>Long spear</strong>, fine steel (<em>reach</em>, 2 piercing)"
               },
               {
                 "slug": "battleaxe",
-                "label": "◇ Battleaxe, iron (<em>close, messy</em>)"
+                "label": "◇ <strong>Battleaxe</strong>, iron (<em>close, messy</em>)"
               },
               {
                 "slug": "composite-bow",
-                "label": "◇ Composite bow (<em>far</em>, +1 damage, x <em>piercing</em>)",
+                "label": "◇ <strong>Composite bow</strong> (<em>far</em>, +1 damage, x <em>piercing</em>)",
                 "resource": {
                   "max": 2,
                   "title": null,
@@ -4899,27 +4899,27 @@
             "options": [
               {
                 "slug": "shield",
-                "label": "◇◇ A shield, bearing ___'s crest"
+                "label": "◇◇ <strong>A shield</strong>, bearing ___'s crest"
               },
               {
                 "slug": "wool-cloak",
-                "label": "◇ A wool cloak, woven just for you by ___"
+                "label": "◇ <strong>A wool cloak</strong>, woven just for you by ___"
               },
               {
                 "slug": "letter",
-                "label": "A letter, spattered with tears &amp; blood"
+                "label": "<strong>A letter</strong>, spattered with tears &amp; blood"
               },
               {
                 "slug": "flute",
-                "label": "A flute, a gift from someone you loved"
+                "label": "<strong>A flute</strong>, a gift from someone you loved"
               },
               {
                 "slug": "fine-locket",
-                "label": "A fine locket, holding a strand of hair"
+                "label": "<strong>A fine locket</strong>, holding a strand of hair"
               },
               {
                 "slug": "tinderbox",
-                "label": "A tinderbox, lovingly engraved"
+                "label": "<strong>A tinderbox</strong>, lovingly engraved"
               }
             ]
           }

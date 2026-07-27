@@ -86,6 +86,9 @@ const BEAST_READINESS_PREFIX = "flags.stonetop_pwd.beastReadiness.";
 const POSSESSION_USES_PREFIX = "flags.stonetop_pwd.possessions.uses.";
 const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.";
 const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
+// The ◇ load mark on a gear bundle's chosen option (a Heavy's Weapons of war), which is
+// separate from choosing it — same "selected / deselected" reading as an inventory mark.
+const POSSESSION_CHOICE_CARRIED_PREFIX = "flags.stonetop_pwd.possessions.choiceCarried.";
 const POSSESSION_SELECTED_PATH = `flags.${LEDGER_SCOPE}.possessions.selected`;
 const POSSESSION_CUSTOM_PATH = `flags.${LEDGER_SCOPE}.possessions.custom`;
 
@@ -589,6 +592,15 @@ function possessionSubchoiceEntries(path, oldValue, newValue, names) {
 	return entries;
 }
 
+function possessionChoiceCarriedEntry(path, oldValue, newValue, names) {
+	const key = path.slice(POSSESSION_CHOICE_CARRIED_PREFIX.length);
+	const [possessionSlug] = key.split(":");
+	if (!!oldValue === !!newValue) return null;
+	const possessionName = nameFrom(names.possessions, possessionSlug);
+	const choiceName = nameFrom(names.possessionChoices, key);
+	return { action: `${possessionName}: ${choiceName} ${newValue ? "carried" : "set down"}` };
+}
+
 function possessionChoiceUsesEntry(path, oldValue, newValue, names) {
 	const key = path.slice(POSSESSION_CHOICE_USES_PREFIX.length);
 	const [possessionSlug, choiceSlug] = key.split(":");
@@ -655,6 +667,7 @@ function granularEntriesForPath(path, oldValue, newValue, names) {
 	if (path.startsWith(POSSESSION_USES_PREFIX)) return [possessionUsesEntry(path, oldValue, newValue, names)];
 	if (path.startsWith(POSSESSION_SUBCHOICES_PREFIX)) return possessionSubchoiceEntries(path, oldValue, newValue, names);
 	if (path.startsWith(POSSESSION_CHOICE_USES_PREFIX)) return [possessionChoiceUsesEntry(path, oldValue, newValue, names)];
+	if (path.startsWith(POSSESSION_CHOICE_CARRIED_PREFIX)) return [possessionChoiceCarriedEntry(path, oldValue, newValue, names)].filter(Boolean);
 	if (path.startsWith(ARCANA_BOXES_PREFIX)) return [arcanaBoxEntry(path, oldValue, newValue, names)].filter(Boolean);
 	if (path.startsWith(ARCANA_UNLOCK_PREFIX)) return [arcanaOptionEntry(path, ARCANA_UNLOCK_PREFIX, "unlockOptions", oldValue, newValue, names)];
 	if (path.startsWith(ARCANA_BACK_OPTIONS_PREFIX)) return [arcanaOptionEntry(path, ARCANA_BACK_OPTIONS_PREFIX, "backOptions", oldValue, newValue, names)];

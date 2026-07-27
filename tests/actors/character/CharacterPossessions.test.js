@@ -5,6 +5,9 @@ function makeFlags(store = {}) {
 	return {
 		getFlag: (key) => store[key] ?? null,
 		setFlag: vi.fn(async (key, val) => { store[key] = val; }),
+		// StonetopFlags.batch writes several flags in one actor.update; here it is just
+		// several stores set at once (the fake has no document to update).
+		batch: vi.fn(async ({ sets = {} } = {}) => { Object.assign(store, sets); }),
 	};
 }
 

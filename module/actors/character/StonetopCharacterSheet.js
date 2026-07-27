@@ -2869,6 +2869,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Weapons-of-war ◇/□ rows: ticking a diamond picks the weapon (a sub-choice) and
 			// marks it carried in one move — the pick IS the load mark.
 			html.find(".stonetop-possession-choice-gear-check").on("change", this._onPossessionChoiceGearCheck.bind(this));
+			// The inline ammo track ("○ low ammo, ○ all out") has to live INSIDE the row's
+			// label span so it flows and wraps with the weapon's line — but that means its
+			// status WORDS are non-interactive content inside a <label>, so clicking one
+			// forwards to the label's first labelable descendant: the ◇ carry mark. Reading
+			// the ammo status would silently change the character's load. The circles are
+			// <button>s (interactive content, never forwarded), so cancelling the label's
+			// activation here leaves the track working and only makes its words inert.
+			html[0].addEventListener("click", ev => {
+				if (ev.target.closest(".stonetop-choice-gear-statuses")) ev.preventDefault();
+			}, true);
 			// Fill-in blank inside a bundle sub-option (the Would-Be Hero's personal token):
 			// saved on blur, keyed possession:choice, mirroring the onboarding write-in.
 			html.find(".stonetop-possession-sub-fill").on("change", ev => {
@@ -4699,24 +4709,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
-		// Weapons-of-war style gear (see tab-equipment.hbs): a possession's `choices` options
-		// rendered as ◇/□ rows. Ticking a diamond selects that weapon as a sub-choice — which
-		// is the pick and the load mark both — so this routes to the same sub-choice store as
-		// the edit-mode checklist, then re-derives load on re-render.
+		// Weapons-of-war style gear (see tab-equipment.hbs): the options a possession's `choices`
+		// bundle has already had chosen, rendered as ◇/□ rows. Ticking a diamond marks that
+		// weapon as carried — the pick itself lives on the edit-mode checklist — and load
+		// re-derives on the re-render.
 		async _onPossessionChoiceGearCheck(ev) {
 			const el = ev.currentTarget;
 			const { possessionSlug, choiceSlug } = el.dataset;
-			// A ◇◇ weapon renders one diamond per point of weight, all bound to one picked/not
+			// A ◇◇ weapon renders one diamond per point of weight, all bound to one carried/not
 			// state; the browser only flips the clicked box, so mirror it onto its siblings and
 			// the wrapper now — otherwise the rest visibly lags until the async re-render lands.
 			const group = el.closest(".stonetop-inv-diamonds");
 			if (group) for (const box of group.querySelectorAll(".stonetop-inv-diamond")) box.checked = el.checked;
 			el.closest(".stonetop-inv-item")?.classList.toggle("is-checked", el.checked);
-			if (el.checked) {
-				await this._stonetopCharacter.selectSubChoice(possessionSlug, choiceSlug);
-			} else {
-				await this._stonetopCharacter.deselectSubChoice(possessionSlug, choiceSlug);
-			}
+			await this._stonetopCharacter.setChoiceGearCarried(possessionSlug, choiceSlug, el.checked);
 			this.render(false);
 		}
 

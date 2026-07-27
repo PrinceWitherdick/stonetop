@@ -576,11 +576,52 @@ figure.stonetop-map figcaption {
 	background-color: currentColor;
 }
 
-.tab-section--possessions .stonetop-item-description .stonetop-glyph {
+/* Load ◇ and use ○ marks printed in possession prose read too small at body size, so the
+   section paints every one of them at a single size: the 1.3em bump the 0.85rem
+   description has always carried (0.85 × 1.3 = 1.105rem), stated absolutely.
+
+   Absolute, not the relative --st-fs-xl, because the same authored line surfaces in
+   containers whose text sizes differ. A gear-bearing bundle's option — a Heavy's or
+   Marshal's Weapons of war, the Judge's symbol of authority, the Would-Be Hero's token —
+   is the edit-mode checklist row (0.85rem) and, once chosen, the play-mode gear row
+   (--st-fs-base, 1rem). A relative bump sized the Marshal's composite bow's "○ low ammo,
+   ○ all out" differently in each, so the marks resized as the edit pencil toggled.
+
+   Matched via [data-glyphs-wrapped] rather than a copy of GLYPH_TEXT_CONTAINERS
+   (module/utils/glyphs.js): wrapGlyphTextContainers stamps that attribute on every
+   container whose literal glyphs it turns into .stonetop-glyph spans, so this rule covers
+   whatever that list grows to instead of needing a hand-maintained second copy that would
+   silently render a new container's glyphs at its own size. */
+.tab-section--possessions {
+	--st-possession-glyph: calc(1.105rem * var(--stonetop-font-scale, 1));
+}
+
+.tab-section--possessions [data-glyphs-wrapped] .stonetop-glyph {
 	display: inline-block;
-	font-size: var(--st-fs-xl);
+	font-size: var(--st-possession-glyph);
 	line-height: 1;
 	vertical-align: -0.04em;
+}
+
+/* …except a ○, which is drawn as the uses circle it stands for rather than at the ◇ size.
+   The clearest case is a weapon that carries ammo (the Heavy's crossbow, the Marshal's
+   composite bow): its "○ low ammo, ○ all out" is prose on the edit-mode checklist and, in
+   play, the same statuses redrawn as the real clickable track — so the two must be the
+   same circle, or the marks resize as the edit pencil toggles.
+
+   Sizing them apart from ◇ is not an inconsistency but the sheet's own proportion: a load
+   box (14px) really is bigger than a uses circle (10px), and the prose keeps that
+   difference rather than flattening both to one size.
+
+   Matches the wrapped-glyph selector above on [data-glyphs-wrapped] so this block
+   outranks it — without that, its vertical-align: -0.04em wins on specificity and the
+   circle keeps the ◇ baseline instead of sitting on the text's. */
+.tab-section--possessions [data-glyphs-wrapped] .stonetop-glyph--circle,
+.tab-section--possessions [data-glyphs-wrapped] .stonetop-glyph--circle-filled {
+	width: 10px;
+	height: 10px;
+	border-width: 1.5px;
+	vertical-align: 0;
 }
 
 /* Stonetop-specific content classes — no other stylesheet targets these,
@@ -4101,17 +4142,53 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	opacity: 0.6;
 }
 
-/* Weapons-of-war style gear: the "Choose up to 3 (now or later)" note above the ◇ rows,
-   and the muted state for a weapon locked out once the pick cap is reached. */
+/* A chosen weapon's label is a whole book line — "Sword, iron (close, +1 damage)" — not
+   the bare item name the Items column carries, so the shared bold would set the tags and
+   the damage bonus in bold too. The book bolds only the item's name, so let the label's
+   authored <strong> do that (the Marshal's crew gear list works the same way) and leave
+   the rest of the line at normal weight. */
+.stonetop-possession-choice-gear .stonetop-inv-label {
+	font-weight: normal;
+}
+
+/* A weapon's line can wrap to two or three lines; its ◇ marks where the weapon *starts*,
+   so pin it to the first line. Centred (the shared default) it drifted to the middle line
+   and read as though it belonged to the wrapped remainder. */
+.stonetop-possession-choice-gear .stonetop-inv-item {
+	align-items: flex-start;
+}
+
+/* A possession's own uses track gets a full-width row of its own inside the card header
+   (flex-basis:100%, above) — but these gear rows are single-line flex rows, where that
+   basis claimed a share of the row and squeezed the label into ~half its width, wrapping
+   the line early and stranding the circles out to the right. Here the track is just
+   another item on the line. */
+.stonetop-possession-list .stonetop-inv-item .stonetop-item-resources {
+	align-items: center;
+	flex: 0 0 auto;
+}
+
+/* Ammo statuses printed in the line itself: "…, ○ low ammo, ○ all out)". The circles are
+   the interactive track, so they flow with the text (and may wrap with it), and each is
+   followed by the status it stands for — comma-separated, as the book has it. */
+/* Both classes: .stonetop-inv-resources sets the shared 2px gap further down the sheet,
+   and a circle sitting in running text needs a word-space beside its label instead. */
+.stonetop-inv-resources.stonetop-choice-gear-statuses {
+	flex-wrap: wrap;
+	gap: 2px 4px;
+}
+
+.stonetop-choice-gear-statuses .stonetop-resource-label:not(:last-child)::after {
+	content: ",";
+}
+
+/* Weapons-of-war style gear: the "Choose up to 3 (now or later)" note that sits above the
+   ◇ rows while the bundle still has picks left (and stands in for them when it's empty). */
 .stonetop-possession-choice-gear-note {
 	font-size: var(--st-fs-sm);
 	color: var(--color-text-dark-secondary, #666);
 	font-style: italic;
 	margin: 0 0 4px;
-}
-
-.stonetop-possession-choice-gear .stonetop-inv-item.is-disabled {
-	opacity: 0.5;
 }
 
 /* Background descriptions: give multi-paragraph text real separation so the
@@ -4355,6 +4432,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 5px;
 	cursor: pointer;
 	flex: 1;
+	min-width: 0;
+}
+
+/* The label's text is one flex item so it wraps as ordinary prose. Loose beside the
+   checkbox, each <em> gear tag and the text between them would be its own anonymous
+   flex item — gapped apart, and breaking between items, which strands a long weapon's
+   leading ◇ on a line of its own (the Heavy's crossbow). */
+.stonetop-sub-choice-text {
+	flex: 1;
+	min-width: 0;
 }
 
 .stonetop-other-move-delete {
@@ -4489,7 +4576,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	align-items: center;
 }
 
-.stonetop-inv-resource-btn {
+/* The circle a *gear* uses track is drawn with, wherever the gear is listed: the Items
+   column, a possession's bundled gear (the distillery's "○○ uses" whisky), and a chosen
+   weapon's ammo. Deliberately smaller than .stonetop-item-resource-check, which is a
+   possession's or move's OWN uses track — a header-level control, not a mark printed in
+   a gear line.
+
+   The chosen-weapon rows come in on the second selector rather than by swapping their
+   btnClass, because .stonetop-item-resource-check is what the possession/choice-slug click
+   handler binds to. It covers both shapes those rows take — the statuses drawn inline
+   ("…, ○ low ammo, ○ all out)") and the track appended after the label when the authored
+   statuses don't parse — so a weapon's ammo matches the bundled gear right above it in
+   the same card. (Only the play-mode row needs listing: the edit-mode checklist renders
+   no track at all, since a choice option carries no `resource` in the snapshot.) */
+.stonetop-inv-resource-btn,
+.tab-section--possessions .stonetop-possession-choice-gear .stonetop-item-resource-check {
 	appearance: none;
 	width: 10px;
 	height: 10px;
@@ -4500,12 +4601,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 0;
 }
 
-.stonetop-inv-resource-btn.stonetop-inventory-resource-btn.is-checked { background-color: var(--color-text-dark-primary) !important; }
-
-.stonetop-inv-resource-label {
-	font-size: var(--st-fs-xs);
-	margin-left: 1px;
+/* .stonetop-item-resource-check paints its ring !important, so matching the inventory
+   circle's weight has to match it. Size/padding above need no !important — those
+   declarations aren't important, and this selector outranks them. */
+.tab-section--possessions .stonetop-possession-choice-gear .stonetop-item-resource-check {
+	border: 1.5px solid currentColor !important;
 }
+
+.stonetop-inv-resource-btn.stonetop-inventory-resource-btn.is-checked { background-color: var(--color-text-dark-primary) !important; }
 
 .stonetop-inv-note {
 	color: var(--color-text-dark-secondary, #666);

@@ -177,6 +177,28 @@ function _parseChoiceGear(rawLabel) {
 	return { weight: m ? m[1].length : 0, label: (m ? label.slice(m[0].length) : label).trim() };
 }
 
+// A weapon's ammo statuses are printed inline in the book — "Crossbow (far, +1 damage,
+// reload, x piercing, ○ low ammo, ○ all out)" — so the row's interactive circles stand in
+// for those glyphs rather than trailing the line as a bare track. Split the label at the
+// first ○ into { before, one status per circle, after }, where `after` is whatever trails
+// the last status (the label's closing paren). statuses is empty when there's no run.
+function _splitInlineStatuses(label) {
+	const text  = String(label ?? "");
+	const start = text.indexOf("○");
+	if (start < 0) return { before: text, statuses: [], after: "" };
+	const parts = text.slice(start).split("○").slice(1);
+	// Only the LAST status can be followed by the label's closing punctuation, so peel it
+	// off before mapping rather than testing the index on every pass.
+	const last  = parts.pop();
+	const close = last.indexOf(")");
+	const trim  = s => s.replace(/[,\s]+$/, "").trim();
+	return {
+		before:   text.slice(0, start),
+		statuses: [...parts, close >= 0 ? last.slice(0, close) : last].map(trim),
+		after:    close >= 0 ? last.slice(close) : "",
+	};
+}
+
 // On the gear tab a possession's circle track renders in the component's top-right,
 // so the inline "○○○ uses" count baked into the playbook description is redundant.
 // Strip it — but only for possessions that actually have a track (onboarding shows
@@ -812,9 +834,9 @@ export class StonetopCharacter {
 			.filter(i => i.system.inventoryColumn !== "regular").map(i => mapCustomItem(i));
 
 		// Gear-bearing `choices` possessions (the Heavy's / Marshal's Weapons of War): the
-		// pickable weapons render as ◇/□ rows inside the card, and a picked weapon's ◇ counts
-		// toward load exactly like a column item or a grantsItems bundle. Built here so the
-		// possessions snapshot (rendering) and the load/small accounting below share one source.
+		// weapons the player chose render as ◇/□ rows inside the card, and a *carried* one's ◇
+		// counts toward load exactly like a column item or a grantsItems bundle. Built here so
+		// the possessions snapshot (rendering) and the load/small accounting below share one source.
 		const choiceGearByPossession = this._buildChoiceGearByPossession(playbookData, prosperity);
 		const choiceGearRegularAll   = [...choiceGearByPossession.values()].flatMap(b => b.regular);
 		const choiceGearSmallAll     = [...choiceGearByPossession.values()].flatMap(b => b.small);
@@ -973,16 +995,16 @@ export class StonetopCharacter {
 			const resourceDef = opt.resource ?? null;
 			const grantedGear = grantedByPossession.get(opt.slug) ?? { regular: [], small: [] };
 			const hasGrantedGear = grantedGear.regular.length || grantedGear.small.length;
-			// A gear-bearing `choices` bundle (the Heavy's / Marshal's Weapons of War) renders
-			// as always-visible ◇/□ item-rows (built in _buildChoiceGearByPossession) rather than
-			// the edit-mode checklist below — so its checklist / prose summary are suppressed and
-			// only the diamond rows drive picking + load.
+			// A gear-bearing `choices` bundle (the Heavy's / Marshal's Weapons of War) renders its
+			// *chosen* options as ◇/□ item-rows (built in _buildChoiceGearByPossession) so the
+			// diamond can act as the load mark in play. Choosing them stays on the edit-mode
+			// checklist below; only the prose summary is suppressed, since the rows say it better.
 			const isGearChoice = !!opt.choices?.gear;
 			const choiceGear   = isGearChoice ? (choiceGearByPossession.get(opt.slug) ?? null) : null;
 			// `choices` bundle (Judge's symbol of authority, Would-Be Hero's personal token): the
 			// picked sub-options, shown as an editable checklist on the gear card in edit mode.
 			// Each may carry an inline fill-in blank whose written value comes from the choiceTexts
-			// store. (Gear-bearing bundles skip this — they use choiceGear above instead.)
+			// store.
 			const choiceOpts    = opt.choices?.options ?? [];
 			const choicePicked  = subChoicesMap[opt.slug] ?? [];
 			const choiceAtLimit = choicePicked.length >= (opt.choices?.pickCount ?? 0);
@@ -1034,7 +1056,7 @@ export class StonetopCharacter {
 				// Untitled circle tracks default to a "Uses" label (mirrors the Blessed's
 				// "Stock"), so the top-right circles always read with a heading.
 				.withUsesLabel(resourceDef ? (resourceDef.title ?? "Uses") : null)
-				.withChoices(isSelected && !isGearChoice ? choicesView : null)
+				.withChoices(isSelected ? choicesView : null)
 				.withChoiceGroups(null)
 				// Read-only prose of the player's flavor/trait picks (the Blessed's
 				// sacred pouch), woven under the description on the gear tab. Gear-bearing
@@ -1046,8 +1068,8 @@ export class StonetopCharacter {
 				// malt…), split ◇ / small, rendered inside the card. Only present when selected.
 				.withGrantedRegular(grantedGear.regular)
 				.withGrantedSmall(grantedGear.small)
-				// Weapons-of-war style gear: the pickable weapons as ◇/□ rows. Ticking a
-				// diamond is the pick and the load mark. Only present when selected + `gear`.
+				// Weapons-of-war style gear: the *chosen* weapons as ◇/□ rows, where the
+				// diamond is the load mark. Only present when selected + `gear`.
 				.withChoiceGear(choiceGear)
 				.build();
 		});
@@ -1079,14 +1101,15 @@ export class StonetopCharacter {
 		return new PossessionsSnapshot(pickCount, pickNote, [...items, ...customItems], isIncomplete);
 	}
 
-	// A gear-bearing `choices` possession (the Heavy's / Marshal's Weapons of War) is
-	// rendered like a grantsItems bundle: each pickable option becomes a ◇/□ item-row so
-	// the diamond IS the pick and the load mark — no separate edit-mode checklist. Returns
-	// a Map possessionSlug → { regular, small, pickNote }, populated only for a *selected*
-	// possession flagged `choices.gear`, so the rows appear in normal play like the other
-	// possessions' gear. A picked option carries its resource (the crossbow's ○○ ammo);
-	// weight and a clean label are split off the authored "◇ Sword, iron (…)" form. Kept in
-	// step with the load / small-item accounting, which folds these rows in by their weight.
+	// A gear-bearing `choices` possession (the Heavy's / Marshal's Weapons of War) shows the
+	// options the player has *already chosen* as ◇/□ item-rows, like a grantsItems bundle.
+	// Choosing which weapons you own stays on the edit-mode checklist (`choices`); the ◇ here
+	// is purely the load mark — tick it to say you're carrying that weapon right now. So the
+	// unchosen options never clutter the card in play. Returns a Map possessionSlug →
+	// { regular, small, pickNote }, populated only for a *selected* possession flagged
+	// `choices.gear`. A row carries its resource (the crossbow's ○○ ammo); weight and a clean
+	// label are split off the authored "◇ Sword, iron (…)" form. Kept in step with the load /
+	// small-item accounting below, which folds carried rows in by their weight.
 	_buildChoiceGearByPossession(playbookData, prosperity = null) {
 		const out = new Map();
 		const sp = playbookData?.specialPossessions;
@@ -1098,45 +1121,61 @@ export class StonetopCharacter {
 			if (!opt.choices?.gear || !opt.choices.options?.length) continue;
 			if (!selected.has(opt.slug)) continue;
 			const picked  = new Set(subChoicesMap[opt.slug] ?? []);
-			const atLimit = picked.size >= (opt.choices.pickCount ?? 0);
 			const regular = [];
 			const small   = [];
 			for (const c of opt.choices.options) {
-				const isPicked = picked.has(c.slug);
+				if (!picked.has(c.slug)) continue; // unchosen weapons aren't yours to carry
 				const { weight, label: rawLabel } = _parseChoiceGear(c.label);
 				// Resolve the "x piercing" marker up front so both render paths — the plain
 				// label and the fill-blank split below — read from the same transformed text
 				// (a weapon could carry both a blank and a piercing note).
 				const label  = _transformPiercingNote(rawLabel, prosperity);
 				const resDef = c.resource ?? null;
+				// The book prints the ammo statuses inline ("…, ○ low ammo, ○ all out)"), so when
+				// the label carries exactly one ○ per circle the track renders *there*, standing in
+				// for those glyphs — otherwise the row showed both, the written statuses and a pair
+				// of unexplained circles at the end of the line. Anything else (a track with no
+				// inline glyphs, or a count that doesn't line up) keeps the trailing track.
+				const inline    = resDef ? _splitInlineStatuses(label) : { before: label, statuses: [], after: "" };
+				const useInline = !!resDef && inline.statuses.length === (resDef.max ?? 0)
+					&& inline.statuses.every(s => s);
+				const rowLabel  = useInline ? inline.before : label;
 				// An inline fill-in blank (the Would-Be Hero's "A shield, bearing ___'s crest")
 				// splits the load-stripped label around a text input whose value is the
-				// per-choice write-in — same store the old checklist used.
-				const blank = splitFillBlank(label);
+				// per-choice write-in — same store the edit-mode checklist uses.
+				const blank = splitFillBlank(rowLabel);
 				const row = {
 					possessionSlug: opt.slug,
 					choiceSlug:     c.slug,
-					label,
+					label:          rowLabel,
+					// Re-attached after the inline circles: the label's closing paren.
+					labelAfter:     useInline ? inline.after : "",
+					resourceInline: useInline,
 					weight,
-					checked:        isPicked,
-					// Past the pick cap, still-unpicked weapons lock; a picked one always stays
-					// togglable so you can set a weapon down.
-					disabled:       !isPicked && atLimit,
+					// Carried, not chosen: a weapon you own but left behind reads as an empty ◇.
+					checked:        this._possessions.isChoiceCarried(opt.slug, c.slug),
 					hasBlank:       blank.hasBlank,
 					fillBefore:     blank.before,
 					fillAfter:      blank.after,
 					fillValue:      this._possessions.getChoiceText(opt.slug, c.slug),
-					// The ammo track exists only once the weapon's taken (matches column gear).
-					resource:       (isPicked && resDef) ? new ResourceBuilder()
+					resource:       resDef ? new ResourceBuilder()
 						.withCurrent(Math.min(choiceUsesMap[`${opt.slug}:${c.slug}`] ?? 0, resDef.max ?? 0))
 						.withMax(resDef.max)
 						.withTitle(resDef.title ?? null)
-						.withLabels(resDef.labels ?? [])
+						// Inline circles name themselves: each takes the status it replaced.
+						.withLabels(resDef.labels?.length ? resDef.labels : (useInline ? inline.statuses : []))
 						.build() : null,
 				};
 				(weight > 0 ? regular : small).push(row);
 			}
-			out.set(opt.slug, { regular, small, pickNote: opt.choices.pickNote ?? null });
+			// `pickNote` ("Choose up to 3 (now or later)") heads the edit-mode checklist, where
+			// the choosing happens; in play it'd just be noise over gear you already own.
+			// `hasPicked` keeps the whole block off the card until something is chosen.
+			out.set(opt.slug, {
+				regular, small,
+				pickNote:  opt.choices.pickNote ?? null,
+				hasPicked: !!(regular.length || small.length),
+			});
 		}
 		return out;
 	}
@@ -1577,10 +1616,27 @@ export class StonetopCharacter {
 		}
 		await this._possessions.addSubChoice(possessionSlug, choiceSlug);
 	}
-	async setPossessionSubChoices(possessionSlug, choiceSlugs) { await this._possessions.setSubChoices(possessionSlug, choiceSlugs); }
-	async deselectSubChoice(possessionSlug, choiceSlug) { await this._possessions.removeSubChoice(possessionSlug, choiceSlug); }
+	async setPossessionSubChoices(possessionSlug, choiceSlugs) {
+		// Onboarding replaces a bundle's picks wholesale, so anything dropped here has to
+		// give up its ◇ carry mark too — same reason as deselectSubChoice below.
+		const kept = new Set(choiceSlugs ?? []);
+		const dropped = (this._possessions.subChoices[possessionSlug] ?? [])
+			.filter(s => !kept.has(s) && this._possessions.isChoiceCarried(possessionSlug, s));
+		await this._possessions.writeSubChoices(possessionSlug, choiceSlugs ?? [], { uncarry: dropped });
+	}
+	async deselectSubChoice(possessionSlug, choiceSlug) {
+		// Giving up a gear-bundle option drops its ◇ carry mark too, so re-choosing that
+		// weapon later can't silently re-add its weight to your load. One write, not two:
+		// each actor.update re-runs the ledger's snapshot diff (see writeSubChoices).
+		const remaining = (this._possessions.subChoices[possessionSlug] ?? []).filter(s => s !== choiceSlug);
+		const uncarry = this._possessions.isChoiceCarried(possessionSlug, choiceSlug) ? [choiceSlug] : [];
+		await this._possessions.writeSubChoices(possessionSlug, remaining, { uncarry });
+	}
 	async selectSubChoiceExclusive(possessionSlug, choiceSlug, exclusiveSlugs) { await this._possessions.selectExclusive(possessionSlug, choiceSlug, exclusiveSlugs); }
 	async setSubChoiceUses(possessionSlug, choiceSlug, count) { await this._possessions.setChoiceUses(possessionSlug, choiceSlug, count); }
+	// The ◇ on a chosen weapon's row: whether it's on your person right now (counts toward
+	// load). Independent of the pick itself — see _buildChoiceGearByPossession.
+	async setChoiceGearCarried(possessionSlug, choiceSlug, isCarried) { await this._possessions.setChoiceCarried(possessionSlug, choiceSlug, isCarried); }
 	async setPossessionChoiceText(possessionSlug, choiceSlug, value) { await this._possessions.setChoiceText(possessionSlug, choiceSlug, value); }
 
 	// How many of the selected background's markable actions the character may mark at its

@@ -219,12 +219,14 @@ export class PossessionsSnapshot {
  * @property {InventoryItemSnapshot[]} grantedSmall    This possession's bundled non-◇ gear
  *           (whisky, malt, stills), rendered below grantedRegular; marking one still counts
  *           toward the small-item allowance.
- * @property {{regular: Object[], small: Object[], pickNote: string|null}|null} choiceGear
- *           A gear-bearing `choices` bundle (the Heavy's / Marshal's Weapons of War) rendered
- *           as ◇/□ item-rows instead of the plain sub-choice checklist: ticking a diamond is
- *           the pick AND the load mark. Each row carries its possession/choice slugs, weight,
- *           checked/disabled state, and (for the picked crossbow) an ammo resource. Null unless
- *           the possession is selected and its `choices` object is flagged `gear`.
+ * @property {{regular: Object[], small: Object[], pickNote: string|null, hasPicked: boolean}|null} choiceGear
+ *           A gear-bearing `choices` bundle (the Heavy's / Marshal's Weapons of War): the options
+ *           the player has *chosen*, as ◇/□ item-rows. The diamond is the load mark only — you
+ *           choose which weapons you own on the edit-mode `choices` checklist, then tick the ones
+ *           you're carrying. Each row carries its possession/choice slugs, weight, carried state,
+ *           and (for the crossbow) an ammo resource. `pickNote` heads that edit-mode checklist;
+ *           `hasPicked` keeps the block off the card until something is chosen. Null unless the
+ *           possession is selected and its `choices` object is flagged `gear`.
  */
 export class PossessionItemSnapshot {
 	constructor(b) {
