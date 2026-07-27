@@ -130,6 +130,26 @@
 			</div>
 		</div>
 
+		{{!-- Relationships — how Stonetop stands with the communities beyond it, on
+		      the same 1-5 hearts the NPC and character sheets use for their side of a tie.
+		      The roster is the book's (module/data/settlements.js) and ships at neutral;
+		      clicking a heart sets the rating, clicking the last filled one drops it. The
+		      pencil reveals a show/hide box per row so a table can trim the list to the
+		      neighbors it actually deals with. Full width, between the inventory cards and
+		      Places of Interest. --}}
+		<div class="steading-card steading-residents-section steading-residents-section--settlements steading-edit-section{{#unless stonetop.edit.settlements}} stonetop-readonly{{/unless}}">
+			{{> "stonetop.steading-section-toggle" section="settlements" editing=stonetop.edit.settlements}}
+			<h3 class="steading-list-heading">Relationships</h3>
+			{{#if stonetop.hasSettlements}}
+			{{> "stonetop.relationships-table" rows=stonetop.settlements resizeKey="steadingSettlements"
+			    nameLabel=(localize "stonetop.steading.settlement") canRate=stonetop.canEdit
+			    canToggle=stonetop.edit.settlements
+			    showTooltip=(localize "stonetop.steading.settlementShowTooltip")}}
+			{{else}}
+			<p class="stonetop-rel-empty">{{localize "stonetop.steading.settlementsAllHidden"}}</p>
+			{{/if}}
+		</div>
+
 		{{!-- Places of Interest gets the full-width bottom row to itself. --}}
 		<div class="steading-overview-bottom">
 			<div class="steading-card steading-places-section steading-edit-section{{#unless stonetop.edit.places}} stonetop-readonly{{/unless}}">

@@ -2,6 +2,51 @@ import { resolveResidentsGrid, readStoredColumnState, writeStoredColumnState } f
 
 const STORAGE_PREFIX = "stonetop_pwd.columnSort.";
 
+// Last known pointer position, so a re-render can tell whether it is about to move rows
+// out from under the user's cursor (see applySort). One passive listener for the whole
+// module — a fresh render can't rely on mouseenter, which won't fire again until the
+// pointer actually moves, so position is checked against live layout instead.
+let ptrX = -1;
+let ptrY = -1;
+// Tables holding a deferred re-sort, each with the check that lands it once the pointer has
+// moved off. A mouseleave on the list can't do this job: after a re-render the browser's
+// hover chain still points at the list node that was just replaced, so the fresh one never
+// receives an enter and therefore never fires a leave — the sort would stay deferred for
+// good. Pointer movement is the signal that actually arrives.
+const pendingSorts = new Set();
+if (typeof document !== "undefined") {
+	document.addEventListener("pointermove", ev => {
+		ptrX = ev.clientX;
+		ptrY = ev.clientY;
+		for (const land of [...pendingSorts]) land();
+	}, { passive: true });
+}
+
+// What is under the pointer right now. document.elementFromPoint forces a synchronous
+// style+layout flush, and one re-render hit-tests once per sortable table (the steading
+// sheet has four) from the same pointer position, interleaved with the row reordering that
+// dirties layout again — so resolve it once and share it across that burst. `false` is the
+// "resolved to nothing" sentinel, so a genuine miss isn't re-queried either. The microtask
+// drops the cache before anything but that synchronous burst can observe it, which is why
+// it can't go stale.
+// The row order each table last PAINTED, keyed by its storage key so it outlives the
+// closure — makeColumnsSortable re-runs against a brand-new table element on every render,
+// so nothing inside it remembers anything. This is what "don't move rows under the pointer"
+// has to be measured against: the freshly rendered DOM is always in raw template order,
+// which is not an order the user has ever been shown.
+const lastPainted = new Map();
+const sameOrder = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+
+let ptrEl = null;
+function elementUnderPointer() {
+	if (ptrX < 0) return null;
+	if (ptrEl === null) {
+		ptrEl = document.elementFromPoint(ptrX, ptrY) ?? false;
+		queueMicrotask(() => { ptrEl = null; });
+	}
+	return ptrEl || null;
+}
+
 /**
  * Lets users click the column headers of a `.steading-residents-table` (the
  * grid-based Players/Residents/Neighbors tables on the steading sheet) to sort
@@ -30,6 +75,12 @@ export function makeColumnsSortable(table, storageKey) {
 		.filter(cell => cell.querySelector(":scope > .steading-residents-header-label"));
 	if (!headerCells.length) return;
 
+	// Idempotent, for the same reason makeColumnsResizable is: a table reachable by both a
+	// sheet's generic wiring loop and a shared component's own must not end up with two
+	// sort handlers fighting over the row order.
+	if (table.dataset.stColumnsSortable) return;
+	table.dataset.stColumnsSortable = "1";
+
 	const columnKey = cell => {
 		// The col-name class (e.g. "steading-residents-col-occupation") is shared
 		// between a header cell and its matching row cells, so it doubles as the
@@ -49,14 +100,25 @@ export function makeColumnsSortable(table, storageKey) {
 	const valueOf = (row, colClass) => {
 		const cell = row.querySelector(`:scope > .${colClass}`);
 		if (!cell) return "";
-		const input = cell.querySelector("input");
+		// An editable cell sorts on what's typed in it — but only for value-carrying
+		// fields. A valueless checkbox reports "on", so the relationship table's
+		// show/hide box (which rides inside the NAME cell) would otherwise become every
+		// row's sort key and flatten the name sort to a no-op.
+		const input = cell.querySelector('input:not([type="checkbox"]):not([type="radio"])');
 		const raw = input ? input.value : cell.textContent;
 		return (raw ?? "").trim();
 	};
 
 	const nameClass = "steading-residents-col-name";
 
-	const applySort = () => {
+	// Stable per-row identity across renders: the relationship tables key rows by actor id,
+	// the steading's by the row's index in the underlying flag array (sorting is purely
+	// visual, so that index never moves). Name is the last resort.
+	const rowId = row => row.dataset.relId
+		?? row.querySelector("[data-index]")?.dataset?.index
+		?? valueOf(row, nameClass);
+
+	const applySort = (force = false) => {
 		// Runs on every steading re-render, sorted or not: even with no active sort the blank
 		// "add" / cleared-name rows must be pinned to the bottom. The DOM is only touched when
 		// the order actually changes (see below), so an already-ordered render costs nothing.
@@ -66,8 +128,9 @@ export function makeColumnsSortable(table, storageKey) {
 		// every comparison (which was O(n log n) querySelectors per sort).
 		const decorated = rows.map(row => ({
 			row,
+			id:   rowId(row),
 			name: valueOf(row, nameClass),
-			key: state ? valueOf(row, state.col) : "",
+			key:  state ? valueOf(row, state.col) : "",
 		}));
 		// Blank-name rows are the edit-mode "add" placeholders; keep them pinned at the
 		// bottom in DOM order and only sort the real entries above them.
@@ -84,12 +147,61 @@ export function makeColumnsSortable(table, storageKey) {
 			});
 		}
 
+		// Never reflow rows out from under a live pointer. Editing a row re-renders the
+		// sheet, and if the edit changed the sorted column the row the user is aiming at
+		// slides away — so a repeated click (stepping a relationship's hearts down,
+		// retyping a resident's name) lands on whichever row took its place and writes to
+		// the WRONG record.
+		//
+		// "Don't move" means hold the order the user is LOOKING at, which is the one we
+		// last painted — NOT whatever this render's template just emitted. The template
+		// always emits build order, so measuring against the live DOM would report "the
+		// order changed" on every single render of a sorted table and leave it sitting in
+		// raw build order, which is a bigger jump than the one this guard exists to stop.
+		// The real re-sort is deferred until the pointer leaves. A header click always
+		// reorders: the user asked for it, and the header sits outside the list.
+		const ordered = [...real, ...placeholders];
+		const realIds = real.map(d => d.id);
+		const painted = lastPainted.get(storageId);
+
+		let target = ordered;
+		if (!force && painted && !sameOrder(realIds, painted) && pointerInList()) {
+			const byId = new Map(real.map(d => [d.id, d]));
+			const held = painted.map(id => byId.get(id)).filter(Boolean);
+			const heldIds = new Set(held.map(d => d.id));
+			// Rows that appeared since that paint have no remembered slot: give them their
+			// sorted one. Placeholders stay pinned at the bottom either way.
+			target = [...held, ...real.filter(d => !heldIds.has(d.id)), ...placeholders];
+			deferred = true;
+			pendingSorts.add(landDeferred);
+		} else {
+			deferred = false;
+			pendingSorts.delete(landDeferred);
+		}
+		lastPainted.set(storageId, target.filter(d => d.name !== "").map(d => d.id));
+
 		// Only touch the DOM when the order actually changes — the common unsorted re-render
 		// (template already renders placeholders last) then costs nothing.
-		const ordered = [...real, ...placeholders];
-		if (ordered.some((d, i) => d.row !== rows[i])) {
-			for (const d of ordered) list.appendChild(d.row);
-		}
+		if (!target.some((d, i) => d.row !== rows[i])) return;
+		for (const d of target) list.appendChild(d.row);
+	};
+
+	// Is the pointer currently over this list? Read from live layout rather than tracked
+	// enter/leave state, so it is correct on a freshly rendered DOM too.
+	const pointerInList = () => {
+		const el = elementUnderPointer();
+		return !!el && list.contains(el);
+	};
+
+	let deferred = false;
+	// Land the held re-sort once the pointer is off this list. Drops itself when the sort is
+	// no longer deferred, or when this list has been replaced by a later render (each render
+	// builds a fresh closure, so old ones must not linger in the registry).
+	const landDeferred = () => {
+		if (!deferred || !list.isConnected) return pendingSorts.delete(landDeferred);
+		if (pointerInList()) return;
+		pendingSorts.delete(landDeferred);
+		applySort(true);
 	};
 
 	const updateIndicators = () => {
@@ -127,7 +239,9 @@ export function makeColumnsSortable(table, storageKey) {
 				state = { col: key, dir: "asc" };
 			}
 			persist();
-			applySort();
+			// An explicit header click is the one case that always reorders now: the user
+			// asked for it, and the pointer is on the header rather than over a row.
+			applySort(true);
 			updateIndicators();
 		});
 	}

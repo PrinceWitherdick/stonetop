@@ -30,13 +30,13 @@ import {defendReadinessHold} from "../../combat/defend-readiness.js";
 import {dieFromDamage} from "../../utils/damage.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
-import {playbookIconPath} from "../../utils/playbook-actors.js";
+import {playbookIconPath, partyCharacters} from "../../utils/playbook-actors.js";
 import {postMoveToChat, moveChatCard} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {peopleNames} from "../steading/steading-people.js";
+import {peopleNames, steadingPeopleActors} from "../steading/steading-people.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
@@ -49,6 +49,7 @@ import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
+import {buildRelationshipRows, wireRelationshipTable, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
 import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
@@ -891,7 +892,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				appearance: sectionEdit("appearance"),
 				origin:     sectionEdit("origin"),
 				lore:       sectionEdit("lore"),
+				relationships: sectionEdit("relationships"),
 			};
+			const relRows = this._buildRelationshipRows();
+			const relEditing = context.stonetop.detailsEdit.relationships;
+			context.stonetop.relationships    = relEditing ? relRows : relRows.filter(r => r.shown);
+			context.stonetop.hasRelationships = context.stonetop.relationships.length > 0;
+			// Everyone is unticked: say so, and point at the pencil — otherwise a section
+			// with candidates reads identically to a world with nobody in it.
+			context.stonetop.relationshipsAllHidden = !context.stonetop.hasRelationships && relRows.length > 0;
 			context.stonetop.statsEdit       = sectionEdit("stats");
 			context.stonetop.movesEdit       = sectionEdit("moves");
 			context.stonetop.possessionsEdit = sectionEdit("possessions");
@@ -1978,6 +1987,26 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 		}
 
+		// Every candidate row for the Details tab's Relationships section, in display
+		// order. Shared by getData (which filters to the shown ones in play mode) and the
+		// drop handler (which needs to know whether a dropped actor is already a row).
+		//
+		// Three sources, differing only in whether a row starts visible:
+		//  • the other player characters — your party, so they start shown. Prefer the
+		//    player-owned ones when any exist, but fall back to all of them so the section
+		//    still populates while a GM preps before players are assigned.
+		//  • everyone on the steading sheet — the whole roster would swamp the section, so
+		//    they start hidden until someone picks the ones this character has feelings about.
+		//  • anyone already stored in system.relationships who isn't covered above — that's
+		//    how a dropped stranger becomes a row and stays one.
+		// Self is always excluded; you don't rate yourself.
+		_buildRelationshipRows() {
+			return buildRelationshipRows(this.actor, [
+				{ actors: partyCharacters({ exclude: this.actor.id }), defaultShown: true },
+				{ actors: steadingPeopleActors(getStonetopSteadingActor()), defaultShown: false },
+			]);
+		}
+
 		activateListeners(html) {
 			super.activateListeners(html);
 
@@ -2010,7 +2039,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			// dragleave bubble up from every child, so track the nesting depth and
 			// only clear the hint once the drag has truly left the form.
 			let dragDepth = 0;
-			const clearDropHint = () => { dragDepth = 0; html[0].classList.remove("stonetop-dragging-playbook"); };
+			// Drop affordance for the Relationships section. Its clear() is folded into
+			// clearDropHint because the sheet-wide drop handler runs in the capture phase and
+			// stops propagation before a listener on the section would ever see the drop.
+			const clearRelHighlight = wireRelationshipDropHighlight(
+				html[0].querySelector(".stonetop-character-relationships"));
+			const clearDropHint = () => {
+				dragDepth = 0;
+				html[0].classList.remove("stonetop-dragging-playbook");
+				clearRelHighlight();
+			};
 			html[0].addEventListener("dragenter", () => {
 				dragDepth++;
 				html[0].classList.add("stonetop-dragging-playbook");
@@ -2021,11 +2059,32 @@ export function createStonetopCharacterSheetClass(Base) {
 			html[0].addEventListener("drop", async (ev) => {
 				clearDropHint();
 				if (ev.target.closest(".sheet-tabs")) return;
+				// Cancel the browser's own drop action for everything this handler consumes.
+				// stopImmediatePropagation() below cuts off core's DragDrop._handleDrop, which
+				// is what would otherwise do this — so without it a drop landing on a text
+				// field pastes the raw drag payload (`{"type":"JournalEntry","uuid":…}`) into
+				// it, and on the relationships table the change handler saves that as a note.
+				// Gecko gates only on the DROP event, so the dragover cancel above is not
+				// enough there. Must be SYNCHRONOUS: after an `await` the default has already
+				// run, and it has to cover every payload type, not just the ones we route.
+				ev.preventDefault();
 				ev.stopImmediatePropagation();
 				const data = this._getDragEventData(ev);
 				if (!data) return;
 				if (data?.type === "Actor") {
 					const doc = await fromUuid(data.uuid);
+					// Dropped ON the Relationships section: put them on the list. Checked first
+					// and always consumed, because this same handler turns any NPC dropped
+					// elsewhere on the sheet into a follower — landing on the relationships
+					// table should never start that conversion instead.
+					if (ev.target.closest(".stonetop-character-relationships")) {
+						const result = await relationshipDropResult(this.actor, doc, this._buildRelationshipRows(), {
+							editable: this.isEditable,
+						});
+						const [level, message] = relationshipDropNotice(result, this.actor, doc);
+						ui.notifications?.[level]?.(message);
+						return;
+					}
 					if (doc?.system?.customType === "stonetop") {
 						await this.actor.setFlag("stonetop_pwd", "steadingId", doc.id);
 						this.render(false);
@@ -2676,6 +2735,14 @@ export function createStonetopCharacterSheetClass(Base) {
 					moveRefPanel.hidden = true;
 				});
 			}
+
+			// Details-tab Relationships: hearts + notes stay interactive in normal view
+			// (a live affinity tracker, adjusted during play, not an authoring step).
+			// Wired ABOVE the editability gate because the helper's column drag-resize and
+			// click-to-sort are VIEW features — a non-owner reading someone else's sheet
+			// still gets them, exactly as they do on the NPC and steading sheets. The
+			// `editable` flag is what gates the writes.
+			wireRelationshipTable(html[0], this.actor, { editable: this.isEditable });
 
 			if (!this.isEditable) return;
 

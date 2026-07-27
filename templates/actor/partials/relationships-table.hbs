@@ -1,0 +1,61 @@
+{{!-- Relationship hearts table, shared by the NPC sheet's Relationships tab and the
+      character sheet's Details tab. Reuses the steading Residents table classes
+      (.steading-residents-*) so it inherits that styling plus drag-resize +
+      click-to-sort (wired by wireRelationshipTable). Columns: Who | Feelings | Notes,
+      no actions column.
+      Params: rows, resizeKey, nameLabel, canRate, canToggle, showTooltip.
+      `canToggle` adds the per-row show/hide box to the name cell — it rides INSIDE that
+      cell rather than as a fourth column so the grid (and the persisted drag-resize
+      widths) stay identical whether or not the boxes are showing.
+      `showTooltip` names what a row IS, so it has to come from the caller: the steading
+      lists settlements here, not people. Falls back to the person wording. --}}
+<div class="steading-residents-table stonetop-rel-table" data-resize-key="{{resizeKey}}">
+	<div class="steading-residents-header">
+		<div class="steading-residents-header-cell steading-residents-col-name"><span class="steading-residents-header-label">{{nameLabel}}</span></div>
+		{{!-- data-col-min: the hearts are five fixed 18px masks that can't shrink or wrap,
+		      so this column needs its own drag floor — below it the outer hearts clip out
+		      of reach and a 5-heart rating becomes unclickable. --}}
+		<div class="steading-residents-header-cell steading-residents-col-feelings" data-col-min="112"><span class="steading-residents-header-label">{{localize "stonetop.relationships.regard"}}</span></div>
+		<div class="steading-residents-header-cell steading-residents-col-notes"><span class="steading-residents-header-label">{{localize "stonetop.relationships.notes"}}</span></div>
+	</div>
+	<ul class="steading-residents-list">
+		{{#each rows}}
+		<li class="steading-residents-row stonetop-rel-row" data-rel-id="{{id}}">
+			<div class="steading-residents-col steading-residents-col-name stonetop-rel-namecell{{#unless shown}} stonetop-rel-row--hidden{{/unless}}" data-tooltip="{{#if tooltip}}{{tooltip}}{{else}}{{name}}{{/if}}">
+				{{#if ../canToggle}}
+				<input type="checkbox" class="stonetop-rel-show-check" data-rel-id="{{id}}"
+				       {{#if shown}}checked{{/if}}
+				       data-tooltip='{{#if ../showTooltip}}{{../showTooltip}}{{else}}{{localize "stonetop.relationships.showTooltip"}}{{/if}}'
+				       aria-label='{{#if ../showTooltip}}{{../showTooltip}}{{else}}{{localize "stonetop.relationships.showTooltip"}}{{/if}}'>
+				{{/if}}
+				{{#if img}}
+				<img class="stonetop-rel-portrait" src="{{img}}" alt="">
+				{{else}}
+				{{!-- No portrait: a person icon for people, or the row's own icon for a
+				      place (a town shouldn't wear a silhouette). --}}
+				<span class="stonetop-rel-portrait stonetop-rel-portrait--empty"><i class="{{#if icon}}{{icon}}{{else}}fas fa-user{{/if}}"></i></span>
+				{{/if}}
+				<span class="stonetop-rel-name">{{name}}</span>
+			</div>
+			<div class="steading-residents-col steading-residents-col-feelings stonetop-rel-heartscell">
+				{{!-- Hidden numeric value the sort util reads (via textContent) to order by rating. --}}
+				<span class="stonetop-rel-hearts-sortkey" aria-hidden="true">{{hearts}}</span>
+				<span class="stonetop-rel-hearts{{#unless ../canRate}} stonetop-rel-hearts--readonly{{/unless}}"
+				      role="img" aria-label="{{feeling}}" data-tooltip="{{feeling}}">
+					{{#each heartSlots}}
+					<span class="stonetop-rel-heart{{#if filled}} is-filled{{/if}}" data-position="{{position}}"></span>
+					{{/each}}
+				</span>
+			</div>
+			<div class="steading-residents-col steading-residents-col-notes">
+				{{!-- NOT .steading-resident-input: that class is a behaviour hook the steading
+				      sheet delegates on and stopPropagation()s, which would eat this field's
+				      change event. .stonetop-rel-note-input carries the full styling itself. --}}
+				<input type="text" class="stonetop-rel-note-input" data-rel-id="{{id}}"
+				       value="{{notes}}" placeholder='{{localize "stonetop.relationships.notePlaceholder"}}'
+				       {{#unless ../canRate}}disabled{{/unless}}>
+			</div>
+		</li>
+		{{/each}}
+	</ul>
+</div>

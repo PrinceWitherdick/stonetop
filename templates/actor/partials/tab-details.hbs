@@ -236,6 +236,30 @@
 		</div>
 		{{/if}}
 
+		{{!-- Relationships — how this character feels about the other player characters
+		     and the folk on the steading sheet, on the same 1-5 hearts the NPC sheet uses
+		     for its side of a tie. Clicking a heart sets the rating (click the last filled
+		     one to drop it); it stays interactive in play mode, since regard shifts at the
+		     table. The pencil reveals every candidate with a show/hide box — play mode
+		     lists only the ticked ones. --}}
+		<div class="details-section stonetop-character-relationships stonetop-rel-droppable{{#if stonetop.detailsEdit.relationships}} stonetop-section-editing{{/if}}">
+			<div class="stonetop-details-heading-row">
+				{{#if stonetop.detailsEdit.relationships}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.relationships.title") note=(localize "stonetop.character.relationships.chooseNote")}}
+				{{else}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.relationships.title")}}
+				{{/if}}
+				{{> "stonetop.details-section-edit-toggle" section="relationships" editing=stonetop.detailsEdit.relationships}}
+			</div>
+			{{#if stonetop.hasRelationships}}
+			{{> "stonetop.relationships-table" rows=stonetop.relationships resizeKey="characterRelationships"
+			    nameLabel=(localize "stonetop.character.relationships.who") canRate=stonetop.canEdit
+			    canToggle=stonetop.detailsEdit.relationships}}
+			{{else}}
+			<p class="stonetop-rel-empty">{{#if stonetop.relationshipsAllHidden}}{{localize "stonetop.character.relationships.allHidden"}}{{else}}{{localize "stonetop.character.relationships.empty"}}{{/if}}</p>
+			{{/if}}
+		</div>
+
 		{{#if (and stonetop.playbook stonetop.hasIncompleteBackgroundQuestions)}}
 		<div class="details-section stonetop-details-onboarding-actions">
 			<button type="button" class="stonetop-answer-character-questions-btn" data-onboarding-start="first-incomplete">

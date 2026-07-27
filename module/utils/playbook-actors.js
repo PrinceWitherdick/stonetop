@@ -20,6 +20,19 @@ export function getPlayerCharacters() {
 }
 
 /**
+ * The characters a relationships table offers as rows: every `character` actor except
+ * `exclude` (an actor id — a sheet never rates itself), preferring the player-owned ones
+ * when any exist. The fallback to all characters keeps the section populated while a GM
+ * preps, before players have been assigned. Shared so the NPC and character sheets can
+ * never disagree about who counts as the party.
+ */
+export function partyCharacters({ exclude = null } = {}) {
+	const chars = (game.actors?.contents ?? []).filter(a => a.type === "character" && a.id !== exclude);
+	const owned = chars.filter(a => a.hasPlayerOwner);
+	return owned.length ? owned : chars;
+}
+
+/**
  * The given actors ordered by the combat tracker's turn order — `combat.turns`
  * (honouring how the GM arranged the table), or the raw combatants before turns
  * are rolled. De-duped by id; actors not on the tracker are dropped, so the result

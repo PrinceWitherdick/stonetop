@@ -25,10 +25,33 @@ export function makeColumnsResizable(table, storageKey) {
 		.filter(cell => !cell.classList.contains("steading-residents-col-actions"));
 	if (headerCells.length < 2) return;
 
+	// Idempotent, so no caller has to know whether someone else got there first: a sheet
+	// that wires every `[data-resize-key]` table generically and a shared component that
+	// wires its own would otherwise stack two sets of drag listeners on the same table.
+	// A re-render builds fresh elements, so the flag never leaks across renders.
+	if (table.dataset.stColumnsResizable) return;
+	table.dataset.stColumnsResizable = "1";
+
+	// Most columns hold shrinkable text, so the generic floor is fine. A column whose
+	// content is a row of fixed-size controls has to declare its own: the relationship
+	// hearts are five 18px masks that neither shrink nor wrap, and the cell centres its
+	// overflow, so squeezing the track below their width clips the FIRST and LAST heart
+	// out of reach — and since a rating is set by clicking heart N, that silently makes
+	// 5-heart (and 1-heart) ratings unreachable. The header cell states its floor via
+	// data-col-min; everything else keeps MIN_COL_WIDTH.
+	const minWidths = headerCells.map(cell => {
+		const declared = Number(cell.dataset?.colMin);
+		return Number.isFinite(declared) && declared > 0 ? declared : MIN_COL_WIDTH;
+	});
+
 	const storageId = `${STORAGE_PREFIX}${storageKey}`;
 	let widths = null;
 	const saved = readStoredColumnState(storageId);
-	if (Array.isArray(saved) && saved.length === headerCells.length && saved.every(Number.isFinite)) widths = saved;
+	// Clamp on restore too — a width persisted before a floor existed (or under an older
+	// layout) would otherwise keep the column broken across reloads with no way back.
+	if (Array.isArray(saved) && saved.length === headerCells.length && saved.every(Number.isFinite)) {
+		widths = saved.map((w, i) => Math.max(minWidths[i], w));
+	}
 
 	// Tables with a trailing fixed actions column (the steading's Players/Residents/
 	// Neighbors) reserve a final 32px track for it; tables without one (the NPC sheet's
@@ -67,7 +90,7 @@ export function makeColumnsResizable(table, storageKey) {
 		let startWidth = 0;
 
 		const onMove = ev => {
-			widths[index] = Math.max(MIN_COL_WIDTH, startWidth + (ev.clientX - startX));
+			widths[index] = Math.max(minWidths[index], startWidth + (ev.clientX - startX));
 			applyTemplate();
 		};
 		const onUp = ev => {

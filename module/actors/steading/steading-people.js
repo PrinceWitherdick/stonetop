@@ -69,6 +69,32 @@ export function peopleNames(steading) {
 }
 
 /**
+ * The live NPC Actors behind a steading's Residents + Neighbors rows, in sheet order
+ * (residents first), deduped. Skips legacy plain-text rows and rows whose actor was
+ * deleted, since both lack an actor to rate. Backs the character sheet's Relationships
+ * section, which offers everyone on the steading sheet as a rateable row.
+ * Best-effort: a missing/unlinked steading (or any read error) just yields [].
+ */
+export function steadingPeopleActors(steading) {
+	try {
+		const flags = steading?.getFlag?.("stonetop_pwd", "steading") ?? {};
+		const seen = new Set();
+		const people = [];
+		for (const list of Object.keys(PEOPLE_FOLDERS)) {
+			for (const row of Array.isArray(flags[list]) ? flags[list] : []) {
+				if (!isActorRow(row)) continue;
+				const actor = (row.id ? game.actors?.get(row.id) : null)
+					|| (row.uuid ? game.actors?.find(a => a.uuid === row.uuid) : null);
+				if (!actor || seen.has(actor.id)) continue;
+				seen.add(actor.id);
+				people.push(actor);
+			}
+		}
+		return people;
+	} catch { return []; }
+}
+
+/**
  * Resolve one Residents/Neighbors row to the display shape the template expects.
  * Actor-backed rows pull their fields live off the linked NPC; legacy text rows (or
  * a row whose actor was deleted) fall back to the row's own stored fields so nothing

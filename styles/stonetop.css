@@ -2774,6 +2774,8 @@ input.stonetop-name-field {
 .stonetop-cm-check,
 .ct-suggested-check,
 .threat-list-done,
+.stonetop-npc-hasstats-check,
+.stonetop-rel-show-check,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
@@ -2826,6 +2828,8 @@ input.stonetop-name-field {
 .stonetop-cm-check:checked,
 .ct-suggested-check:checked,
 .threat-list-done:checked,
+.stonetop-npc-hasstats-check:checked,
+.stonetop-rel-show-check:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
@@ -3027,6 +3031,14 @@ input.stonetop-name-field {
    toggle and its input must stay clickable/typeable even in read-only sections. */
 .stonetop-readonly .stonetop-tab-search-toggle,
 .stonetop-readonly .stonetop-tab-search-input,
+/* Relationship notes + show/hide boxes stay live outside edit mode: the hearts table
+   is a play-time tracker (regard shifts at the table), and its own template already
+   decides editability by rendering the input `disabled` when the viewer can't rate.
+   Without this, the character Details tab and the steading's Other Settlements section
+   — both of which carry .stonetop-readonly whenever their pencil is closed — leave the
+   note field mouse-dead while the hearts beside it still respond. */
+.stonetop-readonly .stonetop-rel-note-input,
+.stonetop-readonly .stonetop-rel-show-check,
 .stonetop-readonly .stonetop-item-resource-check {
 	pointer-events: auto;
 	opacity: 1;
@@ -8727,7 +8739,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .pbta.sheet .sheet-tabs .item,
-.stonetop-bestiary-sheet .sheet-tabs .item {
+.stonetop-bestiary-sheet .sheet-tabs .item,
+.stonetop-npc-sheet .sheet-tabs .item {
 	border-radius: 4px 4px 0 0;
 	background: #999;
 	color: #fff;
@@ -8753,7 +8766,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    (the common case), and scales down with the tab below that, floored so it
    stays legible. Only tabs whose label is wrapped in this span opt in; other
    sheets keep the plain .item font-size above. */
-.pbta.sheet .sheet-tabs .item .stonetop-tab-label {
+.pbta.sheet .sheet-tabs .item .stonetop-tab-label,
+.stonetop-npc-sheet .sheet-tabs .item .stonetop-tab-label {
 	display: block;
 	white-space: nowrap;
 	font-size: clamp(0.72rem, 12.5cqi, var(--font-size-16));
@@ -8762,14 +8776,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .pbta.sheet .sheet-tabs .item:hover,
 .pbta.sheet .sheet-tabs .item:focus,
 .stonetop-bestiary-sheet .sheet-tabs .item:hover,
-.stonetop-bestiary-sheet .sheet-tabs .item:focus {
+.stonetop-bestiary-sheet .sheet-tabs .item:focus,
+.stonetop-npc-sheet .sheet-tabs .item:hover,
+.stonetop-npc-sheet .sheet-tabs .item:focus {
 	background: #bbb;
 	color: #000;
 	text-shadow: none;
 }
 
 .pbta.sheet .sheet-tabs .item.active,
-.stonetop-bestiary-sheet .sheet-tabs .item.active {
+.stonetop-bestiary-sheet .sheet-tabs .item.active,
+.stonetop-npc-sheet .sheet-tabs .item.active {
 	background: var(--st-btn-primary-bg);
 	color: var(--st-btn-primary-text);
 	text-shadow: none;
@@ -10002,13 +10019,16 @@ a.steading-player-open:hover {
 
 	.steading-residents-col-occupation,
 	.steading-residents-col-traits,
-	.steading-residents-col-relations,
-	.steading-residents-col-notes {
+	.steading-residents-col-relations {
 		display: none;
 	}
 
-	.steading-neighbor-fields {
-		grid-template-columns: 1fr;
+	/* Notes collapses only on the steading's OWN rosters. The shared relationships table
+	   (:not(.stonetop-rel-table)) borrows these column classes but keeps Notes in its
+	   3-track grid at every width — hiding just the header there left an unlabeled third
+	   column with the inputs still under it, and killed that column's sort/resize target. */
+	.steading-residents-table:not(.stonetop-rel-table) .steading-residents-col-notes {
+		display: none;
 	}
 
 	.steading-moves-list {
@@ -15571,7 +15591,7 @@ li.question-bullet {
    Overview dialog (a renderer over that same journal), and the Welcome guide's
    premise lead — they share this chip-stripping reset (the lead overrides the
    affordance to bold below). */
-:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-welcome-lead) a.content-link {
+:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-welcome-lead, .stonetop-npc-sheet) a.content-link {
 	background: none;
 	border: none;
 	border-radius: 0;
@@ -15582,21 +15602,21 @@ li.question-bullet {
 	white-space: normal;
 	cursor: pointer;
 }
-:is(.journal-page-content, .stonetop-so-entry-body) a.content-link:hover {
+:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-npc-sheet) a.content-link:hover {
 	background-color: rgba(0, 0, 0, 0.07);
 	text-shadow: none;
 }
 /* Hide the leading document/book icon that Foundry injects into the chip. */
-:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-welcome-lead) a.content-link > i {
+:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-welcome-lead, .stonetop-npc-sheet) a.content-link > i {
 	display: none;
 }
 /* A broken link (target missing) keeps Foundry's warning treatment so it's still
    obviously broken rather than masquerading as a normal cross-reference. */
-:is(.journal-page-content, .stonetop-so-entry-body) a.content-link.broken {
+:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-npc-sheet) a.content-link.broken {
 	border-bottom: 1px dashed var(--color-text-bad, #aa2222);
 	color: var(--color-text-bad, #aa2222);
 }
-:is(.journal-page-content, .stonetop-so-entry-body) a.content-link.broken > i {
+:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-npc-sheet) a.content-link.broken > i {
 	display: inline;
 }
 /* A cross-link a player can't open (a Location or Lore entry they haven't been
@@ -15605,7 +15625,7 @@ li.question-bullet {
    (restrict-content-links.js). It reads as normal prose; the help cursor is the
    only hint there's a description on hover. The bestiary codex is flattened to
    bare text instead, so it gets no such treatment. */
-:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-welcome-lead) .content-summary[data-tooltip] {
+:is(.journal-page-content, .stonetop-so-entry-body, .stonetop-welcome-lead, .stonetop-npc-sheet) .content-summary[data-tooltip] {
 	cursor: help;
 }
 
@@ -16557,14 +16577,26 @@ li.question-bullet {
 	color: var(--color-text-dark-secondary);
 }
 
-input.stonetop-monster-armor-source,
-input.stonetop-npc-armor-source {
+/* The edit-mode source field. Selector shape matters: the Armor cell's NUMERIC
+   input is skinned by `.sheet-attributes-top .cell--Number .stonetop-vital-inner >
+   input` below (a boxed #aaa field, centred, 1rem), and the source input is a
+   sibling under that same wrapper — so a plain `input.stonetop-*-armor-source`
+   rule LOSES the specificity fight (0,1,1 vs 0,3,1) and the quiet underline never
+   painted. The source wore the number box instead, at 1rem in a 92px cell, which
+   clipped anything longer than a word ("thick hide coat" → "thick hi"). Match the
+   number rule's shape so this wins, and keep the play-mode span's size/centring so
+   the line doesn't resize when the sheet is toggled out of edit mode. */
+.sheet-attributes-top .cell--Number .stonetop-vital-inner > input.stonetop-monster-armor-source,
+.sheet-attributes-top .cell--Number .stonetop-vital-inner > input.stonetop-npc-armor-source {
 	width: 100%;
+	padding: 0 2px;
 	border: none;
 	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
 	border-radius: 0;
 	background: transparent;
+	font-size: calc(0.7rem * var(--stonetop-font-scale, 1));
 	font-style: normal;
+	text-align: center;
 }
 
 /* Armor boosted by a move (e.g. "Withdraw into its shell (Armor 5)"): the value
@@ -22516,25 +22548,178 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .window-app.stonetop.npc {
 	min-width: 520px;
 }
-.window-app.stonetop.npc .window-content {
-	overflow-y: auto;
+
+/* Cap the window FRAME, not the content box. The window is auto-height (see
+   defaultOptions), so the frame hugs the active tab's content — a short tab leaves no
+   void below. This cap keeps a tall tab (or a drag) from growing the frame without
+   bound; past it the active tab scrolls (nav stays pinned). The cap must live on the
+   frame — not on .window-content — because .window-content is flex:1 and always fills
+   the frame; capping it there instead lets a taller (dragged) frame show a dark band
+   below the content box. */
+.window-app.stonetop.sheet.actor.npc {
+	max-height: min(700px, calc(100vh - 60px));
 }
 
+/* The form fills the window content and lays out as a column so the header +
+   quick-facts + tab strip stay pinned and only the active tab scrolls (chain below).
+
+   `overflow-y: auto` is the LAST RESORT, not the normal scroll. Everything below has
+   `min-height: 0`, so at any workable size the chain absorbs the space and this never
+   scrolls (verified: no scrollbar at auto height or at the 700px cap). It only engages
+   when the frame physically cannot hold the sheet's irreducible minimum — a viewport
+   under ~720px tall, where `max-height: calc(100vh - 60px)` caps the frame below the
+   content — and then a scrollbar beats silently hiding the bottom of the sheet, which
+   is what plain `overflow: hidden` did. See the `.sheet-body` floor below, which is
+   what lets the shortfall reach this element instead of being swallowed lower down. */
+.stonetop.sheet.actor.npc .window-content {
+	display: flex;
+	flex-direction: column;
+	overflow-x: hidden;
+	overflow-y: auto;
+}
 .stonetop-npc-sheet {
-	min-height: 100%;
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
 }
 .stonetop-npc-container {
+	flex: 1 1 auto;
+	min-height: 0;
 	display: flex;
 	flex-direction: column;
 }
 
+/* — Tabs — sit below the pinned quick-facts block. The tab BUTTONS wear the shared
+   skin (`.pbta.sheet / .stonetop-bestiary-sheet / .stonetop-npc-sheet .sheet-tabs
+   .item`, up with the character-sheet tabs) — this sheet joins that selector list
+   the way the bestiary sheet does rather than restating the colours. Only the strip
+   itself differs from the character sheet's, so only that is stated here.
+   `flex: 0 0 auto` (not just flex-shrink) because core's V13 layer sets
+   `.app .flexcol > * { flex: 1 }` on every child of .stonetop-npc-main: with only
+   the shrink half pinned, the nav still GREW when the window was dragged taller,
+   the items stayed vertically centred, and this border floated away below them. */
+.stonetop-npc-tabs.sheet-tabs.tabs {
+	display: flex;
+	flex-direction: row;
+	margin: 4px 0 0;
+	padding: 0;
+	/* Core (`body.game .sheet.app nav.sheet-tabs`) borders the strip top AND bottom;
+	   we want only the underline the active tab sits on, so drop the top rule that
+	   would otherwise cut the quick-facts block off from the strip. */
+	border-top: none;
+	border-bottom: 2px solid slategrey;
+	flex: 0 0 auto;
+}
+
+/* Only the active tab scrolls, so each tab keeps its own scroll position and a tall
+   tab never pushes the pinned Instinct anchor off-screen. Show/hide is stated as a
+   pair (unlayered) so core's V13 layered `.tab { display:none }` can't win over just
+   the show half and leak an inactive tab. */
+.stonetop-npc-sheet .sheet-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+}
+/* Notes has an irreducible floor (the editor's `min-height`, so an empty one still
+   offers a hover target); every other tab scrolls internally and may shrink freely.
+   State that floor here rather than letting `min-height: 0` above pretend the body can
+   shrink past it: without this the shortfall was absorbed by this element's
+   `overflow: hidden` and the editor's bottom edge was quietly cut, with no scrollbar
+   anywhere to reveal it. With it, the overflow travels up to .window-content, which
+   scrolls. Matches the character and steading sheets, which floor their notes body the
+   same way. */
+.stonetop-npc-sheet .sheet-body:has(> .tab.notes.active) {
+	min-height: 160px;
+}
+.stonetop-npc-sheet .sheet-body > .tab {
+	display: none;
+	height: 100%;
+	/* Zero the margin core hands this panel. `<div class="tab notes">` is caught by the
+	   V1 form-hint rule `body.game .app form .notes` (the tab lives inside the sheet's
+	   <form>), which sets `margin: 3px 0`. Paired with the `height: 100%` fill that
+	   margin pushed the panel 3px BELOW the body's bottom edge, and the ancestor
+	   `overflow: hidden` then shaved the Notes editor's bottom border off — visible only
+	   once the window had a definite height (dragged/restored); an auto-height window
+	   grew by the extra 3px and hid it. Reset for every tab so the fill stays exact. */
+	margin: 0;
+}
+.stonetop-npc-sheet .sheet-body > .tab.active {
+	display: block;
+}
+.stonetop-npc-sheet .sheet-body > .tab.active:not(.notes) {
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	scrollbar-gutter: stable;
+}
+/* Section rhythm within a tab — the old `.stonetop-npc-main` flex gap no longer reaches
+   the sections now they live inside a tab panel. Mirror the character sheet's Details
+   tab (.tab.details > .details-section + .details-section): the first section hugs the
+   top below the tab strip and each subsequent one gets the standard 14px gap. */
+.stonetop-npc-sheet .sheet-body > .tab > .stonetop-npc-field + .stonetop-npc-field {
+	margin-top: 14px;
+}
+/* Notes tab: the prose-mirror editor owns its own scroll and fills the tab height. */
+.stonetop-npc-sheet .sheet-body > .tab.notes.active {
+	display: flex;
+	flex-direction: column;
+}
+.stonetop-npc-sheet .tab.notes .stonetop-npc-notes {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+.stonetop-npc-sheet .tab.notes .stonetop-npc-notes-editor {
+	flex: 1 1 auto;
+	min-height: 160px;
+}
+
+/* — Rich-text editors (Motivations / Connections / Notes / per-move description) — */
+
+/* Give every <prose-mirror> a visible box so it reads as a field you can type into.
+   A bare `toggled` editor renders just the enriched text with no chrome, so one with
+   nothing in it yet is an invisible click target. Mirrors the monster sheet's
+   .stonetop-monster-rich-editor .editor-content treatment; the border sits on the
+   content area so the ProseMirror toolbar stays outside it once activated. Notes is
+   editable in play mode too, so its box shows in both modes — the rest only appear
+   in edit mode (play mode renders them as plain .stonetop-npc-prose divs). */
+.stonetop-npc-rich-editor {
+	/* The box's height lives on the HOST: core absolutely-positions .editor-content to
+	   fill it (`position:absolute; inset:0`), so the content can't size the box itself.
+	   Notes overrides this with its own taller floor a few rules up. */
+	min-height: 4.5em;
+}
+.stonetop-npc-rich-editor .editor-content {
+	min-height: inherit;
+	padding: 4px 6px;
+	background: rgba(255, 255, 255, 0.28);
+	border: 1px solid rgba(0, 0, 0, 0.22);
+	border-radius: var(--st-radius);
+}
+.stonetop-npc-rich-editor:hover .editor-content,
+.stonetop-npc-rich-editor:focus-within .editor-content {
+	background: rgba(255, 255, 255, 0.5);
+	border-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Cross-links in the NPC's prose (Connections, Motivations, move descriptions on Stats,
+   Notes) read like the journal's bold keywords rather than Foundry's boxed "book chip".
+   `.stonetop-npc-sheet` is on the chip-stripping `:is(…)` lists themselves, so all this
+   adds is the affordance — bold, like the Welcome guide's premise lead. Sheet-wide, so a
+   link doesn't change costume between Details and Notes. */
+.stonetop-npc-sheet a.content-link { font-weight: bold; }
+
 /* — Header — */
 .stonetop-npc-header {
+	/* Also the floor for the name/traits column beside it — see .stonetop-npc-header-text. */
+	--st-npc-portrait-size: 120px;
 	margin-bottom: 12px;
 }
 .stonetop-npc-header .stonetop-portrait {
-	width: 120px;
-	height: 120px;
+	width: var(--st-npc-portrait-size);
+	height: var(--st-npc-portrait-size);
 }
 /* Person-icon placeholder when the NPC has no portrait art (no fabricated art). */
 .stonetop-npc-portrait-placeholder {
@@ -22553,34 +22738,40 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding-left: 0;
 }
 
+/* Name/traits column beside the stat bar. Laid out as two independent columns
+   rather than a shared grid: the armor source under the Armor cell is free prose in
+   a 92px-wide cell, so it can wrap to several lines, and in a shared grid that
+   growth stretched the row the name sits in and pushed pronouns/traits down with it.
+   Side-by-side flex items with `align-items: flex-start` don't size each other. */
 .stonetop-npc-header .sheet-header__fields {
-	display: grid;
-	grid-template-columns: minmax(200px, 1fr) auto;
-	grid-template-areas:
-		"name    stats"
-		"details details";
-	/* The fields grid is stretched to the portrait's height; let the details row
-	   absorb the leftover space so traits can sit at the bottom (aligned with the
-	   bottom of the portrait) rather than floating just under the name. */
-	grid-template-rows: auto 1fr;
-	align-items: start;
-	gap: 8px 10px;
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	gap: 10px;
+}
+.stonetop-npc-header-text {
+	flex: 1 1 auto;
+	/* Stand as tall as the portrait so traits land on its bottom edge (the point of
+	   space-between below) — and no taller, whatever the stat bar is doing. */
+	min-height: var(--st-npc-portrait-size);
+	min-width: 200px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	gap: 8px;
 }
 .stonetop-npc-namewrap {
-	grid-area: name;
 	min-width: 0;
 	overflow: hidden;
 }
 .stonetop-npc-header-details {
-	grid-area: details;
-	align-self: end;
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 }
 .stonetop-npc-statbar {
-	grid-area: stats;
+	flex: 0 0 auto;
 }
 
 .stonetop-npc-header .stonetop-name-field {
@@ -22639,14 +22830,32 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-size: calc(0.55rem * var(--stonetop-font-scale, 1));
 }
 
+/* ── Edit-mode field skin ─────────────────────────────────────────────────────
+   Every editable control on this sheet except the boxed name field is the same
+   quiet underline: no box, just a rule under the text, so a sheet full of them
+   reads as the stat block it replaces rather than a stack of grey wells. Stated
+   ONCE for the whole family — it was previously repeated per control and had
+   already drifted into two different underline alphas (0.2 in the header and
+   impressions, 0.25 in the stat lines and move rows) on the same sheet. 0.25 is
+   the value the monster sheet uses, so it's the one kept. Each control below adds
+   only its own size / width / weight. */
+.stonetop-npc-status-select,
+.stonetop-npc-pronouns,
+.stonetop-npc-traits,
+.stonetop-npc-stat-input,
+.stonetop-npc-impression-input,
+.stonetop-npc-move-name-input,
+.stonetop-npc-move-formula-input {
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 0;
+	background: transparent;
+}
+
 /* Status select in the header (edit mode) — matches the pronouns underline field. */
 .stonetop-npc-status-select {
 	margin-top: 3px;
 	max-width: 170px;
-	border: none;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.2);
-	border-radius: 0;
-	background: transparent;
 	font-family: var(--font-stonetop);
 	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 }
@@ -22675,17 +22884,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-npc-following-pc:hover { text-decoration: underline; }
 .stonetop-npc-following-pc i { font-size: 0.85em; opacity: 0.75; margin-right: 2px; }
+/* Pronouns / traits inputs. Each is sized to match the span it replaces in play
+   mode (.stonetop-npc-pronouns-display / .stonetop-npc-traits-display) so toggling
+   edit mode doesn't resize the line — pronouns used to shrink from 0.9rem to
+   0.75rem on the way in, which shifted everything below it. */
 .stonetop-npc-pronouns,
 .stonetop-npc-traits {
 	width: 100%;
-	border: none;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.2);
-	border-radius: 0;
-	background: transparent;
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 }
 .stonetop-npc-pronouns {
-	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	margin-top: 2px;
 }
 .stonetop-npc-traits-display {
@@ -22698,6 +22907,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* — Body — */
 .stonetop-npc-main {
+	flex: 1 1 auto;
+	min-height: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -22706,11 +22917,15 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	margin: 0;
 }
 /* Quick-fact stat block (pronouns, instinct, occupation, home, relations) —
-   tight line spacing like the monster stat block, vs. the roomier body sections. */
+   tight line spacing like the monster stat block, vs. the roomier body sections.
+   `flex: 0 0 auto` for the same reason as the tab strip above: core's V13 layer
+   gives every .flexcol child `flex: 1`, which would otherwise pad this block out
+   with dead space when the window is dragged taller. Only .sheet-body grows. */
 .stonetop-npc-stat-block {
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
+	flex: 0 0 auto;
 }
 .stonetop-npc-prose {
 	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
@@ -22745,10 +22960,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	min-width: 60px;
 	height: 1.5em;
 	padding: 0 3px;
-	border: none;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
-	border-radius: 0;
-	background: transparent;
 	font-size: inherit;
 	line-height: 1.4;
 }
@@ -22782,20 +22993,22 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--color-text-dark-secondary);
 	opacity: 0.6;
 }
+/* Sized to match the play-mode list item above, so an impression doesn't resize
+   when the sheet is toggled between modes. */
 .stonetop-npc-impression-input {
 	width: 100%;
-	border: none;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.2);
-	border-radius: 0;
-	background: transparent;
-	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 }
 
-/* Damage roll die icon. */
+/* Damage / GM-move roll die icons. Inherit the surrounding text colour so they read
+   the same dark ink as the character sheet's rollable dice (.rollable .fa-dice-d6),
+   which also inherit. They must NOT use --color-text-hyperlink: v14 sets that token
+   to #ff6400 on `body.game .app`, which shadows our :root slate override (a value set
+   on an ancestor element beats an inherited one), so it painted these dice orange. */
 .stonetop-npc-damage-roll,
 .stonetop-npc-move-roll {
 	cursor: pointer;
-	color: var(--color-text-hyperlink, slategrey);
+	color: inherit;
 	flex-shrink: 0;
 }
 
@@ -22812,9 +23025,46 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	flex-direction: column;
 	gap: 8px;
 }
+
+/* Play mode: balance the moves across two columns, matching the monster sheet
+   (.stonetop-monster-moves-list--cols). CSS multi-column (not flex) so they flow and
+   split as evenly as possible; each move is kept whole with break-inside, and the flex
+   `gap` is replaced by an item margin since multi-column ignores it. The dashed
+   separators are dropped here — the arrow bullet leads each move instead, like the
+   monster list — so a column break never leaves a trailing rule. */
+.stonetop-npc-moves-list--cols {
+	display: block;
+	columns: 2;
+	column-gap: 28px;
+}
+.stonetop-npc-moves-list--cols .stonetop-npc-move-item {
+	break-inside: avoid;
+	margin-bottom: 8px;
+	padding-bottom: 0;
+	border-bottom: none;
+}
 .stonetop-npc-move-item {
 	padding-bottom: 6px;
 	border-bottom: 1px dashed rgba(0, 0, 0, 0.12);
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: var(--stonetop-spiral-gap, 8px);
+	align-items: start;
+}
+
+/* Arrow bullet leading each GM move, matching the monster sheet's move list
+   (.stonetop-monster-move-item::before). Sits in the grid's first column so the
+   name, roll die, and description all stay aligned in the second. */
+.stonetop-npc-move-item::before {
+	content: "";
+	width: 0.7em;
+	height: 1.4em; /* span the name's first line so the arrow centers on it */
+	background: center / 0.7em no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
+	opacity: 0.7;
+}
+
+.stonetop-npc-move-body {
+	min-width: 0;
 }
 .stonetop-npc-move-head {
 	display: flex;
@@ -22831,10 +23081,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-npc-move-name-input {
 	flex: 1;
 	min-width: 60px;
-	border: none;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
-	border-radius: 0;
-	background: transparent;
 	font-weight: bold;
 }
 .stonetop-npc-move-formula-input {
@@ -22842,11 +23088,15 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	width: 4.5em;
 	min-width: 4.5em;
 	text-align: center;
-	border: none;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
-	border-radius: 0;
-	background: transparent;
 }
+/* Compact box for the per-move description: the shared .stonetop-npc-rich-editor floor
+   (4.5em, sized for Motivations/Connections) is too tall stacked once per move. Same
+   trick as the monster sheet's .stonetop-monster-move-editor. */
+.stonetop-npc-move-editor {
+	min-height: 2.6em;
+	margin-top: 4px;
+}
+
 .stonetop-npc-move-description {
 	margin-top: 2px;
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
@@ -22881,7 +23131,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--color-text-dark-primary, #191813);
 }
 
-/* "Give them game stats" toggle. */
+/* "Give them game stats" toggle. The box itself is the shared SVG-skinned checkbox
+   (see .stonetop-npc-hasstats-check in the master checkbox block) — it was the one
+   control on this sheet still wearing Foundry's native blue tick. */
 .stonetop-npc-hasstats {
 	display: flex;
 	align-items: center;
@@ -22890,74 +23142,51 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--color-text-dark-secondary);
 	cursor: pointer;
 }
-.stonetop-npc-hasstats input {
-	flex: 0 0 auto;
-	margin: 0;
-}
 
 /* Relationships — a labeled table that reuses the steading Residents table classes
    (.steading-residents-*) so it inherits that styling plus drag-resize + click-to-sort.
-   Only the column layout differs: Player | Feelings (hearts) | Notes, no actions column.
+   Only the column layout differs: Who | Feelings (hearts) | Notes, no actions column.
+   Shared by the NPC sheet's Relationships tab and the character sheet's Details tab
+   (templates/actor/partials/relationships-table.hbs), so these are sheet-neutral names.
    Hearts are a single silhouette SVG (game-icons.net "hearts" by Skoll, CC BY 3.0) used
    as a mask, so one asset paints both filled (accent) and empty (muted) states. */
-/* Collapsible Relationships section: the section heading doubles as the <details>
-   summary, with a rotating arrow marking open/closed. The arrow floats over the
-   right end of the heading (rather than sitting as a flex sibling) so the h3 stays a
-   full-width block and its pbta border-bottom separator spans edge to edge — a flex
-   row would shrink the h3 to its text and cut the underline short. Mirrors
-   .stonetop-details-heading-row. */
-.stonetop-npc-collapsible-summary {
-	position: relative;
-	cursor: pointer;
-	user-select: none;
-	list-style: none;
-}
-.stonetop-npc-collapsible-summary::-webkit-details-marker { display: none; }
-.stonetop-npc-collapsible-summary > .stonetop-move-group-title {
-	margin: 0;
-	padding-right: 1.5em; /* keep a long title clear of the floated arrow */
-}
-.stonetop-npc-collapsible-summary::after {
-	content: "";
-	position: absolute;
-	top: 0.3em;
-	right: 2px;
-	width: 0.6em;
-	height: 0.6em;
-	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
-	transform: rotate(90deg); /* expanded: arrow points down */
-	transition: transform 0.15s;
-}
-details.stonetop-npc-collapsible:not([open]) > .stonetop-npc-collapsible-summary::after {
-	transform: rotate(0deg); /* collapsed: arrow points right */
-}
-
-.stonetop-npc-rel-empty {
+.stonetop-rel-empty {
 	margin: 4px 0 0;
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	color: var(--color-text-dark-secondary, #4b4a44);
 }
-.stonetop-npc-rel-table {
+.stonetop-rel-table {
 	margin-top: 4px;
 }
 /* Override the residents' 6-column grid for this 3-column table. The resize util sets
    an inline grid-template-columns once dragged, which then wins over this default. */
-.stonetop-npc-rel-table .steading-residents-header,
-.stonetop-npc-rel-table .steading-residents-row {
+.stonetop-rel-table .steading-residents-header,
+.stonetop-rel-table .steading-residents-row {
 	grid-template-columns: minmax(0, 1.1fr) 122px minmax(0, 1.4fr);
 }
-.stonetop-npc-rel-namecell {
+.stonetop-rel-namecell {
 	gap: 8px;
 }
-.stonetop-npc-rel-heartscell {
+/* Show/hide box — edit mode only, and it rides inside the name cell so the column grid
+   is the same shape in both modes (see the partial). Unticked rows drop out of the table
+   in play mode; under the pencil they stay listed but read as muted. */
+.stonetop-rel-show-check {
+	flex: 0 0 auto;
+	margin: 0;
+}
+.stonetop-rel-row--hidden .stonetop-rel-name,
+.stonetop-rel-row--hidden .stonetop-rel-portrait {
+	opacity: 0.55;
+}
+.stonetop-rel-heartscell {
 	justify-content: center;
 }
 /* Hidden numeric value the sort util reads via textContent (not shown to the user). */
-.stonetop-npc-hearts-sortkey {
+.stonetop-rel-hearts-sortkey {
 	display: none;
 }
-.stonetop-npc-rel-note-input {
+.stonetop-rel-note-input {
 	width: 100%;
 	min-width: 0;
 	height: 24px;
@@ -22969,15 +23198,24 @@ details.stonetop-npc-collapsible:not([open]) > .stonetop-npc-collapsible-summary
 	background: transparent;
 	padding: 2px 4px;
 }
-.stonetop-npc-rel-note-input:hover:not(:disabled),
-.stonetop-npc-rel-note-input:focus {
+.stonetop-rel-note-input:hover:not(:disabled),
+.stonetop-rel-note-input:focus {
 	border-color: rgba(0, 0, 0, 0.2);
 	background: rgba(255, 255, 255, 0.6);
 }
-.stonetop-npc-rel-note-input:disabled {
+.stonetop-rel-note-input:disabled {
 	pointer-events: none;
 }
-.stonetop-npc-rel-portrait {
+/* Drag a person onto a relationships section to add or reveal them (relationshipDropResult).
+   `.stonetop-rel-droppable` marks the sections that take one — the character sheet's Details
+   section and the NPC sheet's Relationships tab. Highlight while a drag is over it so the
+   drop target is discoverable rather than found by accident. */
+.stonetop-rel-droppable.is-drop-target {
+	outline: 2px dashed color-mix(in srgb, var(--st-heart, #c0473b) 55%, transparent);
+	outline-offset: 3px;
+	border-radius: var(--st-radius-sm, 3px);
+}
+.stonetop-rel-portrait {
 	width: 26px;
 	height: 26px;
 	flex: 0 0 auto;
@@ -22986,17 +23224,17 @@ details.stonetop-npc-collapsible:not([open]) > .stonetop-npc-collapsible-summary
 	background: var(--stonetop-bg, #f0ece3);
 	border: 1px solid rgba(0, 0, 0, 0.15);
 }
-.stonetop-npc-rel-portrait--empty {
+.stonetop-rel-portrait--empty {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	color: var(--color-text-dark-secondary, #4b4a44);
 }
-.stonetop-npc-rel-portrait--empty i {
+.stonetop-rel-portrait--empty i {
 	opacity: 0.5;
 	font-size: 14px;
 }
-.stonetop-npc-rel-name {
+.stonetop-rel-name {
 	flex: 1 1 auto;
 	min-width: 0;
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
@@ -23004,16 +23242,16 @@ details.stonetop-npc-collapsible:not([open]) > .stonetop-npc-collapsible-summary
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.stonetop-npc-hearts {
+.stonetop-rel-hearts {
 	display: inline-flex;
 	gap: 3px;
 	flex: 0 0 auto;
 	cursor: pointer;
 }
-.stonetop-npc-hearts--readonly {
+.stonetop-rel-hearts--readonly {
 	cursor: default;
 }
-.stonetop-npc-heart {
+.stonetop-rel-heart {
 	width: 18px;
 	height: 18px;
 	-webkit-mask: url("../assets/icons/hearts.svg") center / contain no-repeat;
@@ -23021,10 +23259,10 @@ details.stonetop-npc-collapsible:not([open]) > .stonetop-npc-collapsible-summary
 	background-color: color-mix(in srgb, var(--color-text-dark-secondary, #4b4a44) 28%, transparent);
 	transition: background-color 0.1s ease;
 }
-.stonetop-npc-heart.is-filled {
+.stonetop-rel-heart.is-filled {
 	background-color: var(--st-heart, #c0473b);
 }
-.stonetop-npc-hearts:not(.stonetop-npc-hearts--readonly) .stonetop-npc-heart:hover {
+.stonetop-rel-hearts:not(.stonetop-rel-hearts--readonly) .stonetop-rel-heart:hover {
 	background-color: color-mix(in srgb, var(--st-heart, #c0473b) 65%, transparent);
 }
 
@@ -23127,4 +23365,80 @@ details.stonetop-npc-collapsible:not([open]) > .stonetop-npc-collapsible-summary
 	flex-direction: column;
 	flex: 1 1 auto;
 	min-height: 0;
+}
+
+/* ── Notes prose size (character / NPC / monster / steading) ───────────────
+   Notes is the one free-form, long-form surface on these sheets: a whole tab (or
+   panel) of running prose rather than the short labelled values everything else
+   holds. It used to be stepped up to the type scale's `lg` rung, which made it the
+   largest running text on the sheet and left Notes reading like a different
+   document from the rest. Hold it at the `base` rung instead, so it matches the
+   Inventory tab's running prose (`.stonetop-outfit-header` / its heading) and the
+   sheet's other body copy. Still relative, so the sheetFontScale setting keeps
+   applying on top.
+
+   Stated explicitly rather than left to inherit: the panel-level rule below hands
+   the tab back `font-size: inherit`, but these editors also appear outside a
+   `.tab.notes` (the NPC notes dialog, the monster sheet's panel), so pinning the
+   rung here is what keeps all four surfaces the same size.
+
+   Targets `.editor-content` rather than the <prose-mirror> host for two reasons:
+   the ProseMirror toolbar is a sibling of the content div once the editor
+   activates, so it keeps its own size; and the same content div holds the
+   enriched read-mode HTML, so read and edit modes match.
+
+   Lives at the end of the file on purpose: the monster section's shared
+   `.stonetop-monster-rich-editor .editor-content` rule pins `font-size: inherit`
+   at equal specificity, so this has to come after it to win. */
+/* ── Notes tab vs. core's form-hint rule ───────────────────────────────────
+   `<div class="tab notes">` lives inside the sheet's <form>, so core's V1-compatibility
+   rule `body.game .app form .notes` — written for the small muted hint line under a form
+   field — catches the whole Notes PANEL and dresses it as a hint: 12px type, a fixed 16px
+   leading and the secondary ink. Everything in the tab inherits that, so notes prose came
+   out muted grey and measured against core's 12px instead of the sheet's own 14px base —
+   the rule below is relative (`--st-fs-base` is 1em), so it multiplies whatever base it
+   lands on and would silently shrink Notes by 2px.
+
+   Hand the panel back the sheet's own text so that rule measures against the right base.
+   Unlayered, so it beats core's `@layer compatibility`. (The `margin: 3px 0` half of the
+   same core rule is reset per-sheet where it does damage — see the NPC
+   `.stonetop-npc-sheet .sheet-body > .tab` rule.) */
+.stonetop .sheet-body > .tab.notes {
+	font-size: inherit;
+	line-height: inherit;
+	color: inherit;
+}
+
+.stonetop .character-notes-editor .editor-content,
+.stonetop .stonetop-npc-notes-editor .editor-content,
+.stonetop .stonetop-npc-notes-dialog-editor .editor-content,
+.stonetop .stonetop-monster-notes-editor .editor-content,
+.stonetop .steading-notes-editor .editor-content {
+	font-size: var(--st-fs-base);
+}
+
+/* ── Notes editor box (character / steading) ───────────────────────────────
+   The NPC and monster sheets give their rich-text editors a visible box (see
+   `.stonetop-npc-rich-editor .editor-content` / `.stonetop-monster-rich-editor
+   .editor-content`) so an editor with nothing in it yet still reads as a field you
+   can type into rather than an invisible click target. The character and steading
+   Notes tabs are the same surface, so they get the same box.
+
+   Border + background sit on `.editor-content`, not the <prose-mirror> host, for the
+   same reason as those sheets: once the editor activates the ProseMirror toolbar is a
+   sibling of the content div, so it stays outside the box. Sits here, after the shared
+   prose-size rule, so it shares that rule's `.stonetop`-scoped specificity. */
+.stonetop .character-notes-editor .editor-content,
+.stonetop .steading-notes-editor .editor-content {
+	padding: 4px 6px;
+	background: rgba(255, 255, 255, 0.28);
+	border: 1px solid rgba(0, 0, 0, 0.22);
+	border-radius: var(--st-radius);
+}
+.stonetop .character-notes-editor:hover .editor-content,
+.stonetop .character-notes-editor:focus-within .editor-content,
+.stonetop .steading-notes-editor:hover .editor-content,
+.stonetop .steading-notes-editor:focus-within .editor-content {
+	background: rgba(255, 255, 255, 0.5);
+	border-color: rgba(0, 0, 0, 0.4);
 }

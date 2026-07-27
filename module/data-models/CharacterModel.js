@@ -44,6 +44,12 @@ export class CharacterModel extends foundry.abstract.TypeDataModel {
 			// Free-form player notes (rich text), edited on the sheet's Notes tab.
 			// Additive/blank-default field, so it needs no world migration.
 			notes: new fields.HTMLField({ required: true, blank: true }),
+			// How this character feels about each of the OTHER player characters: a map
+			// of character actor id → { hearts (1-5), notes }. Same shape as the NPC
+			// sheet's relationships map (see utils/relationship-hearts.js), so both
+			// directions of a tie read alike. Sparse — a PC with no stored entry defaults
+			// to 3 hearts, so nothing is persisted until someone moves a heart.
+			relationships: new fields.ObjectField({ required: true }),
 		};
 	}
 }
