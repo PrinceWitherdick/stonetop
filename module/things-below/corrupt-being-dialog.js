@@ -58,10 +58,13 @@ const _STEP_DEFS = {
 const _MAX_PICKS = 3;
 
 export class CorruptBeingDialog extends StepperDialog {
-	/** @param {{ mode?: "being"|"emanation" }} [config] */
-	constructor({ mode = "being" } = {}, options = {}) {
+	/** @param {{ mode?: "being"|"emanation", folder?: string|null }} [config] */
+	constructor({ mode = "being", folder = null } = {}, options = {}) {
 		super(options);
 		this._mode = mode === "emanation" ? "emanation" : "being";
+		// Set when launched from a folder in the Actors sidebar, so the stat block lands
+		// where the GM asked for it rather than at the root.
+		this._folder = folder;
 		this._sourceId = "";
 		this._name = "";
 		this._themeIds = new Set();
@@ -275,6 +278,7 @@ export class CorruptBeingDialog extends StepperDialog {
 		return buildMonsterActorData({
 			name,
 			img,
+			folder:       this._folder,
 			creatureType,
 			hp:           r.hp,
 			armorValue:   r.armorValue,

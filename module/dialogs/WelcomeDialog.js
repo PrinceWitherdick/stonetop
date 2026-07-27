@@ -4,9 +4,9 @@ import { findVisibleJournal, settingOverviewPages, SETTING_OVERVIEW_JOURNAL } fr
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { applyGuideRail } from "../utils/guide-rail.js";
 import { applyLocationTooltips } from "../locations/location-tooltips.js";
-import { bringDialogToFront } from "../utils/front-on-open.js";
 import { FoundryBasicsDialog } from "./FoundryBasicsDialog.js";
 import { charactersOwnedBy } from "../utils/playbook-actors.js";
+import { createCharacterForUser } from "../actors/character/create-character.js";
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
 import { runImportBookArtMacro } from "../book2-art/macro.js";
 
@@ -305,75 +305,13 @@ export class WelcomeDialog extends Application {
 	}
 
 	// Mint a fresh character for the given player, hand them ownership, and flag it
-	// to open on their screen. Only the GM ever sees this dialog, so we can assume
-	// permission to create.
+	// to open on their screen. The mint itself (replacement confirmation, ownership,
+	// assignment, the greeting) is shared with the sidebar "Create Actor" picker — see
+	// createCharacterForUser — so the roster and the sidebar can't diverge. Only the GM
+	// ever sees this dialog, so we can assume permission to create.
 	async _onCreateCharacter(userId) {
-		const user = game.users.get(userId);
-		if (!user) return;
-
-		// A player only ever has one character, so making a "New Character" for
-		// someone who already has one is a replacement, not an addition. Confirm the
-		// deletion before discarding their existing sheet — it can't be undone.
-		const existing = charactersOwnedBy(userId);
-		if (existing.length) {
-			const names = existing.map(a => `<strong>${a.name}</strong>`).join(", ");
-			const it    = existing.length === 1 ? "it" : "them";
-			const confirmed = await Dialog.confirm({
-				title:      `Replace ${user.name}'s character?`,
-				content:
-					`<p><strong>${user.name}</strong> already has a character assigned: ${names}.</p>` +
-					`<p>Creating a new character will <strong>permanently delete</strong> ${it}. ` +
-					`This can't be undone.</p>`,
-				defaultYes: false,
-				render:     bringDialogToFront,
-			});
-			if (!confirmed) return;
-
-			try {
-				await getDocumentClass("Actor").deleteDocuments(existing.map(a => a.id));
-			} catch (err) {
-				console.error("Stonetop | Welcome: failed to delete old character", err);
-				ui.notifications.error(`Couldn't replace ${user.name}'s character.`);
-				return;
-			}
-		}
-
-		let actor;
-		try {
-			actor = await getDocumentClass("Actor").create({
-				name:      `${user.name}'s Character`,
-				type:      "character",
-				ownership: { [userId]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER },
-				// The owner's client greets the player with the creation intro, then
-				// clears this — on the next createActor, or on their next login. See
-				// _maybeOpenCharacterCreation in hooks/Ready.js.
-				flags:     { stonetop_pwd: { autoOpenFor: userId } },
-			});
-		} catch (err) {
-			console.error("Stonetop | Welcome: failed to create character", err);
-			ui.notifications.error(`Couldn't create a character for ${user.name}.`);
-			return;
-		}
-		if (!actor) return;
-
-		// Ownership alone only grants the player permission to edit the sheet — it
-		// doesn't make this their character. Assign it as the user's player
-		// character too, so Foundry treats it as their PC everywhere (the player
-		// list, token assignment, default speaker, "release control", etc.).
-		try {
-			await user.update({ character: actor.id });
-		} catch (err) {
-			console.error("Stonetop | Welcome: failed to assign character to player", err);
-			ui.notifications.warn(`Created “${actor.name}” but couldn't set it as ${user.name}'s character.`);
-		}
-
-		if (user.active) {
-			ui.notifications.info(`Created “${actor.name}” and started character creation on ${user.name}'s screen.`);
-		} else {
-			ui.notifications.info(`Created “${actor.name}” for ${user.name}. It'll be waiting when they log in.`);
-		}
-
-		this.render(false);
+		const actor = await createCharacterForUser(userId);
+		if (actor) this.render(false);
 	}
 
 	// Keep the roster live while the dialog is open: players coming online/offline

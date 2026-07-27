@@ -67,10 +67,15 @@ const HOME_INFO = {
 };
 
 export class AddSteadingMemberDialog extends StonetopDialog {
-	constructor(type, onConfirm, options = {}) {
+	/**
+	 * @param {"resident"|"neighbor"} type  Which worksheet to show (neighbors also pick a Home).
+	 * @param {object} [options]  AppV1 options, plus `titleOverride` and `confirmLabel` for
+	 *   callers that use the worksheet outside the steading's rosters (the sidebar "Create
+	 *   Actor" picker builds an unaffiliated NPC with the neighbor fields).
+	 */
+	constructor(type, options = {}) {
 		super(options);
 		this._type = type;
-		this._onConfirm = onConfirm;
 		this._formData = { name: "", occupation: "", traits: "", relations: "", notes: "" };
 		if (type === "neighbor") this._formData.home = "";
 	}
@@ -86,12 +91,19 @@ export class AddSteadingMemberDialog extends StonetopDialog {
 	}
 
 	get title() {
+		if (this.options?.titleOverride) return this.options.titleOverride;
 		return this._type === "neighbor" ? "Add Neighbor" : "Add Resident";
 	}
+
+	// promise() resolves with the filled fields, or null if the worksheet was dismissed —
+	// see StonetopDialog's result-dialog protocol.
 
 	getData() {
 		return {
 			isNeighbor: this._type === "neighbor",
+			// "Add" for the steading sheet's roster buttons; a caller creating a standalone
+			// NPC (the sidebar picker) has nothing to add them to, so it words it its own way.
+			confirmLabel: this.options?.confirmLabel ?? "Add",
 			names: this._namesForHome(this._formData.home),
 			occupations: OCCUPATIONS,
 			traits: TRAITS,
@@ -190,8 +202,7 @@ export class AddSteadingMemberDialog extends StonetopDialog {
 				ui.notifications?.warn("Name is required.");
 				return;
 			}
-			this._onConfirm({ ...this._formData });
-			this.close();
+			this._resolveWith({ ...this._formData });
 		});
 
 		root.querySelector(".asm-cancel")?.addEventListener("click", () => this.close());

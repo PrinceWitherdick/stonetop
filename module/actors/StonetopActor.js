@@ -10,19 +10,34 @@ export function createStonetopActorClass(BaseActor) {
 		_typedActor;
 
 		/**
-		 * Reskin Foundry's Create Actor dialog and drop the steading type from its picker.
+		 * Sidebar "Create Actor". Every kind of actor in Stonetop has a guided flow behind
+		 * it — a player character walks its owner through the playbook picker and
+		 * onboarding, a person is built from the steading's worksheet, a monster from the
+		 * Book I "Dangers" worksheet — so instead of Foundry's name-and-type form (which
+		 * only ever lands you on a blank sheet) we open our own chooser and hand off. See
+		 * dialogs/create-actor-dialog.js.
 		 *
-		 * - Title/button: core reads "Create Actor"; we reword both to "Create an Actor".
-		 * - Skin: tag the window with `.stonetop-themed` so the scoped core-window CSS
-		 *   (see window-theme.js / stonetop.css) applies. `classes` is concatenated with
-		 *   DialogV2's defaults, so this adds the class without dropping "dialog".
-		 * - Types: the steading ("stonetop") is a world singleton — auto-created on ready
-		 *   and blocked from a second instance in preCreateActor (StonetopSingleton.js) —
-		 *   so offering it in the dropdown is a dead end that only ever warns. Callers
-		 *   passing an explicit `types` restriction (internal tooling) keep their list.
+		 * Two callers keep the stock dialog, reskinned:
+		 * - an explicit `types` restriction (internal tooling), which is asking for a
+		 *   specific sub-type rather than a flow; and
+		 * - a create into a compendium (`pack`), since every flow above builds a WORLD
+		 *   actor and would silently ignore the pack it was asked for.
+		 *
+		 * The reskin: core titles both window and button "Create Actor"; we reword them to
+		 * "Create an Actor", tag the window with `.stonetop-themed` so the scoped core-window
+		 * CSS (see window-theme.js / stonetop.css) applies (`classes` is concatenated with
+		 * DialogV2's defaults, so this adds the class without dropping "dialog"), and drop
+		 * the steading type — it's a world singleton, auto-created on ready and blocked from
+		 * a second instance in preCreateActor (StonetopSingleton.js), so offering it in the
+		 * dropdown is a dead end that only ever warns.
 		 * @override
 		 */
 		static async createDialog(data = {}, createOptions = {}, options = {}, renderOptions = {}) {
+			if (!options.types && !createOptions.pack) {
+				const { openCreateActor } = await import("../dialogs/create-actor-dialog.js");
+				return openCreateActor({ folder: data.folder ?? null, name: data.name ?? "" });
+			}
+
 			const title = game.i18n.localize("stonetop.actorCreate.title");
 			options = {
 				...options,

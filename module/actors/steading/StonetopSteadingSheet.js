@@ -7,7 +7,7 @@ import {escHtml} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
-import {createPersonNpc, personFieldPath, isActorRow} from "./steading-people.js";
+import {addPersonToSteading, personFieldPath, isActorRow} from "./steading-people.js";
 import {openNpcNotesDialog} from "./npc-notes-dialog.js";
 import {PeopleGalleryDialog} from "./PeopleGalleryDialog.js";
 import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
@@ -2375,10 +2375,10 @@ export function createStonetopSteadingSheetClass(Base) {
 		async _onListItemAdd(list) {
 			if (list === "residents" || list === "neighbors") {
 				const kind = list === "neighbors" ? "neighbor" : "resident";
-				new AddSteadingMemberDialog(kind, async (data) => {
-					await this._addPersonRow(list, data);
-					this.render(false);
-				}).render(true);
+				const data = await new AddSteadingMemberDialog(kind).promise();
+				if (!data) return;
+				await this._addPersonRow(list, data);
+				this.render(false);
 				return;
 			}
 			const labels = { resources: "resource", fortifications: "fortification", assets: "asset" };
@@ -2474,12 +2474,9 @@ export function createStonetopSteadingSheetClass(Base) {
 		 * row's source of truth from here on.
 		 */
 		async _addPersonRow(list, data) {
-			const actor = await createPersonNpc(list, data);
-			if (!actor) return;
-			const f = this._stonetopSteading._flags;
-			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
-			arr.push({ uuid: actor.uuid, id: actor.id, name: actor.name, checked: false });
-			await this._stonetopSteading.setFlags({ [list]: arr });
+			// Shared with the sidebar "Create Actor" picker, which adds residents and
+			// neighbors without this sheet being open (see steading-people.js).
+			await addPersonToSteading(list, data, this.actor);
 		}
 
 		/**

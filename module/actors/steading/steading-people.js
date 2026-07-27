@@ -7,6 +7,7 @@
 import { isDefaultImg, stripHtmlToText } from "../../utils/strings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
 import { npcStatusMeta } from "../../data-models/npc-status.js";
+import { getStonetopSteadingActor } from "../../utils/world.js";
 
 const DEFAULT_MEMBER_AVATAR = "systems/stonetop_pwd/assets/icons/people/default_profile.svg";
 
@@ -165,15 +166,24 @@ export async function ensurePeopleFolders() {
 	}
 }
 
+/** Name for a person the worksheet left unnamed, per the roster they're joining. */
+const DEFAULT_PERSON_NAMES = { residents: "New Resident", neighbors: "New Neighbor" };
+
 /**
- * Create an NPC actor for a Residents/Neighbors entry from initial field data and
- * return it. Fields not relevant to the list (home for residents) are ignored.
+ * Create an NPC actor for a person from the Add-Member worksheet's field data and return
+ * it. `list` is the steading roster they belong to, or null for someone on neither (the
+ * sidebar "Create Actor" picker's "Someone else"). The roster lists carry what being on
+ * the — often player-visible — steading sheet implies: the people folder and OBSERVER
+ * ownership. A loose NPC is GM prep, so it keeps Foundry's default ownership and lands in
+ * whichever sidebar folder was open. Either way its token still shows its name on hover
+ * (StonetopActor#_preCreate).
  *
- * @param {"residents"|"neighbors"} list
+ * @param {"residents"|"neighbors"|null} list
  * @param {object} data  { name, occupation, traits, relations, home, notes, img }
+ * @param {object} [options]
+ * @param {string|null} [options.folder]  Folder for a loose NPC; roster NPCs use their own.
  */
-export async function createPersonNpc(list, data = {}) {
-	const folder = await ensurePeopleFolder(list);
+export async function createPersonNpc(list, data = {}, { folder = null } = {}) {
 	const system = {
 		occupation: data.occupation ?? "",
 		traits:     data.traits ?? "",
@@ -182,24 +192,47 @@ export async function createPersonNpc(list, data = {}) {
 		// `notes`/`etc`, so fall back to both so migration carries that text over instead
 		// of dropping it.
 		notes:      data.notes ?? data.etc ?? "",
+		home:       data.home ?? "",
 	};
-	if (list === "neighbors") system.home = data.home ?? "";
 	// Residents live in Stonetop by definition, so seed their Home with "Stonetop"
 	// (the NPC sheet shows it; a specific home can still be typed to override). A
 	// non-blank home carried in by migration is respected.
-	else if (list === "residents") system.home = (data.home ?? "").trim() || "Stonetop";
+	if (list === "residents") system.home = system.home.trim() || "Stonetop";
 	const createData = {
-		name: data.name?.trim() || "New " + (list === "neighbors" ? "Neighbor" : "Resident"),
+		name: data.name?.trim() || DEFAULT_PERSON_NAMES[list] || "New Person",
 		type: "npc",
 		system,
-		folder: folder?.id ?? null,
-		// Residents/Neighbors are shown on the (often player-visible) steading sheet, so
-		// players should be able to see them — unlike GM-prep monsters/threats. Default
-		// OBSERVER keeps the steading rows rendering for players as they did pre-migration.
-		ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER },
+		folder: (list ? (await ensurePeopleFolder(list))?.id : folder) ?? null,
 	};
+	// Residents/Neighbors are shown on the (often player-visible) steading sheet, so
+	// players should be able to see them — unlike GM-prep monsters/threats. Default
+	// OBSERVER keeps the steading rows rendering for players as they did pre-migration.
+	if (list) createData.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER };
 	if (data.img && !isDefaultImg(data.img)) createData.img = data.img;
 	return Actor.create(createData);
+}
+
+/**
+ * Create the NPC for a Residents/Neighbors entry AND file it on the steading's roster,
+ * so the row and its actor are always made together. Used by the steading sheet's
+ * "+ Add" buttons and by the sidebar "Create Actor" picker, which can add a resident or
+ * neighbor without the steading sheet being open.
+ *
+ * The roster row is a {uuid, id, name} pointer (see resolvePersonRow); everything the
+ * row displays is read live off the actor. A steading that can't be found (or can't be
+ * written to) still leaves the NPC behind — better an unlisted actor than a lost one, and
+ * the row can be re-linked by dragging the actor onto the section.
+ *
+ * @param {"residents"|"neighbors"} list
+ * @param {object} data      { name, occupation, traits, relations, home, notes, img }
+ * @param {Actor} [steading] The steading to file the row on; defaults to the world's.
+ * @returns {Promise<Actor|null>}  The new NPC.
+ */
+export async function addPersonToSteading(list, data = {}, steading = null) {
+	const actor = await createPersonNpc(list, data);
+	if (!actor) return null;
+	await (steading ?? getStonetopSteadingActor())?.typedActor?.addPersonRow(list, actor);
+	return actor;
 }
 
 /**
