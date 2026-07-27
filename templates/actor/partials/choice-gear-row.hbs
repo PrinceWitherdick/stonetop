@@ -1,0 +1,35 @@
+{{!-- One chosen weapon/gear row from a gear-bearing `choices` bundle (the Heavy's and
+      Marshal's Weapons of war, the Judge's symbol of authority, the Would-Be Hero's token).
+
+      Regular and small gear differ only in the load control: a regular row gets one ◇ per
+      point of weight, a small row a single box. Everything else — the fill-in blank, the
+      inline uses track that stands in for an authored "○ low ammo, ○ all out", and the
+      trailing track for statuses that didn't parse — is identical, so it lives here once
+      rather than in two loops that have to be edited in lockstep.
+
+      Context is the row itself; pass `small=true` for the small-gear variant. --}}
+<div class="stonetop-inv-item{{#if small}} stonetop-inv-small{{/if}} stonetop-possession-gear-item{{#if checked}} is-checked{{/if}}">
+	<label class="stonetop-inv-item-toggle">
+		{{#if small}}
+		<input type="checkbox" class="stonetop-possession-choice-gear-check"
+		       data-possession-slug="{{possessionSlug}}"
+		       data-choice-slug="{{choiceSlug}}"
+		       {{#if checked}}checked{{/if}}>
+		{{else}}
+		<span class="stonetop-inv-diamonds">
+			{{#each (times weight)}}
+			<input type="checkbox" class="stonetop-possession-choice-gear-check stonetop-inv-diamond"
+			       data-possession-slug="{{../possessionSlug}}"
+			       data-choice-slug="{{../choiceSlug}}"
+			       {{#if ../checked}}checked{{/if}}>
+			{{/each}}
+		</span>
+		{{/if}}
+		<span class="stonetop-inv-label">{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="stonetop-possession-sub-fill" data-possession-slug="{{possessionSlug}}" data-choice-slug="{{choiceSlug}}" value="{{fillValue}}" placeholder="…">{{{fillAfter}}}{{else}}{{{label}}}{{/if}}{{#if resourceInline}}<span class="stonetop-inv-resources stonetop-choice-gear-statuses">{{> "stonetop.resource-track" resource=resource btnClass="stonetop-item-resource-check" possessionSlug=possessionSlug choiceSlug=choiceSlug}}</span>{{{labelAfter}}}{{/if}}</span>
+	</label>
+	{{#if (and resource (not resourceInline))}}
+	<span class="stonetop-item-resources">
+		{{> "stonetop.resource-track" resource=resource btnClass="stonetop-item-resource-check" possessionSlug=possessionSlug choiceSlug=choiceSlug}}
+	</span>
+	{{/if}}
+</div>

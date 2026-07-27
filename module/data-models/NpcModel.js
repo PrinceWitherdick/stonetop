@@ -13,6 +13,10 @@ import { valueMaxField } from "./fields.js";
 
 const fields = foundry.data.fields;
 
+// Re-exported for back-compat; the definitions live in the Foundry-free npc-status.js
+// so the steading roster + tests can import them without loading this data-model class.
+export { NPC_STATUSES, npcStatusMeta } from "./npc-status.js";
+
 export class NpcModel extends foundry.abstract.TypeDataModel {
 	static defineSchema() {
 		return {
@@ -40,6 +44,11 @@ export class NpcModel extends foundry.abstract.TypeDataModel {
 			// The anchor field — "to [do something]" (p.457). Guides how the NPC behaves
 			// and reacts; when unsure what they'd do, the GM looks here.
 			instinct:    new fields.StringField({ required: true, blank: true }),
+			// Lifecycle status (blank = active; see npc-status.js). Records the between-
+			// session review outcome (pp.480-481) — a retired/dead NPC no longer reads as
+			// a living, active one. A plain string (validated by the sheet's select) so a
+			// hand-edited/imported value round-trips instead of failing schema validation.
+			status:      new fields.StringField({ required: true, blank: true, initial: "" }),
 
 			// — What drives them (collapsible) — rich text so connections can @UUID-link
 			// to other actors/NPCs. Prompts (related to / loyal to / dislikes; wants /

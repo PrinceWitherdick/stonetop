@@ -80,7 +80,7 @@ export class FakeActorBuilder {
 		if (this._pbtaRollMode !== null) scopedFlags.rollMode = this._pbtaRollMode;
 		const flagStore = {stonetop_pwd: scopedFlags, stonetop: scopedFlags};
 
-		return {
+		const actor = {
 			name: this._name,
 			type: "character",
 			system: {
@@ -109,10 +109,22 @@ export class FakeActorBuilder {
 			unsetFlag: vi.fn(async (scope, key) => {
 				_unsetProperty(flagStore[scope], key);
 			}),
-			update: vi.fn(),
+			update: vi.fn(async (data = {}) => {
+				// Foundry expands dotted update paths and honours "-=key" deletions. The fake
+				// has to as well: a write routed through actor.update rather than setFlag —
+				// StonetopFlags.batch and setSubKey both are — would otherwise silently no-op,
+				// and a test would pass against data that never actually changed.
+				for (const [path, value] of Object.entries(data)) {
+					const parts = String(path).split(".");
+					const leaf = parts.at(-1);
+					if (leaf.startsWith("-=")) _unsetProperty(actor, [...parts.slice(0, -1), leaf.slice(2)].join("."));
+					else _setProperty(actor, path, value);
+				}
+			}),
 			createEmbeddedDocuments: vi.fn(),
 			deleteEmbeddedDocuments: vi.fn(),
 		};
+		return actor;
 	}
 }
 

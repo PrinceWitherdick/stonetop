@@ -16,6 +16,9 @@ import { escHtml } from "./strings.js";
 import { step4Questions, step6Questions } from "../dialogs/introductions-data.js";
 import { CHART_GROUPS } from "../dialogs/expedition-data.js";
 import { SEASONAL_GAINS } from "../dialogs/spring-burst-data.js";
+// Change-detection hash (pure, Foundry-free) — lets us tell a page's still-pristine
+// prose (safe to refresh from the source) from one the GM has edited in the journal.
+import { hashString } from "../hooks/journal-sync-core.js";
 
 // "The Chronicle" is a Journal FOLDER holding two journals — the player
 // introductions and the expedition log. (Foundry folders hold entries, not pages, so
@@ -146,28 +149,51 @@ function buildExpeditionPage(exp, index) {
 }
 
 /**
- * Merge freshly-compiled sections into a page's existing sections, preserving the
- * existing ones (and any inline edits) and folding in only content recorded since the
- * page was first seeded: sections whose heading is new, and — for a matching Q&A
- * section — answer pairs not already present (matched on prompt+answer). Prose with a
- * heading that already exists is left untouched: once a page is seeded its prose is
- * edited in the journal, not regenerated. Lets a part-way / multi-session save fold the
- * later rounds (or later expedition-step notes) into an already-seeded page instead of
- * being silently dropped.
+ * Merge freshly-compiled sections into a page's existing sections, folding in content
+ * recorded since the page was first seeded while never clobbering a hand edit:
+ *   • a section whose heading is new is appended;
+ *   • a matching Q&A section gains any answer pairs it doesn't already have (matched on
+ *     prompt+answer), so a question answered in a later round still lands;
+ *   • a matching PROSE section is refreshed to the latest source text ONLY while it is
+ *     still pristine — its stored body hashes to what we last wrote (tracked per heading
+ *     in `proseManaged`). This is what lets a player's introduction fill the Chronicle in
+ *     LIVE as they type: each background sync overwrites the previous auto-written prose.
+ *     Once the GM edits that section in the journal its hash stops matching, so we leave
+ *     it alone from then on and the edit sticks. A legacy page with no tracked hash is
+ *     adopted (and thereafter kept in sync) only when its body already equals the freshly
+ *     computed one — clearly still ours; otherwise it's assumed edited and frozen.
  *
- * @returns {{ sections: Array<object>, added: number }}  the merged section list and the
- *   number of new sections + new pairs (0 when nothing changed).
+ * `adoptLegacy` loosens that last rule for a page being AUTHORED right now (the PC whose
+ * introduction is actively being typed in a live intro session): an UNTRACKED prose
+ * section (no per-heading hash — the page predates hash tracking) is treated as ours and
+ * refreshed to the live text, then stamped so it tracks from then on. Without this, a
+ * page seeded before hash tracking existed would stay frozen forever, so re-running the
+ * introductions for a reused character would never update its page. It only ever touches
+ * UNTRACKED sections — a section already tracked-and-edited (hash present but not matching)
+ * stays frozen even under adoptLegacy, so a genuine journal edit is never clobbered.
+ *
+ * @param {Array<object>} existing   the page's current sections (plain data)
+ * @param {Array<object>} computed   freshly-compiled sections from the recorded source
+ * @param {object}  [opts]
+ * @param {object}  [opts.proseManaged]  per-heading hash of the prose body we last wrote
+ * @param {boolean} [opts.adoptLegacy]   refresh an untracked prose section from the source
+ *   (the actively-authored page in a live intro session); default false = conservative freeze
+ * @returns {{ sections: Array<object>, added: number, proseManaged: object }}  the merged
+ *   section list, the number of changes (new sections + new pairs + refreshed prose; 0
+ *   when nothing changed), and the updated per-heading prose hashes to store back.
  */
-export function mergeChronicleSections(existing = [], computed = []) {
+export function mergeChronicleSections(existing = [], computed = [], { proseManaged = {}, adoptLegacy = false } = {}) {
 	// Copy so the caller's stored array (and each Q&A section's pairs) isn't mutated.
-	const merged    = (existing ?? []).map(s => ({ ...s, ...(s?.pairs ? { pairs: [...s.pairs] } : {}) }));
-	const byHeading = new Map(merged.map(s => [s.heading, s]));
+	const merged      = (existing ?? []).map(s => ({ ...s, ...(s?.pairs ? { pairs: [...s.pairs] } : {}) }));
+	const byHeading   = new Map(merged.map(s => [s.heading, s]));
+	const nextManaged = { ...proseManaged };
 	let added = 0;
 	for (const section of computed ?? []) {
 		const match = byHeading.get(section.heading);
 		if (!match) {
 			merged.push(section);
 			byHeading.set(section.heading, section);
+			if (section.kind === "prose") nextManaged[section.heading] = hashString(section.body ?? "");
 			added += 1;
 			continue;
 		}
@@ -182,9 +208,27 @@ export function mergeChronicleSections(existing = [], computed = []) {
 				const sig = pairKey(pair);
 				if (!have.has(sig)) { match.pairs.push(pair); have.add(sig); added += 1; }
 			}
+			continue;
+		}
+		// Same-heading prose: refresh from the source while the stored body is still the
+		// one we last wrote (pristine); freeze once it's been edited in the journal.
+		if (match.kind === "prose" && section.kind === "prose") {
+			const prev    = proseManaged[section.heading];
+			const curHash  = hashString(match.body ?? "");
+			const newHash  = hashString(section.body ?? "");
+			// Tracked (prev set): ours only if the stored body still matches our last write.
+			// Untracked (legacy page): ours if it already equals the source, OR — for the
+			// actively-authored page — if adoptLegacy lets the live text take it over.
+			const isOurs   = prev !== undefined ? curHash === prev : (adoptLegacy || curHash === newHash);
+			if (isOurs) {
+				if (curHash !== newHash) { match.body = section.body; added += 1; }
+				nextManaged[section.heading] = newHash;
+			}
+			// else: hand-edited — leave the body, and keep `prev` (if any) as the tracked
+			// hash so a later revert to our exact text resumes syncing.
 		}
 	}
-	return { sections: merged, added };
+	return { sections: merged, added, proseManaged: nextManaged };
 }
 
 /**

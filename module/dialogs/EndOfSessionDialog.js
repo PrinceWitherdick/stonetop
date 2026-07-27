@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../utils/front-on-open.js";
+import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { resetOmenReminder } from "../hooks/StonetopSingleton.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { stonetopChatCard } from "../utils/chat.js";
@@ -11,11 +11,10 @@ const GROUP_QUESTIONS = [
 	{ key: "improvedStonetop",   label: "Did we make a lasting improvement to Stonetop, or tangible progress towards doing so?" },
 ];
 
-export class EndOfSessionDialog extends Application {
+export class EndOfSessionDialog extends StonetopDialog {
 	constructor(options = {}) {
 		super(options);
 		this._groupChecks = Object.fromEntries(GROUP_QUESTIONS.map(q => [q.key, false]));
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -30,16 +29,6 @@ export class EndOfSessionDialog extends Application {
 		});
 	}
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
-	}
-
 	getData() {
 		const xpCount  = Object.values(this._groupChecks).filter(Boolean).length;
 		const questions = GROUP_QUESTIONS.map(q => ({
@@ -52,7 +41,6 @@ export class EndOfSessionDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 
 		html.find(".stonetop-eos-group-check").on("change", ev => {
 			this._groupChecks[ev.currentTarget.dataset.key] = ev.currentTarget.checked;

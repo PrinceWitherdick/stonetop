@@ -1,6 +1,8 @@
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../../../utils/seeded-journals.js";
-import { FrontOnOpen, openJournalSheetAsChild } from "../../../utils/front-on-open.js";
+import { openJournalSheetAsChild } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
+import { ITEMS_PACK } from "../StonetopFlags.js";
 
 const PLAYBOOK_DESCRIPTIONS = {
 	"the-blessed":       { complexity: "Medium",       desc: "Nature priest. Speaks to spirits and beasts. Works subtle magics via sacred markings and materials." },
@@ -14,7 +16,7 @@ const PLAYBOOK_DESCRIPTIONS = {
 	"the-would-be-hero": { complexity: "Medium",       desc: "They're in over their head and full of fear and anger, but they just might outshine us all." },
 };
 
-export class PlaybookPickerDialog extends Application {
+export class PlaybookPickerDialog extends StonetopDialog {
 	constructor(onPick, options = {}) {
 		const { onClose, ...appOptions } = options;
 		super(appOptions);
@@ -23,9 +25,6 @@ export class PlaybookPickerDialog extends Application {
 		// it too, so callers that care (the first-session flow) track that themselves.
 		this._onClose  = onClose ?? null;
 		this._playbooks = [];
-		// FrontOnOpen floats the picker to the front when it appears, via Foundry's
-		// native window stacking (it no longer forces itself above other windows).
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -40,13 +39,7 @@ export class PlaybookPickerDialog extends Application {
 		});
 	}
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-	}
-
 	async close(options = {}) {
-		this._frontOnOpen.stop();
 		const result = await super.close(options);
 		this._onClose?.();
 		return result;
@@ -54,7 +47,7 @@ export class PlaybookPickerDialog extends Application {
 
 	async getData() {
 		if (!this._playbooks.length) {
-			const pack = game.packs.get("stonetop_pwd.stonetop-items");
+			const pack = game.packs.get(ITEMS_PACK);
 			if (pack) {
 				await pack.getIndex({ fields: ["type", "system.slug", "img"] });
 				const entries = [...pack.index].filter(e =>
@@ -87,7 +80,6 @@ export class PlaybookPickerDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 		html.find(".stonetop-playbook-picker-setting-overview").on("click", () => this._openSettingOverview());
 		html.find(".stonetop-playbook-picker-card")
 			.on("click", async ev => {

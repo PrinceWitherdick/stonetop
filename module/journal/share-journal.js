@@ -12,7 +12,7 @@
 // Per-user grants the GM set by hand are left untouched — default is only the
 // floor, so this never clobbers an intentional one-off share.
 
-import { FrontOnOpen } from "../utils/front-on-open.js";
+import { StonetopDialog } from "../utils/stonetop-dialog.js";
 
 // Looked up lazily (not at module load) so the file imports cleanly outside
 // Foundry — e.g. under the unit tests — and never races the global's setup.
@@ -118,11 +118,10 @@ function _refreshShareButton(btn, journal) {
  * the journal at all; a second upgrades them from read-only Observer to full
  * Ownership. Saving writes the matching `ownership.default` level.
  */
-export class ShareJournalDialog extends Application {
+export class ShareJournalDialog extends StonetopDialog {
 	constructor(journal, options = {}) {
 		super(options);
 		this.journal = journal;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -137,16 +136,6 @@ export class ShareJournalDialog extends Application {
 		});
 	}
 
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
-	}
-
 	getData() {
 		const O = levels();
 		const level = this.journal?.ownership?.default ?? O.NONE;
@@ -159,7 +148,6 @@ export class ShareJournalDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 
 		const visibleCb = html.find(".stonetop-share-visible");
 		const ownerRow  = html.find(".stonetop-share-owner-row");

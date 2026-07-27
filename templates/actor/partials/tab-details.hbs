@@ -1,11 +1,13 @@
 <div class="tab details{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="details">
 
+		{{#if stonetop.detailsShow.lore}}
 		<div class="stonetop-lore-section-wrapper{{#if stonetop.detailsEdit.lore}} stonetop-section-editing{{/if}}">
 			{{#if stonetop.playbook.lore.hasEntries}}{{> "stonetop.details-section-edit-toggle" section="lore" editing=stonetop.detailsEdit.lore}}{{/if}}
 			{{> "stonetop.lore-section" lore=stonetop.playbook.lore editMode=stonetop.detailsEdit.lore}}
 		</div>
+		{{/if}}
 
-		{{#if stonetop.playbook.background.options.length}}
+		{{#if (and stonetop.playbook.background.options.length stonetop.detailsShow.background)}}
 		<div class="details-section{{#if stonetop.detailsEdit.background}} stonetop-section-editing{{/if}}">
 			<div class="stonetop-details-heading-row">
 				{{#if stonetop.detailsEdit.background}}
@@ -111,7 +113,7 @@
 		</div>
 		{{/if}}
 
-		{{#if stonetop.playbook}}
+		{{#if (and stonetop.playbook stonetop.detailsShow.instinct)}}
 		<div class="details-section{{#if stonetop.detailsEdit.instinct}} stonetop-section-editing{{/if}}">
 			<div class="stonetop-details-heading-row">
 				{{#if stonetop.detailsEdit.instinct}}
@@ -154,7 +156,7 @@
 		</div>
 		{{/if}}
 
-		{{#if (and stonetop.playbook stonetop.playbook.appearance.options.length)}}
+		{{#if (and stonetop.playbook stonetop.playbook.appearance.options.length stonetop.detailsShow.appearance)}}
 		<div class="details-section{{#if stonetop.detailsEdit.appearance}} stonetop-section-editing{{/if}}">
 			<div class="stonetop-details-heading-row">
 				{{#if stonetop.detailsEdit.appearance}}
@@ -186,7 +188,7 @@
 		</div>
 		{{/if}}
 
-		{{#if stonetop.playbook.origin.options.length}}
+		{{#if (and stonetop.playbook.origin.options.length stonetop.detailsShow.origin)}}
 		<div class="details-section{{#if stonetop.detailsEdit.origin}} stonetop-section-editing{{/if}}">
 			<div class="stonetop-details-heading-row">
 				{{#if stonetop.detailsEdit.origin}}
@@ -235,6 +237,30 @@
 			{{/if}}
 		</div>
 		{{/if}}
+
+		{{!-- Relationships — how this character feels about the other player characters
+		     and the folk on the steading sheet, on the same 1-5 hearts the NPC sheet uses
+		     for its side of a tie. Clicking a heart sets the rating (click the last filled
+		     one to drop it); it stays interactive in play mode, since regard shifts at the
+		     table. The pencil reveals every candidate with a show/hide box — play mode
+		     lists only the ticked ones. --}}
+		<div class="details-section stonetop-character-relationships stonetop-rel-droppable{{#if stonetop.detailsEdit.relationships}} stonetop-section-editing{{/if}}">
+			<div class="stonetop-details-heading-row">
+				{{#if stonetop.detailsEdit.relationships}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.relationships.title") note=(localize "stonetop.character.relationships.chooseNote")}}
+				{{else}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.character.relationships.title")}}
+				{{/if}}
+				{{> "stonetop.details-section-edit-toggle" section="relationships" editing=stonetop.detailsEdit.relationships}}
+			</div>
+			{{#if stonetop.hasRelationships}}
+			{{> "stonetop.relationships-table" rows=stonetop.relationships resizeKey="characterRelationships"
+			    nameLabel=(localize "stonetop.character.relationships.who") canRate=stonetop.canEdit
+			    canToggle=stonetop.detailsEdit.relationships}}
+			{{else}}
+			<p class="stonetop-rel-empty">{{#if stonetop.relationshipsAllHidden}}{{localize "stonetop.character.relationships.allHidden"}}{{else}}{{localize "stonetop.character.relationships.empty"}}{{/if}}</p>
+			{{/if}}
+		</div>
 
 		{{#if (and stonetop.playbook stonetop.hasIncompleteBackgroundQuestions)}}
 		<div class="details-section stonetop-details-onboarding-actions">

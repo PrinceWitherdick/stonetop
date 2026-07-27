@@ -10,6 +10,7 @@
 
 import { stepDie } from "../utils/damage-die.js";
 import { normalizeTags } from "./follower-build.js";
+import { byId as _byId, signedBonus } from "./table-utils.js";
 
 // ── Gifts (1d12) — p. 432 ─────────────────────────────────────────────────────
 // Pick or roll up to 3. Mechanical deltas: hpDelta / armorSet / dieSteps / damageBonus /
@@ -86,7 +87,6 @@ export const EMANATION_BASE = {
 	instinct: "",
 };
 
-const _byId = (list, id) => list.find(o => String(o.id) === String(id)) ?? null;
 
 /** Append attack tags into a damage line's trailing "(…)" parenthetical (or add one),
  *  de-duping case-insensitively. */
@@ -105,7 +105,6 @@ function _appendTags(prose, addTags) {
 }
 
 /** Format a damage bonus as a signed suffix ("+2", "-1", or "" for zero). */
-const signedBonus = n => n > 0 ? `+${n}` : n < 0 ? `${n}` : "";
 
 /**
  * Step a damage line's die and/or bonus and splice in extra attack tags. Operates on the

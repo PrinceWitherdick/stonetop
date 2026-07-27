@@ -13,11 +13,13 @@ export function createStonetopItemClass(BaseItem) {
 		 * would only offer pack-managed types like playbook/npcMove/monsterMove) we open our
 		 * own chooser: Move, Steading Improvement, or Threat, each producing a reusable,
 		 * draggable artifact. Callers passing an explicit `types` restriction (internal
-		 * tooling) fall through to the stock dialog unchanged.
+		 * tooling), and creates into a compendium (`pack`) — every flow above builds a
+		 * WORLD item and would silently ignore the pack — fall through to the stock dialog
+		 * unchanged.
 		 * @override
 		 */
 		static async createDialog(data = {}, createOptions = {}, options = {}, renderOptions = {}) {
-			if (options.types) {
+			if (options.types || createOptions.pack) {
 				return super.createDialog(data, createOptions, options, renderOptions);
 			}
 			const { openCreateStonetopContent } =

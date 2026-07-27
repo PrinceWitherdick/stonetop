@@ -1,6 +1,7 @@
 import { valueTooltip } from "../data/value-tiers.js";
 import { getHoverDescriptionSetting } from "../settings.js";
 import { JOURNAL_EDITOR_SELECTOR } from "./journal-editor-guard.js";
+import { replaceTextMatches } from "./text-nodes.js";
 
 // Capital-V "Value" immediately followed by a tier number (optionally a range,
 // "Value 0-2"). Capital V and the trailing digit are both required so the common
@@ -36,36 +37,18 @@ export function markValueTooltips(container) {
 	// us skip building the TreeWalker and running `.closest(_SKIP)` per text node.
 	if (!_VALUE_RE.test(container.textContent ?? "")) return;
 
-	const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-		acceptNode: node =>
-			node.parentElement?.closest(_SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
-	});
-	const toReplace = [];
-	let node;
-	while ((node = walker.nextNode())) {
-		if (_VALUE_RE.test(node.textContent)) toReplace.push(node);
-	}
-
-	for (const textNode of toReplace) {
-		const text = textNode.textContent;
-		const frag = document.createDocumentFragment();
-		let lastIdx = 0;
-		for (const match of text.matchAll(_VALUE_RE_G)) {
-			if (match.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, match.index)));
+	replaceTextMatches(container, {
+		skip:  _SKIP,
+		regex: _VALUE_RE_G,
+		render: (match) => {
 			const tooltip = valueTooltip(match[1], match[2]);
-			if (tooltip) {
-				const span = document.createElement("span");
-				span.className = "stonetop-value-term";
-				span.dataset.tooltip = tooltip;
-				span.dataset.tooltipDirection = "UP";
-				span.textContent = match[0];
-				frag.appendChild(span);
-			} else {
-				frag.appendChild(document.createTextNode(match[0]));
-			}
-			lastIdx = match.index + match[0].length;
-		}
-		if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
-		textNode.parentNode?.replaceChild(frag, textNode);
-	}
+			if (!tooltip) return null; // no tier text — leave the raw "Value N" alone
+			const span = document.createElement("span");
+			span.className = "stonetop-value-term";
+			span.dataset.tooltip = tooltip;
+			span.dataset.tooltipDirection = "UP";
+			span.textContent = match[0];
+			return span;
+		},
+	});
 }

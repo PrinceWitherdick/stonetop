@@ -1,4 +1,5 @@
 import { capitalizeFirst, parseInstinct } from "../utils/strings.js";
+import { splitFillBlank } from "../utils/fill-blanks.js";
 
 // ── Appearance ────────────────────────────────────────────────────────────────
 
@@ -209,6 +210,20 @@ export class LoreOptionSnapshot {
 		this.requires    = b._requires ?? null;
 		// Seeker Minor Arcana: per-question card picker ({ role, options, selectedSlug, selectedName, muted }).
 		this.arcanaPicker = b._arcanaPicker ?? null;
+		// Inline fill-in blank: a pick option whose text has a "___" the player completes
+		// (e.g. "… running for your life from ___"). before/after wrap the input; fillValue
+		// is what they wrote (shares the lore.texts store, passed in as _textValue here).
+		const blank      = this.type === "text" ? { hasBlank: false, before: "", after: "" } : splitFillBlank(this.description);
+		this.hasBlank    = blank.hasBlank;
+		this.fillBefore  = blank.before;
+		this.fillAfter   = blank.after;
+		this.fillValue   = this.hasBlank ? (b._textValue ?? "") : "";
+		// Strip the leading ellipsis but keep the trailing trim OFF — the space before the
+		// blank ("… from ___" → "from ") must survive so the read-only sentence doesn't read
+		// "fromghouls" once the written value is spliced in.
+		this.readonlyFillBefore = this.hasBlank
+			? _stripLeadingEllipsis(blank.before, { trim: false })
+			: "";
 		// A text option counts as answered only if it holds a real value — blank or a
 		// "to be written" placeholder is treated as unanswered (hidden in read-only).
 		this.hasAnswer   = this.type === "text" ? _hasRealLoreAnswer(this.textValue) : this.count > 0;
@@ -321,10 +336,10 @@ export class LoreSection {
 
 // ── Playbook ──────────────────────────────────────────────────────────────────
 
-function _stripLeadingEllipsis(description = "") {
-	return String(description)
-		.replace(/^(\s*(?:<p[^>]*>\s*)?)(?:\.{3}|&hellip;|\u2026)\s*/i, "$1")
-		.trim();
+function _stripLeadingEllipsis(description = "", { trim = true } = {}) {
+	const stripped = String(description)
+		.replace(/^(\s*(?:<p[^>]*>\s*)?)(?:\.{3}|&hellip;|\u2026)\s*/i, "$1");
+	return trim ? stripped.trim() : stripped;
 }
 
 function _stripChoosePrompt(description = "") {

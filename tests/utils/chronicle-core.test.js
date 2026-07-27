@@ -333,4 +333,76 @@ describe("mergeChronicleSections", () => {
 		const { added } = mergeChronicleSections(existing, computed);
 		expect(added).toBe(1);
 	});
+
+	// Live introductions: a prose section keeps tracking the source while it hasn't been
+	// hand-edited (its stored body still hashes to what we last wrote), so a player's
+	// introduction fills the Chronicle in as they type. Once edited, it freezes.
+	it("stamps a per-heading prose hash for a newly-added section", () => {
+		const computed = [prose("Introduction", "<p>North.</p>")];
+		const { proseManaged } = mergeChronicleSections([], computed);
+		expect(proseManaged).toHaveProperty("Introduction");
+		expect(typeof proseManaged.Introduction).toBe("string");
+	});
+
+	it("refreshes a still-pristine prose section to the newer source text", () => {
+		// First seed: empty page → the section is added and fingerprinted.
+		const seed = mergeChronicleSections([], [prose("Introduction", "<p>I'm Sa.</p>")]);
+		// Second sync: same body stored, longer source → the stored hash still matches, so refresh.
+		const next = mergeChronicleSections(seed.sections, [prose("Introduction", "<p>I'm Sael.</p>")], { proseManaged: seed.proseManaged });
+		expect(next.added).toBe(1);
+		expect(next.sections[0].body).toBe("<p>I'm Sael.</p>");
+		// The tracked hash advances to the newly-written body, so the NEXT sync compares against it.
+		expect(next.proseManaged.Introduction).not.toBe(seed.proseManaged.Introduction);
+	});
+
+	it("freezes a prose section once its stored body no longer matches the tracked hash", () => {
+		const seed = mergeChronicleSections([], [prose("Introduction", "<p>Auto text.</p>")]);
+		// The GM edits the section in the journal — its body diverges from the tracked hash.
+		const edited = [prose("Introduction", "<p>HAND-EDITED.</p>")];
+		const next   = mergeChronicleSections(edited, [prose("Introduction", "<p>Newer source.</p>")], { proseManaged: seed.proseManaged });
+		expect(next.added).toBe(0);
+		expect(next.sections[0].body).toBe("<p>HAND-EDITED.</p>");
+	});
+
+	it("adopts a legacy prose section (no tracked hash) only when it already equals the source", () => {
+		// Body equals what we'd compute now → clearly still ours → start tracking it.
+		const same = mergeChronicleSections([prose("Introduction", "<p>Same.</p>")], [prose("Introduction", "<p>Same.</p>")]);
+		expect(same.proseManaged).toHaveProperty("Introduction");
+		expect(same.added).toBe(0);
+		// Body differs and there's no tracked hash → assume edited → leave it frozen.
+		const diff = mergeChronicleSections([prose("Introduction", "<p>Older.</p>")], [prose("Introduction", "<p>Newer.</p>")]);
+		expect(diff.added).toBe(0);
+		expect(diff.sections[0].body).toBe("<p>Older.</p>");
+		expect(diff.proseManaged).not.toHaveProperty("Introduction");
+	});
+
+	// adoptLegacy: the page being AUTHORED live this instant (a reused character's pre-fix
+	// page) may have its untracked prose taken over by the current text and start tracking.
+	it("adopts and refreshes an untracked legacy prose section when adoptLegacy is set", () => {
+		const existing = [prose("Introduction", "<p>Stale from a prior run.</p>")];
+		const computed = [prose("Introduction", "<p>Freshly typed this session.</p>")];
+		const res = mergeChronicleSections(existing, computed, { adoptLegacy: true });
+		expect(res.added).toBe(1);
+		expect(res.sections[0].body).toBe("<p>Freshly typed this session.</p>");
+		expect(res.proseManaged).toHaveProperty("Introduction"); // now tracked
+	});
+
+	it("without adoptLegacy an untracked, differing legacy prose section stays frozen", () => {
+		const existing = [prose("Introduction", "<p>Stale.</p>")];
+		const computed = [prose("Introduction", "<p>New.</p>")];
+		const res = mergeChronicleSections(existing, computed, { adoptLegacy: false });
+		expect(res.added).toBe(0);
+		expect(res.sections[0].body).toBe("<p>Stale.</p>");
+	});
+
+	it("adoptLegacy never overrides a TRACKED hand edit (only rescues untracked sections)", () => {
+		// Seed → tracked. Then the GM edits it in the journal so the stored body diverges from
+		// the tracked hash. Even under adoptLegacy that section must stay frozen.
+		const seed   = mergeChronicleSections([], [prose("Introduction", "<p>Auto.</p>")]);
+		const edited = [prose("Introduction", "<p>HAND EDIT.</p>")];
+		const res    = mergeChronicleSections(edited, [prose("Introduction", "<p>Newer.</p>")],
+			{ proseManaged: seed.proseManaged, adoptLegacy: true });
+		expect(res.added).toBe(0);
+		expect(res.sections[0].body).toBe("<p>HAND EDIT.</p>");
+	});
 });

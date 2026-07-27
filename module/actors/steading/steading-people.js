@@ -4,8 +4,10 @@
 // read and write that actor's fields live. This module owns the folders the actors
 // live in, the create + resolve helpers the sheet uses, and the one-time migration
 // that converts legacy plain-text rows into NPC actors.
-import { isDefaultImg } from "../../utils/strings.js";
+import { isDefaultImg, stripHtmlToText } from "../../utils/strings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
+import { npcStatusMeta } from "../../data-models/npc-status.js";
+import { getStonetopSteadingActor } from "../../utils/world.js";
 
 const DEFAULT_MEMBER_AVATAR = "systems/stonetop_pwd/assets/icons/people/default_profile.svg";
 
@@ -13,7 +15,7 @@ const DEFAULT_MEMBER_AVATAR = "systems/stonetop_pwd/assets/icons/people/default_
 // pull from — spread into the no-row and deleted-actor fallbacks so the blank
 // template shape lives in one place. `notes` is the plain (stripped) preview text and
 // `notesHtml` the enriched rich version the roster cell renders.
-const BLANK_PERSON_FIELDS = { occupation: "", traits: "", relations: "", home: "", notes: "", notesHtml: "", resolvedOccupation: "", profileImg: DEFAULT_MEMBER_AVATAR };
+const BLANK_PERSON_FIELDS = { occupation: "", traits: "", relations: "", home: "", notes: "", notesHtml: "", resolvedOccupation: "", profileImg: DEFAULT_MEMBER_AVATAR, status: "", statusLabel: "", statusInactive: false };
 
 // The two Actor folders the people live in. Colours echo the warm parchment palette.
 const PEOPLE_FOLDERS = {
@@ -52,18 +54,44 @@ export function isActorRow(row) {
 	return !!(row && (row.uuid || row.id));
 }
 
-/** Strip tags/entities so rich notes collapse to one line for a tooltip / plain preview. */
-export function stripHtmlToText(value) {
-	if (value == null) return "";
-	return String(value)
-		.replace(/<\s*br\s*\/?>/gi, " ")
-		.replace(/<[^>]*>/g, " ")
-		.replace(/&nbsp;/gi, " ")
-		.replace(/&amp;/gi, "&")
-		.replace(/&lt;/gi, "<")
-		.replace(/&gt;/gi, ">")
-		.replace(/\s+/g, " ")
-		.trim();
+/**
+ * Distinct, non-empty names of a steading's Residents + Neighbors, for name-suggestion
+ * datalists (e.g. Create-a-Follower). Reads the nested `stonetop_pwd.steading` flag where
+ * the people rows actually live — the flat `getFlag(…, "residents")` path is never written.
+ * Best-effort: a missing/unlinked steading (or any read error) just yields [].
+ */
+export function peopleNames(steading) {
+	try {
+		const flags = steading?.getFlag?.("stonetop_pwd", "steading") ?? {};
+		const rows = Object.keys(PEOPLE_FOLDERS).flatMap(list => Array.isArray(flags[list]) ? flags[list] : []);
+		return [...new Set(rows.map(r => String(r?.name ?? "").trim()).filter(Boolean))];
+	} catch { return []; }
+}
+
+/**
+ * The live NPC Actors behind a steading's Residents + Neighbors rows, in sheet order
+ * (residents first), deduped. Skips legacy plain-text rows and rows whose actor was
+ * deleted, since both lack an actor to rate. Backs the character sheet's Relationships
+ * section, which offers everyone on the steading sheet as a rateable row.
+ * Best-effort: a missing/unlinked steading (or any read error) just yields [].
+ */
+export function steadingPeopleActors(steading) {
+	try {
+		const flags = steading?.getFlag?.("stonetop_pwd", "steading") ?? {};
+		const seen = new Set();
+		const people = [];
+		for (const list of Object.keys(PEOPLE_FOLDERS)) {
+			for (const row of Array.isArray(flags[list]) ? flags[list] : []) {
+				if (!isActorRow(row)) continue;
+				const actor = (row.id ? game.actors?.get(row.id) : null)
+					|| (row.uuid ? game.actors?.find(a => a.uuid === row.uuid) : null);
+				if (!actor || seen.has(actor.id)) continue;
+				seen.add(actor.id);
+				people.push(actor);
+			}
+		}
+		return people;
+	} catch { return []; }
 }
 
 /**
@@ -95,6 +123,8 @@ export async function resolvePersonRow(row) {
 		}
 		const s = actor.system ?? {};
 		const occupation = s.occupation ?? "";
+		// Lifecycle status → an at-a-glance badge + dim/strike in the roster name cell.
+		const status = npcStatusMeta(s.status);
 		return {
 			uuid:       actor.uuid,
 			id:         actor.id,
@@ -109,6 +139,9 @@ export async function resolvePersonRow(row) {
 			profileImg: isDefaultImg(actor.img) ? DEFAULT_MEMBER_AVATAR : actor.img,
 			checked:    !!row.checked,
 			unresolved: false,
+			status:         status.value,
+			statusLabel:    status.label,
+			statusInactive: status.inactive,
 		};
 	}
 	// Legacy plain-text row: pass through, filling the shape the template reads.
@@ -124,27 +157,59 @@ export async function resolvePersonRow(row) {
 		resolvedOccupation: row.occupation ?? "",
 		profileImg: !isDefaultImg(row.img ?? "") ? row.img : DEFAULT_MEMBER_AVATAR,
 		legacy:     true,
+		status:     "", statusLabel: "", statusInactive: false,
 	};
 }
 
-/** Find or create the Actor folder for a people list. GM-only (folder creation writes). */
+/**
+ * Find (or, for a GM, create) the Actor folder for a people list. Folder creation is a
+ * GM/assistant privilege players lack, so a player who adds the first-ever resident when
+ * the folder doesn't exist yet must not throw: return null and let the NPC land at the
+ * sidebar root instead. The GM proactively creates both folders on load (see
+ * ensurePeopleFolders), so this fallback is rare — the folder is normally already there.
+ */
 export async function ensurePeopleFolder(list) {
 	const spec = PEOPLE_FOLDERS[list];
 	if (!spec) return null;
 	const existing = game.folders?.find(f => f.type === "Actor" && f.name === spec.name);
 	if (existing) return existing;
-	return Folder.create({ name: spec.name, type: "Actor", color: spec.color });
+	if (!Folder.canUserCreate(game.user)) return null; // player: no folder-create right
+	try {
+		return await Folder.create({ name: spec.name, type: "Actor", color: spec.color });
+	} catch (err) {
+		console.warn(`Stonetop | Could not create the "${spec.name}" folder; NPC will land at root.`, err);
+		return null;
+	}
 }
 
+/** Ensure both Residents/Neighbors Actor folders exist. GM-only; run once on load so a
+ *  player adding the first member never has to create the folder (which they can't). */
+export async function ensurePeopleFolders() {
+	if (!game.user?.isGM) return;
+	for (const list of Object.keys(PEOPLE_FOLDERS)) {
+		try { await ensurePeopleFolder(list); }
+		catch (err) { console.error("Stonetop | ensurePeopleFolders failed for", list, err); }
+	}
+}
+
+/** Name for a person the worksheet left unnamed, per the roster they're joining. */
+const DEFAULT_PERSON_NAMES = { residents: "New Resident", neighbors: "New Neighbor" };
+
 /**
- * Create an NPC actor for a Residents/Neighbors entry from initial field data and
- * return it. Fields not relevant to the list (home for residents) are ignored.
+ * Create an NPC actor for a person from the Add-Member worksheet's field data and return
+ * it. `list` is the steading roster they belong to, or null for someone on neither (the
+ * sidebar "Create Actor" picker's "Someone else"). The roster lists carry what being on
+ * the — often player-visible — steading sheet implies: the people folder and OBSERVER
+ * ownership. A loose NPC is GM prep, so it keeps Foundry's default ownership and lands in
+ * whichever sidebar folder was open. Either way its token still shows its name on hover
+ * (StonetopActor#_preCreate).
  *
- * @param {"residents"|"neighbors"} list
+ * @param {"residents"|"neighbors"|null} list
  * @param {object} data  { name, occupation, traits, relations, home, notes, img }
+ * @param {object} [options]
+ * @param {string|null} [options.folder]  Folder for a loose NPC; roster NPCs use their own.
  */
-export async function createPersonNpc(list, data = {}) {
-	const folder = await ensurePeopleFolder(list);
+export async function createPersonNpc(list, data = {}, { folder = null } = {}) {
 	const system = {
 		occupation: data.occupation ?? "",
 		traits:     data.traits ?? "",
@@ -153,20 +218,47 @@ export async function createPersonNpc(list, data = {}) {
 		// `notes`/`etc`, so fall back to both so migration carries that text over instead
 		// of dropping it.
 		notes:      data.notes ?? data.etc ?? "",
+		home:       data.home ?? "",
 	};
-	if (list === "neighbors") system.home = data.home ?? "";
+	// Residents live in Stonetop by definition, so seed their Home with "Stonetop"
+	// (the NPC sheet shows it; a specific home can still be typed to override). A
+	// non-blank home carried in by migration is respected.
+	if (list === "residents") system.home = system.home.trim() || "Stonetop";
 	const createData = {
-		name: data.name?.trim() || "New " + (list === "neighbors" ? "Neighbor" : "Resident"),
+		name: data.name?.trim() || DEFAULT_PERSON_NAMES[list] || "New Person",
 		type: "npc",
 		system,
-		folder: folder?.id ?? null,
-		// Residents/Neighbors are shown on the (often player-visible) steading sheet, so
-		// players should be able to see them — unlike GM-prep monsters/threats. Default
-		// OBSERVER keeps the steading rows rendering for players as they did pre-migration.
-		ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER },
+		folder: (list ? (await ensurePeopleFolder(list))?.id : folder) ?? null,
 	};
+	// Residents/Neighbors are shown on the (often player-visible) steading sheet, so
+	// players should be able to see them — unlike GM-prep monsters/threats. Default
+	// OBSERVER keeps the steading rows rendering for players as they did pre-migration.
+	if (list) createData.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER };
 	if (data.img && !isDefaultImg(data.img)) createData.img = data.img;
 	return Actor.create(createData);
+}
+
+/**
+ * Create the NPC for a Residents/Neighbors entry AND file it on the steading's roster,
+ * so the row and its actor are always made together. Used by the steading sheet's
+ * "+ Add" buttons and by the sidebar "Create Actor" picker, which can add a resident or
+ * neighbor without the steading sheet being open.
+ *
+ * The roster row is a {uuid, id, name} pointer (see resolvePersonRow); everything the
+ * row displays is read live off the actor. A steading that can't be found (or can't be
+ * written to) still leaves the NPC behind — better an unlisted actor than a lost one, and
+ * the row can be re-linked by dragging the actor onto the section.
+ *
+ * @param {"residents"|"neighbors"} list
+ * @param {object} data      { name, occupation, traits, relations, home, notes, img }
+ * @param {Actor} [steading] The steading to file the row on; defaults to the world's.
+ * @returns {Promise<Actor|null>}  The new NPC.
+ */
+export async function addPersonToSteading(list, data = {}, steading = null) {
+	const actor = await createPersonNpc(list, data);
+	if (!actor) return null;
+	await (steading ?? getStonetopSteadingActor())?.typedActor?.addPersonRow(list, actor);
+	return actor;
 }
 
 /**
@@ -226,5 +318,44 @@ export async function migrateAllSteadingPeople() {
 	for (const s of steadings) {
 		try { await migrateSteadingPeople(s); }
 		catch (err) { console.error("Stonetop | migrateSteadingPeople failed for", s?.name, err); }
+	}
+}
+
+/**
+ * One-time, idempotent backfill: give every already-linked Resident-of-Stonetop NPC
+ * whose Home is blank the value "Stonetop" (residents live there by definition). New
+ * residents get this at creation via createPersonNpc; this catches those linked before
+ * that default existed. Residents with a specific Home already typed are left alone.
+ * GM-only; guarded by its own steading flag so it runs once even on already-migrated
+ * worlds. Uses setFlag, which merges — the flag write keeps the residents list intact.
+ *
+ * @param {Actor} steading  an Actor of type "stonetop"
+ * @returns {Promise<number>} how many resident NPCs were updated
+ */
+export async function backfillResidentHomes(steading) {
+	if (!game.user?.isGM || steading?.type !== "stonetop") return 0;
+	if (steading.flags?.stonetop_pwd?.steading?.residentHomesBackfilled) return 0;
+	const rows = steading.flags?.stonetop_pwd?.steading?.residents;
+	let updated = 0;
+	for (const row of (Array.isArray(rows) ? rows : [])) {
+		if (!isActorRow(row)) continue;
+		const actor = (row.id ? game.actors?.get(row.id) : null)
+			|| (row.uuid ? game.actors?.find(a => a.uuid === row.uuid) : null);
+		if (!actor || actor.type !== "npc") continue;
+		if (String(actor.system?.home ?? "").trim()) continue;
+		try { await actor.update({ "system.home": "Stonetop" }); updated++; }
+		catch (err) { console.warn("Stonetop | Could not backfill Home for", actor?.name, err); }
+	}
+	await steading.setFlag("stonetop_pwd", "steading", { residentHomesBackfilled: true });
+	return updated;
+}
+
+/** Backfill resident Homes across every steading in the world (GM ready hook). */
+export async function backfillAllResidentHomes() {
+	if (!game.user?.isGM) return;
+	const steadings = (game.actors?.contents ?? []).filter(a => a.type === "stonetop");
+	for (const s of steadings) {
+		try { await backfillResidentHomes(s); }
+		catch (err) { console.error("Stonetop | backfillResidentHomes failed for", s?.name, err); }
 	}
 }

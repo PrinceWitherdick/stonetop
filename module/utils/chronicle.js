@@ -28,6 +28,11 @@ import {
 	EXPEDITION_PAGE_KEY_PREFIX,
 } from "./chronicle-core.js";
 
+// Per-page flag holding the change-detection hash of each prose section's body as WE
+// last wrote it (keyed by heading). Lets seedChroniclePages keep a still-pristine
+// section syncing with the source while freezing one the GM has edited in the journal.
+const CHRONICLE_PROSE_FLAG = "chronicleProse";
+
 // Player characters in the introductions' turn order when a combat is set up
 // (honouring how the GM arranged the table), else the world roster. Any PC not in
 // the tracker is appended in roster order.
@@ -142,7 +147,7 @@ export async function ensureChronicleJournal(name, folderId, defaultOwnership, {
 // since — new sections, and new Q&A pairs (see mergeChronicleSections) — so a part-way or
 // later-session save isn't silently dropped. Existing/edited sections are preserved, so
 // inline edits still survive re-saves. Returns { created, updated } counts.
-async function seedChroniclePages(entry, pages) {
+async function seedChroniclePages(entry, pages, { adoptLegacyKeys = null } = {}) {
 	if (!entry || !pages.length) return { created: 0, updated: 0 };
 	const existingByKey = new Map();
 	let maxSort = 0;
@@ -157,20 +162,34 @@ async function seedChroniclePages(entry, pages) {
 	for (const page of pages) {
 		const existing = existingByKey.get(page.key);
 		if (existing) {
-			// Already seeded — merge in any sections/pairs recorded since (toObject() gives
-			// plain data the merge can spread and the update can store back).
+			// Already seeded — merge in any sections/pairs recorded since, and refresh
+			// still-pristine prose to the latest source (so a player's introduction fills in
+			// live as they type; a hand-edited section is left alone — see
+			// mergeChronicleSections). toObject() gives plain data the merge can spread and
+			// the update can store back; the per-heading prose hashes ride in a page flag.
 			const current = existing.toObject().system?.sections ?? [];
-			const { sections, added } = mergeChronicleSections(current, page.sections);
-			if (added) toUpdate.push({ _id: existing.id, "system.sections": sections });
+			const proseManaged = existing.getFlag?.("stonetop_pwd", CHRONICLE_PROSE_FLAG) ?? {};
+			// A page in `adoptLegacyKeys` is being authored live right now, so its untracked
+			// (pre-hash) prose may be taken over by the current text — see mergeChronicleSections.
+			const adoptLegacy = adoptLegacyKeys ? adoptLegacyKeys.has(page.key) : false;
+			const merged = mergeChronicleSections(current, page.sections, { proseManaged, adoptLegacy });
+			if (merged.added) toUpdate.push({
+				_id: existing.id,
+				"system.sections": merged.sections,
+				[`flags.stonetop_pwd.${CHRONICLE_PROSE_FLAG}`]: merged.proseManaged,
+			});
 			continue;
 		}
 		sort += 10;
+		// Stamp the initial prose hashes so subsequent saves can tell this seed from a
+		// later hand edit (merge with an empty page fingerprints every prose section).
+		const { proseManaged } = mergeChronicleSections([], page.sections);
 		toCreate.push({
 			name:   page.name,
 			type:   "chronicle",
 			sort,
 			system: { sections: page.sections },
-			flags:  { stonetop_pwd: { chronicleKey: page.key } },
+			flags:  { stonetop_pwd: { chronicleKey: page.key, [CHRONICLE_PROSE_FLAG]: proseManaged } },
 		});
 	}
 	if (toCreate.length) await entry.createEmbeddedDocuments("JournalEntryPage", toCreate);
@@ -186,8 +205,11 @@ async function seedChroniclePages(entry, pages) {
  * journal (so the API can open it). GM-only; returns null when there's nothing recorded
  * yet, or on a non-GM call. `opts.silent` suppresses the info/warn toasts, for the
  * background "live" saves the Introductions dialog fires as answers are recorded.
+ * `opts.adoptLegacyKeys` is the set of page keys (actor ids) being authored live right
+ * now, whose untracked (pre-hash) prose the live intro sync may refresh from the current
+ * text instead of freezing (see seedChroniclePages / mergeChronicleSections).
  */
-export async function writeChronicle({ silent = false } = {}) {
+export async function writeChronicle({ silent = false, adoptLegacyKeys = null } = {}) {
 	if (!game.user?.isGM) {
 		if (!silent) ui.notifications?.warn?.("Only the GM can save the Chronicle.");
 		return null;
@@ -224,7 +246,7 @@ export async function writeChronicle({ silent = false } = {}) {
 
 	let created = 0, updated = 0;
 	for (const [target, list] of [[intro, introPages], [expe, expePages]]) {
-		const { created: c, updated: u } = await seedChroniclePages(target, list);
+		const { created: c, updated: u } = await seedChroniclePages(target, list, { adoptLegacyKeys });
 		created += c;
 		updated += u;
 	}

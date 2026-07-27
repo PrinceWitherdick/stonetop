@@ -5,6 +5,9 @@ function makeFlags(store = {}) {
 	return {
 		getFlag: (key) => store[key] ?? null,
 		setFlag: vi.fn(async (key, val) => { store[key] = val; }),
+		// StonetopFlags.batch writes several flags in one actor.update; here it is just
+		// several stores set at once (the fake has no document to update).
+		batch: vi.fn(async ({ sets = {} } = {}) => { Object.assign(store, sets); }),
 	};
 }
 
@@ -157,5 +160,30 @@ describe("CharacterPossessions — choiceUses", () => {
 		const cp = new CharacterPossessions(makeFlags(store));
 		await cp.setChoiceUses("weapons-of-war", "crossbow", 2);
 		expect(store.choiceUses).toEqual({ "weapons-of-war:sword": 0, "weapons-of-war:crossbow": 2 });
+	});
+});
+
+describe("CharacterPossessions — choiceTexts (sub-option fill-in blanks)", () => {
+	it("getChoiceText returns '' when nothing saved", () => {
+		const cp = new CharacterPossessions(makeFlags());
+		expect(cp.getChoiceText("personal-token", "shield")).toBe("");
+	});
+
+	it("setChoiceText stores the written value under possessionSlug:choiceSlug", async () => {
+		const store = {};
+		const cp = new CharacterPossessions(makeFlags(store));
+		await cp.setChoiceText("personal-token", "shield", "House Dunmer");
+		expect(store.choiceTexts).toEqual({ "personal-token:shield": "House Dunmer" });
+		expect(cp.getChoiceText("personal-token", "shield")).toBe("House Dunmer");
+	});
+
+	it("setChoiceText merges with existing fills", async () => {
+		const store = { choiceTexts: { "personal-token:shield": "House Dunmer" } };
+		const cp = new CharacterPossessions(makeFlags(store));
+		await cp.setChoiceText("personal-token", "wool-cloak", "your late mother");
+		expect(store.choiceTexts).toEqual({
+			"personal-token:shield": "House Dunmer",
+			"personal-token:wool-cloak": "your late mother",
+		});
 	});
 });

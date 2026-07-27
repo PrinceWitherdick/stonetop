@@ -4,6 +4,7 @@ import { rollDamage } from "../../utils/roll-engine.js";
 import { DAMAGE_DIE_RE } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { escHtml, isDefaultImg } from "../../utils/strings.js";
+import { wirePortraitPopout, updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { findMonsterTag } from "../../data/monster-tags.js";
 import { getHoverDescriptionSetting, getOpenSheetsInEditMode } from "../../settings.js";
 import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
@@ -450,12 +451,7 @@ export function createStonetopMonsterSheetClass(Base) {
 			// Registered before the isEditable bail so it works from read-only views too
 			// (e.g. a monster opened out of a compendium). Skipped when there's no real
 			// portrait, so the decorative creature-type fallback icon isn't blown up.
-			html[0].querySelector(".stonetop-portrait")?.addEventListener("click", ev => {
-				if (this._editMode || isDefaultImg(this.actor.img)) return;
-				ev.preventDefault();
-				ev.stopPropagation();
-				new ImagePopout(this.actor.img, { title: this.actor.name }).render(true);
-			});
+			wirePortraitPopout(this, html[0]);
 
 			if (!this.isEditable) return;
 
@@ -581,8 +577,7 @@ export function createStonetopMonsterSheetClass(Base) {
 		}
 
 		async _updateRichTextField(field, value) {
-			if (!MONSTER_RICH_TEXT_FIELDS.some(entry => entry.key === field)) return;
-			await this.actor.update({ [`system.${field}`]: value ?? "" });
+			return updateRichTextField(this, MONSTER_RICH_TEXT_FIELDS, field, value);
 		}
 
 		/**
@@ -595,10 +590,7 @@ export function createStonetopMonsterSheetClass(Base) {
 		 * @param {string} value   the new value
 		 */
 		async _updateMoveField(itemId, field, value) {
-			if (!MONSTER_MOVE_EDITABLE_FIELDS.has(field)) return;
-			const item = this.actor.items.get(itemId);
-			if (!item) return;
-			await item.update({ [field]: value ?? "" });
+			return updateMoveField(this, MONSTER_MOVE_EDITABLE_FIELDS, itemId, field, value);
 		}
 	};
 }

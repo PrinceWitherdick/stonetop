@@ -1,8 +1,8 @@
 // Reopen document sheets (characters, steadings, monsters, items, journals) in the
-// same place they were when this client last reloaded. Foundry doesn't restore open
-// windows across a refresh, so we keep a live registry of the open document sheets and
-// their geometry, persist a snapshot to a per-client setting, and re-render each one on
-// ready at its saved position.
+// same place — and the same state — they were in when this client last reloaded. Foundry
+// doesn't restore open windows across a refresh, so we keep a live registry of the open
+// document sheets, persist a snapshot (geometry, active tab, edit/lock mode) to a
+// per-client setting, and re-render each one on ready from that snapshot.
 //
 // Scope is deliberately narrow: only actual document sheets (things resolvable by uuid
 // and re-openable via `doc.sheet`). Transient dialogs — the level-up wizard, the
@@ -65,10 +65,16 @@ function _snapshotTabs(app) {
 	return active.some(Boolean) ? active : null;
 }
 
+// Whether a sheet wears the Stonetop edit/lock mode at all (character, steading, NPC,
+// monster, arcanum). Everything else — core sheets, journals — simply has no mode to save.
+function _hasEditMode(app) {
+	return typeof app?._editMode === "boolean";
+}
+
 // A {left, top, width, height} snapshot of an app's current window geometry, plus its
-// minimized state and active tab(s), or null if it isn't positioned yet. Only finite
-// numbers are kept, so an auto-height window (height: "auto") stores no height and
-// reopens auto-sized.
+// minimized state, active tab(s), and edit/lock mode, or null if it isn't positioned yet.
+// Only finite numbers are kept, so an auto-height window (height: "auto") stores no height
+// and reopens auto-sized.
 function _snapshotPosition(app) {
 	const p = app?.position ?? {};
 	const out = {};
@@ -80,7 +86,22 @@ function _snapshotPosition(app) {
 	if (app.minimized ?? app._minimized) out.minimized = true;
 	const tabs = _snapshotTabs(app);
 	if (tabs) out.tabs = tabs;
+	// Store both states, not just `true`: a sheet the user deliberately LOCKED must reopen
+	// locked even when the "Open Sheets in Edit Mode" client setting would default it open.
+	if (_hasEditMode(app)) out.editMode = app._editMode;
 	return out;
+}
+
+// Put a restored sheet back into the mode it was left in, before its first render (the
+// mode drives the template and context, so it has to land pre-render). Entering edit mode
+// is skipped for a sheet this user can't edit — the toggle itself refuses that too.
+function _applyEditMode(app, editMode) {
+	if (typeof editMode !== "boolean" || !_hasEditMode(app)) return;
+	if (editMode && app.isEditable === false) return;
+	// The journal page sheets derive `_editMode` from a getter with no setter; assigning
+	// there throws, and their mode follows the document's editability anyway.
+	try { app._editMode = editMode; }
+	catch (_err) { /* derived mode — nothing to restore */ }
 }
 
 // ApplicationV2 (v13+ journal entry sheets, and any future core-migrated sheet) takes
@@ -199,6 +220,7 @@ export async function restoreOpenWindows() {
 				// off the sheet's default tab. Set right before render so it's live when the
 				// hook lands, and consumed once so a later data re-render can't re-force it.
 				if (Array.isArray(saved.tabs)) _pendingTabs.set(uuid, saved.tabs);
+				_applyEditMode(sheet, saved.editMode);
 				const geom = { left: pos.left, top: pos.top, width: pos.width, height: pos.height };
 				if (_isAppV2(sheet)) sheet.render({ force: true, position: geom });
 				else sheet.render(true, geom);

@@ -1,13 +1,12 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { getHoverDescriptionSetting } from "../../../settings.js";
 import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
 import { wrapStonetopGlyphsInEl } from "../../../utils/glyphs.js";
 import { LOAD_LEVEL_LIMITS, deriveLoadLevel } from "../../../utils/load.js";
 
-export class OutfitMoveDialog extends Application {
+export class OutfitMoveDialog extends StonetopDialog {
 	constructor(character, outfitSnapshot, onDone, options = {}) {
 		super(options);
-		this._frontOnOpen = new FrontOnOpen(this);
 		this._character      = character;
 		// Journal treasures render under their own heading on the sheet, but for Outfit
 		// they're just carried gear: fold them back into the column they weigh against, so
@@ -55,16 +54,6 @@ export class OutfitMoveDialog extends Application {
 			resizable: true,
 			classes: ["stonetop", "stonetop-outfit-dialog"],
 		});
-	}
-
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
 	}
 
 	getData() {
@@ -154,7 +143,6 @@ export class OutfitMoveDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 
 		// Gear-term hover descriptions (e.g. "near", "forceful", "x piercing") on
 		// item notes — the dialog isn't an actor sheet, so onRenderActorSheet's

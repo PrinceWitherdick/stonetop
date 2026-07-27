@@ -1,4 +1,4 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { rollStat, sign } from "../../../utils/roll-engine.js";
 import { StonetopSteading } from "../../steading/StonetopSteading.js";
 import { beastFollowerForAsset, followerInputFromBeast } from "../../../data/beasts.js";
@@ -14,7 +14,7 @@ import { CUSTOM_ASSET_VALUE, wireCustomAssetSelect } from "../../../utils/requis
  * a "taken by" note) on the steading's Assets list. Returning it is done from the
  * steading sheet by clicking the greyed-out asset.
  */
-export class RequisitionDialog extends Application {
+export class RequisitionDialog extends StonetopDialog {
 	/**
 	 * @param {object} stonetopCharacter - StonetopCharacter wrapper (for inventory writes)
 	 * @param {Actor}  characterActor     - The character Actor document (for name/id)
@@ -28,7 +28,6 @@ export class RequisitionDialog extends Application {
 		this._steadingActor = steadingActor;
 		this._steading = new StonetopSteading(steadingActor);
 		this._onChange = onChange;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -41,16 +40,6 @@ export class RequisitionDialog extends Application {
 			resizable: true,
 			classes: ["stonetop", "stonetop-requisition"],
 		});
-	}
-
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
 	}
 
 	getData() {
@@ -68,7 +57,6 @@ export class RequisitionDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 		const root = html[0];
 		const assetSelect = root.querySelector(".stonetop-requisition-asset-select");
 		const customInput = root.querySelector(".stonetop-requisition-custom-input");

@@ -7,6 +7,8 @@
 // code because a player's client never receives that pack. Keys are lower-cased to
 // match the onboarding dialog's _lookupWord; some phrases alias to a god's summary.
 
+import { escHtml } from "./strings.js";
+
 const DANU =
 	"Danu — the Great Mother, the Goddess, She-Who-Provides — is one of the four main gods of Stonetop. She is the deity of the earth and the wild places, of beasts and birds, of green growing things. She has long been revered by all peoples, though not always worshipped, nor served by priests.";
 const ARATIS =
@@ -45,14 +47,6 @@ const _WRAP_RE = new RegExp(
 	"g",
 );
 
-function _escapeAttr(text) {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
-}
-
 /**
  * Wrap known lore proper nouns in an authored HTML string with a `data-tooltip`
  * span so they show their player-safe summary on hover (Foundry-native tooltip).
@@ -65,6 +59,6 @@ export function wrapLoreTerms(html) {
 	return html.replace(_WRAP_RE, match => {
 		const summary = LORE_TERM_TOOLTIPS[WRAP_TERMS[match]];
 		if (!summary) return match;
-		return `<span class="stonetop-lore-term" data-tooltip="${_escapeAttr(summary)}">${match}</span>`;
+		return `<span class="stonetop-lore-term" data-tooltip="${escHtml(summary)}">${match}</span>`;
 	});
 }

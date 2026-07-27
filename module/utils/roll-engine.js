@@ -336,12 +336,7 @@ export async function rollStat(statKey, actor, options = {}) {
 	const header = moveName ?? statLabel;
 
 	// Build condition pills
-	const conditions = [];
-	if (rollMode === "adv") {
-		conditions.push(`<li class="stonetop-condition-advantage">Advantage</li>`);
-	} else if (rollMode === "dis") {
-		conditions.push(`<li class="stonetop-condition-disadvantage">Disadvantage</li>`);
-	}
+	const conditions = advDisConditionPills(rollMode);
 	if (forward !== 0) {
 		conditions.push(`<li class="stonetop-condition-forward">Forward ${sign(forward)}</li>`);
 	}
@@ -393,7 +388,7 @@ export async function rollStat(statKey, actor, options = {}) {
 	if (result.key === "failure" && actor?.type === "character" && !options.noXpOnMiss) {
 		const currentXp = actor.system?.attributes?.xp?.value ?? 0;
 		const level     = actor.system?.attributes?.level?.value ?? 1;
-		const maxXp     = 6 + level * 2;
+		const maxXp     = xpToLevelUp(level);
 		const newXp     = currentXp + 1;
 		// Attribute the marked XP to the move that missed, so the ledger reads "via <move>".
 		await actor.update({ "system.attributes.xp.value": newXp }, moveName ? { stonetopMove: moveName } : {});
@@ -413,6 +408,21 @@ export async function rollStat(statKey, actor, options = {}) {
 	await maybeRemindPotentialForGreatness(actor, statKey, total);
 
 	return roll;
+}
+
+// The Advantage / Disadvantage condition pill(s) for a roll mode — shared by the stat and
+// damage cards so a class rename or label change lands in one place.
+function advDisConditionPills(rollMode) {
+	if (rollMode === "adv") return [`<li class="stonetop-condition-advantage">Advantage</li>`];
+	if (rollMode === "dis") return [`<li class="stonetop-condition-disadvantage">Disadvantage</li>`];
+	return [];
+}
+
+// Stonetop's XP-to-level rule: the XP total needed to level up at a given level is 6 + 2×level.
+// The single owner of that curve — every "N / max" readout and affordability check calls this
+// rather than re-deriving the formula, so a change to the curve lands in exactly one place.
+export function xpToLevelUp(level) {
+	return 6 + level * 2;
 }
 
 /**
@@ -446,12 +456,7 @@ export async function rollDamage(formula, actor, options = {}) {
 	const roll = await new Roll(_damageRollFormula(formula, rollMode)).evaluate();
 	const label = options.label ?? "Damage";
 
-	const conditions = [];
-	if (rollMode === "adv") {
-		conditions.push(`<li class="stonetop-condition-advantage">Advantage</li>`);
-	} else if (rollMode === "dis") {
-		conditions.push(`<li class="stonetop-condition-disadvantage">Disadvantage</li>`);
-	}
+	const conditions = advDisConditionPills(rollMode);
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),

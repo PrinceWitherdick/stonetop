@@ -1,5 +1,6 @@
 import { MoveDefinition } from "../../../model/MoveDefinition.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
+import { ITEMS_PACK } from "../StonetopFlags.js";
 
 const PLAYBOOK_FIELDS   = ["system.playbook", "system.isStartingMove", "system.requirement",
                             "system.rollType", "system.description", "system.repeatMax", "system.cap", "system.resource",
@@ -8,9 +9,9 @@ const POST_DEATH_FIELDS = ["system.playbook", "system.rollType", "system.descrip
 
 export class FoundryMoveRepository {
 	constructor() {
-		this._playbookStore  = new FoundryPackStore("stonetop_pwd.stonetop-items", PLAYBOOK_FIELDS);
-		this._basicStore     = new FoundryPackStore("stonetop_pwd.stonetop-items", ["system.moveType", "system.rollType", "system.description"]);
-		this._postDeathStore = new FoundryPackStore("stonetop_pwd.stonetop-items", POST_DEATH_FIELDS);
+		this._playbookStore  = new FoundryPackStore(ITEMS_PACK, PLAYBOOK_FIELDS);
+		this._basicStore     = new FoundryPackStore(ITEMS_PACK, ["system.moveType", "system.rollType", "system.description"]);
+		this._postDeathStore = new FoundryPackStore(ITEMS_PACK, POST_DEATH_FIELDS);
 		this._playbookCache    = new Map();
 		this._postDeathCache   = new Map();
 		this._basicCache       = null;

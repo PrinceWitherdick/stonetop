@@ -8,6 +8,7 @@
 // plus a few small handlers for the array (impressions), the per-PC relationships
 // map, and the rich-text prose fields (which log "updated" rather than dumping HTML).
 import { isBlank, valuesEqual, actionForField, coalesceEntries } from "../character/CharacterLedger.js";
+import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
 
 const LEDGER_SCOPE = "stonetop_pwd";
 const LEDGER_KEY = "ledger";
@@ -22,6 +23,7 @@ const SYSTEM_PATH_LABELS = {
 	"system.occupation":                    "Occupation",
 	"system.traits":                        "Traits",
 	"system.instinct":                      "Instinct",
+	"system.status":                        "Status",
 	"system.home":                          "Home",
 	"system.relations":                     "Relations",
 	"system.embodiment":                    "Embodiment",
@@ -54,10 +56,6 @@ const HEART_WORDS = ["Hates", "Dislikes", "Neutral", "Likes", "Loves"];
 function heartsLabel(value) {
 	const n = Math.max(1, Math.min(5, Math.trunc(Number(value))));
 	return `${HEART_WORDS[n - 1]} (${n})`;
-}
-
-function stripHtml(value) {
-	return String(value ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
 
 // Blank ↔ content ↔ content transitions for a rich-text field, without dumping the HTML.

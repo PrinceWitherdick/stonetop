@@ -1,13 +1,16 @@
 // Descriptions for animal companion trait tags — checked before compendium lookup.
 import { isMajorArcana } from "../../../arcana-icons.js";
 import { parseMovePickCount, allowedMarkableActions } from "../StonetopCharacter.js";
+import { ITEMS_PACK, ARCANA_PACK } from "../StonetopFlags.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
-import { FrontOnOpen, openJournalSheetAsChild } from "../../../utils/front-on-open.js";
+import { openJournalSheetAsChild } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { shuffle } from "../../../utils/arrays.js";
 import { normalizePlaybookGlyphs, composeInstinct, parseInstinct } from "../../../utils/strings.js";
+import { splitFillBlank, fillBlank } from "../../../utils/fill-blanks.js";
 import { STAT_KEYS } from "../../../utils/roll-types.js";
 import { sign } from "../../../utils/roll-engine.js";
-import { wrapStonetopGlyphsInEl, centerArcanumTracks } from "../../../utils/glyphs.js";
+import { wrapStonetopGlyphsInEl, wrapGlyphTextContainers, centerArcanumTracks } from "../../../utils/glyphs.js";
 import { enrichMoveRefsInEl } from "../../../utils/move-refs.js";
 import { faqForStep, faqPage } from "../../../utils/onboarding-faq.js";
 import { markFaqItems } from "../../../utils/faq-bullets.js";
@@ -90,7 +93,7 @@ export const ANIMAL_COMPANION_TRAIT_GLOSSARY = {
 	"tough":           "Resilient and hard to hurt; shrugs off blows that would fell lesser creatures.",
 };
 
-export class CharacterOnboardingDialog extends Application {
+export class CharacterOnboardingDialog extends StonetopDialog {
 	static hasIncompleteQuestions(playbookDoc, initialSelections = null) {
 		const d = Object.create(CharacterOnboardingDialog.prototype);
 		d._initializeState(playbookDoc, initialSelections, null);
@@ -137,7 +140,6 @@ export class CharacterOnboardingDialog extends Application {
 			...Object.entries(LORE_TERM_TOOLTIPS),
 		]);
 		this._hoveredAnchor = null;
-		this._frontOnOpen = new FrontOnOpen(this);
 
 		this._initializeState(playbookDoc, initialSelections, startAtStep);
 	}
@@ -182,6 +184,9 @@ export class CharacterOnboardingDialog extends Application {
 			// (e.g. the Heavy's & Marshal's Weapons of war): possessionSlug → chosen
 			// sub-slugs. Mirrors the actor's possessions.subChoices flag shape.
 			possessionChoices: {},
+			// Free text for a sub-option's fill-in blank ("A shield, bearing ___'s crest"),
+			// keyed "possessionSlug:choiceSlug". Mirrors the actor's possessions.choiceTexts.
+			possessionChoiceTexts: {},
 			moves:           [],
 			// "Either X OR Y" starting-move picks, keyed by choice-group index → the
 			// chosen move's compendium id (e.g. the Heavy's Armored OR Uncanny Reflexes).
@@ -602,6 +607,23 @@ export class CharacterOnboardingDialog extends Application {
 		this._drawSeekerMinorArcana(minorOptions);
 	}
 
+	// Replace ONE drawn minor arcanum with a specific card from the Seeker's pool, leaving the
+	// other two draws in place — the "I've got 2 of 3 I want, let me just pick the third" path,
+	// versus _drawSeekerMinorArcana's full re-roll. If the swapped-out card carried a role
+	// (Mastered / Found / Lead), the role moves to the incoming card so an assignment the player
+	// already made isn't silently dropped. No-op if newSlug is empty, is already in the draw
+	// (would duplicate a card), or oldSlug isn't currently drawn.
+	_swapSeekerMinorArcana(oldSlug, newSlug) {
+		const draw = this._selections.arcana.minorDraw;
+		const idx = draw.indexOf(oldSlug);
+		if (idx === -1 || !newSlug || draw.includes(newSlug)) return;
+		draw[idx] = newSlug;
+		const roles = this._selections.arcana.minorRoles;
+		for (const role of Object.keys(roles)) {
+			if (roles[role] === oldSlug) roles[role] = newSlug;
+		}
+	}
+
 	// A lore section with no options has nothing to select, so it shouldn't get its
 	// own onboarding page. Instead it folds onto the selection pages that follow it,
 	// whether it's a bare group header (the Heavy's "A History of Violence") or an
@@ -660,13 +682,32 @@ export class CharacterOnboardingDialog extends Application {
 		const isTextSection = opts.length > 0 && opts.every(o => o.type === "text");
 		const isPickSection = opts.length > 0 && !isTextSection;
 		const { picks, texts } = this._selections.lore;
+		// Context shown above a text section: the picks already made, as a reminder while
+		// the player writes. A section flagged `contextFromGroup` (the Fox's "Tell Your
+		// Tale") gathers every pick across its whole folded-header group — all three
+		// tall-tale lists — with any fill-in blanks resolved so the reminder reads cleanly;
+		// otherwise it shows just the immediately-preceding section's picks.
 		const previousSection = index > 0 ? this._rawLore[index - 1] : null;
-		const previousSelectedOptions = isTextSection && previousSection
-			? (previousSection.options ?? [])
-				.filter(opt => (picks[`${previousSection.slug}:${opt.slug}`] ?? 0) > 0)
-				.map(opt => this._normalizeOnboardingText(opt.description ?? ""))
-				.filter(Boolean)
-			: [];
+		const pickedDescriptions = (sec) => (sec.options ?? [])
+			.filter(opt => (picks[`${sec.slug}:${opt.slug}`] ?? 0) > 0)
+			.map(opt => {
+				const raw  = String(opt.description ?? "");
+				const fill = texts[`${sec.slug}:${opt.slug}`] ?? "";
+				return this._normalizeOnboardingText(fillBlank(raw, fill));
+			})
+			.filter(Boolean);
+		let previousSelectedOptions = [];
+		let contextTitle = "";
+		if (isTextSection && section.contextFromGroup) {
+			const headerIdx = this._nearestFoldedHeaderIndex(index);
+			for (let j = Math.max(0, headerIdx + 1); j < index; j++) {
+				previousSelectedOptions.push(...pickedDescriptions(this._rawLore[j]));
+			}
+			contextTitle = headerIdx >= 0 ? this._normalizeOnboardingText(this._rawLore[headerIdx].title ?? "") : "";
+		} else if (isTextSection && previousSection) {
+			previousSelectedOptions = pickedDescriptions(previousSection);
+			contextTitle = previousSelectedOptions.length ? this._normalizeOnboardingText(previousSection.title ?? "") : "";
+		}
 		const pickMax      = isPickSection ? this._parseLorePickMax(section) : Infinity;
 		const selectedPickCount = isPickSection ? this._countLoreSectionPicks(section.slug) : 0;
 		const atLimit      = pickMax < Infinity && selectedPickCount >= pickMax;
@@ -676,7 +717,7 @@ export class CharacterOnboardingDialog extends Application {
 			groupHeading:       this._loreGroupHeading(index),
 			groupIntro:         this._loreGroupIntro(index),
 			description:        this._normalizeOnboardingText(section.description ?? ""),
-			contextTitle:        previousSelectedOptions.length ? this._normalizeOnboardingText(previousSection.title ?? "") : "",
+			contextTitle:        contextTitle,
 			contextAnswers:      previousSelectedOptions,
 			isPickSection,
 			isTextSection,
@@ -695,15 +736,25 @@ export class CharacterOnboardingDialog extends Application {
 				}
 				const key   = `${section.slug}:${opt.slug}`;
 				const count = picks[key] ?? 0;
+				// A pick option can carry a fill-in blank (a run of underscores) the player
+				// completes inline — e.g. the Fox's "… running for your life from ___". The
+				// written value shares the lore.texts store (pick options don't otherwise use
+				// it), so it persists and renders through the existing text machinery.
+				const desc  = this._normalizeOnboardingText(opt.description ?? "");
+				const blank = splitFillBlank(desc);
 				return {
 					slug:        opt.slug,
 					sectionSlug: section.slug,
-					description: this._normalizeOnboardingText(opt.description ?? ""),
+					description: desc,
 					type:        "pick",
 					max:         opt.max ?? 1,
 					count,
 					isSelected:  count > 0,
 					disabled:    !count && atLimit,
+					hasBlank:    blank.hasBlank,
+					fillBefore:  blank.before,
+					fillAfter:   blank.after,
+					fillValue:   texts[key] ?? "",
 				};
 			}),
 		};
@@ -735,7 +786,7 @@ export class CharacterOnboardingDialog extends Application {
 		this._arcanaCachePromise = (async () => {
 			// Arcana live in their own GM-hidden compendium (split out of stonetop-items);
 			// the pack is arcana-only, but keep the moveType filter below as a defensive guard.
-			const pack = game.packs.get("stonetop_pwd.stonetop-arcana");
+			const pack = game.packs.get(ARCANA_PACK);
 			if (!pack) return { major: [], minor: [] };
 			await pack.getIndex({ fields: ["system.moveType"] });
 			const entries = pack.index.filter(entry => entry.system?.moveType === "arcanum");
@@ -774,6 +825,14 @@ export class CharacterOnboardingDialog extends Application {
 		const allowedMajor = new Set(this._seekerMajorArcanaSlugs());
 		const minorDraw = new Set(this._selections.arcana.minorDraw);
 		const { minorRoles } = this._selections.arcana;
+		// Candidates for the per-card swap picker: every minor arcanum in the Seeker's pool
+		// that isn't one of the three currently drawn (swapping to an already-drawn card would
+		// duplicate it). The same list applies to all three cards, so it's attached (by shared
+		// reference) to each below — this keeps the template free of `../` context hops across
+		// the card `{{#each}}`. arcana.minor is pre-sorted by name, so the picker is alphabetical.
+		const swapOptions = arcana.minor
+			.filter(option => !minorDraw.has(option.slug))
+			.map(option => ({ slug: option.slug, name: option.name }));
 		return {
 			majorSelected: selectedMajor,
 			minorAssignedCount: Object.values(minorRoles).filter(Boolean).length,
@@ -785,6 +844,7 @@ export class CharacterOnboardingDialog extends Application {
 			minor: arcana.minor.filter(option => minorDraw.has(option.slug)).map(option => ({
 				...option,
 				role: Object.entries(minorRoles).find(([, slug]) => slug === option.slug)?.[0] ?? "",
+				swapOptions,
 				})),
 		};
 	}
@@ -885,7 +945,7 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	async _loadPlaybookMoves() {
-		const pack = game.packs.get("stonetop_pwd.stonetop-items");
+		const pack = game.packs.get(ITEMS_PACK);
 		if (!pack) return [];
 		await pack.getIndex({ fields: ["system.playbook", "system.isStartingMove", "system.requirement"] });
 		const relevant = pack.index.filter(e => e.system?.playbook === this._playbookDoc.name);
@@ -995,12 +1055,18 @@ export class CharacterOnboardingDialog extends Application {
 			locked:         !parentSelected,
 			options: opt.choices.options.map(c => {
 				const isSelected = picked.includes(c.slug);
+				const label = this._normalizeOnboardingText(c.label);
+				const blank = splitFillBlank(label);
 				return {
 					possessionSlug: opt.slug,
 					slug:           c.slug,
-					label:          this._normalizeOnboardingText(c.label),
+					label,
 					isSelected,
 					disabled:       !parentSelected || (!isSelected && atLimit),
+					hasBlank:       blank.hasBlank,
+					fillBefore:     blank.before,
+					fillAfter:      blank.after,
+					fillValue:      this._selections.possessionChoiceTexts[`${opt.slug}:${c.slug}`] ?? "",
 				};
 			}),
 		};
@@ -1544,7 +1610,6 @@ export class CharacterOnboardingDialog extends Application {
 			this._rebuildDynamicSteps();
 		}
 		await super._render(force, options);
-		this._frontOnOpen.apply();
 		this._reportProgress();
 	}
 
@@ -1924,11 +1989,24 @@ export class CharacterOnboardingDialog extends Application {
 			const chosen = new Set(this._selections.crew.tags);
 			const limit  = raw.additionalTagCount ?? 2;
 			const atLimit = chosen.size >= limit;
+			// The Crew insert mirrors the companion's: blank write-in rows for Tags (a
+			// chosen tag not in the list is the write-in, and it spends one of the "pick N"
+			// tag picks) and for Instinct/Cost (a value not among the suggestions).
+			const knownTags = new Set(raw.availableTags ?? []);
+			const customTag = [...chosen].find(t => !knownTags.has(t)) ?? "";
+			const crewInstinct   = this._selections.crew.instinct;
+			const crewCost       = this._selections.crew.cost;
+			const instinctValues = (raw.instincts ?? []).map(v => this._normalizeOnboardingText(v));
+			const costValues     = (raw.costs ?? []).map(v => this._normalizeOnboardingText(v));
+			const isCustomInstinct = !!crewInstinct && !instinctValues.includes(crewInstinct);
+			const isCustomCost     = !!crewCost && !costValues.includes(crewCost);
 			crewData = {
 				name:               this._selections.crew.name,
 				bgTag:              this._normalizeOnboardingText(bgTag),
 				additionalTagCount: limit,
 				selectedTagCount:   chosen.size,
+				customTag,
+				customTagDisabled:  !customTag && atLimit,
 				tags: (raw.availableTags ?? []).map(tag => {
 					const isAuto     = tag === bgTag;
 					const isSelected = isAuto || chosen.has(tag);
@@ -1937,14 +2015,12 @@ export class CharacterOnboardingDialog extends Application {
 						disabled: isAuto || (!isSelected && atLimit),
 					};
 				}),
-				instincts: (raw.instincts ?? []).map(v => {
-					const value = this._normalizeOnboardingText(v);
-					return { value, selected: this._selections.crew.instinct === value };
-				}),
-				costs: (raw.costs ?? []).map(v => {
-					const value = this._normalizeOnboardingText(v);
-					return { value, selected: this._selections.crew.cost === value };
-				}),
+				instincts: instinctValues.map(value => ({ value, selected: crewInstinct === value })),
+				costs:     costValues.map(value => ({ value, selected: crewCost === value })),
+				isCustomInstinct,
+				customInstinct: isCustomInstinct ? crewInstinct : "",
+				isCustomCost,
+				customCost:     isCustomCost ? crewCost : "",
 			};
 		}
 
@@ -2006,6 +2082,21 @@ export class CharacterOnboardingDialog extends Application {
 			const kind = this._selections.animalCompanion.kind;
 			const kindOptionValues = this._animalCompanionKindOptions(typeData);
 			const traitAtLimit = chosenTraits.size >= (typeData?.pickCount ?? 0);
+			// Each Type's trait list ends with a blank write-in row (Book I p.143). A
+			// selected trait that isn't one of the listed options is the player's write-in;
+			// it still spends one of the "Pick N" picks but is descriptive-only (it derives
+			// no HP/armor/damage — the stat regex only matches "+N HP/armor/damage").
+			const knownTraitSet = new Set(typeData?.traits ?? []);
+			const customTrait   = [...chosenTraits].find(t => !knownTraitSet.has(t)) ?? "";
+			// Instinct and cost are "pick a suggestion or make up your own" (Book I
+			// companion insert), so a value that isn't one of the suggestions is a
+			// write-in — surfaced through the custom field with the radios cleared.
+			const acInstinct     = this._selections.animalCompanion.instinct;
+			const acCost         = this._selections.animalCompanion.cost;
+			const instinctValues = (raw.instincts ?? []).map(v => this._normalizeOnboardingText(v));
+			const costValues     = (raw.costs ?? []).map(v => this._normalizeOnboardingText(v));
+			const isCustomInstinct = !!acInstinct && !instinctValues.includes(acInstinct);
+			const isCustomCost     = !!acCost && !costValues.includes(acCost);
 			acData = {
 				types: (raw.types ?? []).map(t => ({
 					slug: t.slug, label: this._normalizeOnboardingText(t.label), examples: this._normalizeOnboardingText(t.examples),
@@ -2025,6 +2116,8 @@ export class CharacterOnboardingDialog extends Application {
 						.map(value => ({ value, selected: kind === value })),
 					pickCount:     typeData.pickCount,
 					selectedCount: chosenTraits.size,
+					customTrait,
+					customTraitDisabled: !customTrait && traitAtLimit,
 					traits: (typeData.traits ?? []).map(trait => {
 						const isMandatory = trait === mandatoryTrait;
 						return {
@@ -2037,14 +2130,12 @@ export class CharacterOnboardingDialog extends Application {
 						};
 					}),
 				} : null,
-				instincts: (raw.instincts ?? []).map(v => {
-					const value = this._normalizeOnboardingText(v);
-					return { value, selected: this._selections.animalCompanion.instinct === value };
-				}),
-				costs: (raw.costs ?? []).map(v => {
-					const value = this._normalizeOnboardingText(v);
-					return { value, selected: this._selections.animalCompanion.cost === value };
-				}),
+				instincts: instinctValues.map(value => ({ value, selected: acInstinct === value })),
+				costs:     costValues.map(value => ({ value, selected: acCost === value })),
+				isCustomInstinct,
+				customInstinct: isCustomInstinct ? acInstinct : "",
+				isCustomCost,
+				customCost:     isCustomCost ? acCost : "",
 				companionName: this._selections.animalCompanion.name,
 			};
 		}
@@ -2116,12 +2207,10 @@ export class CharacterOnboardingDialog extends Application {
 		// Redraw inline ◇/○/□/▶ glyphs in the read-only prose (background & possession
 		// descriptions, lore section text, lore pick options like the Seeker's "mark 1 ○
 		// on the front of its insert") as the system's styled SVG glyphs — the same
-		// treatment the FAQ popup and the live character sheet get. Scoped to display-only
-		// containers; the editable answer <textarea>s (onboard-lore-text / -setup-text)
-		// are never matched, so a typed glyph in an answer is left untouched.
-		html.find(".stonetop-onboarding-card-desc, .stonetop-onboarding-card-inline-desc, .stonetop-onboarding-lore-desc, .stonetop-onboarding-lore-pick-text, .stonetop-onboarding-lore-text-label, .stonetop-onboarding-suboption-label, .stonetop-onboarding-arcana-front-body")
-			.each((_, el) => wrapStonetopGlyphsInEl(el));
-		this._frontOnOpen.start();
+		// treatment the FAQ popup and the live character sheet get. The shared container
+		// list is display-only, so the editable answer <textarea>s (onboard-lore-text /
+		// -setup-text) are never matched and a typed glyph in an answer is left untouched.
+		wrapGlyphTextContainers(html[0]);
 
 		html.find(".stonetop-onboarding-back-to-picker").on("click", () => this._goBack());
 		html.find(".stonetop-onboarding-back").on("click", () => this._navigate(-1));
@@ -2579,6 +2668,13 @@ export class CharacterOnboardingDialog extends Application {
 			this._refreshPossessionSubUi(html, possessionSlug);
 			_refreshNextButton();
 		});
+		// Sub-option fill-in blank (the Would-Be Hero's personal token): stored verbatim,
+		// keyed possession:choice, and persisted alongside the sub-choice picks.
+		html.find(".onboard-possession-sub-fill").on("input", ev => {
+			const { possession, choice } = ev.currentTarget.dataset;
+			this._selections.possessionChoiceTexts[`${possession}:${choice}`] = ev.currentTarget.value;
+			_refreshNextButton();
+		});
 
 		// "Choose 1 on each line" flavor groups (the sacred pouch). Pick-1 lines are
 		// radios: select this option and drop its siblings from the shared picks array.
@@ -2789,16 +2885,43 @@ export class CharacterOnboardingDialog extends Application {
 			html.find("[name='onboard-crew-tag']:not([data-auto])").each((_, el) => {
 				if (!el.checked) el.disabled = atLimit;
 			});
+			const tagCustom = html.find(".onboard-crew-tag-custom");
+			tagCustom.prop("disabled", atLimit && !tagCustom.val().trim());
 			_refreshNextButton();
 		});
-		html.find("[name='onboard-crew-instinct']").on("change", ev => {
-			this._selections.crew.instinct = ev.currentTarget.value;
+		// Custom crew tag write-in: spends one of the "pick N" tag picks, same as the
+		// companion trait write-in. Re-derive tags as [listed picks] + this write-in.
+		html.find(".onboard-crew-tag-custom").on("input", ev => {
+			const value = ev.currentTarget.value.trim();
+			const known = new Set(this._rawCrew?.availableTags ?? []);
+			const limit = this._rawCrew?.additionalTagCount ?? 2;
+			const tags  = this._selections.crew.tags.filter(t => known.has(t));
+			if (value && tags.length < limit) tags.push(value);
+			this._selections.crew.tags = tags;
+			html.find(".stonetop-onboarding-crew-tag-count").text(tags.length);
+			html.find("[name='onboard-crew-tag']:not([data-auto]):not(:checked)").prop("disabled", tags.length >= limit);
 			_refreshNextButton();
 		});
-		html.find("[name='onboard-crew-cost']").on("change", ev => {
-			this._selections.crew.cost = ev.currentTarget.value;
-			_refreshNextButton();
-		});
+		// Suggestion-radio + "or write your own" custom-input pair (crew/AC instinct &
+		// cost): picking a radio saves that value and clears the write-in; typing a write-in
+		// saves it verbatim and clears the radios (the value isn't one of them), same as the
+		// kind custom field and after-the-fact follower-card editing. `apply(value)` stores
+		// it in the right `_selections` slot.
+		const bindSuggestionOrCustom = (radioName, customClass, apply) => {
+			html.find(`[name='${radioName}']`).on("change", ev => {
+				apply(ev.currentTarget.value);
+				html.find(customClass).val("");
+				_refreshNextButton();
+			});
+			html.find(customClass).on("input", ev => {
+				apply(ev.currentTarget.value.trim());
+				html.find(`[name='${radioName}']`).prop("checked", false)
+					.closest(".stonetop-onboarding-card").removeClass("is-selected");
+				_refreshNextButton();
+			});
+		};
+		bindSuggestionOrCustom("onboard-crew-instinct", ".onboard-crew-instinct-custom", v => this._selections.crew.instinct = v);
+		bindSuggestionOrCustom("onboard-crew-cost", ".onboard-crew-cost-custom", v => this._selections.crew.cost = v);
 
 		// ── Animal Companion ─────────────────────────────────────────
 		html.find("[name='onboard-ac-type']").on("change", ev => {
@@ -2846,16 +2969,27 @@ export class CharacterOnboardingDialog extends Application {
 			html.find(".stonetop-onboarding-ac-trait-count").text(this._selections.animalCompanion.traits.length);
 			const atLimit = this._selections.animalCompanion.traits.length >= limit;
 			html.find("[name='onboard-ac-trait']:not(:checked)").prop("disabled", atLimit);
+			const traitCustom = html.find(".onboard-ac-trait-custom");
+			traitCustom.prop("disabled", atLimit && !traitCustom.val().trim());
 			_refreshNextButton();
 		});
-		html.find("[name='onboard-ac-instinct']").on("change", ev => {
-			this._selections.animalCompanion.instinct = ev.currentTarget.value;
+		// Custom trait write-in: the value isn't one of the listed options, so it spends
+		// one pick like any checkbox. Re-derive the traits array as [listed picks] + this
+		// write-in, keeping it within the pickCount, then refresh the count and locks.
+		html.find(".onboard-ac-trait-custom").on("input", ev => {
+			const value    = ev.currentTarget.value.trim();
+			const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === this._selections.animalCompanion.type);
+			const known    = new Set(typeData?.traits ?? []);
+			const limit    = typeData?.pickCount ?? 0;
+			const traits   = this._selections.animalCompanion.traits.filter(t => known.has(t));
+			if (value && traits.length < limit) traits.push(value);
+			this._selections.animalCompanion.traits = traits;
+			html.find(".stonetop-onboarding-ac-trait-count").text(traits.length);
+			html.find("[name='onboard-ac-trait']:not(:checked)").prop("disabled", traits.length >= limit);
 			_refreshNextButton();
 		});
-		html.find("[name='onboard-ac-cost']").on("change", ev => {
-			this._selections.animalCompanion.cost = ev.currentTarget.value;
-			_refreshNextButton();
-		});
+		bindSuggestionOrCustom("onboard-ac-instinct", ".onboard-ac-instinct-custom", v => this._selections.animalCompanion.instinct = v);
+		bindSuggestionOrCustom("onboard-ac-cost", ".onboard-ac-cost-custom", v => this._selections.animalCompanion.cost = v);
 		html.find(".onboard-ac-name").on("input", ev => {
 			this._selections.animalCompanion.name = ev.currentTarget.value;
 		});
@@ -2960,6 +3094,21 @@ export class CharacterOnboardingDialog extends Application {
 			this._drawSeekerMinorArcana(arcana.minor);
 			await this.render(false);
 			if (stepEl) stepEl.scrollTop = scrollTop;
+		});
+
+		html.find(".stonetop-onboarding-minor-swap-select").on("change", async ev => {
+			const oldSlug = ev.currentTarget.dataset.slug;
+			const newSlug = ev.currentTarget.value;
+			if (!newSlug) return;
+			// The card is still hovered while its <select> is open, so a preview popup may be
+			// up; clear it before the re-render replaces the card it was anchored to.
+			this._removeArcanaPreview();
+			const stepEl    = html.find(".stonetop-onboarding-step")[0];
+			const scrollTop = stepEl?.scrollTop ?? 0;
+			this._swapSeekerMinorArcana(oldSlug, newSlug);
+			await this.render(false);
+			const newStepEl = this.element?.[0]?.querySelector(".stonetop-onboarding-step");
+			if (newStepEl) newStepEl.scrollTop = scrollTop;
 		});
 
 		html.find(".onboard-name-chip").on("click", ev => {
@@ -3121,7 +3270,6 @@ export class CharacterOnboardingDialog extends Application {
 	}
 
 	async close(options) {
-		this._frontOnOpen.stop();
 		this._clearPopups();
 		// Cancel any debounced live-save; the current answers are captured below
 		// (onExit) or were already committed (onComplete), and a late timer could

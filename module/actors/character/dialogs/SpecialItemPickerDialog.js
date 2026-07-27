@@ -1,5 +1,6 @@
-import { FrontOnOpen } from "../../../utils/front-on-open.js";
+import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { SPECIAL_ITEM_FOOTNOTE, relativeValueTooltip } from "../../../data/special-items.js";
+import { wrapGlyphTextContainers } from "../../../utils/glyphs.js";
 
 /**
  * Lets the player add a handout "Special Item" (Weapons of War, Bronze Weapons,
@@ -7,12 +8,11 @@ import { SPECIAL_ITEM_FOOTNOTE, relativeValueTooltip } from "../../../data/speci
  * `special: true`; this picker lists them grouped by category and, on click,
  * invokes `onAdd(slug)` to record it on the actor.
  */
-export class SpecialItemPickerDialog extends Application {
+export class SpecialItemPickerDialog extends StonetopDialog {
 	constructor(catalog, onAdd, options = {}) {
 		super(options);
 		this._catalog = catalog;
 		this._onAdd = onAdd;
-		this._frontOnOpen = new FrontOnOpen(this);
 	}
 
 	static get defaultOptions() {
@@ -25,16 +25,6 @@ export class SpecialItemPickerDialog extends Application {
 			resizable: true,
 			classes: ["stonetop", "stonetop-special-item-picker"],
 		});
-	}
-
-	async _render(force, options) {
-		await super._render(force, options);
-		this._frontOnOpen.apply();
-	}
-
-	async close(options = {}) {
-		this._frontOnOpen.stop();
-		return super.close(options);
 	}
 
 	getData() {
@@ -54,8 +44,12 @@ export class SpecialItemPickerDialog extends Application {
 
 	activateListeners(html) {
 		super.activateListeners(html);
-		this._frontOnOpen.start();
 		const root = html[0];
+
+		// The catalog's trait strings are written with literal marks ("○ low ammo, ○ all
+		// out", "○○○○○ hours", "○○○ uses"), so redraw them as the system's styled glyphs —
+		// the same treatment the gear tab and the Outfit dialog give the same items.
+		wrapGlyphTextContainers(root);
 
 		root.querySelectorAll(".stonetop-special-pick").forEach(btn => {
 			btn.addEventListener("click", async () => {

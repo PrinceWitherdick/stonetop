@@ -627,6 +627,23 @@ export class StonetopSteading {
 	}
 
 	/**
+	 * Append a {uuid, id, name} pointer row for `actor` to a people list — everything the
+	 * row displays is read live off that actor (see steading-people.js#resolvePersonRow).
+	 * Lives here, with the steading's other roster mutations, rather than being written from
+	 * outside: the row's shape and its default are the model's to define.
+	 *
+	 * @param {"residents"|"neighbors"} list
+	 * @returns {Promise<boolean>} whether the row was appended.
+	 */
+	async addPersonRow(list, actor) {
+		if (!actor || !STEADING_DEFAULTS[list]) return false;
+		const rows = foundry.utils.deepClone(this._flags[list] ?? STEADING_DEFAULTS[list]);
+		rows.push({ uuid: actor.uuid, id: actor.id, name: actor.name, checked: false });
+		await this.setFlags({ [list]: rows });
+		return true;
+	}
+
+	/**
 	 * Add a journal-sourced steading improvement (dropped from a bestiary-style card)
 	 * as a tracked custom improvement. The definition is normalized into the same
 	 * shape as IMPROVEMENT_DEFINITIONS so the snapshot/template treat it identically.

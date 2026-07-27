@@ -14,6 +14,7 @@ import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CreateFollowerDialog} from "./dialogs/CreateFollowerDialog.js";
 import {MonsterToFollowerDialog} from "./dialogs/MonsterToFollowerDialog.js";
+import {NpcToFollowerDialog} from "./dialogs/NpcToFollowerDialog.js";
 import {OrderFollowersDialog} from "./dialogs/OrderFollowersDialog.js";
 import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
@@ -21,6 +22,7 @@ import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../..
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
+import { crewExists } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollDamage, rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
@@ -28,12 +30,13 @@ import {defendReadinessHold} from "../../combat/defend-readiness.js";
 import {dieFromDamage} from "../../utils/damage.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
-import {playbookIconPath} from "../../utils/playbook-actors.js";
+import {playbookIconPath, partyCharacters} from "../../utils/playbook-actors.js";
 import {postMoveToChat, moveChatCard} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
+import {peopleNames, steadingPeopleActors} from "../steading/steading-people.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
@@ -41,11 +44,12 @@ import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {annotateInvocationEffects} from "./invocation-effects.js";
-import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {wrapGlyphTextContainers} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
+import {buildRelationshipRows, wireRelationshipTable, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
 import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
@@ -846,6 +850,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.system ??= this.actor.system;
 			context.isCharacter = this.actor.type === "character";
 			context.stonetop = await this._stonetopCharacter.buildSnapshot();
+			// Notes tab: raw source (for the editor to serialize) + enriched HTML (for
+			// the read-only preview, resolving @UUID links, inline rolls, etc.).
+			context.stonetop.notes = this.actor.system?.notes ?? "";
+			context.stonetop.enrichedNotes = context.stonetop.notes
+				? await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes)
+				: "";
 			context.stonetop.movelist ??= {};
 			const overageKey = context.stonetop.movelist.levelMovesOverageKey ?? null;
 			const dismissedOverageKey = this.actor.getFlag(STONETOP_SCOPE, "moves.dismissedLevelOverage");
@@ -882,7 +892,29 @@ export function createStonetopCharacterSheetClass(Base) {
 				appearance: sectionEdit("appearance"),
 				origin:     sectionEdit("origin"),
 				lore:       sectionEdit("lore"),
+				relationships: sectionEdit("relationships"),
 			};
+			// Play mode is a fair copy of the sheet: a Details section the player never
+			// filled in would be a bare heading and a pencil, so drop it entirely. Edit
+			// mode (the wrench, or the section's own pencil) always shows it — that's how
+			// an empty section gets filled in, and the wrench is the way back to a hidden one.
+			const pb = context.stonetop.playbook;
+			const detailsFilled = {
+				lore:       !!pb?.lore?.hasReadonlyContent,
+				background: !!(pb?.background?.selected && pb.background.options?.some(o => o.selected)),
+				instinct:   !!pb?.instinct?.hasSelection,
+				appearance: !!pb?.appearance?.summary,
+				origin:     !!(pb?.origin?.selected && pb.origin.selectedOption),
+			};
+			context.stonetop.detailsShow = Object.fromEntries(Object.entries(detailsFilled)
+				.map(([section, filled]) => [section, filled || context.stonetop.detailsEdit[section]]));
+			const relRows = this._buildRelationshipRows();
+			const relEditing = context.stonetop.detailsEdit.relationships;
+			context.stonetop.relationships    = relEditing ? relRows : relRows.filter(r => r.shown);
+			context.stonetop.hasRelationships = context.stonetop.relationships.length > 0;
+			// Everyone is unticked: say so, and point at the pencil — otherwise a section
+			// with candidates reads identically to a world with nobody in it.
+			context.stonetop.relationshipsAllHidden = !context.stonetop.hasRelationships && relRows.length > 0;
 			context.stonetop.statsEdit       = sectionEdit("stats");
 			context.stonetop.movesEdit       = sectionEdit("moves");
 			context.stonetop.possessionsEdit = sectionEdit("possessions");
@@ -1341,8 +1373,14 @@ export function createStonetopCharacterSheetClass(Base) {
 					// The mandatory trait is locked on and free, so exclude it from the count.
 					const extraCount   = [...selectedSet].filter(t => t !== mandatoryTrait).length;
 					const atLimit      = pickCount > 0 && extraCount >= pickCount;
+					// The insert's blank write-in trait: a selected trait that isn't one of
+					// the type's listed options (nor the mandatory one). Surfaced as an
+					// editable field so it survives — and stays editable — after creation.
+					const customTrait  = [...selectedSet].find(t => t !== mandatoryTrait && !acTypeTraits.includes(t)) ?? "";
 					if (acTypeTraits.length) acTraitChoices = {
 						limit:   pickCount,
+						customTrait,
+						customTraitDisabled: !customTrait && atLimit,
 						options: acTypeTraits.map(value => {
 							const isMandatory = value === mandatoryTrait;
 							const selected    = isMandatory || selectedSet.has(value);
@@ -1392,7 +1430,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				{ slug: "cloak",       label: "<strong>Cloak</strong> (<em>warm</em>)",                                                   weight: 1 },
 			];
 			let crew = null;
-			if (sf.crew?.tags?.length || sf.crew?.instinct || sf.crew?.cost || sf.crew?.name || sf.crew?.individuals?.length) {
+			if (crewExists(sf.crew)) {
 				const loyaltyVal      = sf.crew?.loyalty ?? 0;
 				const gearFlags       = sf.crew?.gear ?? {};
 				const inventoryDef    = playbookDoc?.crew?.inventory?.length ? playbookDoc.crew.inventory : CREW_INVENTORY_FALLBACK;
@@ -1478,6 +1516,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				const crewChosenTags = (sf.crew.tags ?? []).filter(t => t !== crewBgTag);
 				let crewTagOptions = null, crewInstinctOptions = null, crewCostOptions = null;
 				let crewTagLimit = 2;
+				// Write-in values (the Crew insert's blank rows): a tag / instinct / cost the
+				// player typed rather than picked from the list. Surfaced as editable fields.
+				let crewTagCustom = "", crewTagCustomDisabled = false, crewInstinctCustom = "", crewCostCustom = "";
 				if (cardEditing("crew", "")) {
 					const crewOpts     = playbookDoc?.crew ?? {};
 					// Base allowance (playbook data) + extra tags unlocked by Veteran Crew's
@@ -1498,6 +1539,11 @@ export function createStonetopCharacterSheetClass(Base) {
 						const value = normalizePlaybookGlyphs(v);
 						return { value, selected: (sf.crew.cost ?? "") === value };
 					});
+					const knownTags = new Set(crewOpts.availableTags ?? []);
+					crewTagCustom = [...crewTagSet].find(t => t !== crewBgTag && !knownTags.has(t)) ?? "";
+					crewTagCustomDisabled = !crewTagCustom && crewTagsAtLimit;
+					crewInstinctCustom = crewInstinctOptions.some(o => o.selected) ? "" : (sf.crew.instinct ?? "");
+					crewCostCustom     = crewCostOptions.some(o => o.selected)     ? "" : (sf.crew.cost ?? "");
 				}
 				crew = {
 					...FOLLOWER_FTYPE_DEFAULTS["crew"],
@@ -1508,10 +1554,14 @@ export function createStonetopCharacterSheetClass(Base) {
 					tagOptions: crewTagOptions?.length ? crewTagOptions : null,
 					tagLimit:   crewTagLimit,
 					tagAutoLabel: crewBgTag ? normalizePlaybookGlyphs(crewBgTag) : null,
+					tagCustom:  crewTagCustom,
+					tagCustomDisabled: crewTagCustomDisabled,
 					instinct:  sf.crew.instinct ?? "",
 					instinctOptions: crewInstinctOptions?.length ? crewInstinctOptions : null,
+					instinctCustom: crewInstinctCustom,
 					cost:      sf.crew.cost     ?? "",
 					costOptions: crewCostOptions?.length ? crewCostOptions : null,
+					costCustom: crewCostCustom,
 					loyalty:   _makeLoyaltyPips(loyaltyVal),
 					loyaltySlug: "",
 					hpStaticValue: crewMaxHp,
@@ -1951,8 +2001,41 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 		}
 
+		// Every candidate row for the Details tab's Relationships section, in display
+		// order. Shared by getData (which filters to the shown ones in play mode) and the
+		// drop handler (which needs to know whether a dropped actor is already a row).
+		//
+		// Three sources, differing only in whether a row starts visible:
+		//  • the other player characters — your party, so they start shown. Prefer the
+		//    player-owned ones when any exist, but fall back to all of them so the section
+		//    still populates while a GM preps before players are assigned.
+		//  • everyone on the steading sheet — the whole roster would swamp the section, so
+		//    they start hidden until someone picks the ones this character has feelings about.
+		//  • anyone already stored in system.relationships who isn't covered above — that's
+		//    how a dropped stranger becomes a row and stays one.
+		// Self is always excluded; you don't rate yourself.
+		_buildRelationshipRows() {
+			return buildRelationshipRows(this.actor, [
+				{ actors: partyCharacters({ exclude: this.actor.id }), defaultShown: true },
+				{ actors: steadingPeopleActors(getStonetopSteadingActor()), defaultShown: false },
+			]);
+		}
+
 		activateListeners(html) {
 			super.activateListeners(html);
+
+			// Notes tab: the core <prose-mirror> element fires a bubbling `change` on
+			// save/blur carrying the serialized HTML on ev.target.value. Persist it to
+			// the character's system.notes field. Stop propagation so the sheet's own
+			// form-submit change handling doesn't double-process it.
+			html[0].addEventListener("change", ev => {
+				const pm = ev.target.closest("prose-mirror.character-notes-editor");
+				if (!pm) return;
+				ev.stopPropagation();
+				const value = pm.value ?? "";
+				if (value === (this.actor.system?.notes ?? "")) return;
+				this.actor.update({ "system.notes": value });
+			}, true);
 
 			html.find(".stonetop-create-character-btn").on("click", () => this._onNewCharacter());
 			html.find("[data-onboarding-start]").on("click", ev => {
@@ -1970,7 +2053,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			// dragleave bubble up from every child, so track the nesting depth and
 			// only clear the hint once the drag has truly left the form.
 			let dragDepth = 0;
-			const clearDropHint = () => { dragDepth = 0; html[0].classList.remove("stonetop-dragging-playbook"); };
+			// Drop affordance for the Relationships section. Its clear() is folded into
+			// clearDropHint because the sheet-wide drop handler runs in the capture phase and
+			// stops propagation before a listener on the section would ever see the drop.
+			const clearRelHighlight = wireRelationshipDropHighlight(
+				html[0].querySelector(".stonetop-character-relationships"));
+			const clearDropHint = () => {
+				dragDepth = 0;
+				html[0].classList.remove("stonetop-dragging-playbook");
+				clearRelHighlight();
+			};
 			html[0].addEventListener("dragenter", () => {
 				dragDepth++;
 				html[0].classList.add("stonetop-dragging-playbook");
@@ -1981,11 +2073,32 @@ export function createStonetopCharacterSheetClass(Base) {
 			html[0].addEventListener("drop", async (ev) => {
 				clearDropHint();
 				if (ev.target.closest(".sheet-tabs")) return;
+				// Cancel the browser's own drop action for everything this handler consumes.
+				// stopImmediatePropagation() below cuts off core's DragDrop._handleDrop, which
+				// is what would otherwise do this — so without it a drop landing on a text
+				// field pastes the raw drag payload (`{"type":"JournalEntry","uuid":…}`) into
+				// it, and on the relationships table the change handler saves that as a note.
+				// Gecko gates only on the DROP event, so the dragover cancel above is not
+				// enough there. Must be SYNCHRONOUS: after an `await` the default has already
+				// run, and it has to cover every payload type, not just the ones we route.
+				ev.preventDefault();
 				ev.stopImmediatePropagation();
 				const data = this._getDragEventData(ev);
 				if (!data) return;
 				if (data?.type === "Actor") {
 					const doc = await fromUuid(data.uuid);
+					// Dropped ON the Relationships section: put them on the list. Checked first
+					// and always consumed, because this same handler turns any NPC dropped
+					// elsewhere on the sheet into a follower — landing on the relationships
+					// table should never start that conversion instead.
+					if (ev.target.closest(".stonetop-character-relationships")) {
+						const result = await relationshipDropResult(this.actor, doc, this._buildRelationshipRows(), {
+							editable: this.isEditable,
+						});
+						const [level, message] = relationshipDropNotice(result, this.actor, doc);
+						ui.notifications?.[level]?.(message);
+						return;
+					}
 					if (doc?.system?.customType === "stonetop") {
 						await this.actor.setFlag("stonetop_pwd", "steadingId", doc.id);
 						this.render(false);
@@ -1993,6 +2106,11 @@ export function createStonetopCharacterSheetClass(Base) {
 						// Dropping a monster offers to convert it to a follower (NPCs &
 						// Followers, p.475): keep its stats, add tags, choose a cost.
 						this._onMonsterDropConvert(doc);
+					} else if (doc?.type === "npc") {
+						// Dropping an NPC offers to make it this PC's follower (p.475: a
+						// follower "is first an NPC") — carrying its identity over and
+						// linking the card back to the actor via sourceUuid.
+						this._onNpcDropConvert(doc);
 					}
 					return;
 				}
@@ -2345,18 +2463,18 @@ export function createStonetopCharacterSheetClass(Base) {
 				document.body.appendChild(moveRefPanel);
 			}
 
-			// Render inline glyphs (◇ Conduit tracks, ○ marks, □ boxes, ▶ arrows) as SVG
-			// across every read-only description container. Move-ref enrichment is limited
-			// to move descriptions; the other containers only need glyph wrapping. The lore
-			// option/description containers are display-only — their editable answers live
-			// in a sibling <textarea>, which this selector never matches (wrapping a
-			// textarea's value would corrupt the saved text).
-			html.find(".stonetop-item-description, .stonetop-arcanum-body, .stonetop-invocation-desc, .stonetop-lore-description, .stonetop-lore-option-desc").each((_, el) => {
-				if (el.dataset.glyphsWrapped) return;
-				el.dataset.glyphsWrapped = "1";
-				if (el.matches(".stonetop-item-description")) enrichMoveRefsInEl(el);
-				wrapStonetopGlyphsInEl(el);
+			// Link move names inside move prose. Sheet-only, and it runs before the glyph pass
+			// below so a wrapped glyph can never land inside a freshly-made move-ref link.
+			html.find(".stonetop-item-description").each((_, el) => {
+				if (el.dataset.moveRefsEnriched) return;
+				el.dataset.moveRefsEnriched = "1";
+				enrichMoveRefsInEl(el);
 			});
+			// Render inline glyphs (◇ Conduit tracks, ○ marks, □ boxes, ▶ arrows) as SVG across
+			// every read-only container. The list is shared with onboarding, chat and the item
+			// sheets — see GLYPH_TEXT_CONTAINERS, which is also where the display-only rule that
+			// keeps a <textarea>'s value safe is written down.
+			wrapGlyphTextContainers(html[0]);
 
 			// Fold the long, secondary "Consequences" section behind a collapsible heading
 			// (like the basic-moves sidebar groups), defaulting to collapsed. It lives inside
@@ -2632,6 +2750,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				});
 			}
 
+			// Details-tab Relationships: hearts + notes stay interactive in normal view
+			// (a live affinity tracker, adjusted during play, not an authoring step).
+			// Wired ABOVE the editability gate because the helper's column drag-resize and
+			// click-to-sort are VIEW features — a non-owner reading someone else's sheet
+			// still gets them, exactly as they do on the NPC and steading sheets. The
+			// `editable` flag is what gates the writes.
+			wireRelationshipTable(html[0], this.actor, { editable: this.isEditable });
+
 			if (!this.isEditable) return;
 
 			// Details-tab per-section edit pencils: toggle just that section's edit
@@ -2754,6 +2880,25 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-custom-remove").on("click", this._onRemoveCustomPossession.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
+			// Weapons-of-war ◇/□ rows: ticking a diamond picks the weapon (a sub-choice) and
+			// marks it carried in one move — the pick IS the load mark.
+			html.find(".stonetop-possession-choice-gear-check").on("change", this._onPossessionChoiceGearCheck.bind(this));
+			// The inline ammo track ("○ low ammo, ○ all out") has to live INSIDE the row's
+			// label span so it flows and wraps with the weapon's line — but that means its
+			// status WORDS are non-interactive content inside a <label>, so clicking one
+			// forwards to the label's first labelable descendant: the ◇ carry mark. Reading
+			// the ammo status would silently change the character's load. The circles are
+			// <button>s (interactive content, never forwarded), so cancelling the label's
+			// activation here leaves the track working and only makes its words inert.
+			html[0].addEventListener("click", ev => {
+				if (ev.target.closest(".stonetop-choice-gear-statuses")) ev.preventDefault();
+			}, true);
+			// Fill-in blank inside a bundle sub-option (the Would-Be Hero's personal token):
+			// saved on blur, keyed possession:choice, mirroring the onboarding write-in.
+			html.find(".stonetop-possession-sub-fill").on("change", ev => {
+				const { possessionSlug, choiceSlug } = ev.currentTarget.dataset;
+				this._stonetopCharacter.setPossessionChoiceText(possessionSlug, choiceSlug, ev.currentTarget.value.trim());
+			});
 			// "Edit sacred pouch" affordances (Big Magic move card + gear-tab pencil):
 			// open the standalone choiceGroups editor for the named possession.
 			html.find("[data-possession-choices]").on("click", ev => {
@@ -2818,22 +2963,28 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop_pwd", path, turnOn);
 				this.render(false);
 			});
-			// Crew tag picker: store only the player's chosen tags. The background-auto
-			// tag is the disabled option, so `:not(:disabled)` excludes it — it's
-			// re-derived from the active background at render, never persisted, so a
-			// later background change can't strand a stale auto tag in crew.tags. The
-			// pick limit is enforced on render by disabling the unchecked options once full.
-			html.find(".stonetop-crew-tag-option").on("change", async () => {
+			// Crew tag picker + its custom write-in row: store only the player's chosen tags
+			// plus the write-in. The background-auto tag is the disabled option, so
+			// `:not(:disabled)` excludes it — it's re-derived from the active background at
+			// render, never persisted, so a later background change can't strand a stale auto
+			// tag in crew.tags. The pick limit is enforced on render by disabling the unchecked
+			// options once full. Rebuilding from all checked boxes plus the write-in means
+			// editing either never drops the other.
+			html.find(".stonetop-crew-tag-option, .stonetop-crew-tag-custom").on("change", async () => {
 				const tags = html.find(".stonetop-crew-tag-option:checked:not(:disabled)").toArray().map(el => el.value);
+				const custom = html.find(".stonetop-crew-tag-custom").val()?.trim();
+				if (custom) tags.push(custom);
 				await this.actor.setFlag("stonetop_pwd", "crew.tags", tags);
 				this.render(false);
 			});
-			// Animal-companion trait picker: pick up to the type's pickCount. Same
-			// "checked, not disabled" gather as the crew tags; the limit is enforced on
-			// render by disabling unchecked options once full. Traits drive the
+			// Animal-companion trait picker + its custom write-in row: pick up to the type's
+			// pickCount. Same "checked, not disabled" gather as the crew tags; the limit is
+			// enforced on render by disabling unchecked options once full. Traits drive the
 			// companion's HP / armor / damage, so a re-render re-derives those stats.
-			html.find(".stonetop-ac-trait-option").on("change", async () => {
+			html.find(".stonetop-ac-trait-option, .stonetop-ac-trait-custom").on("change", async () => {
 				const traits = html.find(".stonetop-ac-trait-option:checked:not(:disabled)").toArray().map(el => el.value);
+				const custom = html.find(".stonetop-ac-trait-custom").val()?.trim();
+				if (custom) traits.push(custom);
 				await this.actor.setFlag("stonetop_pwd", "animalCompanion.traits", traits);
 				this.render(false);
 			});
@@ -2859,6 +3010,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			html.find(".stonetop-crew-cost-option").on("change", async ev => {
 				await this.actor.setFlag("stonetop_pwd", "crew.cost", ev.currentTarget.value);
+				this.render(false);
+			});
+			// Crew instinct / cost write-ins (the insert's blank rows): save the typed value
+			// verbatim; picking a radio above overwrites it, matching onboarding.
+			html.find(".stonetop-crew-instinct-custom").on("change", async ev => {
+				await this.actor.setFlag("stonetop_pwd", "crew.instinct", ev.currentTarget.value.trim());
+				this.render(false);
+			});
+			html.find(".stonetop-crew-cost-custom").on("change", async ev => {
+				await this.actor.setFlag("stonetop_pwd", "crew.cost", ev.currentTarget.value.trim());
 				this.render(false);
 			});
 			// Gear checklist: toggle carried, rename, add, remove
@@ -4562,6 +4723,23 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
+		// Weapons-of-war style gear (see tab-equipment.hbs): the options a possession's `choices`
+		// bundle has already had chosen, rendered as ◇/□ rows. Ticking a diamond marks that
+		// weapon as carried — the pick itself lives on the edit-mode checklist — and load
+		// re-derives on the re-render.
+		async _onPossessionChoiceGearCheck(ev) {
+			const el = ev.currentTarget;
+			const { possessionSlug, choiceSlug } = el.dataset;
+			// A ◇◇ weapon renders one diamond per point of weight, all bound to one carried/not
+			// state; the browser only flips the clicked box, so mirror it onto its siblings and
+			// the wrapper now — otherwise the rest visibly lags until the async re-render lands.
+			const group = el.closest(".stonetop-inv-diamonds");
+			if (group) for (const box of group.querySelectorAll(".stonetop-inv-diamond")) box.checked = el.checked;
+			el.closest(".stonetop-inv-item")?.classList.toggle("is-checked", el.checked);
+			await this._stonetopCharacter.setChoiceGearCarried(possessionSlug, choiceSlug, el.checked);
+			this.render(false);
+		}
+
 		async _onInventoryItemCheck(ev) {
 			// Have What You Need: marking an item spends marks from the undefined pool
 			// (its weight, or 1 for a small item); any shortfall adds to your load as
@@ -4735,16 +4913,9 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		// Names of the linked steading's residents (+ neighbors), for the Create-a-Follower
 		// name datalist. Best-effort — a missing/unlinked steading just yields no hints.
+		// steading-people.js owns where the people rows live, so the storage path stays there.
 		_steadingResidentNames() {
-			try {
-				const steading = this._stonetopCharacter?.getSteadingActor?.();
-				if (!steading) return [];
-				const rows = [
-					...(steading.getFlag("stonetop_pwd", "residents") ?? []),
-					...(steading.getFlag("stonetop_pwd", "neighbors") ?? []),
-				];
-				return [...new Set(rows.map(r => String(r?.name ?? "").trim()).filter(Boolean))];
-			} catch { return []; }
+			return peopleNames(this._stonetopCharacter?.getSteadingActor?.());
 		}
 
 		// Offer to convert a dropped monster into a follower (keep its stats, add
@@ -4754,6 +4925,18 @@ export function createStonetopCharacterSheetClass(Base) {
 			new MonsterToFollowerDialog(
 				this.actor,
 				monsterDoc,
+				(data) => this._applyCustomFollower(data),
+			).render(true);
+		}
+
+		// Offer to make a dropped NPC this PC's follower (carry its identity + stats,
+		// add tags, choose a cost — p.475). The built card links back to the NPC actor
+		// via sourceUuid. Cancelling the modal does nothing.
+		_onNpcDropConvert(npcDoc) {
+			if (!this.isEditable || !npcDoc) return;
+			new NpcToFollowerDialog(
+				this.actor,
+				npcDoc,
 				(data) => this._applyCustomFollower(data),
 			).render(true);
 		}
@@ -6036,6 +6219,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				))(f.onboardingStats ?? {}),
 				possessions:     [...(f.possessions?.selected ?? [])],
 				possessionChoices: foundry.utils.deepClone(f.possessions?.subChoices ?? {}),
+				possessionChoiceTexts: foundry.utils.deepClone(f.possessions?.choiceTexts ?? {}),
 				customPossession: f.possessions?.custom?.[0]?.label ?? "",
 				moves:           [], // compendium IDs are hard to recover; player re-picks
 				moveChoices:     this._restoreOwnedMoveChoices(playbookDoc),
@@ -6194,6 +6378,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				for (const [possessionSlug, choiceSlugs] of Object.entries(selections.possessionChoices ?? {})) {
 					if (!selectedSet.has(possessionSlug)) continue;
 					await this._stonetopCharacter.setPossessionSubChoices(possessionSlug, choiceSlugs);
+				}
+				// Fill-in blanks written into a sub-option (the Would-Be Hero's personal token),
+				// persisted for the selected possessions the same way as their picks above.
+				for (const [key, value] of Object.entries(selections.possessionChoiceTexts ?? {})) {
+					const [possessionSlug, choiceSlug] = key.split(":");
+					if (!selectedSet.has(possessionSlug)) continue;
+					if (value?.trim()) await this._stonetopCharacter.setPossessionChoiceText(possessionSlug, choiceSlug, value.trim());
 				}
 				// Write-in "something else (discuss with GM)" possession. Replace rather
 				// than append so re-running onboarding doesn't duplicate it.

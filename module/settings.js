@@ -87,6 +87,19 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether this world has had players granted Foundry's ACTOR_CREATE permission
+	// (see hooks/Ready.js _ensurePlayerActorCreationGrant). Independent of the fresh-
+	// world gate above so ESTABLISHED worlds — which skip the new-world defaults —
+	// still get the grant the actor-backed steading roster depends on. One-time: once
+	// set, a GM who later revokes the permission keeps it revoked.
+	game.settings.register("stonetop_pwd", "playerActorCreationGranted", {
+		name: "Player Actor Creation Granted",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// The system version whose shipped journal content was last rolled into the
 	// world's seeded copies (see hooks/SeedCompendiums.js). When this trails the
 	// running version, the update pass refreshes pristine (un-edited) seeded
@@ -558,9 +571,6 @@ export function registerSettings() {
 		default: false,
 	});
 
-	// Strip the decorative animations, transitions, and hover-zoom image popups
-	// from Stonetop UI for users who find them distracting or are motion-sensitive.
-	// Drives the `stonetop-reduce-motion` root class.
 	// Reopen the document sheets (characters, steadings, monsters, items, journals)
 	// this user had open when they reload, at the same position and size. Per-client
 	// because window layout is personal, not shared world state. Defaults on. The
@@ -575,7 +585,8 @@ export function registerSettings() {
 	});
 
 	// Snapshot of the sheets this user had open at last reload, keyed by document
-	// uuid -> { left, top, width, height, minimized } (see utils/window-restore.js).
+	// uuid -> { left, top, width, height, minimized, tabs, editMode } (see
+	// utils/window-restore.js).
 	// Internal (not shown in the settings menu); rewritten continuously as windows
 	// open, close, and move.
 	game.settings.register("stonetop_pwd", "openWindowsState", {
@@ -585,6 +596,9 @@ export function registerSettings() {
 		default: {},
 	});
 
+	// Strip the decorative animations, transitions, and hover-zoom image popups
+	// from Stonetop UI for users who find them distracting or are motion-sensitive.
+	// Drives the `stonetop-reduce-motion` root class.
 	game.settings.register("stonetop_pwd", "reduceMotion", {
 		name: "stonetop.settings.reduceMotion.name",
 		hint: "stonetop.settings.reduceMotion.hint",

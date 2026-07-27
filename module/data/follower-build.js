@@ -320,6 +320,51 @@ export function followerFromMonster(monster = {}, opts = {}) {
 	});
 }
 
+/**
+ * Build custom-follower data from an "npc" Actor (NPCs & Followers p.475: "First,
+ * create them as an NPC," then give tags / HP / armor / damage / instinct / cost).
+ * An NPC that already carries game stats (system.hasStats) seeds its HP, armor,
+ * damage and tags; one without stats seeds the book's able-bodied follower baseline
+ * (6 HP, 0 armor, p.477). The dialog's editable fields (opts.hp/armor/damage) override
+ * either. The follower keeps the NPC's uuid as its sourceUuid, so the card links back
+ * to the actor it was recruited from and can never orphan.
+ *
+ * `npc` carries { name, system, uuid }; `opts` supplies the player's added tags, cost,
+ * pronoun, moves (an array of GM-move names), any stat overrides, and group flags.
+ */
+export function followerFromNpc(npc = {}, opts = {}) {
+	const system   = npc.system ?? {};
+	const attrs    = system.attributes ?? {};
+	const hasStats = !!system.hasStats;
+	// Seed HP from the NPC's stats, else the "able-bodied" default (6). An explicit
+	// opts.hp (the conversion dialog's editable field) always wins.
+	const npcHp = hasStats ? (Number(attrs.hp?.max ?? attrs.hp?.value) || 0) : 0;
+	const hpMax = opts.hp != null ? opts.hp : (npcHp || 6);
+	const armor = opts.armor != null ? opts.armor : (hasStats ? attrs.armor?.value : 0);
+	const damage = opts.damage != null
+		? String(opts.damage)
+		: (hasStats ? String(attrs.damage?.value ?? attrs.damage?.rollFormula ?? "").trim() : "");
+	// A statted NPC carries its game-stat tags onto the follower; an unstatted one has none.
+	const keptTags = hasStats ? normalizeTags(system.tags) : [];
+	return buildCustomFollower({
+		name:         npc.name ?? "",
+		pronoun:      opts.pronoun ?? system.pronouns ?? "",
+		typeLabel:    "follower",
+		portraitIcon: "fas fa-user",
+		tags:         [...keptTags, ...normalizeTags(opts.tags)],
+		hp:           hpMax,
+		hpCurrent:    opts.hpCurrent ?? (hasStats ? (attrs.hp?.value ?? hpMax) : hpMax),
+		armor,
+		damage,
+		instinct:     String(system.instinct ?? "").trim(),
+		moves:        (Array.isArray(opts.moves) ? opts.moves : []).join("\n"),
+		cost:         opts.cost ?? "",
+		isGroup:      !!opts.isGroup,
+		size:         opts.size,
+		sourceUuid:   npc.uuid ?? null,
+	});
+}
+
 // Whether a monster's organization means it should become a GROUP follower, and a
 // sensible starting headcount for it (NPCs & Followers p.470; the exact number is
 // a table call, so these are just defaults the conversion dialog pre-fills).

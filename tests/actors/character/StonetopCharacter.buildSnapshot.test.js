@@ -1602,6 +1602,215 @@ describe("buildSnapshot — inventory.possessions", () => {
 	});
 });
 
+// ── choiceGear (Weapons of War: gear-bearing `choices` as ◇/□ rows) ────────────
+// A possession whose `choices` object is flagged `gear` renders the options the player
+// has already *chosen* as ◇/□ item-rows (like a grantsItems bundle). Choosing stays on
+// the edit-mode `choices` checklist; the ◇ on a row is only the load mark, so an unchosen
+// weapon never shows in play and a chosen-but-left-behind one reads as an empty ◇.
+describe("buildSnapshot — possession choiceGear (Weapons of War)", () => {
+	const WEAPONS_POSSESSIONS = {
+		pickNote: "Pick 2", pickCount: 2, preselected: [],
+		options: [{
+			slug: "weapons-of-war",
+			label: "Weapons of war",
+			description: "",
+			choices: {
+				pickNote: "Choose up to 3 (now or later)",
+				pickCount: 3, optional: true, gear: true,
+				options: [
+					{ slug: "sword",      label: "◇ Sword, iron (<em>close</em>, +1 damage)" },
+					{ slug: "long-spear", label: "◇◇ Long spear, fine steel (<em>reach</em>, 2 piercing)" },
+					{ slug: "battleaxe",  label: "◇ Battleaxe, iron (<em>close, messy</em>)" },
+					{ slug: "crossbow",   label: "◇ Crossbow (<em>far</em>, x <em>piercing</em>, ○ low ammo, ○ all out)",
+					  resource: { max: 2, title: null, labels: [] } },
+				],
+			},
+		}],
+	};
+
+	const buildWeapons = async (flags = {}) => {
+		const actor = makeHeavyActor({flags});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository({...HEAVY_PLAYBOOK, specialPossessions: WEAPONS_POSSESSIONS}))
+			.build().buildSnapshot();
+		return snap;
+	};
+	const weaponsItem = snap => snap.inventory.possessions.items.find(i => i.slug === "weapons-of-war");
+
+	it("choiceGear is null while the possession is unowned", async () => {
+		expect(weaponsItem(await buildWeapons()).choiceGear).toBeNull();
+	});
+
+	it("owned but with nothing chosen yet, there are no rows at all", async () => {
+		const gear = weaponsItem(await buildWeapons({"possessions.selected": ["weapons-of-war"]})).choiceGear;
+		// The pick note rides along for the edit-mode checklist's heading, but nothing renders
+		// on the card in play until a weapon is chosen.
+		expect(gear.pickNote).toBe("Choose up to 3 (now or later)");
+		expect(gear.hasPicked).toBe(false);
+		expect(gear.regular).toEqual([]);
+		expect(gear.small).toEqual([]);
+	});
+
+	it("only the chosen weapons become ◇ rows, with the leading diamonds parsed as weight", async () => {
+		const gear = weaponsItem(await buildWeapons({
+			"possessions.selected": ["weapons-of-war"],
+			"possessions.subChoices": {"weapons-of-war": ["sword", "long-spear"]},
+		})).choiceGear;
+		expect(gear.regular.map(r => [r.choiceSlug, r.weight])).toEqual([["sword", 1], ["long-spear", 2]]);
+		// The leading ◇/◆ run is stripped off the rendered label.
+		expect(gear.regular.find(r => r.choiceSlug === "sword").label).toBe("Sword, iron (<em>close</em>, +1 damage)");
+	});
+
+	it("a chosen weapon's ◇ reads carried only once it's marked carried", async () => {
+		const gear = weaponsItem(await buildWeapons({
+			"possessions.selected": ["weapons-of-war"],
+			"possessions.subChoices": {"weapons-of-war": ["sword", "battleaxe"]},
+			"possessions.choiceCarried": {"weapons-of-war:sword": true},
+		})).choiceGear;
+		expect(gear.regular.find(r => r.choiceSlug === "sword").checked).toBe(true);
+		expect(gear.regular.find(r => r.choiceSlug === "battleaxe").checked).toBe(false);
+	});
+
+	it("carried weapons count toward load by their weight", async () => {
+		const snap = await buildWeapons({
+			"possessions.selected": ["weapons-of-war"],
+			"possessions.subChoices": {"weapons-of-war": ["sword", "long-spear"]},
+			"possessions.choiceCarried": {"weapons-of-war:sword": true, "weapons-of-war:long-spear": true},
+		});
+		expect(snap.inventory.outfit.load.totalMarks).toBe(3); // ◇ + ◇◇
+	});
+
+	it("a weapon you own but left behind adds no load", async () => {
+		const snap = await buildWeapons({
+			"possessions.selected": ["weapons-of-war"],
+			"possessions.subChoices": {"weapons-of-war": ["sword", "long-spear"]},
+		});
+		expect(snap.inventory.outfit.load.totalMarks).toBe(0);
+	});
+
+	it("a carry mark on a weapon that was never chosen adds no load", async () => {
+		const snap = await buildWeapons({
+			"possessions.selected": ["weapons-of-war"],
+			"possessions.choiceCarried": {"weapons-of-war:long-spear": true},
+		});
+		expect(snap.inventory.outfit.load.totalMarks).toBe(0);
+	});
+
+	it("the chosen crossbow carries an ammo resource; a plain weapon does not", async () => {
+		const gear = weaponsItem(await buildWeapons({
+			"possessions.selected": ["weapons-of-war"],
+			"possessions.subChoices": {"weapons-of-war": ["crossbow", "sword"]},
+		})).choiceGear;
+		expect(gear.regular.find(r => r.choiceSlug === "crossbow").resource.max).toBe(2);
+		expect(gear.regular.find(r => r.choiceSlug === "sword").resource).toBeNull();
+	});
+
+	// The book prints the ammo statuses in the line itself — "…, ○ low ammo, ○ all out)" —
+	// so the track's circles stand in for those glyphs rather than trailing the row (which
+	// showed both: the written statuses AND two unexplained circles at the end of the line).
+	it("splits the inline ○ statuses off the label and names each circle after one", async () => {
+		const gear = weaponsItem(await buildWeapons({
+			"possessions.selected": ["weapons-of-war"],
+			"possessions.subChoices": {"weapons-of-war": ["crossbow"]},
+		})).choiceGear;
+		const crossbow = gear.regular.find(r => r.choiceSlug === "crossbow");
+		expect(crossbow.resourceInline).toBe(true);
+		expect(crossbow.label).toBe("Crossbow (<em>far</em>, x <em>piercing</em>, ");
+		expect(crossbow.resource.labels).toEqual(["low ammo", "all out"]);
+		// What trailed the last status — the label's closing paren — follows the circles.
+		expect(crossbow.labelAfter).toBe(")");
+	});
+
+	it("a weapon with no ○ statuses keeps its whole label and its trailing track", async () => {
+		const gear = weaponsItem(await buildWeapons({
+			"possessions.selected": ["weapons-of-war"],
+			"possessions.subChoices": {"weapons-of-war": ["sword"]},
+		})).choiceGear;
+		const sword = gear.regular.find(r => r.choiceSlug === "sword");
+		expect(sword.resourceInline).toBe(false);
+		expect(sword.label).toBe("Sword, iron (<em>close</em>, +1 damage)");
+		expect(sword.labelAfter).toBe("");
+	});
+
+	it("keeps the checklist `choices` (that's where you choose) but drops the prose summary", async () => {
+		const item = weaponsItem(await buildWeapons({
+			"possessions.selected": ["weapons-of-war"],
+			"possessions.subChoices": {"weapons-of-war": ["sword"]},
+		}));
+		expect(item.choices.options.find(o => o.slug === "sword").checked).toBe(true);
+		expect(item.choiceSummary).toBeNull();
+		expect(item.choiceGear).not.toBeNull();
+	});
+
+	it("the checklist locks the remaining options once the pick cap is reached", async () => {
+		const item = weaponsItem(await buildWeapons({
+			"possessions.selected": ["weapons-of-war"],
+			"possessions.subChoices": {"weapons-of-war": ["sword", "long-spear", "battleaxe"]},
+		}));
+		// Chosen ones stay togglable so you can put a weapon back; the 4th is locked out.
+		expect(item.choices.options.find(o => o.slug === "sword").disabled).toBe(false);
+		expect(item.choices.options.find(o => o.slug === "crossbow").disabled).toBe(true);
+	});
+
+	// ── mixed weights + fill-in blanks (the Would-Be Hero's Personal Token) ──────
+	// A gear bundle whose options mix ◇ gear with weightless keepsakes and carry an
+	// inline fill-in blank ("A shield, bearing ___'s crest"). Preselected, so owned.
+	const TOKEN_POSSESSIONS = {
+		pickNote: "Pick 1", pickCount: 1, preselected: ["personal-token"],
+		options: [{
+			slug: "personal-token", label: "Personal token", description: "",
+			choices: {
+				pickCount: 1, gear: true,
+				options: [
+					{ slug: "shield", label: "◇◇ A shield, bearing ___'s crest" },
+					{ slug: "cloak",  label: "◇ A wool cloak, woven just for you by ___" },
+					{ slug: "letter", label: "A letter, spattered with tears" },
+					{ slug: "flute",  label: "A flute, a gift from someone you loved" },
+				],
+			},
+		}],
+	};
+	const tokenGear = async (flags = {}) => {
+		const actor = makeHeavyActor({flags});
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository({...HEAVY_PLAYBOOK, specialPossessions: TOKEN_POSSESSIONS}))
+			.build().buildSnapshot();
+		return snap.inventory.possessions.items.find(i => i.slug === "personal-token").choiceGear;
+	};
+
+	it("splits ◇ gear (regular) from weightless keepsakes (small)", async () => {
+		const gear = await tokenGear({"possessions.subChoices": {"personal-token": ["shield", "letter"]}});
+		expect(gear.regular.map(r => [r.choiceSlug, r.weight])).toEqual([["shield", 2]]);
+		expect(gear.small.map(r => r.choiceSlug)).toEqual(["letter"]);
+	});
+
+	it("exposes an option's fill-in blank split around its saved write-in", async () => {
+		const gear = await tokenGear({
+			"possessions.subChoices": {"personal-token": ["shield", "letter"]},
+			"possessions.choiceTexts": {"personal-token:shield": "the Old Baron"},
+		});
+		const shield = gear.regular.find(r => r.choiceSlug === "shield");
+		expect(shield.hasBlank).toBe(true);
+		expect(shield.fillBefore).toBe("A shield, bearing ");
+		expect(shield.fillAfter).toBe("'s crest");
+		expect(shield.fillValue).toBe("the Old Baron");
+		// A blank-less keepsake reports no blank.
+		expect(gear.small.find(r => r.choiceSlug === "letter").hasBlank).toBe(false);
+	});
+
+	it("a weightless keepsake eats a small-item mark only once it's carried", async () => {
+		const carried = async flags => (await new TestCharacterBuilder(makeHeavyActor({flags}))
+			.withPlaybookRepo(new FakePlaybookRepository({...HEAVY_PLAYBOOK, specialPossessions: TOKEN_POSSESSIONS}))
+			.build().buildSnapshot()).inventory.possessions.items
+			.find(i => i.slug === "personal-token").choiceGear.small[0].checked;
+		expect(await carried({"possessions.subChoices": {"personal-token": ["letter"]}})).toBe(false);
+		expect(await carried({
+			"possessions.subChoices": {"personal-token": ["letter"]},
+			"possessions.choiceCarried": {"personal-token:letter": true},
+		})).toBe(true);
+	});
+});
+
 // ── inventory.other ───────────────────────────────────────────────────────────
 
 describe("buildSnapshot — inventory.other", () => {

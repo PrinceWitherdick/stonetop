@@ -19,6 +19,9 @@
     },
     "steading": {
       "notLinked": "No Stonetop steading linked. Drag a Stonetop actor onto this sheet to link it.",
+      "settlement": "Settlement",
+      "settlementShowTooltip": "Show this settlement on the sheet",
+      "settlementsAllHidden": "No settlements ticked. Use the pencil to choose which ones this steading tracks.",
       "tabs": {
         "overview": "Overview",
         "neighbors": "Residents",
@@ -37,7 +40,8 @@
         "inventory": "Inventory",
         "arcana": "Arcana",
         "postDeath": "Post-Death",
-        "specialMoves": "Special Moves"
+        "specialMoves": "Special Moves",
+        "notes": "Notes"
       }
     },
     "specialMoves": {
@@ -392,7 +396,9 @@
     },
     "npc": {
       "namePlaceholder": "NPC Name",
+      "pronouns": "Pronouns",
       "pronounsPlaceholder": "they/them",
+      "occupation": "Occupation",
       "occupationPlaceholder": "farmer, ex-mercenary, Blodwen's uncle...",
       "traitsPlaceholder": "humorless, newly married, Eeyore voice...",
       "home": "Home",
@@ -401,25 +407,21 @@
       "relationsPlaceholder": "Kin, allies, rivals (a quick line)",
       "impressions": "Impressions",
       "impressionPlaceholder": "A sensory hook (face, voice, scent...)",
+      "addImpression": "Add Impression",
       "instinct": "Instinct",
       "instinctPlaceholder": "to... (e.g. to complain but get the job done)",
       "instinctEmpty": "No instinct yet — write one as “to [do something].”",
+      "status": "Status",
+      "following": "Following",
       "connections": "Connections",
       "motivations": "Motivations",
       "embodiment": "Embodiment",
       "embodimentPlaceholder": "A voice, picture, or acting trick (GM note)",
-      "relationships": "Relationships",
-      "relationshipsEmpty": "No player characters yet — each one will appear here at 3 hearts, adjustable per NPC.",
-      "relPlayer": "Player",
-      "relRegard": "Feelings",
-      "relNotePlaceholder": "How they feel, why…",
-      "feels1": "{npc} hates {pc}",
-      "feels2": "{npc} dislikes {pc}",
-      "feels3": "{npc} feels neutral toward {pc}",
-      "feels4": "{npc} likes {pc}",
-      "feels5": "{npc} loves {pc}",
-      "giveStats": "Give them game stats (they might fight or take orders)",
-      "stats": "Game Stats",
+      "relationshipsEmpty": "No player characters yet. Each one will appear here at 3 hearts, adjustable per NPC.",
+      "relationshipsAllHidden": "Nobody ticked yet. Turn on edit mode to choose who appears here, or drop a person on this tab.",
+      "relPlayer": "Character",
+      "giveStats": "Give them stats (if they might fight or take orders)",
+      "stats": "Stats",
       "hitPoints": "Hit Points",
       "armor": "Armor",
       "damage": "Damage",
@@ -428,13 +430,18 @@
       "statBlockPlaceholder": "@UUID link to a monster stat block, if they fight",
       "threat": "Threat",
       "threatPlaceholder": "@UUID link to a threat write-up, if they're ongoing trouble",
-      "moves": "GM Moves",
+      "moves": "Moves",
       "addMove": "Add Move",
       "deleteMove": "Delete Move",
       "noMoves": "No moves yet.",
       "moveNamePlaceholder": "Move name",
       "moveFormulaHint": "Rollable dice formula (e.g. d6, 1d8+2)",
-      "notes": "Notes"
+      "tabs": {
+        "details": "Details",
+        "relationships": "Relationships",
+        "stats": "Stats",
+        "notes": "Notes"
+      }
     },
     "bestiary": {
       "namePlaceholder": "Creature Name",
@@ -478,7 +485,34 @@
         "notes": "Notes"
       }
     },
+    "relationships": {
+      "regard": "Feelings",
+      "notes": "Notes",
+      "notePlaceholder": "How they feel, why…",
+      "showTooltip": "Show this person on the sheet",
+      "drop": {
+        "added": "{name} added to Relationships.",
+        "revealed": "{name} now shows in Relationships.",
+        "already": "{name} is already in Relationships.",
+        "self": "{name} can't have a relationship with themselves.",
+        "readonly": "You don't have permission to edit this sheet.",
+        "unsupported": "Only player characters and NPCs can go in Relationships.",
+        "compendium": "Import {name} into the world first, then drop them here."
+      },
+      "feels1": "{subject} hates {object}",
+      "feels2": "{subject} dislikes {object}",
+      "feels3": "{subject} feels neutral toward {object}",
+      "feels4": "{subject} likes {object}",
+      "feels5": "{subject} loves {object}"
+    },
     "character": {
+      "relationships": {
+        "title": "Relationships",
+        "who": "Character",
+        "chooseNote": "tick who appears here",
+        "empty": "No one to relate to yet. The other player characters and the folk on the Stonetop sheet will appear here.",
+        "allHidden": "Nobody ticked yet. Use the pencil to choose who appears here."
+      },
       "stats": {
         "sectionTitle": "Stats",
         "strength": "Strength",

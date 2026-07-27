@@ -1,7 +1,7 @@
 import { escHtml } from "../utils/strings.js";
 import { sign } from "../utils/roll-engine.js";
 import { ensureChronicleFolder, ensureChronicleJournal } from "../utils/chronicle.js";
-import { seasonLabel } from "./seasons-change-reminders.js";
+import { seasonLabel, SEASON_IDS } from "./seasons-change-reminders.js";
 
 // ── Seasons Change chronicle ───────────────────────────────────────────────────
 // Records each Seasons Change move (the steading flow's "Done") into a "Seasons Change"
@@ -40,10 +40,6 @@ async function ensureSeasonsJournal() {
 	return ensureChronicleJournal(SEASONS_JOURNAL_NAME, folder.id, CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER);
 }
 
-// Canonical season order within a year page, so a year always reads Spring → Winter
-// regardless of the order the GM happened to record the seasons in.
-const _SEASON_ORDER = ["spring", "summer", "autumn", "winter"];
-
 // One season's block within a year page: a heading for the season — carrying the
 // matching season glyph, the same as the location journals (see .stonetop-season-entry
 // in stonetop.css) — then the seasonal gains chosen, the Fortunes rolled against, any
@@ -79,7 +75,9 @@ export function mergeSeasonBlock(existingHtml = "", seasonId, block) {
 		if (season) blocks[season] = m;
 	}
 	blocks[seasonId] = block;
-	return _SEASON_ORDER.map(s => blocks[s]).filter(Boolean).join("");
+	// SEASON_IDS is the canonical Spring→Winter order, so a year page always reads in
+	// order regardless of the order the GM happened to record the seasons in.
+	return SEASON_IDS.map(s => blocks[s]).filter(Boolean).join("");
 }
 
 /**

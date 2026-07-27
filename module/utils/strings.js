@@ -29,6 +29,25 @@ export function escHtml(v) {
 	return String(v ?? "").replace(/[&<>"']/g, (c) => _HTML_ESCAPES[c]);
 }
 
+// Collapse rich text (an HTML / ProseMirror field) to a single plain-text line for a tooltip or
+// a ledger/preview: drop tags (turning <br> into a space so words don't glue), decode the handful
+// of named entities our authored prose uses, and squeeze whitespace. Returns "" for null/blank.
+// The one strip-HTML helper — do NOT add ad-hoc copies elsewhere; import this.
+export function stripHtmlToText(value) {
+	if (value == null) return "";
+	return String(value)
+		// <br> becomes a space so words on separate lines don't glue; every other tag drops to
+		// nothing so an inline tag next to punctuation ("Together</em>,") doesn't leave a gap.
+		.replace(/<\s*br\s*\/?>/gi, " ")
+		.replace(/<[^>]*>/g, "")
+		.replace(/&nbsp;/gi, " ")
+		.replace(/&amp;/gi, "&")
+		.replace(/&lt;/gi, "<")
+		.replace(/&gt;/gi, ">")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
 // A move outcome's flattened value reads "<lead-in> pick 1: <option> / <option> / …"
 // (the source <ul><li> list is collapsed to slash-separated text by the move pipeline).
 // This marker finds the "pick N:" / "choose N:" / "select N:" hinge so we can split the

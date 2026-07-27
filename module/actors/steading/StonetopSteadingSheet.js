@@ -7,7 +7,7 @@ import {escHtml} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
-import {createPersonNpc, personFieldPath, isActorRow} from "./steading-people.js";
+import {addPersonToSteading, personFieldPath, isActorRow} from "./steading-people.js";
 import {openNpcNotesDialog} from "./npc-notes-dialog.js";
 import {PeopleGalleryDialog} from "./PeopleGalleryDialog.js";
 import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
@@ -38,6 +38,8 @@ import {ThreatEditorDialog} from "../../threats/threat-editor-dialog.js";
 import {listHazardPages, createHazard, deleteHazard} from "../../hazards/hazard-store.js";
 import {buildHazardCardVM} from "../../hazards/hazard-view.js";
 import {CreateHazardDialog} from "../../hazards/create-hazard-dialog.js";
+import {SETTLEMENTS} from "../../data/settlements.js";
+import {relationshipRow, wireRelationshipTable} from "../../utils/relationship-hearts.js";
 
 // The "People of Stonetop" portrait gallery (PeopleGalleryDialog) is not ready to ship yet,
 // even though the rest of the book-art importer is now released. While this is false, Edit
@@ -408,7 +410,7 @@ const STEADING_EDIT_SECTIONS = [
 	"surplus", "fortunes", "population", "defenses", "prosperity",
 	"size", "fortifications", "currency",
 	"resources", "assets", "places",
-	"players", "residents", "neighbors", "improvements", "threats",
+	"players", "residents", "neighbors", "settlements", "improvements", "threats",
 ];
 
 export function createStonetopSteadingSheetClass(Base) {
@@ -598,6 +600,21 @@ export function createStonetopSteadingSheetClass(Base) {
 			context.stonetop.edit = Object.fromEntries(
 				STEADING_EDIT_SECTIONS.map(section => [section, sectionEdit(section)])
 			);
+			// Other Settlements: how this steading stands with the communities beyond it
+			// (module/data/settlements.js), on the same 1-5 hearts the NPC and character
+			// sheets use. Rows are the static roster, keyed by slug rather than actor id —
+			// the shared row builder only ever reads .id/.name/.img, so a plain object does.
+			// Nothing is stored until a heart moves, so the whole roster reads as neutral
+			// on a fresh steading. Under the pencil every settlement lists with a show/hide
+			// box; in play the unticked ones drop out.
+			const settlementsEditing = context.stonetop.edit.settlements;
+			const settlementRows = SETTLEMENTS.map(s => ({
+				...relationshipRow(this.actor, { id: s.slug, name: s.name, img: null }, { defaultShown: true }),
+				icon:    s.icon,
+				tooltip: `${s.name}: ${s.blurb}`,
+			}));
+			context.stonetop.settlements    = settlementsEditing ? settlementRows : settlementRows.filter(r => r.shown);
+			context.stonetop.hasSettlements = context.stonetop.settlements.length > 0;
 			context.stonetop.recentlyEdited = Object.fromEntries(
 				STEADING_EDIT_SECTIONS.map(section => [section, this._recentlyEditedSections.has(section)])
 			);
@@ -943,10 +960,18 @@ export function createStonetopSteadingSheetClass(Base) {
 			}, true);
 
 			// Drag-resizable columns on the player/resident/neighbor tables — useful in both edit and read-only modes.
+			// This loop also covers the Other Settlements relations table (it carries the same
+			// classes); wireRelationshipTable below would wire it too, but both column utils
+			// are idempotent, so whichever gets there first wins and the other is a no-op.
 			html[0].querySelectorAll(".steading-residents-table[data-resize-key]").forEach(table => {
 				makeColumnsResizable(table, table.dataset.resizeKey);
 				makeColumnsSortable(table, table.dataset.resizeKey);
 			});
+
+			// Other Settlements: hearts + notes + the show/hide boxes. Interactive in play
+			// mode too — a steading's standing shifts at the table, like the sheet's other
+			// live trackers.
+			wireRelationshipTable(html[0], this.actor, { editable: this.isEditable });
 
 			html[0].addEventListener("mouseenter", ev => {
 				const avatar = ev.target.closest?.(".steading-member-avatar");
@@ -2375,10 +2400,10 @@ export function createStonetopSteadingSheetClass(Base) {
 		async _onListItemAdd(list) {
 			if (list === "residents" || list === "neighbors") {
 				const kind = list === "neighbors" ? "neighbor" : "resident";
-				new AddSteadingMemberDialog(kind, async (data) => {
-					await this._addPersonRow(list, data);
-					this.render(false);
-				}).render(true);
+				const data = await new AddSteadingMemberDialog(kind).promise();
+				if (!data) return;
+				await this._addPersonRow(list, data);
+				this.render(false);
 				return;
 			}
 			const labels = { resources: "resource", fortifications: "fortification", assets: "asset" };
@@ -2474,12 +2499,9 @@ export function createStonetopSteadingSheetClass(Base) {
 		 * row's source of truth from here on.
 		 */
 		async _addPersonRow(list, data) {
-			const actor = await createPersonNpc(list, data);
-			if (!actor) return;
-			const f = this._stonetopSteading._flags;
-			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
-			arr.push({ uuid: actor.uuid, id: actor.id, name: actor.name, checked: false });
-			await this._stonetopSteading.setFlags({ [list]: arr });
+			// Shared with the sidebar "Create Actor" picker, which adds residents and
+			// neighbors without this sheet being open (see steading-people.js).
+			await addPersonToSteading(list, data, this.actor);
 		}
 
 		/**
@@ -2499,6 +2521,12 @@ export function createStonetopSteadingSheetClass(Base) {
 			}
 			arr.push({ uuid, id, name: actor.name, checked: false });
 			await this._stonetopSteading.setFlags({ [list]: arr });
+			// Residents live in Stonetop — seed a blank Home so the NPC sheet reflects it
+			// (a specific home already on the NPC is left untouched).
+			if (list === "residents" && !String(actor.system?.home ?? "").trim()) {
+				try { await actor.update({ "system.home": "Stonetop" }); }
+				catch (err) { console.warn("Stonetop | Could not set resident Home for", actor?.name, err); }
+			}
 			this.render(false);
 			ui.notifications?.info?.(`Linked ${actor.name}.`);
 		}

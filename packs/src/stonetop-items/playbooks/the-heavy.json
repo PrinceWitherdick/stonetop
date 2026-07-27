@@ -366,26 +366,27 @@
               "pickNote": "Choose up to 3 (now or later)",
               "pickCount": 3,
               "optional": true,
+              "gear": true,
               "options": [
                 {
                   "slug": "sword",
-                  "label": "◇ Sword, iron (<em>close</em>, +1 damage)"
+                  "label": "◇ <strong>Sword</strong>, iron (<em>close</em>, +1 damage)"
                 },
                 {
                   "slug": "battleaxe",
-                  "label": "◇ Battleaxe, iron (<em>close, messy</em>)"
+                  "label": "◇ <strong>Battleaxe</strong>, iron (<em>close, messy</em>)"
                 },
                 {
                   "slug": "warhammer",
-                  "label": "◇ Warhammer, iron (<em>close</em>, 2 piercing)"
+                  "label": "◇ <strong>Warhammer</strong>, iron (<em>close</em>, 2 piercing)"
                 },
                 {
                   "slug": "mace-or-flail",
-                  "label": "◇ Mace or flail, iron (<em>close, forceful</em>)"
+                  "label": "◇ <strong>Mace</strong> or <strong>flail</strong>, iron (<em>close, forceful</em>)"
                 },
                 {
                   "slug": "crossbow",
-                  "label": "◇ Crossbow (<em>far</em>, +1 damage, <em>reload</em>, x <em>piercing</em>, ○ low ammo, ○ all out)",
+                  "label": "◇ <strong>Crossbow</strong> (<em>far</em>, +1 damage, <em>reload</em>, x <em>piercing</em>, ○ low ammo, ○ all out)",
                   "resource": {
                     "max": 2,
                     "title": null,

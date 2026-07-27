@@ -15,7 +15,7 @@
 			{{else}}
 			<span class="stonetop-lore-readonly-marker">{{../readonlyMarker}}</span>
 			{{/if}}
-			<span class="stonetop-lore-option-desc">{{{readonlyDescription}}}</span>
+			<span class="stonetop-lore-option-desc">{{#if hasBlank}}{{{readonlyFillBefore}}}<span class="stonetop-lore-fill-value">{{#if fillValue}}{{fillValue}}{{else}}____{{/if}}</span>{{{fillAfter}}}{{else}}{{{readonlyDescription}}}{{/if}}</span>
 		</div>
 		{{/if}}
 		{{/if}}

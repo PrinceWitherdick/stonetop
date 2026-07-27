@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
 	deriveHp, deriveArmor, deriveDamageDie, formatDamage,
 	normalizeTags, parseFollowerArmor, buildCustomFollower, monsterFollowerTags, followerFromMonster,
+	followerFromNpc,
 	monsterGroupDefaults, orderFollowersBonus, readinessCap,
 	READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS,
 } from "../../module/data/follower-build.js";
@@ -305,6 +306,82 @@ describe("followerFromMonster", () => {
 		);
 		expect(f.isGroup).toBe(false);
 		expect(f.size).toBe(0);
+	});
+});
+
+describe("followerFromNpc", () => {
+	const statted = {
+		name: "Elios",
+		uuid: "Actor.elios1",
+		system: {
+			hasStats: true,
+			pronouns: "he/him",
+			instinct: "to complain but get the job done",
+			tags: "ex-mercenary, humorless",
+			attributes: {
+				hp: { value: 5, max: 6 },
+				armor: { value: 1 },
+				damage: { value: "sword d6 (hand)", rollFormula: "d6" },
+			},
+		},
+	};
+
+	it("seeds stats + tags + instinct + pronoun from a statted NPC and links back via sourceUuid", () => {
+		const f = followerFromNpc(statted, { cost: "recognition", moves: ["Bark an order"] });
+		expect(f.name).toBe("Elios");
+		expect(f.hpMax).toBe(6);
+		expect(f.hpCurrent).toBe(5);       // current HP carried over
+		expect(f.armor).toBe(1);
+		expect(f.damage).toBe("sword d6 (hand)");
+		expect(f.tags).toEqual(["ex-mercenary", "humorless"]);
+		expect(f.instinct).toBe("to complain but get the job done");
+		expect(f.pronoun).toBe("he/him"); // defaulted from the NPC's pronouns
+		expect(f.cost).toBe("recognition");
+		expect(f.moves).toBe("Bark an order");
+		expect(f.sourceUuid).toBe("Actor.elios1");
+		expect(f.loyalty).toBe(0);         // gains a fresh Loyalty track
+	});
+
+	it("appends the player's added tags after the NPC's own", () => {
+		const f = followerFromNpc(statted, { tags: ["eager"] });
+		expect(f.tags).toEqual(["ex-mercenary", "humorless", "eager"]);
+	});
+
+	it("falls back to the able-bodied baseline (6 HP, 0 armor, no tags) for an unstatted NPC", () => {
+		const f = followerFromNpc(
+			{ name: "Andras", uuid: "Actor.andras1", system: { hasStats: false, pronouns: "he/him", instinct: "to impress Rhianna", tags: "ignored-when-unstatted" } },
+			{},
+		);
+		expect(f.hpMax).toBe(6);
+		expect(f.hpCurrent).toBe(6);
+		expect(f.armor).toBe(0);
+		expect(f.damage).toBe("");
+		expect(f.tags).toEqual([]); // an NPC's tags are game-stats; skipped when it has none
+		expect(f.instinct).toBe("to impress Rhianna");
+		expect(f.sourceUuid).toBe("Actor.andras1");
+	});
+
+	it("lets the dialog override HP / armor / damage", () => {
+		const f = followerFromNpc(statted, { hp: 9, armor: 2, damage: "d8" });
+		expect(f.hpMax).toBe(9);
+		expect(f.hpCurrent).toBe(5); // raising max doesn't heal; keeps the NPC's current HP
+		expect(f.armor).toBe(2);
+		expect(f.damage).toBe("d8");
+	});
+
+	it("fills current HP to max when the NPC has no current value", () => {
+		const f = followerFromNpc(
+			{ name: "Golem", uuid: "Actor.g", system: { hasStats: true, attributes: { hp: { max: 12 } } } },
+			{},
+		);
+		expect(f.hpMax).toBe(12);
+		expect(f.hpCurrent).toBe(12);
+	});
+
+	it("becomes a group follower when isGroup + size are passed", () => {
+		const f = followerFromNpc(statted, { isGroup: true, size: 4 });
+		expect(f.isGroup).toBe(true);
+		expect(f.size).toBe(4);
 	});
 });
 

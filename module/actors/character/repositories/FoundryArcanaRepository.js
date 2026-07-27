@@ -1,6 +1,6 @@
 import { MinorArcanum } from "../../../model/MinorArcanum.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
-import { ITEM_FLAG_SCOPE } from "../StonetopFlags.js";
+import { ITEM_FLAG_SCOPE, ARCANA_PACK } from "../StonetopFlags.js";
 
 // Shared slug → world-arcanum-Item index. Built lazily and reused across every repository
 // instance and every render, so resolving a homebrew slug is O(1) instead of a full
@@ -40,7 +40,7 @@ function _worldArcanumItem(slug) {
 
 export class FoundryArcanaRepository {
 	constructor() {
-		this._store = new FoundryPackStore("stonetop_pwd.stonetop-arcana", [`flags.${ITEM_FLAG_SCOPE}.slug`]);
+		this._store = new FoundryPackStore(ARCANA_PACK, [`flags.${ITEM_FLAG_SCOPE}.slug`]);
 		this._cache = new Map();
 	}
 

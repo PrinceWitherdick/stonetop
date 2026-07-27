@@ -153,7 +153,14 @@
           {
             "slug": "a-good-dog",
             "label": "A good dog",
-            "description": "follower (◇ <em>retriever</em> or ◇ <em>herder, keen-nosed, clever</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct to play; Cost: affection."
+            "description": "follower (<em>keen-nosed, clever</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct to play; Cost: affection.",
+            "choices": {
+              "pickCount": 1,
+              "options": [
+                { "slug": "retriever", "label": "<em>retriever</em>" },
+                { "slug": "herder", "label": "<em>herder</em>" }
+              ]
+            }
           },
           {
             "slug": "heap-of-expectations",
@@ -199,30 +206,31 @@
             "description": "",
             "choices": {
               "pickCount": 1,
+              "gear": true,
               "options": [
                 {
                   "slug": "shield",
-                  "label": "◇◇ A shield, bearing ___'s crest"
+                  "label": "◇◇ <strong>A shield</strong>, bearing ___'s crest"
                 },
                 {
                   "slug": "wool-cloak",
-                  "label": "◇ A wool cloak, woven just for you by ___"
+                  "label": "◇ <strong>A wool cloak</strong>, woven just for you by ___"
                 },
                 {
                   "slug": "letter",
-                  "label": "A letter, spattered with tears &amp; blood"
+                  "label": "<strong>A letter</strong>, spattered with tears &amp; blood"
                 },
                 {
                   "slug": "flute",
-                  "label": "A flute, a gift from someone you loved"
+                  "label": "<strong>A flute</strong>, a gift from someone you loved"
                 },
                 {
                   "slug": "fine-locket",
-                  "label": "A fine locket, holding a strand of hair"
+                  "label": "<strong>A fine locket</strong>, holding a strand of hair"
                 },
                 {
                   "slug": "tinderbox",
-                  "label": "A tinderbox, lovingly engraved"
+                  "label": "<strong>A tinderbox</strong>, lovingly engraved"
                 }
               ]
             }

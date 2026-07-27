@@ -5,6 +5,7 @@
 // a reusable world inventory item, or a homebrew arcanum. Opened from StonetopItem.createDialog.
 
 import { canCreateArcana } from "../utils/authoring-gates.js";
+import { pickContentOption } from "./content-picker.js";
 
 const CONTENT_OPTIONS = [
 	{
@@ -97,43 +98,6 @@ const ARCANUM_KIND_OPTIONS = [
 		hint: "Roll the Book II Artifact Creation tables (origin, nature, form) for a themed starting point, then build the card from the results.",
 	},
 ];
-
-/**
- * Shared radio-list chooser. Resolves to the picked option id, or null if dismissed.
- * DialogV2 requires the content element itself to carry no attributes, so the
- * styled/classed container lives one level in.
- */
-function pickContentOption({ title, options }) {
-	const rows = options.map((opt, i) => `
-		<label class="stonetop-content-picker-option">
-			<input type="radio" name="contentType" value="${opt.id}"${i === 0 ? " checked" : ""}>
-			<i class="fas ${opt.icon}" aria-hidden="true"></i>
-			<span class="stonetop-content-picker-text">
-				<span class="stonetop-content-picker-label">${opt.label}</span>
-				<span class="stonetop-content-picker-hint">${opt.hint}</span>
-			</span>
-		</label>`).join("");
-
-	const content = document.createElement("div");
-	content.innerHTML = `<div class="stonetop stonetop-content-picker">${rows}</div>`;
-
-	return foundry.applications.api.DialogV2.prompt({
-		// This is an ApplicationV2 dialog (`.application` root), which the `.stonetop`
-		// parchment/slate skin excludes by design (stonetop.css `:not(.application,…)`).
-		// Our sibling authoring flows are AppV1 and pick the skin up for free; a V2
-		// window needs `stonetop-themed` to get the same modal look.
-		classes: ["stonetop", "stonetop-themed", "stonetop-content-picker-dialog"],
-		window: { title },
-		position: { width: 440 },
-		content,
-		ok: {
-			label: "Continue",
-			callback: (event, button) =>
-				new foundry.applications.ux.FormDataExtended(button.form).object.contentType,
-		},
-		rejectClose: false,
-	});
-}
 
 /** Top-level chooser. Resolves to a CONTENT_OPTIONS id or null. */
 function pickContentType() {
