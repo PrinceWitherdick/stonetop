@@ -177,6 +177,64 @@ describe("StonetopCharacterSheet event handlers", () => {
 	});
 });
 
+describe("StonetopCharacterSheet Details tab section visibility", () => {
+	const DETAILS_SECTIONS = ["lore", "background", "instinct", "appearance", "origin"];
+
+	function detailsPlaybook({ filled }) {
+		return {
+			lore:       { hasReadonlyContent: filled },
+			background: { selected: filled ? "vessel" : "", options: [{ slug: "vessel", selected: filled }] },
+			instinct:   { hasSelection: filled },
+			appearance: { summary: filled ? "Gray & wizened" : "" },
+			origin:     { selected: filled ? "Stonetop" : "", selectedOption: filled ? { region: "Stonetop" } : null },
+		};
+	}
+
+	async function detailsShowFor(playbook, { editMode = false } = {}) {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => ({ ...minimalSheetSnapshot({}), playbook }));
+		const sheet = makeSheet(actor);
+		sheet._editMode = editMode;
+		return (await sheet.getData()).stonetop.detailsShow;
+	}
+
+	it("hides every unfilled section in play mode", async () => {
+		const show = await detailsShowFor(detailsPlaybook({ filled: false }));
+		for (const section of DETAILS_SECTIONS) expect(show[section], section).toBe(false);
+	});
+
+	it("shows every section in play mode once it has been filled in", async () => {
+		const show = await detailsShowFor(detailsPlaybook({ filled: true }));
+		for (const section of DETAILS_SECTIONS) expect(show[section], section).toBe(true);
+	});
+
+	it("brings the unfilled sections back when the global edit wrench is on", async () => {
+		const show = await detailsShowFor(detailsPlaybook({ filled: false }), { editMode: true });
+		for (const section of DETAILS_SECTIONS) expect(show[section], section).toBe(true);
+	});
+
+	it("hides only the sections that are still empty", async () => {
+		const playbook = detailsPlaybook({ filled: false });
+		playbook.instinct.hasSelection = true;
+		const show = await detailsShowFor(playbook);
+		expect(show.instinct).toBe(true);
+		expect(show.background).toBe(false);
+		expect(show.appearance).toBe(false);
+	});
+
+	it("keeps a section hidden when a saved value matches none of the playbook's options", async () => {
+		const playbook = detailsPlaybook({ filled: false });
+		playbook.background.selected = "gone-from-the-playbook";
+		playbook.origin.selected = "Nowhere";
+		const show = await detailsShowFor(playbook);
+		expect(show.background).toBe(false);
+		expect(show.origin).toBe(false);
+	});
+});
+
 describe("StonetopCharacterSheet._buildRecoverData", () => {
 	it("can recover when supplies remain, HP is below max, and not locked", () => {
 		const actor = new FakeActorBuilder().withFlag("inventory.resources", { supplies: 3 }).build();

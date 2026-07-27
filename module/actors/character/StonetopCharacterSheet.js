@@ -894,6 +894,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				lore:       sectionEdit("lore"),
 				relationships: sectionEdit("relationships"),
 			};
+			// Play mode is a fair copy of the sheet: a Details section the player never
+			// filled in would be a bare heading and a pencil, so drop it entirely. Edit
+			// mode (the wrench, or the section's own pencil) always shows it — that's how
+			// an empty section gets filled in, and the wrench is the way back to a hidden one.
+			const pb = context.stonetop.playbook;
+			const detailsFilled = {
+				lore:       !!pb?.lore?.hasReadonlyContent,
+				background: !!(pb?.background?.selected && pb.background.options?.some(o => o.selected)),
+				instinct:   !!pb?.instinct?.hasSelection,
+				appearance: !!pb?.appearance?.summary,
+				origin:     !!(pb?.origin?.selected && pb.origin.selectedOption),
+			};
+			context.stonetop.detailsShow = Object.fromEntries(Object.entries(detailsFilled)
+				.map(([section, filled]) => [section, filled || context.stonetop.detailsEdit[section]]));
 			const relRows = this._buildRelationshipRows();
 			const relEditing = context.stonetop.detailsEdit.relationships;
 			context.stonetop.relationships    = relEditing ? relRows : relRows.filter(r => r.shown);

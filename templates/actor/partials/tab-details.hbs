@@ -1,11 +1,13 @@
 <div class="tab details{{#unless stonetop.editMode}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="details">
 
+		{{#if stonetop.detailsShow.lore}}
 		<div class="stonetop-lore-section-wrapper{{#if stonetop.detailsEdit.lore}} stonetop-section-editing{{/if}}">
 			{{#if stonetop.playbook.lore.hasEntries}}{{> "stonetop.details-section-edit-toggle" section="lore" editing=stonetop.detailsEdit.lore}}{{/if}}
 			{{> "stonetop.lore-section" lore=stonetop.playbook.lore editMode=stonetop.detailsEdit.lore}}
 		</div>
+		{{/if}}
 
-		{{#if stonetop.playbook.background.options.length}}
+		{{#if (and stonetop.playbook.background.options.length stonetop.detailsShow.background)}}
 		<div class="details-section{{#if stonetop.detailsEdit.background}} stonetop-section-editing{{/if}}">
 			<div class="stonetop-details-heading-row">
 				{{#if stonetop.detailsEdit.background}}
@@ -111,7 +113,7 @@
 		</div>
 		{{/if}}
 
-		{{#if stonetop.playbook}}
+		{{#if (and stonetop.playbook stonetop.detailsShow.instinct)}}
 		<div class="details-section{{#if stonetop.detailsEdit.instinct}} stonetop-section-editing{{/if}}">
 			<div class="stonetop-details-heading-row">
 				{{#if stonetop.detailsEdit.instinct}}
@@ -154,7 +156,7 @@
 		</div>
 		{{/if}}
 
-		{{#if (and stonetop.playbook stonetop.playbook.appearance.options.length)}}
+		{{#if (and stonetop.playbook stonetop.playbook.appearance.options.length stonetop.detailsShow.appearance)}}
 		<div class="details-section{{#if stonetop.detailsEdit.appearance}} stonetop-section-editing{{/if}}">
 			<div class="stonetop-details-heading-row">
 				{{#if stonetop.detailsEdit.appearance}}
@@ -186,7 +188,7 @@
 		</div>
 		{{/if}}
 
-		{{#if stonetop.playbook.origin.options.length}}
+		{{#if (and stonetop.playbook.origin.options.length stonetop.detailsShow.origin)}}
 		<div class="details-section{{#if stonetop.detailsEdit.origin}} stonetop-section-editing{{/if}}">
 			<div class="stonetop-details-heading-row">
 				{{#if stonetop.detailsEdit.origin}}

@@ -22271,6 +22271,21 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	gap: 4px;
 	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 }
+/* The value has to wrap INSIDE its own flex item rather than get bumped whole onto
+   the next flex line. Left at `flex: 0 1 auto`, its hypothetical size is the value's
+   max-content width, so a long Embodiment or Instinct note doesn't fit beside the
+   label and the wrap drops all of it below, stranding "Embodiment:" alone on a line.
+   `flex: 1 1 0` plus `min-width: 0` zeroes that hypothetical size: the value always
+   shares the label's line, takes the width that's left, and wraps its own text there
+   (continuation lines hang under the value, not back at the margin). Edit-mode inputs
+   already behave this way via .stonetop-npc-stat-input. */
+.stonetop-npc-stat-line > .stonetop-npc-prose,
+.stonetop-npc-instinct > .stonetop-npc-prose,
+.stonetop-npc-embodiment > .stonetop-npc-prose {
+	flex: 1 1 0;
+	min-width: 0;
+	overflow-wrap: break-word;
+}
 .stonetop-npc-stat-key {
 	font-weight: bold;
 	flex-shrink: 0;
