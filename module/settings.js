@@ -585,7 +585,8 @@ export function registerSettings() {
 	});
 
 	// Snapshot of the sheets this user had open at last reload, keyed by document
-	// uuid -> { left, top, width, height, minimized } (see utils/window-restore.js).
+	// uuid -> { left, top, width, height, minimized, tabs, editMode } (see
+	// utils/window-restore.js).
 	// Internal (not shown in the settings menu); rewritten continuously as windows
 	// open, close, and move.
 	game.settings.register("stonetop_pwd", "openWindowsState", {
