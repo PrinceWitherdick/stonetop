@@ -1,5 +1,10 @@
 name: Release
 
+# This workflow is AUTHORITATIVE for what users download. It runs on release:published,
+# rebuilds system.json and stonetop.zip from a clean checkout, and OVERWRITES whatever was
+# attached to the release by hand. Anything you want in the shipped artifact has to happen
+# here, not in a local staging directory.
+
 on:
   release:
     types: [published]
@@ -19,20 +24,61 @@ jobs:
       - run: npm test
       - run: npm run pack
 
-      - name: Patch download URL
+      - name: Patch manifest
         run: |
           node -e "
             const fs = require('fs');
             const m = JSON.parse(fs.readFileSync('system.json', 'utf8'));
             m.version = '${{ github.ref_name }}';
             m.download = 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/stonetop.zip';
+            // While the old package id is still shipping, the released title has to
+            // disambiguate it: Foundry's Setup screen shows a package's title and never its
+            // id, so during the migration window a user has two tiles both reading
+            // 'Stonetop' and no way to tell which to remove. Self-limiting — once the id is
+            // renamed this branch stops firing and the plain title comes back. The repo copy
+            // keeps the plain title so the maintainer's own worlds read normally.
+            if (m.id === 'stonetop_pwd') m.title = 'Stonetop (old ID)';
             fs.writeFileSync('system.json', JSON.stringify(m, null, '\t'));
+          "
+
+      - name: Ship only the packs system.json declares
+        # packs/ accumulates output from packs the manifest no longer declares. Foundry never
+        # loads them, but anything tracked in git reaches the checkout and then the zip.
+        run: |
+          node -e "
+            const fs = require('fs');
+            const declared = new Set(
+              JSON.parse(fs.readFileSync('system.json', 'utf8')).packs.map(p => p.path.split('/').pop())
+            );
+            for (const name of fs.readdirSync('packs')) {
+              if (name === 'src' || declared.has(name)) continue;
+              fs.rmSync('packs/' + name, { recursive: true, force: true });
+              console.log('dropped undeclared pack: ' + name);
+            }
+          "
+
+      - name: Verify the artifact before it ships
+        # Private book art is gitignored, so a clean checkout should not contain it. Assert
+        # rather than assume: a leak here is public and irreversible.
+        run: |
+          for d in assets/maps assets/bestiary assets/locations; do
+            if [ -e "$d" ]; then echo "FAIL: $d present in the checkout"; exit 1; fi
+          done
+          node -e "
+            const m = JSON.parse(require('fs').readFileSync('system.json', 'utf8'));
+            if (m.version !== '${{ github.ref_name }}') { console.error('FAIL: version mismatch'); process.exit(1); }
+            for (const p of m.packs) {
+              if (!require('fs').existsSync(p.path)) { console.error('FAIL: declared pack missing: ' + p.path); process.exit(1); }
+            }
+            console.log('manifest ok: ' + m.id + ' ' + m.version + ' \"' + m.title + '\"');
           "
 
       - name: Create zip
         run: |
           zip -r stonetop.zip \
-            system.json stonetop.js LICENSE module/ styles/ languages/ assets/ templates/ packs/ \
+            system.json stonetop.js LICENSE README.md \
+            AI-TRAINING-NOTICE.md ai.txt robots.txt CITATION.cff .well-known/ \
+            module/ styles/ languages/ assets/ templates/ packs/ \
             --exclude "packs/src/*"
 
       - name: Create release

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { preflight, flipWorldSystem, verifyFlip, shutdownWorld } from "../../module/migration/flip.js";
+import { preflight, flipWorldSystem, verifyFlip, shutdownWorld, onHostedProvider } from "../../module/migration/flip.js";
 import { OLD_ID as SOURCE, NEW_ID as TARGET, MIGRATION_IDS as IDS, makeGame } from "../fakes/migration.js";
 
 const okManifest = (over = {}) => ({ id: TARGET, compatibility: { minimum: "13" }, ...over });
@@ -91,6 +91,21 @@ describe("preflight", () => {
 		const modules = [{ id: "st-extras", active: false, relationships: { systems: [{ id: SOURCE }] } }];
 		modules.get = () => undefined;
 		const result = await preflight(makeGame({ modules }), { fetchImpl: fetchOk(), ...IDS });
+		expect(result.ok).toBe(true);
+	});
+
+	// The Forge replaces Foundry's setup route with its own when Game Manager is on, and
+	// gates it by Forge account ownership rather than Foundry role. That route is both what
+	// the flip needs and how a mis-pointed world would be recovered, so refuse rather than
+	// gamble on an unverified environment.
+	it("blocks on a hosted provider", async () => {
+		const result = await preflight(makeGame(), { fetchImpl: fetchOk(), ...IDS, scope: { ForgeVTT: { usingTheForge: true } } });
+		expect(result.ok).toBe(false);
+		expect(result.blockers.join(" ")).toMatch(/hosted Foundry/i);
+	});
+
+	it("does not block a self-hosted world", async () => {
+		const result = await preflight(makeGame(), { fetchImpl: fetchOk(), ...IDS, scope: {} });
 		expect(result.ok).toBe(true);
 	});
 
@@ -202,5 +217,17 @@ describe("shutdownWorld", () => {
 		const wait = vi.fn().mockResolvedValue();
 		await shutdownWorld(goneAfter(), { wait, settleMs: 1234 });
 		expect(wait).toHaveBeenCalledWith(1234);
+	});
+});
+
+describe("onHostedProvider", () => {
+	it("detects The Forge", () => {
+		expect(onHostedProvider({ ForgeVTT: { usingTheForge: true } })).toBe(true);
+	});
+
+	it("is false for self-hosted, and for a Forge global that is not in use", () => {
+		expect(onHostedProvider({})).toBe(false);
+		expect(onHostedProvider({ ForgeVTT: { usingTheForge: false } })).toBe(false);
+		expect(onHostedProvider(undefined)).toBe(false);
 	});
 });

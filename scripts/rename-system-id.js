@@ -42,7 +42,11 @@ const isCompiledPackDir = (relDir) => relDir.startsWith("packs/") && !relDir.sta
 const EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".json", ".hbs", ".css", ".md", ".html"]);
 
 /**
- * Individually skipped: local backups, lockfiles that name the package, and THIS FILE.
+ * Individually skipped: local backups and THIS FILE.
+ *
+ * package-lock.json is deliberately NOT skipped. npm reconciles the lockfile's root
+ * `name` against package.json's, so renaming one without the other leaves the tree in a
+ * state npm wants to rewrite. Both occurrences there are that root name field.
  *
  * Skipping itself matters: the old id is a literal in the OLD constant below, so a run
  * that rewrote this script would leave `OLD === NEW` and every subsequent run would be a
@@ -50,7 +54,7 @@ const EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".json", ".hbs", ".css", ".md
  * already loaded it — which is exactly what makes the breakage easy to miss.)
  */
 const SELF = "scripts/rename-system-id.js";
-const SKIP_FILE = (rel) => rel === SELF || rel.endsWith(".bak") || rel.endsWith("package-lock.json");
+const SKIP_FILE = (rel) => rel === SELF || rel.endsWith(".bak");
 
 /**
  * The bridge release is titled to warn against uninstalling it, since the Setup screen

@@ -110,12 +110,29 @@ describe("flipAndShutDown", () => {
 		expect(result.warning).toMatch(/do not keep playing/i);
 	});
 
-	it("fails when verification shows the change did not land", async () => {
+	// The flip already landed by this point: the server echoed the applied system back.
+	// Treating a failed read-back as a failed migration would skip the shutdown and leave
+	// the session running past a one-way door, and on a hosted provider that read-back is
+	// the request most likely to be unavailable.
+	it("still shuts down when the change cannot be read back, and says so", async () => {
 		const fetchImpl = vi.fn(async (url) => (String(url).includes("world.json")
-			? { ok: true, json: async () => ({ system: OLD }) }
+			? { ok: false }
 			: { ok: true, json: async () => ({ system: { id: NEW } }) }));
-		const result = await flipAndShutDown(makeGame(), { fetchImpl, ...IDS, wait: async () => {} });
-		expect(result).toMatchObject({ ok: false, stage: "verify" });
+		const game = makeGame();
+		const result = await flipAndShutDown(game, { fetchImpl, ...IDS, wait: async () => {} });
+
+		expect(result.ok).toBe(true);
+		expect(game.shutDown).toHaveBeenCalled();
+		expect(result.warning).toMatch(/could not be read back/i);
+	});
+
+	it("reports the flip itself failing, and does not shut down", async () => {
+		const fetchImpl = vi.fn(async () => ({ ok: true, json: async () => ({ error: "refused" }) }));
+		const game = makeGame();
+		const result = await flipAndShutDown(game, { fetchImpl, ...IDS, wait: async () => {} });
+
+		expect(result).toMatchObject({ ok: false, stage: "flip" });
+		expect(game.shutDown).not.toHaveBeenCalled();
 	});
 });
 
