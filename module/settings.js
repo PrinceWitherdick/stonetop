@@ -24,6 +24,17 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Which system id the Phase 3 id-migration sweep last completed for. Stores the id
+	// rather than a boolean so a future rename re-runs it, and so a brand-new world (which
+	// has nothing to sweep) can be stamped without pretending a migration happened.
+	game.settings.register("stonetop_pwd", "idMigrationFinishedFor", {
+		name: "System ID Migration Completed For",
+		scope: "world",
+		config: false,
+		type: String,
+		default: ""
+	});
+
 	// Whether the one-time import of the Monsters (stonetop-bestiary) actor compendium
 	// into the world's Actors sidebar has run (see hooks/SeedActors.js). Independent of
 	// `seedingComplete` (which covers the JournalEntry packs) so an established world whose

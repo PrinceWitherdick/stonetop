@@ -7,7 +7,7 @@
 // code because a player's client never receives that pack. Keys are lower-cased to
 // match the onboarding dialog's _lookupWord; some phrases alias to a god's summary.
 
-import { escHtml } from "./strings.js";
+import { escHtml, escapeRegExp } from "./strings.js";
 
 const DANU =
 	"Danu — the Great Mother, the Goddess, She-Who-Provides — is one of the four main gods of Stonetop. She is the deity of the earth and the wild places, of beasts and birds, of green growing things. She has long been revered by all peoples, though not always worshipped, nor served by priests.";
@@ -42,7 +42,7 @@ const WRAP_TERMS = {
 const _WRAP_RE = new RegExp(
 	"(" + Object.keys(WRAP_TERMS)
 		.sort((a, b) => b.length - a.length)
-		.map(t => `\\b${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)
+		.map(t => `\\b${escapeRegExp(t)}\\b`)
 		.join("|") + ")",
 	"g",
 );

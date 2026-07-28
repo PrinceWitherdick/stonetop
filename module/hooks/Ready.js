@@ -1,4 +1,6 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
+import { maybeOfferMigration } from "../migration/announce.js";
+import { finishSystemIdMigration } from "../migration/finish-run.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJournalsOnVersionChange, syncSeededFolderColors, unnestSeededWorldRootOnce } from "./SeedCompendiums.js";
 import { seedBestiaryActorsOnce, collapseBestiaryActorSubfoldersOnce } from "./SeedActors.js";
@@ -114,6 +116,18 @@ export async function onReady() {
 		catch (err) { console.error("Stonetop | NPC token-nameplate migration failed", err); }
 	}
 	await runStartupMigrations();
+	// If the renamed system has been installed alongside this one, offer to move this
+	// world onto it. No-ops entirely until that system is present. See module/migration/.
+	// Deliberately NOT awaited: the probe is an uncacheable request that 404s on every
+	// load for every GM who has not installed the target yet, and nothing below reads its
+	// result — the assistant is a modal the GM acts on whenever it arrives.
+	maybeOfferMigration().catch(err => console.error("Stonetop | system-id migration offer failed", err));
+	// Phase 3 of a system-id rename: the once-per-world sweep that rewrites asset paths,
+	// compendiumSource stamps and sheet-class ids onto the active id. No-ops in a world
+	// that has nothing stale. Awaited, because the sheet defaults it repairs are read at
+	// init and everything below renders sheets.
+	try { await finishSystemIdMigration(); }
+	catch (err) { console.error("Stonetop | system-id migration finish failed", err); }
 	await ensureStonetopSingleton();
 
 	// The sheet-partial preload was kicked off in the init hook (core doesn't await init

@@ -3,7 +3,12 @@
 // default art for stat blocks without custom imagery. Shared by the stat-block
 // sheet and the bulk importer, so it's a plain ES module with no Foundry deps.
 
-export const CREATURE_TYPE_ICON_DIR = "systems/stonetop_pwd/assets/icons/bestiary";
+import { SYSTEM_ID } from "../system-id.js";
+
+// Authored once: monster-portrait.js recognises OUR placeholder art by this path, so the
+// writer and the reader must not be able to drift apart.
+export const CREATURE_TYPE_ICON_SUFFIX = "assets/icons/bestiary";
+export const CREATURE_TYPE_ICON_DIR = `systems/${SYSTEM_ID}/${CREATURE_TYPE_ICON_SUFFIX}`;
 
 export const CREATURE_TYPES = [
 	{ slug: "human-individual", label: "Human (individual)" },

@@ -1,3 +1,5 @@
+import { compendiumRefTail, systemLinkPattern } from "../migration/compat.js";
+
 // Pure helpers for the "managed journal" update channel (see SeedCompendiums.js).
 // Kept Foundry-free so the fingerprinting + link-remap logic is unit-testable: the
 // seed/update hooks supply plain document data (`toObject()`), these decide what
@@ -10,15 +12,29 @@
 // has edited it — we leave it alone. The fingerprint is order-independent and id-
 // independent so cosmetic churn (page ids, key order) never reads as an edit.
 
-// Any @UUID into one of this system's compendiums.
-export const SYSTEM_LINK = /@UUID\[(Compendium\.stonetop_pwd\.[^\]]+)\]/g;
+// Any @UUID into one of this system's compendiums, under ANY id this system has shipped
+// under — prose written before an id rename still names the old one.
+export const SYSTEM_LINK = systemLinkPattern();
 
 // Build a rewriter that points a content string's compendium @UUID links at the
 // world copies we seeded (`linkMap`: compendium-entry uuid → world-entry uuid).
 // Links whose target we didn't seed aren't in the map and pass through unchanged.
+//
+// Lookup falls back to the package-id-free tail, so a link written under the old system
+// id still resolves to a world copy stamped under the new one (and vice versa).
 export function makeRewriter(linkMap) {
-	return str => (typeof str === "string" && str.includes("Compendium.stonetop_pwd."))
-		? str.replace(SYSTEM_LINK, (m, uuid) => { const world = linkMap.get(uuid); return world ? `@UUID[${world}]` : m; })
+	const byTail = new Map();
+	for (const [uuid, world] of linkMap ?? []) {
+		const tail = compendiumRefTail(uuid);
+		if (tail && !byTail.has(tail)) byTail.set(tail, world);
+	}
+	const resolve = uuid => linkMap.get(uuid) ?? byTail.get(compendiumRefTail(uuid));
+
+	// No `includes` pre-filter: SYSTEM_LINK already encodes the id alternation, and a
+	// /g replace with no match returns the input string untouched. A second copy of the
+	// id list here would be one more place to keep in step.
+	return str => (typeof str === "string")
+		? str.replace(SYSTEM_LINK, (m, uuid) => { const world = resolve(uuid); return world ? `@UUID[${world}]` : m; })
 		: str;
 }
 

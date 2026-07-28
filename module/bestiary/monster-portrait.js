@@ -11,10 +11,14 @@
 // the legacy `stonetop` system id and Foundry's generic defaults (and a missing image). A real
 // portrait — a webp/png the GM chose — is not a placeholder and is never overwritten.
 
-import { CREATURE_TYPE_ICON_DIR } from "./creature-types.js";
+import { systemAssetVariants } from "../migration/compat.js";
+import { CREATURE_TYPE_ICON_SUFFIX } from "./creature-types.js";
 
-// The creature-type icon dir under the old system id, for worlds migrated from `stonetop`.
-const LEGACY_CREATURE_TYPE_ICON_DIR = "systems/stonetop/assets/icons/bestiary";
+// Creature-type icon dirs under every system id this package has shipped under, so a
+// world seeded before an id rename still reads its portraits as replaceable placeholders.
+// The suffix comes from the module that WRITES these portraits, and the active id is the
+// first entry, so this subsumes CREATURE_TYPE_ICON_DIR and cannot drift from it.
+const CREATURE_TYPE_ICON_DIRS = systemAssetVariants(`${CREATURE_TYPE_ICON_SUFFIX}/`);
 
 // True when `img` is a shipped placeholder the durable book art is allowed to replace.
 // DEFAULT_TOKEN is read at call time (not import time) so it reflects the running Foundry.
@@ -25,5 +29,5 @@ export function isBestiaryPlaceholderImg(img) {
 	// bare path — applied to every comparison, not just the dir prefixes.
 	const bare = String(img).replace(/^\//, "");
 	if (bare === "icons/svg/mystery-man.svg" || bare === defaultToken.replace(/^\//, "")) return true;
-	return bare.startsWith(`${CREATURE_TYPE_ICON_DIR}/`) || bare.startsWith(`${LEGACY_CREATURE_TYPE_ICON_DIR}/`);
+	return CREATURE_TYPE_ICON_DIRS.some(dir => bare.startsWith(dir));
 }

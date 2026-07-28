@@ -29,6 +29,19 @@ export function escHtml(v) {
 	return String(v ?? "").replace(/[&<>"']/g, (c) => _HTML_ESCAPES[c]);
 }
 
+/**
+ * Escape a value for literal use inside a RegExp. The one regex-escaper for the system —
+ * pure, so Foundry-free modules can import it; do NOT add ad-hoc copies elsewhere.
+ * `-` is escaped too, so the result is also safe to drop inside a character class.
+ *
+ * ⚠ That makes the output unsafe under the `u`/`v` flags: `\-` outside a character class
+ * is a legal identity escape in a plain RegExp and a SyntaxError in a unicode one. Every
+ * call site is flagless or "g"/"gi"; keep it that way, or escape without `-` there.
+ */
+export function escapeRegExp(v) {
+	return String(v ?? "").replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
+}
+
 // Collapse rich text (an HTML / ProseMirror field) to a single plain-text line for a tooltip or
 // a ledger/preview: drop tags (turning <br> into a space so words don't glue), decode the handful
 // of named entities our authored prose uses, and squeeze whitespace. Returns "" for null/blank.

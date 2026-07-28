@@ -11,6 +11,8 @@
 // `stonetop-journal-art` class match what the macro's compendium pass writes, so the
 // idempotency check (does the body already reference this src?) works across paths.
 
+import { escapeRegExp } from "../utils/strings.js";
+
 const ART_CLASS = "stonetop-journal-art";
 const MAP_FIGURE_CLASS = "stonetop-map";
 
@@ -48,10 +50,6 @@ function leadArtSection(body) {
 // `src` instead (below), so they survive markup that the wrapper regex no longer fits.
 const artEmbedRe = () => new RegExp(`<p><img class="${ART_CLASS}"[^>]*></p>`, "g");
 
-// Escape a string for literal use inside a RegExp.
-function escapeRegExp(s) {
-	return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 // Managed art is detected and stripped by its exact `src` — the durable-art path this
 // system generates — NOT by the surrounding wrapper markup. A GM who opens a location
