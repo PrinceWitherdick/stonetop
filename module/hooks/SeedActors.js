@@ -1,6 +1,6 @@
 import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
-import { compendiumSourceOf } from "../utils/foundry-compat.js";
+import { compendiumRefTail, seededSourceKeys } from "../migration/compat.js";
 import { BESTIARY_ROOT_NAME, BESTIARY_FOLDER_COLOR, planBestiaryFolderTree } from "./bestiary-seed-core.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 
@@ -135,11 +135,13 @@ async function importBestiaryActors(pack) {
 
 	// Actors already carried into the world (by an earlier seed, or a GM drag from the
 	// compendium) are matched on their compendium source and left alone — no duplicates.
-	const alreadySeeded = new Set((game.actors ?? []).map(compendiumSourceOf).filter(Boolean));
+	// Matched without the package id, so a world seeded under an older system id is not
+	// re-imported wholesale.
+	const alreadySeeded = seededSourceKeys(game.actors);
 
 	const data = [];
 	for (const d of docs) {
-		if (alreadySeeded.has(d.uuid)) continue;
+		if (alreadySeeded.has(compendiumRefTail(d.uuid))) continue;
 		// fromCompendium prepares the doc for world creation (drops the id, stamps
 		// `_stats.compendiumSource`); keep sort so the authored order is preserved.
 		const obj = game.actors.fromCompendium(d, { clearSort: false });

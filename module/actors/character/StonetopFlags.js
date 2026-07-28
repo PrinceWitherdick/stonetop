@@ -1,14 +1,21 @@
-export const STONETOP_SCOPE = "stonetop_pwd";
-export const LEGACY_STONETOP_SCOPE = "stonetop";
+import { SYSTEM_ID, LEGACY_FLAG_SCOPES, isCutOver, packId } from "../../system-id.js";
 
-// Compendium pack ids, derived from the system scope so the roadmapped stonetop_pwd → stonetop
-// rename touches only STONETOP_SCOPE. Import these; do not retype the literal pack path.
-export const ITEMS_PACK  = `${STONETOP_SCOPE}.stonetop-items`;
-export const ARCANA_PACK = `${STONETOP_SCOPE}.stonetop-arcana`;
+const _scope = SYSTEM_ID;
+export const STONETOP_SCOPE = _scope;
+
+// Compendium pack ids, derived from the system scope so a system-id rename touches only
+// system-id.js. Import these; do not retype the literal pack path.
+export const ITEMS_PACK  = packId("stonetop-items");
+export const ARCANA_PACK = packId("stonetop-arcana");
 // Compendium item documents store their custom flags under the original system ID.
-// This intentionally differs from STONETOP_SCOPE (actor flags).
-export const ITEM_FLAG_SCOPE = "stonetop";
-const _scope = STONETOP_SCOPE;
+// This intentionally differs from STONETOP_SCOPE (actor flags) — see system-id.js.
+export { ITEM_FLAG_SCOPE } from "../../system-id.js";
+
+// A document is "cut over" once the system-id migration has copied its flags into the
+// active scope (system-id.js#isCutOver). From then on the active scope is authoritative on
+// its own: continuing to fall back to the old scope would resurrect sub-keys the system
+// deliberately deletes (e.g. CharacterArcana#removeArcanum dropping a re-drawn arcanum's
+// unlock/boxes keys).
 
 export class StonetopFlags {
 	_namespace;
@@ -20,8 +27,16 @@ export class StonetopFlags {
 	}
 
 	getFlag(key) {
-		return this._actor.getFlag(_scope, this.buildKey(key))
-			?? this._actor.flags?.[LEGACY_STONETOP_SCOPE]?.[this.buildKey(key)];
+		const path = this.buildKey(key);
+		// getFlag() resolves the dot-path; the legacy rungs are read as a literal key,
+		// which is how they were written before the scope was namespaced. The migration
+		// folds those rungs into the active bag verbatim, so the active read has to try
+		// the literal key too — same pair resolvedFlagProperty() uses.
+		const active = this._actor.getFlag(_scope, path) ?? this._actor.flags?.[_scope]?.[path];
+		if (isCutOver(this._actor)) return active;
+		let value = active;
+		for (const scope of LEGACY_FLAG_SCOPES) value = value ?? this._actor.flags?.[scope]?.[path];
+		return value;
 	}
 
 	async setFlag(key, value, options) {
@@ -75,10 +90,14 @@ export class StonetopFlags {
 }
 
 export function resolvedFlags(actor) {
-	return actor.flags?.[_scope] ?? actor.flags?.[LEGACY_STONETOP_SCOPE] ?? {};
+	const active = actor.flags?.[_scope];
+	if (isCutOver(actor)) return active ?? {};
+	let bag = active;
+	for (const scope of LEGACY_FLAG_SCOPES) bag = bag ?? actor.flags?.[scope];
+	return bag ?? {};
 }
 
 export function resolvedFlagProperty(actor, path) {
-	const scoped = actor.flags?.[_scope] ?? actor.flags?.[LEGACY_STONETOP_SCOPE];
+	const scoped = resolvedFlags(actor);
 	return foundry.utils.getProperty(scoped, path) ?? scoped?.[path];
 }

@@ -58,10 +58,24 @@ import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
 import { installWindowRestore } from "./module/utils/window-restore.js";
+import { registerUuidRedirects } from "./module/migration/compat.js";
+import { adoptLegacyClientSettings } from "./module/migration/copy-settings.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
 	info("Initializing");
+
+	// Before ANY setting is read: adopt this browser's client-scope preferences from an
+	// older system id. localStorage is per-browser, so the GM's migration only ever fixed
+	// the GM's own machine; without this every player silently reverts to defaults. Must
+	// precede registerSettings and onReady, which applies the sheet font on its first line.
+	adoptLegacyClientSettings();
+
+	// Before anything can resolve a UUID: make every compendium link written under an
+	// older system id resolve against the current packs. This covers @UUID text, already
+	// serialized content-link anchors, embeds and compendiumSource lookups alike, so no
+	// stored string has to be rewritten for a renamed system to keep working.
+	registerUuidRedirects();
 
 	registerSettings();
 	registerStonetopSingletonHooks();

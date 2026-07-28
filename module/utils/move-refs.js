@@ -12,6 +12,8 @@
 // references a new player actually needs explained; a playbook move's own trigger
 // would just point back at itself.
 
+import { escapeRegExp } from "./strings.js";
+
 // Longest names first so the alternation prefers the longer match.
 export const MOVE_REF_NAMES = [
 	"Persuade (vs. NPCs)",
@@ -36,7 +38,7 @@ export const MOVE_REF_NAMES = [
 ];
 
 const MOVE_REF_RE = new RegExp(
-	`(?<!\\w)(${MOVE_REF_NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?!\\w)`,
+	`(?<!\\w)(${MOVE_REF_NAMES.map(escapeRegExp).join("|")})(?!\\w)`,
 	"g"
 );
 

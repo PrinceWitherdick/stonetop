@@ -22780,3 +22780,101 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	background: rgba(255, 255, 255, 0.5);
 	border-color: rgba(0, 0, 0, 0.4);
 }
+
+/* System-ID migration assistant --------------------------------------------
+   The GM-only tool that moves a world onto the renamed system. Scoped tightly
+   to its own dialog class so nothing here can reach other sheets. */
+.stonetop-migration-assistant .stonetop-migration {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 0.5rem;
+}
+
+.stonetop-migration-assistant .stonetop-migration-lead {
+	margin: 0;
+	font-size: var(--st-fs-md);
+}
+
+.stonetop-migration-assistant .stonetop-migration-lead code {
+	padding: 0 0.25em;
+	border-radius: var(--st-radius-sm);
+	background: rgba(0, 0, 0, 0.08);
+}
+
+.stonetop-migration-assistant .stonetop-migration-panel {
+	padding: 0.6rem 0.8rem;
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius);
+	background: var(--st-blue-bg);
+}
+
+.stonetop-migration-assistant .stonetop-migration-panel.is-blocked {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+}
+
+.stonetop-migration-assistant .stonetop-migration-panel.is-warning {
+	border-color: var(--st-green-border);
+	background: var(--st-green-bg);
+}
+
+/* The last-chance panel before the irreversible step: same red as a blocker, because
+   it is the same "read this before you click" weight. */
+.stonetop-migration-assistant .stonetop-migration-panel.is-confirm {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+}
+
+.stonetop-migration-assistant .stonetop-migration-panel h3 {
+	margin: 0 0 0.4rem;
+	font-size: var(--st-fs-md);
+}
+
+.stonetop-migration-assistant .stonetop-migration-panel ul,
+.stonetop-migration-assistant .stonetop-migration-panel ol {
+	margin: 0 0 0.4rem;
+	padding-left: 1.2rem;
+}
+
+.stonetop-migration-assistant .stonetop-migration-counts {
+	margin: 0.4rem 0 0;
+	font-weight: 600;
+}
+
+.stonetop-migration-assistant .stonetop-migration-note {
+	margin: 0.4rem 0 0;
+	font-size: var(--st-fs-sm);
+	opacity: 0.85;
+}
+
+/* Buttons need inline-flex to render as pills on v13. */
+.stonetop-migration-assistant .stonetop-migration-actions {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.stonetop-migration-assistant .stonetop-migration-actions button {
+	flex: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* The two affirmatives — "Migrate this world" and the "Yes, migrate now" that follows
+   it — take the slate primary tokens. This dialog is an Application, not a .dialog, so
+   the blanket dialog-button rule never reaches it. */
+.stonetop-migration-assistant .stonetop-migration-actions button[data-action="migrate"],
+.stonetop-migration-assistant .stonetop-migration-actions button[data-action="confirm"] {
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+	font-weight: bold;
+}
+
+.stonetop-migration-assistant .stonetop-migration-actions button[data-action="migrate"]:hover,
+.stonetop-migration-assistant .stonetop-migration-actions button[data-action="confirm"]:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+	color: var(--st-btn-primary-text);
+}

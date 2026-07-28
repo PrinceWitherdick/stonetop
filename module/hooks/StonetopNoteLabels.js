@@ -1,3 +1,6 @@
+import { systemAssetVariants } from "../migration/compat.js";
+import { LANDMARK_ICON_SUFFIX } from "./PlaceOfInterestDrop.js";
+import { THREAT_PIN_ICON_SUFFIX } from "./ThreatNotePins.js";
 // Make Stonetop map-note labels legible over busy hand-drawn maps.
 //
 // Our lettered Place-of-Interest discs and threat/hazard pins label themselves on hover.
@@ -18,9 +21,11 @@
 // (like the user's existing Granary pin) are restyled immediately, with no data migration.
 
 // Icon families we own; any note textured from one of these gets the pill treatment.
+// The suffixes come from the modules that WRITE these notes, under every system id this
+// package has shipped under, so neither a path change nor an id rename can desync them.
 const _OUR_NOTE_ICONS = [
-	"systems/stonetop_pwd/assets/icons/landmarks/", // Place-of-Interest lettered discs
-	"systems/stonetop_pwd/assets/icons/threat-note.svg", // threat + hazard pins
+	...systemAssetVariants(`${LANDMARK_ICON_SUFFIX}/`), // Place-of-Interest lettered discs
+	...systemAssetVariants(THREAT_PIN_ICON_SUFFIX),     // threat + hazard pins
 ];
 
 const _LABEL_TEXT_COLOR = "#f7efdc"; // warm cream, reads on the dark pill

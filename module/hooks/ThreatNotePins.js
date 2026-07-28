@@ -4,9 +4,13 @@
 // a revealed pin ignores fog-of-war. This is the ONE seam over core's page-drop
 // behaviour; everything else (linking pageId, placement, click-to-open) is core.
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
+import { SYSTEM_ID } from "../system-id.js";
 import { gmPrepPageById } from "../journal/gm-prep-page.js";
 
-const THREAT_PIN_ICON = "systems/stonetop_pwd/assets/icons/threat-note.svg";
+// Authored once: StonetopNoteLabels recognises OUR notes by this path, so the writer and
+// the reader must not be able to drift apart.
+export const THREAT_PIN_ICON_SUFFIX = "assets/icons/threat-note.svg";
+const THREAT_PIN_ICON = `systems/${SYSTEM_ID}/${THREAT_PIN_ICON_SUFFIX}`;
 const PIN_TEXT_COLOR = "#1b1009";
 
 /** Resolve the threat/hazard page a pending Note links to, or null. */

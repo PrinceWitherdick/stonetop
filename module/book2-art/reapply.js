@@ -7,6 +7,8 @@ import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { book2ArtRoot, book2ArtSrcWith } from "./art-root.js";
 import { STEADING_ACTOR_TYPE, isSteadingPlaceholderImg } from "../actors/steading/steading-portrait.js";
 import { isBestiaryPlaceholderImg } from "../bestiary/monster-portrait.js";
+import { isOurCompendiumRef } from "../migration/compat.js";
+import { packId } from "../system-id.js";
 
 // Re-apply the Book II illustrations to the compendia, the world journals, and the
 // world actors, WITHOUT the source PDF.
@@ -42,9 +44,11 @@ import { isBestiaryPlaceholderImg } from "../bestiary/monster-portrait.js";
 //   4. `game.stonetop.reapplyBook2Art()` (Ready.js API) — a manual, un-gated re-run for
 //      the dev loop after re-assigning art in the picker + regenerating the manifest.
 
-const BES_PACK = "stonetop_pwd.stonetop-bestiary";
-const JRN_PACK = "stonetop_pwd.stonetop-journal";
+const BES_PACK = packId("stonetop-bestiary");
+const JRN_PACK = packId("stonetop-journal");
 const TOKEN_FIT = "cover"; // matches the macro's CONFIG.TOKEN_FIT
+// Only for BUILDING a uuid, which must always name the active id. Recognising an existing
+// stamp goes through isOurCompendiumRef, which tolerates a pre-rename spelling.
 const JRN_SOURCE_PREFIX = `Compendium.${JRN_PACK}.`;
 
 const jrnSource = (entryId) => `${JRN_SOURCE_PREFIX}JournalEntry.${entryId}`;
@@ -336,7 +340,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	const worldBySource = new Map();
 	for (const j of entries ?? game.journal ?? []) {
 		const s = compendiumSourceOf(j);
-		if (!s || !s.startsWith("Compendium.stonetop_pwd.")) continue;
+		if (!isOurCompendiumRef(s)) continue;
 		if (!worldBySource.has(s)) worldBySource.set(s, []);
 		worldBySource.get(s).push(j);
 	}
@@ -646,7 +650,7 @@ function _scheduleImportFlush() {
 export function handleImportedJournalArt(entry, _options, userId) {
 	if (!game.user?.isGM || game.user.id !== userId) return;
 	const src = compendiumSourceOf(entry);
-	if (typeof src !== "string" || !src.startsWith(JRN_SOURCE_PREFIX)) return;
+	if (!isOurCompendiumRef(src, { packs: ["stonetop-journal"] })) return;
 	if (!entry?.id) return;
 	_pendingImportIds.add(entry.id);
 	_scheduleImportFlush();

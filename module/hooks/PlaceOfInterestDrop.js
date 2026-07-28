@@ -11,9 +11,14 @@
 // payload and creates the Note. Note creation is async but the hook must answer
 // synchronously, so we fire-and-forget and return false to tell core we handled it.
 
+import { SYSTEM_ID } from "../system-id.js";
+
 export const PLACE_OF_INTEREST_DRAG_TYPE = "StonetopPlaceOfInterest";
 
-const _ICON_DIR = "systems/stonetop_pwd/assets/icons/landmarks";
+// Where the lettered discs live, authored once. StonetopNoteLabels recognises OUR notes by
+// this path, so the writer and the reader must not be able to drift apart.
+export const LANDMARK_ICON_SUFFIX = "assets/icons/landmarks";
+const _ICON_DIR = `systems/${SYSTEM_ID}/${LANDMARK_ICON_SUFFIX}`;
 const _FALLBACK_ICON = "icons/svg/book.svg";
 
 // Pin formatting — matches the seeded Village scene's lettered notes.

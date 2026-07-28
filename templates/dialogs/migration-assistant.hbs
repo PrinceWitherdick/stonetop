@@ -1,0 +1,88 @@
+<div class="stonetop-migration">
+
+	<p class="stonetop-migration-lead">
+		Stonetop is changing the ID it uses to store your campaign. Your world, its name, its
+		folder and everything in it stay exactly where they are. Only the label Foundry uses
+		to connect this world to the system changes, from
+		<code>{{oldId}}</code> to <code>{{newId}}</code>.
+	</p>
+
+	{{#if isBlocked}}
+		<section class="stonetop-migration-panel is-blocked">
+			<h3>Not ready yet</h3>
+			<p>Sort these out and then check again:</p>
+			<ul>
+				{{#each blockers}}<li>{{this}}</li>{{/each}}
+			</ul>
+		</section>
+	{{/if}}
+
+	{{#if isReady}}
+		{{#if warnings.length}}
+			<section class="stonetop-migration-panel is-warning">
+				<ul>
+					{{#each warnings}}<li>{{this}}</li>{{/each}}
+				</ul>
+			</section>
+		{{/if}}
+
+		<section class="stonetop-migration-panel">
+			<h3>What will happen</h3>
+			<ol>
+				<li>Your campaign data is <strong>copied</strong> into the new name. Nothing is deleted.</li>
+				<li>This world is pointed at the renamed system.</li>
+				<li>Foundry returns you to the setup screen. Launch the world again and it finishes.</li>
+			</ol>
+			<p class="stonetop-migration-counts">
+				{{preview.documents}} documents and {{preview.settings}} settings to copy,
+				across {{preview.locations}} places in this world.
+				{{#if preview.alreadyDone}}({{preview.alreadyDone}} already done.){{/if}}
+			</p>
+			<p class="stonetop-migration-note">
+				Take a backup first if you have not already: return to setup, right-click this
+				world and choose <strong>Take Backup</strong>. That is the only real undo.
+			</p>
+		</section>
+	{{/if}}
+
+	{{#if isConfirming}}
+		<section class="stonetop-migration-panel is-confirm">
+			<h3>Ready when you are</h3>
+			<p>
+				This cannot be undone from inside Foundry. Once it starts, this world is pointed
+				at <code>{{newId}}</code> and Foundry returns you to the setup screen.
+			</p>
+			<p class="stonetop-migration-note">
+				If you have not taken a backup yet, choose Cancel and take one first.
+			</p>
+		</section>
+	{{/if}}
+
+	{{#if isRunning}}
+		<section class="stonetop-migration-panel is-running">
+			<h3>Migrating</h3>
+			<p>{{progress.label}}{{#if progress.total}} ({{progress.index}} of {{progress.total}}){{/if}}</p>
+			<p class="stonetop-migration-note">Leave this tab alone until Foundry returns you to the setup screen.</p>
+		</section>
+	{{/if}}
+
+	{{#if isFailed}}
+		<section class="stonetop-migration-panel is-blocked">
+			<h3>That did not finish</h3>
+			<p>{{error}}</p>
+		</section>
+	{{/if}}
+
+	<footer class="stonetop-migration-actions">
+		{{#if isConfirming}}
+			<button type="button" data-action="confirm">Yes, migrate now</button>
+			<button type="button" data-action="cancel">Cancel</button>
+		{{else if isReady}}
+			<button type="button" data-action="migrate">Migrate this world</button>
+			<button type="button" data-action="dismiss">Not now</button>
+		{{/if}}
+		{{#if canRecheck}}
+			<button type="button" data-action="recheck">Check again</button>
+		{{/if}}
+	</footer>
+</div>

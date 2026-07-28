@@ -10,6 +10,7 @@
 // invalidateMonsterRefIndex() when bestiary actors are created/updated/deleted.
 
 import { CREATURE_LINK_DENYLIST } from "./creature-link-denylist.js";
+import { escapeRegExp } from "../utils/strings.js";
 
 const PACK_ID = "stonetop_pwd.stonetop-bestiary";
 const ENTRY_SUFFIX = /\s*\(Bestiary\)\s*$/i;
@@ -60,10 +61,8 @@ function _addActorLike({ name, type, uuid, concept }, map, basePriority) {
 	});
 }
 
-const _escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 function _compileRegex(map) {
-	const names = [...map.keys()].sort((a, b) => b.length - a.length).map(_escapeRe);
+	const names = [...map.keys()].sort((a, b) => b.length - a.length).map(escapeRegExp);
 	if (!names.length) return null;
 	// Word-ish boundaries that treat apostrophes/hyphens as part of a word (so we
 	// don't match a name fragment mid-word), plus an optional trailing plural "s".

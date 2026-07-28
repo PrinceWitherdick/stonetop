@@ -4,6 +4,7 @@ import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.j
 import { makeRewriter, remapPageData, managedHash, carryOverPageState, planSourceRestamp } from "./journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { SEEDED_FOLDER_COLORS, rawFolderColor, planSeededFolderColorUpdates, seededFolderColorSignature } from "./seeded-folder-colors.js";
+import { isOurCompendiumRef, seededSourceKeys, compendiumRefTail } from "../migration/compat.js";
 
 // On a fresh world, copy the system's "Stonetop" JournalEntry compendium (the
 // gazetteer — Locations, Lore, the bundled Journals, and the bestiary codex) into
@@ -168,19 +169,16 @@ async function importJournalPack(pack, rootParentId = null) {
 	// Skip entries already present in the world (matched on the compendium source
 	// `fromCompendium` stamps), so the seed is idempotent: if an earlier run only
 	// imported some packs/entries — e.g. a partial failure — re-running imports just
-	// the missing ones rather than duplicating what's already there.
-	const alreadySeeded = new Set(
-		(game.journal ?? [])
-			.map(compendiumSourceOf)
-			.filter(Boolean)
-	);
+	// the missing ones rather than duplicating what's already there. Matched without the
+	// package id, so a world seeded under an older system id is not re-imported wholesale.
+	const alreadySeeded = seededSourceKeys(game.journal);
 
 	// fromCompendium prepares each doc for world creation (drops the id, stamps
 	// `_stats.compendiumSource`) exactly as core's importAll does; we keep sort so
 	// the seeded entries retain their authored order, and place them by folder.
 	const data = [];
 	for (const d of seed) {
-		if (alreadySeeded.has(d.uuid)) continue;
+		if (alreadySeeded.has(compendiumRefTail(d.uuid))) continue;
 		const obj = game.journal.fromCompendium(d, { clearSort: false });
 		obj.folder = await resolveFolder(d.folder);
 		data.push(obj);
@@ -325,7 +323,7 @@ function buildWorldLinkMap() {
 	const map = new Map();
 	for (const j of game.journal ?? []) {
 		const src = compendiumSourceOf(j);
-		if (src && src.startsWith("Compendium.stonetop_pwd.")) map.set(src, j.uuid);
+		if (isOurCompendiumRef(src)) map.set(src, j.uuid);
 	}
 	return map;
 }
@@ -350,7 +348,7 @@ export async function updateSeededJournalsOnVersionChange() {
 
 	for (const entry of game.journal ?? []) {
 		const src = compendiumSourceOf(entry);
-		if (!src || !src.startsWith("Compendium.stonetop_pwd.")) continue;
+		if (!isOurCompendiumRef(src)) continue;
 		const source = await fromUuid(src);
 		if (!source) continue; // entry dropped from the pack this version — leave the world copy
 
