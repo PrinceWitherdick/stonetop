@@ -109,7 +109,16 @@ export class MigrationAssistant extends StonetopDialog {
 		const root = html[0] ?? html;
 		const on = (action, handler) => root.querySelector(`[data-action='${action}']`)?.addEventListener("click", handler);
 
-		on("migrate", () => { this._migrationState = STATE.CONFIRMING; this.render(false); });
+		// Re-check on the way to the confirm step, so the numbers the GM is asked to commit
+		// to are current. The counts shown by _check() are a snapshot, and this window can
+		// sit open for a whole session while the world changes underneath it — a stale
+		// "0 documents to copy" reads as "this will do nothing" when it will not.
+		on("migrate", async () => {
+			this._migrationState = STATE.CHECKING;
+			await this._check();
+			if (this._migrationState === STATE.READY) this._migrationState = STATE.CONFIRMING;
+			this.render(false);
+		});
 		on("confirm", () => this._migrate());
 		on("cancel",  () => { this._migrationState = STATE.READY; this.render(false); });
 		on("dismiss", () => this.close());
