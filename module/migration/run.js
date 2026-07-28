@@ -110,8 +110,12 @@ export async function flipAndShutDown(game, options = {}) {
 	const flipped = await flipWorldSystem({ game, target, fetchImpl });
 	if (!flipped.ok) return { ok: false, stage: "flip", error: flipped.error };
 
+	// From here the flip HAS landed: the server echoed the applied system back to us.
+	// Verification is corroboration, not a gate. Treating a failed re-read as a failed
+	// migration would skip the shutdown below and leave the session running past a one-way
+	// door — and on a hosted provider that re-read is exactly the request most likely to be
+	// unavailable, because world.json is served by Foundry's own static route.
 	const confirmed = await verifyFlip({ worldId: game?.world?.id, target, fetchImpl });
-	if (!confirmed.ok) return { ok: false, stage: "verify", error: confirmed.error };
 
 	onProgress?.({ phase: "shutdown", label: "Returning to the setup screen" });
 	const down = await shutdownWorld(game, options);
@@ -128,6 +132,15 @@ export async function flipAndShutDown(game, options = {}) {
 			ok: true,
 			stage: "shutdown",
 			warning: `This world has already been moved to the renamed system, but Foundry did not return to the setup screen${detail}. Do not keep playing: close Foundry, start it again, and launch the world.`
+		};
+	}
+	// Shut down cleanly, but we never got to read world.json back. Almost certainly fine —
+	// the server told us it applied the change — but say so rather than claiming certainty.
+	if (!confirmed.ok) {
+		return {
+			ok: true,
+			stage: "done",
+			warning: `This world was moved to the renamed system, but the change could not be read back to confirm it (${confirmed.error}). Launch the world again: if it opens, the move worked.`
 		};
 	}
 	return { ok: true, stage: "done" };

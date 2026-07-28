@@ -73,9 +73,26 @@ skipped, so unlock any that hold Stonetop data and check again.
 
 ## Hosted services (The Forge, Molten, and similar)
 
-The Forge has no way to change a world's system, and whether the in-app migration works
-there is unverified. Do not attempt it unsupervised. Get in touch and we will do it
-together.
+**The assistant refuses to run on a hosted Foundry.** That is deliberate, not a bug.
+
+The migration needs Foundry's own setup route. The Forge replaces that route with its own
+interface when Game Manager is enabled, and gates it by Forge *account ownership* rather
+than by your Foundry role, so being a Gamemaster in the world is not enough. It is also the
+route you would use to undo a bad move. Since the flip is one-way and unverified there, the
+assistant blocks rather than gambling with your world.
+
+Get in touch and we will do it together. The supported path is the export/edit/import
+route, which works on every tier regardless of Game Manager:
+
+1. On My Foundry, use **Game Tools → Export World** and save the zip locally. Keep it.
+2. Install the renamed system on your Forge account **first**, and confirm it is there.
+   A world pointed at a system that is not installed will not launch, and on Game Manager
+   the recovery screen may not be available to you.
+3. Edit `world.json` inside the exported zip, changing `"system"` to the new id.
+4. Re-import the edited world through the Import Wizard.
+
+If you are on World Builder tier or above, take a **Save Point** first and rehearse the
+whole thing on a clone before touching the real world.
 
 ---
 

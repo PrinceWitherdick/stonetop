@@ -21,6 +21,17 @@ import { list } from "./world-scan.js";
 const defaultFetch = (...args) => globalThis.fetch(...args);
 const setupRoute = () => globalThis.foundry?.utils?.getRoute?.("setup") ?? "/setup";
 
+/**
+ * Is this a hosted Foundry that fronts its own setup route?
+ *
+ * The Forge injects a global `ForgeVTT` carrying `usingTheForge`. Deliberately loose: a
+ * false negative only returns us to the self-hosted path, which is the one that is
+ * actually verified.
+ */
+export function onHostedProvider(scope = globalThis) {
+	return scope?.ForgeVTT?.usingTheForge === true;
+}
+
 /** Normalize `relationships.systems` / `.requires`, which may be a Set, array or absent. */
 function relationshipIds(value) {
 	return list(value).map((entry) => (typeof entry === "string" ? entry : entry?.id)).filter(Boolean);
@@ -45,7 +56,7 @@ export async function fetchTargetManifest(target = RENAME_TARGET_ID, fetchImpl =
  * Everything that must be true before the flip. Returns blockers (hard stops) separately
  * from warnings (worth telling the GM, not worth refusing over).
  */
-export async function preflight(game, { target = RENAME_TARGET_ID, source = SYSTEM_ID, fetchImpl = defaultFetch } = {}) {
+export async function preflight(game, { target = RENAME_TARGET_ID, source = SYSTEM_ID, fetchImpl = defaultFetch, scope } = {}) {
 	const blockers = [];
 	const warnings = [];
 
@@ -87,6 +98,16 @@ export async function preflight(game, { target = RENAME_TARGET_ID, source = SYST
 		if (relationshipIds(module.relationships?.systems).includes(source)) {
 			blockers.push(`The module "${module.title ?? module.id}" is tied to the old system id and would be removed from this world. Disable or update it first.`);
 		}
+	}
+
+	// Hosted providers can replace Foundry's setup route with their own, which is both the
+	// route this migration needs and the route you would recover a mis-pointed world from.
+	// The Forge documents disabling it outright when its Game Manager is on, and gates it
+	// by Forge account ownership rather than Foundry role, so being a GM here is not enough.
+	// Unverified either way, and the failure mode is a world that will not launch, so this
+	// refuses rather than gambling. See MIGRATION.md for the supported hosted path.
+	if (onHostedProvider(scope ?? globalThis)) {
+		blockers.push("This looks like a hosted Foundry (The Forge or similar). The migration needs Foundry's own setup route, which hosted providers may replace or restrict, and it is the same route you would need to undo a bad move. Do not run it here unsupervised — see MIGRATION.md for the hosted path.");
 	}
 
 	const invalid = game?.actors?.invalidDocumentIds?.size ?? 0;
