@@ -46,6 +46,12 @@ jobs:
             // renamed this branch stops firing and the plain title comes back. The repo copy
             // keeps the plain title so the maintainer's own worlds read normally.
             //
+            // The "this has moved" notice lives in the tree's DESCRIPTION rather than being
+            // patched here, unlike the title. It is not an inconsistency: the title's reason
+            // for being CI-only was that no renamed system existed to send anyone to, and
+            // that stopped being true when stonetop-pwd shipped. The description is now
+            // simply the truth about this package, so git should say it.
+            //
             // The same branch pins the manifest URL. The tree points at releases/latest so
             // the maintainer's own install tracks new versions, but a SHIPPED old-id build
             // must not: Foundry installs by the id in the REMOTE manifest, so the day a
