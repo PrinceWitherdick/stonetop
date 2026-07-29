@@ -1,7 +1,7 @@
 {
   "name": "Thornthumb",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/fae.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/fae.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -24,9 +24,9 @@
     "organization": "solitary",
     "size": "small",
     "tags": "solitary, small, fae, stealthy, magical, devious",
-    "qualities": "<p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae nature}</strong>; hollow. Armor 1 vs. iron.</p>",
+    "qualities": "<p><strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae nature}</strong>; hollow. Armor 1 vs. iron.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.bn2on83jMJvyN4hU",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.bn2on83jMJvyN4hU",
     "notes": "",
     "creatureType": "fae"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/fae.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/fae.svg"
     }
   },
   "items": [

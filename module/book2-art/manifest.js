@@ -10,7 +10,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "crinwin",
    "name": "Crinwin",
    "out": "assets/bestiary/crinwin.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "F0SuxRtw6dqB6Nvh",
    "journalEntryId": "Ttz6Fnr2M0HNfIre",
    "journalPageId": "FUyYoLbaxcMQ2XTA"
@@ -19,7 +19,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "swyn",
    "name": "Swyn",
    "out": "assets/bestiary/swyn.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "gI80yymFTixu1alc",
    "journalEntryId": "k9Buk0QDWg2PIIqj",
    "journalPageId": "yzXUzONTGla9ZzfM"
@@ -28,7 +28,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "myghal",
    "name": "Myghal, Deathless Sorcerer",
    "out": "assets/bestiary/myghal.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "xSrPam8ZFxg24LQl",
    "journalEntryId": "fhCGhdK4KZ5fBsUL",
    "journalPageId": "NadumFaGYEX4NSc0"
@@ -37,7 +37,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "phantom-rider",
    "name": "Phantom Rider",
    "out": "assets/bestiary/phantom-rider.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "8T8jqS04adlc5107",
    "journalEntryId": "llEqxrhsKD2DvYdP",
    "journalPageId": "ccg4Fpzc9VeL0gBK"
@@ -46,7 +46,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "servants-of-daagon",
    "name": "Servant of Daagon",
    "out": "assets/bestiary/servants-of-daagon.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "BCA8xC2gsvHO43ou",
    "journalEntryId": "SmHddXJMWp3niCln",
    "journalPageId": "EEIU9yPFNldtPXAZ"
@@ -55,7 +55,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "necromancer",
    "name": "Necromancer",
    "out": "assets/bestiary/necromancer.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "58UtB8l8G68t9nRI",
    "journalEntryId": "9MF7xia8nqIu1V8N",
    "journalPageId": "DZU7wBHDfNukWLs1"
@@ -64,7 +64,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "gwraig-wen",
    "name": "The Gwraig Wen",
    "out": "assets/bestiary/gwraig-wen.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "B0W8jT7lRFLJK4ds",
    "journalEntryId": "i74FkC9ROlheQBIF",
    "journalPageId": "28Ko2NCItg3Bfkf9"
@@ -73,7 +73,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "willow-witches",
    "name": "Willow Witches",
    "out": "assets/bestiary/willow-witches.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "q6EfKl09RA6NKWEc",
    "journalEntryId": "M8gYXMHKcRqCshbC",
    "journalPageId": "2hPfGCxCxK6zS7th"
@@ -82,7 +82,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "draventao",
    "name": "Draventao",
    "out": "assets/bestiary/draventao.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "9kcSzC3uPavigsyF",
    "journalEntryId": "sKYvwXBCiWfqNZlU",
    "journalPageId": "MxnVw08jIaPKl8MP"
@@ -91,7 +91,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "llamudwr",
    "name": "Llamudwr",
    "out": "assets/bestiary/llamudwr.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "zWFuS69kPihbwlKp",
    "journalEntryId": "7qfPIuaRwuUPi4nV",
    "journalPageId": "R2kOFklneqKTwTWd"
@@ -100,7 +100,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "mummified-green-lord",
    "name": "Mummified Green Lord",
    "out": "assets/bestiary/mummified-green-lord.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "TGLFOv8AqB8gHXvM",
    "journalEntryId": "EwO2lHfT38Fi7uqK",
    "journalPageId": "J8A6ThARz2TEegEV"
@@ -109,7 +109,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "mummified-servant",
    "name": "Mummified Servant",
    "out": "assets/bestiary/mummified-servant.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "WVBxp5Ii2Ahd6Xln",
    "journalEntryId": "bO6QXFMmtAmKL3zO",
    "journalPageId": "ynEVoraTg5NZAlmU"
@@ -118,7 +118,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "zrajedak",
    "name": "Zrajedak",
    "out": "assets/bestiary/zrajedak.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "3JaMhYyy0qDzf06q",
    "journalEntryId": "CGPfnYi6Y86dEdE0",
    "journalPageId": "vyDWFkK5vBnfGLZS"
@@ -127,7 +127,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "hdour",
    "name": "Hdour",
    "out": "assets/bestiary/hdour.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "Okqc6kkhEZ3CGYKl",
    "journalEntryId": "Owbdgx7wi7p30MzW",
    "journalPageId": "yvKK2IoV4vk8Z8Dp"
@@ -136,7 +136,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "hillfolk-rider",
    "name": "Hillfolk Rider",
    "out": "assets/bestiary/hillfolk-rider.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "05mh4Ag0uKxRVY8j",
    "journalEntryId": "J3KbSweAhRZfonEX",
    "journalPageId": "XwlDiMYnCmrH0CCc"
@@ -145,7 +145,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "spirit-talker",
    "name": "Spirit-talker",
    "out": "assets/bestiary/spirit-talker.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "7ID9ieGRtwH4QoE8",
    "journalEntryId": "nJnOuEaIJBZParuZ",
    "journalPageId": "lqG9EkFDvTaGUVR1"
@@ -154,7 +154,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "adventurer",
    "name": "Adventurer",
    "out": "assets/bestiary/adventurer.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "aAknV9EMnUjJvRL3",
    "journalEntryId": "mqbnYBt53E6uF73P",
    "journalPageId": "EAzIkasPD1rTWc2G"
@@ -163,7 +163,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "antiquarian",
    "name": "Antiquarian",
    "out": "assets/bestiary/antiquarian.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "bZKtYZmapDExeAJU",
    "journalEntryId": "T1ELDbVtepRKsf3d",
    "journalPageId": "PSYUphUQPJtiNl0C"
@@ -172,7 +172,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "caravan-guard",
    "name": "Caravan Guard",
    "out": "assets/bestiary/caravan-guard.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "rmNfHJdCkFfrBVIL",
    "journalEntryId": "eLDyz1PDrdPnbnG9",
    "journalPageId": "ltv7WDfMzG1MFpho"
@@ -181,7 +181,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "infantry",
    "name": "Infantry",
    "out": "assets/bestiary/infantry.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "r5Ea7yfpDcp6WTO4",
    "journalEntryId": "RrC8q9cFYtODqipS",
    "journalPageId": "XN6JjsXaKtAGdhJR"
@@ -190,7 +190,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "shantyara",
    "name": "Shantyara",
    "out": "assets/bestiary/shantyara.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "j8rFoANTmTHD5MKF",
    "journalEntryId": "5Sv77XzHPMBgZqJZ",
    "journalPageId": "wpyE6SCPfsbzsAj7"
@@ -199,7 +199,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "fundamental",
    "name": "Fundamental",
    "out": "assets/bestiary/fundamental.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "iPBB5qDX5urJ30FU",
    "journalEntryId": "WObWuLHBHqBYlZlA",
    "journalPageId": "x2kSq3GwFhREPjAS"
@@ -208,7 +208,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "the-nightingale",
    "name": "The Nightingale",
    "out": "assets/bestiary/the-nightingale.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "9h3AbAG1DBQTrtOG",
    "journalEntryId": "aGS4afk7P2DhhFN0",
    "journalPageId": "NOZWTnGdb2tXHzgM"
@@ -217,7 +217,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "rime-lord",
    "name": "Rime Lord",
    "out": "assets/bestiary/rime-lord.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "knIBykmqBqa8lMFN",
    "journalEntryId": "lMOwbXpvkp9KL5SG",
    "journalPageId": "mVZaaOE7Ih4T3CNt"
@@ -226,7 +226,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "horned-drake-young",
    "name": "Horned Drake (Young)",
    "out": "assets/bestiary/horned-drake-young.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "MmkSpS99xDX01jeC",
    "journalEntryId": "VJDP2ETcmA8GeHdT",
    "journalPageId": "5mYNP79ZxnvKJ8pB"
@@ -235,7 +235,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "horned-drake",
    "name": "Horned Drake",
    "out": "assets/bestiary/horned-drake.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "XFmKN7n1uddyo55m",
    "journalEntryId": "VJDP2ETcmA8GeHdT",
    "journalPageId": "5mYNP79ZxnvKJ8pB"
@@ -244,7 +244,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "coedwaig",
    "name": "Coedwaig",
    "out": "assets/bestiary/coedwaig.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "Hogu0AEnAffI0HHr",
    "journalEntryId": "4cuy0KcuT5WO0S5A",
    "journalPageId": "IwC0rnZcM22Hkn5D"
@@ -253,7 +253,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "grwgnach",
    "name": "Grwgnach",
    "out": "assets/bestiary/grwgnach.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "QJzjWDCU8jAAb4DT",
    "journalEntryId": "YTr1h2SyKlxiRIDK",
    "journalPageId": "qXgDLWSXQxbqWkTA"
@@ -262,7 +262,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "glasbren",
    "name": "Glasbren",
    "out": "assets/bestiary/glasbren.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "7GtbWc7kafUVk6dI",
    "journalEntryId": "3Q3V7QXv1XFx1UK8",
    "journalPageId": "yZnBR4myriobQFz5"
@@ -271,7 +271,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "hennain",
    "name": "Hennain",
    "out": "assets/bestiary/hennain.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "6RhD3Vrdb3B9GXTA",
    "journalEntryId": "3Q3V7QXv1XFx1UK8",
    "journalPageId": "yZnBR4myriobQFz5"
@@ -280,7 +280,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "lithic-servant",
    "name": "Lithic Servant",
    "out": "assets/bestiary/lithic-servant.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "CoqfzAvGUkjfvMpi",
    "journalEntryId": "91EWIGU7SaOUHbS9",
    "journalPageId": "rsVBT8SKBdg0GgA3"
@@ -289,7 +289,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "mosaic-swarm",
    "name": "Mosaic Swarm",
    "out": "assets/bestiary/mosaic-swarm.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "fNEJcPa37GBqXwOq",
    "journalEntryId": "qlGSzAdbwRzcPJ70",
    "journalPageId": "rRlMBzhKYM9P4fK7"
@@ -298,7 +298,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "stone-sentinel",
    "name": "Stone Sentinel",
    "out": "assets/bestiary/stone-sentinel.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "mRpMqY81O24lXlPG",
    "journalEntryId": "hNTwQMEAue41DzAx",
    "journalPageId": "5hvH8z9U9TifqPZ0"
@@ -307,7 +307,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "fire-vortex",
    "name": "Fire Vortex",
    "out": "assets/bestiary/fire-vortex.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "1U5ExYjZPgmW0Gck",
    "journalEntryId": "qUp7ZkpC5FdinUC4",
    "journalPageId": "MlbyZpkmaCRWrwnL"
@@ -316,7 +316,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "lightning-vortex",
    "name": "Lightning Vortex",
    "out": "assets/bestiary/lightning-vortex.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "baV7yiVwXMTKa49B",
    "journalEntryId": "qUp7ZkpC5FdinUC4",
    "journalPageId": "MlbyZpkmaCRWrwnL"
@@ -325,7 +325,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "water-vortex",
    "name": "Water Vortex",
    "out": "assets/bestiary/water-vortex.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "iGFc9muBkF8HMgDQ",
    "journalEntryId": "qUp7ZkpC5FdinUC4",
    "journalPageId": "MlbyZpkmaCRWrwnL"
@@ -334,7 +334,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "wind-vortex",
    "name": "Wind Vortex",
    "out": "assets/bestiary/wind-vortex.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "JRoNGWPbEVDVTu1s",
    "journalEntryId": "qUp7ZkpC5FdinUC4",
    "journalPageId": "MlbyZpkmaCRWrwnL"
@@ -343,7 +343,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "the-crombil",
    "name": "The Crombil, Awakened",
    "out": "assets/bestiary/the-crombil.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "i2U1Qxscwoqw6eR0",
    "journalEntryId": "EYZ5DbxfTP8Pkzmv",
    "journalPageId": "dFx9ksncRYUgW1yL"
@@ -352,7 +352,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "grimstew",
    "name": "Grimstew",
    "out": "assets/bestiary/grimstew.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "qDIbc21OgAwQJvjo",
    "journalEntryId": "fSV9XtOChfthnbDG",
    "journalPageId": "13kSx63dNzKgtIQm"
@@ -361,7 +361,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "aurochs",
    "name": "Aurochs",
    "out": "assets/bestiary/aurochs.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "fVOXp33igDV70sc0",
    "journalEntryId": "tx9I3QGe5ldHuhho",
    "journalPageId": "1RDme0QvQu2hp7X9"
@@ -370,7 +370,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "frythanc",
    "name": "Frythanc",
    "out": "assets/bestiary/frythanc.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "YKLG7aDPRTieTkve",
    "journalEntryId": "oAW6aV8Fmw6ZQPX4",
    "journalPageId": "LJpl17rtE9oSe9Ga"
@@ -379,7 +379,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "swarm-of-silvery-vermin",
    "name": "Swarm of Silvery Vermin",
    "out": "assets/bestiary/swarm-of-silvery-vermin.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "fnzABVPboAe4m9Y8",
    "journalEntryId": "5tvhzovmN18QlxGa",
    "journalPageId": "TGra87VIxIOJstZX"
@@ -388,7 +388,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "yaarowslow-the-many",
    "name": "Yaarowslow, the Many",
    "out": "assets/bestiary/yaarowslow-the-many.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "xhYYoDHoyS7ZyPKz",
    "journalEntryId": "5tvhzovmN18QlxGa",
    "journalPageId": "TGra87VIxIOJstZX"
@@ -397,7 +397,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "mammoth",
    "name": "Mammoth",
    "out": "assets/bestiary/mammoth.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "cy5OhsU0kVFUoppF",
    "journalEntryId": "H4EkNtJ49Mpz9O8a",
    "journalPageId": "xX3jtpeelPVMnDBu"
@@ -406,7 +406,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "tcaventes",
    "name": "Tcaventes, Shackle and Key",
    "out": "assets/bestiary/tcaventes.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "GdZQKCMmPANEuFyb",
    "journalEntryId": "muAijyov4VTFfqBL",
    "journalPageId": "FNyaslzj06Ri4wHm"
@@ -415,7 +415,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "soithech",
    "name": "Soithech",
    "out": "assets/bestiary/soithech.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "R3CGOnv3X1BQUpB5",
    "journalEntryId": "J0eNyUcWDLD2ornV",
    "journalPageId": "XbjOkmGBMYByEeLN"
@@ -424,7 +424,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "ghostly-hounds",
    "name": "Ghostly Hounds",
    "out": "assets/bestiary/ghostly-hounds.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "3WXpoW1ajr2PCDC9",
    "journalEntryId": "6wnyTkZl7GRhVM8g",
    "journalPageId": "6Nw4LldBvZJA3Lm8"
@@ -433,7 +433,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "the-pale-hunter",
    "name": "The Pale Hunter",
    "out": "assets/bestiary/the-pale-hunter.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "KEv7LnXs4zQju3lp",
    "journalEntryId": "6wnyTkZl7GRhVM8g",
    "journalPageId": "6Nw4LldBvZJA3Lm8"
@@ -442,7 +442,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "skittering-horror",
    "name": "Skittering Horror",
    "out": "assets/bestiary/skittering-horror.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "mk4kCF2buJrsSlK2",
    "journalEntryId": "KcEptvDi3nhRFoBB",
    "journalPageId": "9rYFqciEnJfFIQu8"
@@ -451,7 +451,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "star-mole",
    "name": "Star-Mole",
    "out": "assets/bestiary/star-mole.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "89ZjFUUS1I9bP2MH",
    "journalEntryId": "5JC9gQCHQUHugXsQ",
    "journalPageId": "nuJLbTQh1QYWWoTg"
@@ -460,7 +460,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "brawzbedr",
    "name": "Brawzbedr",
    "out": "assets/bestiary/brawzbedr.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "eU2PTY1DoA2n95RT",
    "journalEntryId": "sc28aHnwvhvBDyjh",
    "journalPageId": "pAEjZrge0FusCivY"
@@ -469,7 +469,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "gouzadn",
    "name": "Gouzadn",
    "out": "assets/bestiary/gouzadn.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "SerJ5gYYlRuUmI9k",
    "journalEntryId": "IS7Y75Kbqe5KILXW",
    "journalPageId": "LO7IdRIzeEGqOvjl"
@@ -478,7 +478,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "grochslon",
    "name": "Grochslon",
    "out": "assets/bestiary/grochslon.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "uP9zE6MDiS3TwIWF",
    "journalEntryId": "BUMZ5O0VT9SDjfwE",
    "journalPageId": "zvAUMz9DzP5e9Aec"
@@ -487,7 +487,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "corrupted-glasbren",
    "name": "Corrupted Glasbren",
    "out": "assets/bestiary/corrupted-glasbren.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "IornEAAcH3j4YRST",
    "journalEntryId": "g8AKcpFJTeVx51xV",
    "journalPageId": "9ri6PsJH7z67a7UF"
@@ -496,7 +496,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "butcherbird",
    "name": "Butcherbird",
    "out": "assets/bestiary/butcherbird.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "dLxI39zRgbt5baD5",
    "journalEntryId": "vuCG2gnrr5slc2Cj",
    "journalPageId": "PSKZl8G6n6RRlEXd"
@@ -505,7 +505,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "ceirwmawr",
    "name": "Ceirwmawr",
    "out": "assets/bestiary/ceirwmawr.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "Qe9HW1xQCicVwtGC",
    "journalEntryId": "idLzu8GfQknwWCby",
    "journalPageId": "nal7Fmjmg5Grpcvw"
@@ -514,7 +514,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "cynddaraig",
    "name": "Cynddaraig",
    "out": "assets/bestiary/cynddaraig.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "BVvWxKNlDdOzu9Ac",
    "journalEntryId": "JWXOAXD9nd8rkB3I",
    "journalPageId": "oXF62e14JnnztVEB"
@@ -523,7 +523,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "feathered-drake",
    "name": "Feathered Drake",
    "out": "assets/bestiary/feathered-drake.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "30NDurP2YczoGj6B",
    "journalEntryId": "T17yRp50eDt8cyXO",
    "journalPageId": "57hELMNqLR2FRrIf"
@@ -532,7 +532,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "hagr",
    "name": "Hagr",
    "out": "assets/bestiary/hagr.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "fz8g74CpQcYrqSki",
    "journalEntryId": "ckxdN0P9cHJfsZgQ",
    "journalPageId": "dPV0t98P6gx0ClE8"
@@ -541,7 +541,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "nine-fingered-stranger",
    "name": "Nine-Fingered Stranger",
    "out": "assets/bestiary/nine-fingered-stranger.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "Kh5NQGe2zSAEV3BZ",
    "journalEntryId": "SUe3zYQvT9AGKgzG",
    "journalPageId": "m9OXzvC1peHLx1TF"
@@ -550,7 +550,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "plasmic-horror",
    "name": "Plasmic Horror",
    "out": "assets/bestiary/plasmic-horror.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "nh6h60KGgx2IlxfF",
    "journalEntryId": "mBQElv2JfT8AW8KH",
    "journalPageId": "jtqfx2ZFWSNH0fpi"
@@ -559,7 +559,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "kyakaara",
    "name": "Kyakaara",
    "out": "assets/bestiary/kyakaara.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "Iyc7KUONkBO5Ibyz",
    "journalEntryId": "pOtdFLTTywDCKXPM",
    "journalPageId": "aLuITGoixs7zCyQb"
@@ -568,7 +568,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "kleztigr",
    "name": "Kleztigr",
    "out": "assets/bestiary/kleztigr.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "8nNyWAoSsT3VXRx5",
    "journalEntryId": "3e1HimZxPWvqLyu1",
    "journalPageId": "YjdBd1dbn0ZqMdb9"
@@ -577,7 +577,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "pack-drake",
    "name": "Pack Drake",
    "out": "assets/bestiary/pack-drake.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "W7YFeowcF0yptQC3",
    "journalEntryId": "Gxjvid2IYJmTU41M",
    "journalPageId": "N96qyRiHh4FbeFhq"
@@ -586,7 +586,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "crinwin-broodfather",
    "name": "Crinwin Broodfather",
    "out": "assets/bestiary/crinwin-broodfather.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "hZq0cfLjfytNVrWs",
    "journalEntryId": "Ttz6Fnr2M0HNfIre",
    "journalPageId": "FUyYoLbaxcMQ2XTA"
@@ -595,7 +595,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "caralandrao",
    "name": "Caralandrao",
    "out": "assets/bestiary/caralandrao.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "PFHwDgBNwVbZHEIO",
    "journalEntryId": "eAcyCUGDDeqkLrKJ",
    "journalPageId": "cEcM0p8CnQAgBvnd"
@@ -604,7 +604,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "wee-folk",
    "name": "Wee Folk",
    "out": "assets/bestiary/wee-folk.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "rL761LrHFjJcfArG",
    "journalEntryId": "aThMYefGFmE0mG73",
    "journalPageId": "wH59rdbyOwJFG5GM"
@@ -613,7 +613,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "wild-horse",
    "name": "Wild Horse",
    "out": "assets/bestiary/wild-horse.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "uMjVv3GGJowiNCka",
    "journalEntryId": "nXxqWnbt932F98UJ",
    "journalPageId": "lkhQJa9UPTjB06Dn"
@@ -622,7 +622,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "voidblight",
    "name": "Voidblight",
    "out": "assets/bestiary/voidblight.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "P4UPY5CmKLihfSQO",
    "journalEntryId": "smqjMCaaxstHY5nZ",
    "journalPageId": "4ajv8XIGGNNdJZVz"
@@ -631,7 +631,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "shaksa",
    "name": "Shaksa",
    "out": "assets/bestiary/shaksa.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "h9IhOM9HBNmdrzUh",
    "journalEntryId": "JK9EeLUOBHfNoHCw",
    "journalPageId": "1JLAhM8J2PwfXZpJ"
@@ -640,7 +640,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "hollow-fae",
    "name": "Hollow Fae",
    "out": "assets/bestiary/hollow-fae.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "0ZKo6trYa54afrSZ",
    "journalEntryId": "KgJ8NTJSYfoMhX0Y",
    "journalPageId": "LN7fbBXLMvmCRquV"
@@ -649,7 +649,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "frythanc-fledgling",
    "name": "Frythanc Fledgling",
    "out": "assets/bestiary/frythanc-fledgling.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "RGU7Qtp9xioMxQ3k",
    "journalEntryId": "XiAOrP04c2oqpkDg",
    "journalPageId": "e4br5gsUdpBfugGl"
@@ -658,7 +658,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "slug": "assassin",
    "name": "Assassin",
    "out": "assets/bestiary/assassin.webp",
-   "actorPack": "stonetop_pwd.stonetop-bestiary",
+   "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "x6X63ArQe1zZ3tBE",
    "journalEntryId": "ew3px3xfQiIpxEtg",
    "journalPageId": "CdxgzGw6aBI3GYEw"

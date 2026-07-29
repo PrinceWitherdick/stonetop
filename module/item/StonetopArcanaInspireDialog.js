@@ -58,7 +58,7 @@ export class StonetopArcanaInspireDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-arcana-inspire-dialog",
-			template:  "systems/stonetop_pwd/templates/dialogs/arcana-inspire.hbs",
+			template:  "systems/stonetop-pwd/templates/dialogs/arcana-inspire.hbs",
 			title:     "Arcana — Inspire me",
 			// Wider than a plain stepper to seat the jump-to-step rail beside the content.
 			width:     620,

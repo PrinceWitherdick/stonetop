@@ -32,7 +32,7 @@ export class MonsterToFollowerDialog extends ConvertToFollowerDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-monster-to-follower",
 			title:     "Convert to Follower",
-			template:  "systems/stonetop_pwd/templates/dialogs/monster-to-follower.hbs",
+			template:  "systems/stonetop-pwd/templates/dialogs/monster-to-follower.hbs",
 			width:     520,
 			height:    "auto",
 			resizable: true,

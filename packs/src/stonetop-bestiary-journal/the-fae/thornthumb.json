@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "A prickly little wicker-man <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong>, a hoarder of trinkets desperate to reclaim his stolen stash.",
-        "description": "<p>The book's worked example of a <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong>: a little wicker-man descended from a plant-spirit, once a gardener for some Green Lord, forever collecting trinkets, plants, and rocks. Fiercely protective of his hoard and caring little for his fellow Fae, he became a loner and outcast. He found a tomb to call home and began to rebuild his collection — until a swyn forced him out, and now he desperately wants his stuff back.</p>",
+        "concept": "A prickly little wicker-man <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong>, a hoarder of trinkets desperate to reclaim his stolen stash.",
+        "description": "<p>The book's worked example of a <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong>: a little wicker-man descended from a plant-spirit, once a gardener for some Green Lord, forever collecting trinkets, plants, and rocks. Fiercely protective of his hoard and caring little for his fellow Fae, he became a loner and outcast. He found a tomb to call home and began to rebuild his collection — until a swyn forced him out, and now he desperately wants his stuff back.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",
@@ -48,7 +48,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.HQCqcFlZZzEr8EHZ"
+          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.HQCqcFlZZzEr8EHZ"
         ]
       },
       "sort": 100000,

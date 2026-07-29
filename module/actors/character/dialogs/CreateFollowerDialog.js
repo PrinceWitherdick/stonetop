@@ -110,7 +110,7 @@ export class CreateFollowerDialog extends StepperDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-create-follower",
 			title:     "Create a Follower",
-			template:  "systems/stonetop_pwd/templates/dialogs/create-follower.hbs",
+			template:  "systems/stonetop-pwd/templates/dialogs/create-follower.hbs",
 			width:     560,
 			height:    "auto",
 			resizable: true,

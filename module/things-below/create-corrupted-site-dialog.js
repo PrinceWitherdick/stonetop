@@ -75,7 +75,7 @@ export class CreateCorruptedSiteDialog extends StepperDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-create-corrupted-site",
-			template:  "systems/stonetop_pwd/templates/dialogs/create-corrupted-site.hbs",
+			template:  "systems/stonetop-pwd/templates/dialogs/create-corrupted-site.hbs",
 			width:     580,
 			height:    "auto",
 			resizable: true,

@@ -2,7 +2,7 @@ import { isBlank, formatValue, valuesEqual, actionForField, coalesceEntries, pre
 import { IMPROVEMENT_DEFINITIONS } from "./StonetopSteading.js";
 import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
 
-const LEDGER_SCOPE = "stonetop_pwd";
+const LEDGER_SCOPE = "stonetop-pwd";
 const LEDGER_KEY = "ledger";
 const LEDGER_MAX_ENTRIES = 300;
 
@@ -21,18 +21,18 @@ const SYSTEM_PATH_LABELS = {
 };
 
 const FLAG_PATH_LABELS = {
-	"flags.stonetop_pwd.steading.size":  "Size",
-	"flags.stonetop_pwd.steading.notes": "Notes",
+	"flags.stonetop-pwd.steading.size":  "Size",
+	"flags.stonetop-pwd.steading.notes": "Notes",
 };
 
 const FLAG_NAMESPACE_LABELS = {
-	"flags.stonetop_pwd.steading.resources":      "Resources",
-	"flags.stonetop_pwd.steading.fortifications": "Fortifications",
-	"flags.stonetop_pwd.steading.assets":         "Assets",
-	"flags.stonetop_pwd.steading.neighbors":      "Neighbors",
-	"flags.stonetop_pwd.steading.players":        "Players",
-	"flags.stonetop_pwd.steading.improvements":   "Improvements",
-	"flags.stonetop_pwd.steading.places":         "Places of interest",
+	"flags.stonetop-pwd.steading.resources":      "Resources",
+	"flags.stonetop-pwd.steading.fortifications": "Fortifications",
+	"flags.stonetop-pwd.steading.assets":         "Assets",
+	"flags.stonetop-pwd.steading.neighbors":      "Neighbors",
+	"flags.stonetop-pwd.steading.players":        "Players",
+	"flags.stonetop-pwd.steading.improvements":   "Improvements",
+	"flags.stonetop-pwd.steading.places":         "Places of interest",
 };
 
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
@@ -242,21 +242,21 @@ const _herdTierEntry = (label, o, n) =>
 	(valuesEqual(o, n) || (isBlank(o) && Number(n) === 0)) ? [] : [{ action: actionForField(label, o, n) }];
 
 const PATH_HANDLERS = {
-	"flags.stonetop_pwd.steading.resources":            (o, n) => listEntries("Resource",      o, n),
-	"flags.stonetop_pwd.steading.fortifications":       (o, n) => listEntries("Fortification", o, n),
-	"flags.stonetop_pwd.steading.assets":               (o, n) => listEntries("Asset",         o, n),
-	"flags.stonetop_pwd.steading.neighbors":            neighborEntries,
-	"flags.stonetop_pwd.steading.players":              (o, n) => listEntries("Player",        o, n),
-	"flags.stonetop_pwd.steading.places":               placeEntries,
-	"flags.stonetop_pwd.steading.silver.purses":        (o, n) => _currencyEntry("Silver purses",    o, n),
-	"flags.stonetop_pwd.steading.silver.handfuls":      (o, n) => _currencyEntry("Silver handfuls",  o, n),
-	"flags.stonetop_pwd.steading.silver.coins":         (o, n) => _currencyEntry("Silver coins",     o, n),
-	"flags.stonetop_pwd.steading.gold.purses":          (o, n) => _currencyEntry("Gold purses",      o, n),
-	"flags.stonetop_pwd.steading.gold.handfuls":        (o, n) => _currencyEntry("Gold handfuls",    o, n),
-	"flags.stonetop_pwd.steading.gold.coins":           (o, n) => _currencyEntry("Gold coins",       o, n),
-	"flags.stonetop_pwd.steading.herd.grown":           (o, n) => _herdTierEntry("Herd — grown horses", o, n),
-	"flags.stonetop_pwd.steading.herd.yearlings":       (o, n) => _herdTierEntry("Herd — yearlings",     o, n),
-	"flags.stonetop_pwd.steading.herd.foals":           (o, n) => _herdTierEntry("Herd — foals",         o, n),
+	"flags.stonetop-pwd.steading.resources":            (o, n) => listEntries("Resource",      o, n),
+	"flags.stonetop-pwd.steading.fortifications":       (o, n) => listEntries("Fortification", o, n),
+	"flags.stonetop-pwd.steading.assets":               (o, n) => listEntries("Asset",         o, n),
+	"flags.stonetop-pwd.steading.neighbors":            neighborEntries,
+	"flags.stonetop-pwd.steading.players":              (o, n) => listEntries("Player",        o, n),
+	"flags.stonetop-pwd.steading.places":               placeEntries,
+	"flags.stonetop-pwd.steading.silver.purses":        (o, n) => _currencyEntry("Silver purses",    o, n),
+	"flags.stonetop-pwd.steading.silver.handfuls":      (o, n) => _currencyEntry("Silver handfuls",  o, n),
+	"flags.stonetop-pwd.steading.silver.coins":         (o, n) => _currencyEntry("Silver coins",     o, n),
+	"flags.stonetop-pwd.steading.gold.purses":          (o, n) => _currencyEntry("Gold purses",      o, n),
+	"flags.stonetop-pwd.steading.gold.handfuls":        (o, n) => _currencyEntry("Gold handfuls",    o, n),
+	"flags.stonetop-pwd.steading.gold.coins":           (o, n) => _currencyEntry("Gold coins",       o, n),
+	"flags.stonetop-pwd.steading.herd.grown":           (o, n) => _herdTierEntry("Herd — grown horses", o, n),
+	"flags.stonetop-pwd.steading.herd.yearlings":       (o, n) => _herdTierEntry("Herd — yearlings",     o, n),
+	"flags.stonetop-pwd.steading.herd.foals":           (o, n) => _herdTierEntry("Herd — foals",         o, n),
 };
 
 function actorUpdateEntries(actor, changed) {

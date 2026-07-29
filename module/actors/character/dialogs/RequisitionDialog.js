@@ -34,7 +34,7 @@ export class RequisitionDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-requisition",
 			title: "Requisition",
-			template: "systems/stonetop_pwd/templates/dialogs/requisition-picker.hbs",
+			template: "systems/stonetop-pwd/templates/dialogs/requisition-picker.hbs",
 			width: 540,
 			height: "auto",
 			resizable: true,
@@ -65,7 +65,7 @@ export class RequisitionDialog extends StonetopDialog {
 		wireCustomAssetSelect({ select: assetSelect, customInput });
 
 		root.querySelector(".stonetop-requisition-roll-btn")?.addEventListener("click", () => {
-			const rollMode = this._steadingActor.getFlag("stonetop_pwd", "rollMode") ?? "normal";
+			const rollMode = this._steadingActor.getFlag("stonetop-pwd", "rollMode") ?? "normal";
 			rollStat("fortunes", this._steadingActor, {
 				moveName: "Requisition",
 				statValue: this._steading.getStatValue("fortunes"),
@@ -159,10 +159,10 @@ export class RequisitionDialog extends StonetopDialog {
 	async _addRequisitionedFollower(match, assetName) {
 		const input = followerInputFromBeast(match.beast, { name: match.beast.name });
 		if (!input) return;
-		const existing = this._characterActor.getFlag("stonetop_pwd", "customFollowers") ?? {};
+		const existing = this._characterActor.getFlag("stonetop-pwd", "customFollowers") ?? {};
 		const id = foundry.utils.randomID(16);
 		await this._characterActor.update({
-			[`flags.stonetop_pwd.customFollowers.${id}`]: {
+			[`flags.stonetop-pwd.customFollowers.${id}`]: {
 				...buildCustomFollower({ ...input, notes: `Requisitioned from ${assetName}.` }),
 				order: nextFollowerOrder(existing),
 			},

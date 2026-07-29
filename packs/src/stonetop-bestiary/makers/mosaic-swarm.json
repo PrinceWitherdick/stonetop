@@ -1,7 +1,7 @@
 {
   "name": "Mosaic Swarm",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/construct.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large, construct, amorphous, stealthy",
     "qualities": "<p>Externally powered; bug-like mind; blind; tremorsense. Unharmed by piercing weapons; half damage from cutting weapons; vulnerable to blunt-and-forceful or area attacks.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.qlGSzAdbwRzcPJ70",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.qlGSzAdbwRzcPJ70",
     "notes": "",
     "creatureType": "construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/construct.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/construct.svg"
     }
   },
   "items": [

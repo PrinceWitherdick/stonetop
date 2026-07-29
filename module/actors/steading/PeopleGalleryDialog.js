@@ -30,7 +30,7 @@ export class PeopleGalleryDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-people-gallery",
 			title: "People of Stonetop",
-			template: "systems/stonetop_pwd/templates/dialogs/people-gallery.hbs",
+			template: "systems/stonetop-pwd/templates/dialogs/people-gallery.hbs",
 			width: 640,
 			height: "auto",
 			resizable: true,
@@ -41,7 +41,7 @@ export class PeopleGalleryDialog extends StonetopDialog {
 	/** The broadcast { out -> name } index, tolerant of an unregistered/legacy setting. */
 	_peopleIndex() {
 		try {
-			const idx = game.settings.get("stonetop_pwd", "peopleArt");
+			const idx = game.settings.get("stonetop-pwd", "peopleArt");
 			return idx && typeof idx === "object" && !Array.isArray(idx) ? idx : {};
 		} catch (_) {
 			return {};

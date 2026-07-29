@@ -1,7 +1,7 @@
 {
   "name": "Judge of Aratis",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, leader, organized",
     "qualities": "<p>Bound by the requirements of a true disciple, at least publicly.</p><p>Built to one of three temperaments:</p><ul><li><strong>Stalwart</strong> (+tough, +4 HP) — to see things as black and white.</li><li><strong>Ambitious</strong> (+cunning) — to advance their own agenda.</li><li><strong>Circumspect</strong> (+friendly, +cautious; deals damage with disadvantage) — to try to make everyone happy.</li></ul>",
     "count": 3,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uOeCgccQc6YApFdV",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.uOeCgccQc6YApFdV",
     "notes": "",
     "creatureType": "human-group"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg"
     }
   },
   "items": [

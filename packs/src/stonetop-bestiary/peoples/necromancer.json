@@ -1,7 +1,7 @@
 {
   "name": "Necromancer",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/human-individual.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/human-individual.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, cautious, cunning, magical, death-wise",
     "qualities": "<p>Can sense active spirits; often possesses arcana and is attended by one or more bound entities.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.9MF7xia8nqIu1V8N",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.9MF7xia8nqIu1V8N",
     "notes": "",
     "creatureType": "human-individual"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/human-individual.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/human-individual.svg"
     }
   },
   "items": [

@@ -252,7 +252,7 @@ async function _createMonster(folder, name) {
 		ui.notifications?.warn("Only the GM can create monsters.");
 		return null;
 	}
-	const builderEnabled = game.settings?.get?.("stonetop_pwd", "monsterBuilderEnabled") !== false;
+	const builderEnabled = game.settings?.get?.("stonetop-pwd", "monsterBuilderEnabled") !== false;
 	const kind = builderEnabled
 		? await pickContentOption({ title: "Create a Monster", options: MONSTER_KIND_OPTIONS })
 		: "blank";

@@ -1,5 +1,5 @@
 {
-  "name": "stonetop_pwd",
+  "name": "stonetop-pwd",
   "type": "module",
   "scripts": {
     "test": "vitest run",

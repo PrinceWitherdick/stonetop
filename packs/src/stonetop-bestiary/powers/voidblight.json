@@ -1,7 +1,7 @@
 {
   "name": "Voidblight",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "horde, spirit, primordial, stealthy, hungry, cautious",
     "qualities": "<p>Can harm only spirits and mortals sensitive to the spirit world; harmed only by other spirits or magical attacks.</p>",
     "count": 6,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.smqjMCaaxstHY5nZ",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.smqjMCaaxstHY5nZ",
     "notes": "",
     "creatureType": "spirit"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg"
     }
   },
   "items": [

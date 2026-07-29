@@ -10,7 +10,7 @@
 import { isBlank, valuesEqual, actionForField, coalesceEntries } from "../character/CharacterLedger.js";
 import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
 
-const LEDGER_SCOPE = "stonetop_pwd";
+const LEDGER_SCOPE = "stonetop-pwd";
 const LEDGER_KEY = "ledger";
 const LEDGER_MAX_ENTRIES = 300;
 const LEDGER_FLAG_PATH = `flags.${LEDGER_SCOPE}.${LEDGER_KEY}`;

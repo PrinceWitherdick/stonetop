@@ -1,12 +1,12 @@
 // Level-up mark step — character-model side. Uses the stateful live harness so addMove
 // actually grows the owned count that drives a budgeted move's repeat-scaling cap, and so
-// setCountMark / setStatSlot writes land in a real flag store (flags.stonetop_pwd.moves.moveMarks).
+// setCountMark / setStatSlot writes land in a real flag store (flags.stonetop-pwd.moves.moveMarks).
 
 import { describe, it, expect } from "vitest";
 import { buildLiveCharacter, sourceMovesFor } from "../../fakes/LiveCharacter.js";
 
 const marshalMoveId = (name) => sourceMovesFor("The Marshal").find(d => d.name === name)._id;
-const getMarks = (actor) => actor.getFlag("stonetop_pwd", "moves.moveMarks") ?? {};
+const getMarks = (actor) => actor.getFlag("stonetop-pwd", "moves.moveMarks") ?? {};
 
 describe("StonetopCharacter.applyLevelUp — count-mark moves (Veteran Crew etc.)", () => {
 	it("writes the take's mark, keyed by move name, budget-respecting (1 owned ⇒ 1 pick)", async () => {

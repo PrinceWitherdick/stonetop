@@ -1,7 +1,7 @@
 {
   "name": "Ulliam Unlucky",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/undead.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -25,7 +25,7 @@
     "tags": "solitary, undead, stealthy, terrifying, loyal",
     "qualities": "<p>Burned and blinded by daylight; chill aura.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nkZC8g63JoTERrx5",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.nkZC8g63JoTERrx5",
     "notes": "",
     "creatureType": "undead"
   },
@@ -34,7 +34,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/undead.svg"
     }
   },
   "items": [

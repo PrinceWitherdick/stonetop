@@ -11,7 +11,7 @@
 // rollMoveFromUuid) so the roll works with the sheet closed and survives the macro
 // being copied around; the actor and move are re-resolved from the move's uuid.
 
-const _FLAG_SCOPE = "stonetop_pwd";
+const _FLAG_SCOPE = "stonetop-pwd";
 const _MOVE_MACRO_FLAG = "moveMacro";
 const _FALLBACK_IMG = "icons/svg/d20-black.svg";
 

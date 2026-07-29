@@ -6,18 +6,18 @@ import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
 
 function makeCharacterMock(actor) {
 	const background = {
-		selectBackground: vi.fn(async slug => actor.setFlag("stonetop_pwd", "background.selected", slug)),
+		selectBackground: vi.fn(async slug => actor.setFlag("stonetop-pwd", "background.selected", slug)),
 		addChoice: vi.fn(),
-		selectedSlug: actor.getFlag("stonetop_pwd", "background.selected") ?? "",
+		selectedSlug: actor.getFlag("stonetop-pwd", "background.selected") ?? "",
 		choices: {},
 	};
 	const instinct = { select: vi.fn(), selectedValue: "" };
 	const appearance = {
 		select: vi.fn(async (lineIdx, value) => {
-			const saved = actor.getFlag("stonetop_pwd", "appearance.selected") ?? {};
-			actor.setFlag("stonetop_pwd", "appearance.selected", { ...saved, [lineIdx]: value });
+			const saved = actor.getFlag("stonetop-pwd", "appearance.selected") ?? {};
+			actor.setFlag("stonetop-pwd", "appearance.selected", { ...saved, [lineIdx]: value });
 		}),
-		saved: actor.getFlag("stonetop_pwd", "appearance.selected") ?? {},
+		saved: actor.getFlag("stonetop-pwd", "appearance.selected") ?? {},
 	};
 	const origin = { select: vi.fn() };
 	return {
@@ -138,7 +138,7 @@ describe("StonetopCharacterSheet event handlers", () => {
 
 		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(true);
 
-		await actor.setFlag("stonetop_pwd", "moves.dismissedLevelOverage", "2:3:4");
+		await actor.setFlag("stonetop-pwd", "moves.dismissedLevelOverage", "2:3:4");
 		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(false);
 
 		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({
@@ -303,7 +303,7 @@ describe("StonetopCharacterSheet._applyRecover", () => {
 		await sheet._applyRecover({ supplySlug: "supplies", currentUses: 1, oldHp: 4, newHp: 9 });
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.hp.value": 9,
-			"flags.stonetop_pwd.recover.spent": true,
+			"flags.stonetop-pwd.recover.spent": true,
 		});
 	});
 

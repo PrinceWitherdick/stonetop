@@ -1,7 +1,7 @@
 {
   "name": "Raselbaedd",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large",
     "qualities": "<p><strong>Iron hide:</strong> a hit dealing 2 or less damage before armor chips or shatters the weapon. Always hungry, easily provoked, and afraid of fire.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.vZjyZNaEPLIeD7VJ",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.vZjyZNaEPLIeD7VJ",
     "notes": "",
     "creatureType": "natural-beast"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg"
     }
   },
   "items": [

@@ -11,7 +11,7 @@ import { createStonetopGmPrepPageSheetClass } from "./gm-prep-page-sheet.js";
 
 export function createStonetopThreatPageSheetClass(Base) {
 	return createStonetopGmPrepPageSheetClass(Base, {
-		template: "systems/stonetop_pwd/templates/journal/threat-page.hbs",
+		template: "systems/stonetop-pwd/templates/journal/threat-page.hbs",
 		buildCardVM: buildThreatCardVM,
 		editSelector: ".threat-edit-start",
 		openEditor: (document) => new ThreatEditorDialog(document).render(true),

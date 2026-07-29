@@ -6,7 +6,7 @@
 
 export function gmOnlyGate(gmOnlySettingKey) {
 	if (game.user?.isGM) return true;
-	return !game.settings.get("stonetop_pwd", gmOnlySettingKey);
+	return !game.settings.get("stonetop-pwd", gmOnlySettingKey);
 }
 
 /** Whether the current user may author custom moves. */

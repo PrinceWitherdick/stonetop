@@ -15,7 +15,7 @@ import { packId } from "../system-id.js";
 //
 // The "Import Book Art" macro extracts the art from a GM-owned PDF into a DURABLE
 // folder outside the system (CONFIG.ROOT / the `book2ArtRoot` setting), then points
-// documents at it. A system update replaces the whole `systems/stonetop_pwd` folder,
+// documents at it. A system update replaces the whole `systems/stonetop-pwd` folder,
 // so it wipes the compendium edits (the shipped packs overwrite them) but NOT the
 // durable image files. This pass re-points documents at those surviving files, so the
 // GM only ever runs the macro once. It ships no pixels: the file paths and document ids
@@ -358,7 +358,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	const touchedEntries = new Map();
 	const noteEntry = (entry) => {
 		if (touchedEntries.has(entry)) return;
-		const base = entry.getFlag?.("stonetop_pwd", "journalSync");
+		const base = entry.getFlag?.("stonetop-pwd", "journalSync");
 		let pristine = false;
 		try { pristine = !!base?.hash && base.hash === managedHash(entry.toObject()); } catch (_) { /* treat as edited */ }
 		touchedEntries.set(entry, { base, pristine });
@@ -580,7 +580,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 		//    landed and is idempotent, so a retry would not re-touch the entry to re-stamp it.
 		for (const [entry, { base, pristine }] of touchedEntries) {
 			if (!pristine) continue;
-			try { await entry.setFlag("stonetop_pwd", "journalSync", { hash: managedHash(entry.toObject()), version: base?.version ?? version }); }
+			try { await entry.setFlag("stonetop-pwd", "journalSync", { hash: managedHash(entry.toObject()), version: base?.version ?? version }); }
 			catch (e) { error(`Book II art re-apply: journal re-stamp "${entry?.name}"`, e); }
 		}
 	} finally {

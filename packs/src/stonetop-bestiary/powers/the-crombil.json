@@ -1,7 +1,7 @@
 {
   "name": "The Crombil, Awakened",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, huge, terrifying, fearless, fireproof",
     "qualities": "<p>Fiery heat; a stomach like a furnace; too big to hurt with most weapons. Once it has swallowed someone, it batters them with debris and cinders (d6 damage).</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.EYZ5DbxfTP8Pkzmv",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.EYZ5DbxfTP8Pkzmv",
     "notes": "",
     "creatureType": "natural-beast"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg"
     }
   },
   "items": [

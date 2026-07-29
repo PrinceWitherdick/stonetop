@@ -234,7 +234,7 @@ describe("StonetopMonsterSheet", () => {
 		expect(data.stonetop.creatureTypeLabel).toBe("Natural / Beast");
 		expect(data.stonetop.hasPortrait).toBe(true);
 		expect(data.stonetop.displayImg).toBe(
-			"systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg");
+			"systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg");
 	});
 
 	it("prefers real portrait art over the creature-type icon", async () => {
@@ -597,7 +597,7 @@ describe("StonetopMonsterSheet", () => {
 	it("marks the active armor-boost move and exposes the header indicator", async () => {
 		const actor = {
 			system: { attributes: { armor: { value: 5 } } },
-			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
+			flags: { "stonetop-pwd": { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
 			items: makeItems([
 				{ id: "b1", type: "monsterMove", name: "Withdraw into its shell (Armor 5)", system: {} },
 				{ id: "n1", type: "monsterMove", name: "Burrow into soil", system: {} },
@@ -619,7 +619,7 @@ describe("StonetopMonsterSheet", () => {
 	it("ignores a boost flag whose move no longer exists", async () => {
 		const actor = {
 			system: { attributes: { armor: { value: 5 } } },
-			flags: { stonetop_pwd: { armorBoost: { moveId: "gone", value: 5, baseValue: 3, label: "X" } } },
+			flags: { "stonetop-pwd": { armorBoost: { moveId: "gone", value: 5, baseValue: 3, label: "X" } } },
 			items: makeItems([
 				{ id: "b1", type: "monsterMove", name: "Burrow into soil", system: {} },
 			]),
@@ -644,7 +644,7 @@ describe("StonetopMonsterSheet", () => {
 
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.armor.value": 5,
-			"flags.stonetop_pwd.armorBoost": {
+			"flags.stonetop-pwd.armorBoost": {
 				moveId: "m1", value: 5, baseValue: 3, label: "Withdraw into its shell",
 			},
 		});
@@ -653,7 +653,7 @@ describe("StonetopMonsterSheet", () => {
 	it("toggles the active armor boost off, restoring the base armor", async () => {
 		const actor = {
 			system: { attributes: { armor: { value: 5 } } },
-			flags: { stonetop_pwd: { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
+			flags: { "stonetop-pwd": { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
 			items: makeItems([]),
 			update: vi.fn(),
 		};
@@ -665,14 +665,14 @@ describe("StonetopMonsterSheet", () => {
 		// via update()) that's a fresh instance on the unchanged key path.
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.armor.value": 3,
-			"flags.stonetop_pwd.armorBoost": expect.any(foundry.data.operators.ForcedDeletion),
+			"flags.stonetop-pwd.armorBoost": expect.any(foundry.data.operators.ForcedDeletion),
 		});
 	});
 
 	it("switching to a different boost move keeps the original base armor", async () => {
 		const actor = {
 			system: { attributes: { armor: { value: 5 } } }, // already boosted by m1
-			flags: { stonetop_pwd: { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Shell" } } },
+			flags: { "stonetop-pwd": { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Shell" } } },
 			items: makeItems([]),
 			update: vi.fn(),
 		};
@@ -682,7 +682,7 @@ describe("StonetopMonsterSheet", () => {
 
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.armor.value": 6,
-			"flags.stonetop_pwd.armorBoost": {
+			"flags.stonetop-pwd.armorBoost": {
 				moveId: "m2", value: 6, baseValue: 3, label: "Hunker down",
 			},
 		});
@@ -746,7 +746,7 @@ describe("StonetopMonsterSheet", () => {
 			const actor = {
 				name: "Shellback Drake",
 				system: { attributes: { armor: { value: 5 } } },
-				flags: { stonetop_pwd: { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
+				flags: { "stonetop-pwd": { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
 				items: makeItems([]),
 				update: vi.fn(),
 			};
@@ -784,7 +784,7 @@ describe("StonetopMonsterSheet", () => {
 		const boostItem = { id: "b1", name: "Withdraw into its shell (Armor 5)", delete: vi.fn() };
 		const actor = {
 			system: { attributes: { armor: { value: 5 } } }, // currently boosted
-			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
+			flags: { "stonetop-pwd": { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Withdraw into its shell" } } },
 			items: makeItems([boostItem]),
 			update: vi.fn(),
 		};
@@ -810,7 +810,7 @@ describe("StonetopMonsterSheet", () => {
 
 			expect(actor.update).toHaveBeenCalledWith({
 				"system.attributes.armor.value": 3,
-				"flags.stonetop_pwd.armorBoost": expect.any(foundry.data.operators.ForcedDeletion),
+				"flags.stonetop-pwd.armorBoost": expect.any(foundry.data.operators.ForcedDeletion),
 			});
 			expect(boostItem.delete).toHaveBeenCalled();
 		} finally {
@@ -822,7 +822,7 @@ describe("StonetopMonsterSheet", () => {
 		const plainItem = { id: "n1", name: "Burrow into soil", delete: vi.fn() };
 		const actor = {
 			system: { attributes: { armor: { value: 5 } } },
-			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
+			flags: { "stonetop-pwd": { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
 			items: makeItems([plainItem]),
 			update: vi.fn(),
 		};
@@ -855,7 +855,7 @@ describe("StonetopMonsterSheet", () => {
 	it("hides the boost affordance on a read-only sheet (can't write the actor)", async () => {
 		const actor = {
 			system: { attributes: { armor: { value: 5 } } },
-			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
+			flags: { "stonetop-pwd": { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
 			items: makeItems([
 				{ id: "b1", type: "monsterMove", name: "Withdraw into its shell (Armor 5)", system: {} },
 			]),
@@ -873,7 +873,7 @@ describe("StonetopMonsterSheet", () => {
 	it("keeps an active boost revertable after its move is renamed to drop '(Armor N)'", async () => {
 		const actor = {
 			system: { attributes: { armor: { value: 5 } } },
-			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
+			flags: { "stonetop-pwd": { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
 			items: makeItems([
 				// Name no longer parses as a boost, but the flag still points at it.
 				{ id: "b1", type: "monsterMove", name: "Withdraw into its shell", system: {} },
@@ -895,7 +895,7 @@ describe("StonetopMonsterSheet", () => {
 		const boostItem = { id: "b1", name: "Withdraw into its shell", roll: vi.fn() };
 		const actor = {
 			system: { attributes: { armor: { value: 5 } } },
-			flags: { stonetop_pwd: { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
+			flags: { "stonetop-pwd": { armorBoost: { moveId: "b1", value: 5, baseValue: 3, label: "Shell" } } },
 			items: makeItems([boostItem]),
 		};
 		const sheet = makeSheet(actor);
@@ -925,7 +925,7 @@ describe("StonetopMonsterSheet", () => {
 		try {
 			const actor = {
 				system: { attributes: { armor: { value: 5 } } }, // already boosted to 5 by m1
-				flags: { stonetop_pwd: { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Shell" } } },
+				flags: { "stonetop-pwd": { armorBoost: { moveId: "m1", value: 5, baseValue: 3, label: "Shell" } } },
 				items: makeItems([]),
 				update: vi.fn(),
 			};

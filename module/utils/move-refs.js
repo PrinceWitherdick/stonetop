@@ -49,7 +49,7 @@ const _moveRefCache = new Map();
 export async function fetchMoveRef(name) {
 	const key = name.toLowerCase();
 	if (_moveRefCache.has(key)) return _moveRefCache.get(key);
-	const packs = game.packs.filter(p => p.metadata.packageName === "stonetop_pwd" && p.metadata.type === "Item");
+	const packs = game.packs.filter(p => p.metadata.packageName === "stonetop-pwd" && p.metadata.type === "Item");
 	for (const pack of packs) {
 		await pack.getIndex();
 		const entry = pack.index.find(e => e.name.toLowerCase() === key);

@@ -5,7 +5,7 @@ export function registerSettings() {
 
 	// Tracks the last loaded module version.
 	// Used to detect when migrations need to run.
-	game.settings.register("stonetop_pwd", "moduleVersion", {
+	game.settings.register("stonetop-pwd", "moduleVersion", {
 		name: "Module Version",
 		scope: "world",
 		config: false,
@@ -16,7 +16,7 @@ export function registerSettings() {
 	// Whether the one-time import of the JournalEntry compendiums into the world
 	// has run (see hooks/SeedCompendiums.js). Set true after the first GM load so
 	// the gazetteer is seeded exactly once and never re-duplicated.
-	game.settings.register("stonetop_pwd", "seedingComplete", {
+	game.settings.register("stonetop-pwd", "seedingComplete", {
 		name: "Compendium Seeding Complete",
 		scope: "world",
 		config: false,
@@ -27,7 +27,7 @@ export function registerSettings() {
 	// Which system id the Phase 3 id-migration sweep last completed for. Stores the id
 	// rather than a boolean so a future rename re-runs it, and so a brand-new world (which
 	// has nothing to sweep) can be stamped without pretending a migration happened.
-	game.settings.register("stonetop_pwd", "idMigrationFinishedFor", {
+	game.settings.register("stonetop-pwd", "idMigrationFinishedFor", {
 		name: "System ID Migration Completed For",
 		scope: "world",
 		config: false,
@@ -40,7 +40,7 @@ export function registerSettings() {
 	// `seedingComplete` (which covers the JournalEntry packs) so an established world whose
 	// journals were seeded long ago still imports the monster sheets on the first load
 	// after this shipped. Set true after the first GM load so the bestiary is seeded once.
-	game.settings.register("stonetop_pwd", "bestiaryActorsSeeded", {
+	game.settings.register("stonetop-pwd", "bestiaryActorsSeeded", {
 		name: "Bestiary Actors Seeded",
 		scope: "world",
 		config: false,
@@ -53,7 +53,7 @@ export function registerSettings() {
 	// gazetteer trees under a single "The World" folder, which pushed the deep Bestiary
 	// codex past Foundry's folder-render depth; the migration lifts the trees to the
 	// sidebar root and deletes the wrapper. Set true once it has run (no-op on fresh worlds).
-	game.settings.register("stonetop_pwd", "worldRootUnnested", {
+	game.settings.register("stonetop-pwd", "worldRootUnnested", {
 		name: "World Root Un-nested",
 		scope: "world",
 		config: false,
@@ -66,7 +66,7 @@ export function registerSettings() {
 	// Bestiary > section > region > creature > actor; that depth hid the deepest monsters
 	// past Foundry's folder-render limit, so the migration flattens it to Bestiary > section
 	// > actor. Set true once it has run (no-op on worlds seeded from the collapsed compendium).
-	game.settings.register("stonetop_pwd", "bestiaryActorFoldersCollapsed", {
+	game.settings.register("stonetop-pwd", "bestiaryActorFoldersCollapsed", {
 		name: "Bestiary Actor Folders Collapsed",
 		scope: "world",
 		config: false,
@@ -79,7 +79,7 @@ export function registerSettings() {
 	// hooks/SeedItems.js). Independent of the journal/bestiary seeds so an established
 	// world still gets the treasure library on the first load after this shipped. Set
 	// true after the first GM load so the treasures are seeded once and never duplicated.
-	game.settings.register("stonetop_pwd", "treasureItemsSeeded", {
+	game.settings.register("stonetop-pwd", "treasureItemsSeeded", {
 		name: "Treasure Items Seeded",
 		scope: "world",
 		config: false,
@@ -90,7 +90,7 @@ export function registerSettings() {
 	// Whether this world has had the system's new-world core setting defaults applied.
 	// Used to seed Foundry's Automatic Token Rotation world setting off only during a
 	// fresh world's first GM load, without surprising already-established worlds.
-	game.settings.register("stonetop_pwd", "coreSettingDefaultsApplied", {
+	game.settings.register("stonetop-pwd", "coreSettingDefaultsApplied", {
 		name: "Core Setting Defaults Applied",
 		scope: "world",
 		config: false,
@@ -103,7 +103,7 @@ export function registerSettings() {
 	// world gate above so ESTABLISHED worlds — which skip the new-world defaults —
 	// still get the grant the actor-backed steading roster depends on. One-time: once
 	// set, a GM who later revokes the permission keeps it revoked.
-	game.settings.register("stonetop_pwd", "playerActorCreationGranted", {
+	game.settings.register("stonetop-pwd", "playerActorCreationGranted", {
 		name: "Player Actor Creation Granted",
 		scope: "world",
 		config: false,
@@ -115,7 +115,7 @@ export function registerSettings() {
 	// world's seeded copies (see hooks/SeedCompendiums.js). When this trails the
 	// running version, the update pass refreshes pristine (un-edited) seeded
 	// journals and records the new version here.
-	game.settings.register("stonetop_pwd", "journalSyncVersion", {
+	game.settings.register("stonetop-pwd", "journalSyncVersion", {
 		name: "Journal Sync Version",
 		scope: "world",
 		config: false,
@@ -130,7 +130,7 @@ export function registerSettings() {
 	// signature. A content signature rather than a one-shot flag so later colour
 	// changes propagate; the sync recolours folders at the default or still holding a colour
 	// from the previous scheme, so re-running can't fight a GM's own tint.
-	game.settings.register("stonetop_pwd", "seededFolderColorsSignature", {
+	game.settings.register("stonetop-pwd", "seededFolderColorsSignature", {
 		name: "Seeded Folder Colours Signature",
 		scope: "world",
 		config: false,
@@ -143,7 +143,7 @@ export function registerSettings() {
 	// World-scoped: showing the table its session-start upkeep is a per-world decision,
 	// and only the GM posts the card, so a per-browser client toggle would never match
 	// who actually fires it. Defaults on; GMs who don't want the nudge can untick it.
-	game.settings.register("stonetop_pwd", "startOfSessionReminders", {
+	game.settings.register("stonetop-pwd", "startOfSessionReminders", {
 		name: "stonetop.settings.startOfSessionReminders.name",
 		hint: "stonetop.settings.startOfSessionReminders.hint",
 		scope: "world",
@@ -158,7 +158,7 @@ export function registerSettings() {
 	// niche GM tool most tables never reach for, and the buttons add a row to every roll
 	// card. World-scoped: whether the table uses tier-shifting is a per-world call, and
 	// only the GM acts on it.
-	game.settings.register("stonetop_pwd", "chatShiftButtons", {
+	game.settings.register("stonetop-pwd", "chatShiftButtons", {
 		name: "stonetop.settings.chatShiftButtons.name",
 		hint: "stonetop.settings.chatShiftButtons.hint",
 		scope: "world",
@@ -171,7 +171,7 @@ export function registerSettings() {
 	// the "+ Custom Move" button or the edit pencils, and the create/edit handlers are
 	// no-ops for them. Existing custom moves still display and roll for everyone; this
 	// only gates AUTHORING. Off lets any player author on their own character.
-	game.settings.register("stonetop_pwd", "customMovesGmOnly", {
+	game.settings.register("stonetop-pwd", "customMovesGmOnly", {
 		name: "stonetop.settings.customMovesGmOnly.name",
 		hint: "stonetop.settings.customMovesGmOnly.hint",
 		scope: "world",
@@ -187,7 +187,7 @@ export function registerSettings() {
 	// inspiration wizard now lives in the sidebar "Create Item → Arcanum" chooser,
 	// which is GM-side.) Kept independent of customMovesGmOnly so a GM can permit
 	// one and not the other.
-	game.settings.register("stonetop_pwd", "arcanaCreationGmOnly", {
+	game.settings.register("stonetop-pwd", "arcanaCreationGmOnly", {
 		name: "stonetop.settings.arcanaCreationGmOnly.name",
 		hint: "stonetop.settings.arcanaCreationGmOnly.hint",
 		scope: "world",
@@ -200,7 +200,7 @@ export function registerSettings() {
 	// guided worksheet (Book I "Dangers") that computes HP/armor/damage from tag
 	// picks. Off drops straight to a blank stat block. Imports, compendium drops,
 	// and duplicates are never intercepted, only manual blank creates.
-	game.settings.register("stonetop_pwd", "monsterBuilderEnabled", {
+	game.settings.register("stonetop-pwd", "monsterBuilderEnabled", {
 		name: "stonetop.settings.monsterBuilderEnabled.name",
 		hint: "stonetop.settings.monsterBuilderEnabled.hint",
 		scope: "world",
@@ -216,7 +216,7 @@ export function registerSettings() {
 	// un-unlocked back hidden until the GM clicks "Reveal back to player" on it. The GM
 	// always sees both sides. See the per-card visibility model in
 	// StonetopCharacterSheet.getData / CharacterArcana.
-	game.settings.register("stonetop_pwd", "arcanaPlayersSeeBothSides", {
+	game.settings.register("stonetop-pwd", "arcanaPlayersSeeBothSides", {
 		name: "stonetop.settings.arcanaPlayersSeeBothSides.name",
 		hint: "stonetop.settings.arcanaPlayersSeeBothSides.hint",
 		scope: "world",
@@ -229,7 +229,7 @@ export function registerSettings() {
 	// full book card on the canvas, anchored to the pin and panning/zooming with the
 	// scene, with a live doom track the GM ticks right there. Off by default: the safe
 	// path is a pin that opens the card in a window (works everywhere, no canvas overlay).
-	game.settings.register("stonetop_pwd", "threatOnCanvasCards", {
+	game.settings.register("stonetop-pwd", "threatOnCanvasCards", {
 		name: "stonetop.settings.threatOnCanvasCards.name",
 		hint: "stonetop.settings.threatOnCanvasCards.hint",
 		scope: "world",
@@ -239,7 +239,7 @@ export function registerSettings() {
 		onChange: () => game.stonetop?.threatBoard?.refresh?.(),
 	});
 
-	game.settings.register("stonetop_pwd", "startupWelcomeShown", {
+	game.settings.register("stonetop-pwd", "startupWelcomeShown", {
 		name: "Startup Welcome Shown",
 		scope: "world",
 		config: false,
@@ -251,7 +251,7 @@ export function registerSettings() {
 	// world's Macro Directory (see hooks/Ready.js _ensureTestPopulateMacro). Set true
 	// after the first GM load so it's added exactly once — a GM who later deletes it
 	// keeps it gone rather than having it reappear every reload.
-	game.settings.register("stonetop_pwd", "testPopulateMacroSeeded", {
+	game.settings.register("stonetop-pwd", "testPopulateMacroSeeded", {
 		name: "Test Populate Macro Seeded",
 		scope: "world",
 		config: false,
@@ -262,7 +262,7 @@ export function registerSettings() {
 	// Whether the "Import Book II Art" macro has been seeded into the world's Macro
 	// Directory (see hooks/Ready.js _ensureBook2ArtMacro). Set true after the first
 	// GM load so it's added exactly once — a GM who later deletes it keeps it gone.
-	game.settings.register("stonetop_pwd", "book2ArtMacroSeeded", {
+	game.settings.register("stonetop-pwd", "book2ArtMacroSeeded", {
 		name: "Book II Art Macro Seeded",
 		scope: "world",
 		config: false,
@@ -276,7 +276,7 @@ export function registerSettings() {
 	// this again"): the card is whispered if no art is on disk yet, otherwise it's simply
 	// marked done. World-scoped — "has this world been nudged" is world state, and only the
 	// GM posts/acts on it.
-	game.settings.register("stonetop_pwd", "book2ArtReminderShown", {
+	game.settings.register("stonetop-pwd", "book2ArtReminderShown", {
 		name: "Book Art Import Reminder Shown",
 		scope: "world",
 		config: false,
@@ -285,10 +285,10 @@ export function registerSettings() {
 	});
 
 	// The durable folder (a top-level data path, OUTSIDE the system folder) the "Import
-	// Book Art" macro writes extracted illustrations to. Living outside systems/stonetop_pwd
+	// Book Art" macro writes extracted illustrations to. Living outside systems/stonetop-pwd
 	// is what keeps the art across a system update or reinstall; the runtime re-apply
 	// (hooks/Ready.js -> book2-art/reapply.js) re-points documents at it after an update.
-	game.settings.register("stonetop_pwd", "book2ArtRoot", {
+	game.settings.register("stonetop-pwd", "book2ArtRoot", {
 		name: "Book II Art Folder",
 		scope: "world",
 		config: false,
@@ -307,7 +307,7 @@ export function registerSettings() {
 	// book2-art/reapply.js) browse the folder and publish it here, and treasure-drops.js
 	// reads it synchronously when building the drop. World-scoped so players (who cannot
 	// browse files) get it broadcast like any setting.
-	game.settings.register("stonetop_pwd", "treasureArt", {
+	game.settings.register("stonetop-pwd", "treasureArt", {
 		name: "Treasure Art On Disk",
 		scope: "world",
 		config: false,
@@ -321,7 +321,7 @@ export function registerSettings() {
 	// index so even players (who cannot browse files) can pick from it. The GM-side passes (the
 	// Import Book Art macro and book2-art/reapply.js) browse the folder and publish it here.
 	// World-scoped so it reaches every client like any setting.
-	game.settings.register("stonetop_pwd", "peopleArt", {
+	game.settings.register("stonetop-pwd", "peopleArt", {
 		name: "People Art On Disk",
 		scope: "world",
 		config: false,
@@ -332,7 +332,7 @@ export function registerSettings() {
 	// The system version whose Book II art was last re-applied to the compendia. When
 	// this trails the running version, the re-apply pass re-points documents at the
 	// durable art on disk and records the new version here (see book2-art/reapply.js).
-	game.settings.register("stonetop_pwd", "book2ArtSyncVersion", {
+	game.settings.register("stonetop-pwd", "book2ArtSyncVersion", {
 		name: "Book II Art Sync Version",
 		scope: "world",
 		config: false,
@@ -343,7 +343,7 @@ export function registerSettings() {
 	// Whether the GM has dismissed the "first session" Welcome guide's automatic
 	// pop-up (see dialogs/WelcomeDialog.js). While false, the guide opens for the
 	// GM on every world load; ticking "Don't show this automatically" sets it true.
-	game.settings.register("stonetop_pwd", "gmWelcomeShown", {
+	game.settings.register("stonetop-pwd", "gmWelcomeShown", {
 		name: "GM Welcome Guide Dismissed",
 		scope: "world",
 		config: false,
@@ -358,7 +358,7 @@ export function registerSettings() {
 	// its first session" is world state, so a fresh world starts over — unlike the
 	// client-scoped `walkthroughResume` below, which would leak completion across every
 	// world opened in the same browser. Shape: { introductions: <bool>, springBurst: <bool> }.
-	game.settings.register("stonetop_pwd", "sessionZeroDone", {
+	game.settings.register("stonetop-pwd", "sessionZeroDone", {
 		name: "Session Zero Walkthroughs Complete",
 		scope: "world",
 		config: false,
@@ -370,7 +370,7 @@ export function registerSettings() {
 	// dialogs/SpringBurstDialog.js) — the first-session notes that have no document
 	// of their own (who's most hopeful, the season's chosen gain/hook, and what
 	// excites each player about their PC). Shape: { hopeful, gain, excites: { <actorId>: text } }.
-	game.settings.register("stonetop_pwd", "springBurstAnswers", {
+	game.settings.register("stonetop-pwd", "springBurstAnswers", {
 		name: "Let Spring Burst Forth Answers",
 		scope: "world",
 		config: false,
@@ -381,7 +381,7 @@ export function registerSettings() {
 	// Answers recorded in the guided Character Introductions (see
 	// dialogs/IntroductionsDialog.js) — what each PC established about themselves and
 	// Stonetop. GM-written (only a GM can write a world setting): the GM types the
-	// narration rounds and HARVESTS each player's own `flags.stonetop_pwd.intro` flag
+	// narration rounds and HARVESTS each player's own `flags.stonetop-pwd.intro` flag
 	// (the player-driven answer/ask steps) into here for the Chronicle. Compiled into the
 	// shared "Chronicle" journal (utils/chronicle.js). Shape, keyed by actor id:
 	//   { <actorId>: {
@@ -393,7 +393,7 @@ export function registerSettings() {
 	// step4 folds the old r4/r5 "answer" rounds into one looping step (up to 4 answers,
 	// one per playbook question); step6 folds r6/r7. The compiler reads both the step
 	// lists and the legacy r4–r7 keys, so already-run worlds keep compiling unchanged.
-	game.settings.register("stonetop_pwd", "introductionsAnswers", {
+	game.settings.register("stonetop-pwd", "introductionsAnswers", {
 		name: "Character Introductions Answers",
 		scope: "world",
 		config: false,
@@ -411,7 +411,7 @@ export function registerSettings() {
 	// the cursor rather than their own scene-scoped game.combat. Shape:
 	//   { active: <bool>, phase: <0-6>, activeActorId: "<id>",
 	//     activeUserId: "<owning player's user id>", pcOrder: [ "<id>", … ], nonce: <int> }.
-	game.settings.register("stonetop_pwd", "introCursor", {
+	game.settings.register("stonetop-pwd", "introCursor", {
 		name: "Character Introductions Cursor",
 		scope: "world",
 		config: false,
@@ -428,7 +428,7 @@ export function registerSettings() {
 	//               chart: { route, checks: { warmClothes: true }, notes },
 	//               outfit, requisition, prep, running,   // single-text step notes
 	//               home: { checks, notes } }, … ] }      // oldest trip first
-	game.settings.register("stonetop_pwd", "expeditionAnswers", {
+	game.settings.register("stonetop-pwd", "expeditionAnswers", {
 		name: "Expedition Walkthrough Notes",
 		scope: "world",
 		config: false,
@@ -441,7 +441,7 @@ export function registerSettings() {
 	// re-snaps the system macros into their new canonical slots once, then leaves the
 	// GM's own arrangement alone again. Per-client because the hotbar is per-user;
 	// starts at 0 so a fresh world (and any pre-versioning world) arranges on first load.
-	game.settings.register("stonetop_pwd", "systemHotbarLayoutVersion", {
+	game.settings.register("stonetop-pwd", "systemHotbarLayoutVersion", {
 		name: "System Hotbar Layout Version",
 		scope: "client",
 		config: false,
@@ -452,7 +452,7 @@ export function registerSettings() {
 	// The season last picked in the Weather roll dialog (see dialogs/WeatherDialog.js),
 	// so it reopens to where the GM left off. Client-scoped — it's a GM convenience,
 	// not shared world state. Holds a WEATHER_SEASONS key (or "" before first use).
-	game.settings.register("stonetop_pwd", "weatherSeason", {
+	game.settings.register("stonetop-pwd", "weatherSeason", {
 		name: "Weather Roll Season",
 		scope: "client",
 		config: false,
@@ -472,7 +472,7 @@ export function registerSettings() {
 	//   { "<worldId>": {
 	//       introductions: { open: <bool>, phase: <0-8>, pcIndex: <int> },
 	//       springBurst:   { open: <bool>, step: <int>, delegated: <bool> } } }
-	game.settings.register("stonetop_pwd", "walkthroughResume", {
+	game.settings.register("stonetop-pwd", "walkthroughResume", {
 		name: "Walkthrough Resume State",
 		scope: "client",
 		config: false,
@@ -485,7 +485,7 @@ export function registerSettings() {
 	// Whether this user has had the Setting Overview journal auto-opened once (see
 	// hooks/Ready.js). Per-client so each player gets the fresh-start orientation
 	// the first time they connect, GM included, without re-popping every load.
-	game.settings.register("stonetop_pwd", "settingOverviewShown", {
+	game.settings.register("stonetop-pwd", "settingOverviewShown", {
 		name: "Setting Overview Shown",
 		scope: "client",
 		config: false,
@@ -499,7 +499,7 @@ export function registerSettings() {
 	// live in browser localStorage keyed only by namespace.key, so the flag leaked across
 	// worlds and a fresh world read it already-set — silently skipping the assignment.
 
-	game.settings.register("stonetop_pwd", "sheetFont", {
+	game.settings.register("stonetop-pwd", "sheetFont", {
 		name: "stonetop.settings.sheetFont.name",
 		hint: "stonetop.settings.sheetFont.hint",
 		scope: "client",
@@ -514,7 +514,7 @@ export function registerSettings() {
 		onChange: value => applySheetFont(value),
 	});
 
-	game.settings.register("stonetop_pwd", "sheetFontScale", {
+	game.settings.register("stonetop-pwd", "sheetFontScale", {
 		name: "stonetop.settings.sheetFontScale.name",
 		hint: "stonetop.settings.sheetFontScale.hint",
 		scope: "client",
@@ -534,7 +534,7 @@ export function registerSettings() {
 	// How long you must hover a section before its edit pencil fades in (seconds).
 	// Drives the --st-edit-reveal-delay CSS variable. The pencils stay clickable
 	// while still invisible, so this only affects when they become visible.
-	game.settings.register("stonetop_pwd", "editPencilRevealDelay", {
+	game.settings.register("stonetop-pwd", "editPencilRevealDelay", {
 		name: "stonetop.settings.editPencilRevealDelay.name",
 		hint: "stonetop.settings.editPencilRevealDelay.hint",
 		scope: "client",
@@ -548,7 +548,7 @@ export function registerSettings() {
 	// Hide the decorative dice (rollable) icon that marks rollable moves and stats.
 	// Rolling still works without it — clicking the move name or stat row fires the
 	// same roll. Drives the `stonetop-hide-rollable-icon` root class.
-	game.settings.register("stonetop_pwd", "hideRollableIcon", {
+	game.settings.register("stonetop-pwd", "hideRollableIcon", {
 		name: "stonetop.settings.hideRollableIcon.name",
 		hint: "stonetop.settings.hideRollableIcon.hint",
 		scope: "client",
@@ -561,7 +561,7 @@ export function registerSettings() {
 	// Prompt for a one-off situational modifier before each 2d6 move/stat roll on
 	// the character sheet (a held bonus, a GM-granted +1, etc.). Read at roll time
 	// (StonetopCharacterSheet); Shift-clicking the roll skips the prompt.
-	game.settings.register("stonetop_pwd", "promptRollModifier", {
+	game.settings.register("stonetop-pwd", "promptRollModifier", {
 		name: "stonetop.settings.promptRollModifier.name",
 		hint: "stonetop.settings.promptRollModifier.hint",
 		scope: "client",
@@ -573,7 +573,7 @@ export function registerSettings() {
 	// Open actor sheets (character / steading / monster) in Edit mode instead of
 	// Play mode. Read once when the sheet is constructed; the header wrench still
 	// toggles modes per-sheet afterward.
-	game.settings.register("stonetop_pwd", "openSheetsInEditMode", {
+	game.settings.register("stonetop-pwd", "openSheetsInEditMode", {
 		name: "stonetop.settings.openSheetsInEditMode.name",
 		hint: "stonetop.settings.openSheetsInEditMode.hint",
 		scope: "client",
@@ -586,7 +586,7 @@ export function registerSettings() {
 	// this user had open when they reload, at the same position and size. Per-client
 	// because window layout is personal, not shared world state. Defaults on. The
 	// live tracking + restore lives in utils/window-restore.js.
-	game.settings.register("stonetop_pwd", "restoreWindowsOnReload", {
+	game.settings.register("stonetop-pwd", "restoreWindowsOnReload", {
 		name: "stonetop.settings.restoreWindowsOnReload.name",
 		hint: "stonetop.settings.restoreWindowsOnReload.hint",
 		scope: "client",
@@ -600,7 +600,7 @@ export function registerSettings() {
 	// utils/window-restore.js).
 	// Internal (not shown in the settings menu); rewritten continuously as windows
 	// open, close, and move.
-	game.settings.register("stonetop_pwd", "openWindowsState", {
+	game.settings.register("stonetop-pwd", "openWindowsState", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -610,7 +610,7 @@ export function registerSettings() {
 	// Strip the decorative animations, transitions, and hover-zoom image popups
 	// from Stonetop UI for users who find them distracting or are motion-sensitive.
 	// Drives the `stonetop-reduce-motion` root class.
-	game.settings.register("stonetop_pwd", "reduceMotion", {
+	game.settings.register("stonetop-pwd", "reduceMotion", {
 		name: "stonetop.settings.reduceMotion.name",
 		hint: "stonetop.settings.reduceMotion.hint",
 		scope: "client",
@@ -623,7 +623,7 @@ export function registerSettings() {
 	// Remembers each character (playbook) sheet's width so it reopens at the size
 	// the user last left it. Per-user (client) and per-actor: a map of actor id
 	// -> width. Internal (not shown in the settings menu).
-	game.settings.register("stonetop_pwd", "characterSheetWidths", {
+	game.settings.register("stonetop-pwd", "characterSheetWidths", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -634,7 +634,7 @@ export function registerSettings() {
 	// Group Fight) each character left expanded, so the sheet reopens in the same
 	// state. Per-user (client) and per-actor: a map of actor id -> array of open
 	// section ids. Internal (not shown in the settings menu).
-	game.settings.register("stonetop_pwd", "crewSectionsOpen", {
+	game.settings.register("stonetop-pwd", "crewSectionsOpen", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -646,7 +646,7 @@ export function registerSettings() {
 	// default to expanded, so we store the *collapsed* ids (absence = open).
 	// Per-user (client) and per-actor: a map of actor id -> array of collapsed
 	// section ids. Internal (not shown in the settings menu).
-	game.settings.register("stonetop_pwd", "movesSectionsCollapsed", {
+	game.settings.register("stonetop-pwd", "movesSectionsCollapsed", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -657,7 +657,7 @@ export function registerSettings() {
 	// collapsed, so the sheet reopens in the same state. These default to expanded,
 	// so we store the *collapsed* ids (absence = open). Per-user (client) and
 	// per-actor: a map of actor id -> array of collapsed section ids. Internal.
-	game.settings.register("stonetop_pwd", "arcanaSectionsCollapsed", {
+	game.settings.register("stonetop-pwd", "arcanaSectionsCollapsed", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -669,7 +669,7 @@ export function registerSettings() {
 	// COLLAPSED — they're long, secondary reference — so we store the *expanded* ids
 	// (absence = collapsed). Per-user (client) and per-actor: a map of actor id -> array
 	// of expanded section ids. Internal (not shown in the settings menu).
-	game.settings.register("stonetop_pwd", "arcanaContentExpanded", {
+	game.settings.register("stonetop-pwd", "arcanaContentExpanded", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -680,7 +680,7 @@ export function registerSettings() {
 	// just their title bar). Like the Major / Minor sections, cards default to EXPANDED, so
 	// a card id (its slug) present here means that card should reopen collapsed. Per-user
 	// (client) and per-actor: a map of actor id -> array of collapsed card slugs. Internal.
-	game.settings.register("stonetop_pwd", "arcanaCardsCollapsed", {
+	game.settings.register("stonetop-pwd", "arcanaCardsCollapsed", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -691,14 +691,14 @@ export function registerSettings() {
 	// + Basic / Expedition move lists) collapsed, so the sheet reopens the same way.
 	// The sidebar defaults to expanded. Per-user (client) and per-actor: a map of
 	// actor id -> boolean. Internal (not shown in the settings menu).
-	game.settings.register("stonetop_pwd", "characterSidebarCollapsed", {
+	game.settings.register("stonetop-pwd", "characterSidebarCollapsed", {
 		scope: "client",
 		config: false,
 		type: Object,
 		default: {},
 	});
 
-	game.settings.register("stonetop_pwd", "showRollStatChips", {
+	game.settings.register("stonetop-pwd", "showRollStatChips", {
 		name: "stonetop.settings.showRollStatChips.name",
 		hint: "stonetop.settings.showRollStatChips.hint",
 		scope: "client",
@@ -708,7 +708,7 @@ export function registerSettings() {
 		onChange: () => _rerenderActorSheets(),
 	});
 
-	game.settings.register("stonetop_pwd", "showMoveDescriptionsInChat", {
+	game.settings.register("stonetop-pwd", "showMoveDescriptionsInChat", {
 		name: "stonetop.settings.showMoveDescriptionsInChat.name",
 		hint: "stonetop.settings.showMoveDescriptionsInChat.hint",
 		scope: "client",
@@ -718,7 +718,7 @@ export function registerSettings() {
 		onChange: value => applyMoveDescriptionBodyClass(value),
 	});
 
-	game.settings.register("stonetop_pwd", "hoverDescriptionsEnabled", {
+	game.settings.register("stonetop-pwd", "hoverDescriptionsEnabled", {
 		name: "stonetop.settings.hoverDescriptionsEnabled.name",
 		hint: "stonetop.settings.hoverDescriptionsEnabled.hint",
 		scope: "client",
@@ -728,7 +728,7 @@ export function registerSettings() {
 	});
 
 	for (const key of HOVER_DESCRIPTION_SETTING_KEYS) {
-		game.settings.register("stonetop_pwd", key, {
+		game.settings.register("stonetop-pwd", key, {
 			name: `stonetop.settings.${key}.name`,
 			hint: `stonetop.settings.${key}.hint`,
 			scope: "client",
@@ -738,7 +738,7 @@ export function registerSettings() {
 		});
 	}
 
-	game.settings.registerMenu("stonetop_pwd", "hoverDescriptionSettings", {
+	game.settings.registerMenu("stonetop-pwd", "hoverDescriptionSettings", {
 		name: "stonetop.settings.hoverDescriptionSettings.name",
 		label: "stonetop.settings.hoverDescriptionSettings.label",
 		hint: "stonetop.settings.hoverDescriptionSettings.hint",
@@ -769,7 +769,7 @@ function _createHoverDescriptionSettingsApp() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				id: "stonetop-hover-description-settings",
 				title: game.i18n.localize("stonetop.settings.hoverDescriptionSettings.title"),
-				template: "systems/stonetop_pwd/templates/settings/hover-descriptions.hbs",
+				template: "systems/stonetop-pwd/templates/settings/hover-descriptions.hbs",
 				width: 520,
 				height: "auto",
 				resizable: true,
@@ -833,28 +833,28 @@ export function applyReduceMotion(value) {
 
 // Whether to prompt for a one-off situational modifier before a move/stat roll.
 export function getPromptRollModifierSetting() {
-	return globalThis.game?.settings?.get?.("stonetop_pwd", "promptRollModifier") ?? false;
+	return globalThis.game?.settings?.get?.("stonetop-pwd", "promptRollModifier") ?? false;
 }
 
 // Whether actor sheets should open in Edit mode rather than Play mode.
 export function getOpenSheetsInEditMode() {
-	return globalThis.game?.settings?.get?.("stonetop_pwd", "openSheetsInEditMode") ?? false;
+	return globalThis.game?.settings?.get?.("stonetop-pwd", "openSheetsInEditMode") ?? false;
 }
 
 // Whether the rollable dice icon is hidden; when it is, rolls fire from the move
 // name / stat row instead of the (now absent) icon.
 export function getHideRollableIconSetting() {
-	return globalThis.game?.settings?.get?.("stonetop_pwd", "hideRollableIcon") ?? false;
+	return globalThis.game?.settings?.get?.("stonetop-pwd", "hideRollableIcon") ?? false;
 }
 
 export function getSetting(key) {
-	return game.settings.get("stonetop_pwd", key);
+	return game.settings.get("stonetop-pwd", key);
 }
 
 // Last-used width for a given character sheet, or null if none stored yet.
 export function getCharacterSheetWidth(actorId) {
 	if (!actorId) return null;
-	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSheetWidths");
+	const map = globalThis.game?.settings?.get?.("stonetop-pwd", "characterSheetWidths");
 	const w = map?.[actorId];
 	return Number.isFinite(w) && w > 0 ? w : null;
 }
@@ -864,8 +864,8 @@ export function setCharacterSheetWidth(actorId, width) {
 	const w = Math.round(Number(width));
 	if (!Number.isFinite(w) || w <= 0) return;
 	if (w === getCharacterSheetWidth(actorId)) return; // avoid redundant writes
-	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSheetWidths") ?? {};
-	return game.settings.set("stonetop_pwd", "characterSheetWidths", { ...map, [actorId]: w });
+	const map = globalThis.game?.settings?.get?.("stonetop-pwd", "characterSheetWidths") ?? {};
+	return game.settings.set("stonetop-pwd", "characterSheetWidths", { ...map, [actorId]: w });
 }
 
 // Per-actor, per-user list of collapsible section ids (sorted, de-duped), or []
@@ -873,17 +873,17 @@ export function setCharacterSheetWidth(actorId, width) {
 // move groups, which differ only in the setting key they persist under.
 function getSectionList(key, actorId) {
 	if (!actorId) return [];
-	const arr = globalThis.game?.settings?.get?.("stonetop_pwd", key)?.[actorId];
+	const arr = globalThis.game?.settings?.get?.("stonetop-pwd", key)?.[actorId];
 	return Array.isArray(arr) ? arr : [];
 }
 
 function setSectionList(key, actorId, sections) {
 	if (!actorId) return;
 	const next = Array.from(new Set(sections ?? [])).sort();
-	const map  = globalThis.game?.settings?.get?.("stonetop_pwd", key) ?? {};
+	const map  = globalThis.game?.settings?.get?.("stonetop-pwd", key) ?? {};
 	const prev = Array.isArray(map[actorId]) ? [...map[actorId]].sort() : [];
 	if (next.join("|") === prev.join("|")) return; // avoid redundant writes
-	return game.settings.set("stonetop_pwd", key, { ...map, [actorId]: next });
+	return game.settings.set("stonetop-pwd", key, { ...map, [actorId]: next });
 }
 
 // The collapsible crew follower sections a character left expanded.
@@ -941,27 +941,27 @@ export function setArcanaCardsCollapsed(actorId, slugs) {
 // expanded). Per-actor, per-user.
 export function getSidebarCollapsed(actorId) {
 	if (!actorId) return false;
-	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSidebarCollapsed");
+	const map = globalThis.game?.settings?.get?.("stonetop-pwd", "characterSidebarCollapsed");
 	return !!map?.[actorId];
 }
 
 export function setSidebarCollapsed(actorId, collapsed) {
 	if (!actorId) return;
 	const next = !!collapsed;
-	const map  = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSidebarCollapsed") ?? {};
+	const map  = globalThis.game?.settings?.get?.("stonetop-pwd", "characterSidebarCollapsed") ?? {};
 	if (next === !!map[actorId]) return; // avoid redundant writes
-	return game.settings.set("stonetop_pwd", "characterSidebarCollapsed", { ...map, [actorId]: next });
+	return game.settings.set("stonetop-pwd", "characterSidebarCollapsed", { ...map, [actorId]: next });
 }
 
 export function getHoverDescriptionSetting(key, { ignoreMaster = false } = {}) {
 	const settings = globalThis.game?.settings;
-	const masterEnabled = ignoreMaster ? true : settings?.get?.("stonetop_pwd", "hoverDescriptionsEnabled") ?? true;
-	const settingEnabled = settings?.get?.("stonetop_pwd", key) ?? true;
+	const masterEnabled = ignoreMaster ? true : settings?.get?.("stonetop-pwd", "hoverDescriptionsEnabled") ?? true;
+	const settingEnabled = settings?.get?.("stonetop-pwd", key) ?? true;
 	return masterEnabled && settingEnabled;
 }
 
 export function getRollStatChipsSetting() {
-	return globalThis.game?.settings?.get?.("stonetop_pwd", "showRollStatChips") ?? true;
+	return globalThis.game?.settings?.get?.("stonetop-pwd", "showRollStatChips") ?? true;
 }
 
 export function applyMoveDescriptionBodyClass(show) {
@@ -969,7 +969,7 @@ export function applyMoveDescriptionBodyClass(show) {
 }
 
 export function setSetting(key, value) {
-	return game.settings.set("stonetop_pwd", key, value);
+	return game.settings.set("stonetop-pwd", key, value);
 }
 
 function _rerenderActorSheets() {

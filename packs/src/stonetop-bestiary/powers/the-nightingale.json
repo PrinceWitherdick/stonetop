@@ -1,7 +1,7 @@
 {
   "name": "The Nightingale",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, tiny, primordial, magical, beautiful",
     "qualities": "<p>Ageless; reads minds; tethered to a particular ever-blooming rose bush somewhere in the Foothills. Armor 1 vs. black iron (size).</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.aGS4afk7P2DhhFN0",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.aGS4afk7P2DhhFN0",
     "notes": "",
     "creatureType": "spirit"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg"
     }
   },
   "items": [

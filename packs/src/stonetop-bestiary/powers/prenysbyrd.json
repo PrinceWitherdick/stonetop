@@ -1,7 +1,7 @@
 {
   "name": "Prenysbyrd",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large, spirit, magical, stubborn, terrifying",
     "qualities": "",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Qvh128WhhOrglLEH",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Qvh128WhhOrglLEH",
     "notes": "",
     "creatureType": "spirit"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg"
     }
   },
   "items": [

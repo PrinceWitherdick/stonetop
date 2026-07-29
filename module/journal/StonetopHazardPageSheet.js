@@ -10,7 +10,7 @@ import { createStonetopGmPrepPageSheetClass } from "./gm-prep-page-sheet.js";
 
 export function createStonetopHazardPageSheetClass(Base) {
 	return createStonetopGmPrepPageSheetClass(Base, {
-		template: "systems/stonetop_pwd/templates/journal/hazard-page.hbs",
+		template: "systems/stonetop-pwd/templates/journal/hazard-page.hbs",
 		buildCardVM: buildHazardCardVM,
 		editSelector: ".hazard-edit-start",
 		openEditor: (document) => new CreateHazardDialog({ page: document }).promise(),

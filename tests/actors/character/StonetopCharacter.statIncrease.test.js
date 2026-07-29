@@ -18,7 +18,7 @@ describe("StonetopCharacter._applyStatIncreaseChoice", () => {
 		const { char, actor } = makeChar(new FakeStatBuilder().withStr(1));
 		await char._applyStatIncreaseChoice({ id: "item1", name: "Improved Stat" }, "str", 2);
 
-		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toEqual({ item1: "str" });
+		expect(actor.getFlag("stonetop-pwd", "improvedStatChoices")).toEqual({ item1: "str" });
 		// Bump tagged with the move name so the ledger reads "via Improved Stat".
 		expect(actor.update).toHaveBeenCalledWith(
 			{ "system.stats.str.value": 2 },
@@ -30,7 +30,7 @@ describe("StonetopCharacter._applyStatIncreaseChoice", () => {
 		const { char, actor } = makeChar(new FakeStatBuilder().withDex(2));
 		await char._applyStatIncreaseChoice({ id: "item2", name: "Improved Stat" }, "dex", 2);
 
-		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toEqual({ item2: "dex" });
+		expect(actor.getFlag("stonetop-pwd", "improvedStatChoices")).toEqual({ item2: "dex" });
 		expect(actor.update).not.toHaveBeenCalled();
 	});
 
@@ -48,14 +48,14 @@ describe("StonetopCharacter._applyStatIncreaseChoice", () => {
 		const { char, actor } = makeChar(new FakeStatBuilder().withStr(0), { improvedStatChoices: { item0: "con" } });
 		await char._applyStatIncreaseChoice({ id: "item1", name: "Improved Stat" }, "str", 2);
 
-		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toEqual({ item0: "con", item1: "str" });
+		expect(actor.getFlag("stonetop-pwd", "improvedStatChoices")).toEqual({ item0: "con", item1: "str" });
 	});
 
 	it("ignores an unknown stat key (no flag write, no stat change)", async () => {
 		const { char, actor } = makeChar(new FakeStatBuilder().withStr(0));
 		await char._applyStatIncreaseChoice({ id: "item1", name: "Improved Stat" }, "bogus", 2);
 
-		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toBeNull();
+		expect(actor.getFlag("stonetop-pwd", "improvedStatChoices")).toBeNull();
 		expect(actor.update).not.toHaveBeenCalled();
 	});
 });

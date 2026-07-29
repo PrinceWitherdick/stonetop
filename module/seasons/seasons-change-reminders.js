@@ -12,7 +12,7 @@ import { getPlayerCharacters } from "../utils/playbook-actors.js";
 
 // The seasonal upkeep registry. `kind` decides how a character is matched:
 //   • "move"       — an embedded move Item with this exact name.
-//   • "possession" — a selected special-possession slug (flags.stonetop_pwd.possessions.selected).
+//   • "possession" — a selected special-possession slug (flags.stonetop-pwd.possessions.selected).
 // `rule` is the season-facing reminder text shown in the card.
 const SEASONAL_REMINDERS = [
 	{
@@ -48,7 +48,7 @@ const SEASONAL_REMINDERS = [
 // "autumn" maps to the "fall" art). Forward slashes keep it a valid URL.
 export function seasonIconSrc(season) {
 	const id = season === "autumn" ? "fall" : season;
-	return `systems/stonetop_pwd/assets/icons/seasons/${id}_icon.svg`;
+	return `systems/stonetop-pwd/assets/icons/seasons/${id}_icon.svg`;
 }
 
 // The four seasons in turn order — the single source for the season picker and
@@ -64,7 +64,7 @@ export function seasonLabel(season) {
 export function remindersForActor(actor) {
 	if (actor?.type !== "character") return [];
 	const moveNames = new Set(actor.items.filter(i => i.type === "move").map(i => i.name));
-	const selected  = new Set(actor.getFlag?.("stonetop_pwd", "possessions.selected") ?? []);
+	const selected  = new Set(actor.getFlag?.("stonetop-pwd", "possessions.selected") ?? []);
 	return SEASONAL_REMINDERS.filter(r =>
 		r.kind === "move" ? moveNames.has(r.name) : selected.has(r.slug),
 	);

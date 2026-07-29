@@ -53,7 +53,7 @@ describe("StonetopCharacter._applyForeignMoveChoice", () => {
 		char.addMove = vi.fn().mockResolvedValue(foreignItem);
 		await char._applyForeignMoveChoice({ id: "cross1", name: "Versatile" }, "f1", null);
 		expect(char.addMove).toHaveBeenCalledWith("f1");
-		expect(foreignItem.setFlag).toHaveBeenCalledWith("stonetop_pwd", "grantedBy", { move: "Versatile", instanceId: "cross1" });
+		expect(foreignItem.setFlag).toHaveBeenCalledWith("stonetop-pwd", "grantedBy", { move: "Versatile", instanceId: "cross1" });
 	});
 
 	it("grants the possession when grantsPossession is set and not already owned (Initiate Sacred Pouch)", async () => {
@@ -124,8 +124,8 @@ describe("StonetopCharacter.removeMove — cross-playbook cascade", () => {
 		const actor = new FakeActorBuilder()
 			.withPlaybook("the-fox", "The Fox")
 			.addItem({ _id: "cross1", type: "move", name: "Versatile", system: { moveType: "playbook" } })
-			.addItem({ _id: "g1", type: "move", name: "Smash", system: { moveType: "playbook", playbook: "The Heavy" },  flags: { stonetop_pwd: { grantedBy: { move: "Versatile", instanceId: "cross1" } } } })
-			.addItem({ _id: "g2", type: "move", name: "Other", system: { moveType: "playbook", playbook: "The Marshal" }, flags: { stonetop_pwd: { grantedBy: { move: "Versatile", instanceId: "OTHER"  } } } })
+			.addItem({ _id: "g1", type: "move", name: "Smash", system: { moveType: "playbook", playbook: "The Heavy" },  flags: { "stonetop-pwd": { grantedBy: { move: "Versatile", instanceId: "cross1" } } } })
+			.addItem({ _id: "g2", type: "move", name: "Other", system: { moveType: "playbook", playbook: "The Marshal" }, flags: { "stonetop-pwd": { grantedBy: { move: "Versatile", instanceId: "OTHER"  } } } })
 			.build();
 		await new TestCharacterBuilder(actor).build().removeMove("cross1");
 		// cross1 + its grant g1; g2 belongs to a different instance and is left alone.

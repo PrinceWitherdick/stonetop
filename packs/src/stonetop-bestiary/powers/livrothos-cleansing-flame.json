@@ -1,7 +1,7 @@
 {
   "name": "Livrothos, Cleansing Flame",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large, primordial, spirit, construct, magical, terrifying",
     "qualities": "<p>Ageless; immune to the elements; perceives thought and matter; omnilingual. Harmed only by black iron.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Z2PNfBJpuurYN778",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Z2PNfBJpuurYN778",
     "notes": "",
     "creatureType": "spirit-construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg"
     }
   },
   "items": [

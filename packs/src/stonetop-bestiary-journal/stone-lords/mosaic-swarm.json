@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A killer mosaic that bursts into a whirling cloud of jagged ceramic tiles.",
-        "description": "<p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rJiU3RhbILojTC2u]{Stone Lords}</strong> adorned their halls with elaborate tilework and mosaics. Most of them were decorative. Most of them.</p>",
+        "description": "<p><strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.rJiU3RhbILojTC2u]{Stone Lords}</strong> adorned their halls with elaborate tilework and mosaics. Most of them were decorative. Most of them.</p>",
         "questions": [],
         "lore": [
           {
@@ -57,7 +57,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.fNEJcPa37GBqXwOq"
+          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.fNEJcPa37GBqXwOq"
         ]
       },
       "sort": 100000,

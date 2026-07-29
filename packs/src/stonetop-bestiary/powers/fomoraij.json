@@ -1,7 +1,7 @@
 {
   "name": "Fomoraij",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large, magical, cunning, cautious, terrifying",
     "qualities": "<p>Can sense anything that happens in its lair (but might not think to). Armor 0 vs. bronze.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.kGrMF2KnwppWW2db",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.kGrMF2KnwppWW2db",
     "notes": "",
     "creatureType": "corrupted"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg"
     }
   },
   "items": [

@@ -26,7 +26,7 @@ export class LoveLetterReadDialog extends StonetopDialog {
 
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
-			template: "systems/stonetop_pwd/templates/dialogs/love-letter-read.hbs",
+			template: "systems/stonetop-pwd/templates/dialogs/love-letter-read.hbs",
 			width: 480,
 			height: "auto",
 			resizable: true,

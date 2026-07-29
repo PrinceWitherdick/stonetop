@@ -1,7 +1,7 @@
 {
   "name": "Run an Expedition",
   "type": "script",
-  "img": "systems/stonetop_pwd/assets/icons/macros/treasure-map.svg",
+  "img": "systems/stonetop-pwd/assets/icons/macros/treasure-map.svg",
   "scope": "global",
   "command": "game.stonetop?.openExpedition?.()",
   "folder": null,

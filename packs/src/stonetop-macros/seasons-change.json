@@ -1,7 +1,7 @@
 {
   "name": "Seasons Change",
   "type": "script",
-  "img": "systems/stonetop_pwd/assets/icons/macros/spring.svg",
+  "img": "systems/stonetop-pwd/assets/icons/macros/spring.svg",
   "scope": "global",
   "command": "game.stonetop?.openSeasonsChange?.()",
   "folder": null,

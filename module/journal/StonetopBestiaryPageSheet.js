@@ -57,7 +57,7 @@ export function createStonetopBestiaryPageSheetClass(Base) {
 		get isEditable() { return super.isEditable && !isInCompendium(this.document); }
 
 		get template() {
-			return "systems/stonetop_pwd/templates/journal/bestiary.hbs";
+			return "systems/stonetop-pwd/templates/journal/bestiary.hbs";
 		}
 
 		// The journal renders the inline page view with `editable: false`, which makes

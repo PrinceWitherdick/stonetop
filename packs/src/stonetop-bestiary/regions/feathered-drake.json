@@ -1,7 +1,7 @@
 {
   "name": "Feathered Drake",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, stealthy, organized",
     "qualities": "<p>Flightless.</p>",
     "count": 3,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.T17yRp50eDt8cyXO",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.T17yRp50eDt8cyXO",
     "notes": "",
     "creatureType": "natural-beast"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg"
     }
   },
   "items": [

@@ -1,7 +1,7 @@
 {
   "name": "Shaksa",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, spirit, construct, hoarder, magical, terrifying",
     "qualities": "<p>Tethered to its cemetery; can only leave to track looters or vandals.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.JK9EeLUOBHfNoHCw",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.JK9EeLUOBHfNoHCw",
     "notes": "",
     "creatureType": "spirit-construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg"
     }
   },
   "items": [

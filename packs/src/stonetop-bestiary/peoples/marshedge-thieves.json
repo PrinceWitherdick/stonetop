@@ -1,7 +1,7 @@
 {
   "name": "Thieves",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -25,7 +25,7 @@
     "tags": "group, devious, stealthy, cautious",
     "qualities": "",
     "count": 3,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ytyTMHny5iAK6yZB",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.ytyTMHny5iAK6yZB",
     "notes": "",
     "creatureType": "human-group"
   },
@@ -34,7 +34,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg"
     }
   },
   "items": [

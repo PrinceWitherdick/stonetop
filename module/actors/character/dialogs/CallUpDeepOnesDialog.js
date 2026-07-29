@@ -44,7 +44,7 @@ export class CallUpDeepOnesDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-call-up-deep-ones",
 			title:     "Call Up the Deep Ones",
-			template:  "systems/stonetop_pwd/templates/dialogs/call-up-deep-ones.hbs",
+			template:  "systems/stonetop-pwd/templates/dialogs/call-up-deep-ones.hbs",
 			width:     560,
 			height:    "auto",
 			resizable: true,

@@ -1,7 +1,7 @@
 {
   "name": "The Bear of Winter",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/fae.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/fae.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -24,9 +24,9 @@
     "organization": "solitary",
     "size": "huge",
     "tags": "solitary, huge, fae, magical, hoarder, devious, fierce, terrifying",
-    "qualities": "<p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae nature}</strong>; immune to cold; an aura of wintry weather that matches his mood. Armor 2 vs. iron (hide, ice).</p>",
+    "qualities": "<p><strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae nature}</strong>; immune to cold; an aura of wintry weather that matches his mood. Armor 2 vs. iron (hide, ice).</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.9QYBsIBHZESD9ErE",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.9QYBsIBHZESD9ErE",
     "notes": "",
     "creatureType": "fae"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/fae.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/fae.svg"
     }
   },
   "items": [

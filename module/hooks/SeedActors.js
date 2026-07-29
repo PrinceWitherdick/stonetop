@@ -16,7 +16,7 @@ import { isPrimaryGM } from "../utils/primary-gm.js";
 // imported actors are stamped ownership NONE, so players never see them in their sidebar —
 // matching the GM-only Monsters compendium and the codex's player-spoiler protection.
 
-const BESTIARY_PACK_ID = "stonetop_pwd.stonetop-bestiary";
+const BESTIARY_PACK_ID = "stonetop-pwd.stonetop-bestiary";
 
 export async function seedBestiaryActorsOnce() {
 	// Primary GM only: the ~200-actor import is not atomic with the `bestiaryActorsSeeded`

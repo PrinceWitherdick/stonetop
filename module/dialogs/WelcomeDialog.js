@@ -107,7 +107,7 @@ export class WelcomeDialog extends Application {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-welcome",
 			title:     "Welcome to Stonetop",
-			template:  "systems/stonetop_pwd/templates/dialogs/welcome.hbs",
+			template:  "systems/stonetop-pwd/templates/dialogs/welcome.hbs",
 			// Left-rail tabbed sheet (like Run an Expedition / Make a Monster): the rail
 			// keeps the window short by showing one step at a time, so it needs less height
 			// than the old single-scroll guide and a touch more width for the rail.
@@ -135,7 +135,7 @@ export class WelcomeDialog extends Application {
 		// entry). Those only resolve while enriching if that pack's index is already
 		// loaded — and this guide often opens before anything else warms it, which
 		// renders the link "broken". Load the index first so it always resolves.
-		await game.packs.get("stonetop_pwd.stonetop-journal")?.getIndex();
+		await game.packs.get("stonetop-pwd.stonetop-journal")?.getIndex();
 
 		const players = game.users
 			.filter(u => !u.isGM)
@@ -152,7 +152,7 @@ export class WelcomeDialog extends Application {
 						// _setOnboardingState in StonetopCharacterSheet); cleared once they
 						// finish, so a completed character shows no note.
 						progress: progressLabel(
-							a.getFlag?.("stonetop_pwd", "onboardingProgress"),
+							a.getFlag?.("stonetop-pwd", "onboardingProgress"),
 							a.system?.playbook,
 						),
 					})),
@@ -334,7 +334,7 @@ export class WelcomeDialog extends Application {
 				if ("name" in changes || "img" in changes || "ownership" in changes) { refresh(); return; }
 				// Onboarding progress writes (and the unset on completion, which arrives
 				// as a "-=onboardingProgress" key) should update the page count live.
-				const stFlags = changes.flags?.stonetop_pwd;
+				const stFlags = changes.flags?.["stonetop-pwd"];
 				if (stFlags && Object.keys(stFlags).some(k => k.replace(/^-=/, "") === "onboardingProgress")) refresh();
 			})],
 		];

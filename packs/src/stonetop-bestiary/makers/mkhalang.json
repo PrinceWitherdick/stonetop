@@ -1,7 +1,7 @@
 {
   "name": "Mkhalang",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, huge, spirit, construct, cautious, devious",
     "qualities": "<p>Tethered to its dome but far-ranging; perfect memory; unable to lie.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.BcpBqOAGilg6RtJb",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.BcpBqOAGilg6RtJb",
     "notes": "",
     "creatureType": "spirit-construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg"
     }
   },
   "items": [

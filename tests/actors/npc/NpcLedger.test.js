@@ -87,7 +87,7 @@ describe("NpcLedger", () => {
 	it("ignores writes to the ledger flag itself", () => {
 		const actor = makeActor({ instinct: "to wait" });
 		const entries = NpcLedger.entriesForActorUpdate(actor, {
-			flags: { stonetop_pwd: { ledger: [{ id: "x", action: "whatever" }] } },
+			flags: { "stonetop-pwd": { ledger: [{ id: "x", action: "whatever" }] } },
 		});
 		expect(entries).toEqual([]);
 	});

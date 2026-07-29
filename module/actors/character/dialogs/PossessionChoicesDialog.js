@@ -26,7 +26,7 @@ export class PossessionChoicesDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-possession-choices-dialog",
-			template:  "systems/stonetop_pwd/templates/dialogs/possession-choices.hbs",
+			template:  "systems/stonetop-pwd/templates/dialogs/possession-choices.hbs",
 			width:     480,
 			height:    "auto",
 			resizable: true,

@@ -17,8 +17,8 @@ import {
 	markTrackHtml, mysteryHtml, consequenceHtml,
 } from "./arcanum-edit.js";
 
-const VIEW_TEMPLATE = "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs";
-const EDIT_TEMPLATE = "systems/stonetop_pwd/templates/item/arcanum-sheet-edit.hbs";
+const VIEW_TEMPLATE = "systems/stonetop-pwd/templates/item/arcanum-sheet.hbs";
+const EDIT_TEMPLATE = "systems/stonetop-pwd/templates/item/arcanum-sheet-edit.hbs";
 
 // The "Max = stat" picker options, derived from the shared stat list so the order and
 // labels match the rest of the app (and can't drift). { key, abbr } is the template shape.
@@ -60,7 +60,7 @@ function _arcanumSlugInUse(slug) {
 	for (const actor of globalThis.game?.actors ?? []) {
 		// Check the live scope AND the legacy "stonetop" scope a migrated world may still
 		// store arcana marks under, so renaming a slug never orphans either set of marks.
-		for (const arcana of [actor.flags?.stonetop_pwd?.arcana, actor.flags?.stonetop?.arcana]) {
+		for (const arcana of [actor.flags?.["stonetop-pwd"]?.arcana, actor.flags?.stonetop?.arcana]) {
 			if (!arcana) continue;
 			if ([arcana.owned, arcana.identified, arcana.flipped, arcana.minorDraw]
 				.some(list => Array.isArray(list) && list.includes(slug))) return true;
@@ -112,7 +112,7 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 		_isCustomMoveHandoff() {
 			return this.item?.type === "move"
 				&& this.item?.system?.moveType !== "arcanum"
-				&& !!this.item?.flags?.stonetop_pwd?.custom
+				&& !!this.item?.flags?.["stonetop-pwd"]?.custom
 				&& !isInCompendium(this.item);
 		}
 

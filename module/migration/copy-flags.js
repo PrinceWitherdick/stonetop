@@ -39,7 +39,7 @@ export function buildFlagUpdate(doc, { source = SYSTEM_ID, target = RENAME_TARGE
 	// Fold any requested fallback rungs in UNDERNEATH the source bag. Writing the cutover
 	// stamp is what makes the read paths stop consulting those rungs for this document
 	// (system-id.js#isCutOver), so a key that only ever lived on one of them — carried
-	// across the pre-0.8.0 `stonetop` → `stonetop_pwd` rename and never rewritten since —
+	// across the pre-0.8.0 `stonetop` → `stonetop-pwd` rename and never rewritten since —
 	// would otherwise become unreachable the moment we stamp.
 	//
 	// SHALLOW, top-level keys only. A deep merge is what would resurrect a sub-key the

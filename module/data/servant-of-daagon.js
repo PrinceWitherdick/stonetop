@@ -169,7 +169,7 @@ export function resolveServantBatch({ aspectDie = {}, count, chosenTraits = [], 
 /**
  * Build the stored custom-follower object for a Servant batch (buildCustomFollower plus the
  * `exceptional` flag the resolver derives). The caller stamps id/order and persists it under
- * flags.stonetop_pwd.customFollowers.<id>.
+ * flags.stonetop-pwd.customFollowers.<id>.
  */
 export function buildServantFollower(input) {
 	return { ...buildCustomFollower(input), exceptional: !!input?.exceptional };

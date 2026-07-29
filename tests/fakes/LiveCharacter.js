@@ -50,7 +50,7 @@ function makeFlagStore(seed = {}) {
 	const scoped = {};
 	for (const [k, v] of Object.entries(seed)) setPath(scoped, k, v);
 	// Both scopes alias the same object, matching FakeActorBuilder.
-	return { stonetop_pwd: scoped, stonetop: scoped };
+	return { "stonetop-pwd": scoped, stonetop: scoped };
 }
 
 // A live embedded Item. `data` is a toObject()-style payload ({ name, type, system,
@@ -59,7 +59,7 @@ function makeFlagStore(seed = {}) {
 export function makeLiveItem(data) {
 	const _id = nextId();
 	const flags = makeFlagStore();
-	if (data.flags?.stonetop_pwd) Object.assign(flags.stonetop_pwd, structuredClone(data.flags.stonetop_pwd));
+	if (data.flags?.["stonetop-pwd"]) Object.assign(flags["stonetop-pwd"], structuredClone(data.flags["stonetop-pwd"]));
 	return {
 		_id,
 		get id() { return _id; },

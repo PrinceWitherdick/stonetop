@@ -1,7 +1,7 @@
 {
   "name": "Fire Drake",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, aggressive, tough",
     "qualities": "<p>Fireproof; caustic, burning blood.</p>",
     "count": 3,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.CIBOcY6E4EMOsQqO",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.CIBOcY6E4EMOsQqO",
     "notes": "",
     "creatureType": "natural-beast"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg"
     }
   },
   "items": [

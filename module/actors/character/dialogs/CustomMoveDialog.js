@@ -34,7 +34,7 @@ export function worldMoveSaver() {
 
 /**
  * Authoring dialog for a custom "Other" move. Creates or edits a `move` item
- * (moveType "other", flagged stonetop_pwd.custom) through a caller-supplied
+ * (moveType "other", flagged stonetop-pwd.custom) through a caller-supplied
  * `saver`, so the same UI drives both the actor-embedded on-sheet flow and the
  * reusable world-item "Create Item → Move" flow. The document shaping lives in
  * the shared builder; this dialog only gathers raw input.
@@ -62,7 +62,7 @@ export class CustomMoveDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			// No fixed id: edit and create dialogs (or two edits) may be open at once,
 			// and a shared DOM id would collide. The class below is the styling hook.
-			template: "systems/stonetop_pwd/templates/dialogs/custom-move.hbs",
+			template: "systems/stonetop-pwd/templates/dialogs/custom-move.hbs",
 			width: 520,
 			height: "auto",
 			resizable: true,

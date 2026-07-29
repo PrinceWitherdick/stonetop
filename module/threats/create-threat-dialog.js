@@ -22,7 +22,7 @@ export class CreateThreatDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-create-threat",
 			title: "Write Up a Threat",
-			template: "systems/stonetop_pwd/templates/dialogs/create-threat.hbs",
+			template: "systems/stonetop-pwd/templates/dialogs/create-threat.hbs",
 			classes: ["stonetop", "stonetop-create-threat-dialog"],
 			width: 560,
 			height: "auto",

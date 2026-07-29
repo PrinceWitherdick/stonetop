@@ -63,7 +63,7 @@ export function createStonetopNpcSheetClass(Base) {
 		}
 
 		get template() {
-			return "systems/stonetop_pwd/templates/actor/npc.hbs";
+			return "systems/stonetop-pwd/templates/actor/npc.hbs";
 		}
 
 		async _render(force, options) {
@@ -188,7 +188,7 @@ export function createStonetopNpcSheetClass(Base) {
 			const npcUuid = this.actor.uuid;
 			st.following = (game.actors?.contents ?? [])
 				.filter(a => a.type === "character")
-				.filter(pc => Object.values(pc.getFlag?.("stonetop_pwd", "customFollowers") ?? {})
+				.filter(pc => Object.values(pc.getFlag?.("stonetop-pwd", "customFollowers") ?? {})
 					.some(f => f?.sourceUuid === npcUuid))
 				.map(pc => ({ id: pc.id, name: pc.name }));
 			st.isFollowing = st.following.length > 0;

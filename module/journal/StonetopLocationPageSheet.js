@@ -50,7 +50,7 @@ export function createStonetopLocationPageSheetClass(Base) {
 		get isEditable() { return super.isEditable && !isInCompendium(this.document); }
 
 		get template() {
-			return "systems/stonetop_pwd/templates/journal/location.hbs";
+			return "systems/stonetop-pwd/templates/journal/location.hbs";
 		}
 
 		// The embedded page view renders with `editable: false`, which makes

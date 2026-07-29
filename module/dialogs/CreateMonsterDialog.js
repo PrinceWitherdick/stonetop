@@ -56,7 +56,7 @@ export class CreateMonsterDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-create-monster",
 			title: "Make a Monster",
-			template: "systems/stonetop_pwd/templates/dialogs/create-monster.hbs",
+			template: "systems/stonetop-pwd/templates/dialogs/create-monster.hbs",
 			classes: ["stonetop", "stonetop-create-monster-dialog"],
 			width: 760,
 			// Fixed height so switching tabs doesn't resize the window; the section

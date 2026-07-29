@@ -8,7 +8,7 @@ describe("buildCustomMoveData", () => {
 	it("forces moveType 'other' and flags the move as custom", () => {
 		const out = buildCustomMoveData({ name: "Reckless Charge" });
 		expect(out.system.moveType).toBe("other");
-		expect(out.flags.stonetop_pwd.custom).toBe(true);
+		expect(out.flags["stonetop-pwd"].custom).toBe(true);
 		expect(out).not.toHaveProperty("type"); // caller adds type:"move"
 	});
 

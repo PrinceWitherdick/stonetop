@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "A <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> guide who knows the Fen's hidden hazards and grim secrets.",
-        "description": "<p>The fen-walkers are <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> folk who know <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.UstvXnD6EA9IBBO3]{Ferrier's Fen}</strong> as well as anyone can — its hidden hazards, its grim secrets, and the safe paths through the muck. Hire one before venturing in. Notable fen-walkers include Alastar (exceptional, old, devious; feels no remorse; demands payment in hand), Fiadh (curious, kind, fen-blighted; hides his affliction; trades for secrets of the Fen), and Riona (prepared, agile, stubborn; assumes the worst; wants competence shown).</p>",
+        "concept": "A <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> guide who knows the Fen's hidden hazards and grim secrets.",
+        "description": "<p>The fen-walkers are <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR]{Marshedge}</strong> folk who know <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.UstvXnD6EA9IBBO3]{Ferrier's Fen}</strong> as well as anyone can — its hidden hazards, its grim secrets, and the safe paths through the muck. Hire one before venturing in. Notable fen-walkers include Alastar (exceptional, old, devious; feels no remorse; demands payment in hand), Fiadh (curious, kind, fen-blighted; hides his affliction; trades for secrets of the Fen), and Riona (prepared, agile, stubborn; assumes the worst; wants competence shown).</p>",
         "questions": [],
         "lore": [],
         "hooks": "",
@@ -48,7 +48,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.DiCuCO7x8F1jVUk3"
+          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.DiCuCO7x8F1jVUk3"
         ]
       },
       "sort": 100000,

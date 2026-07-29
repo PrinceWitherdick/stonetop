@@ -1,7 +1,7 @@
 {
   "name": "Cave Bear",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large, cautious",
     "qualities": "",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VJf1tzQZ3nGxBNsC",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.VJf1tzQZ3nGxBNsC",
     "notes": "",
     "creatureType": "natural-beast"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg"
     }
   },
   "items": [

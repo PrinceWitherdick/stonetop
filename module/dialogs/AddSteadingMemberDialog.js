@@ -82,7 +82,7 @@ export class AddSteadingMemberDialog extends StonetopDialog {
 
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
-			template: "systems/stonetop_pwd/templates/dialogs/add-steading-member.hbs",
+			template: "systems/stonetop-pwd/templates/dialogs/add-steading-member.hbs",
 			width: 460,
 			height: "auto",
 			resizable: true,

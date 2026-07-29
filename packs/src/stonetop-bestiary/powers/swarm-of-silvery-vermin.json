@@ -1,7 +1,7 @@
 {
   "name": "Swarm of Silvery Vermin",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "horde, terrifying, amorphous, fearless",
     "qualities": "<p>Hive-mind connection with Yaarowslow; can fly, crawl, burrow, or swim; unharmed by piercing or cutting weapons; takes half damage from smashing weapons; vulnerable to area effects (like naphtha fire). Armor 1 vs. bronze.</p>",
     "count": 6,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5tvhzovmN18QlxGa",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.5tvhzovmN18QlxGa",
     "notes": "",
     "creatureType": "corrupted"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg"
     }
   },
   "items": [

@@ -1,7 +1,7 @@
 {
   "name": "Dool Spirit",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, spirit, terrifying, stealthy, devious",
     "qualities": "<p>Powerless in bright light; bound to its tree or a victim's bones.</p>",
     "count": 3,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.N7e7deA8brYpOz66",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.N7e7deA8brYpOz66",
     "notes": "",
     "creatureType": "spirit"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg"
     }
   },
   "items": [

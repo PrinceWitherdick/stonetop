@@ -9,7 +9,7 @@ import { enrichHTML } from "../../utils/foundry-compat.js";
 import { npcStatusMeta } from "../../data-models/npc-status.js";
 import { getStonetopSteadingActor } from "../../utils/world.js";
 
-const DEFAULT_MEMBER_AVATAR = "systems/stonetop_pwd/assets/icons/people/default_profile.svg";
+const DEFAULT_MEMBER_AVATAR = "systems/stonetop-pwd/assets/icons/people/default_profile.svg";
 
 // The empty field shape resolvePersonRow returns when a row has no live actor to
 // pull from — spread into the no-row and deleted-actor fallbacks so the blank
@@ -56,13 +56,13 @@ export function isActorRow(row) {
 
 /**
  * Distinct, non-empty names of a steading's Residents + Neighbors, for name-suggestion
- * datalists (e.g. Create-a-Follower). Reads the nested `stonetop_pwd.steading` flag where
+ * datalists (e.g. Create-a-Follower). Reads the nested `stonetop-pwd.steading` flag where
  * the people rows actually live — the flat `getFlag(…, "residents")` path is never written.
  * Best-effort: a missing/unlinked steading (or any read error) just yields [].
  */
 export function peopleNames(steading) {
 	try {
-		const flags = steading?.getFlag?.("stonetop_pwd", "steading") ?? {};
+		const flags = steading?.getFlag?.("stonetop-pwd", "steading") ?? {};
 		const rows = Object.keys(PEOPLE_FOLDERS).flatMap(list => Array.isArray(flags[list]) ? flags[list] : []);
 		return [...new Set(rows.map(r => String(r?.name ?? "").trim()).filter(Boolean))];
 	} catch { return []; }
@@ -77,7 +77,7 @@ export function peopleNames(steading) {
  */
 export function steadingPeopleActors(steading) {
 	try {
-		const flags = steading?.getFlag?.("stonetop_pwd", "steading") ?? {};
+		const flags = steading?.getFlag?.("stonetop-pwd", "steading") ?? {};
 		const seen = new Set();
 		const people = [];
 		for (const list of Object.keys(PEOPLE_FOLDERS)) {
@@ -273,11 +273,11 @@ export async function addPersonToSteading(list, data = {}, steading = null) {
 export async function migrateSteadingPeople(steading) {
 	if (!game.user?.isGM || steading?.type !== "stonetop") return 0;
 	// Converted on a prior load — skip the deep-clone + per-row rescan each startup.
-	if (steading.flags?.stonetop_pwd?.steading?.peopleMigrated) return 0;
-	// The steading stores its lists nested under flags.stonetop_pwd.steading (see
+	if (steading.flags?.["stonetop-pwd"]?.steading?.peopleMigrated) return 0;
+	// The steading stores its lists nested under flags.stonetop-pwd.steading (see
 	// StonetopSteading#_flags / setFlags), so read and rewrite that sub-object — not
 	// the top-level scope — and merge it back the same way the sheet does.
-	const steadingFlags = foundry.utils.deepClone(steading.flags?.stonetop_pwd?.steading ?? {});
+	const steadingFlags = foundry.utils.deepClone(steading.flags?.["stonetop-pwd"]?.steading ?? {});
 	let converted = 0;
 	let changed = false;
 
@@ -306,7 +306,7 @@ export async function migrateSteadingPeople(steading) {
 
 	if (changed) {
 		steadingFlags.peopleMigrated = true;
-		await steading.setFlag("stonetop_pwd", "steading", steadingFlags);
+		await steading.setFlag("stonetop-pwd", "steading", steadingFlags);
 	}
 	return converted;
 }
@@ -334,8 +334,8 @@ export async function migrateAllSteadingPeople() {
  */
 export async function backfillResidentHomes(steading) {
 	if (!game.user?.isGM || steading?.type !== "stonetop") return 0;
-	if (steading.flags?.stonetop_pwd?.steading?.residentHomesBackfilled) return 0;
-	const rows = steading.flags?.stonetop_pwd?.steading?.residents;
+	if (steading.flags?.["stonetop-pwd"]?.steading?.residentHomesBackfilled) return 0;
+	const rows = steading.flags?.["stonetop-pwd"]?.steading?.residents;
 	let updated = 0;
 	for (const row of (Array.isArray(rows) ? rows : [])) {
 		if (!isActorRow(row)) continue;
@@ -346,7 +346,7 @@ export async function backfillResidentHomes(steading) {
 		try { await actor.update({ "system.home": "Stonetop" }); updated++; }
 		catch (err) { console.warn("Stonetop | Could not backfill Home for", actor?.name, err); }
 	}
-	await steading.setFlag("stonetop_pwd", "steading", { residentHomesBackfilled: true });
+	await steading.setFlag("stonetop-pwd", "steading", { residentHomesBackfilled: true });
 	return updated;
 }
 

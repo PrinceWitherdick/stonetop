@@ -96,7 +96,7 @@ function makeChar({ def, copies = 1, marks = {}, level = 5 }) {
 // The moveMarks object written by the last actor.update() call.
 function writtenMarks(actor) {
 	const frag = actor.update.mock.calls.at(-1)[0];
-	return frag["flags.stonetop_pwd.moves.moveMarks"];
+	return frag["flags.stonetop-pwd.moves.moveMarks"];
 }
 
 describe("StonetopCharacter.setCountMark — repeat-scaling budget", () => {

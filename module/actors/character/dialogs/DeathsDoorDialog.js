@@ -31,7 +31,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-deathsdoor-dialog",
-			template:  "systems/stonetop_pwd/templates/dialogs/deaths-door.hbs",
+			template:  "systems/stonetop-pwd/templates/dialogs/deaths-door.hbs",
 			title:     "Death's Door",
 			width:     600,
 			height:    "auto",

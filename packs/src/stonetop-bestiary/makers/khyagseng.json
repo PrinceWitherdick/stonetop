@@ -1,7 +1,7 @@
 {
   "name": "Khyagseng",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, spirit, construct, resolute, observant, fierce",
     "qualities": "<p>Tethered to its pedestal; body made of dark ice; cold-proof.</p>",
     "count": 3,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ADc1Jry8qeYXhKjs",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.ADc1Jry8qeYXhKjs",
     "notes": "",
     "creatureType": "spirit-construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg"
     }
   },
   "items": [

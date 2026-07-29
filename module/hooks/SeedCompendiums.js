@@ -43,7 +43,7 @@ export async function seedCompendiumJournalsOnce() {
 
 	const packs = game.packs.filter(
 		p => p.documentName === "JournalEntry"
-			&& p.metadata?.packageName === "stonetop_pwd"
+			&& p.metadata?.packageName === "stonetop-pwd"
 	);
 
 	// compendium entry uuid → freshly-imported world entry uuid. The generators'
@@ -235,7 +235,7 @@ async function remapCrossLinks(entries, linkMap) {
 async function stampJournalBaselines(entries) {
 	const version = game.system.version;
 	for (const entry of entries) {
-		try { await entry.setFlag("stonetop_pwd", "journalSync", { hash: managedHash(entry.toObject()), version }); }
+		try { await entry.setFlag("stonetop-pwd", "journalSync", { hash: managedHash(entry.toObject()), version }); }
 		catch (err) { error(`Failed to fingerprint seeded journal "${entry.name}":`, err); }
 	}
 }
@@ -286,7 +286,7 @@ export async function syncSeededFolderColors() {
 }
 
 // The merged journal compendium every seeded/imported world entry originates from.
-const JOURNAL_PACK_ID = "stonetop_pwd.stonetop-journal";
+const JOURNAL_PACK_ID = "stonetop-pwd.stonetop-journal";
 
 // Restore the `_stats.compendiumSource` stamp on world journals imported from our pack
 // without it — a GM who deleted the world journals and re-imported the compendium another
@@ -353,7 +353,7 @@ export async function updateSeededJournalsOnVersionChange() {
 		if (!source) continue; // entry dropped from the pack this version — leave the world copy
 
 		const worldHash = managedHash(entry.toObject());
-		const baseline = entry.getFlag("stonetop_pwd", "journalSync");
+		const baseline = entry.getFlag("stonetop-pwd", "journalSync");
 		// GM-edited: fingerprint drifted from what we last wrote. Hands off.
 		if (baseline?.hash && baseline.hash !== worldHash) { skipped.push(entry.name); continue; }
 
@@ -366,13 +366,13 @@ export async function updateSeededJournalsOnVersionChange() {
 		// world copy still matches the shipped content — otherwise we can't tell an edit
 		// from version drift, so we never risk clobbering it.
 		if (!baseline?.hash) {
-			if (worldHash === newHash) await entry.setFlag("stonetop_pwd", "journalSync", { hash: newHash, version });
+			if (worldHash === newHash) await entry.setFlag("stonetop-pwd", "journalSync", { hash: newHash, version });
 			else skipped.push(entry.name);
 			continue;
 		}
 
 		// Pristine. If the shipped content is unchanged, just bump the version stamp.
-		if (newHash === worldHash) { await entry.setFlag("stonetop_pwd", "journalSync", { hash: newHash, version }); continue; }
+		if (newHash === worldHash) { await entry.setFlag("stonetop-pwd", "journalSync", { hash: newHash, version }); continue; }
 
 		// Pristine and the shipped version differs → refresh the entry's pages in place,
 		// carrying over reader state (checkbox ticks) the content hash doesn't track so
@@ -384,7 +384,7 @@ export async function updateSeededJournalsOnVersionChange() {
 			await entry.createEmbeddedDocuments("JournalEntryPage", pagesToCreate, { keepId: false });
 			if (oldPageIds.length) await entry.deleteEmbeddedDocuments("JournalEntryPage", oldPageIds);
 			if (entry.name !== srcData.name) await entry.update({ name: srcData.name });
-			await entry.setFlag("stonetop_pwd", "journalSync", { hash: newHash, version });
+			await entry.setFlag("stonetop-pwd", "journalSync", { hash: newHash, version });
 			updated.push(entry.name);
 		} catch (err) {
 			error(`Failed to refresh seeded journal "${entry.name}":`, err);

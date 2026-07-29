@@ -1,7 +1,7 @@
 import { BEAST_CATALOG } from "../../data/beasts.js";
 import { stripHtmlToText } from "../../utils/strings.js";
 
-const LEDGER_SCOPE = "stonetop_pwd";
+const LEDGER_SCOPE = "stonetop-pwd";
 const LEDGER_KEY = "ledger";
 const LEDGER_MAX_ENTRIES = 300;
 
@@ -29,66 +29,66 @@ const SYSTEM_PATH_LABELS = {
 };
 
 const FLAG_PATH_LABELS = {
-	"flags.stonetop_pwd.background.selected": "Background",
-	"flags.stonetop_pwd.instinct.selected": "Instinct",
-	"flags.stonetop_pwd.origin.selected": "Origin",
-	"flags.stonetop_pwd.inventory.regularPool": "Items undefined ◇",
-	"flags.stonetop_pwd.inventory.smallPool": "Small Items undefined □",
-	"flags.stonetop_pwd.postDeathInsert.slug": "Post-death insert",
-	"flags.stonetop_pwd.rollMode": "Roll mode",
-	"flags.stonetop_pwd.steadingId": "Linked steading",
+	"flags.stonetop-pwd.background.selected": "Background",
+	"flags.stonetop-pwd.instinct.selected": "Instinct",
+	"flags.stonetop-pwd.origin.selected": "Origin",
+	"flags.stonetop-pwd.inventory.regularPool": "Items undefined ◇",
+	"flags.stonetop-pwd.inventory.smallPool": "Small Items undefined □",
+	"flags.stonetop-pwd.postDeathInsert.slug": "Post-death insert",
+	"flags.stonetop-pwd.rollMode": "Roll mode",
+	"flags.stonetop-pwd.steadingId": "Linked steading",
 };
 
 const FLAG_NAMESPACE_LABELS = {
-	"flags.stonetop_pwd.animalCompanion": "Animal companion",
-	"flags.stonetop_pwd.appearance": "Appearance",
-	"flags.stonetop_pwd.arcana": "Arcana",
-	"flags.stonetop_pwd.background.choices": "Background choices",
-	"flags.stonetop_pwd.crew": "Crew",
-	"flags.stonetop_pwd.initiatesLoyalty": "Initiates loyalty",
-	"flags.stonetop_pwd.initiateDetails": "Initiate details",
-	"flags.stonetop_pwd.inventory.checked": "Inventory",
-	"flags.stonetop_pwd.inventory.custom": "Custom inventory",
-	"flags.stonetop_pwd.inventory.resources": "Inventory resource",
-	"flags.stonetop_pwd.invocations": "Invocations",
-	"flags.stonetop_pwd.lore": "Lore",
-	"flags.stonetop_pwd.moves": "Move resource",
-	"flags.stonetop_pwd.possessions": "Possessions",
-	"flags.stonetop_pwd.postDeathInstinct": "Post-death instinct",
-	"flags.stonetop_pwd.postDeathLore": "Post-death lore",
+	"flags.stonetop-pwd.animalCompanion": "Animal companion",
+	"flags.stonetop-pwd.appearance": "Appearance",
+	"flags.stonetop-pwd.arcana": "Arcana",
+	"flags.stonetop-pwd.background.choices": "Background choices",
+	"flags.stonetop-pwd.crew": "Crew",
+	"flags.stonetop-pwd.initiatesLoyalty": "Initiates loyalty",
+	"flags.stonetop-pwd.initiateDetails": "Initiate details",
+	"flags.stonetop-pwd.inventory.checked": "Inventory",
+	"flags.stonetop-pwd.inventory.custom": "Custom inventory",
+	"flags.stonetop-pwd.inventory.resources": "Inventory resource",
+	"flags.stonetop-pwd.invocations": "Invocations",
+	"flags.stonetop-pwd.lore": "Lore",
+	"flags.stonetop-pwd.moves": "Move resource",
+	"flags.stonetop-pwd.possessions": "Possessions",
+	"flags.stonetop-pwd.postDeathInstinct": "Post-death instinct",
+	"flags.stonetop-pwd.postDeathLore": "Post-death lore",
 };
 
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
-const INVENTORY_CHECKED_PREFIX = "flags.stonetop_pwd.inventory.checked.";
-const INVENTORY_RESOURCE_PREFIX = "flags.stonetop_pwd.inventory.resources.";
+const INVENTORY_CHECKED_PREFIX = "flags.stonetop-pwd.inventory.checked.";
+const INVENTORY_RESOURCE_PREFIX = "flags.stonetop-pwd.inventory.resources.";
 // Move resource tracks (e.g. the Blessed's "Rites of the Land" Favor) live under the
 // misnamed "backgroundChoices" sub-flag (see MoveResources), keyed by move name for
 // shipped moves and by stable item id for player-authored custom moves.
-const MOVE_RESOURCE_PREFIX = "flags.stonetop_pwd.moves.backgroundChoices.";
+const MOVE_RESOURCE_PREFIX = "flags.stonetop-pwd.moves.backgroundChoices.";
 // Per-option advancement marks (e.g. Potential for Greatness): keyed
 // "<moveName>.<optionSlug>", each an array of { stat, level } entries.
-const MOVE_MARKS_PREFIX = "flags.stonetop_pwd.moves.moveMarks.";
-const BACKGROUND_CHOICES_PREFIX = "flags.stonetop_pwd.background.choices.";
-const INITIATES_LOYALTY_PREFIX = "flags.stonetop_pwd.initiatesLoyalty.";
-const INITIATES_HP_PREFIX = "flags.stonetop_pwd.initiatesHp.";
-const INITIATES_READINESS_PREFIX = "flags.stonetop_pwd.initiatesReadiness.";
-const ANIMAL_COMPANION_PREFIX = "flags.stonetop_pwd.animalCompanion.";
-const CREW_PREFIX = "flags.stonetop_pwd.crew.";
+const MOVE_MARKS_PREFIX = "flags.stonetop-pwd.moves.moveMarks.";
+const BACKGROUND_CHOICES_PREFIX = "flags.stonetop-pwd.background.choices.";
+const INITIATES_LOYALTY_PREFIX = "flags.stonetop-pwd.initiatesLoyalty.";
+const INITIATES_HP_PREFIX = "flags.stonetop-pwd.initiatesHp.";
+const INITIATES_READINESS_PREFIX = "flags.stonetop-pwd.initiatesReadiness.";
+const ANIMAL_COMPANION_PREFIX = "flags.stonetop-pwd.animalCompanion.";
+const CREW_PREFIX = "flags.stonetop-pwd.crew.";
 // Custom followers (walkthrough / monster conversion / arcana summon) keep their
 // Loyalty, current HP and Readiness inside one per-id record; beast/livestock
 // followers track theirs per catalog slug. Neither had ledger coverage, so a
 // Strengthen Your Bond or an HP change on them went unrecorded — these prefixes
 // (and the entry builders below) close that gap.
-const CUSTOM_FOLLOWERS_PREFIX = "flags.stonetop_pwd.customFollowers.";
-const BEAST_LOYALTY_PREFIX = "flags.stonetop_pwd.beastLoyalty.";
-const BEAST_HP_PREFIX = "flags.stonetop_pwd.beastHp.";
-const BEAST_READINESS_PREFIX = "flags.stonetop_pwd.beastReadiness.";
-const POSSESSION_USES_PREFIX = "flags.stonetop_pwd.possessions.uses.";
-const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.";
-const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
+const CUSTOM_FOLLOWERS_PREFIX = "flags.stonetop-pwd.customFollowers.";
+const BEAST_LOYALTY_PREFIX = "flags.stonetop-pwd.beastLoyalty.";
+const BEAST_HP_PREFIX = "flags.stonetop-pwd.beastHp.";
+const BEAST_READINESS_PREFIX = "flags.stonetop-pwd.beastReadiness.";
+const POSSESSION_USES_PREFIX = "flags.stonetop-pwd.possessions.uses.";
+const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop-pwd.possessions.subChoices.";
+const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop-pwd.possessions.choiceUses.";
 // The ◇ load mark on a gear bundle's chosen option (a Heavy's Weapons of war), which is
 // separate from choosing it — same "selected / deselected" reading as an inventory mark.
-const POSSESSION_CHOICE_CARRIED_PREFIX = "flags.stonetop_pwd.possessions.choiceCarried.";
+const POSSESSION_CHOICE_CARRIED_PREFIX = "flags.stonetop-pwd.possessions.choiceCarried.";
 const POSSESSION_SELECTED_PATH = `flags.${LEDGER_SCOPE}.possessions.selected`;
 const POSSESSION_CUSTOM_PATH = `flags.${LEDGER_SCOPE}.possessions.custom`;
 
@@ -295,7 +295,7 @@ async function buildNameLookup(actor) {
 		if (item?._id && item.name) names.inventory.set(item._id, item.name);
 		// Custom moves persist their resource track by item id; map that id back to the
 		// move's name/title so a ledger tick reads "<Move> - <Title>", not a raw id.
-		if (item?.type === "move" && item.flags?.stonetop_pwd?.custom && item._id) {
+		if (item?.type === "move" && item.flags?.["stonetop-pwd"]?.custom && item._id) {
 			names.moveResourceNames.set(item._id, stripHtml(item.name) ?? item.name);
 			if (item.system?.resource?.title) names.moveResourceTitles.set(item._id, stripHtml(item.system.resource.title));
 		}

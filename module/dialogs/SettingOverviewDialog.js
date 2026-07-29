@@ -20,7 +20,7 @@ export class SettingOverviewDialog extends Application {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:       "stonetop-setting-overview",
 			title:    "Setting Overview",
-			template: "systems/stonetop_pwd/templates/dialogs/setting-overview.hbs",
+			template: "systems/stonetop-pwd/templates/dialogs/setting-overview.hbs",
 			width:    760,
 			height:   600,
 			resizable: true,

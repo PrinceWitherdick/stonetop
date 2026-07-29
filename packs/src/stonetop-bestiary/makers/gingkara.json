@@ -1,7 +1,7 @@
 {
   "name": "Gingkara",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "horde, spirit, construct, organized",
     "qualities": "<p>Tethered to one specific bone. Armor 4 vs. stabbing (just bones).</p>",
     "count": 6,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ztrQnbFLBK1siEPk",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.ztrQnbFLBK1siEPk",
     "notes": "",
     "creatureType": "spirit-construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg"
     }
   },
   "items": [

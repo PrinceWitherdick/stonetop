@@ -1,7 +1,7 @@
 {
   "name": "Screech Eel",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "horde, small, aquatic, stealthy, cautious",
     "qualities": "<p>Armor 2 vs. attacks from above the water.</p>",
     "count": 6,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Efv986sm5JyehsJC",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Efv986sm5JyehsJC",
     "notes": "",
     "creatureType": "natural-beast"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg"
     }
   },
   "items": [

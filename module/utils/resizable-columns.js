@@ -1,7 +1,7 @@
 import { resolveResidentsGrid, readStoredColumnState, writeStoredColumnState } from "./steading-column-util.js";
 
 const MIN_COL_WIDTH = 50;
-const STORAGE_PREFIX = "stonetop_pwd.columnWidths.";
+const STORAGE_PREFIX = "stonetop-pwd.columnWidths.";
 
 /**
  * Lets users drag-resize the columns of a `.steading-residents-table` (the

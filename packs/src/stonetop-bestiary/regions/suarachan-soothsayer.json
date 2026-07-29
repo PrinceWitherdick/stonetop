@@ -1,7 +1,7 @@
 {
   "name": "Suarachan Soothsayer",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -25,7 +25,7 @@
     "tags": "solitary, corrupted, cunning, magical, amphibious",
     "qualities": "<p>Excellent night vision; salt burns their skin; marked by the Things Below.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ylzYCg2AyRVY24Hb",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.ylzYCg2AyRVY24Hb",
     "notes": "",
     "creatureType": "corrupted"
   },
@@ -34,7 +34,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg"
     }
   },
   "items": [

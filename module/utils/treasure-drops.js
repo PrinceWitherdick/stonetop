@@ -75,9 +75,9 @@ function treasureArtSrc(slug) {
 	const settings = globalThis.game?.settings;
 	// guarded: this module is unit-tested outside Foundry, and the setting is absent in a
 	// world running an older system version that hasn't registered it yet
-	if (!settings?.settings?.has?.("stonetop_pwd.treasureArt")) return null;
+	if (!settings?.settings?.has?.("stonetop-pwd.treasureArt")) return null;
 	try {
-		const out = settings.get("stonetop_pwd", "treasureArt")?.[slug];
+		const out = settings.get("stonetop-pwd", "treasureArt")?.[slug];
 		return out ? book2ArtSrc(out) : null;
 	} catch (_) {
 		return null;
@@ -88,7 +88,7 @@ function treasureArtSrc(slug) {
 // vase-in-octagon "treasure" map symbol, shipped as an SVG. It's a category marker (the role
 // the old drag-grip glyph played), not a fabricated picture of any one item, so it can stand in
 // for every un-illustrated treasure without inventing what that particular treasure looks like.
-const TREASURE_GRIP_ICON = "systems/stonetop_pwd/assets/icons/treasures/vase.svg";
+const TREASURE_GRIP_ICON = "systems/stonetop-pwd/assets/icons/treasures/vase.svg";
 
 /**
  * Build the native Foundry drop data for one catalog entry: a `move`/`inventory` Item

@@ -180,7 +180,7 @@ describe("StonetopSteadingSheet", () => {
 		}
 		globalThis.ImagePopout = MockImagePopout;
 		const anchor = {
-			src: "systems/stonetop_pwd/assets/icons/people/default_profile.svg",
+			src: "systems/stonetop-pwd/assets/icons/people/default_profile.svg",
 			dataset: { name: "Wren", list: "residents", index: "0" },
 		};
 		sheet._onMemberAvatarPickImage = vi.fn();

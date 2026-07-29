@@ -35,7 +35,7 @@
       },
       "src": null,
       "system": {
-        "concept": "A tiny, arrogant <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong> idol with a disembodied voice, demanding worship and ever-larger feasts.",
+        "concept": "A tiny, arrogant <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae}</strong> idol with a disembodied voice, demanding worship and ever-larger feasts.",
         "description": "<p>Set the idol in a prominent place and beseech it, and All-mighty Thistlewisk wakes — still inert, a mere statue, but with a disembodied voice and an outsized opinion of itself. It treats its keeper as a worshipper rather than a master: weaving illusions, sensing idle thoughts, heaping abuse on those who attend it, and demanding ever-larger offerings of food.</p>",
         "questions": [],
         "lore": [],
@@ -48,7 +48,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.GvE18LdU5XodJxZD"
+          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.GvE18LdU5XodJxZD"
         ]
       },
       "sort": 100000,

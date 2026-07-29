@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json.schemastore.org/foundryvtt-system-manifest.json",
-    "id":  "stonetop_pwd",
+    "id":  "stonetop-pwd",
     "title":  "Stonetop",
     "description":  "<p>An unofficial system for playing Stonetop, the pastoral fantasy Powered by the Apocalypse game by Jeremy Strandberg. It provides a character sheet for every playbook with rollable moves, a guided process for leveling up, and tracking for followers and for the steading of Stonetop itself, including its seasonal turns, herds, surplus, and community improvements. The goal is to take the bookkeeping off the table so the group can spend less time on record keeping and more time roleplaying.</p><p>It also adds an interactive flow for Clash and Let Fly, a searchable bestiary of the region's creatures, and compendium journals covering the world's people, places, and major arcana. For GMs there is a shared campaign chronicle, tools to create custom moves and arcana, and options to keep spoilers hidden from players.</p><p><strong>AI training / text-and-data-mining:</strong> rights are reserved. This system, its source, and its bundled content may not be used to train, fine-tune, or evaluate AI models, or be included in datasets built for those purposes. See AI-TRAINING-NOTICE.md.</p>",
     "version":  "1.3.1",
@@ -48,14 +48,14 @@
                       "label":  "Stonetop Items",
                       "path":  "packs/stonetop-items",
                       "type":  "Item",
-                      "system":  "stonetop_pwd"
+                      "system":  "stonetop-pwd"
                   },
                   {
                       "name":  "stonetop-arcana",
                       "label":  "Arcana",
                       "path":  "packs/stonetop-arcana",
                       "type":  "Item",
-                      "system":  "stonetop_pwd",
+                      "system":  "stonetop-pwd",
                       "ownership":  {
                                         "PLAYER":  "NONE",
                                         "TRUSTED":  "NONE",
@@ -80,7 +80,7 @@
                       "label":  "Monsters",
                       "path":  "packs/stonetop-bestiary",
                       "type":  "Actor",
-                      "system":  "stonetop_pwd",
+                      "system":  "stonetop-pwd",
                       "ownership":  {
                                         "PLAYER":  "NONE",
                                         "TRUSTED":  "NONE",

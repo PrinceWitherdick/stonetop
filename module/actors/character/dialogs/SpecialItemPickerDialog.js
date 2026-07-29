@@ -19,7 +19,7 @@ export class SpecialItemPickerDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-special-item-picker",
 			title: "Add Special Item",
-			template: "systems/stonetop_pwd/templates/dialogs/special-item-picker.hbs",
+			template: "systems/stonetop-pwd/templates/dialogs/special-item-picker.hbs",
 			width: 720,
 			height: "auto",
 			resizable: true,

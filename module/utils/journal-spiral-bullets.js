@@ -20,9 +20,9 @@ import { isInJournalEditor, JOURNAL_EDITOR_SELECTOR } from "./journal-editor-gua
 // This system's merged "Stonetop" JournalEntry pack. Its bestiary pages are
 // excluded separately (by `page.type === "bestiary"` in isStonetopProseJournal),
 // since they render through a custom page sheet with their own list styling. The
-// pattern matches both a live pack id (`stonetop_pwd.stonetop-journal`) and the
+// pattern matches both a live pack id (`stonetop-pwd.stonetop-journal`) and the
 // `Compendium.…` source uuid stamped on a world copy imported from the pack.
-const PROSE_PACK = /stonetop_pwd\.stonetop-journal\b/;
+const PROSE_PACK = /stonetop-pwd\.stonetop-journal\b/;
 
 /** The JournalEntry behind a rendered journal- or page-sheet app. */
 export function resolveEntry(app) {

@@ -6,20 +6,20 @@ import { makeRewriter, remapPageData, managedHash, stableStringify, carryOverPag
 // that make that safe: the fingerprint ignores cosmetic churn (page ids, key order)
 // but reacts to any authored-content change, in all three section kinds.
 
-const linkMap = new Map([["Compendium.stonetop_pwd.stonetop-journal.JournalEntry.abc", "JournalEntry.world123"]]);
+const linkMap = new Map([["Compendium.stonetop-pwd.stonetop-journal.JournalEntry.abc", "JournalEntry.world123"]]);
 
 describe("makeRewriter / remapPageData", () => {
 	it("repoints a seeded compendium @UUID at its world copy, leaves unknown links alone", () => {
 		const rewrite = makeRewriter(linkMap);
-		expect(rewrite("see @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.abc]{X}"))
+		expect(rewrite("see @UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.abc]{X}"))
 			.toBe("see @UUID[JournalEntry.world123]{X}");
-		expect(rewrite("see @UUID[Compendium.stonetop_pwd.arcana.Item.zzz]{Y}"))
-			.toBe("see @UUID[Compendium.stonetop_pwd.arcana.Item.zzz]{Y}"); // not seeded → untouched
+		expect(rewrite("see @UUID[Compendium.stonetop-pwd.arcana.Item.zzz]{Y}"))
+			.toBe("see @UUID[Compendium.stonetop-pwd.arcana.Item.zzz]{Y}"); // not seeded → untouched
 	});
 
 	it("remaps links across a location page's prose, Q&A, and grouped Dangers", () => {
 		const rewrite = makeRewriter(linkMap);
-		const link = "@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.abc]";
+		const link = "@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.abc]";
 		const page = remapPageData({
 			type: "location",
 			system: { sections: [
@@ -124,7 +124,7 @@ describe("stableStringify", () => {
 });
 
 describe("planSourceRestamp", () => {
-	const COLL = "stonetop_pwd.stonetop-journal";
+	const COLL = "stonetop-pwd.stonetop-journal";
 	const index = [
 		{ _id: "aaa111", name: "North Manmarch" },
 		{ _id: "bbb222", name: "South Manmarch" },

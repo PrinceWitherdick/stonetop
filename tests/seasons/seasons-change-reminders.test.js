@@ -7,14 +7,14 @@ import {
 
 // A minimal stand-in for a character actor: `move` names become embedded move
 // Items, and `possessions` become the selected special-possession slugs (the
-// flags.stonetop_pwd.possessions.selected array the production flag reads).
+// flags.stonetop-pwd.possessions.selected array the production flag reads).
 function fakeCharacter({ name = "Test PC", moves = [], possessions = [], type = "character" } = {}) {
 	return {
 		name,
 		type,
 		items: moves.map(name => ({ type: "move", name })),
 		getFlag: (scope, key) =>
-			scope === "stonetop_pwd" && key === "possessions.selected" ? possessions : undefined,
+			scope === "stonetop-pwd" && key === "possessions.selected" ? possessions : undefined,
 	};
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "Fundamental",
   "type": "monster",
-  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
+  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, spirit, primordial",
     "qualities": "<p>Harmed only by black iron.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.WObWuLHBHqBYlZlA",
+    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.WObWuLHBHqBYlZlA",
     "notes": "",
     "creatureType": "spirit"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
+      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg"
     }
   },
   "items": [

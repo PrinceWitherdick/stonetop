@@ -28,10 +28,10 @@ function fakeEvent(matches) {
 
 describe("isInCompendium", () => {
 	it("is true for a document with its own pack", () => {
-		expect(isInCompendium({ pack: "stonetop_pwd.stonetop-bestiary" })).toBe(true);
+		expect(isInCompendium({ pack: "stonetop-pwd.stonetop-bestiary" })).toBe(true);
 	});
 	it("is true for an embedded document whose parent has a pack (a page)", () => {
-		expect(isInCompendium({ parent: { pack: "stonetop_pwd.stonetop-journal" } })).toBe(true);
+		expect(isInCompendium({ parent: { pack: "stonetop-pwd.stonetop-journal" } })).toBe(true);
 	});
 	it("is true via a compendium collection reference", () => {
 		expect(isInCompendium({ compendium: {} })).toBe(true);
