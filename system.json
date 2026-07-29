@@ -3,7 +3,7 @@
     "id":  "stonetop_pwd",
     "title":  "Stonetop",
     "description":  "<p><strong>⚠ This system has moved and is no longer updated here.</strong> It now ships under the ID <strong>stonetop-pwd</strong>, from <a href=\"https://github.com/PrinceWitherdick/stonetop-pwd\">github.com/PrinceWitherdick/stonetop-pwd</a>. This copy is kept only so that worlds created before the change can be carried across.</p><p><strong>Installing for the first time? Do not use this one.</strong> Install the new system instead and skip the migration entirely:<br><code>https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json</code></p><p><strong>Already have a Stonetop world?</strong> Leave this installed, install the new system alongside it, then launch your world: a window titled \"Stonetop is changing its ID\" opens by itself and does the rest. Your world, its name, its folder and everything inside it stay exactly where they are, and nothing is copied. Take a backup first, and read <a href=\"https://github.com/PrinceWitherdick/stonetop/blob/main/MIGRATION.md\">MIGRATION.md</a> before you start.</p><p>An unofficial system for playing Stonetop, the pastoral fantasy Powered by the Apocalypse game by Jeremy Strandberg, with a sheet for every playbook, guided leveling, followers, the steading of Stonetop and its seasonal turns, an interactive Clash and Let Fly, a searchable bestiary, and compendium journals covering the world's people, places, and major arcana.</p><p><strong>AI training / text-and-data-mining:</strong> rights are reserved. This system, its source, and its bundled content may not be used to train, fine-tune, or evaluate AI models, or be included in datasets built for those purposes. See AI-TRAINING-NOTICE.md.</p>",
-    "version":  "1.3.1",
+    "version":  "1.3.2",
     "compatibility":  {
                           "minimum":  "13",
                           "verified":  "14"
@@ -24,7 +24,7 @@
                 ],
     "url":  "https://github.com/PrinceWitherdick/stonetop",
     "manifest":  "https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json",
-    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/1.3.1/stonetop.zip",
+    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/1.3.2/stonetop.zip",
     "license":  "LICENSE",
     "readme":  "README.md",
     "bugs":  "https://github.com/PrinceWitherdick/stonetop/issues",
