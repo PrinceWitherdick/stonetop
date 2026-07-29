@@ -20,6 +20,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { bracketizeIdentifierAccess } from "./lib/bracketize.js";
 
@@ -52,18 +53,32 @@ const isCompiledPackDir = (relDir) => relDir.startsWith("packs/") && !relDir.sta
 const EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".json", ".hbs", ".css", ".md", ".html"]);
 
 /**
- * Individually skipped: local backups and THIS FILE.
- *
  * package-lock.json is deliberately NOT skipped. npm reconciles the lockfile's root
  * `name` against package.json's, so renaming one without the other leaves the tree in a
  * state npm wants to rewrite. Both occurrences there are that root name field.
- *
- * Skipping itself matters: the old id is a literal in the OLD constant below, so a run
- * that rewrote this script would leave `OLD === NEW` and every subsequent run would be a
- * silent no-op. (The run doing the rewriting still completes correctly, because Node has
- * already loaded it — which is exactly what makes the breakage easy to miss.)
  */
-const SELF = "scripts/rename-system-id.js";
+
+/**
+ * This codemod's own toolchain, skipped for one reason: every occurrence of the old id in
+ * these three files is a description of the OLD -> NEW transform itself, so rewriting them
+ * makes each one state that it converts a thing into itself.
+ *
+ * `rename-system-id.js` matters most, because the old id is a literal in the OLD constant
+ * below: a run that rewrote this script would leave `OLD === NEW` and every subsequent run
+ * would be a silent no-op. (The run doing the rewriting still completes correctly, because
+ * Node has already loaded it, which is exactly what makes the breakage easy to miss.)
+ *
+ * `bracketize.js` and its test are the same class of mistake one step out. Rewritten, the
+ * helper's doc comment reads "a textual rename of `stonetop-pwd` to `stonetop-pwd` would
+ * turn `flags.stonetop-pwd.x` into `flags.stonetop-pwd.x`", and every fixture in the test
+ * feeds it input that is already hyphenated, so the suite stays green while no longer
+ * exercising the hazard it exists to prove. Both were caught by rehearsing the rename.
+ */
+const SELF = [
+	"scripts/rename-system-id.js",
+	"scripts/lib/bracketize.js",
+	"tests/scripts/bracketize.test.js"
+];
 
 /**
  * MIGRATION.md is the document that EXPLAINS this rename, so both of its mentions of the
@@ -74,7 +89,7 @@ const SELF = "scripts/rename-system-id.js";
  * must not get wrong.
  */
 const SKIP_DOCS = new Set(["MIGRATION.md"]);
-const SKIP_FILE = (rel) => rel === SELF || SKIP_DOCS.has(rel) || rel.endsWith(".bak");
+const SKIP_FILE = (rel) => SELF.includes(rel) || SKIP_DOCS.has(rel) || rel.endsWith(".bak");
 
 /**
  * The bridge release is titled to warn against uninstalling it, since the Setup screen
@@ -129,8 +144,24 @@ function rewriteSystemIdModule(source) {
 	return out;
 }
 
+/**
+ * Every path git tracks, so the report below can name the files a `git reset --hard` will
+ * NOT undo. `scripts/local/` is gitignored and holds ~2,960 occurrences: rewriting it is
+ * correct, since those generators would otherwise point at an id that no longer exists,
+ * but it is also unrevertible. Rehearsing this in the real tree rather than a scratch copy
+ * cost exactly that, and the reset looked clean because git had nothing to say about it.
+ */
+function trackedPaths() {
+	try {
+		return new Set(execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" }).split("\n").filter(Boolean));
+	} catch {
+		return null; // Not a git checkout, or no git. The warning is a courtesy, not a gate.
+	}
+}
+
 const summary = new Map();
 const bump = (key, n) => summary.set(key, (summary.get(key) ?? 0) + n);
+const touched = [];
 
 let filesChanged = 0;
 let occurrences = 0;
@@ -162,6 +193,7 @@ for (const abs of walk(ROOT)) {
 	filesChanged += 1;
 	occurrences += hits;
 	bump(area(relPath), hits);
+	touched.push({ path: relPath, hits });
 
 	if (APPLY) fs.writeFileSync(abs, next);
 }
@@ -172,6 +204,29 @@ for (const [key, count] of [...summary.entries()].sort((a, b) => b[1] - a[1])) {
 	console.log(`  ${key.padEnd(14)} ${String(count).padStart(6)} occurrences`);
 }
 console.log(`\n  ${filesChanged} files, ${occurrences} occurrences total`);
+
+// Untracked files are the ones a `git reset --hard` silently leaves rewritten, so name them
+// BEFORE the apply as well as after. Grouped by directory: the list is otherwise dozens of
+// generated files under one gitignored tree.
+const tracked = trackedPaths();
+if (tracked) {
+	const untracked = touched.filter((t) => !tracked.has(t.path));
+	if (untracked.length) {
+		const byDir = new Map();
+		for (const { path: p, hits } of untracked) {
+			const dir = p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : ".";
+			const prev = byDir.get(dir) ?? { files: 0, hits: 0 };
+			byDir.set(dir, { files: prev.files + 1, hits: prev.hits + hits });
+		}
+		const totalHits = untracked.reduce((n, t) => n + t.hits, 0);
+		console.log(`\n⚠ ${untracked.length} of those files are NOT tracked by git (${totalHits} occurrences).`);
+		console.log("  git cannot restore them — `git reset --hard` will leave them rewritten:");
+		for (const [dir, { files, hits }] of [...byDir.entries()].sort((a, b) => b[1].hits - a[1].hits)) {
+			console.log(`    ${dir.padEnd(34)} ${String(files).padStart(3)} files, ${String(hits).padStart(5)} occurrences`);
+		}
+		console.log("  Rehearse in a scratch copy of the tree, not here. See MIGRATION.md > Rehearsing.");
+	}
+}
 
 if (!APPLY) {
 	console.log("\nDry run. Re-run with --apply to write.");
