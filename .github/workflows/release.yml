@@ -25,6 +25,7 @@ jobs:
       - run: npm run pack
 
       - name: Patch manifest
+        id: manifest
         run: |
           node -e "
             const fs = require('fs');
@@ -37,8 +38,37 @@ jobs:
             // 'Stonetop' and no way to tell which to remove. Self-limiting — once the id is
             // renamed this branch stops firing and the plain title comes back. The repo copy
             // keeps the plain title so the maintainer's own worlds read normally.
-            if (m.id === 'stonetop_pwd') m.title = 'Stonetop (old ID)';
+            //
+            // The same branch pins the manifest URL. The tree points at releases/latest so
+            // the maintainer's own install tracks new versions, but a SHIPPED old-id build
+            // must not: Foundry installs by the id in the REMOTE manifest, so the day a
+            // stonetop-pwd release is marked Latest on this repo, every old-id install still
+            // pointing at releases/latest would fetch the wrong package from its Update
+            // button. Pinning makes each old-id release a frozen terminal one that reports
+            // no update rather than a bogus one. MIGRATION.md already claims this is true.
+            if (m.id === 'stonetop_pwd') {
+              m.title = 'Stonetop (old ID)';
+              m.manifest = 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/system.json';
+            }
             fs.writeFileSync('system.json', JSON.stringify(m, null, '\t'));
+          "
+          # Who gets the repository's single "Latest" flag, decided from the manifest rather
+          # than from whoever clicked Publish. Legacy installs carry
+          # manifest: releases/latest/download/system.json, and Foundry installs by the id in
+          # the REMOTE manifest — so the day a renamed release becomes Latest here, every one
+          # of those installs' Update button silently fetches the renamed package instead of
+          # updating. gh and the web UI both mark a new release Latest by DEFAULT, so this
+          # cannot be left to remembering a flag. The old id keeps Latest; anything else is
+          # demoted even if it was published as Latest by hand.
+          #
+          # Retire this once every user is off the old id: at that point the renamed system
+          # should take Latest back. Until then a renamed release here is deliberately
+          # invisible to an Update button.
+          node -e "
+            const m = JSON.parse(require('fs').readFileSync('system.json', 'utf8'));
+            const latest = m.id === 'stonetop_pwd';
+            require('fs').appendFileSync(process.env.GITHUB_OUTPUT, 'make_latest=' + latest + '\n');
+            console.log('make_latest=' + latest + ' (id ' + m.id + ')');
           "
 
       - name: Ship only the packs system.json declares
@@ -67,6 +97,11 @@ jobs:
           node -e "
             const m = JSON.parse(require('fs').readFileSync('system.json', 'utf8'));
             if (m.version !== '${{ github.ref_name }}') { console.error('FAIL: version mismatch'); process.exit(1); }
+            // An old-id build that still points at releases/latest is the packaging fault
+            // that hands a user the renamed package from an Update button. Assert it.
+            if (m.id === 'stonetop_pwd' && m.manifest.includes('releases/latest')) {
+              console.error('FAIL: old-id manifest is not pinned: ' + m.manifest); process.exit(1);
+            }
             for (const p of m.packs) {
               if (!require('fs').existsSync(p.path)) { console.error('FAIL: declared pack missing: ' + p.path); process.exit(1); }
             }
@@ -85,6 +120,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          make_latest: ${{ steps.manifest.outputs.make_latest }}
           files: |
             stonetop.zip
             system.json

@@ -29,8 +29,18 @@ const NEW = "stonetop-pwd";
 
 const APPLY = process.argv.includes("--apply");
 
-/** Directories never touched. */
-const SKIP_DIRS = new Set([".git", "node_modules", ".vscode", "free pdfs"]);
+/**
+ * Directories never touched.
+ *
+ * `.claude` is skipped because it is entirely untracked AND because the old id appears
+ * there as a FILESYSTEM PATH, not as a package id: the permission allowlists in
+ * `.claude/settings*.json` and the ~74 `systems/stonetop_pwd/` references in the
+ * verifier-foundry driver scripts all name the install directory, which this codemod does
+ * not rename. Rewriting them points every entry at a path that does not exist, costing the
+ * maintainer their whole permission allowlist and a working verifier, and buying the
+ * package nothing, since none of it is tracked or shipped.
+ */
+const SKIP_DIRS = new Set([".git", "node_modules", ".vscode", "free pdfs", ".claude"]);
 
 /**
  * Compiled packs are gitignored LevelDB build output — skip them, but NOT `packs/src`,
@@ -54,7 +64,17 @@ const EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".json", ".hbs", ".css", ".md
  * already loaded it — which is exactly what makes the breakage easy to miss.)
  */
 const SELF = "scripts/rename-system-id.js";
-const SKIP_FILE = (rel) => rel === SELF || rel.endsWith(".bak");
+
+/**
+ * MIGRATION.md is the document that EXPLAINS this rename, so both of its mentions of the
+ * old id are deliberate narrative, not references to be updated: "changing the ID from
+ * `stonetop_pwd` to `stonetop-pwd`" and "ship the bridge under `stonetop_pwd`". A blind
+ * swap collapses the first into "from `stonetop-pwd` to `stonetop-pwd`" and makes the
+ * second claim the bridge shipped under the new id, which is the one instruction a reader
+ * must not get wrong.
+ */
+const SKIP_DOCS = new Set(["MIGRATION.md"]);
+const SKIP_FILE = (rel) => rel === SELF || SKIP_DOCS.has(rel) || rel.endsWith(".bak");
 
 /**
  * The bridge release is titled to warn against uninstalling it, since the Setup screen
