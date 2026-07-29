@@ -54,7 +54,7 @@ migration day. That draft lives only in their own browser and is not carried acr
 
 **Leave the old system installed** until you have played a session and everything looks
 right. It costs nothing and it is what makes rolling back possible. When you are ready to
-tidy up, delete the tile titled **Stonetop (old ID)**. Foundry's setup screen never shows a
+tidy up, delete the tile titled **Stonetop (DEPRECATED)**. Foundry's setup screen never shows a
 package's ID, so that title is the only way to tell the two apart. If you delete the wrong
 one by mistake, nothing is lost: reinstall it from this manifest URL and the world comes
 straight back.
@@ -149,10 +149,17 @@ like a bug.
 1. **Ship the bridge**: release `stonetop_pwd` (this tree). ✅ Done at 1.3.1.
 
    The release workflow patches the manifest on the way out, gated on the old id: it sets
-   the title to `Stonetop (old ID)` and pins `manifest` and `download` to the tagged
-   version. Do not set either in the tree. This working tree IS the maintainer's installed
-   system, so a warning title in git labels every one of their own worlds, and a pinned
-   manifest would stop their own install seeing updates.
+   the title to `Stonetop (DEPRECATED)` and points `download` at the tagged version. Do not
+   set the title in the tree, because this working tree IS the maintainer's installed
+   system and a warning label in git would mark every one of their own worlds.
+
+   `manifest` is deliberately left on `releases/latest` and is NOT pinned. It was pinned up
+   to 1.3.2, which made each bridge release terminal: an install that took one re-checked
+   its own tag forever and could never be told anything again, so a corrected move notice
+   could not reach the people it was for. The reason for pinning is also gone, since it
+   guarded against a renamed release taking Latest on this repository, which cannot happen
+   now that the two packages are in separate repositories and `PUBLISHES_ID` independently
+   demotes a foreign id. The verify step asserts the manifest is NOT pinned.
 
    Pinning matters because Foundry installs by the id in the REMOTE manifest, not the tile
    you clicked. The old repository's `releases/latest` must keep serving an old-id manifest

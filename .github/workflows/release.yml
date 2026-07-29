@@ -46,12 +46,10 @@ jobs:
           const m = JSON.parse(fs.readFileSync('system.json', 'utf8'));
           m.version = '${{ github.ref_name }}';
           m.download = 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/stonetop.zip';
-          // While the old package id is still shipping, the released title has to
-          // disambiguate it: Foundry's Setup screen shows a package's title and never its
-          // id, so during the migration window a user has two tiles both reading
-          // 'Stonetop' and no way to tell which to remove. Self-limiting: once the id is
-          // renamed this branch stops firing and the plain title comes back. The repo copy
-          // keeps the plain title so the maintainer's own worlds read normally.
+          // Foundry's Setup screen shows a package's title and never its id, so the title is
+          // the only thing distinguishing this deprecated package from the renamed one on a
+          // machine that has both installed. The repo copy keeps the plain title so the
+          // maintainer's own worlds read normally; the SHIPPED one is labelled.
           //
           // The move notice lives in the tree's DESCRIPTION rather than being patched here,
           // unlike the title. Not an inconsistency: the title's reason for being CI-only was
@@ -59,16 +57,17 @@ jobs:
           // when stonetop-pwd shipped. The description is now simply the truth about this
           // package, so git should say it.
           //
-          // The same branch pins the manifest URL. The tree points at releases/latest so the
-          // maintainer's own install tracks new versions, but a SHIPPED old-id build must
-          // not: Foundry installs by the id in the REMOTE manifest, so the day a stonetop-pwd
-          // release is marked Latest on this repo, every old-id install still pointing at
-          // releases/latest would fetch the wrong package from its Update button. Pinning
-          // makes each old-id release a frozen terminal one that reports no update rather
-          // than a bogus one. The verify step asserts this actually happened.
+          // ⚠ The manifest URL is deliberately NOT pinned, though it was until 1.3.2.
+          // Pinning made every bridge release terminal: an install that took it re-checked
+          // its own tag forever and could never be told anything again, so a correction to
+          // the move notice could not reach the very people the notice is for. The reason it
+          // existed is gone. It guarded against a stonetop-pwd release taking Latest on THIS
+          // repo and being served to old-id installs from releases/latest, which cannot
+          // happen now that the renamed package lives in its own repository, and which
+          // PUBLISHES_ID below independently prevents. Leaving this repo's releases/latest
+          // live is what keeps the remaining old-id installs reachable.
           if (m.id === 'stonetop_pwd') {
-            m.title = 'Stonetop (old ID)';
-            m.manifest = 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/system.json';
+            m.title = 'Stonetop (DEPRECATED)';
           }
           fs.writeFileSync('system.json', JSON.stringify(m, null, '\t'));
           console.log('patched: ' + m.id + ' ' + m.version + ' "' + m.title + '"');
@@ -117,16 +116,19 @@ jobs:
           const fs = require('fs');
           const m = JSON.parse(fs.readFileSync('system.json', 'utf8'));
           if (m.version !== '${{ github.ref_name }}') { console.error('FAIL: version mismatch'); process.exit(1); }
-          // An old-id build that still points at releases/latest is the packaging fault that
-          // hands a user the renamed package from an Update button. Assert it.
-          if (m.id === 'stonetop_pwd' && m.manifest.includes('releases/latest')) {
-            console.error('FAIL: old-id manifest is not pinned: ' + m.manifest); process.exit(1);
+          // The deprecated package must stay REACHABLE, which is the opposite of what this
+          // asserted up to 1.3.2. A build whose manifest points at its own tag can never be
+          // told anything again, so the remaining old-id installs could not be sent a
+          // corrected move notice. See the patch step for why pinning is no longer needed.
+          if (m.id === 'stonetop_pwd' && !m.manifest.includes('releases/latest')) {
+            console.error('FAIL: deprecated manifest is pinned, which strands its installs: ' + m.manifest);
+            process.exit(1);
           }
           // The patch step must have run to completion. Asserting a value it is solely
           // responsible for catches a silently truncated step, which is how an unpatched
           // manifest reached this point once already.
-          if (m.id === 'stonetop_pwd' && m.title !== 'Stonetop (old ID)') {
-            console.error('FAIL: old-id title was not patched: ' + m.title); process.exit(1);
+          if (m.id === 'stonetop_pwd' && m.title !== 'Stonetop (DEPRECATED)') {
+            console.error('FAIL: deprecated title was not patched: ' + m.title); process.exit(1);
           }
           for (const p of m.packs) {
             if (!fs.existsSync(p.path)) { console.error('FAIL: declared pack missing: ' + p.path); process.exit(1); }
