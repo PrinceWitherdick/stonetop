@@ -22,11 +22,20 @@ const defaultFetch = (...args) => globalThis.fetch(...args);
 const setupRoute = () => globalThis.foundry?.utils?.getRoute?.("setup") ?? "/setup";
 
 /**
- * Is this a hosted Foundry that fronts its own setup route?
+ * Is this a hosted Foundry that may front or restrict its own setup route?
  *
  * The Forge injects a global `ForgeVTT` carrying `usingTheForge`. Deliberately loose: a
  * false negative only returns us to the self-hosted path, which is the one that is
  * actually verified.
+ *
+ * ⚠ Do not try to narrow this to "only when Game Manager is on". That was investigated and
+ * is not possible from a client. Read against ForgeVTT/fvtt-module-forge-vtt `ForgeVTT.mjs`:
+ * `usingTheForge` is itself only `location.hostname.endsWith(".forge-vtt.com")`, and the
+ * global exposes no Game Manager state of any kind. The nearest real signal is
+ * `ForgeAPI.status().isOwner`, which is what The Forge's own code gates its "Return to
+ * Setup" button on — it answers Forge *account ownership*, the exact authority question
+ * this migration needs, but it does not answer whether the setup route is reachable, and
+ * that second unknown is the one that strands a world. So the check stays vendor-wide.
  */
 export function onHostedProvider(scope = globalThis) {
 	return scope?.ForgeVTT?.usingTheForge === true;
@@ -100,11 +109,12 @@ export async function preflight(game, { target = RENAME_TARGET_ID, source = SYST
 		}
 	}
 
-	// Hosted providers can replace Foundry's setup route with their own, which is both the
-	// route this migration needs and the route you would recover a mis-pointed world from.
-	// The Forge documents disabling it outright when its Game Manager is on, and gates it
-	// by Forge account ownership rather than Foundry role, so being a GM here is not enough.
-	// Unverified either way, and the failure mode is a world that will not launch, so this
+	// Hosted providers can front or restrict Foundry's setup route, which is both the route
+	// this migration needs and the route you would recover a mis-pointed world from. On The
+	// Forge, Game Manager launches worlds directly and bypasses the setup screen, and access
+	// is gated by Forge account ownership rather than Foundry role, so being a GM here is
+	// not enough. Whether the route answers cannot be established from inside the world (see
+	// onHostedProvider), and the failure mode is a world that will not launch, so this
 	// refuses rather than gambling. See MIGRATION.md for the supported hosted path.
 	if (onHostedProvider(scope ?? globalThis)) {
 		blockers.push("This looks like a hosted Foundry (The Forge or similar). The migration needs Foundry's own setup route, which hosted providers may replace or restrict, and it is the same route you would need to undo a bad move. Do not run it here unsupervised — see MIGRATION.md for the hosted path.");

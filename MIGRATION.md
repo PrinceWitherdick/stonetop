@@ -48,10 +48,10 @@ migration day. That draft lives only in their own browser and is not carried acr
 
 **Leave the old system installed** until you have played a session and everything looks
 right. It costs nothing and it is what makes rolling back possible. When you are ready to
-tidy up, delete the tile titled **Stonetop (old ID - remove after migrating)**. Foundry's
-setup screen never shows a package's ID, so that title is the only way to tell the two
-apart. If you delete the wrong one by mistake, nothing is lost: reinstall it from its
-manifest URL and the world comes straight back.
+tidy up, delete the tile titled **Stonetop (old ID)**. Foundry's setup screen never shows a
+package's ID, so that title is the only way to tell the two apart. If you delete the wrong
+one by mistake, nothing is lost: reinstall it from its manifest URL and the world comes
+straight back.
 
 Removing it is safe only *after* step 6 has run, because that is what rewrites the image
 paths that still point at the old system folder. Verified: a migrated world with the old
@@ -75,11 +75,18 @@ skipped, so unlock any that hold Stonetop data and check again.
 
 **The assistant refuses to run on a hosted Foundry.** That is deliberate, not a bug.
 
-The migration needs Foundry's own setup route. The Forge replaces that route with its own
-interface when Game Manager is enabled, and gates it by Forge *account ownership* rather
-than by your Foundry role, so being a Gamemaster in the world is not enough. It is also the
-route you would use to undo a bad move. Since the flip is one-way and unverified there, the
-assistant blocks rather than gambling with your world.
+The migration needs Foundry's own setup route, and on a hosted service we cannot establish
+that we have it. The Forge does not remove that route, but its Game Manager launches worlds
+directly and bypasses it, and access is gated by Forge *account ownership* rather than by
+your Foundry role, so being a Gamemaster in the world is not enough. It is also the route
+you would use to undo a bad move.
+
+We refuse on the hostname alone, which is blunter than we would like, because a better
+check is not available: The Forge's own client integration decides it is on The Forge by
+testing `location.hostname` against `.forge-vtt.com` and exposes no flag at all for whether
+Game Manager is on. So a world where the flip would have worked and one where it would
+strand the world look identical from inside. Since the flip is one-way, the assistant
+refuses both rather than gambling with your world.
 
 Get in touch and we will do it together. The supported path is the export/edit/import
 route, which works on every tier regardless of Game Manager:
@@ -101,21 +108,27 @@ whole thing on a clone before touching the real world.
 The order matters. The bridge must ship under the OLD id, because it is the only thing
 that can open an existing world and move it across.
 
-1. **Ship the bridge**: release `stonetop_pwd` 1.3.0 (this tree). Its manifest and
-   download URLs are pinned to that exact version, so it is a frozen terminal release
-   that never offers a bogus update. Leave `releases/latest` serving this old-id manifest
-   until every known user has taken it, or their Update button will fetch the wrong
-   package (Foundry installs by the id in the REMOTE manifest, not the tile you clicked).
+**The renamed system has to exist before anyone can migrate onto it.** The assistant's
+preflight hard-blocks unless `systems/stonetop-pwd/system.json` is installed, and the
+once-per-session offer in `module/migration/announce.js` does not even open the window
+until that probe succeeds. So publishing the renamed package is not the last step, it is
+the step that unblocks every user. Until it is published the bridge is inert and a GM who
+installs it sees no migration window at all, which is correct behaviour and reads exactly
+like a bug.
 
-   **Set the bridge title when you package, not in the tree.** The released zip wants
-   `"title": "Stonetop (old ID - remove after migrating)"`, because the Setup screen shows
-   a package's title and never its id, so two "Stonetop" tiles are indistinguishable. But
-   this working tree IS the maintainer's installed system: carrying that title in git puts
-   an alarming "remove after migrating" label on every one of their own worlds, with no
-   renamed system in existence to migrate to. Edit the title in the staged zip, or set it
-   immediately before tagging and revert it straight after.
-2. **Confirm each user has migrated.**
-3. **Rename the tree**: close Foundry, then
+1. **Ship the bridge**: release `stonetop_pwd` (this tree). ✅ Done at 1.3.1.
+
+   The release workflow patches the manifest on the way out, gated on the old id: it sets
+   the title to `Stonetop (old ID)` and pins `manifest` and `download` to the tagged
+   version. Do not set either in the tree. This working tree IS the maintainer's installed
+   system, so a warning title in git labels every one of their own worlds, and a pinned
+   manifest would stop their own install seeing updates.
+
+   Pinning matters because Foundry installs by the id in the REMOTE manifest, not the tile
+   you clicked. Also leave `releases/latest` serving an old-id manifest until every known
+   user is on a pinned build, or an Update button on an older install fetches the wrong
+   package.
+2. **Produce the renamed tree**: close Foundry, then
 
    ```
    node scripts/rename-system-id.js          # dry run, prints what would change
@@ -129,7 +142,24 @@ that can open an existing world and move it across.
    identifier and `flags.stonetop-pwd.x` would parse as a subtraction rather than fail
    loudly. It skips itself, `.bak` files, and the compiled pack LevelDBs. Afterwards only
    `module/system-id.js` should still mention the old id, as the legacy fallback chain.
-4. **Phase 3 is already wired.** `finishSystemIdMigration()` runs from the Ready hook
+
+   **Do this on a branch, not on the mainline.** Applying it in place leaves no old-id tree
+   to cut further bridge releases from, and the bridge has to stay releasable until the
+   last user is across. Keep `develop`/`main` on the old id until step 4.
+3. **Publish the renamed system** from that branch, as its own package with its own
+   manifest URL. This is what unblocks every user, so it comes before they migrate, not
+   after.
+
+   It must not take the repository's Latest flag while step 1's constraint stands, or an
+   old-id install on a pre-pinned build takes the renamed package from its Update button.
+   The release workflow now enforces that rather than trusting you to remember: it reads
+   the id back out of the built manifest and passes `make_latest` accordingly, so a renamed
+   release is demoted even if it was published as Latest by hand. Retire that branch once
+   everyone is off the old id and the renamed system should hold Latest.
+4. **Confirm each user has migrated.** Hosted users cannot use the assistant at all and
+   need the export/edit/import path above, done by hand with them. Only once everyone is
+   across is it safe to retire the old-id mainline and make the renamed tree the default.
+5. **Phase 3 is already wired.** `finishSystemIdMigration()` runs from the Ready hook
    (`module/migration/finish-run.js`), gated to the primary GM and stamped once per world
    in the `idMigrationFinishedFor` setting. It no-ops in a world with nothing stale, so it
    is harmless in the bridge and does the real work in the renamed tree. Nothing to add
@@ -141,8 +171,6 @@ that can open an existing world and move it across.
 
    Note Phase 3 does NOT delete the old `flags.<oldId>` bags. Phase 1 copies and never
    deletes, and leaving the originals is what keeps the flip reversible.
-5. **Publish the renamed system from its own manifest URL**, not the old repo's
-   `releases/latest`, until step 1's constraint is retired.
 
 ### Rehearsing
 
