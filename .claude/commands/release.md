@@ -45,7 +45,7 @@ Two consequences worth holding onto:
      `CITATION.cff`, `.well-known/`) so they travel to any mirror
    - asserts the private book-art dirs are absent, the version matches the tag, and every
      declared pack exists, and FAILS the release rather than shipping a bad artifact
-   - sets the released title to `Stonetop (old ID)` while the package id is still
+   - sets the released title to `Stonetop (DEPRECATED)` while the package id is still
      `stonetop_pwd`, since Foundry's Setup screen shows a title and never an id
 
    If any of that needs to change, change the workflow. A local staging directory is
