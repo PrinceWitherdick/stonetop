@@ -1,5 +1,11 @@
 # Stonetop for Foundry VTT
 
+> ### 📦 This system has moved to [PrinceWitherdick/stonetop-pwd](https://github.com/PrinceWitherdick/stonetop-pwd)
+>
+> **Installing for the first time? Go there instead.** Nothing here is newer, and installing from this repository means doing a one-time migration you can simply skip.
+>
+> This repository stays up for worlds created before the move. Its package ID (`stonetop_pwd`) is the one those worlds are pointed at, so it keeps serving them and it is what carries them across. If that is you, see **[MIGRATION.md](MIGRATION.md)**; your world, its name, its folder and everything inside it stay exactly where they are.
+
 An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg.
 
 ## 🤖 Created in collaboration with AI to facilitate rapid development. Absolutely no image generation was or will be used.
@@ -112,7 +118,17 @@ A bundled **Stonetop** journal compendium covers the wider world: all 30 Book II
 
 ## Installation
 
-In Foundry VTT, go to **Game Systems -> Install System** and paste this manifest URL:
+**New installs go to the [stonetop-pwd](https://github.com/PrinceWitherdick/stonetop-pwd) repository.** In Foundry VTT, go to **Game Systems -> Install System** and paste:
+
+```
+https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json
+```
+
+### The URL for this repository
+
+Only if you already have a world running on this system, and only as step 3 of
+[MIGRATION.md](MIGRATION.md). Installing it fresh gets you a package ID you would then have
+to migrate off, for no benefit:
 
 ```
 https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json

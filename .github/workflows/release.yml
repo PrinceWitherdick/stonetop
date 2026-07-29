@@ -9,6 +9,13 @@ on:
   release:
     types: [published]
 
+# The one package id this repository publishes. Only a release whose built manifest matches
+# it may take the repository's single Latest slot; see the make_latest step below. Each of
+# the two repositories sets this to its own id, which is what lets both serve a correct,
+# auto-updating manifest URL to their own audience without competing for one slot.
+env:
+  PUBLISHES_ID: stonetop_pwd
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -52,23 +59,20 @@ jobs:
             }
             fs.writeFileSync('system.json', JSON.stringify(m, null, '\t'));
           "
-          # Who gets the repository's single "Latest" flag, decided from the manifest rather
-          # than from whoever clicked Publish. Legacy installs carry
+          # Who gets the repository's single "Latest" flag, decided from the built manifest
+          # rather than from whoever clicked Publish. Installs carry
           # manifest: releases/latest/download/system.json, and Foundry installs by the id in
-          # the REMOTE manifest — so the day a renamed release becomes Latest here, every one
-          # of those installs' Update button silently fetches the renamed package instead of
-          # updating. gh and the web UI both mark a new release Latest by DEFAULT, so this
-          # cannot be left to remembering a flag. The old id keeps Latest; anything else is
-          # demoted even if it was published as Latest by hand.
-          #
-          # Retire this once every user is off the old id: at that point the renamed system
-          # should take Latest back. Until then a renamed release here is deliberately
-          # invisible to an Update button.
+          # the REMOTE manifest — so a release whose id is not the one this repository
+          # publishes, handed the Latest slot, silently swaps the package under every install
+          # pointing here. gh and the web UI both mark a new release Latest by DEFAULT, so
+          # this cannot be left to remembering a flag: a foreign id is demoted even when it
+          # was published as Latest by hand.
           node -e "
             const m = JSON.parse(require('fs').readFileSync('system.json', 'utf8'));
-            const latest = m.id === 'stonetop_pwd';
+            const expected = process.env.PUBLISHES_ID;
+            const latest = m.id === expected;
             require('fs').appendFileSync(process.env.GITHUB_OUTPUT, 'make_latest=' + latest + '\n');
-            console.log('make_latest=' + latest + ' (id ' + m.id + ')');
+            console.log('make_latest=' + latest + ' (built id ' + m.id + ', this repo publishes ' + expected + ')');
           "
 
       - name: Ship only the packs system.json declares
