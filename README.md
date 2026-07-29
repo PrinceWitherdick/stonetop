@@ -115,8 +115,20 @@ A bundled **Stonetop** journal compendium covers the wider world: all 30 Book II
 In Foundry VTT, go to **Game Systems -> Install System** and paste this manifest URL:
 
 ```
-https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json
+https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json
 ```
+
+That is all you need. Install it and start a world.
+
+### Already playing on the older release?
+
+If your world was created with the earlier version of this system, the one installed from
+`PrinceWitherdick/stonetop`, it is pointed at a package ID that has since changed and it
+will not move across on its own. Install this system alongside the old one and follow
+[MIGRATION.md](MIGRATION.md); your world, its name, its folder and everything inside it
+stay exactly where they are. Nothing is copied and no world is recreated.
+
+This does not apply to anyone installing for the first time.
 
 ## Recommended Modules
 

@@ -22,13 +22,13 @@
                         "name":  "Dice-Goblin-Click-Clack"
                     }
                 ],
-    "url":  "https://github.com/PrinceWitherdick/stonetop",
-    "manifest":  "https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json",
-    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/1.3.1/stonetop.zip",
+    "url":  "https://github.com/PrinceWitherdick/stonetop-pwd",
+    "manifest":  "https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json",
+    "download":  "https://github.com/PrinceWitherdick/stonetop-pwd/releases/download/1.3.1/stonetop.zip",
     "license":  "LICENSE",
     "readme":  "README.md",
-    "bugs":  "https://github.com/PrinceWitherdick/stonetop/issues",
-    "changelog":  "https://github.com/PrinceWitherdick/stonetop/releases",
+    "bugs":  "https://github.com/PrinceWitherdick/stonetop-pwd/issues",
+    "changelog":  "https://github.com/PrinceWitherdick/stonetop-pwd/releases",
     "esmodules":  [
                       "stonetop.js"
                   ],

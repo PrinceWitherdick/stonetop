@@ -176,4 +176,4 @@ User-Agent: YouBot
 User-Agent: ZanistaBot
 Disallow: /
 
-# Contact: https://github.com/PrinceWitherdick/stonetop/issues
+# Contact: https://github.com/PrinceWitherdick/stonetop-pwd/issues

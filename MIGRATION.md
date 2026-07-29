@@ -18,7 +18,13 @@ Pick a time when no players are logged in, then:
    Wait for it to finish. This is the only real undo. If there is no Take Backup in that
    menu, stop and get in touch: your Foundry has backups switched off.
 3. Go to **Game Systems → Install System**, paste the manifest URL for the renamed
-   system, and click Install. You will now have two Stonetop tiles. That is expected.
+   system, and click Install:
+
+   ```
+   https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json
+   ```
+
+   You will now have two Stonetop tiles. That is expected.
 4. Launch your Stonetop world as normal.
 5. A window titled **Stonetop is changing its ID** opens by itself. Click
    **Migrate this world**, then **Yes, migrate now** to confirm, then leave the tab alone.
@@ -105,8 +111,25 @@ whole thing on a clone before touching the real world.
 
 ## Maintainer runbook
 
-The order matters. The bridge must ship under the OLD id, because it is the only thing
-that can open an existing world and move it across.
+**The two packages live in separate repositories, and that is the whole design.** GitHub
+gives a repository exactly one `releases/latest`, and there are two audiences that need
+different things from it: existing installs have the old repo's `releases/latest` baked
+into what they already downloaded, so it must keep serving the bridge, while everybody new
+needs a URL that serves the current system and keeps updating. One repository cannot do
+both without pinning somebody to a frozen version.
+
+| | `PrinceWitherdick/stonetop` | `PrinceWitherdick/stonetop-pwd` |
+|---|---|---|
+| id | `stonetop_pwd` | `stonetop-pwd` |
+| `releases/latest` | the bridge, frozen | current system |
+| for | existing worlds only | **everyone new** |
+| ends | archived once all are across | permanent home |
+
+So a new user never sees the old repository, never installs the bridge, and never migrates.
+Only a world created before the rename does.
+
+The order still matters. The bridge must ship under the OLD id, because it is the only
+thing that can open an existing world and move it across.
 
 **The renamed system has to exist before anyone can migrate onto it.** The assistant's
 preflight hard-blocks unless `systems/stonetop-pwd/system.json` is installed, and the
@@ -125,9 +148,11 @@ like a bug.
    manifest would stop their own install seeing updates.
 
    Pinning matters because Foundry installs by the id in the REMOTE manifest, not the tile
-   you clicked. Also leave `releases/latest` serving an old-id manifest until every known
-   user is on a pinned build, or an Update button on an older install fetches the wrong
-   package.
+   you clicked. The old repository's `releases/latest` must keep serving an old-id manifest
+   for as long as any install still points at it, which is what the separate repositories
+   above make easy: nothing new ever competes for that slot. The workflow enforces it too,
+   passing `make_latest` from the built manifest's id so a renamed release published on the
+   old repository by mistake is demoted rather than handed to every legacy install.
 2. **Produce the renamed tree**: close Foundry, then
 
    ```

@@ -14,10 +14,10 @@ authors:
   - name: "aMediocerDad"
   - name: "taylor-nightingale"
   - name: "Dice-Goblin-Click-Clack"
-repository-code: "https://github.com/PrinceWitherdick/stonetop"
-url: "https://github.com/PrinceWitherdick/stonetop"
+repository-code: "https://github.com/PrinceWitherdick/stonetop-pwd"
+url: "https://github.com/PrinceWitherdick/stonetop-pwd"
 license: MIT
-license-url: "https://github.com/PrinceWitherdick/stonetop/blob/main/LICENSE"
+license-url: "https://github.com/PrinceWitherdick/stonetop-pwd/blob/main/LICENSE"
 keywords:
   - foundry-vtt
   - stonetop
