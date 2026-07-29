@@ -56,8 +56,15 @@ migration day. That draft lives only in their own browser and is not carried acr
 right. It costs nothing and it is what makes rolling back possible. When you are ready to
 tidy up, delete the tile titled **Stonetop (old ID)**. Foundry's setup screen never shows a
 package's ID, so that title is the only way to tell the two apart. If you delete the wrong
-one by mistake, nothing is lost: reinstall it from its manifest URL and the world comes
+one by mistake, nothing is lost: reinstall it from this manifest URL and the world comes
 straight back.
+
+```
+https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json
+```
+
+That is the **old** system, the one this page is helping you leave. It is here only so a
+mis-click during step 5 is recoverable. Do not install it on a fresh Foundry.
 
 Removing it is safe only *after* step 6 has run, because that is what rewrites the image
 paths that still point at the old system folder. Verified: a migrated world with the old
