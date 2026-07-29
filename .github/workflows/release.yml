@@ -33,69 +33,78 @@ jobs:
 
       - name: Patch manifest
         id: manifest
+        # Every node step here is fed by a QUOTED heredoc, never `node -e "..."`.
+        # A `node -e` double-quoted string ends at the first bare double quote inside it, so
+        # one quoted phrase in a comment silently truncates the script at that point and the
+        # step still exits 0. That shipped: a comment containing "this has moved" cut this
+        # step off before both the pin below and writeFileSync, and only the assertion in the
+        # verify step caught it. A quoted heredoc has no such escape; ${{ }} still expands
+        # because Actions substitutes before the shell ever sees the text.
         run: |
-          node -e "
-            const fs = require('fs');
-            const m = JSON.parse(fs.readFileSync('system.json', 'utf8'));
-            m.version = '${{ github.ref_name }}';
-            m.download = 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/stonetop.zip';
-            // While the old package id is still shipping, the released title has to
-            // disambiguate it: Foundry's Setup screen shows a package's title and never its
-            // id, so during the migration window a user has two tiles both reading
-            // 'Stonetop' and no way to tell which to remove. Self-limiting — once the id is
-            // renamed this branch stops firing and the plain title comes back. The repo copy
-            // keeps the plain title so the maintainer's own worlds read normally.
-            //
-            // The "this has moved" notice lives in the tree's DESCRIPTION rather than being
-            // patched here, unlike the title. It is not an inconsistency: the title's reason
-            // for being CI-only was that no renamed system existed to send anyone to, and
-            // that stopped being true when stonetop-pwd shipped. The description is now
-            // simply the truth about this package, so git should say it.
-            //
-            // The same branch pins the manifest URL. The tree points at releases/latest so
-            // the maintainer's own install tracks new versions, but a SHIPPED old-id build
-            // must not: Foundry installs by the id in the REMOTE manifest, so the day a
-            // stonetop-pwd release is marked Latest on this repo, every old-id install still
-            // pointing at releases/latest would fetch the wrong package from its Update
-            // button. Pinning makes each old-id release a frozen terminal one that reports
-            // no update rather than a bogus one. MIGRATION.md already claims this is true.
-            if (m.id === 'stonetop_pwd') {
-              m.title = 'Stonetop (old ID)';
-              m.manifest = 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/system.json';
-            }
-            fs.writeFileSync('system.json', JSON.stringify(m, null, '\t'));
-          "
-          # Who gets the repository's single "Latest" flag, decided from the built manifest
+          node <<'PATCH_MANIFEST'
+          const fs = require('fs');
+          const m = JSON.parse(fs.readFileSync('system.json', 'utf8'));
+          m.version = '${{ github.ref_name }}';
+          m.download = 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/stonetop.zip';
+          // While the old package id is still shipping, the released title has to
+          // disambiguate it: Foundry's Setup screen shows a package's title and never its
+          // id, so during the migration window a user has two tiles both reading
+          // 'Stonetop' and no way to tell which to remove. Self-limiting: once the id is
+          // renamed this branch stops firing and the plain title comes back. The repo copy
+          // keeps the plain title so the maintainer's own worlds read normally.
+          //
+          // The move notice lives in the tree's DESCRIPTION rather than being patched here,
+          // unlike the title. Not an inconsistency: the title's reason for being CI-only was
+          // that no renamed system existed to send anyone to, and that stopped being true
+          // when stonetop-pwd shipped. The description is now simply the truth about this
+          // package, so git should say it.
+          //
+          // The same branch pins the manifest URL. The tree points at releases/latest so the
+          // maintainer's own install tracks new versions, but a SHIPPED old-id build must
+          // not: Foundry installs by the id in the REMOTE manifest, so the day a stonetop-pwd
+          // release is marked Latest on this repo, every old-id install still pointing at
+          // releases/latest would fetch the wrong package from its Update button. Pinning
+          // makes each old-id release a frozen terminal one that reports no update rather
+          // than a bogus one. The verify step asserts this actually happened.
+          if (m.id === 'stonetop_pwd') {
+            m.title = 'Stonetop (old ID)';
+            m.manifest = 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/system.json';
+          }
+          fs.writeFileSync('system.json', JSON.stringify(m, null, '\t'));
+          console.log('patched: ' + m.id + ' ' + m.version + ' "' + m.title + '"');
+          console.log('  manifest: ' + m.manifest);
+          PATCH_MANIFEST
+          # Who gets the repository's single Latest flag, decided from the built manifest
           # rather than from whoever clicked Publish. Installs carry
           # manifest: releases/latest/download/system.json, and Foundry installs by the id in
-          # the REMOTE manifest — so a release whose id is not the one this repository
+          # the REMOTE manifest, so a release whose id is not the one this repository
           # publishes, handed the Latest slot, silently swaps the package under every install
           # pointing here. gh and the web UI both mark a new release Latest by DEFAULT, so
           # this cannot be left to remembering a flag: a foreign id is demoted even when it
           # was published as Latest by hand.
-          node -e "
-            const m = JSON.parse(require('fs').readFileSync('system.json', 'utf8'));
-            const expected = process.env.PUBLISHES_ID;
-            const latest = m.id === expected;
-            require('fs').appendFileSync(process.env.GITHUB_OUTPUT, 'make_latest=' + latest + '\n');
-            console.log('make_latest=' + latest + ' (built id ' + m.id + ', this repo publishes ' + expected + ')');
-          "
+          node <<'MAKE_LATEST'
+          const m = JSON.parse(require('fs').readFileSync('system.json', 'utf8'));
+          const expected = process.env.PUBLISHES_ID;
+          const latest = m.id === expected;
+          require('fs').appendFileSync(process.env.GITHUB_OUTPUT, 'make_latest=' + latest + '\n');
+          console.log('make_latest=' + latest + ' (built id ' + m.id + ', this repo publishes ' + expected + ')');
+          MAKE_LATEST
 
       - name: Ship only the packs system.json declares
         # packs/ accumulates output from packs the manifest no longer declares. Foundry never
         # loads them, but anything tracked in git reaches the checkout and then the zip.
         run: |
-          node -e "
-            const fs = require('fs');
-            const declared = new Set(
-              JSON.parse(fs.readFileSync('system.json', 'utf8')).packs.map(p => p.path.split('/').pop())
-            );
-            for (const name of fs.readdirSync('packs')) {
-              if (name === 'src' || declared.has(name)) continue;
-              fs.rmSync('packs/' + name, { recursive: true, force: true });
-              console.log('dropped undeclared pack: ' + name);
-            }
-          "
+          node <<'DROP_UNDECLARED'
+          const fs = require('fs');
+          const declared = new Set(
+            JSON.parse(fs.readFileSync('system.json', 'utf8')).packs.map(p => p.path.split('/').pop())
+          );
+          for (const name of fs.readdirSync('packs')) {
+            if (name === 'src' || declared.has(name)) continue;
+            fs.rmSync('packs/' + name, { recursive: true, force: true });
+            console.log('dropped undeclared pack: ' + name);
+          }
+          DROP_UNDECLARED
 
       - name: Verify the artifact before it ships
         # Private book art is gitignored, so a clean checkout should not contain it. Assert
@@ -104,19 +113,26 @@ jobs:
           for d in assets/maps assets/bestiary assets/locations; do
             if [ -e "$d" ]; then echo "FAIL: $d present in the checkout"; exit 1; fi
           done
-          node -e "
-            const m = JSON.parse(require('fs').readFileSync('system.json', 'utf8'));
-            if (m.version !== '${{ github.ref_name }}') { console.error('FAIL: version mismatch'); process.exit(1); }
-            // An old-id build that still points at releases/latest is the packaging fault
-            // that hands a user the renamed package from an Update button. Assert it.
-            if (m.id === 'stonetop_pwd' && m.manifest.includes('releases/latest')) {
-              console.error('FAIL: old-id manifest is not pinned: ' + m.manifest); process.exit(1);
-            }
-            for (const p of m.packs) {
-              if (!require('fs').existsSync(p.path)) { console.error('FAIL: declared pack missing: ' + p.path); process.exit(1); }
-            }
-            console.log('manifest ok: ' + m.id + ' ' + m.version + ' \"' + m.title + '\"');
-          "
+          node <<'VERIFY_MANIFEST'
+          const fs = require('fs');
+          const m = JSON.parse(fs.readFileSync('system.json', 'utf8'));
+          if (m.version !== '${{ github.ref_name }}') { console.error('FAIL: version mismatch'); process.exit(1); }
+          // An old-id build that still points at releases/latest is the packaging fault that
+          // hands a user the renamed package from an Update button. Assert it.
+          if (m.id === 'stonetop_pwd' && m.manifest.includes('releases/latest')) {
+            console.error('FAIL: old-id manifest is not pinned: ' + m.manifest); process.exit(1);
+          }
+          // The patch step must have run to completion. Asserting a value it is solely
+          // responsible for catches a silently truncated step, which is how an unpatched
+          // manifest reached this point once already.
+          if (m.id === 'stonetop_pwd' && m.title !== 'Stonetop (old ID)') {
+            console.error('FAIL: old-id title was not patched: ' + m.title); process.exit(1);
+          }
+          for (const p of m.packs) {
+            if (!fs.existsSync(p.path)) { console.error('FAIL: declared pack missing: ' + p.path); process.exit(1); }
+          }
+          console.log('manifest ok: ' + m.id + ' ' + m.version + ' "' + m.title + '"');
+          VERIFY_MANIFEST
 
       - name: Create zip
         run: |
