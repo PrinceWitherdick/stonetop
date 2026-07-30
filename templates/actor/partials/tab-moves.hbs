@@ -14,6 +14,12 @@
 					<div class="stonetop-item-header">
 						<strong class="stonetop-item-name">{{name}}</strong>
 						{{#if (and @root.stonetop.canAuthorLoveLetters rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
+					</div>
+					{{#if description}}<div class="stonetop-item-description">{{{boldMissText description}}}</div>{{/if}}
+					<div class="stonetop-love-letter-actions">
+						<button type="button" class="stonetop-love-letter-read" data-item-id="{{ownedId}}">
+							<i class="fas fa-envelope-open-text" aria-hidden="true"></i> {{localize "stonetop.character.moves.loveLetter.readButton"}}
+						</button>
 						{{#if @root.stonetop.canAuthorLoveLetters}}
 						<a class="stonetop-love-letter-edit" data-item-id="{{ownedId}}" title="{{localize 'stonetop.character.moves.loveLetter.editMove'}}">
 							<i class="fas fa-pen"></i>
@@ -22,12 +28,6 @@
 							<i class="fas fa-trash"></i>
 						</a>
 						{{/if}}
-					</div>
-					{{#if description}}<div class="stonetop-item-description">{{{boldMissText description}}}</div>{{/if}}
-					<div class="stonetop-love-letter-actions">
-						<button type="button" class="stonetop-love-letter-read" data-item-id="{{ownedId}}">
-							<i class="fas fa-envelope-open-text" aria-hidden="true"></i> {{localize "stonetop.character.moves.loveLetter.readButton"}}
-						</button>
 					</div>
 				</li>
 			{{/each}}
@@ -171,6 +171,9 @@
 							<strong class="stonetop-item-name">{{name}}</strong>
 							{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
 							{{#if (and resource learned)}}
+							{{!-- Right-pins the track while it shares the title's line; see
+							      .stonetop-item-header-spacer. --}}
+							<span class="stonetop-item-header-spacer" aria-hidden="true"></span>
 							<span class="stonetop-item-resources">
 								{{#if resource.title}}<span class="stonetop-item-resource-title">{{resource.title}}</span>{{/if}}
 								{{#each (resourceChecks resource)}}

@@ -2139,20 +2139,82 @@ input.stonetop-name-field {
 	overflow: hidden;
 }
 
-/* Notes tab collapse fix. The layout height is anchored by the moves sidebar's
-   content, but `.sheet-body` is content-sized (the layout uses `align-items: flex-start`)
-   and, crucially, the whole height chain above is indefinite (`.sheet-main` is
-   `flex-grow: 0; height: auto`), so `align-self: stretch` won't stretch the body to a
-   sibling's content height and a `height: 100%` child can't resolve a percentage. Every
-   tab but Notes hides this by having enough content of its own; the Notes tab is a single
-   flex editor with no intrinsic height, so an empty one collapses the body to ~0px and the
-   edit pencil (which only reveals on `prose-mirror:hover`) can never be reached. Give the
-   body a definite floor and let the tab flex-fill it (see the `.tab.notes.active` rule
-   below, which uses `flex` instead of `height: 100%`). */
+/* Notes tab collapse fix. `.sheet-body` is content-sized (the layout uses
+   `align-items: flex-start`), and every tab but Notes hides that by having enough content
+   of its own; the Notes tab is a single flex editor with no intrinsic height, so an empty
+   one used to collapse the body to ~0px and the edit pencil (which only reveals on
+   `prose-mirror:hover`) could never be reached. The height chain relinked below now hands
+   the body a real height to fill, so the floor that used to sit here moved out onto
+   `.stonetop-sheet-layout` (see that rule). Keep `min-height: 0` here: a floor on this
+   element is *inside* the layout's `overflow: hidden`, so it can only ever be clipped. */
 .pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body:has(> .tab.notes.active) {
-	min-height: 400px;
+	min-height: 0;
 	display: flex;
 	flex-direction: column;
+}
+
+/* …and, above that floor, let the editor follow the window's bottom edge, so dragging the
+   sheet taller grows the editor instead of leaving dead space under it. That needs the
+   indefinite chain described above turned definite: `.window-content` is a flex ITEM of
+   the window frame but not a flex CONTAINER, pbta's `.sheet-wrapper` is a plain block, and
+   `.sheet-main` has no height of its own (pbta only heights a `.sheet-bottom .sheet-main`,
+   which this template doesn't use) — so the frame's real height never reaches the tab.
+   Relink each step as a growing flex column, gated on `:has(.tab.notes.active)` so every
+   other tab keeps the content-sized layout it has today.
+
+   `overflow-y: auto` on the content box is the last resort, not the normal scroll (same
+   arrangement as the NPC sheet): with `min-height: 0` down the chain nothing scrolls at a
+   workable size, but the 400px Notes floor can outgrow a short window, and a scrollbar
+   beats silently clipping the editor's bottom edge. */
+.pbta.sheet.actor.character .window-content:has(.tab.notes.active) {
+	display: flex;
+	flex-direction: column;
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+
+.pbta.sheet.actor.character .window-content > form:has(.tab.notes.active),
+.pbta.sheet.actor.character .sheet-wrapper:has(.tab.notes.active),
+.pbta.sheet.actor.character .sheet-main:has(.tab.notes.active) {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	/* pbta sets `flex-wrap: wrap` on .sheet-wrapper; in a column that would spill any
+	   overflow sideways into a second column instead of letting the chain absorb it. */
+	flex-wrap: nowrap;
+}
+
+/* Only .sheet-main takes up the slack — the portrait header and the stats block keep
+   their own content height. */
+.pbta.sheet.actor.character .sheet-wrapper:has(.tab.notes.active) > :not(.sheet-main) {
+	flex: 0 0 auto;
+}
+
+/* Pin the tab strip. Core's V13 `.app .flexcol > * { flex: 1 }` hands it flex-grow: 1 and
+   the shared `.pbta.sheet .sheet-tabs` rule pins only the SHRINK half, so the moment
+   .sheet-main has real free space to distribute the nav would stretch along with the tab
+   panel — the same trap documented on the NPC sheet's tab strip. */
+.pbta.sheet.actor.character .sheet-main:has(.tab.notes.active) > .sheet-tabs {
+	flex: 0 0 auto;
+}
+
+/* The floor for how short the editor may get — and it has to sit on THIS element.
+   `.stonetop-sheet-layout` is the one that clips (`overflow: hidden`, so the moves sidebar
+   scrolls inside itself rather than stretching the sheet), so a floor anywhere inside it —
+   which is where this one used to live, on `.sheet-body` — is simply sheared off when the
+   window is dragged short: the layout keeps shrinking past it, hides the difference, and
+   nothing upstream ever learns the content didn't fit, so no scrollbar appears either.
+
+   Floored on the clipper instead, a too-short window leaves the layout box sticking out
+   the bottom of `.sheet-main` (overflow is visible from here up), and the first ancestor
+   that scrolls — `.window-content`, above — takes it as scrollable overflow. So the editor
+   tracks the window down to this height, and past it the sheet scrolls rather than losing
+   its bottom edge. Deliberately well below the old 400px: the flex chain now guarantees a
+   filled tab, so this is only the last-resort minimum (toolbar + a few lines), not the
+   number that keeps an empty Notes tab reachable. */
+.pbta.sheet.actor.character .stonetop-sheet-layout:has(.tab.notes.active) {
+	min-height: 260px;
 }
 
 .pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body > .tab.active:not(.notes) {
@@ -2188,11 +2250,12 @@ input.stonetop-name-field {
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
-	/* Match the 12px left/right inset the other character tabs get from the shared
+	/* Match the 12px inset the other character tabs get from the shared
 	   `.pbta.sheet .tab.moves, …` padding rule — the Notes tab isn't in that list, so
-	   without this the editor text sits flush to the edges. Top stays flush (the editor
-	   fills from the top); keep the slightly deeper bottom the notes area already used. */
-	padding: 0 12px 14px;
+	   without this the editor sits flush to the edges. Top matches those tabs so the
+	   editor starts on the same line; keep the slightly deeper bottom the notes area
+	   already used. */
+	padding: 12px 12px 14px;
 }
 
 .pbta.sheet.actor.character .character-notes prose-mirror.character-notes-editor {
@@ -4943,9 +5006,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-love-letter-delete { color: var(--st-red-text); }
 .stonetop-love-letter-delete:hover { color: hsl(0 65% 22%); }
 .stonetop-love-letter-edit + .stonetop-love-letter-delete { margin-left: 6px; }
+/* They share the Read letter row, so reveal them as flex items centred on that button. */
 .stonetop-love-letter:hover .stonetop-love-letter-edit,
-.stonetop-love-letter:hover .stonetop-love-letter-delete { display: inline; }
-.stonetop-love-letter-actions { display: flex; margin-top: 8px; }
+.stonetop-love-letter:hover .stonetop-love-letter-delete { display: inline-flex; }
+.stonetop-love-letter-actions { display: flex; align-items: center; margin-top: 8px; }
 .stonetop-love-letter-read {
 	display: inline-flex;
 	align-items: center;
@@ -6651,10 +6715,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* The name uses flex:initial here (so it sits at content width next to the
    dice/roll-chip controls), which means it no longer grows to push the
-   resource ("hold & use") track to the right. Pin that track to the right edge
-   of the header. */
-.tab.moves .stonetop-item-resources {
-	margin-left: auto;
+   resource ("hold & use") track to the right. An empty spacer sitting just
+   before the track eats the line's free space instead, pinning the track to the
+   right edge of the header.
+
+   Why a spacer and not `margin-left:auto` on the track: the header wraps, and on
+   a narrow card the track drops to its own line. An auto margin keeps it right-
+   aligned there too, stranding the circles in the far corner under the title;
+   the spacer stays behind on the title's line, so the wrapped track starts at
+   the left edge under the title. flex-basis:0 means the spacer never itself
+   forces a wrap, and the negative inline margin cancels one of the two 8px
+   header gaps it introduces, so the track wraps at exactly the same width as
+   before. */
+.tab.moves .stonetop-item-header-spacer {
+	flex: 1 1 0;
+	min-width: 0;
+	margin-inline: -4px;
 }
 
 /* A move that carries a source label ("Starting move", "Background",
@@ -6697,11 +6773,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Keep a resource ("hold & use") track on its own line under the controls
    (clear:both drops it below the floated label) rather than letting it ride up
-   into the badge's corner. margin-left:0 cancels the right-pin auto inherited
-   from the flex rule above, which is meaningless in this block-flow header. */
+   into the badge's corner. */
 .tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > .stonetop-item-resources {
 	clear: both;
-	margin-left: 0;
+}
+
+/* The spacer only means something in the flex header; in this block-flow one it
+   would be an empty inline that the surrounding whitespace still spaces out. */
+.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > .stonetop-item-header-spacer {
+	display: none;
 }
 
 .tab.moves .stonetop-item-description,
