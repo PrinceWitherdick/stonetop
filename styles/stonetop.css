@@ -4695,29 +4695,50 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-requisition-close { width: 100%; justify-content: center; }
 
 /* -- Custom move authoring dialog ----------------------------- */
-/* Cap the auto-height window to the viewport so the form (Advanced section open:
-   resource + bonus + result fields) scrolls instead of growing past the screen. */
+/* A left-rail stepped sheet (shared .stonetop-guide-* chrome), like the Welcome guide
+   and Make a Monster: the rail switches which group of fields is shown above a pinned
+   Save/Back/Next footer. Full-bleed flex column, so the rail + panel split fills the
+   space above that footer and only the panel column scrolls. */
+.stonetop-custom-move-dialog.window-app { max-height: 92vh; }
 .stonetop-custom-move-dialog .window-content {
-	max-height: calc(100vh - 80px);
-	overflow-y: auto;
-	/* Own the vertical gutter on the SCROLL CONTAINER (not the form) so it persists
-	   at both scroll extremes — the form's own top/bottom padding scrolls away, which
-	   left the first/last fields kissing the window chrome once the Advanced section
-	   made the form tall enough to scroll. Horizontal inset stays on the form so the
-	   scrollbar sits flush at the edge. (Core's window-content padding is 2px, too
-	   cramped, so we override it deterministically.) */
-	padding: 16px 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 }
 
-/* Delineate the fixed header from the scrolling body: content that scrolls up under
-   the header then reads as tucked-behind, not cramped/cut-off (pure padding can't
-   hold a gap mid-scroll). Theme-agnostic shadow; lift the header so it paints over
-   the body. Scoped to this dialog so it never touches other window chrome. */
-.stonetop-custom-move-dialog .window-header {
-	position: relative;
-	z-index: 1;
-	box-shadow: 0 4px 6px -3px rgba(0, 0, 0, 0.35);
+/* The .stonetop-custom-move-form field column is shared with the Love Letter and Add
+   Item dialogs (single-scroll forms that still want its padding + gap), so re-shape it
+   into this dialog's flex frame here rather than changing the shared rule: the split
+   and the footer are its only children, and each panel owns its own gap below. */
+.stonetop-custom-move-dialog .stonetop-custom-move-form {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
+	gap: 0;
 }
+
+/* The rail beside the scrolling panel column is the shared .stonetop-guide-split /
+   .stonetop-guide-main layout, grouped with the other rail dialogs (search
+   ".stonetop-custom-move-dialog .stonetop-guide-split"). `.stonetop-custom-move-main`
+   stays on that column as a JS handle only — scrollY and applyGuideRail's mainSelector. */
+.stonetop-custom-move-nav { flex: 0 0 auto; }
+
+/* One group of fields per panel; only the active one shows (JS toggles `hidden`). */
+.stonetop-custom-move-section { display: flex; flex-direction: column; gap: 10px; }
+.stonetop-custom-move-section[hidden] { display: none; }
+
+/* Save/Cancel at one end of the shared footer row, Back/Next at the other (the buttons
+   themselves use the shared .stonetop-guide-nav button style). */
+.stonetop-custom-move-nav-btns { display: flex; gap: 10px; }
+
+/* Cancel keeps the .stonetop-custom-move-cancel hook, which doubles as the Love Letter /
+   Add Item button skin — and that skin's `font-weight: bold` is the one declaration the
+   shared `.stonetop-guide-nav button` rule doesn't outrank, so Cancel rendered heavier
+   than the Back/Next beside it. Hand the weight back (Save's 600 comes from the primary
+   modifier). Two classes to beat the single-class skin. */
+.stonetop-custom-move-nav .stonetop-custom-move-cancel { font-weight: normal; }
 
 .stonetop-custom-move-form { display: flex; flex-direction: column; gap: 10px; padding: 0 16px; font-size: var(--st-fs-base); }
 .stonetop-custom-move-field { display: flex; flex-direction: column; gap: 3px; }
@@ -4806,10 +4827,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 .stonetop-add-custom-move:hover { background: hsl(210 10% 92%); }
 
-/* Custom move dialog — Advanced (resource track, bonuses, no-XP) */
-.stonetop-custom-move-advanced { border-top: 1px solid rgba(0, 0, 0, 0.12); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
-.stonetop-custom-move-advanced > summary { cursor: pointer; font-family: var(--font-stonetop); font-weight: bold; font-size: var(--st-fs-sm); }
-.stonetop-custom-move-advanced .stonetop-custom-move-results-title { margin: 4px 0 0; }
+/* Shared field rows (custom move's resource/bonus panels, the Add Item dialog) */
 .stonetop-custom-move-row { display: flex; gap: 8px; align-items: flex-end; }
 .stonetop-custom-move-row .stonetop-custom-move-field { flex: 1 1 0; }
 .stonetop-custom-move-field--num { flex: 0 0 5.5em; }
@@ -20926,7 +20944,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 /* Pin each footer row to the bottom of its (filling) flex-column wrapper. */
-.stonetop-custom-move-dialog .stonetop-custom-move-actions,
 .stonetop-requisition .stonetop-requisition-actions,
 .stonetop-arcana-inspire-dialog .stonetop-inspire-footer,
 .stonetop-charintro-dialog .stonetop-charintro-actions,
