@@ -1626,48 +1626,210 @@ input.stonetop-name-field {
 	color: #6a4a3a;
 }
 
-/* Wound edit dialog reuses the love-letter modal's field styling
-   (.stonetop-custom-move-form / -field / -check): stacked label-over-control,
-   full-width inputs, serif bold labels. Only the Make-a-Plan block below is bespoke. */
+/* ── Wound editor (Add / Edit Wound) ──────────────────────────────────────────
+   A left-rail guided sheet like the Welcome guide and Make a Monster: the shared
+   .stonetop-guide-toc rail switches which panel of fields is shown above a pinned
+   footer, so the eight-field record reads as four short steps instead of one wall.
+   See actors/character/dialogs/WoundDialog.js + templates/dialogs/wound.hbs. */
+.stonetop-wound-edit-dialog.window-app { max-height: 92vh; }
 
-/* Make-a-Plan tick-box requirements editor. Extra breathing room above the block,
-   then label / tick-box rows / "Add requirement" stacked in order. */
-.stonetop-wound-plan-reqs {
-	padding-top: 10px;
+/* Full-bleed flex column: the rail + panel split fills the space above the footer. */
+.stonetop-wound-edit-dialog .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 }
 
-.stonetop-wound-plan-hint {
-	font-weight: normal;
+.stonetop .wound-dialog {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	font-family: var(--font-stonetop);
+}
+
+/* The rail beside the scrolling panel column is the shared .stonetop-guide-split /
+   .stonetop-guide-main layout, grouped with the other rail dialogs (search
+   ".stonetop-wound-edit-dialog .stonetop-guide-split"). `.wd-main` stays on that column
+   as a JS handle only — scrollY and applyGuideRail's mainSelector. */
+
+/* Live name + status readout under the banner title, so the two fields that identify
+   the wound stay visible from the panels that don't hold them. */
+.stonetop .wound-dialog .wd-statline {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 0.1rem 0.45rem;
+	margin-top: 0.15rem;
+	min-width: 0;
+}
+
+.stonetop .wound-dialog .wd-summary-glyph {
+	font-size: 0.78rem;
+	color: #a8544c;
+}
+
+.stonetop .wound-dialog .wd-summary-name {
+	font-size: 0.82rem;
+	font-weight: 600;
+	color: var(--st-text);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.stonetop .wound-dialog .wd-summary-status {
+	font-size: 0.72rem;
 	font-style: italic;
-	color: var(--color-text-dark-secondary);
+	/* Always-dark ink (this dialog renders on the forced parchment regardless of the
+	   user's Foundry theme, so theme-following tokens would vanish in dark mode). */
+	color: var(--st-text-muted);
 }
 
-.stonetop-wound-plan-reqs .stonetop-wound-req-list {
+/* Panels are tab panes; only the active one shows (JS toggles `hidden`). */
+.stonetop .wound-dialog .wd-section {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+
+.stonetop .wound-dialog .wd-section[hidden] { display: none; }
+
+.stonetop .wound-dialog .wd-section-hint {
+	margin: 0;
+	font-size: 0.82rem;
+	font-style: italic;
+	line-height: 1.35;
+	opacity: 0.78;
+}
+
+.stonetop .wound-dialog .wd-field { display: flex; flex-direction: column; }
+
+.stonetop .wound-dialog .wd-label {
+	display: block;
+	font-family: var(--font-stonetop);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-size: 0.72rem;
+	opacity: 0.85;
+	margin-bottom: 0.3rem;
+}
+
+.stonetop .wound-dialog .wd-label em {
+	text-transform: none;
+	letter-spacing: 0;
+	opacity: 0.8;
+	font-size: 0.9em;
+}
+
+/* Sub-label under a control, explaining what the field feeds. */
+.stonetop .wound-dialog .wd-hint {
+	margin-top: 0.2rem;
+	font-size: 0.75rem;
+	font-style: italic;
+	line-height: 1.3;
+	opacity: 0.68;
+}
+
+.stonetop .wound-dialog input[type="text"],
+.stonetop .wound-dialog select { width: 100%; }
+
+.stonetop .wound-dialog .wd-check {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	cursor: pointer;
+}
+
+/* Infliction reminder on a brand-new wound (damage, and often a debility). */
+.stonetop .wound-dialog .wd-notice {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	padding: 0.5rem 0.65rem;
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	border-radius: 6px;
+	background: rgba(0, 0, 0, 0.035);
+	font-size: 0.8rem;
+	line-height: 1.35;
+}
+
+.stonetop .wound-dialog .wd-notice .fas { margin-top: 0.15rem; opacity: 0.7; }
+
+/* Status radio tiles — the monster worksheet's tile affordance, stacked as full-width
+   rows: three states with a sentence of rules context each read better as a short list
+   than as a ragged two-column grid in this narrow panel column. */
+.stonetop .wound-dialog .wd-tile-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+}
+
+.stonetop .wound-dialog .wd-tile {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 0.1rem 0.45rem;
+	padding: 0.35rem 0.55rem;
+	border: 1px solid var(--tc-rule-hard, #8f7f63);
+	border-radius: 6px;
+	cursor: pointer;
+	transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.stonetop .wound-dialog .wd-tile input { position: absolute; opacity: 0; pointer-events: none; }
+
+.stonetop .wound-dialog .wd-tile:has(input:checked) {
+	border-color: var(--st-btn-primary-border, #4f5b66);
+	background: color-mix(in srgb, var(--st-btn-primary-bg, slategrey) 14%, transparent);
+	box-shadow: inset 0 0 0 1px var(--st-btn-primary-border, #4f5b66);
+}
+
+.stonetop .wound-dialog .wd-tile-name { flex: 0 0 auto; font-weight: 700; font-size: 0.85rem; line-height: 1.25; }
+.stonetop .wound-dialog .wd-tile-hint { flex: 1 1 12rem; font-size: 0.73rem; line-height: 1.25; opacity: 0.72; }
+
+/* Make-a-Plan tick-box requirements (Book I p.530: write the requirements down with
+   tick boxes, then tick them off). */
+.stonetop .wound-dialog .wd-req-list {
 	list-style: none;
-	margin: 3px 0;
+	margin: 0 0 0.4rem;
 	padding: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
 }
 
-.stonetop-wound-req {
+.stonetop .wound-dialog .wd-req-list.is-empty::before {
+	content: attr(data-empty);
+	display: block;
+	padding: 0.6rem 0.7rem;
+	border: 1px dashed var(--tc-rule-hard, #8f7f63);
+	border-radius: 6px;
+	font-size: 0.82rem;
+	font-style: italic;
+	opacity: 0.62;
+}
+
+.stonetop .wound-dialog .wd-req {
 	display: flex;
 	align-items: center;
 	gap: 5px;
+	margin: 0;
 }
 
-.stonetop-wound-req > .checkbox {
+.stonetop .wound-dialog .wd-req > .checkbox {
 	flex: 0 0 auto;
 	margin: 0;
 }
 
-.stonetop-wound-req .req-text {
+.stonetop .wound-dialog .wd-req-text {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.stonetop-wound-req .req-remove {
+.stonetop .wound-dialog .wd-req-remove {
 	flex: 0 0 auto;
 	width: auto !important;
 	padding: 0 4px !important;
@@ -1679,18 +1841,17 @@ input.stonetop-name-field {
 	cursor: pointer;
 }
 
-.stonetop-wound-req .req-remove:hover { color: #7f342c; }
+.stonetop .wound-dialog .wd-req-remove:hover { color: #7f342c; }
 
-/* Matches the dashed-slate "Add" affordance used by the threat editor's list
-   rows (.threat-list-add) so add-a-row buttons read as one style across dialogs. */
-.stonetop-wound-req-add {
+/* Matches the dashed-slate "Add" affordance used by the threat editor's list rows
+   (.threat-list-add) so add-a-row buttons read as one style across dialogs. */
+.stonetop .wound-dialog .wd-req-add {
 	align-self: flex-start;
 	display: inline-flex;
 	align-items: center;
 	gap: 0.35rem;
 	width: auto !important;
-	margin-top: 0;
-	margin-bottom: 10px;
+	margin: 0;
 	padding: 0.25rem 0.6rem !important;
 	font-size: 0.82rem;
 	line-height: 1;
@@ -1698,6 +1859,16 @@ input.stonetop-name-field {
 	border: 1px dashed var(--st-btn-primary-border, #4f5b66);
 	border-radius: 5px;
 	cursor: pointer;
+}
+
+/* Footer — the row/border/padding come from the shared .stonetop-guide-nav; these two
+   groups keep Save/Cancel together at the left and Back/Next together at the right
+   (affirmative first in the DOM; wizard nav stays on the right). */
+.stonetop .wound-dialog .wd-footer-actions,
+.stonetop .wound-dialog .wd-footer-nav {
+	display: flex;
+	align-items: center;
+	gap: 10px;
 }
 
 /* Hide actor name from window title bar (name is shown in the sheet header instead) */
@@ -19196,7 +19367,9 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-expedition-dialog .stonetop-guide-split,
 .stonetop-introductions .stonetop-guide-split,
 .stonetop-arcanum-edit .stonetop-guide-split,
-.stonetop-arcana-inspire-dialog .stonetop-guide-split {
+.stonetop-arcana-inspire-dialog .stonetop-guide-split,
+.stonetop-wound-edit-dialog .stonetop-guide-split,
+.stonetop-custom-move-dialog .stonetop-guide-split {
 	display: flex;
 	flex: 1 1 auto;
 	min-height: 0;
@@ -19205,6 +19378,15 @@ th:has(> .stonetop-roll-table-btn) {
    of forcing the dialog wider. */
 .stonetop-expedition-dialog .stonetop-guide-main,
 .stonetop-introductions .stonetop-guide-split .stonetop-guide-main { min-width: 0; }
+/* The rail dialogs whose content column scrolls on its own (rather than the whole
+   dialog scrolling): same four declarations, so they share one rule. */
+.stonetop-wound-edit-dialog .stonetop-guide-main,
+.stonetop-custom-move-dialog .stonetop-guide-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	overflow-y: auto;
+}
 
 .stonetop-guide-toc {
 	flex: 0 0 auto;

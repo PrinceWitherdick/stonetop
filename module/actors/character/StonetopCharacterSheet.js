@@ -10,6 +10,8 @@ import {LoveLetterReadDialog} from "../../dialogs/LoveLetterReadDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
+import {WoundDialog} from "./dialogs/WoundDialog.js";
+import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CreateFollowerDialog} from "./dialogs/CreateFollowerDialog.js";
@@ -300,24 +302,6 @@ const EXPEDITION_MOVE_HANDLERS = {
 // Inventory slugs that hold "uses of supplies", in the order Recover depletes
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
-
-// Wound status → sheet presentation. Untreated wounds glow the bestiary red, treated
-// ones fade to a bandage, permanent ones lock. Labels feed the row tooltip.
-const _WOUND_STATUS_GLYPH = { problematic: "fa-droplet", stabilized: "fa-bandage", permanent: "fa-lock" };
-const _WOUND_STATUS_LABEL = {
-	problematic: "Problematic — untreated, still hindering",
-	stabilized:  "Stabilized — treated, but not yet healed",
-	permanent:   "Permanent — this one can't heal",
-};
-const _WOUND_STATUS_OPTIONS = [
-	{ value: "problematic", label: "Problematic (untreated)" },
-	{ value: "stabilized",  label: "Stabilized (treated, not healed)" },
-	{ value: "permanent",   label: "Permanent (can't heal)" },
-];
-const _WOUND_ORIGIN_OPTIONS = [
-	{ value: "wound",       label: "Wound" },
-	{ value: "deaths-door", label: "Death's-Door mark" },
-];
 
 function _addToLeadingNumber(value, delta) {
 	const match = String(value ?? "").match(/^(-?\d+)(.*)$/);
@@ -1199,8 +1183,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					text: w.text,
 					status: w.status,
 					isDeathsDoor: w.origin === "deaths-door",
-					statusLabel: _WOUND_STATUS_LABEL[w.status] ?? _WOUND_STATUS_LABEL.problematic,
-					glyph: _WOUND_STATUS_GLYPH[w.status] ?? _WOUND_STATUS_GLYPH.problematic,
+					statusLabel: WOUND_STATUS_LABEL[w.status] ?? WOUND_STATUS_LABEL.problematic,
+					glyph: WOUND_STATUS_GLYPH[w.status] ?? WOUND_STATUS_GLYPH.problematic,
 					tooltip: tip.join(" • ") || w.text || "",
 				};
 			};
@@ -5743,35 +5727,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			return [...names].sort((a, b) => a.localeCompare(b));
 		}
 
-		// Options for the "remind on" picker: none, all move rolls, then the moves by name.
-		// ("All move rolls" not "All rolls" — the echo only rides 2d6+stat move rolls, not
-		// damage/formula/Death's-Door rolls, so the label shouldn't overpromise.)
-		_woundReminderMoveOptions(selected = "", moveNames = []) {
-			const opts = [
-				{ value: "",  label: "— no reminder —" },
-				{ value: "*", label: "All move rolls" },
-				...moveNames.map(name => ({ value: name, label: name })),
-			];
-			// If the stored reminder targets a move that's since been renamed or unlearned,
-			// keep it as an explicit option so re-saving the wound doesn't silently drop the
-			// (drifted) binding — the dropdown would otherwise have no matching value.
-			if (selected && selected !== "*" && !moveNames.includes(selected)) {
-				opts.push({ value: selected, label: `${selected} (not a current move)` });
-			}
-			return opts.map(o =>
-				`<option value="${_esc(o.value)}"${o.value === selected ? " selected" : ""}>${_esc(o.label)}</option>`,
-			).join("");
-		}
-
 		async _onWoundAdd() {
 			const snapshot = await this._stonetopCharacter.buildSnapshot();
-			this._openWoundDialog({ isNew: true, moveNames: this._woundReminderMoveNames(snapshot) });
+			return this._openWoundDialog({ isNew: true, moveNames: this._woundReminderMoveNames(snapshot) });
 		}
 
 		async _onWoundEdit(id) {
 			if (!id) return;
 			const snapshot = await this._stonetopCharacter.buildSnapshot();
-			this._openWoundDialog({ isNew: false, wound: this._woundRecord(id), moveNames: this._woundReminderMoveNames(snapshot) });
+			return this._openWoundDialog({ isNew: false, wound: this._woundRecord(id), moveNames: this._woundReminderMoveNames(snapshot) });
 		}
 
 		// Recover, applied to one wound: "say how you tend to it," then stabilize it —
@@ -5826,103 +5790,18 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
-		// Shared add/edit form. Status/healed are settable here as a manual override; the
-		// normal path is move-gated (Recover stabilizes, Convalesce heals → scar). The
-		// "Healed — move to Scars" toggle is the manual heal path (the Remove dialog points
-		// here to keep a wound's fiction as a scar). planNote is editable here too, so a
-		// permanent injury's adaptation plan and its interim lasting tag/reminder can be
-		// captured in one place.
-		_openWoundDialog({ isNew, wound = null, moveNames = [] }) {
-			const w    = wound ?? {};
-			const statusOptions = _WOUND_STATUS_OPTIONS.map(o =>
-				`<option value="${o.value}"${(w.status ?? "problematic") === o.value ? " selected" : ""}>${_esc(o.label)}</option>`,
-			).join("");
-			const originOptions = _WOUND_ORIGIN_OPTIONS.map(o =>
-				`<option value="${o.value}"${(w.origin ?? "wound") === o.value ? " selected" : ""}>${_esc(o.label)}</option>`,
-			).join("");
-			// One Make-a-Plan tick-box row (Book I p.530: "write the requirements down with
-			// tick boxes… tick the boxes off"): a done checkbox + the requirement text + remove.
-			const reqRow = (text = "", done = false) => `<li class="stonetop-wound-req">
-				<label class="checkbox"><input type="checkbox" class="stonetop-check req-done"${done ? " checked" : ""}></label>
-				<input type="text" class="req-text" value="${_esc(text)}" placeholder="e.g. months of practice">
-				<button type="button" class="req-remove" data-tooltip="Remove"><i class="fas fa-xmark"></i></button>
-			</li>`;
-			const content = `<form class="stonetop-custom-move-form stonetop-wound-dialog-form" autocomplete="off">
-				${isNew ? `<p class="stonetop-homestead-note">A problematic wound always involves taking damage, and often a marked debility — apply those on the sheet as the fiction warrants.</p>` : ""}
-				<div class="stonetop-custom-move-field">
-					<label>Wound</label>
-					<input type="text" name="text" value="${_esc(w.text ?? "")}" placeholder="e.g. Twisted ankle — can't bear weight">
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Status</label>
-					<select name="status">${statusOptions}</select>
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Origin</label>
-					<select name="origin">${originOptions}</select>
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Note / requirement</label>
-					<input type="text" name="requirementNote" value="${_esc(w.requirementNote ?? "")}" placeholder="What's needed to treat it (optional)">
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Lasting tag</label>
-					<input type="text" name="mechanicalTag" value="${_esc(w.mechanicalTag ?? "")}" placeholder="e.g. Let Fly at disadvantage until practiced">
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Remind on</label>
-					<select name="reminderMove">${this._woundReminderMoveOptions(w.reminderMove ?? "", moveNames)}</select>
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Make-a-Plan goal</label>
-					<input type="text" name="planNote" value="${_esc(w.planNote ?? "")}" placeholder="Adaptation goal for a permanent injury (optional)">
-				</div>
-				<div class="stonetop-custom-move-field stonetop-wound-plan-reqs">
-					<label>Plan requirements <span class="stonetop-wound-plan-hint">tick off as you adapt</span></label>
-					<ul class="stonetop-wound-req-list">${(w.planRequirements ?? []).map(r => reqRow(r.text, r.done)).join("")}</ul>
-					<button type="button" class="stonetop-wound-req-add"><i class="fas fa-plus"></i> Add requirement</button>
-				</div>
-				<div class="stonetop-custom-move-check">
-					<label><input type="checkbox" class="stonetop-check" name="healed"${w.healed ? " checked" : ""}> Healed, move to Scars</label>
-				</div>
-			</form>`;
-
-			const apply = async (html) => {
-				const val = (name) => html.find(`[name="${name}"]`).val();
-				const data = {
-					text:            (val("text") ?? "").trim(),
-					status:          val("status"),
-					origin:          val("origin"),
-					requirementNote: (val("requirementNote") ?? "").trim(),
-					mechanicalTag:   (val("mechanicalTag") ?? "").trim(),
-					reminderMove:    val("reminderMove") ?? "",
-					planNote:        (val("planNote") ?? "").trim(),
-					planRequirements: html.find(".stonetop-wound-req").toArray().map(li => ({
-						text: (li.querySelector(".req-text")?.value ?? "").trim(),
-						done: !!li.querySelector(".req-done")?.checked,
-					})).filter(r => r.text),
-					healed:          html.find('[name="healed"]').is(":checked"),
-				};
-				if (isNew) await this._stonetopCharacter.addWound(data);
-				else if (w.id) await this._stonetopCharacter.updateWound(w.id, data);
-				this.render(false);
-			};
-
-			new Dialog({
-				title: isNew ? "Add Wound" : "Edit Wound",
-				content,
-				buttons: {
-					save:   { label: isNew ? "Add" : "Save", callback: apply },
-					cancel: { label: "Cancel" },
-				},
-				default: "save",
-				render: (html) => {
-					bringDialogToFront(html);
-					// Dynamic add/remove of plan-requirement rows; collected from the live DOM on save.
-					html.find(".stonetop-wound-req-add").on("click", () => html.find(".stonetop-wound-req-list").append(reqRow()));
-					html.on("click", ".req-remove", (ev) => ev.currentTarget.closest(".stonetop-wound-req")?.remove());
-				},
-			}, { width: 460, classes: ["dialog", "stonetop", "stonetop-wound-dialog"] }).render(true);
+		// Shared add/edit form — the left-rail wound editor (WoundDialog), which groups the
+		// record's eight fields into four panels: the wound, its treatment, its lasting
+		// effects, and the Make-a-Plan tick boxes. Status/healed are settable there as a
+		// manual override; the normal path is move-gated (Recover stabilizes, Convalesce
+		// heals → scar). The "Healed, move to Scars" toggle is the manual heal path (the
+		// Remove dialog points here to keep a wound's fiction as a scar).
+		async _openWoundDialog({ isNew, wound = null, moveNames = [] }) {
+			const data = await new WoundDialog({ isNew, wound, moveNames }).promise();
+			if (!data) return;
+			if (isNew) await this._stonetopCharacter.addWound(data);
+			else if (wound?.id) await this._stonetopCharacter.updateWound(wound.id, data);
+			this.render(false);
 		}
 
 		// Stamp the character with where the player is in creation, so the GM's
