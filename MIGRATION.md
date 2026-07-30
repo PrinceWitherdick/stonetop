@@ -105,7 +105,10 @@ Get in touch and we will do it together. The supported path is the export/edit/i
 route, which works on every tier regardless of Game Manager:
 
 1. Everyone else disconnects. You are the only person logged in.
-2. Install the new system on your Forge account with this manifest URL https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json.
+2. Install the new system on your Forge account with this manifest URL
+   ```
+   https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json
+   ```
 3. Launch the world. The window titled "Stonetop is changing its ID" opens and tells you it cannot run here.  That's good, close the world.
 4. From the Game Tools → Export World and save the zip locally.
 5. Unzip that folder, go inside that folder and you should see a "world.json" file.
