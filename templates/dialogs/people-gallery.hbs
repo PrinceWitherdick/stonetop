@@ -1,14 +1,37 @@
+{{!-- ONE top-level element, deliberately: AppV1 hands activateListeners a jQuery of the
+      template's root nodes, so `html[0]` is only the FIRST of them. With filters, body and
+      footer as siblings, every querySelector off that root missed the grid and the footer.
+      Keep everything inside this wrapper. --}}
+<div class="stonetop-people-root">
+{{#if showFilters}}
+<div class="stonetop-people-filters">
+	<div class="stonetop-people-filtergroup" role="group" aria-label="Filter by presentation">
+		<button type="button" class="stonetop-people-chip is-on" data-filter="presenting" data-value="any">All <span class="stonetop-people-count">{{counts.all}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="masculine">Masculine <span class="stonetop-people-count">{{counts.masculine}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="feminine">Feminine <span class="stonetop-people-count">{{counts.feminine}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="unspecified" title="Portraits left untagged — a bucket of their own, not a gap">Unspecified <span class="stonetop-people-count">{{counts.unspecified}}</span></button>
+	</div>
+	{{#if hasKids}}
+	<div class="stonetop-people-filtergroup" role="group" aria-label="Filter by age">
+		<button type="button" class="stonetop-people-chip is-on" data-filter="kid" data-value="any">All ages</button>
+		<button type="button" class="stonetop-people-chip" data-filter="kid" data-value="kids">Children <span class="stonetop-people-count">{{counts.kid}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="kid" data-value="adults">Not children <span class="stonetop-people-count">{{counts.notKid}}</span></button>
+	</div>
+	{{/if}}
+</div>
+{{/if}}
 <div class="stonetop-people-gallery-body">
 	{{#if people}}
 	<p class="stonetop-people-hint">Pick a portrait for this person.</p>
 	<div class="stonetop-people-grid">
 		{{#each people}}
-		<button type="button" class="stonetop-people-pick{{#if selected}} is-selected{{/if}}" data-src="{{src}}" title="{{name}}">
+		<button type="button" class="stonetop-people-pick{{#if selected}} is-selected{{/if}}" data-src="{{src}}" data-presenting="{{presenting}}" data-kid="{{#if kid}}1{{else}}0{{/if}}" title="{{name}}">
 			<img src="{{src}}" alt="{{name}}" loading="lazy">
 			<span class="stonetop-people-label">{{name}}</span>
 		</button>
 		{{/each}}
 	</div>
+	<p class="stonetop-people-nomatch" hidden="hidden">No portraits match this filter.</p>
 	{{else}}
 	<p class="stonetop-people-empty">
 		No <strong>People of Stonetop</strong> portraits are available yet.
@@ -21,3 +44,4 @@
 	<button type="button" class="stonetop-people-clear"><i class="fas fa-rotate-left"></i> Use default</button>
 	<button type="button" class="stonetop-people-cancel">Cancel</button>
 </footer>
+</div>

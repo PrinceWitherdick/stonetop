@@ -7,6 +7,8 @@ import { seedBestiaryActorsOnce, collapseBestiaryActorSubfoldersOnce } from "./S
 import { seedTreasureItemsOnce } from "./SeedItems.js";
 import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, runImportBookArtMacro } from "../book2-art/macro.js";
+import { browsePeopleArt, plannedCropRebuilds } from "../book2-art/rebuild-crops.js";
+import { book2ArtRoot } from "../book2-art/art-root.js";
 import { stonetopChatCard } from "../utils/chat.js";
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
@@ -293,6 +295,13 @@ export async function onReady() {
 	if (game.user.isGM) {
 		await _postStartupWelcomeMessageOnce();
 		await _postBook2ArtReminderOnce();
+		// Background, like the seeds above. This one has to BROWSE the art folder before it
+		// can tell there is nothing to offer, and it deliberately leaves its flag unset when
+		// the plan is empty so a later import still gets the nudge — so for a GM who never
+		// imports, an awaited call stalls the ready sequence on a server round-trip whose
+		// answer is always "nothing", on every single load. Nothing below waits on it.
+		_offerPeopleCropRebuildOnce()
+			.catch(err => console.error("Stonetop | portrait rebuild offer failed:", err));
 		await remindDestinedOmenRoll();
 	}
 
@@ -889,6 +898,48 @@ function _buildBook2ArtReminderContent() {
 		<div class="row stonetop-art-reminder__actions">
 			<button type="button" class="stonetop-import-art-open">
 				<i class="fas fa-images"></i> Import Book Art
+			</button>
+		</div>`,
+		"stonetop-art-reminder-card");
+}
+
+// -- REBUILD DETAIL PORTRAITS FROM ART ALREADY IMPORTED --------
+// Detail portraits (crops of a multi-figure illustration) arrived after the first release that
+// shipped whole-illustration People art, so a GM who already imported holds every PARENT on disk
+// and none of the details. Those can be cut from the parents locally — no PDF, no re-import — so
+// offer it once rather than making them hunt for their books again. See book2-art/rebuild-crops.js.
+//
+// Only speaks when there is something to do: a GM who never imported, or who has every detail
+// already, is never bothered, and the flag is only set once the offer has actually been made.
+async function _offerPeopleCropRebuildOnce() {
+	if (getSetting("peopleCropRebuildOffered")) return;
+	const root = book2ArtRoot();
+	const plan = plannedCropRebuilds(await browsePeopleArt(root), root);
+	if (!plan.length) return; // nothing rebuildable — say nothing, and check again next load
+	if (!globalThis.ChatMessage?.create) return; // retry next load if chat isn't ready
+	await ChatMessage.create({
+		content: _buildPeopleCropRebuildContent(plan.length),
+		whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
+		speaker: { alias: "Stonetop" },
+	});
+	await setSetting("peopleCropRebuildOffered", true);
+}
+
+function _buildPeopleCropRebuildContent(count) {
+	return stonetopChatCard(
+		"Rebuild Portrait Details",
+		`<div class="stonetop-roll-card-description">
+			<p>The <strong>People of Stonetop</strong> gallery now offers individual portraits cut from the
+			group illustrations &mdash; one face per person, instead of a whole crowd scene. You already have
+			the source pictures, so <strong>${count}</strong> of these can be made right here from the art
+			you imported before. <strong>You do not need your PDFs, and you do not need to re-import.</strong></p>
+			<p>They are cut from pictures already on your disk, so they come out a little smaller than a fresh
+			import would give. If you would rather have them at full size, re-run the
+			<strong>Import Book Art</strong> macro instead &mdash; either way, nothing already on disk is deleted.</p>
+		</div>
+		<div class="row stonetop-art-reminder__actions">
+			<button type="button" class="stonetop-rebuild-crops-run">
+				<i class="fas fa-crop-simple"></i> Rebuild ${count} portraits
 			</button>
 		</div>`,
 		"stonetop-art-reminder-card");

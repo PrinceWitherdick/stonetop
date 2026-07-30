@@ -5,6 +5,7 @@ import { bestiaryDescriptionWithArt, codexFieldWithArt, locationSectionsWithArt,
 import { managedHash } from "../hooks/journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { book2ArtRoot, book2ArtSrcWith } from "./art-root.js";
+import { browseArtDirs } from "./browse.js";
 import { STEADING_ACTOR_TYPE, isSteadingPlaceholderImg } from "../actors/steading/steading-portrait.js";
 import { isBestiaryPlaceholderImg } from "../bestiary/monster-portrait.js";
 import { isOurCompendiumRef } from "../migration/compat.js";
@@ -53,26 +54,10 @@ const JRN_SOURCE_PREFIX = `Compendium.${JRN_PACK}.`;
 
 const jrnSource = (entryId) => `${JRN_SOURCE_PREFIX}JournalEntry.${entryId}`;
 
-// Fully-qualified paths of the durable art currently on disk. A missing directory
-// just means nothing to apply from there (the GM hasn't imported yet).
-async function browseDurableArt(root) {
-	const FP = foundry?.applications?.apps?.FilePicker ?? FilePicker;
-	const present = new Set();
-	// The dirs are independent; browse them in parallel. A rejected browse means the
-	// directory doesn't exist yet (the GM hasn't imported) -> nothing on disk from there.
-	const results = await Promise.all(["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures", "assets/people", "assets/steading"]
-		.map(dir => FP.browse("data", `${root}/${dir}`).catch(() => null)));
-	for (const res of results) {
-		if (!res) continue;
-		// A malformed %-escape in a stray filename must not reject the whole art pass — keep
-		// the raw name on decode failure so the version still gets stamped this load.
-		for (const f of res.files) {
-			try { present.add(decodeURIComponent(f)); }
-			catch { present.add(f); }
-		}
-	}
-	return present;
-}
+// Fully-qualified paths of the durable art currently on disk, across every directory the
+// importer writes. A missing directory just means nothing to apply from there (the GM
+// hasn't imported yet). The walk itself lives in browse.js, shared with the crop rebuild.
+const browseDurableArt = (root) => browseArtDirs(root);
 
 // Whether the GM has already imported book art: any durable illustration present on disk
 // in the art folder. This is the very signal reapplyBook2Art uses to decide there is

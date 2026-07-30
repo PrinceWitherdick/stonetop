@@ -41,14 +41,6 @@ import {CreateHazardDialog} from "../../hazards/create-hazard-dialog.js";
 import {SETTLEMENTS} from "../../data/settlements.js";
 import {relationshipRow, wireRelationshipTable} from "../../utils/relationship-hearts.js";
 
-// The "People of Stonetop" portrait gallery (PeopleGalleryDialog) is not ready to ship yet,
-// even though the rest of the book-art importer is now released. While this is false, Edit
-// Photo on a steading member falls straight through to the plain FilePicker it used before
-// the gallery existed, so setting a resident/neighbor portrait still works. Flip to true to
-// re-enable the gallery once it's ready.
-const PEOPLE_GALLERY_ENABLED = false;
-
-
 function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
 }
@@ -1403,13 +1395,6 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (!FilePickerClass) return;
 				new FilePickerClass({ type: "image", current, callback: applyPath }).render(true);
 			};
-			// The "People of Stonetop" gallery isn't ready to ship yet (PEOPLE_GALLERY_ENABLED):
-			// until it is, Edit Photo falls straight through to the plain FilePicker, exactly as
-			// it did before the gallery existed, so setting a portrait still works.
-			if (!PEOPLE_GALLERY_ENABLED) {
-				openFilePicker();
-				return;
-			}
 			// Only a user who can browse the data files gets the raw FilePicker fallback; players
 			// pick from the broadcast gallery, which needs no file access.
 			const canBrowse = !!(game.user?.isGM || game.user?.can?.("FILES_BROWSE"));

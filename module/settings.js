@@ -284,6 +284,17 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the one-time "these detail portraits can be rebuilt from art you already have"
+	// offer has been made (hooks/Ready.js _offerPeopleCropRebuildOnce). World-scoped: it is a
+	// property of this world's art folder, not of whoever happens to be logged in.
+	game.settings.register("stonetop-pwd", "peopleCropRebuildOffered", {
+		name: "People Detail-Portrait Rebuild Offered",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// The durable folder (a top-level data path, OUTSIDE the system folder) the "Import
 	// Book Art" macro writes extracted illustrations to. Living outside systems/stonetop-pwd
 	// is what keeps the art across a system update or reinstall; the runtime re-apply

@@ -24,7 +24,7 @@ import { HazardPageModel } from "./module/journal/HazardPageModel.js";
 import { createStonetopHazardPageSheetClass } from "./module/journal/StonetopHazardPageSheet.js";
 import { ThreatBoard } from "./module/threats/threat-board.js";
 import { onReady } from "./module/hooks/Ready.js";
-import { handleImportedJournalArt } from "./module/book2-art/reapply.js";
+import { handleImportedJournalArt, reapplyBook2Art } from "./module/book2-art/reapply.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
@@ -565,6 +565,51 @@ function _chatWireBook2ArtReminder(message, html) {
 	btn.addEventListener("click", () => game.stonetop?.importBookArt?.());
 }
 
+// -- REBUILD DETAIL PORTRAITS CARD -----------------------------
+// The one-time offer to cut the new People detail portraits out of art the GM already imported
+// (hooks/Ready.js _offerPeopleCropRebuildOnce). Runs in the browser off files already on disk,
+// so it needs no PDF — but it does write files, hence GM-only. Disable the button while it runs
+// so an impatient second click can't start a duplicate pass over the same 140-odd images.
+function _chatWireRebuildCrops(message, html) {
+	const btn = html.querySelector(".stonetop-rebuild-crops-run");
+	if (!btn) return;
+	if (!game.user.isGM) { btn.style.display = "none"; return; }
+	btn.addEventListener("click", async () => {
+		if (btn.disabled) return;
+		btn.disabled = true;
+		const label = btn.innerHTML;
+		btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rebuilding…';
+		try {
+			const { rebuildPeopleCrops } = await import("./module/book2-art/rebuild-crops.js");
+			const res = await rebuildPeopleCrops({
+				onProgress: (done, total) => {
+					btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Rebuilding… ${done}/${total}`;
+				},
+			});
+			// The portrait index is rebuilt from what is on disk, so it has to be refreshed
+			// before the new details show up in the steading gallery.
+			await reapplyBook2Art();
+			if (res.failed) {
+				// A partial run leaves work undone, so the card has to stay usable: pressing it
+				// again re-plans from disk, which now skips everything just written and retries
+				// only the parents that failed. Latching it closed on "Rebuilt N" would make a
+				// reload the only way back to the remainder.
+				ui.notifications?.warn?.(`Rebuilt ${res.written} portraits; ${res.failed} could not be read (see the console).`);
+				btn.disabled = false;
+				btn.innerHTML = `<i class="fas fa-rotate-right"></i> Retry ${res.failed}`;
+			} else {
+				ui.notifications?.info?.(`Rebuilt ${res.written} portraits from art already on disk.`);
+				btn.innerHTML = `<i class="fas fa-check"></i> Rebuilt ${res.written}`;
+			}
+		} catch (err) {
+			console.error("Stonetop | portrait rebuild failed:", err);
+			ui.notifications?.error?.("Portrait rebuild failed — see the console.");
+			btn.disabled = false;
+			btn.innerHTML = label;
+		}
+	});
+}
+
 // -- MOVE DESCRIPTION TOGGLE -----------------------------------
 function _chatWireDescToggle(message, html) {
 	const toggle = html.querySelector(".stonetop-roll-card-desc-toggle");
@@ -786,6 +831,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatProseTreatment(message, html);
 	_chatWireStartupWelcome(message, html);
 	_chatWireBook2ArtReminder(message, html);
+	_chatWireRebuildCrops(message, html);
 	_chatWireDescToggle(message, html);
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);

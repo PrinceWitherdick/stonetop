@@ -2055,14 +2055,10 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "out": "assets/people/b1-p135-x526.webp"
   },
   {
-   "slug": "b1-p161-x611",
-   "name": "Book I p.320",
-   "out": "assets/people/b1-p161-x611.webp"
-  },
-  {
    "slug": "b1-p156-x594",
    "name": "Book I p.311",
-   "out": "assets/people/b1-p156-x594.webp"
+   "out": "assets/people/b1-p156-x594.webp",
+   "presenting": "feminine"
   },
   {
    "slug": "b1-p166-x630",
@@ -2070,24 +2066,10 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "out": "assets/people/b1-p166-x630.webp"
   },
   {
-   "slug": "b1-p134-x521",
-   "name": "Book I p.267",
-   "out": "assets/people/b1-p134-x521.webp"
-  },
-  {
-   "slug": "b1-p124-x490",
-   "name": "Book I p.247",
-   "out": "assets/people/b1-p124-x490.webp"
-  },
-  {
-   "slug": "b1-p268-x990",
-   "name": "Book I p.535",
-   "out": "assets/people/b1-p268-x990.webp"
-  },
-  {
    "slug": "b1-p267-x987",
    "name": "Book I p.533",
-   "out": "assets/people/b1-p267-x987.webp"
+   "out": "assets/people/b1-p267-x987.webp",
+   "presenting": "feminine"
   },
   {
    "slug": "b1-p239-x892",
@@ -2097,7 +2079,8 @@ export const BOOK2_ART_APPLY_MANIFEST = {
   {
    "slug": "b1-p270-x998",
    "name": "Book I p.539",
-   "out": "assets/people/b1-p270-x998.webp"
+   "out": "assets/people/b1-p270-x998.webp",
+   "presenting": "feminine"
   },
   {
    "slug": "b2-p031-x121",
@@ -2107,57 +2090,20 @@ export const BOOK2_ART_APPLY_MANIFEST = {
   {
    "slug": "b1-p123-x486",
    "name": "Book I p.244",
-   "out": "assets/people/b1-p123-x486.webp"
-  },
-  {
-   "slug": "b1-p032-x134",
-   "name": "Book I p.63",
-   "out": "assets/people/b1-p032-x134.webp"
-  },
-  {
-   "slug": "b1-p209-x792",
-   "name": "Book I p.416",
-   "out": "assets/people/b1-p209-x792.webp"
+   "out": "assets/people/b1-p123-x486.webp",
+   "presenting": "feminine"
   },
   {
    "slug": "b1-p119-x472",
    "name": "Book I p.237",
-   "out": "assets/people/b1-p119-x472.webp"
-  },
-  {
-   "slug": "b1-p275-x1013",
-   "name": "Book I p.549",
-   "out": "assets/people/b1-p275-x1013.webp"
-  },
-  {
-   "slug": "b1-p192-x723",
-   "name": "Book I p.383",
-   "out": "assets/people/b1-p192-x723.webp"
-  },
-  {
-   "slug": "b1-p211-x800",
-   "name": "Book I p.421",
-   "out": "assets/people/b1-p211-x800.webp"
-  },
-  {
-   "slug": "b1-p230-x864",
-   "name": "Book I p.459",
-   "out": "assets/people/b1-p230-x864.webp"
-  },
-  {
-   "slug": "b1-p120-x475",
-   "name": "Book I p.238",
-   "out": "assets/people/b1-p120-x475.webp"
-  },
-  {
-   "slug": "b2-p020-x76",
-   "name": "Book II p.38",
-   "out": "assets/people/b2-p020-x76.webp"
+   "out": "assets/people/b1-p119-x472.webp",
+   "presenting": "feminine"
   },
   {
    "slug": "b1-p103-x420",
    "name": "Book I p.204",
-   "out": "assets/people/b1-p103-x420.webp"
+   "out": "assets/people/b1-p103-x420.webp",
+   "presenting": "feminine"
   },
   {
    "slug": "b1-p039-x161",
@@ -2165,219 +2111,1672 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "out": "assets/people/b1-p039-x161.webp"
   },
   {
-   "slug": "b1-p154-x587",
-   "name": "Book I p.307",
-   "out": "assets/people/b1-p154-x587.webp"
-  },
-  {
-   "slug": "b1-p225-x847",
-   "name": "Book I p.449",
-   "out": "assets/people/b1-p225-x847.webp"
-  },
-  {
-   "slug": "b1-p088-x364",
-   "name": "Book I p.174",
-   "out": "assets/people/b1-p088-x364.webp"
-  },
-  {
-   "slug": "b1-p294-x1074",
-   "name": "Book I p.586",
-   "out": "assets/people/b1-p294-x1074.webp"
-  },
-  {
-   "slug": "b1-p297-x1085",
-   "name": "Book I p.593",
-   "out": "assets/people/b1-p297-x1085.webp"
-  },
-  {
-   "slug": "b1-p090-x372",
-   "name": "Book I p.178",
-   "out": "assets/people/b1-p090-x372.webp"
-  },
-  {
-   "slug": "b1-p029-x124",
-   "name": "Book I p.57",
-   "out": "assets/people/b1-p029-x124.webp"
-  },
-  {
-   "slug": "b1-p212-x803",
-   "name": "Book I p.422",
-   "out": "assets/people/b1-p212-x803.webp"
-  },
-  {
-   "slug": "b1-p095-x391",
-   "name": "Book I p.188",
-   "out": "assets/people/b1-p095-x391.webp"
-  },
-  {
-   "slug": "b1-p114-x454",
-   "name": "Book I p.227",
-   "out": "assets/people/b1-p114-x454.webp"
-  },
-  {
-   "slug": "b1-p261-x969",
-   "name": "Book I p.520",
-   "out": "assets/people/b1-p261-x969.webp"
-  },
-  {
-   "slug": "b1-p100-x411",
-   "name": "Book I p.199",
-   "out": "assets/people/b1-p100-x411.webp"
-  },
-  {
-   "slug": "b1-p270-x996",
-   "name": "Book I p.538",
-   "out": "assets/people/b1-p270-x996.webp"
-  },
-  {
-   "slug": "b1-p041-x169",
-   "name": "Book I p.80",
-   "out": "assets/people/b1-p041-x169.webp"
-  },
-  {
-   "slug": "b1-p019-x88",
-   "name": "Book I p.36",
-   "out": "assets/people/b1-p019-x88.webp"
-  },
-  {
-   "slug": "b2-p135-x539",
-   "name": "Book II p.269",
-   "out": "assets/people/b2-p135-x539.webp"
-  },
-  {
-   "slug": "b1-p107-x435",
-   "name": "Book I p.212",
-   "out": "assets/people/b1-p107-x435.webp"
-  },
-  {
-   "slug": "b1-p007-x32",
-   "name": "Book I p.12",
-   "out": "assets/people/b1-p007-x32.webp"
-  },
-  {
-   "slug": "b1-p150-x573",
-   "name": "Book I p.299",
-   "out": "assets/people/b1-p150-x573.webp"
-  },
-  {
-   "slug": "b1-p137-x533",
-   "name": "Book I p.272",
-   "out": "assets/people/b1-p137-x533.webp"
-  },
-  {
-   "slug": "b1-p092-x380",
-   "name": "Book I p.183",
-   "out": "assets/people/b1-p092-x380.webp"
-  },
-  {
    "slug": "b1-p047-x193",
    "name": "Book I p.92",
    "out": "assets/people/b1-p047-x193.webp"
   },
   {
-   "slug": "b1-p043-x179",
-   "name": "Book I p.85",
-   "out": "assets/people/b1-p043-x179.webp"
+   "slug": "b1-p007-x32-c750-387-1000-1000",
+   "name": "Book I p.12 (detail)",
+   "out": "assets/people/b1-p007-x32-c750-387-1000-1000.webp",
+   "crop": [
+    0.75,
+    0.387,
+    1,
+    1
+   ]
   },
   {
-   "slug": "b1-p040-x165",
-   "name": "Book I p.79",
-   "out": "assets/people/b1-p040-x165.webp"
+   "slug": "b1-p007-x32-c712-116-869-697",
+   "name": "Book I p.12 (detail)",
+   "out": "assets/people/b1-p007-x32-c712-116-869-697.webp",
+   "crop": [
+    0.712,
+    0.116,
+    0.869,
+    0.697
+   ],
+   "presenting": "masculine"
   },
   {
-   "slug": "b1-p036-x150",
-   "name": "Book I p.71",
-   "out": "assets/people/b1-p036-x150.webp"
+   "slug": "b1-p007-x32-c548-002-719-490",
+   "name": "Book I p.12 (detail)",
+   "out": "assets/people/b1-p007-x32-c548-002-719-490.webp",
+   "crop": [
+    0.548,
+    0.002,
+    0.719,
+    0.49
+   ],
+   "presenting": "feminine"
   },
   {
-   "slug": "b1-p035-x145",
-   "name": "Book I p.68",
-   "out": "assets/people/b1-p035-x145.webp"
+   "slug": "b1-p007-x32-c335-048-492-452",
+   "name": "Book I p.12 (detail)",
+   "out": "assets/people/b1-p007-x32-c335-048-492-452.webp",
+   "crop": [
+    0.335,
+    0.048,
+    0.492,
+    0.452
+   ],
+   "presenting": "feminine"
   },
   {
-   "slug": "b1-p195-x731",
-   "name": "Book I p.389",
-   "out": "assets/people/b1-p195-x731.webp"
+   "slug": "b1-p007-x32-c179-000-329-532",
+   "name": "Book I p.12 (detail)",
+   "out": "assets/people/b1-p007-x32-c179-000-329-532.webp",
+   "crop": [
+    0.179,
+    0,
+    0.329,
+    0.532
+   ],
+   "presenting": "masculine"
   },
   {
-   "slug": "b1-p174-x658",
-   "name": "Book I p.347",
-   "out": "assets/people/b1-p174-x658.webp"
+   "slug": "b1-p007-x32-c000-052-171-552",
+   "name": "Book I p.12 (detail)",
+   "out": "assets/people/b1-p007-x32-c000-052-171-552.webp",
+   "crop": [
+    0,
+    0.052,
+    0.171,
+    0.552
+   ],
+   "presenting": "masculine"
   },
   {
-   "slug": "b1-p169-x640",
-   "name": "Book I p.336",
-   "out": "assets/people/b1-p169-x640.webp"
+   "slug": "b1-p007-x32-c010-318-210-997",
+   "name": "Book I p.12 (detail)",
+   "out": "assets/people/b1-p007-x32-c010-318-210-997.webp",
+   "crop": [
+    0.01,
+    0.318,
+    0.21,
+    0.997
+   ]
   },
   {
-   "slug": "b1-p216-x816",
-   "name": "Book I p.431",
-   "out": "assets/people/b1-p216-x816.webp"
+   "slug": "b1-p007-x32-c169-470-423-1000",
+   "name": "Book I p.12 (detail)",
+   "out": "assets/people/b1-p007-x32-c169-470-423-1000.webp",
+   "crop": [
+    0.169,
+    0.47,
+    0.423,
+    1
+   ],
+   "presenting": "masculine"
   },
   {
-   "slug": "b1-p208-x784",
-   "name": "Book I p.415",
-   "out": "assets/people/b1-p208-x784.webp"
+   "slug": "b1-p007-x32-c392-463-775-1000",
+   "name": "Book I p.12 (detail)",
+   "out": "assets/people/b1-p007-x32-c392-463-775-1000.webp",
+   "crop": [
+    0.392,
+    0.463,
+    0.775,
+    1
+   ],
+   "presenting": "masculine"
   },
   {
-   "slug": "b1-p217-x820",
-   "name": "Book I p.432",
-   "out": "assets/people/b1-p217-x820.webp"
+   "slug": "b1-p019-x88-c000-337-348-1000",
+   "name": "Book I p.36 (detail)",
+   "out": "assets/people/b1-p019-x88-c000-337-348-1000.webp",
+   "crop": [
+    0,
+    0.337,
+    0.348,
+    1
+   ],
+   "presenting": "masculine",
+   "kid": true
   },
   {
-   "slug": "b1-p241-x899",
-   "name": "Book I p.481",
-   "out": "assets/people/b1-p241-x899.webp"
+   "slug": "b1-p019-x88-c165-010-450-663",
+   "name": "Book I p.36 (detail)",
+   "out": "assets/people/b1-p019-x88-c165-010-450-663.webp",
+   "crop": [
+    0.165,
+    0.01,
+    0.45,
+    0.663
+   ],
+   "presenting": "feminine",
+   "kid": true
   },
   {
-   "slug": "b1-p279-x1026",
-   "name": "Book I p.557",
-   "out": "assets/people/b1-p279-x1026.webp"
+   "slug": "b1-p019-x88-c442-003-690-515",
+   "name": "Book I p.36 (detail)",
+   "out": "assets/people/b1-p019-x88-c442-003-690-515.webp",
+   "crop": [
+    0.442,
+    0.003,
+    0.69,
+    0.515
+   ],
+   "presenting": "feminine",
+   "kid": true
   },
   {
-   "slug": "b1-p042-x173",
-   "name": "Book I p.82",
-   "out": "assets/people/b1-p042-x173.webp"
+   "slug": "b1-p019-x88-c631-000-940-633",
+   "name": "Book I p.36 (detail)",
+   "out": "assets/people/b1-p019-x88-c631-000-940-633.webp",
+   "crop": [
+    0.631,
+    0,
+    0.94,
+    0.633
+   ],
+   "kid": true
   },
   {
-   "slug": "b1-p204-x772",
-   "name": "Book I p.407",
-   "out": "assets/people/b1-p204-x772.webp"
+   "slug": "b1-p019-x88-c502-451-1000-1000",
+   "name": "Book I p.36 (detail)",
+   "out": "assets/people/b1-p019-x88-c502-451-1000-1000.webp",
+   "crop": [
+    0.502,
+    0.451,
+    1,
+    1
+   ],
+   "presenting": "masculine",
+   "kid": true
   },
   {
-   "slug": "b1-p089-x368",
-   "name": "Book I p.177",
-   "out": "assets/people/b1-p089-x368.webp"
+   "slug": "b1-p029-x124-c000-035-489-1000",
+   "name": "Book I p.57 (detail)",
+   "out": "assets/people/b1-p029-x124-c000-035-489-1000.webp",
+   "crop": [
+    0,
+    0.035,
+    0.489,
+    1
+   ],
+   "presenting": "feminine"
   },
   {
-   "slug": "b1-p246-x915",
-   "name": "Book I p.490",
-   "out": "assets/people/b1-p246-x915.webp"
+   "slug": "b1-p029-x124-c379-000-1000-997",
+   "name": "Book I p.57 (detail)",
+   "out": "assets/people/b1-p029-x124-c379-000-1000-997.webp",
+   "crop": [
+    0.379,
+    0,
+    1,
+    0.997
+   ],
+   "presenting": "masculine"
   },
   {
-   "slug": "b2-p154-x619",
-   "name": "Book II p.306",
-   "out": "assets/people/b2-p154-x619.webp"
+   "slug": "b1-p032-x134-c052-470-645-1000",
+   "name": "Book I p.63 (detail)",
+   "out": "assets/people/b1-p032-x134-c052-470-645-1000.webp",
+   "crop": [
+    0.052,
+    0.47,
+    0.645,
+    1
+   ],
+   "presenting": "feminine"
   },
   {
-   "slug": "b2-p092-x361",
-   "name": "Book II p.183",
-   "out": "assets/people/b2-p092-x361.webp"
+   "slug": "b1-p032-x134-c143-172-509-499",
+   "name": "Book I p.63 (detail)",
+   "out": "assets/people/b1-p032-x134-c143-172-509-499.webp",
+   "crop": [
+    0.143,
+    0.172,
+    0.509,
+    0.499
+   ],
+   "presenting": "masculine"
   },
   {
-   "slug": "b1-p257-x953",
-   "name": "Book I p.512",
-   "out": "assets/people/b1-p257-x953.webp"
+   "slug": "b1-p035-x145-c689-458-929-950",
+   "name": "Book I p.68 (detail)",
+   "out": "assets/people/b1-p035-x145-c689-458-929-950.webp",
+   "crop": [
+    0.689,
+    0.458,
+    0.929,
+    0.95
+   ],
+   "presenting": "masculine"
   },
   {
-   "slug": "b1-p287-x1051",
-   "name": "Book I p.573",
-   "out": "assets/people/b1-p287-x1051.webp"
+   "slug": "b1-p035-x145-c117-362-321-976",
+   "name": "Book I p.68 (detail)",
+   "out": "assets/people/b1-p035-x145-c117-362-321-976.webp",
+   "crop": [
+    0.117,
+    0.362,
+    0.321,
+    0.976
+   ]
   },
   {
-   "slug": "b1-p131-x511",
-   "name": "Book I p.261",
-   "out": "assets/people/b1-p131-x511.webp"
+   "slug": "b1-p036-x150-c093-000-368-1000",
+   "name": "Book I p.71 (detail)",
+   "out": "assets/people/b1-p036-x150-c093-000-368-1000.webp",
+   "crop": [
+    0.093,
+    0,
+    0.368,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p036-x150-c362-091-533-875",
+   "name": "Book I p.71 (detail)",
+   "out": "assets/people/b1-p036-x150-c362-091-533-875.webp",
+   "crop": [
+    0.362,
+    0.091,
+    0.533,
+    0.875
+   ]
+  },
+  {
+   "slug": "b1-p036-x150-c570-057-806-1000",
+   "name": "Book I p.71 (detail)",
+   "out": "assets/people/b1-p036-x150-c570-057-806-1000.webp",
+   "crop": [
+    0.57,
+    0.057,
+    0.806,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p036-x150-c787-024-997-990",
+   "name": "Book I p.71 (detail)",
+   "out": "assets/people/b1-p036-x150-c787-024-997-990.webp",
+   "crop": [
+    0.787,
+    0.024,
+    0.997,
+    0.99
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p036-x150-c510-096-651-880",
+   "name": "Book I p.71 (detail)",
+   "out": "assets/people/b1-p036-x150-c510-096-651-880.webp",
+   "crop": [
+    0.51,
+    0.096,
+    0.651,
+    0.88
+   ]
+  },
+  {
+   "slug": "b1-p040-x165-c523-143-910-1000",
+   "name": "Book I p.79 (detail)",
+   "out": "assets/people/b1-p040-x165-c523-143-910-1000.webp",
+   "crop": [
+    0.523,
+    0.143,
+    0.91,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p040-x165-c166-223-441-908",
+   "name": "Book I p.79 (detail)",
+   "out": "assets/people/b1-p040-x165-c166-223-441-908.webp",
+   "crop": [
+    0.166,
+    0.223,
+    0.441,
+    0.908
+   ]
+  },
+  {
+   "slug": "b1-p040-x165-c298-028-473-717",
+   "name": "Book I p.79 (detail)",
+   "out": "assets/people/b1-p040-x165-c298-028-473-717.webp",
+   "crop": [
+    0.298,
+    0.028,
+    0.473,
+    0.717
+   ],
+   "kid": true
+  },
+  {
+   "slug": "b1-p041-x169-c593-396-941-957",
+   "name": "Book I p.80 (detail)",
+   "out": "assets/people/b1-p041-x169-c593-396-941-957.webp",
+   "crop": [
+    0.593,
+    0.396,
+    0.941,
+    0.957
+   ]
+  },
+  {
+   "slug": "b1-p041-x169-c483-139-629-721",
+   "name": "Book I p.80 (detail)",
+   "out": "assets/people/b1-p041-x169-c483-139-629-721.webp",
+   "crop": [
+    0.483,
+    0.139,
+    0.629,
+    0.721
+   ]
+  },
+  {
+   "slug": "b1-p041-x169-c246-461-510-1000",
+   "name": "Book I p.80 (detail)",
+   "out": "assets/people/b1-p041-x169-c246-461-510-1000.webp",
+   "crop": [
+    0.246,
+    0.461,
+    0.51,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p041-x169-c027-420-214-916",
+   "name": "Book I p.80 (detail)",
+   "out": "assets/people/b1-p041-x169-c027-420-214-916.webp",
+   "crop": [
+    0.027,
+    0.42,
+    0.214,
+    0.916
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p041-x169-c268-310-506-639",
+   "name": "Book I p.80 (detail)",
+   "out": "assets/people/b1-p041-x169-c268-310-506-639.webp",
+   "crop": [
+    0.268,
+    0.31,
+    0.506,
+    0.639
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p042-x173-c309-000-502-1000",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c309-000-502-1000.webp",
+   "crop": [
+    0.309,
+    0,
+    0.502,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p042-x173-c000-129-102-839",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c000-129-102-839.webp",
+   "crop": [
+    0,
+    0.129,
+    0.102,
+    0.839
+   ]
+  },
+  {
+   "slug": "b1-p042-x173-c086-187-180-826",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c086-187-180-826.webp",
+   "crop": [
+    0.086,
+    0.187,
+    0.18,
+    0.826
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p042-x173-c161-219-263-819",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c161-219-263-819.webp",
+   "crop": [
+    0.161,
+    0.219,
+    0.263,
+    0.819
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p042-x173-c246-143-346-827",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c246-143-346-827.webp",
+   "crop": [
+    0.246,
+    0.143,
+    0.346,
+    0.827
+   ]
+  },
+  {
+   "slug": "b1-p042-x173-c448-143-598-834",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c448-143-598-834.webp",
+   "crop": [
+    0.448,
+    0.143,
+    0.598,
+    0.834
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p042-x173-c546-227-682-846",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c546-227-682-846.webp",
+   "crop": [
+    0.546,
+    0.227,
+    0.682,
+    0.846
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p042-x173-c665-098-757-840",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c665-098-757-840.webp",
+   "crop": [
+    0.665,
+    0.098,
+    0.757,
+    0.84
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p042-x173-c742-143-857-827",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c742-143-857-827.webp",
+   "crop": [
+    0.742,
+    0.143,
+    0.857,
+    0.827
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p042-x173-c838-143-942-846",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c838-143-942-846.webp",
+   "crop": [
+    0.838,
+    0.143,
+    0.942,
+    0.846
+   ]
+  },
+  {
+   "slug": "b1-p042-x173-c932-208-1000-846",
+   "name": "Book I p.82 (detail)",
+   "out": "assets/people/b1-p042-x173-c932-208-1000-846.webp",
+   "crop": [
+    0.932,
+    0.208,
+    1,
+    0.846
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p043-x179-c531-196-710-796",
+   "name": "Book I p.85 (detail)",
+   "out": "assets/people/b1-p043-x179-c531-196-710-796.webp",
+   "crop": [
+    0.531,
+    0.196,
+    0.71,
+    0.796
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p043-x179-c687-218-839-569",
+   "name": "Book I p.85 (detail)",
+   "out": "assets/people/b1-p043-x179-c687-218-839-569.webp",
+   "crop": [
+    0.687,
+    0.218,
+    0.839,
+    0.569
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p043-x179-c127-391-302-902",
+   "name": "Book I p.85 (detail)",
+   "out": "assets/people/b1-p043-x179-c127-391-302-902.webp",
+   "crop": [
+    0.127,
+    0.391,
+    0.302,
+    0.902
+   ]
+  },
+  {
+   "slug": "b1-p043-x179-c264-542-469-1000",
+   "name": "Book I p.85 (detail)",
+   "out": "assets/people/b1-p043-x179-c264-542-469-1000.webp",
+   "crop": [
+    0.264,
+    0.542,
+    0.469,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p043-x179-c314-240-450-716",
+   "name": "Book I p.85 (detail)",
+   "out": "assets/people/b1-p043-x179-c314-240-450-716.webp",
+   "crop": [
+    0.314,
+    0.24,
+    0.45,
+    0.716
+   ]
+  },
+  {
+   "slug": "b1-p043-x179-c427-290-523-654",
+   "name": "Book I p.85 (detail)",
+   "out": "assets/people/b1-p043-x179-c427-290-523-654.webp",
+   "crop": [
+    0.427,
+    0.29,
+    0.523,
+    0.654
+   ]
+  },
+  {
+   "slug": "b1-p047-x193-c076-003-465-1000",
+   "name": "Book I p.92 (detail)",
+   "out": "assets/people/b1-p047-x193-c076-003-465-1000.webp",
+   "crop": [
+    0.076,
+    0.003,
+    0.465,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p088-x364-c193-285-508-965",
+   "name": "Book I p.174 (detail)",
+   "out": "assets/people/b1-p088-x364-c193-285-508-965.webp",
+   "crop": [
+    0.193,
+    0.285,
+    0.508,
+    0.965
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p089-x368-c221-247-408-1000",
+   "name": "Book I p.177 (detail)",
+   "out": "assets/people/b1-p089-x368-c221-247-408-1000.webp",
+   "crop": [
+    0.221,
+    0.247,
+    0.408,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p089-x368-c000-293-221-1000",
+   "name": "Book I p.177 (detail)",
+   "out": "assets/people/b1-p089-x368-c000-293-221-1000.webp",
+   "crop": [
+    0,
+    0.293,
+    0.221,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p090-x372-c235-039-660-1000",
+   "name": "Book I p.178 (detail)",
+   "out": "assets/people/b1-p090-x372-c235-039-660-1000.webp",
+   "crop": [
+    0.235,
+    0.039,
+    0.66,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p090-x372-c618-161-993-1000",
+   "name": "Book I p.178 (detail)",
+   "out": "assets/people/b1-p090-x372-c618-161-993-1000.webp",
+   "crop": [
+    0.618,
+    0.161,
+    0.993,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p090-x372-c000-163-208-997",
+   "name": "Book I p.178 (detail)",
+   "out": "assets/people/b1-p090-x372-c000-163-208-997.webp",
+   "crop": [
+    0,
+    0.163,
+    0.208,
+    0.997
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p090-x372-c131-245-333-977",
+   "name": "Book I p.178 (detail)",
+   "out": "assets/people/b1-p090-x372-c131-245-333-977.webp",
+   "crop": [
+    0.131,
+    0.245,
+    0.333,
+    0.977
+   ]
+  },
+  {
+   "slug": "b1-p092-x380-c002-002-520-1000",
+   "name": "Book I p.183 (detail)",
+   "out": "assets/people/b1-p092-x380-c002-002-520-1000.webp",
+   "crop": [
+    0.002,
+    0.002,
+    0.52,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p095-x391-c141-290-631-974",
+   "name": "Book I p.188 (detail)",
+   "out": "assets/people/b1-p095-x391-c141-290-631-974.webp",
+   "crop": [
+    0.141,
+    0.29,
+    0.631,
+    0.974
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p100-x411-c523-141-837-868",
+   "name": "Book I p.199 (detail)",
+   "out": "assets/people/b1-p100-x411-c523-141-837-868.webp",
+   "crop": [
+    0.523,
+    0.141,
+    0.837,
+    0.868
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p100-x411-c060-213-223-881",
+   "name": "Book I p.199 (detail)",
+   "out": "assets/people/b1-p100-x411-c060-213-223-881.webp",
+   "crop": [
+    0.06,
+    0.213,
+    0.223,
+    0.881
+   ],
+   "kid": true
+  },
+  {
+   "slug": "b1-p100-x411-c206-411-362-887",
+   "name": "Book I p.199 (detail)",
+   "out": "assets/people/b1-p100-x411-c206-411-362-887.webp",
+   "crop": [
+    0.206,
+    0.411,
+    0.362,
+    0.887
+   ],
+   "kid": true
+  },
+  {
+   "slug": "b1-p100-x411-c241-226-383-458",
+   "name": "Book I p.199 (detail)",
+   "out": "assets/people/b1-p100-x411-c241-226-383-458.webp",
+   "crop": [
+    0.241,
+    0.226,
+    0.383,
+    0.458
+   ],
+   "kid": true
+  },
+  {
+   "slug": "b1-p107-x435-c504-007-890-853",
+   "name": "Book I p.212 (detail)",
+   "out": "assets/people/b1-p107-x435-c504-007-890-853.webp",
+   "crop": [
+    0.504,
+    0.007,
+    0.89,
+    0.853
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p114-x454-c646-207-960-1000",
+   "name": "Book I p.227 (detail)",
+   "out": "assets/people/b1-p114-x454-c646-207-960-1000.webp",
+   "crop": [
+    0.646,
+    0.207,
+    0.96,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p114-x454-c204-225-621-1000",
+   "name": "Book I p.227 (detail)",
+   "out": "assets/people/b1-p114-x454-c204-225-621-1000.webp",
+   "crop": [
+    0.204,
+    0.225,
+    0.621,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p114-x454-c000-112-262-1000",
+   "name": "Book I p.227 (detail)",
+   "out": "assets/people/b1-p114-x454-c000-112-262-1000.webp",
+   "crop": [
+    0,
+    0.112,
+    0.262,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p120-x475-c023-215-496-944",
+   "name": "Book I p.238 (detail)",
+   "out": "assets/people/b1-p120-x475-c023-215-496-944.webp",
+   "crop": [
+    0.023,
+    0.215,
+    0.496,
+    0.944
+   ]
+  },
+  {
+   "slug": "b1-p124-x490-c050-297-609-859",
+   "name": "Book I p.247 (detail)",
+   "out": "assets/people/b1-p124-x490-c050-297-609-859.webp",
+   "crop": [
+    0.05,
+    0.297,
+    0.609,
+    0.859
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p124-x490-c350-000-855-436",
+   "name": "Book I p.247 (detail)",
+   "out": "assets/people/b1-p124-x490-c350-000-855-436.webp",
+   "crop": [
+    0.35,
+    0,
+    0.855,
+    0.436
+   ]
+  },
+  {
+   "slug": "b1-p124-x490-c395-334-1000-1000",
+   "name": "Book I p.247 (detail)",
+   "out": "assets/people/b1-p124-x490-c395-334-1000-1000.webp",
+   "crop": [
+    0.395,
+    0.334,
+    1,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p134-x521-c125-064-776-651",
+   "name": "Book I p.267 (detail)",
+   "out": "assets/people/b1-p134-x521-c125-064-776-651.webp",
+   "crop": [
+    0.125,
+    0.064,
+    0.776,
+    0.651
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p134-x521-c451-368-1000-1000",
+   "name": "Book I p.267 (detail)",
+   "out": "assets/people/b1-p134-x521-c451-368-1000-1000.webp",
+   "crop": [
+    0.451,
+    0.368,
+    1,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p137-x533-c000-012-229-1000",
+   "name": "Book I p.272 (detail)",
+   "out": "assets/people/b1-p137-x533-c000-012-229-1000.webp",
+   "crop": [
+    0,
+    0.012,
+    0.229,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p137-x533-c187-035-393-1000",
+   "name": "Book I p.272 (detail)",
+   "out": "assets/people/b1-p137-x533-c187-035-393-1000.webp",
+   "crop": [
+    0.187,
+    0.035,
+    0.393,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p137-x533-c352-016-581-1000",
+   "name": "Book I p.272 (detail)",
+   "out": "assets/people/b1-p137-x533-c352-016-581-1000.webp",
+   "crop": [
+    0.352,
+    0.016,
+    0.581,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p137-x533-c541-004-810-1000",
+   "name": "Book I p.272 (detail)",
+   "out": "assets/people/b1-p137-x533-c541-004-810-1000.webp",
+   "crop": [
+    0.541,
+    0.004,
+    0.81,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p137-x533-c754-024-999-1000",
+   "name": "Book I p.272 (detail)",
+   "out": "assets/people/b1-p137-x533-c754-024-999-1000.webp",
+   "crop": [
+    0.754,
+    0.024,
+    0.999,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p150-x573-c442-213-810-1000",
+   "name": "Book I p.299 (detail)",
+   "out": "assets/people/b1-p150-x573-c442-213-810-1000.webp",
+   "crop": [
+    0.442,
+    0.213,
+    0.81,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p150-x573-c129-235-369-1000",
+   "name": "Book I p.299 (detail)",
+   "out": "assets/people/b1-p150-x573-c129-235-369-1000.webp",
+   "crop": [
+    0.129,
+    0.235,
+    0.369,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p150-x573-c000-036-196-1000",
+   "name": "Book I p.299 (detail)",
+   "out": "assets/people/b1-p150-x573-c000-036-196-1000.webp",
+   "crop": [
+    0,
+    0.036,
+    0.196,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p154-x587-c029-001-496-1000",
+   "name": "Book I p.307 (detail)",
+   "out": "assets/people/b1-p154-x587-c029-001-496-1000.webp",
+   "crop": [
+    0.029,
+    0.001,
+    0.496,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p154-x587-c459-000-996-996",
+   "name": "Book I p.307 (detail)",
+   "out": "assets/people/b1-p154-x587-c459-000-996-996.webp",
+   "crop": [
+    0.459,
+    0,
+    0.996,
+    0.996
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p169-x640-c252-113-982-983",
+   "name": "Book I p.336 (detail)",
+   "out": "assets/people/b1-p169-x640-c252-113-982-983.webp",
+   "crop": [
+    0.252,
+    0.113,
+    0.982,
+    0.983
+   ]
+  },
+  {
+   "slug": "b1-p169-x640-c094-103-346-661",
+   "name": "Book I p.336 (detail)",
+   "out": "assets/people/b1-p169-x640-c094-103-346-661.webp",
+   "crop": [
+    0.094,
+    0.103,
+    0.346,
+    0.661
+   ]
+  },
+  {
+   "slug": "b1-p174-x658-c558-074-741-615",
+   "name": "Book I p.347 (detail)",
+   "out": "assets/people/b1-p174-x658-c558-074-741-615.webp",
+   "crop": [
+    0.558,
+    0.074,
+    0.741,
+    0.615
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p174-x658-c718-047-889-592",
+   "name": "Book I p.347 (detail)",
+   "out": "assets/people/b1-p174-x658-c718-047-889-592.webp",
+   "crop": [
+    0.718,
+    0.047,
+    0.889,
+    0.592
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p192-x723-c114-124-508-580",
+   "name": "Book I p.383 (detail)",
+   "out": "assets/people/b1-p192-x723-c114-124-508-580.webp",
+   "crop": [
+    0.114,
+    0.124,
+    0.508,
+    0.58
+   ]
+  },
+  {
+   "slug": "b1-p195-x731-c350-272-566-1000",
+   "name": "Book I p.389 (detail)",
+   "out": "assets/people/b1-p195-x731-c350-272-566-1000.webp",
+   "crop": [
+    0.35,
+    0.272,
+    0.566,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p195-x731-c193-230-408-1000",
+   "name": "Book I p.389 (detail)",
+   "out": "assets/people/b1-p195-x731-c193-230-408-1000.webp",
+   "crop": [
+    0.193,
+    0.23,
+    0.408,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p195-x731-c004-323-156-1000",
+   "name": "Book I p.389 (detail)",
+   "out": "assets/people/b1-p195-x731-c004-323-156-1000.webp",
+   "crop": [
+    0.004,
+    0.323,
+    0.156,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p195-x731-c108-327-237-982",
+   "name": "Book I p.389 (detail)",
+   "out": "assets/people/b1-p195-x731-c108-327-237-982.webp",
+   "crop": [
+    0.108,
+    0.327,
+    0.237,
+    0.982
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p204-x772-c450-000-706-1000",
+   "name": "Book I p.407 (detail)",
+   "out": "assets/people/b1-p204-x772-c450-000-706-1000.webp",
+   "crop": [
+    0.45,
+    0,
+    0.706,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p204-x772-c683-006-944-1000",
+   "name": "Book I p.407 (detail)",
+   "out": "assets/people/b1-p204-x772-c683-006-944-1000.webp",
+   "crop": [
+    0.683,
+    0.006,
+    0.944,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p208-x784-c674-037-874-916",
+   "name": "Book I p.415 (detail)",
+   "out": "assets/people/b1-p208-x784-c674-037-874-916.webp",
+   "crop": [
+    0.674,
+    0.037,
+    0.874,
+    0.916
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p208-x784-c467-230-694-785",
+   "name": "Book I p.415 (detail)",
+   "out": "assets/people/b1-p208-x784-c467-230-694-785.webp",
+   "crop": [
+    0.467,
+    0.23,
+    0.694,
+    0.785
+   ]
+  },
+  {
+   "slug": "b1-p208-x784-c167-178-376-942",
+   "name": "Book I p.415 (detail)",
+   "out": "assets/people/b1-p208-x784-c167-178-376-942.webp",
+   "crop": [
+    0.167,
+    0.178,
+    0.376,
+    0.942
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p209-x792-c086-000-497-1000",
+   "name": "Book I p.416 (detail)",
+   "out": "assets/people/b1-p209-x792-c086-000-497-1000.webp",
+   "crop": [
+    0.086,
+    0,
+    0.497,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p209-x792-c427-005-881-805",
+   "name": "Book I p.416 (detail)",
+   "out": "assets/people/b1-p209-x792-c427-005-881-805.webp",
+   "crop": [
+    0.427,
+    0.005,
+    0.881,
+    0.805
+   ]
+  },
+  {
+   "slug": "b1-p209-x792-c680-241-1000-745",
+   "name": "Book I p.416 (detail)",
+   "out": "assets/people/b1-p209-x792-c680-241-1000-745.webp",
+   "crop": [
+    0.68,
+    0.241,
+    1,
+    0.745
+   ]
+  },
+  {
+   "slug": "b1-p211-x800-c000-007-443-1000",
+   "name": "Book I p.421 (detail)",
+   "out": "assets/people/b1-p211-x800-c000-007-443-1000.webp",
+   "crop": [
+    0,
+    0.007,
+    0.443,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p211-x800-c412-000-1000-995",
+   "name": "Book I p.421 (detail)",
+   "out": "assets/people/b1-p211-x800-c412-000-1000-995.webp",
+   "crop": [
+    0.412,
+    0,
+    1,
+    0.995
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p212-x803-c508-267-954-1000",
+   "name": "Book I p.422 (detail)",
+   "out": "assets/people/b1-p212-x803-c508-267-954-1000.webp",
+   "crop": [
+    0.508,
+    0.267,
+    0.954,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p212-x803-c223-316-408-725",
+   "name": "Book I p.422 (detail)",
+   "out": "assets/people/b1-p212-x803-c223-316-408-725.webp",
+   "crop": [
+    0.223,
+    0.316,
+    0.408,
+    0.725
+   ]
+  },
+  {
+   "slug": "b1-p216-x816-c033-006-475-990",
+   "name": "Book I p.431 (detail)",
+   "out": "assets/people/b1-p216-x816-c033-006-475-990.webp",
+   "crop": [
+    0.033,
+    0.006,
+    0.475,
+    0.99
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p216-x816-c452-000-942-978",
+   "name": "Book I p.431 (detail)",
+   "out": "assets/people/b1-p216-x816-c452-000-942-978.webp",
+   "crop": [
+    0.452,
+    0,
+    0.942,
+    0.978
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p217-x820-c448-005-967-1000",
+   "name": "Book I p.432 (detail)",
+   "out": "assets/people/b1-p217-x820-c448-005-967-1000.webp",
+   "crop": [
+    0.448,
+    0.005,
+    0.967,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p217-x820-c079-105-411-1000",
+   "name": "Book I p.432 (detail)",
+   "out": "assets/people/b1-p217-x820-c079-105-411-1000.webp",
+   "crop": [
+    0.079,
+    0.105,
+    0.411,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p230-x864-c075-032-496-1000",
+   "name": "Book I p.459 (detail)",
+   "out": "assets/people/b1-p230-x864-c075-032-496-1000.webp",
+   "crop": [
+    0.075,
+    0.032,
+    0.496,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p230-x864-c458-000-894-998",
+   "name": "Book I p.459 (detail)",
+   "out": "assets/people/b1-p230-x864-c458-000-894-998.webp",
+   "crop": [
+    0.458,
+    0,
+    0.894,
+    0.998
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p241-x899-c000-023-252-1000",
+   "name": "Book I p.481 (detail)",
+   "out": "assets/people/b1-p241-x899-c000-023-252-1000.webp",
+   "crop": [
+    0,
+    0.023,
+    0.252,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p241-x899-c742-089-877-688",
+   "name": "Book I p.481 (detail)",
+   "out": "assets/people/b1-p241-x899-c742-089-877-688.webp",
+   "crop": [
+    0.742,
+    0.089,
+    0.877,
+    0.688
+   ]
+  },
+  {
+   "slug": "b1-p246-x915-c693-402-820-991",
+   "name": "Book I p.490 (detail)",
+   "out": "assets/people/b1-p246-x915-c693-402-820-991.webp",
+   "crop": [
+    0.693,
+    0.402,
+    0.82,
+    0.991
+   ],
+   "kid": true
+  },
+  {
+   "slug": "b1-p246-x915-c566-301-724-1000",
+   "name": "Book I p.490 (detail)",
+   "out": "assets/people/b1-p246-x915-c566-301-724-1000.webp",
+   "crop": [
+    0.566,
+    0.301,
+    0.724,
+    1
+   ],
+   "kid": true
+  },
+  {
+   "slug": "b1-p246-x915-c501-307-605-932",
+   "name": "Book I p.490 (detail)",
+   "out": "assets/people/b1-p246-x915-c501-307-605-932.webp",
+   "crop": [
+    0.501,
+    0.307,
+    0.605,
+    0.932
+   ],
+   "kid": true
+  },
+  {
+   "slug": "b1-p246-x915-c324-080-537-985",
+   "name": "Book I p.490 (detail)",
+   "out": "assets/people/b1-p246-x915-c324-080-537-985.webp",
+   "crop": [
+    0.324,
+    0.08,
+    0.537,
+    0.985
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p246-x915-c000-233-201-1000",
+   "name": "Book I p.490 (detail)",
+   "out": "assets/people/b1-p246-x915-c000-233-201-1000.webp",
+   "crop": [
+    0,
+    0.233,
+    0.201,
+    1
+   ],
+   "kid": true
+  },
+  {
+   "slug": "b1-p246-x915-c151-001-345-1000",
+   "name": "Book I p.490 (detail)",
+   "out": "assets/people/b1-p246-x915-c151-001-345-1000.webp",
+   "crop": [
+    0.151,
+    0.001,
+    0.345,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p257-x953-c000-000-506-1000",
+   "name": "Book I p.512 (detail)",
+   "out": "assets/people/b1-p257-x953-c000-000-506-1000.webp",
+   "crop": [
+    0,
+    0,
+    0.506,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p257-x953-c262-349-433-944",
+   "name": "Book I p.512 (detail)",
+   "out": "assets/people/b1-p257-x953-c262-349-433-944.webp",
+   "crop": [
+    0.262,
+    0.349,
+    0.433,
+    0.944
+   ]
+  },
+  {
+   "slug": "b1-p261-x969-c529-452-856-1000",
+   "name": "Book I p.520 (detail)",
+   "out": "assets/people/b1-p261-x969-c529-452-856-1000.webp",
+   "crop": [
+    0.529,
+    0.452,
+    0.856,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p261-x969-c027-533-196-983",
+   "name": "Book I p.520 (detail)",
+   "out": "assets/people/b1-p261-x969-c027-533-196-983.webp",
+   "crop": [
+    0.027,
+    0.533,
+    0.196,
+    0.983
+   ]
+  },
+  {
+   "slug": "b1-p261-x969-c254-570-504-986",
+   "name": "Book I p.520 (detail)",
+   "out": "assets/people/b1-p261-x969-c254-570-504-986.webp",
+   "crop": [
+    0.254,
+    0.57,
+    0.504,
+    0.986
+   ]
+  },
+  {
+   "slug": "b1-p268-x990-c393-103-1000-1000",
+   "name": "Book I p.535 (detail)",
+   "out": "assets/people/b1-p268-x990-c393-103-1000-1000.webp",
+   "crop": [
+    0.393,
+    0.103,
+    1,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p268-x990-c000-001-499-1000",
+   "name": "Book I p.535 (detail)",
+   "out": "assets/people/b1-p268-x990-c000-001-499-1000.webp",
+   "crop": [
+    0,
+    0.001,
+    0.499,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p270-x996-c281-002-625-992",
+   "name": "Book I p.538 (detail)",
+   "out": "assets/people/b1-p270-x996-c281-002-625-992.webp",
+   "crop": [
+    0.281,
+    0.002,
+    0.625,
+    0.992
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p270-x996-c606-122-842-929",
+   "name": "Book I p.538 (detail)",
+   "out": "assets/people/b1-p270-x996-c606-122-842-929.webp",
+   "crop": [
+    0.606,
+    0.122,
+    0.842,
+    0.929
+   ]
+  },
+  {
+   "slug": "b1-p270-x996-c773-074-998-907",
+   "name": "Book I p.538 (detail)",
+   "out": "assets/people/b1-p270-x996-c773-074-998-907.webp",
+   "crop": [
+    0.773,
+    0.074,
+    0.998,
+    0.907
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p275-x1013-c000-239-501-1000",
+   "name": "Book I p.549 (detail)",
+   "out": "assets/people/b1-p275-x1013-c000-239-501-1000.webp",
+   "crop": [
+    0,
+    0.239,
+    0.501,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p275-x1013-c439-111-1000-1000",
+   "name": "Book I p.549 (detail)",
+   "out": "assets/people/b1-p275-x1013-c439-111-1000-1000.webp",
+   "crop": [
+    0.439,
+    0.111,
+    1,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p287-x1051-c129-782-318-1000",
+   "name": "Book I p.573 (detail)",
+   "out": "assets/people/b1-p287-x1051-c129-782-318-1000.webp",
+   "crop": [
+    0.129,
+    0.782,
+    0.318,
+    1
+   ],
+   "kid": true
+  },
+  {
+   "slug": "b1-p287-x1051-c289-812-429-1000",
+   "name": "Book I p.573 (detail)",
+   "out": "assets/people/b1-p287-x1051-c289-812-429-1000.webp",
+   "crop": [
+    0.289,
+    0.812,
+    0.429,
+    1
+   ],
+   "kid": true
+  },
+  {
+   "slug": "b1-p294-x1074-c000-186-606-1000",
+   "name": "Book I p.586 (detail)",
+   "out": "assets/people/b1-p294-x1074-c000-186-606-1000.webp",
+   "crop": [
+    0,
+    0.186,
+    0.606,
+    1
+   ],
+   "presenting": "feminine"
+  },
+  {
+   "slug": "b1-p294-x1074-c514-133-1000-996",
+   "name": "Book I p.586 (detail)",
+   "out": "assets/people/b1-p294-x1074-c514-133-1000-996.webp",
+   "crop": [
+    0.514,
+    0.133,
+    1,
+    0.996
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b1-p297-x1085-c242-046-546-1000",
+   "name": "Book I p.593 (detail)",
+   "out": "assets/people/b1-p297-x1085-c242-046-546-1000.webp",
+   "crop": [
+    0.242,
+    0.046,
+    0.546,
+    1
+   ]
+  },
+  {
+   "slug": "b1-p297-x1085-c421-219-775-1000",
+   "name": "Book I p.593 (detail)",
+   "out": "assets/people/b1-p297-x1085-c421-219-775-1000.webp",
+   "crop": [
+    0.421,
+    0.219,
+    0.775,
+    1
+   ],
+   "presenting": "masculine"
+  },
+  {
+   "slug": "b2-p020-x76-c235-192-695-981",
+   "name": "Book II p.38 (detail)",
+   "out": "assets/people/b2-p020-x76-c235-192-695-981.webp",
+   "crop": [
+    0.235,
+    0.192,
+    0.695,
+    0.981
+   ]
+  },
+  {
+   "slug": "b2-p020-x76-c583-237-868-736",
+   "name": "Book II p.38 (detail)",
+   "out": "assets/people/b2-p020-x76-c583-237-868-736.webp",
+   "crop": [
+    0.583,
+    0.237,
+    0.868,
+    0.736
+   ]
+  },
+  {
+   "slug": "b2-p092-x361-c046-000-402-1000",
+   "name": "Book II p.183 (detail)",
+   "out": "assets/people/b2-p092-x361-c046-000-402-1000.webp",
+   "crop": [
+    0.046,
+    0,
+    0.402,
+    1
+   ]
+  },
+  {
+   "slug": "b2-p135-x539-c200-263-596-1000",
+   "name": "Book II p.269 (detail)",
+   "out": "assets/people/b2-p135-x539-c200-263-596-1000.webp",
+   "crop": [
+    0.2,
+    0.263,
+    0.596,
+    1
+   ]
+  },
+  {
+   "slug": "b2-p154-x619-c502-236-646-658",
+   "name": "Book II p.306 (detail)",
+   "out": "assets/people/b2-p154-x619-c502-236-646-658.webp",
+   "crop": [
+    0.502,
+    0.236,
+    0.646,
+    0.658
+   ]
+  },
+  {
+   "slug": "b2-p154-x619-c025-533-365-1000",
+   "name": "Book II p.306 (detail)",
+   "out": "assets/people/b2-p154-x619-c025-533-365-1000.webp",
+   "crop": [
+    0.025,
+    0.533,
+    0.365,
+    1
+   ]
   }
  ],
  "codex": [

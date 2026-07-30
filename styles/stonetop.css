@@ -21986,15 +21986,134 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    on the steading sheet (module/actors/steading/PeopleGalleryDialog.js). A grid of
    imported book illustrations tagged as people; scoped under the dialog root.
    ========================================================================== */
+/* Cap the window FRAME, not the content box. The window is auto-height (see
+   defaultOptions) so it hugs a short gallery, but a world with dozens of imported
+   portraits would otherwise open the full height of the screen. Capping here — rather
+   than on .window-content, which is flex:1 and always fills the frame — also survives
+   the resize handle (this dialog is resizable): dragging taller than the cap leaves no
+   dark band below the content, it just stops growing. Past the cap the grid scrolls and
+   the footer stays pinned. */
+.stonetop-people-gallery.window-app {
+	max-height: min(620px, calc(100vh - 80px));
+}
 .stonetop-people-gallery .window-content {
 	display: flex;
 	flex-direction: column;
+	/* Let the root below shrink under the frame cap instead of forcing the frame past it. */
+	min-height: 0;
+}
+/* The template's single root (see people-gallery.hbs) carries the column layout, so the
+   filters/grid/footer still stack and the grid still takes the slack. */
+.stonetop-people-gallery .stonetop-people-root {
+	display: flex;
+	flex-direction: column;
 	gap: 10px;
+	flex: 1 1 auto;
+	min-height: 0;
 }
 .stonetop-people-gallery .stonetop-people-gallery-body {
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;
+}
+/* Trait filters. Two independent groups (how the portrait presents, and whether it is a
+   child), each a one-of-N chip row, tagged in the local art picker and shipped in the book-art
+   manifest. They only render when there is tagged art to narrow. */
+.stonetop-people-gallery .stonetop-people-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 14px;
+	flex: 0 0 auto;
+}
+.stonetop-people-gallery .stonetop-people-filtergroup {
+	display: flex;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+.stonetop-people-gallery .stonetop-people-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	width: auto;
+	flex: 0 0 auto;
+	padding: 2px 9px;
+	line-height: 1.7;
+	font-size: var(--st-fs-2xs);
+	background: rgba(100, 116, 139, 0.05);
+	border: 1px solid rgba(100, 116, 139, 0.25);
+	border-radius: 999px;
+	/* Explicit, and not cosmetic: core hands a window button white text, which on the pale
+	   chip fill left every un-selected filter unreadable. */
+	color: var(--st-text-body);
+	cursor: pointer;
+}
+.stonetop-people-gallery .stonetop-people-chip:hover {
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-text);
+}
+/* An engaged filter is a selected/active state, so it takes the green accent palette — the
+   same green that rings the selected portrait below, which makes green mean "chosen"
+   throughout the dialog and leaves slate to mean hover. */
+.stonetop-people-gallery .stonetop-people-chip.is-on {
+	background: var(--st-green-bg);
+	border-color: var(--st-green-border);
+	color: var(--st-green-text);
+	font-weight: 600;
+}
+.stonetop-people-gallery .stonetop-people-chip.is-on:hover {
+	background: var(--st-green-bg-hover);
+}
+.stonetop-people-gallery .stonetop-people-count {
+	font-size: var(--st-fs-2xs);
+	opacity: 0.75;
+	font-variant-numeric: tabular-nums;
+}
+/* Hover preview for a gallery tile. Fixed and parented to <body> (not a ::after on the tile
+   like the Welcome guide's spring icon) because the grid sits in an overflow-y:auto body that
+   would clip a pseudo-element — the same reason the arcana preview is built this way. Not
+   scoped under .stonetop-people-gallery: the node lives on <body>, outside the dialog. */
+@keyframes stonetop-people-preview-in {
+	from { opacity: 0; transform: scale(0.92); }
+	to   { opacity: 1; transform: scale(1); }
+}
+.stonetop-people-preview {
+	position: fixed;
+	z-index: 10000;
+	display: grid;
+	gap: 6px;
+	justify-items: center;
+	padding: 8px;
+	background: #fffdf7;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius);
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+	pointer-events: none;
+	animation: stonetop-people-preview-in 0.1s ease;
+}
+.stonetop-people-preview img {
+	/* portraits vary from squat details to full standing figures, so bound both axes and
+	   let the aspect ratio decide the rest */
+	max-width: min(320px, 42vw);
+	max-height: min(60vh, 520px);
+	width: auto;
+	height: auto;
+	object-fit: contain;
+	border-radius: var(--st-radius-sm);
+	background: #fff;
+}
+.stonetop-people-preview span {
+	max-width: min(320px, 42vw);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-secondary);
+	text-align: center;
+}
+
+.stonetop-people-gallery .stonetop-people-nomatch {
+	padding: 16px;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-muted);
+	text-align: center;
 }
 .stonetop-people-gallery .stonetop-people-hint {
 	margin: 0 0 8px; font-size: var(--st-fs-xs); color: var(--st-text-muted);
@@ -22002,10 +22121,14 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-people-gallery .stonetop-people-empty {
 	padding: 16px; font-size: var(--st-fs-sm); color: var(--st-text-muted); text-align: center; line-height: 1.5;
 }
+/* Track floor is the 160px image minimum plus the card's own padding + border (a card is
+   border-box, so the image gets track - 10px); the extra cushion keeps subpixel grid
+   rounding from pushing the image past its column. At the default 640px width that lands
+   3 columns, each card growing to fill via 1fr. */
 .stonetop-people-gallery .stonetop-people-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-	gap: 8px;
+	grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+	gap: 10px;
 }
 .stonetop-people-gallery .stonetop-people-pick {
 	display: flex;
@@ -22016,28 +22139,40 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	width: 100%;
 	height: auto;
 	line-height: 1.2;
-	background: var(--st-surface, rgba(0, 0, 0, 0.06));
-	border: 1px solid var(--st-border, rgba(0, 0, 0, 0.2));
-	border-radius: 6px;
+	background: rgba(100, 116, 139, 0.05);
+	border: 1px solid rgba(100, 116, 139, 0.25);
+	border-radius: var(--st-radius-lg);
 	cursor: pointer;
 }
-.stonetop-people-gallery .stonetop-people-pick:hover {
-	border-color: var(--st-slate, #55606b);
-	box-shadow: 0 0 0 1px var(--st-slate, #55606b) inset;
+/* The rule above sets display:flex, which outranks the UA stylesheet's [hidden] and would
+   leave a filtered-out portrait on screen. Pair the two explicitly. */
+.stonetop-people-gallery .stonetop-people-pick[hidden] {
+	display: none;
 }
+.stonetop-people-gallery .stonetop-people-pick:hover {
+	border-color: var(--st-btn-primary-border);
+	box-shadow: 0 0 0 1px var(--st-btn-primary-border) inset;
+}
+/* Selected: the palette's green border is lighter than the old hand-rolled one, so pair the
+   ring with the green wash — the pick still reads as chosen at a glance across a full grid. */
 .stonetop-people-gallery .stonetop-people-pick.is-selected {
-	border-color: var(--st-green, #4a7a3a);
-	box-shadow: 0 0 0 2px var(--st-green, #4a7a3a) inset;
+	background: var(--st-green-bg);
+	border-color: var(--st-green-border);
+	box-shadow: 0 0 0 2px var(--st-green-border) inset;
+}
+.stonetop-people-gallery .stonetop-people-pick.is-selected .stonetop-people-label {
+	color: var(--st-green-text);
 }
 .stonetop-people-gallery .stonetop-people-pick img {
 	width: 100%;
+	min-width: 160px;
 	aspect-ratio: 3 / 4;
 	object-fit: cover;
-	border-radius: 4px;
+	border-radius: var(--st-radius);
 	background: #fff;
 }
 .stonetop-people-gallery .stonetop-people-label {
-	font-size: var(--st-fs-2xs);
+	font-size: var(--st-fs-xs);
 	color: var(--st-text-muted);
 	text-align: center;
 	overflow: hidden;
@@ -22050,11 +22185,25 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	gap: 8px;
 	justify-content: flex-end;
 	padding-top: 6px;
-	border-top: 1px solid var(--st-border, rgba(0, 0, 0, 0.15));
+	border-top: 1px solid rgba(100, 116, 139, 0.25);
 }
+/* `width: auto` undoes core's full-width `body.game .app button`; the explicit colour is
+   not cosmetic — core hands a window button white text, which was invisible against the
+   parchment fill these inherit from the .stonetop button skin. Nothing here is the
+   affirmative action (picking a card is), so all three read as secondary. */
 .stonetop-people-gallery .stonetop-people-footer button {
 	width: auto;
 	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.35rem 0.8rem;
+	color: var(--st-text-body);
+	cursor: pointer;
+}
+.stonetop-people-gallery .stonetop-people-footer button:hover {
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-text);
 }
 .stonetop-people-gallery .stonetop-people-browse {
 	margin-right: auto;
