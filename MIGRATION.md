@@ -113,7 +113,7 @@ route, which works on every tier regardless of Game Manager:
 4. From the Game Tools → Export World and save the zip locally.
 5. Unzip that folder, go inside that folder and you should see a "world.json" file.
 6. Edit that world.json , changing "system": "stonetop_pwd" to "system":  "stonetop-pwd".
-7. (Optional) You can also change the name of the world in that folder if you don't want to overwrite the old world on the forge.
+7. (Optional) You can also change the title of the world in that folder if you don't want to overwrite the old world on the forge.
 8. Re-import the edited world through the Import Wizard.
 9. Launch as GM. It finishes on its own and asks you to refresh the page once. Do that before letting players back in.
 10. Check the settings in the world and you should no longer see the system as "Stonetop (DEPRECATED)".
