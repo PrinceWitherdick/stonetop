@@ -104,12 +104,16 @@ refuses both rather than gambling with your world.
 Get in touch and we will do it together. The supported path is the export/edit/import
 route, which works on every tier regardless of Game Manager:
 
-1. On My Foundry, use **Game Tools → Export World** and save the zip locally. Keep it.
-2. Install the renamed system on your Forge account **first**, and confirm it is there.
-   A world pointed at a system that is not installed will not launch, and on Game Manager
-   the recovery screen may not be available to you.
-3. Edit `world.json` inside the exported zip, changing `"system"` to the new id.
-4. Re-import the edited world through the Import Wizard.
+1. Everyone else disconnects. You are the only person logged in.
+2. Install the new system on your Forge account with this manifest URL https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json.
+3. Launch the world. The window titled "Stonetop is changing its ID" opens and tells you it cannot run here.  That's good, close the world.
+4. From the Game Tools → Export World and save the zip locally.
+5. Unzip that folder, go inside that folder and you should see a "world.json" file.
+6. Edit that world.json , changing "system": "stonetop_pwd" to "system":  "stonetop-pwd".
+7. (Optional) You can also change the name of the world in that folder if you don't want to overwrite the old world on the forge.
+8. Re-import the edited world through the Import Wizard.
+9. Launch as GM. It finishes on its own and asks you to refresh the page once. Do that before letting players back in.
+10. Check the settings in the world and you should no longer see the system as "Stonetop (DEPRECATED)".
 
 If you are on World Builder tier or above, take a **Save Point** first and rehearse the
 whole thing on a clone before touching the real world.
