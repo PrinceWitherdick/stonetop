@@ -13,6 +13,7 @@ import { wirePortraitPopout, updateRichTextField, updateMoveField } from "../../
 import { getOpenSheetsInEditMode } from "../../settings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
 import { buildRelationshipRows, wireRelationshipTable, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight } from "../../utils/relationship-hearts.js";
+import { relationshipViewContext, wireRelationshipBoard } from "../../utils/relationship-board.js";
 import { getDragEventData } from "../../utils/foundry-compat.js";
 import { openLedgerDialog } from "../../utils/ledger-dialog.js";
 import { NpcLedger } from "./NpcLedger.js";
@@ -166,6 +167,9 @@ export function createStonetopNpcSheetClass(Base) {
 			// tab, so written connections keep it reachable in a world with no PCs yet.
 			st.showRelationships = st.hasRelationshipCandidates || st.hasConnections || this._editMode;
 			st.canRate = this.isEditable;
+			// Table or standings board, remembered per table in localStorage (not world data:
+			// it's a reading preference, like the column widths beside it).
+			st.rel = relationshipViewContext("npcRelationships", st.relationships);
 
 			// GM moves (embedded npcMove items) — preserve authoring order.
 			const npcMoves = this.actor.items.filter(i => i.type === "npcMove");
@@ -226,6 +230,12 @@ export function createStonetopNpcSheetClass(Base) {
 			// note field write only when the sheet is editable (shared with the
 			// character sheet's Details-tab Relationships section).
 			wireRelationshipTable(root, this.actor, { editable: this.isEditable });
+			// Table/board toggle plus the board's lane controls. This window is auto-height,
+			// so the board (taller than the table) needs a refit after the flip re-renders.
+			wireRelationshipBoard(root, this.actor, {
+				editable: this.isEditable,
+				onViewChange: () => requestAnimationFrame(() => this._fitHeight()),
+			});
 
 			// Drop a person onto the Relationships tab to put them on the list — a stranger
 			// (including another NPC) becomes a row, someone unticked is revealed.

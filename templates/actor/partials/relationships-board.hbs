@@ -1,0 +1,169 @@
+{{!-- Board view of the relationship hearts: the same rows the table renders, dealt into
+      three standing lanes (Hostile / Neutral / Trusted, coldest first so the board runs the
+      same direction as the rating). Hostile and Trusted each split into two exact-value
+      ZONES, so a drop can name a rating rather than just a band: 1|2 and 4|5. Neutral holds
+      only its own value and is not split.
+
+      A lane is a READING of the 1-5 rating, not a stored field, so toggling back to the
+      table shows identical data.
+
+      Params: lanes (from buildRelationshipLanes), canRate, canToggle, showTooltip.
+
+      `{{#with . as |board|}}` aliases the partial's own params so the three nested {{#each}}
+      levels can reach them by NAME instead of counting `../` hops. Block params are
+      lexically scoped, so nesting this markup deeper later cannot silently repoint a
+      reference at the wrong context — which is exactly the bug that positional lookups
+      invite.
+
+      Each card keeps the live note input and show/hide box, reusing the very same
+      .stonetop-rel-note-input / .stonetop-rel-show-check hooks the table uses —
+      wireRelationshipTable's delegated handlers drive them here with no new write path.
+
+      The table's five-slot .stonetop-rel-heart strip does NOT come across: a card shows a
+      single .stonetop-rel-heart-badge instead, which is display-only (aria-hidden, matched by
+      no handler) because five 18px slots ate a whole row of a ~180px card. Ratings are set on
+      the board by the card's step buttons, the arrow keys, or a drop onto a zone. --}}
+<div class="stonetop-rel-board">
+	{{!-- A card moving column is invisible to a screen reader, so every move is spoken. --}}
+	<div class="stonetop-rel-board-live" role="status" aria-live="polite" aria-atomic="true"></div>
+
+	{{#with . as |board|}}
+	{{#each lanes as |lane|}}
+	{{!-- No --split modifier class: whether a lane offers a value choice is expressed by
+	      whether it renders a drop overlay at all, so a parallel class hook would be a second
+	      source of truth for the same fact. --}}
+	<section class="stonetop-rel-lane stonetop-rel-lane--{{lane.key}}" data-rel-lane="{{lane.key}}">
+		<header class="stonetop-rel-lane-head">
+			<i class="{{lane.icon}}" aria-hidden="true"></i>
+			<span class="stonetop-rel-lane-title">{{localize lane.labelKey}}</span>
+			<span class="stonetop-rel-lane-count" aria-hidden="true">{{lane.count}}</span>
+		</header>
+		<p class="stonetop-rel-lane-hint">{{localize lane.hintKey}}</p>
+
+		{{!-- Positioning context for the drop overlay, which covers exactly the card area. --}}
+		<div class="stonetop-rel-lane-body">
+			{{#if lane.isSplit}}
+			{{!-- Exact-value drop zones, shown ONLY while a card is being dragged (the board
+			      gets .is-dragging) and inert the rest of the time. An overlay rather than real
+			      sub-columns because permanently splitting a ~185px lane would cost every card
+			      half its width to serve an occasional gesture; a dropped card fills the lane.
+
+			      data-rel-zone is the exact rating a drop here asserts, read straight off this
+			      element, so the number aimed at and the number written are the same one.
+
+			      aria-hidden: this is a pointer affordance with no keyboard role. The keyboard
+			      reaches all five ratings with the arrow keys instead, one per press. --}}
+			<div class="stonetop-rel-dropzones" aria-hidden="true">
+				{{#each lane.zones as |zone|}}
+				<div class="stonetop-rel-zone" data-rel-zone="{{zone.hearts}}">
+					<span class="stonetop-rel-zone-label">{{localize zone.labelKey}}</span>
+					<span class="stonetop-rel-zone-value">{{zone.hearts}}</span>
+				</div>
+				{{/each}}
+			</div>
+			{{/if}}
+
+			<ul class="stonetop-rel-lane-cards" aria-label="{{localize lane.labelKey}}">
+				{{#each lane.cards}}
+				{{!-- data-rel-hearts / data-rel-rated are what the drag, click and keyboard
+				      handlers read back, so all three agree with exactly what was rendered.
+
+				      tabindex only when the viewer can rate: the arrow-key handler is wired
+				      behind that same flag, so a focusable card would otherwise be a tab stop
+				      that does nothing. Read-only, a card is a plain list item.
+
+				      An unrated card is dimmed and dashed, which says nothing to a screen
+				      reader and little to anyone who hasn't read the docs, so the reason is
+				      spelled out in the accessible name and the tooltip. --}}
+				<li class="stonetop-rel-card{{#unless rated}} stonetop-rel-card--unrated{{/unless}}{{#unless shown}} stonetop-rel-card--hidden{{/unless}}"
+				    data-rel-id="{{id}}" data-rel-hearts="{{hearts}}" data-rel-name="{{name}}"
+				    data-rel-rated="{{#if rated}}true{{else}}false{{/if}}"
+				    {{#if board.canRate}}tabindex="0"{{/if}}
+				    {{#unless rated}}data-tooltip='{{localize "stonetop.relationships.lane.unrated"}}'{{/unless}}
+				    aria-label="{{feeling}}{{#unless rated}}. {{localize "stonetop.relationships.lane.unrated"}}{{/unless}}">
+					<div class="stonetop-rel-card-head">
+						{{#if board.canToggle}}
+						<input type="checkbox" class="stonetop-rel-show-check" data-rel-id="{{id}}"
+						       {{#if shown}}checked{{/if}}
+						       data-tooltip='{{#if board.showTooltip}}{{board.showTooltip}}{{else}}{{localize "stonetop.relationships.showTooltip"}}{{/if}}'
+						       aria-label='{{#if board.showTooltip}}{{board.showTooltip}}{{else}}{{localize "stonetop.relationships.showTooltip"}}{{/if}}'>
+						{{/if}}
+						{{#if img}}
+						<img class="stonetop-rel-portrait" src="{{img}}" alt="" draggable="false">
+						{{else}}
+						{{!-- A settlement wears its own icon; only a person gets the silhouette. --}}
+						<span class="stonetop-rel-portrait stonetop-rel-portrait--empty"><i class="{{#if icon}}{{icon}}{{else}}fas fa-user{{/if}}"></i></span>
+						{{/if}}
+						<span class="stonetop-rel-card-name" data-tooltip="{{#if tooltip}}{{tooltip}}{{else}}{{name}}{{/if}}">{{name}}</span>
+						{{!-- One heart with the rating inside it, at the far right of the name's line,
+						      instead of the table's five-slot strip. Five 18px slots ate a whole row
+						      of a card that is only ~180px wide, for a value a single glyph can carry.
+
+						      Display only, unlike the table's strip: aria-hidden because the card's own
+						      aria-label already reads the full sentence ("Vera loves Aldric"), so
+						      exposing the numeral too would say it twice. Exact values are set by
+						      dragging onto a zone or by the arrow keys. --}}
+						<span class="stonetop-rel-heart-badge" data-tooltip="{{feeling}}" aria-hidden="true">
+							<span class="stonetop-rel-heart-badge-value">{{hearts}}</span>
+						</span>
+					</div>
+
+					{{#if board.canRate}}
+					{{!-- Move the card one sub-column left, home to Neutral, or one sub-column
+					      right. The outer two carry `dir` and name an EXACT rating (data-rel-step),
+					      so between them they reach all five values one press at a time; the middle
+					      one names the Neutral band, which holds a single value anyway.
+
+					      The old strip was three band shortcuts (Hostile / Neutral / Trusted), which
+					      stopped making sense once a lane held two ratings: a band button wrote only
+					      its gentle end, so pressing "Hostile" on a card already in Hostile did
+					      nothing, and nothing in the strip could tell a 4 from a 5.
+
+					      A step at the end of the scale renders truly disabled, not merely dimmed:
+					      it stays in place so the Neutral segment never shifts under the pointer,
+					      and the browser refuses the press outright rather than accepting a click
+					      that quietly does nothing — which is the exact confusion the band buttons
+					      caused. No data-rel-step on it either, so the handler has nothing to read.
+
+					      No --step modifier class: `dir` is already on the element as data-rel-dir,
+					      and CSS can select that, so a parallel class hook would be a second source
+					      of truth for the same fact.
+
+					      Every label formats through one expression: {target} is the rating the press
+					      would write, or — at a dead end — the one the card already holds. Neutral's
+					      label has no placeholder and simply ignores it. --}}
+					<div class="stonetop-segmented-picker stonetop-rel-lane-picker" role="group"
+					     aria-label='{{localize "stonetop.relationships.lane.pickerLabel"}}'>
+						{{#each moveButtons}}
+						<button type="button"
+						        class="stonetop-segmented-picker-option stonetop-rel-lane-btn{{#if isCurrent}} is-active{{/if}}"
+						        {{#if dir}}
+						        data-rel-dir="{{dir}}"{{#if disabled}} disabled="disabled"{{else}} data-rel-step="{{hearts}}"{{/if}}
+						        {{else}}
+						        data-rel-lane="{{laneKey}}" aria-pressed="{{#if isCurrent}}true{{else}}false{{/if}}"
+						        {{/if}}
+						        data-tooltip="{{localize labelKey target=(localize targetLabelKey)}}"
+						        aria-label="{{localize labelKey target=(localize targetLabelKey)}}">
+							<i class="{{icon}}" aria-hidden="true"></i>
+						</button>
+						{{/each}}
+					</div>
+					{{/if}}
+
+					{{!-- NOT .steading-resident-input: the steading sheet delegates on that class
+					      and stopPropagation()s its change event. --}}
+					<input type="text" class="stonetop-rel-note-input stonetop-rel-card-note" data-rel-id="{{id}}"
+					       value="{{notes}}" placeholder='{{localize "stonetop.relationships.notePlaceholder"}}'
+					       {{#unless board.canRate}}disabled{{/unless}}>
+				</li>
+				{{/each}}
+
+				{{#if lane.isEmpty}}
+				<li class="stonetop-rel-lane-empty">{{localize "stonetop.relationships.lane.empty"}}</li>
+				{{/if}}
+			</ul>
+		</div>
+	</section>
+	{{/each}}
+	{{/with}}
+</div>

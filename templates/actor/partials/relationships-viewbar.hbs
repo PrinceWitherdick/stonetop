@@ -1,0 +1,39 @@
+{{!-- Table/Board toggle for a relationships section.
+
+      Its own partial because it is placed in DIFFERENT parents on different sheets: on the
+      character and steading sheets it rides in the section's heading row (far right, on the
+      heading's own line, above the underline), while the NPC sheet's relationships tab has
+      no heading at all, so there it stays inside the section body.
+
+      Each button therefore carries its own `data-resize-key`. The click handler is delegated
+      from the SHEET ROOT and identifies its table from that attribute, so the toolbar can
+      live anywhere on the sheet without the wiring caring — moving it does not have to move
+      a listener too.
+
+      Params: resizeKey, view ("table" | "board"), inHeading.
+
+      Buttons, not the radio inputs .stonetop-segmented-picker normally pairs with: a NAMED
+      input inside an actor sheet's form is submitted into _updateObject and lands in
+      expandObject(formData) as a stray top-level key, and radios are only mutually exclusive
+      when they share a name. Same reason the show/hide checkbox is unnamed. --}}
+<div class="stonetop-rel-viewbar{{#if inHeading}} stonetop-rel-viewbar--heading{{/if}}">
+	<div class="stonetop-segmented-picker stonetop-rel-viewpicker" role="group"
+	     aria-label='{{localize "stonetop.relationships.view.label"}}'>
+		<button type="button"
+		        class="stonetop-segmented-picker-option stonetop-rel-view-btn{{#unless (eq view "board")}} is-active{{/unless}}"
+		        data-resize-key="{{resizeKey}}" data-rel-view="table"
+		        aria-pressed="{{#unless (eq view "board")}}true{{else}}false{{/unless}}"
+		        data-tooltip='{{localize "stonetop.relationships.view.tableTooltip"}}'>
+			<i class="fa-solid fa-table-list" aria-hidden="true"></i>
+			<span>{{localize "stonetop.relationships.view.table"}}</span>
+		</button>
+		<button type="button"
+		        class="stonetop-segmented-picker-option stonetop-rel-view-btn{{#if (eq view "board")}} is-active{{/if}}"
+		        data-resize-key="{{resizeKey}}" data-rel-view="board"
+		        aria-pressed="{{#if (eq view "board")}}true{{else}}false{{/if}}"
+		        data-tooltip='{{localize "stonetop.relationships.view.boardTooltip"}}'>
+			<i class="fa-solid fa-table-columns" aria-hidden="true"></i>
+			<span>{{localize "stonetop.relationships.view.board"}}</span>
+		</button>
+	</div>
+</div>

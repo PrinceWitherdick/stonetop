@@ -84,6 +84,44 @@ describe("NpcLedger", () => {
 		}
 	});
 
+	// An undefined → "" diff is not "equal", so a write that carries a blank note past a
+	// row which never had one would log a phantom "note set to blank" beside whatever else
+	// changed. updateRelationship no longer emits that shape for a first-time rating, but
+	// an explicit clear does, and so does any world written by an earlier build — the
+	// entry below is the shape those produce.
+	it("does not log a note change when the note was blank and stayed blank", () => {
+		const prev = global.game.actors;
+		global.game.actors = { get: (id) => (id === "pc1" ? { name: "Aerin" } : null) };
+		try {
+			// Nothing stored for pc1 at all — the sparse default, i.e. a first-time rating.
+			const actor = makeActor({ relationships: {} });
+			const entries = NpcLedger.entriesForActorUpdate(actor, {
+				system: { relationships: { pc1: { hearts: 4, notes: "" } } },
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"Relationship with Aerin set to Likes (4)",
+			]);
+		} finally {
+			global.game.actors = prev;
+		}
+	});
+
+	it("still logs a note being cleared, which is a real change", () => {
+		const prev = global.game.actors;
+		global.game.actors = { get: (id) => (id === "pc1" ? { name: "Aerin" } : null) };
+		try {
+			const actor = makeActor({ relationships: { pc1: { hearts: 4, notes: "owes a debt" } } });
+			const entries = NpcLedger.entriesForActorUpdate(actor, {
+				system: { relationships: { pc1: { hearts: 4, notes: "" } } },
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"Relationship note for Aerin cleared",
+			]);
+		} finally {
+			global.game.actors = prev;
+		}
+	});
+
 	it("ignores writes to the ledger flag itself", () => {
 		const actor = makeActor({ instinct: "to wait" });
 		const entries = NpcLedger.entriesForActorUpdate(actor, {

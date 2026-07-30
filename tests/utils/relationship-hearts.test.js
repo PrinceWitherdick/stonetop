@@ -114,7 +114,7 @@ describe("write helpers", () => {
 		const actor = fakeActor();
 		await setRelationshipHearts(actor, "vera", 4);
 		expect(actor.lastKey).toBe("system.relationships.vera");
-		expect(actor.lastEntry).toEqual({ hearts: 4, notes: "" });
+		expect(actor.lastEntry).toEqual({ hearts: 4 });
 	});
 
 	it("omits `shown` until it has actually been chosen", async () => {
@@ -146,7 +146,60 @@ describe("write helpers", () => {
 	it("setRelationshipShown records an explicit boolean, replacing a legacy number", async () => {
 		const actor = fakeActor({ vera: 2 });
 		await setRelationshipShown(actor, "vera", true);
-		expect(actor.lastEntry).toEqual({ hearts: 2, notes: "", shown: true });
+		// The bare number is carried up into `hearts` — it IS a rating — but no `notes` is
+		// invented for a row that never had one.
+		expect(actor.lastEntry).toEqual({ hearts: 2, shown: true });
+	});
+});
+
+// A rating is a judgment about someone. Ticking their visibility box or jotting a note is
+// not — but both used to persist the neutral DEFAULT as though it were a verdict, because
+// updateRelationship always wrote the whole entry. That made the board's "never rated"
+// dimming wrong, made committing an unrated card to Neutral a silent no-op, and made the
+// NPC ledger log "set to Neutral (3)" for a show-box tick.
+describe("a rating is only stored once someone actually rates", () => {
+	it("does not persist hearts when only the visibility box is ticked", async () => {
+		const actor = fakeActor();
+		await setRelationshipShown(actor, "vera", true);
+		// Only the box. Not the neutral default rating, and not a blank note either.
+		expect(actor.lastEntry).toEqual({ shown: true });
+		expect("hearts" in actor.lastEntry).toBe(false);
+	});
+
+	it("does not persist hearts when only a note is written", async () => {
+		const actor = fakeActor();
+		await setRelationshipNote(actor, "vera", "owes me money");
+		expect(actor.lastEntry).toEqual({ notes: "owes me money" });
+	});
+
+	it("still reads back as neutral, so nothing downstream sees a hole", async () => {
+		const actor = fakeActor();
+		await setRelationshipNote(actor, "vera", "owes me money");
+		actor.system.relationships.vera = actor.lastEntry;
+		const row = relationshipRow(actor, other());
+		expect(row.hearts).toBe(HEARTS_DEFAULT);
+		expect(row.notes).toBe("owes me money");
+	});
+
+	it("reports `rated` false after a reveal or a note, true after an actual rating", async () => {
+		const revealed = fakeActor({ vera: { notes: "", shown: true } });
+		expect(relationshipRow(revealed, other()).rated).toBe(false);
+
+		const noted = fakeActor({ vera: { notes: "owes me money" } });
+		expect(relationshipRow(noted, other()).rated).toBe(false);
+
+		const judged = fakeActor({ vera: { hearts: 3, notes: "" } });
+		expect(relationshipRow(judged, other()).rated).toBe(true);
+	});
+
+	it("treats the legacy bare-number shape as rated — the number IS the rating", () => {
+		expect(relationshipRow(fakeActor({ vera: 3 }), other()).rated).toBe(true);
+	});
+
+	it("keeps an existing rating when a later write only touches the note or visibility", async () => {
+		const actor = fakeActor({ vera: { hearts: 5, notes: "" } });
+		await setRelationshipShown(actor, "vera", false);
+		expect(actor.lastEntry).toEqual({ hearts: 5, notes: "", shown: false });
 	});
 });
 

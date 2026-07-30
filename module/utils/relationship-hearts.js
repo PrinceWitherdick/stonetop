@@ -5,6 +5,11 @@
 // { hearts, notes }. Sparse — an actor with no stored entry reads as the default
 // 3 hearts, so a fresh sheet shows everyone at neutral without persisting anything.
 // Keys are actor ids (no dots), so `system.relationships.<id>` updates merge cleanly.
+// NOTE: this is the LEAF of the relationships modules — it must not import
+// relationship-board.js or heart-words.js, both of which import it. A back-import would
+// make the cycle resolve into a temporal-dead-zone error depending on which side loaded
+// first, since both of those evaluate top-level consts. The hosts wire them together,
+// which keeps the dependency one-way.
 import { isDefaultImg } from "./strings.js";
 import { makeColumnsResizable } from "./resizable-columns.js";
 import { makeColumnsSortable } from "./sortable-columns.js";
@@ -47,6 +52,24 @@ export const relationSummary = (hearts, subject, object) =>
 // no notes. `shown` stays undefined when never set, so the caller's per-kind default
 // applies (see relationshipRow) — that's what lets other PCs default to visible while
 // the steading's NPCs default to hidden without writing an entry for everyone.
+// Whether an entry records an actual RATING, as opposed to existing only because someone
+// ticked its visibility box or typed a note. That distinction is invisible in the read
+// shape — readRelationship defaults a missing rating to 3, exactly like a missing entry —
+// so it has to be asked of the RAW value.
+//
+// ONLY RELIABLE FOR ENTRIES WRITTEN SINCE updateRelationship STOPPED PADDING THEM. Earlier
+// builds always wrote the whole { hearts, notes } object, so in a world that predates that
+// change every entry that exists carries `hearts` — including ones created purely by ticking
+// a show box or saving a note, which will read as rated here. There is no migration that can
+// fix it: a legacy `hearts: 3` is byte-identical whether someone judged the person neutral or
+// never judged them at all. The consequence is confined to presentation (the board's
+// rated-before-unrated sort key and its dimmed unrated cards), so an upgraded world sees a
+// board that is merely less sorted than a fresh one, never a wrong rating.
+export function hasStoredRating(raw) {
+	if (typeof raw === "number") return true; // legacy bare-number shape: the number IS the rating
+	return !!raw && typeof raw === "object" && raw.hearts !== undefined;
+}
+
 export function readRelationship(raw) {
 	const obj = (raw && typeof raw === "object") ? raw : { hearts: raw };
 	return {
@@ -59,14 +82,26 @@ export function readRelationship(raw) {
 // One template row: who they are, how `actor` regards them, and the per-slot heart
 // states so the template needs no math helper. `defaultShown` is this row's visibility
 // before anyone has ticked its box.
+//
+// `rated` is the one thing the sparse storage cannot otherwise express: an absent entry
+// and a deliberate 3 both read as 3 hearts, which is fine for a table sorted by rating
+// but not for the board, where an untouched roster would pile every card into Neutral and
+// drown the handful anyone has actually judged. It is derived, never stored.
+//
+// It asks whether a RATING was stored, not whether an ENTRY exists: an entry is also
+// created by ticking someone's visibility box or typing a note, neither of which is a
+// judgment about them. See hasStoredRating, and updateRelationship, which is what keeps
+// those two writes from persisting a rating nobody made.
 export function relationshipRow(actor, other, { defaultShown = true } = {}) {
-	const { hearts, notes, shown } = readRelationship(actor.system?.relationships?.[other.id]);
+	const stored = actor.system?.relationships?.[other.id];
+	const { hearts, notes, shown } = readRelationship(stored);
 	return {
 		id:   other.id,
 		name: other.name,
 		img:  isDefaultImg(other.img) ? null : other.img,
 		hearts,
 		notes,
+		rated:      hasStoredRating(stored),
 		shown:      shown ?? defaultShown,
 		feeling:    relationSummary(hearts, actor.name, other.name),
 		heartSlots: Array.from({ length: HEARTS_MAX }, (_, i) => ({ position: i + 1, filled: i < hearts })),
@@ -144,15 +179,38 @@ export function wireRelationshipDropHighlight(section) {
 	return clear;
 }
 
-// Patch one field of a relationship entry. Always writes the WHOLE entry (never a nested
-// key) so a legacy bare-number value is cleanly replaced by the { hearts, notes } object.
-// `shown` is only written once it has actually been set, so an untouched row keeps falling
-// back to its per-kind default rather than freezing today's default into world data.
-function updateRelationship(actor, id, patch) {
-	const { hearts, notes, shown } = { ...readRelationship(actor.system?.relationships?.[id]), ...patch };
-	return actor.update({
-		[`system.relationships.${id}`]: shown === undefined ? { hearts, notes } : { hearts, notes, shown },
-	});
+// Patch one field of a relationship entry. Writes the entry OBJECT under the row's id
+// (never a nested key), so a legacy bare-number value is cleanly replaced by the
+// { hearts, notes } shape — and since actor.update merges, a field this write omits keeps
+// whatever was already stored there.
+//
+// Every field is written only once it has actually been set, so an untouched row keeps
+// falling back to a default rather than freezing today's default into world data. Nothing
+// downstream can tell the difference on READ: readRelationship supplies the same defaults.
+//
+//  • `shown` — otherwise a row's per-kind default visibility would be baked in.
+//  • `hearts` — otherwise merely ticking a visibility box or typing a note would persist
+//    the neutral default as though someone had judged this person. That silently turns an
+//    unrated row into a rated one (see hasStoredRating), which the board reads as a real
+//    3-heart verdict, and it made the NPC ledger log "set to Neutral (3)" for a show-box
+//    tick.
+//  • `notes` — same rule, for the same reason. Rating someone used to write `notes: ""`
+//    beside the rating, which is a change from `undefined` and so logged a phantom "note
+//    set to blank" on every first-time rating; the ledger had to recognise and discard it.
+//    Keeping the field absent also leaves "has a note" derivable from storage later, the
+//    way hasStoredRating derives "has a rating" now.
+//
+// `options` rides through to actor.update so a caller can attribute the change (the
+// `{stonetopMove}` idiom the ledgers read); never pass `{stonetopLedger: true}`, which is
+// the ledger's own re-entrancy kill switch.
+function updateRelationship(actor, id, patch, options = {}) {
+	const stored = actor.system?.relationships?.[id];
+	const { hearts, notes, shown } = { ...readRelationship(stored), ...patch };
+	const entry = {};
+	if (patch.notes !== undefined || stored?.notes !== undefined) entry.notes = notes;
+	if (patch.hearts !== undefined || hasStoredRating(stored)) entry.hearts = hearts;
+	if (shown !== undefined) entry.shown = shown;
+	return actor.update({ [`system.relationships.${id}`]: entry }, options);
 }
 
 // Clicking heart N sets the rating to N; clicking the current rating's last filled
@@ -162,6 +220,14 @@ export async function setRelationshipHearts(actor, id, position) {
 	const current = readRelationship(actor.system?.relationships?.[id]).hearts;
 	const next = position === current ? position - 1 : position;
 	await updateRelationship(actor, id, { hearts: clampHearts(next) });
+}
+
+// Set a rating to an exact value, with no click-toggle. The board needs this: dropping a
+// card into a lane asserts a value outright, and routing that through
+// setRelationshipHearts would hit its "clicked the last filled heart" branch and silently
+// DECREMENT whenever the asserted value matched the current one.
+export async function setRelationshipHeartsExact(actor, id, hearts, options = {}) {
+	await updateRelationship(actor, id, { hearts: clampHearts(hearts) }, options);
 }
 
 export async function setRelationshipNote(actor, id, notes) {

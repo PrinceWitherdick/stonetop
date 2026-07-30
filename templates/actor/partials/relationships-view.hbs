@@ -1,0 +1,38 @@
+{{!-- Relationships section shell: a Table/Board toggle over ONE of two renderings of the
+      same rows. Shared by the NPC sheet's Relationships tab, the character sheet's Details
+      tab and the steading sheet's Relationships card.
+
+      Each view gets the params it actually reads: the table takes rows + nameLabel + the
+      resizeKey its columns are stored under, the board takes lanes (built over those same
+      rows), and both take canRate / canToggle / showTooltip. `view` is the stored layout
+      ("table" | "board"); it and `resizeKey` come from the host's getData via
+      relationshipViewContext(). `data-rel-view` on the wrapper is what tells
+      wireRelationshipBoard whether there are any cards down there to wire.
+
+      The host still decides whether to render this at all — with no rows there is nothing
+      for either layout to show, so the empty state stays outside and the toggle goes with it.
+
+      Only ONE view renders. Rendering both and hiding one with CSS would duplicate every
+      `data-rel-id` node, including the live note input, so editing the visible copy would
+      leave its hidden twin stale and the delegated change handler could not tell them
+      apart. The toggle re-renders instead.
+
+      The toolbar renders here ONLY when the host has nowhere better to put it — the NPC
+      relationships tab has no heading row at all. The character and steading sheets place
+      `stonetop.relationships-viewbar` in their own heading row instead and pass
+      `hideViewbar=true`, so the toggle sits on the heading's line rather than below it. Its
+      click handler is delegated from the sheet root and finds its table from the button's
+      own `data-resize-key`, which is what lets the toolbar move without the wiring moving. --}}
+<div class="stonetop-rel-views" data-resize-key="{{resizeKey}}" data-rel-view="{{view}}">
+	{{#unless hideViewbar}}
+	{{> "stonetop.relationships-viewbar" resizeKey=resizeKey view=view}}
+	{{/unless}}
+
+	{{#if (eq view "board")}}
+	{{> "stonetop.relationships-board" lanes=lanes
+	    canRate=canRate canToggle=canToggle showTooltip=showTooltip}}
+	{{else}}
+	{{> "stonetop.relationships-table" rows=rows resizeKey=resizeKey nameLabel=nameLabel
+	    canRate=canRate canToggle=canToggle showTooltip=showTooltip}}
+	{{/if}}
+</div>

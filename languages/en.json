@@ -503,7 +503,38 @@
       "feels2": "{subject} dislikes {object}",
       "feels3": "{subject} feels neutral toward {object}",
       "feels4": "{subject} likes {object}",
-      "feels5": "{subject} loves {object}"
+      "feels5": "{subject} loves {object}",
+      "view": {
+        "label": "Layout",
+        "table": "Table",
+        "board": "Board",
+        "tableTooltip": "One sortable row per name",
+        "boardTooltip": "Standings board: Hostile, Neutral, Trusted"
+      },
+      "lane": {
+        "trusted": "Trusted",
+        "neutral": "Neutral",
+        "hostile": "Hostile",
+        "trustedHint": "likes & loves",
+        "neutralHint": "no strong feeling",
+        "hostileHint": "dislikes & hates",
+        "empty": "No one here yet.",
+        "pickerLabel": "Move one step, or back to Neutral",
+        "stepColder": "One step colder: {target}",
+        "stepWarmer": "One step warmer: {target}",
+        "stepFloor": "Already {target}, the coldest rating",
+        "stepCeiling": "Already {target}, the warmest rating",
+        "moved": "{name} moved to {lane}.",
+        "unrated": "Never rated: showing the neutral default",
+        "moveFailed": "That change could not be saved."
+      },
+      "zone": {
+        "h1": "Hates",
+        "h2": "Dislikes",
+        "h3": "Neutral",
+        "h4": "Likes",
+        "h5": "Loves"
+      }
     },
     "character": {
       "relationships": {

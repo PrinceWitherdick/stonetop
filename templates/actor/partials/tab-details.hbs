@@ -252,9 +252,20 @@
 				{{> "stonetop.section-heading" title=(localize "stonetop.character.relationships.title")}}
 				{{/if}}
 				{{> "stonetop.details-section-edit-toggle" section="relationships" editing=stonetop.detailsEdit.relationships}}
+				{{!-- Table/Board toggle on the heading's own line, far right, above the
+				      underline. Absolutely positioned clear of the pencil (which sits at
+				      right:0), matching how this heading row already places that pencil.
+				      Gated on the same condition as the section body: with no rows, neither
+				      layout has anything to show, so a toggle would switch between two
+				      identical empty states. --}}
+				{{#if stonetop.hasRelationships}}
+				{{> "stonetop.relationships-viewbar" resizeKey=stonetop.rel.resizeKey
+				    view=stonetop.rel.view inHeading=true}}
+				{{/if}}
 			</div>
 			{{#if stonetop.hasRelationships}}
-			{{> "stonetop.relationships-table" rows=stonetop.relationships resizeKey="characterRelationships"
+			{{> "stonetop.relationships-view" rows=stonetop.relationships lanes=stonetop.rel.lanes
+			    view=stonetop.rel.view resizeKey=stonetop.rel.resizeKey hideViewbar=true
 			    nameLabel=(localize "stonetop.character.relationships.who") canRate=stonetop.canEdit
 			    canToggle=stonetop.detailsEdit.relationships}}
 			{{else}}

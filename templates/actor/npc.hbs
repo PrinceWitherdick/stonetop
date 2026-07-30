@@ -387,7 +387,8 @@
 			      show/hide box per row, and play mode lists only the ticked ones. --}}
 			<section class="stonetop-npc-field stonetop-npc-field--full stonetop-npc-relationships stonetop-rel-droppable">
 				{{#if stonetop.hasRelationships}}
-				{{> "stonetop.relationships-table" rows=stonetop.relationships resizeKey="npcRelationships"
+				{{> "stonetop.relationships-view" rows=stonetop.relationships lanes=stonetop.rel.lanes
+				    view=stonetop.rel.view resizeKey=stonetop.rel.resizeKey
 				    nameLabel=(localize "stonetop.npc.relPlayer") canRate=stonetop.canRate
 				    canToggle=stonetop.editMode}}
 				{{else}}

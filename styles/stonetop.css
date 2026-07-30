@@ -2948,6 +2948,15 @@ input.stonetop-name-field {
    note field mouse-dead while the hearts beside it still respond. */
 .stonetop-readonly .stonetop-rel-note-input,
 .stonetop-readonly .stonetop-rel-show-check,
+/* The Table/Board toggle and the board's per-card lane control belong to the same
+   play-time tracker, so they follow the note field's exemption. The toggle is pure view
+   state (it writes nothing at all), and the lane buttons are just the heart strip in
+   another shape — the template already renders both inert when the viewer can't rate.
+   Without this, the steading's Relationships card and the character Details tab (both
+   .stonetop-readonly whenever their pencil is shut) would show a toggle that does
+   nothing when clicked. */
+.stonetop-readonly .stonetop-rel-view-btn,
+.stonetop-readonly .stonetop-rel-lane-btn,
 .stonetop-readonly .stonetop-item-resource-check {
 	pointer-events: auto;
 	opacity: 1;
@@ -23225,4 +23234,663 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	background: var(--st-btn-primary-bg-hover);
 	border-color: var(--st-btn-primary-border-hover);
 	color: var(--st-btn-primary-text);
+}
+
+/* ══ Relationships: board view ═════════════════════════════════════════════════
+   The standings board — the same rows the hearts table renders, dealt into three
+   lanes (Trusted / Neutral / Hostile). Shared by the NPC, character and steading
+   sheets via templates/actor/partials/relationships-board.hbs.
+
+   Deliberately its own class namespace: the TABLE borrows the .steading-residents-*
+   classes, and with them the inline grid-template-columns that resizable-columns.js
+   stamps onto any .steading-residents-table — reusing those here would drop a
+   persisted three-column grid onto a card and shatter it. Nothing below touches them.
+
+   Appended at EOF because source order carries meaning in this file, and these rules
+   must land after the .stonetop-rel-* table block they sit beside. */
+
+.stonetop-rel-views {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	/* The board sizes its lanes off THIS element, not the window: the NPC sheet has no
+	   outer container to inherit from, and the character sheet's width swings by ~200px
+	   as the moves sidebar collapses. */
+	container-type: inline-size;
+}
+
+/* ── The Table / Board toggle ─────────────────────────────────────────────── */
+
+.stonetop-rel-viewbar {
+	display: flex;
+	justify-content: flex-end;
+}
+
+/* Both segmented strips the board uses — this section-level Table/Board toggle and the
+   per-card lane control far below — begin by undoing the same core button styling. Stated
+   once, grouped, so the two cannot drift; each strip's own block then carries only what it
+   genuinely differs on (sizing, spacing, fill and type). */
+.stonetop-rel-viewpicker .stonetop-rel-view-btn,
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn {
+	/* inline-flex + width:auto, or core's block-level button rules (display:flex,
+	   width:100%) give each option its own row and the strip stacks vertically.
+	   min-height:0 for the same reason. Mirrors .stonetop-cf-tag. */
+	display: inline-flex;
+	width: auto;
+	min-height: 0;
+	align-items: center;
+	margin: 0;
+	border: 0;
+	/* The separator between segments. .stonetop-segmented-picker-option declares the same
+	   pair, but it ties on specificity with these two-class selectors and loses on source
+	   order — which is also why each strip repeats its own :last-child reset below. */
+	border-right: 1px solid var(--st-btn-primary-border, #4f5b66);
+	border-radius: 0;
+	box-shadow: none;
+}
+
+.stonetop-rel-viewpicker .stonetop-rel-view-btn {
+	flex: 0 0 auto;
+	gap: 5px;
+	padding: 2px 9px;
+	background: transparent;
+	font-family: var(--font-stonetop);
+	/* Pinned to the ROOT base, deliberately not var(--st-fs-sm). The type tokens are
+	   relative em steps (see the scale block near the top of this file), which is right for
+	   text that should scale with its surroundings — but this one control renders in three
+	   different parents: the section body on the NPC sheet, a heading ROW on the character
+	   sheet, and inside the `h3` itself on the steading sheet. A relative step therefore
+	   resolved against a different base in each place and the buttons changed size depending
+	   on where they were mounted. 0.95rem is what --st-fs-sm used to compute to in the
+	   section body, so this keeps the original size and makes it placement-independent.
+	   The font-scale factor is kept so the sheet's own text-size setting still applies. */
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
+	line-height: 1.5;
+	color: var(--st-text-body);
+}
+
+.stonetop-rel-viewpicker .stonetop-rel-view-btn:last-child { border-right: 0; }
+
+/* .is-active, not :has(input:checked): these are buttons, because a NAMED radio inside
+   an actor sheet's form is submitted into _updateObject as a stray top-level key. The
+   class is server-stamped, which is safe here since the flip always re-renders. */
+.stonetop-rel-viewpicker .stonetop-rel-view-btn.is-active {
+	background: var(--st-btn-primary-bg, slategrey);
+	color: #fff;
+}
+
+.stonetop-rel-viewpicker .stonetop-rel-view-btn:hover:not(.is-active) {
+	background: rgba(100, 116, 139, 0.16);
+	color: var(--st-text-body);
+}
+
+/* ── Lanes ────────────────────────────────────────────────────────────────── */
+
+.stonetop-rel-board {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+	/* stretch, NOT start: every lane fills the row so the whole column is a drop target.
+	   Hugging their content leaves the space below a short lane as bare board background,
+	   where dropAt() finds no lane — and aiming at the empty space under a column's last
+	   card is the most natural drop there is. Paired with `.stonetop-rel-lane-body` and
+	   `.stonetop-rel-lane-cards` growing, so the card list fills the lane rather than the
+	   header eating it. */
+	align-items: stretch;
+}
+
+/* Visually-hidden move announcer. Not display:none and not the hidden attribute, either
+   of which would take it out of the accessibility tree and silence it. */
+.stonetop-rel-board-live {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.stonetop-rel-lane {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	padding: 6px;
+	border: 1px solid rgba(100, 116, 139, 0.28);
+	/* The lane's identity is a 3px cap in its own accent, matching the --st-cell-accent
+	   idiom used elsewhere rather than tinting the whole column, which would fight the
+	   parchment behind it. */
+	border-top: 3px solid var(--st-lane-accent, #777);
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.35);
+}
+
+/* Cool to warm, left to right (the lane ORDER lives in REL_LANES; these are keyed by class,
+   so they follow it automatically). Trusted borrows the green accent border; Hostile gets its
+   OWN warm value rather than --st-red-*, which is reserved for destructive actions — a
+   hostile standing is a fact about the fiction, not a delete button. */
+.stonetop-rel-lane--trusted { --st-lane-accent: var(--st-green-border, hsl(140 25% 55%)); }
+.stonetop-rel-lane--neutral { --st-lane-accent: rgba(100, 116, 139, 0.55); }
+.stonetop-rel-lane--hostile { --st-lane-accent: hsl(12 38% 48%); }
+
+.stonetop-rel-lane-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	font-weight: bold;
+	color: var(--st-text-body);
+}
+
+.stonetop-rel-lane-head i { color: var(--st-lane-accent, #777); }
+
+.stonetop-rel-lane-title { flex: 1 1 auto; min-width: 0; }
+
+.stonetop-rel-lane-count {
+	flex: 0 0 auto;
+	min-width: 18px;
+	padding: 0 5px;
+	border-radius: 999px;
+	background: rgba(100, 116, 139, 0.18);
+	font-size: var(--st-fs-xs, 0.75rem);
+	font-weight: normal;
+	text-align: center;
+	color: var(--st-text-muted);
+}
+
+.stonetop-rel-lane-hint {
+	margin: 1px 0 6px;
+	font-size: var(--st-fs-xs, 0.75rem);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────────── */
+
+.stonetop-rel-card {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	min-width: 0;
+	padding: 6px;
+	border: 1px solid rgba(100, 116, 139, 0.25);
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.72);
+}
+
+.stonetop-rel-card:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: 1px;
+}
+
+/* Never rated: this card sits in Neutral only because storage is sparse and an absent
+   entry reads as 3. Dimming it keeps the handful of DELIBERATE neutrals legible in a
+   lane that would otherwise hold the whole roster. */
+.stonetop-rel-card--unrated {
+	background: rgba(255, 255, 255, 0.4);
+	border-style: dashed;
+}
+
+.stonetop-rel-card--unrated .stonetop-rel-card-name,
+.stonetop-rel-card--unrated .stonetop-rel-portrait { opacity: 0.72; }
+
+/* Unticked under the pencil: shown only while editing, matching the table's row treatment. */
+.stonetop-rel-card--hidden .stonetop-rel-card-name,
+.stonetop-rel-card--hidden .stonetop-rel-portrait { opacity: 0.45; }
+
+.stonetop-rel-card-head {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	min-width: 0;
+}
+
+.stonetop-rel-card-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--st-text-body);
+}
+
+/* One heart carrying the rating as a numeral, at the right end of the name's line. Replaces
+   the table's five-slot strip on cards: five 18px slots needed a whole row of a ~180px card
+   to say what one glyph says. DISPLAY ONLY — a card's rating is changed by dragging onto a
+   zone, by the arrow keys, or by the band buttons. */
+.stonetop-rel-heart-badge {
+	position: relative;
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	/* 24, not 22, so the box lands on WHOLE device pixels at every display scaling Windows
+	   commonly uses: 24 x 1.25 = 30, x 1.5 = 36, x 2 = 48. At 22px the 1.25 case came to
+	   27.5 device px, so the masked heart's edges had to snap, and the shape could sit half
+	   a pixel differently from one card to the next. Keep this an even number, and keep
+	   (height - numeral line-height) even too, or the digit stops centring on a whole pixel. */
+	width: 24px;
+	height: 24px;
+}
+
+/* The heart is a masked pseudo-element, NOT a mask on the badge itself: masking the badge
+   would clip its text child to the heart's silhouette and eat the numeral. The pseudo sits
+   behind, the numeral paints on top. Same mask asset as the table's heart slots. */
+.stonetop-rel-heart-badge::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	-webkit-mask: url("../assets/icons/hearts.svg") center / contain no-repeat;
+	mask: url("../assets/icons/hearts.svg") center / contain no-repeat;
+	/* A washed heart, the same in every column. A solid --st-heart with a white numeral
+	   reversed out of it shouted louder than a card's own name, and three columns of it read
+	   as alarm rather than information — the lane already says whether a standing is good or
+	   bad, so the badge only has to carry the number. Dark-on-light also beats white-on-red
+	   for contrast at this size. */
+	background-color: color-mix(in srgb, var(--st-heart, #c0473b) 32%, transparent);
+}
+
+.stonetop-rel-heart-badge-value {
+	position: relative;   /* above the ::before heart */
+	margin-top: 0;
+	font-family: var(--font-stonetop);
+	/* Whole pixels, and deliberately NOT scaled by --stonetop-font-scale.
+	   Two reasons, both real:
+	   1. The heart is a FIXED 22px box, so a numeral that scaled with the sheet's text-size
+	      setting would grow out of a shape that does not — at scale 1.4 a 16px digit no
+	      longer fits inside the glyph it is supposed to sit in.
+	   2. The numbers have to land on whole DEVICE pixels, or two identical badges can end up
+	      looking a pixel apart from each other. A 16px line box in a 24px heart centres at
+	      (24 - 16) / 2 = 4px, and 4 survives every common Windows scaling: x1.25 = 5,
+	      x1.5 = 6, x2 = 8, all integers. The original 0.72rem (11.52px) centred at 5.24px
+	      and was fractional before scaling even entered into it. If either number here
+	      changes, check that (24 - line-height) / 2 is still divisible by 4. */
+	font-size: 12px;
+	font-weight: bold;
+	line-height: 16px;
+	color: var(--st-text-body);
+}
+
+/* No --unrated override here on purpose. The badge is now identical on every card, so a
+   never-rated row is marked by the CARD instead: dashed border, lighter fill, dimmed name
+   and portrait, plus the "Never rated" tooltip and accessible name. That distinction still
+   has to survive, because sparse storage cannot otherwise tell an untouched person from a
+   deliberate 3 — see the .stonetop-rel-card--unrated block above. */
+
+.stonetop-rel-card-note {
+	width: 100%;
+	min-width: 0;
+}
+
+/* ── The per-card lane control ────────────────────────────────────────────── */
+
+.stonetop-rel-lane-picker { align-self: stretch; }
+
+/* The core-button reset these share with the Table/Board toggle is stated once beside
+   .stonetop-rel-viewpicker, far above; only the differences live here. */
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn {
+	flex: 1 1 0;
+	justify-content: center;
+	padding: 1px 0;
+	/* The whole strip is one weight, not just the segment matching the card's lane. Three
+	   identically weighted segments read as one control the card is steered with, where a
+	   single filled segment among two ghosts read as a selected VALUE, which is the wrong
+	   promise now that the outer two are directions rather than standings.
+
+	   That weight is the NEUTRAL lane's own accent — the grey its header icon is painted in
+	   (see .stonetop-rel-lane--neutral) — rather than the full-strength slate of a primary
+	   button. A card's move buttons are a nudge, not the card's business end, and at button
+	   strength three filled slate pills on every card drowned out the lane accents that
+	   carry the actual reading. Glyph goes dark to match: white ink on a fill this light is
+	   about 1.8:1. */
+	background: rgba(100, 116, 139, 0.55);
+	font-size: var(--st-fs-xs, 0.75rem);
+	line-height: 1.6;
+	color: var(--st-btn-primary-border, #4f5b66);
+}
+
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn:last-child { border-right: 0; }
+
+/* Nothing for .is-active to change: the base is already the filled slate that state used to
+   supply. The middle button still carries aria-pressed, so "the card is in Neutral" survives
+   for a screen reader even though the strip no longer says it in paint. */
+
+/* Hover deepens the same grey rather than jumping to the slate hover token, which at this
+   base would read as the button changing colour, not lighting up. */
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn:hover:not(:disabled) {
+	background: rgba(100, 116, 139, 0.78);
+}
+
+/* The Neutral segment inverts: white fill, black glyph, between the two grey steps. It is the
+   one button in the strip that names a RATING rather than a direction, so it reads as the home
+   key rather than a third nudge.
+
+   Selected by the ABSENCE of [data-rel-dir] — the same fact the template branches on to decide
+   which kind of button it is emitting, so there is no second source of truth for it. */
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn:not([data-rel-dir]) {
+	background: #fff;
+	color: #000;
+}
+
+/* Needs to out-specify the slate :hover above, which would otherwise repaint the white
+   segment on the way past. */
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn:not([data-rel-dir]):hover:not(:disabled) {
+	background: #e7ebef;
+}
+
+/* A step button at the end of the scale: a card at "hates" has nowhere colder to go. It stays
+   in place rather than being dropped from the strip, so the Neutral segment never shifts under
+   the pointer on the very cards a user is most likely to nudge back. Fades the glyph rather
+   than the whole button, which would take the grey fill with it and punch a hole in the strip.
+   Needs the extra :disabled to out-specify `.stonetop-readonly .stonetop-rel-lane-btn`, which
+   forces opacity back to 1 for the play-time trackers. */
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn:disabled {
+	opacity: 1;
+	cursor: default;
+	color: rgba(79, 91, 102, 0.4);
+}
+
+/* ── Narrow hosts ─────────────────────────────────────────────────────────── */
+
+/* The NPC sheet is ~580px of usable width, and the character sheet loses ~200px more with
+   the moves sidebar open. Below ~440px three columns leave each card too narrow to hold a
+   name and a five-heart strip, so the lanes stack full width instead — which reads better in
+   a tall narrow window anyway.
+   Cards stay ONE per row here rather than flowing into a grid: full card width is the whole
+   point of the drag-only overlay, and a grid would give back the width it exists to protect.
+   The overlay is unaffected either way — it is absolutely positioned against the lane body,
+   not against the card flow. */
+@container (max-width: 440px) {
+	.stonetop-rel-board { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Board view: review fixes ─────────────────────────────────────────────── */
+
+/* Core Foundry gives every `button > i` a right margin, which off-centres an icon-only
+   pill and double-counts against the view toggle's own `gap`. */
+.stonetop-rel-viewpicker .stonetop-rel-view-btn > i,
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn > i {
+	margin-right: 0;
+}
+
+/* A chevron's ink sits high in its em box while the scales glyph beside it sits centred, so
+   three optically aligned icons need the outer two nudged a pixel down. Keyed off
+   [data-rel-dir], which the template puts on the step buttons and nothing else. transform,
+   so the box the glyph is centred in does not move and the strip keeps its height. */
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn[data-rel-dir] > i {
+	transform: translateY(1px);
+}
+
+/* Keyboard focus. Core strips the default outline from buttons, so without these the
+   segmented pills give a keyboard user no idea where they are — and the lane picker is
+   the primary way to move a card, not an optional extra. Inset so the ring stays inside
+   the strip's own rounded border rather than straddling it. */
+.stonetop-rel-viewpicker .stonetop-rel-view-btn:focus-visible,
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: -2px;
+}
+
+/* No lane-picker override of that ring colour: the step buttons carry the Neutral lane's
+   light grey, not a filled slate, so the dark ring reads on all three segments the way it
+   does on the view toggle. It used to be flipped to white here, which would now vanish. */
+
+/* An empty portrait's glyph is already at 0.5 opacity, so the unrated card's 0.72 on the
+   wrapper compounded to ~0.36 and all but erased it. That hit settlements hardest: they
+   NEVER have an image, and they start unrated, so every card on a fresh steading board
+   showed a ghost. Dim the wrapper, not the glyph twice. */
+.stonetop-rel-card--unrated .stonetop-rel-portrait--empty i {
+	opacity: 0.5;
+}
+
+/* ── Board view: dragging a card between lanes ────────────────────────────── */
+
+/* Gated on [tabindex], which the template emits only when the viewer can rate — the same
+   flag that decides whether a drag is wired at all. Ungated, a read-only board would show
+   a grab cursor and refuse to select text on cards that cannot be dragged or changed. */
+.stonetop-rel-card[tabindex] {
+	cursor: grab;
+	/* No text selection on the card body: a selection drag would start a NATIVE HTML5
+	   drag, which is exactly what this board avoids using (see wireLaneDrag). The note
+	   field opts back in below, since selecting inside it is the whole point. */
+	user-select: none;
+	/* pan-y, not none. `none` would win us vertical drags but cost touch users the ability
+	   to scroll the sheet by swiping on a card, which is most of the board's surface. The
+	   lanes are side by side, so the drag that matters is horizontal; a vertical swipe
+	   stays a scroll, and the browser fires pointercancel, which the drag cleans up. */
+	touch-action: pan-y;
+}
+
+.stonetop-rel-card .stonetop-rel-note-input {
+	cursor: text;
+	user-select: text;
+}
+
+/* Interactive children keep their own affordance rather than inheriting `grab` — none of
+   them start a drag (wireLaneDrag refuses to arm on them). The heart badge is NOT listed:
+   it is display only, so it should read as part of the card and stay draggable with it. */
+.stonetop-rel-card .stonetop-rel-lane-btn,
+.stonetop-rel-card .stonetop-rel-show-check {
+	cursor: pointer;
+}
+
+/* The card in flight. It keeps its slot in the lane (transform does not affect layout),
+   so nothing reflows underneath while the drag is live and the board stays still. */
+.stonetop-rel-card.is-dragging {
+	position: relative;
+	z-index: 10;
+	cursor: grabbing;
+	opacity: 0.9;
+	border-color: var(--st-btn-primary-border, #4f5b66);
+	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
+}
+
+/* The lane the pointer is currently over. Outline rather than border so the lane does not
+   change size and shuffle its cards as the drop target moves between columns. */
+.stonetop-rel-lane.is-drop-target {
+	outline: 2px dashed var(--st-lane-accent, #777);
+	outline-offset: -3px;
+	background: rgba(255, 255, 255, 0.6);
+}
+
+/* Cards are lifted by a compositor transform, so a lane needs no scroll container of its
+   own; the drag scrolls the sheet instead (see AUTOSCROLL_EDGE in relationship-board.js). */
+@media (prefers-reduced-motion: reduce) {
+	.stonetop-rel-card.is-dragging { box-shadow: none; }
+}
+
+/* ── Board view: exact-value drop zones ───────────────────────────────────────
+   Hostile and Trusted each hold two ratings (1|2, 4|5), so a drop into them can name a
+   value rather than just a band. Those targets are an OVERLAY that only appears while a
+   card is being dragged, not real sub-columns.
+
+   That is the whole point: real sub-columns would permanently halve every card's width in a
+   lane that is only ~185px wide on the NPC sheet, paying full-time layout cost for an
+   occasional gesture. With the overlay, a card always fills its entire lane, and the
+   precision appears exactly when it is needed and vanishes again.
+
+   Neutral holds a single value, so it gets no overlay at all — there is nothing to choose,
+   and dropping anywhere in it can only ever mean 3. */
+
+.stonetop-rel-lane-body {
+	position: relative;   /* positioning context for the overlay */
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-width: 0;
+	/* A floor so a nearly empty lane is still an easy drop target. UNCONDITIONAL, and that
+	   matters: applying it only while dragging made it a layout change in the middle of a
+	   gesture. In the stacked single-column layout an empty lane's body is ~27px, so the
+	   floor grew it by 29px the instant the drag threshold was crossed — every lane below
+	   jumped out from under the pointer, and because the drag baseline (startY) is captured
+	   at pointerdown, the card then rendered 29px off the cursor for the rest of the drag.
+	   Measured at board widths 430px and below; three-column mode was unaffected because
+	   align-items:stretch already made every body taller than this. Reserve the space up
+	   front and the drag adds no layout at all. */
+	min-height: 56px;
+}
+
+.stonetop-rel-lane-cards {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	/* No overflow-y: this section is the last one on a tab that scrolls in .window-content,
+	   so the lanes grow and the PAGE scrolls. An inner scroller would trap the wheel. */
+}
+
+.stonetop-rel-lane-empty {
+	padding: 6px 2px;
+	font-size: var(--st-fs-xs, 0.75rem);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
+/* Hidden until a drag starts. `display: none` rather than transparent, so the zones are not
+   hit-testable when idle. dropAt() prefers a zone over a lane, and a zone drop may assert 1
+   or 5 where a lane drop may not, so a live-but-invisible overlay would silently turn every
+   ordinary hover into an exact-value target. */
+.stonetop-rel-dropzones {
+	display: none;
+}
+
+.stonetop-rel-board.is-dragging .stonetop-rel-dropzones {
+	position: absolute;
+	inset: 0;
+	z-index: 5;   /* over the cards, under the dragged card itself (z-index 10) */
+	display: flex;
+	/* gap: 0 on purpose. A gap would be a full-height dead strip down the middle of the
+	   overlay that resolves to the LANE rather than a zone, so a drop aimed at the seam
+	   between "Hates" and "Dislikes" would quietly write the band's gentle end instead of
+	   either value. The zones are separated visually by their own adjoining borders. */
+	gap: 0;
+}
+
+.stonetop-rel-board.is-dragging .stonetop-rel-zone {
+	display: flex;
+	flex: 1 1 0;
+	flex-direction: column;
+	align-items: center;
+	/* Labels ride at the TOP, not centred. The overlay is as tall as the lane, so on a long
+	   column a centred label sits far down the page — potentially below the fold — while the
+	   pointer is up near the card it just lifted. Top-anchored, the cue is where the user
+	   already is. */
+	justify-content: flex-start;
+	gap: 1px;
+	min-width: 0;
+	padding: 5px 2px 2px;
+	border: 1px dashed var(--st-lane-accent, #777);
+	border-radius: 3px;
+	/* Near-opaque, deliberately. A translucent panel let the card names underneath show
+	   through and collide with the zone labels, which read as noise exactly when the user
+	   needs to make a choice. By this point the card they care about is already in their
+	   hand and under the cursor; what they need to see is WHICH VALUE they are about to
+	   write, so the labels win the contrast contest. */
+	background: rgba(252, 250, 245, 0.96);
+	text-align: center;
+}
+
+/* The zone under the pointer. Solid ring plus a firmer fill, so which of the two values is
+   about to be written is unmistakable. */
+.stonetop-rel-board.is-dragging .stonetop-rel-zone.is-drop-target {
+	border-style: solid;
+	border-width: 2px;
+	background: #fff;
+	box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--st-lane-accent, #777) 18%, transparent);
+}
+
+/* The hovered zone's label carries the lane's own colour, so the choice is legible at a
+   glance without reading the word — the same accent already capping the column. */
+.stonetop-rel-board.is-dragging .stonetop-rel-zone.is-drop-target .stonetop-rel-zone-label {
+	color: var(--st-lane-accent, #777);
+}
+
+.stonetop-rel-zone-label {
+	max-width: 100%;
+	overflow: hidden;
+	font-family: var(--font-stonetop);
+	/* Pinned like the view toggle: the lane this sits in has no stable type base, and a
+	   relative step would resolve differently per host. */
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	font-weight: bold;
+	line-height: 1.2;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--st-text-body);
+}
+
+/* The numeral maps the word back onto the heart strip on each card. */
+.stonetop-rel-zone-value {
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	line-height: 1;
+	color: var(--st-text-muted);
+}
+
+/* NOTE: the min-height floor that keeps a nearly empty lane droppable lives on the
+   unconditional .stonetop-rel-lane-body rule above, NOT here. Nothing in this block may
+   change layout, because it all lands mid-gesture. */
+
+/* ── Board view: the Table/Board toggle on a section heading ──────────────────
+   Placed on the heading's own line, far right, above the underline. Two different
+   mechanisms, because the two hosts anchor differently and BOTH must keep the heading a
+   full-width block so its underline still spans the section (that is also why the edit
+   pencil in these rows is absolutely positioned rather than laid out inline).
+
+   The NPC sheet's relationships tab has no heading at all, so there the toolbar keeps its
+   default place at the top of the section body and none of this applies. */
+
+/* Character sheet: a sibling in .stonetop-details-heading-row, which is the positioning
+   context and whose top edge IS the h3's top (the h3 carries margin-top: 0 here). Offset
+   from the right to clear the pencil / done-check, which sit at right: 0. */
+/* The font reset applies to BOTH hosts, not just this one: a heading is bold, uppercase
+   and letter-spaced, and none of that should reach the buttons — inherited bold in
+   particular reads as a size increase even when the size is identical. On the steading the
+   toolbar sits INSIDE the h3; on the character sheet it is a sibling that could still pick
+   up inherited text styling. */
+.stonetop-rel-viewbar--heading {
+	position: absolute;
+	top: 0;
+	right: 1.9em;
+	z-index: 1;
+	font-weight: normal;
+	font-style: normal;
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+/* Reserve room so a long heading or its edit-mode note cannot slide under the buttons.
+   Scoped to this section: every other details heading keeps the plain 1.5em pencil gap. */
+.stonetop-character-relationships .stonetop-details-heading-row .stonetop-move-group-title {
+	padding-right: 11em;
+}
+
+/* Steading sheet: the toolbar is a CHILD of the heading, so it needs no positioning at all
+   — margin-left: auto pushes it to the far right of the heading's own line. Overrides the
+   absolute block above, which only suits the character sheet's anchor. */
+.steading-residents-section--settlements > .steading-list-heading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.steading-residents-section--settlements > .steading-list-heading > .stonetop-rel-viewbar--heading {
+	position: static;
+	margin-left: auto;
+}
+
+/* On a heading line the strip has to fit ABOVE the underline, and a details heading is only
+   ~23px tall while the default strip is ~29px — enough to hang past the border and sit on
+   top of it. Tighten the BOX only: the type size stays pinned above, so the labels and icons
+   are unchanged and just the surrounding padding gives way. */
+.stonetop-rel-viewbar--heading .stonetop-rel-view-btn {
+	padding: 0 8px;
+	line-height: 1.25;
 }

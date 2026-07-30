@@ -139,9 +139,18 @@
 		      Places of Interest. --}}
 		<div class="steading-card steading-residents-section steading-residents-section--settlements steading-edit-section{{#unless stonetop.edit.settlements}} stonetop-readonly{{/unless}}">
 			{{> "stonetop.steading-section-toggle" section="settlements" editing=stonetop.edit.settlements}}
-			<h3 class="steading-list-heading">Relationships</h3>
+			{{!-- Table/Board toggle INSIDE the heading, pushed to the far right by margin-left:
+			      auto. Inside rather than beside it because this card is the positioning
+			      context (the pencil anchors to the card's corner, not the heading's), so an
+			      absolutely-placed sibling would sit in the card padding above the heading
+			      text. The h3 stays a full-width block, so its underline still spans the card
+			      and the buttons sit above it. --}}
+			{{!-- Gated like the section body: with no rows, neither layout has anything to
+			      show and the toggle would switch between two identical empty states. --}}
+			<h3 class="steading-list-heading">Relationships{{#if stonetop.hasSettlements}}{{> "stonetop.relationships-viewbar" resizeKey=stonetop.settlementsRel.resizeKey view=stonetop.settlementsRel.view inHeading=true}}{{/if}}</h3>
 			{{#if stonetop.hasSettlements}}
-			{{> "stonetop.relationships-table" rows=stonetop.settlements resizeKey="steadingSettlements"
+			{{> "stonetop.relationships-view" rows=stonetop.settlements lanes=stonetop.settlementsRel.lanes
+			    view=stonetop.settlementsRel.view resizeKey=stonetop.settlementsRel.resizeKey hideViewbar=true
 			    nameLabel=(localize "stonetop.steading.settlement") canRate=stonetop.canEdit
 			    canToggle=stonetop.edit.settlements
 			    showTooltip=(localize "stonetop.steading.settlementShowTooltip")}}

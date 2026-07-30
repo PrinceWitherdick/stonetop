@@ -40,6 +40,7 @@ import {buildHazardCardVM} from "../../hazards/hazard-view.js";
 import {CreateHazardDialog} from "../../hazards/create-hazard-dialog.js";
 import {SETTLEMENTS} from "../../data/settlements.js";
 import {relationshipRow, wireRelationshipTable} from "../../utils/relationship-hearts.js";
+import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 
 function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
@@ -607,6 +608,9 @@ export function createStonetopSteadingSheetClass(Base) {
 			}));
 			context.stonetop.settlements    = settlementsEditing ? settlementRows : settlementRows.filter(r => r.shown);
 			context.stonetop.hasSettlements = context.stonetop.settlements.length > 0;
+			// Table or standings board, remembered per table in localStorage beside this
+			// table's column widths and sort order.
+			context.stonetop.settlementsRel = relationshipViewContext("steadingSettlements", context.stonetop.settlements);
 			context.stonetop.recentlyEdited = Object.fromEntries(
 				STEADING_EDIT_SECTIONS.map(section => [section, this._recentlyEditedSections.has(section)])
 			);
@@ -964,6 +968,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// mode too — a steading's standing shifts at the table, like the sheet's other
 			// live trackers.
 			wireRelationshipTable(html[0], this.actor, { editable: this.isEditable });
+			wireRelationshipBoard(html[0], this.actor, { editable: this.isEditable });
 
 			html[0].addEventListener("mouseenter", ev => {
 				const avatar = ev.target.closest?.(".steading-member-avatar");

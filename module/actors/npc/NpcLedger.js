@@ -9,6 +9,7 @@
 // map, and the rich-text prose fields (which log "updated" rather than dumping HTML).
 import { isBlank, valuesEqual, actionForField, coalesceEntries } from "../character/CharacterLedger.js";
 import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
+import { heartsLabel } from "../../utils/heart-words.js";
 
 const LEDGER_SCOPE = "stonetop-pwd";
 const LEDGER_KEY = "ledger";
@@ -49,15 +50,6 @@ const RICH_TEXT_LABELS = {
 const IMPRESSIONS_PREFIX  = "system.impressions.";
 const RELATIONSHIPS_PREFIX = "system.relationships.";
 
-// One feeling word per heart rating (1-5), matching the sheet's tooltip scale.
-// The ledger stores its action text, so we bake the word in as "Neutral (3)"
-// rather than a bare number.
-const HEART_WORDS = ["Hates", "Dislikes", "Neutral", "Likes", "Loves"];
-function heartsLabel(value) {
-	const n = Math.max(1, Math.min(5, Math.trunc(Number(value))));
-	return `${HEART_WORDS[n - 1]} (${n})`;
-}
-
 // Blank ↔ content ↔ content transitions for a rich-text field, without dumping the HTML.
 function richTextEntry(label, oldValue, newValue) {
 	const oldBlank = !stripHtml(oldValue);
@@ -89,7 +81,16 @@ function relationshipEntry(path, oldValue, newValue) {
 		const newLabel = isBlank(newValue) ? newValue : heartsLabel(newValue);
 		return { action: actionForField(`Relationship with ${pcName}`, oldLabel, newLabel) };
 	}
-	if (field === "notes")  return { action: actionForField(`Relationship note for ${pcName}`, oldValue, newValue) };
+	// Blank → blank is not a change worth a line: an undefined → "" diff is not "equal", so
+	// clearing a note that was already empty would otherwise log a phantom "note set to
+	// blank". updateRelationship no longer writes `notes` for a row that never had one, so
+	// a first-time RATING never reaches here at all — but an explicit clear still can, and
+	// so can a world written by an earlier build, which holds `notes: ""` throughout.
+	// Mirrors impressionEntry's own blank-to-blank guard above.
+	if (field === "notes") {
+		if (isBlank(oldValue) && isBlank(newValue)) return null;
+		return { action: actionForField(`Relationship note for ${pcName}`, oldValue, newValue) };
+	}
 	return null;
 }
 

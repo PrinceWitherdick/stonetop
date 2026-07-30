@@ -52,6 +52,7 @@ import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
 import {buildRelationshipRows, wireRelationshipTable, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
+import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
 import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
@@ -899,6 +900,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Everyone is unticked: say so, and point at the pencil — otherwise a section
 			// with candidates reads identically to a world with nobody in it.
 			context.stonetop.relationshipsAllHidden = !context.stonetop.hasRelationships && relRows.length > 0;
+			// Table or standings board, remembered per table in localStorage beside the
+			// column widths — a reading preference, not world data.
+			context.stonetop.rel = relationshipViewContext("characterRelationships", context.stonetop.relationships);
 			context.stonetop.statsEdit       = sectionEdit("stats");
 			context.stonetop.movesEdit       = sectionEdit("moves");
 			context.stonetop.possessionsEdit = sectionEdit("possessions");
@@ -2741,6 +2745,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// still gets them, exactly as they do on the NPC and steading sheets. The
 			// `editable` flag is what gates the writes.
 			wireRelationshipTable(html[0], this.actor, { editable: this.isEditable });
+			// Same split for the board: the Table/Board toggle is a view feature and wires
+			// for everyone; only the lane controls are gated on `editable`.
+			wireRelationshipBoard(html[0], this.actor, { editable: this.isEditable });
 
 			if (!this.isEditable) return;
 
