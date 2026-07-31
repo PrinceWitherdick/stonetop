@@ -1,10 +1,11 @@
-import { isBlank, formatValue, valuesEqual, actionForField, coalesceEntries, prettifySlug } from "../character/CharacterLedger.js";
+import {
+	LEDGER_SCOPE, isLedgerPath,
+	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
+	isBlank, formatValue, valuesEqual, actionForField, coalesceEntries, prettifySlug,
+	truncateValue, numericMerge,
+} from "../../utils/ledger-core.js";
 import { IMPROVEMENT_DEFINITIONS } from "./StonetopSteading.js";
 import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
-
-const LEDGER_SCOPE = "stonetop-pwd";
-const LEDGER_KEY = "ledger";
-const LEDGER_MAX_ENTRIES = 300;
 
 const IMPROVEMENTS_PATH = `flags.${LEDGER_SCOPE}.steading.improvements`;
 const CUSTOM_IMPROVEMENTS_PATH = `flags.${LEDGER_SCOPE}.steading.customImprovements`;
@@ -22,8 +23,28 @@ const SYSTEM_PATH_LABELS = {
 
 const FLAG_PATH_LABELS = {
 	"flags.stonetop-pwd.steading.size":  "Size",
-	"flags.stonetop-pwd.steading.notes": "Notes",
 };
+
+// The Notes tab is a rich-text field. Running it through the generic scalar formatter pasted the
+// entire HTML document — headings, tables, newlines and all — into one action string, which was
+// by far the longest entry any ledger produced. Record that it changed, with a short preview.
+const NOTES_PATH = `flags.${LEDGER_SCOPE}.steading.notes`;
+
+function notesEntry(oldValue, newValue) {
+	const before = stripHtml(oldValue);
+	const after  = stripHtml(newValue);
+	if (before === after) return [];
+	if (!after) return [{ category: "notes", action: "Notes cleared" }];
+	return [{ category: "notes", action: `Notes ${before ? "edited" : "written"}: “${truncateValue(after)}”` }];
+}
+
+// Steading counters (Population, Surplus, Fortunes…) get nudged one click at a time; collapse a
+// run of those into a single "Surplus changed from 1 to 4" rather than three consecutive lines.
+const MERGEABLE_STAT_PATHS = new Set([
+	"system.stats.fortunes.value", "system.stats.defenses.value",
+	"system.attributes.population.value", "system.attributes.prosperity.value",
+	"system.attributes.surplus.value",
+]);
 
 const FLAG_NAMESPACE_LABELS = {
 	"flags.stonetop-pwd.steading.resources":      "Resources",
@@ -137,25 +158,36 @@ function neighborEntries(oldValue, newValue) {
 		const newItem = newValue[i] ?? {};
 		const oldName = itemName(oldItem);
 		const newName = itemName(newItem);
-		const oldLabel = neighborLabel(oldItem);
-		const newLabel = neighborLabel(newItem);
 
 		if (oldName !== newName) {
-			if (!oldName && newName) entries.push({ action: `Neighbor added: ${newLabel}` });
-			else if (oldName && !newName) entries.push({ action: `Neighbor removed: ${oldLabel}` });
-			else entries.push({ action: `Neighbor renamed from ${oldLabel} to ${newLabel}` });
-		} else if (oldName && oldLabel !== newLabel) {
-			entries.push({ action: `Neighbor changed from ${oldLabel} to ${newLabel}` });
+			if (!oldName && newName) entries.push({ action: `Neighbor added: ${neighborLabel(newItem)}` });
+			else if (oldName && !newName) entries.push({ action: `Neighbor removed: ${neighborLabel(oldItem)}` });
+			else entries.push({ action: `Neighbor renamed from ${oldName} to ${newName}` });
 		}
 
 		if (oldName || newName) {
-			const name = newLabel || oldLabel;
-			const oldTrait = String(oldItem?.traits ?? "").trim();
-			const newTrait = String(newItem?.traits ?? "").trim();
-			if (oldTrait !== newTrait) {
-				if (!oldTrait && newTrait) entries.push({ action: `${name} trait set to ${newTrait}` });
-				else if (oldTrait && !newTrait) entries.push({ action: `${name} trait cleared (${oldTrait})` });
-				else entries.push({ action: `${name} trait changed from ${oldTrait} to ${newTrait}` });
+			// Every field of one neighbour reports under that neighbour's name, so an edit to
+			// Tierney files under "Tierney" rather than splitting across a "Neighbor" subject for
+			// the home and a "Tierney trait" subject for the traits. Naming the field also fixes
+			// the old home-change wording, which rendered as the useless
+			// "Neighbor changed from Tierney (from Marshedge) to Tierney".
+			const name = newName || oldName;
+			// On an add or a remove the "Neighbor added/removed: Tovia (from Lygos)" line already
+			// names them and their home, so neither is restated as its own entry. It carries
+			// nothing else though — a neighbour entered complete with a trait would otherwise
+			// lose it entirely — so an add still reports the traits. A remove reports neither:
+			// the removal line is the whole story, and "Tovia traits cleared" after it would
+			// read as an edit to somebody still on the list.
+			const fields = oldName && newName ? ["home", "traits"]
+				: newName ? ["traits"]
+				: [];
+			for (const field of fields) {
+				const before = String(oldItem?.[field] ?? "").trim();
+				const after  = String(newItem?.[field] ?? "").trim();
+				if (before === after) continue;
+				if (!before) entries.push({ action: `${name} ${field} set to ${after}` });
+				else if (!after) entries.push({ action: `${name} ${field} cleared (was ${before})` });
+				else entries.push({ action: `${name} ${field} changed from ${before} to ${after}` });
 			}
 
 			const toggle = checkedToggleEntry(name, oldItem, newItem);
@@ -265,7 +297,7 @@ function actorUpdateEntries(actor, changed) {
 	let improvementsHandled = false;
 	for (const [path, newValue] of Object.entries(flat)) {
 		const normalizedPath = normalizeFlagPath(path);
-		if (!normalizedPath || normalizedPath === `flags.${LEDGER_SCOPE}.${LEDGER_KEY}` || normalizedPath.startsWith(`flags.${LEDGER_SCOPE}.${LEDGER_KEY}.`)) continue;
+		if (!normalizedPath || isLedgerPath(normalizedPath)) continue;
 
 		// Improvements are an object keyed by slug, so a toggle arrives as leaf
 		// sub-paths; diff the whole map once rather than per sub-path.
@@ -275,6 +307,11 @@ function actorUpdateEntries(actor, changed) {
 				const oldImps = getActorProperty(actor, IMPROVEMENTS_PATH) ?? {};
 				entries.push(...improvementEntries(actor, oldImps, readChangedImprovements(flat)));
 			}
+			continue;
+		}
+
+		if (normalizedPath === NOTES_PATH) {
+			entries.push(...notesEntry(getActorProperty(actor, NOTES_PATH), newValue));
 			continue;
 		}
 
@@ -294,41 +331,32 @@ function actorUpdateEntries(actor, changed) {
 		if (valuesEqual(oldValue, newValue)) continue;
 		const label = labelForPath(normalizedPath);
 		if (!label) continue;
-		entries.push({ action: actionForField(label, oldValue, newValue) });
+		entries.push({
+			action: actionForField(label, oldValue, newValue),
+			// The counters gain a run descriptor; everything else is a one-off edit.
+			...(MERGEABLE_STAT_PATHS.has(normalizedPath)
+				? { merge: numericMerge(label, normalizedPath, oldValue, newValue) }
+				: {}),
+		});
 	}
 	return coalesceEntries(entries);
 }
 
 export class SteadingLedger {
 	static getEntries(actor) {
-		return actor.getFlag?.(LEDGER_SCOPE, LEDGER_KEY) ?? [];
+		return getLedgerEntries(actor);
 	}
 
-	static async append(actor, entries, { userId = globalThis.game?.user?.id } = {}) {
-		if (!isSteadingActor(actor) || !entries?.length) return;
-		const current = this.getEntries(actor);
-		const user = userId ? globalThis.game?.users?.get?.(userId) : null;
-		const stamped = entries.map(entry => ({
-			id: globalThis.foundry?.utils?.randomID?.() ?? `${Date.now()}-${Math.random()}`,
-			timestamp: Date.now(),
-			userId: userId ?? null,
-			userName: user?.name ?? globalThis.game?.user?.name ?? "Unknown",
-			action: entry.action,
-			// Name of the move that caused this change (e.g. "Seasons Change"), or null
-			// for a plain sheet edit.
-			move: entry.move ?? null,
-		}));
-		await actor.update({
-			[`flags.${LEDGER_SCOPE}.${LEDGER_KEY}`]: stamped.concat(current.slice(0, LEDGER_MAX_ENTRIES - stamped.length)),
-		}, { stonetopLedger: true, render: false });
+	static async append(actor, entries, options = {}) {
+		if (!isSteadingActor(actor)) return;
+		// Every steading change files under one category; the dropdown groups by subject
+		// within it (Neighbor, Surplus, Improvement, …).
+		await appendLedgerEntries(actor, entries, { defaultCategory: "steading", ...options });
 	}
 
 	static async deleteEntries(actor, ids) {
-		if (!isSteadingActor(actor) || !ids?.size) return;
-		const current = this.getEntries(actor);
-		await actor.update({
-			[`flags.${LEDGER_SCOPE}.${LEDGER_KEY}`]: current.filter(e => !ids.has(e.id)),
-		}, { stonetopLedger: true });
+		if (!isSteadingActor(actor)) return;
+		await deleteLedgerEntries(actor, ids);
 	}
 
 	static entriesForActorUpdate(actor, changed) {

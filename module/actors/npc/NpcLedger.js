@@ -7,14 +7,13 @@
 // the character/steading versions — a flat path→label map for the scalar fields,
 // plus a few small handlers for the array (impressions), the per-PC relationships
 // map, and the rich-text prose fields (which log "updated" rather than dumping HTML).
-import { isBlank, valuesEqual, actionForField, coalesceEntries } from "../character/CharacterLedger.js";
+import {
+	isLedgerPath,
+	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
+	isBlank, valuesEqual, actionForField, coalesceEntries,
+} from "../../utils/ledger-core.js";
 import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
 import { heartsLabel } from "../../utils/heart-words.js";
-
-const LEDGER_SCOPE = "stonetop-pwd";
-const LEDGER_KEY = "ledger";
-const LEDGER_MAX_ENTRIES = 300;
-const LEDGER_FLAG_PATH = `flags.${LEDGER_SCOPE}.${LEDGER_KEY}`;
 
 // Scalar fields — one dot-path per label. Rich-text and structured fields are
 // handled by the dedicated helpers below, not here.
@@ -94,18 +93,27 @@ function relationshipEntry(path, oldValue, newValue) {
 	return null;
 }
 
+// An NPC's fields split between the numbers that matter in a fight and everything describing
+// who they are; the ledger dialog's subject dropdown groups by these. Paths listed here file
+// under "stats", everything else under "character".
+const STAT_PATHS = new Set([
+	"system.attributes.hp.value", "system.attributes.hp.max", "system.attributes.armor.value",
+	"system.attributes.armor.source", "system.attributes.damage.value",
+	"system.attributes.damage.rollFormula", "system.tags", "system.hasStats",
+]);
+
 function actorUpdateEntries(actor, changed) {
 	const flat = foundry.utils.flattenObject(changed);
 	const entries = [];
 	for (const [path, newValue] of Object.entries(flat)) {
-		if (!path || path === LEDGER_FLAG_PATH || path.startsWith(`${LEDGER_FLAG_PATH}.`)) continue;
+		if (!path || isLedgerPath(path)) continue;
 
 		if (path.startsWith(IMPRESSIONS_PREFIX)) {
 			const idx = Number(path.slice(IMPRESSIONS_PREFIX.length).split(".")[0]);
 			const oldValue = (actor.system?.impressions ?? [])[idx];
 			if (valuesEqual(oldValue, newValue)) continue;
 			const entry = impressionEntry(oldValue, newValue);
-			if (entry) entries.push(entry);
+			if (entry) entries.push({ category: "relations", ...entry });
 			continue;
 		}
 
@@ -113,7 +121,7 @@ function actorUpdateEntries(actor, changed) {
 			const oldValue = foundry.utils.getProperty(actor, path);
 			if (valuesEqual(oldValue, newValue)) continue;
 			const entry = relationshipEntry(path, oldValue, newValue);
-			if (entry) entries.push(entry);
+			if (entry) entries.push({ category: "relations", ...entry });
 			continue;
 		}
 
@@ -121,7 +129,7 @@ function actorUpdateEntries(actor, changed) {
 			const oldValue = foundry.utils.getProperty(actor, path);
 			if (valuesEqual(oldValue, newValue)) continue;
 			const entry = richTextEntry(RICH_TEXT_LABELS[path], oldValue, newValue);
-			if (entry) entries.push(entry);
+			if (entry) entries.push({ category: "notes", ...entry });
 			continue;
 		}
 
@@ -129,45 +137,32 @@ function actorUpdateEntries(actor, changed) {
 		if (!label) continue;
 		const oldValue = foundry.utils.getProperty(actor, path);
 		if (valuesEqual(oldValue, newValue)) continue;
-		entries.push({ action: actionForField(label, oldValue, newValue) });
+		entries.push({
+			category: STAT_PATHS.has(path) ? "stats" : "character",
+			action: actionForField(label, oldValue, newValue),
+		});
 	}
 	return coalesceEntries(entries);
 }
 
 // GM moves are the only embedded documents on an NPC; log their add/remove.
 function moveAction(item, verb) {
-	return { action: `Move ${verb}: ${item.name}` };
+	return { category: "moves", action: `Move ${verb}: ${item.name}` };
 }
 
 export class NpcLedger {
 	static getEntries(actor) {
-		return actor.getFlag?.(LEDGER_SCOPE, LEDGER_KEY) ?? [];
+		return getLedgerEntries(actor);
 	}
 
-	static async append(actor, entries, { userId = globalThis.game?.user?.id } = {}) {
-		if (actor?.type !== "npc" || !entries?.length) return;
-		const current = this.getEntries(actor);
-		const user = userId ? globalThis.game?.users?.get?.(userId) : null;
-		const stamped = entries.map(entry => ({
-			id: globalThis.foundry?.utils?.randomID?.() ?? `${Date.now()}-${Math.random()}`,
-			timestamp: Date.now(),
-			userId: userId ?? null,
-			userName: user?.name ?? globalThis.game?.user?.name ?? "Unknown",
-			action: entry.action,
-			// Name of the move that caused this change, or null for a plain sheet edit.
-			move: entry.move ?? null,
-		}));
-		await actor.update({
-			[LEDGER_FLAG_PATH]: stamped.concat(current.slice(0, LEDGER_MAX_ENTRIES - stamped.length)),
-		}, { stonetopLedger: true, render: false });
+	static async append(actor, entries, options = {}) {
+		if (actor?.type !== "npc") return;
+		await appendLedgerEntries(actor, entries, options);
 	}
 
 	static async deleteEntries(actor, ids) {
-		if (actor?.type !== "npc" || !ids?.size) return;
-		const current = this.getEntries(actor);
-		await actor.update({
-			[LEDGER_FLAG_PATH]: current.filter(e => !ids.has(e.id)),
-		}, { stonetopLedger: true });
+		if (actor?.type !== "npc") return;
+		await deleteLedgerEntries(actor, ids);
 	}
 
 	static entriesForActorUpdate(actor, changed) {

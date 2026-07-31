@@ -6,6 +6,8 @@
 // the same `getEntries` / `deleteEntries` surface).
 import { escHtml } from "./strings.js";
 import { ledgerNounOptionsHtml, wireLedgerFilters } from "./ledger-filter.js";
+import { categoryForEntry } from "./ledger-categories.js";
+import { ledgerNoun } from "./ledger-core.js";
 import { attachFrontOnOpen, bringDialogToFront } from "./front-on-open.js";
 
 function ledgerDate(timestamp) {
@@ -35,7 +37,10 @@ function buildRows(items) {
 		const header = date.key !== previous
 			? `<li class="stonetop-ledger-date-header" data-date-key="${escHtml(date.key)}">${escHtml(date.label)}</li>`
 			: "";
-		return `${header}<li class="stonetop-ledger-entry" data-id="${escHtml(entry.id)}" data-timestamp="${entry.timestamp ?? 0}" data-date-key="${escHtml(date.key)}" data-date-label="${escHtml(date.label)}">
+		// Subject and category are stamped here, from the entry itself, so the filter can read
+		// them back off the row instead of re-deriving them from the rendered text — and so the
+		// noun it matches on is character-for-character the one the dropdown offers.
+		return `${header}<li class="stonetop-ledger-entry" data-id="${escHtml(entry.id)}" data-timestamp="${entry.timestamp ?? 0}" data-noun="${escHtml(ledgerNoun(entry.action))}" data-category="${escHtml(categoryForEntry(entry))}" data-date-key="${escHtml(date.key)}" data-date-label="${escHtml(date.label)}">
 			<input type="checkbox" class="stonetop-ledger-row-check">
 			<div class="stonetop-ledger-entry-content">
 				<div class="stonetop-ledger-entry-main">${escHtml(entry.action)}${entry.move ? ` <span class="stonetop-ledger-entry-move">via ${escHtml(entry.move)}</span>` : ""}</div>

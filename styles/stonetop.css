@@ -7093,6 +7093,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	max-width: 160px;
 }
 
+/* Subjects are grouped into categories (Leveling, Moves, Arcana…), so the group headings need
+   to read as headings and the subjects beneath them as members. Chromium honours only a few
+   properties on <optgroup>/<option>, so keep this to weight, colour and indent. */
+.stonetop-ledger-noun optgroup {
+	font-family: var(--font-stonetop);
+	font-weight: 700;
+	font-style: normal;
+	color: var(--st-text, #222);
+}
+
+.stonetop-ledger-noun optgroup option {
+	font-weight: 400;
+	padding-left: 12px;
+}
+
 .stonetop-ledger-dialog {
 	min-height: 0;
 	flex: 1;
