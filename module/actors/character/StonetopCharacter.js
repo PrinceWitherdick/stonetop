@@ -233,7 +233,8 @@ function _ownedLoadBonus(actor) {
 const _SHIELD_SLUG = "shield";
 
 // The Defend basic move holds Readiness (p.216) — the only move with the on-sheet
-// circle track; the Would-Be Hero's Guardian move sweetens each hold by +1.
+// circle track; the Heavy's Guardian move sweetens each hold by +1 (and so needs no
+// circle of its own — it just adds one to Defend's track).
 const _DEFEND_MOVE_NAME = "Defend";
 const _GUARDIAN_MOVE_NAME = "Guardian";
 // Where a character's held Defend Readiness lives (a flag on the actor, mirroring how
@@ -491,8 +492,8 @@ export class StonetopCharacter {
 		const categories = [];
 
 		if (playbookData) {
-			const background = playbookData.backgrounds?.find(b => b.slug === this._background.selectedSlug);
-			const bgMoveNames = new Set(background?.moves ?? []);
+			const background = this._selectedBackground(playbookData);
+			const bgMoveNames = this._backgroundMoveNames(background);
 			const bgSlugs = new Set([...bgMoveNames].map(slugify));
 			const entries = await this._moveRepo.getPlaybookMoves(playbookData.name);
 			if (entries.length > 0) {
@@ -1644,7 +1645,7 @@ export class StonetopCharacter {
 	// the limit directly rather than relying solely on the rendered disabled attribute.
 	async allowedMarkedActions() {
 		const playbookData = await this.playbook();
-		const bg = playbookData?.backgrounds?.find(b => b.slug === this._background.selectedSlug);
+		const bg = this._selectedBackground(playbookData);
 		const level = this._actor.system?.attributes?.level?.value ?? 1;
 		return allowedMarkableActions(bg?.markableActions, level);
 	}
@@ -1655,8 +1656,7 @@ export class StonetopCharacter {
 		const ownedAllByName = this._buildOwnedMovesMap();
 
 		const playbookData = await this.playbook();
-		const background = playbookData?.backgrounds?.find(b => b.slug === this._background.selectedSlug);
-		const bgMoveNames = new Set(background?.moves ?? []);
+		const bgMoveNames = this._backgroundMoveNames(this._selectedBackground(playbookData));
 
 		let playbookMoves = [];
 		if (playbookName) {
@@ -1730,6 +1730,17 @@ export class StonetopCharacter {
 		return { playbookMoves, basicMoves: orderedBasicMoves, otherGroups, otherMoves, startingMovesNote: playbookData?.startingMovesNote ?? null };
 	}
 
+	// The background the player picked, out of the ones their playbook offers.
+	_selectedBackground(playbookData) {
+		return playbookData?.backgrounds?.find(b => b.slug === this._background.selectedSlug) ?? null;
+	}
+
+	// The moves that background hands over, with the player's own setup-choice picks
+	// folded in (see backgroundMoveNames).
+	_backgroundMoveNames(background) {
+		return backgroundMoveNames(background, this._background.setupChoices);
+	}
+
 	buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, actorPlaybook) {
 		const actorStats = _statValueMap(this._actor.system?.stats);
 		return entries.map(e =>
@@ -1759,15 +1770,13 @@ export class StonetopCharacter {
 		const ownedNames = new Set(this._actor.items.filter(i => i.type === "move").map(i => i.name));
 
 		const playbookData = await this.playbook();
-		const background = playbookData?.backgrounds?.find(b => b.slug === this._background.selectedSlug);
-		const bgMoveNames = new Set(background?.moves ?? []);
+		const bgMoveNames = this._backgroundMoveNames(this._selectedBackground(playbookData));
 
 		// "Either X OR Y" starting moves (e.g. the Heavy's Armored OR Uncanny
 		// Reflexes) are a player choice, so they're never auto-granted — the chosen
 		// one is added by the onboarding flow (or picked by hand on the sheet).
-		const choiceMoveNames = new Set(
-			(playbookData?.startingMoveChoices ?? playbookData?.moves?.choices ?? [])
-				.flatMap(group => group.options ?? [])
+		const choiceMoveNames = startingMoveChoiceNames(
+			playbookData?.startingMoveChoices ?? playbookData?.moves?.choices
 		);
 
 		const missing = entries.filter(e =>
@@ -1922,7 +1931,7 @@ export class StonetopCharacter {
 		return !!(this._actor.getFlag(STONETOP_SCOPE, "inventory.checked")?.[_SHIELD_SLUG]);
 	}
 
-	/** The Would-Be Hero's Guardian move (+1 Readiness on every Defend, incl. a 6-). */
+	/** The Heavy's Guardian move (+1 Readiness on every Defend, incl. a 6-). */
 	get hasGuardianMove() {
 		return this._actor.items.some(i => i.type === "move" && i.name === _GUARDIAN_MOVE_NAME);
 	}
@@ -2174,8 +2183,7 @@ export class StonetopCharacter {
 		let availableMoves = [];
 		let lockedMoves    = [];
 		if (playbookData?.name) {
-			const background  = playbookData.backgrounds?.find(b => b.slug === this._background.selectedSlug);
-			const bgMoveNames = new Set(background?.moves ?? []);
+			const bgMoveNames = this._backgroundMoveNames(this._selectedBackground(playbookData));
 			const entries     = await this._moveRepo.getPlaybookMoves(playbookData.name);
 			const all = this.sortPlaybookMoves(
 				this.buildMovelistContext(entries, ownedAllByName, bgMoveNames, newLevel, playbookData.name)
@@ -2576,6 +2584,35 @@ function _normalizeOriginRegion(region) {
 		.replace(/['’]/g, "")
 		.replace(/[^a-z0-9]+/g, " ")
 		.trim();
+}
+
+// Every playbook move the given background hands the character: its flat `moves` list,
+// plus whichever option they took in a `setup.choices` entry that applies a move (the
+// Fox's A Life of Crime grants Burgle OR Light Fingers). Both are gifts of the
+// background, not advancement picks, so they have to read as background moves
+// everywhere — otherwise a setup-choice move eats a slot in the level's move budget and
+// the sheet warns the character has more moves than their level allows, and onboarding
+// offers the move as a free pick that then silently no-ops against the grant.
+// Exported so onboarding shares this rule instead of re-deriving it; `setupChoices` is
+// the player's picks keyed by choice key, whatever store the caller reads them from.
+export function backgroundMoveNames(background, setupChoices = {}) {
+	const names = new Set(background?.moves ?? []);
+	for (const choice of (background?.setup?.choices ?? [])) {
+		// `apply: "possession"` choices store a possession slug, not a move name.
+		if (choice.apply !== "move" || !choice.key) continue;
+		const chosen = setupChoices?.[choice.key];
+		if (chosen) names.add(chosen);
+	}
+	return names;
+}
+
+// The move names sitting in a playbook's "either X OR Y" starting-move groups (the
+// Heavy's Armored OR Uncanny Reflexes). They ARE starting moves — flagged
+// `isStartingMove` so they never cost a level's move pick — but only one per group is
+// ever taken, so they're neither auto-granted nor safe to treat as moves the character
+// is guaranteed to have. Exported so every consumer subtracts the same set.
+export function startingMoveChoiceNames(groups) {
+	return new Set((groups ?? []).flatMap(group => group.options ?? []));
 }
 
 // How many of a background's level-gated markable actions are unlocked at a given

@@ -995,7 +995,16 @@
     const bgs    = f.backgrounds ?? [];
     const selBg  = pick(bgs);
     const bSlug  = selBg?.slug ?? "";
+    // The background's move grants: its flat `moves` list plus whichever option a
+    // move-applying `setup.choices` entry lands on (A Life of Crime grants Burgle OR
+    // Light Fingers). `pick` is deterministic, so recomputing it here matches the value
+    // bsChoices settles on further down — this just needs it before the move picks.
     const bgMoveNames = new Set(selBg?.moves ?? []);
+    for (const c of ((selBg?.setup?.choices) ?? [])) {
+      if (c.apply !== "move" || !c.key) continue;
+      const chosen = pick(c.options ?? [])?.value;
+      if (chosen) bgMoveNames.add(chosen);
+    }
 
     // Instinct — one of two paths (see PRESET). When the preset names an
     // `instinctWord`, select the matching built-in suggestion from the playbook's
@@ -1070,12 +1079,18 @@
       const pb = d.system?.playbook;
       return pb === pbDoc.name || pb?.name === pbDoc.name;
     });
-    const startingNames = new Set(pbMoves.filter(d => d.system?.isStartingMove).map(d => d.name));
-    const grantedNames  = new Set([...startingNames, ...bgMoveNames]);
     // "Either X OR Y" starting-move groups (e.g. the Heavy's Armored OR Uncanny
     // Reflexes) are granted separately via moveChoices, so keep them out of the
     // free-pick pool — mirroring the onboarding moves step.
     const choiceMoveNames = new Set((f.moves?.choices ?? []).flatMap(g => g.options ?? []));
+    // Only moves the character is GUARANTEED to end up with can satisfy a free pick's
+    // `requirement.moves` — an either/or option isn't guaranteed (one per group is taken),
+    // so a Fox who picked Ambush must not be handed Parry & Riposte, which needs Skill at
+    // Arms. Mirrors the onboarding moves step.
+    const grantedNames  = new Set([
+      ...pbMoves.filter(d => d.system?.isStartingMove && !choiceMoveNames.has(d.name)).map(d => d.name),
+      ...bgMoveNames,
+    ]);
     const eligible      = pbMoves.filter(d => {
       if (d.system?.isStartingMove)           return false;
       if (bgMoveNames.has(d.name))            return false;

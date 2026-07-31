@@ -6,12 +6,13 @@
 
 import { describe, it, expect } from "vitest";
 import {
-	loadPlaybookMoveDocs, movesByPlaybook, loadPlaybookDefs,
+	loadPlaybookMoveDocs, movesByPlaybook, loadPlaybookDefs, loadPlaybookPackDocs,
 	PLAYBOOKS, PLAYBOOK_NAMES, STAT_KEYS, CROSS_PLAYBOOK_MOVES,
 } from "../fakes/sourcePack.js";
 
 const DOCS    = loadPlaybookMoveDocs();
 const BY_NAME = movesByPlaybook(DOCS);
+const PB_PACK = loadPlaybookPackDocs();
 const { byName: PB_DEFS } = loadPlaybookDefs();
 
 // move name → set of playbooks that offer a move by that name (for prereq reachability).
@@ -163,6 +164,25 @@ describe("playbook advancement data", () => {
 			gated[d.name] = { maxLoad, requiresUnarmored: !!d.system?.requiresUnarmored };
 		}
 		expect(gated).toEqual(EXPECTED);
+	});
+
+	it("flags every 'either X OR Y' starting-move option as isStartingMove", () => {
+		// The options in a choice group ARE starting moves — they're just picked rather
+		// than auto-granted (ensureStartingMoves deliberately skips anything in a group).
+		// Leaving one unflagged makes the sheet count it as a level advancement pick, so a
+		// freshly-made character reads as "N more moves than expected for level 1".
+		// (That each option resolves to a real move is held by onboarding-move-references.)
+		for (const pb of PB_PACK) {
+			const groups = pb.flags?.stonetop?.moves?.choices ?? [];
+			if (!groups.length) continue;
+			const byName = new Map((BY_NAME.get(pb.name) ?? []).map(d => [d.name, d]));
+			for (const group of groups) {
+				for (const optionName of (group.options ?? [])) {
+					expect(byName.get(optionName)?.system?.isStartingMove,
+						`${pb.name}: "${optionName}" must be isStartingMove`).toBe(true);
+				}
+			}
+		}
 	});
 
 	it("only the Lightbearer carries invocations, with enough options for its starting count", () => {
