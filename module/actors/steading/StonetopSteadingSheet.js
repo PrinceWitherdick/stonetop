@@ -40,6 +40,8 @@ import {buildHazardCardVM} from "../../hazards/hazard-view.js";
 import {CreateHazardDialog} from "../../hazards/create-hazard-dialog.js";
 import {SETTLEMENTS} from "../../data/settlements.js";
 import {relationshipRow, wireRelationshipTable} from "../../utils/relationship-hearts.js";
+import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
+import {ACTOR_LINK_MISSING, openLinkedActorSheet, withLinkedActor} from "../../utils/actor-link.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 
 function _normalizeSheetRollMode(rollMode) {
@@ -453,7 +455,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// The hover preview is a document.body singleton, so a re-render while the cursor is
 			// over an avatar tears out the anchor without firing mouseleave — clear it up front so
 			// no orphaned floating preview is left stuck on screen.
-			this._removeMemberAvatarPreview();
+			removeAvatarPreview();
 			await super._render(force, options);
 			// Strip any PBTA-injected playbook controls and FoundryVTT chrome from the window header
 			const header = this.element[0]?.querySelector(".window-header");
@@ -568,7 +570,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// The avatar hover preview lives on document.body, so it survives the sheet's own
 			// DOM being torn down — clear it here or it orphans if the sheet closes (e.g. Escape)
 			// while the cursor is still over an avatar and no mouseleave ever fires.
-			this._removeMemberAvatarPreview();
+			removeAvatarPreview();
 			return super.close(options);
 		}
 
@@ -969,16 +971,13 @@ export function createStonetopSteadingSheetClass(Base) {
 			// live trackers.
 			wireRelationshipTable(html[0], this.actor, { editable: this.isEditable });
 			wireRelationshipBoard(html[0], this.actor, { editable: this.isEditable });
+			// No wireRelationshipLinks here: Other Settlements is keyed by slug, so no row
+			// carries a uuid or a portrait and neither handler would ever fire. Add the call
+			// if this sheet ever grows an actor-backed roster.
 
-			html[0].addEventListener("mouseenter", ev => {
-				const avatar = ev.target.closest?.(".steading-member-avatar");
-				if (!avatar) return;
-				this._showMemberAvatarPreview(avatar);
-			}, true);
-			html[0].addEventListener("mouseleave", ev => {
-				if (!ev.target.closest?.(".steading-member-avatar")) return;
-				this._removeMemberAvatarPreview();
-			}, true);
+			// Residents / Neighbors faces, through the same shared preview the relationships
+			// component uses — a face previews identically wherever it appears.
+			wireAvatarPreview(html[0], ".steading-member-avatar");
 			html[0].addEventListener("click", ev => {
 				const avatar = ev.target.closest(".steading-member-avatar");
 				if (!avatar) return;
@@ -1049,46 +1048,26 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onListItemDelete(btn.dataset.list, parseInt(index));
 			}, true);
 
-			// Open a linked player character's sheet from the Player Characters table.
-			html[0].addEventListener("click", async ev => {
-				const link = ev.target.closest(".steading-player-open");
-				if (!link) return;
-				ev.preventDefault();
-				ev.stopPropagation();
-				const { actorUuid, actorId } = link.dataset;
-				const actor = (actorUuid ? await fromUuid(actorUuid) : null)
-					|| (actorId ? game.actors?.get(actorId) : null);
-				if (actor?.sheet) actor.sheet.render(true);
-				else ui.notifications?.warn?.("That character no longer exists.");
-			}, true);
-
-			// Open a linked Resident/Neighbor NPC actor's sheet from its row.
-			html[0].addEventListener("click", async ev => {
-				const link = ev.target.closest(".steading-member-open");
-				if (!link) return;
-				ev.preventDefault();
-				ev.stopPropagation();
-				const { actorUuid, actorId } = link.dataset;
-				const actor = (actorUuid ? await fromUuid(actorUuid) : null)
-					|| (actorId ? game.actors?.get(actorId) : null);
-				if (actor?.sheet) actor.sheet.render(true);
-				else ui.notifications?.warn?.("That NPC no longer exists.");
-			}, true);
-
-			// Edit a Resident/Neighbor NPC's notes in a pop-up rich editor. The pop-up and
-			// the NPC sheet share system.notes, so a change here shows on the sheet and
-			// vice versa (two-way), both keeping full rich text + @UUID links.
-			html[0].addEventListener("click", async ev => {
-				const btn = ev.target.closest(".steading-member-notes-edit");
-				if (!btn) return;
-				ev.preventDefault();
-				ev.stopPropagation();
-				const { actorUuid, actorId } = btn.dataset;
-				const actor = (actorUuid ? await fromUuid(actorUuid) : null)
-					|| (actorId ? game.actors?.get(actorId) : null);
-				if (actor) openNpcNotesDialog(actor);
-				else ui.notifications?.warn?.("That NPC no longer exists.");
-			}, true);
+			// Rows that name an actor: the Player Characters table opens a PC, a
+			// Resident/Neighbor row opens its NPC, and the notes pencil opens that NPC's
+			// notes instead. All three resolve the row's uuid/id the same way — see
+			// module/utils/actor-link.js.
+			for (const [selector, missing, use] of [
+				[".steading-player-open",       ACTOR_LINK_MISSING.character, null],
+				[".steading-member-open",       ACTOR_LINK_MISSING.npc,       null],
+				// The pop-up and the NPC sheet share system.notes, so a change here shows on
+				// the sheet and vice versa (two-way), both keeping rich text + @UUID links.
+				[".steading-member-notes-edit", ACTOR_LINK_MISSING.npc,       openNpcNotesDialog],
+			]) {
+				html[0].addEventListener("click", async ev => {
+					const link = ev.target.closest(selector);
+					if (!link) return;
+					ev.preventDefault();
+					ev.stopPropagation();
+					if (use) await withLinkedActor(link, use, missing);
+					else await openLinkedActorSheet(link, missing);
+				}, true);
+			}
 
 			// Places of interest names
 			html[0].addEventListener("change", ev => {
@@ -1254,44 +1233,8 @@ export function createStonetopSteadingSheetClass(Base) {
 			html.find(".steading-improvement-add-btn").on("click", () => this._onCreateImprovementOpen());
 		}
 
-		_removeMemberAvatarPreview() {
-			document.querySelector(".steading-member-avatar-preview")?.remove();
-		}
-
-		_showMemberAvatarPreview(anchor) {
-			this._removeMemberAvatarPreview();
-			if (!anchor?.src) return;
-			const popup = document.createElement("div");
-			popup.className = "steading-member-avatar-preview";
-			const img = document.createElement("img");
-			img.src = anchor.src;
-			img.alt = "";
-			popup.appendChild(img);
-			const name = anchor.dataset.name?.trim();
-			if (name) {
-				const caption = document.createElement("strong");
-				caption.textContent = name;
-				popup.appendChild(caption);
-			}
-			document.body.appendChild(popup);
-
-			const ar = anchor.getBoundingClientRect();
-			const gap = 8;
-			const pw = popup.offsetWidth;
-			const ph = popup.offsetHeight;
-			let top = ar.bottom + gap;
-			if (top + ph > window.innerHeight - 8) top = ar.top - ph - gap;
-			let left = ar.left + ar.width / 2 - pw / 2;
-			top = Math.max(8, top);
-			left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
-			popup.style.top = `${top}px`;
-			popup.style.left = `${left}px`;
-			const z = parseInt(this.element?.[0]?.style?.zIndex || 0);
-			popup.style.setProperty("z-index", String(Math.max(10000, z + 2)), "important");
-		}
-
 		_openMemberAvatarImage(anchor) {
-			this._removeMemberAvatarPreview();
+			removeAvatarPreview();
 			if (!anchor?.src) return;
 			const popout = this._createEditableMemberImagePopout(anchor);
 			popout.render(true);

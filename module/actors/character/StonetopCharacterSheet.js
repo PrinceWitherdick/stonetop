@@ -51,7 +51,8 @@ import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
-import {buildRelationshipRows, wireRelationshipTable, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
+import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
+import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
@@ -652,7 +653,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The art hover preview is a document.body singleton, so a re-render while the
 			// cursor is over a card's art tears out the anchor without firing mouseleave —
 			// clear it up front so no orphaned floating preview is left stuck on screen.
-			this._removeArcanumThumbPreview();
+			removeAvatarPreview();
 			await super._render(force, options);
 			const newImg = this.element?.[0]?.querySelector("img.stonetop-portrait");
 			if (oldImg && newImg
@@ -688,49 +689,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The art hover preview lives on document.body, so it survives the sheet's DOM
 			// being torn down — clear it or it orphans if the sheet closes (e.g. Escape) while
 			// the cursor is still over a card's art and no mouseleave ever fires.
-			this._removeArcanumThumbPreview();
+			removeAvatarPreview();
 			return super.close(options);
-		}
-
-		_removeArcanumThumbPreview() {
-			document.querySelector(".stonetop-arcanum-thumb-preview")?.remove();
-		}
-
-		// Hover preview for an arcanum's header art: a larger copy of the thumbnail in a
-		// fixed-position popup appended to <body>, so it escapes the arcana tab's overflow
-		// clipping. Placed to the right of the art (it sits at the card's left edge, so
-		// there's room), flipping left if it would run off the right of the viewport, and
-		// vertically centred on the thumb. Mirrors the steading avatar preview.
-		_showArcanumThumbPreview(anchor) {
-			this._removeArcanumThumbPreview();
-			if (!anchor?.src) return;
-			const popup = document.createElement("div");
-			popup.className = "stonetop-arcanum-thumb-preview";
-			const img = document.createElement("img");
-			img.src = anchor.src;
-			img.alt = "";
-			popup.appendChild(img);
-			const name = anchor.dataset.name?.trim();
-			if (name) {
-				const caption = document.createElement("strong");
-				caption.textContent = name;
-				popup.appendChild(caption);
-			}
-			document.body.appendChild(popup);
-
-			const ar = anchor.getBoundingClientRect();
-			const gap = 8;
-			const pw = popup.offsetWidth;
-			const ph = popup.offsetHeight;
-			let left = ar.right + gap;
-			if (left + pw > window.innerWidth - 8) left = ar.left - pw - gap;
-			left = Math.max(8, left);
-			let top = ar.top + ar.height / 2 - ph / 2;
-			top = Math.max(8, Math.min(top, window.innerHeight - ph - 8));
-			popup.style.top = `${top}px`;
-			popup.style.left = `${left}px`;
-			const z = parseInt(this.element?.[0]?.style?.zIndex || 0);
-			popup.style.setProperty("z-index", String(Math.max(10000, z + 2)), "important");
 		}
 
 		// Remember the width so the sheet reopens at the size the user left it.
@@ -2748,6 +2708,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Same split for the board: the Table/Board toggle is a view feature and wires
 			// for everyone; only the lane controls are gated on `editable`.
 			wireRelationshipBoard(html[0], this.actor, { editable: this.isEditable });
+			// Click a name to open that actor's sheet, hover a portrait for a full-size
+			// preview. Ungated: neither writes anything, and both serve a player reading a
+			// sheet they can't edit. Covers whichever of the two views is rendered.
+			wireRelationshipLinks(html[0]);
 
 			if (!this.isEditable) return;
 
@@ -3799,19 +3763,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, true);
 
 			// Hovering a card's art pops a larger preview beside it (click still opens the
-			// full ImagePopout, above). It's a fixed-position popup on <body> — not a CSS
-			// ::after — because the thumb sits at the far left of each card and the arcana
-			// tab is overflow-x:hidden, which would clip a pseudo-element. Delegated in the
-			// capture phase so it fires for the thumbs even though mouseenter/leave don't bubble.
-			html[0].addEventListener("mouseenter", ev => {
-				const thumb = ev.target.closest?.(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img");
-				if (!thumb) return;
-				this._showArcanumThumbPreview(thumb);
-			}, true);
-			html[0].addEventListener("mouseleave", ev => {
-				if (!ev.target.closest?.(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img")) return;
-				this._removeArcanumThumbPreview();
-			}, true);
+			// full ImagePopout, above), through the same shared util the relationship and
+			// steading portraits use — placed to the RIGHT because the thumb sits at the far
+			// left of each card, where there is room beside it.
+			wireAvatarPreview(html[0], ".stonetop-arcanum-thumb, .stonetop-lore-arcana-img",
+				{ placement: "right", variant: "stonetop-avatar-preview--art" });
 
 			// "Show both sides" ⇄ "show front only" toggle (available in and out of edit
 			// mode). Persists a PER-USER display preference so the card renders as a front|back

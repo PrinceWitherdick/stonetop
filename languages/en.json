@@ -485,6 +485,10 @@
         "notes": "Notes"
       }
     },
+    "actorLink": {
+      "gone": "That character no longer exists.",
+      "goneNpc": "That NPC no longer exists."
+    },
     "relationships": {
       "regard": "Feelings",
       "notes": "Notes",
@@ -499,6 +503,7 @@
         "unsupported": "Only player characters and NPCs can go in Relationships.",
         "compendium": "Import {name} into the world first, then drop them here."
       },
+      "open": "Open {name}'s sheet",
       "feels1": "{subject} hates {object}",
       "feels2": "{subject} dislikes {object}",
       "feels3": "{subject} feels neutral toward {object}",
@@ -525,7 +530,6 @@
         "stepFloor": "Already {target}, the coldest rating",
         "stepCeiling": "Already {target}, the warmest rating",
         "moved": "{name} moved to {lane}.",
-        "unrated": "Never rated: showing the neutral default",
         "moveFailed": "That change could not be saved."
       },
       "zone": {

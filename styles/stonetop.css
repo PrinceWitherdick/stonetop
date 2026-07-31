@@ -5708,49 +5708,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	opacity: 1;
 }
 
-/* Hover preview of a card's art — a larger copy of the header thumbnail. Built in
-   JS and appended to <body> as a fixed-position popup (see StonetopCharacterSheet
-   ._showArcanumThumbPreview) so it escapes the arcana tab's clipping: the thumb sits
-   at the far LEFT of each card, where a CSS ::after popup would be cut off by the
-   tab's overflow-x:hidden. Mirrors the steading avatar preview, tuned for the tall,
-   contained card art. Reuses the shared stonetop-arcana-pop-in keyframe. */
-.stonetop-arcanum-thumb-preview {
-	position: fixed;
-	display: grid;
-	gap: 6px;
-	justify-items: center;
-	width: max-content;
-	max-width: min(240px, 70vw);
-	padding: 8px;
-	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: var(--st-radius);
-	background: #fffdf7;
-	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-	color: #111827;
-	font-family: var(--font-stonetop);
-	pointer-events: none;
-	transform-origin: center left;
-	animation: stonetop-arcana-pop-in 0.12s ease;
-}
-
-.stonetop-arcanum-thumb-preview img {
-	max-width: 224px;
-	max-height: min(60vh, 360px);
-	object-fit: contain;
-	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: var(--st-radius-sm);
-	background: rgba(255,255,255,0.55);
-}
-
-.stonetop-arcanum-thumb-preview strong {
-	max-width: 224px;
-	overflow: hidden;
-	text-align: center;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	font-size: var(--st-fs-sm);
-}
-
 .stonetop-arcanum-img {
 	display: block;
 	width: 100%;
@@ -9828,7 +9785,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: auto;
 }
 
-.steading-member-avatar-preview {
+/* The hover preview raised by any avatar thumbnail — the steading's Residents / Neighbors
+   rows, the relationships component's portraits, and the arcana tab's card art alike
+   (module/utils/avatar-preview.js). Lives on <body>, not inside the sheet, because every
+   host is a scrolling container that would clip it; hence `position: fixed` and the inline
+   z-index the util computes. Named for the system rather than the steading now that it is
+   shared. Card art overrides the shape below, in .stonetop-avatar-preview--art. */
+.stonetop-avatar-preview {
 	position: fixed;
 	display: grid;
 	gap: 6px;
@@ -9846,7 +9809,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	animation: stonetop-arcana-pop-in 0.12s ease;
 }
 
-.steading-member-avatar-preview img {
+.stonetop-avatar-preview img {
 	width: 128px;
 	height: 128px;
 	object-fit: cover;
@@ -9855,13 +9818,39 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: rgba(255,255,255,0.55);
 }
 
-.steading-member-avatar-preview strong {
+.stonetop-avatar-preview strong {
 	max-width: 128px;
 	overflow: hidden;
 	text-align: center;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-size: var(--st-fs-sm);
+}
+
+/* Hover preview of a card's art — a larger copy of the header thumbnail. The surface,
+   shadow and pop-in are .stonetop-avatar-preview's (see that rule, and
+   module/utils/avatar-preview.js, which builds both); only the shape differs, so this
+   modifier carries the differences and nothing else.
+
+   Card art is tall and must not be cropped, where a portrait is a fixed square that
+   should be. It also sits at the far LEFT of each card, so the popup is placed to the
+   right rather than below, hence the transform-origin. */
+.stonetop-avatar-preview--art {
+	justify-items: center;
+	max-width: min(240px, 70vw);
+	transform-origin: center left;
+}
+
+.stonetop-avatar-preview--art img {
+	width: auto;
+	height: auto;
+	max-width: 224px;
+	max-height: min(60vh, 360px);
+	object-fit: contain;
+}
+
+.stonetop-avatar-preview--art strong {
+	max-width: 224px;
 }
 
 .steading-player-name-text {
@@ -23032,6 +23021,52 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+
+/* An actor-backed name opens its sheet. Deliberately NOT painted as a hyperlink: core gives
+   every `a` in a window its own colour and the row is a dense list where a column of blue
+   would read as decoration. It stays body text until hovered, which is also how
+   .steading-member-open behaves in the Residents table this borrows from.
+   `color: inherit` is doing real work — without it core's link colour wins, since these
+   selectors sit outside its layer and the element rule would otherwise be the only one
+   setting it. Applies to both layouts: the board's card name takes this class too. */
+.stonetop-rel-open {
+	cursor: pointer;
+	color: inherit;
+	text-decoration: none;
+}
+
+.stonetop-rel-open:hover {
+	color: inherit;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+/* The link has no href, so it is focusable only by the tabindex the templates put on it —
+   which means core's link styling never fires and there would otherwise be no focus cue at
+   all. Same ring as the card and the lane picker. Underlined too: on a board card the ring
+   sits over a dimmed, dashed surface where a 2px outline alone is easy to miss. */
+.stonetop-rel-open:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: 1px;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+/* Only the <img> portrait previews on hover — the placeholder glyph has no image behind it,
+   so it keeps the default cursor and raises nothing. [data-name] is the same attribute
+   wireRelationshipLinks selects on, so the cursor and the behaviour cannot drift apart. */
+.stonetop-rel-portrait[data-name] {
+	cursor: zoom-in;
+}
+
+/* ...except on a board card, where a press on the portrait still starts the card's drag
+   (wireLaneDrag's ignore list covers the buttons, inputs and links, not the face). The
+   preview still appears on hover — only the cursor defers, so it does not promise a click
+   target that isn't there. `inherit` picks up the card's own grab / grabbing pair. */
+.stonetop-rel-card .stonetop-rel-portrait[data-name] {
+	cursor: inherit;
+}
+
 .stonetop-rel-hearts {
 	display: inline-flex;
 	gap: 3px;
@@ -23613,9 +23648,10 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* No --unrated override here on purpose. The badge is now identical on every card, so a
    never-rated row is marked by the CARD instead: dashed border, lighter fill, dimmed name
-   and portrait, plus the "Never rated" tooltip and accessible name. That distinction still
-   has to survive, because sparse storage cannot otherwise tell an untouched person from a
-   deliberate 3 — see the .stonetop-rel-card--unrated block above. */
+   and portrait. That treatment is now the WHOLE of the cue — the card no longer says
+   "never rated" in its tooltip or its accessible name — so it is the only thing keeping an
+   untouched person distinguishable from a deliberate 3, which sparse storage cannot
+   otherwise tell apart. See the .stonetop-rel-card--unrated block above. */
 
 .stonetop-rel-card-note {
 	width: 100%;

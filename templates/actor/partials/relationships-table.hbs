@@ -29,13 +29,30 @@
 				       aria-label='{{#if ../showTooltip}}{{../showTooltip}}{{else}}{{localize "stonetop.relationships.showTooltip"}}{{/if}}'>
 				{{/if}}
 				{{#if img}}
-				<img class="stonetop-rel-portrait" src="{{img}}" alt="">
+				{{!-- data-name is both the preview's caption and the hook wireRelationshipLinks
+				      selects on, so a portrait that can be enlarged is exactly the one that
+				      announces a name for the card. --}}
+				<img class="stonetop-rel-portrait" src="{{img}}" alt="" data-name="{{name}}">
 				{{else}}
 				{{!-- No portrait: a person icon for people, or the row's own icon for a
-				      place (a town shouldn't wear a silhouette). --}}
+				      place (a town shouldn't wear a silhouette). No hover preview either —
+				      there is no image to show a bigger version of. --}}
 				<span class="stonetop-rel-portrait stonetop-rel-portrait--empty"><i class="{{#if icon}}{{icon}}{{else}}fas fa-user{{/if}}"></i></span>
 				{{/if}}
+				{{!-- Actor-backed rows open their sheet; a slug-keyed row (the steading's
+				      settlements) has no uuid and no sheet, so it stays plain text. The <a>
+				      carries no href — it is a delegated handler, and an href would make it
+				      natively draggable, which on the board would fight the card's own drag.
+				      An href is also what would have made it focusable and Enter-activatable,
+				      so tabindex + role restore the half worth keeping, and
+				      wireRelationshipLinks binds the keys. --}}
+				{{#if uuid}}
+				<a class="stonetop-rel-name stonetop-rel-open" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
+				   role="link" tabindex="0"
+				   data-tooltip='{{localize "stonetop.relationships.open" name=name}}'>{{name}}</a>
+				{{else}}
 				<span class="stonetop-rel-name">{{name}}</span>
+				{{/if}}
 			</div>
 			<div class="steading-residents-col steading-residents-col-feelings stonetop-rel-heartscell">
 				{{!-- Hidden numeric value the sort util reads (via textContent) to order by rating. --}}

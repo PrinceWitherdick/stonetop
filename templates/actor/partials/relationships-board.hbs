@@ -72,15 +72,16 @@
 				      behind that same flag, so a focusable card would otherwise be a tab stop
 				      that does nothing. Read-only, a card is a plain list item.
 
-				      An unrated card is dimmed and dashed, which says nothing to a screen
-				      reader and little to anyone who hasn't read the docs, so the reason is
-				      spelled out in the accessible name and the tooltip. --}}
+				      An unrated card is dimmed and dashed and says so nowhere else: the
+				      "never rated" wording is gone from the tooltip and the accessible name
+				      alike, so the card reads as plainly as any other and the treatment is
+				      the whole of the hint. data-rel-rated still carries the fact for the
+				      handlers, which is what the dashed styling keys off. --}}
 				<li class="stonetop-rel-card{{#unless rated}} stonetop-rel-card--unrated{{/unless}}{{#unless shown}} stonetop-rel-card--hidden{{/unless}}"
 				    data-rel-id="{{id}}" data-rel-hearts="{{hearts}}" data-rel-name="{{name}}"
 				    data-rel-rated="{{#if rated}}true{{else}}false{{/if}}"
 				    {{#if board.canRate}}tabindex="0"{{/if}}
-				    {{#unless rated}}data-tooltip='{{localize "stonetop.relationships.lane.unrated"}}'{{/unless}}
-				    aria-label="{{feeling}}{{#unless rated}}. {{localize "stonetop.relationships.lane.unrated"}}{{/unless}}">
+				    aria-label="{{feeling}}">
 					<div class="stonetop-rel-card-head">
 						{{#if board.canToggle}}
 						<input type="checkbox" class="stonetop-rel-show-check" data-rel-id="{{id}}"
@@ -89,12 +90,30 @@
 						       aria-label='{{#if board.showTooltip}}{{board.showTooltip}}{{else}}{{localize "stonetop.relationships.showTooltip"}}{{/if}}'>
 						{{/if}}
 						{{#if img}}
-						<img class="stonetop-rel-portrait" src="{{img}}" alt="" draggable="false">
+						{{!-- draggable="false" so a press on the face drags the CARD, not the image.
+						      data-name is the hover preview's caption and its selector hook — see
+						      wireRelationshipLinks. --}}
+						<img class="stonetop-rel-portrait" src="{{img}}" alt="" draggable="false" data-name="{{name}}">
 						{{else}}
-						{{!-- A settlement wears its own icon; only a person gets the silhouette. --}}
+						{{!-- A settlement wears its own icon; only a person gets the silhouette.
+						      No image, so no hover preview. --}}
 						<span class="stonetop-rel-portrait stonetop-rel-portrait--empty"><i class="{{#if icon}}{{icon}}{{else}}fas fa-user{{/if}}"></i></span>
 						{{/if}}
+						{{!-- Actor-backed names open their sheet. wireLaneDrag already refuses to arm
+						      on an `a`, so the link is a click target inside a draggable card without
+						      the two contending; a settlement has no uuid and stays a plain span.
+						      A second tab stop inside the card is deliberate: with no href the
+						      browser gives the link neither focus nor Enter, and the card's own
+						      tabindex only reaches the card. The card's arrow keys are unaffected —
+						      they are bound in the bubble phase off the CARD, and this is a
+						      different focus target. --}}
+						{{#if uuid}}
+						<a class="stonetop-rel-card-name stonetop-rel-open" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
+						   role="link" tabindex="0"
+						   data-tooltip='{{localize "stonetop.relationships.open" name=name}}'>{{name}}</a>
+						{{else}}
 						<span class="stonetop-rel-card-name" data-tooltip="{{#if tooltip}}{{tooltip}}{{else}}{{name}}{{/if}}">{{name}}</span>
+						{{/if}}
 						{{!-- One heart with the rating inside it, at the far right of the name's line,
 						      instead of the table's five-slot strip. Five 18px slots ate a whole row
 						      of a card that is only ~180px wide, for a value a single glyph can carry.

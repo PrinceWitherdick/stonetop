@@ -12,7 +12,7 @@ import { isDefaultImg } from "../../utils/strings.js";
 import { wirePortraitPopout, updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { getOpenSheetsInEditMode } from "../../settings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
-import { buildRelationshipRows, wireRelationshipTable, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight } from "../../utils/relationship-hearts.js";
+import { buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight } from "../../utils/relationship-hearts.js";
 import { relationshipViewContext, wireRelationshipBoard } from "../../utils/relationship-board.js";
 import { getDragEventData } from "../../utils/foundry-compat.js";
 import { openLedgerDialog } from "../../utils/ledger-dialog.js";
@@ -236,6 +236,9 @@ export function createStonetopNpcSheetClass(Base) {
 				editable: this.isEditable,
 				onViewChange: () => requestAnimationFrame(() => this._fitHeight()),
 			});
+			// Names open their PC's sheet, portraits preview on hover. Ungated for the same
+			// reason the columns are: neither is an edit.
+			wireRelationshipLinks(root);
 
 			// Drop a person onto the Relationships tab to put them on the list — a stranger
 			// (including another NPC) becomes a row, someone unticked is revealed.

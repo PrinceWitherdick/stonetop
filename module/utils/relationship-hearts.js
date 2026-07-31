@@ -13,6 +13,9 @@
 import { isDefaultImg } from "./strings.js";
 import { makeColumnsResizable } from "./resizable-columns.js";
 import { makeColumnsSortable } from "./sortable-columns.js";
+// Leaf module with no imports of its own, so it cannot participate in the cycle above.
+import { wireAvatarPreview, removeAvatarPreview } from "./avatar-preview.js";
+import { openLinkedActorSheet } from "./actor-link.js";
 
 // One to five, defaulting to three, clamped to 1-5 (a relationship always has at
 // least one heart — you can't drop it to zero).
@@ -98,6 +101,12 @@ export function relationshipRow(actor, other, { defaultShown = true } = {}) {
 	return {
 		id:   other.id,
 		name: other.name,
+		// What makes the name a link. Present on an Actor, absent on the plain {id, name}
+		// objects a slug-keyed roster passes (the steading's settlements) — and a settlement
+		// has no sheet to open, so "actor-backed" and "clickable" are the same question and
+		// this answers both. Kept beside `id`, which is the fallback lookup when a uuid stops
+		// resolving (a compendium re-import, say).
+		uuid: other.uuid ?? null,
 		img:  isDefaultImg(other.img) ? null : other.img,
 		hearts,
 		notes,
@@ -277,4 +286,68 @@ export function wireRelationshipTable(root, actor, { editable = true } = {}) {
 		if (!id) return;
 		await setRelationshipNote(actor, id, note.value ?? "");
 	});
+}
+
+// The two ways a relationship row points back at the person it names: the name opens their
+// sheet, and the portrait shows a full-size preview on hover. Both are the steading
+// Residents table's affordances, wired the same way, so a name behaves the same wherever
+// it is listed.
+//
+// Deliberately NOT folded into wireRelationshipTable: that one bails early when the viewer
+// can't edit, and neither of these is an edit. Looking up who someone is has nothing to do
+// with being allowed to rate them, so a player reading a GM's NPC keeps both. It also
+// covers BOTH layouts from one call — the table's rows and the board's cards emit the same
+// `.stonetop-rel-open` / `.stonetop-rel-portrait` hooks — so hosts wire it once per render
+// regardless of which view is showing.
+export function wireRelationshipLinks(root) {
+	// Bound to the section wrapper rather than the sheet root, the way wireRelationshipBoard
+	// is: the hover half has to listen in the capture phase (mouseenter/mouseleave do not
+	// bubble), so a sheet-root listener would run a `closest()` walk for every pointer
+	// crossing anywhere on the sheet — a thousand nodes on the character sheet — to serve
+	// one section. Both partials only ever render inside this wrapper.
+	root?.querySelectorAll?.(".stonetop-rel-views").forEach(wireRelationshipLinksIn);
+}
+
+function wireRelationshipLinksIn(root) {
+	// Same once-per-wrapper guard wireRelationshipBoard puts on this element, for the same
+	// reason: nothing here removes a listener, so a second call on a surviving wrapper would
+	// stack another capture-phase trio and open the sheet twice per click.
+	if (root.dataset.stRelLinks === "1") return;
+	root.dataset.stRelLinks = "1";
+
+	// Only the <img> portrait carries data-name; the fallback is a glyph in a <span> with
+	// nothing to enlarge, and the selector is what keeps it from raising an empty card.
+	wireAvatarPreview(root, ".stonetop-rel-portrait[data-name]");
+
+	const open = async link => {
+		// The pointer is by definition over the row, and rendering a sheet does not move it,
+		// so no mouseleave is coming to clear the preview once the window covers the name.
+		removeAvatarPreview();
+		await openLinkedActorSheet(link);
+	};
+
+	root.addEventListener("click", async ev => {
+		const link = ev.target.closest(".stonetop-rel-open");
+		if (!link) return;
+		ev.preventDefault();
+		ev.stopPropagation();
+		await open(link);
+	}, true);
+
+	// The link carries no href — one would make it natively draggable and fight the board
+	// card's own drag — so the browser gives it neither a tab stop nor Enter/Space activation.
+	// The template supplies the tab stop with tabindex; this supplies the keys, or the name
+	// would be reachable by keyboard and still do nothing when pressed.
+	root.addEventListener("keydown", async ev => {
+		if (ev.key !== "Enter" && ev.key !== " ") return;
+		const link = ev.target.closest?.(".stonetop-rel-open");
+		if (!link) return;
+		// Space would scroll the sheet under the newly-raised window. Propagation is stopped
+		// for the board's sake: its own keydown handler is delegated off the WRAPPER and only
+		// checks `closest(".stonetop-rel-card")`, so a press on a link inside a card reaches it
+		// as though the card itself were focused.
+		ev.preventDefault();
+		ev.stopPropagation();
+		await open(link);
+	}, true);
 }
