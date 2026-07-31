@@ -109,6 +109,43 @@ describe("preflight", () => {
 		expect(result.ok).toBe(true);
 	});
 
+	// `allowHosted` is what lets the assistant offer phase 1 on The Forge. The refusal above
+	// was only ever about the setup route, which phase 1 never touches, and blocking it too
+	// is what left hosted worlds importing with their data still under the old scope.
+	it("allows a hosted provider through when the caller only wants phase 1", async () => {
+		const forge = { ForgeVTT: { usingTheForge: true } };
+		const result = await preflight(makeGame(), { fetchImpl: fetchOk(), ...IDS, scope: forge, allowHosted: true });
+		expect(result.ok).toBe(true);
+		expect(result.blockers).toEqual([]);
+	});
+
+	// The point of the flag is that it drops the hosted check and NOTHING else — the hosted
+	// path has to stay a subset of the strict one, or it becomes a second gate that drifts.
+	it("still enforces every other blocker when hosting is allowed", async () => {
+		const game = makeGame({ users: [{ name: "GM", active: true, isSelf: true }, { name: "Vera", active: true }] });
+		const forge = { ForgeVTT: { usingTheForge: true } };
+		const result = await preflight(game, { fetchImpl: fetchOk(), ...IDS, scope: forge, allowHosted: true });
+		expect(result.ok).toBe(false);
+		expect(result.blockers.join(" ")).toMatch(/Vera/);
+		expect(result.blockers.join(" ")).not.toMatch(/hosted Foundry/i);
+	});
+
+	it("reports whether this is a hosted provider either way", async () => {
+		const forge = { ForgeVTT: { usingTheForge: true } };
+		const hosted = await preflight(makeGame(), { fetchImpl: fetchOk(), ...IDS, scope: forge, allowHosted: true });
+		const local  = await preflight(makeGame(), { fetchImpl: fetchOk(), ...IDS, scope: {} });
+		expect(hosted.hosted).toBe(true);
+		expect(local.hosted).toBe(false);
+	});
+
+	// A caller that forgets the flag gets the strict gate. _migrate() depends on this: it is
+	// what keeps the flip unreachable on hosted even if the window's own UI is confused.
+	it("defaults to refusing a hosted provider", async () => {
+		const forge = { ForgeVTT: { usingTheForge: true } };
+		const result = await preflight(makeGame(), { fetchImpl: fetchOk(), ...IDS, scope: forge });
+		expect(result.ok).toBe(false);
+	});
+
 	it("blocks when the world has unloadable actors", async () => {
 		const game = makeGame({ actors: { invalidDocumentIds: new Set(["a1", "a2"]) } });
 		const result = await preflight(game, { fetchImpl: fetchOk(), ...IDS });
@@ -229,5 +266,30 @@ describe("onHostedProvider", () => {
 		expect(onHostedProvider({})).toBe(false);
 		expect(onHostedProvider({ ForgeVTT: { usingTheForge: false } })).toBe(false);
 		expect(onHostedProvider(undefined)).toBe(false);
+	});
+
+	// The global comes from a MODULE, so it is gone in safe config, which is exactly what a
+	// GM launches into after a migration goes wrong. Without the hostname test the refusal
+	// would lift there and offer the one-way flip on the one server that can strand a world.
+	it("still detects The Forge when its module is disabled", () => {
+		expect(onHostedProvider({ location: { hostname: "my-game.forge-vtt.com" } })).toBe(true);
+		expect(onHostedProvider({ ForgeVTT: { usingTheForge: false }, location: { hostname: "my-game.forge-vtt.com" } })).toBe(true);
+	});
+
+	it("does not mistake a self-hosted domain for a hosted one", () => {
+		expect(onHostedProvider({ location: { hostname: "localhost" } })).toBe(false);
+		expect(onHostedProvider({ location: { hostname: "foundry.example.com" } })).toBe(false);
+		// Substring, not suffix: a lookalike domain must not match.
+		expect(onHostedProvider({ location: { hostname: "forge-vtt.com.evil.example" } })).toBe(false);
+		expect(onHostedProvider({ location: {} })).toBe(false);
+	});
+
+	// The blocker is what a hosted GM in safe config must still hit on the flip path.
+	it("refuses the flip on a Forge hostname with no Forge global present", async () => {
+		const safeConfig = { location: { hostname: "my-game.forge-vtt.com" } };
+		const result = await preflight(makeGame(), { fetchImpl: fetchOk(), ...IDS, scope: safeConfig });
+		expect(result.ok).toBe(false);
+		expect(result.hosted).toBe(true);
+		expect(result.blockers.join(" ")).toMatch(/hosted Foundry/i);
 	});
 });

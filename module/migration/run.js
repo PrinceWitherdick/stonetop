@@ -70,7 +70,10 @@ export async function previewMigration(game, options = {}) {
  * built earlier in the session: documents created since would be silently skipped.
  */
 export async function prepareWorld(game, options = {}) {
-	const { source = SYSTEM_ID, target = RENAME_TARGET_ID, storage = globalThis.localStorage, onProgress } = options;
+	// `overwriteSettings` is the repair path's one deviation: a run long after the rename
+	// must not push a fossil value over the choice the GM has since made under the new id.
+	// See copy-settings.js#copySettings and rescue.js.
+	const { source = SYSTEM_ID, target = RENAME_TARGET_ID, storage = globalThis.localStorage, overwriteSettings = true, onProgress } = options;
 	const copyOptions = { source, target };
 
 	const targets = options.targets ?? await allTargets(game);
@@ -92,7 +95,7 @@ export async function prepareWorld(game, options = {}) {
 	const settings = await copySettings(settingDocs, {
 		create: (docs) => settingClass.createDocuments(docs),
 		update: (docs) => settingClass.updateDocuments(docs)
-	}, copyOptions);
+	}, { ...copyOptions, overwriteExisting: overwriteSettings });
 
 	const local = copyLocalStorage(storage, copyOptions);
 	return { documents, settings, local, locations: targets.length };

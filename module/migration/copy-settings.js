@@ -68,15 +68,27 @@ export function planSettingCopies(settings, { source = SYSTEM_ID, target = RENAM
 /**
  * Apply a settings plan.
  *
+ * `overwriteExisting: false` fills in only the keys the target namespace does not have yet.
+ * The migration proper wants the default: it runs before the new id has ever been used, so
+ * anything already sitting there is a stray and the source is authoritative. A repair run
+ * long afterwards wants the opposite, because by then a value under the new id is the GM's
+ * current choice and the old one is a fossil. See rescue.js.
+ *
  * @param {Array}    settings
  * @param {object}   io        { create(docs), update(docs) } — batched writers.
- * @returns {Promise<{created: number, updated: number, unchanged: number}>}
+ * @returns {Promise<{created: number, updated: number, unchanged: number, skipped: number}>}
  */
 export async function copySettings(settings, io, options = {}) {
+	const { overwriteExisting = true } = options;
 	const { creates, updates, unchanged } = planSettingCopies(settings, options);
 	if (creates.length) await io.create(creates);
-	if (updates.length) await io.update(updates);
-	return { created: creates.length, updated: updates.length, unchanged: unchanged.length };
+	if (overwriteExisting && updates.length) await io.update(updates);
+	return {
+		created: creates.length,
+		updated: overwriteExisting ? updates.length : 0,
+		unchanged: unchanged.length,
+		skipped: overwriteExisting ? 0 : updates.length
+	};
 }
 
 /**

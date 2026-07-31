@@ -86,13 +86,14 @@ skipped, so unlock any that hold Stonetop data and check again.
 
 ## Hosted services (The Forge, Molten, and similar)
 
-**The assistant refuses to run on a hosted Foundry.** That is deliberate, not a bug.
+**The assistant will not perform the last step on a hosted Foundry.** That is deliberate,
+not a bug. It does everything up to it, and hands you the rest.
 
-The migration needs Foundry's own setup route, and on a hosted service we cannot establish
-that we have it. The Forge does not remove that route, but its Game Manager launches worlds
-directly and bypasses it, and access is gated by Forge *account ownership* rather than by
-your Foundry role, so being a Gamemaster in the world is not enough. It is also the route
-you would use to undo a bad move.
+Re-pointing a world at a different system needs Foundry's own setup route, and on a hosted
+service we cannot establish that we have it. The Forge does not remove that route, but its
+Game Manager launches worlds directly and bypasses it, and access is gated by Forge
+*account ownership* rather than by your Foundry role, so being a Gamemaster in the world is
+not enough. It is also the route you would use to undo a bad move.
 
 We refuse on the hostname alone, which is blunter than we would like, because a better
 check is not available: The Forge's own client integration decides it is on The Forge by
@@ -101,18 +102,78 @@ Game Manager is on. So a world where the flip would have worked and one where it
 strand the world look identical from inside. Since the flip is one-way, the assistant
 refuses both rather than gambling with your world.
 
-Get in touch and we will do it together. The supported path is the export/edit/import
-route, which works on every tier regardless of Game Manager:
+That refusal covers the re-pointing and nothing else. Copying your campaign data into the
+new namespace needs no setup route, deletes nothing, and leaves the world running on
+`stonetop_pwd` exactly as before, so the assistant still does that part for you.
 
-1. On My Foundry, use **Game Tools → Export World** and save the zip locally. Keep it.
-2. Install the renamed system on your Forge account **first**, and confirm it is there.
+### The steps
+
+Everyone else disconnects. You are the only person logged in. Take a **Save Point** first if
+your tier has them, and rehearse on a clone if you can.
+
+1. Install the renamed system on your Forge account **first**, and confirm it is there:
+
+   ```
+   https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json
+   ```
+
    A world pointed at a system that is not installed will not launch, and on Game Manager
    the recovery screen may not be available to you.
-3. Edit `world.json` inside the exported zip, changing `"system"` to the new id.
-4. Re-import the edited world through the Import Wizard.
+2. Launch your Stonetop world as normal. The window titled **Stonetop is changing its ID**
+   opens by itself and offers **Prepare this world**. Click it and let it finish. This is
+   the step that carries your campaign across, and it is the one the old instructions here
+   left out. (Bridge 1.3.3 or older shows a refusal instead of the button. Update the old
+   system first, or see below.)
+3. **Game Tools → Export World**, and save the zip locally. Keep it.
+4. Unzip it and open the `world.json` inside.
+5. Change `"system": "stonetop_pwd"` to `"system": "stonetop-pwd"` and save.
+   You can change `id` and `title` too, if you would rather not overwrite the old world.
+6. Re-import the edited world through the Import Wizard.
+7. Launch as GM. It finishes on its own and may ask you to refresh the page once. Do that
+   before letting players back in.
 
-If you are on World Builder tier or above, take a **Save Point** first and rehearse the
-whole thing on a clone before touching the real world.
+Then check the same three things as above: a character sheet, the steading sheet, and a
+scene with map pins. In Game Settings the system should no longer read
+**Stonetop (DEPRECATED)**.
+
+**Step 2 is not optional.** Steps 3 to 7 re-point the world at the renamed system; they do
+not touch a single actor. On their own they leave every sheet blank apart from its default
+selections, because your campaign data is still filed under `stonetop_pwd` while the
+renamed system reads `stonetop-pwd`. Nothing is lost when that happens, and restoring the
+Save Point puts it back, but it looks exactly like the migration ate your world.
+
+### If your bridge is older than 1.3.3.1
+
+The **Prepare this world** button did not exist yet, so you'll need to either upgrade or do 
+step 2 by hand instead. Launch the world on the old system, open the browser console with F12, 
+and paste:
+
+```js
+const m = await import(foundry.utils.getRoute("systems/stonetop_pwd/module/migration/run.js"));
+console.log("will copy:", await m.previewMigration(game));
+console.log("done:", await m.prepareWorld(game, {
+  onProgress: p => console.log(p.phase, `${p.index}/${p.total}`, p.label)
+}));
+```
+
+That is the same code the button runs. Unlock any world compendiums holding Stonetop data
+first: locked ones are skipped. Then carry on from step 3.
+
+### If you have already imported and your sheets are empty
+
+You have hit exactly the case above: the world moved, the data did not. It is still there.
+Launch the world on the renamed system, open the console with F12, and paste:
+
+```js
+const m = await import(foundry.utils.getRoute("systems/stonetop-pwd/module/migration/run.js"));
+const IDS = { source: "stonetop_pwd", target: "stonetop-pwd" };
+console.log("will copy:", await m.previewMigration(game, IDS));
+console.log("done:", await m.prepareWorld(game, { ...IDS,
+  onProgress: p => console.log(p.phase, `${p.index}/${p.total}`, p.label) }));
+```
+
+Then press **F5**. The ids have to be spelled out here because the renamed system no longer
+carries a rename target of its own. Your sheets should come back on the reload.
 
 ---
 
@@ -195,9 +256,18 @@ like a bug.
    the id back out of the built manifest and passes `make_latest` accordingly, so a renamed
    release is demoted even if it was published as Latest by hand. Retire that branch once
    everyone is off the old id and the renamed system should hold Latest.
-4. **Confirm each user has migrated.** Hosted users cannot use the assistant at all and
-   need the export/edit/import path above, done by hand with them. Only once everyone is
-   across is it safe to retire the old-id mainline and make the renamed tree the default.
+4. **Confirm each user has migrated.** Hosted users get phase 1 from the assistant's hosted
+   mode and do phase 2 themselves as export/edit/import, per the section above. Only once
+   everyone is across is it safe to retire the old-id mainline and make the renamed tree
+   the default.
+
+   Hosted mode exists because the first hosted migration failed: the instructions here used
+   to list the export/edit/import steps alone, which are phase 2 only. Phase 1 never ran, so
+   the world arrived on the renamed system with every flag bag still under `stonetop_pwd`
+   and every sheet blank apart from its defaults. `preflight`'s hosted refusal had been
+   written for the flip, but it gated the whole assistant, so the one step that WAS safe on
+   The Forge was refused along with the one that was not. It now takes `allowHosted`, which
+   drops that single blocker and nothing else.
 5. **Phase 3 is already wired.** `finishSystemIdMigration()` runs from the Ready hook
    (`module/migration/finish-run.js`), gated to the primary GM and stamped once per world
    in the `idMigrationFinishedFor` setting. It no-ops in a world with nothing stale, so it

@@ -27,21 +27,39 @@
 		{{/if}}
 
 		<section class="stonetop-migration-panel">
-			<h3>What will happen</h3>
-			<ol>
-				<li>Your campaign data is <strong>copied</strong> into the new name. Nothing is deleted.</li>
-				<li>This world is pointed at the renamed system.</li>
-				<li>Foundry returns you to the setup screen. Launch the world again and it finishes.</li>
-			</ol>
+			{{#if isHosted}}
+				<h3>Hosted Foundry: two steps, not one</h3>
+				<p>
+					Pointing a world at a different system needs Foundry's own setup screen, and
+					hosted services replace that with their own. So this window does the data half
+					here and now, and you finish by hand afterwards. The steps appear here when
+					this part is done.
+				</p>
+			{{else}}
+				<h3>What will happen</h3>
+				<ol>
+					<li>Your campaign data is <strong>copied</strong> into the new name. Nothing is deleted.</li>
+					<li>This world is pointed at the renamed system.</li>
+					<li>Foundry returns you to the setup screen. Launch the world again and it finishes.</li>
+				</ol>
+			{{/if}}
 			<p class="stonetop-migration-counts">
 				{{preview.documents}} documents and {{preview.settings}} settings to copy,
 				across {{preview.locations}} places in this world.
 				{{#if preview.alreadyDone}}({{preview.alreadyDone}} already done.){{/if}}
 			</p>
-			<p class="stonetop-migration-note">
-				Take a backup first if you have not already: return to setup, right-click this
-				world and choose <strong>Take Backup</strong>. That is the only real undo.
-			</p>
+			{{#if isHosted}}
+				<p class="stonetop-migration-note">
+					Nothing is deleted and nothing is moved. This world still runs on
+					<code>{{oldId}}</code> when it finishes, so stopping here leaves you exactly
+					where you started. Take a backup or Save Point first all the same.
+				</p>
+			{{else}}
+				<p class="stonetop-migration-note">
+					Take a backup first if you have not already: return to setup, right-click this
+					world and choose <strong>Take Backup</strong>. That is the only real undo.
+				</p>
+			{{/if}}
 		</section>
 	{{/if}}
 
@@ -60,9 +78,38 @@
 
 	{{#if isRunning}}
 		<section class="stonetop-migration-panel is-running">
-			<h3>Migrating</h3>
+			<h3>{{#if isHosted}}Copying your campaign data{{else}}Migrating{{/if}}</h3>
 			<p>{{progress.label}}{{#if progress.total}} ({{progress.index}} of {{progress.total}}){{/if}}</p>
-			<p class="stonetop-migration-note">Leave this tab alone until Foundry returns you to the setup screen.</p>
+			<p class="stonetop-migration-note">
+				{{#if isHosted}}Leave this tab alone until it finishes.
+				{{else}}Leave this tab alone until Foundry returns you to the setup screen.{{/if}}
+			</p>
+		</section>
+	{{/if}}
+
+	{{#if isPrepared}}
+		<section class="stonetop-migration-panel">
+			<h3>Data copied. One step left.</h3>
+			<p class="stonetop-migration-counts">
+				{{prepared.documents}} documents and {{prepared.settings}} settings copied,
+				across {{prepared.locations}} places in this world.
+			</p>
+			<p>Now point the world itself at the renamed system, using your host's own tools:</p>
+			<ol>
+				<li>Export this world and save the zip.</li>
+				<li>Unzip it and open <code>world.json</code> inside.</li>
+				<li>
+					Change <code>"system": "{{oldId}}"</code> to <code>"system": "{{newId}}"</code>,
+					and save the file.
+				</li>
+				<li>Re-import that folder through your host's import wizard.</li>
+				<li>Launch it as GM. It finishes on its own; refresh the page once if it asks.</li>
+			</ol>
+			<p class="stonetop-migration-note">
+				Until you do all that, this world keeps running on <code>{{oldId}}</code> exactly as
+				it did before, and re-opening this window will simply tell you there is nothing
+				left to copy.
+			</p>
 		</section>
 	{{/if}}
 
@@ -74,11 +121,17 @@
 	{{/if}}
 
 	<footer class="stonetop-migration-actions">
-		{{#if isConfirming}}
+		{{#if isPrepared}}
+			<button type="button" data-action="dismiss">Close</button>
+		{{else if isConfirming}}
 			<button type="button" data-action="confirm">Yes, migrate now</button>
 			<button type="button" data-action="cancel">Cancel</button>
 		{{else if isReady}}
-			<button type="button" data-action="migrate">Migrate this world</button>
+			{{#if isHosted}}
+				<button type="button" data-action="prepare">Prepare this world</button>
+			{{else}}
+				<button type="button" data-action="migrate">Migrate this world</button>
+			{{/if}}
 			<button type="button" data-action="dismiss">Not now</button>
 		{{/if}}
 		{{#if canRecheck}}
