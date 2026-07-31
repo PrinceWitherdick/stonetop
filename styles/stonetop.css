@@ -22998,14 +22998,22 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    Hearts are a single silhouette SVG (game-icons.net "hearts" by Skoll, CC BY 3.0) used
    as a mask, so one asset paints both filled (accent) and empty (muted) states. */
 .stonetop-rel-empty {
-	margin: 4px 0 0;
+	/* margin: 0 for the same reason .stonetop-rel-table takes none (see below): this <p>
+	   stands in for the table or the board in the exact same slot, so it has to sit where
+	   they sit. Its old 4px rode on top of the host's gap and dropped the empty state 4px
+	   lower than the rows it replaces — most visible on the steading card, where a flex
+	   gap can't collapse it away. */
+	margin: 0;
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
 	color: var(--color-text-dark-secondary, #4b4a44);
 }
-.stonetop-rel-table {
-	margin-top: 4px;
-}
+/* No margin-top here, deliberately. Every host now spaces this section itself — the NPC
+   tab through .stonetop-rel-views' 6px flex gap under the toolbar, the character and
+   steading sheets through their heading's own 8px — and .stonetop-rel-board takes none
+   either. A margin here rode on top of all three, so switching Table → Board visibly
+   tightened the gap under the heading on all three sheets. Spacing belongs to the host,
+   which is the only place that knows what sits above. */
 /* Override the residents' 6-column grid for this 3-column table. The resize util sets
    an inline grid-template-columns once dragged, which then wins over this default. */
 .stonetop-rel-table .steading-residents-header,
@@ -23736,36 +23744,64 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	flex: 1 1 0;
 	justify-content: center;
 	padding: 1px 0;
-	/* The whole strip is one weight, not just the segment matching the card's lane. Three
-	   identically weighted segments read as one control the card is steered with, where a
-	   single filled segment among two ghosts read as a selected VALUE, which is the wrong
-	   promise now that the outer two are directions rather than standings.
+	/* The strip is built the way the rest of this component is built: translucent white wells
+	   over the parchment, never an opaque chip. The lane is rgba(255,255,255,0.35), the card
+	   0.72, an unrated card 0.4, a lane under a drop 0.6, and every sheet input 0.7 — so a
+	   solid fill anywhere in here is the one object the parchment cannot read through, and it
+	   announces itself far louder than a nudge button deserves. This is the Neutral home
+	   button's treatment; the arrows wash it with slate just below.
 
-	   That weight is white with black ink — the treatment the Neutral segment used to hold
-	   alone — rather than a fill of any kind. A card's move buttons are a nudge, not the
-	   card's business end, and any filled pill on every card drowned out the lane accents
-	   that carry the actual reading: first at slate strength, then again when the steps took
-	   a tint of the lane's own accent, which put a second, weaker copy of the header colour
-	   inside every card. The strip still reads as three segments because the shared block
-	   above draws a slate border round it and between them. */
-	background: #fff;
+	   Ink comes from the shared text ramp rather than a raw #000, matching the card name
+	   directly above it. */
+	background: rgba(255, 255, 255, 0.6);
 	font-size: var(--st-fs-xs, 0.75rem);
 	line-height: 1.6;
-	color: #000;
+	color: var(--st-text-body);
 }
 
 .stonetop-rel-lane-picker .stonetop-rel-lane-btn:last-child { border-right: 0; }
 
-/* Nothing for .is-active to change: the base is already the same white every segment carries.
-   The middle button still carries aria-pressed, so "the card is in Neutral" survives for a
-   screen reader even though the strip does not say it in paint.
+/* The two step arrows wash that white well with the component's OWN grey — rgb(100 116 139),
+   the exact value the lane border (0.28), the card border (0.25) and the Neutral lane accent
+   (0.55) already carry. Joining that family is the point: the strip picks up a cool cast that
+   is demonstrably already in the picture instead of importing a new colour, and at 0.16 the
+   parchment still reads through, so the arrows sit in the same translucent register as
+   everything around them rather than sitting on top as chips.
 
-   No :not([data-rel-dir]) override either, for the same reason — the Neutral segment used to
-   invert out of a grey strip, and there is nothing left to invert out of. */
+   Selected on data-rel-dir, which is the same attribute that makes a segment a direction
+   rather than the home button, so the fact lives in one place: no lane-scoped variant, and
+   nothing here reads --st-lane-accent. That is what holds the two arrows to one appearance
+   no matter which lane the card is sitting in.
 
-/* One hover for all three: white has nowhere lighter to go, so it greys. */
+   The channels are held as a bare triple rather than a finished colour so hover and the
+   disabled state can restate the ALPHA alone — which is how this component already expresses
+   emphasis everywhere else (a lane goes 0.35 → 0.6 under a drop). Declared here, not on the
+   picker, because every rule that reads it matches this same element.
+
+   Ink is --st-btn-primary-border, the slate the sheet already uses for focus rings and the
+   dragging card's border: 5.4:1 on the washed segment. */
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn[data-rel-dir] {
+	--st-rel-step-slate: 100 116 139;
+	background: rgb(var(--st-rel-step-slate) / 0.16);
+	color: var(--st-btn-primary-border, #4f5b66);
+}
+
+/* Nothing for .is-active to change: the Neutral segment already wears the base well, and it
+   still carries aria-pressed, so "the card is in Neutral" survives for a screen reader even
+   though the strip does not say it in paint. */
+
+/* Hover, for the Neutral segment: the well brightens toward opaque white. The old value here
+   was a flat #e7ebef, from when the base was solid #fff and had nowhere lighter to go. */
 .stonetop-rel-lane-picker .stonetop-rel-lane-btn:hover:not(:disabled) {
-	background: #e7ebef;
+	background: rgba(255, 255, 255, 0.9);
+}
+
+/* Hover, for the arrows: the SAME slate, deeper — the gesture the lane itself makes when a
+   drag comes over it (0.35 → 0.6). Restating only the alpha is what keeps this from becoming
+   a second colour to maintain. Must out-specify the rule above, which it does at (0,5,0)
+   against (0,4,0); it would otherwise wash the arrows back to plain white on hover. */
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn[data-rel-dir]:hover:not(:disabled) {
+	background: rgb(var(--st-rel-step-slate) / 0.3);
 }
 
 /* A step button at the end of the scale: a card at "hates" has nowhere colder to go. It stays
@@ -23777,7 +23813,13 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-rel-lane-picker .stonetop-rel-lane-btn:disabled {
 	opacity: 1;
 	cursor: default;
-	color: rgba(0, 0, 0, 0.4);
+	/* Only a direction segment is ever rendered disabled — the template hangs `disabled`
+	   inside the `dir` branch — so this always fades a glyph sitting on the washed segment,
+	   never on the Neutral well. The faint step of the shared text ramp, so a spent arrow
+	   lands on the same greyscale as every other de-emphasised thing on the sheet instead of
+	   a bespoke alpha: 2.2:1 on the wash against the live glyph's 5.4:1. The segment keeps
+	   its wash, so a dead end does not punch a pale gap in the strip. */
+	color: var(--st-text-faint, #999);
 }
 
 /* ── Narrow hosts ─────────────────────────────────────────────────────────── */
@@ -23821,9 +23863,11 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	outline-offset: -2px;
 }
 
-/* No lane-picker override of that ring colour: every segment is white, so the dark ring reads
-   across the whole strip the way it does on the view toggle. It used to be flipped to white
-   here, back when the steps were a filled slate — which would now vanish. */
+/* No lane-picker override of that ring colour. Both the Neutral well and the arrows' slate
+   wash are light — the wash is 0.16, not a fill — so the dark ring reads across the whole
+   strip the way it does on the view toggle. It has been flipped to white here in the past,
+   whenever the steps were an opaque slate; against a translucent segment that ring would
+   vanish instead. */
 
 /* An empty portrait's glyph is already at 0.5 opacity, so the unrated card's 0.72 on the
    wrapper compounded to ~0.36 and all but erased it. That hit settlements hardest: they
@@ -24105,6 +24149,12 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	/* Drop the heading's own 6px so the underline sits the same 8px above the rows as it
+	   does on the character sheet. There the h3's margin COLLAPSES into the Details tab's
+	   8px sibling gap, so 8px is the whole distance; here the card is a flex column
+	   (.steading-residents-section, gap: 8px) and flex gaps never collapse with margins,
+	   so the two were stacking to 14px. The gap alone now sets it. */
+	margin-bottom: 0;
 }
 
 .steading-residents-section--settlements > .steading-list-heading > .stonetop-rel-viewbar--heading {
