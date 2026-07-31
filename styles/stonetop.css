@@ -1651,9 +1651,10 @@ input.stonetop-name-field {
 }
 
 /* The rail beside the scrolling panel column is the shared .stonetop-guide-split /
-   .stonetop-guide-main layout, grouped with the other rail dialogs (search
-   ".stonetop-wound-edit-dialog .stonetop-guide-split"). `.wd-main` stays on that column
-   as a JS handle only — scrollY and applyGuideRail's mainSelector. */
+   .stonetop-guide-main layout; carrying the class is the whole opt-in (search
+   ".stonetop-guide-split {"), and this dialog's own overflow override is grouped with
+   the custom-move dialog's just below it. `.wd-main` stays on that column as a JS
+   handle only — scrollY and applyGuideRail's mainSelector. */
 
 /* Live name + status readout under the banner title, so the two fields that identify
    the wound stay visible from the panels that don't hold them. */
@@ -4831,9 +4832,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 /* The rail beside the scrolling panel column is the shared .stonetop-guide-split /
-   .stonetop-guide-main layout, grouped with the other rail dialogs (search
-   ".stonetop-custom-move-dialog .stonetop-guide-split"). `.stonetop-custom-move-main`
-   stays on that column as a JS handle only — scrollY and applyGuideRail's mainSelector. */
+   .stonetop-guide-main layout; carrying the class is the whole opt-in (search
+   ".stonetop-guide-split {"), and this dialog's own overflow override is grouped with
+   the wound dialog's just above it. `.stonetop-custom-move-main` stays on that column
+   as a JS handle only — scrollY and applyGuideRail's mainSelector. */
 .stonetop-custom-move-nav { flex: 0 0 auto; }
 
 /* One group of fields per panel; only the active one shows (JS toggles `hidden`). */
@@ -18806,18 +18808,10 @@ th:has(> .stonetop-roll-table-btn) {
 	font-family: var(--font-stonetop);
 }
 
-/* Rail (shared .stonetop-guide-toc) beside the scrolling panel column. The split
-   flex isn't global — each guide dialog scopes its own (see the Expedition/Intros
-   block) — so scope it here too. */
-.stonetop-welcome-split {
-	display: flex;
-	flex: 1 1 auto;
-	min-height: 0;
-}
-
-/* min-width:0 lets the panel column shrink beside the fixed-width rail instead of
-   forcing the dialog wider; it supplies its own scroll (shared .stonetop-guide-main
-   gives the padding + gap). */
+/* The panel column beside the rail (shared .stonetop-guide-toc); the shared
+   .stonetop-guide-split rule supplies the split flex. min-width:0 lets this column
+   shrink beside the fixed-width rail instead of forcing the dialog wider, and it
+   supplies its own scroll (shared .stonetop-guide-main gives the padding + gap). */
 .stonetop-welcome-main {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -19538,25 +19532,20 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-spring-dialog .stonetop-guide-nav { flex: 0 0 auto; }
 
 /* ── Jump-to-step table of contents ───────────────────────────────────────────
-   The Expedition dialog and the GM's Introductions dialog both render a TOC rail
-   (a journal-style page list) left of the scrolling step content; both columns
-   scroll independently between the top of the dialog and the pinned nav footer.
-   Scoped to those two so the other steppers (Spring Burst, Create Follower) and a
-   player's rail-less Introductions keep their single column. */
-.stonetop-expedition-dialog .stonetop-guide-split,
-.stonetop-introductions .stonetop-guide-split,
-.stonetop-arcanum-edit .stonetop-guide-split,
-.stonetop-arcana-inspire-dialog .stonetop-guide-split,
-.stonetop-wound-edit-dialog .stonetop-guide-split,
-.stonetop-custom-move-dialog .stonetop-guide-split {
+   A dialog renders a TOC rail (a journal-style page list) left of the scrolling step
+   content; both columns scroll independently between the top of the dialog and the
+   pinned nav footer. A template only wraps its content in `.stonetop-guide-split` when
+   it wants that layout, so the class IS the opt-in — no per-dialog scoping needed, and a
+   new stepper needs no edit here. The short steppers (Spring Burst) simply don't render
+   it: a rail only earns its 168px once walking the steps with Back/Next is a chore. */
+.stonetop-guide-split {
 	display: flex;
 	flex: 1 1 auto;
 	min-height: 0;
 }
 /* min-width:0 lets the content column shrink beside the fixed-width rail instead
    of forcing the dialog wider. */
-.stonetop-expedition-dialog .stonetop-guide-main,
-.stonetop-introductions .stonetop-guide-split .stonetop-guide-main { min-width: 0; }
+.stonetop-guide-split .stonetop-guide-main { min-width: 0; }
 /* The rail dialogs whose content column scrolls on its own (rather than the whole
    dialog scrolling): same four declarations, so they share one rule. */
 .stonetop-wound-edit-dialog .stonetop-guide-main,
@@ -20450,8 +20439,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-text-body);
 }
 
-/* Rail beside the scrolling section column; the shared .stonetop-guide-split flex (grouped
-   with the other stepper dialogs above) supplies the split layout. */
+/* Rail beside the scrolling section column; the one unscoped .stonetop-guide-split rule
+   above supplies the split layout, so carrying the class is the whole opt-in. */
 .stonetop-arcanum-edit .stonetop-guide-main {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -20706,8 +20695,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-family: var(--font-stonetop);
 }
 
-/* Rail beside the scrolling content column; the shared .stonetop-guide-split flex (grouped
-   with the other stepper dialogs) supplies the split layout. */
+/* Rail beside the scrolling content column; the one unscoped .stonetop-guide-split rule
+   supplies the split layout, so carrying the class is the whole opt-in. */
 .stonetop-arcana-inspire-dialog .stonetop-guide-main {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -21660,12 +21649,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-family: var(--font-stonetop);
 }
 /* Rail (shared .stonetop-guide-toc) beside the scrolling section column (.cm-main,
-   a shared .stonetop-guide-main which supplies its padding + gap). */
-.stonetop .create-monster .cm-split {
-	display: flex;
-	flex: 1 1 auto;
-	min-height: 0;
-}
+   a shared .stonetop-guide-main which supplies its padding + gap). The shared
+   .stonetop-guide-split rule supplies the split flex. */
 .stonetop .create-monster .cm-main {
 	flex: 1 1 auto;
 	min-width: 0;

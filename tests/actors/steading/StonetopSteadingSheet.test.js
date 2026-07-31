@@ -17,6 +17,11 @@ class FakeEl {
 	}
 	set className(value) { this.classList.set = new Set(String(value).split(/\s+/).filter(Boolean)); }
 	get className() { return [...this.classList.set].join(" "); }
+	// `src` is a reflected attribute on a real element: assigning the property updates the
+	// attribute and vice versa. Reflect it here too, so production code doesn't need to
+	// write both to keep this fake happy.
+	set src(value) { this.attrs.src = String(value); }
+	get src() { return this.attrs.src ?? null; }
 	set innerHTML(value) { this._innerHTML = value; }
 	setAttribute(key, value) { this.attrs[key] = String(value); }
 	getAttribute(key) { return this.attrs[key] ?? null; }
@@ -209,30 +214,67 @@ describe("StonetopSteadingSheet", () => {
 		delete globalThis.ImagePopout;
 	});
 
-	it("refreshes the already-open member image popout after choosing a new photo", () => {
-		const { sheet } = makeSheet();
+	// An open photo window showing `src`, as either shape of Application: v13's ImagePopout is
+	// ApplicationV2 and freezes its options object, older windows keep a mutable one.
+	function makeImagePopout(src, { frozen = false } = {}) {
 		const root = new FakeEl("div");
 		const img = new FakeEl("img");
-		img.src = "old.webp";
+		img.src = src;
 		root.appendChild(img);
-		const popout = {
-			src: "old.webp",
-			options: {},
-			object: {},
-			element: root,
-			render: vi.fn(),
-			_stonetopMemberImageEdit: { current: "old.webp" },
+		const options = { src, window: { title: "Wren" } };
+		return {
+			img,
+			popout: {
+				options: frozen ? Object.freeze(options) : options,
+				element: root,
+				render: vi.fn(),
+				_stonetopMemberImageEdit: { current: src },
+			},
 		};
+	}
+
+	it("refreshes the already-open member image popout after choosing a new photo", () => {
+		const { sheet } = makeSheet();
+		const { popout, img } = makeImagePopout("old.webp");
 
 		sheet._refreshMemberImagePopout(popout, "new.webp");
 
-		expect(popout.src).toBe("new.webp");
 		expect(popout.options.src).toBe("new.webp");
-		expect(popout.object.src).toBe("new.webp");
 		expect(popout._stonetopMemberImageEdit.current).toBe("new.webp");
 		expect(img.src).toBe("new.webp");
 		expect(img.getAttribute("src")).toBe("new.webp");
 		expect(popout.render).not.toHaveBeenCalled();
+	});
+
+	// ApplicationV2 hands out a frozen options object, so writing `options.src` through it
+	// throws under strict mode. That used to happen before the <img> was patched, which left
+	// the open photo window showing the default portrait while the sheet row updated.
+	it("refreshes a member image popout whose options are frozen (ApplicationV2)", () => {
+		const { sheet } = makeSheet();
+		const { popout, img } = makeImagePopout("systems/stonetop-pwd/assets/icons/people/default_profile.svg", { frozen: true });
+
+		sheet._refreshMemberImagePopout(popout, "new.webp");
+
+		expect(img.src).toBe("new.webp");
+		expect(img.getAttribute("src")).toBe("new.webp");
+		expect(popout.options.src).toBe("new.webp");
+		// The swapped-in copy keeps the rest of the window's configuration.
+		expect(popout.options.window.title).toBe("Wren");
+		expect(popout._stonetopMemberImageEdit.current).toBe("new.webp");
+		expect(popout.render).not.toHaveBeenCalled();
+	});
+
+	// An animated portrait needs core's <video>, so the <img> is left alone and the window
+	// re-renders off the src stored on the way past.
+	it("re-renders rather than patching when the portrait changes kind", () => {
+		const { sheet } = makeSheet();
+		const { popout, img } = makeImagePopout("wren.webp", { frozen: true });
+
+		sheet._refreshMemberImagePopout(popout, "wren.webm");
+
+		expect(img.src).toBe("wren.webp");
+		expect(popout.options.src).toBe("wren.webm");
+		expect(popout.render).toHaveBeenCalledWith(false);
 	});
 
 	it("adds a dropped steading-improvement card as a tracked improvement", async () => {

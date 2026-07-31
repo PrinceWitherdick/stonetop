@@ -26,7 +26,7 @@ import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
 import {STONETOP_THREAT_SEED_DRAG_TYPE} from "../../threats/threat-seed-cards.js";
 import {PLACE_OF_INTEREST_DRAG_TYPE} from "../../hooks/PlaceOfInterestDrop.js";
-import {getDragEventData} from "../../utils/foundry-compat.js";
+import {getDragEventData, hasVideoExtension, setAppOption} from "../../utils/foundry-compat.js";
 import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel, SEASON_IDS} from "../../seasons/seasons-change-reminders.js";
 import {recordSeasonsChange, ordinalWord} from "../../seasons/seasons-chronicle.js";
 import {SEASONAL_GAINS} from "../../dialogs/spring-burst-data.js";
@@ -1326,7 +1326,10 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onMemberAvatarPickImage({
 					list: edit.list,
 					index: edit.index,
-					current: popout.src ?? edit.current,
+					// `options.src` is where core keeps the displayed image (and what a
+					// re-render reads), so it stays right across portrait changes; `current`
+					// covers a window shape that keeps its src somewhere else.
+					current: popout.options?.src ?? edit.current,
 					popout,
 				});
 			});
@@ -1373,23 +1376,32 @@ export function createStonetopSteadingSheetClass(Base) {
 			}).render(true);
 		}
 
+		// Point an open photo window at a newly chosen portrait, patching it in place so the
+		// window keeps its position and size rather than re-rendering under the player.
 		_refreshMemberImagePopout(popout, path) {
 			if (!popout || !path) return;
-			popout.src = path;
-			if (popout.options) popout.options.src = path;
-			if (popout.object) popout.object.src = path;
+
+			// Match the element to the kind of portrait coming in: core renders a still as an
+			// <img> and an animated one as a <video>, so a swap between the two finds no
+			// element of the new kind — and leaving `media` null routes it to the re-render
+			// below, which builds whichever element the new path needs.
+			const root = popout.element?.jquery ? popout.element[0] : popout.element;
+			const selector = hasVideoExtension(path) ? ".window-content video, video" : ".window-content img, img";
+			const media = root?.querySelector?.(selector);
+			if (media) media.src = path;
+
+			// Keep the popout's own state in step: a re-render reads `options.src`, so does the
+			// header's Share Image control, and the next Edit Photo pass reads the current path
+			// back off the popout to highlight that portrait in the gallery.
+			setAppOption(popout, "src", path);
 			if (popout._stonetopMemberImageEdit) popout._stonetopMemberImageEdit.current = path;
 
-			const root = popout.element?.jquery ? popout.element[0] : popout.element;
-			const img = root?.querySelector?.(".window-content img, img");
-			if (img) {
-				img.src = path;
-				img.setAttribute?.("src", path);
-				return;
+			// No usable element (the window is still rendering, or the portrait changed kind):
+			// fall back to a re-render, which picks up the src stored above.
+			if (!media) {
+				popout.render?.(false);
+				this._scheduleMemberImageHeaderControl(popout);
 			}
-
-			popout.render?.(false);
-			this._scheduleMemberImageHeaderControl(popout);
 		}
 
 		async _onMemberAvatarImageChange(list, index, value) {
