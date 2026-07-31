@@ -1,6 +1,7 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { maybeOfferMigration } from "../migration/announce.js";
 import { finishSystemIdMigration } from "../migration/finish-run.js";
+import { maybeRescueStrandedWorld } from "../migration/rescue.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJournalsOnVersionChange, syncSeededFolderColors, unnestSeededWorldRootOnce } from "./SeedCompendiums.js";
 import { seedBestiaryActorsOnce, collapseBestiaryActorSubfoldersOnce } from "./SeedActors.js";
@@ -122,6 +123,13 @@ export async function onReady() {
 	// load for every GM who has not installed the target yet, and nothing below reads its
 	// result — the assistant is a modal the GM acts on whenever it arrives.
 	maybeOfferMigration().catch(err => console.error("Stonetop | system-id migration offer failed", err));
+	// Phase 1 of a system-id rename, run late: a world re-pointed at this system by hand,
+	// which is the only way to do it on a hosted Foundry, arrives with its campaign still
+	// filed under the old id and every sheet blank apart from its defaults. Copies it across
+	// and no-ops in a world that came over properly. Must precede the sweep below, which is
+	// what corrects the asset paths inside the bag it copies. See module/migration/rescue.js.
+	try { await maybeRescueStrandedWorld(); }
+	catch (err) { console.error("Stonetop | system-id rescue failed", err); }
 	// Phase 3 of a system-id rename: the once-per-world sweep that rewrites asset paths,
 	// compendiumSource stamps and sheet-class ids onto the active id. No-ops in a world
 	// that has nothing stale. Awaited, because the sheet defaults it repairs are read at

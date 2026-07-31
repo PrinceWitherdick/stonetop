@@ -93,9 +93,25 @@ describe("copySettings", () => {
 			setting("s3", `${NEW}.b`, "old")
 		], io, IDS);
 
-		expect(result).toEqual({ created: 1, updated: 1, unchanged: 0 });
+		expect(result).toEqual({ created: 1, updated: 1, unchanged: 0, skipped: 0 });
 		expect(io.create).toHaveBeenCalledWith([{ key: `${NEW}.a`, value: "1" }]);
 		expect(io.update).toHaveBeenCalledWith([{ _id: "s3", value: "2" }]);
+	});
+
+	// The repair path's one deviation: long after the rename, a value already under the new
+	// id is the GM's current choice and the old one is a fossil. Missing keys are still
+	// filled in. See rescue.js.
+	it("fills in missing keys without overwriting existing ones when asked", async () => {
+		const io = { create: vi.fn().mockResolvedValue(), update: vi.fn().mockResolvedValue() };
+		const result = await copySettings([
+			setting("s1", `${OLD}.a`, "1"),
+			setting("s2", `${OLD}.b`, "2"),
+			setting("s3", `${NEW}.b`, "the GM's current choice")
+		], io, { ...IDS, overwriteExisting: false });
+
+		expect(result).toEqual({ created: 1, updated: 0, unchanged: 0, skipped: 1 });
+		expect(io.create).toHaveBeenCalledWith([{ key: `${NEW}.a`, value: "1" }]);
+		expect(io.update).not.toHaveBeenCalled();
 	});
 
 	it("writes nothing when there is nothing to do", async () => {

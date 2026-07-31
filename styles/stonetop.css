@@ -22861,10 +22861,11 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	justify-content: center;
 }
 
-/* The two affirmatives — "Migrate this world" and the "Yes, migrate now" that follows
-   it — take the slate primary tokens. This dialog is an Application, not a .dialog, so
-   the blanket dialog-button rule never reaches it. */
+/* The affirmatives — "Migrate this world", the "Yes, migrate now" that follows it, and
+   hosted mode's "Prepare this world" — take the slate primary tokens. This dialog is an
+   Application, not a .dialog, so the blanket dialog-button rule never reaches it. */
 .stonetop-migration-assistant .stonetop-migration-actions button[data-action="migrate"],
+.stonetop-migration-assistant .stonetop-migration-actions button[data-action="prepare"],
 .stonetop-migration-assistant .stonetop-migration-actions button[data-action="confirm"] {
 	background: var(--st-btn-primary-bg);
 	border: 1px solid var(--st-btn-primary-border);
@@ -22873,6 +22874,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 .stonetop-migration-assistant .stonetop-migration-actions button[data-action="migrate"]:hover,
+.stonetop-migration-assistant .stonetop-migration-actions button[data-action="prepare"]:hover,
 .stonetop-migration-assistant .stonetop-migration-actions button[data-action="confirm"]:hover {
 	background: var(--st-btn-primary-bg-hover);
 	border-color: var(--st-btn-primary-border-hover);
