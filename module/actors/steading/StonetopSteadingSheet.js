@@ -21,6 +21,7 @@ import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 import {makeColumnsSortable} from "../../utils/sortable-columns.js";
 import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
+import {followSidebarToggle} from "../../utils/sidebar-toggle-follow.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
 import {STONETOP_THREAT_SEED_DRAG_TYPE} from "../../threats/threat-seed-cards.js";
@@ -875,6 +876,11 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.currentTarget.setAttribute("aria-label", collapsed ? "Expand moves sidebar" : "Collapse moves sidebar");
 				setSidebarCollapsed(this.actor?.id, collapsed);
 			});
+			// …and keep that handle in reach at any scroll offset: the sheet scrolls as one
+			// unit, so a handle pinned to the sidebar's top edge would otherwise ride off the
+			// top of the window and leave no way to fold the sidebar away without scrolling
+			// back up. See module/utils/sidebar-toggle-follow.js.
+			followSidebarToggle(html);
 
 			// Clicking the move name or its "+STAT" chip rolls the same as tapping the dice icon beside it.
 			html.find(".stonetop-steading-move-open, .stonetop-move-roll-chip").on("click", ev => {

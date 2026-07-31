@@ -51,6 +51,7 @@ import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
+import {followSidebarToggle} from "../../utils/sidebar-toggle-follow.js";
 import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
@@ -3379,6 +3380,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.currentTarget.setAttribute("aria-label", collapsed ? "Expand moves sidebar" : "Collapse moves sidebar");
 				setSidebarCollapsed(this.actor?.id, collapsed);
 			});
+			// …and keep that handle in reach at any scroll offset: the sheet scrolls as one
+			// unit, so a handle pinned to the sidebar's top edge would otherwise ride off the
+			// top of the window and leave no way to fold the sidebar away without scrolling
+			// back up. See module/utils/sidebar-toggle-follow.js.
+			followSidebarToggle(html);
+
 			// Name an (anonymous) crew member: promote them to a named individual,
 			// carrying their current HP across. Opened from each member's "Name them"
 			// button in edit mode, which targets that specific roster slot.

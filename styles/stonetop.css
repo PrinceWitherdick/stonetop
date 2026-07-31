@@ -2282,8 +2282,15 @@ input.stonetop-name-field {
 
 /* Handle that collapses / expands the whole sidebar. Absolutely positioned just to
    the left of the border (the vertical separator), parked in the gutter so it takes
-   no flow width and the move content stays tucked close to the border. Anchored to
-   the top, so the chevron stays put regardless of panel height. */
+   no flow width and the move content stays tucked close to the border.
+
+   `top: 0` is the resting value; module/utils/sidebar-toggle-follow.js overwrites it
+   inline as the sheet scrolls, sliding the handle down so it stays parked at the top of
+   the visible area (the sheet scrolls as one unit inside `.window-content`, so a handle
+   fixed at the sidebar's top edge scrolls out of reach). Sticky can't do this job: the
+   `overflow: hidden` on .stonetop-sheet-layout would become its scrollport and that box
+   never scrolls. Keep the `transition: none` below — the handle must track the scroll
+   exactly, not lag behind it. */
 .stonetop-sidebar-toggle {
 	position: absolute;
 	top: 0;
@@ -4140,6 +4147,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-bottom: 0;
 }
 
+/* Several playbook descriptions nest a <ul> inside a <p> ("…they must choose 1: <ul>…").
+   That is invalid, so the HTML parser closes the paragraph at the list and the stray
+   </p> at the end of the source becomes an empty trailing <p> — which still lays out a
+   line box and left a visible band of dead space under the section (most obvious under
+   the Heavy's Sheriff background). An empty paragraph never carries meaning, so drop it. */
+.stonetop-item-description > p:empty {
+	display: none;
+}
+
 .stonetop-item-description ul {
 	margin: 0 0 2px;
 	padding-left: 0;
@@ -4161,6 +4177,29 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background-repeat: no-repeat;
 	background-position: center;
 	opacity: 0.5;
+}
+
+/* Background option lists ("…they must choose 1:") hang off the prose above them,
+   so indent them 8px — the same indent the read-only lore checkbox rows use
+   (.stonetop-lore-option--readonly), which is the reference "nested under its
+   prompt" look on this tab.
+
+   The indent goes on the <li> (padding + a matching shift of the absolute spiral
+   marker), NOT on the <ul>: the playbook HTML drops a bare "or" connector between
+   two <li>s, which parses as a loose text node child of the <ul>. A <ul> padding
+   would indent that connector too, and it reads as prose joining the options
+   rather than as one of them, so it should stay flush. A text node can't be
+   selected, so the only way to leave it alone is to never move the list itself.
+
+   Both classes are always on the same element, so the doubled-class specificity
+   here outranks the shared `.stonetop-item-description li` family rules
+   (marker `left`, `padding-left`) far below without depending on source order. */
+.stonetop-item-description.stonetop-bg-description li {
+	padding-left: calc(8px + var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+
+.stonetop-item-description.stonetop-bg-description li::before {
+	left: 8px;
 }
 
 .stonetop-move-ref {
@@ -6271,6 +6310,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .tab.details > .details-section + .details-section {
+	margin-top: 14px;
+}
+
+/* The lore block is wrapped in .stonetop-lore-section-wrapper (which hosts its floating
+   pencil), so the section that follows it — Background — is NOT preceded by a
+   .details-section and missed the rule above: it sat on the 8px the last lore entry
+   leaves instead of the 14px every other section gets. Give it the same 14px; the lore
+   entry's own 8px collapses into it (nothing on the wrapper blocks collapsing). */
+.tab.details > .stonetop-lore-section-wrapper + .details-section {
 	margin-top: 14px;
 }
 
@@ -8956,8 +9004,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Shared card chrome for every Overview block so the tab reads as one family:
    the three inventory lists, the treasury, Size, and Places all sit in the
-   same surface, border, radius, and padding. */
-.steading-card {
+   same surface, border, radius, and padding.
+
+   .stonetop-character-relationships takes it too. The relationships component is one
+   thing rendered in two places (same partials, same rows, same toolbar), so its card
+   is defined once here rather than restated per host — a tweak to the surface moves
+   both sheets together, which is the point. Only the surface is shared: the flex
+   sizing the Overview grid needs lives in `.steading-overview-cards > .steading-card`
+   below and stays out of this rule. */
+.steading-card,
+.stonetop-character-relationships {
 	background: rgba(0,0,0,0.035);
 	border: 1px solid rgba(0,0,0,0.1);
 	border-radius: var(--st-radius-lg);
@@ -17177,6 +17233,18 @@ li.question-bullet {
 .stonetop-details-heading-row + :not(.stonetop-item) {
 	margin-top: 4px;
 }
+/* On the Details tab the lore section sets the rhythm: its own heading leaves 8px of
+   air under the rule (a 4px h3 margin that collapses into the 8px .stonetop-lore-entry
+   gap below it), while every other section here sat at 4px and read noticeably tighter.
+   Lift them to the same 8px — .stonetop-item already brings 4px of its own padding, so
+   it only needs the remaining 4px. Scoped to .tab.details so the Moves / Equipment /
+   Invocations / Followers heading rows keep their existing spacing. */
+.tab.details .stonetop-details-heading-row + :not(.stonetop-item) {
+	margin-top: 8px;
+}
+.tab.details .stonetop-details-heading-row + .stonetop-item {
+	margin-top: 4px;
+}
 /* The Followers tab is a responsive grid (see .stonetop-followers). Its heading row
    and the Create-a-follower bar each span every column so they sit on their own
    full-width lines — above the card flow and at the foot of the tab — rather than in
@@ -23673,57 +23741,43 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	   single filled segment among two ghosts read as a selected VALUE, which is the wrong
 	   promise now that the outer two are directions rather than standings.
 
-	   That weight is the NEUTRAL lane's own accent — the grey its header icon is painted in
-	   (see .stonetop-rel-lane--neutral) — rather than the full-strength slate of a primary
-	   button. A card's move buttons are a nudge, not the card's business end, and at button
-	   strength three filled slate pills on every card drowned out the lane accents that
-	   carry the actual reading. Glyph goes dark to match: white ink on a fill this light is
-	   about 1.8:1. */
-	background: rgba(100, 116, 139, 0.55);
+	   That weight is white with black ink — the treatment the Neutral segment used to hold
+	   alone — rather than a fill of any kind. A card's move buttons are a nudge, not the
+	   card's business end, and any filled pill on every card drowned out the lane accents
+	   that carry the actual reading: first at slate strength, then again when the steps took
+	   a tint of the lane's own accent, which put a second, weaker copy of the header colour
+	   inside every card. The strip still reads as three segments because the shared block
+	   above draws a slate border round it and between them. */
+	background: #fff;
 	font-size: var(--st-fs-xs, 0.75rem);
 	line-height: 1.6;
-	color: var(--st-btn-primary-border, #4f5b66);
+	color: #000;
 }
 
 .stonetop-rel-lane-picker .stonetop-rel-lane-btn:last-child { border-right: 0; }
 
-/* Nothing for .is-active to change: the base is already the filled slate that state used to
-   supply. The middle button still carries aria-pressed, so "the card is in Neutral" survives
-   for a screen reader even though the strip no longer says it in paint. */
+/* Nothing for .is-active to change: the base is already the same white every segment carries.
+   The middle button still carries aria-pressed, so "the card is in Neutral" survives for a
+   screen reader even though the strip does not say it in paint.
 
-/* Hover deepens the same grey rather than jumping to the slate hover token, which at this
-   base would read as the button changing colour, not lighting up. */
+   No :not([data-rel-dir]) override either, for the same reason — the Neutral segment used to
+   invert out of a grey strip, and there is nothing left to invert out of. */
+
+/* One hover for all three: white has nowhere lighter to go, so it greys. */
 .stonetop-rel-lane-picker .stonetop-rel-lane-btn:hover:not(:disabled) {
-	background: rgba(100, 116, 139, 0.78);
-}
-
-/* The Neutral segment inverts: white fill, black glyph, between the two grey steps. It is the
-   one button in the strip that names a RATING rather than a direction, so it reads as the home
-   key rather than a third nudge.
-
-   Selected by the ABSENCE of [data-rel-dir] — the same fact the template branches on to decide
-   which kind of button it is emitting, so there is no second source of truth for it. */
-.stonetop-rel-lane-picker .stonetop-rel-lane-btn:not([data-rel-dir]) {
-	background: #fff;
-	color: #000;
-}
-
-/* Needs to out-specify the slate :hover above, which would otherwise repaint the white
-   segment on the way past. */
-.stonetop-rel-lane-picker .stonetop-rel-lane-btn:not([data-rel-dir]):hover:not(:disabled) {
 	background: #e7ebef;
 }
 
 /* A step button at the end of the scale: a card at "hates" has nowhere colder to go. It stays
    in place rather than being dropped from the strip, so the Neutral segment never shifts under
    the pointer on the very cards a user is most likely to nudge back. Fades the glyph rather
-   than the whole button, which would take the grey fill with it and punch a hole in the strip.
-   Needs the extra :disabled to out-specify `.stonetop-readonly .stonetop-rel-lane-btn`, which
-   forces opacity back to 1 for the play-time trackers. */
+   than the whole button, which would take the segment's border with it and open a gap in the
+   strip. Needs the extra :disabled to out-specify `.stonetop-readonly .stonetop-rel-lane-btn`,
+   which forces opacity back to 1 for the play-time trackers. */
 .stonetop-rel-lane-picker .stonetop-rel-lane-btn:disabled {
 	opacity: 1;
 	cursor: default;
-	color: rgba(79, 91, 102, 0.4);
+	color: rgba(0, 0, 0, 0.4);
 }
 
 /* ── Narrow hosts ─────────────────────────────────────────────────────────── */
@@ -23749,11 +23803,11 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	margin-right: 0;
 }
 
-/* A chevron's ink sits high in its em box while the scales glyph beside it sits centred, so
-   three optically aligned icons need the outer two nudged a pixel down. Keyed off
-   [data-rel-dir], which the template puts on the step buttons and nothing else. transform,
-   so the box the glyph is centred in does not move and the strip keeps its height. */
-.stonetop-rel-lane-picker .stonetop-rel-lane-btn[data-rel-dir] > i {
+/* Every glyph in the strip sits a pixel high in its own em box, so flex centring puts the ink
+   above the optical middle of the segment. One nudge for all three, chevrons and scales alike,
+   which is also what keeps them level with each other. transform, not an offset or padding, so
+   the box the glyph is centred in does not move and the strip keeps its height. */
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn > i {
 	transform: translateY(1px);
 }
 
@@ -23767,9 +23821,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	outline-offset: -2px;
 }
 
-/* No lane-picker override of that ring colour: the step buttons carry the Neutral lane's
-   light grey, not a filled slate, so the dark ring reads on all three segments the way it
-   does on the view toggle. It used to be flipped to white here, which would now vanish. */
+/* No lane-picker override of that ring colour: every segment is white, so the dark ring reads
+   across the whole strip the way it does on the view toggle. It used to be flipped to white
+   here, back when the steps were a filled slate — which would now vanish. */
 
 /* An empty portrait's glyph is already at 0.5 opacity, so the unrated card's 0.72 on the
    wrapper compounded to ~0.36 and all but erased it. That hit settlements hardest: they
@@ -23997,10 +24051,51 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	letter-spacing: normal;
 }
 
+/* ── Card chrome ──────────────────────────────────────────────────────────────
+   The one Details section that reads as a self-contained COMPONENT rather than a run of
+   prose under a rule: it carries its own toolbar, its own drop target and two switchable
+   layouts. Its surface comes from `.steading-card`, which this class is listed on — the
+   steading sheet shows the same component, and the two are meant to stay identical.
+   The card also gives the drag-to-add target a visible edge to aim at instead of an
+   invisible band of tab.
+
+   No positioning here. The heading row inside is already the anchor for the pencil and the
+   view toggle, so both stay inside the card's padding with nothing to re-point. */
+
+/* The drop highlight sets a radius of its own (it serves the NPC tab, which has no card),
+   and would otherwise square the corners off the moment a drag came over — the one moment
+   the card's outline is being looked at. Same specificity as that rule, later in the file. */
+.stonetop-character-relationships.is-drop-target {
+	border-radius: var(--st-radius-lg);
+}
+
 /* Reserve room so a long heading or its edit-mode note cannot slide under the buttons.
-   Scoped to this section: every other details heading keeps the plain 1.5em pencil gap. */
+   Scoped to this section: every other details heading keeps the plain 1.5em pencil gap.
+
+   Everything else here matches `.steading-list-heading` as the steading sheet renders it,
+   so the component's heading reads the same on both hosts: --st-fs-xl type (both sheets
+   already share --font-stonetop), a hairline in the card's own ink at 12% rather than the
+   maroon 2px underline Foundry core hangs on every heading, and 4px of air between the
+   label and it instead of core's flush baseline. Core's default had never been overridden
+   here because on a flat Details section the maroon reads as the tab's section rule —
+   inside a card it reads as a stray red line.
+
+   This does size the heading above its Details-tab neighbours (Background, Origin,
+   Instinct, Appearance, Lore). That is deliberate: matching the steading wins over
+   matching the sections around it, because it is the same component in both places. */
 .stonetop-character-relationships .stonetop-details-heading-row .stonetop-move-group-title {
-	padding-right: 11em;
+	font-size: var(--st-fs-xl);
+	/* 8.5em, not 11: this em is the HEADING's, now 1.3× the row's, while the toolbar it
+	   clears is a sibling positioned in the row's em (right: 1.9em). 8.5 × 1.3 ≈ the 11
+	   row-ems the buttons actually occupy — the same absolute reserve as before the type
+	   grew, rather than 30% more. */
+	padding-right: 8.5em;
+	padding-bottom: 4px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+	/* Out-specifies .stonetop-details-heading-row's `margin-bottom: 0`, which was right when
+	   the rule sat flush under the text. The Details tab's 8px sibling gap collapses over
+	   this, so it sets the floor, not the total. */
+	margin-bottom: 6px;
 }
 
 /* Steading sheet: the toolbar is a CHILD of the heading, so it needs no positioning at all

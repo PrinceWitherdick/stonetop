@@ -8,6 +8,7 @@
 // host sheets get it without a call-site change.
 import { clampHearts, setRelationshipHeartsExact } from "./relationship-hearts.js";
 import { readStoredColumnState, writeStoredColumnState } from "./steading-column-util.js";
+import { scrollParent } from "./scroll-parent.js";
 
 // Which layout a section is showing. Per user, per browser, per table — the same key
 // space that already owns these tables' column widths and sort order, so a character
@@ -463,15 +464,9 @@ export function dragTranslation({ x, startX, y, startY, scrollTop = 0, startScro
 	return { dx: x - startX, dy: y - startY + (scrollTop - startScroll) };
 }
 
-// The nearest ancestor that actually scrolls. Differs per host: the character sheet scrolls
-// in .window-content, the NPC sheet in its active tab panel.
-function scrollableAncestor(el) {
-	for (let node = el?.parentElement; node; node = node.parentElement) {
-		const overflowY = getComputedStyle(node).overflowY;
-		if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight) return node;
-	}
-	return null;
-}
+// The nearest ancestor that actually scrolls. Resolved during a drag, so it must be
+// overflowing right now — an ancestor with nothing to scroll is no use to auto-scroll.
+const scrollableAncestor = el => scrollParent(el, { mustOverflow: true });
 
 // Relationships with a write in flight. Every path reads a card's rating back off the DOM
 // (`data-rel-hearts`), which stays STALE from the moment the write starts until the
