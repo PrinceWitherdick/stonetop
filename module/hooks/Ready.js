@@ -54,9 +54,10 @@ const _CHRONICLE_MACRO_SCRIPT = "game.stonetop?.saveChronicle?.()";
 const _CHRONICLE_HOTBAR_SLOT  = 9;
 
 // The "(TEST ONLY) Populate World" dev macro, added to the Macro Directory but never
-// the hotbar. Its body is the create-test-characters dev script — that gitignored file
-// is the single source of truth, fetched at runtime (see _ensureTestPopulateMacro), so
-// builds that omit it simply skip seeding the macro.
+// the hotbar. Its body is the create-test-characters dev script — that file is the single
+// source of truth, fetched at runtime (see _ensureTestPopulateMacro). It SHIPS: it is
+// un-ignored in .gitignore and named explicitly in the release zip step, so released
+// worlds get the macro too. A build that omits it still skips seeding, silently.
 const _TEST_MACRO_NAME   = "(TEST ONLY) Populate World";
 const _TEST_MACRO_SRC    = "systems/stonetop-pwd/scripts/local/create-test-characters.js";
 const _TEST_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/hazard-sign.svg";
@@ -671,11 +672,16 @@ async function _reorderSystemMacros() {
 // Add the "(TEST ONLY) Populate World" script macro to the world's Macro Directory,
 // inside a "For Testing Purposes" folder — but never to the hotbar (creating a Macro
 // document doesn't slot it; only assignHotbarMacro does, which we deliberately skip).
-// Its body is the
-// create-test-characters dev script, fetched so that gitignored file stays the single
-// source of truth: a missing file (a build that omits scripts/) skips silently, leaving
-// real worlds untouched. Seeded once — a GM who deletes it keeps it gone — but while it
-// exists its command is re-synced so edits to the script propagate. GM-only.
+// Its body is the create-test-characters dev script, fetched at runtime so that one file
+// stays the single source of truth: a missing file (a build that omits scripts/) skips
+// silently, leaving those worlds untouched. It ships in the release zip, so released
+// worlds seed it as well. Seeded once — a GM who deletes it keeps it gone — but while it
+// exists its command is re-synced so edits to the script propagate.
+//
+// GM-only twice over: the call site sits inside a game.user.isGM block, and the macro is
+// created with default ownership NONE so it stays out of a player's Macro Directory even
+// though Foundry lets players hold macros. Both matter now that it reaches real tables —
+// running it seeds (and, on a re-run, DELETES) a roster of [TEST] fixtures.
 async function _ensureTestPopulateMacro() {
 	let command;
 	try {
@@ -700,7 +706,11 @@ async function _ensureTestPopulateMacro() {
 	}
 	if (getSetting("testPopulateMacroSeeded")) return; // deleted on purpose — leave it gone
 
-	await Macro.create({ name: _TEST_MACRO_NAME, type: "script", img: _TEST_MACRO_IMG, command, scope: "global", folder: folder?.id ?? null });
+	await Macro.create({
+		name: _TEST_MACRO_NAME, type: "script", img: _TEST_MACRO_IMG, command,
+		scope: "global", folder: folder?.id ?? null,
+		ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
+	});
 	await setSetting("testPopulateMacroSeeded", true);
 }
 
