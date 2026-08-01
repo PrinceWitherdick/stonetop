@@ -64,3 +64,22 @@ const CREATURE_TYPE_FA = {
 export function creatureTypeFaIcon(slug) {
 	return CREATURE_TYPE_FA[slug] ?? "fa-dragon";
 }
+
+// The inverse table, built once. Two slugs can't share a glyph today, and if one ever did
+// the first listed would win — which is fine, since this only ever picks a stand-in mark.
+const FA_TO_CREATURE_TYPE = Object.fromEntries(
+	Object.entries(CREATURE_TYPE_FA).map(([slug, fa]) => [fa, slug]),
+);
+
+/**
+ * The taxonomy slug a Font Awesome glyph stands for — the inverse of creatureTypeFaIcon.
+ *
+ * Compact UI shows a creature as a glyph while the sidebar wants a real image, so anything
+ * holding only the glyph (a follower card's portraitIcon, say) can get back to the type and
+ * from there to its circular mark. Returns null for a glyph outside the taxonomy; callers
+ * decide what an unrecognised one should stand in as.
+ */
+export function creatureTypeForFaIcon(fa) {
+	const key = String(fa ?? "").trim();
+	return FA_TO_CREATURE_TYPE[key] ?? null;
+}

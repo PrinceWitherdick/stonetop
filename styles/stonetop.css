@@ -2813,6 +2813,7 @@ input.stonetop-name-field {
 .threat-list-done,
 .stonetop-npc-hasstats-check,
 .stonetop-rel-show-check,
+.stonetop-spend-unwilling,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
@@ -2867,6 +2868,7 @@ input.stonetop-name-field {
 .threat-list-done:checked,
 .stonetop-npc-hasstats-check:checked,
 .stonetop-rel-show-check:checked,
+.stonetop-spend-unwilling:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
@@ -13849,13 +13851,36 @@ img.steading-player-portrait {
 	flex-direction: column;
 	gap: 6px;
 }
+/* Centre the control against the label: every reason here is a short one-liner,
+   so flex-start left the 15px box riding high above the text. */
 .stonetop-spend-choice {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	gap: 8px;
 	padding: 4px 6px;
 	border-radius: var(--st-radius-sm);
 	cursor: pointer;
+}
+.stonetop-spend-choice > span { line-height: 1.3; }
+/* Round radio beside the SVG checkbox, so the "pick 1" reasons read as
+   single-select and neither control renders as a native browser widget.
+   `color: inherit` matters: core gives the input its own light colour, so a
+   currentColor ring/dot would paint near-white on the dialog's pale body. */
+.stonetop-spend-radio {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	width: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	height: calc(15px * var(--stonetop-font-scale, 1)) !important;
+	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1)) !important;
+	color: inherit !important;
+	border: 1.5px solid currentColor !important;
+	border-radius: 50% !important;
+	background: transparent !important;
+	margin: 0 !important;
+	cursor: pointer;
+}
+.stonetop-spend-radio:checked {
+	background: radial-gradient(circle, currentColor 0 45%, transparent 50%) !important;
 }
 .stonetop-spend-choice:hover { background: rgba(112, 128, 144, 0.12); }
 .stonetop-spend-choice--unwilling {
@@ -13985,14 +14010,33 @@ img.steading-player-portrait {
    fixed width so the pip circles start at the same x on both rows (independent
    grids sized by content would diverge, since "Readiness" is wider than
    "Loyalty"). 5.3em is snug to "Readiness" (~5.22em in Libre Caslon Text) so the
-   slot isn't greedy. The pip track and Spend button then hug their content, with
-   a 12px column gap. The note spans the full row below. `align-items: center`
-   sits the text label centred on the round pips; the field-row default `baseline`
-   would sit it off them. */
+   slot isn't greedy.
+
+   The pip column is likewise shared: it reserves --st-follower-pip-slots circles
+   (the card's widest track, published on .stonetop-follower-body) rather than
+   sizing to its own row, so the two Spend buttons start at the same x even when
+   Readiness draws a 4th circle for a borne shield and Loyalty draws 3. minmax()
+   lets an over-held track (more circles than slots) grow past the reservation
+   instead of overflowing.
+
+   --st-pip-advance is what one circle actually costs, and it is NOT just the
+   circle: a 16px pip carries the 1px side margins Foundry core puts on every .app
+   button (the pip rule declares none, so core's win — pinned there now so the two
+   numbers can't drift), and then the 5px flex gap to the next one. Counting only
+   the circle made the reservation 2px short per slot, which left a 4-slot row 8px
+   short: Readiness drew its 4th circle, overflowed the reservation, and its Spend
+   button sat 8px right of Loyalty's instead of square under it. The track is one
+   gap shorter than N advances, since the last circle isn't followed by one.
+
+   The Spend button then hugs its content, with a 12px column gap. The note spans
+   the full row below. `align-items: center` sits the text label centred on the
+   round pips; the field-row default `baseline` would sit it off them. */
 .stonetop-follower-field-row.stonetop-follower-loyalty-row,
 .stonetop-follower-field-row.stonetop-follower-readiness-row {
+	--st-pip-advance: 23px;   /* 16px circle + 2 x 1px core margin + 5px gap */
+	--st-pip-track: calc(var(--st-follower-pip-slots, 3) * var(--st-pip-advance) - 5px);
 	display: grid;
-	grid-template-columns: 5.3em max-content max-content;
+	grid-template-columns: 5.3em minmax(var(--st-pip-track), max-content) max-content;
 	align-items: center;
 	column-gap: 12px;
 	row-gap: 2px;
@@ -14465,6 +14509,11 @@ img.steading-player-portrait {
 	background: transparent;
 	cursor: pointer;
 	padding: 0;
+	/* The same 1px Foundry core gives every .app button, declared here rather than
+	   inherited: the Loyalty / Readiness rows reserve their pip column by counting
+	   it (see --st-pip-advance), and a silent change to core's margin would slide
+	   the two Spend buttons out of line with each other again. */
+	margin: 0 1px;
 	transition: background 0.12s;
 	flex-shrink: 0;
 }
@@ -14627,6 +14676,21 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	margin-top: 14px;
 }
 
+/* Supplies circles take the Loyalty / Readiness pip colour instead of the section's
+   body text (the shared .stonetop-crew-pip currentColor), so all three round pip
+   tracks on a crew card read as one control family. The hover tint matches those
+   rows too, and sits after :checked so a filled pip lightens on hover the same way.
+   The Inventory diamonds above keep their own SVG art. */
+.vtt .window-app input[type=checkbox].stonetop-crew-supplies-pip {
+	border-color: slategrey;
+}
+.vtt .window-app input[type=checkbox].stonetop-crew-supplies-pip:checked {
+	background: slategrey;
+}
+.vtt .window-app input[type=checkbox].stonetop-crew-supplies-pip:hover {
+	background: rgba(112, 128, 144, 0.45);
+}
+
 .stonetop-crew-supplies-grid {
 	display: grid;
 	grid-template-columns: repeat(3, auto);
@@ -14764,8 +14828,8 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
    Loyalty, Gear, Notes) matching the blank Follower card in the rulebook. */
 .stonetop-follower-portrait {
 	flex: none;
-	width: 34px;
-	height: 34px;
+	width: 75px;
+	height: 75px;
 	border-radius: 50%;
 	border: 1.5px solid var(--st-text-body);
 	background: rgba(255, 255, 255, 0.5);
@@ -14777,11 +14841,21 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	   circle read as a smudge rather than a symbol. The RING stays --st-text-body: it is
 	   chrome around the glyph, not part of it. */
 	color: #000;
-	font-size: var(--st-fs-md);
+	/* Scaled with the circle, not taken from the type ramp: the glyph is a picture filling a
+	   75px box, and the largest heading step (1.3em) leaves it adrift in the middle of it. */
+	font-size: 2.2em;
 	/* A portrait fills the circle edge to edge, so the corners it would otherwise poke
 	   through are clipped here as well as on the image itself: `place-items: center` is a
 	   grid, and a stray fraction of a pixel at the rim reads as a square shadow. */
 	overflow: hidden;
+}
+
+/* The type glyph, nudged down 2px. Grid centring squares up the glyph's LINE BOX, and a
+   Font Awesome line box carries descender room the drawn symbol never uses, so a seedling
+   or a paw centred by the box sits visibly high in the circle. Transform, not margin or
+   position: it moves paint only, leaving the centred box (and the ring it sits in) alone. */
+.stonetop-follower-portrait > i {
+	transform: translateY(2px);
 }
 
 /* The chosen portrait, in place of the type glyph. */
@@ -15925,26 +15999,6 @@ li.question-bullet {
 
 .stonetop-group-hp-reset:hover {
 	color: var(--color-text-hyperlink, slategrey);
-}
-
-.stonetop-group-fight-readiness-row {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	font-size: var(--st-fs-sm);
-	margin-bottom: 8px;
-	flex-wrap: wrap;
-}
-
-.stonetop-group-fight-readiness-label {
-	font-weight: 600;
-	color: slategrey;
-	white-space: nowrap;
-}
-
-.stonetop-group-fight-readiness-note {
-	color: var(--st-text-faint);
-	font-style: italic;
 }
 
 .stonetop-group-fight-outnumber-row {

@@ -59,6 +59,7 @@ import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_
 import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
 import {availablePossessionFollowers} from "../../data/possession-followers.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
+import {FOLLOWER_DRAG_TYPE} from "../../data/follower-actor.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
@@ -428,6 +429,12 @@ function _followerExtras(d = {}) {
 		// _followerDetailBase, so every follower type gains a portrait in one place.
 		// Empty means "no portrait" and the card falls back to the type's glyph.
 		img:         String(d?.img ?? "").trim(),
+		// The Actor this follower has already been placed on the map as, if any (written by
+		// the canvas-drop hook the first time the card is dragged onto a scene — see
+		// module/hooks/FollowerDrop.js). Stored beside the portrait because it is stored
+		// exactly like it: one value on the follower's own `.details` object, so every
+		// follower type gains the link in one place. Empty is the normal state.
+		actorUuid:   String(d?.actorUuid ?? "").trim(),
 	};
 }
 
@@ -470,6 +477,65 @@ function _followerDetailBase(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[fty
 // Type-root path for a structurally-stored field (name / pronoun / instinct / cost), or null.
 function _followerStructuralPath(ftype, field) { return _FOLLOWER_FLAGS[ftype]?.structural?.[field] ?? null; }
 
+/**
+ * What a follower card carries with it when it's dragged onto the canvas: everything the
+ * drop hook needs to find — or build — the Actor it becomes (module/hooks/FollowerDrop.js).
+ *
+ * Read off the FINISHED card, after the override / exceptional / order passes, so the token
+ * gets the numbers the player is looking at rather than the raw stored ones. `detailBase`
+ * rides along so the hook can write the new actor's uuid back onto this same follower
+ * without having to know this file's flag layout.
+ *
+ * @param {object} card    a finalized follower card
+ * @param {Actor} actor    the character whose follower it is
+ */
+function _followerDragSnapshot(card, actor) {
+	if (!card?.ftype) return null;
+	// The crew and a custom group both fight as one combatant with a pooled HP track
+	// (p.470), so that pool — not one member's HP — is what their token carries.
+	const isGroup = !!card.isGroup || card.groupHpMax != null;
+	const hp = isGroup
+		? { value: card.groupHpCurrent, max: card.groupHpMax }
+		: { value: card.hpCurrent, max: card.hpMax ?? (Number(card.hpStaticValue) || 0) };
+	return {
+		type:          FOLLOWER_DRAG_TYPE,
+		characterUuid: actor?.uuid ?? null,
+		characterName: actor?.name ?? null,
+		ftype:         card.ftype,
+		slug:          card.slug ?? "",
+		detailBase:    _followerDetailBase(card.ftype, card.slug),
+		follower: {
+			// withOrderData already settled the display name (an initiate carries theirs as
+			// an epithet, an unnamed card falls back to its type), so reuse it rather than
+			// restating that fallback.
+			name:        card.orderName,
+			img:         card.img ?? "",
+			// The glyph the card falls back to when it has no portrait (a paw, a sprout, a
+			// crowd). Carried so the Actor can wear the matching mark instead of Foundry's
+			// mystery-man — see followerMarkerImg.
+			portraitIcon: card.portraitIcon ?? "",
+			pronoun:     card.pronoun ?? "",
+			typeLabel:   card.typeLabel ?? "",
+			tags:        (card.tags ?? []).map(t => (typeof t === "string" ? t : t?.label)).filter(Boolean),
+			hp,
+			armor:       card.armor,
+			armorSource: card.armorSource ?? "",
+			damage:      card.damage ?? "",
+			damageRoll:  card.damageRoll ?? "",
+			instinct:    card.instinct ?? "",
+			moves:       card.movesLines ?? [],
+			notes:       card.notes ?? "",
+			cost:        card.cost ?? "",
+			gear:        card.gear ?? [],
+			isGroup,
+			// Where this follower came from, and where they've already been placed: an
+			// actorUuid means the card has been dropped before and that actor IS them.
+			sourceUuid:  card.sourceUuid ?? null,
+			actorUuid:   card.actorUuid ?? "",
+		},
+	};
+}
+
 // Effective crew headcount: the stored size, else the rulebook's default
 // half-dozen (Crew insert, p.144), but never fewer than the named individuals.
 // Only a genuinely unset (null/undefined/non-numeric) size defaults to 6 — an
@@ -490,8 +556,8 @@ const _CREW_SIZE_MAX = 99;
 function _followerLoyaltyPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.loyalty, slug); }
 
 // Flag path where a follower type holds Readiness (held when it Defends, p.469).
-// Crew uses its own group-fight Readiness control; the card-body stepper is for
-// the non-crew followers, which have no group-fight section.
+// One card-body row drives every type: the crew's entry is the group's common
+// pool (p.473) rather than one member's, but it reads and writes the same way.
 function _followerReadinessPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.readiness, slug); }
 
 // Flag path for a follower's ammo track (0 = full, 1 = low ammo, 2 = all out) — the
@@ -1853,12 +1919,19 @@ export function createStonetopCharacterSheetClass(Base) {
 					// fly. Non-crew followers carry a free-text gear checklist to append to;
 					// the crew Outfits/restocks from its Supplies section instead.
 					card.canHaveNeed = card.ftype !== "crew";
-					// Readiness circles for non-crew followers (the crew has its own in
-					// the Group Fight section). Only true followers — which is exactly
-					// the set that has a Loyalty track — so livestock is excluded. A
-					// borne shield raises the cap from 3 to 4 (+1 Readiness on a 7+
-					// Defend, p.216).
-					if (card.ftype && card.ftype !== "crew") {
+					// Readiness circles. Only true followers — which is exactly the set
+					// that has a Loyalty track — so livestock is excluded. A borne shield
+					// raises the cap from 3 to 4 (+1 Readiness on a 7+ Defend, p.216).
+					// The crew's Readiness is a COMMON POOL for the whole group (p.473)
+					// rather than a per-follower track, and its pips/cap (shields, Shield
+					// Wall) are built in the crew block above — so here it only gets wired
+					// to the same row, with readinessIsPool switching the wording.
+					if (card.ftype === "crew") {
+						card.showReadiness     = true;
+						card.readinessFollower = "crew";
+						card.readinessSlug     = "";
+						card.readinessIsPool   = true;
+					} else if (card.ftype) {
 						// Readiness lives on the follower's OWN id (card.slug), never the (possibly
 						// shared) loyaltySlug — a Servant of Daagon shares the Ring's Loyalty but
 						// holds its own Readiness. For every other type card.slug === loyaltySlug, so
@@ -1871,6 +1944,12 @@ export function createStonetopCharacterSheetClass(Base) {
 						card.readinessHasShield = _followerBearsShield(card.gear);
 						card.readinessPips      = _makeReadinessPips(card.readinessValue, readinessCap(card.readinessHasShield));
 					}
+					// The two pip tracks reserve the same number of slots so their Spend
+					// buttons start at the same x, however many circles each row draws (a
+					// borne shield gives Readiness a 4th, and an over-held pool more still,
+					// while Loyalty is always 3). The card's widest count wins; the CSS
+					// turns it into a fixed grid column. See --st-follower-pip-slots.
+					card.pipSlots = Math.max(card.loyalty.length, card.readinessPips?.length ?? 0);
 					// Ammo track (◇ low ammo, ◇ all out) — opt-in per follower via the
 					// "uses ammo" toggle in the Damage section (a ranged weapon: bow,
 					// sling, thrown — Moves & Gear). canUseAmmo shows that toggle (every
@@ -1934,6 +2013,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			this._followerPortraits = Object.values(groups).flat()
 				.filter(card => card?.img)
 				.map(card => ({ ftype: card.ftype, slug: card.slug ?? "", img: card.img, name: card.orderName }));
+			// The payload each card hands to the canvas when it's dragged there, keyed by the
+			// (ftype, slug) pair the card wrapper carries in its dataset. Built here for the
+			// same reason the portrait index is: this is where a card is finished, and the
+			// dragstart handler must be able to answer synchronously.
+			this._followerDragData = new Map(Object.values(groups).flat()
+				.filter(card => card?.ftype)
+				.map(card => [`${card.ftype}:${card.slug ?? ""}`, _followerDragSnapshot(card, this.actor)]));
 			return { ...groups, possessionFollowerOffers };
 		}
 
@@ -2763,6 +2849,25 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 			html[0].addEventListener("click", pickFollowerPortrait, true);
 			html[0].addEventListener("keydown", pickFollowerPortrait, true);
+
+			// Followers tab: drag a card onto the canvas to put that follower on the map as a
+			// token (module/hooks/FollowerDrop.js turns the payload below into an Actor).
+			// Ungated, like the steading's NPC-row drag: dragging writes nothing here, and what
+			// a drop is allowed to do is gated at the far end by the core token/actor
+			// permissions — not by whether this viewer may edit the sheet.
+			html[0].addEventListener("dragstart", (ev) => {
+				const card = ev.target.closest?.(".stonetop-follower-card[data-ftype]");
+				if (!card || !ev.dataTransfer) return;
+				// A drag that begins inside a control is that control's own: dragging a value out
+				// of a number field, or selected text out of a textarea, must not be hijacked into
+				// dropping a token. The grip and the rest of the card body still start the drag.
+				if (ev.target.closest?.("input, textarea, select, button, a, [contenteditable]")) return;
+				const payload = this._followerDragData?.get(`${card.dataset.ftype}:${card.dataset.slug ?? ""}`);
+				if (!payload) { ev.preventDefault(); return; }
+				ev.stopPropagation();
+				ev.dataTransfer.setData("text/plain", JSON.stringify(payload));
+				ev.dataTransfer.effectAllowed = "copy";
+			});
 
 			// The fold caret on every section heading. Two shapes count as a heading
 			// here: the row that pairs a title with its edit pencil, and a bare title
@@ -5483,7 +5588,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		// one <label> per reason, the first pre-checked, keyed by the given input name.
 		_spendRadioOptions(name, reasons) {
 			return reasons.map((r, i) =>
-				`<label class="stonetop-spend-choice"><input type="radio" name="${name}" value="${r.key}"${i === 0 ? " checked" : ""}> <span>${escHtml(r.label)}</span></label>`
+				`<label class="stonetop-spend-choice"><input type="radio" class="stonetop-spend-radio" name="${name}" value="${r.key}"${i === 0 ? " checked" : ""}> <span>${escHtml(r.label)}</span></label>`
 			).join("");
 		}
 

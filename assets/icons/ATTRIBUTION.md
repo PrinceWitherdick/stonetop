@@ -21,6 +21,11 @@ p.545). They are marks, not illustrations: neither reproduces any book artwork, 
 depicts any particular item. `arcanum.svg` is generated geometry (three Archimedean spirals
 at 120 degrees); the recipe and its numbers are in the file's own comment.
 
+`followers/sprout.svg` is likewise the project's own work, and not a new drawing at all: it
+is the seasonal flower from `seasons/spring_icon.svg`, artwork unchanged, set on the cream
+disc the Book I creature-type marks in `bestiary/` use so a shelf of follower actors reads
+as one set. Its recipe is in the file's own comment.
+
 `note-caret.svg` is the project's own work too, and owes nothing to any source: it is three
 line coordinates and a round-capped stroke, drawn wide and shallow for the expand control
 under a relationship card's note. Its geometry is in the file's own comment.

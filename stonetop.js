@@ -29,6 +29,7 @@ import { clearArtBrowseCache } from "./module/book2-art/browse.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
+import { onDropFollower } from "./module/hooks/FollowerDrop.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
@@ -414,6 +415,12 @@ Hooks.on("hotbarDrop", onHotbarDrop);
 // Drag a "Places of Interest" disc from the steading Overview tab onto the canvas to
 // drop a lettered map note whose label (the place name) shows on hover.
 Hooks.on("dropCanvasData", onDropPlaceOfInterest);
+
+// -- FOLLOWER → SCENE TOKEN ------------------------------------
+// Drag a follower card off a character's Followers tab onto the canvas to put that
+// follower on the map: the card becomes (or re-uses) an `npc` Actor, and core places
+// its token.
+Hooks.on("dropCanvasData", onDropFollower);
 
 // -- BOOK II ART ON JOURNAL IMPORT -----------------------------
 // A GM dragging one of our journals in from the compendium mid-version would get an
