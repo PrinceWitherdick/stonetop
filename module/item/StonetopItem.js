@@ -2,9 +2,24 @@ import {StonetopPlaybook} from "./StonetopPlaybook.js";
 import {rollFormula, rollStat} from "../utils/roll-engine.js";
 import {normalizeRollType} from "../utils/roll-types.js";
 import {filterStatOptionLines, escHtml} from "../utils/strings.js";
+import {stonetopThumbnail} from "../utils/item-icon.js";
 
 export function createStonetopItemClass(BaseItem) {
 	return class StonetopItem extends BaseItem {
+
+		/**
+		 * The image the Items sidebar (and anything else reading `thumbnail`) draws for this
+		 * item. Core returns `img` verbatim, so every item that never got art of its own shows
+		 * Foundry's stock bag glyph and a directory of them reads as one repeated icon. Items
+		 * WITH art are untouched; the rest fall back to a marker chosen by what the item is.
+		 *
+		 * Display only — `img` is never rewritten, so this changes no stored data and an item
+		 * that later gains real art picks it up on its own.
+		 * @override
+		 */
+		get thumbnail() {
+			return stonetopThumbnail(this);
+		}
 
 		/**
 		 * Sidebar "Create Item". None of Stonetop's hand-authorable content is a plain Item

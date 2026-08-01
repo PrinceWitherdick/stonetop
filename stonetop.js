@@ -38,6 +38,7 @@ import { hideBrokenJournalArt } from "./module/journal/hide-broken-art.js";
 import { addJournalShareButton } from "./module/journal/share-journal.js";
 import { patchJournalImagePopoutTitles } from "./module/journal/journal-image-titles.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
+import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
@@ -201,6 +202,16 @@ Hooks.once("init", () => {
 	CONFIG.Item.dataModels.playbook    = PlaybookModel;
 	CONFIG.Item.dataModels.npcMove     = NpcMoveModel;
 	CONFIG.Item.dataModels.monsterMove = MonsterMoveModel;
+
+	// Compendium rows are built from the pack INDEX, not from Item documents, so they never see
+	// StonetopItem#thumbnail. Core indexes _id/name/img/type/sort/folder — enough to know an item
+	// is a `move`, but not which KIND, and `move` is the catch-all sub-type that covers gear and
+	// arcana too. Index moveType so onRenderCompendiumItemIcons can pick the same marker the
+	// sidebar does. See module/utils/item-icon.js.
+	CONFIG.Item.compendiumIndexFields ??= [];
+	if (!CONFIG.Item.compendiumIndexFields.includes("system.moveType")) {
+		CONFIG.Item.compendiumIndexFields.push("system.moveType");
+	}
 
 	const StonetopCharacterSheet = createStonetopCharacterSheetClass(ActorSheet);
 	Actors.registerSheet("stonetop-pwd", StonetopCharacterSheet, {
@@ -367,6 +378,12 @@ Hooks.once("init", () => {
 Hooks.on("renderPause", onRenderPause);
 Hooks.on("renderPauseBanner", onRenderPause);
 Hooks.on("pauseGame", (paused) => paused && onRenderPause());
+
+// -- COMPENDIUM ITEM ICONS -------------------------------------
+// Art-less rows in an Item compendium get the same fallback markers the world sidebar gets.
+// The sidebar goes through StonetopItem#thumbnail; compendium rows render off the pack index
+// and never build a document, so they need this. See module/hooks/CompendiumItemIcons.js.
+Hooks.on("renderDocumentDirectory", onRenderCompendiumItemIcons);
 
 // -- READY -----------------------------------------------------
 Hooks.once("ready", onReady);
