@@ -1,7 +1,12 @@
+import {getSheetSectionsCollapsed, setSheetSectionsCollapsed} from "../settings.js";
+
 /**
  * Mixin for actor sheets that expose per-section edit pencils alongside the
  * global header-wrench edit mode. A section is editable when the global wrench
  * (`_editMode`) is on OR that section's own pencil has been toggled.
+ *
+ * It also owns the hover caret that sits beside those pencils and folds a
+ * section shut — see `_wireSectionCollapse`.
  *
  * Extracted from StonetopCharacterSheet and StonetopSteadingSheet so the two
  * can't drift apart. Subclasses keep owning `_editMode`; this mixin only reads
@@ -55,5 +60,109 @@ export function withSectionEditing(Base) {
 
 		/** Hook: a section's pencil was just closed. */
 		_onSectionEditClosed(section) {}
+
+		// ── Section collapse ──────────────────────────────────────────────────
+		// The caret beside each pencil folds its section down to just the heading.
+		// Sections default to expanded, so we track the ids left COLLAPSED. Unlike
+		// the edit state this is a reading preference, not sheet data: it lives in
+		// a client setting (per user), keyed by actor id (per sheet).
+
+		/** Ids folded shut on this sheet, hydrated from the stored preference once. */
+		get collapsedSections() {
+			return (this._collapsedSections ??= new Set(getSheetSectionsCollapsed(this.actor?.id)));
+		}
+
+		/**
+		 * Everything one fold hides: the section's own heading (kept, but marked so
+		 * the caret can rotate and any search box inside it can go), and the run of
+		 * content below it.
+		 *
+		 * The heading is found from the caret rather than declared per call site,
+		 * because the caret sits in one of two places: INSIDE the heading (sections
+		 * with no pencil), or beside the pencil in the section's top-right corner,
+		 * ahead of the heading (the steading's cards). `closest` covers the first,
+		 * a forward look inside the caret's own parent the second.
+		 *
+		 * The content is the heading's following siblings, stopping at the next
+		 * heading — these sheets lay a column out as one flat run (Inventory's
+		 * Arcana and Treasures blocks, the Moves tab's groups), so "everything
+		 * after the heading" would swallow the sections below it.
+		 *
+		 * @param {Element} caret     the fold caret
+		 * @param {string}  headingSel what counts as a heading on this sheet
+		 * @returns {{heading: Element|null, content: Element[]}}
+		 */
+		_sectionFoldTargets(caret, headingSel) {
+			const heading = caret.closest(headingSel) ?? caret.parentElement?.querySelector(headingSel);
+			if (!heading) return { heading: null, content: [] };
+			const content = [];
+			for (let el = heading.nextElementSibling; el; el = el.nextElementSibling) {
+				if (el.matches(headingSel)) break;
+				content.push(el);
+			}
+			return { heading, content };
+		}
+
+		/**
+		 * Install the delegated collapse handler and re-apply the stored folds to
+		 * the freshly rendered DOM.
+		 *
+		 * The fold classes are stamped here rather than by the template so a new
+		 * collapsible section only has to render the caret — there is no second
+		 * place to remember. They land before the sheet is painted (the DOM swap and
+		 * `activateListeners` run in one task), so nothing flashes open.
+		 *
+		 * Wire this OUTSIDE any `isEditable` guard: folding a section is a reading
+		 * preference, and a player looking at someone else's sheet wants it too.
+		 *
+		 * @param {JQuery} html       the sheet's rendered jQuery element
+		 * @param {string} headingSel what counts as a section heading on this sheet
+		 */
+		_wireSectionCollapse(html, headingSel) {
+			const root = html[0];
+			const apply = (caret, collapsed) => {
+				const { heading, content } = this._sectionFoldTargets(caret, headingSel);
+				for (const el of content) el.classList.toggle("stonetop-section-folded", collapsed);
+				// Controls that act on the folded content live inside the heading, so
+				// the run above misses them — a search box or a Table/Board switch over
+				// nothing is a dead end. They come back with the section.
+				for (const el of heading?.querySelectorAll(".stonetop-tab-search, .stonetop-rel-viewbar--heading") ?? []) {
+					el.classList.toggle("stonetop-section-folded", collapsed);
+				}
+				caret.classList.toggle("stonetop-section-collapsed", collapsed);
+				caret.setAttribute("aria-expanded", String(!collapsed));
+				caret.setAttribute("title", collapsed ? "Expand section" : "Collapse section");
+			};
+			for (const caret of root.querySelectorAll(".stonetop-section-collapse")) {
+				apply(caret, this.collapsedSections.has(caret.dataset.section));
+			}
+
+			const toggle = caret => {
+				const id = caret.dataset.section;
+				if (!id) return;
+				const collapsed = !this.collapsedSections.has(id);
+				if (collapsed) this.collapsedSections.add(id);
+				else           this.collapsedSections.delete(id);
+				apply(caret, collapsed);
+				setSheetSectionsCollapsed(this.actor?.id, [...this.collapsedSections]);
+			};
+			// Class-toggled in place rather than re-rendered: a fold changes nothing
+			// the template computes, and a re-render would cost a scroll jump.
+			root.addEventListener("click", ev => {
+				const caret = ev.target.closest(".stonetop-section-collapse");
+				if (!caret) return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				toggle(caret);
+			}, true);
+			root.addEventListener("keydown", ev => {
+				if (ev.key !== "Enter" && ev.key !== " ") return;
+				const caret = ev.target.closest(".stonetop-section-collapse");
+				if (!caret) return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				toggle(caret);
+			}, true);
+		}
 	};
 }

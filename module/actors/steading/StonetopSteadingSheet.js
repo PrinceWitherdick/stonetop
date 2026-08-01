@@ -20,8 +20,6 @@ import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 import {makeColumnsSortable} from "../../utils/sortable-columns.js";
-import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
-import {followSidebarToggle} from "../../utils/sidebar-toggle-follow.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
 import {STONETOP_THREAT_SEED_DRAG_TYPE} from "../../threats/threat-seed-cards.js";
@@ -468,14 +466,6 @@ export function createStonetopSteadingSheetClass(Base) {
 			this._injectHeaderToggle();
 		}
 
-		// The whole sheet scrolls as one inside .window-content. Keep the reader's scroll
-		// position across tab switches instead of letting the browser clamp it up to the
-		// top when the incoming tab is shorter (which reads as a jump/bounce). See
-		// keepScrollAcrossTab.
-		_onChangeTab(event, tabs, active) {
-			keepScrollAcrossTab(this.element, () => super._onChangeTab(event, tabs, active));
-		}
-
 		_injectHeaderToggle() {
 			const header = this.element[0]?.querySelector(".window-header");
 			if (!header || !this.isEditable) return;
@@ -876,11 +866,6 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.currentTarget.setAttribute("aria-label", collapsed ? "Expand moves sidebar" : "Collapse moves sidebar");
 				setSidebarCollapsed(this.actor?.id, collapsed);
 			});
-			// …and keep that handle in reach at any scroll offset: the sheet scrolls as one
-			// unit, so a handle pinned to the sidebar's top edge would otherwise ride off the
-			// top of the window and leave no way to fold the sidebar away without scrolling
-			// back up. See module/utils/sidebar-toggle-follow.js.
-			followSidebarToggle(html);
 
 			// Clicking the move name or its "+STAT" chip rolls the same as tapping the dice icon beside it.
 			html.find(".stonetop-steading-move-open, .stonetop-move-roll-chip").on("click", ev => {
@@ -954,6 +939,15 @@ export function createStonetopSteadingSheetClass(Base) {
 			// fade-out "done" check is driven by the _onSectionEdit* hooks above.
 			this._wireSectionEditToggle(html, ".steading-section-edit-toggle");
 
+			// The fold caret beside that pencil. Each section folds to its own heading:
+			// a card's h3, a stat card's label row, or the sidebar's title. A card's
+			// caret sits in the corner beside the pencil rather than inside the heading,
+			// so the walker looks forward from it to find the heading — see
+			// _sectionFoldTargets. Wired before the isEditable guard below: a player who
+			// can only read the sheet still gets to tidy it.
+			this._wireSectionCollapse(html,
+				".steading-list-heading, .steading-residents-heading, .steading-stat-label-row, .stonetop-move-group-title");
+
 			// Add resident / neighbor — allowed even outside edit mode
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".steading-list-add");
@@ -984,6 +978,10 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Residents / Neighbors faces, through the same shared preview the relationships
 			// component uses — a face previews identically wherever it appears.
 			wireAvatarPreview(html[0], ".steading-member-avatar");
+			// Player Characters sit in the same tab, directly above the residents, so their
+			// portraits enlarge the same way. `img.` deliberately: an art-less PC renders a
+			// <span> placeholder under the same class, and only an <img> has anything to show.
+			wireAvatarPreview(html[0], "img.steading-player-portrait");
 			html[0].addEventListener("click", ev => {
 				const avatar = ev.target.closest(".steading-member-avatar");
 				if (!avatar) return;

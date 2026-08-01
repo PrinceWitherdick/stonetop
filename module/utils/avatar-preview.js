@@ -10,14 +10,58 @@
  *
  * The steading's Residents / Neighbors tables, the shared relationships component and the
  * arcana tab's card art all draw from here, so an enlarged image reads identically wherever
- * one is raised. The art differs only in shape and in which side it sits on, which is what
- * the `variant` and `placement` options carry.
+ * one is raised. The art differs only in which side it sits on, which is what the
+ * `placement` and `variant` options carry.
  */
 
 const PREVIEW_CLASS = "stonetop-avatar-preview";
 /** Clearance from the thumbnail, and from the viewport edge. */
 const GAP  = 8;
 const EDGE = 8;
+
+/* --- How big the enlarged image gets -------------------------------------------------
+   The preview is fitted to the image's OWN aspect ratio inside the box below, rather than
+   drawn into a fixed square. A square crops, and the thumbnails it enlarges are cropped
+   `cover` from the top — so a tall, narrow portrait previewed at a fixed square showed the
+   same top slice the thumbnail already showed, which is the one thing a "let me see the
+   whole picture" hover has to avoid. Fitting means the popup is as tall as a tall image
+   and as wide as a wide one, and nothing is ever cut off. */
+
+/** Bounding box for the enlarged image itself, before the viewport has its say. */
+const MAX_W = 224;
+const MAX_H = 360;
+/** Share of the window height the image may take, so a short window still fits the popup. */
+const MAX_H_VH = 0.6;
+/** Enlargement ceiling for art smaller than the box: past ~3x a raster preview is mush. */
+const MAX_UPSCALE = 3;
+
+/**
+ * Fit `img` to its intrinsic ratio inside the budget above, and publish the result width to
+ * the popup so the caption can size against it (see .stonetop-avatar-preview strong).
+ *
+ * Explicit pixels rather than `max-width`/`max-height` in CSS alone, because CSS sizing only
+ * ever SHRINKS: `width: auto` cannot grow an image past its natural size, so a 44x44 icon
+ * would preview at 44x44 and a hover-to-enlarge would not enlarge. Scaling here is what makes
+ * the fit go both ways, up to MAX_UPSCALE. (Shrinking, Chromium does unaided — it transfers
+ * the max-height through the intrinsic ratio, which is why the CSS pair is a faithful
+ * fallback for anything bigger than the box. Measured, not assumed.)
+ *
+ * @returns {boolean} false when the intrinsic size isn't known yet, so the caller can wait
+ *                    for the decode instead of committing to a guess.
+ */
+function fitPreviewImage(popup, img, nw, nh) {
+	if (!(nw > 0) || !(nh > 0)) return false;
+	// Deliberately the same expression as the CSS fallback's `min(60vh, 360px)`, so the two
+	// paths can't disagree about how tall a preview is allowed to get.
+	const maxH = Math.min(MAX_H, window.innerHeight * MAX_H_VH);
+	const scale = Math.min(MAX_W / nw, maxH / nh, MAX_UPSCALE);
+	const w = Math.max(1, Math.round(nw * scale));
+	const h = Math.max(1, Math.round(nh * scale));
+	img.style.width  = `${w}px`;
+	img.style.height = `${h}px`;
+	popup.style.setProperty("--st-avatar-preview-w", `${w}px`);
+	return true;
+}
 
 /** There is only ever one preview, so tearing down is a query rather than bookkeeping. */
 export function removeAvatarPreview() {
@@ -47,15 +91,37 @@ const PLACEMENTS = {
 };
 
 /**
- * Show the preview for `anchor`, an <img> thumbnail. Its `src` is the image and its
- * `data-name` is the caption; without a `src` there is nothing to enlarge and this is a
- * no-op, which is what keeps it safe to point at a placeholder icon.
+ * Put `popup` beside `anchor`. Split out from showAvatarPreview because a preview whose
+ * image had not decoded yet is measured once on creation and AGAIN once the real size is
+ * known — the second pass is the one that lands a tall image on screen rather than half
+ * off the bottom of it.
+ */
+function placePreview(popup, anchor, placement) {
+	const rect = anchor.getBoundingClientRect();
+	const pw = popup.offsetWidth;
+	const ph = popup.offsetHeight;
+	const { top, left } = (PLACEMENTS[placement] ?? PLACEMENTS.below)(rect, pw, ph);
+	popup.style.top  = `${Math.max(EDGE, Math.min(top, window.innerHeight - ph - EDGE))}px`;
+	popup.style.left = `${Math.max(EDGE, Math.min(left, window.innerWidth - pw - EDGE))}px`;
+}
+
+/**
+ * Show the preview for `anchor`, an <img> thumbnail. Its `src` is the image, its `data-name`
+ * is the caption and its optional `data-subtitle` a quieter second line under it; without a
+ * `src` there is nothing to enlarge and this is a no-op, which is what keeps it safe to point
+ * at a placeholder icon.
+ *
+ * The subtitle exists because a thumbnail that already carried a `data-tooltip` cannot keep
+ * it once it raises a preview — two popups would open on the same hover, over each other. The
+ * steading's Player Characters portraits are that case (the tooltip was the playbook name), so
+ * the fact moves into the preview rather than being lost.
  *
  * @param {HTMLImageElement} anchor
  * @param {object}  [options]
  * @param {"below"|"right"} [options.placement]  which side of the anchor to sit on
- * @param {string}  [options.variant]  extra class for a differently-shaped preview
- *                                     (e.g. "stonetop-avatar-preview--art" for card art)
+ * @param {string}  [options.variant]  extra class on the popup, for whatever else differs
+ *                                     about it (e.g. "stonetop-avatar-preview--art", whose
+ *                                     pop-in grows from the left edge to match `right`)
  */
 export function showAvatarPreview(anchor, { placement = "below", variant = "" } = {}) {
 	removeAvatarPreview();
@@ -66,6 +132,19 @@ export function showAvatarPreview(anchor, { placement = "below", variant = "" } 
 	const img = document.createElement("img");
 	img.src = anchor.src;
 	img.alt = "";
+	// The anchor is already painted on screen, so its intrinsic size is known long before
+	// this second copy of the same src has decoded — read the shape off the thumbnail and
+	// the popup opens at the right size on the first frame. The listener is the fallback
+	// for the case that isn't true (a thumbnail still loading under the pointer); it fires
+	// at most once and only re-measures a preview that is still up.
+	if (!fitPreviewImage(popup, img, anchor.naturalWidth, anchor.naturalHeight)) {
+		img.addEventListener("load", () => {
+			if (!popup.isConnected) return;
+			if (fitPreviewImage(popup, img, img.naturalWidth, img.naturalHeight)) {
+				placePreview(popup, anchor, placement);
+			}
+		}, { once: true });
+	}
 	popup.appendChild(img);
 	const name = anchor.dataset?.name?.trim();
 	if (name) {
@@ -73,15 +152,16 @@ export function showAvatarPreview(anchor, { placement = "below", variant = "" } 
 		caption.textContent = name;
 		popup.appendChild(caption);
 	}
+	const subtitle = anchor.dataset?.subtitle?.trim();
+	if (subtitle) {
+		const line = document.createElement("span");
+		line.className = `${PREVIEW_CLASS}-sub`;
+		line.textContent = subtitle;
+		popup.appendChild(line);
+	}
 	// Appended before measuring: offsetWidth/offsetHeight are 0 until it is in the document.
 	document.body.appendChild(popup);
-
-	const rect = anchor.getBoundingClientRect();
-	const pw = popup.offsetWidth;
-	const ph = popup.offsetHeight;
-	const { top, left } = (PLACEMENTS[placement] ?? PLACEMENTS.below)(rect, pw, ph);
-	popup.style.top  = `${Math.max(EDGE, Math.min(top, window.innerHeight - ph - EDGE))}px`;
-	popup.style.left = `${Math.max(EDGE, Math.min(left, window.innerWidth - pw - EDGE))}px`;
+	placePreview(popup, anchor, placement);
 
 	// Above the window that raised it. Foundry writes an app's z-index inline as it brings
 	// windows to front, so read it back rather than guessing a constant that a stack of open

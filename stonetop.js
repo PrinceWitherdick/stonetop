@@ -109,6 +109,10 @@ Hooks.once("init", () => {
 	Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
 	Handlebars.registerHelper("and", (...args) => args.slice(0, -1).every(Boolean));
 	Handlebars.registerHelper("not", value => !value);
+	// No `concat` here on purpose: core already registers one (its own doc example is
+	// exactly our use, building an id out of a loop variable), and Handlebars helpers are
+	// global to the Foundry runtime — re-registering it would shadow core's for every
+	// other package, including the `join=` hash ours wouldn't honour.
 
 	const _STAT_LABEL_KEYS = {
 		str: "stonetop.character.stats.strength",
@@ -336,6 +340,7 @@ Hooks.once("init", () => {
 		"stonetop.relationships-view":  "systems/stonetop-pwd/templates/actor/partials/relationships-view.hbs",
 		"stonetop.relationships-viewbar": "systems/stonetop-pwd/templates/actor/partials/relationships-viewbar.hbs",
 		"stonetop.section-heading":  "systems/stonetop-pwd/templates/actor/partials/section-heading.hbs",
+		"stonetop.section-collapse": "systems/stonetop-pwd/templates/actor/partials/section-collapse.hbs",
 		"stonetop.section-edit-toggle": "systems/stonetop-pwd/templates/actor/partials/section-edit-toggle.hbs",
 		"stonetop.details-section-edit-toggle": "systems/stonetop-pwd/templates/actor/partials/details-section-edit-toggle.hbs",
 		"stonetop.follower-section-edit": "systems/stonetop-pwd/templates/actor/partials/follower-section-edit.hbs",

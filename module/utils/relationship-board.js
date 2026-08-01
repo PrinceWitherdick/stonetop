@@ -202,21 +202,10 @@ export function buildRelationshipLanes(rows = []) {
 		stepButton(hearts, 1),
 	];
 
-	// Up/down, for arranging a lane by hand. A separate strip from the three above, and not
-	// three more segments on that one, because they answer a different question: those write
-	// a RATING, these write a POSITION, and the picker they would join is a `role="group"`
-	// labelled for the former. Placed beside it all the same, on one row, because the board's
-	// two axes are already the two meanings — sideways is standing, up and down is order.
-	//
-	// A button at the end of its lane renders truly `disabled`, matching the step buttons at
-	// the ends of the scale: it holds its place so the strip never reflows under the pointer,
-	// and the browser refuses the press rather than accepting one that quietly does nothing.
-	const orderButtonsFor = (index, count) => [
-		{ dir: "up",   icon: "fa-solid fa-chevron-up",   disabled: index <= 0,
-		  labelKey: index <= 0 ? "stonetop.relationships.lane.orderTop" : "stonetop.relationships.lane.orderUp" },
-		{ dir: "down", icon: "fa-solid fa-chevron-down", disabled: index >= count - 1,
-		  labelKey: index >= count - 1 ? "stonetop.relationships.lane.orderBottom" : "stonetop.relationships.lane.orderDown" },
-	];
+	// There is deliberately no matching strip for POSITION. A lane is arranged by dragging a
+	// card within it, or with alt+up/down on a focused one; four arrows on a ~180px card read
+	// as a single five-segment control, and half of them would have written something entirely
+	// unlike the other half.
 
 	return REL_LANES.map(lane => {
 		// Hand-placed cards first, in the position their owner gave them; everyone else after,
@@ -259,7 +248,6 @@ export function buildRelationshipLanes(rows = []) {
 				// Per CARD, not per lane: the step buttons name exact ratings, so two cards
 				// sharing a lane offer different targets.
 				moveButtons: moveButtonsFor(row?.hearts, lane.key),
-				orderButtons: orderButtonsFor(index, laneRows.length),
 			}));
 		return {
 			...lane,
@@ -993,20 +981,8 @@ export function wireRelationshipBoard(root, actor, { editable = true, onResize }
 			return true;
 		};
 
-		// The up/down strip. Split from the lane-button handler below rather than folded into it,
-		// because the two read different attributes and mean different things — and a single
-		// handler branching on which dataset key happened to be present is exactly how a press
-		// ends up writing the wrong kind of change.
-		wrapper.addEventListener("click", ev => {
-			const btn = ev.target.closest(".stonetop-rel-order-btn");
-			if (!btn || !wrapper.contains(btn)) return;
-			ev.preventDefault();
-			const card = btn.closest(".stonetop-rel-card");
-			// One slot from where the card is RENDERED. laneReorderPatch clamps, so the ends need
-			// no check here — though the button at an end is `disabled` and never fires anyway.
-			const toIndex = cardIndex(card) + (btn.dataset.relOrderDir === "down" ? 1 : -1);
-			reorderTo(card, toIndex, btn, { refocus: ev.detail === 0 });
-		});
+		// No click handler for a position: reorderTo is reached by dragging a card within its
+		// lane, and by alt+up/down on a focused one. There is no up/down strip to bind.
 
 		// Deliberately `click`, not `pointerdown`. Known cost: if the user is mid-edit in a
 		// card's note field, pressing a lane button blurs the note first, and that change
@@ -1108,10 +1084,15 @@ export function wireRelationshipBoard(root, actor, { editable = true, onResize }
  * the same pointerdown → setPointerCapture → pointermove/pointerup shape as
  * makeColumnsResizable.
  *
- * Drag is strictly an accelerator: the lane buttons and the arrow keys do the same job, so
- * nothing here is the only route to moving a card. That matters more here than it reads:
- * a card carries `touch-action: pan-y`, so a TOUCH user cannot drag vertically at all (see
- * liftsDrag) and reaches a position only through the card's own up/down buttons.
+ * For a STANDING, drag is strictly an accelerator: the lane buttons and the arrow keys do
+ * the same job, so nothing here is the only route to a rating.
+ *
+ * For a POSITION it is not. The card's up/down strip was removed deliberately — four arrows
+ * on a ~180px card read as one control while half of them wrote something else entirely —
+ * which leaves a drag, or alt+up/down on a focused card, as the two ways to arrange a lane.
+ * Known cost: a card carries `touch-action: pan-y`, so a TOUCH user cannot drag vertically
+ * at all (see liftsDrag) and has no keyboard either, so a lane cannot be arranged by hand on
+ * a tablet. Reading one costs nothing — the stored order is what renders.
  *
  * A drag means one of two things, decided by which lane the pointer is over:
  *

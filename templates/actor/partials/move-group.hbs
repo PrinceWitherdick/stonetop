@@ -3,10 +3,13 @@
 	{{#if editSection}}
 	<div class="stonetop-details-heading-row">
 		{{> "stonetop.section-heading" title=title note=note searchControl=searchControl searchTitle=searchTitle searchPlaceholder=searchPlaceholder}}
-		{{> "stonetop.details-section-edit-toggle" section=editSection editing=editing}}
+		{{!-- `collapseId`, not `editSection`: the playbook and learned groups share the
+		      one "moves" edit section but fold independently. --}}
+		{{> "stonetop.details-section-edit-toggle" section=editSection editing=editing collapse=collapseId}}
 	</div>
 	{{else}}
-	{{> "stonetop.section-heading" title=title note=note}}
+	{{!-- No pencil, so the caret goes inside the heading instead of beside one. --}}
+	{{> "stonetop.section-heading" title=title note=note collapse=collapseId}}
 	{{/if}}
 	{{#if hideToggle}}
 	<label class="stonetop-hide-unselected-label">

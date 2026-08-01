@@ -655,16 +655,16 @@ describe("buildRelationshipLanes ordering", () => {
 
 	// What a reorder counts FROM — not the stored position, which is empty on an unplaced
 	// card, and stale on one that has just changed lanes.
-	it("tells each card where it is rendered, and which ends of the column are dead", () => {
+	it("tells each card where it is rendered", () => {
 		const lanes = byKey(buildRelationshipLanes([card("A", 5), card("B", 4), card("C", 4)]));
 		expect(lanes.trusted.cards.map(c => c.laneIndex)).toEqual([0, 1, 2]);
-		const disabled = lanes.trusted.cards.map(c => c.orderButtons.map(b => b.disabled));
-		expect(disabled).toEqual([[true, false], [false, false], [false, true]]);
 	});
 
-	it("renders both ends dead on a lone card, so the strip never changes size", () => {
-		const lanes = byKey(buildRelationshipLanes([card("Alone", 5)]));
-		expect(lanes.trusted.cards[0].orderButtons.map(b => b.disabled)).toEqual([true, true]);
+	// Position is a drag (or alt+up/down), never a button. A card carries only the STANDING
+	// strip, so nothing here may grow a second set of arrows back by accident.
+	it("gives a card no position buttons", () => {
+		const lanes = byKey(buildRelationshipLanes([card("A", 5), card("B", 4)]));
+		for (const c of lanes.trusted.cards) expect(c.orderButtons).toBeUndefined();
 	});
 });
 

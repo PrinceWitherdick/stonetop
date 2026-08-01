@@ -2,7 +2,14 @@
 
 		{{#if stonetop.detailsShow.lore}}
 		<div class="stonetop-lore-section-wrapper{{#if stonetop.detailsEdit.lore}} stonetop-section-editing{{/if}}">
-			{{#if stonetop.playbook.lore.hasEntries}}{{> "stonetop.details-section-edit-toggle" section="lore" editing=stonetop.detailsEdit.lore}}{{/if}}
+			{{#if stonetop.playbook.lore.hasEntries}}{{> "stonetop.details-section-edit-toggle" section="lore" editing=stonetop.detailsEdit.lore collapse="lore"}}{{/if}}
+			{{!-- Lore renders its own playbook-specific headings, so it has never had a
+			      "Lore" one of its own — it would be redundant above them. Folded, though,
+			      those headings go with the rest and the section would be a caret over
+			      nothing, so this stand-in appears in their place. Hidden while open, so
+			      the section looks exactly as it always has; it is also what the fold
+			      walker anchors on, which is why it precedes the lore body. --}}
+			<h3 class="stonetop-move-group-title stonetop-lore-fold-heading">{{localize "stonetop.character.lore.sectionTitle"}}</h3>
 			{{> "stonetop.lore-section" lore=stonetop.playbook.lore editMode=stonetop.detailsEdit.lore}}
 		</div>
 		{{/if}}
@@ -15,7 +22,7 @@
 				{{else}}
 				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.background.label")}}
 				{{/if}}
-				{{> "stonetop.details-section-edit-toggle" section="background" editing=stonetop.detailsEdit.background}}
+				{{> "stonetop.details-section-edit-toggle" section="background" editing=stonetop.detailsEdit.background collapse="background"}}
 			</div>
 			{{#if stonetop.detailsEdit.background}}
 			{{#each stonetop.playbook.background.options}}
@@ -121,7 +128,7 @@
 				{{else}}
 				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.instinct.label")}}
 				{{/if}}
-				{{> "stonetop.details-section-edit-toggle" section="instinct" editing=stonetop.detailsEdit.instinct}}
+				{{> "stonetop.details-section-edit-toggle" section="instinct" editing=stonetop.detailsEdit.instinct collapse="instinct"}}
 			</div>
 			{{#if stonetop.detailsEdit.instinct}}
 			<div class="stonetop-instinct-custom-row">
@@ -164,7 +171,7 @@
 				{{else}}
 				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.appearance.label")}}
 				{{/if}}
-				{{> "stonetop.details-section-edit-toggle" section="appearance" editing=stonetop.detailsEdit.appearance}}
+				{{> "stonetop.details-section-edit-toggle" section="appearance" editing=stonetop.detailsEdit.appearance collapse="appearance"}}
 			</div>
 			{{#if stonetop.detailsEdit.appearance}}
 			{{#each stonetop.playbook.appearance.options}}
@@ -196,7 +203,7 @@
 				{{else}}
 				{{> "stonetop.section-heading" title=(localize "stonetop.character.selection.origin.label")}}
 				{{/if}}
-				{{> "stonetop.details-section-edit-toggle" section="origin" editing=stonetop.detailsEdit.origin}}
+				{{> "stonetop.details-section-edit-toggle" section="origin" editing=stonetop.detailsEdit.origin collapse="origin"}}
 			</div>
 			{{#if stonetop.detailsEdit.origin}}
 			{{#each stonetop.playbook.origin.options}}
@@ -251,7 +258,7 @@
 				{{else}}
 				{{> "stonetop.section-heading" title=(localize "stonetop.character.relationships.title")}}
 				{{/if}}
-				{{> "stonetop.details-section-edit-toggle" section="relationships" editing=stonetop.detailsEdit.relationships}}
+				{{> "stonetop.details-section-edit-toggle" section="relationships" editing=stonetop.detailsEdit.relationships collapse="relationships"}}
 				{{!-- Table/Board toggle on the heading's own line, far right, above the
 				      underline. Absolutely positioned clear of the pencil (which sits at
 				      right:0), matching how this heading row already places that pencil.

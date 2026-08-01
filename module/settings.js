@@ -712,6 +712,19 @@ export function registerSettings() {
 		default: {},
 	});
 
+	// Remembers which sheet sections each actor's viewer folded shut with the heading
+	// caret (the one beside the section edit pencil) — character AND steading, keyed by
+	// the caret's own collapse id rather than the edit-section id, since two groups can
+	// share one edit section. Sections default to expanded, so we store the *collapsed*
+	// ids (absence = open). Per-user (client) and per-actor: a map of actor id -> array
+	// of collapsed section ids. Internal (not shown in the settings menu).
+	game.settings.register("stonetop-pwd", "sheetSectionsCollapsed", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
 	// Remembers whether each character left the whole moves sidebar (Roll Modifier
 	// + Basic / Expedition move lists) collapsed, so the sheet reopens the same way.
 	// The sidebar defaults to expanded. Per-user (client) and per-actor: a map of
@@ -960,6 +973,17 @@ export function getArcanaCardsCollapsed(actorId) {
 
 export function setArcanaCardsCollapsed(actorId, slugs) {
 	return setSectionList("arcanaCardsCollapsed", actorId, slugs);
+}
+
+// The sheet sections (character and steading alike) this user folded shut with the
+// heading caret. They default to expanded, so an id present here means that section
+// should reopen collapsed.
+export function getSheetSectionsCollapsed(actorId) {
+	return getSectionList("sheetSectionsCollapsed", actorId);
+}
+
+export function setSheetSectionsCollapsed(actorId, sections) {
+	return setSectionList("sheetSectionsCollapsed", actorId, sections);
 }
 
 // Whether a character left the whole moves sidebar collapsed (defaults to false /

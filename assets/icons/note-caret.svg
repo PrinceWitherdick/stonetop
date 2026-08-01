@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Expand/collapse caret for the relationship board's card notes.
+
+     Drawn wide and shallow (3:1) instead of squashing a square chevron with a CSS
+     transform: scaling a glyph on one axis thins the stroke along with it, so the arms
+     came out spindly at the tips and heavy at the elbow, and the font's own optical
+     centring stopped landing anywhere near the middle of the box.
+
+     The viewBox is the stroke's exact bounding box — arms of half-width 1.5 around
+     (1.5,1.5)→(13.5,7.5)→(25.5,1.5) reach x 0..27 and y 0..9 — so `mask: center /
+     contain` centres what is actually drawn rather than a box with slack on one side.
+     Used as a MASK (see .stonetop-rel-note-caret), so this colour never renders; the
+     button's own `currentColor` fills it and the hover state keeps working. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="27" height="9" viewBox="0 0 27 9">
+  <title>Note expand caret</title>
+  <path d="M 1.5 1.5 L 13.5 7.5 L 25.5 1.5" fill="none" stroke="#000000"
+        stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

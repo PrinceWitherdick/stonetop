@@ -14,7 +14,7 @@
 			      used to leave empty. Each half keeps its own hover edit pencil. --}}
 			<div class="steading-statsbar-pair steading-statsbar-combo">
 				<div class="steading-combo-cell steading-combo-cell--left steading-edit-section{{#unless stonetop.edit.fortunes}} stonetop-readonly{{/unless}}">
-					{{> "stonetop.steading-section-toggle" section="fortunes" editing=stonetop.edit.fortunes}}
+					{{> "stonetop.steading-section-toggle" section="fortunes" editing=stonetop.edit.fortunes collapse="fortunes"}}
 					<div class="steading-stat-block">
 						<div class="steading-stat-label-row">
 							<span class="steading-stat-label" data-steading-stat="fortunes">Fortunes</span>
@@ -31,7 +31,7 @@
 					</div>
 				</div>
 				<div class="steading-combo-cell steading-edit-section{{#unless stonetop.edit.surplus}} stonetop-readonly{{/unless}}">
-					{{> "stonetop.steading-section-toggle" section="surplus" editing=stonetop.edit.surplus}}
+					{{> "stonetop.steading-section-toggle" section="surplus" editing=stonetop.edit.surplus collapse="surplus"}}
 					<div class="steading-surplus-block">
 						<div class="steading-stat-label-row">
 							<span class="steading-stat-label" data-steading-stat="surplus">Surplus</span>
@@ -52,7 +52,7 @@
 			      tooltip); Population keeps its rolled track. --}}
 			<div class="steading-statsbar-pair steading-statsbar-combo">
 				<div class="steading-combo-cell steading-combo-cell--left steading-edit-section{{#unless stonetop.edit.size}} stonetop-readonly{{/unless}}">
-					{{> "stonetop.steading-section-toggle" section="size" editing=stonetop.edit.size}}
+					{{> "stonetop.steading-section-toggle" section="size" editing=stonetop.edit.size collapse="size"}}
 					<div class="steading-stat-block">
 						<div class="steading-stat-label-row">
 							<span class="steading-stat-label" data-steading-stat="size">Size</span>
@@ -83,7 +83,7 @@
 					</div>
 				</div>
 				<div class="steading-combo-cell steading-edit-section{{#unless stonetop.edit.population}} stonetop-readonly{{/unless}}">
-					{{> "stonetop.steading-section-toggle" section="population" editing=stonetop.edit.population}}
+					{{> "stonetop.steading-section-toggle" section="population" editing=stonetop.edit.population collapse="population"}}
 					<div class="steading-stat-block">
 						<div class="steading-stat-label-row">
 							<span class="steading-stat-label" data-steading-stat="population">Population</span>
@@ -103,7 +103,7 @@
 
 			{{!-- Prosperity --}}
 			<div class="steading-statsbar-pair steading-edit-section{{#unless stonetop.edit.prosperity}} stonetop-readonly{{/unless}}">
-				{{> "stonetop.steading-section-toggle" section="prosperity" editing=stonetop.edit.prosperity}}
+				{{> "stonetop.steading-section-toggle" section="prosperity" editing=stonetop.edit.prosperity collapse="prosperity"}}
 				<div class="steading-stat-block">
 					<div class="steading-stat-label-row">
 						<span class="steading-stat-label" data-steading-stat="prosperity">Prosperity</span>
@@ -122,7 +122,7 @@
 
 			{{!-- Defenses --}}
 			<div class="steading-statsbar-pair steading-edit-section{{#unless stonetop.edit.defenses}} stonetop-readonly{{/unless}}">
-				{{> "stonetop.steading-section-toggle" section="defenses" editing=stonetop.edit.defenses}}
+				{{> "stonetop.steading-section-toggle" section="defenses" editing=stonetop.edit.defenses collapse="defenses"}}
 				<div class="steading-stat-block steading-defense-track-block">
 					<div class="steading-stat-label-row">
 						<span class="steading-stat-label" data-steading-stat="defenses">Defenses</span>
@@ -216,7 +216,7 @@
 					<i class="fas fa-chevron-right"></i>
 				</button>
 				<div class="stonetop-sidebar-body">
-				{{> "stonetop.section-heading" title="Roll Modifier"}}
+				{{> "stonetop.section-heading" title="Roll Modifier" collapse="rollModifier"}}
 				<div class="stonetop-roll-mode-control" role="group" aria-label="Roll mode">
 					<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "adv")}} is-checked{{/if}}">
 						<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="adv"
@@ -235,7 +235,7 @@
 					</label>
 				</div>
 
-				{{> "stonetop.section-heading" title=(localize "stonetop.steading.tabs.moves")}}
+				{{> "stonetop.section-heading" title=(localize "stonetop.steading.tabs.moves") collapse="steadingMoves"}}
 				{{> "stonetop.steading-tab-moves"}}
 				</div>
 			</div>

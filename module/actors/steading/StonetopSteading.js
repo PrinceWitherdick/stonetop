@@ -1109,7 +1109,8 @@ export class StonetopSteading {
 				|| null;
 			// A playbook isn't an occupation — players may hold any job — so the
 			// Occupation column shows only an explicit occupation; the playbook name
-			// surfaces on the portrait's hover tooltip instead (see the neighbors tab).
+			// surfaces under the portrait's hover preview instead (or, for an art-less
+			// character, on the placeholder's tooltip — see the neighbors tab).
 			const playbookName = actor?.system?.playbook?.name ?? "";
 			const resolvedOccupation = p.occupation || "";
 			return { traits: "", relations: "", ...p, notes: p.notes ?? p.etc ?? "", resolvedOccupation, playbookName };

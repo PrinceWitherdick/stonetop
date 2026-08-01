@@ -51,8 +51,6 @@ import {wrapGlyphTextContainers} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
-import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
-import {followSidebarToggle} from "../../utils/sidebar-toggle-follow.js";
 import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
@@ -635,11 +633,16 @@ export function createStonetopCharacterSheetClass(Base) {
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				dragDrop: [{ dragSelector: ".items-list .item" }],
-				// The sheet scrolls as one inside .window-content; the moves sidebar has its
-				// own scroll. Register both so Foundry saves/restores scrollTop across
-				// re-renders — otherwise adding an item / arcanum / follower (which re-renders
-				// the sheet) snaps the user back to the top of the sheet.
-				scrollY: [".window-content", ".stonetop-sidebar-body"],
+				// Each tab is its own scrollport and the moves sidebar has another. Register
+				// both so Foundry saves/restores scrollTop across re-renders — otherwise
+				// adding an item / arcanum / follower (which re-renders the sheet) snaps the
+				// user back to the top.
+				//
+				// These selectors must resolve from INSIDE the form: on a re-render Foundry
+				// hands _restoreScrollPositions the freshly rendered inner form, not the outer
+				// frame, so a `.window-content` entry (which lives above the form) saves fine
+				// and then silently restores nothing.
+				scrollY: [".sheet-body > .tab.active", ".stonetop-sidebar-body"],
 			});
 		}
 
@@ -680,14 +683,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._activateArcanaTabOnRender = false;
 				this._tabs?.[0]?.activate?.("arcana");
 			}
-		}
-
-		// The whole sheet scrolls as one inside .window-content. Keep the reader's scroll
-		// position across tab switches instead of letting the browser clamp it up to the
-		// top when the incoming tab is shorter (which reads as a jump/bounce). See
-		// keepScrollAcrossTab.
-		_onChangeTab(event, tabs, active) {
-			keepScrollAcrossTab(this.element, () => super._onChangeTab(event, tabs, active));
 		}
 
 		async close(options) {
@@ -2769,6 +2764,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			html[0].addEventListener("click", pickFollowerPortrait, true);
 			html[0].addEventListener("keydown", pickFollowerPortrait, true);
 
+			// The fold caret on every section heading. Two shapes count as a heading
+			// here: the row that pairs a title with its edit pencil, and a bare title
+			// (Inventory's columns, the Moves tab's groups) where the caret sits inside
+			// the title itself. Listing both lets one wiring serve them — `closest`
+			// resolves nearest-first, so a caret beside a pencil finds its row while one
+			// inside a title finds the title. Above the isEditable guard on purpose:
+			// folding is a reading preference, and a player reading another PC's sheet
+			// (or their own in play mode) wants it just as much.
+			// `.stonetop-moves-collapsible` is in the list as a STOP, not an anchor: a
+			// sidebar move group has no caret of its own (clicking its title already
+			// folds it), but the sidebar lays Roll Modifier and those groups out as one
+			// flat run, so without it the Roll Modifier fold would swallow them all.
+			this._wireSectionCollapse(html,
+				".stonetop-details-heading-row, .stonetop-move-group-title, .stonetop-moves-collapsible");
+
 			if (!this.isEditable) return;
 
 			// Details-tab per-section edit pencils: toggle just that section's edit
@@ -3435,11 +3445,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.currentTarget.setAttribute("aria-label", collapsed ? "Expand moves sidebar" : "Collapse moves sidebar");
 				setSidebarCollapsed(this.actor?.id, collapsed);
 			});
-			// …and keep that handle in reach at any scroll offset: the sheet scrolls as one
-			// unit, so a handle pinned to the sidebar's top edge would otherwise ride off the
-			// top of the window and leave no way to fold the sidebar away without scrolling
-			// back up. See module/utils/sidebar-toggle-follow.js.
-			followSidebarToggle(html);
 
 			// Name an (anonymous) crew member: promote them to a named individual,
 			// carrying their current HP across. Opened from each member's "Name them"

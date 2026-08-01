@@ -163,54 +163,26 @@
 					      Every label formats through one expression: {target} is the rating the press
 					      would write, or — at a dead end — the one the card already holds. Neutral's
 					      label has no placeholder and simply ignores it. --}}
-					{{!-- Two strips on one row, and NOT one strip of five. They write different
-					      things — a standing on the left, a position on the right — and each is
-					      a `role="group"` whose label says which. Folding them together would
-					      leave one group labelled for half of what it does.
-
-					      Reading them as a pair is the point: the board's own axes already mean
-					      this, sideways for standing and up/down for order, so the arrows say
-					      where the card goes in the shape of the thing they move it through. --}}
-					<div class="stonetop-rel-card-controls">
-						<div class="stonetop-segmented-picker stonetop-rel-lane-picker" role="group"
-						     aria-label='{{localize "stonetop.relationships.lane.pickerLabel"}}'>
-							{{#each moveButtons}}
-							<button type="button"
-							        class="stonetop-segmented-picker-option stonetop-rel-lane-btn{{#if isCurrent}} is-active{{/if}}"
-							        {{#if dir}}
-							        data-rel-dir="{{dir}}"{{#if disabled}} disabled="disabled"{{else}} data-rel-step="{{hearts}}"{{/if}}
-							        {{else}}
-							        data-rel-lane="{{laneKey}}" aria-pressed="{{#if isCurrent}}true{{else}}false{{/if}}"
-							        {{/if}}
-							        data-tooltip="{{localize labelKey target=(localize targetLabelKey)}}"
-							        aria-label="{{localize labelKey target=(localize targetLabelKey)}}">
-								<i class="{{icon}}" aria-hidden="true"></i>
-							</button>
-							{{/each}}
-						</div>
-
-						{{!-- Up/down within this lane. Rendered on every card, including the only
-						      card in a lane, where both ends are dead: a strip that came and went
-						      with the column's length would resize the card under the pointer as
-						      people were moved in and out of it. A dead end renders `disabled` for
-						      the same reason the step buttons do — the browser refuses the press
-						      rather than accepting one that does nothing.
-
-						      These are the ONLY route to a position for a touch user: a card
-						      carries `touch-action: pan-y`, so the vertical axis belongs to the
-						      scroller and a vertical touch drag never lifts a card at all. --}}
-						<div class="stonetop-segmented-picker stonetop-rel-order-picker" role="group"
-						     aria-label='{{localize "stonetop.relationships.lane.orderLabel"}}'>
-							{{#each orderButtons}}
-							<button type="button"
-							        class="stonetop-segmented-picker-option stonetop-rel-order-btn"
-							        data-rel-order-dir="{{dir}}"{{#if disabled}} disabled="disabled"{{/if}}
-							        data-tooltip="{{localize labelKey}}"
-							        aria-label="{{localize labelKey}}">
-								<i class="{{icon}}" aria-hidden="true"></i>
-							</button>
-							{{/each}}
-						</div>
+					{{!-- Standing only. Position is NOT a button: a card is arranged within its
+					      lane by dragging it, or with alt+up/down on a focused card, and there is
+					      deliberately no up/down strip beside this one — four arrows on a ~180px
+					      card read as one control, and two of them meant something entirely
+					      different from the other two. --}}
+					<div class="stonetop-segmented-picker stonetop-rel-lane-picker" role="group"
+					     aria-label='{{localize "stonetop.relationships.lane.pickerLabel"}}'>
+						{{#each moveButtons}}
+						<button type="button"
+						        class="stonetop-segmented-picker-option stonetop-rel-lane-btn{{#if isCurrent}} is-active{{/if}}"
+						        {{#if dir}}
+						        data-rel-dir="{{dir}}"{{#if disabled}} disabled="disabled"{{else}} data-rel-step="{{hearts}}"{{/if}}
+						        {{else}}
+						        data-rel-lane="{{laneKey}}" aria-pressed="{{#if isCurrent}}true{{else}}false{{/if}}"
+						        {{/if}}
+						        data-tooltip="{{localize labelKey target=(localize targetLabelKey)}}"
+						        aria-label="{{localize labelKey target=(localize targetLabelKey)}}">
+							<i class="{{icon}}" aria-hidden="true"></i>
+						</button>
+						{{/each}}
 					</div>
 					{{/if}}
 
@@ -245,7 +217,11 @@
 						<button type="button" class="stonetop-rel-note-toggle" aria-expanded="false"
 						        data-tooltip='{{localize "stonetop.relationships.noteExpand"}}'
 						        aria-label='{{localize "stonetop.relationships.noteExpand"}}'>
-							<i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+							{{!-- A masked note-caret.svg rather than fa-chevron-down: the control is a wide,
+							      shallow lid under the note, and the FA glyph only reached those proportions
+							      by being scaled on one axis, which thinned its stroke and threw off the
+							      vertical centring the font builds into the glyph. --}}
+							<span class="stonetop-rel-note-caret" aria-hidden="true"></span>
 						</button>
 					</div>
 				</li>

@@ -20,3 +20,7 @@ rulebooks use — the treasure vase, and the triple spiral printed beside an arc
 p.545). They are marks, not illustrations: neither reproduces any book artwork, and neither
 depicts any particular item. `arcanum.svg` is generated geometry (three Archimedean spirals
 at 120 degrees); the recipe and its numbers are in the file's own comment.
+
+`note-caret.svg` is the project's own work too, and owes nothing to any source: it is three
+line coordinates and a round-capped stroke, drawn wide and shallow for the expand control
+under a relationship card's note. Its geometry is in the file's own comment.
