@@ -3,6 +3,7 @@ import { info, error } from "../utils/logger.js";
 import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.js";
 import { makeRewriter, remapPageData, managedHash, carryOverPageState, planSourceRestamp } from "./journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
+import { progressSlice, progressSubSlice } from "../utils/progress-slice.js";
 import { SEEDED_FOLDER_COLORS, rawFolderColor, planSeededFolderColorUpdates, seededFolderColorSignature } from "./seeded-folder-colors.js";
 import { isOurCompendiumRef, seededSourceKeys, compendiumRefTail } from "../migration/compat.js";
 
@@ -37,9 +38,27 @@ const SETTING_OVERVIEW_NAME = "Setting Overview";
 // worlds seeded under that scheme; new seeds place the trees at the sidebar root.
 const WORLD_FOLDER_NAME = "The World";
 
-export async function seedCompendiumJournalsOnce() {
-	if (!game.user?.isGM) return;
-	if (getSetting("seedingComplete")) return;
+// Where each phase of the seed sits on the step's overall bar, for the first-load setup
+// window (hooks/WorldSetup.js). The import dominates the wall clock; the two per-entry
+// passes that follow are the part that can actually report motion, so they get the tail.
+// Boundaries rather than widths, so the three visibly tile 0–1 (see progressSlice).
+const SEED_PHASES = {
+	import: [0, 0.55],
+	remap:  [0.55, 0.85],
+	stamp:  [0.85, 1],
+};
+
+/**
+ * Whether this world still owes the gazetteer/journal import. The seed's own guard, lifted
+ * out so the first-load setup window (hooks/WorldSetup.js) can list only the work that is
+ * really coming without restating the conditions.
+ */
+export function needsJournalSeed() {
+	return !!game.user?.isGM && !getSetting("seedingComplete");
+}
+
+export async function seedCompendiumJournalsOnce({ onProgress } = {}) {
+	if (!needsJournalSeed()) return;
 
 	const packs = game.packs.filter(
 		p => p.documentName === "JournalEntry"
@@ -53,9 +72,15 @@ export async function seedCompendiumJournalsOnce() {
 	const linkMap = new Map();
 	const created = [];
 
-	for (const pack of packs) {
+	// Each pack owns an equal slice of the import share, and reports where it is within it.
+	const packBounds = progressSubSlice(SEED_PHASES.import, packs.length);
+
+	onProgress?.({ fraction: 0, detail: "Reading the Stonetop compendium" });
+	for (const [i, pack] of packs.entries()) {
 		try {
-			const docs = await importJournalPack(pack, null);
+			const docs = await importJournalPack(pack, null, {
+				onProgress: progressSlice(onProgress, packBounds(i)),
+			});
 			if (!Array.isArray(docs)) continue;
 			await pack.getIndex();
 			const worldUuidByName = new Map(docs.map(d => [d.name, d.uuid]));
@@ -69,12 +94,12 @@ export async function seedCompendiumJournalsOnce() {
 		}
 	}
 
-	await remapCrossLinks(created, linkMap);
+	await remapCrossLinks(created, linkMap, { onProgress: progressSlice(onProgress, SEED_PHASES.remap) });
 	// Record the baseline fingerprint of each seeded entry (after the link remap, so
 	// it matches what's stored) plus the version it was seeded at. Future loads use
 	// this to tell a pristine entry — safe to refresh to a newer shipped version —
 	// from one the GM has edited. See updateSeededJournalsOnVersionChange.
-	await stampJournalBaselines(created);
+	await stampJournalBaselines(created, { onProgress: progressSlice(onProgress, SEED_PHASES.stamp) });
 	await setSetting("journalSyncVersion", game.system.version);
 	await openSettingOverviewToPlayers(created);
 
@@ -135,7 +160,7 @@ export async function unnestSeededWorldRootOnce() {
 // seed at the sidebar root (`rootParentId` is null). Folder resolution is best-effort
 // — anything it can't place falls back to that root rather than failing the whole
 // seed. Returns the created entries.
-async function importJournalPack(pack, rootParentId = null) {
+async function importJournalPack(pack, rootParentId = null, { onProgress } = {}) {
 	const seed = await pack.getDocuments();
 	if (!seed.length) return [];
 
@@ -177,13 +202,19 @@ async function importJournalPack(pack, rootParentId = null) {
 	// `_stats.compendiumSource`) exactly as core's importAll does; we keep sort so
 	// the seeded entries retain their authored order, and place them by folder.
 	const data = [];
-	for (const d of seed) {
+	for (const [i, d] of seed.entries()) {
 		if (alreadySeeded.has(compendiumRefTail(d.uuid))) continue;
 		const obj = game.journal.fromCompendium(d, { clearSort: false });
 		obj.folder = await resolveFolder(d.folder);
 		data.push(obj);
+		// Folder resolution is the awaited part of this loop, so this is where the pack's
+		// slice actually advances. The bulk create that follows is one round trip and
+		// reports as the slice's last tick.
+		onProgress?.({ fraction: (i + 1) / seed.length, detail: `Preparing ${data.length} journal entries` });
 	}
-	return data.length ? JournalEntry.createDocuments(data) : [];
+	if (!data.length) return [];
+	onProgress?.({ fraction: 1, detail: `Creating ${data.length} journal entries` });
+	return JournalEntry.createDocuments(data);
 }
 
 // Grant players read access to the seeded Setting Overview journal so the
@@ -204,10 +235,11 @@ async function openSettingOverviewToPlayers(entries) {
 // Rewrite @UUID links that target a seeded journal so they open the world copy.
 // Links to documents we didn't import (bestiary, arcana) aren't in `linkMap`, so
 // the replacer leaves them as compendium links.
-async function remapCrossLinks(entries, linkMap) {
+async function remapCrossLinks(entries, linkMap, { onProgress } = {}) {
 	if (!linkMap.size) return;
 	const rewrite = makeRewriter(linkMap);
-	for (const entry of entries) {
+	for (const [i, entry] of entries.entries()) {
+		onProgress?.({ fraction: i / entries.length, detail: `Linking cross-references (${i + 1} of ${entries.length})` });
 		const updates = [];
 		for (const page of entry.pages ?? []) {
 			// Structured "location" pages keep their cross-links in system.sections
@@ -232,9 +264,10 @@ async function remapCrossLinks(entries, linkMap) {
 
 // Stamp each seeded entry with the fingerprint + version of the content we wrote, so
 // later loads can tell a pristine entry from a GM-edited one (see managedHash).
-async function stampJournalBaselines(entries) {
+async function stampJournalBaselines(entries, { onProgress } = {}) {
 	const version = game.system.version;
-	for (const entry of entries) {
+	for (const [i, entry] of entries.entries()) {
+		onProgress?.({ fraction: i / entries.length, detail: `Fingerprinting journals (${i + 1} of ${entries.length})` });
 		try { await entry.setFlag("stonetop-pwd", "journalSync", { hash: managedHash(entry.toObject()), version }); }
 		catch (err) { error(`Failed to fingerprint seeded journal "${entry.name}":`, err); }
 	}

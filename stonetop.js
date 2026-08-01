@@ -25,6 +25,7 @@ import { createStonetopHazardPageSheetClass } from "./module/journal/StonetopHaz
 import { ThreatBoard } from "./module/threats/threat-board.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { handleImportedJournalArt, reapplyBook2Art } from "./module/book2-art/reapply.js";
+import { clearArtBrowseCache } from "./module/book2-art/browse.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
@@ -398,6 +399,21 @@ Hooks.on("dropCanvasData", onDropPlaceOfInterest);
 // art right away from the durable folder. Debounced + idempotent (see book2-art/reapply.js),
 // so a folder-import burst — and the fresh-world seed's own create storm — collapse to one pass.
 Hooks.on("createJournalEntry", handleImportedJournalArt);
+
+// The durable art folder just gained files, so drop the cached listings of it (see
+// book2-art/browse.js). Publishing these two indices is the LAST thing the Import Book Art
+// macro does, which makes it the one reliable signal that an import finished — the macro is
+// a macro, not a module, so nothing here can hook it directly. reapply.js writes the same
+// settings, but only when the contents genuinely changed, so a settled world never fires this.
+//
+// BOTH hooks, deliberately: a world setting has no Setting document until it is first
+// written, so the very first import in a fresh world — the case that matters most — is a
+// create, not an update.
+const _onArtIndexPublished = (setting) => {
+	if (/\.(treasureArt|peopleArt)$/.test(setting?.key ?? "")) clearArtBrowseCache();
+};
+Hooks.on("createSetting", _onArtIndexPublished);
+Hooks.on("updateSetting", _onArtIndexPublished);
 
 // -- THREAT SCENE PINS -----------------------------------------
 // A threat card dragged onto a scene drops a native page-linked Note; give that

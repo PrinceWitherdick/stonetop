@@ -1,6 +1,6 @@
 import { BOOK2_ART_APPLY_MANIFEST } from "./manifest.js";
 import { book2ArtRoot, book2ArtSrcWith } from "./art-root.js";
-import { browseArtDirs } from "./browse.js";
+import { browseArtDirs, clearArtBrowseCache } from "./browse.js";
 
 /**
  * Rebuild missing "People of Stonetop" detail portraits from art the GM has ALREADY imported,
@@ -84,7 +84,12 @@ function cropToCanvas(img, [x0, y0, x1, y1]) {
 	return canvas;
 }
 
-function loadImage(src) {
+/**
+ * Load an image from the Foundry data folder, rejecting when it does not load — which is how
+ * a path that browse reported but the browser cannot read (a truncated upload, say) fails its
+ * own item rather than the whole batch. Shared with the poster-map scene builder.
+ */
+export function loadImage(src) {
 	return new Promise((resolve, reject) => {
 		const img = new Image();
 		// The art folder is same-origin (it is served out of the user's own data path), but ask
@@ -145,6 +150,8 @@ export async function rebuildPeopleCrops({ plan = null, onProgress = null } = {}
 		}
 		onProgress?.(++done, work.length);
 	}
+	// New files in assets/people, so anything holding a listing of it is now out of date.
+	if (result.written) clearArtBrowseCache();
 	return result;
 }
 

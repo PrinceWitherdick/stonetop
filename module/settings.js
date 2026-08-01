@@ -295,6 +295,20 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the one-time "you already have these poster maps — want them as Scenes?" offer
+	// has been made in this world (hooks/WorldSetup.js offerPosterMapScenesOnce). The map
+	// images live in the durable art folder, which outlives the world they were imported in,
+	// so a brand-new world can find them waiting and rebuild the Scenes without a second PDF
+	// import. World-scoped, and only set once the offer has ACTUALLY been made, so a GM who
+	// supplies maps later still gets asked.
+	game.settings.register("stonetop-pwd", "posterMapScenesOffered", {
+		name: "Poster Map Scenes Offered",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// The durable folder (a top-level data path, OUTSIDE the system folder) the "Import
 	// Book Art" macro writes extracted illustrations to. Living outside systems/stonetop-pwd
 	// is what keeps the art across a system update or reinstall; the runtime re-apply

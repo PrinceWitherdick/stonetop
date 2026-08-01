@@ -67,8 +67,16 @@
       {{!-- Step 1: import book art --}}
       <section class="stonetop-welcome-section" data-tab="book-art"{{#unless (eq activeTab "book-art")}} hidden{{/unless}}>
         <p>If you own the Stonetop PDFs, you can rebuild the monster and location illustrations right here in your world &mdash; portraits, tokens, and journal art all filled in from your own books. Nothing is uploaded anywhere; the pictures are reconstructed locally on your machine.</p>
+        {{#if bookArtImported}}
+          <div class="stonetop-welcome-notice stonetop-welcome-notice--done">
+            <i class="fas fa-circle-check"></i>
+            <div class="stonetop-welcome-notice-body">
+              <span><strong>Already done &mdash; nothing to do here.</strong> Your imported art is kept outside the world, so this world found it and wired it in by itself. You do <strong>not</strong> need your PDFs again. Re-run the import below only if you want art that a newer version of Stonetop added.</span>
+            </div>
+          </div>
+        {{/if}}
         <button type="button" class="stonetop-welcome-action" data-action="import-book-art">
-          <i class="fas fa-images"></i> Import Book Art
+          <i class="fas fa-images"></i> {{#if bookArtImported}}Import Book Art Again{{else}}Import Book Art{{/if}}
         </button>
         <div class="stonetop-welcome-notice stonetop-welcome-notice--info">
           <i class="fas fa-circle-info"></i>

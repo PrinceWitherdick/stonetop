@@ -2,13 +2,13 @@ import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { maybeOfferMigration } from "../migration/announce.js";
 import { finishSystemIdMigration } from "../migration/finish-run.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
-import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJournalsOnVersionChange, syncSeededFolderColors, unnestSeededWorldRootOnce } from "./SeedCompendiums.js";
-import { seedBestiaryActorsOnce, collapseBestiaryActorSubfoldersOnce } from "./SeedActors.js";
-import { seedTreasureItemsOnce } from "./SeedItems.js";
-import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
+import { runWorldSetup, pendingSetupWork } from "./WorldSetup.js";
+import { reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
+import { clearArtBrowseCache } from "../book2-art/browse.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, runImportBookArtMacro } from "../book2-art/macro.js";
 import { browsePeopleArt, plannedCropRebuilds } from "../book2-art/rebuild-crops.js";
 import { book2ArtRoot } from "../book2-art/art-root.js";
+import { offerDurableArtOnce } from "../book2-art/offer-once.js";
 import { stonetopChatCard } from "../utils/chat.js";
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
@@ -196,7 +196,13 @@ export async function onReady() {
 	// the new manifest.js; this then re-flows it without waiting for a version bump). Pass
 	// { worldOnly: true } to only touch world journals. Returns the pass's stats.
 	//   game.stonetop.reapplyBook2Art()
-	game.stonetop.reapplyBook2Art   = (opts = {}) => reapplyBook2Art(opts);
+	//
+	// Drops the directory-listing cache first (see book2-art/browse.js). This is the one entry
+	// point whose whole purpose is "I have just changed what is on disk, go and look again" —
+	// and it is reached by hand, from a console, typically right after dropping files in a way
+	// nothing in the system can hook. A warm listing from earlier in the session would answer
+	// with the state that prompted the call.
+	game.stonetop.reapplyBook2Art   = (opts = {}) => { clearArtBrowseCache(); return reapplyBook2Art(opts); };
 	// Launch the interactive bring-your-own-book "Import Book Art" extractor macro (NOT the
 	// silent re-point pass above). The entry point the post-startup art-reminder chat button
 	// and the Welcome guide's "Import Book Art" button both call. Callable from the console:
@@ -209,68 +215,31 @@ export async function onReady() {
 	if (game.user.isGM) await _ensurePlayerActorCreationGrant();
 	if (game.user.isGM) await _assignSteadingToUnassignedGm();
 
-	// Seeding the gazetteer into a brand-new world imports ~160 journal entries — a
-	// visible pause. On an established world the seed is a no-op that returns instantly,
-	// so await it inline as before. On a fresh world, kick it off in the BACKGROUND so it
-	// doesn't hold up the ready sequence (and, crucially, the Welcome guide): we pop the
-	// guide right away and surface the seeded orientation material once the import lands
-	// (see the `wasFreshWorld` handling further down).
-	const wasFreshWorld = game.user.isGM && !getSetting("seedingComplete");
+	// Set this world up: the durable-art re-apply, the gazetteer seed, the bestiary and the
+	// treasure library — narrated by the setup progress window when there is actually a wait
+	// to explain (see hooks/WorldSetup.js). Everything runs in the BACKGROUND so it never
+	// holds up the ready sequence or the Welcome guide.
+	//
+	// `runWorldSetup()` settles when the art re-apply and the whole journal chain are done.
+	// An established world's chain is a handful of guarded no-ops that return in a tick, so
+	// it is awaited inline as before, which is what keeps the Setting Overview / walkthrough
+	// ordering below reading off journals that are already there. A FRESH world imports ~160
+	// entries, so it isn't: we pop the Welcome guide right away and surface the seeded
+	// orientation material once the import lands (see the `wasFreshWorld` handling below).
+	//
+	// One thing an established world no longer waits for: the every-load world-only art
+	// self-heal, which used to be awaited right here and now runs in runWorldSetup's finishing
+	// pass. It has to browse all six durable art directories before it can find out there is
+	// nothing to do, and that round trip is exactly what should not sit in front of the first
+	// window the GM sees. So the Setting Overview can open a beat before art lands on it —
+	// which is fine, since a document update re-renders an open sheet — but nothing below may
+	// assume the journals have their final artwork.
+	const isGM = game.user.isGM;
+	const wasFreshWorld = isGM && pendingSetupWork().journals;
 	let seeding = Promise.resolve();
-	if (wasFreshWorld) {
-		// Re-apply Book II art (only if its durable folder is already populated, e.g. a
-		// GM who ran the import in another world) BEFORE the seed, so a brand-new world
-		// imports art-bearing journals; then seed, then the journal version sync.
-		seeding = reapplyBook2ArtOnVersionChange()
-			.catch((err) => console.error("Stonetop | Book II art re-apply failed:", err))
-			.then(() => seedCompendiumJournalsOnce())
-			.then(() => restampSeededJournalSources())
-			.then(() => updateSeededJournalsOnVersionChange())
-			.then(() => unnestSeededWorldRootOnce())
-			.then(() => syncSeededFolderColors());
-	} else if (game.user.isGM) {
-		// Re-apply Book II art BEFORE the journal sync so freshly re-applied compendium
-		// art propagates into pristine (un-edited) world journal copies for free
-		// (updateSeededJournalsOnVersionChange reads the live compendium). See
-		// book2-art/reapply.js.
-		try { await reapplyBook2ArtOnVersionChange(); }
-		catch (err) { console.error("Stonetop | Book II art re-apply failed:", err); }
-		await seedCompendiumJournalsOnce();
-		await restampSeededJournalSources();
-		await updateSeededJournalsOnVersionChange();
-		await unnestSeededWorldRootOnce();
-		await syncSeededFolderColors();
-		// Every-load self-heal: add any durable Book II art still MISSING from world
-		// journals (e.g. art that only landed on disk after a journal was imported, or a
-		// journal imported before the durable folder existed). Cheap — it reads a world
-		// entry's own pages first and only touches the compendium for a row whose art is
-		// actually absent, so it does no compendium reads once everything is applied.
-		try { await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true }); }
-		catch (err) { console.error("Stonetop | Book II art self-heal failed:", err); }
-	}
-
-	// Import the monster sheets into the world's Actors sidebar under a red "Bestiary"
-	// folder tree mirroring the Monsters compendium. GM-only, once per world, and run in
-	// the BACKGROUND — it creates ~200 actors, so it must not hold up the ready sequence or
-	// the Welcome guide. Guarded + idempotent (skips already-imported, reuses folders), so a
-	// reload while it's still running just resumes. Players never see these (ownership NONE).
-	// Independent of the journal seed above, so an established world still gets the monsters.
-	if (game.user.isGM) {
-		// Seed the monsters, then collapse the world Bestiary's actor subfolders (a fresh
-		// world seeds an already-flat tree, so the collapse is a no-op there; an established
-		// world flattens its deep seeded tree). Both are background + guarded.
-		seedBestiaryActorsOnce()
-			.then(() => collapseBestiaryActorSubfoldersOnce())
-			.catch(err => console.error("Stonetop | Bestiary actor seed/collapse failed:", err));
-
-		// Import the Book II "Treasures & Wonders" items into the world's Items sidebar,
-		// recreating the compendium's tree (a root folder with one subfolder per Book II
-		// section). GM-only, once per world, background (168 items), guarded +
-		// idempotent (skips already-imported, reuses folders). Independent of the seeds
-		// above, so an established world still gets the treasure library. Players never see
-		// these (ownership NONE) — they get a treasure when the GM drags one onto their sheet.
-		seedTreasureItemsOnce()
-			.catch(err => console.error("Stonetop | Treasure item seed failed:", err));
+	if (isGM) {
+		seeding = runWorldSetup();
+		if (!wasFreshWorld) await seeding;
 
 		await _retireIntroductionsMacro();
 		// Place any missing system macros at their default slots (existing placements
@@ -919,20 +888,26 @@ function _buildBook2ArtReminderContent() {
 // and none of the details. Those can be cut from the parents locally — no PDF, no re-import — so
 // offer it once rather than making them hunt for their books again. See book2-art/rebuild-crops.js.
 //
-// Only speaks when there is something to do: a GM who never imported, or who has every detail
-// already, is never bothered, and the flag is only set once the offer has actually been made.
-async function _offerPeopleCropRebuildOnce() {
-	if (getSetting("peopleCropRebuildOffered")) return;
-	const root = book2ArtRoot();
-	const plan = plannedCropRebuilds(await browsePeopleArt(root), root);
-	if (!plan.length) return; // nothing rebuildable — say nothing, and check again next load
-	if (!globalThis.ChatMessage?.create) return; // retry next load if chat isn't ready
-	await ChatMessage.create({
-		content: _buildPeopleCropRebuildContent(plan.length),
-		whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
-		speaker: { alias: "Stonetop" },
+// The once-per-world rules — including "found nothing, so do not latch, and ask again next
+// load" — belong to offerDurableArtOnce; what is local here is what counts as rebuildable and
+// how the offer is presented.
+function _offerPeopleCropRebuildOnce() {
+	return offerDurableArtOnce({
+		setting: "peopleCropRebuildOffered",
+		findWork: async () => {
+			const root = book2ArtRoot();
+			const plan = plannedCropRebuilds(await browsePeopleArt(root), root);
+			return plan.length ? plan : null;
+		},
+		offer: async plan => {
+			if (!globalThis.ChatMessage?.create) return false; // chat isn't ready — retry next load
+			await ChatMessage.create({
+				content: _buildPeopleCropRebuildContent(plan.length),
+				whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
+				speaker: { alias: "Stonetop" },
+			});
+		},
 	});
-	await setSetting("peopleCropRebuildOffered", true);
 }
 
 function _buildPeopleCropRebuildContent(count) {

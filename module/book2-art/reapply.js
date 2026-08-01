@@ -594,18 +594,23 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 // come before any disk work. A pass that couldn't run (nothing on disk yet) or that hit a
 // per-item error leaves the version UNSTAMPED so the next load retries (every write is
 // idempotent) instead of poisoning the version with a partial apply.
+//
+// Returns the pass's stats, or null when it didn't run — which is how the first-load setup
+// window (hooks/WorldSetup.js) tells "we found the art you already imported and wired it in"
+// from "you have no book art on disk yet" without browsing the folder a second time.
 export async function reapplyBook2ArtOnVersionChange() {
-	if (!game.user?.isGM) return;
+	if (!game.user?.isGM) return null;
 	const version = game.system.version;
-	if (getSetting("book2ArtSyncVersion") === version) return;
+	if (getSetting("book2ArtSyncVersion") === version) return null;
 
 	const result = await reapplyBook2Art();
-	if (!result) return; // nothing on disk yet -> retry next load, version left unstamped
+	if (!result) return null; // nothing on disk yet -> retry next load, version left unstamped
 	if (result.errors) {
 		error(`Book II art re-apply: ${result.errors} item(s) failed; leaving the version unstamped to retry next load.`);
-		return;
+		return result;
 	}
 	await setSetting("book2ArtSyncVersion", version);
+	return result;
 }
 
 // --- Manual-import trigger (a debounced createJournalEntry hook) -----------------------

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, handleImportedJournalArt } from "../../module/book2-art/reapply.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../module/book2-art/manifest.js";
+import { clearArtBrowseCache } from "../../module/book2-art/browse.js";
 import { managedHash } from "../../module/hooks/journal-sync-core.js";
 
 const JRN_SOURCE = (entryId) => `Compendium.stonetop-pwd.stonetop-journal.JournalEntry.${entryId}`;
@@ -136,6 +137,11 @@ function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActo
 
 	const infoSpy = vi.fn();
 	global.FilePicker = { browse };
+	// Each harness stands up a different set of files under the same art root, and
+	// browseArtDirs caches its listings for the session — so from its point of view the disk
+	// just changed underneath it. Exactly what a production writer does, and it clears the
+	// cache for the same reason.
+	clearArtBrowseCache();
 	global.game = {
 		user: { isGM },
 		system: { version: VERSION },

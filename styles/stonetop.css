@@ -202,6 +202,15 @@
 	--st-radius:    4px;
 	--st-radius-lg: 6px;
 
+	/* ── Stacking ─────────────────────────────────────────────────────────
+	   The one rung this system adds to Foundry's z-index scale: above every
+	   window, below tooltips and notifications. Foundry's own ladder is
+	   --z-index-window 100 (climbing as windows are raised, capped at 9999),
+	   --z-index-tooltip 9999, --z-index-notification 99999. Named so a second
+	   always-on-top overlay joins this rung rather than picking its own number
+	   and silently fighting the first for the top. */
+	--st-z-above-windows: 9998;
+
 	/* ── Green "active/accent" tint ───────────────────────────────────────
 	   Selected/active states (weather + spring tiers, character-foundry
 	   options/tags), the startup chat card, and done-state text all share this
@@ -19023,6 +19032,16 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-welcome-notice--info > i { color: var(--st-blue-text); }
 
+/* Done variant — a step that is already taken care of, e.g. book art the GM
+   imported in another world and that this world picked up by itself. */
+.stonetop-welcome-notice--done {
+	background: var(--st-green-bg);
+	border: 1px solid var(--st-green-border);
+	color: var(--st-green-text);
+}
+
+.stonetop-welcome-notice--done > i { color: var(--st-green-text); }
+
 /* Player roster */
 
 .stonetop-welcome-players {
@@ -23422,6 +23441,198 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 .stonetop-migration-assistant .stonetop-migration-actions button[data-action="migrate"]:hover,
 .stonetop-migration-assistant .stonetop-migration-actions button[data-action="confirm"]:hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+	color: var(--st-btn-primary-text);
+}
+
+/* First-load world setup ----------------------------------------------------
+   The GM-only window that narrates the one-time content import on a brand-new
+   world (journals, bestiary, treasures) and the poster-map Scene offer that
+   follows it. Both are scoped to their own dialog class so nothing here can
+   reach another sheet. Their animations are covered by the .stonetop-reduce-
+   motion block above, since both windows carry the `stonetop` class. */
+/* The setup window is an OVERLAY, not a peer window: it explains a wait the GM is already
+   in the middle of, and several things open over it during the ready sequence — the Welcome
+   guide, a resumed session-zero walkthrough, the Setting Overview journal — the last of
+   which would otherwise bury it. FrontOnOpen only raises a window once, as it opens, so it
+   cannot answer that; pin it above the window band instead.
+
+   --st-z-above-windows clears every real window while still letting tooltips and Foundry's
+   own "imported 161 journal entries" toasts land on top of it, which is the right way round;
+   the token names that rung so a second overlay joins it rather than inventing a rival number.
+
+   `!important` because Foundry writes each window's z-index INLINE as it raises it, and a
+   stylesheet rule loses to that otherwise. Compound-scoped with `.stonetop` (same element,
+   not a descendant) so it can never bleed onto the Classic sheet, which drops that class.
+   The window is short-lived, closes itself, and "Continue in the background" dismisses it. */
+.stonetop.stonetop-world-setup-dialog {
+	z-index: var(--st-z-above-windows) !important;
+}
+
+.stonetop-world-setup-dialog .stonetop-world-setup,
+.stonetop-poster-maps-dialog .stonetop-poster-maps {
+	display: flex;
+	flex-direction: column;
+	gap: 0.7rem;
+	padding: 0.5rem;
+}
+
+.stonetop-world-setup-dialog .stonetop-world-setup-lead,
+.stonetop-poster-maps-dialog .stonetop-poster-maps-lead {
+	margin: 0;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
+}
+
+/* The overall bar. Positioned so the percentage can sit centred ON it rather
+   than taking a line of its own. */
+.stonetop-world-setup-dialog .stonetop-world-setup-track {
+	position: relative;
+	height: 16px;
+	overflow: hidden;
+	border-radius: 8px;
+	background: rgba(75, 55, 30, 0.18);
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.stonetop-world-setup-dialog .stonetop-world-setup-fill {
+	height: 100%;
+	border-radius: 8px;
+	background: var(--st-btn-primary-bg);
+	transition: width 0.25s ease;
+}
+
+.stonetop-world-setup-dialog .stonetop-world-setup-percent {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	font-size: var(--st-fs-2xs);
+	font-weight: 600;
+	color: var(--st-text);
+	/* The label crosses from the pale track onto the slate fill as the bar grows, so it
+	   carries a light halo rather than picking one background to be legible against. */
+	text-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
+	/* Sits over the fill: it must never swallow a click or shift the bar. */
+	pointer-events: none;
+}
+
+.stonetop-world-setup-dialog .stonetop-world-setup-steps {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.stonetop-world-setup-dialog .stonetop-world-setup-step {
+	display: flex;
+	gap: 0.5rem;
+	align-items: baseline;
+	font-size: var(--st-fs-sm);
+}
+
+/* Fixed width so the labels stay in one column as icons swap between the dot,
+   the spinner and the tick. The state colour arrives on a custom property set by the row,
+   so a state costs one line here rather than another copy of this three-class chain — and
+   a state with no line of its own (skipped) simply keeps the resting colour. */
+.stonetop-world-setup-dialog .stonetop-world-setup-step-icon {
+	flex: 0 0 1.1em;
+	text-align: center;
+	color: var(--st-step-icon, var(--st-text-faint));
+}
+
+.stonetop-world-setup-dialog .stonetop-world-setup-step.is-running { --st-step-icon: var(--st-blue-border); }
+.stonetop-world-setup-dialog .stonetop-world-setup-step.is-done    { --st-step-icon: var(--st-green-border); }
+.stonetop-world-setup-dialog .stonetop-world-setup-step.is-failed  { --st-step-icon: var(--st-red-border); }
+
+/* One flex child holding both lines, so the label and its detail wrap together
+   rather than the detail splitting away from the row it belongs to. */
+.stonetop-world-setup-dialog .stonetop-world-setup-step-body {
+	display: flex;
+	flex-direction: column;
+}
+
+.stonetop-world-setup-dialog .stonetop-world-setup-step.is-pending .stonetop-world-setup-step-label {
+	color: var(--st-text-muted);
+}
+
+.stonetop-world-setup-dialog .stonetop-world-setup-step.is-running .stonetop-world-setup-step-label {
+	font-weight: 600;
+}
+
+.stonetop-world-setup-dialog .stonetop-world-setup-step-detail {
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-muted);
+}
+
+/* One button, so it takes the full width (see the lone-modal-button rule) and
+   needs inline-flex to render as a pill on v13. */
+.stonetop-world-setup-dialog .stonetop-world-setup-actions button,
+.stonetop-poster-maps-dialog .stonetop-poster-maps-actions button {
+	display: inline-flex;
+	gap: 0.4em;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+}
+
+/* Poster maps → Scenes offer ------------------------------------------------ */
+.stonetop-poster-maps-dialog .stonetop-poster-maps-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.stonetop-poster-maps-dialog .stonetop-poster-map {
+	display: flex;
+	gap: 0.5rem;
+	align-items: flex-start;
+	padding: 0.4rem 0.55rem;
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius);
+	background: var(--st-blue-bg);
+}
+
+/* A map that already has a Scene is offered unticked and reads as secondary —
+   it is there so the GM can deliberately refresh it, not as a suggestion. */
+.stonetop-poster-maps-dialog .stonetop-poster-map.has-scene {
+	border-color: rgba(0, 0, 0, 0.18);
+	background: rgba(0, 0, 0, 0.05);
+}
+
+.stonetop-poster-maps-dialog .stonetop-poster-map-body {
+	display: flex;
+	flex-direction: column;
+}
+
+.stonetop-poster-maps-dialog .stonetop-poster-map-name {
+	font-weight: 600;
+}
+
+.stonetop-poster-maps-dialog .stonetop-poster-map-note {
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-muted);
+}
+
+.stonetop-poster-maps-dialog .stonetop-poster-maps-actions {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.stonetop-poster-maps-dialog .stonetop-poster-maps-actions button[data-action="create"] {
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+	font-weight: bold;
+}
+
+.stonetop-poster-maps-dialog .stonetop-poster-maps-actions button[data-action="create"]:hover {
 	background: var(--st-btn-primary-bg-hover);
 	border-color: var(--st-btn-primary-border-hover);
 	color: var(--st-btn-primary-text);

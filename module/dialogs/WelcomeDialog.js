@@ -9,6 +9,7 @@ import { charactersOwnedBy } from "../utils/playbook-actors.js";
 import { createCharacterForUser } from "../actors/character/create-character.js";
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
 import { runImportBookArtMacro } from "../book2-art/macro.js";
+import { hasImportedBook2Art } from "../book2-art/reapply.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -97,6 +98,11 @@ export class WelcomeDialog extends Application {
 		// Which rail panel is showing; preserved across the roster's live re-renders
 		// (see _registerHooks) so refreshing the player list doesn't snap back to the top.
 		this._activeTab = SECTIONS[0].key;
+		// Whether the durable art folder already holds imported book art. Resolved once and
+		// cached for the life of the window: it takes a handful of file-browse round trips,
+		// and this guide re-renders every time the roster changes. Invalidated after the
+		// import macro runs, which is the only thing that can change the answer.
+		this._bookArtImported = null;
 	}
 
 	static open() {
@@ -161,9 +167,18 @@ export class WelcomeDialog extends Application {
 		const activeIndex = Math.max(0, SECTIONS.findIndex(s => s.key === this._activeTab));
 		const active = SECTIONS[activeIndex];
 
+		// A failed browse reads as "not imported" — the step then just offers the import,
+		// which is the harmless answer either way.
+		if (this._bookArtImported === null) {
+			this._bookArtImported = await hasImportedBook2Art().catch(() => false);
+		}
+
 		return {
 			players,
 			noPlayers:     players.length === 0,
+			// Drives the "you have already done this" state on the Book Art step, so a GM
+			// who imported in another world isn't told to go and find their PDFs again.
+			bookArtImported: this._bookArtImported,
 			dontShowAgain: !!getSetting("gmWelcomeShown"),
 			premiseHtml:   await enrichHTML(premiseSource()),
 			// Left rail + banner. Only the first-render active state comes from here;
@@ -294,7 +309,12 @@ export class WelcomeDialog extends Application {
 	// The launch path (world copy, else the shipped compendium copy) is shared with the
 	// post-startup art reminder; see runImportBookArtMacro.
 	async _runImportBookArt() {
-		return runImportBookArtMacro();
+		const result = await runImportBookArtMacro();
+		// The import is the one thing that can change "do I have book art on disk?", so drop
+		// the cached answer and redraw the step in its already-imported state.
+		this._bookArtImported = null;
+		if (this.rendered) await this.render(false);
+		return result;
 	}
 
 	// Jump to Foundry's core "Configure Players" screen — the same full-page route

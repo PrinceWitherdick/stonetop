@@ -1,0 +1,44 @@
+<div class="stonetop-poster-maps">
+
+	<p class="stonetop-poster-maps-lead">
+		You have already imported these Stonetop poster maps, and they are still on your disk &mdash;
+		your book art lives outside the world, so a new world finds it waiting.
+		Tick the ones you would like as ready-to-use Scenes. The village map gets its lettered
+		places-of-interest pins placed for you.
+	</p>
+
+	<ul class="stonetop-poster-maps-list">
+		{{#each rows}}
+			<li class="stonetop-poster-map{{#if this.hasScene}} has-scene{{/if}}">
+				<input type="checkbox" name="poster-map" value="{{this.index}}"{{#if this.checked}} checked{{/if}}>
+				<span class="stonetop-poster-map-body">
+					<span class="stonetop-poster-map-name">{{this.name}}</span>
+					<span class="stonetop-poster-map-note">
+						{{#if this.hasScene}}
+							This world already has its Scene &mdash; tick to refresh the artwork.
+						{{else}}
+							{{this.hint}}
+						{{/if}}
+					</span>
+				</span>
+			</li>
+		{{/each}}
+	</ul>
+
+	{{#if anyExisting}}
+		<p class="stonetop-poster-maps-lead">
+			Refreshing a Scene only re-points its background image and size. Anything you have
+			added to it &mdash; walls, lighting, tokens, notes &mdash; stays exactly as it is.
+		</p>
+	{{/if}}
+
+	<div class="stonetop-poster-maps-actions">
+		<button type="button" data-action="create">
+			<i class="fas fa-map"></i> <span>Create Scenes</span>
+		</button>
+		<button type="button" data-action="skip">
+			<i class="fas fa-xmark"></i> <span>Not now</span>
+		</button>
+	</div>
+
+</div>
