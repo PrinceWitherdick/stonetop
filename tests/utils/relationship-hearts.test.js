@@ -3,7 +3,7 @@ import {
 	clampHearts, readRelationship, relationshipRow, relationSummary,
 	setRelationshipHearts, setRelationshipNote, setRelationshipShown,
 	buildRelationshipRows, relationshipDropResult, relationshipDropNotice,
-	HEARTS_DEFAULT, HEARTS_MAX,
+	HEARTS_DEFAULT, HEARTS_MAX, readOrder, updateRelationships,
 } from "../../module/utils/relationship-hearts.js";
 
 // A fake actor that records the update patch, so the tests can assert on the exact
@@ -46,17 +46,18 @@ describe("clampHearts", () => {
 });
 
 describe("readRelationship", () => {
-	it("defaults an absent entry to neutral, with no note and no visibility choice", () => {
-		expect(readRelationship(undefined)).toEqual({ hearts: HEARTS_DEFAULT, notes: "", shown: undefined });
+	it("defaults an absent entry to neutral, with no note, visibility choice or position", () => {
+		expect(readRelationship(undefined))
+			.toEqual({ hearts: HEARTS_DEFAULT, notes: "", shown: undefined, order: null });
 	});
 
 	it("reads the legacy bare-number shape early builds stored", () => {
-		expect(readRelationship(4)).toEqual({ hearts: 4, notes: "", shown: undefined });
+		expect(readRelationship(4)).toEqual({ hearts: 4, notes: "", shown: undefined, order: null });
 	});
 
 	it("reads the object shape and clamps a bad rating", () => {
-		expect(readRelationship({ hearts: 99, notes: "owes a debt", shown: false }))
-			.toEqual({ hearts: 5, notes: "owes a debt", shown: false });
+		expect(readRelationship({ hearts: 99, notes: "owes a debt", shown: false, order: 2 }))
+			.toEqual({ hearts: 5, notes: "owes a debt", shown: false, order: 2 });
 	});
 
 	it("treats a non-boolean shown as unset, so the caller's default still applies", () => {
@@ -321,5 +322,65 @@ describe("relationshipDropNotice", () => {
 		for (const r of ["added", "revealed", "already"]) {
 			expect(relationshipDropNotice(r, { name: "A" }, { name: "B" })[0]).toBe("info");
 		}
+	});
+});
+
+describe("readOrder", () => {
+	// A position comes out of an ObjectField, which validates nothing, so every shape a
+	// hand-edited world could hold has to read as SOMETHING — and "unplaced" is the only
+	// safe answer for a value that is not a slot number.
+	it("accepts a whole non-negative index and refuses everything else", () => {
+		expect(readOrder(0)).toBe(0);
+		expect(readOrder(7)).toBe(7);
+		for (const junk of [null, undefined, -1, 1.5, "2", "", NaN, Infinity, true, {}]) {
+			expect(readOrder(junk)).toBeNull();
+		}
+	});
+});
+
+describe("relationship positions in storage", () => {
+	// Sparse, like every other field here. A rating or a note on a board nobody has arranged
+	// must not start writing a position into world data.
+	it("stores nothing for a row nobody has placed", async () => {
+		const actor = fakeActor();
+		await setRelationshipNote(actor, "vera", "owes a debt");
+		expect(actor.lastEntry).toEqual({ notes: "owes a debt" });
+	});
+
+	// The one field re-emitted from STORAGE rather than left to the merge. An omitted key
+	// keeps whatever core had, which is very probably fine — but "very probably" is not a
+	// thing to hang a lane's arrangement on, and one integer is a cheap way not to care.
+	it("carries an existing position through an unrelated write", async () => {
+		const actor = fakeActor({ vera: { hearts: 4, order: 2 } });
+		await setRelationshipNote(actor, "vera", "owes a debt");
+		expect(actor.lastEntry).toEqual({ hearts: 4, notes: "owes a debt", order: 2 });
+	});
+
+	// Cleared with a stored null rather than by dropping the key. `-=` is the reliable way
+	// to delete, but only as a dotted leaf path — and the same write carries the new rating,
+	// so the two would have to share one path under `system.relationships.<id>`.
+	it("clears a position with an explicit null, which reads back as unplaced", async () => {
+		const actor = fakeActor({ vera: { hearts: 4, order: 2 } });
+		await updateRelationships(actor, { vera: { order: null } });
+		expect(actor.lastEntry).toEqual({ hearts: 4, order: null });
+		expect(readRelationship(actor.lastEntry).order).toBeNull();
+	});
+
+	it("patches several rows in one update, and none at all when handed nothing", async () => {
+		const actor = fakeActor({ a: { hearts: 4 }, b: { hearts: 2 } });
+		await updateRelationships(actor, { a: { order: 1 }, b: { order: 0 } });
+		expect(actor.patches).toHaveLength(1);
+		expect(actor.patches[0]).toEqual({
+			"system.relationships.a": { hearts: 4, order: 1 },
+			"system.relationships.b": { hearts: 2, order: 0 },
+		});
+		await updateRelationships(actor, {});
+		expect(actor.patches).toHaveLength(1);
+	});
+
+	it("hands the row builder the stored position, for the board to sort by", () => {
+		const actor = fakeActor({ vera: { hearts: 4, order: 3 } });
+		expect(relationshipRow(actor, { id: "vera", name: "Vera" }).order).toBe(3);
+		expect(relationshipRow(actor, { id: "bran", name: "Bran" }).order).toBeNull();
 	});
 });

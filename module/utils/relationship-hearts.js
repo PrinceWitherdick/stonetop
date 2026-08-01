@@ -73,12 +73,31 @@ export function hasStoredRating(raw) {
 	return !!raw && typeof raw === "object" && raw.hearts !== undefined;
 }
 
+// Where this row sits in its board lane, once someone has arranged that lane by hand.
+// Sparse like everything else here: null means "nobody has placed this one", which the
+// board reads as "sort by the default rule, after whoever HAS been placed".
+//
+// null is a STORED sentinel, not merely an absent key, and that is deliberate. Clearing a
+// position has to survive `actor.update`, which MERGES into an ObjectField — an omitted key
+// keeps whatever was there, so "unordered" could otherwise only be expressed by the `-=`
+// delete prefix. That prefix is reliable as a dotted leaf path but not as a key inside an
+// object value (see foundry-compat.js on nested ForcedDeletion), and the same write also
+// carries the new rating, so the two would have to share one path. A plain null needs none
+// of that and means the same thing on every core generation.
+//
+// Non-integers, negatives and null all read as unordered: these come out of an ObjectField,
+// which validates nothing, so a hand-edited value must not be able to wedge a lane.
+export function readOrder(raw) {
+	return Number.isInteger(raw) && raw >= 0 ? raw : null;
+}
+
 export function readRelationship(raw) {
 	const obj = (raw && typeof raw === "object") ? raw : { hearts: raw };
 	return {
 		hearts: clampHearts(obj.hearts ?? HEARTS_DEFAULT),
 		notes:  obj.notes ?? "",
 		shown:  typeof obj.shown === "boolean" ? obj.shown : undefined,
+		order:  readOrder(obj.order),
 	};
 }
 
@@ -97,7 +116,7 @@ export function readRelationship(raw) {
 // those two writes from persisting a rating nobody made.
 export function relationshipRow(actor, other, { defaultShown = true } = {}) {
 	const stored = actor.system?.relationships?.[other.id];
-	const { hearts, notes, shown } = readRelationship(stored);
+	const { hearts, notes, shown, order } = readRelationship(stored);
 	return {
 		id:   other.id,
 		name: other.name,
@@ -112,6 +131,10 @@ export function relationshipRow(actor, other, { defaultShown = true } = {}) {
 		notes,
 		rated:      hasStoredRating(stored),
 		shown:      shown ?? defaultShown,
+		// Only the board reads this; the table has its own click-to-sort columns and ignores
+		// it entirely. Carried on every row regardless, because the row builder is shared and
+		// the board is one localStorage flip away on any of the three sheets.
+		order,
 		feeling:    relationSummary(hearts, actor.name, other.name),
 		heartSlots: Array.from({ length: HEARTS_MAX }, (_, i) => ({ position: i + 1, filled: i < hearts })),
 	};
@@ -208,18 +231,54 @@ export function wireRelationshipDropHighlight(section) {
 //    set to blank" on every first-time rating; the ledger had to recognise and discard it.
 //    Keeping the field absent also leaves "has a note" derivable from storage later, the
 //    way hasStoredRating derives "has a rating" now.
+//  • `order` — same rule again. An untouched row keeps no position at all, so a lane nobody
+//    has arranged goes on sorting itself. Note this one is re-emitted from STORAGE whenever
+//    the row already has a position, which the three above do not need to be: they are read
+//    back and rewritten from `readRelationship` anyway, whereas an omitted `order` would rely
+//    on the merge to survive a rating write. Re-emitting it costs one integer and makes the
+//    field independent of how deeply core merges an ObjectField.
 //
 // `options` rides through to actor.update so a caller can attribute the change (the
 // `{stonetopMove}` idiom the ledgers read); never pass `{stonetopLedger: true}`, which is
 // the ledger's own re-entrancy kill switch.
-function updateRelationship(actor, id, patch, options = {}) {
-	const stored = actor.system?.relationships?.[id];
-	const { hearts, notes, shown } = { ...readRelationship(stored), ...patch };
+function relationshipEntry(stored, patch) {
+	const { hearts, notes, shown, order } = { ...readRelationship(stored), ...patch };
 	const entry = {};
 	if (patch.notes !== undefined || stored?.notes !== undefined) entry.notes = notes;
-	if (patch.hearts !== undefined || hasStoredRating(stored)) entry.hearts = hearts;
+	// Clamped HERE rather than at each call site, which is where it used to live. Every write
+	// to a rating goes through this one line now, so no caller can put a 7 or a NaN into world
+	// data by forgetting — and a patch that carries no rating at all still passes the stored
+	// value through readRelationship, which clamped it on the way in.
+	if (patch.hearts !== undefined || hasStoredRating(stored)) entry.hearts = clampHearts(hearts);
 	if (shown !== undefined) entry.shown = shown;
-	return actor.update({ [`system.relationships.${id}`]: entry }, options);
+	// Written when there IS a position, and when there was one that now has to be cleared.
+	// Never when both are absent, so an ordinary rating write on an unarranged lane still
+	// stores nothing new.
+	if (order !== null || readOrder(stored?.order) !== null) entry.order = order;
+	return entry;
+}
+
+// Patch SEVERAL relationships in one actor.update, which is what reordering a lane needs:
+// dragging one card renumbers its neighbours too, and a write per card would re-render the
+// sheet once per card and let the board flicker through every intermediate arrangement.
+//
+// Each id gets its own top-level `system.relationships.<id>` key, exactly as the single-row
+// write does — never a deeper path — so one malformed legacy entry is replaced rather than
+// merged into.
+export function updateRelationships(actor, patches, options = {}) {
+	const update = {};
+	for (const [id, patch] of Object.entries(patches ?? {})) {
+		update[`system.relationships.${id}`] = relationshipEntry(actor.system?.relationships?.[id], patch);
+	}
+	// No keys means no write at all. Callers compute the CHANGED rows and hand over an empty
+	// map when a gesture turned out to be a no-op; an update with nothing in it would still
+	// re-render every sheet showing this actor.
+	if (!Object.keys(update).length) return Promise.resolve();
+	return actor.update(update, options);
+}
+
+function updateRelationship(actor, id, patch, options = {}) {
+	return updateRelationships(actor, { [id]: patch }, options);
 }
 
 // Clicking heart N sets the rating to N; clicking the current rating's last filled
@@ -231,13 +290,14 @@ export async function setRelationshipHearts(actor, id, position) {
 	await updateRelationship(actor, id, { hearts: clampHearts(next) });
 }
 
-// Set a rating to an exact value, with no click-toggle. The board needs this: dropping a
-// card into a lane asserts a value outright, and routing that through
-// setRelationshipHearts would hit its "clicked the last filled heart" branch and silently
-// DECREMENT whenever the asserted value matched the current one.
-export async function setRelationshipHeartsExact(actor, id, hearts, options = {}) {
-	await updateRelationship(actor, id, { hearts: clampHearts(hearts) }, options);
-}
+// NOTE: there is no setRelationshipHeartsExact any more. It existed so the board could
+// assert a value outright without setRelationshipHearts' "clicked the last filled heart"
+// branch silently DECREMENTING when the asserted value matched the current one — that hazard
+// is real and still worth knowing about, but the board now writes the rating and the card's
+// lane position in ONE update (or the sheet re-renders twice and the board visibly settles in
+// two stages), so it goes through updateRelationships directly. Anything else needing an
+// exact rating should do the same: `updateRelationships(actor, { [id]: { hearts } })`, which
+// clamps for you and never toggles.
 
 export async function setRelationshipNote(actor, id, notes) {
 	await updateRelationship(actor, id, { notes: notes ?? "" });

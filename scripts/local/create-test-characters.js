@@ -20,10 +20,18 @@
 //             Also records Introductions answers + one example Expedition and compiles the
 //             shared "Chronicle" journal. Seeds the steading "Stonetop" (the world's required
 //             singleton) with a thematic set of test Residents, Neighbors, and Players (the
-//             created PCs) so the steading sheet's member tables aren't empty, a block of
+//             created PCs) so the steading sheet's member tables aren't empty — each resident
+//             and neighbor is a real `npc` Actor in the system's own people folders, which is
+//             the shape the sheet expects and what lets a PC rate them. Also seeds a block of
 //             formatted rich-text in its Notes tab (only when that tab is empty), and three
 //             demonstration Threats (each its own hidden/revealed JournalEntry) so the GM
-//             Threats tab shows the full range of card layouts. Also creates four reusable
+//             Threats tab shows the full range of card layouts. Fills in the relationship
+//             hearts everywhere they render: each PC rates the rest of the party and a couple
+//             of villagers, each resident/neighbor rates the PCs back, and the steading rates
+//             the eight Other Settlements — every rating carrying a written "How they feel,
+//             why…" note, and the spread deliberately covering all five hearts plus the
+//             unrated, note-only, blank-note and hidden-row cases the table and the standings
+//             board each render differently. Also creates four reusable
 //             world folders — "Moves" and "Items" (Item folders of draggable custom moves and
 //             inventory gear), "Monster" (an Actor folder of three stat blocks), and "NPCs" (an
 //             Actor folder holding one fully-filled example NPC) — so the sidebar Create-Item,
@@ -36,9 +44,13 @@
 //             cross-links to a seeded monster stat block and threat. The singleton actor itself is
 //             never created or deleted — only its test members (each tagged isTest) are added and
 //             later removed.
-// Re-run:     deletes everything this macro created (characters and the test Introductions/
-//             Expedition data), strips the steading's test members, clears the seeded Notes
-//             (only while still untouched), deletes the seeded Threats (and their scene pins,
+// Re-run:     deletes everything this macro created (characters, the resident/neighbor NPCs,
+//             and the test Introductions/Expedition data), strips the steading's test members
+//             (including any villager an older run left behind, whose isTest tag the people
+//             migration dropped when it rewrote the row),
+//             clears the seeded Notes and the seeded Other Settlements ratings (each only while
+//             it still holds exactly what the macro wrote), deletes the seeded Threats (and
+//             their scene pins,
 //             pruning an emptied Threats folder), removes the world Moves/Items/Monsters and the
 //             example NPC (and their now-empty folders), and prunes the matching Chronicle pages.
 
@@ -464,30 +476,334 @@
   // in a test world. Residents / Neighbors are DETERMINISTIC; the Players rows draw a
   // random Occupation / Relations / Notes each run (see buildTestPlayers). Each carries
   // `isTest: true` so the re-run cleanup can strip just these without touching members
-  // the GM added by hand. Shapes mirror what the sheet's add flows produce
-  // (StonetopSteadingSheet): residents `{ name, occupation, traits, relations, notes,
-  // checked }`, neighbors add `home`, players link a created PC + colour fields
-  // `{ id, uuid, name, img, checked, occupation, relations, notes }`.
+  // the GM added by hand.
+  //
+  // Residents and Neighbors are PEOPLE DEFINITIONS, not rows: each one becomes a real
+  // `npc` Actor in the system's "Residents of Stonetop" / "Neighbors of Stonetop" folders
+  // and the steading's flag array holds a `{ uuid, id, name, checked }` POINTER at it —
+  // the post-migration shape every add flow produces today (steading-people.js), which the
+  // roster reads its Occupation / Traits / Relations / Home / Notes cells live off. Two
+  // things follow from getting this right, and both were broken while these were seeded as
+  // legacy plain-text rows: a text row has no actor, so it can never appear on a character
+  // sheet's Relationships section (that group is built from `steadingPeopleActors`); and
+  // the ready-hook migration would have converted them on the next world load, rewriting
+  // each row WITHOUT its `isTest` tag and leaving fixtures this macro could no longer clean
+  // up. The NPCs themselves carry the test flag, so the re-run's actor sweep deletes them.
+  //
   // Occupations / traits / homes are drawn from the suggestion pools in
-  // module/data/steading-members.js so they exercise the combo fields cleanly.
+  // module/data/steading-members.js so they exercise the combo fields cleanly; `instinct`
+  // is the NPC sheet's anchor field (blank on fourteen sheets reads unfinished); and `rels`
+  // is how this person regards the PCs — hearts 1-5 plus the "How they feel, why…" note,
+  // seeded straight into the NPC's `system.relationships` map so their Relationships tab
+  // has content. An entry with no `hearts` stores only the note and stays UNRATED (the
+  // standings board dims it), matching updateRelationship's rule that a note must never
+  // persist a rating nobody made.
   const STEADING_TEST_RESIDENTS = [
-    { name: "Maeve",   occupation: "Homemaker",  traits: "widowed; tender-hearted",            relations: "Pell's mother; still sets a place for her late husband", notes: "Keeps the hearth at the heart of the village.", checked: false, isTest: true },
-    { name: "Tobin",   occupation: "Blacksmith", traits: "gods-fearing; very strong",          relations: "raised more than one of Stonetop's orphans at his forge", notes: "Never once raised his hand to those he took in.",   checked: false, isTest: true },
-    { name: "Ennis",   occupation: "Cooper",     traits: "cautious; loyal friend",             relations: "an understanding with Wren the Ranger",                  notes: "Makes the soundest barrels this side of Marshedge.", checked: false, isTest: true },
-    { name: "Tovia",   occupation: "Baker",      traits: "cheery; good with children",         relations: "the baker's daughter; feeds anyone who knocks after dark", notes: "",                                                  checked: false, isTest: true },
-    { name: "Pell",    occupation: "Watchman",   traits: "lame; has lost their nerve",         relations: "Maeve's son",                                            notes: "Lost three fingers but still drills every morning.", checked: false, isTest: true },
-    { name: "Yannic",  occupation: "Forester",   traits: "restless; gathers herbs from the Wood", relations: "tends the village orchard",                           notes: "Always half a step out the door toward the Great Wood.", checked: false, isTest: true },
-    { name: "Bronwen", occupation: "Midwife",    traits: "well-read; knows all the gossip",    relations: "aunt or great-aunt to half the village",                 notes: "",                                                  checked: false, isTest: true },
-    { name: "Vahid",   occupation: "Publican",   traits: "happy-go-lucky; tells the best jokes", relations: "keeps the public house",                              notes: "Hears every rumor that passes through Stonetop.",    checked: false, isTest: true },
+    {
+      name: "Maeve", occupation: "Homemaker", traits: "widowed; tender-hearted",
+      relations: "Pell's mother; still sets a place for her late husband",
+      instinct: "to keep a hearth burning for whoever comes home",
+      notes: "Keeps the hearth at the heart of the village.",
+      rels: [
+        { name: "Aerin", hearts: 5, notes: "Sat with her the whole of the night her husband died and has never once mentioned it since." },
+        { name: "Coria", hearts: 2, notes: "Her boy went up onto the wall whole and came back down three fingers short. She has been civil about it and nothing more." },
+      ],
+    },
+    {
+      name: "Tobin", occupation: "Blacksmith", traits: "gods-fearing; very strong",
+      relations: "raised more than one of Stonetop's orphans at his forge",
+      instinct: "to make sound work, and to take in whoever needs taking in",
+      notes: "Never once raised his hand to those he took in.",
+      rels: [
+        { name: "Brakkos", hearts: 5, notes: "Broke an axe on a raider's shield and then worked three days at the bellows to pay for the re-hafting, without being asked." },
+        { name: "Pim",     hearts: 4, notes: "The lad is at the forge before the smith some mornings. Tobin has started leaving the fire banked for him and saying nothing about it." },
+      ],
+    },
+    {
+      name: "Ennis", occupation: "Cooper", traits: "cautious; loyal friend",
+      relations: "an understanding with Wren the Ranger",
+      instinct: "to make a thing that holds, and to wait for what he wants",
+      notes: "Makes the soundest barrels this side of Marshedge.",
+      rels: [
+        { name: "Wren",  hearts: 5, notes: "Neither of them has said the word aloud, and Ennis is content to let another season go by before either does." },
+        { name: "Quill", hearts: 2, notes: "Two of his best hoops walked off the yard the week the Fox came home. He has never accused him and he has never forgotten." },
+      ],
+    },
+    {
+      name: "Tovia", occupation: "Baker", traits: "cheery; good with children",
+      relations: "the baker's daughter; feeds anyone who knocks after dark",
+      instinct: "to feed anyone who knocks, whatever the hour",
+      notes: "",
+      rels: [
+        { name: "Pim",  hearts: 4, notes: "Half the square thinks it is a joke and she has stopped correcting them." },
+        { name: "Sael", hearts: 4, notes: "Comes in for bread at first light and leaves the room warmer than he found it." },
+      ],
+    },
+    {
+      name: "Pell", occupation: "Watchman", traits: "lame; has lost their nerve",
+      relations: "Maeve's son",
+      instinct: "to hold the post one more night",
+      notes: "Lost three fingers but still drills every morning.",
+      rels: [
+        { name: "Brakkos", hearts: 5, notes: "Stood over him in the mud until the raiders lost interest. Pell knows exactly how close it was; nobody else does." },
+        { name: "Coria",   hearts: 2, notes: "She sent him to the gate and the gate is where the axe found him. He drills every morning and cannot look at her while he does it." },
+      ],
+    },
+    {
+      name: "Yannic", occupation: "Forester", traits: "restless; gathers herbs from the Wood",
+      relations: "tends the village orchard",
+      instinct: "to be off toward the Wood before anyone can ask him to stay",
+      notes: "Always half a step out the door toward the Great Wood.",
+      rels: [
+        { name: "Wren",            hearts: 5, notes: "The only other soul here who treats the Wood as a neighbour rather than a threat." },
+        { name: "Old Bartholomew", hearts: 2, notes: "The Judge calls the Wood a debt nobody should be taking on. Yannic has stopped arguing and started leaving earlier." },
+      ],
+    },
+    {
+      name: "Bronwen", occupation: "Midwife", traits: "well-read; knows all the gossip",
+      relations: "aunt or great-aunt to half the village",
+      instinct: "to know a thing before it is common knowledge",
+      notes: "",
+      rels: [
+        { name: "Aerin",  hearts: 4, notes: "Between the two of them they have seen every soul in this village into the world or out of it." },
+        { name: "Maelis", hearts: 2, notes: "The girl asks after the old rites the way a magpie asks after a ring. Bronwen answers her less every year." },
+      ],
+    },
+    {
+      name: "Vahid", occupation: "Publican", traits: "happy-go-lucky; tells the best jokes",
+      relations: "keeps the public house",
+      instinct: "to keep the room warm and the talk flowing",
+      notes: "Hears every rumor that passes through Stonetop.",
+      rels: [
+        { name: "Quill", hearts: 5, notes: "Pays for about a third of what he drinks and is worth every cup of the rest for the stories." },
+        { name: "Coria", hearts: 3, notes: "Good for the room and bad for the trade: nobody orders a second when the marshal is stood in the doorway." },
+      ],
+    },
   ];
   const STEADING_TEST_NEIGHBORS = [
-    { name: "Tierney", home: "Marshedge",      occupation: "Merchant",  traits: "gets the best deals; has a wandering eye", relations: "trades Stonetop's whisky down to the coast",     notes: "",                                                checked: false, isTest: true },
-    { name: "Brogan",  home: "Marshedge",      occupation: "Guard",     traits: "has a beef with Marshedge",               relations: "rides with the Claws who run Marshedge's watch", notes: "",                                                checked: false, isTest: true },
-    { name: "Gwilm",   home: "The Steplands",  occupation: "Shepherd",  traits: "fearless; has a way with animals",        relations: "a Hillfolk horselord who trades horn and hide", notes: "",                                                checked: false, isTest: true },
-    { name: "Caradoc", home: "Gordin's Delve", occupation: "Miller",    traits: "stoic; well-traveled",                    relations: "supplies Stonetop's metal and tools",           notes: "Wary of the mask-wearing Ustrina from the deep.", checked: false, isTest: true },
-    { name: "Demetra", home: "Lygos",          occupation: "Scribe",    traits: "ambitious; well-read",                    relations: "a southern factor eyeing Stonetop's surplus",   notes: "",                                                checked: false, isTest: true },
-    { name: "Rhys",    home: "Barrier Pass",   occupation: "Herbalist", traits: "humorless; keeps to themselves",          relations: "rarely deals with outsiders",                   notes: "Lives behind the great gate on goats and sheep.", checked: false, isTest: true },
+    {
+      name: "Tierney", home: "Marshedge", occupation: "Merchant", traits: "gets the best deals; has a wandering eye",
+      relations: "trades Stonetop's whisky down to the coast",
+      instinct: "to get the better end of every bargain, twice if he can",
+      notes: "",
+      rels: [
+        { name: "Quill", hearts: 3, notes: "Sharp, and cheap to buy for an evening. Tierney has not decided yet whether that makes him useful or dangerous." },
+        { name: "Coria", hearts: 2, notes: "Asks after his ledgers in a way he does not care for at all." },
+      ],
+    },
+    {
+      name: "Brogan", home: "Marshedge", occupation: "Guard", traits: "has a beef with Marshedge",
+      relations: "rides with the Claws who run Marshedge's watch",
+      instinct: "to be owed a favour by everyone who matters",
+      notes: "",
+      rels: [
+        { name: "Coria",   hearts: 1, notes: "She turned his riders back at the Maker's Road in front of their own men, and he has been telling the story his way ever since." },
+        { name: "Brakkos", hearts: 2, notes: "Too big to push and too well liked to buy. Brogan would sooner he stayed on his own side of the Fen." },
+      ],
+    },
+    {
+      name: "Gwilm", home: "The Steplands", occupation: "Shepherd", traits: "fearless; has a way with animals",
+      relations: "a Hillfolk horselord who trades horn and hide",
+      instinct: "to keep the herd fed and the clans out of a war they cannot win",
+      notes: "",
+      rels: [
+        { name: "Wren", hearts: 4, notes: "Reads ground the way a horselord does. Gwilm has offered her a place at his fire twice." },
+        { name: "Pim",  hearts: 5, notes: "Asked to hear the whole telling of the Titan Bones, sat through all of it, and asked for it again the next night." },
+      ],
+    },
+    {
+      name: "Caradoc", home: "Gordin's Delve", occupation: "Miller", traits: "stoic; well-traveled",
+      relations: "supplies Stonetop's metal and tools",
+      instinct: "to keep the road between the Delve and Stonetop open",
+      notes: "Wary of the mask-wearing Ustrina from the deep.",
+      rels: [
+        { name: "Old Bartholomew", hearts: 4, notes: "A man who says what a thing will cost and then charges exactly that. Rare in any town, rarer in the Delve." },
+        { name: "Maelis",          hearts: 3, notes: "Wants to be taken down into the deep workings. He has said no three times and expects to say it again." },
+      ],
+    },
+    {
+      name: "Demetra", home: "Lygos", occupation: "Scribe", traits: "ambitious; well-read",
+      relations: "a southern factor eyeing Stonetop's surplus",
+      instinct: "to write Stonetop into a ledger somewhere far to the south",
+      notes: "",
+      rels: [
+        { name: "Maelis",          hearts: 4, notes: "The only person north of the Manmarch worth writing a letter to, and she answers every one." },
+        { name: "Old Bartholomew", hearts: 2, notes: "Treats a signed contract as a suggestion and the old ways as law. It makes him impossible to file." },
+      ],
+    },
+    {
+      name: "Rhys", home: "Barrier Pass", occupation: "Herbalist", traits: "humorless; keeps to themselves",
+      relations: "rarely deals with outsiders",
+      instinct: "to be left alone behind the great gate",
+      notes: "Lives behind the great gate on goats and sheep.",
+      rels: [
+        { name: "Sael",  hearts: 1, notes: "Came up to the gate at dusk carrying an open flame and singing. They have not opened it to him since." },
+        { name: "Aerin", hearts: 3, notes: "Asked after the winter stores before she asked after anything else. They will grant her that much." },
+      ],
+    },
   ];
+
+  // ── Relationship fixtures (hearts + "How they feel, why…" notes) ───────
+  // The same 1-5 hearts component renders on three surfaces (module/utils/
+  // relationship-hearts.js + relationship-board.js), and each stores the identical shape:
+  // `system.relationships` is a map of key → { hearts?, notes?, shown? }, sparse by design.
+  //   • character sheet, foot of Details — this PC's regard for the other PCs and for the
+  //     steading's people (keyed by ACTOR ID);
+  //   • NPC sheet, Relationships tab — how that villager regards each PC (actor id);
+  //   • steading sheet, Other Settlements — how Stonetop stands with the eight communities
+  //     in module/data/settlements.js (keyed by settlement SLUG, not an id).
+  //
+  // The macro is standalone and can't import updateRelationship, so buildRelEntry below
+  // reproduces its one non-obvious rule: a field is written only once it has actually been
+  // SET. That is what keeps the four storage states distinguishable, and the fixtures below
+  // deliberately cover all four so both views can be eyeballed against each:
+  //   1. rated + note      — the common case, and what the board sorts warmest-first;
+  //   2. rated, no note    — the note field renders as its empty placeholder;
+  //   3. note, NO rating   — `hasStoredRating` is false, so the board dims the card and
+  //                          marks it unrated; padding it with a neutral 3 here would
+  //                          fabricate a verdict nobody made;
+  //   4. shown: false      — stored and rated, but filtered out of play mode; the row only
+  //                          appears under the section's pencil.
+  // Ratings are deliberately ASYMMETRIC (Brakkos is short with Pim; Pim worships him), since
+  // each side is its own stored entry and nothing reconciles them.
+  const buildRelEntry = ({ hearts, notes, shown } = {}) => {
+    const entry = {};
+    if (Number.isFinite(hearts)) entry.hearts = Math.max(1, Math.min(5, Math.trunc(hearts)));
+    if (notes) entry.notes = String(notes);
+    if (shown !== undefined) entry.shown = !!shown;
+    return entry;
+  };
+
+  // "Is this stored entry still exactly what we seeded?" — the test behind every
+  // never-clobber-the-GM decision about a settlement standing. Compares the three fields
+  // an entry can hold rather than the objects wholesale: what comes back out of the
+  // ObjectField is a plain object whose key ORDER is not guaranteed, so a stringify
+  // comparison would report a false difference and quietly strand the seed forever.
+  const sameRelEntry = (a, b) => {
+    if (!a || typeof a !== "object" || !b || typeof b !== "object") return false;
+    return a.hearts === b.hearts && (a.notes ?? "") === (b.notes ?? "") && a.shown === b.shown;
+  };
+
+  // How each PC regards the rest of the party and a couple of the steading's people, keyed
+  // by the PRESET character name. Targets are resolved by name against the created PCs
+  // first, then the seeded villagers; an unresolvable name is skipped, so trimming the
+  // roster (SKIP_PLAYBOOKS) or a missing steading can't throw. Villager targets get an
+  // explicit `shown: true` because that group starts HIDDEN on the character sheet
+  // (defaultShown false in _buildRelationshipRows) — without it a rated villager would only
+  // show under the pencil, which is what case 4 above is for and not what these want.
+  const PC_RELATIONSHIPS = {
+    Aerin: [
+      { name: "Pim",             hearts: 5, notes: "She has known the boy since he was small enough to hide behind her skirts, and she would still put herself between him and whatever came." },
+      { name: "Brakkos",         hearts: 4, notes: "Carried Maeve's water up the hill every morning of the winter and never mentioned it to a soul." },
+      { name: "Old Bartholomew", hearts: 3, notes: "The law and her god ask different things of the same tired people. They are unfailingly courteous about it." },
+      { name: "Sael",            hearts: 2, notes: "They serve the same light and cannot agree on what it wants. His certainty frightens her more than any darkness has." },
+      // Case 3: a written note with no rating at all — the board dims this card and marks it
+      // unrated rather than filing it under Neutral.
+      { name: "Quill",                      notes: "She cannot make up her mind about the Fox, and she is honest enough to leave the question open rather than guess at it." },
+      { name: "Maeve",           hearts: 5, notes: "The steadiest woman in Stonetop, and the one who least believes it of herself." },
+      { name: "Bronwen",         hearts: 4, notes: "Knows every secret in the village and has never once traded one for advantage." },
+    ],
+    Quill: [
+      // A deliberately LONG note: the board's card note is an expandable textarea, so this is
+      // the row that overflows one line and grows its chevron.
+      { name: "Wren",            hearts: 5, notes: "She found him half-frozen on the Maker's Road at the back end of winter and never once asked what he had been doing out there in the dark. He has never worked out how to say what that was worth, so he has settled for being wherever she happens to need him, which she has never asked for either." },
+      { name: "Pim",             hearts: 4, notes: "The lad trails after him like a duckling. It is deeply annoying and he would not have it otherwise." },
+      // Case 2: rated, no note — the note field shows its "How they feel, why…" placeholder.
+      { name: "Maelis",          hearts: 3 },
+      { name: "Old Bartholomew", hearts: 2, notes: "The Judge sees a thief before he sees a man, and has never troubled himself to look twice." },
+      { name: "Coria",           hearts: 1, notes: "She has had him in the stocks twice and would put him there a third time before breakfast if the mood took her." },
+      { name: "Vahid",           hearts: 5, notes: "Keeps a tab, keeps a secret, and keeps the good chair by the fire empty until he turns up." },
+      { name: "Tierney",         hearts: 2, notes: "Buys cheap from people who need the coin that week. Quill has watched him do it and remembers." },
+    ],
+    Brakkos: [
+      { name: "Aerin",           hearts: 5, notes: "Steady as a foundation stone. When she says a thing is worth doing he stops arguing and picks it up." },
+      { name: "Coria",           hearts: 4, notes: "Drills the militia twice a week and has never asked anyone to stand where she would not stand herself." },
+      { name: "Maelis",          hearts: 3, notes: "Reads too much and looks up too little. Somebody will have to be watching her when it matters." },
+      { name: "Pim",             hearts: 2, notes: "The boy will get himself killed proving a point and it will be Brakkos who carries him home. He is short with him for that reason and no other." },
+      { name: "Quill",           hearts: 2, notes: "Light fingers make a small village poorer, and he has said so to the Fox's face more than once." },
+      { name: "Tobin",           hearts: 5, notes: "Took him in when nobody else would have the size of him in their house." },
+      { name: "Pell",            hearts: 4, notes: "Went back onto the wall with three fingers gone. Brakkos will not hear a word said against him." },
+    ],
+    "Old Bartholomew": [
+      { name: "Coria",           hearts: 4, notes: "The one other person in Stonetop who understands that a rule kept only when convenient was never a rule." },
+      { name: "Aerin",           hearts: 4, notes: "They disagree on nearly everything, and he would still rather have her beside him at a hard meeting than anyone else." },
+      { name: "Maelis",          hearts: 2, notes: "She digs where the old folk had the sense to leave the earth alone, and calls it scholarship." },
+      { name: "Pim",             hearts: 2, notes: "All heat and no ballast. The boy would burn the village down to have a song made about him." },
+      { name: "Quill",           hearts: 1, notes: "A thief is a thief until the day he makes restitution, and that day has not come." },
+      { name: "Caradoc",         hearts: 4, notes: "Says what a thing will cost and then charges exactly that. There is no higher praise in the Judge's vocabulary." },
+      { name: "Bronwen",         hearts: 2, notes: "Half of what the square believes about him started at her table, and she knows it." },
+    ],
+    Sael: [
+      { name: "Maelis",          hearts: 5, notes: "The only one who asks what the light IS rather than what it can be made to do. He has told her things he has told nobody." },
+      { name: "Aerin",           hearts: 4, notes: "She tends her god the way a farmer tends a field. He envies that more than he lets on." },
+      // Case 4: rated and stored, but unticked — visible only under the section's pencil, so
+      // the play-mode filter has something to hide.
+      { name: "Wren",            hearts: 4, notes: "He has not decided what to make of her yet, and would rather not have the whole table reading his working.", shown: false },
+      { name: "Brakkos",         hearts: 3, notes: "Good in the dark. Better than he knows, and Sael has not told him so." },
+      { name: "Coria",           hearts: 2, notes: "She would keep every lantern inside the wall and call it prudence." },
+      { name: "Tovia",           hearts: 4, notes: "First light, warm bread, and not one question about the lantern. Some mornings that is the whole of it." },
+      { name: "Rhys",            hearts: 2, notes: "Shut the great gate in his face and left him on the mountain overnight. He is still deciding how to feel about that." },
+    ],
+    Coria: [
+      { name: "Brakkos",         hearts: 5, notes: "When the line broke at the gate, he was the reason it did not stay broken." },
+      { name: "Old Bartholomew", hearts: 4, notes: "Slow, stubborn, and right rather more often than she cares to admit." },
+      { name: "Aerin",           hearts: 4, notes: "Walks into the worst room in the village and makes it a quieter one. Coria has never managed that trick." },
+      { name: "Pim",             hearts: 3, notes: "Wants the boy nowhere near a real fight until he stops looking forward to one." },
+      { name: "Quill",           hearts: 2, notes: "Useful, and a liability, and she has not yet settled which he is more of." },
+      { name: "Pell",            hearts: 4, notes: "She sent him to that gate. He came back and went on drilling, and she has never once found the words." },
+      { name: "Brogan",          hearts: 1, notes: "Rode up the Maker's Road with eight men and called it an escort. She counted them out loud." },
+    ],
+    Wren: [
+      { name: "Quill",           hearts: 4, notes: "Came home half-frozen and made a joke of it, which is how she knew how bad it had been." },
+      { name: "Maelis",          hearts: 4, notes: "Asks the right questions about the wrong places, and listens to the answers." },
+      { name: "Pim",             hearts: 4, notes: "Wants the border walked with him every time. She has stopped pretending it is a chore." },
+      { name: "Coria",           hearts: 3, notes: "Watches the wall and calls that the border. It is half a border and Wren walks the other half." },
+      { name: "Sael",            hearts: 2, notes: "Carries fire into places that have done nothing to deserve it." },
+      { name: "Ennis",           hearts: 5, notes: "An understanding, and neither of them has said the word aloud. She is in no hurry either." },
+      { name: "Yannic",          hearts: 4, notes: "Reads the Wood nearly as well as she does and takes half the care doing it." },
+    ],
+    Maelis: [
+      { name: "Sael",            hearts: 5, notes: "He answers the question she actually asked, which nobody else in this village has managed." },
+      { name: "Wren",            hearts: 4, notes: "Will walk her to a ruin, wait outside it, and never once ask what she wanted with the place." },
+      { name: "Pim",             hearts: 3, notes: "Carries her packs up the barrow without being asked and then asks a great many questions." },
+      { name: "Brakkos",         hearts: 2, notes: "Calls her work 'the reading'. It is not affectionate." },
+      { name: "Old Bartholomew", hearts: 1, notes: "He would have her stop asking and he has the standing to make it stick. She has not forgiven the business at the barrow." },
+      { name: "Vahid",           hearts: 4, notes: "Every rumour in the Flats passes through his taproom and he remembers all of them in order." },
+      { name: "Demetra",         hearts: 3, notes: "Writes back within the season, which is more than the Delve manages, and wants something for it." },
+    ],
+    Pim: [
+      { name: "Brakkos",         hearts: 5, notes: "The biggest, strongest, bravest man Pim has ever seen, and he sparred with him twice without laughing once." },
+      { name: "Aerin",           hearts: 5, notes: "The only grown soul in Stonetop who has never once told him to sit down and wait his turn." },
+      { name: "Coria",           hearts: 4, notes: "Said he had good feet. It was one word and he has lived off it for a month." },
+      { name: "Quill",           hearts: 4, notes: "Knows every roof in the village and has taught him three of them." },
+      { name: "Old Bartholomew", hearts: 1, notes: "Told him in front of the whole square that ambition without ballast drowns a village. He has not stopped hearing it since." },
+      { name: "Tobin",           hearts: 4, notes: "Leaves the forge fire banked for him and pretends it was an accident." },
+      { name: "Gwilm",           hearts: 5, notes: "Told him the whole telling of the Titan Bones and did not once talk down to him." },
+    ],
+  };
+
+  // How Stonetop stands with the wider world — the steading sheet's own relations table,
+  // keyed by the settlement SLUGS in module/data/settlements.js (the roster is static, so
+  // these keys are the storage keys; renaming one there orphans the rating). Same four
+  // storage states as the PC table: a spread of 5..1, one note-only unrated entry, and one
+  // rated row deliberately unticked so the play-mode filter drops it.
+  //
+  // The steading is the world's SINGLETON and is never deleted, so unlike everything else
+  // this macro writes these entries need their own cleanup — see the delete branch, which
+  // removes only the ones still holding exactly what was written here.
+  const TEST_SETTLEMENT_RELS = {
+    "gordins-delve":  { hearts: 5, notes: "Four days west and worth every one of them: near enough every sound tool in the village came up the West Road from the Delve." },
+    "barrier-pass":   { hearts: 4, notes: "Closed, stoic, and dependable. The one trade track in the books that has never yet failed to be there." },
+    "marshedge":      { hearts: 3, notes: "The richest neighbour and the most interested in what Stonetop has. The trade is good; the Council's attention is not." },
+    // Note only, no rating: nobody here knows enough about the Manmarch to have judged it,
+    // and the board says so rather than filing it under Neutral.
+    "north-manmarch": {            notes: "Hundreds of hamlets under a half-dozen hillfort chiefs, and nobody here can say which of them speaks for the rest." },
+    // Rated but unticked — visible under the Other Settlements pencil, dropped in play mode.
+    "lygos":          { hearts: 3, notes: "A rare caravan and a great deal of southern paperwork. Kept off the list until somebody here has met a Lygotian twice.", shown: false },
+    "ustrina":        { hearts: 2, notes: "Masked, black-robed, and never quite explaining themselves. Their steel is good and their terms are worse." },
+    "the-fae":        { hearts: 2, notes: "Fickle powers of wood and fen. A bargain with them is kept exactly as it was struck and never as it was meant." },
+    "hillfolk":       { hearts: 1, notes: "Raiders out of the Steplands took the winter stores and left Brennan dead at the gate. Nobody here is ready to hear about the bands that had no part in it." },
+  };
 
   // Formatted rich-text seeded into the steading's Notes tab (the prose-mirror editor
   // bound to flags["stonetop-pwd"].steading.notes, rendered through TextEditor.enrichHTML).
@@ -901,6 +1217,7 @@
     // leaving members the GM added by hand untouched. The singleton actor is never deleted.
     const steadingDel  = game.actors.find(a => a.type === "stonetop" || a.system?.customType === "stonetop");
     const steadingFlags = readSteadingFlags(steadingDel);
+    let strayPeople = 0;
     if (steadingFlags) {
       let memberChanged = false;
       for (const key of ["residents", "neighbors", "players"]) {
@@ -909,10 +1226,60 @@
         const next = arr.filter(m => !m?.isTest);
         if (next.length !== arr.length) { steadingFlags[key] = next; memberChanged = true; }
       }
+      // Legacy sweep: earlier versions seeded Residents/Neighbors as plain-TEXT rows, and the
+      // ready-hook migration (steading-people.js#migrateSteadingPeople) rewrote each of those
+      // into an NPC actor + pointer row on the next world load — dropping `isTest` in the
+      // process, so neither the row filter above nor the actor sweep can see them and every
+      // re-run would stack another copy of the village. Recognise a stray by matching one of
+      // our fixtures EXACTLY: same name, sitting in a people folder, and carrying the three
+      // columns migration copied verbatim. An NPC the GM wrote would have to match all of
+      // that to be caught, at which point it IS one of ours.
+      const FIXTURE_PEOPLE  = new Map([...STEADING_TEST_RESIDENTS, ...STEADING_TEST_NEIGHBORS].map(p => [p.name, p]));
+      const PEOPLE_FOLDER_NAMES = new Set(["Residents of Stonetop", "Neighbors of Stonetop"]);
+      const strayIds = new Set();
+      for (const key of ["residents", "neighbors"]) {
+        const arr = steadingFlags[key];
+        if (!Array.isArray(arr)) continue;
+        const next = arr.filter(row => {
+          const actor = (row?.id ? game.actors.get(row.id) : null)
+            ?? (row?.uuid ? game.actors.find(a => a.uuid === row.uuid) : null);
+          const seed  = actor ? FIXTURE_PEOPLE.get(actor.name) : null;
+          // No actor (already deleted, or a legacy text row) or a name we never seeded: keep.
+          if (!actor || !seed) return true;
+          if (actor.getFlag(FLAG_SCOPE, TEST_FLAG)) return true;   // ours, and already handled
+          if (!PEOPLE_FOLDER_NAMES.has(actor.folder?.name)) return true;
+          const s = actor.system ?? {};
+          if ((s.occupation ?? "") !== (seed.occupation ?? "")) return true;
+          if ((s.traits ?? "")     !== (seed.traits ?? ""))     return true;
+          if ((s.relations ?? "")  !== (seed.relations ?? ""))  return true;
+          strayIds.add(actor.id);
+          return false;
+        });
+        if (next.length !== arr.length) { steadingFlags[key] = next; memberChanged = true; }
+      }
+      if (strayIds.size) await Actor.deleteDocuments([...strayIds]);
+      strayPeople = strayIds.size;
+
       // Clear the seeded formatted Notes only while they still hold this exact test
       // content (leave notes the GM has since edited alone).
       if (steadingFlags.notes === TEST_STEADING_NOTES) { steadingFlags.notes = ""; memberChanged = true; }
       if (memberChanged) await steadingDel.setFlag(FLAG_SCOPE, "steading", steadingFlags);
+
+      // Clear the seeded "Other Settlements" ratings. Everything else this macro writes
+      // rides on a document it deletes; these live in the singleton steading's
+      // `system.relationships` and would otherwise outlive every cleanup. Same rule as the
+      // Notes above: a slug is dropped only while it still holds EXACTLY what was seeded,
+      // so a rating the GM has since moved (or a note they extended) is theirs and stays.
+      // An update MERGES, so a key is removed with the "-=" deletion syntax rather than by
+      // writing the object back without it.
+      const relKill = {};
+      for (const [slug, seed] of Object.entries(TEST_SETTLEMENT_RELS)) {
+        const stored = steadingDel.system?.relationships?.[slug];
+        if (stored === undefined) continue;
+        if (!sameRelEntry(stored, buildRelEntry(seed))) continue;
+        relKill[`system.relationships.-=${slug}`] = null;
+      }
+      if (Object.keys(relKill).length) await steadingDel.update(relKill);
       // Legacy: the "<name> Threats" FOLDER an older version of this macro created, plus the
       // steading's stale pointer to it. Dropped once it's empty; setFlag MERGES (can't drop a
       // key), so the pointer is cleared with the "-=" deletion syntax. Left intact when the GM
@@ -939,7 +1306,7 @@
         if (!f.contents.length) await f.delete();
       }
     }
-    ui.notifications.info(`[TEST] Deleted ${existing.length} test actor(s), ${testItems.length} item(s), ${testThreatCount} threat(s), and their test data.`);
+    ui.notifications.info(`[TEST] Deleted ${existing.length} test actor(s), ${testItems.length} item(s), ${testThreatCount} threat(s)${strayPeople ? `, ${strayPeople} migrated resident/neighbor NPC(s) an older run left behind` : ""}, and their test data.`);
     return;
   }
 
@@ -1841,6 +2208,103 @@
     return npc;
   };
 
+  // ── Steading people: the Residents / Neighbors NPC actors ──────────────
+  // The two Actor folders the steading's people live in, mirroring PEOPLE_FOLDERS in
+  // module/actors/steading/steading-people.js — same names and colours, so the seeded NPCs
+  // land in the folders the system itself creates on every load and uses for its own add
+  // flows. Deliberately NOT flagged isTest: they are the system's folders, not ours, so the
+  // empty-flagged-folder prune must leave them (and ensurePeopleFolders puts them back
+  // anyway). Only the NPCs inside carry the flag.
+  const PEOPLE_FOLDERS = {
+    residents: { name: "Residents of Stonetop", color: "#7a5c3e" },
+    neighbors: { name: "Neighbors of Stonetop", color: "#5c6b7a" },
+  };
+  const ensurePeopleFolder = async (list) => {
+    const spec = PEOPLE_FOLDERS[list];
+    if (!spec) return null;
+    let f = game.folders?.find(x => x.type === "Actor" && x.name === spec.name);
+    if (!f) f = await Folder.create({ name: spec.name, type: "Actor", color: spec.color });
+    return f;
+  };
+
+  // Shape one person definition into `npc` Actor data, mirroring createPersonNpc: the roster
+  // columns map to system fields, a resident's Home defaults to "Stonetop" (they live there
+  // by definition), and the actor carries OBSERVER by default because Residents/Neighbors
+  // show on the often player-visible steading sheet — unlike GM-prep monsters and threats.
+  // `notes` is an HTMLField rendered through enrichHTML in the roster's Notes cell, so the
+  // plain line is paragraph-wrapped rather than dropped in raw. `rels` become the NPC's own
+  // per-PC hearts, resolved by character name against the PCs this run created.
+  const buildPersonNpcData = (person, list, pcs, folderId) => {
+    const relationships = {};
+    for (const r of (person.rels ?? [])) {
+      const pc = (pcs ?? []).find(a => a?.name === r.name);
+      if (!pc) continue;
+      const entry = buildRelEntry(r);
+      if (Object.keys(entry).length) relationships[pc.id] = entry;
+    }
+    return {
+      name: person.name,
+      type: "npc",
+      folder: folderId ?? null,
+      ownership: { default: OBSERVER },
+      system: {
+        occupation: person.occupation ?? "",
+        traits:     person.traits ?? "",
+        relations:  person.relations ?? "",
+        home:       person.home ?? (list === "residents" ? "Stonetop" : ""),
+        instinct:   person.instinct ?? "",
+        notes:      person.notes ? `<p>${person.notes}</p>` : "",
+        relationships,
+      },
+      flags: { [FLAG_SCOPE]: { [TEST_FLAG]: true } },
+    };
+  };
+
+  // Create every Resident / Neighbor NPC and return both the steading rows that point at
+  // them and the actors themselves (the character sheets rate them next). Row shape matches
+  // StonetopSteading#addPersonRow exactly — { uuid, id, name, checked } — plus the isTest tag
+  // the row-stripping cleanup keys off.
+  const seedSteadingPeople = async (pcs) => {
+    const out = { residents: [], neighbors: [], actors: [] };
+    for (const [list, people] of [["residents", STEADING_TEST_RESIDENTS], ["neighbors", STEADING_TEST_NEIGHBORS]]) {
+      const folder = await ensurePeopleFolder(list);
+      const docs = await Actor.createDocuments(people.map(p => buildPersonNpcData(p, list, pcs, folder?.id)));
+      for (const actor of (docs ?? [])) {
+        out[list].push({ uuid: actor.uuid, id: actor.id, name: actor.name, checked: false, isTest: true });
+        out.actors.push(actor);
+      }
+    }
+    return out;
+  };
+
+  // Write each PC's outgoing relationships (PC_RELATIONSHIPS) onto the character. Keyed per
+  // row rather than as one `system.relationships` object so the write merges with anything
+  // already stored, exactly as updateRelationship does. Runs after BOTH the characters and
+  // the villagers exist, since every key is a live actor id.
+  const seedPcRelationships = async (pcs, villagers) => {
+    const byName      = new Map([...(pcs ?? []), ...(villagers ?? [])].map(a => [a.name, a]));
+    const villagerIds = new Set((villagers ?? []).map(a => a.id));
+    let written = 0;
+    for (const pc of (pcs ?? [])) {
+      const update = {};
+      for (const edge of (PC_RELATIONSHIPS[pc.name] ?? [])) {
+        const target = byName.get(edge.name);
+        if (!target || target.id === pc.id) continue;
+        // Steading people start hidden in this section; a rated villager needs the explicit
+        // tick or the row never leaves edit mode. An edge that sets `shown` itself wins.
+        const shown = edge.shown ?? (villagerIds.has(target.id) ? true : undefined);
+        const entry = buildRelEntry({ ...edge, shown });
+        if (!Object.keys(entry).length) continue;
+        update[`system.relationships.${target.id}`] = entry;
+      }
+      const keys = Object.keys(update).length;
+      if (!keys) continue;
+      await pc.update(update);
+      written += keys;
+    }
+    return written;
+  };
+
   // ── Create one character per playbook ──────────────────────────────────
   ui.notifications.info(maxLevel
     ? "[TEST] Creating test characters and maxing their level — this may take a moment…"
@@ -1965,17 +2429,21 @@
   const testMonsters = await seedTestWorldContent();
 
   // ── Seed the steading "Stonetop" with test members ─────────────────────
-  // Append the thematic Residents / Neighbors and link the created PCs as Players, so
-  // the steading sheet's member tables aren't empty. Merge alongside any existing
-  // members (each test row carries isTest, so re-runs replace only our own additions:
-  // strip prior isTest rows first to stay idempotent if a partial run left some behind).
+  // Create the thematic Residents / Neighbors as `npc` Actors, file a pointer row for each
+  // on the steading, and link the created PCs as Players, so the steading sheet's member
+  // tables aren't empty. Merge alongside any existing members (each test row carries isTest,
+  // so re-runs replace only our own additions: strip prior isTest rows first to stay
+  // idempotent if a partial run left some behind).
   let testThreatPages = [];
+  let testVillagers   = [];
   const steading = game.actors.find(a => a.type === "stonetop" || a.system?.customType === "stonetop");
   if (steading) {
     const sf = readSteadingFlags(steading);
     const keepReal = (arr) => (Array.isArray(arr) ? arr : []).filter(m => !m?.isTest);
-    sf.residents = [...keepReal(sf.residents), ...STEADING_TEST_RESIDENTS];
-    sf.neighbors = [...keepReal(sf.neighbors), ...STEADING_TEST_NEIGHBORS];
+    const people = await seedSteadingPeople(created);
+    testVillagers = people.actors;
+    sf.residents = [...keepReal(sf.residents), ...people.residents];
+    sf.neighbors = [...keepReal(sf.neighbors), ...people.neighbors];
     sf.players   = [...keepReal(sf.players),   ...buildTestPlayers(created)];
     // Seed the demonstration formatted Notes only when the tab is empty (or still holds a
     // prior copy of this exact test content) — never clobber notes the GM wrote by hand.
@@ -1989,10 +2457,33 @@
     testThreatPages = threatPages;
     if (threatsEntryId) sf.threatsEntryId = threatsEntryId;
     await steading.setFlag(FLAG_SCOPE, "steading", sf);
-    console.log(`[TEST] Seeded steading "${steading.name}": ${STEADING_TEST_RESIDENTS.length} residents, ${STEADING_TEST_NEIGHBORS.length} neighbors, ${created.length} players${notesSeeded ? ", formatted Notes" : " (left existing Notes untouched)"}${threatsEntryId ? `, ${testThreatPages.length} threats` : ""}.`);
+
+    // Other Settlements — the steading's own relations table, keyed by settlement slug (see
+    // TEST_SETTLEMENT_RELS). Written to `system.relationships`, NOT to the steading flags.
+    // A slug is seeded only while it is untouched or still holds a prior copy of this exact
+    // seed, on the same rule as the Notes above: never overwrite a standing the GM set.
+    const relUpdate = {};
+    let relSkipped  = 0;
+    for (const [slug, seed] of Object.entries(TEST_SETTLEMENT_RELS)) {
+      const entry  = buildRelEntry(seed);
+      const stored = steading.system?.relationships?.[slug];
+      if (stored !== undefined && !sameRelEntry(stored, entry)) { relSkipped++; continue; }
+      relUpdate[`system.relationships.${slug}`] = entry;
+    }
+    if (Object.keys(relUpdate).length) await steading.update(relUpdate);
+
+    console.log(`[TEST] Seeded steading "${steading.name}": ${people.residents.length} residents, ${people.neighbors.length} neighbors (as NPC actors), ${created.length} players${notesSeeded ? ", formatted Notes" : " (left existing Notes untouched)"}${threatsEntryId ? `, ${testThreatPages.length} threats` : ""}, ${Object.keys(relUpdate).length}/${Object.keys(TEST_SETTLEMENT_RELS).length} settlement standings${relSkipped ? ` (left ${relSkipped} the GM had already rated)` : ""}.`);
   } else {
-    ui.notifications.warn("[TEST] No steading actor found — skipped seeding residents/neighbors/players/notes/threats.");
+    ui.notifications.warn("[TEST] No steading actor found — skipped seeding residents/neighbors/players/notes/threats/settlement standings.");
   }
+
+  // ── Relationship hearts on the character sheets ────────────────────────
+  // Last of the actor passes, because every key is a live actor id: the PCs above rate one
+  // another AND the villagers just created (a villager row also gets an explicit tick, since
+  // the steading's people start hidden in that section). Stored on each character, so the
+  // re-run's Actor.deleteDocuments takes them down with the sheet — no cleanup of its own.
+  const relCount = await seedPcRelationships(created, testVillagers);
+  console.log(`[TEST] Seeded ${relCount} relationship ratings across ${created.length} character sheet(s).`);
 
   // ── Seed the example NPC ───────────────────────────────────────────────
   // One fully-filled `npc` Actor, cross-linked to a seeded Monster stat block + Threat and to
@@ -2018,7 +2509,7 @@
   // is somehow run before onReady wires up the API.)
   await game.stonetop?.saveChronicle?.();
 
-  ui.notifications.info(`[TEST] Done — ${playbookDocs.length} characters${maxLevel ? " (maxed to level " + (created[0]?.system?.attributes?.level?.value ?? "?") + "+, arcana scattered)" : ""}, each with a test custom move + follower, ${TEST_WORLD_MOVES.length} world moves, ${TEST_WORLD_ITEMS.length} world items, ${TEST_MONSTERS.length} monsters and one example NPC, ${steading ? "seeded steading members, Notes + 3 threats, " : ""}introductions answers, an example expedition, and the compiled Chronicle.`);
+  ui.notifications.info(`[TEST] Done — ${playbookDocs.length} characters${maxLevel ? " (maxed to level " + (created[0]?.system?.attributes?.level?.value ?? "?") + "+, arcana scattered)" : ""}, each with a test custom move + follower, ${TEST_WORLD_MOVES.length} world moves, ${TEST_WORLD_ITEMS.length} world items, ${TEST_MONSTERS.length} monsters and one example NPC, ${steading ? `${testVillagers.length} resident/neighbor NPCs, seeded steading members, Notes + 3 threats, settlement standings, ` : ""}${relCount} relationship ratings, introductions answers, an example expedition, and the compiled Chronicle.`);
   } finally {
     globalThis.__stonetopTestFixturesRunning = false;
   }

@@ -3037,6 +3037,13 @@ input.stonetop-name-field {
    nothing when clicked. */
 .stonetop-readonly .stonetop-rel-view-btn,
 .stonetop-readonly .stonetop-rel-lane-btn,
+/* And the up/down strip beside it: arranging a column is the same kind of play-time
+   bookkeeping as rating one, gated on the same canRate the template already checks. */
+.stonetop-readonly .stonetop-rel-order-btn,
+/* And the card note's expand chevron, for the same reason again: it writes nothing at all,
+   it only shows the rest of a note too long for one line — which is precisely what a viewer
+   who cannot type in the field has no other way to reach. */
+.stonetop-readonly .stonetop-rel-note-toggle,
 .stonetop-readonly .stonetop-item-resource-check {
 	pointer-events: auto;
 	opacity: 1;
@@ -23673,7 +23680,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    once, grouped, so the two cannot drift; each strip's own block then carries only what it
    genuinely differs on (sizing, spacing, fill and type). */
 .stonetop-rel-viewpicker .stonetop-rel-view-btn,
-.stonetop-rel-lane-picker .stonetop-rel-lane-btn {
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn,
+.stonetop-rel-order-picker .stonetop-rel-order-btn {
 	/* inline-flex + width:auto, or core's block-level button rules (display:flex,
 	   width:100%) give each option its own row and the strip stacks vertically.
 	   min-height:0 for the same reason. Mirrors .stonetop-cf-tag. */
@@ -23850,8 +23858,16 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	min-width: 0;
 }
 
+/* Shrink-to-fit, NOT `flex: 1 1 auto`. The actor-backed variant of this element is an <a>,
+   and stretching it made every empty pixel between the name and the badge part of the link —
+   which also made that strip UNDRAGGABLE, since wireLaneDrag refuses to arm on an `a` (so a
+   card is mostly grabbed by its own name's trailing whitespace). The auto right margin takes
+   over pushing the badge to the card's right edge, so the layout is unchanged; only the hit
+   area shrinks to the text. min-width: 0 still lets a long name shrink below its own text, so
+   the ellipsis keeps working. */
 .stonetop-rel-card-name {
-	flex: 1 1 auto;
+	flex: 0 1 auto;
+	margin-right: auto;
 	min-width: 0;
 	overflow: hidden;
 	font-family: var(--font-stonetop);
@@ -23925,14 +23941,147 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    untouched person distinguishable from a deliberate 3, which sparse storage cannot
    otherwise tell apart. See the .stonetop-rel-card--unrated block above. */
 
+/* ── The card's note, expandable ──────────────────────────────────────────── */
+
+/* A <textarea> here, not the table's <input> — the one place the two views' markup diverges.
+   A card is ~180px wide, so most notes run past the line they are clipped to, and unlike the
+   table's Notes column there is no border to drag wider and no tooltip to fall back on. The
+   chevron (and focusing the field) opens it to every line it holds.
+
+   Collapsed it has to BE the table's field, and the existing .stonetop-rel-note-input block
+   above already gets it there: `height: 24px` with 2px padding inside a 1px border leaves an
+   18px content box, which is one 1.2 line box at --st-fs-sm — so the single line lands where
+   the input's centred line lands and the card keeps its height. Only the properties an
+   <input> never needed live here. */
+.stonetop-rel-card-note-wrap {
+	position: relative;
+	min-width: 0;
+}
+
 .stonetop-rel-card-note {
+	/* block, not the textarea default inline-block, which hangs a baseline gap under the
+	   field and would make the card a few pixels taller than the table's row. */
+	display: block;
 	width: 100%;
 	min-width: 0;
+	/* Core sets `body.game .app textarea { min-height: 50px }` (and a bare `textarea` 60px),
+	   which our unlayered `height: 24px` above does NOT override — a min-height clamps a
+	   height, it does not compete with it. Without this the collapsed field is 50px and every
+	   card on the board stands 26px taller than the same row in the table. */
+	min-height: 0;
+	/* The chevron owns the height; a native grabber in the corner would fight it, and there
+	   is nowhere in a card for one to sit anyway. */
+	resize: none;
+	overflow: hidden;
+	/* `pre`, NOT the textarea default `pre-wrap`. Collapsed, this field has to clip a long
+	   note MID-WORD the way an <input> does — wrapping would instead break at the last word
+	   that fits and leave a ragged gap on the visible line, so the same note would read as a
+	   different-looking control depending on which view it was in. It wraps once open. */
+	white-space: pre;
+}
+
+/* Open. The height itself is inline, measured from scrollHeight by fitNote — CSS cannot size
+   a box to its own text. max-height is the safety valve: a note long enough to make one card
+   taller than the lane it sits in scrolls inside itself rather than stretching the board. */
+.stonetop-rel-card-note-wrap.is-open .stonetop-rel-card-note {
+	white-space: pre-wrap;
+	overflow-y: auto;
+	max-height: 160px;
+}
+
+/* Laid OVER the right end of the field rather than beside it: a flex sibling would take
+   width from every note that has one, and running short of width is the whole reason this
+   control exists. */
+.stonetop-rel-note-toggle {
+	position: absolute;
+	top: 0;
+	right: 0;
+	/* Hidden by DISPLAY, not visibility or opacity: that also takes it out of the tab order,
+	   so a card with nothing to expand does not add a tab stop that does nothing. Core's
+	   button rules (display:flex, width:100%, min-height) are undone by the same block. */
+	display: none;
+	width: 16px;
+	height: 24px;
+	min-height: 0;
+	align-items: center;
+	justify-content: center;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: var(--st-radius-sm, 3px);
+	background: transparent;
+	box-shadow: none;
+	font-size: 9px;
+	line-height: 1;
+	color: var(--st-text-muted, #6b6257);
+	cursor: pointer;
+}
+
+/* Shown on a note that has more to say, or one already open. wireNoteExpanders measures the
+   overflow once per render and again whenever a note closes. */
+.stonetop-rel-card-note-wrap.is-overflowing .stonetop-rel-note-toggle,
+.stonetop-rel-card-note-wrap.is-open .stonetop-rel-note-toggle {
+	display: flex;
+}
+
+/* Room for the chevron, and only on the cards that show one — otherwise every note in the
+   lane would give up part of its line to a control most of them do not have.
+
+   On the WRAPPER, not as padding on the field, and that is not interchangeable: `overflow`
+   clips at the padding box, so a padding-right on the field itself reserves no space at all
+   from clipped text — the line still ran the full width and the chevron sat on top of the
+   last two or three characters. Shrinking the wrapper's content box takes the field with it
+   (`width: 100%`), while `right: 0` still resolves against the padding box, so the chevron
+   keeps the far edge and the text now stops short of it. */
+.stonetop-rel-card-note-wrap.is-overflowing,
+.stonetop-rel-card-note-wrap.is-open {
+	padding-right: 18px;
+}
+
+/* The same translucent slate wash the step arrows use, so the two controls on a card read as
+   one family rather than importing a colour. */
+.stonetop-rel-note-toggle:hover {
+	background: rgb(100 116 139 / 0.16);
+	color: var(--st-btn-primary-border, #4f5b66);
+}
+
+/* Core strips the default outline from buttons, and this one is the only way a keyboard user
+   who cannot type in the field (a read-only board) opens a note at all. */
+.stonetop-rel-note-toggle:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: -2px;
+}
+
+/* Core gives every `button > i` a right margin, which off-centres an icon-only button — the
+   same correction the two segmented strips make. The chevron turns over rather than being
+   swapped for a second glyph, so open/closed is one class and no icon class churn. */
+.stonetop-rel-note-toggle > i {
+	margin-right: 0;
+	transition: transform 120ms ease;
+}
+
+.stonetop-rel-card-note-wrap.is-open .stonetop-rel-note-toggle > i {
+	transform: rotate(180deg);
 }
 
 /* ── The per-card lane control ────────────────────────────────────────────── */
 
-.stonetop-rel-lane-picker { align-self: stretch; }
+/* The two strips share one row: three segments that write a STANDING, two that write a
+   POSITION. `align-self: stretch` moved here off the lane picker, which is now a flex item
+   inside this row rather than a child of the card's own column.
+
+   The flex weights are 3 and 2 against a `0` basis, which is the whole reason the row is
+   built this way: every one of the five segments comes out the same width, so the strip
+   reads as one control that happens to be grouped in two, and neither half can be squeezed
+   by the other's glyphs. A `gap` and the two borders are what separate them. */
+.stonetop-rel-card-controls {
+	display: flex;
+	align-self: stretch;
+	gap: 4px;
+}
+
+.stonetop-rel-lane-picker  { flex: 3 1 0; align-self: stretch; }
+.stonetop-rel-order-picker { flex: 2 1 0; align-self: stretch; }
 
 /* The core-button reset these share with the Table/Board toggle is stated once beside
    .stonetop-rel-viewpicker, far above; only the differences live here. */
@@ -24018,6 +24167,91 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-text-faint, #999);
 }
 
+/* ── The per-card order control ───────────────────────────────────────────── */
+
+/* Both arrows wear the SAME washed slate as the two step arrows beside them, restated here
+   rather than shared by selector, because they earn it for the same reason and would
+   otherwise sit on the Neutral segment's plain well and read as the odd pair out. Every
+   direction button in the row is a nudge; only the middle one is a destination. */
+.stonetop-rel-order-picker .stonetop-rel-order-btn {
+	flex: 1 1 0;
+	justify-content: center;
+	padding: 1px 0;
+	--st-rel-step-slate: 100 116 139;
+	background: rgb(var(--st-rel-step-slate) / 0.16);
+	font-size: var(--st-fs-xs, 0.75rem);
+	line-height: 1.6;
+	color: var(--st-btn-primary-border, #4f5b66);
+}
+
+.stonetop-rel-order-picker .stonetop-rel-order-btn:last-child { border-right: 0; }
+
+.stonetop-rel-order-picker .stonetop-rel-order-btn:hover:not(:disabled) {
+	background: rgb(var(--st-rel-step-slate) / 0.3);
+}
+
+/* At the top or bottom of its column: same treatment as a step arrow at the end of the
+   scale, and for the same reasons — the glyph fades, the segment keeps its wash so the
+   strip does not gain a pale gap, and the extra :disabled out-specifies the .stonetop-readonly
+   rule that forces opacity back to 1 for the play-time trackers. */
+.stonetop-rel-order-picker .stonetop-rel-order-btn:disabled {
+	opacity: 1;
+	cursor: default;
+	color: var(--st-text-faint, #999);
+}
+
+/* ── Board view: dragging a card within its own lane ──────────────────────── */
+
+/* The lane the dragged card CAME from keeps its cards on show: a drag there is aiming at a
+   position between them, and the exact-value overlay is very nearly opaque and covers the
+   whole column, so with it up there is nothing to aim between. Suppressed by its own class
+   rather than by leaving the board's `is-dragging` off, because that one class is what
+   reveals every OTHER lane's zones in the same gesture.
+
+   Specificity: this must beat `.stonetop-rel-board.is-dragging .stonetop-rel-dropzones`
+   (0,3,0), which it does at (0,4,0). */
+.stonetop-rel-board.is-dragging .stonetop-rel-lane.is-drag-source .stonetop-rel-dropzones {
+	display: none;
+}
+
+/* Where the card would land: a line in the lane's own accent, sitting in the 6px gap beside
+   the card it would push down (or below the last card, the one position no "before" marker
+   can express).
+
+   ABSOLUTELY POSITIONED, which is the load-bearing part. A border or an in-flow pseudo would
+   add 2px to the list and shove every card below it down at the exact moment the pointer is
+   choosing between them — the indicator would move the target it is pointing at. An outset
+   box-shadow avoids that but paints behind the card's background, and a card is
+   rgba(255,255,255,0.72), so a solid accent behind a translucent box tints the whole card
+   instead of drawing a line beside it. Out of flow and on top of nothing is the only version
+   that costs no layout and stays a line.
+
+   `position: relative` is scoped to the marked state rather than put on every card, so the
+   containing block only exists for the frames an indicator is up. Nothing inside a card
+   needs one — the note's expand chevron positions against .stonetop-rel-card-note-wrap,
+   which is relative in its own right. */
+.stonetop-rel-card.is-insert-before,
+.stonetop-rel-card.is-insert-after {
+	position: relative;
+}
+
+.stonetop-rel-card.is-insert-before::after,
+.stonetop-rel-card.is-insert-after::after {
+	content: "";
+	position: absolute;
+	right: 0;
+	left: 0;
+	height: 2px;
+	border-radius: 1px;
+	background: var(--st-lane-accent, #777);
+}
+
+/* -4px / -4px: the list's row-gap is 6px, so this centres the line in the gap rather than
+   letting it touch either card. The last card has no gap below it, so its marker rides just
+   inside the lane body's own padding. */
+.stonetop-rel-card.is-insert-before::after { top: -4px; }
+.stonetop-rel-card.is-insert-after::after  { bottom: -4px; }
+
 /* ── Narrow hosts ─────────────────────────────────────────────────────────── */
 
 /* The NPC sheet is ~580px of usable width, and the character sheet loses ~200px more with
@@ -24037,7 +24271,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Core Foundry gives every `button > i` a right margin, which off-centres an icon-only
    pill and double-counts against the view toggle's own `gap`. */
 .stonetop-rel-viewpicker .stonetop-rel-view-btn > i,
-.stonetop-rel-lane-picker .stonetop-rel-lane-btn > i {
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn > i,
+.stonetop-rel-order-picker .stonetop-rel-order-btn > i {
 	margin-right: 0;
 }
 
@@ -24049,12 +24284,20 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	transform: translateY(1px);
 }
 
+/* The up/down chevrons are the same glyph family rotated a quarter turn, and they sit in the
+   same em box, so they need the same nudge to line up with the row they share. Stated
+   separately only because the strip they belong to is a different group. */
+.stonetop-rel-order-picker .stonetop-rel-order-btn > i {
+	transform: translateY(1px);
+}
+
 /* Keyboard focus. Core strips the default outline from buttons, so without these the
    segmented pills give a keyboard user no idea where they are — and the lane picker is
    the primary way to move a card, not an optional extra. Inset so the ring stays inside
    the strip's own rounded border rather than straddling it. */
 .stonetop-rel-viewpicker .stonetop-rel-view-btn:focus-visible,
-.stonetop-rel-lane-picker .stonetop-rel-lane-btn:focus-visible {
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn:focus-visible,
+.stonetop-rel-order-picker .stonetop-rel-order-btn:focus-visible {
 	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
 	outline-offset: -2px;
 }

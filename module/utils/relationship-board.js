@@ -6,7 +6,7 @@
 // Pairs with relationship-hearts.js (the storage layer) and templates/actor/partials/
 // relationships-board.hbs (the markup). Wired from wireRelationshipTable, so all three
 // host sheets get it without a call-site change.
-import { clampHearts, setRelationshipHeartsExact } from "./relationship-hearts.js";
+import { clampHearts, readOrder, updateRelationships } from "./relationship-hearts.js";
 import { readStoredColumnState, writeStoredColumnState } from "./steading-column-util.js";
 import { scrollParent } from "./scroll-parent.js";
 
@@ -202,22 +202,64 @@ export function buildRelationshipLanes(rows = []) {
 		stepButton(hearts, 1),
 	];
 
+	// Up/down, for arranging a lane by hand. A separate strip from the three above, and not
+	// three more segments on that one, because they answer a different question: those write
+	// a RATING, these write a POSITION, and the picker they would join is a `role="group"`
+	// labelled for the former. Placed beside it all the same, on one row, because the board's
+	// two axes are already the two meanings — sideways is standing, up and down is order.
+	//
+	// A button at the end of its lane renders truly `disabled`, matching the step buttons at
+	// the ends of the scale: it holds its place so the strip never reflows under the pointer,
+	// and the browser refuses the press rather than accepting one that quietly does nothing.
+	const orderButtonsFor = (index, count) => [
+		{ dir: "up",   icon: "fa-solid fa-chevron-up",   disabled: index <= 0,
+		  labelKey: index <= 0 ? "stonetop.relationships.lane.orderTop" : "stonetop.relationships.lane.orderUp" },
+		{ dir: "down", icon: "fa-solid fa-chevron-down", disabled: index >= count - 1,
+		  labelKey: index >= count - 1 ? "stonetop.relationships.lane.orderBottom" : "stonetop.relationships.lane.orderDown" },
+	];
+
 	return REL_LANES.map(lane => {
-		const cards = rows
+		// Hand-placed cards first, in the position their owner gave them; everyone else after,
+		// still sorted by the default rule. That split is what keeps the feature opt-in per
+		// lane: until someone drags something, every card is unplaced and the lane sorts
+		// exactly as it always did, and a newcomer to an arranged lane queues at the bottom
+		// rather than shouldering into the middle of an arrangement it was never part of.
+		//
+		// A tie between two equal stored positions falls through to the default rule too. That
+		// is not reachable from the board — a reorder renumbers the whole lane — but the
+		// numbers live in an ObjectField that validates nothing, so two cards CAN arrive
+		// claiming the same slot, and a comparator that returned 0 there would leave the order
+		// to Array#sort rather than to anything anyone chose.
+		const placed = row => readOrder(row?.order);
+		const laneRows = rows
 			.filter(row => laneForHearts(row?.hearts).key === lane.key)
-			.sort((a, b) =>
-				(clampHearts(b?.hearts) - clampHearts(a?.hearts)) ||
-				((a.rated ? 0 : 1) - (b.rated ? 0 : 1)) ||
-				String(a.name ?? "").localeCompare(String(b.name ?? "")))
-			.map(row => ({
+			.sort((a, b) => {
+				const ao = placed(a);
+				const bo = placed(b);
+				if (ao !== bo) {
+					if (ao === null) return 1;
+					if (bo === null) return -1;
+					return ao - bo;
+				}
+				return (clampHearts(b?.hearts) - clampHearts(a?.hearts)) ||
+					((a.rated ? 0 : 1) - (b.rated ? 0 : 1)) ||
+					String(a.name ?? "").localeCompare(String(b.name ?? ""));
+			});
+		const cards = laneRows
+			.map((row, index) => ({
 				...row,
 				laneKey: lane.key,
 				// The card's own exact rating, so a drop can tell "already this value" from
 				// "same band, different value" without re-deriving it from the DOM.
 				zoneHearts: clampHearts(row?.hearts),
+				// Where the card is RENDERED, which is what a reorder moves it from — not the
+				// stored `order`, which is null on an unplaced card and stale on one that has
+				// just changed lanes. The DOM carries this back as data-rel-index.
+				laneIndex: index,
 				// Per CARD, not per lane: the step buttons name exact ratings, so two cards
 				// sharing a lane offer different targets.
 				moveButtons: moveButtonsFor(row?.hearts, lane.key),
+				orderButtons: orderButtonsFor(index, laneRows.length),
 			}));
 		return {
 			...lane,
@@ -288,13 +330,86 @@ export function moveTarget({ hearts, rated = false, laneKey, zoneHearts } = {}) 
 /**
  * Apply a move, by zone (exact value) or by lane (band). Returns the rating written, or null
  * when nothing was written — callers use that to decide whether to announce the change.
+ *
+ * A move that changes COLUMN also clears the card's hand-placed position. The number it
+ * carried names a slot in the lane it just left, and honouring it in the new one would drop
+ * the card into the middle of a column it has never been in — so a promoted card lands at the
+ * bottom of its new lane, where an arrival belongs. A rating change WITHIN a lane (4 → 5)
+ * keeps its position untouched: the arrangement someone made is about the column, and nudging
+ * a rating inside it is not a request to be re-sorted.
  */
 export async function applyRelationshipLaneMove(actor, { id, hearts, rated, laneKey, zoneHearts, editable = true } = {}) {
 	if (!actor || !id || !editable) return null;
 	const next = moveTarget({ hearts, rated, laneKey, zoneHearts });
 	if (next === null) return null;
-	await setRelationshipHeartsExact(actor, id, next);
+	// One update, carrying both: the rating and the cleared position have to land together or
+	// the sheet re-renders twice and the board visibly settles in two stages. The storage
+	// layer clamps the rating, so `next` goes across as it came out of moveTarget.
+	const patch = { hearts: next };
+	if (laneForHearts(hearts).key !== laneForHearts(next).key) patch.order = null;
+	await updateRelationships(actor, { [id]: patch });
 	return next;
+}
+
+/**
+ * A requested slot, clamped into the lane, or null when it is not a number at all.
+ *
+ * Clamped rather than refused: the keyboard and the two buttons ask for `index ± 1` without
+ * checking the ends, and a drag can travel past the last card. Refused only for a value that
+ * is not an index — Math.trunc of a non-number is NaN, and NaN would sail through the clamp
+ * as NaN and land the card nowhere.
+ *
+ * Shared with the announcement, which is the whole reason it is a function. The moved card's
+ * destination CANNOT be read back out of the patch below: that returns only the rows whose
+ * stored number changes, and the moved card's new index can already equal the number it
+ * carries — which happens as soon as a lane has a gap in its numbering, i.e. the moment any
+ * card leaves it. Reading the patch there announced "moved to place NaN".
+ */
+function laneIndexIn(count, toIndex) {
+	const to = Math.trunc(Number(toIndex));
+	if (!Number.isInteger(to)) return null;
+	return Math.max(0, Math.min(count - 1, to));
+}
+
+/**
+ * The order writes that put `id` at `toIndex` among `cards`, or null when the move changes
+ * nothing. `cards` is one lane in RENDERED order; only `id` and `order` are read off each.
+ *
+ * Renumbers the whole lane 0..n-1 rather than giving the moved card a fractional or
+ * end-relative value. Sparse numbering is the usual trick and it is the wrong one here: the
+ * lane is a handful of cards, so the write is small either way, and sparse values can only
+ * express "before X" relative to cards that already HAVE values — which on a lane nobody has
+ * arranged is none of them, leaving no way to say "third". Renumbering says exactly what the
+ * user is looking at, and says it the same way whether the lane was arranged before or not.
+ *
+ * Returns only the rows whose stored number actually changes, so dragging the bottom card up
+ * one slot writes two entries and not the whole column.
+ */
+export function laneReorderPatch(cards = [], id, toIndex) {
+	const from = cards.findIndex(card => card?.id === id);
+	if (from < 0) return null;
+	const to = laneIndexIn(cards.length, toIndex);
+	if (to === null || to === from) return null;
+	const next = [...cards];
+	next.splice(to, 0, next.splice(from, 1)[0]);
+	const patch = {};
+	next.forEach((card, index) => {
+		if (card?.id && readOrder(card?.order) !== index) patch[card.id] = index;
+	});
+	return Object.keys(patch).length ? patch : null;
+}
+
+/**
+ * Apply a reorder. Returns the map of id → new position that was written, or null when the
+ * gesture was a no-op — the callers use that to decide whether to announce anything.
+ */
+export async function applyRelationshipLaneReorder(actor, { cards, id, toIndex, editable = true } = {}) {
+	if (!actor || !id || !editable) return null;
+	const patch = laneReorderPatch(cards, id, toIndex);
+	if (!patch) return null;
+	await updateRelationships(actor,
+		Object.fromEntries(Object.entries(patch).map(([rowId, order]) => [rowId, { order }])));
+	return patch;
 }
 
 // ── DOM wiring ───────────────────────────────────────────────────────────────
@@ -307,6 +422,31 @@ function cardState(card) {
 		hearts: Number(card?.dataset?.relHearts),
 		rated:  card?.dataset?.relRated === "true",
 	};
+}
+
+/** Where a card is currently RENDERED in its lane, which is what a reorder moves it from. */
+function cardIndex(card) {
+	const index = Number(card?.dataset?.relIndex);
+	return Number.isInteger(index) ? index : -1;
+}
+
+// One lane's cards in the order they are on screen, in the shape laneReorderPatch reads.
+//
+// Read off the DOM rather than kept in JS, for the same reason cardState is: every gesture
+// here is delegated from a wrapper that survives re-renders, so anything cached would have to
+// be invalidated by hand on each one. `order` is the STORED number (empty on an unplaced
+// card), which is what makes the patch a diff rather than a full renumber every time.
+function laneCards(card) {
+	return [...(card?.closest(".stonetop-rel-lane")?.querySelectorAll(".stonetop-rel-card") ?? [])]
+		.map(el => ({ id: el.dataset.relId, order: datasetOrder(el.dataset.relOrder) }));
+}
+
+// An unplaced card renders `data-rel-order=""`, and the empty string is the whole reason this
+// is not a bare Number(): `Number("")` is 0, a perfectly valid FIRST position, so parsing
+// naively would read every unplaced card as already pinned to the top of its lane — and the
+// reorder patch would then think it had nothing to write.
+function datasetOrder(raw) {
+	return raw === "" || raw === undefined || raw === null ? null : readOrder(Number(raw));
 }
 
 // Announce a move to screen readers. The board's visual feedback is a card jumping to a
@@ -334,6 +474,16 @@ function stepLabel(hearts) {
 function moveMessage(name, hearts) {
 	return game.i18n.format("stonetop.relationships.lane.moved", {
 		name: name ?? "", lane: stepLabel(hearts),
+	});
+}
+
+// The message for a pending reorder. Says the POSITION and the size of the column, because
+// unlike a lane move there is no word for where the card landed — "moved up" would leave a
+// screen reader user counting presses to know whether they had reached the top yet.
+// One-based: it is read aloud to a person, not indexed by one.
+function reorderMessage(name, index, count) {
+	return game.i18n.format("stonetop.relationships.lane.reordered", {
+		name: name ?? "", position: index + 1, count,
 	});
 }
 
@@ -450,6 +600,30 @@ export function autoScrollDelta(pointerY, top, bottom, { edge = AUTOSCROLL_EDGE,
 }
 
 /**
+ * Which slot a drop at `y` is aiming at, given each card's vertical MIDPOINT in lane order
+ * and the dragged card's own index among them.
+ *
+ * Midpoints rather than boxes, so the target flips when the pointer passes the middle of a
+ * neighbour instead of only once it has cleared the whole card — and so the gap between two
+ * cards belongs to whichever half it is nearer, which is what stops the indicator blanking
+ * out between them.
+ *
+ * The subtraction is the part worth pinning down, and it is not a clamp. The dragged card is
+ * still one of the slots being counted (a transform moves no layout), so a pointer below its
+ * own midpoint counts it, and every index past its own position comes out one too high. The
+ * index a reorder wants is the one the card takes AFTER being lifted out of the list, which
+ * is what laneReorderPatch splices against. Without this, dragging a card down one slot
+ * resolves to the slot it is already in and the gesture does nothing at all.
+ *
+ * Split out for the same reason autoScrollDelta and dragTranslation are: the arithmetic is
+ * the part with edges worth testing, and none of it needs a browser.
+ */
+export function insertionIndex(midpoints = [], y, fromIndex) {
+	const above = midpoints.filter(mid => y >= mid).length;
+	return above > fromIndex ? above - 1 : above;
+}
+
+/**
  * Where to translate a dragged card so it stays under the cursor.
  *
  * The scroll term is the subtle part, and it is why this is split out and tested. The card
@@ -511,6 +685,160 @@ function ensureEscapeWatcher() {
 	}, true);
 }
 
+// ── The expandable card note ─────────────────────────────────────────────────
+
+// A card's note renders as the same one clipped line the table shows, and on a ~180px card
+// most notes are longer than that. Unlike the table's Notes column there is nothing to drag
+// wider, an <input> neither wraps nor tooltips, and the board has no third column to spend
+// on prose — so a note past the width was effectively write-only. Opening one grows the
+// field to every line it holds.
+//
+// Open/closed lives only in the DOM. Every write re-renders the section, so a note the user
+// actually edited closes on its own; persisting the state would put a fourth thing under
+// `resizeKey` in localStorage for something whose whole lifetime is "while I read this".
+
+/** Grow an open note to exactly the height its text needs. */
+function fitNote(note) {
+	// Release the previous measurement first. scrollHeight is reported against the height
+	// already set, so without this the field can only ever GROW — deleting a line would
+	// leave its gap behind, and the box would never come back down.
+	note.style.height = "auto";
+	// scrollHeight covers the content and its padding but NOT the border, while the height we
+	// are about to set is a border-box one (Foundry sets border-box globally). Handing back a
+	// bare scrollHeight therefore lands two pixels short and clips the last line by exactly
+	// the border — a bug that looks like a rounding artefact and is not one. offsetHeight -
+	// clientHeight is that border, read here while the box is still auto-sized and has no
+	// scrollbar of its own to confuse the difference.
+	const chrome = note.offsetHeight - note.clientHeight;
+	note.style.height = `${note.scrollHeight + chrome}px`;
+}
+
+/** Whether a CLOSED note's text runs past the single line it is clipped to. */
+function noteOverflows(note) {
+	return note.scrollWidth > note.clientWidth;
+}
+
+/**
+ * Open or close one note, and put its chevron in step.
+ *
+ * `onResize` is for an auto-height host (the NPC sheet): the card just changed height, and
+ * nothing re-renders, so the window has to re-measure or the board grows inside a frame
+ * that does not.
+ */
+function setNoteOpen(wrap, open, onResize) {
+	const note = wrap?.querySelector(".stonetop-rel-note-input");
+	if (!note) return;
+	wrap.classList.toggle("is-open", open);
+	if (open) fitNote(note);
+	else {
+		// Hand the height back to CSS rather than pinning the collapsed value here, so the
+		// one-line size stays stated in exactly one place.
+		note.style.height = "";
+		// Re-measure on the way down: the user may have just typed into this note, so whether
+		// it still has anything left to show is only knowable now that it is clipped again.
+		wrap.classList.toggle("is-overflowing", noteOverflows(note));
+	}
+	const btn = wrap.querySelector(".stonetop-rel-note-toggle");
+	if (btn) {
+		const label = game.i18n.localize(`stonetop.relationships.${open ? "noteCollapse" : "noteExpand"}`);
+		btn.setAttribute("aria-expanded", open ? "true" : "false");
+		btn.setAttribute("aria-label", label);
+		btn.dataset.tooltip = label;
+	}
+	onResize?.();
+}
+
+/**
+ * Wire the board's expandable notes for one section.
+ *
+ * Wired even when the viewer cannot rate, unlike everything else on the board: reading a
+ * note is not an edit, and someone who cannot type in the field has no other way to reach
+ * the end of it. The field itself stays `disabled` from the template.
+ */
+function wireNoteExpanders(wrapper, onResize) {
+	const wraps = [...wrapper.querySelectorAll(".stonetop-rel-card-note-wrap")];
+	if (!wraps.length) return;
+
+	// Resolved once, here: measure() runs on every ResizeObserver tick — i.e. per frame while
+	// the window is being dragged — and the wrap→field mapping cannot change between renders,
+	// since a re-render rebuilds the markup and re-runs this whole function.
+	const pairs = wraps
+		.map(wrap => [wrap, wrap.querySelector(".stonetop-rel-note-input")])
+		.filter(([, note]) => note);
+
+	// Mark the closed notes that still have something to show. Every measurement happens
+	// BEFORE any class is written: interleaved, each write would invalidate layout for the
+	// next read and the pass would cost one forced reflow per card instead of one for the
+	// board. Open notes are skipped — they wrap, so they never report overflow, and the
+	// chevron is already showing on their own account.
+	const measure = () => {
+		const closed = pairs.filter(([wrap]) => !wrap.classList.contains("is-open"));
+		const overflowing = closed.map(([, note]) => noteOverflows(note));
+		closed.forEach(([wrap], i) => wrap.classList.toggle("is-overflowing", overflowing[i]));
+	};
+
+	// Measured rather than derived from the text: whether a note has more to show depends on
+	// how wide the lane happens to be, which nothing in the data knows.
+	//
+	// Through a ResizeObserver instead of once at wire time, and that part is load-bearing. A
+	// sheet renders its INACTIVE tabs too, and a `display: none` subtree measures 0 for
+	// everything — so a board on a tab that is not the landing tab (the character sheet's
+	// Details, most of the time) would wire itself with every chevron missing, and switching
+	// to the tab does not re-render. The observer fires when the section first gets a box,
+	// and again whenever the window is dragged narrower, which is the other thing that
+	// changes whether a given note still fits its line.
+	//
+	// Observes the BOARD, one target rather than one per card. Marking a note only changes
+	// its own padding inside a fixed-height field, so the callback cannot resize the thing it
+	// is watching and feed itself. Nothing keeps a reference: an observer whose only target
+	// has left the document is collectible, so the next render's replacement takes this one
+	// with it.
+	const board = wrapper.querySelector(".stonetop-rel-board");
+	if (board && typeof ResizeObserver !== "undefined") new ResizeObserver(measure).observe(board);
+	else measure();
+
+	wrapper.addEventListener("click", ev => {
+		const btn = ev.target.closest(".stonetop-rel-note-toggle");
+		if (!btn || !wrapper.contains(btn)) return;
+		ev.preventDefault();
+		const wrap = btn.closest(".stonetop-rel-card-note-wrap");
+		setNoteOpen(wrap, !wrap?.classList.contains("is-open"), onResize);
+	});
+
+	// Focusing the field opens it too. A note too long to READ through a one-line slot is
+	// also too long to EDIT through one — the caret would scroll the text sideways under the
+	// user with no way to see what came before.
+	wrapper.addEventListener("focusin", ev => {
+		const wrap = ev.target.closest?.(".stonetop-rel-note-input")
+			?.closest(".stonetop-rel-card-note-wrap");
+		if (!wrap || wrap.classList.contains("is-open")) return;
+		setNoteOpen(wrap, true, onResize);
+	});
+
+	// Deliberately NO close-on-blur. Clicking the chevron of an open note moves focus off the
+	// field, so a blur that closed it would fight the button sitting on top of it; and the
+	// save path re-renders the section anyway, which closes every note that was actually
+	// edited. One the user only opened to read closes on the next render or on the chevron.
+
+	// Keep an open note fitted as it is typed into, so the text never outruns its own box.
+	wrapper.addEventListener("input", ev => {
+		const note = ev.target.closest?.(".stonetop-rel-note-input");
+		if (!note?.closest(".stonetop-rel-card-note-wrap.is-open")) return;
+		fitNote(note);
+		onResize?.();
+	});
+
+	// Enter must not insert a line break. The same note is edited through an <input> in the
+	// table view, and an <input> strips CR/LF out of its own value — so a multi-line note
+	// would silently lose its breaks the first time it was touched over there. Blur instead,
+	// which fires the change that saves it: the same thing Enter does in the table.
+	wrapper.addEventListener("keydown", ev => {
+		if (ev.key !== "Enter" || !ev.target.closest?.(".stonetop-rel-note-input")) return;
+		ev.preventDefault();
+		ev.target.blur();
+	});
+}
+
 /**
  * The Table/Board toggle, delegated from the SHEET ROOT rather than from the section.
  *
@@ -522,7 +850,7 @@ function ensureEscapeWatcher() {
  *
  * Wired regardless of ownership: a player who cannot rate can still prefer to READ the board.
  */
-function wireViewToggle(root, actor, onViewChange) {
+function wireViewToggle(root, actor, onResize) {
 	if (root.dataset.stRelViewToggle === "1") return;
 	root.dataset.stRelViewToggle = "1";
 	root.addEventListener("click", ev => {
@@ -540,7 +868,7 @@ function wireViewToggle(root, actor, onViewChange) {
 		actor?.sheet?.render(false);
 		// Wait for the new DOM, do NOT chain off render()'s return value: AppV1's render is
 		// synchronous and hands back the Application, so a `.then()` on it runs a microtask
-		// later — before `_render` has swapped anything. `onViewChange` is what re-fits an
+		// later — before `_render` has swapped anything. `onResize` is what re-fits an
 		// auto-height window (the NPC sheet), and measuring the pre-toggle markup leaves the
 		// window sized for the view the user just left.
 		afterRender(actor,
@@ -551,24 +879,25 @@ function wireViewToggle(root, actor, onViewChange) {
 				// replacement rather than dropping them to the body. Harmless after a mouse
 				// press, which left focus on that same button anyway.
 				found?.focus();
-				onViewChange?.(view);
+				onResize?.();
 			});
 	});
 }
 
 /**
- * Wire one rendered relationships section: the Table/Board toggle always, and the board's
- * lane controls when the viewer may rate.
+ * Wire one rendered relationships section: the Table/Board toggle and the expandable card
+ * notes always, and the board's lane controls when the viewer may rate.
  *
  * Idempotent per wrapper (`data-st-rel-board`), matching the convention the column utils
  * use, so a host that wires the same root twice is a no-op the second time.
  *
- * `onViewChange` lets a host react to the layout flip beyond the re-render — the NPC
- * sheet is auto-height and has to re-measure.
+ * `onResize` lets a host react to the section changing height without a re-render — the
+ * layout flip and an opened note both do it, and the NPC sheet is auto-height, so it has to
+ * re-measure or the board grows inside a window that does not.
  */
-export function wireRelationshipBoard(root, actor, { editable = true, onViewChange } = {}) {
+export function wireRelationshipBoard(root, actor, { editable = true, onResize } = {}) {
 	if (!root) return;
-	wireViewToggle(root, actor, onViewChange);
+	wireViewToggle(root, actor, onResize);
 	root.querySelectorAll(".stonetop-rel-views[data-resize-key]").forEach(wrapper => {
 		if (wrapper.dataset.stRelBoard === "1") return;
 		wrapper.dataset.stRelBoard = "1";
@@ -578,6 +907,12 @@ export function wireRelationshipBoard(root, actor, { editable = true, onViewChan
 		// per section, one of them a pointermove. The toggle above stays wired either way,
 		// since that is how the user gets to the board in the first place.
 		if (wrapper.dataset.relView !== "board") return;
+
+		// Before the editable bail, on purpose: a note opens to be READ, which is not an edit,
+		// and a viewer who cannot type in the field is the one with no other way to see the
+		// end of a long note.
+		wireNoteExpanders(wrapper, onResize);
+
 		if (!editable) return;
 
 		// Move a card to a lane. The primary path, not a fallback: it works by pointer, by
@@ -624,6 +959,55 @@ export function wireRelationshipBoard(root, actor, { editable = true, onViewChan
 			return true;
 		};
 
+		// Move a card up or down WITHIN its lane. The sibling of moveTo, and deliberately shaped
+		// like it: same in-flight latch, same announce-before-the-write ordering, same optimistic
+		// settle, same failure recovery. The two never contend — a gesture either changes the
+		// standing or the position, never both — but they share the latch key so a reorder cannot
+		// slip in against the stale `data-rel-hearts` a pending rating write leaves behind.
+		const reorderTo = async (card, toIndex, stale, { onCommit, refocus = false } = {}) => {
+			const id = card?.dataset?.relId;
+			const key = flightKey(actor, id);
+			if (!id || inFlight.has(key)) return false;
+			const cards = laneCards(card);
+			// Ask the pure helper, not the DOM, whether this is a no-op: it is the same function
+			// the write path runs, so a gesture that announces itself is exactly one that writes.
+			const patch = laneReorderPatch(cards, id, toIndex);
+			if (!patch) return false;
+			inFlight.add(key);
+			// The clamped destination, NOT patch[id] — see laneIndexIn. The patch holds only the
+			// rows whose stored number changes, and the moved card is not always one of them.
+			announce(wrapper, reorderMessage(
+				card?.dataset?.relName, laneIndexIn(cards.length, toIndex), cards.length));
+			onCommit?.();
+			try {
+				await applyRelationshipLaneReorder(actor, { cards, id, toIndex, editable });
+			} catch (err) {
+				console.error("Stonetop | relationship reorder failed:", err);
+				ui.notifications?.error?.(game.i18n.localize("stonetop.relationships.lane.moveFailed"));
+				actor?.sheet?.render(false);
+				return false;
+			} finally {
+				inFlight.delete(key);
+			}
+			if (refocus) refocusAfterRender(actor, cardSelector(id), stale);
+			return true;
+		};
+
+		// The up/down strip. Split from the lane-button handler below rather than folded into it,
+		// because the two read different attributes and mean different things — and a single
+		// handler branching on which dataset key happened to be present is exactly how a press
+		// ends up writing the wrong kind of change.
+		wrapper.addEventListener("click", ev => {
+			const btn = ev.target.closest(".stonetop-rel-order-btn");
+			if (!btn || !wrapper.contains(btn)) return;
+			ev.preventDefault();
+			const card = btn.closest(".stonetop-rel-card");
+			// One slot from where the card is RENDERED. laneReorderPatch clamps, so the ends need
+			// no check here — though the button at an end is `disabled` and never fires anyway.
+			const toIndex = cardIndex(card) + (btn.dataset.relOrderDir === "down" ? 1 : -1);
+			reorderTo(card, toIndex, btn, { refocus: ev.detail === 0 });
+		});
+
 		// Deliberately `click`, not `pointerdown`. Known cost: if the user is mid-edit in a
 		// card's note field, pressing a lane button blurs the note first, and that change
 		// handler writes and re-renders — destroying the button before mouseup, so the click
@@ -650,9 +1034,16 @@ export function wireRelationshipBoard(root, actor, { editable = true, onViewChan
 			moveTo(btn.closest(".stonetop-rel-card"), to, btn, { refocus: ev.detail === 0 });
 		});
 
-		// Left/right shifts a focused card one RATING; up/down walks the column. One heart
-		// per press, so the keyboard reaches all five values — the same reach a zone drop and
-		// the card's own step buttons have. Drag must never be the only route to a rating.
+		// Left/right shifts a focused card one RATING; up/down walks the column, and ALT plus
+		// up/down moves the card itself one slot. One heart per press, so the keyboard reaches
+		// all five values — the same reach a zone drop and the card's own step buttons have.
+		// Drag must never be the only route to a rating, or to a position.
+		//
+		// Alt is the modifier and plain up/down stays navigation, because traversal is the one
+		// thing the keyboard cannot do without: a board with no way to MOVE the focus between
+		// cards would leave every card past the first unreachable. Left/right needs no modifier
+		// for the mirror-image reason — there is no horizontal traversal to protect, since the
+		// lanes are reached through the tab order.
 		wrapper.addEventListener("keydown", ev => {
 			const card = ev.target.closest?.(".stonetop-rel-card");
 			if (!card || !wrapper.contains(card)) return;
@@ -668,11 +1059,19 @@ export function wireRelationshipBoard(root, actor, { editable = true, onViewChan
 			ev.stopPropagation();
 
 			if (vertical) {
+				const step = ev.key === "ArrowDown" ? 1 : -1;
+				// Alt held: move the CARD, not the focus. refocus unconditionally — this gesture
+				// only ever comes from the keyboard, and the re-render destroys the card the user
+				// is standing on, so without it the second press would go nowhere.
+				if (ev.altKey) {
+					reorderTo(card, cardIndex(card) + step, card, { refocus: true });
+					return;
+				}
 				// Walks the whole COLUMN, not just the zone: a lane is split into two small
 				// zones, so confining vertical travel to one would strand the user after a
 				// card or two.
 				const siblings = [...(card.closest(".stonetop-rel-lane")?.querySelectorAll(".stonetop-rel-card") ?? [])];
-				const next = siblings[siblings.indexOf(card) + (ev.key === "ArrowDown" ? 1 : -1)];
+				const next = siblings[siblings.indexOf(card) + step];
 				next?.focus();
 				return;
 			}
@@ -686,7 +1085,7 @@ export function wireRelationshipBoard(root, actor, { editable = true, onViewChan
 			moveTo(card, { zoneHearts: next }, card, { refocus: true });
 		});
 
-		wireLaneDrag(wrapper, moveTo);
+		wireLaneDrag(wrapper, moveTo, reorderTo);
 	});
 }
 
@@ -710,9 +1109,22 @@ export function wireRelationshipBoard(root, actor, { editable = true, onViewChan
  * makeColumnsResizable.
  *
  * Drag is strictly an accelerator: the lane buttons and the arrow keys do the same job, so
- * nothing here is the only route to moving a card.
+ * nothing here is the only route to moving a card. That matters more here than it reads:
+ * a card carries `touch-action: pan-y`, so a TOUCH user cannot drag vertically at all (see
+ * liftsDrag) and reaches a position only through the card's own up/down buttons.
+ *
+ * A drag means one of two things, decided by which lane the pointer is over:
+ *
+ *  • Over ANOTHER lane — change the standing, exactly as it always has, choosing an exact
+ *    rating from the drop-zone overlay.
+ *  • Over the card's OWN lane — change the position, with an insertion line between cards.
+ *    The overlay is suppressed there, which is what makes this legible: it is very nearly
+ *    opaque and covers the whole column, so with it up there is no seeing what a drop is
+ *    aiming between. The cost is that a drag can no longer switch 4 ↔ 5 by crossing to the
+ *    other half of its own lane; the step buttons and the arrow keys still do, and each of
+ *    them names the exact rating it will write, which a half-column never did.
  */
-function wireLaneDrag(wrapper, moveTo) {
+function wireLaneDrag(wrapper, moveTo, reorderTo) {
 	let drag = null;
 	let scrollFrame = 0;
 	// Resolved on the first press and kept, because scrollableAncestor walks the whole
@@ -723,20 +1135,57 @@ function wireLaneDrag(wrapper, moveTo) {
 	// `??=` re-walks in exactly that case and caches once there is something to cache.
 	let scroller;
 
-	const clearHighlight = () => wrapper
-		.querySelectorAll(".stonetop-rel-lane.is-drop-target, .stonetop-rel-zone.is-drop-target")
-		.forEach(el => el.classList.remove("is-drop-target"));
+	const clearHighlight = () => {
+		wrapper.querySelectorAll(".stonetop-rel-lane.is-drop-target, .stonetop-rel-zone.is-drop-target")
+			.forEach(el => el.classList.remove("is-drop-target"));
+		wrapper.querySelectorAll(".stonetop-rel-card.is-insert-before, .stonetop-rel-card.is-insert-after")
+			.forEach(el => el.classList.remove("is-insert-before", "is-insert-after"));
+	};
 
 	// The exact-value drop zones are an overlay that only EXISTS visually while a drag is
 	// live, so the board carries the state class rather than each lane: one toggle reveals
 	// every lane's zones at once, and CSS decides which lanes have any (Neutral has none —
 	// a single value offers no choice).
+	//
+	// The card's OWN lane is marked separately and its overlay stays down, because a drag
+	// there means "put it here", not "rate it this". Marked on the LANE rather than tracked
+	// in CSS from the dragged card, because the card is a descendant of that lane and no
+	// selector can style an ancestor.
 	const boards = () => [...wrapper.querySelectorAll(".stonetop-rel-board")];
-	const showZones = on => boards().forEach(b => b.classList.toggle("is-dragging", on));
+	const showZones = (on, sourceLane = null) => {
+		boards().forEach(b => b.classList.toggle("is-dragging", on));
+		wrapper.querySelectorAll(".stonetop-rel-lane.is-drag-source")
+			.forEach(el => el.classList.remove("is-drag-source"));
+		if (on) sourceLane?.classList.add("is-drag-source");
+	};
+
+	// Where a drop would insert the dragged card in its own lane. All the arithmetic lives in
+	// insertionIndex; this only measures. The dragged card's position comes from the DOM
+	// rather than from data-rel-index, so it cannot disagree with the very list being indexed.
+	const insertIndexIn = (lane, y, dragged) => {
+		const cards = [...lane.querySelectorAll(".stonetop-rel-card")];
+		const midpoints = cards.map(el => {
+			const box = el.getBoundingClientRect();
+			return box.top + box.height / 2;
+		});
+		return insertionIndex(midpoints, y, cards.indexOf(dragged));
+	};
+
+	// Draw the insertion line. `index` is a slot in the lane MINUS the dragged card (that is
+	// what a splice-out-then-in means), so it indexes this filtered list directly: the line
+	// hangs above whichever card would follow, and below the last one when there is no
+	// follower — the only position a "before" marker cannot express.
+	const markInsert = (lane, index, dragged) => {
+		const cards = [...lane.querySelectorAll(".stonetop-rel-card")].filter(el => el !== dragged);
+		if (cards[index]) cards[index].classList.add("is-insert-before");
+		else cards.at(-1)?.classList.add("is-insert-after");
+	};
 
 	// What is under the pointer: the exact-value ZONE if there is one, otherwise just the
 	// lane (its header, its hint, the padding around the card list) which means "this band"
-	// and falls back to the band's gentle end.
+	// and falls back to the band's gentle end. Over the card's OWN lane it is neither — the
+	// answer there is an insertion INDEX, since a card cannot change to the standing it
+	// already has.
 	//
 	// The dragged card rides UNDER the cursor at every position, so a plain elementFromPoint
 	// would return the card itself and resolve to its own SOURCE zone every time, making
@@ -745,11 +1194,16 @@ function wireLaneDrag(wrapper, moveTo) {
 		for (const el of document.elementsFromPoint(x, y)) {
 			if (drag?.card.contains(el)) continue;
 			const zone = el.closest?.(".stonetop-rel-zone");
-			if (zone && wrapper.contains(zone)) return { zone, lane: zone.closest(".stonetop-rel-lane") };
+			if (zone && wrapper.contains(zone)) return { zone, lane: zone.closest(".stonetop-rel-lane"), index: null };
 			const lane = el.closest?.(".stonetop-rel-lane");
-			if (lane && wrapper.contains(lane)) return { zone: null, lane };
+			if (!lane || !wrapper.contains(lane)) continue;
+			// The source lane's overlay is suppressed for the whole drag, so the hit stack here
+			// is the cards themselves and there is no zone to find in the first place.
+			return lane === drag?.sourceLane
+				? { zone: null, lane, index: insertIndexIn(lane, y, drag.card) }
+				: { zone: null, lane, index: null };
 		}
-		return { zone: null, lane: null };
+		return { zone: null, lane: null, index: null };
 	};
 
 	const stopScrolling = () => {
@@ -786,15 +1240,23 @@ function wireLaneDrag(wrapper, moveTo) {
 			scrollTop: drag.scroller?.scrollTop ?? 0, startScroll: drag.startScroll,
 		});
 		drag.card.style.transform = `translate(${dx}px, ${dy}px)`;
-		const { zone, lane } = dropAt(drag.x, drag.y);
-		if (zone === drag.zone && lane === drag.lane) return;
+		const { zone, lane, index } = dropAt(drag.x, drag.y);
+		if (zone === drag.zone && lane === drag.lane && index === drag.index) return;
 		clearHighlight();
-		// Highlight the zone when the pointer is in one, so the user can see WHICH rating they
-		// are about to assert; otherwise highlight the whole lane, which is the coarser
-		// promise the drop will actually keep.
-		(zone ?? lane)?.classList.add("is-drop-target");
+		if (index === null) {
+			// Highlight the zone when the pointer is in one, so the user can see WHICH rating they
+			// are about to assert; otherwise highlight the whole lane, which is the coarser
+			// promise the drop will actually keep.
+			(zone ?? lane)?.classList.add("is-drop-target");
+		} else {
+			// Own lane: a line between two cards, and no lane outline. The outline says "this
+			// column is where it lands", which the card is already in — the only question left
+			// is where in it, and that is the line's job to answer.
+			markInsert(lane, index, drag.card);
+		}
 		drag.zone = zone;
 		drag.lane = lane;
+		drag.index = index;
 	};
 
 	// One exit for every ending: dropped, cancelled, pointer lost, Escape. Clears `drag`
@@ -829,7 +1291,11 @@ function wireLaneDrag(wrapper, moveTo) {
 		scroller ??= scrollableAncestor(wrapper);
 		drag = {
 			card, pointerId: ev.pointerId, pointerType: ev.pointerType,
-			started: false, lane: null, zone: null,
+			started: false, lane: null, zone: null, index: null,
+			// Resolved once at arm time. Which lane a card STARTED in is what decides whether a
+			// drag is a rating or a position, and reading it per frame off the card would give a
+			// different answer the moment an optimistic settle moved the card in the DOM.
+			sourceLane: card.closest(".stonetop-rel-lane"),
 			startX: ev.clientX, startY: ev.clientY, x: ev.clientX, y: ev.clientY,
 			// Baseline for the scroll correction in follow(). Read at arm time, not at first
 			// movement, so it matches startX/startY.
@@ -852,8 +1318,9 @@ function wireLaneDrag(wrapper, moveTo) {
 			drag.card.classList.add("is-dragging");
 			drag.card.style.willChange = "transform";
 			// Reveal the exact-value zones now, not on pointerdown: an ordinary press must not
-			// flash them, and until the threshold is crossed this is still a click.
-			showZones(true);
+			// flash them, and until the threshold is crossed this is still a click. The card's
+			// own lane keeps its cards on show, because that is where a position is aimed.
+			showZones(true, drag.sourceLane);
 			activeDragCancel = end;
 			ensureEscapeWatcher();
 		}
@@ -866,7 +1333,7 @@ function wireLaneDrag(wrapper, moveTo) {
 
 	wrapper.addEventListener("pointerup", ev => {
 		if (!drag || ev.pointerId !== drag.pointerId) return;
-		const { card, lane, zone, started } = drag;
+		const { card, lane, zone, index, started } = drag;
 		// Never crossed the threshold: this was a click. Tear down without consuming it, so
 		// the click handlers still see it.
 		if (!started) { end(); return; }
@@ -874,7 +1341,26 @@ function wireLaneDrag(wrapper, moveTo) {
 		// Lifted, but barely moved. Treat it as a nudge rather than a drop: see
 		// DROP_COMMIT_DISTANCE — the overlay arrives already under the pointer, so honouring a
 		// tiny gesture would write a rating the user never aimed at.
-		if (!isCommittedDrop(drag.x - drag.startX, drag.y - drag.startY)) { end(); return; }
+		//
+		// A reorder is exempt, and deliberately so: that threshold exists because a card
+		// straddles both of its lane's zones, so a twitch could land in one it never travelled
+		// to. Insertion has no such hazard — the index only changes once the pointer has passed
+		// a neighbour's midpoint, which is half a card away — and laneReorderPatch already
+		// refuses a move that resolves to the slot the card is in. Applying the distance rule
+		// here would just make a short drag between two adjacent cards do nothing.
+		if (index === null && !isCommittedDrop(drag.x - drag.startX, drag.y - drag.startY)) { end(); return; }
+		// Own lane: this is a position, not a rating. Settle the card at the drop point first
+		// so it does not snap back to where it started for the frames the write takes — before
+		// the card it will follow, or at the end of the list when nothing follows it.
+		if (index !== null) {
+			const others = [...lane.querySelectorAll(".stonetop-rel-card")].filter(el => el !== card);
+			const follower = others[index];
+			end();
+			reorderTo(card, index, card, {
+				onCommit: () => follower ? follower.before(card) : others.at(-1)?.after(card),
+			});
+			return;
+		}
 		// A zone names an exact rating; a bare lane names only the band. Read both off the
 		// DOM before end() clears the drag.
 		const zoneHearts = zone ? Number(zone.dataset.relZone) : undefined;

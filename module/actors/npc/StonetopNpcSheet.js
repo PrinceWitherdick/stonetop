@@ -230,11 +230,13 @@ export function createStonetopNpcSheetClass(Base) {
 			// note field write only when the sheet is editable (shared with the
 			// character sheet's Details-tab Relationships section).
 			wireRelationshipTable(root, this.actor, { editable: this.isEditable });
-			// Table/board toggle plus the board's lane controls. This window is auto-height,
-			// so the board (taller than the table) needs a refit after the flip re-renders.
+			// Table/board toggle plus the board's lane controls. This window is auto-height, so
+			// anything that changes the section's height without a re-render has to hand the
+			// window back a refit: the board is taller than the table, and an opened card note
+			// is taller again.
 			wireRelationshipBoard(root, this.actor, {
 				editable: this.isEditable,
-				onViewChange: () => requestAnimationFrame(() => this._fitHeight()),
+				onResize: () => requestAnimationFrame(() => this._fitHeight()),
 			});
 			// Names open their PC's sheet, portraits preview on hover. Ungated for the same
 			// reason the columns are: neither is an edit.

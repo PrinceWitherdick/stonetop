@@ -493,6 +493,8 @@
       "regard": "Feelings",
       "notes": "Notes",
       "notePlaceholder": "How they feel, why…",
+      "noteExpand": "Show the whole note",
+      "noteCollapse": "Shrink the note back to one line",
       "showTooltip": "Show this person on the sheet",
       "drop": {
         "added": "{name} added to Relationships.",
@@ -529,7 +531,13 @@
         "stepWarmer": "One step warmer: {target}",
         "stepFloor": "Already {target}, the coldest rating",
         "stepCeiling": "Already {target}, the warmest rating",
+        "orderLabel": "Move up or down this column",
+        "orderUp": "Move up one place in this column",
+        "orderDown": "Move down one place in this column",
+        "orderTop": "Already first in this column",
+        "orderBottom": "Already last in this column",
         "moved": "{name} moved to {lane}.",
+        "reordered": "{name} moved to place {position} of {count}.",
         "moveFailed": "That change could not be saved."
       },
       "zone": {

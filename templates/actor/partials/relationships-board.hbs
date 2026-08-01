@@ -15,9 +15,11 @@
       reference at the wrong context — which is exactly the bug that positional lookups
       invite.
 
-      Each card keeps the live note input and show/hide box, reusing the very same
+      Each card keeps the live note field and show/hide box, reusing the very same
       .stonetop-rel-note-input / .stonetop-rel-show-check hooks the table uses —
       wireRelationshipTable's delegated handlers drive them here with no new write path.
+      The note is a textarea rather than the table's input so a long one can be opened and
+      read in full (see the field itself, and wireNoteExpanders), but it saves identically.
 
       The table's five-slot .stonetop-rel-heart strip does NOT come across: a card shows a
       single .stonetop-rel-heart-badge instead, which is display-only (aria-hidden, matched by
@@ -76,10 +78,20 @@
 				      "never rated" wording is gone from the tooltip and the accessible name
 				      alike, so the card reads as plainly as any other and the treatment is
 				      the whole of the hint. data-rel-rated still carries the fact for the
-				      handlers, which is what the dashed styling keys off. --}}
+				      handlers, which is what the dashed styling keys off.
+
+				      data-rel-index is where the card SITS in this lane and data-rel-order is
+				      the position someone stored for it, and the two are genuinely different
+				      questions: the index is what a reorder counts from, while the order is
+				      empty on a card nobody has placed — which is exactly the difference
+				      between "third in the column" and "pinned third". The reorder patch needs
+				      both, to move from the one and to write only the rows whose stored number
+				      actually changes. An unplaced card renders an EMPTY order, never a 0,
+				      which is a real position. --}}
 				<li class="stonetop-rel-card{{#unless rated}} stonetop-rel-card--unrated{{/unless}}{{#unless shown}} stonetop-rel-card--hidden{{/unless}}"
 				    data-rel-id="{{id}}" data-rel-hearts="{{hearts}}" data-rel-name="{{name}}"
 				    data-rel-rated="{{#if rated}}true{{else}}false{{/if}}"
+				    data-rel-index="{{laneIndex}}" data-rel-order="{{order}}"
 				    {{#if board.canRate}}tabindex="0"{{/if}}
 				    aria-label="{{feeling}}">
 					<div class="stonetop-rel-card-head">
@@ -151,29 +163,91 @@
 					      Every label formats through one expression: {target} is the rating the press
 					      would write, or — at a dead end — the one the card already holds. Neutral's
 					      label has no placeholder and simply ignores it. --}}
-					<div class="stonetop-segmented-picker stonetop-rel-lane-picker" role="group"
-					     aria-label='{{localize "stonetop.relationships.lane.pickerLabel"}}'>
-						{{#each moveButtons}}
-						<button type="button"
-						        class="stonetop-segmented-picker-option stonetop-rel-lane-btn{{#if isCurrent}} is-active{{/if}}"
-						        {{#if dir}}
-						        data-rel-dir="{{dir}}"{{#if disabled}} disabled="disabled"{{else}} data-rel-step="{{hearts}}"{{/if}}
-						        {{else}}
-						        data-rel-lane="{{laneKey}}" aria-pressed="{{#if isCurrent}}true{{else}}false{{/if}}"
-						        {{/if}}
-						        data-tooltip="{{localize labelKey target=(localize targetLabelKey)}}"
-						        aria-label="{{localize labelKey target=(localize targetLabelKey)}}">
-							<i class="{{icon}}" aria-hidden="true"></i>
-						</button>
-						{{/each}}
+					{{!-- Two strips on one row, and NOT one strip of five. They write different
+					      things — a standing on the left, a position on the right — and each is
+					      a `role="group"` whose label says which. Folding them together would
+					      leave one group labelled for half of what it does.
+
+					      Reading them as a pair is the point: the board's own axes already mean
+					      this, sideways for standing and up/down for order, so the arrows say
+					      where the card goes in the shape of the thing they move it through. --}}
+					<div class="stonetop-rel-card-controls">
+						<div class="stonetop-segmented-picker stonetop-rel-lane-picker" role="group"
+						     aria-label='{{localize "stonetop.relationships.lane.pickerLabel"}}'>
+							{{#each moveButtons}}
+							<button type="button"
+							        class="stonetop-segmented-picker-option stonetop-rel-lane-btn{{#if isCurrent}} is-active{{/if}}"
+							        {{#if dir}}
+							        data-rel-dir="{{dir}}"{{#if disabled}} disabled="disabled"{{else}} data-rel-step="{{hearts}}"{{/if}}
+							        {{else}}
+							        data-rel-lane="{{laneKey}}" aria-pressed="{{#if isCurrent}}true{{else}}false{{/if}}"
+							        {{/if}}
+							        data-tooltip="{{localize labelKey target=(localize targetLabelKey)}}"
+							        aria-label="{{localize labelKey target=(localize targetLabelKey)}}">
+								<i class="{{icon}}" aria-hidden="true"></i>
+							</button>
+							{{/each}}
+						</div>
+
+						{{!-- Up/down within this lane. Rendered on every card, including the only
+						      card in a lane, where both ends are dead: a strip that came and went
+						      with the column's length would resize the card under the pointer as
+						      people were moved in and out of it. A dead end renders `disabled` for
+						      the same reason the step buttons do — the browser refuses the press
+						      rather than accepting one that does nothing.
+
+						      These are the ONLY route to a position for a touch user: a card
+						      carries `touch-action: pan-y`, so the vertical axis belongs to the
+						      scroller and a vertical touch drag never lifts a card at all. --}}
+						<div class="stonetop-segmented-picker stonetop-rel-order-picker" role="group"
+						     aria-label='{{localize "stonetop.relationships.lane.orderLabel"}}'>
+							{{#each orderButtons}}
+							<button type="button"
+							        class="stonetop-segmented-picker-option stonetop-rel-order-btn"
+							        data-rel-order-dir="{{dir}}"{{#if disabled}} disabled="disabled"{{/if}}
+							        data-tooltip="{{localize labelKey}}"
+							        aria-label="{{localize labelKey}}">
+								<i class="{{icon}}" aria-hidden="true"></i>
+							</button>
+							{{/each}}
+						</div>
 					</div>
 					{{/if}}
 
 					{{!-- NOT .steading-resident-input: the steading sheet delegates on that class
-					      and stopPropagation()s its change event. --}}
-					<input type="text" class="stonetop-rel-note-input stonetop-rel-card-note" data-rel-id="{{id}}"
-					       value="{{notes}}" placeholder='{{localize "stonetop.relationships.notePlaceholder"}}'
-					       {{#unless board.canRate}}disabled{{/unless}}>
+					      and stopPropagation()s its change event.
+
+					      A <textarea>, not the table's <input>, and the one place the two views'
+					      markup genuinely diverges. A card is ~180px wide, so most notes are longer
+					      than the line they are clipped to — and a clipped <input> cannot be read at
+					      all here: it does not wrap, it carries no tooltip, and unlike the table's
+					      Notes column there is no border to drag wider. Opening the note grows it to
+					      fit every line it holds; collapsed it is dressed to be the same one-line
+					      field the table shows.
+
+					      Still `.stonetop-rel-note-input`, so wireRelationshipTable's delegated
+					      change handler saves it with no new write path — a textarea fires `change`
+					      on blur exactly as the input does. Enter is blocked in wireNoteExpanders:
+					      the same note is edited through an <input> over in the table view, and an
+					      <input> strips CR/LF out of its own value, so a line break typed here would
+					      vanish the first time someone touched the note there. --}}
+					<div class="stonetop-rel-card-note-wrap">
+						<textarea class="stonetop-rel-note-input stonetop-rel-card-note" data-rel-id="{{id}}"
+						          rows="1" placeholder='{{localize "stonetop.relationships.notePlaceholder"}}'
+						          {{#unless board.canRate}}disabled{{/unless}}>{{notes}}</textarea>
+						{{!-- Rendered on every card but SHOWN only on one whose note actually
+						      overflows, or one already open — wireNoteExpanders measures that per
+						      render and CSS hides the rest with `display: none`, which also keeps
+						      them out of the tab order. Emitted regardless of canRate: reading
+						      someone's note is not an edit, and a viewer who cannot type in the
+						      field is exactly the one who has no other way to see the end of it.
+						      aria-expanded and the label are kept in step by the same handler. --}}
+						<button type="button" class="stonetop-rel-note-toggle" aria-expanded="false"
+						        data-tooltip='{{localize "stonetop.relationships.noteExpand"}}'
+						        aria-label='{{localize "stonetop.relationships.noteExpand"}}'>
+							<i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+						</button>
+					</div>
 				</li>
 				{{/each}}
 

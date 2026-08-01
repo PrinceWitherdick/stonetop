@@ -4,7 +4,7 @@ import {
 	laneMoveTarget, applyRelationshipLaneMove,
 	relationshipView, setRelationshipView, REL_VIEW_DEFAULT, autoScrollDelta, dragTranslation,
 	REL_STEPS, zoneMoveTarget, moveTarget, isLiftedDrag, isCommittedDrop, liftsDrag,
-	stepHearts,
+	stepHearts, laneReorderPatch, applyRelationshipLaneReorder, insertionIndex,
 } from "../../module/utils/relationship-board.js";
 import { FakeStorage } from "../fakes/migration.js";
 
@@ -583,5 +583,250 @@ describe("relationshipView", () => {
 		delete globalThis.localStorage;
 		expect(relationshipView("characterRelationships")).toBe(REL_VIEW_DEFAULT);
 		expect(() => setRelationshipView("characterRelationships", "board")).not.toThrow();
+	});
+});
+
+// ── Hand-arranged lanes ──────────────────────────────────────────────────────
+
+// A card someone has placed, versus one nobody has touched. The distinction is the whole
+// point of the feature: the position is sparse, so an ABSENT one means "sort me by the
+// rule", not "put me first".
+const placedCard = (name, hearts, order, rated = true) => ({ ...card(name, hearts, rated), order });
+
+describe("buildRelationshipLanes ordering", () => {
+	// The default sort, unchanged, on a lane nobody has arranged. This is the guard that
+	// keeps the feature opt-in: an untouched board must look exactly as it did before.
+	it("leaves an unarranged lane sorted by the old rule", () => {
+		const lanes = byKey(buildRelationshipLanes([
+			card("Aldric", 4), card("Zeva", 5), card("Bran", 4, false),
+		]));
+		expect(lanes.trusted.cards.map(c => c.name)).toEqual(["Zeva", "Aldric", "Bran"]);
+	});
+
+	it("puts hand-placed cards in their own order, ahead of everyone unplaced", () => {
+		const lanes = byKey(buildRelationshipLanes([
+			card("Unplaced", 5),
+			placedCard("Third", 4, 2), placedCard("First", 4, 0), placedCard("Second", 5, 1),
+		]));
+		expect(lanes.trusted.cards.map(c => c.name))
+			.toEqual(["First", "Second", "Third", "Unplaced"]);
+	});
+
+	// A newcomer queues at the BOTTOM of an arranged lane rather than shouldering into the
+	// middle of an arrangement it was never part of — even though its rating would have put
+	// it first under the default rule.
+	it("queues a newcomer below an arranged lane, whatever its rating", () => {
+		const lanes = byKey(buildRelationshipLanes([
+			placedCard("Liked", 4, 0), card("Loved", 5),
+		]));
+		expect(lanes.trusted.cards.map(c => c.name)).toEqual(["Liked", "Loved"]);
+	});
+
+	// A hand-placed position OUTRANKS the rating sort, which is the point: the arrangement
+	// is the answer, and a 4 above a 5 is a thing someone is allowed to want.
+	it("lets an arrangement outrank the rating it would otherwise sort by", () => {
+		const lanes = byKey(buildRelationshipLanes([
+			placedCard("Liked", 4, 0), placedCard("Loved", 5, 1),
+		]));
+		expect(lanes.trusted.cards.map(c => c.name)).toEqual(["Liked", "Loved"]);
+	});
+
+	// These live in an ObjectField, which validates nothing. A hand-edited or corrupted
+	// value must read as "unplaced" rather than wedging the column somewhere strange.
+	it("treats a junk position as unplaced", () => {
+		const lanes = byKey(buildRelationshipLanes([
+			placedCard("Junk", 5, "second"), placedCard("Negative", 5, -1),
+			placedCard("Fractional", 5, 1.5), placedCard("Real", 5, 0),
+		]));
+		expect(lanes.trusted.cards[0].name).toBe("Real");
+		expect(lanes.trusted.cards.map(c => c.name).slice(1).sort())
+			.toEqual(["Fractional", "Junk", "Negative"]);
+	});
+
+	// Two cards claiming the same slot cannot happen from the board — a reorder renumbers
+	// the whole lane — but the numbers are hand-editable, so the tie must still resolve to
+	// something someone chose rather than to whatever Array#sort happens to do.
+	it("breaks a tie between equal positions with the default rule", () => {
+		const lanes = byKey(buildRelationshipLanes([
+			placedCard("Liked", 4, 0), placedCard("Loved", 5, 0),
+		]));
+		expect(lanes.trusted.cards.map(c => c.name)).toEqual(["Loved", "Liked"]);
+	});
+
+	// What a reorder counts FROM — not the stored position, which is empty on an unplaced
+	// card, and stale on one that has just changed lanes.
+	it("tells each card where it is rendered, and which ends of the column are dead", () => {
+		const lanes = byKey(buildRelationshipLanes([card("A", 5), card("B", 4), card("C", 4)]));
+		expect(lanes.trusted.cards.map(c => c.laneIndex)).toEqual([0, 1, 2]);
+		const disabled = lanes.trusted.cards.map(c => c.orderButtons.map(b => b.disabled));
+		expect(disabled).toEqual([[true, false], [false, false], [false, true]]);
+	});
+
+	it("renders both ends dead on a lone card, so the strip never changes size", () => {
+		const lanes = byKey(buildRelationshipLanes([card("Alone", 5)]));
+		expect(lanes.trusted.cards[0].orderButtons.map(b => b.disabled)).toEqual([true, true]);
+	});
+});
+
+describe("insertionIndex", () => {
+	// Three 40px cards stacked from y=0, so their midpoints land at 20, 60 and 100.
+	const MIDS = [20, 60, 100];
+
+	// The whole point of the subtraction: a card dragged DOWNWARD must be able to reach the
+	// slot below it. The dragged card still occupies its own slot while in flight, so it is
+	// counted too, and without the correction "just past my neighbour's middle" resolves to
+	// the slot the card is already in — the gesture would do nothing.
+	it("lets a card reach the slot below it", () => {
+		expect(insertionIndex(MIDS, 61, 0)).toBe(1);   // A dragged just past B's middle
+		expect(insertionIndex(MIDS, 101, 0)).toBe(2);  // ...and past C's
+		expect(insertionIndex(MIDS, 101, 1)).toBe(2);  // B to the bottom
+	});
+
+	it("lets a card reach the slot above it", () => {
+		expect(insertionIndex(MIDS, 19, 2)).toBe(0);   // C dragged above A's middle
+		expect(insertionIndex(MIDS, 59, 2)).toBe(1);
+		expect(insertionIndex(MIDS, 19, 1)).toBe(0);
+	});
+
+	// Held over its own half of its own slot, the answer is the slot it is in — which
+	// laneReorderPatch then refuses as a no-op. A drag that goes nowhere writes nothing.
+	it("resolves to the card's own slot while it has not passed a neighbour", () => {
+		expect(insertionIndex(MIDS, 21, 0)).toBe(0);
+		expect(insertionIndex(MIDS, 59, 0)).toBe(0);
+		expect(insertionIndex(MIDS, 61, 1)).toBe(1);
+		expect(insertionIndex(MIDS, 99, 1)).toBe(1);
+	});
+
+	// Above every card and below every card: a drag can travel well past either end, and the
+	// answer has to stay a real slot rather than running off the list.
+	it("stays inside the lane past either end", () => {
+		expect(insertionIndex(MIDS, -500, 1)).toBe(0);
+		expect(insertionIndex(MIDS, 5000, 1)).toBe(2);
+	});
+
+	it("answers 0 for a lane holding only the card being dragged", () => {
+		expect(insertionIndex([20], 5, 0)).toBe(0);
+		expect(insertionIndex([20], 500, 0)).toBe(0);
+	});
+});
+
+describe("laneReorderPatch", () => {
+	const lane = [{ id: "a", order: 0 }, { id: "b", order: 1 }, { id: "c", order: 2 }];
+
+	it("renumbers only the rows the move actually shifts", () => {
+		// c to the top: c takes 0, a and b each slide down one.
+		expect(laneReorderPatch(lane, "c", 0)).toEqual({ c: 0, a: 1, b: 2 });
+		// b down one: only b and c swap. `a` keeps 0 and stays out of the patch entirely.
+		expect(laneReorderPatch(lane, "b", 2)).toEqual({ b: 2, c: 1 });
+	});
+
+	// The first arrangement of a lane nobody has touched has to number EVERY card, because
+	// there is nothing to be relative to yet — that is the case sparse numbering cannot
+	// express, and the reason this renumbers rather than interpolating.
+	it("numbers the whole lane the first time one is arranged", () => {
+		const fresh = [{ id: "a" }, { id: "b" }, { id: "c" }];
+		expect(laneReorderPatch(fresh, "c", 0)).toEqual({ c: 0, a: 1, b: 2 });
+	});
+
+	it("refuses a move that changes nothing", () => {
+		expect(laneReorderPatch(lane, "b", 1)).toBeNull();
+		expect(laneReorderPatch(lane, "nobody", 0)).toBeNull();
+		expect(laneReorderPatch([], "a", 0)).toBeNull();
+	});
+
+	// The keyboard and the two buttons ask for one slot either way without checking the
+	// ends, and a drag can travel past the last card. All of those clamp rather than
+	// throwing the gesture away — except at an end, where the clamp lands on the card's own
+	// slot and the move correctly becomes a no-op.
+	it("clamps a target past either end of the lane", () => {
+		expect(laneReorderPatch(lane, "b", -5)).toEqual({ b: 0, a: 1 });
+		expect(laneReorderPatch(lane, "b", 99)).toEqual({ b: 2, c: 1 });
+		expect(laneReorderPatch(lane, "a", -1)).toBeNull();
+		expect(laneReorderPatch(lane, "c", 99)).toBeNull();
+	});
+
+	it("refuses a target that is not a number at all", () => {
+		expect(laneReorderPatch(lane, "a", "second")).toBeNull();
+		expect(laneReorderPatch(lane, "a", undefined)).toBeNull();
+	});
+
+	// A lane gains a GAP in its numbering the moment a card leaves it — the survivors keep
+	// the numbers they had. The patch is a diff, so in that state the moved card can land on
+	// the very number it already carries and drop out of its own patch. Nothing downstream
+	// may read the card's destination back out of this, which is why laneIndexIn exists.
+	it("can omit the moved card itself once the lane has a gap", () => {
+		// What is left of [A(0), B(1), C(2)] after A was promoted out of the lane.
+		const gapped = [{ id: "b", order: 1 }, { id: "c", order: 2 }];
+		const patch = laneReorderPatch(gapped, "b", 1);
+		expect(patch).toEqual({ c: 0 });
+		expect(patch.b).toBeUndefined();
+	});
+});
+
+describe("applyRelationshipLaneReorder", () => {
+	const lane = [{ id: "a", order: 0 }, { id: "b", order: 1 }, { id: "c", order: 2 }];
+
+	// ONE update for the whole lane. A write per card would re-render the sheet once per
+	// card and let the board flicker through every intermediate arrangement.
+	it("writes every renumbered row in a single update", async () => {
+		const actor = fakeActor({ a: { hearts: 5 }, b: { hearts: 4 }, c: { hearts: 4 } });
+		expect(await applyRelationshipLaneReorder(actor, { cards: lane, id: "c", toIndex: 0 }))
+			.toEqual({ c: 0, a: 1, b: 2 });
+		expect(actor.patches).toHaveLength(1);
+		expect(Object.keys(actor.patches[0]).sort()).toEqual([
+			"system.relationships.a", "system.relationships.b", "system.relationships.c",
+		]);
+		// The rating rides through untouched: a position is not a judgment.
+		expect(actor.patches[0]["system.relationships.c"]).toEqual({ hearts: 4, order: 0 });
+	});
+
+	it("writes nothing on a no-op, or when the viewer cannot edit", async () => {
+		for (const opts of [
+			{ cards: lane, id: "b", toIndex: 1 },
+			{ cards: lane, id: "c", toIndex: 0, editable: false },
+			{ cards: lane, id: "", toIndex: 0 },
+		]) {
+			const actor = fakeActor();
+			expect(await applyRelationshipLaneReorder(actor, opts)).toBeNull();
+			expect(actor.patches).toHaveLength(0);
+		}
+	});
+
+	// Placing an unrated card must not invent a rating for them: `rated` is derived from
+	// whether `hearts` is stored, so an entry created by a reorder would otherwise turn a
+	// dimmed "never judged" card into a real 3-heart verdict.
+	it("places an unrated card without judging them", async () => {
+		const actor = fakeActor({});
+		await applyRelationshipLaneReorder(actor, {
+			cards: [{ id: "a" }, { id: "b" }], id: "b", toIndex: 0,
+		});
+		expect(actor.patches[0]["system.relationships.b"]).toEqual({ order: 0 });
+	});
+});
+
+describe("a lane move and a hand-placed position", () => {
+	// A card that changes COLUMN loses its position: the number named a slot in the lane it
+	// just left, so honouring it in the new one drops the card into the middle of a column
+	// it has never been in. Cleared, it lands at the bottom, where an arrival belongs.
+	it("clears the position when the card changes column", async () => {
+		const actor = fakeActor({ vera: { hearts: 2, order: 0 } });
+		await applyRelationshipLaneMove(actor, { id: "vera", hearts: 2, rated: true, laneKey: "trusted" });
+		expect(actor.lastEntry).toEqual({ hearts: 4, order: null });
+	});
+
+	// ...but a rating nudge INSIDE a lane keeps it. The arrangement is about the column, and
+	// 4 to 5 is not a request to be re-sorted.
+	it("keeps the position when only the rating moves within the lane", async () => {
+		const actor = fakeActor({ vera: { hearts: 4, order: 2 } });
+		await applyRelationshipLaneMove(actor, { id: "vera", hearts: 4, rated: true, zoneHearts: 5 });
+		expect(actor.lastEntry).toEqual({ hearts: 5, order: 2 });
+	});
+
+	// Nothing stored, nothing to clear: an ordinary rating change on a board nobody has
+	// arranged must not start writing a null into every entry it touches.
+	it("stores no position at all for a card that never had one", async () => {
+		const actor = fakeActor({ vera: { hearts: 2 } });
+		await applyRelationshipLaneMove(actor, { id: "vera", hearts: 2, rated: true, laneKey: "trusted" });
+		expect(actor.lastEntry).toEqual({ hearts: 4 });
 	});
 });
