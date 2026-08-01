@@ -92,6 +92,11 @@ export function showAvatarPreview(anchor, { placement = "below", variant = "" } 
 	return popup;
 }
 
+// Every selector wired against a given root, so repeat calls share ONE pair of listeners
+// instead of stacking their own. A root is a freshly rendered subtree, so an entry dies with
+// the render that made it; the WeakMap is what keeps that automatic.
+const WIRED_ROOTS = new WeakMap();
+
 /**
  * Delegate the preview from `root` for every thumbnail matching `selector`.
  *
@@ -99,14 +104,41 @@ export function showAvatarPreview(anchor, { placement = "below", variant = "" } 
  * ancestors on the way down only, so a delegated listener has to catch them there or see
  * nothing at all. (mouseover/mouseout do bubble, but they also fire on every move between
  * child elements, which would tear the preview down and rebuild it mid-hover.)
+ *
+ * Calling this more than once for the same root is normal — a character sheet wires its
+ * follower faces, its arcana thumbs and its relationship portraits independently — so the
+ * selectors are pooled rather than each getting its own listener pair. That matters because
+ * a capture-phase mouseenter fires for every element the pointer crosses: one pooled
+ * `closest` over the joined selector costs one ancestor walk per move, where N separate
+ * wirings cost N.
  */
 export function wireAvatarPreview(root, selector, options) {
-	if (!root) return;
+	if (!root || !selector) return;
+	const wired = WIRED_ROOTS.get(root);
+	if (wired) {
+		// A re-wire of the same selector (a second pass over one root) must not DOUBLE it —
+		// but it must not be ignored either. The later call is the current wiring, so its
+		// options replace what the entry was holding; dropping them would silently pin the
+		// preview's placement and variant to whichever pass happened to run first.
+		const existing = wired.entries.find(e => e.selector === selector);
+		if (existing) existing.options = options;
+		else {
+			wired.entries.push({ selector, options });
+			wired.joined = wired.entries.map(e => e.selector).join(", ");
+		}
+		return;
+	}
+
+	const state = { entries: [{ selector, options }], joined: selector };
+	WIRED_ROOTS.set(root, state);
+	// One walk to find the thumbnail, then a cheap `matches` on the element we already have
+	// to say which wiring owns it (and so which options to show it with).
+	const hit = ev => ev.target.closest?.(state.joined);
 	root.addEventListener("mouseenter", ev => {
-		const thumb = ev.target.closest?.(selector);
-		if (thumb) showAvatarPreview(thumb, options);
+		const thumb = hit(ev);
+		if (thumb) showAvatarPreview(thumb, state.entries.find(e => thumb.matches(e.selector))?.options);
 	}, true);
 	root.addEventListener("mouseleave", ev => {
-		if (ev.target.closest?.(selector)) removeAvatarPreview();
+		if (hit(ev)) removeAvatarPreview();
 	}, true);
 }

@@ -53,6 +53,10 @@ export function makeDialogsResizable() {
  * `{ height: "auto" }` refits so the user's chosen height sticks across the many
  * `render(false)` re-renders these dialogs do.
  *
+ * A resized window also picks up a `stonetop-height-resized` class on its frame, which
+ * lifts the CSS `max-height` cap some of these windows carry (see stonetop.css) — the
+ * cap exists to bound the opening height, and would otherwise clamp the drag as well.
+ *
  * Patches the V1 `Application` prototype once, but the behaviour change is scoped
  * to Stonetop windows (any `stonetop`-namespaced class) — every other V1 window
  * (core sheets, third-party apps) keeps core's exact `setPosition`, so a
@@ -100,6 +104,20 @@ export function enableAutoHeightVerticalResize() {
 			position = { ...position };
 			delete position.height;
 		}
+
+		// Adopting the height above is only half the job: several of our auto-height
+		// windows also carry a CSS `max-height` cap on the frame, there to stop a long
+		// list opening the full height of the screen. That cap clamps the rendered box
+		// no matter what `style.height` the drag writes, so a window sitting AT its cap
+		// (the People of Stonetop gallery, with a full portrait grid, always is) reads
+		// as un-growable. Mark the frame so the stylesheet can lift the cap once the
+		// user has taken sizing over — the cap has done its job by then, and core still
+		// clamps the dragged height to the viewport. Marked via a class, never an inline
+		// `style.maxHeight`: core reads `el.style.maxHeight` straight into `Math.clamp`,
+		// where a CSS string ("none", "800px") yields NaN and kills resizing outright.
+		// Re-asserted on every call rather than once, since it costs nothing and covers
+		// a window whose frame is rebuilt by a later render.
+		if (this._stonetopHeightLocked) this.element?.[0]?.classList.add("stonetop-height-resized");
 
 		return baseSetPosition.call(this, position);
 	};

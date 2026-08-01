@@ -1,5 +1,8 @@
 <div class="tab followers" data-group="primary" data-tab="followers">
-<div class="stonetop-followers">
+{{!-- stonetop-gap-managed: this is a responsive grid whose row gap sets the spacing under the
+      heading row, so the generic heading-row sibling margin must not stack on top of it.
+      See the CSS. --}}
+<div class="stonetop-followers stonetop-gap-managed">
 
 	{{!-- The "exceptional" tag chip, shown in the tags row. A gated tag: rendered
 	      only for follower types whose playbook grants it (exceptionalAvailable —
@@ -22,7 +25,35 @@
 	{{> "stonetop.follower-section-edit" section="card" editing=edit.card editTitle="Edit follower"}}
 	<div class="stonetop-follower-header">
 		<div class="stonetop-follower-header-main">
-			<div class="stonetop-follower-portrait"><i class="{{portraitIcon}}"></i></div>
+			{{!-- The follower's face. A chosen portrait when they have one, else the type's
+			      glyph (a paw, a seedling, a crowd), which is the normal state — nothing
+			      here is required and nothing had to be migrated to add it.
+
+			      Clicking opens the People of Stonetop gallery, the same picker the
+			      steading's rosters use, so a follower recruited from the village can wear
+			      the village's face; hovering a real portrait pops the enlarged copy through
+			      the shared avatar preview. data-name is both that preview's caption and the
+			      selector hook wireAvatarPreview matches on, so a portrait that previews and
+			      one that is captioned are the same element.
+
+			      role/tabindex/tooltip only when portraitEditable (sheet-level editability):
+			      a viewer who cannot write would otherwise get a tab stop and a pointer
+			      cursor promising a picker that could not save. The glyph stays clickable
+			      too — picking a first portrait is the whole point. --}}
+			<div class="stonetop-follower-portrait{{#if img}} stonetop-follower-portrait--photo{{/if}}{{#if portraitEditable}} stonetop-follower-portrait--editable{{/if}}"
+			     data-ftype="{{ftype}}" data-slug="{{slug}}"
+			     {{#if portraitEditable}}role="button" tabindex="0"
+			     data-tooltip="{{portraitLabel}}"
+			     data-tooltip-direction="UP"
+			     aria-label="{{portraitLabel}}"{{/if}}>
+				{{#if img}}
+				{{!-- draggable="false": a press on the face is a click on the picker, not the
+				      start of an image drag. --}}
+				<img class="stonetop-follower-portrait-img" src="{{img}}" alt="" draggable="false" data-name="{{orderName}}">
+				{{else}}
+				<i class="{{portraitIcon}}" aria-hidden="true"></i>
+				{{/if}}
+			</div>
 			<div class="stonetop-follower-title">
 				<div class="stonetop-follower-name-row">
 					{{#if nameLines.length}}

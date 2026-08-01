@@ -709,6 +709,19 @@ figure.stonetop-map figcaption {
 	box-shadow: 2px 4px 8px 2px rgba(0, 0, 0, 0.4);
 }
 
+/* A window the user has dragged taller by its resize handle, marked by
+   enableAutoHeightVerticalResize (module/utils/resizable-dialogs.js) on the first
+   manual resize. Several of our auto-height windows cap the frame's max-height so a
+   long list can't open the full height of the screen (the People of Stonetop gallery
+   caps at 620px); that cap would then clamp the drag too, leaving the window stuck at
+   its opening height. Lift it once the user is sizing the window by hand — core's
+   setPosition still clamps the dragged height to the viewport. The `body` prefix is
+   load-bearing, not decoration: every one of those caps is a two-class selector, and
+   this rule is declared ahead of them, so it needs the extra element to win. */
+body :is(.app, .window-app).stonetop-height-resized {
+	max-height: none;
+}
+
 /* ── Stonetop-themed core windows ──────────────────────────────────────────
    Opt-in skin for core Foundry windows (e.g. User Configuration) that
    window-theme.js tags with `.stonetop-themed`. Scoped entirely to that marker
@@ -7321,12 +7334,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    runs) the cards sit directly in this flex row; flex-wrap + a column basis on
    them keeps that fallback a sensible multi-up layout rather than one squished
    row. */
+/* No top padding: the section heading above already contributes its own 8px
+   bottom margin, and a second 8px here doubled the gap under the rule relative
+   to every other section. */
 .stonetop-special-move-grid {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-start;
 	gap: 12px;
-	padding: 8px 0;
+	padding: 0 0 8px;
 }
 
 .stonetop-special-move-col {
@@ -9834,13 +9850,48 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 5px;
 }
 
-.steading-member-avatar {
-	width: 20px;
-	height: 20px;
-	flex: 0 0 20px;
-	border: 1px solid rgba(0,0,0,0.22);
-	border-radius: var(--st-radius-sm);
+/* ── The People of Stonetop crop, stated once ────────────────────────────────────────
+   Every surface that shows one of these faces cover-crops it the same way, so a portrait
+   is framed alike wherever it appears — the steading rosters, the hover preview, the
+   gallery tiles you choose from, a follower's card, the relationships board.
+
+   People art runs from squat detail crops to whole standing figures at 1:3, and a
+   cover-cropped square takes its window from the MIDDLE of one — which on a tall figure
+   is the torso, with the head sliced off. Anchor the crop to the TOP instead: the People
+   of Stonetop crops are tight (a head starts within a few percent of the top edge), so
+   the window lands on the face and the figure trails off below. A circle mask crops
+   harder than a square, which is why the round ones need it most.
+
+   Only an image TALLER than its box is affected at all — a wide one is cropped on the x
+   axis, where `center` still applies — so this costs nothing for the square and squat
+   portraits.
+
+   Each selector keeps the specificity it would have had on its own, and this sits ahead of
+   all of them, so the one deliberate exception still wins: .stonetop-avatar-preview--art
+   re-fits to `contain` at its intrinsic size, where there is no crop to move. The rules
+   below carry only what is genuinely local — size, border, the circle-vs-square call. */
+.steading-member-avatar,
+.stonetop-avatar-preview img,
+.steading-player-portrait,
+.stonetop-follower-portrait-img,
+.stonetop-people-gallery .stonetop-people-pick img,
+.stonetop-rel-portrait {
 	object-fit: cover;
+	object-position: center top;
+}
+
+/* Circular, matching .stonetop-rel-portrait on the character sheet's relationships
+   component: these rosters show the same People of Stonetop faces, so they read as one
+   set of portraits rather than two treatments of the same art. 22px rather than the old
+   20px because a circle drops about a fifth of a square's area at the same box, and the
+   faces were already small; 22px still clears the row (32px min-height less the cell's
+   4px padding leaves 24px), so nothing reflows. */
+.steading-member-avatar {
+	width: 22px;
+	height: 22px;
+	flex: 0 0 22px;
+	border: 1px solid rgba(0,0,0,0.22);
+	border-radius: 50%;
 	background: rgba(255,255,255,0.55);
 	cursor: zoom-in;
 }
@@ -9883,10 +9934,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	animation: stonetop-arcana-pop-in 0.12s ease;
 }
 
+/* Crop shared with the thumbnail this enlarges (see the People of Stonetop crop block):
+   a preview that centred while the thumbnail topped would show a different part of the
+   face you hovered. */
 .stonetop-avatar-preview img {
 	width: 128px;
 	height: 128px;
-	object-fit: cover;
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: var(--st-radius-sm);
 	background: rgba(255,255,255,0.55);
@@ -9953,8 +10006,11 @@ a.steading-player-open:hover {
 	height: 24px;
 	flex-shrink: 0;
 	border: 1px solid rgba(0,0,0,0.22);
-	border-radius: var(--st-radius-sm);
-	object-fit: cover;
+	/* Circular for the same reason as .steading-member-avatar directly above: the PC table
+	   sits immediately over the residents in this tab, so a square here beside a circle
+	   there would read as an accident. Already 24px, which is the tallest a portrait can be
+	   in this row, so unlike the residents' it needs no size bump to carry the mask. */
+	border-radius: 50%;
 	background: rgba(255,255,255,0.55);
 }
 
@@ -13250,13 +13306,25 @@ a.steading-player-open:hover {
 
 /* ── Invocations tab ──────────────────────────────────────────────────── */
 
+/* The tab is a flex column of four blocks (heading row, toolbar, rules, card grid).
+   The gap is 8px — the same air every other tab leaves under a section heading's
+   rule — and the two lower blocks add the remaining 6px back, so only the
+   heading→toolbar step is tightened. The gap is the whole spacing story here, which is
+   what `.stonetop-gap-managed` on the tab element says: it keeps the generic
+   `.stonetop-details-heading-row + *` margin from stacking on top of it (flex gaps don't
+   collapse with margins), which is where an earlier 18px step under the rule came from. */
 .stonetop-invocations {
 	flex-direction: column;
 	height: 100%;
 	overflow-y: auto;
 	/* Top matches the Moves tab's 12px so the first line sits at the same height. */
 	padding: 12px 14px;
-	gap: 14px;
+	gap: 8px;
+}
+
+.stonetop-invocations-rules,
+.stonetop-invocations-grid {
+	margin-top: 6px;
 }
 
 /* Explicit unlayered hide: the flex-container class lives on the `.tab` element itself, so the
@@ -14567,8 +14635,58 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	background: rgba(255, 255, 255, 0.5);
 	display: grid;
 	place-items: center;
-	color: var(--st-text-secondary);
+	/* Black, matching the relationship card's placeholder head. The type glyph (a paw, a
+	   seedling, a crowd) stands in for a face on every follower who has not been given a
+	   portrait, so it is the card's identity at a glance — secondary-text grey on the pale
+	   circle read as a smudge rather than a symbol. The RING stays --st-text-body: it is
+	   chrome around the glyph, not part of it. */
+	color: #000;
 	font-size: var(--st-fs-md);
+	/* A portrait fills the circle edge to edge, so the corners it would otherwise poke
+	   through are clipped here as well as on the image itself: `place-items: center` is a
+	   grid, and a stray fraction of a pixel at the rim reads as a square shadow. */
+	overflow: hidden;
+}
+
+/* The chosen portrait, in place of the type glyph. */
+.stonetop-follower-portrait-img {
+	width: 100%;
+	height: 100%;
+	display: block;
+	border-radius: 50%;
+}
+
+/* `display: block`, dropping the base rule's grid, is doing real work: the grid is there to
+   CENTER a glyph, and a centred item is auto-sized on both axes — which leaves the image's
+   `height: 100%` with no definite box to resolve against, so it falls back to the intrinsic
+   aspect ratio and a 1:3 portrait renders 32px wide by 96px tall, spilling far below the
+   card's header. Against a plain block box of fixed height the percentage resolves, and the
+   image fills the circle exactly.
+
+   The translucent fill goes with it: it is a backdrop for the glyph, and behind a photo it
+   only ever shows at the rim while the image loads. */
+.stonetop-follower-portrait--photo {
+	display: block;
+	background: none;
+}
+
+/* Clicking opens the People of Stonetop gallery. Only rendered editable for a viewer who
+   can save the pick, so the cursor and the ring never promise a picker that would refuse. */
+.stonetop-follower-portrait--editable {
+	cursor: pointer;
+}
+
+.stonetop-follower-portrait--editable:hover {
+	border-color: var(--st-btn-primary-border, #4f5b66);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-btn-primary-border, #4f5b66) 30%, transparent);
+}
+
+/* The element has no href and is a div with role="button", so core's focus styling never
+   fires — without this the keyboard path reaches the portrait with nothing to show for it.
+   Same ring as the relationship board's cards and lane picker. */
+.stonetop-follower-portrait--editable:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: 2px;
 }
 
 .stonetop-follower-name-row,
@@ -17247,8 +17365,18 @@ li.question-bullet {
 }
 /* Background/Origin get their heading→content gap from .stonetop-item's padding;
    Instinct/Appearance content has none, so match it here without double-spacing
-   the padded sections. */
-.stonetop-details-heading-row + :not(.stonetop-item) {
+   the padded sections.
+
+   OPT-OUT, not per-tab cancellation: a flex or grid container sets this spacing with its own
+   gap, and a gap does NOT collapse with a margin, so this one would stack on top of it. Every
+   such container used to answer that by re-stating the selector with `margin-top: 0`, which
+   meant every new gap-managed tab had to discover the invisible 4px first. Mark the container
+   `.stonetop-gap-managed` instead and it never arrives.
+
+   `:not(:where(…))` rather than `:not(…)`: :where() contributes NO specificity, so this rule
+   still weighs exactly what it did before the opt-out existed — which matters, because the
+   .tab.details rules below win on source order alone. */
+:not(:where(.stonetop-gap-managed)) > .stonetop-details-heading-row + :not(.stonetop-item) {
 	margin-top: 4px;
 }
 /* On the Details tab the lore section sets the rhythm: its own heading leaves 8px of
@@ -17271,8 +17399,15 @@ li.question-bullet {
 .stonetop-followers > .stonetop-follower-add-bar {
 	grid-column: 1 / -1;
 }
-.stonetop-followers > .stonetop-details-heading-row + * {
-	margin-top: 0;
+/* …but the 12px grid gap then left 12px under the heading's rule, where every other
+   tab leaves 8px (Moves, Details, Invocations), and the tab read loose next to them.
+   A row gap can't be set per-row, so shrink the heading row's own track instead: a
+   -4px bottom margin takes 4px off its outer height, pulling the first card row up
+   by that much while the 12px card-to-card gaps stay put. The heading's underline is
+   the row's last ink, so it simply overhangs 4px into the gap — nothing paints there
+   to collide with. */
+.stonetop-followers > .stonetop-details-heading-row {
+	margin-bottom: -4px;
 }
 .stonetop-details-heading-row .stonetop-section-edit,
 .stonetop-details-heading-row .stonetop-section-done {
@@ -22161,10 +22296,11 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Cap the window FRAME, not the content box. The window is auto-height (see
    defaultOptions) so it hugs a short gallery, but a world with dozens of imported
    portraits would otherwise open the full height of the screen. Capping here — rather
-   than on .window-content, which is flex:1 and always fills the frame — also survives
-   the resize handle (this dialog is resizable): dragging taller than the cap leaves no
-   dark band below the content, it just stops growing. Past the cap the grid scrolls and
-   the footer stays pinned. */
+   than on .window-content, which is flex:1 and always fills the frame — leaves no dark
+   band below the content when the window is at the cap: the grid scrolls and the footer
+   stays pinned. The cap bounds the OPENING height only; the first drag of the resize
+   handle marks the frame `.stonetop-height-resized`, which lifts it (see the generic
+   rule near the top of this file), so the gallery can still be pulled taller by hand. */
 .stonetop-people-gallery.window-app {
 	max-height: min(620px, calc(100vh - 80px));
 }
@@ -22188,6 +22324,29 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	min-height: 0;
 	overflow-y: auto;
 }
+/* Header: filters left, the two ways past the gallery's own art (Browse, Use default) stacked
+   right. The column takes `margin-left: auto` rather than the row taking `space-between`, so it
+   stays pinned right in a world with no tagged art, where the filter row never renders. */
+.stonetop-people-gallery .stonetop-people-header {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	flex: 0 0 auto;
+}
+.stonetop-people-gallery .stonetop-people-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	flex: 0 0 auto;
+	margin-left: auto;
+}
+/* The column is content-width, and its buttons keep `width: auto` from the shared skin below,
+   so flex stretches both to the widest of them — the equal width is what makes a stacked pair
+   read as one control rather than two strays. Centre the labels, which stretching would
+   otherwise leave ragged against the left edge. */
+.stonetop-people-gallery .stonetop-people-actions button {
+	justify-content: center;
+}
 /* Trait filters. Two independent groups (how the portrait presents, and whether it is a
    child), each a one-of-N chip row, tagged in the local art picker and shipped in the book-art
    manifest. They only render when there is tagged art to narrow. */
@@ -22195,7 +22354,10 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px 14px;
-	flex: 0 0 auto;
+	/* Grow into the space the action column leaves, and wrap inside it rather than shoving the
+	   column off the right edge. */
+	flex: 1 1 auto;
+	min-width: 0;
 }
 .stonetop-people-gallery .stonetop-people-filtergroup {
 	display: flex;
@@ -22325,6 +22487,19 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border-color: var(--st-btn-primary-border);
 	box-shadow: 0 0 0 1px var(--st-btn-primary-border) inset;
 }
+/* Already assigned to somebody else on the steading roster. Red, the palette's "this would
+   undo/duplicate something" accent: a portrait can still be picked twice on purpose, so this
+   warns rather than blocks (the Unused filter is there to hide them outright). Declared
+   BEFORE the selected/rolled states so both of those still win on a tile that is also taken:
+   equal specificity, so source order decides. */
+.stonetop-people-gallery .stonetop-people-pick.is-used {
+	background: var(--st-red-bg);
+	border-color: var(--st-red-border);
+	box-shadow: 0 0 0 1px var(--st-red-border) inset;
+}
+.stonetop-people-gallery .stonetop-people-pick.is-used .stonetop-people-label {
+	color: var(--st-red-text);
+}
 /* Selected: the palette's green border is lighter than the old hand-rolled one, so pair the
    ring with the green wash — the pick still reads as chosen at a glance across a full grid. */
 .stonetop-people-gallery .stonetop-people-pick.is-selected {
@@ -22335,11 +22510,28 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-people-gallery .stonetop-people-pick.is-selected .stonetop-people-label {
 	color: var(--st-green-text);
 }
+/* Proposed: the portrait on offer — clicked or rolled — held until Accept commits it.
+   Slate, our action colour, and deliberately NOT the green above, which throughout this
+   dialog means "the portrait actually in use". The outer glow carries it when a roll lands
+   off-screen and the grid scrolls to it. Declared after .is-selected so an offer that lands
+   on the portrait already in use still reads as the offer. */
+.stonetop-people-gallery .stonetop-people-pick.is-proposed {
+	background: rgba(112, 128, 144, 0.12);
+	border-color: var(--st-btn-primary-border);
+	box-shadow: 0 0 0 2px var(--st-btn-primary-border) inset, 0 0 10px rgba(112, 128, 144, 0.6);
+}
+.stonetop-people-gallery .stonetop-people-pick.is-proposed .stonetop-people-label {
+	color: var(--st-text);
+	font-weight: 600;
+}
+/* A 3/4 tile is portrait-shaped, but the art is often taller still (a whole standing figure
+   runs to 1:3). The tile takes the same crop the chosen portrait then does on the sheet, so
+   what you pick is what you get. The hover preview is unaffected: it fits the whole portrait
+   uncropped. */
 .stonetop-people-gallery .stonetop-people-pick img {
 	width: 100%;
 	min-width: 160px;
 	aspect-ratio: 3 / 4;
-	object-fit: cover;
 	border-radius: var(--st-radius);
 	background: #fff;
 }
@@ -22354,31 +22546,61 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-people-gallery .stonetop-people-footer {
 	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
 	gap: 8px;
 	justify-content: flex-end;
-	padding-top: 6px;
+	padding-top: 8px;
 	border-top: 1px solid rgba(100, 116, 139, 0.25);
 }
-/* `width: auto` undoes core's full-width `body.game .app button`; the explicit colour is
-   not cosmetic — core hands a window button white text, which was invisible against the
-   parchment fill these inherit from the .stonetop button skin. Nothing here is the
-   affirmative action (picking a card is), so all three read as secondary. */
-.stonetop-people-gallery .stonetop-people-footer button {
+/* The house modal button skin, shared by the footer pair and the header column: light
+   secondary buttons plus one solid-slate affirmative, the same pairing as the Add Resident
+   dialog's .asm-cancel / .asm-confirm — the two dialogs the steading sheet opens back to
+   back, so they should read as one system. `width: auto` undoes
+   core's full-width `body.game .app button`, and the explicit colour undoes the white text
+   core hands a window button, which vanished against a light fill. */
+.stonetop-people-gallery .stonetop-people-footer button,
+.stonetop-people-gallery .stonetop-people-actions button {
 	width: auto;
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
 	gap: 0.4rem;
-	padding: 0.35rem 0.8rem;
+	padding: 6px 14px;
+	font-size: var(--st-fs-base);
+	line-height: 1.2;
+	background: rgba(255, 255, 255, 0.8);
+	border: 1px solid var(--color-border-light-primary, #ccc);
+	border-radius: var(--st-radius-sm);
 	color: var(--st-text-body);
+	box-shadow: none;
 	cursor: pointer;
+	transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
-.stonetop-people-gallery .stonetop-people-footer button:hover {
+.stonetop-people-gallery .stonetop-people-footer button:not([disabled]):hover,
+.stonetop-people-gallery .stonetop-people-actions button:not([disabled]):hover {
+	background: rgba(0, 0, 0, 0.05);
 	border-color: var(--st-btn-primary-border);
 	color: var(--st-text);
 }
-.stonetop-people-gallery .stonetop-people-browse {
-	margin-right: auto;
+/* The affirmative — the only button here that commits a portrait — takes the slate primary
+   fill every other dialog's confirm uses. The `button.` chain is needed, not decoration: the
+   base rule above ends in an element selector, so a bare class would lose to it. */
+.stonetop-people-gallery .stonetop-people-footer button.stonetop-people-accept {
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+.stonetop-people-gallery .stonetop-people-footer button.stonetop-people-accept:not([disabled]):hover {
+	background: var(--st-btn-primary-bg-hover);
+	border-color: var(--st-btn-primary-border-hover);
+	color: var(--st-btn-primary-text);
+}
+/* Disabled means "nothing to do yet": no roll has landed (Accept), or the filters left
+   nothing to roll (Randomize). */
+.stonetop-people-gallery .stonetop-people-footer button[disabled] {
+	opacity: 0.45;
+	cursor: default;
 }
 
 /* ==========================================================================
@@ -23086,18 +23308,20 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	height: 26px;
 	flex: 0 0 auto;
 	border-radius: 50%;
-	object-fit: cover;
 	background: var(--stonetop-bg, #f0ece3);
 	border: 1px solid rgba(0, 0, 0, 0.15);
 }
+/* Black, undimmed. The placeholder head sits on the pale portrait well, and core's
+   secondary text colour at half opacity washed out to a grey barely darker than the well
+   itself. Settlements never carry an image, so on a steading board that placeholder is the
+   card's only face and has to read as one. */
 .stonetop-rel-portrait--empty {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--color-text-dark-secondary, #4b4a44);
+	color: #000;
 }
 .stonetop-rel-portrait--empty i {
-	opacity: 0.5;
 	font-size: 14px;
 }
 .stonetop-rel-name {
@@ -23844,8 +24068,12 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border-style: dashed;
 }
 
-.stonetop-rel-card--unrated .stonetop-rel-card-name,
-.stonetop-rel-card--unrated .stonetop-rel-portrait { opacity: 0.72; }
+/* The NAME carries that dimming, not the face. Most portraits here are ink-on-transparent
+   line art (a playbook badge, the placeholder head), so 0.72 does not read as "muted" the
+   way it does on text — it washes near-black ink to grey against the card's pale fill, and
+   the face is the one thing on the card meant to be identifiable at a glance. The dashed
+   border, the translucent fill, and the dimmed name already say "never rated". */
+.stonetop-rel-card--unrated .stonetop-rel-card-name { opacity: 0.72; }
 
 /* Unticked under the pencil: shown only while editing, matching the table's row treatment. */
 .stonetop-rel-card--hidden .stonetop-rel-card-name,
@@ -24308,13 +24536,10 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    whenever the steps were an opaque slate; against a translucent segment that ring would
    vanish instead. */
 
-/* An empty portrait's glyph is already at 0.5 opacity, so the unrated card's 0.72 on the
-   wrapper compounded to ~0.36 and all but erased it. That hit settlements hardest: they
-   NEVER have an image, and they start unrated, so every card on a fresh steading board
-   showed a ghost. Dim the wrapper, not the glyph twice. */
-.stonetop-rel-card--unrated .stonetop-rel-portrait--empty i {
-	opacity: 0.5;
-}
+/* The unrated card's 0.72 on the wrapper is the ONLY dimming an empty portrait's glyph
+   takes. Settlements NEVER have an image and start unrated, so anything stacked on top of
+   that erased every card on a fresh steading board. The glyph itself carries no opacity of
+   its own (see .stonetop-rel-portrait--empty) — keep it that way. */
 
 /* ── Board view: dragging a card between lanes ────────────────────────────── */
 

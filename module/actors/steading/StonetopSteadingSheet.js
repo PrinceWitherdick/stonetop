@@ -7,9 +7,9 @@ import {escHtml} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
-import {addPersonToSteading, personFieldPath, isActorRow} from "./steading-people.js";
+import {addPersonToSteading, personFieldPath, isActorRow, usedPersonPortraits} from "./steading-people.js";
 import {openNpcNotesDialog} from "./npc-notes-dialog.js";
-import {PeopleGalleryDialog} from "./PeopleGalleryDialog.js";
+import {openPeoplePortraitPicker} from "./PeopleGalleryDialog.js";
 import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
 import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDialog.js";
 import {CharacterInventory} from "../character/CharacterInventory.js";
@@ -1347,14 +1347,6 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (popout) this._refreshMemberImagePopout(popout, path);
 				this.render(false);
 			};
-			const openFilePicker = () => {
-				const FilePickerClass = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
-				if (!FilePickerClass) return;
-				new FilePickerClass({ type: "image", current, callback: applyPath }).render(true);
-			};
-			// Only a user who can browse the data files gets the raw FilePicker fallback; players
-			// pick from the broadcast gallery, which needs no file access.
-			const canBrowse = !!(game.user?.isGM || game.user?.can?.("FILES_BROWSE"));
 			// "Use default" removes the custom photo; the member falls back to the default avatar.
 			// Close the (now-stale) photo popout rather than refreshing it: there is no image to
 			// show, and _refreshMemberImagePopout no-ops on an empty path, so leaving it open would
@@ -1367,13 +1359,15 @@ export function createStonetopSteadingSheetClass(Base) {
 			};
 			// Primary path: the "People of Stonetop" gallery of imported book portraits. "Browse
 			// files…" falls back to the FilePicker for a custom image; "Use default" clears it.
-			new PeopleGalleryDialog({
+			// Portraits the rest of the steading already wears, so the gallery can mark them
+			// and offer to hide them. The row being edited is left out: its own portrait is
+			// this member's, not somebody else's.
+			openPeoplePortraitPicker({
 				current,
-				canBrowse,
+				used: usedPersonPortraits(this.actor, { list, index }),
 				onPick: applyPath,
-				onBrowse: openFilePicker,
 				onClear: clearToDefault,
-			}).render(true);
+			});
 		}
 
 		// Point an open photo window at a newly chosen portrait, patching it in place so the

@@ -1,4 +1,6 @@
-<div class="tab stonetop-invocations{{#if stonetop.invocations.hideUnknown}} hide-unknown-invocations{{/if}}" data-group="primary" data-tab="invocations">
+{{!-- stonetop-gap-managed: this tab is a flex column whose `gap` sets every step, so the
+      generic heading-row sibling margin must not stack on top of it. See the CSS. --}}
+<div class="tab stonetop-invocations stonetop-gap-managed{{#if stonetop.invocations.hideUnknown}} hide-unknown-invocations{{/if}}" data-group="primary" data-tab="invocations">
 
 	<div class="stonetop-details-heading-row">
 		{{> "stonetop.section-heading" title=(localize "stonetop.sheet.tabs.invocations")}}

@@ -95,6 +95,46 @@ export function steadingPeopleActors(steading) {
 }
 
 /**
+ * Which portraits the steading's people already wear, as `{ src -> the name wearing it }`.
+ * Backs the People gallery's "already assigned" marking and its unused-only filter, so a GM
+ * outfitting a whole village doesn't hand the same face to three residents without noticing.
+ *
+ * Actor-backed rows keep their portrait on the NPC actor, legacy text rows on the row itself,
+ * so both are read the way each stores it. Default avatars never count: every unportraited
+ * member shares one, which is the opposite of taken. `exclude` drops the row being edited, so
+ * the member's own portrait is reported as theirs (the gallery's selected state) rather than
+ * as taken by somebody else.
+ * Best-effort: a missing/unlinked steading (or any read error) just yields {}.
+ *
+ * @param {Actor} steading
+ * @param {{list?: string, index?: number}} [exclude]  the row currently being edited, if any
+ * @returns {Record<string, string>}
+ */
+export function usedPersonPortraits(steading, exclude = {}) {
+	try {
+		const flags = steading?.getFlag?.("stonetop-pwd", "steading") ?? {};
+		const used = {};
+		for (const list of Object.keys(PEOPLE_FOLDERS)) {
+			const rows = Array.isArray(flags[list]) ? flags[list] : [];
+			rows.forEach((row, index) => {
+				if (list === exclude.list && index === exclude.index) return;
+				const actor = isActorRow(row)
+					? (row.id ? game.actors?.get(row.id) : null)
+						|| (row.uuid ? game.actors?.find(a => a.uuid === row.uuid) : null)
+					: null;
+				const img = (actor ? actor.img : row?.img) ?? "";
+				if (!img || isDefaultImg(img) || img === DEFAULT_MEMBER_AVATAR) return;
+				const name = String((actor ? actor.name : row?.name) ?? "").trim();
+				// First row in wins the label: when two people share a portrait the gallery only
+				// needs to say it is spoken for, and naming one of them is enough to find it.
+				used[img] ??= name || "another member";
+			});
+		}
+		return used;
+	} catch { return {}; }
+}
+
+/**
  * Resolve one Residents/Neighbors row to the display shape the template expects.
  * Actor-backed rows pull their fields live off the linked NPC; legacy text rows (or
  * a row whose actor was deleted) fall back to the row's own stored fields so nothing

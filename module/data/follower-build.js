@@ -5,6 +5,7 @@
 // reused by both dialogs and the character sheet.
 
 import { creatureTypeFaIcon } from "../bestiary/creature-types.js";
+import { isDefaultImg } from "../utils/strings.js";
 
 // ── Step 3: hit points (p.476–477) ───────────────────────────────────────────
 // "How resilient are they? (pick 1)" then "What else applies? (pick all)".
@@ -186,6 +187,10 @@ export function buildCustomFollower(input = {}) {
 		pronoun:      String(input.pronoun ?? "").trim(),
 		typeLabel:    String(input.typeLabel ?? "").trim() || (isGroup ? "group follower" : "follower"),
 		portraitIcon: String(input.portraitIcon ?? "").trim() || (isGroup ? "fas fa-users" : "fas fa-user"),
+		// A chosen portrait, shown on the card in place of the glyph above. Empty is the
+		// normal state and means "no portrait", which is exactly what falls the card back to
+		// portraitIcon — so a follower never needs one and nothing has to be migrated.
+		img:          String(input.img ?? "").trim(),
 		tags:         normalizeTags(input.tags),
 		hpMax,
 		hpCurrent,
@@ -202,6 +207,18 @@ export function buildCustomFollower(input = {}) {
 		size,
 		sourceUuid:   input.sourceUuid ? String(input.sourceUuid) : null,
 	};
+}
+
+/**
+ * The portrait a follower recruited from an existing actor should wear: that actor's own
+ * art, so the card shows the face the table already knows rather than a generic glyph.
+ *
+ * A stock placeholder is not art. Carrying one across would trade the follower type's
+ * meaningful glyph (a paw, a seedling, a crowd) for Foundry's mystery-man silhouette, so
+ * it resolves to "" and the glyph keeps the slot.
+ */
+function sourceActorImg(img) {
+	return isDefaultImg(img) ? "" : String(img ?? "").trim();
 }
 
 // ── Order Followers roll math (p.462) ────────────────────────────────────────
@@ -300,6 +317,9 @@ export function followerFromMonster(monster = {}, opts = {}) {
 		// Match the conversion dialog's banner: a follower keeps its monster's
 		// creature-type glyph (an Adept is human → fa-user, not the generic paw).
 		portraitIcon: `fas ${creatureTypeFaIcon(system.creatureType)}`,
+		// …and its art, when the monster has any. The glyph above still backs it up for a
+		// monster that never got a portrait.
+		img:          sourceActorImg(monster.img),
 		tags,
 		hp:           hpMax,
 		// Carry current HP as-is (buildCustomFollower clamps/normalizes); `?? hpMax`
@@ -351,6 +371,9 @@ export function followerFromNpc(npc = {}, opts = {}) {
 		pronoun:      opts.pronoun ?? system.pronouns ?? "",
 		typeLabel:    "follower",
 		portraitIcon: "fas fa-user",
+		// An NPC recruited off the steading's roster is usually already wearing a People of
+		// Stonetop portrait, so the follower card shows the same face without being asked.
+		img:          sourceActorImg(npc.img),
 		tags:         [...keptTags, ...normalizeTags(opts.tags)],
 		hp:           hpMax,
 		hpCurrent:    opts.hpCurrent ?? (hasStats ? (attrs.hp?.value ?? hpMax) : hpMax),

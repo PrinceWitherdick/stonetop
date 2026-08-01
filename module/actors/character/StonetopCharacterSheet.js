@@ -38,7 +38,8 @@ import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {peopleNames, steadingPeopleActors} from "../steading/steading-people.js";
+import {peopleNames, steadingPeopleActors, usedPersonPortraits} from "../steading/steading-people.js";
+import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
@@ -422,6 +423,13 @@ function _followerExtras(d = {}) {
 		movesLines:  moves.split("\n").map(s => s.trim()).filter(Boolean),
 		gear:        gearArr.map((g, i) => ({ index: i, label: g?.label ?? "", checked: !!g?.checked })),
 		notes:       String(d?.notes ?? ""),
+		// The card's portrait, chosen from the People of Stonetop gallery (or carried over
+		// from the actor a follower was recruited from — see buildCustomFollower). It rides
+		// with the other hand-edited extras because it is stored and written exactly like
+		// them: read out of this same `.details` object, written back through
+		// _followerDetailBase, so every follower type gains a portrait in one place.
+		// Empty means "no portrait" and the card falls back to the type's glyph.
+		img:         String(d?.img ?? "").trim(),
 	};
 }
 
@@ -1225,6 +1233,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Roster: governed by its own pencil (or the whole-tab edit), not the card button.
 					individuals: followersEditing || this._editingSections.has(`follower-individuals:${ftype}:${slug}`),
 				};
+				// Deliberately NOT under a pencil, unlike every field above: a portrait is
+				// picked from a gallery, not typed, so there is nothing to protect from a
+				// stray keystroke — and requiring edit mode first would put two clicks in
+				// front of a one-click change. Sheet-level editability is the whole gate,
+				// which is also how the steading's rosters treat their portraits.
+				card.portraitEditable = this.isEditable;
 				return card;
 			};
 			// The stat-block editor lets the player override Damage / Instinct / Cost with
@@ -1829,6 +1843,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					.filter(Boolean);
 				card.orderTagsCsv = tags.join("|");
 				card.orderName    = card.name || card.label || card.namePlaceholder || card.typeLabel || "Follower";
+				// One string for the portrait button's tooltip AND its aria-label, so a copy edit
+				// cannot leave the sighted and the screen-reader name disagreeing.
+				card.portraitLabel = card.img
+					? `Change ${card.orderName}'s portrait`
+					: `Choose a portrait for ${card.orderName}`;
 				if (Array.isArray(card.loyalty) && card.loyalty.length) {
 					card.loyaltyValue = card.loyalty.filter(p => p.filled).length;
 					// A Loyalty track marks a true follower (every orderable type has one;
@@ -1905,14 +1924,22 @@ export function createStonetopCharacterSheetClass(Base) {
 			const presentSources = new Set(Object.values(customMap).map(f => f?.sourceUuid).filter(Boolean));
 			const possessionFollowerOffers = availablePossessionFollowers(ownedPossessions, presentSources)
 				.map(f => ({ slug: f.slug, name: f.name, isGroup: !!f.isGroup }));
-			return {
+			const groups = {
 				animalCompanion: finalize(animalCompanion),
 				crew:            finalize(crew),
 				initiates:       initiates?.map(finalize) ?? null,
 				beasts:          beasts.map(finalize),
 				custom:          customFollowers.map(finalize),
-				possessionFollowerOffers,
 			};
+			// Flat index of the faces this character's own followers wear, for the People
+			// gallery's "already assigned" marking (_followerPortraitsInUse). Stamped here
+			// because this is where a card's portrait and its display name are both settled;
+			// deriving it later would mean re-walking five flag stores and restating
+			// withOrderData's name fallback.
+			this._followerPortraits = Object.values(groups).flat()
+				.filter(card => card?.img)
+				.map(card => ({ ftype: card.ftype, slug: card.slug ?? "", img: card.img, name: card.orderName }));
+			return { ...groups, possessionFollowerOffers };
 		}
 
 		_buildInvocationsData(playbookDoc) {
@@ -2713,6 +2740,34 @@ export function createStonetopCharacterSheetClass(Base) {
 			// preview. Ungated: neither writes anything, and both serve a player reading a
 			// sheet they can't edit. Covers whichever of the two views is rendered.
 			wireRelationshipLinks(html[0]);
+
+			// Followers tab, a follower card's face: hovering a real portrait pops the
+			// enlarged copy, and clicking opens the People of Stonetop gallery to (re)assign
+			// one. Wired here, ABOVE the editability gate below, because the preview belongs
+			// to every viewer for the same reason the relationship portraits' does — looking
+			// at a face is not an edit, and a player reading a sheet they can't edit is
+			// exactly who most wants a better look at it.
+			//
+			// The picker is nonetheless reached only through the --editable class, which the
+			// template renders behind the same sheet-level editability that put the tabindex
+			// on the element. So the pointer path and the keyboard path are gated by one fact,
+			// in one place, and this call site needs no second check.
+			wireAvatarPreview(html[0], ".stonetop-follower-portrait-img");
+			const pickFollowerPortrait = ev => {
+				// Cheap test first: this is bound in capture phase on the whole sheet, so every
+				// keystroke into every field on it lands here. Deciding on `ev.key` before
+				// walking ancestors keeps typing free.
+				if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+				const portrait = ev.target.closest?.(".stonetop-follower-portrait--editable");
+				if (!portrait) return;
+				// preventDefault covers the keydown too: Space would otherwise scroll the tab
+				// out from under the card while the gallery opens over it.
+				ev.preventDefault();
+				ev.stopPropagation();
+				this._onFollowerPortraitPick(portrait);
+			};
+			html[0].addEventListener("click", pickFollowerPortrait, true);
+			html[0].addEventListener("keydown", pickFollowerPortrait, true);
 
 			if (!this.isEditable) return;
 
@@ -5168,6 +5223,72 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (this.rendered) this.render(false);
 			};
 			return createArcanumItem({ name, major, front, onSave: attach });
+		}
+
+		/**
+		 * Portraits already spoken for, as `{ src -> who wears it }`, for the People gallery's
+		 * "already assigned" marking and its unused-only filter.
+		 *
+		 * Two rosters feed it. The steading's residents and neighbors are the bigger pool by
+		 * far and the more useful answer — a follower is usually somebody the village already
+		 * knows — and the other follower cards on this very sheet cover the near miss of
+		 * handing two of a character's own people the same face.
+		 *
+		 * Reads the index `_buildFollowersData` stamps as it finalizes the cards, so the answer
+		 * comes from the same place the cards themselves do — including `orderName`, whose
+		 * fallback chain (name → label → placeholder → type) lives there and is not worth
+		 * restating. Not scraped back off the rendered markup: a collapsed section, a renamed
+		 * class or a lazily-drawn tab would silently empty the map and the "Unused" filter
+		 * would quietly lie.
+		 *
+		 * `exclude` is the card being edited (`{ftype, slug}`, straight off its dataset): its
+		 * own portrait is this follower's, not somebody else's.
+		 *
+		 * The steading is merged last so a face a named resident wears reads as theirs.
+		 */
+		_followerPortraitsInUse({ ftype, slug } = {}) {
+			const used = {};
+			for (const p of this._followerPortraits ?? []) {
+				if (p.ftype === ftype && p.slug === (slug ?? "")) continue;
+				used[p.img] ??= p.name || "another follower";
+			}
+			return { ...used, ...usedPersonPortraits(getStonetopSteadingActor()) };
+		}
+
+		/**
+		 * Give a follower a face: open the People of Stonetop gallery on their card's portrait
+		 * and store the pick. `portrait` is the card's .stonetop-follower-portrait element,
+		 * whose data-ftype / data-slug resolve the same per-follower flag namespace the card's
+		 * other hand-edited fields write to — so a portrait is saved exactly like a note is,
+		 * and every follower type works through this one path.
+		 *
+		 * "Use default" writes "" rather than deleting the key: an empty string is already the
+		 * card's "no portrait" state (see _followerExtras), so clearing needs no `-=` dance and
+		 * cannot leave a half-removed flag behind.
+		 */
+		_onFollowerPortraitPick(portrait) {
+			if (!this.isEditable || !portrait) return;
+			const base = _followerDetailBase(portrait.dataset.ftype, portrait.dataset.slug);
+			if (!base) return;
+			const path = `${base}.img`;
+			// getAttribute, not `.src`: the DOM resolves that to an absolute URL, which would
+			// match none of the gallery's relative tile paths, so the portrait already in use
+			// would not read as selected.
+			const current = portrait.querySelector(".stonetop-follower-portrait-img")?.getAttribute("src") ?? "";
+
+			// The gallery opens over the sheet; a preview raised by the hover that led to the
+			// click would be left floating on top of it with nothing to anchor to.
+			removeAvatarPreview();
+			const apply = async src => {
+				await this.actor.setFlag("stonetop-pwd", path, src ?? "");
+				this.render(false);
+			};
+			openPeoplePortraitPicker({
+				current,
+				used: this._followerPortraitsInUse(portrait.dataset),
+				onPick: apply,
+				onClear: () => apply(""),
+			});
 		}
 
 		// Persist a built custom follower under a fresh id and re-render. `data` is
