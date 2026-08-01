@@ -5022,7 +5022,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// summoned again and again, so they're never deduped by sourceUuid.
 				if (!input.repeatable && present.has(input.sourceUuid)) continue;
 				const id = foundry.utils.randomID(16);
-				update[`flags["stonetop-pwd"].customFollowers.${id}`] = { ...buildCustomFollower(input), order: order++ };
+				update[`flags.stonetop-pwd.customFollowers.${id}`] = { ...buildCustomFollower(input), order: order++ };
 			}
 			if (Object.keys(update).length) await this.actor.update(update);
 			this.render(false);
@@ -5058,11 +5058,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			const ring   = this._ringFollowerEntry();
 			const id     = foundry.utils.randomID(16);
 			const update = {
-				[`flags["stonetop-pwd"].customFollowers.${id}`]: { ...buildServantFollower(input), order: this._nextFollowerOrder() },
+				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...buildServantFollower(input), order: this._nextFollowerOrder() },
 			};
 			let costLine;
 			if (cost?.kind === "loyalty" && ring.id && ring.loyalty > 0) {
-				update[`flags["stonetop-pwd"].customFollowers.${ring.id}.loyalty`] = ring.loyalty - 1;
+				update[`flags.stonetop-pwd.customFollowers.${ring.id}.loyalty`] = ring.loyalty - 1;
 				costLine = `<p>You spend <strong>1 Loyalty</strong> from ${escHtml(ring.name)} (now ${ring.loyalty - 1}).</p>`;
 			} else if (cost?.kind === "loyalty") {
 				costLine = `<p>${escHtml(ring.name)} holds no Loyalty, so you <strong>mark a consequence</strong> to call them up.</p>`;
@@ -5196,7 +5196,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (Object.values(existing).some(f => f?.sourceUuid === input.sourceUuid)) return;
 			const id = foundry.utils.randomID(16);
 			await this.actor.update({
-				[`flags["stonetop-pwd"].customFollowers.${id}`]: { ...buildCustomFollower(input), order: this._nextFollowerOrder() },
+				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...buildCustomFollower(input), order: this._nextFollowerOrder() },
 			});
 			this.render(false);
 		}
@@ -5298,7 +5298,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!data) return;
 			const id = foundry.utils.randomID(16);
 			await this.actor.update({
-				[`flags["stonetop-pwd"].customFollowers.${id}`]: { ...data, order: this._nextFollowerOrder() },
+				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...data, order: this._nextFollowerOrder() },
 			});
 			this.render(false);
 		}
@@ -5346,7 +5346,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// built-in followers (animal companion / initiate / beast) aren't removable and
 				// have no per-record store, so they keep the chat-card record only.
 				if (follower === "custom" && slug) {
-					await this.actor.update({ [`flags["stonetop-pwd"].customFollowers.${slug}.dead`]: true });
+					await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.dead`]: true });
 				}
 			} else {
 				return;
@@ -5362,9 +5362,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (follower === "animal-companion") {
 				await this.actor.setFlag("stonetop-pwd", "animalCompanion.hpCurrent", val);
 			} else if (follower === "initiate") {
-				await this.actor.update({ [`flags["stonetop-pwd"].initiatesHp.${slug}`]: val });
+				await this.actor.update({ [`flags.stonetop-pwd.initiatesHp.${slug}`]: val });
 			} else if (follower === "crew-individual") {
-				await this.actor.update({ [`flags["stonetop-pwd"].crew.individualsHp.${Number(index)}`]: val });
+				await this.actor.update({ [`flags.stonetop-pwd.crew.individualsHp.${Number(index)}`]: val });
 			} else if (follower === "crew-member") {
 				const arr = [...(this.actor.getFlag("stonetop-pwd", "crew.memberHp") ?? [])];
 				arr[Number(index)] = val;
@@ -5372,15 +5372,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else if (follower === "crew-group") {
 				await this.actor.setFlag("stonetop-pwd", "crew.groupHp", val);
 			} else if (follower === "beast") {
-				await this.actor.update({ [`flags["stonetop-pwd"].beastHp.${slug}`]: val });
+				await this.actor.update({ [`flags.stonetop-pwd.beastHp.${slug}`]: val });
 			} else if (follower === "custom") {
-				await this.actor.update({ [`flags["stonetop-pwd"].customFollowers.${slug}.hpCurrent`]: val });
+				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.hpCurrent`]: val });
 			} else if (follower === "custom-group") {
-				await this.actor.update({ [`flags["stonetop-pwd"].customFollowers.${slug}.groupHp`]: val });
+				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.groupHp`]: val });
 			} else if (follower === "custom-member") {
 				const arr = [...(this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}.memberHp`) ?? [])];
 				arr[Number(index)] = val;
-				await this.actor.update({ [`flags["stonetop-pwd"].customFollowers.${slug}.memberHp`]: arr });
+				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.memberHp`]: arr });
 			}
 		}
 
