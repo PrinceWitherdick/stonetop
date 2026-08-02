@@ -21,24 +21,36 @@ import { list } from "./world-scan.js";
 const defaultFetch = (...args) => globalThis.fetch(...args);
 const setupRoute = () => globalThis.foundry?.utils?.getRoute?.("setup") ?? "/setup";
 
+/** Hostnames that identify a hosted provider on their own, without its client integration. */
+export const HOSTED_DOMAINS = Object.freeze([".forge-vtt.com"]);
+
 /**
  * Is this a hosted Foundry that may front or restrict its own setup route?
  *
- * The Forge injects a global `ForgeVTT` carrying `usingTheForge`. Deliberately loose: a
- * false negative only returns us to the self-hosted path, which is the one that is
- * actually verified.
+ * Two signals, either of which is enough. The Forge injects a global `ForgeVTT` carrying
+ * `usingTheForge`, but that global comes from `fvtt-module-forge-vtt`, and a MODULE is
+ * absent whenever the GM launches with modules disabled — which is exactly what a GM does
+ * when a migration has just gone wrong and they are bisecting it. Trusting it alone means
+ * the refusal silently lifts in safe config and offers the one-way flip on the one server
+ * where it can strand a world.
+ *
+ * So the hostname is tested directly too. That is not a second opinion, it is the SAME
+ * opinion: `usingTheForge` is itself only `location.hostname.endsWith(".forge-vtt.com")`,
+ * so reading the hostname asks The Forge's own question without asking The Forge. It cannot
+ * produce a false positive, because a host under that domain IS The Forge.
  *
  * ⚠ Do not try to narrow this to "only when Game Manager is on". That was investigated and
- * is not possible from a client. Read against ForgeVTT/fvtt-module-forge-vtt `ForgeVTT.mjs`:
- * `usingTheForge` is itself only `location.hostname.endsWith(".forge-vtt.com")`, and the
- * global exposes no Game Manager state of any kind. The nearest real signal is
+ * is not possible from a client. Read against ForgeVTT/fvtt-module-forge-vtt `ForgeVTT.mjs`,
+ * the global exposes no Game Manager state of any kind. The nearest real signal is
  * `ForgeAPI.status().isOwner`, which is what The Forge's own code gates its "Return to
  * Setup" button on — it answers Forge *account ownership*, the exact authority question
  * this migration needs, but it does not answer whether the setup route is reachable, and
  * that second unknown is the one that strands a world. So the check stays vendor-wide.
  */
 export function onHostedProvider(scope = globalThis) {
-	return scope?.ForgeVTT?.usingTheForge === true;
+	if (scope?.ForgeVTT?.usingTheForge === true) return true;
+	const host = scope?.location?.hostname;
+	return typeof host === "string" && HOSTED_DOMAINS.some((domain) => host.endsWith(domain));
 }
 
 /** Normalize `relationships.systems` / `.requires`, which may be a Set, array or absent. */
@@ -64,8 +76,14 @@ export async function fetchTargetManifest(target = RENAME_TARGET_ID, fetchImpl =
 /**
  * Everything that must be true before the flip. Returns blockers (hard stops) separately
  * from warnings (worth telling the GM, not worth refusing over).
+ *
+ * `allowHosted` drops the hosted-provider refusal and nothing else. Every other check here
+ * applies just as much to phase 1 as to the flip, which is what makes the hosted path a
+ * subset rather than a second gate — see the refusal itself for why it is the only one
+ * that can be dropped. Always reports `hosted` so a caller can branch on it without
+ * repeating the probe.
  */
-export async function preflight(game, { target = RENAME_TARGET_ID, source = SYSTEM_ID, fetchImpl = defaultFetch, scope } = {}) {
+export async function preflight(game, { target = RENAME_TARGET_ID, source = SYSTEM_ID, fetchImpl = defaultFetch, scope, allowHosted = false } = {}) {
 	const blockers = [];
 	const warnings = [];
 
@@ -110,13 +128,22 @@ export async function preflight(game, { target = RENAME_TARGET_ID, source = SYST
 	}
 
 	// Hosted providers can front or restrict Foundry's setup route, which is both the route
-	// this migration needs and the route you would recover a mis-pointed world from. On The
+	// the FLIP needs and the route you would recover a mis-pointed world from. On The
 	// Forge, Game Manager launches worlds directly and bypasses the setup screen, and access
 	// is gated by Forge account ownership rather than Foundry role, so being a GM here is
 	// not enough. Whether the route answers cannot be established from inside the world (see
 	// onHostedProvider), and the failure mode is a world that will not launch, so this
 	// refuses rather than gambling. See MIGRATION.md for the supported hosted path.
-	if (onHostedProvider(scope ?? globalThis)) {
+	//
+	// Scoped to the flip alone, because that is all it was ever about. Phase 1 touches no
+	// route: it is ordinary document writes over the socket, and it is additive, so there is
+	// nothing to recover from. Blocking it here too is what left hosted GMs with a world
+	// whose data had never been copied — the one failure this whole module exists to
+	// prevent. `allowHosted` lets MigrationAssistant run that half in place and hand the
+	// flip back to the GM as export/edit/import; the flip path never passes it, so the
+	// refusal still stands structurally wherever it actually matters.
+	const hosted = onHostedProvider(scope ?? globalThis);
+	if (hosted && !allowHosted) {
 		blockers.push("This looks like a hosted Foundry (The Forge or similar). The migration needs Foundry's own setup route, which hosted providers may replace or restrict, and it is the same route you would need to undo a bad move. Do not run it here unsupervised — see MIGRATION.md for the hosted path.");
 	}
 
@@ -135,7 +162,7 @@ export async function preflight(game, { target = RENAME_TARGET_ID, source = SYST
 		warnings.push(`${locked.length} locked world compendium(s) will be skipped (${names}). If any of them hold Stonetop data, unlock them and check again.`);
 	}
 
-	return { ok: blockers.length === 0, blockers, warnings, manifest };
+	return { ok: blockers.length === 0, blockers, warnings, manifest, hosted };
 }
 
 /**

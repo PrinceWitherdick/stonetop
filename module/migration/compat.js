@@ -15,7 +15,7 @@
  * migrated, still behaves.
  */
 
-import { SYSTEM_ID, LEGACY_FLAG_SCOPES, PACK_NAMES } from "../system-id.js";
+import { SYSTEM_ID, LEGACY_FLAG_SCOPES, ITEM_FLAG_SCOPE, PACK_NAMES } from "../system-id.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { escapeRegExp } from "../utils/strings.js";
 
@@ -30,6 +30,26 @@ export const ALL_SYSTEM_IDS = Object.freeze([SYSTEM_ID, ...LEGACY_FLAG_SCOPES]);
 
 /** Historical ids only, i.e. everything except the one currently active. */
 export const PRIOR_SYSTEM_IDS = Object.freeze(ALL_SYSTEM_IDS.filter((id) => id !== SYSTEM_ID));
+
+/**
+ * Prior ids whose whole flag bag may be COPIED into the active scope.
+ *
+ * The read-side lists above can afford to be permissive; this one cannot, because it names
+ * the scopes something is allowed to WRITE from. ITEM_FLAG_SCOPE is dropped for exactly the
+ * reason the note above says is harmless for reading: "stonetop" is both a former system id
+ * AND the live scope for shipped compendium content, journal checkbox progress and hover
+ * summaries. Copying it wholesale would duplicate pack content onto every item and journal
+ * page in the world, so a repair that walked PRIOR_SYSTEM_IDS blindly would damage the very
+ * worlds it exists to fix.
+ *
+ * Actors do still pick that rung up, folded in UNDERNEATH the source bag rather than copied
+ * on its own. That is what world-scan's ACTOR_FLAG_OPTIONS is for, and it is safe there
+ * because actors are the only documents read through StonetopFlags/resolvedFlags.
+ *
+ * Empty in the bridge, where the only prior id IS "stonetop", which is the correct answer:
+ * there is nothing the bridge can safely copy forward on its own.
+ */
+export const RESCUABLE_SOURCE_IDS = Object.freeze(PRIOR_SYSTEM_IDS.filter((id) => id !== ITEM_FLAG_SCOPE));
 
 /**
  * Prefix redirects so every stale compendium UUID resolves without rewriting a single
