@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { StonetopSteading, improvementRequirementsMet, improvementRequirementCount, IMPROVEMENT_DEFINITIONS } from "../../../module/actors/steading/StonetopSteading.js";
+import { StonetopSteading, improvementRequirementsMet, improvementRequirementCount, IMPROVEMENT_DEFINITIONS, IMPROVEMENT_CATEGORIES, IMPROVEMENT_GRANTS } from "../../../module/actors/steading/StonetopSteading.js";
 
 function makeSteadingActor({ system = {}, steadingFlags = {} } = {}) {
 	return {
@@ -207,6 +207,46 @@ describe("StonetopSteading", () => {
 		}
 	});
 
+	describe("improvement categories", () => {
+		it("files every built-in under exactly one of the three categories", () => {
+			const keys = new Set(IMPROVEMENT_CATEGORIES.map(c => c.key));
+			expect([...keys]).toEqual(["hearth", "renown", "wall"]);
+
+			const bucketed = {};
+			for (const def of IMPROVEMENT_DEFINITIONS) {
+				expect(keys.has(def.category), `${def.slug} has no valid category`).toBe(true);
+				(bucketed[def.category] ??= []).push(def.slug);
+			}
+			expect(bucketed.hearth).toEqual([
+				"additionalHousing", "aurochsHunting", "greaterHarvest", "harnessingStream",
+				"herdOfHorses", "mill", "raincatching",
+			]);
+			expect(bucketed.renown).toEqual(["expandedTrades", "heroicReputation", "inn", "market", "township"]);
+			expect(bucketed.wall).toEqual([
+				"palisade", "standingWatch", "stoneWall", "weaponsOfWar", "wellTrainedMilitia",
+			]);
+		});
+
+		it("puts every Fortifications-granting improvement in wall, and no other", () => {
+			// The wall bucket is meant to be exactly the Fortifications list, so a future
+			// improvement that adds one can't be quietly filed elsewhere.
+			const fortifying = Object.entries(IMPROVEMENT_GRANTS)
+				.filter(([, g]) => g.fortifications?.length)
+				.map(([slug]) => slug);
+			for (const slug of fortifying) {
+				expect(IMPROVEMENT_DEFINITIONS.find(d => d.slug === slug).category).toBe("wall");
+			}
+		});
+
+		it("carries the category through to the snapshot", async () => {
+			const snapshot = await new StonetopSteading(makeSteadingActor()).buildSnapshot();
+			const bySlug = Object.fromEntries(snapshot.improvements.map(i => [i.slug, i.category]));
+			expect(bySlug.raincatching).toBe("hearth");
+			expect(bySlug.market).toBe("renown");
+			expect(bySlug.stoneWall).toBe("wall");
+		});
+	});
+
 	describe("custom (journal-sourced) improvements", () => {
 		function makeMutableSteadingActor(steadingFlags = {}) {
 			const actor = {
@@ -242,6 +282,19 @@ describe("StonetopSteading", () => {
 			expect(added.sections[0].items.map(i => i.label)).toEqual(["Unlock the runes", "Recruit a crew"]);
 			// Built-ins are still present and flagged non-custom.
 			expect(snapshot.improvements.find(i => i.slug === "palisade").custom).toBe(false);
+		});
+
+		it("keeps a valid category and blanks anything else, so a bad one can't hide the card", async () => {
+			const add = async (category) => {
+				const steading = new StonetopSteading(makeMutableSteadingActor());
+				await steading.addCustomImprovement({ ...roadbuilding, category });
+				const snapshot = await steading.buildSnapshot();
+				return snapshot.improvements.find(i => i.slug === "custom-roadbuilding").category;
+			};
+			expect(await add("wall")).toBe("wall");
+			expect(await add("nonsense")).toBe("");
+			// A card dropped from the book's journals carries no category at all.
+			expect(await add(undefined)).toBe("");
 		});
 
 		it("refuses a duplicate name (existing custom or built-in label) and an empty name", async () => {

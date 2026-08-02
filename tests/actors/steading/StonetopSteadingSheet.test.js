@@ -385,4 +385,37 @@ describe("StonetopSteadingSheet", () => {
 				.toHaveBeenCalledWith("Applied Palisade: Fortunes +1; Fortifications +Palisade.");
 		});
 	});
+
+	describe("improvement category chips", () => {
+		it("lights one category at a time, so a second pick drops the first", () => {
+			const { sheet } = makeSheet();
+			expect(sheet._improvementCategory).toBe("");
+
+			expect(sheet._toggleImprovementCategory("hearth")).toBe("hearth");
+			expect(sheet._toggleImprovementCategory("wall")).toBe("wall");
+			expect(sheet._improvementCategory).toBe("wall");
+		});
+
+		it("clears back to unfiltered when the lit chip is picked again", () => {
+			const { sheet } = makeSheet();
+			sheet._toggleImprovementCategory("renown");
+
+			expect(sheet._toggleImprovementCategory("renown")).toBe("");
+			expect(sheet._improvementCategory).toBe("");
+		});
+
+		it("hides only the other categories, and never an uncategorised improvement", () => {
+			const { sheet } = makeSheet();
+			// Nothing lit: everything shows.
+			expect(sheet._isImprovementFiltered("hearth")).toBe(false);
+			expect(sheet._isImprovementFiltered("")).toBe(false);
+
+			sheet._toggleImprovementCategory("wall");
+			expect(sheet._isImprovementFiltered("wall")).toBe(false);
+			expect(sheet._isImprovementFiltered("hearth")).toBe(true);
+			expect(sheet._isImprovementFiltered("renown")).toBe(true);
+			// A dropped journal card carries no category and stays put under any chip.
+			expect(sheet._isImprovementFiltered("")).toBe(false);
+		});
+	});
 });

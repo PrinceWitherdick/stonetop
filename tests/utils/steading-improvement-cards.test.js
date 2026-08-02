@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { describeLocal, loadLocal } from "../local-only.js";
-import { readImprovementCard, STEADING_IMPROVEMENT_DRAG_TYPE } from "../../module/journal/steading-improvement-cards.js";
+import { readImprovementCard, renderImprovementCardHtml, STEADING_IMPROVEMENT_DRAG_TYPE } from "../../module/journal/steading-improvement-cards.js";
 
 // sectionHtml / renderSteadingImprovementCard come from the local-only generator; the
 // readImprovementCard suite below tests the shipped module and runs everywhere.
@@ -95,5 +95,17 @@ describe("readImprovementCard", () => {
 
 	it("exposes the drag payload type", () => {
 		expect(STEADING_IMPROVEMENT_DRAG_TYPE).toBe("StonetopSteadingImprovement");
+	});
+});
+
+describe("renderImprovementCardHtml", () => {
+	it("carries the authored category in the payload so a dropped card lands under its chip", () => {
+		const payload = payloadFrom(renderImprovementCardHtml({ ...DEF, category: "wall" }));
+		expect(payload.category).toBe("wall");
+		expect(payload.name).toBe("ROADBUILDING");
+	});
+
+	it("emits an empty category when none was chosen", () => {
+		expect(payloadFrom(renderImprovementCardHtml(DEF)).category).toBe("");
 	});
 });

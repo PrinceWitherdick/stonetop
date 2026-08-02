@@ -698,7 +698,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				minWidth: 800,
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
-				dragDrop: [{ dragSelector: ".items-list .item" }],
+				// `:not(.move-unlearned)` because an un-learned custom move must not leave the
+				// sheet: core's DragDrop#bind runs this selector through querySelectorAll and only
+				// the matches get `draggable="true"`, so an inactive move simply never starts a
+				// drag — rather than starting one that a listener elsewhere has to cancel. The row
+				// keeps its `.item` class, and so its card styling and its click handlers.
+				dragDrop: [{ dragSelector: ".items-list .item:not(.move-unlearned)" }],
 				// Each tab is its own scrollport and the moves sidebar has another. Register
 				// both so Foundry saves/restores scrollTop across re-renders — otherwise
 				// adding an item / arcanum / follower (which re-renders the sheet) snaps the
@@ -1121,7 +1126,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}
 			context.stonetop.invocations          = this._buildInvocationsData(playbookDoc);
-			context.stonetop.showOtherMovesSection = this._editMode || !!(context.stonetop.movelist?.otherMoves?.length);
+			// Only when there's something in it — an empty group renders as a bare heading over
+			// an empty list, which no other move group does (they all hide themselves when
+			// empty). Creating a move doesn't need the section standing by: the "Create a move"
+			// button sits outside it, and saving re-renders the sheet with the section present.
+			context.stonetop.showOtherMovesSection = !!(context.stonetop.movelist?.otherMoves?.length);
 			// Authoring custom moves can be restricted to the GM (world setting). When
 			// restricted, players still see/roll existing custom moves but get no "+"
 			// button or edit pencils. Existing moves always render regardless.
@@ -2310,13 +2319,19 @@ export function createStonetopCharacterSheetClass(Base) {
 				// Read & Resolve / Roll button, never a name-click that would post it to chat
 				// without removing it. Its edit/delete pencils have their own handlers.
 				if (nameEl.closest(".stonetop-love-letter")) return;
-				// An un-learned custom move is inactive (no dice icon, bonuses off); a name-click
-				// must not post its card to chat either — treat it as non-interactive.
-				if (nameEl.closest("li")?.classList.contains("move-unlearned")) return;
+				// An un-learned custom move is inactive — no dice icon, bonuses off — but its TEXT
+				// is still readable, so a name-click posts it to chat like any other move. That
+				// matches an un-owned playbook move, which posts to chat without being owned;
+				// the roll is what's gated, not the reading.
 				ev.preventDefault();
 				const li = nameEl.closest("li");
 				const name = nameEl.textContent.trim();
-				const guide = GUIDED_CHARACTER_MOVES[name];
+				// A player-authored move (moveType "other") that happens to share a guided
+				// move's name acts as itself, never the built-in dialog — the same rule the
+				// dice path applies in _guidedMoveForRollable.
+				const isOtherMove = li?.dataset.itemId
+					&& this.actor.items.get(li.dataset.itemId)?.system?.moveType === "other";
+				const guide = isOtherMove ? null : GUIDED_CHARACTER_MOVES[name];
 				const rollable = li?.querySelector(".rollable");
 				if (guide && _guidedCharacterMoveHasAction(guide, rollable)) {
 					this._openGuidedCharacterMove({ name, guide }, rollable);

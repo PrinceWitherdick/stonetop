@@ -131,8 +131,10 @@
 					{{#each moves}}
 						{{!-- These "other" moves are all real owned items, so every row is a
 						      draggable .item (drag onto the hotbar → roll or post-to-chat macro).
-						      The dice icon stays gated on rollType. --}}
-						<li class="item stonetop-item" data-item-id="{{ownedId}}">
+						      The dice icon stays gated on rollType. Owned means learned, so they
+						      carry `is-checked` like any owned playbook move and survive the
+						      tab's "Hide un-learned moves" filter. --}}
+						<li class="item stonetop-item is-checked" data-item-id="{{ownedId}}">
 							<div class="stonetop-item-header">
 								{{#if rollType}}
 								<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">
@@ -159,7 +161,11 @@
 				{{> "stonetop.section-heading" title=(localize "stonetop.character.moves.otherMoves") collapse="otherMoves"}}
 				<ol class="items-list">
 				{{#each stonetop.movelist.otherMoves}}
-					<li class="item stonetop-item{{#unless learned}} move-unlearned{{/unless}}" data-item-id="{{ownedId}}">
+					{{!-- `is-checked` marks a LEARNED move exactly as an owned playbook move is
+					      marked, so the tab's "Hide un-learned moves" filter (which keys off
+					      `.stonetop-item:not(.is-checked)`) treats these the same: learned ones
+					      stay visible with the filter on, un-learned ones drop out. --}}
+					<li class="item stonetop-item{{#if learned}} is-checked{{else}} move-unlearned{{/if}}" data-item-id="{{ownedId}}">
 						<div class="stonetop-item-header">
 							{{!-- Custom moves carry a "learned" checkbox (checked by default). Un-checking
 							      it in edit mode keeps the move on the sheet but inactive — not rollable,
@@ -171,6 +177,11 @@
 							       title="{{localize 'stonetop.character.moves.custom.learnedTitle'}}"
 							       {{#if learned}}checked{{/if}}
 							       {{#unless @root.stonetop.movesEdit}}disabled{{/unless}}>
+							{{else}}
+							{{!-- No toggle to show, so hold the checkbox's width: otherwise a foreign
+							      playbook move's title starts where every custom move's checkbox is,
+							      and the section reads as two ragged columns. --}}
+							<span class="stonetop-item-check-spacer" aria-hidden="true"></span>
 							{{/if}}
 							{{#if (and rollType learned)}}
 							<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">
@@ -184,7 +195,7 @@
 							      .stonetop-item-header-spacer. --}}
 							<span class="stonetop-item-header-spacer" aria-hidden="true"></span>
 							<span class="stonetop-item-resources">
-								{{#if resource.title}}<span class="stonetop-item-resource-title">{{resource.title}}</span>{{/if}}
+								{{#if resource.title}}<span class="stonetop-item-resource-title"{{#if resource.spendTooltip}} data-tooltip="{{resource.spendTooltip}}" data-tooltip-direction="UP"{{/if}}>{{resource.title}}</span>{{/if}}
 								{{#each (resourceChecks resource)}}
 								<span class="stonetop-item-resource-entry">
 									<button type="button" class="stonetop-item-resource-check{{#if checked}} is-checked{{/if}}"

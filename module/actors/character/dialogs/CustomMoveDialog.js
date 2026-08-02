@@ -57,7 +57,7 @@ export function worldMoveSaver() {
 const SECTIONS = [
 	{ key: "move",     titleKey: "sectionMoveTitle",     icon: "fa-feather-pointed" },
 	{ key: "roll",     titleKey: "sectionRollTitle",     icon: "fa-dice-d6" },
-	{ key: "resource", titleKey: "sectionResourceTitle", icon: "fa-square-check" },
+	{ key: "resource", titleKey: "sectionResourceTitle", icon: "fa-circle-check" },
 	{ key: "bonuses",  titleKey: "sectionBonusesTitle",  icon: "fa-shield-heart" },
 ];
 

@@ -13,10 +13,13 @@
 //             climbs each character through the real level-up engine until no move remains
 //             (level 20+), taking every reachable move / stat / invocation / mark.
 //             Every character (either path) is also seeded with one filled-out player
-//             custom "Other" move ("This is a test"), the four Book I p.569 love letters
-//             (Rhianna, Caradoc, Vahid, Blodwen — both structures + the no-XP-on-miss case),
-//             and one custom follower, so the Moves tab's custom-move + Love Letters cards
-//             and the Followers tab's custom card are exercised on every sheet.
+//             custom "Other" move ("This is a test") and one custom follower, so the Moves
+//             tab's custom-move card and the Followers tab's custom card are exercised on
+//             every sheet. The four Book I p.569 love letters (Rhianna, Caradoc, Vahid,
+//             Blodwen — both structures + the no-XP-on-miss case) are spread across the
+//             roster rather than given to everyone: by position a character gets all four,
+//             exactly one, or none at all, so the Moves tab's Love Letters section is seen
+//             full, holding a single card, and absent entirely.
 //             Also records Introductions answers + one example Expedition and compiles the
 //             shared "Chronicle" journal. Seeds the steading "Stonetop" (the world's required
 //             singleton) with a thematic set of test Residents, Neighbors, and Players (the
@@ -1658,8 +1661,9 @@
   };
 
   // ── Test love letters (Book I p.569) ───────────────────────────────────
-  // The four worked love-letter examples from the book, seeded onto every character so the
-  // top-of-Moves "Love Letters" section is exercised across everything the feature does:
+  // The four worked love-letter examples from the book, dealt across the roster (see
+  // testLoveLettersFor) so the top-of-Moves "Love Letters" section is exercised across
+  // everything the feature does:
   //   - Rhianna & Caradoc — shared list + "pick N" (the roll decides how many to pick),
   //     rendered as an interactive checklist on the card
   //   - Vahid & Blodwen  — distinct per-tier 10+/7-9/6- prose, no shared list
@@ -1794,6 +1798,28 @@
     },
   ];
 
+  // Which of those four a character gets, from its slot in the roster. Seeding all four onto
+  // everyone only ever showed the section at its fullest, so the roster is split three ways
+  // instead — deterministically, like every other choice this macro makes (position decides,
+  // nothing is rolled):
+  //   slot % 3 === 0 → all four: both structures, the shared-list checklist, and the
+  //                    no-XP-on-miss case, all stacked in one section
+  //   slot % 3 === 1 → exactly one, so the section is seen holding a single card (and its
+  //                    header count reads 1). Which one rotates with the slot, so across a
+  //                    full run several different letters are seen standing alone
+  //   slot % 3 === 2 → none, so the section is absent entirely and the tab has to lay out
+  //                    without it
+  // Over the 9-playbook roster that lands 3 characters in each state.
+  const testLoveLettersFor = (slot) => {
+    const all = buildTestLoveLetters();
+    const i   = Number.isFinite(slot) && slot >= 0 ? Math.floor(slot) : 0;
+    switch (i % 3) {
+      case 1:  return [all[Math.floor(i / 3) % all.length]];
+      case 2:  return [];
+      default: return all;
+    }
+  };
+
   // Stored shape for a custom follower — matches buildCustomFollower()'s output in
   // module/data/follower-build.js (this macro is standalone and can't import it), with
   // every field filled so the whole card shows: tags, HP, armor, damage, an instinct,
@@ -1827,14 +1853,17 @@
 
   // Add the test custom move (via the typed wrapper's authoring API, which does all the
   // shaping) and the test follower (mirroring StonetopCharacterSheet._applyCustomFollower:
-  // a customFollowers.<id> flag with a creation-order stamp) to one character.
-  const seedTestCustomContent = async (actor) => {
+  // a customFollowers.<id> flag with a creation-order stamp) to one character. `slot` is the
+  // character's position in the roster being built, which is what decides its love letters.
+  const seedTestCustomContent = async (actor, slot) => {
     const typed = actor.typedActor;
     if (typed?.addCustomMove) await typed.addCustomMove(TEST_CUSTOM_MOVE);
-    // The four Book I p.569 love letters (embedded move items flagged loveLetter). Created
-    // directly rather than via a typed-wrapper method — a love letter is a plain embedded
-    // item; the shaping (buildLoveLetterItem) mirrors buildLoveLetterData.
-    await actor.createEmbeddedDocuments("Item", buildTestLoveLetters().map(buildLoveLetterItem));
+    // This character's share of the Book I p.569 love letters (embedded move items flagged
+    // loveLetter) — all four, one, or none, per testLoveLettersFor. Created directly rather
+    // than via a typed-wrapper method — a love letter is a plain embedded item; the shaping
+    // (buildLoveLetterItem) mirrors buildLoveLetterData.
+    const letters = testLoveLettersFor(slot);
+    if (letters.length) await actor.createEmbeddedDocuments("Item", letters.map(buildLoveLetterItem));
     const existing = actor.getFlag(FLAG_SCOPE, "customFollowers") ?? {};
     const order    = Object.values(existing).reduce((m, f) => Math.max(m, Number(f?.order) || 0), 0) + 1;
     const id       = foundry.utils.randomID(16);
@@ -2350,8 +2379,10 @@
       console.log(`[TEST] Created: ${actor.name}`);
     }
 
-    // Seed the demonstration custom move + follower (both are torn down with the actor).
-    await seedTestCustomContent(actor);
+    // Seed the demonstration custom move + follower (both are torn down with the actor), and
+    // this slot's share of the love letters — created.length is the character's index in the
+    // roster, read before the push below.
+    await seedTestCustomContent(actor, created.length);
 
     created.push(actor);
   }

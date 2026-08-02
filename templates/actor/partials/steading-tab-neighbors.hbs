@@ -41,7 +41,10 @@
 							</span>
 							{{/if}}
 							{{#if uuid}}
-							<a class="steading-player-name-text steading-player-open" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}" data-tooltip="Open {{name}}'s sheet">{{name}}</a>
+							{{!-- Labelled rather than tooltipped, for the same reason as the NPC rows
+							      below: no href to announce, and no room for a hover bubble. --}}
+							<a class="steading-player-name-text steading-player-open" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
+							   aria-label='{{localize "stonetop.relationships.open" name=name}}'>{{name}}</a>
 							{{else}}
 							<span class="steading-player-name-text" data-tooltip="{{name}}">{{name}}</span>
 							{{/if}}
@@ -108,8 +111,11 @@
 							       data-index="{{@index}}" data-field="name"
 							       value="{{name}}" placeholder="Name">
 							{{else}}{{#if uuid}}
+							{{!-- Labelled rather than tooltipped: no href, so nothing else tells a
+							      screen-reader user this name opens anything. The roster is a dense
+							      table and a hover bubble here would cover the rows under it. --}}
 							<a class="steading-member-open steading-member-name-text{{#if statusInactive}} is-inactive{{/if}}" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
-							   draggable="true" data-tooltip="Open {{name}}'s NPC sheet">{{name}}</a>
+							   draggable="true" aria-label="Open {{name}}'s NPC sheet">{{name}}</a>
 							{{#if status}}<span class="stonetop-npc-status-badge stonetop-npc-status-badge--sm" data-status="{{status}}" data-tooltip="{{statusLabel}}">{{statusLabel}}</span>{{/if}}
 							{{else}}
 							<input type="text" class="steading-resident-input"
@@ -238,8 +244,11 @@
 							       data-index="{{@index}}" data-field="name" data-list="neighbors"
 							       value="{{name}}" placeholder="Name">
 							{{else}}{{#if uuid}}
+							{{!-- Labelled rather than tooltipped: no href, so nothing else tells a
+							      screen-reader user this name opens anything. The roster is a dense
+							      table and a hover bubble here would cover the rows under it. --}}
 							<a class="steading-member-open steading-member-name-text{{#if statusInactive}} is-inactive{{/if}}" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
-							   draggable="true" data-tooltip="Open {{name}}'s NPC sheet">{{name}}</a>
+							   draggable="true" aria-label="Open {{name}}'s NPC sheet">{{name}}</a>
 							{{#if status}}<span class="stonetop-npc-status-badge stonetop-npc-status-badge--sm" data-status="{{status}}" data-tooltip="{{statusLabel}}">{{statusLabel}}</span>{{/if}}
 							{{else}}
 							<input type="text" class="steading-resident-input"

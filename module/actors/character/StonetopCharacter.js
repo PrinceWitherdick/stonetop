@@ -31,6 +31,7 @@ import {
 	PossessionsSnapshot,
 	RequirementSnapshot,
 	ResourceBuilder,
+	ResourceDef,
 	StatSnapshot,
 	ValueMax,
 	VitalsSnapshotBuilder,
@@ -136,13 +137,22 @@ function _sumLearnedMoveField(actor, field) {
 // resourceKey (item id for custom moves, name otherwise — see buildMovelist), so the
 // existing .stonetop-item-resource-check handler works for custom moves unchanged.
 function _buildOtherMoveResource(resource, current) {
-	const max = clampInt(resource?.max, 0, 20);
+	// Every field comes off ResourceDef, which already defaults max/title/labels and builds the
+	// "Spend 1 to: …" hover — so the track is normalized in exactly one place, the same as a
+	// playbook move's. A player-authored move never sets spendOptions (the create-a-move dialog
+	// doesn't offer them), but a foreign playbook move that lands in Other Moves can carry them
+	// — `system.resource` is preserved verbatim — and its hold track should read the way it does
+	// on its own playbook.
+	const def = new ResourceDef(resource ?? {});
+	const max = clampInt(def.max, 0, 20);
 	if (!(max > 0)) return null;
 	return {
-		title: resource?.title ?? null,
+		title: def.title,
 		max,
-		labels: Array.isArray(resource?.labels) ? resource.labels : [],
+		// ResourceDef coerces both list fields, so `labels` is an array here whatever arrived.
+		labels: def.labels,
 		current: Math.max(0, Math.min(max, Number(current) || 0)),
+		spendTooltip: def.spendTooltip,
 	};
 }
 
@@ -890,7 +900,11 @@ export class StonetopCharacter {
 					.withResourceKey(resourceKey)
 					.withResource(_buildOtherMoveResource(i.system?.resource, moveResourceState[resourceKey]))
 					.build();
-			});
+			})
+			// Learned first, then by name — the same shape _sortOwnedFirst gives the basic
+			// moves. Raw item order is creation order, which puts an un-learned move above
+			// active ones for no reason a reader can see.
+			.sort((a, b) => (b.learned - a.learned) || a.name.localeCompare(b.name));
 
 		// Load is derived from the ◇ actually marked — checked item weights plus the
 		// undefined regular pool — never stored. Marking loot or editing the pool
@@ -1833,6 +1847,11 @@ export class StonetopCharacter {
 			.map(i => i._id);
 		await this._actor.deleteEmbeddedDocuments("Item", [ownedId, ...orphans]);
 		if (removed) await this._revertStatIncreaseChoice(removed);
+		// A custom move's resource track is stored under its item id (see buildSnapshot), and
+		// ids are never reused — so the count has to go with the move or it sits in the flag
+		// forever. Shipped moves key by name and keep theirs on purpose. Only `removed` can be
+		// custom: the cascaded orphans are cross-playbook grants, which are always shipped.
+		if (_isCustomMove(removed)) await this._moveResources.clear(ownedId);
 	}
 
 	// Apply the "either X OR Y" starting-move picks: grant the chosen move in each group

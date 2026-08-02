@@ -121,8 +121,10 @@
 	/* How long you must hover a section before its edit pencil fades in. The pencils
 	   stay clickable while still invisible (opacity:0 keeps pointer events), so you
 	   can hit one immediately without waiting out the delay. Leaving a section hides
-	   the pencil instantly — the delay is only on the reveal direction. */
-	--st-edit-reveal-delay: 0.5s;
+	   the pencil instantly — the delay is only on the reveal direction.
+	   Seeded at the `editPencilRevealDelay` setting's own default, so the pre-`ready`
+	   frames match what hooks/Ready.js writes a moment later. */
+	--st-edit-reveal-delay: 1s;
 	--font-size-display: 42px;
 	--stonetop-bg: hsl(30deg 20% 94%);
 	--color-border-highlight-alt: slategrey;
@@ -2459,7 +2461,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-moves-collapsible.is-collapsed > .stonetop-moves-summary::after {
-	transform: rotate(0deg); /* collapsed: arrow points right */
+	transform: rotate(-90deg); /* collapsed: arrow points up */
 }
 
 /* Collapsed: keep the list in flow (so it still sets the sidebar width) but clamp
@@ -2578,9 +2580,20 @@ input.stonetop-name-field {
 	transition-delay: 0s !important;
 }
 
-/* Suppress the on-hover image enlargements outright, not just their animation. */
+/* Suppress the on-hover image enlargements outright, not just their animation. They are
+   portaled to <body>, so they sit outside .stonetop and the blanket rule above cannot reach
+   them.
+
+   Matched on a shared marker class rather than a hand-kept list of every popup's own name.
+   The list drifted twice — the avatar and People previews were both missed, and hover-zoom
+   kept popping with Reduce Motion on — because nothing structurally connected a new popup to
+   this rule. Now a creator adds `stonetop-hover-popup` alongside its own class (one token, at
+   the one place it already sets className) and is covered by construction.
+
+   The springicon stays named: it is a ::after on an existing element, not a portaled node, so
+   there is nothing to mark. */
 .stonetop-reduce-motion .stonetop-welcome-springicon-wrap::after,
-.stonetop-reduce-motion .stonetop-arcana-preview-popup {
+.stonetop-reduce-motion .stonetop-hover-popup {
 	display: none !important;
 }
 .stonetop-reduce-motion .stonetop-welcome-springicon,
@@ -4286,15 +4299,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* A CUSTOM move the player has UN-learned (its "learned" checkbox cleared). It stays on
    the sheet for reference but is inactive — not rollable, bonuses off — so its name and
-   text read as muted and struck through. Only the name/description fade; the leading
-   checkbox keeps full contrast so re-learning stays an obvious click. */
+   text read as muted. No strike-through: an un-learned move isn't cancelled or spent, it's
+   just not taken, and the fade already says that (an un-owned playbook move reads the same
+   way). Only the name/description fade; the leading checkbox keeps full contrast so
+   re-learning stays an obvious click. */
 .tab.moves .stonetop-item.move-unlearned .stonetop-item-name,
 .tab.moves .stonetop-item.move-unlearned .stonetop-item-description {
 	opacity: 0.5;
 }
-.tab.moves .stonetop-item.move-unlearned .stonetop-item-name {
-	text-decoration: line-through;
-	text-decoration-thickness: 1px;
+
+/* Stands in for the "learned" checkbox on an Other Moves row that has none (a foreign
+   playbook move, which is always learned and so shows no toggle). Same scaled 15px box
+   the checkbox reserves, so every title in the section starts on one line — the header's
+   own 8px gap does the spacing. */
+.tab.moves .stonetop-item-check-spacer {
+	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1));
+	height: calc(15px * var(--stonetop-font-scale, 1));
 }
 
 /* A move the player OWNS that still has unspent selection budget (e.g. Veteran Crew
@@ -5684,7 +5704,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .stonetop-arcanum-foldable.is-collapsed > .stonetop-arcanum-foldable-summary::after {
-	transform: rotate(0deg); /* collapsed: arrow points right */
+	transform: rotate(-90deg); /* collapsed: arrow points up */
 }
 
 .stonetop-arcanum-foldable.is-collapsed > .stonetop-arcanum-foldable-body {
@@ -5735,7 +5755,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	transition: transform 0.15s;
 }
 .stonetop-arcanum-card.is-collapsed > .stonetop-arcanum-collapse-btn::after {
-	transform: rotate(0deg); /* collapsed: arrow points right */
+	transform: rotate(-90deg); /* collapsed: arrow points up */
 }
 
 /* Collapsed: clamp the card to a header + the front description's lead. Drop the tall
@@ -9518,7 +9538,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	display: grid;
 	grid-template-columns: 12px minmax(0, 1fr) auto;
 	align-items: center;
-	gap: 6px;
+	gap: 4px;
 	padding: 2px 0;
 	break-inside: avoid;
 	color: var(--color-text-dark-secondary);
@@ -9972,6 +9992,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    axis, where `center` still applies — so this costs nothing for the square and squat
    portraits.
 
+   THIS IS NOW THE FALLBACK, not the main event. Anchoring to the top is a guess, and on a
+   1:3 figure the top slice is as often sky and hat brim as a face. Every People portrait can
+   now carry a square cut BY HAND in the art picker (module/book2-art/people-portraits.js),
+   extracted as its own small file, and it is that file an actor's `img` points at — so what
+   arrives here is usually already square and this rule has nothing left to crop. It still
+   earns its place for a GM's own browsed art, for a portrait nobody has framed yet, and for
+   a world whose squares have not been cut from disk yet.
+
    Each selector keeps the specificity it would have had on its own, and this sits ahead of
    all of them. The rules below carry only what is genuinely local — size, border, the
    circle-vs-square call. */
@@ -10377,7 +10405,89 @@ img.steading-player-portrait {
 	display: flex;
 	align-items: center;
 	gap: 6px;
+	/* The category chips follow the search pill, which grows ~150px wider when opened.
+	   Wrap rather than squeeze, so a narrowed sheet drops them to a second line intact. */
+	flex-wrap: wrap;
 	margin: 0 0 10px 0;
+}
+
+/* ── Category filter chips ────────────────────────────────────────────────
+   Three chips sitting just right of the search magnifying glass; at most one lit, and
+   none lit means unfiltered (clicking the lit one clears it, which is what makes "show
+   everything" reachable without a fourth "All" chip). Separate pills rather than the
+   joined segments of .stonetop-segmented-picker / the relationship view toggle, because
+   there is no "all" segment for the run to close on — the cleared state is no segment at
+   all, and a joined group with nothing lit reads as broken rather than as unfiltered. */
+.steading-improvement-filters {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 2px;
+}
+
+.steading-improvement-filter {
+	/* Undo core's block-level button rules (`body.game .app button` is display:flex,
+	   width:100%, min-height:2em) or each chip claims its own full-width row and the
+	   group stacks vertically. Same preamble as .stonetop-rel-view-btn. */
+	display: inline-flex;
+	width: auto;
+	min-height: 0;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 4px;
+	margin: 0;
+	padding: 1px 8px;
+	border: 1px solid var(--st-btn-primary-border, #4f5b66);
+	border-radius: 999px;
+	background: transparent;
+	box-shadow: none;
+	color: var(--st-text-body);
+	font-family: var(--font-stonetop);
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	line-height: 1.6;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+/* Core gives every `button > i` a right margin, which double-counts against the gap
+   above and pushes the label off-centre in the pill. */
+.steading-improvement-filter > i {
+	margin-right: 0;
+	font-size: 0.9em;
+	opacity: 0.75;
+}
+
+.steading-improvement-filter.is-active {
+	background: var(--st-btn-primary-bg, slategrey);
+	border-color: var(--st-btn-primary-bg, slategrey);
+	color: #fff;
+}
+.steading-improvement-filter.is-active > i { opacity: 1; }
+
+.steading-improvement-filter:hover:not(.is-active) {
+	background: rgba(100, 116, 139, 0.16);
+	color: var(--st-text-body);
+}
+
+/* Core strips the default outline from buttons; without this a keyboard user has no
+   idea which chip they're on. Inset so the ring sits inside the pill's own border. */
+.steading-improvement-filter:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: -2px;
+}
+
+/* The chips write nothing to the actor — they're one viewer's lens on the list — so
+   they stay live while the tab's pencil is shut, like the search box beside them. */
+.stonetop-readonly .steading-improvement-filter {
+	pointer-events: auto;
+	opacity: 1;
+}
+
+/* The hide toggle, stamped by getData and by the click handler. `!important` to beat
+   the card's own `display` for the same reason .stonetop-search-hidden needs it; the
+   two compose as an OR of hides, so a search runs WITHIN the lit categories. */
+.steading-improvement-filtered {
+	display: none !important;
 }
 
 .steading-hide-unearned-improvements-label {
@@ -14604,11 +14714,12 @@ img.steading-player-portrait {
 	height: 0.6em;
 	flex: none;
 	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	transform: rotate(-90deg); /* closed: arrow points up */
 	transition: transform 0.15s;
 }
 
 details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::before {
-	transform: rotate(90deg);
+	transform: rotate(90deg); /* open: arrow points down */
 }
 
 /* Inventory */
@@ -15530,10 +15641,11 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	width: 0.65em;
 	height: 0.65em;
 	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	transform: rotate(-90deg); /* closed: arrow points up */
 	transition: transform 0.15s;
 }
 
-.stonetop-follower-rule[open] summary::before { transform: rotate(90deg); }
+.stonetop-follower-rule[open] summary::before { transform: rotate(90deg); /* open: down */ }
 
 .stonetop-follower-rule p,
 .stonetop-follower-rule ul {
@@ -21917,7 +22029,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	margin: 0;
 	transition: transform 0.15s ease;
 }
-.stonetop .steading-threats .threat-card.is-collapsed .threat-collapse-btn i { transform: rotate(-90deg); }
+/* Open: the chevron rests pointing down. Collapsed: a half-turn to up. */
+.stonetop .steading-threats .threat-card.is-collapsed .threat-collapse-btn i { transform: rotate(180deg); }
 
 /* Collapsed: keep only the header (title / type + chevron) and the Instinct line;
    everything below is hidden. The proximity line is already hidden on this tab. */
@@ -22469,7 +22582,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-text-secondary, #4a4034);
 }
 .stonetop .threat-editor-more-toggle i { transition: transform 0.15s ease; }
-.stonetop .threat-editor:has(.threat-editor-more.is-open) .threat-editor-more-toggle i { transform: rotate(90deg); }
+/* Closed: the chevron rests pointing up (the template ships fa-chevron-up).
+   Open: a half-turn to down. */
+.stonetop .threat-editor:has(.threat-editor-more.is-open) .threat-editor-more-toggle i { transform: rotate(180deg); }
 .stonetop .threat-editor__footer { display: flex; justify-content: flex-end; margin-top: 0.25rem; }
 .stonetop .threat-editor-done {
 	display: inline-flex; align-items: center; gap: 0.4rem; width: auto;
@@ -22889,6 +23004,13 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border-radius: var(--st-radius);
 	background: #fff;
 }
+/* A portrait whose square face has been cut shows THAT, at its own 1:1 — still "what you pick
+   is what you get", now literally: this is the same file the sheets will use. The two shapes
+   sit side by side in one grid while a library is part-way through being framed, which reads
+   as progress rather than as a fault. */
+.stonetop-people-gallery .stonetop-people-pick.is-square img {
+	aspect-ratio: 1 / 1;
+}
 .stonetop-people-gallery .stonetop-people-label {
 	font-size: var(--st-fs-xs);
 	color: var(--st-text-muted);
@@ -23136,9 +23258,20 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	--st-npc-portrait-size: 120px;
 	margin-bottom: 12px;
 }
+/* Portrait-shaped, not square, and `contain` from .stonetop-portrait keeps it uncropped.
+   This is the ONE surface that shows a People-of-Stonetop illustration whole — everywhere else
+   gets the square face cut from it (see the crop block near .steading-member-avatar) — and the
+   art is standing figures: median h/w 1.52, up to 3.28. Fitting that into a 120x120 square
+   letterboxed a typical portrait down to about 79px wide with dead space either side of it,
+   which is a poor showing for the only place there is room. A 3/4 box spends the height the
+   header has to spare and lets the figure read.
+
+   Width stays on --st-npc-portrait-size because the name/traits column beside it is floored to
+   the same token; only the height moves. */
 .stonetop-npc-header .stonetop-portrait {
 	width: var(--st-npc-portrait-size);
-	height: var(--st-npc-portrait-size);
+	height: auto;
+	aspect-ratio: 3 / 4;
 }
 /* Person-icon placeholder when the NPC has no portrait art (no fabricated art). */
 .stonetop-npc-portrait-placeholder {
@@ -24421,12 +24554,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border-style: dashed;
 }
 
-/* The NAME carries that dimming, not the face. Most portraits here are ink-on-transparent
-   line art (a playbook badge, the placeholder head), so 0.72 does not read as "muted" the
-   way it does on text — it washes near-black ink to grey against the card's pale fill, and
-   the face is the one thing on the card meant to be identifiable at a glance. The dashed
-   border, the translucent fill, and the dimmed name already say "never rated". */
-.stonetop-rel-card--unrated .stonetop-rel-card-name { opacity: 0.72; }
 
 /* Unticked under the pencil: shown only while editing, matching the table's row treatment. */
 .stonetop-rel-card--hidden .stonetop-rel-card-name,
@@ -24649,11 +24776,14 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	background-color: currentColor;
 	-webkit-mask: url('/systems/stonetop-pwd/assets/icons/note-caret.svg') center / contain no-repeat;
 	mask: url('/systems/stonetop-pwd/assets/icons/note-caret.svg') center / contain no-repeat;
+	/* Closed: up. Open: a half-turn to down — the same way round as every other
+	   fold on these sheets, so one glance reads the same everywhere. */
+	transform: rotate(180deg);
 	transition: transform 120ms ease;
 }
 
 .stonetop-rel-card-note-wrap.is-open .stonetop-rel-note-caret {
-	transform: rotate(180deg);
+	transform: rotate(0deg);
 }
 
 /* ── The per-card lane control ────────────────────────────────────────────── */

@@ -3,11 +3,53 @@ import {slugify} from "../../utils/strings.js";
 import {OCCUPATIONS, TRAITS, HOMES} from "../../data/steading-members.js";
 import {resolvePersonRow} from "./steading-people.js";
 
+/**
+ * The three lenses the Improvements tab filters by — the toggle chips beside its
+ * search control. Every built-in improvement below carries exactly one `category`.
+ *
+ * The split follows what an improvement *feeds*, not what it costs to build, which is
+ * what a player is actually shopping for when they open the tab:
+ *   hearth — the Surplus engine (housing, food, water); every Fortunes grant but the Inn
+ *   renown — Prosperity and everything facing outward (trade, guests, reputation)
+ *   wall   — exactly the set of improvements that add to the Fortifications list
+ * The Inn straddles hearth/renown (it grants Fortunes, but its ongoing rules are all
+ * about guests and news from the wider world) and Township is really a capstone; both
+ * are filed under renown.
+ *
+ * Custom improvements — hand-authored, or dropped in from a journal card, which carries
+ * no category — may have none, in which case they're immune to the filter and always
+ * shown, so nothing a user added can silently vanish behind a chip.
+ */
+export const IMPROVEMENT_CATEGORIES = [
+	{
+		key: "hearth",
+		label: "Hearth & Harvest",
+		icon: "fas fa-wheat-awn",
+		hint: "Housing, food, and water: the Fortunes and Surplus engine.",
+	},
+	{
+		key: "renown",
+		label: "Trade & Renown",
+		icon: "fas fa-coins",
+		hint: "Prosperity, trade, and everything facing the wider world.",
+	},
+	{
+		key: "wall",
+		label: "Wall & Watch",
+		icon: "fas fa-shield-halved",
+		hint: "Defenses and the Fortifications list.",
+	},
+];
+
+/** Valid `category` values, for validating a hand-authored custom improvement. */
+export const IMPROVEMENT_CATEGORY_KEYS = new Set(IMPROVEMENT_CATEGORIES.map(c => c.key));
+
 export const IMPROVEMENT_DEFINITIONS = [
 	// ── Page 2 ──────────────────────────────────────────────────
 	{
 		slug: "additionalHousing",
 		label: "Additional Housing",
+		category: "hearth",
 		flavor: "It's getting crowded! We need more room to live.",
 		sections: [
 			{
@@ -34,6 +76,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "aurochsHunting",
 		label: "Aurochs Hunting",
+		category: "hearth",
 		flavor: "Large herds form on the Flats in spring. The Hillfolk hunt them, but Stonetop has never learned to do so.",
 		sections: [
 			{
@@ -55,6 +98,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "expandedTrades",
 		label: "Expanded Trades",
+		category: "renown",
 		flavor: "Specialization is the key to prosperity!",
 		sections: [
 			{
@@ -84,6 +128,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "greaterHarvest",
 		label: "Greater Harvest",
+		category: "hearth",
 		flavor: "Beyond the Old Wall, the prairie grass of the Flats chokes out any crops we try to grow.",
 		sections: [
 			{
@@ -100,6 +145,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "harnessingStream",
 		label: "Harnessing the Stream",
+		category: "hearth",
 		flavor: "A shallow creek flows just below the town. If only it could be harnessed!",
 		sections: [
 			{
@@ -115,6 +161,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "herdOfHorses",
 		label: "Herd of Horses",
+		category: "hearth",
 		flavor: "Imagine what we could do with a dozen fine steeds.",
 		sections: [
 			{
@@ -136,6 +183,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "heroicReputation",
 		label: "Heroic Reputation",
+		category: "renown",
 		flavor: "Few have heard of Stonetop's heroes. Yet.",
 		sections: [
 			{
@@ -157,6 +205,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "inn",
 		label: "Inn",
+		category: "renown",
 		flavor: "The public house offers a common room and shelter for a few horses, but it's hardly a proper inn.",
 		sections: [
 			{
@@ -176,6 +225,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "market",
 		label: "Market",
+		category: "renown",
 		flavor: "Stonetop is at most an afterthought for traders in the region. We need to change that.",
 		sections: [
 			{
@@ -200,6 +250,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "mill",
 		label: "Mill",
+		category: "hearth",
 		flavor: "We've got our pick of millstones. With a mill, we'd have better bread and more time for other crafts.",
 		sections: [
 			{
@@ -219,6 +270,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "palisade",
 		label: "Palisade",
+		category: "wall",
 		flavor: "A wall of sharpened logs, 10' tall, to keep evil at bay.",
 		sections: [
 			{
@@ -236,6 +288,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "raincatching",
 		label: "Raincatching",
+		category: "hearth",
 		flavor: "Filling the cistern takes so much work. Surely, we can do better!",
 		sections: [
 			{
@@ -254,6 +307,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "standingWatch",
 		label: "Standing Watch",
+		category: "wall",
 		flavor: "Some full-time warriors would make us all safer, no?",
 		sections: [
 			{
@@ -270,6 +324,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "stoneWall",
 		label: "Stone Wall",
+		category: "wall",
 		flavor: "No mere palisade of wood, but a mighty rampart. We have the stone, after all...",
 		sections: [
 			{
@@ -290,6 +345,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "township",
 		label: "Township",
+		category: "renown",
 		flavor: "Will this ever be more than a backwater village?",
 		sections: [
 			{
@@ -314,6 +370,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "weaponsOfWar",
 		label: "Weapons of War",
+		category: "wall",
 		flavor: "Spears are great, but how about axes, picks, swords?",
 		sections: [
 			{
@@ -348,6 +405,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 	{
 		slug: "wellTrainedMilitia",
 		label: "Well-Trained Militia",
+		category: "wall",
 		flavor: "Everyone can use a spear and shield, but some hard drilling could make us a force to be reckoned with.",
 		sections: [
 			{
@@ -649,7 +707,10 @@ export class StonetopSteading {
 	 * shape as IMPROVEMENT_DEFINITIONS so the snapshot/template treat it identically.
 	 * No-op (returns `{ ok: false }`) when the name is empty or already present (by
 	 * built-in label or existing custom slug), so re-dropping the same card is safe.
-	 * @param {{name:string, flavor?:string, effect?:string, sections?:Array}} def
+	 * `category` is optional and only kept when it names a real one — a journal card
+	 * carries none, and an uncategorised improvement is simply immune to the tab's
+	 * category filter (see IMPROVEMENT_CATEGORIES).
+	 * @param {{name:string, flavor?:string, effect?:string, category?:string, sections?:Array}} def
 	 */
 	async addCustomImprovement(def) {
 		const name = String(def?.name ?? "").trim();
@@ -664,6 +725,7 @@ export class StonetopSteading {
 		const normalized = {
 			slug,
 			label: name,
+			category: IMPROVEMENT_CATEGORY_KEYS.has(def.category) ? def.category : "",
 			flavor: String(def.flavor ?? ""),
 			sections: (Array.isArray(def.sections) ? def.sections : []).map(s => ({
 				heading: String(s?.heading ?? ""),
@@ -1135,6 +1197,9 @@ export class StonetopSteading {
 			return {
 				slug: def.slug,
 				label: def.label,
+				// "" for a custom improvement that never got one — the sheet's category
+				// chips leave those alone rather than filtering them out of existence.
+				category: def.category ?? "",
 				flavor: def.flavor,
 				completed,
 				earned,

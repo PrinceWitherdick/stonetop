@@ -139,3 +139,44 @@ describe("StonetopCharacter.removeMove — cross-playbook cascade", () => {
 		expect(actor.deleteEmbeddedDocuments).toHaveBeenCalledWith("Item", ["m1"]);
 	});
 });
+
+// A custom move's resource track is keyed by item id, and ids are never reused — so the
+// stored count has to go with the move. A shipped move keys by NAME and keeps its count on
+// purpose, so re-adding it later picks up where the player left off.
+describe("StonetopCharacter.removeMove — resource-track cleanup", () => {
+	const RESOURCE_FLAG = "flags.stonetop-pwd.moves.backgroundChoices";
+
+	function actorWithTracks(item) {
+		return new FakeActorBuilder()
+			.withFlag("moves", { backgroundChoices: { cm1: 2, "Rites of the Land": 3 } })
+			.addItem(item).build();
+	}
+
+	it("drops a custom move's stored count", async () => {
+		const actor = actorWithTracks({
+			_id: "cm1", type: "move", name: "Homebrew", system: { moveType: "other", resource: { max: 3 } },
+			flags: { "stonetop-pwd": { custom: true } },
+		});
+		await new TestCharacterBuilder(actor).build().removeMove("cm1");
+		expect(actor.update).toHaveBeenCalledWith({ [`${RESOURCE_FLAG}.-=cm1`]: null }, undefined);
+	});
+
+	it("leaves a shipped move's name-keyed count alone", async () => {
+		const actor = actorWithTracks({
+			_id: "pm1", type: "move", name: "Rites of the Land", system: { moveType: "playbook", resource: { max: 4 } },
+		});
+		await new TestCharacterBuilder(actor).build().removeMove("pm1");
+		expect(actor.update).not.toHaveBeenCalledWith(expect.objectContaining({
+			[`${RESOURCE_FLAG}.-=Rites of the Land`]: null,
+		}), expect.anything());
+	});
+
+	it("writes nothing when the custom move never held a track", async () => {
+		const actor = actorWithTracks({
+			_id: "cm2", type: "move", name: "Trackless", system: { moveType: "other" },
+			flags: { "stonetop-pwd": { custom: true } },
+		});
+		await new TestCharacterBuilder(actor).build().removeMove("cm2");
+		expect(actor.update).not.toHaveBeenCalled();
+	});
+});

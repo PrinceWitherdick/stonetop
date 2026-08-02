@@ -1,4 +1,4 @@
-import { StonetopSteading, IMPROVEMENT_DEFINITIONS, STEADING_DEFAULTS, improvementRequirementsMet, improvementRequirementCount, HERD_SURPLUS_PER } from "./StonetopSteading.js";
+import { StonetopSteading, IMPROVEMENT_DEFINITIONS, IMPROVEMENT_CATEGORIES, STEADING_DEFAULTS, improvementRequirementsMet, improvementRequirementCount, HERD_SURPLUS_PER } from "./StonetopSteading.js";
 import {rollStat, sign, postSeasonsRollPrompt, resultsLegendHtml} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
@@ -22,6 +22,7 @@ import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 import {makeColumnsSortable} from "../../utils/sortable-columns.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
+import {improvementCategoryFieldHtml} from "../../dialogs/create-improvement-dialog.js";
 import {STONETOP_THREAT_SEED_DRAG_TYPE} from "../../threats/threat-seed-cards.js";
 import {PLACE_OF_INTEREST_DRAG_TYPE} from "../../hooks/PlaceOfInterestDrop.js";
 import {getDragEventData, hasVideoExtension, setAppOption} from "../../utils/foundry-compat.js";
@@ -42,6 +43,23 @@ import {relationshipRow, wireRelationshipTable} from "../../utils/relationship-h
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {ACTOR_LINK_MISSING, openLinkedActorSheet, withLinkedActor} from "../../utils/actor-link.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
+import {fullPortraitSrc} from "../../book2-art/people-portraits.js";
+
+/**
+ * What the member-photo WINDOW shows, given the path a member actually wears.
+ *
+ * A People-of-Stonetop portrait is stored as the SQUARE face, because every roster circle, heart
+ * row and token needs one. This window is the opposite case — it exists so somebody can look at
+ * the picture — so it shows the whole illustration the square was cut from, the same swap the NPC
+ * sheet header and the hover preview make. Anything else (a browsed file, a default) resolves to
+ * null and is shown as itself.
+ *
+ * Display only: the STORED path is what `_stonetopMemberImageEdit.current` keeps and what the
+ * gallery is handed back, so re-opening Edit Photo still highlights the portrait the member wears.
+ */
+function memberPhotoDisplaySrc(src) {
+	return fullPortraitSrc(src) ?? src;
+}
 
 function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
@@ -423,6 +441,13 @@ export function createStonetopSteadingSheetClass(Base) {
 		// or completion checkbox triggers — it only collapses when its header/chevron
 		// is clicked.
 		_openImprovements = new Set();
+		// The single lit category chip on the Improvements tab (see IMPROVEMENT_CATEGORIES).
+		// One at a time: picking a second chip drops the first. "" means no filter, so the
+		// tab opens showing everything, and clicking the lit chip again returns to that.
+		// Instance state like _openImprovements, deliberately NOT an actor flag: it's one
+		// viewer's lens on the list, not a property of the steading, and a player with
+		// read-only access to the actor could not write a flag anyway.
+		_improvementCategory = "";
 		// Page uuids of threat cards the user has collapsed (clamped to title + Instinct).
 		// Threats default EXPANDED, so a uuid present here means that card reopens collapsed.
 		// Kept on the instance like _openImprovements so the state survives the re-render a
@@ -608,9 +633,17 @@ export function createStonetopSteadingSheetClass(Base) {
 				STEADING_EDIT_SECTIONS.map(section => [section, this._recentlyEditedSections.has(section)])
 			);
 			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop-pwd", "hideUnearnedImprovements") ?? false;
-			// Re-apply the user's expanded cards so they survive re-renders.
+			context.stonetop.improvementCategories = IMPROVEMENT_CATEGORIES.map(cat => ({
+				...cat,
+				active: this._improvementCategory === cat.key,
+			}));
+			// Re-apply the user's expanded cards and lit category chips so both survive the
+			// re-render that ticking a requirement triggers. `filtered` is stamped here rather
+			// than left to the click handler alone so a re-render can't flash the hidden cards
+			// back in before the handler re-runs.
 			for (const imp of context.stonetop.improvements ?? []) {
 				imp.isOpen = this._openImprovements.has(imp.slug);
+				imp.filtered = this._isImprovementFiltered(imp.category);
 			}
 			const threatsCtx = await this._buildThreatsContext();
 			context.stonetop.threatGroups = threatsCtx.threatGroups;
@@ -793,6 +826,13 @@ export function createStonetopSteadingSheetClass(Base) {
 				itemSel: ".steading-improvement",
 				textFor: card => card.textContent,
 			});
+
+			// Category chips beside that search box. One lights at a time, and clicking the
+			// lit one clears back to showing everything. Filtering happens in place instead of
+			// via a re-render so expanded cards stay expanded and the tab keeps its scroll
+			// position; getData stamps the same classes so the state also survives a re-render
+			// from elsewhere.
+			this._wireImprovementCategoryFilter(html[0].querySelector(".tab.improvements"));
 
 			// Drag a Place of Interest's lettered disc onto the canvas to drop a map
 			// note (handled by the dropCanvasData hook). Read-only viewers may drag too;
@@ -1251,19 +1291,23 @@ export function createStonetopSteadingSheetClass(Base) {
 			const canEdit = this.isEditable && ["residents", "neighbors"].includes(list) && Number.isInteger(index);
 			const sheet = this;
 			const BaseImagePopout = globalThis.ImagePopout;
+			// Read the ATTRIBUTE, not `.src`: the DOM resolves the latter to an absolute URL, which
+			// a query string or hash could hide the filename the swap has to recognise.
+			const stored  = anchor.getAttribute?.("src") || anchor.src;
+			const display = memberPhotoDisplaySrc(stored);
 			if (!canEdit || !BaseImagePopout) {
-				return new ImagePopout(anchor.src, {
+				return new ImagePopout(display, {
 					title:  anchor.dataset.name ?? "",
 					width:  560,
 					height: 620,
 				});
 			}
-			const popout = new BaseImagePopout(anchor.src, {
+			const popout = new BaseImagePopout(display, {
 				title:  anchor.dataset.name ?? "",
 				width:  560,
 				height: 620,
 			});
-			popout._stonetopMemberImageEdit = { sheet, list, index, current: anchor.src };
+			popout._stonetopMemberImageEdit = { sheet, list, index, current: stored };
 			this._bindMemberImagePopoutToActor(popout, list, index);
 			return popout;
 		}
@@ -1324,10 +1368,12 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onMemberAvatarPickImage({
 					list: edit.list,
 					index: edit.index,
-					// `options.src` is where core keeps the displayed image (and what a
-					// re-render reads), so it stays right across portrait changes; `current`
-					// covers a window shape that keeps its src somewhere else.
-					current: popout.options?.src ?? edit.current,
+					// `current` is the STORED path — what the member actually wears — and is kept
+					// in step by _refreshMemberImagePopout on every change, however it was made.
+					// `options.src` is the fallback because it is the DISPLAYED path, which for a
+					// gallery portrait is the whole illustration rather than the square on the
+					// document; the gallery normalises either, but the stored one is the truth.
+					current: edit.current ?? popout.options?.src,
 					popout,
 				});
 			});
@@ -1373,19 +1419,22 @@ export function createStonetopSteadingSheetClass(Base) {
 		_refreshMemberImagePopout(popout, path) {
 			if (!popout || !path) return;
 
+			// `path` is what the member now WEARS; the window shows the illustration behind it.
+			const display = memberPhotoDisplaySrc(path);
+
 			// Match the element to the kind of portrait coming in: core renders a still as an
 			// <img> and an animated one as a <video>, so a swap between the two finds no
 			// element of the new kind — and leaving `media` null routes it to the re-render
 			// below, which builds whichever element the new path needs.
 			const root = popout.element?.jquery ? popout.element[0] : popout.element;
-			const selector = hasVideoExtension(path) ? ".window-content video, video" : ".window-content img, img";
+			const selector = hasVideoExtension(display) ? ".window-content video, video" : ".window-content img, img";
 			const media = root?.querySelector?.(selector);
-			if (media) media.src = path;
+			if (media) media.src = display;
 
-			// Keep the popout's own state in step: a re-render reads `options.src`, so does the
-			// header's Share Image control, and the next Edit Photo pass reads the current path
-			// back off the popout to highlight that portrait in the gallery.
-			setAppOption(popout, "src", path);
+			// Keep the popout's own state in step: a re-render reads `options.src`, and so does
+			// the header's Share Image control — both want what is on screen. The next Edit Photo
+			// pass reads `current` instead, which is why the stored path is kept alongside it.
+			setAppOption(popout, "src", display);
 			if (popout._stonetopMemberImageEdit) popout._stonetopMemberImageEdit.current = path;
 
 			// No usable element (the window is still rendering, or the portrait changed kind):
@@ -2559,6 +2608,64 @@ export function createStonetopSteadingSheetClass(Base) {
 			});
 		}
 
+		/**
+		 * Pick a category chip: one at a time, so choosing a second drops the first, and
+		 * choosing the lit one again clears back to unfiltered. That second behaviour is
+		 * what makes "show everything" reachable without a fourth "All" chip.
+		 * @returns {string} the category now lit, or "" for unfiltered.
+		 */
+		_toggleImprovementCategory(key) {
+			this._improvementCategory = this._improvementCategory === key ? "" : key;
+			return this._improvementCategory;
+		}
+
+		/**
+		 * Whether a card in `category` is hidden by the current chip. No chip lit is the
+		 * unfiltered state, and an improvement with no category at all (a dropped journal
+		 * card, or a custom one authored without picking one) is never hidden — a filter
+		 * over data that predates the filter should not make that data disappear.
+		 */
+		_isImprovementFiltered(category) {
+			if (!this._improvementCategory) return false;
+			if (!category) return false;
+			return category !== this._improvementCategory;
+		}
+
+		/** Wire the Improvements tab's category chips. See getData for the render side. */
+		_wireImprovementCategoryFilter(tab) {
+			if (!tab) return;
+			const chips = [...tab.querySelectorAll(".steading-improvement-filter")];
+			const apply = () => {
+				// Every chip is restyled, not just the clicked one: picking a new category has
+				// to unlight whichever one was lit before.
+				for (const chip of chips) {
+					const on = chip.dataset.category === this._improvementCategory;
+					chip.classList.toggle("is-active", on);
+					chip.setAttribute("aria-pressed", on ? "true" : "false");
+				}
+				for (const card of tab.querySelectorAll(".steading-improvement")) {
+					card.classList.toggle("steading-improvement-filtered",
+						this._isImprovementFiltered(card.dataset.category ?? ""));
+				}
+			};
+			tab.addEventListener("click", ev => {
+				const btn = ev.target.closest(".steading-improvement-filter");
+				if (!btn) return;
+				// Stops the BUBBLE-phase handlers above this one, so a chip click is only ever a
+				// chip click. It does NOT stop the sheet root's capture-phase expand/collapse
+				// handler: that one runs on the way down and has already fired by the time this
+				// listener sees the event. What keeps it harmless is its own guard — a chip is not
+				// inside a card header, and it bails on anything that isn't. Any capture-phase
+				// click handler added to the tab or the sheet root will likewise see chip clicks
+				// and needs to exclude them itself; nothing here can do it for them.
+				ev.preventDefault();
+				ev.stopPropagation();
+				if (!btn.dataset.category) return;
+				this._toggleImprovementCategory(btn.dataset.category);
+				apply();
+			});
+		}
+
 		async _onImprovementReq(slug, index, checked) {
 			const f = this._stonetopSteading._flags;
 			const improvements = foundry.utils.deepClone(f.improvements ?? {});
@@ -2678,6 +2785,7 @@ export function createStonetopSteadingSheetClass(Base) {
 							<span>Name</span>
 							<input type="text" name="name" placeholder="e.g. Roadbuilding" autofocus>
 						</label>
+						${improvementCategoryFieldHtml()}
 						<label class="stonetop-homestead-field">
 							<span>Flavor</span>
 							<textarea name="flavor" rows="2" placeholder="A short description shown under the title (optional)."></textarea>
@@ -2702,6 +2810,7 @@ export function createStonetopSteadingSheetClass(Base) {
 							}
 							const result = await this._stonetopSteading.addCustomImprovement({
 								name,
+								category: val("category"),
 								flavor: val("flavor"),
 								effect: val("effect"),
 							});
