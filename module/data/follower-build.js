@@ -320,6 +320,7 @@ export function followerFromMonster(monster = {}, opts = {}) {
 		// …and its art, when the monster has any. The glyph above still backs it up for a
 		// monster that never got a portrait.
 		img:          sourceActorImg(monster.img),
+		portraitFrame: monster.flags?.["stonetop-pwd"]?.portraitFrame ?? null,
 		tags,
 		hp:           hpMax,
 		// Carry current HP as-is (buildCustomFollower clamps/normalizes); `?? hpMax`
@@ -374,6 +375,9 @@ export function followerFromNpc(npc = {}, opts = {}) {
 		// An NPC recruited off the steading's roster is usually already wearing a People of
 		// Stonetop portrait, so the follower card shows the same face without being asked.
 		img:          sourceActorImg(npc.img),
+		// …and the square of it the roster was already showing, so a recruited NPC arrives on
+		// the card wearing the face someone chose rather than a fresh blind top crop.
+		portraitFrame: npc.flags?.["stonetop-pwd"]?.portraitFrame ?? null,
 		tags:         [...keptTags, ...normalizeTags(opts.tags)],
 		hp:           hpMax,
 		hpCurrent:    opts.hpCurrent ?? (hasStats ? (attrs.hp?.value ?? hpMax) : hpMax),

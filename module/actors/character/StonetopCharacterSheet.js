@@ -61,6 +61,12 @@ import {availablePossessionFollowers} from "../../data/possession-followers.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 import {FOLLOWER_DRAG_TYPE} from "../../data/follower-actor.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
+import {resolvePortrait} from "../../utils/portrait-frame.js";
+import {fullPortraitSrc} from "../../book2-art/people-portraits.js";
+import {followerFrameHandle, actorFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
+import {addPopoutHeaderControl} from "../../utils/popout-header-control.js";
+import {localize} from "../../utils/i18n.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -416,6 +422,8 @@ const FOLLOWER_FTYPE_DEFAULTS = {
 function _followerExtras(d = {}) {
 	const moves   = String(d?.moves ?? "");
 	const gearArr = Array.isArray(d?.gear) ? d.gear : [];
+	const storedImg = String(d?.img ?? "").trim();
+	const portrait  = resolvePortrait(storedImg, d?.portraitFrame);
 	return {
 		exceptional: !!d?.exceptional,
 		moves,
@@ -428,7 +436,17 @@ function _followerExtras(d = {}) {
 		// them: read out of this same `.details` object, written back through
 		// _followerDetailBase, so every follower type gains a portrait in one place.
 		// Empty means "no portrait" and the card falls back to the type's glyph.
-		img:         String(d?.img ?? "").trim(),
+		//
+		// `img` is what the card RENDERS, which differs from the stored path in exactly one
+		// case: a shipped square framed against its higher-resolution illustration, which is the
+		// picture the rect was measured on and therefore the one it must be applied to.
+		img:         portrait.src,
+		imgStyle:    portrait.style,
+		// The path on the flag, for anything that must hand a PATH on rather than paint it —
+		// the drag snapshot, which seeds a token.
+		storedImg,
+		// The raw rect, so a follower dragged onto the map carries its frame across.
+		portraitFrame: d?.portraitFrame ?? null,
 		// The Actor this follower has already been placed on the map as, if any (written by
 		// the canvas-drop hook the first time the card is dragged onto a scene — see
 		// module/hooks/FollowerDrop.js). Stored beside the portrait because it is stored
@@ -509,7 +527,11 @@ function _followerDragSnapshot(card, actor) {
 			// an epithet, an unnamed card falls back to its type), so reuse it rather than
 			// restating that fallback.
 			name:        card.orderName,
-			img:         card.img ?? "",
+			// `storedImg`, not `img`: the card RENDERS the illustration when a shipped square has
+			// been framed against it, and a token wants the path on the flag rather than the one
+			// being painted. The frame rides along so the NPC this becomes keeps the same face.
+			img:           card.storedImg ?? card.img ?? "",
+			portraitFrame: card.portraitFrame ?? null,
 			// The glyph the card falls back to when it has no portrait (a paw, a sprout, a
 			// crowd). Carried so the Actor can wear the matching mark instead of Foundry's
 			// mystery-man — see followerMarkerImg.
@@ -1303,12 +1325,21 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Roster: governed by its own pencil (or the whole-tab edit), not the card button.
 					individuals: followersEditing || this._editingSections.has(`follower-individuals:${ftype}:${slug}`),
 				};
-				// Deliberately NOT under a pencil, unlike every field above: a portrait is
-				// picked from a gallery, not typed, so there is nothing to protect from a
-				// stray keystroke — and requiring edit mode first would put two clicks in
-				// front of a one-click change. Sheet-level editability is the whole gate,
-				// which is also how the steading's rosters treat their portraits.
-				card.portraitEditable = this.isEditable;
+				// The portrait does two different things depending on the card's pencil, the
+				// same split every other portrait in the system uses (PC header, NPC and
+				// monster sheets): reading the sheet, a tap ENLARGES the picture; editing it,
+				// a tap opens the gallery to change it.
+				//
+				// It used to open the gallery in both modes, on the reasoning that a portrait
+				// is picked rather than typed and so needs no protection from a stray
+				// keystroke. That missed the more common intent: most taps on a face are
+				// someone wanting to see it, not replace it.
+				card.portraitEditable = this.isEditable && cardOn;
+				card.portraitViewable = !!card.img && !card.portraitEditable;
+				// One class drives the cursor and the hover ring for both jobs; the handler
+				// decides which by mode. A card with no portrait and no pencil does nothing,
+				// so it gets neither.
+				card.portraitInteractive = card.portraitEditable || card.portraitViewable;
 				return card;
 			};
 			// The stat-block editor lets the player override Damage / Instinct / Cost with
@@ -1915,9 +1946,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				card.orderName    = card.name || card.label || card.namePlaceholder || card.typeLabel || "Follower";
 				// One string for the portrait button's tooltip AND its aria-label, so a copy edit
 				// cannot leave the sighted and the screen-reader name disagreeing.
-				card.portraitLabel = card.img
-					? `Change ${card.orderName}'s portrait`
-					: `Choose a portrait for ${card.orderName}`;
+				card.portraitLabel = !card.portraitEditable
+					? `View ${card.orderName}'s portrait`
+					: card.img
+						? `Change ${card.orderName}'s portrait`
+						: `Choose a portrait for ${card.orderName}`;
+				card.portraitFrameLabel = `Frame ${card.orderName}'s face`;
 				if (Array.isArray(card.loyalty) && card.loyalty.length) {
 					card.loyaltyValue = card.loyalty.filter(p => p.filled).length;
 					// A Loyalty track marks a true follower (every orderable type has one;
@@ -2021,7 +2055,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// withOrderData's name fallback.
 			this._followerPortraits = Object.values(groups).flat()
 				.filter(card => card?.img)
-				.map(card => ({ ftype: card.ftype, slug: card.slug ?? "", img: card.img, name: card.orderName }));
+				// storedImg: this index answers "is this portrait already taken", which is a
+				// question about the stored path, not about what is currently painted.
+				.map(card => ({ ftype: card.ftype, slug: card.slug ?? "", img: card.storedImg ?? card.img, name: card.orderName }));
 			// The payload each card hands to the canvas when it's dragged there, keyed by the
 			// (ftype, slug) pair the card wrapper carries in its dataset. Built here for the
 			// same reason the portrait index is: this is where a card is finished, and the
@@ -2304,7 +2340,25 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (this._editMode) return;
 				ev.preventDefault();
 				ev.stopPropagation();
-				new ImagePopout(this.actor.img, { title: this.actor.name }).render(true);
+				const popout = new ImagePopout(this.actor.img, { title: this.actor.name });
+				popout.render(true);
+				// A PC's face appears in the steading roster and in everyone else's relationship
+				// rows, so it wants framing for the same reason an NPC's does. This is the entry
+				// point a non-GM routinely uses on their own document, which is the check that
+				// this feature never needs isGM anywhere.
+				const handle = actorFrameHandle(this.actor, { editable: this.isEditable });
+				if (!handle?.canWrite) return;
+				addPopoutHeaderControl(popout, {
+					key: "stonetop-frame-portrait",
+					icon: "fa-crop-simple",
+					label: localize("stonetop.portraitFrame.control"),
+					onClick: () => openPortraitFrameEditor({
+						handle,
+						img: this.actor.img,
+						title: `Frame ${this.actor.name}`,
+						onSaved: () => this.render(false),
+					}),
+				});
 			});
 
 			html[0].addEventListener("click", ev => {
@@ -2860,7 +2914,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				// out from under the card while the gallery opens over it.
 				ev.preventDefault();
 				ev.stopPropagation();
-				this._onFollowerPortraitPick(portrait);
+				// The crop pip sits inside the portrait and opens the framer instead of the
+				// gallery. Checked after the portrait lookup so it inherits the same guards, and
+				// the pip carries tabindex="-1" so it never takes the card's tab stop.
+				if (ev.target.closest?.(".stonetop-follower-portrait-frame")) {
+					this._onFollowerPortraitFrame(portrait);
+					return;
+				}
+				// Reading the sheet, a tap enlarges the face; editing the card, it opens the
+				// gallery. Stated as an attribute rather than inferred from what else is on the
+				// card: an editable follower with no portrait yet has no crop pip either, and
+				// inferring the mode from the pip would send exactly that case to the viewer,
+				// which has nothing to show.
+				if (portrait.dataset.portraitMode === "pick") this._onFollowerPortraitPick(portrait);
+				else this._onFollowerPortraitView(portrait);
 			};
 			html[0].addEventListener("click", pickFollowerPortrait, true);
 			html[0].addEventListener("keydown", pickFollowerPortrait, true);
@@ -5391,6 +5458,52 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * card's "no portrait" state (see _followerExtras), so clearing needs no `-=` dance and
 		 * cannot leave a half-removed flag behind.
 		 */
+		/**
+		 * Choose which square of a follower's portrait the 75px card circle shows.
+		 *
+		 * Stored beside the portrait as a rect rather than cut to a file, which is what lets a
+		 * PLAYER do this on their own follower: cutting a file needs FILES_UPLOAD, and most
+		 * worlds do not grant it. See module/utils/portrait-frame.js.
+		 */
+		/**
+		 * Enlarge a follower's portrait, the way tapping any other face in the system does.
+		 *
+		 * Opens the WHOLE illustration when the stored path is a People-of-Stonetop square, for
+		 * the same reason the NPC header and the hover preview do: the square is a small face cut
+		 * out of a standing figure, so popping it out would answer "show me this bigger" with a
+		 * picture smaller than the one just tapped.
+		 */
+		_onFollowerPortraitView(portrait) {
+			if (!portrait) return;
+			const imgEl = portrait.querySelector(".stonetop-follower-portrait-img");
+			const stored = imgEl?.getAttribute("src");
+			if (!stored) return;
+			// The popup is portaled to <body> and would otherwise hang over the popout.
+			removeAvatarPreview();
+			const name = imgEl.dataset.name || "Follower";
+			new ImagePopout(fullPortraitSrc(stored) ?? stored, { title: name }).render(true);
+		}
+
+		_onFollowerPortraitFrame(portrait) {
+			if (!this.isEditable || !portrait) return;
+			const base = _followerDetailBase(portrait.dataset.ftype, portrait.dataset.slug);
+			if (!base) {
+				console.warn("stonetop | no follower flag namespace for", portrait.dataset.ftype, portrait.dataset.slug);
+				return;
+			}
+			// No early return on a null handle: openPortraitFrameEditor reports why it cannot
+			// open, which is the difference between a diagnosable message and a dead button.
+			const handle = followerFrameHandle(this.actor, base, { editable: this.isEditable });
+			openPortraitFrameEditor({
+				handle,
+				img: handle?.img,
+				title: portrait.dataset.frameTitle || "Frame Face",
+				// A frame write touches neither `img` nor anything the sheet watches, so nothing
+				// re-renders on its own.
+				onSaved: () => this.render(false)
+			});
+		}
+
 		_onFollowerPortraitPick(portrait) {
 			if (!this.isEditable || !portrait) return;
 			const base = _followerDetailBase(portrait.dataset.ftype, portrait.dataset.slug);
@@ -5412,7 +5525,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				current,
 				used: this._followerPortraitsInUse(portrait.dataset),
 				onPick: apply,
-				onClear: () => apply(""),
+				// One atomic update: clearing the portrait must also drop any frame authored
+				// against it, or the follower keeps an orphan rect that would silently apply to
+				// whatever picture is chosen next (it would not — the src stamp neutralises it —
+				// but the dead data would accumulate forever).
+				onClear: async () => {
+					await this.actor.update({
+						[`flags.stonetop-pwd.${path}`]: "",
+						[`flags.stonetop-pwd.${base}.-=portraitFrame`]: null,
+					});
+					this.render(false);
+				},
+				// A browsed file is exactly the case with no sensible default framing, so offer
+				// the framer the moment one is chosen.
+				onFrame: () => this._onFollowerPortraitFrame(portrait),
 			});
 		}
 

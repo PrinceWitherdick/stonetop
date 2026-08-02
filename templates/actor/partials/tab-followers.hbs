@@ -36,23 +36,37 @@
 			      selector hook wireAvatarPreview matches on, so a portrait that previews and
 			      one that is captioned are the same element.
 
-			      role/tabindex/tooltip only when portraitEditable (sheet-level editability):
-			      a viewer who cannot write would otherwise get a tab stop and a pointer
-			      cursor promising a picker that could not save. The glyph stays clickable
-			      too — picking a first portrait is the whole point. --}}
-			<div class="stonetop-follower-portrait{{#if img}} stonetop-follower-portrait--photo{{/if}}{{#if portraitEditable}} stonetop-follower-portrait--editable{{/if}}"
+			      A tap does one of two things, and portraitInteractive is true for either:
+			      with the card's pencil open it opens the gallery to CHANGE the portrait,
+			      and otherwise it ENLARGES the one that is there. A viewer who can do
+			      neither (no portrait, no pencil) gets no tab stop and no pointer cursor,
+			      rather than one promising something that will not happen. The glyph stays
+			      clickable while editing, since picking a first portrait is the point. --}}
+			<div class="stonetop-follower-portrait stonetop-portrait-box{{#if img}} stonetop-follower-portrait--photo{{/if}}{{#if portraitInteractive}} stonetop-follower-portrait--editable{{/if}}"
 			     data-ftype="{{ftype}}" data-slug="{{slug}}"
-			     {{#if portraitEditable}}role="button" tabindex="0"
+			     data-portrait-mode="{{#if portraitEditable}}pick{{else}}view{{/if}}"
+			     {{#if portraitInteractive}}role="button" tabindex="0"
 			     data-tooltip="{{portraitLabel}}"
 			     data-tooltip-direction="UP"
 			     aria-label="{{portraitLabel}}"{{/if}}>
 				{{#if img}}
 				{{!-- draggable="false": a press on the face is a click on the picker, not the
 				      start of an image drag. --}}
-				<img class="stonetop-follower-portrait-img" src="{{img}}" alt="" draggable="false" data-name="{{orderName}}">
+				{{!-- The circular mask lives on this span rather than on the portrait box, so the
+				      box itself can stay unclipped and let the crop pip sit in the corner of the
+				      SQUARE around the circle. The glyph branch needs no clip: it is centred art,
+				      not a photo that has to be cut to a circle. --}}
+				<span class="stonetop-follower-portrait-clip"><img class="stonetop-follower-portrait-img" src="{{img}}" alt="" draggable="false" data-name="{{orderName}}"{{#if imgStyle}} style="{{imgStyle}}"{{/if}}></span>
 				{{else}}
 				<i class="{{portraitIcon}}" aria-hidden="true"></i>
 				{{/if}}
+				{{#if portraitEditable}}{{#if img}}
+				{{!-- tabindex="-1": the portrait itself already owns the tab stop and Enter/Space,
+				      and a second stop inside a 75px circle is noise. The keyboard route to
+				      framing is the portrait, then "Adjust frame…" in the gallery. --}}
+				<button type="button" class="stonetop-follower-portrait-frame" tabindex="-1"
+				        data-tooltip="{{portraitFrameLabel}}" aria-label="{{portraitFrameLabel}}"><i class="fas fa-crop-simple"></i></button>
+				{{/if}}{{/if}}
 			</div>
 			<div class="stonetop-follower-title">
 				<div class="stonetop-follower-name-row">

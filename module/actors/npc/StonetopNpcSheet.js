@@ -9,7 +9,8 @@
 import { rollDamage } from "../../utils/roll-engine.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
-import { fullPortraitSrc } from "../../book2-art/people-portraits.js";
+import { resolvePortrait } from "../../utils/portrait-frame.js";
+import { SYSTEM_ID } from "../../system-id.js";
 import { wirePortraitPopout, updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { getOpenSheetsInEditMode } from "../../settings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
@@ -20,6 +21,7 @@ import { openLedgerDialog } from "../../utils/ledger-dialog.js";
 import { NpcLedger } from "./NpcLedger.js";
 import { npcStatusMeta, NPC_STATUSES } from "../../data-models/npc-status.js";
 import { partyCharacters } from "../../utils/playbook-actors.js";
+import { preserveScroll } from "../../utils/scroll-parent.js";
 
 // Rich-text (HTMLField) fields edited inline via prose-mirror on the sheet.
 const NPC_RICH_TEXT_FIELDS = [
@@ -79,8 +81,17 @@ export function createStonetopNpcSheetClass(Base) {
 		// Re-measure the auto-height window to the active tab's content. Foundry's Tabs
 		// toggles the panel on a click but leaves the window at its old height, which would
 		// leave a void below a short tab — so we refit after each switch.
+		//
+		// Through preserveScroll, because the measure itself throws the reader back to the
+		// top of whatever they were reading: setPosition clears the frame's inline height to
+		// read the natural one, and with no definite frame the active tab's `height: 100%`
+		// briefly resolves to its own content, so it stops overflowing and the browser zeroes
+		// its scrollTop. Nothing re-renders — the board is the same DOM it was — which is why
+		// the offsets survive the round trip. Felt worst on the relationships board, where
+		// opening a card's note near the bottom refits and every card above it scrolls away,
+		// but the same reset cost a tab its remembered position on every switch.
 		_fitHeight() {
-			this.setPosition({ height: "auto" });
+			preserveScroll(this.element?.[0], () => this.setPosition({ height: "auto" }));
 		}
 
 		_injectHeaderToggle() {
@@ -117,13 +128,24 @@ export function createStonetopNpcSheetClass(Base) {
 			// Portrait: the actor's art if it has any, else a person-icon placeholder
 			// (rendered by the template) rather than a fabricated portrait.
 			//
-			// `img` is the SQUARE face when the art came from the People of Stonetop gallery,
-			// because that is what every small round portrait elsewhere needs. This header is
-			// the one place with room for the whole standing figure, so it asks for the
-			// illustration the square was cut from. Anything else previews as itself.
-			const realImg = isDefaultImg(this.actor.img) ? null : this.actor.img;
-			st.displayImg  = realImg && (fullPortraitSrc(realImg) ?? realImg);
-			st.hasPortrait = !!realImg;
+			// The SAME square face every other surface shows — the follower card, the
+			// relationship rows, the steading roster — just larger. This header used to ask
+			// for the whole standing figure the square was cut from, on the grounds that it
+			// was the one place with room for it; what that actually bought was a 3:4 slot
+			// that letterboxed anything not shaped like a standing figure (a GM's own wide
+			// art arrived with black bars above and below it), and a sheet whose "Frame Face"
+			// button changed every picture of this person EXCEPT the one next to the button.
+			// The whole illustration is still one click away: the portrait pops out, and the
+			// popout resolves back to it (utils/stat-block-edit.js wirePortraitPopout).
+			const realImg  = isDefaultImg(this.actor.img) ? null : this.actor.img;
+			const portrait = resolvePortrait(realImg ?? "", this.actor.flags?.[SYSTEM_ID]?.portraitFrame);
+			st.displayImg      = realImg && portrait.src;
+			st.displayImgStyle = realImg ? portrait.style : "";
+			st.hasPortrait     = !!realImg;
+			// Edit mode keeps a clickable slot even with no art chosen yet, because the slot IS
+			// the file picker there. Play mode renders the person-icon placeholder instead, so
+			// only this path ever falls back to Foundry's own default image.
+			st.editImg         = st.displayImg || this.actor.img;
 
 			// Up to 3 impression slots (p.454). Edit mode shows the filled slots plus a
 			// single empty row to type into (min 1), trimming trailing blanks so a fresh
@@ -150,6 +172,13 @@ export function createStonetopNpcSheetClass(Base) {
 			NPC_RICH_TEXT_FIELDS.forEach((field, i) => { st[field.enrichedKey] = enrichedFields[i]; });
 			st.hasConnections = !!st.enrichedConnections?.trim();
 			st.hasMotivations = !!st.enrichedMotivations?.trim();
+
+			// Details is the landing tab and both of its sections are conditional, so in play
+			// mode a person nobody has written up yet lands on a panel with nothing in it —
+			// which, under an auto-height window, used to close the sheet up flush beneath the
+			// tab strip and read as broken tabs rather than as an empty tab. The strip's own
+			// floor is in CSS (.stonetop-npc-sheet .sheet-body); this is what fills it.
+			st.detailsEmpty = !st.editMode && !st.impressionsShown.length && !st.hasMotivations;
 			st.statBlockLink = statBlockLink;
 			st.threatLink    = threatLink;
 

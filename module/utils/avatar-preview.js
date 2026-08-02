@@ -102,7 +102,14 @@ const PLACEMENTS = {
  * off the bottom of it.
  */
 function placePreview(popup, anchor, placement) {
-	const rect = anchor.getBoundingClientRect();
+	// Measure the CLIPPING BOX, not the anchor. A portrait the user has framed
+	// (module/utils/portrait-frame.js) is an image sized to several hundred percent and pushed
+	// off its own origin; `overflow: hidden` clips what paints and what can be hovered, but it
+	// does NOT shrink the border box, so measuring the image itself would put the preview a long
+	// way from the face it belongs to. Unframed portraits are unaffected: the image fills its
+	// box exactly, so the two rects agree.
+	const host = anchor.closest?.(".stonetop-portrait-box") ?? anchor;
+	const rect = host.getBoundingClientRect();
 	const pw = popup.offsetWidth;
 	const ph = popup.offsetHeight;
 	const { top, left } = (PLACEMENTS[placement] ?? PLACEMENTS.below)(rect, pw, ph);

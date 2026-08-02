@@ -212,6 +212,13 @@ export function followerNpcActorData(follower = {}, { folder = null, origin = nu
 	if (img) {
 		data.img = img;
 		data.prototypeToken.texture = { src: img };
+		// Carry the chosen face across, but ONLY when the follower's own portrait survived the
+		// placeholder check above: if `img` fell back to the type's marker disc, a rect measured
+		// against a picture this actor no longer wears is dead weight. The stamp would neutralise
+		// it anyway; not writing it is simply honest.
+		if (own && !isDefaultImg(own) && follower.portraitFrame) {
+			data.flags[SYSTEM_ID].portraitFrame = follower.portraitFrame;
+		}
 	}
 	return data;
 }

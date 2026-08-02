@@ -525,13 +525,25 @@ export class PeopleGalleryDialog extends StonetopDialog {
  * outcome from picking, since a caller may want to close a stale photo popout rather than
  * point it at an empty path.
  *
- * @param {{current?: string, used?: Record<string,string>, onPick: Function, onClear?: Function}} opts
+ * `onFrame`, when supplied, chains straight into the portrait framer once a file has been
+ * BROWSED — the one case with no sensible default square, since shipped gallery art already
+ * carries a hand-cut one and chaining off Accept would nag on the common path. Fail-closed: a
+ * caller that passes no `onFrame` gets no chain, which is how a surface with nowhere to store a
+ * frame simply never offers one.
+ *
+ * @param {{current?: string, used?: Record<string,string>, onPick: Function, onClear?: Function,
+ *          onFrame?: Function}} opts
  */
-export function openPeoplePortraitPicker({ current = "", used = {}, onPick, onClear } = {}) {
+export function openPeoplePortraitPicker({ current = "", used = {}, onPick, onClear, onFrame } = {}) {
 	const canBrowse = !!(game.user?.isGM || game.user?.can?.("FILES_BROWSE"));
 	const onBrowse = () => {
 		const FilePickerClass = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
-		if (FilePickerClass) new FilePickerClass({ type: "image", current, callback: onPick }).render(true);
+		if (FilePickerClass) new FilePickerClass({ type: "image", current, callback: async path => {
+			// Awaited: the framer reads the NEW image off the document, so the write has to land
+			// before it opens.
+			await onPick(path);
+			await onFrame?.(path);
+		} }).render(true);
 	};
 	return new PeopleGalleryDialog({ current, canBrowse, used, onPick, onBrowse, onClear }).render(true);
 }

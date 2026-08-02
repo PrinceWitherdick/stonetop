@@ -414,6 +414,7 @@
       "relations": "Relations",
       "relationsPlaceholder": "Kin, allies, rivals (a quick line)",
       "impressions": "Impressions",
+      "detailsEmpty": "No impressions or motivations yet. Turn on edit mode to add a sensory hook or two, and what drives them.",
       "impressionPlaceholder": "A sensory hook (face, voice, scent...)",
       "addImpression": "Add Impression",
       "instinct": "Instinct",
@@ -721,6 +722,20 @@
           "instruction": "Stonetop is your home, or close enough, but where are you (or your family) from originally? Pick 1 and a name to match (or make up something similar)."
         }
       }
+    },
+    "portraitFrame": {
+      "control": "Frame Face",
+      "adjust": "Adjust frame…",
+      "pip": "Frame face",
+      "title": "Frame {name}",
+      "video": "This portrait is a video. The small portrait surfaces show a still frame of it, so there is nothing here to choose.",
+      "loadFailed": "Could not load {src}, so there is nothing to frame.",
+      "tokenized": "Sent {name} to Tokenizer. The framed face is now their token.",
+      "tokenizeFailed": "Could not send this portrait to Tokenizer.",
+      "noTarget": "There is nothing to frame here.",
+      "readOnly": "You do not have permission to change this portrait.",
+      "noImage": "Choose a portrait first, then you can frame it.",
+      "openFailed": "The portrait framer could not open. See the console for details."
     }
   }
 }

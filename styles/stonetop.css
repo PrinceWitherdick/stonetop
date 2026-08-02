@@ -9974,9 +9974,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 /* ── The People of Stonetop crop, stated once ────────────────────────────────────────
-   Every surface that shows one of these faces at THUMBNAIL size cover-crops it the same
-   way, so a portrait is framed alike wherever it appears — the steading rosters, the
-   gallery tiles you choose from, a follower's card, the relationships board. The hover
+   Every surface that shows one of these faces cover-crops it the same way, so a portrait is
+   framed alike wherever it appears — the steading rosters, the gallery tiles you choose from,
+   a follower's card, the relationships board, and the NPC sheet's own header, which is the
+   same crop at 120px rather than a different treatment. The hover
    preview is deliberately not one of them: it exists to show what a cropped thumbnail
    cannot, so it fits the whole image to its own ratio instead (see
    .stonetop-avatar-preview img, and module/utils/avatar-preview.js).
@@ -10000,16 +10001,61 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    earns its place for a GM's own browsed art, for a portrait nobody has framed yet, and for
    a world whose squares have not been cut from disk yet.
 
+   IT IS NOW THE FALLBACK TWICE OVER. Each of these surfaces is a clipping BOX wearing the
+   surface class, with the image inside it, and a portrait the user has framed by hand
+   (module/utils/portrait-frame.js) overrides this rule inline — `object-fit: fill` plus four
+   percentages that position the image so exactly the chosen square shows. That covers a GM's
+   own browsed art, which is the case the paragraph above admits this rule only guesses at.
+   What is left here is the genuinely unframed portrait.
+
    Each selector keeps the specificity it would have had on its own, and this sits ahead of
    all of them. The rules below carry only what is genuinely local — size, border, the
    circle-vs-square call. */
-.steading-member-avatar,
-.steading-player-portrait,
+.steading-member-avatar-img,
+.steading-player-portrait-img,
 .stonetop-follower-portrait-img,
+.stonetop-npc-portrait-img,
 .stonetop-people-gallery .stonetop-people-pick img,
-.stonetop-rel-portrait {
+.stonetop-rel-portrait-img {
 	object-fit: cover;
 	object-position: center top;
+	/* Core v13 paints a BLACK BOX around every image in a classic Application:
+	   `body.game .app img { border: 1px solid var(--color-border-dark); border-radius: 2px }`
+	   (@layer compatibility, so this unlayered rule beats it whatever its specificity).
+
+	   That is the "weird black square inside the circle": the inner image is a 20px SQUARE
+	   sitting in a 22px round clipping box, and the middle ~9px of each of its four black
+	   edges falls inside the circle while the corners are masked off. It hid for as long as
+	   the placeholder face was black art running to the edges of its plate; the moment that
+	   placeholder was redrawn to sit inside the inscribed circle, the border was the only
+	   black left and it read as a frame around every portrait on the roster.
+
+	   `border: none` also hands the image back the 2px of box the border was eating
+	   (core sets `box-sizing: border-box` in the same rule), so a portrait now fills its
+	   circle instead of leaving the wrapper's pale plate showing as a second ring.
+
+	   `border-radius: 0` for the reason the rule below already gives: on an image sized past
+	   its box by a chosen frame, a radius is a giant ellipse that bites chunks out of pixels
+	   well inside the visible circle. Every one of these surfaces is a clipping box that
+	   already draws its own ring, so nothing here loses an edge it wanted. */
+	border: none;
+	border-radius: 0;
+}
+
+/* The unframed image filling its clipping box, which is what reproduces the look above. The
+   follower's already carries it, so only the other inner images need it here.
+
+   `display: block` specifically — an inline <img> leaves a baseline gap, and (see the note
+   further down at .stonetop-follower-portrait--photo) a percentage height cannot resolve
+   against an auto-sized grid or flex item. NO border-radius: the wrapper's mask does that job,
+   and on a framed image a radius becomes an ellipse that clips the visible circle. */
+.steading-member-avatar-img,
+.steading-player-portrait-img,
+.stonetop-npc-portrait-img,
+.stonetop-rel-portrait-img {
+	display: block;
+	width: 100%;
+	height: 100%;
 }
 
 /* Circular, matching .stonetop-rel-portrait on the character sheet's relationships
@@ -10022,6 +10068,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: 22px;
 	height: 22px;
 	flex: 0 0 22px;
+	/* The clipping box for a chosen frame; see .stonetop-rel-portrait. The drag attributes stay
+	   on this element, so the [draggable="true"] rules just below need no change. */
+	display: block;
+	position: relative;
+	overflow: hidden;
 	border: 1px solid rgba(0,0,0,0.22);
 	border-radius: 50%;
 	background: rgba(255,255,255,0.55);
@@ -10165,6 +10216,11 @@ a.steading-player-open:hover {
 	width: 24px;
 	height: 24px;
 	flex-shrink: 0;
+	/* The clipping box for a chosen frame; see .stonetop-rel-portrait. `display: block` loses to
+	   the --empty variant's `inline-flex` below on source order, which is what centres the glyph. */
+	display: block;
+	position: relative;
+	overflow: hidden;
 	border: 1px solid rgba(0,0,0,0.22);
 	/* Circular for the same reason as .steading-member-avatar directly above: the PC table
 	   sits immediately over the residents in this tab, so a square here beside a circle
@@ -10184,7 +10240,7 @@ a.steading-player-open:hover {
 /* An actual portrait enlarges on hover, like the residents' faces below it. The art-less
    placeholder keeps the old tooltip instead — there is nothing to enlarge, so the playbook
    name still has to reach the reader some other way. */
-img.steading-player-portrait {
+.steading-player-portrait-img {
 	cursor: zoom-in;
 }
 
@@ -14941,7 +14997,21 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	flex: none;
 	width: 75px;
 	height: 75px;
-	border-radius: 50%;
+	/* Required, and its absence is invisible until it isn't: this box already had
+	   `overflow: hidden` and a radius, so it LOOKS like a finished clipping box, but without a
+	   `position` a framed image absolutely positions itself against the sheet window instead.
+	   It appears to work on a FALLEN card, because .stonetop-follower-card.is-dead sets a
+	   `filter`, and a filter creates a containing block of its own. */
+	position: relative;
+	/* SQUARE, matching the character sheet's own avatar (.stonetop-portrait, same --st-radius).
+	   A follower's portrait is the same kind of thing a PC's is — the person's face at the top
+	   of their card — so the two read as one treatment rather than two. It is also the shape the
+	   art is cut to: a hand-framed face is a SQUARE rect (see portrait-frame.js suggestSquare),
+	   and a circle mask throws away the ~21% of it that falls outside the inscribed disc,
+	   clipping the very corners of the face the user chose. The small roster avatars
+	   (.steading-member-avatar, .stonetop-rel-portrait) stay circular on purpose: at 22-26px
+	   they are name-row bullets, not avatars. */
+	border-radius: var(--st-radius);
 	border: 1.5px solid var(--st-text-body);
 	background: rgba(255, 255, 255, 0.5);
 	display: grid;
@@ -14949,16 +15019,46 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	/* Black, matching the relationship card's placeholder head. The type glyph (a paw, a
 	   seedling, a crowd) stands in for a face on every follower who has not been given a
 	   portrait, so it is the card's identity at a glance — secondary-text grey on the pale
-	   circle read as a smudge rather than a symbol. The RING stays --st-text-body: it is
+	   fill read as a smudge rather than a symbol. The RING stays --st-text-body: it is
 	   chrome around the glyph, not part of it. */
 	color: #000;
-	/* Scaled with the circle, not taken from the type ramp: the glyph is a picture filling a
+	/* Scaled with the box, not taken from the type ramp: the glyph is a picture filling a
 	   75px box, and the largest heading step (1.3em) leaves it adrift in the middle of it. */
 	font-size: 2.2em;
-	/* A portrait fills the circle edge to edge, so the corners it would otherwise poke
-	   through are clipped here as well as on the image itself: `place-items: center` is a
-	   grid, and a stray fraction of a pixel at the rim reads as a square shadow. */
+	/* NOT `overflow: hidden`. The mask lives on .stonetop-follower-portrait-clip just below, so
+	   the crop pip — which hangs 1px past the padding box to sit on the border-box corner — is
+	   not shaved off. Clipping happens at the PADDING edge, so `hidden` here would eat that 1px
+	   on both axes and leave the pip looking mis-seated. */
+	overflow: visible;
+}
+
+/* The mask, inset over the whole box. Positioned, so it is also the containing block the framed
+   image's percentages resolve against — the same 72px padding box they used when the mask lived
+   on the parent, so the framing maths is unchanged.
+   The radius is the parent's LESS the ring it sits inside: a border-radius describes the outer
+   curve, and the padding box this span fills curves by (radius - border-width). Matching 4px
+   here would leave a hairline of ring visible past the image at each corner. */
+.stonetop-follower-portrait-clip {
+	position: absolute;
+	inset: 0;
+	border-radius: calc(var(--st-radius) - 1.5px);
 	overflow: hidden;
+}
+
+/* Safety net for a portrait image rendered WITHOUT the clip span above it.
+   The box no longer clips, and a framed image is sized to several hundred percent of it, so a
+   missing span would not degrade quietly — it would paint the picture across the sheet and over
+   whatever sits above the card. (Observed: an unclipped 75px follower spilled 224px upward.)
+   The child combinator only matches when the span is absent, and `!important` is needed because
+   the frame arrives as an inline style. Such a portrait loses its chosen framing and falls back
+   to the plain cover crop, which is a bad portrait rather than a broken sheet. */
+.stonetop-follower-portrait > .stonetop-follower-portrait-img {
+	position: static !important;
+	width: 100% !important;
+	height: 100% !important;
+	inset: auto !important;
+	object-fit: cover !important;
+	object-position: center top !important;
 }
 
 /* The type glyph, nudged down 2px. Grid centring squares up the glyph's LINE BOX, and a
@@ -14969,12 +15069,15 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	transform: translateY(2px);
 }
 
-/* The chosen portrait, in place of the type glyph. */
+/* The chosen portrait, in place of the type glyph.
+   NO border-radius here: the clip span's own radius plus `overflow: hidden` already rounds this.
+   On a framed portrait the image is sized to several hundred percent of the box, and a radius on
+   THAT is scaled up with it — a curve cutting through pixels well inside the visible square, a
+   bite out of the face that only shows up on tall sources framed near an edge. */
 .stonetop-follower-portrait-img {
 	width: 100%;
 	height: 100%;
 	display: block;
-	border-radius: 50%;
 }
 
 /* `display: block`, dropping the base rule's grid, is doing real work: the grid is there to
@@ -23159,7 +23262,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    the show half and leak an inactive tab. */
 .stonetop-npc-sheet .sheet-body {
 	flex: 1 1 auto;
-	min-height: 0;
+	/* A FLOOR, not `min-height: 0`. The window is auto-height, so it hugs the active tab —
+	   and a tab can legitimately be EMPTY: in play mode Details renders nothing at all until
+	   the NPC has impressions or motivations, which a freshly recruited follower has neither
+	   of. The window then closed up flush under the tab strip, so the tabs read as broken
+	   rather than as empty, and the sheet gave no hint that the strip led anywhere. This
+	   reserves a panel to land in. Small enough that a one-line tab still hugs.
+	   The chain below still shrinks freely (each tab scrolls internally); this only stops it
+	   reaching zero. Where it cannot be honoured — a viewport too short for the frame's cap —
+	   the shortfall travels up to .window-content, which scrolls, which is the whole reason
+	   that element is `overflow-y: auto`. */
+	min-height: 132px;
 	overflow: hidden;
 }
 /* Notes has an irreducible floor (the editor's `min-height`, so an empty one still
@@ -23258,20 +23371,31 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	--st-npc-portrait-size: 120px;
 	margin-bottom: 12px;
 }
-/* Portrait-shaped, not square, and `contain` from .stonetop-portrait keeps it uncropped.
-   This is the ONE surface that shows a People-of-Stonetop illustration whole — everywhere else
-   gets the square face cut from it (see the crop block near .steading-member-avatar) — and the
-   art is standing figures: median h/w 1.52, up to 3.28. Fitting that into a 120x120 square
-   letterboxed a typical portrait down to about 79px wide with dead space either side of it,
-   which is a poor showing for the only place there is room. A 3/4 box spends the height the
-   header has to spare and lets the figure read.
+/* SQUARE, matching the character sheet's own avatar and the follower card. This was a 3/4 box
+   on the grounds that it is the one surface with room to show a People-of-Stonetop illustration
+   whole (the art is standing figures: median h/w 1.52, up to 3.28, and a square letterboxed a
+   typical one down to ~79px wide). What that reasoning missed is that the shape then only suits
+   art shaped like that art: a GM's own wide picture arrived with black bars above and below it,
+   and there is no aspect ratio that fits both. Every portrait now carries a hand-cut square face
+   instead (module/utils/portrait-frame.js), so the header shows the same face as everywhere
+   else, at the size where choosing it is worth doing. The whole illustration is one click away
+   in the popout.
 
-   Width stays on --st-npc-portrait-size because the name/traits column beside it is floored to
-   the same token; only the height moves. */
+   Both axes on --st-npc-portrait-size, which the name/traits column beside it is also floored to. */
 .stonetop-npc-header .stonetop-portrait {
 	width: var(--st-npc-portrait-size);
-	height: auto;
-	aspect-ratio: 3 / 4;
+	height: var(--st-npc-portrait-size);
+}
+
+/* The clipping box for a framed face. Deliberately NOT folded into the rule above, which also
+   catches .stonetop-npc-portrait-placeholder — that one is a flex centring box for its glyph,
+   and this `display` would beat it on specificity (0,2,0 against 0,1,0) and un-centre it.
+   `position` is load-bearing: a framed image is absolutely positioned at several hundred
+   percent, so without a positioned ancestor it lays itself out against the sheet window. */
+.stonetop-npc-portrait {
+	display: block;
+	position: relative;
+	overflow: hidden;
 }
 /* Person-icon placeholder when the NPC has no portrait art (no fabricated art). */
 .stonetop-npc-portrait-placeholder {
@@ -23302,7 +23426,14 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	gap: 10px;
 }
 .stonetop-npc-header-text {
-	flex: 1 1 auto;
+	/* Basis 0, NOT auto. With `auto` this column's base size is the name's max-content width —
+	   a big Avara display face, easily 400px unwrapped — so the header row was in overflow at
+	   every window size, and the stat bar beside it (once it was allowed to shrink at all) then
+	   wrapped even when there was plenty of room. At 0 the column claims nothing up front and
+	   grows into whatever is left after the stat bar's 230px, so the row only goes negative once
+	   this column is already down on its 200px floor, which is exactly when the bar should
+	   stack. Growth is unchanged: it was the only grower before and still is. */
+	flex: 1 1 0;
 	/* Stand as tall as the portrait so traits land on its bottom edge (the point of
 	   space-between below) — and no taller, whatever the stat bar is doing. */
 	min-height: var(--st-npc-portrait-size);
@@ -23322,8 +23453,31 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	flex-direction: column;
 	gap: 2px;
 }
+/* Shrinkable, and its cells wrap when it shrinks, so a narrow window stacks Armor UNDER Hit
+   Points instead of cutting it off at the window edge. The header wants portrait (120) + gap +
+   name column (200 floor) + gap + both cells side by side (132 + 6 + 92 = 230), which is about
+   570px of content — more than the sheet's own 520px minimum, so at the narrow end the last
+   thing in the row was simply clipped by .window-content's `overflow-x: hidden`.
+
+   `flex: 0 0 auto` here meant it could not give any of that back. Only the basis changes: NO
+   `min-width: 0`, deliberately, so the flex floor stays at min-content — which for a wrapping
+   row is the WIDEST CELL (132px). The bar can therefore shrink exactly as far as one column of
+   cells and no further, which is the stacked layout, and never clips a cell in half.
+
+   There is a `@media (max-width: 720px)` block further up that wraps this same row, but a media
+   query measures the VIEWPORT: on any normal screen it never fires no matter how narrow the
+   WINDOW is dragged, which is why the clipping showed up despite it. This is the container-
+   relative version, so it responds to the sheet rather than to the monitor. */
 .stonetop-npc-statbar {
-	flex: 0 0 auto;
+	flex: 0 1 auto;
+}
+/* Left-aligned in both directions once it wraps: the existing `justify-content: flex-start`
+   lines the cells up on the main axis, and `align-content` stops the two rows being spread
+   apart down the cross axis when the header is taller than they are (the name column is floored
+   to the portrait's height, so it often is). `gap: 6px` already covers the row gap. */
+.stonetop-npc-statbar .cell--attributes-top {
+	flex-wrap: wrap;
+	align-content: flex-start;
 }
 
 .stonetop-npc-header .stonetop-name-field {
@@ -23487,6 +23641,15 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-npc-empty {
 	color: var(--color-text-dark-secondary);
 	opacity: 0.8;
+}
+/* margin: 0 for the same reason .stonetop-rel-empty takes none: this <p> stands in for the
+   tab's sections in the exact same slot, so it has to sit where they sit. The shared class
+   above can't carry it — its other user is an inline <em> beside the Instinct line. Left
+   unset, core's `p { margin: 0.5rem 0 }` dropped the line 7px below where a section would
+   start and hung another 7px under it, so the two empty states in this sheet (this one and
+   the Relationships tab's, which does reset) sat at different heights. */
+.stonetop-npc-details-empty {
+	margin: 0;
 }
 
 /* Stat lines (label: value), copying the monster idiom. */
@@ -23771,6 +23934,20 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border: 1px solid transparent;
 	border-radius: var(--st-radius-sm, 3px);
 	background: transparent;
+	/* A transparent border alone does NOT make this field invisible at rest. Core's
+	   `@layer elements.forms` paints every input and textarea with
+	   `box-shadow: var(--input-box-shadow)`, and under `body.theme-light` that token is
+	   `inset 0 0 6px rgba(0, 0, 0, 0.1)` — a soft dark ring hugging the edges that reads as a
+	   border and is exactly what a reader points at when they say the field is boxed in. It
+	   survived the transparent border because nothing here declared box-shadow at all, so
+	   core's layered rule was unopposed. It has to die on the shorthand-holding element, not
+	   by re-pointing --input-box-shadow, because core's own :focus/:read-only rules assign
+	   box-shadow directly too. Under theme-dark the token is already `none`, so this changes
+	   nothing there. Kept in the base rule rather than the card override: the table's Notes
+	   column wears the same ring for the same reason, and the two views are meant to be one
+	   field in two shapes. Focus is still legible without it — border-color and the wash
+	   below, plus core's 2px slate focus outline. */
+	box-shadow: none;
 	padding: 2px 4px;
 }
 .stonetop-rel-note-input:hover:not(:disabled),
@@ -23790,10 +23967,19 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	outline-offset: 3px;
 	border-radius: var(--st-radius-sm, 3px);
 }
+/* The clipping box, not the image. A chosen frame paints by absolutely positioning the image
+   inside this box at up to a few hundred percent, so `position` and `overflow` are what make
+   the frame a frame rather than an oversized image spilling across the sheet.
+
+   `display: block` specifically, never flex: .stonetop-rel-portrait--empty just below supplies
+   `display: flex` to centre its glyph, and at equal specificity it wins on source order. */
 .stonetop-rel-portrait {
 	width: 26px;
 	height: 26px;
 	flex: 0 0 auto;
+	display: block;
+	position: relative;
+	overflow: hidden;
 	border-radius: 50%;
 	background: var(--stonetop-bg, #f0ece3);
 	border: 1px solid rgba(0, 0, 0, 0.15);
@@ -23851,9 +24037,11 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 /* Only the <img> portrait previews on hover — the placeholder glyph has no image behind it,
-   so it keeps the default cursor and raises nothing. [data-name] is the same attribute
-   wireRelationshipLinks selects on, so the cursor and the behaviour cannot drift apart. */
-.stonetop-rel-portrait[data-name] {
+   so it keeps the default cursor and raises nothing. Since the frame feature made
+   .stonetop-rel-portrait a clipping SPAN that both branches wear, the discriminator is the
+   inner image's own class, which is also what wireRelationshipLinks selects on — so the
+   cursor and the behaviour still cannot drift apart. */
+.stonetop-rel-portrait-img {
 	cursor: zoom-in;
 }
 
@@ -23861,7 +24049,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    (wireLaneDrag's ignore list covers the buttons, inputs and links, not the face). The
    preview still appears on hover — only the cursor defers, so it does not promise a click
    target that isn't there. `inherit` picks up the card's own grab / grabbing pair. */
-.stonetop-rel-card .stonetop-rel-portrait[data-name] {
+.stonetop-rel-card .stonetop-rel-portrait-img {
 	cursor: inherit;
 }
 
@@ -24381,9 +24569,14 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* ── The Table / Board toggle ─────────────────────────────────────────────── */
 
+/* Left-aligned, and only the NPC \ follower sheet ever sees it: that tab drops the
+   "Relationships" heading the other two hosts carry — the tab label already says it — so the
+   strip stands in for the heading and wants the heading's left edge. The heading hosts are
+   shrink-to-fit either way (absolute on the character sheet, margin-left: auto inside the
+   flex h3 on the steading), so neither reads this. */
 .stonetop-rel-viewbar {
 	display: flex;
-	justify-content: flex-end;
+	justify-content: flex-start;
 }
 
 /* Both segmented strips the board uses — this section-level Table/Board toggle and the
@@ -24668,6 +24861,61 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	display: flex;
 	flex-direction: column;
 	min-width: 0;
+	/* Containing block for the clip span below, which lies over the collapsed field. */
+	position: relative;
+}
+
+/* ── The collapsed note's ellipsis ─────────────────────────────────────────
+   `text-overflow: ellipsis` is inert on a <textarea> — verified in Chromium and Gecko alike,
+   with `white-space` at pre or nowrap and overflow hidden on the shorthand or per-axis. The
+   text simply ends mid-word. On a ~180px card that is most notes, and the cut is silent: no
+   ellipsis, no tooltip, nothing saying there is more.
+
+   So the collapsed line is drawn by a span instead, which is an ordinary text box and does
+   ellipsise. It carries no state and measures nothing: whether the ellipsis appears is the
+   browser's own layout question, resolved when the card is painted. That is what makes it
+   safe on a board rendered inside an inactive tab, where the old `is-overflowing` pass read
+   a width of 0 for every field and had to be deleted.
+
+   Mirror of the field's box, so the two strings sit on exactly the same pixel: same padding,
+   same 1px border (transparent, but it still shifts the text), same font and line-height. A
+   textarea starts its line at the top of the content box and so does this, so the shared
+   24px height lands both on the same line. Keep these in step with .stonetop-rel-note-input
+   above — they are one field in two elements. */
+.stonetop-rel-note-clip {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 24px;
+	padding: 2px 4px;
+	border: 1px solid transparent;
+	font-size: var(--st-fs-sm, 0.75rem);
+	font-family: inherit;
+	line-height: 1.2;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	/* The field underneath still takes the click, focuses, and opens the note. */
+	pointer-events: none;
+}
+
+/* Open, or focused with the class not yet flipped: the real text is back, so this must go.
+   Hidden by `display`, not opacity — an ellipsis ghosting under a wrapped note would read as
+   a rendering fault. */
+.stonetop-rel-card-note-wrap.is-open .stonetop-rel-note-clip,
+.stonetop-rel-card-note-wrap:focus-within .stonetop-rel-note-clip {
+	display: none;
+}
+
+/* The other half: with the span on top, the field's own text would double up behind it, one
+   ellipsised and one not. Only the TEXT goes — the field keeps its size, its placeholder
+   (which carries its own colour and is what an empty note still shows) and its hit area.
+   `caret-color` follows `color` by default and would vanish with it, which is why this is
+   scoped off `:focus-within` as well as `.is-open`: focusing opens the note in the same
+   event turn, but the rule must not be what a caret depends on. */
+.stonetop-rel-card-note-wrap:not(.is-open):not(:focus-within) .stonetop-rel-card-note {
+	color: transparent;
 }
 
 .stonetop-rel-card-note {
@@ -24692,6 +24940,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	white-space: pre;
 }
 
+/* No border on hover here, unlike the table's field — only focus draws one. The shared
+   .stonetop-rel-note-input block reveals a border on both, which suits a Notes column the
+   pointer visits deliberately; on the board the note is a full-width strip along the bottom
+   of every card, so crossing a packed lane flickers a box on and off card after card. The
+   translucent wash is kept: it says the strip is typeable without drawing an edge, and the
+   placeholder is doing that job too. Focus still gets the full treatment from the shared
+   block, so clicking in is what boxes the field. */
+.stonetop-rel-card .stonetop-rel-card-note:hover:not(:focus) {
+	border-color: transparent;
+}
+
 /* Open. The height itself is inline, measured from scrollHeight by fitNote — CSS cannot size
    a box to its own text. max-height is the safety valve: a note long enough to make one card
    taller than the lane it sits in scrolls inside itself rather than stretching the board. */
@@ -24705,28 +24964,38 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    note that is already short of it. Wide and shallow rather than tall and narrow — it is
    reading as a lid on the note now, not as a button beside it. */
 .stonetop-rel-note-toggle {
-	/* Hidden by DISPLAY, not visibility or opacity: that also takes it out of the tab order,
-	   so a card with nothing to expand does not add a tab stop that does nothing. Core's
-	   button rules (display:flex, width:100%, min-height) are undone by the same block. */
-	display: none;
-	align-self: center;
-	width: 36px;
-	/* Flex-item, so a short height would otherwise be stretched back out by the column's
-	   default `align-items: stretch` — `align-self: center` above is what lets it hold.
-	   The width is NOT cut to match: it is the part of the target a pointer has to hit, and
-	   it costs the card nothing, since the control has this row to itself. */
+	/* On EVERY card, always — not only on a note long enough to have something hidden. A
+	   control that comes and goes with the length of the text is a control the eye has to
+	   re-find on every card, and the row it sits in is reserved either way, so showing it
+	   costs no height. On a short note it still opens the field to wrap-and-fit; there is
+	   simply nothing more to reveal. Stated as flex because core's own button rules
+	   (width:100%, min-height) are what the rest of this block is undoing. */
+	display: flex;
+	/* Full width of the wrap, which is the note field's width — so the lid spans exactly the
+	   thing it opens, and the card's own 6px horizontal padding is what holds it off the
+	   edges. `stretch` is the column's default; it is stated rather than left implicit
+	   because this was a centred 36px pill and the full width is the deliberate part.
+	   Only the WIDTH stretches: `align-items` acts on the cross axis, which in a column is
+	   the horizontal one. The height below is a MAIN-axis size, held by `flex: 0 0 auto`. */
+	align-self: stretch;
+	/* Not 100%: core's `button { width: 100% }` is what this is undoing, and a percentage
+	   here would resolve against the wrap and then be stretched again, which is the same
+	   answer by a longer route. `auto` lets the stretch alone decide. */
+	width: auto;
+	/* Shallow on purpose, and more so now that the whole row is the target: the pointer no
+	   longer has to find a small pill, and 8px is all the caret needs to read as a lid over
+	   the note rather than a bar under it. */
 	height: 8px;
 	flex: 0 0 auto;
 	min-height: 0;
 	align-items: center;
 	justify-content: center;
-	/* Centred in the band under the note, which runs from the field's bottom edge to the
-	   card's border — the card's 6px padding-bottom is part of that band, since the caret is
-	   the last thing in the card and nothing else is down there. Left alone it measured 2px
-	   under the field and 8px off the border, i.e. visibly riding the text.
-	   The negative bottom is what buys the top margin: it draws the caret 3px into the padding
-	   it is being centred against, so the card ends up exactly the height it was. */
-	margin: 4px 0 -3px;
+	/* Sits in the band under the note, which runs from the field's bottom edge to the card's
+	   border — the card's 6px padding-bottom is part of that band, since the caret is the last
+	   thing in the card and nothing else is down there. No top margin: the caret rides just
+	   under the field, and the negative bottom draws it 5px into that padding, so the row costs
+	   the card 3px of height rather than the 8px the button measures. */
+	margin: 0 0 -5px;
 	padding: 0;
 	border: 0;
 	border-radius: var(--st-radius-sm, 3px);
@@ -24736,13 +25005,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	   is filled with, and what the hover rule below repaints. */
 	color: var(--st-text-muted, #6b6257);
 	cursor: pointer;
-}
-
-/* Shown on a note that has more to say, or one already open. wireNoteExpanders measures the
-   overflow once per render and again whenever a note closes. */
-.stonetop-rel-card-note-wrap.is-overflowing .stonetop-rel-note-toggle,
-.stonetop-rel-card-note-wrap.is-open .stonetop-rel-note-toggle {
-	display: flex;
 }
 
 /* The same translucent slate wash the step arrows use, so the two controls on a card read as
@@ -25271,4 +25533,256 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-rel-viewbar--heading .stonetop-rel-view-btn {
 	padding: 0 8px;
 	line-height: 1.25;
+}
+
+/* â”€â”€ Portrait frame editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Choosing the square of a portrait that the small round surfaces show. The interaction is
+   ported from the standalone art picker's square editor; see module/utils/PortraitFrameDialog.js.
+
+   Every rule is scoped under the dialog class. An unscoped bare-important declaration would
+   bleed into Foundry's own windows, and .sq-rect / .sq-grip are generic enough to collide. */
+.stonetop-portrait-frame-dialog .stonetop-frame-body {
+	display: flex;
+	gap: 14px;
+	align-items: flex-start;
+	padding: 10px;
+	/* Last line of defence. The stage is sized in inline pixels and cannot shrink, so if it ever
+	   does exceed its budget the rail must drop BELOW it rather than be clipped off the edge of
+	   the window: a cut-off readout looks like a broken dialog, a wrapped one merely looks tight. */
+	flex-wrap: wrap;
+}
+
+/* The stage is the image at ONE uniform scale, which is the invariant the editor rests on: a
+   square in stage pixels is then a square in image pixels, so the constraint needs no aspect
+   arithmetic and only the conversion back to fractions does.
+
+   touch-action: none because the drag is pointer-based, and a touch would otherwise scroll
+   the dialog out from under it. */
+.stonetop-portrait-frame-dialog .stonetop-frame-stage {
+	position: relative;
+	flex: 0 0 auto;
+	overflow: hidden;
+	background: var(--stonetop-bg, #f0ece3);
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: var(--st-radius-lg, 6px);
+	cursor: crosshair;
+	user-select: none;
+	touch-action: none;
+}
+
+/* max-height: none as well as max-width: the picker never needed it, but a Foundry dialog with
+   a height-constrained body would otherwise squash the stage and break the uniform scale. */
+.stonetop-portrait-frame-dialog .stonetop-frame-stage img {
+	position: absolute;
+	display: block;
+	max-width: none;
+	max-height: none;
+}
+
+.stonetop-portrait-frame-dialog .stonetop-frame-layer {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.stonetop-portrait-frame-dialog .sq-rect {
+	position: absolute;
+	box-sizing: border-box;
+	border: 2px solid var(--st-btn-primary-border, #556b8b);
+	background: rgb(85 107 139 / 13%);
+	pointer-events: none;
+}
+
+.stonetop-portrait-frame-dialog .sq-rect.ghost {
+	border-style: dashed;
+	background: rgb(85 107 139 / 20%);
+}
+
+/* Corner grips. VISUAL ONLY â€” the drag is bound to the stage and hit-tested geometrically, so
+   these must never swallow the pointerdown that starts a resize. */
+.stonetop-portrait-frame-dialog .sq-grip {
+	position: absolute;
+	width: 11px;
+	height: 11px;
+	background: var(--st-btn-primary-border, #556b8b);
+	border: 1px solid #1c1a17;
+	border-radius: 2px;
+	pointer-events: none;
+}
+.stonetop-portrait-frame-dialog .sq-grip--nw { left: -6px; top: -6px; }
+.stonetop-portrait-frame-dialog .sq-grip--ne { right: -6px; top: -6px; }
+.stonetop-portrait-frame-dialog .sq-grip--sw { left: -6px; bottom: -6px; }
+.stonetop-portrait-frame-dialog .sq-grip--se { right: -6px; bottom: -6px; }
+
+.stonetop-portrait-frame-dialog .stonetop-frame-rail {
+	flex: 1 1 178px;
+	min-width: 178px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.stonetop-portrait-frame-dialog .stonetop-frame-hint {
+	margin: 0;
+	font-size: 0.85em;
+	line-height: 1.35;
+	color: var(--st-text-muted, rgba(0, 0, 0, 0.65));
+}
+
+/* The three sizes this frame is actually used at, driven by the same function the sheets use.
+   Real clipping boxes, so a geometry bug shows up here first â€” at 75px, where it is visible. */
+.stonetop-portrait-frame-dialog .stonetop-frame-previews {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.stonetop-portrait-frame-dialog .stonetop-frame-preview {
+	position: relative;
+	overflow: hidden;
+	border-radius: 50%;
+	flex: 0 0 auto;
+	background: var(--stonetop-bg, #f0ece3);
+	border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.stonetop-portrait-frame-dialog .stonetop-frame-preview img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: center top;
+}
+
+/* Square, because the follower card it stands for is square (.stonetop-follower-portrait) while
+   the two small roster surfaces below it are still circles. A preview that lied about the shape
+   would show a face the corners of which never appear on the card. */
+.stonetop-portrait-frame-dialog .stonetop-frame-preview--75 {
+	width: 75px;
+	height: 75px;
+	border-width: 1.5px;
+	border-radius: var(--st-radius);
+}
+.stonetop-portrait-frame-dialog .stonetop-frame-preview--26 { width: 26px; height: 26px; }
+.stonetop-portrait-frame-dialog .stonetop-frame-preview--22 { width: 22px; height: 22px; }
+
+.stonetop-portrait-frame-dialog .stonetop-frame-sizes,
+.stonetop-portrait-frame-dialog .stonetop-frame-readout {
+	margin: 0;
+	font-size: 0.8em;
+	color: var(--st-text-muted, rgba(0, 0, 0, 0.65));
+}
+
+.stonetop-portrait-frame-dialog .stonetop-frame-readout {
+	font-variant-numeric: tabular-nums;
+}
+
+.stonetop-portrait-frame-dialog .stonetop-frame-error {
+	margin: 0;
+	font-size: 0.85em;
+	color: var(--st-danger, #8b2f2f);
+}
+
+/* Affirmative FIRST in the DOM, which with flex-end puts it on the left of the group â€” the
+   house modal order, matching the People gallery footer. Cancel is the window X. */
+.stonetop-portrait-frame-dialog .stonetop-frame-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 0 10px 10px;
+}
+
+/* The base modal button rule ends in an element selector, so a bare class ties and loses on
+   specificity; the button. chain is what carries the primary skin onto Save. */
+.stonetop-portrait-frame-dialog .stonetop-frame-footer button {
+	flex: 0 0 auto;
+	width: auto;
+}
+
+.stonetop-portrait-frame-dialog .stonetop-frame-footer button.stonetop-frame-save {
+	background: var(--st-btn-primary-bg, #556b8b);
+	border-color: var(--st-btn-primary-border, #44577a);
+	color: var(--st-btn-primary-text, #fff);
+}
+
+/* Compound, on the FRAME, so the generic .stonetop-height-resized rule can lift it once the
+   user resizes. Never set style.maxHeight inline: core reads that straight into Math.clamp,
+   where a CSS string yields NaN and kills resizing. */
+.stonetop-portrait-frame-dialog.window-app {
+	max-height: min(680px, calc(100vh - 80px));
+}
+
+/* The crop pip on a follower card's portrait: a second, smaller affordance inside a control
+   that already opens the gallery on click. Hidden until the card is hovered or something in
+   it has focus, so a page of followers is not a page of pips. */
+.stonetop-follower-portrait-frame {
+	position: absolute;
+	/* Bottom-right corner, the usual place for a badge. Now that the portrait is square this
+	   corner is picture rather than dead space, so the pip sits ON the photo — which is why it
+	   carries an opaque background and stays hidden until the card is hovered. Bottom-right,
+	   not top-right: a People of Stonetop crop is a head near the TOP of its square, so the
+	   bottom corner is the one that costs nothing to cover.
+
+	   Offsets are relative to the padding box (inside the 1.5px ring), so the small negative
+	   values push it back out flush with the border box. Escaping that 1px is the reason
+	   .stonetop-follower-portrait keeps `overflow: visible` and masks via its clip span. */
+	right: -1px;
+	bottom: -1px;
+	/* Core's bare `button` rule sets `height` AND `min-height` to --button-size, plus horizontal
+	   padding and a flex gap. min-height BEATS height, so without pinning both this pip renders
+	   as a ~32px-tall ELLIPSE with its glyph centred in a box taller than the circle you can see.
+	   `flex: none` because the pip is also a flex item on some card layouts. */
+	width: 20px;
+	height: 20px;
+	min-width: 0;
+	min-height: 0;
+	flex: none;
+	padding: 0;
+	gap: 0;
+	display: none;
+	place-items: center;
+	border-radius: 50%;
+	border: 1px solid var(--st-text-body, #1c1a17);
+	background: var(--stonetop-bg, #f0ece3);
+	color: var(--st-text-body, #1c1a17);
+	font-size: 11px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.stonetop-follower-portrait:hover .stonetop-follower-portrait-frame,
+.stonetop-follower-portrait:focus-within .stonetop-follower-portrait-frame {
+	display: grid;
+}
+
+/* The glyph carries no metrics of its own here: no margin, and a line-height of 1 so the
+   grid centres the ink rather than a line box taller than it. */
+.stonetop-follower-portrait-frame > i {
+	margin: 0;
+	line-height: 1;
+	display: block;
+}
+
+.stonetop-follower-portrait-frame:hover {
+	background: var(--st-btn-primary-bg, #556b8b);
+	color: var(--st-btn-primary-text, #fff);
+}
+
+/* Edit mode puts the framer beside the portrait, because the portrait itself is the file
+   picker there. Column so the button sits under the image rather than shrinking it. */
+.stonetop-npc-portrait-edit {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	flex: none;
+}
+
+.stonetop-frame-portrait-btn {
+	flex: 0 0 auto;
+	width: auto;
+	padding: 2px 8px;
+	font-size: 0.8em;
+	line-height: 1.4;
+	white-space: nowrap;
 }
