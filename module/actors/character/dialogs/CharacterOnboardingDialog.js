@@ -18,6 +18,7 @@ import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
 import { StonetopAutocomplete } from "../../../utils/autocomplete.js";
 import { wellVersedTopicSummary } from "./well-versed-topics.js";
 import { LORE_TERM_TOOLTIPS } from "../../../utils/lore-terms.js";
+import { getHoverDescriptionSetting } from "../../../settings.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
 import { effectiveSubgroupMax } from "./possession-choice-cap.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
@@ -135,9 +136,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// show that they stepped away mid-creation.
 		this._onExit             = onExit ?? null;
 		// Pre-seed cache with glossaries so getData() and _lookupWord share one lookup path.
+		// The lore terms (god names and their aliases) are the one glossary the "On Hover
+		// Info" menu governs — drop them when that toggle is off and the word simply has no
+		// entry, so no tooltip binds. The trait glossary and move lookups are unaffected.
 		this._wordCache = new Map([
 			...Object.entries(ANIMAL_COMPANION_TRAIT_GLOSSARY),
-			...Object.entries(LORE_TERM_TOOLTIPS),
+			...(getHoverDescriptionSetting("hoverDescriptionsLoreTerms")
+				? Object.entries(LORE_TERM_TOOLTIPS)
+				: []),
 		]);
 		this._hoveredAnchor = null;
 
@@ -3376,7 +3382,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		const source = anchor.querySelector(".stonetop-onboarding-arcana-preview");
 		if (!source?.children.length) return;
 		const popup = document.createElement("div");
-		popup.className = "stonetop-arcana-preview-popup";
+		// `stonetop-hover-popup` is the shared marker Reduce Motion suppresses (styles/stonetop.css).
+		popup.className = "stonetop-hover-popup stonetop-arcana-preview-popup";
 		popup.innerHTML = source.innerHTML;
 		// Drop the preview just below the hovered card (these grids sit near the top of
 		// their step); flips above only if it would run off the bottom of the viewport.

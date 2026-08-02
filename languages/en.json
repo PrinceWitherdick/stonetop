@@ -257,7 +257,7 @@
       },
       "openSheetsInEditMode": {
         "name": "Open Sheets in Edit Mode",
-        "hint": "Open character, steading, and monster sheets in Edit mode instead of Play mode. The header wrench still switches modes per sheet."
+        "hint": "Open character, steading, monster, and NPC sheets in Edit mode instead of Play mode. The header wrench still switches modes per sheet. NPC sheets you don't own always open in Play mode."
       },
       "reduceMotion": {
         "name": "Reduce Motion",
@@ -265,7 +265,7 @@
       },
       "restoreWindowsOnReload": {
         "name": "Restore Open Windows on Reload",
-        "hint": "Reopen the character, steading, monster, item, and journal sheets you had open, at the same position and size, when you reload Foundry. Personal to this browser."
+        "hint": "Reopen the character, steading, monster, NPC, item, and journal sheets you had open, at the same position and size, when you reload Foundry. Personal to this browser."
       },
       "showRollStatChips": {
         "name": "Show Roll Stat Chips",
@@ -291,7 +291,7 @@
       },
       "hoverDescriptionsEnabled": {
         "name": "Show On Hover Info",
-        "hint": "Turn off all hover descriptions and hover info panels at once."
+        "hint": "Turn off every hover description and hover info panel below at once."
       },
       "hoverDescriptionsStats": {
         "name": "Hover Descriptions: Stats",
@@ -299,7 +299,7 @@
       },
       "hoverDescriptionsBasicMoves": {
         "name": "Hover Descriptions: Basic Moves",
-        "hint": "Show the Basic Move description panel when hovering over the Basic Moves list."
+        "hint": "Show the move description panel when hovering the Basic Moves list on a character sheet, or the moves list on Stonetop's own sheet."
       },
       "hoverDescriptionsPlaybookMoves": {
         "name": "Hover Descriptions: Playbook Moves",
@@ -319,7 +319,7 @@
       },
       "hoverDescriptionsInvocations": {
         "name": "Hover Descriptions: Invocation Effects",
-        "hint": "On the Lightbearer's Invocations tab, explain what an Invocation's Reduced and Empowered effects mean when hovering their labels."
+        "hint": "On the Lightbearer's Invocations tab and in the level-up picker, explain what an Invocation's Reduced and Empowered effects mean when hovering their labels."
       },
       "hoverDescriptionsVitals": {
         "name": "Hover Descriptions: Vitals",
@@ -331,7 +331,7 @@
       },
       "hoverDescriptionsSteadingStats": {
         "name": "Hover Descriptions: Steading Stats",
-        "hint": "On Stonetop's sheet, explain Surplus, Fortunes, Prosperity, Defenses, Population, and Size when hovering those labels."
+        "hint": "On Stonetop's sheet, explain Surplus, Fortunes, Prosperity, Defenses, Population, Size, and its Debilities when hovering those labels."
       },
       "hoverDescriptionsValues": {
         "name": "Hover Descriptions: Trade Values",
@@ -340,6 +340,14 @@
       "hoverDescriptionsDebilities": {
         "name": "Hover Descriptions: Debilities",
         "hint": "In move text and prose, embolden “debility” and explain the three character debilities (Weakened, Dazed, Miserable) when hovering it."
+      },
+      "hoverDescriptionsJournalLinks": {
+        "name": "Hover Descriptions: Journal Cross-links",
+        "hint": "Show an entry's one-line summary when hovering a link into the Stonetop journals — in journal prose, on stat blocks and NPC sheets, and in the Welcome and Setting Overview windows. Turning this off only removes the hover; links you can and can't open are unchanged."
+      },
+      "hoverDescriptionsLoreTerms": {
+        "name": "Hover Descriptions: Lore Terms",
+        "hint": "Explain Stonetop's four gods (Danu, Aratis, Helior, Tor) when hovering their names in the Character Introductions prompts and the character creation wizard."
       }
     },
     "newCharacter": {
@@ -495,6 +503,7 @@
       "notePlaceholder": "How they feel, why…",
       "noteExpand": "Show the whole note",
       "noteCollapse": "Shrink the note back to one line",
+      "open": "Open {name}'s sheet",
       "showTooltip": "Show this person on the sheet",
       "drop": {
         "added": "{name} added to Relationships.",
@@ -505,7 +514,6 @@
         "unsupported": "Only player characters and NPCs can go in Relationships.",
         "compendium": "Import {name} into the world first, then drop them here."
       },
-      "open": "Open {name}'s sheet",
       "feels1": "{subject} hates {object}",
       "feels2": "{subject} dislikes {object}",
       "feels3": "{subject} feels neutral toward {object}",
@@ -631,11 +639,11 @@
           "failure": "On a 6-",
           "save": "Save Move",
           "noXpOnMiss": "Don't mark XP on a miss",
-          "resourceHint": "A row of boxes to hold/spend something (e.g. Favor). Set how many; leave at 0 for none.",
+          "resourceHint": "A row of circles to hold/spend something (e.g. Favor). Set how many; leave at 0 for none.",
           "resourceName": "Name",
           "resourceNamePlaceholder": "e.g. Favor",
-          "resourceMax": "Boxes",
-          "resourceLabels": "Box labels (optional, comma-separated)",
+          "resourceMax": "Circles",
+          "resourceLabels": "Circle labels (optional, comma-separated)",
           "resourceLabelsPlaceholder": "e.g. some left, last one, out",
           "bonusesHint": "Ongoing bonuses this move grants while it's learned. Leave at 0 for none.",
           "hpBonus": "+Max HP",

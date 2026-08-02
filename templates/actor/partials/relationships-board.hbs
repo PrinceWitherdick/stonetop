@@ -118,11 +118,17 @@
 						      browser gives the link neither focus nor Enter, and the card's own
 						      tabindex only reaches the card. The card's arrow keys are unaffected —
 						      they are bound in the bubble phase off the CARD, and this is a
-						      different focus target. --}}
+						      different focus target.
+
+						      aria-label, not data-tooltip: with no href, nothing about this
+						      element says it goes anywhere, and a tab stop that announces only a
+						      name gives a screen-reader user nothing to act on. No hover bubble,
+						      because the cards are packed tight enough that one would cover the
+						      neighbours — the same call the note caret makes. --}}
 						{{#if uuid}}
 						<a class="stonetop-rel-card-name stonetop-rel-open" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
 						   role="link" tabindex="0"
-						   data-tooltip='{{localize "stonetop.relationships.open" name=name}}'>{{name}}</a>
+						   aria-label='{{localize "stonetop.relationships.open" name=name}}'>{{name}}</a>
 						{{else}}
 						<span class="stonetop-rel-card-name" data-tooltip="{{#if tooltip}}{{tooltip}}{{else}}{{name}}{{/if}}">{{name}}</span>
 						{{/if}}
@@ -213,9 +219,11 @@
 						      them out of the tab order. Emitted regardless of canRate: reading
 						      someone's note is not an edit, and a viewer who cannot type in the
 						      field is exactly the one who has no other way to see the end of it.
-						      aria-expanded and the label are kept in step by the same handler. --}}
+						      aria-expanded and the label are kept in step by the same handler. Labelled
+						      but deliberately NOT given a data-tooltip: the caret sits directly under the
+						      note it opens, so a hover bubble lands on top of the text the user is trying
+						      to read. --}}
 						<button type="button" class="stonetop-rel-note-toggle" aria-expanded="false"
-						        data-tooltip='{{localize "stonetop.relationships.noteExpand"}}'
 						        aria-label='{{localize "stonetop.relationships.noteExpand"}}'>
 							{{!-- A masked note-caret.svg rather than fa-chevron-down: the control is a wide,
 							      shallow lid under the note, and the FA glyph only reached those proportions

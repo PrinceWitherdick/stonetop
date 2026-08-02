@@ -3,7 +3,7 @@ import { openOrFocus } from "../utils/open-or-focus.js";
 import { crewExists } from "../utils/crew.js";
 import { sign, rollSeasonsCard } from "../utils/roll-engine.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
-import { getSetting, setSetting } from "../settings.js";
+import { getSetting, setWorldSetting } from "../settings.js";
 import { escHtml } from "../utils/strings.js";
 import { CHART_GROUPS, HOME_GROUP } from "./expedition-data.js";
 import { saveChronicleFromButton } from "../utils/chronicle.js";
@@ -403,9 +403,14 @@ export class ExpeditionDialog extends StepperDialog {
 	}
 
 	// Update the in-memory draft synchronously, then persist it to the world setting.
+	//
+	// Written through setWorldSetting: `expeditionAnswers` is WORLD-scoped, and only a GM may
+	// write one. The dialog is GM prep (its hotbar macro is seeded inside a GM-only block), so
+	// that only ever catches a stray call. The draft updates in memory first and unconditionally,
+	// so a non-GM who somehow reached the window still sees their own typing until it closes.
 	async _persistLog(log) {
 		this._logDraft = log;
-		await setSetting(ANSWERS_SETTING, log);
+		await setWorldSetting(ANSWERS_SETTING, log);
 	}
 
 	// The trip currently being edited, or null before any exists.
@@ -472,7 +477,8 @@ export class ExpeditionDialog extends StepperDialog {
 	async _saveChronicle(button) {
 		await saveChronicleFromButton(button, {
 			context:    "Expedition",
-			beforeSave: () => (this._logDraft ? setSetting(ANSWERS_SETTING, this._logDraft) : undefined),
+			// Through _persistLog so the GM guard on the world write lives in one place.
+			beforeSave: () => (this._logDraft ? this._persistLog(this._logDraft) : undefined),
 		});
 	}
 

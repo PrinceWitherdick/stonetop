@@ -45,11 +45,17 @@
 				      natively draggable, which on the board would fight the card's own drag.
 				      An href is also what would have made it focusable and Enter-activatable,
 				      so tabindex + role restore the half worth keeping, and
-				      wireRelationshipLinks binds the keys. --}}
+				      wireRelationshipLinks binds the keys.
+
+				      aria-label, not data-tooltip: with no href, nothing about this element says
+				      it goes anywhere, and a screen reader would otherwise announce a bare name
+				      with no hint that it is actionable. It carries no hover bubble because the
+				      names sit in a dense list where one would cover the rows underneath — the
+				      same call the note caret makes. --}}
 				{{#if uuid}}
 				<a class="stonetop-rel-name stonetop-rel-open" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
 				   role="link" tabindex="0"
-				   data-tooltip='{{localize "stonetop.relationships.open" name=name}}'>{{name}}</a>
+				   aria-label='{{localize "stonetop.relationships.open" name=name}}'>{{name}}</a>
 				{{else}}
 				<span class="stonetop-rel-name">{{name}}</span>
 				{{/if}}

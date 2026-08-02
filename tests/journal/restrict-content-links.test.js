@@ -24,9 +24,12 @@ class FakeElement {
 }
 
 class FakeLink {
-	constructor(uuid, label, parent = null, tooltip = undefined) {
+	constructor(uuid, label, parent = null, tooltip = undefined, stonetopSummary = undefined) {
 		this.dataset = { uuid };
 		if (tooltip !== undefined) this.dataset.tooltip = tooltip;
+		// What applyLocationTooltips RECORDS, as opposed to the hover it stamps. The two
+		// diverge when the reader has cross-link hovers switched off.
+		if (stonetopSummary !== undefined) this.dataset.stonetopSummary = stonetopSummary;
 		this.textContent = label;
 		this.replacedWith = undefined; // set by replaceWith if neutered
 		this.parent = parent;
@@ -66,9 +69,9 @@ beforeEach(() => {
 // A world JournalEntry the player can't observe. `pageType` models the entry's
 // page (a Location/Lore entry is "location"; the GM-only bestiary codex is
 // "bestiary") so isSpoilerTarget can tell whether the summary is safe to keep.
-function worldLink(uuid, label, canObserve, { parent = null, tooltip, pageType = "location" } = {}) {
+function worldLink(uuid, label, canObserve, { parent = null, tooltip, stonetopSummary, pageType = "location" } = {}) {
 	worldDocs.set(uuid, { testUserPermission: () => canObserve, pages: [{ type: pageType }] });
-	return new FakeLink(uuid, label, parent, tooltip);
+	return new FakeLink(uuid, label, parent, tooltip, stonetopSummary);
 }
 
 describe("restrictContentLinks", () => {
@@ -112,6 +115,37 @@ describe("restrictContentLinks", () => {
 		// bare text even though it carried a summary.
 		const link = worldLink("JournalEntry.beast1", "the aurochs", false, {
 			tooltip: "A great horned beast of the open grass.", pageType: "bestiary",
+		});
+		restrictContentLinks(rootWith([link]));
+		expect(link.replacedWith).toBeInstanceOf(FakeText);
+		expect(link.replacedWith.text).toBe("the aurochs");
+	});
+
+	// ── Hover descriptions off ────────────────────────────────────────────────
+	// applyLocationTooltips records the summary either way but only stamps the hover
+	// when the reader wants cross-link hovers. What a player may READ must not follow
+	// their hover preference, so classification reads the recorded summary.
+
+	it("keeps the summarized span when hovers are off (summary recorded, no tooltip)", () => {
+		const link = worldLink("JournalEntry.place1", "Marshedge", false, {
+			stonetopSummary: "A fortified town at the edge of the marsh.", pageType: "location",
+		});
+		restrictContentLinks(rootWith([link]));
+		const span = link.replacedWith;
+		// Still a non-clickable span, not a flatten — the reader loses the hover, not the word.
+		expect(span).toBeInstanceOf(FakeElement);
+		expect(span.tagName).toBe("span");
+		expect(span.textContent).toBe("Marshedge");
+		expect(span.className).toBe("content-summary");
+		// …and carries no tooltip, because there was none to carry.
+		expect(span.dataset.tooltip).toBeUndefined();
+	});
+
+	it("still hides a bestiary link when hovers are off", () => {
+		// The spoiler rule is independent of the hover setting: a recorded summary on a
+		// `bestiary` target must not resurrect the entry as a hoverable span.
+		const link = worldLink("JournalEntry.beast1", "the aurochs", false, {
+			stonetopSummary: "A great horned beast of the open grass.", pageType: "bestiary",
 		});
 		restrictContentLinks(rootWith([link]));
 		expect(link.replacedWith).toBeInstanceOf(FakeText);

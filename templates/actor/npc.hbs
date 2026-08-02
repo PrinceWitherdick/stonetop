@@ -102,12 +102,15 @@
 			<div class="stonetop-npc-stat-block">
 
 				{{!-- Following — the PC(s) who've recruited this NPC as a follower (derived
-				     from the follower cards that link back here). Click to open their sheet. --}}
+				     from the follower cards that link back here). Click to open their sheet.
+				     Labelled rather than tooltipped: these carry no href, so the label is the
+				     only thing that says they lead anywhere, and they sit inline in a run of
+				     prose where a hover bubble would land on the names beside them. --}}
 				{{#if stonetop.isFollowing}}
 				<section class="stonetop-npc-field stonetop-npc-following">
 					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.following"}}</strong>
 					<span class="stonetop-npc-prose stonetop-npc-following-list">
-						{{#each stonetop.following}}<a class="stonetop-npc-following-pc" data-pc-id="{{id}}" data-tooltip="Open {{name}}'s sheet"><i class="fas fa-user"></i> {{name}}</a>{{#unless @last}}, {{/unless}}{{/each}}
+						{{#each stonetop.following}}<a class="stonetop-npc-following-pc" data-pc-id="{{id}}" aria-label='{{localize "stonetop.relationships.open" name=name}}'><i class="fas fa-user"></i> {{name}}</a>{{#unless @last}}, {{/unless}}{{/each}}
 					</span>
 				</section>
 				{{/if}}

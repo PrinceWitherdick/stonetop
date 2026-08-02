@@ -730,8 +730,9 @@ function setNoteOpen(wrap, open, onResize) {
 	if (btn) {
 		const label = game.i18n.localize(`stonetop.relationships.${open ? "noteCollapse" : "noteExpand"}`);
 		btn.setAttribute("aria-expanded", open ? "true" : "false");
+		// aria-label only — no data-tooltip. The caret sits under the note, so a hover bubble
+		// covers the very text it was opened to reveal.
 		btn.setAttribute("aria-label", label);
-		btn.dataset.tooltip = label;
 	}
 	onResize?.();
 }

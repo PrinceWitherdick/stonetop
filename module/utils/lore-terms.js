@@ -8,6 +8,7 @@
 // match the onboarding dialog's _lookupWord; some phrases alias to a god's summary.
 
 import { escHtml, escapeRegExp } from "./strings.js";
+import { getHoverDescriptionSetting } from "../settings.js";
 
 const DANU =
 	"Danu — the Great Mother, the Goddess, She-Who-Provides — is one of the four main gods of Stonetop. She is the deity of the earth and the wild places, of beasts and birds, of green growing things. She has long been revered by all peoples, though not always worshipped, nor served by priests.";
@@ -56,6 +57,9 @@ const _WRAP_RE = new RegExp(
  */
 export function wrapLoreTerms(html) {
 	if (!html) return html;
+	// Honour the "On Hover Info" toggles: with lore-term hovers off, leave the prose
+	// exactly as authored rather than wrapping words in a span that shows nothing.
+	if (!getHoverDescriptionSetting("hoverDescriptionsLoreTerms")) return html;
 	return html.replace(_WRAP_RE, match => {
 		const summary = LORE_TERM_TOOLTIPS[WRAP_TERMS[match]];
 		if (!summary) return match;

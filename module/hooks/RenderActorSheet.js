@@ -49,7 +49,8 @@ export function onRenderActorSheet(sheet, html) {
 		// Baked @UUID cross-links in the stat block's prose (e.g. a Fae's "Fae nature"
 		// → The Fae lore entry) render as content-links via enrichHTML; give them the
 		// same entry-summary hover the journal sheets show. Independent of the creature/
-		// gear hover settings — it's the cross-link tooltip, a separate feature.
+		// gear hover settings — it's the cross-link tooltip, which carries its own
+		// `hoverDescriptionsJournalLinks` toggle (applied inside applyLocationTooltips).
 		applyLocationTooltips(root);
 		return;
 	}
